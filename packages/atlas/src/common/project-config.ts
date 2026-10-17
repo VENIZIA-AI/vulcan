@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
-import { compileReleaseTemplate } from '@/releases/template';
 
 /** The project manifest (Project Contract v1, C1) - what atlas reads, and nothing else. */
 export const MANIFEST_FILE = '.agents/vulcan.manifest.json';
@@ -9,7 +8,6 @@ const ROOT_ENV = 'VULCAN_PROJECT_ROOT';
 /** The manifest versions this atlas reads (V2); outside it, it says which VULCAN to upgrade to. */
 const MANIFEST_SCHEMA_VERSION = 1;
 
-const DEFAULT_RELEASE_COMMIT = '[#<issue>] chore(<dir>): release v<version>';
 const DEFAULT_TAG_PATTERN = '<dir>-v<version>';
 const DEFAULT_BUNDLE = '.agents/knowledge';
 
@@ -28,8 +26,6 @@ export interface IAtlasProject {
   name: string;
   /** Release order; retired ones included, so their old changelogs and tags stay readable. */
   packages: IAtlasPackage[];
-  /** `atlas.releaseCommit` compiled: named groups `dir`, `version`, `issue`. */
-  releaseCommit: RegExp;
   /** `release.tagPattern`, the template of a release tag. */
   tagPattern: string;
   /** `release.ignoreTags`: globs of tags neither read nor checked. */
@@ -90,8 +86,6 @@ export const toAtlasProject = (opts: { root: string; manifest: unknown }): IAtla
     root: opts.root,
     name: stringOf({ value: manifest.name }) ?? basename(opts.root),
     packages: packagesOf({ value: manifest.packages }),
-    // Read from tags once releases are computed (Task 11); until then the default release commit.
-    releaseCommit: compileReleaseTemplate({ template: DEFAULT_RELEASE_COMMIT }),
     tagPattern: stringOf({ value: release.tagPattern }) ?? DEFAULT_TAG_PATTERN,
     ignoreTags: (Array.isArray(release.ignoreTags) ? release.ignoreTags : []).filter(
       (glob): glob is string => typeof glob === 'string',

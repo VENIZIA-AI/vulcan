@@ -1,76 +1,14 @@
-import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { describe, expect, test } from 'bun:test';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { compileReleaseTemplate } from '@/releases';
 import { resolveChangelogPackages } from '@/changelogs';
 import { AtlasReleases } from '@/releases/generator';
 import { toAtlasProject } from '@/common/project-config';
 import { IGNIS_PACKAGES } from '../fixtures/ignis-packages';
 import { IGNIS_HAS_HISTORY, IGNIS_ROOT } from '../ignis-root.helper';
 
-const tmpDirs: string[] = [];
-
-const makeTmpDir = (): string => {
-  const dir = mkdtempSync(join(tmpdir(), 'vulcan-atlas-releases-'));
-
-  tmpDirs.push(dir);
-
-  return dir;
-};
-
-afterAll(() => {
-  for (const dir of tmpDirs) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
 const withFrontmatter = (opts: { frontmatter: string; body: string }): string =>
   `---\n${opts.frontmatter}\n---\n\n${opts.body}\n`;
-
-describe('AtlasReleases.parseReleaseSubject', () => {
-  test('reads the package and the version out of a prerelease subject', () => {
-    expect(
-      AtlasReleases.parseReleaseSubject({
-        subject: 'chore(kernel): release v0.2.0-21 [prerelease]',
-      }),
-    ).toEqual({ package: 'kernel', version: '0.2.0-21' });
-  });
-
-  test('reads a hyphenated package name and a patch mode', () => {
-    expect(
-      AtlasReleases.parseReleaseSubject({ subject: 'chore(core-server): release v0.1.5 [patch]' }),
-    ).toEqual({ package: 'core-server', version: '0.1.5' });
-  });
-
-  test('reads a release subject that carries its issue number', () => {
-    expect(
-      AtlasReleases.parseReleaseSubject({
-        subject: '[#80] chore(kernel): release v0.2.1-0 [prerelease]',
-      }),
-    ).toEqual({ package: 'kernel', version: '0.2.1-0' });
-  });
-
-  test('reads a release subject that carries several issue numbers', () => {
-    expect(
-      AtlasReleases.parseReleaseSubject({
-        subject: '[#80][#81] chore(core-server): release v0.2.1 [patch]',
-      }),
-    ).toEqual({ package: 'core-server', version: '0.2.1' });
-  });
-
-  test('ignores a subject that is not a release commit', () => {
-    expect(
-      AtlasReleases.parseReleaseSubject({ subject: 'feat(atlas): the symbol tool' }),
-    ).toBeUndefined();
-  });
-
-  test('ignores a release-shaped subject with no scope', () => {
-    expect(
-      AtlasReleases.parseReleaseSubject({ subject: 'chore: release v0.2.0-21 [prerelease]' }),
-    ).toBeUndefined();
-  });
-});
 
 describe('resolveChangelogPackages - what migrate writes', () => {
   test('a packages frontmatter list wins over everything else in the file', () => {
@@ -225,90 +163,98 @@ const IGNIS_PROJECT = toAtlasProject({
   },
 });
 
-describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)('AtlasReleases.check', () => {
-  // Content, not bytes: 0.2.0-0 adds `packageMap`, and an `order` is a release count, not a position.
-  test('reproduces every release, live package and changelog entry of the committed table', () => {
-    const committed = JSON.parse(readFileSync(IGNIS_RELEASES, 'utf8'));
-    const rendered = JSON.parse(AtlasReleases.render({ project: IGNIS_PROJECT }));
-    const withoutOrder = (entries: { order?: number }[]) =>
-      entries.map(({ order: _order, ...entry }) => entry);
+/** The two IGNIS release commits that were never tagged: core 0.1.1 and dev-configs 0.0.1. */
+const UNTAGGED = new Set(['3a10737d', 'f437d628']);
 
-    expect(rendered.livePackages).toEqual(committed.livePackages);
-    const releasesWithoutOrder = (table: Record<string, { order?: number }[]>) =>
-      Object.fromEntries(
-        Object.entries(table).map(([name, records]) => [name, withoutOrder(records)]),
+describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
+  'releases computed from IGNIS tags (D1)',
+  () => {
+    const committed: {
+      releases: Record<string, { version: string; date: string; sha: string; order: number }[]>;
+      changelogs: { id: string; file: string; packages: string[]; order: number }[];
+    } = hasGeneratedTable
+      ? JSON.parse(readFileSync(IGNIS_RELEASES, 'utf8'))
+      : { releases: {}, changelogs: [] };
+    const computed = JSON.parse(AtlasReleases.render({ project: IGNIS_PROJECT }));
+
+    test('every committed release comes back from its tag, with its date and commit', () => {
+      const spelled = (records: { version: string; date: string; sha: string }[] = []) =>
+        records.map(record => `${record.version} ${record.date} ${record.sha}`).sort();
+      // packages/core became packages/core-server (one npm name, @venizia/ignis): the old table kept
+      // its releases under 'core', they are core-server's history now. Two release commits were never
+      // tagged, so no release comes back for them: core 0.1.1 (3a10737d) and dev-configs 0.0.1.
+      const tagged = (records: { version: string; sha: string; date: string }[] = []) =>
+        records.filter(record => !UNTAGGED.has(record.sha));
+      const expected: Record<string, { version: string; date: string; sha: string }[]> = {
+        ...committed.releases,
+        'core-server': tagged([
+          ...(committed.releases['core-server'] ?? []),
+          ...(committed.releases.core ?? []),
+        ]),
+        'dev-configs': tagged(committed.releases['dev-configs']),
+      };
+
+      delete expected.core;
+
+      expect(Object.keys(computed.releases).sort()).toEqual(Object.keys(expected).sort());
+
+      for (const [dir, records] of Object.entries(expected)) {
+        expect(spelled(computed.releases[dir]), dir).toEqual(spelled(records));
+      }
+    });
+
+    test('every changelog falls after the same releases - but those the old table put at the end', () => {
+      // The old table gave a release tagged on a branch merged later the "uncommitted" order (after
+      // everything); a merged branch's release now takes the position of its merge.
+      const stuck = Math.max(
+        ...Object.values(committed.releases)
+          .flat()
+          .map(record => record.order),
       );
-
-    expect(releasesWithoutOrder(rendered.releases)).toEqual(
-      releasesWithoutOrder(committed.releases),
-    );
-
-    // Orders are release counts now, positions before: what must hold is the window each changelog
-    // falls in - after exactly the same releases as the committed table says.
-    const releaseOrders = (table: { releases: Record<string, { sha: string; order: number }[]> }) =>
-      new Map(
-        Object.values(table.releases)
+      const committedOrder = new Map(
+        Object.values(committed.releases)
+          .flat()
+          .filter(record => record.order !== stuck && !UNTAGGED.has(record.sha))
+          .map(record => [record.sha, record.order]),
+      );
+      const computedOrder = new Map<string, number>(
+        Object.values(computed.releases as Record<string, { sha: string; order: number }[]>)
           .flat()
           .map(record => [record.sha, record.order]),
       );
-    const committedReleases = releaseOrders(committed);
-    const renderedReleases = releaseOrders(rendered);
-    const committedChangelogs = new Map<string, number>(
-      committed.changelogs.map((entry: { id: string; order: number }) => [entry.id, entry.order]),
-    );
-    const misplaced: string[] = [];
+      const entryOrder = new Map(committed.changelogs.map(entry => [entry.id, entry.order]));
+      const misplaced: string[] = [];
 
-    for (const entry of rendered.changelogs as { id: string; order: number }[]) {
-      for (const [sha, order] of renderedReleases) {
-        const before = (committedChangelogs.get(entry.id) ?? 0) > (committedReleases.get(sha) ?? 0);
+      for (const entry of computed.changelogs as { id: string; order: number }[]) {
+        for (const [sha, order] of committedOrder) {
+          const before = (entryOrder.get(entry.id) ?? 0) > order;
+          const now = entry.order > (computedOrder.get(sha) ?? 0);
 
-        if (before !== entry.order > order) {
-          misplaced.push(`${entry.id} / ${sha}`);
+          if (before !== now) {
+            misplaced.push(`${entry.id} / ${sha}`);
+          }
         }
       }
-    }
 
-    expect(misplaced).toEqual([]);
+      expect(committedOrder.size).toBeGreaterThan(600);
+      expect(misplaced).toEqual([]);
+    });
 
-    // The table reads only declared packages now (C3), and IGNIS's entries declare none until it
-    // runs migrate: every other field is the committed table's.
-    const withoutPackages = (entries: { packages?: string[]; order?: number }[]) =>
-      entries.map(({ packages: _packages, order: _order, ...entry }) => entry);
+    test('what migrate will write: the committed packages, except the explained changes', () => {
+      for (const entry of committed.changelogs) {
+        const changelog = readFileSync(
+          join(IGNIS_ROOT, 'docs/wiki/content/changelogs', entry.file),
+          'utf8',
+        );
 
-    expect(withoutPackages(rendered.changelogs)).toEqual(withoutPackages(committed.changelogs));
-
-    // What migrate will write: the committed table's packages, except the explained changes.
-    for (const entry of committed.changelogs as {
-      id: string;
-      file: string;
-      packages: string[];
-    }[]) {
-      const text = readFileSync(
-        join(IGNIS_ROOT, 'docs/wiki/content/changelogs', entry.file),
-        'utf8',
-      );
-
-      expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES }), entry.id).toEqual(
-        EXPLAINED_CHANGES[entry.id] ?? entry.packages,
-      );
-    }
-  });
-
-  test('reads stale once a release is dropped from the table', () => {
-    const outputPath = join(makeTmpDir(), 'releases.json');
-
-    writeFileSync(outputPath, AtlasReleases.render({ project: IGNIS_PROJECT }));
-    expect(AtlasReleases.check({ project: IGNIS_PROJECT, outputPath })).toBe(true);
-
-    const table = JSON.parse(readFileSync(outputPath, 'utf8'));
-    const packageName = Object.keys(table.releases)[0];
-
-    table.releases[packageName] = table.releases[packageName].slice(1);
-    writeFileSync(outputPath, `${JSON.stringify(table, null, 2)}\n`);
-
-    expect(AtlasReleases.check({ project: IGNIS_PROJECT, outputPath })).toBe(false);
-  });
-});
+        expect(
+          resolveChangelogPackages({ text: changelog, packages: IGNIS_PACKAGES }),
+          entry.id,
+        ).toEqual(EXPLAINED_CHANGES[entry.id] ?? entry.packages);
+      }
+    });
+  },
+);
 
 describe('AtlasReleases with project packages', () => {
   test('a retired package keeps its old changelog entries', () => {
@@ -345,17 +291,6 @@ describe('AtlasReleases with project packages', () => {
     });
 
     expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([]);
-  });
-
-  test('a release subject is read with the configured template', () => {
-    const pattern = compileReleaseTemplate({ template: 'chore(release): v<version>' });
-
-    expect(
-      AtlasReleases.parseReleaseSubject({
-        subject: 'chore(release): v0.1.0-2 [prerelease]',
-        pattern,
-      }),
-    ).toEqual({ package: undefined, version: '0.1.0-2' });
   });
 });
 

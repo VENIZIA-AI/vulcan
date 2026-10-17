@@ -177,7 +177,7 @@ describe('buildServer', () => {
     }
   });
 
-  test('repo mode answers changes from the generated release table', async () => {
+  test('repo mode computes releases from the tags: a version window resolves with no release table', async () => {
     const transport = buildServer({
       mode: AtlasModes.REPOSITORY,
       root: REPOSITORY_ROOT,
@@ -197,12 +197,13 @@ describe('buildServer', () => {
       }),
     );
 
-    const payload: { entries?: { id: string }[] } = JSON.parse(
+    const payload: { package?: string; entries?: { id: string }[] } = JSON.parse(
       reply.result?.content?.[0]?.text ?? '{}',
     );
 
+    // IGNIS's changelogs declare no packages until it runs migrate, so only the window is asserted.
     expect(reply.error?.message).toBeUndefined();
-    expect((payload.entries ?? []).length).toBeGreaterThan(0);
+    expect(payload.package).toBe('@venizia/ignis-kernel');
   });
 
   test('repo mode answers symbol from the generated table', async () => {
