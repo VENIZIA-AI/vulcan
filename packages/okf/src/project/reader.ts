@@ -142,6 +142,10 @@ export const readOkfProject = (): IOkfProject => {
       value: atlas.tagPattern,
       fallback: OkfProjectConstants.DEFAULT_TAG_PATTERN,
     }),
+    contentsFiles: (Array.isArray(recordOf({ value: okf.contents }).files)
+      ? stringsOf({ value: recordOf({ value: okf.contents }).files })
+      : OkfProjectConstants.DEFAULT_CONTENTS_FILES
+    ).map(file => resolve(root, file)),
     packages: packagesOf({ value: config.packages, root }),
     renderers: renderersOf({ value: okf.renderers }),
     regions: regionsOf({ value: okf.regions, bundle }),

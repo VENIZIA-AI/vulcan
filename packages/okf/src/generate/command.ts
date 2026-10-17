@@ -1,15 +1,24 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { replaceRegion } from './regions.ts';
+import { writeContents } from './contents-files.ts';
 import { loadGeneration } from './registry.ts';
 import { repoRelative } from '../source/index.ts';
 
 /** Writes exactly the configured regions and renderers, regions first. */
 export const gen = async (): Promise<void> => {
   const { renderers, regions } = await loadGeneration();
+  // Every project's long agent-read files carry a contents list, whatever it renders.
+  const contents = writeContents();
+
+  for (const file of contents) {
+    console.log(`gen: wrote the contents list of ${file}`);
+  }
 
   if (renderers.length === 0 && regions.length === 0) {
-    console.log('gen: nothing configured - okf.renderers and okf.regions are empty');
+    if (contents.length === 0) {
+      console.log('gen: nothing configured - okf.renderers and okf.regions are empty');
+    }
 
     return;
   }

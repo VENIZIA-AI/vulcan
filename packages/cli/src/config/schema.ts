@@ -74,6 +74,10 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         .default({ order: [], labels: {} }),
       coverage: z.array(z.strictObject({ name: z.string(), path: z.string() })).default([]),
       denylist: z.array(z.string()).default([]),
+      /** Agent-read files outside the bundle that get a generated contents list when they pass 100 lines. */
+      contents: z
+        .strictObject({ files: z.array(z.string()).default(['AGENTS.md', '.agents/rules.md']) })
+        .default({ files: ['AGENTS.md', '.agents/rules.md'] }),
       viz: z
         .strictObject({
           outputs: z.array(z.string()).default([VIZ_OUTPUT]),
@@ -88,6 +92,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       sections: { order: [], labels: {} },
       coverage: [],
       denylist: [],
+      contents: { files: ['AGENTS.md', '.agents/rules.md'] },
       viz: { outputs: [VIZ_OUTPUT] },
     }),
   atlas: z

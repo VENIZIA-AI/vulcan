@@ -1,6 +1,7 @@
 ---
 title: Base Rules Fit Every Project
 description: The base rules drop what only fits IGNIS's own stack and workflow - three IDs are retired, two are reworded
+packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-17

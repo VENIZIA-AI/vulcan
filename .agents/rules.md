@@ -1,5 +1,16 @@
 # Agent rules - VULCAN
 
+<!-- okf:generated:contents start -->
+**Contents**
+
+- [W - Write boundaries](#w---write-boundaries)
+- [S - Security](#s---security)
+- [P - Process](#p---process)
+- [B - Build and quality](#b---build-and-quality)
+- [C - Code and writing](#c---code-and-writing)
+- [What is actually enforced](#what-is-actually-enforced)
+<!-- okf:generated:contents end -->
+
 **The rules every agent follows in this repository. This is the only file that holds them.**
 [`AGENTS.md`](../AGENTS.md) and every per-developer tool file (`CLAUDE.md`, `GEMINI.md`, ...) point
 here and restate nothing - a rule changes in one place or not at all.
