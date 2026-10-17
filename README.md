@@ -1,4 +1,25 @@
-# VULCAN
+<div align="center">
+
+<br />
+
+# :gear: VULCAN
+
+**One setup, one workflow and one coding style for every VENIZIA project.**
+
+[![npm](https://img.shields.io/npm/v/@venizia/vulcan.svg?style=flat-square&color=cb3837&label=@venizia/vulcan)](https://www.npmjs.com/package/@venizia/vulcan)
+[![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg?style=flat-square)](LICENSE.md)
+[![Bun](https://img.shields.io/badge/Bun-%E2%89%A51.4-f472b6.svg?style=flat-square&logo=bun&logoColor=white)](https://bun.sh)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6.svg?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+
+[Packages](#packages) &#8226;
+[Use it in a project](#use-it-in-a-project) &#8226;
+[Adopting VULCAN](docs/wiki/content/guides/adopting-vulcan.md) &#8226;
+[Work on VULCAN](#work-on-vulcan) &#8226;
+[Changelog](docs/wiki/content/changelogs/index.md)
+
+</div>
+
+---
 
 A VENIZIA platform: one setup, one workflow and one coding style for every project, and the single
 source of truth for knowledge tooling, agent tooling and atlas tooling.
