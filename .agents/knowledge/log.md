@@ -6,6 +6,11 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-17 - concepts that name code stay true
+
+Updated [atlas](/packages/atlas.md): `concepts stamp|check` and `make knowledge-symbols-check` (Project
+Contract v1, V4) - a concept's `symbols:` are locked by signature hash and checked after build.
+
 ## 2026-10-17 - V-C-02 caps parameters at 5
 
 Updated [design decisions](/overview/design-decisions.md): V-C-02 is one options object first, at most 5

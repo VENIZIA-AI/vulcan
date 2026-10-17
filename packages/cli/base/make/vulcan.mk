@@ -5,7 +5,8 @@
 VULCAN ?= bun x --no-install vulcan
 
 .PHONY: vulcan-sync vulcan-doctor agent-setup okf-check okf-check-strict okf-gen okf-coverage okf-viz \
-        surface-gen surface-check atlas-symbols atlas-releases changelogs-migrate
+        surface-gen surface-check atlas-symbols atlas-releases changelogs-migrate \
+        knowledge-symbols-check
 
 vulcan-sync:
 	@$(VULCAN) sync
@@ -53,3 +54,8 @@ atlas-releases:
 # Writes the packages: list into every changelog entry that declares none - once, then review it.
 changelogs-migrate:
 	@$(VULCAN) x atlas changelogs migrate
+
+# A concept may name code (`symbols:` in its frontmatter); this fails when a named symbol is gone or its
+# signature changed since `vulcan x atlas concepts stamp`. It reads the built .d.ts - run it after build.
+knowledge-symbols-check:
+	@$(VULCAN) x atlas concepts check
