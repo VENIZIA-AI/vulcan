@@ -163,8 +163,11 @@ const IGNIS_PROJECT = toAtlasProject({
   },
 });
 
-/** The IGNIS release commit that was never tagged: core 0.1.1 (dev-configs 0.0.1 was tagged 2026-10-17). */
-const UNTAGGED = new Set(['3a10737d']);
+/**
+ * A release the old table counted twice: the merge 3a10737d repeats core 0.1.1's release subject, and
+ * the old subject matcher took it for a second release. The tag names the release commit, 6c2d31b1.
+ */
+const DUPLICATE_RELEASE_COMMITS = new Set(['3a10737d']);
 
 describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
   'releases computed from IGNIS tags (D1)',
@@ -181,10 +184,10 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
       const spelled = (records: { version: string; date: string; sha: string }[] = []) =>
         records.map(record => `${record.version} ${record.date} ${record.sha}`).sort();
       // packages/core became packages/core-server (one npm name, @venizia/ignis): the old table kept
-      // its releases under 'core', they are core-server's history now. One release commit was never
-      // tagged, so no release comes back for it: core 0.1.1 (3a10737d).
+      // its releases under 'core', they are core-server's history now. The old table's duplicate of
+      // core 0.1.1 (the merge commit) is not a release.
       const tagged = (records: { version: string; sha: string; date: string }[] = []) =>
-        records.filter(record => !UNTAGGED.has(record.sha));
+        records.filter(record => !DUPLICATE_RELEASE_COMMITS.has(record.sha));
       const expected: Record<string, { version: string; date: string; sha: string }[]> = {
         ...committed.releases,
         'core-server': tagged([
@@ -214,7 +217,7 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
       const committedOrder = new Map(
         Object.values(committed.releases)
           .flat()
-          .filter(record => record.order !== stuck && !UNTAGGED.has(record.sha))
+          .filter(record => record.order !== stuck && !DUPLICATE_RELEASE_COMMITS.has(record.sha))
           .map(record => [record.sha, record.order]),
       );
       const computedOrder = new Map<string, number>(
