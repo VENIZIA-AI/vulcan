@@ -120,3 +120,31 @@ describe('SymbolStore package names from the table', () => {
     expect(store.lookup({ name: 'respond', package: 'core' })).toEqual([]);
   });
 });
+
+describe('SymbolStore, deferred (D2)', () => {
+  test('loads on the first question, once - a server starts without reading any declarations', () => {
+    let loads = 0;
+    const store = new SymbolStore({
+      load: () => {
+        loads += 1;
+
+        return { symbols: SYMBOLS, packageMap: IGNIS_PACKAGE_MAP };
+      },
+    });
+
+    expect(loads).toBe(0);
+    expect(store.lookup({ name: 'getError', package: 'helpers' })).toHaveLength(1);
+    expect(store.suggest({ name: 'getErr' })).toContain('getError');
+    expect(loads).toBe(1);
+  });
+
+  test('an empty store says why, in the words its owner gave', () => {
+    const store = new SymbolStore({
+      load: () => ({ symbols: [] }),
+      emptyReason: 'no symbols - build the packages first',
+    });
+
+    expect(store.isEmpty()).toBe(true);
+    expect(store.emptyReason).toBe('no symbols - build the packages first');
+  });
+});

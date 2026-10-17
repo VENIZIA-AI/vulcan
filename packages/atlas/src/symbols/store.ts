@@ -63,13 +63,49 @@ export class SymbolStore extends BaseHelper {
   private readonly byExactName = new Map<string, ISymbolRecord[]>();
   private readonly namesByLowerCase = new Map<string, string[]>();
 
-  private readonly packageMap: IPackageMapEntry[];
+  private packageMap: IPackageMapEntry[];
+  private loader?: () => { symbols: ISymbolRecord[]; packageMap?: IPackageMapEntry[] };
+  /** What the `symbol` tool says when the store holds nothing. */
+  readonly emptyReason: string;
 
-  constructor(opts: { symbols: ISymbolRecord[]; packageMap?: IPackageMapEntry[] }) {
+  /**
+   * `symbols` now, or `load` on the first question - reading declarations takes the compiler, and a
+   * server that waited for it at start would start slow.
+   */
+  constructor(opts: {
+    symbols?: ISymbolRecord[];
+    packageMap?: IPackageMapEntry[];
+    load?: () => { symbols: ISymbolRecord[]; packageMap?: IPackageMapEntry[] };
+    emptyReason?: string;
+  }) {
     super({ scope: SymbolStore.name });
 
     this.packageMap = opts.packageMap ?? [];
+    this.loader = opts.load;
+    this.emptyReason = opts.emptyReason ?? 'no symbol table in this build';
+    this.index({ symbols: opts.symbols ?? [] });
+  }
 
+  private ensureLoaded(): void {
+    const loader = this.loader;
+
+    if (loader === undefined) {
+      return;
+    }
+
+    this.loader = undefined;
+
+    try {
+      const loaded = loader();
+
+      this.packageMap = loaded.packageMap ?? this.packageMap;
+      this.index({ symbols: loaded.symbols });
+    } catch (error) {
+      this.logger.for('load').error('could not read the declarations | error: %s', error);
+    }
+  }
+
+  private index(opts: { symbols: ISymbolRecord[] }): void {
     for (const symbol of opts.symbols) {
       const exact = this.byExactName.get(symbol.name) ?? [];
 
@@ -112,11 +148,15 @@ export class SymbolStore extends BaseHelper {
 
   /** Whether no table was loaded at all - distinct from a table that simply does not carry a name. */
   isEmpty(): boolean {
+    this.ensureLoaded();
+
     return this.byExactName.size === 0;
   }
 
   /** Every exact-name match, narrowed by `package` when given; a name can exist in more than one package. */
   lookup(opts: { name: string; package?: string }): ISymbolRecord[] {
+    this.ensureLoaded();
+
     const found = this.byExactName.get(opts.name) ?? [];
 
     if (opts.package === undefined) {
@@ -131,6 +171,8 @@ export class SymbolStore extends BaseHelper {
 
   /** The closest known names to `name`: prefix matches first, then substrings, then near-misses. */
   suggest(opts: { name: string; limit?: number }): string[] {
+    this.ensureLoaded();
+
     const limit = opts.limit ?? DEFAULT_SUGGESTION_LIMIT;
     const wanted = opts.name.toLowerCase();
     const lowerNames = [...this.namesByLowerCase.keys()];

@@ -19,10 +19,18 @@ export class TypeScriptCompiler {
     return compiler;
   }
 
+  /**
+   * The project's own compiler when it has one - it emitted the declarations being read - else atlas's
+   * (a runtime dependency since 0.2.0-0), so a clean install still reads an installed package or a
+   * tarball.
+   */
   private static load(): typeof TypeScript {
-    // `atlas.typescriptFrom`: a project whose root does not carry typescript names the package that does.
     const from = hasAtlasProject() ? readAtlasProject().typescriptFrom : PROJECT_ROOT;
 
-    return createRequire(join(from, 'package.json'))('typescript');
+    try {
+      return createRequire(join(from, 'package.json'))('typescript');
+    } catch {
+      return createRequire(__filename)('typescript');
+    }
   }
 }
