@@ -14,29 +14,33 @@
   "engines": {
     "bun": ">=1.4"
   },
+  "scripts": {
+    "force-update": "bun run --filter \"@venizia/*\" force-update"
+  },
   "workspaces": {
     "packages": [
       "packages/*"
     ],
     "catalog": {
-      "@hono/zod-openapi": "1.6.3",
+      "@hono/zod-openapi": "^1.6.3",
       "@types/bun": "1.4.1",
       "@types/cytoscape-fcose": "2.2.5",
-      "@venizia/ignis-helpers": "0.2.2-5",
-      "cytoscape": "3.34.4",
-      "cytoscape-fcose": "2.2.0",
+      "@venizia/dev-configs": "0.3.1-0",
+      "@venizia/ignis-helpers": "^0.2.2-5",
+      "cytoscape": "^3.34.4",
+      "cytoscape-fcose": "^2.2.0",
       "eslint": "10.10.0",
       "oxfmt": "0.73.0",
       "oxlint": "1.88.0",
       "oxlint-tsgolint": "7.0.2004",
       "tsc-alias": "1.9.4",
-      "typescript": "6.0.3",
-      "zod": "4.5.4"
+      "typescript": "^6.0.3",
+      "zod": "^4.5.4"
     }
   },
   "devDependencies": {
     "@types/bun": "catalog:",
-    "@venizia/dev-configs": "0.3.1-0",
+    "@venizia/dev-configs": "catalog:",
     "@venizia/vulcan": "workspace:*",
     "oxfmt": "catalog:",
     "typescript": "catalog:"

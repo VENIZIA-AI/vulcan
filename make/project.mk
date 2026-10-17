@@ -1,28 +1,25 @@
 # The shared build and lint targets of one package. A package Makefile sets the variables below
 # and includes this file.
 #
-#   FORMATS      cjs esm (default) | cjs | plain - which outputs `build` emits
+#   FORMATS      cjs (default) | plain - which outputs `build` emits
 #   CJS_TSCONFIG the program the CJS pass emits (default .configs/tsconfig.build.json)
 #   CJS_OUT      where the CJS pass lands (default dist/cjs); empty: the tsconfig's own outDir
 #   POST_BUILD   a shell step only this package has, run after the emit
 #
 # Every tool comes from the package's node_modules/.bin, by absolute path: a recipe never depends on
-# PATH (`sh ./scripts/build.sh` once died at `tsc-alias: not found` with CJS emitted and ESM stale).
+# PATH (`sh ./scripts/build.sh` once died at `tsc-alias: not found` with half the output emitted).
 
 BIN := $(CURDIR)/node_modules/.bin
 TSC := $(BIN)/tsc
 TSC_ALIAS := $(BIN)/tsc-alias
-ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 
-FORMATS ?= cjs esm
+FORMATS ?= cjs
 CJS_TSCONFIG ?= .configs/tsconfig.build.json
 CJS_OUT ?= dist/cjs
-ESM_TSCONFIG := .configs/tsconfig.esm.json
 
-# The programs `build` emits, each type-checked before `rebuild` deletes dist: the ESM program swaps
-# module/moduleResolution and can fail where the CJS one passed, and one that fails after clean
-# leaves a dist with cjs/ and no esm/.
-EMIT_TSCONFIGS := $(if $(filter cjs,$(FORMATS)),$(CJS_TSCONFIG)) $(if $(filter esm,$(FORMATS)),$(ESM_TSCONFIG))
+# The programs `build` emits, each type-checked before `rebuild` deletes dist: one that fails after
+# clean leaves an empty dist.
+EMIT_TSCONFIGS := $(if $(filter cjs,$(FORMATS)),$(CJS_TSCONFIG))
 
 FMT_GLOB := "**/*.{ts,mts,js,mjs}"
 
@@ -45,12 +42,6 @@ ifneq ($(filter cjs,$(FORMATS)),)
 	@echo ">>> Building CJS..."
 	@$(TSC) -p $(CJS_TSCONFIG) --extendedDiagnostics
 	@$(TSC_ALIAS) -p tsconfig.json $(if $(CJS_OUT),--outDir $(CJS_OUT))
-endif
-ifneq ($(filter esm,$(FORMATS)),)
-	@echo ">>> Building ESM..."
-	@$(TSC) -p $(ESM_TSCONFIG) --extendedDiagnostics
-	@$(TSC_ALIAS) -p tsconfig.json --outDir dist/esm --resolve-full-paths
-	@bun $(ROOT)/scripts/esm-marker.ts
 endif
 	$(if $(POST_BUILD),@$(POST_BUILD))
 	@echo "DONE | Build completed."

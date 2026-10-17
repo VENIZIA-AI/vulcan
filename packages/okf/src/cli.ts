@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
- * vulcan-okf - one entry for the knowledge-bundle tooling. `okf.ts` runs as a child process, so it
- * keeps reading its own `process.argv` exactly as before the move.
+ * vulcan-okf - one entry for the knowledge-bundle tooling. `run.ts` runs as a child process, so it
+ * reads its own `process.argv`.
  */
 import { join } from 'node:path';
 
@@ -25,7 +25,7 @@ if (command === undefined || !OkfCommands.isValid(command)) {
   process.exit(2);
 }
 
-const child = Bun.spawn([process.execPath, join(import.meta.dir, 'okf.ts'), command, ...rest], {
+const child = Bun.spawn([process.execPath, join(import.meta.dir, 'run.ts'), command, ...rest], {
   stdio: ['inherit', 'inherit', 'inherit'],
 });
 

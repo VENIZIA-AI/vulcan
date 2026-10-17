@@ -6,7 +6,7 @@ TEST_SCRIPT := okf atlas cli
 
 TEST_TARGETS := $(addprefix test-,$(PACKAGES))
 
-.PHONY: test test-all $(TEST_TARGETS)
+.PHONY: test test-all test-scripts $(TEST_TARGETS)
 
 # ----------------------------------------------------------------------------
 # TEST TARGETS
@@ -18,7 +18,11 @@ BUN_TEST_FLAGS ?= --parallel
 
 test: test-all
 
-test-all: $(TEST_TARGETS)
+test-all: $(TEST_TARGETS) test-scripts
+
+# The root scripts/ (force-update and the release tooling) have their own tests.
+test-scripts:
+	@bun test scripts $(BUN_TEST_FLAGS)
 
 $(TEST_TARGETS): test-%:
 	@cd packages/$* && $(if $(filter $*,$(TEST_SCRIPT)),bun run test,bun test) $(BUN_TEST_FLAGS)

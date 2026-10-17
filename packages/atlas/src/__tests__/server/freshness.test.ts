@@ -1,7 +1,7 @@
 import { AtlasModes, Corpora } from '@/common';
 import { CorpusLoader, resolveRepositoryRoots } from '@/corpus';
 import type { ICorpusRoot } from '@/corpus';
-import { FreshnessGuard } from '@/server/freshness';
+import { FreshnessGuard } from '@/server/index';
 import {
   cpSync,
   mkdtempSync,
@@ -14,7 +14,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, spyOn, test } from 'bun:test';
-import { IGNIS_ROOT } from '../ignis-root';
+import { IGNIS_ROOT } from '../ignis-root.helper';
 
 // __dirname, not import.meta: tsconfig.json (unlike tsconfig.build.json) does not exclude
 // __tests__, and this package's module mode treats every file as CommonJS output.

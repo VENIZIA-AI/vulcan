@@ -8,11 +8,11 @@ import {
   readPackageVersion,
   readRootArgument,
   resolveMode,
-} from './cli/modes';
+} from './cli/index';
 import { StderrLogger } from './common/logger';
 import { runReleasesCommand } from './releases/generator';
 import { buildServer } from './server';
-import { runSurfaceCommand } from './surface/generator';
+import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
 
 // Must run before any code that could log: this is the only place a provider is ever registered.

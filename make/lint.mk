@@ -5,18 +5,18 @@
 LINT_PKG_TARGETS := $(addprefix lint-,$(PACKAGES))
 FMT_PKG_TARGETS := $(addprefix fmt-,$(PACKAGES))
 
-.PHONY: lint lint-all lint-packages fmt fmt-packages \
+.PHONY: lint lint-all lint-packages lint-scripts fmt fmt-packages fmt-scripts \
         $(LINT_PKG_TARGETS) $(FMT_PKG_TARGETS)
 
 lint: lint-packages
 	@echo "lint: done"
 
-lint-all: lint-packages
+lint-all: lint-packages lint-scripts
 	@echo "lint: all packages done"
 
 lint-packages: $(LINT_PKG_TARGETS)
 
-fmt: fmt-packages
+fmt: fmt-packages fmt-scripts
 
 fmt-packages: $(FMT_PKG_TARGETS)
 
@@ -28,3 +28,13 @@ $(LINT_PKG_TARGETS): lint-%:
 
 $(FMT_PKG_TARGETS): fmt-%:
 	@$(MAKE) --no-print-directory -C packages/$* fmt
+
+# The root scripts/ is not a workspace member: it formats with its own .configs and type-checks with
+# its own tsconfig, from the root package.json's tools.
+lint-scripts:
+	@echo "lint: scripts"
+	@node_modules/.bin/oxfmt -c scripts/.configs/oxfmt.config.mts --check "scripts/**/*.{ts,mts}"
+	@node_modules/.bin/tsc -p scripts/tsconfig.json
+
+fmt-scripts:
+	@node_modules/.bin/oxfmt -c scripts/.configs/oxfmt.config.mts "scripts/**/*.{ts,mts}"

@@ -2,7 +2,7 @@ import type { ISymbolRecord, ISymbolTable } from '@/symbols';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
-import { IGNIS_IS_BUILT, IGNIS_ROOT } from '../ignis-root';
+import { IGNIS_IS_BUILT, IGNIS_ROOT } from '../ignis-root.helper';
 
 // __dirname, not import.meta: this package emits CommonJS.
 const REPOSITORY_ROOT = IGNIS_ROOT;

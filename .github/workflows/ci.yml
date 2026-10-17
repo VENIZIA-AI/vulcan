@@ -54,6 +54,10 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: make lint-all
 
+      - name: Dependency catalog
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: make catalog-check
+
       - name: Test
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: make test

@@ -5,7 +5,7 @@ import {
   readPackageVersion,
   readRootArgument,
   resolveMode,
-} from '@/cli/modes';
+} from '@/cli/index';
 import {
   CHANGELOG_DIRECTORY,
   isRepositoryCheckout,

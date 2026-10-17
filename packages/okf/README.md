@@ -34,7 +34,7 @@ allowed; links inside code are examples, never edges. Files may use LF or CRLF l
 
 Two mechanisms, both driven from source. Never hand-edit either.
 
-1. **Whole generated files** - the `RENDERERS` registry in `okf.ts` writes `reference/*.md`, each
+1. **Whole generated files** - the `RENDERERS` registry in `src/generate/renderers.ts` writes `reference/*.md`, each
    with `generated.by: process:okf-gen` (§5.2). No `generated.at`: a timestamp would make every
    regeneration look like a change.
 2. **Managed regions** - the `REGIONS` registry replaces content between
@@ -59,8 +59,12 @@ config is planned.
 
 | Path | Role |
 |---|---|
-| `src/cli.ts` | `vulcan-okf` entry |
-| `src/okf.ts` | gen, check, coverage; renderers |
+| `src/cli.ts` | `vulcan-okf` entry; spawns `src/run.ts`, the command runner |
+| `src/index.ts` | the public API: the OKF v0.2 conformance layer |
+| `src/source/` | source scanning and the shared fact collectors (one per fact, used by gen and coverage) |
+| `src/generate/` | `gen`: managed regions and the `RENDERERS` / `REGIONS` registries |
+| `src/check/` | `check`: OKF conformance, plus the house rules under `--strict` |
+| `src/coverage/` | `coverage`: the bundle against the source inventory |
 | `src/lib.ts` | bundle loader: frontmatter, links, concept model |
 | `src/spec/` | OKF v0.2 conformance - pure, never throws |
 | `src/viz/` | explorer: builder (Bun), typed browser client, template |

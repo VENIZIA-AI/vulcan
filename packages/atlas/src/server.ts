@@ -18,7 +18,7 @@ import {
 import { getError } from '@venizia/ignis-helpers/core';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { FreshnessGuard } from './server/freshness';
+import { FreshnessGuard } from './server/index';
 
 /** Repo mode's three live-tree roots, or snapshot mode's two packaged roots - `knowledge` is never shipped. */
 const resolveRoots = (opts: { mode: TAtlasMode; root: string }): ICorpusRoot[] => {

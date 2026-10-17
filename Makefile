@@ -21,4 +21,5 @@ PKG_NAME = $(shell sed -n 's/^  "name": "\(.*\)",$$/\1/p' packages/$(1)/package.
 include make/build.mk
 include make/lint.mk
 include make/test.mk
+include make/release.mk
 include make/help.mk

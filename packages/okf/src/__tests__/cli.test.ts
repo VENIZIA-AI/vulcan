@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { spawnSyncBounded } from './spawn.helper.ts';
 
 const CLI = join(import.meta.dir, '..', 'cli.ts');
 
 const run = (opts: { args: string[] }) => {
-  const child = Bun.spawnSync([process.execPath, CLI, ...opts.args], {
+  const child = spawnSyncBounded({
+    cmd: [process.execPath, CLI, ...opts.args],
     stdout: 'pipe',
     stderr: 'pipe',
   });

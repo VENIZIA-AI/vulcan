@@ -13,7 +13,7 @@ import { PROJECT_ROOT } from '@/common/project';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import type TypeScript from 'typescript';
-import { PublicSurface } from '@/surface/generator';
+import { PublicSurface } from '@/surface';
 
 export const SYMBOLS_OUTPUT = resolve(PROJECT_ROOT, '.agents/knowledge/reference/symbols.json');
 

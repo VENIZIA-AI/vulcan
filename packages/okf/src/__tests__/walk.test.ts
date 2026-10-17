@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { walkFiles } from '../okf.ts';
+import { walkFiles } from '../source/index.ts';
 
 test('the source walk skips __tests__: a test fixture is never counted as source', () => {
   const root = mkdtempSync(join(tmpdir(), 'okf-walk-'));
