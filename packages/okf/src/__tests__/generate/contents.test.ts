@@ -40,7 +40,7 @@ describe('withContents', () => {
       '**Contents**',
       '',
       '- [How it boots](#how-it-boots)',
-      '- [Bindings & keys](#bindings-keys)',
+      '- [Bindings & keys](#bindings--keys)',
       '<!-- okf:generated:contents end -->',
     ]);
     expect(start).toBeLessThan(15);
@@ -106,5 +106,90 @@ describe('withContents', () => {
     expect(result).toContain('<!-- okf:generated:contents start -->\r\n');
     expect(result.replace(/\r\n/g, '').includes('\n')).toBe(false);
     expect(withContents({ text: result })).toBe(result);
+  });
+});
+
+/** The contents list `withContents` writes for a long file with these `##` headings. */
+const listOf = (opts: { headings: string[] }): string[] => {
+  const body = opts.headings.map(heading => `## ${heading}\n\nText.\n`).join('\n');
+  const lines = withContents({ text: `# Title\n\n${body}\n${filler({ lines: 110 })}\n` }).split(
+    '\n',
+  );
+
+  return lines.slice(
+    lines.indexOf('**Contents**') + 2,
+    lines.indexOf('<!-- okf:generated:contents end -->'),
+  );
+};
+
+describe('contents anchors are the ones GitHub writes', () => {
+  test('inline code loses its backticks and dots, an underscore stays', () => {
+    expect(listOf({ headings: ['`bun build` folds `process.env.NODE_ENV`'] })).toEqual([
+      '- [`bun build` folds `process.env.NODE_ENV`](#bun-build-folds-processenvnode_env)',
+    ]);
+  });
+
+  test('every space is a hyphen, runs of spaces are not collapsed', () => {
+    expect(listOf({ headings: ['Bindings & keys', 'kernel  (12 files)'] })).toEqual([
+      '- [Bindings & keys](#bindings--keys)',
+      '- [kernel  (12 files)](#kernel--12-files)',
+    ]);
+  });
+
+  test('a heading with a link lists its text, never nested brackets', () => {
+    expect(listOf({ headings: ['See [the spec](https://example.com/spec) first'] })).toEqual([
+      '- [See the spec first](#see-the-spec-first)',
+    ]);
+  });
+
+  test('a repeated heading takes -1, -2, counting the title too', () => {
+    expect(listOf({ headings: ['Setup', 'Setup', 'Title', 'Setup'] })).toEqual([
+      '- [Setup](#setup)',
+      '- [Setup](#setup-1)',
+      '- [Title](#title-1)',
+      '- [Setup](#setup-2)',
+    ]);
+  });
+});
+
+describe('the 100-line threshold', () => {
+  const ofLines = (opts: { lines: number }): string =>
+    `# Title\n\n## Part\n\n${filler({ lines: opts.lines - 4 })}\n`;
+
+  test('exactly 100 lines (wc -l) gets no list, 101 does', () => {
+    expect(ofLines({ lines: 100 }).match(/\n/g)?.length).toBe(100);
+    expect(withContents({ text: ofLines({ lines: 100 }) })).not.toContain('**Contents**');
+    expect(withContents({ text: ofLines({ lines: 101 }) })).toContain('**Contents**');
+  });
+});
+
+describe('code fences', () => {
+  test('a 4-backtick fence holding a 3-backtick one stays open until its own close', () => {
+    const text = [
+      '# Title',
+      '',
+      '## Real',
+      '',
+      '````md',
+      '```ts',
+      '## Not a heading',
+      '```',
+      '## Still not a heading',
+      '````',
+      '',
+      '~~~',
+      '```',
+      '## Not one either',
+      '~~~',
+      '',
+      '## Also real',
+      '',
+      filler({ lines: 110 }),
+      '',
+    ].join('\n');
+
+    expect(withContents({ text })).toContain(
+      '**Contents**\n\n- [Real](#real)\n- [Also real](#also-real)\n<!--',
+    );
   });
 });

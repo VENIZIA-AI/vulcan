@@ -50,6 +50,18 @@ describe('outside vulcan x', () => {
     expect(result.stderr).toContain('okf: no project config - run through `vulcan x okf`');
     expect(result.stderr).not.toContain('    at ');
   });
+
+  test('a VULCAN_CONFIG that is not JSON stops with what to do, never a stack trace', () => {
+    process.env.VULCAN_CONFIG = '';
+    process.env.VULCAN_PROJECT_ROOT = join(import.meta.dir, 'fixtures', 'sources');
+    const result = run({ args: ['check'] });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(
+      'okf: VULCAN_CONFIG is not valid JSON - run okf through `vulcan x`',
+    );
+    expect(result.stderr).not.toContain('    at ');
+  });
 });
 
 describe('gen', () => {
