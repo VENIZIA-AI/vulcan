@@ -4,6 +4,7 @@ import { RESERVED_FILES } from '../config.ts';
 import { readOkfProject } from '../project/index.ts';
 import { IssueSeverities, OkfVersions, checkBundle } from '../spec/index.ts';
 import type { IBundleFile, IConformanceIssue } from '../spec/index.ts';
+import { loadGeneration } from '../generate/index.ts';
 import { collectHouseProblems } from './house.ts';
 import { repoRelative, walkFiles } from '../source/index.ts';
 
@@ -20,7 +21,7 @@ export const formatIssue = (opts: { issue: IConformanceIssue }): string =>
 
 /** The house rules on top of OKF conformance: links resolve, docs style, structural coverage, freshness. */
 
-export const check = (opts: { strict: boolean }): void => {
+export const check = async (opts: { strict: boolean }): Promise<void> => {
   const files = readBundleFiles();
   const issues = checkBundle({ files });
   const warnings = issues.filter(issue => issue.severity === IssueSeverities.WARNING);
@@ -29,7 +30,7 @@ export const check = (opts: { strict: boolean }): void => {
     .map(issue => formatIssue({ issue }));
 
   if (opts.strict) {
-    problems.push(...collectHouseProblems({ files }));
+    problems.push(...collectHouseProblems({ files, ...(await loadGeneration()) }));
   }
 
   if (warnings.length) {

@@ -19,17 +19,17 @@ const isProjectError = (opts: { error: unknown }): opts is { error: Error } =>
 const runCommand = async (opts: { command: string | undefined; argv: string[] }): Promise<void> => {
   switch (opts.command) {
     case 'gen': {
-      gen();
+      await gen();
       break;
     }
 
     case 'check': {
-      check({ strict: opts.argv.includes('--strict') });
+      await check({ strict: opts.argv.includes('--strict') });
       break;
     }
 
     case 'coverage': {
-      coverage();
+      await coverage();
       break;
     }
 

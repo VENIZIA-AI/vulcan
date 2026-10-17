@@ -1,12 +1,17 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
+import { clearProjectConfig, useProjectConfig } from './project.helper.ts';
 import { spawnSyncBounded } from './spawn.helper.ts';
+
+afterEach(clearProjectConfig);
 
 const CLI = join(import.meta.dir, '..', 'cli.ts');
 
 const run = (opts: { args: string[] }) => {
   const child = spawnSyncBounded({
     cmd: [process.execPath, CLI, ...opts.args],
+    // Explicit: a spawn does not see process.env changes made after startup (useProjectConfig).
+    env: { ...process.env },
     stdout: 'pipe',
     stderr: 'pipe',
   });
@@ -44,5 +49,17 @@ describe('outside vulcan x', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('okf: no project config - run through `vulcan x okf`');
     expect(result.stderr).not.toContain('    at ');
+  });
+});
+
+describe('gen', () => {
+  test('nothing configured: it says so and writes nothing', () => {
+    useProjectConfig({ root: join(import.meta.dir, 'fixtures', 'sources'), config: {} });
+    const result = run({ args: ['gen'] });
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe(
+      'gen: nothing configured - okf.renderers and okf.regions are empty\n',
+    );
   });
 });

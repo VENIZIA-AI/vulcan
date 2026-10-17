@@ -5,8 +5,10 @@ import { readOkfProject } from '../project/index.ts';
 import { loadConcepts, stripCode } from '../lib.ts';
 import type { Concept } from '../lib.ts';
 import type { IBundleFile } from '../spec/index.ts';
-import { RENDERERS, extractRegion, listRegions } from '../generate/index.ts';
-import { exampleDirs, packageDirs, repoRelative } from '../source/index.ts';
+import { collectCoverageAxes } from '../coverage-report/axes.ts';
+import { extractRegion } from '../generate/index.ts';
+import type { ILoadedRegion, ILoadedRenderer } from '../generate/index.ts';
+import { brandSpelling, repoRelative } from '../source/index.ts';
 
 // --- docs style ---
 
@@ -14,10 +16,21 @@ import { exampleDirs, packageDirs, repoRelative } from '../source/index.ts';
  * Repo docs rules, enforced on prose (see check step 3). To write a forbidden literal - as the
  * concept defining these rules must - put it in a code span; `stripCode` removes those first.
  */
-export const STYLE_RULES: { pattern: RegExp; message: string }[] = [
-  { pattern: /[—–]/, message: 'use a hyphen, not an em-dash or en-dash' },
-  { pattern: /\bIgnis\b/, message: 'the brand is always written IGNIS' },
-];
+export const styleRules = (opts: { brand: string }): { pattern: RegExp; message: string }[] => {
+  const spelling = brandSpelling({ brand: opts.brand });
+
+  return [
+    { pattern: /[—–]/, message: 'use a hyphen, not an em-dash or en-dash' },
+    ...(spelling === undefined
+      ? []
+      : [
+          {
+            pattern: new RegExp(spelling.source),
+            message: `the brand is always written ${opts.brand}`,
+          },
+        ]),
+  ];
+};
 
 // --- freshness ---
 
@@ -33,7 +46,11 @@ export const sameContent = (opts: { left: string; right: string }): boolean => {
   return normalize(opts.left) === normalize(opts.right);
 };
 
-export const collectHouseProblems = (opts: { files: IBundleFile[] }): string[] => {
+export const collectHouseProblems = (opts: {
+  files: IBundleFile[];
+  renderers: ILoadedRenderer[];
+  regions: ILoadedRegion[];
+}): string[] => {
   const problems: string[] = [];
 
   // A concept that fails to load is already reported by the spec layer; links need the loaded set.
@@ -61,7 +78,7 @@ export const collectHouseProblems = (opts: { files: IBundleFile[] }): string[] =
   for (const file of opts.files) {
     const prose = stripCode({ text: file.text });
 
-    for (const rule of STYLE_RULES) {
+    for (const rule of styleRules({ brand: readOkfProject().viz.brand })) {
       const match = prose.match(rule.pattern);
 
       if (match) {
@@ -74,18 +91,17 @@ export const collectHouseProblems = (opts: { files: IBundleFile[] }): string[] =
 
   const paths = new Set(opts.files.map(file => file.path));
 
-  for (const [items, section] of [
-    [packageDirs(), 'packages'],
-    [exampleDirs(), 'examples'],
-  ] as const) {
-    for (const name of items) {
+  for (const axis of collectCoverageAxes()) {
+    const section = axis.name;
+
+    for (const name of axis.items) {
       if (!paths.has(`${section}/${name}.md`)) {
         problems.push(`coverage: ${section}/${name} has no concept (${section}/${name}.md)`);
       }
     }
   }
 
-  for (const region of listRegions()) {
+  for (const region of opts.regions) {
     if (!existsSync(region.file)) {
       problems.push(
         `freshness: region '${region.id}' host file missing (${repoRelative({ path: region.file })})`,
@@ -100,8 +116,14 @@ export const collectHouseProblems = (opts: { files: IBundleFile[] }): string[] =
     }
   }
 
-  for (const renderer of RENDERERS) {
-    const { path, content } = renderer.render();
+  for (const { renderer, context } of opts.renderers) {
+    if (renderer.render === undefined) {
+      continue;
+    }
+
+    const rendered = renderer.render({ context, facts: renderer.collect({ context }) });
+    const path = join(context.bundle, rendered.path);
+    const content = rendered.content;
     const current = existsSync(path) ? readFileSync(path, 'utf8') : '';
 
     if (!sameContent({ left: current, right: content })) {

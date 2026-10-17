@@ -1,13 +1,7 @@
+import { loadGeneration } from '../generate/index.ts';
 import { loadConceptsOrExit } from '../lib.ts';
-import {
-  collectBindingKeys,
-  collectComponents,
-  collectHelperModules,
-  collectMakefileTargets,
-  collectSourceMap,
-  exampleDirs,
-  packageDirs,
-} from '../source/index.ts';
+import { packageDirs } from '../source/index.ts';
+import { collectCoverageAxes } from './axes.ts';
 
 // --- coverage ---
 
@@ -19,7 +13,7 @@ export const pad = (opts: { value: string; width: number }): string => {
   return (opts.value + ' '.repeat(opts.width)).slice(0, opts.width);
 };
 
-export const coverage = (): void => {
+export const coverage = async (): Promise<void> => {
   const concepts = loadConceptsOrExit().filter(concept => !concept.reserved);
   const ids = new Set(concepts.map(concept => concept.id));
 
@@ -51,16 +45,13 @@ export const coverage = (): void => {
   };
 
   lines.push('STRUCTURAL  (target 100% - one curated concept each)');
-  struct({
-    name: 'packages',
-    items: packageDirs(),
-    covered: name => hasId({ id: '/packages/' + name }),
-  });
-  struct({
-    name: 'examples',
-    items: exampleDirs(),
-    covered: name => hasId({ id: '/examples/' + name }),
-  });
+  for (const axis of collectCoverageAxes()) {
+    struct({
+      name: axis.name,
+      items: axis.items,
+      covered: item => hasId({ id: `/${axis.name}/${item}` }),
+    });
+  }
 
   // Reference axes - advisory; exhaustive coverage comes from generation.
   lines.push('', 'REFERENCE  (advisory - generated)');
@@ -71,35 +62,22 @@ export const coverage = (): void => {
     );
   };
 
-  const components = collectComponents();
-  const helperModules = collectHelperModules();
-  const bindingClasses = collectBindingKeys();
+  // One row per configured renderer that reports one, from the same facts its table renders.
+  for (const { renderer, context } of (await loadGeneration()).renderers) {
+    if (renderer.coverage === undefined) {
+      continue;
+    }
 
-  ref({
-    name: 'components',
-    count: components.reduce((sum, entry) => sum + entry.classes.length, 0),
-    generated: hasId({ id: '/reference/components' }),
-  });
-  ref({
-    name: 'helper modules',
-    count: helperModules.length,
-    generated: hasId({ id: '/reference/helpers' }),
-  });
-  ref({
-    name: 'binding keys',
-    count: bindingClasses.reduce((sum, entry) => sum + entry.keys.length, 0),
-    generated: hasId({ id: '/reference/binding-keys' }),
-  });
-  ref({
-    name: 'make targets',
-    count: collectMakefileTargets().length,
-    generated: hasId({ id: '/reference/makefile-targets' }),
-  });
-  ref({
-    name: 'source files',
-    count: collectSourceMap().reduce((sum, entry) => sum + entry.total, 0),
-    generated: hasId({ id: '/reference/source-map' }),
-  });
+    const facts = renderer.collect({ context });
+    const row = renderer.coverage({ facts });
+    const path = renderer.render?.({ context, facts }).path;
+
+    ref({
+      name: row.name,
+      count: row.count,
+      generated: path !== undefined && hasId({ id: '/' + path.replace(/\.md$/, '') }),
+    });
+  }
 
   // Knowledge types (Diátaxis / arc42).
   const types: Record<string, number> = {};
