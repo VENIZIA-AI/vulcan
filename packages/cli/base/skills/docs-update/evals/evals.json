@@ -1,0 +1,23 @@
+{
+  "skill_name": "docs-update",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I changed how one of our packages behaves - see the uncommitted diff, or the last commit if the tree is clean. Update the docs to match and add the changelog entry. Do not commit.",
+      "expected_output": "Reads knowledge.wiki, knowledge.changelogs and packages[].path from .agents/vulcan.manifest.json; reads the changed source itself; edits the existing page that owns the topic instead of opening a duplicate; writes a YYYY-MM-DD-<slug>.md entry from the changelog template whose packages: list carries the npm names it covers; runs vulcan doctor, okf check --strict and the docs build it discovered, looping until all pass; nothing committed",
+      "files": [".agents/vulcan.manifest.json"]
+    },
+    {
+      "id": 1,
+      "prompt": "Add a changelog entry for last week's change to the repository's CI and release tooling. It touches no package. Do not commit.",
+      "expected_output": "One dated entry under the manifest's knowledge.changelogs, shaped by the directory's template, carrying packages: [] in its frontmatter, added to the changelog index when one lists entries; okf check --strict passes; nothing committed",
+      "files": [".agents/vulcan.manifest.json"]
+    },
+    {
+      "id": 2,
+      "prompt": "The docs for the first package in .agents/vulcan.manifest.json are out of date. Refresh them against the current source. No changelog entry - nothing shipped. Do not commit.",
+      "expected_output": "Finds the page or README that owns that package (under knowledge.wiki, or <packages[].path>/README.md when the manifest has no wiki); verifies every name, signature and default against the source under packages[].path and fixes each drift; creates no new page and no changelog entry; runs the gates; reports each claim that changed with its source file; nothing committed",
+      "files": [".agents/vulcan.manifest.json"]
+    }
+  ]
+}
