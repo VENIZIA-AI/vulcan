@@ -67,16 +67,26 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
 
+      # npm serves a moved tag after a delay (the first run read the old `latest` right after the move,
+      # and the new one a minute later), so the read-back waits for it.
       - name: Read the dist-tags back
         run: |
           for directory in okf atlas cli; do
             NAME=$(jq -r .name "packages/$directory/package.json")
-            ACTUAL=$(npm view "$NAME" "dist-tags.$TAG")
 
-            if [ "$ACTUAL" != "$VERSION" ]; then
-              echo "ERROR | $NAME $TAG reads $ACTUAL, expected $VERSION"
-              exit 1
-            fi
+            for attempt in $(seq 1 40); do
+              ACTUAL=$(npm view "$NAME" "dist-tags.$TAG" --prefer-online)
 
-            echo "read-back: $NAME $TAG = $ACTUAL"
+              if [ "$ACTUAL" = "$VERSION" ]; then
+                echo "read-back: $NAME $TAG = $ACTUAL (after $(((attempt - 1) * 15))s)"
+                break
+              fi
+
+              if [ "$attempt" = "40" ]; then
+                echo "ERROR | $NAME $TAG still reads $ACTUAL after 10 minutes, expected $VERSION"
+                exit 1
+              fi
+
+              sleep 15
+            done
           done
