@@ -5,7 +5,7 @@ import { readOkfProject } from '../project/index.ts';
 import type { Concept } from '../lib.ts';
 import { loadConceptsOrExit } from '../lib.ts';
 import { escapeHtml } from './client/html.ts';
-import { VizConstants, VizTemplateTokens } from './common/index.ts';
+import { VizTemplateTokens } from './common/index.ts';
 import { resolveVizCopy } from './copy.ts';
 import type { IVizData, IVizEdge, IVizNode, IVizSection } from './common/index.ts';
 
@@ -130,12 +130,14 @@ export const buildViz = async (): Promise<void> => {
   });
 
   const project = readOkfProject();
-  const out = join(project.bundle, VizConstants.OUTPUT_FILE);
 
-  mkdirSync(dirname(out), { recursive: true });
-  writeFileSync(out, html);
+  // The same page to every configured output (the bundle's copy, a wiki's public copy, ...).
+  for (const out of project.viz.outputs) {
+    mkdirSync(dirname(out), { recursive: true });
+    writeFileSync(out, html);
 
-  console.log(`viz: wrote ${relative(project.root, out)}`);
+    console.log(`viz: wrote ${relative(project.root, out)}`);
+  }
   console.log(
     `viz: ${data.nodes.length} nodes, ${data.edges.length} edges, ${data.sections.length} sections`,
   );
