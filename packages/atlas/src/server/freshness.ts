@@ -4,7 +4,7 @@ import { Chunker, CorpusLoader } from '@/corpus';
 import type { ICorpusRoot } from '@/corpus';
 import { ChunkStore } from '@/search/store';
 import { BaseHelper } from '@/common/helper';
-import { statSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** Total `.md` files, newest mtime, and total bytes across every corpus root - catches a same-count content swap that preserves mtime; a pure rename stays invisible. */
@@ -26,7 +26,9 @@ const fingerprintOf = (opts: { roots: ICorpusRoot[] }): ICorpusFingerprint => {
   let newestMtimeMs = 0;
   let totalBytes = 0;
 
-  for (const root of opts.roots) {
+  // A declared root that does not exist yet - no changelog written - counts as empty, so the walk
+  // sees it the moment it appears.
+  for (const root of opts.roots.filter(entry => existsSync(entry.directory))) {
     const exclude = root.exclude ?? [];
     const relativePaths = new Bun.Glob('**/*.md').scanSync({ cwd: root.directory });
 

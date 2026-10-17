@@ -158,12 +158,16 @@ atlas reads a project only through what the project commits. Four things make it
 
    `bun x --no-install vulcan x atlas changelogs migrate` writes the list into every entry that has
    none. Run it once with `--dry-run`, then for real, then review the diff. An entry that belongs to a
-   release its date does not show adds `release: '@venizia/ignis-kernel@0.2.0-13'`.
+   release its date does not show adds `release: '@venizia/ignis-kernel@0.2.0-13'`. An entry about
+   no package, such as repository tooling, declares `packages: []`.
 4. **Tags.** atlas computes every release from the git tags `atlas.tagPattern` describes. `doctor`
    checks each tag it reads.
 
 Delete what atlas no longer reads: a committed `reference/releases.json` and `reference/symbols.json`.
 Releases come from the tags, symbols from the built `.d.ts`.
+
+A project that commits `reference/public-surface.md` runs `vulcan x atlas surface gen` once before the
+first `okf gen`: the regenerated page declares `generated:`, so `okf gen` leaves it whole.
 
 **Check:** `bun x --no-install vulcan x okf check --strict` passes (it checks the changelog
 frontmatter), and `doctor` reports no `[manifest]` or `[tags]` violation.

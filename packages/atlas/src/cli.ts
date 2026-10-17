@@ -13,7 +13,7 @@ import { runConceptsCommand } from './concepts/command';
 import { runReleasesCommand } from './releases/generator';
 import { buildSourcesServer } from './server/index';
 import { hasAtlasProject, readAtlasProject } from './common/project-config';
-import { resolveSources } from './sources/index';
+import { resolveServableSources, resolveSources } from './sources/index';
 import type { IAtlasSource } from './sources/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
@@ -93,9 +93,24 @@ const serveSources = async (opts: { root: string; version: string }): Promise<bo
     return false;
   }
 
-  const resolved = await resolveSources({ cwd: opts.root, sources });
+  const { resolved, unavailable } = await resolveServableSources({ cwd: opts.root, sources });
 
-  await buildSourcesServer({ sources: resolved, cwd: opts.root, version: opts.version }).run();
+  for (const { source, reason } of unavailable) {
+    console.error(
+      `${AtlasConstants.SERVER_NAME}: source '${source.name}' is not served - ${reason}`,
+    );
+  }
+
+  if (resolved.length === 0) {
+    usageError('nothing to serve - every source is unavailable (above)');
+  }
+
+  await buildSourcesServer({
+    sources: resolved,
+    unavailable,
+    cwd: opts.root,
+    version: opts.version,
+  }).run();
 
   return true;
 };
