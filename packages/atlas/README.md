@@ -97,8 +97,8 @@ atlas: { packages: { inversion: '@venizia/ignis-inversion', helpers: '@venizia/i
 
 ## Where it sits
 
-Of the IGNIS packages, it depends on `@venizia/ignis-helpers` only. It is a development tool, not
-part of an application's runtime.
+It depends on no IGNIS package - VULCAN's tools must not pin a project to one framework's release.
+It is a development tool, not part of an application's runtime.
 
 ## History
 

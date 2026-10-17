@@ -6,6 +6,11 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-17 - no IGNIS framework dependency
+
+Updated [dependencies](/conventions/dependencies.md): cli, okf and atlas no longer depend on
+`@venizia/ignis-helpers`; atlas has its own logger, base helper and `TConstValue`.
+
 ## 2026-10-17 - base rules fit every project
 
 Updated [design decisions](/overview/design-decisions.md): `V-C-18` keeps only derived types over

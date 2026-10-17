@@ -53,3 +53,24 @@ export class AtlasCommands {
     return this.SCHEME_SET.has(value);
   }
 }
+
+/** The levels a log line carries; `emerg` is never a configured threshold. */
+export class LogLevels {
+  static readonly DEBUG = 'debug';
+  static readonly INFO = 'info';
+  static readonly WARN = 'warn';
+  static readonly ERROR = 'error';
+  static readonly EMERG = 'emerg';
+
+  static readonly SCHEME_SET = new Set<string>([
+    this.DEBUG,
+    this.INFO,
+    this.WARN,
+    this.ERROR,
+    this.EMERG,
+  ]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}

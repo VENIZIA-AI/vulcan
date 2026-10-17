@@ -83,7 +83,7 @@ describe('CorpusLoader', () => {
 
   test('skips a document with invalid YAML frontmatter, records it, and warns through the logger', () => {
     const loader = CorpusLoader.getInstance();
-    const warnSpy = spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warnSpy = spyOn(console, 'error').mockImplementation(() => undefined);
     let documents: IDocument[];
 
     try {
@@ -108,7 +108,7 @@ describe('CorpusLoader', () => {
 
   test('resets `skipped` on every call', () => {
     const loader = CorpusLoader.getInstance();
-    const warnSpy = spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warnSpy = spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {
       loader.load({ roots: [{ corpus: Corpora.WIKI, directory: join(FIXTURES_ROOT, 'wiki') }] });

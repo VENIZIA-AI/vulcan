@@ -1,4 +1,4 @@
-import type { TConstValue } from '@venizia/ignis-helpers/common';
+import type { TConstValue } from '../../common/index.ts';
 import type { CodingAgents, ConfigExtensions, HookEvents } from './constants.ts';
 
 export type TConfigExtension = TConstValue<typeof ConfigExtensions>;

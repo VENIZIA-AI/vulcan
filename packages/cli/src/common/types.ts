@@ -1,5 +1,7 @@
-import type { TConstValue } from '@venizia/ignis-helpers/common';
 import type { VulcanCommands, VulcanTools } from './constants.ts';
+
+/** The values of a const class's static fields: `TConstValue<typeof Colors>` is `'red' | 'blue'`. */
+export type TConstValue<TClass> = Extract<TClass[keyof TClass], string | number> & {};
 
 export type TVulcanCommand = TConstValue<typeof VulcanCommands>;
 export type TVulcanTool = TConstValue<typeof VulcanTools>;

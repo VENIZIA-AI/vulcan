@@ -1,4 +1,4 @@
-import { BaseHelper } from '@venizia/ignis-helpers/core';
+import { BaseHelper } from '@/common/helper';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseFrontmatter } from './frontmatter';

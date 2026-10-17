@@ -3,7 +3,7 @@ import type { TAtlasMode } from '@/common';
 import { Chunker, CorpusLoader } from '@/corpus';
 import type { ICorpusRoot } from '@/corpus';
 import { ChunkStore } from '@/search/store';
-import { BaseHelper } from '@venizia/ignis-helpers/core';
+import { BaseHelper } from '@/common/helper';
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
 

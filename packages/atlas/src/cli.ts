@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { LoggerFactory } from '@venizia/ignis-helpers';
 import { AtlasCommands, AtlasConstants } from './common';
 import type { TAtlasMode } from './common';
 import {
@@ -9,14 +8,10 @@ import {
   readRootArgument,
   resolveMode,
 } from './cli/index';
-import { StderrLogger } from './common/logger';
 import { runReleasesCommand } from './releases/generator';
 import { buildServer } from './server';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
-
-// Must run before any code that could log: this is the only place a provider is ever registered.
-LoggerFactory.use({ provider: StderrLogger });
 
 const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] | <surface|symbols|releases> <gen|check>`;
 

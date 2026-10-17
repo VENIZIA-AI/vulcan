@@ -16,3 +16,6 @@ tags: [conventions, dependencies, catalog]
   packing, or the cli ships pinned to siblings that are not on npm (`make smoke-cli` catches it).
 - Bun only (B-01): `bun install`, `bun test`, `bun x`. Third-party code comes in as a pinned typed
   dependency, never vendored.
+- **No project framework.** No VULCAN package depends on `@venizia/ignis-*`: a shared tool that pins one
+  framework release forces it on every consumer and installs a second copy next to IGNIS's own.
+  `scripts/__tests__/no-framework-dependency.test.ts` fails on any such import or declaration.

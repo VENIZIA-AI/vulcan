@@ -1,4 +1,4 @@
-import type { TConstValue } from '@venizia/ignis-helpers/common';
+import type { TConstValue } from '../../common/index.ts';
 import type { IssueSeverities } from './constants.ts';
 
 export type TIssueSeverity = TConstValue<typeof IssueSeverities>;
