@@ -163,8 +163,8 @@ const IGNIS_PROJECT = toAtlasProject({
   },
 });
 
-/** The two IGNIS release commits that were never tagged: core 0.1.1 and dev-configs 0.0.1. */
-const UNTAGGED = new Set(['3a10737d', 'f437d628']);
+/** The IGNIS release commit that was never tagged: core 0.1.1 (dev-configs 0.0.1 was tagged 2026-10-17). */
+const UNTAGGED = new Set(['3a10737d']);
 
 describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
   'releases computed from IGNIS tags (D1)',
@@ -181,8 +181,8 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
       const spelled = (records: { version: string; date: string; sha: string }[] = []) =>
         records.map(record => `${record.version} ${record.date} ${record.sha}`).sort();
       // packages/core became packages/core-server (one npm name, @venizia/ignis): the old table kept
-      // its releases under 'core', they are core-server's history now. Two release commits were never
-      // tagged, so no release comes back for them: core 0.1.1 (3a10737d) and dev-configs 0.0.1.
+      // its releases under 'core', they are core-server's history now. One release commit was never
+      // tagged, so no release comes back for it: core 0.1.1 (3a10737d).
       const tagged = (records: { version: string; sha: string; date: string }[] = []) =>
         records.filter(record => !UNTAGGED.has(record.sha));
       const expected: Record<string, { version: string; date: string; sha: string }[]> = {
