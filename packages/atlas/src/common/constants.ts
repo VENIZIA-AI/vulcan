@@ -43,11 +43,13 @@ export class AtlasCommands {
   static readonly SURFACE = 'surface';
   static readonly SYMBOLS = 'symbols';
   static readonly RELEASES = 'releases';
+  static readonly CHANGELOGS = 'changelogs';
   static readonly SCHEME_SET = new Set<string>([
     this.MCP,
     this.SURFACE,
     this.SYMBOLS,
     this.RELEASES,
+    this.CHANGELOGS,
   ]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);

@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { compileReleaseTemplate } from '@/releases';
+import { resolveChangelogPackages } from '@/changelogs';
 import { AtlasReleases } from '@/releases/generator';
 import { toAtlasProject } from '@/common/project-config';
 import { IGNIS_PACKAGES } from '../fixtures/ignis-packages';
@@ -71,14 +72,14 @@ describe('AtlasReleases.parseReleaseSubject', () => {
   });
 });
 
-describe('AtlasReleases.packagesOf', () => {
+describe('resolveChangelogPackages - what migrate writes', () => {
   test('a packages frontmatter list wins over everything else in the file', () => {
     const text = withFrontmatter({
       frontmatter: 'title: A change\npackages:\n  - kernel\n  - boot',
       body: '| Symbol | Change | Package |\n|---|---|---|\n| `x` | New | helpers |\n',
     });
 
-    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([
+    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
       'boot',
       'kernel',
     ]);
@@ -96,7 +97,7 @@ describe('AtlasReleases.packagesOf', () => {
       ].join('\n'),
     });
 
-    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([
+    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
       'core-server',
       'kernel',
     ]);
@@ -113,7 +114,7 @@ describe('AtlasReleases.packagesOf', () => {
       ].join('\n'),
     });
 
-    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([
+    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
       'core-server',
       'core-worker',
     ]);
@@ -130,7 +131,7 @@ describe('AtlasReleases.packagesOf', () => {
       ].join('\n'),
     });
 
-    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([]);
+    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([]);
   });
 
   test('a table wins over a body mention - the first rule that hits is the answer', () => {
@@ -145,7 +146,7 @@ describe('AtlasReleases.packagesOf', () => {
       ].join('\n'),
     });
 
-    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual(['kernel']);
+    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual(['kernel']);
   });
 
   test('body mentions map @venizia/ignis to core-server and the worker to core-worker', () => {
@@ -154,7 +155,7 @@ describe('AtlasReleases.packagesOf', () => {
       body: 'Both `@venizia/ignis` and `@venizia/ignis-worker` changed, plus `@venizia/ignis-helpers/core`.',
     });
 
-    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([
+    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
       'core-server',
       'core-worker',
       'helpers',
@@ -167,7 +168,7 @@ describe('AtlasReleases.packagesOf', () => {
       body: 'Prose with no package name and no details table.',
     });
 
-    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([]);
+    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([]);
   });
 });
 
@@ -269,16 +270,27 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)('AtlasReleases.check',
 
     expect(misplaced).toEqual([]);
 
-    const explained = new Set(Object.keys(EXPLAINED_CHANGES));
-    const unexplained = (entries: { id: string; order?: number }[]) =>
-      withoutOrder(entries.filter(entry => !explained.has(entry.id)));
+    // The table reads only declared packages now (C3), and IGNIS's entries declare none until it
+    // runs migrate: every other field is the committed table's.
+    const withoutPackages = (entries: { packages?: string[]; order?: number }[]) =>
+      entries.map(({ packages: _packages, order: _order, ...entry }) => entry);
 
-    expect(unexplained(rendered.changelogs)).toEqual(unexplained(committed.changelogs));
+    expect(withoutPackages(rendered.changelogs)).toEqual(withoutPackages(committed.changelogs));
 
-    for (const [id, packages] of Object.entries(EXPLAINED_CHANGES)) {
-      expect(
-        rendered.changelogs.find((entry: { id: string }) => entry.id === id)?.packages,
-      ).toEqual(packages);
+    // What migrate will write: the committed table's packages, except the explained changes.
+    for (const entry of committed.changelogs as {
+      id: string;
+      file: string;
+      packages: string[];
+    }[]) {
+      const text = readFileSync(
+        join(IGNIS_ROOT, 'docs/wiki/content/changelogs', entry.file),
+        'utf8',
+      );
+
+      expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES }), entry.id).toEqual(
+        EXPLAINED_CHANGES[entry.id] ?? entry.packages,
+      );
     }
   });
 
@@ -305,7 +317,7 @@ describe('AtlasReleases with project packages', () => {
       body: 'The `@venizia/ignis-docs-mcp` server answers search.',
     });
 
-    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual(['docs-mcp']);
+    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual(['docs-mcp']);
   });
 
   test('an alias spelled as a npm name counts as a mention of its package', () => {
@@ -323,7 +335,7 @@ describe('AtlasReleases with project packages', () => {
       },
     ];
 
-    expect(AtlasReleases.packagesOf({ text, packages })).toEqual(['core-worker']);
+    expect(resolveChangelogPackages({ text, packages })).toEqual(['core-worker']);
   });
 
   test('a mention of a longer name is not a mention of its prefix', () => {
@@ -332,7 +344,7 @@ describe('AtlasReleases with project packages', () => {
       body: 'Uses `@venizia/ignis-unlisted` only.',
     });
 
-    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([]);
+    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([]);
   });
 
   test('a release subject is read with the configured template', () => {
@@ -344,5 +356,28 @@ describe('AtlasReleases with project packages', () => {
         pattern,
       }),
     ).toEqual({ package: undefined, version: '0.1.0-2' });
+  });
+});
+
+describe('AtlasReleases.packagesOf reads the declared list only (C3)', () => {
+  test('prose names no package any more - a Package column without a declared list is none', () => {
+    const text = withFrontmatter({
+      frontmatter: 'title: A change',
+      body: '| Package | Change |\n|---|---|\n| kernel | faster |',
+    });
+
+    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([]);
+  });
+
+  test('a declared list of npm names resolves to the packages it names', () => {
+    const text = withFrontmatter({
+      frontmatter: "title: A change\npackages: ['@venizia/ignis', '@venizia/ignis-docs-mcp']",
+      body: 'Body.',
+    });
+
+    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([
+      'core-server',
+      'docs-mcp',
+    ]);
   });
 });

@@ -8,12 +8,13 @@ import {
   readRootArgument,
   resolveMode,
 } from './cli/index';
+import { runChangelogsCommand } from './changelogs/command';
 import { runReleasesCommand } from './releases/generator';
 import { buildServer } from './server';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
 
-const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] | <surface|symbols|releases> <gen|check>`;
+const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] | <surface|symbols|releases> <gen|check> | changelogs migrate [--dry-run]`;
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -73,6 +74,15 @@ const generator = GENERATOR_BY_COMMAND[subcommand];
 
 if (generator) {
   process.exit(generator({ command: argv[1] }));
+}
+
+if (subcommand === AtlasCommands.CHANGELOGS) {
+  try {
+    process.exit(runChangelogsCommand({ command: argv[1], argv }));
+  } catch (error) {
+    console.error(`${AtlasConstants.SERVER_NAME}: ${messageOf(error)}`);
+    process.exit(1);
+  }
 }
 
 const { mode, root, version } = resolveServerOptions({ argv });

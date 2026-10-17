@@ -23,6 +23,10 @@ export interface IOkfRegionEntry {
 export interface IOkfProject {
   root: string;
   bundle: string;
+  /** Absolute; `knowledge.changelogs` - absent when the project keeps none. */
+  changelogs?: string;
+  /** `atlas.tagPattern`, the template of a release tag. */
+  tagPattern: string;
   packages: IOkfPackage[];
   renderers: IOkfRendererEntry[];
   regions: IOkfRegionEntry[];
