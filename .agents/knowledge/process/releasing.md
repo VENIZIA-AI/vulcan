@@ -22,7 +22,11 @@ or `none` (publish the version already in package.json).
    test, the VULCAN contract, both pack smokes, and the packed manifests.
 2. It publishes okf, atlas, cli in that order with `bun publish` - prerelease to `next`, stable to
    `latest`. A version already on npm is skipped.
-3. It commits `chore(release): v<version> [<bump>]` on `develop` and tags `v<version>`.
+3. It commits `chore(release): v<version> [<bump>]` on `develop` and tags `v<version>` on that
+   commit as built. When `develop` moved during the run, the push rebases, but the tag stays on the
+   release commit, so it never holds merges that were not published.
+4. A tag already on origin at the release commit is skipped, so a `none` retry after a finished
+   run passes. At any other commit the run stops and says so.
 
 The run does not wait for npm to serve the new version: a fresh publish can take 10+ minutes to
 download, so an install right after a green run may still fail. Confirm with

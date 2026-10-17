@@ -6,6 +6,15 @@ import { diffBaseRules, planPrune, planSync, SyncConstants, SyncStatuses } from 
 
 const DRY_RUN_FLAG = '--dry-run';
 const PRUNE_FLAG = '--prune';
+const LABEL_WIDTH = 9;
+
+/** Under --dry-run nothing is written, so a write is labelled as what it would do. */
+const DRY_RUN_LABELS: Record<string, string> = {
+  [SyncStatuses.CREATED]: 'would create',
+  [SyncStatuses.REPLACED]: 'would replace',
+  [SyncStatuses.REMOVED]: 'would remove',
+};
+const DRY_RUN_LABEL_WIDTH = Math.max(...Object.values(DRY_RUN_LABELS).map(label => label.length));
 
 export const runSyncCommand = async (opts: ICommandContext): Promise<number> => {
   const loaded = await loadConfig({ root: opts.cwd });
@@ -22,6 +31,7 @@ export const runSyncCommand = async (opts: ICommandContext): Promise<number> => 
   const actions = [...planSync({ root: opts.cwd, config: loaded.config }), ...pruned];
   // Read before the manifest action rewrites the hashes it compares against.
   const changes = diffBaseRules({ root: opts.cwd });
+  const width = dryRun ? DRY_RUN_LABEL_WIDTH : LABEL_WIDTH;
 
   for (const action of actions) {
     if (!dryRun) {
@@ -29,14 +39,13 @@ export const runSyncCommand = async (opts: ICommandContext): Promise<number> => 
     }
 
     const note = action.note === undefined ? '' : ` (${action.note})`;
+    const label = (dryRun ? DRY_RUN_LABELS[action.status] : undefined) ?? action.status;
 
-    process.stderr.write(
-      `  ${action.status.padEnd(9)} ${relative(opts.cwd, action.path)}${note}\n`,
-    );
+    process.stderr.write(`  ${label.padEnd(width)} ${relative(opts.cwd, action.path)}${note}\n`);
   }
 
   for (const { id, change, text } of changes) {
-    process.stderr.write(`  ${change.padEnd(9)} ${[id, text].filter(Boolean).join(' ')}\n`);
+    process.stderr.write(`  ${change.padEnd(width)} ${[id, text].filter(Boolean).join(' ')}\n`);
   }
 
   const settingsBroken = actions.some(
