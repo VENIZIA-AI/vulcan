@@ -8,8 +8,9 @@
 import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
 import { readPackageEntries } from '@/common/package-entries';
+import type { IPackageMapEntry } from '@/common/package-map';
 import { regenerateHintOf } from '@/common/regenerate-hint';
-import { readAtlasPackages } from '@/common/project-config';
+import { hasAtlasProject, livePackageDirs, readAtlasProject } from '@/common/project-config';
 import { PROJECT_ROOT } from '@/common/project';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
@@ -38,6 +39,7 @@ export interface ISymbolTable {
   generatedFrom: string;
   packages: string[];
   symbols: ISymbolRecord[];
+  packageMap: IPackageMapEntry[];
 }
 
 interface ILocation {
@@ -146,8 +148,9 @@ export class AtlasSymbols {
   private static readonly maps = new Map<string, IDeclarationMap | undefined>();
 
   static render(opts: { repoRoot?: string; packages?: string[] } = {}): string {
-    const repoRoot = opts.repoRoot ?? PROJECT_ROOT;
-    const packages = opts.packages ?? readAtlasPackages({ repoRoot });
+    const project = hasAtlasProject() ? readAtlasProject() : undefined;
+    const repoRoot = opts.repoRoot ?? project?.root ?? PROJECT_ROOT;
+    const packages = opts.packages ?? livePackageDirs({ project: project ?? readAtlasProject() });
     const read = packages.map(name => readPackageEntries({ repoRoot, name }));
     const program = DeclarationProgram.create({
       files: read.flatMap(item => item.entries.map(entry => entry.file)),
@@ -168,6 +171,12 @@ export class AtlasSymbols {
       generatedFrom: 'dist',
       packages,
       symbols: symbols.sort(AtlasSymbols.compare),
+      // The names a tool may be asked by: each package's npm name, from its manifest, and its aliases.
+      packageMap: packages.map((dir, index) => ({
+        dir,
+        name: read[index].manifest.name,
+        aliases: project?.packages.find(entry => entry.dir === dir)?.aliases ?? [],
+      })),
     };
 
     return `${JSON.stringify(table, null, 2)}\n`;

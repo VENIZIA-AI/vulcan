@@ -1,35 +1,10 @@
 import type { TAtlasMode } from '@/common';
 import { releasesFileOf } from '@/common/layout';
 import { BaseHelper } from '@/common/helper';
+import { directoryOfQuery } from '@/common/package-map';
+import type { IPackageMapEntry } from '@/common/package-map';
 import { existsSync, readFileSync } from 'node:fs';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
-
-// The table is keyed by directory name under `packages/`; two npm names do not follow the suffix.
-const NPM_NAME_PATTERN = /^@venizia\/ignis(?:-([a-z0-9-]+))?$/;
-
-/** `@venizia/ignis-kernel` and `kernel` name the same package - the npm spelling maps to its directory. */
-export const toPackageDirectory = (value: string): string => {
-  const trimmed = value.trim().toLowerCase();
-  const scoped = trimmed.match(NPM_NAME_PATTERN);
-
-  if (!scoped) {
-    return trimmed;
-  }
-
-  switch (scoped[1]) {
-    case undefined: {
-      return 'core-server';
-    }
-
-    case 'worker': {
-      return 'core-worker';
-    }
-
-    default: {
-      return scoped[1];
-    }
-  }
-};
 
 const byText = (left: string, right: string): number => {
   if (left === right) {
@@ -48,21 +23,26 @@ export class ReleaseStore extends BaseHelper {
   private readonly releases = new Map<string, IReleaseRecord[]>();
   private readonly changelogs: IChangelogRecord[];
   private readonly live: string[];
+  private readonly packageMap: IPackageMapEntry[];
 
   constructor(opts: { table: IReleaseTable }) {
     super({ scope: ReleaseStore.name });
 
+    this.packageMap = opts.table.packageMap ?? [];
+
     const tableReleasesEntries = Object.entries(opts.table.releases ?? {});
 
     for (const [name, records] of tableReleasesEntries) {
-      this.releases.set(toPackageDirectory(name), records);
+      this.releases.set(this.directoryOf({ package: name }), records);
     }
 
     // Newest first, so every window answers in that order without re-sorting.
     this.changelogs = [...(opts.table.changelogs ?? [])].sort((left, right) =>
       byText(right.date, left.date),
     );
-    this.live = [...(opts.table.livePackages ?? [])].map(toPackageDirectory).sort(byText);
+    this.live = [...(opts.table.livePackages ?? [])]
+      .map(name => this.directoryOf({ package: name }))
+      .sort(byText);
   }
 
   /**
@@ -107,6 +87,11 @@ export class ReleaseStore extends BaseHelper {
   }
 
   /** The packages that exist today; a table generated before this list existed answers with every package it knows. */
+  /** A package a tool was asked about, as the directory the table is keyed by. */
+  directoryOf(opts: { package: string }): string {
+    return directoryOfQuery({ value: opts.package, packageMap: this.packageMap });
+  }
+
   livePackages(): string[] {
     return this.live.length > 0 ? this.live : this.packages();
   }
@@ -132,7 +117,8 @@ export class ReleaseStore extends BaseHelper {
    * that closes it carries its own entries.
    */
   entriesBetween(opts: { package?: string; fromDate: string; toDate: string }): IChangelogRecord[] {
-    const wanted = opts.package === undefined ? undefined : toPackageDirectory(opts.package);
+    const wanted =
+      opts.package === undefined ? undefined : this.directoryOf({ package: opts.package });
 
     return this.changelogs.filter(entry => {
       if (entry.date <= opts.fromDate || entry.date > opts.toDate) {
@@ -155,7 +141,8 @@ export class ReleaseStore extends BaseHelper {
     fromDate: string;
     toDate: string;
   }): IChangelogRecord[] {
-    const wanted = opts.package === undefined ? undefined : toPackageDirectory(opts.package);
+    const wanted =
+      opts.package === undefined ? undefined : this.directoryOf({ package: opts.package });
 
     return this.changelogs.filter(entry => {
       const inside =
@@ -177,6 +164,6 @@ export class ReleaseStore extends BaseHelper {
   }
 
   private recordsOf(opts: { package: string }): IReleaseRecord[] {
-    return this.releases.get(toPackageDirectory(opts.package)) ?? [];
+    return this.releases.get(this.directoryOf({ package: opts.package })) ?? [];
   }
 }

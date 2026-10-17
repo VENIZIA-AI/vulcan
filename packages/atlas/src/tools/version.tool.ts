@@ -1,6 +1,5 @@
 import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IToolHandler } from '@/protocol/common';
-import { toPackageDirectory } from '@/releases';
 import type { ReleaseStore } from '@/releases';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -114,6 +113,7 @@ const snapshotOf = (opts: { releases: ReleaseStore; live: string[] }): Record<st
  * version that never resolved, or a version neither side can parse, is skipped - never guessed.
  */
 const behindOf = (opts: {
+  releases: ReleaseStore;
   installed: Record<string, string | null>;
   snapshot: Record<string, string>;
 }): IBehindRow[] => {
@@ -122,7 +122,7 @@ const behindOf = (opts: {
   const installedEntries = Object.entries(opts.installed);
 
   for (const [name, version] of installedEntries) {
-    const directory = toPackageDirectory(name);
+    const directory = opts.releases.directoryOf({ package: name });
     const newest = opts.snapshot[directory];
 
     if (version === null || newest === undefined) {
@@ -171,7 +171,7 @@ export const buildVersionTool = (opts: { releases: ReleaseStore }): IToolHandler
     const response: IVersionResponse = {
       installed,
       snapshot,
-      behind: behindOf({ installed, snapshot }),
+      behind: behindOf({ releases: opts.releases, installed, snapshot }),
     };
 
     return response;

@@ -2,6 +2,7 @@ import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import type TypeScript from 'typescript';
 import { PROJECT_ROOT } from './project';
+import { hasAtlasProject, readAtlasProject } from './project-config';
 
 /**
  * The TypeScript compiler of the project being read, not one of atlas's own: the `.d.ts` it emitted
@@ -19,6 +20,9 @@ export class TypeScriptCompiler {
   }
 
   private static load(): typeof TypeScript {
-    return createRequire(join(PROJECT_ROOT, 'package.json'))('typescript');
+    // `atlas.typescriptFrom`: a project whose root does not carry typescript names the package that does.
+    const from = hasAtlasProject() ? readAtlasProject().typescriptFrom : PROJECT_ROOT;
+
+    return createRequire(join(from, 'package.json'))('typescript');
   }
 }

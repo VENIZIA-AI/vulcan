@@ -1,3 +1,5 @@
+import type { IPackageMapEntry } from '@/common/package-map';
+
 /**
  * One exported symbol as `scripts/atlas-symbols.ts` recorded it. `file`/`line` name the source
  * declaration, not the `dist` file the generator read - an alias export points at what it aliases.
@@ -28,4 +30,6 @@ export interface ISymbolTable {
   generatedFrom: string;
   packages: string[];
   symbols: ISymbolRecord[];
+  /** Every package's directory, npm name and other names; absent in a table generated before 0.2.0-0. */
+  packageMap?: IPackageMapEntry[];
 }

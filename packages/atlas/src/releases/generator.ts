@@ -7,13 +7,17 @@
  */
 import { regenerateHintOf } from '@/common/regenerate-hint';
 import { PROJECT_ROOT } from '@/common/project';
+import { directoryOf } from '@/common/package-map';
+import type { IPackageMapEntry } from '@/common/package-map';
+import { readAtlasProject } from '@/common/project-config';
+import type { IAtlasPackage, IAtlasProject } from '@/common/project-config';
+import { compileReleaseTemplate } from './template';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 
 export const RELEASES_OUTPUT = resolve(PROJECT_ROOT, '.agents/knowledge/reference/releases.json');
 
-const CHANGELOG_DIRECTORY = 'docs/wiki/content/changelogs';
 const SHORT_SHA_LENGTH = 8;
 
 /** A file the history does not carry yet: it sorts after every committed entry, so a fresh changelog is inside the newest window. */
@@ -45,49 +49,26 @@ export interface IReleaseTable {
   livePackages: string[];
   releases: Record<string, IReleaseRecord[]>;
   changelogs: IChangelogRecord[];
+  /** Every package's directory, npm name and other names - the tools resolve a queried name through it. */
+  packageMap: IPackageMapEntry[];
 }
 
 interface IReleaseSubject {
-  package: string;
+  /** `undefined` for a release train's commit (no `<dir>` in the template): it releases every live package. */
+  package: string | undefined;
   version: string;
 }
 
-// `chore(kernel): release v0.2.0-21 [prerelease]` - the scope is the directory name under
-// `packages/`, and every release commit in the history carries the mode in brackets. A release made
-// with `--issue` leads with its issue numbers: `[#80] chore(kernel): release v0.2.1-0 [prerelease]`.
-const RELEASE_SUBJECT_PATTERN =
-  /^(?:\[#\d+\])*\s*chore\(([a-z0-9-]+)\): release v(\S+) \[[a-z]+\]$/;
+/** IGNIS's form, the schema default: `[#80] chore(kernel): release v0.2.1-0 [prerelease]`. */
+const DEFAULT_RELEASE_PATTERN = compileReleaseTemplate({
+  template: '[#<issue>] chore(<dir>): release v<version>',
+});
 
 const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---\n?/;
 const DATE_PREFIX_PATTERN = /^(\d{4}-\d{2}-\d{2})-/;
 const BADGE_TEXT_PATTERN = /<Badge[^>]*\stext="([^"]*)"/;
 const TABLE_ROW_PATTERN = /^\s*\|(.*)\|\s*$/;
 const TABLE_SEPARATOR_PATTERN = /^\s*\|[\s|:-]+\|\s*$/;
-
-// `@venizia/ignis`, or `@venizia/ignis-<suffix>`; a sub-path (`/core`) is never part of the suffix.
-const SCOPED_NAME_PATTERN = /@venizia\/ignis(?:-([a-z0-9-]+))?/g;
-const SCOPED_NAME_EXACT_PATTERN = /^@venizia\/ignis(?:-([a-z0-9-]+))?$/;
-
-// A package directory name: lower-case words joined by single hyphens, nothing else.
-const PACKAGE_DIRECTORY_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
-
-// Every directory this repository has ever released, live or retired - the set a bare word in a
-// `Package` column must belong to. Retired names stay so an old changelog keeps its package.
-const KNOWN_PACKAGES = [
-  'atlas',
-  'boot',
-  'connectors',
-  'core',
-  'core-server',
-  'core-worker',
-  'dev-configs',
-  'docs',
-  'docs-mcp',
-  'filter',
-  'helpers',
-  'inversion',
-  'kernel',
-];
 
 const byText = (left: string, right: string): number => {
   if (left === right) {
@@ -97,56 +78,9 @@ const byText = (left: string, right: string): number => {
   return left < right ? -1 : 1;
 };
 
-/** The npm name's suffix as a directory under `packages/` - two names do not follow the suffix. */
-const directoryOfSuffix = (suffix?: string): string => {
-  switch (suffix) {
-    case undefined: {
-      return 'core-server';
-    }
-
-    case 'worker': {
-      return 'core-worker';
-    }
-
-    default: {
-      return suffix;
-    }
-  }
-};
-
-/** The bare words a `Package` column uses for a package whose directory has another name. */
-const DIRECTORY_ALIASES: Record<string, string> = {
-  core: 'core-server',
-  ignis: 'core-server',
-  worker: 'core-worker',
-};
-
-/**
- * A table cell or a frontmatter item as a package directory name, or `undefined` when it names
- * none. A bare word must be a directory this repository has released; a `Package` column also
- * carries prose, and filing an entry under an invented name hides it from every real package.
- */
-const directoryOfValue = (opts: { value: string; known: string[] }): string | undefined => {
-  const cleaned = opts.value.replace(/`/g, '').trim();
-  const scoped = cleaned.match(SCOPED_NAME_EXACT_PATTERN);
-
-  if (scoped) {
-    return directoryOfSuffix(scoped[1]);
-  }
-
-  const withoutPrefix = cleaned.startsWith('ignis-') ? cleaned.slice('ignis-'.length) : cleaned;
-  const aliased = DIRECTORY_ALIASES[withoutPrefix] ?? withoutPrefix;
-
-  if (!PACKAGE_DIRECTORY_PATTERN.test(aliased)) {
-    return undefined;
-  }
-
-  return opts.known.includes(aliased) ? aliased : undefined;
-};
-
-const resolveAll = (opts: { values: string[]; known: string[] }): string[] => {
+const resolveAll = (opts: { values: string[]; packages: IAtlasPackage[] }): string[] => {
   const resolved = opts.values
-    .map(value => directoryOfValue({ value, known: opts.known }))
+    .map(value => directoryOf({ value, packages: opts.packages }))
     .filter((name): name is string => name !== undefined);
 
   return [...new Set(resolved)].sort(byText);
@@ -196,9 +130,31 @@ const packageColumnValuesOf = (opts: { body: string }): string[] => {
   return values;
 };
 
-/** Every `@venizia/ignis...` mention anywhere in the body, mapped back to directory names. */
-const bodyMentionsOf = (opts: { body: string }): string[] =>
-  [...opts.body.matchAll(SCOPED_NAME_PATTERN)].map(match => directoryOfSuffix(match[1]));
+const escapeLiteral = (opts: { text: string }): string =>
+  opts.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Every npm-name mention anywhere in the body, as the names themselves: each package's name, and
+ * each alias spelled as a npm name (an old or a misspelled one a changelog used). Longest first, and
+ * a name followed by more of a name (`@a/ignis-other` for `@a/ignis`) is no mention of it; a
+ * sub-path (`@a/ignis/core`) is.
+ */
+const bodyMentionsOf = (opts: { body: string; packages: IAtlasPackage[] }): string[] => {
+  const names = opts.packages
+    .flatMap(entry => [entry.name, ...entry.aliases.filter(alias => alias.startsWith('@'))])
+    .sort((left, right) => right.length - left.length);
+
+  if (names.length === 0) {
+    return [];
+  }
+
+  const pattern = new RegExp(
+    `(?:${names.map(name => escapeLiteral({ text: name })).join('|')})(?![a-z0-9-])`,
+    'g',
+  );
+
+  return [...opts.body.matchAll(pattern)].map(match => match[0]);
+};
 
 /** `packages/<dir>`, the heading convention every changelog before 2026-09 used to name its package. */
 const PACKAGE_PATH_PATTERN = /packages\/([a-z0-9-]+)/g;
@@ -222,73 +178,86 @@ const splitFrontmatter = (text: string): { data: Record<string, unknown>; body: 
 };
 
 export class AtlasReleases {
-  static render(opts: { repoRoot?: string } = {}): string {
-    const repoRoot = opts.repoRoot ?? PROJECT_ROOT;
+  /** The project `vulcan x` handed over; a test passes its own. */
+  static render(opts: { project?: IAtlasProject } = {}): string {
+    const project = opts.project ?? readAtlasProject();
     const table: IReleaseTable = {
-      livePackages: AtlasReleases.livePackagesOf({ repoRoot }),
-      releases: AtlasReleases.releasesOf({ repoRoot }),
-      changelogs: AtlasReleases.changelogsOf({ repoRoot }),
+      livePackages: AtlasReleases.livePackagesOf({ project }),
+      releases: AtlasReleases.releasesOf({ project }),
+      changelogs: AtlasReleases.changelogsOf({ project }),
+      packageMap: project.packages.map(entry => ({
+        dir: entry.dir,
+        name: entry.name,
+        aliases: entry.aliases,
+      })),
     };
 
     return `${JSON.stringify(table, null, 2)}\n`;
   }
 
-  /** Every directory under `packages/` that carries a manifest, sorted. */
-  static livePackagesOf(opts: { repoRoot: string }): string[] {
-    const directory = resolve(opts.repoRoot, 'packages');
-
-    return readdirSync(directory)
-      .filter(name => existsSync(resolve(directory, name, 'package.json')))
-      .sort();
+  /** The configured packages that are not retired, sorted. */
+  static livePackagesOf(opts: { project: IAtlasProject }): string[] {
+    return opts.project.packages
+      .filter(entry => !entry.retired)
+      .map(entry => entry.dir)
+      .sort(byText);
   }
 
-  static check(opts: { repoRoot?: string; outputPath?: string } = {}): boolean {
+  static check(opts: { project?: IAtlasProject; outputPath?: string } = {}): boolean {
     const outputPath = opts.outputPath ?? RELEASES_OUTPUT;
-    const expected = AtlasReleases.render({ repoRoot: opts.repoRoot });
+    const expected = AtlasReleases.render({ project: opts.project });
     const actual = existsSync(outputPath) ? readFileSync(outputPath, 'utf8') : '';
 
     return expected.trim() === actual.trim();
   }
 
-  /** `undefined` for any subject that is not a release commit - the scope and the mode are both required. */
-  static parseReleaseSubject(opts: { subject: string }): IReleaseSubject | undefined {
-    const matched = opts.subject.match(RELEASE_SUBJECT_PATTERN);
+  /** `undefined` for any subject the release template does not read; `pattern` defaults to IGNIS's form. */
+  static parseReleaseSubject(opts: {
+    subject: string;
+    pattern?: RegExp;
+  }): IReleaseSubject | undefined {
+    const groups = (opts.pattern ?? DEFAULT_RELEASE_PATTERN).exec(opts.subject)?.groups;
 
-    return matched ? { package: matched[1], version: matched[2] } : undefined;
+    if (groups?.version === undefined) {
+      return undefined;
+    }
+
+    return { package: groups.dir, version: groups.version };
   }
 
   /**
    * The packages one changelog file names, by the first rule that hits: a `packages:` frontmatter
-   * list, a Details table's `Package` column, `@venizia/ignis...` mentions, then `packages/<dir>`
-   * paths. A file none of the four answer for resolves to none - the generator never guesses one.
+   * list, a Details table's `Package` column, npm-name mentions, then `packages/<dir>` paths. Only
+   * the configured packages count, retired ones included; a file none of the four answer for
+   * resolves to none - the generator never guesses one.
    */
-  static packagesOf(opts: { text: string; known?: string[] }): string[] {
+  static packagesOf(opts: { text: string; packages: IAtlasPackage[] }): string[] {
     const { data, body } = splitFrontmatter(opts.text);
-    const known = opts.known ?? KNOWN_PACKAGES;
+    const { packages } = opts;
 
     const listed: unknown[] = Array.isArray(data.packages) ? data.packages : [];
     const declared = resolveAll({
       values: listed.filter((item): item is string => typeof item === 'string'),
-      known,
+      packages,
     });
 
     if (declared.length > 0) {
       return declared;
     }
 
-    const tabled = resolveAll({ values: packageColumnValuesOf({ body }), known });
+    const tabled = resolveAll({ values: packageColumnValuesOf({ body }), packages });
 
     if (tabled.length > 0) {
       return tabled;
     }
 
-    const mentioned = resolveAll({ values: bodyMentionsOf({ body }), known });
+    const mentioned = resolveAll({ values: bodyMentionsOf({ body, packages }), packages });
 
     if (mentioned.length > 0) {
       return mentioned;
     }
 
-    return resolveAll({ values: bodyPathsOf({ body }), known });
+    return resolveAll({ values: bodyPathsOf({ body }), packages });
   }
 
   /** The first `<Badge ... text="X" />` in the file, or `null` when it carries none. */
@@ -310,12 +279,14 @@ export class AtlasReleases {
   }
 
   /** Newest first per package, in `git log` order; the package keys are sorted, so the file is byte-identical on every machine. */
-  private static releasesOf(opts: { repoRoot: string }): Record<string, IReleaseRecord[]> {
-    const log = spawnSync(
-      'git',
-      ['log', '--format=%H|%ad|%s', '--date=short', '--grep', 'chore(.*): release v'],
-      { cwd: opts.repoRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
-    );
+  private static releasesOf(opts: { project: IAtlasProject }): Record<string, IReleaseRecord[]> {
+    const repoRoot = opts.project.root;
+    // Every subject: the configured template, not a fixed grep, decides what a release commit is.
+    const log = spawnSync('git', ['log', '--format=%H|%ad|%s', '--date=short'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    });
 
     if (log.status !== 0) {
       throw new Error(`[atlas-releases] git log exited ${log.status}\n${log.stderr ?? ''}`);
@@ -323,25 +294,32 @@ export class AtlasReleases {
 
     const byPackage = new Map<string, IReleaseRecord[]>();
     const lines = (log.stdout ?? '').split('\n').filter(line => line.length > 0);
-    const order = AtlasReleases.commitOrderOf({ repoRoot: opts.repoRoot });
+    const order = AtlasReleases.commitOrderOf({ repoRoot });
+    const live = AtlasReleases.livePackagesOf({ project: opts.project });
 
     for (const line of lines) {
       const [hash, date, ...rest] = line.split('|');
-      const parsed = AtlasReleases.parseReleaseSubject({ subject: rest.join('|') });
+      const parsed = AtlasReleases.parseReleaseSubject({
+        subject: rest.join('|'),
+        pattern: opts.project.releaseCommit,
+      });
 
       if (!parsed) {
         continue;
       }
 
-      const records = byPackage.get(parsed.package) ?? [];
+      // A release train's commit names no directory: it releases every live package at once.
+      for (const name of parsed.package === undefined ? live : [parsed.package]) {
+        const records = byPackage.get(name) ?? [];
 
-      records.push({
-        version: parsed.version,
-        date,
-        sha: hash.slice(0, SHORT_SHA_LENGTH),
-        order: order.get(hash) ?? UNCOMMITTED_ORDER,
-      });
-      byPackage.set(parsed.package, records);
+        records.push({
+          version: parsed.version,
+          date,
+          sha: hash.slice(0, SHORT_SHA_LENGTH),
+          order: order.get(hash) ?? UNCOMMITTED_ORDER,
+        });
+        byPackage.set(name, records);
+      }
     }
 
     const sorted: Record<string, IReleaseRecord[]> = {};
@@ -375,7 +353,10 @@ export class AtlasReleases {
   }
 
   /** The position of the commit that added each changelog file, keyed by file name. */
-  private static changelogOrderOf(opts: { repoRoot: string }): Map<string, number> {
+  private static changelogOrderOf(opts: {
+    repoRoot: string;
+    directory: string;
+  }): Map<string, number> {
     const order = AtlasReleases.commitOrderOf({ repoRoot: opts.repoRoot });
     const log = spawnSync(
       'git',
@@ -386,7 +367,7 @@ export class AtlasReleases {
         '--name-only',
         '--format=commit %H',
         '--',
-        CHANGELOG_DIRECTORY,
+        relative(opts.repoRoot, opts.directory),
       ],
       { cwd: opts.repoRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
     );
@@ -420,15 +401,21 @@ export class AtlasReleases {
    * (`template.md`, `planned-schema-migrator.md`) is not a dated entry: it can never fall inside a
    * release window, so it is left out rather than carried with an invented date.
    */
-  private static changelogsOf(opts: { repoRoot: string }): IChangelogRecord[] {
-    const directory = resolve(opts.repoRoot, CHANGELOG_DIRECTORY);
+  private static changelogsOf(opts: { project: IAtlasProject }): IChangelogRecord[] {
+    const directory = opts.project.knowledge.changelogs;
+
+    // No `knowledge.changelogs`: the project keeps no changelog, so no entry falls in any window.
+    if (directory === undefined || !existsSync(directory)) {
+      return [];
+    }
+
     const files = readdirSync(directory)
       .filter(file => file.endsWith('.md') && file !== 'index.md')
       .sort(byText)
       .reverse();
 
     const records: IChangelogRecord[] = [];
-    const order = AtlasReleases.changelogOrderOf({ repoRoot: opts.repoRoot });
+    const order = AtlasReleases.changelogOrderOf({ repoRoot: opts.project.root, directory });
 
     for (const file of files) {
       const dated = file.match(DATE_PREFIX_PATTERN);
@@ -444,7 +431,7 @@ export class AtlasReleases {
         file,
         date: dated[1],
         title: AtlasReleases.titleOf({ text, file }),
-        packages: AtlasReleases.packagesOf({ text }),
+        packages: AtlasReleases.packagesOf({ text, packages: opts.project.packages }),
         kind: AtlasReleases.kindOf({ text }),
         order: order.get(file) ?? UNCOMMITTED_ORDER,
       });

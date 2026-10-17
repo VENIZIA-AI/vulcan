@@ -10,7 +10,8 @@ import { IGNIS_ROOT } from '../ignis-root.helper';
 // __dirname, not import.meta: tsconfig.json (unlike tsconfig.build.json) does not exclude
 // __tests__, and this package's module mode treats every file as CommonJS output.
 const REPOSITORY_ROOT = IGNIS_ROOT;
-const EXTENSION_PAGE = join(REPOSITORY_ROOT, 'docs/wiki/content/extensions/atlas/index.md');
+// Atlas's page moved with atlas: IGNIS's extension page is a pointer now, VULCAN's guide quotes the ids.
+const EXTENSION_PAGE = join(__dirname, '../../../../../docs/wiki/content/guides/atlas.md');
 
 // A real citation id, e.g. `wiki:guide.md#anchor` - never a format placeholder like
 // `wiki:<path>#<anchor>`, which is excluded by rejecting `<`/`>` inside the match.
@@ -23,6 +24,7 @@ const idsQuotedOn = (opts: { page: string }): string[] => {
 };
 
 const hasRepositoryRoots =
+  existsSync(EXTENSION_PAGE) &&
   existsSync(join(REPOSITORY_ROOT, 'docs/wiki/content')) &&
   existsSync(join(REPOSITORY_ROOT, '.agents/knowledge'));
 

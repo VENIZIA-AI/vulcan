@@ -1,44 +1,122 @@
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { resolve } from 'node:path';
+import { compileReleaseTemplate } from '@/releases/template';
 
-/** The same lookup order `vulcan` uses; a project has exactly one of them. */
-const CONFIG_FILES = [
-  'vulcan.config.ts',
-  'vulcan.config.mts',
-  'vulcan.config.mjs',
-  'vulcan.config.js',
-];
+/** What `vulcan x` hands every tool; the generators read nothing else for their project. */
+const CONFIG_ENV = 'VULCAN_CONFIG';
+const ROOT_ENV = 'VULCAN_PROJECT_ROOT';
 
-const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
-  typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
+const DEFAULT_RELEASE_COMMIT = '[#<issue>] chore(<dir>): release v<version>';
+const DEFAULT_TAG_PATTERN = '<dir>-v<version>';
+const DEFAULT_BUNDLE = '.agents/knowledge';
+
+export interface IAtlasPackage {
+  dir: string;
+  name: string;
+  aliases: string[];
+  retired: boolean;
+}
+
+export interface IAtlasProject {
+  root: string;
+  /** Release order; retired ones included, so their old changelogs and tags stay readable. */
+  packages: IAtlasPackage[];
+  /** `atlas.releaseCommit` compiled: named groups `dir`, `version`, `issue`. */
+  releaseCommit: RegExp;
+  /** `atlas.tagPattern`, the template of a release tag. */
+  tagPattern: string;
+  /** Absolute: where the project's `typescript` resolves from. */
+  typescriptFrom: string;
+  /** Absolute paths. */
+  knowledge: { bundle: string; wiki?: string; changelogs?: string };
+}
+
+type TRecord = Record<string, unknown>;
+
+const recordOf = (opts: { value: unknown }): TRecord =>
+  typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value)
+    ? Object.fromEntries(Object.entries(opts.value))
+    : {};
+
+const stringOf = (opts: { value: unknown }): string | undefined =>
+  typeof opts.value === 'string' ? opts.value : undefined;
+
+const packagesOf = (opts: { value: unknown }): IAtlasPackage[] =>
+  (Array.isArray(opts.value) ? opts.value : []).flatMap(item => {
+    const entry = recordOf({ value: item });
+    const dir = stringOf({ value: entry.dir });
+    const aliases: unknown[] = Array.isArray(entry.aliases) ? entry.aliases : [];
+
+    return dir === undefined
+      ? []
+      : [
+          {
+            dir,
+            name: stringOf({ value: entry.name }) ?? dir,
+            aliases: aliases.filter((alias): alias is string => typeof alias === 'string'),
+            retired: entry.retired === true,
+          },
+        ];
+  });
 
 /**
- * The package directories the generators read: the keys of `atlas.packages` in the project's
- * `.configs/vulcan.config.*`, in the order given - release order. Required: the generators carry no
- * project's package names of their own.
+ * A project from a resolved config (the cli validated it and resolved `packages` already): the
+ * schema's defaults for anything absent, every path absolute.
  */
-export const readAtlasPackages = (opts: { repoRoot: string }): string[] => {
-  const file = CONFIG_FILES.map(name => join(opts.repoRoot, '.configs', name)).find(path =>
-    existsSync(path),
-  );
+export const toAtlasProject = (opts: { root: string; config: unknown }): IAtlasProject => {
+  const config = recordOf({ value: opts.config });
+  const atlas = recordOf({ value: config.atlas });
+  const knowledge = recordOf({ value: config.knowledge });
+  const wiki = stringOf({ value: knowledge.wiki });
+  const changelogs = stringOf({ value: knowledge.changelogs });
+  const typescriptFrom = stringOf({ value: atlas.typescriptFrom });
 
-  if (file === undefined) {
-    throw new Error(`[atlas] no .configs/vulcan.config.* in ${opts.repoRoot}`);
-  }
-
-  // Bun loads a TS or ESM config synchronously through require; atlas is Bun-only.
-  const loaded = { value: require(file) };
-  const config = {
-    value: isRecord(loaded) && 'default' in loaded.value ? loaded.value.default : loaded.value,
+  return {
+    root: opts.root,
+    packages: packagesOf({ value: config.packages }),
+    releaseCommit: compileReleaseTemplate({
+      template: stringOf({ value: atlas.releaseCommit }) ?? DEFAULT_RELEASE_COMMIT,
+    }),
+    tagPattern: stringOf({ value: atlas.tagPattern }) ?? DEFAULT_TAG_PATTERN,
+    typescriptFrom: resolve(opts.root, typescriptFrom ?? '.'),
+    knowledge: {
+      bundle: resolve(opts.root, stringOf({ value: knowledge.bundle }) ?? DEFAULT_BUNDLE),
+      ...(wiki === undefined ? {} : { wiki: resolve(opts.root, wiki) }),
+      ...(changelogs === undefined ? {} : { changelogs: resolve(opts.root, changelogs) }),
+    },
   };
-  const atlas = { value: isRecord(config) ? config.value.atlas : undefined };
-  const packages = { value: isRecord(atlas) ? atlas.value.packages : undefined };
+};
 
-  if (!isRecord(packages) || Object.keys(packages.value).length === 0) {
+/** Whether `vulcan x` handed a project over; the MCP server runs without one. */
+export const hasAtlasProject = (): boolean =>
+  process.env[CONFIG_ENV] !== undefined && process.env[ROOT_ENV] !== undefined;
+
+/** The generators' project, from what `vulcan x` hands them. */
+export const readAtlasProject = (): IAtlasProject => {
+  const text = process.env[CONFIG_ENV];
+  const root = process.env[ROOT_ENV];
+
+  if (text === undefined || root === undefined) {
     throw new Error(
-      '[atlas] add atlas.packages to .configs/vulcan.config.ts - the package directories under packages/, in release order',
+      'atlas: no project config - run through `vulcan x atlas` (or add .configs/vulcan.config.ts)',
     );
   }
 
-  return Object.keys(packages.value);
+  return toAtlasProject({ root, config: JSON.parse(text) });
 };
+
+/** The packages surface and symbols walk: the live ones, in release order. */
+export const livePackageDirs = (opts: { project: IAtlasProject }): string[] => {
+  const live = opts.project.packages.filter(entry => !entry.retired).map(entry => entry.dir);
+
+  if (live.length === 0) {
+    throw new Error(
+      'atlas: add packages to .configs/vulcan.config.ts - the package directories under packages/, in release order',
+    );
+  }
+
+  return live;
+};
+
+/** Every package the project has released, retired ones included. */
+export const knownPackageDirs = (opts: { project: IAtlasProject }): string[] =>
+  opts.project.packages.map(entry => entry.dir);

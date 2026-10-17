@@ -1,3 +1,5 @@
+import type { IPackageMapEntry } from '@/common/package-map';
+
 /** One published version of one package, as `scripts/atlas-releases.ts` read it off a release commit. */
 export interface IReleaseRecord {
   version: string;
@@ -28,4 +30,6 @@ export interface IReleaseTable {
   livePackages?: string[];
   releases: Record<string, IReleaseRecord[]>;
   changelogs: IChangelogRecord[];
+  /** Every package's directory, npm name and other names; absent in a table generated before 0.2.0-0. */
+  packageMap?: IPackageMapEntry[];
 }
