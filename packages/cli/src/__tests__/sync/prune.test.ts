@@ -90,6 +90,27 @@ describe('vulcan sync --prune', () => {
     expect(runCli({ args: ['sync', '--prune'], cwd: root }).stderr).not.toContain('removed');
   });
 
+  test("a developer's own .agents hooks elsewhere are never taken for a dead project hook", () => {
+    const root = createProject({
+      files: { ...PROJECT, 'packages/foo/.agents/hooks/x.ts': 'console.log(1);\n' },
+    });
+
+    runCli({ args: ['sync'], cwd: root });
+
+    const mine = [
+      'bun packages/foo/.agents/hooks/x.ts',
+      'bun "$HOME"/.agents/hooks/personal.ts',
+      'cd packages/foo && bun .agents/hooks/x.ts',
+    ];
+    const settings = JSON.parse(readFileSync(settingsPath({ root }), 'utf8'));
+
+    settings.hooks.Stop = mine.map(command => ({ hooks: [{ type: 'command', command }] }));
+    writeFileSync(settingsPath({ root }), `${JSON.stringify(settings, null, 2)}\n`);
+
+    expect(runCli({ args: ['sync', '--prune'], cwd: root }).stderr).not.toContain('removed');
+    expect(commandsOf({ root })).toEqual(expect.arrayContaining(mine));
+  });
+
   test('--prune --dry-run prints what it would remove and changes nothing', () => {
     const root = projectWithLeftovers();
     const before = readFileSync(settingsPath({ root }), 'utf8');
