@@ -48,6 +48,37 @@ export const mergeSettings = (opts: { base: TSettings; overlay: TSettings }): TS
 
 const toKey = (opts: { value: unknown }): string => JSON.stringify(opts.value);
 
+/** `settings` with its keys in `reference`'s order: keys `reference` has keep their place, new keys follow. */
+const orderKeysLike = (opts: { settings: TSettings; reference: TSettings }): TSettings => {
+  const keys = [
+    ...Object.keys(opts.reference).filter(key => key in opts.settings),
+    ...Object.keys(opts.settings).filter(key => !(key in opts.reference)),
+  ];
+
+  return Object.fromEntries(keys.map(key => [key, opts.settings[key]]));
+};
+
+/**
+ * `settings` in the key order the user's file already has, here and one level down: a sync that only
+ * reorders keys rewrites the file, and `doctor` then calls a fresh sync stale.
+ */
+export const keepKeyOrder = (opts: { settings: TSettings; reference: TSettings }): TSettings => {
+  const ordered = orderKeysLike(opts);
+
+  for (const key of Object.keys(ordered).filter(entry =>
+    SyncConstants.MERGE_ONE_LEVEL.has(entry),
+  )) {
+    const value = { value: ordered[key] };
+    const previous = { value: opts.reference[key] };
+
+    if (isSettingsObject(value) && isSettingsObject(previous)) {
+      ordered[key] = orderKeysLike({ settings: value.value, reference: previous.value });
+    }
+  }
+
+  return ordered;
+};
+
 /** `settings` without what `managed` (the overlay of a previous sync) put there; anything else stays. */
 export const removeManagedSettings = (opts: {
   settings: TSettings;
