@@ -6,6 +6,13 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-17 - atlas 0.2.0-1 minors
+
+Updated [atlas](/packages/atlas.md): the cache is keyed by the repository's whole path; offline
+falls back within one ref; a tag on a cached SHA recomputes releases; a broken `git/` is cloned
+again; npm failures are logged and retried; manifest package names are checked; `version` resolves
+through dependents and says why it has no release.
+
 ## 2026-10-17 - atlas sources: refs, bounds, cache
 
 Updated [atlas](/packages/atlas.md): a missing ref is an error, never the offline cache; a SHA ref

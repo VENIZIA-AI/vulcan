@@ -1,4 +1,6 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { existsSync, rmSync } from 'node:fs';
 import { AtlasTimeouts } from '@/common/constants';
 import { StderrLogger } from '@/common/logger';
 import type { IRemoteRef } from './common';
@@ -7,6 +9,7 @@ const GIT_BUFFER = 64 * 1024 * 1024;
 /** A commit named by its hash: all 40 characters, or the 7 or more git abbreviates it to. */
 const COMMIT_SHA = /^[0-9a-f]{7,40}$/;
 const FULL_SHA_LENGTH = 40;
+const TAGS_FINGERPRINT_LENGTH = 16;
 
 /** A call that hangs must not hang the server's start: past `timeout` it is killed, and fails. */
 export const git = (opts: { cwd?: string; args: string[]; timeout?: number }): string => {
@@ -43,13 +46,29 @@ export const pickRef = (opts: { refs: Map<string, string>; ref: string }): strin
   opts.refs.get(`refs/tags/${opts.ref}^{}`) ??
   opts.refs.get(`refs/tags/${opts.ref}`);
 
-/** The commit `ref` names on the remote - `reachable: false` when the remote could not be asked. */
+/** Every tag the remote advertises, as one short hash: a release tag pushed on a cached commit moves it. */
+export const tagsFingerprintOf = (opts: { refs: Map<string, string> }): string =>
+  createHash('sha256')
+    .update(
+      [...opts.refs]
+        .filter(([name]) => name.startsWith('refs/tags/'))
+        .map(([name, sha]) => `${sha} ${name}`)
+        .sort()
+        .join('\n'),
+    )
+    .digest('hex')
+    .slice(0, TAGS_FINGERPRINT_LENGTH);
+
+/**
+ * The commit `ref` names on the remote, and the fingerprint of its tags - `reachable: false` when
+ * the remote could not be asked.
+ */
 export const lsRemote = (opts: { url: string; ref: string }): IRemoteRef => {
   let listed: string;
 
   try {
     listed = git({
-      args: ['ls-remote', opts.url, opts.ref, `${opts.ref}^{}`],
+      args: ['ls-remote', opts.url, opts.ref, `${opts.ref}^{}`, 'refs/tags/*'],
       timeout: AtlasTimeouts.REF_LOOKUP_MS,
     });
   } catch (error) {
@@ -69,7 +88,11 @@ export const lsRemote = (opts: { url: string; ref: string }): IRemoteRef => {
       }),
   );
 
-  return { reachable: true, sha: pickRef({ refs, ref: opts.ref }) };
+  return {
+    reachable: true,
+    sha: pickRef({ refs, ref: opts.ref }),
+    tags: tagsFingerprintOf({ refs }),
+  };
 };
 
 /** The full hash of the commit `ref` abbreviates, from the clone - `undefined` when it holds none. */
@@ -85,17 +108,32 @@ export const commitOf = (opts: { gitDir: string; ref: string }): string | undefi
 };
 
 /**
- * One partial clone per source - commits and trees, no blobs - brought up to date with its tags, and
- * `sha` fetched when no ref reaches it. Symlinks check out as plain files: a fetched tree's link can
- * point anywhere on the machine.
+ * Whether `gitDir` holds a repository. A clone killed right after it made its directory leaves one
+ * that is not; `--git-dir` keeps git from finding a repository above it instead.
  */
-export const updateClone = (opts: {
-  url: string;
-  gitDir: string;
-  exists: boolean;
-  sha?: string;
-}): void => {
-  if (opts.exists) {
+export const hasClone = (opts: { gitDir: string }): boolean =>
+  existsSync(opts.gitDir) &&
+  spawnSync('git', ['--git-dir', opts.gitDir, 'rev-parse', '--git-dir'], {
+    timeout: AtlasTimeouts.LOCAL_GIT_MS,
+    killSignal: 'SIGKILL',
+  }).status === 0;
+
+/**
+ * One partial clone per source - commits and trees, no blobs - brought up to date with its tags, and
+ * `sha` fetched when no ref reaches it; a directory that is not a repository is cloned again.
+ * Symlinks check out as plain files: a fetched tree's link can point anywhere on the machine.
+ */
+export const updateClone = (opts: { url: string; gitDir: string; sha?: string }): void => {
+  const exists = hasClone(opts);
+
+  if (!exists && existsSync(opts.gitDir)) {
+    StderrLogger.get('updateClone').warn(
+      `not a git repository, cloning again | directory: ${opts.gitDir}`,
+    );
+    rmSync(opts.gitDir, { recursive: true, force: true });
+  }
+
+  if (exists) {
     git({
       cwd: opts.gitDir,
       args: [

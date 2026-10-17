@@ -1,3 +1,5 @@
+import { RpcError, RpcErrorCodes } from '@/protocol/common';
+
 /** One package as the generated tables record it: its directory, its npm name, its other names. */
 export interface IPackageMapEntry {
   dir: string;
@@ -64,11 +66,12 @@ export const packageAcrossSources = (opts: {
   });
 
   if (matches.length > 1) {
-    throw new Error(
-      `'${opts.value}' names a package in more than one source - ask by npm name: ${matches
+    throw new RpcError({
+      code: RpcErrorCodes.INVALID_PARAMS,
+      message: `'${opts.value}' names a package in more than one source - ask by npm name: ${matches
         .map(match => `${match.name} (${match.source})`)
         .join(', ')}`,
-    );
+    });
   }
 
   return matches[0];

@@ -60,3 +60,38 @@ test('repo mode answers changes from git: tags and declared changelogs, no relea
     'changelog:2026-01-02-faster',
   ]);
 });
+
+test('repo mode with no tag the pattern reads says so on version and changes', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'atlas-repo-untagged-'));
+
+  try {
+    mkdirSync(join(root, '.agents/knowledge'), { recursive: true });
+    writeFileSync(
+      join(root, '.agents/vulcan.manifest.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        name: 'acme',
+        packages: [{ name: '@acme/core', dir: 'core', aliases: [], retired: false }],
+        release: { tagPattern: 'v<version>' },
+      }),
+    );
+    execFileSync('git', ['init', '-q', '-b', 'develop'], { cwd: root, stdio: 'ignore' });
+
+    const transport = buildServer({ root, version: '0.0.0' });
+    const call = async (opts: { name: string; arguments: object }) =>
+      JSON.parse(
+        (await transport.handleLine({
+          line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: opts }),
+        })) ?? 'null',
+      );
+
+    expect((await call({ name: 'version', arguments: {} })).error.message).toBe(
+      'no releases: no tag matches v<version>',
+    );
+    expect((await call({ name: 'changes', arguments: {} })).error.message).toBe(
+      'no releases: no tag matches v<version>',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

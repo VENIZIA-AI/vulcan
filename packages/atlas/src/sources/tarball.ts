@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { AtlasTimeouts } from '@/common/constants';
 import { StderrLogger } from '@/common/logger';
 import type { IRemoteRef } from './common';
-import { pickRef } from './git';
+import { pickRef, tagsFingerprintOf } from './git';
 
 const GITHUB = 'https://github.com';
 const CODELOAD = 'https://codeload.github.com';
@@ -78,7 +78,11 @@ export const lsRemoteByHttp = async (opts: {
     ]),
   );
 
-  return { reachable: true, sha: pickRef({ refs, ref: opts.ref }) };
+  return {
+    reachable: true,
+    sha: pickRef({ refs, ref: opts.ref }),
+    tags: tagsFingerprintOf({ refs }),
+  };
 };
 
 /** The tarball of one commit, downloaded once into `work`: every extraction reads the same archive. */

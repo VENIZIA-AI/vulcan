@@ -9,6 +9,7 @@ import {
   makeTempDirectory,
   NO_REGISTRY,
   TEMP_DIRECTORIES,
+  writeSourceFile,
 } from './source-repo.helper';
 
 afterAll(() => {
@@ -122,5 +123,30 @@ describe('vulcan-atlas over git sources', () => {
     expect(run({ args: ['pull', '--source', `${source.url}@develop`], cwd, cache }).stdout).toBe(
       `pull: source ${sha} (fresh)\n`,
     );
+  });
+
+  test('pull --source with a name no source has exits 2, naming the known sources', () => {
+    const source = makeSourceRepository();
+    const cache = makeTempDirectory({ prefix: 'atlas-cache-' });
+    const cwd = makeTempDirectory({ prefix: 'atlas-consumer-' });
+
+    writeSourceFile({
+      work: cwd,
+      path: '.agents/vulcan.manifest.json',
+      text: `${JSON.stringify({
+        schemaVersion: 1,
+        name: 'consumer',
+        sources: [
+          { name: 'src', repo: source.url, ref: 'develop' },
+          { name: 'other', repo: source.url, ref: 'main' },
+        ],
+      })}\n`,
+    });
+
+    const result = run({ args: ['pull', '--source', 'nope'], cwd, cache });
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain("pull: no source named 'nope' - known sources: src, other");
+    expect(result.stdout).toBe('');
   });
 });

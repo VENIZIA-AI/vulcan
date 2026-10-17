@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { lstatSync, readdirSync, rmSync, symlinkSync } from 'node:fs';
+import { lstatSync, mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildSourcesServer } from '@/server/index';
 import { cacheRootOf, resolveSources } from '@/sources';
@@ -141,6 +141,28 @@ describe('a pull', () => {
     expect(
       git({ cwd: join(cacheRoot, 'git'), args: ['worktree', 'list', '--porcelain'] }),
     ).not.toContain(pulled[0]);
+  });
+
+  test('a clone directory a killed pull left empty is cloned again, by a start and by pull', async () => {
+    const source = makeSourceRepository();
+    const cwd = makeTempDirectory({ prefix: 'atlas-consumer-' });
+    const sources = [{ name: 'src', repo: source.url, ref: 'develop' }];
+    const gitDir = join(cacheRootOf({ repo: source.url }), 'git');
+
+    mkdirSync(gitDir, { recursive: true });
+    writeFileSync(join(gitDir, 'config'), 'half a clone\n');
+
+    const [started] = await resolveSources({ cwd, sources });
+
+    expect(started.mode).toBe('fresh');
+
+    rmSync(gitDir, { recursive: true, force: true });
+    mkdirSync(gitDir);
+
+    const [pulled] = await resolveSources({ cwd, sources, force: true });
+
+    expect(pulled.mode).toBe('fresh');
+    expect(git({ cwd: gitDir, args: ['rev-parse', '--is-bare-repository'] })).toBe('true');
   });
 
   test('a bundle committed as a symlink to a directory outside serves nothing from it', async () => {

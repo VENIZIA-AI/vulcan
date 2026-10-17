@@ -9,6 +9,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
@@ -19,8 +20,10 @@ import {
   toAtlasProject,
 } from '@/common/project-config';
 import type { IAtlasProject } from '@/common/project-config';
+import type { IReleaseTable } from '@/releases/common';
 import { computeReleases } from '@/releases/compute';
 import { ChunkStore } from '@/search/store';
+import { StderrLogger } from '@/common/logger';
 import { symbolsOfPublished } from '@/symbols/compute';
 import { artifactsOf, cacheRootOf, checkoutOf, urlOf } from './cache';
 import type {
@@ -34,6 +37,7 @@ import { githubTokenOf } from './credentials';
 import {
   commitOf,
   git,
+  hasClone,
   isCommitSha,
   lsRemote,
   setSparsePaths,
@@ -48,10 +52,43 @@ const INDEX = 'index.sqlite';
 const RELEASES = 'releases.json';
 /** Written by a pull through git: the release table carries the history the tags give. */
 const HISTORY = 'history';
+/** The fingerprint of the remote's tags the release table was computed from. */
+const TAGS = 'tags';
 /** A source's newest SHAs the cache keeps - each one a checkout and an index - so it never grows unbounded. */
 const KEPT_SHAS = 3;
+/** `refs/ref-<ref>` holds the SHA last served for that ref: an offline start stays on its ref. */
+const REFS = 'refs';
 
 const gitDirOf = (opts: { cacheRoot: string }): string => join(opts.cacheRoot, 'git');
+
+// The prefix keeps a ref of `.` or `..` a plain file name; encoding leaves no `/` in it.
+const refFileOf = (opts: { cacheRoot: string; ref: string }): string =>
+  join(opts.cacheRoot, REFS, `ref-${encodeURIComponent(opts.ref)}`);
+
+/** Written beside its place and moved in: a start racing this one reads one SHA or the other. */
+const recordRef = (opts: { cacheRoot: string; ref: string; sha: string }): void => {
+  const file = refFileOf(opts);
+  const partial = join(opts.cacheRoot, REFS, `partial-${process.pid}-${randomUUID()}`);
+
+  mkdirSync(join(opts.cacheRoot, REFS), { recursive: true });
+  writeFileSync(partial, `${opts.sha}\n`);
+  renameSync(partial, file);
+};
+
+/** Every SHA a ref was last served at - pruning keeps them, so each ref keeps its offline fallback. */
+const recordedShas = (opts: { cacheRoot: string }): Set<string> => {
+  const directory = join(opts.cacheRoot, REFS);
+
+  if (!existsSync(directory)) {
+    return new Set();
+  }
+
+  return new Set(
+    readdirSync(directory)
+      .filter(name => name.startsWith('ref-'))
+      .map(name => readFileSync(join(directory, name), 'utf8').trim()),
+  );
+};
 
 const describe = (opts: { source: IAtlasSource }): string =>
   `source '${opts.source.name}' (${opts.source.repo}@${opts.source.ref})`;
@@ -66,7 +103,11 @@ const projectOf = (opts: { checkout: string; source: IAtlasSource }): IAtlasProj
     );
   }
 
-  return toAtlasProject({ root: opts.checkout, manifest: JSON.parse(readFileSync(file, 'utf8')) });
+  return toAtlasProject({
+    root: opts.checkout,
+    manifest: JSON.parse(readFileSync(file, 'utf8')),
+    source: describe(opts),
+  });
 };
 
 const servedFrom = (opts: {
@@ -77,6 +118,10 @@ const servedFrom = (opts: {
 }): IResolvedSource => {
   const checkout = checkoutOf(opts);
   const artifacts = artifactsOf(opts);
+
+  if (opts.mode !== 'offline-cache') {
+    recordRef({ cacheRoot: opts.cacheRoot, ref: opts.source.ref, sha: opts.sha });
+  }
 
   return {
     name: opts.source.name,
@@ -112,14 +157,26 @@ const completeShas = (opts: { cacheRoot: string }): string[] => {
     .map(entry => entry.sha);
 };
 
-/** The SHA most recently pulled completely, for an offline start. */
-const newestCached = (opts: { cacheRoot: string }): string | undefined => completeShas(opts)[0];
+/** The SHA last served for `ref`, for an offline start - never another ref's. */
+const lastServedFor = (opts: { cacheRoot: string; ref: string }): string | undefined => {
+  const file = refFileOf(opts);
+  const sha = existsSync(file) ? readFileSync(file, 'utf8').trim() : '';
 
-/** All but the newest `KEPT_SHAS` complete SHAs leave the cache - never the one being served. */
+  return isCommitSha({ ref: sha, isFull: true }) && isComplete({ cacheRoot: opts.cacheRoot, sha })
+    ? sha
+    : undefined;
+};
+
+/**
+ * All but the newest `KEPT_SHAS` complete SHAs leave the cache - never the one being served, nor
+ * one a ref was last served at.
+ */
 const pruneOlderShas = (opts: { cacheRoot: string; served: string }): void => {
+  const recorded = recordedShas(opts);
   const older = completeShas(opts)
     .filter(sha => sha !== opts.served)
-    .slice(KEPT_SHAS - 1);
+    .slice(KEPT_SHAS - 1)
+    .filter(sha => !recorded.has(sha));
 
   for (const sha of older) {
     rmSync(checkoutOf({ cacheRoot: opts.cacheRoot, sha }), { recursive: true, force: true });
@@ -127,7 +184,7 @@ const pruneOlderShas = (opts: { cacheRoot: string; served: string }): void => {
   }
 
   // The clone forgets the worktrees whose directories are gone.
-  if (older.length > 0 && existsSync(gitDirOf(opts))) {
+  if (older.length > 0 && hasClone({ gitDir: gitDirOf(opts) })) {
     git({ cwd: gitDirOf(opts), args: ['worktree', 'prune'] });
   }
 };
@@ -151,14 +208,44 @@ const declaredPathsOf = (opts: { project: IAtlasProject; checkout: string }): st
 };
 
 /**
+ * The symbols of each live package's newest release (D2, from npm), for those not cached yet. A
+ * package npm lacks (a private one) or a registry that is down is logged; the absent cache entry is
+ * the record of it, so the next start asks npm again.
+ */
+const fetchPublishedSymbols = async (opts: {
+  source: IAtlasSource;
+  project: IAtlasProject;
+  releases: IReleaseTable;
+}): Promise<void> => {
+  for (const entry of opts.project.packages.filter(item => !item.retired)) {
+    const version = opts.releases.releases[entry.dir]?.[0]?.version;
+
+    if (version === undefined) {
+      continue;
+    }
+
+    try {
+      await symbolsOfPublished({ name: entry.name, version });
+    } catch (error) {
+      StderrLogger.get('fetchPublishedSymbols').warn(
+        `no symbols for ${entry.name}@${version} yet, the next start asks npm again | source: ${opts.source.name} | error: %s`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+};
+
+/**
  * What a pull leaves for this SHA: the search index, the release table, the symbols of each
  * package's newest release (D2, from npm - a package npm lacks has none), and `complete`. Built
  * beside its place and moved in last: a reader never sees half of a SHA.
  */
 const buildArtifacts = async (opts: {
+  source: IAtlasSource;
   artifacts: string;
   project: IAtlasProject;
   history: boolean;
+  tags?: string;
 }): Promise<void> => {
   const { project } = opts;
   const partial = `${opts.artifacts}.partial`;
@@ -179,16 +266,14 @@ const buildArtifacts = async (opts: {
 
   writeFileSync(join(partial, RELEASES), `${JSON.stringify(releases)}\n`);
 
-  for (const entry of project.packages.filter(item => !item.retired)) {
-    const version = releases.releases[entry.dir]?.[0]?.version;
-
-    if (version !== undefined) {
-      await symbolsOfPublished({ name: entry.name, version }).catch(() => undefined);
-    }
-  }
+  await fetchPublishedSymbols({ source: opts.source, project, releases });
 
   if (opts.history) {
     writeFileSync(join(partial, HISTORY), '');
+  }
+
+  if (opts.tags !== undefined) {
+    writeFileSync(join(partial, TAGS), `${opts.tags}\n`);
   }
 
   writeFileSync(join(partial, COMPLETE), `${new Date().toISOString()}\n`);
@@ -201,18 +286,83 @@ const pullByGit = async (opts: {
   source: IAtlasSource;
   cacheRoot: string;
   sha: string;
+  tags?: string;
 }): Promise<void> => {
   const gitDir = gitDirOf(opts);
   const checkout = checkoutOf(opts);
 
-  updateClone({ url: urlOf(opts.source), gitDir, exists: existsSync(gitDir), sha: opts.sha });
+  updateClone({ url: urlOf(opts.source), gitDir, sha: opts.sha });
   git({ cwd: gitDir, args: ['worktree', 'prune'] });
   sparseCheckout({ gitDir, directory: checkout, sha: opts.sha, paths: ['.agents'] });
 
   const project = projectOf({ checkout, source: opts.source });
 
   setSparsePaths({ directory: checkout, paths: declaredPathsOf({ project, checkout }) });
-  await buildArtifacts({ artifacts: artifactsOf(opts), project, history: true });
+  await buildArtifacts({
+    source: opts.source,
+    artifacts: artifactsOf(opts),
+    project,
+    history: true,
+    tags: opts.tags,
+  });
+};
+
+/** A file written whole beside its place, then moved in: a reader sees the old one or the new one. */
+const writeWhole = (opts: { file: string; text: string }): void => {
+  const partial = `${opts.file}.${process.pid}.partial`;
+
+  writeFileSync(partial, opts.text);
+  renameSync(partial, opts.file);
+};
+
+/**
+ * A release tag pushed after its commit was pulled: the clone fetches the tags and the release table
+ * is computed again - the corpus is not pulled again. A failure keeps the table the pull computed.
+ */
+const refreshReleases = async (opts: {
+  source: IAtlasSource;
+  cacheRoot: string;
+  sha: string;
+  tags?: string;
+}): Promise<void> => {
+  const artifacts = artifactsOf(opts);
+  const tagsFile = join(artifacts, TAGS);
+  const isCurrent = (): boolean =>
+    opts.tags === undefined ||
+    !existsSync(join(artifacts, HISTORY)) ||
+    (existsSync(tagsFile) && readFileSync(tagsFile, 'utf8').trim() === opts.tags);
+
+  if (isCurrent()) {
+    return;
+  }
+
+  try {
+    await withPullLock({
+      cacheRoot: opts.cacheRoot,
+      label: describe(opts),
+      run: () => {
+        // Another start computed them while this one waited for the lock.
+        if (!isCurrent()) {
+          updateClone({ url: urlOf(opts.source), gitDir: gitDirOf(opts) });
+
+          const project = projectOf({ checkout: checkoutOf(opts), source: opts.source });
+
+          writeWhole({
+            file: join(artifacts, RELEASES),
+            text: `${JSON.stringify(computeReleases({ project }))}\n`,
+          });
+          writeWhole({ file: tagsFile, text: `${opts.tags}\n` });
+        }
+
+        return Promise.resolve();
+      },
+    });
+  } catch (error) {
+    StderrLogger.get('refreshReleases').warn(
+      `kept the releases the pull computed | source: ${opts.source.name} | error: %s`,
+      error instanceof Error ? error.message : String(error),
+    );
+  }
 };
 
 /** A pull with no git on the machine: the tarball of the SHA, the manifest first, then its paths. No history. */
@@ -239,7 +389,12 @@ const pullByTarball = async (opts: {
     const project = projectOf({ checkout, source: opts.source });
 
     extractTarball({ archive, directory: checkout, paths: declaredPathsOf({ project, checkout }) });
-    await buildArtifacts({ artifacts: artifactsOf(opts), project, history: false });
+    await buildArtifacts({
+      source: opts.source,
+      artifacts: artifactsOf(opts),
+      project,
+      history: false,
+    });
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
@@ -276,7 +431,7 @@ const lookUpRef = async (opts: {
     );
   }
 
-  const known = existsSync(gitDir) ? commitOf({ gitDir, ref }) : undefined;
+  const known = hasClone({ gitDir }) ? commitOf({ gitDir, ref }) : undefined;
 
   if (known !== undefined) {
     return { reachable: true, sha: known };
@@ -286,7 +441,7 @@ const lookUpRef = async (opts: {
     cacheRoot: opts.cacheRoot,
     label: describe(opts),
     run: () => {
-      updateClone({ url: urlOf(opts.source), gitDir, exists: existsSync(gitDir) });
+      updateClone({ url: urlOf(opts.source), gitDir });
 
       return Promise.resolve({ reachable: true, sha: commitOf({ gitDir, ref }) });
     },
@@ -316,7 +471,7 @@ const resolveRemote = async (opts: {
   const remote = await lookUpRef({ source: opts.source, cacheRoot, byGit, github, token });
 
   if (!remote.reachable) {
-    const cached = newestCached({ cacheRoot });
+    const cached = lastServedFor({ cacheRoot, ref: opts.source.ref });
 
     if (cached === undefined) {
       throw new Error(`atlas: ${describe(opts)} is unreachable and has no cache`);
@@ -335,7 +490,19 @@ const resolveRemote = async (opts: {
   }
 
   if (!opts.force && isComplete({ cacheRoot, sha })) {
-    return servedFrom({ source: opts.source, cacheRoot, sha, mode: 'cache' });
+    await refreshReleases({ source: opts.source, cacheRoot, sha, tags: remote.tags });
+
+    const served = servedFrom({ source: opts.source, cacheRoot, sha, mode: 'cache' });
+
+    // What npm could not give at the pull, asked again in the background: `complete` never stops
+    // the retry, and a registry that stalls never holds up the start.
+    const symbolsPending = fetchPublishedSymbols({
+      source: opts.source,
+      project: served.project,
+      releases: JSON.parse(readFileSync(served.releasesFile ?? '', 'utf8')),
+    });
+
+    return { ...served, symbolsPending };
   }
 
   return withPullLock({
@@ -351,7 +518,7 @@ const resolveRemote = async (opts: {
       rmSync(checkoutOf({ cacheRoot, sha }), { recursive: true, force: true });
 
       if (byGit) {
-        await pullByGit({ source: opts.source, cacheRoot, sha });
+        await pullByGit({ source: opts.source, cacheRoot, sha, tags: remote.tags });
       } else if (github !== undefined) {
         await pullByTarball({ source: opts.source, cacheRoot, sha, github, token });
       }

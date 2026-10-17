@@ -61,6 +61,8 @@ export class SymbolStore extends BaseHelper {
   private readonly namesByLowerCase = new Map<string, string[]>();
 
   private packageMap: IPackageMapEntry[];
+  /** Every load error already logged: an unbuilt package fails each reload the same way. */
+  private readonly loggedErrors = new Set<string>();
   private readonly loader?: () => { symbols: ISymbolRecord[]; packageMap?: IPackageMapEntry[] };
   /** What the `symbol` tool says when the store holds nothing. */
   readonly emptyReason: string;
@@ -97,7 +99,12 @@ export class SymbolStore extends BaseHelper {
       this.packageMap = loaded.packageMap ?? this.packageMap;
       this.index({ symbols: loaded.symbols });
     } catch (error) {
-      this.logger.for('load').error('could not read the declarations | error: %s', error);
+      const message = error instanceof Error ? error.message : String(error);
+
+      if (!this.loggedErrors.has(message)) {
+        this.loggedErrors.add(message);
+        this.logger.for('load').error('could not read the declarations | error: %s', message);
+      }
     }
   }
 

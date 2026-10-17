@@ -98,6 +98,14 @@ export class SourceReleases {
     this.sources = opts.sources;
   }
 
+  get emptyReason(): string {
+    const [only] = this.sources;
+
+    return this.sources.length === 1
+      ? only.releases.emptyReason
+      : this.sources.map(source => `${source.name}: ${source.releases.emptyReason}`).join('; ');
+  }
+
   isEmpty(): boolean {
     return this.sources.every(source => source.releases.isEmpty());
   }

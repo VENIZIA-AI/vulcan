@@ -79,15 +79,18 @@ if (subcommand === AtlasCommands.CONCEPTS) {
  * `--source`; outside any project, `--source` and the user config. atlas ships code only - with
  * none of these there is nothing to serve.
  */
-const sourcesToServe = (opts: { root: string }): { project: boolean; sources: IAtlasSource[] } => {
+const sourcesToServe = (opts: {
+  root: string;
+  argv: string[];
+}): { project: boolean; sources: IAtlasSource[] } => {
   const project = hasAtlasProject({ root: opts.root });
   const declared = project ? readAtlasProject({ root: opts.root }).sources : readUserSources();
 
-  return { project, sources: [...declared, ...readSourceArguments({ argv })] };
+  return { project, sources: [...declared, ...readSourceArguments({ argv: opts.argv })] };
 };
 
 const serveSources = async (opts: { root: string; version: string }): Promise<boolean> => {
-  const { project, sources } = sourcesToServe({ root: opts.root });
+  const { project, sources } = sourcesToServe({ root: opts.root, argv });
 
   if (!project && sources.length === 0) {
     return false;
@@ -120,12 +123,21 @@ const pull = async (): Promise<number> => {
   const root = readRootArgument({ argv }).value;
   const flag = argv.indexOf('--source');
   const wanted = flag === -1 || argv[flag + 1]?.includes('/') ? undefined : argv[flag + 1];
-  const { sources } = sourcesToServe({ root });
-  const pulled = await resolveSources({
-    cwd: root,
-    sources: sources.filter(source => wanted === undefined || source.name === wanted),
-    force: true,
+  // A name picks a source; it is never a source of its own.
+  const { sources } = sourcesToServe({
+    root,
+    argv:
+      wanted === undefined ? argv : argv.filter((_, index) => index !== flag && index !== flag + 1),
   });
+  const named = sources.filter(source => wanted === undefined || source.name === wanted);
+
+  if (wanted !== undefined && named.length === 0) {
+    usageError(
+      `pull: no source named '${wanted}' - known sources: ${sources.map(source => source.name).join(', ') || 'none'}`,
+    );
+  }
+
+  const pulled = await resolveSources({ cwd: root, sources: named, force: true });
 
   for (const source of pulled.filter(entry => entry.mode !== 'repository')) {
     console.log(`pull: ${source.name} ${(source.sha ?? '').slice(0, 8)} (${source.mode})`);
