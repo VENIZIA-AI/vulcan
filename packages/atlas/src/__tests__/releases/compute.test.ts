@@ -141,6 +141,28 @@ describe('computeReleases (D1)', () => {
     ]);
   });
 
+  test('a merge that repeats a release subject is no second release - the tag names one commit', () => {
+    const merged = scratch();
+
+    merged.git(['commit', '-q', '--allow-empty', '-m', 'init']);
+    merged.git(['switch', '-q', '-c', 'release']);
+    merged.git(['commit', '-q', '--allow-empty', '-m', 'chore(kernel): release v1.0.0 [patch]']);
+    merged.git(['tag', '-a', 'kernel-v1.0.0', '-m', 'kernel 1.0.0']);
+    merged.git(['switch', '-q', 'develop']);
+    merged.git([
+      'merge',
+      '-q',
+      '--no-ff',
+      '-m',
+      'chore(kernel): release v1.0.0 [patch]',
+      'release',
+    ]);
+
+    const mergedTable = computeReleases({ project: projectAt({ root: merged.root }) });
+
+    expect(mergedTable.releases.kernel?.map(record => record.version)).toEqual(['1.0.0']);
+  });
+
   test('a repo-level pattern (no <dir>) releases every live package at once', () => {
     const repo = scratch();
 
