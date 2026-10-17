@@ -70,7 +70,7 @@ const symbolOf = async (opts: {
   const resolved = await resolveSources({ cwd: opts.cwd, sources: opts.sources });
 
   // A start from cache asks npm again in the background; the answer waits for it here.
-  await Promise.all(resolved.map(source => source.symbolsPending));
+  await Promise.all(resolved.map(source => source.symbolsPending ?? Promise.resolve()));
 
   const reply = JSON.parse(
     (await buildSourcesServer({ sources: resolved, cwd: opts.cwd, version: '0.0.0' }).handleLine({
