@@ -84,7 +84,7 @@ describe('PublicSurface.render', () => {
     const rendered = PublicSurface.render({ repoRoot, packages: ['testpkg'] });
     const frontmatter = /^---\n([\s\S]*?)\n---\n/.exec(rendered)?.[1] ?? '';
 
-    expect(frontmatter).toContain('generated:\n  by: atlas-surface');
+    expect(frontmatter).toContain('generated:\n  by: process:atlas-surface');
   });
 });
 
