@@ -84,11 +84,11 @@ export default {
 |---|---|
 | `agents` | the coding agents sync writes adapters for |
 | `rules` | the slot choices, by base ID |
-| `packages` | every package, in release order: `dir`, npm `name`, `path` (default `packages/<dir>`), `aliases` (old directory names or npm names), `retired` |
+| `packages` | every package, in release order: `dir` (a unique key, not necessarily the directory name: two packages in directories both called `core` are `umbras-core` and `kits-core`, told apart by `path`), npm `name`, `path` (default `packages/<dir>`), `aliases` (old directory names, tag prefixes or npm names), `retired`. A repeated `dir`, `name` or live `path` is a config error |
 | `knowledge.bundle` | the knowledge bundle (default `.agents/knowledge`) |
 | `knowledge.wiki`, `knowledge.changelogs` | what atlas indexes besides the bundle, and where the docs-update skill writes |
 | `knowledge.syncAreas` | the knowledge-sync skill's map of code areas to concepts |
-| `atlas.tagPattern` | how a release tag is spelled: `<dir>`, `<version>`, `<date>`; without `<dir>` the whole repository is one release line |
+| `atlas.tagPattern` | how a release tag is spelled: `<dir>`, `<version>`, `<date>`; without `<dir>` the whole repository is one release line. `<dir>` may hold slashes: `<dir>/<version>` reads `apps/core/0.0.1-0` as `apps/core`, which resolves through an alias of the package |
 | `atlas.releaseCommit`, `atlas.legacyTagPrefixes`, `atlas.ignoreTags` | older release commits and tags atlas still reads, or skips (globs) |
 | `atlas.sources` | other projects atlas serves next to this one ([atlas guide](./atlas.md)) |
 | `okf` | renderers, regions, sections, coverage, denylist, contents, viz (below) |

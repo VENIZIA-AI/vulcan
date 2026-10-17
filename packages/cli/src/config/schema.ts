@@ -17,6 +17,46 @@ const PROJECT_PACKAGE = z.strictObject({
   retired: z.boolean().default(false),
 });
 
+/** A path as a key: no leading `./`, no trailing slash. */
+const pathKeyOf = (opts: { path: string }): string =>
+  opts.path.replace(/^\.\//, '').replace(/\/+$/, '');
+
+/**
+ * `dir` is a unique KEY (it need not be the directory name - set `path` for that), so two packages
+ * whose directories are both called `core` are `umbras-core` and `kits-core`. A repeated key, name or
+ * live path would make every table keyed by it collide silently.
+ */
+const checkPackagesUnique = (
+  packages: z.infer<typeof PROJECT_PACKAGE>[],
+  context: z.RefinementCtx,
+): void => {
+  const seen = { dir: new Set<string>(), name: new Set<string>(), path: new Set<string>() };
+
+  for (const [index, entry] of packages.entries()) {
+    const path = pathKeyOf({ path: entry.path ?? `packages/${entry.dir}` });
+    const repeated = [
+      seen.dir.has(entry.dir)
+        ? `packages: dir '${entry.dir}' is used twice - dir is a unique key, not the directory name; give each package its own dir and set path`
+        : undefined,
+      seen.name.has(entry.name) ? `packages: name '${entry.name}' is used twice` : undefined,
+      !entry.retired && seen.path.has(path) ? `packages: path '${path}' is used twice` : undefined,
+    ];
+
+    for (const message of repeated) {
+      if (message !== undefined) {
+        context.addIssue({ code: 'custom', message, path: [index] });
+      }
+    }
+
+    seen.dir.add(entry.dir);
+    seen.name.add(entry.name);
+
+    if (!entry.retired) {
+      seen.path.add(path);
+    }
+  }
+};
+
 /**
  * A release template: `<dir>` (synonym `<package>`) is the package DIRECTORY - the `packages` key,
  * never the npm name (`packages/core-server` published as `@acme/server` tags `core-server-v1.2.0`); `<version>` is the
@@ -50,7 +90,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   agents: z.array(CODING_AGENT).default([CodingAgents.CLAUDE]),
   rules: z.record(z.string().regex(ConfigConstants.RULE_ID_PATTERN), z.string()).default({}),
   /** The project's packages in release order; okf, atlas, make and release read this one list. */
-  packages: z.array(PROJECT_PACKAGE).default([]),
+  packages: z.array(PROJECT_PACKAGE).superRefine(checkPackagesUnique).default([]),
   knowledge: z
     .strictObject({
       bundle: z.string().default(ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE),

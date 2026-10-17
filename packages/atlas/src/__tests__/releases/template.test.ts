@@ -25,6 +25,17 @@ describe('compileReleaseTemplate', () => {
     ).toMatchObject({ dir: 'kernel', version: '0.2.1-0' });
   });
 
+  test('a <group>/<name>/<version> tag reads the whole group/name as the directory', () => {
+    expect(groupsOf({ template: '<dir>/<version>', subject: 'apps/core/0.0.1-0' })).toMatchObject({
+      dir: 'apps/core',
+      version: '0.0.1-0',
+    });
+    expect(groupsOf({ template: '<dir>/<version>', subject: 'kernel/1.2.3' })).toMatchObject({
+      dir: 'kernel',
+      version: '1.2.3',
+    });
+  });
+
   test('<package> is a synonym of <dir>', () => {
     expect(
       groupsOf({
