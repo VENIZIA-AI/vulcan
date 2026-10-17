@@ -15,6 +15,8 @@ export interface ISkillEvalArgs {
   project: string | undefined;
   out: string | undefined;
   timeoutSeconds: number;
+  /** Passed to every `claude` call as `--max-budget-usd`; no cap when absent. */
+  maxBudgetUsd: string | undefined;
   isDryRun: boolean;
 }
 
@@ -54,7 +56,15 @@ export interface ISkillEvalResult {
   verdict: IVerdict;
 }
 
-const VALUE_FLAGS = new Set(['--skill', '--models', '--grader', '--project', '--out', '--timeout']);
+const VALUE_FLAGS = new Set([
+  '--skill',
+  '--models',
+  '--grader',
+  '--project',
+  '--out',
+  '--timeout',
+  '--max-budget-usd',
+]);
 const BOOLEAN_FLAGS = new Set(['--dry-run']);
 
 // Names become path segments under <out>, so anything that could climb out of it is refused.
@@ -69,7 +79,7 @@ const VERDICT_SCHEMA = {
   required: ['pass', 'reasons'],
 };
 
-/** Reads `--skill <name> [--models a,b] [--grader m] [--project d] [--out d] [--timeout s] [--dry-run]`. */
+/** Reads `--skill <name> [--models a,b] [--grader m] [--project d] [--out d] [--timeout s] [--max-budget-usd n] [--dry-run]`. */
 export const parseSkillEvalArgs = (opts: { args: string[] }): ISkillEvalArgs => {
   const values = new Map<string, string>();
   const booleans = new Set<string>();
@@ -131,6 +141,15 @@ export const parseSkillEvalArgs = (opts: { args: string[] }): ISkillEvalArgs => 
     throw new Error(`--timeout needs whole seconds above 0, got: ${timeout}`);
   }
 
+  const maxBudgetUsd = values.get('--max-budget-usd');
+
+  if (
+    maxBudgetUsd !== undefined &&
+    !(/^\d+(\.\d+)?$/.test(maxBudgetUsd) && Number(maxBudgetUsd) > 0)
+  ) {
+    throw new Error(`--max-budget-usd needs a dollar amount above 0, got: ${maxBudgetUsd}`);
+  }
+
   return {
     skill,
     models,
@@ -138,6 +157,7 @@ export const parseSkillEvalArgs = (opts: { args: string[] }): ISkillEvalArgs => 
     project: values.get('--project'),
     out: values.get('--out'),
     timeoutSeconds: Number(timeout),
+    maxBudgetUsd,
     isDryRun: booleans.has('--dry-run'),
   };
 };
@@ -196,7 +216,14 @@ export const parseEvalsFile = (opts: { text: string; skill: string }): ISkillEva
  * instead of waiting for a human who is not there. The outputs directory sits outside the project
  * copy, so it is added explicitly.
  */
-export const buildRunCommand = (opts: { model: string; outputsDirectory: string }): string[] => [
+const budgetFlags = (opts: { maxBudgetUsd?: string }): string[] =>
+  opts.maxBudgetUsd === undefined ? [] : ['--max-budget-usd', opts.maxBudgetUsd];
+
+export const buildRunCommand = (opts: {
+  model: string;
+  outputsDirectory: string;
+  maxBudgetUsd?: string;
+}): string[] => [
   'claude',
   '-p',
   '--model',
@@ -210,10 +237,11 @@ export const buildRunCommand = (opts: { model: string; outputsDirectory: string 
   '--no-session-persistence',
   '--add-dir',
   opts.outputsDirectory,
+  ...budgetFlags(opts),
 ];
 
 /** The grader reads everything from its prompt, so it gets no tools at all. */
-export const buildGraderCommand = (opts: { grader: string }): string[] => [
+export const buildGraderCommand = (opts: { grader: string; maxBudgetUsd?: string }): string[] => [
   'claude',
   '-p',
   '--model',
@@ -227,6 +255,7 @@ export const buildGraderCommand = (opts: { grader: string }): string[] => [
   '--permission-prompts',
   'none',
   '--no-session-persistence',
+  ...budgetFlags(opts),
 ];
 
 export const buildPlan = (opts: {
@@ -234,6 +263,7 @@ export const buildPlan = (opts: {
   evaluations: ISkillEval[];
   models: string[];
   out: string;
+  maxBudgetUsd?: string;
 }): ISkillEvalRun[] =>
   opts.evaluations.flatMap(evaluation =>
     opts.models.map(model => {
@@ -245,7 +275,7 @@ export const buildPlan = (opts: {
         model,
         runDirectory,
         outputsDirectory,
-        command: buildRunCommand({ model, outputsDirectory }),
+        command: buildRunCommand({ model, outputsDirectory, maxBudgetUsd: opts.maxBudgetUsd }),
       };
     }),
   );

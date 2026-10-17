@@ -38,7 +38,8 @@ make skill-evals SKILL=docs-writing PROJECT=../ignis MODELS=haiku,sonnet   # rea
 - `scripts/skill-evals.ts` (core in `scripts/skill-evals-core.ts`). `PROJECT` is the checkout the
   evals' `files` live in; it defaults to this repository. A missing input file stops a real run with
   exit 2 before any call. Flags: `--grader` (default `opus`), `--out`, `--timeout` (seconds, default
-  900), passed as `ARGS="..."`.
+  900), `--max-budget-usd` (a cap passed to every `claude` call, run and grader alike), passed as
+  `ARGS="..."`.
 - Every run works in a scratch copy of the project - no `node_modules`, `.git` or symlinks, so the
   project's hooks that need `node_modules` do not run. The skill reaches the model inline (SKILL.md in
   the prompt) and installed at `.claude/skills/<name>/` without its `evals/`, so its references

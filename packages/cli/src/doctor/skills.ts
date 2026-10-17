@@ -33,13 +33,46 @@ const filesOf = (opts: { directory: string }): string[] =>
 const lineCountOf = (opts: { text: string }): number =>
   opts.text.replace(/\n$/, '').split('\n').length;
 
-const frontmatterOf = (opts: { text: string }): Record<string, unknown> => {
-  const block = FRONTMATTER.exec(opts.text)?.[1];
-  const parsed: unknown = block === undefined ? undefined : Bun.YAML.parse(block);
+const parseYaml = (opts: { text: string }): { value?: unknown; error?: string } => {
+  try {
+    return { value: Bun.YAML.parse(opts.text) };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+};
 
-  return typeof parsed === 'object' && parsed !== null
-    ? Object.fromEntries(Object.entries(parsed))
-    : {};
+/**
+ * The frontmatter's fields, or why they cannot be read. Bun's YAML error names no line, so the line
+ * is the first one at which the block stops parsing - counted in the file, the opening `---` is 1.
+ */
+const frontmatterOf = (opts: {
+  text: string;
+}): { data: Record<string, unknown>; error?: string } => {
+  const block = FRONTMATTER.exec(opts.text)?.[1];
+
+  if (block === undefined) {
+    return { data: {} };
+  }
+
+  const parsed = parseYaml({ text: block });
+
+  if (parsed.error !== undefined) {
+    const blockLines = block.split('\n');
+    const failsAt = blockLines.findIndex(
+      (_line, index) =>
+        parseYaml({ text: blockLines.slice(0, index + 1).join('\n') }).error !== undefined,
+    );
+    const where = failsAt === -1 ? '' : ` at line ${failsAt + 2}`;
+
+    return { data: {}, error: `the frontmatter is not valid YAML${where} (${parsed.error})` };
+  }
+
+  return {
+    data:
+      typeof parsed.value === 'object' && parsed.value !== null
+        ? Object.fromEntries(Object.entries(parsed.value))
+        : {},
+  };
 };
 
 /** Every rule one skill directory breaks, each a message naming the file. */
@@ -53,19 +86,23 @@ export const lintSkill = (opts: { directory: string }): string[] => {
   const problems: string[] = [];
   const text = readFileSync(skillFile, 'utf8');
   const frontmatter = frontmatterOf({ text });
-  const { name, description } = frontmatter;
+  const { name, description } = frontmatter.data;
 
-  if (typeof name !== 'string' || !NAME_PATTERN.test(name) || RESERVED_NAME.test(name)) {
+  // One file a project cannot parse is a finding about that file - the other checks still run.
+  if (frontmatter.error !== undefined) {
+    problems.push(`SKILL.md: ${frontmatter.error}`);
+  } else if (typeof name !== 'string' || !NAME_PATTERN.test(name) || RESERVED_NAME.test(name)) {
     problems.push(
       `SKILL.md: name '${String(name)}' - at most 64 characters of a-z, 0-9 and hyphens, never 'claude' or 'anthropic'`,
     );
   }
 
   if (
-    typeof description !== 'string' ||
-    description.trim().length === 0 ||
-    description.length > MAX_DESCRIPTION ||
-    XML_TAG.test(description)
+    frontmatter.error === undefined &&
+    (typeof description !== 'string' ||
+      description.trim().length === 0 ||
+      description.length > MAX_DESCRIPTION ||
+      XML_TAG.test(description))
   ) {
     problems.push('SKILL.md: the description must be 1-1024 characters with no XML tags');
   }

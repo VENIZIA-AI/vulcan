@@ -29,8 +29,26 @@ describe('parseSkillEvalArgs', () => {
       project: undefined,
       out: undefined,
       timeoutSeconds: 900,
+      maxBudgetUsd: undefined,
       isDryRun: false,
     });
+  });
+
+  test('--max-budget-usd caps every claude call, and takes a positive amount only', () => {
+    expect(
+      parseSkillEvalArgs({ args: ['--skill', 'docs-writing', '--max-budget-usd', '2.5'] })
+        .maxBudgetUsd,
+    ).toBe('2.5');
+    expect(() =>
+      parseSkillEvalArgs({ args: ['--skill', 'docs-writing', '--max-budget-usd', 'lots'] }),
+    ).toThrow('--max-budget-usd needs a dollar amount above 0, got: lots');
+    expect(
+      buildRunCommand({ model: 'haiku', outputsDirectory: '/o', maxBudgetUsd: '2.5' }).slice(-2),
+    ).toEqual(['--max-budget-usd', '2.5']);
+    expect(buildGraderCommand({ grader: 'opus', maxBudgetUsd: '2.5' }).slice(-2)).toEqual([
+      '--max-budget-usd',
+      '2.5',
+    ]);
   });
 
   test('every flag and its value are read', () => {
@@ -48,6 +66,8 @@ describe('parseSkillEvalArgs', () => {
         '/tmp/evals',
         '--timeout',
         '30',
+        '--max-budget-usd',
+        '3',
         '--dry-run',
       ],
     });
@@ -59,6 +79,7 @@ describe('parseSkillEvalArgs', () => {
       project: '../ignis',
       out: '/tmp/evals',
       timeoutSeconds: 30,
+      maxBudgetUsd: '3',
       isDryRun: true,
     });
   });

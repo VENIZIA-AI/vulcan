@@ -225,7 +225,27 @@ const planSkillLinks = (opts: { root: string }): ISyncAction[] => {
       : { path, status: SyncStatuses.CREATED, apply: link };
   });
 
-  return [...links, ...shadowing];
+  // A link into the shipped skills whose skill this VULCAN no longer has (a downgrade, a retired
+  // skill) is sync's own and dead: taken back. Any other link or directory stays.
+  const shippedRoots = [stableSkills, join(BASE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY)];
+  const linked = new Set(sources.map(source => basename(source)));
+  const stale = (existsSync(target) ? readdirSync(target) : [])
+    .filter(name => !linked.has(name))
+    .map(name => join(target, name))
+    .filter(
+      path =>
+        isSymlink({ path }) &&
+        !existsSync(path) &&
+        shippedRoots.some(root => readlinkSync(path).startsWith(`${root}/`)),
+    )
+    .map((path): ISyncAction => ({
+      path,
+      status: SyncStatuses.REMOVED,
+      note: 'a shipped skill this version no longer has',
+      apply: () => rmSync(path),
+    }));
+
+  return [...links, ...shadowing, ...stale];
 };
 
 /** The committed project manifest (Project Contract v1, C1), rendered from the config. */
