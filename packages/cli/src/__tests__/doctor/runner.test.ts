@@ -162,6 +162,31 @@ describe('doctor', () => {
     expect(await findChecks({ root })).toEqual([DoctorChecks.MAKE]);
   });
 
+  test('a shipped target redefined in an included make/*.mk is found, and named by its file', () => {
+    const root = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        Makefile: `${MAKE_INCLUDE}include make/*.mk\n`,
+        'make/knowledge.mk': 'okf-check:\n\t@echo mine\nproject-only:\n\t@echo fine\n',
+      },
+    });
+    const result = runCli({ args: ['doctor'], cwd: root });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(
+      `[${DoctorChecks.MAKE}] make/knowledge.mk: 'okf-check' is a shipped target`,
+    );
+    expect(result.stderr).not.toContain('project-only');
+  });
+
+  test('the shipped vulcan.mk include is never read as project targets', async () => {
+    const root = createSyncedProject({
+      files: { ...CONFORMANT, Makefile: `${MAKE_INCLUDE}include make/*.mk\n` },
+    });
+
+    expect(await findChecks({ root })).toEqual([]);
+  });
+
   test('a config hook that runs a shipped hook', async () => {
     const root = createSyncedProject({
       files: {
