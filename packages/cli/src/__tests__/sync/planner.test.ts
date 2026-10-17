@@ -162,6 +162,23 @@ describe('.claude/settings.json', () => {
     expect(after.model).toBe('opus');
   });
 
+  test('a settings file whose keys start with the shipped ones is current after one sync, and doctor agrees', () => {
+    const root = createProject({
+      files: {
+        ...READ_ONLY_PROJECT,
+        '.claude/settings.json':
+          '{ "$schema": "https://json.schemastore.org/claude-code-settings.json", "model": "opus" }',
+      },
+    });
+
+    runSync({ root });
+    const second = runSync({ root });
+
+    expect(second.stderr).toContain('unchanged .claude/settings.json');
+    expect(Object.keys(readSettings({ root }))[0]).toBe('$schema');
+    expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain('.claude/settings.json');
+  });
+
   test('invalid JSON is left alone, reported, and fails the sync', () => {
     const root = createProject({
       files: { ...READ_ONLY_PROJECT, '.claude/settings.json': '{ nope' },

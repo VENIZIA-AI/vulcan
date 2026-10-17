@@ -19,6 +19,7 @@ import type { ISyncAction, TSettings } from './common/index.ts';
 import {
   buildProjectHookSettings,
   isSettingsObject,
+  keepKeyOrder,
   mergeSettings,
   removeManagedSettings,
 } from './settings.ts';
@@ -118,10 +119,12 @@ const planSettings = (opts: { root: string; config: TResolvedConfig }): ISyncAct
 
   const previous = readSettingsFile({ path: managedPath }) ?? {};
   const overlay = buildManagedOverlay({ config: opts.config });
-  const wanted = mergeSettings({
+  const merged = mergeSettings({
     base: removeManagedSettings({ settings: current, managed: previous }),
     overlay,
   });
+
+  const wanted = keepKeyOrder({ settings: merged, reference: current });
 
   const text = `${JSON.stringify(wanted, null, 2)}\n`;
   const managedText = `${JSON.stringify(overlay, null, 2)}\n`;
