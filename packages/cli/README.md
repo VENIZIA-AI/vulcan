@@ -17,7 +17,7 @@ flag `bun x` fetches it when `@venizia/vulcan` is not installed yet.
 | Command | What it does |
 |---|---|
 | `init [--config ts\|mts\|mjs\|js]` | Scaffold the project layer: `AGENTS.md`, `.configs/vulcan.config.*`, the three lint configs, `.agents/rules.md`, `.agents/knowledge/index.md`, a Makefile `-include`. Never overwrites; prints what to add to existing files, and the atlas `.mcp.json` entry for projects with a wiki |
-| `sync [--dry-run]` | Write the gitignored agent adapters: `CLAUDE.md` (`@AGENTS.md`), `.claude/settings.json` (shipped + slot + project hooks + `claude.settings` over your personal keys; what it applied is recorded in `.claude/vulcan-managed.json`, so a removed choice is removed), `.claude/skills/` links. Idempotent |
+| `sync [--dry-run]` | Write the gitignored agent adapters: `CLAUDE.md` (`@AGENTS.md`), `.claude/settings.json` (shipped + slot + project hooks + `claude.settings` over your personal keys; what it applied is recorded in `.claude/vulcan-managed.json`, so a removed choice is removed), `.claude/skills/` links, and the committed `.agents/vulcan.manifest.json`. Prints each base rule added, changed or removed since the manifest last recorded it, with its new text, then records the new hashes. Idempotent |
 | `doctor` | Check the project follows VULCAN; exit 1 on any violation |
 | `upgrade [<version\|tag>]` | Install the target `@venizia/vulcan` (default: the `next` dist-tag), then run `sync` from the newly installed CLI |
 | `x <tool> [args...]` | Run a shipped tool at the pinned version: `okf`, `atlas` |
@@ -46,7 +46,7 @@ An unknown key is an error; every error names the file and the field.
 
 ## What ships (`base/`)
 
-- `rules.md` - the base rules: write boundaries, security, process, build, and the IGNIS coding style V-C-01..V-C-18 (37 rules; V-W-05, V-C-03 and V-C-05 are retired).
+- `rules.md` - the base rules: write boundaries, security, process, build, and the IGNIS coding style V-C-01..V-C-18 (37 rules; it lists V-W-05, V-C-03 and V-C-05 as retired).
 - `slots.json` - rules a project picks a wording for (V-W-01 today).
 - `skills/` - `knowledge-sync`, `docs-writing` (project-neutral; a project-specific skill stays in its project).
 - `hooks/` - `session-start.ts` (prints the rules digest) and `guard-writes.ts` (asks before a database write, a migration, a deploy or a mutating HTTP call).
@@ -57,8 +57,8 @@ or shadows a shipped one.
 
 ## `doctor` checks
 
-`config` (exactly one valid config) · `layout` (AGENTS.md, rules, knowledge bundle) · `rule-ids` (no
-project rule in the base `V-` namespace) · `rule-slots` (every slot chosen, valid option) · `skills` (no shipped skill
+`config` (exactly one valid config) · `layout` (AGENTS.md, rules, knowledge bundle) · `rule-ids` (every
+`V-` ID a project rule points at - an `Extends` list or a first cell - is a base rule, not a retired one) · `rule-slots` (every slot chosen, valid option) · `skills` (no shipped skill
 shadowed) · `make` (includes `vulcan.mk`, no shipped target redefined) · `hooks` (shipped hooks are
 not re-registered) · `adapters` (sync is current, no hand-written `CLAUDE.md`, valid settings) ·
 `style` (`@venizia/dev-configs` installed, every lint config builds on it).

@@ -82,6 +82,52 @@ describe('doctor', () => {
     expect(await findChecks({ root })).toEqual([DoctorChecks.RULE_IDS]);
   });
 
+  test('Extends V-Z-99: the base carries no such rule', () => {
+    const root = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        '.agents/rules.md': '| **W-06** | **Extends V-W-04 and V-Z-99.** stay | SOFT |\n',
+      },
+    });
+    const result = runCli({ args: ['doctor'], cwd: root });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(
+      `[${DoctorChecks.RULE_IDS}] .agents/rules.md: V-Z-99 is not a base rule`,
+    );
+    expect(result.stderr).not.toContain('V-W-04');
+  });
+
+  test('a retired base ID, extended or in a first cell', async () => {
+    const root = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        '.agents/rules.md':
+          '| **C-03** | **Extends V-C-03.** mine | SOFT |\n| V-W-05 | x | SOFT |\n',
+      },
+    });
+    const violations = await runDoctorChecks({ root });
+
+    expect(violations.map(violation => violation.message)).toEqual([
+      'V-C-03 is retired in the base - drop the reference',
+      'V-W-05 is retired in the base - drop the reference',
+    ]);
+  });
+
+  test("BANA's form: bold bare IDs define, V- IDs the base carries are references", async () => {
+    const markdown = [
+      '| ID | Rule |',
+      '|---|---|',
+      '| **W-00** | **Extends V-W-01 (slot `read-only`).** mine |',
+      '| **S-01** | **Extends V-S-01 and V-S-07.** mine |',
+      '| V-W-02, V-W-03 | the guard-writes hook asks |',
+      '| **V-C-04** | quoted from the base |',
+    ].join('\n');
+    const root = createSyncedProject({ files: { ...CONFORMANT, '.agents/rules.md': markdown } });
+
+    expect(await findChecks({ root })).toEqual([]);
+  });
+
   test("bare W/S/P/B/C IDs are the project's own: they never collide with the base", async () => {
     const rows = ['W-01', 'W-02', 'S-05', 'P-03', 'B-02', 'C-18'].map(
       id => `| ${id} | mine | SOFT |`,
@@ -245,7 +291,7 @@ describe('doctor', () => {
 
   test('every violation goes to stderr with its check and file; nothing to stdout', () => {
     const root = createProject({
-      files: { ...CONFORMANT, '.agents/rules.md': '| V-W-02 | mine | SOFT |\n' },
+      files: { ...CONFORMANT, '.agents/rules.md': '| V-W-09 | mine | SOFT |\n' },
     });
     const result = runCli({ args: ['doctor'], cwd: root });
 

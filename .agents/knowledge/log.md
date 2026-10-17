@@ -6,6 +6,12 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-17 - rule integrity
+
+Updated [the project contract](/architecture/project-contract.md) and [cli](/packages/cli.md): doctor
+fails a `V-` ID a project rule points at that the base does not carry or has retired (the base lists
+retired IDs); sync prints the base rules added, changed or removed since the manifest last recorded them.
+
 ## 2026-10-17 - V-C-02 caps parameters at 5
 
 Updated [design decisions](/overview/design-decisions.md): V-C-02 is one options object first, at most 5

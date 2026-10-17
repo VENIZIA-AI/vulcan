@@ -3,7 +3,13 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
-import { parseRuleIds, readSlots, RuleConstants } from '../rules/index.ts';
+import {
+  parseBaseReferences,
+  readBaseRules,
+  readRetiredRuleIds,
+  readSlots,
+  RuleConstants,
+} from '../rules/index.ts';
 import { ManifestConstants, projectNameOf } from '../manifest/index.ts';
 import { planManifest, planSync, SyncStatuses } from '../sync/index.ts';
 import { DoctorChecks, DoctorConstants } from './common/index.ts';
@@ -47,17 +53,28 @@ export const checkLayout = (opts: ICheckContext): IViolation[] =>
       }),
     );
 
-/** The base owns the `V-` namespace; a project's own IDs stay bare and can reuse any letter and number. */
-export const checkRuleIds = (opts: ICheckContext): IViolation[] =>
-  parseRuleIds({ markdown: readText({ file: join(opts.root, '.agents', 'rules.md') }) })
-    .filter(id => id.startsWith(RuleConstants.BASE_NAMESPACE))
+/**
+ * The base owns the `V-` namespace: a project defines its rules with bare IDs, and a `V-` ID in its
+ * rules points at a base rule - one the base does not carry, or has retired, dangles.
+ */
+export const checkRuleIds = (opts: ICheckContext): IViolation[] => {
+  const base = readBaseRules();
+  const retired = new Set(readRetiredRuleIds());
+
+  return parseBaseReferences({
+    markdown: readText({ file: join(opts.root, '.agents', 'rules.md') }),
+  })
+    .filter(id => base[id] === undefined)
     .map(id =>
       createViolation({
         check: DoctorChecks.RULE_IDS,
         file: '.agents/rules.md',
-        message: `${id} is in the base namespace ${RuleConstants.BASE_NAMESPACE} - give the extension a bare ID`,
+        message: retired.has(id)
+          ? `${id} is retired in the base - drop the reference`
+          : `${id} is not a base rule - give the extension a bare ID`,
       }),
     );
+};
 
 export const checkRuleSlots = (opts: ICheckContext): IViolation[] => {
   const slots = readSlots();

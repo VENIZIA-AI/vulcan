@@ -10,7 +10,7 @@ tags: [packages, cli, base]
 | Command | What it does |
 |---|---|
 | `init` | Scaffold the project layer; never overwrites |
-| `sync` | Write the gitignored agent adapters; takes back what the config no longer asks for |
+| `sync` | Write the gitignored agent adapters; takes back what the config no longer asks for; prints the base rules added, changed or removed since the manifest last recorded them |
 | `doctor` | Check the project contract; exit 1 on any violation |
 | `upgrade` | Install the target version, then sync with the newly installed CLI |
 | `x <okf\|atlas>` | Run a shipped tool at the pinned version, on the inherited stdio |
