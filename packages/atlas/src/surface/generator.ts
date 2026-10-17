@@ -9,6 +9,7 @@ import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
 import { readPackageEntries } from '@/common/package-entries';
 import { regenerateHintOf } from '@/common/regenerate-hint';
+import { readAtlasPackages } from '@/common/project-config';
 import { PROJECT_ROOT } from '@/common/project';
 import type { IPackageEntries } from '@/common/types';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -17,17 +18,6 @@ import type TypeScript from 'typescript';
 
 const OUTPUT = resolve(PROJECT_ROOT, '.agents/knowledge/reference/public-surface.md');
 // Dependency order, so a diff reads bottom-up the way a release does.
-const PACKAGES = [
-  'inversion',
-  'filter',
-  'helpers',
-  'boot',
-  'kernel',
-  'connectors',
-  'core-server',
-  'core-worker',
-  'atlas',
-];
 
 interface IEntrySurface {
   entry: string;
@@ -37,7 +27,7 @@ interface IEntrySurface {
 export class PublicSurface {
   static render(opts: { repoRoot?: string; packages?: string[] } = {}): string {
     const repoRoot = opts.repoRoot ?? PROJECT_ROOT;
-    const packages = opts.packages ?? PACKAGES;
+    const packages = opts.packages ?? readAtlasPackages({ repoRoot });
     const read = packages.map(name => readPackageEntries({ repoRoot, name }));
     const program = DeclarationProgram.create({
       files: read.flatMap(item => item.entries.map(entry => entry.file)),

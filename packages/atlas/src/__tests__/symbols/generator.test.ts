@@ -81,7 +81,12 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_IS_BUILT)('AtlasSymbols.check', () 
     () => {
       // The table is read from dist, so a rebuild since the last `gen` reads stale here too.
       expect(
-        AtlasSymbols.check({ repoRoot: IGNIS_ROOT, outputPath: IGNIS_SYMBOLS }),
+        // The table's own package list: the claim is that the generator reproduces what IGNIS committed.
+        AtlasSymbols.check({
+          repoRoot: IGNIS_ROOT,
+          packages: JSON.parse(readFileSync(IGNIS_SYMBOLS, 'utf8')).packages,
+          outputPath: IGNIS_SYMBOLS,
+        }),
         'stale symbol table - run `make symbols-gen`',
       ).toBe(true);
     },
@@ -91,7 +96,7 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_IS_BUILT)('AtlasSymbols.check', () 
   test(
     'reads stale once a symbol is dropped from the table',
     () => {
-      const packages = ['atlas'];
+      const packages = ['inversion'];
       const outputPath = join(makeTmpDir(), 'symbols.json');
 
       writeFileSync(outputPath, AtlasSymbols.render({ repoRoot: IGNIS_ROOT, packages }));
