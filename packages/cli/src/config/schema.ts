@@ -129,6 +129,14 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       z.strictObject({ event: HOOK_EVENT, matcher: z.string().optional(), command: z.string() }),
     )
     .default([]),
+  /** The session-start digest: the rule IDs it repeats as "the rules sessions drop most" - base or the project's own. */
+  digest: z
+    .strictObject({
+      oftenDropped: z
+        .array(z.string().regex(ConfigConstants.RULE_ID_PATTERN))
+        .default(ConfigConstants.DEFAULT_OFTEN_DROPPED),
+    })
+    .default({ oftenDropped: ConfigConstants.DEFAULT_OFTEN_DROPPED }),
 });
 
 export type VulcanConfig = z.input<typeof VULCAN_CONFIG_SCHEMA>;
