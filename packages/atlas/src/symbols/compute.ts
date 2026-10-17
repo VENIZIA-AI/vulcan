@@ -33,7 +33,11 @@ export const symbolsCacheDirectory = (): string =>
 const cacheFileOf = (opts: { name: string; version: string }): string =>
   join(symbolsCacheDirectory(), `${opts.name.replace('/', '__')}@${opts.version}.json`);
 
-const readCache = (opts: { name: string; version: string }): ISymbolRecord[] | undefined => {
+/** The cached symbols of `name@version`, or `undefined` when no pull or install has read them yet. */
+export const cachedSymbols = (opts: {
+  name: string;
+  version: string;
+}): ISymbolRecord[] | undefined => {
   const file = cacheFileOf(opts);
 
   if (!existsSync(file)) {
@@ -63,7 +67,7 @@ export const symbolsOfInstalled = (opts: { directory: string }): ISymbolRecord[]
   const { name, version }: { name: string; version: string } = JSON.parse(
     readFileSync(join(opts.directory, 'package.json'), 'utf8'),
   );
-  const cached = readCache({ name, version });
+  const cached = cachedSymbols({ name, version });
 
   if (cached !== undefined) {
     return cached;
@@ -87,7 +91,7 @@ export const symbolsOfPublished = async (opts: {
   name: string;
   version: string;
 }): Promise<ISymbolRecord[]> => {
-  const cached = readCache(opts);
+  const cached = cachedSymbols(opts);
 
   if (cached !== undefined) {
     return cached;

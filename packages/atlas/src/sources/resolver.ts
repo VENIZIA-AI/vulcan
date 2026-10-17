@@ -18,6 +18,7 @@ import {
 import type { IAtlasProject } from '@/common/project-config';
 import { computeReleases } from '@/releases/compute';
 import { ChunkStore } from '@/search/store';
+import { symbolsOfPublished } from '@/symbols/compute';
 import { artifactsOf, cacheRootOf, checkoutOf, urlOf } from './cache';
 import type { IAtlasSource, IResolvedSource, TSourceMode } from './common';
 import { git, lsRemote, setSparsePaths, sparseCheckout, updateClone } from './git';
@@ -87,7 +88,11 @@ const newestCached = (opts: { cacheRoot: string }): string | undefined => {
  * One pull of one SHA: the partial clone brought up to date, a sparse checkout - the manifest first,
  * then the paths it declares - then the search index and the release table, built once for this SHA.
  */
-const pull = (opts: { source: IAtlasSource; cacheRoot: string; sha: string }): IResolvedSource => {
+const pull = async (opts: {
+  source: IAtlasSource;
+  cacheRoot: string;
+  sha: string;
+}): Promise<IResolvedSource> => {
   const url = urlOf(opts.source);
   const gitDir = join(opts.cacheRoot, 'git');
   const checkout = checkoutOf(opts);
@@ -118,7 +123,20 @@ const pull = (opts: { source: IAtlasSource; cacheRoot: string; sha: string }): I
   mkdirSync(artifacts, { recursive: true });
   writeFileSync(join(artifacts, INDEX), store.serialize());
   store.close();
-  writeFileSync(join(artifacts, RELEASES), `${JSON.stringify(computeReleases({ project }))}\n`);
+  const releases = computeReleases({ project });
+
+  writeFileSync(join(artifacts, RELEASES), `${JSON.stringify(releases)}\n`);
+
+  // D2: the symbols of each package's newest release, from npm, cached by name@version for the
+  // consumers that did not install it. A package npm does not have (a private one) has none.
+  for (const entry of project.packages.filter(item => !item.retired)) {
+    const version = releases.releases[entry.dir]?.[0]?.version;
+
+    if (version !== undefined) {
+      await symbolsOfPublished({ name: entry.name, version }).catch(() => undefined);
+    }
+  }
+
   // Last: a SHA is cached only once everything it needs is on disk.
   writeFileSync(join(artifacts, COMPLETE), `${new Date().toISOString()}\n`);
 
@@ -126,7 +144,10 @@ const pull = (opts: { source: IAtlasSource; cacheRoot: string; sha: string }): I
 };
 
 /** A source by git: the cache for the SHA the ref names now, a pull when it moved, the newest cache offline. */
-const resolveRemote = (opts: { source: IAtlasSource; force: boolean }): IResolvedSource => {
+const resolveRemote = async (opts: {
+  source: IAtlasSource;
+  force: boolean;
+}): Promise<IResolvedSource> => {
   const cacheRoot = cacheRootOf(opts.source);
   const sha = lsRemote({ url: urlOf(opts.source), ref: opts.source.ref });
 
@@ -166,8 +187,11 @@ export const resolveSources = async (opts: {
       ]
     : [];
 
-  return [
-    ...self,
-    ...opts.sources.map(source => resolveRemote({ source, force: opts.force ?? false })),
-  ];
+  const remote: IResolvedSource[] = [];
+
+  for (const source of opts.sources) {
+    remote.push(await resolveRemote({ source, force: opts.force ?? false }));
+  }
+
+  return [...self, ...remote];
 };
