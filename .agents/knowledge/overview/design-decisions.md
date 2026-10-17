@@ -21,6 +21,8 @@ tags: [overview, decisions]
 | Base rule IDs carry the `V-` namespace; a project's own stay bare | God, 2026-10-17 |
 | The three packages release as one version train, by a dispatched workflow | 2026-10-17 |
 | Base rules fit every project: `V-C-18` keeps only derived types; the stack, `V-C-03` (`@inject`) and `V-C-05` (`getError`) move to IGNIS; `V-P-02` is design the surface first; `V-W-05` retired | God, 2026-10-17 |
+| V-C-02: one options object first, at most 5 parameters; a second parameter only where the first object cannot carry it | God, 2026-10-17 |
+| No VULCAN package depends on an IGNIS package (`@venizia/ignis-helpers` dropped) | God, 2026-10-17 |
 | Branches as in IGNIS: pull requests to `develop`, `main` only from `develop`, releases from `develop` | God, 2026-10-17 |
 | VULCAN adopts all of IGNIS's W, S, P, B rules with IGNIS's IDs (`.agents/rules.md`); no agent signature in commits (W-00) | God, 2026-10-17 |
 

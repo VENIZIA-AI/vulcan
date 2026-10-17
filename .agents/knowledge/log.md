@@ -6,6 +6,11 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-17 - V-C-02 caps parameters at 5
+
+Updated [design decisions](/overview/design-decisions.md): V-C-02 is one options object first, at most 5
+parameters (God, 2026-10-17).
+
 ## 2026-10-17 - no IGNIS framework dependency
 
 Updated [dependencies](/conventions/dependencies.md): cli, okf and atlas no longer depend on

@@ -37,6 +37,18 @@ describe('parseRuleIds', () => {
     }
   });
 
+  test('V-C-02: one options object first, at most 5 parameters, enforced by the house lint', () => {
+    const rows = extractRuleRows({
+      markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
+    });
+    const row = rows.find(line => line.includes('| V-C-02 |')) ?? '';
+
+    expect(row).toContain('One options object first, at most 5 parameters');
+    expect(row).toContain('isValidName({ name })');
+    expect(row).toContain('venizia/max-params-own');
+    expect(row).toContain('72 call sites');
+  });
+
   test('V-C-18 binds no stack; V-P-02 is design the surface first', () => {
     const rows = extractRuleRows({
       markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
