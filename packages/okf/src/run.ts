@@ -8,7 +8,7 @@
  * configuration lives in ./config.ts.
  */
 import { check } from './check/index.ts';
-import { coverage } from './coverage/index.ts';
+import { coverage } from './coverage-report/index.ts';
 import { gen } from './generate/index.ts';
 import { buildViz } from './viz/index.ts';
 

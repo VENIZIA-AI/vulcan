@@ -6,6 +6,11 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-17 - okf coverage scope renamed
+
+Updated [okf](/packages/okf.md) and [gotchas](/conventions/gotchas.md): `src/coverage/` became
+`src/coverage-report/` - the `coverage/` ignore pattern had kept it out of git.
+
 ## 2026-10-17 - develop branch, as in IGNIS
 
 Updated [releasing](/process/releasing.md) and [design decisions](/overview/design-decisions.md): pull
