@@ -1,3 +1,4 @@
+import { IGNIS_PACKAGE_MAP } from '../fixtures/ignis-packages';
 import { Transport } from '@/protocol';
 import { ReleaseStore } from '@/releases';
 import type { IReleaseTable } from '@/releases';
@@ -8,6 +9,7 @@ import { dirname, join } from 'node:path';
 import { afterAll, describe, expect, test } from 'bun:test';
 
 const TABLE: IReleaseTable = {
+  packageMap: IGNIS_PACKAGE_MAP,
   releases: {
     kernel: [
       { version: '0.2.0-21', date: '2026-09-06', sha: 'aa0644f5' },

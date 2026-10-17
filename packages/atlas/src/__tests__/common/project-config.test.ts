@@ -1,59 +1,93 @@
-import { afterAll, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { afterEach, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { readAtlasPackages } from '@/common/project-config';
+import { knownPackageDirs, livePackageDirs, readAtlasProject } from '@/common/project-config';
+import { directoryOf } from '@/common/package-map';
+import { clearAtlasProject, useAtlasProject } from '../project.helper';
 
-const roots: string[] = [];
+afterEach(clearAtlasProject);
 
-afterAll(() => {
-  for (const root of roots) {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+const ROOT = '/work/project';
 
-const createProject = (opts: { file: string; text: string }): string => {
-  const root = mkdtempSync(join(tmpdir(), 'atlas-config-'));
-  roots.push(root);
-  mkdirSync(join(root, '.configs'), { recursive: true });
-  writeFileSync(join(root, '.configs', opts.file), opts.text);
-  return root;
-};
+describe('readAtlasProject', () => {
+  test('reads the packages, compiles the release commit, resolves the paths', () => {
+    useAtlasProject({
+      root: ROOT,
+      config: {
+        packages: [{ dir: 'kernel', name: '@a/kernel', aliases: ['k'], retired: false }],
+        knowledge: { bundle: '.agents/knowledge', changelogs: 'docs/changelogs' },
+        atlas: { tagPattern: 'v<version>', typescriptFrom: 'packages/kernel' },
+      },
+    });
+    const project = readAtlasProject();
 
-test('the package directories come from atlas.packages, in the order given', () => {
-  const root = createProject({
-    file: 'vulcan.config.ts',
-    text: "export default { atlas: { packages: { kernel: '@a/kernel', admin: '@a/admin', ardor: '@a/ardor' } } };\n",
+    expect(project.root).toBe(ROOT);
+    expect(project.packages).toEqual([
+      { dir: 'kernel', name: '@a/kernel', aliases: ['k'], retired: false },
+    ]);
+    expect(project.tagPattern).toBe('v<version>');
+    expect(project.typescriptFrom).toBe(join(ROOT, 'packages/kernel'));
+    expect(project.knowledge).toEqual({
+      bundle: join(ROOT, '.agents/knowledge'),
+      changelogs: join(ROOT, 'docs/changelogs'),
+    });
+    expect(
+      project.releaseCommit.exec('[#80] chore(kernel): release v0.2.1-0 [prerelease]')?.groups,
+    ).toMatchObject({ dir: 'kernel', version: '0.2.1-0' });
   });
 
-  expect(readAtlasPackages({ repoRoot: root })).toEqual(['kernel', 'admin', 'ardor']);
-});
+  test('absent sections take the defaults: IGNIS-form release commit, the root for typescript', () => {
+    useAtlasProject({ root: ROOT, config: {} });
+    const project = readAtlasProject();
 
-test('an .mjs config reads the same', () => {
-  const root = createProject({
-    file: 'vulcan.config.mjs',
-    text: "export default { atlas: { packages: { one: '@a/one' } } };\n",
+    expect(project.tagPattern).toBe('<dir>-v<version>');
+    expect(project.typescriptFrom).toBe(ROOT);
+    expect(project.releaseCommit.test('chore(boot): release v1.0.0 [patch]')).toBe(true);
   });
 
-  expect(readAtlasPackages({ repoRoot: root })).toEqual(['one']);
+  test('outside vulcan x it stops with what to do', () => {
+    expect(() => readAtlasProject()).toThrow(
+      'atlas: no project config - run through `vulcan x atlas`',
+    );
+  });
 });
 
-test('no atlas.packages stops with what to add', () => {
-  const root = createProject({
-    file: 'vulcan.config.ts',
-    text: "export default { agents: ['claude'] };\n",
+describe('live and known packages', () => {
+  test('a retired package keeps its changelog entries but is not walked by surface', () => {
+    useAtlasProject({
+      root: ROOT,
+      config: {
+        packages: [
+          { dir: 'kernel', name: '@a/kernel', aliases: [], retired: false },
+          { dir: 'docs-mcp', name: '@venizia/ignis-docs-mcp', aliases: [], retired: true },
+        ],
+      },
+    });
+    const project = readAtlasProject();
+
+    expect(livePackageDirs({ project })).toEqual(['kernel']);
+    expect(knownPackageDirs({ project })).toEqual(['kernel', 'docs-mcp']);
   });
 
-  expect(() => readAtlasPackages({ repoRoot: root })).toThrow(
-    '[atlas] add atlas.packages to .configs/vulcan.config.ts - the package directories under packages/, in release order',
-  );
+  test('no live package: surface and symbols have nothing to walk and say what to add', () => {
+    useAtlasProject({ root: ROOT, config: {} });
+
+    expect(() => livePackageDirs({ project: readAtlasProject() })).toThrow(
+      'atlas: add packages to .configs/vulcan.config.ts',
+    );
+  });
 });
 
-test('no config at all stops with what to add', () => {
-  const root = mkdtempSync(join(tmpdir(), 'atlas-config-'));
-  roots.push(root);
+describe('directoryOf', () => {
+  const packages = [
+    { dir: 'core-server', name: '@venizia/ignis', aliases: ['core'], retired: false },
+    { dir: 'helpers', name: '@venizia/ignis-helpers', aliases: [], retired: false },
+  ];
 
-  expect(() => readAtlasPackages({ repoRoot: root })).toThrow(
-    '[atlas] no .configs/vulcan.config.* in ' + root,
-  );
+  test('a value resolves by npm name, by name without its scope, by directory, or by alias', () => {
+    expect(directoryOf({ value: '`@venizia/ignis`', packages })).toBe('core-server');
+    expect(directoryOf({ value: 'ignis-helpers', packages })).toBe('helpers');
+    expect(directoryOf({ value: 'core', packages })).toBe('core-server');
+    expect(directoryOf({ value: 'core-server', packages })).toBe('core-server');
+    expect(directoryOf({ value: 'unknown', packages })).toBeUndefined();
+  });
 });

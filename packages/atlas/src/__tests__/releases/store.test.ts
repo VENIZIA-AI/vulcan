@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, test } from 'bun:test';
 
 const TABLE: IReleaseTable = {
+  packageMap: [{ dir: 'kernel', name: '@venizia/ignis-kernel', aliases: [] }],
   releases: {
     kernel: [
       { version: '0.2.0-16', date: '2026-09-05', sha: 'fda2d717' },
@@ -155,5 +156,27 @@ describe('ReleaseStore.load', () => {
     expect(loaded.isEmpty()).toBe(true);
     expect(loaded.packages()).toEqual([]);
     expect(loaded.entriesBetween({ fromDate: '', toDate: '2026-09-05' })).toEqual([]);
+  });
+});
+
+describe('ReleaseStore package names from the table', () => {
+  test('a npm name, a directory or an alias resolve through the package map', () => {
+    const mapped = new ReleaseStore({
+      table: {
+        ...TABLE,
+        packageMap: [{ dir: 'kernel', name: '@acme/kernel', aliases: ['k'] }],
+      },
+    });
+
+    expect(mapped.versionsOf({ package: '@acme/kernel' })).toHaveLength(4);
+    expect(mapped.versionsOf({ package: 'K' })).toHaveLength(4);
+    expect(mapped.directoryOf({ package: 'acme-nothing' })).toBe('acme-nothing');
+  });
+
+  test('a table without a package map answers bare directory names only', () => {
+    const bare = new ReleaseStore({ table: { ...TABLE, packageMap: undefined } });
+
+    expect(bare.versionsOf({ package: 'kernel' })).toHaveLength(4);
+    expect(bare.versionsOf({ package: '@acme/kernel' })).toEqual([]);
   });
 });

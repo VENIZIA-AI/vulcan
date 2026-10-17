@@ -207,7 +207,10 @@ describe('buildServer', () => {
           jsonrpc: '2.0',
           id: 2,
           method: 'tools/call',
-          params: { name: 'symbol', arguments: { name: 'getError', package: 'helpers' } },
+          params: {
+            name: 'symbol',
+            arguments: { name: 'getError', package: '@venizia/ignis-helpers' },
+          },
         }),
       }),
     );

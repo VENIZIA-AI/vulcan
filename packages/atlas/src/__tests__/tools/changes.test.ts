@@ -1,3 +1,4 @@
+import { IGNIS_PACKAGE_MAP } from '../fixtures/ignis-packages';
 import { AtlasConstants, AtlasModes } from '@/common';
 import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
 import { Transport } from '@/protocol';
@@ -30,6 +31,7 @@ const entry = (opts: {
 });
 
 const TABLE: IReleaseTable = {
+  packageMap: IGNIS_PACKAGE_MAP,
   releases: {
     kernel: [
       { version: '0.2.0-16', date: '2026-09-05', sha: 'fda2d717' },

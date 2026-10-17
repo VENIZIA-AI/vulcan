@@ -3,6 +3,8 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AtlasReleases } from '@/releases/generator';
+import { toAtlasProject } from '@/common/project-config';
+import { IGNIS_PACKAGES } from '../fixtures/ignis-packages';
 import { IGNIS_HAS_HISTORY, IGNIS_ROOT } from '../ignis-root.helper';
 
 const tmpDirs: string[] = [];
@@ -75,7 +77,10 @@ describe('AtlasReleases.packagesOf', () => {
       body: '| Symbol | Change | Package |\n|---|---|---|\n| `x` | New | helpers |\n',
     });
 
-    expect(AtlasReleases.packagesOf({ text })).toEqual(['boot', 'kernel']);
+    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([
+      'boot',
+      'kernel',
+    ]);
   });
 
   test('a Details table Package column names the packages, de-duplicated and sorted', () => {
@@ -90,7 +95,10 @@ describe('AtlasReleases.packagesOf', () => {
       ].join('\n'),
     });
 
-    expect(AtlasReleases.packagesOf({ text })).toEqual(['core-server', 'kernel']);
+    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([
+      'core-server',
+      'kernel',
+    ]);
   });
 
   test('a Package column cell spelt as a scoped npm name maps back to its directory', () => {
@@ -104,7 +112,10 @@ describe('AtlasReleases.packagesOf', () => {
       ].join('\n'),
     });
 
-    expect(AtlasReleases.packagesOf({ text })).toEqual(['core-server', 'core-worker']);
+    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([
+      'core-server',
+      'core-worker',
+    ]);
   });
 
   test('a Package column cell that names no package at all is dropped, not guessed', () => {
@@ -118,7 +129,7 @@ describe('AtlasReleases.packagesOf', () => {
       ].join('\n'),
     });
 
-    expect(AtlasReleases.packagesOf({ text })).toEqual([]);
+    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([]);
   });
 
   test('a table wins over a body mention - the first rule that hits is the answer', () => {
@@ -133,7 +144,7 @@ describe('AtlasReleases.packagesOf', () => {
       ].join('\n'),
     });
 
-    expect(AtlasReleases.packagesOf({ text })).toEqual(['kernel']);
+    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual(['kernel']);
   });
 
   test('body mentions map @venizia/ignis to core-server and the worker to core-worker', () => {
@@ -142,7 +153,11 @@ describe('AtlasReleases.packagesOf', () => {
       body: 'Both `@venizia/ignis` and `@venizia/ignis-worker` changed, plus `@venizia/ignis-helpers/core`.',
     });
 
-    expect(AtlasReleases.packagesOf({ text })).toEqual(['core-server', 'core-worker', 'helpers']);
+    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([
+      'core-server',
+      'core-worker',
+      'helpers',
+    ]);
   });
 
   test('a file that names no package resolves to none', () => {
@@ -151,7 +166,7 @@ describe('AtlasReleases.packagesOf', () => {
       body: 'Prose with no package name and no details table.',
     });
 
-    expect(AtlasReleases.packagesOf({ text })).toEqual([]);
+    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([]);
   });
 });
 
@@ -183,20 +198,55 @@ describe('AtlasReleases.titleOf', () => {
 
 const IGNIS_RELEASES = join(IGNIS_ROOT, '.agents/knowledge/reference/releases.json');
 const hasGeneratedTable = existsSync(IGNIS_RELEASES);
+/**
+ * Where 0.2.0-0 answers differently from IGNIS's committed table, and why: `@venizia/dev-configs`
+ * mentions now count (the old pattern knew `@venizia/ignis...` only), so a dev-configs changelog
+ * names dev-configs, and its mentions win over `packages/<dir>` paths (the first rule that hits).
+ */
+const EXPLAINED_CHANGES: Record<string, string[]> = {
+  'changelog:2026-10-17-oxlint-lenient-fallback': ['dev-configs'],
+  'changelog:2026-10-17-lint-ignore-and-testing-helpers': ['dev-configs'],
+  'changelog:2026-10-17-dev-configs-house-rules': ['dev-configs'],
+  'changelog:2026-10-16-oxlint-oxfmt-migration': ['dev-configs'],
+  'changelog:2026-10-16-dev-configs-browser-tier': ['dev-configs'],
+  'changelog:2026-10-16-bun-tsconfig-extends': ['dev-configs'],
+  'changelog:2026-07-05-unified-repository-connectors': ['core-server', 'dev-configs', 'helpers'],
+  'changelog:2026-03-31-typescript-6-and-toolchain': ['dev-configs', 'inversion'],
+};
+
+const IGNIS_PROJECT = toAtlasProject({
+  root: IGNIS_ROOT,
+  config: { packages: IGNIS_PACKAGES, knowledge: { changelogs: 'docs/wiki/content/changelogs' } },
+});
 
 describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)('AtlasReleases.check', () => {
-  test('reads fresh against the committed table', () => {
-    expect(
-      AtlasReleases.check({ repoRoot: IGNIS_ROOT, outputPath: IGNIS_RELEASES }),
-      'stale release table - run `make releases-gen`',
-    ).toBe(true);
+  // Content, not bytes: 0.2.0-0 adds `packageMap`, and a changelog's `order` is fixed in Task 6b.
+  test('reproduces every release, live package and changelog entry of the committed table', () => {
+    const committed = JSON.parse(readFileSync(IGNIS_RELEASES, 'utf8'));
+    const rendered = JSON.parse(AtlasReleases.render({ project: IGNIS_PROJECT }));
+    const withoutOrder = (entries: { order?: number }[]) =>
+      entries.map(({ order: _order, ...entry }) => entry);
+
+    expect(rendered.livePackages).toEqual(committed.livePackages);
+    expect(rendered.releases).toEqual(committed.releases);
+    const explained = new Set(Object.keys(EXPLAINED_CHANGES));
+    const unexplained = (entries: { id: string; order?: number }[]) =>
+      withoutOrder(entries.filter(entry => !explained.has(entry.id)));
+
+    expect(unexplained(rendered.changelogs)).toEqual(unexplained(committed.changelogs));
+
+    for (const [id, packages] of Object.entries(EXPLAINED_CHANGES)) {
+      expect(
+        rendered.changelogs.find((entry: { id: string }) => entry.id === id)?.packages,
+      ).toEqual(packages);
+    }
   });
 
   test('reads stale once a release is dropped from the table', () => {
     const outputPath = join(makeTmpDir(), 'releases.json');
 
-    writeFileSync(outputPath, AtlasReleases.render({ repoRoot: IGNIS_ROOT }));
-    expect(AtlasReleases.check({ repoRoot: IGNIS_ROOT, outputPath })).toBe(true);
+    writeFileSync(outputPath, AtlasReleases.render({ project: IGNIS_PROJECT }));
+    expect(AtlasReleases.check({ project: IGNIS_PROJECT, outputPath })).toBe(true);
 
     const table = JSON.parse(readFileSync(outputPath, 'utf8'));
     const packageName = Object.keys(table.releases)[0];
@@ -204,6 +254,57 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)('AtlasReleases.check',
     table.releases[packageName] = table.releases[packageName].slice(1);
     writeFileSync(outputPath, `${JSON.stringify(table, null, 2)}\n`);
 
-    expect(AtlasReleases.check({ repoRoot: IGNIS_ROOT, outputPath })).toBe(false);
+    expect(AtlasReleases.check({ project: IGNIS_PROJECT, outputPath })).toBe(false);
+  });
+});
+
+describe('AtlasReleases with project packages', () => {
+  test('a retired package keeps its old changelog entries', () => {
+    const text = withFrontmatter({
+      frontmatter: 'title: The docs server',
+      body: 'The `@venizia/ignis-docs-mcp` server answers search.',
+    });
+
+    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual(['docs-mcp']);
+  });
+
+  test('an alias spelled as a npm name counts as a mention of its package', () => {
+    const text = withFrontmatter({
+      frontmatter: 'title: Workers',
+      body: 'Ships `@venizia/ignis-core-worker` builds.',
+    });
+    const packages = [
+      {
+        dir: 'core-worker',
+        name: '@venizia/ignis-worker',
+        aliases: ['@venizia/ignis-core-worker'],
+        retired: false,
+      },
+    ];
+
+    expect(AtlasReleases.packagesOf({ text, packages })).toEqual(['core-worker']);
+  });
+
+  test('a mention of a longer name is not a mention of its prefix', () => {
+    const text = withFrontmatter({
+      frontmatter: 'title: Unknown',
+      body: 'Uses `@venizia/ignis-unlisted` only.',
+    });
+
+    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([]);
+  });
+
+  test('a release subject is read with the configured template', () => {
+    const pattern = toAtlasProject({
+      root: '/r',
+      config: { atlas: { releaseCommit: 'chore(release): v<version>' } },
+    }).releaseCommit;
+
+    expect(
+      AtlasReleases.parseReleaseSubject({
+        subject: 'chore(release): v0.1.0-2 [prerelease]',
+        pattern,
+      }),
+    ).toEqual({ package: undefined, version: '0.1.0-2' });
   });
 });

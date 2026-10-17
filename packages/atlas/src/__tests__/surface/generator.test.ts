@@ -1,8 +1,9 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PublicSurface } from '@/surface';
+import { clearAtlasProject, useAtlasProject } from '../project.helper';
 
 const tmpDirs: string[] = [];
 
@@ -77,24 +78,40 @@ describe('PublicSurface.render', () => {
 });
 
 describe('the package list', () => {
-  test('without atlas.packages in the project config, render stops with what to add', () => {
-    const repoRoot = makeRepoRoot();
+  afterEach(clearAtlasProject);
 
-    expect(() => PublicSurface.render({ repoRoot })).toThrow(
-      '[atlas] no .configs/vulcan.config.* in',
+  test('outside vulcan x, render stops with what to do', () => {
+    expect(() => PublicSurface.render({ repoRoot: makeRepoRoot() })).toThrow(
+      'atlas: no project config - run through `vulcan x atlas`',
     );
   });
 
-  test('render reads the directories from atlas.packages', () => {
+  test('render walks the live packages; a retired one with no directory is skipped, not read', () => {
     const repoRoot = makeRepoRoot();
-    writeSurface({ repoRoot });
-    mkdirSync(join(repoRoot, '.configs'));
-    writeFileSync(
-      join(repoRoot, '.configs', 'vulcan.config.ts'),
-      "export default { atlas: { packages: { testpkg: '@test/testpkg' } } };\n",
-    );
 
-    expect(PublicSurface.render({ repoRoot })).toContain('`@test/testpkg` (3)');
+    writeSurface({ repoRoot });
+    useAtlasProject({
+      root: repoRoot,
+      config: {
+        packages: [
+          { dir: 'testpkg', name: '@test/testpkg', aliases: [], retired: false },
+          { dir: 'ui-kit', name: '@test/ui-kit', aliases: [], retired: true },
+        ],
+      },
+    });
+
+    expect(PublicSurface.render({})).toContain('`@test/testpkg` (3)');
+  });
+
+  test('only retired packages: nothing to walk, and it says what to add', () => {
+    useAtlasProject({
+      root: makeRepoRoot(),
+      config: { packages: [{ dir: 'ui-kit', name: '@test/ui-kit', aliases: [], retired: true }] },
+    });
+
+    expect(() => PublicSurface.render({})).toThrow(
+      'atlas: add packages to .configs/vulcan.config.ts',
+    );
   });
 });
 

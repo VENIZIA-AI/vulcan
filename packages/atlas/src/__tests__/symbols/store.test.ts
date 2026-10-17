@@ -1,3 +1,4 @@
+import { IGNIS_PACKAGE_MAP } from '../fixtures/ignis-packages';
 import { SymbolStore } from '@/symbols';
 import type { ISymbolRecord } from '@/symbols';
 import { describe, expect, test } from 'bun:test';
@@ -21,7 +22,8 @@ const SYMBOLS: ISymbolRecord[] = [
   record({ name: 'BaseHelper', kind: 'class' }),
 ];
 
-const buildStore = (): SymbolStore => new SymbolStore({ symbols: SYMBOLS });
+const buildStore = (): SymbolStore =>
+  new SymbolStore({ symbols: SYMBOLS, packageMap: IGNIS_PACKAGE_MAP });
 
 describe('SymbolStore.lookup', () => {
   test('returns the one record an exact name names', () => {
@@ -95,5 +97,26 @@ describe('SymbolStore with no table', () => {
   test('looks up nothing and suggests nothing', () => {
     expect(empty.lookup({ name: 'getError' })).toEqual([]);
     expect(empty.suggest({ name: 'getError' })).toEqual([]);
+  });
+});
+
+describe('SymbolStore package names from the table', () => {
+  const PACKAGE_MAP = [
+    { dir: 'helpers', name: '@venizia/ignis-helpers', aliases: [] },
+    { dir: 'core-server', name: '@venizia/ignis', aliases: ['core'] },
+  ];
+
+  test('a directory or an alias answers through the package map', () => {
+    const store = new SymbolStore({ symbols: SYMBOLS, packageMap: PACKAGE_MAP });
+
+    expect(store.lookup({ name: 'getError', package: 'helpers' })).toHaveLength(1);
+    expect(store.lookup({ name: 'respond', package: 'core' })[0].package).toBe('@venizia/ignis');
+  });
+
+  test('a table without a package map still answers the exact npm name', () => {
+    const store = new SymbolStore({ symbols: SYMBOLS });
+
+    expect(store.lookup({ name: 'getError', package: '@venizia/ignis-helpers' })).toHaveLength(1);
+    expect(store.lookup({ name: 'respond', package: 'core' })).toEqual([]);
   });
 });

@@ -77,18 +77,21 @@ const ONE_PACKAGE_TIMEOUT_MS = 60_000;
 
 describe.skipIf(!hasGeneratedTable || !IGNIS_IS_BUILT)('AtlasSymbols.check', () => {
   test(
-    'reads fresh against the committed table',
+    'reproduces every symbol of the committed table, and maps each package to its npm name',
     () => {
-      // The table is read from dist, so a rebuild since the last `gen` reads stale here too.
-      expect(
-        // The table's own package list: the claim is that the generator reproduces what IGNIS committed.
-        AtlasSymbols.check({
-          repoRoot: IGNIS_ROOT,
-          packages: JSON.parse(readFileSync(IGNIS_SYMBOLS, 'utf8')).packages,
-          outputPath: IGNIS_SYMBOLS,
-        }),
-        'stale symbol table - run `make symbols-gen`',
-      ).toBe(true);
+      // The table is read from dist, so a rebuild since the last `gen` differs here too. Content,
+      // not bytes: 0.2.0-0 adds `packageMap`, which IGNIS's committed table predates.
+      const { packageMap: _committedMap, ...committed } = JSON.parse(
+        readFileSync(IGNIS_SYMBOLS, 'utf8'),
+      );
+      const { packageMap, ...rendered } = JSON.parse(
+        AtlasSymbols.render({ repoRoot: IGNIS_ROOT, packages: committed.packages }),
+      );
+
+      expect(rendered, 'stale symbol table - run `make symbols-gen`').toEqual(committed);
+      expect(packageMap.find((entry: { dir: string }) => entry.dir === 'core-server')?.name).toBe(
+        '@venizia/ignis',
+      );
     },
     WHOLE_SURFACE_TIMEOUT_MS,
   );

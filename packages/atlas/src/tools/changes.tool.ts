@@ -1,7 +1,6 @@
 import { AtlasConstants } from '@/common';
 import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IToolHandler } from '@/protocol/common';
-import { toPackageDirectory } from '@/releases';
 import type { IChangelogRecord, ReleaseStore } from '@/releases';
 import { z } from 'zod';
 import { ChangesInputSchema, parseInput } from './common';
@@ -93,7 +92,7 @@ const packageWindowOf = (opts: {
   from?: string;
   to?: string;
 }): IWindow => {
-  const name = toPackageDirectory(opts.package);
+  const name = opts.releases.directoryOf({ package: opts.package });
   const versions = opts.releases.versionsOf({ package: name });
 
   if (versions.length === 0) {

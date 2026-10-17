@@ -9,7 +9,7 @@ import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
 import { readPackageEntries } from '@/common/package-entries';
 import { regenerateHintOf } from '@/common/regenerate-hint';
-import { readAtlasPackages } from '@/common/project-config';
+import { hasAtlasProject, livePackageDirs, readAtlasProject } from '@/common/project-config';
 import { PROJECT_ROOT } from '@/common/project';
 import type { IPackageEntries } from '@/common/types';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -26,8 +26,9 @@ interface IEntrySurface {
 
 export class PublicSurface {
   static render(opts: { repoRoot?: string; packages?: string[] } = {}): string {
-    const repoRoot = opts.repoRoot ?? PROJECT_ROOT;
-    const packages = opts.packages ?? readAtlasPackages({ repoRoot });
+    const project = hasAtlasProject() ? readAtlasProject() : undefined;
+    const repoRoot = opts.repoRoot ?? project?.root ?? PROJECT_ROOT;
+    const packages = opts.packages ?? livePackageDirs({ project: project ?? readAtlasProject() });
     const read = packages.map(name => readPackageEntries({ repoRoot, name }));
     const program = DeclarationProgram.create({
       files: read.flatMap(item => item.entries.map(entry => entry.file)),

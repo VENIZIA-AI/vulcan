@@ -1,31 +1,13 @@
 import type { TAtlasMode } from '@/common';
 import { symbolsFileOf } from '@/common/layout';
 import { BaseHelper } from '@/common/helper';
+import { directoryOfQuery } from '@/common/package-map';
+import type { IPackageMapEntry } from '@/common/package-map';
 import { existsSync, readFileSync } from 'node:fs';
 import type { ISymbolRecord, ISymbolTable } from './common';
 
 const DEFAULT_SUGGESTION_LIMIT = 5;
 const MAX_SUGGESTION_DISTANCE = 2;
-
-/**
- * Every spelling of one package as its directory name: `@venizia/ignis-helpers`, `ignis-helpers`
- * and `helpers` are one, `@venizia/ignis` is `core-server` and `@venizia/ignis-worker` is
- * `core-worker` - the same names `version` and `changes` answer with.
- */
-const normalizePackage = (value: string): string => {
-  const bare = value
-    .trim()
-    .toLowerCase()
-    .replace(/^@[^/]+\//, '');
-
-  if (bare === 'ignis') {
-    return 'core-server';
-  }
-
-  const suffix = bare.replace(/^ignis-/, '');
-
-  return suffix === 'worker' ? 'core-worker' : suffix;
-};
 
 /**
  * Levenshtein distance over two rows, abandoned once every cell of a row exceeds `max` - a typo
@@ -81,8 +63,12 @@ export class SymbolStore extends BaseHelper {
   private readonly byExactName = new Map<string, ISymbolRecord[]>();
   private readonly namesByLowerCase = new Map<string, string[]>();
 
-  constructor(opts: { symbols: ISymbolRecord[] }) {
+  private readonly packageMap: IPackageMapEntry[];
+
+  constructor(opts: { symbols: ISymbolRecord[]; packageMap?: IPackageMapEntry[] }) {
     super({ scope: SymbolStore.name });
+
+    this.packageMap = opts.packageMap ?? [];
 
     for (const symbol of opts.symbols) {
       const exact = this.byExactName.get(symbol.name) ?? [];
@@ -114,7 +100,7 @@ export class SymbolStore extends BaseHelper {
     try {
       const table: ISymbolTable = JSON.parse(readFileSync(path, 'utf8'));
 
-      return new SymbolStore({ symbols: table.symbols ?? [] });
+      return new SymbolStore({ symbols: table.symbols ?? [], packageMap: table.packageMap });
     } catch (error) {
       const store = new SymbolStore({ symbols: [] });
 
@@ -137,9 +123,12 @@ export class SymbolStore extends BaseHelper {
       return found;
     }
 
-    const wanted = normalizePackage(opts.package);
+    const packageMap = this.packageMap;
+    const wanted = directoryOfQuery({ value: opts.package, packageMap });
 
-    return found.filter(record => normalizePackage(record.package) === wanted);
+    return found.filter(
+      record => directoryOfQuery({ value: record.package, packageMap }) === wanted,
+    );
   }
 
   /** The closest known names to `name`: prefix matches first, then substrings, then near-misses. */

@@ -1,3 +1,4 @@
+import { IGNIS_PACKAGE_MAP } from '../fixtures/ignis-packages';
 import { AtlasConstants, Corpora } from '@/common';
 import { Chunker, CorpusLoader } from '@/corpus';
 import { Transport } from '@/protocol';
@@ -74,7 +75,7 @@ const payloadOf = (reply: { result?: { content: { text: string }[] } }) =>
   JSON.parse(reply.result?.content[0]?.text ?? '{}');
 
 describe('symbol tool', () => {
-  const symbols = new SymbolStore({ symbols: SYMBOLS });
+  const symbols = new SymbolStore({ symbols: SYMBOLS, packageMap: IGNIS_PACKAGE_MAP });
 
   test('an empty name is -32602 with a message naming the field', async () => {
     const reply = await callSymbol({ symbols, args: { name: '' } });
