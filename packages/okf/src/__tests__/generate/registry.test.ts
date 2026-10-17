@@ -41,7 +41,7 @@ test('a project module loads by path, its facts feed render and coverage', async
   const [loaded] = (await loadGeneration()).renderers;
   const facts = loaded.renderer.collect({ context: loaded.context });
 
-  expect(loaded.renderer.render?.({ context: loaded.context, facts }).path).toBe(
+  expect([loaded.renderer.render?.({ context: loaded.context, facts })].flat()[0]?.path).toBe(
     'reference/providers.md',
   );
   expect(loaded.renderer.coverage?.({ facts })).toEqual({ name: 'providers', count: 1 });
@@ -129,9 +129,9 @@ test('binding-keys reads the configured file', async () => {
   const facts = loaded.renderer.collect({ context: loaded.context });
 
   expect(loaded.renderer.coverage?.({ facts })).toEqual({ name: 'binding keys', count: 1 });
-  expect(loaded.renderer.render?.({ context: loaded.context, facts }).content).toContain(
-    '| `APPLICATION` | `@app/application` |',
-  );
+  expect(
+    [loaded.renderer.render?.({ context: loaded.context, facts })].flat()[0]?.content,
+  ).toContain('| `APPLICATION` | `@app/application` |');
 });
 
 test('a region with the id contents stops: okf writes the contents list between those markers', async () => {

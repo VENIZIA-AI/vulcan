@@ -48,10 +48,12 @@ test('the packages table and the source map read each package where it lives', a
   });
   const { renderers, regions } = await loadGeneration();
   const [sourceMap] = renderers;
-  const map = sourceMap.renderer.render?.({
-    context: sourceMap.context,
-    facts: sourceMap.renderer.collect({ context: sourceMap.context }),
-  });
+  const map = [
+    sourceMap.renderer.render?.({
+      context: sourceMap.context,
+      facts: sourceMap.renderer.collect({ context: sourceMap.context }),
+    }),
+  ].flat()[0];
 
   expect(regions[0].render()).toContain(
     '| [`kit`](/packages/kit.md) | `@nx/kit` | The design kit. |',
