@@ -62,14 +62,16 @@ export const collectChangelogProblems = (): string[] => {
     .sort()) {
     const path = relative(project.root, join(directory, file));
     const frontmatter = frontmatterOf({ text: readFileSync(join(directory, file), 'utf8') });
-    const declared: unknown[] = Array.isArray(frontmatter.packages) ? frontmatter.packages : [];
-
-    if (declared.length === 0) {
+    // `packages: []` is a decision - an entry about no package, such as repository tooling. Only a
+    // missing list is undecided.
+    if (!Array.isArray(frontmatter.packages)) {
       problems.push(
         `changelog: ${path} declares no packages - add \`packages: [<npm name>, ...]\` (\`vulcan x atlas changelogs migrate\` fills it)`,
       );
       continue;
     }
+
+    const declared: unknown[] = frontmatter.packages;
 
     for (const name of declared) {
       if (typeof name !== 'string' || !names.has(name)) {

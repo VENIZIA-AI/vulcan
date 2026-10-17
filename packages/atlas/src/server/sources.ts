@@ -6,7 +6,7 @@ import { Transport } from '@/protocol';
 import { computeReleases, ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources/serving';
-import type { IResolvedSource } from '@/sources/common';
+import type { IResolvedSource, IUnavailableSource } from '@/sources/common';
 import { cachedSymbols, SymbolStore, symbolsOfInstalled, symbolsOfRepository } from '@/symbols';
 import type { ISymbolRecord } from '@/symbols';
 import {
@@ -86,8 +86,11 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
 };
 
 /** Which sources the server reads, and how each was reached - a client sees it on initialize. */
-const instructionsOf = (opts: { sources: IResolvedSource[] }): string | undefined => {
-  if (opts.sources.every(source => source.mode === 'repository')) {
+const instructionsOf = (opts: {
+  sources: IResolvedSource[];
+  unavailable: IUnavailableSource[];
+}): string | undefined => {
+  if (opts.unavailable.length === 0 && opts.sources.every(source => source.mode === 'repository')) {
     return undefined;
   }
 
@@ -108,9 +111,15 @@ const instructionsOf = (opts: { sources: IResolvedSource[] }): string | undefine
       : `- ${source.name}: ${at}${note}`;
   });
 
+  const missing = opts.unavailable.map(
+    ({ source, reason }) =>
+      `- ${source.name}: UNAVAILABLE (${source.repo}@${source.ref}) - ${reason}; nothing from it is served`,
+  );
+
   return [
     `Atlas serves ${opts.sources.length} source(s); every hit names its source.`,
     ...lines,
+    ...missing,
   ].join('\n');
 };
 
@@ -120,6 +129,8 @@ const instructionsOf = (opts: { sources: IResolvedSource[] }): string | undefine
  */
 export const buildSourcesServer = (opts: {
   sources: IResolvedSource[];
+  /** Sources this start could not serve; `initialize` names each with its reason. */
+  unavailable?: IUnavailableSource[];
   cwd: string;
   version: string;
 }): Transport => {
@@ -128,7 +139,10 @@ export const buildSourcesServer = (opts: {
   const releases = new SourceReleases({ sources: stores });
   const symbols = new SourceSymbols({ sources: stores });
   const [only] = opts.sources;
-  const instructions = instructionsOf(opts);
+  const instructions = instructionsOf({
+    sources: opts.sources,
+    unavailable: opts.unavailable ?? [],
+  });
 
   return new Transport({
     tools: [

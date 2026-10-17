@@ -76,6 +76,12 @@ test('an entry without packages fails, pointing at migrate (positive control)', 
   ]);
 });
 
+test('an explicit empty list is an entry about no package - repository tooling - and passes', () => {
+  project({ entries: { '2026-01-01-a.md': entry({ frontmatter: 'packages: []' }) } });
+
+  expect(collectChangelogProblems()).toEqual([]);
+});
+
 test('an unknown name fails, naming it (positive control)', () => {
   project({ entries: { '2026-01-01-a.md': entry({ frontmatter: "packages: ['kernel']" }) } });
 

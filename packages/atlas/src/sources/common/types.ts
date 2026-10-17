@@ -28,3 +28,9 @@ export interface IResolvedSource {
   /** Whether releases have history - a source pulled without git has none. */
   history?: boolean;
 }
+
+/** A source this start could not serve, and why - the server serves the rest and says so. */
+export interface IUnavailableSource {
+  source: IAtlasSource;
+  reason: string;
+}

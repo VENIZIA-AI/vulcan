@@ -20,7 +20,7 @@ import { computeReleases } from '@/releases/compute';
 import { ChunkStore } from '@/search/store';
 import { symbolsOfPublished } from '@/symbols/compute';
 import { artifactsOf, cacheRootOf, checkoutOf, urlOf } from './cache';
-import type { IAtlasSource, IResolvedSource, TSourceMode } from './common';
+import type { IAtlasSource, IResolvedSource, IUnavailableSource, TSourceMode } from './common';
 import { githubTokenOf } from './credentials';
 import { git, lsRemote, setSparsePaths, sparseCheckout, updateClone } from './git';
 import { extractTarball, githubRepoOf, hasGit, lsRemoteByHttp } from './tarball';
@@ -252,12 +252,8 @@ const resolveRemote = async (opts: {
  * Every source atlas serves: the working directory when it has a manifest (repo mode, no git), then
  * each declared source, from the cache or a pull (Project Contract v1, spec section 3).
  */
-export const resolveSources = async (opts: {
-  cwd: string;
-  sources: IAtlasSource[];
-  force?: boolean;
-}): Promise<IResolvedSource[]> => {
-  const self: IResolvedSource[] = hasAtlasProject({ root: opts.cwd })
+const resolveSelf = (opts: { cwd: string }): IResolvedSource[] =>
+  hasAtlasProject({ root: opts.cwd })
     ? [
         (() => {
           const project = readAtlasProject({ root: opts.cwd });
@@ -267,11 +263,40 @@ export const resolveSources = async (opts: {
       ]
     : [];
 
+/** The project at `cwd` and every source; one that cannot be resolved throws (`pull` reports it). */
+export const resolveSources = async (opts: {
+  cwd: string;
+  sources: IAtlasSource[];
+  force?: boolean;
+}): Promise<IResolvedSource[]> => {
   const remote: IResolvedSource[] = [];
 
   for (const source of opts.sources) {
     remote.push(await resolveRemote({ source, force: opts.force ?? false }));
   }
 
-  return [...self, ...remote];
+  return [...resolveSelf(opts), ...remote];
+};
+
+/**
+ * What `mcp` serves: the project and every source it can reach. A source that cannot be served - no
+ * committed manifest yet, a ref that broke, a host that is down with nothing cached - is set aside
+ * with its reason; it never takes the project or the other sources down with it.
+ */
+export const resolveServableSources = async (opts: {
+  cwd: string;
+  sources: IAtlasSource[];
+}): Promise<{ resolved: IResolvedSource[]; unavailable: IUnavailableSource[] }> => {
+  const remote: IResolvedSource[] = [];
+  const unavailable: IUnavailableSource[] = [];
+
+  for (const source of opts.sources) {
+    try {
+      remote.push(await resolveRemote({ source, force: false }));
+    } catch (error) {
+      unavailable.push({ source, reason: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  return { resolved: [...resolveSelf(opts), ...remote], unavailable };
 };

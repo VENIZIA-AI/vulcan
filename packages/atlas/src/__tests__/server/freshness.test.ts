@@ -5,6 +5,7 @@ import type { ICorpusRoot } from '@/corpus';
 import { FreshnessGuard } from '@/server/index';
 import {
   cpSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -158,5 +159,28 @@ describe('FreshnessGuard', () => {
     } finally {
       loadSpy.mockRestore();
     }
+  });
+
+  test('a declared root that does not exist yet starts empty, and is read once it appears', () => {
+    const roots = makeWikiRoot();
+    const changelogs = join(roots[0].directory, '..', 'changelogs');
+    const guard = new FreshnessGuard({
+      mode: AtlasModes.REPOSITORY,
+      roots: [...roots, { corpus: Corpora.CHANGELOG, directory: changelogs }],
+    });
+
+    expect(
+      guard.getStore().search({ query: FRESHNESS_MARKER, limit: 5, offset: 0 }).hits.length,
+    ).toBe(0);
+
+    mkdirSync(changelogs);
+    writeFileSync(
+      join(changelogs, '2026-01-01-first.md'),
+      `---\ntitle: First\n---\n\nThe first ${FRESHNESS_MARKER}.\n`,
+    );
+
+    expect(
+      guard.getStore().search({ query: FRESHNESS_MARKER, limit: 5, offset: 0 }).hits.length,
+    ).toBeGreaterThan(0);
   });
 });
