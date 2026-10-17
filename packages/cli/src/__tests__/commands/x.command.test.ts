@@ -99,7 +99,7 @@ describe('buildToolEnvironment', () => {
 
       expect(environment.env.VULCAN_PROJECT_ROOT).toBe(root);
       expect(config.packages).toEqual([
-        { dir: 'kernel', name: '@a/kernel', aliases: [], retired: false },
+        { dir: 'kernel', name: '@a/kernel', path: 'packages/kernel', aliases: [], retired: false },
       ]);
       expect(config.okf.renderers).toEqual([]);
     }

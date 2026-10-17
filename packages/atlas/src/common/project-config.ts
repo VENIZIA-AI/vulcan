@@ -1,9 +1,13 @@
-import { resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { compileReleaseTemplate } from '@/releases/template';
 
-/** What `vulcan x` hands every tool; the generators read nothing else for their project. */
-const CONFIG_ENV = 'VULCAN_CONFIG';
+/** The project manifest (Project Contract v1, C1) - what atlas reads, and nothing else. */
+const MANIFEST_FILE = '.agents/vulcan.manifest.json';
+const MANIFEST_ENV = 'VULCAN_MANIFEST';
 const ROOT_ENV = 'VULCAN_PROJECT_ROOT';
+/** The manifest versions this atlas reads (V2); outside it, it says which VULCAN to upgrade to. */
+const MANIFEST_SCHEMA_VERSION = 1;
 
 const DEFAULT_RELEASE_COMMIT = '[#<issue>] chore(<dir>): release v<version>';
 const DEFAULT_TAG_PATTERN = '<dir>-v<version>';
@@ -12,6 +16,8 @@ const DEFAULT_BUNDLE = '.agents/knowledge';
 export interface IAtlasPackage {
   dir: string;
   name: string;
+  /** From the root; `packages/<dir>` unless the manifest says otherwise. */
+  path: string;
   aliases: string[];
   retired: boolean;
 }
@@ -22,8 +28,10 @@ export interface IAtlasProject {
   packages: IAtlasPackage[];
   /** `atlas.releaseCommit` compiled: named groups `dir`, `version`, `issue`. */
   releaseCommit: RegExp;
-  /** `atlas.tagPattern`, the template of a release tag. */
+  /** `release.tagPattern`, the template of a release tag. */
   tagPattern: string;
+  /** `release.ignoreTags`: globs of tags neither read nor checked. */
+  ignoreTags: string[];
   /** Absolute: where the project's `typescript` resolves from. */
   typescriptFrom: string;
   /** Absolute paths. */
@@ -52,6 +60,7 @@ const packagesOf = (opts: { value: unknown }): IAtlasPackage[] =>
           {
             dir,
             name: stringOf({ value: entry.name }) ?? dir,
+            path: stringOf({ value: entry.path }) ?? `packages/${dir}`,
             aliases: aliases.filter((alias): alias is string => typeof alias === 'string'),
             retired: entry.retired === true,
           },
@@ -59,25 +68,32 @@ const packagesOf = (opts: { value: unknown }): IAtlasPackage[] =>
   });
 
 /**
- * A project from a resolved config (the cli validated it and resolved `packages` already): the
- * schema's defaults for anything absent, every path absolute.
+ * A project from its manifest (`vulcan sync` rendered it from a validated config): defaults for
+ * anything absent, every path absolute. A schemaVersion this atlas does not read fails loudly.
  */
-export const toAtlasProject = (opts: { root: string; config: unknown }): IAtlasProject => {
-  const config = recordOf({ value: opts.config });
-  const atlas = recordOf({ value: config.atlas });
-  const knowledge = recordOf({ value: config.knowledge });
+export const toAtlasProject = (opts: { root: string; manifest: unknown }): IAtlasProject => {
+  const manifest = recordOf({ value: opts.manifest });
+  const release = recordOf({ value: manifest.release });
+  const knowledge = recordOf({ value: manifest.knowledge });
   const wiki = stringOf({ value: knowledge.wiki });
   const changelogs = stringOf({ value: knowledge.changelogs });
-  const typescriptFrom = stringOf({ value: atlas.typescriptFrom });
+
+  if (manifest.schemaVersion !== MANIFEST_SCHEMA_VERSION) {
+    throw new Error(
+      `atlas: the manifest is schemaVersion ${String(manifest.schemaVersion)}; @venizia/vulcan-atlas reads ${MANIFEST_SCHEMA_VERSION} - upgrade @venizia/vulcan`,
+    );
+  }
 
   return {
     root: opts.root,
-    packages: packagesOf({ value: config.packages }),
-    releaseCommit: compileReleaseTemplate({
-      template: stringOf({ value: atlas.releaseCommit }) ?? DEFAULT_RELEASE_COMMIT,
-    }),
-    tagPattern: stringOf({ value: atlas.tagPattern }) ?? DEFAULT_TAG_PATTERN,
-    typescriptFrom: resolve(opts.root, typescriptFrom ?? '.'),
+    packages: packagesOf({ value: manifest.packages }),
+    // Read from tags once releases are computed (Task 11); until then the default release commit.
+    releaseCommit: compileReleaseTemplate({ template: DEFAULT_RELEASE_COMMIT }),
+    tagPattern: stringOf({ value: release.tagPattern }) ?? DEFAULT_TAG_PATTERN,
+    ignoreTags: (Array.isArray(release.ignoreTags) ? release.ignoreTags : []).filter(
+      (glob): glob is string => typeof glob === 'string',
+    ),
+    typescriptFrom: opts.root,
     knowledge: {
       bundle: resolve(opts.root, stringOf({ value: knowledge.bundle }) ?? DEFAULT_BUNDLE),
       ...(wiki === undefined ? {} : { wiki: resolve(opts.root, wiki) }),
@@ -86,22 +102,24 @@ export const toAtlasProject = (opts: { root: string; config: unknown }): IAtlasP
   };
 };
 
-/** Whether `vulcan x` handed a project over; the MCP server runs without one. */
+const projectRoot = (): string => process.env[ROOT_ENV] ?? process.cwd();
+
+/** Whether there is a project: `vulcan x` handed its manifest over, or the root carries one. */
 export const hasAtlasProject = (): boolean =>
-  process.env[CONFIG_ENV] !== undefined && process.env[ROOT_ENV] !== undefined;
+  process.env[MANIFEST_ENV] !== undefined || existsSync(join(projectRoot(), MANIFEST_FILE));
 
-/** The generators' project, from what `vulcan x` hands them. */
+/** The project's manifest: the one `vulcan x` rendered fresh, else the committed file. */
 export const readAtlasProject = (): IAtlasProject => {
-  const text = process.env[CONFIG_ENV];
-  const root = process.env[ROOT_ENV];
+  const root = projectRoot();
+  const file = join(root, MANIFEST_FILE);
+  const text =
+    process.env[MANIFEST_ENV] ?? (existsSync(file) ? readFileSync(file, 'utf8') : undefined);
 
-  if (text === undefined || root === undefined) {
-    throw new Error(
-      'atlas: no project config - run through `vulcan x atlas` (or add .configs/vulcan.config.ts)',
-    );
+  if (text === undefined) {
+    throw new Error(`atlas: no project manifest (${MANIFEST_FILE}) - run \`vulcan sync\``);
   }
 
-  return toAtlasProject({ root, config: JSON.parse(text) });
+  return toAtlasProject({ root, manifest: JSON.parse(text) });
 };
 
 /** The packages surface and symbols walk: the live ones, in release order. */
