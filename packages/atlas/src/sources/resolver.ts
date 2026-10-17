@@ -53,6 +53,7 @@ const servedFrom = (opts: {
 
   return {
     name: opts.source.name,
+    origin: `${opts.source.repo}@${opts.source.ref}`,
     root: checkout,
     sha: opts.sha,
     mode: opts.mode,

@@ -37,13 +37,21 @@ export class Transport extends BaseHelper {
   private readonly tools: IToolHandler[];
   private readonly serverName: string;
   private readonly serverVersion: string;
+  private readonly instructions?: string;
 
-  constructor(opts: { tools: IToolHandler[]; serverName: string; serverVersion: string }) {
+  constructor(opts: {
+    tools: IToolHandler[];
+    serverName: string;
+    serverVersion: string;
+    /** What a client should know before it calls - which sources, and whether one is offline. */
+    instructions?: string;
+  }) {
     super({ scope: Transport.name });
 
     this.tools = opts.tools;
     this.serverName = opts.serverName;
     this.serverVersion = opts.serverVersion;
+    this.instructions = opts.instructions;
   }
 
   /** Parses one line, routes it, and returns the reply to send - or `null` for a notification. Never throws. */
@@ -110,6 +118,7 @@ export class Transport extends BaseHelper {
             protocolVersion,
             capabilities: { tools: {} },
             serverInfo: { name: this.serverName, version: this.serverVersion },
+            ...(this.instructions === undefined ? {} : { instructions: this.instructions }),
           },
         });
       }

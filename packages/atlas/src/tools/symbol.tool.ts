@@ -1,8 +1,8 @@
 import { AtlasConstants } from '@/common';
 import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IToolHandler } from '@/protocol/common';
-import type { ChunkStore } from '@/search/store';
-import type { ISymbolRecord, SymbolStore } from '@/symbols';
+import type { IChunkIndex } from '@/search/common';
+import type { ISymbolIndex, ISymbolRecord } from '@/symbols';
 import { z } from 'zod';
 import { parseInput, SymbolInputSchema } from './common';
 
@@ -81,8 +81,8 @@ const unknownSymbolError = (opts: { name: string; suggestions: string[] }): RpcE
 };
 
 export const buildSymbolTool = (opts: {
-  store: ChunkStore;
-  symbols: SymbolStore;
+  store: IChunkIndex;
+  symbols: ISymbolIndex;
 }): IToolHandler => ({
   definition: {
     name: 'symbol',

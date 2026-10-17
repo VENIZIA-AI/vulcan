@@ -5,6 +5,8 @@ import type { IPackageMapEntry } from '@/common/package-map';
  * declaration, not the `dist` file the generator read - an alias export points at what it aliases.
  */
 export interface ISymbolRecord {
+  /** The source it came from, when atlas serves more than one. */
+  source?: string;
   name: string;
   package: string;
   subpath: string;
@@ -32,4 +34,12 @@ export interface ISymbolTable {
   symbols: ISymbolRecord[];
   /** Every package's directory, npm name and other names; absent in a table generated before 0.2.0-0. */
   packageMap?: IPackageMapEntry[];
+}
+
+/** What the tools read from symbol tables - one source's store, or several served as one. */
+export interface ISymbolIndex {
+  readonly emptyReason: string;
+  isEmpty(): boolean;
+  lookup(opts: { name: string; package?: string }): ISymbolRecord[];
+  suggest(opts: { name: string; limit?: number }): string[];
 }

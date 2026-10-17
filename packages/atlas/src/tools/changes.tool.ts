@@ -1,7 +1,7 @@
 import { AtlasConstants } from '@/common';
 import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IToolHandler } from '@/protocol/common';
-import type { IChangelogRecord, ReleaseStore } from '@/releases';
+import type { IChangelogRecord, IReleaseIndex } from '@/releases';
 import { z } from 'zod';
 import { ChangesInputSchema, parseInput } from './common';
 
@@ -87,7 +87,7 @@ const entryOf = (record: IChangelogRecord): IChangesEntry => ({
  * when there is no earlier one.
  */
 const packageWindowOf = (opts: {
-  releases: ReleaseStore;
+  releases: IReleaseIndex;
   package: string;
   from?: string;
   to?: string;
@@ -146,7 +146,7 @@ const packageWindowOf = (opts: {
  * The whole-table window: `from` and `to` are dates. `to` defaults to the newest entry's date,
  * `from` to the newest date below it - so the default answer is the newest day of changes.
  */
-const dateWindowOf = (opts: { releases: ReleaseStore; from?: string; to?: string }): IWindow => {
+const dateWindowOf = (opts: { releases: IReleaseIndex; from?: string; to?: string }): IWindow => {
   const dates = opts.releases.entryDates();
 
   if (dates.length === 0) {
@@ -193,7 +193,7 @@ const withinBudget = (opts: { window: IWindow; entries: IChangesEntry[] }): ICha
   return response;
 };
 
-export const buildChangesTool = (opts: { releases: ReleaseStore }): IToolHandler => ({
+export const buildChangesTool = (opts: { releases: IReleaseIndex }): IToolHandler => ({
   definition: {
     name: 'changes',
     description: DESCRIPTION,

@@ -13,6 +13,8 @@ export type TSourceMode = 'repository' | 'cache' | 'fresh' | 'offline-cache';
 
 export interface IResolvedSource {
   name: string;
+  /** `<repo>@<ref>` for a source reached by git. */
+  origin?: string;
   /** The working directory (repo mode), or the cached checkout of `sha`. */
   root: string;
   sha?: string;
