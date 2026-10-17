@@ -1,78 +1,19 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readOkfProject } from '../project/index.ts';
-import type {
-  BindingClass,
-  ComponentEntry,
-  HelperEntry,
-  MakeTarget,
-  SourceMapEntry,
-} from './common/types.ts';
+import type { BindingClass, MakeTarget, SourceMapEntry } from './common/types.ts';
 import { listDirs, packageDirs, sourceFiles } from './scanner.ts';
 
-/** Paths under the project root; the IGNIS-shaped ones become renderer options in Task 4. */
+/** A path under the project root. */
 const projectPath = (opts: { path: string }): string => join(readOkfProject().root, opts.path);
 
-// --- shared heuristics ---
-// One extraction per fact, used by BOTH the renderer and the coverage counter. BANA drifted
-// here (coverage counted `extends BaseService`, the renderer matched `export class *Service`),
-// so the two disagreed; keep every axis single-sourced from these functions.
-
-export const exportedClasses = (opts: { dir: string; suffix: string }): string[] => {
-  const { dir, suffix } = opts;
-
-  const names = new Set<string>();
-  const pattern = new RegExp(`export\\s+(?:abstract\\s+)?class\\s+(\\w+${suffix})\\b`, 'g');
-
-  for (const file of sourceFiles({ dir })) {
-    for (const match of readFileSync(file, 'utf8').matchAll(pattern)) {
-      names.add(match[1]);
-    }
-  }
-
-  return [...names].sort();
-};
-
-export const collectComponents = (): ComponentEntry[] => {
-  return listDirs({ dir: projectPath({ path: 'packages/core-server/src/components' }) }).map(
-    dir => ({
-      dir,
-      classes: exportedClasses({
-        dir: join(projectPath({ path: 'packages/core-server/src/components' }), dir),
-        suffix: 'Component',
-      }),
-    }),
-  );
-};
-
-export const collectHelperModules = (): HelperEntry[] => {
-  return listDirs({ dir: projectPath({ path: 'packages/helpers/src/modules' }) }).map(module => ({
-    module,
-    classes: exportedClasses({
-      dir: join(projectPath({ path: 'packages/helpers/src/modules' }), module),
-      suffix: 'Helper',
-    }),
-  }));
-};
-
-export const collectHelperUtilities = (): string[] => {
-  if (!existsSync(projectPath({ path: 'packages/helpers/src/utilities' }))) {
+/** Const-classes of binding keys in one file: `static readonly X = '...'` grouped by declaring class. */
+export const collectBindingKeys = (opts: { file: string }): BindingClass[] => {
+  if (!existsSync(opts.file)) {
     return [];
   }
 
-  return readdirSync(projectPath({ path: 'packages/helpers/src/utilities' }))
-    .filter(name => name.endsWith('.utility.ts'))
-    .map(name => name.replace(/\.utility\.ts$/, ''))
-    .sort();
-};
-
-/** Const-classes of binding keys: `static readonly X = '...'` grouped by declaring class. */
-export const collectBindingKeys = (): BindingClass[] => {
-  if (!existsSync(projectPath({ path: 'packages/kernel/src/common/bindings.ts' }))) {
-    return [];
-  }
-
-  const src = readFileSync(projectPath({ path: 'packages/kernel/src/common/bindings.ts' }), 'utf8');
+  const src = readFileSync(opts.file, 'utf8');
   const out: BindingClass[] = [];
 
   for (const cls of src.matchAll(/export\s+class\s+(\w+)[^{]*\{([\s\S]*?)\n\}/g)) {
@@ -175,19 +116,32 @@ export const collectSourceMap = (): SourceMapEntry[] => {
 };
 
 /**
+ * The spelling an all-caps brand forbids: its title case (`ARDOR` forbids `Ardor`). A brand that is
+ * not all caps forbids nothing. One rule, read by the prose cleanup and the docs style check.
+ */
+export const brandSpelling = (opts: { brand: string }): RegExp | undefined => {
+  if (!/^[A-Z]{2,}$/.test(opts.brand)) {
+    return undefined;
+  }
+
+  const titled = opts.brand[0] + opts.brand.slice(1).toLowerCase();
+
+  return new RegExp(`\\b${titled}\\b`, 'g');
+};
+
+/**
  * Bring prose lifted from outside the bundle in line with the repo docs style.
  *
- * package.json descriptions are npm-facing marketing copy: they carry em-dashes and spell the
- * brand "Ignis". The bundle is documentation, so it follows the docs rules (hyphen, always
- * "IGNIS") no matter where the text came from - and we do not rewrite package.json, which is
- * published to npm.
+ * package.json descriptions are npm-facing marketing copy: they carry em-dashes and may spell an
+ * all-caps brand in title case ("Ignis"). The bundle is documentation, so it follows the docs rules
+ * (hyphen, the brand as written) no matter where the text came from - and we do not rewrite
+ * package.json, which is published to npm.
  */
-export const sanitizeProse = (opts: { text: string }): string => {
-  return opts.text
-    .replace(/\s*[—–]\s*/g, ' - ')
-    .replace(/\bIgnis\b/g, 'IGNIS')
-    .replace(/\s+/g, ' ')
-    .trim();
+export const sanitizeProse = (opts: { text: string; brand: string }): string => {
+  const brandRule = brandSpelling({ brand: opts.brand });
+  const dashed = opts.text.replace(/\s*[—–]\s*/g, ' - ');
+
+  return (brandRule ? dashed.replace(brandRule, opts.brand) : dashed).replace(/\s+/g, ' ').trim();
 };
 
 /** First sentence only - manifest descriptions run to paragraph length and would wreck the table. */
@@ -216,7 +170,9 @@ export const collectPackageManifests = (): { dir: string; name: string; descript
     out.push({
       dir,
       name: parsed.name ?? dir,
-      description: firstSentence({ text: sanitizeProse({ text: parsed.description ?? '' }) }),
+      description: firstSentence({
+        text: sanitizeProse({ text: parsed.description ?? '', brand: readOkfProject().viz.brand }),
+      }),
     });
   }
 
