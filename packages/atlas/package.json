@@ -1,6 +1,6 @@
 {
   "name": "@venizia/vulcan-atlas",
-  "version": "0.2.0-5",
+  "version": "0.2.0-6",
   "description": "MCP knowledge server: search and read the wiki, changelogs and knowledge bundle by section, with citations. Bun-only, zero-dependency transport.",
   "homepage": "https://github.com/VENIZIA-AI/vulcan/tree/main/packages/atlas",
   "repository": {
