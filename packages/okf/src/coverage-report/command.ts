@@ -18,6 +18,9 @@ export const coverage = async (): Promise<void> => {
   const ids = new Set(concepts.map(concept => concept.id));
 
   const hasId = (opts: { id: string }): boolean => ids.has(opts.id);
+  const resources = new Set(
+    concepts.map(concept => concept.resource.replace(/^\.\//, '').replace(/\/+$/, '')),
+  );
   const lines: string[] = [];
   let structCovered = 0;
   let structTotal = 0;
@@ -56,7 +59,8 @@ export const coverage = async (): Promise<void> => {
     struct({
       name: axis.name,
       items: axis.items,
-      covered: item => hasId({ id: `/${axis.name}/${item}` }),
+      covered: item =>
+        hasId({ id: `/${axis.name}/${item}` }) || resources.has(axis.paths[item] ?? item),
     });
   }
 

@@ -15,7 +15,13 @@ test('an axis lists the directories its path matches, minus the denylist, in nam
   });
 
   expect(collectCoverageAxes()).toEqual({
-    axes: [{ name: 'packages', items: ['admin', 'kernel'] }],
+    axes: [
+      {
+        name: 'packages',
+        items: ['admin', 'kernel'],
+        paths: { admin: 'packages/admin', kernel: 'packages/kernel' },
+      },
+    ],
     problems: [],
   });
 });
@@ -40,7 +46,13 @@ test('an axis whose path matches nothing is a problem naming it, and the other a
   });
 
   expect(collectCoverageAxes()).toEqual({
-    axes: [{ name: 'packages', items: ['admin', 'kernel', 'react'] }],
+    axes: [
+      {
+        name: 'packages',
+        items: ['admin', 'kernel', 'react'],
+        paths: { admin: 'packages/admin', kernel: 'packages/kernel', react: 'packages/react' },
+      },
+    ],
     problems: ["coverage: axis 'apps' (apps/*) matches no directory"],
   });
 });

@@ -115,8 +115,10 @@ okf: {
 },
 ```
 
-A coverage axis globs directories. Each directory needs a concept at `<name>/<directory>.md`, and an
-axis that matches nothing fails. A project module default-exports a renderer and imports the API from
+A coverage axis globs directories. Each directory needs a concept at `<name>/<directory>.md`, or any
+concept whose frontmatter `resource` is that directory (`resource: auroras/apps/shop`), wherever the
+concept lives. An axis that matches nothing fails. A renderer's `render` returns one file or an array
+of files, so one renderer can own a page per entity. A project module default-exports a renderer and imports the API from
 `@venizia/vulcan/okf`:
 
 ```ts
