@@ -2,11 +2,15 @@
 
 <!-- Shipped by @venizia/vulcan. Never edit in a project: add extensions in .agents/rules.md.
      W, S, P, B are INTERIM until the base-rules work reconciles the rules IGNIS, ARDOR and BANA share.
-     C is IGNIS's coding style, V-C-01..V-C-18 verbatim from IGNIS (only IGNIS-only literals generalized), shipped to every project. -->
+     C is IGNIS's coding style, shipped to every project; the rules that bind IGNIS's own stack live in IGNIS. -->
 
 Cite by ID. Every rule has "Enforced by". Base IDs carry the `V-` namespace (`V-W-01`, `V-C-04`).
 A project extends this set in its own `.agents/rules.md` with bare IDs (`W-06`, `C-19`), which can
 never collide with a base ID; it never claims the `V-` namespace (`vulcan doctor` enforces it).
+
+Retired IDs are never reused: `V-W-05` (task-manager loop), `V-C-03` (`@inject` on container-built
+classes) and `V-C-05` (`getError` / `ApplicationError`) - the last two, with the hard stack once in
+`V-C-18`, are IGNIS rules now (2026-10-17).
 
 ## W - Write boundaries
 
@@ -16,7 +20,6 @@ never collide with a base ID; it never claims the `V-` namespace (`vulcan doctor
 | V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook (asks) |
 | V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook (asks) |
 | V-W-04 | Ask before anything irreversible: deleting files you didn't create, side-effect APIs, publishing. | SOFT |
-| V-W-05 | Task-manager writes limited to the workflow loop. Bulk edits/deletions need preview + approval. | SOFT |
 
 ## S - Security
 
@@ -35,7 +38,7 @@ never collide with a base ID; it never claims the `V-` namespace (`vulcan doctor
 | ID | Rule | Enforced by |
 |----|------|-------------|
 | V-P-01 | Read `AGENTS.md`, these base rules, the project's `.agents/rules.md` and the relevant `.agents/knowledge/` before acting. | SOFT - session-start hook |
-| V-P-02 | New feature: no code until PRD reaches `gate: planned`. | SOFT |
+| V-P-02 | **Design the surface before the body.** For a feature, propose what its users see first - signatures, types, options, config, output - and get a yes before implementing. Priorities, in order: simplicity > flexibility > completeness. | SOFT |
 | V-P-03 | Plans need human approval before implementation. | SOFT |
 | V-P-04 | Fact changes → update `.agents/knowledge/` in the same change. | SOFT |
 | V-P-05 | Partner, not stenographer. Wrong instruction → say so with reasoning + better option; human decides. Never overrides W rules or V-P-03. | SOFT |
@@ -56,9 +59,7 @@ never collide with a base ID; it never claims the `V-` namespace (`vulcan doctor
 |----|------|-------------|
 | V-C-01 | **English only in code** - identifiers, comments, commit messages, logs, docs. Vietnamese belongs in chat. | SOFT |
 | V-C-02 | **Options objects everywhere:** `fn({ key, value })`, never `fn(key, value)`. **One parameter is not an exception** - `isValidName({ name })`, not `isValidName(name)`. A single positional parameter reads fine until the second one arrives, and by then the method is published and every call site pays. The cost is highest on an interface others implement: `IStorageHelper` carried three positional methods for exactly this reason and the migration touched 72 call sites. Mixing the two styles in one interface is itself the defect - a reader cannot tell which shape a method takes without opening it. | SOFT |
-| V-C-03 | **Every constructor parameter of a container-instantiated class carries `@inject`.** Mixing decorated and undecorated parameters is refused at boot - the container has no channel to supply an undecorated one. Options a controller needs go in `super({ scope: X.name })`, never as an undecorated parameter. | SOFT |
 | V-C-04 | **Never abbreviate identifiers:** `ProductRepository` not `ProductRepo`, `ProductDocument` not `ProductDoc`; type parameters too (`TDocument`, not `TDoc`). A project lists its own exceptions in its rules (IGNIS: `tz` for a time zone). | SOFT |
-| V-C-05 | **Errors are `getError` / `ApplicationError`. Never `new Error`.** Never `instanceof ApplicationError` across a package boundary - the dual CJS+ESM build gives the class several identities; use `isApplicationError()`. | SOFT |
 | V-C-06 | **Never a silent catch - log it.** Always braces. Early return. `switch` with `default` over a long if-else chain. Strict TypeScript; no `any` where a type exists. | LINT (braces, floating promises) + SOFT |
 | V-C-07 | **A function name opens with its verb** - `generate` `build` `to` `is` `has` `assert` `extract` `enrich` `get` `resolve`. `is*` returns a boolean and leaves the branch to the caller; `assert*` throws and returns `void`, so the code after it needs none - reach for `assert*` when every caller would throw on `false` anyway. `has*` is the ownership question (`hasBucket`, never `isBucketExists`). That list is for UTILITY functions; service methods lean on a wider set. **Arrow functions, not `function` declarations** (do not churn existing ones). State plus the operations on it live in a class with static members - the `LoggerFactory` shape - never module-level `let` plus exported arrows. | SOFT |
 | V-C-08 | **Enumerable strings are a const class plus `TConstValue`,** never a raw string-literal union. Every such class carries `static readonly SCHEME_SET = new Set([...])` over its values and `static isValid(value: string): boolean` reading it, so a runtime check exists wherever a value crosses a boundary (`IsolationLevels` in connectors is the model; a subclass redeclares `SCHEME_SET` with `...Parent.SCHEME_SET` first). The `T`/`I` prefix follows the declaration keyword: `type` gets `T`, `interface` gets `I`; an interface turned into a type alias is renamed, and no tool catches it - grep both directions. | SOFT |
@@ -71,4 +72,4 @@ never collide with a base ID; it never claims the `V-` namespace (`vulcan doctor
 | V-C-15 | **One method with a mode option, not several specialized methods.** Payload variants are zod-per-variant with `z.infer`, discriminated. | SOFT |
 | V-C-16 | **One concept, one implementation.** When the same question is answered in several places, the bug lives at the seam and no tool catches it. Consolidate to one home before building on top. | SOFT |
 | V-C-17 | **A file is named by its role, never by repeating its folder:** `winston/logger.ts`, not `winston/winston-logger.ts`. | SOFT |
-| V-C-18 | **The hard stack, and derived types over duplicates.** Drizzle only (never TypeORM, Prisma, Sequelize); Hono only (never Express, Fastify, Koa); Zod only (never Joi, Yup, class-validator); PostgreSQL primary with SQLite alongside, the repository tier engine-neutral (`pgTable` and `sqliteTable` both). REST is default framework behavior, not a component. Prefer compile-time types derived from definitions (`typeof User.schema`) over hand-maintained copies. | SOFT |
+| V-C-18 | **Derived types over duplicates.** Prefer compile-time types derived from their definitions (`typeof schema`, `z.infer<typeof Schema>`, `ReturnType<typeof build>`) over hand-maintained copies - a copy drifts the day its source changes. A project's stack (framework, ORM, validator) is a project rule, not a base rule. | SOFT |

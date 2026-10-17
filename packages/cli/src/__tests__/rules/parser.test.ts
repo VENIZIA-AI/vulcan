@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../../common/index.ts';
-import { parseRuleIds, readSlots } from '../../rules/index.ts';
+import { extractRuleRows, parseRuleIds, readSlots } from '../../rules/index.ts';
 
 describe('parseRuleIds', () => {
   test('reads plain and bold ID cells in table order and skips the header', () => {
@@ -17,14 +17,37 @@ describe('parseRuleIds', () => {
     expect(parseRuleIds({ markdown })).toEqual(['V-W-01', 'V-C-04', 'W-06']);
   });
 
-  test('the shipped base: W5 S7 P6 B4 + the C group C-01..C-18', () => {
+  test('the shipped base: W4 S7 P6 B4 + the C group, 37 rules, every ID unique', () => {
     const ids = parseRuleIds({ markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8') });
 
-    expect(ids).toHaveLength(40);
+    expect(ids).toHaveLength(37);
     expect(ids.every(id => id.startsWith('V-'))).toBe(true);
     expect(ids).toContain('V-W-01');
-    expect(ids.filter(id => id.startsWith('V-C-'))).toHaveLength(18);
+    expect(ids.filter(id => id.startsWith('V-C-'))).toHaveLength(16);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test('retired IDs are gone from the tables and named as retired, never reused', () => {
+    const markdown = readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8');
+    const ids = parseRuleIds({ markdown });
+
+    for (const retired of ['V-W-05', 'V-C-03', 'V-C-05']) {
+      expect(ids).not.toContain(retired);
+      expect(markdown).toContain(`${retired}`);
+    }
+  });
+
+  test('V-C-18 binds no stack; V-P-02 is design the surface first', () => {
+    const rows = extractRuleRows({
+      markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
+    });
+    const rowOf = (opts: { id: string }): string =>
+      rows.find(row => row.includes(`| ${opts.id} |`)) ?? '';
+
+    expect(rowOf({ id: 'V-C-18' })).not.toMatch(/Drizzle|Hono|PostgreSQL|SQLite/);
+    expect(rowOf({ id: 'V-C-18' })).toMatch(/derived types over duplicates/i);
+    expect(rowOf({ id: 'V-P-02' })).toContain('surface');
+    expect(rowOf({ id: 'V-P-02' })).not.toContain('gate: planned');
   });
 });
 
