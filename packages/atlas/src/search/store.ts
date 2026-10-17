@@ -1,7 +1,7 @@
 import { AtlasConstants } from '@/common';
 import type { TCorpus } from '@/common';
 import type { IChunk } from '@/corpus';
-import { BaseHelper } from '@venizia/ignis-helpers/core';
+import { BaseHelper } from '@/common/helper';
 import { Database } from 'bun:sqlite';
 import { QueryPlanner } from './planner';
 import { RankingWeights } from './common';

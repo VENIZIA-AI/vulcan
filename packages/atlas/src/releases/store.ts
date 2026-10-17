@@ -1,6 +1,6 @@
 import type { TAtlasMode } from '@/common';
 import { releasesFileOf } from '@/common/layout';
-import { BaseHelper } from '@venizia/ignis-helpers/core';
+import { BaseHelper } from '@/common/helper';
 import { existsSync, readFileSync } from 'node:fs';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
 

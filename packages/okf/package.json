@@ -50,7 +50,6 @@
     "@types/bun": "catalog:",
     "@types/cytoscape-fcose": "catalog:",
     "@venizia/dev-configs": "catalog:",
-    "@venizia/ignis-helpers": "catalog:",
     "eslint": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",

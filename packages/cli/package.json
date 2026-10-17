@@ -43,7 +43,6 @@
     "test": "NODE_ENV=test bun test --env-file=.env.test"
   },
   "dependencies": {
-    "@venizia/ignis-helpers": "catalog:",
     "@venizia/vulcan-atlas": "workspace:*",
     "@venizia/vulcan-okf": "workspace:*",
     "zod": "catalog:"

@@ -1,4 +1,4 @@
-import type { TConstValue } from '@venizia/ignis-helpers/common';
+import type { TConstValue } from '../../common/index.ts';
 import type { GuardDecisions } from './constants.ts';
 
 export type TGuardDecision = TConstValue<typeof GuardDecisions>;

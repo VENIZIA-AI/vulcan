@@ -15,7 +15,6 @@ import {
   buildSymbolTool,
   buildVersionTool,
 } from '@/tools';
-import { getError } from '@venizia/ignis-helpers/core';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { FreshnessGuard } from './server/index';
@@ -26,7 +25,7 @@ const resolveRoots = (opts: { mode: TAtlasMode; root: string }): ICorpusRoot[] =
 
   if (mode === AtlasModes.REPOSITORY) {
     if (!isRepositoryCheckout({ root })) {
-      throw getError({ message: `[resolveRoots] not an IGNIS checkout | root: ${root}` });
+      throw new Error(`[resolveRoots] not an IGNIS checkout | root: ${root}`);
     }
 
     return resolveRepositoryRoots({ repositoryRoot: root });
@@ -35,7 +34,7 @@ const resolveRoots = (opts: { mode: TAtlasMode; root: string }): ICorpusRoot[] =
   const snapshotDirectory = join(root, SNAPSHOT_DIRECTORY);
 
   if (!existsSync(snapshotDirectory)) {
-    throw getError({ message: `[resolveRoots] no packaged snapshot | root: ${root}` });
+    throw new Error(`[resolveRoots] no packaged snapshot | root: ${root}`);
   }
 
   return [

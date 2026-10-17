@@ -491,7 +491,7 @@ describe('Chunker - splitOversized never breaks inside a fence (I2)', () => {
   });
 
   test('a document ending inside an open fence gets one warning naming the file', () => {
-    const warnSpy = spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warnSpy = spyOn(console, 'error').mockImplementation(() => undefined);
     const body = [
       '## Broken fence section',
       '',

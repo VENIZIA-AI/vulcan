@@ -1,5 +1,3 @@
-import { getError } from '@venizia/ignis-helpers/core';
-
 const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---\n?/;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -29,9 +27,10 @@ export const parseFrontmatter = (opts: {
   try {
     parsed = Bun.YAML.parse(match[1]);
   } catch (error) {
-    throw getError({
-      message: `[parseFrontmatter] invalid YAML frontmatter | file: ${path} | ${messageOf(error)}`,
-    });
+    throw new Error(
+      `[parseFrontmatter] invalid YAML frontmatter | file: ${path} | ${messageOf(error)}`,
+      { cause: error },
+    );
   }
 
   return { data: isRecord(parsed) ? parsed : {}, body: text.slice(match[0].length) };

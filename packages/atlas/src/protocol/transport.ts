@@ -1,5 +1,5 @@
 import { AtlasConstants, ProtocolVersions } from '@/common';
-import { BaseHelper } from '@venizia/ignis-helpers/core';
+import { BaseHelper } from '@/common/helper';
 import { RpcError, RpcErrorCodes } from './common';
 import type { IRpcRequest, IRpcResponse, IToolHandler } from './common';
 

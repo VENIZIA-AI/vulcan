@@ -51,7 +51,6 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",
-    "@venizia/ignis-helpers": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
