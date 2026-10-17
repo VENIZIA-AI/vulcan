@@ -240,3 +240,69 @@ describe('SourceSymbols', () => {
     ).toEqual(['ignis @venizia/ignis-kernel', 'ardor @venizia/ardor-kernel']);
   });
 });
+
+describe('SourceReleases with a local project that has no release on this ref', () => {
+  const local = new ReleaseStore({
+    table: {
+      livePackages: ['umbras-core'],
+      packageMap: [{ dir: 'umbras-core', name: '@nx/core', aliases: ['apps/core'] }],
+      releases: {},
+      changelogs: [
+        {
+          id: 'changelog:2026-10-05-core',
+          file: 'x.md',
+          date: '2026-10-05',
+          title: 'core',
+          packages: ['umbras-core'],
+          kind: null,
+        },
+      ],
+    },
+  });
+  const releases = new SourceReleases({
+    sources: [
+      {
+        name: 'ignis',
+        releases: releasesOf({ dir: 'kernel', name: '@venizia/ignis-kernel', version: '0.2.0' }),
+      },
+      { name: 'bana', releases: local },
+    ],
+  });
+  const ask = async (args: Record<string, unknown>) =>
+    JSON.parse(
+      (await new Transport({
+        tools: [buildChangesTool({ releases })],
+        serverName: 'atlas-test',
+        serverVersion: '0.0.0',
+      }).handleLine({
+        line: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: { name: 'changes', arguments: args },
+        }),
+      })) ?? 'null',
+    );
+
+  test('a declared package answers by npm name, directory key and alias - never "unknown package"', async () => {
+    for (const name of ['@nx/core', 'umbras-core', 'apps/core']) {
+      const reply = await ask({ package: name });
+
+      expect(reply.error, name).toBeUndefined();
+
+      const payload = JSON.parse(reply.result.content[0].text);
+
+      expect(payload.package).toBe('@nx/core');
+      expect(payload.note).toContain('no release of @nx/core is recorded on this ref');
+      expect(payload.entries.map((found: { id: string }) => found.id)).toEqual([
+        'changelog:2026-10-05-core',
+      ]);
+    }
+  });
+
+  test('a name no source declares is still unknown, naming the known packages', async () => {
+    const reply = await ask({ package: '@nx/nope' });
+
+    expect(reply.error.message).toContain("unknown package '@nx/nope'");
+  });
+});

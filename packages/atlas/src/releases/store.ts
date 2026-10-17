@@ -75,6 +75,13 @@ export class ReleaseStore extends BaseHelper {
     return packageOfQuery({ value: opts.package, packageMap: this.packageMap });
   }
 
+  /** Whether the package is declared in the project's package list or has a release - released or not. */
+  declares(opts: { package: string }): boolean {
+    const name = this.packageOf(opts);
+
+    return this.releases.has(name) || this.packageMap.some(entry => entry.name === name);
+  }
+
   /** The packages that exist today; a table generated before this list existed answers with every package it knows. */
   livePackages(): string[] {
     return this.live.length > 0 ? this.live : this.packages();

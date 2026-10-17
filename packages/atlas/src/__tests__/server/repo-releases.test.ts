@@ -86,10 +86,10 @@ test('repo mode with no tag the pattern reads says so on version and changes', a
       );
 
     expect((await call({ name: 'version', arguments: {} })).error.message).toBe(
-      'no releases: no tag matches v<version>',
+      "no releases: no tag matches v<version> in this ref's history",
     );
     expect((await call({ name: 'changes', arguments: {} })).error.message).toBe(
-      'no releases: no tag matches v<version>',
+      "no releases: no tag matches v<version> in this ref's history",
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

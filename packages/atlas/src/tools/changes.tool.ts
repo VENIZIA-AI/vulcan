@@ -37,6 +37,8 @@ interface IChangesResponse {
   to: string;
   entries: IChangesEntry[];
   truncated?: boolean;
+  /** Why the window is what it is, when the package has no release to bound it. */
+  note?: string;
 }
 
 /** The window one call asks for, in the terms the caller used and in the dates the store filters by. */
@@ -49,6 +51,7 @@ interface IWindow {
   /** Commit positions of the two bounds; present only for a version window, and only when the table records them. */
   fromOrder?: number;
   toOrder?: number;
+  note?: string;
 }
 
 const invalidParams = (message: string): RpcError =>
@@ -94,6 +97,31 @@ const packageWindowOf = (opts: {
 }): IWindow => {
   const name = opts.releases.packageOf({ package: opts.package });
   const versions = opts.releases.versionsOf({ package: name });
+
+  if (
+    versions.length === 0 &&
+    opts.releases.packages().length > 0 &&
+    opts.releases.declares({ package: opts.package })
+  ) {
+    const note = `no release of ${name} is recorded on this ref (a tag has to match the project's tagPattern and be in this branch's history); every dated entry that names it`;
+
+    if (opts.from !== undefined || opts.to !== undefined) {
+      throw invalidParams(
+        `${note.split(';')[0]}, so there is no version ${opts.to ?? opts.from} to window by`,
+      );
+    }
+
+    const newest = opts.releases.entryDates()[0] ?? OPEN_LOWER_BOUND;
+
+    return {
+      package: name,
+      from: null,
+      to: newest,
+      fromDate: OPEN_LOWER_BOUND,
+      toDate: newest,
+      note,
+    };
+  }
 
   if (versions.length === 0) {
     throw opts.releases.packages().length === 0
@@ -181,6 +209,7 @@ const withinBudget = (opts: { window: IWindow; entries: IChangesEntry[] }): ICha
     package: opts.window.package,
     from: opts.window.from,
     to: opts.window.to,
+    ...(opts.window.note === undefined ? {} : { note: opts.window.note }),
   };
   let entries = [...opts.entries];
   let response: IChangesResponse = { ...base, entries };
