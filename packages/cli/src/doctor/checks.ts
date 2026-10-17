@@ -1,3 +1,4 @@
+import { Glob } from 'bun';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
@@ -6,7 +7,7 @@ import { parseRuleIds, readSlots, RuleConstants } from '../rules/index.ts';
 import { planSync, SyncStatuses } from '../sync/index.ts';
 import { DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
-import { parseMakeTargets } from './makefile.ts';
+import { parseMakeIncludes, parseMakeTargets } from './makefile.ts';
 
 export interface ICheckContext {
   root: string;
@@ -119,6 +120,35 @@ export const checkSkills = (opts: ICheckContext): IViolation[] => {
     );
 };
 
+/**
+ * The project's Makefile and every file it includes, recursively, relative to the root. Includes
+ * under node_modules are shipped (vulcan.mk), never project targets.
+ */
+const findProjectMakefiles = (opts: { root: string }): string[] => {
+  const found: string[] = [];
+  const pending = ['Makefile'];
+
+  while (pending.length > 0) {
+    const file = pending.shift() ?? '';
+
+    if (found.includes(file) || !existsSync(join(opts.root, file))) {
+      continue;
+    }
+
+    found.push(file);
+
+    for (const pattern of parseMakeIncludes({
+      makefile: readText({ file: join(opts.root, file) }),
+    })) {
+      const matches = [...new Glob(pattern).scanSync({ cwd: opts.root, onlyFiles: true })].sort();
+
+      pending.push(...matches.filter(match => !match.split('/').includes('node_modules')));
+    }
+  }
+
+  return found;
+};
+
 export const checkMake = (opts: ICheckContext): IViolation[] => {
   const makefile = readText({ file: join(opts.root, 'Makefile') });
   const violations: IViolation[] = [];
@@ -137,14 +167,18 @@ export const checkMake = (opts: ICheckContext): IViolation[] => {
     parseMakeTargets({ makefile: readText({ file: join(BASE_DIRECTORY, 'make', 'vulcan.mk') }) }),
   );
 
-  for (const target of parseMakeTargets({ makefile }).filter(name => shipped.has(name))) {
-    violations.push(
-      createViolation({
-        check: DoctorChecks.MAKE,
-        file: 'Makefile',
-        message: `'${target}' is a shipped target - give the project target another name`,
-      }),
-    );
+  for (const file of findProjectMakefiles({ root: opts.root })) {
+    const targets = parseMakeTargets({ makefile: readText({ file: join(opts.root, file) }) });
+
+    for (const target of targets.filter(name => shipped.has(name))) {
+      violations.push(
+        createViolation({
+          check: DoctorChecks.MAKE,
+          file,
+          message: `'${target}' is a shipped target - give the project target another name`,
+        }),
+      );
+    }
   }
 
   return violations;
