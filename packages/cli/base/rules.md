@@ -7,11 +7,14 @@
 
 Cite by ID. Every rule has "Enforced by". Base IDs carry the `V-` namespace (`V-W-01`, `V-C-04`).
 A project extends this set in its own `.agents/rules.md` with bare IDs (`W-06`, `C-19`), which can
-never collide with a base ID; it never claims the `V-` namespace (`vulcan doctor` enforces it).
+never collide with a base ID. A `V-` ID there points at a base rule (`Extends V-W-01`); `vulcan doctor`
+fails one the base does not carry or has retired.
 
-Retired IDs are never reused: `V-W-05` (task-manager loop), `V-C-03` (`@inject` on container-built
-classes) and `V-C-05` (`getError` / `ApplicationError`) - the last two, with the hard stack once in
-`V-C-18`, moved to the project whose stack they bind (2026-10-17).
+Retired IDs are never reused (2026-10-17):
+
+- `V-W-05` - the task-manager loop
+- `V-C-03` - `@inject` on container-built classes, moved to the project whose stack it binds
+- `V-C-05` - `getError` / `ApplicationError`, moved to the project whose stack it binds, with the hard stack once in `V-C-18`
 
 ## W - Write boundaries
 

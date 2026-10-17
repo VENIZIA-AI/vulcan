@@ -15,7 +15,8 @@ Makefile that `-include`s `vulcan.mk`.
 (shipped, slot, project hooks and `claude.settings`, merged over personal keys), the record of what
 it applied (`.claude/vulcan-managed.json`), and the `.claude/skills/` links.
 
-**Checked by `vulcan doctor`:** config, layout, rule IDs (no project rule in `V-`), slots, skills
+**Checked by `vulcan doctor`:** config, layout, rule IDs (a `V-` ID a project rule
+points at - `Extends` or a first cell - is a base rule the base has not retired), slots, skills
 (none shadowed), make targets, hooks, adapters current, coding style.
 
 ## Where the tools look

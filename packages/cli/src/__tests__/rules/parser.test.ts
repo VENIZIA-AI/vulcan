@@ -2,7 +2,15 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../../common/index.ts';
-import { extractRuleRows, parseRuleIds, readSlots } from '../../rules/index.ts';
+import {
+  extractRuleRows,
+  parseBaseReferences,
+  parseRetiredRuleIds,
+  parseRuleIds,
+  readBaseRules,
+  readRetiredRuleIds,
+  readSlots,
+} from '../../rules/index.ts';
 
 describe('parseRuleIds', () => {
   test('reads plain and bold ID cells in table order and skips the header', () => {
@@ -60,6 +68,57 @@ describe('parseRuleIds', () => {
     expect(rowOf({ id: 'V-C-18' })).toMatch(/derived types over duplicates/i);
     expect(rowOf({ id: 'V-P-02' })).toContain('surface');
     expect(rowOf({ id: 'V-P-02' })).not.toContain('gate: planned');
+  });
+});
+
+describe('parseBaseReferences', () => {
+  test('reads Extends lists in rule rows and every V- ID in a first cell, once each, in order', () => {
+    const markdown = [
+      '| **W-00** | **Extends V-W-01 (slot).** mine | SOFT |',
+      '| **S-01** | **Extends V-S-01 and V-S-07.** mine | SOFT |',
+      '| **P-01** | Extends V-P-01, V-P-04 and V-W-01. mine | SOFT |',
+      '| V-W-02, V-W-03 | the guard asks | Asks |',
+      '| **V-C-04** | quoted | SOFT |',
+    ].join('\n');
+
+    expect(parseBaseReferences({ markdown })).toEqual([
+      'V-W-01',
+      'V-S-01',
+      'V-S-07',
+      'V-P-01',
+      'V-P-04',
+      'V-W-02',
+      'V-W-03',
+      'V-C-04',
+    ]);
+  });
+
+  test('a V- ID in prose or in a later cell is not a reference', () => {
+    const markdown =
+      'Extends V-Z-99 in prose.\n| ID | Rule |\n|---|---|\n| W-06 | like V-Z-98 | V-Z-97 |\n';
+
+    expect(parseBaseReferences({ markdown })).toEqual([]);
+  });
+});
+
+describe('readBaseRules', () => {
+  test('every base rule ID maps to its row', () => {
+    const rules = readBaseRules();
+
+    expect(Object.keys(rules)).toHaveLength(37);
+    expect(rules['V-W-02']).toStartWith('| V-W-02 | Never write to a database.');
+  });
+});
+
+describe('readRetiredRuleIds', () => {
+  test('the base lists V-W-05, V-C-03 and V-C-05 as retired', () => {
+    expect(readRetiredRuleIds()).toEqual(['V-W-05', 'V-C-03', 'V-C-05']);
+  });
+
+  test('reads one ID per "- `V-X-NN` - why" bullet, nothing else', () => {
+    const markdown = '- `V-W-05` - gone\n- `V-C-03` - moved\n- see `V-C-04`\n| V-W-01 | live |\n';
+
+    expect(parseRetiredRuleIds({ markdown })).toEqual(['V-W-05', 'V-C-03']);
   });
 });
 

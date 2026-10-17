@@ -1,9 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { BASE_DIRECTORY } from '../common/index.ts';
 import { resolvePackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
-import { extractRuleRows, parseRuleIds } from '../rules/index.ts';
+import { readBaseRules } from '../rules/index.ts';
 
 export class ManifestConstants {
   /** Committed; what atlas reads from a project - local or fetched - and nothing else. */
@@ -34,18 +33,14 @@ export const projectNameOf = (opts: { root: string; config: TResolvedConfig }): 
 };
 
 /** Each base rule's ID with a hash of its row: a sync after an upgrade can say which rules changed. */
-const baseRuleHashes = (): Record<string, string> => {
-  const markdown = readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8');
-
-  return Object.fromEntries(
-    extractRuleRows({ markdown }).map(row => {
-      const [id] = parseRuleIds({ markdown: row });
+export const buildBaseRuleHashes = (): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(readBaseRules()).map(([id, row]) => {
       const hash = new Bun.CryptoHasher('sha256').update(row.trim()).digest('hex');
 
       return [id, hash.slice(0, HASH_LENGTH)];
     }),
   );
-};
 
 /**
  * The project manifest (Project Contract v1, C1): data only, rendered from the config with a fixed
@@ -76,7 +71,7 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
       legacyTagPrefixes: config.atlas.legacyTagPrefixes ?? [],
       ignoreTags: config.atlas.ignoreTags ?? [],
     },
-    rules: { project: ManifestConstants.PROJECT_RULES, base: baseRuleHashes() },
+    rules: { project: ManifestConstants.PROJECT_RULES, base: buildBaseRuleHashes() },
     // The sources this project reads knowledge from (atlas, git mode); a project without any carries none.
     ...(config.atlas.sources.length === 0 ? {} : { sources: config.atlas.sources }),
   };
