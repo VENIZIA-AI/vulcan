@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { ExitCodes, PACKAGE_ROOT, VulcanTools } from '../common/index.ts';
+import { ExitCodes, PACKAGE_ROOT, ProjectLayout, VulcanTools } from '../common/index.ts';
+import { findConfigFiles, loadConfig, resolvePackages } from '../config/index.ts';
 import type { ICommandContext, IToolPackage } from '../common/index.ts';
 
 const TOOL_PACKAGES: Record<string, IToolPackage> = {
@@ -40,6 +41,34 @@ export const resolveToolBin = (opts: { name: string }): string | undefined => {
   return bin === undefined ? undefined : join(dirname(manifestPath), bin);
 };
 
+/**
+ * The environment a tool runs with: the project's resolved config, validated once here, when the
+ * project has one. No config is fine (atlas serves sources without one); an invalid one is an error.
+ */
+export const buildToolEnvironment = async (opts: {
+  root: string;
+}): Promise<{ ok: true; env: Record<string, string> } | { ok: false; error: string }> => {
+  if (findConfigFiles({ root: opts.root }).length === 0) {
+    return { ok: true, env: {} };
+  }
+
+  const loaded = await loadConfig({ root: opts.root });
+
+  if (!loaded.ok) {
+    return { ok: false, error: loaded.error };
+  }
+
+  const config = { ...loaded.config, packages: resolvePackages({ config: loaded.config }) };
+
+  return {
+    ok: true,
+    env: {
+      [ProjectLayout.CONFIG_ENV]: JSON.stringify(config),
+      [ProjectLayout.ROOT_ENV]: opts.root,
+    },
+  };
+};
+
 /** Runs the tool as a child on the inherited stdio: vulcan writes nothing to stdout, so MCP stays clean. */
 export const runXCommand = async (opts: ICommandContext): Promise<number> => {
   const [name, ...toolArgs] = opts.args;
@@ -62,8 +91,17 @@ export const runXCommand = async (opts: ICommandContext): Promise<number> => {
     return ExitCodes.FAILURE;
   }
 
+  const environment = await buildToolEnvironment({ root: opts.cwd });
+
+  if (!environment.ok) {
+    process.stderr.write(`vulcan x: ${environment.error}\n`);
+
+    return ExitCodes.FAILURE;
+  }
+
   const child = Bun.spawn([process.execPath, bin, ...toolArgs], {
     cwd: opts.cwd,
+    env: { ...process.env, ...environment.env },
     stdio: ['inherit', 'inherit', 'inherit'],
   });
 
