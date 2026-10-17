@@ -155,6 +155,10 @@ export class SourceReleases {
     return this.ownerOf(opts)?.releases.packageOf(opts) ?? opts.package;
   }
 
+  declares(opts: { package: string }): boolean {
+    return this.ownerOf(opts)?.releases.declares(opts) ?? false;
+  }
+
   versionsOf(opts: { package: string }): string[] {
     return this.ownerOf(opts)?.releases.versionsOf(opts) ?? [];
   }

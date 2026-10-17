@@ -183,6 +183,25 @@ describe('changes tool', () => {
     expect(payload.entries).toEqual([]);
   });
 
+  test('a declared package with no release answers its changelog entries and says there is no release', async () => {
+    const payload = payloadOf(await callChanges({ releases, args: { package: 'boot' } }));
+
+    expect(payload.package).toBe('@venizia/ignis-boot');
+    expect(payload.entries.map(item => item.id)).toEqual(['changelog:2026-09-02-decorators']);
+    expect((payload as { note?: string }).note).toContain(
+      'no release of @venizia/ignis-boot is recorded on this ref',
+    );
+  });
+
+  test('a declared package with no release and a version asked for says there is none, not that the version is unknown', async () => {
+    const reply = await callChanges({ releases, args: { package: 'boot', from: '0.1.0' } });
+
+    expect(reply.error?.code).toBe(-32602);
+    expect(reply.error?.message).toContain(
+      'no release of @venizia/ignis-boot is recorded on this ref',
+    );
+  });
+
   test('an unknown package is -32602 naming the known ones', async () => {
     const reply = await callChanges({ releases, args: { package: 'kernl' } });
 

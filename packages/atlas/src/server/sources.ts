@@ -58,7 +58,7 @@ const remoteSymbolsOf = (opts: {
 const emptyReleasesReasonOf = (opts: { source: IResolvedSource }): string =>
   opts.source.history === false
     ? `no release history: ${opts.source.name} was fetched without git`
-    : `no releases: no tag matches ${opts.source.project.tagPattern}`;
+    : `no releases: no tag matches ${opts.source.project.tagPattern} in this ref's history`;
 
 const CHANGELOG_LAYOUT =
   'atlas reads files named YYYY-MM-DD-<slug>.md from it, each with `packages: [<npm name>, ...]` frontmatter';

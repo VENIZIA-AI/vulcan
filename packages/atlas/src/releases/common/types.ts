@@ -47,6 +47,8 @@ export interface IReleaseIndex {
   livePackages(): string[];
   entryDates(): string[];
   packageOf(opts: { package: string }): string;
+  /** Whether the project declares the package, released or not. */
+  declares(opts: { package: string }): boolean;
   versionsOf(opts: { package: string }): string[];
   newestOf(opts: { package: string }): IReleaseRecord | undefined;
   releaseDateOf(opts: { package: string; version: string }): string | undefined;
