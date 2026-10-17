@@ -226,8 +226,8 @@ export const checkManifest = (opts: ICheckContext): IViolation[] => {
       ];
 };
 
-const hasStylePackage = (opts: { root: string }): boolean => {
-  const file = join(opts.root, 'package.json');
+const hasStylePackage = (opts: { directory: string }): boolean => {
+  const file = join(opts.directory, 'package.json');
 
   if (!existsSync(file)) {
     return false;
@@ -241,31 +241,47 @@ const hasStylePackage = (opts: { root: string }): boolean => {
   return ProjectLayout.STYLE_PACKAGE in { ...manifest.dependencies, ...manifest.devDependencies };
 };
 
-/** D9: the shared coding style - the package is a dependency, and every lint config builds on it. */
+/**
+ * D9: the shared coding style - every lint config builds on it, and the package whose `.configs/`
+ * holds the config declares it, or the root does. A project with no lint config declares it at the
+ * root.
+ */
 export const checkStyle = (opts: ICheckContext): IViolation[] => {
   const violations: IViolation[] = [];
-
-  if (!hasStylePackage({ root: opts.root })) {
-    violations.push(
-      createViolation({
-        check: DoctorChecks.STYLE,
-        file: 'package.json',
-        message: `add ${ProjectLayout.STYLE_PACKAGE} as a devDependency`,
-      }),
-    );
-  }
-
-  const configDirectories = [
-    '.configs',
+  const owners = [
+    '.',
     ...listDirectories({ directory: join(opts.root, 'packages') }).map(name =>
-      join('packages', name, '.configs'),
+      join('packages', name),
     ),
   ];
+  const isRootDeclared = hasStylePackage({ directory: opts.root });
+  let lintConfigs = 0;
 
-  for (const directory of configDirectories.filter(path => existsSync(join(opts.root, path)))) {
-    for (const name of readdirSync(join(opts.root, directory)).filter(file =>
-      DoctorConstants.LINT_CONFIG_FILE.test(file),
-    )) {
+  for (const owner of owners) {
+    const directory = join(owner, '.configs');
+    const names = existsSync(join(opts.root, directory))
+      ? readdirSync(join(opts.root, directory)).filter(file =>
+          DoctorConstants.LINT_CONFIG_FILE.test(file),
+        )
+      : [];
+
+    lintConfigs += names.length;
+
+    if (
+      names.length > 0 &&
+      !isRootDeclared &&
+      !hasStylePackage({ directory: join(opts.root, owner) })
+    ) {
+      violations.push(
+        createViolation({
+          check: DoctorChecks.STYLE,
+          file: join(owner, 'package.json'),
+          message: `add ${ProjectLayout.STYLE_PACKAGE} as a devDependency - here, or at the root`,
+        }),
+      );
+    }
+
+    for (const name of names) {
       const file = join(directory, name);
 
       if (!readText({ file: join(opts.root, file) }).includes(ProjectLayout.STYLE_PACKAGE)) {
@@ -278,6 +294,16 @@ export const checkStyle = (opts: ICheckContext): IViolation[] => {
         );
       }
     }
+  }
+
+  if (lintConfigs === 0 && !isRootDeclared) {
+    violations.push(
+      createViolation({
+        check: DoctorChecks.STYLE,
+        file: 'package.json',
+        message: `add ${ProjectLayout.STYLE_PACKAGE} as a devDependency`,
+      }),
+    );
   }
 
   return violations;

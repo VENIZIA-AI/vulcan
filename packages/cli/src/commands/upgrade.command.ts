@@ -1,11 +1,10 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ExitCodes } from '../common/index.ts';
+import { ExitCodes, PACKAGE_NAME } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 
 /** Every VULCAN release is a prerelease on the `next` dist-tag until a stable channel exists. */
 const DEFAULT_TARGET = 'next';
-const PACKAGE_NAME = '@venizia/vulcan';
 
 export const buildUpgradeArgs = (opts: { target?: string }): string[] => [
   'add',
