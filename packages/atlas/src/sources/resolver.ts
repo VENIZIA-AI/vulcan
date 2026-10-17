@@ -1,12 +1,15 @@
 import {
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
 import {
@@ -20,16 +23,35 @@ import { computeReleases } from '@/releases/compute';
 import { ChunkStore } from '@/search/store';
 import { symbolsOfPublished } from '@/symbols/compute';
 import { artifactsOf, cacheRootOf, checkoutOf, urlOf } from './cache';
-import type { IAtlasSource, IResolvedSource, IUnavailableSource, TSourceMode } from './common';
+import type {
+  IAtlasSource,
+  IRemoteRef,
+  IResolvedSource,
+  IUnavailableSource,
+  TSourceMode,
+} from './common';
 import { githubTokenOf } from './credentials';
-import { git, lsRemote, setSparsePaths, sparseCheckout, updateClone } from './git';
-import { extractTarball, githubRepoOf, hasGit, lsRemoteByHttp } from './tarball';
+import {
+  commitOf,
+  git,
+  isCommitSha,
+  lsRemote,
+  setSparsePaths,
+  sparseCheckout,
+  updateClone,
+} from './git';
+import { withPullLock } from './lock';
+import { downloadTarball, extractTarball, githubRepoOf, hasGit, lsRemoteByHttp } from './tarball';
 
 const COMPLETE = 'complete';
 const INDEX = 'index.sqlite';
 const RELEASES = 'releases.json';
 /** Written by a pull through git: the release table carries the history the tags give. */
 const HISTORY = 'history';
+/** A source's newest SHAs the cache keeps - each one a checkout and an index - so it never grows unbounded. */
+const KEPT_SHAS = 3;
+
+const gitDirOf = (opts: { cacheRoot: string }): string => join(opts.cacheRoot, 'git');
 
 const describe = (opts: { source: IAtlasSource }): string =>
   `source '${opts.source.name}' (${opts.source.repo}@${opts.source.ref})`;
@@ -72,10 +94,10 @@ const servedFrom = (opts: {
 const isComplete = (opts: { cacheRoot: string; sha: string }): boolean =>
   existsSync(join(artifactsOf(opts), COMPLETE)) && existsSync(checkoutOf(opts));
 
-/** The SHA most recently pulled completely, for an offline start. */
-const newestCached = (opts: { cacheRoot: string }): string | undefined => {
+/** Every SHA pulled completely, the most recent pull first. */
+const completeShas = (opts: { cacheRoot: string }): string[] => {
   if (!existsSync(opts.cacheRoot)) {
-    return undefined;
+    return [];
   }
 
   return readdirSync(opts.cacheRoot)
@@ -86,7 +108,28 @@ const newestCached = (opts: { cacheRoot: string }): string | undefined => {
       sha,
       at: statSync(join(artifactsOf({ cacheRoot: opts.cacheRoot, sha }), COMPLETE)).mtimeMs,
     }))
-    .sort((left, right) => right.at - left.at)[0]?.sha;
+    .sort((left, right) => right.at - left.at)
+    .map(entry => entry.sha);
+};
+
+/** The SHA most recently pulled completely, for an offline start. */
+const newestCached = (opts: { cacheRoot: string }): string | undefined => completeShas(opts)[0];
+
+/** All but the newest `KEPT_SHAS` complete SHAs leave the cache - never the one being served. */
+const pruneOlderShas = (opts: { cacheRoot: string; served: string }): void => {
+  const older = completeShas(opts)
+    .filter(sha => sha !== opts.served)
+    .slice(KEPT_SHAS - 1);
+
+  for (const sha of older) {
+    rmSync(checkoutOf({ cacheRoot: opts.cacheRoot, sha }), { recursive: true, force: true });
+    rmSync(artifactsOf({ cacheRoot: opts.cacheRoot, sha }), { recursive: true, force: true });
+  }
+
+  // The clone forgets the worktrees whose directories are gone.
+  if (older.length > 0 && existsSync(gitDirOf(opts))) {
+    git({ cwd: gitDirOf(opts), args: ['worktree', 'prune'] });
+  }
 };
 
 /**
@@ -109,7 +152,8 @@ const declaredPathsOf = (opts: { project: IAtlasProject; checkout: string }): st
 
 /**
  * What a pull leaves for this SHA: the search index, the release table, the symbols of each
- * package's newest release (D2, from npm - a package npm lacks has none), and `complete`, last.
+ * package's newest release (D2, from npm - a package npm lacks has none), and `complete`. Built
+ * beside its place and moved in last: a reader never sees half of a SHA.
  */
 const buildArtifacts = async (opts: {
   artifacts: string;
@@ -117,18 +161,23 @@ const buildArtifacts = async (opts: {
   history: boolean;
 }): Promise<void> => {
   const { project } = opts;
+  const partial = `${opts.artifacts}.partial`;
   const store = new ChunkStore();
   const chunker = Chunker.getInstance();
-  const documents = CorpusLoader.getInstance().load({ roots: resolveRepositoryRoots({ project }) });
+  const documents = CorpusLoader.getInstance().load({
+    roots: resolveRepositoryRoots({ project }),
+    within: project.root,
+  });
 
+  rmSync(partial, { recursive: true, force: true });
+  mkdirSync(partial, { recursive: true });
   store.add({ chunks: documents.flatMap(document => chunker.chunk({ document })) });
-  mkdirSync(opts.artifacts, { recursive: true });
-  writeFileSync(join(opts.artifacts, INDEX), store.serialize());
+  writeFileSync(join(partial, INDEX), store.serialize());
   store.close();
 
   const releases = computeReleases({ project });
 
-  writeFileSync(join(opts.artifacts, RELEASES), `${JSON.stringify(releases)}\n`);
+  writeFileSync(join(partial, RELEASES), `${JSON.stringify(releases)}\n`);
 
   for (const entry of project.packages.filter(item => !item.retired)) {
     const version = releases.releases[entry.dir]?.[0]?.version;
@@ -139,11 +188,12 @@ const buildArtifacts = async (opts: {
   }
 
   if (opts.history) {
-    writeFileSync(join(opts.artifacts, HISTORY), '');
+    writeFileSync(join(partial, HISTORY), '');
   }
 
-  // Last: a SHA is cached only once everything it needs is on disk.
-  writeFileSync(join(opts.artifacts, COMPLETE), `${new Date().toISOString()}\n`);
+  writeFileSync(join(partial, COMPLETE), `${new Date().toISOString()}\n`);
+  rmSync(opts.artifacts, { recursive: true, force: true });
+  renameSync(partial, opts.artifacts);
 };
 
 /** A pull by git: the partial clone brought up to date, a sparse checkout - the manifest first, then its paths. */
@@ -152,10 +202,10 @@ const pullByGit = async (opts: {
   cacheRoot: string;
   sha: string;
 }): Promise<void> => {
-  const gitDir = join(opts.cacheRoot, 'git');
+  const gitDir = gitDirOf(opts);
   const checkout = checkoutOf(opts);
 
-  updateClone({ url: urlOf(opts.source), gitDir, exists: existsSync(gitDir) });
+  updateClone({ url: urlOf(opts.source), gitDir, exists: existsSync(gitDir), sha: opts.sha });
   git({ cwd: gitDir, args: ['worktree', 'prune'] });
   sparseCheckout({ gitDir, directory: checkout, sha: opts.sha, paths: ['.agents'] });
 
@@ -174,21 +224,73 @@ const pullByTarball = async (opts: {
   token?: string;
 }): Promise<void> => {
   const checkout = checkoutOf(opts);
-  const fetchPaths = (paths: string[]): Promise<void> =>
-    extractTarball({
+  const work = mkdtempSync(join(tmpdir(), 'atlas-source-tarball-'));
+
+  try {
+    const archive = await downloadTarball({
       ...opts.github,
       sha: opts.sha,
       token: opts.token,
-      directory: checkout,
-      paths,
+      work,
     });
 
-  await fetchPaths(['.agents']);
+    extractTarball({ archive, directory: checkout, paths: ['.agents'] });
 
-  const project = projectOf({ checkout, source: opts.source });
+    const project = projectOf({ checkout, source: opts.source });
 
-  await fetchPaths(declaredPathsOf({ project, checkout }));
-  await buildArtifacts({ artifacts: artifactsOf(opts), project, history: false });
+    extractTarball({ archive, directory: checkout, paths: declaredPathsOf({ project, checkout }) });
+    await buildArtifacts({ artifacts: artifactsOf(opts), project, history: false });
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+};
+
+/**
+ * The commit the source's ref names now. A commit hash is one already - a short one is expanded
+ * from the clone, fetched first when the clone lacks it; a branch or a tag is what the remote
+ * advertises, by git or, without it, over HTTP.
+ */
+const lookUpRef = async (opts: {
+  source: IAtlasSource;
+  cacheRoot: string;
+  byGit: boolean;
+  github?: { owner: string; repo: string };
+  token?: string;
+}): Promise<IRemoteRef> => {
+  const { ref } = opts.source;
+  const gitDir = gitDirOf(opts);
+
+  if (isCommitSha({ ref, isFull: true })) {
+    return { reachable: true, sha: ref };
+  }
+
+  if (!isCommitSha({ ref })) {
+    return opts.byGit || opts.github === undefined
+      ? lsRemote({ url: urlOf(opts.source), ref })
+      : lsRemoteByHttp({ ...opts.github, ref, token: opts.token });
+  }
+
+  if (!opts.byGit) {
+    throw new Error(
+      `atlas: ${describe(opts)} - a short commit hash needs git on this machine; give all 40 characters`,
+    );
+  }
+
+  const known = existsSync(gitDir) ? commitOf({ gitDir, ref }) : undefined;
+
+  if (known !== undefined) {
+    return { reachable: true, sha: known };
+  }
+
+  return withPullLock({
+    cacheRoot: opts.cacheRoot,
+    label: describe(opts),
+    run: () => {
+      updateClone({ url: urlOf(opts.source), gitDir, exists: existsSync(gitDir) });
+
+      return Promise.resolve({ reachable: true, sha: commitOf({ gitDir, ref }) });
+    },
+  });
 };
 
 /**
@@ -211,16 +313,9 @@ const resolveRemote = async (opts: {
   }
 
   const token = byGit ? undefined : githubTokenOf();
-  const sha = byGit
-    ? lsRemote({ url: urlOf(opts.source), ref: opts.source.ref })
-    : await lsRemoteByHttp({
-        owner: github?.owner ?? '',
-        repo: github?.repo ?? '',
-        ref: opts.source.ref,
-        token,
-      });
+  const remote = await lookUpRef({ source: opts.source, cacheRoot, byGit, github, token });
 
-  if (sha === undefined) {
+  if (!remote.reachable) {
     const cached = newestCached({ cacheRoot });
 
     if (cached === undefined) {
@@ -230,22 +325,42 @@ const resolveRemote = async (opts: {
     return servedFrom({ source: opts.source, cacheRoot, sha: cached, mode: 'offline-cache' });
   }
 
+  const { sha } = remote;
+
+  // The remote answered: a ref it does not have is a mistake to report, never a reason to go offline.
+  if (sha === undefined) {
+    throw new Error(
+      `atlas: ${describe(opts)} - the remote has no ${isCommitSha({ ref: opts.source.ref }) ? 'commit' : 'branch or tag'} '${opts.source.ref}'`,
+    );
+  }
+
   if (!opts.force && isComplete({ cacheRoot, sha })) {
     return servedFrom({ source: opts.source, cacheRoot, sha, mode: 'cache' });
   }
 
-  // A pull interrupted before it finished left a checkout behind: start that SHA over.
-  mkdirSync(cacheRoot, { recursive: true });
-  rmSync(checkoutOf({ cacheRoot, sha }), { recursive: true, force: true });
-  rmSync(artifactsOf({ cacheRoot, sha }), { recursive: true, force: true });
+  return withPullLock({
+    cacheRoot,
+    label: describe(opts),
+    run: async () => {
+      // Another start pulled it while this one waited for the lock.
+      if (!opts.force && isComplete({ cacheRoot, sha })) {
+        return servedFrom({ source: opts.source, cacheRoot, sha, mode: 'cache' });
+      }
 
-  if (byGit) {
-    await pullByGit({ source: opts.source, cacheRoot, sha });
-  } else if (github !== undefined) {
-    await pullByTarball({ source: opts.source, cacheRoot, sha, github, token });
-  }
+      // A pull interrupted before it finished left a checkout behind: start that SHA over.
+      rmSync(checkoutOf({ cacheRoot, sha }), { recursive: true, force: true });
 
-  return servedFrom({ source: opts.source, cacheRoot, sha, mode: 'fresh' });
+      if (byGit) {
+        await pullByGit({ source: opts.source, cacheRoot, sha });
+      } else if (github !== undefined) {
+        await pullByTarball({ source: opts.source, cacheRoot, sha, github, token });
+      }
+
+      pruneOlderShas({ cacheRoot, served: sha });
+
+      return servedFrom({ source: opts.source, cacheRoot, sha, mode: 'fresh' });
+    },
+  });
 };
 
 /**

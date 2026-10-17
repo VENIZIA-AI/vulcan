@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { AtlasTimeouts } from '@/common/constants';
 import { readPackageDirectory } from '@/common/package-entries';
 import type { IAtlasProject } from '@/common/project-config';
 import type { ISymbolRecord } from './common';
@@ -99,7 +100,9 @@ export const symbolsOfPublished = async (opts: {
 
   const registry = (process.env.VULCAN_NPM_REGISTRY ?? DEFAULT_REGISTRY).replace(/\/+$/, '');
   const base = opts.name.split('/').pop() ?? opts.name;
-  const response = await fetch(`${registry}/${opts.name}/-/${base}-${opts.version}.tgz`);
+  const response = await fetch(`${registry}/${opts.name}/-/${base}-${opts.version}.tgz`, {
+    signal: AbortSignal.timeout(AtlasTimeouts.DOWNLOAD_MS),
+  });
 
   if (!response.ok) {
     throw new Error(`atlas: no npm tarball for ${opts.name}@${opts.version} (${response.status})`);

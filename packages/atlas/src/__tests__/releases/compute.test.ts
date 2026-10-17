@@ -177,3 +177,37 @@ describe('computeReleases (D1)', () => {
     expect(repoTable.releases.web?.map(record => record.version)).toEqual(['1.0.0']);
   });
 });
+
+describe('computeReleases on the edges of a repository', () => {
+  test('a repository with no commit yet has no history: the empty table', () => {
+    const empty = scratch();
+
+    expect(computeReleases({ project: projectAt({ root: empty.root }) })).toEqual({
+      livePackages: ['kernel', 'web'],
+      releases: {},
+      changelogs: [],
+      packageMap: PACKAGES.map(entry => ({
+        dir: entry.dir,
+        name: entry.name,
+        aliases: entry.aliases,
+      })),
+    });
+  });
+
+  test('a CRLF changelog still declares its packages', () => {
+    const crlf = scratch();
+
+    crlf.write(
+      'changes/2026-01-01-crlf.md',
+      "---\r\ntitle: Crlf\r\npackages: ['@a/web']\r\n---\r\n\r\nA change.\r\n",
+    );
+    crlf.git(['add', '-A']);
+    crlf.git(['commit', '-q', '-m', 'docs: crlf']);
+
+    const crlfTable = computeReleases({ project: projectAt({ root: crlf.root }) });
+
+    expect(
+      crlfTable.changelogs.map(entry => ({ title: entry.title, packages: entry.packages })),
+    ).toEqual([{ title: 'Crlf', packages: ['web'] }]);
+  });
+});

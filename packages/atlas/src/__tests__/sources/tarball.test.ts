@@ -5,11 +5,14 @@ import { join } from 'node:path';
 import { buildSourcesServer } from '@/server/index';
 import { resolveSources } from '@/sources';
 import {
+  commitAll,
   git,
   makeSourceRepository,
   makeTempDirectory,
   NO_REGISTRY,
+  SOURCE_MANIFEST,
   TEMP_DIRECTORIES,
+  writeSourceFile,
 } from './source-repo.helper';
 
 afterAll(() => {
@@ -185,4 +188,67 @@ describe('a source without git on the machine', () => {
       await github.server.stop(true);
     }
   });
+
+  test('a declared directory with nothing in it yet resolves, from one download of the tarball', async () => {
+    const source = makeSourceRepository();
+
+    writeSourceFile({
+      work: source.work,
+      path: '.agents/vulcan.manifest.json',
+      text: SOURCE_MANIFEST.replace('docs/changelogs', 'docs/changes'),
+    });
+    commitAll({ work: source.work, message: 'chore: a changelog directory not written yet' });
+    git({ cwd: source.work, args: ['push', '-q', 'origin', 'develop'] });
+
+    const sha = git({ cwd: source.work, args: ['rev-parse', 'HEAD'] });
+    const github = serveGitHub({ bare: source.bare, prefix: `src-${sha}` });
+
+    withoutGit();
+
+    try {
+      const [resolved] = await resolveSources({
+        cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
+        sources: [{ name: 'src', repo: 'acme/src', ref: 'develop' }],
+      });
+
+      expect(resolved.sha).toBe(sha);
+      expect(existsSync(join(resolved.root, '.agents/knowledge/overview/kernel.md'))).toBe(true);
+      expect(github.seen.filter(request => request.path.includes('/tar.gz/'))).toHaveLength(1);
+    } finally {
+      await github.server.stop(true);
+    }
+  });
+
+  test(
+    'a ref advertisement that never answers fails within the ref lookup bound',
+    async () => {
+      const silent = Bun.listen({
+        hostname: '127.0.0.1',
+        port: 0,
+        socket: { data: () => undefined },
+      });
+
+      process.env.VULCAN_GITHUB_URL = `http://127.0.0.1:${silent.port}`;
+      withoutGit();
+
+      const started = Date.now();
+
+      try {
+        const failure = await resolveSources({
+          cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
+          sources: [{ name: 'src', repo: 'acme/src', ref: 'develop' }],
+        }).then(
+          () => undefined,
+          (error: unknown) => String(error),
+        );
+
+        expect(failure).toContain('is unreachable and has no cache');
+        // The ref lookup's bound (10 s), and room around it.
+        expect(Date.now() - started).toBeLessThan(15_000);
+      } finally {
+        silent.stop(true);
+      }
+    },
+    { timeout: 40_000 },
+  );
 });

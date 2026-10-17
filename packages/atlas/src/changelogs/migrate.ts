@@ -4,7 +4,7 @@ import type { IAtlasProject } from '@/common/project-config';
 import { resolveChangelogPackages, splitFrontmatter } from './resolve';
 
 const DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
-const FRONTMATTER_BLOCK = /^---\n([\s\S]*?)\n---/;
+const FRONTMATTER_BLOCK = /^---\r?\n([\s\S]*?)\r?\n---/;
 
 export interface IMigrateReport {
   /** Entries given a `packages:` list (written, or would be on a dry run). */
@@ -15,13 +15,14 @@ export interface IMigrateReport {
   declared: number;
 }
 
-/** The entry with `line` added as the last frontmatter key, or a frontmatter of its own. */
+/** The entry with `line` added as the last frontmatter key, or a frontmatter of its own - in its own line endings. */
 const withFrontmatterLine = (opts: { text: string; line: string }): string => {
   const block = FRONTMATTER_BLOCK.exec(opts.text);
+  const eol = opts.text.includes('\r\n') ? '\r\n' : '\n';
 
   return block === null
-    ? `---\n${opts.line}\n---\n\n${opts.text}`
-    : `---\n${block[1]}\n${opts.line}\n---${opts.text.slice(block[0].length)}`;
+    ? `---${eol}${opts.line}${eol}---${eol}${eol}${opts.text}`
+    : `---${eol}${block[1]}${eol}${opts.line}${eol}---${opts.text.slice(block[0].length)}`;
 };
 
 /**

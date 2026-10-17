@@ -34,3 +34,9 @@ export interface IUnavailableSource {
   source: IAtlasSource;
   reason: string;
 }
+
+/** What the remote said a ref names: `reachable: false` when it could not be asked, no `sha` when it has no such ref. */
+export interface IRemoteRef {
+  reachable: boolean;
+  sha?: string;
+}

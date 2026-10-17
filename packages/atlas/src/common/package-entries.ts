@@ -15,20 +15,6 @@ export const declarationEntriesOf = (
     }))
     .filter(entry => DECLARATION_FILE.test(entry.types));
 
-/** `packages/<name>/package.json` and its typed entries, resolved to absolute files. */
-export const readPackageEntries = (opts: { repoRoot: string; name: string }): IPackageEntries => {
-  const directory = resolve(opts.repoRoot, 'packages', opts.name);
-  const manifest: IPackageManifest = JSON.parse(
-    readFileSync(resolve(directory, 'package.json'), 'utf8'),
-  );
-  const entries = declarationEntriesOf({ exports: manifest.exports }).map(entry => ({
-    subpath: entry.subpath,
-    file: resolve(directory, entry.types),
-  }));
-
-  return { name: opts.name, manifest, entries };
-};
-
 /** Any package directory - a project's own, an installed one, an unpacked tarball - and its typed entries. */
 export const readPackageDirectory = (opts: {
   directory: string;

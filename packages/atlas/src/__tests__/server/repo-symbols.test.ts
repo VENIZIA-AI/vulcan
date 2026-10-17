@@ -72,3 +72,32 @@ test('an unbuilt project says to build first', async () => {
 
   expect(reply.error.message).toContain('no symbols - build the packages first');
 });
+
+test('built after the first question, the next one finds the symbol - the store loads again', async () => {
+  const root = project({ built: false });
+  const server = buildServer({ root, version: '0.0.0' });
+  const ask = async () =>
+    JSON.parse(
+      (await server.handleLine({
+        line: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: { name: 'symbol', arguments: { name: 'greet' } },
+        }),
+      })) ?? 'null',
+    );
+
+  expect((await ask()).error.message).toContain('no symbols - build the packages first');
+
+  mkdirSync(join(root, 'umbras/kit/dist'), { recursive: true });
+  writeFileSync(
+    join(root, 'umbras/kit/dist/index.d.ts'),
+    'export declare function greet(name: string): string;\n',
+  );
+
+  const again = await ask();
+
+  expect(again.error).toBeUndefined();
+  expect(again.result.content[0].text).toContain('greet(name: string): string');
+});

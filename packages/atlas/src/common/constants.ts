@@ -18,6 +18,18 @@ export class AtlasConstants {
   static readonly SEARCH_DEFAULT_LIMIT = 10;
 }
 
+/** Every wait atlas puts on the network or on git: past its bound, a call counts as failed. */
+export class AtlasTimeouts {
+  /** `git ls-remote`, or the ref advertisement without git: a start never waits longer on a remote. */
+  static readonly REF_LOOKUP_MS = 10_000;
+  /** A clone, a fetch, a sparse checkout fetching the blobs its paths need. */
+  static readonly GIT_TRANSFER_MS = 60_000;
+  /** A tarball download - a source's commit, or a package version from npm. */
+  static readonly DOWNLOAD_MS = 60_000;
+  /** git on a local repository - the tags and history the release table reads. */
+  static readonly LOCAL_GIT_MS = 30_000;
+}
+
 export class AtlasModes {
   static readonly REPOSITORY = 'repo';
   static readonly SCHEME_SET = new Set<string>([this.REPOSITORY]);

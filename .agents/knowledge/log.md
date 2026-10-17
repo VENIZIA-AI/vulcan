@@ -6,6 +6,12 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-17 - atlas sources: refs, bounds, cache
+
+Updated [atlas](/packages/atlas.md): a missing ref is an error, never the offline cache; a SHA ref
+works; every network wait is bounded; racing starts take turns; the cache keeps 3 SHAs; symlinks
+never escape a checkout; repo-mode symbols load again until found.
+
 ## 2026-10-17 - rule integrity
 
 Updated [the project contract](/architecture/project-contract.md) and [cli](/packages/cli.md): doctor

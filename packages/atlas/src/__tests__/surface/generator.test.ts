@@ -114,6 +114,29 @@ describe('the package list', () => {
     expect(PublicSurface.render({})).toContain('`@test/testpkg` (3)');
   });
 
+  test('a package outside packages/ is read where the manifest says it lives', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'ignis-public-surface-'));
+    const packageDir = join(repoRoot, 'umbras', 'kit');
+
+    tmpDirs.push(repoRoot);
+    mkdirSync(packageDir, { recursive: true });
+    writeFileSync(
+      join(packageDir, 'package.json'),
+      JSON.stringify({ name: '@shop/kit', exports: { '.': { types: './index.d.ts' } } }),
+    );
+    writeFileSync(join(packageDir, 'index.d.ts'), 'export declare const kit: number;\n');
+    useAtlasProject({
+      root: repoRoot,
+      manifest: {
+        packages: [
+          { dir: 'kit', name: '@shop/kit', path: 'umbras/kit', aliases: [], retired: false },
+        ],
+      },
+    });
+
+    expect(PublicSurface.render({})).toContain('- `kit` const');
+  });
+
   test('only retired packages: nothing to walk, and it says what to add', () => {
     useAtlasProject({
       root: makeRepoRoot(),
