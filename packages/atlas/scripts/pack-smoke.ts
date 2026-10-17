@@ -1,23 +1,32 @@
 #!/usr/bin/env bun
 /**
  * Proves the packed tarball starts outside the workspace: pack, install into an empty directory,
- * run `initialize` + `tools/list` + one `search` over stdio. Catches a dependency the workspace
- * hoists but the manifest never declared - the gate `bun test` cannot see.
+ * point the user config at a local bare repository, and run `initialize` + `tools/list` + one
+ * `search` over stdio. atlas ships code only, so the hit has to come from that source. Catches a
+ * dependency the workspace hoists but the manifest never declared - the gate `bun test` cannot see.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 const PACKAGE_DIRECTORY = resolve(import.meta.dir, '..');
 const PACKAGE_NAME = '@venizia/vulcan-atlas';
 
-const run = (opts: { command: string[]; cwd: string; input?: string }) => {
+// A registry that refuses at once: the pull's npm symbol step skips instead of reaching npm.
+const NO_REGISTRY = 'http://127.0.0.1:9';
+
+const run = (opts: {
+  command: string[];
+  cwd: string;
+  input?: string;
+  env?: Record<string, string>;
+}) => {
   const result = spawnSync(opts.command[0], opts.command.slice(1), {
     cwd: opts.cwd,
     input: opts.input,
     encoding: 'utf8',
-    env: { ...process.env, NODE_ENV: 'production' },
+    env: { ...process.env, NODE_ENV: 'production', ...opts.env },
   });
 
   return { status: result.status ?? -1, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
@@ -27,6 +36,55 @@ class SmokeFailure extends Error {}
 
 const fail = (message: string): never => {
   throw new SmokeFailure(message);
+};
+
+const SOURCE_MANIFEST = {
+  schemaVersion: 1,
+  name: 'smoke',
+  packages: [
+    { name: '@smoke/kernel', dir: 'kernel', path: 'packages/kernel', aliases: [], retired: false },
+  ],
+  knowledge: { bundle: '.agents/knowledge', changelogs: 'docs/changelogs' },
+  release: { tagPattern: '<dir>-v<version>', legacyTagPrefixes: [], ignoreTags: [] },
+};
+
+const SOURCE_FILES: Record<string, string> = {
+  '.agents/vulcan.manifest.json': `${JSON.stringify(SOURCE_MANIFEST, null, 2)}\n`,
+  '.agents/knowledge/overview/bootstrap.md':
+    '---\ntype: Concept\ntitle: Application bootstrap\ndescription: How the application boots.\n---\n\nThe application bootstrap starts the kernel.\n',
+};
+
+const git = (opts: { cwd: string; args: string[] }): void => {
+  const result = run({
+    command: ['git', '-c', 'user.name=smoke', '-c', 'user.email=smoke@smoke', ...opts.args],
+    cwd: opts.cwd,
+  });
+
+  if (result.status !== 0) {
+    fail(`git ${opts.args.join(' ')} exited ${result.status}\n${result.stderr}`);
+  }
+};
+
+/** A source project behind a bare repository: its committed manifest and one concept. */
+const makeSource = (opts: { sandbox: string }): string => {
+  const bare = join(opts.sandbox, 'source.git');
+  const work = join(opts.sandbox, 'source');
+
+  mkdirSync(bare);
+  mkdirSync(work);
+  git({ cwd: bare, args: ['init', '-q', '--bare', '-b', 'develop'] });
+  git({ cwd: work, args: ['init', '-q', '-b', 'develop'] });
+
+  for (const [path, content] of Object.entries(SOURCE_FILES)) {
+    mkdirSync(dirname(join(work, path)), { recursive: true });
+    writeFileSync(join(work, path), content);
+  }
+
+  git({ cwd: work, args: ['add', '-A'] });
+  git({ cwd: work, args: ['commit', '-q', '-m', 'source'] });
+  git({ cwd: work, args: ['push', '-q', bare, 'develop'] });
+
+  return bare;
 };
 
 const main = (): void => {
@@ -55,6 +113,15 @@ const main = (): void => {
       fail(`bun add ${tarball} exited ${installed.status}\n${installed.stderr}`);
     }
 
+    const bare = makeSource({ sandbox });
+    const configHome = join(sandbox, 'config');
+
+    mkdirSync(join(configHome, 'vulcan'), { recursive: true });
+    writeFileSync(
+      join(configHome, 'vulcan', 'atlas.json'),
+      JSON.stringify({ sources: [{ name: 'smoke', repo: `file://${bare}`, ref: 'develop' }] }),
+    );
+
     const cli = join(sandbox, 'node_modules', ...PACKAGE_NAME.split('/'), 'dist', 'cjs', 'cli.js');
     const input = [
       {
@@ -79,7 +146,16 @@ const main = (): void => {
       .map(message => JSON.stringify(message))
       .join('\n');
 
-    const session = run({ command: ['bun', cli, 'mcp'], cwd: sandbox, input: `${input}\n` });
+    const session = run({
+      command: ['bun', cli, 'mcp'],
+      cwd: sandbox,
+      input: `${input}\n`,
+      env: {
+        XDG_CONFIG_HOME: configHome,
+        XDG_CACHE_HOME: join(sandbox, 'cache'),
+        VULCAN_NPM_REGISTRY: NO_REGISTRY,
+      },
+    });
 
     if (session.status !== 0) {
       fail(`cli exited ${session.status}\n${session.stderr.slice(-2000)}`);
@@ -112,7 +188,7 @@ const main = (): void => {
     const payload = JSON.parse(searched?.content?.[0]?.text ?? '{}') as { total?: number };
 
     if (!payload.total || payload.total < 1) {
-      fail(`search returned no hits in npm mode: ${JSON.stringify(payload).slice(0, 200)}`);
+      fail(`search returned no hits from the source: ${JSON.stringify(payload).slice(0, 200)}`);
     }
 
     console.log(

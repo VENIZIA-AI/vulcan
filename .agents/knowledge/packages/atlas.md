@@ -7,14 +7,15 @@ tags: [packages, atlas, mcp]
 
 # atlas - `@venizia/vulcan-atlas`
 
-Run as `vulcan x atlas mcp [--root <dir>]` or `vulcan x atlas <surface|symbols|releases> <gen|check>`.
+Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vulcan x atlas pull`, or
+`vulcan x atlas <surface|symbols|releases> <gen|check>`.
 
-- **Repository mode** (`--root`): serves a VENIZIA wiki checkout and names itself after its family
-  (`ignis-atlas`). **Snapshot mode** (no root): serves the IGNIS corpus packaged at build time.
-- **Package list**: `surface` and `symbols` read `atlas.packages` from the project's config (required;
-  no project's names are built in). `releases` still carries IGNIS's list, including retired
-  directories, until project config can mark a package retired.
-- **Generators**: one TypeScript program per run (about 1 s on IGNIS); they read only `.d.ts`,
-  `.d.mts` and `.d.cts` entries, and write into the project they run in.
-- The build copies IGNIS's wiki, symbol table and release table from a sibling IGNIS checkout
-  (`scripts/corpus.sh`), so building atlas needs IGNIS next to VULCAN.
+- **What it serves**: the project it runs in, read live from its manifest
+  (`.agents/vulcan.manifest.json`), and every source the manifest lists; outside a project,
+  `--source` or the user config `$XDG_CONFIG_HOME/vulcan/atlas.json`. With none of these it exits 2:
+  atlas ships code only, no packaged corpus. A source is fetched by git (or as a GitHub tarball when
+  git is missing) into `$XDG_CACHE_HOME/vulcan/atlas/v1/`.
+- **Package list**: every tool reads `packages` from the manifest - npm names, directories, aliases,
+  retired packages. No project's names are built in.
+- **Releases and symbols** are computed: releases from the tags, symbols from the built `.d.ts` of
+  each package (installed in `node_modules`, else its newest npm release for a source).

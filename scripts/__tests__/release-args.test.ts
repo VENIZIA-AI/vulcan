@@ -7,10 +7,9 @@ import {
 } from '../release-args.ts';
 
 describe('parseReleaseArgs', () => {
-  test('defaults: prerelease from IGNIS develop, no issue, asks before dispatching', () => {
+  test('defaults: prerelease, no issue, asks before dispatching', () => {
     expect(parseReleaseArgs({ args: [] })).toEqual({
       bump: 'prerelease',
-      ignisRef: 'develop',
       issue: undefined,
       isDryRun: false,
       isConfirmed: false,
@@ -19,12 +18,11 @@ describe('parseReleaseArgs', () => {
 
   test('every flag and its value are read', () => {
     const parsed = parseReleaseArgs({
-      args: ['--bump', 'none', '--issue', '12', '--ignis-ref', 'main', '--dry-run', '--yes'],
+      args: ['--bump', 'none', '--issue', '12', '--dry-run', '--yes'],
     });
 
     expect(parsed).toEqual({
       bump: 'none',
-      ignisRef: 'main',
       issue: '12',
       isDryRun: true,
       isConfirmed: true,
@@ -50,14 +48,19 @@ describe('parseReleaseArgs', () => {
   test('an unknown argument throws instead of being ignored', () => {
     expect(() => parseReleaseArgs({ args: ['--dryrun'] })).toThrow("unknown argument '--dryrun'");
   });
+
+  test('--ignis-ref is gone: the release ships code only, it packages no IGNIS content', () => {
+    expect(() => parseReleaseArgs({ args: ['--ignis-ref', 'main'] })).toThrow(
+      "unknown argument '--ignis-ref'",
+    );
+  });
 });
 
 describe('buildDispatchCommand', () => {
-  test('dispatches package-release.yml on the default branch (develop) with every input, as IGNIS does', () => {
+  test('dispatches package-release.yml on the default branch (develop) with the bump and the issue', () => {
     const command = buildDispatchCommand({
       args: {
         bump: 'prerelease',
-        ignisRef: 'develop',
         issue: '12',
         isDryRun: false,
         isConfirmed: true,
@@ -72,8 +75,6 @@ describe('buildDispatchCommand', () => {
       '-f',
       'bump=prerelease',
       '-f',
-      'ignis_ref=develop',
-      '-f',
       'issue=12',
     ]);
   });
@@ -82,7 +83,6 @@ describe('buildDispatchCommand', () => {
     const command = buildDispatchCommand({
       args: {
         bump: 'none',
-        ignisRef: 'develop',
         issue: undefined,
         isDryRun: false,
         isConfirmed: false,

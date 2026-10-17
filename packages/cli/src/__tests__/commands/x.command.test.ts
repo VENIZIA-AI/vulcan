@@ -46,8 +46,15 @@ describe('vulcan x', () => {
   test.skipIf(atlasBin === undefined || !existsSync(atlasBin))(
     'x atlas mcp answers initialize with JSON-RPC only on stdout',
     async () => {
+      // atlas ships code only: it serves a project, so the test makes one.
+      const root = createProject({
+        files: {
+          '.configs/vulcan.config.ts': 'export default {};\n',
+          '.agents/knowledge/index.md': '# Probe\n',
+        },
+      });
       const child = Bun.spawn([process.execPath, CLI, 'x', 'atlas', 'mcp'], {
-        cwd: tmpdir(),
+        cwd: root,
         stdin: 'pipe',
         stdout: 'pipe',
         stderr: 'pipe',
@@ -78,6 +85,22 @@ describe('vulcan x', () => {
       for (const line of lines) {
         expect(JSON.parse(line).jsonrpc).toBe('2.0');
       }
+    },
+  );
+
+  test.skipIf(atlasBin === undefined || !existsSync(atlasBin))(
+    'x atlas mcp outside any project, with no source, exits 2 and says how to get one',
+    () => {
+      const result = runCli({
+        args: ['x', 'atlas', 'mcp'],
+        cwd: tmpdir(),
+        env: { XDG_CONFIG_HOME: join(tmpdir(), 'vulcan-x-test-no-config') },
+      });
+
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain('nothing to serve');
+      expect(result.stderr).toContain('--source <owner/repo>@<ref>');
+      expect(result.stdout).toBe('');
     },
   );
 });

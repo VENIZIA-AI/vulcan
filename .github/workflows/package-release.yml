@@ -18,11 +18,6 @@ on:
           - none
         required: true
         default: "prerelease"
-      ignis_ref:
-        type: string
-        description: "IGNIS ref the atlas corpus snapshot is built from"
-        required: false
-        default: "develop"
       issue:
         type: string
         description: "Issue number the release commit serves (prefixes it with [#N])"
@@ -78,15 +73,6 @@ jobs:
         run: |
           git config user.name "venizia-ci"
           git config user.email "developer@venizia.ai"
-
-      # The atlas build packages IGNIS's wiki, changelogs, symbol table and release table as the npm
-      # snapshot (packages/atlas/scripts/corpus.sh), read from IGNIS as a sibling of this checkout.
-      # A bare clone is enough for that; atlas's tests that need a BUILT IGNIS skip on it
-      # (packages/atlas/src/__tests__/ignis-root.helper.ts) and run on a developer's machine instead.
-      - name: Clone IGNIS for the atlas snapshot
-        env:
-          IGNIS_REF: ${{ inputs.ignis_ref }}
-        run: git clone --quiet --depth 1 --branch "$IGNIS_REF" https://github.com/VENIZIA-AI/ignis.git "$GITHUB_WORKSPACE/../ignis"
 
       # -----------------------------------------------------------------------------
       # VERSION

@@ -1,10 +1,7 @@
-import type { TAtlasMode } from '@/common';
-import { symbolsFileOf } from '@/common/layout';
 import { BaseHelper } from '@/common/helper';
 import { packageOfQuery } from '@/common/package-map';
 import type { IPackageMapEntry } from '@/common/package-map';
-import { existsSync, readFileSync } from 'node:fs';
-import type { ISymbolRecord, ISymbolTable } from './common';
+import type { ISymbolRecord } from './common';
 
 const DEFAULT_SUGGESTION_LIMIT = 5;
 const MAX_SUGGESTION_DISTANCE = 2;
@@ -119,30 +116,6 @@ export class SymbolStore extends BaseHelper {
         names.push(symbol.name);
         this.namesByLowerCase.set(lower, names);
       }
-    }
-  }
-
-  /**
-   * Repo mode reads the knowledge bundle's table, snapshot mode the packaged one. A missing or
-   * unreadable table leaves the store empty - the `symbol` tool says so, the server still starts.
-   */
-  static load(opts: { mode: TAtlasMode; root: string; bundle?: string }): SymbolStore {
-    const path = symbolsFileOf(opts);
-
-    if (!existsSync(path)) {
-      return new SymbolStore({ symbols: [] });
-    }
-
-    try {
-      const table: ISymbolTable = JSON.parse(readFileSync(path, 'utf8'));
-
-      return new SymbolStore({ symbols: table.symbols ?? [], packageMap: table.packageMap });
-    } catch (error) {
-      const store = new SymbolStore({ symbols: [] });
-
-      store.logger.for('load').error('unreadable symbol table | path: %s | error: %s', path, error);
-
-      return store;
     }
   }
 

@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:tes
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildSourcesServer } from '@/server/index';
+import { restoreVariable } from '../env.helper';
 import { resolveSources } from '@/sources';
 import {
   commitAll,
@@ -27,7 +28,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  process.env.XDG_CACHE_HOME = previousCache;
+  restoreVariable({ name: 'XDG_CACHE_HOME', value: previousCache });
   delete process.env.VULCAN_NPM_REGISTRY;
 });
 

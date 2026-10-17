@@ -1,7 +1,3 @@
-import { AtlasModes } from '@/common';
-import type { TAtlasMode } from '@/common';
-import { SNAPSHOT_DIRECTORY } from '@/common/layout';
-import { hasAtlasProject, MANIFEST_FILE } from '@/common/project-config';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, parse } from 'node:path';
 
@@ -11,11 +7,6 @@ const PACKAGE_NAME = '@venizia/vulcan-atlas';
 
 /** A `root`/`packageDirectory` pair that satisfies neither mode, or a malformed `--root` flag. */
 export class ModeUsageError extends Error {}
-
-export interface IResolvedMode {
-  mode: TAtlasMode;
-  root: string;
-}
 
 /** `--root`'s value from `argv`, and whether the caller passed it explicitly (cwd is the fallback). */
 export interface IRootArgument {
@@ -103,38 +94,4 @@ export const readRootArgument = (opts: { argv: string[] }): IRootArgument => {
   }
 
   return { value, explicit: true };
-};
-
-/**
- * Repo mode wins when `root` is a project (it has a manifest, or `vulcan x` handed one over);
- * otherwise the packaged snapshot next to `packageDirectory`; otherwise a `ModeUsageError` naming
- * both paths it checked. An explicit `--root` that is not a project never falls back to the
- * snapshot - it named the wrong directory.
- */
-export const resolveMode = (opts: {
-  root: string;
-  packageDirectory: string;
-  explicitRoot?: boolean;
-}): IResolvedMode => {
-  const { root, packageDirectory, explicitRoot = false } = opts;
-
-  if (hasAtlasProject({ root })) {
-    return { mode: AtlasModes.REPOSITORY, root };
-  }
-
-  if (explicitRoot) {
-    throw new ModeUsageError(
-      `${root} has no project manifest (${MANIFEST_FILE}) - run \`vulcan sync\` there first`,
-    );
-  }
-
-  const distDirectory = join(packageDirectory, 'dist');
-
-  if (existsSync(join(distDirectory, SNAPSHOT_DIRECTORY))) {
-    return { mode: AtlasModes.SNAPSHOT, root: distDirectory };
-  }
-
-  throw new ModeUsageError(
-    `no project manifest at ${root} (${MANIFEST_FILE}) and no packaged snapshot under ${packageDirectory} - run \`vulcan sync\` in the project, or pass --root <project>`,
-  );
 };

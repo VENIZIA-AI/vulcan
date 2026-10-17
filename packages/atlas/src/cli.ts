@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { AtlasCommands, AtlasConstants } from './common';
-import type { TAtlasMode } from './common';
 import {
   findPackageDirectory,
   ModeUsageError,
@@ -8,11 +7,9 @@ import {
   readRootArgument,
   readSourceArguments,
   readUserSources,
-  resolveMode,
 } from './cli/index';
 import { runChangelogsCommand } from './changelogs/command';
 import { runReleasesCommand } from './releases/generator';
-import { buildServer } from './server';
 import { buildSourcesServer } from './server/index';
 import { hasAtlasProject, readAtlasProject } from './common/project-config';
 import { resolveSources } from './sources/index';
@@ -38,30 +35,6 @@ const readSubcommand = (opts: { argv: string[] }): string => {
 
 // package.json has no version yet only in a manifest hand-edited before its first publish.
 const FALLBACK_VERSION = '0.0.0';
-
-/** Resolves `{ mode, root, version }` from `argv`, or prints usage and exits 2 - never throws. */
-const resolveServerOptions = (opts: {
-  argv: string[];
-}): { mode: TAtlasMode; root: string; version: string } => {
-  try {
-    const packageDirectory = findPackageDirectory({ startDirectory: __dirname });
-    const rootArgument = readRootArgument({ argv: opts.argv });
-    const { mode, root } = resolveMode({
-      root: rootArgument.value,
-      packageDirectory,
-      explicitRoot: rootArgument.explicit,
-    });
-    const version = readPackageVersion({ directory: packageDirectory }) ?? FALLBACK_VERSION;
-
-    return { mode, root, version };
-  } catch (error) {
-    if (error instanceof ModeUsageError) {
-      return usageError(error.message);
-    }
-
-    throw error;
-  }
-};
 
 const GENERATOR_BY_COMMAND: Record<string, (opts: { command?: string }) => number> = {
   [AtlasCommands.SURFACE]: runSurfaceCommand,
@@ -93,8 +66,8 @@ if (subcommand === AtlasCommands.CHANGELOGS) {
 
 /**
  * The sources to serve: the project's own (repo mode) and the sources its manifest declares, plus
- * `--source`; outside any project, `--source` and the user config. None at all: the packaged
- * snapshot, until it is retired.
+ * `--source`; outside any project, `--source` and the user config. atlas ships code only - with
+ * none of these there is nothing to serve.
  */
 const sourcesToServe = (opts: { root: string }): { project: boolean; sources: IAtlasSource[] } => {
   const project = hasAtlasProject({ root: opts.root });
@@ -136,20 +109,29 @@ const pull = async (): Promise<number> => {
   return 0;
 };
 
-/** `mcp`: the sources when there are any (a project, `--source`, the user config), else the snapshot. */
+/** `mcp`: the project and its sources, or `--source`, or the user config's sources. */
 const serve = async (): Promise<void> => {
-  const rootArgument = readRootArgument({ argv });
+  let root: string;
+
+  try {
+    root = readRootArgument({ argv }).value;
+  } catch (error) {
+    if (error instanceof ModeUsageError) {
+      usageError(error.message);
+    }
+
+    throw error;
+  }
+
   const version =
     readPackageVersion({ directory: findPackageDirectory({ startDirectory: __dirname }) }) ??
     FALLBACK_VERSION;
 
-  if (await serveSources({ root: rootArgument.value, version })) {
-    return;
+  if (!(await serveSources({ root, version }))) {
+    usageError(
+      `nothing to serve at ${root} - run in a project (\`vulcan sync\` writes .agents/vulcan.manifest.json), or pass --source <owner/repo>@<ref>, or list sources in $XDG_CONFIG_HOME/vulcan/atlas.json`,
+    );
   }
-
-  const { mode, root } = resolveServerOptions({ argv });
-
-  await buildServer({ mode, root, version }).run();
 };
 
 const main = async (): Promise<void> => {

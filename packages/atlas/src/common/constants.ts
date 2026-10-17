@@ -20,8 +20,7 @@ export class AtlasConstants {
 
 export class AtlasModes {
   static readonly REPOSITORY = 'repo';
-  static readonly SNAPSHOT = 'snapshot';
-  static readonly SCHEME_SET = new Set<string>([this.REPOSITORY, this.SNAPSHOT]);
+  static readonly SCHEME_SET = new Set<string>([this.REPOSITORY]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);
   }

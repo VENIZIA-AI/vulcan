@@ -1,13 +1,12 @@
-import { ignisManifestEnvironment } from '../fixtures/ignis-packages';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
-import { IGNIS_ROOT } from '../ignis-root.helper';
 import { SPAWN_TIMEOUT_MS } from '../spawn.helper';
 
 // __dirname, not import.meta: tsconfig.json (unlike tsconfig.build.json) does not exclude
 // __tests__, and this package's module mode treats every file as CommonJS output.
 const PACKAGE_ROOT = join(__dirname, '../../..');
-const REPOSITORY_ROOT = IGNIS_ROOT;
+// A project read from its own committed manifest - no IGNIS checkout needed.
+const REPOSITORY_ROOT = join(__dirname, '..', 'fixtures', 'acme');
 const READ_WINDOW_MS = 2000;
 
 const REQUESTS = [
@@ -17,7 +16,7 @@ const REQUESTS = [
     jsonrpc: '2.0',
     id: 3,
     method: 'tools/call',
-    params: { name: 'search', arguments: { query: 'bootChecks' } },
+    params: { name: 'search', arguments: { query: 'flywheel engine' } },
   },
 ];
 
@@ -72,7 +71,7 @@ const collectStdout = async (opts: {
 describe('stdout discipline - the mcp subprocess over real stdio', () => {
   test('writes nothing but JSON-RPC frames to stdout for initialize, tools/list and search', async () => {
     const child = Bun.spawn(['bun', 'src/cli.ts', 'mcp', '--root', REPOSITORY_ROOT], {
-      env: { ...process.env, ...ignisManifestEnvironment({ root: REPOSITORY_ROOT }) },
+      env: { ...process.env, VULCAN_MANIFEST: '', VULCAN_PROJECT_ROOT: '' },
       cwd: PACKAGE_ROOT,
       stdin: 'pipe',
       stdout: 'pipe',

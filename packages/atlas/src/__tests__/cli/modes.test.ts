@@ -1,10 +1,8 @@
-import { AtlasModes } from '@/common';
 import {
   findPackageDirectory,
   ModeUsageError,
   readPackageVersion,
   readRootArgument,
-  resolveMode,
 } from '@/cli/index';
 import { hasAtlasProject, MANIFEST_FILE } from '@/common/project-config';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -54,55 +52,6 @@ const makePackageDirectory = (opts: { withSnapshot: boolean }): string => {
 
   return packageDirectory;
 };
-
-describe('resolveMode', () => {
-  test('a project root resolves to repo mode with that root unchanged', () => {
-    const root = makeRepositoryRoot();
-    const packageDirectory = makePackageDirectory({ withSnapshot: false });
-
-    expect(resolveMode({ root, packageDirectory })).toEqual({
-      mode: AtlasModes.REPOSITORY,
-      root,
-    });
-  });
-
-  test('a package directory with a packaged snapshot resolves to snapshot mode', () => {
-    const root = makeTempDirectory({ prefix: 'atlas-modes-empty-' });
-    const packageDirectory = makePackageDirectory({ withSnapshot: true });
-
-    expect(resolveMode({ root, packageDirectory })).toEqual({
-      mode: AtlasModes.SNAPSHOT,
-      root: join(packageDirectory, 'dist'),
-    });
-  });
-
-  test('neither a project nor a packaged snapshot throws ModeUsageError', () => {
-    const root = makeTempDirectory({ prefix: 'atlas-modes-empty-' });
-    const packageDirectory = makePackageDirectory({ withSnapshot: false });
-
-    expect(() => resolveMode({ root, packageDirectory })).toThrow(ModeUsageError);
-  });
-
-  test('an explicit --root that is not a project throws naming the directory and the manifest, even with a snapshot available (M11)', () => {
-    const root = makeTempDirectory({ prefix: 'atlas-modes-explicit-bad-' });
-    const packageDirectory = makePackageDirectory({ withSnapshot: true });
-    const resolve = () => resolveMode({ root, packageDirectory, explicitRoot: true });
-
-    expect(resolve).toThrow(ModeUsageError);
-    expect(resolve).toThrow(root);
-    expect(resolve).toThrow(MANIFEST_FILE);
-  });
-
-  test('an explicit --root that is a project still resolves to repo mode', () => {
-    const root = makeRepositoryRoot();
-    const packageDirectory = makePackageDirectory({ withSnapshot: false });
-
-    expect(resolveMode({ root, packageDirectory, explicitRoot: true })).toEqual({
-      mode: AtlasModes.REPOSITORY,
-      root,
-    });
-  });
-});
 
 describe('readRootArgument (M11)', () => {
   test('--root=<dir> is the same as --root <dir>; an empty value or a following flag is a usage error', () => {

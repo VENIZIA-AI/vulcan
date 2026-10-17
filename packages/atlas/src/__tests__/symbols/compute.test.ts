@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { symbolsCacheDirectory, symbolsOfInstalled, symbolsOfPublished } from '@/symbols';
+import { restoreVariable } from '../env.helper';
 
 const roots: string[] = [];
 const previous = { cache: process.env.XDG_CACHE_HOME, registry: process.env.VULCAN_NPM_REGISTRY };
@@ -39,12 +40,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  process.env.XDG_CACHE_HOME = previous.cache;
-  process.env.VULCAN_NPM_REGISTRY = previous.registry;
-
-  if (previous.registry === undefined) {
-    delete process.env.VULCAN_NPM_REGISTRY;
-  }
+  restoreVariable({ name: 'XDG_CACHE_HOME', value: previous.cache });
+  restoreVariable({ name: 'VULCAN_NPM_REGISTRY', value: previous.registry });
 });
 
 afterAll(() => {

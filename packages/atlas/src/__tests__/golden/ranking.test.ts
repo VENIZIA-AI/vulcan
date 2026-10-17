@@ -3,7 +3,7 @@ import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
 import { ChunkStore } from '@/search';
 import { describe, expect, test } from 'bun:test';
 import golden from './queries.json';
-import { IGNIS_ROOT } from '../ignis-root.helper';
+import { IGNIS_IS_PRESENT, IGNIS_ROOT } from '../ignis-root.helper';
 
 interface IGoldenQuery {
   query: string;
@@ -39,7 +39,7 @@ const buildStore = (): ChunkStore => {
  * `.agents/knowledge` trees - not fixtures - so a ranking regression against the live corpus fails
  * here instead of surfacing as a bad answer from a running server.
  */
-describe('golden ranking set over the real repository corpus', () => {
+describe.skipIf(!IGNIS_IS_PRESENT)('golden ranking set over the real repository corpus', () => {
   const store = buildStore();
   const rows: Array<[string, string[], string[]]> = queries.map(row => [
     row.query,
