@@ -27,8 +27,14 @@ const readArgs = (): IReleaseArgs | undefined => {
   }
 };
 
-const capture = (opts: { command: string[] }): { code: number; stdout: string } => {
-  const result = Bun.spawnSync(opts.command, { stdout: 'pipe', stderr: 'inherit' });
+const capture = (opts: {
+  command: string[];
+  isQuiet?: boolean;
+}): { code: number; stdout: string } => {
+  const result = Bun.spawnSync(opts.command, {
+    stdout: 'pipe',
+    stderr: opts.isQuiet === true ? 'pipe' : 'inherit',
+  });
 
   return { code: result.exitCode ?? 1, stdout: result.stdout.toString().trim() };
 };
@@ -142,6 +148,10 @@ const watched = Bun.spawnSync(['gh', 'run', 'watch', runId, '--exit-status'], {
   stdio: ['inherit', 'inherit', 'inherit'],
 });
 
+if (watched.exitCode !== 0) {
+  console.error(`release: run ${runId} failed - see gh run view ${runId} --log-failed`);
+}
+
 // The released version is what the run committed to develop, not what this checkout held before.
 capture({ command: ['git', 'fetch', 'origin', '--quiet'] });
 
@@ -167,6 +177,7 @@ for (const name of names) {
   // A rerun skips what is already out; the registry settles whether it really is.
   const existing = capture({
     command: ['npm', 'view', `${name}@${releasedVersion}`, 'version'],
+    isQuiet: true,
   }).stdout;
 
   if (existing === releasedVersion) {

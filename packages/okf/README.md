@@ -64,7 +64,7 @@ config is planned.
 | `src/source/` | source scanning and the shared fact collectors (one per fact, used by gen and coverage) |
 | `src/generate/` | `gen`: managed regions and the `RENDERERS` / `REGIONS` registries |
 | `src/check/` | `check`: OKF conformance, plus the house rules under `--strict` |
-| `src/coverage/` | `coverage`: the bundle against the source inventory |
+| `src/coverage-report/` | `coverage`: the bundle against the source inventory |
 | `src/lib.ts` | bundle loader: frontmatter, links, concept model |
 | `src/spec/` | OKF v0.2 conformance - pure, never throws |
 | `src/viz/` | explorer: builder (Bun), typed browser client, template |
