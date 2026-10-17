@@ -15,29 +15,51 @@ afterAll(() => {
   }
 });
 
-/** A renderer module that writes `content` at `path`, or throws when `content` is undefined. */
-const moduleText = (opts: { id: string; path: string; content?: string }): string =>
+interface IModule {
+  id: string;
+  path?: string;
+  content?: string;
+  region?: string;
+}
+
+/**
+ * A renderer module that writes `content` at `path` (throws when `content` is undefined), and with
+ * `region` renders that body into a managed region; without `path`, a region-only renderer.
+ */
+const moduleText = (opts: IModule): string =>
   `import { defineRenderer } from '${OKF_INDEX}';
 
 export default defineRenderer({
   id: '${opts.id}',
   collect: () => [],
-  render: () => ${
-    opts.content === undefined
-      ? `{ throw new Error('the facts are not there'); }`
-      : `({ path: ${JSON.stringify(opts.path)}, content: ${JSON.stringify(opts.content)} })`
-  },
-});
+${
+  opts.path === undefined
+    ? ''
+    : `  render: () => ${
+        opts.content === undefined
+          ? `{ throw new Error('the facts are not there'); }`
+          : `({ path: ${JSON.stringify(opts.path)}, content: ${JSON.stringify(opts.content)} })`
+      },\n`
+}${opts.region === undefined ? '' : `  region: () => ${JSON.stringify(opts.region)},\n`}});
 `;
 
 const LONG_PAGE = `---\ntype: Reference\ntitle: Long\ndescription: A long page.\n---\n\n# Long\n\n## Part\n\n${Array.from({ length: 110 }, (_unused, index) => `Row ${index}.`).join('\n')}\n`;
 
-const makeProject = (opts: { modules: { id: string; path: string; content?: string }[] }) => {
+const makeProject = (opts: {
+  modules: IModule[];
+  regions?: { id: string; file: string; renderer: string }[];
+  files?: Record<string, string>;
+}) => {
   const root = mkdtempSync(join(tmpdir(), 'okf-gen-safety-'));
 
   roots.push(root);
   mkdirSync(join(root, '.agents', 'knowledge'), { recursive: true });
   writeFileSync(join(root, '.agents', 'knowledge', 'index.md'), '# Knowledge\n');
+
+  for (const [path, text] of Object.entries(opts.files ?? {})) {
+    mkdirSync(dirname(join(root, path)), { recursive: true });
+    writeFileSync(join(root, path), text);
+  }
 
   for (const module of opts.modules) {
     const file = join(root, '.agents', 'okf', `${module.id}.ts`);
@@ -52,6 +74,7 @@ const makeProject = (opts: { modules: { id: string; path: string; content?: stri
         id: module.id,
         module: `.agents/okf/${module.id}.ts`,
       })),
+      regions: opts.regions ?? [],
     },
   };
   const run = (args: string[]) => {
@@ -62,7 +85,10 @@ const makeProject = (opts: { modules: { id: string; path: string; content?: stri
       stderr: 'pipe',
     });
 
-    return { code: child.exitCode, output: child.stdout.toString() + child.stderr.toString() };
+    const stdout = child.stdout.toString();
+    const stderr = child.stderr.toString();
+
+    return { code: child.exitCode, stdout, stderr, output: stdout + stderr };
   };
 
   return { root, run };
@@ -127,4 +153,73 @@ test('a renderer that throws is named, and nothing is written', () => {
   expect(result.code).not.toBe(0);
   expect(result.output).toContain("okf: renderer 'broken' failed: the facts are not there");
   expect(existsSync(join(root, '.agents/knowledge/reference/fine.md'))).toBe(false);
+});
+
+const HOST = '.agents/knowledge/overview/host.md';
+const START = '<!-- okf:generated:table start -->';
+const END = '<!-- okf:generated:table end -->';
+
+/** A project whose `table` region lives in `host`, beside a renderer page gen would write. */
+const regionProject = (opts: { host: string }) =>
+  makeProject({
+    modules: [
+      { id: 'fine', path: 'reference/fine.md', content: '# Fine\n' },
+      { id: 'table', region: '| a |' },
+    ],
+    regions: [{ id: 'table', file: 'overview/host.md', renderer: 'table' }],
+    files: { [HOST]: opts.host },
+  });
+
+test('a malformed region stops gen naming the file, without a stack, before anything is written', () => {
+  const host = `# Host\n\n${END}\n${START}\n`;
+  const { root, run } = regionProject({ host });
+  const result = run(['gen']);
+
+  expect(result.code).toBe(1);
+  expect(result.stderr).toContain(
+    `okf: ${HOST}: managed region 'table' is malformed - the end marker precedes the start marker`,
+  );
+  expect(result.stderr).not.toContain('    at ');
+  expect(existsSync(join(root, '.agents/knowledge/reference/fine.md'))).toBe(false);
+  expect(readFileSync(join(root, HOST), 'utf8')).toBe(host);
+});
+
+test('check --strict calls a malformed or unmarked region that, never stale', () => {
+  const malformed = regionProject({ host: `# Host\n\n${START}\n${START}\n${END}\n` });
+  const unmarked = regionProject({ host: '# Host\n' });
+  const first = malformed.run(['check', '--strict']).output;
+  const second = unmarked.run(['check', '--strict']).output;
+
+  expect(first).toContain(
+    `freshness: ${HOST}: managed region 'table' is malformed - a duplicate start marker`,
+  );
+  expect(second).toContain(
+    `freshness: ${HOST}: managed region 'table' is missing its markers - add ${START} and ${END}`,
+  );
+  expect(first + second).not.toContain("region 'table' is stale");
+});
+
+test('gen writes only what changed: a second run names no file and reads as a no-op', () => {
+  const { run } = regionProject({ host: `# Host\n\n${START}\n${END}\n` });
+  const first = run(['gen']);
+  const second = run(['gen']);
+
+  expect(first.stdout).toContain("gen: wrote region 'table'");
+  expect(first.stdout).toContain('gen: wrote .agents/knowledge/reference/fine.md');
+  expect(second.code).toBe(0);
+  expect(second.stdout).toBe('gen: up to date\n');
+});
+
+test('a project module that replaces a built-in renderer says so once, and still runs', () => {
+  const { root, run } = makeProject({
+    modules: [{ id: 'source-map', path: 'reference/map.md', content: '# Map\n' }],
+  });
+  const notice = "okf: module 'source-map' replaces the built-in renderer";
+  const generated = run(['gen']);
+  const checked = run(['check', '--strict']);
+
+  expect(generated.code).toBe(0);
+  expect(generated.stderr.split(notice).length - 1).toBe(1);
+  expect(checked.stderr.split(notice).length - 1).toBe(1);
+  expect(readFileSync(join(root, '.agents/knowledge/reference/map.md'), 'utf8')).toBe('# Map\n');
 });

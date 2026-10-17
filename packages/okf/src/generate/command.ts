@@ -6,15 +6,22 @@ import { renderPages } from './pages.ts';
 import { loadGeneration } from './registry.ts';
 import { repoRelative } from '../source/index.ts';
 
+/** The file as it is on disk, or undefined when it does not exist yet. */
+const currentOf = (opts: { path: string }): string | undefined =>
+  existsSync(opts.path) ? readFileSync(opts.path, 'utf8') : undefined;
+
 /**
  * Writes exactly the configured regions and renderers, then the contents lists. Everything renders in
  * memory first, so a failure writes nothing; the contents lists go last, so one `gen` is a fixed point
- * - they see what the regions wrote, and skip every page a renderer owns.
+ * - they see what the regions wrote, and skip every page a renderer owns. Only a file whose content
+ * changed is written and named, so a run with nothing to do says so in one line.
  */
 export const gen = async (): Promise<void> => {
   const { renderers, regions } = await loadGeneration();
   const regionWrites = regions.flatMap(region => {
-    if (!existsSync(region.file)) {
+    const current = currentOf({ path: region.file });
+
+    if (current === undefined) {
       console.warn(
         `gen: skipped region '${region.id}' - ${repoRelative({ path: region.file })} does not exist yet`,
       );
@@ -22,18 +29,17 @@ export const gen = async (): Promise<void> => {
       return [];
     }
 
-    return [
-      {
-        region,
-        text: replaceRegion({
-          text: readFileSync(region.file, 'utf8'),
-          id: region.id,
-          body: region.render(),
-        }),
-      },
-    ];
+    const text = replaceRegion({
+      text: current,
+      id: region.id,
+      file: repoRelative({ path: region.file }),
+      body: region.render(),
+    });
+
+    return text === current ? [] : [{ region, text }];
   });
-  const pages = renderPages({ renderers });
+  const rendered = renderPages({ renderers });
+  const pages = rendered.filter(page => currentOf({ path: page.path }) !== page.content);
 
   for (const { region, text } of regionWrites) {
     writeFileSync(region.file, text);
@@ -47,7 +53,7 @@ export const gen = async (): Promise<void> => {
   }
 
   // Every project's long agent-read files carry a contents list, whatever it renders.
-  const contents = writeContents({ skip: new Set(pages.map(page => page.path)) });
+  const contents = writeContents({ skip: new Set(rendered.map(page => page.path)) });
 
   for (const file of contents) {
     console.log(`gen: wrote the contents list of ${file}`);
@@ -55,5 +61,7 @@ export const gen = async (): Promise<void> => {
 
   if (renderers.length === 0 && regions.length === 0 && contents.length === 0) {
     console.log('gen: nothing configured - okf.renderers and okf.regions are empty');
+  } else if (regionWrites.length === 0 && pages.length === 0 && contents.length === 0) {
+    console.log('gen: up to date');
   }
 };

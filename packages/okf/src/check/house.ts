@@ -93,7 +93,11 @@ export const collectHouseProblems = (opts: {
 
   const paths = new Set(opts.files.map(file => file.path));
 
-  for (const axis of collectCoverageAxes()) {
+  const { axes, problems: axisProblems } = collectCoverageAxes();
+
+  problems.push(...axisProblems);
+
+  for (const axis of axes) {
     const section = axis.name;
 
     for (const name of axis.items) {
@@ -111,9 +115,23 @@ export const collectHouseProblems = (opts: {
       continue;
     }
 
-    const actual = extractRegion({ text: readFileSync(region.file, 'utf8'), id: region.id });
+    let actual: string;
 
-    if (actual === null || !sameContent({ left: actual, right: region.render() })) {
+    // Broken markers are the person's to fix by hand - gen refuses them, so never call them stale.
+    try {
+      actual = extractRegion({
+        text: readFileSync(region.file, 'utf8'),
+        id: region.id,
+        file: repoRelative({ path: region.file }),
+      });
+    } catch (error) {
+      problems.push(
+        `freshness: ${(error instanceof Error ? error.message : String(error)).replace(/^okf: /, '')}`,
+      );
+      continue;
+    }
+
+    if (!sameContent({ left: actual, right: region.render() })) {
       problems.push(`freshness: region '${region.id}' is stale - ${REGENERATE_HINT}`);
     }
   }

@@ -66,3 +66,18 @@ test('one read per process: the same handoff gives back the same project', () =>
 
   expect(readOkfProject().root).toBe('/another/project');
 });
+
+test('a VULCAN_CONFIG that is empty or not JSON stops with what to do', () => {
+  for (const text of ['', '{ not json']) {
+    process.env.VULCAN_CONFIG = text;
+    process.env.VULCAN_PROJECT_ROOT = ROOT;
+
+    expect(() => readOkfProject()).toThrow(
+      'okf: VULCAN_CONFIG is not valid JSON - run okf through `vulcan x`',
+    );
+  }
+});
+
+test('without a config it never suggests a file okf does not read', () => {
+  expect(() => readOkfProject()).not.toThrow('.configs/vulcan.config.ts');
+});

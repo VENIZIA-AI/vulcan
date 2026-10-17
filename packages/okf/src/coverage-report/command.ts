@@ -44,8 +44,15 @@ export const coverage = async (): Promise<void> => {
     );
   };
 
+  const { axes, problems } = collectCoverageAxes();
+
+  // The report would count an axis that covers nothing as fully covered.
+  if (problems.length > 0) {
+    throw new Error(`okf: ${problems.join('; ')}`);
+  }
+
   lines.push('STRUCTURAL  (target 100% - one curated concept each)');
-  for (const axis of collectCoverageAxes()) {
+  for (const axis of axes) {
     struct({
       name: axis.name,
       items: axis.items,
