@@ -51,7 +51,7 @@ const makeProject = (opts: { concepts: Record<string, string> }) => {
 
   return (args: string[]) => {
     const child = spawnSyncBounded({
-      cmd: [process.execPath, CLI, 'coverage', ...args],
+      cmd: [process.execPath, CLI, ...args],
       env: { ...process.env, VULCAN_CONFIG: JSON.stringify(config), VULCAN_PROJECT_ROOT: root },
       stdout: 'pipe',
       stderr: 'pipe',
@@ -66,7 +66,7 @@ test('a concept at /<axis>/<dir>.md still covers its directory', () => {
     concepts: { 'apps/shop.md': concept({ title: 'Shop' }) },
   });
 
-  expect(run([]).output).toMatch(/apps\s+1\/3/);
+  expect(run(['coverage']).output).toMatch(/apps\s+1\/3/);
 });
 
 test("a concept elsewhere covers a directory when its frontmatter resource is the directory's path", () => {
@@ -77,7 +77,7 @@ test("a concept elsewhere covers a directory when its frontmatter resource is th
       'apps/docs.md': concept({ title: 'Docs' }),
     },
   });
-  const result = run(['--min', '100']);
+  const result = run(['coverage', '--min', '100']);
 
   expect(result.output).toMatch(/apps\s+3\/3/);
   expect(result.code).toBe(0);
@@ -90,8 +90,33 @@ test('a resource that is not an axis directory covers nothing, and the gap is na
       'frontend/other.md': concept({ title: 'Other', resource: 'packages/shop' }),
     },
   });
-  const result = run(['--min', '100']);
+  const result = run(['coverage', '--min', '100']);
 
   expect(result.output).toMatch(/apps\s+0\/3\s+0%\s+missing: blog, docs, shop/);
   expect(result.code).toBe(1);
+});
+
+test('check --strict honours the same rule: a resource-only axis has no coverage problem', () => {
+  const run = makeProject({
+    concepts: {
+      'frontend/shop.md': concept({ title: 'Shop', resource: 'apps/shop' }),
+      'frontend/blog.md': concept({ title: 'Blog', resource: 'apps/blog/' }),
+      'apps/docs.md': concept({ title: 'Docs' }),
+    },
+  });
+
+  expect(run(['check', '--strict']).output).not.toContain('coverage:');
+});
+
+test('check --strict names a directory no concept covers by path or by resource', () => {
+  const run = makeProject({
+    concepts: {
+      'frontend/shop.md': concept({ title: 'Shop', resource: 'apps/shop' }),
+    },
+  });
+  const output = run(['check', '--strict']).output;
+
+  expect(output).toContain('coverage: apps/blog has no concept (apps/blog.md)');
+  expect(output).toContain('coverage: apps/docs has no concept (apps/docs.md)');
+  expect(output).not.toContain('coverage: apps/shop');
 });

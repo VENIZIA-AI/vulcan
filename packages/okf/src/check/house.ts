@@ -5,7 +5,7 @@ import { readOkfProject } from '../project/index.ts';
 import { loadConcepts, stripCode } from '../lib.ts';
 import type { Concept } from '../lib.ts';
 import type { IBundleFile } from '../spec/index.ts';
-import { collectCoverageAxes } from '../coverage-report/axes.ts';
+import { collectCoverageAxes, isItemCovered, resourceKeysOf } from '../coverage-report/axes.ts';
 import { collectContentsProblems } from '../generate/contents-files.ts';
 import { collectChangelogProblems } from './changelogs.ts';
 import { extractRegion, renderPages } from '../generate/index.ts';
@@ -91,7 +91,8 @@ export const collectHouseProblems = (opts: {
     }
   }
 
-  const paths = new Set(opts.files.map(file => file.path));
+  const filePaths = new Set(opts.files.map(file => `/${file.path.replace(/\.md$/, '')}`));
+  const resources = resourceKeysOf({ concepts });
 
   const { axes, problems: axisProblems } = collectCoverageAxes();
 
@@ -101,7 +102,7 @@ export const collectHouseProblems = (opts: {
     const section = axis.name;
 
     for (const name of axis.items) {
-      if (!paths.has(`${section}/${name}.md`)) {
+      if (!isItemCovered({ axis, item: name, ids: filePaths, resources })) {
         problems.push(`coverage: ${section}/${name} has no concept (${section}/${name}.md)`);
       }
     }

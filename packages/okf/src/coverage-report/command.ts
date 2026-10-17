@@ -1,7 +1,7 @@
 import { loadGeneration } from '../generate/index.ts';
 import { loadConceptsOrExit } from '../lib.ts';
 import { packageDirs } from '../source/index.ts';
-import { collectCoverageAxes } from './axes.ts';
+import { collectCoverageAxes, isItemCovered, resourceKeysOf } from './axes.ts';
 
 // --- coverage ---
 
@@ -18,9 +18,7 @@ export const coverage = async (): Promise<void> => {
   const ids = new Set(concepts.map(concept => concept.id));
 
   const hasId = (opts: { id: string }): boolean => ids.has(opts.id);
-  const resources = new Set(
-    concepts.map(concept => concept.resource.replace(/^\.\//, '').replace(/\/+$/, '')),
-  );
+  const resources = resourceKeysOf({ concepts });
   const lines: string[] = [];
   let structCovered = 0;
   let structTotal = 0;
@@ -59,8 +57,7 @@ export const coverage = async (): Promise<void> => {
     struct({
       name: axis.name,
       items: axis.items,
-      covered: item =>
-        hasId({ id: `/${axis.name}/${item}` }) || resources.has(axis.paths[item] ?? item),
+      covered: item => isItemCovered({ axis, item, ids, resources }),
     });
   }
 
