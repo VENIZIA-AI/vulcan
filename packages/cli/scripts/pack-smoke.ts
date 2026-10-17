@@ -351,7 +351,7 @@ try {
         { name: 'sync with a source', command: ['bun', 'x', 'vulcan', 'sync'], expectedCode: 0 },
         {
           name: 'okf module type-checks',
-          command: ['bun', 'x', 'tsc', '-p', '.'],
+          command: ['bun', 'check', '--no-pretty', '-p', '.'],
           expectedCode: 0,
         },
         { name: 'x okf gen', command: ['bun', 'x', 'vulcan', 'x', 'okf', 'gen'], expectedCode: 0 },
@@ -402,5 +402,5 @@ if (failure !== undefined) {
 }
 
 console.log(
-  'pack-smoke: OK - install, init, sync, doctor, x okf check, an okf module from @venizia/vulcan/okf (tsc, gen), x atlas mcp over the project and a bare-repository source (JSON-RPC only on stdout)',
+  'pack-smoke: OK - install, init, sync, doctor, x okf check, an okf module from @venizia/vulcan/okf (bun check, gen), x atlas mcp over the project and a bare-repository source (JSON-RPC only on stdout)',
 );

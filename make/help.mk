@@ -34,7 +34,7 @@ help:
 	@$(HELP_ROW) "lint / lint-packages" "lint-<pkg> for every package."
 	@$(HELP_ROW) "lint-all" "lint-<pkg> for every package, lint-scripts, then project-names-check."
 	@$(HELP_ROW) "project-names-check" "Gate: no project name (IGNIS, ARDOR, BANA) in packages/*/src outside tests."
-	@$(HELP_ROW) "lint-scripts" "oxfmt check + tsc of the root scripts/."
+	@$(HELP_ROW) "lint-scripts" "oxfmt check + bun check of the root scripts/."
 	@$(HELP_ROW) "fmt / fmt-packages" "fmt-<pkg> for every package."
 	@$(HELP_ROW) "test" "test-<pkg> for every package (alias of test-all)."
 	@$(HELP_ROW) "test-all" "test-<pkg> for every package, then test-scripts (BUN_TEST_FLAGS)."

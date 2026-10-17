@@ -178,14 +178,3 @@ export const loadConceptsOrExit = (): Concept[] => {
     process.exit(1);
   }
 };
-
-/** Normalize a user-supplied id to canonical form ("/packages/core-server"). */
-export const normalizeId = (opts: { raw: string }): string => {
-  let id = opts.raw.trim().replace(/\.md$/, '');
-
-  if (!id.startsWith('/')) {
-    id = '/' + id;
-  }
-
-  return id;
-};

@@ -77,11 +77,3 @@ export const listPackages = (): { dir: string; path: string }[] => {
 };
 
 export const packageDirs = (): string[] => listPackages().map(entry => entry.dir);
-
-export const exampleDirs = (): string[] => {
-  const project = readOkfProject();
-
-  return listDirs({ dir: join(project.root, 'examples') }).filter(
-    name => !project.denylist.has(name),
-  );
-};

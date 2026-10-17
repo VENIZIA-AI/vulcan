@@ -43,8 +43,7 @@
   },
   "dependencies": {
     "cytoscape": "catalog:",
-    "cytoscape-fcose": "catalog:",
-    "typescript": "catalog:"
+    "cytoscape-fcose": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
@@ -53,7 +52,8 @@
     "eslint": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
-    "oxlint-tsgolint": "catalog:"
+    "oxlint-tsgolint": "catalog:",
+    "typescript": "catalog:"
   },
   "sideEffects": false
 }

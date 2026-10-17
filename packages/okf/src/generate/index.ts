@@ -1,4 +1,3 @@
-export * from './common/index.ts';
 export * from './command.ts';
 export * from './contents-files.ts';
 export * from './contents.ts';

@@ -1,7 +1,7 @@
 # The shared build and lint targets of one package. A package Makefile sets the variables below
 # and includes this file.
 #
-#   FORMATS      cjs (default) | plain - which outputs `build` emits
+#   FORMATS      cjs (default) | plain - cjs emits dist/cjs; plain emits nothing, `build` only type-checks
 #   CJS_TSCONFIG the program the CJS pass emits (default .configs/tsconfig.build.json)
 #   CJS_OUT      where the CJS pass lands (default dist/cjs); empty: the tsconfig's own outDir
 #   POST_BUILD   a shell step only this package has, run after the emit
@@ -12,6 +12,10 @@
 BIN := $(CURDIR)/node_modules/.bin
 TSC := $(BIN)/tsc
 TSC_ALIAS := $(BIN)/tsc-alias
+
+# Type-checking runs through Bun (>= 1.4.3), which reports what tsc reports; tsc stays only where it
+# emits.
+TYPECHECK := bun check --no-pretty
 
 FORMATS ?= cjs
 CJS_TSCONFIG ?= .configs/tsconfig.build.json
@@ -27,17 +31,14 @@ FMT_GLOB := "**/*.{ts,mts,js,mjs}"
 
 # tsconfig.json covers the tests too, so a broken test fails here, before anything is emitted.
 typecheck:
-	@$(TSC) --noEmit -p tsconfig.json
-	@for config in $(filter-out tsconfig.json,$(EMIT_TSCONFIGS)); do $(TSC) --noEmit -p $$config || exit 1; done
+	@$(TYPECHECK) -p tsconfig.json
+	@for config in $(filter-out tsconfig.json,$(EMIT_TSCONFIGS)); do $(TYPECHECK) -p $$config || exit 1; done
 
 # tsc-alias reads the ROOT tsconfig: pointed at a .configs/ file it resolves `paths` against
 # .configs/ and leaves every `@/` import unrewritten.
 build:
 	@echo "START | Building $(notdir $(CURDIR))..."
-	@$(TSC) --noEmit -p tsconfig.json
-ifneq ($(filter plain,$(FORMATS)),)
-	@$(TSC) -p tsconfig.json --extendedDiagnostics
-endif
+	@$(TYPECHECK) -p tsconfig.json
 ifneq ($(filter cjs,$(FORMATS)),)
 	@echo ">>> Building CJS..."
 	@$(TSC) -p $(CJS_TSCONFIG) --extendedDiagnostics
