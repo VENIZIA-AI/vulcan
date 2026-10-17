@@ -12,6 +12,7 @@ migrate. Copy [the template](./template.md) for a new entry, named `YYYY-MM-DD-<
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-17 | [VULCAN 0.2.0-4: Type-Checking Through Bun, Fewer Dependencies](./2026-10-17-vulcan-0-2-0-4.md) | Enhancement |
 | 2026-10-17 | [VULCAN 0.2.0-3: One Bad File Never Takes a Check Down](./2026-10-17-vulcan-0-2-0-3.md) | Bug Fix, Enhancement |
 | 2026-10-17 | [VULCAN 0.2.0-2: The docs-update Skill, Symbols Follow the Build, Skill Evals](./2026-10-17-vulcan-0-2-0-2.md) | Feature, Bug Fix |
 | 2026-10-17 | [VULCAN 0.2.0-1: The Minors from the 0.2.0-0 Review](./2026-10-17-vulcan-0-2-0-1.md) | Bug Fix, Enhancement |
