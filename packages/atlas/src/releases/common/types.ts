@@ -5,7 +5,7 @@ export interface IReleaseRecord {
   version: string;
   date: string;
   sha: string;
-  /** Position of the release commit in first-parent history; absent in a table generated before this field existed. */
+  /** Release commits before this one in first-parent history (a commit position in tables before 0.2.0-0); absent in older tables. */
   order?: number;
 }
 
@@ -20,7 +20,7 @@ export interface IChangelogRecord {
   title: string;
   packages: string[];
   kind: string | null;
-  /** Position of the commit that added the file; absent in a table generated before this field existed. */
+  /** Release commits before the commit that added the file, all of them while it is uncommitted (a commit position before 0.2.0-0); absent in older tables. */
   order?: number;
 }
 

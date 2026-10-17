@@ -220,7 +220,7 @@ const IGNIS_PROJECT = toAtlasProject({
 });
 
 describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)('AtlasReleases.check', () => {
-  // Content, not bytes: 0.2.0-0 adds `packageMap`, and a changelog's `order` is fixed in Task 6b.
+  // Content, not bytes: 0.2.0-0 adds `packageMap`, and an `order` is a release count, not a position.
   test('reproduces every release, live package and changelog entry of the committed table', () => {
     const committed = JSON.parse(readFileSync(IGNIS_RELEASES, 'utf8'));
     const rendered = JSON.parse(AtlasReleases.render({ project: IGNIS_PROJECT }));
@@ -228,7 +228,34 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)('AtlasReleases.check',
       entries.map(({ order: _order, ...entry }) => entry);
 
     expect(rendered.livePackages).toEqual(committed.livePackages);
-    expect(rendered.releases).toEqual(committed.releases);
+    const releasesWithoutOrder = (table: Record<string, { order?: number }[]>) =>
+      Object.fromEntries(Object.entries(table).map(([name, records]) => [name, withoutOrder(records)]));
+
+    expect(releasesWithoutOrder(rendered.releases)).toEqual(releasesWithoutOrder(committed.releases));
+
+    // Orders are release counts now, positions before: what must hold is the window each changelog
+    // falls in - after exactly the same releases as the committed table says.
+    const releaseOrders = (table: { releases: Record<string, { sha: string; order: number }[]> }) =>
+      new Map(Object.values(table.releases).flat().map(record => [record.sha, record.order]));
+    const committedReleases = releaseOrders(committed);
+    const renderedReleases = releaseOrders(rendered);
+    const committedChangelogs = new Map<string, number>(
+      committed.changelogs.map((entry: { id: string; order: number }) => [entry.id, entry.order]),
+    );
+    const misplaced: string[] = [];
+
+    for (const entry of rendered.changelogs as { id: string; order: number }[]) {
+      for (const [sha, order] of renderedReleases) {
+        const before = (committedChangelogs.get(entry.id) ?? 0) > (committedReleases.get(sha) ?? 0);
+
+        if (before !== entry.order > order) {
+          misplaced.push(`${entry.id} / ${sha}`);
+        }
+      }
+    }
+
+    expect(misplaced).toEqual([]);
+
     const explained = new Set(Object.keys(EXPLAINED_CHANGES));
     const unexplained = (entries: { id: string; order?: number }[]) =>
       withoutOrder(entries.filter(entry => !explained.has(entry.id)));
