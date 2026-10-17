@@ -59,3 +59,33 @@ test('a make/help.mk row wins over a ## description, so a project can reword a s
 
   expect(descriptionOf({ name: 'vulcan-sync' })).toBe("The project's words");
 });
+
+test('a Makefile make cannot read stops the collector, never a truncated page', () => {
+  makeProject({
+    files: { Makefile: 'build:\n\t@true\n\nifeq (\n', 'shipped/vulcan.mk': '' },
+  });
+
+  expect(() => collectMakefileTargets()).toThrow('okf: make failed');
+});
+
+test('make missing from PATH is said plainly', () => {
+  makeProject({ files: { Makefile: 'build:\n\t@true\n' } });
+
+  const path = process.env.PATH;
+
+  process.env.PATH = '/nonexistent';
+
+  try {
+    expect(() => collectMakefileTargets()).toThrow('okf: make is not on PATH');
+  } finally {
+    process.env.PATH = path;
+  }
+});
+
+test("make's warnings are not failures", () => {
+  makeProject({
+    files: { Makefile: 'build:\n\t@true\n\nbuild:\n\t@false\n' },
+  });
+
+  expect(collectMakefileTargets().map(target => target.name)).toContain('build');
+});
