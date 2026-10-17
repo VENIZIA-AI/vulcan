@@ -6,6 +6,7 @@ import { loadConcepts, stripCode } from '../lib.ts';
 import type { Concept } from '../lib.ts';
 import type { IBundleFile } from '../spec/index.ts';
 import { collectCoverageAxes } from '../coverage-report/axes.ts';
+import { collectContentsProblems } from '../generate/contents-files.ts';
 import { collectChangelogProblems } from './changelogs.ts';
 import { extractRegion } from '../generate/index.ts';
 import type { ILoadedRegion, ILoadedRenderer } from '../generate/index.ts';
@@ -134,6 +135,9 @@ export const collectHouseProblems = (opts: {
 
   // C3: every dated changelog entry declares its packages by npm name.
   problems.push(...collectChangelogProblems());
+
+  // A long agent-read file opens with its contents - an agent may read its first lines only.
+  problems.push(...collectContentsProblems());
 
   return problems;
 };

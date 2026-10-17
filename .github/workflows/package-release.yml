@@ -148,7 +148,7 @@ jobs:
         run: |
           bun x --no-install vulcan sync
           bun x --no-install vulcan doctor
-          bun x --no-install vulcan x okf check
+          bun x --no-install vulcan x okf check --strict
 
       # The packed tarballs, installed alone in an empty project. smoke-cli also fails on sibling
       # pins in the packed cli that differ from the train's version.

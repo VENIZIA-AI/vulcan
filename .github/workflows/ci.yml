@@ -67,7 +67,7 @@ jobs:
         run: |
           bun x --no-install vulcan sync
           bun x --no-install vulcan doctor
-          bun x --no-install vulcan x okf check
+          bun x --no-install vulcan x okf check --strict
 
       - name: Pack smoke
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}

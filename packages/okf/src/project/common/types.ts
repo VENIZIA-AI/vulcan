@@ -27,6 +27,8 @@ export interface IOkfProject {
   changelogs?: string;
   /** `atlas.tagPattern`, the template of a release tag. */
   tagPattern: string;
+  /** Absolute; `okf.contents.files` - agent-read files outside the bundle that carry a contents list. */
+  contentsFiles: string[];
   packages: IOkfPackage[];
   renderers: IOkfRendererEntry[];
   regions: IOkfRegionEntry[];
