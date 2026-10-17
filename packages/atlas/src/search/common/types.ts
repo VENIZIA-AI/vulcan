@@ -23,7 +23,13 @@ export interface IQueryPlan {
 
 /** What the tools read from a search index - one source's store, or several served as one. */
 export interface IChunkIndex {
-  search(opts: { query: string; corpus?: TCorpus; limit: number; offset: number }): {
+  search(opts: {
+    query: string;
+    corpus?: TCorpus;
+    source?: string;
+    limit: number;
+    offset: number;
+  }): {
     total: number;
     hits: IHit[];
   };

@@ -19,8 +19,10 @@ The agent now has five tools: `search`, `get`, `symbol`, `version` and `changes`
 
 - The project runs VULCAN, and `vulcan sync` has written `.agents/vulcan.manifest.json`. atlas reads
   that manifest and nothing else: it never imports the project's config or runs its code.
-- For `symbol`, the packages are built: atlas reads their exported `.d.ts`.
-- For `version` and `changes`, the project tags its releases and its changelogs declare `packages:`
+- For `symbol`, the packages are built: atlas reads their exported `.d.ts`. An export whose `.d.ts`
+  is missing is skipped with a warning naming it; the other exports still answer.
+- For `version` and `changes`, the project tags its releases. Its changelog directory
+  (`knowledge.changelogs`) holds files named `YYYY-MM-DD-<slug>.md`, each declaring `packages:`
   ([Adopting VULCAN](./adopting-vulcan.md), steps 4 and 5).
 
 ## Ask a question
@@ -53,7 +55,7 @@ Read a hit in full with `get`. Drop the `#anchor` to read the whole document:
 
 | Tool | Arguments | Answers |
 |---|---|---|
-| `symbol` | `name`, `package?` | the package and import path a symbol comes from, its kind, its one-line signature, its file and line, and the chunk ids that document it |
+| `symbol` | `name`, `package?` | the package and import path a symbol comes from, its kind, its one-line signature, its file and line, and the chunk ids that document it. An unknown name answers `matches: []` and the `closest` known names |
 | `version` | `cwd?` | each installed package against the newest release atlas knows of |
 | `changes` | `package`, `from`, `to` | the changelog entries between two versions of a package - or, with no package, between two `YYYY-MM-DD` dates |
 
@@ -70,7 +72,8 @@ atlas: { sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' }] 
 ```
 
 Run `vulcan sync`. atlas now serves your project live and IGNIS at the head of `develop`. Every hit
-names its source. `get` takes `source` only when two sources hold the same id.
+names its source. To search one source only, pass `source` to `search`. `get` takes `source` only
+when two sources hold the same id.
 
 - **Where it lives.** atlas fetches a source with git into `$XDG_CACHE_HOME/vulcan/atlas/v1/`: a
   partial clone, plus a sparse checkout of the source's manifest and the paths it declares. It builds

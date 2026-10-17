@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -69,6 +69,39 @@ describe('symbolsOfInstalled (D2)', () => {
     expect(symbols.find(symbol => symbol.name === 'greet')?.signature).toContain(
       'greet(name: string): string',
     );
+  });
+
+  test('an export whose declaration file is missing is skipped with one warning; the others still answer', () => {
+    const consumer = temp({ prefix: 'atlas-consumer-' });
+    const directory = join(consumer, 'node_modules/@x/kit');
+    const warnSpy = spyOn(console, 'error').mockImplementation(() => undefined);
+
+    write({
+      root: directory,
+      files: {
+        ...KIT,
+        'package.json': JSON.stringify({
+          name: '@x/kit',
+          version: '1.3.0',
+          exports: {
+            '.': { types: './dist/index.d.ts' },
+            './contracts': { types: './dist/contracts/index.d.ts' },
+          },
+        }),
+      },
+    });
+
+    try {
+      const symbols = symbolsOfInstalled({ directory });
+      const warnings = warnSpy.mock.calls.map(call => String(call[0]));
+
+      expect(symbols.map(symbol => symbol.name).sort()).toEqual(['Kit', 'greet']);
+      expect(warnings.filter(line => line.includes('./contracts'))).toEqual([
+        '[AtlasSymbols-recordsOf] skipped an export whose declaration file is missing | package: @x/kit | subpath: ./contracts | path: dist/contracts/index.d.ts',
+      ]);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   test('cached by name@version, forever: the second read needs no declarations (positive control)', () => {

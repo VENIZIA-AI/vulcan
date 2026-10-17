@@ -6,6 +6,13 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-17 - atlas 0.2.0-3 minors
+
+Updated [atlas](/packages/atlas.md): a missing export `.d.ts` is skipped with a warning instead of
+emptying the symbol store; `symbol` answers an unknown name with `closest` names, not an error;
+`search` takes `source`; `changes` names the changelog layout it expects; the open-fence warning
+names its line and follows CommonMark.
+
 ## 2026-10-17 - skill evals across models
 
 Updated [development](/process/development.md) and [repository layout](/overview/repository-layout.md):

@@ -105,6 +105,8 @@ export class CorpusLoader extends BaseHelper {
         title: titleOf({ data, body, path: relativePath }),
         frontmatter: data,
         body,
+        // The body is the tail of the text: every line break before it is a frontmatter line.
+        bodyLine: text.slice(0, text.length - body.length).split('\n').length,
       };
     } catch (error) {
       const message = messageOf(error);

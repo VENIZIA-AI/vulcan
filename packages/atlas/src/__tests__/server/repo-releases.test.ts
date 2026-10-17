@@ -95,3 +95,67 @@ test('repo mode with no tag the pattern reads says so on version and changes', a
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+/** A tagged repository whose manifest declares `changelogs` (or not), served in repo mode. */
+const changesErrorOf = async (opts: { changelogs?: string }): Promise<string> => {
+  const root = mkdtempSync(join(tmpdir(), 'atlas-repo-no-changelogs-'));
+
+  try {
+    mkdirSync(join(root, '.agents/knowledge'), { recursive: true });
+    writeFileSync(
+      join(root, '.agents/vulcan.manifest.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        name: 'acme',
+        packages: [{ name: '@acme/core', dir: 'core', aliases: [], retired: false }],
+        knowledge: {
+          bundle: '.agents/knowledge',
+          ...(opts.changelogs === undefined ? {} : { changelogs: opts.changelogs }),
+        },
+        release: { tagPattern: '<dir>-v<version>' },
+      }),
+    );
+
+    const run = (args: string[]): void => {
+      execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+        cwd: root,
+        stdio: 'ignore',
+      });
+    };
+
+    run(['init', '-q', '-b', 'develop']);
+    run(['add', '-A']);
+    run(['commit', '-q', '-m', 'init']);
+    run(['tag', 'core-v1.0.0']);
+
+    const transport = buildServer({ root, version: '0.0.0' });
+    const reply = JSON.parse(
+      (await transport.handleLine({
+        line: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: { name: 'changes', arguments: {} },
+        }),
+      })) ?? 'null',
+    );
+
+    return reply.error?.message ?? '';
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+};
+
+test('changes with no changelog directory declared names the field and the expected layout', async () => {
+  expect(await changesErrorOf({})).toBe(
+    'no dated changelog entries: the manifest declares no changelog directory - set knowledge.changelogs; ' +
+      'atlas reads files named YYYY-MM-DD-<slug>.md from it, each with `packages: [<npm name>, ...]` frontmatter',
+  );
+});
+
+test('changes with an empty changelog directory names that directory and the expected layout', async () => {
+  expect(await changesErrorOf({ changelogs: 'docs/changes' })).toBe(
+    'no dated changelog entries in docs/changes - ' +
+      'atlas reads files named YYYY-MM-DD-<slug>.md from it, each with `packages: [<npm name>, ...]` frontmatter',
+  );
+});

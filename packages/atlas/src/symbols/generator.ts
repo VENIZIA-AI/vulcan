@@ -7,6 +7,7 @@
  */
 import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
+import { StderrLogger } from '@/common/logger';
 import { readPackageDirectory } from '@/common/package-entries';
 import type { IPackageMapEntry } from '@/common/package-map';
 import type { IPackageEntries } from '@/common/types';
@@ -151,6 +152,8 @@ const namedNodeOf = (declaration: TypeScript.Declaration): TypeScript.Node =>
 
 export class AtlasSymbols {
   private static readonly maps = new Map<string, IDeclarationMap | undefined>();
+  /** Every missing entry already named: an unbuilt package is read again on every question. */
+  private static readonly warnedMissing = new Set<string>();
 
   static render(opts: { repoRoot?: string; packages?: string[] } = {}): string {
     const project = hasAtlasProject() ? readAtlasProject() : undefined;
@@ -182,22 +185,42 @@ export class AtlasSymbols {
    * declaration files, wherever the packages live. Paths are relative to `repoRoot`.
    */
   static recordsOf(opts: { repoRoot: string; packages: IPackageEntries[] }): ISymbolRecord[] {
+    const packages = opts.packages.map(item => ({
+      ...item,
+      entries: item.entries.filter(entry =>
+        AtlasSymbols.isEntryBuilt({
+          repoRoot: opts.repoRoot,
+          packageName: item.manifest.name,
+          entry,
+        }),
+      ),
+    }));
     const program = DeclarationProgram.create({
-      files: opts.packages.flatMap(item => item.entries.map(entry => entry.file)),
+      files: packages.flatMap(item => item.entries.map(entry => entry.file)),
       scope: 'atlas-symbols',
     });
 
-    return opts.packages
+    return packages
       .flatMap(item =>
-        item.entries.flatMap(entry =>
-          AtlasSymbols.entrySymbolsOf({
-            program,
-            repoRoot: opts.repoRoot,
-            packageName: item.manifest.name,
-            subpath: entry.subpath,
-            file: entry.file,
-          }),
-        ),
+        item.entries.flatMap(entry => {
+          // One entry the compiler cannot read as a module (a script .d.ts, say) is skipped like a
+          // missing one: it never takes the package's other entries, or the store, down with it.
+          try {
+            return AtlasSymbols.entrySymbolsOf({
+              program,
+              repoRoot: opts.repoRoot,
+              packageName: item.manifest.name,
+              subpath: entry.subpath,
+              file: entry.file,
+            });
+          } catch (error) {
+            AtlasSymbols.warnOnce({
+              message: `skipped an export whose declaration file could not be read | package: ${item.manifest.name} | subpath: ${entry.subpath} | path: ${repoRelative({ repoRoot: opts.repoRoot, path: entry.file })} | error: ${error instanceof Error ? error.message : String(error)}`,
+            });
+
+            return [];
+          }
+        }),
       )
       .sort(AtlasSymbols.compare);
   }
@@ -236,6 +259,37 @@ export class AtlasSymbols {
     return collapsed.length > SIGNATURE_MAX_CHARS
       ? collapsed.slice(0, SIGNATURE_MAX_CHARS)
       : collapsed;
+  }
+
+  /**
+   * Whether an entry's declaration file exists. A missing one is a packaging bug of that entry
+   * alone - its siblings still answer - so it is skipped and named once per process, not thrown.
+   */
+  private static isEntryBuilt(opts: {
+    repoRoot: string;
+    packageName: string;
+    entry: IPackageEntries['entries'][number];
+  }): boolean {
+    const { repoRoot, packageName, entry } = opts;
+
+    if (existsSync(entry.file)) {
+      return true;
+    }
+
+    const path = repoRelative({ repoRoot, path: entry.file });
+    const message = `skipped an export whose declaration file is missing | package: ${packageName} | subpath: ${entry.subpath} | path: ${path}`;
+
+    AtlasSymbols.warnOnce({ message });
+
+    return false;
+  }
+
+  /** A skipped entry is said once per process - an unbuilt package fails every reload the same way. */
+  private static warnOnce(opts: { message: string }): void {
+    if (!AtlasSymbols.warnedMissing.has(opts.message)) {
+      AtlasSymbols.warnedMissing.add(opts.message);
+      StderrLogger.get(AtlasSymbols.name).for('recordsOf').warn(opts.message);
+    }
   }
 
   /** Package, then subpath, then name - code-point order, so the file is byte-identical on every machine. */

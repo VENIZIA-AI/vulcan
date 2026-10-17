@@ -40,6 +40,8 @@ export interface IReleaseTable {
 export interface IReleaseIndex {
   /** Why there is no release: no git history, or no tag the pattern reads. */
   readonly emptyReason: string;
+  /** Why a date window has nothing to read: where atlas looked for dated entries, and how they are named. */
+  readonly noEntriesReason: string;
   isEmpty(): boolean;
   packages(): string[];
   livePackages(): string[];

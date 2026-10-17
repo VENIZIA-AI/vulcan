@@ -6,7 +6,7 @@ import { ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources';
 import { SymbolStore } from '@/symbols';
-import { buildChangesTool } from '@/tools';
+import { buildChangesTool, buildSearchTool } from '@/tools';
 
 const chunk = (opts: { id: string; document: string; body: string }): IChunk => ({
   id: opts.id,
@@ -78,6 +78,45 @@ describe('SourceChunks', () => {
       'wiki:guide.md#boot',
       'wiki:shared.md#x',
     ]);
+  });
+
+  test('a search with a source answers from that source alone', () => {
+    const { total, hits } = chunks.search({
+      query: 'flywheel',
+      source: 'ardor',
+      limit: 10,
+      offset: 0,
+    });
+
+    expect(total).toBe(1);
+    expect(hits.map(hit => `${hit.source} ${hit.id}`)).toEqual(['ardor wiki:admin.md#panel']);
+  });
+
+  test('a search tool call with an unknown source is invalid params naming the known sources', async () => {
+    const transport = new Transport({
+      tools: [buildSearchTool({ store: chunks })],
+      serverName: 'atlas-test',
+      serverVersion: '0.0.0',
+    });
+    const reply = JSON.parse(
+      (await transport.handleLine({
+        line: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: { name: 'search', arguments: { query: 'flywheel', source: 'bana' } },
+        }),
+      })) ?? 'null',
+    );
+
+    expect(reply.error?.code).toBe(RpcErrorCodes.INVALID_PARAMS);
+    expect(reply.error?.message).toBe("unknown source 'bana'; known sources: ignis, ardor");
+  });
+
+  test('the search tool schema offers the source filter', () => {
+    const { inputSchema } = buildSearchTool({ store: chunks }).definition;
+
+    expect(inputSchema.properties).toHaveProperty('source');
   });
 
   test('an id one source holds needs no source; an id two hold asks for it', () => {

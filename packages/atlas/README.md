@@ -49,16 +49,17 @@ dependency on an MCP SDK - it speaks JSON-RPC over stdio itself.
 | `$XDG_CONFIG_HOME/vulcan/atlas.json` `{ "sources": [...] }` | the same, outside any project | Same |
 
 atlas ships code only - no packaged corpus. With no project, no `--source` and no user config it
-exits 2. Every hit names its source; `get` takes `source` only when two sources hold the same id.
+exits 2. Every hit names its source. `search` takes `source` to read one source; `get` takes it only
+when two sources hold the same id. An unknown source name is an error that lists the known ones.
 A private repository uses `GITHUB_TOKEN`, else `gh auth token`, sent in request headers only.
 
 ## Tools
 
 | Tool | Input | Returns |
 |---|---|---|
-| `search` | `query` (2+ characters), `corpus?` (`all`, `wiki`, `changelog`, `knowledge`), `limit?` (1-50, default 10), `offset?` | A ranked page of hits: `id`, `corpus`, `title`, `headingPath`, `anchor`, `snippet`, `score`; plus `total`, `returned`, and `nextOffset` when more remain |
+| `search` | `query` (2+ characters), `corpus?` (`all`, `wiki`, `changelog`, `knowledge`), `source?` (one source of several), `limit?` (1-50, default 10), `offset?` | A ranked page of hits: `id`, `corpus`, `title`, `headingPath`, `anchor`, `snippet`, `score`; plus `total`, `returned`, and `nextOffset` when more remain |
 | `get` | `id` (from a hit), `source?`, `maxChars?` (500-50000, default 8000), `cursor?` | The section's `body`, with `next` when it continues |
-| `symbol` | `name`, `package?` (an npm name, a directory or an alias) | Where an exported symbol is declared (`file`, `line`, `signature`, the import `specifier`) and the pages that document it; `matches` when several packages export it |
+| `symbol` | `name`, `package?` (an npm name, a directory or an alias) | Where an exported symbol is declared (`file`, `line`, `signature`, the import `specifier`) and the pages that document it; `matches` when several packages export it. An unknown name answers `matches: []` and up to 5 `closest` names |
 | `version` | `cwd?` (a project directory) | The served packages installed there, the newest release atlas computed for each, and which are `behind` |
 | `changes` | `package?`, `from?`, `to?` (versions, or dates) | The changelog entries between two versions |
 
