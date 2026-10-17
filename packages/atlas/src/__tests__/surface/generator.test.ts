@@ -80,9 +80,9 @@ describe('PublicSurface.render', () => {
 describe('the package list', () => {
   afterEach(clearAtlasProject);
 
-  test('outside vulcan x, render stops with what to do', () => {
+  test('no manifest, render stops with what to do', () => {
     expect(() => PublicSurface.render({ repoRoot: makeRepoRoot() })).toThrow(
-      'atlas: no project config - run through `vulcan x atlas`',
+      'atlas: no project manifest (.agents/vulcan.manifest.json) - run `vulcan sync`',
     );
   });
 
@@ -92,7 +92,7 @@ describe('the package list', () => {
     writeSurface({ repoRoot });
     useAtlasProject({
       root: repoRoot,
-      config: {
+      manifest: {
         packages: [
           { dir: 'testpkg', name: '@test/testpkg', aliases: [], retired: false },
           { dir: 'ui-kit', name: '@test/ui-kit', aliases: [], retired: true },
@@ -106,7 +106,7 @@ describe('the package list', () => {
   test('only retired packages: nothing to walk, and it says what to add', () => {
     useAtlasProject({
       root: makeRepoRoot(),
-      config: { packages: [{ dir: 'ui-kit', name: '@test/ui-kit', aliases: [], retired: true }] },
+      manifest: { packages: [{ dir: 'ui-kit', name: '@test/ui-kit', aliases: [], retired: true }] },
     });
 
     expect(() => PublicSurface.render({})).toThrow(

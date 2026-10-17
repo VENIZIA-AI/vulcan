@@ -26,8 +26,9 @@ const changelog = (opts: { file: string }): void => {
 
 const PROJECT = toAtlasProject({
   root: ROOT,
-  config: {
-    packages: [{ dir: 'kernel', name: '@a/kernel', aliases: [], retired: false }],
+  manifest: {
+    schemaVersion: 1,
+    packages: [{ name: '@a/kernel', dir: 'kernel', aliases: [], retired: false }],
     knowledge: { changelogs: 'changelogs' },
   },
 });

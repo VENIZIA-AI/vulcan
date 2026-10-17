@@ -11,6 +11,8 @@ const HOOK_EVENT = z.string().refine(value => HookEvents.isValid(value), {
 const PROJECT_PACKAGE = z.strictObject({
   dir: z.string().regex(/^[a-z0-9][a-z0-9.-]*$/),
   name: z.string(),
+  /** Where the package lives, from the root; default `packages/<dir>`. */
+  path: z.string().optional(),
   aliases: z.array(z.string()).default([]),
   retired: z.boolean().default(false),
 });
@@ -40,6 +42,11 @@ const VIZ_OUTPUT = '.agents/knowledge/viz.html';
 
 /** `.configs/vulcan.config.*` - strict: an unknown key is a typo, and a typo is an error. */
 export const VULCAN_CONFIG_SCHEMA = z.strictObject({
+  /** The project's name in the manifest and in every atlas result; default: the root package name, unscoped. */
+  name: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]*$/)
+    .optional(),
   agents: z.array(CODING_AGENT).default([CodingAgents.CLAUDE]),
   rules: z.record(z.string().regex(ConfigConstants.RULE_ID_PATTERN), z.string()).default({}),
   /** The project's packages in release order; okf, atlas, make and release read this one list. */
@@ -99,6 +106,8 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         )
         .default([]),
       legacyTagPrefixes: z.array(z.string()).optional(),
+      /** Tags neither read nor checked (globs) - an old layout's tags. */
+      ignoreTags: z.array(z.string()).optional(),
       typescriptFrom: z.string().optional(),
     })
     .default({

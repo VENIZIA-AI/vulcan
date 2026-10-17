@@ -4,7 +4,7 @@ import type { IAtlasPackage } from '@/common/project-config';
  * IGNIS's packages as its project config lists them (Task 8 commits the same list to IGNIS): live
  * ones in release order, then the retired ones whose old changelogs and tags must stay readable.
  */
-export const IGNIS_PACKAGES: IAtlasPackage[] = [
+const IGNIS_LIST: Omit<IAtlasPackage, 'path'>[] = [
   { dir: 'dev-configs', name: '@venizia/dev-configs', aliases: [], retired: false },
   { dir: 'inversion', name: '@venizia/ignis-inversion', aliases: [], retired: false },
   { dir: 'filter', name: '@venizia/ignis-filter', aliases: [], retired: false },
@@ -23,6 +23,12 @@ export const IGNIS_PACKAGES: IAtlasPackage[] = [
   { dir: 'docs', name: '@venizia/ignis-docs', aliases: [], retired: true },
   { dir: 'docs-mcp', name: '@venizia/ignis-docs-mcp', aliases: [], retired: true },
 ];
+
+/** Every IGNIS package lives at `packages/<dir>`. */
+export const IGNIS_PACKAGES: IAtlasPackage[] = IGNIS_LIST.map(entry => ({
+  ...entry,
+  path: `packages/${entry.dir}`,
+}));
 
 /** The same packages as a generated table's `packageMap` records them. */
 export const IGNIS_PACKAGE_MAP = IGNIS_PACKAGES.map(entry => ({

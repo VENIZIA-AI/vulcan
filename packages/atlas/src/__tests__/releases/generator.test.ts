@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { compileReleaseTemplate } from '@/releases';
 import { AtlasReleases } from '@/releases/generator';
 import { toAtlasProject } from '@/common/project-config';
 import { IGNIS_PACKAGES } from '../fixtures/ignis-packages';
@@ -216,7 +217,11 @@ const EXPLAINED_CHANGES: Record<string, string[]> = {
 
 const IGNIS_PROJECT = toAtlasProject({
   root: IGNIS_ROOT,
-  config: { packages: IGNIS_PACKAGES, knowledge: { changelogs: 'docs/wiki/content/changelogs' } },
+  manifest: {
+    schemaVersion: 1,
+    packages: IGNIS_PACKAGES,
+    knowledge: { changelogs: 'docs/wiki/content/changelogs' },
+  },
 });
 
 describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)('AtlasReleases.check', () => {
@@ -312,6 +317,7 @@ describe('AtlasReleases with project packages', () => {
       {
         dir: 'core-worker',
         name: '@venizia/ignis-worker',
+        path: 'packages/core-worker',
         aliases: ['@venizia/ignis-core-worker'],
         retired: false,
       },
@@ -330,10 +336,7 @@ describe('AtlasReleases with project packages', () => {
   });
 
   test('a release subject is read with the configured template', () => {
-    const pattern = toAtlasProject({
-      root: '/r',
-      config: { atlas: { releaseCommit: 'chore(release): v<version>' } },
-    }).releaseCommit;
+    const pattern = compileReleaseTemplate({ template: 'chore(release): v<version>' });
 
     expect(
       AtlasReleases.parseReleaseSubject({

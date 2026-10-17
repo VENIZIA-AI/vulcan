@@ -4,7 +4,8 @@ import { join, relative } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { parseRuleIds, readSlots, RuleConstants } from '../rules/index.ts';
-import { planSync, SyncStatuses } from '../sync/index.ts';
+import { ManifestConstants } from '../manifest/index.ts';
+import { planManifest, planSync, SyncStatuses } from '../sync/index.ts';
 import { DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
 import { parseMakeIncludes, parseMakeTargets } from './makefile.ts';
@@ -198,6 +199,7 @@ export const checkHooks = (opts: ICheckContext): IViolation[] =>
 export const checkAdapters = (opts: ICheckContext): IViolation[] =>
   planSync({ root: opts.root, config: opts.config })
     .filter(action => action.status !== SyncStatuses.UNCHANGED)
+    .filter(action => action.path !== join(opts.root, ManifestConstants.FILE))
     .map(action =>
       createViolation({
         check: DoctorChecks.ADAPTERS,
@@ -208,6 +210,21 @@ export const checkAdapters = (opts: ICheckContext): IViolation[] =>
             : `stale (${action.status}) - run '${ProjectLayout.VULCAN_COMMAND} sync'`,
       }),
     );
+
+/** C1: the committed manifest is what the config renders - atlas reads the file, never the config. */
+export const checkManifest = (opts: ICheckContext): IViolation[] => {
+  const action = planManifest({ root: opts.root, config: opts.config });
+
+  return action.status === SyncStatuses.UNCHANGED
+    ? []
+    : [
+        createViolation({
+          check: DoctorChecks.MANIFEST,
+          file: ManifestConstants.FILE,
+          message: `${action.status === SyncStatuses.CREATED ? 'missing' : 'stale against the config'} - run '${ProjectLayout.VULCAN_COMMAND} sync' and commit it`,
+        }),
+      ];
+};
 
 const hasStylePackage = (opts: { root: string }): boolean => {
   const file = join(opts.root, 'package.json');

@@ -199,11 +199,11 @@ describe('doctor', () => {
     expect(await findChecks({ root })).toEqual([DoctorChecks.HOOKS]);
   });
 
-  test('stale adapters (never synced): one violation per missing adapter', async () => {
+  test('never synced: one violation per missing adapter, and the missing manifest', async () => {
     const checks = await findChecks({ root: createProject({ files: CONFORMANT }) });
 
-    expect(checks.length).toBeGreaterThan(1);
-    expect(new Set(checks)).toEqual(new Set([DoctorChecks.ADAPTERS]));
+    expect(checks.length).toBeGreaterThan(2);
+    expect(new Set(checks)).toEqual(new Set([DoctorChecks.ADAPTERS, DoctorChecks.MANIFEST]));
   });
 
   test('a hand-written CLAUDE.md', async () => {

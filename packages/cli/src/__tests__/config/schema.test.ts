@@ -65,8 +65,8 @@ describe('resolvePackages', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({ atlas: { packages: { b: '@x/b', a: '@x/a' } } });
 
     expect(resolvePackages({ config })).toEqual([
-      { dir: 'b', name: '@x/b', aliases: [], retired: false },
-      { dir: 'a', name: '@x/a', aliases: [], retired: false },
+      { dir: 'b', name: '@x/b', path: 'packages/b', aliases: [], retired: false },
+      { dir: 'a', name: '@x/a', path: 'packages/a', aliases: [], retired: false },
     ]);
   });
 });

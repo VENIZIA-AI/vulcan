@@ -9,10 +9,11 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { BASE_DIRECTORY } from '../common/index.ts';
 import { CodingAgents } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
+import { ManifestConstants, renderManifest } from '../manifest/index.ts';
 import { readSlots } from '../rules/index.ts';
 import { SyncConstants, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
@@ -213,12 +214,32 @@ const planSkillLinks = (opts: { root: string }): ISyncAction[] => {
   return [...links, ...shadowing];
 };
 
-/** Every adapter the project's agents need, planned, not written. */
-export const planSync = (opts: { root: string; config: TResolvedConfig }): ISyncAction[] =>
-  opts.config.agents.includes(CodingAgents.CLAUDE)
+/** The committed project manifest (Project Contract v1, C1), rendered from the config. */
+export const planManifest = (opts: { root: string; config: TResolvedConfig }): ISyncAction => {
+  const path = join(opts.root, ManifestConstants.FILE);
+  const text = renderManifest(opts);
+  const write = (): void => {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, text);
+  };
+
+  if (!existsSync(path)) {
+    return { path, status: SyncStatuses.CREATED, apply: write };
+  }
+
+  return readFileSync(path, 'utf8') === text
+    ? { path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE }
+    : { path, status: SyncStatuses.REPLACED, apply: write };
+};
+
+/** Every adapter the project's agents need, and the manifest every project carries - planned, not written. */
+export const planSync = (opts: { root: string; config: TResolvedConfig }): ISyncAction[] => [
+  ...(opts.config.agents.includes(CodingAgents.CLAUDE)
     ? [
         planClaudeImport({ root: opts.root }),
         planSettings(opts),
         ...planSkillLinks({ root: opts.root }),
       ]
-    : [];
+    : []),
+  planManifest(opts),
+];
