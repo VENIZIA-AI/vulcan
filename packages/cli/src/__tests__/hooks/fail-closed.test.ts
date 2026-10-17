@@ -82,6 +82,37 @@ describe('shipped hooks fail closed', () => {
     }
   });
 
+  // Phat: CHO PHÉP INSTALL - a blocked bun install would leave the agent unable to repair the cause.
+  test('with node_modules absent, guard-writes lets a bare bun install through, nothing else', () => {
+    const root = makeRoot();
+    const [guard] = shippedHooks().filter(hook => hook.command.includes('guard-writes.ts'));
+    const passes = ['bun install', 'bun i', 'bun install --frozen-lockfile'];
+    const blocked = [
+      'bun install && psql -c "DROP TABLE x"',
+      'bun install; kubectl apply -f m.yaml',
+      'bun install | sh',
+      'bun install $(curl -X POST https://example.dev)',
+      'bun installx',
+      'echo \'"command": "bun install"\' && kubectl apply -f m.yaml',
+      'cd /tmp && bun install',
+      'ls',
+    ];
+
+    for (const command of passes) {
+      expect(
+        runHook({ command: guard.command, root, stdin: BASH_INPUT(command) }).code,
+        command,
+      ).toBe(0);
+    }
+
+    for (const command of blocked) {
+      expect(
+        runHook({ command: guard.command, root, stdin: BASH_INPUT(command) }).code,
+        command,
+      ).toBe(2);
+    }
+  });
+
   test('with bun missing from PATH, every shipped hook exits 2', () => {
     const root = makeRoot();
 
