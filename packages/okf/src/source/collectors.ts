@@ -35,6 +35,8 @@ export const collectBindingKeys = (opts: { file: string }): BindingClass[] => {
  * Every root make target, read from make's own database (`make -pRrq`), so the targets generated
  * from `PACKAGES` are listed too. The description comes from the target's `make help` row
  * (make/help.mk): an exact name, a name in an `a / b` row, or a `<pkg>` row matching one package.
+ * Without one, from a `target: ## description` line in any makefile make read - how a shipped module
+ * such as vulcan.mk describes its targets.
  */
 export const collectMakefileTargets = (): MakeTarget[] => {
   if (!existsSync(projectPath({ path: 'Makefile' }))) {
@@ -67,6 +69,21 @@ export const collectMakefileTargets = (): MakeTarget[] => {
     }
   }
 
+  const commented = new Map<string, string>();
+  const makefiles = (lines.find(line => line.startsWith('MAKEFILE_LIST := ')) ?? '')
+    .slice('MAKEFILE_LIST := '.length)
+    .split(' ')
+    .filter(Boolean);
+
+  for (const makefile of makefiles) {
+    const file = projectPath({ path: makefile });
+    const makefileText = existsSync(file) ? readFileSync(file, 'utf8') : '';
+
+    for (const row of makefileText.matchAll(/^([a-z][\w-]*):[^#=\n]*##\s*(.+)$/gm)) {
+      commented.set(row[1], row[2].trim());
+    }
+  }
+
   const out: MakeTarget[] = [];
 
   for (let index = 0; index < lines.length; index++) {
@@ -81,7 +98,10 @@ export const collectMakefileTargets = (): MakeTarget[] => {
       continue;
     }
 
-    const description = help.find(entry => entry.pattern.test(match[1]))?.description ?? '';
+    const description =
+      help.find(entry => entry.pattern.test(match[1]))?.description ??
+      commented.get(match[1]) ??
+      '';
 
     out.push({ name: match[1], deps: match[2].trim(), description });
   }

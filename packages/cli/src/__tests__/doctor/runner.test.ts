@@ -243,6 +243,41 @@ describe('doctor', () => {
     expect(await findChecks({ root })).toEqual([DoctorChecks.STYLE]);
   });
 
+  // D9: the style package comes from the package whose .configs/ holds the lint config (BANA's shape).
+  const PACKAGE_LINT_CONFIGS = Object.fromEntries(
+    Object.entries(LINT_CONFIGS).map(([file, text]) => [join('packages', 'app', file), text]),
+  );
+  const WITHOUT_ROOT_STYLE = Object.fromEntries(
+    Object.entries(CONFORMANT).filter(([file]) => !(file in LINT_CONFIGS)),
+  );
+
+  test('the style package declared by the package that holds the lint configs is enough', async () => {
+    const root = createSyncedProject({
+      files: {
+        ...WITHOUT_ROOT_STYLE,
+        'package.json': '{ "name": "demo" }',
+        'packages/app/package.json':
+          '{ "name": "@demo/app", "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
+        ...PACKAGE_LINT_CONFIGS,
+      },
+    });
+
+    expect(await findChecks({ root })).toEqual([]);
+  });
+
+  test('a package lint config whose package and root both lack the style package fails', async () => {
+    const root = createSyncedProject({
+      files: {
+        ...WITHOUT_ROOT_STYLE,
+        'package.json': '{ "name": "demo" }',
+        'packages/app/package.json': '{ "name": "@demo/app" }',
+        ...PACKAGE_LINT_CONFIGS,
+      },
+    });
+
+    expect(await findChecks({ root })).toEqual([DoctorChecks.STYLE]);
+  });
+
   test('every violation goes to stderr with its check and file; nothing to stdout', () => {
     const root = createProject({
       files: { ...CONFORMANT, '.agents/rules.md': '| V-W-02 | mine | SOFT |\n' },
