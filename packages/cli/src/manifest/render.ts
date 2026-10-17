@@ -16,7 +16,7 @@ export class ManifestConstants {
 const HASH_LENGTH = 8;
 
 /** `@acme/shop-workspace` gives `shop`; a project with no package name takes its directory's. */
-const projectNameOf = (opts: { root: string; config: TResolvedConfig }): string => {
+export const projectNameOf = (opts: { root: string; config: TResolvedConfig }): string => {
   if (opts.config.name !== undefined) {
     return opts.config.name;
   }
@@ -53,7 +53,7 @@ const baseRuleHashes = (): Record<string, string> => {
  */
 export const renderManifest = (opts: { root: string; config: TResolvedConfig }): string => {
   const { config } = opts;
-  const { wiki, changelogs } = config.knowledge;
+  const { wiki, changelogs, syncAreas } = config.knowledge;
 
   const manifest = {
     schemaVersion: ManifestConstants.SCHEMA_VERSION,
@@ -69,6 +69,7 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
       bundle: config.knowledge.bundle,
       ...(wiki === undefined ? {} : { wiki }),
       ...(changelogs === undefined ? {} : { changelogs }),
+      ...(syncAreas === undefined ? {} : { syncAreas }),
     },
     release: {
       tagPattern: config.atlas.tagPattern,

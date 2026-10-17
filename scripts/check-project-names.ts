@@ -10,8 +10,12 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const PROJECT_NAMES = /\b(ignis|ardor|bana)\b/i;
-const SOURCE_GLOB = 'packages/*/src/**/*.{ts,mts,html,css,md}';
-const EXEMPT = /\/(__tests__|fixtures)\//;
+/** The source, and everything the cli ships to every project: rules, skills, hooks, make. */
+const SOURCE_GLOBS = [
+  'packages/*/src/**/*.{ts,mts,html,css,md}',
+  'packages/cli/base/**/*.{md,js,mjs,ts,mts,mk,json,sh}',
+];
+const EXEMPT = /\/(__tests__|fixtures|evals)\//;
 
 const readRoot = (opts: { argv: string[] }): string => {
   const index = opts.argv.indexOf('--root');
@@ -22,7 +26,9 @@ const readRoot = (opts: { argv: string[] }): string => {
 const root = readRoot({ argv: process.argv });
 const offences: string[] = [];
 
-for (const file of [...new Glob(SOURCE_GLOB).scanSync({ cwd: root })].sort()) {
+const files = SOURCE_GLOBS.flatMap(glob => [...new Glob(glob).scanSync({ cwd: root })]);
+
+for (const file of [...new Set(files)].sort()) {
   if (EXEMPT.test(`/${file}`) || file.includes('/node_modules/')) {
     continue;
   }
