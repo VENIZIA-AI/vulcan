@@ -6,6 +6,12 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-17 - skill evals across models
+
+Updated [development](/process/development.md) and [repository layout](/overview/repository-layout.md):
+`make skill-evals` runs a shipped skill's `evals/evals.json` against several models in scratch copies
+of a project, grades each run and writes a report. It spends real model quota.
+
 ## 2026-10-17 - the docs-update skill ships
 
 Updated [cli](/packages/cli.md): the base ships a third skill, `docs-update` - the docs and the
