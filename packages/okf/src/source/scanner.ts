@@ -52,15 +52,31 @@ export const repoRelative = (opts: { path: string }): string => {
   return relative(readOkfProject().root, opts.path);
 };
 
-export const packageDirs = (): string[] => {
+/**
+ * The packages okf documents, by directory name: the configured live ones that exist on disk,
+ * wherever they live (an application keeps them outside packages/); with none configured, every
+ * directory under packages/. The denylist applies to both. Name order, not the configured release
+ * order - okf's tables have always listed packages by name.
+ */
+export const listPackages = (): { dir: string; path: string }[] => {
   const project = readOkfProject();
+  const configured = project.packages
+    .filter(entry => !entry.retired && existsSync(entry.path))
+    .map(entry => ({ dir: entry.dir, path: entry.path }));
+  const listed =
+    project.packages.length > 0
+      ? configured
+      : listDirs({ dir: join(project.root, 'packages') }).map(dir => ({
+          dir,
+          path: join(project.root, 'packages', dir),
+        }));
 
-  // Every directory under packages/, in name order - the configured `packages` list is release order,
-  // for atlas and releases; okf's tables have always listed directories by name.
-  return listDirs({ dir: join(project.root, 'packages') }).filter(
-    name => !project.denylist.has(name),
-  );
+  return listed
+    .filter(entry => !project.denylist.has(entry.dir))
+    .sort((left, right) => (left.dir < right.dir ? -1 : left.dir > right.dir ? 1 : 0));
 };
+
+export const packageDirs = (): string[] => listPackages().map(entry => entry.dir);
 
 export const exampleDirs = (): string[] => {
   const project = readOkfProject();

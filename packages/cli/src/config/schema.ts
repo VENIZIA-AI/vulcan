@@ -19,7 +19,7 @@ const PROJECT_PACKAGE = z.strictObject({
 
 /**
  * A release template: `<dir>` (synonym `<package>`) is the package DIRECTORY - the `packages` key,
- * never the npm name (IGNIS tags `core-server-v0.2.2-5` for `@venizia/ignis`); `<version>` is the
+ * never the npm name (`packages/core-server` published as `@acme/server` tags `core-server-v1.2.0`); `<version>` is the
  * version; `<issue>` an issue number. Every other character is literal. When matching a commit, a
  * leading `[#<issue>] ` is optional and a trailing ` [<mode>]` is tolerated. A release train that
  * tags once leaves `<dir>` out (`v<version>`).

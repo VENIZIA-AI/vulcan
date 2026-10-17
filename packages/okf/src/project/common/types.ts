@@ -1,6 +1,8 @@
 export interface IOkfPackage {
   dir: string;
   name: string;
+  /** Absolute; `packages/<dir>` under the root unless the config says otherwise. */
+  path: string;
   retired: boolean;
 }
 

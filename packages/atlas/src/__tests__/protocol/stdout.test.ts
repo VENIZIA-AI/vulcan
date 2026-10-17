@@ -1,3 +1,4 @@
+import { ignisManifestEnvironment } from '../fixtures/ignis-packages';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 import { IGNIS_ROOT } from '../ignis-root.helper';
@@ -71,6 +72,7 @@ const collectStdout = async (opts: {
 describe('stdout discipline - the mcp subprocess over real stdio', () => {
   test('writes nothing but JSON-RPC frames to stdout for initialize, tools/list and search', async () => {
     const child = Bun.spawn(['bun', 'src/cli.ts', 'mcp', '--root', REPOSITORY_ROOT], {
+      env: { ...process.env, ...ignisManifestEnvironment({ root: REPOSITORY_ROOT }) },
       cwd: PACKAGE_ROOT,
       stdin: 'pipe',
       stdout: 'pipe',

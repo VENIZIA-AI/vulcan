@@ -1,26 +1,28 @@
 import { Corpora } from '@/common';
-import { CHANGELOG_DIRECTORY, KNOWLEDGE_DIRECTORY, WIKI_DIRECTORY } from '@/common/layout';
-import { join } from 'node:path';
+import type { IAtlasProject } from '@/common/project-config';
+import { relative } from 'node:path';
 import type { ICorpusRoot } from './common';
 
 /**
- * The three live-tree roots for repo mode, rooted at `repositoryRoot`: `wiki` carves its
- * `changelogs` subtree out into its own root, and `knowledge` carves out `knowledge-tools`.
+ * A project's corpus roots, from its manifest: the knowledge bundle always, the wiki and the
+ * changelogs when declared. A changelog directory inside the wiki is carved out of the wiki's root,
+ * and `knowledge-tools` out of the bundle's.
  */
-export const resolveRepositoryRoots = (opts: { repositoryRoot: string }): ICorpusRoot[] => {
-  const { repositoryRoot } = opts;
+export const resolveRepositoryRoots = (opts: { project: IAtlasProject }): ICorpusRoot[] => {
+  const { bundle, wiki, changelogs } = opts.project.knowledge;
+  const nested =
+    wiki !== undefined && changelogs !== undefined && changelogs.startsWith(`${wiki}/`)
+      ? [relative(wiki, changelogs)]
+      : [];
+
+  const wikiRoots: ICorpusRoot[] =
+    wiki === undefined ? [] : [{ corpus: Corpora.WIKI, directory: wiki, exclude: nested }];
+  const changelogRoots: ICorpusRoot[] =
+    changelogs === undefined ? [] : [{ corpus: Corpora.CHANGELOG, directory: changelogs }];
 
   return [
-    {
-      corpus: Corpora.WIKI,
-      directory: join(repositoryRoot, WIKI_DIRECTORY),
-      exclude: ['changelogs'],
-    },
-    { corpus: Corpora.CHANGELOG, directory: join(repositoryRoot, CHANGELOG_DIRECTORY) },
-    {
-      corpus: Corpora.KNOWLEDGE,
-      directory: join(repositoryRoot, KNOWLEDGE_DIRECTORY),
-      exclude: ['knowledge-tools'],
-    },
+    ...wikiRoots,
+    ...changelogRoots,
+    { corpus: Corpora.KNOWLEDGE, directory: bundle, exclude: ['knowledge-tools'] },
   ];
 };

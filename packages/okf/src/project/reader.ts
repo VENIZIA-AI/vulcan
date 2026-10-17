@@ -24,7 +24,7 @@ const arrayOf = (opts: { value: unknown }): unknown[] =>
 const stringsOf = (opts: { value: unknown }): string[] =>
   arrayOf(opts).filter((item): item is string => typeof item === 'string');
 
-/** `@venizia/ignis-workspace` -> `IGNIS`; the directory name when the project has no package.json name. */
+/** `@acme/shop-workspace` -> `SHOP`; the directory name when the project has no package.json name. */
 const brandOf = (opts: { root: string }): string => {
   const manifest = join(opts.root, 'package.json');
   const parsed = { value: existsSync(manifest) ? JSON.parse(readFileSync(manifest, 'utf8')) : {} };
@@ -39,7 +39,7 @@ const brandOf = (opts: { root: string }): string => {
     .toUpperCase();
 };
 
-const packagesOf = (opts: { value: unknown }): IOkfPackage[] =>
+const packagesOf = (opts: { value: unknown; root: string }): IOkfPackage[] =>
   arrayOf(opts).flatMap(item => {
     const entry = recordOf({ value: item });
     const dir = entry.dir;
@@ -49,6 +49,7 @@ const packagesOf = (opts: { value: unknown }): IOkfPackage[] =>
           {
             dir,
             name: stringOf({ value: entry.name, fallback: dir }),
+            path: resolve(opts.root, stringOf({ value: entry.path, fallback: `packages/${dir}` })),
             retired: entry.retired === true,
           },
         ]
@@ -134,7 +135,7 @@ export const readOkfProject = (): IOkfProject => {
   const project: IOkfProject = {
     root,
     bundle,
-    packages: packagesOf({ value: config.packages }),
+    packages: packagesOf({ value: config.packages, root }),
     renderers: renderersOf({ value: okf.renderers }),
     regions: regionsOf({ value: okf.regions, bundle }),
     sections: {

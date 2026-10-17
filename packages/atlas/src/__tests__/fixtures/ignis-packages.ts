@@ -1,4 +1,6 @@
-import type { IAtlasPackage } from '@/common/project-config';
+import { toAtlasProject } from '@/common/project-config';
+import { resolve } from 'node:path';
+import type { IAtlasPackage, IAtlasProject } from '@/common/project-config';
 
 /**
  * IGNIS's packages as its project config lists them (Task 8 commits the same list to IGNIS): live
@@ -36,3 +38,29 @@ export const IGNIS_PACKAGE_MAP = IGNIS_PACKAGES.map(entry => ({
   name: entry.name,
   aliases: entry.aliases,
 }));
+
+/** IGNIS's manifest as `vulcan sync` will write it - the layout atlas reads from IGNIS. */
+export const IGNIS_MANIFEST = {
+  schemaVersion: 1,
+  name: 'ignis',
+  packages: IGNIS_PACKAGES,
+  knowledge: {
+    bundle: '.agents/knowledge',
+    wiki: 'docs/wiki/content',
+    changelogs: 'docs/wiki/content/changelogs',
+  },
+  release: { tagPattern: '<dir>-v<version>', legacyTagPrefixes: [], ignoreTags: [] },
+};
+
+/** IGNIS as atlas sees it, rooted at a checkout. */
+export const ignisProjectAt = (opts: { root: string }): IAtlasProject =>
+  toAtlasProject({ root: opts.root, manifest: IGNIS_MANIFEST });
+
+/**
+ * The environment `vulcan x` gives atlas inside IGNIS: its manifest, for its checkout. IGNIS commits
+ * its own manifest when it adopts the contract; until then the tests hand this one over.
+ */
+export const ignisManifestEnvironment = (opts: { root: string }): Record<string, string> => ({
+  VULCAN_MANIFEST: JSON.stringify(IGNIS_MANIFEST),
+  VULCAN_PROJECT_ROOT: resolve(opts.root),
+});

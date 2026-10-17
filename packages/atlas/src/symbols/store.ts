@@ -90,7 +90,7 @@ export class SymbolStore extends BaseHelper {
    * Repo mode reads the knowledge bundle's table, snapshot mode the packaged one. A missing or
    * unreadable table leaves the store empty - the `symbol` tool says so, the server still starts.
    */
-  static load(opts: { mode: TAtlasMode; root: string }): SymbolStore {
+  static load(opts: { mode: TAtlasMode; root: string; bundle?: string }): SymbolStore {
     const path = symbolsFileOf(opts);
 
     if (!existsSync(path)) {

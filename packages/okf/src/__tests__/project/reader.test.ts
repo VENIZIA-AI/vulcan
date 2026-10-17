@@ -30,7 +30,9 @@ test('paths come back absolute, regions under the bundle, outputs under the root
     join(ROOT, 'docs/graph.html'),
   ]);
   expect(project.denylist.has('template')).toBe(true);
-  expect(project.packages).toEqual([{ dir: 'kernel', name: '@a/kernel', retired: false }]);
+  expect(project.packages).toEqual([
+    { dir: 'kernel', name: '@a/kernel', path: join(ROOT, 'packages/kernel'), retired: false },
+  ]);
 });
 
 test('missing sections take the schema defaults: nothing selected, the default viz output', () => {

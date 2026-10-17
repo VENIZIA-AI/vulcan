@@ -1,13 +1,7 @@
 import { AtlasModes } from '@/common';
 import type { TAtlasMode } from '@/common';
-import {
-  CHANGELOG_DIRECTORY,
-  isRepositoryCheckout,
-  KNOWLEDGE_DIRECTORY,
-  SNAPSHOT_DIRECTORY,
-  WIKI_DIRECTORY,
-  WORKSPACE_PACKAGE_NAME,
-} from '@/common/layout';
+import { SNAPSHOT_DIRECTORY } from '@/common/layout';
+import { hasAtlasProject, MANIFEST_FILE } from '@/common/project-config';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, parse } from 'node:path';
 
@@ -112,9 +106,10 @@ export const readRootArgument = (opts: { argv: string[] }): IRootArgument => {
 };
 
 /**
- * Repo mode wins when `root` is a checkout; otherwise the packaged snapshot next to
- * `packageDirectory`; otherwise a `ModeUsageError` naming both paths it checked. An explicit
- * `--root` that is not a checkout never falls back to the snapshot - it named the wrong directory.
+ * Repo mode wins when `root` is a project (it has a manifest, or `vulcan x` handed one over);
+ * otherwise the packaged snapshot next to `packageDirectory`; otherwise a `ModeUsageError` naming
+ * both paths it checked. An explicit `--root` that is not a project never falls back to the
+ * snapshot - it named the wrong directory.
  */
 export const resolveMode = (opts: {
   root: string;
@@ -123,13 +118,13 @@ export const resolveMode = (opts: {
 }): IResolvedMode => {
   const { root, packageDirectory, explicitRoot = false } = opts;
 
-  if (isRepositoryCheckout({ root })) {
+  if (hasAtlasProject({ root })) {
     return { mode: AtlasModes.REPOSITORY, root };
   }
 
   if (explicitRoot) {
     throw new ModeUsageError(
-      `${root} is not a VENIZIA family checkout - a checkout needs ${WIKI_DIRECTORY}, ${CHANGELOG_DIRECTORY}, ${KNOWLEDGE_DIRECTORY} and a root package.json named like ${WORKSPACE_PACKAGE_NAME} (any @venizia/<family>-workspace)`,
+      `${root} has no project manifest (${MANIFEST_FILE}) - run \`vulcan sync\` there first`,
     );
   }
 
@@ -140,6 +135,6 @@ export const resolveMode = (opts: {
   }
 
   throw new ModeUsageError(
-    `no IGNIS checkout at ${root} and no packaged snapshot under ${packageDirectory} - pass --root <dir> pointing at a checkout`,
+    `no project manifest at ${root} (${MANIFEST_FILE}) and no packaged snapshot under ${packageDirectory} - run \`vulcan sync\` in the project, or pass --root <project>`,
   );
 };

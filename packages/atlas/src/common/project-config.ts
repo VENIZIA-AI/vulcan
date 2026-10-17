@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { compileReleaseTemplate } from '@/releases/template';
 
 /** The project manifest (Project Contract v1, C1) - what atlas reads, and nothing else. */
-const MANIFEST_FILE = '.agents/vulcan.manifest.json';
+export const MANIFEST_FILE = '.agents/vulcan.manifest.json';
 const MANIFEST_ENV = 'VULCAN_MANIFEST';
 const ROOT_ENV = 'VULCAN_PROJECT_ROOT';
 /** The manifest versions this atlas reads (V2); outside it, it says which VULCAN to upgrade to. */
@@ -24,6 +24,8 @@ export interface IAtlasPackage {
 
 export interface IAtlasProject {
   root: string;
+  /** The source name every result carries (`<name>-atlas` names the server). */
+  name: string;
   /** Release order; retired ones included, so their old changelogs and tags stay readable. */
   packages: IAtlasPackage[];
   /** `atlas.releaseCommit` compiled: named groups `dir`, `version`, `issue`. */
@@ -86,6 +88,7 @@ export const toAtlasProject = (opts: { root: string; manifest: unknown }): IAtla
 
   return {
     root: opts.root,
+    name: stringOf({ value: manifest.name }) ?? basename(opts.root),
     packages: packagesOf({ value: manifest.packages }),
     // Read from tags once releases are computed (Task 11); until then the default release commit.
     releaseCommit: compileReleaseTemplate({ template: DEFAULT_RELEASE_COMMIT }),
@@ -102,18 +105,29 @@ export const toAtlasProject = (opts: { root: string; manifest: unknown }): IAtla
   };
 };
 
-const projectRoot = (): string => process.env[ROOT_ENV] ?? process.cwd();
+/** `root` when given (`--root`), else the one `vulcan x` named, else the working directory. */
+const projectRoot = (opts: { root?: string }): string =>
+  resolve(opts.root ?? process.env[ROOT_ENV] ?? process.cwd());
 
-/** Whether there is a project: `vulcan x` handed its manifest over, or the root carries one. */
-export const hasAtlasProject = (): boolean =>
-  process.env[MANIFEST_ENV] !== undefined || existsSync(join(projectRoot(), MANIFEST_FILE));
+/** The manifest `vulcan x` handed over - only for the root it named. */
+const handedManifest = (opts: { root: string }): string | undefined =>
+  resolve(process.env[ROOT_ENV] ?? process.cwd()) === opts.root
+    ? process.env[MANIFEST_ENV]
+    : undefined;
+
+/** Whether `root` is a project: `vulcan x` handed its manifest over, or it carries one. */
+export const hasAtlasProject = (opts: { root?: string } = {}): boolean => {
+  const root = projectRoot(opts);
+
+  return handedManifest({ root }) !== undefined || existsSync(join(root, MANIFEST_FILE));
+};
 
 /** The project's manifest: the one `vulcan x` rendered fresh, else the committed file. */
-export const readAtlasProject = (): IAtlasProject => {
-  const root = projectRoot();
+export const readAtlasProject = (opts: { root?: string } = {}): IAtlasProject => {
+  const root = projectRoot(opts);
   const file = join(root, MANIFEST_FILE);
   const text =
-    process.env[MANIFEST_ENV] ?? (existsSync(file) ? readFileSync(file, 'utf8') : undefined);
+    handedManifest({ root }) ?? (existsSync(file) ? readFileSync(file, 'utf8') : undefined);
 
   if (text === undefined) {
     throw new Error(`atlas: no project manifest (${MANIFEST_FILE}) - run \`vulcan sync\``);

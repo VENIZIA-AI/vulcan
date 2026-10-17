@@ -5,7 +5,8 @@ import { buildServer } from '@/server';
 import { cpSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, spyOn, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, describe, expect, spyOn, test } from 'bun:test';
+import { ignisManifestEnvironment } from './fixtures/ignis-packages';
 import { IGNIS_ROOT } from './ignis-root.helper';
 
 // __dirname, not import.meta: tsconfig.json (unlike tsconfig.build.json) does not exclude
@@ -56,6 +57,15 @@ const listToolNames = async (opts: {
 };
 
 describe('buildServer', () => {
+  beforeAll(() => {
+    Object.assign(process.env, ignisManifestEnvironment({ root: REPOSITORY_ROOT }));
+  });
+
+  afterAll(() => {
+    delete process.env.VULCAN_MANIFEST;
+    delete process.env.VULCAN_PROJECT_ROOT;
+  });
+
   test('repo mode exposes exactly the search, get, symbol, version and changes tools', async () => {
     const transport = buildServer({
       mode: AtlasModes.REPOSITORY,
