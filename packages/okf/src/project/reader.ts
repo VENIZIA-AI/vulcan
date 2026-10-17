@@ -99,6 +99,17 @@ const coverageOf = (opts: { value: unknown }): { name: string; path: string }[] 
       : [];
   });
 
+/** The handoff, parsed: only `vulcan x` writes it, so anything else is okf run by hand. */
+const parsedOf = (opts: { text: string }): unknown => {
+  try {
+    return JSON.parse(opts.text);
+  } catch (error) {
+    throw new Error('okf: VULCAN_CONFIG is not valid JSON - run okf through `vulcan x`', {
+      cause: error,
+    });
+  }
+};
+
 /** The last handoff read and what it gave: okf reads its project once per process. */
 let cached: { text: string; root: string; project: IOkfProject } | undefined;
 
@@ -111,16 +122,14 @@ export const readOkfProject = (): IOkfProject => {
   const root = process.env[OkfProjectConstants.ROOT_ENV];
 
   if (text === undefined || root === undefined) {
-    throw new Error(
-      'okf: no project config - run through `vulcan x okf` (or add .configs/vulcan.config.ts)',
-    );
+    throw new Error('okf: no project config - run through `vulcan x okf`');
   }
 
   if (cached?.text === text && cached.root === root) {
     return cached.project;
   }
 
-  const config = recordOf({ value: JSON.parse(text) });
+  const config = recordOf({ value: parsedOf({ text }) });
   const knowledge = recordOf({ value: config.knowledge });
   const okf = recordOf({ value: config.okf });
   const sections = recordOf({ value: okf.sections });

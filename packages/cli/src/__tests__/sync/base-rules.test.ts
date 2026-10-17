@@ -73,7 +73,7 @@ describe('the base diff', () => {
     const root = createUpgradedProject();
     const before = readFileSync(join(root, ManifestConstants.FILE), 'utf8');
 
-    expect(runSync({ root, args: ['--dry-run'] }).stderr).toContain('  changed   V-W-02');
+    expect(runSync({ root, args: ['--dry-run'] }).stderr).toContain('  changed       V-W-02');
     expect(readFileSync(join(root, ManifestConstants.FILE), 'utf8')).toBe(before);
   });
 });

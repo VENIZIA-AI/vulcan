@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { isAbsolute, join, relative } from 'node:path';
 import { readOkfProject } from '../project/index.ts';
 import type { BindingClass, MakeTarget, SourceMapEntry } from './common/types.ts';
 import { listDirs, listPackages, sourceFiles } from './scanner.ts';
@@ -100,10 +100,12 @@ export const collectMakefileTargets = (): MakeTarget[] => {
     .filter(Boolean);
 
   for (const makefile of makefiles) {
-    const file = projectPath({ path: makefile });
+    // make lists an include by the path it was given: relative to the root, or absolute.
+    const file = isAbsolute(makefile) ? makefile : projectPath({ path: makefile });
     const makefileText = existsSync(file) ? readFileSync(file, 'utf8') : '';
 
-    for (const row of makefileText.matchAll(/^([a-z][\w-]*):[^#=\n]*##\s*(.+)$/gm)) {
+    // A `;` starts an inline recipe: a `##` after it is the recipe's, never the description.
+    for (const row of makefileText.matchAll(/^([a-z][\w-]*):[^#=;\n]*##\s*(.+)$/gm)) {
       commented.set(row[1], row[2].trim());
     }
   }

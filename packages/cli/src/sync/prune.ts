@@ -3,9 +3,18 @@ import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../common/index.ts';
 import { SyncConstants, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
+import { extractHookCommands, isSettingsObject, removeHookCommands } from './settings.ts';
 
-/** The directory every shipped hook lives in; a command that runs one is VULCAN's. */
-const SHIPPED_HOOKS_PATH = '@venizia/vulcan/base/hooks/';
+/**
+ * The exact hook commands released VULCAN versions shipped (0.1.0-x, then 0.2.0-0). Only these are
+ * an old VULCAN form: a shipped hook a developer customised is theirs, and never pruned.
+ */
+const RETIRED_SHIPPED_COMMANDS = new Set([
+  `bun "\${CLAUDE_PROJECT_DIR}"/node_modules/@venizia/vulcan/base/hooks/session-start.ts`,
+  `bun "\${CLAUDE_PROJECT_DIR}"/node_modules/@venizia/vulcan/base/hooks/guard-writes.ts`,
+  `f="\${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/session-start.ts"; if [ -f "$f" ] && command -v bun >/dev/null 2>&1; then bun "$f"; s=$?; [ "$s" -eq 0 ] && exit 0; exit 2; fi; echo "vulcan: the session-start hook cannot run (node_modules/@venizia/vulcan or bun is missing) - run bun install" >&2; exit 2`,
+  `f="\${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/guard-writes.ts"; if [ -f "$f" ] && command -v bun >/dev/null 2>&1; then bun "$f"; s=$?; [ "$s" -eq 0 ] && exit 0; exit 2; fi; if grep -Eq '"command" *: *"bun (install|i)( --?[a-z][a-z0-9-]*(=[A-Za-z0-9._-]+)?)*"'; then exit 0; fi; echo "vulcan: the guard-writes hook cannot run (node_modules/@venizia/vulcan or bun is missing) - run bun install (the one command that passes until then)" >&2; exit 2`,
+]);
 
 /**
  * A hook a project kept under its own `.agents/` - where plugin-era setups put theirs: the whole
@@ -15,15 +24,15 @@ const SHIPPED_HOOKS_PATH = '@venizia/vulcan/base/hooks/';
 const AGENTS_HOOK =
   /^(?:bun|node)\s+(?:"?\$\{?CLAUDE_PROJECT_DIR\}?"?\/)?(\.agents\/[\w./-]+\.ts)\s*$/;
 
-type THookEntries = Record<string, { hooks?: { command?: string }[] }[]>;
-
 const readJson = (opts: { path: string }): TSettings | undefined => {
   if (!existsSync(opts.path)) {
     return undefined;
   }
 
   try {
-    return JSON.parse(readFileSync(opts.path, 'utf8'));
+    const parsed = { value: JSON.parse(readFileSync(opts.path, 'utf8')) };
+
+    return isSettingsObject(parsed) ? parsed.value : undefined;
   } catch (error) {
     console.error(
       `[readJson] ${opts.path} | ${error instanceof Error ? error.message : String(error)}`,
@@ -33,17 +42,12 @@ const readJson = (opts: { path: string }): TSettings | undefined => {
   }
 };
 
-const commandsOf = (opts: { settings: TSettings | undefined }): string[] =>
-  Object.values((opts.settings?.hooks ?? {}) as THookEntries).flatMap(entries =>
-    entries.flatMap(entry => (entry.hooks ?? []).flatMap(hook => hook.command ?? [])),
-  );
-
 /**
- * A command sync did not write that is known to be stale: a shipped hook in a form this VULCAN no
- * longer writes, or a `.agents/` hook whose file is gone. Any other command is a developer's own.
+ * A command sync did not write that is known to be stale: a shipped hook exactly as an older VULCAN
+ * released it, or a `.agents/` hook whose file is gone. Any other command is a developer's own.
  */
 const isStaleCommand = (opts: { root: string; command: string; shipped: Set<string> }): boolean => {
-  if (opts.command.includes(SHIPPED_HOOKS_PATH)) {
+  if (RETIRED_SHIPPED_COMMANDS.has(opts.command)) {
     return !opts.shipped.has(opts.command);
   }
 
@@ -55,24 +59,23 @@ const isStaleCommand = (opts: { root: string; command: string; shipped: Set<stri
 /** Takes one command out of the settings file; an entry or an event left empty goes with it. */
 const removeHookCommand = (opts: { path: string; command: string }): void => {
   const settings = readJson({ path: opts.path });
-  const hooks = (settings?.hooks ?? {}) as THookEntries;
+  const hooks = { value: settings?.[SyncConstants.HOOKS_KEY] };
 
-  if (settings === undefined) {
+  if (settings === undefined || !isSettingsObject(hooks)) {
     return;
   }
 
-  for (const [event, entries] of Object.entries(hooks)) {
-    const kept = entries
-      .map(entry => ({
-        ...entry,
-        hooks: (entry.hooks ?? []).filter(hook => hook.command !== opts.command),
-      }))
-      .filter(entry => entry.hooks.length > 0);
+  for (const [event, entries] of Object.entries(hooks.value)) {
+    if (!Array.isArray(entries)) {
+      continue;
+    }
+
+    const kept = removeHookCommands({ entries, commands: new Set([opts.command]) });
 
     if (kept.length > 0) {
-      hooks[event] = kept;
+      hooks.value[event] = kept;
     } else {
-      delete hooks[event];
+      delete hooks.value[event];
     }
   }
 
@@ -96,20 +99,23 @@ export const planPrune = (opts: { root: string }): ISyncAction[] => {
   const directory = join(opts.root, SyncConstants.CLAUDE_DIRECTORY);
   const settingsPath = join(directory, SyncConstants.SETTINGS_FILE);
   const managed = new Set(
-    commandsOf({ settings: readJson({ path: join(directory, SyncConstants.MANAGED_FILE) }) }),
+    extractHookCommands({
+      settings: readJson({ path: join(directory, SyncConstants.MANAGED_FILE) }),
+    }),
   );
   const shipped = new Set(
-    commandsOf({
+    extractHookCommands({
       settings: readJson({ path: join(BASE_DIRECTORY, 'claude', SyncConstants.SETTINGS_FILE) }),
     }),
   );
   const staleCommands = [
-    ...new Set(commandsOf({ settings: readJson({ path: settingsPath }) })),
+    ...new Set(extractHookCommands({ settings: readJson({ path: settingsPath }) })),
   ].filter(
     command => !managed.has(command) && isStaleCommand({ root: opts.root, command, shipped }),
   );
   const skills = join(directory, SyncConstants.SKILLS_DIRECTORY);
-  const deadLinks = existsSync(skills)
+  // lstat, not stat: a symlinked skills directory leads out of the project and is never walked.
+  const deadLinks = lstatSync(skills, { throwIfNoEntry: false })?.isDirectory()
     ? readdirSync(skills)
         .map(name => join(skills, name))
         .filter(path => isDeadLink({ path }))

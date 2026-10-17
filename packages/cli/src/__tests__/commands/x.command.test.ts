@@ -26,6 +26,24 @@ describe('vulcan x', () => {
     expect(result.stdout).toBe('');
   });
 
+  test('--help and -h print the help with the tools and exit 0', () => {
+    for (const flag of ['--help', '-h']) {
+      const result = runCli({ args: ['x', flag], cwd: tmpdir() });
+
+      expect(result.code, flag).toBe(0);
+      expect(result.stdout, flag).toContain('x <tool> [args...]');
+      expect(result.stdout, flag).toContain('okf, atlas');
+      expect(result.stderr, flag).not.toContain('unknown tool');
+    }
+  });
+
+  test('--help after the tool goes to the tool', () => {
+    const result = runCli({ args: ['x', 'okf', '--help'], cwd: tmpdir() });
+
+    expect(result.stdout).not.toContain('x <tool> [args...]');
+    expect(result.stdout + result.stderr).toContain('vulcan x okf');
+  });
+
   test('no tool exits 1 with the list', () => {
     expect(runCli({ args: ['x'], cwd: tmpdir() }).code).toBe(1);
   });

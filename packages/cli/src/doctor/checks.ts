@@ -2,6 +2,7 @@ import { Glob } from 'bun';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
+import { resolvePackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import {
   parseBaseReferences,
@@ -271,15 +272,20 @@ const hasStylePackage = (opts: { directory: string }): boolean => {
 /**
  * D9: the shared coding style - every lint config builds on it, and the package whose `.configs/`
  * holds the config declares it, or the root does. A project with no lint config declares it at the
- * root.
+ * root. Owners are `packages/*` and every configured package's `path`, such as `umbras/kit`.
  */
 export const checkStyle = (opts: ICheckContext): IViolation[] => {
   const violations: IViolation[] = [];
   const owners = [
-    '.',
-    ...listDirectories({ directory: join(opts.root, 'packages') }).map(name =>
-      join('packages', name),
-    ),
+    ...new Set([
+      '.',
+      ...listDirectories({ directory: join(opts.root, 'packages') }).map(name =>
+        join('packages', name),
+      ),
+      ...resolvePackages({ config: opts.config }).map(
+        entry => relative(opts.root, join(opts.root, entry.path)) || '.',
+      ),
+    ]),
   ];
   const isRootDeclared = hasStylePackage({ directory: opts.root });
   let lintConfigs = 0;

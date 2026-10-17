@@ -13,6 +13,12 @@ falls back within one ref; a tag on a cached SHA recomputes releases; a broken `
 again; npm failures are logged and retried; manifest package names are checked; `version` resolves
 through dependents and says why it has no release.
 
+## 2026-10-17 - the release tags what it published
+
+Updated [releasing](/process/releasing.md): the tag goes on the release commit as built, never on its
+rebase onto a `develop` that moved; a tag already on origin at that commit is skipped, so a `none`
+retry after a finished run passes.
+
 ## 2026-10-17 - atlas sources: refs, bounds, cache
 
 Updated [atlas](/packages/atlas.md): a missing ref is an error, never the offline cache; a SHA ref

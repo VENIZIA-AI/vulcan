@@ -86,7 +86,8 @@ describe('shipped hooks fail closed', () => {
       const result = runHook({ command: hook.command, root, stdin: BASH_INPUT('ls') });
 
       expect(result.code, `${hook.event}: ${hook.command}`).toBe(2);
-      expect(result.stderr).toContain('bun install');
+      expect(result.stderr).toContain('node_modules/@venizia/vulcan is missing - run bun install');
+      expect(result.stderr).not.toContain('bun is not on PATH');
     }
   });
 
@@ -94,7 +95,13 @@ describe('shipped hooks fail closed', () => {
   test('with node_modules absent, guard-writes lets a bare bun install through, nothing else', () => {
     const root = makeRoot();
     const [guard] = shippedHooks().filter(hook => hook.command.includes('guard-writes.ts'));
-    const passes = ['bun install', 'bun i', 'bun install --frozen-lockfile'];
+    const passes = [
+      'bun install',
+      'bun i',
+      'bun install --frozen-lockfile',
+      'bun i --production',
+      'bun install -p --no-save',
+    ];
     const blocked = [
       'bun install && psql -c "DROP TABLE x"',
       'bun install; kubectl apply -f m.yaml',
@@ -103,6 +110,12 @@ describe('shipped hooks fail closed', () => {
       'bun installx',
       'echo \'"command": "bun install"\' && kubectl apply -f m.yaml',
       'cd /tmp && bun install',
+      'bun install --cwd=..',
+      'bun install --cwd ..',
+      'bun install --config=evil.toml',
+      'bun install --global',
+      'bun install left-pad',
+      'bun install --frozen-lockfile=false',
       'ls',
     ];
 
@@ -128,6 +141,29 @@ describe('shipped hooks fail closed', () => {
       const result = runHook({ command: hook.command, root, path: '/nonexistent' });
 
       expect(result.code, `${hook.event}: ${hook.command}`).toBe(2);
+    }
+  });
+
+  test('with the package installed but bun missing from PATH, the message names PATH, not bun install', () => {
+    const root = makeRoot();
+    const installed = join(root, 'node_modules', '@venizia', 'vulcan');
+
+    mkdirSync(dirname(installed), { recursive: true });
+    symlinkSync(PACKAGE_ROOT, installed);
+
+    for (const hook of shippedHooks()) {
+      const result = runHook({
+        command: hook.command,
+        root,
+        stdin: BASH_INPUT('ls'),
+        path: '/nonexistent',
+      });
+
+      expect(result.code, `${hook.event}: ${hook.command}`).toBe(2);
+      expect(result.stderr).toContain(
+        "bun is not on PATH - put bun on PATH (Claude Code may have started without your shell's PATH)",
+      );
+      expect(result.stderr).not.toContain('is missing');
     }
   });
 

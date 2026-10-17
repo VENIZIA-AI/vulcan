@@ -4,6 +4,7 @@ import {
   lstatSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -116,9 +117,87 @@ describe('vulcan sync --prune', () => {
     const before = readFileSync(settingsPath({ root }), 'utf8');
     const result = runCli({ args: ['sync', '--prune', '--dry-run'], cwd: root });
 
-    expect(result.stderr).toContain(`(stale hook: ${OLD_SHIPPED})`);
+    expect(result.stderr).toContain(
+      `would remove  .claude/settings.json (stale hook: ${OLD_SHIPPED})`,
+    );
     expect(readFileSync(settingsPath({ root }), 'utf8')).toBe(before);
     expect(lstatSync(join(root, '.claude', 'skills', 'old-skill')).isSymbolicLink()).toBe(true);
+  });
+
+  test("a developer's customised shipped command is never taken for an old VULCAN form", () => {
+    const root = createProject({ files: PROJECT });
+
+    runCli({ args: ['sync'], cwd: root });
+
+    const mine = [
+      'bun "${CLAUDE_PROJECT_DIR}"/node_modules/@venizia/vulcan/base/hooks/session-start.ts > /tmp/digest.log',
+      'bun node_modules/@venizia/vulcan/base/hooks/guard-writes.ts',
+    ];
+    const settings = JSON.parse(readFileSync(settingsPath({ root }), 'utf8'));
+
+    settings.hooks.Stop = mine.map(command => ({ hooks: [{ type: 'command', command }] }));
+    writeFileSync(settingsPath({ root }), `${JSON.stringify(settings, null, 2)}\n`);
+
+    expect(runCli({ args: ['sync', '--prune'], cwd: root }).stderr).not.toContain('removed');
+    expect(commandsOf({ root })).toEqual(expect.arrayContaining(mine));
+  });
+
+  test('the 0.2.0-0 session-start form, with no managed record, is an old VULCAN form', () => {
+    const root = createProject({ files: PROJECT });
+    const released =
+      'f="${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/session-start.ts"; if [ -f "$f" ] && command -v bun >/dev/null 2>&1; then bun "$f"; s=$?; [ "$s" -eq 0 ] && exit 0; exit 2; fi; echo "vulcan: the session-start hook cannot run (node_modules/@venizia/vulcan or bun is missing) - run bun install" >&2; exit 2';
+
+    runCli({ args: ['sync'], cwd: root });
+
+    const settings = JSON.parse(readFileSync(settingsPath({ root }), 'utf8'));
+
+    settings.hooks.SessionStart.push({ hooks: [{ type: 'command', command: released }] });
+    writeFileSync(settingsPath({ root }), `${JSON.stringify(settings, null, 2)}\n`);
+
+    expect(runCli({ args: ['sync', '--prune'], cwd: root }).stderr).toContain(
+      `removed   .claude/settings.json (stale hook: ${released})`,
+    );
+    expect(commandsOf({ root })).not.toContain(released);
+  });
+
+  test('a malformed hooks shape is skipped, never a crash', async () => {
+    const root = createProject({ files: PROJECT });
+
+    runCli({ args: ['sync'], cwd: root });
+
+    const settings = JSON.parse(readFileSync(settingsPath({ root }), 'utf8'));
+
+    settings.hooks.Stop = {};
+    settings.hooks.Notification = [null, 7, { hooks: 'x' }, { hooks: [null, { type: 'command' }] }];
+    settings.hooks.SessionStart.push(null);
+    writeFileSync(settingsPath({ root }), `${JSON.stringify(settings, null, 2)}\n`);
+
+    const doctor = runCli({ args: ['doctor'], cwd: root });
+    const prune = runCli({ args: ['sync', '--prune'], cwd: root });
+
+    expect(doctor.stderr).not.toContain('TypeError');
+    expect(prune.stderr).not.toContain('TypeError');
+    expect(prune.code).toBe(0);
+    expect(
+      (await runDoctorChecks({ root })).filter(violation => violation.check === DoctorChecks.PRUNE),
+    ).toEqual([]);
+  });
+
+  test('a symlinked .claude/skills is never walked: dead links outside the project stay', () => {
+    const root = createProject({ files: PROJECT });
+    const outside = createProject({ files: { 'keep.txt': 'x\n' } });
+    const outsideLink = join(outside, 'dead-elsewhere');
+
+    runCli({ args: ['sync'], cwd: root });
+    symlinkSync(join(outside, 'gone'), outsideLink);
+    rmSync(join(root, '.claude', 'skills'), { recursive: true });
+    symlinkSync(outside, join(root, '.claude', 'skills'));
+
+    const result = runCli({ args: ['sync', '--prune', '--dry-run'], cwd: root });
+
+    expect(result.stderr).not.toContain('dead link');
+    expect(runCli({ args: ['sync', '--prune'], cwd: root }).stderr).not.toContain('dead link');
+    expect(lstatSync(outsideLink).isSymbolicLink()).toBe(true);
   });
 
   test('doctor reports what --prune would remove, and is clean after it', async () => {

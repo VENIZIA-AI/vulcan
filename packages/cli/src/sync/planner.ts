@@ -162,6 +162,19 @@ const findSkillDirectories = (opts: { directory: string }): string[] =>
 /** Shipped and project skills, linked flat into `.claude/skills/<name>`; a real directory there is left alone. */
 const planSkillLinks = (opts: { root: string }): ISyncAction[] => {
   const target = join(opts.root, SyncConstants.CLAUDE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY);
+
+  // A symlinked skills directory points outside the project: writing links through it would land them there.
+  if (isSymlink({ path: target })) {
+    return [
+      {
+        path: target,
+        status: SyncStatuses.SKIPPED,
+        note: 'a symlink - left untouched',
+        apply: NO_CHANGE,
+      },
+    ];
+  }
+
   const stableSkills = join(stableBaseDirectoryOf(opts), SyncConstants.SKILLS_DIRECTORY);
   const shipped = findSkillDirectories({
     directory: join(BASE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY),

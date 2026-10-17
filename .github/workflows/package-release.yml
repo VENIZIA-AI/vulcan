@@ -251,11 +251,15 @@ jobs:
           fi
 
           git commit -m "$SUBJECT"
+
+          # The tag goes on this commit, as built and published - not on a rebase of it below.
+          echo "RELEASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
         env:
           RELEASE_ISSUE: ${{ inputs.issue }}
 
       # develop can move between checkout and push; the version is already on npm, so rebase and retry
-      # once instead of leaving develop behind a release that really happened.
+      # once instead of leaving develop behind a release that really happened. The rebased commit also
+      # carries develop's newer merges, which is why the tag goes on RELEASE_SHA instead.
       - name: Push release
         if: env.BUMP != 'none'
         run: |
@@ -266,9 +270,31 @@ jobs:
 
           echo "IS_PUSHED=true" >> "$GITHUB_ENV"
 
+      # Bump `none` commits nothing, so the checkout is the release. A retry after a finished run finds
+      # the tag on origin already: at the release commit it is skipped, anywhere else the run stops.
       - name: Create tag
         run: |
-          git tag -a "$TAG_NAME" -m "VULCAN $NEW_VERSION"
+          RELEASE_SHA="${RELEASE_SHA:-$(git rev-parse HEAD)}"
+          echo "RELEASE_SHA=$RELEASE_SHA" >> "$GITHUB_ENV"
+
+          REMOTE_TAGS=$(git ls-remote --tags origin "refs/tags/$TAG_NAME*")
+          PEELED=$(printf '%s\n' "$REMOTE_TAGS" | awk -v ref="refs/tags/$TAG_NAME^{}" '$2 == ref { print $1 }')
+          DIRECT=$(printf '%s\n' "$REMOTE_TAGS" | awk -v ref="refs/tags/$TAG_NAME" '$2 == ref { print $1 }')
+          REMOTE_SHA="${PEELED:-$DIRECT}"
+
+          if [ "$REMOTE_SHA" = "$RELEASE_SHA" ]; then
+            echo "tag: $TAG_NAME is already on origin at $RELEASE_SHA - skipped"
+            echo "IS_TAGGED=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          if [ -n "$REMOTE_SHA" ]; then
+            echo "TAG_CONFLICT=$REMOTE_SHA" >> "$GITHUB_ENV"
+            echo "ERROR | $TAG_NAME is already on origin at $REMOTE_SHA, but this release is $RELEASE_SHA - the tag is left as it is"
+            exit 1
+          fi
+
+          git tag -a "$TAG_NAME" -m "VULCAN $NEW_VERSION" "$RELEASE_SHA"
           git push origin "$TAG_NAME"
 
           echo "IS_TAGGED=true" >> "$GITHUB_ENV"
@@ -288,7 +314,7 @@ jobs:
           echo "  if it is NOT live: nothing to clean up - dispatch again with the same bump"
 
       - name: Report - tag missing
-        if: failure() && env.IS_PUBLISHED == 'true' && env.IS_TAGGED != 'true'
+        if: failure() && env.IS_PUBLISHED == 'true' && env.IS_TAGGED != 'true' && env.TAG_CONFLICT == ''
         run: |
           echo "WARNING | v$NEW_VERSION may be published without its git tag"
-          echo "  create it: git tag -a $TAG_NAME -m \"VULCAN $NEW_VERSION\" && git push origin $TAG_NAME"
+          echo "  create it: git tag -a $TAG_NAME -m \"VULCAN $NEW_VERSION\" ${RELEASE_SHA:-<the release commit>} && git push origin $TAG_NAME"
