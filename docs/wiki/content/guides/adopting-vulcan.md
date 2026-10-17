@@ -1,36 +1,36 @@
 ---
 title: Adopting VULCAN in a project
-description: Move a VENIZIA project (IGNIS, ARDOR, BANA or a new one) onto VULCAN end to end - install, configure, sync, verify, delete the old copies
+description: Move a VENIZIA project (IGNIS, ARDOR, BANA or a new one) onto VULCAN 0.2.0-0 end to end - install, configure, sync, meet the project contract, verify, delete the old copies
 ---
 
 # Adopting VULCAN in a project
 
 VULCAN replaces each project's own copy of the agent setup, the rules, the knowledge tooling and
-atlas with one pinned devDependency. You keep only your project's layer: its config, its own rules,
-its knowledge bundle. Follow the steps in order; each ends with a check.
+atlas with one pinned devDependency. You keep only your project's layer: its config, its own rules
+and its knowledge bundle. Follow the steps in order. Each one ends with a check.
 
 ```bash
-bun add -d --exact @venizia/vulcan@0.1.0-2 @venizia/dev-configs
+bun add -d --exact @venizia/vulcan@0.2.0-0 @venizia/dev-configs
 bun x --no-install vulcan init
 bun x --no-install vulcan sync
 bun x --no-install vulcan doctor
 ```
 
-Always write `bun x --no-install vulcan`: the unscoped npm name `vulcan` belongs to an unrelated
+Always write `bun x --no-install vulcan`. The unscoped npm name `vulcan` belongs to an unrelated
 package, and without the flag `bun x` downloads it when `@venizia/vulcan` is not installed yet.
 
 ## 1. Install and pin
 
-Pin exactly, on the `next` tag's current version, and commit `bun.lock`:
+Pin exactly, and commit `bun.lock`:
 
 ```bash
-bun add -d --exact @venizia/vulcan@0.1.0-2 @venizia/dev-configs
+bun add -d --exact @venizia/vulcan@0.2.0-0 @venizia/dev-configs
 ```
 
-`@venizia/vulcan` pins `@venizia/vulcan-okf` and `@venizia/vulcan-atlas` to the same version. VULCAN
+`@venizia/vulcan` pins `@venizia/vulcan-okf` and `@venizia/vulcan-atlas` to its own version. VULCAN
 depends on no IGNIS package, so it never pins your project to an IGNIS release.
 
-**Check:** `bun x --no-install vulcan version` prints `0.1.0-2`.
+**Check:** `bun x --no-install vulcan version` prints `0.2.0-0`.
 
 ## 2. Scaffold, then reconcile
 
@@ -46,90 +46,143 @@ what to add instead.
 | `.configs/{oxlint,eslint,oxfmt}.config.*` | lint configs building on `@venizia/dev-configs` |
 | `Makefile` | `-include node_modules/@venizia/vulcan/base/make/vulcan.mk` |
 
-Add `CLAUDE.md` and `.claude/` to `.gitignore`: `vulcan sync` writes them per developer.
+Add `CLAUDE.md` and `.claude/` to `.gitignore`: `vulcan sync` writes them per developer. Commit
+`.agents/vulcan.manifest.json`: sync writes it too, and other projects read it (step 4).
 
 ## 3. Configure `.configs/vulcan.config.ts`
 
-Every section, with what reads it today:
+The config is strict: an unknown key is an error, and every error names the file and the field.
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  agents: ['claude'],                                   // adapters sync writes
-  rules: { 'V-W-01': 'on-user-word' },                  // slot: 'on-user-word' | 'read-only' (adds a git deny list)
+  agents: ['claude'],
+  rules: { 'V-W-01': 'on-user-word' },                  // slot: 'on-user-word' | 'read-only'
+  packages: [                                           // in release order
+    { dir: 'kernel', name: '@venizia/ignis-kernel' },
+    { dir: 'core-server', name: '@venizia/ignis-core-server', aliases: ['core'] },
+    { dir: 'worker', name: '@venizia/ignis-worker', retired: true },
+  ],
   knowledge: {
     bundle: '.agents/knowledge',
     wiki: 'docs/wiki/content',
     changelogs: 'docs/wiki/content/changelogs',
+    syncAreas: '.agents/knowledge/process/knowledge-sync-areas.md',
   },
   atlas: {
-    packages: {                                         // directory under packages/ -> npm name, in release order
-      inversion: '@venizia/ignis-inversion',
-      helpers: '@venizia/ignis-helpers',
-    },
+    tagPattern: '<dir>-v<version>',
+    sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' }],
   },
-  claude: { settings: { permissions: { allow: ['Bash(make test)'] } } }, // team-shared, committed
-  hooks: [{ event: 'SessionStart', command: 'bun .agents/hooks/digest.ts' }], // the project's own hooks
+  digest: { oftenDropped: ['V-B-03', 'V-P-06', 'W-00'] },
+  claude: { settings: { permissions: { allow: ['Bash(make test)'] } } },
+  hooks: [{ event: 'Stop', command: 'bun .agents/hooks/notify.ts' }],
 } satisfies VulcanConfig;
 ```
 
-| Section | Read by | Status |
-|---|---|---|
-| `agents`, `rules`, `claude`, `hooks` | `sync`, `doctor`, the session digest | in use |
-| `knowledge.bundle` | `doctor` | in use |
-| `atlas.packages` | `vulcan x atlas surface\|symbols` | **required** for those two |
-| `okf.*` | `vulcan x okf gen\|check\|coverage\|viz` | in use - see below |
-| `atlas.tagPattern`, `atlas.releaseCommit`, `knowledge.wiki` | - | validated, not read yet (see Known gaps) |
-
-An unknown key is an error, and every error names the file and the field.
+| Key | Meaning |
+|---|---|
+| `agents` | the coding agents sync writes adapters for |
+| `rules` | the slot choices, by base ID |
+| `packages` | every package, in release order: `dir`, npm `name`, `path` (default `packages/<dir>`), `aliases` (old directory names or npm names), `retired` |
+| `knowledge.bundle` | the knowledge bundle (default `.agents/knowledge`) |
+| `knowledge.wiki`, `knowledge.changelogs` | what atlas indexes besides the bundle |
+| `knowledge.syncAreas` | the knowledge-sync skill's map of code areas to concepts |
+| `atlas.tagPattern` | how a release tag is spelled: `<dir>`, `<version>`, `<date>`; without `<dir>` the whole repository is one release line |
+| `atlas.releaseCommit`, `atlas.legacyTagPrefixes`, `atlas.ignoreTags` | older release commits and tags atlas still reads, or skips (globs) |
+| `atlas.sources` | other projects atlas serves next to this one ([atlas guide](./atlas.md)) |
+| `okf` | renderers, regions, sections, coverage, denylist, contents, viz (below) |
+| `digest` | the rule IDs the session digest repeats as the rules sessions drop most |
+| `claude.settings` | team-shared Claude settings, merged over each developer's personal keys |
+| `hooks` | the project's own hooks; sync registers them |
 
 **Check:** `bun x --no-install vulcan doctor` reports no `[config]` violation.
 
 ### okf: renderers, regions, coverage
 
-okf runs exactly what `okf` lists, nothing else:
+okf runs exactly what `okf` lists:
 
 ```ts
 okf: {
   renderers: [
-    'source-map',                                                    // built in
-    'makefile-targets',                                              // built in
+    'source-map',
+    'makefile-targets',
     { id: 'binding-keys', options: { source: 'packages/kernel/src/common/keys.ts' } },
-    { id: 'providers', module: '.agents/okf/providers.ts' },         // a project module
+    { id: 'providers', module: '.agents/okf/providers.ts' },
   ],
   regions: [{ id: 'packages-table', file: 'overview/monorepo-layout.md', renderer: 'packages-table' }],
-  coverage: [{ name: 'packages', path: 'packages/*' }, { name: 'examples', path: 'examples/*' }],
+  coverage: [{ name: 'packages', path: 'packages/*' }],
 },
 ```
 
-A coverage axis globs directories; each one needs a concept at `<name>/<directory>.md`, and an axis
-that matches no directory fails. A project module default-exports a renderer, and imports the API from
-`@venizia/vulcan/okf` - the one VULCAN package a project installs:
+A coverage axis globs directories. Each directory needs a concept at `<name>/<directory>.md`, and an
+axis that matches nothing fails. A project module default-exports a renderer and imports the API from
+`@venizia/vulcan/okf`:
 
 ```ts
 import { defineRenderer } from '@venizia/vulcan/okf';
 
 export default defineRenderer({
-  id: 'providers',                                     // must equal the config entry's id
-  collect: ({ context }) =>                            // the one extraction; render and coverage read it
+  id: 'providers',
+  collect: ({ context }) =>
     context.source.exportedClasses({ dirs: ['packages/admin/src/providers'], suffix: 'Provider' }),
   render: ({ context, facts }) => ({
-    path: 'reference/providers.md',                    // relative to the bundle
-    content: context.page.header({ title: 'Providers', description: '...', resource: 'packages', tags: ['reference'] }) +
-      context.page.note({ seeAlso: '...' }) + facts.map(entry => entry.classes.join(', ')).join('\n') + '\n',
+    path: 'reference/providers.md',
+    content:
+      context.page.header({ title: 'Providers', description: 'Every provider class.', resource: 'packages', tags: ['reference'] }) +
+      facts.map(entry => entry.classes.join(', ')).join('\n') + '\n',
   }),
-  coverage: ({ facts }) => ({ name: 'providers', count: facts.reduce((sum, entry) => sum + entry.classes.length, 0) }),
 });
 ```
 
-## 4. The Makefile
+`okf gen` also writes a contents list near the top of every agent-read file over 100 lines. A file
+with `generated:` in its frontmatter belongs to its generator and gets none. The bundle's `log.md`
+gets none either.
 
-Keep the `-include` line from step 2. Then remove every project target that has a shipped name -
-`vulcan-sync`, `vulcan-doctor`, `agent-setup`, `okf-*`, `surface-*`, `symbols-*`, `releases-*` - from the
-Makefile **and every file it includes**. `doctor` follows `include make/*.mk` and names the file.
+## 4. Meet the project contract
 
-To route a shipped target somewhere else for now, override the command, not the target:
+atlas reads a project only through what the project commits. Four things make it readable:
+
+1. **The manifest.** `vulcan sync` renders `.agents/vulcan.manifest.json` from the config. Commit it.
+   `doctor` fails a stale one.
+2. **Package identity is the npm name.** Every table, tool answer and changelog names
+   `@venizia/ignis-kernel`, never `kernel`. A directory or an alias still works as input.
+3. **Changelogs declare their packages.** Each entry's frontmatter lists npm names:
+
+   ```yaml
+   ---
+   title: Faster boot
+   packages: ['@venizia/ignis-kernel']
+   ---
+   ```
+
+   `bun x --no-install vulcan x atlas changelogs migrate` writes the list into every entry that has
+   none. Run it once with `--dry-run`, then for real, then review the diff. An entry that belongs to a
+   release its date does not show adds `release: '@venizia/ignis-kernel@0.2.0-13'`.
+4. **Tags.** atlas computes every release from the git tags `atlas.tagPattern` describes. `doctor`
+   checks each tag it reads.
+
+Delete what atlas no longer reads: a committed `reference/releases.json` and `reference/symbols.json`.
+Releases come from the tags, symbols from the built `.d.ts`.
+
+**Check:** `bun x --no-install vulcan x okf check --strict` passes (it checks the changelog
+frontmatter), and `doctor` reports no `[manifest]` or `[tags]` violation.
+
+## 5. The Makefile
+
+Keep the `-include` line from step 2. Remove every project target with a shipped name from the
+Makefile **and every file it includes**:
+
+| Shipped targets |
+|---|
+| `vulcan-sync`, `vulcan-doctor`, `agent-setup` |
+| `okf-check`, `okf-check-strict`, `okf-gen`, `okf-coverage`, `okf-viz` |
+| `surface-gen`, `surface-check` |
+| `atlas-symbols`, `atlas-releases`, `changelogs-migrate`, `knowledge-symbols-check` |
+
+The old `symbols-gen`, `symbols-check`, `releases-gen` and `releases-check` are gone: a CI job that
+still calls them fails once, loudly. To route a shipped target somewhere else, override the command,
+not the target:
 
 ```make
 VULCAN := bun scripts/vulcan-bridge.ts   # before the -include; vulcan.mk uses $(VULCAN)
@@ -137,66 +190,74 @@ VULCAN := bun scripts/vulcan-bridge.ts   # before the -include; vulcan.mk uses $
 
 **Check:** `doctor` reports no `[make]` violation, and `make` prints no "overriding recipe" warning.
 
-## 5. `.mcp.json`
-
-A project with a wiki serves it through atlas:
+## 6. `.mcp.json`
 
 ```json
-{ "mcpServers": { "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] } } }
+{ "mcpServers": { "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp"] } } }
 ```
 
-**Check:** the agent lists the atlas tools (`search`, `get`, `symbol`, `version`, `changes`).
+**Check:** the agent lists the atlas tools: `search`, `get`, `symbol`, `version`, `changes`. The
+[atlas guide](./atlas.md) covers using them and reading other projects.
 
-## 6. Sync and verify
+## 7. Sync and verify
 
 ```bash
 bun x --no-install vulcan sync
 bun x --no-install vulcan doctor
-bun x --no-install vulcan x okf check
+bun x --no-install vulcan x okf check --strict
 ```
 
-`sync` writes `CLAUDE.md` (`@AGENTS.md`), `.claude/settings.json` and the skill links, and records
-what it applied, so a choice you remove later is removed. One sync is enough; `doctor` agrees.
+`sync` writes `CLAUDE.md` (`@AGENTS.md`), `.claude/settings.json`, the skill links and the manifest.
+It records what it applied, so a choice you remove later is removed. After an upgrade it prints each
+base rule that was added, changed or removed, with its new text.
 
 **Check:** `doctor` prints `vulcan doctor: OK`.
 
-## 7. Move your rules onto the base
+## 8. Move your rules onto the base
 
-The base rules ship with VULCAN, IDs `V-*` (`V-W-01`, `V-C-04`). Your own rules keep **bare** IDs and
-never collide with them.
+The base rules ship with VULCAN, IDs `V-*` (`V-W-01`, `V-C-04`). Your own rules keep **bare** IDs.
 
-1. Keep your rules in `.agents/rules.md` with their current IDs; never give one a `V-` ID.
-2. Where your rule says the same as a base rule, cite the base (`V-C-04`) or keep yours - both are fine.
-3. Replace citations of retired base IDs: `V-W-05`, `V-C-03`, `V-C-05` (see the
-   [base rules changelog](../changelogs/2026-10-17-base-rules-fit-every-project.md)).
-4. Choose the `V-W-01` slot in the config, and move the slot key from `'W-01'` to `'V-W-01'`.
+1. Define your rules in `.agents/rules.md` with bare IDs, plain or bold: `| W-06 |` or `| **W-06** |`.
+2. A `V-` ID in your rules points at a base rule: `Extends V-C-04` in a rule's text, or a row whose
+   first cell lists base IDs (`| V-W-02, V-W-03 | ... |`) to say more about them.
+3. `doctor` fails a `V-` ID the base does not carry, and a retired one: `V-W-05`, `V-C-03`, `V-C-05`
+   (see the [base rules changelog](../changelogs/2026-10-17-base-rules-fit-every-project.md)).
+4. Choose the `V-W-01` slot in the config.
+
+To show the session digest a picture of the project, put it between markers in `.agents/rules.md`:
+
+```md
+<!-- minimap-shape:start -->
+apps/ - one app per directory; libs/ - shared code, no app imports.
+<!-- minimap-shape:end -->
+```
 
 **Check:** `doctor` reports no `[rule-ids]` or `[rule-slots]` violation.
 
-## 8. Move hooks and skills
+## 9. Move hooks and skills
 
-- **Shipped skills** (`knowledge-sync`, `docs-writing`) reach every project through `sync`. Delete your
-  own copies with those names - a project skill never shadows a shipped one.
-- **Your own skills** stay in `.agents/skills/`; `sync` links them next to the shipped ones.
+- **Shipped skills** (`knowledge-sync`, `docs-writing`) reach every project through `sync`, linked
+  through `node_modules/@venizia/vulcan`. Delete your own copies with those names.
+- **Your own skills** stay in `.agents/skills/<name>/`, one level deep. `sync` links them next to the
+  shipped ones.
 - **Your own hooks** go in the config's `hooks`, never into `.claude/settings.json` by hand.
-- **Old plugin hooks.** A checkout set up before VULCAN keeps its old hook entries in
-  `.claude/settings.json` as personal keys: delete them once by hand, or each session runs both.
+- **Shipped hooks fail closed.** When `node_modules` or bun is missing, the write guard blocks every
+  Bash call except a bare `bun install`.
+- **Old plugin hooks.** Delete a hook file the shipped digest now covers (a session digest, a
+  minimap). Then run `bun x --no-install vulcan sync --prune --dry-run`, and without `--dry-run`. It
+  removes old VULCAN and plugin-era hook commands and dead skill links, never your own hooks.
 
-**Check:** `doctor` reports no `[skills]` or `[hooks]` violation.
+**Check:** `doctor` reports no `[skills]`, `[hooks]` or `[prune]` violation.
 
-## 9. Delete the old copies
+## 10. Delete the old copies
 
 Once `doctor` is OK and the gates pass, delete what VULCAN now provides: the old agent plugin, the old
-agent setup script, the local atlas package or scripts, the local `check-catalog`. Keep what Known gaps
-still needs.
+agent setup script, the local atlas package or scripts, and the local `check-catalog`.
 
 ## Known gaps
 
-What VULCAN does not do for every project yet, and what to keep meanwhile:
-
-- **`releases` keeps IGNIS's package list**, retired directories included.
-- **The `knowledge-sync` skill** still carries an IGNIS area-to-concept table.
-- **Skill links** point at Bun's resolved store path, so a reinstall that changes it breaks them until
-  the next `sync`.
-
-These are the next VULCAN work, in that order.
+- **Concept symbols check one line.** `vulcan x atlas concepts check` locks each symbol a concept
+  names by its one-line signature, so a change inside an interface's or a class's members is not
+  caught.
+- **atlas needs its own TypeScript.** Run outside any `node_modules`, Bun may auto-install a newer
+  TypeScript that atlas cannot read (issue #93).
