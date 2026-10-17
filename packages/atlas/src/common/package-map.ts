@@ -28,19 +28,48 @@ export const directoryOf = (opts: {
 };
 
 /**
- * A package a tool was asked about, as a directory: through the table's package map, case-blind;
- * a name the map does not know is taken as a bare directory name.
+ * A package a tool was asked about, as its npm name - the identity every result carries (Project
+ * Contract v1, C2): by npm name, by that name without its scope, by directory or by alias,
+ * case-blind. A value the map does not know comes back as given, trimmed.
  */
-export const directoryOfQuery = (opts: {
-  value: string;
-  packageMap: IPackageMapEntry[];
-}): string => {
-  const wanted = opts.value.trim().toLowerCase();
-  const packages = opts.packageMap.map(entry => ({
+export const packageOfQuery = (opts: { value: string; packageMap: IPackageMapEntry[] }): string => {
+  const wanted = opts.value.trim();
+  const lowered = opts.packageMap.map(entry => ({
     dir: entry.dir,
     name: entry.name.toLowerCase(),
     aliases: entry.aliases.map(alias => alias.toLowerCase()),
   }));
+  const dir = directoryOf({ value: wanted.toLowerCase(), packages: lowered });
 
-  return directoryOf({ value: wanted, packages }) ?? wanted;
+  return opts.packageMap.find(entry => entry.dir === dir)?.name ?? wanted;
+};
+
+/** A table key (a directory) as its npm name; a table without a map keeps its keys. */
+export const packageOfDirectory = (opts: { dir: string; packageMap: IPackageMapEntry[] }): string =>
+  opts.packageMap.find(entry => entry.dir === opts.dir)?.name ?? opts.dir;
+
+/**
+ * A package asked about across every source atlas serves: the one source that knows it, with its
+ * npm name. A directory or an alias two sources share is ambiguous - the error lists the npm names,
+ * which never collide.
+ */
+export const packageAcrossSources = (opts: {
+  value: string;
+  sources: { source: string; packageMap: IPackageMapEntry[] }[];
+}): { source: string; name: string } | undefined => {
+  const matches = opts.sources.flatMap(({ source, packageMap }) => {
+    const name = packageOfQuery({ value: opts.value, packageMap });
+
+    return packageMap.some(entry => entry.name === name) ? [{ source, name }] : [];
+  });
+
+  if (matches.length > 1) {
+    throw new Error(
+      `'${opts.value}' names a package in more than one source - ask by npm name: ${matches
+        .map(match => `${match.name} (${match.source})`)
+        .join(', ')}`,
+    );
+  }
+
+  return matches[0];
 };

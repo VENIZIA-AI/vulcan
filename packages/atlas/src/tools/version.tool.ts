@@ -122,8 +122,8 @@ const behindOf = (opts: {
   const installedEntries = Object.entries(opts.installed);
 
   for (const [name, version] of installedEntries) {
-    const directory = opts.releases.directoryOf({ package: name });
-    const newest = opts.snapshot[directory];
+    const packageName = opts.releases.packageOf({ package: name });
+    const newest = opts.snapshot[packageName];
 
     if (version === null || newest === undefined) {
       continue;
@@ -134,7 +134,7 @@ const behindOf = (opts: {
     }
 
     if (Bun.semver.order(version, newest) < 0) {
-      rows.push({ package: directory, installed: version, newest });
+      rows.push({ package: packageName, installed: version, newest });
     }
   }
 

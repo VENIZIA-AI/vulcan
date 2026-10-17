@@ -1,7 +1,7 @@
 import type { TAtlasMode } from '@/common';
 import { releasesFileOf } from '@/common/layout';
 import { BaseHelper } from '@/common/helper';
-import { directoryOfQuery } from '@/common/package-map';
+import { packageOfDirectory, packageOfQuery } from '@/common/package-map';
 import type { IPackageMapEntry } from '@/common/package-map';
 import { existsSync, readFileSync } from 'node:fs';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
@@ -32,17 +32,19 @@ export class ReleaseStore extends BaseHelper {
 
     const tableReleasesEntries = Object.entries(opts.table.releases ?? {});
 
-    for (const [name, records] of tableReleasesEntries) {
-      this.releases.set(this.directoryOf({ package: name }), records);
+    // The table is keyed by directory; the store by npm name, the identity every answer carries.
+    const nameOf = (dir: string): string =>
+      packageOfDirectory({ dir, packageMap: this.packageMap });
+
+    for (const [dir, records] of tableReleasesEntries) {
+      this.releases.set(nameOf(dir), records);
     }
 
     // Newest first, so every window answers in that order without re-sorting.
-    this.changelogs = [...(opts.table.changelogs ?? [])].sort((left, right) =>
-      byText(right.date, left.date),
-    );
-    this.live = [...(opts.table.livePackages ?? [])]
-      .map(name => this.directoryOf({ package: name }))
-      .sort(byText);
+    this.changelogs = [...(opts.table.changelogs ?? [])]
+      .map(entry => ({ ...entry, packages: entry.packages.map(nameOf) }))
+      .sort((left, right) => byText(right.date, left.date));
+    this.live = [...(opts.table.livePackages ?? [])].map(nameOf).sort(byText);
   }
 
   /**
@@ -86,12 +88,12 @@ export class ReleaseStore extends BaseHelper {
     return [...new Set(this.changelogs.map(record => record.date))];
   }
 
-  /** The packages that exist today; a table generated before this list existed answers with every package it knows. */
-  /** A package a tool was asked about, as the directory the table is keyed by. */
-  directoryOf(opts: { package: string }): string {
-    return directoryOfQuery({ value: opts.package, packageMap: this.packageMap });
+  /** A package a tool was asked about, as its npm name - what the store is keyed by. */
+  packageOf(opts: { package: string }): string {
+    return packageOfQuery({ value: opts.package, packageMap: this.packageMap });
   }
 
+  /** The packages that exist today; a table generated before this list existed answers with every package it knows. */
   livePackages(): string[] {
     return this.live.length > 0 ? this.live : this.packages();
   }
@@ -118,7 +120,7 @@ export class ReleaseStore extends BaseHelper {
    */
   entriesBetween(opts: { package?: string; fromDate: string; toDate: string }): IChangelogRecord[] {
     const wanted =
-      opts.package === undefined ? undefined : this.directoryOf({ package: opts.package });
+      opts.package === undefined ? undefined : this.packageOf({ package: opts.package });
 
     return this.changelogs.filter(entry => {
       if (entry.date <= opts.fromDate || entry.date > opts.toDate) {
@@ -142,7 +144,7 @@ export class ReleaseStore extends BaseHelper {
     toDate: string;
   }): IChangelogRecord[] {
     const wanted =
-      opts.package === undefined ? undefined : this.directoryOf({ package: opts.package });
+      opts.package === undefined ? undefined : this.packageOf({ package: opts.package });
 
     return this.changelogs.filter(entry => {
       const inside =
@@ -164,6 +166,6 @@ export class ReleaseStore extends BaseHelper {
   }
 
   private recordsOf(opts: { package: string }): IReleaseRecord[] {
-    return this.releases.get(this.directoryOf({ package: opts.package })) ?? [];
+    return this.releases.get(this.packageOf({ package: opts.package })) ?? [];
   }
 }

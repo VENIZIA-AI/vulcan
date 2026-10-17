@@ -92,7 +92,7 @@ const packageWindowOf = (opts: {
   from?: string;
   to?: string;
 }): IWindow => {
-  const name = opts.releases.directoryOf({ package: opts.package });
+  const name = opts.releases.packageOf({ package: opts.package });
   const versions = opts.releases.versionsOf({ package: name });
 
   if (versions.length === 0) {

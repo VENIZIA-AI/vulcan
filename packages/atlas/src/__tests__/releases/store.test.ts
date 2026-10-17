@@ -7,7 +7,10 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, test } from 'bun:test';
 
 const TABLE: IReleaseTable = {
-  packageMap: [{ dir: 'kernel', name: '@venizia/ignis-kernel', aliases: [] }],
+  packageMap: [
+    { dir: 'kernel', name: '@venizia/ignis-kernel', aliases: [] },
+    { dir: 'helpers', name: '@venizia/ignis-helpers', aliases: [] },
+  ],
   releases: {
     kernel: [
       { version: '0.2.0-16', date: '2026-09-05', sha: 'fda2d717' },
@@ -89,7 +92,7 @@ describe('ReleaseStore versions', () => {
   });
 
   test('lists its package names sorted', () => {
-    expect(store.packages()).toEqual(['helpers', 'kernel']);
+    expect(store.packages()).toEqual(['@venizia/ignis-helpers', '@venizia/ignis-kernel']);
   });
 
   test('lists every changelog date once, newest first', () => {
@@ -170,7 +173,7 @@ describe('ReleaseStore package names from the table', () => {
 
     expect(mapped.versionsOf({ package: '@acme/kernel' })).toHaveLength(4);
     expect(mapped.versionsOf({ package: 'K' })).toHaveLength(4);
-    expect(mapped.directoryOf({ package: 'acme-nothing' })).toBe('acme-nothing');
+    expect(mapped.packageOf({ package: 'acme-nothing' })).toBe('acme-nothing');
   });
 
   test('a table without a package map answers bare directory names only', () => {
@@ -178,5 +181,36 @@ describe('ReleaseStore package names from the table', () => {
 
     expect(bare.versionsOf({ package: 'kernel' })).toHaveLength(4);
     expect(bare.versionsOf({ package: '@acme/kernel' })).toEqual([]);
+  });
+});
+
+describe('ReleaseStore identity is the npm name (C2)', () => {
+  const named = new ReleaseStore({
+    table: {
+      ...TABLE,
+      livePackages: ['kernel'],
+      packageMap: [
+        { dir: 'kernel', name: '@acme/kernel', aliases: ['k'] },
+        { dir: 'helpers', name: '@acme/helpers', aliases: [] },
+      ],
+    },
+  });
+
+  test('every package it lists is a npm name', () => {
+    expect(named.packages()).toEqual(['@acme/helpers', '@acme/kernel']);
+    expect(named.livePackages()).toEqual(['@acme/kernel']);
+  });
+
+  test('a directory, an alias or the npm name resolve to the npm name', () => {
+    expect(named.packageOf({ package: 'kernel' })).toBe('@acme/kernel');
+    expect(named.packageOf({ package: 'K' })).toBe('@acme/kernel');
+    expect(named.packageOf({ package: '@acme/kernel' })).toBe('@acme/kernel');
+  });
+
+  test('changelog entries name their packages by npm name', () => {
+    const entries = named.entriesBetween({ package: 'kernel', fromDate: '', toDate: '9999-12-31' });
+
+    expect(entries.length).toBeGreaterThan(0);
+    expect(entries.every(entry => entry.packages.includes('@acme/kernel'))).toBe(true);
   });
 });

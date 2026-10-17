@@ -96,7 +96,7 @@ describe('changes tool', () => {
       }),
     );
 
-    expect(payload.package).toBe('kernel');
+    expect(payload.package).toBe('@venizia/ignis-kernel');
     expect(payload.from).toBe('0.2.0-13');
     expect(payload.to).toBe('0.2.0-16');
     expect(payload.entries.map(item => item.id)).toEqual([
@@ -132,7 +132,7 @@ describe('changes tool', () => {
       await callChanges({ releases, args: { package: '@venizia/ignis-kernel' } }),
     );
 
-    expect(payload.package).toBe('kernel');
+    expect(payload.package).toBe('@venizia/ignis-kernel');
   });
 
   test('no package spans every package and reads from and to as dates', async () => {
@@ -168,7 +168,7 @@ describe('changes tool', () => {
       date: '2026-09-05',
       title: 'list-response',
       kind: 'New Feature',
-      packages: ['kernel'],
+      packages: ['@venizia/ignis-kernel'],
     });
   });
 
@@ -187,14 +187,16 @@ describe('changes tool', () => {
     const reply = await callChanges({ releases, args: { package: 'kernl' } });
 
     expect(reply.error?.code).toBe(-32602);
-    expect(reply.error?.message).toBe("unknown package 'kernl'; known packages: helpers, kernel");
+    expect(reply.error?.message).toBe(
+      "unknown package 'kernl'; known packages: @venizia/ignis-helpers, @venizia/ignis-kernel",
+    );
   });
 
   test('an unknown version is -32602 naming the known ones', async () => {
     const reply = await callChanges({ releases, args: { package: 'kernel', to: '9.9.9' } });
 
     expect(reply.error?.code).toBe(-32602);
-    expect(reply.error?.message).toContain("unknown version '9.9.9' for kernel");
+    expect(reply.error?.message).toContain("unknown version '9.9.9' for @venizia/ignis-kernel");
     expect(reply.error?.message).toContain('0.2.0-16');
   });
 
@@ -225,7 +227,9 @@ describe('changes tool', () => {
     });
 
     expect(reply.error?.code).toBe(-32602);
-    expect(reply.error?.message).toContain("unknown version '2026-08-31' for kernel");
+    expect(reply.error?.message).toContain(
+      "unknown version '2026-08-31' for @venizia/ignis-kernel",
+    );
   });
 
   test('a version is rejected where a date belongs', async () => {

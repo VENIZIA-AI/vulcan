@@ -1,7 +1,7 @@
 import type { TAtlasMode } from '@/common';
 import { symbolsFileOf } from '@/common/layout';
 import { BaseHelper } from '@/common/helper';
-import { directoryOfQuery } from '@/common/package-map';
+import { packageOfQuery } from '@/common/package-map';
 import type { IPackageMapEntry } from '@/common/package-map';
 import { existsSync, readFileSync } from 'node:fs';
 import type { ISymbolRecord, ISymbolTable } from './common';
@@ -124,11 +124,9 @@ export class SymbolStore extends BaseHelper {
     }
 
     const packageMap = this.packageMap;
-    const wanted = directoryOfQuery({ value: opts.package, packageMap });
+    const wanted = packageOfQuery({ value: opts.package, packageMap });
 
-    return found.filter(
-      record => directoryOfQuery({ value: record.package, packageMap }) === wanted,
-    );
+    return found.filter(record => packageOfQuery({ value: record.package, packageMap }) === wanted);
   }
 
   /** The closest known names to `name`: prefix matches first, then substrings, then near-misses. */
