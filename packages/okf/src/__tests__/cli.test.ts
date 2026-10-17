@@ -36,3 +36,13 @@ describe('vulcan-okf dispatcher', () => {
     expect(result.stderr).toContain('usage: vulcan x okf <check|gen|coverage|viz>');
   });
 });
+
+describe('outside vulcan x', () => {
+  test('a command without a project config stops with what to do, never a stack trace', () => {
+    const result = run({ args: ['check'] });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('okf: no project config - run through `vulcan x okf`');
+    expect(result.stderr).not.toContain('    at ');
+  });
+});

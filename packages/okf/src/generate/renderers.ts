@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { BUNDLE } from '../config.ts';
+import { readOkfProject } from '../project/index.ts';
 import type { GeneratedFile } from './common/types.ts';
 import {
   collectBindingKeys,
@@ -64,7 +64,7 @@ export const renderSourceMap = (): GeneratedFile => {
     .join('\n\n');
 
   return {
-    path: join(BUNDLE, 'reference/source-map.md'),
+    path: join(readOkfProject().bundle, 'reference/source-map.md'),
     content:
       refHeader({
         title: 'Source map',
@@ -91,7 +91,7 @@ export const renderComponents = (): GeneratedFile => {
   });
 
   return {
-    path: join(BUNDLE, 'reference/components.md'),
+    path: join(readOkfProject().bundle, 'reference/components.md'),
     content:
       refHeader({
         title: 'Components catalog',
@@ -119,7 +119,7 @@ export const renderHelpers = (): GeneratedFile => {
   });
 
   return {
-    path: join(BUNDLE, 'reference/helpers.md'),
+    path: join(readOkfProject().bundle, 'reference/helpers.md'),
     content:
       refHeader({
         title: 'Helpers catalog',
@@ -149,7 +149,7 @@ export const renderBindingKeys = (): GeneratedFile => {
     .join('\n\n');
 
   return {
-    path: join(BUNDLE, 'reference/binding-keys.md'),
+    path: join(readOkfProject().bundle, 'reference/binding-keys.md'),
     content:
       refHeader({
         title: 'Binding keys',
@@ -174,7 +174,7 @@ export const renderMakefileTargets = (): GeneratedFile => {
   });
 
   return {
-    path: join(BUNDLE, 'reference/makefile-targets.md'),
+    path: join(readOkfProject().bundle, 'reference/makefile-targets.md'),
     content:
       refHeader({
         title: 'Makefile targets',
@@ -206,11 +206,11 @@ export const renderPackagesTable = (): string => {
   return ['| Package | npm name | Description |', '|---|---|---|', ...rows].join('\n');
 };
 
-/** Managed regions inside hand-authored files. */
-export const REGIONS: { id: string; file: string; render: () => string }[] = [
+/** Managed regions inside hand-authored files - computed per call: the bundle comes from the project. */
+export const listRegions = (): { id: string; file: string; render: () => string }[] => [
   {
     id: 'packages-table',
-    file: join(BUNDLE, 'overview/monorepo-layout.md'),
+    file: join(readOkfProject().bundle, 'overview/monorepo-layout.md'),
     render: renderPackagesTable,
   },
 ];

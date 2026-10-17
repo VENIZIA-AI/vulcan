@@ -1,6 +1,7 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import type { Concept } from '../../lib.ts';
 import { buildVizData } from '../../viz/builder.ts';
+import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
 
 const makeConcept = (opts: { id: string; links?: string[]; reserved?: boolean }): Concept => ({
   id: opts.id,
@@ -15,6 +16,16 @@ const makeConcept = (opts: { id: string; links?: string[]; reserved?: boolean })
   links: opts.links ?? [],
   reserved: opts.reserved ?? false,
 });
+
+// The section order is project config; this one mirrors a typical bundle.
+beforeEach(() => {
+  useProjectConfig({
+    root: '/project',
+    config: { okf: { sections: { order: ['overview', 'architecture', 'packages'], labels: {} } } },
+  });
+});
+
+afterEach(clearProjectConfig);
 
 describe('buildVizData', () => {
   test('counts each undirected link once per end, skipping self, dangling and duplicate links', () => {
@@ -43,7 +54,7 @@ describe('buildVizData', () => {
     expect(data.nodes.map(node => node.id)).toEqual(['/packages/a']);
   });
 
-  test('sections follow SECTION_ORDER, unknown sections after them in name order', () => {
+  test('sections follow the configured order, unknown sections after them in name order', () => {
     const data = buildVizData({
       concepts: [
         makeConcept({ id: '/zeta/x' }),

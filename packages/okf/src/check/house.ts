@@ -1,10 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { BUNDLE, REGENERATE_HINT } from '../config.ts';
+import { REGENERATE_HINT } from '../config.ts';
+import { readOkfProject } from '../project/index.ts';
 import { loadConcepts, stripCode } from '../lib.ts';
 import type { Concept } from '../lib.ts';
 import type { IBundleFile } from '../spec/index.ts';
-import { REGIONS, RENDERERS, extractRegion } from '../generate/index.ts';
+import { RENDERERS, extractRegion, listRegions } from '../generate/index.ts';
 import { exampleDirs, packageDirs, repoRelative } from '../source/index.ts';
 
 // --- docs style ---
@@ -65,7 +66,7 @@ export const collectHouseProblems = (opts: { files: IBundleFile[] }): string[] =
 
       if (match) {
         problems.push(
-          `${repoRelative({ path: join(BUNDLE, file.path) })}: ${rule.message} (found "${match[0]}")`,
+          `${repoRelative({ path: join(readOkfProject().bundle, file.path) })}: ${rule.message} (found "${match[0]}")`,
         );
       }
     }
@@ -84,7 +85,7 @@ export const collectHouseProblems = (opts: { files: IBundleFile[] }): string[] =
     }
   }
 
-  for (const region of REGIONS) {
+  for (const region of listRegions()) {
     if (!existsSync(region.file)) {
       problems.push(
         `freshness: region '${region.id}' host file missing (${repoRelative({ path: region.file })})`,

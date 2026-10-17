@@ -7,10 +7,9 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, posix, relative } from 'node:path';
 
-import { BUNDLE, PRUNE_DIRS, RESERVED_FILES } from './config.ts';
+import { PRUNE_DIRS, RESERVED_FILES } from './config.ts';
+import { readOkfProject } from './project/index.ts';
 import { parseYamlMapping, splitFrontmatter } from './spec/frontmatter.ts';
-
-export { REPO, BUNDLE } from './config.ts';
 
 export type Concept = {
   id: string; // bundle-relative, leading slash, no extension - e.g. "/packages/core-server"
@@ -139,13 +138,15 @@ const asTags = (opts: { value: unknown }): string[] => {
 };
 
 export const loadConcepts = (): Concept[] => {
-  return walkMarkdown({ dir: BUNDLE }).map(file => {
+  const { bundle } = readOkfProject();
+
+  return walkMarkdown({ dir: bundle }).map(file => {
     const raw = readFileSync(file, 'utf8');
     const base = file.split('/').pop() ?? '';
     const reserved = RESERVED_FILES.has(base);
 
     const { data, body } = parseFrontmatter({ text: raw, file });
-    const id = '/' + relative(BUNDLE, file).replace(/\.md$/, '');
+    const id = '/' + relative(bundle, file).replace(/\.md$/, '');
 
     return {
       id,

@@ -12,18 +12,19 @@ import { coverage } from './coverage-report/index.ts';
 import { gen } from './generate/index.ts';
 import { buildViz } from './viz/index.ts';
 
-// Runs only as the entry `cli.ts` spawns; importing the module (tests) has no side effect.
-if (import.meta.main) {
-  const command = process.argv[2];
+/** A project the user must fix (no config, a bad renderer module): its message, never a stack. */
+const isProjectError = (opts: { error: unknown }): opts is { error: Error } =>
+  opts.error instanceof Error && opts.error.message.startsWith('okf: ');
 
-  switch (command) {
+const runCommand = async (opts: { command: string | undefined; argv: string[] }): Promise<void> => {
+  switch (opts.command) {
     case 'gen': {
       gen();
       break;
     }
 
     case 'check': {
-      check({ strict: process.argv.includes('--strict') });
+      check({ strict: opts.argv.includes('--strict') });
       break;
     }
 
@@ -41,5 +42,21 @@ if (import.meta.main) {
       console.error('usage: vulcan x okf <check|gen|coverage|viz>');
       process.exit(2);
     }
+  }
+};
+
+// Runs only as the entry `cli.ts` spawns; importing the module (tests) has no side effect.
+if (import.meta.main) {
+  try {
+    await runCommand({ command: process.argv[2], argv: process.argv });
+  } catch (error) {
+    const caught = { error };
+
+    if (!isProjectError(caught)) {
+      throw error;
+    }
+
+    console.error(caught.error.message);
+    process.exit(1);
   }
 }

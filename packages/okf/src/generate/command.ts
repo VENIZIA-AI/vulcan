@@ -1,11 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { replaceRegion } from './regions.ts';
-import { REGIONS, RENDERERS } from './renderers.ts';
+import { listRegions, RENDERERS } from './renderers.ts';
 import { repoRelative } from '../source/index.ts';
 
 export const gen = (): void => {
-  for (const region of REGIONS) {
+  for (const region of listRegions()) {
     if (!existsSync(region.file)) {
       console.warn(
         `gen: skipped region '${region.id}' - ${repoRelative({ path: region.file })} does not exist yet`,
