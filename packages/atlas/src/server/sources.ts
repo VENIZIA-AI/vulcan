@@ -98,9 +98,14 @@ const instructionsOf = (opts: { sources: IResolvedSource[] }): string | undefine
 
     const at = `${source.origin ?? source.name} at ${(source.sha ?? '').slice(0, 8)}`;
 
+    const note =
+      source.history === false
+        ? ' - no git on this machine: version and changes have no release history'
+        : '';
+
     return source.mode === 'offline-cache'
-      ? `- ${source.name}: ${at} - OFFLINE: the remote was unreachable, this is the newest cache, not the ref's current commit`
-      : `- ${source.name}: ${at}`;
+      ? `- ${source.name}: ${at} - OFFLINE: the remote was unreachable, this is the newest cache, not the ref's current commit${note}`
+      : `- ${source.name}: ${at}${note}`;
   });
 
   return [
