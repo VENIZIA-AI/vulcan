@@ -7,6 +7,7 @@ import { restoreVariable } from '../env.helper';
 import {
   commitAll,
   git,
+  makeSourceRepository,
   makeTempDirectory,
   NO_REGISTRY,
   SOURCE_MANIFEST,
@@ -92,7 +93,27 @@ test('a source that cannot be served is reported; the project and the other sour
     params: { name: 'search', arguments: { query: 'lighthouse keeper' } },
   });
 
+  // The name never depends on which sources the network let through.
+  expect(initialized.result.serverInfo.name).toBe('own-atlas');
   expect(initialized.result.instructions).toContain('- unadopted: UNAVAILABLE');
   expect(initialized.result.instructions).toContain('- gone: UNAVAILABLE');
   expect(JSON.stringify(searched.result)).toContain('okf:overview/lighthouse.md');
+});
+
+test('a project served with a reachable source keeps its own name', async () => {
+  const cwd = makeConsumer();
+  const source = makeSourceRepository();
+  const { resolved } = await resolveServableSources({
+    cwd,
+    sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
+  });
+  const server = buildSourcesServer({ sources: resolved, cwd, version: '0.0.0' });
+  const initialized = JSON.parse(
+    (await server.handleLine({
+      line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+    })) ?? 'null',
+  );
+
+  expect(resolved.map(entry => entry.name)).toEqual(['own', 'src']);
+  expect(initialized.result.serverInfo.name).toBe('own-atlas');
 });

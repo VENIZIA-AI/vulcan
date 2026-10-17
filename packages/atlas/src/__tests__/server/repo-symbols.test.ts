@@ -1,6 +1,6 @@
 import { buildServer } from '@/server';
 import { afterAll, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -100,4 +100,36 @@ test('built after the first question, the next one finds the symbol - the store 
 
   expect(again.error).toBeUndefined();
   expect(again.result.content[0].text).toContain('greet(name: string): string');
+});
+
+test('a rebuild that changes a signature is seen without a restart - the store follows the .d.ts (D2)', async () => {
+  const root = project({ built: true });
+  const server = buildServer({ root, version: '0.0.0' });
+  const ask = async () =>
+    JSON.parse(
+      (await server.handleLine({
+        line: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: { name: 'symbol', arguments: { name: 'greet' } },
+        }),
+      })) ?? 'null',
+    );
+
+  expect((await ask()).result.content[0].text).toContain('greet(name: string): string');
+
+  const declarations = join(root, 'umbras/kit/dist/index.d.ts');
+
+  writeFileSync(
+    declarations,
+    'export declare function greet(name: string, loud: boolean): string;\n',
+  );
+  // A rebuild inside the same second must still be seen: the size changed as well.
+  utimesSync(declarations, new Date(), new Date(Date.now() + 60_000));
+
+  const after = await ask();
+
+  expect(after.error).toBeUndefined();
+  expect(after.result.content[0].text).toContain('greet(name: string, loud: boolean): string');
 });
