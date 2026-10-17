@@ -12,6 +12,11 @@ Updated [development](/process/development.md) and [repository layout](/overview
 `make skill-evals` runs a shipped skill's `evals/evals.json` against several models in scratch copies
 of a project, grades each run and writes a report. It spends real model quota.
 
+## 2026-10-17 - the docs-update skill ships
+
+Updated [cli](/packages/cli.md): the base ships a third skill, `docs-update` - the docs and the
+changelog after a code change, every path from the manifest, gates looped until green.
+
 ## 2026-10-17 - atlas 0.2.0-1 minors
 
 Updated [atlas](/packages/atlas.md): the cache is keyed by the repository's whole path; offline

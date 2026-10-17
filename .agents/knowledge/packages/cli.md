@@ -23,7 +23,7 @@ tags: [packages, cli, base]
 |---|---|
 | `rules.md` | the base rules, `V-W/S/P/B` (interim) plus IGNIS's coding style `V-C-01..18` |
 | `slots.json` | base rules a project picks a wording for: `V-W-01` `on-user-word` or `read-only` (adds a git deny list) |
-| `skills/` | `knowledge-sync` (with its Workflow script) and `docs-writing` - project-neutral |
+| `skills/` | `knowledge-sync` (with its Workflow script), `docs-writing` and `docs-update` - project-neutral |
 | `hooks/` | `session-start.ts` (rules digest) and `guard-writes.ts` (asks before `V-W-02`/`V-W-03` writes) |
 | `claude/settings.json` | shared Claude settings registering both hooks |
 | `make/vulcan.mk` | shipped make targets, all through `bun x --no-install vulcan` |

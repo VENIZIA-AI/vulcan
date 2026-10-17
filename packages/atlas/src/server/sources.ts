@@ -7,7 +7,13 @@ import { computeReleases, ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources/serving';
 import type { IResolvedSource, IUnavailableSource } from '@/sources/common';
-import { cachedSymbols, SymbolStore, symbolsOfInstalled, symbolsOfRepository } from '@/symbols';
+import {
+  cachedSymbols,
+  declarationsFingerprintOf,
+  SymbolStore,
+  symbolsOfInstalled,
+  symbolsOfRepository,
+} from '@/symbols';
 import type { ISymbolRecord } from '@/symbols';
 import {
   buildChangesTool,
@@ -73,6 +79,7 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
       }),
       symbols: new SymbolStore({
         load: () => ({ symbols: symbolsOfRepository({ project: source.project }), packageMap }),
+        fingerprint: () => declarationsFingerprintOf({ project: source.project }),
         emptyReason: "no symbols - build the packages first: atlas reads their exports' .d.ts",
       }),
     };
@@ -148,7 +155,7 @@ export const buildSourcesServer = (opts: {
   const chunks = new SourceChunks({ sources: stores });
   const releases = new SourceReleases({ sources: stores });
   const symbols = new SourceSymbols({ sources: stores });
-  const [only] = opts.sources;
+  const project = opts.sources.find(source => source.mode === 'repository');
   const instructions = instructionsOf({
     sources: opts.sources,
     unavailable: opts.unavailable ?? [],
@@ -162,10 +169,9 @@ export const buildSourcesServer = (opts: {
       buildVersionTool({ releases }),
       buildChangesTool({ releases }),
     ],
-    serverName:
-      opts.sources.length === 1 && only.mode === 'repository'
-        ? `${only.name}-atlas`
-        : AtlasConstants.SERVER_NAME,
+    // A project names its server whatever sources ride with it: a name that moved with the network
+    // (a source reachable or not) would break a client configured by name.
+    serverName: project === undefined ? AtlasConstants.SERVER_NAME : `${project.name}-atlas`,
     serverVersion: opts.version,
     ...(instructions === undefined ? {} : { instructions }),
   });

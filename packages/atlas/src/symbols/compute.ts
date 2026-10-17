@@ -6,6 +6,7 @@ import {
   readFileSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -141,6 +142,41 @@ export const symbolsOfPublished = async (opts: {
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
+};
+
+const DECLARATIONS = new Bun.Glob('**/*.d.{ts,mts,cts}');
+
+/**
+ * Repo mode's dist fingerprint (D2): how many declaration files the live packages hold, the newest
+ * mtime and the total size. A rebuild moves it - a changed signature changes the size or the mtime -
+ * so the symbol store reads the declarations again instead of serving the last build until a restart.
+ */
+export const declarationsFingerprintOf = (opts: { project: IAtlasProject }): string => {
+  let count = 0;
+  let newestMtimeMs = 0;
+  let totalBytes = 0;
+
+  for (const entry of opts.project.packages.filter(item => !item.retired)) {
+    const directory = join(opts.project.root, entry.path);
+
+    if (!existsSync(directory)) {
+      continue;
+    }
+
+    for (const relativePath of DECLARATIONS.scanSync({ cwd: directory })) {
+      if (relativePath.split('/').includes('node_modules')) {
+        continue;
+      }
+
+      const { mtimeMs, size } = statSync(join(directory, relativePath));
+
+      count += 1;
+      newestMtimeMs = Math.max(newestMtimeMs, mtimeMs);
+      totalBytes += size;
+    }
+  }
+
+  return `${count}:${newestMtimeMs}:${totalBytes}`;
 };
 
 /** Repo mode: the project's own live packages, read from their built declarations - never cached. */

@@ -64,6 +64,9 @@ export class SymbolStore extends BaseHelper {
   /** Every load error already logged: an unbuilt package fails each reload the same way. */
   private readonly loggedErrors = new Set<string>();
   private readonly loader?: () => { symbols: ISymbolRecord[]; packageMap?: IPackageMapEntry[] };
+  /** What the loaded symbols were read from; when it moves, they are read again. */
+  private readonly fingerprint?: () => string;
+  private loadedFingerprint?: string;
   /** What the `symbol` tool says when the store holds nothing. */
   readonly emptyReason: string;
 
@@ -76,12 +79,15 @@ export class SymbolStore extends BaseHelper {
     symbols?: ISymbolRecord[];
     packageMap?: IPackageMapEntry[];
     load?: () => { symbols: ISymbolRecord[]; packageMap?: IPackageMapEntry[] };
+    /** Read before each question; a new value loads again (D2: repo mode follows the dist). */
+    fingerprint?: () => string;
     emptyReason?: string;
   }) {
     super({ scope: SymbolStore.name });
 
     this.packageMap = opts.packageMap ?? [];
     this.loader = opts.load;
+    this.fingerprint = opts.fingerprint;
     this.emptyReason = opts.emptyReason ?? 'no symbol table in this build';
     this.index({ symbols: opts.symbols ?? [] });
   }
@@ -89,15 +95,24 @@ export class SymbolStore extends BaseHelper {
   private ensureLoaded(): void {
     const loader = this.loader;
 
-    if (loader === undefined || this.byExactName.size > 0) {
+    if (loader === undefined) {
+      return;
+    }
+
+    const fingerprint = this.fingerprint?.();
+
+    if (this.byExactName.size > 0 && fingerprint === this.loadedFingerprint) {
       return;
     }
 
     try {
       const loaded = loader();
 
+      this.byExactName.clear();
+      this.namesByLowerCase.clear();
       this.packageMap = loaded.packageMap ?? this.packageMap;
       this.index({ symbols: loaded.symbols });
+      this.loadedFingerprint = fingerprint;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
 
