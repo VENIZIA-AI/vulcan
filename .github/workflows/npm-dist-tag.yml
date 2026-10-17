@@ -1,0 +1,82 @@
+name: "NPM Dist-Tag"
+run-name: "NPM Dist-Tag | ${{ inputs.tag }} -> ${{ inputs.version }}"
+
+# Points one dist-tag at one published version, for all three packages of the train - e.g. moving
+# `latest` to a prerelease, which no release run does on its own (npm gives `latest` only to a
+# package's first version). The repo's NPM_ACCESS_TOKEN does it; nobody needs a local npm login.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        description: "A version already published for all three packages, e.g. 0.1.0-2"
+        required: true
+      tag:
+        type: string
+        description: "The dist-tag to point at it"
+        required: true
+        default: "latest"
+
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  VERSION: ${{ inputs.version }}
+  TAG: ${{ inputs.tag }}
+
+jobs:
+  dist-tag:
+    name: NPM Dist-Tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      # Every package must already have the version: a tag on a version npm does not serve breaks
+      # every install that follows it.
+      - name: Assert the version is published
+        run: |
+          for directory in okf atlas cli; do
+            NAME=$(jq -r .name "packages/$directory/package.json")
+
+            if [ "$(npm view "$NAME@$VERSION" version 2>/dev/null)" != "$VERSION" ]; then
+              echo "ERROR | $NAME@$VERSION is not on npm - nothing was tagged"
+              exit 1
+            fi
+          done
+
+      - name: Move the dist-tag
+        run: |
+          for directory in okf atlas cli; do
+            NAME=$(jq -r .name "packages/$directory/package.json")
+            npm dist-tag add "$NAME@$VERSION" "$TAG"
+            echo "dist-tag: $NAME $TAG -> $VERSION"
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+
+      - name: Read the dist-tags back
+        run: |
+          for directory in okf atlas cli; do
+            NAME=$(jq -r .name "packages/$directory/package.json")
+            ACTUAL=$(npm view "$NAME" "dist-tags.$TAG")
+
+            if [ "$ACTUAL" != "$VERSION" ]; then
+              echo "ERROR | $NAME $TAG reads $ACTUAL, expected $VERSION"
+              exit 1
+            fi
+
+            echo "read-back: $NAME $TAG = $ACTUAL"
+          done
