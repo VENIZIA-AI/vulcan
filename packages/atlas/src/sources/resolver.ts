@@ -21,11 +21,15 @@ import { ChunkStore } from '@/search/store';
 import { symbolsOfPublished } from '@/symbols/compute';
 import { artifactsOf, cacheRootOf, checkoutOf, urlOf } from './cache';
 import type { IAtlasSource, IResolvedSource, TSourceMode } from './common';
+import { githubTokenOf } from './credentials';
 import { git, lsRemote, setSparsePaths, sparseCheckout, updateClone } from './git';
+import { extractTarball, githubRepoOf, hasGit, lsRemoteByHttp } from './tarball';
 
 const COMPLETE = 'complete';
 const INDEX = 'index.sqlite';
 const RELEASES = 'releases.json';
+/** Written by a pull through git: the release table carries the history the tags give. */
+const HISTORY = 'history';
 
 const describe = (opts: { source: IAtlasSource }): string =>
   `source '${opts.source.name}' (${opts.source.repo}@${opts.source.ref})`;
@@ -61,6 +65,7 @@ const servedFrom = (opts: {
     project: projectOf({ checkout, source: opts.source }),
     indexFile: join(artifacts, INDEX),
     releasesFile: join(artifacts, RELEASES),
+    history: existsSync(join(artifacts, HISTORY)),
   };
 };
 
@@ -85,50 +90,46 @@ const newestCached = (opts: { cacheRoot: string }): string | undefined => {
 };
 
 /**
- * One pull of one SHA: the partial clone brought up to date, a sparse checkout - the manifest first,
- * then the paths it declares - then the search index and the release table, built once for this SHA.
+ * The knowledge paths a manifest declares, from the checkout's root, each once: a path inside another
+ * is dropped - tar matches a file against the first pattern only, and would call the inner one empty.
  */
-const pull = async (opts: {
-  source: IAtlasSource;
-  cacheRoot: string;
-  sha: string;
-}): Promise<IResolvedSource> => {
-  const url = urlOf(opts.source);
-  const gitDir = join(opts.cacheRoot, 'git');
-  const checkout = checkoutOf(opts);
-  const artifacts = artifactsOf(opts);
+const declaredPathsOf = (opts: { project: IAtlasProject; checkout: string }): string[] => {
+  const { bundle, wiki, changelogs } = opts.project.knowledge;
+  const paths = [
+    '.agents',
+    ...[bundle, wiki, changelogs]
+      .filter((path): path is string => path !== undefined)
+      .map(path => relative(opts.checkout, path)),
+  ];
 
-  mkdirSync(opts.cacheRoot, { recursive: true });
-  updateClone({ url, gitDir, exists: existsSync(gitDir) });
+  return [...new Set(paths)].filter(
+    path => !paths.some(other => other !== path && path.startsWith(`${other}/`)),
+  );
+};
 
-  // A pull interrupted before it finished left a checkout behind: start that SHA over.
-  rmSync(checkout, { recursive: true, force: true });
-  rmSync(artifacts, { recursive: true, force: true });
-  git({ cwd: gitDir, args: ['worktree', 'prune'] });
-  sparseCheckout({ gitDir, directory: checkout, sha: opts.sha, paths: ['.agents'] });
-
-  const project = projectOf({ checkout, source: opts.source });
-  const { bundle, wiki, changelogs } = project.knowledge;
-  const declared = [bundle, wiki, changelogs]
-    .filter((path): path is string => path !== undefined)
-    .map(path => relative(checkout, path));
-
-  setSparsePaths({ directory: checkout, paths: [...new Set(['.agents', ...declared])] });
-
+/**
+ * What a pull leaves for this SHA: the search index, the release table, the symbols of each
+ * package's newest release (D2, from npm - a package npm lacks has none), and `complete`, last.
+ */
+const buildArtifacts = async (opts: {
+  artifacts: string;
+  project: IAtlasProject;
+  history: boolean;
+}): Promise<void> => {
+  const { project } = opts;
   const store = new ChunkStore();
   const chunker = Chunker.getInstance();
   const documents = CorpusLoader.getInstance().load({ roots: resolveRepositoryRoots({ project }) });
 
   store.add({ chunks: documents.flatMap(document => chunker.chunk({ document })) });
-  mkdirSync(artifacts, { recursive: true });
-  writeFileSync(join(artifacts, INDEX), store.serialize());
+  mkdirSync(opts.artifacts, { recursive: true });
+  writeFileSync(join(opts.artifacts, INDEX), store.serialize());
   store.close();
+
   const releases = computeReleases({ project });
 
-  writeFileSync(join(artifacts, RELEASES), `${JSON.stringify(releases)}\n`);
+  writeFileSync(join(opts.artifacts, RELEASES), `${JSON.stringify(releases)}\n`);
 
-  // D2: the symbols of each package's newest release, from npm, cached by name@version for the
-  // consumers that did not install it. A package npm does not have (a private one) has none.
   for (const entry of project.packages.filter(item => !item.retired)) {
     const version = releases.releases[entry.dir]?.[0]?.version;
 
@@ -137,19 +138,87 @@ const pull = async (opts: {
     }
   }
 
-  // Last: a SHA is cached only once everything it needs is on disk.
-  writeFileSync(join(artifacts, COMPLETE), `${new Date().toISOString()}\n`);
+  if (opts.history) {
+    writeFileSync(join(opts.artifacts, HISTORY), '');
+  }
 
-  return servedFrom({ ...opts, mode: 'fresh' });
+  // Last: a SHA is cached only once everything it needs is on disk.
+  writeFileSync(join(opts.artifacts, COMPLETE), `${new Date().toISOString()}\n`);
 };
 
-/** A source by git: the cache for the SHA the ref names now, a pull when it moved, the newest cache offline. */
+/** A pull by git: the partial clone brought up to date, a sparse checkout - the manifest first, then its paths. */
+const pullByGit = async (opts: {
+  source: IAtlasSource;
+  cacheRoot: string;
+  sha: string;
+}): Promise<void> => {
+  const gitDir = join(opts.cacheRoot, 'git');
+  const checkout = checkoutOf(opts);
+
+  updateClone({ url: urlOf(opts.source), gitDir, exists: existsSync(gitDir) });
+  git({ cwd: gitDir, args: ['worktree', 'prune'] });
+  sparseCheckout({ gitDir, directory: checkout, sha: opts.sha, paths: ['.agents'] });
+
+  const project = projectOf({ checkout, source: opts.source });
+
+  setSparsePaths({ directory: checkout, paths: declaredPathsOf({ project, checkout }) });
+  await buildArtifacts({ artifacts: artifactsOf(opts), project, history: true });
+};
+
+/** A pull with no git on the machine: the tarball of the SHA, the manifest first, then its paths. No history. */
+const pullByTarball = async (opts: {
+  source: IAtlasSource;
+  cacheRoot: string;
+  sha: string;
+  github: { owner: string; repo: string };
+  token?: string;
+}): Promise<void> => {
+  const checkout = checkoutOf(opts);
+  const fetchPaths = (paths: string[]): Promise<void> =>
+    extractTarball({
+      ...opts.github,
+      sha: opts.sha,
+      token: opts.token,
+      directory: checkout,
+      paths,
+    });
+
+  await fetchPaths(['.agents']);
+
+  const project = projectOf({ checkout, source: opts.source });
+
+  await fetchPaths(declaredPathsOf({ project, checkout }));
+  await buildArtifacts({ artifacts: artifactsOf(opts), project, history: false });
+};
+
+/**
+ * A source: the cache for the SHA the ref names now, a pull when it moved, the newest cache when the
+ * remote is unreachable. Without git, a GitHub `owner/repo` source comes by tarball, its SHA from the
+ * ref advertisement; the token (`GITHUB_TOKEN`, else `gh auth token`) rides only in request headers.
+ */
 const resolveRemote = async (opts: {
   source: IAtlasSource;
   force: boolean;
 }): Promise<IResolvedSource> => {
   const cacheRoot = cacheRootOf(opts.source);
-  const sha = lsRemote({ url: urlOf(opts.source), ref: opts.source.ref });
+  const byGit = hasGit();
+  const github = githubRepoOf(opts.source);
+
+  if (!byGit && github === undefined) {
+    throw new Error(
+      `atlas: ${describe(opts)} needs git on this machine - only an owner/repo source has a tarball path`,
+    );
+  }
+
+  const token = byGit ? undefined : githubTokenOf();
+  const sha = byGit
+    ? lsRemote({ url: urlOf(opts.source), ref: opts.source.ref })
+    : await lsRemoteByHttp({
+        owner: github?.owner ?? '',
+        repo: github?.repo ?? '',
+        ref: opts.source.ref,
+        token,
+      });
 
   if (sha === undefined) {
     const cached = newestCached({ cacheRoot });
@@ -165,7 +234,18 @@ const resolveRemote = async (opts: {
     return servedFrom({ source: opts.source, cacheRoot, sha, mode: 'cache' });
   }
 
-  return pull({ source: opts.source, cacheRoot, sha });
+  // A pull interrupted before it finished left a checkout behind: start that SHA over.
+  mkdirSync(cacheRoot, { recursive: true });
+  rmSync(checkoutOf({ cacheRoot, sha }), { recursive: true, force: true });
+  rmSync(artifactsOf({ cacheRoot, sha }), { recursive: true, force: true });
+
+  if (byGit) {
+    await pullByGit({ source: opts.source, cacheRoot, sha });
+  } else if (github !== undefined) {
+    await pullByTarball({ source: opts.source, cacheRoot, sha, github, token });
+  }
+
+  return servedFrom({ source: opts.source, cacheRoot, sha, mode: 'fresh' });
 };
 
 /**

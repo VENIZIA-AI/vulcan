@@ -25,4 +25,6 @@ export interface IResolvedSource {
   indexFile?: string;
   /** The release table computed at the pull, for this SHA (git mode only). */
   releasesFile?: string;
+  /** Whether releases have history - a source pulled without git has none. */
+  history?: boolean;
 }
