@@ -119,25 +119,12 @@ const resolvedFrom = (opts: {
   }
 };
 
-/**
- * The version actually on disk - at the root, else beside a declared package that depends on it -
- * else the declared spec when it is one exact version, else `null`. A range is never a version:
- * reporting `^0.2.0-11` as installed would invent a fact.
- */
-const installedVersionOf = (opts: {
+/** The version beside a declared package that depends on `name` - what that package really runs. */
+const besideDependentOf = (opts: {
   cwd: string;
   name: string;
-  spec: string;
   declared: IDeclared[];
-}): string | null => {
-  const atRoot = versionOf({
-    manifest: readManifest({ file: join(opts.cwd, 'node_modules', opts.name, 'package.json') }),
-  });
-
-  if (atRoot !== undefined) {
-    return atRoot;
-  }
-
+}): string | undefined => {
   for (const dependent of opts.declared) {
     const directory = join(opts.cwd, 'node_modules', dependent.name);
     const manifest = readManifest({ file: join(directory, 'package.json') });
@@ -153,6 +140,34 @@ const installedVersionOf = (opts: {
     if (version !== undefined) {
       return version;
     }
+  }
+
+  return undefined;
+};
+
+/**
+ * The version actually on disk, else the declared spec when it is one exact version, else `null`. A
+ * range is never a version: reporting `^0.2.0-11` as installed would invent a fact. A direct
+ * dependency is read at the root first; a name that is only a pin (`overrides`) is read beside the
+ * package that depends on it first - a root link an older direct dependency left behind is not
+ * what runs.
+ */
+const installedVersionOf = (opts: {
+  cwd: string;
+  name: string;
+  spec: string;
+  isDirect: boolean;
+  declared: IDeclared[];
+}): string | null => {
+  const atRoot = (): string | undefined =>
+    versionOf({
+      manifest: readManifest({ file: join(opts.cwd, 'node_modules', opts.name, 'package.json') }),
+    });
+  const beside = (): string | undefined => besideDependentOf(opts);
+  const version = opts.isDirect ? (atRoot() ?? beside()) : (beside() ?? atRoot());
+
+  if (version !== undefined) {
+    return version;
   }
 
   return EXACT_VERSION_PATTERN.test(opts.spec) ? opts.spec : null;
@@ -232,7 +247,7 @@ export const buildVersionTool = (opts: { releases: IReleaseIndex }): IToolHandle
     const declared = declaredOf({ manifest });
 
     for (const { name, spec, isDirect } of declared) {
-      const version = installedVersionOf({ cwd, name, spec, declared });
+      const version = installedVersionOf({ cwd, name, spec, isDirect, declared });
 
       // A pin of a transitive dependency that nothing installed is not something this project has.
       if (version !== null || isDirect) {

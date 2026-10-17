@@ -62,6 +62,33 @@ const lineCountOf = (opts: { text: string }): number => {
   return opts.text.endsWith('\n') ? count - 1 : count;
 };
 
+/** Emphasis as markdown renders it away: `_word_`, `**word**`, `***word***` - never `snake_case`. */
+const EMPHASIS = /(?<![\p{L}\p{N}])([*_]{1,3})(?=\S)(.+?)(?<=\S)\1(?![\p{L}\p{N}])/gu;
+
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+};
+
+/** A heading's text as GitHub renders it, which is what its anchor is made from: entities decoded, emphasis gone. */
+const renderedOf = (opts: { text: string }): string =>
+  opts.text
+    .replace(EMPHASIS, '$2')
+    .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (entity, body: string) => {
+      if (body.startsWith('#')) {
+        const code =
+          body[1] === 'x' || body[1] === 'X' ? parseInt(body.slice(2), 16) : Number(body.slice(1));
+
+        return Number.isFinite(code) ? String.fromCodePoint(code) : entity;
+      }
+
+      return NAMED_ENTITIES[body.toLowerCase()] ?? entity;
+    });
+
 /**
  * A heading's anchor as GitHub writes it (github-slugger): lower case; punctuation and symbols gone,
  * `-` and `_` kept; each space a hyphen; a repeat of an earlier anchor takes `-1`, `-2`. `taken`
@@ -98,7 +125,7 @@ const headingsOf = (opts: { text: string }): { text: string; anchor: string }[] 
     }
 
     const text = heading[2].replace(LINK, '$1');
-    const anchor = anchorOf({ text, taken });
+    const anchor = anchorOf({ text: renderedOf({ text }), taken });
 
     if (heading[1] === '##') {
       headings.push({ text, anchor });
