@@ -1,17 +1,21 @@
 // Reusable Workflow script for /knowledge-sync.
-// See .agents/plugin/skills/knowledge-sync/SKILL.md for the procedure that drives it.
+// See SKILL.md and references/workflow.md beside it for the procedure that drives it.
 //
 // Invoke via: Workflow({ scriptPath: '.claude/skills/knowledge-sync/knowledge-sync.workflow.js', args: {...} })
 //
 // args = {
-//   repo: '/abs/path/to/ignis',       // repo root - `git rev-parse --show-toplevel`
+//   repo: '/abs/path/to/project',     // repo root - `git rev-parse --show-toplevel`
 //   mode: 'delta' | 'full',
 //   since: 'YYYY-MM-DD',              // last sync date (display label only), read from log.md
 //   gitRange: '<hash>..HEAD',         // commit range since the last sync - what verifiers actually diff
+//   bundle: '.agents/knowledge',      // the manifest's knowledge.bundle
+//   brand: 'ACME',                    // the manifest's name, upper case - the spelling prose keeps
+//   packagePaths: ['packages/core'],  // the manifest's packages[].path
+//   sections: ['overview', 'packages'], // the bundle's top-level directories, for full mode
 //   deltaTargets: [{
 //     key: 'core',                    // short label
-//     area: 'packages/core-server',          // git pathspec(s), space-separated
-//     concepts: ['packages/core-server.md'], // bundle-relative concept files to verify
+//     area: 'packages/core',          // git pathspec(s), space-separated
+//     concepts: ['packages/core.md'], // bundle-relative concept files to verify
 //     hint: 'what changed (from commit subjects) - verify, do not trust',
 //     model: 'opus' | 'sonnet',       // opus for heavy/critical areas, sonnet for small ones
 //   }],
@@ -19,7 +23,7 @@
 export const meta = {
   name: 'knowledge-sync',
   description:
-    'Re-sync .agents/knowledge curated concepts against source: delta-verify changed areas (and in full mode spot-audit everything + critics), then apply fixes per concept file',
+    "Re-sync the knowledge bundle's curated concepts against source: delta-verify changed areas (and in full mode spot-audit everything + critics), then apply fixes per concept file",
   phases: [
     {
       title: 'Verify',
@@ -51,7 +55,11 @@ if (!gitRange) {
   );
 }
 
-const KB = REPO + '/.agents/knowledge';
+const BUNDLE = (input.bundle ?? '.agents/knowledge').replace(/\/+$/, '');
+const KB = REPO + '/' + BUNDLE;
+const BRAND = input.brand ?? 'the project';
+const PACKAGE_PATHS = input.packagePaths ?? [];
+const SECTIONS = input.sections ?? [];
 
 const FINDINGS_SCHEMA = {
   type: 'object',
@@ -66,7 +74,7 @@ const FINDINGS_SCHEMA = {
           concept: {
             type: 'string',
             description:
-              'repo-relative path of the knowledge file, e.g. .agents/knowledge/packages/core-server.md',
+              'repo-relative path of the knowledge file, e.g. .agents/knowledge/packages/core.md',
           },
           kind: { type: 'string', enum: ['wrong', 'stale', 'missing'] },
           claim: {
@@ -120,46 +128,37 @@ const APPLY_SCHEMA = {
   },
 };
 
-const COMMON = `You are a knowledge-bundle verifier for the IGNIS framework monorepo at ${REPO} (branch develop).
-IGNIS is a TypeScript server framework: LoopBack 4's architecture (decorator DI, repository pattern, boot system, components) on Hono's speed.
+const COMMON = `You are a knowledge-bundle verifier for the ${BRAND} repository at ${REPO}. Read ${KB}/index.md first: it says what the project is.
 The knowledge bundle lives at ${KB} - markdown concepts with YAML frontmatter (OKF format).
 Your job: verify the ASSIGNED concept files against the ACTUAL CURRENT SOURCE CODE (ground truth is code, never other docs).
 Method: read each assigned concept file fully; for every load-bearing claim (class names, file paths, lifecycle order, binding keys, routes, hierarchies, enum values, flows, seams), open the real source and confirm it. Use Grep/Read/Bash freely.
 Rules:
 - Ground truth = source code on the current working tree. docs/wiki, AGENTS.md and any CLAUDE.md may themselves be stale - this bundle was created precisely because they were.
 - NEVER run a git command that changes state (no commit/stash/checkout/reset/add). Read-only git (log, diff, show) is fine.
-- Generated files are OUT OF SCOPE - \`okf gen\` and \`vulcan x atlas surface|symbols|releases gen\` own them. Do not report findings on: ${KB}/reference/source-map.md, reference/components.md, reference/helpers.md, reference/binding-keys.md, reference/makefile-targets.md, reference/public-surface.md, any reference/*.json, and the \`<!-- okf:generated:packages-table -->\` region inside overview/monorepo-layout.md. (Exception: note it if you spot an extractor BUG.)
+- Generated content is OUT OF SCOPE - \`vulcan x okf gen\` and \`vulcan x atlas\` own it. Do not report findings on: a file whose frontmatter has a \`generated:\` key, any \`<!-- okf:generated:\` region, and any ${KB}/reference/*.json. (Exception: note it if you spot an extractor BUG.)
 - Report only ACTIONABLE findings: wrong (contradicts code), stale (was true, code moved on), missing (a durable, high-value fact an engineer/agent needs that the concept omits). Skip volatile implementation detail (dependency lists, exhaustive config keys, version numbers).
 - Each finding MUST cite evidence (source path:line or a command you ran + output).
-- Style the bundle follows: hyphen not em-dash, the brand is always written IGNIS, English prose, no version numbers.
+- Style the bundle follows: hyphen not em-dash, the brand is always written ${BRAND}, English prose, no version numbers.
 - Do NOT edit any files. Return findings via structured output only.`;
 
 const DELTA = `\nFocus mode DELTA: first run \`git log ${gitRange} --no-merges --oneline -- <area>\` and \`git diff\` for the interesting commits to learn exactly what changed since the bundle's last sync (${since}). Uncommitted working-tree changes are code too: also run \`git diff HEAD --stat -- <area>\` and read the diff of everything it lists. Then check whether the assigned concepts reflect the NEW reality. Also verify a sample of older claims while you are in the code.`;
 
-// Full-mode spot groups are directory-based so they stay valid as concepts are added.
-const spotGroups = [
-  {
-    key: 'overview-ref',
-    dirs: 'overview/ + the CURATED files under reference/ (glossary.md, key-source-files.md, external-links.md) - the other reference/ files are generated, skip them',
-  },
-  { key: 'architecture', dirs: 'architecture/' },
-  {
-    key: 'packages',
-    dirs: 'packages/ - verify each package concept against its real src/ and package.json exports map',
-  },
-  {
-    key: 'conventions',
-    dirs: 'conventions/ - every rule must still hold in the code; gotchas.md especially, it decays fastest',
-  },
-  {
-    key: 'process',
-    dirs: 'process/ - verify every command, path, Makefile target and step actually exists and works as written (read Makefile, package.json scripts, scripts/, .githooks/, .github/workflows/)',
-  },
-  {
-    key: 'examples',
-    dirs: 'examples/ - verify each concept against the real examples/<dir>: what it demos, how it runs, what it exercises',
-  },
-];
+// Full-mode spot groups: one per bundle section, so they stay valid as sections are added. A few
+// sections that decay in known ways carry a sharper instruction.
+const SECTION_HINTS = {
+  packages: 'verify each package concept against its real src/ and package.json exports map',
+  conventions: 'every rule must still hold in the code; gotchas decay fastest',
+  process:
+    'verify every command, path, make target and step actually exists and works as written (read the Makefile, package.json scripts, scripts/, .github/workflows/)',
+  examples:
+    'verify each concept against the real example: what it demos, how it runs, what it exercises',
+  reference:
+    'audit only the CURATED files - a file with a generated: frontmatter key is generated, skip it',
+};
+const spotGroups = SECTIONS.map(section => ({
+  key: section,
+  dirs: SECTION_HINTS[section] ? `${section}/ - ${SECTION_HINTS[section]}` : `${section}/`,
+}));
 
 phase('Verify');
 const deltaConceptList = deltaTargets.flatMap(t => t.concepts).join(', ');
@@ -189,7 +188,7 @@ if (mode === 'full') {
     ),
     () =>
       agent(
-        `${COMMON}\nRole: COMPLETENESS CRITIC. Do not verify individual claims. Instead ask: what does this repo contain that the bundle does NOT cover? Compare ${KB}/index.md + the file tree under ${KB}/ against reality: ls packages/ examples/, scan major changes since the last sync (\`git log ${gitRange} --oneline\` and uncommitted \`git diff HEAD --stat\`), new components under packages/core-server/src/components/, new helper modules under packages/helpers/src/modules/, new connectors under packages/core-server/src/connectors/. Report (a) findings = missing durable facts in EXISTING concepts, (b) gaps = whole missing concepts worth creating (title + rationale + suggestedPath under ${KB}). A gap must be durable, load-bearing knowledge - not volatile detail. Note: every packages/* and examples/* dir MUST have a concept or \`okf coverage\` fails at under 100% structural.`,
+        `${COMMON}\nRole: COMPLETENESS CRITIC. Do not verify individual claims. Instead ask: what does this repo contain that the bundle does NOT cover? Compare ${KB}/index.md + the file tree under ${KB}/ against reality: the package paths (${PACKAGE_PATHS.length > 0 ? PACKAGE_PATHS.join(', ') : 'see the manifest'}) and their src/ trees, and the major changes since the last sync (\`git log ${gitRange} --oneline\` and uncommitted \`git diff HEAD --stat\`). Report (a) findings = missing durable facts in EXISTING concepts, (b) gaps = whole missing concepts worth creating (title + rationale + suggestedPath under ${KB}). A gap must be durable, load-bearing knowledge - not volatile detail. Note: every directory a coverage axis covers MUST have a concept or \`okf coverage\` fails at under 100% structural.`,
         { label: 'critic:completeness', phase: 'Verify', model: 'opus', schema: GAPS_SCHEMA },
       ),
     () =>
@@ -209,14 +208,15 @@ log(
   `Verify done (${mode}): ${allFindings.length} findings, ${gaps.length} gap proposals, ${confirmedTotal} claims confirmed`,
 );
 
-const GENERATED =
-  /reference\/(source-map|components|helpers|binding-keys|makefile-targets|public-surface)\.md$|reference\/[a-z-]+\.json$/;
+// Generated files never reach an applier: `okf gen` owns them, and a verifier is told so. The JSON
+// tables are the only ones a path alone identifies; the rest are refused by the applier's rules.
+const GENERATED = /reference\/[a-z-]+\.json$/;
 
 const byFile = {};
 for (const finding of allFindings) {
   let path = finding.concept.trim().replace(/^\/+/, '');
-  if (!path.startsWith('.agents/knowledge/')) {
-    path = '.agents/knowledge/' + path.replace(/^\.agents\/knowledge\//, '');
+  if (!path.startsWith(BUNDLE + '/')) {
+    path = BUNDLE + '/' + path;
   }
   path = path.replace(/ \(.*\)$/, '');
   if (GENERATED.test(path)) {
@@ -236,13 +236,13 @@ const applyResults = await parallel(
   files.map(
     path => () =>
       agent(
-        `You are a careful knowledge curator for the IGNIS monorepo at ${REPO}.
+        `You are a careful knowledge curator for the ${BRAND} repository at ${REPO}.
 Target file: ${REPO}/${path}
 Apply the verified findings below to this ONE file. Curation rules:
 - Fix 'wrong' and 'stale' faithfully to the cited evidence - re-check the evidence in source first if it looks off; if a finding does not hold up against the code, SKIP it and say why.
 - For 'missing', fold in only durable, high-value facts; keep the concept TIGHT - this is a curated concept, not a dump. Skip volatile detail.
-- Preserve the file's existing voice, structure, frontmatter (update the description only if now inaccurate), and links. Do not touch any '<!-- okf:generated:' regions.
-- Style: hyphen not em-dash, brand always written IGNIS, English, no version numbers. Never abbreviate identifiers (ProductRepository not ProductRepo).
+- Preserve the file's existing voice, structure, frontmatter (update the description only if now inaccurate), and links. Do not touch any '<!-- okf:generated:' regions. If the file's frontmatter has a generated: key, change nothing and say so.
+- Style: hyphen not em-dash, brand always written ${BRAND}, English, no version numbers. Never abbreviate identifiers (ProductRepository not ProductRepo).
 - Do not edit any other file. NEVER run a state-changing git command.
 Findings (JSON):
 ${JSON.stringify(byFile[path], null, 2)}

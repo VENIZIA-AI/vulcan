@@ -15,7 +15,11 @@ const CONFIG = {
     { dir: 'kernel', name: '@x/kernel', aliases: ['k'] },
     { dir: 'old', name: '@x/old', retired: true, path: 'umbras/old' },
   ],
-  knowledge: { bundle: '.agents/knowledge', changelogs: 'docs/changes' },
+  knowledge: {
+    bundle: '.agents/knowledge',
+    changelogs: 'docs/changes',
+    syncAreas: '.agents/knowledge/process/sync-areas.md',
+  },
   atlas: { tagPattern: '<dir>-v<version>', ignoreTags: ['*/0.0.1-0'] },
 };
 
@@ -41,7 +45,11 @@ describe('renderManifest', () => {
       { name: '@x/kernel', dir: 'kernel', path: 'packages/kernel', aliases: ['k'], retired: false },
       { name: '@x/old', dir: 'old', path: 'umbras/old', aliases: [], retired: true },
     ]);
-    expect(manifest.knowledge).toEqual({ bundle: '.agents/knowledge', changelogs: 'docs/changes' });
+    expect(manifest.knowledge).toEqual({
+      bundle: '.agents/knowledge',
+      changelogs: 'docs/changes',
+      syncAreas: '.agents/knowledge/process/sync-areas.md',
+    });
     expect(manifest.release).toEqual({
       tagPattern: '<dir>-v<version>',
       legacyTagPrefixes: [],

@@ -4,7 +4,7 @@ import { join, relative } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { parseRuleIds, readSlots, RuleConstants } from '../rules/index.ts';
-import { ManifestConstants } from '../manifest/index.ts';
+import { ManifestConstants, projectNameOf } from '../manifest/index.ts';
 import { planManifest, planSync, SyncStatuses } from '../sync/index.ts';
 import { DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
@@ -116,7 +116,7 @@ export const checkSkills = (opts: ICheckContext): IViolation[] => {
       createViolation({
         check: DoctorChecks.SKILLS,
         file: `.agents/skills/${name}`,
-        message: `'${name}' is a shipped skill - rename the project skill`,
+        message: `'${name}' is a shipped skill - rename the project skill, for example to '${projectNameOf({ root: opts.root, config: opts.config })}-${name}'`,
       }),
     );
 };

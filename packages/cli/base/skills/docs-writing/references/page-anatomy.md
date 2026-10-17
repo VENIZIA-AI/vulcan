@@ -15,7 +15,7 @@ If a page's sections resolve to different quadrants, it is two pages wearing one
 
 ## Skeleton 1 - Tutorial (getting started)
 
-1. **Title** - an achievement: "Build your first IGNIS API", never "Learn IGNIS".
+1. **Title** - an achievement: "Build your first API", never "Learn the framework".
 2. **Goal + outcome preview** - 1-3 sentences: "In this tutorial we build a working X." Never "you will learn".
 3. **Prerequisites** - exact versions and tools, once.
 4. **Numbered steps** - ONE path, zero choices. Every step ends in a visible result with the expected output shown ("After a few seconds you'll see...").
@@ -52,7 +52,7 @@ Governing rule: describe and only describe. Structure mirrors the code. You cons
 1. **Title** - accepts an implicit "About...": "Understanding the DI container".
 2. **The question** - what "why" this page answers. It is also the page's boundary.
 3. **The picture** - the mental model, a diagram if code and words fail.
-4. **Design decisions** - why IGNIS chose this (prior art: LoopBack, NestJS, Spring), constraints, trade-offs.
+4. **Design decisions** - why the project chose this (prior art: LoopBack, NestJS, Spring), constraints, trade-offs.
 5. **Alternatives and objections** - weigh them honestly (Tailwind's "Why not just use inline styles?" move).
 6. **Boundaries + links** - where the topic ends; link the reference and how-tos.
 

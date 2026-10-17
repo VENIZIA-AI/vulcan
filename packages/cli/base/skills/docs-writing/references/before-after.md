@@ -1,4 +1,4 @@
-# Worked example - a real IGNIS changelog bullet, before and after
+# Worked example - a real changelog bullet, before and after
 
 From the 2026-07-18 Repository Read Retry changelog. Every fact survives; the reading effort does not.
 

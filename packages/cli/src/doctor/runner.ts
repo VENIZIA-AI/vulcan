@@ -11,6 +11,7 @@ import {
   checkSkills,
   checkStyle,
 } from './checks.ts';
+import { checkSkillLint } from './skills.ts';
 import { checkTags } from './tags.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { IViolation } from './common/index.ts';
@@ -45,6 +46,7 @@ export const runDoctorChecks = async (opts: { root: string }): Promise<IViolatio
     ...checkAdapters(context),
     ...checkManifest(context),
     ...checkTags(context),
+    ...checkSkillLint(context),
     ...checkStyle(context),
   ];
 };

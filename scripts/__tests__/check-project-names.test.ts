@@ -59,3 +59,17 @@ test('a project name in src fails, naming the file and line; tests and fixtures 
   expect(result.stderr).not.toContain('b.test.ts');
   expect(result.stderr).not.toContain('fixtures/c.ts');
 });
+
+test('what VULCAN ships under base/ names no project either; skill evals are test data', () => {
+  const root = plant({
+    files: {
+      'packages/cli/base/skills/syncing/SKILL.md': '# Syncing\n\nThe ARDOR way.\n',
+      'packages/cli/base/skills/syncing/evals/evals.json': '{ "prompt": "in the IGNIS repo" }\n',
+    },
+  });
+  const result = run({ root });
+
+  expect(result.code).toBe(1);
+  expect(result.stderr).toContain('packages/cli/base/skills/syncing/SKILL.md:3');
+  expect(result.stderr).not.toContain('evals.json');
+});
