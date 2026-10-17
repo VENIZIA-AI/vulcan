@@ -35,6 +35,16 @@ describe('lintSkill', () => {
     ).toEqual(['SKILL.md: the description must be 1-1024 characters with no XML tags']);
   });
 
+  test('frontmatter YAML that does not parse is reported with its line, never a crash', () => {
+    const broken =
+      '---\nname: checking-links\ndescription: Checks links.\nargument-hint: [a] [b]\n---\n\n# Checking links\n';
+    const problems = lintOf({ files: { 'skill/SKILL.md': broken } });
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toStartWith('SKILL.md: the frontmatter is not valid YAML');
+    expect(problems[0]).toContain('line 4');
+  });
+
   test('SKILL.md stays under 500 lines', () => {
     expect(lintOf({ files: { 'skill/SKILL.md': SKILL({ body: lines({ count: 520 }) }) } })).toEqual(
       [

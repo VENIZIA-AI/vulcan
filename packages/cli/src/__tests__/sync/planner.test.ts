@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { runDoctorChecks } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -326,6 +327,28 @@ describe('skills', () => {
 
     expect(result.stderr).toContain('.claude/skills (a symlink - left untouched)');
     expect(existsSync(join(elsewhere, 'knowledge-sync'))).toBe(false);
+  });
+
+  test('a shipped skill this version no longer has: doctor flags its dead link, plain sync takes it back', async () => {
+    const root = createProject({ files: READ_ONLY_PROJECT });
+    const installed = join(root, 'node_modules', '@venizia', 'vulcan');
+    const link = join(root, '.claude', 'skills', 'gone-skill');
+
+    mkdirSync(dirname(installed), { recursive: true });
+    symlinkSync(PACKAGE_ROOT, installed);
+    runSync({ root });
+    // What a newer VULCAN linked before the project went back to this one.
+    symlinkSync(join(installed, 'base', 'skills', 'gone-skill'), link);
+
+    const flagged = (await runDoctorChecks({ root })).map(violation => violation.file);
+
+    expect(flagged).toContain('.claude/skills/gone-skill');
+
+    const result = runSync({ root });
+
+    expect(result.stderr).toContain('removed   .claude/skills/gone-skill');
+    expect(lstatSync(dirname(link)).isDirectory()).toBe(true);
+    expect(() => lstatSync(link)).toThrow();
   });
 
   test('a real directory where a skill link belongs is left alone', () => {
