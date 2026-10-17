@@ -141,6 +141,34 @@ describe('computeReleases (D1)', () => {
     ]);
   });
 
+  test('tags shaped <group>/<name>/<version> release the package that lists the group/name as an alias', () => {
+    const grouped = scratch();
+
+    grouped.git(['commit', '-q', '--allow-empty', '-m', 'one']);
+    grouped.git(['tag', 'apps/core/0.0.1-0']);
+    grouped.git(['commit', '-q', '--allow-empty', '-m', 'two']);
+    grouped.git(['tag', 'packages/core/0.0.1-0']);
+
+    const groupedTable = computeReleases({
+      project: toAtlasProject({
+        root: grouped.root,
+        manifest: {
+          schemaVersion: 1,
+          packages: [
+            { name: '@a/umbras-core', dir: 'umbras-core', aliases: ['apps/core'], retired: false },
+            { name: '@a/kits-core', dir: 'kits-core', aliases: ['packages/core'], retired: false },
+          ],
+          release: { tagPattern: '<dir>/<version>' },
+        },
+      }),
+    });
+
+    expect(groupedTable.releases['umbras-core']?.map(record => record.version)).toEqual([
+      '0.0.1-0',
+    ]);
+    expect(groupedTable.releases['kits-core']?.map(record => record.version)).toEqual(['0.0.1-0']);
+  });
+
   test('a merge that repeats a release subject is no second release - the tag names one commit', () => {
     const merged = scratch();
 

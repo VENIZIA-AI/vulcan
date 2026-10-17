@@ -76,3 +76,58 @@ test('a renderer given as a bare string is its id', () => {
 
   expect(config.okf.renderers).toEqual([{ id: 'source-map', options: {} }]);
 });
+
+describe('packages are keyed uniquely', () => {
+  const messageOf = (packages: object[]): string | undefined => {
+    const result = VULCAN_CONFIG_SCHEMA.safeParse({ packages });
+
+    return result.success ? undefined : result.error.issues.map(issue => issue.message).join('; ');
+  };
+
+  test('two packages whose directories share a name work when their keys and paths differ', () => {
+    const config = VULCAN_CONFIG_SCHEMA.parse({
+      packages: [
+        { dir: 'umbras-core', name: '@bana/umbras-core', path: 'umbras/core' },
+        { dir: 'kits-core', name: '@bana/kits-core', path: 'auroras/kits/core' },
+      ],
+    });
+
+    expect(resolvePackages({ config }).map(entry => entry.path)).toEqual([
+      'umbras/core',
+      'auroras/kits/core',
+    ]);
+  });
+
+  test('a repeated dir is an error that says dir is a key, not the directory name', () => {
+    expect(
+      messageOf([
+        { dir: 'core', name: '@bana/umbras-core', path: 'umbras/core' },
+        { dir: 'core', name: '@bana/kits-core', path: 'auroras/kits/core' },
+      ]),
+    ).toContain("packages: dir 'core' is used twice - dir is a unique key, not the directory name");
+  });
+
+  test('a repeated npm name is an error', () => {
+    expect(
+      messageOf([
+        { dir: 'a', name: '@x/same' },
+        { dir: 'b', name: '@x/same' },
+      ]),
+    ).toContain("packages: name '@x/same' is used twice");
+  });
+
+  test('two live packages at one path are an error, a retired one may keep its old path', () => {
+    expect(
+      messageOf([
+        { dir: 'a', name: '@x/a', path: 'src/lib' },
+        { dir: 'b', name: '@x/b', path: 'src/lib' },
+      ]),
+    ).toContain("packages: path 'src/lib' is used twice");
+    expect(
+      messageOf([
+        { dir: 'old', name: '@x/old', path: 'src/lib', retired: true },
+        { dir: 'new', name: '@x/new', path: 'src/lib' },
+      ]),
+    ).toBeUndefined();
+  });
+});

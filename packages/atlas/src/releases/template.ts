@@ -7,7 +7,7 @@ const escapeLiteral = (opts: { text: string }): string =>
 
 /**
  * A release template (`atlas.releaseCommit`) as the pattern that reads a commit subject: named groups
- * `dir` (`<dir>` or its synonym `<package>`), `version` and `issue`. Every other character is literal;
+ * `dir` (`<dir>` or its synonym `<package>`; it may hold slashes, `apps/core`), `version` and `issue`. Every other character is literal;
  * a trailing ` [<mode>]` is tolerated. A template with no `<dir>` is a release train's: its commit
  * releases every live package.
  */
@@ -27,7 +27,7 @@ export const compileReleaseTemplate = (opts: { template: string }): RegExp => {
       const group = part === 'package' ? 'dir' : part;
       const pattern =
         {
-          dir: '[a-z0-9][a-z0-9.-]*',
+          dir: '[a-z0-9][a-z0-9./-]*',
           version: '\\S+',
           issue: '\\d+',
           date: '\\d{4}-\\d{2}-\\d{2}',
