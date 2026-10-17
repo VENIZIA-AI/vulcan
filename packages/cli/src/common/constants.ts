@@ -39,6 +39,10 @@ export class VulcanTools {
 export class ProjectLayout {
   /** How everything unattended runs vulcan: `--no-install` never fetches the unrelated npm package named `vulcan`. */
   static readonly VULCAN_COMMAND = 'bun x --no-install vulcan';
+
+  /** `vulcan x` hands the resolved project config to the tool in these variables; the tools read nothing else. */
+  static readonly CONFIG_ENV = 'VULCAN_CONFIG';
+  static readonly ROOT_ENV = 'VULCAN_PROJECT_ROOT';
   /** `-include`: a fresh clone runs `make install` before node_modules exists. */
   static readonly MAKE_INCLUDE_LINE = '-include node_modules/@venizia/vulcan/base/make/vulcan.mk';
   static readonly STYLE_PACKAGE = '@venizia/dev-configs';

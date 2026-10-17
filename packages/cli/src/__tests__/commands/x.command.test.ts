@@ -1,11 +1,14 @@
-import { describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { resolveToolBin } from '../../commands/x.command.ts';
+import { buildToolEnvironment, resolveToolBin } from '../../commands/x.command.ts';
 import { VulcanTools } from '../../common/index.ts';
+import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 import { SPAWN_TIMEOUT_MS } from '../spawn.helper.ts';
+
+afterAll(removeProjects);
 
 const CLI = join(import.meta.dir, '..', '..', 'cli.ts');
 
@@ -77,4 +80,44 @@ describe('vulcan x', () => {
       }
     },
   );
+});
+
+describe('buildToolEnvironment', () => {
+  test('a valid config reaches the tool resolved, with the project root', async () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.ts':
+          "export default { atlas: { packages: { kernel: '@a/kernel' } } };\n",
+      },
+    });
+    const environment = await buildToolEnvironment({ root });
+
+    expect(environment.ok).toBe(true);
+
+    if (environment.ok) {
+      const config = JSON.parse(environment.env.VULCAN_CONFIG ?? '{}');
+
+      expect(environment.env.VULCAN_PROJECT_ROOT).toBe(root);
+      expect(config.packages).toEqual([
+        { dir: 'kernel', name: '@a/kernel', aliases: [], retired: false },
+      ]);
+      expect(config.okf.renderers).toEqual([]);
+    }
+  });
+
+  test('no config: the tool runs without one', async () => {
+    const root = createProject({ files: {} });
+
+    expect(await buildToolEnvironment({ root })).toEqual({ ok: true, env: {} });
+  });
+
+  test('an invalid config stops vulcan x before the tool runs', () => {
+    const root = createProject({
+      files: { '.configs/vulcan.config.ts': 'export default { nope: 1 };\n' },
+    });
+    const result = runCli({ args: ['x', 'okf', 'check'], cwd: root });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('invalid config');
+  });
 });
