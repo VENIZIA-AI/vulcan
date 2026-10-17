@@ -28,7 +28,7 @@ export interface IReleaseRecord {
   version: string;
   date: string;
   sha: string;
-  /** Position of the release commit in first-parent history, oldest first - the only ordering that separates two releases of one day. */
+  /** Release commits before this one in first-parent history - the only ordering that separates two releases of one day. */
   order: number;
 }
 
@@ -40,7 +40,7 @@ export interface IChangelogRecord {
   title: string;
   packages: string[];
   kind: string | null;
-  /** Position of the commit that ADDED the file, oldest first; `-1` when the file is not committed yet. */
+  /** Release commits before the commit that added the file; all of them while the file is uncommitted. */
   order: number;
 }
 
@@ -181,10 +181,40 @@ export class AtlasReleases {
   /** The project `vulcan x` handed over; a test passes its own. */
   static render(opts: { project?: IAtlasProject } = {}): string {
     const project = opts.project ?? readAtlasProject();
+    const positioned = AtlasReleases.releasesOf({ project });
+    const positions = [
+      ...new Set(
+        Object.values(positioned)
+          .flat()
+          .map(record => record.order),
+      ),
+    ].sort((left, right) => left - right);
+
+    // An order is a count of release commits, never a commit position: a release counts the release
+    // commits before it, a changelog the ones before the commit that added it - all of them while it
+    // is uncommitted, and still all of them once committed after the newest release. A position would
+    // change on that commit, and a table generated with its changelog could never read fresh.
+    const releaseCommitsBefore = (opts: { position: number }): number =>
+      positions.filter(position => position < opts.position).length;
+
+    const releases = Object.fromEntries(
+      Object.entries(positioned).map(([name, records]) => [
+        name,
+        records.map(record => ({
+          ...record,
+          order: releaseCommitsBefore({ position: record.order }),
+        })),
+      ]),
+    );
+    const changelogs = AtlasReleases.changelogsOf({ project }).map(entry => ({
+      ...entry,
+      order: releaseCommitsBefore({ position: entry.order }),
+    }));
+
     const table: IReleaseTable = {
       livePackages: AtlasReleases.livePackagesOf({ project }),
-      releases: AtlasReleases.releasesOf({ project }),
-      changelogs: AtlasReleases.changelogsOf({ project }),
+      releases,
+      changelogs,
       packageMap: project.packages.map(entry => ({
         dir: entry.dir,
         name: entry.name,
