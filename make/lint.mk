@@ -34,7 +34,7 @@ $(FMT_PKG_TARGETS): fmt-%:
 lint-scripts:
 	@echo "lint: scripts"
 	@node_modules/.bin/oxfmt -c scripts/.configs/oxfmt.config.mts --check "scripts/**/*.{ts,mts}"
-	@node_modules/.bin/tsc -p scripts/tsconfig.json
+	@bun check --no-pretty -p scripts/tsconfig.json
 
 # Project Contract v1, V1: VULCAN's shipped source names no project.
 project-names-check:
