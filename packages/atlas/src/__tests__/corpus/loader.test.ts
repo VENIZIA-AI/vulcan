@@ -1,8 +1,10 @@
 import { Corpora } from '@/common';
 import { CorpusLoader } from '@/corpus';
 import type { IDocument } from '@/corpus';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, spyOn, test } from 'bun:test';
+import { afterAll, describe, expect, spyOn, test } from 'bun:test';
 
 // __dirname, not import.meta: this package emits CommonJS.
 const FIXTURES_ROOT = join(__dirname, '../fixtures/corpus');
@@ -133,5 +135,32 @@ describe('CorpusLoader', () => {
 
     expect(documents.every(document => document.corpus === Corpora.WIKI)).toBe(true);
     expect(documents.length).toBeGreaterThan(0);
+  });
+
+  describe('within a fetched checkout', () => {
+    const scratch = mkdtempSync(join(tmpdir(), 'atlas-loader-within-'));
+    const checkout = join(scratch, 'checkout');
+    const outside = join(scratch, 'outside');
+
+    afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+
+    mkdirSync(join(checkout, 'wiki'), { recursive: true });
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'secret.md'), '# Secret\n\nOutside the checkout.\n');
+    writeFileSync(join(checkout, 'wiki', 'guide.md'), '# Guide\n\nInside.\n');
+    symlinkSync(outside, join(checkout, 'bundle'));
+    symlinkSync(join(outside, 'secret.md'), join(checkout, 'wiki', 'linked.md'));
+
+    test('a root or a file whose real path leaves the checkout is never read', () => {
+      const documents = CorpusLoader.getInstance().load({
+        roots: [
+          { corpus: Corpora.KNOWLEDGE, directory: join(checkout, 'bundle') },
+          { corpus: Corpora.WIKI, directory: join(checkout, 'wiki') },
+        ],
+        within: checkout,
+      });
+
+      expect(documents.map(document => document.path)).toEqual(['guide.md']);
+    });
   });
 });

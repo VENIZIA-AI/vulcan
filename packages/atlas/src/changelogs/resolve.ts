@@ -1,7 +1,7 @@
 import { directoryOf } from '@/common/package-map';
 import type { IAtlasPackage } from '@/common/project-config';
 
-const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---\n?/;
+const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n)?/;
 const TABLE_ROW_PATTERN = /^\s*\|(.*)\|\s*$/;
 const TABLE_SEPARATOR_PATTERN = /^\s*\|[\s|:-]+\|\s*$/;
 

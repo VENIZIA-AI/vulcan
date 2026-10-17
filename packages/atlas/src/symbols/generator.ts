@@ -10,7 +10,12 @@ import { DeclarationProgram } from '@/common/declaration-program';
 import { readPackageDirectory } from '@/common/package-entries';
 import type { IPackageMapEntry } from '@/common/package-map';
 import type { IPackageEntries } from '@/common/types';
-import { hasAtlasProject, livePackageDirs, readAtlasProject } from '@/common/project-config';
+import {
+  hasAtlasProject,
+  livePackageDirs,
+  packagePathOf,
+  readAtlasProject,
+} from '@/common/project-config';
 import { PROJECT_ROOT } from '@/common/project';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
@@ -151,11 +156,11 @@ export class AtlasSymbols {
     const project = hasAtlasProject() ? readAtlasProject() : undefined;
     const repoRoot = opts.repoRoot ?? project?.root ?? PROJECT_ROOT;
     const packages = opts.packages ?? livePackageDirs({ project: project ?? readAtlasProject() });
-    // Each package where the manifest says it lives (an application keeps them outside packages/).
-    const pathOf = (dir: string): string =>
-      project?.packages.find(entry => entry.dir === dir)?.path ?? `packages/${dir}`;
     const read = packages.map(dir =>
-      readPackageDirectory({ directory: resolve(repoRoot, pathOf(dir)), name: dir }),
+      readPackageDirectory({
+        directory: resolve(repoRoot, packagePathOf({ project, dir })),
+        name: dir,
+      }),
     );
     const table: ISymbolTable = {
       generatedFrom: 'dist',

@@ -7,9 +7,14 @@
  */
 import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
-import { readPackageEntries } from '@/common/package-entries';
+import { readPackageDirectory } from '@/common/package-entries';
 import { regenerateHintOf } from '@/common/regenerate-hint';
-import { hasAtlasProject, livePackageDirs, readAtlasProject } from '@/common/project-config';
+import {
+  hasAtlasProject,
+  livePackageDirs,
+  packagePathOf,
+  readAtlasProject,
+} from '@/common/project-config';
 import { PROJECT_ROOT } from '@/common/project';
 import type { IPackageEntries } from '@/common/types';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -29,7 +34,12 @@ export class PublicSurface {
     const project = hasAtlasProject() ? readAtlasProject() : undefined;
     const repoRoot = opts.repoRoot ?? project?.root ?? PROJECT_ROOT;
     const packages = opts.packages ?? livePackageDirs({ project: project ?? readAtlasProject() });
-    const read = packages.map(name => readPackageEntries({ repoRoot, name }));
+    const read = packages.map(dir =>
+      readPackageDirectory({
+        directory: resolve(repoRoot, packagePathOf({ project, dir })),
+        name: dir,
+      }),
+    );
     const program = DeclarationProgram.create({
       files: read.flatMap(item => item.entries.map(entry => entry.file)),
       scope: 'public-surface',

@@ -1,8 +1,10 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
-import { basename, relative } from 'node:path';
+import { basename, join, relative } from 'node:path';
 import { resolveAll, splitFrontmatter } from '@/changelogs/resolve';
+import { AtlasTimeouts } from '@/common/constants';
 import { directoryOf } from '@/common/package-map';
+import { isWithinDirectory } from '@/common/paths';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
 import { compileReleaseTemplate } from './template';
@@ -31,6 +33,8 @@ const git = (opts: { root: string; args: string[] }): string => {
     cwd: opts.root,
     encoding: 'utf8',
     maxBuffer: GIT_BUFFER,
+    timeout: AtlasTimeouts.LOCAL_GIT_MS,
+    killSignal: 'SIGKILL',
   });
 
   if (result.status !== 0) {
@@ -47,10 +51,20 @@ const isRepositoryRoot = (opts: { root: string }): boolean => {
   const result = spawnSync('git', ['rev-parse', '--show-toplevel'], {
     cwd: opts.root,
     encoding: 'utf8',
+    timeout: AtlasTimeouts.LOCAL_GIT_MS,
+    killSignal: 'SIGKILL',
   });
 
   return result.status === 0 && realpathSync(result.stdout.trim()) === realpathSync(opts.root);
 };
+
+/** A repository with no commit yet has no HEAD, so no history: nothing was released. */
+const hasCommits = (opts: { root: string }): boolean =>
+  spawnSync('git', ['rev-parse', '--verify', '--quiet', 'HEAD'], {
+    cwd: opts.root,
+    timeout: AtlasTimeouts.LOCAL_GIT_MS,
+    killSignal: 'SIGKILL',
+  }).status === 0;
 
 /**
  * Every commit of HEAD's history mapped to a position on the first-parent line, oldest first. A
@@ -231,7 +245,11 @@ export const computeReleases = (opts: { project: IAtlasProject }): IReleaseTable
     aliases: entry.aliases,
   }));
 
-  if (!existsSync(project.root) || !isRepositoryRoot({ root: project.root })) {
+  if (
+    !existsSync(project.root) ||
+    !isRepositoryRoot({ root: project.root }) ||
+    !hasCommits({ root: project.root })
+  ) {
     return { livePackages: live, releases: {}, changelogs: [], packageMap };
   }
 
@@ -255,10 +273,16 @@ export const computeReleases = (opts: { project: IAtlasProject }): IReleaseTable
   const directory = project.knowledge.changelogs;
   const changelogs: IChangelogRecord[] = [];
 
-  if (directory !== undefined && existsSync(directory)) {
+  // A changelog directory, or entry, that is a symlink out of the repository is not its history.
+  if (
+    directory !== undefined &&
+    existsSync(directory) &&
+    isWithinDirectory({ path: directory, directory: project.root })
+  ) {
     const added = changelogPositionsOf({ root: project.root, directory, positions });
     const files = readdirSync(directory)
       .filter(file => DATE_PREFIX_PATTERN.test(file))
+      .filter(file => isWithinDirectory({ path: join(directory, file), directory: project.root }))
       .sort(byText)
       .reverse();
 

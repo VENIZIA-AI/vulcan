@@ -54,20 +54,21 @@ const byName = (left: string, right: string): number => {
 
 /**
  * The generated symbol table in memory: exact lookup by name, and a suggestion list for a name
- * that is not in it. One instance per server - the table never changes while the process runs.
+ * that is not in it. One instance per server; a loaded table never changes while the process runs.
  */
 export class SymbolStore extends BaseHelper {
   private readonly byExactName = new Map<string, ISymbolRecord[]>();
   private readonly namesByLowerCase = new Map<string, string[]>();
 
   private packageMap: IPackageMapEntry[];
-  private loader?: () => { symbols: ISymbolRecord[]; packageMap?: IPackageMapEntry[] };
+  private readonly loader?: () => { symbols: ISymbolRecord[]; packageMap?: IPackageMapEntry[] };
   /** What the `symbol` tool says when the store holds nothing. */
   readonly emptyReason: string;
 
   /**
    * `symbols` now, or `load` on the first question - reading declarations takes the compiler, and a
-   * server that waited for it at start would start slow.
+   * server that waited for it at start would start slow. While `load` finds nothing, every question
+   * loads again: packages built after the server started are read on the next one.
    */
   constructor(opts: {
     symbols?: ISymbolRecord[];
@@ -86,11 +87,9 @@ export class SymbolStore extends BaseHelper {
   private ensureLoaded(): void {
     const loader = this.loader;
 
-    if (loader === undefined) {
+    if (loader === undefined || this.byExactName.size > 0) {
       return;
     }
-
-    this.loader = undefined;
 
     try {
       const loaded = loader();

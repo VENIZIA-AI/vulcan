@@ -78,3 +78,26 @@ describe('migrateChangelogs (C3)', () => {
     expect(read('2026-01-01-mention.md')).toBe(ENTRIES['2026-01-01-mention.md']);
   });
 });
+
+describe('migrateChangelogs on CRLF entries', () => {
+  test('a declared list is read, never given a second frontmatter; a new line keeps CRLF', () => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-migrate-crlf-'));
+    const declared =
+      "---\r\ntitle: Kept\r\npackages: ['@acme/web']\r\n---\r\n\r\nThe `@acme/kernel` too.\r\n";
+    const mention = '---\r\ntitle: Faster\r\n---\r\n\r\nThe `@acme/kernel` boots faster.\r\n';
+
+    roots.push(root);
+    mkdirSync(join(root, 'changes'));
+    writeFileSync(join(root, 'changes', '2026-01-01-declared.md'), declared);
+    writeFileSync(join(root, 'changes', '2026-01-02-mention.md'), mention);
+
+    const report = migrateChangelogs({ project: projectAt({ root }), write: true });
+
+    expect(report.declared).toBe(1);
+    expect(report.written).toEqual(['changes/2026-01-02-mention.md']);
+    expect(readFileSync(join(root, 'changes', '2026-01-01-declared.md'), 'utf8')).toBe(declared);
+    expect(readFileSync(join(root, 'changes', '2026-01-02-mention.md'), 'utf8')).toBe(
+      "---\r\ntitle: Faster\r\npackages: ['@acme/kernel']\r\n---\r\n\r\nThe `@acme/kernel` boots faster.\r\n",
+    );
+  });
+});
