@@ -1,6 +1,8 @@
 import { AtlasConstants, AtlasModes, Corpora } from '@/common';
 import type { TAtlasMode } from '@/common';
-import { isRepositoryCheckout, SNAPSHOT_DIRECTORY, workspaceFamilyOf } from '@/common/layout';
+import { SNAPSHOT_DIRECTORY } from '@/common/layout';
+import { readAtlasProject } from '@/common/project-config';
+import type { IAtlasProject } from '@/common/project-config';
 import { resolveRepositoryRoots } from '@/corpus';
 import type { ICorpusRoot } from '@/corpus';
 import { Transport } from '@/protocol';
@@ -19,16 +21,16 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { FreshnessGuard } from './server/index';
 
-/** Repo mode's three live-tree roots, or snapshot mode's two packaged roots - `knowledge` is never shipped. */
-const resolveRoots = (opts: { mode: TAtlasMode; root: string }): ICorpusRoot[] => {
-  const { mode, root } = opts;
+/** Repo mode's roots from the project's manifest, or snapshot mode's two packaged roots - `knowledge` is never shipped. */
+const resolveRoots = (opts: {
+  mode: TAtlasMode;
+  root: string;
+  project?: IAtlasProject;
+}): ICorpusRoot[] => {
+  const { mode, root, project } = opts;
 
-  if (mode === AtlasModes.REPOSITORY) {
-    if (!isRepositoryCheckout({ root })) {
-      throw new Error(`[resolveRoots] not an IGNIS checkout | root: ${root}`);
-    }
-
-    return resolveRepositoryRoots({ repositoryRoot: root });
+  if (mode === AtlasModes.REPOSITORY && project !== undefined) {
+    return resolveRepositoryRoots({ project });
   }
 
   const snapshotDirectory = join(root, SNAPSHOT_DIRECTORY);
@@ -65,12 +67,6 @@ const buildGuardedTool = (opts: {
  * Builds the MCP transport for one session. Repo mode indexes the live tree and re-checks
  * freshness on every tool call; snapshot mode indexes the packaged corpus once, immutably.
  */
-/** `<family>-atlas` for a family checkout; the IGNIS name when the manifest is not one. */
-const serverNameOf = (opts: { root: string }): string => {
-  const family = workspaceFamilyOf({ root: opts.root });
-
-  return family === undefined ? AtlasConstants.SERVER_NAME : `${family}-atlas`;
-};
 
 export const buildServer = (opts: {
   mode: TAtlasMode;
@@ -78,12 +74,14 @@ export const buildServer = (opts: {
   version: string;
 }): Transport => {
   const { mode, root, version } = opts;
-  const guard = new FreshnessGuard({ mode, roots: resolveRoots({ mode, root }) });
+  const project = mode === AtlasModes.REPOSITORY ? readAtlasProject({ root }) : undefined;
+  const bundle = project?.knowledge.bundle;
+  const guard = new FreshnessGuard({ mode, roots: resolveRoots({ mode, root, project }) });
   const initialStore = guard.getStore();
   // Built once: both generated tables come from outside the corpus, so its freshness never moves
   // them - the symbol table from `dist`, the release table from `git log`.
-  const symbols = SymbolStore.load({ mode, root });
-  const releases = ReleaseStore.load({ mode, root });
+  const symbols = SymbolStore.load({ mode, root, bundle });
+  const releases = ReleaseStore.load({ mode, root, bundle });
 
   return new Transport({
     tools: [
@@ -101,10 +99,9 @@ export const buildServer = (opts: {
       buildVersionTool({ releases }),
       buildChangesTool({ releases }),
     ],
-    // A family checkout names its own server (`<family>-atlas` in a sibling's repo); the packaged
-    // snapshot is always IGNIS's, so it keeps the package's name.
-    serverName:
-      mode === AtlasModes.REPOSITORY ? serverNameOf({ root }) : AtlasConstants.SERVER_NAME,
+    // A project names its own server (`<name>-atlas`, from its manifest); the packaged snapshot
+    // keeps the package's name.
+    serverName: project === undefined ? AtlasConstants.SERVER_NAME : `${project.name}-atlas`,
     serverVersion: version,
   });
 };

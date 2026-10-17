@@ -1,3 +1,4 @@
+import { ignisProjectAt } from '../fixtures/ignis-packages';
 import { IGNIS_PACKAGE_MAP } from '../fixtures/ignis-packages';
 import { AtlasConstants, AtlasModes } from '@/common';
 import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
@@ -283,7 +284,7 @@ const hasRepositoryRoots =
 describe.skipIf(!hasRepositoryRoots)('the P3 acceptance gate, over the real release table', () => {
   const realReleases = ReleaseStore.load({ mode: AtlasModes.REPOSITORY, root: REPOSITORY_ROOT });
   const documents = CorpusLoader.getInstance().load({
-    roots: resolveRepositoryRoots({ repositoryRoot: REPOSITORY_ROOT }),
+    roots: resolveRepositoryRoots({ project: ignisProjectAt({ root: REPOSITORY_ROOT }) }),
   });
   const chunker = Chunker.getInstance();
   const store = new ChunkStore();

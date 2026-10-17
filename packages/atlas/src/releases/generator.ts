@@ -59,7 +59,7 @@ interface IReleaseSubject {
   version: string;
 }
 
-/** IGNIS's form, the schema default: `[#80] chore(kernel): release v0.2.1-0 [prerelease]`. */
+/** The schema default: `[#80] chore(kernel): release v0.2.1-0 [prerelease]`. */
 const DEFAULT_RELEASE_PATTERN = compileReleaseTemplate({
   template: '[#<issue>] chore(<dir>): release v<version>',
 });
@@ -145,8 +145,8 @@ const escapeLiteral = (opts: { text: string }): string =>
 /**
  * Every npm-name mention anywhere in the body, as the names themselves: each package's name, and
  * each alias spelled as a npm name (an old or a misspelled one a changelog used). Longest first, and
- * a name followed by more of a name (`@a/ignis-other` for `@a/ignis`) is no mention of it; a
- * sub-path (`@a/ignis/core`) is.
+ * a name followed by more of a name (`@a/shop-other` for `@a/shop`) is no mention of it; a
+ * sub-path (`@a/shop/core`) is.
  */
 const bodyMentionsOf = (opts: { body: string; packages: IAtlasPackage[] }): string[] => {
   const names = opts.packages
@@ -243,7 +243,7 @@ export class AtlasReleases {
     return expected.trim() === actual.trim();
   }
 
-  /** `undefined` for any subject the release template does not read; `pattern` defaults to IGNIS's form. */
+  /** `undefined` for any subject the release template does not read; `pattern` defaults to the schema's form. */
   static parseReleaseSubject(opts: {
     subject: string;
     pattern?: RegExp;

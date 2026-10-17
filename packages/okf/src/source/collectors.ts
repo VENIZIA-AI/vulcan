@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { readOkfProject } from '../project/index.ts';
 import type { BindingClass, MakeTarget, SourceMapEntry } from './common/types.ts';
-import { listDirs, packageDirs, sourceFiles } from './scanner.ts';
+import { listDirs, listPackages, sourceFiles } from './scanner.ts';
 
 /** A path under the project root. */
 const projectPath = (opts: { path: string }): string => join(readOkfProject().root, opts.path);
@@ -92,8 +92,8 @@ export const collectMakefileTargets = (): MakeTarget[] => {
 export const collectSourceMap = (): SourceMapEntry[] => {
   const out: SourceMapEntry[] = [];
 
-  for (const pkg of packageDirs()) {
-    const src = join(projectPath({ path: 'packages' }), pkg, 'src');
+  for (const { dir: pkg, path } of listPackages()) {
+    const src = join(path, 'src');
 
     if (!existsSync(src)) {
       continue;
@@ -107,7 +107,10 @@ export const collectSourceMap = (): SourceMapEntry[] => {
 
     out.push({
       pkg,
-      total: sourceFiles({ dir: src }).filter(file => !file.includes('/__tests__/')).length,
+      // Relative to src/: a project that itself sits under a __tests__ directory still counts its files.
+      total: sourceFiles({ dir: src }).filter(
+        file => !`/${relative(src, file)}`.includes('/__tests__/'),
+      ).length,
       subsystems,
     });
   }
@@ -116,7 +119,7 @@ export const collectSourceMap = (): SourceMapEntry[] => {
 };
 
 /**
- * The spelling an all-caps brand forbids: its title case (`ARDOR` forbids `Ardor`). A brand that is
+ * The spelling an all-caps brand forbids: its title case (`ACME` forbids `Acme`). A brand that is
  * not all caps forbids nothing. One rule, read by the prose cleanup and the docs style check.
  */
 export const brandSpelling = (opts: { brand: string }): RegExp | undefined => {
@@ -133,7 +136,7 @@ export const brandSpelling = (opts: { brand: string }): RegExp | undefined => {
  * Bring prose lifted from outside the bundle in line with the repo docs style.
  *
  * package.json descriptions are npm-facing marketing copy: they carry em-dashes and may spell an
- * all-caps brand in title case ("Ignis"). The bundle is documentation, so it follows the docs rules
+ * all-caps brand in title case ("Acme"). The bundle is documentation, so it follows the docs rules
  * (hyphen, the brand as written) no matter where the text came from - and we do not rewrite
  * package.json, which is published to npm.
  */
@@ -154,8 +157,8 @@ export const firstSentence = (opts: { text: string }): string => {
 export const collectPackageManifests = (): { dir: string; name: string; description: string }[] => {
   const out: { dir: string; name: string; description: string }[] = [];
 
-  for (const dir of packageDirs()) {
-    const manifest = join(projectPath({ path: 'packages' }), dir, 'package.json');
+  for (const { dir, path } of listPackages()) {
+    const manifest = join(path, 'package.json');
 
     if (!existsSync(manifest)) {
       continue;

@@ -1,3 +1,4 @@
+import { ignisProjectAt } from '../fixtures/ignis-packages';
 import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
 import { ChunkStore } from '@/search';
 import { describe, expect, test } from 'bun:test';
@@ -23,7 +24,7 @@ const queries: IGoldenQuery[] = golden;
 const buildStore = (): ChunkStore => {
   const chunker = Chunker.getInstance();
   const documents = CorpusLoader.getInstance().load({
-    roots: resolveRepositoryRoots({ repositoryRoot: REPOSITORY_ROOT }),
+    roots: resolveRepositoryRoots({ project: ignisProjectAt({ root: REPOSITORY_ROOT }) }),
   });
 
   const store = new ChunkStore();

@@ -1,3 +1,4 @@
+import { ignisProjectAt } from '../fixtures/ignis-packages';
 import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
 import { Transport } from '@/protocol';
 import { ChunkStore } from '@/search';
@@ -37,7 +38,7 @@ describe.skipIf(!hasRepositoryRoots)(
     // The body runs while bun collects tests, skipped or not: read the page only when it exists.
     const ids = hasRepositoryRoots ? idsQuotedOn({ page: EXTENSION_PAGE }) : [];
     const documents = CorpusLoader.getInstance().load({
-      roots: resolveRepositoryRoots({ repositoryRoot: REPOSITORY_ROOT }),
+      roots: resolveRepositoryRoots({ project: ignisProjectAt({ root: REPOSITORY_ROOT }) }),
     });
     const chunker = Chunker.getInstance();
     const store = new ChunkStore();

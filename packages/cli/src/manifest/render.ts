@@ -15,7 +15,7 @@ export class ManifestConstants {
 
 const HASH_LENGTH = 8;
 
-/** `@venizia/ignis-workspace` gives `ignis`; a project with no package name takes its directory's. */
+/** `@acme/shop-workspace` gives `shop`; a project with no package name takes its directory's. */
 const projectNameOf = (opts: { root: string; config: TResolvedConfig }): string => {
   if (opts.config.name !== undefined) {
     return opts.config.name;

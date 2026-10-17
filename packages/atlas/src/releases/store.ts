@@ -49,7 +49,7 @@ export class ReleaseStore extends BaseHelper {
    * Repo mode reads the knowledge bundle's table, snapshot mode the packaged one. A missing or
    * unreadable table leaves the store empty - the tools say so, the server still starts.
    */
-  static load(opts: { mode: TAtlasMode; root: string }): ReleaseStore {
+  static load(opts: { mode: TAtlasMode; root: string; bundle?: string }): ReleaseStore {
     const path = releasesFileOf(opts);
 
     if (!existsSync(path)) {

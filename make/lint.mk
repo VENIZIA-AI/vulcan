@@ -5,13 +5,13 @@
 LINT_PKG_TARGETS := $(addprefix lint-,$(PACKAGES))
 FMT_PKG_TARGETS := $(addprefix fmt-,$(PACKAGES))
 
-.PHONY: lint lint-all lint-packages lint-scripts fmt fmt-packages fmt-scripts \
+.PHONY: lint lint-all lint-packages lint-scripts project-names-check fmt fmt-packages fmt-scripts \
         $(LINT_PKG_TARGETS) $(FMT_PKG_TARGETS)
 
 lint: lint-packages
 	@echo "lint: done"
 
-lint-all: lint-packages lint-scripts
+lint-all: lint-packages lint-scripts project-names-check
 	@echo "lint: all packages done"
 
 lint-packages: $(LINT_PKG_TARGETS)
@@ -35,6 +35,11 @@ lint-scripts:
 	@echo "lint: scripts"
 	@node_modules/.bin/oxfmt -c scripts/.configs/oxfmt.config.mts --check "scripts/**/*.{ts,mts}"
 	@node_modules/.bin/tsc -p scripts/tsconfig.json
+
+# Project Contract v1, V1: VULCAN's shipped source names no project.
+project-names-check:
+	@echo "lint: no project names in packages/*/src"
+	@bun scripts/check-project-names.ts
 
 fmt-scripts:
 	@node_modules/.bin/oxfmt -c scripts/.configs/oxfmt.config.mts "scripts/**/*.{ts,mts}"

@@ -1,3 +1,4 @@
+import { ignisProjectAt } from '../fixtures/ignis-packages';
 import { AtlasModes, Corpora } from '@/common';
 import { CorpusLoader, resolveRepositoryRoots } from '@/corpus';
 import type { ICorpusRoot } from '@/corpus';
@@ -127,7 +128,7 @@ describe('FreshnessGuard', () => {
   });
 
   test('the fingerprint walk over the real repo roots stays under 100ms', () => {
-    const roots = resolveRepositoryRoots({ repositoryRoot: REPOSITORY_ROOT });
+    const roots = resolveRepositoryRoots({ project: ignisProjectAt({ root: REPOSITORY_ROOT }) });
     const guard = new FreshnessGuard({ mode: AtlasModes.REPOSITORY, roots });
 
     const startedAt = performance.now();
