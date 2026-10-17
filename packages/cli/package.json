@@ -1,0 +1,45 @@
+{
+  "name": "@venizia/vulcan",
+  "version": "0.1.0-0",
+  "description": "VULCAN - one setup, one workflow for every project: init, sync, doctor, upgrade, and `vulcan x` for the shipped tools. Bun-only.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "bun": ">=1.4"
+  },
+  "bin": {
+    "vulcan": "./src/cli.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "README.md",
+    "LICENSE.md",
+    "src",
+    "base",
+    "!src/__tests__"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "NODE_ENV=test bun test --env-file=.env.test"
+  },
+  "dependencies": {
+    "@venizia/ignis-helpers": "catalog:",
+    "@venizia/vulcan-atlas": "workspace:*",
+    "@venizia/vulcan-okf": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/bun": "catalog:",
+    "@venizia/dev-configs": "0.3.1-0",
+    "eslint": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "V-W-01": {
+    "options": {
+      "on-user-word": {
+        "text": "Git writes happen only on the user's word, in this conversation."
+      },
+      "read-only": {
+        "text": "Git is read-only for the agent: it edits the working tree, then stops; a human commits.",
+        "settings": {
+          "permissions": {
+            "deny": [
+              "Bash(git add:*)",
+              "Bash(git add)",
+              "Bash(git commit:*)",
+              "Bash(git commit)",
+              "Bash(git push:*)",
+              "Bash(git push)",
+              "Bash(git pull:*)",
+              "Bash(git merge:*)",
+              "Bash(git rebase:*)",
+              "Bash(git reset:*)",
+              "Bash(git revert:*)",
+              "Bash(git checkout:*)",
+              "Bash(git switch:*)",
+              "Bash(git branch:*)",
+              "Bash(git stash:*)",
+              "Bash(git clean:*)",
+              "Bash(git tag:*)"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

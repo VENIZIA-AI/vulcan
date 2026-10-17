@@ -1,0 +1,72 @@
+name: CI
+run-name: "CI | ${{ github.event_name }} | ${{ github.head_ref || github.ref_name }}"
+
+# Manual only, as in IGNIS: the release workflow runs every gate below before it publishes.
+on:
+  workflow_dispatch:
+    inputs:
+      ignis_ref:
+        type: string
+        description: "IGNIS ref the atlas corpus snapshot is built from"
+        required: false
+        default: "develop"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  gates:
+    name: Build, test, lint and smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.3
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # The atlas build packages IGNIS content as its npm snapshot; see package-release.yml.
+      - name: Clone IGNIS for the atlas snapshot
+        env:
+          IGNIS_REF: ${{ inputs.ignis_ref }}
+        run: git clone --quiet --depth 1 --branch "$IGNIS_REF" https://github.com/VENIZIA-AI/ignis.git "$GITHUB_WORKSPACE/../ignis"
+
+      - name: Install
+        id: install
+        run: bun install
+
+      - name: Build
+        id: build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: make build
+
+      - name: Lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: make lint-all
+
+      - name: Test
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: make test
+
+      - name: VULCAN contract
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          bun x --no-install vulcan sync
+          bun x --no-install vulcan doctor
+          bun x --no-install vulcan x okf check
+
+      - name: Pack smoke
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          make smoke-atlas
+          make smoke-cli

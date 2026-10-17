@@ -1,0 +1,17 @@
+{
+  "skill_name": "docs-writing",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "The page docs/wiki/content/guides/get-started/philosophy.md in the IGNIS repo is 670 lines and exhausting to read. Rewrite it so a first-time reader understands what IGNIS is and why it exists after one read. Keep every real fact. Save the rewritten page to the output path given - do NOT edit the original file.",
+      "expected_output": "A drastically shorter, scannable concept page: purpose stated in the first screen, short sentences, no essay walls, options/comparisons in tables, why-content bounded",
+      "files": ["docs/wiki/content/guides/get-started/philosophy.md"]
+    },
+    {
+      "id": 1,
+      "prompt": "The page docs/wiki/content/best-practices/error-handling.md in the IGNIS repo is 599 lines and very dense. Rewrite it so a developer can find and apply the right error-handling pattern quickly. Keep every real fact and code sample that matters. Save the rewritten page to the output path given - do NOT edit the original file.",
+      "expected_output": "A task-oriented page: happy path first, patterns as short recipes, edge cases separated, sentences under 20 words, tables for enumerable facts",
+      "files": ["docs/wiki/content/best-practices/error-handling.md"]
+    }
+  ]
+}

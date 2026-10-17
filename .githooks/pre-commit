@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# ----------------------------------------------------------------------------
+# Pre-commit Hook
+# Checks the VULCAN contract and lints every package before allowing a commit
+# ----------------------------------------------------------------------------
+
+set -e
+
+echo "pre-commit: checking"
+echo ""
+
+# Get the root directory of the git repository
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR"
+
+echo "pre-commit: vulcan doctor"
+bun x --no-install vulcan doctor
+
+echo "pre-commit: lint all packages"
+make lint-all
+
+echo ""
+echo "pre-commit: passed"

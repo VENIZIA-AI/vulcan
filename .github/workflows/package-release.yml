@@ -1,0 +1,300 @@
+name: "NPM Release"
+run-name: "NPM Release | bump: ${{ inputs.bump }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        type: choice
+        description: "Version bump for all three packages (none = publish the version already in package.json)"
+        options:
+          - prerelease
+          - prepatch
+          - preminor
+          - premajor
+          - patch
+          - minor
+          - major
+          - none
+        required: true
+        default: "prerelease"
+      ignis_ref:
+        type: string
+        description: "IGNIS ref the atlas corpus snapshot is built from"
+        required: false
+        default: "develop"
+      issue:
+        type: string
+        description: "Issue number the release commit serves (prefixes it with [#N])"
+        required: false
+        default: ""
+
+# The three packages are one release train: one version, one run. `@venizia/vulcan` pins
+# `@venizia/vulcan-okf` and `@venizia/vulcan-atlas` to that exact version, so they publish first.
+#
+# One release at a time, repository-wide: a release mutates `main` and the registry. A second
+# dispatch WAITS (`cancel-in-progress: false`) rather than killing a run that is mid-publish.
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  BUMP: ${{ inputs.bump }}
+  PUBLISH_ORDER: "okf atlas cli"
+
+jobs:
+  release:
+    name: NPM Release
+    runs-on: ubuntu-latest
+
+    steps:
+      # -----------------------------------------------------------------------------
+      # SETUP
+      # -----------------------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Git
+        run: |
+          git config user.name "venizia-ci"
+          git config user.email "developer@venizia.ai"
+
+      # The atlas build packages IGNIS's wiki, changelogs, symbol table and release table as the npm
+      # snapshot (packages/atlas/scripts/corpus.sh), read from IGNIS as a sibling of this checkout.
+      # A bare clone is enough for that; atlas's tests that need a BUILT IGNIS skip on it
+      # (packages/atlas/src/__tests__/ignis-root.ts) and run on a developer's machine instead.
+      - name: Clone IGNIS for the atlas snapshot
+        env:
+          IGNIS_REF: ${{ inputs.ignis_ref }}
+        run: git clone --quiet --depth 1 --branch "$IGNIS_REF" https://github.com/VENIZIA-AI/ignis.git "$GITHUB_WORKSPACE/../ignis"
+
+      # -----------------------------------------------------------------------------
+      # VERSION
+      # -----------------------------------------------------------------------------
+      - name: Set the release version
+        run: |
+          if [ "$BUMP" = "none" ]; then
+            NEW_VERSION=$(jq -r .version packages/cli/package.json)
+          else
+            (cd packages/cli && npm version "$BUMP" --no-git-tag-version --workspaces-update=false > /dev/null)
+            NEW_VERSION=$(jq -r .version packages/cli/package.json)
+
+            for directory in okf atlas; do
+              (cd "packages/$directory" && npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version --workspaces-update=false > /dev/null)
+            done
+          fi
+
+          for directory in $PUBLISH_ORDER; do
+            VERSION=$(jq -r .version "packages/$directory/package.json")
+
+            if [ "$VERSION" != "$NEW_VERSION" ]; then
+              echo "ERROR | packages/$directory is $VERSION, the train is $NEW_VERSION - one version for all three"
+              exit 1
+            fi
+          done
+
+          case "$NEW_VERSION" in
+            *-*) NPM_TAG="next" ;;
+            *)   NPM_TAG="latest" ;;
+          esac
+
+          echo "NEW_VERSION=$NEW_VERSION" >> "$GITHUB_ENV"
+          echo "NPM_TAG=$NPM_TAG" >> "$GITHUB_ENV"
+          echo "TAG_NAME=v$NEW_VERSION" >> "$GITHUB_ENV"
+          echo "release: v$NEW_VERSION ($BUMP) to the '$NPM_TAG' dist-tag"
+
+      # AFTER the version change: `bun pm pack` resolves `workspace:*` from bun.lock, so a lock that
+      # still records the old versions ships a cli pinned to siblings that are not on npm.
+      - name: Install
+        run: bun install
+
+      # -----------------------------------------------------------------------------
+      # GATES
+      # -----------------------------------------------------------------------------
+      - name: Build
+        run: make build
+
+      - name: Lint
+        run: make lint-all
+
+      - name: Test
+        run: make test
+
+      # The contract VULCAN ships, checked on VULCAN itself. CI has no adapters yet, so sync first.
+      - name: VULCAN contract
+        run: |
+          bun x --no-install vulcan sync
+          bun x --no-install vulcan doctor
+          bun x --no-install vulcan x okf check
+
+      # The packed tarballs, installed alone in an empty project. smoke-cli also fails on sibling
+      # pins in the packed cli that differ from the train's version.
+      - name: Pack smoke
+        run: |
+          make smoke-atlas
+          make smoke-cli
+
+      # Only `bun publish` resolves `catalog:` and `workspace:` while packing; npm ships them
+      # verbatim and breaks every consumer.
+      - name: Assert the publisher is bun
+        run: |
+          grep -q 'bun publish' "$GITHUB_WORKSPACE/.github/workflows/package-release.yml" \
+            || { echo "ERROR | the publish step must use 'bun publish' - npm ships catalog: verbatim"; exit 1; }
+
+      # The manifest npm receives, not the one in the tree: no unresolved protocol, siblings pinned
+      # to this train, and every other runtime dependency served by the registry.
+      - name: Validate the packed manifests
+        run: |
+          for directory in $PUBLISH_ORDER; do
+            (cd "packages/$directory" && bun pm pack --quiet > /dev/null)
+            TARBALL=$(ls -t packages/$directory/*.tgz | head -1)
+            tar -xzOf "$TARBALL" package/package.json > "$RUNNER_TEMP/$directory.manifest.json"
+            rm -f "$TARBALL"
+          done
+
+          bun -e '
+            const directories = process.env.PUBLISH_ORDER.split(" ");
+            const version = process.env.NEW_VERSION;
+            const problems = [];
+
+            for (const directory of directories) {
+              const text = await Bun.file(`${process.env.RUNNER_TEMP}/${directory}.manifest.json`).text();
+              const manifest = JSON.parse(text);
+
+              if (/"(catalog|workspace):/.test(text)) {
+                problems.push(`${manifest.name}: an unresolved catalog:/workspace: protocol`);
+              }
+
+              for (const [name, range] of Object.entries(manifest.dependencies ?? {})) {
+                if (name.startsWith("@venizia/vulcan")) {
+                  if (range !== version) {
+                    problems.push(`${manifest.name}: ${name} pinned ${range}, the train is ${version}`);
+                  }
+
+                  continue;
+                }
+
+                const response = await fetch(`https://registry.npmjs.org/${name}`);
+
+                if (!response.ok) {
+                  problems.push(`${manifest.name}: ${name} is not on the registry (HTTP ${response.status})`);
+                  continue;
+                }
+
+                const versions = Object.keys((await response.json()).versions ?? {});
+
+                if (!versions.some(candidate => Bun.semver.satisfies(candidate, range))) {
+                  problems.push(`${manifest.name}: no published ${name} satisfies ${range}`);
+                }
+              }
+            }
+
+            if (problems.length > 0) {
+              console.error("ERROR | the packed manifests cannot be served:");
+
+              for (const problem of problems) {
+                console.error(`  ${problem}`);
+              }
+
+              process.exit(1);
+            }
+
+            console.log(`manifests: ${directories.length} packages resolve`);
+          '
+
+      # -----------------------------------------------------------------------------
+      # PUBLISH - deliberately ahead of every git write
+      # -----------------------------------------------------------------------------
+      # The publish cannot be undone, so it runs first among the mutations: a rejected publish leaves
+      # git untouched. A version already on npm is skipped, so a run that failed halfway is retried by
+      # dispatching again with bump `none`.
+      - name: Publish to NPM
+        run: |
+          echo "IS_PUBLISHED=true" >> "$GITHUB_ENV"
+
+          for directory in $PUBLISH_ORDER; do
+            NAME=$(jq -r .name "packages/$directory/package.json")
+
+            if npm view "$NAME@$NEW_VERSION" version > /dev/null 2>&1; then
+              echo "publish: $NAME@$NEW_VERSION is already on npm - skipped"
+              continue
+            fi
+
+            # --ignore-scripts: the build above already ran; atlas's prepublishOnly would rebuild.
+            (cd "packages/$directory" && bun publish --access public --tag "$NPM_TAG" --ignore-scripts)
+            echo "publish: $NAME@$NEW_VERSION ($NPM_TAG)"
+          done
+        env:
+          # NPM_CONFIG_TOKEN: bun reads neither NODE_AUTH_TOKEN nor the .npmrc setup-node writes.
+          NPM_CONFIG_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+
+      # -----------------------------------------------------------------------------
+      # RECORD IN GIT
+      # -----------------------------------------------------------------------------
+      - name: Commit release
+        if: env.BUMP != 'none'
+        run: |
+          git add packages/*/package.json bun.lock
+          SUBJECT="chore(release): v$NEW_VERSION [$BUMP]"
+
+          if [ -n "$RELEASE_ISSUE" ]; then
+            SUBJECT="[#$RELEASE_ISSUE] $SUBJECT"
+          fi
+
+          git commit -m "$SUBJECT"
+        env:
+          RELEASE_ISSUE: ${{ inputs.issue }}
+
+      # main can move between checkout and push; the version is already on npm, so rebase and retry
+      # once instead of leaving main behind a release that really happened.
+      - name: Push release
+        if: env.BUMP != 'none'
+        run: |
+          git push origin HEAD:main || {
+            git pull --rebase origin main
+            git push origin HEAD:main
+          }
+
+          echo "IS_PUSHED=true" >> "$GITHUB_ENV"
+
+      - name: Create tag
+        run: |
+          git tag -a "$TAG_NAME" -m "VULCAN $NEW_VERSION"
+          git push origin "$TAG_NAME"
+
+      # -----------------------------------------------------------------------------
+      # FAILURE REPORTS
+      # -----------------------------------------------------------------------------
+      # Reported, never repaired: npm cannot un-publish, and force-pushing main to chase a live
+      # version does more damage than the mismatch.
+      - name: Report - published, main not updated
+        if: failure() && env.IS_PUBLISHED == 'true' && env.IS_PUSHED != 'true' && env.BUMP != 'none'
+        run: |
+          echo "WARNING | a publish of v$NEW_VERSION was attempted, but main still records the old version"
+          echo "  confirm first: npm view @venizia/vulcan versions"
+          echo "  if it IS live: set all three package.json to $NEW_VERSION, run bun install, commit to main,"
+          echo "                 then dispatch with bump 'none' - it publishes whatever is missing and tags"
+          echo "  if it is NOT live: nothing to clean up - dispatch again with the same bump"
+
+      - name: Report - tag missing
+        if: failure() && env.IS_PUBLISHED == 'true'
+        run: |
+          echo "WARNING | v$NEW_VERSION may be published without its git tag"
+          echo "  create it: git tag -a $TAG_NAME -m \"VULCAN $NEW_VERSION\" && git push origin $TAG_NAME"

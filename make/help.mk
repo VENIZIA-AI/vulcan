@@ -1,0 +1,49 @@
+# `make help` - the target list. Keep it in step with the other make/*.mk files.
+# Every row goes through HELP_ROW, so the descriptions start in one column; widen HELP_WIDTH when
+# a longer name is added.
+
+HELP_WIDTH := 34
+HELP_ROW = printf "  %-$(HELP_WIDTH)s %s\n"
+
+.PHONY: help
+
+help:
+	@echo "Makefile for the VULCAN monorepo"
+	@echo ""
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Main Targets:"
+	@$(HELP_ROW) "help" "Show this help message (a bare 'make' does the same)."
+	@$(HELP_ROW) "all / build" "Rebuilds all packages (alias for 'build-all')."
+	@$(HELP_ROW) "build-all" "Rebuilds all packages in order."
+	@$(HELP_ROW) "install" "Install all dependencies with bun."
+	@$(HELP_ROW) "update / update-all" "Force update all packages from NPM registry."
+	@$(HELP_ROW) "clean" "Clean build artifacts from all packages."
+	@$(HELP_ROW) "setup-hooks" "Configure git to use .githooks directory."
+	@echo ""
+	@echo "Per package - <pkg> is one of:"
+	@echo "  $(PACKAGES)"
+	@$(HELP_ROW) "<pkg>" "Rebuild one package."
+	@$(HELP_ROW) "update-<pkg>" "Force update one package's dependencies from NPM."
+	@$(HELP_ROW) "lint-<pkg>" "oxlint + ESLint (naming-convention) + oxfmt check of one package."
+	@$(HELP_ROW) "fmt-<pkg>" "Apply oxlint --fix, ESLint --fix and oxfmt to one package."
+	@$(HELP_ROW) "test-<pkg>" "Run one package's suite with BUN_TEST_FLAGS."
+	@$(HELP_ROW) "smoke-<pkg>" "Pack one package, install it alone in an empty project, run it. Needs a build."
+	@echo ""
+	@echo "Every package and the repository:"
+	@$(HELP_ROW) "lint / lint-packages" "lint-<pkg> for every package."
+	@$(HELP_ROW) "lint-all" "lint-<pkg> for every package (alias of lint-packages)."
+	@$(HELP_ROW) "fmt / fmt-packages" "fmt-<pkg> for every package."
+	@$(HELP_ROW) "test" "test-<pkg> for every package (alias of test-all)."
+	@$(HELP_ROW) "test-all" "test-<pkg> for every package (BUN_TEST_FLAGS, default --parallel)."
+	@echo ""
+	@echo "Shipped VULCAN targets (node_modules/@venizia/vulcan/base/make/vulcan.mk):"
+	@$(HELP_ROW) "vulcan-sync / agent-setup" "Write CLAUDE.md, .claude/settings.json and the skill links."
+	@$(HELP_ROW) "vulcan-doctor" "Check this repository follows VULCAN; exit 1 on any violation."
+	@$(HELP_ROW) "okf-check" "Gate: OKF v0.2 conformance of .agents/knowledge; warnings never fail."
+	@$(HELP_ROW) "okf-check-strict" "okf-check plus the house rules (IGNIS-shaped projects)."
+	@$(HELP_ROW) "okf-gen / okf-coverage / okf-viz" "Generate, report and visualize the bundle (IGNIS-shaped projects)."
+	@$(HELP_ROW) "surface-* / symbols-* / releases-*" "Generate or check the Atlas tables (gen | check)."
+	@echo ""
+	@echo "Development (use bun run directly):"
+	@$(HELP_ROW) "bun x --no-install vulcan x atlas mcp --root ../ignis" "Start the Atlas MCP server over IGNIS."
