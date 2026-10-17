@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AtlasSymbols } from '@/symbols/generator';
-import { IGNIS_IS_BUILT, IGNIS_ROOT } from '../ignis-root';
+import { IGNIS_IS_BUILT, IGNIS_ROOT } from '../ignis-root.helper';
 
 const tmpDirs: string[] = [];
 

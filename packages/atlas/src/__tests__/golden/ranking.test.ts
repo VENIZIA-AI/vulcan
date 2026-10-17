@@ -2,7 +2,7 @@ import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
 import { ChunkStore } from '@/search';
 import { describe, expect, test } from 'bun:test';
 import golden from './queries.json';
-import { IGNIS_ROOT } from '../ignis-root';
+import { IGNIS_ROOT } from '../ignis-root.helper';
 
 interface IGoldenQuery {
   query: string;

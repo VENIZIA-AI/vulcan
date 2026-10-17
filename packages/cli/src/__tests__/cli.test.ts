@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runCli } from './helpers/run.ts';
+import { runCli } from './run.helper.ts';
 
 const readVersion = (opts: { packageDirectory: string }): string =>
   JSON.parse(

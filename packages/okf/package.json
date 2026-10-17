@@ -1,7 +1,21 @@
 {
   "name": "@venizia/vulcan-okf",
   "version": "0.1.0-0",
-  "description": "VULCAN knowledge tooling: OKF bundle gen/check/coverage/viz and the surface, symbol and release table generators. Bun-only.",
+  "description": "VULCAN knowledge tooling: OKF v0.2 conformance check (plus --strict house rules), gen, coverage and the offline graph explorer for a project's .agents/knowledge bundle. Bun-only.",
+  "homepage": "https://github.com/VENIZIA-AI/vulcan/tree/main/packages/okf",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VENIZIA-AI/vulcan.git",
+    "directory": "packages/okf"
+  },
+  "bugs": {
+    "url": "https://github.com/VENIZIA-AI/vulcan/issues"
+  },
+  "author": {
+    "name": "VENIZIA AI Developer",
+    "email": "developer@venizia.ai",
+    "url": "https://venizia.ai"
+  },
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -9,6 +23,10 @@
   },
   "bin": {
     "vulcan-okf": "./src/cli.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
   },
   "files": [
     "README.md",
@@ -20,6 +38,7 @@
     "access": "public"
   },
   "scripts": {
+    "force-update": "sh ../../scripts/force-update.sh",
     "test": "NODE_ENV=test bun test --env-file=.env.test"
   },
   "dependencies": {
@@ -30,11 +49,12 @@
   "devDependencies": {
     "@types/bun": "catalog:",
     "@types/cytoscape-fcose": "catalog:",
-    "@venizia/dev-configs": "0.3.1-0",
+    "@venizia/dev-configs": "catalog:",
     "@venizia/ignis-helpers": "catalog:",
     "eslint": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:"
-  }
+  },
+  "sideEffects": false
 }

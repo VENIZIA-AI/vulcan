@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
-import { IGNIS_ROOT } from '../ignis-root';
+import { IGNIS_ROOT } from '../ignis-root.helper';
+import { SPAWN_TIMEOUT_MS } from '../spawn.helper';
 
 // __dirname, not import.meta: tsconfig.json (unlike tsconfig.build.json) does not exclude
 // __tests__, and this package's module mode treats every file as CommonJS output.
@@ -74,6 +75,8 @@ describe('stdout discipline - the mcp subprocess over real stdio', () => {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
+      timeout: SPAWN_TIMEOUT_MS,
+      killSignal: 'SIGKILL',
     });
 
     const stdout = await collectStdout({ process: child, windowMs: READ_WINDOW_MS });

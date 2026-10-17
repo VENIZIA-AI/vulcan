@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AtlasReleases } from '@/releases/generator';
-import { IGNIS_HAS_HISTORY, IGNIS_ROOT } from '../ignis-root';
+import { IGNIS_HAS_HISTORY, IGNIS_ROOT } from '../ignis-root.helper';
 
 const tmpDirs: string[] = [];
 
