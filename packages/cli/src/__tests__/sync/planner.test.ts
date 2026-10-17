@@ -2,16 +2,19 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import {
   existsSync,
   lstatSync,
+  mkdirSync,
   readFileSync,
   readlinkSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
 afterAll(removeProjects);
+
+const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 
 const READ_ONLY_PROJECT = {
   '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
@@ -225,6 +228,39 @@ describe('skills', () => {
     expect(readlinkSync(join(root, '.claude', 'skills', 'docs-writing'))).toContain(
       'base/skills/docs-writing',
     );
+  });
+
+  test('a shipped skill links through node_modules/@venizia/vulcan, never the store path behind it', () => {
+    const root = createProject({ files: READ_ONLY_PROJECT });
+    const installed = join(root, 'node_modules', '@venizia', 'vulcan');
+
+    // bun's isolated install: node_modules/@venizia/vulcan is a link into a hashed store directory,
+    // which every upgrade replaces - a skill linked there dies with it.
+    mkdirSync(dirname(installed), { recursive: true });
+    symlinkSync(PACKAGE_ROOT, installed);
+    runSync({ root });
+
+    expect(readlinkSync(join(root, '.claude', 'skills', 'knowledge-sync'))).toBe(
+      join(installed, 'base', 'skills', 'knowledge-sync'),
+    );
+  });
+
+  test('a dead link left by an older install is replaced by the stable one', () => {
+    const root = createProject({ files: READ_ONLY_PROJECT });
+    const installed = join(root, 'node_modules', '@venizia', 'vulcan');
+    const link = join(root, '.claude', 'skills', 'knowledge-sync');
+
+    mkdirSync(dirname(installed), { recursive: true });
+    symlinkSync(PACKAGE_ROOT, installed);
+    mkdirSync(dirname(link), { recursive: true });
+    symlinkSync(
+      join(root, 'node_modules', '.bun', 'gone', 'base', 'skills', 'knowledge-sync'),
+      link,
+    );
+
+    expect(runSync({ root }).stderr).toContain('replaced');
+    expect(readlinkSync(link)).toBe(join(installed, 'base', 'skills', 'knowledge-sync'));
+    expect(existsSync(join(link, 'SKILL.md'))).toBe(true);
   });
 
   test('a real directory where a skill link belongs is left alone', () => {

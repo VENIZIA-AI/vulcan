@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
-import { BASE_DIRECTORY } from '../common/index.ts';
+import { BASE_DIRECTORY, stableBaseDirectoryOf } from '../common/index.ts';
 import { CodingAgents } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { ManifestConstants, renderManifest } from '../manifest/index.ts';
@@ -162,9 +162,10 @@ const findSkillDirectories = (opts: { directory: string }): string[] =>
 /** Shipped and project skills, linked flat into `.claude/skills/<name>`; a real directory there is left alone. */
 const planSkillLinks = (opts: { root: string }): ISyncAction[] => {
   const target = join(opts.root, SyncConstants.CLAUDE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY);
+  const stableSkills = join(stableBaseDirectoryOf(opts), SyncConstants.SKILLS_DIRECTORY);
   const shipped = findSkillDirectories({
     directory: join(BASE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY),
-  });
+  }).map(source => join(stableSkills, basename(source)));
   const shippedNames = new Set(shipped.map(source => basename(source)));
   const project = findSkillDirectories({
     directory: join(opts.root, '.agents', SyncConstants.SKILLS_DIRECTORY),

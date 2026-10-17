@@ -9,6 +9,7 @@ import {
   readUserSources,
 } from './cli/index';
 import { runChangelogsCommand } from './changelogs/command';
+import { runConceptsCommand } from './concepts/command';
 import { runReleasesCommand } from './releases/generator';
 import { buildSourcesServer } from './server/index';
 import { hasAtlasProject, readAtlasProject } from './common/project-config';
@@ -17,7 +18,7 @@ import type { IAtlasSource } from './sources/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
 
-const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | pull [--source <name>] | <surface|symbols|releases> | changelogs migrate [--dry-run]`;
+const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | pull [--source <name>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check`;
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -58,6 +59,15 @@ if (generator) {
 if (subcommand === AtlasCommands.CHANGELOGS) {
   try {
     process.exit(runChangelogsCommand({ command: argv[1], argv }));
+  } catch (error) {
+    console.error(`${AtlasConstants.SERVER_NAME}: ${messageOf(error)}`);
+    process.exit(1);
+  }
+}
+
+if (subcommand === AtlasCommands.CONCEPTS) {
+  try {
+    process.exit(runConceptsCommand({ command: argv[1] }));
   } catch (error) {
     console.error(`${AtlasConstants.SERVER_NAME}: ${messageOf(error)}`);
     process.exit(1);

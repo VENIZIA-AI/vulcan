@@ -12,6 +12,11 @@ Updated [the project contract](/architecture/project-contract.md) and [cli](/pac
 fails a `V-` ID a project rule points at that the base does not carry or has retired (the base lists
 retired IDs); sync prints the base rules added, changed or removed since the manifest last recorded them.
 
+## 2026-10-17 - concepts that name code stay true
+
+Updated [atlas](/packages/atlas.md): `concepts stamp|check` and `make knowledge-symbols-check` (Project
+Contract v1, V4) - a concept's `symbols:` are locked by signature hash and checked after build.
+
 ## 2026-10-17 - V-C-02 caps parameters at 5
 
 Updated [design decisions](/overview/design-decisions.md): V-C-02 is one options object first, at most 5
