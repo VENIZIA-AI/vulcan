@@ -26,7 +26,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       coverage: z.array(z.strictObject({ name: z.string(), path: z.string() })).optional(),
     })
     .optional(),
-  /** Validated now; consumed by atlas v1. */
+  /** `packages` is read by atlas surface/symbols (required there); the rest is validated, read later. */
   atlas: z
     .strictObject({
       packages: z.record(z.string(), z.string()).optional(),

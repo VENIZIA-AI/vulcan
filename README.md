@@ -18,14 +18,17 @@ The three always carry the same version. A project depends on `@venizia/vulcan` 
 Requires [Bun](https://bun.sh) 1.4 or newer.
 
 ```bash
-bun add -d --exact @venizia/vulcan @venizia/dev-configs
-bun x vulcan init      # scaffold AGENTS.md, .configs/, .agents/, Makefile include, .mcp.json
-bun x vulcan sync      # write CLAUDE.md (@AGENTS.md), .claude/settings.json and the skill links
-bun x vulcan doctor    # check the project follows VULCAN
+bun add -d --exact @venizia/vulcan@next @venizia/dev-configs
+bun x --no-install vulcan init      # scaffold AGENTS.md, .configs/, .agents/, the Makefile include
+bun x --no-install vulcan sync      # write CLAUDE.md (@AGENTS.md), .claude/settings.json and the skill links
+bun x --no-install vulcan doctor    # check the project follows VULCAN
 ```
 
-`bun x vulcan x okf check` validates the knowledge bundle; `bun x vulcan x atlas mcp` serves it over
+`--no-install` matters: the unscoped npm name `vulcan` belongs to an unrelated package.
+`bun x --no-install vulcan x okf check` validates the knowledge bundle; `vulcan x atlas mcp` serves it over
 MCP. A project adds its own rules, skills and hooks; it never edits what VULCAN ships.
+
+Moving an existing project onto VULCAN: follow [Adopting VULCAN in a project](docs/wiki/content/guides/adopting-vulcan.md).
 
 ## Work on VULCAN
 
