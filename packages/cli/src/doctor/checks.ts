@@ -11,7 +11,7 @@ import {
   RuleConstants,
 } from '../rules/index.ts';
 import { ManifestConstants, projectNameOf } from '../manifest/index.ts';
-import { planManifest, planSync, SyncStatuses } from '../sync/index.ts';
+import { planManifest, planPrune, planSync, SyncStatuses } from '../sync/index.ts';
 import { DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
 import { parseMakeIncludes, parseMakeTargets } from './makefile.ts';
@@ -227,6 +227,16 @@ export const checkAdapters = (opts: ICheckContext): IViolation[] =>
             : `stale (${action.status}) - run '${ProjectLayout.VULCAN_COMMAND} sync'`,
       }),
     );
+
+/** What `sync --prune` would remove: an old VULCAN or plugin-era hook command, a dead skill link. */
+export const checkPrune = (opts: ICheckContext): IViolation[] =>
+  planPrune({ root: opts.root }).map(action =>
+    createViolation({
+      check: DoctorChecks.PRUNE,
+      file: relative(opts.root, action.path),
+      message: `${action.note ?? 'stale'} - run '${ProjectLayout.VULCAN_COMMAND} sync --prune'`,
+    }),
+  );
 
 /** C1: the committed manifest is what the config renders - atlas reads the file, never the config. */
 export const checkManifest = (opts: ICheckContext): IViolation[] => {

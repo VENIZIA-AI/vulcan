@@ -3,6 +3,7 @@ import { loadConfig } from '../config/index.ts';
 import {
   checkAdapters,
   checkManifest,
+  checkPrune,
   checkHooks,
   checkLayout,
   checkMake,
@@ -44,6 +45,7 @@ export const runDoctorChecks = async (opts: { root: string }): Promise<IViolatio
     ...checkMake(context),
     ...checkHooks(context),
     ...checkAdapters(context),
+    ...checkPrune(context),
     ...checkManifest(context),
     ...checkTags(context),
     ...checkSkillLint(context),

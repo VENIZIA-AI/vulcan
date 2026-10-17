@@ -5,7 +5,8 @@ const HELP = `vulcan ${VULCAN_VERSION} - one setup, one workflow for every proje
 Usage: bun x vulcan <command>
 
   init [--config ts|mts|mjs|js]   Scaffold the project layer (never overwrites)
-  sync [--dry-run]                Write the gitignored agent adapters (CLAUDE.md, .claude/)
+  sync [--dry-run] [--prune]      Write the gitignored agent adapters (CLAUDE.md, .claude/);
+                                  --prune also removes stale hooks and dead skill links
   doctor                          Check the project follows VULCAN; exit 1 on any violation
   upgrade [<version|tag>]         Bump the pinned @venizia/vulcan, then sync
   x <tool> [args...]              Run a shipped tool at the pinned version: okf, atlas

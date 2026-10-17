@@ -25,6 +25,54 @@ describe('buildSessionDigest', () => {
     expect(digest).toContain('| V-C-02 |');
   });
 
+  // BANA's shape: bold bare IDs define, a V- ID list references the base; a marked minimap block.
+  const BANA_RULES = [
+    '| ID | Rule | Enforced by |',
+    '|---|---|---|',
+    '| **W-00** | Never sign a commit as an agent. | SOFT |',
+    '| V-W-02, V-W-03 | Ask before psql writes or a deploy, even on develop. | HARD |',
+    '',
+    '<!-- minimap-shape:start -->',
+    'apps/ - one app per directory; libs/ - shared code, no app imports.',
+    '<!-- minimap-shape:end -->',
+    '',
+  ].join('\n');
+
+  test("the often-dropped list comes from the config, and may name the project's own bold rows", async () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.ts':
+          "export default { rules: { 'V-W-01': 'read-only' }, digest: { oftenDropped: ['W-00', 'V-P-05'] } };\n",
+        '.agents/rules.md': BANA_RULES,
+      },
+    });
+    const digest = await buildSessionDigest({ projectRoot: root });
+    const dropped = digest.slice(digest.indexOf('## The rules sessions drop most'));
+
+    expect(dropped).toContain('| **W-00** | Never sign a commit as an agent. |');
+    expect(dropped).toContain('| V-P-05 |');
+    expect(dropped).not.toContain('| V-C-02 |');
+  });
+
+  test("a project's rows that list base IDs are its rules too, and its marked minimap block is printed", async () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+        '.agents/rules.md': BANA_RULES,
+      },
+    });
+    const digest = await buildSessionDigest({ projectRoot: root });
+
+    expect(digest).toContain(
+      '| V-W-02, V-W-03 | Ask before psql writes or a deploy, even on develop. | HARD |',
+    );
+    expect(digest).toContain(
+      "## This project's minimap\n\napps/ - one app per directory; libs/ - shared code, no app imports.\n",
+    );
+    expect(digest).not.toContain('minimap-shape:start');
+    expect(digest).toContain('| V-C-02 |');
+  });
+
   test('a project without a config still gets the digest, and sees the slot is not chosen', async () => {
     const digest = await buildSessionDigest({ projectRoot: createProject({ files: {} }) });
 

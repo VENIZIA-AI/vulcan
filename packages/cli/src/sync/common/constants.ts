@@ -3,11 +3,14 @@ export class SyncStatuses {
   static readonly REPLACED = 'replaced';
   static readonly UNCHANGED = 'unchanged';
   static readonly SKIPPED = 'skipped';
+  /** Taken out by `sync --prune`. */
+  static readonly REMOVED = 'removed';
   static readonly SCHEME_SET = new Set<string>([
     this.CREATED,
     this.REPLACED,
     this.UNCHANGED,
     this.SKIPPED,
+    this.REMOVED,
   ]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);

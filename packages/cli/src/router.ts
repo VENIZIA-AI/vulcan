@@ -15,7 +15,7 @@ interface IAcceptedArgs {
 /** What each command takes; `x` hands everything to its tool, `help` and `version` take nothing. */
 const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
   [VulcanCommands.INIT]: { flags: [], values: ['--config'], positionals: 0 },
-  [VulcanCommands.SYNC]: { flags: ['--dry-run'], values: [], positionals: 0 },
+  [VulcanCommands.SYNC]: { flags: ['--dry-run', '--prune'], values: [], positionals: 0 },
   [VulcanCommands.DOCTOR]: { flags: [], values: [], positionals: 0 },
   [VulcanCommands.UPGRADE]: { flags: [], values: [], positionals: 1 },
 };

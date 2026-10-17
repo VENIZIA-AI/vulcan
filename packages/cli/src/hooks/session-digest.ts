@@ -1,28 +1,42 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
-import { loadConfig } from '../config/index.ts';
-import { extractRuleRows, readSlots, RuleConstants } from '../rules/index.ts';
+import { ConfigConstants, loadConfig } from '../config/index.ts';
+import { extractRuleRows, parseRuleIds, readSlots, RuleConstants } from '../rules/index.ts';
 
-/** The base rules a session drops most; quoted from the rule file, so the digest cannot drift. */
-const OFTEN_DROPPED = ['V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-W-04', 'V-C-02', 'V-C-10'];
+/** A project row whose first cell lists IDs - `| V-W-02, V-W-03 |` - elaborates those base rules. */
+const ID_LIST_ROW =
+  /^\|\s*(?:\*\*)?(?:[A-Z]+-)?[A-Z]-\d{2}(?:\*\*)?(?:\s*,\s*(?:\*\*)?(?:[A-Z]+-)?[A-Z]-\d{2}(?:\*\*)?)+\s*\|/;
+
+/** The project's own picture of itself, printed verbatim at session start. */
+const MINIMAP = /<!-- minimap-shape:start -->\n([\s\S]*?)\n?<!-- minimap-shape:end -->/;
 
 const TABLE_HEADER = ['| ID | Rule | Enforced by |', '|----|------|-------------|'];
 
+/** Each listed ID's row, plain or bold (`| **W-00** |`), quoted from its rule file so it cannot drift. */
 const selectRows = (opts: { rows: string[]; ids: string[] }): string[] =>
   opts.ids
-    .map(id => opts.rows.find(row => row.startsWith(`| ${id} |`)))
+    .map(id => opts.rows.find(row => parseRuleIds({ markdown: row })[0] === id))
     .filter((row): row is string => row !== undefined);
 
-const readRuleRows = (opts: { file: string }): string[] =>
-  existsSync(opts.file) ? extractRuleRows({ markdown: readFileSync(opts.file, 'utf8') }) : [];
+const readText = (opts: { file: string }): string =>
+  existsSync(opts.file) ? readFileSync(opts.file, 'utf8') : '';
 
 /** The SessionStart context: base write boundaries, this project's slot choices and own rules, the often-dropped rules. */
 export const buildSessionDigest = async (opts: { projectRoot: string }): Promise<string> => {
-  const baseRows = readRuleRows({ file: join(BASE_DIRECTORY, 'rules.md') });
-  const projectRows = readRuleRows({ file: join(opts.projectRoot, '.agents', 'rules.md') });
+  const baseRows = extractRuleRows({
+    markdown: readText({ file: join(BASE_DIRECTORY, 'rules.md') }),
+  });
+  const projectText = readText({ file: join(opts.projectRoot, '.agents', 'rules.md') });
+  const projectRows = projectText
+    .split('\n')
+    .filter(line => extractRuleRows({ markdown: line }).length > 0 || ID_LIST_ROW.test(line));
+  const minimap = MINIMAP.exec(projectText)?.[1].trim();
   const loaded = await loadConfig({ root: opts.projectRoot });
   const choices = loaded.ok ? loaded.config.rules : {};
+  const oftenDropped = loaded.ok
+    ? loaded.config.digest.oftenDropped
+    : ConfigConstants.DEFAULT_OFTEN_DROPPED;
 
   const slotRows = Object.entries(readSlots()).map(([id, slot]) => {
     const choice = choices[id];
@@ -53,12 +67,16 @@ export const buildSessionDigest = async (opts: { projectRoot: string }): Promise
     lines.push('', "## This project's own rules", '', ...TABLE_HEADER, ...projectRows);
   }
 
+  if (minimap !== undefined && minimap.length > 0) {
+    lines.push('', "## This project's minimap", '', minimap);
+  }
+
   lines.push(
     '',
     '## The rules sessions drop most',
     '',
     ...TABLE_HEADER,
-    ...selectRows({ rows: baseRows, ids: OFTEN_DROPPED }),
+    ...selectRows({ rows: [...baseRows, ...projectRows], ids: oftenDropped }),
   );
 
   return `${lines.join('\n')}\n`;
