@@ -79,11 +79,49 @@ export default {
 | `agents`, `rules`, `claude`, `hooks` | `sync`, `doctor`, the session digest | in use |
 | `knowledge.bundle` | `doctor` | in use |
 | `atlas.packages` | `vulcan x atlas surface\|symbols` | **required** for those two |
-| `okf.*`, `atlas.tagPattern`, `atlas.releaseCommit`, `knowledge.wiki` | - | validated, not read yet (see Known gaps) |
+| `okf.*` | `vulcan x okf gen\|check\|coverage\|viz` | in use - see below |
+| `atlas.tagPattern`, `atlas.releaseCommit`, `knowledge.wiki` | - | validated, not read yet (see Known gaps) |
 
 An unknown key is an error, and every error names the file and the field.
 
 **Check:** `bun x --no-install vulcan doctor` reports no `[config]` violation.
+
+### okf: renderers, regions, coverage
+
+okf runs exactly what `okf` lists, nothing else:
+
+```ts
+okf: {
+  renderers: [
+    'source-map',                                                    // built in
+    'makefile-targets',                                              // built in
+    { id: 'binding-keys', options: { source: 'packages/kernel/src/common/keys.ts' } },
+    { id: 'providers', module: '.agents/okf/providers.ts' },         // a project module
+  ],
+  regions: [{ id: 'packages-table', file: 'overview/monorepo-layout.md', renderer: 'packages-table' }],
+  coverage: [{ name: 'packages', path: 'packages/*' }, { name: 'examples', path: 'examples/*' }],
+},
+```
+
+A coverage axis globs directories; each one needs a concept at `<name>/<directory>.md`, and an axis
+that matches no directory fails. A project module default-exports a renderer, and imports the API from
+`@venizia/vulcan/okf` - the one VULCAN package a project installs:
+
+```ts
+import { defineRenderer } from '@venizia/vulcan/okf';
+
+export default defineRenderer({
+  id: 'providers',                                     // must equal the config entry's id
+  collect: ({ context }) =>                            // the one extraction; render and coverage read it
+    context.source.exportedClasses({ dirs: ['packages/admin/src/providers'], suffix: 'Provider' }),
+  render: ({ context, facts }) => ({
+    path: 'reference/providers.md',                    // relative to the bundle
+    content: context.page.header({ title: 'Providers', description: '...', resource: 'packages', tags: ['reference'] }) +
+      context.page.note({ seeAlso: '...' }) + facts.map(entry => entry.classes.join(', ')).join('\n') + '\n',
+  }),
+  coverage: ({ facts }) => ({ name: 'providers', count: facts.reduce((sum, entry) => sum + entry.classes.length, 0) }),
+});
+```
 
 ## 4. The Makefile
 
@@ -156,9 +194,6 @@ still needs.
 
 What VULCAN does not do for every project yet, and what to keep meanwhile:
 
-- **okf reads no project config.** `okf gen`, `okf coverage` and `okf check --strict` run IGNIS's
-  renderers. A project with other tables keeps its own generator (ARDOR routes `vulcan x okf` through a
-  bridge). `okf check` - OKF v0.2 conformance - works for every project.
 - **`releases` keeps IGNIS's package list**, retired directories included.
 - **The `knowledge-sync` skill** still carries an IGNIS area-to-concept table.
 - **Skill links** point at Bun's resolved store path, so a reinstall that changes it breaks them until
