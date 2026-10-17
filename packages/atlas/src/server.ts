@@ -7,7 +7,7 @@ import { resolveRepositoryRoots } from '@/corpus';
 import type { ICorpusRoot } from '@/corpus';
 import { Transport } from '@/protocol';
 import type { IToolHandler } from '@/protocol';
-import { ReleaseStore } from '@/releases';
+import { computeReleases, ReleaseStore } from '@/releases';
 import type { ChunkStore } from '@/search/store';
 import { SymbolStore } from '@/symbols';
 import {
@@ -81,7 +81,11 @@ export const buildServer = (opts: {
   // Built once: both generated tables come from outside the corpus, so its freshness never moves
   // them - the symbol table from `dist`, the release table from `git log`.
   const symbols = SymbolStore.load({ mode, root, bundle });
-  const releases = ReleaseStore.load({ mode, root, bundle });
+  // Repo mode computes releases from git (D1); the packaged snapshot still ships its table.
+  const releases =
+    project === undefined
+      ? ReleaseStore.load({ mode, root, bundle })
+      : new ReleaseStore({ table: computeReleases({ project }) });
 
   return new Transport({
     tools: [

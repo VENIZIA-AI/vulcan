@@ -1,6 +1,6 @@
 /** `[#<issue>] ` at the front of a template: optional on a commit, and a commit may carry several. */
 const LEADING_ISSUE = '[#<issue>] ';
-const PLACEHOLDER_PATTERN = /<(dir|package|version|issue)>/;
+const PLACEHOLDER_PATTERN = /<(dir|package|version|issue|date)>/;
 
 const escapeLiteral = (opts: { text: string }): string =>
   opts.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -25,7 +25,13 @@ export const compileReleaseTemplate = (opts: { template: string }): RegExp => {
       }
 
       const group = part === 'package' ? 'dir' : part;
-      const pattern = { dir: '[a-z0-9][a-z0-9.-]*', version: '\\S+', issue: '\\d+' }[group] ?? '';
+      const pattern =
+        {
+          dir: '[a-z0-9][a-z0-9.-]*',
+          version: '\\S+',
+          issue: '\\d+',
+          date: '\\d{4}-\\d{2}-\\d{2}',
+        }[group] ?? '';
 
       if (named.has(group)) {
         return `\\k<${group}>`;

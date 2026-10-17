@@ -40,9 +40,6 @@ describe('readAtlasProject', () => {
       bundle: join(ROOT, '.agents/knowledge'),
       changelogs: join(ROOT, 'docs/changelogs'),
     });
-    expect(
-      project.releaseCommit.exec('[#80] chore(kernel): release v0.2.1-0 [prerelease]')?.groups,
-    ).toMatchObject({ dir: 'kernel', version: '0.2.1-0' });
   });
 
   test('absent sections take the defaults: the default release forms, the root for typescript', () => {
@@ -52,7 +49,6 @@ describe('readAtlasProject', () => {
     expect(project.tagPattern).toBe('<dir>-v<version>');
     expect(project.ignoreTags).toEqual([]);
     expect(project.typescriptFrom).toBe(ROOT);
-    expect(project.releaseCommit.test('chore(boot): release v1.0.0 [patch]')).toBe(true);
   });
 
   test('without vulcan x it reads the committed manifest at the project root', () => {

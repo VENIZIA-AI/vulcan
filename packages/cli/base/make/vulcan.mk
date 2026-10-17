@@ -5,7 +5,7 @@
 VULCAN ?= bun x --no-install vulcan
 
 .PHONY: vulcan-sync vulcan-doctor agent-setup okf-check okf-check-strict okf-gen okf-coverage okf-viz \
-        surface-gen surface-check symbols-gen symbols-check releases-gen releases-check
+        surface-gen surface-check symbols-gen symbols-check atlas-releases changelogs-migrate
 
 vulcan-sync:
 	@$(VULCAN) sync
@@ -13,7 +13,7 @@ vulcan-sync:
 vulcan-doctor:
 	@$(VULCAN) doctor
 
-# The IGNIS name for the same job, kept for muscle memory.
+# The older name for the same job, kept for muscle memory.
 agent-setup: vulcan-sync
 
 # OKF v0.2 conformance only; okf-check-strict adds the house rules (links, style, coverage, freshness).
@@ -45,8 +45,11 @@ symbols-gen:
 symbols-check:
 	@$(VULCAN) x atlas symbols check
 
-releases-gen:
-	@$(VULCAN) x atlas releases gen
+# Releases are computed from tags when atlas reads the project - nothing to generate or commit.
+# atlas-releases prints the computed table, to see what version and changes answer from.
+atlas-releases:
+	@$(VULCAN) x atlas releases
 
-releases-check:
-	@$(VULCAN) x atlas releases check
+# Writes the packages: list into every changelog entry that declares none - once, then review it.
+changelogs-migrate:
+	@$(VULCAN) x atlas changelogs migrate

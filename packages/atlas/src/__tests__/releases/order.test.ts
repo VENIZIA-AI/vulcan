@@ -39,10 +39,12 @@ test('a table generated before its changelog is committed still reads fresh afte
   mkdirSync(join(ROOT, 'changelogs'));
   git({ args: ['init', '-q', '-b', 'develop'] });
   git({ args: ['commit', '-q', '--allow-empty', '-m', 'chore(kernel): release v1.0.0 [patch]'] });
+  git({ args: ['tag', 'kernel-v1.0.0'] });
   changelog({ file: '2026-01-02-a.md' });
   git({ args: ['add', '-A'] });
   git({ args: ['commit', '-q', '-m', 'docs: a'] });
   git({ args: ['commit', '-q', '--allow-empty', '-m', 'chore(kernel): release v1.1.0 [patch]'] });
+  git({ args: ['tag', 'kernel-v1.1.0'] });
   changelog({ file: '2026-01-03-b.md' });
 
   const before = AtlasReleases.render({ project: PROJECT });

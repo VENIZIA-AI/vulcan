@@ -9,6 +9,7 @@ export class DoctorChecks {
   static readonly ADAPTERS = 'adapters';
   static readonly STYLE = 'style';
   static readonly MANIFEST = 'manifest';
+  static readonly TAGS = 'tags';
   static readonly SCHEME_SET = new Set<string>([
     this.CONFIG,
     this.LAYOUT,
@@ -20,6 +21,7 @@ export class DoctorChecks {
     this.ADAPTERS,
     this.STYLE,
     this.MANIFEST,
+    this.TAGS,
   ]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);

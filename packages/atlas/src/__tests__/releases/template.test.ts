@@ -44,6 +44,16 @@ describe('compileReleaseTemplate', () => {
     expect(groups?.dir).toBeUndefined();
   });
 
+  test('<date> matches a YYYY-MM-DD date - an application tags its whole repository by date', () => {
+    expect(groupsOf({ template: '<date>_v<version>', subject: '2026-10-12_v1.0.0' })).toMatchObject(
+      {
+        date: '2026-10-12',
+        version: '1.0.0',
+      },
+    );
+    expect(groupsOf({ template: '<date>_v<version>', subject: '2026-10_v1.0.0' })).toBeUndefined();
+  });
+
   test('every other character is literal: a subject that only looks alike does not match', () => {
     expect(
       groupsOf({ template: IGNIS_FORM, subject: 'chore: release v0.2.0-21 [prerelease]' }),
