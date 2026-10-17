@@ -105,10 +105,13 @@ describe('version tool', () => {
 
     const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
 
-    expect(payload.snapshot).toEqual({ helpers: '0.2.0-15', kernel: '0.2.0-21' });
+    expect(payload.snapshot).toEqual({
+      '@venizia/ignis-helpers': '0.2.0-15',
+      '@venizia/ignis-kernel': '0.2.0-21',
+    });
   });
 
-  test('lists a package behind the newest known version, named by its directory', async () => {
+  test('lists a package behind the newest known version, named by its npm name', async () => {
     const cwd = makeDirectory();
 
     writeJson({
@@ -123,7 +126,7 @@ describe('version tool', () => {
     const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
 
     expect(payload.behind).toEqual([
-      { package: 'kernel', installed: '0.2.0-11', newest: '0.2.0-21' },
+      { package: '@venizia/ignis-kernel', installed: '0.2.0-11', newest: '0.2.0-21' },
     ]);
   });
 
@@ -170,7 +173,7 @@ describe('version tool', () => {
 
     expect(payload.installed['@venizia/ignis-kernel']).toBe('0.2.0-11');
     expect(payload.behind).toEqual([
-      { package: 'kernel', installed: '0.2.0-11', newest: '0.2.0-21' },
+      { package: '@venizia/ignis-kernel', installed: '0.2.0-11', newest: '0.2.0-21' },
     ]);
   });
 
