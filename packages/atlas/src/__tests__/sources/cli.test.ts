@@ -7,6 +7,7 @@ import {
   git,
   makeSourceRepository,
   makeTempDirectory,
+  NO_REGISTRY,
   TEMP_DIRECTORIES,
 } from './source-repo.helper';
 
@@ -68,7 +69,7 @@ describe('vulcan-atlas over git sources', () => {
     const result = spawnSyncBounded({
       cmd: [process.execPath, join(PACKAGE_ROOT, 'src/cli.ts'), ...opts.args],
       cwd: opts.cwd,
-      env: { ...process.env, XDG_CACHE_HOME: opts.cache },
+      env: { ...process.env, XDG_CACHE_HOME: opts.cache, VULCAN_NPM_REGISTRY: NO_REGISTRY },
       stdin: opts.input === undefined ? 'ignore' : Buffer.from(opts.input),
       stdout: 'pipe',
       stderr: 'pipe',

@@ -3,6 +3,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSyncBounded } from '../spawn.helper';
 
+/** A registry that refuses at once: a test never reaches npm, and a pull's tarball step skips fast. */
+export const NO_REGISTRY = 'http://127.0.0.1:9';
+
 /** Every directory a test made; the test file removes them in `afterAll`. */
 export const TEMP_DIRECTORIES: string[] = [];
 

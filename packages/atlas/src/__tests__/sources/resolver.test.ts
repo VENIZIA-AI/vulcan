@@ -8,6 +8,7 @@ import {
   git,
   makeSourceRepository,
   makeTempDirectory,
+  NO_REGISTRY,
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from './source-repo.helper';
@@ -22,10 +23,12 @@ const previousCache = process.env.XDG_CACHE_HOME;
 
 beforeEach(() => {
   process.env.XDG_CACHE_HOME = makeTempDirectory({ prefix: 'atlas-cache-' });
+  process.env.VULCAN_NPM_REGISTRY = NO_REGISTRY;
 });
 
 afterEach(() => {
   process.env.XDG_CACHE_HOME = previousCache;
+  delete process.env.VULCAN_NPM_REGISTRY;
 });
 
 const consumer = (): string => makeTempDirectory({ prefix: 'atlas-consumer-' });

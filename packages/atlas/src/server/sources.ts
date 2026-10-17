@@ -7,7 +7,7 @@ import { computeReleases, ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources/serving';
 import type { IResolvedSource } from '@/sources/common';
-import { SymbolStore, symbolsOfInstalled, symbolsOfRepository } from '@/symbols';
+import { cachedSymbols, SymbolStore, symbolsOfInstalled, symbolsOfRepository } from '@/symbols';
 import type { ISymbolRecord } from '@/symbols';
 import {
   buildChangesTool,
@@ -26,14 +26,27 @@ const packageMapOf = (opts: { source: IResolvedSource }) =>
   }));
 
 /**
- * A remote source's symbols, D2: what the consumer installed of its packages, the exact version it
- * runs. (A package it did not install answers from the npm tarball - task 13c.)
+ * A remote source's symbols, D2: what the consumer installed of each package - the exact version it
+ * runs - else the newest release npm published, which the pull cached.
  */
-const installedSymbolsOf = (opts: { source: IResolvedSource; cwd: string }): ISymbolRecord[] =>
+const remoteSymbolsOf = (opts: {
+  source: IResolvedSource;
+  cwd: string;
+  releases: ReleaseStore;
+}): ISymbolRecord[] =>
   opts.source.project.packages
-    .map(entry => join(opts.cwd, 'node_modules', entry.name))
-    .filter(directory => existsSync(join(directory, 'package.json')))
-    .flatMap(directory => symbolsOfInstalled({ directory }));
+    .filter(entry => !entry.retired)
+    .flatMap(entry => {
+      const installed = join(opts.cwd, 'node_modules', entry.name);
+
+      if (existsSync(join(installed, 'package.json'))) {
+        return symbolsOfInstalled({ directory: installed });
+      }
+
+      const version = opts.releases.newestOf({ package: entry.name })?.version;
+
+      return version === undefined ? [] : (cachedSymbols({ name: entry.name, version }) ?? []);
+    });
 
 const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
   const { source } = opts;
@@ -57,16 +70,17 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
   }
 
   const index = new ChunkStore({ serialized: readFileSync(source.indexFile ?? '') });
+  const releases = new ReleaseStore({
+    table: JSON.parse(readFileSync(source.releasesFile ?? '', 'utf8')),
+  });
 
   return {
     name: source.name,
     chunks: () => index,
-    releases: new ReleaseStore({
-      table: JSON.parse(readFileSync(source.releasesFile ?? '', 'utf8')),
-    }),
+    releases,
     symbols: new SymbolStore({
-      load: () => ({ symbols: installedSymbolsOf(opts), packageMap }),
-      emptyReason: 'none of its packages is installed here',
+      load: () => ({ symbols: remoteSymbolsOf({ ...opts, releases }), packageMap }),
+      emptyReason: 'none of its packages is installed here or on npm',
     }),
   };
 };
