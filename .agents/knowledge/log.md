@@ -6,6 +6,12 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-17 - base rules fit every project
+
+Updated [design decisions](/overview/design-decisions.md): `V-C-18` keeps only derived types over
+duplicates, `V-P-02` is design the surface first, and `V-W-05`, `V-C-03`, `V-C-05` are retired - the
+stack, `@inject` and `getError` rules are IGNIS rules now.
+
 ## 2026-10-17 - okf coverage scope renamed
 
 Updated [okf](/packages/okf.md) and [gotchas](/conventions/gotchas.md): `src/coverage/` became
