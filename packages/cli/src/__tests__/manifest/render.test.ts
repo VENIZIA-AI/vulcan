@@ -75,6 +75,21 @@ describe('renderManifest', () => {
     );
   });
 
+  test("a consumer's sources ride in its manifest - atlas reads nothing else", () => {
+    const root = createProject({ files: {} });
+    const withSources = JSON.parse(
+      render({
+        root,
+        config: { atlas: { sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis' }] } },
+      }),
+    );
+
+    expect(withSources.sources).toEqual([
+      { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
+    ]);
+    expect(JSON.parse(render({ root, config: {} })).sources).toBeUndefined();
+  });
+
   test('byte-stable: the same config renders the same text', () => {
     const root = createProject({ files: {} });
 

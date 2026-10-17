@@ -34,6 +34,8 @@ export interface IAtlasProject {
   typescriptFrom: string;
   /** Absolute paths. */
   knowledge: { bundle: string; wiki?: string; changelogs?: string };
+  /** The sources this project reads knowledge from (git mode): `atlas.sources` of its config. */
+  sources: { name: string; repo: string; ref: string }[];
 }
 
 type TRecord = Record<string, unknown>;
@@ -91,6 +93,15 @@ export const toAtlasProject = (opts: { root: string; manifest: unknown }): IAtla
       (glob): glob is string => typeof glob === 'string',
     ),
     typescriptFrom: opts.root,
+    sources: (Array.isArray(manifest.sources) ? manifest.sources : []).flatMap(item => {
+      const source = recordOf({ value: item });
+      const name = stringOf({ value: source.name });
+      const repo = stringOf({ value: source.repo });
+
+      return name === undefined || repo === undefined
+        ? []
+        : [{ name, repo, ref: stringOf({ value: source.ref }) ?? 'develop' }];
+    }),
     knowledge: {
       bundle: resolve(opts.root, stringOf({ value: knowledge.bundle }) ?? DEFAULT_BUNDLE),
       ...(wiki === undefined ? {} : { wiki: resolve(opts.root, wiki) }),

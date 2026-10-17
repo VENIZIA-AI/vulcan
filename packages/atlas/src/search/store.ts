@@ -132,10 +132,21 @@ export class ChunkStore extends BaseHelper {
   private readonly database: Database;
   private readonly planner = new QueryPlanner();
 
-  constructor() {
+  /** An empty index, or one restored from `serialize()` - a source's index is built once per SHA. */
+  constructor(opts: { serialized?: Uint8Array } = {}) {
     super({ scope: ChunkStore.name });
-    this.database = new Database(':memory:');
-    this.database.run(CREATE_TABLE_SQL);
+
+    if (opts.serialized === undefined) {
+      this.database = new Database(':memory:');
+      this.database.run(CREATE_TABLE_SQL);
+    } else {
+      this.database = Database.deserialize(opts.serialized);
+    }
+  }
+
+  /** The whole index as bytes, for the cache. */
+  serialize(): Uint8Array {
+    return this.database.serialize();
   }
 
   add(opts: { chunks: IChunk[] }): void {

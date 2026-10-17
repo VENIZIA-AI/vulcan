@@ -77,6 +77,8 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
       ignoreTags: config.atlas.ignoreTags ?? [],
     },
     rules: { project: ManifestConstants.PROJECT_RULES, base: baseRuleHashes() },
+    // The sources this project reads knowledge from (atlas, git mode); a project without any carries none.
+    ...(config.atlas.sources.length === 0 ? {} : { sources: config.atlas.sources }),
   };
 
   return `${JSON.stringify(manifest, null, 2)}\n`;
