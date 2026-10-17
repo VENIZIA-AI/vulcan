@@ -15,6 +15,9 @@ TEST_TARGETS := $(addprefix test-,$(PACKAGES))
 # Atlas's repo-mode and generator tests read the sibling IGNIS checkout (IGNIS_ROOT overrides, tests only).
 # ----------------------------------------------------------------------------
 BUN_TEST_FLAGS ?= --parallel
+# Packages whose tests run serially. Bun 1.4's parallel workers sometimes never reap a synchronous git
+# child (a <defunct> git under a stalled worker): atlas hung 1 run in 6 that way, 0 in 15 serially.
+SERIAL_TESTS := atlas
 
 test: test-all
 
@@ -25,7 +28,7 @@ test-scripts:
 	@bun test scripts $(BUN_TEST_FLAGS)
 
 $(TEST_TARGETS): test-%:
-	@cd packages/$* && $(if $(filter $*,$(TEST_SCRIPT)),bun run test,bun test) $(BUN_TEST_FLAGS)
+	@cd packages/$* && $(if $(filter $*,$(TEST_SCRIPT)),bun run test,bun test) $(if $(filter $*,$(SERIAL_TESTS)),,$(BUN_TEST_FLAGS))
 
 # ----------------------------------------------------------------------------
 # SMOKE TARGETS

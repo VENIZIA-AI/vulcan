@@ -75,6 +75,17 @@ describe('PublicSurface.render', () => {
     expect(rendered).toContain('- `B` interface');
     expect(rendered).toContain('- `c` const');
   });
+
+  test('the page says it is generated, so okf gen leaves it whole - no contents list written into it', () => {
+    const repoRoot = makeRepoRoot();
+
+    writeSurface({ repoRoot });
+
+    const rendered = PublicSurface.render({ repoRoot, packages: ['testpkg'] });
+    const frontmatter = /^---\n([\s\S]*?)\n---\n/.exec(rendered)?.[1] ?? '';
+
+    expect(frontmatter).toContain('generated:\n  by: atlas-surface');
+  });
 });
 
 describe('the package list', () => {

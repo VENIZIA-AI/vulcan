@@ -44,6 +44,9 @@ export class PublicSurface {
         '(generated).',
       'resource: packages',
       'tags: [reference, exports, api]',
+      // okf gen owns no part of a file another generator writes: no contents list goes in here.
+      'generated:',
+      '  by: atlas-surface',
       '---',
       '',
       '> Generated from dist - do not edit; run `make surface-gen` after an intentional API ' +

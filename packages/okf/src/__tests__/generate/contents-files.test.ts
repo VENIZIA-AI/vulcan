@@ -62,3 +62,21 @@ test('gen writes the lists, then the check passes; a generated reference file is
     '<!-- okf:generated:contents start -->',
   );
 });
+
+test("another generator's page (atlas surface) and the append-only log.md get no contents list", () => {
+  const root = project();
+  const surface = long({
+    head: '---\ntype: Reference\ntitle: Public surface\ngenerated:\n  by: atlas-surface\n---\n',
+  });
+  const log = long({ head: '# Knowledge log\n\n## 2026-10-17 - an entry\n' });
+
+  writeFileSync(join(root, '.agents/knowledge/reference/public-surface.md'), surface);
+  writeFileSync(join(root, '.agents/knowledge/log.md'), log);
+
+  expect(writeContents()).toEqual(['.agents/knowledge/overview/long.md', 'AGENTS.md']);
+  expect(collectContentsProblems()).toEqual([]);
+  expect(readFileSync(join(root, '.agents/knowledge/reference/public-surface.md'), 'utf8')).toBe(
+    surface,
+  );
+  expect(readFileSync(join(root, '.agents/knowledge/log.md'), 'utf8')).toBe(log);
+});

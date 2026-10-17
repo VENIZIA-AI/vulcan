@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { relative } from 'node:path';
+import { join, relative } from 'node:path';
 import { readOkfProject } from '../project/index.ts';
 import { walkFiles } from '../source/index.ts';
 import { withContents } from './contents.ts';
@@ -7,11 +7,17 @@ import { withContents } from './contents.ts';
 /** A renderer's output - it owns the whole file, so no list is written into it. */
 const GENERATED = /^---\n[\s\S]*?\ngenerated:\n[\s\S]*?\n---\n/;
 
+/** The bundle's log is append-only: a list of every entry would grow with it and churn each commit. */
+const LOG_FILE = 'log.md';
+
 /** The files agents read: the bundle's own Markdown, then `okf.contents.files` (AGENTS.md, rules.md). */
 const contentsTargets = (): string[] => {
   const project = readOkfProject();
   const bundle = walkFiles({ dir: project.bundle }).filter(
-    file => file.endsWith('.md') && !GENERATED.test(readFileSync(file, 'utf8')),
+    file =>
+      file.endsWith('.md') &&
+      file !== join(project.bundle, LOG_FILE) &&
+      !GENERATED.test(readFileSync(file, 'utf8')),
   );
 
   return [...bundle.sort(), ...project.contentsFiles.filter(file => existsSync(file))];
