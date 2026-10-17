@@ -21,7 +21,8 @@ or `none` (publish the version already in package.json).
 1. The workflow sets one version on all three packages, then runs every gate: build, lint, catalog,
    test, the VULCAN contract, both pack smokes, and the packed manifests.
 2. It publishes okf, atlas, cli in that order with `bun publish` - prerelease to `next`, stable to
-   `latest`. A version already on npm is skipped.
+   `latest`. A version already on npm is skipped. A prerelease never moves `latest`: it stays on a
+   stable version (as in IGNIS), so `npm-dist-tag.yml` is not part of a prerelease run.
 3. It commits `chore(release): v<version> [<bump>]` on `develop` and tags `v<version>` on that
    commit as built. When `develop` moved during the run, the push rebases, but the tag stays on the
    release commit, so it never holds merges that were not published.
