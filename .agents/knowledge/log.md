@@ -6,6 +6,11 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-17 - the docs-update skill ships
+
+Updated [cli](/packages/cli.md): the base ships a third skill, `docs-update` - the docs and the
+changelog after a code change, every path from the manifest, gates looped until green.
+
 ## 2026-10-17 - atlas 0.2.0-1 minors
 
 Updated [atlas](/packages/atlas.md): the cache is keyed by the repository's whole path; offline

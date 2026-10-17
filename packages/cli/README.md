@@ -49,7 +49,7 @@ An unknown key is an error; every error names the file and the field.
 
 - `rules.md` - the base rules: write boundaries, security, process, build, and the IGNIS coding style V-C-01..V-C-18 (37 rules; it lists V-W-05, V-C-03 and V-C-05 as retired).
 - `slots.json` - rules a project picks a wording for (V-W-01 today).
-- `skills/` - `knowledge-sync`, `docs-writing` (project-neutral; a project-specific skill stays in its project).
+- `skills/` - `knowledge-sync`, `docs-writing`, `docs-update` (project-neutral; a project-specific skill stays in its project).
 - `hooks/` - `session-start.ts` (prints the rules digest) and `guard-writes.ts` (asks before a database write, a migration, a deploy or a mutating HTTP call).
 - `claude/settings.json`, `make/vulcan.mk`, `templates/`.
 

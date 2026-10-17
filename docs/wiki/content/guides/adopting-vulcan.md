@@ -86,7 +86,7 @@ export default {
 | `rules` | the slot choices, by base ID |
 | `packages` | every package, in release order: `dir`, npm `name`, `path` (default `packages/<dir>`), `aliases` (old directory names or npm names), `retired` |
 | `knowledge.bundle` | the knowledge bundle (default `.agents/knowledge`) |
-| `knowledge.wiki`, `knowledge.changelogs` | what atlas indexes besides the bundle |
+| `knowledge.wiki`, `knowledge.changelogs` | what atlas indexes besides the bundle, and where the docs-update skill writes |
 | `knowledge.syncAreas` | the knowledge-sync skill's map of code areas to concepts |
 | `atlas.tagPattern` | how a release tag is spelled: `<dir>`, `<version>`, `<date>`; without `<dir>` the whole repository is one release line |
 | `atlas.releaseCommit`, `atlas.legacyTagPrefixes`, `atlas.ignoreTags` | older release commits and tags atlas still reads, or skips (globs) |
@@ -240,8 +240,11 @@ apps/ - one app per directory; libs/ - shared code, no app imports.
 
 ## 9. Move hooks and skills
 
-- **Shipped skills** (`knowledge-sync`, `docs-writing`) reach every project through `sync`, linked
-  through `node_modules/@venizia/vulcan`. Delete your own copies with those names.
+- **Shipped skills** (`knowledge-sync`, `docs-writing`, `docs-update`) reach every project through
+  `sync`, linked through `node_modules/@venizia/vulcan`. Delete your own copies with those names.
+- **A wiki-update skill of your own** overlaps `docs-update`, which reads its paths from the
+  manifest. Move what is project-specific - the docs build targets, the generator's limits - into
+  `.agents/rules.md`, then delete the skill.
 - **Your own skills** stay in `.agents/skills/<name>/`, one level deep. `sync` links them next to the
   shipped ones.
 - **Your own hooks** go in the config's `hooks`, never into `.claude/settings.json` by hand.
