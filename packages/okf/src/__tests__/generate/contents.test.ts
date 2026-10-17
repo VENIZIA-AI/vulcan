@@ -129,6 +129,26 @@ describe('contents anchors are the ones GitHub writes', () => {
     ]);
   });
 
+  test('emphasis markers go, an underscore inside a word stays, entities are decoded', () => {
+    expect(
+      listOf({
+        headings: [
+          'The _first_ step',
+          '__Bold__ and *both*',
+          'snake_case_name',
+          'Tom &amp; Jerry &lt;3',
+          'A &#8211; B',
+        ],
+      }),
+    ).toEqual([
+      '- [The _first_ step](#the-first-step)',
+      '- [__Bold__ and *both*](#bold-and-both)',
+      '- [snake_case_name](#snake_case_name)',
+      '- [Tom &amp; Jerry &lt;3](#tom--jerry-3)',
+      '- [A &#8211; B](#a--b)',
+    ]);
+  });
+
   test('every space is a hyphen, runs of spaces are not collapsed', () => {
     expect(listOf({ headings: ['Bindings & keys', 'kernel  (12 files)'] })).toEqual([
       '- [Bindings & keys](#bindings--keys)',

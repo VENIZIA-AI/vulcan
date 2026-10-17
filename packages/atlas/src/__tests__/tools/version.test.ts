@@ -246,6 +246,42 @@ describe('version tool', () => {
     expect(payload.installed['@venizia/vulcan-okf']).toBe('0.2.0-1');
   });
 
+  test('a pin that is only an override reads what its dependent resolves, never a stale root link', async () => {
+    const cwd = makeDirectory();
+    const store = join(cwd, 'node_modules/.bun/@venizia+vulcan@0.2.0-1/node_modules/@venizia');
+
+    writeJson({
+      file: join(cwd, 'package.json'),
+      value: {
+        name: 'consumer',
+        devDependencies: { '@venizia/vulcan': '0.2.0-1' },
+        overrides: { '@venizia/vulcan-okf': '0.2.0-1' },
+      },
+    });
+    writeJson({
+      file: join(store, 'vulcan/package.json'),
+      value: {
+        name: '@venizia/vulcan',
+        version: '0.2.0-1',
+        dependencies: { '@venizia/vulcan-okf': '0.2.0-1' },
+      },
+    });
+    writeJson({
+      file: join(store, 'vulcan-okf/package.json'),
+      value: { name: '@venizia/vulcan-okf', version: '0.2.0-1' },
+    });
+    // Left at the root by an older direct dependency; bun never pruned it.
+    writeJson({
+      file: join(cwd, 'node_modules/@venizia/vulcan-okf/package.json'),
+      value: { name: '@venizia/vulcan-okf', version: '0.1.0-0' },
+    });
+    symlinkSync(join(store, 'vulcan'), join(cwd, 'node_modules/@venizia/vulcan'));
+
+    const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
+
+    expect(payload.installed['@venizia/vulcan-okf']).toBe('0.2.0-1');
+  });
+
   test('a pinned transitive dependency installed nowhere is left out, never reported as null', async () => {
     const cwd = makeDirectory();
 
