@@ -7,8 +7,13 @@ import type { ISyncAction, TSettings } from './common/index.ts';
 /** The directory every shipped hook lives in; a command that runs one is VULCAN's. */
 const SHIPPED_HOOKS_PATH = '@venizia/vulcan/base/hooks/';
 
-/** A hook a project kept under `.agents/` - where plugin-era setups put theirs. */
-const AGENTS_HOOK = /(?:\$\{CLAUDE_PROJECT_DIR\}"?\/)?(\.agents\/[\w./-]+\.ts)/;
+/**
+ * A hook a project kept under its own `.agents/` - where plugin-era setups put theirs: the whole
+ * command is `bun` or `node` on that file, from the project root. Any other shape - another
+ * directory's `.agents/`, `$HOME`, a `cd` first - is a developer's own and never pruned.
+ */
+const AGENTS_HOOK =
+  /^(?:bun|node)\s+(?:"?\$\{?CLAUDE_PROJECT_DIR\}?"?\/)?(\.agents\/[\w./-]+\.ts)\s*$/;
 
 type THookEntries = Record<string, { hooks?: { command?: string }[] }[]>;
 

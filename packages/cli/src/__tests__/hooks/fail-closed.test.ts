@@ -1,5 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSyncBounded } from '../spawn.helper.ts';
@@ -142,6 +150,24 @@ describe('shipped hooks fail closed', () => {
     expect(read.stdout).toBe('');
     expect(deploy.code).toBe(0);
     expect(deploy.stdout).toContain('"permissionDecision":"ask"');
+  });
+
+  test('bun itself failing before the hook runs (a broken bunfig.toml) still blocks', () => {
+    const root = makeRoot();
+    const installed = join(root, 'node_modules', '@venizia', 'vulcan');
+    const [guard] = shippedHooks().filter(hook => hook.command.includes('guard-writes.ts'));
+
+    mkdirSync(dirname(installed), { recursive: true });
+    symlinkSync(PACKAGE_ROOT, installed);
+    writeFileSync(join(root, 'bunfig.toml'), 'preload = ["./missing-preload.ts"]\n');
+
+    const result = runHook({
+      command: guard.command,
+      root,
+      stdin: BASH_INPUT('kubectl apply -f m.yaml'),
+    });
+
+    expect(result.code).toBe(2);
   });
 
   test('guard-writes from a partial install - its own modules missing - exits 2, never 1', () => {
