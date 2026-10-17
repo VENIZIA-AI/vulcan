@@ -241,7 +241,7 @@ const gradeOne = (opts: {
   }
 
   const call = callClaude({
-    command: buildGraderCommand({ grader: opts.args.grader }),
+    command: buildGraderCommand({ grader: opts.args.grader, maxBudgetUsd: opts.args.maxBudgetUsd }),
     cwd: run.runDirectory,
     prompt: buildGraderPrompt({
       evaluation: run.evaluation,
@@ -323,7 +323,13 @@ const out = resolve(
   args.out ??
     join(tmpdir(), `vulcan-skill-evals-${new Date().toISOString().replace(/[:.]/g, '-')}`),
 );
-const plan = buildPlan({ skill: args.skill, evaluations, models: args.models, out });
+const plan = buildPlan({
+  skill: args.skill,
+  evaluations,
+  models: args.models,
+  out,
+  maxBudgetUsd: args.maxBudgetUsd,
+});
 const reportFile = join(out, args.skill, 'report.md');
 const missing = evaluations.flatMap(evaluation =>
   evaluation.files
@@ -348,7 +354,7 @@ if (args.isDryRun) {
   }
 
   console.log(
-    `skill-evals: grade ${toCommandLine({ command: buildGraderCommand({ grader: args.grader }) })}`,
+    `skill-evals: grade ${toCommandLine({ command: buildGraderCommand({ grader: args.grader, maxBudgetUsd: args.maxBudgetUsd }) })}`,
   );
   console.log(`skill-evals: report ${reportFile}`);
   console.log('skill-evals: dry run - nothing ran');
