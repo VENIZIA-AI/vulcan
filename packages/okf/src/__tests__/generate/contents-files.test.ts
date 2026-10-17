@@ -66,7 +66,7 @@ test('gen writes the lists, then the check passes; a generated reference file is
 test("another generator's page (atlas surface) and the append-only log.md get no contents list", () => {
   const root = project();
   const surface = long({
-    head: '---\ntype: Reference\ntitle: Public surface\ngenerated:\n  by: atlas-surface\n---\n',
+    head: '---\ntype: Reference\ntitle: Public surface\ngenerated:\n  by: process:atlas-surface\n---\n',
   });
   const log = long({ head: '# Knowledge log\n\n## 2026-10-17 - an entry\n' });
 
