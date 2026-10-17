@@ -95,7 +95,7 @@ export const buildSymbolTool = (opts: {
     if (opts.symbols.isEmpty()) {
       throw new RpcError({
         code: RpcErrorCodes.INVALID_PARAMS,
-        message: 'no symbol table in this build',
+        message: opts.symbols.emptyReason,
       });
     }
 

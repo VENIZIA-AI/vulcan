@@ -28,3 +28,19 @@ export const readPackageEntries = (opts: { repoRoot: string; name: string }): IP
 
   return { name: opts.name, manifest, entries };
 };
+
+/** Any package directory - a project's own, an installed one, an unpacked tarball - and its typed entries. */
+export const readPackageDirectory = (opts: {
+  directory: string;
+  name?: string;
+}): IPackageEntries => {
+  const manifest: IPackageManifest = JSON.parse(
+    readFileSync(resolve(opts.directory, 'package.json'), 'utf8'),
+  );
+  const entries = declarationEntriesOf({ exports: manifest.exports ?? {} }).map(entry => ({
+    subpath: entry.subpath,
+    file: resolve(opts.directory, entry.types),
+  }));
+
+  return { name: opts.name ?? manifest.name, manifest, entries };
+};

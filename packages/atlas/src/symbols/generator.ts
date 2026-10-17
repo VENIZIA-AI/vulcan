@@ -7,12 +7,12 @@
  */
 import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
-import { readPackageEntries } from '@/common/package-entries';
+import { readPackageDirectory } from '@/common/package-entries';
 import type { IPackageMapEntry } from '@/common/package-map';
-import { regenerateHintOf } from '@/common/regenerate-hint';
+import type { IPackageEntries } from '@/common/types';
 import { hasAtlasProject, livePackageDirs, readAtlasProject } from '@/common/project-config';
 import { PROJECT_ROOT } from '@/common/project';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import type TypeScript from 'typescript';
 import { PublicSurface } from '@/surface';
@@ -151,26 +151,16 @@ export class AtlasSymbols {
     const project = hasAtlasProject() ? readAtlasProject() : undefined;
     const repoRoot = opts.repoRoot ?? project?.root ?? PROJECT_ROOT;
     const packages = opts.packages ?? livePackageDirs({ project: project ?? readAtlasProject() });
-    const read = packages.map(name => readPackageEntries({ repoRoot, name }));
-    const program = DeclarationProgram.create({
-      files: read.flatMap(item => item.entries.map(entry => entry.file)),
-      scope: 'atlas-symbols',
-    });
-    const symbols = read.flatMap(item =>
-      item.entries.flatMap(entry =>
-        AtlasSymbols.entrySymbolsOf({
-          program,
-          repoRoot,
-          packageName: item.manifest.name,
-          subpath: entry.subpath,
-          file: entry.file,
-        }),
-      ),
+    // Each package where the manifest says it lives (an application keeps them outside packages/).
+    const pathOf = (dir: string): string =>
+      project?.packages.find(entry => entry.dir === dir)?.path ?? `packages/${dir}`;
+    const read = packages.map(dir =>
+      readPackageDirectory({ directory: resolve(repoRoot, pathOf(dir)), name: dir }),
     );
     const table: ISymbolTable = {
       generatedFrom: 'dist',
       packages,
-      symbols: symbols.sort(AtlasSymbols.compare),
+      symbols: AtlasSymbols.recordsOf({ repoRoot, packages: read }),
       // The names a tool may be asked by: each package's npm name, from its manifest, and its aliases.
       packageMap: packages.map((dir, index) => ({
         dir,
@@ -180,6 +170,31 @@ export class AtlasSymbols {
     };
 
     return `${JSON.stringify(table, null, 2)}\n`;
+  }
+
+  /**
+   * Every exported symbol of the given packages' `exports` entries, sorted - read from their
+   * declaration files, wherever the packages live. Paths are relative to `repoRoot`.
+   */
+  static recordsOf(opts: { repoRoot: string; packages: IPackageEntries[] }): ISymbolRecord[] {
+    const program = DeclarationProgram.create({
+      files: opts.packages.flatMap(item => item.entries.map(entry => entry.file)),
+      scope: 'atlas-symbols',
+    });
+
+    return opts.packages
+      .flatMap(item =>
+        item.entries.flatMap(entry =>
+          AtlasSymbols.entrySymbolsOf({
+            program,
+            repoRoot: opts.repoRoot,
+            packageName: item.manifest.name,
+            subpath: entry.subpath,
+            file: entry.file,
+          }),
+        ),
+      )
+      .sort(AtlasSymbols.compare);
   }
 
   static check(
@@ -413,34 +428,17 @@ export class AtlasSymbols {
   }
 }
 
+/** A debug view: atlas reads declarations when asked (D2); no project commits a symbol table. */
 export const runSymbolsCommand = (opts: { command?: string }): number => {
-  switch (opts.command) {
-    case 'gen': {
-      writeFileSync(SYMBOLS_OUTPUT, AtlasSymbols.render());
-      console.log(`wrote ${SYMBOLS_OUTPUT}`);
+  if (opts.command === 'gen' || opts.command === 'check') {
+    console.error(
+      `vulcan x atlas symbols ${opts.command}: gone in 0.2.0-0 - atlas reads the installed or built .d.ts when asked; delete .agents/knowledge/reference/symbols.json, and \`vulcan x atlas symbols\` prints what it reads`,
+    );
 
-      return 0;
-    }
-
-    case 'check': {
-      if (AtlasSymbols.check()) {
-        console.log('fresh .agents/knowledge/reference/symbols.json');
-
-        return 0;
-      }
-
-      console.error(
-        'stale .agents/knowledge/reference/symbols.json - the symbol table drifted; ' +
-          regenerateHintOf({ command: 'symbols' }),
-      );
-
-      return 1;
-    }
-
-    default: {
-      console.error('usage: vulcan x atlas symbols gen|check');
-
-      return 2;
-    }
+    return 2;
   }
+
+  process.stdout.write(AtlasSymbols.render());
+
+  return 0;
 };

@@ -9,7 +9,7 @@ import { Transport } from '@/protocol';
 import type { IToolHandler } from '@/protocol';
 import { computeReleases, ReleaseStore } from '@/releases';
 import type { ChunkStore } from '@/search/store';
-import { SymbolStore } from '@/symbols';
+import { SymbolStore, symbolsOfRepository } from '@/symbols';
 import {
   buildChangesTool,
   buildGetTool,
@@ -80,7 +80,23 @@ export const buildServer = (opts: {
   const initialStore = guard.getStore();
   // Built once: both generated tables come from outside the corpus, so its freshness never moves
   // them - the symbol table from `dist`, the release table from `git log`.
-  const symbols = SymbolStore.load({ mode, root, bundle });
+  // Repo mode reads the project's own built declarations on the first question (D2); the packaged
+  // snapshot still ships its table.
+  const symbols =
+    project === undefined
+      ? SymbolStore.load({ mode, root, bundle })
+      : new SymbolStore({
+          load: () => ({
+            symbols: symbolsOfRepository({ project }),
+            packageMap: project.packages.map(entry => ({
+              dir: entry.dir,
+              name: entry.name,
+              aliases: entry.aliases,
+            })),
+          }),
+          emptyReason:
+            "no symbols - build the packages first: atlas reads their exports' .d.ts, never a committed table",
+        });
   // Repo mode computes releases from git (D1); the packaged snapshot still ships its table.
   const releases =
     project === undefined

@@ -51,6 +51,7 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",
+    "typescript": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
@@ -60,7 +61,6 @@
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
-    "tsc-alias": "catalog:",
-    "typescript": "catalog:"
+    "tsc-alias": "catalog:"
   }
 }
