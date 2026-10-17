@@ -34,7 +34,8 @@ const parseReply = (line: string | null): { error?: { message: string } } =>
 describe.skipIf(!hasRepositoryRoots)(
   'every id quoted on the atlas extension page resolves in the real index (I7)',
   () => {
-    const ids = idsQuotedOn({ page: EXTENSION_PAGE });
+    // The body runs while bun collects tests, skipped or not: read the page only when it exists.
+    const ids = hasRepositoryRoots ? idsQuotedOn({ page: EXTENSION_PAGE }) : [];
     const documents = CorpusLoader.getInstance().load({
       roots: resolveRepositoryRoots({ repositoryRoot: REPOSITORY_ROOT }),
     });
