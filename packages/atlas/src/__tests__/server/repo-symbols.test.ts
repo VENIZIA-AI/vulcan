@@ -1,4 +1,3 @@
-import { AtlasModes } from '@/common';
 import { buildServer } from '@/server';
 import { afterAll, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -50,11 +49,7 @@ const project = (opts: { built: boolean }): string => {
 
 const callSymbol = async (opts: { root: string; name: string }) =>
   JSON.parse(
-    (await buildServer({
-      mode: AtlasModes.REPOSITORY,
-      root: opts.root,
-      version: '0.0.0',
-    }).handleLine({
+    (await buildServer({ root: opts.root, version: '0.0.0' }).handleLine({
       line: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,

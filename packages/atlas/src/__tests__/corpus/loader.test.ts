@@ -122,4 +122,16 @@ describe('CorpusLoader', () => {
       warnSpy.mockRestore();
     }
   });
+
+  test('a declared directory that does not exist yet - no changelog written - has no documents', () => {
+    const documents = CorpusLoader.getInstance().load({
+      roots: [
+        { corpus: Corpora.CHANGELOG, directory: join(FIXTURES_ROOT, 'no-such-directory') },
+        { corpus: Corpora.WIKI, directory: join(FIXTURES_ROOT, 'wiki') },
+      ],
+    });
+
+    expect(documents.every(document => document.corpus === Corpora.WIKI)).toBe(true);
+    expect(documents.length).toBeGreaterThan(0);
+  });
 });

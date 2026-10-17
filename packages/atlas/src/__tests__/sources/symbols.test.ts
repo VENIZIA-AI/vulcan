@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { buildSourcesServer } from '@/server/index';
+import { restoreVariable } from '../env.helper';
 import { resolveSources } from '@/sources';
 import { makeSourceRepository, makeTempDirectory, TEMP_DIRECTORIES } from './source-repo.helper';
 
@@ -19,7 +20,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  process.env.XDG_CACHE_HOME = previous.cache;
+  restoreVariable({ name: 'XDG_CACHE_HOME', value: previous.cache });
 
   if (previous.registry === undefined) {
     delete process.env.VULCAN_NPM_REGISTRY;

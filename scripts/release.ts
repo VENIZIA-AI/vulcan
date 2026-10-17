@@ -105,9 +105,7 @@ const manifests = await Promise.all(
 const trainVersion: string = manifests[2].version;
 const command = buildDispatchCommand({ args });
 
-console.log(
-  `release: the train is at ${trainVersion}; bump '${args.bump}', IGNIS ref '${args.ignisRef}'`,
-);
+console.log(`release: the train is at ${trainVersion}; bump '${args.bump}'`);
 console.log(`release: ${command.join(' ')}`);
 
 // Reported rather than refused on a dry run: it publishes nothing, and it is most useful while the

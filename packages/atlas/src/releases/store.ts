@@ -1,9 +1,6 @@
-import type { TAtlasMode } from '@/common';
-import { releasesFileOf } from '@/common/layout';
 import { BaseHelper } from '@/common/helper';
 import { packageOfDirectory, packageOfQuery } from '@/common/package-map';
 import type { IPackageMapEntry } from '@/common/package-map';
-import { existsSync, readFileSync } from 'node:fs';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
 
 const byText = (left: string, right: string): number => {
@@ -45,32 +42,6 @@ export class ReleaseStore extends BaseHelper {
       .map(entry => ({ ...entry, packages: entry.packages.map(nameOf) }))
       .sort((left, right) => byText(right.date, left.date));
     this.live = [...(opts.table.livePackages ?? [])].map(nameOf).sort(byText);
-  }
-
-  /**
-   * Repo mode reads the knowledge bundle's table, snapshot mode the packaged one. A missing or
-   * unreadable table leaves the store empty - the tools say so, the server still starts.
-   */
-  static load(opts: { mode: TAtlasMode; root: string; bundle?: string }): ReleaseStore {
-    const path = releasesFileOf(opts);
-
-    if (!existsSync(path)) {
-      return new ReleaseStore({ table: { releases: {}, changelogs: [] } });
-    }
-
-    try {
-      const table: IReleaseTable = JSON.parse(readFileSync(path, 'utf8'));
-
-      return new ReleaseStore({ table });
-    } catch (error) {
-      const store = new ReleaseStore({ table: { releases: {}, changelogs: [] } });
-
-      store.logger
-        .for('load')
-        .error('unreadable release table | path: %s | error: %s', path, error);
-
-      return store;
-    }
   }
 
   /** Whether no table was loaded at all - distinct from a table that simply does not carry a package. */

@@ -63,8 +63,8 @@ const buildStore = (opts: { roots: ICorpusRoot[] }): ChunkStore => {
 };
 
 /**
- * Keeps one `ChunkStore` current for `roots`. Repo mode fingerprints before every `getStore()`
- * and rebuilds when it moved; snapshot mode never rebuilds.
+ * Keeps one `ChunkStore` current for `roots`: it fingerprints before every `getStore()` and rebuilds
+ * when the fingerprint moved.
  */
 export class FreshnessGuard extends BaseHelper {
   private readonly mode: TAtlasMode;

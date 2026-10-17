@@ -1,5 +1,5 @@
 import { BaseHelper } from '@/common/helper';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseFrontmatter } from './frontmatter';
 import type { ICorpusRoot, IDocument, ISkippedDocument } from './common';
@@ -48,6 +48,12 @@ export class CorpusLoader extends BaseHelper {
 
   private loadRoot(opts: { root: ICorpusRoot }): IDocument[] {
     const { root } = opts;
+
+    // A manifest declares a directory before anything is written there - a first changelog, say.
+    if (!existsSync(root.directory)) {
+      return [];
+    }
+
     const exclude = root.exclude ?? [];
     const relativePaths = [...new Bun.Glob('**/*.md').scanSync({ cwd: root.directory })]
       .filter(relativePath => !isExcluded({ relativePath, exclude }))

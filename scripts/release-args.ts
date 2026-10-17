@@ -28,21 +28,19 @@ export class ReleaseBumps {
 export class ReleaseConstants {
   static readonly WORKFLOW = 'package-release.yml';
   static readonly BRANCH = 'develop';
-  static readonly DEFAULT_IGNIS_REF = 'develop';
 }
 
 export interface IReleaseArgs {
   bump: string;
-  ignisRef: string;
   issue: string | undefined;
   isDryRun: boolean;
   isConfirmed: boolean;
 }
 
-const VALUE_FLAGS = new Set(['--bump', '--issue', '--ignis-ref']);
+const VALUE_FLAGS = new Set(['--bump', '--issue']);
 const BOOLEAN_FLAGS = new Set(['--dry-run', '--yes']);
 
-/** Reads `[--bump <mode>] [--issue <n>] [--ignis-ref <ref>] [--dry-run] [--yes]`; throws on anything else. */
+/** Reads `[--bump <mode>] [--issue <n>] [--dry-run] [--yes]`; throws on anything else. */
 export const parseReleaseArgs = (opts: { args: string[] }): IReleaseArgs => {
   const values = new Map<string, string>();
   const booleans = new Set<string>();
@@ -83,7 +81,6 @@ export const parseReleaseArgs = (opts: { args: string[] }): IReleaseArgs => {
 
   return {
     bump,
-    ignisRef: values.get('--ignis-ref') ?? ReleaseConstants.DEFAULT_IGNIS_REF,
     issue,
     isDryRun: booleans.has('--dry-run'),
     isConfirmed: booleans.has('--yes'),
@@ -101,8 +98,6 @@ export const buildDispatchCommand = (opts: { args: IReleaseArgs }): string[] => 
   ReleaseConstants.WORKFLOW,
   '-f',
   `bump=${opts.args.bump}`,
-  '-f',
-  `ignis_ref=${opts.args.ignisRef}`,
   ...(opts.args.issue === undefined ? [] : ['-f', `issue=${opts.args.issue}`]),
 ];
 

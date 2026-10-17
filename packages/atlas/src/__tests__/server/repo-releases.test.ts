@@ -1,4 +1,3 @@
-import { AtlasModes } from '@/common';
 import { buildServer } from '@/server';
 import { afterAll, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
@@ -42,7 +41,7 @@ test('repo mode answers changes from git: tags and declared changelogs, no relea
   git(['commit', '-q', '-m', 'docs: faster']);
   git(['tag', 'core-v1.1.0']);
 
-  const transport = buildServer({ mode: AtlasModes.REPOSITORY, root: ROOT, version: '0.0.0' });
+  const transport = buildServer({ root: ROOT, version: '0.0.0' });
   const reply = JSON.parse(
     (await transport.handleLine({
       line: JSON.stringify({

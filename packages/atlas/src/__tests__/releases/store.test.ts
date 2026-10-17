@@ -1,10 +1,6 @@
-import { AtlasModes } from '@/common';
 import { ReleaseStore } from '@/releases';
 import type { IReleaseTable } from '@/releases';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { afterAll, describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 
 const TABLE: IReleaseTable = {
   packageMap: [
@@ -137,28 +133,6 @@ describe('ReleaseStore.entriesBetween', () => {
 
   test('returns nothing for an empty window', () => {
     expect(idsOf({ fromDate: '2026-09-05', toDate: '2026-09-05' })).toEqual([]);
-  });
-});
-
-describe('ReleaseStore.load', () => {
-  const directories: string[] = [];
-
-  afterAll(() => {
-    for (const directory of directories) {
-      rmSync(directory, { recursive: true, force: true });
-    }
-  });
-
-  test('a snapshot with no release table loads empty instead of throwing', () => {
-    const root = mkdtempSync(join(tmpdir(), 'atlas-release-store-'));
-
-    directories.push(root);
-
-    const loaded = ReleaseStore.load({ mode: AtlasModes.SNAPSHOT, root });
-
-    expect(loaded.isEmpty()).toBe(true);
-    expect(loaded.packages()).toEqual([]);
-    expect(loaded.entriesBetween({ fromDate: '', toDate: '2026-09-05' })).toEqual([]);
   });
 });
 

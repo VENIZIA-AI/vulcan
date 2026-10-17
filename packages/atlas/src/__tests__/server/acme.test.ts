@@ -1,4 +1,3 @@
-import { AtlasModes } from '@/common';
 import { buildServer } from '@/server';
 import { join } from 'node:path';
 import { expect, test } from 'bun:test';
@@ -33,7 +32,7 @@ const searchText = async (opts: {
 };
 
 test('repo mode serves a project from its manifest: its own name, its bundle and changelogs', async () => {
-  const transport = buildServer({ mode: AtlasModes.REPOSITORY, root: ACME, version: '0.0.0' });
+  const transport = buildServer({ root: ACME, version: '0.0.0' });
   const initialized = await call({ transport, method: 'initialize', params: {} });
 
   expect(JSON.stringify(initialized.result)).toContain('acme-atlas');

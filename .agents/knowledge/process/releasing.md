@@ -27,5 +27,5 @@ or `none` (publish the version already in package.json).
    minutes to serve a new version; the run waits up to 25).
 
 A failed run is retried by dispatching again; the failure reports in the run say which case applies.
-The token is the repository secret `NPM_ACCESS_TOKEN`. CI clones IGNIS (`--ignis-ref`, default
-`develop`) for the atlas snapshot; atlas tests that need a built IGNIS skip there.
+The token is the repository secret `NPM_ACCESS_TOKEN`. The release ships code only and clones no
+IGNIS; atlas tests that measure IGNIS's real corpus skip there and run on a machine with IGNIS.

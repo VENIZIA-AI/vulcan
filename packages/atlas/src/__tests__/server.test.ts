@@ -1,18 +1,12 @@
-import { AtlasModes } from '@/common';
-import type { TAtlasMode } from '@/common';
 import { RpcError } from '@/protocol/common';
 import { buildServer } from '@/server';
-import { cpSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, afterEach, beforeAll, describe, expect, spyOn, test } from 'bun:test';
-import { ignisManifestEnvironment } from './fixtures/ignis-packages';
-import { IGNIS_ROOT } from './ignis-root.helper';
-
-// __dirname, not import.meta: tsconfig.json (unlike tsconfig.build.json) does not exclude
-// __tests__, and this package's module mode treats every file as CommonJS output.
-const REPOSITORY_ROOT = IGNIS_ROOT;
-const FIXTURES = join(__dirname, 'fixtures/corpus');
+import { afterEach, describe, expect, spyOn, test } from 'bun:test';
+// __dirname, not import.meta: this package emits CommonJS. A project read from its own committed
+// manifest; changes and symbol over a project are server/repo-releases and server/repo-symbols.
+const REPOSITORY_ROOT = join(__dirname, 'fixtures', 'acme');
 const TEST_VERSION = '0.0.0-test';
 
 const tempDirectories: string[] = [];
@@ -57,18 +51,8 @@ const listToolNames = async (opts: {
 };
 
 describe('buildServer', () => {
-  beforeAll(() => {
-    Object.assign(process.env, ignisManifestEnvironment({ root: REPOSITORY_ROOT }));
-  });
-
-  afterAll(() => {
-    delete process.env.VULCAN_MANIFEST;
-    delete process.env.VULCAN_PROJECT_ROOT;
-  });
-
   test('repo mode exposes exactly the search, get, symbol, version and changes tools', async () => {
     const transport = buildServer({
-      mode: AtlasModes.REPOSITORY,
       root: REPOSITORY_ROOT,
       version: TEST_VERSION,
     });
@@ -84,7 +68,6 @@ describe('buildServer', () => {
 
   test('serverInfo.version is whatever version buildServer was given, not a hardcoded string (I6)', async () => {
     const transport = buildServer({
-      mode: AtlasModes.REPOSITORY,
       root: REPOSITORY_ROOT,
       version: TEST_VERSION,
     });
@@ -97,163 +80,21 @@ describe('buildServer', () => {
     expect(reply.result?.serverInfo?.version).toBe(TEST_VERSION);
   });
 
-  test('snapshot mode loads the packaged corpus and can answer a search', async () => {
-    const root = makeTempDirectory();
-
-    cpSync(join(FIXTURES, 'wiki'), join(root, 'corpus/wiki'), { recursive: true });
-    cpSync(join(FIXTURES, 'changelogs'), join(root, 'corpus/changelogs'), { recursive: true });
-
-    const transport = buildServer({ mode: AtlasModes.SNAPSHOT, root, version: TEST_VERSION });
-
-    expect(await listToolNames({ transport })).toEqual([
-      'search',
-      'get',
-      'symbol',
-      'version',
-      'changes',
-    ]);
-
-    const reply = parseReply(
-      await transport.handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 2,
-          method: 'tools/call',
-          params: { name: 'search', arguments: { query: 'registering artifacts' } },
-        }),
-      }),
-    );
-
-    const text = reply.result?.content?.[0]?.text ?? '{}';
-    const searchResult: { hits: unknown[] } = JSON.parse(text);
-
-    expect(searchResult.hits.length).toBeGreaterThan(0);
-  });
-
-  test('a snapshot packaged without a symbol table says so instead of failing to start', async () => {
-    const root = makeTempDirectory();
-
-    cpSync(join(FIXTURES, 'wiki'), join(root, 'corpus/wiki'), { recursive: true });
-    cpSync(join(FIXTURES, 'changelogs'), join(root, 'corpus/changelogs'), { recursive: true });
-
-    const transport = buildServer({ mode: AtlasModes.SNAPSHOT, root, version: TEST_VERSION });
-    const reply = parseReply(
-      await transport.handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 2,
-          method: 'tools/call',
-          params: { name: 'symbol', arguments: { name: 'getError' } },
-        }),
-      }),
-    );
-
-    expect(reply.error?.message).toBe('no symbol table in this build');
-  });
-
-  test('a snapshot packaged without a release table says so instead of failing to start', async () => {
-    const root = makeTempDirectory();
-
-    cpSync(join(FIXTURES, 'wiki'), join(root, 'corpus/wiki'), { recursive: true });
-    cpSync(join(FIXTURES, 'changelogs'), join(root, 'corpus/changelogs'), { recursive: true });
-
-    const transport = buildServer({ mode: AtlasModes.SNAPSHOT, root, version: TEST_VERSION });
-
-    const names = ['version', 'changes'];
-
-    for (const name of names) {
-      const reply = parseReply(
-        await transport.handleLine({
-          line: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 2,
-            method: 'tools/call',
-            params: { name, arguments: {} },
-          }),
-        }),
-      );
-
-      expect(reply.error?.message).toBe('no release table in this build');
-    }
-  });
-
-  test('repo mode computes releases from the tags: a version window resolves with no release table', async () => {
-    const transport = buildServer({
-      mode: AtlasModes.REPOSITORY,
-      root: REPOSITORY_ROOT,
-      version: TEST_VERSION,
-    });
-    const reply = parseReply(
-      await transport.handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 2,
-          method: 'tools/call',
-          params: {
-            name: 'changes',
-            arguments: { package: 'kernel', from: '0.2.0-13', to: '0.2.0-16' },
-          },
-        }),
-      }),
-    );
-
-    const payload: { package?: string; entries?: { id: string }[] } = JSON.parse(
-      reply.result?.content?.[0]?.text ?? '{}',
-    );
-
-    // IGNIS's changelogs declare no packages until it runs migrate, so only the window is asserted.
-    expect(reply.error?.message).toBeUndefined();
-    expect(payload.package).toBe('@venizia/ignis-kernel');
-  });
-
-  test('repo mode answers symbol from the generated table', async () => {
-    const transport = buildServer({
-      mode: AtlasModes.REPOSITORY,
-      root: REPOSITORY_ROOT,
-      version: TEST_VERSION,
-    });
-    const reply = parseReply(
-      await transport.handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 2,
-          method: 'tools/call',
-          params: {
-            name: 'symbol',
-            arguments: { name: 'getError', package: '@venizia/ignis-helpers' },
-          },
-        }),
-      }),
-    );
-
-    const payload: { name?: string; file?: string; matches?: unknown[] } = JSON.parse(
-      reply.result?.content?.[0]?.text ?? '{}',
-    );
-    const first = payload.matches ? payload.matches[0] : payload;
-
-    expect(reply.error?.message).toBeUndefined();
-    expect(JSON.stringify(first)).toContain('getError');
-  });
-
-  test('a root with neither docs/wiki/content nor corpus/ throws a plain, RpcError-free error before any stdout write', () => {
+  test('a root with no manifest throws a plain, RpcError-free error before any stdout write', () => {
     const root = makeTempDirectory();
     const writeSpy = spyOn(process.stdout, 'write').mockImplementation(() => true);
 
-    const modes: TAtlasMode[] = [AtlasModes.REPOSITORY, AtlasModes.SNAPSHOT];
-
     try {
-      for (const mode of modes) {
-        let caught: unknown;
+      let caught: unknown;
 
-        try {
-          buildServer({ mode, root, version: TEST_VERSION });
-        } catch (error) {
-          caught = error;
-        }
-
-        expect(caught).toBeInstanceOf(Error);
-        expect(caught).not.toBeInstanceOf(RpcError);
+      try {
+        buildServer({ root, version: TEST_VERSION });
+      } catch (error) {
+        caught = error;
       }
+
+      expect(caught).toBeInstanceOf(Error);
+      expect(caught).not.toBeInstanceOf(RpcError);
 
       expect(writeSpy).not.toHaveBeenCalled();
     } finally {
