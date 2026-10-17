@@ -36,12 +36,13 @@ export interface IRenderedFile {
 /**
  * A renderer: `collect` is the one extraction of its facts; `render` (a whole file), `region` (a
  * managed region) and `coverage` (the report's reference row) all read those facts, so a table and
- * its count can never disagree.
+ * its count can never disagree. `render` returns one file or a list of them - a renderer may own any
+ * number of pages.
  */
 export interface IRenderer<TFacts = unknown> {
   id: string;
   collect(opts: { context: IRenderContext }): TFacts;
-  render?(opts: { context: IRenderContext; facts: TFacts }): IRenderedFile;
+  render?(opts: { context: IRenderContext; facts: TFacts }): IRenderedFile | IRenderedFile[];
   region?(opts: { context: IRenderContext; facts: TFacts }): string;
   coverage?(opts: { facts: TFacts }): { name: string; count: number };
 }

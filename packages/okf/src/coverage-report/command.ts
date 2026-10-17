@@ -77,12 +77,14 @@ export const coverage = async (): Promise<void> => {
 
     const facts = renderer.collect({ context });
     const row = renderer.coverage({ facts });
-    const path = renderer.render?.({ context, facts }).path;
+    const rendered = renderer.render?.({ context, facts });
+    const paths = rendered === undefined ? [] : [rendered].flat().map(file => file.path);
 
     ref({
       name: row.name,
       count: row.count,
-      generated: path !== undefined && hasId({ id: '/' + path.replace(/\.md$/, '') }),
+      generated:
+        paths.length > 0 && paths.every(path => hasId({ id: '/' + path.replace(/\.md$/, '') })),
     });
   }
 

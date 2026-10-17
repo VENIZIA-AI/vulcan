@@ -34,7 +34,8 @@ allowed; links inside code are examples, never edges. Files may use LF or CRLF l
 
 Two mechanisms, both driven from source. Never hand-edit either.
 
-1. **Whole generated files** - each renderer in `okf.renderers` writes one page, by default under
+1. **Whole generated files** - each renderer in `okf.renderers` writes one page - or, when its
+   `render` returns an array, one page per entry - by default under
    `reference/`, with `generated.by: process:okf-gen` (§5.2). No `generated.at`: a timestamp would
    make every regeneration look like a change.
 2. **Managed regions** - each `okf.regions` entry (`{ id, file, renderer }`) replaces the content
