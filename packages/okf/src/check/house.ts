@@ -6,6 +6,7 @@ import { loadConcepts, stripCode } from '../lib.ts';
 import type { Concept } from '../lib.ts';
 import type { IBundleFile } from '../spec/index.ts';
 import { collectCoverageAxes } from '../coverage-report/axes.ts';
+import { collectChangelogProblems } from './changelogs.ts';
 import { extractRegion } from '../generate/index.ts';
 import type { ILoadedRegion, ILoadedRenderer } from '../generate/index.ts';
 import { brandSpelling, repoRelative } from '../source/index.ts';
@@ -130,6 +131,9 @@ export const collectHouseProblems = (opts: {
       problems.push(`freshness: ${repoRelative({ path })} is stale - ${REGENERATE_HINT}`);
     }
   }
+
+  // C3: every dated changelog entry declares its packages by npm name.
+  problems.push(...collectChangelogProblems());
 
   return problems;
 };

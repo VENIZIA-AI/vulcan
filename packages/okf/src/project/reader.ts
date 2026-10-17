@@ -130,11 +130,18 @@ export const readOkfProject = (): IOkfProject => {
     stringOf({ value: knowledge.bundle, fallback: OkfProjectConstants.DEFAULT_BUNDLE }),
   );
   const outputs = stringsOf({ value: viz.outputs });
+  const changelogs = knowledge.changelogs;
+  const atlas = recordOf({ value: config.atlas });
   const copy = isRecord({ value: viz.copy }) ? recordOf({ value: viz.copy }) : undefined;
 
   const project: IOkfProject = {
     root,
     bundle,
+    ...(typeof changelogs === 'string' ? { changelogs: resolve(root, changelogs) } : {}),
+    tagPattern: stringOf({
+      value: atlas.tagPattern,
+      fallback: OkfProjectConstants.DEFAULT_TAG_PATTERN,
+    }),
     packages: packagesOf({ value: config.packages, root }),
     renderers: renderersOf({ value: okf.renderers }),
     regions: regionsOf({ value: okf.regions, bundle }),

@@ -4,4 +4,5 @@ export class OkfProjectConstants {
   static readonly ROOT_ENV = 'VULCAN_PROJECT_ROOT';
   static readonly DEFAULT_BUNDLE = '.agents/knowledge';
   static readonly DEFAULT_VIZ_OUTPUT = '.agents/knowledge/viz.html';
+  static readonly DEFAULT_TAG_PATTERN = '<dir>-v<version>';
 }
