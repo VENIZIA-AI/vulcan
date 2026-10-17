@@ -4,7 +4,7 @@
  * @venizia/vulcan alone, then runs init, sync, doctor, `x okf` and `x atlas mcp`.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -17,6 +17,48 @@ interface IStepResult {
 const PACKAGES_DIRECTORY = resolve(import.meta.dir, '..', '..');
 const STYLE_PACKAGE_VERSION = '0.3.1-0';
 const MINIMUM_ATLAS_TOOLS = 5;
+
+/** The workspace catalog: the sandbox type-checks with the same typescript and Bun types. */
+const CATALOG: Record<string, string> = JSON.parse(
+  readFileSync(resolve(PACKAGES_DIRECTORY, '..', 'package.json'), 'utf8'),
+).workspaces.catalog;
+
+/**
+ * A project module as a project writes one: it imports the renderer API from `@venizia/vulcan/okf`,
+ * the only VULCAN package a project installs. Type-checked, then run by `vulcan x okf gen`.
+ */
+const PROBE_MODULE = `import { defineRenderer } from '@venizia/vulcan/okf';
+
+export default defineRenderer({
+  id: 'probe',
+  collect: ({ context }) => context.source.listDirs({ dir: '.agents' }),
+  render: ({ context, facts }) => ({
+    path: 'reference/probe.md',
+    content:
+      context.page.header({ title: 'Probe', description: 'Smoke.', resource: '.agents', tags: ['reference'] }) +
+      \`\${facts.length} directories.\\n\`,
+  }),
+});
+`;
+
+const PROBE_CONFIG = `export default {
+  okf: { renderers: [{ id: 'probe', module: '.agents/okf/probe.ts' }] },
+};
+`;
+
+const PROBE_TSCONFIG = JSON.stringify({
+  compilerOptions: {
+    strict: true,
+    target: 'esnext',
+    module: 'esnext',
+    moduleResolution: 'bundler',
+    allowImportingTsExtensions: true,
+    noEmit: true,
+    skipLibCheck: true,
+    types: ['bun'],
+  },
+  include: ['.agents/okf'],
+});
 
 const runStep = (opts: {
   name: string;
@@ -172,6 +214,8 @@ try {
         devDependencies: {
           '@venizia/vulcan': `file:${cli}`,
           '@venizia/dev-configs': STYLE_PACKAGE_VERSION,
+          typescript: CATALOG.typescript,
+          '@types/bun': CATALOG['@types/bun'],
         },
         overrides: {
           '@venizia/vulcan-okf': `file:${okf}`,
@@ -201,6 +245,39 @@ try {
       }
     }
 
+    // A project module, written the way the adoption guide says: resolves, type-checks, renders.
+    if (failure === undefined) {
+      mkdirSync(join(sandbox, '.agents/okf'), { recursive: true });
+      writeFileSync(join(sandbox, '.agents/okf/probe.ts'), PROBE_MODULE);
+      writeFileSync(join(sandbox, 'tsconfig.json'), PROBE_TSCONFIG);
+      writeFileSync(join(sandbox, '.configs/vulcan.config.ts'), PROBE_CONFIG);
+
+      for (const step of [
+        {
+          name: 'okf module type-checks',
+          command: ['bun', 'x', 'tsc', '-p', '.'],
+          expectedCode: 0,
+        },
+        { name: 'x okf gen', command: ['bun', 'x', 'vulcan', 'x', 'okf', 'gen'], expectedCode: 0 },
+      ]) {
+        const result = runStep({ ...step, cwd: sandbox });
+
+        if (!result.ok) {
+          failure = `${result.detail}${result.stdout}`;
+          break;
+        }
+      }
+
+      if (
+        failure === undefined &&
+        !readFileSync(join(sandbox, '.agents/knowledge/reference/probe.md'), 'utf8').includes(
+          'directories.',
+        )
+      ) {
+        failure = 'x okf gen: the probe module wrote no reference/probe.md';
+      }
+    }
+
     if (failure === undefined) {
       const mcp = runStep({
         name: 'x atlas mcp',
@@ -227,5 +304,5 @@ if (failure !== undefined) {
 }
 
 console.log(
-  'pack-smoke: OK - install, init, sync, doctor, x okf check, x atlas mcp (JSON-RPC only on stdout)',
+  'pack-smoke: OK - install, init, sync, doctor, x okf check, an okf module from @venizia/vulcan/okf (tsc, gen), x atlas mcp (JSON-RPC only on stdout)',
 );

@@ -26,6 +26,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./okf": "./src/okf.ts",
     "./package.json": "./package.json"
   },
   "files": [
