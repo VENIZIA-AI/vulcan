@@ -7,36 +7,106 @@ import { markers } from './regions.ts';
  */
 export const CONTENTS_MIN_LINES = 100;
 
-const CONTENTS_ID = 'contents';
-const FENCE = /^(```|~~~)/;
+/** The managed region okf writes the contents list into; no `okf.regions` entry may take it. */
+export const CONTENTS_ID = 'contents';
 const FRONTMATTER = /^---\n[\s\S]*?\n---\n/;
+/** A fence line: up to three spaces, a run of three or more backticks or tildes, then the rest. */
+const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
+const HEADING = /^(#{1,6})[ \t]+(.+?)[ \t]*$/;
+/** A link, inline or by reference: its text is what the heading shows. */
+const LINK = /\[([^\]]*)\](?:\([^)]*\)|\[[^\]]*\])/g;
+/** What GitHub strips from a heading for its anchor: punctuation but `-` and `_`, symbols, separators but the space. */
+const ANCHOR_STRIPPED =
+  /(?![ -])(?!\p{Alphabetic})[\p{No}\p{Pd}\p{Ps}\p{Pe}\p{Pi}\p{Pf}\p{Po}\p{S}\p{C}\p{Z}]/gu;
 
-/** The `##` headings outside code fences, in order. */
-const headingsOf = (opts: { text: string }): string[] => {
-  const headings: string[] = [];
-  let fenced = false;
+/**
+ * The lines outside code fences, by index. A fence closes only on its own character, at least as long
+ * as it opened, with nothing after it - so a ```` block can quote a ``` one (CommonMark).
+ */
+const unfencedLines = (opts: { lines: string[] }): { index: number; line: string }[] => {
+  const unfenced: { index: number; line: string }[] = [];
+  let open: string | undefined;
 
-  for (const line of opts.text.split('\n')) {
-    if (FENCE.test(line)) {
-      fenced = !fenced;
+  for (const [index, line] of opts.lines.entries()) {
+    const fence = FENCE.exec(line);
+
+    if (open !== undefined) {
+      if (
+        fence !== null &&
+        fence[1][0] === open[0] &&
+        fence[1].length >= open.length &&
+        fence[2].trim() === ''
+      ) {
+        open = undefined;
+      }
+
       continue;
     }
 
-    if (!fenced && line.startsWith('## ')) {
-      headings.push(line.slice(3).trim());
+    // A backtick fence's info string holds no backtick; a line that does is inline code.
+    if (fence !== null && !(fence[1][0] === '`' && fence[2].includes('`'))) {
+      open = fence[1];
+      continue;
+    }
+
+    unfenced.push({ index, line });
+  }
+
+  return unfenced;
+};
+
+/** The lines a file has, as `wc -l` counts them: a final newline ends the last line, it opens none. */
+const lineCountOf = (opts: { text: string }): number => {
+  const count = opts.text.split('\n').length;
+
+  return opts.text.endsWith('\n') ? count - 1 : count;
+};
+
+/**
+ * A heading's anchor as GitHub writes it (github-slugger): lower case; punctuation and symbols gone,
+ * `-` and `_` kept; each space a hyphen; a repeat of an earlier anchor takes `-1`, `-2`. `taken`
+ * holds the anchors the page has used so far, every heading level counted.
+ */
+const anchorOf = (opts: { text: string; taken: Map<string, number> }): string => {
+  const { taken } = opts;
+  const slug = opts.text.toLowerCase().replace(ANCHOR_STRIPPED, '').replace(/ /g, '-');
+  let anchor = slug;
+
+  while (taken.has(anchor)) {
+    const count = (taken.get(slug) ?? 0) + 1;
+
+    taken.set(slug, count);
+    anchor = `${slug}-${count}`;
+  }
+
+  taken.set(anchor, 0);
+
+  return anchor;
+};
+
+/** The `##` headings outside code fences and frontmatter, in order: the text each shows, its anchor. */
+const headingsOf = (opts: { text: string }): { text: string; anchor: string }[] => {
+  const body = opts.text.slice(FRONTMATTER.exec(opts.text)?.[0].length ?? 0);
+  const taken = new Map<string, number>();
+  const headings: { text: string; anchor: string }[] = [];
+
+  for (const { line } of unfencedLines({ lines: body.split('\n') })) {
+    const heading = HEADING.exec(line);
+
+    if (heading === null) {
+      continue;
+    }
+
+    const text = heading[2].replace(LINK, '$1');
+    const anchor = anchorOf({ text, taken });
+
+    if (heading[1] === '##') {
+      headings.push({ text, anchor });
     }
   }
 
   return headings;
 };
-
-/** A heading's anchor as GitHub and VitePress write it: lower case, punctuation gone, spaces as hyphens. */
-const anchorOf = (opts: { heading: string }): string =>
-  opts.heading
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
-    .trim()
-    .replace(/\s+/g, '-');
 
 /**
  * The text with the contents region and the blank line after it taken out. A marker counts only on a
@@ -46,20 +116,10 @@ const anchorOf = (opts: { heading: string }): string =>
 const withoutContents = (opts: { text: string }): string => {
   const { start, end } = markers({ id: CONTENTS_ID });
   const lines = opts.text.split('\n');
-  let fenced = false;
   let startLine = -1;
   let endLine = -1;
 
-  for (const [index, line] of lines.entries()) {
-    if (FENCE.test(line)) {
-      fenced = !fenced;
-      continue;
-    }
-
-    if (fenced) {
-      continue;
-    }
-
+  for (const { index, line } of unfencedLines({ lines })) {
     if (startLine === -1 && line === start) {
       startLine = index;
     } else if (startLine !== -1 && line === end) {
@@ -103,12 +163,12 @@ export const withContents = (opts: { text: string }): string => {
   const bare = withoutContents({ text: opts.text });
   const headings = headingsOf({ text: bare });
 
-  if (bare.split('\n').length <= CONTENTS_MIN_LINES || headings.length === 0) {
+  if (lineCountOf({ text: bare }) <= CONTENTS_MIN_LINES || headings.length === 0) {
     return bare;
   }
 
   const { start, end } = markers({ id: CONTENTS_ID });
-  const list = headings.map(heading => `- [${heading}](#${anchorOf({ heading })})`).join('\n');
+  const list = headings.map(heading => `- [${heading.text}](#${heading.anchor})`).join('\n');
   const block = `${start}\n**Contents**\n\n${list}\n${end}\n\n`;
   const at = insertionPointOf({ text: bare });
 

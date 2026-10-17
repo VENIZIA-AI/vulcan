@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { readOkfProject } from '../project/index.ts';
 import type { IOkfRendererEntry } from '../project/index.ts';
+import { CONTENTS_ID } from './contents.ts';
 import { createRenderContext } from './define.ts';
 import type { IRenderContext, IRenderer } from './define.ts';
 import { BUILT_IN_RENDERERS } from './renderers.ts';
@@ -78,6 +79,12 @@ const loadRenderer = async (opts: {
   entry: IOkfRendererEntry;
 }): Promise<ILoadedRenderer> => {
   const { entry } = opts;
+
+  // Allowed - a project may own a built-in's output - but never silent.
+  if (entry.module !== undefined && Object.hasOwn(BUILT_IN_RENDERERS, entry.id)) {
+    console.warn(`okf: module '${entry.id}' replaces the built-in renderer`);
+  }
+
   const renderer =
     entry.module === undefined
       ? builtInRenderer({ id: entry.id })
@@ -106,6 +113,12 @@ export const loadGeneration = async (): Promise<{
   }
 
   const regions = project.regions.map(region => {
+    if (region.id === CONTENTS_ID) {
+      throw new Error(
+        `okf: region id '${CONTENTS_ID}' is reserved for the contents list okf writes - rename the region`,
+      );
+    }
+
     const loaded = renderers.find(candidate => candidate.renderer.id === region.renderer) ?? {
       renderer: builtInRenderer({ id: region.renderer }),
       context: createRenderContext({ options: {} }),

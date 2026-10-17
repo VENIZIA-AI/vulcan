@@ -89,3 +89,22 @@ test("make's warnings are not failures", () => {
 
   expect(collectMakefileTargets().map(target => target.name)).toContain('build');
 });
+
+test('a ## inside an inline recipe is the recipe, never the description', () => {
+  makeProject({
+    files: { Makefile: 'fake: ; @echo "fake: ## x"\n\nreal: ## Real words\n\t@true\n' },
+  });
+
+  expect(descriptionOf({ name: 'fake' })).toBe('');
+  expect(descriptionOf({ name: 'real' })).toBe('Real words');
+});
+
+test('an included makefile given by absolute path is read where it is', () => {
+  const shipped = mkdtempSync(join(tmpdir(), 'okf-make-shipped-'));
+
+  roots.push(shipped);
+  writeFileSync(join(shipped, 'vulcan.mk'), 'vulcan-sync: ## From an absolute include\n\t@true\n');
+  makeProject({ files: { Makefile: `include ${join(shipped, 'vulcan.mk')}\n` } });
+
+  expect(descriptionOf({ name: 'vulcan-sync' })).toBe('From an absolute include');
+});

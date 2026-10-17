@@ -133,3 +133,14 @@ test('binding-keys reads the configured file', async () => {
     '| `APPLICATION` | `@app/application` |',
   );
 });
+
+test('a region with the id contents stops: okf writes the contents list between those markers', async () => {
+  useRenderers({
+    renderers: [],
+    regions: [{ id: 'contents', file: 'overview/layout.md', renderer: 'packages-table' }],
+  });
+
+  expect(loadGeneration()).rejects.toThrow(
+    "okf: region id 'contents' is reserved for the contents list okf writes - rename the region",
+  );
+});

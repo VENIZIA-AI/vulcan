@@ -61,7 +61,18 @@ export const collectChangelogProblems = (): string[] => {
     .filter(name => DATED_ENTRY.test(name))
     .sort()) {
     const path = relative(project.root, join(directory, file));
-    const frontmatter = frontmatterOf({ text: readFileSync(join(directory, file), 'utf8') });
+    let frontmatter: TRecord;
+
+    // One broken entry is one problem; the rest of the directory is still checked.
+    try {
+      frontmatter = frontmatterOf({ text: readFileSync(join(directory, file), 'utf8') });
+    } catch (error) {
+      problems.push(
+        `changelog: ${path}: the frontmatter is not valid YAML (${error instanceof Error ? error.message : String(error)})`,
+      );
+      continue;
+    }
+
     // `packages: []` is a decision - an entry about no package, such as repository tooling. Only a
     // missing list is undecided.
     if (!Array.isArray(frontmatter.packages)) {
@@ -102,7 +113,8 @@ export const collectChangelogProblems = (): string[] => {
     if (!tags.some(tag => pattern.test(tag))) {
       const expected = project.tagPattern
         .replace(/<(?:dir|package)>/g, dir)
-        .replace(/<version>/g, override[2]);
+        .replace(/<version>/g, override[2])
+        .replace(/<date>/g, 'YYYY-MM-DD');
 
       problems.push(
         `changelog: ${path}: release '${frontmatter.release}' names no tag (${expected})`,

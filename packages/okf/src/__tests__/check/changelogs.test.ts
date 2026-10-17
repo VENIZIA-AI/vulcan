@@ -126,3 +126,44 @@ test('no changelog directory declared: nothing to check', () => {
 
   expect(collectChangelogProblems()).toEqual([]);
 });
+
+test('a malformed frontmatter is a problem naming its file, and the other entries are still checked', () => {
+  project({
+    entries: {
+      '2026-01-01-a.md': entry({ frontmatter: 'packages: [unclosed' }),
+      '2026-01-02-b.md': entry({ frontmatter: "packages: ['kernel']" }),
+    },
+  });
+
+  const problems = collectChangelogProblems();
+
+  expect(problems).toHaveLength(2);
+  expect(problems[0]).toStartWith(
+    'changelog: changes/2026-01-01-a.md: the frontmatter is not valid YAML (',
+  );
+  expect(problems[1]).toBe(
+    "changelog: changes/2026-01-02-b.md names 'kernel', not a declared package's npm name",
+  );
+});
+
+test('a missing dated tag is named with its date spelled out, never a raw <date>', () => {
+  project({
+    entries: {
+      '2026-01-01-a.md': entry({
+        frontmatter: "packages: ['@acme/kernel']\nrelease: '@acme/kernel@9.9.9'",
+      }),
+    },
+  });
+  useProjectConfig({
+    root: roots[roots.length - 1],
+    config: {
+      packages: PACKAGES,
+      knowledge: { changelogs: 'changes' },
+      atlas: { tagPattern: '<dir>-v<version>-<date>' },
+    },
+  });
+
+  expect(collectChangelogProblems()).toEqual([
+    "changelog: changes/2026-01-01-a.md: release '@acme/kernel@9.9.9' names no tag (kernel-v9.9.9-YYYY-MM-DD)",
+  ]);
+});
