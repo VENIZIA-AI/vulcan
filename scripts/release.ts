@@ -143,6 +143,9 @@ if (runId === undefined) {
 }
 
 console.log(`release: watching run ${runId}`);
+console.log(
+  'release: the run ends only once npm serves every package - its last step, "Read back from npm", can wait 10+ minutes',
+);
 
 const watched = Bun.spawnSync(['gh', 'run', 'watch', runId, '--exit-status'], {
   stdio: ['inherit', 'inherit', 'inherit'],
