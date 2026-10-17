@@ -8,6 +8,10 @@ const ROOT_ENV = 'VULCAN_PROJECT_ROOT';
 /** The manifest versions this atlas reads (V2); outside it, it says which VULCAN to upgrade to. */
 const MANIFEST_SCHEMA_VERSION = 1;
 
+/** An npm package name, the legacy upper case included: every character is safe in a path and a URL. */
+const NPM_NAME_PATTERN = /^(?:@[A-Za-z0-9~-][\w.~-]*\/)?[A-Za-z0-9~-][\w.~-]*$/;
+const NPM_NAME_MAX_LENGTH = 214;
+
 const DEFAULT_TAG_PATTERN = '<dir>-v<version>';
 const DEFAULT_BUNDLE = '.agents/knowledge';
 
@@ -48,31 +52,50 @@ const recordOf = (opts: { value: unknown }): TRecord =>
 const stringOf = (opts: { value: unknown }): string | undefined =>
   typeof opts.value === 'string' ? opts.value : undefined;
 
-const packagesOf = (opts: { value: unknown }): IAtlasPackage[] =>
+/** Whether `name` is an npm package name - what a symbols cache file and a registry URL are built from. */
+export const isNpmPackageName = (opts: { name: string }): boolean =>
+  opts.name.length <= NPM_NAME_MAX_LENGTH && NPM_NAME_PATTERN.test(opts.name);
+
+/** A fetched manifest is data from elsewhere: a name that is not an npm name never reaches a path. */
+const packagesOf = (opts: { value: unknown; label: string }): IAtlasPackage[] =>
   (Array.isArray(opts.value) ? opts.value : []).flatMap(item => {
     const entry = recordOf({ value: item });
     const dir = stringOf({ value: entry.dir });
     const aliases: unknown[] = Array.isArray(entry.aliases) ? entry.aliases : [];
 
-    return dir === undefined
-      ? []
-      : [
-          {
-            dir,
-            name: stringOf({ value: entry.name }) ?? dir,
-            path: stringOf({ value: entry.path }) ?? `packages/${dir}`,
-            aliases: aliases.filter((alias): alias is string => typeof alias === 'string'),
-            retired: entry.retired === true,
-          },
-        ];
+    if (dir === undefined) {
+      return [];
+    }
+
+    const name = stringOf({ value: entry.name }) ?? dir;
+
+    if (!isNpmPackageName({ name })) {
+      throw new Error(`atlas: ${opts.label} - package name '${name}' is not an npm package name`);
+    }
+
+    return [
+      {
+        dir,
+        name,
+        path: stringOf({ value: entry.path }) ?? `packages/${dir}`,
+        aliases: aliases.filter((alias): alias is string => typeof alias === 'string'),
+        retired: entry.retired === true,
+      },
+    ];
   });
 
 /**
  * A project from its manifest (`vulcan sync` rendered it from a validated config): defaults for
  * anything absent, every path absolute. A schemaVersion this atlas does not read fails loudly.
+ * `source` names a fetched source in an error; a project names itself.
  */
-export const toAtlasProject = (opts: { root: string; manifest: unknown }): IAtlasProject => {
+export const toAtlasProject = (opts: {
+  root: string;
+  manifest: unknown;
+  source?: string;
+}): IAtlasProject => {
   const manifest = recordOf({ value: opts.manifest });
+  const projectName = stringOf({ value: manifest.name }) ?? basename(opts.root);
   const release = recordOf({ value: manifest.release });
   const knowledge = recordOf({ value: manifest.knowledge });
   const wiki = stringOf({ value: knowledge.wiki });
@@ -86,8 +109,11 @@ export const toAtlasProject = (opts: { root: string; manifest: unknown }): IAtla
 
   return {
     root: opts.root,
-    name: stringOf({ value: manifest.name }) ?? basename(opts.root),
-    packages: packagesOf({ value: manifest.packages }),
+    name: projectName,
+    packages: packagesOf({
+      value: manifest.packages,
+      label: opts.source ?? `project '${projectName}'`,
+    }),
     tagPattern: stringOf({ value: release.tagPattern }) ?? DEFAULT_TAG_PATTERN,
     ignoreTags: (Array.isArray(release.ignoreTags) ? release.ignoreTags : []).filter(
       (glob): glob is string => typeof glob === 'string',

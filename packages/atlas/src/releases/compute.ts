@@ -231,7 +231,8 @@ export const kindOfChangelog = (opts: { text: string }): string | null =>
  * Project Contract v1, D1: the release table, computed from git when atlas reads a source - nothing
  * is committed, so it is never one release behind. Releases are the tags `tagPattern` reads; each
  * dated changelog entry falls after the releases before the commit that added it, or where its
- * `release: '<npm name>@<version>'` override places it.
+ * `release: '<npm name>@<version>'` override places it. Without history (a checkout fetched without
+ * git, a repository with no commit) there are no releases, and the dated entries carry no order.
  */
 export const computeReleases = (opts: { project: IAtlasProject }): IReleaseTable => {
   const { project } = opts;
@@ -245,16 +246,13 @@ export const computeReleases = (opts: { project: IAtlasProject }): IReleaseTable
     aliases: entry.aliases,
   }));
 
-  if (
-    !existsSync(project.root) ||
-    !isRepositoryRoot({ root: project.root }) ||
-    !hasCommits({ root: project.root })
-  ) {
+  if (!existsSync(project.root)) {
     return { livePackages: live, releases: {}, changelogs: [], packageMap };
   }
 
-  const positions = positionsOf({ root: project.root });
-  const positioned = releasesOf({ project, positions });
+  const hasHistory = isRepositoryRoot({ root: project.root }) && hasCommits({ root: project.root });
+  const positions = hasHistory ? positionsOf({ root: project.root }) : new Map<string, number>();
+  const positioned = hasHistory ? releasesOf({ project, positions }) : [];
   const releasePositions = [...new Set(positioned.map(entry => entry.record.order ?? 0))].sort(
     (left, right) => left - right,
   );
@@ -279,7 +277,9 @@ export const computeReleases = (opts: { project: IAtlasProject }): IReleaseTable
     existsSync(directory) &&
     isWithinDirectory({ path: directory, directory: project.root })
   ) {
-    const added = changelogPositionsOf({ root: project.root, directory, positions });
+    const added = hasHistory
+      ? changelogPositionsOf({ root: project.root, directory, positions })
+      : undefined;
     const files = readdirSync(directory)
       .filter(file => DATE_PREFIX_PATTERN.test(file))
       .filter(file => isWithinDirectory({ path: join(directory, file), directory: project.root }))
@@ -305,7 +305,9 @@ export const computeReleases = (opts: { project: IAtlasProject }): IReleaseTable
           packages: project.packages,
         }),
         kind: kindOfChangelog({ text }),
-        order: placed?.order ?? countOf(added.get(file) ?? UNCOMMITTED_POSITION),
+        ...(added === undefined
+          ? {}
+          : { order: placed?.order ?? countOf(added.get(file) ?? UNCOMMITTED_POSITION) }),
       });
     }
   }

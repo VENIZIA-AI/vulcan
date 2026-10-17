@@ -96,7 +96,9 @@ const packageWindowOf = (opts: {
   const versions = opts.releases.versionsOf({ package: name });
 
   if (versions.length === 0) {
-    throw unknownPackageError({ name: opts.package, known: opts.releases.packages() });
+    throw opts.releases.packages().length === 0
+      ? invalidParams(opts.releases.emptyReason)
+      : unknownPackageError({ name: opts.package, known: opts.releases.packages() });
   }
 
   const to = opts.to ?? versions[0];
@@ -150,7 +152,7 @@ const dateWindowOf = (opts: { releases: IReleaseIndex; from?: string; to?: strin
   const dates = opts.releases.entryDates();
 
   if (dates.length === 0) {
-    throw invalidParams('no changelog entries in this build');
+    throw invalidParams('no dated changelog entries');
   }
 
   if (opts.to !== undefined && !DATE_PATTERN.test(opts.to)) {
@@ -203,7 +205,7 @@ export const buildChangesTool = (opts: { releases: IReleaseIndex }): IToolHandle
     const input = parseInput({ schema: ChangesInputSchema, args });
 
     if (opts.releases.isEmpty()) {
-      throw invalidParams('no release table in this build');
+      throw invalidParams(opts.releases.emptyReason);
     }
 
     const resolved =

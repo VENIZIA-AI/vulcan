@@ -270,14 +270,35 @@ describe('changes tool', () => {
     expect(payload.entries[0].date).toBe('2026-07-30');
   });
 
-  test('a build with no release table says so instead of guessing', async () => {
+  test('a source with no releases and no entries says why instead of guessing', async () => {
     const reply = await callChanges({
-      releases: new ReleaseStore({ table: { releases: {}, changelogs: [] } }),
+      releases: new ReleaseStore({
+        table: { releases: {}, changelogs: [] },
+        emptyReason: 'no releases: no tag matches <dir>-v<version>',
+      }),
       args: {},
     });
 
     expect(reply.error?.code).toBe(-32602);
-    expect(reply.error?.message).toBe('no release table in this build');
+    expect(reply.error?.message).toBe('no releases: no tag matches <dir>-v<version>');
+  });
+
+  test('with dated entries and no release, dates still answer and versions say why they cannot', async () => {
+    const dated = new ReleaseStore({
+      table: {
+        packageMap: IGNIS_PACKAGE_MAP,
+        releases: {},
+        changelogs: [entry({ date: '2026-09-05', slug: 'list-response', packages: ['kernel'] })],
+      },
+      emptyReason: 'no release history: ignis was fetched without git',
+    });
+    const byDate = await callChanges({ releases: dated, args: { to: '2026-09-05' } });
+    const byPackage = await callChanges({ releases: dated, args: { package: 'kernel' } });
+
+    expect(payloadOf(byDate).entries.map(found => found.id)).toEqual([
+      'changelog:2026-09-05-list-response',
+    ]);
+    expect(byPackage.error?.message).toBe('no release history: ignis was fetched without git');
   });
 });
 

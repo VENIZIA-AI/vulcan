@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import type { IChunk } from '@/corpus';
+import { Transport } from '@/protocol';
+import { RpcErrorCodes } from '@/protocol/common';
 import { ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources';
 import { SymbolStore } from '@/symbols';
+import { buildChangesTool } from '@/tools';
 
 const chunk = (opts: { id: string; document: string; body: string }): IChunk => ({
   id: opts.id,
@@ -132,6 +135,29 @@ describe('SourceReleases', () => {
   test('a directory two sources share is ambiguous, and the error names the npm names', () => {
     expect(() => releases.versionsOf({ package: 'kernel' })).toThrow(
       "'kernel' names a package in more than one source - ask by npm name: @venizia/ignis-kernel (ignis), @venizia/ardor-kernel (ardor)",
+    );
+  });
+
+  test('an ambiguous package reaches the client as invalid params, not an internal error', async () => {
+    const transport = new Transport({
+      tools: [buildChangesTool({ releases })],
+      serverName: 'atlas-test',
+      serverVersion: '0.0.0',
+    });
+    const reply = JSON.parse(
+      (await transport.handleLine({
+        line: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: { name: 'changes', arguments: { package: 'kernel' } },
+        }),
+      })) ?? 'null',
+    );
+
+    expect(reply.error.code).toBe(RpcErrorCodes.INVALID_PARAMS);
+    expect(reply.error.message).toContain(
+      '@venizia/ignis-kernel (ignis), @venizia/ardor-kernel (ardor)',
     );
   });
 

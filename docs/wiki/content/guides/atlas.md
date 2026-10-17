@@ -75,13 +75,15 @@ names its source. `get` takes `source` only when two sources hold the same id.
 - **Where it lives.** atlas fetches a source with git into `$XDG_CACHE_HOME/vulcan/atlas/v1/`: a
   partial clone, plus a sparse checkout of the source's manifest and the paths it declares. It builds
   the index once per commit.
-- **Freshness.** Each start asks the remote for the ref's commit. When the remote is unreachable,
-  atlas serves the newest cached commit, and its `initialize` reply says OFFLINE.
+- **Freshness.** Each start asks the remote for the ref's commit and its tags. A tag pushed on a
+  commit already cached updates the releases without a new pull. When the remote is unreachable,
+  atlas serves the commit it last served for that ref, and its `initialize` reply says OFFLINE.
 - **Without git.** A GitHub source comes as a tarball of the commit instead. `version` and `changes`
-  then have no release history, and `initialize` says so.
+  then have no release history and say so. `changes` by date still works.
 - **A private repository.** atlas sends `GITHUB_TOKEN`, else the token `gh auth token` prints, in
   request headers only.
-- **Refresh by hand.** `vulcan x atlas pull [--source <name>]` fetches now.
+- **Refresh by hand.** `vulcan x atlas pull [--source <name>]` fetches now. A name no source has
+  exits 2 and lists the known names.
 
 A source is read only through its own committed manifest, so the source project must run VULCAN too.
 

@@ -194,6 +194,29 @@ describe('computeReleases on the edges of a repository', () => {
     });
   });
 
+  test('a checkout without git keeps its dated entries, placed by date alone', () => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-compute-tarball-'));
+
+    roots.push(root);
+    mkdirSync(join(root, 'changes'));
+    writeFileSync(join(root, 'changes/2026-01-02-faster.md'), changelog({ title: 'Faster' }));
+    writeFileSync(join(root, 'changes/notes.md'), changelog({ title: 'Undated' }));
+
+    const table = computeReleases({ project: projectAt({ root }) });
+
+    expect(table.releases).toEqual({});
+    expect(table.changelogs).toEqual([
+      {
+        id: 'changelog:2026-01-02-faster',
+        file: '2026-01-02-faster.md',
+        date: '2026-01-02',
+        title: 'Faster',
+        packages: ['kernel'],
+        kind: null,
+      },
+    ]);
+  });
+
   test('a CRLF changelog still declares its packages', () => {
     const crlf = scratch();
 

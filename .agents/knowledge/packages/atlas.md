@@ -17,16 +17,27 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
   git is missing) into `$XDG_CACHE_HOME/vulcan/atlas/v1/`.
 - **A source's ref** is a branch, a tag or a commit SHA (7 to 40 hex characters), matched by whole
   name: `develop` never resolves to `feature/develop`. A ref the remote does not have is an error
-  naming it. Only a remote that cannot be asked within 10 s serves the newest cache (OFFLINE). Every
+  naming it. Only a remote that cannot be asked within 10 s serves the cache (OFFLINE): the SHA last
+  served for that same ref (`<cache>/refs/ref-<ref>`), never another ref's. Every
   network and git wait has a bound, all in `AtlasTimeouts` (`src/common/constants.ts`).
-- **The source cache** keeps the newest 3 SHAs per source. Starts racing on one cold cache take
+- **The source cache** is keyed by host and every segment of the repository's path (GitHub reads
+  `github.com/<owner>/<repo>`), and keeps the newest 3 SHAs per source plus each ref's last one. A
+  `git/` directory that is not a repository (a killed clone) is cloned again. Each start also
+  fingerprints the tags `ls-remote` lists: a tag pushed on a cached SHA recomputes `releases.json`
+  with no new pull. Starts racing on one cold cache take
   turns under a lock (`<cache>/pull.lock`); a SHA's artifacts appear whole or not at all. Symlinks
   check out as plain files, and a corpus root or file whose real path leaves the checkout is skipped.
 - **Package list**: every tool reads `packages` from the manifest - npm names, directories, aliases,
   retired packages. No project's names are built in.
 - **Releases and symbols** are computed: releases from the tags, symbols from the built `.d.ts` of
   each package (installed in `node_modules`, else its newest npm release for a source). Repo mode
-  reads the symbols again on each `symbol` call while it has none, so a build after start is seen.
+  reads the symbols again on each `symbol` call while it has none, so a build after start is seen
+  (each distinct load error is logged once). An npm failure at a pull is logged, and every later
+  start asks npm again for the symbols it has not cached. A manifest package name that is not an npm
+  name stops the read: names become cache file names and registry URLs.
+- **`version`** finds an installed package at the root, else beside a declared package that depends
+  on it (Bun's isolated linker, npm's nesting). A pinned transitive dependency found nowhere is left
+  out. With no release it says why: no git (a tarball source), or no tag matching `tagPattern`.
   A project `typescript` without the compiler API (TypeScript 7) falls back to atlas's own.
 - **Concepts that name code**: a concept may declare `symbols: ['<npm name>#<Symbol>']` in its
   frontmatter. `concepts stamp` writes each one's signature hash into the bundle's

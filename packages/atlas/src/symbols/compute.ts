@@ -12,6 +12,7 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AtlasTimeouts } from '@/common/constants';
 import { readPackageDirectory } from '@/common/package-entries';
+import { isNpmPackageName } from '@/common/project-config';
 import type { IAtlasProject } from '@/common/project-config';
 import type { ISymbolRecord } from './common';
 import { AtlasSymbols } from './generator';
@@ -19,6 +20,8 @@ import { AtlasSymbols } from './generator';
 /** The cache layout this atlas reads and writes (V2); a cache from another layout is never read. */
 const SYMBOLS_SCHEMA_VERSION = 1;
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
+/** The characters a semver version is spelled with - never a `/`. */
+const CACHEABLE_VERSION = /^[0-9A-Za-z.+-]+$/;
 
 interface ISymbolsCache {
   schemaVersion: number;
@@ -31,8 +34,21 @@ interface ISymbolsCache {
 export const symbolsCacheDirectory = (): string =>
   join(process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache'), 'vulcan', 'atlas', 'v1', 'symbols');
 
-const cacheFileOf = (opts: { name: string; version: string }): string =>
-  join(symbolsCacheDirectory(), `${opts.name.replace('/', '__')}@${opts.version}.json`);
+/**
+ * `@scope+name@version.json`: `+` is in no npm name, so two names never share a file. A name or a
+ * version read from a fetched source is checked first - neither may carry a path out of the cache.
+ */
+const cacheFileOf = (opts: { name: string; version: string }): string => {
+  if (!isNpmPackageName({ name: opts.name })) {
+    throw new Error(`atlas: '${opts.name}' is not an npm package name`);
+  }
+
+  if (!CACHEABLE_VERSION.test(opts.version)) {
+    throw new Error(`atlas: '${opts.version}' is not a version`);
+  }
+
+  return join(symbolsCacheDirectory(), `${opts.name.replace('/', '+')}@${opts.version}.json`);
+};
 
 /** The cached symbols of `name@version`, or `undefined` when no pull or install has read them yet. */
 export const cachedSymbols = (opts: {

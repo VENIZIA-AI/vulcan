@@ -45,7 +45,7 @@ dependency on an MCP SDK - it speaks JSON-RPC over stdio itself.
 | Source | Read from | Freshness |
 |---|---|---|
 | The project it starts in | its manifest's bundle, wiki and changelogs; releases from its git tags; symbols from its built `.d.ts` | Re-indexes before a tool call when a file changed |
-| Each `atlas.sources` entry, or `--source <owner/repo>@<ref>` | a git partial clone and sparse checkout under `$XDG_CACHE_HOME/vulcan/atlas/v1/` (a GitHub tarball when git is missing) | The ref's commit (a branch, a tag or a SHA), checked at start; the newest cache when the remote does not answer within 10 s. The cache keeps the newest 3 SHAs |
+| Each `atlas.sources` entry, or `--source <owner/repo>@<ref>` | a git partial clone and sparse checkout under `$XDG_CACHE_HOME/vulcan/atlas/v1/` (a GitHub tarball when git is missing) | The ref's commit (a branch, a tag or a SHA) and the remote's tags, checked at start; a new tag updates the releases without a new pull. When the remote does not answer within 10 s, the commit last served for that ref. The cache keeps the newest 3 SHAs |
 | `$XDG_CONFIG_HOME/vulcan/atlas.json` `{ "sources": [...] }` | the same, outside any project | Same |
 
 atlas ships code only - no packaged corpus. With no project, no `--source` and no user config it

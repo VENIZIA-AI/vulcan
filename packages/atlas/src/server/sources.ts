@@ -48,6 +48,12 @@ const remoteSymbolsOf = (opts: {
       return version === undefined ? [] : (cachedSymbols({ name: entry.name, version }) ?? []);
     });
 
+/** D1: a source fetched without git has no history; anything else has none of the tags it declares. */
+const emptyReleasesReasonOf = (opts: { source: IResolvedSource }): string =>
+  opts.source.history === false
+    ? `no release history: ${opts.source.name} was fetched without git`
+    : `no releases: no tag matches ${opts.source.project.tagPattern}`;
+
 const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
   const { source } = opts;
   const packageMap = packageMapOf({ source });
@@ -61,7 +67,10 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
     return {
       name: source.name,
       chunks: () => guard.getStore(),
-      releases: new ReleaseStore({ table: computeReleases({ project: source.project }) }),
+      releases: new ReleaseStore({
+        table: computeReleases({ project: source.project }),
+        emptyReason: emptyReleasesReasonOf({ source }),
+      }),
       symbols: new SymbolStore({
         load: () => ({ symbols: symbolsOfRepository({ project: source.project }), packageMap }),
         emptyReason: "no symbols - build the packages first: atlas reads their exports' .d.ts",
@@ -72,6 +81,7 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
   const index = new ChunkStore({ serialized: readFileSync(source.indexFile ?? '') });
   const releases = new ReleaseStore({
     table: JSON.parse(readFileSync(source.releasesFile ?? '', 'utf8')),
+    emptyReason: emptyReleasesReasonOf({ source }),
   });
 
   return {

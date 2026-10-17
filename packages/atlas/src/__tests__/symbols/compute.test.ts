@@ -3,7 +3,12 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { symbolsCacheDirectory, symbolsOfInstalled, symbolsOfPublished } from '@/symbols';
+import {
+  cachedSymbols,
+  symbolsCacheDirectory,
+  symbolsOfInstalled,
+  symbolsOfPublished,
+} from '@/symbols';
 import { restoreVariable } from '../env.helper';
 
 const roots: string[] = [];
@@ -74,12 +79,48 @@ describe('symbolsOfInstalled (D2)', () => {
     symbolsOfInstalled({ directory });
     rmSync(join(directory, 'dist'), { recursive: true });
 
-    expect(existsSync(join(symbolsCacheDirectory(), '@x__kit@1.2.0.json'))).toBe(true);
+    expect(existsSync(join(symbolsCacheDirectory(), '@x+kit@1.2.0.json'))).toBe(true);
     expect(
       symbolsOfInstalled({ directory })
         .map(symbol => symbol.name)
         .sort(),
     ).toEqual(['Kit', 'greet']);
+  });
+});
+
+describe('the symbols cache', () => {
+  test('two valid names never share a cache file', () => {
+    const consumer = temp({ prefix: 'atlas-consumer-' });
+
+    for (const name of ['@a/b__c', '@a__b/c']) {
+      write({
+        root: join(consumer, 'node_modules', name),
+        files: {
+          ...KIT,
+          'package.json': JSON.stringify({ ...JSON.parse(KIT['package.json']), name }),
+        },
+      });
+      symbolsOfInstalled({ directory: join(consumer, 'node_modules', name) });
+    }
+
+    expect(cachedSymbols({ name: '@a/b__c', version: '1.2.0' })?.[0]?.package).toBe('@a/b__c');
+    expect(cachedSymbols({ name: '@a__b/c', version: '1.2.0' })?.[0]?.package).toBe('@a__b/c');
+  });
+
+  test('a name or a version that could leave the cache directory is refused', async () => {
+    expect(() => cachedSymbols({ name: '../../escape', version: '1.0.0' })).toThrow(
+      "atlas: '../../escape' is not an npm package name",
+    );
+    expect(() => cachedSymbols({ name: '@x/kit', version: '1.0.0/../../escape' })).toThrow(
+      "atlas: '1.0.0/../../escape' is not a version",
+    );
+    expect(
+      String(
+        await symbolsOfPublished({ name: '@x/kit', version: '1.0.0/../x' }).catch(
+          (error: unknown) => error,
+        ),
+      ),
+    ).toContain("atlas: '1.0.0/../x' is not a version");
   });
 });
 

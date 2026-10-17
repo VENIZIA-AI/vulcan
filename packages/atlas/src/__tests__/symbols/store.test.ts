@@ -1,7 +1,7 @@
 import { IGNIS_PACKAGE_MAP } from '../fixtures/ignis-packages';
 import { SymbolStore } from '@/symbols';
 import type { ISymbolRecord } from '@/symbols';
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, spyOn, test } from 'bun:test';
 
 const record = (opts: Partial<ISymbolRecord> & { name: string }): ISymbolRecord => ({
   package: '@venizia/ignis-helpers',
@@ -146,5 +146,35 @@ describe('SymbolStore, deferred (D2)', () => {
 
     expect(store.isEmpty()).toBe(true);
     expect(store.emptyReason).toBe('no symbols - build the packages first');
+  });
+});
+
+describe('SymbolStore, while its loader fails', () => {
+  test('logs each distinct error once and keeps loading on every question', () => {
+    const errorSpy = spyOn(console, 'error').mockImplementation(() => undefined);
+    let loads = 0;
+    const store = new SymbolStore({
+      load: () => {
+        loads += 1;
+
+        throw new Error(loads < 4 ? 'no dist yet' : 'a broken declaration');
+      },
+    });
+
+    try {
+      for (const name of ['a', 'b', 'c', 'd', 'e']) {
+        store.lookup({ name });
+      }
+
+      const logged = errorSpy.mock.calls.map(call => String(call[1]));
+
+      // Must run before `mockRestore()`: restoring a spy also clears its recorded calls.
+      expect(loads).toBe(5);
+      expect(logged).toHaveLength(2);
+      expect(logged[0]).toContain('no dist yet');
+      expect(logged[1]).toContain('a broken declaration');
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });

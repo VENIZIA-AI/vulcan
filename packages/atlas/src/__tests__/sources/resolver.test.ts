@@ -1,15 +1,16 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { buildSourcesServer } from '@/server/index';
 import { restoreVariable } from '../env.helper';
-import { resolveSources } from '@/sources';
+import { cacheRootOf, resolveSources } from '@/sources';
 import {
   commitAll,
   git,
   makeSourceRepository,
   makeTempDirectory,
   NO_REGISTRY,
+  SOURCE_MANIFEST,
   TEMP_DIRECTORIES,
   writeSourceFile,
 } from './source-repo.helper';
@@ -109,6 +110,28 @@ describe('resolveSources', () => {
     expect(existsSync(join(second.root, 'docs/changelogs/2026-02-01-second.md'))).toBe(true);
   });
 
+  test('a release tag pushed after its commit was pulled is read on the next start, with no new pull', async () => {
+    const source = makeSourceRepository();
+    const cwd = consumer();
+    const sources = [{ name: 'src', repo: source.url, ref: 'develop' }];
+    const [first] = await resolveSources({ cwd, sources });
+    const indexed = statSync(first.indexFile ?? '').mtimeMs;
+
+    git({ cwd: source.work, args: ['tag', 'kernel-v1.1.0'] });
+    git({ cwd: source.work, args: ['push', '-q', 'origin', '--tags'] });
+
+    const [second] = await resolveSources({ cwd, sources });
+    const releases = JSON.parse(readFileSync(second.releasesFile ?? '', 'utf8'));
+
+    expect(second.mode).toBe('cache');
+    expect(second.sha).toBe(first.sha);
+    expect(
+      releases.releases.kernel.map((record: { version: string }) => record.version).sort(),
+    ).toEqual(['1.0.0', '1.1.0']);
+    // The corpus was not pulled again: the index is the one the first start built.
+    expect(statSync(second.indexFile ?? '').mtimeMs).toBe(indexed);
+  });
+
   test('pull forces a fetch even on the same SHA', async () => {
     const source = makeSourceRepository();
     const cwd = consumer();
@@ -145,6 +168,36 @@ describe('resolveSources', () => {
     expect(initialized.result.instructions).toContain('OFFLINE: the remote was unreachable');
   });
 
+  test('offline, each ref falls back to the newest SHA pulled for that ref', async () => {
+    const source = makeSourceRepository();
+    const cwd = consumer();
+
+    git({ cwd: source.work, args: ['checkout', '-q', '-b', 'main'] });
+    writeSourceFile({
+      work: source.work,
+      path: 'docs/changelogs/2026-03-01-main.md',
+      text: "---\ntitle: Main\npackages: ['@x/kernel']\n---\n\nOn main.\n",
+    });
+    commitAll({ work: source.work, message: 'docs: main' });
+    git({ cwd: source.work, args: ['push', '-q', 'origin', 'main'] });
+
+    const develop = [{ name: 'src', repo: source.url, ref: 'develop' }];
+    const main = [{ name: 'src', repo: source.url, ref: 'main' }];
+    const [onDevelop] = await resolveSources({ cwd, sources: develop });
+    const [onMain] = await resolveSources({ cwd, sources: main });
+
+    renameSync(source.bare, `${source.bare}.away`);
+
+    const [offlineDevelop] = await resolveSources({ cwd, sources: develop });
+    const [offlineMain] = await resolveSources({ cwd, sources: main });
+
+    renameSync(`${source.bare}.away`, source.bare);
+    expect(onMain.sha).not.toBe(onDevelop.sha);
+    expect(offlineDevelop.mode).toBe('offline-cache');
+    expect(offlineDevelop.sha).toBe(onDevelop.sha);
+    expect(offlineMain.sha).toBe(onMain.sha);
+  });
+
   test('unreachable with no cache stops, naming the source', async () => {
     const failure = await resolveSources({
       cwd: consumer(),
@@ -156,6 +209,30 @@ describe('resolveSources', () => {
 
     expect(String(failure)).toContain(
       "atlas: source 'gone' (file:///nowhere/at/all.git@develop) is unreachable and has no cache",
+    );
+  });
+
+  test('a fetched manifest whose package name is not an npm name stops, naming the source and the name', async () => {
+    const source = makeSourceRepository();
+
+    writeSourceFile({
+      work: source.work,
+      path: '.agents/vulcan.manifest.json',
+      text: SOURCE_MANIFEST.replace('"@x/kernel"', '"../../../../escape"'),
+    });
+    commitAll({ work: source.work, message: 'chore: a bad name' });
+    git({ cwd: source.work, args: ['push', '-q', 'origin', 'develop'] });
+
+    const failure = await resolveSources({
+      cwd: consumer(),
+      sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
+    }).then(
+      () => undefined,
+      (error: unknown) => String(error),
+    );
+
+    expect(failure).toContain(
+      `atlas: source 'src' (${source.url}@develop) - package name '../../../../escape' is not an npm package name`,
     );
   });
 
@@ -173,5 +250,30 @@ describe('resolveSources', () => {
     expect(
       resolved.map(entry => ({ mode: entry.mode, root: entry.root, name: entry.name })),
     ).toEqual([{ mode: 'repository', root: cwd, name: 'self' }]);
+  });
+});
+
+describe('cacheRootOf', () => {
+  const keyOf = (repo: string): string =>
+    relative(join(process.env.XDG_CACHE_HOME ?? '', 'vulcan/atlas/v1'), cacheRootOf({ repo }));
+
+  test('a GitHub source keeps its readable host/owner/repo', () => {
+    expect(keyOf('VENIZIA-AI/ignis')).toBe('github.com/VENIZIA-AI/ignis');
+    expect(keyOf('https://github.com/VENIZIA-AI/ignis.git')).toBe('github.com/VENIZIA-AI/ignis');
+  });
+
+  test('every other source is keyed by its whole path, so no two repositories share a cache', () => {
+    expect(keyOf('file:///a/x/src.git')).not.toBe(keyOf('file:///b/x/src.git'));
+    expect(keyOf('https://gitlab.com/group/one/repo.git')).toBe('gitlab.com/group/one/repo');
+    expect(keyOf('https://gitlab.com/group/one/repo.git')).not.toBe(
+      keyOf('https://gitlab.com/other/one/repo.git'),
+    );
+    expect(keyOf('git@gitlab.com:group/one/repo.git')).toBe('gitlab.com/group/one/repo');
+    expect(keyOf('http://127.0.0.1:8080/acme/source.git')).toBe('127.0.0.1_8080/acme/source');
+  });
+
+  test('a path that climbs never leaves the cache', () => {
+    expect(keyOf('https://host/../../../etc/repo.git').split('/')).not.toContain('..');
+    expect(keyOf('file:///tmp/../x/./repo.git').split('/')).not.toContain('..');
   });
 });

@@ -38,6 +38,8 @@ export interface IReleaseTable {
 
 /** What the tools read from release tables - one source's store, or several served as one. */
 export interface IReleaseIndex {
+  /** Why there is no release: no git history, or no tag the pattern reads. */
+  readonly emptyReason: string;
   isEmpty(): boolean;
   packages(): string[];
   livePackages(): string[];

@@ -144,6 +144,28 @@ describe('a source without git on the machine', () => {
 
       expect(initialized.result.instructions).toContain('no git on this machine');
       expect(github.seen.some(request => request.path.includes('/api'))).toBe(false);
+
+      // D1: no history without git - the tools say so, and the dated entries still answer by date.
+      const server = buildSourcesServer({
+        sources: [resolved],
+        cwd: resolved.root,
+        version: '0.0.0',
+      });
+      const call = async (opts: { name: string; arguments: object }) =>
+        JSON.parse(
+          (await server.handleLine({
+            line: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: opts }),
+          })) ?? 'null',
+        );
+      const version = await call({ name: 'version', arguments: {} });
+      const byPackage = await call({ name: 'changes', arguments: { package: '@x/kernel' } });
+      const byDate = await call({ name: 'changes', arguments: { to: '2026-01-01' } });
+
+      expect(version.error.message).toBe('no release history: src was fetched without git');
+      expect(byPackage.error.message).toBe('no release history: src was fetched without git');
+      expect(
+        JSON.parse(byDate.result.content[0].text).entries.map((found: { id: string }) => found.id),
+      ).toEqual(['changelog:2026-01-01-first']);
     } finally {
       await github.server.stop(true);
     }
