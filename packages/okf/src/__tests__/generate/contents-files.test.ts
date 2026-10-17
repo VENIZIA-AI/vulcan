@@ -46,7 +46,7 @@ const project = (): string => {
 test('every long agent-read file without a fresh contents list is a problem (positive control)', () => {
   project();
 
-  expect(collectContentsProblems()).toEqual([
+  expect(collectContentsProblems({ skip: new Set() })).toEqual([
     'contents: .agents/knowledge/overview/long.md has no fresh contents list - run `vulcan x okf gen`',
     'contents: AGENTS.md has no fresh contents list - run `vulcan x okf gen`',
   ]);
@@ -55,8 +55,11 @@ test('every long agent-read file without a fresh contents list is a problem (pos
 test('gen writes the lists, then the check passes; a generated reference file is left alone', () => {
   const root = project();
 
-  expect(writeContents()).toEqual(['.agents/knowledge/overview/long.md', 'AGENTS.md']);
-  expect(collectContentsProblems()).toEqual([]);
+  expect(writeContents({ skip: new Set() })).toEqual([
+    '.agents/knowledge/overview/long.md',
+    'AGENTS.md',
+  ]);
+  expect(collectContentsProblems({ skip: new Set() })).toEqual([]);
   expect(readFileSync(join(root, '.agents/knowledge/reference/gen.md'), 'utf8')).toBe(GENERATED);
   expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).toContain(
     '<!-- okf:generated:contents start -->',
@@ -73,10 +76,32 @@ test("another generator's page (atlas surface) and the append-only log.md get no
   writeFileSync(join(root, '.agents/knowledge/reference/public-surface.md'), surface);
   writeFileSync(join(root, '.agents/knowledge/log.md'), log);
 
-  expect(writeContents()).toEqual(['.agents/knowledge/overview/long.md', 'AGENTS.md']);
-  expect(collectContentsProblems()).toEqual([]);
+  expect(writeContents({ skip: new Set() })).toEqual([
+    '.agents/knowledge/overview/long.md',
+    'AGENTS.md',
+  ]);
+  expect(collectContentsProblems({ skip: new Set() })).toEqual([]);
   expect(readFileSync(join(root, '.agents/knowledge/reference/public-surface.md'), 'utf8')).toBe(
     surface,
   );
   expect(readFileSync(join(root, '.agents/knowledge/log.md'), 'utf8')).toBe(log);
+});
+
+test("a CRLF generated page is still its generator's, and a body that quotes generated: is not", () => {
+  const root = project();
+  const crlfGenerated = GENERATED.replace(/\n/g, '\r\n');
+  const quoting = long({
+    head: '---\ntype: Concept\ntitle: Quoting\n---\n\n# Quoting\n\n```yaml\ngenerated:\n  by: process:okf-gen\n```\n\n---\n',
+  });
+
+  writeFileSync(join(root, '.agents/knowledge/reference/gen.md'), crlfGenerated);
+  writeFileSync(join(root, '.agents/knowledge/overview/quoting.md'), quoting);
+
+  const written = writeContents({ skip: new Set() });
+
+  expect(written).toContain('.agents/knowledge/overview/quoting.md');
+  expect(written).not.toContain('.agents/knowledge/reference/gen.md');
+  expect(readFileSync(join(root, '.agents/knowledge/reference/gen.md'), 'utf8')).toBe(
+    crlfGenerated,
+  );
 });

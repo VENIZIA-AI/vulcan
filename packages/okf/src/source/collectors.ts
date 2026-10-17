@@ -43,11 +43,35 @@ export const collectMakefileTargets = (): MakeTarget[] => {
     return [];
   }
 
-  const db = Bun.spawnSync(['make', '--no-print-directory', '-pRrq', ':'], {
-    cwd: readOkfProject().root,
-    stdout: 'pipe',
-    stderr: 'pipe',
-  }).stdout.toString();
+  let made: ReturnType<typeof Bun.spawnSync>;
+
+  try {
+    made = Bun.spawnSync(['make', '--no-print-directory', '-pRrq', ':'], {
+      cwd: readOkfProject().root,
+      env: { ...process.env },
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+  } catch (error) {
+    throw new Error(
+      `okf: make is not on PATH - the Makefile targets page needs it (${error instanceof Error ? error.message : String(error)})`,
+      { cause: error },
+    );
+  }
+
+  // Asking for the target `:` prints the database and always ends in "No rule to make target ':'";
+  // any other `***` error (warnings are not errors) is make failing to read the Makefile, and a page written from what it printed
+  // before failing would be truncated.
+  const reason = (made.stderr ?? '')
+    .toString()
+    .split('\n')
+    .find(line => line.includes('*** ') && !line.includes("No rule to make target ':'"));
+
+  if (reason !== undefined) {
+    throw new Error(`okf: make failed: ${reason}`);
+  }
+
+  const db = (made.stdout ?? '').toString();
   const lines = db.split('\n');
 
   const packagesLine = lines.find(line => line.startsWith('PACKAGES := ')) ?? '';

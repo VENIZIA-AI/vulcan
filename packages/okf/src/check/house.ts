@@ -8,7 +8,7 @@ import type { IBundleFile } from '../spec/index.ts';
 import { collectCoverageAxes } from '../coverage-report/axes.ts';
 import { collectContentsProblems } from '../generate/contents-files.ts';
 import { collectChangelogProblems } from './changelogs.ts';
-import { extractRegion } from '../generate/index.ts';
+import { extractRegion, renderPages } from '../generate/index.ts';
 import type { ILoadedRegion, ILoadedRenderer } from '../generate/index.ts';
 import { brandSpelling, repoRelative } from '../source/index.ts';
 
@@ -118,14 +118,9 @@ export const collectHouseProblems = (opts: {
     }
   }
 
-  for (const { renderer, context } of opts.renderers) {
-    if (renderer.render === undefined) {
-      continue;
-    }
+  const pages = renderPages({ renderers: opts.renderers });
 
-    const rendered = renderer.render({ context, facts: renderer.collect({ context }) });
-    const path = join(context.bundle, rendered.path);
-    const content = rendered.content;
+  for (const { path, content } of pages) {
     const current = existsSync(path) ? readFileSync(path, 'utf8') : '';
 
     if (!sameContent({ left: current, right: content })) {
@@ -137,7 +132,7 @@ export const collectHouseProblems = (opts: {
   problems.push(...collectChangelogProblems());
 
   // A long agent-read file opens with its contents - an agent may read its first lines only.
-  problems.push(...collectContentsProblems());
+  problems.push(...collectContentsProblems({ skip: new Set(pages.map(page => page.path)) }));
 
   return problems;
 };

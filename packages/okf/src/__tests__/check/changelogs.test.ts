@@ -82,6 +82,19 @@ test('an explicit empty list is an entry about no package - repository tooling -
   expect(collectChangelogProblems()).toEqual([]);
 });
 
+test('a CRLF entry is read like any other', () => {
+  project({
+    entries: {
+      '2026-01-01-a.md': entry({ frontmatter: "packages: ['@acme/kernel']" }).replace(
+        /\n/g,
+        '\r\n',
+      ),
+    },
+  });
+
+  expect(collectChangelogProblems()).toEqual([]);
+});
+
 test('an unknown name fails, naming it (positive control)', () => {
   project({ entries: { '2026-01-01-a.md': entry({ frontmatter: "packages: ['kernel']" }) } });
 

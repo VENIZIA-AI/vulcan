@@ -38,19 +38,43 @@ const anchorOf = (opts: { heading: string }): string =>
     .trim()
     .replace(/\s+/g, '-');
 
-/** The text with the contents region and the blank line after it taken out. */
+/**
+ * The text with the contents region and the blank line after it taken out. A marker counts only on a
+ * line of its own outside a code fence - a page that quotes the markers (in a fence, in prose) keeps
+ * every word of it.
+ */
 const withoutContents = (opts: { text: string }): string => {
   const { start, end } = markers({ id: CONTENTS_ID });
-  const startAt = opts.text.indexOf(start);
-  const endAt = opts.text.indexOf(end);
+  const lines = opts.text.split('\n');
+  let fenced = false;
+  let startLine = -1;
+  let endLine = -1;
 
-  if (startAt === -1 || endAt === -1 || endAt < startAt) {
+  for (const [index, line] of lines.entries()) {
+    if (FENCE.test(line)) {
+      fenced = !fenced;
+      continue;
+    }
+
+    if (fenced) {
+      continue;
+    }
+
+    if (startLine === -1 && line === start) {
+      startLine = index;
+    } else if (startLine !== -1 && line === end) {
+      endLine = index;
+      break;
+    }
+  }
+
+  if (startLine === -1 || endLine === -1) {
     return opts.text;
   }
 
-  const after = opts.text.slice(endAt + end.length).replace(/^\n\n?/, '');
+  const after = lines.slice(endLine + 1);
 
-  return opts.text.slice(0, startAt) + after;
+  return [...lines.slice(0, startLine), ...(after[0] === '' ? after.slice(1) : after)].join('\n');
 };
 
 /** Where the list goes: after the frontmatter and the title, so it is among the first lines read. */
@@ -71,6 +95,11 @@ const insertionPointOf = (opts: { text: string }): number => {
  * past `CONTENTS_MIN_LINES`, none when it does not. A fixed point - a second pass changes nothing.
  */
 export const withContents = (opts: { text: string }): string => {
+  // A CRLF file is read as LF and written back with its own endings.
+  if (opts.text.includes('\r\n')) {
+    return withContents({ text: opts.text.replace(/\r\n/g, '\n') }).replace(/\n/g, '\r\n');
+  }
+
   const bare = withoutContents({ text: opts.text });
   const headings = headingsOf({ text: bare });
 

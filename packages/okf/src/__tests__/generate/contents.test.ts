@@ -77,4 +77,34 @@ describe('withContents', () => {
     expect(result[0]).toBe('# AGENTS.md');
     expect(result[2]).toBe('<!-- okf:generated:contents start -->');
   });
+
+  test('markers quoted in a code fence or in prose are text, never a list to strip', () => {
+    const fenced = [
+      '# Contents lists',
+      '',
+      'okf writes this near the top:',
+      '',
+      '```md',
+      '<!-- okf:generated:contents start -->',
+      '- [Part](#part)',
+      '<!-- okf:generated:contents end -->',
+      '```',
+      '',
+    ].join('\n');
+    const prose =
+      '# Contents\n\nBetween `<!-- okf:generated:contents start -->` and the end marker `<!-- okf:generated:contents end -->` okf owns the text.\n';
+
+    expect(withContents({ text: fenced })).toBe(fenced);
+    expect(withContents({ text: prose })).toBe(prose);
+  });
+
+  test('a CRLF file keeps its frontmatter first and its CRLF endings', () => {
+    const crlf = LONG.replace(/\n/g, '\r\n');
+    const result = withContents({ text: crlf });
+
+    expect(result.startsWith('---\r\ntype: Concept')).toBe(true);
+    expect(result).toContain('<!-- okf:generated:contents start -->\r\n');
+    expect(result.replace(/\r\n/g, '').includes('\n')).toBe(false);
+    expect(withContents({ text: result })).toBe(result);
+  });
 });

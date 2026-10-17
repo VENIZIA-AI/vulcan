@@ -5,7 +5,7 @@ import { readOkfProject } from '../project/index.ts';
 import type { IOkfProject } from '../project/index.ts';
 
 const DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
-const FRONTMATTER = /^---\n([\s\S]*?)\n---/;
+const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---/;
 /** `'<npm name>@<version>'` - the name may be scoped, so the version is after the LAST `@`. */
 const RELEASE_OVERRIDE = /^(.+)@([^@]+)$/;
 
