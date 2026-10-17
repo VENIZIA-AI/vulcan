@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { EXAMPLE_DENYLIST, PACKAGE_DENYLIST, PATHS, PRUNE_DIRS, REPO } from '../config.ts';
+import { PRUNE_DIRS } from '../config.ts';
+import { readOkfProject } from '../project/index.ts';
 
 export const walkFiles = (opts: { dir: string }): string[] => {
   const { dir } = opts;
@@ -48,13 +49,23 @@ export const sourceFiles = (opts: { dir: string }): string[] => {
 };
 
 export const repoRelative = (opts: { path: string }): string => {
-  return relative(REPO, opts.path);
+  return relative(readOkfProject().root, opts.path);
 };
 
 export const packageDirs = (): string[] => {
-  return listDirs({ dir: PATHS.packages }).filter(name => !PACKAGE_DENYLIST.has(name));
+  const project = readOkfProject();
+
+  // Every directory under packages/, in name order - the configured `packages` list is release order,
+  // for atlas and releases; okf's tables have always listed directories by name.
+  return listDirs({ dir: join(project.root, 'packages') }).filter(
+    name => !project.denylist.has(name),
+  );
 };
 
 export const exampleDirs = (): string[] => {
-  return listDirs({ dir: PATHS.examples }).filter(name => !EXAMPLE_DENYLIST.has(name));
+  const project = readOkfProject();
+
+  return listDirs({ dir: join(project.root, 'examples') }).filter(
+    name => !project.denylist.has(name),
+  );
 };

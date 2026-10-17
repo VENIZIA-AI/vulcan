@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { PATHS, REPO } from '../config.ts';
+import { readOkfProject } from '../project/index.ts';
 import type {
   BindingClass,
   ComponentEntry,
@@ -9,6 +9,9 @@ import type {
   SourceMapEntry,
 } from './common/types.ts';
 import { listDirs, packageDirs, sourceFiles } from './scanner.ts';
+
+/** Paths under the project root; the IGNIS-shaped ones become renderer options in Task 4. */
+const projectPath = (opts: { path: string }): string => join(readOkfProject().root, opts.path);
 
 // --- shared heuristics ---
 // One extraction per fact, used by BOTH the renderer and the coverage counter. BANA drifted
@@ -31,25 +34,33 @@ export const exportedClasses = (opts: { dir: string; suffix: string }): string[]
 };
 
 export const collectComponents = (): ComponentEntry[] => {
-  return listDirs({ dir: PATHS.coreComponents }).map(dir => ({
-    dir,
-    classes: exportedClasses({ dir: join(PATHS.coreComponents, dir), suffix: 'Component' }),
-  }));
+  return listDirs({ dir: projectPath({ path: 'packages/core-server/src/components' }) }).map(
+    dir => ({
+      dir,
+      classes: exportedClasses({
+        dir: join(projectPath({ path: 'packages/core-server/src/components' }), dir),
+        suffix: 'Component',
+      }),
+    }),
+  );
 };
 
 export const collectHelperModules = (): HelperEntry[] => {
-  return listDirs({ dir: PATHS.helpersModules }).map(module => ({
+  return listDirs({ dir: projectPath({ path: 'packages/helpers/src/modules' }) }).map(module => ({
     module,
-    classes: exportedClasses({ dir: join(PATHS.helpersModules, module), suffix: 'Helper' }),
+    classes: exportedClasses({
+      dir: join(projectPath({ path: 'packages/helpers/src/modules' }), module),
+      suffix: 'Helper',
+    }),
   }));
 };
 
 export const collectHelperUtilities = (): string[] => {
-  if (!existsSync(PATHS.helpersUtilities)) {
+  if (!existsSync(projectPath({ path: 'packages/helpers/src/utilities' }))) {
     return [];
   }
 
-  return readdirSync(PATHS.helpersUtilities)
+  return readdirSync(projectPath({ path: 'packages/helpers/src/utilities' }))
     .filter(name => name.endsWith('.utility.ts'))
     .map(name => name.replace(/\.utility\.ts$/, ''))
     .sort();
@@ -57,11 +68,11 @@ export const collectHelperUtilities = (): string[] => {
 
 /** Const-classes of binding keys: `static readonly X = '...'` grouped by declaring class. */
 export const collectBindingKeys = (): BindingClass[] => {
-  if (!existsSync(PATHS.coreBindings)) {
+  if (!existsSync(projectPath({ path: 'packages/kernel/src/common/bindings.ts' }))) {
     return [];
   }
 
-  const src = readFileSync(PATHS.coreBindings, 'utf8');
+  const src = readFileSync(projectPath({ path: 'packages/kernel/src/common/bindings.ts' }), 'utf8');
   const out: BindingClass[] = [];
 
   for (const cls of src.matchAll(/export\s+class\s+(\w+)[^{]*\{([\s\S]*?)\n\}/g)) {
@@ -85,12 +96,12 @@ export const collectBindingKeys = (): BindingClass[] => {
  * (make/help.mk): an exact name, a name in an `a / b` row, or a `<pkg>` row matching one package.
  */
 export const collectMakefileTargets = (): MakeTarget[] => {
-  if (!existsSync(PATHS.makefile)) {
+  if (!existsSync(projectPath({ path: 'Makefile' }))) {
     return [];
   }
 
   const db = Bun.spawnSync(['make', '--no-print-directory', '-pRrq', ':'], {
-    cwd: REPO,
+    cwd: readOkfProject().root,
     stdout: 'pipe',
     stderr: 'pipe',
   }).stdout.toString();
@@ -101,7 +112,7 @@ export const collectMakefileTargets = (): MakeTarget[] => {
   const pkgPattern = `(${[...packages, 'core'].join('|')})`;
 
   const help: { pattern: RegExp; description: string }[] = [];
-  const helpFile = join(REPO, 'make/help.mk');
+  const helpFile = projectPath({ path: 'make/help.mk' });
   const helpText = existsSync(helpFile) ? readFileSync(helpFile, 'utf8') : '';
 
   for (const row of helpText.matchAll(/HELP_ROW\) "((?:[^"\\]|\\.)+)" "((?:[^"\\]|\\.)*)"/g)) {
@@ -141,7 +152,7 @@ export const collectSourceMap = (): SourceMapEntry[] => {
   const out: SourceMapEntry[] = [];
 
   for (const pkg of packageDirs()) {
-    const src = join(PATHS.packages, pkg, 'src');
+    const src = join(projectPath({ path: 'packages' }), pkg, 'src');
 
     if (!existsSync(src)) {
       continue;
@@ -190,7 +201,7 @@ export const collectPackageManifests = (): { dir: string; name: string; descript
   const out: { dir: string; name: string; description: string }[] = [];
 
   for (const dir of packageDirs()) {
-    const manifest = join(PATHS.packages, dir, 'package.json');
+    const manifest = join(projectPath({ path: 'packages' }), dir, 'package.json');
 
     if (!existsSync(manifest)) {
       continue;
