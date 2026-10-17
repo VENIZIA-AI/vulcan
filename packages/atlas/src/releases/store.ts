@@ -88,6 +88,11 @@ export class ReleaseStore extends BaseHelper {
     return [...new Set(this.changelogs.map(record => record.date))];
   }
 
+  /** The table's package map - how a composite of sources routes a package to its owner. */
+  packageMapEntries(): IPackageMapEntry[] {
+    return this.packageMap;
+  }
+
   /** A package a tool was asked about, as its npm name - what the store is keyed by. */
   packageOf(opts: { package: string }): string {
     return packageOfQuery({ value: opts.package, packageMap: this.packageMap });

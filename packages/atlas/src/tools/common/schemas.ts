@@ -26,6 +26,8 @@ export const ChangesInputSchema = z.object({
 
 export const GetInputSchema = z.object({
   id: z.string().min(1),
+  /** Needed only when atlas serves several sources and two of them hold the same id. */
+  source: z.string().min(1).optional(),
   maxChars: z.number().int().min(500).max(50000).optional(),
   cursor: z.string().optional(),
 });

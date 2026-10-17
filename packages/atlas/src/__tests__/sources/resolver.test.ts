@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { buildSourcesServer } from '@/server/index';
 import { resolveSources } from '@/sources';
 import {
   commitAll,
@@ -129,6 +130,15 @@ describe('resolveSources', () => {
     renameSync(`${source.bare}.away`, source.bare);
     expect(offline.mode).toBe('offline-cache');
     expect(offline.sha).toBe(first.sha);
+
+    // The server says so to every client, on initialize.
+    const initialized = JSON.parse(
+      (await buildSourcesServer({ sources: [offline], cwd, version: '0.0.0' }).handleLine({
+        line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+      })) ?? 'null',
+    );
+
+    expect(initialized.result.instructions).toContain('OFFLINE: the remote was unreachable');
   });
 
   test('unreachable with no cache stops, naming the source', async () => {

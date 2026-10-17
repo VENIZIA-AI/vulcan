@@ -6,15 +6,21 @@ import {
   ModeUsageError,
   readPackageVersion,
   readRootArgument,
+  readSourceArguments,
+  readUserSources,
   resolveMode,
 } from './cli/index';
 import { runChangelogsCommand } from './changelogs/command';
 import { runReleasesCommand } from './releases/generator';
 import { buildServer } from './server';
+import { buildSourcesServer } from './server/index';
+import { hasAtlasProject, readAtlasProject } from './common/project-config';
+import { resolveSources } from './sources/index';
+import type { IAtlasSource } from './sources/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
 
-const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] | <surface|symbols|releases> <gen|check> | changelogs migrate [--dry-run]`;
+const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | pull [--source <name>] | <surface|symbols|releases> | changelogs migrate [--dry-run]`;
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -85,16 +91,76 @@ if (subcommand === AtlasCommands.CHANGELOGS) {
   }
 }
 
-const { mode, root, version } = resolveServerOptions({ argv });
+/**
+ * The sources to serve: the project's own (repo mode) and the sources its manifest declares, plus
+ * `--source`; outside any project, `--source` and the user config. None at all: the packaged
+ * snapshot, until it is retired.
+ */
+const sourcesToServe = (opts: { root: string }): { project: boolean; sources: IAtlasSource[] } => {
+  const project = hasAtlasProject({ root: opts.root });
+  const declared = project ? readAtlasProject({ root: opts.root }).sources : readUserSources();
 
-try {
-  buildServer({ mode, root, version })
-    .run()
-    .catch((error: unknown) => {
-      console.error(`${AtlasConstants.SERVER_NAME}: ${messageOf(error)}`);
-      process.exit(1);
-    });
-} catch (error) {
+  return { project, sources: [...declared, ...readSourceArguments({ argv })] };
+};
+
+const serveSources = async (opts: { root: string; version: string }): Promise<boolean> => {
+  const { project, sources } = sourcesToServe({ root: opts.root });
+
+  if (!project && sources.length === 0) {
+    return false;
+  }
+
+  const resolved = await resolveSources({ cwd: opts.root, sources });
+
+  await buildSourcesServer({ sources: resolved, cwd: opts.root, version: opts.version }).run();
+
+  return true;
+};
+
+/** `pull [--source <name>]`: every source fetched again, or the one named; repo mode needs no pull. */
+const pull = async (): Promise<number> => {
+  const root = readRootArgument({ argv }).value;
+  const flag = argv.indexOf('--source');
+  const wanted = flag === -1 || argv[flag + 1]?.includes('/') ? undefined : argv[flag + 1];
+  const { sources } = sourcesToServe({ root });
+  const pulled = await resolveSources({
+    cwd: root,
+    sources: sources.filter(source => wanted === undefined || source.name === wanted),
+    force: true,
+  });
+
+  for (const source of pulled.filter(entry => entry.mode !== 'repository')) {
+    console.log(`pull: ${source.name} ${(source.sha ?? '').slice(0, 8)} (${source.mode})`);
+  }
+
+  return 0;
+};
+
+/** `mcp`: the sources when there are any (a project, `--source`, the user config), else the snapshot. */
+const serve = async (): Promise<void> => {
+  const rootArgument = readRootArgument({ argv });
+  const version =
+    readPackageVersion({ directory: findPackageDirectory({ startDirectory: __dirname }) }) ??
+    FALLBACK_VERSION;
+
+  if (await serveSources({ root: rootArgument.value, version })) {
+    return;
+  }
+
+  const { mode, root } = resolveServerOptions({ argv });
+
+  await buildServer({ mode, root, version }).run();
+};
+
+const main = async (): Promise<void> => {
+  if (subcommand === AtlasCommands.PULL) {
+    process.exit(await pull());
+  }
+
+  await serve();
+};
+
+main().catch((error: unknown) => {
   console.error(`${AtlasConstants.SERVER_NAME}: ${messageOf(error)}`);
   process.exit(1);
-}
+});

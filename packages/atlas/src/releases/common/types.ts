@@ -14,6 +14,8 @@ export interface IReleaseRecord {
  * window returned can be read in full; `packages` is empty when the file names no package.
  */
 export interface IChangelogRecord {
+  /** The source it came from, when atlas serves more than one. */
+  source?: string;
   id: string;
   file: string;
   date: string;
@@ -32,4 +34,25 @@ export interface IReleaseTable {
   changelogs: IChangelogRecord[];
   /** Every package's directory, npm name and other names; absent in a table generated before 0.2.0-0. */
   packageMap?: IPackageMapEntry[];
+}
+
+/** What the tools read from release tables - one source's store, or several served as one. */
+export interface IReleaseIndex {
+  isEmpty(): boolean;
+  packages(): string[];
+  livePackages(): string[];
+  entryDates(): string[];
+  packageOf(opts: { package: string }): string;
+  versionsOf(opts: { package: string }): string[];
+  newestOf(opts: { package: string }): IReleaseRecord | undefined;
+  releaseDateOf(opts: { package: string; version: string }): string | undefined;
+  releaseOrderOf(opts: { package: string; version: string }): number | undefined;
+  entriesBetween(opts: { package?: string; fromDate: string; toDate: string }): IChangelogRecord[];
+  entriesBetweenOrders(opts: {
+    package?: string;
+    fromOrder: number;
+    toOrder: number;
+    fromDate: string;
+    toDate: string;
+  }): IChangelogRecord[];
 }

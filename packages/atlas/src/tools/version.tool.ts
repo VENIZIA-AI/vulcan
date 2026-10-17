@@ -1,6 +1,6 @@
 import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IToolHandler } from '@/protocol/common';
-import type { ReleaseStore } from '@/releases';
+import type { IReleaseIndex } from '@/releases';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
@@ -92,7 +92,7 @@ const installedVersionOf = (opts: { cwd: string; name: string; spec: string }): 
 };
 
 /** The newest version this build knows for every package in its table. */
-const snapshotOf = (opts: { releases: ReleaseStore; live: string[] }): Record<string, string> => {
+const snapshotOf = (opts: { releases: IReleaseIndex; live: string[] }): Record<string, string> => {
   const snapshot: Record<string, string> = {};
 
   const names = opts.releases.packages().filter(candidate => opts.live.includes(candidate));
@@ -113,7 +113,7 @@ const snapshotOf = (opts: { releases: ReleaseStore; live: string[] }): Record<st
  * version that never resolved, or a version neither side can parse, is skipped - never guessed.
  */
 const behindOf = (opts: {
-  releases: ReleaseStore;
+  releases: IReleaseIndex;
   installed: Record<string, string | null>;
   snapshot: Record<string, string>;
 }): IBehindRow[] => {
@@ -141,7 +141,7 @@ const behindOf = (opts: {
   return rows;
 };
 
-export const buildVersionTool = (opts: { releases: ReleaseStore }): IToolHandler => ({
+export const buildVersionTool = (opts: { releases: IReleaseIndex }): IToolHandler => ({
   definition: {
     name: 'version',
     description: DESCRIPTION,

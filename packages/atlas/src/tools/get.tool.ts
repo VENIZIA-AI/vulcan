@@ -3,7 +3,7 @@ import type { TCorpus } from '@/common';
 import type { IChunk } from '@/corpus';
 import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IToolHandler } from '@/protocol/common';
-import type { ChunkStore } from '@/search/store';
+import type { IChunkIndex } from '@/search/common';
 import { z } from 'zod';
 import { GetInputSchema, parseInput } from './common';
 
@@ -28,6 +28,8 @@ const CONTINUATION_PART_PATTERN = /-part\d+$/;
 const INPUT_JSON_SCHEMA = z.toJSONSchema(GetInputSchema);
 
 interface IGetToolResponse {
+  /** The source the document came from, when atlas serves several. */
+  source?: string;
   id: string;
   title: string;
   headingPath: string;
@@ -37,6 +39,7 @@ interface IGetToolResponse {
 
 /** What `get` reads before paging - one chunk's own body, or a whole document's joined one. */
 interface IGetTarget {
+  source?: string;
   id: string;
   title: string;
   headingPath: string;
@@ -79,14 +82,18 @@ const wholeDocumentBodyOf = (opts: { chunks: IChunk[] }): string =>
     .join('\n\n');
 
 /** `undefined` when `id` does not name a known corpus prefix, or no chunk belongs to that document. */
-const wholeDocumentOf = (opts: { store: ChunkStore; id: string }): IGetTarget | undefined => {
+const wholeDocumentOf = (opts: {
+  store: IChunkIndex;
+  id: string;
+  source?: string;
+}): IGetTarget | undefined => {
   const document = documentPathOf({ id: opts.id });
 
   if (!document) {
     return undefined;
   }
 
-  const chunks = opts.store.list({ document });
+  const chunks = opts.store.list({ document, source: opts.source });
 
   if (chunks.length === 0) {
     return undefined;
@@ -132,7 +139,7 @@ const decodeCursor = (opts: { cursor?: string; totalCodePoints: number }): numbe
   return offset;
 };
 
-export const buildGetTool = (opts: { store: ChunkStore }): IToolHandler => ({
+export const buildGetTool = (opts: { store: IChunkIndex }): IToolHandler => ({
   definition: {
     name: 'get',
     description: DESCRIPTION,
@@ -141,8 +148,8 @@ export const buildGetTool = (opts: { store: ChunkStore }): IToolHandler => ({
   call: async ({ args }) => {
     const input = parseInput({ schema: GetInputSchema, args });
     const target: IGetTarget | undefined = input.id.includes('#')
-      ? opts.store.get({ id: input.id })
-      : wholeDocumentOf({ store: opts.store, id: input.id });
+      ? opts.store.get({ id: input.id, source: input.source })
+      : wholeDocumentOf({ store: opts.store, id: input.id, source: input.source });
 
     if (!target) {
       throw new RpcError({
@@ -157,7 +164,9 @@ export const buildGetTool = (opts: { store: ChunkStore }): IToolHandler => ({
     const page = codePoints.slice(offset, offset + maxChars);
     const nextOffset = offset + page.length;
 
+    const source = target.source ?? input.source;
     const response: IGetToolResponse = {
+      ...(source === undefined ? {} : { source }),
       id: target.id,
       title: target.title,
       headingPath: target.headingPath,

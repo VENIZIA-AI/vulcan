@@ -1,0 +1,125 @@
+import { afterAll, describe, expect, test } from 'bun:test';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { parseSourceArgument, readSourceArguments, readUserSources } from '@/cli/sources';
+import { spawnSyncBounded } from '../spawn.helper';
+import {
+  git,
+  makeSourceRepository,
+  makeTempDirectory,
+  TEMP_DIRECTORIES,
+} from './source-repo.helper';
+
+afterAll(() => {
+  for (const directory of TEMP_DIRECTORIES) {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+const PACKAGE_ROOT = join(__dirname, '..', '..', '..');
+
+describe('--source and the user config', () => {
+  test('owner/repo@ref, owner/repo (develop) and a git URL@ref', () => {
+    expect(parseSourceArgument({ value: 'VENIZIA-AI/ignis@main' })).toEqual({
+      name: 'ignis',
+      repo: 'VENIZIA-AI/ignis',
+      ref: 'main',
+    });
+    expect(parseSourceArgument({ value: 'VENIZIA-AI/ardor' })).toEqual({
+      name: 'ardor',
+      repo: 'VENIZIA-AI/ardor',
+      ref: 'develop',
+    });
+    expect(parseSourceArgument({ value: 'file:///tmp/x/src.git@develop' })).toEqual({
+      name: 'src',
+      repo: 'file:///tmp/x/src.git',
+      ref: 'develop',
+    });
+  });
+
+  test('--source repeats, in both spellings', () => {
+    expect(
+      readSourceArguments({ argv: ['mcp', '--source', 'a/one', '--source=b/two@main'] }).map(
+        source => source.name,
+      ),
+    ).toEqual(['one', 'two']);
+  });
+
+  test('outside a project, the user config names the sources', () => {
+    const config = makeTempDirectory({ prefix: 'atlas-xdg-config-' });
+
+    mkdirSync(join(config, 'vulcan'));
+    writeFileSync(
+      join(config, 'vulcan', 'atlas.json'),
+      JSON.stringify({ sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis' }] }),
+    );
+
+    expect(readUserSources({ configHome: config })).toEqual([
+      { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
+    ]);
+    expect(
+      readUserSources({ configHome: makeTempDirectory({ prefix: 'atlas-xdg-empty-' }) }),
+    ).toEqual([]);
+  });
+});
+
+describe('vulcan-atlas over git sources', () => {
+  const run = (opts: { args: string[]; cwd: string; cache: string; input?: string }) => {
+    const result = spawnSyncBounded({
+      cmd: [process.execPath, join(PACKAGE_ROOT, 'src/cli.ts'), ...opts.args],
+      cwd: opts.cwd,
+      env: { ...process.env, XDG_CACHE_HOME: opts.cache },
+      stdin: opts.input === undefined ? 'ignore' : Buffer.from(opts.input),
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+
+    return {
+      code: result.exitCode,
+      stdout: result.stdout.toString(),
+      stderr: result.stderr.toString(),
+    };
+  };
+
+  test('mcp --source serves it from an empty directory: initialize names it, every hit names it', () => {
+    const source = makeSourceRepository();
+    const requests = [
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } },
+      {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: { name: 'search', arguments: { query: 'kernel boots' } },
+      },
+    ];
+    const result = run({
+      args: ['mcp', '--source', `${source.url}@develop`],
+      cwd: makeTempDirectory({ prefix: 'atlas-empty-' }),
+      cache: makeTempDirectory({ prefix: 'atlas-cache-' }),
+      input: `${requests.map(request => JSON.stringify(request)).join('\n')}\n`,
+    });
+    const replies = result.stdout
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .map(line => JSON.parse(line));
+    const sha = git({ cwd: source.work, args: ['rev-parse', 'HEAD'] }).slice(0, 8);
+
+    expect(result.stderr).not.toContain('Error');
+    expect(replies[0].result.instructions).toContain(`- source: ${source.url}@develop at ${sha}`);
+    expect(JSON.parse(replies[1].result.content[0].text).hits[0].source).toBe('source');
+  });
+
+  test('pull fetches again and says what it got', () => {
+    const source = makeSourceRepository();
+    const cache = makeTempDirectory({ prefix: 'atlas-cache-' });
+    const cwd = makeTempDirectory({ prefix: 'atlas-empty-' });
+    const sha = git({ cwd: source.work, args: ['rev-parse', 'HEAD'] }).slice(0, 8);
+
+    expect(run({ args: ['pull', '--source', `${source.url}@develop`], cwd, cache }).stdout).toBe(
+      `pull: source ${sha} (fresh)\n`,
+    );
+    expect(run({ args: ['pull', '--source', `${source.url}@develop`], cwd, cache }).stdout).toBe(
+      `pull: source ${sha} (fresh)\n`,
+    );
+  });
+});
