@@ -76,6 +76,28 @@ describe('PublicSurface.render', () => {
   });
 });
 
+describe('the package list', () => {
+  test('without atlas.packages in the project config, render stops with what to add', () => {
+    const repoRoot = makeRepoRoot();
+
+    expect(() => PublicSurface.render({ repoRoot })).toThrow(
+      '[atlas] no .configs/vulcan.config.* in',
+    );
+  });
+
+  test('render reads the directories from atlas.packages', () => {
+    const repoRoot = makeRepoRoot();
+    writeSurface({ repoRoot });
+    mkdirSync(join(repoRoot, '.configs'));
+    writeFileSync(
+      join(repoRoot, '.configs', 'vulcan.config.ts'),
+      "export default { atlas: { packages: { testpkg: '@test/testpkg' } } };\n",
+    );
+
+    expect(PublicSurface.render({ repoRoot })).toContain('`@test/testpkg` (3)');
+  });
+});
+
 describe('PublicSurface.check', () => {
   test('is fresh right after a snapshot, and stale once an export is added', () => {
     const repoRoot = makeRepoRoot();

@@ -9,6 +9,7 @@ import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
 import { readPackageEntries } from '@/common/package-entries';
 import { regenerateHintOf } from '@/common/regenerate-hint';
+import { readAtlasPackages } from '@/common/project-config';
 import { PROJECT_ROOT } from '@/common/project';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
@@ -16,19 +17,6 @@ import type TypeScript from 'typescript';
 import { PublicSurface } from '@/surface';
 
 export const SYMBOLS_OUTPUT = resolve(PROJECT_ROOT, '.agents/knowledge/reference/symbols.json');
-
-// Dependency order, the same list `public-surface.ts` walks - the two tables describe one surface.
-const PACKAGES = [
-  'inversion',
-  'filter',
-  'helpers',
-  'boot',
-  'kernel',
-  'connectors',
-  'core-server',
-  'core-worker',
-  'atlas',
-];
 
 const SIGNATURE_MAX_CHARS = 300;
 
@@ -159,7 +147,7 @@ export class AtlasSymbols {
 
   static render(opts: { repoRoot?: string; packages?: string[] } = {}): string {
     const repoRoot = opts.repoRoot ?? PROJECT_ROOT;
-    const packages = opts.packages ?? PACKAGES;
+    const packages = opts.packages ?? readAtlasPackages({ repoRoot });
     const read = packages.map(name => readPackageEntries({ repoRoot, name }));
     const program = DeclarationProgram.create({
       files: read.flatMap(item => item.entries.map(entry => entry.file)),

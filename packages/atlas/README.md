@@ -87,6 +87,14 @@ The generators write and check the tables under the project's `.agents/knowledge
 directory); `surface` and `symbols` use the project's own `typescript` and read its built
 `.d.ts`, so build first. `check` exits `1` when a table is stale.
 
+`surface` and `symbols` walk the packages listed in `atlas.packages` of the project's
+`.configs/vulcan.config.*` - directory under `packages/` to npm name, in release order - and stop
+with what to add when it is missing:
+
+```ts
+atlas: { packages: { inversion: '@venizia/ignis-inversion', helpers: '@venizia/ignis-helpers' } },
+```
+
 ## Where it sits
 
 Of the IGNIS packages, it depends on `@venizia/ignis-helpers` only. It is a development tool, not
