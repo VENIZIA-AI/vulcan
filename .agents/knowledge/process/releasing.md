@@ -23,8 +23,10 @@ or `none` (publish the version already in package.json).
 2. It publishes okf, atlas, cli in that order with `bun publish` - prerelease to `next`, stable to
    `latest`. A version already on npm is skipped.
 3. It commits `chore(release): v<version> [<bump>]` on `develop` and tags `v<version>`.
-4. It reads every tarball back from npm and passes only once each downloads (npm can take 10+
-   minutes to serve a new version; the run waits up to 25).
+
+The run does not wait for npm to serve the new version: a fresh publish can take 10+ minutes to
+download, so an install right after a green run may still fail. Confirm with
+`npm view @venizia/vulcan versions` before installing.
 
 A failed run is retried by dispatching again; the failure reports in the run say which case applies.
 The token is the repository secret `NPM_ACCESS_TOKEN`. The release ships code only and clones no

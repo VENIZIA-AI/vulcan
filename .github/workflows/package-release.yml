@@ -273,32 +273,6 @@ jobs:
 
           echo "IS_TAGGED=true" >> "$GITHUB_ENV"
 
-      # A publish npm accepted is not yet one it serves: okf 0.1.0-1 was listed ~11 minutes and
-      # downloadable ~13 minutes after its publish, and an install failed in between. The run is green
-      # only once every tarball downloads; a version that never does is retried with bump `none`.
-      - name: Read back from npm
-        run: |
-          for directory in $PUBLISH_ORDER; do
-            NAME=$(jq -r .name "packages/$directory/package.json")
-            URL="https://registry.npmjs.org/$NAME/-/${NAME#*/}-$NEW_VERSION.tgz"
-
-            for attempt in $(seq 1 100); do
-              CODE=$(curl -s -o /dev/null -w '%{http_code}' "$URL")
-
-              if [ "$CODE" = "200" ]; then
-                echo "read-back: $NAME@$NEW_VERSION downloads (after $(((attempt - 1) * 15))s)"
-                break
-              fi
-
-              if [ "$attempt" = "100" ]; then
-                echo "ERROR | $NAME@$NEW_VERSION is not downloadable after 25 minutes (HTTP $CODE): $URL"
-                exit 1
-              fi
-
-              sleep 15
-            done
-          done
-
       # -----------------------------------------------------------------------------
       # FAILURE REPORTS
       # -----------------------------------------------------------------------------
