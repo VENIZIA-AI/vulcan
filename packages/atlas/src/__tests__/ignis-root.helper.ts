@@ -1,4 +1,5 @@
-import { existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -24,3 +25,45 @@ export const IGNIS_IS_BUILT =
 /** The release table is derived from release commits, which a shallow clone does not have. */
 export const IGNIS_HAS_HISTORY =
   existsSync(join(IGNIS_ROOT, '.git')) && !existsSync(join(IGNIS_ROOT, '.git', 'shallow'));
+
+/** The last IGNIS commit that still had `path` - the state a parity test against it compares with. */
+export const ignisRevisionWithOf = (opts: { path: string }): string | undefined => {
+  if (!existsSync(join(IGNIS_ROOT, '.git'))) {
+    return undefined;
+  }
+
+  const removedIn = spawnSync('git', ['log', '-n1', '--format=%H', '--', opts.path], {
+    cwd: IGNIS_ROOT,
+    encoding: 'utf8',
+  }).stdout.trim();
+
+  return removedIn.length === 0 ? undefined : `${removedIn}~1`;
+};
+
+/** `path` as IGNIS had it at `revision`; `undefined` when it did not exist there. */
+export const ignisFileAt = (opts: { revision: string; path: string }): string | undefined => {
+  const shown = spawnSync('git', ['show', `${opts.revision}:${opts.path}`], {
+    cwd: IGNIS_ROOT,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
+
+  return shown.status === 0 ? shown.stdout : undefined;
+};
+
+/**
+ * A file IGNIS commits, or committed before adopting VULCAN 0.2.0 removed it (its release and symbol
+ * tables): read from the working tree when it is there, else from the last commit that still had it.
+ * `undefined` when neither has it - the test that needs it skips.
+ */
+export const ignisCommittedFileOf = (opts: { path: string }): string | undefined => {
+  const file = join(IGNIS_ROOT, opts.path);
+
+  if (existsSync(file)) {
+    return readFileSync(file, 'utf8');
+  }
+
+  const revision = ignisRevisionWithOf(opts);
+
+  return revision === undefined ? undefined : ignisFileAt({ revision, path: opts.path });
+};

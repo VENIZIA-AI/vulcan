@@ -7,6 +7,8 @@ export interface IDocument {
   title: string;
   frontmatter: Record<string, unknown>;
   body: string;
+  /** The file line the body starts on, 1-based - after the frontmatter; absent reads as 1. */
+  bodyLine?: number;
 }
 
 /** One indexable section of a document - an H2/H3 chunk, or the intro text before the first one. */

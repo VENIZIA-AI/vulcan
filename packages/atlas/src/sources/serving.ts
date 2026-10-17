@@ -28,8 +28,9 @@ const onlyOne = <T>(opts: { id: string; found: { source: string; value: T }[] })
 
 /**
  * One search index per source, served as one: a query runs in each, the hits merge by score, every
- * hit names its source. Ids stay as each source writes them; \`get\` needs \`source\` only when two
- * sources hold the same id. With one source, every call passes straight through.
+ * hit names its source; \`source\` narrows a search to one. Ids stay as each source writes them;
+ * \`get\` needs \`source\` only when two sources hold the same id. With one source, every call passes
+ * straight through.
  */
 export class SourceChunks {
   private readonly sources: { name: string; chunks: () => ChunkStore }[];
@@ -38,14 +39,30 @@ export class SourceChunks {
     this.sources = opts.sources;
   }
 
-  search(opts: { query: string; corpus?: IHit['corpus']; limit: number; offset: number }): {
+  search(opts: {
+    query: string;
+    corpus?: IHit['corpus'];
+    source?: string;
+    limit: number;
+    offset: number;
+  }): {
     total: number;
     hits: IHit[];
   } {
+    const { source: wanted, ...query } = opts;
+    const searched = this.within({ source: wanted });
+
+    if (wanted !== undefined && searched.length === 0) {
+      throw new RpcError({
+        code: RpcErrorCodes.INVALID_PARAMS,
+        message: `unknown source '${wanted}'; known sources: ${this.sources.map(entry => entry.name).join(', ')}`,
+      });
+    }
+
     // Each source answers its first offset+limit, so the merged page is exact.
-    const results = this.sources.map(source => ({
-      source: source.name,
-      result: source.chunks().search({ ...opts, limit: opts.offset + opts.limit, offset: 0 }),
+    const results = searched.map(entry => ({
+      source: entry.name,
+      result: entry.chunks().search({ ...query, limit: query.offset + query.limit, offset: 0 }),
     }));
     const merged = results
       .flatMap(({ source, result }) => result.hits.map(hit => ({ ...hit, source })))
@@ -104,6 +121,14 @@ export class SourceReleases {
     return this.sources.length === 1
       ? only.releases.emptyReason
       : this.sources.map(source => `${source.name}: ${source.releases.emptyReason}`).join('; ');
+  }
+
+  get noEntriesReason(): string {
+    const [only] = this.sources;
+
+    return this.sources.length === 1
+      ? only.releases.noEntriesReason
+      : this.sources.map(source => `${source.name}: ${source.releases.noEntriesReason}`).join('; ');
   }
 
   isEmpty(): boolean {

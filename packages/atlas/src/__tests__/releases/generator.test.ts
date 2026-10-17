@@ -1,11 +1,17 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { resolveChangelogPackages } from '@/changelogs';
 import { AtlasReleases } from '@/releases/generator';
 import { toAtlasProject } from '@/common/project-config';
 import { IGNIS_PACKAGES } from '../fixtures/ignis-packages';
-import { IGNIS_HAS_HISTORY, IGNIS_ROOT } from '../ignis-root.helper';
+import {
+  ignisCommittedFileOf,
+  ignisFileAt,
+  IGNIS_HAS_HISTORY,
+  ignisRevisionWithOf,
+  IGNIS_ROOT,
+} from '../ignis-root.helper';
 
 const withFrontmatter = (opts: { frontmatter: string; body: string }): string =>
   `---\n${opts.frontmatter}\n---\n\n${opts.body}\n`;
@@ -136,8 +142,9 @@ describe('AtlasReleases.titleOf', () => {
   });
 });
 
-const IGNIS_RELEASES = join(IGNIS_ROOT, '.agents/knowledge/reference/releases.json');
-const hasGeneratedTable = existsSync(IGNIS_RELEASES);
+// The table IGNIS committed until it adopted 0.2.0 - read from history once it is gone.
+const IGNIS_RELEASES = ignisCommittedFileOf({ path: '.agents/knowledge/reference/releases.json' });
+const hasGeneratedTable = IGNIS_RELEASES !== undefined;
 /**
  * Where 0.2.0-0 answers differently from IGNIS's committed table, and why: `@venizia/dev-configs`
  * mentions now count (the old pattern knew `@venizia/ignis...` only), so a dev-configs changelog
@@ -175,9 +182,8 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
     const committed: {
       releases: Record<string, { version: string; date: string; sha: string; order: number }[]>;
       changelogs: { id: string; file: string; packages: string[]; order: number }[];
-    } = hasGeneratedTable
-      ? JSON.parse(readFileSync(IGNIS_RELEASES, 'utf8'))
-      : { releases: {}, changelogs: [] };
+    } =
+      IGNIS_RELEASES === undefined ? { releases: {}, changelogs: [] } : JSON.parse(IGNIS_RELEASES);
     const computed = JSON.parse(AtlasReleases.render({ project: IGNIS_PROJECT }));
 
     test('every committed release comes back from its tag, with its date and commit', () => {
@@ -228,7 +234,10 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
       const entryOrder = new Map(committed.changelogs.map(entry => [entry.id, entry.order]));
       const misplaced: string[] = [];
 
-      for (const entry of computed.changelogs as { id: string; order: number }[]) {
+      // An entry written after the table was retired has no old position to compare with.
+      for (const entry of (computed.changelogs as { id: string; order: number }[]).filter(item =>
+        entryOrder.has(item.id),
+      )) {
         for (const [sha, order] of committedOrder) {
           const before = (entryOrder.get(entry.id) ?? 0) > order;
           const now = entry.order > (computedOrder.get(sha) ?? 0);
@@ -244,11 +253,14 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
     });
 
     test('what migrate will write: the committed packages, except the explained changes', () => {
+      // Read as IGNIS had them beside the table - before `migrate` wrote their `packages:` lists.
+      const revision = ignisRevisionWithOf({ path: '.agents/knowledge/reference/releases.json' });
+
       for (const entry of committed.changelogs) {
-        const changelog = readFileSync(
-          join(IGNIS_ROOT, 'docs/wiki/content/changelogs', entry.file),
-          'utf8',
-        );
+        const path = join('docs/wiki/content/changelogs', entry.file);
+        const changelog =
+          (revision === undefined ? undefined : ignisFileAt({ revision, path })) ??
+          readFileSync(join(IGNIS_ROOT, path), 'utf8');
 
         expect(
           resolveChangelogPackages({ text: changelog, packages: IGNIS_PACKAGES }),

@@ -1,5 +1,5 @@
 import { buildServer } from '@/server';
-import { afterAll, expect, test } from 'bun:test';
+import { afterAll, expect, spyOn, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -13,7 +13,7 @@ afterAll(() => {
 });
 
 /** A project in an application's shape: its one package outside packages/, built or not. */
-const project = (opts: { built: boolean }): string => {
+const project = (opts: { built: boolean; exports?: Record<string, { types: string }> }): string => {
   const root = mkdtempSync(join(tmpdir(), 'atlas-repo-symbols-'));
   const files: Record<string, string> = {
     '.agents/vulcan.manifest.json': JSON.stringify({
@@ -29,7 +29,7 @@ const project = (opts: { built: boolean }): string => {
       name: '@shop/kit',
       version: '0.0.1-0',
       private: true,
-      exports: { '.': { types: './dist/index.d.ts' } },
+      exports: opts.exports ?? { '.': { types: './dist/index.d.ts' } },
     }),
   };
 
@@ -65,6 +65,57 @@ test("repo mode answers symbol from the project's built declarations - no symbol
   expect(reply.error).toBeUndefined();
   expect(reply.result.content[0].text).toContain('greet(name: string): string');
   expect(reply.result.content[0].text).toContain('@shop/kit');
+});
+
+test('one export whose .d.ts is missing is skipped with a warning; the built entries still answer', async () => {
+  const warnSpy = spyOn(console, 'error').mockImplementation(() => undefined);
+  const root = project({
+    built: true,
+    exports: {
+      '.': { types: './dist/index.d.ts' },
+      './contracts': { types: './dist/contracts/index.d.ts' },
+    },
+  });
+
+  try {
+    const reply = await callSymbol({ root, name: 'greet' });
+    const warnings = warnSpy.mock.calls.map(call => String(call[0]));
+
+    expect(reply.error).toBeUndefined();
+    expect(reply.result.content[0].text).toContain('greet(name: string): string');
+    expect(warnings.filter(line => line.includes('./contracts'))).toEqual([
+      '[AtlasSymbols-recordsOf] skipped an export whose declaration file is missing | package: @shop/kit | subpath: ./contracts | path: umbras/kit/dist/contracts/index.d.ts',
+    ]);
+  } finally {
+    warnSpy.mockRestore();
+  }
+});
+
+test('one export whose .d.ts cannot be read as a module is skipped too; the others still answer', async () => {
+  const warnSpy = spyOn(console, 'error').mockImplementation(() => undefined);
+  const root = project({
+    built: true,
+    exports: {
+      '.': { types: './dist/index.d.ts' },
+      './globals': { types: './dist/globals.d.ts' },
+    },
+  });
+
+  // A script, not a module: no import or export, so it has no module symbol to read.
+  writeFileSync(join(root, 'umbras/kit/dist/globals.d.ts'), 'declare const BUILD_ID: string;\n');
+
+  try {
+    const reply = await callSymbol({ root, name: 'greet' });
+    const warnings = warnSpy.mock.calls.map(call => String(call[0]));
+
+    expect(reply.error).toBeUndefined();
+    expect(reply.result.content[0].text).toContain('greet(name: string): string');
+    expect(
+      warnings.some(line => line.includes('./globals') && line.includes('could not be read')),
+    ).toBe(true);
+  } finally {
+    warnSpy.mockRestore();
+  }
 });
 
 test('an unbuilt project says to build first', async () => {

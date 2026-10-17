@@ -1,3 +1,4 @@
+import { readAtlasProject } from '@/common/project-config';
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -67,52 +68,51 @@ describe('AtlasSymbols.collapseSignature', () => {
   });
 });
 
-const IGNIS_SYMBOLS = join(IGNIS_ROOT, '.agents/knowledge/reference/symbols.json');
-const hasGeneratedTable = existsSync(IGNIS_SYMBOLS);
-
 // Reading every package's .d.ts takes tens of seconds; the drift case below renders one small
 // package instead, so only the freshness test pays for the whole surface.
 const WHOLE_SURFACE_TIMEOUT_MS = 300_000;
 const ONE_PACKAGE_TIMEOUT_MS = 60_000;
 
-describe.skipIf(!hasGeneratedTable || !IGNIS_IS_BUILT)('AtlasSymbols.check', () => {
-  test(
-    'reproduces every symbol of the committed table, and maps each package to its npm name',
-    () => {
-      // The table is read from dist, so a rebuild since the last `gen` differs here too. Content,
-      // not bytes: 0.2.0-0 adds `packageMap`, which IGNIS's committed table predates.
-      const table = JSON.parse(readFileSync(IGNIS_SYMBOLS, 'utf8'));
-      const committed = Object.fromEntries(
-        Object.entries(table).filter(([key]) => key !== 'packageMap'),
-      );
-      const { packageMap, ...rendered } = JSON.parse(
-        AtlasSymbols.render({ repoRoot: IGNIS_ROOT, packages: table.packages }),
-      );
+// No committed table to compare with since 0.2.0 (symbols are read when asked): this pins the
+// renderer and the drift check over IGNIS's real build instead.
+describe.skipIf(!IGNIS_IS_BUILT || !existsSync(join(IGNIS_ROOT, '.agents/vulcan.manifest.json')))(
+  'AtlasSymbols.check',
+  () => {
+    test(
+      "renders IGNIS's live packages, each mapped to its npm name",
+      () => {
+        const packages = readAtlasProject({ root: IGNIS_ROOT })
+          .packages.filter(entry => !entry.retired)
+          .map(entry => entry.dir);
+        const { packageMap, symbols } = JSON.parse(
+          AtlasSymbols.render({ repoRoot: IGNIS_ROOT, packages }),
+        );
 
-      expect(rendered, 'stale symbol table - run `make symbols-gen`').toEqual(committed);
-      expect(packageMap.find((entry: { dir: string }) => entry.dir === 'core-server')?.name).toBe(
-        '@venizia/ignis',
-      );
-    },
-    WHOLE_SURFACE_TIMEOUT_MS,
-  );
+        expect(symbols.length).toBeGreaterThan(0);
+        expect(packageMap.find((entry: { dir: string }) => entry.dir === 'core-server')?.name).toBe(
+          '@venizia/ignis',
+        );
+      },
+      WHOLE_SURFACE_TIMEOUT_MS,
+    );
 
-  test(
-    'reads stale once a symbol is dropped from the table',
-    () => {
-      const packages = ['inversion'];
-      const outputPath = join(makeTmpDir(), 'symbols.json');
+    test(
+      'reads stale once a symbol is dropped from the table',
+      () => {
+        const packages = ['inversion'];
+        const outputPath = join(makeTmpDir(), 'symbols.json');
 
-      writeFileSync(outputPath, AtlasSymbols.render({ repoRoot: IGNIS_ROOT, packages }));
-      expect(AtlasSymbols.check({ repoRoot: IGNIS_ROOT, packages, outputPath })).toBe(true);
+        writeFileSync(outputPath, AtlasSymbols.render({ repoRoot: IGNIS_ROOT, packages }));
+        expect(AtlasSymbols.check({ repoRoot: IGNIS_ROOT, packages, outputPath })).toBe(true);
 
-      const table = JSON.parse(readFileSync(outputPath, 'utf8'));
+        const table = JSON.parse(readFileSync(outputPath, 'utf8'));
 
-      table.symbols = table.symbols.slice(1);
-      writeFileSync(outputPath, `${JSON.stringify(table, null, 2)}\n`);
+        table.symbols = table.symbols.slice(1);
+        writeFileSync(outputPath, `${JSON.stringify(table, null, 2)}\n`);
 
-      expect(AtlasSymbols.check({ repoRoot: IGNIS_ROOT, packages, outputPath })).toBe(false);
-    },
-    ONE_PACKAGE_TIMEOUT_MS,
-  );
-});
+        expect(AtlasSymbols.check({ repoRoot: IGNIS_ROOT, packages, outputPath })).toBe(false);
+      },
+      ONE_PACKAGE_TIMEOUT_MS,
+    );
+  },
+);

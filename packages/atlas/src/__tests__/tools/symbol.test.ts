@@ -122,18 +122,25 @@ describe('symbol tool', () => {
     expect(payload.package).toBe('@venizia/ignis-kernel');
   });
 
-  test('an unknown name is -32602 naming the closest candidates', async () => {
+  test('an unknown name is a result, not an error: no matches, and the closest known names', async () => {
     const reply = await callSymbol({ symbols, args: { name: 'respnd' } });
 
-    expect(reply.error?.code).toBe(-32602);
-    expect(reply.error?.message).toBe("unknown symbol 'respnd'; did you mean respond?");
+    expect(reply.error).toBeUndefined();
+    expect(payloadOf(reply)).toEqual({ name: 'respnd', matches: [], closest: ['respond'] });
   });
 
-  test('an unknown name with no close candidate still says which name is unknown', async () => {
+  test('an unknown name with no close candidate still answers, with an empty closest list', async () => {
     const reply = await callSymbol({ symbols, args: { name: 'zzzzzzzzzzz' } });
 
-    expect(reply.error?.code).toBe(-32602);
-    expect(reply.error?.message).toBe("unknown symbol 'zzzzzzzzzzz'");
+    expect(reply.error).toBeUndefined();
+    expect(payloadOf(reply)).toEqual({ name: 'zzzzzzzzzzz', matches: [], closest: [] });
+  });
+
+  test('a package filter that rules out every match answers the same way', async () => {
+    const reply = await callSymbol({ symbols, args: { name: 'getError', package: 'kernel' } });
+
+    expect(reply.error).toBeUndefined();
+    expect(payloadOf(reply).matches).toEqual([]);
   });
 
   test('a name exported from nine specifiers still answers inside the budget', async () => {

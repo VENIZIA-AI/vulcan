@@ -32,13 +32,23 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
 - **Releases and symbols** are computed: releases from the tags, symbols from the built `.d.ts` of
   each package (installed in `node_modules`, else its newest npm release for a source). Repo mode
   reads the symbols again on each `symbol` call while it has none, so a build after start is seen
-  (each distinct load error is logged once). An npm failure at a pull is logged, and every later
+  (each distinct load error is logged once). An export whose `.d.ts` is missing is skipped with one
+  warning naming package, subpath and path; the other exports still answer. `surface` still fails on
+  it - the snapshot is a committed gate. An npm failure at a pull is logged, and every later
   start asks npm again for the symbols it has not cached. A manifest package name that is not an npm
   name stops the read: names become cache file names and registry URLs.
 - **`version`** finds an installed package at the root, else beside a declared package that depends
   on it (Bun's isolated linker, npm's nesting). A pinned transitive dependency found nowhere is left
   out. With no release it says why: no git (a tarball source), or no tag matching `tagPattern`.
   A project `typescript` without the compiler API (TypeScript 7) falls back to atlas's own.
+- **Tool edge cases**: `symbol` on an unknown name returns `matches: []` and up to
+  5 `closest` names; only an empty store is an error. `search` takes `source` to read one source -
+  an unknown name is an error listing the known ones. `changes` with no dated entry names the
+  declared changelog directory (or that none is declared) and the `YYYY-MM-DD-<slug>.md` layout.
+- **Fences** follow CommonMark, as okf's `unfencedLines` reads them: up to 3 spaces of indent, a
+  backtick fence's info string holds no backtick, and a fence closes only on the same character, at
+  least as long, with nothing after it. An unclosed fence warns once, naming the path and the file
+  line it opened on.
 - **Concepts that name code**: a concept may declare `symbols: ['<npm name>#<Symbol>']` in its
   frontmatter. `concepts stamp` writes each one's signature hash into the bundle's
   `.symbols.lock.json`; `concepts check` (`make knowledge-symbols-check`, after build) fails when a

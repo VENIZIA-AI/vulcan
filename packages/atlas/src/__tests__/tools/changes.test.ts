@@ -8,10 +8,10 @@ import type { IReleaseTable } from '@/releases';
 import { ChunkStore } from '@/search/store';
 import { buildChangesTool } from '@/tools/changes.tool';
 import { buildGetTool } from '@/tools/get.tool';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
-import { IGNIS_ROOT } from '../ignis-root.helper';
+import { ignisCommittedFileOf, IGNIS_ROOT } from '../ignis-root.helper';
 
 // __dirname, not import.meta: this package emits CommonJS.
 const REPOSITORY_ROOT = IGNIS_ROOT;
@@ -302,19 +302,18 @@ describe('changes tool', () => {
   });
 });
 
-// IGNIS's committed table: its changelogs declare no packages until IGNIS runs `changelogs migrate`,
-// and this gate is about the changes tool over real data, not about where the table came from.
-const IGNIS_RELEASES = join(REPOSITORY_ROOT, '.agents/knowledge/reference/releases.json');
+// IGNIS's last committed release table - real data for the changes tool. IGNIS removed it when it
+// adopted 0.2.0, so it is read from the commit before; this gate is about the tool, not the table.
+const IGNIS_RELEASES = ignisCommittedFileOf({ path: '.agents/knowledge/reference/releases.json' });
 const hasRepositoryRoots =
   existsSync(join(REPOSITORY_ROOT, 'docs/wiki/content')) &&
   existsSync(join(REPOSITORY_ROOT, '.agents/knowledge')) &&
-  existsSync(IGNIS_RELEASES);
+  IGNIS_RELEASES !== undefined;
 
 describe.skipIf(!hasRepositoryRoots)('the P3 acceptance gate, over the real release table', () => {
   const realReleases = new ReleaseStore({
-    table: hasRepositoryRoots
-      ? JSON.parse(readFileSync(IGNIS_RELEASES, 'utf8'))
-      : { releases: {}, changelogs: [] },
+    table:
+      IGNIS_RELEASES === undefined ? { releases: {}, changelogs: [] } : JSON.parse(IGNIS_RELEASES),
   });
   const documents = CorpusLoader.getInstance().load({
     roots: resolveRepositoryRoots({ project: ignisProjectAt({ root: REPOSITORY_ROOT }) }),

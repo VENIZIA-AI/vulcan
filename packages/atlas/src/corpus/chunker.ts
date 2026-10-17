@@ -8,7 +8,8 @@ const TINY_CHUNK_MAX_CHARS = 200;
 const OVERSIZED_CHUNK_MAX_CHARS = 6000;
 
 const HEADING_PATTERN = /^(#{2,3})\s+(.+?)\s*$/;
-const FENCE_OPEN_PATTERN = /^(`{3,}|~{3,})/;
+/** Up to three spaces of indent, a run of three or more backticks or tildes, then the rest of the line. */
+const FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 const CODE_SPAN_PATTERN = /`([^`\n]+)`/g;
 const IDENTIFIER_PATTERN = /[A-Za-z_][A-Za-z0-9_.]*/g;
 const CAMEL_BOUNDARY_PATTERN = /(?<=[a-z0-9])(?=[A-Z])/;
@@ -24,40 +25,67 @@ interface IRawSection {
   body: string;
 }
 
-/** Tracks whether the current line sits inside a ``` or ~~~ fence - a heading marker inside one is text. */
+/**
+ * Tracks whether the current line sits inside a ``` or ~~~ fence - a heading marker inside one is
+ * text. CommonMark's rule, as okf's `unfencedLines` reads it: a fence closes only on a run of the
+ * same character, at least as long, with nothing after it.
+ */
 class FenceTracker {
-  private char = '';
-  private length = 0;
+  private open = '';
+  private consumed = 0;
+  private openedAt = 0;
 
   consume(line: string): boolean {
-    const trimmed = line.trim();
+    const fence = FENCE_PATTERN.exec(line);
 
-    if (this.length === 0) {
-      const opened = trimmed.match(FENCE_OPEN_PATTERN);
+    this.consumed += 1;
 
-      if (!opened) {
-        return false;
+    if (this.open !== '') {
+      if (
+        fence !== null &&
+        fence[1][0] === this.open[0] &&
+        fence[1].length >= this.open.length &&
+        fence[2].trim() === ''
+      ) {
+        this.open = '';
       }
-
-      this.char = opened[1].charAt(0);
-      this.length = opened[1].length;
 
       return true;
     }
 
-    if (trimmed.length >= this.length && [...trimmed].every(char => char === this.char)) {
-      this.length = 0;
-      this.char = '';
+    // A backtick fence's info string holds no backtick; a line that does is inline code.
+    if (fence === null || (fence[1][0] === '`' && fence[2].includes('`'))) {
+      return false;
     }
+
+    this.open = fence[1];
+    this.openedAt = this.consumed;
 
     return true;
   }
 
   /** Whether a fence opened earlier has not yet closed, as of the last `consume()` call - unlike `consume()`'s own return value, this reads `false` again on the very line that closes it. */
   isOpen(): boolean {
-    return this.length !== 0;
+    return this.open !== '';
+  }
+
+  /** The 1-based line, counted over every line consumed, the fence still open was opened on. */
+  openedOn(): number | undefined {
+    return this.isOpen() ? this.openedAt : undefined;
   }
 }
+
+/** The 1-based body line of a fence the body never closes - a source bug - or `undefined`. */
+const unclosedFenceLineOf = (opts: { body: string }): number | undefined => {
+  const fence = new FenceTracker();
+  const lines = opts.body.split('\n');
+
+  for (const line of lines) {
+    fence.consume(line);
+  }
+
+  return fence.openedOn();
+};
 
 /** GitHub-style anchor slug: lower-case, strip punctuation, spaces become hyphens. */
 const slugify = (text: string): string =>
@@ -157,18 +185,12 @@ const anchorsOf = (opts: { sections: IRawSection[] }): string[] => {
   });
 };
 
-/** `splitOversized`'s result: the packed parts, plus whether the body ended with a fence still open. */
-interface ISplitResult {
-  parts: string[];
-  endedInsideFence: boolean;
-}
-
 /**
  * Packs paragraphs (blank-line separated) into parts no larger than 6000 chars, never splitting one -
  * and never cutting while a fence opened earlier in the body has not yet closed, even past the
- * limit. `endedInsideFence` is true when the body's last fence never closed - a source bug.
+ * limit.
  */
-const splitOversized = (opts: { body: string }): ISplitResult => {
+const splitOversized = (opts: { body: string }): string[] => {
   const paragraphs = opts.body.split(/\n{2,}/);
   const fence = new FenceTracker();
   const parts: string[] = [];
@@ -195,7 +217,7 @@ const splitOversized = (opts: { body: string }): ISplitResult => {
     parts.push(current);
   }
 
-  return { parts: parts.length > 0 ? parts : [opts.body], endedInsideFence: fence.isOpen() };
+  return parts.length > 0 ? parts : [opts.body];
 };
 
 const dedupe = (values: string[]): string[] => {
@@ -378,24 +400,26 @@ export class Chunker extends BaseHelper {
     const metadata = metadataOf({ frontmatter: document.frontmatter });
     const authority = authorityOf({ corpus: document.corpus, path: document.path });
 
+    const unclosedLine = unclosedFenceLineOf({ body: document.body });
+
+    if (unclosedLine !== undefined) {
+      this.logger
+        .for('chunk')
+        .warn(
+          `document ended inside an open fence | corpus: ${document.corpus} | path: ${document.path} | fence opened on line: ${(document.bodyLine ?? 1) + unclosedLine - 1}`,
+        );
+    }
+
     const chunks: IChunk[] = [];
 
     sections.forEach((section, index) => {
       const baseAnchor = anchors[index];
-      const { parts, endedInsideFence } = splitOversized({ body: section.body });
+      const parts = splitOversized({ body: section.body });
 
       if (parts.length > 1) {
         this.logger
           .for('chunk')
           .debug(`split an oversized section | anchor: ${baseAnchor} | parts: ${parts.length}`);
-      }
-
-      if (endedInsideFence) {
-        this.logger
-          .for('chunk')
-          .warn(
-            `document ended inside an open fence | corpus: ${document.corpus} | path: ${document.path}`,
-          );
       }
 
       parts.forEach((body, partIndex) => {

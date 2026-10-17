@@ -152,7 +152,7 @@ const dateWindowOf = (opts: { releases: IReleaseIndex; from?: string; to?: strin
   const dates = opts.releases.entryDates();
 
   if (dates.length === 0) {
-    throw invalidParams('no dated changelog entries');
+    throw invalidParams(opts.releases.noEntriesReason);
   }
 
   if (opts.to !== undefined && !DATE_PATTERN.test(opts.to)) {

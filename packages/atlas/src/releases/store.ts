@@ -23,12 +23,15 @@ export class ReleaseStore extends BaseHelper {
   private readonly packageMap: IPackageMapEntry[];
   /** What `version` and `changes` say when the table holds no release. */
   readonly emptyReason: string;
+  /** What `changes` says when the table holds no dated changelog entry. */
+  readonly noEntriesReason: string;
 
-  constructor(opts: { table: IReleaseTable; emptyReason?: string }) {
+  constructor(opts: { table: IReleaseTable; emptyReason?: string; noEntriesReason?: string }) {
     super({ scope: ReleaseStore.name });
 
     this.packageMap = opts.table.packageMap ?? [];
     this.emptyReason = opts.emptyReason ?? 'no releases';
+    this.noEntriesReason = opts.noEntriesReason ?? 'no dated changelog entries';
 
     const tableReleasesEntries = Object.entries(opts.table.releases ?? {});
 

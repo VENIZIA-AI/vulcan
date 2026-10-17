@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { AtlasConstants, AtlasModes } from '@/common';
 import { resolveRepositoryRoots } from '@/corpus';
 import { Transport } from '@/protocol';
@@ -60,6 +60,18 @@ const emptyReleasesReasonOf = (opts: { source: IResolvedSource }): string =>
     ? `no release history: ${opts.source.name} was fetched without git`
     : `no releases: no tag matches ${opts.source.project.tagPattern}`;
 
+const CHANGELOG_LAYOUT =
+  'atlas reads files named YYYY-MM-DD-<slug>.md from it, each with `packages: [<npm name>, ...]` frontmatter';
+
+/** Where a date window looked for dated entries - the directory the manifest declares, or that it declares none. */
+const noEntriesReasonOf = (opts: { source: IResolvedSource }): string => {
+  const { root, knowledge } = opts.source.project;
+
+  return knowledge.changelogs === undefined
+    ? `no dated changelog entries: the manifest declares no changelog directory - set knowledge.changelogs; ${CHANGELOG_LAYOUT}`
+    : `no dated changelog entries in ${relative(root, knowledge.changelogs)} - ${CHANGELOG_LAYOUT}`;
+};
+
 const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
   const { source } = opts;
   const packageMap = packageMapOf({ source });
@@ -76,6 +88,7 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
       releases: new ReleaseStore({
         table: computeReleases({ project: source.project }),
         emptyReason: emptyReleasesReasonOf({ source }),
+        noEntriesReason: noEntriesReasonOf({ source }),
       }),
       symbols: new SymbolStore({
         load: () => ({ symbols: symbolsOfRepository({ project: source.project }), packageMap }),
@@ -89,6 +102,7 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
   const releases = new ReleaseStore({
     table: JSON.parse(readFileSync(source.releasesFile ?? '', 'utf8')),
     emptyReason: emptyReleasesReasonOf({ source }),
+    noEntriesReason: noEntriesReasonOf({ source }),
   });
 
   return {

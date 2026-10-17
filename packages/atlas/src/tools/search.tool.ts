@@ -11,7 +11,8 @@ const DESCRIPTION =
   'Search the wiki, changelogs and knowledge bundle for chunks matching a keyword query, ranked ' +
   "by relevance. Each hit's `score` is bm25 times authority, lower is better, only comparable " +
   'within one response. The reply size budget can return fewer hits than `limit` - page with ' +
-  '`offset: nextOffset` (present only when more hits remain) to see every hit exactly once.';
+  '`offset: nextOffset` (present only when more hits remain) to see every hit exactly once. When ' +
+  'atlas serves several sources, `source` restricts the hits to one of them.';
 
 // Built once at module load - `z.toJSONSchema` is pure over the schema, so a guarded tool that
 // re-resolves its store on every call never needs to rebuild this.
@@ -124,6 +125,7 @@ export const buildSearchTool = (opts: {
     const result = opts.store.search({
       query: input.query,
       corpus: corpusFilterOf({ corpus: input.corpus }),
+      source: input.source,
       limit: input.limit ?? AtlasConstants.SEARCH_DEFAULT_LIMIT,
       offset,
     });

@@ -9,7 +9,8 @@ import { parseInput, SymbolInputSchema } from './common';
 const DESCRIPTION =
   'Locate one exported symbol by name: which package and import specifier it comes from, its ' +
   'kind, its one-line signature, the source `file` and `line` it is declared on, and the chunk ' +
-  'ids that document it. An unknown name answers with the closest known names.';
+  'ids that document it. An unknown name is not an error: it answers `matches: []` and up to ' +
+  'five `closest` known names.';
 
 // Built once at module load - a guarded tool that re-resolves its store on every call never needs
 // to rebuild this.
@@ -25,6 +26,13 @@ interface ISymbolMatch extends ISymbolRecord {
 
 interface ISymbolMatchesResponse {
   matches: ISymbolMatch[];
+}
+
+/** A name the store does not hold (in the asked package): no match, and the names it may have meant. */
+interface IUnknownSymbolResponse {
+  name: string;
+  matches: [];
+  closest: string[];
 }
 
 const matchOf = (opts: { record: ISymbolRecord; docs: string[] }): ISymbolMatch => ({
@@ -69,16 +77,15 @@ const withinBudget = (opts: {
   return response;
 };
 
-/** `unknown symbol 'respnd'; did you mean respond, respondError?` - or the bare name when nothing is close. */
-const unknownSymbolError = (opts: { name: string; suggestions: string[] }): RpcError => {
-  const { name, suggestions } = opts;
-  const message =
-    suggestions.length > 0
-      ? `unknown symbol '${name}'; did you mean ${suggestions.join(', ')}?`
-      : `unknown symbol '${name}'`;
-
-  return new RpcError({ code: RpcErrorCodes.INVALID_PARAMS, message });
-};
+/** An answer, not an error: a store that holds symbols but not this name still knows what is close. */
+const unknownSymbolOf = (opts: {
+  name: string;
+  symbols: ISymbolIndex;
+}): IUnknownSymbolResponse => ({
+  name: opts.name,
+  matches: [],
+  closest: opts.symbols.suggest({ name: opts.name, limit: SUGGESTIONS_MAX }),
+});
 
 export const buildSymbolTool = (opts: {
   store: IChunkIndex;
@@ -102,10 +109,7 @@ export const buildSymbolTool = (opts: {
     const records = opts.symbols.lookup({ name: input.name, package: input.package });
 
     if (records.length === 0) {
-      throw unknownSymbolError({
-        name: input.name,
-        suggestions: opts.symbols.suggest({ name: input.name, limit: SUGGESTIONS_MAX }),
-      });
+      return unknownSymbolOf({ name: input.name, symbols: opts.symbols });
     }
 
     const documented = opts.store.search({
