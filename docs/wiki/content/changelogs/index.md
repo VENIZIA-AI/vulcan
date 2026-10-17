@@ -12,6 +12,7 @@ migrate. Copy [the template](./template.md) for a new entry, named `YYYY-MM-DD-<
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-17 | [VULCAN 0.2.0-1: The Minors from the 0.2.0-0 Review](./2026-10-17-vulcan-0-2-0-1.md) | Bug Fix, Enhancement |
 | 2026-10-17 | [VULCAN 0.2.0-0: The Project Contract, atlas Reads Other Projects, Hooks Fail Closed](./2026-10-17-vulcan-0-2-0-0.md) | Breaking Change, Feature, Security |
 | 2026-10-17 | [VULCAN 0.1.0-2: No IGNIS Framework Dependency, V-C-02 Caps Parameters at 5](./2026-10-17-vulcan-0-1-0-2.md) | Breaking Change |
 | 2026-10-17 | [VULCAN 0.1.0-1: Atlas Reads the Project's Packages, Two Fixes](./2026-10-17-vulcan-0-1-0-1.md) | Breaking Change, Bug Fix |
