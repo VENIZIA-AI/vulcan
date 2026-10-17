@@ -66,6 +66,11 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
     return ExitCodes.FAILURE;
   }
 
+  // `x` hands its arguments to the tool, so only a help flag in the tool's place is vulcan's.
+  if (name === VulcanCommands.X && HELP_ALIASES.has(args[0] ?? '')) {
+    return runHelpCommand();
+  }
+
   const accepted = ACCEPTED_ARGS[name];
 
   if (accepted !== undefined) {

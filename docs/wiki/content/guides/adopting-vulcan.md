@@ -246,7 +246,10 @@ apps/ - one app per directory; libs/ - shared code, no app imports.
   shipped ones.
 - **Your own hooks** go in the config's `hooks`, never into `.claude/settings.json` by hand.
 - **Shipped hooks fail closed.** When `node_modules` or bun is missing, the write guard blocks every
-  Bash call except a bare `bun install`.
+  Bash call except a bare `bun install` or `bun i`. Only these flags pass with it: `--frozen-lockfile`,
+  `--production`, `-p`, `--no-save`, `--ignore-scripts`, `--force`, `--verbose`, `--silent`. The
+  message names what is missing: `node_modules/@venizia/vulcan` (run `bun install`), or bun on `PATH`
+  (Claude Code may have started without your shell's `PATH`).
 - **Old plugin hooks.** Delete a hook file the shipped digest now covers (a session digest, a
   minimap). Then run `bun x --no-install vulcan sync --prune --dry-run`, and without `--dry-run`. It
   removes old VULCAN and plugin-era hook commands and dead skill links, never your own hooks.

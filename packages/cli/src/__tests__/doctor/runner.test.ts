@@ -324,6 +324,23 @@ describe('doctor', () => {
     expect(await findChecks({ root })).toEqual([DoctorChecks.STYLE]);
   });
 
+  test("a configured package outside packages/ is an owner too (BANA's umbras/kit)", async () => {
+    const root = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        '.configs/vulcan.config.ts':
+          "export default { rules: { 'V-W-01': 'read-only' }, packages: [{ dir: 'kit', name: '@demo/kit', path: 'umbras/kit' }] };\n",
+        'umbras/kit/package.json': '{ "name": "@demo/kit" }',
+        'umbras/kit/.configs/oxfmt.config.mts': 'export default {};\n',
+      },
+    });
+    const violations = await runDoctorChecks({ root });
+
+    expect(violations.map(violation => [violation.check, violation.file])).toEqual([
+      [DoctorChecks.STYLE, 'umbras/kit/.configs/oxfmt.config.mts'],
+    ]);
+  });
+
   test('every violation goes to stderr with its check and file; nothing to stdout', () => {
     const root = createProject({
       files: { ...CONFORMANT, '.agents/rules.md': '| V-W-09 | mine | SOFT |\n' },

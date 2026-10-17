@@ -48,6 +48,71 @@ export const mergeSettings = (opts: { base: TSettings; overlay: TSettings }): TS
 
 const toKey = (opts: { value: unknown }): string => JSON.stringify(opts.value);
 
+/** The command of a hook; `undefined` when `hook` is not an object with a command string. */
+const toHookCommand = (opts: { hook: unknown }): string | undefined => {
+  const hook = { value: opts.hook };
+
+  return isSettingsObject(hook) && typeof hook.value.command === 'string'
+    ? hook.value.command
+    : undefined;
+};
+
+/** A hook entry and its hooks; `undefined` when `entry` is not an object with a `hooks` array. */
+const toHookEntry = (opts: {
+  entry: unknown;
+}): { entry: TSettings; hooks: unknown[] } | undefined => {
+  const entry = { value: opts.entry };
+
+  return isSettingsObject(entry) && Array.isArray(entry.value.hooks)
+    ? { entry: entry.value, hooks: entry.value.hooks }
+    : undefined;
+};
+
+/** Every hook command in one event's entries; anything that is not an entry or a command is skipped. */
+export const extractEntryCommands = (opts: { entries: unknown }): string[] =>
+  Array.isArray(opts.entries)
+    ? opts.entries.flatMap(entry =>
+        (toHookEntry({ entry })?.hooks ?? []).flatMap(hook => toHookCommand({ hook }) ?? []),
+      )
+    : [];
+
+/** Every hook command of a settings file, across its events. */
+export const extractHookCommands = (opts: { settings: TSettings | undefined }): string[] => {
+  const hooks = { value: opts.settings?.[SyncConstants.HOOKS_KEY] };
+
+  return isSettingsObject(hooks)
+    ? Object.values(hooks.value).flatMap(entries => extractEntryCommands({ entries }))
+    : [];
+};
+
+/**
+ * `entries` without the hooks whose command is in `commands`: an entry's other hooks and keys stay,
+ * an entry left with no hooks goes, and anything that is not an entry is kept as it is.
+ */
+export const removeHookCommands = (opts: {
+  entries: unknown[];
+  commands: Set<string>;
+}): unknown[] =>
+  opts.entries.flatMap(entry => {
+    const hookEntry = toHookEntry({ entry });
+
+    if (hookEntry === undefined) {
+      return [entry];
+    }
+
+    const kept = hookEntry.hooks.filter(hook => {
+      const command = toHookCommand({ hook });
+
+      return command === undefined || !opts.commands.has(command);
+    });
+
+    if (kept.length === hookEntry.hooks.length) {
+      return [entry];
+    }
+
+    return kept.length > 0 ? [{ ...hookEntry.entry, hooks: kept }] : [];
+  });
+
 /** `settings` with its keys in `reference`'s order: keys `reference` has keep their place, new keys follow. */
 const orderKeysLike = (opts: { settings: TSettings; reference: TSettings }): TSettings => {
   const keys = [
@@ -109,7 +174,15 @@ export const removeManagedSettings = (opts: {
 
       if (Array.isArray(innerCurrent) && Array.isArray(innerManaged)) {
         const managedKeys = new Set(innerManaged.map(entry => toKey({ value: entry })));
-        const kept = innerCurrent.filter(entry => !managedKeys.has(toKey({ value: entry })));
+        const unmatched = innerCurrent.filter(entry => !managedKeys.has(toKey({ value: entry })));
+        // A hand-edited entry no longer matches whole: its managed hooks still go, by command.
+        const kept =
+          key === SyncConstants.HOOKS_KEY
+            ? removeHookCommands({
+                entries: unmatched,
+                commands: new Set(extractEntryCommands({ entries: innerManaged })),
+              })
+            : unmatched;
 
         if (kept.length > 0) {
           inner[innerKey] = kept;

@@ -182,6 +182,58 @@ describe('.claude/settings.json', () => {
     expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain('.claude/settings.json');
   });
 
+  // What an older VULCAN shipped, recorded by its sync; a developer then hand-edited the entry.
+  const OLD_GUARD =
+    'bun "${CLAUDE_PROJECT_DIR}"/node_modules/@venizia/vulcan/base/hooks/guard-writes.ts';
+
+  const guardCommandsOf = (opts: { root: string }): string[] =>
+    Object.values(readSettings(opts).hooks as Record<string, { hooks: { command: string }[] }[]>)
+      .flatMap(entries => entries.flatMap(entry => entry.hooks.map(hook => hook.command)))
+      .filter(command => command.includes('guard-writes.ts'));
+
+  test('an upgrade takes back a hand-edited shipped hook by its command; other hooks in its entry stay', () => {
+    const root = createProject({ files: READ_ONLY_PROJECT });
+
+    runSync({ root });
+
+    const [shipped] = guardCommandsOf({ root });
+    const managedPath = join(root, '.claude', 'vulcan-managed.json');
+    const settingsPath = join(root, '.claude', 'settings.json');
+
+    for (const path of [managedPath, settingsPath]) {
+      writeFileSync(
+        path,
+        readFileSync(path, 'utf8').replace(JSON.stringify(shipped), JSON.stringify(OLD_GUARD)),
+      );
+    }
+
+    const settings = readSettings({ root });
+    const [entry] = settings.hooks.PreToolUse;
+
+    entry.hooks[0].timeout = 30;
+    entry.hooks.push({ type: 'command', command: 'echo mine' });
+    writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
+
+    runSync({ root });
+
+    expect(guardCommandsOf({ root })).toEqual([shipped]);
+    expect(JSON.stringify(readSettings({ root }).hooks.PreToolUse)).toContain('echo mine');
+  });
+
+  test('a shipped hook with a hand-added timeout is not registered twice', () => {
+    const root = createProject({ files: READ_ONLY_PROJECT });
+
+    runSync({ root });
+
+    const settings = readSettings({ root });
+
+    settings.hooks.PreToolUse[0].hooks[0].timeout = 30;
+    writeFileSync(join(root, '.claude', 'settings.json'), `${JSON.stringify(settings, null, 2)}\n`);
+    runSync({ root });
+
+    expect(guardCommandsOf({ root })).toHaveLength(1);
+  });
+
   test('invalid JSON is left alone, reported, and fails the sync', () => {
     const root = createProject({
       files: { ...READ_ONLY_PROJECT, '.claude/settings.json': '{ nope' },
@@ -263,6 +315,19 @@ describe('skills', () => {
     expect(existsSync(join(link, 'SKILL.md'))).toBe(true);
   });
 
+  test('a .claude/skills that is a symlink is never written through - links stay inside the project', () => {
+    const root = createProject({ files: READ_ONLY_PROJECT });
+    const elsewhere = createProject({ files: {} });
+
+    mkdirSync(join(root, '.claude'), { recursive: true });
+    symlinkSync(elsewhere, join(root, '.claude', 'skills'));
+
+    const result = runSync({ root });
+
+    expect(result.stderr).toContain('.claude/skills (a symlink - left untouched)');
+    expect(existsSync(join(elsewhere, 'knowledge-sync'))).toBe(false);
+  });
+
   test('a real directory where a skill link belongs is left alone', () => {
     const root = createProject({
       files: { ...READ_ONLY_PROJECT, '.claude/skills/knowledge-sync/SKILL.md': 'mine' },
@@ -293,6 +358,21 @@ describe('idempotence and output', () => {
 
     runCli({ args: ['sync', '--dry-run'], cwd: root });
     expect(existsSync(join(root, 'CLAUDE.md'))).toBe(false);
+  });
+
+  test('--dry-run says what it would do, in one column; a real run keeps its labels', () => {
+    const root = createProject({ files: READ_ONLY_PROJECT });
+    const dryRun = runCli({ args: ['sync', '--dry-run'], cwd: root }).stderr;
+
+    expect(dryRun).toContain('  would create  CLAUDE.md\n');
+    expect(dryRun).not.toMatch(/^ {2}(?:created|replaced|removed) /m);
+
+    // The widest label is 'would replace': every path starts in the same column after it.
+    for (const line of dryRun.trimEnd().split('\n')) {
+      expect(line.slice(15, 17), line).toMatch(/^ \S$/);
+    }
+
+    expect(runSync({ root }).stderr).toContain('  created   CLAUDE.md\n');
   });
 
   test('no config: exit 1 with the lookup error, no stack trace', () => {

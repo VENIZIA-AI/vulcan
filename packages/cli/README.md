@@ -17,10 +17,10 @@ flag `bun x` fetches it when `@venizia/vulcan` is not installed yet.
 | Command | What it does |
 |---|---|
 | `init [--config ts\|mts\|mjs\|js]` | Scaffold the project layer: `AGENTS.md`, `.configs/vulcan.config.*`, the three lint configs, `.agents/rules.md`, `.agents/knowledge/index.md`, a Makefile `-include`. Never overwrites; prints what to add to existing files, and the atlas `.mcp.json` entry for projects with a wiki |
-| `sync [--dry-run] [--prune]` | Write the gitignored agent adapters: `CLAUDE.md` (`@AGENTS.md`), `.claude/settings.json` (shipped + slot + project hooks + `claude.settings` over your personal keys; what it applied is recorded in `.claude/vulcan-managed.json`, so a removed choice is removed), `.claude/skills/` links, and the committed `.agents/vulcan.manifest.json`. Prints each base rule added, changed or removed since the manifest last recorded it, with its new text, then records the new hashes. `--prune` also removes what sync proves stale and did not write: an old VULCAN or plugin-era hook command (a shipped hook in an old form, or a `.agents/` hook whose file is gone) and a dead `.claude/skills` link - never a developer's own hook or a real directory. Idempotent |
+| `sync [--dry-run] [--prune]` | Write the gitignored agent adapters: `CLAUDE.md` (`@AGENTS.md`), `.claude/settings.json` (shipped + slot + project hooks + `claude.settings` over your personal keys; what it applied is recorded in `.claude/vulcan-managed.json`, so a removed choice is removed, and a hook it wrote is taken back by its command even after you edited its entry), `.claude/skills/` links, and the committed `.agents/vulcan.manifest.json`. Prints each base rule added, changed or removed since the manifest last recorded it, with its new text, then records the new hashes. `--prune` also removes what sync proves stale and did not write: an old VULCAN or plugin-era hook command (a shipped hook exactly as an older VULCAN released it, or a `.agents/` hook whose file is gone) and a dead `.claude/skills` link - never a developer's own hook, a customised shipped command, a real directory or a symlinked `.claude/skills`. `--dry-run` writes nothing and labels each line `would create`, `would replace` or `would remove`. Idempotent |
 | `doctor` | Check the project follows VULCAN; exit 1 on any violation |
 | `upgrade [<version\|tag>]` | Install the target `@venizia/vulcan` (default: the `next` dist-tag), then run `sync` from the newly installed CLI |
-| `x <tool> [args...]` | Run a shipped tool at the pinned version: `okf`, `atlas` |
+| `x <tool> [args...]` | Run a shipped tool at the pinned version: `okf`, `atlas`. `x --help` prints the help; `x <tool> --help` goes to the tool |
 | `help`, `version` | |
 
 Diagnostics go to stderr; `vulcan` writes nothing to stdout of its own, so `vulcan x atlas mcp` is a
@@ -63,7 +63,7 @@ or shadows a shipped one.
 shadowed) · `make` (includes `vulcan.mk`, no shipped target redefined) · `hooks` (shipped hooks are
 not re-registered) · `adapters` (sync is current, no hand-written `CLAUDE.md`, valid settings) ·
 `prune` (no stale hook command or dead skill link - `sync --prune` removes them) ·
-`style` (`@venizia/dev-configs` declared by the package holding the lint config or the root, every lint config builds on it).
+`style` (`@venizia/dev-configs` declared by the package holding the lint config or the root, every lint config builds on it; the packages are `packages/*` and every configured package `path`).
 
 The session-start digest prints the base write boundaries, the slot choices, the project's own rules (bold `| **W-00** |` rows and `| V-W-02, V-W-03 |` rows that elaborate base rules), the project's `<!-- minimap-shape:start -->` ... `<!-- minimap-shape:end -->` block from `.agents/rules.md` verbatim, and the `digest.oftenDropped` rules.
 

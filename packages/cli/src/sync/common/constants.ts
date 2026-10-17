@@ -26,6 +26,8 @@ export class SyncConstants {
   static readonly MANAGED_FILE = 'vulcan-managed.json';
   static readonly SKILLS_DIRECTORY = 'skills';
   static readonly SKILL_FILE = 'SKILL.md';
+  /** The settings key of hook entries: sync takes a managed hook back by its command, not its whole entry. */
+  static readonly HOOKS_KEY = 'hooks';
   /** Objects of independent entries: merged one level deep, so personal entries survive shared ones. */
   static readonly MERGE_ONE_LEVEL = new Set(['permissions', 'hooks', 'enabledPlugins', 'env']);
 }
