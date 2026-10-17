@@ -22,4 +22,5 @@ include make/build.mk
 include make/lint.mk
 include make/test.mk
 include make/release.mk
+include make/evals.mk
 include make/help.mk

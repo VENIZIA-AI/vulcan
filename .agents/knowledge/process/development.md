@@ -23,3 +23,27 @@ bun x --no-install vulcan x okf check
 - Before a release, rehearse CI on exactly what git commits: copy `git ls-files -co --exclude-standard`
   into an empty folder (with IGNIS beside it as a real checkout, not a symlink), then install, build,
   lint and test there. A file git ignores is missing in CI even when every local gate is green.
+
+## Skill evals across models
+
+A shipped skill that carries `evals/evals.json` can be run against every model that will use it -
+what works for Opus may need more detail for Haiku. **Each run calls the real `claude` and spends
+model quota**: 2 evals x 3 models is 6 runs plus 6 grader calls. Plan first, run nothing:
+
+```bash
+make skill-evals-plan SKILL=docs-writing PROJECT=../ignis
+make skill-evals SKILL=docs-writing PROJECT=../ignis MODELS=haiku,sonnet   # real runs
+```
+
+- `scripts/skill-evals.ts` (core in `scripts/skill-evals-core.ts`). `PROJECT` is the checkout the
+  evals' `files` live in; it defaults to this repository. A missing input file stops a real run with
+  exit 2 before any call. Flags: `--grader` (default `opus`), `--out`, `--timeout` (seconds, default
+  900), passed as `ARGS="..."`.
+- Every run works in a scratch copy of the project - no `node_modules`, `.git` or symlinks, so the
+  project's hooks that need `node_modules` do not run. The skill reaches the model inline (SKILL.md in
+  the prompt) and installed at `.claude/skills/<name>/` without its `evals/`, so its references
+  resolve and the expected output stays hidden.
+- One grader call per run returns `{ pass, reasons }`; malformed grader output is a recorded failure.
+  Results land in `<out>/<skill>/<eval-id>/<model>/` and `<out>/<skill>/report.md`. Exit 0 when every
+  run passed, 1 otherwise, 2 on bad arguments.
+- Tests never run a model: `scripts/__tests__/skill-evals.test.ts` puts a fake `claude` on `PATH`.
