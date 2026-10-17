@@ -70,6 +70,15 @@ const BADGE_TEXT_PATTERN = /<Badge[^>]*\stext="([^"]*)"/;
 const TABLE_ROW_PATTERN = /^\s*\|(.*)\|\s*$/;
 const TABLE_SEPARATOR_PATTERN = /^\s*\|[\s|:-]+\|\s*$/;
 
+/**
+ * An order is a count of release commits, never a commit position: a release counts the release
+ * commits before it, a changelog the ones before the commit that added it - all of them while it is
+ * uncommitted, and still all of them once committed after the newest release. A position would change
+ * on that commit, and a table generated with its changelog could never read fresh.
+ */
+const releaseCommitsBefore = (opts: { positions: number[]; position: number }): number =>
+  opts.positions.filter(position => position < opts.position).length;
+
 const byText = (left: string, right: string): number => {
   if (left === right) {
     return 0;
@@ -190,25 +199,18 @@ export class AtlasReleases {
       ),
     ].sort((left, right) => left - right);
 
-    // An order is a count of release commits, never a commit position: a release counts the release
-    // commits before it, a changelog the ones before the commit that added it - all of them while it
-    // is uncommitted, and still all of them once committed after the newest release. A position would
-    // change on that commit, and a table generated with its changelog could never read fresh.
-    const releaseCommitsBefore = (opts: { position: number }): number =>
-      positions.filter(position => position < opts.position).length;
-
     const releases = Object.fromEntries(
       Object.entries(positioned).map(([name, records]) => [
         name,
         records.map(record => ({
           ...record,
-          order: releaseCommitsBefore({ position: record.order }),
+          order: releaseCommitsBefore({ positions, position: record.order }),
         })),
       ]),
     );
     const changelogs = AtlasReleases.changelogsOf({ project }).map(entry => ({
       ...entry,
-      order: releaseCommitsBefore({ position: entry.order }),
+      order: releaseCommitsBefore({ positions, position: entry.order }),
     }));
 
     const table: IReleaseTable = {

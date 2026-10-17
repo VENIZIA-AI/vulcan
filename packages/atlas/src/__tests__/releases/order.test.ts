@@ -18,7 +18,10 @@ const git = (opts: { args: string[] }): void => {
 };
 
 const changelog = (opts: { file: string }): void => {
-  writeFileSync(join(ROOT, 'changelogs', opts.file), '---\ntitle: A change\npackages: [kernel]\n---\n');
+  writeFileSync(
+    join(ROOT, 'changelogs', opts.file),
+    '---\ntitle: A change\npackages: [kernel]\n---\n',
+  );
 };
 
 const PROJECT = toAtlasProject({

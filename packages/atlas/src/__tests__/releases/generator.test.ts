@@ -229,14 +229,22 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)('AtlasReleases.check',
 
     expect(rendered.livePackages).toEqual(committed.livePackages);
     const releasesWithoutOrder = (table: Record<string, { order?: number }[]>) =>
-      Object.fromEntries(Object.entries(table).map(([name, records]) => [name, withoutOrder(records)]));
+      Object.fromEntries(
+        Object.entries(table).map(([name, records]) => [name, withoutOrder(records)]),
+      );
 
-    expect(releasesWithoutOrder(rendered.releases)).toEqual(releasesWithoutOrder(committed.releases));
+    expect(releasesWithoutOrder(rendered.releases)).toEqual(
+      releasesWithoutOrder(committed.releases),
+    );
 
     // Orders are release counts now, positions before: what must hold is the window each changelog
     // falls in - after exactly the same releases as the committed table says.
     const releaseOrders = (table: { releases: Record<string, { sha: string; order: number }[]> }) =>
-      new Map(Object.values(table.releases).flat().map(record => [record.sha, record.order]));
+      new Map(
+        Object.values(table.releases)
+          .flat()
+          .map(record => [record.sha, record.order]),
+      );
     const committedReleases = releaseOrders(committed);
     const renderedReleases = releaseOrders(rendered);
     const committedChangelogs = new Map<string, number>(

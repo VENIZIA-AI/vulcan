@@ -81,11 +81,12 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_IS_BUILT)('AtlasSymbols.check', () 
     () => {
       // The table is read from dist, so a rebuild since the last `gen` differs here too. Content,
       // not bytes: 0.2.0-0 adds `packageMap`, which IGNIS's committed table predates.
-      const { packageMap: _committedMap, ...committed } = JSON.parse(
-        readFileSync(IGNIS_SYMBOLS, 'utf8'),
+      const table = JSON.parse(readFileSync(IGNIS_SYMBOLS, 'utf8'));
+      const committed = Object.fromEntries(
+        Object.entries(table).filter(([key]) => key !== 'packageMap'),
       );
       const { packageMap, ...rendered } = JSON.parse(
-        AtlasSymbols.render({ repoRoot: IGNIS_ROOT, packages: committed.packages }),
+        AtlasSymbols.render({ repoRoot: IGNIS_ROOT, packages: table.packages }),
       );
 
       expect(rendered, 'stale symbol table - run `make symbols-gen`').toEqual(committed);
