@@ -17,7 +17,8 @@ it applied (`.claude/vulcan-managed.json`), and the `.claude/skills/` links.
 
 **Checked by `vulcan doctor`:** config, layout, rule IDs (a `V-` ID a project rule
 points at - `Extends` or a first cell - is a base rule the base has not retired), slots, skills
-(none shadowed), make targets, hooks, adapters current, coding style.
+(none shadowed), make targets, hooks, adapters current, coding style, and that the scaffold is filled in (a workspaces project lists its
+packages; the knowledge index no longer holds the `vulcan:scaffold` line `init` writes).
 
 ## Where the tools look
 
