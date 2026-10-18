@@ -106,8 +106,9 @@ export default {
 
 Setting `remoteHosts` makes `vulcan sync` register a PreToolUse hook that asks before a Bash command
 reaches a host you have not listed: `ssh`, `scp`, `rsync`, `sftp`, `mosh`, `nc`, `telnet`,
-`kubectl`/`helm`/`k9s` (by context or server), `/dev/tcp/<host>`, `ssh://` URLs, and the same
-behind `sudo`, `env`, `xargs`, `bash -c`, `eval` and `find -exec`. A project without the key has no guard.
+`kubectl`/`helm`/`k9s` (by context or server), `docker -H`, `/dev/tcp/<host>`, `ssh://` URLs, `curl`/`wget`/`http`
+to a `readOnly` host, and the same behind `sudo`, `env`, `xargs`, `bash -c`, `eval`, `find -exec`, a
+`for`/`while`/`if` body and the remote command of an `ssh`. A project without the key has no guard.
 
 ```ts
 remoteHosts: {
@@ -122,17 +123,40 @@ remoteHosts: {
   `lab1` does not admit `lab1.evil.com`, `evil-lab1`, `ssh lab1@evil.com` or `scp f evil.com:/tmp/lab1`.
   An entry may be a `$VAR`, which matches the same unexpanded token. An entry with a user, a path or
   a port is a config error, and so is a bare `*`.
+- **A `readOnly` entry is a whole name too.** `prod1` does not cover `prod1.corp.example`; list that
+  as `prod1.*` (or `*.corp.example` for a domain):
+
+  ```ts
+  readOnly: ['prod1', 'prod1.*', '*.prod.corp.example'],
+  ```
+
 - **A jump host counts.** `-J`, `-o ProxyJump` and `-o Hostname` name hosts the command reaches, and
   `ssh` options after the destination are read, as OpenSSH reads them.
 - **What cannot be read asks.** A `$(...)` or backtick inside the command, a `-o ProxyCommand`, `-F`
   or `-S`, `rsync -e` with anything but plain `ssh`, `kubectl` with no `--context` or with
   `--kubeconfig`, `docker -H`, `GIT_SSH_COMMAND` and `DOCKER_HOST`, and clients whose target the
-  guard does not parse (`ansible`, `socat`, `pdsh`, ...).
+  guard does not parse (`ansible`, `socat`, `pdsh`, ...). A command piped or fed into a shell
+  (`| sh`, `| bash`, `bash <<<`, `sh -s`) cannot be read either, so it asks. So does a host held in a
+  variable (`for h in ...; do ssh $h`), unless the variable is listed as `$VAR`.
+- **The remote command of an `ssh` is read.** `ssh lab1 "ssh prod1 id"` reaches `prod1` through
+  `lab1`, and asks unless `prod1` is trusted. A trusted host running `kubectl` or `docker` on its own
+  default context is its own business and passes.
+- **Docker over ssh is parsed.** `docker -H ssh://lab1 ps` passes when `lab1` is trusted; `--context`
+  and `docker context` ask, because the context resolves elsewhere.
+- **HTTP clients only matter for a listed host.** `curl`, `wget`, `http`, `https` and `xh` ask when
+  their URL names a `readOnly` host (an admin endpoint behind a read-only host is not a read). A URL on
+  the open internet passes, so the guard stays quiet in ordinary work.
+- **`git config core.sshCommand` asks on purpose.** It rewrites how git reaches a host, and under the
+  `read-only` V-W-01 slot the agent does not write git configuration anyway.
 - **The strict read-only forms** for a `readOnly` host are `ssh <host> <cmd>` with no ssh options and a
   `cmd` of `uptime`, `hostname`, `df -h`, `free -m`, `docker ps`, `ls`/`cat`/`tail -n N` of an
   absolute path, `systemctl status`, `journalctl -u`, `docker logs --tail N`; `scp`/`rsync` from the host to a
   local path; `kubectl --context <host> get|describe|logs|top`. A redirect or a second remote host
   makes it an ask.
+- **Reads through kubectl are allowed on a `readOnly` context.** `kubectl --context prod1 get pods`
+  passes, and so do `describe`, `logs` and `top`: that is what read-only means. The prompt for any
+  other kubectl verb names these four. A `get secret -o yaml` is a read too; keep a secret out of
+  reach with the cluster's own RBAC, not with this guard.
 - **The policy travels in the manifest.** `sync` renders `remoteHosts` into
   `.agents/vulcan.manifest.json` and the hook reads it there plus `localFile`. The hook fails closed:
   a missing `node_modules`, `bun` or manifest key blocks the call (exit 2) and says what to run.

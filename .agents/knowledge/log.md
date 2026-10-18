@@ -6,6 +6,12 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-18 - remote-host guard closes six gaps (0.2.0-9)
+
+Updated [cli](/packages/cli.md): the guard reads HTTP clients against a `readOnly` host, a shell fed
+from a pipe, the remote command of an ssh, loop and `if` bodies, and `docker -H`; a `readOnly` entry
+is a whole name (`prod1.*` for a domain).
+
 ## 2026-10-18 - remote-host guard, slot list and okf globs (0.2.0-8)
 
 Updated [cli](/packages/cli.md): `remoteHosts` registers a shipped hook that asks before a Bash
