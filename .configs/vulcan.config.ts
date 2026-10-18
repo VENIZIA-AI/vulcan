@@ -7,13 +7,13 @@ export default {
     bundle: '.agents/knowledge',
     changelogs: 'docs/wiki/content/changelogs',
   },
-  // Validated today; read by atlas once project config lands (release order: okf, atlas, cli).
+  // In release order: okf, then atlas, then the cli that pins both.
+  packages: [
+    { dir: 'okf', name: '@venizia/vulcan-okf' },
+    { dir: 'atlas', name: '@venizia/vulcan-atlas' },
+    { dir: 'cli', name: '@venizia/vulcan' },
+  ],
   atlas: {
-    packages: {
-      okf: '@venizia/vulcan-okf',
-      atlas: '@venizia/vulcan-atlas',
-      cli: '@venizia/vulcan',
-    },
     tagPattern: 'v<version>',
   },
 } satisfies VulcanConfig;

@@ -202,13 +202,14 @@ describe('changes tool', () => {
     );
   });
 
-  test('an unknown package is -32602 naming the known ones', async () => {
+  test('an unknown package is -32602 naming the known ones, declared and unreleased included', async () => {
     const reply = await callChanges({ releases, args: { package: 'kernl' } });
 
     expect(reply.error?.code).toBe(-32602);
-    expect(reply.error?.message).toBe(
-      "unknown package 'kernl'; known packages: @venizia/ignis-helpers, @venizia/ignis-kernel",
-    );
+    expect(reply.error?.message).toStartWith("unknown package 'kernl'; known packages: ");
+    // @venizia/ignis-boot is declared and has no release: it is offered like a released one.
+    expect(reply.error?.message).toContain('@venizia/ignis-boot');
+    expect(reply.error?.message).toContain('@venizia/ignis-helpers');
   });
 
   test('an unknown version is -32602 naming the known ones', async () => {

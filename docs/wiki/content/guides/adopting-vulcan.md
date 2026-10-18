@@ -43,8 +43,9 @@ what to add instead.
 | `.configs/vulcan.config.ts` | the one place the project configures VULCAN (`--config mts\|mjs\|js` for another format) |
 | `.agents/rules.md` | the project's own rules, bare IDs |
 | `.agents/knowledge/index.md` | the knowledge bundle's root (OKF v0.2) |
+| `.mcp.json` | the atlas server over this project (`--root .`); an existing file is kept, and one without an `atlas` entry gets the entry printed |
 | `.configs/{oxlint,eslint,oxfmt}.config.*` | lint configs building on `@venizia/dev-configs`; a project whose `package.json` declares `workspaces` gets none at the root, because each app keeps its own `.configs/` |
-| `Makefile` | `-include node_modules/@venizia/vulcan/base/make/vulcan.mk` |
+| `Makefile` | `-include node_modules/@venizia/vulcan/base/make/vulcan.mk`, and a fallback rule: without `node_modules` a shipped target (`okf-check-strict`, `vulcan-doctor`) stops with "run 'make install' (bun install) first" instead of "No rule to make target" |
 
 Two files carry a marker that `doctor` fails until you act on it: `.agents/knowledge/index.md` holds a
 `vulcan:scaffold` line (describe the project, delete the line), and a workspaces project must list its
@@ -204,6 +205,8 @@ VULCAN := bun scripts/vulcan-bridge.ts   # before the -include; vulcan.mk uses $
 
 ## 6. `.mcp.json`
 
+`init` writes this file when it is absent. Add the entry by hand to one you already have:
+
 ```json
 { "mcpServers": { "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] } } }
 ```
@@ -239,8 +242,9 @@ A clean checkout has neither `node_modules` nor the gitignored adapters, and two
   including the `-include` of `vulcan.mk`, before any recipe runs, so `ci: install okf-check-strict`
   fails with `No rule to make target 'okf-check-strict'`: the file did not exist yet when make parsed it.
 - **Run `vulcan sync` before `vulcan doctor`.** `CLAUDE.md`, `.claude/` and the skill links are
-  gitignored, so `doctor` on a clean checkout fails with `[adapters] ... stale (created)` until `sync`
-  wrote them.
+  gitignored, so `doctor` on a clean checkout fails with one line,
+  `[adapters] ... not synced yet - run 'bun x --no-install vulcan sync' (make agent-setup) first`, until
+  `sync` wrote them.
 
 ```yaml
 - run: make install
@@ -296,8 +300,6 @@ agent setup script, the local atlas package or scripts, and the local `check-cat
 
 ## Known gaps
 
-- **Concept symbols check one line.** `vulcan x atlas concepts check` locks each symbol a concept
-  names by its one-line signature, so a change inside an interface's or a class's members is not
-  caught.
-- **atlas needs its own TypeScript.** Run outside any `node_modules`, Bun may auto-install a newer
-  TypeScript that atlas cannot read (issue #93).
+- **The shipped skills have not been evaluated against a model.** `knowledge-sync`, `docs-writing`
+  and `docs-update` pass the skill lint, and `make skill-evals` can grade them, but no real-model
+  run has been made yet. Treat what they produce as a draft to review.

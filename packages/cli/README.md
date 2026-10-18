@@ -16,7 +16,7 @@ flag `bun x` fetches it when `@venizia/vulcan` is not installed yet.
 
 | Command | What it does |
 |---|---|
-| `init [--config ts\|mts\|mjs\|js]` | Scaffold the project layer: `AGENTS.md`, `.configs/vulcan.config.*`, the three lint configs, `.agents/rules.md`, `.agents/knowledge/index.md`, a Makefile `-include`. Never overwrites; prints what to add to existing files, and the atlas `.mcp.json` entry for projects with a wiki |
+| `init [--config ts\|mts\|mjs\|js]` | Scaffold the project layer: `AGENTS.md`, `.configs/vulcan.config.*`, the three lint configs, `.agents/rules.md`, `.agents/knowledge/index.md`, the atlas `.mcp.json`, a Makefile with the `-include` and a fallback rule for a missing `vulcan.mk`. A project whose `package.json` declares `workspaces` gets no root lint configs. Never overwrites; prints what to add to existing files |
 | `sync [--dry-run] [--prune]` | Write the gitignored agent adapters: `CLAUDE.md` (`@AGENTS.md`), `.claude/settings.json` (shipped + slot + project hooks + `claude.settings` over your personal keys; what it applied is recorded in `.claude/vulcan-managed.json`, so a removed choice is removed, and a hook it wrote is taken back by its command even after you edited its entry), `.claude/skills/` links, and the committed `.agents/vulcan.manifest.json`. Prints each base rule added, changed or removed since the manifest last recorded it, with its new text, then records the new hashes. `--prune` also removes what sync proves stale and did not write: an old VULCAN or plugin-era hook command (a shipped hook exactly as an older VULCAN released it, or a `.agents/` hook whose file is gone) and a dead `.claude/skills` link - never a developer's own hook, a customised shipped command, a real directory or a symlinked `.claude/skills`. `--dry-run` writes nothing and labels each line `would create`, `would replace` or `would remove`. Idempotent |
 | `doctor` | Check the project follows VULCAN; exit 1 on any violation |
 | `upgrade [<version\|tag>]` | Install the target `@venizia/vulcan` (default: the `next` dist-tag), then run `sync` from the newly installed CLI |
@@ -49,7 +49,7 @@ An unknown key is an error; every error names the file and the field.
 
 - `rules.md` - the base rules: write boundaries, security, process, build, and the IGNIS coding style V-C-01..V-C-18 (37 rules; it lists V-W-05, V-C-03 and V-C-05 as retired).
 - `slots.json` - rules a project picks a wording for (V-W-01 today).
-- `skills/` - `knowledge-sync`, `docs-writing`, `docs-update` (project-neutral; a project-specific skill stays in its project).
+- `skills/` - `knowledge-sync`, `docs-writing`, `docs-update` (project-neutral; a project-specific skill stays in its project). Skill evals have not been run against a model: the skills pass the lint, and their output is a draft to review.
 - `hooks/` - `session-start.ts` (prints the rules digest) and `guard-writes.ts` (asks before a database write, a migration, a deploy or a mutating HTTP call).
 - `claude/settings.json`, `make/vulcan.mk`, `templates/`.
 

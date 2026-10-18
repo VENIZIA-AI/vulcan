@@ -20,7 +20,9 @@ or `none` (publish the version already in package.json).
 
 1. The workflow sets one version on all three packages, then runs every gate: build, lint, catalog,
    test, the VULCAN contract, both pack smokes, and the packed manifests.
-2. It publishes okf, atlas, cli in that order with `bun publish` - prerelease to `next`, stable to
+2. The packages pin each other exactly: the cli names okf and atlas as `workspace:*` in the tree, and
+   `bun publish` writes the train's version into the tarball. The workflow checks every packed
+   manifest for it. It publishes okf, atlas, cli in that order with `bun publish` - prerelease to `next`, stable to
    `latest`. A version already on npm is skipped. A prerelease never moves `latest`: it stays on a
    stable version (as in IGNIS), so `npm-dist-tag.yml` is not part of a prerelease run.
 3. It commits `chore(release): v<version> [<bump>]` on `develop` and tags `v<version>` on that

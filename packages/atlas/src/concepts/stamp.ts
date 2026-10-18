@@ -7,8 +7,8 @@ import type { ISymbolRecord } from '@/symbols/common';
 import { ConceptProblems, SYMBOLS_LOCK_NAME } from './common';
 import type { IConceptProblem, IDeclaredSymbol, IStampReport } from './common';
 
-/** The lock layout this atlas reads and writes (V2); another one fails loudly. */
-const LOCK_SCHEMA_VERSION = 1;
+/** The lock layout this atlas reads and writes (V2); another one fails loudly. 2 hashes the whole declaration. */
+const LOCK_SCHEMA_VERSION = 2;
 const HASH_LENGTH = 8;
 
 export interface ISymbolsLock {
@@ -88,7 +88,7 @@ export const resolveDeclaredSymbol = (opts: {
     .filter(
       record => record.package === declaration.packageName && record.name === declaration.name,
     )
-    .map(record => record.signature);
+    .map(record => `${record.signature}\n${record.shape ?? ''}`);
 
   if (signatures.length === 0) {
     return { problem: ConceptProblems.MISSING };
@@ -110,6 +110,12 @@ export const readSymbolsLock = (opts: { project: IAtlasProject }): ISymbolsLock 
   }
 
   const lock: ISymbolsLock = JSON.parse(readFileSync(file, 'utf8'));
+
+  if (lock.schemaVersion < LOCK_SCHEMA_VERSION) {
+    throw new Error(
+      `atlas: ${SYMBOLS_LOCK_NAME} is schemaVersion ${String(lock.schemaVersion)}, which hashed one signature line; run \`vulcan x atlas concepts stamp\` to lock the whole declaration (schemaVersion ${LOCK_SCHEMA_VERSION})`,
+    );
+  }
 
   if (lock.schemaVersion !== LOCK_SCHEMA_VERSION) {
     throw new Error(

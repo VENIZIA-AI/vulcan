@@ -86,17 +86,71 @@ describe('vulcan init', () => {
     expect(result.stderr).toContain('@venizia/dev-configs');
   });
 
-  test('no .mcp.json is scaffolded; the entry is a hint for every project, never a download', () => {
+  test('.mcp.json is written when absent: the atlas server over this project, pinned with --root', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
     const result = runCli({ args: ['init'], cwd: root });
 
-    expect(existsSync(join(root, '.mcp.json'))).toBe(false);
+    expect(JSON.parse(readFileSync(join(root, '.mcp.json'), 'utf8'))).toEqual({
+      mcpServers: {
+        atlas: {
+          command: 'bun',
+          args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
+        },
+      },
+    });
+    expect(result.stderr).toContain('created  .mcp.json');
+  });
+
+  test('an existing .mcp.json is never overwritten; one without atlas gets the entry as a hint', () => {
+    const mine = '{ "mcpServers": { "other": { "command": "x" } } }\n';
+    const root = createProject({ files: { 'package.json': STYLED_PACKAGE, '.mcp.json': mine } });
+    const result = runCli({ args: ['init'], cwd: root });
+
+    expect(readFileSync(join(root, '.mcp.json'), 'utf8')).toBe(mine);
+    expect(result.stderr).toContain('add      .mcp.json: the atlas server');
     expect(result.stderr).toContain(
       '"bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."]',
     );
-    expect(result.stderr).not.toContain('docs/wiki/content');
-    expect(result.stderr).toContain('knowledge bundle');
     expect(result.stderr).toContain('--root pins the project');
+  });
+
+  test('an existing .mcp.json that already has atlas is kept without a hint', () => {
+    const mine = '{ "mcpServers": { "atlas": { "command": "bun", "args": ["x", "atlas"] } } }\n';
+    const root = createProject({ files: { 'package.json': STYLED_PACKAGE, '.mcp.json': mine } });
+    const result = runCli({ args: ['init'], cwd: root });
+
+    expect(readFileSync(join(root, '.mcp.json'), 'utf8')).toBe(mine);
+    expect(result.stderr).toContain('kept     .mcp.json');
+    expect(result.stderr).not.toContain('the atlas server');
+  });
+
+  test('the Makefile explains itself when vulcan.mk is missing: a shipped target says to install first, the project own targets still run', () => {
+    const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
+
+    runCli({ args: ['init'], cwd: root });
+    writeFileSync(
+      join(root, 'Makefile'),
+      `${readFileSync(join(root, 'Makefile'), 'utf8')}\ninstall:\n\t@echo installing\n`,
+    );
+
+    // Under `make test` the parent's MAKEFLAGS would make the child print "Entering directory".
+    const env = { ...process.env, MAKEFLAGS: '', MAKELEVEL: '', MFLAGS: '' };
+    const make = (target: string) =>
+      Bun.spawnSync(['make', '--no-print-directory', target], {
+        cwd: root,
+        env,
+        stderr: 'pipe',
+        stdout: 'pipe',
+      });
+    const shipped = make('okf-check-strict');
+    const own = make('install');
+
+    expect(shipped.exitCode).not.toBe(0);
+    expect(shipped.stderr.toString()).toContain("run 'make install' (bun install) first");
+    expect(shipped.stderr.toString()).not.toContain('No rule to make target');
+    expect(own.exitCode).toBe(0);
+    expect(own.stdout.toString()).toBe('installing\n');
+    expect(own.stderr.toString()).toBe('');
   });
 
   test('a workspaces project keeps its lint configs per app: none is written at the root', () => {

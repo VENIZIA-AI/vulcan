@@ -15,6 +15,11 @@ export interface ISymbolRecord {
   file: string;
   line: number;
   signature: string;
+  /**
+   * A digest of the whole declaration - members, parameters, no comments, no layout - read from the
+   * built `.d.ts`. The concept lock hashes it, because `signature` is one capped line. Never served.
+   */
+  shape?: string;
 }
 
 /** What `search` adds beside its hits when the query is one identifier the table knows - no signature, no docs, so the reply budget barely moves. */

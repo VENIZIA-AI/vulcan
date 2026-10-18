@@ -51,6 +51,7 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
   least as long, with nothing after it. An unclosed fence warns once, naming the path and the file
   line it opened on.
 - **Concepts that name code**: a concept may declare `symbols: ['<npm name>#<Symbol>']` in its
-  frontmatter. `concepts stamp` writes each one's signature hash into the bundle's
+  frontmatter. `concepts stamp` writes each one's declaration hash (members and parameters, not comments or layout) into the bundle's
   `.symbols.lock.json`; `concepts check` (`make knowledge-symbols-check`, after build) fails when a
-  symbol is gone or its signature changed - review the concept, then stamp again.
+  symbol is gone or its declaration changed (a member, a parameter) - review the concept, then stamp
+  again. A lock from an older atlas asks for a new stamp.

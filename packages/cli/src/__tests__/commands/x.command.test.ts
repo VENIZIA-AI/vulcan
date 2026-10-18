@@ -128,7 +128,7 @@ describe('buildToolEnvironment', () => {
     const root = createProject({
       files: {
         '.configs/vulcan.config.ts':
-          "export default { atlas: { packages: { kernel: '@a/kernel' } } };\n",
+          "export default { packages: [{ dir: 'kernel', name: '@a/kernel' }] };\n",
       },
     });
     const environment = await buildToolEnvironment({ root });
