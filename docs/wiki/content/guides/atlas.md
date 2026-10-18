@@ -10,7 +10,7 @@ exported symbols and release history, and answers an agent's questions with ids 
 Add it to `.mcp.json`:
 
 ```json
-{ "mcpServers": { "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp"] } } }
+{ "mcpServers": { "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] } } }
 ```
 
 The agent now has five tools: `search`, `get`, `symbol`, `version` and `changes`.
@@ -101,7 +101,7 @@ With no project, no `--source` and no user config, atlas exits 2 and names these
 
 ## Verify
 
-1. `bun x --no-install vulcan x atlas mcp` starts, and an agent lists the five tools.
+1. `bun x --no-install vulcan x atlas tools` prints the five tools, one line each, with no MCP client.
 2. A `search` for a heading you know returns its id. `get` on that id returns the section.
 3. `vulcan x atlas releases` prints the release table atlas computed from your tags.
 

@@ -354,6 +354,65 @@ describe('doctor', () => {
   });
 });
 
+describe('doctor: the scaffold is filled in', () => {
+  const WORKSPACES_PACKAGE =
+    '{ "name": "demo", "workspaces": ["apps/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }';
+
+  test('a workspaces project that declares no packages fails', async () => {
+    const root = createSyncedProject({
+      files: { ...CONFORMANT, 'package.json': WORKSPACES_PACKAGE },
+    });
+    const violations = await runDoctorChecks({ root });
+
+    expect(violations.map(violation => violation.check)).toEqual([DoctorChecks.SCAFFOLD]);
+    expect(violations[0]?.message).toContain('packages');
+  });
+
+  test('the same project passes once the config lists its packages', async () => {
+    const root = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        'package.json': WORKSPACES_PACKAGE,
+        '.configs/vulcan.config.ts':
+          "export default { rules: { 'V-W-01': 'read-only' }, packages: [{ dir: 'api', name: '@demo/api', path: 'apps/api' }] };\n",
+      },
+    });
+
+    expect(await runDoctorChecks({ root })).toEqual([]);
+  });
+
+  test('the legacy atlas.packages map counts as the packages list', async () => {
+    const root = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        'package.json': WORKSPACES_PACKAGE,
+        '.configs/vulcan.config.ts':
+          "export default { rules: { 'V-W-01': 'read-only' }, atlas: { packages: { api: '@demo/api' } } };\n",
+      },
+    });
+
+    expect(await runDoctorChecks({ root })).toEqual([]);
+  });
+
+  test('a single-package project needs no packages', async () => {
+    expect(await runDoctorChecks({ root: createSyncedProject({ files: CONFORMANT }) })).toEqual([]);
+  });
+
+  test('a knowledge index that still carries the scaffold marker fails', async () => {
+    const root = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        '.agents/knowledge/index.md':
+          '# k\n\n<!-- vulcan:scaffold - describe the project, then delete this line -->\n',
+      },
+    });
+    const violations = await runDoctorChecks({ root });
+
+    expect(violations.map(violation => violation.check)).toEqual([DoctorChecks.SCAFFOLD]);
+    expect(violations[0]?.file).toBe('.agents/knowledge/index.md');
+  });
+});
+
 describe('parseMakeTargets', () => {
   test('reads rule targets; skips recipes, variables, .PHONY and pattern rules', () => {
     const makefile =

@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -86,7 +86,7 @@ describe('vulcan init', () => {
     expect(result.stderr).toContain('@venizia/dev-configs');
   });
 
-  test('no .mcp.json is scaffolded (atlas serves wiki checkouts until atlas v1); the entry is a hint, never a download', () => {
+  test('no .mcp.json is scaffolded; the entry is a hint for every project, never a download', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
     const result = runCli({ args: ['init'], cwd: root });
 
@@ -94,17 +94,58 @@ describe('vulcan init', () => {
     expect(result.stderr).toContain(
       '"bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."]',
     );
+    expect(result.stderr).not.toContain('docs/wiki/content');
+    expect(result.stderr).toContain('knowledge bundle');
+    expect(result.stderr).toContain('--root pins the project');
   });
 
-  test('init, then sync, then doctor is green', () => {
+  test('a workspaces project keeps its lint configs per app: none is written at the root', () => {
+    const root = createProject({
+      files: { 'package.json': '{ "name": "demo", "workspaces": ["apps/*"] }' },
+    });
+    const result = runCli({ args: ['init'], cwd: root });
+
+    for (const name of ['oxlint.config.mts', 'eslint.config.mjs', 'oxfmt.config.mts']) {
+      expect(existsSync(join(root, '.configs', name))).toBe(false);
+    }
+
+    expect(existsSync(join(root, '.configs/vulcan.config.ts'))).toBe(true);
+    expect(result.stderr).toContain('skipped');
+    expect(result.stderr).toContain('per app');
+  });
+
+  test('the object form of workspaces counts too', () => {
+    const root = createProject({
+      files: { 'package.json': '{ "name": "demo", "workspaces": { "packages": ["apps/*"] } }' },
+    });
+
+    runCli({ args: ['init'], cwd: root });
+    expect(existsSync(join(root, '.configs/oxlint.config.mts'))).toBe(false);
+  });
+
+  test('init, then sync: doctor names what is left to fill in, and is green once it is', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
 
     runCli({ args: ['init'], cwd: root });
     runCli({ args: ['sync'], cwd: root });
-    const doctor = runCli({ args: ['doctor'], cwd: root });
+    const raw = runCli({ args: ['doctor'], cwd: root });
 
-    expect(doctor.stderr).toContain('vulcan doctor: OK');
-    expect(doctor.code).toBe(0);
+    expect(raw.code).toBe(1);
+    expect(raw.stderr).toContain('[scaffold] .agents/knowledge/index.md');
+
+    const index = join(root, '.agents/knowledge/index.md');
+
+    writeFileSync(
+      index,
+      readFileSync(index, 'utf8')
+        .split('\n')
+        .filter(line => !line.includes('vulcan:scaffold'))
+        .join('\n'),
+    );
+    const filled = runCli({ args: ['doctor'], cwd: root });
+
+    expect(filled.stderr).toContain('vulcan doctor: OK');
+    expect(filled.code).toBe(0);
   });
 
   test('the scaffolded knowledge bundle is OKF v0.2 conformant', () => {

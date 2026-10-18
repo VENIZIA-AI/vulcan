@@ -9,6 +9,7 @@ import {
   checkMake,
   checkRuleIds,
   checkRuleSlots,
+  checkScaffold,
   checkSkills,
   checkStyle,
 } from './checks.ts';
@@ -50,5 +51,6 @@ export const runDoctorChecks = async (opts: { root: string }): Promise<IViolatio
     ...checkTags(context),
     ...checkSkillLint(context),
     ...checkStyle(context),
+    ...checkScaffold(context),
   ];
 };

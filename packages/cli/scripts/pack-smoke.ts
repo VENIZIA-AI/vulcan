@@ -315,6 +315,21 @@ try {
       { name: 'install', command: ['bun', 'install'], expectedCode: 0 },
       { name: 'init', command: ['bun', 'x', 'vulcan', 'init'], expectedCode: 0 },
       { name: 'sync', command: ['bun', 'x', 'vulcan', 'sync'], expectedCode: 0 },
+      // The raw scaffold is not done: doctor names the index marker until the project fills it in.
+      {
+        name: 'doctor on the raw scaffold',
+        command: ['bun', 'x', 'vulcan', 'doctor'],
+        expectedCode: 1,
+      },
+      {
+        name: 'fill in the index',
+        command: [
+          'bun',
+          '-e',
+          "const file = '.agents/knowledge/index.md'; await Bun.write(file, (await Bun.file(file).text()).split('\\n').filter(line => !line.includes('vulcan:scaffold')).join('\\n'));",
+        ],
+        expectedCode: 0,
+      },
       { name: 'doctor', command: ['bun', 'x', 'vulcan', 'doctor'], expectedCode: 0 },
       {
         name: 'x okf check',

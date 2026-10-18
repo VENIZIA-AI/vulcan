@@ -2,6 +2,7 @@ import { Glob } from 'bun';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
+import { declaresWorkspaces } from '../init/index.ts';
 import { resolvePackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import {
@@ -335,6 +336,43 @@ export const checkStyle = (opts: ICheckContext): IViolation[] => {
         check: DoctorChecks.STYLE,
         file: 'package.json',
         message: `add ${ProjectLayout.STYLE_PACKAGE} as a devDependency`,
+      }),
+    );
+  }
+
+  return violations;
+};
+
+/**
+ * The scaffold is filled in: `init` writes a config and a knowledge index to be edited, and a
+ * project that never did would otherwise pass. A workspaces project declares its packages, and the
+ * knowledge index drops the scaffold marker once it describes the project.
+ */
+export const checkScaffold = (opts: ICheckContext): IViolation[] => {
+  const violations: IViolation[] = [];
+
+  if (
+    declaresWorkspaces({ root: opts.root }) &&
+    resolvePackages({ config: opts.config }).length === 0
+  ) {
+    violations.push(
+      createViolation({
+        check: DoctorChecks.SCAFFOLD,
+        file: opts.configFile,
+        message:
+          'package.json declares workspaces but the config lists no packages - add packages: [{ dir, name, path }] in release order',
+      }),
+    );
+  }
+
+  const index = join(opts.config.knowledge.bundle, 'index.md');
+
+  if (readText({ file: join(opts.root, index) }).includes(ProjectLayout.SCAFFOLD_MARKER)) {
+    violations.push(
+      createViolation({
+        check: DoctorChecks.SCAFFOLD,
+        file: index,
+        message: `still the scaffold - describe the project, then delete the ${ProjectLayout.SCAFFOLD_MARKER} line`,
       }),
     );
   }
