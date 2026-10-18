@@ -6,6 +6,13 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-18 - 0.2.0-7 dry-run fixes
+
+Updated [project contract](/architecture/project-contract.md): `doctor` also checks the scaffold is
+filled in (a workspaces project lists its packages, the knowledge index loses the `vulcan:scaffold`
+line). Updated [atlas](/packages/atlas.md): `help` and `tools` need no MCP client. Updated
+[cli](/packages/cli.md): `init` writes no root lint configs in a workspaces project.
+
 ## 2026-10-17 - atlas 0.2.0-3 minors
 
 Updated [atlas](/packages/atlas.md): a missing export `.d.ts` is skipped with a warning instead of

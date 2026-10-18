@@ -27,4 +27,4 @@ tags: [packages, cli, base]
 | `hooks/` | `session-start.ts` (rules digest) and `guard-writes.ts` (asks before `V-W-02`/`V-W-03` writes) |
 | `claude/settings.json` | shared Claude settings registering both hooks |
 | `make/vulcan.mk` | shipped make targets, all through `bun x --no-install vulcan` |
-| `templates/` | what `init` writes: AGENTS.md, rules.md, knowledge index, the config in four formats, the three lint configs |
+| `templates/` | what `init` writes: AGENTS.md, rules.md, knowledge index, the config in four formats, the three lint configs (none in a workspaces project: each app keeps its own) |

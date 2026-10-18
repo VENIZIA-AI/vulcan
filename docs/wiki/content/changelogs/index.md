@@ -12,6 +12,7 @@ migrate. Copy [the template](./template.md) for a new entry, named `YYYY-MM-DD-<
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-18 | [VULCAN 0.2.0-7: atlas help and tools, a doctor that checks the scaffold, init for workspaces](./2026-10-18-vulcan-0-2-0-7.md) | Enhancement, Bug Fix |
 | 2026-10-18 | [VULCAN 0.2.0-6: typescript Is Never Auto-Installed, changes Knows an Unreleased Package](./2026-10-18-vulcan-0-2-0-6.md) | Bug Fix |
 | 2026-10-18 | [VULCAN 0.2.0-5: Many Pages per Renderer, Coverage by Resource, Unique Package Keys](./2026-10-18-vulcan-0-2-0-5.md) | Enhancement, Bug Fix |
 | 2026-10-17 | [VULCAN 0.2.0-4: Type-Checking Through Bun, Fewer Dependencies](./2026-10-17-vulcan-0-2-0-4.md) | Enhancement |

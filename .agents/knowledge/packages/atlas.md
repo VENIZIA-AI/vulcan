@@ -9,6 +9,7 @@ tags: [packages, atlas, mcp]
 
 Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vulcan x atlas pull`,
 `vulcan x atlas <surface|symbols|releases> <gen|check>`, or `vulcan x atlas concepts <stamp|check>`.
+`vulcan x atlas tools` lists the tools and `--help` prints the usage, both without an MCP client.
 
 - **What it serves**: the project it runs in, read live from its manifest
   (`.agents/vulcan.manifest.json`), and every source the manifest lists; outside a project,
