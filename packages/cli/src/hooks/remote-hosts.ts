@@ -34,6 +34,12 @@ interface IFinding {
   /** The whole form is one of the strict read-only forms. */
   strict: boolean;
   redirect: boolean;
+  /** The target is not a remote login: only a host the project listed matters, any other is left alone. */
+  listedOnly?: boolean;
+  /** The target is the current ambient one (a kubeconfig context): read on a host, it is that host's own. */
+  ambient?: boolean;
+  /** An ssh's remote command: it runs on the far side, and may hop on. */
+  remote?: string[];
 }
 
 // --- host matching ---
@@ -171,6 +177,11 @@ const tokenize = (opts: { command: string }): ISegment[] => {
     } else if (REDIRECTS.has(char)) {
       redirect = true;
       endWord();
+
+      // Input from a file or a string is kept as a word, so a shell fed that way is seen reading it.
+      if (char === '<') {
+        words.push(char);
+      }
     } else {
       current += char;
       started = true;
@@ -196,7 +207,36 @@ const hostOf = (opts: { value: string }): string => {
     .toLowerCase();
 };
 
+/** The host of `scheme://[user@]host[:port]/path` or `[user@]host[:port]/path`; `undefined` for a socket or nothing. */
+const authorityOf = (opts: { value: string }): string | undefined => {
+  const rest = /[a-z][a-z0-9+.-]*:\/\/(.*)$/i.exec(opts.value)?.[1] ?? opts.value;
+  const host = /^(?:[^@/?#]*@)?(\[[^\]]+\]|[^/:?#\s]+)/.exec(rest)?.[1];
+
+  return host === undefined
+    ? undefined
+    : host
+        .replace(/^\[|\]$/g, '')
+        .replace(/\.$/, '')
+        .toLowerCase();
+};
+
 const ENVIRONMENT_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
+
+/** Words that open a command inside a loop, a condition or a group: the command is what follows. */
+const SHELL_KEYWORDS = new Set([
+  'do',
+  'then',
+  'else',
+  'elif',
+  'if',
+  'while',
+  'until',
+  '!',
+  '{',
+  'coproc',
+]);
+
+const HTTP_CLIENTS = new Set(['curl', 'wget', 'http', 'https', 'httpie', 'xh', 'xhs']);
 
 /** Programs that run the rest of their line; the value is the options that take an argument. */
 const WRAPPERS: Record<string, Set<string>> = {
@@ -413,6 +453,7 @@ const analyzeSsh = (opts: { program: string; words: string[] }): IFinding => {
       command.length > 0 &&
       READ_ONLY_REMOTE.test(command.join(' ')),
     redirect: false,
+    ...(opts.program === 'ssh' && command.length > 0 ? { remote: command } : {}),
   };
 };
 
@@ -540,7 +581,10 @@ const analyzeKubernetes = (opts: { program: string; words: string[] }): IFinding
   const targets = optionValues({ words: opts.words, names: KUBERNETES_TARGET_OPTIONS });
 
   if (targets.length === 0) {
-    return unreadable({ why: `${opts.program} uses the current kubeconfig context` });
+    return {
+      ...unreadable({ why: `${opts.program} uses the current kubeconfig context` }),
+      ambient: true,
+    };
   }
 
   const hosts = targets.map(target =>
@@ -597,6 +641,72 @@ const analyzeNetwork = (opts: { words: string[] }): IFinding => {
     : { hosts: [hostOf({ value: positionals[0] ?? '' })], strict: false, redirect: false };
 };
 
+/** `curl`, `wget`, `http`: a URL or bare address names a host; only a listed one matters. */
+const analyzeHttp = (opts: { words: string[] }): IFinding => {
+  const hosts = opts.words.slice(1).flatMap(word => {
+    const candidate = /\s/.test(word) ? /[a-z][a-z0-9+.-]*:\/\/\S*/i.exec(word)?.[0] : word;
+
+    if (candidate === undefined || (candidate.startsWith('-') && !candidate.includes('://'))) {
+      return [];
+    }
+
+    const host = authorityOf({ value: candidate });
+
+    return host === undefined ? [] : [host];
+  });
+
+  return { hosts, strict: false, redirect: false, listedOnly: true };
+};
+
+/** `-H`/`--host` name the daemon; a context or `docker context` resolves elsewhere and cannot be read. */
+const analyzeDocker = (opts: { words: string[] }): IFinding => {
+  const hosts: string[] = [];
+
+  for (let index = 1; index < opts.words.length; index++) {
+    const word = opts.words[index] ?? '';
+
+    if (/^(?:-c|--context)(?:=|$)/.test(word) || word === 'context') {
+      return unreadable({ why: 'docker is pointed at another host or context' });
+    }
+
+    const long = /^--host(?:=(.*))?$/.exec(word);
+    const short = /^-H(.*)$/.exec(word);
+    const given = long ?? short;
+
+    if (given === null) {
+      continue;
+    }
+
+    const value = given[1] ?? '';
+    const host = authorityOf({ value: value === '' ? (opts.words[++index] ?? '') : value });
+
+    if (host !== undefined) {
+      hosts.push(host);
+    }
+  }
+
+  return { hosts, strict: false, redirect: false };
+};
+
+/** Whether a shell with no `-c` takes its commands from its input: no script file, or `-s`. */
+const readsItsInput = (opts: { words: string[] }): boolean => {
+  if (opts.words.includes('<')) {
+    return true;
+  }
+
+  for (const word of opts.words.slice(1)) {
+    if (!word.startsWith('-')) {
+      return false;
+    }
+
+    if (/^-[a-z]*s[a-z]*$/.test(word)) {
+      return true;
+    }
+  }
+
+  return true;
+};
+
 const MAXIMUM_DEPTH = 4;
 
 /** Skips a wrapper's own options (and the values its options take); the words after are its command. */
@@ -631,7 +741,10 @@ const analyzeWords = (opts: {
 }): IFinding[] => {
   const words = [...opts.words];
 
-  while (words[0] !== undefined && ENVIRONMENT_ASSIGNMENT.test(words[0])) {
+  while (
+    words[0] !== undefined &&
+    (ENVIRONMENT_ASSIGNMENT.test(words[0]) || SHELL_KEYWORDS.has(words[0]))
+  ) {
     words.shift();
   }
 
@@ -663,12 +776,16 @@ const analyzeWords = (opts: {
   if (SHELLS.has(program)) {
     const flag = words.findIndex((word, index) => index > 0 && /^-[a-z]*c[a-z]*$/.test(word));
 
-    return flag === -1
-      ? []
-      : opts.recurse({
-          command: words[flag + 1] ?? '',
-          depth: opts.depth + 1,
-        });
+    if (flag !== -1) {
+      return opts.recurse({
+        command: words[flag + 1] ?? '',
+        depth: opts.depth + 1,
+      });
+    }
+
+    return readsItsInput({ words })
+      ? [unreadable({ why: `${program} runs commands it reads from its input` })]
+      : [];
   }
 
   if (program === 'find') {
@@ -689,13 +806,23 @@ const analyzeWords = (opts: {
   }
 
   if (program === 'docker') {
-    return words.some(word => /^(?:-H|--host|-c|--context)(?:=|$)/.test(word) || word === 'context')
-      ? [unreadable({ why: 'docker is pointed at another host or context' })]
-      : [];
+    return [analyzeDocker({ words })];
+  }
+
+  if (HTTP_CLIENTS.has(program)) {
+    return [analyzeHttp({ words })];
   }
 
   if (program in SSH_ARGUMENT_LETTERS && program !== 'scp') {
-    return [analyzeSsh({ program, words })];
+    const finding = analyzeSsh({ program, words });
+    const nested =
+      finding.remote === undefined
+        ? []
+        : opts
+            .recurse({ command: finding.remote.join(' '), depth: opts.depth + 1 })
+            .filter(inner => inner.ambient !== true);
+
+    return [finding, ...nested];
   }
 
   if (program === 'scp' || program === 'rsync' || program === 'sshfs') {
@@ -728,9 +855,9 @@ const analyzeCommand = (opts: { command: string; depth: number }): IFinding[] =>
         ? {
             ...finding,
             unreadable: finding.unreadable ?? 'a substitution runs inside it',
-            redirect: segment.redirect,
+            redirect: finding.redirect || segment.redirect,
           }
-        : { ...finding, redirect: segment.redirect },
+        : { ...finding, redirect: finding.redirect || segment.redirect },
     );
   });
 
@@ -740,7 +867,7 @@ const trustedMessage = (opts: { host: string; policy: IRemoteHostsPolicy }): str
   `reaching '${opts.host}', which is not in remoteHosts.trusted (list it there${opts.policy.localFile === undefined ? '' : `, or in ${opts.policy.localFile} for yourself`}); a remoteHosts.readOnly host passes only the strict read-only forms`;
 
 const readOnlyMessage = (opts: { host: string }): string =>
-  `'${opts.host}' is a remoteHosts.readOnly host: only a strict read-only form passes (uptime, df -h, cat <path>, scp/rsync from it, kubectl get), and this command is not one`;
+  `'${opts.host}' is a remoteHosts.readOnly host: only a strict read-only form passes (uptime, df -h, cat <path>, scp/rsync from it, kubectl get|describe|logs|top), and this command is not one`;
 
 /** Why each host this command reaches may not be reached without asking; empty means nothing to ask. */
 export const inspectRemoteCommand = (opts: {
@@ -780,7 +907,9 @@ export const inspectRemoteCommand = (opts: {
         continue;
       }
 
-      ask(trustedMessage({ host, policy }));
+      if (finding.listedOnly !== true) {
+        ask(trustedMessage({ host, policy }));
+      }
     }
   }
 
