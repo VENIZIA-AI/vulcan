@@ -52,22 +52,17 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
 });
 
 describe('resolvePackages', () => {
-  test('the top-level list wins', () => {
-    const config = VULCAN_CONFIG_SCHEMA.parse({
-      packages: [{ dir: 'a', name: '@x/a' }],
-      atlas: { packages: { b: '@x/b' } },
-    });
+  test('atlas.packages was removed: the error names the top-level packages that replaces it', () => {
+    const result = VULCAN_CONFIG_SCHEMA.safeParse({ atlas: { packages: { b: '@x/b' } } });
+    const messages = result.success ? [] : result.error.issues.map(issue => issue.message);
 
-    expect(resolvePackages({ config }).map(entry => entry.dir)).toEqual(['a']);
+    expect(result.success).toBe(false);
+    expect(messages.join('; ')).toContain('atlas.packages was removed');
+    expect(messages.join('; ')).toContain('packages: [{ dir');
   });
 
-  test('atlas.packages is the alias for one release, in key order', () => {
-    const config = VULCAN_CONFIG_SCHEMA.parse({ atlas: { packages: { b: '@x/b', a: '@x/a' } } });
-
-    expect(resolvePackages({ config })).toEqual([
-      { dir: 'b', name: '@x/b', path: 'packages/b', aliases: [], retired: false },
-      { dir: 'a', name: '@x/a', path: 'packages/a', aliases: [], retired: false },
-    ]);
+  test('without packages the list is empty', () => {
+    expect(resolvePackages({ config: VULCAN_CONFIG_SCHEMA.parse({}) })).toEqual([]);
   });
 });
 

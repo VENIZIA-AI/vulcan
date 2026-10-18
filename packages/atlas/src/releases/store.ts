@@ -60,6 +60,13 @@ export class ReleaseStore extends BaseHelper {
     return [...this.releases.keys()].sort(byText);
   }
 
+  /** Every package released or declared in the package list, sorted. */
+  declaredPackages(): string[] {
+    return [
+      ...new Set([...this.releases.keys(), ...this.packageMap.map(entry => entry.name)]),
+    ].sort(byText);
+  }
+
   /** Every date a changelog entry carries, newest first, each date once. */
   entryDates(): string[] {
     return [...new Set(this.changelogs.map(record => record.date))];

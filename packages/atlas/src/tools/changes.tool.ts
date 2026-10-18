@@ -126,7 +126,7 @@ const packageWindowOf = (opts: {
   if (versions.length === 0) {
     throw opts.releases.packages().length === 0
       ? invalidParams(opts.releases.emptyReason)
-      : unknownPackageError({ name: opts.package, known: opts.releases.packages() });
+      : unknownPackageError({ name: opts.package, known: opts.releases.declaredPackages() });
   }
 
   const to = opts.to ?? versions[0];

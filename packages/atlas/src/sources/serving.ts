@@ -139,6 +139,12 @@ export class SourceReleases {
     return [...new Set(this.sources.flatMap(source => source.releases.packages()))].sort(byText);
   }
 
+  declaredPackages(): string[] {
+    return [...new Set(this.sources.flatMap(source => source.releases.declaredPackages()))].sort(
+      byText,
+    );
+  }
+
   livePackages(): string[] {
     return [...new Set(this.sources.flatMap(source => source.releases.livePackages()))].sort(
       byText,

@@ -44,6 +44,8 @@ export interface IReleaseIndex {
   readonly noEntriesReason: string;
   isEmpty(): boolean;
   packages(): string[];
+  /** Every package the project declares or has released, sorted - what a "known packages" list offers. */
+  declaredPackages(): string[];
   livePackages(): string[];
   entryDates(): string[];
   packageOf(opts: { package: string }): string;

@@ -35,10 +35,10 @@ interface IUnknownSymbolResponse {
   closest: string[];
 }
 
-const matchOf = (opts: { record: ISymbolRecord; docs: string[] }): ISymbolMatch => ({
-  ...opts.record,
-  docs: opts.docs,
-});
+const matchOf = (opts: { record: ISymbolRecord; docs: string[] }): ISymbolMatch => {
+  // `shape` is for the concept lock, not for a client.
+  return { ...opts.record, shape: undefined, docs: opts.docs };
+};
 
 /** One record answers flat; more than one answers under `matches`, each in the same shape. */
 const responseOf = (opts: {

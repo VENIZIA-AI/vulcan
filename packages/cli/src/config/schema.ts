@@ -137,8 +137,13 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     }),
   atlas: z
     .strictObject({
-      /** The `packages` alias for one release: directory to npm name, in release order. */
-      packages: z.record(z.string(), z.string()).optional(),
+      /** Removed in 0.2.0-8; present only so the error can name `packages`. */
+      packages: z
+        .never({
+          error:
+            'atlas.packages was removed - move the list to the top-level packages: [{ dir, name }] (release order; dir is the old key, name the old value)',
+        })
+        .optional(),
       releaseCommit: RELEASE_TEMPLATE.default('[#<issue>] chore(<dir>): release v<version>'),
       tagPattern: RELEASE_TEMPLATE.default('<dir>-v<version>'),
       sources: z

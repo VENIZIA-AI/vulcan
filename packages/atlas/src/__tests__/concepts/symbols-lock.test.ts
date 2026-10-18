@@ -74,7 +74,7 @@ describe('concepts stamp and check (V4)', () => {
     const lock = JSON.parse(readFileSync(join(root, LOCK), 'utf8'));
 
     expect(report.missing).toEqual([]);
-    expect(lock.schemaVersion).toBe(1);
+    expect(lock.schemaVersion).toBe(2);
     expect(Object.keys(lock.symbols)).toEqual(['@shop/kit#Basket', '@shop/kit#greet']);
     expect(lock.symbols['@shop/kit#greet']).toMatch(/^[0-9a-f]{8}$/);
   });
@@ -121,6 +121,86 @@ describe('concepts stamp and check (V4)', () => {
         problem: ConceptProblems.CHANGED,
       },
     ]);
+  });
+
+  describe('the whole declaration is locked, not its one-line signature', () => {
+    const MEMBERS = [
+      'export interface Cart {',
+      '  items: string[];',
+      '  total(): number;',
+      '}',
+      'export declare class Basket {',
+      '  add(item: string): void;',
+      '}',
+      'export declare function greet(name: string): string;',
+      '',
+    ].join('\n');
+    const CART = "---\ntitle: Cart\nsymbols: ['@shop/kit#Cart']\n---\n\n# Cart\n";
+    const concepts = { 'kit/cart.md': CART, 'kit/basket.md': BASKET };
+
+    const problemsAfter = (change: (declarations: string) => string) => {
+      const { root, write } = makeProject({ concepts, declarations: MEMBERS });
+
+      stampConcepts({ project: readAtlasProject({ root }) });
+      write('packages/kit/dist/index.d.ts', change(MEMBERS));
+
+      return checkConcepts({ project: readAtlasProject({ root }) }).problems.map(
+        problem => `${problem.symbol} ${problem.problem}`,
+      );
+    };
+
+    test('a member added to an interface fails', () => {
+      expect(
+        problemsAfter(source =>
+          source.replace('  total(): number;', '  total(): number;\n  empty(): boolean;'),
+        ),
+      ).toEqual([`@shop/kit#Cart ${ConceptProblems.CHANGED}`]);
+    });
+
+    test('a member signature changed in a class fails', () => {
+      expect(
+        problemsAfter(source =>
+          source.replace('add(item: string): void', 'add(item: string, count: number): void'),
+        ),
+      ).toEqual([`@shop/kit#Basket ${ConceptProblems.CHANGED}`]);
+    });
+
+    test('whitespace, line breaks and comments do not move the lock', () => {
+      expect(
+        problemsAfter(source =>
+          source
+            .replace('  items: string[];', '/** The items. */\n    items:   string[];   // inline')
+            .replace(
+              'add(item: string): void;',
+              '\n  /** Adds. */\n  add(\n    item: string,\n  ): void;',
+            ),
+        ),
+      ).toEqual([]);
+    });
+
+    test('a parameter changed in a long function signature fails even past the 300-character cap', () => {
+      const long = (tail: string): string =>
+        `export declare function build(${Array.from({ length: 30 }, (_unused, index) => `argument${index}: string`).join(', ')}, last: ${tail}): void;\n`;
+      const { root, write } = makeProject({
+        concepts: {
+          'kit/build.md': "---\ntitle: Build\nsymbols: ['@shop/kit#build']\n---\n\n# Build\n",
+        },
+        declarations: long('string'),
+      });
+
+      stampConcepts({ project: readAtlasProject({ root }) });
+      write('packages/kit/dist/index.d.ts', long('number'));
+
+      expect(checkConcepts({ project: readAtlasProject({ root }) }).problems).toHaveLength(1);
+    });
+  });
+
+  test('a lock written by an older atlas asks for a new stamp, not a wall of changed symbols', () => {
+    const { root, write } = makeProject({ concepts: CONCEPTS, declarations: DECLARATIONS });
+
+    write(LOCK, JSON.stringify({ schemaVersion: 1, symbols: { '@shop/kit#greet': 'deadbeef' } }));
+
+    expect(() => checkConcepts({ project: readAtlasProject({ root }) })).toThrow('concepts stamp');
   });
 
   test('a declared symbol the lock lacks fails until stamped', () => {

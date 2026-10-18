@@ -215,11 +215,28 @@ export const checkHooks = (opts: ICheckContext): IViolation[] =>
       }),
     );
 
-export const checkAdapters = (opts: ICheckContext): IViolation[] =>
-  planSync({ root: opts.root, config: opts.config })
+export const checkAdapters = (opts: ICheckContext): IViolation[] => {
+  const pending = planSync({ root: opts.root, config: opts.config })
     .filter(action => action.status !== SyncStatuses.UNCHANGED)
-    .filter(action => action.path !== join(opts.root, ManifestConstants.FILE))
-    .map(action =>
+    .filter(action => action.path !== join(opts.root, ManifestConstants.FILE));
+  const absent = pending.filter(action => action.status === SyncStatuses.CREATED);
+  const differing = pending.filter(action => action.status !== SyncStatuses.CREATED);
+
+  // A clean checkout has none of the gitignored adapters: say so once, with the fix, not once per file.
+  const violations =
+    absent.length === 0
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.ADAPTERS,
+            file: relative(opts.root, absent[0].path),
+            message: `not synced yet - run '${ProjectLayout.VULCAN_COMMAND} sync' (make agent-setup) first`,
+          }),
+        ];
+
+  return [
+    ...violations,
+    ...differing.map(action =>
       createViolation({
         check: DoctorChecks.ADAPTERS,
         file: relative(opts.root, action.path),
@@ -228,7 +245,9 @@ export const checkAdapters = (opts: ICheckContext): IViolation[] =>
             ? (action.note ?? 'skipped by sync')
             : `stale (${action.status}) - run '${ProjectLayout.VULCAN_COMMAND} sync'`,
       }),
-    );
+    ),
+  ];
+};
 
 /** What `sync --prune` would remove: an old VULCAN or plugin-era hook command, a dead skill link. */
 export const checkPrune = (opts: ICheckContext): IViolation[] =>

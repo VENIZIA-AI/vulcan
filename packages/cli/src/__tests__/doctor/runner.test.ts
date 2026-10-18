@@ -245,11 +245,10 @@ describe('doctor', () => {
     expect(await findChecks({ root })).toEqual([DoctorChecks.HOOKS]);
   });
 
-  test('never synced: one violation per missing adapter, and the missing manifest', async () => {
+  test('never synced: one adapters violation, and the missing manifest', async () => {
     const checks = await findChecks({ root: createProject({ files: CONFORMANT }) });
 
-    expect(checks.length).toBeGreaterThan(2);
-    expect(new Set(checks)).toEqual(new Set([DoctorChecks.ADAPTERS, DoctorChecks.MANIFEST]));
+    expect(checks).toEqual([DoctorChecks.ADAPTERS, DoctorChecks.MANIFEST]);
   });
 
   test('a hand-written CLAUDE.md', async () => {
@@ -354,6 +353,33 @@ describe('doctor', () => {
   });
 });
 
+describe('doctor on a clean checkout', () => {
+  test('adapters that were never written are one line with the fix, not one stale line per file', async () => {
+    const root = createProject({ files: CONFORMANT });
+    const adapters = (await runDoctorChecks({ root })).filter(
+      violation => violation.check === DoctorChecks.ADAPTERS,
+    );
+
+    expect(adapters).toHaveLength(1);
+    expect(adapters[0]?.message).toBe(
+      "not synced yet - run 'bun x --no-install vulcan sync' (make agent-setup) first",
+    );
+    expect(adapters[0]?.message).not.toContain('stale');
+  });
+
+  test('an adapter that exists but differs stays a stale line naming its file', async () => {
+    const root = createSyncedProject({ files: CONFORMANT });
+
+    writeFileSync(join(root, '.claude/settings.json'), '{ "permissions": { "allow": ["x"] } }\n');
+    const adapters = (await runDoctorChecks({ root })).filter(
+      violation => violation.check === DoctorChecks.ADAPTERS,
+    );
+
+    expect(adapters.map(violation => violation.file)).toContain('.claude/settings.json');
+    expect(adapters.every(violation => !violation.message.includes('not synced yet'))).toBe(true);
+  });
+});
+
 describe('doctor: the scaffold is filled in', () => {
   const WORKSPACES_PACKAGE =
     '{ "name": "demo", "workspaces": ["apps/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }';
@@ -375,19 +401,6 @@ describe('doctor: the scaffold is filled in', () => {
         'package.json': WORKSPACES_PACKAGE,
         '.configs/vulcan.config.ts':
           "export default { rules: { 'V-W-01': 'read-only' }, packages: [{ dir: 'api', name: '@demo/api', path: 'apps/api' }] };\n",
-      },
-    });
-
-    expect(await runDoctorChecks({ root })).toEqual([]);
-  });
-
-  test('the legacy atlas.packages map counts as the packages list', async () => {
-    const root = createSyncedProject({
-      files: {
-        ...CONFORMANT,
-        'package.json': WORKSPACES_PACKAGE,
-        '.configs/vulcan.config.ts':
-          "export default { rules: { 'V-W-01': 'read-only' }, atlas: { packages: { api: '@demo/api' } } };\n",
       },
     });
 

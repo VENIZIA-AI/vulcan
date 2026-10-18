@@ -6,7 +6,7 @@ import type { TConfigExtension } from '../config/index.ts';
 import { InitConstants, InitStatuses } from './common/index.ts';
 import type { IInitEntry, IScaffoldFile } from './common/index.ts';
 
-/** Atlas serves the knowledge bundle alone, and the wiki and changelogs when there are any. */
+/** The entry for a `.mcp.json` that exists already: atlas serves the knowledge bundle alone, and the wiki when there is one. */
 const MCP_SERVER_HINT =
   '"atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }';
 
@@ -15,6 +15,7 @@ const SCAFFOLD_FILES: IScaffoldFile[] = [
   { path: 'AGENTS.md', template: 'AGENTS.md' },
   { path: '.agents/rules.md', template: 'rules.md' },
   { path: '.agents/knowledge/index.md', template: 'knowledge-index.md' },
+  { path: '.mcp.json', template: 'mcp.json' },
 ];
 
 /** The lint configs of a single-package project. A workspaces project keeps them in each app. */
@@ -134,7 +135,11 @@ export const scaffoldProject = (opts: {
 
   if (!existsSync(makefile)) {
     entries.push(
-      writeIfAbsent({ root, path: 'Makefile', content: `${ProjectLayout.MAKE_INCLUDE_LINE}\n` }),
+      writeIfAbsent({
+        root,
+        path: 'Makefile',
+        content: renderTemplate({ template: 'Makefile', name }),
+      }),
     );
   } else if (!readFileSync(makefile, 'utf8').includes(ProjectLayout.MAKE_INCLUDE_LINE)) {
     entries.push({
@@ -143,10 +148,19 @@ export const scaffoldProject = (opts: {
     });
   }
 
-  entries.push({
-    status: InitStatuses.ADD,
-    subject: `.mcp.json, for atlas over the knowledge bundle (and the wiki, when there is one; --root pins the project): ${MCP_SERVER_HINT}`,
-  });
+  // A `.mcp.json` that was already there is the project's: it gets the atlas entry as a hint, never an edit.
+  if (
+    !entries.some(entry => entry.subject === '.mcp.json' && entry.status === InitStatuses.CREATED)
+  ) {
+    const servers = readFileSync(join(root, '.mcp.json'), 'utf8');
+
+    if (!servers.includes('"atlas"')) {
+      entries.push({
+        status: InitStatuses.ADD,
+        subject: `.mcp.json: the atlas server, for the knowledge bundle (and the wiki, when there is one; --root pins the project): ${MCP_SERVER_HINT}`,
+      });
+    }
+  }
 
   const gitignore = join(root, '.gitignore');
   const ignored = existsSync(gitignore) ? readFileSync(gitignore, 'utf8').split('\n') : [];

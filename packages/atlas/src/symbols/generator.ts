@@ -26,6 +26,7 @@ import { PublicSurface } from '@/surface';
 export const SYMBOLS_OUTPUT = resolve(PROJECT_ROOT, '.agents/knowledge/reference/symbols.json');
 
 const SIGNATURE_MAX_CHARS = 300;
+const SHAPE_LENGTH = 12;
 
 /** One exported symbol, located in the source it was written in - never in the `dist` it was read from. */
 export interface ISymbolRecord {
@@ -340,6 +341,7 @@ export class AtlasSymbols {
         signature: declaration
           ? AtlasSymbols.collapseSignature({ text: AtlasSymbols.signatureOf({ declaration }) })
           : '',
+        ...(declaration ? { shape: AtlasSymbols.shapeOf({ declaration }) } : {}),
       };
 
       return location.file.includes('node_modules') ? { ...record, external: true } : record;
@@ -440,6 +442,19 @@ export class AtlasSymbols {
     }
 
     return { sources: parsed.sources, lines: decodeMappings(parsed.mappings) };
+  }
+
+  /**
+   * The whole declaration as the compiler prints it without comments - so layout and comments never
+   * move it - reduced to a digest. A class or interface counts its members; a function, every parameter.
+   */
+  private static shapeOf(opts: { declaration: TypeScript.Declaration }): string {
+    const compiler = TypeScriptCompiler.get();
+    const printed = compiler
+      .createPrinter({ removeComments: true })
+      .printNode(compiler.EmitHint.Unspecified, opts.declaration, opts.declaration.getSourceFile());
+
+    return new Bun.CryptoHasher('sha256').update(printed).digest('hex').slice(0, SHAPE_LENGTH);
   }
 
   /**

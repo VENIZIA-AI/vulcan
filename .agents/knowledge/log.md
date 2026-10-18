@@ -6,6 +6,14 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-18 - root fixes before the stable (0.2.0-8)
+
+Updated [atlas](/packages/atlas.md): the concept lock hashes the whole declaration (lock schemaVersion
+2). Updated [cli](/packages/cli.md): `atlas.packages` is removed in favor of the top-level
+`packages`; `init` writes `.mcp.json` and a Makefile with a fallback for a missing `vulcan.mk`; skill
+evals are marked as not run against a model. Updated
+[project contract](/architecture/project-contract.md): `doctor` reports a never-synced checkout once.
+
 ## 2026-10-18 - 0.2.0-7 dry-run fixes
 
 Updated [project contract](/architecture/project-contract.md): `doctor` also checks the scaffold is

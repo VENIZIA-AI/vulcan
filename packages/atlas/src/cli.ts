@@ -2,6 +2,7 @@
 import { AtlasCommands, AtlasConstants } from './common';
 import {
   findPackageDirectory,
+  isBareInteractiveRun,
   ModeUsageError,
   readPackageVersion,
   readRootArgument,
@@ -33,6 +34,10 @@ const HELP_FLAGS = new Set(['--help', '-h']);
 
 const readSubcommand = (opts: { argv: string[] }): string => {
   const [first] = opts.argv;
+
+  if (isBareInteractiveRun({ argv: opts.argv, isTty: process.stdin.isTTY === true })) {
+    return AtlasCommands.HELP;
+  }
 
   if (first !== undefined && HELP_FLAGS.has(first)) {
     return AtlasCommands.HELP;
