@@ -105,3 +105,41 @@ test("a CRLF generated page is still its generator's, and a body that quotes gen
     crlfGenerated,
   );
 });
+
+test('okf.contents.files takes globs: every match gets a list, a literal still works, a glob matching nothing is skipped', () => {
+  const root = project();
+
+  for (const skill of ['alpha', 'beta']) {
+    mkdirSync(join(root, `.agents/skills/${skill}`), { recursive: true });
+    writeFileSync(join(root, `.agents/skills/${skill}/SKILL.md`), long({ head: `# ${skill}\n` }));
+  }
+
+  useProjectConfig({
+    root,
+    config: {
+      okf: { contents: { files: ['AGENTS.md', '.agents/skills/*/SKILL.md', 'nothing/*.md'] } },
+    },
+  });
+
+  expect(
+    collectContentsProblems({ skip: new Set() }).filter(problem => problem.includes('SKILL.md')),
+  ).toEqual([
+    'contents: .agents/skills/alpha/SKILL.md has no fresh contents list - run `vulcan x okf gen`',
+    'contents: .agents/skills/beta/SKILL.md has no fresh contents list - run `vulcan x okf gen`',
+  ]);
+  expect(writeContents({ skip: new Set() })).toContain('.agents/skills/beta/SKILL.md');
+  expect(collectContentsProblems({ skip: new Set() })).toEqual([]);
+});
+
+test('a file named by both a glob and a literal path is listed once', () => {
+  const root = project();
+
+  useProjectConfig({
+    root,
+    config: { okf: { contents: { files: ['AGENTS.md', '*.md'] } } },
+  });
+
+  expect(
+    collectContentsProblems({ skip: new Set() }).filter(problem => problem.includes('AGENTS.md')),
+  ).toHaveLength(1);
+});

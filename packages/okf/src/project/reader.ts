@@ -90,14 +90,38 @@ const regionsOf = (opts: { value: unknown; bundle: string }): IOkfRegionEntry[] 
       : [];
   });
 
-const coverageOf = (opts: { value: unknown }): { name: string; path: string }[] =>
+const coverageOf = (opts: {
+  value: unknown;
+}): { name: string; path: string; exclude: string[]; denylist: string[] }[] =>
   arrayOf(opts).flatMap(item => {
     const entry = recordOf({ value: item });
 
     return typeof entry.name === 'string' && typeof entry.path === 'string'
-      ? [{ name: entry.name, path: entry.path }]
+      ? [
+          {
+            name: entry.name,
+            path: entry.path,
+            exclude: stringsOf({ value: entry.exclude }),
+            denylist: stringsOf({ value: entry.denylist }),
+          },
+        ]
       : [];
   });
+
+const GLOB_CHARACTERS = /[*?[\]{}]/;
+
+/** `okf.contents.files`: literal paths and globs from the root, as absolute paths, each file once, in the order given. */
+const contentsFilesOf = (opts: { patterns: string[]; root: string }): string[] => [
+  ...new Set(
+    opts.patterns.flatMap(pattern =>
+      GLOB_CHARACTERS.test(pattern)
+        ? [...new Bun.Glob(pattern).scanSync({ cwd: opts.root, onlyFiles: true })]
+            .sort()
+            .map(file => resolve(opts.root, file))
+        : [resolve(opts.root, pattern)],
+    ),
+  ),
+];
 
 /** The handoff, parsed: only `vulcan x` writes it, so anything else is okf run by hand. */
 const parsedOf = (opts: { text: string }): unknown => {
@@ -151,10 +175,12 @@ export const readOkfProject = (): IOkfProject => {
       value: atlas.tagPattern,
       fallback: OkfProjectConstants.DEFAULT_TAG_PATTERN,
     }),
-    contentsFiles: (Array.isArray(recordOf({ value: okf.contents }).files)
-      ? stringsOf({ value: recordOf({ value: okf.contents }).files })
-      : OkfProjectConstants.DEFAULT_CONTENTS_FILES
-    ).map(file => resolve(root, file)),
+    contentsFiles: contentsFilesOf({
+      patterns: Array.isArray(recordOf({ value: okf.contents }).files)
+        ? stringsOf({ value: recordOf({ value: okf.contents }).files })
+        : OkfProjectConstants.DEFAULT_CONTENTS_FILES,
+      root,
+    }),
     packages: packagesOf({ value: config.packages, root }),
     renderers: renderersOf({ value: okf.renderers }),
     regions: regionsOf({ value: okf.regions, bundle }),

@@ -79,6 +79,65 @@ describe('.claude/settings.json', () => {
     expect(settings.hooks.PreToolUse).toBeDefined();
   });
 
+  test('the read-only slot denies the whole git write surface, each verb with and without arguments', () => {
+    const root = createProject({ files: READ_ONLY_PROJECT });
+
+    runSync({ root });
+    const deny: string[] = readSettings({ root }).permissions.deny;
+    const verbs = [
+      'add',
+      'rm',
+      'mv',
+      'restore',
+      'commit',
+      'push',
+      'pull',
+      'merge',
+      'rebase',
+      'reset',
+      'revert',
+      'cherry-pick',
+      'checkout',
+      'switch',
+      'branch',
+      'tag',
+      'stash',
+      'clean',
+      'apply',
+      'am',
+      'worktree',
+      'remote',
+      'config',
+      'submodule',
+      'update-ref',
+      'filter-branch',
+      'gc',
+      'init',
+      'clone',
+      'notes',
+    ];
+
+    for (const verb of verbs) {
+      expect(deny).toContain(`Bash(git ${verb}:*)`);
+    }
+
+    // The bare form too, for the verbs a person types alone.
+    for (const verb of [
+      'add',
+      'commit',
+      'push',
+      'pull',
+      'merge',
+      'rebase',
+      'reset',
+      'checkout',
+      'branch',
+      'stash',
+    ]) {
+      expect(deny).toContain(`Bash(git ${verb})`);
+    }
+  });
+
   test('on-user-word adds no deny list', () => {
     const root = createProject({
       files: {
