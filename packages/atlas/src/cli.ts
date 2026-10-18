@@ -12,13 +12,14 @@ import { runChangelogsCommand } from './changelogs/command';
 import { runConceptsCommand } from './concepts/command';
 import { runReleasesCommand } from './releases/generator';
 import { buildSourcesServer } from './server/index';
+import type { Transport } from './protocol/index';
 import { hasAtlasProject, readAtlasProject } from './common/project-config';
 import { resolveServableSources, resolveSources } from './sources/index';
 import type { IAtlasSource } from './sources/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
 
-const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | pull [--source <name>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check`;
+const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | pull [--source <name>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help`;
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -28,8 +29,14 @@ const usageError = (message: string): never => {
   process.exit(2);
 };
 
+const HELP_FLAGS = new Set(['--help', '-h']);
+
 const readSubcommand = (opts: { argv: string[] }): string => {
   const [first] = opts.argv;
+
+  if (first !== undefined && HELP_FLAGS.has(first)) {
+    return AtlasCommands.HELP;
+  }
 
   return first === undefined || first.startsWith('--') ? AtlasCommands.MCP : first;
 };
@@ -48,6 +55,11 @@ const subcommand = readSubcommand({ argv });
 
 if (!AtlasCommands.isValid(subcommand)) {
   usageError(`unknown subcommand: ${subcommand}`);
+}
+
+if (subcommand === AtlasCommands.HELP) {
+  console.log(USAGE);
+  process.exit(0);
 }
 
 const generator = GENERATOR_BY_COMMAND[subcommand];
@@ -89,11 +101,15 @@ const sourcesToServe = (opts: {
   return { project, sources: [...declared, ...readSourceArguments({ argv: opts.argv })] };
 };
 
-const serveSources = async (opts: { root: string; version: string }): Promise<boolean> => {
+/** The server for the sources `root` serves; `undefined` when there is nothing to serve at all. */
+const buildServer = async (opts: {
+  root: string;
+  version: string;
+}): Promise<Transport | undefined> => {
   const { project, sources } = sourcesToServe({ root: opts.root, argv });
 
   if (!project && sources.length === 0) {
-    return false;
+    return undefined;
   }
 
   const { resolved, unavailable } = await resolveServableSources({ cwd: opts.root, sources });
@@ -108,14 +124,12 @@ const serveSources = async (opts: { root: string; version: string }): Promise<bo
     usageError('nothing to serve - every source is unavailable (above)');
   }
 
-  await buildSourcesServer({
+  return buildSourcesServer({
     sources: resolved,
     unavailable,
     cwd: opts.root,
     version: opts.version,
-  }).run();
-
-  return true;
+  });
 };
 
 /** `pull [--source <name>]`: every source fetched again, or the one named; repo mode needs no pull. */
@@ -146,8 +160,11 @@ const pull = async (): Promise<number> => {
   return 0;
 };
 
-/** `mcp`: the project and its sources, or `--source`, or the user config's sources. */
-const serve = async (): Promise<void> => {
+const NOTHING_TO_SERVE = (opts: { root: string }): string =>
+  `nothing to serve at ${opts.root} - run in a project (\`vulcan sync\` writes .agents/vulcan.manifest.json), or pass --source <owner/repo>@<ref>, or list sources in $XDG_CONFIG_HOME/vulcan/atlas.json`;
+
+/** The server the arguments ask for; a usage error names what is missing. */
+const readServer = async (): Promise<Transport> => {
   let root: string;
 
   try {
@@ -164,10 +181,21 @@ const serve = async (): Promise<void> => {
     readPackageVersion({ directory: findPackageDirectory({ startDirectory: __dirname }) }) ??
     FALLBACK_VERSION;
 
-  if (!(await serveSources({ root, version }))) {
-    usageError(
-      `nothing to serve at ${root} - run in a project (\`vulcan sync\` writes .agents/vulcan.manifest.json), or pass --source <owner/repo>@<ref>, or list sources in $XDG_CONFIG_HOME/vulcan/atlas.json`,
-    );
+  const server = await buildServer({ root, version });
+
+  if (server === undefined) {
+    return usageError(NOTHING_TO_SERVE({ root }));
+  }
+
+  return server;
+};
+
+/** `tools`: what `tools/list` answers, one line per tool - the way to check a setup without an MCP client. */
+const listTools = async (): Promise<void> => {
+  const server = await readServer();
+
+  for (const tool of server.listTools()) {
+    console.log(`${tool.name.padEnd(8)} ${tool.description.split('. ')[0]}`);
   }
 };
 
@@ -176,7 +204,13 @@ const main = async (): Promise<void> => {
     process.exit(await pull());
   }
 
-  await serve();
+  if (subcommand === AtlasCommands.TOOLS) {
+    await listTools();
+
+    return;
+  }
+
+  await (await readServer()).run();
 };
 
 main().catch((error: unknown) => {

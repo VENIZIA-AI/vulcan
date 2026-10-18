@@ -6,7 +6,7 @@ import type { TConfigExtension } from '../config/index.ts';
 import { InitConstants, InitStatuses } from './common/index.ts';
 import type { IInitEntry, IScaffoldFile } from './common/index.ts';
 
-/** Atlas serves VENIZIA wiki checkouts until atlas v1 defines a corpus for any project, so the entry is a hint. */
+/** Atlas serves the knowledge bundle alone, and the wiki and changelogs when there are any. */
 const MCP_SERVER_HINT =
   '"atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }';
 
@@ -15,6 +15,10 @@ const SCAFFOLD_FILES: IScaffoldFile[] = [
   { path: 'AGENTS.md', template: 'AGENTS.md' },
   { path: '.agents/rules.md', template: 'rules.md' },
   { path: '.agents/knowledge/index.md', template: 'knowledge-index.md' },
+];
+
+/** The lint configs of a single-package project. A workspaces project keeps them in each app. */
+const LINT_CONFIG_FILES: IScaffoldFile[] = [
   { path: '.configs/oxlint.config.mts', template: 'oxlint.config.mts' },
   { path: '.configs/eslint.config.mjs', template: 'eslint.config.mjs' },
   { path: '.configs/oxfmt.config.mts', template: 'oxfmt.config.mts' },
@@ -22,6 +26,7 @@ const SCAFFOLD_FILES: IScaffoldFile[] = [
 
 interface IPackageManifest {
   name?: unknown;
+  workspaces?: unknown;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
 }
@@ -44,6 +49,13 @@ const readManifest = (opts: { root: string }): IPackageManifest | undefined => {
 
     return undefined;
   }
+};
+
+/** Whether the root `package.json` declares workspaces: the array form or `{ packages: [...] }`. */
+export const declaresWorkspaces = (opts: { root: string }): boolean => {
+  const workspaces = readManifest(opts)?.workspaces;
+
+  return Array.isArray(workspaces) || (typeof workspaces === 'object' && workspaces !== null);
 };
 
 /** The `package.json` name, or the directory name when there is none. */
@@ -79,13 +91,23 @@ export const scaffoldProject = (opts: {
 }): IInitEntry[] => {
   const { root } = opts;
   const name = resolveProjectName({ root });
-  const entries: IInitEntry[] = SCAFFOLD_FILES.map(file =>
+  const isWorkspaces = declaresWorkspaces({ root });
+  const entries: IInitEntry[] = (
+    isWorkspaces ? SCAFFOLD_FILES : [...SCAFFOLD_FILES, ...LINT_CONFIG_FILES]
+  ).map(file =>
     writeIfAbsent({
       root,
       path: file.path,
       content: renderTemplate({ template: file.template, name }),
     }),
   );
+
+  if (isWorkspaces) {
+    entries.push({
+      status: InitStatuses.SKIPPED,
+      subject: `.configs/{oxlint,eslint,oxfmt}: a workspaces project keeps them per app (apps/<name>/.configs/); the templates are in node_modules/@venizia/vulcan/base/templates/`,
+    });
+  }
 
   const configs = findConfigFiles({ root });
 
@@ -123,7 +145,7 @@ export const scaffoldProject = (opts: {
 
   entries.push({
     status: InitStatuses.ADD,
-    subject: `.mcp.json, once the project has docs/wiki/content: ${MCP_SERVER_HINT}`,
+    subject: `.mcp.json, for atlas over the knowledge bundle (and the wiki, when there is one; --root pins the project): ${MCP_SERVER_HINT}`,
   });
 
   const gitignore = join(root, '.gitignore');

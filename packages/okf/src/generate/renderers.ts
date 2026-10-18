@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { defineRenderer } from './define.ts';
 import type { IRenderContext, IRenderer } from './define.ts';
@@ -15,6 +16,28 @@ const stringOption = (opts: { context: IRenderContext; key: string; fallback: st
   const value = opts.context.options[opts.key];
 
   return typeof value === 'string' ? value : opts.fallback;
+};
+
+/**
+ * The `seeAlso` line of a page: the project's `seeAlso` option as given, else a link to the default
+ * concept - only while that concept exists, so a project that has not written it yet never gets a
+ * broken link (`okf check --strict` fails one).
+ */
+const seeAlsoOption = (opts: {
+  context: IRenderContext;
+  label: string;
+  title: string;
+  concept: string;
+}): string => {
+  const value = opts.context.options.seeAlso;
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  return existsSync(join(opts.context.bundle, opts.concept))
+    ? `${opts.label}: [${opts.title}](/${opts.concept}).`
+    : '';
 };
 
 // --- built-in renderers ---
@@ -51,10 +74,11 @@ const sourceMapRenderer = defineRenderer({
           tags: ['reference', 'source-map', 'packages'],
         }) +
         context.page.note({
-          seeAlso: stringOption({
+          seeAlso: seeAlsoOption({
             context,
-            key: 'seeAlso',
-            fallback: 'Layout: [monorepo layout](/overview/monorepo-layout.md).',
+            label: 'Layout',
+            title: 'monorepo layout',
+            concept: 'overview/monorepo-layout.md',
           }),
         }) +
         `**${total} source files across ${facts.length} packages.**\n\n` +
@@ -86,10 +110,11 @@ const makefileTargetsRenderer = defineRenderer({
           tags: ['reference', 'make', 'build'],
         }) +
         context.page.note({
-          seeAlso: stringOption({
+          seeAlso: seeAlsoOption({
             context,
-            key: 'seeAlso',
-            fallback: 'Playbook: [build system](/process/build-system.md).',
+            label: 'Playbook',
+            title: 'build system',
+            concept: 'process/build-system.md',
           }),
         }) +
         `**${facts.length} targets.**\n\n` +
@@ -142,11 +167,11 @@ const bindingKeysRenderer = defineRenderer({
           tags: ['reference', 'bindings', 'di'],
         }) +
         context.page.note({
-          seeAlso: stringOption({
+          seeAlso: seeAlsoOption({
             context,
-            key: 'seeAlso',
-            fallback:
-              'Namespaces: [binding key namespaces](/conventions/binding-key-namespaces.md).',
+            label: 'Namespaces',
+            title: 'binding key namespaces',
+            concept: 'conventions/binding-key-namespaces.md',
           }),
         }) +
         `**${total} keys across ${facts.length} binding classes.**\n\n` +

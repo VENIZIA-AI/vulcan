@@ -1,7 +1,7 @@
 import { AtlasConstants, ProtocolVersions } from '@/common';
 import { BaseHelper } from '@/common/helper';
 import { RpcError, RpcErrorCodes } from './common';
-import type { IRpcRequest, IRpcResponse, IToolHandler } from './common';
+import type { IRpcRequest, IRpcResponse, IToolDefinition, IToolHandler } from './common';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -52,6 +52,11 @@ export class Transport extends BaseHelper {
     this.serverName = opts.serverName;
     this.serverVersion = opts.serverVersion;
     this.instructions = opts.instructions;
+  }
+
+  /** What `tools/list` answers, for a caller that has no MCP client (`vulcan-atlas tools`). */
+  listTools(): IToolDefinition[] {
+    return this.tools.map(tool => tool.definition);
   }
 
   /** Parses one line, routes it, and returns the reply to send - or `null` for a notification. Never throws. */

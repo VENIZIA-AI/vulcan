@@ -47,4 +47,6 @@ export class ProjectLayout {
   static readonly MAKE_INCLUDE_LINE = '-include node_modules/@venizia/vulcan/base/make/vulcan.mk';
   static readonly STYLE_PACKAGE = '@venizia/dev-configs';
   static readonly GITIGNORE_ENTRIES = ['CLAUDE.md', '.claude/'];
+  /** Written into a scaffolded file the project must fill in; doctor fails the file while it holds this. */
+  static readonly SCAFFOLD_MARKER = 'vulcan:scaffold';
 }

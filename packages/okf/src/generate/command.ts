@@ -4,6 +4,7 @@ import { replaceRegion } from './regions.ts';
 import { writeContents } from './contents-files.ts';
 import { renderPages } from './pages.ts';
 import { loadGeneration } from './registry.ts';
+import { BUILT_IN_RENDERERS } from './renderers.ts';
 import { repoRelative } from '../source/index.ts';
 
 /** The file as it is on disk, or undefined when it does not exist yet. */
@@ -60,7 +61,9 @@ export const gen = async (): Promise<void> => {
   }
 
   if (renderers.length === 0 && regions.length === 0 && contents.length === 0) {
-    console.log('gen: nothing configured - okf.renderers and okf.regions are empty');
+    console.log(
+      `gen: nothing configured - okf.renderers and okf.regions are empty; add a renderer to okf.renderers in the vulcan config (built in: ${Object.keys(BUILT_IN_RENDERERS).join(', ')})`,
+    );
   } else if (regionWrites.length === 0 && pages.length === 0 && contents.length === 0) {
     console.log('gen: up to date');
   }

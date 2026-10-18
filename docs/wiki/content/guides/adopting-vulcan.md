@@ -43,10 +43,12 @@ what to add instead.
 | `.configs/vulcan.config.ts` | the one place the project configures VULCAN (`--config mts\|mjs\|js` for another format) |
 | `.agents/rules.md` | the project's own rules, bare IDs |
 | `.agents/knowledge/index.md` | the knowledge bundle's root (OKF v0.2) |
-| `.configs/{oxlint,eslint,oxfmt}.config.*` | lint configs building on `@venizia/dev-configs` |
+| `.configs/{oxlint,eslint,oxfmt}.config.*` | lint configs building on `@venizia/dev-configs`; a project whose `package.json` declares `workspaces` gets none at the root, because each app keeps its own `.configs/` |
 | `Makefile` | `-include node_modules/@venizia/vulcan/base/make/vulcan.mk` |
 
-Add `CLAUDE.md` and `.claude/` to `.gitignore`: `vulcan sync` writes them per developer. Commit
+Two files carry a marker that `doctor` fails until you act on it: `.agents/knowledge/index.md` holds a
+`vulcan:scaffold` line (describe the project, delete the line), and a workspaces project must list its
+`packages` in the config. Add `CLAUDE.md` and `.claude/` to `.gitignore`: `vulcan sync` writes them per developer. Commit
 `.agents/vulcan.manifest.json`: sync writes it too, and other projects read it (step 4).
 
 ## 3. Configure `.configs/vulcan.config.ts`
@@ -100,7 +102,11 @@ export default {
 
 ### okf: renderers, regions, coverage
 
-okf runs exactly what `okf` lists:
+okf runs exactly what `okf` lists. With `renderers` and `regions` empty, `okf gen` writes nothing and says
+so. Each built-in renderer ends its page with a "see also" link to a concept of the usual name
+(`makefile-targets` to `process/build-system.md`, `source-map` to `overview/monorepo-layout.md`,
+`binding-keys` to `conventions/binding-key-namespaces.md`). The link appears only once that concept
+exists, so a new project passes `okf check --strict`. Set the `seeAlso` option to write your own line.
 
 ```ts
 okf: {
@@ -199,11 +205,17 @@ VULCAN := bun scripts/vulcan-bridge.ts   # before the -include; vulcan.mk uses $
 ## 6. `.mcp.json`
 
 ```json
-{ "mcpServers": { "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp"] } } }
+{ "mcpServers": { "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] } } }
 ```
 
-**Check:** the agent lists the atlas tools: `search`, `get`, `symbol`, `version`, `changes`. The
-[atlas guide](./atlas.md) covers using them and reading other projects.
+The file works as soon as the project has a knowledge bundle; the wiki and changelogs are indexed when
+the config names them. `--root` pins the project to the directory the client launches atlas from, so
+an agent started in a subdirectory still reads this project. Without it atlas serves the working
+directory.
+
+**Check:** `bun x --no-install vulcan x atlas tools` prints the five atlas tools - `search`, `get`,
+`symbol`, `version`, `changes` - without an MCP client. The [atlas guide](./atlas.md) covers using them
+and reading other projects.
 
 ## 7. Sync and verify
 
@@ -218,6 +230,22 @@ It records what it applied, so a choice you remove later is removed. After an up
 base rule that was added, changed or removed, with its new text.
 
 **Check:** `doctor` prints `vulcan doctor: OK`.
+
+### CI on a fresh clone
+
+A clean checkout has neither `node_modules` nor the gitignored adapters, and two things follow:
+
+- **Run `install` as its own step**, never as a prerequisite of the CI target. make reads the Makefile,
+  including the `-include` of `vulcan.mk`, before any recipe runs, so `ci: install okf-check-strict`
+  fails with `No rule to make target 'okf-check-strict'`: the file did not exist yet when make parsed it.
+- **Run `vulcan sync` before `vulcan doctor`.** `CLAUDE.md`, `.claude/` and the skill links are
+  gitignored, so `doctor` on a clean checkout fails with `[adapters] ... stale (created)` until `sync`
+  wrote them.
+
+```yaml
+- run: make install
+- run: make ci   # ... okf-check-strict vulcan-sync vulcan-doctor, in that order
+```
 
 ## 8. Move your rules onto the base
 

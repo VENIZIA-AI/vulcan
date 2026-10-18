@@ -63,7 +63,8 @@ or shadows a shipped one.
 shadowed) · `make` (includes `vulcan.mk`, no shipped target redefined) · `hooks` (shipped hooks are
 not re-registered) · `adapters` (sync is current, no hand-written `CLAUDE.md`, valid settings) ·
 `prune` (no stale hook command or dead skill link - `sync --prune` removes them) ·
-`style` (`@venizia/dev-configs` declared by the package holding the lint config or the root, every lint config builds on it; the packages are `packages/*` and every configured package `path`).
+`style` (`@venizia/dev-configs` declared by the package holding the lint config or the root, every lint config builds on it; the packages are `packages/*` and every configured package `path`) ·
+`scaffold` (the config is filled in: a project whose `package.json` declares `workspaces` lists its `packages`, and `.agents/knowledge/index.md` no longer holds the `vulcan:scaffold` line `init` writes).
 
 The session-start digest prints the base write boundaries, the slot choices, the project's own rules (bold `| **W-00** |` rows and `| V-W-02, V-W-03 |` rows that elaborate base rules), the project's `<!-- minimap-shape:start -->` ... `<!-- minimap-shape:end -->` block from `.agents/rules.md` verbatim, and the `digest.oftenDropped` rules.
 

@@ -18,7 +18,7 @@ In a project set up with VULCAN, run it through the pinned `vulcan` CLI:
   "mcpServers": {
     "atlas": {
       "command": "bun",
-      "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp"]
+      "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."]
     }
   }
 }
@@ -70,16 +70,22 @@ hits than `limit`. Pass a hit's `id` to `get` to read the whole section.
 
 ```bash
 vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]...
+vulcan-atlas tools [--root <dir>]
 vulcan-atlas pull [--source <name>]
 vulcan-atlas surface gen|check
 vulcan-atlas symbols | releases
 vulcan-atlas changelogs migrate [--dry-run]
 vulcan-atlas concepts stamp|check
+vulcan-atlas help
 ```
+
+`vulcan-atlas --help`, `-h` and `help` print the usage on stdout and exit `0`. With no subcommand atlas
+serves MCP, so run by hand it waits for a client on stdin.
 
 | Command | What it does |
 |---|---|
 | `mcp` | Serves the project at `--root` (default: the working directory) and its sources over stdio |
+| `tools` | Prints the tools the server offers, one line each - a check that needs no MCP client |
 | `pull` | Fetches every source, or one, now |
 | `surface gen\|check` | Writes or checks `reference/public-surface.md` from the built `.d.ts`; `check` exits `1` when it is stale |
 | `symbols`, `releases` | Print what the `symbol`, `version` and `changes` tools read - nothing to commit |

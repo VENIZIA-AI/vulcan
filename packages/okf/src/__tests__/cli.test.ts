@@ -70,8 +70,8 @@ describe('gen', () => {
     const result = run({ args: ['gen'] });
 
     expect(result.code).toBe(0);
-    expect(result.stdout).toBe(
-      'gen: nothing configured - okf.renderers and okf.regions are empty\n',
+    expect(result.stdout).toStartWith(
+      'gen: nothing configured - okf.renderers and okf.regions are empty; add a renderer',
     );
   });
 });

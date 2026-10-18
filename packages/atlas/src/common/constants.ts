@@ -57,6 +57,8 @@ export class AtlasCommands {
   static readonly CHANGELOGS = 'changelogs';
   static readonly CONCEPTS = 'concepts';
   static readonly PULL = 'pull';
+  static readonly TOOLS = 'tools';
+  static readonly HELP = 'help';
   static readonly SCHEME_SET = new Set<string>([
     this.MCP,
     this.SURFACE,
@@ -65,6 +67,8 @@ export class AtlasCommands {
     this.CHANGELOGS,
     this.CONCEPTS,
     this.PULL,
+    this.TOOLS,
+    this.HELP,
   ]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);

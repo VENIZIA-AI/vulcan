@@ -92,7 +92,8 @@ const page: IRenderPage = {
       '',
       '',
     ].join('\n'),
-  note: opts => `> Generated from source - do not edit; run \`make okf-gen\`. ${opts.seeAlso}\n\n`,
+  note: opts =>
+    `> Generated from source - do not edit; run \`make okf-gen\`.${opts.seeAlso === '' ? '' : ` ${opts.seeAlso}`}\n\n`,
 };
 
 export const createRenderContext = (opts: { options: Record<string, unknown> }): IRenderContext => {
