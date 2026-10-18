@@ -6,6 +6,13 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-18 - remote-host guard, slot list and okf globs (0.2.0-8)
+
+Updated [cli](/packages/cli.md): `remoteHosts` registers a shipped hook that asks before a Bash
+command reaches an unlisted host (whole-name or `*` match, never substring); the `read-only` git slot
+denies the whole write surface. Updated [okf](/packages/okf.md): `okf.contents.files` takes globs and
+`okf.coverage` axes take `exclude` and `denylist`.
+
 ## 2026-10-18 - root fixes before the stable (0.2.0-8)
 
 Updated [atlas](/packages/atlas.md): the concept lock hashes the whole declaration (lock schemaVersion

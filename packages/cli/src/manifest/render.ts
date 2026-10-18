@@ -74,6 +74,8 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
     rules: { project: ManifestConstants.PROJECT_RULES, base: buildBaseRuleHashes() },
     // The sources this project reads knowledge from (atlas, git mode); a project without any carries none.
     ...(config.atlas.sources.length === 0 ? {} : { sources: config.atlas.sources }),
+    // The remote-host guard reads its policy here; a project without the key has no guard.
+    ...(config.remoteHosts === undefined ? {} : { remoteHosts: config.remoteHosts }),
   };
 
   return `${JSON.stringify(manifest, null, 2)}\n`;

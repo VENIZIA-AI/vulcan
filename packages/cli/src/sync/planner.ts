@@ -94,6 +94,15 @@ const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
     }
   }
 
+  if (opts.config.remoteHosts !== undefined) {
+    overlay = mergeSettings({
+      base: overlay,
+      overlay: JSON.parse(
+        readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.REMOTE_HOSTS_FILE), 'utf8'),
+      ),
+    });
+  }
+
   overlay = mergeSettings({
     base: overlay,
     overlay: buildProjectHookSettings({ hooks: opts.config.hooks }),

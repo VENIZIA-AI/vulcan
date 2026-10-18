@@ -78,6 +78,17 @@ const OKF_RENDERER = z.union([
   }),
 ]);
 
+/** A host name, or a pattern whose only wildcard is `*`; a `$VAR` stands for a host the shell expands. Never a user, a path or a port. */
+const REMOTE_HOST = z
+  .string()
+  .regex(
+    /^(?:\$\{?\w+\}?|[A-Za-z0-9._*-]+)$/,
+    'a host name or a pattern with *, not a user, a path or a port',
+  )
+  .refine(value => value.replaceAll('*', '').replaceAll('.', '') !== '', {
+    message: 'a pattern needs at least one literal character beyond * and .',
+  });
+
 const VIZ_OUTPUT = '.agents/knowledge/viz.html';
 
 /** `.configs/vulcan.config.*` - strict: an unknown key is a typo, and a typo is an error. */
@@ -176,6 +187,19 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       tagPattern: '<dir>-v<version>',
       sources: [],
     }),
+  /**
+   * The remote-host guard (W-04 in a project's own words): with this key set, sync registers a hook that
+   * asks before a Bash command reaches a host not listed here. `trusted` hosts are free; `readOnly`
+   * hosts pass only the strict read-only forms. Matching is by whole name or `*` pattern, never by substring.
+   * `localFile` is a gitignored list of personal trusted hosts, one per line.
+   */
+  remoteHosts: z
+    .strictObject({
+      trusted: z.array(REMOTE_HOST).default([]),
+      readOnly: z.array(REMOTE_HOST).default([]),
+      localFile: z.string().default('.agents/hooks/trusted-hosts.local'),
+    })
+    .optional(),
   /** Team-shared Claude settings (permissions, env, enabledPlugins...), merged by sync over personal keys. */
   claude: z
     .strictObject({ settings: z.record(z.string(), z.unknown()).default({}) })

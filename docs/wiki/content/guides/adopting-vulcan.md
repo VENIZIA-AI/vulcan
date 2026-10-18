@@ -98,8 +98,46 @@ export default {
 | `digest` | the rule IDs the session digest repeats as the rules sessions drop most |
 | `claude.settings` | team-shared Claude settings, merged over each developer's personal keys |
 | `hooks` | the project's own hooks; sync registers them |
+| `remoteHosts` | the remote-host guard: hosts a Bash command may reach, and hosts it may only read (below) |
 
 **Check:** `bun x --no-install vulcan doctor` reports no `[config]` violation.
+
+### remoteHosts: the remote-host guard
+
+Setting `remoteHosts` makes `vulcan sync` register a PreToolUse hook that asks before a Bash command
+reaches a host you have not listed: `ssh`, `scp`, `rsync`, `sftp`, `mosh`, `nc`, `telnet`,
+`kubectl`/`helm`/`k9s` (by context or server), `/dev/tcp/<host>`, `ssh://` URLs, and the same
+behind `sudo`, `env`, `xargs`, `bash -c`, `eval` and `find -exec`. A project without the key has no guard.
+
+```ts
+remoteHosts: {
+  trusted: ['lab1', '*.lab.example.com', '10.0.0.5'],   // any command may reach these
+  readOnly: ['prod1', 'prod2.example.com'],             // only the strict read-only forms pass
+  localFile: '.agents/hooks/trusted-hosts.local',       // default; one personal host per line, gitignore it
+},
+```
+
+- **Matching is by the whole host name.** An entry is an exact name or a pattern whose only wildcard is
+  `*`, and `*` stays inside host characters. A name is never searched for inside the command, so
+  `lab1` does not admit `lab1.evil.com`, `evil-lab1`, `ssh lab1@evil.com` or `scp f evil.com:/tmp/lab1`.
+  An entry may be a `$VAR`, which matches the same unexpanded token. An entry with a user, a path or
+  a port is a config error, and so is a bare `*`.
+- **A jump host counts.** `-J`, `-o ProxyJump` and `-o Hostname` name hosts the command reaches, and
+  `ssh` options after the destination are read, as OpenSSH reads them.
+- **What cannot be read asks.** A `$(...)` or backtick inside the command, a `-o ProxyCommand`, `-F`
+  or `-S`, `rsync -e` with anything but plain `ssh`, `kubectl` with no `--context` or with
+  `--kubeconfig`, `docker -H`, `GIT_SSH_COMMAND` and `DOCKER_HOST`, and clients whose target the
+  guard does not parse (`ansible`, `socat`, `pdsh`, ...).
+- **The strict read-only forms** for a `readOnly` host are `ssh <host> <cmd>` with no ssh options and a
+  `cmd` of `uptime`, `hostname`, `df -h`, `free -m`, `docker ps`, `ls`/`cat`/`tail -n N` of an
+  absolute path, `systemctl status`, `journalctl -u`, `docker logs --tail N`; `scp`/`rsync` from the host to a
+  local path; `kubectl --context <host> get|describe|logs|top`. A redirect or a second remote host
+  makes it an ask.
+- **The policy travels in the manifest.** `sync` renders `remoteHosts` into
+  `.agents/vulcan.manifest.json` and the hook reads it there plus `localFile`. The hook fails closed:
+  a missing `node_modules`, `bun` or manifest key blocks the call (exit 2) and says what to run.
+
+**Check:** `vulcan sync` adds the hook to `.claude/settings.json`; `ssh unlisted-host` asks.
 
 ### okf: renderers, regions, coverage
 
