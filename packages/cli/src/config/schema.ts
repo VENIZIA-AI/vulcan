@@ -112,7 +112,18 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
           labels: z.record(z.string(), z.string()).default({}),
         })
         .default({ order: [], labels: {} }),
-      coverage: z.array(z.strictObject({ name: z.string(), path: z.string() })).default([]),
+      /** `exclude`: globs from the root dropped from this axis; `denylist`: directory names dropped from this axis only. */
+      coverage: z
+        .array(
+          z.strictObject({
+            name: z.string(),
+            path: z.string(),
+            exclude: z.array(z.string()).default([]),
+            denylist: z.array(z.string()).default([]),
+          }),
+        )
+        .default([]),
+      /** Directory names no axis counts; an axis's own `denylist` scopes the same idea to one axis. */
       denylist: z.array(z.string()).default([]),
       /** Agent-read files outside the bundle that get a generated contents list when they pass 100 lines. */
       contents: z

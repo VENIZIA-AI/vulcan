@@ -5,27 +5,50 @@
         "text": "Git writes happen only on the user's word, in this conversation."
       },
       "read-only": {
-        "text": "Git is read-only for the agent: it edits the working tree, then stops; a human commits.",
+        "text": "Git is read-only for the agent: it edits the working tree, then stops; a human commits. Every git verb that writes the index, the history, a ref, the config or the work tree is denied.",
         "settings": {
           "permissions": {
             "deny": [
-              "Bash(git add:*)",
               "Bash(git add)",
-              "Bash(git commit:*)",
+              "Bash(git add:*)",
+              "Bash(git rm:*)",
+              "Bash(git mv:*)",
+              "Bash(git restore:*)",
               "Bash(git commit)",
-              "Bash(git push:*)",
+              "Bash(git commit:*)",
               "Bash(git push)",
+              "Bash(git push:*)",
+              "Bash(git pull)",
               "Bash(git pull:*)",
+              "Bash(git merge)",
               "Bash(git merge:*)",
+              "Bash(git rebase)",
               "Bash(git rebase:*)",
+              "Bash(git reset)",
               "Bash(git reset:*)",
               "Bash(git revert:*)",
+              "Bash(git cherry-pick:*)",
+              "Bash(git checkout)",
               "Bash(git checkout:*)",
               "Bash(git switch:*)",
+              "Bash(git branch)",
               "Bash(git branch:*)",
+              "Bash(git tag:*)",
+              "Bash(git stash)",
               "Bash(git stash:*)",
               "Bash(git clean:*)",
-              "Bash(git tag:*)"
+              "Bash(git apply:*)",
+              "Bash(git am:*)",
+              "Bash(git worktree:*)",
+              "Bash(git remote:*)",
+              "Bash(git config:*)",
+              "Bash(git submodule:*)",
+              "Bash(git update-ref:*)",
+              "Bash(git filter-branch:*)",
+              "Bash(git gc:*)",
+              "Bash(git init:*)",
+              "Bash(git clone:*)",
+              "Bash(git notes:*)"
             ]
           }
         }

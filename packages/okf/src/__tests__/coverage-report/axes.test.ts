@@ -65,3 +65,78 @@ test('okf coverage itself still fails on an axis that matches nothing', () => {
 
   expect(coverage()).rejects.toThrow("okf: coverage: axis 'apps' (apps/*) matches no directory");
 });
+
+test('an axis exclude drops the directories its globs match, by path from the root', () => {
+  useProjectConfig({
+    root: ROOT,
+    config: {
+      okf: { coverage: [{ name: 'packages', path: 'packages/*', exclude: ['packages/react'] }] },
+    },
+  });
+
+  const { axes } = collectCoverageAxes();
+
+  expect(axes[0]?.items).toEqual(['admin', 'kernel']);
+  expect(axes[0]?.paths).toEqual({ admin: 'packages/admin', kernel: 'packages/kernel' });
+});
+
+test('an exclude glob matches like the path glob: braces and stars', () => {
+  useProjectConfig({
+    root: ROOT,
+    config: {
+      okf: {
+        coverage: [{ name: 'packages', path: 'packages/*', exclude: ['packages/{admin,re*}'] }],
+      },
+    },
+  });
+
+  expect(collectCoverageAxes().axes[0]?.items).toEqual(['kernel']);
+});
+
+test('a denylist on one axis leaves the other axes alone', () => {
+  useProjectConfig({
+    root: ROOT,
+    config: {
+      okf: {
+        coverage: [
+          { name: 'filtered', path: 'packages/*', denylist: ['react'] },
+          { name: 'whole', path: 'packages/*' },
+        ],
+      },
+    },
+  });
+
+  const { axes } = collectCoverageAxes();
+
+  expect(axes.map(axis => [axis.name, axis.items])).toEqual([
+    ['filtered', ['admin', 'kernel']],
+    ['whole', ['admin', 'kernel', 'react']],
+  ]);
+});
+
+test('the global denylist still applies to every axis', () => {
+  useProjectConfig({
+    root: ROOT,
+    config: {
+      okf: { coverage: [{ name: 'packages', path: 'packages/*' }], denylist: ['kernel'] },
+    },
+  });
+
+  expect(collectCoverageAxes().axes[0]?.items).toEqual(['admin', 'react']);
+});
+
+test('an axis whose exclude removes every directory is a problem, not a silent pass', () => {
+  useProjectConfig({
+    root: ROOT,
+    config: {
+      okf: { coverage: [{ name: 'packages', path: 'packages/*', exclude: ['packages/*'] }] },
+    },
+  });
+
+  expect(collectCoverageAxes()).toEqual({
+    axes: [],
+    problems: [
+      "coverage: axis 'packages' (packages/*) has no directory left after exclude/denylist",
+    ],
+  });
+});

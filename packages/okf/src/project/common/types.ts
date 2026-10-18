@@ -33,7 +33,8 @@ export interface IOkfProject {
   renderers: IOkfRendererEntry[];
   regions: IOkfRegionEntry[];
   sections: { order: string[]; labels: Record<string, string> };
-  coverage: { name: string; path: string }[];
+  /** `exclude`: globs from the root dropped from the axis; `denylist`: directory names dropped from this axis only. */
+  coverage: { name: string; path: string; exclude: string[]; denylist: string[] }[];
   denylist: Set<string>;
   viz: { outputs: string[]; brand: string; copy?: Record<string, unknown> };
 }

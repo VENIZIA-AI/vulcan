@@ -124,7 +124,9 @@ okf: {
 
 A coverage axis globs directories. Each directory needs a concept at `<name>/<directory>.md`, or any
 concept whose frontmatter `resource` is that directory (`resource: auroras/apps/shop`), wherever the
-concept lives. An axis that matches nothing fails. A renderer's `render` returns one file or an array
+concept lives. An axis that matches nothing fails. To leave directories out of one axis, give it `exclude`
+(globs from the root, such as `auroras/apps/mobile-*`) or `denylist` (directory names); the top-level
+`okf.denylist` still applies to every axis. An axis left with no directory fails too. A renderer's `render` returns one file or an array
 of files, so one renderer can own a page per entity. A project module default-exports a renderer and imports the API from
 `@venizia/vulcan/okf`:
 
@@ -144,7 +146,9 @@ export default defineRenderer({
 });
 ```
 
-`okf gen` also writes a contents list near the top of every agent-read file over 100 lines. A file
+`okf gen` also writes a contents list near the top of every agent-read file over 100 lines.
+`okf.contents.files` names those files outside the bundle: literal paths or globs from the root
+(`.agents/skills/*/SKILL.md`). A file
 with `generated:` in its frontmatter belongs to its generator and gets none. The bundle's `log.md`
 gets none either.
 

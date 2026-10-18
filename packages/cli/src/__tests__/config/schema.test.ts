@@ -126,3 +126,28 @@ describe('packages are keyed uniquely', () => {
     ).toBeUndefined();
   });
 });
+
+describe('okf.coverage axes', () => {
+  test('exclude and denylist are per axis, default empty', () => {
+    const config = VULCAN_CONFIG_SCHEMA.parse({
+      okf: {
+        coverage: [
+          { name: 'apps', path: 'apps/*', exclude: ['apps/mobile-*'], denylist: ['shared'] },
+          { name: 'kits', path: 'kits/*' },
+        ],
+      },
+    });
+
+    expect(config.okf.coverage).toEqual([
+      { name: 'apps', path: 'apps/*', exclude: ['apps/mobile-*'], denylist: ['shared'] },
+      { name: 'kits', path: 'kits/*', exclude: [], denylist: [] },
+    ]);
+  });
+
+  test('an unknown key on an axis is still an error', () => {
+    expect(
+      VULCAN_CONFIG_SCHEMA.safeParse({ okf: { coverage: [{ name: 'a', path: 'a/*', skip: [] }] } })
+        .success,
+    ).toBe(false);
+  });
+});

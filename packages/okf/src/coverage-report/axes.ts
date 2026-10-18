@@ -38,7 +38,7 @@ export const isItemCovered = (opts: {
 
 /**
  * The structural coverage axes (`okf.coverage`): each `path` globs directories under the root, and
- * every matched directory, minus the denylist, needs a concept at `<name>/<directory>.md` - or any
+ * every matched directory, minus the denylist, the axis's own `denylist` and its `exclude` globs, needs a concept at `<name>/<directory>.md` - or any
  * concept whose frontmatter `resource` is the directory (`paths` maps each item to it). A path that
  * matches no directory is a problem - an axis that covers nothing passes by accident.
  */
@@ -60,7 +60,21 @@ export const collectCoverageAxes = (): {
       continue;
     }
 
-    const kept = matched.filter(path => !project.denylist.has(basename(path)));
+    const excluded = axis.exclude.map(pattern => new Bun.Glob(pattern));
+    const kept = matched.filter(
+      path =>
+        !project.denylist.has(basename(path)) &&
+        !axis.denylist.includes(basename(path)) &&
+        !excluded.some(glob => glob.match(path)),
+    );
+
+    if (kept.length === 0) {
+      problems.push(
+        `coverage: axis '${axis.name}' (${axis.path}) has no directory left after exclude/denylist`,
+      );
+      continue;
+    }
+
     const items = [...new Set(kept.map(path => basename(path)))].sort();
 
     axes.push({
