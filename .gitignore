@@ -101,6 +101,9 @@ node_modules.zip
 .mastra/
 **/*/__mf__/temp/
 
+# VitePress cache of the wiki site
+.vitepress/cache/
+
 # OKF knowledge bundle - generated graph explorer (rebuild: make okf-viz)
 .agents/knowledge/viz.html
 

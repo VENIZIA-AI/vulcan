@@ -62,6 +62,7 @@ or shadows a shipped one.
 `V-` ID a project rule points at - an `Extends` list or a first cell - is a base rule, not a retired one) · `rule-slots` (every slot chosen, valid option) · `skills` (no shipped skill
 shadowed) · `make` (includes `vulcan.mk`, no shipped target redefined) · `hooks` (shipped hooks are
 not re-registered) · `adapters` (sync is current, no hand-written `CLAUDE.md`, valid settings) ·
+`manifest` (`.agents/vulcan.manifest.json` exists and matches the config) · `tags` (every release tag `atlas.tagPattern` reads names a declared package, an alias or an ignored tag) ·
 `prune` (no stale hook command or dead skill link - `sync --prune` removes them) ·
 `style` (`@venizia/dev-configs` declared by the package holding the lint config or the root, every lint config builds on it; the packages are `packages/*` and every configured package `path`) ·
 `scaffold` (the config is filled in: a project whose `package.json` declares `workspaces` lists its `packages`, and `.agents/knowledge/index.md` no longer holds the `vulcan:scaffold` line `init` writes).
