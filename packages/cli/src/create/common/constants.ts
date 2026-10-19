@@ -14,8 +14,16 @@ export class CreateConstants {
   /** A preset named without a scope is a package in the framework scope. */
   static readonly PRESET_SCOPE = '@venizia/';
   static readonly PRESET_FILE_PREFIX = 'file:';
-  /** npm drops dotfiles from a tarball, so a preset ships `_name` for `.name`. */
-  static readonly PRESET_DOTFILE_PREFIX = '_';
+  /**
+   * npm drops these dotfiles from a tarball, so a preset ships them under the `_` name. The list is
+   * explicit: a blanket `_` rule would rename `__root.tsx`, `_app.tsx` and `_redirects`.
+   */
+  static readonly PRESET_DOTFILE_NAMES: readonly string[] = [
+    '_gitignore',
+    '_npmrc',
+    '_env',
+    '_env.example',
+  ];
   static readonly STDIN_DESCRIPTOR = 0;
   static readonly APPS_BLOCK_START =
     '// vulcan:apps:start - written by vulcan init and add; edit outside this block';

@@ -1,5 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from '../../create/preset.ts';
 import type { ILocatedPreset } from '../../create/index.ts';
@@ -154,6 +162,111 @@ describe('locatePreset', () => {
   });
 });
 
+describe('locatePreset containment', () => {
+  const PACKAGE_JSON =
+    '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }';
+
+  test('a files folder outside the package is refused', () => {
+    const source = createProject({
+      files: {
+        'package.json': PACKAGE_JSON,
+        'preset.json': PRESET_JSON.replace('./files', '../../secret'),
+      },
+    });
+    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('files');
+    expect(!result.ok && result.error).toContain('../../secret');
+  });
+
+  test('an absolute files path is refused', () => {
+    const source = createProject({
+      files: {
+        'package.json': PACKAGE_JSON,
+        'preset.json': PRESET_JSON.replace('./files', '/etc'),
+      },
+    });
+    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('files');
+    expect(!result.ok && result.error).toContain('/etc');
+  });
+
+  test('a vulcan.preset path outside the package is refused', () => {
+    const outside = createProject({ files: { 'preset.json': PRESET_JSON } });
+    const source = createProject({
+      files: {
+        'package.json': `{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "${outside}/preset.json" } }`,
+      },
+    });
+    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('vulcan.preset');
+  });
+
+  test('a vulcan.preset path that climbs out with .. is refused', () => {
+    const source = createProject({
+      files: {
+        'package.json':
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "../preset.json" } }',
+      },
+    });
+    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('vulcan.preset');
+  });
+
+  test('a files folder that is a symlink out of the package is refused', () => {
+    const outside = createProject({ files: { 'secret.txt': 'top secret' } });
+    const source = createProject({
+      files: { 'package.json': PACKAGE_JSON, 'preset.json': PRESET_JSON },
+    });
+
+    symlinkSync(outside, join(source, 'files'));
+
+    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('files');
+  });
+
+  test('a check that is not a script of the preset is refused, naming the entry', () => {
+    const source = createProject({
+      files: {
+        'package.json': PACKAGE_JSON,
+        'preset.json': JSON.stringify({
+          ...JSON.parse(PRESET_JSON),
+          scripts: { typecheck: 'tsc --noEmit' },
+          checks: ['typecheck', '--cwd=/'],
+        }),
+      },
+    });
+    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('--cwd=/');
+  });
+
+  test('checks that are all scripts of the preset are accepted', () => {
+    const source = createProject({
+      files: {
+        'package.json': PACKAGE_JSON,
+        'preset.json': JSON.stringify({
+          ...JSON.parse(PRESET_JSON),
+          scripts: { typecheck: 'tsc --noEmit' },
+          checks: ['typecheck'],
+        }),
+      },
+    });
+
+    expect(locateFixture({ path: source }).preset.checks).toEqual(['typecheck']);
+  });
+});
+
 describe('copyPresetFiles', () => {
   test('tokens are substituted, _ files renamed, a real dotfile kept', () => {
     const target = createProject({ files: {} });
@@ -228,5 +341,116 @@ describe('copyPresetFiles', () => {
     copyPresetFiles({ located: locateFixture({ path: source }), target, tokens: { app: 'core' } });
 
     expect(readFileSync(join(target, 'note.txt'), 'utf8')).toBe('core {{unknown}}');
+  });
+
+  test('only the four npm-dropped names become dotfiles, other _ names keep theirs', () => {
+    const source = createProject({
+      files: {
+        'package.json':
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+        'preset.json': PRESET_JSON,
+        'files/_gitignore': 'a',
+        'files/_npmrc': 'b',
+        'files/_env': 'c',
+        'files/_env.example': 'd',
+        'files/src/routes/__root.tsx': 'e',
+        'files/src/_app.tsx': 'f',
+        'files/_layout.tsx': 'g',
+        'files/public/_redirects': 'h',
+      },
+    });
+    const target = createProject({ files: {} });
+    const written = copyPresetFiles({
+      located: locateFixture({ path: source }),
+      target,
+      tokens: {},
+    });
+
+    expect(written.sort()).toEqual([
+      '.env',
+      '.env.example',
+      '.gitignore',
+      '.npmrc',
+      '_layout.tsx',
+      'public/_redirects',
+      'src/_app.tsx',
+      'src/routes/__root.tsx',
+    ]);
+  });
+
+  test('a binary file keeps its exact bytes', () => {
+    const source = createProject({
+      files: {
+        'package.json':
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+        'preset.json': PRESET_JSON,
+      },
+    });
+    const bytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff, 0xfe, 0x7b, 0x7b, 0x61, 0x70]);
+    const png = Buffer.concat([bytes, Buffer.from('p}}'), Buffer.from([0x00, 0xff])]);
+    const invalidUtf8 = Buffer.from([0x7b, 0x7b, 0x61, 0x70, 0x70, 0x7d, 0x7d, 0xc3, 0x28]);
+
+    mkdirSync(join(source, 'files'), { recursive: true });
+    writeFileSync(join(source, 'files/logo.png'), png);
+    writeFileSync(join(source, 'files/odd.bin'), invalidUtf8);
+
+    const target = createProject({ files: {} });
+
+    copyPresetFiles({
+      located: locateFixture({ path: source }),
+      target,
+      tokens: { app: 'core' },
+    });
+
+    expect(readFileSync(join(target, 'logo.png')).equals(png)).toBe(true);
+    expect(readFileSync(join(target, 'odd.bin')).equals(invalidUtf8)).toBe(true);
+  });
+
+  test('an executable script stays executable', () => {
+    const source = createProject({
+      files: {
+        'package.json':
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+        'preset.json': PRESET_JSON,
+        'files/run.sh': '#!/bin/sh\necho {{app}}\n',
+        'files/plain.txt': 'x',
+      },
+    });
+
+    chmodSync(join(source, 'files/run.sh'), 0o755);
+
+    const target = createProject({ files: {} });
+
+    copyPresetFiles({ located: locateFixture({ path: source }), target, tokens: { app: 'core' } });
+
+    expect(statSync(join(target, 'run.sh')).mode & 0o111).toBe(0o111);
+    expect(readFileSync(join(target, 'run.sh'), 'utf8')).toContain('echo core');
+    expect(statSync(join(target, 'plain.txt')).mode & 0o111).toBe(0);
+  });
+
+  test('a symlink in files is not copied', () => {
+    const secret = createProject({ files: { 'secret.txt': 'top secret' } });
+    const source = createProject({
+      files: {
+        'package.json':
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+        'preset.json': PRESET_JSON,
+        'files/real.txt': 'real',
+      },
+    });
+
+    symlinkSync(join(secret, 'secret.txt'), join(source, 'files/leak.txt'));
+    symlinkSync(secret, join(source, 'files/leak-dir'));
+
+    const target = createProject({ files: {} });
+    const written = copyPresetFiles({
+      located: locateFixture({ path: source }),
+      target,
+      tokens: {},
+    });
+
+    expect(written).toEqual(['real.txt']);
+    expect(existsSync(join(target, 'leak.txt'))).toBe(false);
+    expect(existsSync(join(target, 'leak-dir'))).toBe(false);
   });
 });

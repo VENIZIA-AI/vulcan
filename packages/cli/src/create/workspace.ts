@@ -3,6 +3,9 @@ import type { IApp, IAppsBlock, IPreset } from './common/index.ts';
 
 const ENV_PORT = /^[A-Z0-9_]*PORT=(\d+)\s*$/m;
 
+/** A newline inside a list item or a paragraph would split it. */
+const oneLine = (opts: { text: string }): string => opts.text.replace(/\s+/g, ' ').trim();
+
 const json = (opts: { value: unknown }): string => `${JSON.stringify(opts.value, null, 2)}\n`;
 
 export const renderRootManifest = (opts: {
@@ -127,7 +130,9 @@ export const renderKnowledgeIndex = (opts: {
     '',
     '## Apps',
     '',
-    ...opts.apps.map(app => `- [${app.name}](packages/${app.name}.md) - ${app.summary}`),
+    ...opts.apps.map(
+      app => `- [${app.name}](packages/${app.name}.md) - ${oneLine({ text: app.summary })}`,
+    ),
     '',
   ].join('\n');
 
@@ -140,14 +145,15 @@ export const renderAppConcept = (opts: {
     '---',
     'type: Package',
     `title: ${opts.app.name}`,
-    `description: ${opts.summary}`,
+    // JSON string syntax is valid YAML, so a colon, quote or newline in the summary stays one scalar.
+    `description: ${JSON.stringify(opts.summary)}`,
     `resource: ${opts.app.folder}/${opts.app.name}`,
     `tags: [packages, ${opts.app.side}]`,
     '---',
     '',
     `# ${opts.app.name}`,
     '',
-    `The ${opts.app.side} app at \`${opts.app.folder}/${opts.app.name}\`, created from the ${opts.presetPackage} preset. ${opts.summary}`,
+    `The ${opts.app.side} app at \`${opts.app.folder}/${opts.app.name}\`, created from the ${opts.presetPackage} preset. ${oneLine({ text: opts.summary })}`,
     '',
   ].join('\n');
 

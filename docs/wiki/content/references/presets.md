@@ -1,6 +1,6 @@
 ---
 title: Presets
-description: The format of a VULCAN preset - the package field, the preset.json keys, the files tokens and the dotfile rule - for framework authors.
+description: The format of a VULCAN preset - the package field, the preset.json keys, the files tokens and the dotfile names - for framework authors.
 ---
 
 # Presets
@@ -58,8 +58,8 @@ vulcan-preset/
 | `devDependencies` | object | no | The same, for development |
 | `peers` | object | no | Package to range that the root `catalog` must already satisfy when `add` runs |
 | `scripts` | object | no | The `scripts` of the app's `package.json` |
-| `checks` | array of script names | no | Scripts that `init` and `add` run in the app after install, in order |
-| `files` | string | yes | The folder to copy, relative to `preset.json` |
+| `checks` | array of script names | no | Scripts that `init` and `add` run in the app after install, in order. Each entry must be a key of `scripts`, or the preset is refused |
+| `files` | string | yes | The folder to copy, relative to `preset.json`. It, and the `vulcan.preset` path, must stay inside the package; a path that climbs out with `..` is refused |
 | `atlas` | array of `{ name, repo, ref }` | no | Documentation sources added to `atlas.sources`, so agents read the framework's docs |
 
 The app's `package.json` is generated from these keys: `name` is the app name, `version` is `0.0.0`, and the preset package itself is a dependency.
@@ -67,7 +67,7 @@ A `package.json` in `files/` is overwritten.
 
 ## Tokens in files
 
-Every file under `files/` is read as UTF-8 text, and these tokens are replaced:
+Every text file under `files/` has these tokens replaced. A file with a NUL byte or invalid UTF-8 (an image, a font) is copied byte for byte, and a script keeps its executable bit. Symbolic links are skipped, so a preset installed as links (a `file:` folder dependency) is refused; pass the folder with `--preset file:` instead:
 
 | Token | Becomes |
 |---|---|
@@ -88,17 +88,19 @@ export default defineConfig({
 A backend preset needs a `.env.example` with a line ending in `PORT=<number>` (for example `APP_ENV_SERVER_PORT={{devPort}}`).
 `add` reads that line to find the next free port and to find the backend a frontend proxies to.
 
-## The `_` dotfile rule
+## The dotfile names
 
-npm drops dotfiles from a tarball. A preset ships `_env.example` and `_gitignore`, and the copy renames each file whose name starts with `_` to start with `.`:
+npm drops dotfiles from a tarball. A preset ships these four names with a leading `_`, and the copy writes each one with a leading `.`:
 
 | In `files/` | Written as |
 |---|---|
+| `_gitignore` | `.gitignore` |
+| `_npmrc` | `.npmrc` |
+| `_env` | `.env` |
 | `_env.example` | `.env.example` |
-| `src/_hidden.ts` | `src/.hidden.ts` |
 
-The rule applies to every file name, not to folder names, so never start a normal file name with `_`.
-A dotfile with its real name still copies from a `file:` preset, but an npm package would not carry it.
+Only these four file names are renamed, in any folder of `files/`. Every other name keeps its spelling, so `__root.tsx`, `_app.tsx`, `_layout.tsx` and `_redirects` are copied as they are, and folder names are never renamed.
+Any other dotfile (`.editorconfig`, `.prettierrc`) copies from a `file:` preset under its real name, but an npm package would not carry it.
 
 ## presetVersion
 

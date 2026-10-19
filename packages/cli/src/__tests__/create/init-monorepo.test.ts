@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, packFolder, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
 afterAll(removeProjects);
@@ -172,7 +172,7 @@ describe('vulcan init --preset', () => {
       args: [
         'init',
         '--preset',
-        `@fixture/backend@file:${BACKEND}`,
+        `@fixture/backend@file:${packFolder({ folder: BACKEND })}`,
         '--project',
         'my-product',
         '--app',
@@ -195,7 +195,7 @@ describe('vulcan init --preset', () => {
       args: [
         'init',
         '--preset',
-        `@fixture/none@file:${join(parent, 'nopreset')}`,
+        `@fixture/none@file:${packFolder({ folder: join(parent, 'nopreset') })}`,
         '--project',
         'my-product',
         '--app',

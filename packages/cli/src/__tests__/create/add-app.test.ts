@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createProject, removeProjects } from '../project.helper.ts';
+import { createProject, packFolder, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
 afterAll(removeProjects);
@@ -234,7 +234,7 @@ describe('vulcan add --preset', () => {
       args: [
         'add',
         '--preset',
-        `@fixture/frontend@${FRONTEND}`,
+        `@fixture/frontend@file:${packFolder({ folder: FRONTEND_PATH })}`,
         '--frontend-dir',
         'web',
         '--app',

@@ -24,7 +24,7 @@ tags: [packages, cli, base]
 A preset is a framework's app template: `preset.json` plus a `files/` folder, found through the `vulcan.preset` field of the framework's `package.json`. It is data only; VULCAN never runs code from it, and `presetVersion` is `1`.
 
 - A name asked in a terminal or taken from a flag; none has a default (`--project`, `--backend-dir` or `--frontend-dir`, `--app`, `--shared-dir`). A bare `--preset <name>` means `@venizia/<name>`; `file:<path>` is for tests.
-- `files/` is copied with `{{project}}`, `{{app}}`, `{{devPort}}` and `{{apiUrl}}` replaced; a file named `_x` is written as `.x` because npm drops dotfiles.
+- `files/` is copied with `{{project}}`, `{{app}}`, `{{devPort}}` and `{{apiUrl}}` replaced; only `_gitignore`, `_npmrc`, `_env` and `_env.example` are written as dotfiles (npm drops dotfiles); binary files are copied byte for byte, symlinks are skipped, and `vulcan.preset`, `files` and every `checks` entry are validated (inside the package, a key of `scripts`).
 - The config keeps `layout`, `packages` and the preset's `atlas` sources between the `vulcan:apps:start` and `vulcan:apps:end` comments. `add` rewrites only that block, and refuses with the lines to paste when the markers are gone.
 - `add` keeps the catalog's versions over the preset's, refuses a preset whose `peers` the catalog does not satisfy, and picks the next free port from the apps' `.env.example`.
 - `VULCAN_NO_INSTALL=1` (tests only) prints the install, `git init`, `sync` and the checks as `skipped` lines. An npm preset needs the install, so the tests use `file:` presets (`src/__tests__/fixtures/preset-*`).

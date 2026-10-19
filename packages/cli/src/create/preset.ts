@@ -1,27 +1,91 @@
 import { Glob } from 'bun';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import {
+  chmodSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { z } from 'zod';
 import { AppSides, CreateConstants } from './common/index.ts';
-import type { ILocatedPreset, IPreset, IPresetSpec, TPresetResult } from './common/index.ts';
+import type { ILocatedPreset, IPresetSpec, TAppSide, TPresetResult } from './common/index.ts';
 
-const PRESET_SCHEMA = z.object({
-  presetVersion: z.number(),
-  side: z.string().refine(value => AppSides.isValid(value), {
-    message: `one of: ${[...AppSides.SCHEME_SET].join(', ')}`,
-  }),
-  summary: z.string(),
-  devPort: z.number().int().positive(),
-  dependencies: z.record(z.string(), z.string()).default({}),
-  devDependencies: z.record(z.string(), z.string()).default({}),
-  peers: z.record(z.string(), z.string()).default({}),
-  scripts: z.record(z.string(), z.string()).default({}),
-  checks: z.array(z.string()).default([]),
-  files: z.string(),
-  atlas: z.array(z.object({ name: z.string(), repo: z.string(), ref: z.string() })).default([]),
-});
+const PRESET_SCHEMA = z
+  .object({
+    presetVersion: z.number(),
+    side: z.string().refine((value): value is TAppSide => AppSides.isValid(value), {
+      message: `one of: ${[...AppSides.SCHEME_SET].join(', ')}`,
+    }),
+    summary: z.string(),
+    devPort: z.number().int().positive(),
+    dependencies: z.record(z.string(), z.string()).default({}),
+    devDependencies: z.record(z.string(), z.string()).default({}),
+    peers: z.record(z.string(), z.string()).default({}),
+    scripts: z.record(z.string(), z.string()).default({}),
+    checks: z.array(z.string()).default([]),
+    files: z.string(),
+    atlas: z.array(z.object({ name: z.string(), repo: z.string(), ref: z.string() })).default([]),
+  })
+  // A check is run as `bun run <check>`; an entry that is not a script could be a bun flag.
+  .superRefine((value, context) => {
+    value.checks.forEach((check, index) => {
+      if (!Object.hasOwn(value.scripts, check)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['checks', index],
+          message: `"${check}" is not a key of scripts`,
+        });
+      }
+    });
+  });
 
 const TOKEN = /\{\{(\w+)\}\}/g;
+const UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+const EXECUTABLE_BITS = 0o111;
+const PERMISSION_BITS = 0o777;
+
+const escapes = (opts: { root: string; path: string }): boolean => {
+  const relativePath = relative(opts.root, opts.path);
+
+  return isAbsolute(relativePath) || relativePath === '..' || relativePath.startsWith(`..${sep}`);
+};
+
+/** A path a preset names must stay inside its own package, with symlinks resolved. */
+const resolveInside = (opts: { root: string; from: string; path: string }): string | undefined => {
+  const resolved = resolve(opts.from, opts.path);
+
+  if (escapes({ root: opts.root, path: resolved })) {
+    return undefined;
+  }
+
+  if (
+    existsSync(resolved) &&
+    escapes({ root: realpathSync(opts.root), path: realpathSync(resolved) })
+  ) {
+    return undefined;
+  }
+
+  return resolved;
+};
+
+/** Text gets its tokens replaced; anything with a NUL byte or invalid UTF-8 is copied as it is. */
+const substituteTokens = (opts: { content: Buffer; tokens: Record<string, string> }): Buffer => {
+  if (opts.content.includes(0)) {
+    return opts.content;
+  }
+
+  try {
+    const text = UTF8.decode(opts.content);
+
+    return Buffer.from(text.replace(TOKEN, (match, key: string) => opts.tokens[key] ?? match));
+  } catch {
+    return opts.content;
+  }
+};
 
 export const parsePresetSpec = (opts: { value: string; cwd: string }): IPresetSpec => {
   if (opts.value.startsWith(CreateConstants.PRESET_FILE_PREFIX)) {
@@ -79,7 +143,16 @@ export const locatePreset = (opts: { spec: IPresetSpec; root: string }): TPreset
     };
   }
 
-  const raw = readJson({ file: join(packageRoot, field) });
+  const presetFile = resolveInside({ root: packageRoot, from: packageRoot, path: field });
+
+  if (presetFile === undefined) {
+    return {
+      ok: false,
+      error: `${shown}: vulcan.preset ${field} points outside the package`,
+    };
+  }
+
+  const raw = readJson({ file: presetFile });
 
   if (raw === undefined) {
     return { ok: false, error: `${shown}: ${field} is missing or not JSON` };
@@ -102,10 +175,20 @@ export const locatePreset = (opts: { spec: IPresetSpec; root: string }): TPreset
     return { ok: false, error: `${shown}: ${field}: ${issues}` };
   }
 
-  const preset = {
-    ...parsed.data,
-    files: join(dirname(join(packageRoot, field)), parsed.data.files),
-  } as IPreset;
+  const filesFolder = resolveInside({
+    root: packageRoot,
+    from: dirname(presetFile),
+    path: parsed.data.files,
+  });
+
+  if (filesFolder === undefined) {
+    return {
+      ok: false,
+      error: `${shown}: ${field}: files ${parsed.data.files} points outside the package`,
+    };
+  }
+
+  const preset = { ...parsed.data, files: filesFolder };
   const located: ILocatedPreset = { preset, packageRoot, packageName, packageVersion };
 
   return { ok: true, located };
@@ -119,17 +202,30 @@ export const copyPresetFiles = (opts: {
   const written: string[] = [];
 
   for (const path of new Glob('**/*').scanSync({ cwd: opts.located.preset.files, dot: true })) {
+    const source = join(opts.located.preset.files, path);
+
+    // A link could point at any file on the machine; only real files belong to the preset.
+    if (lstatSync(source).isSymbolicLink()) {
+      continue;
+    }
+
     const name = basename(path);
-    const relativePath = name.startsWith(CreateConstants.PRESET_DOTFILE_PREFIX)
-      ? join(dirname(path), `.${name.slice(CreateConstants.PRESET_DOTFILE_PREFIX.length)}`)
+    const relativePath = CreateConstants.PRESET_DOTFILE_NAMES.includes(name)
+      ? join(dirname(path), `.${name.slice(1)}`)
       : path;
-    const content = readFileSync(join(opts.located.preset.files, path), 'utf8').replace(
-      TOKEN,
-      (match, key: string) => opts.tokens[key] ?? match,
+    const destination = join(opts.target, relativePath);
+    const { mode } = statSync(source);
+
+    mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(
+      destination,
+      substituteTokens({ content: readFileSync(source), tokens: opts.tokens }),
     );
 
-    mkdirSync(dirname(join(opts.target, relativePath)), { recursive: true });
-    writeFileSync(join(opts.target, relativePath), content);
+    if (mode & EXECUTABLE_BITS) {
+      chmodSync(destination, mode & PERMISSION_BITS);
+    }
+
     written.push(relativePath);
   }
 

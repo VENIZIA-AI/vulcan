@@ -13,6 +13,7 @@ import {
   renderVulcanConfig,
   replaceAppsBlock,
 } from '../../create/workspace.ts';
+import { parseYamlMapping, splitFrontmatter } from '@venizia/vulcan-okf';
 import type { IAppsBlock, IPreset } from '../../create/index.ts';
 
 const PRESET: IPreset = {
@@ -168,6 +169,32 @@ describe('workspace planners', () => {
     expect(concept).toContain('resource: services/core-api');
     expect(concept).toContain('tags: [packages, backend]');
     expect(concept).toContain('@venizia/widget');
+  });
+
+  test('a summary with a newline, a colon and quotes still gives frontmatter that parses', () => {
+    const summary = 'Line one: a "quoted" part\nline two # not a comment, [brackets] & more';
+    const concept = renderAppConcept({
+      app: { name: 'core-api', side: 'backend', folder: 'services' },
+      summary,
+      presetPackage: '@venizia/widget',
+    });
+    const { yaml } = splitFrontmatter({ text: concept });
+    const parsed = parseYamlMapping({ yaml: yaml ?? '' });
+
+    expect(parsed.ok).toBe(true);
+    expect(parsed.ok && parsed.data.description).toBe(summary);
+    expect(parsed.ok && parsed.data.type).toBe('Package');
+    expect(parsed.ok && parsed.data.resource).toBe('services/core-api');
+    expect(parsed.ok && parsed.data.tags).toEqual(['packages', 'backend']);
+  });
+
+  test('a multi-line summary stays on one line in the knowledge index', () => {
+    const index = renderKnowledgeIndex({
+      project: 'my-product',
+      apps: [{ name: 'core-api', summary: 'First line\nsecond line' }],
+    });
+
+    expect(index).toContain('- [core-api](packages/core-api.md) - First line second line');
   });
 
   test('a log entry is a dated heading with one bullet', () => {

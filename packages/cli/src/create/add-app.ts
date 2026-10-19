@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { parseYamlMapping, splitFrontmatter } from '@venizia/vulcan-okf';
 import { ExitCodes } from '../common/index.ts';
 import { loadConfig, resolvePackages } from '../config/index.ts';
 import type { IProjectPackage, TResolvedConfig } from '../config/index.ts';
@@ -30,7 +31,6 @@ interface IRootManifest {
 }
 
 const KNOWLEDGE_DIRECTORY = '.agents/knowledge';
-const DESCRIPTION_LINE = /^description: (.*)$/m;
 const ROOT_HINT =
   'run it at the root of a monorepo vulcan init created (no layout in .configs/vulcan.config.*)';
 
@@ -59,9 +59,11 @@ const readRootManifest = (opts: { path: string }): IRootManifest | undefined => 
 /** The index line of an app already in the monorepo: the description its own concept carries. */
 const readSummary = (opts: { root: string; entry: IProjectPackage }): string => {
   const file = join(opts.root, KNOWLEDGE_DIRECTORY, 'packages', `${opts.entry.name}.md`);
-  const match = existsSync(file) ? DESCRIPTION_LINE.exec(readFileSync(file, 'utf8')) : null;
+  const { yaml } = splitFrontmatter({ text: existsSync(file) ? readFileSync(file, 'utf8') : '' });
+  const parsed = parseYamlMapping({ yaml: yaml ?? '' });
+  const description = parsed.ok ? parsed.data.description : undefined;
 
-  return match === null ? opts.entry.path : match[1];
+  return typeof description === 'string' ? description : opts.entry.path;
 };
 
 const literal = (opts: { block: IAppsBlock }): string[] => {
