@@ -16,8 +16,8 @@ const changelogItems = (): DefaultTheme.SidebarItem[] =>
     });
 
 export default defineConfig({
-  // GitHub Pages serves the project site under /vulcan/.
-  base: '/vulcan/',
+  // Served at the root of vulcan.venizia.ai.
+  base: '/',
   srcDir: '../content',
   outDir: './.vitepress/dist',
   srcExclude: ['changelogs/template.md'],
