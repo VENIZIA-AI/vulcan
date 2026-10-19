@@ -24,8 +24,10 @@ export default defineConfig({
   title: 'VULCAN',
   description: 'The agentic-coding toolkit for VENIZIA projects',
   cleanUrls: true,
+  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }]],
   lastUpdated: true,
   themeConfig: {
+    logo: '/logo.svg',
     nav: [
       { text: 'Guides', link: '/guides/adopting-vulcan' },
       { text: 'Changelogs', link: '/changelogs/' },
