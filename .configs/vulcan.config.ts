@@ -5,6 +5,7 @@ export default {
   rules: { 'V-W-01': 'on-user-word' },
   knowledge: {
     bundle: '.agents/knowledge',
+    wiki: 'docs/wiki/content',
     changelogs: 'docs/wiki/content/changelogs',
   },
   // In release order: okf, then atlas, then the cli that pins both.

@@ -39,7 +39,7 @@ The three always carry the same version. A project depends on `@venizia/vulcan` 
 Requires [Bun](https://bun.sh) 1.4 or newer.
 
 ```bash
-bun add -d --exact @venizia/vulcan@next @venizia/dev-configs
+bun add -d --exact @venizia/vulcan @venizia/dev-configs
 bun x --no-install vulcan init      # scaffold AGENTS.md, .configs/, .agents/, the Makefile include
 bun x --no-install vulcan sync      # write CLAUDE.md (@AGENTS.md), .claude/settings.json and the skill links
 bun x --no-install vulcan doctor    # check the project follows VULCAN

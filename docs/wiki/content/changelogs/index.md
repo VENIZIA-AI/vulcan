@@ -6,12 +6,13 @@ description: What changed in VULCAN, release by release, and what a project has 
 # Changelogs
 
 One entry per significant change, newest first. Each says what changed, who is affected and how to
-migrate. Copy [the template](./template.md) for a new entry, named `YYYY-MM-DD-<slug>.md`.
+migrate. Copy [the template](https://github.com/VENIZIA-AI/vulcan/blob/develop/docs/wiki/content/changelogs/template.md) for a new entry, named `YYYY-MM-DD-<slug>.md`.
 
 ## Recent changes
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-18 | [VULCAN 0.2.0: The First Stable Release](./2026-10-18-vulcan-0-2-0.md) | Enhancement |
 | 2026-10-18 | [VULCAN 0.2.0-9: The Remote-Host Guard Closes Six Gaps](./2026-10-18-vulcan-0-2-0-9.md) | Security, Enhancement |
 | 2026-10-18 | [VULCAN 0.2.0-8: atlas.packages Removed, a Concept Lock That Sees Members, a Self-Explaining Fresh Clone](./2026-10-18-vulcan-0-2-0-8.md) | Breaking Change, Enhancement, Bug Fix |
 | 2026-10-18 | [VULCAN 0.2.0-7: atlas help and tools, a doctor that checks the scaffold, init for workspaces](./2026-10-18-vulcan-0-2-0-7.md) | Enhancement, Bug Fix |

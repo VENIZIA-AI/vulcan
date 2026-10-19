@@ -23,7 +23,7 @@ The agent now has five tools: `search`, `get`, `symbol`, `version` and `changes`
   is missing is skipped with a warning naming it; the other exports still answer.
 - For `version` and `changes`, the project tags its releases. Its changelog directory
   (`knowledge.changelogs`) holds files named `YYYY-MM-DD-<slug>.md`, each declaring `packages:`
-  ([Adopting VULCAN](./adopting-vulcan.md), steps 4 and 5).
+  ([Adopting VULCAN](./adopting-vulcan.md), step 4).
 
 ## Ask a question
 
@@ -57,7 +57,7 @@ Read a hit in full with `get`. Drop the `#anchor` to read the whole document:
 |---|---|---|
 | `symbol` | `name`, `package?` | the package and import path a symbol comes from, its kind, its one-line signature, its file and line, and the chunk ids that document it. An unknown name answers `matches: []` and the `closest` known names |
 | `version` | `cwd?` | each installed package against the newest release atlas knows of |
-| `changes` | `package`, `from`, `to` | the changelog entries between two versions of a package - or, with no package, between two `YYYY-MM-DD` dates |
+| `changes` | `package?`, `from?`, `to?` | the changelog entries between two versions of a package - or, with no package, between two `YYYY-MM-DD` dates |
 
 A package is its npm name (`@venizia/ignis-kernel`). Its directory (`kernel`) or an alias from the
 manifest works too. Releases come from the project's git tags, so `changes` needs a clone with

@@ -1,6 +1,8 @@
 ---
 title: [Short, plain title - what a user would search for]
 description: [One sentence, plain - what changed and why it matters]
+# Mandatory: the npm names this entry is about; [] for repository tooling.
+packages: ['@venizia/vulcan']
 ---
 
 # Changelog - YYYY-MM-DD

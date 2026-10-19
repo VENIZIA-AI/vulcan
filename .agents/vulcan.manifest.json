@@ -26,6 +26,7 @@
   ],
   "knowledge": {
     "bundle": ".agents/knowledge",
+    "wiki": "docs/wiki/content",
     "changelogs": "docs/wiki/content/changelogs"
   },
   "release": {

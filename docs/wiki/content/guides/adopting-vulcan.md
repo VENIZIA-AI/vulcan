@@ -1,6 +1,6 @@
 ---
 title: Adopting VULCAN in a project
-description: Move a VENIZIA project (IGNIS, ARDOR, BANA or a new one) onto VULCAN 0.2.0-0 end to end - install, configure, sync, meet the project contract, verify, delete the old copies
+description: Move a VENIZIA project (IGNIS, ARDOR, BANA or a new one) onto VULCAN 0.2 end to end - install, configure, sync, meet the project contract, verify, delete the old copies
 ---
 
 # Adopting VULCAN in a project
@@ -10,7 +10,7 @@ atlas with one pinned devDependency. You keep only your project's layer: its con
 and its knowledge bundle. Follow the steps in order. Each one ends with a check.
 
 ```bash
-bun add -d --exact @venizia/vulcan@0.2.0-0 @venizia/dev-configs
+bun add -d --exact @venizia/vulcan @venizia/dev-configs
 bun x --no-install vulcan init
 bun x --no-install vulcan sync
 bun x --no-install vulcan doctor
@@ -21,16 +21,16 @@ package, and without the flag `bun x` downloads it when `@venizia/vulcan` is not
 
 ## 1. Install and pin
 
-Pin exactly, and commit `bun.lock`:
+Pin exactly, and commit `bun.lock`. Without a tag, `bun add` takes the `latest` release and `--exact` pins it:
 
 ```bash
-bun add -d --exact @venizia/vulcan@0.2.0-0 @venizia/dev-configs
+bun add -d --exact @venizia/vulcan @venizia/dev-configs
 ```
 
 `@venizia/vulcan` pins `@venizia/vulcan-okf` and `@venizia/vulcan-atlas` to its own version. VULCAN
 depends on no IGNIS package, so it never pins your project to an IGNIS release.
 
-**Check:** `bun x --no-install vulcan version` prints `0.2.0-0`.
+**Check:** `bun x --no-install vulcan version` prints the version `bun.lock` pins (`0.2.0` or newer).
 
 ## 2. Scaffold, then reconcile
 
@@ -85,6 +85,7 @@ export default {
 
 | Key | Meaning |
 |---|---|
+| `name` | the project name in the manifest and in every atlas result (lowercase, digits, `-`); default: the root package name, unscoped |
 | `agents` | the coding agents sync writes adapters for |
 | `rules` | the slot choices, by base ID |
 | `packages` | every package, in release order: `dir` (a unique key, not necessarily the directory name: two packages in directories both called `core` are `umbras-core` and `kits-core`, told apart by `path`), npm `name`, `path` (default `packages/<dir>`), `aliases` (old directory names, tag prefixes or npm names), `retired`. A repeated `dir`, `name` or live `path` is a config error |
