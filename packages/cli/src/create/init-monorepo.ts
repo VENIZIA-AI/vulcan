@@ -1,9 +1,9 @@
-import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { ExitCodes, ProjectLayout, VULCAN_VERSION } from '../common/index.ts';
 import { renderTemplate } from '../init/index.ts';
 import { runAppChecks } from './checks.ts';
-import { AppSides, CreateFlags } from './common/index.ts';
+import { CreateFlags } from './common/index.ts';
 import type {
   IAppsBlock,
   ILocatedPreset,
@@ -11,9 +11,11 @@ import type {
   IPresetSpec,
   TAppSide,
 } from './common/index.ts';
-import { askWithPrompt, readFlag, resolveNames } from './names.ts';
+import { today, writeFile } from './files.ts';
+import { askWithPrompt, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
 import { isInstallSkipped, runBun, runCommand } from './process.ts';
+import { installNpmPreset, withScratch } from './scratch.ts';
 import {
   renderAppConcept,
   renderAppManifest,
@@ -22,19 +24,6 @@ import {
   renderRootManifest,
   renderVulcanConfig,
 } from './workspace.ts';
-
-const SIDE_FIELDS: Record<TAppSide, INameField> = {
-  [AppSides.BACKEND]: {
-    key: 'folder',
-    flag: CreateFlags.BACKEND_DIR,
-    question: 'Backend folder (holds every backend app)',
-  },
-  [AppSides.FRONTEND]: {
-    key: 'folder',
-    flag: CreateFlags.FRONTEND_DIR,
-    question: 'Frontend folder (holds every frontend app)',
-  },
-};
 
 /** The VULCAN layer files; the knowledge index is rendered from the apps, not copied. */
 const LAYER_FILES = [
@@ -48,14 +37,6 @@ const LAYER_FILES = [
 const DEV_TARGET = '\ndev:\n\t@bun run dev\n';
 
 const BASE_IGNORES = ['node_modules/', 'dist/', '.env'];
-
-const today = (): string => new Date().toISOString().slice(0, 10);
-
-const writeFile = (opts: { root: string; path: string; content: string }): void => {
-  mkdirSync(dirname(join(opts.root, opts.path)), { recursive: true });
-  writeFileSync(join(opts.root, opts.path), opts.content);
-  process.stderr.write(`  created  ${opts.path}\n`);
-};
 
 const fail = (opts: { message: string }): number => {
   process.stderr.write(`vulcan init: ${opts.message}\n`);
@@ -82,30 +63,6 @@ const appFields = (opts: { side?: TAppSide }): INameField[] => [
     optional: true,
   },
 ];
-
-/** An npm preset is read from node_modules, so it is installed into a root that holds only a manifest. */
-const installNpmPreset = async (opts: {
-  root: string;
-  project: string;
-  spec: IPresetSpec;
-}): Promise<number> => {
-  writeFile({
-    root: opts.root,
-    path: 'package.json',
-    content: renderRootManifest({
-      project: opts.project,
-      workspaces: [],
-      catalog: {},
-      vulcanVersion: VULCAN_VERSION,
-    }),
-  });
-
-  return runBun({
-    cwd: opts.root,
-    args: ['add', `${opts.spec.packageName}@${opts.spec.range}`],
-    label: `bun add ${opts.spec.packageName}@${opts.spec.range}`,
-  });
-};
 
 const writeMonorepo = (opts: {
   root: string;
@@ -213,7 +170,11 @@ const writeMonorepo = (opts: {
   });
 };
 
-export const createMonorepo = async (opts: { cwd: string; args: string[] }): Promise<number> => {
+const runCreate = async (opts: {
+  cwd: string;
+  args: string[];
+  scratch: string;
+}): Promise<number> => {
   const presetValue = readFlag({ args: opts.args, flag: CreateFlags.PRESET });
 
   if (presetValue === undefined) {
@@ -267,13 +228,13 @@ export const createMonorepo = async (opts: { cwd: string; args: string[] }): Pro
       return fail({ message: early.error });
     }
 
-    const installed = await installNpmPreset({ root, project, spec });
+    const installed = await installNpmPreset({ scratch: opts.scratch, spec });
 
     if (installed !== ExitCodes.OK) {
       return installed;
     }
 
-    const result = locatePreset({ spec, root });
+    const result = locatePreset({ spec, root: opts.scratch });
 
     if (!result.ok) {
       return fail({ message: result.error });
@@ -349,3 +310,6 @@ export const createMonorepo = async (opts: { cwd: string; args: string[] }): Pro
 
   return ExitCodes.OK;
 };
+
+export const createMonorepo = async (opts: { cwd: string; args: string[] }): Promise<number> =>
+  withScratch({ run: scratch => runCreate({ ...opts, scratch }) });

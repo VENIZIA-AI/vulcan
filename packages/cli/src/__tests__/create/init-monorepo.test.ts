@@ -164,6 +164,52 @@ describe('vulcan init --preset', () => {
     expect(result.stderr).toContain('an npm preset needs an install');
   });
 
+  // The side flag is known only after the package is read, so the package is installed outside the
+  // target first. bun adds a file: range offline, which stands in for the registry here.
+  test('an npm preset with its side flag missing refuses and the target never exists', () => {
+    const parent = createProject({ files: {} });
+    const result = runCli({
+      args: [
+        'init',
+        '--preset',
+        `@fixture/backend@file:${BACKEND}`,
+        '--project',
+        'my-product',
+        '--app',
+        'core-api',
+      ],
+      cwd: parent,
+      env: { VULCAN_NO_INSTALL: '0' },
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('missing --backend-dir');
+    expect(existsSync(join(parent, 'my-product'))).toBe(false);
+  });
+
+  test('an npm package that ships no preset refuses and the target never exists', () => {
+    const parent = createProject({
+      files: { 'nopreset/package.json': '{ "name": "@fixture/none", "version": "1.0.0" }' },
+    });
+    const result = runCli({
+      args: [
+        'init',
+        '--preset',
+        `@fixture/none@file:${join(parent, 'nopreset')}`,
+        '--project',
+        'my-product',
+        '--app',
+        'core-api',
+      ],
+      cwd: parent,
+      env: { VULCAN_NO_INSTALL: '0' },
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('ships no VULCAN preset');
+    expect(existsSync(join(parent, 'my-product'))).toBe(false);
+  });
+
   test('a frontend preset makes the first app a frontend', () => {
     const parent = createProject({ files: {} });
     const frontend = join(import.meta.dir, '..', 'fixtures', 'preset-frontend');

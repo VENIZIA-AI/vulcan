@@ -1,5 +1,19 @@
-import { CreateConstants } from './common/index.ts';
-import type { INameField, TAsk, TNamesResult } from './common/index.ts';
+import { AppSides, CreateConstants, CreateFlags } from './common/index.ts';
+import type { INameField, TAppSide, TAsk, TNamesResult } from './common/index.ts';
+
+/** The folder holding every app of one side; `add` offers the one the config already holds. */
+export const SIDE_FIELDS: Record<TAppSide, INameField> = {
+  [AppSides.BACKEND]: {
+    key: 'folder',
+    flag: CreateFlags.BACKEND_DIR,
+    question: 'Backend folder (holds every backend app)',
+  },
+  [AppSides.FRONTEND]: {
+    key: 'folder',
+    flag: CreateFlags.FRONTEND_DIR,
+    question: 'Frontend folder (holds every frontend app)',
+  },
+};
 
 export const readFlag = (opts: { args: string[]; flag: string }): string | undefined => {
   const index = opts.args.indexOf(opts.flag);
