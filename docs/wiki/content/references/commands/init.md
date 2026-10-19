@@ -1,13 +1,14 @@
 ---
 title: vulcan init
-description: Scaffold the VULCAN project layer, configuration, rules, knowledge bundle and Makefile without overwriting existing files.
+description: Scaffold the VULCAN project layer, configuration, rules, knowledge bundle and Makefile, append to .gitignore and install the lint tools, without overwriting existing files.
 ---
 
 # vulcan init
 
 `vulcan init` scaffolds the project layer for a VULCAN project.
 The command writes configuration files, agent routing, rules, a knowledge bundle and a Makefile.
-`vulcan init` never overwrites an existing file.
+It also appends the agent entries to `.gitignore`, installs the lint tools with `bun add -d`, and ends with a numbered list of what is left to do.
+`vulcan init` never overwrites an existing file; `.gitignore` is the one file it appends to, and it keeps every line already there.
 
 To scaffold a project, run `vulcan init` at the repository root:
 
@@ -22,9 +23,13 @@ $ bun x --no-install vulcan init
   created  .configs/oxfmt.config.mts
   created  .configs/vulcan.config.mts
   created  Makefile
-  add      .gitignore: CLAUDE.md .claude/
-next: bun x --no-install vulcan sync && bun x --no-install vulcan doctor
+  updated  .gitignore: + CLAUDE.md CLAUDE.*.md .claude/ .agents/plans
+left to do:
+  1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
+  2. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
 ```
+
+The output of `bun add -d` appears between the file lines and `left to do:` when a package needs installing.
 
 ## Options
 
@@ -55,7 +60,7 @@ vulcan init: --config takes one of ts, mts, mjs, js
 
 ## Generated files
 
-`vulcan init` can write nine files at the repository root:
+`vulcan init` can write nine files at the repository root, and appends to a tenth, `.gitignore`:
 
 The project name in the generated files comes from `package.json` `name`, or from the directory name when there is none.
 It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index and the `Makefile`.
@@ -79,8 +84,9 @@ For each file and hint, `vulcan init` prints one line with an eight-column statu
 | Status | Meaning |
 |---|---|
 | `created` | `vulcan init` wrote the file from a shipped template |
+| `updated` | `vulcan init` appended missing lines to `.gitignore`; the lines already there are kept |
 | `kept` | The file exists on disk and `vulcan init` left it unchanged; each existing config is reported under its real name |
-| `add` | A required line or dependency is missing, printed as a hint |
+| `add` | A required line is missing from a file that `vulcan init` does not edit, printed as a hint |
 | `skipped` | `vulcan init` did not write the three lint configs because `package.json` declares `workspaces` |
 
 When you run `vulcan init` again on an initialized project, existing files receive the `kept` status:
@@ -95,11 +101,12 @@ $ bun x --no-install vulcan init
   kept     .configs/eslint.config.mjs
   kept     .configs/oxfmt.config.mts
   kept     .configs/vulcan.config.mts
-  add      .gitignore: CLAUDE.md .claude/
-next: bun x --no-install vulcan sync && bun x --no-install vulcan doctor
+left to do:
+  1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
+  2. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
 ```
 
-In this second run, `Makefile` produces no line because the required include line already exists.
+In this second run, `Makefile` and `.gitignore` produce no line because the include line and the ignore entries already exist, and no install runs because the dependencies are declared.
 
 ## Special cases and hints
 
@@ -125,17 +132,47 @@ If `.mcp.json` exists without an `"atlas"` entry, `vulcan init` prints an `add` 
 
 ### Configuration hints
 
-`vulcan init` prints hints for missing entries in existing project files instead of modifying them:
+`vulcan init` prints a hint for a missing entry in a file it does not edit:
 
-- For `.gitignore`: prints `add .gitignore:` followed by each of `CLAUDE.md` and `.claude/` that has no line of its own.
-- For `@venizia/dev-configs`: prints `add devDependency: bun add -d --exact @venizia/dev-configs` when absent from `dependencies` and `devDependencies`. The check also prints this hint when no `package.json` exists.
 - For `Makefile`: prints `add Makefile: -include node_modules/@venizia/vulcan/base/make/vulcan.mk` when the include line is missing.
+- For `.mcp.json`: prints the atlas entry, as described above.
 
-`add` lines stay until you make the edit yourself, because init only hints.
+Every `add` line is also listed in `left to do:` as `add <hint>`, and stays until you make the edit yourself, because init only hints.
+
+## Gitignore
+
+`vulcan init` appends the lines below to `.gitignore` when they have no line of their own, and creates the file when there is none:
+
+```text
+CLAUDE.md
+CLAUDE.*.md
+.claude/
+.agents/plans
+```
+
+Existing lines are kept in order, and the new lines follow them.
+Run on an initialized project, `vulcan init` changes nothing.
+
+## Dependencies
+
+`vulcan init` runs `bun add -d` for every package below that `dependencies` and `devDependencies` do not declare:
+
+| Project | Packages installed |
+|---|---|
+| Single package | `oxlint`, `oxlint-tsgolint`, `oxfmt`, `eslint`, `@venizia/dev-configs` |
+| `package.json` declares `workspaces` | `@venizia/dev-configs` |
+
+The four lint tools are optional peers of `@venizia/dev-configs`, so `bun` never installs them on its own.
+A workspaces project keeps the lint configs, and so the lint tools, in each app.
+If `bun add` fails, `vulcan init` prints `vulcan init: 'bun add ...' failed - run it yourself` and still exits with code 0.
+
+Set `VULCAN_NO_INSTALL=1` to print the command as `skipped  bun add -d ... (VULCAN_NO_INSTALL)` instead of running it.
+The test suites use this to run offline.
 
 ## After init
 
-`vulcan init` prints the next commands to run.
+`vulcan init` ends with `left to do:`, a numbered list.
+Item 1 is always the knowledge index; the `add` hints follow, then the `sync` and `doctor` command.
 
 To configure your project, edit `.configs/vulcan.config.<ext>`.
 The starter file provides baseline settings:

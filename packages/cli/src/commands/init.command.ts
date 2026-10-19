@@ -1,6 +1,7 @@
-import { ExitCodes, ProjectLayout } from '../common/index.ts';
+import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { ConfigExtensions } from '../config/index.ts';
+import { runBun } from '../create/process.ts';
 import { InitConstants, scaffoldProject } from '../init/index.ts';
 
 export const runInitCommand = async (opts: ICommandContext): Promise<number> => {
@@ -16,13 +17,23 @@ export const runInitCommand = async (opts: ICommandContext): Promise<number> => 
     return ExitCodes.FAILURE;
   }
 
-  for (const entry of scaffoldProject({ root: opts.cwd, extension })) {
+  const result = scaffoldProject({ root: opts.cwd, extension });
+
+  for (const entry of result.entries) {
     process.stderr.write(`  ${entry.status.padEnd(8)} ${entry.subject}\n`);
   }
 
-  process.stderr.write(
-    `next: ${ProjectLayout.VULCAN_COMMAND} sync && ${ProjectLayout.VULCAN_COMMAND} doctor\n`,
-  );
+  if (result.install.length > 0) {
+    const args = ['add', '-d', ...result.install];
+    const code = await runBun({ cwd: opts.cwd, args, label: `bun ${args.join(' ')}` });
+
+    if (code !== ExitCodes.OK) {
+      process.stderr.write(`vulcan init: 'bun ${args.join(' ')}' failed - run it yourself\n`);
+    }
+  }
+
+  process.stderr.write('left to do:\n');
+  result.todo.forEach((line, index) => process.stderr.write(`  ${index + 1}. ${line}\n`));
 
   return ExitCodes.OK;
 };

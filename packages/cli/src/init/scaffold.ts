@@ -25,6 +25,14 @@ const LINT_CONFIG_FILES: IScaffoldFile[] = [
   { path: '.configs/oxfmt.config.mts', template: 'oxfmt.config.mts' },
 ];
 
+export interface IScaffoldResult {
+  entries: IInitEntry[];
+  /** Packages to `bun add -d`, empty when everything is declared. */
+  install: string[];
+  /** What is left for the user, in order. */
+  todo: string[];
+}
+
 interface IPackageManifest {
   name?: unknown;
   workspaces?: unknown;
@@ -85,11 +93,11 @@ const writeIfAbsent = (opts: { root: string; path: string; content: string }): I
   return { status: InitStatuses.CREATED, subject: opts.path };
 };
 
-/** Scaffolds the project layer at `root`. Never overwrites: an existing file is kept and a needed edit becomes a hint. */
+/** Scaffolds the project layer at `root`. Never overwrites: an existing file is kept and a needed edit becomes a hint; only `.gitignore` is appended to, line by line. */
 export const scaffoldProject = (opts: {
   root: string;
   extension: TConfigExtension;
-}): IInitEntry[] => {
+}): IScaffoldResult => {
   const { root } = opts;
   const name = resolveProjectName({ root });
   const isWorkspaces = declaresWorkspaces({ root });
@@ -163,23 +171,33 @@ export const scaffoldProject = (opts: {
   }
 
   const gitignore = join(root, '.gitignore');
-  const ignored = existsSync(gitignore) ? readFileSync(gitignore, 'utf8').split('\n') : [];
-  const missingIgnores = ProjectLayout.GITIGNORE_ENTRIES.filter(entry => !ignored.includes(entry));
+  const existing = existsSync(gitignore) ? readFileSync(gitignore, 'utf8') : '';
+  const lines = existing.split('\n');
+  const missingIgnores = ProjectLayout.GITIGNORE_ENTRIES.filter(entry => !lines.includes(entry));
 
   if (missingIgnores.length > 0) {
-    entries.push({ status: InitStatuses.ADD, subject: `.gitignore: ${missingIgnores.join(' ')}` });
-  }
+    const separator = existing === '' || existing.endsWith('\n') ? '' : '\n';
 
-  const manifest = readManifest({ root });
-
-  if (
-    !(ProjectLayout.STYLE_PACKAGE in { ...manifest?.dependencies, ...manifest?.devDependencies })
-  ) {
+    writeFileSync(gitignore, `${existing}${separator}${missingIgnores.join('\n')}\n`);
     entries.push({
-      status: InitStatuses.ADD,
-      subject: `devDependency: bun add -d --exact ${ProjectLayout.STYLE_PACKAGE}`,
+      status: InitStatuses.UPDATED,
+      subject: `.gitignore: + ${missingIgnores.join(' ')}`,
     });
   }
 
-  return entries;
+  const manifest = readManifest({ root });
+  const declared = { ...manifest?.dependencies, ...manifest?.devDependencies };
+  const needed = isWorkspaces
+    ? [ProjectLayout.STYLE_PACKAGE]
+    : [...ProjectLayout.LINT_TOOLS, ProjectLayout.STYLE_PACKAGE];
+  const install = needed.filter(packageName => !(packageName in declared));
+  const todo = [
+    `describe the project in ${ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE}/index.md, then delete the ${ProjectLayout.SCAFFOLD_MARKER} line`,
+    ...entries
+      .filter(entry => entry.status === InitStatuses.ADD)
+      .map(entry => `add ${entry.subject}`),
+    `${ProjectLayout.VULCAN_COMMAND} sync && ${ProjectLayout.VULCAN_COMMAND} doctor`,
+  ];
+
+  return { entries, install, todo };
 };

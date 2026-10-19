@@ -52,6 +52,7 @@ The `style` check in `vulcan doctor` requires `@venizia/dev-configs` in `package
 bun x --no-install vulcan init
 ```
 
+`init` also appends the agent entries to `.gitignore`, installs the lint tools the generated configs run with `bun add -d`, and ends with a numbered list of what is left to do.
 For command options and file details, see the [init reference](/references/commands/init).
 
 **Check:** The command exits with code 0.
@@ -93,8 +94,7 @@ $ bun x --no-install vulcan sync
 ```
 
 If `bun init` created your project, its `CLAUDE.md` holds only Bun's tips, so `sync` replaces it with `@AGENTS.md`. A `CLAUDE.md` you wrote yourself is left alone.
-Add `CLAUDE.md` and `.claude/` to `.gitignore`.
-For file details, see the [init reference](/references/commands/init).
+`init` already added `CLAUDE.md`, `CLAUDE.*.md`, `.claude/` and `.agents/plans` to `.gitignore`.
 These adapter files stay local on each machine.
 Commit `.agents/vulcan.manifest.json` to version control.
 For details on adapter generation, see the [sync reference](/references/commands/sync).

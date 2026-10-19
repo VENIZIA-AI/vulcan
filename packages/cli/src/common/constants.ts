@@ -46,7 +46,9 @@ export class ProjectLayout {
   /** `-include`: a fresh clone runs `make install` before node_modules exists. */
   static readonly MAKE_INCLUDE_LINE = '-include node_modules/@venizia/vulcan/base/make/vulcan.mk';
   static readonly STYLE_PACKAGE = '@venizia/dev-configs';
-  static readonly GITIGNORE_ENTRIES = ['CLAUDE.md', '.claude/'];
+  static readonly GITIGNORE_ENTRIES = ['CLAUDE.md', 'CLAUDE.*.md', '.claude/', '.agents/plans'];
+  /** What the scaffolded lint configs run; optional peers of dev-configs, so bun never installs them alone. */
+  static readonly LINT_TOOLS = ['oxlint', 'oxlint-tsgolint', 'oxfmt', 'eslint'];
   /** Written into a scaffolded file the project must fill in; doctor fails the file while it holds this. */
   static readonly SCAFFOLD_MARKER = 'vulcan:scaffold';
 }
