@@ -24,7 +24,12 @@ export default defineConfig({
   title: 'VULCAN',
   description: 'The agentic-coding toolkit for VENIZIA projects',
   cleanUrls: true,
-  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }]],
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
+    ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }],
+    ['link', { rel: 'manifest', href: '/site.webmanifest' }],
+    ['meta', { name: 'theme-color', content: '#E8930A' }],
+  ],
   lastUpdated: true,
   themeConfig: {
     logo: '/logo.svg',
