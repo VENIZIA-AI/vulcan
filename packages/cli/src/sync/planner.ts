@@ -30,7 +30,7 @@ const NO_CHANGE = (): void => {};
 const isSymlink = (opts: { path: string }): boolean =>
   lstatSync(opts.path, { throwIfNoEntry: false })?.isSymbolicLink() ?? false;
 
-/** `CLAUDE.md` holds only `@AGENTS.md`: an old symlink is replaced, a hand-written file is left alone. */
+/** `CLAUDE.md` holds only `@AGENTS.md`: an old symlink or bun init's template is replaced, a hand-written file is left alone. */
 const planClaudeImport = (opts: { root: string }): ISyncAction => {
   const path = join(opts.root, SyncConstants.CLAUDE_TOOL_FILE);
   const write = (): void => writeFileSync(path, `${SyncConstants.CLAUDE_IMPORT_LINE}\n`);
@@ -51,14 +51,22 @@ const planClaudeImport = (opts: { root: string }): ISyncAction => {
     return { path, status: SyncStatuses.CREATED, apply: write };
   }
 
-  return readFileSync(path, 'utf8').trim() === SyncConstants.CLAUDE_IMPORT_LINE
-    ? { path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE }
-    : {
-        path,
-        status: SyncStatuses.SKIPPED,
-        note: `hand-written - delete it to let sync write '${SyncConstants.CLAUDE_IMPORT_LINE}'`,
-        apply: NO_CHANGE,
-      };
+  const content = readFileSync(path, 'utf8');
+
+  if (content.trim() === SyncConstants.CLAUDE_IMPORT_LINE) {
+    return { path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE };
+  }
+
+  if (content.trimStart().startsWith(SyncConstants.BUN_INIT_CLAUDE_MARKER)) {
+    return { path, status: SyncStatuses.REPLACED, note: "bun init's template", apply: write };
+  }
+
+  return {
+    path,
+    status: SyncStatuses.SKIPPED,
+    note: `hand-written - delete it to let sync write '${SyncConstants.CLAUDE_IMPORT_LINE}'`,
+    apply: NO_CHANGE,
+  };
 };
 
 const readSettingsFile = (opts: { path: string }): TSettings | undefined => {
