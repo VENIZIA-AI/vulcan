@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createFakeCommand } from '../fake-command.helper.ts';
 import { createProject, packFolder, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -69,6 +70,55 @@ describe('vulcan init --preset', () => {
     expect(result.stderr).toContain('skipped  git init');
     expect(result.stderr).toContain('skipped  bun run check');
     expect(result.stderr).toContain('cd my-product && make dev');
+  });
+
+  test('the Done message ends with the first app URL, from the preset dev port', () => {
+    const parent = createProject({ files: {} });
+    const result = runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    expect(result.stderr).toContain(
+      'Done. Next:\n  cd my-product && make dev\n  open http://localhost:3000\n',
+    );
+  });
+
+  test('a frontend first app gets its own dev port in the URL', () => {
+    const parent = createProject({ files: {} });
+    const frontend = join(import.meta.dir, '..', 'fixtures', 'preset-frontend');
+    const result = runCli({
+      args: [
+        'init',
+        '--preset',
+        `file:${frontend}`,
+        '--project',
+        'p',
+        '--frontend-dir',
+        'web',
+        '--app',
+        'admin',
+        '--no-api',
+      ],
+      cwd: parent,
+      env: ENV,
+    });
+
+    expect(result.stderr).toContain('open http://localhost:5173\n');
+  });
+
+  test('a missing git prints what to run and the rest of the flow still runs', () => {
+    const parent = createProject({ files: {} });
+    const result = runCli({
+      args: ['init', ...FLAGS],
+      cwd: parent,
+      env: {
+        VULCAN_BUN: createFakeCommand({ body: 'exit 0' }),
+        VULCAN_GIT: join(parent, 'no-such-git'),
+      },
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain('install git, then run: git init -b develop');
+    expect(result.stderr).toContain(join(parent, 'my-product'));
+    expect(result.stderr).toContain('Done. Next:');
   });
 
   test('the shared folder is skipped when not named', () => {

@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createFakeCommand } from '../fake-command.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -44,7 +45,7 @@ describe('vulcan init', () => {
 
   for (const extension of ['ts', 'mjs', 'js']) {
     test(`--config ${extension} writes that format only`, () => {
-      const root = createProject({ files: {} });
+      const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
 
       runCli({ args: ['init', '--config', extension], cwd: root, env: NO_INSTALL });
       expect(existsSync(join(root, `.configs/vulcan.config.${extension}`))).toBe(true);
@@ -61,7 +62,11 @@ describe('vulcan init', () => {
 
   test('never overwrites: existing files are kept, and the missing include is printed', () => {
     const root = createProject({
-      files: { 'AGENTS.md': '# mine\n', Makefile: 'build:\n\t@echo\n' },
+      files: {
+        'package.json': STYLED_PACKAGE,
+        'AGENTS.md': '# mine\n',
+        Makefile: 'build:\n\t@echo\n',
+      },
     });
     const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
 
@@ -107,6 +112,44 @@ describe('vulcan init', () => {
       'skipped  bun add -d --exact oxlint oxlint-tsgolint oxfmt eslint @venizia/dev-configs',
     );
     expect(readFileSync(join(root, 'package.json'), 'utf8')).toBe('{ "name": "demo" }');
+  });
+
+  test('the packages to install are listed before the install runs', () => {
+    const root = createProject({ files: { 'package.json': '{ "name": "demo" }' } });
+    const { stderr } = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const listed = stderr.indexOf(
+      'installing oxlint oxlint-tsgolint oxfmt eslint @venizia/dev-configs\n',
+    );
+
+    expect(listed).toBeGreaterThan(-1);
+    expect(listed).toBeLessThan(stderr.indexOf('skipped  bun add'));
+  });
+
+  test('a failed install exits 1, says what to run, and still lists what is left', () => {
+    const root = createProject({ files: { 'package.json': '{ "name": "demo" }' } });
+    const result = runCli({
+      args: ['init'],
+      cwd: root,
+      env: { VULCAN_BUN: createFakeCommand({ body: 'echo offline >&2; exit 7' }) },
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(
+      "vulcan init: 'bun add -d --exact oxlint oxlint-tsgolint oxfmt eslint @venizia/dev-configs' failed - run it yourself",
+    );
+    expect(result.stderr).toContain('left to do:');
+    expect(existsSync(join(root, 'AGENTS.md'))).toBe(true);
+  });
+
+  test('a directory without package.json is refused before anything is written', () => {
+    const root = createProject({ files: {} });
+    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('no package.json');
+    expect(result.stderr).toContain('bun init');
+    expect(existsSync(join(root, 'AGENTS.md'))).toBe(false);
+    expect(existsSync(join(root, '.configs'))).toBe(false);
   });
 
   test('declared lint tools are not installed again', () => {

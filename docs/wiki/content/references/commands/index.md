@@ -65,6 +65,11 @@ Spawning a child process ensures the newly installed version generates adapters 
 If `latest` is `0.2.0` and `next` is `0.2.0-9`, `--nightly` installs `0.2.0`. If `next` is `0.3.0-1`, it installs `0.3.0-1`.
 Passing `--stable` and `--nightly` together exits `1`.
 
+If the dist-tags cannot be used, `--nightly` prints `vulcan upgrade: --nightly could not read the dist-tags of @venizia/vulcan - pass a version instead` and exits `1`.
+That covers a failed `bun pm view` (its own error text is printed first), an answer that is not an object, and a `latest` or `next` value that is not a plain version.
+
+When the installed `@venizia/vulcan` is a prerelease and you run `upgrade` or `upgrade --stable`, the command prints one note: the stable channel installs the latest stable release, and `--nightly` keeps the prerelease line.
+
 ### Example run
 
 The following run upgrades `@venizia/vulcan` to version `0.2.0`:

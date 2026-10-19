@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { z } from 'zod';
+import { readProperty } from '../common/index.ts';
 import { AppSides, CreateConstants } from './common/index.ts';
 import type { ILocatedPreset, IPresetSpec, TAppSide, TPresetResult } from './common/index.ts';
 
@@ -133,8 +134,7 @@ export const locatePreset = (opts: { spec: IPresetSpec; root: string }): TPreset
   const packageName = String(manifest.name);
   const packageVersion = String(manifest.version);
   const shown = `${packageName}@${packageVersion}`;
-  const field = (manifest[CreateConstants.PRESET_FIELD] as { preset?: unknown } | undefined)
-    ?.preset;
+  const field = readProperty({ value: manifest[CreateConstants.PRESET_FIELD], key: 'preset' });
 
   if (typeof field !== 'string') {
     return {

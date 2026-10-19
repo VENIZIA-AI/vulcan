@@ -28,6 +28,12 @@ export class CreateConstants {
     '_env.example',
   ];
   static readonly STDIN_DESCRIPTOR = 0;
+  /** Tests only: set to `1`, every install, git and check command is printed as skipped instead of run. */
+  static readonly NO_INSTALL_ENV = 'VULCAN_NO_INSTALL';
+  /** Tests only: a path that stands in for the `bun` executable, so a test fakes success or failure. */
+  static readonly BUN_ENV = 'VULCAN_BUN';
+  /** Tests only: a path that stands in for the `git` executable. */
+  static readonly GIT_ENV = 'VULCAN_GIT';
   static readonly APPS_BLOCK_START =
     '// vulcan:apps:start - written by vulcan init and add; edit outside this block';
   static readonly APPS_BLOCK_END = '// vulcan:apps:end';

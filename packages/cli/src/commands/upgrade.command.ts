@@ -1,8 +1,9 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ExitCodes, PACKAGE_NAME, UpgradeFlags } from '../common/index.ts';
+import { ExitCodes, PACKAGE_NAME, readProperty, UpgradeFlags } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
-import { isInstallSkipped, runBun } from '../create/process.ts';
+import { CreateConstants } from '../create/common/index.ts';
+import { bunExecutable, isInstallSkipped, runBun } from '../create/process.ts';
 
 /** `latest` is the stable channel: never a prerelease. */
 const DEFAULT_TARGET = 'latest';
@@ -19,33 +20,66 @@ export const buildUpgradeArgs = (opts: { target?: string }): string[] => [
   `${PACKAGE_NAME}@${opts.target ?? DEFAULT_TARGET}`,
 ];
 
-/**
- * The one place that reads the registry: `bun pm view` goes through the project's own registry and
- * auth settings. `VULCAN_DIST_TAGS` replaces it so tests run offline. Undefined when the read fails.
- */
-export const readDistTags = async (opts: { cwd: string }): Promise<IDistTags | undefined> => {
-  const injected = process.env[UpgradeFlags.DIST_TAGS_ENV];
-  let text = injected;
+/** A tag that is present must be a plain version; anything else cannot be compared or installed. */
+const parseTag = (opts: { tags: unknown; key: keyof IDistTags }): string | undefined | null => {
+  const value = readProperty({ value: opts.tags, key: opts.key });
 
-  if (text === undefined) {
-    const child = Bun.spawn([process.execPath, 'pm', 'view', PACKAGE_NAME, 'dist-tags', '--json'], {
-      cwd: opts.cwd,
-      stdout: 'pipe',
-      stderr: 'pipe',
-    });
-
-    text = await new Response(child.stdout).text();
-
-    if ((await child.exited) !== ExitCodes.OK) {
-      return undefined;
-    }
+  if (value === undefined) {
+    return undefined;
   }
 
+  return typeof value === 'string' && CreateConstants.VERSION_PATTERN.test(value) ? value : null;
+};
+
+/** The `latest` and `next` tags of a registry answer, or undefined when it is not an object of versions. */
+export const parseDistTags = (opts: { text: string }): IDistTags | undefined => {
+  let parsed: unknown;
+
   try {
-    return JSON.parse(text);
+    parsed = JSON.parse(opts.text);
   } catch {
     return undefined;
   }
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return undefined;
+  }
+
+  const latest = parseTag({ tags: parsed, key: 'latest' });
+  const next = parseTag({ tags: parsed, key: 'next' });
+
+  return latest === null || next === null ? undefined : { latest, next };
+};
+
+/**
+ * The one place that reads the registry: `bun pm view` goes through the project's own registry and
+ * auth settings. `VULCAN_DIST_TAGS` replaces it so tests run offline. Undefined when the read fails,
+ * after printing why bun failed.
+ */
+export const readDistTags = async (opts: { cwd: string }): Promise<IDistTags | undefined> => {
+  const injected = process.env[UpgradeFlags.DIST_TAGS_ENV];
+
+  if (injected !== undefined) {
+    return parseDistTags({ text: injected });
+  }
+
+  const child = Bun.spawn([bunExecutable(), 'pm', 'view', PACKAGE_NAME, 'dist-tags', '--json'], {
+    cwd: opts.cwd,
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+  const [text, errorText] = await Promise.all([
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+  ]);
+
+  if ((await child.exited) !== ExitCodes.OK) {
+    process.stderr.write(errorText.endsWith('\n') ? errorText : `${errorText}\n`);
+
+    return undefined;
+  }
+
+  return parseDistTags({ text });
 };
 
 /** The higher of the two tags by semver, so a stale `next` never pulls a project below the stable release. */
@@ -57,6 +91,23 @@ export const pickNightly = (opts: IDistTags): string | undefined => {
   }
 
   return Bun.semver.order(next, latest) === 1 ? next : latest;
+};
+
+/** The version of the `@venizia/vulcan` the project has installed, undefined when none is readable. */
+const readInstalledVersion = (opts: { cwd: string }): string | undefined => {
+  const file = join(opts.cwd, 'node_modules', PACKAGE_NAME, 'package.json');
+
+  if (!existsSync(file)) {
+    return undefined;
+  }
+
+  try {
+    const version = readProperty({ value: JSON.parse(readFileSync(file, 'utf8')), key: 'version' });
+
+    return typeof version === 'string' ? version : undefined;
+  } catch {
+    return undefined;
+  }
 };
 
 /**
@@ -72,6 +123,14 @@ export const resolveUpgradeTarget = async (opts: ICommandContext): Promise<strin
   }
 
   if (!opts.args.includes(UpgradeFlags.NIGHTLY)) {
+    const installed = readInstalledVersion({ cwd: opts.cwd });
+
+    if (installed !== undefined && CreateConstants.PRERELEASE_PATTERN.test(installed)) {
+      process.stderr.write(
+        `vulcan upgrade: ${installed} is installed, a prerelease; ${UpgradeFlags.STABLE} installs the latest stable release and ${UpgradeFlags.NIGHTLY} keeps the prerelease line\n`,
+      );
+    }
+
     return DEFAULT_TARGET;
   }
 

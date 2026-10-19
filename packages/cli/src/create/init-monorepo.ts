@@ -14,7 +14,7 @@ import type {
 import { today, writeFile } from './files.ts';
 import { askWithPrompt, findFolderClash, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
-import { isInstallSkipped, runBun, runCommand } from './process.ts';
+import { isInstallSkipped, runBun, runGitInit } from './process.ts';
 import { installNpmPreset, withScratch } from './scratch.ts';
 import {
   filePresetWarning,
@@ -309,8 +309,7 @@ const runCreate = async (opts: {
 
   for (const step of [
     () => runBun({ cwd: root, args: ['install'], label: 'bun install' }),
-    () =>
-      runCommand({ cwd: root, command: ['git', 'init', '-q', '-b', 'develop'], label: 'git init' }),
+    () => runGitInit({ cwd: root }),
     // The installed CLI syncs, so the project is wired to the version it pins.
     () =>
       runBun({
@@ -332,7 +331,10 @@ const runCreate = async (opts: {
     }
   }
 
-  process.stderr.write(`Done. Next:\n  cd ${project} && make dev\n`);
+  // The preset's own port: nothing else is in this project yet, so it is the one the app listens on.
+  process.stderr.write(
+    `Done. Next:\n  cd ${project} && make dev\n  open http://localhost:${located.preset.devPort}\n`,
+  );
 
   return ExitCodes.OK;
 };

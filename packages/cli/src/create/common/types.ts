@@ -16,6 +16,9 @@ export interface INameField {
 
 export type TAsk = (opts: { question: string; previous?: string }) => string | null;
 
+/** Reads at most one byte into `buffer` and returns how many were read; 0 is end of input. */
+export type TByteReader = (opts: { descriptor: number; buffer: Buffer }) => number;
+
 export type TNamesResult =
   | { ok: true; names: Record<string, string> }
   | { ok: false; error: string };

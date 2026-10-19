@@ -27,7 +27,7 @@ A preset is a framework's app template: `preset.json` plus a `files/` folder, fo
 - `files/` is copied with `{{project}}`, `{{app}}`, `{{devPort}}` and `{{apiUrl}}` replaced; only `_gitignore`, `_npmrc`, `_env` and `_env.example` are written as dotfiles (npm drops dotfiles); binary files are copied byte for byte, symlinks are skipped, and `vulcan.preset`, `files` and every `checks` entry are validated (inside the package, a key of `scripts`).
 - The config keeps `layout`, `packages` and the preset's `atlas` sources between the `vulcan:apps:start` and `vulcan:apps:end` comments. `add` rewrites only that block, and refuses with the lines to paste when the markers are gone.
 - `add` keeps the catalog's versions over the preset's, refuses a preset whose `peers` the catalog does not satisfy, and picks the next free port from the apps' `.env.example`.
-- `VULCAN_NO_INSTALL=1` (tests only) prints the install, `git init`, `sync` and the checks as `skipped` lines. An npm preset needs the install, so the tests use `file:` presets (`src/__tests__/fixtures/preset-*`).
+- `VULCAN_NO_INSTALL=1` (tests only) prints the install, `git init`, `sync` and the checks as `skipped` lines. An npm preset needs the install, so the tests use `file:` presets (`src/__tests__/fixtures/preset-*`). `VULCAN_BUN` and `VULCAN_GIT` (tests only) replace the `bun` and `git` executables, so a test can make an install or `git init` fail without the network.
 - `doctor` has an `apps` check: every `layout` folder is a workspace and every package lives in one.
 
 Wiki pages: `references/commands/init.md`, `references/commands/add.md` and `references/presets.md` under `docs/wiki/content/`.

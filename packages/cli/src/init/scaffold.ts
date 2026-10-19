@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative } from 'node:path';
-import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
+import { BASE_DIRECTORY, ProjectLayout, readProperty } from '../common/index.ts';
 import { ConfigConstants, findConfigFiles } from '../config/index.ts';
 import type { TConfigExtension } from '../config/index.ts';
 import { InitConstants, InitStatuses } from './common/index.ts';
@@ -100,7 +100,7 @@ export const readWorkspaceGlobs = (opts: { root: string }): string[] => {
     return workspaces.map(String);
   }
 
-  const packages = (workspaces as { packages?: unknown } | undefined)?.packages;
+  const packages = readProperty({ value: workspaces, key: 'packages' });
 
   return Array.isArray(packages) ? packages.map(String) : [];
 };

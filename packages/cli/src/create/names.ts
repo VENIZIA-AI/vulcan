@@ -1,7 +1,7 @@
 import { readSync } from 'node:fs';
 
 import { AppSides, CreateConstants, CreateFlags } from './common/index.ts';
-import type { INameField, TAppSide, TAsk, TNamesResult } from './common/index.ts';
+import type { INameField, TAppSide, TAsk, TByteReader, TNamesResult } from './common/index.ts';
 
 /** The folder holding every app of one side; `add` offers the one the config already holds. */
 export const SIDE_FIELDS: Record<TAppSide, INameField> = {
@@ -28,24 +28,42 @@ const isValidName = (opts: { name: string }): boolean =>
 
 const NEWLINE = 0x0a;
 const CARRIAGE_RETURN = 0x0d;
+const RETRY_PAUSE_MILLISECONDS = 5;
+
+const readFromDescriptor: TByteReader = opts => readSync(opts.descriptor, opts.buffer, 0, 1, null);
+
+/** A sleep that does not burn the CPU: nothing else runs on this thread while a prompt waits. */
+const pauseBriefly = (): void => {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, RETRY_PAUSE_MILLISECONDS);
+};
+
+const isWouldBlock = (opts: { error: unknown }): boolean =>
+  opts.error instanceof Error && 'code' in opts.error && opts.error.code === 'EAGAIN';
 
 /**
  * One line from a file descriptor, read byte by byte so nothing past the newline is consumed.
  * Not Bun's prompt(): it returns null for an empty line, which is not end of input. An empty line
- * is '' here; null is only end of input (Ctrl-D, closed stdin) with nothing read.
+ * is '' here; null is only end of input (Ctrl-D, closed stdin) with nothing read. `read` and `pause`
+ * are replaceable so a test can drive the non-blocking retry without a real pipe.
  */
-export const readLine = (opts: { descriptor: number }): string | null => {
-  const byte = Buffer.alloc(1);
+export const readLine = (opts: {
+  descriptor: number;
+  read?: TByteReader;
+  pause?: () => void;
+}): string | null => {
+  const { descriptor, read = readFromDescriptor, pause = pauseBriefly } = opts;
+  const buffer = Buffer.alloc(1);
   const bytes: number[] = [];
 
   for (;;) {
     let count = 0;
 
     try {
-      count = readSync(opts.descriptor, byte, 0, 1, null);
+      count = read({ descriptor, buffer });
     } catch (error) {
       // A non-blocking pipe with nothing buffered yet: wait for the writer instead of failing.
-      if ((error as NodeJS.ErrnoException).code === 'EAGAIN') {
+      if (isWouldBlock({ error })) {
+        pause();
         continue;
       }
 
@@ -56,11 +74,13 @@ export const readLine = (opts: { descriptor: number }): string | null => {
       return bytes.length === 0 ? null : Buffer.from(bytes).toString('utf8');
     }
 
-    if (byte[0] === NEWLINE) {
+    const value = buffer.readUInt8(0);
+
+    if (value === NEWLINE) {
       break;
     }
 
-    bytes.push(byte[0]!);
+    bytes.push(value);
   }
 
   if (bytes.at(-1) === CARRIAGE_RETURN) {

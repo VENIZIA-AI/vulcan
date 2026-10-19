@@ -184,4 +184,54 @@ describe('readLine', () => {
       run: descriptor => expect(readLine({ descriptor })).toBe('caf\u00e9'),
     });
   });
+
+  describe('a non-blocking pipe with nothing buffered yet', () => {
+    /** A reader that fails with EAGAIN `failures` times, then serves `content` one byte at a time. */
+    const flaky = (opts: { failures: number; content: string }) => {
+      const bytes = Buffer.from(opts.content);
+      let remaining = opts.failures;
+      let position = 0;
+
+      return (reading: { descriptor: number; buffer: Buffer }): number => {
+        if (remaining > 0) {
+          remaining -= 1;
+          throw Object.assign(new Error('resource temporarily unavailable'), { code: 'EAGAIN' });
+        }
+
+        if (position >= bytes.length) {
+          return 0;
+        }
+
+        reading.buffer.writeUInt8(bytes.readUInt8(position), 0);
+        position += 1;
+
+        return 1;
+      };
+    };
+
+    test('waits briefly before each retry instead of spinning', () => {
+      let pauses = 0;
+
+      expect(
+        readLine({
+          descriptor: 0,
+          read: flaky({ failures: 3, content: 'libs\n' }),
+          pause: () => {
+            pauses += 1;
+          },
+        }),
+      ).toBe('libs');
+      expect(pauses).toBe(3);
+    });
+
+    test('any other read error is thrown, not retried', () => {
+      const broken = (): number => {
+        throw Object.assign(new Error('bad descriptor'), { code: 'EBADF' });
+      };
+
+      expect(() => readLine({ descriptor: 0, read: broken, pause: () => {} })).toThrow(
+        'bad descriptor',
+      );
+    });
+  });
 });

@@ -70,6 +70,7 @@ When all pass, it prints the next step:
 ```text
 Done. Next:
   cd my-product && make dev
+  open http://localhost:3000
 ```
 
 For every file and message, see the [init reference](/references/commands/init#create-a-monorepo-with-preset).

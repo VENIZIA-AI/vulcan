@@ -33,7 +33,15 @@ left to do:
   2. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
 ```
 
-The output of `bun add -d` appears between the file lines and `left to do:` when a package needs installing.
+When a package needs installing, `installing <packages>` appears between the file lines and `left to do:`, followed by the output of `bun add -d`.
+
+Run `vulcan init` in a directory that holds a `package.json` (`bun init` writes one).
+Without it, `vulcan init` writes nothing and exits with code 1, because `bun add` would otherwise install into the nearest parent project:
+
+```text
+$ bun x --no-install vulcan init
+vulcan init: no package.json in ~/work/demo - run 'bun init' first, or use --preset to create a new project
+```
 
 ## Options
 
@@ -168,7 +176,8 @@ Run on an initialized project, `vulcan init` changes nothing.
 
 The four lint tools are optional peers of `@venizia/dev-configs`, so `bun` never installs them on its own.
 A workspaces project keeps the lint configs, and so the lint tools, in each app.
-If `bun add` fails, `vulcan init` prints `vulcan init: 'bun add ...' failed - run it yourself` and still exits with code 0.
+Before it runs, `vulcan init` prints `installing <packages>` with the list.
+If `bun add` fails, `vulcan init` prints `vulcan init: 'bun add ...' failed - run it yourself`, still prints `left to do:`, and exits with code 1.
 
 Set `VULCAN_NO_INSTALL=1` to print the command as `skipped  bun add -d ... (VULCAN_NO_INSTALL)` instead of running it.
 The test suites use this to run offline.
@@ -248,6 +257,7 @@ $ bun x @venizia/vulcan init --preset file:./acme-api
   skipped  bun x --no-install vulcan x okf check --strict (VULCAN_NO_INSTALL)
 Done. Next:
   cd my-product && make dev
+  open http://localhost:3000
 ```
 
 The `skipped` lines appear only because the run sets `VULCAN_NO_INSTALL=1`, which prints the install, `git init`, `sync` and the checks instead of running them.
@@ -316,14 +326,14 @@ Edit the config outside that block.
 After the files, `init` runs these in order, in the new project:
 
 1. `bun install`
-2. `git init` on the branch `develop`
+2. `git init` on the branch `develop`; when `git` is missing, `init` prints `install git, then run: git init -b develop` with the project folder and goes on
 3. `vulcan sync`, run by the installed version
 4. each script listed in the preset's `checks`, with `bun run <script>` in the app
 5. `vulcan doctor`
 6. `vulcan x okf check --strict`
 
 The first failure stops the command with that command's output. The project stays on disk for you to inspect.
-When everything passes, `init` prints `Done. Next:` and `cd <project> && make dev`.
+When everything passes, `init` prints `Done. Next:`, `cd <project> && make dev` and `open http://localhost:<devPort>`, the dev port the preset declares for the first app (a frontend app too).
 
 Add more apps later with [`vulcan add`](/references/commands/add).
 
