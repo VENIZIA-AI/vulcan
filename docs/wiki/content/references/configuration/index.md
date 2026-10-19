@@ -311,18 +311,15 @@ To configure custom generators and view built-in renderer options, see the [rend
 
 ## atlas
 
-The `atlas` object configures release tags and external repository sources. `vulcan sync` writes `release: { tagPattern, legacyTagPrefixes, ignoreTags }` and `sources` to `.agents/vulcan.manifest.json`. Atlas reads `sources` from the manifest to clone and query knowledge across external repositories.
+The `atlas` object configures release tags and external repository sources. `vulcan sync` writes `release: { tagPattern, ignoreTags }` and `sources` to `.agents/vulcan.manifest.json`. Atlas reads `sources` from the manifest to clone and query knowledge across external repositories.
 
-The keys `releaseCommit` and `typescriptFrom` are accepted and validated, but no tool reads them in 0.2.
+The keys `releaseCommit`, `typescriptFrom` and `legacyTagPrefixes` were removed because no tool read them. A config that still sets one fails with an error naming the key.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` or `<package>` |
 | `sources` | `Array<object>` | `[]` | External repositories to query through atlas |
-| `legacyTagPrefixes` | `string[]` | `undefined` | Prefixes for legacy release tags written to the manifest |
 | `ignoreTags` | `string[]` | `undefined` | Glob patterns of git tags ignored by checks |
-| `releaseCommit` | `string` | `'[#<issue>] chore(<dir>): release v<version>'` | Accepted, but no tool reads it in 0.2 |
-| `typescriptFrom` | `string` | `undefined` | Accepted, but no tool reads it in 0.2 |
 
 ### tagPattern and the tags check
 
@@ -527,7 +524,6 @@ export default {
   },
   atlas: {
     tagPattern: '<dir>-v<version>',
-    releaseCommit: '[#<issue>] chore(<dir>): release v<version>',
     sources: [
       { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
     ],

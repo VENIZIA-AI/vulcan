@@ -104,7 +104,7 @@ describe('vulcan init', () => {
     const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
 
     expect(result.stderr).toContain(
-      'skipped  bun add -d oxlint oxlint-tsgolint oxfmt eslint @venizia/dev-configs',
+      'skipped  bun add -d --exact oxlint oxlint-tsgolint oxfmt eslint @venizia/dev-configs',
     );
     expect(readFileSync(join(root, 'package.json'), 'utf8')).toBe('{ "name": "demo" }');
   });
@@ -127,7 +127,9 @@ describe('vulcan init', () => {
     });
     const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
 
-    expect(result.stderr).toContain('skipped  bun add -d @venizia/dev-configs (VULCAN_NO_INSTALL)');
+    expect(result.stderr).toContain(
+      'skipped  bun add -d --exact @venizia/dev-configs (VULCAN_NO_INSTALL)',
+    );
   });
 
   test('ends with a numbered list naming the scaffold marker', () => {
@@ -179,6 +181,19 @@ describe('vulcan init', () => {
     expect(readFileSync(join(root, '.mcp.json'), 'utf8')).toBe(mine);
     expect(result.stderr).toContain('kept     .mcp.json');
     expect(result.stderr).not.toContain('the atlas server');
+  });
+
+  test('an existing .mcp.json whose server runs atlas mcp under another name gets no hint', () => {
+    const root = createProject({
+      files: {
+        'package.json': STYLED_PACKAGE,
+        '.mcp.json':
+          '{ "mcpServers": { "ignis-kb": { "command": "sh", "args": ["-c", "bun x --no-install vulcan x atlas mcp"] } } }',
+      },
+    });
+    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+
+    expect(result.stderr).not.toContain('.mcp.json: the atlas server');
   });
 
   test('the Makefile explains itself when vulcan.mk is missing: a shipped target says to install first, the project own targets still run', () => {

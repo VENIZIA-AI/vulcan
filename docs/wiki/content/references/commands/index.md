@@ -17,7 +17,9 @@ Usage: bun x vulcan <command>
   sync [--dry-run] [--prune]      Write the gitignored agent adapters (CLAUDE.md, .claude/);
                                   --prune also removes stale hooks and dead skill links
   doctor                          Check the project follows VULCAN; exit 1 on any violation
-  upgrade [<version|tag>]         Bump the pinned @venizia/vulcan, then sync
+  upgrade [--stable | --nightly] [<version|tag>]
+                                  Bump the pinned @venizia/vulcan, then sync; --stable (default)
+                                  takes the latest tag, --nightly the newest of latest and next
   x <tool> [args...]              Run a shipped tool at the pinned version: okf, atlas
   help · version
 ```
@@ -45,12 +47,17 @@ Spawning a child process ensures the newly installed version generates adapters 
 
 ### Argument forms
 
-You can invoke `upgrade` in two ways:
+`--stable` is the default. Choose the channel with a flag, or name a version. The channel is never stored in the config.
 
-| Syntax | Target version | Behavior |
+| Syntax | Installs | Behavior |
 |---|---|---|
-| `bun x --no-install vulcan upgrade` | `next` | Installs the prerelease distribution tag `next` and runs sync |
-| `bun x --no-install vulcan upgrade <version\|tag>` | Specified version or tag | Installs the explicit version or tag and runs sync |
+| `bun x --no-install vulcan upgrade` | `latest` | The stable release; never a prerelease. Same as `--stable` |
+| `bun x --no-install vulcan upgrade --nightly` | The higher of `latest` and `next` | The newest published version, by semver. Never older than the stable release |
+| `bun x --no-install vulcan upgrade <version\|tag>` | The version or tag you name | Wins over `--stable` and `--nightly` |
+
+`--nightly` reads the dist-tags of `@venizia/vulcan` with `bun pm view`, so it uses the registry your project is configured for.
+If `latest` is `0.2.0` and `next` is `0.2.0-9`, `--nightly` installs `0.2.0`. If `next` is `0.3.0-1`, it installs `0.3.0-1`.
+Passing `--stable` and `--nightly` together exits `1`.
 
 ### Example run
 
@@ -79,7 +86,7 @@ The command exits 0 on success.
 
 `vulcan upgrade` exits `0` on success.
 The command exits `1` when `node_modules/.bin/vulcan` is missing.
-It also exits `1` on an unknown argument, such as an option or a second positional argument.
+It also exits `1` on an unknown argument, on `--stable` with `--nightly`, and on `--nightly` when the dist-tags cannot be read.
 Otherwise, the command returns the exit code of `bun add` or of the child `vulcan sync`.
 
 ## x

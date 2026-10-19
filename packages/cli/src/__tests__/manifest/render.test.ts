@@ -52,7 +52,6 @@ describe('renderManifest', () => {
     });
     expect(manifest.release).toEqual({
       tagPattern: '<dir>-v<version>',
-      legacyTagPrefixes: [],
       ignoreTags: ['*/0.0.1-0'],
     });
     expect(manifest.rules.project).toBe('.agents/rules.md');

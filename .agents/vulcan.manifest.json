@@ -31,7 +31,6 @@
   },
   "release": {
     "tagPattern": "v<version>",
-    "legacyTagPrefixes": [],
     "ignoreTags": []
   },
   "rules": {

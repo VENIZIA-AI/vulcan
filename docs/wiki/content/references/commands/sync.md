@@ -203,7 +203,6 @@ The committed manifest records resolved project metadata:
   },
   "release": {
     "tagPattern": "v<version>",
-    "legacyTagPrefixes": [],
     "ignoreTags": []
   },
   "rules": {

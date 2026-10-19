@@ -162,7 +162,12 @@ Pass the target version to `vulcan upgrade`:
 bun x --no-install vulcan upgrade 0.2.0
 ```
 
-Without a version argument, `vulcan upgrade` installs the `next` prerelease tag.
+Without a version argument, `vulcan upgrade` installs the stable `latest` release. Add `--nightly` to take the newest of `latest` and `next`, which can be a prerelease:
+
+```bash
+bun x --no-install vulcan upgrade --nightly
+```
+
 The command installs the target release and runs `vulcan sync` with the newly installed CLI.
 Commit `.agents/vulcan.manifest.json` if it changed.
 For all available commands, see the [commands reference](/references/commands/).

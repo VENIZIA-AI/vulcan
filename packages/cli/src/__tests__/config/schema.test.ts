@@ -36,7 +36,6 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({});
 
     expect(config.atlas.tagPattern).toBe('<dir>-v<version>');
-    expect(config.atlas.releaseCommit).toBe('[#<issue>] chore(<dir>): release v<version>');
     expect(config.atlas.sources).toEqual([]);
   });
 
@@ -59,6 +58,19 @@ describe('resolvePackages', () => {
     expect(result.success).toBe(false);
     expect(messages.join('; ')).toContain('atlas.packages was removed');
     expect(messages.join('; ')).toContain('packages: [{ dir');
+  });
+
+  test.each([
+    ['releaseCommit', '[#<issue>] chore(<dir>): release v<version>'],
+    ['typescriptFrom', '.'],
+    ['legacyTagPrefixes', ['old-']],
+  ])('atlas.%s was removed: the error names the key and says no tool reads it', (key, value) => {
+    const result = VULCAN_CONFIG_SCHEMA.safeParse({ atlas: { [key]: value } });
+    const messages = result.success ? [] : result.error.issues.map(issue => issue.message);
+
+    expect(result.success).toBe(false);
+    expect(messages.join('; ')).toContain(`atlas.${key} was removed`);
+    expect(messages.join('; ')).toContain('no tool reads it');
   });
 
   test('without packages the list is empty', () => {

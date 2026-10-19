@@ -67,7 +67,7 @@ const SOURCE_FILES: Record<string, string> = {
         },
       ],
       knowledge: { bundle: '.agents/knowledge', changelogs: 'docs/changelogs' },
-      release: { tagPattern: '<dir>-v<version>', legacyTagPrefixes: [], ignoreTags: [] },
+      release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
     },
     null,
     2,

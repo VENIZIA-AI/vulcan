@@ -45,7 +45,7 @@ const SOURCE_MANIFEST = {
     { name: '@smoke/kernel', dir: 'kernel', path: 'packages/kernel', aliases: [], retired: false },
   ],
   knowledge: { bundle: '.agents/knowledge', changelogs: 'docs/changelogs' },
-  release: { tagPattern: '<dir>-v<version>', legacyTagPrefixes: [], ignoreTags: [] },
+  release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
 };
 
 const SOURCE_FILES: Record<string, string> = {

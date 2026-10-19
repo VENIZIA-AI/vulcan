@@ -25,7 +25,7 @@ describe('readAtlasProject', () => {
           },
         ],
         knowledge: { bundle: '.agents/knowledge', changelogs: 'docs/changelogs' },
-        release: { tagPattern: 'v<version>', legacyTagPrefixes: [], ignoreTags: ['old/*'] },
+        release: { tagPattern: 'v<version>', ignoreTags: ['old/*'] },
       },
     });
     const project = readAtlasProject();

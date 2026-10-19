@@ -5,6 +5,6 @@
     { "name": "@acme/core", "dir": "core", "path": "packages/core", "aliases": [], "retired": false }
   ],
   "knowledge": { "bundle": "docs/knowledge", "changelogs": "changes" },
-  "release": { "tagPattern": "v<version>", "legacyTagPrefixes": [], "ignoreTags": [] },
+  "release": { "tagPattern": "v<version>", "ignoreTags": [] },
   "rules": { "project": ".agents/rules.md", "base": {} }
 }

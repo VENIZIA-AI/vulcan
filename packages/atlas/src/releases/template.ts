@@ -6,7 +6,7 @@ const escapeLiteral = (opts: { text: string }): string =>
   opts.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * A release template (`atlas.releaseCommit`) as the pattern that reads a commit subject: named groups
+ * A release template as the pattern that reads a commit subject: named groups
  * `dir` (`<dir>` or its synonym `<package>`; it may hold slashes, `apps/core`), `version` and `issue`. Every other character is literal;
  * a trailing ` [<mode>]` is tolerated. A template with no `<dir>` is a release train's: its commit
  * releases every live package.

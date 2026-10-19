@@ -168,9 +168,6 @@ none of its packages is installed here or on npm
 |---|---|---|---|
 | `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` or `<package>` |
 | `ignoreTags` | `string[]` | `undefined` | Globs of tags to ignore. Read by `vulcan doctor` (`[tags]`) and by atlas when it computes releases |
-| `legacyTagPrefixes` | `string[]` | `undefined` | Accepted and written to the manifest, but no tool reads it in 0.2 |
-| `releaseCommit` | `string` | `'[#<issue>] chore(<dir>): release v<version>'` | Template for release commit messages; accepted, but no tool reads it in 0.2 |
-| `typescriptFrom` | `string` | `undefined` | Path where TypeScript resolves; accepted, but no tool reads it in 0.2 |
 
 ### Template placeholders
 

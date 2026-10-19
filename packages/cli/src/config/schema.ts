@@ -68,6 +68,14 @@ const RELEASE_TEMPLATE = z.string().refine(value => value.includes('<version>'),
   message: 'a template with <version> (and <dir> or <package> for per-package releases)',
 });
 
+/** A key the config once accepted and no tool ever read: still named, so the error says it is gone rather than "unrecognized". */
+const removedAtlasKey = (opts: { key: string }) =>
+  z
+    .never({
+      error: `atlas.${opts.key} was removed - no tool reads it; delete it from the config`,
+    })
+    .optional();
+
 /** A renderer by id: a built-in, or a project module (`module`); a bare string is the id alone. */
 const OKF_RENDERER = z.union([
   z.string().transform(id => ({ id, options: {} })),
@@ -166,7 +174,9 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
             'atlas.packages was removed - move the list to the top-level packages: [{ dir, name }] (release order; dir is the old key, name the old value)',
         })
         .optional(),
-      releaseCommit: RELEASE_TEMPLATE.default('[#<issue>] chore(<dir>): release v<version>'),
+      releaseCommit: removedAtlasKey({ key: 'releaseCommit' }),
+      typescriptFrom: removedAtlasKey({ key: 'typescriptFrom' }),
+      legacyTagPrefixes: removedAtlasKey({ key: 'legacyTagPrefixes' }),
       tagPattern: RELEASE_TEMPLATE.default('<dir>-v<version>'),
       sources: z
         .array(
@@ -177,13 +187,10 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
           }),
         )
         .default([]),
-      legacyTagPrefixes: z.array(z.string()).optional(),
       /** Tags neither read nor checked (globs) - an old layout's tags. */
       ignoreTags: z.array(z.string()).optional(),
-      typescriptFrom: z.string().optional(),
     })
     .default({
-      releaseCommit: '[#<issue>] chore(<dir>): release v<version>',
       tagPattern: '<dir>-v<version>',
       sources: [],
     }),

@@ -6,6 +6,31 @@ import type { TConfigExtension } from '../config/index.ts';
 import { InitConstants, InitStatuses } from './common/index.ts';
 import type { IInitEntry, IScaffoldFile } from './common/index.ts';
 
+/**
+ * Whether a `.mcp.json` already serves atlas: a server named `atlas`, or any server whose arguments run
+ * `atlas mcp` under another name, as separate arguments or inside a `sh -c` string. A file that is not JSON falls back to looking for the name.
+ */
+const runsAtlas = (opts: { text: string }): boolean => {
+  try {
+    const parsed: { mcpServers?: Record<string, { args?: unknown }> } = JSON.parse(opts.text);
+    const servers = parsed.mcpServers ?? {};
+
+    return (
+      'atlas' in servers ||
+      Object.values(servers).some(server => {
+        const args = Array.isArray(server.args)
+          ? server.args.flatMap(arg => String(arg).split(/\s+/))
+          : [];
+        const atlas = args.indexOf('atlas');
+
+        return atlas !== -1 && args[atlas + 1] === 'mcp';
+      })
+    );
+  } catch {
+    return opts.text.includes('"atlas"');
+  }
+};
+
 /** The entry for a `.mcp.json` that exists already: atlas serves the knowledge bundle alone, and the wiki when there is one. */
 const MCP_SERVER_HINT =
   '"atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }';
@@ -162,7 +187,7 @@ export const scaffoldProject = (opts: {
   ) {
     const servers = readFileSync(join(root, '.mcp.json'), 'utf8');
 
-    if (!servers.includes('"atlas"')) {
+    if (!runsAtlas({ text: servers })) {
       entries.push({
         status: InitStatuses.ADD,
         subject: `.mcp.json: the atlas server, for the knowledge bundle (and the wiki, when there is one; --root pins the project): ${MCP_SERVER_HINT}`,
