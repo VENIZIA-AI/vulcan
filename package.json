@@ -2,7 +2,7 @@
   "name": "@venizia/vulcan-workspace",
   "version": "0.0.0",
   "description": "VULCAN - the agentic-coding toolkit and the single source of truth for knowledge, agent and atlas tooling across VENIZIA projects.",
-  "homepage": "https://github.com/VENIZIA-AI/vulcan",
+  "homepage": "https://vulcan.venizia.ai",
   "author": {
     "name": "VENIZIA AI Developer",
     "email": "developer@venizia.ai",
