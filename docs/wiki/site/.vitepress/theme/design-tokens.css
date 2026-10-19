@@ -1,0 +1,56 @@
+/* =============================================================================
+ * VULCAN DOCS - COLOUR TOKENS
+ * -----------------------------------------------------------------------------
+ * The devglow amber palette (honey, parchment, warm sienna) mapped onto the
+ * VitePress colour variables - the default theme's layout is untouched.
+ * Every text colour meets WCAG 2.1 AA (4.5:1); the ratios are noted beside it.
+ * ============================================================================= */
+
+:root {
+  /* ---- Brand ramp (devglow amber) ------------------------------------------ */
+  --vu-honey:    #DEAD6A;   /* 9.63:1 on the dark bg - link / accent (dark)     */
+  --vu-yellow:   #D4A855;   /* hover accent (dark)                              */
+  --vu-sienna:   #C48A5A;   /* gradient start, large accents only               */
+  --vu-bronze:   #8A5A20;   /* 5.89:1 on white - link / button (light)          */
+  --vu-bronze-deep: #7C5418; /* 6.69:1 on white - button hover (light)          */
+  --vu-gradient: linear-gradient(115deg, #C48A5A 0%, #D4A855 52%, #DEAD6A 100%);
+
+  /* ---- Light theme ---------------------------------------------------------- */
+  --vp-c-brand-1: var(--vu-bronze);
+  --vp-c-brand-2: var(--vu-bronze-deep);
+  --vp-c-brand-3: var(--vu-bronze);
+  --vp-c-brand-soft: rgba(196, 138, 90, 0.16);
+  --vp-c-bg-alt:  #faf6ef;  /* parchment                                        */
+  --vp-c-bg-soft: #faf6ef;
+  --vp-c-text-1:  #1F1A12;  /* 17.3:1 on white                                  */
+  --vp-c-text-2:  #4A4234;  /*  9.9:1                                           */
+  --vp-c-text-3:  #5E5545;  /*  7.3:1                                           */
+  --vp-button-brand-bg:       var(--vu-bronze);       /* white text 5.89:1      */
+  --vp-button-brand-text:     #ffffff;
+  --vp-button-brand-hover-bg: var(--vu-bronze-deep);
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-active-bg: var(--vu-bronze-deep);
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: var(--vu-gradient);
+}
+
+.dark {
+  --vp-c-brand-1: var(--vu-honey);
+  --vp-c-brand-2: var(--vu-yellow);
+  --vp-c-brand-3: var(--vu-honey);
+  --vp-c-brand-soft: rgba(222, 173, 106, 0.16);
+  --vp-c-bg:      #0D0B08;  /* devglow amber background                         */
+  --vp-c-bg-alt:  #0F0D0A;
+  --vp-c-bg-soft: #1A1814;
+  --vp-c-bg-elv:  #1A1814;
+  --vp-c-divider: #2A2820;
+  --vp-c-gutter:  #0F0D0A;
+  --vp-c-text-1:  #EDE5D8;  /* 15.7:1 on the dark bg                            */
+  --vp-c-text-2:  #C9BFAF;  /* 10.8:1                                           */
+  --vp-c-text-3:  #A39A8C;  /*  7.1:1                                           */
+  --vp-button-brand-bg:       var(--vu-honey);        /* dark text 9.63:1       */
+  --vp-button-brand-text:     #0D0B08;
+  --vp-button-brand-hover-bg: var(--vu-yellow);
+  --vp-button-brand-hover-text: #0D0B08;
+  --vp-button-brand-active-bg: var(--vu-yellow);
+}
