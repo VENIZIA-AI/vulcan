@@ -1,10 +1,16 @@
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { ConfigExtensions } from '../config/index.ts';
+import { CreateFlags } from '../create/common/index.ts';
+import { createMonorepo } from '../create/init-monorepo.ts';
 import { runBun } from '../create/process.ts';
 import { InitConstants, scaffoldProject } from '../init/index.ts';
 
 export const runInitCommand = async (opts: ICommandContext): Promise<number> => {
+  if (opts.args.includes(CreateFlags.PRESET)) {
+    return createMonorepo({ cwd: opts.cwd, args: opts.args });
+  }
+
   const flagIndex = opts.args.indexOf(InitConstants.CONFIG_FLAG);
   const requested = flagIndex === -1 ? ConfigExtensions.MTS : (opts.args[flagIndex + 1] ?? '');
   const extension = ConfigExtensions.LOOKUP_ORDER.find(value => value === requested);

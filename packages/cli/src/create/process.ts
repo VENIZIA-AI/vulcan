@@ -1,9 +1,10 @@
 /** `bun` commands init and add run; VULCAN_NO_INSTALL=1 (tests) prints them instead. */
 export const isInstallSkipped = (): boolean => process.env.VULCAN_NO_INSTALL === '1';
 
-export const runBun = async (opts: {
+/** Any command, under the same skip rule as `runBun`; a skipped one counts as done. */
+export const runCommand = async (opts: {
   cwd: string;
-  args: string[];
+  command: string[];
   label: string;
 }): Promise<number> => {
   if (isInstallSkipped()) {
@@ -12,10 +13,17 @@ export const runBun = async (opts: {
     return 0;
   }
 
-  const child = Bun.spawn([process.execPath, ...opts.args], {
+  const child = Bun.spawn(opts.command, {
     cwd: opts.cwd,
     stdio: ['inherit', 'inherit', 'inherit'],
   });
 
   return child.exited;
 };
+
+export const runBun = async (opts: {
+  cwd: string;
+  args: string[];
+  label: string;
+}): Promise<number> =>
+  runCommand({ cwd: opts.cwd, command: [process.execPath, ...opts.args], label: opts.label });

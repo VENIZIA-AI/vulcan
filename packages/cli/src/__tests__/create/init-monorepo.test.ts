@@ -1,0 +1,190 @@
+import { afterAll, describe, expect, test } from 'bun:test';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { createProject, removeProjects } from '../project.helper.ts';
+import { runCli } from '../run.helper.ts';
+
+afterAll(removeProjects);
+
+const BACKEND = join(import.meta.dir, '..', 'fixtures', 'preset-backend');
+const ENV = { VULCAN_NO_INSTALL: '1' };
+const FLAGS = [
+  '--preset',
+  `file:${BACKEND}`,
+  '--project',
+  'my-product',
+  '--backend-dir',
+  'services',
+  '--app',
+  'core-api',
+  '--shared-dir',
+  'libs',
+];
+
+describe('vulcan init --preset', () => {
+  test('creates the monorepo with its first app', () => {
+    const parent = createProject({ files: {} });
+    const result = runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+    const root = join(parent, 'my-product');
+
+    expect(result.code).toBe(0);
+
+    for (const path of [
+      'package.json',
+      '.gitignore',
+      'AGENTS.md',
+      'Makefile',
+      '.mcp.json',
+      '.agents/rules.md',
+      '.configs/vulcan.config.mts',
+      '.agents/knowledge/index.md',
+      '.agents/knowledge/log.md',
+      '.agents/knowledge/packages/core-api.md',
+      'services/core-api/package.json',
+      'services/core-api/src/index.ts',
+      'services/core-api/.env.example',
+      'libs/.gitkeep',
+    ]) {
+      expect(existsSync(join(root, path))).toBe(true);
+    }
+
+    const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+
+    expect(manifest.workspaces.packages).toEqual(['services/*', 'libs/*']);
+    expect(manifest.workspaces.catalog['@fixture/lib']).toBe('1.0.0');
+    expect(manifest.workspaces.catalog['@fixture/backend']).toBe(`file:${BACKEND}`);
+    expect(readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8')).toContain(
+      '"backend": "services"',
+    );
+    expect(readFileSync(join(root, 'services/core-api/src/index.ts'), 'utf8')).toContain(
+      'core-api of my-product on 3000',
+    );
+    expect(readFileSync(join(root, '.gitignore'), 'utf8')).toContain('CLAUDE.md');
+    expect(readFileSync(join(root, '.agents/knowledge/index.md'), 'utf8')).not.toContain(
+      'vulcan:scaffold',
+    );
+    expect(readFileSync(join(root, 'Makefile'), 'utf8')).toContain('\ndev:\n\t@bun run dev\n');
+    expect(result.stderr).toContain('skipped  bun install');
+    expect(result.stderr).toContain('skipped  vulcan sync');
+    expect(result.stderr).toContain('skipped  git init');
+    expect(result.stderr).toContain('skipped  bun run check');
+    expect(result.stderr).toContain('cd my-product && make dev');
+  });
+
+  test('the shared folder is skipped when not named', () => {
+    const parent = createProject({ files: {} });
+    const flags = FLAGS.slice(0, -2);
+
+    expect(runCli({ args: ['init', ...flags], cwd: parent, env: ENV }).code).toBe(0);
+    expect(
+      JSON.parse(readFileSync(join(parent, 'my-product/package.json'), 'utf8')).workspaces.packages,
+    ).toEqual(['services/*']);
+    expect(existsSync(join(parent, 'my-product/libs'))).toBe(false);
+  });
+
+  test('a non-empty target folder is refused before anything is written', () => {
+    const parent = createProject({ files: { 'my-product/README.md': '# mine\n' } });
+    const result = runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('my-product exists and is not empty');
+    expect(existsSync(join(parent, 'my-product/package.json'))).toBe(false);
+    expect(existsSync(join(parent, 'my-product/services'))).toBe(false);
+    expect(readFileSync(join(parent, 'my-product/README.md'), 'utf8')).toBe('# mine\n');
+  });
+
+  test('without a TTY a missing name is an error and nothing is written', () => {
+    const parent = createProject({ files: {} });
+    const result = runCli({
+      args: ['init', '--preset', `file:${BACKEND}`, '--project', 'my-product'],
+      cwd: parent,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('missing --backend-dir');
+    expect(existsSync(join(parent, 'my-product'))).toBe(false);
+  });
+
+  test('without a TTY a missing app name is an error naming --app and nothing is written', () => {
+    const parent = createProject({ files: {} });
+    const result = runCli({
+      args: [
+        'init',
+        '--preset',
+        `file:${BACKEND}`,
+        '--project',
+        'my-product',
+        '--backend-dir',
+        'services',
+      ],
+      cwd: parent,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('missing --app');
+    expect(existsSync(join(parent, 'my-product'))).toBe(false);
+  });
+
+  test('without a TTY a missing project name is an error and nothing is written', () => {
+    const parent = createProject({ files: {} });
+    const result = runCli({
+      args: ['init', '--preset', `file:${BACKEND}`],
+      cwd: parent,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('missing --project');
+  });
+
+  test('a preset that is not there is an error and nothing is written', () => {
+    const parent = createProject({ files: {} });
+    const result = runCli({
+      args: ['init', '--preset', `file:${join(parent, 'nowhere')}`, '--project', 'p', '--app', 'a'],
+      cwd: parent,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('no package at');
+    expect(existsSync(join(parent, 'p'))).toBe(false);
+  });
+
+  test('an npm preset cannot be located offline', () => {
+    const parent = createProject({ files: {} });
+    const result = runCli({
+      args: ['init', '--preset', 'some-name', '--project', 'p', '--app', 'a'],
+      cwd: parent,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('an npm preset needs an install');
+  });
+
+  test('a frontend preset makes the first app a frontend', () => {
+    const parent = createProject({ files: {} });
+    const frontend = join(import.meta.dir, '..', 'fixtures', 'preset-frontend');
+    const result = runCli({
+      args: [
+        'init',
+        '--preset',
+        `file:${frontend}`,
+        '--project',
+        'p',
+        '--frontend-dir',
+        'web',
+        '--app',
+        'admin',
+        '--no-api',
+      ],
+      cwd: parent,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(0);
+    expect(existsSync(join(parent, 'p/web/admin/vite.config.ts'))).toBe(true);
+  });
+});

@@ -112,7 +112,7 @@ export const resolveProjectName = (opts: { root: string }): string => {
   return typeof name === 'string' && name !== '' ? name : basename(opts.root);
 };
 
-const renderTemplate = (opts: { template: string; name: string }): string =>
+export const renderTemplate = (opts: { template: string; name: string }): string =>
   readFileSync(join(BASE_DIRECTORY, 'templates', opts.template), 'utf8').replaceAll(
     InitConstants.NAME_TOKEN,
     opts.name,
