@@ -139,7 +139,7 @@ html.dark {
   padding: 1rem 1.25rem;
   border-radius: 8px;
   background: var(--vp-c-bg-soft);
-  border-left: 3px solid var(--vp-c-brand-1);
+  border: 1px solid var(--vp-c-divider);
 }
 
 .stage-header {
@@ -269,12 +269,10 @@ html.dark {
   margin: var(--vu-s5) 0;
   font-size: var(--vu-fs-sm);
   border: 1px solid var(--vu-border);
-  border-left-width: 3px;
 }
 
 /* TIP - sienna accent */
 .custom-block.tip {
-  border-left-color: var(--vu-sienna) !important;
   background: rgba(196, 138, 90, 0.08) !important;
 }
 
@@ -284,7 +282,6 @@ html.dark {
 
 /* WARNING - yellow accent */
 .custom-block.warning {
-  border-left-color: var(--vu-yellow) !important;
   background: rgba(212, 168, 85, 0.08) !important;
 }
 
@@ -294,7 +291,6 @@ html.dark {
 
 /* DANGER - bronze/honey accent */
 .custom-block.danger {
-  border-left-color: var(--vp-c-brand-1) !important;
   background: var(--vp-c-brand-soft) !important;
 }
 
@@ -304,7 +300,6 @@ html.dark {
 
 /* INFO - neutral text-3 accent */
 .custom-block.info {
-  border-left-color: var(--vu-text-3) !important;
   background: rgba(94, 85, 69, 0.08) !important;
 }
 
