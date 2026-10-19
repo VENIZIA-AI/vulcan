@@ -157,3 +157,18 @@ export const resolveNames = (opts: {
 
   return { ok: true, names };
 };
+
+/** Two folders given the same name would mix kinds of code; the error names both flags. */
+export const findFolderClash = (opts: {
+  folders: { flag: string; value: string }[];
+}): string | undefined => {
+  for (const [index, first] of opts.folders.entries()) {
+    const second = opts.folders.slice(index + 1).find(other => other.value === first.value);
+
+    if (second !== undefined) {
+      return `${first.flag} and ${second.flag} both name '${first.value}' - each kind of code needs its own folder`;
+    }
+  }
+
+  return undefined;
+};

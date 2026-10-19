@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { parseYamlMapping, splitFrontmatter } from '@venizia/vulcan-okf';
 import { ExitCodes } from '../common/index.ts';
 import { loadConfig, resolvePackages } from '../config/index.ts';
 import type { IProjectPackage, TResolvedConfig } from '../config/index.ts';
+import { readWorkspaceGlobs } from '../init/index.ts';
 import { runAppChecks } from './checks.ts';
 import { AppSides, CreateFlags } from './common/index.ts';
 import type { IAppsBlock, ILocatedPreset, IPresetSpec } from './common/index.ts';
@@ -13,9 +13,13 @@ import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
 import { isInstallSkipped, runBun } from './process.ts';
 import { installNpmPreset, withScratch } from './scratch.ts';
 import {
+  addAppBullet,
   checkPeers,
-  mergeCatalog,
+  filePresetWarning,
+  parseAppsBlock,
   pickPort,
+  planRootManifest,
+  readCatalog,
   readPort,
   renderAppConcept,
   renderAppManifest,
@@ -24,11 +28,7 @@ import {
   replaceAppsBlock,
 } from './workspace.ts';
 
-interface IRootManifest {
-  name?: string;
-  workspaces?: { packages?: string[]; catalog?: Record<string, string> };
-  [key: string]: unknown;
-}
+type TRootManifest = Record<string, unknown>;
 
 const KNOWLEDGE_DIRECTORY = '.agents/knowledge';
 const ROOT_HINT =
@@ -40,7 +40,7 @@ const fail = (opts: { message: string }): number => {
   return ExitCodes.FAILURE;
 };
 
-const readRootManifest = (opts: { path: string }): IRootManifest | undefined => {
+const readRootManifest = (opts: { path: string }): TRootManifest | undefined => {
   if (!existsSync(opts.path)) {
     return undefined;
   }
@@ -56,26 +56,20 @@ const readRootManifest = (opts: { path: string }): IRootManifest | undefined => 
   }
 };
 
-/** The index line of an app already in the monorepo: the description its own concept carries. */
-const readSummary = (opts: { root: string; entry: IProjectPackage }): string => {
-  const file = join(opts.root, KNOWLEDGE_DIRECTORY, 'packages', `${opts.entry.name}.md`);
-  const { yaml } = splitFrontmatter({ text: existsSync(file) ? readFileSync(file, 'utf8') : '' });
-  const parsed = parseYamlMapping({ yaml: yaml ?? '' });
-  const description = parsed.ok ? parsed.data.description : undefined;
-
-  return typeof description === 'string' ? description : opts.entry.path;
-};
-
-const literal = (opts: { block: IAppsBlock }): string[] => {
-  const layout = Object.entries(opts.block.layout)
-    .map(([side, folder]) => `${side}: '${folder}'`)
-    .join(', ');
-  const packages = opts.block.packages.map(
-    entry => `    { dir: '${entry.dir}', name: '${entry.name}', path: '${entry.path}' },`,
-  );
-
-  return [`  layout: { ${layout} },`, '  packages: [', ...packages, '  ],'];
-};
+/** The lines a user adds by hand when the apps block cannot be extended: only what is new. */
+const literal = (opts: {
+  side: string;
+  folder: string;
+  app: IAppsBlock['packages'][number];
+  sources: IAppsBlock['sources'];
+}): string[] => [
+  `  layout: { ${opts.side}: '${opts.folder}' },`,
+  `  packages: { dir: '${opts.app.dir}', name: '${opts.app.name}', path: '${opts.app.path}' },`,
+  ...opts.sources.map(
+    source =>
+      `  sources: { name: '${source.name}', repo: '${source.repo}', ref: '${source.ref}' },`,
+  ),
+];
 
 /** A frontend's proxy target: the chosen backend app's port, or nothing when it has no backend. */
 const resolveApiUrl = (opts: {
@@ -196,7 +190,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   const { preset, packageName, packageVersion } = located.located;
   // Before any question: a catalog the preset cannot live in is no reason to ask for names.
   const peerProblem = checkPeers({
-    catalog: manifest.workspaces?.catalog ?? {},
+    catalog: readCatalog({ manifest }),
     peers: preset.peers,
   });
 
@@ -230,6 +224,17 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
     });
   }
 
+  const otherSide = Object.entries(config.layout).find(
+    ([key, value]) => key !== side && value === folder,
+  );
+
+  // One folder holds one kind of code: a folder another side already owns would mix them.
+  if (otherSide !== undefined) {
+    return fail({
+      message: `the ${side} folder '${folder}' is the ${otherSide[0]} folder in ${configPath}; each kind of code needs its own folder`,
+    });
+  }
+
   const packages = resolvePackages({ config });
 
   if (existsSync(join(cwd, folder, app)) || packages.some(entry => entry.dir === app)) {
@@ -255,33 +260,48 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
     apiUrl = api.apiUrl;
   }
 
-  const block: IAppsBlock = {
-    layout: { ...config.layout, [side]: folder },
-    packages: [
-      ...packages.map(entry => ({ dir: entry.dir, name: entry.name, path: entry.path })),
-      { dir: app, name: app, path: `${folder}/${app}` },
-    ],
-    sources: [
-      ...config.atlas.sources,
-      ...preset.atlas.filter(
-        source => !config.atlas.sources.some(existing => existing.name === source.name),
-      ),
-    ],
-  };
   const source = readFileSync(loaded.file, 'utf8');
-  const nextConfig = replaceAppsBlock({ source, block });
+  const entry = { dir: app, name: app, path: `${folder}/${app}` };
+  const knownSources = new Set(config.atlas.sources.map(known => known.name));
+  const newSources = preset.atlas.filter(candidate => !knownSources.has(candidate.name));
+  const parsed = parseAppsBlock({ source });
 
-  // The user's config is theirs: with the markers gone it is never rewritten, only described.
-  if (nextConfig === undefined) {
+  // The user's config is theirs: with the block gone or no longer JSON it is never rewritten, only described.
+  if (!parsed.ok) {
     return fail({
       message: [
-        `the vulcan:apps block is gone from ${configPath} - add by hand:`,
-        ...literal({ block }),
+        parsed.reason === 'missing'
+          ? `the vulcan:apps block is gone from ${configPath} - add by hand:`
+          : `the vulcan:apps block in ${configPath} is not the JSON vulcan wrote - add by hand:`,
+        ...literal({ side, folder, app: entry, sources: newSources }),
       ].join('\n'),
     });
   }
 
-  const project = config.name ?? manifest.name ?? app;
+  // Extend what the markers hold: the resolved config also carries what the user added outside them.
+  const block: IAppsBlock = {
+    layout: { ...parsed.block.layout, [side]: folder },
+    packages: [...parsed.block.packages, entry],
+    sources: [
+      ...parsed.block.sources,
+      ...newSources.filter(
+        candidate => !parsed.block.sources.some(existing => existing.name === candidate.name),
+      ),
+    ],
+  };
+  const nextConfig = replaceAppsBlock({ source, block });
+
+  if (nextConfig === undefined) {
+    return fail({ message: ROOT_HINT });
+  }
+
+  const project = config.name ?? (typeof manifest.name === 'string' ? manifest.name : app);
+
+  const warning = filePresetWarning({ spec, packageName });
+
+  if (warning !== undefined) {
+    process.stderr.write(`${warning}\n`);
+  }
 
   copyPresetFiles({
     located: located.located,
@@ -298,23 +318,16 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
     }),
   });
 
-  const workspacePackages = manifest.workspaces?.packages ?? [];
-  const nextManifest: IRootManifest = {
-    ...manifest,
-    workspaces: {
-      packages: workspacePackages.includes(`${folder}/*`)
-        ? workspacePackages
-        : [...workspacePackages, `${folder}/*`],
-      catalog: mergeCatalog({
-        catalog: manifest.workspaces?.catalog ?? {},
-        additions: {
-          ...preset.dependencies,
-          ...preset.devDependencies,
-          [packageName]: spec.packageName === undefined ? spec.range : packageVersion,
-        },
-      }),
+  const nextManifest = planRootManifest({
+    manifest,
+    globs: readWorkspaceGlobs({ root: cwd }),
+    folder,
+    additions: {
+      ...preset.dependencies,
+      ...preset.devDependencies,
+      [packageName]: spec.packageName === undefined ? spec.range : packageVersion,
     },
-  };
+  });
 
   writeFile({
     root: cwd,
@@ -331,19 +344,17 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
       presetPackage: packageName,
     }),
   });
+  const indexPath = join(cwd, KNOWLEDGE_DIRECTORY, 'index.md');
+
   writeFile({
     root: cwd,
     path: `${KNOWLEDGE_DIRECTORY}/index.md`,
-    content: renderKnowledgeIndex({
-      project,
-      apps: [
-        ...packages.map(entry => ({
-          name: entry.name,
-          summary: readSummary({ root: cwd, entry }),
-        })),
-        { name: app, summary: preset.summary },
-      ],
-    }),
+    content: existsSync(indexPath)
+      ? addAppBullet({
+          source: readFileSync(indexPath, 'utf8'),
+          app: { name: app, summary: preset.summary },
+        })
+      : renderKnowledgeIndex({ project, apps: [{ name: app, summary: preset.summary }] }),
   });
 
   const logPath = join(cwd, KNOWLEDGE_DIRECTORY, 'log.md');

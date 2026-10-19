@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  addAppBullet,
   checkPeers,
+  filePresetWarning,
   mergeCatalog,
+  parseAppsBlock,
   pickPort,
   readPort,
   renderAppConcept,
@@ -84,6 +87,93 @@ describe('workspace planners', () => {
   test('checkPeers reads a caret-pinned catalog entry and skips a peer the catalog lacks', () => {
     expect(
       checkPeers({ catalog: { kit: '^1.4.0' }, peers: { kit: '^1.0.0', other: '^9.0.0' } }),
+    ).toBeUndefined();
+  });
+
+  test('checkPeers refuses a prerelease pin that sorts before the release the peer range needs', () => {
+    const message = checkPeers({
+      catalog: { '@venizia/widget-kernel': '^0.2.2-5' },
+      peers: { '@venizia/widget-kernel': '^0.2.2' },
+    });
+
+    expect(message).toContain('@venizia/widget-kernel ^0.2.2-5');
+    expect(message).toContain('^0.2.2');
+    expect(message).toContain('prerelease');
+  });
+
+  test('checkPeers accepts a prerelease pin when the peer range itself names that prerelease line', () => {
+    expect(checkPeers({ catalog: { kit: '0.2.2-5' }, peers: { kit: '^0.2.2-0' } })).toBeUndefined();
+  });
+
+  test('checkPeers answers a catalog value that is not a version with a message, never a crash', () => {
+    for (const pinned of ['workspace:*', 'git+https://example.test/kit.git', '>=1.0.0', 'latest']) {
+      const message = checkPeers({ catalog: { kit: pinned }, peers: { kit: '^1.0.0' } });
+
+      expect(message).toContain(`kit ${pinned}`);
+      expect(message).toContain('^1.0.0');
+      expect(message).toContain('not a version');
+    }
+  });
+
+  test('parseAppsBlock reads back the block renderAppsBlock wrote, around any user lines', () => {
+    const source = `import x from 'y';\n${renderAppsBlock({ block: BLOCK })}\nexport default { packages: [...apps.packages, { dir: 'w' }] };\n`;
+
+    expect(parseAppsBlock({ source })).toEqual({ ok: true, block: BLOCK });
+  });
+
+  test('parseAppsBlock tells a missing block from one that is no longer JSON', () => {
+    expect(parseAppsBlock({ source: 'export default {};\n' })).toEqual({
+      ok: false,
+      reason: 'missing',
+    });
+
+    const edited = renderAppsBlock({ block: BLOCK }).replace('"layout"', 'layout');
+
+    expect(parseAppsBlock({ source: edited })).toEqual({ ok: false, reason: 'invalid' });
+  });
+
+  test('addAppBullet inserts one bullet after the last bullet under Apps and leaves the rest', () => {
+    const source =
+      '# p knowledge\n\nA hand-written paragraph.\n\n## Apps\n\n- [a](packages/a.md) - first\n- [b](packages/b.md) - second\n\n## Notes\n\nMine.\n- [z](z.md) - not an app\n';
+    const next = addAppBullet({ source, app: { name: 'c', summary: 'third' } });
+
+    expect(next).toBe(
+      '# p knowledge\n\nA hand-written paragraph.\n\n## Apps\n\n- [a](packages/a.md) - first\n- [b](packages/b.md) - second\n- [c](packages/c.md) - third\n\n## Notes\n\nMine.\n- [z](z.md) - not an app\n',
+    );
+  });
+
+  test('addAppBullet adds an Apps section when the index has none', () => {
+    expect(addAppBullet({ source: '# p\n\nText.\n', app: { name: 'c', summary: 'third' } })).toBe(
+      '# p\n\nText.\n\n## Apps\n\n- [c](packages/c.md) - third\n',
+    );
+  });
+
+  test('addAppBullet puts the first bullet under an empty Apps heading', () => {
+    expect(
+      addAppBullet({ source: '## Apps\n\n## Notes\n', app: { name: 'c', summary: 'third' } }),
+    ).toBe('## Apps\n\n- [c](packages/c.md) - third\n\n## Notes\n');
+  });
+
+  test('addAppBullet does not repeat a bullet the index already has', () => {
+    const source = '## Apps\n\n- [c](packages/c.md) - by hand\n';
+
+    expect(addAppBullet({ source, app: { name: 'c', summary: 'third' } })).toBe(source);
+  });
+
+  test('filePresetWarning names the file: entry for a file: preset and stays silent for npm', () => {
+    const warning = filePresetWarning({
+      spec: { range: 'file:/abs/preset' },
+      packageName: '@fixture/backend',
+    });
+
+    expect(warning).toContain('@fixture/backend');
+    expect(warning).toContain('file:/abs/preset');
+    expect(warning).toContain('not portable');
+    expect(
+      filePresetWarning({
+        spec: { packageName: '@fixture/backend', range: 'latest' },
+        packageName: '@fixture/backend',
+      }),
     ).toBeUndefined();
   });
 

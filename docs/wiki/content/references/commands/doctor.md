@@ -244,7 +244,7 @@ The check reports `package.json declares workspaces but the config lists no pack
 
 ### apps
 
-A `layout` folder missing from `package.json` workspaces, or a package outside every `layout` folder, triggers this check. Projects without `layout` skip it.
+A `layout` folder missing from `package.json` workspaces (`<folder>/*`, `<folder>/**` and the `./` forms all count), or a package outside every `layout` folder, triggers this check. Projects without `layout` skip it.
 
 The following output drops the lines that belong to other checks:
 

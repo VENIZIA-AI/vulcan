@@ -82,9 +82,9 @@ The preset says whether it is a backend or a frontend, and that side's folder is
 | File | Change |
 |---|---|
 | `<folder>/<app>/` | The preset's files, with `{{project}}`, `{{app}}`, `{{devPort}}` and `{{apiUrl}}` filled in, and a generated `package.json` |
-| `package.json` | The folder joins `workspaces`; the preset's versions join `catalog` |
-| `.configs/vulcan.config.mts` | The block between `vulcan:apps:start` and `vulcan:apps:end`: `layout`, the new `packages` entry, the preset's `atlas` sources |
-| `.agents/knowledge/` | A concept for the app, a line in `index.md`, a dated line in `log.md` |
+| `package.json` | The folder joins `workspaces` and the preset's versions join `catalog`; an array stays an array, and the catalog stays where the project keeps it (top level or inside `workspaces`) |
+| `.configs/vulcan.config.mts` | The block between `vulcan:apps:start` and `vulcan:apps:end` is read and extended: `layout`, the new `packages` entry, the preset's `atlas` sources. Everything you added outside the markers is untouched and never copied in |
+| `.agents/knowledge/` | A concept for the app, one bullet after the last one under `## Apps` in `index.md` (a section is added when there is none; the rest of the file is yours), a dated line in `log.md` |
 
 Then it runs `bun install`, `vulcan sync` from the installed CLI, the preset's `checks` in the new app, `vulcan doctor` and `vulcan x okf check --strict`.
 The first failure stops the command, and the files stay for you to inspect.
@@ -92,6 +92,7 @@ The first failure stops the command, and the files stay for you to inspect.
 Two rules keep apps consistent:
 
 - **The catalog keeps its versions.** A version already in `catalog` wins over the preset's, so every app shares one copy of each package.
+- **A `file:` preset warns.** Its catalog entry is `file:<path>`, which only works on this machine; `add` prints a `warning:` line saying so and writes it anyway.
 - **The port is the next free one.** The preset's `devPort` is used unless another app's `.env.example` already holds it. A second backend that asks for `3000` gets `3001`:
 
   ```text
@@ -109,10 +110,14 @@ Every refusal happens before the first write, with exit code 1.
 | `vulcan add: the backend folder is 'services' in .configs/vulcan.config.mts; apps of one side share it, not 'apps'` | Use the stored folder, or leave the flag out |
 | `vulcan add: services/billing already exists` | An app or folder has that name. Pick another |
 | `vulcan add: the monorepo pins typescript ^6.0.3, but the preset needs ^7.0.0 - move the catalog first` | The preset declares `peers` that the catalog does not satisfy. Change the catalog version first |
+| `vulcan add: the monorepo pins x ^0.2.2-5, a prerelease, which does not meet the preset's ^0.2.2 ...` | A prerelease sorts before its release, so it does not meet a plain range. Pin a release in the catalog first |
+| `vulcan add: the monorepo pins x workspace:*, which is not a version vulcan can compare ...` | The catalog value is a range, a `workspace:` link or a URL. Pin a version first |
+| `vulcan add: the frontend folder 'services' is the backend folder in .configs/vulcan.config.mts; each kind of code needs its own folder` | A folder holds one kind of code. Pick another |
 | `vulcan add: missing --api <app> or --no-api` | A frontend without a terminal needs one of the two flags |
 | `vulcan add: --api 'x' is not a backend app of this monorepo` | `--api` takes the name of an app under the backend folder |
 | `vulcan add: no *PORT=<number> line in services/core-api/.env.example to proxy to` | The backend app has no port line to read |
 | `vulcan add: the vulcan:apps block is gone from .configs/vulcan.config.mts - add by hand:` | The markers were edited away. `add` prints the lines to paste and never rewrites your config |
+| `vulcan add: the vulcan:apps block in .configs/vulcan.config.mts is not the JSON vulcan wrote - add by hand:` | The block between the markers was edited into something else. Same: the new lines are printed |
 
 The preset itself can also be refused; those messages are listed under [`vulcan init`](/references/commands/init#refusals).
 

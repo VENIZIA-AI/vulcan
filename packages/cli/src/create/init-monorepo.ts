@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { ExitCodes, ProjectLayout, VULCAN_VERSION } from '../common/index.ts';
 import { renderTemplate } from '../init/index.ts';
 import { runAppChecks } from './checks.ts';
-import { CreateFlags } from './common/index.ts';
+import { AppSides, CreateFlags } from './common/index.ts';
 import type {
   IAppsBlock,
   ILocatedPreset,
@@ -12,11 +12,12 @@ import type {
   TAppSide,
 } from './common/index.ts';
 import { today, writeFile } from './files.ts';
-import { askWithPrompt, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
+import { askWithPrompt, findFolderClash, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
 import { isInstallSkipped, runBun, runCommand } from './process.ts';
 import { installNpmPreset, withScratch } from './scratch.ts';
 import {
+  filePresetWarning,
   renderAppConcept,
   renderAppManifest,
   renderKnowledgeIndex,
@@ -278,6 +279,31 @@ const runCreate = async (opts: {
   }
 
   const { folder, app, shared } = names;
+  const side = located.preset.side;
+  // The flag of the side this preset does not build still counts when given: it names a folder too.
+  const otherFlag =
+    SIDE_FIELDS[side === AppSides.BACKEND ? AppSides.FRONTEND : AppSides.BACKEND].flag;
+  const otherFolder = readFlag({ args: opts.args, flag: otherFlag });
+  const clash = findFolderClash({
+    folders: [
+      { flag: SIDE_FIELDS[side].flag, value: folder },
+      ...(otherFolder === undefined ? [] : [{ flag: otherFlag, value: otherFolder }]),
+      ...(shared === '' ? [] : [{ flag: CreateFlags.SHARED_DIR, value: shared }]),
+    ],
+  });
+
+  if (clash !== undefined) {
+    return fail({ message: clash });
+  }
+
+  const warning = filePresetWarning({
+    spec,
+    packageName: located.packageName,
+  });
+
+  if (warning !== undefined) {
+    process.stderr.write(`${warning}\n`);
+  }
 
   writeMonorepo({ root, project, spec, located, folder, app, shared });
 

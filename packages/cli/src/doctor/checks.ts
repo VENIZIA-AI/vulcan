@@ -2,7 +2,7 @@ import { Glob } from 'bun';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
-import { declaresWorkspaces, readWorkspaceGlobs } from '../init/index.ts';
+import { coversFolder, declaresWorkspaces, readWorkspaceGlobs } from '../init/index.ts';
 import { resolvePackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import {
@@ -412,7 +412,7 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
     (entry): entry is [string, string] => entry[1] !== undefined,
   );
   const violations = folders
-    .filter(([, folder]) => !globs.includes(`${folder}/*`))
+    .filter(([, folder]) => !coversFolder({ globs, folder }))
     .map(([side, folder]) =>
       createViolation({
         check: DoctorChecks.APPS,

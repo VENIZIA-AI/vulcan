@@ -233,4 +233,64 @@ describe('vulcan init --preset', () => {
     expect(result.code).toBe(0);
     expect(existsSync(join(parent, 'p/web/admin/vite.config.ts'))).toBe(true);
   });
+  test('the same folder for two kinds of code is refused naming both flags and nothing is written', () => {
+    const parent = createProject({ files: {} });
+    const result = runCli({
+      args: [
+        'init',
+        '--preset',
+        `file:${BACKEND}`,
+        '--project',
+        'my-product',
+        '--backend-dir',
+        'code',
+        '--app',
+        'core-api',
+        '--shared-dir',
+        'code',
+      ],
+      cwd: parent,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('--backend-dir');
+    expect(result.stderr).toContain('--shared-dir');
+    expect(existsSync(join(parent, 'my-product'))).toBe(false);
+  });
+
+  test('a backend and a frontend folder that match are refused naming both flags', () => {
+    const parent = createProject({ files: {} });
+    const result = runCli({
+      args: [
+        'init',
+        '--preset',
+        `file:${BACKEND}`,
+        '--project',
+        'my-product',
+        '--backend-dir',
+        'code',
+        '--frontend-dir',
+        'code',
+        '--app',
+        'core-api',
+      ],
+      cwd: parent,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('--backend-dir');
+    expect(result.stderr).toContain('--frontend-dir');
+    expect(existsSync(join(parent, 'my-product'))).toBe(false);
+  });
+
+  test('a file: preset warns that the catalog entry is not portable', () => {
+    const parent = createProject({ files: {} });
+    const result = runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain(`file:${BACKEND}`);
+    expect(result.stderr).toContain('not portable');
+  });
 });

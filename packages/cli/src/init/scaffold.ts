@@ -105,6 +105,17 @@ export const readWorkspaceGlobs = (opts: { root: string }): string[] => {
   return Array.isArray(packages) ? packages.map(String) : [];
 };
 
+/**
+ * Whether a workspace glob list covers the packages directly under `folder`: `folder/*` or
+ * `folder/**`, with or without a leading `./`.
+ */
+export const coversFolder = (opts: { globs: string[]; folder: string }): boolean =>
+  opts.globs.some(glob => {
+    const plain = glob.replace(/^\.\//, '');
+
+    return plain === `${opts.folder}/*` || plain === `${opts.folder}/**`;
+  });
+
 /** The `package.json` name, or the directory name when there is none. */
 export const resolveProjectName = (opts: { root: string }): string => {
   const name = readManifest(opts)?.name;

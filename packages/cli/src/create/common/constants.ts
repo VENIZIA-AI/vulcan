@@ -9,6 +9,9 @@ export class AppSides {
 
 export class CreateConstants {
   static readonly NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+  /** A plain version with an optional prerelease and build part; ranges and URLs are not one. */
+  static readonly VERSION_PATTERN = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/;
+  static readonly PRERELEASE_PATTERN = /^\d+\.\d+\.\d+-/;
   static readonly PRESET_FIELD = 'vulcan';
   static readonly PRESET_VERSION = 1;
   /** A preset named without a scope is a package in the framework scope. */

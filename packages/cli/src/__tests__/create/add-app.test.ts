@@ -1,6 +1,8 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { loadConfig, resolvePackages } from '../../config/index.ts';
+import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
 import { createProject, packFolder, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -33,6 +35,33 @@ const monorepo = (): string => {
   });
 
   return join(parent, 'p');
+};
+
+interface IRootJson {
+  name?: string;
+  workspaces?: string[] | { packages?: string[]; catalog?: Record<string, string> };
+  catalog?: Record<string, string>;
+}
+
+const readManifest = (opts: { root: string }): IRootJson =>
+  JSON.parse(readFileSync(join(opts.root, 'package.json'), 'utf8'));
+
+/** The catalog wherever the manifest keeps it. */
+const catalogOf = (opts: { manifest: IRootJson }): Record<string, string> => {
+  const { workspaces } = opts.manifest;
+
+  return opts.manifest.catalog ?? (Array.isArray(workspaces) ? {} : (workspaces?.catalog ?? {}));
+};
+
+const writeManifest = (opts: { root: string; manifest: IRootJson }): void =>
+  writeFileSync(join(opts.root, 'package.json'), `${JSON.stringify(opts.manifest, null, 2)}\n`);
+
+/** Everything outside the vulcan:apps markers: what add must leave byte for byte. */
+const outsideBlock = (opts: { source: string }): string => {
+  const start = opts.source.indexOf('// vulcan:apps:start');
+  const end = opts.source.indexOf('// vulcan:apps:end');
+
+  return opts.source.slice(0, start) + opts.source.slice(end + '// vulcan:apps:end'.length);
 };
 
 describe('vulcan add --preset', () => {
@@ -127,6 +156,24 @@ describe('vulcan add --preset', () => {
     expect(readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8')).toBe(edited);
     expect(readFileSync(join(root, 'package.json'), 'utf8')).toBe(before);
     expect(existsSync(join(root, '.agents/knowledge/packages/worker.md'))).toBe(false);
+  });
+
+  test('a block that is no longer JSON is refused and the config is left as it was', () => {
+    const root = monorepo();
+    const configPath = join(root, '.configs/vulcan.config.mts');
+    const edited = readFileSync(configPath, 'utf8').replace('"layout"', 'layout');
+
+    writeFileSync(configPath, edited);
+    const result = runCli({
+      args: ['add', '--preset', BACKEND, '--app', 'worker'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('is not the JSON vulcan wrote - add by hand:');
+    expect(readFileSync(configPath, 'utf8')).toBe(edited);
+    expect(existsSync(join(root, 'services/worker'))).toBe(false);
   });
 
   test('a catalog outside the preset peer range is refused naming both versions', () => {
@@ -250,5 +297,211 @@ describe('vulcan add --preset', () => {
     expect(readFileSync(manifestPath, 'utf8')).toBe(before);
     expect(existsSync(join(root, 'node_modules'))).toBe(false);
     expect(existsSync(join(root, 'web'))).toBe(false);
+  });
+  test('packages, sources and layout the user added outside the markers are not copied into the block', async () => {
+    const root = monorepo();
+    const configPath = join(root, '.configs/vulcan.config.mts');
+    const edited = readFileSync(configPath, 'utf8')
+      .replace('layout: apps.layout,', "layout: { ...apps.layout, shared: 'libs' },")
+      .replace(
+        'packages: apps.packages,',
+        "packages: [...apps.packages, { dir: 'worker', name: 'worker', path: 'services/worker' }],",
+      )
+      .replace(
+        'atlas: { sources: apps.sources },',
+        "atlas: { sources: [...apps.sources, { name: 'extra', repo: 'example/extra', ref: 'main' }] },",
+      );
+    const manifest = readManifest({ root });
+
+    writeFileSync(configPath, edited);
+    writeManifest({
+      root,
+      manifest: {
+        ...manifest,
+        workspaces: {
+          ...(Array.isArray(manifest.workspaces) ? {} : manifest.workspaces),
+          packages: ['services/*', 'libs/*'],
+        },
+      },
+    });
+
+    const result = runCli({
+      args: ['add', '--preset', BACKEND, '--app', 'billing'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(0);
+
+    const after = readFileSync(configPath, 'utf8');
+
+    expect(outsideBlock({ source: after })).toBe(outsideBlock({ source: edited }));
+
+    const loaded = await loadConfig({ root });
+
+    if (!loaded.ok) {
+      throw new Error(loaded.error);
+    }
+
+    const dirs = resolvePackages({ config: loaded.config }).map(entry => entry.dir);
+    const sourceNames = loaded.config.atlas.sources.map(source => source.name);
+
+    expect(dirs.toSorted()).toEqual(['billing', 'core-api', 'worker']);
+    expect(sourceNames.toSorted()).toEqual(['extra', 'fixture']);
+    expect(loaded.config.layout).toEqual({ backend: 'services', shared: 'libs' });
+
+    const apps = (await runDoctorChecks({ root })).filter(
+      violation => violation.check === DoctorChecks.APPS,
+    );
+
+    expect(apps).toEqual([]);
+  });
+
+  test('array-form workspaces keep every glob and stay an array', () => {
+    const root = monorepo();
+    const manifest = readManifest({ root });
+    const catalog = catalogOf({ manifest });
+
+    writeManifest({
+      root,
+      manifest: {
+        name: manifest.name,
+        workspaces: ['services/*', 'libs/*', 'tools/*'],
+        catalog,
+      },
+    });
+
+    const result = runCli({
+      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin', '--no-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(0);
+
+    const after = readManifest({ root });
+
+    expect(after.workspaces).toEqual(['services/*', 'libs/*', 'tools/*', 'web/*']);
+    expect(after.catalog?.['@fixture/frontend']).toBe(FRONTEND);
+    expect(after.workspaces).not.toHaveProperty('catalog');
+  });
+
+  test('a top-level catalog next to object-form workspaces stays where it is', () => {
+    const root = monorepo();
+    const manifest = readManifest({ root });
+    const catalog = catalogOf({ manifest });
+
+    writeManifest({
+      root,
+      manifest: { name: manifest.name, workspaces: { packages: ['services/*'] }, catalog },
+    });
+
+    const result = runCli({
+      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin', '--no-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(0);
+
+    const after = readManifest({ root });
+
+    expect(after.workspaces).toEqual({ packages: ['services/*', 'web/*'] });
+    expect(after.catalog?.['@fixture/frontend']).toBe(FRONTEND);
+  });
+
+  test('the peer check reads a top-level catalog too', () => {
+    const root = monorepo();
+    const manifest = readManifest({ root });
+
+    writeManifest({
+      root,
+      manifest: {
+        name: manifest.name,
+        workspaces: ['services/*'],
+        catalog: { '@fixture/lib': '2.0.0' },
+      },
+    });
+
+    const result = runCli({
+      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin', '--no-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('the monorepo pins @fixture/lib 2.0.0');
+  });
+
+  test('the knowledge index keeps everything but one new bullet per added app', () => {
+    const root = monorepo();
+    const indexPath = join(root, '.agents/knowledge/index.md');
+    const written = readFileSync(indexPath, 'utf8');
+    const handWritten = `${written.trimEnd()}\n\n## Notes\n\nA paragraph a person wrote.\n`;
+
+    writeFileSync(indexPath, `${handWritten.replace('## Apps', 'Intro by hand.\n\n## Apps')}`);
+
+    for (const app of ['worker', 'billing']) {
+      expect(
+        runCli({ args: ['add', '--preset', BACKEND, '--app', app], cwd: root, env: ENV }).code,
+      ).toBe(0);
+    }
+
+    const index = readFileSync(indexPath, 'utf8');
+
+    expect(index).toContain('Intro by hand.');
+    expect(index).toContain('## Notes\n\nA paragraph a person wrote.\n');
+    expect(index.match(/\[worker\]\(packages\/worker\.md\)/g)).toHaveLength(1);
+    expect(index.match(/\[billing\]\(packages\/billing\.md\)/g)).toHaveLength(1);
+    expect(index.indexOf('[core-api]')).toBeLessThan(index.indexOf('[worker]'));
+    expect(index.indexOf('[worker]')).toBeLessThan(index.indexOf('[billing]'));
+    expect(index.indexOf('[billing]')).toBeLessThan(index.indexOf('## Notes'));
+  });
+
+  test('a knowledge index without an Apps section gets one', () => {
+    const root = monorepo();
+    const indexPath = join(root, '.agents/knowledge/index.md');
+
+    writeFileSync(indexPath, '# p\n\nAll by hand.\n');
+    runCli({ args: ['add', '--preset', BACKEND, '--app', 'worker'], cwd: root, env: ENV });
+
+    expect(readFileSync(indexPath, 'utf8')).toBe(
+      '# p\n\nAll by hand.\n\n## Apps\n\n- [worker](packages/worker.md) - A fixture backend.\n',
+    );
+  });
+
+  test('a folder that is another side folder in the config is refused naming both', () => {
+    const root = monorepo();
+    const result = runCli({
+      args: [
+        'add',
+        '--preset',
+        FRONTEND,
+        '--frontend-dir',
+        'services',
+        '--app',
+        'admin',
+        '--no-api',
+      ],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("frontend folder 'services' is the backend folder");
+    expect(existsSync(join(root, 'services/admin'))).toBe(false);
+  });
+
+  test('a file: preset warns that the catalog entry is not portable', () => {
+    const root = monorepo();
+    const result = runCli({
+      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin', '--no-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain(`file:${FRONTEND_PATH}`);
+    expect(result.stderr).toContain('not portable');
   });
 });

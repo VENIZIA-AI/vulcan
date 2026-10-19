@@ -335,11 +335,14 @@ Add more apps later with [`vulcan add`](/references/commands/add).
 |---|---|
 | `vulcan init: my-product exists and is not empty - init --preset only creates a new project` | The folder has content. Pick a new project name |
 | `vulcan init: missing --backend-dir (Backend folder (holds every backend app)) - names are never chosen for you` | No terminal and a flag is missing. Pass it |
+| `vulcan init: --backend-dir and --shared-dir both name 'code' - each kind of code needs its own folder` | Two of `--backend-dir`, `--frontend-dir` and `--shared-dir` name the same folder. Give each its own |
 | `vulcan init: --project 'Fresh' is not a name: lowercase letters, digits and '-'` | A flag holds an invalid name |
 | `vulcan init: @acme/api@1.0.0 has preset version 2; this VULCAN reads version 1 - upgrade @venizia/vulcan` | The preset is newer than this VULCAN. Upgrade VULCAN |
 | `vulcan init: @acme/none@1.0.0 ships no VULCAN preset (no "vulcan": { "preset" } in its package.json)` | The package is not a preset |
 | `vulcan init: @acme/api@1.0.0: ./vulcan-preset/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined` | `preset.json` breaks the format. The author fixes it |
 | `vulcan init: no package at ~/work/nope - was it installed?` | The `file:` path has no `package.json` |
+
+A `file:` preset is allowed but warns, because it writes a `file:<path>` entry into `catalog` that does not work on another machine or in CI.
 
 An npm preset is installed into a scratch folder first and read from there, so a refusal never leaves a half-made project.
 
