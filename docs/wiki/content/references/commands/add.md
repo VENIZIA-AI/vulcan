@@ -38,8 +38,8 @@ $ bun x --no-install vulcan add --preset file:../acme-web
   created  .agents/knowledge/log.md
   skipped  bun install (VULCAN_NO_INSTALL)
   skipped  vulcan sync (VULCAN_NO_INSTALL)
-  skipped  bun run typecheck (/tmp/vdocs/w1/my-product/web/dashboard) (VULCAN_NO_INSTALL)
-  skipped  bun run build (/tmp/vdocs/w1/my-product/web/dashboard) (VULCAN_NO_INSTALL)
+  skipped  bun run typecheck (~/work/my-product/web/dashboard) (VULCAN_NO_INSTALL)
+  skipped  bun run build (~/work/my-product/web/dashboard) (VULCAN_NO_INSTALL)
   skipped  bun x --no-install vulcan doctor (VULCAN_NO_INSTALL)
   skipped  bun x --no-install vulcan x okf check --strict (VULCAN_NO_INSTALL)
 Done. web/dashboard is added.

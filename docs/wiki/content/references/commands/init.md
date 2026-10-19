@@ -242,8 +242,8 @@ $ bun x @venizia/vulcan init --preset file:./acme-api
   skipped  bun install (VULCAN_NO_INSTALL)
   skipped  git init (VULCAN_NO_INSTALL)
   skipped  vulcan sync (VULCAN_NO_INSTALL)
-  skipped  bun run typecheck (/tmp/vdocs/w1/my-product/services/core-api) (VULCAN_NO_INSTALL)
-  skipped  bun run test (/tmp/vdocs/w1/my-product/services/core-api) (VULCAN_NO_INSTALL)
+  skipped  bun run typecheck (~/work/my-product/services/core-api) (VULCAN_NO_INSTALL)
+  skipped  bun run test (~/work/my-product/services/core-api) (VULCAN_NO_INSTALL)
   skipped  bun x --no-install vulcan doctor (VULCAN_NO_INSTALL)
   skipped  bun x --no-install vulcan x okf check --strict (VULCAN_NO_INSTALL)
 Done. Next:
@@ -339,7 +339,7 @@ Add more apps later with [`vulcan add`](/references/commands/add).
 | `vulcan init: @acme/api@1.0.0 has preset version 2; this VULCAN reads version 1 - upgrade @venizia/vulcan` | The preset is newer than this VULCAN. Upgrade VULCAN |
 | `vulcan init: @acme/none@1.0.0 ships no VULCAN preset (no "vulcan": { "preset" } in its package.json)` | The package is not a preset |
 | `vulcan init: @acme/api@1.0.0: ./vulcan-preset/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined` | `preset.json` breaks the format. The author fixes it |
-| `vulcan init: no package at /tmp/vdocs/w1/nope - was it installed?` | The `file:` path has no `package.json` |
+| `vulcan init: no package at ~/work/nope - was it installed?` | The `file:` path has no `package.json` |
 
 An npm preset is installed into a scratch folder first and read from there, so a refusal never leaves a half-made project.
 
