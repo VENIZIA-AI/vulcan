@@ -16,7 +16,12 @@ Find the exact contract for keys, commands, and messages. The [guides](/guides/)
 
 <a href="/references/commands/" class="guide-card">
 <h3>Commands</h3>
-<p>Every vulcan command: init, sync, doctor, upgrade and x.</p>
+<p>Every vulcan command: init, add, sync, doctor, upgrade and x.</p>
+</a>
+
+<a href="/references/presets" class="guide-card">
+<h3>Presets</h3>
+<p>The format a framework uses to ship an app template.</p>
 </a>
 
 <a href="/references/rules" class="guide-card">
@@ -59,8 +64,8 @@ Find the exact contract for keys, commands, and messages. The [guides](/guides/)
 <span class="stage-num">2</span>
 <h4>Setting up a project</h4>
 </div>
-<p><a href="/references/commands/init">vulcan init</a> - <a href="/references/configuration/">Configuration</a> - <a href="/references/rules">Rules</a></p>
-<span class="stage-desc">Scaffold project files, configure options, and review agent rules.</span>
+<p><a href="/references/commands/init">vulcan init</a> - <a href="/references/commands/add">vulcan add</a> - <a href="/references/configuration/">Configuration</a> - <a href="/references/rules">Rules</a></p>
+<span class="stage-desc">Scaffold project files or a new monorepo, add apps, configure options, and review agent rules.</span>
 </div>
 
 <div class="roadmap-stage">
@@ -88,6 +93,15 @@ Find the exact contract for keys, commands, and messages. The [guides](/guides/)
 </div>
 <p><a href="/references/atlas/">atlas</a> - <a href="/references/atlas/tools">atlas tools</a> - <a href="/references/atlas/sources">atlas sources</a></p>
 <span class="stage-desc">Search documentation, look up symbols, and configure external sources over MCP.</span>
+</div>
+
+<div class="roadmap-stage">
+<div class="stage-header">
+<span class="stage-num">6</span>
+<h4>Shipping an app template</h4>
+</div>
+<p><a href="/references/presets">Presets</a></p>
+<span class="stage-desc">Write the preset a framework ships so vulcan init and add can create its apps.</span>
 </div>
 
 </div>

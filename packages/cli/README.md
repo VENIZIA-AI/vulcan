@@ -16,7 +16,9 @@ flag `bun x` fetches it when `@venizia/vulcan` is not installed yet.
 
 | Command | What it does |
 |---|---|
-| `init [--config ts\|mts\|mjs\|js]` | Scaffold the project layer: `AGENTS.md`, `.configs/vulcan.config.*`, the three lint configs, `.agents/rules.md`, `.agents/knowledge/index.md`, the atlas `.mcp.json`, a Makefile with the `-include` and a fallback rule for a missing `vulcan.mk`. A project whose `package.json` declares `workspaces` gets no root lint configs. Never overwrites; prints what to add to existing files |
+| `init [--config ts\|mts\|mjs\|js]` | Scaffold the project layer: `AGENTS.md`, `.configs/vulcan.config.*`, the three lint configs, `.agents/rules.md`, `.agents/knowledge/index.md`, the atlas `.mcp.json`, a Makefile with the `-include` and a fallback rule for a missing `vulcan.mk`. Appends the agent entries to `.gitignore`, installs the lint tools, and ends with a numbered list of what is left. A project whose `package.json` declares `workspaces` gets no root lint configs. Never overwrites; prints what to add to existing files |
+| `init --preset <name\|file:path> --project <name> --app <name> [--backend-dir\|--frontend-dir <name>] [--shared-dir <name>]` | Create a new monorepo with its first app from a framework preset: the root manifests, the app's files, the VULCAN layer and a knowledge bundle, then install, `sync` and the checks. A name missing from the flags is asked in a terminal; none has a default. Refuses a folder that is not empty |
+| `add --preset <name\|file:path> --app <name> [--backend-dir\|--frontend-dir <name>] [--api <app> \| --no-api]` | Add an app from a preset to a monorepo `init --preset` created: registers it in `workspaces`, the `catalog`, the config and the knowledge bundle, picks a free port, then installs, syncs and checks. A frontend says which backend app to proxy `/api` to |
 | `sync [--dry-run] [--prune]` | Write the gitignored agent adapters: `CLAUDE.md` (`@AGENTS.md`; the one `bun init` writes is replaced, any other hand-written file is left alone), `.claude/settings.json` (shipped + slot + project hooks + `claude.settings` over your personal keys; what it applied is recorded in `.claude/vulcan-managed.json`, so a removed choice is removed, and a hook it wrote is taken back by its command even after you edited its entry), `.claude/skills/` links, and the committed `.agents/vulcan.manifest.json`. Prints each base rule added, changed or removed since the manifest last recorded it, with its new text, then records the new hashes. `--prune` also removes what sync proves stale and did not write: an old VULCAN or plugin-era hook command (a shipped hook exactly as an older VULCAN released it, or a `.agents/` hook whose file is gone) and a dead `.claude/skills` link - never a developer's own hook, a customised shipped command, a real directory or a symlinked `.claude/skills`. `--dry-run` writes nothing and labels each line `would create`, `would replace` or `would remove`. Idempotent |
 | `doctor` | Check the project follows VULCAN; exit 1 on any violation |
 | `upgrade [--stable \| --nightly] [<version\|tag>]` | Install the target `@venizia/vulcan`, then run `sync` from the newly installed CLI. `--stable` (default) is the `latest` dist-tag, never a prerelease; `--nightly` is the higher of `latest` and `next`; a named version or tag wins over both |
@@ -40,6 +42,7 @@ export default {
   hooks: [{ event: 'Stop', command: 'echo done' }],
   claude: { settings: { permissions: { allow: ['Bash(make test)'] } } }, // team-shared, committed
   digest: { oftenDropped: ['V-B-03', 'W-00'] },  // repeated at every session start; base or own IDs
+  layout: { backend: 'services', frontend: 'web', shared: 'libs' }, // written by init --preset and add
 } satisfies VulcanConfig;
 ```
 
@@ -64,6 +67,7 @@ shadowed) · `make` (includes `vulcan.mk`, no shipped target redefined) · `hook
 not re-registered) · `adapters` (sync is current, no hand-written `CLAUDE.md`, valid settings) ·
 `manifest` (`.agents/vulcan.manifest.json` exists and matches the config) · `tags` (every release tag `atlas.tagPattern` reads names a declared package, an alias or an ignored tag) ·
 `prune` (no stale hook command or dead skill link - `sync --prune` removes them) ·
+`apps` (every `layout` folder is a workspace and every package lives in one; skipped without `layout`) ·
 `style` (`@venizia/dev-configs` declared by the package holding the lint config or the root, every lint config builds on it; the packages are `packages/*` and every configured package `path`) ·
 `scaffold` (the config is filled in: a project whose `package.json` declares `workspaces` lists its `packages`, and `.agents/knowledge/index.md` no longer holds the `vulcan:scaffold` line `init` writes).
 

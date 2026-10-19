@@ -1,20 +1,93 @@
 ---
 title: Adopt VULCAN
-description: Add VULCAN to an existing repository, configure the project layer, and verify the setup with doctor.
+description: Start a new monorepo with one command, or add VULCAN to an existing repository, configure the project layer, and verify the setup with doctor.
 ---
 
 # Adopt VULCAN
 
-Add VULCAN to an existing repository in one sitting.
+Start a new project with one command, or add VULCAN to a repository you already have.
 
 ## Prerequisites
 
 Before starting:
 
 - Bun 1.4 or newer
-- A git repository is optional (only atlas release tags use it)
+- A git repository is optional for an existing project (only atlas release tags use it)
 
-To adopt VULCAN, follow these steps in order:
+## Start a new project
+
+A framework ships its app template as a preset. One command turns it into a monorepo with its first app, already checked:
+
+```bash
+bun x @venizia/vulcan init --preset ignis
+```
+
+`ignis` means the package `@venizia/ignis`. In a terminal, `init` asks for the names. It never picks one for you:
+
+```text
+? Project name (the monorepo folder) > my-product
+? Backend folder (holds every backend app) > services
+? Name of this backend app > core-api
+? Shared code folder (empty to skip) > libs
+```
+
+Without a terminal (CI, scripts), pass each answer as a flag:
+
+| Question | Flag |
+|---|---|
+| Project name | `--project my-product` |
+| Backend folder (or `Frontend folder`, for a frontend preset) | `--backend-dir services` (or `--frontend-dir`) |
+| Name of this app | `--app core-api` |
+| Shared code folder | `--shared-dir libs` (leave it out to skip) |
+
+`init` then creates the folder and fills it. With a local preset, the tree is:
+
+```text
+$ cd my-product && find . -type f | sort
+./.agents/knowledge/index.md
+./.agents/knowledge/log.md
+./.agents/knowledge/packages/core-api.md
+./.agents/rules.md
+./.configs/vulcan.config.mts
+./.gitignore
+./.mcp.json
+./AGENTS.md
+./libs/.gitkeep
+./Makefile
+./package.json
+./README.md
+./services/core-api/.env.example
+./services/core-api/package.json
+./services/core-api/src/__tests__/smoke.test.ts
+./services/core-api/src/index.ts
+./services/core-api/tsconfig.json
+```
+
+Everything under `services/core-api/` comes from the preset. The rest is the VULCAN layer.
+`init` installs, runs `vulcan sync`, runs the preset's checks, then `vulcan doctor` and `okf check --strict`. It stops at the first failure.
+When all pass, it prints the next step:
+
+```text
+Done. Next:
+  cd my-product && make dev
+```
+
+For every file and message, see the [init reference](/references/commands/init#create-a-monorepo-with-preset).
+
+### Add more apps
+
+Run `vulcan add` at the monorepo root to add another backend, or a frontend that proxies `/api` to a backend:
+
+```bash
+bun x --no-install vulcan add --preset ignis
+```
+
+See the [add reference](/references/commands/add).
+
+## Adopt an existing project
+
+Add VULCAN to a repository you already have in one sitting.
+Follow these steps in order:
 
 1. Install dependencies:
    ```bash

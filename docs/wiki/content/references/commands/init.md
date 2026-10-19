@@ -1,12 +1,16 @@
 ---
 title: vulcan init
-description: Scaffold the VULCAN project layer, configuration, rules, knowledge bundle and Makefile, append to .gitignore and install the lint tools, without overwriting existing files.
+description: Scaffold the VULCAN project layer in an existing project, or create a new monorepo with its first app from a framework preset.
 ---
 
 # vulcan init
 
-`vulcan init` scaffolds the project layer for a VULCAN project.
-The command writes configuration files, agent routing, rules, a knowledge bundle and a Makefile.
+`vulcan init` sets VULCAN up in a project. It has two modes:
+
+- **Without `--preset`**, it scaffolds the project layer of an existing project (from here to [After init](#after-init)).
+- **With `--preset`**, it creates a new monorepo with its first app ([Create a monorepo with --preset](#create-a-monorepo-with-preset)).
+
+The scaffold writes configuration files, agent routing, rules, a knowledge bundle and a Makefile.
 It also appends the agent entries to `.gitignore`, installs the lint tools with `bun add -d`, and ends with a numbered list of what is left to do.
 `vulcan init` never overwrites an existing file; `.gitignore` is the one file it appends to, and it keeps every line already there.
 
@@ -33,7 +37,7 @@ The output of `bun add -d` appears between the file lines and `left to do:` when
 
 ## Options
 
-`vulcan init` accepts one option:
+Without `--preset`, `vulcan init` accepts one option:
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
@@ -197,8 +201,152 @@ The generated file contains a scaffold marker:
 If `.agents/knowledge/index.md` still contains `vulcan:scaffold`, `vulcan doctor` fails with exit code 1.
 To pass the check, describe the project in `.agents/knowledge/index.md` and delete the marker line.
 
+## Create a monorepo with --preset
+
+`vulcan init --preset <name>` creates a new project folder: a monorepo with its first app inside.
+A preset is a framework's app template, shipped in the framework's npm package ([Presets](/references/presets)).
+Run it where the project folder should go. The project does not exist yet, so call the package by its full name:
+
+```bash
+bun x @venizia/vulcan init --preset ignis
+```
+
+A name without a scope means the package `@venizia/<name>`, so `ignis` is `@venizia/ignis`.
+Any npm name works, `name@version` pins a version, and the default is the `latest` tag.
+
+In a terminal, `init` asks for every name. The run below uses a local preset (`file:`) as a stand-in for a published one:
+
+```text
+$ bun x @venizia/vulcan init --preset file:./acme-api
+? Project name (the monorepo folder) > my-product
+? Backend folder (holds every backend app) > services
+? Name of this backend app > core-api
+? Shared code folder (empty to skip) > libs
+  created  package.json
+  created  .gitignore
+  created  README.md
+  created  libs/.gitkeep
+  created  services/core-api/tsconfig.json
+  created  services/core-api/.env.example
+  created  services/core-api/src/index.ts
+  created  services/core-api/src/__tests__/smoke.test.ts
+  created  services/core-api/package.json
+  created  AGENTS.md
+  created  .agents/rules.md
+  created  .mcp.json
+  created  Makefile
+  created  .configs/vulcan.config.mts
+  created  .agents/knowledge/index.md
+  created  .agents/knowledge/packages/core-api.md
+  created  .agents/knowledge/log.md
+  skipped  bun install (VULCAN_NO_INSTALL)
+  skipped  git init (VULCAN_NO_INSTALL)
+  skipped  vulcan sync (VULCAN_NO_INSTALL)
+  skipped  bun run typecheck (/tmp/vdocs/w1/my-product/services/core-api) (VULCAN_NO_INSTALL)
+  skipped  bun run test (/tmp/vdocs/w1/my-product/services/core-api) (VULCAN_NO_INSTALL)
+  skipped  bun x --no-install vulcan doctor (VULCAN_NO_INSTALL)
+  skipped  bun x --no-install vulcan x okf check --strict (VULCAN_NO_INSTALL)
+Done. Next:
+  cd my-product && make dev
+```
+
+The `skipped` lines appear only because the run sets `VULCAN_NO_INSTALL=1`, which prints the install, `git init`, `sync` and the checks instead of running them.
+A normal run executes each one.
+
+### Flags
+
+Without a terminal (CI, scripts), every name comes from a flag. A missing one is an error that names it:
+
+```text
+$ bun x @venizia/vulcan init --preset file:./acme-api --project fresh
+vulcan init: missing --backend-dir (Backend folder (holds every backend app)) - names are never chosen for you
+```
+
+| Flag | Meaning |
+|---|---|
+| `--preset <name\|file:path>` | The preset package. Required. Its presence selects this mode |
+| `--project <name>` | The project name and the folder to create in the current directory |
+| `--backend-dir <name>` | The folder that holds backend apps. Used when the preset is a backend |
+| `--frontend-dir <name>` | The folder that holds frontend apps. Used when the preset is a frontend |
+| `--app <name>` | The name of the first app |
+| `--shared-dir <name>` | A folder for code shared between apps. Optional: leave it out, or answer empty, to skip it |
+
+A name is lowercase letters, digits and `-`, and starts with a letter or digit.
+In a terminal an invalid name is asked again; with a flag it is an error.
+VULCAN never invents a name, so none of these has a default.
+
+### What it creates
+
+```text
+$ cd my-product && find . -type f | sort
+./.agents/knowledge/index.md
+./.agents/knowledge/log.md
+./.agents/knowledge/packages/core-api.md
+./.agents/rules.md
+./.configs/vulcan.config.mts
+./.gitignore
+./.mcp.json
+./AGENTS.md
+./libs/.gitkeep
+./Makefile
+./package.json
+./README.md
+./services/core-api/.env.example
+./services/core-api/package.json
+./services/core-api/src/__tests__/smoke.test.ts
+./services/core-api/src/index.ts
+./services/core-api/tsconfig.json
+```
+
+| File | What it holds |
+|---|---|
+| `package.json` | A private root with `workspaces` (`services/*`, `libs/*`) and a `catalog` of every version the preset declares. `@venizia/vulcan` is pinned to the exact running version |
+| `<folder>/<app>/` | The preset's files, plus a `package.json` whose dependencies are `catalog:` |
+| `.gitignore`, `README.md`, `Makefile` | The ignore list for agent files, a title, and the VULCAN targets plus `make dev` |
+| `AGENTS.md`, `.agents/rules.md`, `.mcp.json` | The same layer as [the scaffold above](#generated-files) |
+| `.configs/vulcan.config.mts` | `name`, `layout`, one `packages` entry per app, and the preset's `atlas` sources |
+| `.agents/knowledge/` | An index, one concept per app, and a log entry naming the preset and its version |
+| `<shared>/.gitkeep` | Keeps the shared folder in git |
+
+Between the `vulcan:apps:start` and `vulcan:apps:end` comments, the config holds a block that `init` and [`add`](/references/commands/add) rewrite.
+Edit the config outside that block.
+
+### What it runs
+
+After the files, `init` runs these in order, in the new project:
+
+1. `bun install`
+2. `git init` on the branch `develop`
+3. `vulcan sync`, run by the installed version
+4. each script listed in the preset's `checks`, with `bun run <script>` in the app
+5. `vulcan doctor`
+6. `vulcan x okf check --strict`
+
+The first failure stops the command with that command's output. The project stays on disk for you to inspect.
+When everything passes, `init` prints `Done. Next:` and `cd <project> && make dev`.
+
+Add more apps later with [`vulcan add`](/references/commands/add).
+
+### Refusals
+
+`init --preset` exits 1 before writing anything when:
+
+| Message | Cause and fix |
+|---|---|
+| `vulcan init: my-product exists and is not empty - init --preset only creates a new project` | The folder has content. Pick a new project name |
+| `vulcan init: missing --backend-dir (Backend folder (holds every backend app)) - names are never chosen for you` | No terminal and a flag is missing. Pass it |
+| `vulcan init: --project 'Fresh' is not a name: lowercase letters, digits and '-'` | A flag holds an invalid name |
+| `vulcan init: @acme/api@1.0.0 has preset version 2; this VULCAN reads version 1 - upgrade @venizia/vulcan` | The preset is newer than this VULCAN. Upgrade VULCAN |
+| `vulcan init: @acme/none@1.0.0 ships no VULCAN preset (no "vulcan": { "preset" } in its package.json)` | The package is not a preset |
+| `vulcan init: @acme/api@1.0.0: ./vulcan-preset/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined` | `preset.json` breaks the format. The author fixes it |
+| `vulcan init: no package at /tmp/vdocs/w1/nope - was it installed?` | The `file:` path has no `package.json` |
+
+An npm preset is installed into a scratch folder first and read from there, so a refusal never leaves a half-made project.
+
 ## See also
 
 - [Adopt VULCAN](/guides/get-started/adopt-vulcan)
+- [vulcan add](/references/commands/add)
+- [Presets](/references/presets)
 - [Configuration](/references/configuration/)
 - [vulcan sync](/references/commands/sync)

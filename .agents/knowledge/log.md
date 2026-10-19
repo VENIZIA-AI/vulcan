@@ -6,6 +6,14 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-20 - init --preset, add and the preset format (0.3.0)
+
+Updated [cli](/packages/cli.md): `init --preset` creates a monorepo with its first app from a framework
+preset and `add --preset` adds more apps; `init` writes `.mts`, `.gitignore` entries and the lint tools;
+`sync` replaces `bun init`'s `CLAUDE.md`; `upgrade` is stable by default (`--nightly` for `next`); the
+`atlas.releaseCommit`, `atlas.typescriptFrom` and `atlas.legacyTagPrefixes` keys are removed. Updated
+[project contract](/architecture/project-contract.md): the `apps` doctor check and the `layout` key.
+
 ## 2026-10-18 - remote-host guard closes six gaps (0.2.0-9)
 
 Updated [cli](/packages/cli.md): the guard reads HTTP clients against a `readOnly` host, a shell fed
