@@ -8,7 +8,8 @@ Usage: bun x vulcan <command>
   init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <name>]
        [--shared-dir <name>]      Create a monorepo with its first app, from a framework preset
                                   (a name missing from the flags is asked in a terminal)
-  add --preset <name|file:path>   Add an app to the monorepo
+  add --preset <name|file:path> --app <name> [--backend-dir|--frontend-dir <name>]
+      [--api <app> | --no-api]    Add an app to the monorepo (a frontend says which backend to proxy to)
   sync [--dry-run] [--prune]      Write the gitignored agent adapters (CLAUDE.md, .claude/);
                                   --prune also removes stale hooks and dead skill links
   doctor                          Check the project follows VULCAN; exit 1 on any violation

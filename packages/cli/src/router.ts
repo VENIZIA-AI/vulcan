@@ -29,6 +29,17 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
     ],
     positionals: 0,
   },
+  [VulcanCommands.ADD]: {
+    flags: [CreateFlags.NO_API],
+    values: [
+      CreateFlags.PRESET,
+      CreateFlags.BACKEND_DIR,
+      CreateFlags.FRONTEND_DIR,
+      CreateFlags.APP,
+      CreateFlags.API,
+    ],
+    positionals: 0,
+  },
   [VulcanCommands.SYNC]: { flags: ['--dry-run', '--prune'], values: [], positionals: 0 },
   [VulcanCommands.DOCTOR]: { flags: [], values: [], positionals: 0 },
   [VulcanCommands.UPGRADE]: {

@@ -1,5 +1,6 @@
 export class VulcanCommands {
   static readonly INIT = 'init';
+  static readonly ADD = 'add';
   static readonly SYNC = 'sync';
   static readonly DOCTOR = 'doctor';
   static readonly UPGRADE = 'upgrade';
@@ -8,6 +9,7 @@ export class VulcanCommands {
   static readonly VERSION = 'version';
   static readonly SCHEME_SET = new Set<string>([
     this.INIT,
+    this.ADD,
     this.SYNC,
     this.DOCTOR,
     this.UPGRADE,
