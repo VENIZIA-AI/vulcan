@@ -1,0 +1,28 @@
+export class AppSides {
+  static readonly BACKEND = 'backend';
+  static readonly FRONTEND = 'frontend';
+  static readonly SCHEME_SET = new Set<string>([this.BACKEND, this.FRONTEND]);
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
+export class CreateConstants {
+  static readonly NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+  static readonly PRESET_FIELD = 'vulcan';
+  static readonly PRESET_VERSION = 1;
+  static readonly APPS_BLOCK_START =
+    '// vulcan:apps:start - written by vulcan init and add; edit outside this block';
+  static readonly APPS_BLOCK_END = '// vulcan:apps:end';
+}
+
+export class CreateFlags {
+  static readonly PRESET = '--preset';
+  static readonly PROJECT = '--project';
+  static readonly BACKEND_DIR = '--backend-dir';
+  static readonly FRONTEND_DIR = '--frontend-dir';
+  static readonly SHARED_DIR = '--shared-dir';
+  static readonly APP = '--app';
+  static readonly API = '--api';
+  static readonly NO_API = '--no-api';
+}
