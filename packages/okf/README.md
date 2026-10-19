@@ -69,7 +69,7 @@ id, with `options`. A project's own renderer is a module:
 4. Run `vulcan x okf gen`, then `vulcan x okf check --strict`: it passes, and a second `gen` prints
    `gen: up to date`.
 
-The [adoption guide](../../docs/wiki/content/guides/adopting-vulcan.md) shows a complete module.
+The [renderers reference](../../docs/wiki/content/references/okf/renderers.md) shows a complete module.
 
 ## Layout
 

@@ -11,8 +11,11 @@ import { IGNIS_ROOT } from '../ignis-root.helper';
 // __dirname, not import.meta: tsconfig.json (unlike tsconfig.build.json) does not exclude
 // __tests__, and this package's module mode treats every file as CommonJS output.
 const REPOSITORY_ROOT = IGNIS_ROOT;
-// Atlas's page moved with atlas: IGNIS's extension page is a pointer now, VULCAN's guide quotes the ids.
-const EXTENSION_PAGE = join(__dirname, '../../../../../docs/wiki/content/guides/atlas.md');
+// Atlas's page moved with atlas: IGNIS's extension page is a pointer now, VULCAN's atlas tools reference quotes the ids.
+const EXTENSION_PAGE = join(
+  __dirname,
+  '../../../../../docs/wiki/content/references/atlas/tools.md',
+);
 
 // A real citation id, e.g. `wiki:guide.md#anchor` - never a format placeholder like
 // `wiki:<path>#<anchor>`, which is excluded by rejecting `<`/`>` inside the match.

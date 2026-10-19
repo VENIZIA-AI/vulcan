@@ -1,0 +1,564 @@
+---
+title: Configuration
+description: Inspect schema keys, default values, validation rules, and effects for .configs/vulcan.config.*.
+---
+
+# Configuration
+
+VULCAN stores project settings in `.configs/vulcan.config.*`. The configuration loader accepts exactly one of four files:
+
+- `.configs/vulcan.config.ts`
+- `.configs/vulcan.config.mts`
+- `.configs/vulcan.config.mjs`
+- `.configs/vulcan.config.js`
+
+If multiple configuration files exist, the loader halts with an error:
+
+```text
+more than one config - keep exactly one of: <files>
+```
+
+The table below lists all loader errors:
+
+| Failure | Error message |
+|---|---|
+| No file found | `no .configs/vulcan.config.* found in <root>` |
+| Multiple files found | `more than one config - keep exactly one of: <files>` |
+| Import throws | `<file>: failed to load - <error>` |
+| Missing default export | `<file>: no default export - write 'export default { ... }'` |
+| Invalid schema | `<file>: invalid config` |
+
+Each configuration file must provide a default export. Type the configuration using `satisfies VulcanConfig` or the `defineConfig` helper:
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  agents: ['claude'],
+  rules: { 'V-W-01': 'on-user-word' },
+} satisfies VulcanConfig;
+```
+
+```ts
+import { defineConfig } from '@venizia/vulcan';
+
+export default defineConfig({
+  agents: ['claude'],
+  rules: { 'V-W-01': 'on-user-word' },
+});
+```
+
+The schema is strict. An unknown key causes an error during `vulcan doctor`:
+
+```text
+$ bun x --no-install vulcan doctor
+  [config] .configs/vulcan.config.ts: .configs/vulcan.config.ts: invalid config
+  bogus: Unrecognized key: "bogus"
+vulcan doctor: 1 violation(s)
+```
+
+The command exits with code 1.
+
+The table below lists all 11 top-level configuration keys:
+
+| Key | Type | Default | What it controls |
+|---|---|---|---|
+| `name` | `string` | root package name | Project identifier in the manifest and atlas results |
+| `agents` | `string[]` | `['claude']` | Coding agents that sync generates adapters for |
+| `rules` | `Record<string, string>` | `{}` | Base rule slot choices |
+| `packages` | `Array<object>` | `[]` | Monorepo packages in release order |
+| `knowledge` | `object` | `{ bundle: '.agents/knowledge' }` | Locations for knowledge documents and concepts |
+| `okf` | `object` | `{ renderers: [], ... }` | Renderers, regions, and coverage checks for okf |
+| `atlas` | `object` | `{ tagPattern: '...', sources: [] }` | Release tags and external knowledge sources |
+| `remoteHosts` | `object` | `undefined` | Remote host network guard permissions |
+| `claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
+| `hooks` | `Array<object>` | `[]` | Custom project event hooks |
+| `digest` | `object` | `{ oftenDropped: [...] }` | Rules printed at session startup |
+
+## name
+
+The `name` property assigns the project identifier written to `.agents/vulcan.manifest.json`. It appears as the `source` of every atlas result and names the server `<name>-atlas`.
+
+If you omit `name`, VULCAN uses the root `package.json` name without scope and without `-workspace`. When `package.json` has no name, VULCAN uses the root directory name.
+
+The value must match the regular expression `/^[a-z0-9][a-z0-9-]*$/`. It allows lowercase letters, digits, and hyphens, and must start with a lowercase letter or digit.
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  name: 'shop-service',
+} satisfies VulcanConfig;
+```
+
+## agents
+
+The only accepted value in 0.2 is `'claude'`.
+
+When you include `'claude'`, `vulcan sync` writes `CLAUDE.md`, `.claude/settings.json`, and links skills in `.claude/skills/`. The `vulcan doctor` command checks these generated files with the `[adapters]` label.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `agents` | `string[]` | `['claude']` | Assistant identifiers that `vulcan sync` writes adapters for |
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  agents: ['claude'],
+} satisfies VulcanConfig;
+```
+
+## rules
+
+The `rules` map assigns choices to base rule slots. `vulcan sync` updates generated assistant settings and session digests from these choices.
+
+The SessionStart hook reads your choices and displays them during session startup. The base defines the `V-W-01` slot with two choices:
+
+- `on-user-word`: Git operations occur only when you request them in conversation.
+- `read-only`: Git operations are read-only for the agent. `vulcan sync` writes a `permissions.deny` list to `.claude/settings.json`.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `rules` | `Record<string, string>` | `{}` | Map of base rule slot IDs to selected choices |
+
+Every slot key must match the rule ID regular expression `/^(?:[A-Z]+-)?[A-Z]-\d{2}$/`.
+
+The `vulcan doctor` command validates rule slots under the `[rule-slots]` label. The check reports when a key is not a recognized slot:
+
+```text
+bogus is not a slot - only V-W-01 take a choice
+```
+
+It reports when a choice is not an available option:
+
+```text
+V-W-01: 'invalid' is not an option (on-user-word | read-only)
+```
+
+It also reports when a slot has no choice configured:
+
+```text
+$ bun x --no-install vulcan doctor
+  [rule-slots] .configs/vulcan.config.ts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
+vulcan doctor: 1 violation(s)
+```
+
+The command exits with code 1.
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  rules: {
+    'V-W-01': 'on-user-word',
+  },
+} satisfies VulcanConfig;
+```
+
+## packages
+
+The `packages` array defines monorepo packages in release order. Manifest rendering, release checks, and atlas symbol searches read this list.
+
+`vulcan sync` writes the package list into `.agents/vulcan.manifest.json`. If `package.json` declares workspaces while `packages` is empty, `vulcan doctor` reports a `[scaffold]` violation. `vulcan doctor` also runs the `[tags]` check to verify tags against package directories and aliases.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `dir` | `string` | none | Unique package key matching `/^[a-z0-9][a-z0-9.-]*$/` |
+| `name` | `string` | none | The npm package name |
+| `path` | `string` | `packages/<dir>` | Package location relative to the repository root |
+| `aliases` | `string[]` | `[]` | Extra names accepted as the `<dir>` of a release tag |
+| `retired` | `boolean` | `false` | Marks a package as retired to keep historical releases readable |
+
+The schema requires strict uniqueness across all packages:
+
+- Each `dir` must be unique across all packages.
+- Each `name` must be unique across all packages.
+- Each active package with `retired: false` must have a unique resolved `path`.
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  packages: [
+    { dir: 'core', name: '@venizia/core' },
+    { dir: 'server', name: '@venizia/server', path: 'services/server', aliases: ['api'] },
+    { dir: 'legacy-worker', name: '@venizia/worker', retired: true },
+  ],
+} satisfies VulcanConfig;
+```
+
+## knowledge
+
+The `knowledge` object configures paths for knowledge bundles and documentation. `vulcan sync` writes these paths to `.agents/vulcan.manifest.json`.
+
+`vulcan doctor` verifies that the `bundle` directory exists using the `[layout]` label. Atlas reads `bundle`, `wiki`, and `changelogs` from the manifest to index concepts and release notes. The `knowledge-sync` skill reads `syncAreas` to map source code directories to knowledge concepts.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `bundle` | `string` | `'.agents/knowledge'` | Location of the Open Knowledge Format bundle |
+| `wiki` | `string` | `undefined` | Location of the documentation wiki content |
+| `changelogs` | `string` | `undefined` | Location of changelog files |
+| `syncAreas` | `string` | `undefined` | Path to the knowledge synchronization concept map |
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  knowledge: {
+    bundle: '.agents/knowledge',
+    wiki: 'docs/wiki/content',
+    changelogs: 'docs/wiki/content/changelogs',
+    syncAreas: '.agents/knowledge/process/knowledge-sync-areas.md',
+  },
+} satisfies VulcanConfig;
+```
+
+## okf
+
+The `okf` object configures renderers, region replacements, coverage tracking, and graph visualizations for `vulcan x okf` commands.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `renderers` | `Array<string \| object>` | `[]` | Built-in renderer identifiers or custom generator modules |
+| `regions` | `Array<object>` | `[]` | Target files and renderers for generated documentation blocks |
+| `sections` | `object` | `{ order: [], labels: {} }` | Heading ordering and display labels for index tables |
+| `coverage` | `Array<object>` | `[]` | Directory axes checked for concept documentation coverage |
+| `denylist` | `string[]` | `[]` | Directory names omitted across every coverage axis |
+| `contents` | `object` | `{ files: ['AGENTS.md', '.agents/rules.md'] }` | Files that receive generated table of contents when exceeding 100 lines |
+| `viz` | `object` | `{ outputs: ['.agents/knowledge/viz.html'] }` | Output paths and brand settings for knowledge graph files |
+
+### okf.renderers
+
+Each entry is a string identifier or an object configuring a renderer:
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `id` | `string` | none | Built-in renderer name or custom renderer identifier |
+| `module` | `string` | `undefined` | Module path exporting the custom renderer function |
+| `options` | `Record<string, unknown>` | `{}` | Options passed to the renderer function |
+
+### okf.regions
+
+Each region binds a generated block in a markdown file to a renderer:
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `id` | `string` | none | Unique region identifier |
+| `file` | `string` | none | Target file path relative to the repository root |
+| `renderer` | `string` | none | Identifier of the renderer generating the block |
+
+### okf.sections
+
+The `sections` object controls ordering and labels in generated index tables:
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `order` | `string[]` | `[]` | Heading order for index tables |
+| `labels` | `Record<string, string>` | `{}` | Display labels mapped to section headings |
+
+### okf.coverage
+
+Each entry defines a directory axis checked for concept documentation coverage:
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `name` | `string` | none | Unique name for the coverage axis |
+| `path` | `string` | none | Directory path or pattern to scan |
+| `exclude` | `string[]` | `[]` | Root-relative glob patterns omitted from this axis |
+| `denylist` | `string[]` | `[]` | Directory names omitted from this axis only |
+
+The top-level `okf.denylist` array omits directory names across every coverage axis.
+
+### okf.contents
+
+The `contents` object configures files outside the bundle that receive generated contents tables when exceeding 100 lines:
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `files` | `string[]` | `['AGENTS.md', '.agents/rules.md']` | File paths or glob patterns receiving generated tables |
+
+### okf.viz
+
+The `viz` object controls knowledge graph output files and branding:
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `outputs` | `string[]` | `['.agents/knowledge/viz.html']` | Output file paths for generated HTML visualizations |
+| `brand` | `string` | `undefined` | Brand heading shown in the visualization header |
+| `copy` | `Record<string, unknown>` | `undefined` | Custom text overrides for visualization UI labels |
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  okf: {
+    renderers: [
+      'source-map',
+      { id: 'custom-docs', module: '.agents/okf/custom.ts' },
+    ],
+    regions: [
+      { id: 'packages-table', file: 'overview/monorepo-layout.md', renderer: 'packages-table' },
+    ],
+    coverage: [
+      { name: 'packages', path: 'packages/*' },
+    ],
+  },
+} satisfies VulcanConfig;
+```
+
+To configure custom generators and view built-in renderer options, see the [renderers reference](/references/okf/renderers).
+
+## atlas
+
+The `atlas` object configures release tags and external repository sources. `vulcan sync` writes `release: { tagPattern, legacyTagPrefixes, ignoreTags }` and `sources` to `.agents/vulcan.manifest.json`. Atlas reads `sources` from the manifest to clone and query knowledge across external repositories.
+
+The keys `releaseCommit` and `typescriptFrom` are accepted and validated, but no tool reads them in 0.2.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` or `<package>` |
+| `sources` | `Array<object>` | `[]` | External repositories to query through atlas |
+| `legacyTagPrefixes` | `string[]` | `undefined` | Prefixes for legacy release tags written to the manifest |
+| `ignoreTags` | `string[]` | `undefined` | Glob patterns of git tags ignored by checks |
+| `releaseCommit` | `string` | `'[#<issue>] chore(<dir>): release v<version>'` | Accepted, but no tool reads it in 0.2 |
+| `typescriptFrom` | `string` | `undefined` | Accepted, but no tool reads it in 0.2 |
+
+### tagPattern and the tags check
+
+The `tagPattern` template must contain `<version>`. The `<dir>` (or `<package>`) placeholder is optional. A release train that tags once leaves it out (`v<version>`). `vulcan doctor` skips the `[tags]` check when there is no `<dir>`.
+
+The `[tags]` doctor check does not require every tag to match `tagPattern`. It parses tags using the template. It reports any tag that names a package no `packages` entry declares by `dir` or alias. Glob patterns in `ignoreTags` skip tags:
+
+```text
+$ bun x --no-install vulcan doctor
+  [tags] git tags: tag ghost-v1.0.0 reads as a release of 'ghost', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (atlas.ignoreTags)
+vulcan doctor: 1 violation(s)
+```
+
+The command exits with code 1.
+
+### atlas.sources
+
+The `sources` array lists external repositories indexed by atlas:
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `name` | `string` | none | External source identifier in atlas results |
+| `repo` | `string` | none | GitHub repository identifier in `owner/repo` format |
+| `ref` | `string` | `'develop'` | Git branch, tag, or commit reference to index |
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  atlas: {
+    tagPattern: '<dir>-v<version>',
+    sources: [
+      { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
+    ],
+    ignoreTags: ['legacy-*'],
+  },
+} satisfies VulcanConfig;
+```
+
+### Removed key: atlas.packages
+
+The `atlas.packages` key was removed in version 0.2.0-8. The schema rejects this key with an explicit error:
+
+```text
+atlas.packages was removed - move the list to the top-level packages: [{ dir, name }] (release order; dir is the old key, name the old value)
+```
+
+To resolve this error, move the package array to the top-level `packages` key.
+
+To configure external repositories, see the [atlas sources reference](/references/atlas/sources).
+
+## remoteHosts
+
+Defining `remoteHosts` activates the remote host guard. `vulcan sync` registers a `PreToolUse` hook in `.claude/settings.json` and saves host rules to `.agents/vulcan.manifest.json`.
+
+If you omit `remoteHosts`, `vulcan sync` registers no remote host guard. When set, the guard hook intercepts Bash commands targeting remote servers. It prompts for confirmation when the destination is unlisted.
+
+The defaults for `trusted`, `readOnly`, and `localFile` apply once `remoteHosts` is set:
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `trusted` | `string[]` | `[]` | Host names or patterns permitted for all commands |
+| `readOnly` | `string[]` | `[]` | Host names or patterns permitted only for strict read commands |
+| `localFile` | `string` | `'.agents/hooks/trusted-hosts.local'` | Path to uncommitted personal trusted hosts file |
+
+Each host pattern must match `/^(?:\$\{?\w+\}?|[A-Za-z0-9._*-]+)$/`. The pattern admits host names, wildcard patterns with `*`, or shell variables such as `$HOST` or `${HOST}`. Every pattern needs at least one literal character beyond `*` and `.`. Values must not contain user names, URL paths, or port numbers.
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  remoteHosts: {
+    trusted: ['dev-server', '*.internal.net'],
+    readOnly: ['prod-db'],
+    localFile: '.agents/hooks/trusted-hosts.local',
+  },
+} satisfies VulcanConfig;
+```
+
+To inspect matching behavior and strict read commands, see the [remote host guard reference](/references/hooks/remote-host-guard).
+
+## claude
+
+The `claude` object provides team-shared assistant configuration. `vulcan sync` merges `claude.settings` into `.claude/settings.json` over personal keys.
+
+`vulcan sync` records applied settings in `.claude/vulcan-managed.json`. When you remove a key from `claude.settings`, the next run of `vulcan sync` removes that key from `.claude/settings.json`.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `settings` | `Record<string, unknown>` | `{}` | Settings dictionary merged into `.claude/settings.json` |
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  claude: {
+    settings: {
+      permissions: {
+        allow: ['Bash(bun test)'],
+      },
+    },
+  },
+} satisfies VulcanConfig;
+```
+
+## hooks
+
+The `hooks` array registers custom shell commands for assistant lifecycle events. `vulcan sync` converts and merges these definitions into `.claude/settings.json`.
+
+`vulcan doctor` checks project hook definitions under the `[hooks]` label. If a project hook attempts to run a shipped VULCAN hook command, `vulcan doctor` reports a violation:
+
+```text
+$ bun x --no-install vulcan doctor
+  [hooks] .configs/vulcan.config.ts: the SessionStart hook runs a shipped hook - sync registers those, never the project
+  [adapters] .claude/settings.json: stale (replaced) - run 'bun x --no-install vulcan sync'
+vulcan doctor: 2 violation(s)
+```
+
+The command exits with code 1.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `event` | `string` | none | Hook event: `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `SessionStart`, or `Stop` |
+| `matcher` | `string` | `undefined` | Tool matcher string such as `Bash` |
+| `command` | `string` | none | Shell command to execute |
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  hooks: [
+    {
+      event: 'Stop',
+      command: 'bun .agents/hooks/notify.ts',
+    },
+    {
+      event: 'PreToolUse',
+      matcher: 'Bash',
+      command: 'bun .agents/hooks/lint-check.ts',
+    },
+  ],
+} satisfies VulcanConfig;
+```
+
+## digest
+
+The `digest` object configures which rule IDs the SessionStart hook prints at session start.
+
+The SessionStart hook displays these rules under the heading "The rules sessions drop most". If you omit `digest`, VULCAN prints the default rule list shown below.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `oftenDropped` | `string[]` | `['V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-W-04', 'V-C-02', 'V-C-10']` | Rule IDs highlighted at session start |
+
+Every rule ID in `oftenDropped` must match the rule ID regular expression `/^(?:[A-Z]+-)?[A-Z]-\d{2}$/`.
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  digest: {
+    oftenDropped: ['V-B-03', 'V-P-06', 'V-W-04'],
+  },
+} satisfies VulcanConfig;
+```
+
+## A complete config
+
+The example below shows a complete configuration declaring every key once:
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  name: 'shop-suite',
+  agents: ['claude'],
+  rules: {
+    'V-W-01': 'on-user-word',
+  },
+  packages: [
+    { dir: 'core', name: '@venizia/shop-core' },
+    { dir: 'api', name: '@venizia/shop-api', path: 'services/api', aliases: ['server'] },
+    { dir: 'worker', name: '@venizia/shop-worker', retired: true },
+  ],
+  knowledge: {
+    bundle: '.agents/knowledge',
+    wiki: 'docs/wiki/content',
+    changelogs: 'docs/wiki/content/changelogs',
+    syncAreas: '.agents/knowledge/process/knowledge-sync-areas.md',
+  },
+  okf: {
+    renderers: [
+      'source-map',
+      { id: 'makefile-targets' },
+    ],
+    regions: [
+      { id: 'packages-table', file: 'overview/monorepo-layout.md', renderer: 'packages-table' },
+    ],
+    coverage: [
+      { name: 'packages', path: 'packages/*' },
+    ],
+  },
+  atlas: {
+    tagPattern: '<dir>-v<version>',
+    releaseCommit: '[#<issue>] chore(<dir>): release v<version>',
+    sources: [
+      { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
+    ],
+    ignoreTags: ['legacy-*'],
+  },
+  remoteHosts: {
+    trusted: ['lab-node-01', '*.lab.internal'],
+    readOnly: ['prod-db'],
+    localFile: '.agents/hooks/trusted-hosts.local',
+  },
+  claude: {
+    settings: {
+      permissions: {
+        allow: ['Bash(bun test)'],
+      },
+    },
+  },
+  hooks: [
+    {
+      event: 'Stop',
+      command: 'bun .agents/hooks/notify.ts',
+    },
+  ],
+  digest: {
+    oftenDropped: ['V-B-03', 'V-P-06', 'V-W-04'],
+  },
+} satisfies VulcanConfig;
+```
+
+## See also
+
+- [Sync command reference](/references/commands/sync)
+- [Doctor command reference](/references/commands/doctor)
+- [Rules reference](/references/rules)
