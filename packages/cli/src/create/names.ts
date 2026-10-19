@@ -1,3 +1,5 @@
+import { readSync } from 'node:fs';
+
 import { AppSides, CreateConstants, CreateFlags } from './common/index.ts';
 import type { INameField, TAppSide, TAsk, TNamesResult } from './common/index.ts';
 
@@ -24,13 +26,60 @@ export const readFlag = (opts: { args: string[]; flag: string }): string | undef
 const isValidName = (opts: { name: string }): boolean =>
   CreateConstants.NAME_PATTERN.test(opts.name);
 
-/** Bun's prompt(); the shown default is the user's own earlier choice, never one VULCAN made up. */
-export const askWithPrompt: TAsk = opts =>
-  prompt(
+const NEWLINE = 0x0a;
+const CARRIAGE_RETURN = 0x0d;
+
+/**
+ * One line from a file descriptor, read byte by byte so nothing past the newline is consumed.
+ * Not Bun's prompt(): it returns null for an empty line, which is not end of input. An empty line
+ * is '' here; null is only end of input (Ctrl-D, closed stdin) with nothing read.
+ */
+export const readLine = (opts: { descriptor: number }): string | null => {
+  const byte = Buffer.alloc(1);
+  const bytes: number[] = [];
+
+  for (;;) {
+    let count = 0;
+
+    try {
+      count = readSync(opts.descriptor, byte, 0, 1, null);
+    } catch (error) {
+      // A non-blocking pipe with nothing buffered yet: wait for the writer instead of failing.
+      if ((error as NodeJS.ErrnoException).code === 'EAGAIN') {
+        continue;
+      }
+
+      throw error;
+    }
+
+    if (count === 0) {
+      return bytes.length === 0 ? null : Buffer.from(bytes).toString('utf8');
+    }
+
+    if (byte[0] === NEWLINE) {
+      break;
+    }
+
+    bytes.push(byte[0]!);
+  }
+
+  if (bytes.at(-1) === CARRIAGE_RETURN) {
+    bytes.pop();
+  }
+
+  return Buffer.from(bytes).toString('utf8');
+};
+
+/** The shown default is the user's own earlier choice, never one VULCAN made up. */
+export const askWithPrompt: TAsk = opts => {
+  process.stdout.write(
     opts.previous === undefined
-      ? `? ${opts.question} >`
-      : `? ${opts.question} (${opts.previous}) >`,
+      ? `? ${opts.question} > `
+      : `? ${opts.question} (${opts.previous}) > `,
   );
+
+  return readLine({ descriptor: CreateConstants.STDIN_DESCRIPTOR });
+};
 
 const askUntilValid = (opts: { field: INameField; ask: TAsk }): string | null => {
   for (;;) {

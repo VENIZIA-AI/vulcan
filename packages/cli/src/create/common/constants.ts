@@ -16,6 +16,7 @@ export class CreateConstants {
   static readonly PRESET_FILE_PREFIX = 'file:';
   /** npm drops dotfiles from a tarball, so a preset ships `_name` for `.name`. */
   static readonly PRESET_DOTFILE_PREFIX = '_';
+  static readonly STDIN_DESCRIPTOR = 0;
   static readonly APPS_BLOCK_START =
     '// vulcan:apps:start - written by vulcan init and add; edit outside this block';
   static readonly APPS_BLOCK_END = '// vulcan:apps:end';

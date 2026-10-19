@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { resolveNames } from '../../create/names.ts';
+import { closeSync, mkdtempSync, openSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { readLine, resolveNames } from '../../create/names.ts';
 import type { INameField, TAsk } from '../../create/index.ts';
 
 const FIELDS: INameField[] = [
@@ -100,5 +103,85 @@ describe('resolveNames', () => {
     expect(
       resolveNames({ fields: FIELDS, args: [], interactive: true, ask: scripted([null]) }),
     ).toEqual({ ok: false, error: 'aborted' });
+  });
+});
+
+describe('readLine', () => {
+  const withInput = (opts: { content: string; run: (descriptor: number) => void }): void => {
+    const folder = mkdtempSync(join(tmpdir(), 'vulcan-readline-'));
+    const file = join(folder, 'input');
+
+    writeFileSync(file, opts.content);
+
+    const descriptor = openSync(file, 'r');
+
+    try {
+      opts.run(descriptor);
+    } finally {
+      closeSync(descriptor);
+      rmSync(folder, { recursive: true, force: true });
+    }
+  };
+
+  test('a bare newline is the empty string, not an abort', () => {
+    withInput({ content: '\n', run: descriptor => expect(readLine({ descriptor })).toBe('') });
+  });
+
+  test('a text line is returned without its newline', () => {
+    withInput({
+      content: 'services\n',
+      run: descriptor => expect(readLine({ descriptor })).toBe('services'),
+    });
+  });
+
+  test('a trailing carriage return is stripped', () => {
+    withInput({
+      content: 'services\r\n',
+      run: descriptor => expect(readLine({ descriptor })).toBe('services'),
+    });
+    withInput({ content: '\r\n', run: descriptor => expect(readLine({ descriptor })).toBe('') });
+  });
+
+  test('end of input with nothing read is null, the abort', () => {
+    withInput({ content: '', run: descriptor => expect(readLine({ descriptor })).toBeNull() });
+  });
+
+  test('a line then end of input: the line, then null', () => {
+    withInput({
+      content: 'libs\n',
+      run: descriptor => {
+        expect(readLine({ descriptor })).toBe('libs');
+        expect(readLine({ descriptor })).toBeNull();
+      },
+    });
+  });
+
+  test('lines are read one at a time and an empty one between them stays empty', () => {
+    withInput({
+      content: 'a\n\nb\n',
+      run: descriptor => {
+        expect(readLine({ descriptor })).toBe('a');
+        expect(readLine({ descriptor })).toBe('');
+        expect(readLine({ descriptor })).toBe('b');
+        expect(readLine({ descriptor })).toBeNull();
+      },
+    });
+  });
+
+  test('text before end of input without a newline is still an answer', () => {
+    withInput({
+      content: 'tail',
+      run: descriptor => {
+        expect(readLine({ descriptor })).toBe('tail');
+        expect(readLine({ descriptor })).toBeNull();
+      },
+    });
+  });
+
+  test('multi-byte characters survive the byte-wise read', () => {
+    withInput({
+      content: 'caf\u00e9\n',
+      run: descriptor => expect(readLine({ descriptor })).toBe('caf\u00e9'),
+    });
   });
 });
