@@ -24,7 +24,8 @@ export const runInitCommand = async (opts: ICommandContext): Promise<number> => 
   }
 
   if (result.install.length > 0) {
-    const args = ['add', '-d', ...result.install];
+    // Exact versions: V-S-05 pins what a project installs, and a range would drift on the next install.
+    const args = ['add', '-d', '--exact', ...result.install];
     const code = await runBun({ cwd: opts.cwd, args, label: `bun ${args.join(' ')}` });
 
     if (code !== ExitCodes.OK) {

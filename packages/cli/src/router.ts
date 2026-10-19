@@ -1,6 +1,6 @@
 import { COMMAND_HANDLERS } from './commands/index.ts';
 import { runHelpCommand } from './commands/help.command.ts';
-import { ExitCodes, VulcanCommands } from './common/index.ts';
+import { ExitCodes, UpgradeFlags, VulcanCommands } from './common/index.ts';
 
 const HELP_ALIASES = new Set(['--help', '-h']);
 const VERSION_ALIASES = new Set(['--version', '-v']);
@@ -17,7 +17,11 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
   [VulcanCommands.INIT]: { flags: [], values: ['--config'], positionals: 0 },
   [VulcanCommands.SYNC]: { flags: ['--dry-run', '--prune'], values: [], positionals: 0 },
   [VulcanCommands.DOCTOR]: { flags: [], values: [], positionals: 0 },
-  [VulcanCommands.UPGRADE]: { flags: [], values: [], positionals: 1 },
+  [VulcanCommands.UPGRADE]: {
+    flags: [UpgradeFlags.STABLE, UpgradeFlags.NIGHTLY],
+    values: [],
+    positionals: 1,
+  },
 };
 
 /** The command name an argv asks for: no argument or a help flag means help. */

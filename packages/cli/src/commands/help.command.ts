@@ -8,7 +8,9 @@ Usage: bun x vulcan <command>
   sync [--dry-run] [--prune]      Write the gitignored agent adapters (CLAUDE.md, .claude/);
                                   --prune also removes stale hooks and dead skill links
   doctor                          Check the project follows VULCAN; exit 1 on any violation
-  upgrade [<version|tag>]         Bump the pinned @venizia/vulcan, then sync
+  upgrade [--stable | --nightly] [<version|tag>]
+                                  Bump the pinned @venizia/vulcan, then sync; --stable (default)
+                                  takes the latest tag, --nightly the newest of latest and next
   x <tool> [args...]              Run a shipped tool at the pinned version: okf, atlas
   help · version
 `;

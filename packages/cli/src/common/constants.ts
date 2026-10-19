@@ -20,6 +20,18 @@ export class VulcanCommands {
   }
 }
 
+/** The release channels `vulcan upgrade` picks between; the channel is a flag, never stored in the config. */
+export class UpgradeFlags {
+  static readonly STABLE = '--stable';
+  static readonly NIGHTLY = '--nightly';
+  /** Tests only: a JSON object of dist-tags that stands in for the registry read. */
+  static readonly DIST_TAGS_ENV = 'VULCAN_DIST_TAGS';
+  static readonly SCHEME_SET = new Set<string>([this.STABLE, this.NIGHTLY]);
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
 export class ExitCodes {
   static readonly OK = 0;
   static readonly FAILURE = 1;
