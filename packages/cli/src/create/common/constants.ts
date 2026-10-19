@@ -11,6 +11,11 @@ export class CreateConstants {
   static readonly NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
   static readonly PRESET_FIELD = 'vulcan';
   static readonly PRESET_VERSION = 1;
+  /** A preset named without a scope is a package in the framework scope. */
+  static readonly PRESET_SCOPE = '@venizia/';
+  static readonly PRESET_FILE_PREFIX = 'file:';
+  /** npm drops dotfiles from a tarball, so a preset ships `_name` for `.name`. */
+  static readonly PRESET_DOTFILE_PREFIX = '_';
   static readonly APPS_BLOCK_START =
     '// vulcan:apps:start - written by vulcan init and add; edit outside this block';
   static readonly APPS_BLOCK_END = '// vulcan:apps:end';
