@@ -7,17 +7,96 @@ const CHANGELOGS = fileURLToPath(new URL('../../content/changelogs', import.meta
 // Every dated entry, newest first, titled from its frontmatter - a new entry needs no sidebar edit.
 const changelogItems = (): DefaultTheme.SidebarItem[] =>
   readdirSync(CHANGELOGS)
-    .filter(file => /^\d{4}-\d{2}-\d{2}-.*\.md$/.test(file))
+    .filter((file) => /^\d{4}-\d{2}-\d{2}-.*\.md$/.test(file))
     .sort()
     .reverse()
-    .map(file => {
+    .map((file) => {
       const title = /^title:\s*"?(.+?)"?\s*$/m.exec(readFileSync(`${CHANGELOGS}/${file}`, 'utf8'))?.[1];
       return { text: title ?? file, link: `/changelogs/${file.replace(/\.md$/, '')}` };
     });
 
+// The sidebars mirror IGNIS: Guides and References each have an index landing page.
+const guidesSidebar: DefaultTheme.SidebarItem[] = [
+  {
+    text: 'Get Started',
+    items: [
+      { text: 'Overview', link: '/guides/' },
+      { text: 'What is VULCAN', link: '/guides/get-started/what-is-vulcan' },
+      { text: 'Adopt VULCAN', link: '/guides/get-started/adopt-vulcan' },
+      { text: 'Your first day', link: '/guides/get-started/first-day' },
+    ],
+  },
+  {
+    text: 'Core Concepts',
+    items: [
+      { text: 'The project layer', link: '/guides/core-concepts/the-project-layer' },
+      { text: 'Rules and slots', link: '/guides/core-concepts/rules-and-slots' },
+      { text: 'Hooks and guards', link: '/guides/core-concepts/hooks-and-guards' },
+      { text: 'The knowledge bundle', link: '/guides/core-concepts/knowledge-bundle' },
+      { text: 'Atlas', link: '/guides/core-concepts/atlas' },
+    ],
+  },
+];
+
+const referencesSidebar: DefaultTheme.SidebarItem[] = [
+  {
+    text: 'References',
+    items: [
+      { text: 'Overview', link: '/references/' },
+      { text: 'vulcan.config', link: '/references/configuration/' },
+    ],
+  },
+  {
+    text: 'Commands',
+    items: [
+      { text: 'Overview', link: '/references/commands/' },
+      { text: 'init', link: '/references/commands/init' },
+      { text: 'sync', link: '/references/commands/sync' },
+      { text: 'doctor', link: '/references/commands/doctor' },
+    ],
+  },
+  { text: 'Rules', items: [{ text: 'Base rules and slots', link: '/references/rules' }] },
+  {
+    text: 'Hooks',
+    items: [
+      { text: 'Overview', link: '/references/hooks/' },
+      { text: 'Remote-host guard', link: '/references/hooks/remote-host-guard' },
+    ],
+  },
+  {
+    text: 'okf',
+    items: [
+      { text: 'Overview', link: '/references/okf/' },
+      { text: 'Renderers and coverage', link: '/references/okf/renderers' },
+    ],
+  },
+  {
+    text: 'atlas',
+    items: [
+      { text: 'Overview', link: '/references/atlas/' },
+      { text: 'Tools', link: '/references/atlas/tools' },
+      { text: 'Sources', link: '/references/atlas/sources' },
+    ],
+  },
+];
+
+const changelogsSidebar = (): DefaultTheme.SidebarItem[] => [
+  {
+    text: 'Changelogs',
+    items: [{ text: 'Overview', link: '/changelogs/' }, ...changelogItems()],
+  },
+];
+
 export default defineConfig({
   // Served at the root of vulcan.venizia.ai.
   base: '/',
+  appearance: 'dark',
+  markdown: {
+    theme: {
+      light: 'github-light',
+      dark: 'one-dark-pro',
+    },
+  },
   srcDir: '../content',
   outDir: './.vitepress/dist',
   srcExclude: ['changelogs/template.md'],
@@ -29,33 +108,74 @@ export default defineConfig({
     ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }],
     ['link', { rel: 'manifest', href: '/site.webmanifest' }],
     ['meta', { name: 'theme-color', content: '#E8930A' }],
+    // Fonts - preconnect
+    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+    // Fonts - stylesheet
+    [
+      'link',
+      {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap',
+      },
+    ],
+    // Open Graph
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:title', content: 'VULCAN - The agentic-coding toolkit for VENIZIA projects' }],
+    [
+      'meta',
+      {
+        property: 'og:description',
+        content: 'Rules, hooks, a knowledge bundle and a search server for your coding agent, from one config file and one pinned devDependency.',
+      },
+    ],
+    ['meta', { property: 'og:image', content: '/og-image.png' }],
+    ['meta', { property: 'og:url', content: 'https://vulcan.venizia.ai/' }],
+    // Twitter / X card
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:title', content: 'VULCAN - The agentic-coding toolkit for VENIZIA projects' }],
+    [
+      'meta',
+      {
+        name: 'twitter:description',
+        content: 'Rules, hooks, a knowledge bundle and a search server for your coding agent, from one config file and one pinned devDependency.',
+      },
+    ],
+    ['meta', { name: 'twitter:image', content: '/og-image.png' }],
   ],
   lastUpdated: true,
   themeConfig: {
     logo: '/logo.svg',
     nav: [
-      { text: 'Guides', link: '/guides/adopting-vulcan' },
-      { text: 'Changelogs', link: '/changelogs/' },
+      { text: 'Guide', link: '/guides/', activeMatch: '/guides/' },
+      { text: 'References', link: '/references/', activeMatch: '/references/' },
+      { text: 'Changelog', link: '/changelogs/', activeMatch: '/changelogs/' },
     ],
-    sidebar: [
-      {
-        text: 'Guides',
-        items: [
-          { text: 'Adopting VULCAN', link: '/guides/adopting-vulcan' },
-          { text: 'Atlas', link: '/guides/atlas' },
-        ],
-      },
-      {
-        text: 'Changelogs',
-        collapsed: true,
-        items: [{ text: 'Overview', link: '/changelogs/' }, ...changelogItems()],
-      },
-    ],
+    sidebar: {
+      '/guides/': guidesSidebar,
+      '/references/': referencesSidebar,
+      '/changelogs/': changelogsSidebar(),
+    },
     search: { provider: 'local' },
-    outline: [2, 3],
+    outline: {
+      level: [2, 3],
+      label: 'On this page',
+    },
     socialLinks: [{ icon: 'github', link: 'https://github.com/VENIZIA-AI/vulcan' }],
     editLink: {
       pattern: 'https://github.com/VENIZIA-AI/vulcan/edit/develop/docs/wiki/content/:path',
+      text: 'Edit this page on GitHub',
     },
+    footer: {
+      message: 'Released under the MIT License.',
+      copyright: 'Copyright (c) 2026 VENIZIA',
+    },
+    docFooter: {
+      prev: 'Previous page',
+      next: 'Next page',
+    },
+    darkModeSwitchLabel: 'Appearance',
+    sidebarMenuLabel: 'Menu',
+    returnToTopLabel: 'Return to top',
   },
 });

@@ -13,7 +13,7 @@
 
 [Packages](#packages) &#8226;
 [Use it in a project](#use-it-in-a-project) &#8226;
-[Adopting VULCAN](docs/wiki/content/guides/adopting-vulcan.md) &#8226;
+[Adopting VULCAN](docs/wiki/content/guides/get-started/adopt-vulcan.md) &#8226;
 [Work on VULCAN](#work-on-vulcan) &#8226;
 [Changelog](docs/wiki/content/changelogs/index.md)
 
@@ -49,7 +49,7 @@ bun x --no-install vulcan doctor    # check the project follows VULCAN
 `bun x --no-install vulcan x okf check` validates the knowledge bundle; `vulcan x atlas mcp` serves it over
 MCP. A project adds its own rules, skills and hooks; it never edits what VULCAN ships.
 
-Moving an existing project onto VULCAN: follow [Adopting VULCAN in a project](docs/wiki/content/guides/adopting-vulcan.md).
+Moving an existing project onto VULCAN: follow [Adopting VULCAN in a project](docs/wiki/content/guides/get-started/adopt-vulcan.md).
 
 ## Work on VULCAN
 
