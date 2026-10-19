@@ -11,7 +11,7 @@ const STYLED_PACKAGE =
 
 const SCAFFOLD = [
   'AGENTS.md',
-  '.configs/vulcan.config.ts',
+  '.configs/vulcan.config.mts',
   '.configs/oxlint.config.mts',
   '.configs/eslint.config.mjs',
   '.configs/oxfmt.config.mts',
@@ -21,7 +21,7 @@ const SCAFFOLD = [
 ];
 
 describe('vulcan init', () => {
-  test('an empty project gets the whole layer, ts config by default', () => {
+  test('an empty project gets the whole layer, mts config by default', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
 
     expect(runCli({ args: ['init'], cwd: root }).code).toBe(0);
@@ -39,13 +39,13 @@ describe('vulcan init', () => {
     );
   });
 
-  for (const extension of ['mts', 'mjs', 'js']) {
+  for (const extension of ['ts', 'mjs', 'js']) {
     test(`--config ${extension} writes that format only`, () => {
       const root = createProject({ files: {} });
 
       runCli({ args: ['init', '--config', extension], cwd: root });
       expect(existsSync(join(root, `.configs/vulcan.config.${extension}`))).toBe(true);
-      expect(existsSync(join(root, '.configs/vulcan.config.ts'))).toBe(false);
+      expect(existsSync(join(root, '.configs/vulcan.config.mts'))).toBe(false);
     });
   }
 
@@ -71,7 +71,7 @@ describe('vulcan init', () => {
     const root = createProject({ files: { '.configs/vulcan.config.mjs': 'export default {};\n' } });
 
     runCli({ args: ['init'], cwd: root });
-    expect(existsSync(join(root, '.configs/vulcan.config.ts'))).toBe(false);
+    expect(existsSync(join(root, '.configs/vulcan.config.mts'))).toBe(false);
   });
 
   test('missing .gitignore entries and the style dependency are hints, not edits', () => {
@@ -163,7 +163,7 @@ describe('vulcan init', () => {
       expect(existsSync(join(root, '.configs', name))).toBe(false);
     }
 
-    expect(existsSync(join(root, '.configs/vulcan.config.ts'))).toBe(true);
+    expect(existsSync(join(root, '.configs/vulcan.config.mts'))).toBe(true);
     expect(result.stderr).toContain('skipped');
     expect(result.stderr).toContain('per app');
   });

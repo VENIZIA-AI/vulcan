@@ -30,7 +30,7 @@ Every rule declares an enforcement mechanism in its `Enforced by` column:
 | `HARD` | Intercepts commands and blocks execution or requires confirmation | Shipped hooks such as `guard-writes` |
 | `SOFT` | No automatic gate; the agent follows the rule | Session-start digests |
 | `LINT` | A lint rule enforces part of the rule; the rest is SOFT | Linter rules such as braces or naming conventions |
-| `slot` | Requires the project configuration to choose an enforcement option | Setting in `.configs/vulcan.config.ts` |
+| `slot` | Requires the project configuration to choose an enforcement option | Setting in `.configs/vulcan.config.mts` |
 
 ## Write boundaries (W)
 
@@ -131,7 +131,7 @@ Denials include `git add`, `git commit`, `git push`, `git checkout`, `git branch
 
 ### Select a slot option
 
-To set a slot option, add the rule key to `.configs/vulcan.config.ts`:
+To set a slot option, add the rule key to `.configs/vulcan.config.mts`:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -147,7 +147,7 @@ When a slot has no choice, `vulcan doctor` reports a violation during the `rule-
 
 ```text
 $ bun x --no-install vulcan doctor
-  [rule-slots] .configs/vulcan.config.ts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
+  [rule-slots] .configs/vulcan.config.mts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
 vulcan doctor: 1 violation(s)
 ```
 
@@ -220,7 +220,7 @@ Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents
 | V-P-05 | Partner, not stenographer. Wrong instruction → say so with reasoning + better option; human decides. Never overrides W rules or V-P-03. | SOFT |
 ```
 
-To customize which rules appear in this section, define `digest.oftenDropped` in `.configs/vulcan.config.ts`:
+To customize which rules appear in this section, define `digest.oftenDropped` in `.configs/vulcan.config.mts`:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';

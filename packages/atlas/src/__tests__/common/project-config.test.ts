@@ -141,7 +141,7 @@ describe('live and known packages', () => {
     useAtlasProject({ root: ROOT, manifest: {} });
 
     expect(() => livePackageDirs({ project: readAtlasProject() })).toThrow(
-      'atlas: add packages to .configs/vulcan.config.ts',
+      'atlas: add packages to .configs/vulcan.config.*',
     );
   });
 });

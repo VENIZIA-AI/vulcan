@@ -20,7 +20,7 @@ $ bun x --no-install vulcan init
   created  .configs/oxlint.config.mts
   created  .configs/eslint.config.mjs
   created  .configs/oxfmt.config.mts
-  created  .configs/vulcan.config.ts
+  created  .configs/vulcan.config.mts
   created  Makefile
   add      .gitignore: CLAUDE.md .claude/
 next: bun x --no-install vulcan sync && bun x --no-install vulcan doctor
@@ -32,7 +32,7 @@ next: bun x --no-install vulcan sync && bun x --no-install vulcan doctor
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `--config` | `ts \| mts \| mjs \| js` | `ts` | File extension and format for the starter configuration file |
+| `--config` | `ts \| mts \| mjs \| js` | `mts` | File extension and format for the starter configuration file |
 
 The `--config` value determines the format of `.configs/vulcan.config.<ext>`:
 
@@ -94,7 +94,7 @@ $ bun x --no-install vulcan init
   kept     .configs/oxlint.config.mts
   kept     .configs/eslint.config.mjs
   kept     .configs/oxfmt.config.mts
-  kept     .configs/vulcan.config.ts
+  kept     .configs/vulcan.config.mts
   add      .gitignore: CLAUDE.md .claude/
 next: bun x --no-install vulcan sync && bun x --no-install vulcan doctor
 ```

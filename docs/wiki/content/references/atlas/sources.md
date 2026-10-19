@@ -6,7 +6,7 @@ description: Configure external repository sources, cache locations, and authent
 # atlas sources
 
 atlas serves external project documentation alongside your repository.
-Declare external repositories under `atlas.sources` in `.configs/vulcan.config.ts`:
+Declare external repositories under `atlas.sources` in `.configs/vulcan.config.mts`:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';

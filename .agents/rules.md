@@ -142,7 +142,7 @@ Most of these rules hold because agents read this file. Only these have tooling 
 | everything else | this file | No |
 
 Git is deliberately not blocked: W-01 is a rule about *when*, not a deny list (`V-W-01` is
-`on-user-word` in `.configs/vulcan.config.ts`). Treat the session hook as the ceiling of what tooling
+`on-user-word` in `.configs/vulcan.config.mts`). Treat the session hook as the ceiling of what tooling
 will do.
 
 To change a rule, edit this file. Never fork the list into a tool-specific file.

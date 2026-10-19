@@ -6,7 +6,7 @@ description: Configure built-in and custom renderers, managed regions, sections,
 # okf renderers
 
 okf generates reference documents and managed markdown blocks from source code.
-You configure okf through the `okf` object in `.configs/vulcan.config.ts`.
+You configure okf through the `okf` object in `.configs/vulcan.config.mts`.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
@@ -18,7 +18,7 @@ You configure okf through the `okf` object in `.configs/vulcan.config.ts`.
 | `contents` | `object` | `{ files: ['AGENTS.md', '.agents/rules.md'] }` | Files that receive generated table of contents when exceeding 100 lines |
 | `viz` | `object` | `{ outputs: ['.agents/knowledge/viz.html'] }` | Output paths, brand name, and UI copy for the graph explorer |
 
-To configure okf features, export an `okf` section in `.configs/vulcan.config.ts`:
+To configure okf features, export an `okf` section in `.configs/vulcan.config.mts`:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -203,7 +203,7 @@ export default defineRenderer({
 });
 ```
 
-The `id` property in the module must match the `id` declared in `.configs/vulcan.config.ts`.
+The `id` property in the module must match the `id` declared in `.configs/vulcan.config.mts`.
 Two entries in `okf.renderers` with the same `id` are an error.
 A custom module with a built-in id replaces that built-in renderer.
 When okf loads the module, it prints:

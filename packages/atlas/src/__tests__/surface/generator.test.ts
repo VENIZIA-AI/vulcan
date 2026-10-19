@@ -144,7 +144,7 @@ describe('the package list', () => {
     });
 
     expect(() => PublicSurface.render({})).toThrow(
-      'atlas: add packages to .configs/vulcan.config.ts',
+      'atlas: add packages to .configs/vulcan.config.*',
     );
   });
 });

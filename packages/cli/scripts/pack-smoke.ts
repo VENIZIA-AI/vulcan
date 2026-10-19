@@ -357,7 +357,7 @@ try {
       writeFileSync(join(sandbox, '.agents/okf/probe.ts'), PROBE_MODULE);
       writeFileSync(join(sandbox, 'tsconfig.json'), PROBE_TSCONFIG);
       writeFileSync(
-        join(sandbox, '.configs/vulcan.config.ts'),
+        join(sandbox, '.configs/vulcan.config.mts'),
         probeConfigOf({ sourceUrl: source.url ?? '' }),
       );
 

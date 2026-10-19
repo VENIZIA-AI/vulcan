@@ -5,7 +5,7 @@ import { InitConstants, scaffoldProject } from '../init/index.ts';
 
 export const runInitCommand = async (opts: ICommandContext): Promise<number> => {
   const flagIndex = opts.args.indexOf(InitConstants.CONFIG_FLAG);
-  const requested = flagIndex === -1 ? ConfigExtensions.TS : (opts.args[flagIndex + 1] ?? '');
+  const requested = flagIndex === -1 ? ConfigExtensions.MTS : (opts.args[flagIndex + 1] ?? '');
   const extension = ConfigExtensions.LOOKUP_ORDER.find(value => value === requested);
 
   if (extension === undefined) {

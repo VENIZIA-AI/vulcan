@@ -7,8 +7,8 @@ description: Inspect schema keys, default values, validation rules, and effects 
 
 VULCAN stores project settings in `.configs/vulcan.config.*`. The configuration loader accepts exactly one of four files:
 
+- `.configs/vulcan.config.mts` (the file `vulcan init` writes)
 - `.configs/vulcan.config.ts`
-- `.configs/vulcan.config.mts`
 - `.configs/vulcan.config.mjs`
 - `.configs/vulcan.config.js`
 
@@ -52,7 +52,7 @@ The schema is strict. An unknown key causes an error during `vulcan doctor`:
 
 ```text
 $ bun x --no-install vulcan doctor
-  [config] .configs/vulcan.config.ts: .configs/vulcan.config.ts: invalid config
+  [config] .configs/vulcan.config.mts: .configs/vulcan.config.mts: invalid config
   bogus: Unrecognized key: "bogus"
 vulcan doctor: 1 violation(s)
 ```
@@ -140,7 +140,7 @@ It also reports when a slot has no choice configured:
 
 ```text
 $ bun x --no-install vulcan doctor
-  [rule-slots] .configs/vulcan.config.ts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
+  [rule-slots] .configs/vulcan.config.mts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
 vulcan doctor: 1 violation(s)
 ```
 
@@ -436,7 +436,7 @@ The `hooks` array registers custom shell commands for assistant lifecycle events
 
 ```text
 $ bun x --no-install vulcan doctor
-  [hooks] .configs/vulcan.config.ts: the SessionStart hook runs a shipped hook - sync registers those, never the project
+  [hooks] .configs/vulcan.config.mts: the SessionStart hook runs a shipped hook - sync registers those, never the project
   [adapters] .claude/settings.json: stale (replaced) - run 'bun x --no-install vulcan sync'
 vulcan doctor: 2 violation(s)
 ```

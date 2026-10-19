@@ -61,7 +61,7 @@ For command options and file details, see the [init reference](/references/comma
 After initialization, only `.agents/knowledge/index.md` requires edits.
 Describe your project there, and delete the `vulcan:scaffold` marker line.
 
-The configuration file `.configs/vulcan.config.ts` needs no edits unless `package.json` declares `workspaces`.
+The configuration file `.configs/vulcan.config.mts` needs no edits unless `package.json` declares `workspaces`.
 If your repository uses workspaces, declare each package under `packages` in release order.
 Setting `name` is optional and defaults to the root package name:
 
@@ -92,6 +92,7 @@ $ bun x --no-install vulcan sync
   created   .agents/vulcan.manifest.json
 ```
 
+If `bun init` created your project, its `CLAUDE.md` holds only Bun's tips, so `sync` replaces it with `@AGENTS.md`. A `CLAUDE.md` you wrote yourself is left alone.
 Add `CLAUDE.md` and `.claude/` to `.gitignore`.
 For file details, see the [init reference](/references/commands/init).
 These adapter files stay local on each machine.
@@ -136,7 +137,7 @@ The table below lists common findings and how to resolve them:
 |---|---|
 | An existing Makefile | Add `-include node_modules/@venizia/vulcan/base/make/vulcan.mk`, and do not reuse shipped target names. See the [make check](/references/commands/doctor#make). |
 | A project skill with a shipped name | Rename the directory under `.agents/skills/` to avoid collisions. See the [skills check](/references/commands/doctor#skills). |
-| Project hooks calling shipped hooks | Remove shipped hook paths from `hooks` in `.configs/vulcan.config.ts`. See the [hooks check](/references/commands/doctor#hooks). |
+| Project hooks calling shipped hooks | Remove shipped hook paths from `hooks` in `.configs/vulcan.config.mts`. See the [hooks check](/references/commands/doctor#hooks). |
 | Lint configs not built on the shared style | Add `@venizia/dev-configs` as a devDependency and import from it in lint configurations. See the [style check](/references/commands/doctor#style). |
 | Git tags of another layout | Declare the package, add an alias, or add the tags to `atlas.ignoreTags`. See the [tags check](/references/commands/doctor#tags). |
 

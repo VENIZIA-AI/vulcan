@@ -47,7 +47,7 @@ These rule identifiers come from the `digest.oftenDropped` configuration key.
 The default list contains seven base rules:
 `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-W-04`, `V-C-02`, and `V-C-10`.
 
-To change which rules appear, define `digest.oftenDropped` in `.configs/vulcan.config.ts`:
+To change which rules appear, define `digest.oftenDropped` in `.configs/vulcan.config.mts`:
 
 ```ts
 import { defineConfig } from '@venizia/vulcan';
@@ -130,7 +130,7 @@ In contrast, `guard-remote-hosts` asks with "the hook input could not be read".
 
 ## Your own hooks
 
-To add project hooks, define entries under the `hooks` key in `.configs/vulcan.config.ts`:
+To add project hooks, define entries under the `hooks` key in `.configs/vulcan.config.mts`:
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
@@ -144,12 +144,12 @@ Calling a shipped hook in `hooks` fails the `vulcan doctor` check, and `doctor` 
 
 ```text
 $ bun x --no-install vulcan doctor
-  [hooks] .configs/vulcan.config.ts: the SessionStart hook runs a shipped hook - sync registers those, never the project
+  [hooks] .configs/vulcan.config.mts: the SessionStart hook runs a shipped hook - sync registers those, never the project
   [adapters] .claude/settings.json: stale (replaced) - run 'bun x --no-install vulcan sync'
 vulcan doctor: 2 violation(s)
 ```
 
-Use `claude.settings` in `.configs/vulcan.config.ts` to share team settings like permissions and environment variables.
+Use `claude.settings` in `.configs/vulcan.config.mts` to share team settings like permissions and environment variables.
 
 When writing `.claude/settings.json`, `vulcan sync` applies settings in this order:
 

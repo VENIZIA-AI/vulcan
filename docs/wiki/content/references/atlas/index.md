@@ -173,7 +173,7 @@ The output above shows a project with one package before a build.
 To populate the `symbols` array, build your packages first.
 atlas reads exported symbols directly from built `.d.ts` files found through each package's `exports` field.
 It does not commit or require a static symbol table file.
-When no live package exists, `symbols` and `surface` fail with "add packages to .configs/vulcan.config.ts".
+When no live package exists, `symbols` and `surface` fail with "add packages to .configs/vulcan.config.*".
 
 ## Releases
 

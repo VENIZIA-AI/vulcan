@@ -173,7 +173,7 @@ export const livePackageDirs = (opts: { project: IAtlasProject }): string[] => {
 
   if (live.length === 0) {
     throw new Error(
-      'atlas: add packages to .configs/vulcan.config.ts - the package directories under packages/, in release order',
+      'atlas: add packages to .configs/vulcan.config.* - the package directories under packages/, in release order',
     );
   }
 

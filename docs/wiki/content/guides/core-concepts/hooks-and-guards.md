@@ -38,7 +38,7 @@ vulcan: the guard-writes hook cannot run: node_modules/@venizia/vulcan is missin
 
 ## Guarding remote hosts
 
-To protect remote machines, configure `remoteHosts` in `.configs/vulcan.config.ts`:
+To protect remote machines, configure `remoteHosts` in `.configs/vulcan.config.mts`:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -77,7 +77,7 @@ For dynamic targets like loops or pipes, see the [remote host guard reference](/
 
 ## Your own hooks
 
-To run custom hooks, add entries to the `hooks` array in `.configs/vulcan.config.ts`:
+To run custom hooks, add entries to the `hooks` array in `.configs/vulcan.config.mts`:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
