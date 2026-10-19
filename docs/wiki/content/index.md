@@ -6,6 +6,9 @@ description: The agentic-coding toolkit for VENIZIA projects - one pinned devDep
 hero:
   name: VULCAN
   text: One setup for every VENIZIA project
+  image:
+    src: /logo.svg
+    alt: VULCAN
   tagline: The agent setup, the rules, the knowledge tooling and atlas, in one pinned devDependency.
   actions:
     - theme: brand
