@@ -50,6 +50,16 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
   });
 });
 
+describe('layout', () => {
+  test('takes the three folder names, each a valid name', () => {
+    expect(
+      VULCAN_CONFIG_SCHEMA.safeParse({ layout: { backend: 'services', shared: 'libs' } }).success,
+    ).toBe(true);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ layout: { backend: 'Services' } }).success).toBe(false);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ layout: { api: 'x' } }).success).toBe(false);
+  });
+});
+
 describe('resolvePackages', () => {
   test('atlas.packages was removed: the error names the top-level packages that replaces it', () => {
     const result = VULCAN_CONFIG_SCHEMA.safeParse({ atlas: { packages: { b: '@x/b' } } });

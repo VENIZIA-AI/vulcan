@@ -59,13 +59,14 @@ vulcan doctor: 1 violation(s)
 
 The command exits with code 1.
 
-The table below lists all 11 top-level configuration keys:
+The table below lists all 12 top-level configuration keys:
 
 | Key | Type | Default | What it controls |
 |---|---|---|---|
 | `name` | `string` | root package name | Project identifier in the manifest and atlas results |
 | `agents` | `string[]` | `['claude']` | Coding agents that sync generates adapters for |
 | `rules` | `Record<string, string>` | `{}` | Base rule slot choices |
+| `layout` | `object` | `undefined` | The folders `vulcan init` and `vulcan add` put apps in |
 | `packages` | `Array<object>` | `[]` | Monorepo packages in release order |
 | `knowledge` | `object` | `{ bundle: '.agents/knowledge' }` | Locations for knowledge documents and concepts |
 | `okf` | `object` | `{ renderers: [], ... }` | Renderers, regions, and coverage checks for okf |
@@ -155,6 +156,28 @@ export default {
   },
 } satisfies VulcanConfig;
 ```
+
+## layout
+
+The `layout` object records the folders that hold your apps. `vulcan init` and `vulcan add` write it from the names you gave; you can also write it by hand.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `backend` | `string` | none | Folder for backend apps |
+| `frontend` | `string` | none | Folder for frontend apps |
+| `shared` | `string` | none | Folder for code shared between apps |
+
+Each value is a folder name matching `/^[a-z0-9][a-z0-9-]*$/`. The object is strict, so any other key is an error.
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  layout: { backend: 'services', frontend: 'web', shared: 'libs' },
+} satisfies VulcanConfig;
+```
+
+`vulcan doctor` runs the [`apps`](/references/commands/doctor#apps) check against this object: every named folder must be a workspace, and every package must live inside one of them.
 
 ## packages
 
@@ -499,6 +522,7 @@ export default {
   rules: {
     'V-W-01': 'on-user-word',
   },
+  layout: { backend: 'services', shared: 'libs' },
   packages: [
     { dir: 'core', name: '@venizia/shop-core' },
     { dir: 'api', name: '@venizia/shop-api', path: 'services/api', aliases: ['server'] },

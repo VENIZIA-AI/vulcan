@@ -92,6 +92,19 @@ export const declaresWorkspaces = (opts: { root: string }): boolean => {
   return Array.isArray(workspaces) || (typeof workspaces === 'object' && workspaces !== null);
 };
 
+/** The root workspace globs, from either form; empty when there are none. */
+export const readWorkspaceGlobs = (opts: { root: string }): string[] => {
+  const workspaces = readManifest(opts)?.workspaces;
+
+  if (Array.isArray(workspaces)) {
+    return workspaces.map(String);
+  }
+
+  const packages = (workspaces as { packages?: unknown } | undefined)?.packages;
+
+  return Array.isArray(packages) ? packages.map(String) : [];
+};
+
 /** The `package.json` name, or the directory name when there is none. */
 export const resolveProjectName = (opts: { root: string }): string => {
   const name = readManifest(opts)?.name;

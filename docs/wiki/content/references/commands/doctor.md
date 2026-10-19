@@ -24,7 +24,7 @@ vulcan doctor: OK
 ## Checks
 
 If the configuration cannot be loaded, `vulcan doctor` reports only `config`.
-Otherwise, it executes the other 12 checks in sequence.
+Otherwise, it executes the other 13 checks in sequence.
 Doctor runs `skills` twice: shipped-name checks run before `make`, while skill linting runs after `tags`.
 
 | Check | What it verifies | Typical fix |
@@ -43,6 +43,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `skills` (skill lint) | Project skills satisfy authoring rules for frontmatter and structure | Fix frontmatter formatting, limits, or missing sections in `SKILL.md` |
 | `style` | Packages declare `@venizia/dev-configs` and lint configuration files import the shared style | Add `@venizia/dev-configs` as a devDependency and import it in lint configuration files |
 | `scaffold` | Workspaces declare packages and the knowledge index replaces scaffold text | Add `packages` in configuration and remove `vulcan:scaffold` from `index.md` |
+| `apps` | Every `layout` folder is a workspace and every package lives in one | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
 
 ### config
 
@@ -240,6 +241,20 @@ vulcan doctor: 1 violation(s)
 
 For workspaces without declared packages, the file column is the configuration file.
 The check reports `package.json declares workspaces but the config lists no packages - add packages: [{ dir, name, path }] in release order`.
+
+### apps
+
+A `layout` folder missing from `package.json` workspaces, or a package outside every `layout` folder, triggers this check. Projects without `layout` skip it.
+
+The following output drops the lines that belong to other checks:
+
+```text
+$ bun x --no-install vulcan doctor
+  [apps] package.json: layout.frontend 'web' is not in package.json workspaces - add 'web/*'
+  [apps] .configs/vulcan.config.mts: package core-api lives at apps/core-api, outside every layout folder (services, web)
+```
+
+Retired packages are not checked.
 
 ## Run it in CI
 

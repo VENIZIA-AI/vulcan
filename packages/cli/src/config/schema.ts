@@ -8,6 +8,8 @@ const HOOK_EVENT = z.string().refine(value => HookEvents.isValid(value), {
   message: `one of: ${[...HookEvents.SCHEME_SET].join(', ')}`,
 });
 
+const FOLDER_NAME = z.string().regex(/^[a-z0-9][a-z0-9-]*$/);
+
 const PROJECT_PACKAGE = z.strictObject({
   dir: z.string().regex(/^[a-z0-9][a-z0-9.-]*$/),
   name: z.string(),
@@ -108,6 +110,14 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     .optional(),
   agents: z.array(CODING_AGENT).default([CodingAgents.CLAUDE]),
   rules: z.record(z.string().regex(ConfigConstants.RULE_ID_PATTERN), z.string()).default({}),
+  /** The folders `vulcan init` and `add` put apps in, as the user named them. */
+  layout: z
+    .strictObject({
+      backend: FOLDER_NAME.optional(),
+      frontend: FOLDER_NAME.optional(),
+      shared: FOLDER_NAME.optional(),
+    })
+    .optional(),
   /** The project's packages in release order; okf, atlas, make and release read this one list. */
   packages: z.array(PROJECT_PACKAGE).superRefine(checkPackagesUnique).default([]),
   knowledge: z
