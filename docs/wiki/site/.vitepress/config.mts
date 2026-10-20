@@ -4,16 +4,26 @@ import { defineConfig, type DefaultTheme } from 'vitepress';
 
 const CHANGELOGS = fileURLToPath(new URL('../../content/changelogs', import.meta.url));
 
-// Every dated entry, newest first, titled from its frontmatter - a new entry needs no sidebar edit.
-const changelogItems = (): DefaultTheme.SidebarItem[] =>
-  readdirSync(CHANGELOGS)
+// Every dated entry, titled from its frontmatter and grouped by the date in its file name, newest
+// date first - a new entry needs no sidebar edit.
+const changelogGroups = (): DefaultTheme.SidebarItem[] => {
+  const byDate = new Map<string, DefaultTheme.SidebarItem[]>();
+  const files = readdirSync(CHANGELOGS)
     .filter((file) => /^\d{4}-\d{2}-\d{2}-.*\.md$/.test(file))
     .sort()
-    .reverse()
-    .map((file) => {
-      const title = /^title:\s*"?(.+?)"?\s*$/m.exec(readFileSync(`${CHANGELOGS}/${file}`, 'utf8'))?.[1];
-      return { text: title ?? file, link: `/changelogs/${file.replace(/\.md$/, '')}` };
-    });
+    .reverse();
+
+  for (const file of files) {
+    const date = file.slice(0, 10);
+    const title = /^title:\s*"?(.+?)"?\s*$/m.exec(readFileSync(`${CHANGELOGS}/${file}`, 'utf8'))?.[1];
+    const items = byDate.get(date) ?? [];
+
+    items.push({ text: title ?? file, link: `/changelogs/${file.replace(/\.md$/, '')}` });
+    byDate.set(date, items);
+  }
+
+  return [...byDate].map(([date, items]) => ({ text: date, collapsed: true, items }));
+};
 
 // The sidebars mirror IGNIS: Guides and References each have an index landing page.
 const guidesSidebar: DefaultTheme.SidebarItem[] = [
@@ -84,8 +94,16 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
 
 const changelogsSidebar = (): DefaultTheme.SidebarItem[] => [
   {
-    text: 'Changelogs',
-    items: [{ text: 'Overview', link: '/changelogs/' }, ...changelogItems()],
+    text: 'Overview',
+    items: [
+      { text: 'Introduction', link: '/changelogs/' },
+      { text: 'Template', link: '/changelogs/template' },
+    ],
+  },
+  {
+    text: 'History',
+    collapsed: false,
+    items: changelogGroups(),
   },
 ];
 
@@ -101,7 +119,6 @@ export default defineConfig({
   },
   srcDir: '../content',
   outDir: './.vitepress/dist',
-  srcExclude: ['changelogs/template.md'],
   title: 'VULCAN',
   description: 'The agentic-coding toolkit for VENIZIA projects',
   cleanUrls: true,

@@ -1,40 +1,66 @@
 ---
 title: [Short, plain title - what a user would search for]
 description: [One sentence, plain - what changed and why it matters]
-# Mandatory: the npm names this entry is about; [] for repository tooling.
+# Mandatory: the npm names whose code changed in this release; [] for repository tooling.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - YYYY-MM-DD
 
-## [Main title]
+## [Main Title/Focus Area]
 
-**Type:** [Feature | Enhancement | Bug Fix | Security | Breaking Change - keep the ones that apply]
+<!-- Keep only the badges that apply -->
+<Badge type="tip" text="New Feature" /> <Badge type="tip" text="Enhancement" /> <Badge type="info" text="Bug Fix" /> <Badge type="danger" text="Security" /> <Badge type="warning" text="Breaking Change" />
 
-**In one line.** [One plain sentence: what this change is, for a project that uses VULCAN.]
+**In one line.** [One plain sentence: what this release is, for a user.]
 
 ## What changed
 
-- **[Thing 1].** [One crisp point - what changed, not the internal how.]
-- **[Thing 2].** [One crisp point.]
+- **[Thing 1].** [One crisp point in plain language - what changed, not the internal how.]
+- **[Thing 2].** [One crisp point in plain language.]
+- **[Thing 3].** [One crisp point in plain language.]
+
+<!-- Group with ### sub-heads only if there are many bullets -->
 
 ## Who is affected
 
-- **[Audience or situation].** [Impacted, and do they act? Say "No action needed" where true.]
+- **[Audience or situation 1].** [Are they impacted, and do they need to act? Say "No action needed" where true.]
+- **[Audience or situation 2].** [Are they impacted, and do they need to act?]
 
 ## Breaking changes
 
-<!-- Only when there are breaking changes - delete the section otherwise. -->
+<!-- ONLY include this section if there are breaking changes - delete it otherwise -->
 
-> **Warning:** [One sentence: who this affects and why.]
+> [!WARNING]
+> [One sentence: who this affects and why.]
 
-1. [Migration step one]
-2. [Migration step two]
+**Before:**
+
+```typescript
+// Code that no longer works
+```
+
+**After:**
+
+```typescript
+// New pattern
+```
+
+<!-- Or, for a non-code migration, a short numbered list -->
+1. [Step one]
+2. [Step two]
 
 ## Details
 
-<!-- Optional - the why and how. Bullets, a short example, a small table. -->
+<!-- Optional - the "why/how". Keep it tight: bullets, a short code example, a small table. No wall-of-text paragraphs. -->
+
+- [Why/how point 1]
+- [Why/how point 2]
+
+```typescript
+// Example usage, if it helps
+```
 
 | File | Package |
 |------|---------|
-| `src/path/to/file.ts` | cli |
+| `src/path/to/file.ts` | core |

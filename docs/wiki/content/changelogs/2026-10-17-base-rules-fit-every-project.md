@@ -1,41 +1,58 @@
 ---
-title: Base Rules Fit Every Project
-description: The base rules drop what only fits IGNIS's own stack and workflow - three IDs are retired, two are reworded
+title: Base Rules Drop Stack Constraints
+description: VULCAN 0.1.0-1 removes hard stack and framework requirements from the base rules, rewording V-C-18 and V-P-02 and retiring three rules.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-17
 
-## Base rules fit every project
+## Base rules drop stack constraints
 
-**Type:** Breaking Change
+<Badge type="warning" text="Breaking Change" />
 
-**In one line.** Every base rule now fits a backend, a frontend or a library alike; the rules that bind
-IGNIS's own stack moved to IGNIS.
+**In one line.** Shipped in 0.1.0-1, the base rules drop the hard stack rule and the `@inject` and `getError` requirements. Some rules still name IGNIS conventions; see Details.
 
 ## What changed
 
-| Rule | Before | Now |
-|---|---|---|
-| `V-C-18` | the hard stack (Drizzle, Hono, Zod, PostgreSQL+SQLite) plus derived types | **derived types over duplicates** only; a stack is a project rule |
-| `V-P-02` | no code until the PRD reaches `gate: planned` | **design the surface before the body**: propose the API, get a yes |
-| `V-C-03` | `@inject` on every container-built constructor parameter | retired - an IGNIS rule |
-| `V-C-05` | errors are `getError` / `ApplicationError` | retired - an IGNIS rule |
-| `V-W-05` | task-manager writes only in the workflow loop | retired |
-
-Retired IDs are never reused. `V-W-02` and `V-W-03` (no database writes, no deploys) stay for every
-project: they cost nothing where there is no database or deploy.
+- **`V-C-18` drops the hard stack.** The requirement for Drizzle, Hono, Zod, and PostgreSQL+SQLite is removed. The rule now mandates derived types over duplicates only, leaving stack choices to project-level rules.
+- **`V-P-02` rewords planning gating.** The requirement that blocked code until a PRD reached `gate: planned` is replaced by designing the surface before the body and getting human approval on the proposed API.
+- **`V-C-03` is retired.** The `@inject` decorator requirement on container-built constructor parameters is retired and moved to project rules. Retired IDs are never reused.
+- **`V-C-05` is retired.** The `getError` and `ApplicationError` requirement is retired and moved to project rules. Retired IDs are never reused.
+- **`V-W-05` is retired.** The task-manager loop constraint is retired. Retired IDs are never reused.
+- **`V-W-02` and `V-W-03` stay in base rules.** The rules prohibiting direct database writes and deployments remain for every project.
 
 ## Who is affected
 
-- **IGNIS.** Add the stack, `@inject` and `getError` rules to `.agents/rules.md` under your own IDs,
-  and move any `V-C-03` / `V-C-05` citation to them.
-- **ARDOR, BANA.** Add your own stack rule if you want one; cite `V-C-18` only for derived types.
-- **A project citing `V-W-05` or the old `V-P-02`.** Drop or reword the citation.
+- **IGNIS.** Must add the hard stack, `@inject`, and `getError` rules to `.agents/rules.md` under project IDs and update any citations from `V-C-03` or `V-C-05`.
+- **ARDOR and BANA.** May define their own project stack rules; cite `V-C-18` only for derived types.
+- **Projects citing `V-W-05` or the old `V-P-02`.** Update or drop those citations.
+- **Projects not citing retired rules.** No action needed.
 
 ## Breaking changes
 
-> **Warning:** a citation of `V-C-03`, `V-C-05` or `V-W-05` now points at no rule.
+> [!WARNING]
+> `V-C-03`, `V-C-05` and `V-W-05` no longer exist in the base. Remove any citation of them from your own rules and docs.
 
-1. Search your rules, knowledge bundle, hooks and memories for `V-C-03`, `V-C-05`, `V-W-05`.
-2. Replace each with your own rule's ID, or drop it.
+1. Search `.agents/rules.md`, `.agents/knowledge/`, and project hooks for `V-C-03`, `V-C-05`, and `V-W-05`.
+2. Replace each citation with a project-defined rule ID, or remove the reference.
+3. Update citations of `V-C-18` to refer strictly to derived types rather than stack requirements.
+
+## Details
+
+- Base rules still contain stack-specific references such as `V-C-15` (zod-per-variant with `z.infer`), `V-C-12` (IGNIS binding keys), `V-C-08` (`IsolationLevels`), and `V-C-13` (plain VitePress).
+- Retired IDs are permanently reserved and never reused.
+
+| Rule | Before | After |
+|---|---|---|
+| `V-C-18` | Hard stack (Drizzle, Hono, Zod, PostgreSQL+SQLite) plus derived types | Derived types over duplicates only; stack is a project rule |
+| `V-P-02` | No code until PRD reaches `gate: planned` | Design the surface before the body; propose API and get approval |
+| `V-C-03` | `@inject` on every container-built constructor parameter | Retired with never reused note |
+| `V-C-05` | Errors are `getError` / `ApplicationError` | Retired with never reused note |
+| `V-W-05` | Task-manager writes only in workflow loop | Retired with never reused note |
+| `V-W-02` | Never write to a database | Retained in base rules |
+| `V-W-03` | Never deploy or hot-apply | Retained in base rules |
+
+| File | Package |
+|------|---------|
+| `packages/cli/base/rules.md` | `@venizia/vulcan` |
+
