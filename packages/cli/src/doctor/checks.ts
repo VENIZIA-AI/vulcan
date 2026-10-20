@@ -19,7 +19,13 @@ import {
   renderManifest,
 } from '../manifest/index.ts';
 import { readLocalChoice, resolveAgentsQuietly } from '../agents/index.ts';
-import { planManifest, planPrune, planSync, SyncStatuses } from '../sync/index.ts';
+import {
+  mergedAtlasBlock,
+  planManifest,
+  planPrune,
+  planSync,
+  SyncStatuses,
+} from '../sync/index.ts';
 import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
 import { parseMakeIncludes, parseMakeTargets } from './makefile.ts';
@@ -544,6 +550,21 @@ export const checkAgents = (opts: ICheckContext): IViolation[] => {
           check: DoctorChecks.AGENTS,
           file: '.agents/vulcan.local.json',
           message: stored.error,
+        }),
+      ];
+};
+
+/** Info only: the Atlas block of AGENTS.md is missing or no longer matches the config. */
+export const checkAtlasBlock = (opts: ICheckContext): IViolation[] => {
+  const merged = mergedAtlasBlock({ root: opts.root, config: opts.config });
+
+  return merged === undefined || !merged.changed
+    ? []
+    : [
+        createViolation({
+          check: DoctorChecks.AGENTS,
+          file: 'AGENTS.md',
+          message: `the Atlas block is missing or out of date - run '${ProjectLayout.VULCAN_COMMAND} sync'`,
         }),
       ];
 };

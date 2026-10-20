@@ -139,7 +139,7 @@ Atlas serves 2 source(s); every hit names its source.
 
 - **The tool descriptions** above.
 
-The lines after the blank line say how each source was reached; a source that is offline or unavailable is named there. The session-start digest repeats the corpora and the rule in an "Atlas" block, and the base rule `V-P-07` states it ([Rules](/references/rules)).
+The first paragraph alone carries the corpora, the rule and the three triggers in at most 512 characters, because some clients keep only that much; the whole text stays under 2 KB. The lines after the blank line say how each source was reached; a source that is offline or unavailable is named there. The session-start digest repeats the corpora and the rule in an "Atlas" block, and the base rule `V-P-07` states it ([Rules](/references/rules)).
 
 For tool arguments and reply schemas, see the [atlas tools reference](/references/atlas/tools).
 

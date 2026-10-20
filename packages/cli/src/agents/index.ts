@@ -5,3 +5,4 @@ export * from './prompt.ts';
 export * from './resolve.ts';
 export * from './table.ts';
 export * from './render.ts';
+export * from './atlas-block.ts';

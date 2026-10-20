@@ -10,7 +10,7 @@ import type { IInitEntry, IScaffoldFile } from './common/index.ts';
  * Whether a `.mcp.json` already serves atlas: a server named `atlas`, or any server whose arguments run
  * `atlas mcp` under another name, as separate arguments or inside a `sh -c` string. A file that is not JSON falls back to looking for the name.
  */
-const runsAtlas = (opts: { text: string }): boolean => {
+export const runsAtlas = (opts: { text: string }): boolean => {
   try {
     const parsed: { mcpServers?: Record<string, { args?: unknown }> } = JSON.parse(opts.text);
     const servers = parsed.mcpServers ?? {};
