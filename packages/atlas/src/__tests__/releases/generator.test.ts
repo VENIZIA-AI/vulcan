@@ -205,10 +205,14 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
 
       delete expected.core;
 
-      expect(Object.keys(computed.releases).sort()).toEqual(Object.keys(expected).sort());
+      // A subset, not equality: the committed table is frozen, IGNIS keeps releasing, and a release
+      // newer than the table is no fault. What the table holds must come back unchanged.
+      expect(Object.keys(computed.releases)).toEqual(expect.arrayContaining(Object.keys(expected)));
 
       for (const [dir, records] of Object.entries(expected)) {
-        expect(spelled(computed.releases[dir]), dir).toEqual(spelled(records));
+        expect(spelled(computed.releases[dir]), dir).toEqual(
+          expect.arrayContaining(spelled(records)),
+        );
       }
     });
 
