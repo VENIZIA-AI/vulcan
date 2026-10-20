@@ -7,7 +7,7 @@ description: Synchronize agent adapter files, Claude settings, skill links and t
 
 `vulcan sync` generates agent adapter files and project metadata from your configuration.
 It updates tool instructions, settings, hook registrations, skill links and the manifest.
-The Claude adapters (`CLAUDE.md`, settings, skill links) are planned only when `agents` includes `claude`.
+Which agents get adapters is each developer's choice on their own machine ([Choosing your agents](#choosing-your-agents)). The Claude adapters (`CLAUDE.md`, settings, skill links) are planned only when `claude` is among the chosen agents.
 The manifest is always written.
 
 | Output | Where | Committed? | Built from |
@@ -22,8 +22,27 @@ The manifest is always written.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
+| `--agents <list>` | string | the stored choice | The agents to write adapters for, comma-separated, or `none`. Stored in `.agents/vulcan.local.json`. `--agents list` prints the table of agents and writes nothing. In a terminal, `--agents` with no value asks again |
 | `--dry-run` | boolean | false | Print planned changes without writing to disk |
 | `--prune` | boolean | false | Remove stale hook commands and dead skill links |
+
+## Choosing your agents
+
+`sync` writes adapters only for the coding agents you use, and you choose them per machine, not per project. The seven that exist are `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity` and `pi`; `vulcan sync --agents list` shows what each reads.
+
+The first `sync` in a terminal detects the agents on the machine (a binary on `PATH`, a folder in your home or in the project) and asks you to confirm:
+
+```text
+$ bun x --no-install vulcan sync
+Which coding agents do you use in this project? (comma-separated, Enter accepts)
+  detected: claude, omp
+  available: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
+? Agents > claude,omp
+```
+
+The answer is stored in `.agents/vulcan.local.json`, which is gitignored, and every later `sync` uses it without asking. Without a terminal, give the list: `vulcan sync --agents claude,omp` (`none` writes only `AGENTS.md`-level files).
+
+The order that decides the list is: the `--agents` flag; the stored file; the `agents` list in the project's config, when it has one; a project that already has `CLAUDE.md` or `.claude/` (treated as `claude`); then the question. When nothing is known and there is no terminal, `sync` does what it always did, writes the Claude files, and prints one line saying how to choose; it stores nothing. Only the Claude adapters exist so far; the other agents are stored and their adapters arrive with the next releases.
 
 ## Synchronizing adapters
 

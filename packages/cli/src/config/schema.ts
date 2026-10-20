@@ -108,7 +108,8 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     .string()
     .regex(/^[a-z0-9][a-z0-9-]*$/)
     .optional(),
-  agents: z.array(CODING_AGENT).default([CodingAgents.CLAUDE]),
+  /** The project's suggested agents; each developer's own choice lives in `.agents/vulcan.local.json`. */
+  agents: z.array(CODING_AGENT).optional(),
   rules: z.record(z.string().regex(ConfigConstants.RULE_ID_PATTERN), z.string()).default({}),
   /** The folders `vulcan init` and `add` put apps in, as the user named them. */
   layout: z

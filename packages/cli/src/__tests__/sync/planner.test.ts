@@ -441,13 +441,16 @@ describe('idempotence and output', () => {
   test('a second run reports every action unchanged and writes nothing to stdout', () => {
     const root = createProject({ files: READ_ONLY_PROJECT });
 
+    // The first run keeps today's Claude default, the second finds the Claude files and stores the
+    // choice once; from then on every action is unchanged.
     runSync({ root });
-    const second = runSync({ root });
+    runSync({ root });
+    const third = runSync({ root });
 
-    expect(second.code).toBe(0);
-    expect(second.stderr).not.toContain('created');
-    expect(second.stderr).not.toContain('replaced');
-    expect(second.stdout).toBe('');
+    expect(third.code).toBe(0);
+    expect(third.stderr).not.toContain('created');
+    expect(third.stderr).not.toContain('replaced');
+    expect(third.stdout).toBe('');
   });
 
   test('--dry-run changes nothing', () => {
@@ -478,5 +481,27 @@ describe('idempotence and output', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('no .configs/vulcan.config.* found');
     expect(result.stderr).not.toContain('    at ');
+  });
+});
+
+describe('planSync with the resolved agents', () => {
+  test('without claude only the manifest is planned, with claude the adapters come too', async () => {
+    const { planSync } = await import('../../sync/index.ts');
+    const { loadConfig } = await import('../../config/index.ts');
+    const root = createProject({ files: READ_ONLY_PROJECT });
+    const loaded = await loadConfig({ root });
+
+    if (!loaded.ok) {
+      throw new Error(loaded.error);
+    }
+
+    const without = planSync({ root, config: loaded.config, agents: ['omp'] });
+    const withClaude = planSync({ root, config: loaded.config, agents: ['claude', 'omp'] });
+
+    expect(without.map(action => action.path)).toEqual([
+      join(root, '.agents/vulcan.manifest.json'),
+    ]);
+    expect(withClaude.length).toBeGreaterThan(without.length);
+    expect(withClaude.some(action => action.path === join(root, 'CLAUDE.md'))).toBe(true);
   });
 });

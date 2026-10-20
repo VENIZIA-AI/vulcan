@@ -183,7 +183,6 @@ export const renderVulcanConfig = (opts: { project: string; block: IAppsBlock })
     '',
     'export default {',
     `  name: '${opts.project}',`,
-    "  agents: ['claude'],",
     "  rules: { 'V-W-01': 'on-user-word' },",
     '  layout: apps.layout,',
     '  packages: apps.packages,',

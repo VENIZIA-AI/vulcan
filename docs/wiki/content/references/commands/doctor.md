@@ -25,7 +25,7 @@ vulcan doctor: OK
 ## Checks
 
 If the configuration cannot be loaded, `vulcan doctor` reports only `config`.
-Otherwise, it executes the other 13 checks in sequence, then prints the notes.
+Otherwise, it executes the other 14 checks in sequence, then prints the notes.
 Doctor runs `skills` twice: shipped-name checks run before `make`, while skill linting runs after `tags`.
 
 | Check | What it verifies | Typical fix |
@@ -45,6 +45,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `style` | Packages declare `@venizia/dev-configs` and lint configuration files import the shared style | Add `@venizia/dev-configs` as a devDependency and import it in lint configuration files |
 | `scaffold` | Workspaces declare packages and the knowledge index replaces scaffold text | Add `packages` in configuration and remove `vulcan:scaffold` from `index.md` |
 | `apps` | Every `layout` folder is a workspace and every package lives in one | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
+| `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
 
 ### config
 
@@ -242,6 +243,16 @@ vulcan doctor: 1 violation(s)
 
 For workspaces without declared packages, the file column is the configuration file.
 The check reports `package.json declares workspaces but the config lists no packages - add packages: [{ dir, name, path }] in release order`.
+
+### agents
+
+`.agents/vulcan.local.json`, the file where `sync` stores your agents, must be valid JSON and name only known agents. A broken file is a violation instead of a silent default. Delete it and run `vulcan sync --agents <list>`. The `adapters` check looks at the adapters of the agents you chose, so a machine that chose `omp` is not asked for `CLAUDE.md`.
+
+```text
+$ bun x --no-install vulcan doctor
+  [agents] .agents/vulcan.local.json: .agents/vulcan.local.json is not valid JSON - delete it and run: vulcan sync --agents <list>
+vulcan doctor: 1 violation(s)
+```
 
 ### apps
 

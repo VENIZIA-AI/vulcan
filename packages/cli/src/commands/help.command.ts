@@ -10,7 +10,9 @@ Usage: bun x vulcan <command>
                                   (a name missing from the flags is asked in a terminal)
   add --preset <name|file:path> --app <name> [--backend-dir|--frontend-dir <name>]
       [--api <app> | --no-api]    Add an app to the monorepo (a frontend says which backend to proxy to)
-  sync [--dry-run] [--prune]      Write the gitignored agent adapters (CLAUDE.md, .claude/);
+  sync [--agents <list>|list] [--dry-run] [--prune]
+                                  Write the adapters of the agents you chose (--agents claude,omp or none,
+                                  stored in .agents/vulcan.local.json; --agents list shows the table);
                                   --prune also removes stale hooks and dead skill links
   doctor                          Check the project follows VULCAN; exit 1 on any violation
   upgrade [--stable | --nightly] [<version|tag>]
