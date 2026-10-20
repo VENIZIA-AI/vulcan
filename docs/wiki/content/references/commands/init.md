@@ -263,6 +263,9 @@ Done. Next:
 The `skipped` lines appear only because the run sets `VULCAN_NO_INSTALL=1`, which prints the install, `git init`, `sync` and the checks instead of running them.
 A normal run executes each one.
 
+The `.gitignore` it writes holds `node_modules/`, `dist/`, `.env`, `*.tsbuildinfo` and the agent entries, so the files `tsc` leaves behind after the checks do not show up as untracked.
+When the preset declares `urls`, the last lines are one `open http://localhost:3000<path>` per path instead of the root.
+
 ### Flags
 
 Without a terminal (CI, scripts), every name comes from a flag. A missing one is an error that names it:
@@ -333,7 +336,7 @@ After the files, `init` runs these in order, in the new project:
 6. `vulcan x okf check --strict`
 
 The first failure stops the command with that command's output. The project stays on disk for you to inspect.
-When everything passes, `init` prints `Done. Next:`, `cd <project> && make dev` and `open http://localhost:<devPort>`, the dev port the preset declares for the first app (a frontend app too).
+When everything passes, `init` prints `Done. Next:`, `cd <project> && make dev` and one `open http://localhost:<devPort><path>` line per path in the preset's `urls`, or the root when it declares none. The port is the one the preset declares for the first app (a frontend app too).
 
 Add more apps later with [`vulcan add`](/references/commands/add).
 

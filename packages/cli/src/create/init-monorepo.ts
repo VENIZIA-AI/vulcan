@@ -14,6 +14,7 @@ import type {
 import { today, writeFile } from './files.ts';
 import { askWithPrompt, findFolderClash, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
+import { renderNext } from './next.ts';
 import { isInstallSkipped, runBun, runGitInit } from './process.ts';
 import { installNpmPreset, withScratch } from './scratch.ts';
 import {
@@ -37,7 +38,7 @@ const LAYER_FILES = [
 /** `make dev` is the one command the Done message promises; the shipped Makefile has no such target. */
 const DEV_TARGET = '\ndev:\n\t@bun run dev\n';
 
-const BASE_IGNORES = ['node_modules/', 'dist/', '.env'];
+const BASE_IGNORES = ['node_modules/', 'dist/', '.env', '*.tsbuildinfo'];
 
 const fail = (opts: { message: string }): number => {
   process.stderr.write(`vulcan init: ${opts.message}\n`);
@@ -333,7 +334,11 @@ const runCreate = async (opts: {
 
   // The preset's own port: nothing else is in this project yet, so it is the one the app listens on.
   process.stderr.write(
-    `Done. Next:\n  cd ${project} && make dev\n  open http://localhost:${located.preset.devPort}\n`,
+    renderNext({
+      done: 'Done.',
+      command: `cd ${project} && make dev`,
+      apps: [{ port: located.preset.devPort, urls: located.preset.urls }],
+    }),
   );
 
   return ExitCodes.OK;

@@ -28,6 +28,7 @@ const PRESET_SCHEMA = z
     peers: z.record(z.string(), z.string()).default({}),
     scripts: z.record(z.string(), z.string()).default({}),
     checks: z.array(z.string()).default([]),
+    urls: z.array(z.string().startsWith('/')).default([]),
     files: z.string(),
     atlas: z.array(z.object({ name: z.string(), repo: z.string(), ref: z.string() })).default([]),
   })

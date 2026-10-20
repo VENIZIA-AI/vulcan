@@ -31,6 +31,7 @@ The second is that `preset.json`, with the files it copies next to it:
   "devDependencies": { "typescript": "^6.0.3" },
   "scripts": { "dev": "bun run src/index.ts", "typecheck": "tsc --noEmit", "test": "bun test" },
   "checks": ["typecheck", "test"],
+  "urls": ["/api/hello"],
   "files": "./files",
   "atlas": [{ "name": "acme", "repo": "acme/acme", "ref": "main" }]
 }
@@ -59,6 +60,7 @@ vulcan-preset/
 | `peers` | object | no | Package to range that the root `catalog` must already satisfy when `add` runs |
 | `scripts` | object | no | The `scripts` of the app's `package.json` |
 | `checks` | array of script names | no | Scripts that `init` and `add` run in the app after install, in order. Each entry must be a key of `scripts`, or the preset is refused |
+| `urls` | array of paths | no | Paths to open on the dev port, each starting with `/` (`/api/hello`). `init` and `add` end with one `open http://localhost:<port><path>` line per path. With none, they print the root. They are recorded in the app's `package.json` under `vulcan.urls`, so a later `add` prints them too |
 | `files` | string | yes | The folder to copy, relative to `preset.json`. It, and the `vulcan.preset` path, must stay inside the package; a path that climbs out with `..` is refused |
 | `atlas` | array of `{ name, repo, ref }` | no | Documentation sources added to `atlas.sources`, so agents read the framework's docs |
 

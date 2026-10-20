@@ -6,9 +6,10 @@ import type { IProjectPackage, TResolvedConfig } from '../config/index.ts';
 import { readWorkspaceGlobs } from '../init/index.ts';
 import { runAppChecks } from './checks.ts';
 import { AppSides, CreateFlags } from './common/index.ts';
-import type { IAppsBlock, ILocatedPreset, IPresetSpec } from './common/index.ts';
+import type { IAppsBlock, ILocatedPreset, IPresetSpec, TAppSide } from './common/index.ts';
 import { today, writeFile } from './files.ts';
 import { askWithPrompt, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
+import { readExistingApps, renderNext } from './next.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
 import { isInstallSkipped, runBun } from './process.ts';
 import { installNpmPreset, withScratch } from './scratch.ts';
@@ -34,10 +35,62 @@ const KNOWLEDGE_DIRECTORY = '.agents/knowledge';
 const ROOT_HINT =
   'run it at the root of a monorepo vulcan init created (no layout in .configs/vulcan.config.*)';
 
+const MISSING_API = `missing ${CreateFlags.API} <app> or ${CreateFlags.NO_API}`;
+
 const fail = (opts: { message: string }): number => {
   process.stderr.write(`vulcan add: ${opts.message}\n`);
 
   return ExitCodes.FAILURE;
+};
+
+/** The side the flags give away: a frontend flag, or only the backend folder; undefined when they do not say. */
+const sideNamedBy = (opts: { args: string[] }): TAppSide | undefined => {
+  const frontend = [CreateFlags.FRONTEND_DIR, CreateFlags.API, CreateFlags.NO_API].some(flag =>
+    opts.args.includes(flag),
+  );
+  const backend = opts.args.includes(CreateFlags.BACKEND_DIR);
+
+  if (frontend === backend) {
+    return undefined;
+  }
+
+  return frontend ? AppSides.FRONTEND : AppSides.BACKEND;
+};
+
+/**
+ * What the command line already settles, checked before the preset is downloaded: without a terminal
+ * to ask, a missing --app, a side folder neither given nor held by the config, or a frontend with
+ * neither --api nor --no-api cannot be fixed by the download. The side is known from the flags when
+ * they name it; a preset whose side only its package says is checked after the download.
+ */
+const missingFlag = (opts: {
+  args: string[];
+  layout: Partial<Record<TAppSide, string>>;
+}): string | undefined => {
+  const side = sideNamedBy({ args: opts.args });
+
+  if (readFlag({ args: opts.args, flag: CreateFlags.APP }) === undefined) {
+    const kind = side === undefined ? '' : `${side} `;
+
+    return `missing ${CreateFlags.APP} (Name of this ${kind}app) - names are never chosen for you`;
+  }
+
+  if (side === undefined) {
+    return undefined;
+  }
+
+  const folder = SIDE_FIELDS[side];
+
+  if (
+    readFlag({ args: opts.args, flag: folder.flag }) === undefined &&
+    opts.layout[side] === undefined
+  ) {
+    return `missing ${folder.flag} (${folder.question}) - names are never chosen for you`;
+  }
+
+  const hasApi = opts.args.includes(CreateFlags.API) || opts.args.includes(CreateFlags.NO_API);
+
+  return side === AppSides.FRONTEND && !hasApi ? MISSING_API : undefined;
 };
 
 const readRootManifest = (opts: { path: string }): TRootManifest | undefined => {
@@ -87,7 +140,7 @@ const resolveApiUrl = (opts: {
 
   if (chosen === undefined) {
     if (!opts.interactive) {
-      return { ok: false, error: `missing ${CreateFlags.API} <app> or ${CreateFlags.NO_API}` };
+      return { ok: false, error: MISSING_API };
     }
 
     chosen =
@@ -128,14 +181,9 @@ const resolveApiUrl = (opts: {
 };
 
 const usedPorts = (opts: { root: string; packages: IProjectPackage[] }): number[] =>
-  opts.packages.flatMap(entry => {
-    const envFile = join(opts.root, entry.path, '.env.example');
-    const port = existsSync(envFile)
-      ? readPort({ envExample: readFileSync(envFile, 'utf8') })
-      : undefined;
-
-    return port === undefined ? [] : [port];
-  });
+  readExistingApps({ root: opts.root, paths: opts.packages.map(entry => entry.path) }).map(
+    app => app.port,
+  );
 
 const locate = async (opts: {
   cwd: string;
@@ -180,6 +228,13 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
     return fail({ message: ROOT_HINT });
   }
 
+  const interactive = process.stdin.isTTY === true;
+  const early = interactive ? undefined : missingFlag({ args: opts.args, layout: config.layout });
+
+  if (early !== undefined) {
+    return fail({ message: early });
+  }
+
   const spec = parsePresetSpec({ value: presetValue, cwd });
   const located = await locate({ cwd, scratch: opts.scratch, spec });
 
@@ -198,7 +253,6 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
     return fail({ message: peerProblem });
   }
 
-  const interactive = process.stdin.isTTY === true;
   const side = preset.side;
   const previous = config.layout[side];
   const names = resolveNames({
@@ -389,7 +443,17 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
     }
   }
 
-  process.stderr.write(`Done. ${folder}/${app} is added.\n`);
+  // Every app `make dev` serves: those that were here, then the new one at the port it was given.
+  process.stderr.write(
+    renderNext({
+      done: `Done. ${folder}/${app} is added.`,
+      command: 'make dev',
+      apps: [
+        ...readExistingApps({ root: cwd, paths: packages.map(existing => existing.path) }),
+        { port: devPort, urls: preset.urls },
+      ],
+    }),
+  );
 
   return ExitCodes.OK;
 };
