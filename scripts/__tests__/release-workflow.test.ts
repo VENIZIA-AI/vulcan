@@ -212,9 +212,14 @@ describe('package-release.yml: tagging', () => {
     expect(result.env.IS_TAGGED).toBe('true');
   });
 
-  test('a tag already on origin at another commit stops the run, and is not reported as missing', () => {
+  test('a tag on origin at a commit of ANOTHER version stops the run, and is not reported as missing', () => {
     const { checkout } = createRemote();
 
+    writeFile({
+      path: join(checkout, 'packages', 'cli', 'package.json'),
+      text: '{ "version": "0.0.9" }\n',
+    });
+    git({ args: ['commit', '--quiet', '-am', 'an older version'], cwd: checkout });
     git({ args: ['tag', '-a', 'v0.1.0', '-m', 'VULCAN 0.1.0'], cwd: checkout });
     git({ args: ['push', '--quiet', 'origin', 'v0.1.0'], cwd: checkout });
     git({ args: ['commit', '--quiet', '--allow-empty', '-m', 'later'], cwd: checkout });
@@ -229,6 +234,48 @@ describe('package-release.yml: tagging', () => {
     expect(result.output).toContain('ERROR | v0.1.0 is already on origin at');
     expect(result.env.TAG_CONFLICT).toBeDefined();
     expect(findStep({ name: 'Report - tag missing' }).if).toContain("env.TAG_CONFLICT == ''");
+  });
+
+  test('a bump none run on a develop that moved on accepts the tag of the same version, and skips it', () => {
+    const { checkout } = createRemote();
+
+    git({ args: ['tag', '-a', 'v0.1.0', '-m', 'VULCAN 0.1.0'], cwd: checkout });
+    git({ args: ['push', '--quiet', 'origin', 'v0.1.0'], cwd: checkout });
+    git({ args: ['commit', '--quiet', '--allow-empty', '-m', 'later'], cwd: checkout });
+
+    const result = runSteps({
+      names: ['Create tag'],
+      cwd: checkout,
+      env: { BUMP: 'none', NEW_VERSION: '0.1.0', TAG_NAME: 'v0.1.0' },
+    });
+
+    expect(result.code, result.output).toBe(0);
+    expect(result.output).toContain('tag: v0.1.0 is already on origin');
+    expect(result.output).toContain('is version 0.1.0');
+    expect(result.env.IS_TAGGED).toBe('true');
+    expect(result.env.TAG_CONFLICT).toBeUndefined();
+  });
+
+  test('a release that committed (bump patch) never accepts a tag at another commit', () => {
+    const { checkout } = createRemote();
+
+    git({ args: ['tag', '-a', 'v0.1.0', '-m', 'VULCAN 0.1.0'], cwd: checkout });
+    git({ args: ['push', '--quiet', 'origin', 'v0.1.0'], cwd: checkout });
+    git({ args: ['commit', '--quiet', '--allow-empty', '-m', 'later'], cwd: checkout });
+
+    const result = runSteps({
+      names: ['Create tag'],
+      cwd: checkout,
+      env: {
+        BUMP: 'patch',
+        NEW_VERSION: '0.1.0',
+        TAG_NAME: 'v0.1.0',
+        RELEASE_SHA: git({ args: ['rev-parse', 'HEAD'], cwd: checkout }),
+      },
+    });
+
+    expect(result.code).not.toBe(0);
+    expect(result.env.TAG_CONFLICT).toBeDefined();
   });
 });
 
