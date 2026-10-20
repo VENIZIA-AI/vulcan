@@ -234,6 +234,18 @@ jobs:
           # NPM_CONFIG_TOKEN: bun reads neither NODE_AUTH_TOKEN nor the .npmrc setup-node writes.
           NPM_CONFIG_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
 
+      # `next` is never below `latest` (it may hold a newer prerelease). A stable release moves `latest`
+      # past a stale `next`, so every run - a bump `none` dispatch included, which publishes nothing -
+      # moves `next` up to `latest` where it lags. Non-fatal and loud, like IGNIS's `highest` tag: the
+      # script prints a warning for every move and every failure and always exits 0. The version just
+      # published is passed along because npm serves the old tags for minutes after a publish.
+      - name: Keep next at or above latest
+        run: |
+          NAMES=$(for directory in $PUBLISH_ORDER; do jq -r .name "packages/$directory/package.json"; done)
+          bun scripts/next-tag.ts --published "$NEW_VERSION" --tag "$NPM_TAG" $NAMES
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+
       # -------------------------------------------------------------------------
       # RECORD IN GIT
       # -------------------------------------------------------------------------
