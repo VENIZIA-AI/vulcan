@@ -1,8 +1,22 @@
-import type { TConstValue } from '@venizia/ignis-helpers/common';
-import type { AtlasModes, Corpora } from './constants';
+import type { AtlasModes, Corpora, LogLevels } from './constants';
+
+/** The values of a const class's static fields: `TConstValue<typeof Colors>` is `'red' | 'blue'`. */
+export type TConstValue<TClass> = Extract<TClass[keyof TClass], string | number> & {};
 
 export type TAtlasMode = TConstValue<typeof AtlasModes>;
 export type TCorpus = TConstValue<typeof Corpora>;
+export type TLogLevel = TConstValue<typeof LogLevels>;
+
+/** A scoped logger; `for` narrows the scope to one method. Every line goes to stderr. */
+export interface ILogger {
+  debug(message: string, ...args: unknown[]): void;
+  info(message: string, ...args: unknown[]): void;
+  warn(message: string, ...args: unknown[]): void;
+  error(message: string, ...args: unknown[]): void;
+  emerg(message: string, ...args: unknown[]): void;
+  log(level: TLogLevel, message: string, ...args: unknown[]): void;
+  for(methodName: string): ILogger;
+}
 
 /** The part of a package.json the generators read. */
 export interface IPackageManifest {

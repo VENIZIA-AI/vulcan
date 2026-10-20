@@ -1,35 +1,7 @@
-import type { TAtlasMode } from '@/common';
-import { releasesFileOf } from '@/common/layout';
-import { BaseHelper } from '@venizia/ignis-helpers/core';
-import { existsSync, readFileSync } from 'node:fs';
+import { BaseHelper } from '@/common/helper';
+import { packageOfDirectory, packageOfQuery } from '@/common/package-map';
+import type { IPackageMapEntry } from '@/common/package-map';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
-
-// The table is keyed by directory name under `packages/`; two npm names do not follow the suffix.
-const NPM_NAME_PATTERN = /^@venizia\/ignis(?:-([a-z0-9-]+))?$/;
-
-/** `@venizia/ignis-kernel` and `kernel` name the same package - the npm spelling maps to its directory. */
-export const toPackageDirectory = (value: string): string => {
-  const trimmed = value.trim().toLowerCase();
-  const scoped = trimmed.match(NPM_NAME_PATTERN);
-
-  if (!scoped) {
-    return trimmed;
-  }
-
-  switch (scoped[1]) {
-    case undefined: {
-      return 'core-server';
-    }
-
-    case 'worker': {
-      return 'core-worker';
-    }
-
-    default: {
-      return scoped[1];
-    }
-  }
-};
 
 const byText = (left: string, right: string): number => {
   if (left === right) {
@@ -48,47 +20,34 @@ export class ReleaseStore extends BaseHelper {
   private readonly releases = new Map<string, IReleaseRecord[]>();
   private readonly changelogs: IChangelogRecord[];
   private readonly live: string[];
+  private readonly packageMap: IPackageMapEntry[];
+  /** What `version` and `changes` say when the table holds no release. */
+  readonly emptyReason: string;
+  /** What `changes` says when the table holds no dated changelog entry. */
+  readonly noEntriesReason: string;
 
-  constructor(opts: { table: IReleaseTable }) {
+  constructor(opts: { table: IReleaseTable; emptyReason?: string; noEntriesReason?: string }) {
     super({ scope: ReleaseStore.name });
+
+    this.packageMap = opts.table.packageMap ?? [];
+    this.emptyReason = opts.emptyReason ?? 'no releases';
+    this.noEntriesReason = opts.noEntriesReason ?? 'no dated changelog entries';
 
     const tableReleasesEntries = Object.entries(opts.table.releases ?? {});
 
-    for (const [name, records] of tableReleasesEntries) {
-      this.releases.set(toPackageDirectory(name), records);
+    // The table is keyed by directory; the store by npm name, the identity every answer carries.
+    const nameOf = (dir: string): string =>
+      packageOfDirectory({ dir, packageMap: this.packageMap });
+
+    for (const [dir, records] of tableReleasesEntries) {
+      this.releases.set(nameOf(dir), records);
     }
 
     // Newest first, so every window answers in that order without re-sorting.
-    this.changelogs = [...(opts.table.changelogs ?? [])].sort((left, right) =>
-      byText(right.date, left.date),
-    );
-    this.live = [...(opts.table.livePackages ?? [])].map(toPackageDirectory).sort(byText);
-  }
-
-  /**
-   * Repo mode reads the knowledge bundle's table, snapshot mode the packaged one. A missing or
-   * unreadable table leaves the store empty - the tools say so, the server still starts.
-   */
-  static load(opts: { mode: TAtlasMode; root: string }): ReleaseStore {
-    const path = releasesFileOf(opts);
-
-    if (!existsSync(path)) {
-      return new ReleaseStore({ table: { releases: {}, changelogs: [] } });
-    }
-
-    try {
-      const table: IReleaseTable = JSON.parse(readFileSync(path, 'utf8'));
-
-      return new ReleaseStore({ table });
-    } catch (error) {
-      const store = new ReleaseStore({ table: { releases: {}, changelogs: [] } });
-
-      store.logger
-        .for('load')
-        .error('unreadable release table | path: %s | error: %s', path, error);
-
-      return store;
-    }
+    this.changelogs = [...(opts.table.changelogs ?? [])]
+      .map(entry => ({ ...entry, packages: entry.packages.map(nameOf) }))
+      .sort((left, right) => byText(right.date, left.date));
+    this.live = [...(opts.table.livePackages ?? [])].map(nameOf).sort(byText);
   }
 
   /** Whether no table was loaded at all - distinct from a table that simply does not carry a package. */
@@ -101,9 +60,33 @@ export class ReleaseStore extends BaseHelper {
     return [...this.releases.keys()].sort(byText);
   }
 
+  /** Every package released or declared in the package list, sorted. */
+  declaredPackages(): string[] {
+    return [
+      ...new Set([...this.releases.keys(), ...this.packageMap.map(entry => entry.name)]),
+    ].sort(byText);
+  }
+
   /** Every date a changelog entry carries, newest first, each date once. */
   entryDates(): string[] {
     return [...new Set(this.changelogs.map(record => record.date))];
+  }
+
+  /** The table's package map - how a composite of sources routes a package to its owner. */
+  packageMapEntries(): IPackageMapEntry[] {
+    return this.packageMap;
+  }
+
+  /** A package a tool was asked about, as its npm name - what the store is keyed by. */
+  packageOf(opts: { package: string }): string {
+    return packageOfQuery({ value: opts.package, packageMap: this.packageMap });
+  }
+
+  /** Whether the package is declared in the project's package list or has a release - released or not. */
+  declares(opts: { package: string }): boolean {
+    const name = this.packageOf(opts);
+
+    return this.releases.has(name) || this.packageMap.some(entry => entry.name === name);
   }
 
   /** The packages that exist today; a table generated before this list existed answers with every package it knows. */
@@ -132,7 +115,8 @@ export class ReleaseStore extends BaseHelper {
    * that closes it carries its own entries.
    */
   entriesBetween(opts: { package?: string; fromDate: string; toDate: string }): IChangelogRecord[] {
-    const wanted = opts.package === undefined ? undefined : toPackageDirectory(opts.package);
+    const wanted =
+      opts.package === undefined ? undefined : this.packageOf({ package: opts.package });
 
     return this.changelogs.filter(entry => {
       if (entry.date <= opts.fromDate || entry.date > opts.toDate) {
@@ -155,7 +139,8 @@ export class ReleaseStore extends BaseHelper {
     fromDate: string;
     toDate: string;
   }): IChangelogRecord[] {
-    const wanted = opts.package === undefined ? undefined : toPackageDirectory(opts.package);
+    const wanted =
+      opts.package === undefined ? undefined : this.packageOf({ package: opts.package });
 
     return this.changelogs.filter(entry => {
       const inside =
@@ -177,6 +162,6 @@ export class ReleaseStore extends BaseHelper {
   }
 
   private recordsOf(opts: { package: string }): IReleaseRecord[] {
-    return this.releases.get(toPackageDirectory(opts.package)) ?? [];
+    return this.releases.get(this.packageOf({ package: opts.package })) ?? [];
   }
 }

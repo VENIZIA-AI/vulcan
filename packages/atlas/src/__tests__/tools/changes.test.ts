@@ -1,4 +1,6 @@
-import { AtlasConstants, AtlasModes } from '@/common';
+import { ignisProjectAt } from '../fixtures/ignis-packages';
+import { IGNIS_PACKAGE_MAP } from '../fixtures/ignis-packages';
+import { AtlasConstants } from '@/common';
 import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
 import { Transport } from '@/protocol';
 import { ReleaseStore } from '@/releases';
@@ -9,7 +11,7 @@ import { buildGetTool } from '@/tools/get.tool';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
-import { IGNIS_ROOT } from '../ignis-root';
+import { ignisCommittedFileOf, IGNIS_ROOT } from '../ignis-root.helper';
 
 // __dirname, not import.meta: this package emits CommonJS.
 const REPOSITORY_ROOT = IGNIS_ROOT;
@@ -30,6 +32,7 @@ const entry = (opts: {
 });
 
 const TABLE: IReleaseTable = {
+  packageMap: IGNIS_PACKAGE_MAP,
   releases: {
     kernel: [
       { version: '0.2.0-16', date: '2026-09-05', sha: 'fda2d717' },
@@ -93,7 +96,7 @@ describe('changes tool', () => {
       }),
     );
 
-    expect(payload.package).toBe('kernel');
+    expect(payload.package).toBe('@venizia/ignis-kernel');
     expect(payload.from).toBe('0.2.0-13');
     expect(payload.to).toBe('0.2.0-16');
     expect(payload.entries.map(item => item.id)).toEqual([
@@ -129,7 +132,7 @@ describe('changes tool', () => {
       await callChanges({ releases, args: { package: '@venizia/ignis-kernel' } }),
     );
 
-    expect(payload.package).toBe('kernel');
+    expect(payload.package).toBe('@venizia/ignis-kernel');
   });
 
   test('no package spans every package and reads from and to as dates', async () => {
@@ -165,7 +168,7 @@ describe('changes tool', () => {
       date: '2026-09-05',
       title: 'list-response',
       kind: 'New Feature',
-      packages: ['kernel'],
+      packages: ['@venizia/ignis-kernel'],
     });
   });
 
@@ -180,18 +183,40 @@ describe('changes tool', () => {
     expect(payload.entries).toEqual([]);
   });
 
-  test('an unknown package is -32602 naming the known ones', async () => {
+  test('a declared package with no release answers its changelog entries and says there is no release', async () => {
+    const payload = payloadOf(await callChanges({ releases, args: { package: 'boot' } }));
+
+    expect(payload.package).toBe('@venizia/ignis-boot');
+    expect(payload.entries.map(item => item.id)).toEqual(['changelog:2026-09-02-decorators']);
+    expect((payload as { note?: string }).note).toContain(
+      'no release of @venizia/ignis-boot is recorded on this ref',
+    );
+  });
+
+  test('a declared package with no release and a version asked for says there is none, not that the version is unknown', async () => {
+    const reply = await callChanges({ releases, args: { package: 'boot', from: '0.1.0' } });
+
+    expect(reply.error?.code).toBe(-32602);
+    expect(reply.error?.message).toContain(
+      'no release of @venizia/ignis-boot is recorded on this ref',
+    );
+  });
+
+  test('an unknown package is -32602 naming the known ones, declared and unreleased included', async () => {
     const reply = await callChanges({ releases, args: { package: 'kernl' } });
 
     expect(reply.error?.code).toBe(-32602);
-    expect(reply.error?.message).toBe("unknown package 'kernl'; known packages: helpers, kernel");
+    expect(reply.error?.message).toStartWith("unknown package 'kernl'; known packages: ");
+    // @venizia/ignis-boot is declared and has no release: it is offered like a released one.
+    expect(reply.error?.message).toContain('@venizia/ignis-boot');
+    expect(reply.error?.message).toContain('@venizia/ignis-helpers');
   });
 
   test('an unknown version is -32602 naming the known ones', async () => {
     const reply = await callChanges({ releases, args: { package: 'kernel', to: '9.9.9' } });
 
     expect(reply.error?.code).toBe(-32602);
-    expect(reply.error?.message).toContain("unknown version '9.9.9' for kernel");
+    expect(reply.error?.message).toContain("unknown version '9.9.9' for @venizia/ignis-kernel");
     expect(reply.error?.message).toContain('0.2.0-16');
   });
 
@@ -222,7 +247,9 @@ describe('changes tool', () => {
     });
 
     expect(reply.error?.code).toBe(-32602);
-    expect(reply.error?.message).toContain("unknown version '2026-08-31' for kernel");
+    expect(reply.error?.message).toContain(
+      "unknown version '2026-08-31' for @venizia/ignis-kernel",
+    );
   });
 
   test('a version is rejected where a date belongs', async () => {
@@ -263,25 +290,53 @@ describe('changes tool', () => {
     expect(payload.entries[0].date).toBe('2026-07-30');
   });
 
-  test('a build with no release table says so instead of guessing', async () => {
+  test('a source with no releases and no entries says why instead of guessing', async () => {
     const reply = await callChanges({
-      releases: new ReleaseStore({ table: { releases: {}, changelogs: [] } }),
+      releases: new ReleaseStore({
+        table: { releases: {}, changelogs: [] },
+        emptyReason: 'no releases: no tag matches <dir>-v<version>',
+      }),
       args: {},
     });
 
     expect(reply.error?.code).toBe(-32602);
-    expect(reply.error?.message).toBe('no release table in this build');
+    expect(reply.error?.message).toBe('no releases: no tag matches <dir>-v<version>');
+  });
+
+  test('with dated entries and no release, dates still answer and versions say why they cannot', async () => {
+    const dated = new ReleaseStore({
+      table: {
+        packageMap: IGNIS_PACKAGE_MAP,
+        releases: {},
+        changelogs: [entry({ date: '2026-09-05', slug: 'list-response', packages: ['kernel'] })],
+      },
+      emptyReason: 'no release history: ignis was fetched without git',
+    });
+    const byDate = await callChanges({ releases: dated, args: { to: '2026-09-05' } });
+    const byPackage = await callChanges({ releases: dated, args: { package: 'kernel' } });
+
+    expect(payloadOf(byDate).entries.map(found => found.id)).toEqual([
+      'changelog:2026-09-05-list-response',
+    ]);
+    expect(byPackage.error?.message).toBe('no release history: ignis was fetched without git');
   });
 });
 
+// IGNIS's last committed release table - real data for the changes tool. IGNIS removed it when it
+// adopted 0.2.0, so it is read from the commit before; this gate is about the tool, not the table.
+const IGNIS_RELEASES = ignisCommittedFileOf({ path: '.agents/knowledge/reference/releases.json' });
 const hasRepositoryRoots =
   existsSync(join(REPOSITORY_ROOT, 'docs/wiki/content')) &&
-  existsSync(join(REPOSITORY_ROOT, '.agents/knowledge'));
+  existsSync(join(REPOSITORY_ROOT, '.agents/knowledge')) &&
+  IGNIS_RELEASES !== undefined;
 
 describe.skipIf(!hasRepositoryRoots)('the P3 acceptance gate, over the real release table', () => {
-  const realReleases = ReleaseStore.load({ mode: AtlasModes.REPOSITORY, root: REPOSITORY_ROOT });
+  const realReleases = new ReleaseStore({
+    table:
+      IGNIS_RELEASES === undefined ? { releases: {}, changelogs: [] } : JSON.parse(IGNIS_RELEASES),
+  });
   const documents = CorpusLoader.getInstance().load({
-    roots: resolveRepositoryRoots({ repositoryRoot: REPOSITORY_ROOT }),
+    roots: resolveRepositoryRoots({ project: ignisProjectAt({ root: REPOSITORY_ROOT }) }),
   });
   const chunker = Chunker.getInstance();
   const store = new ChunkStore();

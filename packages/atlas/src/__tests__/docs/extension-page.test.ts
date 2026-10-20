@@ -1,3 +1,4 @@
+import { ignisProjectAt } from '../fixtures/ignis-packages';
 import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
 import { Transport } from '@/protocol';
 import { ChunkStore } from '@/search';
@@ -5,12 +6,16 @@ import { buildGetTool } from '@/tools/get.tool';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
-import { IGNIS_ROOT } from '../ignis-root';
+import { IGNIS_ROOT } from '../ignis-root.helper';
 
 // __dirname, not import.meta: tsconfig.json (unlike tsconfig.build.json) does not exclude
 // __tests__, and this package's module mode treats every file as CommonJS output.
 const REPOSITORY_ROOT = IGNIS_ROOT;
-const EXTENSION_PAGE = join(REPOSITORY_ROOT, 'docs/wiki/content/extensions/atlas/index.md');
+// Atlas's page moved with atlas: IGNIS's extension page is a pointer now, VULCAN's atlas tools reference quotes the ids.
+const EXTENSION_PAGE = join(
+  __dirname,
+  '../../../../../docs/wiki/content/references/atlas/tools.md',
+);
 
 // A real citation id, e.g. `wiki:guide.md#anchor` - never a format placeholder like
 // `wiki:<path>#<anchor>`, which is excluded by rejecting `<`/`>` inside the match.
@@ -23,6 +28,7 @@ const idsQuotedOn = (opts: { page: string }): string[] => {
 };
 
 const hasRepositoryRoots =
+  existsSync(EXTENSION_PAGE) &&
   existsSync(join(REPOSITORY_ROOT, 'docs/wiki/content')) &&
   existsSync(join(REPOSITORY_ROOT, '.agents/knowledge'));
 
@@ -32,9 +38,10 @@ const parseReply = (line: string | null): { error?: { message: string } } =>
 describe.skipIf(!hasRepositoryRoots)(
   'every id quoted on the atlas extension page resolves in the real index (I7)',
   () => {
-    const ids = idsQuotedOn({ page: EXTENSION_PAGE });
+    // The body runs while bun collects tests, skipped or not: read the page only when it exists.
+    const ids = hasRepositoryRoots ? idsQuotedOn({ page: EXTENSION_PAGE }) : [];
     const documents = CorpusLoader.getInstance().load({
-      roots: resolveRepositoryRoots({ repositoryRoot: REPOSITORY_ROOT }),
+      roots: resolveRepositoryRoots({ project: ignisProjectAt({ root: REPOSITORY_ROOT }) }),
     });
     const chunker = Chunker.getInstance();
     const store = new ChunkStore();

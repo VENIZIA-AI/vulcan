@@ -1,8 +1,9 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PublicSurface } from '@/surface/generator';
+import { PublicSurface } from '@/surface';
+import { clearAtlasProject, useAtlasProject } from '../project.helper';
 
 const tmpDirs: string[] = [];
 
@@ -73,6 +74,78 @@ describe('PublicSurface.render', () => {
     expect(rendered).toContain('- `A` class');
     expect(rendered).toContain('- `B` interface');
     expect(rendered).toContain('- `c` const');
+  });
+
+  test('the page says it is generated, so okf gen leaves it whole - no contents list written into it', () => {
+    const repoRoot = makeRepoRoot();
+
+    writeSurface({ repoRoot });
+
+    const rendered = PublicSurface.render({ repoRoot, packages: ['testpkg'] });
+    const frontmatter = /^---\n([\s\S]*?)\n---\n/.exec(rendered)?.[1] ?? '';
+
+    expect(frontmatter).toContain('generated:\n  by: process:atlas-surface');
+  });
+});
+
+describe('the package list', () => {
+  afterEach(clearAtlasProject);
+
+  test('no manifest, render stops with what to do', () => {
+    expect(() => PublicSurface.render({ repoRoot: makeRepoRoot() })).toThrow(
+      'atlas: no project manifest (.agents/vulcan.manifest.json) - run `vulcan sync`',
+    );
+  });
+
+  test('render walks the live packages; a retired one with no directory is skipped, not read', () => {
+    const repoRoot = makeRepoRoot();
+
+    writeSurface({ repoRoot });
+    useAtlasProject({
+      root: repoRoot,
+      manifest: {
+        packages: [
+          { dir: 'testpkg', name: '@test/testpkg', aliases: [], retired: false },
+          { dir: 'ui-kit', name: '@test/ui-kit', aliases: [], retired: true },
+        ],
+      },
+    });
+
+    expect(PublicSurface.render({})).toContain('`@test/testpkg` (3)');
+  });
+
+  test('a package outside packages/ is read where the manifest says it lives', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'ignis-public-surface-'));
+    const packageDir = join(repoRoot, 'umbras', 'kit');
+
+    tmpDirs.push(repoRoot);
+    mkdirSync(packageDir, { recursive: true });
+    writeFileSync(
+      join(packageDir, 'package.json'),
+      JSON.stringify({ name: '@shop/kit', exports: { '.': { types: './index.d.ts' } } }),
+    );
+    writeFileSync(join(packageDir, 'index.d.ts'), 'export declare const kit: number;\n');
+    useAtlasProject({
+      root: repoRoot,
+      manifest: {
+        packages: [
+          { dir: 'kit', name: '@shop/kit', path: 'umbras/kit', aliases: [], retired: false },
+        ],
+      },
+    });
+
+    expect(PublicSurface.render({})).toContain('- `kit` const');
+  });
+
+  test('only retired packages: nothing to walk, and it says what to add', () => {
+    useAtlasProject({
+      root: makeRepoRoot(),
+      manifest: { packages: [{ dir: 'ui-kit', name: '@test/ui-kit', aliases: [], retired: true }] },
+    });
+
+    expect(() => PublicSurface.render({})).toThrow(
+      'atlas: add packages to .configs/vulcan.config.*',
+    );
   });
 });
 

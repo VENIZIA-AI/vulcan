@@ -1,24 +1,14 @@
-import { expect, test } from 'bun:test';
-import { mkdtempSync, realpathSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { afterEach, expect, test } from 'bun:test';
+import { readOkfProject } from '../project/index.ts';
+import { clearProjectConfig, useProjectConfig } from './project.helper.ts';
 
-const CONFIG_MODULE = join(import.meta.dir, '..', 'config.ts');
+afterEach(clearProjectConfig);
 
-test('okf reads the working directory, never an IGNIS_ROOT left in the environment', () => {
-  const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'okf-root-')));
-  const child = Bun.spawnSync(
-    [
-      process.execPath,
-      '-e',
-      `const m = await import(${JSON.stringify(CONFIG_MODULE)}); console.log(m.REPO);`,
-    ],
-    {
-      cwd,
-      env: { ...process.env, IGNIS_ROOT: '/somewhere/else' },
-      stdout: 'pipe',
-    },
-  );
+test('okf reads the project root vulcan x hands it, never an IGNIS_ROOT left in the environment', () => {
+  process.env.IGNIS_ROOT = '/somewhere/else';
+  useProjectConfig({ root: '/the/project', config: {} });
 
-  expect(child.stdout.toString().trim()).toBe(cwd);
+  expect(readOkfProject().root).toBe('/the/project');
+
+  delete process.env.IGNIS_ROOT;
 });

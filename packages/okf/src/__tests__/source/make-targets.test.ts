@@ -1,0 +1,110 @@
+import { afterAll, afterEach, expect, test } from 'bun:test';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { collectMakefileTargets } from '../../source/collectors.ts';
+import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
+
+const roots: string[] = [];
+
+afterEach(clearProjectConfig);
+
+afterAll(() => {
+  for (const root of roots) {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+/** A project whose Makefile includes a shipped module, the way a project includes vulcan.mk. */
+const makeProject = (opts: { files: Record<string, string> }): string => {
+  const root = mkdtempSync(join(tmpdir(), 'okf-make-targets-'));
+
+  roots.push(root);
+
+  for (const [path, content] of Object.entries(opts.files)) {
+    mkdirSync(join(root, path, '..'), { recursive: true });
+    writeFileSync(join(root, path), content);
+  }
+
+  useProjectConfig({ root, config: {} });
+
+  return root;
+};
+
+const descriptionOf = (opts: { name: string }): string | undefined =>
+  collectMakefileTargets().find(target => target.name === opts.name)?.description;
+
+test("an included module's targets carry their ## descriptions", () => {
+  makeProject({
+    files: {
+      Makefile: 'include shipped/vulcan.mk\n\nbuild:\n\t@true\n',
+      'shipped/vulcan.mk':
+        'vulcan-sync: ## Write the agent adapters from the config\n\t@true\n\nokf-gen: vulcan-sync ## Regenerate the knowledge bundle\n\t@true\n',
+    },
+  });
+
+  expect(descriptionOf({ name: 'vulcan-sync' })).toBe('Write the agent adapters from the config');
+  expect(descriptionOf({ name: 'okf-gen' })).toBe('Regenerate the knowledge bundle');
+  expect(descriptionOf({ name: 'build' })).toBe('');
+});
+
+test('a make/help.mk row wins over a ## description, so a project can reword a shipped target', () => {
+  makeProject({
+    files: {
+      Makefile: 'include shipped/vulcan.mk\n',
+      'shipped/vulcan.mk': 'vulcan-sync: ## Shipped words\n\t@true\n',
+      'make/help.mk': 'help:\n\t@printf $(HELP_ROW) "vulcan-sync" "The project\'s words"\n',
+    },
+  });
+
+  expect(descriptionOf({ name: 'vulcan-sync' })).toBe("The project's words");
+});
+
+test('a Makefile make cannot read stops the collector, never a truncated page', () => {
+  makeProject({
+    files: { Makefile: 'build:\n\t@true\n\nifeq (\n', 'shipped/vulcan.mk': '' },
+  });
+
+  expect(() => collectMakefileTargets()).toThrow('okf: make failed');
+});
+
+test('make missing from PATH is said plainly', () => {
+  makeProject({ files: { Makefile: 'build:\n\t@true\n' } });
+
+  const path = process.env.PATH;
+
+  process.env.PATH = '/nonexistent';
+
+  try {
+    expect(() => collectMakefileTargets()).toThrow('okf: make is not on PATH');
+  } finally {
+    process.env.PATH = path;
+  }
+});
+
+test("make's warnings are not failures", () => {
+  makeProject({
+    files: { Makefile: 'build:\n\t@true\n\nbuild:\n\t@false\n' },
+  });
+
+  expect(collectMakefileTargets().map(target => target.name)).toContain('build');
+});
+
+test('a ## inside an inline recipe is the recipe, never the description', () => {
+  makeProject({
+    files: { Makefile: 'fake: ; @echo "fake: ## x"\n\nreal: ## Real words\n\t@true\n' },
+  });
+
+  expect(descriptionOf({ name: 'fake' })).toBe('');
+  expect(descriptionOf({ name: 'real' })).toBe('Real words');
+});
+
+test('an included makefile given by absolute path is read where it is', () => {
+  const shipped = mkdtempSync(join(tmpdir(), 'okf-make-shipped-'));
+
+  roots.push(shipped);
+  writeFileSync(join(shipped, 'vulcan.mk'), 'vulcan-sync: ## From an absolute include\n\t@true\n');
+  makeProject({ files: { Makefile: `include ${join(shipped, 'vulcan.mk')}\n` } });
+
+  expect(descriptionOf({ name: 'vulcan-sync' })).toBe('From an absolute include');
+});

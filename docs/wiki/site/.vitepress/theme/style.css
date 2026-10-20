@@ -1,0 +1,774 @@
+/* =============================================================================
+ * VULCAN DOCS - STYLE (ported from IGNIS)
+ * -----------------------------------------------------------------------------
+ * Shared styles for the layout, doc content, callouts, code blocks, nav,
+ * sidebar, roadmap, guide cards, and the custom HomeLanding component.
+ * ============================================================================= */
+
+:root {
+  /* Non-brand layout/component vars (brand/bg/text supplied by design-tokens.css) */
+  --vp-code-block-bg: #EEEEEE;
+  --vp-sidebar-bg-color: #EEEEEE;
+  --vp-c-bg-elv: #EEEEEE;
+
+  /* Brand button (active + hover-text not defined in design-tokens.css) */
+  --vp-button-brand-active-bg: var(--vu-bronze-deep);
+  --vp-button-brand-hover-text: #ffffff;
+
+  /* Alt button */
+  --vp-button-alt-bg: #EEEEEE;
+  --vp-button-alt-hover-bg: var(--vu-sienna);
+  --vp-button-alt-active-bg: var(--vu-yellow);
+  --vp-button-alt-text: #111111;
+
+  /* Layout */
+  --vp-layout-max-width: var(--vu-layout-max);
+
+  /* Hero */
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-image-filter: blur(40px);
+}
+
+html.dark {
+  /* Dark theme non-brand vars (brand/bg/text supplied by design-tokens.css .dark block) */
+  --vp-code-block-bg: #1A1814;
+  --vp-sidebar-bg-color: #0F0D0A;
+  --vp-c-bg-elv: #1A1814;
+}
+
+/* Content container */
+.content-container {
+  max-width: 100% !important;
+}
+
+/* Hero styles */
+.VPHero .text {
+  font-size: 2rem !important;
+}
+
+.VPHero .VPImage {
+  max-width: 180px !important;
+  max-height: 180px !important;
+}
+
+@media (min-width: 640px) {
+  .VPHero .VPImage {
+    max-width: 200px !important;
+    max-height: 200px !important;
+  }
+}
+
+@media (min-width: 960px) {
+  .VPHero .VPImage {
+    max-width: 240px !important;
+    max-height: 240px !important;
+  }
+}
+
+/* Guide cards grid */
+.guide-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+@media (min-width: 640px) {
+  .guide-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .guide-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.guide-card {
+  display: block;
+  padding: 1.25rem;
+  border-radius: 12px;
+  background: var(--vp-c-bg-soft);
+  text-decoration: none !important;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.guide-card h3,
+.guide-card p {
+  text-decoration: none !important;
+}
+
+.guide-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-decoration: none !important;
+}
+
+.guide-card.highlight {
+  border: 2px solid var(--vp-c-brand-1);
+}
+
+.guide-icon {
+  font-size: 1.5rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.guide-card h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: var(--vp-c-text-1);
+}
+
+.guide-card p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--vp-c-text-2);
+}
+
+/* Learning roadmap */
+.roadmap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.roadmap-stage {
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  background: var(--vp-c-bg-soft);
+  border: 1px solid var(--vp-c-divider);
+}
+
+.stage-header {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.stage-num {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--vp-c-brand-1);
+  color: var(--vp-button-brand-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* The dark brand colour is light: white text on it fails WCAG AA (1.9:1); the page background reads at 9.6:1. */
+.dark .stage-num {
+  color: var(--vp-c-bg);
+}
+
+.stage-header h4 {
+  margin: 0 !important;
+  font-size: 1rem;
+  display: inline !important;
+  line-height: 24px;
+}
+
+.roadmap-stage > p {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.stage-desc {
+  font-size: 0.8rem;
+  color: var(--vp-c-text-2);
+}
+
+/* ============================================================================
+   Brand theming
+   All colors/sizes consumed from --vu-* design tokens (design-tokens.css).
+   ============================================================================ */
+
+/* --- Task A: Nav / Header ------------------------------------------------ */
+
+:root {
+  --vp-nav-bg-color: rgba(250, 246, 239, 0.88);
+}
+
+.dark {
+  --vp-nav-bg-color: rgba(13, 11, 8, 0.82);
+}
+
+.VPNavBar {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--vu-border) !important;
+}
+
+.VPNavBarMenuLink {
+  color: var(--vu-text-2) !important;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-bottom-color 0.15s ease;
+}
+
+.VPNavBarMenuLink:hover {
+  color: var(--vu-text) !important;
+  opacity: 1;
+}
+
+.VPNavBarMenuLink.active {
+  color: var(--vu-text) !important;
+  border-bottom: 2px solid var(--vu-sienna) !important;
+}
+
+/* --- Task B: Sidebar ----------------------------------------------------- */
+
+.VPSidebarItem.is-active > .item {
+  margin: 1px 0;
+}
+
+.VPSidebarItem.is-active > .item .link {
+  background: var(--vp-c-brand-soft) !important;
+  border-radius: 8px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin-left: -12px;
+  margin-right: 8px;
+}
+
+.VPSidebarItem.is-active > .item .link .text {
+  color: var(--vu-text) !important;
+  font-weight: 600;
+}
+
+/* TOC (On this page) active outline link */
+.VPDocAside .outline-link.active,
+.outline-link.active {
+  color: var(--vu-link) !important;
+  border-left-color: var(--vp-c-brand-1) !important;
+}
+
+/* Prose: token-grounded type scale and line-height */
+.vp-doc {
+  font-size: var(--vu-fs-body);
+  line-height: var(--vu-lh-body);
+  font-family: var(--vu-font-sans);
+}
+
+/* --- Task C: Callouts (custom-block) ------------------------------------- */
+
+.custom-block {
+  border-radius: var(--vu-r-md);
+  padding: var(--vu-s4) var(--vu-s5);
+  margin: var(--vu-s5) 0;
+  font-size: var(--vu-fs-sm);
+  border: 1px solid var(--vu-border);
+}
+
+/* TIP - sienna accent */
+.custom-block.tip {
+  background: rgba(196, 138, 90, 0.08) !important;
+}
+
+.custom-block.tip .custom-block-title {
+  color: var(--vu-sienna) !important;
+}
+
+/* WARNING - yellow accent */
+.custom-block.warning {
+  background: rgba(212, 168, 85, 0.08) !important;
+}
+
+.custom-block.warning .custom-block-title {
+  color: var(--vu-yellow) !important;
+}
+
+/* DANGER - bronze/honey accent */
+.custom-block.danger {
+  background: var(--vp-c-brand-soft) !important;
+}
+
+.custom-block.danger .custom-block-title {
+  color: var(--vp-c-brand-1) !important;
+}
+
+/* INFO - neutral text-3 accent */
+.custom-block.info {
+  background: rgba(94, 85, 69, 0.08) !important;
+}
+
+.custom-block.info .custom-block-title {
+  color: var(--vu-text-3) !important;
+}
+
+/* --- Task D: Code blocks -------------------------------------------------- */
+
+div[class*='language-'] {
+  border-radius: var(--vu-r-md) !important;
+  border: 1px solid var(--vu-border) !important;
+  overflow: hidden;
+  margin: var(--vu-s5) 0 !important;
+}
+
+div[class*='language-'] .lang {
+  font-family: var(--vu-font-mono) !important;
+  font-size: var(--vu-fs-caption) !important;
+  color: var(--vu-text-3) !important;
+  font-weight: 500;
+}
+
+div[class*='language-'] button.copy {
+  color: var(--vu-text-3) !important;
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+div[class*='language-'] button.copy:hover {
+  color: var(--vu-sienna) !important;
+}
+
+/* ============================================================================
+   === homepage landing ===
+   Full-width split-hero landing for layout:page homepage. All values consumed
+   from --vu-* design tokens (design-tokens.css).
+   ============================================================================ */
+
+/* VitePress container reset */
+.VPPage:has(.vu-landing) {
+  padding: 0 !important;
+}
+
+/* Root container */
+.vu-landing {
+  position: relative;
+  overflow-x: hidden;
+  background: var(--vu-bg);
+  color: var(--vu-text);
+  font-family: var(--vu-font-sans);
+  line-height: var(--vu-lh-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Reset VitePress heading chrome inside the landing */
+.vu-landing h1,
+.vu-landing h2,
+.vu-landing h3,
+.vu-landing h4 {
+  border: none !important;
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+/* Ambient glow */
+.vu-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1100px;
+  pointer-events: none;
+  z-index: 0;
+  background: var(--vu-glow);
+}
+
+/* Content wrapper (centred, max-width) */
+.vu-wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 var(--vu-s7);
+}
+
+/* Gradient text utility */
+.vu-gtext {
+  background: var(--vu-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Section divider */
+.vu-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--vu-border), transparent);
+}
+
+/* Shared section padding + head */
+.vu-section {
+  padding: var(--vu-s9) 0;
+}
+
+.vu-section-head {
+  text-align: center;
+  max-width: 38rem;
+  margin: 0 auto var(--vu-s7);
+}
+
+.vu-label {
+  font-size: var(--vu-fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--vu-sienna);
+  margin-bottom: var(--vu-s3);
+}
+
+.vu-section-head h2 {
+  font-size: var(--vu-fs-h1);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: var(--vu-lh-snug);
+  margin-bottom: var(--vu-s3) !important;
+  color: var(--vu-text);
+}
+
+.vu-section-head p {
+  font-size: var(--vu-fs-lede);
+  color: var(--vu-text-2);
+  line-height: var(--vu-lh-body);
+  margin: 0;
+}
+
+/* Hero */
+.vu-hero {
+  display: grid;
+  grid-template-columns: 1.02fr 1.1fr;
+  gap: var(--vu-s7);
+  align-items: center;
+  padding: var(--vu-s9) 0 var(--vu-s8);
+}
+
+/* Eyebrow chip */
+.vu-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vu-s2);
+  font-size: var(--vu-fs-caption);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--vu-sienna);
+  background: rgba(196, 138, 90, 0.08);
+  border: 1px solid rgba(196, 138, 90, 0.2);
+  border-radius: var(--vu-r-pill);
+  padding: var(--vu-s1) var(--vu-s4);
+  margin-bottom: var(--vu-s5);
+}
+
+.vu-eyebrow__logo {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.vu-eyebrow__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--vu-sienna);
+  box-shadow: 0 0 10px var(--vu-sienna);
+  flex-shrink: 0;
+}
+
+/* Hero heading */
+.vu-hero h1 {
+  font-size: var(--vu-fs-hero);
+  line-height: var(--vu-lh-tight);
+  letter-spacing: -0.035em;
+  font-weight: 800;
+  margin-bottom: var(--vu-s5) !important;
+  color: var(--vu-text);
+}
+
+/* Lede paragraph */
+.vu-lede {
+  font-size: var(--vu-fs-lede);
+  line-height: var(--vu-lh-body);
+  color: var(--vu-text-2);
+  max-width: var(--vu-measure-lede);
+  margin-bottom: var(--vu-s6);
+}
+
+.vu-lede b {
+  color: var(--vu-text);
+  font-weight: 600;
+}
+
+/* CTA row */
+.vu-cta {
+  display: flex;
+  gap: var(--vu-s3);
+  flex-wrap: wrap;
+  margin-bottom: var(--vu-s7);
+}
+
+/* Buttons */
+.vu-btn {
+  font-size: var(--vu-fs-body);
+  font-weight: 700;
+  font-family: var(--vu-font-sans);
+  border-radius: var(--vu-r-sm);
+  padding: var(--vu-s3) var(--vu-s5);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.18s ease, transform 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vu-s2);
+  text-decoration: none !important;
+}
+
+.vu-btn--primary {
+  background: var(--vu-primary);
+  color: var(--vu-on-primary) !important;
+  box-shadow: 0 10px 30px -8px rgba(196, 138, 90, 0.55);
+}
+
+.vu-btn--primary:hover {
+  background: var(--vp-button-brand-hover-bg);
+  transform: translateY(-2px);
+  color: var(--vp-button-brand-hover-text) !important;
+}
+
+.vu-btn--secondary {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--vu-border);
+  color: var(--vu-text) !important;
+}
+
+.vu-btn--secondary:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  color: var(--vu-text) !important;
+}
+
+html:not(.dark) .vu-btn--secondary {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: var(--vu-border);
+}
+
+html:not(.dark) .vu-btn--secondary:hover {
+  border-color: rgba(0, 0, 0, 0.22);
+}
+
+/* Stats row */
+.vu-stats {
+  display: flex;
+  gap: var(--vu-s6);
+}
+
+.vu-stat__n {
+  font-size: var(--vu-fs-h3);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.vu-stat__l {
+  font-size: var(--vu-fs-caption);
+  color: var(--vu-text-3);
+  margin-top: var(--vu-s1);
+}
+
+/* Code window */
+.vu-code-win {
+  background: linear-gradient(180deg, #14110E, #0D0B08);
+  border: 1px solid var(--vu-border);
+  border-radius: var(--vu-r-lg);
+  overflow: hidden;
+  box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.8);
+  transform: perspective(1400px) rotateY(-4deg) rotateX(1.5deg);
+}
+
+.vu-code-win__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--vu-s2);
+  padding: var(--vu-s3) var(--vu-s4);
+  border-bottom: 1px solid var(--vu-border);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.vu-code-win__dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.vu-code-win__filename {
+  margin-left: var(--vu-s2);
+  font: 500 var(--vu-fs-sm) var(--vu-font-mono);
+  color: var(--vu-text-3);
+}
+
+.vu-code-win__tag {
+  margin-left: auto;
+  font: 600 var(--vu-fs-caption) var(--vu-font-mono);
+  color: var(--vu-sienna);
+  background: rgba(196, 138, 90, 0.1);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.vu-code-win pre {
+  font: 500 var(--vu-fs-sm) / var(--vu-lh-code) var(--vu-font-mono) !important;
+  padding: var(--vu-s5) !important;
+  color: #EDE5D8 !important;
+  overflow: auto;
+  margin: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+
+.vu-k { color: var(--vu-yellow); }
+.vu-d { color: var(--vu-sienna); }
+.vu-s { color: #9DBF8E; }
+.vu-c { color: var(--vu-honey); }
+.vu-p { color: #C9BFAF; }
+
+/* Feature cards */
+.vu-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--vu-s5);
+}
+
+.vu-fcard {
+  display: block;
+  text-decoration: none !important;
+  border: 1px solid var(--vu-border);
+  border-radius: var(--vu-r-md);
+  padding: var(--vu-s5);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent);
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.vu-fcard:hover {
+  border-color: rgba(196, 138, 90, 0.4);
+  transform: translateY(-4px);
+  box-shadow: 0 24px 50px -30px rgba(196, 138, 90, 0.5);
+  text-decoration: none !important;
+}
+
+.vu-fcard__icon {
+  width: 46px;
+  height: 46px;
+  border-radius: var(--vu-r-md);
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  margin-bottom: var(--vu-s4);
+  background: rgba(196, 138, 90, 0.12);
+  border: 1px solid rgba(196, 138, 90, 0.25);
+  color: var(--vp-c-brand-1);
+}
+
+.vu-fcard h3 {
+  font-size: var(--vu-fs-h4) !important;
+  font-weight: 700;
+  margin-bottom: var(--vu-s2) !important;
+  color: var(--vu-text);
+  text-decoration: none !important;
+}
+
+.vu-fcard p {
+  font-size: var(--vu-fs-sm);
+  color: var(--vu-text-2);
+  line-height: var(--vu-lh-body);
+  margin: 0;
+  text-decoration: none !important;
+}
+
+.vu-fcard code {
+  font: 500 var(--vu-fs-caption) var(--vu-font-mono);
+  color: var(--vu-honey);
+  background: transparent;
+  padding: 0;
+  border: none;
+}
+
+/* Footer CTA */
+.vu-footer-cta {
+  text-align: center;
+  border: 1px solid var(--vu-border);
+  border-radius: var(--vu-r-xl);
+  padding: var(--vu-s8) var(--vu-s7);
+  margin: var(--vu-s5) 0 var(--vu-s9);
+  background:
+    radial-gradient(600px 300px at 50% 0%, rgba(196, 138, 90, 0.14), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+}
+
+.vu-footer-cta h2 {
+  font-size: var(--vu-fs-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: var(--vu-lh-snug);
+  margin-bottom: var(--vu-s4) !important;
+  color: var(--vu-text);
+}
+
+.vu-footer-cta > p {
+  font-size: var(--vu-fs-lede);
+  color: var(--vu-text-2);
+  margin-bottom: var(--vu-s6);
+}
+
+.vu-footer-cta .vu-cta {
+  justify-content: center;
+  margin-bottom: 0;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 960px) {
+  .vu-hero {
+    grid-template-columns: 1fr;
+    gap: var(--vu-s6);
+    padding: var(--vu-s7) 0 var(--vu-s6);
+  }
+
+  .vu-hero h1 {
+    font-size: var(--vu-fs-display);
+  }
+
+  .vu-code-win {
+    transform: none;
+  }
+
+  .vu-features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .vu-wrap {
+    padding: 0 var(--vu-s4);
+  }
+
+  .vu-features {
+    grid-template-columns: 1fr;
+  }
+
+  .vu-hero h1 {
+    font-size: var(--vu-fs-h1);
+  }
+
+  .vu-footer-cta h2 {
+    font-size: var(--vu-fs-h1);
+  }
+
+  .vu-stats {
+    gap: var(--vu-s5);
+  }
+
+  .vu-cta {
+    flex-direction: column;
+  }
+}

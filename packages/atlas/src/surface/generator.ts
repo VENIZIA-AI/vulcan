@@ -7,8 +7,14 @@
  */
 import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
-import { readPackageEntries } from '@/common/package-entries';
+import { readPackageDirectory } from '@/common/package-entries';
 import { regenerateHintOf } from '@/common/regenerate-hint';
+import {
+  hasAtlasProject,
+  livePackageDirs,
+  packagePathOf,
+  readAtlasProject,
+} from '@/common/project-config';
 import { PROJECT_ROOT } from '@/common/project';
 import type { IPackageEntries } from '@/common/types';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -17,17 +23,6 @@ import type TypeScript from 'typescript';
 
 const OUTPUT = resolve(PROJECT_ROOT, '.agents/knowledge/reference/public-surface.md');
 // Dependency order, so a diff reads bottom-up the way a release does.
-const PACKAGES = [
-  'inversion',
-  'filter',
-  'helpers',
-  'boot',
-  'kernel',
-  'connectors',
-  'core-server',
-  'core-worker',
-  'atlas',
-];
 
 interface IEntrySurface {
   entry: string;
@@ -36,9 +31,15 @@ interface IEntrySurface {
 
 export class PublicSurface {
   static render(opts: { repoRoot?: string; packages?: string[] } = {}): string {
-    const repoRoot = opts.repoRoot ?? PROJECT_ROOT;
-    const packages = opts.packages ?? PACKAGES;
-    const read = packages.map(name => readPackageEntries({ repoRoot, name }));
+    const project = hasAtlasProject() ? readAtlasProject() : undefined;
+    const repoRoot = opts.repoRoot ?? project?.root ?? PROJECT_ROOT;
+    const packages = opts.packages ?? livePackageDirs({ project: project ?? readAtlasProject() });
+    const read = packages.map(dir =>
+      readPackageDirectory({
+        directory: resolve(repoRoot, packagePathOf({ project, dir })),
+        name: dir,
+      }),
+    );
     const program = DeclarationProgram.create({
       files: read.flatMap(item => item.entries.map(entry => entry.file)),
       scope: 'public-surface',
@@ -53,6 +54,9 @@ export class PublicSurface {
         '(generated).',
       'resource: packages',
       'tags: [reference, exports, api]',
+      // okf gen owns no part of a file another generator writes: no contents list goes in here.
+      'generated:',
+      '  by: process:atlas-surface',
       '---',
       '',
       '> Generated from dist - do not edit; run `make surface-gen` after an intentional API ' +

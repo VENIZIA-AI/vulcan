@@ -1,10 +1,11 @@
 import { Corpora } from '@/common';
 import type { TCorpus } from '@/common';
-import { Chunker, parseFrontmatter } from '@/corpus';
+import { Chunker, CorpusLoader, parseFrontmatter } from '@/corpus';
 import type { IDocument } from '@/corpus';
 import { Authorities } from '@/search/common';
 import { ChunkStore } from '@/search';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, spyOn, test } from 'bun:test';
 
@@ -491,7 +492,7 @@ describe('Chunker - splitOversized never breaks inside a fence (I2)', () => {
   });
 
   test('a document ending inside an open fence gets one warning naming the file', () => {
-    const warnSpy = spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warnSpy = spyOn(console, 'error').mockImplementation(() => undefined);
     const body = [
       '## Broken fence section',
       '',
@@ -511,5 +512,84 @@ describe('Chunker - splitOversized never breaks inside a fence (I2)', () => {
     } finally {
       warnSpy.mockRestore();
     }
+  });
+});
+
+describe('Chunker - the open-fence warning follows CommonMark fences', () => {
+  /** Every open-fence warning one chunk() of `body` prints. */
+  const fenceWarningsOf = (opts: { document: IDocument }): string[] => {
+    const warnSpy = spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      Chunker.getInstance().chunk({ document: opts.document });
+
+      return warnSpy.mock.calls
+        .map(call => String(call[0]))
+        .filter(line => line.includes('open fence'));
+    } finally {
+      warnSpy.mockRestore();
+    }
+  };
+
+  test('the warning names the file and the file line the unclosed fence opened on', () => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-open-fence-'));
+
+    try {
+      writeFileSync(
+        join(root, 'broken.md'),
+        ['---', 'title: Broken', '---', '', '## Setup', '', 'Run it.', '', '```ts', 'run();'].join(
+          '\n',
+        ),
+      );
+
+      const [document] = CorpusLoader.getInstance().load({
+        roots: [{ corpus: Corpora.WIKI, directory: root }],
+      });
+
+      expect(fenceWarningsOf({ document })).toEqual([
+        '[Chunker-chunk] document ended inside an open fence | corpus: wiki | path: broken.md | fence opened on line: 9',
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('a four-backtick block holding a three-backtick one is closed, and warns nothing', () => {
+    const body = ['## Example', '', '````md', '```ts', 'run();', '```', '````', '', 'After.'].join(
+      '\n',
+    );
+
+    expect(fenceWarningsOf({ document: buildDocument({ body }) })).toEqual([]);
+  });
+
+  test('a line opening with four-backtick inline code holding ```ts is no fence, and warns nothing', () => {
+    const body = ['## Example', '', '```` ```ts ```` fences run against the build.'].join('\n');
+
+    expect(fenceWarningsOf({ document: buildDocument({ body }) })).toEqual([]);
+  });
+
+  test('a line of inline code opening with three backticks is no fence', () => {
+    const body = [
+      '## Example',
+      '',
+      '```run()``` is inline code.',
+      '',
+      '## Next',
+      '',
+      'After.',
+    ].join('\n');
+    const document = buildDocument({ body });
+    // `Next` is tiny and merges into `Example`; read as a heading, its marker is gone from the body.
+    const [chunk] = Chunker.getInstance().chunk({ document });
+
+    expect(fenceWarningsOf({ document })).toEqual([]);
+    expect(chunk.body).toContain('Next\n\nAfter.');
+    expect(chunk.body).not.toContain('## Next');
+  });
+
+  test('a closing fence with text after it closes nothing', () => {
+    const body = ['## Example', '', '```ts', 'run();', '``` trailing', '', 'After.'].join('\n');
+
+    expect(fenceWarningsOf({ document: buildDocument({ body }) })).toHaveLength(1);
   });
 });

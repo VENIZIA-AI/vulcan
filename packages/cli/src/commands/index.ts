@@ -1,5 +1,6 @@
 import { VulcanCommands } from '../common/index.ts';
 import type { TCommandHandler } from '../common/index.ts';
+import { runAddCommand } from './add.command.ts';
 import { runDoctorCommand } from './doctor.command.ts';
 import { runHelpCommand, runVersionCommand } from './help.command.ts';
 import { runInitCommand } from './init.command.ts';
@@ -9,6 +10,7 @@ import { runXCommand } from './x.command.ts';
 
 /** The handler of every implemented command. */
 export const COMMAND_HANDLERS: Record<string, TCommandHandler> = {
+  [VulcanCommands.ADD]: runAddCommand,
   [VulcanCommands.DOCTOR]: runDoctorCommand,
   [VulcanCommands.HELP]: runHelpCommand,
   [VulcanCommands.INIT]: runInitCommand,

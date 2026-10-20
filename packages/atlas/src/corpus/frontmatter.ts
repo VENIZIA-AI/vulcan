@@ -1,6 +1,5 @@
-import { getError } from '@venizia/ignis-helpers/core';
-
-const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n---\n?/;
+/** A leading `---` block; a page saved with CRLF line endings carries the same block. */
+export const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n)?/;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -29,9 +28,10 @@ export const parseFrontmatter = (opts: {
   try {
     parsed = Bun.YAML.parse(match[1]);
   } catch (error) {
-    throw getError({
-      message: `[parseFrontmatter] invalid YAML frontmatter | file: ${path} | ${messageOf(error)}`,
-    });
+    throw new Error(
+      `[parseFrontmatter] invalid YAML frontmatter | file: ${path} | ${messageOf(error)}`,
+      { cause: error },
+    );
   }
 
   return { data: isRecord(parsed) ? parsed : {}, body: text.slice(match[0].length) };

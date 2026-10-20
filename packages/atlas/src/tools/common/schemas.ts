@@ -5,6 +5,8 @@ import { z } from 'zod';
 export const SearchInputSchema = z.object({
   query: z.string().min(2),
   corpus: z.enum(['all', Corpora.WIKI, Corpora.CHANGELOG, Corpora.KNOWLEDGE]).optional(),
+  /** One source of several atlas serves; omitted, every source answers. */
+  source: z.string().min(1).optional(),
   limit: z.number().int().min(1).max(50).optional(),
   offset: z.number().int().min(0).optional(),
 });
@@ -26,6 +28,8 @@ export const ChangesInputSchema = z.object({
 
 export const GetInputSchema = z.object({
   id: z.string().min(1),
+  /** Needed only when atlas serves several sources and two of them hold the same id. */
+  source: z.string().min(1).optional(),
   maxChars: z.number().int().min(500).max(50000).optional(),
   cursor: z.string().optional(),
 });

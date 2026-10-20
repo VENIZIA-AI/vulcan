@@ -1,4 +1,25 @@
-# VULCAN
+<div align="center">
+
+<br />
+
+# :gear: VULCAN
+
+**One setup, one workflow and one coding style for every VENIZIA project.**
+
+[![npm](https://img.shields.io/npm/v/@venizia/vulcan.svg?style=flat-square&color=cb3837&label=@venizia/vulcan)](https://www.npmjs.com/package/@venizia/vulcan)
+[![License: MIT](https://img.shields.io/badge/License-MIT-3DA639.svg?style=flat-square)](LICENSE.md)
+[![Bun](https://img.shields.io/badge/Bun-%E2%89%A51.4-f472b6.svg?style=flat-square&logo=bun&logoColor=white)](https://bun.sh)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6.svg?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+
+[Packages](#packages) &#8226;
+[Use it in a project](#use-it-in-a-project) &#8226;
+[Adopting VULCAN](docs/wiki/content/guides/get-started/adopt-vulcan.md) &#8226;
+[Work on VULCAN](#work-on-vulcan) &#8226;
+[Changelog](docs/wiki/content/changelogs/index.md)
+
+</div>
+
+---
 
 A VENIZIA platform: one setup, one workflow and one coding style for every project, and the single
 source of truth for knowledge tooling, agent tooling and atlas tooling.
@@ -19,13 +40,19 @@ Requires [Bun](https://bun.sh) 1.4 or newer.
 
 ```bash
 bun add -d --exact @venizia/vulcan @venizia/dev-configs
-bun x vulcan init      # scaffold AGENTS.md, .configs/, .agents/, Makefile include, .mcp.json
-bun x vulcan sync      # write CLAUDE.md (@AGENTS.md), .claude/settings.json and the skill links
-bun x vulcan doctor    # check the project follows VULCAN
+bun x --no-install vulcan init      # scaffold AGENTS.md, .configs/, .agents/, the Makefile include
+bun x --no-install vulcan sync      # write CLAUDE.md (@AGENTS.md), .claude/settings.json and the skill links
+bun x --no-install vulcan doctor    # check the project follows VULCAN
 ```
 
-`bun x vulcan x okf check` validates the knowledge bundle; `bun x vulcan x atlas mcp` serves it over
+`--no-install` matters: the unscoped npm name `vulcan` belongs to an unrelated package.
+`bun x --no-install vulcan x okf check` validates the knowledge bundle; `vulcan x atlas mcp` serves it over
 MCP. A project adds its own rules, skills and hooks; it never edits what VULCAN ships.
+
+A new project is one command: `bun x @venizia/vulcan init --preset <name>` creates a monorepo with its first app
+from a framework preset, and `vulcan add --preset <name>` adds more apps to it.
+
+Moving an existing project onto VULCAN: follow [Adopting VULCAN in a project](docs/wiki/content/guides/get-started/adopt-vulcan.md).
 
 ## Work on VULCAN
 

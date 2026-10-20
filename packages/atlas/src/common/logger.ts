@@ -1,5 +1,5 @@
-import type { ILogger, TLogLevel } from '@venizia/ignis-helpers/core';
-import { LogLevels } from '@venizia/ignis-helpers/core';
+import { LogLevels } from './constants';
+import type { ILogger, TLogLevel } from './types';
 
 const LEVEL_RANK: Record<TLogLevel, number> = {
   [LogLevels.DEBUG]: 0,
@@ -27,9 +27,8 @@ const resolveThreshold = (): TLogLevel => {
 };
 
 /**
- * Registered via `LoggerFactory.use({ provider: StderrLogger })` at the CLI entrypoint, before any
- * other import runs. A line at or above the threshold lands on `console.error` - stdout must carry
- * only JSON-RPC frames.
+ * The logger every atlas class gets through `BaseHelper`. A line at or above the threshold lands on
+ * `console.error` - stdout must carry only JSON-RPC frames.
  */
 export class StderrLogger implements ILogger {
   private static readonly cache = new Map<string, StderrLogger>();

@@ -1,21 +1,12 @@
-import { AtlasModes } from '@/common';
 import {
   findPackageDirectory,
   ModeUsageError,
   readPackageVersion,
   readRootArgument,
-  resolveMode,
-} from '@/cli/modes';
-import {
-  CHANGELOG_DIRECTORY,
-  isRepositoryCheckout,
-  workspaceFamilyOf,
-  KNOWLEDGE_DIRECTORY,
-  WIKI_DIRECTORY,
-  WORKSPACE_PACKAGE_NAME,
-} from '@/common/layout';
+} from '@/cli/index';
+import { hasAtlasProject, MANIFEST_FILE } from '@/common/project-config';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'bun:test';
 
@@ -39,14 +30,12 @@ afterEach(() => {
   tempDirectories.length = 0;
 });
 
-/** A scratch directory laid out like a real checkout: `docs/wiki/content` and `.agents/knowledge`. */
+/** A scratch project: its manifest and its knowledge bundle. */
 const makeRepositoryRoot = (): string => {
   const root = makeTempDirectory({ prefix: 'atlas-modes-repo-' });
 
-  mkdirSync(join(root, 'docs/wiki/content/changelogs'), { recursive: true });
   mkdirSync(join(root, '.agents/knowledge'), { recursive: true });
-  // The manifest name is the marker: the directories alone are a layout a consumer also copies.
-  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: WORKSPACE_PACKAGE_NAME }));
+  writeFileSync(join(root, MANIFEST_FILE), JSON.stringify({ schemaVersion: 1, name: 'demo' }));
 
   return root;
 };
@@ -63,56 +52,6 @@ const makePackageDirectory = (opts: { withSnapshot: boolean }): string => {
 
   return packageDirectory;
 };
-
-describe('resolveMode', () => {
-  test('a repo-layout root resolves to repo mode with that root unchanged', () => {
-    const root = makeRepositoryRoot();
-    const packageDirectory = makePackageDirectory({ withSnapshot: false });
-
-    expect(resolveMode({ root, packageDirectory })).toEqual({
-      mode: AtlasModes.REPOSITORY,
-      root,
-    });
-  });
-
-  test('a package directory with a packaged snapshot resolves to snapshot mode', () => {
-    const root = makeTempDirectory({ prefix: 'atlas-modes-empty-' });
-    const packageDirectory = makePackageDirectory({ withSnapshot: true });
-
-    expect(resolveMode({ root, packageDirectory })).toEqual({
-      mode: AtlasModes.SNAPSHOT,
-      root: join(packageDirectory, 'dist'),
-    });
-  });
-
-  test('neither a repo checkout nor a packaged snapshot throws ModeUsageError', () => {
-    const root = makeTempDirectory({ prefix: 'atlas-modes-empty-' });
-    const packageDirectory = makePackageDirectory({ withSnapshot: false });
-
-    expect(() => resolveMode({ root, packageDirectory })).toThrow(ModeUsageError);
-  });
-
-  test('an explicit --root that is not a checkout throws naming the directory and the markers, even with a snapshot available (M11)', () => {
-    const root = makeTempDirectory({ prefix: 'atlas-modes-explicit-bad-' });
-    const packageDirectory = makePackageDirectory({ withSnapshot: true });
-    const resolve = () => resolveMode({ root, packageDirectory, explicitRoot: true });
-
-    expect(resolve).toThrow(ModeUsageError);
-    expect(resolve).toThrow(root);
-    expect(resolve).toThrow('docs/wiki/content');
-    expect(resolve).toThrow('.agents/knowledge');
-  });
-
-  test('an explicit --root that is a checkout still resolves to repo mode', () => {
-    const root = makeRepositoryRoot();
-    const packageDirectory = makePackageDirectory({ withSnapshot: false });
-
-    expect(resolveMode({ root, packageDirectory, explicitRoot: true })).toEqual({
-      mode: AtlasModes.REPOSITORY,
-      root,
-    });
-  });
-});
 
 describe('readRootArgument (M11)', () => {
   test('--root=<dir> is the same as --root <dir>; an empty value or a following flag is a usage error', () => {
@@ -191,73 +130,43 @@ describe('readPackageVersion (I6)', () => {
   });
 });
 
-describe('isRepositoryCheckout - only a VENIZIA family workspace', () => {
-  const roots: string[] = [];
-
-  const buildRoot = (opts: { name?: string; changelogs?: boolean }): string => {
-    const cacheDirectory = join(homedir(), '.cache');
-
-    mkdirSync(cacheDirectory, { recursive: true });
-    const root = mkdtempSync(join(cacheDirectory, 'ignis-checkout-marker-'));
-
-    roots.push(root);
-    mkdirSync(join(root, WIKI_DIRECTORY), { recursive: true });
-    mkdirSync(join(root, KNOWLEDGE_DIRECTORY), { recursive: true });
-
-    if (opts.changelogs !== false) {
-      mkdirSync(join(root, CHANGELOG_DIRECTORY), { recursive: true });
-    }
-
-    if (opts.name !== undefined) {
-      writeFileSync(join(root, 'package.json'), JSON.stringify({ name: opts.name }));
-    }
-
-    return root;
-  };
+describe('hasAtlasProject - a project is a manifest, never a layout', () => {
+  const previous = { manifest: process.env.VULCAN_MANIFEST, root: process.env.VULCAN_PROJECT_ROOT };
 
   afterEach(() => {
-    const rootsList = roots.splice(0);
+    process.env.VULCAN_MANIFEST = previous.manifest;
+    process.env.VULCAN_PROJECT_ROOT = previous.root;
 
-    for (const root of rootsList) {
-      rmSync(root, { recursive: true, force: true });
+    if (previous.manifest === undefined) {
+      delete process.env.VULCAN_MANIFEST;
+    }
+
+    if (previous.root === undefined) {
+      delete process.env.VULCAN_PROJECT_ROOT;
     }
   });
 
-  test('a consumer that copies the docs and knowledge layout is not a checkout', () => {
-    // The shape that killed the server in a consumer repository: both directories, another manifest.
-    expect(isRepositoryCheckout({ root: buildRoot({ name: '@nx/seller-monorepo' }) })).toBe(false);
+  test('a directory laid out with docs and knowledge, but no manifest, is not a project', () => {
+    const root = makeTempDirectory({ prefix: 'atlas-layout-only-' });
+
+    mkdirSync(join(root, 'docs/wiki/content/changelogs'), { recursive: true });
+    mkdirSync(join(root, '.agents/knowledge'), { recursive: true });
+
+    expect(hasAtlasProject({ root })).toBe(false);
   });
 
-  test('the IGNIS workspace with every corpus directory is a checkout', () => {
-    expect(isRepositoryCheckout({ root: buildRoot({ name: WORKSPACE_PACKAGE_NAME }) })).toBe(true);
+  test('a directory with a manifest is a project, whatever its layout', () => {
+    expect(hasAtlasProject({ root: makeRepositoryRoot() })).toBe(true);
   });
 
-  test('a sibling family workspace with the same corpora is a checkout too', () => {
-    expect(isRepositoryCheckout({ root: buildRoot({ name: '@venizia/example-workspace' }) })).toBe(
-      true,
-    );
-    expect(workspaceFamilyOf({ root: buildRoot({ name: '@venizia/example-workspace' }) })).toBe(
-      'example',
-    );
-    expect(workspaceFamilyOf({ root: buildRoot({ name: WORKSPACE_PACKAGE_NAME }) })).toBe('ignis');
-  });
+  test('the manifest vulcan x hands over counts for the root it named, and no other', () => {
+    const named = makeTempDirectory({ prefix: 'atlas-handed-' });
+    const other = makeTempDirectory({ prefix: 'atlas-other-' });
 
-  test('a scope-mate that is not a workspace is refused', () => {
-    expect(isRepositoryCheckout({ root: buildRoot({ name: '@venizia/vulcan-atlas' }) })).toBe(
-      false,
-    );
-    expect(
-      workspaceFamilyOf({ root: buildRoot({ name: '@venizia/vulcan-atlas' }) }),
-    ).toBeUndefined();
-  });
+    process.env.VULCAN_MANIFEST = JSON.stringify({ schemaVersion: 1 });
+    process.env.VULCAN_PROJECT_ROOT = named;
 
-  test('the IGNIS name without the changelog directory is not a checkout', () => {
-    const root = buildRoot({ name: WORKSPACE_PACKAGE_NAME, changelogs: false });
-
-    expect(isRepositoryCheckout({ root })).toBe(false);
-  });
-
-  test('no manifest at all is not a checkout', () => {
-    expect(isRepositoryCheckout({ root: buildRoot({}) })).toBe(false);
+    expect(hasAtlasProject({ root: named })).toBe(true);
+    expect(hasAtlasProject({ root: other })).toBe(false);
   });
 });

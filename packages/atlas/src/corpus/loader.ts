@@ -1,5 +1,6 @@
-import { BaseHelper } from '@venizia/ignis-helpers/core';
-import { readFileSync } from 'node:fs';
+import { BaseHelper } from '@/common/helper';
+import { isWithinDirectory } from '@/common/paths';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseFrontmatter } from './frontmatter';
 import type { ICorpusRoot, IDocument, ISkippedDocument } from './common';
@@ -40,17 +41,42 @@ export class CorpusLoader extends BaseHelper {
     return (this.instance ??= new CorpusLoader());
   }
 
-  load(opts: { roots: ICorpusRoot[] }): IDocument[] {
+  /** `within`: a fetched checkout - a root or a file whose real path leaves it is never read. */
+  load(opts: { roots: ICorpusRoot[]; within?: string }): IDocument[] {
     this.skipped = [];
 
-    return opts.roots.flatMap(root => this.loadRoot({ root }));
+    return opts.roots.flatMap(root => this.loadRoot({ root, within: opts.within }));
   }
 
-  private loadRoot(opts: { root: ICorpusRoot }): IDocument[] {
-    const { root } = opts;
+  private isOutside(opts: { path: string; within?: string }): boolean {
+    if (
+      opts.within === undefined ||
+      isWithinDirectory({ path: opts.path, directory: opts.within })
+    ) {
+      return false;
+    }
+
+    this.logger.for('load').warn(`skipped a path outside the checkout | path: ${opts.path}`);
+
+    return true;
+  }
+
+  private loadRoot(opts: { root: ICorpusRoot; within?: string }): IDocument[] {
+    const { root, within } = opts;
+
+    // A manifest declares a directory before anything is written there - a first changelog, say.
+    if (
+      !existsSync(root.directory) ||
+      !statSync(root.directory).isDirectory() ||
+      this.isOutside({ path: root.directory, within })
+    ) {
+      return [];
+    }
+
     const exclude = root.exclude ?? [];
     const relativePaths = [...new Bun.Glob('**/*.md').scanSync({ cwd: root.directory })]
       .filter(relativePath => !isExcluded({ relativePath, exclude }))
+      .filter(relativePath => !this.isOutside({ path: join(root.directory, relativePath), within }))
       .sort();
 
     const documents: IDocument[] = [];
@@ -79,6 +105,8 @@ export class CorpusLoader extends BaseHelper {
         title: titleOf({ data, body, path: relativePath }),
         frontmatter: data,
         body,
+        // The body is the tail of the text: every line break before it is a frontmatter line.
+        bodyLine: text.slice(0, text.length - body.length).split('\n').length,
       };
     } catch (error) {
       const message = messageOf(error);

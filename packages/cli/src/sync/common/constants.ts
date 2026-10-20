@@ -3,11 +3,14 @@ export class SyncStatuses {
   static readonly REPLACED = 'replaced';
   static readonly UNCHANGED = 'unchanged';
   static readonly SKIPPED = 'skipped';
+  /** Taken out by `sync --prune`. */
+  static readonly REMOVED = 'removed';
   static readonly SCHEME_SET = new Set<string>([
     this.CREATED,
     this.REPLACED,
     this.UNCHANGED,
     this.SKIPPED,
+    this.REMOVED,
   ]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);
@@ -17,12 +20,31 @@ export class SyncStatuses {
 export class SyncConstants {
   static readonly CLAUDE_IMPORT_LINE = '@AGENTS.md';
   static readonly CLAUDE_TOOL_FILE = 'CLAUDE.md';
+
+  /** The first line of the CLAUDE.md `bun init` writes: Bun's tips, never the project's own words. */
+  static readonly BUN_INIT_CLAUDE_MARKER = 'Default to using Bun instead of Node.js.';
+
   static readonly CLAUDE_DIRECTORY = '.claude';
   static readonly SETTINGS_FILE = 'settings.json';
+  /** The hook sync adds when the config sets `remoteHosts`; lives next to the shipped settings. */
+  static readonly REMOTE_HOSTS_FILE = 'remote-hosts.json';
   /** What sync applied last time, so a later sync can take back what the project no longer asks for. */
   static readonly MANAGED_FILE = 'vulcan-managed.json';
   static readonly SKILLS_DIRECTORY = 'skills';
   static readonly SKILL_FILE = 'SKILL.md';
+  /** The settings key of hook entries: sync takes a managed hook back by its command, not its whole entry. */
+  static readonly HOOKS_KEY = 'hooks';
   /** Objects of independent entries: merged one level deep, so personal entries survive shared ones. */
   static readonly MERGE_ONE_LEVEL = new Set(['permissions', 'hooks', 'enabledPlugins', 'env']);
+}
+
+/** How a base rule moved between the manifest's last sync and the installed base. */
+export class BaseRuleChanges {
+  static readonly ADDED = 'added';
+  static readonly CHANGED = 'changed';
+  static readonly REMOVED = 'removed';
+  static readonly SCHEME_SET = new Set<string>([this.ADDED, this.CHANGED, this.REMOVED]);
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
 }

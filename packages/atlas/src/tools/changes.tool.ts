@@ -1,8 +1,7 @@
 import { AtlasConstants } from '@/common';
 import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IToolHandler } from '@/protocol/common';
-import { toPackageDirectory } from '@/releases';
-import type { IChangelogRecord, ReleaseStore } from '@/releases';
+import type { IChangelogRecord, IReleaseIndex } from '@/releases';
 import { z } from 'zod';
 import { ChangesInputSchema, parseInput } from './common';
 
@@ -38,6 +37,8 @@ interface IChangesResponse {
   to: string;
   entries: IChangesEntry[];
   truncated?: boolean;
+  /** Why the window is what it is, when the package has no release to bound it. */
+  note?: string;
 }
 
 /** The window one call asks for, in the terms the caller used and in the dates the store filters by. */
@@ -50,6 +51,7 @@ interface IWindow {
   /** Commit positions of the two bounds; present only for a version window, and only when the table records them. */
   fromOrder?: number;
   toOrder?: number;
+  note?: string;
 }
 
 const invalidParams = (message: string): RpcError =>
@@ -88,16 +90,43 @@ const entryOf = (record: IChangelogRecord): IChangesEntry => ({
  * when there is no earlier one.
  */
 const packageWindowOf = (opts: {
-  releases: ReleaseStore;
+  releases: IReleaseIndex;
   package: string;
   from?: string;
   to?: string;
 }): IWindow => {
-  const name = toPackageDirectory(opts.package);
+  const name = opts.releases.packageOf({ package: opts.package });
   const versions = opts.releases.versionsOf({ package: name });
 
+  if (
+    versions.length === 0 &&
+    opts.releases.packages().length > 0 &&
+    opts.releases.declares({ package: opts.package })
+  ) {
+    const note = `no release of ${name} is recorded on this ref (a tag has to match the project's tagPattern and be in this branch's history); every dated entry that names it`;
+
+    if (opts.from !== undefined || opts.to !== undefined) {
+      throw invalidParams(
+        `${note.split(';')[0]}, so there is no version ${opts.to ?? opts.from} to window by`,
+      );
+    }
+
+    const newest = opts.releases.entryDates()[0] ?? OPEN_LOWER_BOUND;
+
+    return {
+      package: name,
+      from: null,
+      to: newest,
+      fromDate: OPEN_LOWER_BOUND,
+      toDate: newest,
+      note,
+    };
+  }
+
   if (versions.length === 0) {
-    throw unknownPackageError({ name: opts.package, known: opts.releases.packages() });
+    throw opts.releases.packages().length === 0
+      ? invalidParams(opts.releases.emptyReason)
+      : unknownPackageError({ name: opts.package, known: opts.releases.declaredPackages() });
   }
 
   const to = opts.to ?? versions[0];
@@ -147,11 +176,11 @@ const packageWindowOf = (opts: {
  * The whole-table window: `from` and `to` are dates. `to` defaults to the newest entry's date,
  * `from` to the newest date below it - so the default answer is the newest day of changes.
  */
-const dateWindowOf = (opts: { releases: ReleaseStore; from?: string; to?: string }): IWindow => {
+const dateWindowOf = (opts: { releases: IReleaseIndex; from?: string; to?: string }): IWindow => {
   const dates = opts.releases.entryDates();
 
   if (dates.length === 0) {
-    throw invalidParams('no changelog entries in this build');
+    throw invalidParams(opts.releases.noEntriesReason);
   }
 
   if (opts.to !== undefined && !DATE_PATTERN.test(opts.to)) {
@@ -180,6 +209,7 @@ const withinBudget = (opts: { window: IWindow; entries: IChangesEntry[] }): ICha
     package: opts.window.package,
     from: opts.window.from,
     to: opts.window.to,
+    ...(opts.window.note === undefined ? {} : { note: opts.window.note }),
   };
   let entries = [...opts.entries];
   let response: IChangesResponse = { ...base, entries };
@@ -194,7 +224,7 @@ const withinBudget = (opts: { window: IWindow; entries: IChangesEntry[] }): ICha
   return response;
 };
 
-export const buildChangesTool = (opts: { releases: ReleaseStore }): IToolHandler => ({
+export const buildChangesTool = (opts: { releases: IReleaseIndex }): IToolHandler => ({
   definition: {
     name: 'changes',
     description: DESCRIPTION,
@@ -204,7 +234,7 @@ export const buildChangesTool = (opts: { releases: ReleaseStore }): IToolHandler
     const input = parseInput({ schema: ChangesInputSchema, args });
 
     if (opts.releases.isEmpty()) {
-      throw invalidParams('no release table in this build');
+      throw invalidParams(opts.releases.emptyReason);
     }
 
     const resolved =

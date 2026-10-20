@@ -7,30 +7,26 @@
  */
 import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
-import { readPackageEntries } from '@/common/package-entries';
-import { regenerateHintOf } from '@/common/regenerate-hint';
+import { StderrLogger } from '@/common/logger';
+import { readPackageDirectory } from '@/common/package-entries';
+import type { IPackageMapEntry } from '@/common/package-map';
+import type { IPackageEntries } from '@/common/types';
+import {
+  hasAtlasProject,
+  livePackageDirs,
+  packagePathOf,
+  readAtlasProject,
+} from '@/common/project-config';
 import { PROJECT_ROOT } from '@/common/project';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import type TypeScript from 'typescript';
-import { PublicSurface } from '@/surface/generator';
+import { PublicSurface } from '@/surface';
 
 export const SYMBOLS_OUTPUT = resolve(PROJECT_ROOT, '.agents/knowledge/reference/symbols.json');
 
-// Dependency order, the same list `public-surface.ts` walks - the two tables describe one surface.
-const PACKAGES = [
-  'inversion',
-  'filter',
-  'helpers',
-  'boot',
-  'kernel',
-  'connectors',
-  'core-server',
-  'core-worker',
-  'atlas',
-];
-
 const SIGNATURE_MAX_CHARS = 300;
+const SHAPE_LENGTH = 12;
 
 /** One exported symbol, located in the source it was written in - never in the `dist` it was read from. */
 export interface ISymbolRecord {
@@ -50,6 +46,7 @@ export interface ISymbolTable {
   generatedFrom: string;
   packages: string[];
   symbols: ISymbolRecord[];
+  packageMap: IPackageMapEntry[];
 }
 
 interface ILocation {
@@ -156,33 +153,77 @@ const namedNodeOf = (declaration: TypeScript.Declaration): TypeScript.Node =>
 
 export class AtlasSymbols {
   private static readonly maps = new Map<string, IDeclarationMap | undefined>();
+  /** Every missing entry already named: an unbuilt package is read again on every question. */
+  private static readonly warnedMissing = new Set<string>();
 
   static render(opts: { repoRoot?: string; packages?: string[] } = {}): string {
-    const repoRoot = opts.repoRoot ?? PROJECT_ROOT;
-    const packages = opts.packages ?? PACKAGES;
-    const read = packages.map(name => readPackageEntries({ repoRoot, name }));
-    const program = DeclarationProgram.create({
-      files: read.flatMap(item => item.entries.map(entry => entry.file)),
-      scope: 'atlas-symbols',
-    });
-    const symbols = read.flatMap(item =>
-      item.entries.flatMap(entry =>
-        AtlasSymbols.entrySymbolsOf({
-          program,
-          repoRoot,
-          packageName: item.manifest.name,
-          subpath: entry.subpath,
-          file: entry.file,
-        }),
-      ),
+    const project = hasAtlasProject() ? readAtlasProject() : undefined;
+    const repoRoot = opts.repoRoot ?? project?.root ?? PROJECT_ROOT;
+    const packages = opts.packages ?? livePackageDirs({ project: project ?? readAtlasProject() });
+    const read = packages.map(dir =>
+      readPackageDirectory({
+        directory: resolve(repoRoot, packagePathOf({ project, dir })),
+        name: dir,
+      }),
     );
     const table: ISymbolTable = {
       generatedFrom: 'dist',
       packages,
-      symbols: symbols.sort(AtlasSymbols.compare),
+      symbols: AtlasSymbols.recordsOf({ repoRoot, packages: read }),
+      // The names a tool may be asked by: each package's npm name, from its manifest, and its aliases.
+      packageMap: packages.map((dir, index) => ({
+        dir,
+        name: read[index].manifest.name,
+        aliases: project?.packages.find(entry => entry.dir === dir)?.aliases ?? [],
+      })),
     };
 
     return `${JSON.stringify(table, null, 2)}\n`;
+  }
+
+  /**
+   * Every exported symbol of the given packages' `exports` entries, sorted - read from their
+   * declaration files, wherever the packages live. Paths are relative to `repoRoot`.
+   */
+  static recordsOf(opts: { repoRoot: string; packages: IPackageEntries[] }): ISymbolRecord[] {
+    const packages = opts.packages.map(item => ({
+      ...item,
+      entries: item.entries.filter(entry =>
+        AtlasSymbols.isEntryBuilt({
+          repoRoot: opts.repoRoot,
+          packageName: item.manifest.name,
+          entry,
+        }),
+      ),
+    }));
+    const program = DeclarationProgram.create({
+      files: packages.flatMap(item => item.entries.map(entry => entry.file)),
+      scope: 'atlas-symbols',
+    });
+
+    return packages
+      .flatMap(item =>
+        item.entries.flatMap(entry => {
+          // One entry the compiler cannot read as a module (a script .d.ts, say) is skipped like a
+          // missing one: it never takes the package's other entries, or the store, down with it.
+          try {
+            return AtlasSymbols.entrySymbolsOf({
+              program,
+              repoRoot: opts.repoRoot,
+              packageName: item.manifest.name,
+              subpath: entry.subpath,
+              file: entry.file,
+            });
+          } catch (error) {
+            AtlasSymbols.warnOnce({
+              message: `skipped an export whose declaration file could not be read | package: ${item.manifest.name} | subpath: ${entry.subpath} | path: ${repoRelative({ repoRoot: opts.repoRoot, path: entry.file })} | error: ${error instanceof Error ? error.message : String(error)}`,
+            });
+
+            return [];
+          }
+        }),
+      )
+      .sort(AtlasSymbols.compare);
   }
 
   static check(
@@ -219,6 +260,37 @@ export class AtlasSymbols {
     return collapsed.length > SIGNATURE_MAX_CHARS
       ? collapsed.slice(0, SIGNATURE_MAX_CHARS)
       : collapsed;
+  }
+
+  /**
+   * Whether an entry's declaration file exists. A missing one is a packaging bug of that entry
+   * alone - its siblings still answer - so it is skipped and named once per process, not thrown.
+   */
+  private static isEntryBuilt(opts: {
+    repoRoot: string;
+    packageName: string;
+    entry: IPackageEntries['entries'][number];
+  }): boolean {
+    const { repoRoot, packageName, entry } = opts;
+
+    if (existsSync(entry.file)) {
+      return true;
+    }
+
+    const path = repoRelative({ repoRoot, path: entry.file });
+    const message = `skipped an export whose declaration file is missing | package: ${packageName} | subpath: ${entry.subpath} | path: ${path}`;
+
+    AtlasSymbols.warnOnce({ message });
+
+    return false;
+  }
+
+  /** A skipped entry is said once per process - an unbuilt package fails every reload the same way. */
+  private static warnOnce(opts: { message: string }): void {
+    if (!AtlasSymbols.warnedMissing.has(opts.message)) {
+      AtlasSymbols.warnedMissing.add(opts.message);
+      StderrLogger.get(AtlasSymbols.name).for('recordsOf').warn(opts.message);
+    }
   }
 
   /** Package, then subpath, then name - code-point order, so the file is byte-identical on every machine. */
@@ -269,6 +341,7 @@ export class AtlasSymbols {
         signature: declaration
           ? AtlasSymbols.collapseSignature({ text: AtlasSymbols.signatureOf({ declaration }) })
           : '',
+        ...(declaration ? { shape: AtlasSymbols.shapeOf({ declaration }) } : {}),
       };
 
       return location.file.includes('node_modules') ? { ...record, external: true } : record;
@@ -372,6 +445,19 @@ export class AtlasSymbols {
   }
 
   /**
+   * The whole declaration as the compiler prints it without comments - so layout and comments never
+   * move it - reduced to a digest. A class or interface counts its members; a function, every parameter.
+   */
+  private static shapeOf(opts: { declaration: TypeScript.Declaration }): string {
+    const compiler = TypeScriptCompiler.get();
+    const printed = compiler
+      .createPrinter({ removeComments: true })
+      .printNode(compiler.EmitHint.Unspecified, opts.declaration, opts.declaration.getSourceFile());
+
+    return new Bun.CryptoHasher('sha256').update(printed).digest('hex').slice(0, SHAPE_LENGTH);
+  }
+
+  /**
    * The declaration without its body: a class or interface keeps its heritage clause, a type alias
    * and an enum keep their head, everything else is already bodiless in a `.d.ts`.
    */
@@ -416,34 +502,17 @@ export class AtlasSymbols {
   }
 }
 
+/** A debug view: atlas reads declarations when asked (D2); no project commits a symbol table. */
 export const runSymbolsCommand = (opts: { command?: string }): number => {
-  switch (opts.command) {
-    case 'gen': {
-      writeFileSync(SYMBOLS_OUTPUT, AtlasSymbols.render());
-      console.log(`wrote ${SYMBOLS_OUTPUT}`);
+  if (opts.command === 'gen' || opts.command === 'check') {
+    console.error(
+      `vulcan x atlas symbols ${opts.command}: gone in 0.2.0-0 - atlas reads the installed or built .d.ts when asked; delete .agents/knowledge/reference/symbols.json, and \`vulcan x atlas symbols\` prints what it reads`,
+    );
 
-      return 0;
-    }
-
-    case 'check': {
-      if (AtlasSymbols.check()) {
-        console.log('fresh .agents/knowledge/reference/symbols.json');
-
-        return 0;
-      }
-
-      console.error(
-        'stale .agents/knowledge/reference/symbols.json - the symbol table drifted; ' +
-          regenerateHintOf({ command: 'symbols' }),
-      );
-
-      return 1;
-    }
-
-    default: {
-      console.error('usage: vulcan x atlas symbols gen|check');
-
-      return 2;
-    }
+    return 2;
   }
+
+  process.stdout.write(AtlasSymbols.render());
+
+  return 0;
 };

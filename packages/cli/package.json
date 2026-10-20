@@ -1,7 +1,21 @@
 {
   "name": "@venizia/vulcan",
-  "version": "0.1.0-0",
+  "version": "0.3.1",
   "description": "VULCAN - one setup, one workflow for every project: init, sync, doctor, upgrade, and `vulcan x` for the shipped tools. Bun-only.",
+  "homepage": "https://github.com/VENIZIA-AI/vulcan/tree/main/packages/cli",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VENIZIA-AI/vulcan.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/VENIZIA-AI/vulcan/issues"
+  },
+  "author": {
+    "name": "VENIZIA AI Developer",
+    "email": "developer@venizia.ai",
+    "url": "https://venizia.ai"
+  },
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -12,6 +26,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./okf": "./src/okf.ts",
     "./package.json": "./package.json"
   },
   "files": [
@@ -25,21 +40,22 @@
     "access": "public"
   },
   "scripts": {
+    "force-update": "sh ../../scripts/force-update.sh",
     "test": "NODE_ENV=test bun test --env-file=.env.test"
   },
   "dependencies": {
-    "@venizia/ignis-helpers": "catalog:",
     "@venizia/vulcan-atlas": "workspace:*",
     "@venizia/vulcan-okf": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
-    "@venizia/dev-configs": "0.3.1-0",
+    "@venizia/dev-configs": "catalog:",
     "eslint": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "typescript": "catalog:"
-  }
+  },
+  "sideEffects": false
 }

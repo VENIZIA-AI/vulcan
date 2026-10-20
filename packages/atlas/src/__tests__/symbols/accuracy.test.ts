@@ -1,12 +1,15 @@
-import type { ISymbolRecord, ISymbolTable } from '@/symbols';
+import { readAtlasProject } from '@/common/project-config';
+import { symbolsOfRepository } from '@/symbols';
+import type { ISymbolRecord } from '@/symbols';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
-import { IGNIS_IS_BUILT, IGNIS_ROOT } from '../ignis-root';
+import { IGNIS_IS_BUILT, IGNIS_ROOT } from '../ignis-root.helper';
 
 // __dirname, not import.meta: this package emits CommonJS.
 const REPOSITORY_ROOT = IGNIS_ROOT;
-const TABLE = join(REPOSITORY_ROOT, '.agents/knowledge/reference/symbols.json');
+// IGNIS's committed manifest: the symbols are what atlas reads from its built .d.ts today (D2).
+const MANIFEST = join(REPOSITORY_ROOT, '.agents/vulcan.manifest.json');
 const SAMPLE_SIZE = 50;
 
 /**
@@ -70,11 +73,13 @@ const sampleOf = (opts: { symbols: ISymbolRecord[]; size: number }): ISymbolReco
   return picked;
 };
 
-const hasTable = existsSync(TABLE);
+const hasManifest = existsSync(MANIFEST);
 
-describe.skipIf(!hasTable || !IGNIS_IS_BUILT)('symbol accuracy on a 50-symbol sample', () => {
-  const table: ISymbolTable = JSON.parse(hasTable ? readFileSync(TABLE, 'utf8') : '{}');
-  const symbols = table.symbols ?? [];
+describe.skipIf(!hasManifest || !IGNIS_IS_BUILT)('symbol accuracy on a 50-symbol sample', () => {
+  const symbols =
+    hasManifest && IGNIS_IS_BUILT
+      ? symbolsOfRepository({ project: readAtlasProject({ root: REPOSITORY_ROOT }) })
+      : [];
   // The aliases are pinned by the whole-table test below; the sample measures the rest.
   const sample = sampleOf({
     symbols: symbols.filter(entry => !KNOWN_ALIASES.has(entry.name)),

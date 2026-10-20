@@ -1,14 +1,3 @@
-import { AtlasModes } from '@/common';
-import type { TAtlasMode } from '@/common';
-import {
-  CHANGELOG_DIRECTORY,
-  isRepositoryCheckout,
-  KNOWLEDGE_DIRECTORY,
-  SNAPSHOT_DIRECTORY,
-  WIKI_DIRECTORY,
-  WORKSPACE_PACKAGE_NAME,
-} from '@/common/layout';
-import { getError } from '@venizia/ignis-helpers/core';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, parse } from 'node:path';
 
@@ -18,11 +7,6 @@ const PACKAGE_NAME = '@venizia/vulcan-atlas';
 
 /** A `root`/`packageDirectory` pair that satisfies neither mode, or a malformed `--root` flag. */
 export class ModeUsageError extends Error {}
-
-export interface IResolvedMode {
-  mode: TAtlasMode;
-  root: string;
-}
 
 /** `--root`'s value from `argv`, and whether the caller passed it explicitly (cwd is the fallback). */
 export interface IRootArgument {
@@ -75,9 +59,9 @@ export const findPackageDirectory = (opts: { startDirectory: string }): string =
   );
 
   if (!found) {
-    throw getError({
-      message: `[findPackageDirectory] no ${PACKAGE_NAME} package.json found | started at: ${opts.startDirectory}`,
-    });
+    throw new Error(
+      `[findPackageDirectory] no ${PACKAGE_NAME} package.json found | started at: ${opts.startDirectory}`,
+    );
   }
 
   return found;
@@ -110,37 +94,4 @@ export const readRootArgument = (opts: { argv: string[] }): IRootArgument => {
   }
 
   return { value, explicit: true };
-};
-
-/**
- * Repo mode wins when `root` is a checkout; otherwise the packaged snapshot next to
- * `packageDirectory`; otherwise a `ModeUsageError` naming both paths it checked. An explicit
- * `--root` that is not a checkout never falls back to the snapshot - it named the wrong directory.
- */
-export const resolveMode = (opts: {
-  root: string;
-  packageDirectory: string;
-  explicitRoot?: boolean;
-}): IResolvedMode => {
-  const { root, packageDirectory, explicitRoot = false } = opts;
-
-  if (isRepositoryCheckout({ root })) {
-    return { mode: AtlasModes.REPOSITORY, root };
-  }
-
-  if (explicitRoot) {
-    throw new ModeUsageError(
-      `${root} is not a VENIZIA family checkout - a checkout needs ${WIKI_DIRECTORY}, ${CHANGELOG_DIRECTORY}, ${KNOWLEDGE_DIRECTORY} and a root package.json named like ${WORKSPACE_PACKAGE_NAME} (any @venizia/<family>-workspace)`,
-    );
-  }
-
-  const distDirectory = join(packageDirectory, 'dist');
-
-  if (existsSync(join(distDirectory, SNAPSHOT_DIRECTORY))) {
-    return { mode: AtlasModes.SNAPSHOT, root: distDirectory };
-  }
-
-  throw new ModeUsageError(
-    `no IGNIS checkout at ${root} and no packaged snapshot under ${packageDirectory} - pass --root <dir> pointing at a checkout`,
-  );
 };

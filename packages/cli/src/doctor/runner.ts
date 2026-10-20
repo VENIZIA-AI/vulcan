@@ -2,14 +2,20 @@ import { relative } from 'node:path';
 import { loadConfig } from '../config/index.ts';
 import {
   checkAdapters,
+  checkApps,
+  checkManifest,
+  checkPrune,
   checkHooks,
   checkLayout,
   checkMake,
   checkRuleIds,
   checkRuleSlots,
+  checkScaffold,
   checkSkills,
   checkStyle,
 } from './checks.ts';
+import { checkSkillLint } from './skills.ts';
+import { checkTags } from './tags.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { IViolation } from './common/index.ts';
 
@@ -41,6 +47,12 @@ export const runDoctorChecks = async (opts: { root: string }): Promise<IViolatio
     ...checkMake(context),
     ...checkHooks(context),
     ...checkAdapters(context),
+    ...checkPrune(context),
+    ...checkManifest(context),
+    ...checkTags(context),
+    ...checkSkillLint(context),
     ...checkStyle(context),
+    ...checkScaffold(context),
+    ...checkApps(context),
   ];
 };

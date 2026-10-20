@@ -1,15 +1,16 @@
 import { AtlasConstants } from '@/common';
 import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IToolHandler } from '@/protocol/common';
-import type { ChunkStore } from '@/search/store';
-import type { ISymbolRecord, SymbolStore } from '@/symbols';
+import type { IChunkIndex } from '@/search/common';
+import type { ISymbolIndex, ISymbolRecord } from '@/symbols';
 import { z } from 'zod';
 import { parseInput, SymbolInputSchema } from './common';
 
 const DESCRIPTION =
   'Locate one exported symbol by name: which package and import specifier it comes from, its ' +
   'kind, its one-line signature, the source `file` and `line` it is declared on, and the chunk ' +
-  'ids that document it. An unknown name answers with the closest known names.';
+  'ids that document it. An unknown name is not an error: it answers `matches: []` and up to ' +
+  'five `closest` known names.';
 
 // Built once at module load - a guarded tool that re-resolves its store on every call never needs
 // to rebuild this.
@@ -27,10 +28,17 @@ interface ISymbolMatchesResponse {
   matches: ISymbolMatch[];
 }
 
-const matchOf = (opts: { record: ISymbolRecord; docs: string[] }): ISymbolMatch => ({
-  ...opts.record,
-  docs: opts.docs,
-});
+/** A name the store does not hold (in the asked package): no match, and the names it may have meant. */
+interface IUnknownSymbolResponse {
+  name: string;
+  matches: [];
+  closest: string[];
+}
+
+const matchOf = (opts: { record: ISymbolRecord; docs: string[] }): ISymbolMatch => {
+  // `shape` is for the concept lock, not for a client.
+  return { ...opts.record, shape: undefined, docs: opts.docs };
+};
 
 /** One record answers flat; more than one answers under `matches`, each in the same shape. */
 const responseOf = (opts: {
@@ -69,20 +77,19 @@ const withinBudget = (opts: {
   return response;
 };
 
-/** `unknown symbol 'respnd'; did you mean respond, respondError?` - or the bare name when nothing is close. */
-const unknownSymbolError = (opts: { name: string; suggestions: string[] }): RpcError => {
-  const { name, suggestions } = opts;
-  const message =
-    suggestions.length > 0
-      ? `unknown symbol '${name}'; did you mean ${suggestions.join(', ')}?`
-      : `unknown symbol '${name}'`;
-
-  return new RpcError({ code: RpcErrorCodes.INVALID_PARAMS, message });
-};
+/** An answer, not an error: a store that holds symbols but not this name still knows what is close. */
+const unknownSymbolOf = (opts: {
+  name: string;
+  symbols: ISymbolIndex;
+}): IUnknownSymbolResponse => ({
+  name: opts.name,
+  matches: [],
+  closest: opts.symbols.suggest({ name: opts.name, limit: SUGGESTIONS_MAX }),
+});
 
 export const buildSymbolTool = (opts: {
-  store: ChunkStore;
-  symbols: SymbolStore;
+  store: IChunkIndex;
+  symbols: ISymbolIndex;
 }): IToolHandler => ({
   definition: {
     name: 'symbol',
@@ -95,17 +102,14 @@ export const buildSymbolTool = (opts: {
     if (opts.symbols.isEmpty()) {
       throw new RpcError({
         code: RpcErrorCodes.INVALID_PARAMS,
-        message: 'no symbol table in this build',
+        message: opts.symbols.emptyReason,
       });
     }
 
     const records = opts.symbols.lookup({ name: input.name, package: input.package });
 
     if (records.length === 0) {
-      throw unknownSymbolError({
-        name: input.name,
-        suggestions: opts.symbols.suggest({ name: input.name, limit: SUGGESTIONS_MAX }),
-      });
+      return unknownSymbolOf({ name: input.name, symbols: opts.symbols });
     }
 
     const documented = opts.store.search({

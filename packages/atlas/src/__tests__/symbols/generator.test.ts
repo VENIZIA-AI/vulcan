@@ -1,9 +1,10 @@
+import { readAtlasProject } from '@/common/project-config';
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AtlasSymbols } from '@/symbols/generator';
-import { IGNIS_IS_BUILT, IGNIS_ROOT } from '../ignis-root';
+import { IGNIS_IS_BUILT, IGNIS_ROOT } from '../ignis-root.helper';
 
 const tmpDirs: string[] = [];
 
@@ -67,43 +68,51 @@ describe('AtlasSymbols.collapseSignature', () => {
   });
 });
 
-const IGNIS_SYMBOLS = join(IGNIS_ROOT, '.agents/knowledge/reference/symbols.json');
-const hasGeneratedTable = existsSync(IGNIS_SYMBOLS);
-
 // Reading every package's .d.ts takes tens of seconds; the drift case below renders one small
 // package instead, so only the freshness test pays for the whole surface.
 const WHOLE_SURFACE_TIMEOUT_MS = 300_000;
 const ONE_PACKAGE_TIMEOUT_MS = 60_000;
 
-describe.skipIf(!hasGeneratedTable || !IGNIS_IS_BUILT)('AtlasSymbols.check', () => {
-  test(
-    'reads fresh against the committed table',
-    () => {
-      // The table is read from dist, so a rebuild since the last `gen` reads stale here too.
-      expect(
-        AtlasSymbols.check({ repoRoot: IGNIS_ROOT, outputPath: IGNIS_SYMBOLS }),
-        'stale symbol table - run `make symbols-gen`',
-      ).toBe(true);
-    },
-    WHOLE_SURFACE_TIMEOUT_MS,
-  );
+// No committed table to compare with since 0.2.0 (symbols are read when asked): this pins the
+// renderer and the drift check over IGNIS's real build instead.
+describe.skipIf(!IGNIS_IS_BUILT || !existsSync(join(IGNIS_ROOT, '.agents/vulcan.manifest.json')))(
+  'AtlasSymbols.check',
+  () => {
+    test(
+      "renders IGNIS's live packages, each mapped to its npm name",
+      () => {
+        const packages = readAtlasProject({ root: IGNIS_ROOT })
+          .packages.filter(entry => !entry.retired)
+          .map(entry => entry.dir);
+        const { packageMap, symbols } = JSON.parse(
+          AtlasSymbols.render({ repoRoot: IGNIS_ROOT, packages }),
+        );
 
-  test(
-    'reads stale once a symbol is dropped from the table',
-    () => {
-      const packages = ['atlas'];
-      const outputPath = join(makeTmpDir(), 'symbols.json');
+        expect(symbols.length).toBeGreaterThan(0);
+        expect(packageMap.find((entry: { dir: string }) => entry.dir === 'core-server')?.name).toBe(
+          '@venizia/ignis',
+        );
+      },
+      WHOLE_SURFACE_TIMEOUT_MS,
+    );
 
-      writeFileSync(outputPath, AtlasSymbols.render({ repoRoot: IGNIS_ROOT, packages }));
-      expect(AtlasSymbols.check({ repoRoot: IGNIS_ROOT, packages, outputPath })).toBe(true);
+    test(
+      'reads stale once a symbol is dropped from the table',
+      () => {
+        const packages = ['inversion'];
+        const outputPath = join(makeTmpDir(), 'symbols.json');
 
-      const table = JSON.parse(readFileSync(outputPath, 'utf8'));
+        writeFileSync(outputPath, AtlasSymbols.render({ repoRoot: IGNIS_ROOT, packages }));
+        expect(AtlasSymbols.check({ repoRoot: IGNIS_ROOT, packages, outputPath })).toBe(true);
 
-      table.symbols = table.symbols.slice(1);
-      writeFileSync(outputPath, `${JSON.stringify(table, null, 2)}\n`);
+        const table = JSON.parse(readFileSync(outputPath, 'utf8'));
 
-      expect(AtlasSymbols.check({ repoRoot: IGNIS_ROOT, packages, outputPath })).toBe(false);
-    },
-    ONE_PACKAGE_TIMEOUT_MS,
-  );
-});
+        table.symbols = table.symbols.slice(1);
+        writeFileSync(outputPath, `${JSON.stringify(table, null, 2)}\n`);
+
+        expect(AtlasSymbols.check({ repoRoot: IGNIS_ROOT, packages, outputPath })).toBe(false);
+      },
+      ONE_PACKAGE_TIMEOUT_MS,
+    );
+  },
+);

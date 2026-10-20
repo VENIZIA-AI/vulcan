@@ -1,8 +1,10 @@
 import { Corpora } from '@/common';
 import { CorpusLoader } from '@/corpus';
 import type { IDocument } from '@/corpus';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, spyOn, test } from 'bun:test';
+import { afterAll, describe, expect, spyOn, test } from 'bun:test';
 
 // __dirname, not import.meta: this package emits CommonJS.
 const FIXTURES_ROOT = join(__dirname, '../fixtures/corpus');
@@ -83,7 +85,7 @@ describe('CorpusLoader', () => {
 
   test('skips a document with invalid YAML frontmatter, records it, and warns through the logger', () => {
     const loader = CorpusLoader.getInstance();
-    const warnSpy = spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warnSpy = spyOn(console, 'error').mockImplementation(() => undefined);
     let documents: IDocument[];
 
     try {
@@ -108,7 +110,7 @@ describe('CorpusLoader', () => {
 
   test('resets `skipped` on every call', () => {
     const loader = CorpusLoader.getInstance();
-    const warnSpy = spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warnSpy = spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {
       loader.load({ roots: [{ corpus: Corpora.WIKI, directory: join(FIXTURES_ROOT, 'wiki') }] });
@@ -121,5 +123,44 @@ describe('CorpusLoader', () => {
     } finally {
       warnSpy.mockRestore();
     }
+  });
+
+  test('a declared directory that does not exist yet - no changelog written - has no documents', () => {
+    const documents = CorpusLoader.getInstance().load({
+      roots: [
+        { corpus: Corpora.CHANGELOG, directory: join(FIXTURES_ROOT, 'no-such-directory') },
+        { corpus: Corpora.WIKI, directory: join(FIXTURES_ROOT, 'wiki') },
+      ],
+    });
+
+    expect(documents.every(document => document.corpus === Corpora.WIKI)).toBe(true);
+    expect(documents.length).toBeGreaterThan(0);
+  });
+
+  describe('within a fetched checkout', () => {
+    const scratch = mkdtempSync(join(tmpdir(), 'atlas-loader-within-'));
+    const checkout = join(scratch, 'checkout');
+    const outside = join(scratch, 'outside');
+
+    afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+
+    mkdirSync(join(checkout, 'wiki'), { recursive: true });
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'secret.md'), '# Secret\n\nOutside the checkout.\n');
+    writeFileSync(join(checkout, 'wiki', 'guide.md'), '# Guide\n\nInside.\n');
+    symlinkSync(outside, join(checkout, 'bundle'));
+    symlinkSync(join(outside, 'secret.md'), join(checkout, 'wiki', 'linked.md'));
+
+    test('a root or a file whose real path leaves the checkout is never read', () => {
+      const documents = CorpusLoader.getInstance().load({
+        roots: [
+          { corpus: Corpora.KNOWLEDGE, directory: join(checkout, 'bundle') },
+          { corpus: Corpora.WIKI, directory: join(checkout, 'wiki') },
+        ],
+        within: checkout,
+      });
+
+      expect(documents.map(document => document.path)).toEqual(['guide.md']);
+    });
   });
 });

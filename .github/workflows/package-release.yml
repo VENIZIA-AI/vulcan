@@ -18,11 +18,6 @@ on:
           - none
         required: true
         default: "prerelease"
-      ignis_ref:
-        type: string
-        description: "IGNIS ref the atlas corpus snapshot is built from"
-        required: false
-        default: "develop"
       issue:
         type: string
         description: "Issue number the release commit serves (prefixes it with [#N])"
@@ -32,14 +27,11 @@ on:
 # The three packages are one release train: one version, one run. `@venizia/vulcan` pins
 # `@venizia/vulcan-okf` and `@venizia/vulcan-atlas` to that exact version, so they publish first.
 #
-# One release at a time, repository-wide: a release mutates `main` and the registry. A second
+# One release at a time, repository-wide: a release mutates `develop` and the registry. A second
 # dispatch WAITS (`cancel-in-progress: false`) rather than killing a run that is mid-publish.
 concurrency:
   group: npm-release
   cancel-in-progress: false
-
-permissions:
-  contents: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -49,15 +41,18 @@ env:
 jobs:
   release:
     name: NPM Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
-      # -----------------------------------------------------------------------------
+      # -------------------------------------------------------------------------
       # SETUP
-      # -----------------------------------------------------------------------------
-      - name: Checkout
+      # -------------------------------------------------------------------------
+      # As in IGNIS: the release builds develop, whatever ref it was dispatched from; main only ever
+      # receives merges from develop.
+      - name: Checkout develop
         uses: actions/checkout@v6.0.3
         with:
+          ref: develop
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -76,18 +71,9 @@ jobs:
           git config user.name "venizia-ci"
           git config user.email "developer@venizia.ai"
 
-      # The atlas build packages IGNIS's wiki, changelogs, symbol table and release table as the npm
-      # snapshot (packages/atlas/scripts/corpus.sh), read from IGNIS as a sibling of this checkout.
-      # A bare clone is enough for that; atlas's tests that need a BUILT IGNIS skip on it
-      # (packages/atlas/src/__tests__/ignis-root.ts) and run on a developer's machine instead.
-      - name: Clone IGNIS for the atlas snapshot
-        env:
-          IGNIS_REF: ${{ inputs.ignis_ref }}
-        run: git clone --quiet --depth 1 --branch "$IGNIS_REF" https://github.com/VENIZIA-AI/ignis.git "$GITHUB_WORKSPACE/../ignis"
-
-      # -----------------------------------------------------------------------------
+      # -------------------------------------------------------------------------
       # VERSION
-      # -----------------------------------------------------------------------------
+      # -------------------------------------------------------------------------
       - name: Set the release version
         run: |
           if [ "$BUMP" = "none" ]; then
@@ -125,14 +111,17 @@ jobs:
       - name: Install
         run: bun install
 
-      # -----------------------------------------------------------------------------
+      # -------------------------------------------------------------------------
       # GATES
-      # -----------------------------------------------------------------------------
+      # -------------------------------------------------------------------------
       - name: Build
         run: make build
 
       - name: Lint
         run: make lint-all
+
+      - name: Dependency catalog
+        run: make catalog-check
 
       - name: Test
         run: make test
@@ -142,7 +131,7 @@ jobs:
         run: |
           bun x --no-install vulcan sync
           bun x --no-install vulcan doctor
-          bun x --no-install vulcan x okf check
+          bun x --no-install vulcan x okf check --strict
 
       # The packed tarballs, installed alone in an empty project. smoke-cli also fails on sibling
       # pins in the packed cli that differ from the train's version.
@@ -219,9 +208,9 @@ jobs:
             console.log(`manifests: ${directories.length} packages resolve`);
           '
 
-      # -----------------------------------------------------------------------------
+      # -------------------------------------------------------------------------
       # PUBLISH - deliberately ahead of every git write
-      # -----------------------------------------------------------------------------
+      # -------------------------------------------------------------------------
       # The publish cannot be undone, so it runs first among the mutations: a rejected publish leaves
       # git untouched. A version already on npm is skipped, so a run that failed halfway is retried by
       # dispatching again with bump `none`.
@@ -245,9 +234,21 @@ jobs:
           # NPM_CONFIG_TOKEN: bun reads neither NODE_AUTH_TOKEN nor the .npmrc setup-node writes.
           NPM_CONFIG_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
 
-      # -----------------------------------------------------------------------------
+      # `next` is never below `latest` (it may hold a newer prerelease). A stable release moves `latest`
+      # past a stale `next`, so every run - a bump `none` dispatch included, which publishes nothing -
+      # moves `next` up to `latest` where it lags. Non-fatal and loud, like IGNIS's `highest` tag: the
+      # script prints a warning for every move and every failure and always exits 0. The version just
+      # published is passed along because npm serves the old tags for minutes after a publish.
+      - name: Keep next at or above latest
+        run: |
+          NAMES=$(for directory in $PUBLISH_ORDER; do jq -r .name "packages/$directory/package.json"; done)
+          bun scripts/next-tag.ts --published "$NEW_VERSION" --tag "$NPM_TAG" $NAMES
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+
+      # -------------------------------------------------------------------------
       # RECORD IN GIT
-      # -----------------------------------------------------------------------------
+      # -------------------------------------------------------------------------
       - name: Commit release
         if: env.BUMP != 'none'
         run: |
@@ -259,42 +260,70 @@ jobs:
           fi
 
           git commit -m "$SUBJECT"
+
+          # The tag goes on this commit, as built and published - not on a rebase of it below.
+          echo "RELEASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
         env:
           RELEASE_ISSUE: ${{ inputs.issue }}
 
-      # main can move between checkout and push; the version is already on npm, so rebase and retry
-      # once instead of leaving main behind a release that really happened.
+      # develop can move between checkout and push; the version is already on npm, so rebase and retry
+      # once instead of leaving develop behind a release that really happened. The rebased commit also
+      # carries develop's newer merges, which is why the tag goes on RELEASE_SHA instead.
       - name: Push release
         if: env.BUMP != 'none'
         run: |
-          git push origin HEAD:main || {
-            git pull --rebase origin main
-            git push origin HEAD:main
+          git push origin HEAD:develop || {
+            git pull --rebase origin develop
+            git push origin HEAD:develop
           }
 
           echo "IS_PUSHED=true" >> "$GITHUB_ENV"
 
+      # Bump `none` commits nothing, so the checkout is the release. A retry after a finished run finds
+      # the tag on origin already: at the release commit it is skipped, anywhere else the run stops.
       - name: Create tag
         run: |
-          git tag -a "$TAG_NAME" -m "VULCAN $NEW_VERSION"
+          RELEASE_SHA="${RELEASE_SHA:-$(git rev-parse HEAD)}"
+          echo "RELEASE_SHA=$RELEASE_SHA" >> "$GITHUB_ENV"
+
+          REMOTE_TAGS=$(git ls-remote --tags origin "refs/tags/$TAG_NAME*")
+          PEELED=$(printf '%s\n' "$REMOTE_TAGS" | awk -v ref="refs/tags/$TAG_NAME^{}" '$2 == ref { print $1 }')
+          DIRECT=$(printf '%s\n' "$REMOTE_TAGS" | awk -v ref="refs/tags/$TAG_NAME" '$2 == ref { print $1 }')
+          REMOTE_SHA="${PEELED:-$DIRECT}"
+
+          if [ "$REMOTE_SHA" = "$RELEASE_SHA" ]; then
+            echo "tag: $TAG_NAME is already on origin at $RELEASE_SHA - skipped"
+            echo "IS_TAGGED=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          if [ -n "$REMOTE_SHA" ]; then
+            echo "TAG_CONFLICT=$REMOTE_SHA" >> "$GITHUB_ENV"
+            echo "ERROR | $TAG_NAME is already on origin at $REMOTE_SHA, but this release is $RELEASE_SHA - the tag is left as it is"
+            exit 1
+          fi
+
+          git tag -a "$TAG_NAME" -m "VULCAN $NEW_VERSION" "$RELEASE_SHA"
           git push origin "$TAG_NAME"
 
-      # -----------------------------------------------------------------------------
+          echo "IS_TAGGED=true" >> "$GITHUB_ENV"
+
+      # -------------------------------------------------------------------------
       # FAILURE REPORTS
-      # -----------------------------------------------------------------------------
-      # Reported, never repaired: npm cannot un-publish, and force-pushing main to chase a live
+      # -------------------------------------------------------------------------
+      # Reported, never repaired: npm cannot un-publish, and force-pushing develop to chase a live
       # version does more damage than the mismatch.
-      - name: Report - published, main not updated
+      - name: Report - published, develop not updated
         if: failure() && env.IS_PUBLISHED == 'true' && env.IS_PUSHED != 'true' && env.BUMP != 'none'
         run: |
-          echo "WARNING | a publish of v$NEW_VERSION was attempted, but main still records the old version"
+          echo "WARNING | a publish of v$NEW_VERSION was attempted, but develop still records the old version"
           echo "  confirm first: npm view @venizia/vulcan versions"
-          echo "  if it IS live: set all three package.json to $NEW_VERSION, run bun install, commit to main,"
+          echo "  if it IS live: set all three package.json to $NEW_VERSION, run bun install, commit to develop,"
           echo "                 then dispatch with bump 'none' - it publishes whatever is missing and tags"
           echo "  if it is NOT live: nothing to clean up - dispatch again with the same bump"
 
       - name: Report - tag missing
-        if: failure() && env.IS_PUBLISHED == 'true'
+        if: failure() && env.IS_PUBLISHED == 'true' && env.IS_TAGGED != 'true' && env.TAG_CONFLICT == ''
         run: |
           echo "WARNING | v$NEW_VERSION may be published without its git tag"
-          echo "  create it: git tag -a $TAG_NAME -m \"VULCAN $NEW_VERSION\" && git push origin $TAG_NAME"
+          echo "  create it: git tag -a $TAG_NAME -m \"VULCAN $NEW_VERSION\" ${RELEASE_SHA:-<the release commit>} && git push origin $TAG_NAME"

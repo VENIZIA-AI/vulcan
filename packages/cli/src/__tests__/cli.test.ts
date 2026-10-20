@@ -1,8 +1,11 @@
-import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { afterAll, describe, expect, test } from 'bun:test';
+import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runCli } from './helpers/run.ts';
+import { createProject, removeProjects } from './project.helper.ts';
+import { runCli } from './run.helper.ts';
+
+afterAll(removeProjects);
 
 const readVersion = (opts: { packageDirectory: string }): string =>
   JSON.parse(
@@ -43,6 +46,45 @@ describe('vulcan router', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("unknown command 'frobnicate'");
     expect(result.stdout).toBe('');
+  });
+
+  test('--help after a command prints the help and runs nothing', () => {
+    const cwd = createProject({ files: { '.configs/vulcan.config.ts': 'export default {};\n' } });
+
+    for (const args of [
+      ['sync', '--help'],
+      ['doctor', '-h'],
+      ['init', '--help'],
+      ['upgrade', '--help'],
+    ]) {
+      const result = runCli({ args, cwd });
+
+      expect(result.code, args.join(' ')).toBe(0);
+      expect(result.stdout, args.join(' ')).toContain('Usage: bun x vulcan <command>');
+    }
+
+    expect(existsSync(join(cwd, 'CLAUDE.md'))).toBe(false);
+  });
+
+  test('an argument a command does not take exits 1 naming it, and runs nothing', () => {
+    const cwd = createProject({ files: { '.configs/vulcan.config.ts': 'export default {};\n' } });
+
+    for (const args of [
+      ['sync', '--dryrun'],
+      ['doctor', 'now'],
+      ['init', '--force'],
+      ['upgrade', 'a', 'b'],
+    ]) {
+      const result = runCli({ args, cwd });
+
+      expect(result.code, args.join(' ')).toBe(1);
+      expect(result.stderr, args.join(' ')).toContain(
+        `vulcan ${args[0]}: unknown argument '${args.at(-1)}'`,
+      );
+      expect(result.stdout).toBe('');
+    }
+
+    expect(existsSync(join(cwd, 'CLAUDE.md'))).toBe(false);
   });
 
   test('one release train: cli, okf and atlas carry the same version', () => {

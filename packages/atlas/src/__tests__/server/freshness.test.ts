@@ -1,9 +1,11 @@
+import { ignisProjectAt } from '../fixtures/ignis-packages';
 import { AtlasModes, Corpora } from '@/common';
 import { CorpusLoader, resolveRepositoryRoots } from '@/corpus';
 import type { ICorpusRoot } from '@/corpus';
-import { FreshnessGuard } from '@/server/freshness';
+import { FreshnessGuard } from '@/server/index';
 import {
   cpSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -14,7 +16,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, spyOn, test } from 'bun:test';
-import { IGNIS_ROOT } from '../ignis-root';
+import { IGNIS_IS_PRESENT, IGNIS_ROOT } from '../ignis-root.helper';
 
 // __dirname, not import.meta: tsconfig.json (unlike tsconfig.build.json) does not exclude
 // __tests__, and this package's module mode treats every file as CommonJS output.
@@ -110,37 +112,24 @@ describe('FreshnessGuard', () => {
     }
   });
 
-  test('snapshot mode never rebuilds, even when the corpus changes underneath it', () => {
-    const roots = makeWikiRoot();
-    const guard = new FreshnessGuard({ mode: AtlasModes.SNAPSHOT, roots });
-    const first = guard.getStore();
+  test.skipIf(!IGNIS_IS_PRESENT)(
+    'the fingerprint walk over the real repo roots stays under 100ms',
+    () => {
+      const roots = resolveRepositoryRoots({ project: ignisProjectAt({ root: REPOSITORY_ROOT }) });
+      const guard = new FreshnessGuard({ mode: AtlasModes.REPOSITORY, roots });
 
-    const guidePath = join(roots[0].directory, 'guide.md');
+      const startedAt = performance.now();
+      const fingerprint = guard.fingerprint();
+      const elapsedMs = performance.now() - startedAt;
 
-    writeFileSync(guidePath, `mentions ${FRESHNESS_MARKER} but snapshot mode must never notice`);
-    touchIntoTheFuture({ path: guidePath });
+      // Printed for the task report - this is the number that matters, not just the assertion.
+      console.log(
+        `[freshness] fingerprint walk over the real repo roots: ${elapsedMs.toFixed(3)}ms for ${fingerprint.count} files`,
+      );
 
-    expect(guard.getStore()).toBe(first);
-    expect(
-      guard.getStore().search({ query: FRESHNESS_MARKER, limit: 5, offset: 0 }).hits.length,
-    ).toBe(0);
-  });
-
-  test('the fingerprint walk over the real repo roots stays under 100ms', () => {
-    const roots = resolveRepositoryRoots({ repositoryRoot: REPOSITORY_ROOT });
-    const guard = new FreshnessGuard({ mode: AtlasModes.REPOSITORY, roots });
-
-    const startedAt = performance.now();
-    const fingerprint = guard.fingerprint();
-    const elapsedMs = performance.now() - startedAt;
-
-    // Printed for the task report - this is the number that matters, not just the assertion.
-    console.log(
-      `[freshness] fingerprint walk over the real repo roots: ${elapsedMs.toFixed(3)}ms for ${fingerprint.count} files`,
-    );
-
-    expect(elapsedMs).toBeLessThan(100);
-  });
+      expect(elapsedMs).toBeLessThan(100);
+    },
+  );
 
   test('the constructor fingerprints before it builds, so a file added during the build is caught on the very next call (M12)', () => {
     const roots = makeWikiRoot();
@@ -170,5 +159,28 @@ describe('FreshnessGuard', () => {
     } finally {
       loadSpy.mockRestore();
     }
+  });
+
+  test('a declared root that does not exist yet starts empty, and is read once it appears', () => {
+    const roots = makeWikiRoot();
+    const changelogs = join(roots[0].directory, '..', 'changelogs');
+    const guard = new FreshnessGuard({
+      mode: AtlasModes.REPOSITORY,
+      roots: [...roots, { corpus: Corpora.CHANGELOG, directory: changelogs }],
+    });
+
+    expect(
+      guard.getStore().search({ query: FRESHNESS_MARKER, limit: 5, offset: 0 }).hits.length,
+    ).toBe(0);
+
+    mkdirSync(changelogs);
+    writeFileSync(
+      join(changelogs, '2026-01-01-first.md'),
+      `---\ntitle: First\n---\n\nThe first ${FRESHNESS_MARKER}.\n`,
+    );
+
+    expect(
+      guard.getStore().search({ query: FRESHNESS_MARKER, limit: 5, offset: 0 }).hits.length,
+    ).toBeGreaterThan(0);
   });
 });

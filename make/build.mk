@@ -2,7 +2,7 @@
 
 UPDATE_TARGETS := $(addprefix update-,$(PACKAGES))
 
-.PHONY: install clean setup-hooks build build-all update update-all $(PACKAGES) $(UPDATE_TARGETS)
+.PHONY: install clean setup-hooks build build-all docs update update-all $(PACKAGES) $(UPDATE_TARGETS)
 
 # ----------------------------------------------------------------------------
 # INSTALL & CLEAN
@@ -37,6 +37,11 @@ $(PACKAGES):
 	@echo ""
 	@echo "build: $(call PKG_NAME,$@)"
 	@$(MAKE) --no-print-directory -C packages/$@ rebuild
+
+# The wiki site has its own package and lockfile, so the npm packages never install VitePress.
+docs:
+	@echo "docs: VitePress site from docs/wiki/content"
+	@cd docs/wiki && bun install --frozen-lockfile && bun run docs:build
 
 # ----------------------------------------------------------------------------
 # FORCE UPDATE TARGETS (fetch latest from NPM registry)

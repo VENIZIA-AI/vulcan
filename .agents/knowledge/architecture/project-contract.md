@@ -1,0 +1,28 @@
+---
+type: Architecture
+title: The project contract
+description: What a VULCAN project commits, what sync writes for it, what doctor checks, and where the tools look.
+tags: [architecture, project, contract]
+---
+
+# The project contract
+
+**Committed by the project:** `AGENTS.md`, `.configs/vulcan.config.*`,
+`.configs/{oxlint,eslint,oxfmt}.config.*`, `.agents/{rules.md,knowledge,skills,hooks}`, and a
+Makefile that `-include`s `vulcan.mk`.
+
+**Written by `vulcan sync`, gitignored:** `CLAUDE.md` (`@AGENTS.md`), `.claude/settings.json`
+(shipped, slot, project hooks and `claude.settings`, merged over personal keys), the record of what
+it applied (`.claude/vulcan-managed.json`), and the `.claude/skills/` links.
+
+**Checked by `vulcan doctor`:** config, layout, rule IDs (a `V-` ID a project rule
+points at - `Extends` or a first cell - is a base rule the base has not retired), slots, skills
+(none shadowed), make targets, hooks, adapters current, coding style, and that the scaffold is filled in (a workspaces project lists its
+packages; the knowledge index no longer holds the `vulcan:scaffold` line `init` writes), and `apps` (a project with `layout`: every layout folder is a workspace and every package lives in one).
+
+## Where the tools look
+
+Every VULCAN tool reads the project it runs in - the working directory. None reads an environment
+variable for its root. `*-gen` and `okf-viz` WRITE into that project, so never run them from VULCAN
+against IGNIS (W-06). Atlas's tests read the sibling IGNIS checkout, overridable for tests only
+through `IGNIS_ROOT` in `packages/atlas/.env.test`.

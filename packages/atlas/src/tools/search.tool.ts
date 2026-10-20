@@ -2,8 +2,8 @@ import { AtlasConstants } from '@/common';
 import type { TCorpus } from '@/common';
 import type { IToolHandler } from '@/protocol/common';
 import type { IHit } from '@/search/common';
-import type { ChunkStore } from '@/search/store';
-import type { ISymbolBrief, SymbolStore } from '@/symbols';
+import type { IChunkIndex } from '@/search/common';
+import type { ISymbolBrief, ISymbolIndex } from '@/symbols';
 import { z } from 'zod';
 import { parseInput, SearchInputSchema } from './common';
 
@@ -11,7 +11,8 @@ const DESCRIPTION =
   'Search the wiki, changelogs and knowledge bundle for chunks matching a keyword query, ranked ' +
   "by relevance. Each hit's `score` is bm25 times authority, lower is better, only comparable " +
   'within one response. The reply size budget can return fewer hits than `limit` - page with ' +
-  '`offset: nextOffset` (present only when more hits remain) to see every hit exactly once.';
+  '`offset: nextOffset` (present only when more hits remain) to see every hit exactly once. When ' +
+  'atlas serves several sources, `source` restricts the hits to one of them.';
 
 // Built once at module load - `z.toJSONSchema` is pure over the schema, so a guarded tool that
 // re-resolves its store on every call never needs to rebuild this.
@@ -36,7 +37,7 @@ const identifierOf = (opts: { query: string }): string | undefined => {
 
 /** The first exact match for a single-identifier query; absent for prose, or a name no table knows. */
 const symbolBriefOf = (opts: {
-  symbols?: SymbolStore;
+  symbols?: ISymbolIndex;
   query: string;
 }): ISymbolBrief | undefined => {
   const identifier = identifierOf({ query: opts.query });
@@ -110,8 +111,8 @@ const withinBudget = (opts: {
 };
 
 export const buildSearchTool = (opts: {
-  store: ChunkStore;
-  symbols?: SymbolStore;
+  store: IChunkIndex;
+  symbols?: ISymbolIndex;
 }): IToolHandler => ({
   definition: {
     name: 'search',
@@ -124,6 +125,7 @@ export const buildSearchTool = (opts: {
     const result = opts.store.search({
       query: input.query,
       corpus: corpusFilterOf({ corpus: input.corpus }),
+      source: input.source,
       limit: input.limit ?? AtlasConstants.SEARCH_DEFAULT_LIMIT,
       offset,
     });

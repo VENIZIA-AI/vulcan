@@ -1,0 +1,40 @@
+export interface IOkfPackage {
+  dir: string;
+  name: string;
+  /** Absolute; `packages/<dir>` under the root unless the config says otherwise. */
+  path: string;
+  retired: boolean;
+}
+
+/** One `okf.renderers` entry: a built-in id, or a project module, with its options. */
+export interface IOkfRendererEntry {
+  id: string;
+  module?: string;
+  options: Record<string, unknown>;
+}
+
+/** One `okf.regions` entry; `file` is absolute (resolved under the bundle). */
+export interface IOkfRegionEntry {
+  id: string;
+  file: string;
+  renderer: string;
+}
+
+export interface IOkfProject {
+  root: string;
+  bundle: string;
+  /** Absolute; `knowledge.changelogs` - absent when the project keeps none. */
+  changelogs?: string;
+  /** `atlas.tagPattern`, the template of a release tag. */
+  tagPattern: string;
+  /** Absolute; `okf.contents.files` - agent-read files outside the bundle that carry a contents list. */
+  contentsFiles: string[];
+  packages: IOkfPackage[];
+  renderers: IOkfRendererEntry[];
+  regions: IOkfRegionEntry[];
+  sections: { order: string[]; labels: Record<string, string> };
+  /** `exclude`: globs from the root dropped from the axis; `denylist`: directory names dropped from this axis only. */
+  coverage: { name: string; path: string; exclude: string[]; denylist: string[] }[];
+  denylist: Set<string>;
+  viz: { outputs: string[]; brand: string; copy?: Record<string, unknown> };
+}

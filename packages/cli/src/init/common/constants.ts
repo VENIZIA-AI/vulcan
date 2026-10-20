@@ -1,8 +1,16 @@
 export class InitStatuses {
   static readonly CREATED = 'created';
+  static readonly UPDATED = 'updated';
   static readonly KEPT = 'kept';
   static readonly ADD = 'add';
-  static readonly SCHEME_SET = new Set<string>([this.CREATED, this.KEPT, this.ADD]);
+  static readonly SKIPPED = 'skipped';
+  static readonly SCHEME_SET = new Set<string>([
+    this.CREATED,
+    this.UPDATED,
+    this.KEPT,
+    this.ADD,
+    this.SKIPPED,
+  ]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);
   }
