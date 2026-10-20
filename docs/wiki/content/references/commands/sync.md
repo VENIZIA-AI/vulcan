@@ -71,6 +71,10 @@ Look facts up there before you answer or write from memory (V-P-07):
 
 The corpora come from the config (the project and every `atlas.sources` entry). `sync` inserts the block before the section that follows "Must read first" (or at the end), rewrites only what sits between the markers on later runs, and never touches your text around it. A project whose `.mcp.json` does not run the atlas server gets no block. `vulcan doctor` prints an `info` line when the block is missing or out of date; it never fails.
 
+## Your own skills
+
+A skill you write in `.agents/skills/<name>/SKILL.md` reaches every agent you chose. The agents other than Claude read that folder themselves. For Claude, `sync` links each of your skills into `.claude/skills/<name>`: one you add shows up on the next `sync`, and when you delete the folder the next `sync` removes its dead link (`removed   .claude/skills/mine (a skill that is gone)`). A real folder of yours in `.claude/skills` is never replaced.
+
 ## Keeping the adapters out of git
 
 Which agents you use is your choice, so the committed `.gitignore` cannot list your adapter files without churn between teammates. `sync` writes them to your clone's own `.git/info/exclude` instead, between `# vulcan:start` and `# vulcan:end`, one comment line per agent:
@@ -145,7 +149,7 @@ The exit code is also 1 when configuration fails to load.
 Each later source overrides the earlier sources:
 
 1. Personal settings: Existing user keys in `.claude/settings.json` form the base.
-2. Shipped settings: Base settings from VULCAN register the `SessionStart` hook and the `guard-writes` `PreToolUse` hook.
+2. Shipped settings: Base settings from VULCAN register the `SessionStart` hook and the `guard-writes` `PreToolUse` hook, and approve the project's `atlas` server (`enabledMcpjsonServers: ["atlas"]`), so Claude does not ask you to approve `.mcp.json` the first time. A list of your own approved servers is kept and `atlas` is added to it.
 3. Slot choices: Settings defined for chosen slot options in `base/slots.json`, such as git write restrictions for `V-W-01`.
 4. Remote hosts: If configuration defines `remoteHosts`, VULCAN adds the `guard-remote-hosts` `PreToolUse` hook.
 5. Project hooks: Custom hooks declared under `hooks` in `.configs/vulcan.config.mts`, grouped by event.

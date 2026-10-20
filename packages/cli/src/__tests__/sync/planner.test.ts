@@ -5,6 +5,7 @@ import {
   mkdirSync,
   readFileSync,
   readlinkSync,
+  rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -425,6 +426,37 @@ describe('skills', () => {
     expect(() => lstatSync(link)).toThrow();
   });
 
+  test('a skill the user writes reaches Claude, and when the user removes it sync takes its dead link back', () => {
+    const root = createProject({
+      files: { ...READ_ONLY_PROJECT, '.agents/skills/mine/SKILL.md': '---\nname: mine\n---\n' },
+    });
+
+    runSync({ root });
+    expect(readlinkSync(join(root, '.claude', 'skills', 'mine'))).toBe(
+      join(root, '.agents', 'skills', 'mine'),
+    );
+
+    rmSync(join(root, '.agents', 'skills', 'mine'), { recursive: true });
+
+    const result = runSync({ root });
+
+    expect(result.stderr).toContain('removed   .claude/skills/mine (a skill that is gone)');
+    expect(() => lstatSync(join(root, '.claude', 'skills', 'mine'))).toThrow();
+    expect(lstatSync(join(root, '.claude', 'skills', 'knowledge-sync')).isSymbolicLink()).toBe(
+      true,
+    );
+  });
+
+  test('a skill the user adds later is linked on the next sync', () => {
+    const root = createProject({ files: READ_ONLY_PROJECT });
+
+    runSync({ root });
+    mkdirSync(join(root, '.agents', 'skills', 'later'), { recursive: true });
+    writeFileSync(join(root, '.agents', 'skills', 'later', 'SKILL.md'), '---\nname: later\n---\n');
+
+    expect(runSync({ root }).stderr).toContain('created   .claude/skills/later');
+  });
+
   test('a real directory where a skill link belongs is left alone', () => {
     const root = createProject({
       files: { ...READ_ONLY_PROJECT, '.claude/skills/knowledge-sync/SKILL.md': 'mine' },
@@ -507,5 +539,51 @@ describe('planSync with the resolved agents', () => {
     expect(without.some(action => action.path === join(root, 'CLAUDE.md'))).toBe(false);
     expect(withClaude.length).toBeGreaterThan(without.length);
     expect(withClaude.some(action => action.path === join(root, 'CLAUDE.md'))).toBe(true);
+  });
+});
+
+describe('.mcp.json approval for Claude', () => {
+  test('the atlas server of the project .mcp.json is enabled in the managed settings', () => {
+    const root = createProject({ files: READ_ONLY_PROJECT });
+
+    runSync({ root });
+
+    expect(readSettings({ root }).enabledMcpjsonServers).toEqual(['atlas']);
+  });
+
+  test("the user's own approved servers stay, atlas joins them once", () => {
+    const root = createProject({
+      files: {
+        ...READ_ONLY_PROJECT,
+        '.claude/settings.json': JSON.stringify({ enabledMcpjsonServers: ['mine'] }),
+      },
+    });
+
+    runSync({ root });
+    runSync({ root });
+
+    expect(readSettings({ root }).enabledMcpjsonServers).toEqual(['mine', 'atlas']);
+  });
+
+  test('a second run reports the settings unchanged', () => {
+    const root = createProject({ files: READ_ONLY_PROJECT });
+
+    runSync({ root });
+
+    expect(runSync({ root }).stderr).toContain('unchanged .claude/settings.json');
+  });
+
+  test("taking Claude back removes atlas from the list and keeps the user's servers", () => {
+    const root = createProject({
+      files: {
+        ...READ_ONLY_PROJECT,
+        '.claude/settings.json': JSON.stringify({ enabledMcpjsonServers: ['mine'] }),
+      },
+    });
+
+    runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    runCli({ args: ['agents', 'remove', 'claude'], cwd: root });
+
+    expect(readSettings({ root }).enabledMcpjsonServers).toEqual(['mine']);
   });
 });

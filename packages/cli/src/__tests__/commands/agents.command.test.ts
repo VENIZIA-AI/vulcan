@@ -212,6 +212,20 @@ describe('vulcan agents remove', () => {
     expect(readFileSync(join(handWritten, 'CLAUDE.md'), 'utf8')).toBe('my own notes\n');
   });
 
+  test('a skill the user wrote is unlinked from .claude/skills but its folder stays', () => {
+    const root = synced({
+      agents: 'claude',
+      files: { '.agents/skills/mine/SKILL.md': '---\nname: mine\n---\n' },
+    });
+
+    expect(isLink({ path: join(root, '.claude/skills/mine') })).toBe(true);
+
+    agents({ root, args: ['remove', 'claude'] });
+
+    expect(isLink({ path: join(root, '.claude/skills/mine') })).toBe(false);
+    expect(existsSync(join(root, '.agents/skills/mine/SKILL.md'))).toBe(true);
+  });
+
   test('personal keys in .claude/settings.json survive the removal of the managed ones', () => {
     const root = synced({ agents: 'claude' });
     const file = join(root, '.claude/settings.json');

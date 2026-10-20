@@ -36,6 +36,8 @@ export class SyncConstants {
   static readonly HOOKS_KEY = 'hooks';
   /** Objects of independent entries: merged one level deep, so personal entries survive shared ones. */
   static readonly MERGE_ONE_LEVEL = new Set(['permissions', 'hooks', 'enabledPlugins', 'env']);
+  /** Top-level lists that merge as a union, so the user's own entries survive the shared ones. */
+  static readonly UNION_ARRAYS = new Set(['enabledMcpjsonServers']);
 }
 
 /** How a base rule moved between the manifest's last sync and the installed base. */
