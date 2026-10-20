@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-20 - agents reach for atlas on their own (0.3.5)
+
+The atlas server sends `instructions` for every project (corpora, triggers, the rule), its tool descriptions open with when to call the tool and name the projects, the session-start digest has an Atlas block, and the base rule `V-P-07` (facts come from atlas, not memory) is in the default `oftenDropped` list. Concepts: [cli](/packages/cli.md).
+
 ## 2026-10-20 - a preset can declare the imports of its app (0.3.4)
 
 `preset.json` takes an optional `imports` object (keys start with `#`, values are strings); `init` and `add` write it into the app's `package.json` as given. Concept: [cli](/packages/cli.md).

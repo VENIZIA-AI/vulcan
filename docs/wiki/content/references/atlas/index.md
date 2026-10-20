@@ -110,12 +110,36 @@ To inspect the tools the server offers without an MCP client, run `vulcan x atla
 
 ```text
 $ bun x --no-install vulcan x atlas tools
-search   Search the wiki, changelogs and knowledge bundle for chunks matching a keyword query, ranked by relevance
-get      Read one chunk's body by the id a search hit returned, or a whole document by the same id with its `#anchor` dropped, paging a long body with a cursor.
-symbol   Locate one exported symbol by name: which package and import specifier it comes from, its kind, its one-line signature, the source `file` and `line` it is declared on, and the chunk ids that document it
-version  Compare the @venizia/* packages installed in a directory against the newest versions this build knows about - the versions its generated release table carries, not the registry.
-changes  List the changelog entries between two releases: a package with two of its versions, or no package with two `YYYY-MM-DD` dates
+search   When the user asks how something works in my-product and ignis, or about this project's conventions, search here before you answer from memory
+get      After `search`, read the hit here before you rely on it
+symbol   Before you import or call an export of my-product and ignis, get its real signature, import path and source line here instead of recalling it
+version  When a version, an upgrade or an installed @venizia/* package comes up in my-product and ignis, check here
+changes  When the user asks what changed, what a release added or what breaks on upgrade in my-product and ignis, list the entries here
 ```
+
+Each description opens with when to call the tool, and names the projects the server holds. The text is rendered from the config when the server starts. The command prints only the first sentence of each; a client gets the full description.
+
+### What the server tells the agent
+
+An agent that is not told when to use atlas answers from memory. The server therefore sends the agent two texts of its own, both built from the project's config:
+
+- **`instructions`**, in the reply to `initialize`. A client such as Claude Code adds it to the agent's context as "MCP Server Instructions". It names the corpora (this project and every `atlas.sources` entry), the three triggers, and the rule not to answer from memory:
+
+```text
+Atlas holds the real code and docs of my-product (this repository) and ignis.
+- Before you write or change code that imports their packages (`@venizia/*`, `api`), call `symbol` for each export you use: its real signature, import path and source line.
+- When the user asks how something works or which convention applies, call `search` first, then `get` for the hits that matter.
+- When a version, a release or an upgrade comes up, call `version` or `changes`.
+Do not answer facts about my-product and ignis from memory when atlas can answer them.
+
+Atlas serves 2 source(s); every hit names its source.
+- my-product: this repository, live
+- ignis: VENIZIA-AI/ignis@develop at 6974e8ba
+```
+
+- **The tool descriptions** above.
+
+The lines after the blank line say how each source was reached; a source that is offline or unavailable is named there. The session-start digest repeats the corpora and the rule in an "Atlas" block, and the base rule `V-P-07` states it ([Rules](/references/rules)).
 
 For tool arguments and reply schemas, see the [atlas tools reference](/references/atlas/tools).
 

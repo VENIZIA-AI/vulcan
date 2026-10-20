@@ -69,6 +69,7 @@ Process rules establish reading requirements, design review gates, scope boundar
 | `V-P-04` | Update `.agents/knowledge/` in the same change whenever architectural or project facts change. | SOFT |
 | `V-P-05` | Act as a partner: challenge wrong instructions constructively; human decides. | SOFT |
 | `V-P-06` | Maintain scope discipline on the current issue; file discoveries as new issues. | SOFT |
+| `V-P-07` | Take facts about the framework and the project's own packages from atlas, not from memory: `symbol` for an export, `search` for how something works, `version` or `changes` for a release. | SOFT - atlas server instructions and tool descriptions, session-start digest |
 
 ## Build and quality (B)
 

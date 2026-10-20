@@ -22,6 +22,8 @@ atlas is an MCP server. It indexes your wiki, changelogs and knowledge bundle. I
 
 The agent receives five tools: `search`, `get`, `symbol`, `version` and `changes`.
 
+You do not need to tell the agent to use them. The server's instructions and the tool descriptions say when to call each one, and name this project and every source it reads. The session-start digest repeats it, and the base rule `V-P-07` says facts come from atlas, not from memory.
+
 ## Before you start
 
 Before you use atlas, confirm these preconditions:

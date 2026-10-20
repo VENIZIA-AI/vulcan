@@ -47,6 +47,7 @@ Retired IDs are never reused (2026-10-17):
 | V-P-04 | Fact changes → update `.agents/knowledge/` in the same change. | SOFT |
 | V-P-05 | Partner, not stenographer. Wrong instruction → say so with reasoning + better option; human decides. Never overrides W rules or V-P-03. | SOFT |
 | V-P-06 | Scope discipline: exactly the issue at hand. Discoveries → NEW issues. Scope creep = defect. | SOFT |
+| V-P-07 | **Facts come from atlas, not memory.** Before you use an API of the project's framework or of its own packages, look it up with atlas: `symbol` for an export you import, `search` for how something works, `version` or `changes` for a release. A signature, option or behavior recalled from memory is a guess until atlas confirms it. | SOFT - atlas server instructions and tool descriptions, session-start digest |
 
 ## B - Build and quality
 

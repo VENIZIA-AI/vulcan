@@ -23,6 +23,7 @@ import {
   buildVersionTool,
 } from '@/tools';
 import { FreshnessGuard } from './freshness';
+import { instructionsOf, projectsOf } from './guidance';
 
 const packageMapOf = (opts: { source: IResolvedSource }) =>
   opts.source.project.packages.map(entry => ({
@@ -116,44 +117,6 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
   };
 };
 
-/** Which sources the server reads, and how each was reached - a client sees it on initialize. */
-const instructionsOf = (opts: {
-  sources: IResolvedSource[];
-  unavailable: IUnavailableSource[];
-}): string | undefined => {
-  if (opts.unavailable.length === 0 && opts.sources.every(source => source.mode === 'repository')) {
-    return undefined;
-  }
-
-  const lines = opts.sources.map(source => {
-    if (source.mode === 'repository') {
-      return `- ${source.name}: this repository, live`;
-    }
-
-    const at = `${source.origin ?? source.name} at ${(source.sha ?? '').slice(0, 8)}`;
-
-    const note =
-      source.history === false
-        ? ' - no git on this machine: version and changes have no release history'
-        : '';
-
-    return source.mode === 'offline-cache'
-      ? `- ${source.name}: ${at} - OFFLINE: the remote was unreachable, this is the newest cache, not the ref's current commit${note}`
-      : `- ${source.name}: ${at}${note}`;
-  });
-
-  const missing = opts.unavailable.map(
-    ({ source, reason }) =>
-      `- ${source.name}: UNAVAILABLE (${source.repo}@${source.ref}) - ${reason}; nothing from it is served`,
-  );
-
-  return [
-    `Atlas serves ${opts.sources.length} source(s); every hit names its source.`,
-    ...lines,
-    ...missing,
-  ].join('\n');
-};
-
 /**
  * The MCP transport over every resolved source (spec v3 section 3): one store set per source,
  * served as one by the composites - a single repository answers exactly as it always has.
@@ -174,19 +137,20 @@ export const buildSourcesServer = (opts: {
     sources: opts.sources,
     unavailable: opts.unavailable ?? [],
   });
+  const projects = projectsOf({ sources: opts.sources });
 
   return new Transport({
     tools: [
-      buildSearchTool({ store: chunks, symbols }),
+      buildSearchTool({ store: chunks, symbols, projects }),
       buildGetTool({ store: chunks }),
-      buildSymbolTool({ store: chunks, symbols }),
-      buildVersionTool({ releases }),
-      buildChangesTool({ releases }),
+      buildSymbolTool({ store: chunks, symbols, projects }),
+      buildVersionTool({ releases, projects }),
+      buildChangesTool({ releases, projects }),
     ],
     // A project names its server whatever sources ride with it: a name that moved with the network
     // (a source reachable or not) would break a client configured by name.
     serverName: project === undefined ? AtlasConstants.SERVER_NAME : `${project.name}-atlas`,
     serverVersion: opts.version,
-    ...(instructions === undefined ? {} : { instructions }),
+    instructions,
   });
 };

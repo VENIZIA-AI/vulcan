@@ -26,6 +26,11 @@ $ echo '{}' | bun node_modules/@venizia/vulcan/base/hooks/session-start.ts
 
 Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents/rules.md`.
 
+## Atlas
+
+The `atlas` MCP server holds the real code and docs of: my-product (this repository), ignis.
+Look facts up there before you answer or write from memory: `symbol` for an export you import, `search` for how something works, `version` or `changes` for a release (V-P-07).
+
 ## Write boundaries
 
 | ID | Rule | Enforced by |
@@ -43,10 +48,12 @@ Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents
 The rest of the output, the table of often-dropped rules, is not shown.
 The digest also prints the project's own rule rows and its minimap when it has them.
 
+The "Atlas" block, three lines under the title, appears only when the project's `.mcp.json` runs the atlas server. It names the project and every `atlas.sources` entry of the config, and says when to call each tool. It is rendered from the config, so there is nothing to set.
+
 The section titled "The rules sessions drop most" repeats rules that sessions overlook most frequently.
 These rule identifiers come from the `digest.oftenDropped` configuration key.
-The default list contains seven base rules:
-`V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-W-04`, `V-C-02`, and `V-C-10`.
+The default list contains eight base rules:
+`V-P-07`, `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-W-04`, `V-C-02`, and `V-C-10`.
 
 To change which rules appear, define `digest.oftenDropped` in `.configs/vulcan.config.mts`:
 

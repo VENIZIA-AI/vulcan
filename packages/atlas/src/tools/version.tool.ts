@@ -4,7 +4,7 @@ import type { IReleaseIndex } from '@/releases';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
-import { parseInput, VersionInputSchema } from './common';
+import { parseInput, ToolTriggers, VersionInputSchema } from './common';
 
 const DESCRIPTION =
   'Compare the @venizia/* packages installed in a directory against the newest versions this ' +
@@ -223,10 +223,13 @@ const behindOf = (opts: {
   return rows;
 };
 
-export const buildVersionTool = (opts: { releases: IReleaseIndex }): IToolHandler => ({
+export const buildVersionTool = (opts: {
+  releases: IReleaseIndex;
+  projects?: string;
+}): IToolHandler => ({
   definition: {
     name: 'version',
-    description: DESCRIPTION,
+    description: `${ToolTriggers.version({ projects: opts.projects })} ${DESCRIPTION}`,
     inputSchema: INPUT_JSON_SCHEMA,
   },
   call: async ({ args }) => {

@@ -53,6 +53,7 @@ export class ConfigConstants {
   static readonly RULE_ID_PATTERN = /^(?:[A-Z]+-)?[A-Z]-\d{2}$/;
   /** The rules a session drops most, printed at every session start unless the project lists its own. */
   static readonly DEFAULT_OFTEN_DROPPED = [
+    'V-P-07',
     'V-B-03',
     'V-P-05',
     'V-P-06',

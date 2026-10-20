@@ -4,7 +4,7 @@ import type { IToolHandler } from '@/protocol/common';
 import type { IChunkIndex } from '@/search/common';
 import type { ISymbolIndex, ISymbolRecord } from '@/symbols';
 import { z } from 'zod';
-import { parseInput, SymbolInputSchema } from './common';
+import { parseInput, SymbolInputSchema, ToolTriggers } from './common';
 
 const DESCRIPTION =
   'Locate one exported symbol by name: which package and import specifier it comes from, its ' +
@@ -90,10 +90,12 @@ const unknownSymbolOf = (opts: {
 export const buildSymbolTool = (opts: {
   store: IChunkIndex;
   symbols: ISymbolIndex;
+  /** The projects the server serves, named in the description. */
+  projects?: string;
 }): IToolHandler => ({
   definition: {
     name: 'symbol',
-    description: DESCRIPTION,
+    description: `${ToolTriggers.symbol({ projects: opts.projects })} ${DESCRIPTION}`,
     inputSchema: INPUT_JSON_SCHEMA,
   },
   call: async ({ args }) => {
