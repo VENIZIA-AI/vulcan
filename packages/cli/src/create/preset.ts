@@ -29,11 +29,22 @@ const PRESET_SCHEMA = z
     scripts: z.record(z.string(), z.string()).default({}),
     checks: z.array(z.string()).default([]),
     urls: z.array(z.string().startsWith('/')).default([]),
+    imports: z.record(z.string(), z.string()).default({}),
     files: z.string(),
     atlas: z.array(z.object({ name: z.string(), repo: z.string(), ref: z.string() })).default([]),
   })
   // A check is run as `bun run <check>`; an entry that is not a script could be a bun flag.
   .superRefine((value, context) => {
+    for (const key of Object.keys(value.imports)) {
+      if (!key.startsWith('#')) {
+        context.addIssue({
+          code: 'custom',
+          path: ['imports', key],
+          message: `"${key}" is not a subpath import: a key starts with #`,
+        });
+      }
+    }
+
     value.checks.forEach((check, index) => {
       if (!Object.hasOwn(value.scripts, check)) {
         context.addIssue({
