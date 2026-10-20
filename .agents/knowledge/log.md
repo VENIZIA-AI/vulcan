@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-20 - the chosen agents' files in .git/info/exclude (multi-agent 5 of 7)
+
+sync writes the paths it creates for the agents chosen on this machine (Claude files, each agent's MCP file, the shipped-skill links, the local choice file) into a `# vulcan:start`/`# vulcan:end` block of the clone's `.git/info/exclude`: per developer, no churn in the committed `.gitignore`; tracked paths are not listed, worktrees and subfolders work, a non-git project gets nothing. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-20 - a moved project follows (multi-agent fix)
 
 The per-machine MCP files carry absolute paths, so `sync` now recognises the atlas entry it wrote itself (`bun <root>/node_modules/.bin/vulcan x atlas mcp --root <root>`, paths agreeing) and rewrites it when the project moved; any other atlas entry stays the user's. Concept: [cli](/packages/cli.md).
