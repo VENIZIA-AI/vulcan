@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -6,7 +6,14 @@ import { knownPackageDirs, livePackageDirs, readAtlasProject } from '@/common/pr
 import { directoryOf } from '@/common/package-map';
 import { clearAtlasProject, useAtlasProject } from '../project.helper';
 
+const roots: string[] = [];
+
 afterEach(clearAtlasProject);
+afterAll(() => {
+  for (const root of roots) {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 const ROOT = '/work/project';
 
@@ -54,6 +61,7 @@ describe('readAtlasProject', () => {
   test('without vulcan x it reads the committed manifest at the project root', () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-manifest-'));
 
+    roots.push(root);
     mkdirSync(join(root, '.agents'));
     writeFileSync(
       join(root, '.agents/vulcan.manifest.json'),
@@ -62,11 +70,13 @@ describe('readAtlasProject', () => {
     process.env.VULCAN_PROJECT_ROOT = root;
 
     expect(readAtlasProject().packages.map(entry => entry.name)).toEqual(['@a/core']);
-    rmSync(root, { recursive: true, force: true });
   });
 
   test('no manifest: it stops with what to do', () => {
-    process.env.VULCAN_PROJECT_ROOT = mkdtempSync(join(tmpdir(), 'atlas-no-manifest-'));
+    const root = mkdtempSync(join(tmpdir(), 'atlas-no-manifest-'));
+
+    roots.push(root);
+    process.env.VULCAN_PROJECT_ROOT = root;
 
     expect(() => readAtlasProject()).toThrow(
       'atlas: no project manifest (.agents/vulcan.manifest.json) - run `vulcan sync`',

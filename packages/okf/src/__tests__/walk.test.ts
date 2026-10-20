@@ -1,11 +1,27 @@
-import { expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { afterAll, expect, test } from 'bun:test';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { walkFiles } from '../source/index.ts';
 
-test('the source walk skips __tests__: a test fixture is never counted as source', () => {
+const roots: string[] = [];
+
+afterAll(() => {
+  for (const root of roots) {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+const makeRoot = (): string => {
   const root = mkdtempSync(join(tmpdir(), 'okf-walk-'));
+
+  roots.push(root);
+
+  return root;
+};
+
+test('the source walk skips __tests__: a test fixture is never counted as source', () => {
+  const root = makeRoot();
 
   mkdirSync(join(root, 'src', '__tests__'), { recursive: true });
   writeFileSync(join(root, 'src', 'service.ts'), 'export class RealService {}\n');
@@ -17,7 +33,7 @@ test('the source walk skips __tests__: a test fixture is never counted as source
 });
 
 test('the walk is sorted, so generated output never depends on the file system order', () => {
-  const root = mkdtempSync(join(tmpdir(), 'okf-walk-'));
+  const root = makeRoot();
 
   for (const name of ['zeta.ts', 'alpha.ts', 'mid.ts', 'beta.ts']) {
     writeFileSync(join(root, name), '\n');
