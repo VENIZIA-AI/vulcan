@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { atlasServerEntry } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -24,6 +24,38 @@ const PROJECT_FILES: [string, string, string][] = [
   ['pi', '.pi/mcp.json', 'mcpServers'],
   ['copilot-vscode', '.vscode/mcp.json', 'servers'],
 ];
+
+describe('a project that moved', () => {
+  for (const [agent, path, key] of PROJECT_FILES) {
+    test(`${agent}: the entry follows the project to its new place`, () => {
+      const root = createProject({ files: PROJECT });
+
+      sync({ root, agents: agent });
+
+      const file = join(root, path);
+      const moved = readFileSync(file, 'utf8').replaceAll(root, '/old/place/demo');
+
+      writeFileSync(file, moved);
+
+      const result = sync({ root, agents: agent });
+
+      expect(result.stderr).toContain(`replaced  ${path}`);
+      expect(JSON.stringify(readJson({ root, path })[key].atlas)).toContain(root);
+      expect(JSON.stringify(readJson({ root, path })[key].atlas)).not.toContain('/old/place');
+    });
+  }
+
+  test('an atlas entry the user wrote is left alone after a move too', () => {
+    const root = createProject({
+      files: {
+        ...PROJECT,
+        '.cursor/mcp.json': JSON.stringify({ mcpServers: { atlas: { command: 'mine' } } }),
+      },
+    });
+
+    expect(sync({ root, agents: 'cursor' }).stderr).toContain('unchanged .cursor/mcp.json');
+  });
+});
 
 describe('vulcan sync writes the atlas entry where each agent reads it', () => {
   for (const [agent, path, key] of PROJECT_FILES) {

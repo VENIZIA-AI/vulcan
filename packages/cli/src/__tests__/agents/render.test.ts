@@ -60,6 +60,56 @@ describe('mergeMcpServers (mcpServers)', () => {
     expect(merge({ text: before })).toEqual({ ok: true, changed: false, text: before });
   });
 
+  test('an atlas entry this sync wrote for another place is rewritten for this one', () => {
+    const moved = atlasServerEntry({ root: '/old/place/demo' });
+    const before = `${JSON.stringify({ keep: 1, mcpServers: { zed: { command: 'z' }, atlas: moved } }, null, 2)}\n`;
+    const result = merge({ text: before });
+
+    expect(result.ok && result.changed).toBe(true);
+    expect(result.ok && JSON.parse(result.text)).toEqual({
+      keep: 1,
+      mcpServers: { zed: { command: 'z' }, atlas: ENTRY },
+    });
+    expect(result.ok && Object.keys(JSON.parse(result.text).mcpServers)).toEqual(['zed', 'atlas']);
+  });
+
+  test('the same entry again is unchanged', () => {
+    const before = `${JSON.stringify({ mcpServers: { atlas: ENTRY } }, null, 2)}\n`;
+
+    expect(merge({ text: before })).toEqual({ ok: true, changed: false, text: before });
+  });
+
+  test("an entry that only looks like ours but has another shape is the user's", () => {
+    for (const mine of [
+      { command: 'bun', args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'] },
+      {
+        command: 'node',
+        args: ['/old/node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '/old'],
+      },
+      {
+        command: 'bun',
+        args: [
+          '/old/node_modules/.bin/vulcan',
+          'x',
+          'atlas',
+          'mcp',
+          '--root',
+          '/old',
+          '--source',
+          'x',
+        ],
+      },
+      {
+        command: 'bun',
+        args: ['/old/node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '/elsewhere'],
+      },
+    ]) {
+      const before = `${JSON.stringify({ mcpServers: { atlas: mine } }, null, 2)}\n`;
+
+      expect(merge({ text: before })).toEqual({ ok: true, changed: false, text: before });
+    }
+  });
+
   test('a file without the server map gets one', () => {
     const result = merge({ text: '{ "other": true }' });
 
@@ -90,6 +140,19 @@ describe('mergeMcpServers (servers, for VS Code)', () => {
     expect(result.ok && JSON.parse(result.text)).toEqual({
       servers: { atlas: { type: 'stdio', ...ENTRY } },
     });
+  });
+
+  test('a VS Code entry written for another place is rewritten, keeping its type', () => {
+    const entry = { type: 'stdio', ...ENTRY };
+    const old = { type: 'stdio', ...atlasServerEntry({ root: '/old/demo' }) };
+    const result = mergeMcpServers({
+      text: JSON.stringify({ servers: { atlas: old } }),
+      key: 'servers',
+      entry,
+    });
+
+    expect(result.ok && result.changed).toBe(true);
+    expect(result.ok && JSON.parse(result.text).servers.atlas).toEqual(entry);
   });
 
   test('keeps the inputs list VS Code files carry', () => {

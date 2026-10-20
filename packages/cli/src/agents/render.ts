@@ -29,8 +29,35 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /**
+ * Whether an `atlas` entry is the one sync writes, for whatever place: `bun <root>/node_modules/.bin/vulcan
+ * x atlas mcp --root <root>` (plus `type: stdio` for VS Code) with the two paths agreeing. Anything else
+ * is the user's. A project that moved is recognised this way and rewritten.
+ */
+const isOwnEntry = (opts: { entry: unknown }): boolean => {
+  const { entry } = opts;
+
+  if (!isRecord(entry) || entry.command !== 'bun' || !Array.isArray(entry.args)) {
+    return false;
+  }
+
+  const keys = Object.keys(entry).filter(key => key !== 'type');
+  const [bin, ...rest] = entry.args;
+  const root = rest[4];
+
+  return (
+    keys.length === 2 &&
+    (entry.type === undefined || entry.type === 'stdio') &&
+    entry.args.length === 6 &&
+    rest.slice(0, 4).join(' ') === 'x atlas mcp --root' &&
+    typeof root === 'string' &&
+    bin === join(root, 'node_modules', '.bin', 'vulcan')
+  );
+};
+
+/**
  * Sets the `atlas` server in a JSON file's server map and nothing else: the user's keys, servers and
- * order stay, and an `atlas` entry that is already there is the user's and is left as it is.
+ * order stay, an `atlas` entry sync wrote for another place is rewritten for this one, and any other
+ * `atlas` entry is the user's and is left as it is.
  */
 export const mergeMcpServers = (opts: {
   text: string | undefined;
@@ -61,7 +88,16 @@ export const mergeMcpServers = (opts: {
     return { ok: false, reason: `${opts.key} is not an object` };
   }
 
-  if (Object.hasOwn(servers, SERVER_NAME)) {
+  const existing = servers[SERVER_NAME];
+
+  if (Object.hasOwn(servers, SERVER_NAME) && !isOwnEntry({ entry: existing })) {
+    return { ok: true, changed: false, text: opts.text ?? '' };
+  }
+
+  if (
+    Object.hasOwn(servers, SERVER_NAME) &&
+    JSON.stringify(existing) === JSON.stringify(opts.entry)
+  ) {
     return { ok: true, changed: false, text: opts.text ?? '' };
   }
 
