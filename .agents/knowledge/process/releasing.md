@@ -24,7 +24,7 @@ or `none` (publish the version already in package.json).
    `bun publish` writes the train's version into the tarball. The workflow checks every packed
    manifest for it. It publishes okf, atlas, cli in that order with `bun publish` - prerelease to `next`, stable to
    `latest`. A version already on npm is skipped. A prerelease never moves `latest`: it stays on a
-   stable version (as in IGNIS). There is no dist-tag workflow, as in IGNIS: to move a tag after the fact, the package owner runs `npm dist-tag add <name>@<version> <tag>` for each of the three packages.
+   stable version (as in IGNIS). `next` is never below `latest`: after the publish, the step "Keep next at or above latest" (`scripts/next-tag.ts`) reads both tags of each of the three packages and moves `next` to `latest` where it is missing or lower. It is non-fatal and prints a warning for every move. A dispatch with bump `none` publishes nothing and still runs it, so it also heals the tags of a release already out. There is no dist-tag workflow, as in IGNIS; any other tag move is `npm dist-tag add <name>@<version> <tag>` by the package owner.
 3. It commits `chore(release): v<version> [<bump>]` on `develop` and tags `v<version>` on that
    commit as built. When `develop` moved during the run, the push rebases, but the tag stays on the
    release commit, so it never holds merges that were not published.

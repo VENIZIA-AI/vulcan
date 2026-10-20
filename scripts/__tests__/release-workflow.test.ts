@@ -17,6 +17,7 @@ interface IWorkflowStep {
   name?: string;
   if?: string;
   run?: string;
+  env?: Record<string, unknown>;
 }
 
 const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
@@ -39,15 +40,20 @@ const readSteps = (): IWorkflowStep[] => {
   return steps.flatMap(value => {
     const step = { value };
 
-    return isRecord(step)
-      ? [
-          {
-            name: toText({ value: step.value.name }),
-            if: toText({ value: step.value.if }),
-            run: toText({ value: step.value.run }),
-          },
-        ]
-      : [];
+    if (!isRecord(step)) {
+      return [];
+    }
+
+    const env = { value: step.value.env };
+
+    return [
+      {
+        name: toText({ value: step.value.name }),
+        if: toText({ value: step.value.if }),
+        run: toText({ value: step.value.run }),
+        env: isRecord(env) ? env.value : undefined,
+      },
+    ];
   });
 };
 
@@ -223,5 +229,37 @@ describe('package-release.yml: tagging', () => {
     expect(result.output).toContain('ERROR | v0.1.0 is already on origin at');
     expect(result.env.TAG_CONFLICT).toBeDefined();
     expect(findStep({ name: 'Report - tag missing' }).if).toContain("env.TAG_CONFLICT == ''");
+  });
+});
+
+describe('package-release.yml: the next dist-tag', () => {
+  const STEP = 'Keep next at or above latest';
+  const stepNames = (): string[] =>
+    readSteps().flatMap(step => (step.name === undefined ? [] : [step.name]));
+
+  test('a step moves next up to latest for every package in the train', () => {
+    const step = findStep({ name: STEP });
+
+    expect(step.run).toContain('bun scripts/next-tag.ts');
+    expect(step.run).toContain('--published "$NEW_VERSION"');
+    expect(step.run).toContain('--tag "$NPM_TAG"');
+    expect(step.run).toContain('$PUBLISH_ORDER');
+  });
+
+  test('it runs after the publish and before the release is recorded in git', () => {
+    const names = stepNames();
+
+    expect(names.indexOf(STEP)).toBeGreaterThan(names.indexOf('Publish to NPM'));
+    expect(names.indexOf(STEP)).toBeLessThan(names.indexOf('Commit release'));
+  });
+
+  test('bump none runs it too, so a dispatch with no publish heals the tags', () => {
+    const step = findStep({ name: STEP });
+
+    expect(step.if).toBeUndefined();
+  });
+
+  test('it can write dist-tags: the npm token is in its environment', () => {
+    expect(Object.keys(findStep({ name: STEP }).env ?? {})).toContain('NODE_AUTH_TOKEN');
   });
 });
