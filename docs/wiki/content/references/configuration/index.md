@@ -64,7 +64,7 @@ The table below lists all 12 top-level configuration keys:
 | Key | Type | Default | What it controls |
 |---|---|---|---|
 | `name` | `string` | root package name | Project identifier in the manifest and atlas results |
-| `agents` | `string[]` | `['claude']` | Coding agents that sync generates adapters for |
+| `agents` | `string[]` | unset | Coding agents the project suggests; each developer's choice is stored locally |
 | `rules` | `Record<string, string>` | `{}` | Base rule slot choices |
 | `layout` | `object` | `undefined` | The folders `vulcan init` and `vulcan add` put apps in |
 | `packages` | `Array<object>` | `[]` | Monorepo packages in release order |
@@ -94,13 +94,13 @@ export default {
 
 ## agents
 
-The only accepted value in 0.2 is `'claude'`.
+An optional list of agents the project suggests. Each developer's own choice lives in `.agents/vulcan.local.json` (see [`vulcan sync`](/references/commands/sync#choosing-your-agents)); this list is used only when a machine has not chosen yet. `vulcan init` no longer writes it. Accepted ids: `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity`, `pi`.
 
-When you include `'claude'`, `vulcan sync` writes `CLAUDE.md`, `.claude/settings.json`, and links skills in `.claude/skills/`. The `vulcan doctor` command checks these generated files with the `[adapters]` label.
+When `claude` is chosen, `vulcan sync` writes `CLAUDE.md`, `.claude/settings.json`, and links skills in `.claude/skills/`. The `vulcan doctor` command checks these generated files with the `[adapters]` label.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `agents` | `string[]` | `['claude']` | Assistant identifiers that `vulcan sync` writes adapters for |
+| `agents` | `string[]` | unset | The agents the project suggests when a machine has not chosen |
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';

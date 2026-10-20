@@ -10,6 +10,15 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     ]);
   });
 
+  test('agents is left unset unless the project suggests a list, and names only table agents', () => {
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).agents).toBeUndefined();
+    expect(VULCAN_CONFIG_SCHEMA.parse({ agents: ['claude', 'omp'] }).agents).toEqual([
+      'claude',
+      'omp',
+    ]);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ agents: ['vim'] }).success).toBe(false);
+  });
+
   test('okf defaults to nothing selected - no renderer runs unless listed', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({});
 

@@ -7,6 +7,7 @@ import {
   runDoctorChecks,
   runDoctorNotes,
 } from '../../doctor/index.ts';
+import { renderLocalChoice } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -617,6 +618,38 @@ describe('doctor: app scripts (info only)', () => {
       '  info [scripts] services/api/package.json: app api: missing server:dev, compile, typecheck, lint, lint:fix, test, clean; legacy dev (use the standard names)\n',
     );
     expect(result.stderr).toContain('vulcan doctor: OK');
+  });
+});
+
+describe('doctor: agents', () => {
+  test('a broken local choice file is a violation that says how to fix it', async () => {
+    const root = createSyncedProject({
+      files: { ...CONFORMANT, '.agents/vulcan.local.json': '{ nope' },
+    });
+    const agents = (await runDoctorChecks({ root })).filter(
+      violation => violation.check === DoctorChecks.AGENTS,
+    );
+
+    expect(agents).toEqual([
+      {
+        check: DoctorChecks.AGENTS,
+        file: '.agents/vulcan.local.json',
+        message:
+          '.agents/vulcan.local.json is not valid JSON - delete it and run: vulcan sync --agents <list>',
+      },
+    ]);
+  });
+
+  test('a stored choice that leaves Claude out means no Claude adapters are checked', async () => {
+    const root = createProject({
+      files: { ...CONFORMANT, '.agents/vulcan.local.json': renderLocalChoice({ agents: ['omp'] }) },
+    });
+
+    runCli({ args: ['sync'], cwd: root });
+
+    expect((await runDoctorChecks({ root })).map(violation => violation.check)).not.toContain(
+      DoctorChecks.ADAPTERS,
+    );
   });
 });
 

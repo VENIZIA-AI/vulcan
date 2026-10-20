@@ -113,3 +113,4 @@ node_modules.zip
 
 *.bun-build
 .*.bun-build
+.agents/vulcan.local.json

@@ -214,10 +214,14 @@ describe('workspace planners', () => {
     expect(next?.split('vulcan:apps:start').length).toBe(2);
   });
 
+  test('the config init writes leaves the agents to each developer', () => {
+    expect(renderVulcanConfig({ project: 'my-product', block: BLOCK })).not.toContain('agents');
+  });
+
   test('replaceAppsBlock keeps what the user wrote outside the markers', () => {
     const source = renderVulcanConfig({ project: 'my-product', block: BLOCK }).replace(
-      "agents: ['claude']",
-      "agents: ['claude', 'codex']",
+      '  layout: apps.layout,',
+      "  agents: ['claude', 'codex'],\n  layout: apps.layout,",
     );
     const next = replaceAppsBlock({ source, block: { ...BLOCK, packages: [] } });
 

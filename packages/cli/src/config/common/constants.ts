@@ -18,7 +18,17 @@ export class ConfigExtensions {
 export class CodingAgents {
   static readonly CLAUDE = 'claude';
 
-  static readonly SCHEME_SET = new Set<string>([this.CLAUDE]);
+  /** The ids of `base/agents.json`, in its order; a test keeps the two in step. */
+  static readonly SCHEME_SET = new Set<string>([
+    this.CLAUDE,
+    'omp',
+    'codex',
+    'cursor',
+    'copilot-cli',
+    'copilot-vscode',
+    'antigravity',
+    'pi',
+  ]);
 
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);

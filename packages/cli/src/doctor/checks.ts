@@ -18,6 +18,7 @@ import {
   projectNameOf,
   renderManifest,
 } from '../manifest/index.ts';
+import { readLocalChoice, resolveAgentsQuietly } from '../agents/index.ts';
 import { planManifest, planPrune, planSync, SyncStatuses } from '../sync/index.ts';
 import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
@@ -221,7 +222,11 @@ export const checkHooks = (opts: ICheckContext): IViolation[] =>
     );
 
 export const checkAdapters = (opts: ICheckContext): IViolation[] => {
-  const pending = planSync({ root: opts.root, config: opts.config })
+  const pending = planSync({
+    root: opts.root,
+    config: opts.config,
+    agents: resolveAgentsQuietly({ root: opts.root, configAgents: opts.config.agents }),
+  })
     .filter(action => action.status !== SyncStatuses.UNCHANGED)
     .filter(action => action.path !== join(opts.root, ManifestConstants.FILE));
   const absent = pending.filter(action => action.status === SyncStatuses.CREATED);
@@ -526,4 +531,19 @@ export const checkAppScripts = (opts: ICheckContext): IViolation[] => {
   }
 
   return notes;
+};
+
+/** The developer's stored agents must parse and name known agents; a broken file would otherwise hide as a default. */
+export const checkAgents = (opts: ICheckContext): IViolation[] => {
+  const stored = readLocalChoice({ root: opts.root });
+
+  return stored.ok
+    ? []
+    : [
+        createViolation({
+          check: DoctorChecks.AGENTS,
+          file: '.agents/vulcan.local.json',
+          message: stored.error,
+        }),
+      ];
 };

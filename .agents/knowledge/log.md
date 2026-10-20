@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-20 - each developer chooses their agents (multi-agent 1 of 7)
+
+`base/agents.json` is the table of the seven agents (claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi), validated by a schema. The choice is per machine in `.agents/vulcan.local.json` (gitignored): `sync --agents`, the stored file, the config's suggestion, a project that has Claude files, then the question; without a terminal and nothing known it keeps the Claude default and prints a hint. Only the Claude adapters exist so far. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-20 - one script standard for every app (0.3.6)
 
 Base rule `V-B-05`: every app carries `server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean` (logic in `scripts/*.sh`), no `dev`, `start`, `build`, `rebuild`, `preview`, `server:prod`. The root `dev` script `init` writes runs `server:dev` in every app. `vulcan doctor` notes (info, exit code unchanged) an app that lacks one or carries a legacy name. This repository's Makefile exposes the library targets `typecheck` and `lint-fix` next to build, lint, test, clean. Concept: [cli](/packages/cli.md).

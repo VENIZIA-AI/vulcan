@@ -284,8 +284,13 @@ export const planManifest = (opts: { root: string; config: TResolvedConfig }): I
 };
 
 /** Every adapter the project's agents need, and the manifest every project carries - planned, not written. */
-export const planSync = (opts: { root: string; config: TResolvedConfig }): ISyncAction[] => [
-  ...(opts.config.agents.includes(CodingAgents.CLAUDE)
+export const planSync = (opts: {
+  root: string;
+  config: TResolvedConfig;
+  /** The agents this machine chose (`resolveAgents`); only Claude has adapters until the renderers land. */
+  agents: string[];
+}): ISyncAction[] => [
+  ...(opts.agents.includes(CodingAgents.CLAUDE)
     ? [
         planClaudeImport({ root: opts.root }),
         planSettings(opts),
