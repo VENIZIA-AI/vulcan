@@ -12,7 +12,12 @@ import {
   readSlots,
   RuleConstants,
 } from '../rules/index.ts';
-import { ManifestConstants, projectNameOf } from '../manifest/index.ts';
+import {
+  isManifestCurrent,
+  ManifestConstants,
+  projectNameOf,
+  renderManifest,
+} from '../manifest/index.ts';
 import { planManifest, planPrune, planSync, SyncStatuses } from '../sync/index.ts';
 import { DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
@@ -259,19 +264,36 @@ export const checkPrune = (opts: ICheckContext): IViolation[] =>
     }),
   );
 
-/** C1: the committed manifest is what the config renders - atlas reads the file, never the config. */
+/**
+ * C1: the committed manifest is what the config renders - atlas reads the file, never the config.
+ * A file written before the `$generated` note existed is current; a hand-edited one is not.
+ */
 export const checkManifest = (opts: ICheckContext): IViolation[] => {
   const action = planManifest({ root: opts.root, config: opts.config });
 
-  return action.status === SyncStatuses.UNCHANGED
-    ? []
-    : [
-        createViolation({
-          check: DoctorChecks.MANIFEST,
-          file: ManifestConstants.FILE,
-          message: `${action.status === SyncStatuses.CREATED ? 'missing' : 'stale against the config'} - run '${ProjectLayout.VULCAN_COMMAND} sync' and commit it`,
-        }),
-      ];
+  if (
+    action.status === SyncStatuses.UNCHANGED ||
+    (action.status === SyncStatuses.REPLACED &&
+      isManifestCurrent({
+        committed: readFileSync(join(opts.root, ManifestConstants.FILE), 'utf8'),
+        rendered: renderManifest({ root: opts.root, config: opts.config }),
+      }))
+  ) {
+    return [];
+  }
+
+  const fix = `run '${ProjectLayout.VULCAN_COMMAND} sync' and commit it`;
+
+  return [
+    createViolation({
+      check: DoctorChecks.MANIFEST,
+      file: ManifestConstants.FILE,
+      message:
+        action.status === SyncStatuses.CREATED
+          ? `missing - ${fix}`
+          : `stale against the config, or edited by hand - the manifest is generated, never edit it: edit .configs/vulcan.config.* and ${fix}`,
+    }),
+  ];
 };
 
 const hasStylePackage = (opts: { directory: string }): boolean => {

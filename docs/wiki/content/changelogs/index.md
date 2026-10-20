@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-20 | [VULCAN 0.3.2: The Generated Manifest Is Protected From Hand Edits](./2026-10-20-vulcan-0-3-2) | Enhancement |
 | 2026-10-20 | [VULCAN 0.3.1: The First Run Has No Snag](./2026-10-20-vulcan-0-3-1) | Enhancement, Bug Fix |
 | 2026-10-20 | [VULCAN 0.3.0: One Command Creates a Monorepo, add Puts Apps In It, init Stops Failing Quietly](./2026-10-20-vulcan-0-3-0) | Breaking Change, Feature, Enhancement |
 | 2026-10-18 | [VULCAN 0.2.0: The First Stable Release](./2026-10-18-vulcan-0-2-0) | Enhancement |
