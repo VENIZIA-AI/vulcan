@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-20 - a preset can declare the imports of its app (0.3.4)
+
+`preset.json` takes an optional `imports` object (keys start with `#`, values are strings); `init` and `add` write it into the app's `package.json` as given. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-20 - init asks in order, the preset fetch is quiet (0.3.3)
 
 A published preset is fetched right after the project name; the side folder, app name and shared folder are asked after it, with the side named. `bun add` output is kept and shown only on failure. The test files that leaked temp directories clean up. Concept: [cli](/packages/cli.md).

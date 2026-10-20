@@ -153,6 +153,8 @@ export const renderAppManifest = (opts: {
       name: opts.app,
       version: '0.0.0',
       private: true,
+      // The preset's own text: no token is replaced here, a path pattern has no use for one.
+      ...(Object.keys(opts.preset.imports).length === 0 ? {} : { imports: opts.preset.imports }),
       scripts: opts.preset.scripts,
       dependencies: toCatalog({
         dependencies: {

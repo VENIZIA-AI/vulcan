@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createFakeCommand } from '../fake-command.helper.ts';
-import { copyWithUrls } from '../preset.helper.ts';
+import { copyWithFields, copyWithUrls } from '../preset.helper.ts';
 import { createProject, packFolder, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -119,6 +119,47 @@ describe('vulcan init --preset', () => {
     );
 
     expect(manifest.vulcan).toBeUndefined();
+  });
+
+  test('the preset imports reach the app manifest, values verbatim', () => {
+    const parent = createProject({ files: {} });
+    const imports = { '#src/*.json': './src/*.json', '#src/*': './src/{{app}}/*.js' };
+    const preset = copyWithFields({ fixture: BACKEND, fields: { imports } });
+    const flags = FLAGS.map(flag => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
+
+    runCli({ args: ['init', ...flags], cwd: parent, env: ENV });
+
+    const manifest = JSON.parse(
+      readFileSync(join(parent, 'my-product', 'services/core-api/package.json'), 'utf8'),
+    );
+
+    expect(manifest.imports).toEqual(imports);
+  });
+
+  test('a preset without imports leaves no imports key in the app manifest', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    const manifest = JSON.parse(
+      readFileSync(join(parent, 'my-product', 'services/core-api/package.json'), 'utf8'),
+    );
+
+    expect('imports' in manifest).toBe(false);
+  });
+
+  test('a preset import key without # is refused and nothing is written', () => {
+    const parent = createProject({ files: {} });
+    const preset = copyWithFields({
+      fixture: BACKEND,
+      fields: { imports: { 'src/*': './src/*.js' } },
+    });
+    const flags = FLAGS.map(flag => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
+    const result = runCli({ args: ['init', ...flags], cwd: parent, env: ENV });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('src/*');
+    expect(existsSync(join(parent, 'my-product'))).toBe(false);
   });
 
   test('the root .gitignore ignores *.tsbuildinfo', () => {
