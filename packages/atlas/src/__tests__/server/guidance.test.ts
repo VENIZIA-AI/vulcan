@@ -157,7 +157,7 @@ describe('a server built from a project', () => {
     const reply = await call({ method: 'tools/list' });
     const names = reply.result.tools.map((tool: { name: string }) => tool.name);
 
-    expect(names).toEqual(['search', 'get', 'symbol', 'version', 'changes']);
+    expect(names).toEqual(['search', 'get', 'symbol', 'version', 'changes', 'presets']);
 
     for (const tool of reply.result.tools as { name: string; description: string }[]) {
       if (tool.name !== 'get') {

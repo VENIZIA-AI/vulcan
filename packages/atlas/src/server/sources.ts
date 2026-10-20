@@ -18,6 +18,7 @@ import type { ISymbolRecord } from '@/symbols';
 import {
   buildChangesTool,
   buildGetTool,
+  buildPresetsTool,
   buildSearchTool,
   buildSymbolTool,
   buildVersionTool,
@@ -146,6 +147,7 @@ export const buildSourcesServer = (opts: {
       buildSymbolTool({ store: chunks, symbols, projects }),
       buildVersionTool({ releases, projects }),
       buildChangesTool({ releases, projects }),
+      buildPresetsTool({ project: project?.project, projects }),
     ],
     // A project names its server whatever sources ride with it: a name that moved with the network
     // (a source reachable or not) would break a client configured by name.

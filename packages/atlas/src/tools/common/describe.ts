@@ -14,6 +14,10 @@ export class ToolTriggers {
     return `When the user asks how something works in ${opts.projects ?? FALLBACK_PROJECTS}, or about this project's conventions, search here before you answer from memory.`;
   }
 
+  static presets(opts: { projects?: string }): string {
+    return `When you are asked to create a new app or package in ${opts.projects ?? FALLBACK_PROJECTS}, ask here which preset and which exact command to use before you write any file.`;
+  }
+
   static get(): string {
     return 'After `search`, read the hit here before you rely on it.';
   }

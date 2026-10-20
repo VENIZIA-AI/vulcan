@@ -22,6 +22,17 @@ export interface IAtlasPackage {
   path: string;
   aliases: string[];
   retired: boolean;
+  /** `lib` for a shared package a preset's lib kind made; absent for an app or a plain package. */
+  kind?: 'app' | 'lib';
+}
+
+/** A preset an app of the project came from, as `vulcan add --preset` takes it back. */
+export interface IAtlasPreset {
+  spec: string;
+  side: 'backend' | 'frontend';
+  summary: string;
+  /** The summary of the preset's lib kind, when it makes libraries. */
+  lib?: string;
 }
 
 export interface IAtlasProject {
@@ -30,6 +41,10 @@ export interface IAtlasProject {
   name: string;
   /** Release order; retired ones included, so their old changelogs and tags stay readable. */
   packages: IAtlasPackage[];
+  /** The folders `vulcan add` puts apps and shared packages in; absent in an older manifest. */
+  layout?: { backend?: string; frontend?: string; shared?: string };
+  /** The presets this project's apps came from; absent when none was recorded. */
+  presets?: IAtlasPreset[];
   /** `release.tagPattern`, the template of a release tag. */
   tagPattern: string;
   /** `release.ignoreTags`: globs of tags neither read nor checked. */
@@ -80,9 +95,40 @@ const packagesOf = (opts: { value: unknown; label: string }): IAtlasPackage[] =>
         path: stringOf({ value: entry.path }) ?? `packages/${dir}`,
         aliases: aliases.filter((alias): alias is string => typeof alias === 'string'),
         retired: entry.retired === true,
+        ...(entry.kind === 'lib' || entry.kind === 'app' ? { kind: entry.kind } : {}),
       },
     ];
   });
+
+const layoutOf = (opts: { value: unknown }): Pick<IAtlasProject, 'layout'> => {
+  const record = recordOf({ value: opts.value });
+  const layout = Object.fromEntries(
+    ['backend', 'frontend', 'shared'].flatMap(key => {
+      const folder = stringOf({ value: record[key] });
+
+      return folder === undefined ? [] : [[key, folder]];
+    }),
+  );
+
+  return Object.keys(layout).length === 0 ? {} : { layout };
+};
+
+const presetsOf = (opts: { value: unknown }): Pick<IAtlasProject, 'presets'> => {
+  const presets = (Array.isArray(opts.value) ? opts.value : []).flatMap((item): IAtlasPreset[] => {
+    const entry = recordOf({ value: item });
+    const spec = stringOf({ value: entry.spec });
+    const summary = stringOf({ value: entry.summary });
+    const lib = stringOf({ value: entry.lib });
+
+    return spec === undefined ||
+      summary === undefined ||
+      (entry.side !== 'backend' && entry.side !== 'frontend')
+      ? []
+      : [{ spec, side: entry.side, summary, ...(lib === undefined ? {} : { lib }) }];
+  });
+
+  return presets.length === 0 ? {} : { presets };
+};
 
 /**
  * A project from its manifest (`vulcan sync` rendered it from a validated config): defaults for
@@ -114,6 +160,8 @@ export const toAtlasProject = (opts: {
       value: manifest.packages,
       label: opts.source ?? `project '${projectName}'`,
     }),
+    ...layoutOf({ value: manifest.layout }),
+    ...presetsOf({ value: manifest.presets }),
     tagPattern: stringOf({ value: release.tagPattern }) ?? DEFAULT_TAG_PATTERN,
     ignoreTags: (Array.isArray(release.ignoreTags) ? release.ignoreTags : []).filter(
       (glob): glob is string => typeof glob === 'string',
