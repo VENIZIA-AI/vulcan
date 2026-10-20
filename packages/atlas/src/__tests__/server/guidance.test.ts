@@ -40,8 +40,6 @@ const remoteOf = (opts: { name: string; packages: string[] }): IResolvedSource =
   project: projectOf(opts),
 });
 
-const lines = (opts: { text: string | undefined }): string[] => (opts.text ?? '').split('\n');
-
 describe('projectsOf', () => {
   test('one project is its name; two are joined with "and"; three with commas and "and"', () => {
     const acme = repositoryOf({ name: 'acme', packages: ['@acme/core'] });
@@ -57,32 +55,31 @@ describe('projectsOf', () => {
 describe('instructionsOf', () => {
   const acme = repositoryOf({ name: 'acme', packages: ['@acme/core', '@acme/web'] });
   const ignis = remoteOf({ name: 'ignis', packages: ['@venizia/ignis', '@venizia/ignis-boot'] });
+  const leadOf = (opts: { text: string }): string => opts.text.split('\n\n')[0] ?? '';
 
-  test('a repository alone still gets instructions, naming the project and the three triggers', () => {
-    const text = instructionsOf({ sources: [acme], unavailable: [] });
+  test('a repository alone still gets instructions: the corpus, the rule and the three triggers in one lead', () => {
+    const lead = leadOf({ text: instructionsOf({ sources: [acme], unavailable: [] }) });
 
-    expect(text).toContain('acme (this repository)');
-    expect(text).toContain('call `symbol` for each export you use');
-    expect(text).toContain('call `search` first, then `get`');
-    expect(text).toContain('call `version` or `changes`');
-    expect(text).toContain(
-      'Do not answer facts about acme from memory when atlas can answer them.',
-    );
+    expect(lead).toContain('Atlas holds the real code and docs of acme (this repository).');
+    expect(lead).toContain('Do not answer facts about acme from memory when atlas can answer them');
+    expect(lead).toContain('call `symbol` for each export before you write code that imports');
+    expect(lead).toContain('`search` then `get` when the user asks how something works');
+    expect(lead).toContain('`version` or `changes` for a release or an upgrade');
   });
 
   test('every source is a corpus, and the package scopes name what counts as its code', () => {
-    const text = instructionsOf({ sources: [acme, ignis], unavailable: [] });
+    const lead = leadOf({ text: instructionsOf({ sources: [acme, ignis], unavailable: [] }) });
 
-    expect(text).toContain(
+    expect(lead).toContain(
       'Atlas holds the real code and docs of acme (this repository) and ignis.',
     );
-    expect(text).toContain('`@acme/*`, `@venizia/*`');
+    expect(lead).toContain('`@acme/*`, `@venizia/*`');
   });
 
-  test('how each source was reached is still said', () => {
+  test('how each source was reached is still said, after the lead', () => {
     const text = instructionsOf({ sources: [acme, ignis], unavailable: [] });
 
-    expect(text).toContain('Atlas serves 2 source(s); every hit names its source.');
+    expect(text).toContain('\n\nAtlas serves 2 source(s); every hit names its source.\n');
     expect(text).toContain('- acme: this repository, live');
     expect(text).toContain('- ignis: VENIZIA-AI/ignis@develop at 6974e8ba');
   });
@@ -101,18 +98,40 @@ describe('instructionsOf', () => {
     expect(text).toContain(
       '- ardor: UNAVAILABLE (VENIZIA-AI/ardor@develop) - the remote was unreachable',
     );
-    expect(text).toContain('Atlas holds the real code and docs of acme (this repository).');
-    expect(text).not.toContain('acme and ardor');
+    expect(leadOf({ text })).toContain('docs of acme (this repository).');
+    expect(leadOf({ text })).not.toContain('ardor');
   });
 
-  test('the guidance stays short: the rule and its triggers fit in eight lines', () => {
-    const text = instructionsOf({ sources: [acme, ignis], unavailable: [] });
-    const guidance = lines({ text }).slice(
-      0,
-      lines({ text }).indexOf('Atlas serves 2 source(s); every hit names its source.'),
-    );
+  test('the lead alone is at most 512 characters, up to four corpora, so a client that keeps 512 still gets it all', () => {
+    const four = [
+      repositoryOf({ name: 'forge', packages: ['@forge/core', '@forge/web', 'forge-cli'] }),
+      remoteOf({ name: 'anvil', packages: ['@anvil/kernel', '@anvil/boot'] }),
+      remoteOf({ name: 'bellows', packages: ['@bellows/air', '@bellows/fan'] }),
+      remoteOf({ name: 'tongs', packages: ['@tongs/grip'] }),
+    ];
+    const lead = leadOf({ text: instructionsOf({ sources: four, unavailable: [] }) });
 
-    expect(guidance.filter(line => line.trim() !== '').length).toBeLessThanOrEqual(8);
+    expect(lead.length).toBeLessThanOrEqual(512);
+    expect(lead).toContain('`symbol`');
+    expect(lead).toContain('`search`');
+    expect(lead).toContain('`version`');
+    expect(lead).toContain('from memory');
+  });
+
+  test('more than four corpora are shortened to "and N more" so the lead still fits', () => {
+    const many = ['a1', 'b2', 'c3', 'd4', 'e5', 'f6'].map(name =>
+      remoteOf({ name: `project-${name}`, packages: [`@${name}/pkg`] }),
+    );
+    const lead = leadOf({ text: instructionsOf({ sources: many, unavailable: [] }) });
+
+    expect(lead.length).toBeLessThanOrEqual(512);
+    expect(lead).toContain('and 2 more');
+  });
+
+  test('the whole text stays under 2048 bytes, status lines included', () => {
+    const text = instructionsOf({ sources: [acme, ignis], unavailable: [] });
+
+    expect(Buffer.byteLength(text, 'utf8')).toBeLessThan(2048);
   });
 });
 

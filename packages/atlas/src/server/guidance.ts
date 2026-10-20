@@ -52,29 +52,47 @@ const statusOf = (opts: { sources: IResolvedSource[]; unavailable: IUnavailableS
   return [...lines, ...missing];
 };
 
+const CORPORA_MAX = 4;
+const SCOPES_MAX = 3;
+
+/** The corpora as the lead names them: at most four, the rest counted, so the lead keeps to 512 characters. */
+const corporaPhrase = (opts: { sources: IResolvedSource[] }): string => {
+  const names = opts.sources.map(source =>
+    source.mode === 'repository' ? `${source.name} (this repository)` : source.name,
+  );
+
+  if (names.length <= CORPORA_MAX) {
+    return joinNames({ names });
+  }
+
+  return `${names.slice(0, CORPORA_MAX).join(', ')} and ${names.length - CORPORA_MAX} more`;
+};
+
+const scopesPhrase = (opts: { sources: IResolvedSource[] }): string => {
+  const scopes = packageScopesOf(opts)
+    .split(', ')
+    .filter(scope => scope !== '');
+
+  if (scopes.length === 0) {
+    return 'their packages';
+  }
+
+  return `their packages (${scopes.slice(0, SCOPES_MAX).join(', ')}${scopes.length > SCOPES_MAX ? ', ...' : ''})`;
+};
+
 /**
- * What the agent reads when atlas connects: which corpora it holds, when to reach for each tool,
- * and the rule that framework facts come from here, not from memory. The status lines say how
- * each source was reached.
+ * What the agent reads when atlas connects. The lead paragraph alone carries the corpora, the rule
+ * and the three triggers in at most 512 characters, because a client may keep only that much; the
+ * status lines after it say how each source was reached.
  */
 export const instructionsOf = (opts: {
   sources: IResolvedSource[];
   unavailable: IUnavailableSource[];
 }): string => {
   const projects = projectsOf({ sources: opts.sources });
-  const corpora = joinNames({
-    names: opts.sources.map(source =>
-      source.mode === 'repository' ? `${source.name} (this repository)` : source.name,
-    ),
-  });
-  const scopes = packageScopesOf({ sources: opts.sources });
 
   return [
-    `Atlas holds the real code and docs of ${corpora}.`,
-    `- Before you write or change code that imports ${scopes === '' ? 'their packages' : `their packages (${scopes})`}, call \`symbol\` for each export you use: its real signature, import path and source line.`,
-    '- When the user asks how something works or which convention applies, call `search` first, then `get` for the hits that matter.',
-    '- When a version, a release or an upgrade comes up, call `version` or `changes`.',
-    `Do not answer facts about ${projects} from memory when atlas can answer them.`,
+    `Atlas holds the real code and docs of ${corporaPhrase(opts)}. Do not answer facts about ${projects} from memory when atlas can answer them: call \`symbol\` for each export before you write code that imports ${scopesPhrase(opts)}, \`search\` then \`get\` when the user asks how something works or which convention applies, \`version\` or \`changes\` for a release or an upgrade.`,
     '',
     `Atlas serves ${opts.sources.length} source(s); every hit names its source.`,
     ...statusOf(opts),

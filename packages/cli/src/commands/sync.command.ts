@@ -13,6 +13,7 @@ import { loadConfig } from '../config/index.ts';
 import {
   agentNotes,
   diffBaseRules,
+  planAtlasBlock,
   planLocalChoice,
   planLocalIgnore,
   planPrune,
@@ -103,6 +104,7 @@ export const runSyncCommand = async (opts: ICommandContext): Promise<number> => 
       : [];
   const actions = [
     ...planSync({ root: opts.cwd, config: loaded.config, agents: resolved.agents }),
+    ...planAtlasBlock({ root: opts.cwd, config: loaded.config }),
     ...stored,
     ...pruned,
   ];

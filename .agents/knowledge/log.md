@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-20 - the Atlas block in AGENTS.md (multi-agent 4 of 7)
+
+sync writes the atlas guidance (corpora from the config, V-P-07, the three triggers) into the committed AGENTS.md between markers, for every agent; the atlas server's instructions open with a lead of at most 512 characters that carries the same, the whole under 2 KB; doctor notes (info) a missing or stale block. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-20 - skill links for the other agents (multi-agent 3 of 7)
 
 When an agent other than Claude is chosen, sync links the shipped skills into `.agents/skills/<name>` (the folder five-plus agents read), the same stable-path symlinks as `.claude/skills`; agents share one set, a project skill of the same name wins, dead links into the shipped skills are taken back. Concept: [cli](/packages/cli.md).
