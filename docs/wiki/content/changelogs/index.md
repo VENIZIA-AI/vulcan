@@ -12,6 +12,7 @@ migrate. Copy [the template](https://github.com/VENIZIA-AI/vulcan/blob/develop/d
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-20 | [VULCAN 0.3.1: The First Run Has No Snag - Presets Name Their URLs, add Checks Flags Before It Downloads](./2026-10-20-vulcan-0-3-1.md) | Enhancement, Bug Fix |
 | 2026-10-20 | [VULCAN 0.3.0: One Command Creates a Monorepo, add Puts Apps In It, init Stops Failing Quietly](./2026-10-20-vulcan-0-3-0.md) | Breaking Change, Feature, Enhancement |
 | 2026-10-18 | [VULCAN 0.2.0: The First Stable Release](./2026-10-18-vulcan-0-2-0.md) | Enhancement |
 | 2026-10-18 | [VULCAN 0.2.0-9: The Remote-Host Guard Closes Six Gaps](./2026-10-18-vulcan-0-2-0-9.md) | Security, Enhancement |

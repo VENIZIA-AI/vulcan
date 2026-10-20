@@ -162,6 +162,48 @@ describe('locatePreset', () => {
   });
 });
 
+describe('locatePreset urls', () => {
+  const withUrls = (opts: { urls?: unknown }): string =>
+    createProject({
+      files: {
+        'package.json':
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+        'preset.json': JSON.stringify({
+          presetVersion: 1,
+          side: 'backend',
+          summary: 'x',
+          devPort: 3000,
+          files: './files',
+          ...(opts.urls === undefined ? {} : { urls: opts.urls }),
+        }),
+      },
+    });
+
+  test('urls are read as paths', () => {
+    const located = locateFixture({
+      path: withUrls({ urls: ['/api/hello', '/api/doc/explorer'] }),
+    });
+
+    expect(located.preset.urls).toEqual(['/api/hello', '/api/doc/explorer']);
+  });
+
+  test('a preset without urls has none, and is still version 1', () => {
+    const located = locateFixture({ path: withUrls({}) });
+
+    expect(located.preset.urls).toEqual([]);
+    expect(located.preset.presetVersion).toBe(1);
+  });
+
+  test('a url that is not a path is refused with the field named', () => {
+    const result = locatePreset({
+      spec: { range: `file:${withUrls({ urls: ['api/hello'] })}` },
+      root: '/unused',
+    });
+
+    expect(!result.ok && result.error).toContain('urls');
+  });
+});
+
 describe('locatePreset containment', () => {
   const PACKAGE_JSON =
     '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }';

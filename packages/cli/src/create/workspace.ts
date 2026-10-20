@@ -161,6 +161,8 @@ export const renderAppManifest = (opts: {
         },
       }),
       devDependencies: toCatalog({ dependencies: opts.preset.devDependencies }),
+      // What `add` prints later: this app's urls, since the preset is not at hand then.
+      ...(opts.preset.urls.length === 0 ? {} : { vulcan: { urls: opts.preset.urls } }),
     },
   });
 

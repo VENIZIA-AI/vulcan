@@ -29,6 +29,7 @@ const PRESET: IPreset = {
   peers: {},
   scripts: { dev: 'bun run src/index.ts' },
   checks: ['typecheck'],
+  urls: [],
   files: '/x',
   atlas: [],
 };

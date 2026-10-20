@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createFakeCommand } from '../fake-command.helper.ts';
+import { copyWithUrls } from '../preset.helper.ts';
 import { createProject, packFolder, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -79,6 +80,55 @@ describe('vulcan init --preset', () => {
     expect(result.stderr).toContain(
       'Done. Next:\n  cd my-product && make dev\n  open http://localhost:3000\n',
     );
+  });
+
+  test('a preset with urls prints one open line per path on the dev port', () => {
+    const parent = createProject({ files: {} });
+    const preset = copyWithUrls({ fixture: BACKEND, urls: ['/api/hello', '/api/doc/explorer'] });
+    const flags = FLAGS.map(flag => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
+    const result = runCli({ args: ['init', ...flags], cwd: parent, env: ENV });
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain(
+      'Done. Next:\n  cd my-product && make dev\n  open http://localhost:3000/api/hello\n  open http://localhost:3000/api/doc/explorer\n',
+    );
+    expect(result.stderr).not.toContain('open http://localhost:3000\n');
+  });
+
+  test('the urls are recorded in the app manifest for add to print later', () => {
+    const parent = createProject({ files: {} });
+    const preset = copyWithUrls({ fixture: BACKEND, urls: ['/api/hello'] });
+    const flags = FLAGS.map(flag => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
+
+    runCli({ args: ['init', ...flags], cwd: parent, env: ENV });
+
+    const manifest = JSON.parse(
+      readFileSync(join(parent, 'my-product', 'services/core-api/package.json'), 'utf8'),
+    );
+
+    expect(manifest.vulcan).toEqual({ urls: ['/api/hello'] });
+  });
+
+  test('a preset without urls leaves no vulcan key in the app manifest', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    const manifest = JSON.parse(
+      readFileSync(join(parent, 'my-product', 'services/core-api/package.json'), 'utf8'),
+    );
+
+    expect(manifest.vulcan).toBeUndefined();
+  });
+
+  test('the root .gitignore ignores *.tsbuildinfo', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    const lines = readFileSync(join(parent, 'my-product', '.gitignore'), 'utf8').split('\n');
+
+    expect(lines).toContain('*.tsbuildinfo');
   });
 
   test('a frontend first app gets its own dev port in the URL', () => {
