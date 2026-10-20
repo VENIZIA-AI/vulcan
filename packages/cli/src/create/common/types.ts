@@ -40,6 +40,8 @@ export interface IPreset {
   peers: Record<string, string>;
   scripts: Record<string, string>;
   checks: string[];
+  /** Paths under the dev port worth opening (`/api/hello`); none means the root. */
+  urls: string[];
   /** The folder holding the files to copy, absolute once the preset is located. */
   files: string;
   atlas: IPresetAtlasSource[];

@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadConfig, resolvePackages } from '../../config/index.ts';
 import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
+import { copyWithUrls } from '../preset.helper.ts';
 import { createProject, packFolder, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -15,14 +16,14 @@ const BACKEND = `file:${BACKEND_PATH}`;
 const FRONTEND = `file:${FRONTEND_PATH}`;
 const ENV = { VULCAN_NO_INSTALL: '1' };
 
-const monorepo = (): string => {
+const monorepo = (opts: { backend?: string } = {}): string => {
   const parent = createProject({ files: {} });
 
   runCli({
     args: [
       'init',
       '--preset',
-      BACKEND,
+      opts.backend ?? BACKEND,
       '--project',
       'p',
       '--backend-dir',
@@ -210,6 +211,106 @@ describe('vulcan add --preset', () => {
     expect(result.stderr).toContain(
       'vulcan add: run it at the root of a monorepo vulcan init created',
     );
+  });
+
+  test('add ends with the Next block: make dev and every app at its port', () => {
+    const root = monorepo();
+    const result = runCli({
+      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin', '--no-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain(
+      'Done. web/admin is added. Next:\n  make dev\n  open http://localhost:3000\n  open http://localhost:5173\n',
+    );
+  });
+
+  test('the Next block lists the urls of every app, the ones init recorded included', () => {
+    const backend = copyWithUrls({ fixture: BACKEND_PATH, urls: ['/api/hello'] });
+    const frontend = copyWithUrls({ fixture: FRONTEND_PATH, urls: ['/dashboard', '/login'] });
+    const root = monorepo({ backend: `file:${backend}` });
+    const result = runCli({
+      args: [
+        'add',
+        '--preset',
+        `file:${frontend}`,
+        '--frontend-dir',
+        'web',
+        '--app',
+        'admin',
+        '--api',
+        'core-api',
+      ],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.stderr).toContain(
+      'Next:\n  make dev\n  open http://localhost:3000/api/hello\n  open http://localhost:5173/dashboard\n  open http://localhost:5173/login\n',
+    );
+  });
+
+  test('a new app on a taken port prints the port it was given', () => {
+    const root = monorepo();
+    const result = runCli({
+      args: ['add', '--preset', BACKEND, '--app', 'second-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.stderr).toContain('open http://localhost:3000\n  open http://localhost:3001\n');
+  });
+
+  test('an npm preset with --app missing is refused before the install is tried', () => {
+    const root = monorepo();
+    const result = runCli({
+      args: ['add', '--preset', '@fixture/none', '--frontend-dir', 'web', '--no-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('missing --app');
+    expect(result.stderr).not.toContain('needs an install');
+  });
+
+  test('an npm preset for a frontend without --api or --no-api is refused before the install', () => {
+    const root = monorepo();
+    const result = runCli({
+      args: ['add', '--preset', '@fixture/none', '--frontend-dir', 'web', '--app', 'admin'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('missing --api <app> or --no-api');
+    expect(result.stderr).not.toContain('needs an install');
+  });
+
+  test('an npm preset whose side has no folder yet is refused before the install, naming the flag', () => {
+    const root = monorepo();
+    const result = runCli({
+      args: ['add', '--preset', '@fixture/none', '--app', 'admin', '--no-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('missing --frontend-dir');
+    expect(result.stderr).not.toContain('needs an install');
+  });
+
+  test('an npm preset that names nothing about its side is not refused early', () => {
+    const root = monorepo();
+    const result = runCli({
+      args: ['add', '--preset', '@fixture/none', '--app', 'second-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.stderr).toContain('needs an install');
   });
 
   test('a frontend without --api or --no-api and no terminal is refused naming both', () => {

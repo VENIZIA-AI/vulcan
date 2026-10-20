@@ -42,9 +42,13 @@ $ bun x --no-install vulcan add --preset file:../acme-web
   skipped  bun run build (~/work/my-product/web/dashboard) (VULCAN_NO_INSTALL)
   skipped  bun x --no-install vulcan doctor (VULCAN_NO_INSTALL)
   skipped  bun x --no-install vulcan x okf check --strict (VULCAN_NO_INSTALL)
-Done. web/dashboard is added.
+Done. web/dashboard is added. Next:
+  make dev
+  open http://localhost:3000
+  open http://localhost:5173
 ```
 
+The last lines list every app of the monorepo, the one just added included: `make dev`, then one `open` line per url its preset declared (see `urls` in [Presets](/references/presets)), or the root of its port when it declared none.
 The `skipped` lines appear only because the run sets `VULCAN_NO_INSTALL=1`, which prints the install, `sync` and the checks instead of running them.
 The copied preset files are not listed; `web/dashboard/vite.config.ts` now proxies `/api` to the port of `core-api`:
 
@@ -67,6 +71,7 @@ export default defineConfig({
 
 A name is lowercase letters, digits and `-`, and starts with a letter or digit.
 A name is never invented: without a terminal, a missing `--app` is an error that names the flag.
+Without a terminal, the flags are checked before the preset is downloaded: a missing `--app`, a side folder that neither the flag nor `layout` gives, and a frontend with neither `--api` nor `--no-api`. A preset's side is known then only from the flags (`--frontend-dir`, `--api` or `--no-api` mean a frontend, `--backend-dir` alone a backend); with none of them, the side check waits for the download.
 
 ## The folder
 
