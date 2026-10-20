@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { createFakeCommand } from '../fake-command.helper.ts';
 import { copyWithFields, copyWithUrls } from '../preset.helper.ts';
 import { createProject, packFolder, removeProjects } from '../project.helper.ts';
@@ -194,6 +194,26 @@ describe('vulcan init --preset', () => {
 
     expect(ran.exitCode).toBe(0);
     expect(ran.stdout.toString()).toContain('fixture-backend-up');
+  });
+
+  test('the preset is recorded in the config block and reaches the manifest with the layout', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    const root = join(parent, 'my-product');
+
+    // The sync init runs after a real install is skipped here: run it, as the install would have.
+    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+
+    const config = readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8');
+    const manifest = JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8'));
+    const spec = `file:${relative(root, BACKEND)}`;
+
+    expect(config).toContain(`"spec": "${spec}"`);
+    expect(config).toContain('presets: apps.presets,');
+    expect(manifest.layout).toEqual({ backend: 'services', shared: 'libs' });
+    expect(manifest.presets).toEqual([{ spec, side: 'backend', summary: 'A fixture backend.' }]);
   });
 
   test('the root .gitignore ignores *.tsbuildinfo', () => {

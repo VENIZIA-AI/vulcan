@@ -119,6 +119,16 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       shared: FOLDER_NAME.optional(),
     })
     .optional(),
+  /** The presets this project's apps came from (`init` and `add` record them), as `--preset` takes them back. */
+  presets: z
+    .array(
+      z.strictObject({
+        spec: z.string().min(1),
+        side: z.enum(['backend', 'frontend']),
+        summary: z.string(),
+      }),
+    )
+    .optional(),
   /** The project's packages in release order; okf, atlas, make and release read this one list. */
   packages: z.array(PROJECT_PACKAGE).superRefine(checkPackagesUnique).default([]),
   knowledge: z

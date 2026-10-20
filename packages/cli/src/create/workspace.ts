@@ -1,6 +1,7 @@
+import { relative, resolve } from 'node:path';
 import { coversFolder } from '../init/index.ts';
 import { CreateConstants } from './common/index.ts';
-import type { IApp, IAppsBlock, IPreset, IPresetSpec } from './common/index.ts';
+import type { IApp, IAppsBlock, IPreset, IPresetSpec, IRecordedPreset } from './common/index.ts';
 
 const ENV_PORT = /^[A-Z0-9_]*PORT=(\d+)\s*$/m;
 
@@ -186,10 +187,39 @@ export const renderVulcanConfig = (opts: { project: string; block: IAppsBlock })
     "  rules: { 'V-W-01': 'on-user-word' },",
     '  layout: apps.layout,',
     '  packages: apps.packages,',
+    '  presets: apps.presets,',
     '  atlas: { sources: apps.sources },',
     '} satisfies VulcanConfig;',
     '',
   ].join('\n');
+
+/**
+ * What `--preset` was given, kept so it can be typed again from the project root: a package spec as
+ * typed, a `file:` path made relative to the project.
+ */
+export const presetSpecOf = (opts: { value: string; root: string; cwd: string }): string => {
+  const prefix = CreateConstants.PRESET_FILE_PREFIX;
+
+  if (!opts.value.startsWith(prefix)) {
+    return opts.value;
+  }
+
+  const target = resolve(opts.cwd, opts.value.slice(prefix.length));
+
+  return `${prefix}${relative(opts.root, target) || '.'}`;
+};
+
+/** The block with this preset recorded: once per spec, its side and summary refreshed. */
+export const recordPreset = (opts: { block: IAppsBlock; preset: IRecordedPreset }): IAppsBlock => {
+  const others = (opts.block.presets ?? []).filter(item => item.spec !== opts.preset.spec);
+  const index = (opts.block.presets ?? []).findIndex(item => item.spec === opts.preset.spec);
+  const presets =
+    index === -1
+      ? [...others, opts.preset]
+      : (opts.block.presets ?? []).map((item, at) => (at === index ? opts.preset : item));
+
+  return { ...opts.block, presets };
+};
 
 /** Only the text between the markers is rewritten; undefined when the user edited them away. */
 export const replaceAppsBlock = (opts: {
@@ -215,8 +245,15 @@ const hasStrings = (opts: { value: unknown; keys: string[] }): boolean => {
   return isRecord(value) && opts.keys.every(key => typeof value[key] === 'string');
 };
 
+const isRecordedPreset = (value: unknown): boolean =>
+  hasStrings({ value, keys: ['spec', 'side', 'summary'] }) &&
+  isRecord(value) &&
+  (value.side === 'backend' || value.side === 'frontend');
+
 const isAppsBlock = (value: unknown): value is IAppsBlock =>
   isRecord(value) &&
+  (value.presets === undefined ||
+    (Array.isArray(value.presets) && value.presets.every(entry => isRecordedPreset(entry)))) &&
   isRecord(value.layout) &&
   Object.values(value.layout).every(folder => typeof folder === 'string') &&
   Array.isArray(value.packages) &&
