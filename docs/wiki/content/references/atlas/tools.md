@@ -1,11 +1,11 @@
 ---
 title: atlas tools
-description: Arguments, schemas, and return formats for the five atlas MCP tools.
+description: Arguments, schemas, and return formats for the six atlas MCP tools.
 ---
 
 # atlas tools
 
-atlas provides five MCP tools for search, retrieval, code inspection, and release tracking.
+atlas provides six MCP tools for search, retrieval, code inspection, release tracking, and creating apps and packages.
 Agents call these tools over JSON-RPC 2.0 stdio.
 
 | Tool | Required arguments |
@@ -15,6 +15,7 @@ Agents call these tools over JSON-RPC 2.0 stdio.
 | `symbol` | `name` |
 | `version` | None |
 | `changes` | None |
+| `presets` | None |
 
 The following output drops the initialize handshake line:
 
@@ -276,6 +277,40 @@ If you pass a version without a package, `changes` returns error `-32602`:
 ```text
 to must be a YYYY-MM-DD date when no package is given; got '0.2.0-16'
 ```
+
+## presets
+
+`presets` answers "how do I create a new app or package here" from the manifest `vulcan sync` renders: which recorded preset makes it, which folder it lands in, and the exact `vulcan add` command. An agent asked to create something calls it before it writes a file.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `kind` | String | `app` | What is created: `app`, or `lib` for a shared package. Any other word is a kind no preset makes |
+| `name` | String | `<name>` | The new name (lowercase letters, digits and `-`), put into the command |
+| `side` | `backend` or `frontend` | Both | Narrows the apps list to one side |
+
+For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder` and `command`; for `kind: "lib"`, `preset`, `summary`, `folder` and `command`. A side or kind with no folder in the manifest has `folder: null` and the command carries `--backend-dir <folder>`, `--frontend-dir <folder>` or `--dir <folder>`: the tool never invents a folder.
+
+```json
+{
+  "kind": "lib",
+  "presets": [
+    {
+      "preset": "ignis",
+      "summary": "An IGNIS library.",
+      "folder": "libs",
+      "command": "bun x --no-install vulcan add --preset ignis --lib billing"
+    }
+  ]
+}
+```
+
+When nothing fits, `presets` is empty and a `note` says what to do instead. It never offers an app preset for a library, or a command that does not exist:
+
+| Case | `note` |
+|---|---|
+| A kind other than `app` or `lib` | `no preset makes a <kind> (vulcan add makes apps and libs): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app or lib preset for it` |
+| The project recorded no preset | `this project has no recorded preset: ask the user which preset to use; the form is ...` |
+| No recorded preset makes the kind | `no recorded preset makes a lib: ask the user which preset to use, or how it should be made; ...` |
 
 ## Errors
 

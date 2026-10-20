@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-21 | [VULCAN 0.3.6: Agents Create Apps and Libraries With a Preset](./2026-10-21-vulcan-0-3-6-presets) | Feature |
 | 2026-10-20 | [VULCAN 0.3.6: Each Developer Chooses Their Coding Agents](./2026-10-20-vulcan-0-3-6-agents) | Feature |
 | 2026-10-20 | [VULCAN 0.3.6: One Script Standard for Every App](./2026-10-20-vulcan-0-3-6) | Enhancement |
 | 2026-10-20 | [VULCAN 0.3.5: Agents Reach for atlas on Their Own](./2026-10-20-vulcan-0-3-5) | Enhancement |

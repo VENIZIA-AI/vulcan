@@ -92,7 +92,7 @@ export const instructionsOf = (opts: {
   const projects = projectsOf({ sources: opts.sources });
 
   return [
-    `Atlas holds the real code and docs of ${corporaPhrase(opts)}. Do not answer facts about ${projects} from memory when atlas can answer them: call \`symbol\` for each export before you write code that imports ${scopesPhrase(opts)}, \`search\` then \`get\` when the user asks how something works or which convention applies, \`version\` or \`changes\` for a release or an upgrade.`,
+    `Atlas holds the real code and docs of ${corporaPhrase(opts)}. Do not answer facts about ${projects} from memory when atlas can answer them: call \`symbol\` for each export before you write code that imports ${scopesPhrase(opts)}, \`search\` then \`get\` when the user asks how something works or which convention applies, \`version\` or \`changes\` for a release or an upgrade, \`presets\` before you create an app or package.`,
     '',
     `Atlas serves ${opts.sources.length} source(s); every hit names its source.`,
     ...statusOf(opts),

@@ -1,0 +1,288 @@
+import { afterAll, describe, expect, test } from 'bun:test';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import {
+  buildPackageDecision,
+  inspectPackageWrite,
+  parseManifestHookInput,
+} from '../../hooks/index.ts';
+import { spawnSyncBounded } from '../spawn.helper.ts';
+
+const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-package.ts');
+const SETTINGS = join(import.meta.dir, '..', '..', '..', 'base', 'claude', 'settings.json');
+
+/** The wire form Claude Code sends (snake_case), built as text so the names stay at this boundary. */
+const wire = (opts: { tool: string; path: string; cwd: string }): string =>
+  `{"tool_name":${JSON.stringify(opts.tool)},"tool_input":{"file_path":${JSON.stringify(opts.path)}},"cwd":${JSON.stringify(opts.cwd)}}`;
+
+const roots: string[] = [];
+
+afterAll(() => {
+  for (const root of roots) {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+const MANIFEST = {
+  schemaVersion: 1,
+  name: 'shop',
+  layout: { backend: 'services', frontend: 'web', shared: 'libs' },
+  packages: [{ name: 'api', dir: 'api', path: 'services/api' }],
+  presets: [
+    { spec: 'ignis', side: 'backend', summary: 'An API.', lib: 'A library.' },
+    { spec: 'file:../acme-web', side: 'frontend', summary: 'An admin.' },
+  ],
+};
+
+const project = (opts: { manifest?: unknown; files?: string[] } = {}): string => {
+  const root = mkdtempSync(join(tmpdir(), 'vulcan-guard-package-'));
+
+  roots.push(root);
+
+  if (opts.manifest !== null) {
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(
+      join(root, '.agents/vulcan.manifest.json'),
+      JSON.stringify(opts.manifest ?? MANIFEST),
+    );
+  }
+
+  for (const file of opts.files ?? []) {
+    mkdirSync(dirname(join(root, file)), { recursive: true });
+    writeFileSync(join(root, file), '{}');
+  }
+
+  return root;
+};
+
+const write = (opts: { root: string; path: string; tool?: string }) =>
+  inspectPackageWrite({
+    input: {
+      tool: opts.tool ?? 'Write',
+      filePath: join(opts.root, opts.path),
+      command: undefined,
+      cwd: opts.root,
+    },
+  });
+
+describe('inspectPackageWrite - a real command exists', () => {
+  test('a new package.json in the backend folder is denied with the exact add command', () => {
+    const root = project();
+    const verdict = write({ root, path: 'services/api3/package.json' });
+
+    expect(verdict?.kind).toBe('deny');
+    expect(verdict?.message).toContain('bun x --no-install vulcan add --preset ignis --app api3');
+    expect(verdict?.message).toContain('do not hand-write package.json, tsconfig or scripts');
+  });
+
+  test('a new package.json in the frontend folder names the api choice', () => {
+    const verdict = write({ root: project(), path: 'web/admin2/package.json' });
+
+    expect(verdict?.kind).toBe('deny');
+    expect(verdict?.message).toContain(
+      'bun x --no-install vulcan add --preset file:../acme-web --app admin2 --api <backend app> | --no-api',
+    );
+  });
+
+  test('a new package.json in the shared folder is denied with the lib command', () => {
+    const verdict = write({ root: project(), path: 'libs/billing/package.json' });
+
+    expect(verdict?.kind).toBe('deny');
+    expect(verdict?.message).toContain(
+      'bun x --no-install vulcan add --preset ignis --lib billing',
+    );
+    expect(verdict?.message).not.toContain('--app billing');
+  });
+
+  test('a nested layout folder counts', () => {
+    const root = project({
+      manifest: { ...MANIFEST, layout: { shared: 'auroras/features' } },
+    });
+
+    expect(write({ root, path: 'auroras/features/merchant/package.json' })?.kind).toBe('deny');
+  });
+
+  test('a relative file path resolves against the cwd', () => {
+    const root = project();
+    const verdict = inspectPackageWrite({
+      input: {
+        tool: 'Write',
+        filePath: 'services/api3/package.json',
+        command: undefined,
+        cwd: root,
+      },
+    });
+
+    expect(verdict?.kind).toBe('deny');
+  });
+});
+
+describe('inspectPackageWrite - silent', () => {
+  test('a package.json that already exists is left alone', () => {
+    const root = project({ files: ['services/api/package.json'] });
+
+    expect(write({ root, path: 'services/api/package.json' })).toBeUndefined();
+  });
+
+  test('anything under node_modules is left alone', () => {
+    expect(write({ root: project(), path: 'node_modules/left-pad/package.json' })).toBeUndefined();
+    expect(
+      write({ root: project(), path: 'services/api/node_modules/x/package.json' }),
+    ).toBeUndefined();
+  });
+
+  test('another file in a layout folder is left alone', () => {
+    expect(write({ root: project(), path: 'services/api3/src/index.ts' })).toBeUndefined();
+    expect(write({ root: project(), path: 'services/api3/tsconfig.json' })).toBeUndefined();
+  });
+
+  test('a package.json outside every layout folder is left alone', () => {
+    expect(write({ root: project(), path: 'tools/x/package.json' })).toBeUndefined();
+    expect(write({ root: project(), path: 'package.json' })).toBeUndefined();
+    expect(write({ root: project(), path: 'services/package.json' })).toBeUndefined();
+  });
+
+  test('a deeper package.json inside an app is not a new package', () => {
+    expect(
+      write({ root: project(), path: 'services/api/fixtures/x/package.json' }),
+    ).toBeUndefined();
+  });
+
+  test('a project with no manifest, or one without a layout, is left alone', () => {
+    expect(
+      write({ root: project({ manifest: null }), path: 'services/api3/package.json' }),
+    ).toBeUndefined();
+    expect(
+      write({
+        root: project({ manifest: { schemaVersion: 1, name: 'bare' } }),
+        path: 'services/api3/package.json',
+      }),
+    ).toBeUndefined();
+  });
+
+  test('a tool that is not Write is left alone', () => {
+    expect(
+      write({ root: project(), path: 'services/api3/package.json', tool: 'Edit' }),
+    ).toBeUndefined();
+    expect(
+      write({ root: project(), path: 'services/api3/package.json', tool: 'Bash' }),
+    ).toBeUndefined();
+  });
+
+  test('an unreadable manifest lets the call through', () => {
+    const root = project({ manifest: null });
+
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(join(root, '.agents/vulcan.manifest.json'), 'not json');
+    expect(write({ root, path: 'services/api3/package.json' })).toBeUndefined();
+  });
+});
+
+describe('inspectPackageWrite - no real command: warn, never block', () => {
+  test('a layout folder whose side no recorded preset makes', () => {
+    const root = project({
+      manifest: {
+        ...MANIFEST,
+        presets: [{ spec: 'file:../acme-web', side: 'frontend', summary: 'x' }],
+      },
+    });
+    const verdict = write({ root, path: 'services/api3/package.json' });
+
+    expect(verdict?.kind).toBe('warn');
+    expect(verdict?.message).toContain('no recorded preset makes a backend app');
+    expect(verdict?.message).toContain('ask the user');
+    expect(verdict?.message).not.toContain('vulcan add --preset');
+  });
+
+  test('the shared folder when no preset makes a lib', () => {
+    const root = project({
+      manifest: { ...MANIFEST, presets: [{ spec: 'ignis', side: 'backend', summary: 'x' }] },
+    });
+    const verdict = write({ root, path: 'libs/billing/package.json' });
+
+    expect(verdict?.kind).toBe('warn');
+    expect(verdict?.message).toContain('no recorded preset makes a lib');
+  });
+
+  test('a project that recorded no preset at all', () => {
+    const root = project({ manifest: { ...MANIFEST, presets: undefined } });
+    const verdict = write({ root, path: 'services/api3/package.json' });
+
+    expect(verdict?.kind).toBe('warn');
+    expect(verdict?.message).toContain('ask the user which preset to use');
+  });
+});
+
+describe('parse and decision', () => {
+  test('the wire form reads as before', () => {
+    expect(
+      parseManifestHookInput({
+        text: '{"tool_name":"Write","tool_input":{"file_path":"a/package.json"},"cwd":"/x"}',
+      }),
+    ).toEqual({ tool: 'Write', filePath: 'a/package.json', command: undefined, cwd: '/x' });
+  });
+
+  test('a deny carries the reason; a warn carries context and no decision', () => {
+    const deny = buildPackageDecision({ verdict: { kind: 'deny', message: 'use add' } });
+    const warn = buildPackageDecision({ verdict: { kind: 'warn', message: 'ask the user' } });
+
+    expect(deny.hookSpecificOutput.permissionDecision).toBe('deny');
+    expect(deny.hookSpecificOutput.permissionDecisionReason).toBe('use add');
+    expect(warn.hookSpecificOutput.additionalContext).toBe('ask the user');
+    expect(warn.hookSpecificOutput).not.toHaveProperty('permissionDecision');
+  });
+});
+
+describe('the hook script', () => {
+  const run = (opts: { root: string; path: string }) => {
+    const child = spawnSyncBounded({
+      cmd: [process.execPath, HOOK],
+      cwd: opts.root,
+      stdin: new Blob([wire({ tool: 'Write', path: join(opts.root, opts.path), cwd: opts.root })]),
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+
+    return { code: child.exitCode, stdout: child.stdout.toString() };
+  };
+
+  test('a new package in the backend folder is denied with the command', () => {
+    const result = run({ root: project(), path: 'services/api3/package.json' });
+
+    expect(result.code).toBe(0);
+    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
+    expect(result.stdout).toContain('vulcan add --preset ignis --app api3');
+  });
+
+  test('an existing file prints nothing and exits 0', () => {
+    const root = project({ files: ['services/api/package.json'] });
+    const result = run({ root, path: 'services/api/package.json' });
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe('');
+  });
+
+  test('a warn prints context and exits 0', () => {
+    const root = project({ manifest: { ...MANIFEST, presets: undefined } });
+    const result = run({ root, path: 'services/api3/package.json' });
+
+    expect(result.code).toBe(0);
+    expect(JSON.parse(result.stdout).hookSpecificOutput.additionalContext).toContain(
+      'ask the user',
+    );
+  });
+});
+
+describe('the shipped settings', () => {
+  test('guard-package.ts is registered on Write only', () => {
+    const entries: { matcher?: string; hooks: { command: string }[] }[] = JSON.parse(
+      readFileSync(SETTINGS, 'utf8'),
+    ).hooks.PreToolUse;
+    const entry = entries.find(item =>
+      item.hooks.some(hook => hook.command.includes('hooks/guard-package.ts')),
+    );
+
+    expect(entry?.matcher).toBe('Write');
+  });
+});

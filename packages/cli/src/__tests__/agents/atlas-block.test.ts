@@ -39,6 +39,9 @@ describe('renderAtlasBlock', () => {
       '`search`, then `get`, for how something works or which convention applies',
     );
     expect(BLOCK).toContain('`version` or `changes` for a release or an upgrade');
+    expect(BLOCK).toContain(
+      'A new app or package: ask `presets` which preset and which `vulcan add` command, run it, and never hand-write package.json, tsconfig or scripts.',
+    );
   });
 
   test('a project with no sources names only itself', () => {
