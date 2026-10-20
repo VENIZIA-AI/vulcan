@@ -297,6 +297,19 @@ jobs:
             exit 0
           fi
 
+          # A bump `none` dispatch after develop moved on (to heal the dist-tags, say) is not on the release
+          # commit, yet the tag may name this very release: accept it when the tagged commit holds this
+          # version. A run that committed, or a tag at any other version, still stops.
+          if [ -n "$REMOTE_SHA" ] && [ "$BUMP" = "none" ]; then
+            TAGGED_VERSION=$(git show "$REMOTE_SHA:packages/cli/package.json" 2>/dev/null | jq -r .version 2>/dev/null || true)
+
+            if [ "$TAGGED_VERSION" = "$NEW_VERSION" ]; then
+              echo "tag: $TAG_NAME is already on origin at $REMOTE_SHA, which is version $TAGGED_VERSION - this checkout moved on, the tag is left as it is - skipped"
+              echo "IS_TAGGED=true" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          fi
+
           if [ -n "$REMOTE_SHA" ]; then
             echo "TAG_CONFLICT=$REMOTE_SHA" >> "$GITHUB_ENV"
             echo "ERROR | $TAG_NAME is already on origin at $REMOTE_SHA, but this release is $RELEASE_SHA - the tag is left as it is"
