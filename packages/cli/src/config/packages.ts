@@ -9,6 +9,7 @@ export interface IProjectPackage {
   path: string;
   aliases: string[];
   retired: boolean;
+  kind?: 'app' | 'lib';
 }
 
 /** The project's packages in release order. */
@@ -19,4 +20,5 @@ export const resolvePackages = (opts: { config: TResolvedConfig }): IProjectPack
     path: entry.path ?? `${DEFAULT_PACKAGES_DIRECTORY}/${entry.dir}`,
     aliases: entry.aliases,
     retired: entry.retired,
+    ...(entry.kind === undefined ? {} : { kind: entry.kind }),
   }));

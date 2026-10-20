@@ -1,0 +1,14 @@
+{
+  "presetVersion": 1,
+  "summary": "A fixture library.",
+  "dependencies": { "zod": "^4.0.0" },
+  "devDependencies": { "typescript": "^6.0.3" },
+  "peerDependencies": { "@fixture/lib": "^1.0.0" },
+  "scripts": { "typecheck": "bun -e 0", "lint": "bun -e 0", "test": "bun -e 0" },
+  "checks": ["typecheck"],
+  "imports": { "#src/*": "./src/*.js" },
+  "exports": { ".": "./src/index.ts" },
+  "packageFields": { "type": "module", "sideEffects": false },
+  "files": "./lib-files",
+  "atlas": []
+}

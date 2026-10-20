@@ -201,7 +201,23 @@ export const locatePreset = (opts: { spec: IPresetSpec; root: string }): TPreset
   }
 
   const preset = { ...parsed.data, files: filesFolder };
-  const located: ILocatedPreset = { preset, packageRoot, packageName, packageVersion };
+  const libField = readProperty({ value: manifest[CreateConstants.PRESET_FIELD], key: 'lib' });
+  const libFile =
+    typeof libField === 'string'
+      ? resolveInside({ root: packageRoot, from: packageRoot, path: libField })
+      : undefined;
+
+  if (typeof libField === 'string' && libFile === undefined) {
+    return { ok: false, error: `${shown}: vulcan.lib ${libField} points outside the package` };
+  }
+
+  const located: ILocatedPreset = {
+    preset,
+    ...(libFile === undefined ? {} : { libFile }),
+    packageRoot,
+    packageName,
+    packageVersion,
+  };
 
   return { ok: true, located };
 };
@@ -210,11 +226,14 @@ export const copyPresetFiles = (opts: {
   located: ILocatedPreset;
   target: string;
   tokens: Record<string, string>;
+  /** The folder to copy when it is not the app's: a lib preset's own. */
+  files?: string;
 }): string[] => {
   const written: string[] = [];
+  const files = opts.files ?? opts.located.preset.files;
 
-  for (const path of new Glob('**/*').scanSync({ cwd: opts.located.preset.files, dot: true })) {
-    const source = join(opts.located.preset.files, path);
+  for (const path of new Glob('**/*').scanSync({ cwd: files, dot: true })) {
+    const source = join(files, path);
 
     // A link could point at any file on the machine; only real files belong to the preset.
     if (lstatSync(source).isSymbolicLink()) {

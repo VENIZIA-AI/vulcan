@@ -58,6 +58,8 @@ export interface IPresetSpec {
 
 export interface ILocatedPreset {
   preset: IPreset;
+  /** The lib preset file (`vulcan.lib`), absolute and inside the package; absent when the preset makes apps only. */
+  libFile?: string;
   /** The preset package's root directory. */
   packageRoot: string;
   packageName: string;
@@ -80,12 +82,14 @@ export interface IRecordedPreset {
   spec: string;
   side: TAppSide;
   summary: string;
+  /** The summary of the preset's lib kind; present when the preset can make a library. */
+  lib?: string;
 }
 
 /** What `init` and `add` own in the config: the layout, the package list, the presets and the atlas sources. */
 export interface IAppsBlock {
   layout: { backend?: string; frontend?: string; shared?: string };
-  packages: { dir: string; name: string; path: string }[];
+  packages: { dir: string; name: string; path: string; kind?: 'lib' }[];
   /** Absent in a block written before presets were recorded. */
   presets?: IRecordedPreset[];
   sources: { name: string; repo: string; ref: string }[];
