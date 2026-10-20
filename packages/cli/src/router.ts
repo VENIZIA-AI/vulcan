@@ -46,6 +46,7 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
     values: [AgentConstants.FLAG],
     positionals: 0,
   },
+  [VulcanCommands.AGENTS]: { flags: ['--dry-run'], values: [], positionals: 2 },
   [VulcanCommands.DOCTOR]: { flags: [], values: [], positionals: 0 },
   [VulcanCommands.UPGRADE]: {
     flags: [UpgradeFlags.STABLE, UpgradeFlags.NIGHTLY],

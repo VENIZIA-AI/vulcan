@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-20 - vulcan agents: list, add, remove, setup (multi-agent 6 of 7)
+
+`vulcan agents` shows or changes the agents chosen on this machine; `remove` (and `sync --agents <list>` for an agent stored before) takes back what sync created for it: whole files, the merged atlas key, the Codex block, skill links no remaining agent reads, the Claude shim and managed settings; an atlas entry the user changed is left and reported. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-20 - the chosen agents' files in .git/info/exclude (multi-agent 5 of 7)
 
 sync writes the paths it creates for the agents chosen on this machine (Claude files, each agent's MCP file, the shipped-skill links, the local choice file) into a `# vulcan:start`/`# vulcan:end` block of the clone's `.git/info/exclude`: per developer, no churn in the committed `.gitignore`; tracked paths are not listed, worktrees and subfolders work, a non-git project gets nothing. Concept: [cli](/packages/cli.md).

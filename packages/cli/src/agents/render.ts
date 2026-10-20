@@ -158,3 +158,72 @@ export const mergeCodexToml = (opts: { text: string | undefined; root: string })
     text: `${opts.text}${opts.text.endsWith('\n') ? '' : '\n'}\n${block}`,
   };
 };
+
+export type TRemoveResult =
+  | { ok: true; outcome: 'absent' }
+  | { ok: true; outcome: 'removed'; text: string | undefined }
+  | { ok: false; reason: string };
+
+/**
+ * Takes sync's own atlas entry out of a JSON server map. The file is deleted (`text` undefined) when
+ * nothing else is left in it; an entry of another shape is the user's and is reported, not removed.
+ */
+export const removeMcpEntry = (opts: { text: string; key: string }): TRemoveResult => {
+  let document: unknown;
+
+  try {
+    document = JSON.parse(opts.text);
+  } catch {
+    return { ok: false, reason: 'not valid JSON - left untouched' };
+  }
+
+  if (!isRecord(document)) {
+    return { ok: false, reason: 'not a JSON object - left untouched' };
+  }
+
+  const servers = document[opts.key];
+
+  if (!isRecord(servers) || !Object.hasOwn(servers, SERVER_NAME)) {
+    return { ok: true, outcome: 'absent' };
+  }
+
+  if (!isOwnEntry({ entry: servers[SERVER_NAME] })) {
+    return { ok: false, reason: 'the atlas entry is not the one sync wrote - left alone' };
+  }
+
+  const otherServers = Object.fromEntries(
+    Object.entries(servers).filter(([name]) => name !== SERVER_NAME),
+  );
+  const otherKeys = Object.fromEntries(
+    Object.entries(document).filter(([key]) => key !== opts.key),
+  );
+  const remaining =
+    Object.keys(otherServers).length === 0 ? otherKeys : { ...document, [opts.key]: otherServers };
+  const onlyEmptyInputs = Object.entries(remaining).every(
+    ([key, value]) => key === 'inputs' && Array.isArray(value) && value.length === 0,
+  );
+
+  return {
+    ok: true,
+    outcome: 'removed',
+    text: onlyEmptyInputs ? undefined : `${JSON.stringify(remaining, null, 2)}\n`,
+  };
+};
+
+/** Takes the marker block out of `.codex/config.toml`; `text` is undefined when nothing else is left. */
+export const removeCodexBlock = (opts: {
+  text: string;
+}): { changed: boolean; text: string | undefined } => {
+  const start = opts.text.indexOf(CODEX_BLOCK_START);
+  const end = opts.text.indexOf(CODEX_BLOCK_END);
+
+  if (start === -1 || end < start) {
+    return { changed: false, text: opts.text };
+  }
+
+  const before = opts.text.slice(0, start).replace(/\n+$/, '\n');
+  const after = opts.text.slice(end + CODEX_BLOCK_END.length).replace(/^\n+/, '');
+  const text = `${before}${before !== '' && after !== '' ? '\n' : ''}${after}`;
+
+  return { changed: true, text: text.trim() === '' ? undefined : text };
+};

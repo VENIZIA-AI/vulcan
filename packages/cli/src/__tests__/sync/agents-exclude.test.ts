@@ -70,7 +70,7 @@ describe('the chosen agents go to .git/info/exclude', () => {
     expect(sync({ root, agents: 'cursor' }).stderr).toContain('unchanged .git/info/exclude');
   });
 
-  test('an agent that is no longer chosen drops out of the block (its files stay)', () => {
+  test('an agent that is no longer chosen drops out of the block, and its files are taken back', () => {
     const root = repo();
 
     sync({ root, agents: 'cursor,pi' });
@@ -78,7 +78,7 @@ describe('the chosen agents go to .git/info/exclude', () => {
 
     expect(exclude({ root })).not.toContain('.cursor');
     expect(exclude({ root })).toContain('/.pi/mcp.json');
-    expect(existsSync(join(root, '.cursor/mcp.json'))).toBe(true);
+    expect(existsSync(join(root, '.cursor/mcp.json'))).toBe(false);
   });
 
   test("the user's own lines in the file stay", () => {

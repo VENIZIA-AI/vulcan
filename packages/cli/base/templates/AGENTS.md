@@ -19,5 +19,6 @@ Tool files (`CLAUDE.md`, ...) are per-developer pointers to this one, written by
 | Command | What it does |
 |---|---|
 | `bun x --no-install vulcan sync` | Write the adapters of the agents you chose (`--agents list` shows them) |
+| `bun x --no-install vulcan agents add\|remove <ids>` | Change the agents you use on this machine |
 | `bun x --no-install vulcan doctor` | Check this project follows VULCAN |
 | `bun x --no-install vulcan x okf check` | Check the knowledge bundle against OKF v0.2 |
