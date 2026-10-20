@@ -11,7 +11,7 @@ The guard never denies a command on its own decision; it only asks.
 It blocks only when it cannot run (see [Failing closed](#failing-closed)).
 The hook and the manifest key exist only when `remoteHosts` is set.
 
-To configure allowed hosts, declare `remoteHosts` in `.configs/vulcan.config.ts`:
+To configure allowed hosts, declare `remoteHosts` in `.configs/vulcan.config.mts`:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';

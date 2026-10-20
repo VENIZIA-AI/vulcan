@@ -1,0 +1,13 @@
+{
+  "presetVersion": 1,
+  "side": "frontend",
+  "summary": "A fixture frontend.",
+  "devPort": 5173,
+  "dependencies": { "@fixture/lib": "1.0.0" },
+  "devDependencies": { "typescript": "^6.0.3" },
+  "peers": { "@fixture/lib": "^1.0.0" },
+  "scripts": { "dev": "bun run vite.config.ts", "check": "bun -e 0" },
+  "checks": ["check"],
+  "files": "./files",
+  "atlas": [{ "name": "fixture", "repo": "example/fixture", "ref": "main" }]
+}

@@ -64,7 +64,8 @@ $ bun x --no-install vulcan sync
 | `skipped` | The target was left untouched due to a conflict or invalid content. |
 
 An old `CLAUDE.md` symlink is replaced (`replaced (old symlink)`).
-A target is skipped when `CLAUDE.md` contains hand-written content.
+The `CLAUDE.md` that `bun init` writes (it starts with `Default to using Bun instead of Node.js.`) is replaced too (`replaced (bun init's template)`), because those are Bun's tips and not your project's words.
+A target is skipped when `CLAUDE.md` contains any other hand-written content.
 It is also skipped when `.claude/settings.json` is not valid JSON.
 A skill link is skipped when `.claude/skills` is a symbolic link or the target is a real directory.
 
@@ -82,8 +83,8 @@ Each later source overrides the earlier sources:
 2. Shipped settings: Base settings from VULCAN register the `SessionStart` hook and the `guard-writes` `PreToolUse` hook.
 3. Slot choices: Settings defined for chosen slot options in `base/slots.json`, such as git write restrictions for `V-W-01`.
 4. Remote hosts: If configuration defines `remoteHosts`, VULCAN adds the `guard-remote-hosts` `PreToolUse` hook.
-5. Project hooks: Custom hooks declared under `hooks` in `.configs/vulcan.config.ts`, grouped by event.
-6. Claude settings: Team settings declared under `claude.settings` in `.configs/vulcan.config.ts`.
+5. Project hooks: Custom hooks declared under `hooks` in `.configs/vulcan.config.mts`, grouped by event.
+6. Claude settings: Team settings declared under `claude.settings` in `.configs/vulcan.config.mts`.
 
 ### Merge behavior
 
@@ -98,7 +99,7 @@ Original key ordering from `.claude/settings.json` is preserved to keep diffs st
 
 ### Remote host guard hook
 
-Setting `remoteHosts` in `.configs/vulcan.config.ts` registers a second `PreToolUse` hook.
+Setting `remoteHosts` in `.configs/vulcan.config.mts` registers a second `PreToolUse` hook.
 The hook runs `guard-remote-hosts.ts` on Bash commands.
 The skill lines are dropped from the output below.
 The settings and the manifest are what change when you add `remoteHosts`:
@@ -153,7 +154,7 @@ Custom commands, scripts outside `.agents/`, and existing script files remain un
 Run `vulcan sync` whenever the project environment or configuration changes:
 
 - On a fresh clone: Gitignored adapter files do not exist yet after checkout.
-- After modifying configuration: Changes to `.configs/vulcan.config.ts` affect settings, hooks, skill links and the manifest.
+- After modifying configuration: Changes to `.configs/vulcan.config.mts` affect settings, hooks, skill links and the manifest.
 - After updating dependencies: Upgrading packages or VULCAN may introduce new shipped skills, hooks or base rules.
 
 `vulcan doctor` reports contract violations when adapters drift, such as `stale (<status>) - run 'bun x --no-install vulcan sync'`.
@@ -163,7 +164,7 @@ To review adapter verification rules, see the [doctor reference](/references/com
 
 `vulcan sync` renders `.agents/vulcan.manifest.json` from your project configuration.
 The manifest is committed to version control.
-atlas reads `.agents/vulcan.manifest.json` directly and never executes `.configs/vulcan.config.ts`.
+atlas reads `.agents/vulcan.manifest.json` directly and never executes `.configs/vulcan.config.mts`.
 This allows atlas to inspect local and remote git repositories without evaluating project TypeScript code.
 
 The committed manifest records resolved project metadata:
@@ -202,7 +203,6 @@ The committed manifest records resolved project metadata:
   },
   "release": {
     "tagPattern": "v<version>",
-    "legacyTagPrefixes": [],
     "ignoreTags": []
   },
   "rules": {

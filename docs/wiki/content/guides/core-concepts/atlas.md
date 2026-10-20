@@ -51,7 +51,7 @@ For a step-by-step walk-through of queries and chunk identifiers, see [First day
 
 ## Read another project too
 
-To search across another project, add it to `atlas.sources` in `.configs/vulcan.config.ts` (configuration fragment):
+To search across another project, add it to `atlas.sources` in `.configs/vulcan.config.mts` (configuration fragment):
 
 ```ts
 atlas: {

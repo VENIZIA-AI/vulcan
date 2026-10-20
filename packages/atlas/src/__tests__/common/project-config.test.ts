@@ -25,7 +25,7 @@ describe('readAtlasProject', () => {
           },
         ],
         knowledge: { bundle: '.agents/knowledge', changelogs: 'docs/changelogs' },
-        release: { tagPattern: 'v<version>', legacyTagPrefixes: [], ignoreTags: ['old/*'] },
+        release: { tagPattern: 'v<version>', ignoreTags: ['old/*'] },
       },
     });
     const project = readAtlasProject();
@@ -141,7 +141,7 @@ describe('live and known packages', () => {
     useAtlasProject({ root: ROOT, manifest: {} });
 
     expect(() => livePackageDirs({ project: readAtlasProject() })).toThrow(
-      'atlas: add packages to .configs/vulcan.config.ts',
+      'atlas: add packages to .configs/vulcan.config.*',
     );
   });
 });

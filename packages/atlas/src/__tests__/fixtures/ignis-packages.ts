@@ -49,7 +49,7 @@ export const IGNIS_MANIFEST = {
     wiki: 'docs/wiki/content',
     changelogs: 'docs/wiki/content/changelogs',
   },
-  release: { tagPattern: '<dir>-v<version>', legacyTagPrefixes: [], ignoreTags: [] },
+  release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
 };
 
 /** IGNIS as atlas sees it, rooted at a checkout. */

@@ -14,7 +14,7 @@ packages/
   atlas/    @venizia/vulcan-atlas - MCP knowledge server + surface/symbols/releases generators
 scripts/    root tooling: force-update, check-catalog, release, skill-evals (own .configs and tsconfig)
 .agents/    VULCAN's project layer: rules.md (extensions), knowledge/ (this bundle, OKF v0.2)
-.configs/   vulcan.config.ts
+.configs/   vulcan.config.mts
 .github/    workflows (CI, NPM Release) and issue templates
 docs/wiki/content/changelogs/   release notes, one file per change
 make/       build, lint, test, release, evals, help, project (included by each package Makefile)

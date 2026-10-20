@@ -24,18 +24,18 @@ vulcan doctor: OK
 ## Checks
 
 If the configuration cannot be loaded, `vulcan doctor` reports only `config`.
-Otherwise, it executes the other 12 checks in sequence.
+Otherwise, it executes the other 13 checks in sequence.
 Doctor runs `skills` twice: shipped-name checks run before `make`, while skill linting runs after `tags`.
 
 | Check | What it verifies | Typical fix |
 |---|---|---|
-| `config` | The configuration file exists and conforms to the VULCAN schema | Correct invalid syntax or remove unrecognized keys in `.configs/vulcan.config.ts` |
+| `config` | The configuration file exists and conforms to the VULCAN schema | Correct invalid syntax or remove unrecognized keys in `.configs/vulcan.config.mts` |
 | `layout` | Required files `AGENTS.md`, `.agents/rules.md` and the knowledge bundle root exist | Run `bun x --no-install vulcan init` to create missing files |
 | `rule-ids` | Project rule references in `.agents/rules.md` point to active base rules | Drop references to retired base rules or assign bare IDs to project extensions |
-| `rule-slots` | Every base rule slot receives a valid choice option in configuration | Provide an allowed choice in `.configs/vulcan.config.ts` under `rules` |
+| `rule-slots` | Every base rule slot receives a valid choice option in configuration | Provide an allowed choice in `.configs/vulcan.config.mts` under `rules` |
 | `skills` (shipped names) | Project skills avoid names reserved by shipped skills | Rename the colliding skill directory under `.agents/skills/` |
 | `make` | The project `Makefile` includes `vulcan.mk` and avoids shipped target names | Add the `-include` line or rename conflicting project make targets |
-| `hooks` | Project hook configuration registers project commands instead of shipped hooks | Remove shipped hook paths from `hooks` in `.configs/vulcan.config.ts` |
+| `hooks` | Project hook configuration registers project commands instead of shipped hooks | Remove shipped hook paths from `hooks` in `.configs/vulcan.config.mts` |
 | `adapters` | Generated tool files, settings and links match configuration | Run `bun x --no-install vulcan sync` |
 | `prune` | Agent settings contain no stale hook commands or dead skill links | Run `bun x --no-install vulcan sync --prune` |
 | `manifest` | Committed `.agents/vulcan.manifest.json` matches project configuration | Run `bun x --no-install vulcan sync` and commit the manifest |
@@ -43,6 +43,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `skills` (skill lint) | Project skills satisfy authoring rules for frontmatter and structure | Fix frontmatter formatting, limits, or missing sections in `SKILL.md` |
 | `style` | Packages declare `@venizia/dev-configs` and lint configuration files import the shared style | Add `@venizia/dev-configs` as a devDependency and import it in lint configuration files |
 | `scaffold` | Workspaces declare packages and the knowledge index replaces scaffold text | Add `packages` in configuration and remove `vulcan:scaffold` from `index.md` |
+| `apps` | Every `layout` folder is a workspace and every package lives in one | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
 
 ### config
 
@@ -50,7 +51,7 @@ An invalid configuration file or an unrecognized configuration key triggers this
 
 ```text
 $ bun x --no-install vulcan doctor
-  [config] .configs/vulcan.config.ts: .configs/vulcan.config.ts: invalid config
+  [config] .configs/vulcan.config.mts: .configs/vulcan.config.mts: invalid config
   bogus: Unrecognized key: "bogus"
 vulcan doctor: 1 violation(s)
 ```
@@ -90,7 +91,7 @@ A missing slot choice, an invalid option value, or a non-slot rule key in config
 
 ```text
 $ bun x --no-install vulcan doctor
-  [rule-slots] .configs/vulcan.config.ts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
+  [rule-slots] .configs/vulcan.config.mts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
 vulcan doctor: 1 violation(s)
 ```
 
@@ -153,12 +154,12 @@ The following output drops one line that belongs to the `adapters` check:
 
 ```text
 $ bun x --no-install vulcan doctor
-  [hooks] .configs/vulcan.config.ts: the SessionStart hook runs a shipped hook - sync registers those, never the project
+  [hooks] .configs/vulcan.config.mts: the SessionStart hook runs a shipped hook - sync registers those, never the project
 vulcan doctor: 2 violation(s)
 ```
 
 `vulcan sync` registers shipped hooks automatically.
-Remove shipped hook paths from `hooks` in `.configs/vulcan.config.ts`.
+Remove shipped hook paths from `hooks` in `.configs/vulcan.config.mts`.
 
 ### adapters
 
@@ -210,7 +211,7 @@ vulcan doctor: 1 violation(s)
 
 The check is skipped if `atlas.tagPattern` has no `<dir>` or `<package>`.
 It is also skipped when the directory is not a git repository.
-To resolve the tag error, declare the package in `.configs/vulcan.config.ts` under `packages`.
+To resolve the tag error, declare the package in `.configs/vulcan.config.mts` under `packages`.
 Set `retired: true` if the package is no longer maintained.
 Alternatively, add the directory to `aliases` on the package or add the pattern to `atlas.ignoreTags`.
 
@@ -240,6 +241,20 @@ vulcan doctor: 1 violation(s)
 
 For workspaces without declared packages, the file column is the configuration file.
 The check reports `package.json declares workspaces but the config lists no packages - add packages: [{ dir, name, path }] in release order`.
+
+### apps
+
+A `layout` folder missing from `package.json` workspaces (`<folder>/*`, `<folder>/**` and the `./` forms all count), or a package outside every `layout` folder, triggers this check. Projects without `layout` skip it.
+
+The following output drops the lines that belong to other checks:
+
+```text
+$ bun x --no-install vulcan doctor
+  [apps] package.json: layout.frontend 'web' is not in package.json workspaces - add 'web/*'
+  [apps] .configs/vulcan.config.mts: package core-api lives at apps/core-api, outside every layout folder (services, web)
+```
+
+Retired packages are not checked.
 
 ## Run it in CI
 

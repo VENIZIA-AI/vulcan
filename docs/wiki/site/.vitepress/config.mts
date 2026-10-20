@@ -44,6 +44,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
     items: [
       { text: 'Overview', link: '/references/' },
       { text: 'vulcan.config', link: '/references/configuration/' },
+      { text: 'Presets', link: '/references/presets' },
     ],
   },
   {
@@ -51,6 +52,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
     items: [
       { text: 'Overview', link: '/references/commands/' },
       { text: 'init', link: '/references/commands/init' },
+      { text: 'add', link: '/references/commands/add' },
       { text: 'sync', link: '/references/commands/sync' },
       { text: 'doctor', link: '/references/commands/doctor' },
     ],

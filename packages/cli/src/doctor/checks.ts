@@ -2,7 +2,7 @@ import { Glob } from 'bun';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
-import { declaresWorkspaces } from '../init/index.ts';
+import { coversFolder, declaresWorkspaces, readWorkspaceGlobs } from '../init/index.ts';
 import { resolvePackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import {
@@ -394,6 +394,44 @@ export const checkScaffold = (opts: ICheckContext): IViolation[] => {
         message: `still the scaffold - describe the project, then delete the ${ProjectLayout.SCAFFOLD_MARKER} line`,
       }),
     );
+  }
+
+  return violations;
+};
+
+/** Apps sit in the folders the user named, and every named folder is a workspace. */
+export const checkApps = (opts: ICheckContext): IViolation[] => {
+  const layout = opts.config.layout;
+
+  if (layout === undefined) {
+    return [];
+  }
+
+  const globs = readWorkspaceGlobs({ root: opts.root });
+  const folders = Object.entries(layout).filter(
+    (entry): entry is [string, string] => entry[1] !== undefined,
+  );
+  const violations = folders
+    .filter(([, folder]) => !coversFolder({ globs, folder }))
+    .map(([side, folder]) =>
+      createViolation({
+        check: DoctorChecks.APPS,
+        file: 'package.json',
+        message: `layout.${side} '${folder}' is not in package.json workspaces - add '${folder}/*'`,
+      }),
+    );
+  const names = folders.map(([, folder]) => folder);
+
+  for (const entry of resolvePackages({ config: opts.config }).filter(item => !item.retired)) {
+    if (!names.some(folder => entry.path.startsWith(`${folder}/`))) {
+      violations.push(
+        createViolation({
+          check: DoctorChecks.APPS,
+          file: opts.configFile,
+          message: `package ${entry.dir} lives at ${entry.path}, outside every layout folder (${names.join(', ')})`,
+        }),
+      );
+    }
   }
 
   return violations;

@@ -6,7 +6,7 @@ description: Configure external repository sources, cache locations, and authent
 # atlas sources
 
 atlas serves external project documentation alongside your repository.
-Declare external repositories under `atlas.sources` in `.configs/vulcan.config.ts`:
+Declare external repositories under `atlas.sources` in `.configs/vulcan.config.mts`:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -168,9 +168,6 @@ none of its packages is installed here or on npm
 |---|---|---|---|
 | `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` or `<package>` |
 | `ignoreTags` | `string[]` | `undefined` | Globs of tags to ignore. Read by `vulcan doctor` (`[tags]`) and by atlas when it computes releases |
-| `legacyTagPrefixes` | `string[]` | `undefined` | Accepted and written to the manifest, but no tool reads it in 0.2 |
-| `releaseCommit` | `string` | `'[#<issue>] chore(<dir>): release v<version>'` | Template for release commit messages; accepted, but no tool reads it in 0.2 |
-| `typescriptFrom` | `string` | `undefined` | Path where TypeScript resolves; accepted, but no tool reads it in 0.2 |
 
 ### Template placeholders
 

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -16,6 +16,25 @@ export const createProject = (opts: { files: Record<string, string> }): string =
   }
 
   return root;
+};
+
+/**
+ * A registry-shaped tarball of a folder: unlike a `file:` folder dependency, which bun installs as
+ * symlinks, it unpacks into real files, the way a published package does.
+ */
+export const packFolder = (opts: { folder: string }): string => {
+  const destination = createProject({ files: {} });
+  const result = Bun.spawnSync(['bun', 'pm', 'pack', '--destination', destination, '--quiet'], {
+    cwd: opts.folder,
+  });
+
+  if (result.exitCode !== 0) {
+    throw new Error(`bun pm pack failed in ${opts.folder}: ${result.stderr.toString()}`);
+  }
+
+  const [tarball] = readdirSync(destination).filter(name => name.endsWith('.tgz'));
+
+  return join(destination, tarball);
 };
 
 export const removeProjects = (): void => {

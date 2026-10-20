@@ -21,7 +21,7 @@ bun x --no-install vulcan doctor
 | Part | What it does | You use it through |
 |---|---|---|
 | [Base rules](/guides/core-concepts/rules-and-slots) | The agent reads them at session start | `node_modules/@venizia/vulcan/base/rules.md` (base rules) and `.agents/rules.md` (project extensions) |
-| [Hooks](/guides/core-concepts/hooks-and-guards) | Asks before risky commands (database writes, deploys, calls to unlisted hosts) | `.configs/vulcan.config.ts` and `vulcan sync` |
+| [Hooks](/guides/core-concepts/hooks-and-guards) | Asks before risky commands (database writes, deploys, calls to unlisted hosts) | `.configs/vulcan.config.mts` and `vulcan sync` |
 | [Knowledge bundle (okf)](/guides/core-concepts/knowledge-bundle) | Markdown facts about your project | `vulcan x okf` |
 | [atlas](/guides/core-concepts/atlas) | Lets the agent search them | `vulcan x atlas mcp` |
 | [doctor](/references/commands/doctor) | Checks the repository setup | `vulcan doctor` |
@@ -51,7 +51,7 @@ Running `vulcan init` and `vulcan sync` adds these files to your repository. The
 ./.configs/eslint.config.mjs      # committed: shared ESLint configuration
 ./.configs/oxfmt.config.mts       # committed: shared oxfmt configuration
 ./.configs/oxlint.config.mts      # committed: shared oxlint configuration
-./.configs/vulcan.config.ts       # committed: project configuration
+./.configs/vulcan.config.mts      # committed: project configuration
 ./Makefile                        # committed: includes vulcan.mk
 ./.mcp.json                       # committed: local atlas MCP registration
 ```
@@ -61,7 +61,7 @@ See the [project layer guide](/guides/core-concepts/the-project-layer) for the f
 ## The loop
 
 ```bash
-# edit .configs/vulcan.config.ts
+# edit .configs/vulcan.config.mts
 bun x --no-install vulcan sync
 bun x --no-install vulcan doctor
 ```

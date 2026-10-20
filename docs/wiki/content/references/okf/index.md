@@ -34,7 +34,7 @@ check: OK - OKF v0.2 + house rules - 2 files, 1 concepts
 
 ## The bundle
 
-The knowledge bundle lives in the directory configured by `knowledge.bundle` in `.configs/vulcan.config.ts`.
+The knowledge bundle lives in the directory configured by `knowledge.bundle` in `.configs/vulcan.config.mts`.
 By default, the bundle lives at `.agents/knowledge`.
 
 ### index.md
@@ -266,7 +266,7 @@ For an invalid value, the message shows `got "<value>"`.
 
 ### Coverage axes
 
-You define structural coverage axes under `okf.coverage` in `.configs/vulcan.config.ts`.
+You define structural coverage axes under `okf.coverage` in `.configs/vulcan.config.mts`.
 Each axis globs directories under the repository root:
 
 | Option | Type | Default | Meaning |
@@ -287,7 +287,7 @@ To configure renderer coverage rows, see [okf renderers](/references/okf/rendere
 Run `vulcan x okf viz` to build the offline HTML knowledge graph explorer.
 The explorer bundles graph data and the browser client into a self-contained file.
 By default, the command writes to `.agents/knowledge/viz.html`.
-You can configure alternative destination paths in `okf.viz.outputs` in `.configs/vulcan.config.ts`.
+You can configure alternative destination paths in `okf.viz.outputs` in `.configs/vulcan.config.mts`.
 
 `viz` accepts no command-line flags; extra arguments are ignored.
 One `viz: wrote` line prints per configured output.

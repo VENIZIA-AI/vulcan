@@ -1,20 +1,94 @@
 ---
 title: Adopt VULCAN
-description: Add VULCAN to an existing repository, configure the project layer, and verify the setup with doctor.
+description: Start a new monorepo with one command, or add VULCAN to an existing repository, configure the project layer, and verify the setup with doctor.
 ---
 
 # Adopt VULCAN
 
-Add VULCAN to an existing repository in one sitting.
+Start a new project with one command, or add VULCAN to a repository you already have.
 
 ## Prerequisites
 
 Before starting:
 
 - Bun 1.4 or newer
-- A git repository is optional (only atlas release tags use it)
+- A git repository is optional for an existing project (only atlas release tags use it)
 
-To adopt VULCAN, follow these steps in order:
+## Start a new project
+
+A framework ships its app template as a preset. One command turns it into a monorepo with its first app, already checked:
+
+```bash
+bun x @venizia/vulcan init --preset ignis
+```
+
+`ignis` means the package `@venizia/ignis`. In a terminal, `init` asks for the names. It never picks one for you:
+
+```text
+? Project name (the monorepo folder) > my-product
+? Backend folder (holds every backend app) > services
+? Name of this backend app > core-api
+? Shared code folder (empty to skip) > libs
+```
+
+Without a terminal (CI, scripts), pass each answer as a flag:
+
+| Question | Flag |
+|---|---|
+| Project name | `--project my-product` |
+| Backend folder (or `Frontend folder`, for a frontend preset) | `--backend-dir services` (or `--frontend-dir`) |
+| Name of this app | `--app core-api` |
+| Shared code folder | `--shared-dir libs` (leave it out to skip) |
+
+`init` then creates the folder and fills it. With a local preset, the tree is:
+
+```text
+$ cd my-product && find . -type f | sort
+./.agents/knowledge/index.md
+./.agents/knowledge/log.md
+./.agents/knowledge/packages/core-api.md
+./.agents/rules.md
+./.configs/vulcan.config.mts
+./.gitignore
+./.mcp.json
+./AGENTS.md
+./libs/.gitkeep
+./Makefile
+./package.json
+./README.md
+./services/core-api/.env.example
+./services/core-api/package.json
+./services/core-api/src/__tests__/smoke.test.ts
+./services/core-api/src/index.ts
+./services/core-api/tsconfig.json
+```
+
+Everything under `services/core-api/` comes from the preset. The rest is the VULCAN layer.
+`init` installs, runs `vulcan sync`, runs the preset's checks, then `vulcan doctor` and `okf check --strict`. It stops at the first failure.
+When all pass, it prints the next step:
+
+```text
+Done. Next:
+  cd my-product && make dev
+  open http://localhost:3000
+```
+
+For every file and message, see the [init reference](/references/commands/init#create-a-monorepo-with-preset).
+
+### Add more apps
+
+Run `vulcan add` at the monorepo root to add another backend, or a frontend that proxies `/api` to a backend:
+
+```bash
+bun x --no-install vulcan add --preset ignis
+```
+
+See the [add reference](/references/commands/add).
+
+## Adopt an existing project
+
+Add VULCAN to a repository you already have in one sitting.
+Follow these steps in order:
 
 1. Install dependencies:
    ```bash
@@ -52,6 +126,7 @@ The `style` check in `vulcan doctor` requires `@venizia/dev-configs` in `package
 bun x --no-install vulcan init
 ```
 
+`init` also appends the agent entries to `.gitignore`, installs the lint tools the generated configs run with `bun add -d`, and ends with a numbered list of what is left to do.
 For command options and file details, see the [init reference](/references/commands/init).
 
 **Check:** The command exits with code 0.
@@ -61,7 +136,7 @@ For command options and file details, see the [init reference](/references/comma
 After initialization, only `.agents/knowledge/index.md` requires edits.
 Describe your project there, and delete the `vulcan:scaffold` marker line.
 
-The configuration file `.configs/vulcan.config.ts` needs no edits unless `package.json` declares `workspaces`.
+The configuration file `.configs/vulcan.config.mts` needs no edits unless `package.json` declares `workspaces`.
 If your repository uses workspaces, declare each package under `packages` in release order.
 Setting `name` is optional and defaults to the root package name:
 
@@ -92,8 +167,8 @@ $ bun x --no-install vulcan sync
   created   .agents/vulcan.manifest.json
 ```
 
-Add `CLAUDE.md` and `.claude/` to `.gitignore`.
-For file details, see the [init reference](/references/commands/init).
+If `bun init` created your project, its `CLAUDE.md` holds only Bun's tips, so `sync` replaces it with `@AGENTS.md`. A `CLAUDE.md` you wrote yourself is left alone.
+`init` already added `CLAUDE.md`, `CLAUDE.*.md`, `.claude/` and `.agents/plans` to `.gitignore`.
 These adapter files stay local on each machine.
 Commit `.agents/vulcan.manifest.json` to version control.
 For details on adapter generation, see the [sync reference](/references/commands/sync).
@@ -136,7 +211,7 @@ The table below lists common findings and how to resolve them:
 |---|---|
 | An existing Makefile | Add `-include node_modules/@venizia/vulcan/base/make/vulcan.mk`, and do not reuse shipped target names. See the [make check](/references/commands/doctor#make). |
 | A project skill with a shipped name | Rename the directory under `.agents/skills/` to avoid collisions. See the [skills check](/references/commands/doctor#skills). |
-| Project hooks calling shipped hooks | Remove shipped hook paths from `hooks` in `.configs/vulcan.config.ts`. See the [hooks check](/references/commands/doctor#hooks). |
+| Project hooks calling shipped hooks | Remove shipped hook paths from `hooks` in `.configs/vulcan.config.mts`. See the [hooks check](/references/commands/doctor#hooks). |
 | Lint configs not built on the shared style | Add `@venizia/dev-configs` as a devDependency and import from it in lint configurations. See the [style check](/references/commands/doctor#style). |
 | Git tags of another layout | Declare the package, add an alias, or add the tags to `atlas.ignoreTags`. See the [tags check](/references/commands/doctor#tags). |
 
@@ -161,7 +236,12 @@ Pass the target version to `vulcan upgrade`:
 bun x --no-install vulcan upgrade 0.2.0
 ```
 
-Without a version argument, `vulcan upgrade` installs the `next` prerelease tag.
+Without a version argument, `vulcan upgrade` installs the stable `latest` release. Add `--nightly` to take the newest of `latest` and `next`, which can be a prerelease:
+
+```bash
+bun x --no-install vulcan upgrade --nightly
+```
+
 The command installs the target release and runs `vulcan sync` with the newly installed CLI.
 Commit `.agents/vulcan.manifest.json` if it changed.
 For all available commands, see the [commands reference](/references/commands/).

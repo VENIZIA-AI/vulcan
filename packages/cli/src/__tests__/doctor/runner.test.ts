@@ -426,6 +426,69 @@ describe('doctor: the scaffold is filled in', () => {
   });
 });
 
+describe('doctor: apps', () => {
+  test('a layout folder outside workspaces and an app outside every layout folder are violations', async () => {
+    const root = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        'package.json':
+          '{ "name": "demo", "workspaces": ["services/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
+        '.configs/vulcan.config.ts':
+          "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services', frontend: 'web' }, packages: [{ dir: 'core-api', name: 'core-api', path: 'apps/core-api' }] };\n",
+      },
+    });
+    const violations = await runDoctorChecks({ root });
+    const apps = violations
+      .filter(violation => violation.check === DoctorChecks.APPS)
+      .map(violation => violation.message);
+
+    expect(apps).toContain("layout.frontend 'web' is not in package.json workspaces - add 'web/*'");
+    expect(apps).toContain(
+      'package core-api lives at apps/core-api, outside every layout folder (services, web)',
+    );
+  });
+
+  test('workspace globs written folder/** or ./folder/* cover the layout folder', async () => {
+    for (const globs of [['services/**'], ['./services/*'], ['./services/**']]) {
+      const root = createSyncedProject({
+        files: {
+          ...CONFORMANT,
+          'package.json': `{ "name": "demo", "workspaces": ${JSON.stringify(globs)}, "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }`,
+          '.configs/vulcan.config.ts':
+            "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'core-api', name: 'core-api', path: 'services/core-api' }] };\n",
+        },
+      });
+
+      expect(await runDoctorChecks({ root })).toEqual([]);
+    }
+  });
+
+  test('a glob for a different folder still leaves the layout folder uncovered', async () => {
+    const root = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        'package.json':
+          '{ "name": "demo", "workspaces": ["./other/**"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
+        '.configs/vulcan.config.ts':
+          "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' } };\n",
+      },
+    });
+    const apps = (await runDoctorChecks({ root })).filter(
+      violation => violation.check === DoctorChecks.APPS,
+    );
+
+    expect(apps.map(violation => violation.message)).toContain(
+      "layout.backend 'services' is not in package.json workspaces - add 'services/*'",
+    );
+  });
+
+  test('a project without a layout is not checked', async () => {
+    expect(await findChecks({ root: createSyncedProject({ files: CONFORMANT }) })).not.toContain(
+      DoctorChecks.APPS,
+    );
+  });
+});
+
 describe('parseMakeTargets', () => {
   test('reads rule targets; skips recipes, variables, .PHONY and pattern rules', () => {
     const makefile =

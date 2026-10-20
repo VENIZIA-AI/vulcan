@@ -49,6 +49,9 @@ bun x --no-install vulcan doctor    # check the project follows VULCAN
 `bun x --no-install vulcan x okf check` validates the knowledge bundle; `vulcan x atlas mcp` serves it over
 MCP. A project adds its own rules, skills and hooks; it never edits what VULCAN ships.
 
+A new project is one command: `bun x @venizia/vulcan init --preset <name>` creates a monorepo with its first app
+from a framework preset, and `vulcan add --preset <name>` adds more apps to it.
+
 Moving an existing project onto VULCAN: follow [Adopting VULCAN in a project](docs/wiki/content/guides/get-started/adopt-vulcan.md).
 
 ## Work on VULCAN

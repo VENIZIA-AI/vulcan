@@ -7,7 +7,7 @@ description: Understand why VULCAN ships base rules, how slots work, and how pro
 
 Base rules are the same in every VULCAN project. A slot is a base rule that leaves its choice to project configuration.
 
-To choose an option, set the `rules` key in `.configs/vulcan.config.ts`:
+To choose an option, set the `rules` key in `.configs/vulcan.config.mts`:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -32,7 +32,7 @@ If you omit the slot choice, `vulcan doctor` reports a violation and exits with 
 
 ```text
 $ bun x --no-install vulcan doctor
-  [rule-slots] .configs/vulcan.config.ts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
+  [rule-slots] .configs/vulcan.config.mts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
 vulcan doctor: 1 violation(s)
 ```
 

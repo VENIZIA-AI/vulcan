@@ -7,8 +7,8 @@ description: Inspect schema keys, default values, validation rules, and effects 
 
 VULCAN stores project settings in `.configs/vulcan.config.*`. The configuration loader accepts exactly one of four files:
 
+- `.configs/vulcan.config.mts` (the file `vulcan init` writes)
 - `.configs/vulcan.config.ts`
-- `.configs/vulcan.config.mts`
 - `.configs/vulcan.config.mjs`
 - `.configs/vulcan.config.js`
 
@@ -52,20 +52,21 @@ The schema is strict. An unknown key causes an error during `vulcan doctor`:
 
 ```text
 $ bun x --no-install vulcan doctor
-  [config] .configs/vulcan.config.ts: .configs/vulcan.config.ts: invalid config
+  [config] .configs/vulcan.config.mts: .configs/vulcan.config.mts: invalid config
   bogus: Unrecognized key: "bogus"
 vulcan doctor: 1 violation(s)
 ```
 
 The command exits with code 1.
 
-The table below lists all 11 top-level configuration keys:
+The table below lists all 12 top-level configuration keys:
 
 | Key | Type | Default | What it controls |
 |---|---|---|---|
 | `name` | `string` | root package name | Project identifier in the manifest and atlas results |
 | `agents` | `string[]` | `['claude']` | Coding agents that sync generates adapters for |
 | `rules` | `Record<string, string>` | `{}` | Base rule slot choices |
+| `layout` | `object` | `undefined` | The folders `vulcan init` and `vulcan add` put apps in |
 | `packages` | `Array<object>` | `[]` | Monorepo packages in release order |
 | `knowledge` | `object` | `{ bundle: '.agents/knowledge' }` | Locations for knowledge documents and concepts |
 | `okf` | `object` | `{ renderers: [], ... }` | Renderers, regions, and coverage checks for okf |
@@ -140,7 +141,7 @@ It also reports when a slot has no choice configured:
 
 ```text
 $ bun x --no-install vulcan doctor
-  [rule-slots] .configs/vulcan.config.ts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
+  [rule-slots] .configs/vulcan.config.mts: V-W-01 needs a choice: rules: { 'V-W-01': on-user-word | read-only }
 vulcan doctor: 1 violation(s)
 ```
 
@@ -155,6 +156,28 @@ export default {
   },
 } satisfies VulcanConfig;
 ```
+
+## layout
+
+The `layout` object records the folders that hold your apps. `vulcan init` and `vulcan add` write it from the names you gave; you can also write it by hand.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `backend` | `string` | none | Folder for backend apps |
+| `frontend` | `string` | none | Folder for frontend apps |
+| `shared` | `string` | none | Folder for code shared between apps |
+
+Each value is a folder name matching `/^[a-z0-9][a-z0-9-]*$/`. The object is strict, so any other key is an error.
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  layout: { backend: 'services', frontend: 'web', shared: 'libs' },
+} satisfies VulcanConfig;
+```
+
+`vulcan doctor` runs the [`apps`](/references/commands/doctor#apps) check against this object: every named folder must be a workspace, and every package must live inside one of them.
 
 ## packages
 
@@ -311,18 +334,15 @@ To configure custom generators and view built-in renderer options, see the [rend
 
 ## atlas
 
-The `atlas` object configures release tags and external repository sources. `vulcan sync` writes `release: { tagPattern, legacyTagPrefixes, ignoreTags }` and `sources` to `.agents/vulcan.manifest.json`. Atlas reads `sources` from the manifest to clone and query knowledge across external repositories.
+The `atlas` object configures release tags and external repository sources. `vulcan sync` writes `release: { tagPattern, ignoreTags }` and `sources` to `.agents/vulcan.manifest.json`. Atlas reads `sources` from the manifest to clone and query knowledge across external repositories.
 
-The keys `releaseCommit` and `typescriptFrom` are accepted and validated, but no tool reads them in 0.2.
+The keys `releaseCommit`, `typescriptFrom` and `legacyTagPrefixes` were removed because no tool read them. A config that still sets one fails with an error naming the key.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` or `<package>` |
 | `sources` | `Array<object>` | `[]` | External repositories to query through atlas |
-| `legacyTagPrefixes` | `string[]` | `undefined` | Prefixes for legacy release tags written to the manifest |
 | `ignoreTags` | `string[]` | `undefined` | Glob patterns of git tags ignored by checks |
-| `releaseCommit` | `string` | `'[#<issue>] chore(<dir>): release v<version>'` | Accepted, but no tool reads it in 0.2 |
-| `typescriptFrom` | `string` | `undefined` | Accepted, but no tool reads it in 0.2 |
 
 ### tagPattern and the tags check
 
@@ -436,7 +456,7 @@ The `hooks` array registers custom shell commands for assistant lifecycle events
 
 ```text
 $ bun x --no-install vulcan doctor
-  [hooks] .configs/vulcan.config.ts: the SessionStart hook runs a shipped hook - sync registers those, never the project
+  [hooks] .configs/vulcan.config.mts: the SessionStart hook runs a shipped hook - sync registers those, never the project
   [adapters] .claude/settings.json: stale (replaced) - run 'bun x --no-install vulcan sync'
 vulcan doctor: 2 violation(s)
 ```
@@ -502,6 +522,7 @@ export default {
   rules: {
     'V-W-01': 'on-user-word',
   },
+  layout: { backend: 'services', shared: 'libs' },
   packages: [
     { dir: 'core', name: '@venizia/shop-core' },
     { dir: 'api', name: '@venizia/shop-api', path: 'services/api', aliases: ['server'] },
@@ -527,7 +548,6 @@ export default {
   },
   atlas: {
     tagPattern: '<dir>-v<version>',
-    releaseCommit: '[#<issue>] chore(<dir>): release v<version>',
     sources: [
       { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
     ],

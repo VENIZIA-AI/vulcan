@@ -68,7 +68,6 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
     },
     release: {
       tagPattern: config.atlas.tagPattern,
-      legacyTagPrefixes: config.atlas.legacyTagPrefixes ?? [],
       ignoreTags: config.atlas.ignoreTags ?? [],
     },
     rules: { project: ManifestConstants.PROJECT_RULES, base: buildBaseRuleHashes() },

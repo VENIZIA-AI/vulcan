@@ -58,6 +58,20 @@ describe('CLAUDE.md', () => {
     expect(runSync({ root }).stderr).toContain('skipped');
     expect(readFileSync(join(root, 'CLAUDE.md'), 'utf8')).toBe('# mine\n');
   });
+
+  test('a CLAUDE.md written by bun init is replaced by the import line', () => {
+    const root = createProject({
+      files: {
+        ...READ_ONLY_PROJECT,
+        'CLAUDE.md':
+          '\nDefault to using Bun instead of Node.js.\n\n- Use `bun <file>` instead of `node <file>` or `ts-node <file>`\n',
+      },
+    });
+    const result = runSync({ root });
+
+    expect(readFileSync(join(root, 'CLAUDE.md'), 'utf8')).toBe('@AGENTS.md\n');
+    expect(result.stderr).toContain("bun init's template");
+  });
 });
 
 describe('.claude/settings.json', () => {

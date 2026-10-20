@@ -2,6 +2,7 @@ import { relative } from 'node:path';
 import { loadConfig } from '../config/index.ts';
 import {
   checkAdapters,
+  checkApps,
   checkManifest,
   checkPrune,
   checkHooks,
@@ -52,5 +53,6 @@ export const runDoctorChecks = async (opts: { root: string }): Promise<IViolatio
     ...checkSkillLint(context),
     ...checkStyle(context),
     ...checkScaffold(context),
+    ...checkApps(context),
   ];
 };

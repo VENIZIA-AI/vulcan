@@ -20,6 +20,10 @@ export class SyncStatuses {
 export class SyncConstants {
   static readonly CLAUDE_IMPORT_LINE = '@AGENTS.md';
   static readonly CLAUDE_TOOL_FILE = 'CLAUDE.md';
+
+  /** The first line of the CLAUDE.md `bun init` writes: Bun's tips, never the project's own words. */
+  static readonly BUN_INIT_CLAUDE_MARKER = 'Default to using Bun instead of Node.js.';
+
   static readonly CLAUDE_DIRECTORY = '.claude';
   static readonly SETTINGS_FILE = 'settings.json';
   /** The hook sync adds when the config sets `remoteHosts`; lives next to the shipped settings. */

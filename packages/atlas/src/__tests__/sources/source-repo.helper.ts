@@ -41,7 +41,7 @@ export const SOURCE_MANIFEST = `${JSON.stringify(
       { name: '@x/kernel', dir: 'kernel', path: 'packages/kernel', aliases: [], retired: false },
     ],
     knowledge: { bundle: '.agents/knowledge', changelogs: 'docs/changelogs' },
-    release: { tagPattern: '<dir>-v<version>', legacyTagPrefixes: [], ignoreTags: [] },
+    release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
   },
   null,
   2,

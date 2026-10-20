@@ -5,7 +5,7 @@ description: Find available VULCAN commands, arguments, tools, make targets, and
 
 # vulcan commands
 
-Use `vulcan` to scaffold a project, write the agent adapters, check conformance, upgrade, and run okf and atlas.
+Use `vulcan` to scaffold a project or create a monorepo from a preset, write the agent adapters, check conformance, upgrade, and run okf and atlas.
 Run `bun x --no-install vulcan` or pass `--help` to inspect available commands:
 
 ```text
@@ -14,10 +14,17 @@ vulcan 0.2.0 - one setup, one workflow for every project
 Usage: bun x vulcan <command>
 
   init [--config ts|mts|mjs|js]   Scaffold the project layer (never overwrites)
+  init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <name>]
+       [--shared-dir <name>]      Create a monorepo with its first app, from a framework preset
+                                  (a name missing from the flags is asked in a terminal)
+  add --preset <name|file:path> --app <name> [--backend-dir|--frontend-dir <name>]
+      [--api <app> | --no-api]    Add an app to the monorepo (a frontend says which backend to proxy to)
   sync [--dry-run] [--prune]      Write the gitignored agent adapters (CLAUDE.md, .claude/);
                                   --prune also removes stale hooks and dead skill links
   doctor                          Check the project follows VULCAN; exit 1 on any violation
-  upgrade [<version|tag>]         Bump the pinned @venizia/vulcan, then sync
+  upgrade [--stable | --nightly] [<version|tag>]
+                                  Bump the pinned @venizia/vulcan, then sync; --stable (default)
+                                  takes the latest tag, --nightly the newest of latest and next
   x <tool> [args...]              Run a shipped tool at the pinned version: okf, atlas
   help · version
 ```
@@ -27,7 +34,8 @@ The following table lists each command, its purpose, its exit codes, and its ref
 
 | Command | What it does | Exit codes | Page |
 |---|---|---|---|
-| `init` | Scaffold the project layer without overwriting existing files | `0` on success; `1` on invalid configuration format or unknown argument | [vulcan init](/references/commands/init) |
+| `init` | Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app | `0` on success; `1` on invalid configuration format, a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan init](/references/commands/init) |
+| `add` | Add an app from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
 | `sync` | Write agent adapter files and manifest; prune stale hooks and dead skill links with `--prune` | `0` on success; `1` on invalid configuration, broken settings, or unknown argument | [vulcan sync](/references/commands/sync) |
 | `doctor` | Check the project against the VULCAN contract and report violations | `0` when conformant; `1` on any contract violation or unknown argument | [vulcan doctor](/references/commands/doctor) |
 | `upgrade` | Bump the pinned `@venizia/vulcan` dependency and run sync | `0` on success; `1` on unknown argument or missing binary; otherwise the exit code of `bun add` or child `vulcan sync` | [upgrade](#upgrade) |
@@ -45,12 +53,22 @@ Spawning a child process ensures the newly installed version generates adapters 
 
 ### Argument forms
 
-You can invoke `upgrade` in two ways:
+`--stable` is the default. Choose the channel with a flag, or name a version. The channel is never stored in the config.
 
-| Syntax | Target version | Behavior |
+| Syntax | Installs | Behavior |
 |---|---|---|
-| `bun x --no-install vulcan upgrade` | `next` | Installs the prerelease distribution tag `next` and runs sync |
-| `bun x --no-install vulcan upgrade <version\|tag>` | Specified version or tag | Installs the explicit version or tag and runs sync |
+| `bun x --no-install vulcan upgrade` | `latest` | The stable release; never a prerelease. Same as `--stable` |
+| `bun x --no-install vulcan upgrade --nightly` | The higher of `latest` and `next` | The newest published version, by semver. Never older than the stable release |
+| `bun x --no-install vulcan upgrade <version\|tag>` | The version or tag you name | Wins over `--stable` and `--nightly` |
+
+`--nightly` reads the dist-tags of `@venizia/vulcan` with `bun pm view`, so it uses the registry your project is configured for.
+If `latest` is `0.2.0` and `next` is `0.2.0-9`, `--nightly` installs `0.2.0`. If `next` is `0.3.0-1`, it installs `0.3.0-1`.
+Passing `--stable` and `--nightly` together exits `1`.
+
+If the dist-tags cannot be used, `--nightly` prints `vulcan upgrade: --nightly could not read the dist-tags of @venizia/vulcan - pass a version instead` and exits `1`.
+That covers a failed `bun pm view` (its own error text is printed first), an answer that is not an object, and a `latest` or `next` value that is not a plain version.
+
+When the installed `@venizia/vulcan` is a prerelease and you run `upgrade` or `upgrade --stable`, the command prints one note: the stable channel installs the latest stable release, and `--nightly` keeps the prerelease line.
 
 ### Example run
 
@@ -79,7 +97,7 @@ The command exits 0 on success.
 
 `vulcan upgrade` exits `0` on success.
 The command exits `1` when `node_modules/.bin/vulcan` is missing.
-It also exits `1` on an unknown argument, such as an option or a second positional argument.
+It also exits `1` on an unknown argument, on `--stable` with `--nightly`, and on `--nightly` when the dist-tags cannot be read.
 Otherwise, the command returns the exit code of `bun add` or of the child `vulcan sync`.
 
 ## x
