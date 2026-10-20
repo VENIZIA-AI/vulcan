@@ -1,0 +1,127 @@
+import { describe, expect, test } from 'bun:test';
+import {
+  EXCLUDE_BLOCK_END,
+  EXCLUDE_BLOCK_START,
+  excludePathsOf,
+  mergeExcludeBlock,
+  renderExcludeBlock,
+} from '../../agents/index.ts';
+
+describe('excludePathsOf', () => {
+  const SKILLS = ['docs-update', 'docs-writing', 'knowledge-sync'];
+
+  test('always lists the local choice file', () => {
+    expect(
+      excludePathsOf({ agents: [], skillNames: SKILLS }).flatMap(group => group.paths),
+    ).toEqual(['/.agents/vulcan.local.json']);
+  });
+
+  test('claude: the shim and the folder', () => {
+    const groups = excludePathsOf({ agents: ['claude'], skillNames: SKILLS });
+
+    expect(groups.find(group => group.title === 'claude')?.paths).toEqual([
+      '/CLAUDE.md',
+      '/.claude/',
+    ]);
+  });
+
+  test('agents with a project MCP file list it; shared-file agents list none', () => {
+    const paths = (agent: string): string[] =>
+      excludePathsOf({ agents: [agent], skillNames: SKILLS }).find(group => group.title === agent)
+        ?.paths ?? [];
+
+    expect(paths('cursor')).toContain('/.cursor/mcp.json');
+    expect(paths('codex')).toContain('/.codex/config.toml');
+    expect(paths('copilot-vscode')).toContain('/.vscode/mcp.json');
+    expect(paths('antigravity')).toContain('/.agents/mcp_config.json');
+    expect(paths('pi')).toContain('/.pi/mcp.json');
+    expect(paths('omp').some(path => path.endsWith('.json'))).toBe(false);
+    expect(paths('copilot-cli').some(path => path.endsWith('.json'))).toBe(false);
+  });
+
+  test('every agent except claude lists the shipped-skill links of .agents/skills', () => {
+    const omp = excludePathsOf({ agents: ['omp'], skillNames: SKILLS }).find(
+      group => group.title === 'omp',
+    );
+
+    expect(omp?.paths).toEqual([
+      '/.agents/skills/docs-update',
+      '/.agents/skills/docs-writing',
+      '/.agents/skills/knowledge-sync',
+    ]);
+  });
+
+  test('agents that share the skills folder list its links once', () => {
+    const all = excludePathsOf({ agents: ['omp', 'codex', 'pi'], skillNames: SKILLS }).flatMap(
+      group => group.paths,
+    );
+
+    expect(all.filter(path => path === '/.agents/skills/docs-update')).toHaveLength(1);
+  });
+
+  test('an agent that is not chosen lists nothing', () => {
+    const titles = excludePathsOf({ agents: ['omp'], skillNames: SKILLS }).map(
+      group => group.title,
+    );
+
+    expect(titles).not.toContain('cursor');
+    expect(titles).not.toContain('claude');
+  });
+});
+
+describe('renderExcludeBlock', () => {
+  test('one comment line per agent, then its anchored paths, between the markers', () => {
+    const block = renderExcludeBlock({
+      groups: [
+        { title: 'cursor', paths: ['/.cursor/mcp.json'] },
+        { title: 'local', paths: ['/.agents/vulcan.local.json'] },
+      ],
+    });
+
+    expect(block).toBe(
+      [
+        EXCLUDE_BLOCK_START,
+        '# cursor',
+        '/.cursor/mcp.json',
+        '# local',
+        '/.agents/vulcan.local.json',
+        EXCLUDE_BLOCK_END,
+        '',
+      ].join('\n'),
+    );
+    expect(EXCLUDE_BLOCK_START).toBe(
+      '# vulcan:start - written by vulcan sync for the agents you chose; do not edit',
+    );
+    expect(EXCLUDE_BLOCK_END).toBe('# vulcan:end');
+  });
+});
+
+describe('mergeExcludeBlock', () => {
+  const block = renderExcludeBlock({ groups: [{ title: 'cursor', paths: ['/.cursor/mcp.json'] }] });
+
+  test('no file yet: only the block', () => {
+    expect(mergeExcludeBlock({ text: undefined, block })).toEqual({ changed: true, text: block });
+  });
+
+  test("the user's own lines stay and the block comes after a blank line", () => {
+    const before = '# mine\n*.log\n';
+
+    expect(mergeExcludeBlock({ text: before, block })).toEqual({
+      changed: true,
+      text: `${before}\n${block}`,
+    });
+  });
+
+  test('the same block again changes nothing', () => {
+    expect(mergeExcludeBlock({ text: block, block })).toEqual({ changed: false, text: block });
+  });
+
+  test('a changed block is replaced between its markers, the lines around it untouched', () => {
+    const other = renderExcludeBlock({ groups: [{ title: 'pi', paths: ['/.pi/mcp.json'] }] });
+    const before = `*.log\n\n${block}\nafter\n`;
+    const merged = mergeExcludeBlock({ text: before, block: other });
+
+    expect(merged).toEqual({ changed: true, text: `*.log\n\n${other}\nafter\n` });
+    expect(merged.text).not.toContain('cursor');
+  });
+});

@@ -53,7 +53,7 @@ The order that decides the list is: the `--agents` flag; the stored file; the `a
 | `antigravity` | `mcpServers.atlas` | `.agents/mcp_config.json` |
 | `pi` | `mcpServers.atlas` | `.pi/mcp.json`; Pi ignores it until you trust the project |
 
-These files are for your machine, so the entry carries the absolute project root and calls the project's own `vulcan` (`bun <root>/node_modules/.bin/vulcan x atlas mcp --root <root>`), which works whatever directory the agent starts the server from. `sync` merges: your other servers and keys stay, an `atlas` entry that `sync` wrote itself is rewritten when the project has moved (the paths no longer match this folder: after you move, rename or copy the project, run `sync` again), any other `atlas` entry is yours and is left as it is, a file that is not valid JSON is skipped (`skipped`, with the reason), and a file git tracks is not written (it prints what to add). After the actions, `sync` prints one `note` line for each thing only you can do, such as trusting the project in Codex or Pi. Every chosen agent except Claude reads skills from `.agents/skills/<name>/SKILL.md`, so `sync` links the three shipped skills (`docs-update`, `docs-writing`, `knowledge-sync`) there, as symbolic links to the same stable path the Claude links use. Agents that share the folder share the links. A skill of yours with the same name wins: its real folder is left and reported as `skipped`. Claude keeps `.claude/skills`, which also holds your project skills. The git ignore entries for these files arrive with the next release.
+These files are for your machine, so the entry carries the absolute project root and calls the project's own `vulcan` (`bun <root>/node_modules/.bin/vulcan x atlas mcp --root <root>`), which works whatever directory the agent starts the server from. `sync` merges: your other servers and keys stay, an `atlas` entry that `sync` wrote itself is rewritten when the project has moved (the paths no longer match this folder: after you move, rename or copy the project, run `sync` again), any other `atlas` entry is yours and is left as it is, a file that is not valid JSON is skipped (`skipped`, with the reason), and a file git tracks is not written (it prints what to add). After the actions, `sync` prints one `note` line for each thing only you can do, such as trusting the project in Codex or Pi. Every chosen agent except Claude reads skills from `.agents/skills/<name>/SKILL.md`, so `sync` links the three shipped skills (`docs-update`, `docs-writing`, `knowledge-sync`) there, as symbolic links to the same stable path the Claude links use. Agents that share the folder share the links. A skill of yours with the same name wins: its real folder is left and reported as `skipped`. Claude keeps `.claude/skills`, which also holds your project skills. The git ignore entries for these files are described in [Keeping the adapters out of git](#keeping-the-adapters-out-of-git).
 
 ## The Atlas block in AGENTS.md
 
@@ -70,6 +70,25 @@ Look facts up there before you answer or write from memory (V-P-07):
 ```
 
 The corpora come from the config (the project and every `atlas.sources` entry). `sync` inserts the block before the section that follows "Must read first" (or at the end), rewrites only what sits between the markers on later runs, and never touches your text around it. A project whose `.mcp.json` does not run the atlas server gets no block. `vulcan doctor` prints an `info` line when the block is missing or out of date; it never fails.
+
+## Keeping the adapters out of git
+
+Which agents you use is your choice, so the committed `.gitignore` cannot list your adapter files without churn between teammates. `sync` writes them to your clone's own `.git/info/exclude` instead, between `# vulcan:start` and `# vulcan:end`, one comment line per agent:
+
+```text
+# vulcan:start - written by vulcan sync for the agents you chose; do not edit
+# cursor
+/.cursor/mcp.json
+# omp
+/.agents/skills/docs-update
+/.agents/skills/docs-writing
+/.agents/skills/knowledge-sync
+# local
+/.agents/vulcan.local.json
+# vulcan:end
+```
+
+The list holds the Claude files (`/CLAUDE.md`, `/.claude/`) when `claude` is chosen, each chosen agent's own MCP file, the shipped-skill links, and the file that stores your choice. A path git tracks is not listed (an exclude entry cannot hide a tracked file). Each run replaces the block, so an agent you stop using drops out of it; its files stay until you delete them. The file is found with `git rev-parse --git-path info/exclude`, so a worktree or a separate git directory works, and a project below the repository top is anchored with its folder. Your own lines in the file are never touched, and a project that is not a git repository gets no file.
 
 ## Synchronizing adapters
 

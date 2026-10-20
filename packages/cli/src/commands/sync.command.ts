@@ -14,6 +14,7 @@ import {
   agentNotes,
   diffBaseRules,
   planAtlasBlock,
+  planExclude,
   planLocalChoice,
   planLocalIgnore,
   planPrune,
@@ -106,6 +107,7 @@ export const runSyncCommand = async (opts: ICommandContext): Promise<number> => 
     ...planSync({ root: opts.cwd, config: loaded.config, agents: resolved.agents }),
     ...planAtlasBlock({ root: opts.cwd, config: loaded.config }),
     ...stored,
+    ...planExclude({ root: opts.cwd, agents: resolved.agents }),
     ...pruned,
   ];
   // Read before the manifest action rewrites the hashes it compares against.
