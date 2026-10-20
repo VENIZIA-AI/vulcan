@@ -30,6 +30,7 @@ const PRESET: IPreset = {
   scripts: { dev: 'bun run src/index.ts' },
   checks: ['typecheck'],
   urls: [],
+  imports: {},
   files: '/x',
   atlas: [],
 };

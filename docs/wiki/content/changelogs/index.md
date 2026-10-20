@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-20 | [VULCAN 0.3.4: A Preset Can Declare the imports of Its App](./2026-10-20-vulcan-0-3-4) | Feature |
 | 2026-10-20 | [VULCAN 0.3.3: init Asks in Order and Keeps bun add Out of the Questions](./2026-10-20-vulcan-0-3-3) | Bug Fix |
 | 2026-10-20 | [VULCAN 0.3.2: The Generated Manifest Is Protected From Hand Edits](./2026-10-20-vulcan-0-3-2) | Enhancement |
 | 2026-10-20 | [VULCAN 0.3.1: The First Run Has No Snag](./2026-10-20-vulcan-0-3-1) | Enhancement, Bug Fix |

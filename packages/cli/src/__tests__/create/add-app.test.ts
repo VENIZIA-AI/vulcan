@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadConfig, resolvePackages } from '../../config/index.ts';
 import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
-import { copyWithUrls } from '../preset.helper.ts';
+import { copyWithFields, copyWithUrls } from '../preset.helper.ts';
 import { createProject, packFolder, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -250,6 +250,52 @@ describe('vulcan add --preset', () => {
     expect(result.stderr).toContain(
       'Next:\n  make dev\n  open http://localhost:3000/api/hello\n  open http://localhost:5173/dashboard\n  open http://localhost:5173/login\n',
     );
+  });
+
+  test('the preset imports reach the new app manifest, values verbatim', () => {
+    const imports = { '#src/*.json': './src/*.json', '#src/*': './src/*.js' };
+    const preset = copyWithFields({ fixture: BACKEND_PATH, fields: { imports } });
+    const root = monorepo();
+    const result = runCli({
+      args: ['add', '--preset', `file:${preset}`, '--app', 'second-api'],
+      cwd: root,
+      env: ENV,
+    });
+    const manifest = JSON.parse(
+      readFileSync(join(root, 'services/second-api/package.json'), 'utf8'),
+    );
+
+    expect(result.code).toBe(0);
+    expect(manifest.imports).toEqual(imports);
+  });
+
+  test('a preset without imports leaves no imports key in the new app manifest', () => {
+    const root = monorepo();
+
+    runCli({ args: ['add', '--preset', BACKEND, '--app', 'second-api'], cwd: root, env: ENV });
+
+    const manifest = JSON.parse(
+      readFileSync(join(root, 'services/second-api/package.json'), 'utf8'),
+    );
+
+    expect('imports' in manifest).toBe(false);
+  });
+
+  test('a preset import key without # is refused and no app is written', () => {
+    const preset = copyWithFields({
+      fixture: BACKEND_PATH,
+      fields: { imports: { 'src/*': './src/*.js' } },
+    });
+    const root = monorepo();
+    const result = runCli({
+      args: ['add', '--preset', `file:${preset}`, '--app', 'second-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('src/*');
+    expect(existsSync(join(root, 'services/second-api'))).toBe(false);
   });
 
   test('a new app on a taken port prints the port it was given', () => {

@@ -42,6 +42,8 @@ export interface IPreset {
   checks: string[];
   /** Paths under the dev port worth opening (`/api/hello`); none means the root. */
   urls: string[];
+  /** The app's `package.json` `imports` (Node subpath imports), copied as they are written. */
+  imports: Record<string, string>;
   /** The folder holding the files to copy, absolute once the preset is located. */
   files: string;
   atlas: IPresetAtlasSource[];

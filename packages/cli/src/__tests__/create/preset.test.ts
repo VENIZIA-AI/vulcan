@@ -204,6 +204,60 @@ describe('locatePreset urls', () => {
   });
 });
 
+describe('locatePreset imports', () => {
+  const withImports = (opts: { imports?: unknown }): string =>
+    createProject({
+      files: {
+        'package.json':
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+        'preset.json': JSON.stringify({
+          presetVersion: 1,
+          side: 'backend',
+          summary: 'x',
+          devPort: 3000,
+          files: './files',
+          ...(opts.imports === undefined ? {} : { imports: opts.imports }),
+        }),
+      },
+    });
+
+  test('imports are read as they are written', () => {
+    const imports = { '#src/*.json': './src/*.json', '#src/*': './src/*.js' };
+    const located = locateFixture({ path: withImports({ imports }) });
+
+    expect(located.preset.imports).toEqual(imports);
+  });
+
+  test('a preset without imports has none, and is still version 1', () => {
+    const located = locateFixture({ path: withImports({}) });
+
+    expect(located.preset.imports).toEqual({});
+    expect(located.preset.presetVersion).toBe(1);
+  });
+
+  test('a key without # is refused, naming the key', () => {
+    const result = locatePreset({
+      spec: {
+        range: `file:${withImports({ imports: { '#ok/*': './a/*.js', 'src/*': './src/*.js' } })}`,
+      },
+      root: '/unused',
+    });
+
+    expect(!result.ok && result.error).toContain('imports');
+    expect(!result.ok && result.error).toContain('src/*');
+    expect(!result.ok && result.error).toContain('#');
+  });
+
+  test('a value that is not a string is refused', () => {
+    const result = locatePreset({
+      spec: { range: `file:${withImports({ imports: { '#src/*': 3 } })}` },
+      root: '/unused',
+    });
+
+    expect(!result.ok && result.error).toContain('imports');
+  });
+});
+
 describe('locatePreset containment', () => {
   const PACKAGE_JSON =
     '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }';

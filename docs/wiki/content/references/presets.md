@@ -32,6 +32,7 @@ The second is that `preset.json`, with the files it copies next to it:
   "scripts": { "dev": "bun run src/index.ts", "typecheck": "tsc --noEmit", "test": "bun test" },
   "checks": ["typecheck", "test"],
   "urls": ["/api/hello"],
+  "imports": { "#src/*": "./src/*.js" },
   "files": "./files",
   "atlas": [{ "name": "acme", "repo": "acme/acme", "ref": "main" }]
 }
@@ -61,11 +62,13 @@ vulcan-preset/
 | `scripts` | object | no | The `scripts` of the app's `package.json` |
 | `checks` | array of script names | no | Scripts that `init` and `add` run in the app after install, in order. Each entry must be a key of `scripts`, or the preset is refused |
 | `urls` | array of paths | no | Paths to open on the dev port, each starting with `/` (`/api/hello`). `init` and `add` end with one `open http://localhost:<port><path>` line per path. With none, they print the root. They are recorded in the app's `package.json` under `vulcan.urls`, so a later `add` prints them too |
+| `imports` | object of strings | no | Node subpath imports for the app, written to its `package.json` as `imports` exactly as given, so code can import `#src/...` with no `tsconfig` `paths`, `tsc-alias` or Vite alias. Every key must start with `#`, or the preset is refused and the message names the key. Every value is a string. The [tokens](#tokens-in-files) are not replaced here. VULCAN 0.3.3 and older ignore the key |
 | `files` | string | yes | The folder to copy, relative to `preset.json`. It, and the `vulcan.preset` path, must stay inside the package; a path that climbs out with `..` is refused |
 | `atlas` | array of `{ name, repo, ref }` | no | Documentation sources added to `atlas.sources`, so agents read the framework's docs |
 
 The app's `package.json` is generated from these keys: `name` is the app name, `version` is `0.0.0`, and the preset package itself is a dependency.
 A `package.json` in `files/` is overwritten.
+When the preset has `imports`, the app's `package.json` carries it after `private`; a preset without it leaves the key out.
 
 ## Tokens in files
 
