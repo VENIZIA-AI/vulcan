@@ -10,6 +10,9 @@ export class ManifestConstants {
   static readonly SCHEMA_VERSION = 1;
   static readonly PROJECT_RULES = '.agents/rules.md';
   static readonly ENV = 'VULCAN_MANIFEST';
+  /** The first key: a reader sees at once that the file is generated. Readers ignore it; absent in older files. */
+  static readonly GENERATED_KEY = '$generated';
+  static readonly GENERATED_NOTE = 'by vulcan sync from .configs/vulcan.config.* - do not edit';
 }
 
 const HASH_LENGTH = 8;
@@ -51,6 +54,7 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
   const { wiki, changelogs, syncAreas } = config.knowledge;
 
   const manifest = {
+    [ManifestConstants.GENERATED_KEY]: ManifestConstants.GENERATED_NOTE,
     schemaVersion: ManifestConstants.SCHEMA_VERSION,
     name: projectNameOf(opts),
     packages: resolvePackages({ config }).map(entry => ({
@@ -78,4 +82,28 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
   };
 
   return `${JSON.stringify(manifest, null, 2)}\n`;
+};
+
+/**
+ * Whether a committed manifest holds what the config renders, apart from the `$generated` note: a
+ * file written before the note existed is current, a hand-edited one is not.
+ */
+export const isManifestCurrent = (opts: { committed: string; rendered: string }): boolean => {
+  try {
+    const strip = (text: string): string => {
+      const record: Record<string, unknown> = JSON.parse(text);
+
+      delete record[ManifestConstants.GENERATED_KEY];
+
+      return JSON.stringify(record);
+    };
+
+    return strip(opts.committed) === strip(opts.rendered);
+  } catch (error) {
+    console.error(
+      `[isManifestCurrent] unreadable manifest | ${error instanceof Error ? error.message : String(error)}`,
+    );
+
+    return false;
+  }
 };

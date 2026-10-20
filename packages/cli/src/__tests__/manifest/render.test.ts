@@ -32,6 +32,7 @@ describe('renderManifest', () => {
     const manifest = JSON.parse(render({ root, config: CONFIG }));
 
     expect(Object.keys(manifest)).toEqual([
+      '$generated',
       'schemaVersion',
       'name',
       'packages',
@@ -39,6 +40,7 @@ describe('renderManifest', () => {
       'release',
       'rules',
     ]);
+    expect(manifest.$generated).toBe('by vulcan sync from .configs/vulcan.config.* - do not edit');
     expect(manifest.schemaVersion).toBe(1);
     expect(manifest.name).toBe('acme');
     expect(manifest.packages).toEqual([
@@ -130,6 +132,57 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     expect(stale.code).toBe(1);
     expect(stale.stderr).toContain(`[${DoctorChecks.MANIFEST}]`);
     expect(stale.stderr).toContain('stale against the config');
+  });
+
+  test('a manifest written before $generated existed is still current', async () => {
+    const root = createProject({ files: PROJECT });
+
+    runCli({ args: ['sync'], cwd: root });
+
+    const path = join(root, ManifestConstants.FILE);
+    const { $generated, ...old } = JSON.parse(readFileSync(path, 'utf8'));
+
+    writeFileSync(path, `${JSON.stringify(old, null, 2)}\n`);
+
+    expect($generated).toBeDefined();
+    expect(JSON.parse(readFileSync(path, 'utf8')).$generated).toBeUndefined();
+    expect((await runDoctorChecks({ root })).map(violation => violation.check)).not.toContain(
+      DoctorChecks.MANIFEST,
+    );
+  });
+
+  test('a sync after the old shape writes the key back', () => {
+    const root = createProject({ files: PROJECT });
+
+    runCli({ args: ['sync'], cwd: root });
+
+    const path = join(root, ManifestConstants.FILE);
+    const { $generated, ...old } = JSON.parse(readFileSync(path, 'utf8'));
+
+    writeFileSync(path, `${JSON.stringify(old, null, 2)}\n`);
+    runCli({ args: ['sync'], cwd: root });
+
+    expect($generated).toBeDefined();
+    expect(JSON.parse(readFileSync(path, 'utf8')).$generated).toBe($generated);
+  });
+
+  test('a hand-edited manifest fails C1 and the message says it is generated and how to fix it', () => {
+    const root = createProject({ files: PROJECT });
+
+    runCli({ args: ['sync'], cwd: root });
+
+    const path = join(root, ManifestConstants.FILE);
+    const edited = JSON.parse(readFileSync(path, 'utf8'));
+
+    edited.name = 'edited-by-hand';
+    writeFileSync(path, `${JSON.stringify(edited, null, 2)}\n`);
+
+    const result = runCli({ args: ['doctor'], cwd: root });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(`[${DoctorChecks.MANIFEST}]`);
+    expect(result.stderr).toContain('generated');
+    expect(result.stderr).toContain("run 'bun x --no-install vulcan sync'");
   });
 
   test('vulcan x hands the tool the manifest, rendered fresh', async () => {
