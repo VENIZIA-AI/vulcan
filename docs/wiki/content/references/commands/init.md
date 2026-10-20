@@ -263,6 +263,19 @@ Done. Next:
 The `skipped` lines appear only because the run sets `VULCAN_NO_INSTALL=1`, which prints the install, `git init`, `sync` and the checks instead of running them.
 A normal run executes each one.
 
+With a published preset the side of the app is not known until the package is read, so `init` asks the project name first, fetches the package, then asks the rest in the same order with the side named:
+
+```text
+$ bun x @venizia/vulcan init --preset ignis
+? Project name (the monorepo folder) > my-product
+Fetching preset @venizia/ignis@latest ...
+? Backend folder (holds every backend app) > services
+? Name of this backend app > core-api
+? Shared code folder (empty to skip) > libs
+```
+
+The fetch is one line. The output of `bun add` is kept and printed only when the fetch fails, so it never lands between two questions.
+
 The `.gitignore` it writes holds `node_modules/`, `dist/`, `.env`, `*.tsbuildinfo` and the agent entries, so the files `tsc` leaves behind after the checks do not show up as untracked.
 When the preset declares `urls`, the last lines are one `open http://localhost:3000<path>` per path instead of the root.
 

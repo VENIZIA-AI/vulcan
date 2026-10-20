@@ -7,6 +7,8 @@ import { runBun } from './process.ts';
 /**
  * An npm preset is read from node_modules, so it is installed into a scratch folder outside the
  * project: every refusal that depends on what the package says happens before anything is written.
+ * One line says what is fetched; bun's own output would land between the questions, so it is kept
+ * and shown only when the install fails.
  */
 export const installNpmPreset = async (opts: {
   scratch: string;
@@ -17,10 +19,15 @@ export const installNpmPreset = async (opts: {
     `${JSON.stringify({ name: 'vulcan-preset-scratch', private: true })}\n`,
   );
 
+  const preset = `${opts.spec.packageName}@${opts.spec.range}`;
+
+  process.stderr.write(`Fetching preset ${preset} ...\n`);
+
   return runBun({
     cwd: opts.scratch,
-    args: ['add', `${opts.spec.packageName}@${opts.spec.range}`],
-    label: `bun add ${opts.spec.packageName}@${opts.spec.range}`,
+    args: ['add', preset],
+    label: `bun add ${preset}`,
+    quiet: true,
   });
 };
 

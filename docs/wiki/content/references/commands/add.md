@@ -48,6 +48,7 @@ Done. web/dashboard is added. Next:
   open http://localhost:5173
 ```
 
+With a published preset, `add` first prints `Fetching preset <name>@<range> ...`, then asks; the output of `bun add` is printed only when the fetch fails.
 The last lines list every app of the monorepo, the one just added included: `make dev`, then one `open` line per url its preset declared (see `urls` in [Presets](/references/presets)), or the root of its port when it declared none.
 The `skipped` lines appear only because the run sets `VULCAN_NO_INSTALL=1`, which prints the install, `sync` and the checks instead of running them.
 The copied preset files are not listed; `web/dashboard/vite.config.ts` now proxies `/api` to the port of `core-api`:

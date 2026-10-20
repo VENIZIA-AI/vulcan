@@ -7,11 +7,15 @@ export const isInstallSkipped = (): boolean => process.env[CreateConstants.NO_IN
 /** The `bun` this process runs, unless a test replaced it. */
 export const bunExecutable = (): string => process.env[CreateConstants.BUN_ENV] ?? process.execPath;
 
-/** Any command, under the same skip rule as `runBun`; a skipped one counts as done. */
+/**
+ * Any command, under the same skip rule as `runBun`; a skipped one counts as done. A quiet command
+ * prints nothing while it runs: its output is kept and written only when it fails.
+ */
 export const runCommand = async (opts: {
   cwd: string;
   command: string[];
   label: string;
+  quiet?: boolean;
 }): Promise<number> => {
   if (isInstallSkipped()) {
     process.stderr.write(`  skipped  ${opts.label} (VULCAN_NO_INSTALL)\n`);
@@ -19,20 +23,46 @@ export const runCommand = async (opts: {
     return ExitCodes.OK;
   }
 
+  if (opts.quiet !== true) {
+    const child = Bun.spawn(opts.command, {
+      cwd: opts.cwd,
+      stdio: ['inherit', 'inherit', 'inherit'],
+    });
+
+    return child.exited;
+  }
+
   const child = Bun.spawn(opts.command, {
     cwd: opts.cwd,
-    stdio: ['inherit', 'inherit', 'inherit'],
+    stdin: 'ignore',
+    stdout: 'pipe',
+    stderr: 'pipe',
   });
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+    child.exited,
+  ]);
 
-  return child.exited;
+  if (code !== ExitCodes.OK) {
+    process.stderr.write(`${stdout}${stderr}`);
+  }
+
+  return code;
 };
 
 export const runBun = async (opts: {
   cwd: string;
   args: string[];
   label: string;
+  quiet?: boolean;
 }): Promise<number> =>
-  runCommand({ cwd: opts.cwd, command: [bunExecutable(), ...opts.args], label: opts.label });
+  runCommand({
+    cwd: opts.cwd,
+    command: [bunExecutable(), ...opts.args],
+    label: opts.label,
+    quiet: opts.quiet,
+  });
 
 /**
  * `git init` on the new project. A machine without git (or with one too old for `-b`) still gets a

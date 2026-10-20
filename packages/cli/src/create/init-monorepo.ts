@@ -215,21 +215,23 @@ const runCreate = async (opts: {
   }
 
   let located: ILocatedPreset;
-  let names: Record<string, string>;
 
   if (isNpm) {
-    // The side is known only once the package is read, so its folder is asked after the install.
-    const early = resolveNames({
-      fields: appFields({}),
-      args: opts.args,
-      interactive,
-      ask: askWithPrompt,
-    });
+    // Without a terminal nothing is asked, so a missing flag is refused before the network is used.
+    if (!interactive) {
+      const early = resolveNames({
+        fields: appFields({}),
+        args: opts.args,
+        interactive,
+        ask: askWithPrompt,
+      });
 
-    if (!early.ok) {
-      return fail({ message: early.error });
+      if (!early.ok) {
+        return fail({ message: early.error });
+      }
     }
 
+    // The side is known only once the package is read, so the preset is fetched before the rest is asked.
     const installed = await installNpmPreset({ scratch: opts.scratch, spec });
 
     if (installed !== ExitCodes.OK) {
@@ -243,19 +245,6 @@ const runCreate = async (opts: {
     }
 
     located = result.located;
-
-    const folder = resolveNames({
-      fields: [SIDE_FIELDS[located.preset.side]],
-      args: opts.args,
-      interactive,
-      ask: askWithPrompt,
-    });
-
-    if (!folder.ok) {
-      return fail({ message: folder.error });
-    }
-
-    names = { ...early.names, ...folder.names };
   } else {
     const result = locatePreset({ spec, root });
 
@@ -264,22 +253,20 @@ const runCreate = async (opts: {
     }
 
     located = result.located;
-
-    const rest = resolveNames({
-      fields: appFields({ side: located.preset.side }),
-      args: opts.args,
-      interactive,
-      ask: askWithPrompt,
-    });
-
-    if (!rest.ok) {
-      return fail({ message: rest.error });
-    }
-
-    names = rest.names;
   }
 
-  const { folder, app, shared } = names;
+  const rest = resolveNames({
+    fields: appFields({ side: located.preset.side }),
+    args: opts.args,
+    interactive,
+    ask: askWithPrompt,
+  });
+
+  if (!rest.ok) {
+    return fail({ message: rest.error });
+  }
+
+  const { folder, app, shared } = rest.names;
   const side = located.preset.side;
   // The flag of the side this preset does not build still counts when given: it names a folder too.
   const otherFlag =
