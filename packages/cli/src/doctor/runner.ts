@@ -2,6 +2,7 @@ import { relative } from 'node:path';
 import { loadConfig } from '../config/index.ts';
 import {
   checkAdapters,
+  checkAppScripts,
   checkApps,
   checkManifest,
   checkPrune,
@@ -55,4 +56,19 @@ export const runDoctorChecks = async (opts: { root: string }): Promise<IViolatio
     ...checkScaffold(context),
     ...checkApps(context),
   ];
+};
+
+/** Notes that never fail the doctor: what a project could change, one line each. */
+export const runDoctorNotes = async (opts: { root: string }): Promise<IViolation[]> => {
+  const loaded = await loadConfig({ root: opts.root });
+
+  if (!loaded.ok) {
+    return [];
+  }
+
+  return checkAppScripts({
+    root: opts.root,
+    config: loaded.config,
+    configFile: relative(opts.root, loaded.file),
+  });
 };

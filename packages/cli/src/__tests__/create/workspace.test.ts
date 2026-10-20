@@ -55,7 +55,7 @@ describe('workspace planners', () => {
       name: 'my-product',
       private: true,
       workspaces: { packages: ['services/*', 'libs/*'], catalog: { hono: '^4' } },
-      scripts: { dev: "bun run --filter '*' dev" },
+      scripts: { dev: "bun run --filter '*' server:dev" },
       devDependencies: { '@venizia/vulcan': '0.3.0' },
     });
   });

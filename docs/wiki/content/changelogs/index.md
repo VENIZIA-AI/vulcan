@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-20 | [VULCAN 0.3.6: One Script Standard for Every App](./2026-10-20-vulcan-0-3-6) | Enhancement |
 | 2026-10-20 | [VULCAN 0.3.5: Agents Reach for atlas on Their Own](./2026-10-20-vulcan-0-3-5) | Enhancement |
 | 2026-10-20 | [VULCAN 0.3.4: A Preset Can Declare the imports of Its App](./2026-10-20-vulcan-0-3-4) | Feature |
 | 2026-10-20 | [VULCAN 0.3.3: init Asks in Order and Keeps bun add Out of the Questions](./2026-10-20-vulcan-0-3-3) | Bug Fix |

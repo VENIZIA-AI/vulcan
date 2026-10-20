@@ -6,8 +6,16 @@
   "dependencies": { "@fixture/lib": "1.0.0" },
   "devDependencies": { "typescript": "^6.0.3" },
   "peers": {},
-  "scripts": { "dev": "bun run src/index.ts", "check": "bun -e 0" },
-  "checks": ["check"],
+  "scripts": {
+    "server:dev": "bun -e \"console.log('fixture-backend-up')\"",
+    "compile": "bun -e 0",
+    "typecheck": "bun -e 0",
+    "lint": "bun -e 0",
+    "lint:fix": "bun -e 0",
+    "test": "bun -e 0",
+    "clean": "bun -e 0"
+  },
+  "checks": ["typecheck"],
   "files": "./files",
   "atlas": [{ "name": "fixture", "repo": "example/fixture", "ref": "main" }]
 }

@@ -13,6 +13,7 @@ An exit code of `1` indicates one or more contract violations.
 
 Each violation line follows the shape `[check] file: message`.
 The final line prints `vulcan doctor: OK` on success or `vulcan doctor: N violation(s)` on failure.
+A line that starts with `info` is a note, not a violation: it never changes the exit code or the final line ([scripts](#scripts)).
 
 When all checks pass, the command reports an OK status:
 
@@ -24,7 +25,7 @@ vulcan doctor: OK
 ## Checks
 
 If the configuration cannot be loaded, `vulcan doctor` reports only `config`.
-Otherwise, it executes the other 13 checks in sequence.
+Otherwise, it executes the other 13 checks in sequence, then prints the notes.
 Doctor runs `skills` twice: shipped-name checks run before `make`, while skill linting runs after `tags`.
 
 | Check | What it verifies | Typical fix |
@@ -255,6 +256,18 @@ $ bun x --no-install vulcan doctor
 ```
 
 Retired packages are not checked.
+
+### scripts
+
+An info note, not a violation. Every app (a live package inside the `layout.backend` or `layout.frontend` folder) carries the seven standard scripts of rule `V-B-05`: `server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test` and `clean`. The note names, for each app, the standard scripts it lacks and the legacy ones it carries (`dev`, `start`, `build`, `rebuild`, `preview`, `server:prod`). Shared code, retired packages, apps without a `package.json` and projects without `layout` produce none. Domain extras such as `migrate:dev` are fine.
+
+```text
+$ bun x --no-install vulcan doctor
+  info [scripts] services/core-api/package.json: app core-api: missing server:dev, compile, typecheck, lint, lint:fix, clean; legacy dev, start (use the standard names)
+vulcan doctor: OK
+```
+
+Rename the scripts, and keep the work in `scripts/*.sh`. The exit code stays `0`, so no existing project starts failing.
 
 ## Run it in CI
 

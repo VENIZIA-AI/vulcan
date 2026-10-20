@@ -326,7 +326,7 @@ $ cd my-product && find . -type f | sort
 
 | File | What it holds |
 |---|---|
-| `package.json` | A private root with `workspaces` (`services/*`, `libs/*`) and a `catalog` of every version the preset declares. `@venizia/vulcan` is pinned to the exact running version |
+| `package.json` | A private root with `workspaces` (`services/*`, `libs/*`), a `catalog` of every version the preset declares, and a `dev` script, `bun run --filter '*' server:dev`, which `make dev` calls: it starts every app that has a `server:dev` script (rule `V-B-05`) and skips the rest. `@venizia/vulcan` is pinned to the exact running version |
 | `<folder>/<app>/` | The preset's files, plus a `package.json` whose dependencies are `catalog:` |
 | `.gitignore`, `README.md`, `Makefile` | The ignore list for agent files, a title, and the VULCAN targets plus `make dev` |
 | `AGENTS.md`, `.agents/rules.md`, `.mcp.json` | The same layer as [the scaffold above](#generated-files) |

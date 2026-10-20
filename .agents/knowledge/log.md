@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-20 - one script standard for every app (0.3.6)
+
+Base rule `V-B-05`: every app carries `server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean` (logic in `scripts/*.sh`), no `dev`, `start`, `build`, `rebuild`, `preview`, `server:prod`. The root `dev` script `init` writes runs `server:dev` in every app. `vulcan doctor` notes (info, exit code unchanged) an app that lacks one or carries a legacy name. This repository's Makefile exposes the library targets `typecheck` and `lint-fix` next to build, lint, test, clean. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-20 - agents reach for atlas on their own (0.3.5)
 
 The atlas server sends `instructions` for every project (corpora, triggers, the rule), its tool descriptions open with when to call the tool and name the projects, the session-start digest has an Atlas block, and the base rule `V-P-07` (facts come from atlas, not memory) is in the default `oftenDropped` list. Concepts: [cli](/packages/cli.md).

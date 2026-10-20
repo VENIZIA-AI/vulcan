@@ -57,6 +57,7 @@ Retired IDs are never reused (2026-10-17):
 | V-B-02 | The project's lint and test gates pass with zero warnings before "done". | SOFT - pre-commit runs `vulcan doctor` and lint |
 | V-B-03 | Run it, read real output, then claim. Evidence before assertions. | SOFT |
 | V-B-04 | Never green the suite by weakening it: no deleted/skipped tests, loosened asserts, relaxed strictness, `any`. Red test = information. | SOFT |
+| V-B-05 | **One script set for every app**, backend and frontend: `server:dev` (a frontend runs vite), `compile` (`sh scripts/compile.sh`; a frontend runs vite build), `typecheck` (`bun check`), `lint` (`sh scripts/lint.sh`), `lint:fix` (`sh scripts/lint.sh --fix`), `test` (`bun test`), `clean` (`sh scripts/clean.sh`). The logic lives in `scripts/*.sh`, never in the `package.json` string. No `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod`. A domain extra such as `migrate:dev` is allowed on top. A library package keeps Makefile targets instead: `build`, `typecheck`, `lint`, `lint-fix`, `test`, `clean`. | SOFT - `vulcan doctor` notes an app that lacks one or carries a legacy name (info, never a failure) |
 
 ## C - Code and writing
 
