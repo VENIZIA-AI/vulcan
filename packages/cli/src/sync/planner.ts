@@ -10,6 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
+import { readAgentTable } from '../agents/index.ts';
 import { BASE_DIRECTORY, stableBaseDirectoryOf } from '../common/index.ts';
 import { CodingAgents } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
@@ -177,9 +178,18 @@ const findSkillDirectories = (opts: { directory: string }): string[] =>
         .map(entry => join(opts.directory, entry.name))
     : [];
 
-/** Shipped and project skills, linked flat into `.claude/skills/<name>`; a real directory there is left alone. */
-const planSkillLinks = (opts: { root: string }): ISyncAction[] => {
-  const target = join(opts.root, SyncConstants.CLAUDE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY);
+/**
+ * Shipped skills, and for Claude the project's too, linked flat into `directory/<name>`; a real
+ * directory there is left alone. The project's own skills already live in `.agents/skills`, so that
+ * folder gets the shipped links only.
+ */
+const planSkillLinks = (opts: {
+  root: string;
+  /** The agent's skills folder from the table, relative to the project. */
+  directory: string;
+  withProject: boolean;
+}): ISyncAction[] => {
+  const target = join(opts.root, opts.directory);
 
   // A symlinked skills directory points outside the project: writing links through it would land them there.
   if (isSymlink({ path: target })) {
@@ -198,9 +208,11 @@ const planSkillLinks = (opts: { root: string }): ISyncAction[] => {
     directory: join(BASE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY),
   }).map(source => join(stableSkills, basename(source)));
   const shippedNames = new Set(shipped.map(source => basename(source)));
-  const project = findSkillDirectories({
-    directory: join(opts.root, '.agents', SyncConstants.SKILLS_DIRECTORY),
-  });
+  const project = opts.withProject
+    ? findSkillDirectories({
+        directory: join(opts.root, '.agents', SyncConstants.SKILLS_DIRECTORY),
+      })
+    : [];
 
   // Extend only: a project skill never takes a shipped skill's link; doctor reports the clash.
   const shadowing: ISyncAction[] = project
@@ -284,6 +296,17 @@ export const planManifest = (opts: { root: string; config: TResolvedConfig }): I
     : { path, status: SyncStatuses.REPLACED, apply: write };
 };
 
+const CLAUDE_SKILLS = join(SyncConstants.CLAUDE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY);
+
+/** The skills folders of the chosen agents, each once, in table order: agents that read one folder share its links. */
+const skillDirectoriesOf = (opts: { agents: string[] }): string[] => [
+  ...new Set(
+    readAgentTable()
+      .filter(entry => opts.agents.includes(entry.id))
+      .map(entry => entry.skills.dir),
+  ),
+];
+
 /** Every adapter the project's agents need, and the manifest every project carries - planned, not written. */
 export const planSync = (opts: {
   root: string;
@@ -292,12 +315,11 @@ export const planSync = (opts: {
   agents: string[];
 }): ISyncAction[] => [
   ...(opts.agents.includes(CodingAgents.CLAUDE)
-    ? [
-        planClaudeImport({ root: opts.root }),
-        planSettings(opts),
-        ...planSkillLinks({ root: opts.root }),
-      ]
+    ? [planClaudeImport({ root: opts.root }), planSettings(opts)]
     : []),
+  ...skillDirectoriesOf({ agents: opts.agents }).flatMap(directory =>
+    planSkillLinks({ root: opts.root, directory, withProject: directory === CLAUDE_SKILLS }),
+  ),
   ...planAgentFiles({ root: opts.root, agents: opts.agents }),
   planManifest(opts),
 ];

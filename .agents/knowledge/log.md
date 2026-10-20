@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-20 - skill links for the other agents (multi-agent 3 of 7)
+
+When an agent other than Claude is chosen, sync links the shipped skills into `.agents/skills/<name>` (the folder five-plus agents read), the same stable-path symlinks as `.claude/skills`; agents share one set, a project skill of the same name wins, dead links into the shipped skills are taken back. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-20 - the MCP renderers (multi-agent 2 of 7)
 
 For each chosen agent with a project-scope entry, sync writes the atlas server into the agent's own file: `mcpServers` JSON (cursor, antigravity, pi), `servers` JSON (copilot-vscode), a marker block of `.codex/config.toml` (codex). Merge never overwrites, an invalid or git-tracked file is skipped, the per-machine files carry the absolute root, and the trust notes are printed. Concept: [cli](/packages/cli.md).

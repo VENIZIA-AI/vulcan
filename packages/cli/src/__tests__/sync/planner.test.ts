@@ -485,7 +485,7 @@ describe('idempotence and output', () => {
 });
 
 describe('planSync with the resolved agents', () => {
-  test('without claude only the manifest is planned, with claude the adapters come too', async () => {
+  test('without claude no Claude file is planned, with claude the adapters come too', async () => {
     const { planSync } = await import('../../sync/index.ts');
     const { loadConfig } = await import('../../config/index.ts');
     const root = createProject({ files: READ_ONLY_PROJECT });
@@ -499,8 +499,12 @@ describe('planSync with the resolved agents', () => {
     const withClaude = planSync({ root, config: loaded.config, agents: ['claude', 'omp'] });
 
     expect(without.map(action => action.path)).toEqual([
+      join(root, '.agents/skills/docs-writing'),
+      join(root, '.agents/skills/knowledge-sync'),
+      join(root, '.agents/skills/docs-update'),
       join(root, '.agents/vulcan.manifest.json'),
     ]);
+    expect(without.some(action => action.path === join(root, 'CLAUDE.md'))).toBe(false);
     expect(withClaude.length).toBeGreaterThan(without.length);
     expect(withClaude.some(action => action.path === join(root, 'CLAUDE.md'))).toBe(true);
   });
