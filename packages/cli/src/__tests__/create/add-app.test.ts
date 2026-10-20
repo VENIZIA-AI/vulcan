@@ -354,7 +354,7 @@ describe('vulcan add --preset', () => {
     });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('missing --app');
+    expect(result.stderr).toContain('say what to create');
     expect(result.stderr).not.toContain('needs an install');
   });
 
@@ -444,12 +444,22 @@ describe('vulcan add --preset', () => {
     expect(existsSync(join(root, 'apps'))).toBe(false);
   });
 
-  test('a missing app name is an error naming --app and nothing is written', () => {
+  test('neither --app nor --lib is refused with both commands, and nothing is written', () => {
     const root = monorepo();
     const result = runCli({ args: ['add', '--preset', BACKEND], cwd: root, env: ENV });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('missing --app');
+    expect(result.stderr).toContain('say what to create');
+    expect(result.stderr).toContain('--app <name>');
+    expect(result.stderr).toContain('--lib <name>');
+  });
+
+  test('a flag that takes a name but has none is an error naming it', () => {
+    const root = monorepo();
+    const result = runCli({ args: ['add', '--preset', BACKEND, '--lib'], cwd: root, env: ENV });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('--lib needs a name');
   });
 
   test('an npm preset outside the peer range leaves the monorepo untouched', () => {

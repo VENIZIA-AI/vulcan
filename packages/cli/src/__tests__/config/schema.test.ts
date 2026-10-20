@@ -59,7 +59,54 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
   });
 });
 
+describe('package kind', () => {
+  test('a package may say it is a lib or an app; nothing else', () => {
+    const base = {
+      dir: 'merchant',
+      name: '@nx-feature/merchant',
+      path: 'auroras/features/merchant',
+    };
+
+    expect(
+      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, kind: 'lib' }] }).packages[0]?.kind,
+    ).toBe('lib');
+    expect(VULCAN_CONFIG_SCHEMA.parse({ packages: [base] }).packages[0]?.kind).toBeUndefined();
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ ...base, kind: 'tool' }] }).success).toBe(
+      false,
+    );
+  });
+
+  test('resolvePackages carries the kind', () => {
+    const config = VULCAN_CONFIG_SCHEMA.parse({
+      packages: [
+        {
+          dir: 'merchant',
+          name: '@nx-feature/merchant',
+          path: 'auroras/features/merchant',
+          kind: 'lib',
+        },
+      ],
+    });
+
+    expect(resolvePackages({ config })[0]).toMatchObject({
+      kind: 'lib',
+      path: 'auroras/features/merchant',
+    });
+  });
+});
+
 describe('presets', () => {
+  test('a recorded preset may say it also makes libraries', () => {
+    const preset = {
+      spec: 'ardor',
+      side: 'frontend',
+      summary: 'An admin.',
+      lib: 'A feature library.',
+    } as const;
+
+    expect(VULCAN_CONFIG_SCHEMA.parse({ presets: [preset] }).presets).toEqual([preset]);
+  });
+
   test('a recorded preset is { spec, side, summary }, side being backend or frontend', () => {
     const preset = { spec: 'ignis', side: 'backend', summary: 'An API.' } as const;
 

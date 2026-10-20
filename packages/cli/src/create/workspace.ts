@@ -169,6 +169,60 @@ export const renderAppManifest = (opts: {
     },
   });
 
+/** A library's package.json: generated fields first, then what the lib preset passes through. */
+export const renderLibManifest = (opts: {
+  name: string;
+  lib: {
+    scripts: Record<string, string>;
+    dependencies: Record<string, string>;
+    devDependencies: Record<string, string>;
+    peerDependencies: Record<string, string>;
+    imports: Record<string, string>;
+    exports: Record<string, unknown>;
+    packageFields: Record<string, unknown>;
+  };
+}): string => {
+  const { lib } = opts;
+  const section = (value: Record<string, unknown>, key: string): Record<string, unknown> =>
+    Object.keys(value).length === 0 ? {} : { [key]: value };
+
+  return json({
+    value: {
+      name: opts.name,
+      version: '0.0.0',
+      private: true,
+      ...lib.packageFields,
+      ...section(lib.exports, 'exports'),
+      ...section(lib.imports, 'imports'),
+      ...section(lib.scripts, 'scripts'),
+      ...section(toCatalog({ dependencies: lib.dependencies }), 'dependencies'),
+      ...section(toCatalog({ dependencies: lib.devDependencies }), 'devDependencies'),
+      ...section(toCatalog({ dependencies: lib.peerDependencies }), 'peerDependencies'),
+    },
+  });
+};
+
+export const renderLibConcept = (opts: {
+  name: string;
+  path: string;
+  summary: string;
+  presetPackage: string;
+}): string =>
+  [
+    '---',
+    'type: Package',
+    `title: ${opts.name}`,
+    `description: ${JSON.stringify(opts.summary)}`,
+    `resource: ${opts.path}`,
+    'tags: [packages, library]',
+    '---',
+    '',
+    `# ${opts.name}`,
+    '',
+    `The shared package at \`${opts.path}\`, created from the ${opts.presetPackage} preset (lib kind). ${oneLine({ text: opts.summary })}`,
+    '',
+  ].join('\n');
+
 export const renderAppsBlock = (opts: { block: IAppsBlock }): string =>
   [
     CreateConstants.APPS_BLOCK_START,
@@ -248,7 +302,8 @@ const hasStrings = (opts: { value: unknown; keys: string[] }): boolean => {
 const isRecordedPreset = (value: unknown): boolean =>
   hasStrings({ value, keys: ['spec', 'side', 'summary'] }) &&
   isRecord(value) &&
-  (value.side === 'backend' || value.side === 'frontend');
+  (value.side === 'backend' || value.side === 'frontend') &&
+  (value.lib === undefined || typeof value.lib === 'string');
 
 const isAppsBlock = (value: unknown): value is IAppsBlock =>
   isRecord(value) &&
