@@ -59,6 +59,22 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
   });
 });
 
+describe('presets', () => {
+  test('a recorded preset is { spec, side, summary }, side being backend or frontend', () => {
+    const preset = { spec: 'ignis', side: 'backend', summary: 'An API.' } as const;
+
+    expect(VULCAN_CONFIG_SCHEMA.parse({ presets: [preset] }).presets).toEqual([preset]);
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).presets).toBeUndefined();
+    expect(
+      VULCAN_CONFIG_SCHEMA.safeParse({ presets: [{ ...preset, side: 'shared' }] }).success,
+    ).toBe(false);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ presets: [{ spec: 'ignis' }] }).success).toBe(false);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ presets: [{ ...preset, extra: 1 }] }).success).toBe(
+      false,
+    );
+  });
+});
+
 describe('layout', () => {
   test('takes the three folder names, each a valid name', () => {
     expect(

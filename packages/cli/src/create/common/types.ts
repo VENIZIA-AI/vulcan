@@ -72,9 +72,21 @@ export interface IApp {
   folder: string;
 }
 
-/** What `init` and `add` own in the config: the layout, the package list and the atlas sources. */
+/**
+ * A preset an app of this project came from, as `--preset` takes it back: so an agent that is asked
+ * for a new app finds the exact command. Apps only today; a preset has no kind and is an app.
+ */
+export interface IRecordedPreset {
+  spec: string;
+  side: TAppSide;
+  summary: string;
+}
+
+/** What `init` and `add` own in the config: the layout, the package list, the presets and the atlas sources. */
 export interface IAppsBlock {
   layout: { backend?: string; frontend?: string; shared?: string };
   packages: { dir: string; name: string; path: string }[];
+  /** Absent in a block written before presets were recorded. */
+  presets?: IRecordedPreset[];
   sources: { name: string; repo: string; ref: string }[];
 }

@@ -20,8 +20,10 @@ import {
   parseAppsBlock,
   pickPort,
   planRootManifest,
+  presetSpecOf,
   readCatalog,
   readPort,
+  recordPreset,
   renderAppConcept,
   renderAppManifest,
   renderKnowledgeIndex,
@@ -333,9 +335,10 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   }
 
   // Extend what the markers hold: the resolved config also carries what the user added outside them.
-  const block: IAppsBlock = {
+  const extended: IAppsBlock = {
     layout: { ...parsed.block.layout, [side]: folder },
     packages: [...parsed.block.packages, entry],
+    ...(parsed.block.presets === undefined ? {} : { presets: parsed.block.presets }),
     sources: [
       ...parsed.block.sources,
       ...newSources.filter(
@@ -343,7 +346,23 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
       ),
     ],
   };
-  const nextConfig = replaceAppsBlock({ source, block });
+  const block = recordPreset({
+    block: extended,
+    preset: {
+      spec: presetSpecOf({ value: presetValue, root: cwd, cwd }),
+      side,
+      summary: preset.summary,
+    },
+  });
+  const replaced = replaceAppsBlock({ source, block });
+  // A config written before presets were recorded does not read them yet: the line that does goes in.
+  const nextConfig =
+    replaced === undefined || replaced.includes('apps.presets')
+      ? replaced
+      : replaced.replace(
+          '  packages: apps.packages,\n',
+          '  packages: apps.packages,\n  presets: apps.presets,\n',
+        );
 
   if (nextConfig === undefined) {
     return fail({ message: ROOT_HINT });
