@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-20 - the agents page and the changelog (multi-agent 8 of 8)
+
+`references/agents.md` lists the seven agents and is checked against `base/agents.json` by a test, so it cannot drift; the changelog entry for the multi-agent setup is written. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-20 - Claude approves atlas; user skills follow (multi-agent 7 of 7)
 
 The managed Claude settings carry `enabledMcpjsonServers: ["atlas"]`, merged as a union with the user's own list (checked with `claude -p`: the server is `pending` at start without it, `connected` with it); a skill the user writes in `.agents/skills` is linked into `.claude/skills` and its dead link is taken back when the folder is removed. Concept: [cli](/packages/cli.md).
