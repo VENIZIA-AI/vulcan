@@ -1,7 +1,9 @@
 name: CI
 run-name: "CI | ${{ github.event_name }} | ${{ github.head_ref || github.ref_name }}"
 
-# Manual only, as in IGNIS: the release workflow runs every gate below before it publishes.
+# Manual only, as in IGNIS. The release workflow runs every gate below before it publishes, so a
+# run on every pull request and every push to develop would pay for the same gates twice.
+# Nothing enforces this workflow as a required status check, so running it on demand blocks nothing.
 on:
   workflow_dispatch:
 
@@ -17,12 +19,51 @@ env:
 
 jobs:
   gates:
-    name: Build, test, lint and smoke
+    name: Source gates
     runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.3
+        with:
+          # The release table is generated from release commits; a shallow clone has none.
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        id: install
+        run: bun install
+
+      - name: Dependency catalog
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: make catalog-check
+
+      - name: Knowledge bundle
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: make okf-check-strict
+
+      - name: Agent setup (VULCAN)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: make vulcan-sync vulcan-doctor
+
+      - name: Gate scripts' own tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: make test-scripts
+
+  build-and-test:
+    name: Build, test and lint
+    runs-on: ubuntu-26.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.3
+        with:
+          # The release table is generated from release commits; a shallow clone has none.
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -35,28 +76,19 @@ jobs:
 
       - name: Build
         id: build
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: make build
 
       - name: Lint
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: make lint-all
 
-      - name: Dependency catalog
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: make catalog-check
-
+      # The make targets own the test flags (BUN_TEST_FLAGS, default --parallel), so CI and a
+      # developer's `make test` run the very same command.
       - name: Test
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: make test
 
-      - name: VULCAN contract
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: |
-          bun x --no-install vulcan sync
-          bun x --no-install vulcan doctor
-          bun x --no-install vulcan x okf check --strict
-
+      # The packed tarballs, installed alone in an empty project and run.
       - name: Pack smoke
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
