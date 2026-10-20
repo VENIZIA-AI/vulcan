@@ -2,7 +2,7 @@ name: Deploy Wiki Site
 
 on:
   push:
-    branches: [develop]
+    branches: [main]
     paths:
       - 'docs/wiki/**'
   workflow_dispatch:
@@ -27,13 +27,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.3
         with:
-          # lastUpdated reads each page's git history.
           fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
 
       - name: Build Docs
         run: make docs

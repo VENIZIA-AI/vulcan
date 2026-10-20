@@ -24,7 +24,7 @@ or `none` (publish the version already in package.json).
    `bun publish` writes the train's version into the tarball. The workflow checks every packed
    manifest for it. It publishes okf, atlas, cli in that order with `bun publish` - prerelease to `next`, stable to
    `latest`. A version already on npm is skipped. A prerelease never moves `latest`: it stays on a
-   stable version (as in IGNIS), so `npm-dist-tag.yml` is not part of a prerelease run.
+   stable version (as in IGNIS). There is no dist-tag workflow, as in IGNIS: to move a tag after the fact, the package owner runs `npm dist-tag add <name>@<version> <tag>` for each of the three packages.
 3. It commits `chore(release): v<version> [<bump>]` on `develop` and tags `v<version>` on that
    commit as built. When `develop` moved during the run, the push rebases, but the tag stays on the
    release commit, so it never holds merges that were not published.
@@ -38,3 +38,7 @@ download, so an install right after a green run may still fail. Confirm with
 A failed run is retried by dispatching again; the failure reports in the run say which case applies.
 The token is the repository secret `NPM_ACCESS_TOKEN`. The release ships code only and clones no
 IGNIS; atlas tests that measure IGNIS's real corpus skip there and run on a machine with IGNIS.
+
+## Publishing the wiki
+
+The wiki site deploys with `deploy-docs.yml` on a push to `main` that touches `docs/wiki/`, or on a manual dispatch, as in IGNIS. `develop` reaches `main` through a develop-to-main pull request, so the site changes when that pull request is merged, not on every `develop` push.
