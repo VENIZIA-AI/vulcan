@@ -41,4 +41,4 @@ IGNIS; atlas tests that measure IGNIS's real corpus skip there and run on a mach
 
 ## Publishing the wiki
 
-The wiki site deploys with `deploy-docs.yml` on a push to `main` that touches `docs/wiki/`, or on a manual dispatch, as in IGNIS. `develop` reaches `main` through a develop-to-main pull request, so the site changes when that pull request is merged, not on every `develop` push.
+The wiki site deploys with `deploy-docs.yml` on a push to `develop` that touches `docs/wiki/`, or on a manual dispatch. Merging a pull request into `develop` publishes it; `main` receives `develop` by an ordinary merge and does not deploy.
