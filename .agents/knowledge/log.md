@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-20 - the MCP renderers (multi-agent 2 of 7)
+
+For each chosen agent with a project-scope entry, sync writes the atlas server into the agent's own file: `mcpServers` JSON (cursor, antigravity, pi), `servers` JSON (copilot-vscode), a marker block of `.codex/config.toml` (codex). Merge never overwrites, an invalid or git-tracked file is skipped, the per-machine files carry the absolute root, and the trust notes are printed. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-20 - each developer chooses their agents (multi-agent 1 of 7)
 
 `base/agents.json` is the table of the seven agents (claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi), validated by a schema. The choice is per machine in `.agents/vulcan.local.json` (gitignored): `sync --agents`, the stored file, the config's suggestion, a project that has Claude files, then the question; without a terminal and nothing known it keeps the Claude default and prints a hint. Only the Claude adapters exist so far. Concept: [cli](/packages/cli.md).

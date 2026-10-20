@@ -15,6 +15,7 @@ import { CodingAgents } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { ManifestConstants, renderManifest } from '../manifest/index.ts';
 import { readSlots } from '../rules/index.ts';
+import { planAgentFiles } from './agent-files.ts';
 import { SyncConstants, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
 import {
@@ -297,5 +298,6 @@ export const planSync = (opts: {
         ...planSkillLinks({ root: opts.root }),
       ]
     : []),
+  ...planAgentFiles({ root: opts.root, agents: opts.agents }),
   planManifest(opts),
 ];
