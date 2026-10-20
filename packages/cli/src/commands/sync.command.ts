@@ -11,6 +11,7 @@ import {
 } from '../agents/index.ts';
 import { loadConfig } from '../config/index.ts';
 import {
+  agentNotes,
   diffBaseRules,
   planLocalChoice,
   planLocalIgnore,
@@ -122,6 +123,10 @@ export const runSyncCommand = async (opts: ICommandContext): Promise<number> => 
 
   for (const { id, change, text } of changes) {
     process.stderr.write(`  ${change.padEnd(width)} ${[id, text].filter(Boolean).join(' ')}\n`);
+  }
+
+  for (const { agent, note } of agentNotes({ agents: resolved.agents })) {
+    process.stderr.write(`  ${'note'.padEnd(width)} ${agent}: ${note}\n`);
   }
 
   if (resolved.hint !== undefined) {

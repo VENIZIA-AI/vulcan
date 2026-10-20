@@ -42,7 +42,18 @@ Which coding agents do you use in this project? (comma-separated, Enter accepts)
 
 The answer is stored in `.agents/vulcan.local.json`, which is gitignored, and every later `sync` uses it without asking. Without a terminal, give the list: `vulcan sync --agents claude,omp` (`none` writes only `AGENTS.md`-level files).
 
-The order that decides the list is: the `--agents` flag; the stored file; the `agents` list in the project's config, when it has one; a project that already has `CLAUDE.md` or `.claude/` (treated as `claude`); then the question. When nothing is known and there is no terminal, `sync` does what it always did, writes the Claude files, and prints one line saying how to choose; it stores nothing. Only the Claude adapters exist so far; the other agents are stored and their adapters arrive with the next releases.
+The order that decides the list is: the `--agents` flag; the stored file; the `agents` list in the project's config, when it has one; a project that already has `CLAUDE.md` or `.claude/` (treated as `claude`); then the question. When nothing is known and there is no terminal, `sync` does what it always did, writes the Claude files, and prints one line saying how to choose; it stores nothing. What each chosen agent gets from `sync`:
+
+| Agent | Atlas MCP entry | Where |
+|---|---|---|
+| `claude`, `omp`, `copilot-cli` | the committed root `.mcp.json` (written by `init`), which all three read | no extra file |
+| `codex` | a block between `# vulcan:atlas:start` and `# vulcan:atlas:end` | `.codex/config.toml`; Codex loads it only for a trusted project |
+| `cursor` | `mcpServers.atlas` | `.cursor/mcp.json` |
+| `copilot-vscode` | `servers.atlas` (type `stdio`) | `.vscode/mcp.json` |
+| `antigravity` | `mcpServers.atlas` | `.agents/mcp_config.json` |
+| `pi` | `mcpServers.atlas` | `.pi/mcp.json`; Pi ignores it until you trust the project |
+
+These files are for your machine, so the entry carries the absolute project root and calls the project's own `vulcan` (`bun <root>/node_modules/.bin/vulcan x atlas mcp --root <root>`), which works whatever directory the agent starts the server from. `sync` merges: your other servers and keys stay, an `atlas` entry that is already there is left as it is, a file that is not valid JSON is skipped (`skipped`, with the reason), and a file git tracks is not written (it prints what to add). After the actions, `sync` prints one `note` line for each thing only you can do, such as trusting the project in Codex or Pi. Skill links, the `AGENTS.md` block and the git ignore entries for these files arrive with the next releases.
 
 ## Synchronizing adapters
 

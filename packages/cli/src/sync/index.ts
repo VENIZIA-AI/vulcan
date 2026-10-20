@@ -4,3 +4,4 @@ export * from './planner.ts';
 export * from './prune.ts';
 export * from './settings.ts';
 export * from './local-choice.ts';
+export * from './agent-files.ts';
