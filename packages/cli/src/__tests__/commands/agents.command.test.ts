@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, lstatSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { hermeticEnv } from '../hermetic.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 import { spawnSyncBounded } from '../spawn.helper.ts';
@@ -15,21 +16,28 @@ const PROJECT = {
 const LOCAL = '.agents/vulcan.local.json';
 const hasScript = Bun.which('script') !== null;
 
+const ENV = hermeticEnv();
+
 const git = (opts: { root: string; args: string[] }) =>
-  Bun.spawnSync(['git', ...opts.args], { cwd: opts.root, stdout: 'pipe', stderr: 'pipe' });
+  Bun.spawnSync(['git', ...opts.args], {
+    cwd: opts.root,
+    env: { ...process.env, ...ENV },
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
 
 /** A git repository with `agents` already synced, so the stored choice and the exclude block exist. */
 const synced = (opts: { agents: string; files?: Record<string, string> }): string => {
   const root = createProject({ files: { ...PROJECT, ...opts.files } });
 
   git({ root, args: ['init', '-q'] });
-  runCli({ args: ['sync', '--agents', opts.agents], cwd: root });
+  runCli({ args: ['sync', '--agents', opts.agents], cwd: root, env: ENV });
 
   return root;
 };
 
 const agents = (opts: { root: string; args: string[] }) =>
-  runCli({ args: ['agents', ...opts.args], cwd: opts.root });
+  runCli({ args: ['agents', ...opts.args], cwd: opts.root, env: ENV });
 
 const stored = (opts: { root: string }): string[] =>
   JSON.parse(readFileSync(join(opts.root, LOCAL), 'utf8')).agents;
@@ -76,7 +84,7 @@ describe('vulcan agents add', () => {
     expect(existsSync(join(root, '.cursor/mcp.json'))).toBe(true);
     expect(existsSync(join(root, '.pi/mcp.json'))).toBe(true);
     expect(exclude({ root })).toContain('/.pi/mcp.json');
-    expect(result.stderr).toContain('created   .cursor/mcp.json');
+    expect(result.stderr, result.stderr).toContain('created   .cursor/mcp.json');
   });
 
   test('an agent already chosen is said and nothing changes', () => {
@@ -85,7 +93,7 @@ describe('vulcan agents add', () => {
     const result = agents({ root, args: ['add', 'pi'] });
 
     expect(result.code).toBe(0);
-    expect(result.stderr).toContain('already chosen: pi');
+    expect(result.stderr, result.stderr).toContain('already chosen: pi');
     expect(readFileSync(join(root, LOCAL), 'utf8')).toBe(before);
   });
 
@@ -111,7 +119,7 @@ describe('vulcan agents add', () => {
     const root = synced({ agents: 'omp' });
     const result = agents({ root, args: ['add', 'cursor', '--dry-run'] });
 
-    expect(result.stderr).toContain('would create  .cursor/mcp.json');
+    expect(result.stderr, result.stderr).toContain('would create  .cursor/mcp.json');
     expect(stored({ root })).toEqual(['omp']);
     expect(existsSync(join(root, '.cursor'))).toBe(false);
   });
@@ -126,7 +134,7 @@ describe('vulcan agents remove', () => {
     expect(stored({ root })).toEqual(['omp']);
     expect(existsSync(join(root, '.cursor'))).toBe(false);
     expect(exclude({ root })).not.toContain('.cursor');
-    expect(result.stderr).toContain('removed   .cursor/mcp.json');
+    expect(result.stderr, result.stderr).toContain('removed   .cursor/mcp.json');
     expect(isLink({ path: join(root, '.agents/skills/docs-update') })).toBe(true);
   });
 
@@ -152,7 +160,7 @@ describe('vulcan agents remove', () => {
     });
     const result = agents({ root, args: ['remove', 'cursor'] });
 
-    expect(result.stderr).toContain(
+    expect(result.stderr, result.stderr).toContain(
       'skipped   .cursor/mcp.json (the atlas entry is not the one sync wrote - left alone)',
     );
     expect(
@@ -243,7 +251,7 @@ describe('vulcan agents remove', () => {
     const result = agents({ root, args: ['remove', 'cursor'] });
 
     expect(result.code).toBe(0);
-    expect(result.stderr).toContain('not chosen: cursor');
+    expect(result.stderr, result.stderr).toContain('not chosen: cursor');
     expect(stored({ root })).toEqual(['omp']);
   });
 
@@ -251,7 +259,7 @@ describe('vulcan agents remove', () => {
     const root = synced({ agents: 'cursor' });
     const result = agents({ root, args: ['remove', 'cursor', '--dry-run'] });
 
-    expect(result.stderr).toContain('would remove  .cursor/mcp.json');
+    expect(result.stderr, result.stderr).toContain('would remove  .cursor/mcp.json');
     expect(existsSync(join(root, '.cursor/mcp.json'))).toBe(true);
     expect(stored({ root })).toEqual(['cursor']);
   });
@@ -261,7 +269,7 @@ describe('sync --agents does the same cleanup for agents that drop out', () => {
   test('an agent stored before and left out of the new list is taken back', () => {
     const root = synced({ agents: 'cursor,omp' });
 
-    runCli({ args: ['sync', '--agents', 'omp'], cwd: root });
+    runCli({ args: ['sync', '--agents', 'omp'], cwd: root, env: ENV });
 
     expect(existsSync(join(root, '.cursor'))).toBe(false);
     expect(stored({ root })).toEqual(['omp']);
@@ -270,7 +278,7 @@ describe('sync --agents does the same cleanup for agents that drop out', () => {
   test('a machine that never stored a choice loses nothing it did not choose to drop', () => {
     const root = createProject({ files: { ...PROJECT, 'CLAUDE.md': '@AGENTS.md\n' } });
 
-    runCli({ args: ['sync', '--agents', 'omp'], cwd: root });
+    runCli({ args: ['sync', '--agents', 'omp'], cwd: root, env: ENV });
 
     expect(readFileSync(join(root, 'CLAUDE.md'), 'utf8')).toBe('@AGENTS.md\n');
   });
@@ -282,21 +290,17 @@ describe('vulcan agents setup', () => {
     const result = agents({ root, args: ['setup'] });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('setup asks questions and needs a terminal');
+    expect(result.stderr, result.stderr).toContain('setup asks questions and needs a terminal');
   });
 
   describe.skipIf(!hasScript)('in a terminal', () => {
     test('asks again with the stored list shown, and applies the answer', () => {
       const root = synced({ agents: 'omp' });
-      const bin = createProject({ files: {} });
-
-      symlinkSync(process.execPath, join(bin, 'bun'));
-
       const command = `'${process.execPath}' '${CLI}' agents setup`;
       const child = spawnSyncBounded({
         cmd: ['script', '-qec', command, '/dev/null'],
         cwd: root,
-        env: { ...process.env, HOME: createProject({ files: {} }), PATH: `${bin}:/usr/bin:/bin` },
+        env: { ...process.env, ...ENV },
         stdin: Buffer.from('omp,pi\n'),
         stdout: 'pipe',
         stderr: 'pipe',
@@ -316,8 +320,8 @@ describe('the command line', () => {
     const result = agents({ root: createProject({ files: PROJECT }), args: ['frobnicate'] });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('unknown subcommand');
-    expect(result.stderr).toContain('list, add, remove, setup');
+    expect(result.stderr, result.stderr).toContain('unknown subcommand');
+    expect(result.stderr, result.stderr).toContain('list, add, remove, setup');
   });
 
   test('help names the command', () => {
