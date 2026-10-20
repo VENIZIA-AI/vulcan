@@ -6,6 +6,7 @@ import {
   AgentConstants,
   askAgentsInTerminal,
   detectAgents,
+  readLocalChoice,
   readAgentTable,
   resolveAgents,
 } from '../agents/index.ts';
@@ -13,6 +14,7 @@ import { loadConfig } from '../config/index.ts';
 import {
   agentNotes,
   diffBaseRules,
+  planAgentRemoval,
   planAtlasBlock,
   planExclude,
   planLocalChoice,
@@ -48,7 +50,7 @@ const readAgentsFlag = (opts: { args: string[] }): string | undefined => {
   return value === undefined || value.startsWith('--') ? '' : value;
 };
 
-const printAgentTable = (): void => {
+export const printAgentTable = (): void => {
   for (const entry of readAgentTable()) {
     process.stdout.write(
       `${entry.id.padEnd(15)} ${entry.name.padEnd(20)} MCP ${entry.mcp.path.padEnd(26)} skills ${entry.skills.dir}\n`,
@@ -56,7 +58,14 @@ const printAgentTable = (): void => {
   }
 };
 
-export const runSyncCommand = async (opts: ICommandContext): Promise<number> => {
+/**
+ * The whole sync. `cleanup` names agents whose adapters are taken back even when no stored choice
+ * says so (`vulcan agents remove`); an agent stored before and left out of a new explicit list is
+ * taken back too.
+ */
+export const runSyncFlow = async (
+  opts: ICommandContext & { cleanup?: string[] },
+): Promise<number> => {
   const flag = readAgentsFlag({ args: opts.args });
 
   if (flag === AgentConstants.LIST) {
@@ -92,6 +101,14 @@ export const runSyncCommand = async (opts: ICommandContext): Promise<number> => 
     return ExitCodes.FAILURE;
   }
 
+  const previous = readLocalChoice({ root: opts.cwd });
+  const dropped =
+    resolved.source === 'flag' || resolved.source === 'asked'
+      ? (previous.ok ? (previous.agents ?? []) : []).filter(id => !resolved.agents.includes(id))
+      : [];
+  const removed = [...new Set([...(opts.cleanup ?? []), ...dropped])].filter(
+    id => !resolved.agents.includes(id),
+  );
   const dryRun = opts.args.includes(DRY_RUN_FLAG);
   // Planned before anything is written: prune reads the managed record of the previous sync.
   const pruned = opts.args.includes(PRUNE_FLAG) ? planPrune({ root: opts.cwd }) : [];
@@ -104,6 +121,7 @@ export const runSyncCommand = async (opts: ICommandContext): Promise<number> => 
         ]
       : [];
   const actions = [
+    ...planAgentRemoval({ root: opts.cwd, removed, remaining: resolved.agents }),
     ...planSync({ root: opts.cwd, config: loaded.config, agents: resolved.agents }),
     ...planAtlasBlock({ root: opts.cwd, config: loaded.config }),
     ...stored,
@@ -144,3 +162,5 @@ export const runSyncCommand = async (opts: ICommandContext): Promise<number> => 
 
   return settingsBroken ? ExitCodes.FAILURE : ExitCodes.OK;
 };
+
+export const runSyncCommand = async (opts: ICommandContext): Promise<number> => runSyncFlow(opts);

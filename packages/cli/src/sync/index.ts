@@ -7,3 +7,4 @@ export * from './local-choice.ts';
 export * from './agent-files.ts';
 export * from './atlas-block.ts';
 export * from './exclude.ts';
+export * from './agent-removal.ts';

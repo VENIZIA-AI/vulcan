@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  removeCodexBlock,
+  removeMcpEntry,
   CODEX_BLOCK_END,
   CODEX_BLOCK_START,
   atlasServerEntry,
@@ -224,6 +226,83 @@ describe('mergeCodexToml', () => {
     expect(mergeCodexToml({ text: before, root: ROOT })).toEqual({
       ok: false,
       reason: 'a [mcp_servers.atlas] table is already there outside the vulcan markers',
+    });
+  });
+});
+
+describe('removeMcpEntry', () => {
+  const remove = (opts: { document: unknown; key?: string }) =>
+    removeMcpEntry({ text: JSON.stringify(opts.document), key: opts.key ?? 'mcpServers' });
+
+  test('a file that held only the atlas entry is deleted', () => {
+    expect(remove({ document: { mcpServers: { atlas: ENTRY } } })).toEqual({
+      ok: true,
+      outcome: 'removed',
+      text: undefined,
+    });
+  });
+
+  test('other servers and keys stay', () => {
+    const result = remove({
+      document: { other: 1, mcpServers: { mine: { command: 'x' }, atlas: ENTRY } },
+    });
+
+    expect(result.ok && result.outcome === 'removed' && JSON.parse(result.text ?? '')).toEqual({
+      other: 1,
+      mcpServers: { mine: { command: 'x' } },
+    });
+  });
+
+  test('a VS Code file keeps nothing but an empty inputs list: it is deleted', () => {
+    expect(
+      remove({
+        document: { inputs: [], servers: { atlas: { type: 'stdio', ...ENTRY } } },
+        key: 'servers',
+      }),
+    ).toEqual({ ok: true, outcome: 'removed', text: undefined });
+  });
+
+  test("an entry of another shape is the user's, an absent one is absent, a broken file is reported", () => {
+    expect(remove({ document: { mcpServers: { atlas: { command: 'mine' } } } })).toEqual({
+      ok: false,
+      reason: 'the atlas entry is not the one sync wrote - left alone',
+    });
+    expect(remove({ document: { mcpServers: {} } })).toEqual({ ok: true, outcome: 'absent' });
+    expect(removeMcpEntry({ text: '{ nope', key: 'mcpServers' })).toEqual({
+      ok: false,
+      reason: 'not valid JSON - left untouched',
+    });
+  });
+});
+
+describe('removeCodexBlock', () => {
+  const block = [
+    CODEX_BLOCK_START,
+    '[mcp_servers.atlas]',
+    'command = "bun"',
+    CODEX_BLOCK_END,
+    '',
+  ].join('\n');
+
+  test('only the block: nothing is left', () => {
+    expect(removeCodexBlock({ text: block })).toEqual({ changed: true, text: undefined });
+  });
+
+  test('the rest of the file stays', () => {
+    expect(removeCodexBlock({ text: `model = "gpt"\n\n${block}` })).toEqual({
+      changed: true,
+      text: 'model = "gpt"\n',
+    });
+    expect(removeCodexBlock({ text: `model = "gpt"\n\n${block}\n[tail]\nx = 1\n` })).toEqual({
+      changed: true,
+      text: 'model = "gpt"\n\n[tail]\nx = 1\n',
+    });
+  });
+
+  test('no block: unchanged', () => {
+    expect(removeCodexBlock({ text: 'model = "gpt"\n' })).toEqual({
+      changed: false,
+      text: 'model = "gpt"\n',
     });
   });
 });

@@ -2,6 +2,7 @@ export class VulcanCommands {
   static readonly INIT = 'init';
   static readonly ADD = 'add';
   static readonly SYNC = 'sync';
+  static readonly AGENTS = 'agents';
   static readonly DOCTOR = 'doctor';
   static readonly UPGRADE = 'upgrade';
   static readonly X = 'x';
@@ -11,6 +12,7 @@ export class VulcanCommands {
     this.INIT,
     this.ADD,
     this.SYNC,
+    this.AGENTS,
     this.DOCTOR,
     this.UPGRADE,
     this.X,

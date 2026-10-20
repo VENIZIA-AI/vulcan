@@ -88,7 +88,7 @@ Which agents you use is your choice, so the committed `.gitignore` cannot list y
 # vulcan:end
 ```
 
-The list holds the Claude files (`/CLAUDE.md`, `/.claude/`) when `claude` is chosen, each chosen agent's own MCP file, the shipped-skill links, and the file that stores your choice. A path git tracks is not listed (an exclude entry cannot hide a tracked file). Each run replaces the block, so an agent you stop using drops out of it; its files stay until you delete them. The file is found with `git rev-parse --git-path info/exclude`, so a worktree or a separate git directory works, and a project below the repository top is anchored with its folder. Your own lines in the file are never touched, and a project that is not a git repository gets no file.
+The list holds the Claude files (`/CLAUDE.md`, `/.claude/`) when `claude` is chosen, each chosen agent's own MCP file, the shipped-skill links, and the file that stores your choice. A path git tracks is not listed (an exclude entry cannot hide a tracked file). Each run replaces the block, so an agent you stop using drops out of it, and its files are taken back ([`vulcan agents remove`](/references/commands/agents#what-remove-takes-back)). The file is found with `git rev-parse --git-path info/exclude`, so a worktree or a separate git directory works, and a project below the repository top is anchored with its folder. Your own lines in the file are never touched, and a project that is not a git repository gets no file.
 
 ## Synchronizing adapters
 

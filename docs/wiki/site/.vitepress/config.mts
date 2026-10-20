@@ -64,6 +64,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'init', link: '/references/commands/init' },
       { text: 'add', link: '/references/commands/add' },
       { text: 'sync', link: '/references/commands/sync' },
+      { text: 'agents', link: '/references/commands/agents' },
       { text: 'doctor', link: '/references/commands/doctor' },
     ],
   },
