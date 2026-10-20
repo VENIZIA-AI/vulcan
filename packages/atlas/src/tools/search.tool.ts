@@ -5,7 +5,7 @@ import type { IHit } from '@/search/common';
 import type { IChunkIndex } from '@/search/common';
 import type { ISymbolBrief, ISymbolIndex } from '@/symbols';
 import { z } from 'zod';
-import { parseInput, SearchInputSchema } from './common';
+import { parseInput, SearchInputSchema, ToolTriggers } from './common';
 
 const DESCRIPTION =
   'Search the wiki, changelogs and knowledge bundle for chunks matching a keyword query, ranked ' +
@@ -113,10 +113,12 @@ const withinBudget = (opts: {
 export const buildSearchTool = (opts: {
   store: IChunkIndex;
   symbols?: ISymbolIndex;
+  /** The projects the server serves, named in the description. */
+  projects?: string;
 }): IToolHandler => ({
   definition: {
     name: 'search',
-    description: DESCRIPTION,
+    description: `${ToolTriggers.search({ projects: opts.projects })} ${DESCRIPTION}`,
     inputSchema: INPUT_JSON_SCHEMA,
   },
   call: async ({ args }) => {

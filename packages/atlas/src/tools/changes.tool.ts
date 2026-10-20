@@ -3,7 +3,7 @@ import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IToolHandler } from '@/protocol/common';
 import type { IChangelogRecord, IReleaseIndex } from '@/releases';
 import { z } from 'zod';
-import { ChangesInputSchema, parseInput } from './common';
+import { ChangesInputSchema, parseInput, ToolTriggers } from './common';
 
 const DESCRIPTION =
   'List the changelog entries between two releases: a package with two of its versions, or no ' +
@@ -224,10 +224,13 @@ const withinBudget = (opts: { window: IWindow; entries: IChangesEntry[] }): ICha
   return response;
 };
 
-export const buildChangesTool = (opts: { releases: IReleaseIndex }): IToolHandler => ({
+export const buildChangesTool = (opts: {
+  releases: IReleaseIndex;
+  projects?: string;
+}): IToolHandler => ({
   definition: {
     name: 'changes',
-    description: DESCRIPTION,
+    description: `${ToolTriggers.changes({ projects: opts.projects })} ${DESCRIPTION}`,
     inputSchema: INPUT_JSON_SCHEMA,
   },
   call: async ({ args }) => {

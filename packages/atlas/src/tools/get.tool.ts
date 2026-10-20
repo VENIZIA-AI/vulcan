@@ -5,7 +5,7 @@ import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IToolHandler } from '@/protocol/common';
 import type { IChunkIndex } from '@/search/common';
 import { z } from 'zod';
-import { GetInputSchema, parseInput } from './common';
+import { GetInputSchema, parseInput, ToolTriggers } from './common';
 
 const DESCRIPTION =
   "Read one chunk's body by the id a search hit returned, or a whole document by the same id " +
@@ -142,7 +142,7 @@ const decodeCursor = (opts: { cursor?: string; totalCodePoints: number }): numbe
 export const buildGetTool = (opts: { store: IChunkIndex }): IToolHandler => ({
   definition: {
     name: 'get',
-    description: DESCRIPTION,
+    description: `${ToolTriggers.get()} ${DESCRIPTION}`,
     inputSchema: INPUT_JSON_SCHEMA,
   },
   call: async ({ args }) => {

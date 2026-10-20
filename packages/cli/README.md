@@ -50,7 +50,7 @@ An unknown key is an error; every error names the file and the field.
 
 ## What ships (`base/`)
 
-- `rules.md` - the base rules: write boundaries, security, process, build, and the IGNIS coding style V-C-01..V-C-18 (37 rules; it lists V-W-05, V-C-03 and V-C-05 as retired).
+- `rules.md` - the base rules: write boundaries, security, process, build, and the IGNIS coding style V-C-01..V-C-18 (38 rules; it lists V-W-05, V-C-03 and V-C-05 as retired).
 - `slots.json` - rules a project picks a wording for (V-W-01 today).
 - `skills/` - `knowledge-sync`, `docs-writing`, `docs-update` (project-neutral; a project-specific skill stays in its project). Skill evals have not been run against a model: the skills pass the lint, and their output is a draft to review.
 - `hooks/` - `session-start.ts` (prints the rules digest) `guard-writes.ts` (asks before a database write, a migration, a deploy or a mutating HTTP call) `guard-manifest.ts` (refuses a write to the generated `.agents/vulcan.manifest.json`) and `guard-remote-hosts.ts` (only for a config with `remoteHosts`: asks before a command reaches a host that is not listed; whole-name or `*` match, never substring).
