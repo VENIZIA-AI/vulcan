@@ -258,20 +258,25 @@ const planSkillLinks = (opts: {
   // A link into the shipped skills whose skill this VULCAN no longer has (a downgrade, a retired
   // skill) is sync's own and dead: taken back. Any other link or directory stays.
   const shippedRoots = [stableSkills, join(BASE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY)];
+  // A link into the project's own skills whose folder the user removed is dead the same way.
+  const projectRoot = join(opts.root, '.agents', SyncConstants.SKILLS_DIRECTORY);
   const linked = new Set(sources.map(source => basename(source)));
   const stale = (existsSync(target) ? readdirSync(target) : [])
     .filter(name => !linked.has(name))
     .map(name => join(target, name))
+    .filter(path => isSymlink({ path }) && !existsSync(path))
+    .map(path => ({ path, destination: readlinkSync(path) }))
     .filter(
-      path =>
-        isSymlink({ path }) &&
-        !existsSync(path) &&
-        shippedRoots.some(root => readlinkSync(path).startsWith(`${root}/`)),
+      ({ destination }) =>
+        shippedRoots.some(root => destination.startsWith(`${root}/`)) ||
+        (opts.withProject && destination.startsWith(`${projectRoot}/`)),
     )
-    .map((path): ISyncAction => ({
+    .map(({ path, destination }): ISyncAction => ({
       path,
       status: SyncStatuses.REMOVED,
-      note: 'a shipped skill this version no longer has',
+      note: destination.startsWith(`${projectRoot}/`)
+        ? 'a skill that is gone'
+        : 'a shipped skill this version no longer has',
       apply: () => rmSync(path),
     }));
 
