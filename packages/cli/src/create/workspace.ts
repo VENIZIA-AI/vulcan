@@ -20,7 +20,7 @@ export const renderRootManifest = (opts: {
       name: opts.project,
       private: true,
       workspaces: { packages: opts.workspaces, catalog: opts.catalog },
-      scripts: { dev: "bun run --filter '*' dev" },
+      scripts: { dev: "bun run --filter '*' server:dev" },
       devDependencies: { '@venizia/vulcan': opts.vulcanVersion },
     },
   });

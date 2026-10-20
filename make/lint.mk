@@ -4,9 +4,10 @@
 # oxlint owns the rules, ESLint runs only naming-convention (oxlint has no port yet), oxfmt formats.
 LINT_PKG_TARGETS := $(addprefix lint-,$(PACKAGES))
 FMT_PKG_TARGETS := $(addprefix fmt-,$(PACKAGES))
+TYPECHECK_PKG_TARGETS := $(addprefix typecheck-,$(PACKAGES))
 
-.PHONY: lint lint-all lint-packages lint-scripts project-names-check fmt fmt-packages fmt-scripts \
-        $(LINT_PKG_TARGETS) $(FMT_PKG_TARGETS)
+.PHONY: lint lint-fix lint-all lint-packages lint-scripts project-names-check fmt fmt-packages fmt-scripts \
+        typecheck typecheck-packages $(LINT_PKG_TARGETS) $(FMT_PKG_TARGETS) $(TYPECHECK_PKG_TARGETS)
 
 lint: lint-packages
 	@echo "lint: done"
@@ -18,6 +19,13 @@ lint-packages: $(LINT_PKG_TARGETS)
 
 fmt: fmt-packages fmt-scripts
 
+# The library target set (build, typecheck, lint, lint-fix, test, clean): `lint-fix` is `fmt`.
+lint-fix: fmt
+
+typecheck: typecheck-packages
+
+typecheck-packages: $(TYPECHECK_PKG_TARGETS)
+
 fmt-packages: $(FMT_PKG_TARGETS)
 
 # Static pattern rules: make skips implicit-rule search for .PHONY targets, so a plain `lint-%`
@@ -28,6 +36,10 @@ $(LINT_PKG_TARGETS): lint-%:
 
 $(FMT_PKG_TARGETS): fmt-%:
 	@$(MAKE) --no-print-directory -C packages/$* fmt
+
+$(TYPECHECK_PKG_TARGETS): typecheck-%:
+	@echo "typecheck: packages/$*"
+	@$(MAKE) --no-print-directory -C packages/$* typecheck
 
 # The root scripts/ is not a workspace member: it formats with its own .configs and type-checks with
 # its own tsconfig, from the root package.json's tools.

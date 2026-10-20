@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createFakeCommand } from '../fake-command.helper.ts';
 import { copyWithFields, copyWithUrls } from '../preset.helper.ts';
@@ -69,7 +69,7 @@ describe('vulcan init --preset', () => {
     expect(result.stderr).toContain('skipped  bun install');
     expect(result.stderr).toContain('skipped  vulcan sync');
     expect(result.stderr).toContain('skipped  git init');
-    expect(result.stderr).toContain('skipped  bun run check');
+    expect(result.stderr).toContain('skipped  bun run typecheck');
     expect(result.stderr).toContain('cd my-product && make dev');
   });
 
@@ -160,6 +160,40 @@ describe('vulcan init --preset', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('src/*');
     expect(existsSync(join(parent, 'my-product'))).toBe(false);
+  });
+
+  test("the root dev entry runs every app's server:dev, and make dev calls it", () => {
+    const parent = createProject({ files: {} });
+
+    expect(runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV }).code).toBe(0);
+
+    const root = join(parent, 'my-product');
+    const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+    const ran = Bun.spawnSync(['bun', 'run', 'dev'], { cwd: root, stdout: 'pipe', stderr: 'pipe' });
+
+    expect(manifest.scripts.dev).toBe("bun run --filter '*' server:dev");
+    expect(readFileSync(join(root, 'Makefile'), 'utf8')).toContain('\ndev:\n\t@bun run dev\n');
+    expect(ran.exitCode).toBe(0);
+    expect(ran.stdout.toString()).toContain('fixture-backend-up');
+  });
+
+  test('an app that lacks server:dev is skipped by the root dev entry, not an error', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    const root = join(parent, 'my-product');
+
+    mkdirSync(join(root, 'libs', 'shared'), { recursive: true });
+    writeFileSync(
+      join(root, 'libs', 'shared', 'package.json'),
+      '{ "name": "shared", "private": true }',
+    );
+
+    const ran = Bun.spawnSync(['bun', 'run', 'dev'], { cwd: root, stdout: 'pipe', stderr: 'pipe' });
+
+    expect(ran.exitCode).toBe(0);
+    expect(ran.stdout.toString()).toContain('fixture-backend-up');
   });
 
   test('the root .gitignore ignores *.tsbuildinfo', () => {

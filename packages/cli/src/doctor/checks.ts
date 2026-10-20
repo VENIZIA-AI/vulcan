@@ -19,7 +19,7 @@ import {
   renderManifest,
 } from '../manifest/index.ts';
 import { planManifest, planPrune, planSync, SyncStatuses } from '../sync/index.ts';
-import { DoctorChecks, DoctorConstants } from './common/index.ts';
+import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
 import { parseMakeIncludes, parseMakeTargets } from './makefile.ts';
 
@@ -457,4 +457,73 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
   }
 
   return violations;
+};
+
+const readScriptNames = (opts: { file: string }): string[] | undefined => {
+  if (!existsSync(opts.file)) {
+    return undefined;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(opts.file, 'utf8'));
+    const scripts =
+      typeof parsed === 'object' && parsed !== null && 'scripts' in parsed ? parsed.scripts : {};
+
+    return typeof scripts === 'object' && scripts !== null ? Object.keys(scripts) : [];
+  } catch (error) {
+    console.error(
+      `[readScriptNames] ${opts.file} | ${error instanceof Error ? error.message : String(error)}`,
+    );
+
+    return undefined;
+  }
+};
+
+/**
+ * Info only, never a failure: an app that lacks a standard script or carries a legacy one gets one
+ * line naming them. Apps are the live packages inside the backend and frontend folders.
+ */
+export const checkAppScripts = (opts: ICheckContext): IViolation[] => {
+  const layout = opts.config.layout;
+
+  if (layout === undefined) {
+    return [];
+  }
+
+  const appFolders = [layout.backend, layout.frontend].filter(
+    (folder): folder is string => folder !== undefined,
+  );
+  const notes: IViolation[] = [];
+
+  for (const entry of resolvePackages({ config: opts.config }).filter(item => !item.retired)) {
+    if (!appFolders.some(folder => entry.path.startsWith(`${folder}/`))) {
+      continue;
+    }
+
+    const file = `${entry.path}/package.json`;
+    const names = readScriptNames({ file: join(opts.root, file) });
+
+    if (names === undefined) {
+      continue;
+    }
+
+    const missing = AppScripts.STANDARD.filter(name => !names.includes(name));
+    const legacy = AppScripts.LEGACY.filter(name => names.includes(name));
+    const parts = [
+      ...(missing.length === 0 ? [] : [`missing ${missing.join(', ')}`]),
+      ...(legacy.length === 0 ? [] : [`legacy ${legacy.join(', ')} (use the standard names)`]),
+    ];
+
+    if (parts.length > 0) {
+      notes.push(
+        createViolation({
+          check: DoctorChecks.SCRIPTS,
+          file,
+          message: `app ${entry.dir}: ${parts.join('; ')}`,
+        }),
+      );
+    }
+  }
+
+  return notes;
 };

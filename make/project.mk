@@ -27,7 +27,7 @@ EMIT_TSCONFIGS := $(if $(filter cjs,$(FORMATS)),$(CJS_TSCONFIG))
 
 FMT_GLOB := "**/*.{ts,mts,js,mjs}"
 
-.PHONY: build typecheck clean rebuild lint fmt
+.PHONY: build typecheck clean rebuild lint lint-fix fmt
 
 # tsconfig.json covers the tests too, so a broken test fails here, before anything is emitted.
 typecheck:
@@ -61,6 +61,9 @@ lint:
 	@$(BIN)/oxlint -c .configs/oxlint.config.mts --deny-warnings .
 	@$(BIN)/eslint -c .configs/eslint.config.mjs .
 	@$(BIN)/oxfmt -c .configs/oxfmt.config.mts --check $(FMT_GLOB)
+
+# The library target set is build, typecheck, lint, lint-fix, test, clean; `fmt` is the same as `lint-fix`.
+lint-fix: fmt
 
 fmt:
 	@$(BIN)/oxlint -c .configs/oxlint.config.mts --fix .

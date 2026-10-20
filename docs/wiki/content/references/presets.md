@@ -29,7 +29,7 @@ The second is that `preset.json`, with the files it copies next to it:
   "devPort": 3000,
   "dependencies": { "hono": "^4.13.13" },
   "devDependencies": { "typescript": "^6.0.3" },
-  "scripts": { "dev": "bun run src/index.ts", "typecheck": "tsc --noEmit", "test": "bun test" },
+  "scripts": { "server:dev": "bun run src/index.ts", "typecheck": "tsc --noEmit", "test": "bun test" },
   "checks": ["typecheck", "test"],
   "urls": ["/api/hello"],
   "imports": { "#src/*": "./src/*.js" },
@@ -59,7 +59,7 @@ vulcan-preset/
 | `dependencies` | object | no | Package to range. They go in the root `catalog` and in the app as `catalog:` |
 | `devDependencies` | object | no | The same, for development |
 | `peers` | object | no | Package to range that the root `catalog` must already satisfy when `add` runs |
-| `scripts` | object | no | The `scripts` of the app's `package.json` |
+| `scripts` | object | no | The `scripts` of the app's `package.json`. Use the standard seven (`server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean`; rule `V-B-05`): the root `dev` script runs `server:dev` in every app, and `vulcan doctor` notes an app that lacks one or carries `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod` |
 | `checks` | array of script names | no | Scripts that `init` and `add` run in the app after install, in order. Each entry must be a key of `scripts`, or the preset is refused |
 | `urls` | array of paths | no | Paths to open on the dev port, each starting with `/` (`/api/hello`). `init` and `add` end with one `open http://localhost:<port><path>` line per path. With none, they print the root. They are recorded in the app's `package.json` under `vulcan.urls`, so a later `add` prints them too |
 | `imports` | object of strings | no | Node subpath imports for the app, written to its `package.json` as `imports` exactly as given, so code can import `#src/...` with no `tsconfig` `paths`, `tsc-alias` or Vite alias. Every key must start with `#`, or the preset is refused and the message names the key. Every value is a string. The [tokens](#tokens-in-files) are not replaced here. VULCAN 0.3.3 and older ignore the key |

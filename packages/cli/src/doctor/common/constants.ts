@@ -13,6 +13,7 @@ export class DoctorChecks {
   static readonly PRUNE = 'prune';
   static readonly SCAFFOLD = 'scaffold';
   static readonly APPS = 'apps';
+  static readonly SCRIPTS = 'scripts';
   static readonly SCHEME_SET = new Set<string>([
     this.CONFIG,
     this.LAYOUT,
@@ -28,10 +29,25 @@ export class DoctorChecks {
     this.PRUNE,
     this.SCAFFOLD,
     this.APPS,
+    this.SCRIPTS,
   ]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);
   }
+}
+
+/** The `package.json` scripts every app carries, and the names the standard retired. */
+export class AppScripts {
+  static readonly STANDARD = [
+    'server:dev',
+    'compile',
+    'typecheck',
+    'lint',
+    'lint:fix',
+    'test',
+    'clean',
+  ];
+  static readonly LEGACY = ['dev', 'start', 'build', 'rebuild', 'preview', 'server:prod'];
 }
 
 export class DoctorConstants {

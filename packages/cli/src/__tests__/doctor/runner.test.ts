@@ -1,7 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DoctorChecks, parseMakeTargets, runDoctorChecks } from '../../doctor/index.ts';
+import {
+  DoctorChecks,
+  parseMakeTargets,
+  runDoctorChecks,
+  runDoctorNotes,
+} from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -486,6 +491,132 @@ describe('doctor: apps', () => {
     expect(await findChecks({ root: createSyncedProject({ files: CONFORMANT }) })).not.toContain(
       DoctorChecks.APPS,
     );
+  });
+});
+
+describe('doctor: app scripts (info only)', () => {
+  const STANDARD = {
+    'server:dev': 'vite',
+    compile: 'sh scripts/compile.sh',
+    typecheck: 'bun check',
+    lint: 'sh scripts/lint.sh',
+    'lint:fix': 'sh scripts/lint.sh --fix',
+    test: 'bun test',
+    clean: 'sh scripts/clean.sh',
+  };
+  const CONFIG = (opts: { packages: string }): string =>
+    `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services', frontend: 'web', shared: 'libs' }, packages: ${opts.packages} };\n`;
+  const project = (opts: { files: Record<string, string>; packages: string }): string =>
+    createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        'package.json':
+          '{ "name": "demo", "workspaces": ["services/*", "web/*", "libs/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
+        '.configs/vulcan.config.ts': CONFIG({ packages: opts.packages }),
+        ...opts.files,
+      },
+    });
+  const manifest = (opts: { name: string; scripts: Record<string, string> }): string =>
+    JSON.stringify({ name: opts.name, scripts: opts.scripts });
+
+  test('an app with the seven standard scripts, and a domain extra, has no note', async () => {
+    const root = project({
+      packages: "[{ dir: 'api', name: 'api', path: 'services/api' }]",
+      files: {
+        'services/api/package.json': manifest({
+          name: 'api',
+          scripts: { ...STANDARD, 'migrate:dev': 'bun run migrate.ts' },
+        }),
+      },
+    });
+
+    expect(await runDoctorNotes({ root })).toEqual([]);
+  });
+
+  test('one line per app names the missing standard scripts and the legacy ones it carries', async () => {
+    const root = project({
+      packages:
+        "[{ dir: 'api', name: 'api', path: 'services/api' }, { dir: 'admin', name: 'admin', path: 'web/admin' }]",
+      files: {
+        'services/api/package.json': manifest({
+          name: 'api',
+          scripts: {
+            dev: 'bun run src/index.ts',
+            start: 'bun run dist/index.js',
+            test: 'bun test',
+          },
+        }),
+        'web/admin/package.json': manifest({
+          name: 'admin',
+          scripts: { ...STANDARD, build: 'vite build', preview: 'vite preview' },
+        }),
+      },
+    });
+    const notes = await runDoctorNotes({ root });
+
+    expect(notes).toHaveLength(2);
+    expect(notes[0]).toEqual({
+      check: DoctorChecks.SCRIPTS,
+      file: 'services/api/package.json',
+      message:
+        'app api: missing server:dev, compile, typecheck, lint, lint:fix, clean; legacy dev, start (use the standard names)',
+    });
+    expect(notes[1]?.message).toBe('app admin: legacy build, preview (use the standard names)');
+  });
+
+  test('all six legacy names are recognised', async () => {
+    const root = project({
+      packages: "[{ dir: 'api', name: 'api', path: 'services/api' }]",
+      files: {
+        'services/api/package.json': manifest({
+          name: 'api',
+          scripts: {
+            ...STANDARD,
+            dev: 'x',
+            start: 'x',
+            build: 'x',
+            rebuild: 'x',
+            preview: 'x',
+            'server:prod': 'x',
+          },
+        }),
+      },
+    });
+
+    expect((await runDoctorNotes({ root }))[0]?.message).toBe(
+      'app api: legacy dev, start, build, rebuild, preview, server:prod (use the standard names)',
+    );
+  });
+
+  test('shared code, retired packages, an app without a package.json and a project without a layout are not noted', async () => {
+    const root = project({
+      packages:
+        "[{ dir: 'kit', name: 'kit', path: 'libs/kit' }, { dir: 'old', name: 'old', path: 'services/old', retired: true }, { dir: 'ghost', name: 'ghost', path: 'services/ghost' }]",
+      files: {
+        'libs/kit/package.json': manifest({ name: 'kit', scripts: { build: 'tsc' } }),
+        'services/old/package.json': manifest({ name: 'old', scripts: { dev: 'x' } }),
+      },
+    });
+
+    expect(await runDoctorNotes({ root })).toEqual([]);
+    expect(await runDoctorNotes({ root: createSyncedProject({ files: CONFORMANT }) })).toEqual([]);
+  });
+
+  test('notes never fail: runDoctorChecks stays clean and the doctor command exits 0, printing them as info', async () => {
+    const root = project({
+      packages: "[{ dir: 'api', name: 'api', path: 'services/api' }]",
+      files: {
+        'services/api/package.json': manifest({ name: 'api', scripts: { dev: 'x' } }),
+      },
+    });
+    const result = runCli({ args: ['doctor'], cwd: root });
+
+    expect(await runDoctorChecks({ root })).toEqual([]);
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain(
+      '  info [scripts] services/api/package.json: app api: missing server:dev, compile, typecheck, lint, lint:fix, test, clean; legacy dev (use the standard names)\n',
+    );
+    expect(result.stderr).toContain('vulcan doctor: OK');
   });
 });
 
