@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-20 - the generated manifest is protected (0.3.2)
+
+The `guard-manifest` hook denies writes to `.agents/vulcan.manifest.json`; the manifest starts with a `$generated` note that readers ignore; doctor's manifest check says to run `vulcan sync`. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-20 - the first run without a snag (0.3.1)
 
 Presets may list `urls`; `init` and `add` end with the same `Next:` block; `add` checks flags before the download; the monorepo `.gitignore` ignores `*.tsbuildinfo`. Concept: [cli](/packages/cli.md).
