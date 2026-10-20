@@ -15,11 +15,11 @@ afterAll(removeProjects);
 
 const MAKE_INCLUDE = 'include node_modules/@venizia/vulcan/base/make/vulcan.mk\n';
 const LINT_CONFIGS = {
-  '.configs/oxlint.config.mts':
+  '.configs/lints/oxlint.config.mts':
     "import { defineConfig } from 'oxlint';\nimport { oxlintConfigs } from '@venizia/dev-configs/linters';\n\nexport default defineConfig(oxlintConfigs);\n",
-  '.configs/eslint.config.mjs':
+  '.configs/lints/eslint.config.mjs':
     "import { namingConventionConfigs } from '@venizia/dev-configs/linters';\n\nexport default namingConventionConfigs;\n",
-  '.configs/oxfmt.config.mts':
+  '.configs/formatters/oxfmt.config.mts':
     "import { defineConfig } from 'oxfmt';\nimport { oxfmtConfigs } from '@venizia/dev-configs/formatters';\n\nexport default defineConfig(oxfmtConfigs);\n",
 };
 const CONFORMANT: Record<string, string> = {
@@ -280,7 +280,36 @@ describe('doctor', () => {
 
   test('a lint config that does not build on the shared one', async () => {
     const root = createSyncedProject({
-      files: { ...CONFORMANT, '.configs/oxlint.config.mts': 'export default { rules: {} };\n' },
+      files: {
+        ...CONFORMANT,
+        '.configs/lints/oxlint.config.mts': 'export default { rules: {} };\n',
+      },
+    });
+
+    expect(await findChecks({ root })).toEqual([DoctorChecks.STYLE]);
+  });
+
+  test('a lint config left directly in .configs/ is told where it belongs', async () => {
+    const root = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        '.configs/oxfmt.config.mts':
+          "import { defineConfig } from 'oxfmt';\nimport { oxfmtConfigs } from '@venizia/dev-configs/formatters';\n\nexport default defineConfig(oxfmtConfigs);\n",
+      },
+    });
+    const violations = await runDoctorChecks({ root });
+    const legacy = violations.filter(violation => violation.file === '.configs/oxfmt.config.mts');
+
+    expect(legacy.map(violation => violation.check)).toEqual([DoctorChecks.STYLE]);
+    expect(legacy[0].message).toBe('move it to .configs/formatters/oxfmt.config.mts');
+  });
+
+  test('a lint config under lints/ and formatters/ is where the style check looks', async () => {
+    const root = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        '.configs/lints/eslint.config.mjs': 'export default [];\n',
+      },
     });
 
     expect(await findChecks({ root })).toEqual([DoctorChecks.STYLE]);
@@ -288,7 +317,10 @@ describe('doctor', () => {
 
   test('a package lint config is checked too', async () => {
     const root = createSyncedProject({
-      files: { ...CONFORMANT, 'packages/app/.configs/oxfmt.config.mts': 'export default {};\n' },
+      files: {
+        ...CONFORMANT,
+        'packages/app/.configs/formatters/oxfmt.config.mts': 'export default {};\n',
+      },
     });
 
     expect(await findChecks({ root })).toEqual([DoctorChecks.STYLE]);
@@ -336,13 +368,13 @@ describe('doctor', () => {
         '.configs/vulcan.config.ts':
           "export default { rules: { 'V-W-01': 'read-only' }, packages: [{ dir: 'kit', name: '@demo/kit', path: 'umbras/kit' }] };\n",
         'umbras/kit/package.json': '{ "name": "@demo/kit" }',
-        'umbras/kit/.configs/oxfmt.config.mts': 'export default {};\n',
+        'umbras/kit/.configs/formatters/oxfmt.config.mts': 'export default {};\n',
       },
     });
     const violations = await runDoctorChecks({ root });
 
     expect(violations.map(violation => [violation.check, violation.file])).toEqual([
-      [DoctorChecks.STYLE, 'umbras/kit/.configs/oxfmt.config.mts'],
+      [DoctorChecks.STYLE, 'umbras/kit/.configs/formatters/oxfmt.config.mts'],
     ]);
   });
 

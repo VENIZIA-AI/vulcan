@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - tool configs under .configs/{lints,formatters,builders}
+
+Every project keeps lint configs in `.configs/lints/`, the formatter in `.configs/formatters/` and build configs in `.configs/builders/`, each with an optional `.ignore` (oxlint and oxfmt cannot ignore package paths from a config in `.configs/`). `init` scaffolds the new paths, doctor's style check reads them and names where a legacy file belongs, `make/project.mk` reads the paths and the `.ignore` files; this repository's packages and `scripts/` moved. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-20 - the agents page and the changelog (multi-agent 8 of 8)
 
 `references/agents.md` lists the seven agents and is checked against `base/agents.json` by a test, so it cannot drift; the changelog entry for the multi-agent setup is written. Concept: [cli](/packages/cli.md).

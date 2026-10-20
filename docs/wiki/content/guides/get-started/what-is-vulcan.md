@@ -48,9 +48,9 @@ Running `vulcan init` and `vulcan sync` adds these files to your repository. The
 ./CLAUDE.md                       # gitignored: agent adapter pointing to AGENTS.md
 ./.claude/settings.json           # gitignored: merged settings and registered hooks
 ./.claude/vulcan-managed.json     # gitignored: record of applied settings
-./.configs/eslint.config.mjs      # committed: shared ESLint configuration
-./.configs/oxfmt.config.mts       # committed: shared oxfmt configuration
-./.configs/oxlint.config.mts      # committed: shared oxlint configuration
+./.configs/lints/eslint.config.mjs      # committed: shared ESLint configuration
+./.configs/lints/oxlint.config.mts      # committed: shared oxlint configuration
+./.configs/formatters/oxfmt.config.mts  # committed: shared oxfmt configuration
 ./.configs/vulcan.config.mts      # committed: project configuration
 ./Makefile                        # committed: includes vulcan.mk
 ./.mcp.json                       # committed: local atlas MCP registration

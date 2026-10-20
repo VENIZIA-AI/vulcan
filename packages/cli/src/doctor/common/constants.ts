@@ -57,4 +57,10 @@ export class DoctorConstants {
     /^-?include\s+\S*@venizia\/vulcan\/base\/make\/vulcan\.mk\s*$/m;
   static readonly SHIPPED_HOOKS_PATH = '@venizia/vulcan/base/hooks/';
   static readonly LINT_CONFIG_FILE = /^(oxlint|eslint|oxfmt)\.config\.(mts|ts|mjs|js|cjs)$/;
+  /** Where each tool's config lives under `.configs/`; a file left directly in `.configs/` is told where it belongs. */
+  static readonly LINT_CONFIG_FOLDERS: Record<string, string> = {
+    oxlint: 'lints',
+    eslint: 'lints',
+    oxfmt: 'formatters',
+  };
 }

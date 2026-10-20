@@ -45,9 +45,9 @@ const SCAFFOLD_FILES: IScaffoldFile[] = [
 
 /** The lint configs of a single-package project. A workspaces project keeps them in each app. */
 const LINT_CONFIG_FILES: IScaffoldFile[] = [
-  { path: '.configs/oxlint.config.mts', template: 'oxlint.config.mts' },
-  { path: '.configs/eslint.config.mjs', template: 'eslint.config.mjs' },
-  { path: '.configs/oxfmt.config.mts', template: 'oxfmt.config.mts' },
+  { path: '.configs/lints/oxlint.config.mts', template: 'oxlint.config.mts' },
+  { path: '.configs/lints/eslint.config.mjs', template: 'eslint.config.mjs' },
+  { path: '.configs/formatters/oxfmt.config.mts', template: 'oxfmt.config.mts' },
 ];
 
 export interface IScaffoldResult {
@@ -163,7 +163,7 @@ export const scaffoldProject = (opts: {
   if (isWorkspaces) {
     entries.push({
       status: InitStatuses.SKIPPED,
-      subject: `.configs/{oxlint,eslint,oxfmt}: a workspaces project keeps them per app (apps/<name>/.configs/); the templates are in node_modules/@venizia/vulcan/base/templates/`,
+      subject: `.configs/{lints,formatters}: a workspaces project keeps them per app (apps/<name>/.configs/lints/, apps/<name>/.configs/formatters/); the templates are in node_modules/@venizia/vulcan/base/templates/`,
     });
   }
 

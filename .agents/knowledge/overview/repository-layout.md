@@ -23,5 +23,6 @@ make/       build, lint, test, release, evals, help, project (included by each p
 - One routing `AGENTS.md` at the root. `CLAUDE.md` is a gitignored file holding only `@AGENTS.md`,
   written by `vulcan sync`.
 - `.agents/plans/` and `.agents/specs/` are gitignored: saved specs and plans stay local.
-- Each package has its own `Makefile` (including `make/project.mk`), `.configs/` (oxlint, ESLint
-  naming-convention, oxfmt), `tsconfig.json`, `.env.test`, `LICENSE.md` and `README.md`.
+- Each package has its own `Makefile` (including `make/project.mk`), `.configs/` (`lints/` oxlint and ESLint
+  naming-convention, `formatters/` oxfmt, `builders/` the build tsconfig, each folder with an optional
+  `.ignore`), `tsconfig.json`, `.env.test`, `LICENSE.md` and `README.md`.

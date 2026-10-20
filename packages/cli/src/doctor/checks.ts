@@ -344,12 +344,19 @@ export const checkStyle = (opts: ICheckContext): IViolation[] => {
   let lintConfigs = 0;
 
   for (const owner of owners) {
-    const directory = join(owner, '.configs');
-    const names = existsSync(join(opts.root, directory))
-      ? readdirSync(join(opts.root, directory)).filter(file =>
-          DoctorConstants.LINT_CONFIG_FILE.test(file),
-        )
-      : [];
+    const configs = join(owner, '.configs');
+    const found = ['.', ...new Set(Object.values(DoctorConstants.LINT_CONFIG_FOLDERS))].flatMap(
+      folder => {
+        const directory = join(configs, folder);
+
+        return existsSync(join(opts.root, directory))
+          ? readdirSync(join(opts.root, directory))
+              .filter(file => DoctorConstants.LINT_CONFIG_FILE.test(file))
+              .map(file => ({ file: join(directory, file), name: file, legacy: folder === '.' }))
+          : [];
+      },
+    );
+    const names = found.map(item => item.file);
 
     lintConfigs += names.length;
 
@@ -367,8 +374,20 @@ export const checkStyle = (opts: ICheckContext): IViolation[] => {
       );
     }
 
-    for (const name of names) {
-      const file = join(directory, name);
+    for (const item of found) {
+      const { file } = item;
+
+      if (item.legacy) {
+        const tool = item.name.split('.')[0];
+
+        violations.push(
+          createViolation({
+            check: DoctorChecks.STYLE,
+            file,
+            message: `move it to .configs/${DoctorConstants.LINT_CONFIG_FOLDERS[tool]}/${item.name}`,
+          }),
+        );
+      }
 
       if (!readText({ file: join(opts.root, file) }).includes(ProjectLayout.STYLE_PACKAGE)) {
         violations.push(
