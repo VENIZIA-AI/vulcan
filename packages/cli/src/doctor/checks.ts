@@ -2,7 +2,12 @@ import { Glob } from 'bun';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
-import { coversFolder, declaresWorkspaces, readWorkspaceGlobs } from '../init/index.ts';
+import {
+  coversFolder,
+  declaresWorkspaces,
+  MCP_SERVER_HINT,
+  readWorkspaceGlobs,
+} from '../init/index.ts';
 import { resolvePackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import {
@@ -591,6 +596,111 @@ export const checkAgents = (opts: ICheckContext): IViolation[] => {
 };
 
 /** Info only: the Atlas block of AGENTS.md is missing or no longer matches the config. */
+const CANONICAL_ATLAS_ARGS = ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'];
+const MCP_FILE = '.mcp.json';
+const CLAUDE_SETTINGS_FILE = '.claude/settings.json';
+const ATLAS_SERVER = 'atlas';
+
+const readJsonObject = (opts: { file: string }): Record<string, unknown> | undefined => {
+  try {
+    const value: unknown = JSON.parse(readFileSync(opts.file, 'utf8'));
+
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? Object.fromEntries(Object.entries(value))
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
+  typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
+
+const mcpWarning = (opts: { file: string; message: string }): IViolation =>
+  createViolation({ check: DoctorChecks.MCP, file: opts.file, message: opts.message });
+
+/**
+ * The atlas server is registered the one way every project does: the tracked `.mcp.json` holds an
+ * `atlas` entry that runs the project's own atlas (`--root .`), and the managed Claude settings
+ * enable `atlas` by that name. A server under another name, or one that serves another folder, is
+ * never enabled automatically or serves the wrong knowledge. Warnings, not violations.
+ */
+export const checkMcpAtlas = (opts: ICheckContext): IViolation[] => {
+  const warnings: IViolation[] = [];
+  const file = join(opts.root, MCP_FILE);
+
+  if (!existsSync(file)) {
+    warnings.push(
+      mcpWarning({
+        file: MCP_FILE,
+        message: `missing: atlas is not registered for Claude Code, omp and Copilot CLI - add ${MCP_SERVER_HINT} under mcpServers`,
+      }),
+    );
+  } else {
+    const parsed = readJsonObject({ file });
+
+    if (parsed === undefined) {
+      warnings.push(
+        mcpWarning({
+          file: MCP_FILE,
+          message: `not valid JSON - it must hold ${MCP_SERVER_HINT} under mcpServers`,
+        }),
+      );
+    } else {
+      const holder = { value: parsed['mcpServers'] };
+      const servers = isRecord(holder) ? holder.value : {};
+      const entry = { value: servers[ATLAS_SERVER] };
+      const args = isRecord(entry) ? entry.value['args'] : undefined;
+      const isCanonical =
+        isRecord(entry) &&
+        entry.value['command'] === 'bun' &&
+        Array.isArray(args) &&
+        args.length === CANONICAL_ATLAS_ARGS.length &&
+        args.every((arg, index) => arg === CANONICAL_ATLAS_ARGS[index]);
+
+      if (!isRecord(entry)) {
+        warnings.push(
+          mcpWarning({
+            file: MCP_FILE,
+            message: `no server named atlas (found: ${Object.keys(servers).join(', ') || 'none'}): a differently named server is not enabled automatically - use ${MCP_SERVER_HINT}`,
+          }),
+        );
+      } else if (!isCanonical) {
+        const shown = JSON.stringify(entry.value)
+          .replace('{"command":', '{ "command": ')
+          .replace(',"args":[', ', "args": [')
+          .replaceAll('","', '", "')
+          .replace(/\]\}$/, '] }');
+
+        warnings.push(
+          mcpWarning({
+            file: MCP_FILE,
+            message: `the atlas entry is ${shown}, expected ${MCP_SERVER_HINT}`,
+          }),
+        );
+      }
+    }
+  }
+
+  const settings = join(opts.root, CLAUDE_SETTINGS_FILE);
+  const enabled = existsSync(settings)
+    ? readJsonObject({ file: settings })?.['enabledMcpjsonServers']
+    : undefined;
+
+  if (existsSync(settings) && !(Array.isArray(enabled) && enabled.includes(ATLAS_SERVER))) {
+    const has = Array.isArray(enabled) ? enabled.map(String).join(', ') : 'none';
+
+    warnings.push(
+      mcpWarning({
+        file: CLAUDE_SETTINGS_FILE,
+        message: `enabledMcpjsonServers does not include atlas (has: ${has}): Claude asks before using the server - run vulcan sync`,
+      }),
+    );
+  }
+
+  return warnings;
+};
+
 const DOCKERFILE = '.configs/builders/Dockerfile';
 
 const SECRET_LINES = ['**/.env', '**/.env.*', '!**/.env.example'];
