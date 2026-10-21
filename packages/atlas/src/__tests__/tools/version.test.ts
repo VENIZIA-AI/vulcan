@@ -98,6 +98,40 @@ describe('version tool', () => {
     expect(payload.installed['@venizia/ignis-kernel']).toBe('0.2.0-11');
   });
 
+  test("reads a workspace app's own dependencies and node_modules, where a monorepo installs the framework", async () => {
+    const cwd = makeDirectory();
+
+    writeJson({
+      file: join(cwd, 'package.json'),
+      value: { name: 'consumer', workspaces: ['services/*'] },
+    });
+    writeJson({
+      file: join(cwd, '.agents/vulcan.manifest.json'),
+      value: {
+        schemaVersion: 1,
+        name: 'consumer',
+        packages: [{ name: 'api', dir: 'api', path: 'services/api', aliases: [], retired: false }],
+        knowledge: { bundle: '.agents/knowledge' },
+        release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
+      },
+    });
+    writeJson({
+      file: join(cwd, 'services/api/package.json'),
+      value: { name: 'api', dependencies: { '@venizia/ignis-kernel': 'catalog:' } },
+    });
+    writeJson({
+      file: join(cwd, 'services/api/node_modules/@venizia/ignis-kernel/package.json'),
+      value: { name: '@venizia/ignis-kernel', version: '0.2.0-11' },
+    });
+
+    const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
+
+    expect(payload.installed['@venizia/ignis-kernel']).toBe('0.2.0-11');
+    expect(payload.behind).toEqual([
+      { package: '@venizia/ignis-kernel', installed: '0.2.0-11', newest: '0.2.0-21' },
+    ]);
+  });
+
   test('names the newest version this table knows, per package', async () => {
     const cwd = makeDirectory();
 

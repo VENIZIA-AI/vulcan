@@ -1,11 +1,12 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { relative } from 'node:path';
 import { AtlasConstants, AtlasModes } from '@/common';
 import { resolveRepositoryRoots } from '@/corpus';
 import { Transport } from '@/protocol';
 import { computeReleases, ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
+import { installedDirectoriesOf, installRootsOf } from '@/sources/installed';
 import { resolveRemoteSource } from '@/sources/resolver';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources/serving';
 import type { IAtlasSource, IResolvedSource, IUnavailableSource } from '@/sources/common';
@@ -49,9 +50,12 @@ const remoteSymbolsOf = (opts: {
   opts.source.project.packages
     .filter(entry => !entry.retired)
     .flatMap(entry => {
-      const installed = join(opts.cwd, 'node_modules', entry.name);
+      const [installed] = installedDirectoriesOf({
+        roots: installRootsOf({ cwd: opts.cwd }),
+        name: entry.name,
+      });
 
-      if (existsSync(join(installed, 'package.json'))) {
+      if (installed !== undefined) {
         return symbolsOfInstalled({ directory: installed });
       }
 

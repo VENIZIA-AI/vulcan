@@ -40,7 +40,7 @@ A project runs one installed version of a source's packages, but `ref` is usuall
 How it is decided, at every start:
 
 1. atlas resolves `ref` first: its manifest names the packages, its release table says which release each version is.
-2. It reads `node_modules/<package>/package.json` for each package of the source. The newest by release order among those with a recorded release decides; with `@acme/api` 1.0.0 and `@acme/db` 0.5.0 installed, and `db-v0.5.0` the later commit, the docs are at `db-v0.5.0`.
+2. It reads `node_modules/<package>/package.json` for each package of the source, at the project root and beside each package the project declares (a monorepo app installs its framework under `services/<app>/node_modules`). The newest by release order among those with a recorded release decides; with `@acme/api` 1.0.0 and `@acme/db` 0.5.0 installed, and `db-v0.5.0` the later commit, the docs are at `db-v0.5.0`.
 3. The tag is built from the source's `tagPattern` (`<dir>-v<version>`) and its commit is pulled like any ref; it is cached, and a tag never changes, so the second start is a cache hit.
 4. `version` and `changes` still read the release table of `ref`, so they report releases newer than the installed one and an upgrade is still visible.
 
