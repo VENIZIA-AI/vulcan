@@ -54,7 +54,7 @@ export interface IAtlasProject {
   /** Absolute paths. */
   knowledge: { bundle: string; wiki?: string; changelogs?: string };
   /** The sources this project reads knowledge from (git mode): `atlas.sources` of its config. */
-  sources: { name: string; repo: string; ref: string }[];
+  sources: { name: string; repo: string; ref: string; pin?: 'installed' | 'ref' }[];
 }
 
 type TRecord = Record<string, unknown>;
@@ -171,10 +171,18 @@ export const toAtlasProject = (opts: {
       const source = recordOf({ value: item });
       const name = stringOf({ value: source.name });
       const repo = stringOf({ value: source.repo });
+      const pin = source.pin === 'installed' || source.pin === 'ref' ? source.pin : undefined;
 
       return name === undefined || repo === undefined
         ? []
-        : [{ name, repo, ref: stringOf({ value: source.ref }) ?? 'develop' }];
+        : [
+            {
+              name,
+              repo,
+              ref: stringOf({ value: source.ref }) ?? 'develop',
+              ...(pin === undefined ? {} : { pin }),
+            },
+          ];
     }),
     knowledge: {
       bundle: resolve(opts.root, stringOf({ value: knowledge.bundle }) ?? DEFAULT_BUNDLE),

@@ -33,6 +33,12 @@ const statusOf = (opts: { sources: IResolvedSource[]; unavailable: IUnavailableS
     }
 
     const at = `${source.origin ?? source.name} at ${(source.sha ?? '').slice(0, 8)}`;
+    const pin =
+      source.pin === undefined
+        ? ''
+        : source.pin.pinned
+          ? ` - docs pinned to ${source.pin.ref}, the ${source.pin.reason}; release table from the configured ref`
+          : ` - docs follow ${source.pin.ref}, not the installed version (${source.pin.reason})`;
 
     const note =
       source.history === false
@@ -41,7 +47,7 @@ const statusOf = (opts: { sources: IResolvedSource[]; unavailable: IUnavailableS
 
     return source.mode === 'offline-cache'
       ? `- ${source.name}: ${at} - OFFLINE: the remote was unreachable, this is the newest cache, not the ref's current commit${note}`
-      : `- ${source.name}: ${at}${note}`;
+      : `- ${source.name}: ${at}${pin}${note}`;
   });
 
   const missing = opts.unavailable.map(

@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - atlas pins a source's docs to the installed version
+
+A source's corpus used to be the configured ref (develop), so `search` and `get` described unreleased code the project does not run. Now `resolveAtInstalled` resolves the ref first (manifest, release table), then `decidePin` picks the release tag of the newest installed package of the source (`node_modules/<name>/package.json`, newest by release order; links, unrecorded versions and nothing installed fall back to the ref with a reason) and reads the corpus at that tag with `corpusOnly`; the release table and history stay the ref's, so `version` and `changes` still report newer releases. `atlas.sources[].pin: 'ref'` opts out. The refresh re-resolves with the cwd, so a `bun update` swaps the corpus. The status line in the instructions names the tag and why. Concept: [atlas](/packages/atlas.md).
+
 ## 2026-10-21 - init, add, sync and agents setup ask with menus
 
 In a terminal that can draw them (stdin and stdout TTY, TERM not dumb) the questions are `@clack/prompts` menus: an agents checkbox, selects for the kind, folders, proxy backend and preset, text with a default only for new names, a summary and a confirm before writing; `NO_COLOR` honoured. Everywhere else the plain line questions stay byte for byte. The wrapper is `packages/cli/src/ui`; no command imports clack directly. Concept: [cli](/packages/cli.md).
