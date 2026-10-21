@@ -145,6 +145,16 @@ To fetch a single named source, pass `--source <name>`.
 Repository-mode sources print nothing because atlas reads project files directly.
 For source caching and configuration details, see the [atlas sources reference](/references/atlas/sources).
 
+## Staying current while the server runs
+
+An MCP server lives as long as the agent session that started it, often for days. It does not serve what it resolved at its start for that long: while it runs it looks again, at most every five minutes, in the background, so no tool call waits for it:
+
+- **A remote source** is asked for its ref again (`git ls-remote`, as a start does). A ref that moved is pulled and the source's index, release table and symbols are replaced; a release tag pushed since refreshes only the release table. `version` and `changes` therefore report a release that shipped after the session began.
+- **The project itself** recomputes its release table when its HEAD or one of its tags changed (its search index already follows the files).
+- **A failure keeps what was served.** An offline machine or a down remote leaves the source on its cache, and the server logs one line to stderr.
+
+`VULCAN_ATLAS_REFRESH_SECONDS` sets the interval in seconds (default `300`); `0` turns the refresh off, so a server serves what its start resolved. The `instructions` text a client received at the start (the commit it names for each source) is not rewritten; ask `version` for the current releases. `vulcan x atlas pull` still refreshes the cache by hand, and a running server picks the new commit up within the interval.
+
 ## Surface
 
 To manage the public API surface snapshot, use `vulcan x atlas surface`:

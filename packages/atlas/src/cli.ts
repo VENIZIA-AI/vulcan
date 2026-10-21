@@ -12,7 +12,7 @@ import {
 import { runChangelogsCommand } from './changelogs/command';
 import { runConceptsCommand } from './concepts/command';
 import { runReleasesCommand } from './releases/generator';
-import { buildSourcesServer } from './server/index';
+import { buildSourcesServer, refreshIntervalMs } from './server/index';
 import type { Transport } from './protocol/index';
 import { hasAtlasProject, readAtlasProject } from './common/project-config';
 import { resolveServableSources, resolveSources } from './sources/index';
@@ -129,11 +129,14 @@ const buildServer = async (opts: {
     usageError('nothing to serve - every source is unavailable (above)');
   }
 
+  const intervalMs = refreshIntervalMs();
+
   return buildSourcesServer({
     sources: resolved,
     unavailable,
     cwd: opts.root,
     version: opts.version,
+    ...(intervalMs === undefined ? {} : { refresh: { intervalMs } }),
   });
 };
 

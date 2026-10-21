@@ -10,6 +10,10 @@ counted as concepts.
 
 The atlas `presets` tool answers recorded presets first (`inProject: true`), then the official ones the project has not used (ignis app and lib, ardor app and lib; `inProject: false`), with the exact command (ardor's `--api <app> | --no-api` included); a recorded `@venizia/ardor@x` replaces the official entry. Found when an agent said there is no frontend preset because the project had recorded none. Concept: [atlas](/packages/atlas.md).
 
+## 2026-10-21 - the atlas server refreshes its sources while it runs
+
+A server resolved each remote source once, at its start, and computed the project's release table once, so a session that began before a release answered `version` with old versions for days (reported by BANA; tags and a fresh pull were right). Now a `Refresher`, poked by every `tools/call`, re-resolves remote sources and the project's HEAD and tags at most every 5 minutes in the background (`VULCAN_ATLAS_REFRESH_SECONDS`, `0` off), swapping stores in place through live entries; a failure keeps the old stores. Concept: [atlas](/packages/atlas.md).
+
 ## 2026-10-21 - .mcp.json is a per-machine agent file
 
 `init` no longer scaffolds the root `.mcp.json`; `sync` writes it (canonical relative atlas entry, merged, once) when a chosen agent reads it (claude, omp, copilot-cli), lists it in `.git/info/exclude`, and `agents remove` takes it back when no reader is left. A tracked `.mcp.json` is never rewritten or excluded: doctor warns to `git rm --cached` it, after which sync adopts an entry equal to the canonical one. The Atlas block of `AGENTS.md` no longer depends on `.mcp.json`; the `mcp` doctor check only looks at the file when a reader is chosen. Concept: [cli](/packages/cli.md).
