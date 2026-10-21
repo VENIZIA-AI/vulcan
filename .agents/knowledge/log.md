@@ -10,6 +10,10 @@ counted as concepts.
 
 - The shipped skill asks its questions in rounds with recommended answers, designs a deep interface with agreed seams, builds vertical slices red then green, and ends every step on a checkable criterion.
 
+## 2026-10-21 - a new package's knowledge page points at atlas
+
+- `renderAppConcept` and `renderLibConcept` add a note (a summary, not a spec) and a table of the atlas lookups for the kind; an agent had taken the one-line page for a spec.
+
 ## 2026-10-21 - atlas pins a source's docs to the installed version
 
 A source's corpus used to be the configured ref (develop), so `search` and `get` described unreleased code the project does not run. Now `resolveAtInstalled` resolves the ref first (manifest, release table), then `decidePin` picks the release tag of the newest installed package of the source (`node_modules/<name>/package.json`, newest by release order; links, unrecorded versions and nothing installed fall back to the ref with a reason) and reads the corpus at that tag with `corpusOnly`; the release table and history stay the ref's, so `version` and `changes` still report newer releases. `atlas.sources[].pin: 'ref'` opts out. The refresh re-resolves with the cwd, so a `bun update` swaps the corpus. The status line in the instructions names the tag and why. Concept: [atlas](/packages/atlas.md).

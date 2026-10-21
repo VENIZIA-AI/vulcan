@@ -12,6 +12,7 @@ This section tracks the history of significant changes and releases of the VULCA
 | Date | Title | Type |
 |------|-------|------|
 | 2026-10-21 | [VULCAN 0.3.9: build-a-feature Asks in Rounds and Builds in Vertical Slices](./2026-10-21-vulcan-0-3-9-build-a-feature-practices) | Enhancement |
+| 2026-10-21 | [VULCAN 0.3.9: A New Package's Knowledge Page Points at Atlas](./2026-10-21-vulcan-0-3-9-knowledge-page-points-at-atlas) | Enhancement |
 | 2026-10-21 | [VULCAN 0.3.9: atlas Serves the Docs of the Version You Have Installed](./2026-10-21-vulcan-0-3-9-atlas-pin) | Behaviour change |
 | 2026-10-21 | [VULCAN 0.3.9: Menus Instead of Typed Answers](./2026-10-21-vulcan-0-3-9-prompts) | Feature |
 | 2026-10-21 | [VULCAN 0.3.9: A build-a-feature Skill for Every Project](./2026-10-21-vulcan-0-3-9-build-a-feature) | Feature |
