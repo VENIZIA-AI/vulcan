@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-22 - every dependency to its latest
+
+Phat's standing rule: always the highest version. The catalog: @types/bun 1.4.3, @venizia/dev-configs 0.3.5, oxfmt 0.74.0, zod ^4.6.7; the docs workspace: vue ^3.5.44; the lockfiles' transitive packages refreshed with `bun update`. No package declares peerDependencies, no major was taken; TypeScript stays on 6 (typescript-eslint does not support 7).
+
 ## 2026-10-21 - the build-a-feature description says to load it before answering
 
 The 0.3.9 pre-release eval on Claude Code (project-only config, atlas and read tools) showed a workflow question answered in one turn from the skill's description in 2 of 3 runs: no skill load, no atlas call, because the grounding rule is in the body. The description now says to load the skill before any such answer; 6 of 6 runs then load it and ground first. Concept: [cli](/packages/cli.md).
