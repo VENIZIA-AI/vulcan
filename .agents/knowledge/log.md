@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - the build-a-feature description says to load it before answering
+
+The 0.3.9 pre-release eval on Claude Code (project-only config, atlas and read tools) showed a workflow question answered in one turn from the skill's description in 2 of 3 runs: no skill load, no atlas call, because the grounding rule is in the body. The description now says to load the skill before any such answer; 6 of 6 runs then load it and ground first. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-21 - build-a-feature grounds a workflow question too
 
 - Before its first answer, even to "what is your workflow", the skill calls search and presets and opens with one quoted hit and the preset list.

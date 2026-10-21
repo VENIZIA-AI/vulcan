@@ -1,6 +1,6 @@
 ---
 name: build-a-feature
-description: Builds a feature - an endpoint, a service, a repository, a page, a new app or a shared package - from the user's goal to a reviewed, tested change, with every convention and API looked up in atlas. Use when the user asks to build, add or implement something, asks how a feature would be built here, or asks which workflow you follow for a feature.
+description: Builds a feature - an endpoint, a service, a repository, a page, a new app or a shared package - from the user's goal to a reviewed, tested change, with every convention and API looked up in atlas. Use when the user asks to build, add or implement something, asks how a feature would be built here, or asks which skill or workflow you follow for a feature. Load it before you answer any of these, a question about the workflow included, because its first step is a lookup in atlas and an answer given without it is ungrounded.
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 ---

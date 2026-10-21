@@ -41,3 +41,18 @@ describe('the shipped skill docs-update', () => {
     expect(skill).not.toContain('docs/wiki/content');
   });
 });
+
+describe('the shipped skill build-a-feature', () => {
+  const description = (): string => {
+    const text = readFileSync(join(SKILLS_DIRECTORY, 'build-a-feature', 'SKILL.md'), 'utf8');
+
+    return /^description: (.*)$/m.exec(text)?.[1] ?? '';
+  };
+
+  // The grounding rule is in the skill's body, which an agent that answers from the description never reads.
+  test('its description says to load it before answering, a workflow question included', () => {
+    expect(description()).toContain('Load it before you answer any of these');
+    expect(description()).toContain('a question about the workflow included');
+    expect(description()).toContain('lookup in atlas');
+  });
+});
