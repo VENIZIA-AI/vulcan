@@ -38,7 +38,7 @@ describe('tool descriptions open with when to call the tool', () => {
 
   test('search: when the user asks about the projects or their conventions', () => {
     expect(descriptions.search).toStartWith(
-      `When the user asks how something works in ${PROJECTS}, or about this project's conventions, search here before you answer from memory`,
+      `When the user asks how something works in ${PROJECTS}, how to build something in it, or about this project's conventions, search here before you answer from memory`,
     );
   });
 

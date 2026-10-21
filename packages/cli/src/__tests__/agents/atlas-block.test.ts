@@ -42,16 +42,19 @@ describe('renderAtlasBlock', () => {
     expect(BLOCK).toContain(
       'A new app or package: ask `presets` which preset and which `vulcan add` command, run it, and never hand-write package.json, tsconfig or scripts.',
     );
+    expect(BLOCK).toContain(
+      'How to build something here (a feature, a controller, a service, a repository): `search` first, then `get`, before you answer; a plan never says "check atlas" for a step you have not done.',
+    );
   });
 
   test('a project with no sources names only itself', () => {
     expect(renderAtlasBlock({ project: 'solo', sources: [] })).toContain('solo (this repository).');
   });
 
-  test('is short: four lines of text between the markers', () => {
+  test('is short: a heading and five lines of text between the markers', () => {
     const inner = BLOCK.split('\n').filter(line => line.trim() !== '' && !line.startsWith('<!--'));
 
-    expect(inner.length).toBeLessThanOrEqual(5);
+    expect(inner.length).toBeLessThanOrEqual(6);
   });
 });
 
