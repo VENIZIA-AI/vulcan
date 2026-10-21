@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - presets also lists the official presets not used yet
+
+The atlas `presets` tool answers recorded presets first (`inProject: true`), then the official ones the project has not used (ignis app and lib, ardor app and lib; `inProject: false`), with the exact command (ardor's `--api <app> | --no-api` included); a recorded `@venizia/ardor@x` replaces the official entry. Found when an agent said there is no frontend preset because the project had recorded none. Concept: [atlas](/packages/atlas.md).
+
 ## 2026-10-21 - atlas: a how-to-build question must search first
 
 The atlas server's instructions get a second paragraph (lead still <= 512 characters, whole text < 2 KB): a question about how to build something here, or how a framework organises a feature, must `search` then `get` before the answer, and a plan never says "check atlas" for a step not done; the `search` description names "how to build something"; the AGENTS.md Atlas block says the same for agents that do not show the server's text. Found by a fresh-project test where the agent read files and claimed to check atlas. Concept: [atlas](/packages/atlas.md).

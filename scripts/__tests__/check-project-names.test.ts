@@ -60,6 +60,20 @@ test('a project name in src fails, naming the file and line; tests and fixtures 
   expect(result.stderr).not.toContain('fixtures/c.ts');
 });
 
+test('the registry of published presets may name the frameworks; the same names elsewhere in src still fail', () => {
+  const root = plant({
+    files: {
+      'packages/atlas/src/tools/common/official-presets.ts': "export const id = 'ignis';\n",
+      'packages/atlas/src/tools/other.ts': "export const id = 'ignis';\n",
+    },
+  });
+  const result = run({ root });
+
+  expect(result.code).toBe(1);
+  expect(result.stderr).toContain('packages/atlas/src/tools/other.ts:1');
+  expect(result.stderr).not.toContain('official-presets.ts');
+});
+
 test('what VULCAN ships under base/ names no project either; skill evals are test data', () => {
   const root = plant({
     files: {

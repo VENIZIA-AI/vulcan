@@ -280,7 +280,9 @@ to must be a YYYY-MM-DD date when no package is given; got '0.2.0-16'
 
 ## presets
 
-`presets` answers "how do I create a new app or package here" from the manifest `vulcan sync` renders: which recorded preset makes it, which folder it lands in, and the exact `vulcan add` command. An agent asked to create something calls it before it writes a file.
+`presets` answers "how do I create a new app or package here" from the manifest `vulcan sync` renders: which preset makes it, which folder it lands in, and the exact `vulcan add` command. An agent asked to create something calls it before it writes a file.
+
+The answer lists the presets this project recorded first (`inProject: true`), then the official presets it has not used yet (`inProject: false`): `ignis` (a backend app, a shared library) and `ardor` (a frontend app, a shared feature package). A project that only ever made a backend therefore still learns that an ARDOR frontend exists, with its command.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
@@ -288,29 +290,39 @@ to must be a YYYY-MM-DD date when no package is given; got '0.2.0-16'
 | `name` | String | `<name>` | The new name (lowercase letters, digits and `-`), put into the command |
 | `side` | `backend` or `frontend` | Both | Narrows the apps list to one side |
 
-For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder` and `command`; for `kind: "lib"`, `preset`, `summary`, `folder` and `command`. A side or kind with no folder in the manifest has `folder: null` and the command carries `--backend-dir <folder>`, `--frontend-dir <folder>` or `--dir <folder>`: the tool never invents a folder.
+For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `command` and `inProject`; for `kind: "lib"`, `preset`, `summary`, `folder`, `command` and `inProject`. A side or kind with no folder in the manifest has `folder: null` and the command carries `--backend-dir <folder>`, `--frontend-dir <folder>` or `--dir <folder>`: the tool never invents a folder. A frontend's command ends with `--api <backend app> | --no-api`.
 
 ```json
 {
-  "kind": "lib",
+  "kind": "app",
   "presets": [
     {
       "preset": "ignis",
-      "summary": "An IGNIS library.",
-      "folder": "libs",
-      "command": "bun x --no-install vulcan add --preset ignis --lib billing"
+      "side": "backend",
+      "summary": "An IGNIS API on Bun.",
+      "folder": "services",
+      "command": "bun x --no-install vulcan add --preset ignis --app web2",
+      "inProject": true
+    },
+    {
+      "preset": "ardor",
+      "side": "frontend",
+      "summary": "ARDOR: a frontend app on Vite and React (official; not yet in this project)",
+      "folder": null,
+      "command": "bun x --no-install vulcan add --preset ardor --app web2 --frontend-dir <folder> --api <backend app> | --no-api",
+      "inProject": false
     }
   ]
 }
 ```
 
-When nothing fits, `presets` is empty and a `note` says what to do instead. It never offers an app preset for a library, or a command that does not exist:
+A recorded preset of the same package (`ignis`, `@venizia/ignis`, `ignis@0.3.5`) replaces the official entry, so a preset is listed once. When no entry is in the project, a `note` says so. When nothing fits the kind, `presets` is empty and a `note` says what to do instead. The tool never offers an app preset for a library, or a command that does not exist:
 
 | Case | `note` |
 |---|---|
 | A kind other than `app` or `lib` | `no preset makes a <kind> (vulcan add makes apps and libs): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app or lib preset for it` |
-| The project recorded no preset | `this project has no recorded preset: ask the user which preset to use; the form is ...` |
-| No recorded preset makes the kind | `no recorded preset makes a lib: ask the user which preset to use, or how it should be made; ...` |
+| The project recorded no preset | `this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use` |
+| No recorded preset makes the kind or side | `no recorded preset makes a lib: the entries are the official ones, marked inProject false; ask the user which to use, and do not hand-write package.json, tsconfig or scripts` |
 
 ## Errors
 
