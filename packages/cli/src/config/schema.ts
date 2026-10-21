@@ -209,6 +209,8 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
             name: z.string(),
             repo: z.string(),
             ref: z.string().default('develop'),
+            /** `installed` (default): the docs are read at the tag of the newest installed package; `ref`: at `ref`. */
+            pin: z.enum(['installed', 'ref']).optional(),
           }),
         )
         .default([]),

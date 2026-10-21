@@ -381,6 +381,7 @@ The `sources` array lists external repositories indexed by atlas:
 | `name` | `string` | none | External source identifier in atlas results |
 | `repo` | `string` | none | GitHub repository identifier in `owner/repo` format |
 | `ref` | `string` | `'develop'` | Git branch, tag, or commit reference to index |
+| `pin` | `'installed'` or `'ref'` | `'installed'` | `installed`: the docs are read at the release tag of the newest installed package of the source. `ref`: always at `ref`. See [Which version of the docs](/references/atlas/sources#which-version-of-the-docs) |
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
