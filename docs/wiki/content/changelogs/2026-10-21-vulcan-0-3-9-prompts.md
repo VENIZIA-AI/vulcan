@@ -15,7 +15,7 @@ packages: ['@venizia/vulcan']
 ## What changed
 
 - **Agents are a checkbox.** `vulcan sync` and `vulcan agents setup` list the eight agents; arrows move, space ticks, `a` ticks all, Enter confirms. What this machine chose before is ticked (hint `chosen before`), else what was detected (hint `detected`).
-- **`add` selects.** The kind is a select (`app` or `lib`); the library folder is a select of the folders that exist plus `New folder...`; the backend a frontend proxies to is a select; the preset is picked from the ones the project recorded.
+- **`add` selects.** The kind is a select (`app` or `lib`); the library folder is a select of the folders that exist plus `New folder...`; the backend a frontend proxies to is a select; the preset is picked from the ones the project recorded and the official ones (also for `init --preset` with no value), or typed under `Another preset...`.
 - **Text only where nothing can be picked.** A new project, app or library name is typed, with your earlier choice as the default; a name that is not one is refused as you type it.
 - **A summary and a confirm before anything is written.** `init` and `add` show what they will create; `No` writes nothing.
 - **Colour follows `NO_COLOR`.** Cancelling (`Esc`, `Ctrl-C`) stops the command and writes nothing.

@@ -14,7 +14,8 @@ import type {
 import { today, writeFile } from './files.ts';
 import { recordedPresetOf } from './lib-preset.ts';
 import { renderDockerignore } from './dockerignore.ts';
-import { menusAvailable, promptText } from '../ui/index.ts';
+import { menusAvailable } from '../ui/index.ts';
+import { askPresetSpec } from './preset-menu.ts';
 import { ABORTED, confirmWrite, planLines } from './plan.ts';
 import { askInTerminal, findFolderClash, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
@@ -202,15 +203,8 @@ const runCreate = async (opts: {
     return fail({ message: '--preset needs a value (a package name, or file:<path>)' });
   }
 
-  // A new project has no config to read presets from, so a menu can only take the one typed.
-  const presetValue =
-    flagged ??
-    (
-      await promptText({
-        message: 'Preset (a package name, or file:<path>)',
-        validate: value => (value.trim() === '' ? 'a package name, or file:<path>' : undefined),
-      })
-    )?.trim();
+  // A new project has no config to list presets from: the official ones, or one typed.
+  const presetValue = flagged ?? (await askPresetSpec({ recorded: [] }))?.trim();
 
   if (presetValue === undefined || presetValue === '') {
     return fail({ message: '--preset needs a value (a package name, or file:<path>)' });

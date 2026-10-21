@@ -10,7 +10,8 @@ import { AppSides, CreateFlags } from './common/index.ts';
 import type { IAppsBlock, ILocatedPreset, IPresetSpec, TAppSide } from './common/index.ts';
 import { today, writeFile } from './files.ts';
 import { recordedPresetOf } from './lib-preset.ts';
-import { menusAvailable, promptSelect, promptText } from '../ui/index.ts';
+import { menusAvailable, promptSelect } from '../ui/index.ts';
+import { askPresetSpec } from './preset-menu.ts';
 import { ABORTED, confirmWrite, planLines } from './plan.ts';
 import {
   askInTerminal,
@@ -283,36 +284,11 @@ const locate = async (opts: {
     : { ok: false, error: `could not install ${opts.spec.packageName}@${opts.spec.range}` };
 };
 
-const ANOTHER_PRESET = ':another-preset';
-const PRESET_PROMPT = 'Preset (a package name, or file:<path>)';
-
-/** A terminal picks one of the presets the project recorded, or types another; null when cancelled. */
+/** A terminal picks one of the presets the project recorded or an official one, or types another; null when cancelled. */
 const askPreset = async (opts: { cwd: string }): Promise<string | null> => {
   const loaded = await loadConfig({ root: opts.cwd });
-  const recorded = loaded.ok ? (loaded.config.presets ?? []) : [];
 
-  if (recorded.length > 0) {
-    const picked = await promptSelect({
-      message: 'Which preset?',
-      choices: [
-        ...recorded.map(entry => ({
-          value: entry.spec,
-          label: entry.spec,
-          hint: `${entry.side}: ${entry.summary}`,
-        })),
-        { value: ANOTHER_PRESET, label: 'Another preset...' },
-      ],
-    });
-
-    if (picked !== ANOTHER_PRESET) {
-      return picked;
-    }
-  }
-
-  return promptText({
-    message: PRESET_PROMPT,
-    validate: value => (value.trim() === '' ? 'a package name, or file:<path>' : undefined),
-  });
+  return askPresetSpec({ recorded: loaded.ok ? (loaded.config.presets ?? []) : [] });
 };
 
 const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): Promise<number> => {

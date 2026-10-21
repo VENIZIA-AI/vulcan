@@ -25,7 +25,7 @@ The menus are drawn when stdin and stdout are both a terminal and `TERM` is not 
 |---|---|---|
 | Which coding agents (`sync`, `agents setup`) | Checkbox | What this machine chose before is ticked; with no earlier choice, what was detected. The hints say `detected` and `chosen before`. Nothing ticked means `none` |
 | What to create (`add`) | Select | `app` or `lib`; only the kinds the preset offers |
-| The preset (`add`, `init --preset` with no value) | `add`: select of the presets the project recorded, plus `Another preset...`; `init`: text | A new project has no config to list presets from |
+| The preset (`add`, `init --preset` with no value) | Select of the presets the project recorded (`add` only), then the official ones it has not used, then `Another preset...` | `Another preset...` opens a text input for a package name or `file:<path>`. The official list is the one atlas answers `presets` from |
 | The shared or library folder (`add`) | Select of the folders that exist, plus `New folder...` | `New folder...` opens a text input |
 | The side folder of an app (`add`) | Not asked | Apps of one side share the folder the config holds |
 | The backend app to proxy `/api` to (`add`, frontend) | Select of the backend apps, plus `none` | |

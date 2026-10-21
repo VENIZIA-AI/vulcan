@@ -98,14 +98,16 @@ describe.skipIf(!hasScript)('vulcan init asks with menus in a terminal', () => {
 });
 
 describe.skipIf(!hasScript)('the preset is picked or typed when --preset is missing', () => {
-  test('init --preset with no value types the preset (a new project has no config to list from)', async () => {
+  test('init --preset with no value picks an official preset or types another one', async () => {
     const parent = createProject({ files: {} });
     const result = await driveTerminal({
       args: ['init', '--preset'],
       cwd: parent,
       env: ENV,
       steps: [
-        { waitFor: 'Preset', send: `${BACKEND}${KEYS.ENTER}` },
+        // Two official presets, then Another preset...: two downs reach it.
+        { waitFor: 'Which preset', send: `${KEYS.DOWN}${KEYS.DOWN}${KEYS.ENTER}` },
+        { waitFor: 'Preset (a package name', send: `${BACKEND}${KEYS.ENTER}` },
         { waitFor: 'Project name', send: `my-product${KEYS.ENTER}` },
         { waitFor: 'Backend folder', send: `services${KEYS.ENTER}` },
         { waitFor: 'Name of this backend app', send: `core-api${KEYS.ENTER}` },
@@ -115,6 +117,9 @@ describe.skipIf(!hasScript)('the preset is picked or typed when --preset is miss
     });
 
     expect(result.code).toBe(0);
+    expect(result.plain).toContain('ignis');
+    expect(result.plain).toContain('ardor');
+    expect(result.plain).toContain('Another preset...');
     expect(existsSync(join(parent, 'my-product/services/core-api/package.json'))).toBe(true);
   });
 
@@ -135,6 +140,7 @@ describe.skipIf(!hasScript)('the preset is picked or typed when --preset is miss
 
     expect(result.code).toBe(0);
     expect(result.plain).toContain('preset-with-lib');
+    expect(result.plain).toContain('ardor');
     expect(result.plain).toContain('Another preset...');
     expect(existsSync(join(root, 'libs/billing/package.json'))).toBe(true);
   });
