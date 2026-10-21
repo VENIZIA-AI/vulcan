@@ -4,7 +4,7 @@
     {
       "id": 0,
       "prompt": "If I want to implement a feature with you, what will you do with me? Which skill or workflow do you use?",
-      "expected_output": "Calls atlas search (and get) for how a feature is organised in this project before describing the workflow; the workflow it describes names an atlas call at each step it depends on (search for conventions, symbol before an import, presets for a new app or package); it does not claim an atlas lookup it has not made; nothing is written or committed",
+      "expected_output": "Calls atlas search for how a feature is built in this project and atlas presets before its first answer; opens with one quoted hit and the preset list (the frontend preset included); then describes the workflow, naming the atlas call at each step it depends on; claims no lookup it has not made; nothing is written or committed",
       "files": [".agents/vulcan.manifest.json"]
     },
     {

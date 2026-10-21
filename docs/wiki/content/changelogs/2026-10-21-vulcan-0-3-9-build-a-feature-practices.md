@@ -14,6 +14,7 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
+- **Grounded from the first answer.** Asked to build something, or only asked how it would build a feature, the agent first searches atlas and lists the presets, and opens its answer with what it found.
 - **Questions in rounds.** The agent asks every question it can ask now in one numbered round, each with its recommended answer, and looks facts up in atlas instead of asking you for them.
 - **Interface and seams first.** It proposes the smallest interface that covers the feature and names the seams it will test at, and waits for your approval.
 - **Vertical slices.** It builds one behaviour at a time, through every layer it needs: a test at the agreed seam goes red, the smallest code turns it green. The first slice is the simplest end-to-end path.
