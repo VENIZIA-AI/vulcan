@@ -134,6 +134,42 @@ describe('instructionsOf', () => {
 
     expect(Buffer.byteLength(text, 'utf8')).toBeLessThan(2048);
   });
+
+  test('four corpora, one of them unreachable, still fit 2048 bytes with the second paragraph', () => {
+    const four = [
+      acme,
+      remoteOf({ name: 'anvil', packages: ['@anvil/kernel', '@anvil/boot'] }),
+      remoteOf({ name: 'bellows', packages: ['@bellows/air'] }),
+      remoteOf({ name: 'tongs', packages: ['@tongs/grip'] }),
+    ];
+    const text = instructionsOf({
+      sources: four,
+      unavailable: [
+        {
+          source: { name: 'ardor', repo: 'VENIZIA-AI/ardor', ref: 'develop' },
+          reason: 'the remote was unreachable',
+        },
+      ],
+    });
+
+    expect(Buffer.byteLength(text, 'utf8')).toBeLessThan(2048);
+  });
+
+  test('a second paragraph says a how-to-build question must search first, and a plan must call before it says check atlas', () => {
+    const text = instructionsOf({ sources: [acme, ignis], unavailable: [] });
+    const second = text.split('\n\n')[1] ?? '';
+
+    expect(second).toBe(
+      'Before you answer how to build something in acme and ignis (a feature, a controller, a service, a repository, a datasource) or how a convention is organised, call `search` and read the hits with `get`; do not answer from the files you happen to open. A plan never says "check atlas" for a step you have not done: call it first.',
+    );
+  });
+
+  test('the lead keeps to 512 characters: the second paragraph is not part of it', () => {
+    const text = instructionsOf({ sources: [acme, ignis], unavailable: [] });
+
+    expect(leadOf({ text }).length).toBeLessThanOrEqual(512);
+    expect(leadOf({ text })).not.toContain('files you happen to open');
+  });
 });
 
 describe('a server built from a project', () => {
