@@ -10,6 +10,10 @@ counted as concepts.
 
 - `renderAppConcept` and `renderLibConcept` add a note (a summary, not a spec) and a table of the atlas lookups for the kind; an agent had taken the one-line page for a spec.
 
+## 2026-10-21 - init, add, sync and agents setup ask with menus
+
+In a terminal that can draw them (stdin and stdout TTY, TERM not dumb) the questions are `@clack/prompts` menus: an agents checkbox, selects for the kind, folders, proxy backend and preset, text with a default only for new names, a summary and a confirm before writing; `NO_COLOR` honoured. Everywhere else the plain line questions stay byte for byte. The wrapper is `packages/cli/src/ui`; no command imports clack directly. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-21 - the build-a-feature skill ships
 
 Updated [cli](/packages/cli.md): the base ships a fourth skill, `build-a-feature` - a feature from the user's goal to a reviewed, tested change, looking up conventions and APIs in atlas at each step (`search`, `symbol`, `presets`). `sync` links it first (names sort), and its name is reserved like the other three.

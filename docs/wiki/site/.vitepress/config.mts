@@ -55,6 +55,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Overview', link: '/references/' },
       { text: 'vulcan.config', link: '/references/configuration/' },
       { text: 'Presets', link: '/references/presets' },
+      { text: 'Interactive prompts', link: '/references/prompts' },
       { text: 'Coding agents', link: '/references/agents' },
     ],
   },

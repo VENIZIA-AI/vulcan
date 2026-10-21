@@ -26,7 +26,7 @@ const runInTerminal = (opts: {
   const child = spawnSyncBounded({
     cmd: ['script', '-qec', command, '/dev/null'],
     cwd: opts.cwd,
-    env: { ...process.env, ...opts.env },
+    env: { ...process.env, TERM: 'dumb', ...opts.env },
     stdin: Buffer.from(`${opts.answers.join('\n')}\n`),
     stdout: 'pipe',
     stderr: 'pipe',

@@ -414,7 +414,7 @@ describe('add asks which kind when neither flag is given', () => {
       const child = spawnSyncBounded({
         cmd: ['script', '-qec', command, '/dev/null'],
         cwd: opts.root,
-        env: { ...process.env, ...ENV },
+        env: { ...process.env, TERM: 'dumb', ...ENV },
         stdin: Buffer.from(`${opts.answers.join('\n')}\n`),
         stdout: 'pipe',
         stderr: 'pipe',

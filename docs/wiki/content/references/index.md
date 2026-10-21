@@ -24,6 +24,11 @@ Find the exact contract for keys, commands, and messages. The [guides](/guides/)
 <p>The format a framework uses to ship an app template.</p>
 </a>
 
+<a href="/references/prompts" class="guide-card">
+<h3>Interactive prompts</h3>
+<p>The menus init, add and sync draw in a terminal, and what they do without one.</p>
+</a>
+
 <a href="/references/rules" class="guide-card">
 <h3>Rules</h3>
 <p>Base rules and extension rules that govern agent actions.</p>
