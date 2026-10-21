@@ -143,7 +143,7 @@ describe('readBaseRules', () => {
     expect(row).toContain(
       'An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`',
     );
-    expect(row).toContain('`components.json` for a shadcn frontend');
+    expect(row).not.toContain('components.json');
     expect(row).toContain('`.configs/{lints,formatters,builders}/`');
   });
 });
