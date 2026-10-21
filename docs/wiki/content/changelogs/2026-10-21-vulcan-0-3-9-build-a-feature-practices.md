@@ -14,6 +14,7 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
+- **The skill is loaded before the answer.** Its description now tells the agent to load it before answering, a question about the workflow included. Without that, Claude Code answered "which workflow?" from the description alone in 2 of 3 runs and never reached the grounding rule in the skill's body; with it, 6 of 6 runs load the skill and call `search` and `presets` first.
 - **Grounded from the first answer.** Asked to build something, or only asked how it would build a feature, the agent first searches atlas and lists the presets, and opens its answer with what it found.
 - **Questions in rounds.** The agent asks every question it can ask now in one numbered round, each with its recommended answer, and looks facts up in atlas instead of asking you for them.
 - **Interface and seams first.** It proposes the smallest interface that covers the feature and names the seams it will test at, and waits for your approval.
