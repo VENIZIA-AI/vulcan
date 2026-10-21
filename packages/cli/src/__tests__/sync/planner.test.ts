@@ -531,9 +531,9 @@ describe('planSync with the resolved agents', () => {
     const withClaude = planSync({ root, config: loaded.config, agents: ['claude', 'omp'] });
 
     expect(without.map(action => action.path)).toEqual([
+      join(root, '.agents/skills/docs-update'),
       join(root, '.agents/skills/docs-writing'),
       join(root, '.agents/skills/knowledge-sync'),
-      join(root, '.agents/skills/docs-update'),
       join(root, '.agents/vulcan.manifest.json'),
     ]);
     expect(without.some(action => action.path === join(root, 'CLAUDE.md'))).toBe(false);

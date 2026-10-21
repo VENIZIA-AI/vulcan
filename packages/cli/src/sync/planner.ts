@@ -176,6 +176,8 @@ const findSkillDirectories = (opts: { directory: string }): string[] =>
             existsSync(join(opts.directory, entry.name, SyncConstants.SKILL_FILE)),
         )
         .map(entry => join(opts.directory, entry.name))
+        // readdir order is the filesystem's: the plan lists skills by name, the same on every machine.
+        .sort()
     : [];
 
 /**

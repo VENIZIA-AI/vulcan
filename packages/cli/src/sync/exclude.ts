@@ -32,6 +32,7 @@ export const shippedSkillNames = (): string[] => {
             existsSync(join(directory, entry.name, SyncConstants.SKILL_FILE)),
         )
         .map(entry => entry.name)
+        .sort()
     : [];
 };
 
