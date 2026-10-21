@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - build-a-feature asks in rounds and builds in vertical slices
+
+- The shipped skill asks its questions in rounds with recommended answers, designs a deep interface with agreed seams, builds vertical slices red then green, and ends every step on a checkable criterion.
+
 ## 2026-10-21 - a new package's knowledge page points at atlas
 
 - `renderAppConcept` and `renderLibConcept` add a note (a summary, not a spec) and a table of the atlas lookups for the kind; an agent had taken the one-line page for a spec.
