@@ -21,7 +21,7 @@ const git = (opts: { root: string; args: string[] }): string | undefined => {
   }
 };
 
-const shippedSkillNames = (): string[] => {
+export const shippedSkillNames = (): string[] => {
   const directory = join(BASE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY);
 
   return existsSync(directory)

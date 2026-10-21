@@ -236,6 +236,73 @@ describe('vulcan init --preset', () => {
     expect(manifest.presets[0].lib).toBe('A fixture library.');
   });
 
+  test('{{appPath}} is the app folder from the root, in a nested layout too', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({
+      args: [
+        'init',
+        '--preset',
+        `file:${BACKEND}`,
+        '--project',
+        'my-product',
+        '--backend-dir',
+        'be',
+        '--app',
+        'api3',
+      ],
+      cwd: parent,
+      env: ENV,
+    });
+
+    const dockerfile = readFileSync(
+      join(parent, 'my-product/be/api3/.configs/builders/Dockerfile'),
+      'utf8',
+    );
+
+    expect(dockerfile).toBe('COPY be/api3/package.json ./be/api3/package.json\n');
+  });
+
+  test('a root .dockerignore is written: build output, dependencies, agent files', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    const lines = readFileSync(join(parent, 'my-product', '.dockerignore'), 'utf8').split('\n');
+
+    for (const line of [
+      '**/node_modules',
+      '**/dist',
+      '**/*.tsbuildinfo',
+      '**/coverage',
+      '**/*.log',
+      '.git',
+      '.claude',
+      '.agents/plans',
+      '.agents/vulcan.local.json',
+      'CLAUDE.md',
+      '.cursor/mcp.json',
+      '.codex/config.toml',
+    ]) {
+      expect(lines, line).toContain(line);
+    }
+
+    expect(lines.filter(line => line === '.claude')).toHaveLength(1);
+    // The image is built from these: the lockfile, every manifest and the sources stay in the context.
+    for (const kept of [
+      'bun.lock',
+      'package.json',
+      '**/package.json',
+      'src',
+      '**/src',
+      '**/*.ts',
+    ]) {
+      expect(lines, kept).not.toContain(kept);
+    }
+
+    expect(lines[0]).toContain('APP_BUILD_COMMIT');
+  });
+
   test('the root .gitignore ignores *.tsbuildinfo', () => {
     const parent = createProject({ files: {} });
 

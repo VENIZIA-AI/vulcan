@@ -280,6 +280,14 @@ vulcan doctor: OK
 
 Rename the scripts, and keep the work in `scripts/*.sh`. The exit code stays `0`, so no existing project starts failing.
 
+### dockerignore
+
+An info note, not a violation. An app (a live package) that holds `.configs/builders/Dockerfile` is built from the project root, so the root needs a `.dockerignore`; without one the build context carries `node_modules`, `dist` and `.git`. The note names the apps and the file to add. `vulcan init --preset` writes one; add the same lines to a project that predates it. The exit code stays `0`.
+
+```text
+  info [dockerignore] .dockerignore: app api has a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist and .git
+```
+
 ## Run it in CI
 
 To verify contract conformance in automated pipelines, run `vulcan doctor`.

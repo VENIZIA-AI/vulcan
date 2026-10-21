@@ -466,7 +466,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   copyPresetFiles({
     located: located.located,
     target: join(cwd, folder, app),
-    tokens: { project, app, devPort: String(devPort), apiUrl },
+    tokens: { project, app, appPath: `${folder}/${app}`, devPort: String(devPort), apiUrl },
   });
   writeFile({
     root: cwd,

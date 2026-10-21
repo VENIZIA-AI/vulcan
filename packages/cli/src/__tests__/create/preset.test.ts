@@ -369,10 +369,23 @@ describe('copyPresetFiles', () => {
     const written = copyPresetFiles({
       located: locateFixture({ path: FIXTURE }),
       target,
-      tokens: { project: 'my-product', app: 'core-api', devPort: '3001' },
+      tokens: {
+        project: 'my-product',
+        app: 'core-api',
+        appPath: 'services/core-api',
+        devPort: '3001',
+      },
     });
 
-    expect(written.sort()).toEqual(['.env.example', '.keep-real-dotfile', 'src/index.ts']);
+    expect(written.sort()).toEqual([
+      '.configs/builders/Dockerfile',
+      '.env.example',
+      '.keep-real-dotfile',
+      'src/index.ts',
+    ]);
+    expect(readFileSync(join(target, '.configs/builders/Dockerfile'), 'utf8')).toContain(
+      'COPY services/core-api/package.json',
+    );
     expect(readFileSync(join(target, 'src/index.ts'), 'utf8')).toContain(
       'core-api of my-product on 3001',
     );

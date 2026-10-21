@@ -132,10 +132,29 @@ Every text file under `files/` has these tokens replaced. A file with a NUL byte
 |---|---|
 | `{{project}}` | The project name |
 | `{{app}}` | The app name |
+| `{{appPath}}` | The app's folder from the project root, with no slash at either end: `apps/web`, `be/api3`. A Dockerfile that is built from the root uses it for `COPY` |
 | `{{devPort}}` | The port `init` or `add` chose |
 | `{{apiUrl}}` | A frontend's proxy target, `http://localhost:<port>` of the backend app chosen with `--api`. Empty for a backend, with `--no-api`, and on `init` |
 
 An unknown token such as `{{other}}` stays as written.
+
+## A Dockerfile in a preset
+
+A preset may ship `.configs/builders/Dockerfile` in its `files/`. It is built from the monorepo root, so every path in it starts from the root and `{{appPath}}` names the app:
+
+```dockerfile
+COPY {{appPath}}/package.json ./{{appPath}}/package.json
+```
+
+```bash
+docker build -f be/api3/.configs/builders/Dockerfile \
+  --build-arg APP_BUILD_COMMIT="$(git rev-parse HEAD)" \
+  --build-arg APP_BUILD_BRANCH="$(git rev-parse --abbrev-ref HEAD)" .
+```
+
+The root `.dockerignore` that `vulcan init` writes leaves out `.git`, so the image gets the commit and branch from the build arguments instead. `vulcan doctor` notes an app with a Dockerfile when the root has no `.dockerignore` ([dockerignore](/references/commands/doctor#dockerignore)).
+
+An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`; there is no `scripts/` folder and no `README.md` (the app's knowledge page is its documentation). Nothing in VULCAN expects either: `doctor` reads the scripts in `package.json` and never the files behind them.
 A frontend preset puts `{{apiUrl}}` in its dev server proxy:
 
 ```ts
