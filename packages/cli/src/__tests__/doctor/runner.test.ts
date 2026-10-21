@@ -1,13 +1,15 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { writeFileSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   DoctorChecks,
   parseMakeTargets,
   runDoctorChecks,
   runDoctorNotes,
+  runDoctorWarnings,
 } from '../../doctor/index.ts';
 import { renderLocalChoice } from '../../agents/index.ts';
+import { renderDockerignore } from '../../create/dockerignore.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -716,12 +718,15 @@ describe('parseMakeTargets', () => {
   });
 });
 
-describe('doctor: a Dockerfile without a root .dockerignore (info only)', () => {
+describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
   const PACKAGES = "[{ dir: 'api', name: 'api', path: 'services/api' }]";
+  const SAFE = '**/node_modules\n**/.env\n**/.env.*\n!**/.env.example\n';
   const project = (opts: { files: Record<string, string> }): string =>
     createSyncedProject({
       files: {
         ...CONFORMANT,
+        'package.json':
+          '{ "name": "demo", "workspaces": ["services/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
         '.configs/vulcan.config.ts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: ${PACKAGES} };\n`,
         'services/api/package.json': JSON.stringify({
           name: 'api',
@@ -735,50 +740,94 @@ describe('doctor: a Dockerfile without a root .dockerignore (info only)', () => 
             clean: 'x',
           },
         }),
+        'services/api/.configs/builders/Dockerfile': 'FROM x\n',
         ...opts.files,
       },
     });
+  const ADD =
+    'add **/.env, **/.env.* and !**/.env.example (in that order) to the root .dockerignore';
 
-  test('an app with a Dockerfile and no root .dockerignore gets one hint', async () => {
-    const root = project({ files: { 'services/api/.configs/builders/Dockerfile': 'FROM x\n' } });
+  test('no root .dockerignore: one warning, and never an info note', async () => {
+    const root = project({ files: {} });
 
-    expect(await runDoctorNotes({ root })).toEqual([
+    expect(await runDoctorWarnings({ root })).toEqual([
       {
         check: DoctorChecks.DOCKERIGNORE,
         file: '.dockerignore',
-        message:
-          'app api has a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist and .git',
+        message: `app api has a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist, .git and every .env file (secrets) - create it, then ${ADD}`,
+      },
+    ]);
+    expect((await runDoctorNotes({ root })).map(note => note.check)).not.toContain(
+      DoctorChecks.DOCKERIGNORE,
+    );
+  });
+
+  test('a .dockerignore without the .env lines: one warning naming the three lines', async () => {
+    const root = project({ files: { '.dockerignore': '**/node_modules\n**/dist\n' } });
+
+    expect(await runDoctorWarnings({ root })).toEqual([
+      {
+        check: DoctorChecks.DOCKERIGNORE,
+        file: '.dockerignore',
+        message: `app api has a Dockerfile and the root .dockerignore does not exclude .env files, which hold secrets and would land in the image layer: ${ADD}`,
       },
     ]);
   });
 
-  test('a root .dockerignore, or no Dockerfile, is silent', async () => {
-    const withIgnore = project({
-      files: {
-        'services/api/.configs/builders/Dockerfile': 'FROM x\n',
-        '.dockerignore': '**/node_modules\n',
-      },
-    });
-    const withoutDockerfile = project({ files: {} });
+  test('only .env excluded, not .env.*, still warns', async () => {
+    const root = project({ files: { '.dockerignore': '**/.env\n' } });
 
-    expect(await runDoctorNotes({ root: withIgnore })).toEqual([]);
-    expect(await runDoctorNotes({ root: withoutDockerfile })).toEqual([]);
+    expect((await runDoctorWarnings({ root })).length).toBe(1);
   });
 
-  test('two apps with a Dockerfile give one hint naming both', async () => {
+  test('the lines doctor asks for, and the usual spellings of them, are accepted', async () => {
+    for (const text of [SAFE, '.env\n.env.*\n', '.env*\n!.env.example\n', '**/.env*\n']) {
+      const root = project({ files: { '.dockerignore': text } });
+
+      expect(await runDoctorWarnings({ root }), text).toEqual([]);
+    }
+  });
+
+  test('the .dockerignore that init writes passes the check', async () => {
+    const root = project({ files: { '.dockerignore': renderDockerignore() } });
+
+    expect(await runDoctorWarnings({ root })).toEqual([]);
+  });
+
+  test('a later negation that brings .env back is a warning again', async () => {
+    const root = project({ files: { '.dockerignore': '**/.env\n**/.env.*\n!**/.env*\n' } });
+
+    expect((await runDoctorWarnings({ root })).length).toBe(1);
+  });
+
+  test('no Dockerfile: silent', async () => {
+    const root = project({ files: {} });
+
+    rmSync(join(root, 'services/api/.configs/builders/Dockerfile'));
+    expect(await runDoctorWarnings({ root })).toEqual([]);
+  });
+
+  test('two apps with a Dockerfile give one warning naming both', async () => {
     const root = project({
       files: {
         '.configs/vulcan.config.ts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'api', name: 'api', path: 'services/api' }, { dir: 'jobs', name: 'jobs', path: 'services/jobs' }] };\n`,
-        'services/api/.configs/builders/Dockerfile': 'FROM x\n',
         'services/jobs/.configs/builders/Dockerfile': 'FROM x\n',
         'services/jobs/package.json': JSON.stringify({ name: 'jobs', scripts: {} }),
+        '.dockerignore': '**/node_modules\n',
       },
     });
-    const notes = (await runDoctorNotes({ root })).filter(
-      note => note.check === DoctorChecks.DOCKERIGNORE,
-    );
+    const warnings = await runDoctorWarnings({ root });
 
-    expect(notes).toHaveLength(1);
-    expect(notes[0].message).toContain('apps api, jobs have a Dockerfile');
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain('apps api, jobs have a Dockerfile');
+  });
+
+  test('doctor prints a warning line, stays green, and says how many', () => {
+    const root = project({ files: { '.dockerignore': '**/node_modules\n' } });
+    const result = runCli({ args: ['doctor'], cwd: root });
+
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.stderr).toContain('  warning [dockerignore] .dockerignore: ');
+    expect(result.stderr).toContain('vulcan doctor: OK with 1 warning(s)');
   });
 });

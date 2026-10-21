@@ -288,6 +288,13 @@ describe('vulcan init --preset', () => {
     }
 
     expect(lines.filter(line => line === '.claude')).toHaveLength(1);
+
+    // Secrets never reach the build context; the example file does, and its negation comes last.
+    const secrets = ['**/.env', '**/.env.*', '!**/.env.example'].map(line => lines.indexOf(line));
+
+    expect(secrets.every(index => index > 0)).toBe(true);
+    expect(secrets).toEqual([...secrets].sort((a, b) => a - b));
+    expect(lines[secrets[0] - 1]).toMatch(/^# .*secret/i);
     // The image is built from these: the lockfile, every manifest and the sources stay in the context.
     for (const kept of [
       'bun.lock',

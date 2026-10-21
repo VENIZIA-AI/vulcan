@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - the root .dockerignore excludes .env (security, 0.3.7)
+
+The `.dockerignore` of 0.3.6 let `.env` files into the build context, so an app Dockerfile that copies the project put secrets in an image layer. `init` and plain `init` now add `**/.env`, `**/.env.*`, `!**/.env.example` (in that order, with a comment); doctor has a warning level (printed `warning [dockerignore]`, exit code unchanged, last line `OK with N warning(s)`) for an app Dockerfile whose root `.dockerignore` is missing or does not exclude them. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-21 - {{appPath}}, the root .dockerignore, the dockerignore note
 
 Preset files may use `{{appPath}}` (the app folder from the root, no slash at either end). `init --preset` and plain `init` write a root `.dockerignore` (plain init: created or kept) (base patterns plus every agent's per-machine files; lockfile, manifests and sources stay in the context; the commit comes in as `APP_BUILD_COMMIT`); doctor notes an app with `.configs/builders/Dockerfile` and no root `.dockerignore`. An app root holds `.configs/`, `src/`, `package.json`, `tsconfig.json`, `.env.example`; nothing in the cli expects `scripts/` or `README.md` there. Concept: [cli](/packages/cli.md).
