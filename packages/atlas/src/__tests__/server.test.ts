@@ -51,7 +51,7 @@ const listToolNames = async (opts: {
 };
 
 describe('buildServer', () => {
-  test('repo mode exposes exactly the search, get, symbol, version and changes tools', async () => {
+  test('repo mode exposes exactly the search, get, symbol, version, changes and presets tools', async () => {
     const transport = buildServer({
       root: REPOSITORY_ROOT,
       version: TEST_VERSION,
@@ -63,6 +63,7 @@ describe('buildServer', () => {
       'symbol',
       'version',
       'changes',
+      'presets',
     ]);
   });
 

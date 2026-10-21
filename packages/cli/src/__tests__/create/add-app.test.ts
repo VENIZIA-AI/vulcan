@@ -66,6 +66,29 @@ const outsideBlock = (opts: { source: string }): string => {
 };
 
 describe('vulcan add --preset', () => {
+  test('{{appPath}} is the new app folder from the root, for a frontend in its own folder', () => {
+    const root = monorepo();
+    const result = runCli({
+      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'apps', '--app', 'web', '--no-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(0);
+    expect(readFileSync(join(root, 'apps/web/.configs/builders/Dockerfile'), 'utf8')).toBe(
+      'COPY apps/web/package.json ./apps/web/package.json\n',
+    );
+  });
+
+  test('add never writes the root .dockerignore, and leaves one that exists', () => {
+    const root = monorepo();
+    const file = join(root, '.dockerignore');
+
+    writeFileSync(file, 'mine\n');
+    runCli({ args: ['add', '--preset', BACKEND, '--app', 'worker'], cwd: root, env: ENV });
+    expect(readFileSync(file, 'utf8')).toBe('mine\n');
+  });
+
   test('a frontend lands in a new folder, wired to the chosen backend', () => {
     const root = monorepo();
     const result = runCli({

@@ -123,23 +123,15 @@ Each description opens with when to call the tool, and names the projects the se
 
 An agent that is not told when to use atlas answers from memory. The server therefore sends the agent two texts of its own, both built from the project's config:
 
-- **`instructions`**, in the reply to `initialize`. A client such as Claude Code adds it to the agent's context as "MCP Server Instructions". It names the corpora (this project and every `atlas.sources` entry), the three triggers, and the rule not to answer from memory:
+- **`instructions`**, in the reply to `initialize`. A client such as Claude Code adds it to the agent's context as "MCP Server Instructions". It names the corpora (this project and every `atlas.sources` entry), the four triggers, and the rule not to answer from memory:
 
 ```text
-Atlas holds the real code and docs of my-product (this repository) and ignis.
-- Before you write or change code that imports their packages (`@venizia/*`, `api`), call `symbol` for each export you use: its real signature, import path and source line.
-- When the user asks how something works or which convention applies, call `search` first, then `get` for the hits that matter.
-- When a version, a release or an upgrade comes up, call `version` or `changes`.
-Do not answer facts about my-product and ignis from memory when atlas can answer them.
-
-Atlas serves 2 source(s); every hit names its source.
-- my-product: this repository, live
-- ignis: VENIZIA-AI/ignis@develop at 6974e8ba
+Atlas holds the real code and docs of my-product (this repository) and ignis. Do not answer facts about my-product and ignis from memory when atlas can answer them: call `symbol` for each export before you write code that imports their packages (`@venizia/*`, `api`), `search` then `get` when the user asks how something works or which convention applies, `version` or `changes` for a release or an upgrade, `presets` before you create an app or package.
 ```
 
 - **The tool descriptions** above.
 
-The first paragraph alone carries the corpora, the rule and the three triggers in at most 512 characters, because some clients keep only that much; the whole text stays under 2 KB. The lines after the blank line say how each source was reached; a source that is offline or unavailable is named there. The session-start digest repeats the corpora and the rule in an "Atlas" block, and the base rule `V-P-07` states it ([Rules](/references/rules)).
+The first paragraph alone carries the corpora, the rule and the four triggers in at most 512 characters, because some clients keep only that much; the whole text stays under 2 KB. The lines after the blank line say how each source was reached; a source that is offline or unavailable is named there. The session-start digest repeats the corpora and the rule in an "Atlas" block, and the base rule `V-P-07` states it ([Rules](/references/rules)).
 
 For tool arguments and reply schemas, see the [atlas tools reference](/references/atlas/tools).
 

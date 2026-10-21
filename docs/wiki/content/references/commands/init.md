@@ -26,6 +26,7 @@ $ bun x --no-install vulcan init
   created  .configs/eslint.config.mjs
   created  .configs/oxfmt.config.mts
   created  .configs/vulcan.config.mts
+  created  .dockerignore
   created  Makefile
   updated  .gitignore: + CLAUDE.md CLAUDE.*.md .claude/ .agents/plans
 left to do:
@@ -72,7 +73,7 @@ vulcan init: --config takes one of ts, mts, mjs, js
 
 ## Generated files
 
-`vulcan init` can write nine files at the repository root, and appends to a tenth, `.gitignore`:
+`vulcan init` can write ten files at the repository root, and appends to an eleventh, `.gitignore`:
 
 The project name in the generated files comes from `package.json` `name`, or from the directory name when there is none.
 It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index and the `Makefile`.
@@ -86,6 +87,7 @@ It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index an
 | `.configs/oxlint.config.mts` | Lint configuration for oxlint extending `@venizia/dev-configs` | Add project linter rule overrides when needed |
 | `.configs/eslint.config.mjs` | Lint configuration for ESLint naming conventions extending `@venizia/dev-configs` | Add project naming convention overrides when needed |
 | `.configs/oxfmt.config.mts` | Formatter configuration for oxfmt extending `@venizia/dev-configs` | Add project formatting overrides when needed |
+| `.dockerignore` | Keeps dependencies, build output, `.git` and every agent's local files out of a Docker build context (the same list `init --preset` writes) | Edit it freely; `init` never overwrites it |
 | `.configs/vulcan.config.<ext>` | Main VULCAN configuration file for agents, rule slots and packages | Configure coding agents, rule slots, and workspace packages |
 | `Makefile` | Root Makefile that includes shared VULCAN make targets from `vulcan.mk` | Add project make targets |
 
@@ -113,6 +115,7 @@ $ bun x --no-install vulcan init
   kept     .configs/eslint.config.mjs
   kept     .configs/oxfmt.config.mts
   kept     .configs/vulcan.config.mts
+  kept     .dockerignore
 left to do:
   1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
   2. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
@@ -233,6 +236,7 @@ $ bun x @venizia/vulcan init --preset file:./acme-api
 ? Shared code folder (empty to skip) > libs
   created  package.json
   created  .gitignore
+  created  .dockerignore
   created  README.md
   created  libs/.gitkeep
   created  services/core-api/tsconfig.json
@@ -276,6 +280,8 @@ Fetching preset @venizia/ignis@latest ...
 
 The fetch is one line. The output of `bun add` is kept and printed only when the fetch fails, so it never lands between two questions.
 
+Because `.git` is not in the build context, an image cannot ask git for its commit: pass it as build arguments, `docker build -f <app>/.configs/builders/Dockerfile --build-arg APP_BUILD_COMMIT="$(git rev-parse HEAD)" --build-arg APP_BUILD_BRANCH="$(git rev-parse --abbrev-ref HEAD)" .`, run from the project root.
+
 The `.gitignore` it writes holds `node_modules/`, `dist/`, `.env`, `*.tsbuildinfo` and the agent entries, so the files `tsc` leaves behind after the checks do not show up as untracked.
 When the preset declares `urls`, the last lines are one `open http://localhost:3000<path>` per path instead of the root.
 
@@ -310,6 +316,7 @@ $ cd my-product && find . -type f | sort
 ./.agents/knowledge/packages/core-api.md
 ./.agents/rules.md
 ./.configs/vulcan.config.mts
+./.dockerignore
 ./.gitignore
 ./.mcp.json
 ./AGENTS.md
@@ -329,6 +336,7 @@ $ cd my-product && find . -type f | sort
 | `package.json` | A private root with `workspaces` (`services/*`, `libs/*`), a `catalog` of every version the preset declares, and a `dev` script, `bun run --filter '*' server:dev`, which `make dev` calls: it starts every app that has a `server:dev` script (rule `V-B-05`) and skips the rest. `@venizia/vulcan` is pinned to the exact running version |
 | `<folder>/<app>/` | The preset's files, plus a `package.json` whose dependencies are `catalog:` |
 | `.gitignore`, `README.md`, `Makefile` | The ignore list for agent files, a title, and the VULCAN targets plus `make dev` |
+| `.dockerignore` | The build context of a Dockerfile built from the root: `**/node_modules`, `**/dist`, `**/*.tsbuildinfo`, `**/coverage`, `**/*.log`, `.git`, `.claude`, `.agents/plans`, and the per-machine files of every coding agent (the ones `sync` keeps in `.git/info/exclude`). The lockfile, every `package.json` and the sources are not listed: the image needs them. Edit it freely; `init` only creates a project, so it never overwrites one |
 | `AGENTS.md`, `.agents/rules.md`, `.mcp.json` | The same layer as [the scaffold above](#generated-files) |
 | `.configs/vulcan.config.mts` | `name`, `layout`, one `packages` entry per app, and the preset's `atlas` sources |
 | `.agents/knowledge/` | An index, one concept per app, and a log entry naming the preset and its version |

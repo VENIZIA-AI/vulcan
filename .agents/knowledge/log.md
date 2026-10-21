@@ -6,6 +6,14 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - {{appPath}}, the root .dockerignore, the dockerignore note
+
+Preset files may use `{{appPath}}` (the app folder from the root, no slash at either end). `init --preset` and plain `init` write a root `.dockerignore` (plain init: created or kept) (base patterns plus every agent's per-machine files; lockfile, manifests and sources stay in the context; the commit comes in as `APP_BUILD_COMMIT`); doctor notes an app with `.configs/builders/Dockerfile` and no root `.dockerignore`. An app root holds `.configs/`, `src/`, `package.json`, `tsconfig.json`, `.env.example`; nothing in the cli expects `scripts/` or `README.md` there. Concept: [cli](/packages/cli.md).
+
+## 2026-10-21 - agents create apps and libraries with a preset (new apps by agents 2-5)
+
+`vulcan add --lib` makes a shared package from a preset's lib kind (`vulcan.lib`, a strict second preset file; packages registered with `kind: "lib"`); `add` asks which kind and, without a terminal, prints both commands and writes nothing. atlas gains a sixth tool, `presets` (reads `layout`, `presets` and package `kind` from the manifest, never invents a command), the atlas lead and the AGENTS.md block name it as the fourth trigger within 512 characters, and the Claude `guard-package` hook denies a hand-written new `package.json` in a layout folder only when a real `vulcan add` command exists. Concepts: [cli](/packages/cli.md), [atlas](/packages/atlas.md).
+
 ## 2026-10-21 - the presets of a project are recorded (new apps by agents 1)
 
 `init` and `add` record the preset each app came from (`{ spec, side, summary }`) in the `vulcan:apps` block; the config reads them with `presets: apps.presets` (`add` inserts the line into an older config); `sync` renders `layout` and `presets` into the manifest, so atlas can tell an agent the exact `vulcan add` command. Concept: [cli](/packages/cli.md).

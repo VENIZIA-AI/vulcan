@@ -13,6 +13,7 @@ A rule written in a file can be forgotten mid-session. Guard hooks run before th
 | `guard-writes.ts` | `PreToolUse` on Bash | Asks before the agent writes to a database or deploys |
 | `guard-remote-hosts.ts` | `PreToolUse` on Bash (only when `remoteHosts` is set) | Asks before a command reaches an unlisted remote host |
 | `guard-manifest.ts` | `PreToolUse` on Write, Edit, MultiEdit, NotebookEdit and Bash | Refuses a write to `.agents/vulcan.manifest.json`, which `vulcan sync` generates |
+| `guard-package.ts` | `PreToolUse` on Write | Refuses a hand-written new `package.json` in a backend, frontend or shared folder, and gives the `vulcan add` command to run instead |
 
 ## Ask first
 

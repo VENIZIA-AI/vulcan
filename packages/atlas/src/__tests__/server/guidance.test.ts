@@ -65,6 +65,7 @@ describe('instructionsOf', () => {
     expect(lead).toContain('call `symbol` for each export before you write code that imports');
     expect(lead).toContain('`search` then `get` when the user asks how something works');
     expect(lead).toContain('`version` or `changes` for a release or an upgrade');
+    expect(lead).toContain('`presets` before you create an app or package');
   });
 
   test('every source is a corpus, and the package scopes name what counts as its code', () => {
@@ -102,7 +103,7 @@ describe('instructionsOf', () => {
     expect(leadOf({ text })).not.toContain('ardor');
   });
 
-  test('the lead alone is at most 512 characters, up to four corpora, so a client that keeps 512 still gets it all', () => {
+  test('the lead alone is at most 512 characters, up to four corpora, so a client that keeps 512 still gets it all (the fourth trigger, presets, included)', () => {
     const four = [
       repositoryOf({ name: 'forge', packages: ['@forge/core', '@forge/web', 'forge-cli'] }),
       remoteOf({ name: 'anvil', packages: ['@anvil/kernel', '@anvil/boot'] }),
@@ -119,8 +120,8 @@ describe('instructionsOf', () => {
   });
 
   test('more than four corpora are shortened to "and N more" so the lead still fits', () => {
-    const many = ['a1', 'b2', 'c3', 'd4', 'e5', 'f6'].map(name =>
-      remoteOf({ name: `project-${name}`, packages: [`@${name}/pkg`] }),
+    const many = ['forge', 'anvil', 'bellows', 'tongs', 'quench', 'temper'].map(name =>
+      remoteOf({ name, packages: [`@${name}/pkg`] }),
     );
     const lead = leadOf({ text: instructionsOf({ sources: many, unavailable: [] }) });
 
@@ -157,7 +158,7 @@ describe('a server built from a project', () => {
     const reply = await call({ method: 'tools/list' });
     const names = reply.result.tools.map((tool: { name: string }) => tool.name);
 
-    expect(names).toEqual(['search', 'get', 'symbol', 'version', 'changes']);
+    expect(names).toEqual(['search', 'get', 'symbol', 'version', 'changes', 'presets']);
 
     for (const tool of reply.result.tools as { name: string; description: string }[]) {
       if (tool.name !== 'get') {

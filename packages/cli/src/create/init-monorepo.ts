@@ -12,6 +12,8 @@ import type {
   TAppSide,
 } from './common/index.ts';
 import { today, writeFile } from './files.ts';
+import { recordedPresetOf } from './lib-preset.ts';
+import { renderDockerignore } from './dockerignore.ts';
 import { askWithPrompt, findFolderClash, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
 import { renderNext } from './next.ts';
@@ -103,6 +105,7 @@ const writeMonorepo = (opts: {
     content: `${[...BASE_IGNORES, ...ProjectLayout.GITIGNORE_ENTRIES].join('\n')}\n`,
   });
   writeFile({ root, path: 'README.md', content: `# ${project}\n` });
+  writeFile({ root, path: '.dockerignore', content: renderDockerignore() });
 
   if (shared !== '') {
     writeFile({ root, path: `${shared}/.gitkeep`, content: '' });
@@ -113,7 +116,13 @@ const writeMonorepo = (opts: {
   const written = copyPresetFiles({
     located,
     target: appDirectory,
-    tokens: { project, app, devPort: String(preset.devPort), apiUrl: '' },
+    tokens: {
+      project,
+      app,
+      appPath: `${folder}/${app}`,
+      devPort: String(preset.devPort),
+      apiUrl: '',
+    },
   });
 
   for (const path of written) {
@@ -144,11 +153,10 @@ const writeMonorepo = (opts: {
     layout: { [side]: folder, ...(shared === '' ? {} : { shared }) },
     packages: [{ dir: app, name: app, path: `${folder}/${app}` }],
     presets: [
-      {
+      recordedPresetOf({
         spec: presetSpecOf({ value: presetValue, root, cwd: dirname(root) }),
-        side,
-        summary: preset.summary,
-      },
+        located,
+      }),
     ],
     sources: preset.atlas,
   };

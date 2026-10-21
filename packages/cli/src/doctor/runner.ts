@@ -5,6 +5,7 @@ import {
   checkAgents,
   checkAppScripts,
   checkAtlasBlock,
+  checkDockerignore,
   checkApps,
   checkManifest,
   checkPrune,
@@ -75,5 +76,5 @@ export const runDoctorNotes = async (opts: { root: string }): Promise<IViolation
     configFile: relative(opts.root, loaded.file),
   };
 
-  return [...checkAppScripts(context), ...checkAtlasBlock(context)];
+  return [...checkAppScripts(context), ...checkAtlasBlock(context), ...checkDockerignore(context)];
 };
