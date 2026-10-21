@@ -38,6 +38,7 @@ export class Transport extends BaseHelper {
   private readonly serverName: string;
   private readonly serverVersion: string;
   private readonly instructions?: string;
+  private readonly onCall?: () => void;
 
   constructor(opts: {
     tools: IToolHandler[];
@@ -45,6 +46,8 @@ export class Transport extends BaseHelper {
     serverVersion: string;
     /** What a client should know before it calls - which sources, and whether one is offline. */
     instructions?: string;
+    /** Called on every `tools/call`, before it runs - a server that refreshes what it serves pokes here. */
+    onCall?: () => void;
   }) {
     super({ scope: Transport.name });
 
@@ -52,6 +55,7 @@ export class Transport extends BaseHelper {
     this.serverName = opts.serverName;
     this.serverVersion = opts.serverVersion;
     this.instructions = opts.instructions;
+    this.onCall = opts.onCall;
   }
 
   /** What `tools/list` answers, for a caller that has no MCP client (`vulcan-atlas tools`). */
@@ -136,6 +140,8 @@ export class Transport extends BaseHelper {
       }
 
       case 'tools/call': {
+        this.onCall?.();
+
         return this.callTool(request);
       }
 
