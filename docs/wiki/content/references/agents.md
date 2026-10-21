@@ -11,11 +11,11 @@ The table below is the content of `base/agents.json`, the table `sync` is driven
 
 | Agent | Name | Instructions | Atlas MCP entry | Skills | The atlas server's own text |
 |---|---|---|---|---|---|
-| `claude` | Claude Code | `AGENTS.md` through the shim `CLAUDE.md` (`@AGENTS.md`) | `.mcp.json` (shared, written by `sync`) | `.claude/skills` | shown to the model |
-| `omp` | omp (oh-my-pi) | `AGENTS.md` | `.mcp.json` (shared, written by `sync`) | `.agents/skills` | shown to the model |
+| `claude` | Claude Code | `AGENTS.md` through the shim `CLAUDE.md` (`@AGENTS.md`) | `.mcp.json` (shared) | `.claude/skills` | shown to the model |
+| `omp` | omp (oh-my-pi) | `AGENTS.md` | `.mcp.json` (shared) | `.agents/skills` | shown to the model |
 | `codex` | Codex | `AGENTS.md` | `.codex/config.toml` | `.agents/skills` | shown to the model (documented) |
 | `cursor` | Cursor | `AGENTS.md` | `.cursor/mcp.json` | `.agents/skills` | not documented |
-| `copilot-cli` | Copilot CLI | `AGENTS.md` | `.mcp.json` (shared, written by `sync`) | `.agents/skills` | not documented |
+| `copilot-cli` | Copilot CLI | `AGENTS.md` | `.mcp.json` (shared) | `.agents/skills` | not documented |
 | `copilot-vscode` | Copilot in VS Code | `AGENTS.md` | `.vscode/mcp.json` | `.agents/skills` | not documented |
 | `antigravity` | Antigravity CLI | `AGENTS.md` | `.agents/mcp_config.json` | `.agents/skills` | not shown: it keeps the text in files and lists only the tool names |
 | `pi` | Pi | `AGENTS.md` | `.pi/mcp.json` | `.agents/skills` | one line only, as a server summary |
