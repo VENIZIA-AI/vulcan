@@ -14,6 +14,8 @@ when to commit.
 
 `$ARGUMENTS` names the feature. With no arguments, ask what to build.
 
+**Contents**: [Checklist](#checklist) · [1. Settle the goal](#1-settle-the-goal) · [2. Ground the conventions](#2-ground-the-conventions) · [3. Design the interface](#3-design-the-interface) · [4. Plan the slices](#4-plan-the-slices) · [5. Build slice by slice](#5-build-slice-by-slice) · [6. Check](#6-check) · [7. Update knowledge](#7-update-knowledge) · [8. Review and hand over](#8-review-and-hand-over)
+
 ## Checklist
 
 Copy it into your reply and tick each box when its criterion holds:
