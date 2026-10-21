@@ -213,7 +213,10 @@ export const renderLibManifest = (opts: {
 const ATLAS_LOOKUPS: Record<TAppSide | 'lib', [string, string][]> = {
   backend: [
     ['How a route and its controller are written', '`search` "controller routes", then `get`'],
-    ['How a service, a repository and a datasource fit together', '`search` "service repository datasource"'],
+    [
+      'How a service, a repository and a datasource fit together',
+      '`search` "service repository datasource"',
+    ],
   ],
   frontend: [
     ['How a page or a resource is added', '`search` "page resource", then `get`'],
