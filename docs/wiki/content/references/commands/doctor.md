@@ -13,7 +13,7 @@ An exit code of `1` indicates one or more contract violations.
 
 Each violation line follows the shape `[check] file: message`.
 The final line prints `vulcan doctor: OK` on success or `vulcan doctor: N violation(s)` on failure.
-A line that starts with `info` is a note, not a violation: it never changes the exit code or the final line ([scripts](#scripts)).
+A line that starts with `info` is a note, not a violation: it never changes the exit code or the final line ([scripts](#scripts)). A line that starts with `warning` is louder than a note and still not a violation: the exit code stays `0`, and the final line becomes `vulcan doctor: OK with N warning(s)` ([dockerignore](#dockerignore)).
 
 When all checks pass, the command reports an OK status:
 
@@ -283,11 +283,13 @@ Rename the scripts, and keep the work in `.configs/builders/` or behind `devz`, 
 
 ### dockerignore
 
-An info note, not a violation. An app (a live package) that holds `.configs/builders/Dockerfile` is built from the project root, so the root needs a `.dockerignore`; without one the build context carries `node_modules`, `dist` and `.git`. The note names the apps and the file to add. `vulcan init --preset` writes one; add the same lines to a project that predates it. The exit code stays `0`.
+A warning, not a violation: it is printed as `warning [dockerignore]`, the exit code stays `0`, and the last line says `vulcan doctor: OK with 1 warning(s)`. An app (a live package) that holds `.configs/builders/Dockerfile` is built from the project root, and a Dockerfile that copies the project puts every `.env` in the image layer, which a CI cache (kaniko, for one) can keep. The warning fires when the root has no `.dockerignore`, or has one that does not exclude `.env` and `.env.*`. A later `!` line that brings them back counts as not excluding; `.env*` and `**/.env*` are accepted spellings.
 
 ```text
-  info [dockerignore] .dockerignore: app api has a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist and .git
+  warning [dockerignore] .dockerignore: app api has a Dockerfile and the root .dockerignore does not exclude .env files, which hold secrets and would land in the image layer: add **/.env, **/.env.* and !**/.env.example (in that order) to the root .dockerignore
 ```
+
+Add the three lines at the end of the root `.dockerignore`, in that order: the negation of `.env.example` must come after the excludes, or Docker does not apply it. With no `.dockerignore` at all, create it (`vulcan init` writes the whole file for a new project), then add the lines.
 
 ## Run it in CI
 

@@ -1,12 +1,18 @@
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
-import { runDoctorChecks, runDoctorNotes } from '../doctor/index.ts';
+import { runDoctorChecks, runDoctorNotes, runDoctorWarnings } from '../doctor/index.ts';
 
 export const runDoctorCommand = async (opts: ICommandContext): Promise<number> => {
   const violations = await runDoctorChecks({ root: opts.cwd });
 
   for (const violation of violations) {
     process.stderr.write(`  [${violation.check}] ${violation.file}: ${violation.message}\n`);
+  }
+
+  const warnings = await runDoctorWarnings({ root: opts.cwd });
+
+  for (const warning of warnings) {
+    process.stderr.write(`  warning [${warning.check}] ${warning.file}: ${warning.message}\n`);
   }
 
   for (const note of await runDoctorNotes({ root: opts.cwd })) {
@@ -19,7 +25,11 @@ export const runDoctorCommand = async (opts: ICommandContext): Promise<number> =
     return ExitCodes.FAILURE;
   }
 
-  process.stderr.write('vulcan doctor: OK\n');
+  process.stderr.write(
+    warnings.length === 0
+      ? 'vulcan doctor: OK\n'
+      : `vulcan doctor: OK with ${warnings.length} warning(s)\n`,
+  );
 
   return ExitCodes.OK;
 };

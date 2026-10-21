@@ -55,6 +55,11 @@ describe('vulcan init', () => {
     expect(lines).toContain('.git');
     expect(lines).toContain('.cursor/mcp.json');
     expect(lines).not.toContain('bun.lock');
+
+    const secrets = ['**/.env', '**/.env.*', '!**/.env.example'].map(line => lines.indexOf(line));
+
+    expect(secrets.every(index => index > 0)).toBe(true);
+    expect(secrets).toEqual([...secrets].sort((a, b) => a - b));
   });
 
   test('an existing .dockerignore is kept byte for byte and reported', () => {

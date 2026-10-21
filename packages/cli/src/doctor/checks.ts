@@ -593,9 +593,55 @@ export const checkAgents = (opts: ICheckContext): IViolation[] => {
 /** Info only: the Atlas block of AGENTS.md is missing or no longer matches the config. */
 const DOCKERFILE = '.configs/builders/Dockerfile';
 
-/** A Dockerfile is built from the project root: without a root `.dockerignore` the context carries node_modules, dist and .git. */
+const SECRET_LINES = ['**/.env', '**/.env.*', '!**/.env.example'];
+const ADD_SECRET_LINES = `add ${SECRET_LINES[0]}, ${SECRET_LINES[1]} and ${SECRET_LINES[2]} (in that order) to the root .dockerignore`;
+
+/** Whether a `.dockerignore` pattern, as Docker reads it, names the file `opts.file` at any depth. */
+const patternNames = (opts: { pattern: string; file: string }): boolean => {
+  const bare = opts.pattern.replace(/^\*\*\//, '').replace(/^\//, '');
+
+  return (
+    bare === opts.file ||
+    (bare.endsWith('*') && opts.file.startsWith(bare.slice(0, -1)) && bare.startsWith('.env'))
+  );
+};
+
+/** Whether the last pattern that names `opts.file` excludes it: a later `!` line brings it back. */
+const excludes = (opts: { lines: string[]; file: string }): boolean => {
+  let excluded = false;
+
+  for (const line of opts.lines) {
+    const negated = line.startsWith('!');
+
+    if (patternNames({ pattern: negated ? line.slice(1) : line, file: opts.file })) {
+      excluded = !negated;
+    }
+  }
+
+  return excluded;
+};
+
+/**
+ * A Dockerfile is built from the project root. Without a root `.dockerignore` the context carries
+ * node_modules, dist, .git and every `.env` (secrets that would land in an image layer a CI cache
+ * can keep); with one that does not exclude `.env` and `.env.*` the secrets are still copied.
+ * A warning, not a violation: the exit code is unchanged, so a project made before this check
+ * does not start failing.
+ */
 export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
-  if (existsSync(join(opts.root, '.dockerignore'))) {
+  const file = join(opts.root, '.dockerignore');
+  const lines = existsSync(file)
+    ? readText({ file })
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line !== '' && !line.startsWith('#'))
+    : undefined;
+
+  if (
+    lines !== undefined &&
+    excludes({ lines, file: '.env' }) &&
+    excludes({ lines, file: '.env.production' })
+  ) {
     return [];
   }
 
@@ -607,11 +653,16 @@ export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
     return [];
   }
 
+  const subject = apps.length === 1 ? `app ${apps[0]} has` : `apps ${apps.join(', ')} have`;
+
   return [
     createViolation({
       check: DoctorChecks.DOCKERIGNORE,
       file: '.dockerignore',
-      message: `${apps.length === 1 ? `app ${apps[0]} has` : `apps ${apps.join(', ')} have`} a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist and .git`,
+      message:
+        lines === undefined
+          ? `${subject} a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist, .git and every .env file (secrets) - create it, then ${ADD_SECRET_LINES}`
+          : `${subject} a Dockerfile and the root .dockerignore does not exclude .env files, which hold secrets and would land in the image layer: ${ADD_SECRET_LINES}`,
     }),
   ];
 };
