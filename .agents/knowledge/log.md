@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-22 - every dependency to its latest
+
+Phat's standing rule: always the highest version. The catalog: @types/bun 1.4.3, @venizia/dev-configs 0.3.5, eslint 10.13.0, oxfmt 0.74.0, oxlint 1.89.0, tsc-alias 1.9.8, zod ^4.6.7 (`bun outdated` hides exact pins: each entry was compared with `npm view` by hand); the docs workspace: vue ^3.5.44; the lockfiles' transitive packages refreshed with `bun update`. No package declares peerDependencies, no major was taken; TypeScript stays on 6 (typescript-eslint does not support 7).
+
 ## 2026-10-22 - atlas lists the project's skills in its instructions
 
 One of six GLM 5.3 Flash runs answered a feature question without loading the build-a-feature skill. AGENTS.md must stay routing only, so skill routing went into the atlas server's `instructions`: a third paragraph, one line per skill (`skillCatalogOf`: the shipped skills of the installed vulcan plus `.agents/skills`, shadowing names left out) with its "Use when" trigger (`triggerOf`, cut at 110 characters), built at every `initialize` so an added, renamed or deleted skill needs no edit. `vulcan doctor` warns about a skill with no "Use when". docs-writing opens with the concision rule. Concept: [atlas](/packages/atlas.md).
