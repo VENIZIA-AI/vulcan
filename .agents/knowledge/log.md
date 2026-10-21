@@ -10,6 +10,10 @@ counted as concepts.
 
 Phat's standing rule: always the highest version. The catalog: @types/bun 1.4.3, @venizia/dev-configs 0.3.5, oxfmt 0.74.0, zod ^4.6.7; the docs workspace: vue ^3.5.44; the lockfiles' transitive packages refreshed with `bun update`. No package declares peerDependencies, no major was taken; TypeScript stays on 6 (typescript-eslint does not support 7).
 
+## 2026-10-22 - atlas lists the project's skills in its instructions
+
+One of six GLM 5.3 Flash runs answered a feature question without loading the build-a-feature skill. AGENTS.md must stay routing only, so skill routing went into the atlas server's `instructions`: a third paragraph, one line per skill (`skillCatalogOf`: the shipped skills of the installed vulcan plus `.agents/skills`, shadowing names left out) with its "Use when" trigger (`triggerOf`, cut at 110 characters), built at every `initialize` so an added, renamed or deleted skill needs no edit. `vulcan doctor` warns about a skill with no "Use when". docs-writing opens with the concision rule. Concept: [atlas](/packages/atlas.md).
+
 ## 2026-10-21 - the build-a-feature description says to load it before answering
 
 The 0.3.9 pre-release eval on Claude Code (project-only config, atlas and read tools) showed a workflow question answered in one turn from the skill's description in 2 of 3 runs: no skill load, no atlas call, because the grounding rule is in the body. The description now says to load the skill before any such answer; 6 of 6 runs then load it and ground first. Concept: [cli](/packages/cli.md).
