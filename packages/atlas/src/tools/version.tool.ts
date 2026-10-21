@@ -4,6 +4,7 @@ import type { IReleaseIndex } from '@/releases';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
+import { installRootsOf } from '@/sources/installed';
 import { parseInput, ToolTriggers, VersionInputSchema } from './common';
 
 const DESCRIPTION =
@@ -255,6 +256,27 @@ export const buildVersionTool = (opts: {
       // A pin of a transitive dependency that nothing installed is not something this project has.
       if (version !== null || isDirect) {
         installed[name] = version;
+      }
+    }
+
+    // A monorepo declares its framework in its apps and installs it beside them, not at the root.
+    for (const root of installRootsOf({ cwd }).filter(candidate => candidate !== cwd)) {
+      const appDeclared = declaredOf({
+        manifest: readManifest({ file: join(root, 'package.json') }),
+      });
+
+      for (const { name, spec, isDirect } of appDeclared) {
+        if (installed[name] !== undefined && installed[name] !== null) {
+          continue;
+        }
+
+        const version =
+          installedVersionOf({ cwd: root, name, spec, isDirect, declared: appDeclared }) ??
+          installedVersionOf({ cwd, name, spec, isDirect, declared });
+
+        if (version !== null) {
+          installed[name] = version;
+        }
       }
     }
 

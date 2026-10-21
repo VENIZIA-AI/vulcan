@@ -6,6 +6,62 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - the build-a-feature description says to load it before answering
+
+The 0.3.9 pre-release eval on Claude Code (project-only config, atlas and read tools) showed a workflow question answered in one turn from the skill's description in 2 of 3 runs: no skill load, no atlas call, because the grounding rule is in the body. The description now says to load the skill before any such answer; 6 of 6 runs then load it and ground first. Concept: [cli](/packages/cli.md).
+
+## 2026-10-21 - build-a-feature grounds a workflow question too
+
+- Before its first answer, even to "what is your workflow", the skill calls search and presets and opens with one quoted hit and the preset list.
+
+## 2026-10-21 - atlas reads the installed version in a monorepo's apps
+
+The 0.3.9 pre-release check on a project made by `vulcan init --preset ignis` showed the framework installed under `services/core-api/node_modules`, which the pin, the symbol tool's installed `.d.ts` lookup and the version tool's installed list never read (only the root). `installRootsOf` (sources/installed.ts) now names the root plus each package the manifest declares, and all three read those places. Concept: [atlas](/packages/atlas.md).
+
+## 2026-10-21 - build-a-feature asks in rounds and builds in vertical slices
+
+- The shipped skill asks its questions in rounds with recommended answers, designs a deep interface with agreed seams, builds vertical slices red then green, and ends every step on a checkable criterion.
+
+## 2026-10-21 - a new package's knowledge page points at atlas
+
+- `renderAppConcept` and `renderLibConcept` add a note (a summary, not a spec) and a table of the atlas lookups for the kind; an agent had taken the one-line page for a spec.
+
+## 2026-10-21 - atlas pins a source's docs to the installed version
+
+A source's corpus used to be the configured ref (develop), so `search` and `get` described unreleased code the project does not run. Now `resolveAtInstalled` resolves the ref first (manifest, release table), then `decidePin` picks the release tag of the newest installed package of the source (`node_modules/<name>/package.json`, newest by release order; links, unrecorded versions and nothing installed fall back to the ref with a reason) and reads the corpus at that tag with `corpusOnly`; the release table and history stay the ref's, so `version` and `changes` still report newer releases. `atlas.sources[].pin: 'ref'` opts out. The refresh re-resolves with the cwd, so a `bun update` swaps the corpus. The status line in the instructions names the tag and why. Concept: [atlas](/packages/atlas.md).
+
+## 2026-10-21 - init, add, sync and agents setup ask with menus
+
+In a terminal that can draw them (stdin and stdout TTY, TERM not dumb) the questions are `@clack/prompts` menus: an agents checkbox, selects for the kind, folders, proxy backend and preset, text with a default only for new names, a summary and a confirm before writing; `NO_COLOR` honoured. Everywhere else the plain line questions stay byte for byte. The wrapper is `packages/cli/src/ui`; no command imports clack directly. Concept: [cli](/packages/cli.md).
+
+## 2026-10-21 - the build-a-feature skill ships
+
+Updated [cli](/packages/cli.md): the base ships a fourth skill, `build-a-feature` - a feature from the user's goal to a reviewed, tested change, looking up conventions and APIs in atlas at each step (`search`, `symbol`, `presets`). `sync` links it first (names sort), and its name is reserved like the other three.
+
+## 2026-10-21 - presets also lists the official presets not used yet
+
+The atlas `presets` tool answers recorded presets first (`inProject: true`), then the official ones the project has not used (ignis app and lib, ardor app and lib; `inProject: false`), with the exact command (ardor's `--api <app> | --no-api` included); a recorded `@venizia/ardor@x` replaces the official entry. Found when an agent said there is no frontend preset because the project had recorded none. Concept: [atlas](/packages/atlas.md).
+
+## 2026-10-21 - atlas: a how-to-build question must search first
+
+The atlas server's instructions get a second paragraph (lead still <= 512 characters, whole text < 2 KB): a question about how to build something here, or how a framework organises a feature, must `search` then `get` before the answer, and a plan never says "check atlas" for a step not done; the `search` description names "how to build something"; the AGENTS.md Atlas block says the same for agents that do not show the server's text. Found by a fresh-project test where the agent read files and claimed to check atlas. Concept: [atlas](/packages/atlas.md).
+
+## 2026-10-21 - the atlas server refreshes its sources while it runs
+
+A server resolved each remote source once, at its start, and computed the project's release table once, so a session that began before a release answered `version` with old versions for days (reported by BANA; tags and a fresh pull were right). Now a `Refresher`, poked by every `tools/call`, re-resolves remote sources and the project's HEAD and tags at most every 5 minutes in the background (`VULCAN_ATLAS_REFRESH_SECONDS`, `0` off), swapping stores in place through live entries; a failure keeps the old stores. Concept: [atlas](/packages/atlas.md).
+
+## 2026-10-21 - .mcp.json is a per-machine agent file
+
+`init` no longer scaffolds the root `.mcp.json`; `sync` writes it (canonical relative atlas entry, merged, once) when a chosen agent reads it (claude, omp, copilot-cli), lists it in `.git/info/exclude`, and `agents remove` takes it back when no reader is left. A tracked `.mcp.json` is never rewritten or excluded: doctor warns to `git rm --cached` it, after which sync adopts an entry equal to the canonical one. The Atlas block of `AGENTS.md` no longer depends on `.mcp.json`; the `mcp` doctor check only looks at the file when a reader is chosen. Concept: [cli](/packages/cli.md).
+
+## 2026-10-21 - the help of add lists every flag
+
+`vulcan --help` shows `add --preset <name|file:path> (--app <name> | --lib <name>) [--dir <folder>] [--scope <@scope>] [--backend-dir|--frontend-dir <name>] [--api <app> | --no-api]`; a test checks that every flag `add` takes is in that block. Before, `--lib`, `--dir` and `--scope` were missing. Concept: [cli](/packages/cli.md).
+
+## 2026-10-21 - Enter keeps the stored agents
+
+When the agents question is asked again (`vulcan agents setup`, `vulcan sync --agents` with no value), an empty answer keeps the choice stored on the machine (also an empty one); with nothing stored it takes the detected list. The prompt names what Enter does. Before, Enter applied the detected list even under `chosen before:`. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-21 - doctor warns about a wrong atlas registration
 
 A `mcp` warning (same level as `dockerignore`): the tracked `.mcp.json` must hold the `atlas` server with the canonical args (`--root .`), and the managed `.claude/settings.json` must enable `atlas`; other names or roots show the expected entry. Three repositories had a wrong entry and doctor caught none. Concept: [cli](/packages/cli.md).

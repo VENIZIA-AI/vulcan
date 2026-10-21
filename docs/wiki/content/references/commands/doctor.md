@@ -25,7 +25,7 @@ vulcan doctor: OK
 ## Checks
 
 If the configuration cannot be loaded, `vulcan doctor` reports only `config`.
-Otherwise, it executes the other 14 checks in sequence, then prints the notes.
+Otherwise, it executes the other 14 checks in sequence, then prints the warnings and the notes.
 Doctor runs `skills` twice: shipped-name checks run before `make`, while skill linting runs after `tags`.
 
 | Check | What it verifies | Typical fix |
@@ -46,7 +46,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `scaffold` | Workspaces declare packages and the knowledge index replaces scaffold text | Add `packages` in configuration and remove `vulcan:scaffold` from `index.md` |
 | `apps` | Every `layout` folder is a workspace and every package lives in one | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
 | `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
-| `mcp` (warning) | `.mcp.json` holds the canonical `atlas` entry and the Claude settings enable `atlas` | Use the entry the warning shows and run `bun x --no-install vulcan sync` |
+| `mcp` (warning) | `.mcp.json` (when a chosen agent reads it) holds the canonical `atlas` entry, git no longer tracks it, and the Claude settings enable `atlas` | Use the entry the warning shows, `git rm --cached .mcp.json`, and run `bun x --no-install vulcan sync` |
 
 ### config
 
@@ -196,7 +196,7 @@ A missing or outdated `.agents/vulcan.manifest.json` file triggers this check.
 
 ```text
 $ bun x --no-install vulcan doctor
-  [manifest] .agents/vulcan.manifest.json: stale against the config - run 'bun x --no-install vulcan sync' and commit it
+  [manifest] .agents/vulcan.manifest.json: stale against the config, or edited by hand - the manifest is generated, never edit it: edit .configs/vulcan.config.* and run 'bun x --no-install vulcan sync' and commit it
 vulcan doctor: 1 violation(s)
 ```
 
@@ -284,14 +284,16 @@ Rename the scripts, and keep the work in `.configs/builders/` or behind `devz`, 
 
 ### mcp
 
-Warnings (the same level as [dockerignore](#dockerignore): exit code `0`, `vulcan doctor: OK with N warning(s)`). Claude Code, omp and Copilot CLI read the committed `.mcp.json`, and Claude enables a project server on its own only under the name the managed settings list. The check expects:
+Warnings (the same level as [dockerignore](#dockerignore): exit code `0`, `vulcan doctor: OK with N warning(s)`). Claude Code, omp and Copilot CLI read the root `.mcp.json`, which `vulcan sync` writes on each machine, and Claude enables a project server on its own only under the name the managed settings list. The check looks at the file only when one of those agents is chosen on this machine, and a missing file is the `adapters` check's (not synced yet). It expects:
 
-- the tracked `.mcp.json` holds the entry `vulcan init` writes, a server named `atlas` that runs `bun x --no-install vulcan x atlas mcp --root .`;
+- `.mcp.json` holds the entry `sync` writes, a server named `atlas` that runs `bun x --no-install vulcan x atlas mcp --root .`;
+- git does not track it: a project that still commits `.mcp.json` gets `tracked by git; VULCAN now writes it per machine. Run `git rm --cached .mcp.json` and let sync manage it.`;
 - `.claude/settings.json` (written by `vulcan sync`, when it exists) lists `atlas` in `enabledMcpjsonServers`.
 
-Anything else is a warning that shows the expected entry: a missing file, a file that is not JSON, the server under another name (`ignis-atlas`, which Claude does not enable automatically), an `atlas` entry with another root (`--root ../ignis` serves another project's knowledge and only works where the folders sit side by side), or settings that do not enable `atlas`.
+Anything else is a warning that shows the expected entry: a file that is not JSON, the server under another name (`ignis-atlas`, which Claude does not enable automatically), an `atlas` entry with another root (`--root ../ignis` serves another project's knowledge and only works where the folders sit side by side), or settings that do not enable `atlas`.
 
 ```text
+  warning [mcp] .mcp.json: tracked by git; VULCAN now writes it per machine. Run `git rm --cached .mcp.json` and let sync manage it.
   warning [mcp] .mcp.json: the atlas entry is { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "../ignis"] }, expected "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }
   warning [mcp] .claude/settings.json: enabledMcpjsonServers does not include atlas (has: ignis-knowledge): Claude asks before using the server - run vulcan sync
 ```

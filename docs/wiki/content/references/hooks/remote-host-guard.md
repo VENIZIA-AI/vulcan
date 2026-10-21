@@ -60,6 +60,7 @@ To register the hook and render the policy into the manifest, run `vulcan sync`:
 $ bun x --no-install vulcan sync
   unchanged CLAUDE.md
   replaced  .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  replaced  .claude/skills/build-a-feature
   replaced  .claude/skills/docs-update
   replaced  .claude/skills/knowledge-sync
   replaced  .claude/skills/docs-writing

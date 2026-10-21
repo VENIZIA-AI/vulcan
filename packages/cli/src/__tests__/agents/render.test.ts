@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  canonicalAtlasEntry,
   removeCodexBlock,
   removeMcpEntry,
   CODEX_BLOCK_END,
@@ -83,7 +84,11 @@ describe('mergeMcpServers (mcpServers)', () => {
 
   test("an entry that only looks like ours but has another shape is the user's", () => {
     for (const mine of [
-      { command: 'bun', args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'] },
+      {
+        command: 'bun',
+        args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.', '--source', 'x'],
+      },
+      { command: 'bun', args: ['x', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'] },
       {
         command: 'node',
         args: ['/old/node_modules/.bin/vulcan', 'x', 'atlas', 'mcp', '--root', '/old'],
@@ -110,6 +115,19 @@ describe('mergeMcpServers (mcpServers)', () => {
 
       expect(merge({ text: before })).toEqual({ ok: true, changed: false, text: before });
     }
+  });
+
+  test('the relative entry of the root .mcp.json is ours: left as it is, never rewritten', () => {
+    const before = `${JSON.stringify({ mcpServers: { atlas: canonicalAtlasEntry() } }, null, 2)}\n`;
+
+    expect(
+      mergeMcpServers({ text: before, key: 'mcpServers', entry: canonicalAtlasEntry() }),
+    ).toEqual({ ok: true, changed: false, text: before });
+    expect(removeMcpEntry({ text: before, key: 'mcpServers' })).toEqual({
+      ok: true,
+      outcome: 'removed',
+      text: undefined,
+    });
   });
 
   test('a file without the server map gets one', () => {

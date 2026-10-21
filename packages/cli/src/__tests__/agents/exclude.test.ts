@@ -8,7 +8,7 @@ import {
 } from '../../agents/index.ts';
 
 describe('excludePathsOf', () => {
-  const SKILLS = ['docs-update', 'docs-writing', 'knowledge-sync'];
+  const SKILLS = ['build-a-feature', 'docs-update', 'docs-writing', 'knowledge-sync'];
 
   test('always lists the local choice file', () => {
     expect(
@@ -22,10 +22,11 @@ describe('excludePathsOf', () => {
     expect(groups.find(group => group.title === 'claude')?.paths).toEqual([
       '/CLAUDE.md',
       '/.claude/',
+      '/.mcp.json',
     ]);
   });
 
-  test('agents with a project MCP file list it; shared-file agents list none', () => {
+  test('agents with a project MCP file list it; the agents of the shared one list the root .mcp.json', () => {
     const paths = (agent: string): string[] =>
       excludePathsOf({ agents: [agent], skillNames: SKILLS }).find(group => group.title === agent)
         ?.paths ?? [];
@@ -35,8 +36,25 @@ describe('excludePathsOf', () => {
     expect(paths('copilot-vscode')).toContain('/.vscode/mcp.json');
     expect(paths('antigravity')).toContain('/.agents/mcp_config.json');
     expect(paths('pi')).toContain('/.pi/mcp.json');
-    expect(paths('omp').some(path => path.endsWith('.json'))).toBe(false);
-    expect(paths('copilot-cli').some(path => path.endsWith('.json'))).toBe(false);
+    expect(paths('omp')).toContain('/.mcp.json');
+    expect(paths('copilot-cli')).toContain('/.mcp.json');
+  });
+
+  test('the root .mcp.json is listed once, under the first agent that reads it', () => {
+    const groups = excludePathsOf({ agents: ['claude', 'omp', 'copilot-cli'], skillNames: SKILLS });
+    const all = groups.flatMap(group => group.paths);
+
+    expect(all.filter(path => path === '/.mcp.json')).toHaveLength(1);
+    expect(groups.find(group => group.title === 'claude')?.paths).toContain('/.mcp.json');
+    expect(groups.find(group => group.title === 'omp')?.paths).not.toContain('/.mcp.json');
+  });
+
+  test('an agent that does not read it lists no .mcp.json', () => {
+    const all = excludePathsOf({ agents: ['cursor', 'pi'], skillNames: SKILLS }).flatMap(
+      group => group.paths,
+    );
+
+    expect(all).not.toContain('/.mcp.json');
   });
 
   test('every agent except claude lists the shipped-skill links of .agents/skills', () => {
@@ -45,6 +63,8 @@ describe('excludePathsOf', () => {
     );
 
     expect(omp?.paths).toEqual([
+      '/.mcp.json',
+      '/.agents/skills/build-a-feature',
       '/.agents/skills/docs-update',
       '/.agents/skills/docs-writing',
       '/.agents/skills/knowledge-sync',

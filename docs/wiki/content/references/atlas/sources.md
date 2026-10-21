@@ -31,6 +31,36 @@ bun x --no-install vulcan sync
 | `name` | `string` | required | Source identifier reported in citations and search hits |
 | `repo` | `string` | required | GitHub `owner/repo` path or git URL |
 | `ref` | `string` | `'develop'` | Git branch name, tag, or commit hash to fetch |
+| `pin` | `'installed'` or `'ref'` | `'installed'` | `installed` reads the docs at the release tag of the version the project has installed; `ref` always reads `ref` |
+
+## Which version of the docs
+
+A project runs one installed version of a source's packages, but `ref` is usually a branch that holds code and docs no release has. So the docs atlas serves for a source (`search`, `get`, the wiki, the knowledge bundle, the changelogs) are read at the **release tag of the newest installed package** of that source, and `symbol` already reads the installed `.d.ts`. An agent therefore does not learn an export or a convention that the installed version lacks.
+
+How it is decided, at every start:
+
+1. atlas resolves `ref` first: its manifest names the packages, its release table says which release each version is.
+2. It reads `node_modules/<package>/package.json` for each package of the source, at the project root and beside each package the project declares (a monorepo app installs its framework under `services/<app>/node_modules`). The newest by release order among those with a recorded release decides; with `@acme/api` 1.0.0 and `@acme/db` 0.5.0 installed, and `db-v0.5.0` the later commit, the docs are at `db-v0.5.0`.
+3. The tag is built from the source's `tagPattern` (`<dir>-v<version>`) and its commit is pulled like any ref; it is cached, and a tag never changes, so the second start is a cache hit.
+4. `version` and `changes` still read the release table of `ref`, so they report releases newer than the installed one and an upgrade is still visible.
+
+atlas serves `ref` instead, and says why in the status line of the server's `instructions`, when:
+
+| Case | Reason shown |
+|---|---|
+| None of the source's packages is installed | `none of its packages is installed here` |
+| An installed package is a `file:` or workspace link | `<name> is linked (a file: or workspace package), not a release` |
+| The installed version has no recorded release (a prerelease with no tag, a local build) | `no release of <name> <version> is recorded` |
+| The tag cannot be fetched | `could not read <tag>: ...` |
+| `pin: 'ref'` | `pin is ref` |
+
+A running server looks at the installed versions again with the [refresh](/references/atlas/#staying-current-while-the-server-runs): after `bun update`, the docs swap to the new version's tag within the interval, with no restart.
+
+Set `pin: 'ref'` on a source when you want its newest docs whatever is installed:
+
+```ts
+sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop', pin: 'ref' }],
+```
 
 ## Where to declare sources
 

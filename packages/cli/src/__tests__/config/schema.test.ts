@@ -59,6 +59,20 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
   });
 });
 
+describe('a source pin', () => {
+  test("`pin` is 'installed' or 'ref', and absent unless given", () => {
+    const parsed = (pin?: string) =>
+      VULCAN_CONFIG_SCHEMA.safeParse({
+        atlas: { sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis', ...(pin ? { pin } : {}) }] },
+      });
+
+    expect(parsed('ref').success).toBe(true);
+    expect(parsed('installed').success).toBe(true);
+    expect(parsed('latest').success).toBe(false);
+    expect(parsed().data?.atlas.sources[0]).not.toHaveProperty('pin');
+  });
+});
+
 describe('package kind', () => {
   test('a package may say it is a lib or an app; nothing else', () => {
     const base = {

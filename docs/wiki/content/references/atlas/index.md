@@ -123,15 +123,17 @@ Each description opens with when to call the tool, and names the projects the se
 
 An agent that is not told when to use atlas answers from memory. The server therefore sends the agent two texts of its own, both built from the project's config:
 
-- **`instructions`**, in the reply to `initialize`. A client such as Claude Code adds it to the agent's context as "MCP Server Instructions". It names the corpora (this project and every `atlas.sources` entry), the four triggers, and the rule not to answer from memory:
+- **`instructions`**, in the reply to `initialize`. A client such as Claude Code adds it to the agent's context as "MCP Server Instructions". It names the corpora (this project and every `atlas.sources` entry), the four triggers, the rule not to answer from memory, and when a how-to-build question must search first:
 
 ```text
 Atlas holds the real code and docs of my-product (this repository) and ignis. Do not answer facts about my-product and ignis from memory when atlas can answer them: call `symbol` for each export before you write code that imports their packages (`@venizia/*`, `api`), `search` then `get` when the user asks how something works or which convention applies, `version` or `changes` for a release or an upgrade, `presets` before you create an app or package.
+
+Before you answer how to build something in my-product and ignis (a feature, a controller, a service, a repository, a datasource) or how a convention is organised, call `search` and read the hits with `get`; do not answer from the files you happen to open. A plan never says "check atlas" for a step you have not done: call it first.
 ```
 
 - **The tool descriptions** above.
 
-The first paragraph alone carries the corpora, the rule and the four triggers in at most 512 characters, because some clients keep only that much; the whole text stays under 2 KB. The lines after the blank line say how each source was reached; a source that is offline or unavailable is named there. The session-start digest repeats the corpora and the rule in an "Atlas" block, and the base rule `V-P-07` states it ([Rules](/references/rules)).
+The first paragraph alone carries the corpora, the rule and the four triggers in at most 512 characters, because some clients keep only that much; the second says that a question about how to build something here must `search` first, and that a plan never says "check atlas" for a step not done; the whole text stays under 2 KB. The lines after them say how each source was reached; a source that is offline or unavailable is named there. The session-start digest repeats the corpora and the rule in an "Atlas" block, and the base rule `V-P-07` states it ([Rules](/references/rules)).
 
 For tool arguments and reply schemas, see the [atlas tools reference](/references/atlas/tools).
 
@@ -144,6 +146,16 @@ To fetch a single named source, pass `--source <name>`.
 `pull` prints a line for each remote source (`pull: <name> <8-character sha> (<mode>)`).
 Repository-mode sources print nothing because atlas reads project files directly.
 For source caching and configuration details, see the [atlas sources reference](/references/atlas/sources).
+
+## Staying current while the server runs
+
+An MCP server lives as long as the agent session that started it, often for days. It does not serve what it resolved at its start for that long: while it runs it looks again, at most every five minutes, in the background, so no tool call waits for it:
+
+- **A remote source** is asked for its ref again (`git ls-remote`, as a start does). A ref that moved is pulled and the source's index, release table and symbols are replaced; a release tag pushed since refreshes only the release table. `version` and `changes` therefore report a release that shipped after the session began.
+- **The project itself** recomputes its release table when its HEAD or one of its tags changed (its search index already follows the files).
+- **A failure keeps what was served.** An offline machine or a down remote leaves the source on its cache, and the server logs one line to stderr.
+
+`VULCAN_ATLAS_REFRESH_SECONDS` sets the interval in seconds (default `300`); `0` turns the refresh off, so a server serves what its start resolved. The `instructions` text a client received at the start (the commit it names for each source) is not rewritten; ask `version` for the current releases. `vulcan x atlas pull` still refreshes the cache by hand, and a running server picks the new commit up within the interval.
 
 ## Surface
 

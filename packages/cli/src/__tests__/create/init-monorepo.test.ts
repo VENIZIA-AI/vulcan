@@ -36,7 +36,6 @@ describe('vulcan init --preset', () => {
       '.gitignore',
       'AGENTS.md',
       'Makefile',
-      '.mcp.json',
       '.agents/rules.md',
       '.configs/vulcan.config.mts',
       '.agents/knowledge/index.md',

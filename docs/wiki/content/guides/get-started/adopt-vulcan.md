@@ -12,26 +12,44 @@ Start a new project with one command, or add VULCAN to a repository you already 
 Before starting:
 
 - Bun 1.4 or newer
-- A git repository is optional for an existing project (only atlas release tags use it)
+- A git repository is optional for an existing project (atlas release tags and the per-machine ignore list in `.git/info/exclude` use it)
 
 ## Start a new project
 
-A framework ships its app template as a preset. One command turns it into a monorepo with its first app, already checked:
+A framework ships its app template as a preset. One command turns it into a monorepo with its first app, already checked. Run it where the project folder should go; the project does not exist yet, so call the package by its full name:
 
 ```bash
 bun x @venizia/vulcan init --preset ignis
 ```
 
+> In a terminal that can draw menus, every question is a menu, not a typed answer; see [Interactive prompts](/references/prompts). The samples below show what a plain terminal (`TERM=dumb`) asks.
+
 `ignis` means the package `@venizia/ignis`. In a terminal, `init` asks for the names. It never picks one for you:
 
 ```text
 ? Project name (the monorepo folder) > my-product
+Fetching preset @venizia/ignis@latest ...
 ? Backend folder (holds every backend app) > services
 ? Name of this backend app > core-api
 ? Shared code folder (empty to skip) > libs
 ```
 
+`init` then creates the folder, writes the files and runs `bun install`. The first `vulcan sync` of a project asks which coding agents you use on this machine. The `detected` line shows what it found, so yours differs; press Enter to accept it, or type your list. When you are asked again later, Enter keeps your earlier choice instead:
+
+```text
+Which coding agents do you use in this project? (comma-separated; Enter accepts the detected list: claude, omp)
+  detected: claude, omp
+  available: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
+? Agents > claude
+```
+
+The answer is stored in `.agents/vulcan.local.json`, which stays on your machine. It decides which adapter files `sync` writes ([Choosing your agents](/references/commands/sync#choosing-your-agents)).
+
 Without a terminal (CI, scripts), pass each answer as a flag:
+
+```bash
+bun x @venizia/vulcan init --preset ignis --project my-product --backend-dir services --app core-api --shared-dir libs
+```
 
 | Question | Flag |
 |---|---|
@@ -40,47 +58,72 @@ Without a terminal (CI, scripts), pass each answer as a flag:
 | Name of this app | `--app core-api` |
 | Shared code folder | `--shared-dir libs` (leave it out to skip) |
 
-`init` then creates the folder and fills it. With a local preset, the tree is:
+A missing flag is an error that names it (`vulcan init: missing --app (Name of the first app) - names are never chosen for you`). Without a terminal there is no agents question either: `sync` writes the Claude files and prints one line saying how to choose (`vulcan sync --agents claude,omp`).
+
+The project it creates (the files `init` and `sync` wrote, without `node_modules` and the lockfile):
 
 ```text
-$ cd my-product && find . -type f | sort
+$ cd my-product && find . -type f -not -path '*/node_modules/*' -not -name bun.lock | LC_ALL=C sort
 ./.agents/knowledge/index.md
 ./.agents/knowledge/log.md
 ./.agents/knowledge/packages/core-api.md
 ./.agents/rules.md
+./.agents/vulcan.local.json
+./.agents/vulcan.manifest.json
+./.claude/settings.json
+./.claude/vulcan-managed.json
 ./.configs/vulcan.config.mts
+./.dockerignore
 ./.gitignore
 ./.mcp.json
 ./AGENTS.md
-./libs/.gitkeep
+./CLAUDE.md
 ./Makefile
-./package.json
 ./README.md
+./libs/.gitkeep
+./package.json
+./services/core-api/.configs/builders/Dockerfile
+./services/core-api/.configs/builders/compile.ts
+./services/core-api/.configs/formatters/oxfmt.config.mts
+./services/core-api/.configs/lints/eslint.config.mjs
+./services/core-api/.configs/lints/oxlint.config.mts
 ./services/core-api/.env.example
 ./services/core-api/package.json
-./services/core-api/src/__tests__/smoke.test.ts
+./services/core-api/src/application.ts
+./services/core-api/src/controllers/hello.controller.ts
 ./services/core-api/src/index.ts
+./services/core-api/src/smoke.test.ts
 ./services/core-api/tsconfig.json
 ```
 
 Everything under `services/core-api/` comes from the preset. The rest is the VULCAN layer.
-`init` installs, runs `vulcan sync`, runs the preset's checks, then `vulcan doctor` and `okf check --strict`. It stops at the first failure.
+After the files, `init` installs, runs `vulcan sync`, runs the preset's checks (`bun check`, `devz lint`, `bun test`), then `vulcan doctor` and `okf check --strict`. It stops at the first failure.
 When all pass, it prints the next step:
 
 ```text
+vulcan doctor: OK
+check: OK - OKF v0.2 + house rules - 3 files, 1 concepts
 Done. Next:
   cd my-product && make dev
-  open http://localhost:3000
+  open http://localhost:3000/api/hello
+  open http://localhost:3000/api/doc/explorer
 ```
 
 For every file and message, see the [init reference](/references/commands/init#create-a-monorepo-with-preset).
 
 ### Add more apps
 
-Run `vulcan add` at the monorepo root to add another backend, or a frontend that proxies `/api` to a backend:
+Run `vulcan add` at the monorepo root. `--app` adds another backend, or a frontend that proxies `/api` to a backend; `--lib` adds a shared package:
 
 ```bash
-bun x --no-install vulcan add --preset ignis
+bun x --no-install vulcan add --preset ignis --app api2
+bun x --no-install vulcan add --preset ignis --lib billing
+```
+
+In a terminal `add` asks what to create. Without one, give `--app` or `--lib`: with neither, `add` stops and prints both commands. A frontend also needs `--api <backend app>` or `--no-api` when there is no terminal, for example:
+
+```bash
+bun x --no-install vulcan add --preset ardor --app web --frontend-dir apps --api core-api
 ```
 
 See the [add reference](/references/commands/add).
@@ -161,16 +204,22 @@ bun x --no-install vulcan sync
 $ bun x --no-install vulcan sync
   created   CLAUDE.md
   created   .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  created   .claude/skills/build-a-feature
   created   .claude/skills/docs-update
-  created   .claude/skills/knowledge-sync
   created   .claude/skills/docs-writing
+  created   .claude/skills/knowledge-sync
+  created   .mcp.json
   created   .agents/vulcan.manifest.json
+  replaced  AGENTS.md (Atlas block)
+  created   .agents/vulcan.local.json
+  replaced  .git/info/exclude
 ```
 
+The starter config suggests `claude` (`agents: ['claude']`), so `sync` takes that, in a terminal or not, and stores it in `.agents/vulcan.local.json` without asking. A project made with `init --preset` has no suggestion, so its first `sync` asks ([Start a new project](#start-a-new-project)). Change the choice later with [`vulcan agents`](/references/commands/agents).
 If `bun init` created your project, its `CLAUDE.md` holds only Bun's tips, so `sync` replaces it with `@AGENTS.md`. A `CLAUDE.md` you wrote yourself is left alone.
-`init` already added `CLAUDE.md`, `CLAUDE.*.md`, `.claude/` and `.agents/plans` to `.gitignore`.
+`init` already added `CLAUDE.md`, `CLAUDE.*.md`, `.claude/`, `.agents/plans` and `.agents/vulcan.local.json` to `.gitignore`, and `sync` lists the files it wrote for your agents in `.git/info/exclude`.
 These adapter files stay local on each machine.
-Commit `.agents/vulcan.manifest.json` to version control.
+Commit `.agents/vulcan.manifest.json` and the Atlas block `sync` wrote into `AGENTS.md` to version control.
 For details on adapter generation, see the [sync reference](/references/commands/sync).
 
 **Check:** `.agents/vulcan.manifest.json` exists in git status, while `CLAUDE.md` and `.claude/` remain gitignored.
@@ -233,7 +282,7 @@ For CI details and output capture, see the [doctor reference](/references/comman
 Pass the target version to `vulcan upgrade`:
 
 ```bash
-bun x --no-install vulcan upgrade 0.2.0
+bun x --no-install vulcan upgrade 0.3.7
 ```
 
 Without a version argument, `vulcan upgrade` installs the stable `latest` release. Add `--nightly` to take the newest of `latest` and `next`, which can be a prerelease:

@@ -49,7 +49,7 @@ Look facts up there before you answer or write from memory: `symbol` for an expo
 The rest of the output, the table of often-dropped rules, is not shown.
 The digest also prints the project's own rule rows and its minimap when it has them.
 
-The "Atlas" block, three lines under the title, appears only when the project's `.mcp.json` runs the atlas server. It names the project and every `atlas.sources` entry of the config, and says when to call each tool. It is rendered from the config, so there is nothing to set.
+The "Atlas" block, three lines under the title, appears only when the `.mcp.json` of this machine runs the atlas server (`sync` writes it for the agents that read it). It names the project and every `atlas.sources` entry of the config, and says when to call each tool. It is rendered from the config, so there is nothing to set.
 
 The section titled "The rules sessions drop most" repeats rules that sessions overlook most frequently.
 These rule identifiers come from the `digest.oftenDropped` configuration key.

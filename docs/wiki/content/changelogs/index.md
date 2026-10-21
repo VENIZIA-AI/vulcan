@@ -11,6 +11,17 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-21 | [VULCAN 0.3.9: build-a-feature Asks in Rounds and Builds in Vertical Slices](./2026-10-21-vulcan-0-3-9-build-a-feature-practices) | Enhancement |
+| 2026-10-21 | [VULCAN 0.3.9: A New Package's Knowledge Page Points at Atlas](./2026-10-21-vulcan-0-3-9-knowledge-page-points-at-atlas) | Enhancement |
+| 2026-10-21 | [VULCAN 0.3.9: atlas Serves the Docs of the Version You Have Installed](./2026-10-21-vulcan-0-3-9-atlas-pin) | Behaviour change |
+| 2026-10-21 | [VULCAN 0.3.9: Menus Instead of Typed Answers](./2026-10-21-vulcan-0-3-9-prompts) | Feature |
+| 2026-10-21 | [VULCAN 0.3.9: A build-a-feature Skill for Every Project](./2026-10-21-vulcan-0-3-9-build-a-feature) | Feature |
+| 2026-10-21 | [VULCAN 0.3.9: .mcp.json Is Written Per Machine, Only for the Agents That Read It](./2026-10-21-vulcan-0-3-9-mcp-per-machine) | Enhancement, Breaking Change |
+| 2026-10-21 | [VULCAN 0.3.9: The atlas presets Tool Also Lists the Official Presets You Have Not Used](./2026-10-21-vulcan-0-3-9-presets-official) | Enhancement |
+| 2026-10-21 | [VULCAN 0.3.9: Agents Must Search atlas Before They Answer How to Build Something](./2026-10-21-vulcan-0-3-9-atlas-search-first) | Enhancement |
+| 2026-10-21 | [VULCAN 0.3.9: The atlas Server Keeps Up With Releases While It Runs](./2026-10-21-vulcan-0-3-9-atlas-refresh) | Bug Fix |
+| 2026-10-21 | [VULCAN 0.3.8: --help Lists Every Flag of add](./2026-10-21-vulcan-0-3-8-help-add) | Bug Fix |
+| 2026-10-21 | [VULCAN 0.3.8: Enter Keeps Your Chosen Agents](./2026-10-21-vulcan-0-3-8-agents-enter) | Bug Fix |
 | 2026-10-21 | [VULCAN 0.3.8: doctor Warns When atlas Is Registered the Wrong Way](./2026-10-21-vulcan-0-3-8-doctor-mcp) | Enhancement |
 | 2026-10-21 | [VULCAN 0.3.7: The Root .dockerignore Keeps .env Files Out of Images](./2026-10-21-vulcan-0-3-7-dockerignore-env) | Security |
 | 2026-10-21 | [VULCAN 0.3.6: Tool Configs Live in .configs/lints, formatters and builders](./2026-10-21-vulcan-0-3-6-configs-layout) | Enhancement, Breaking Change |

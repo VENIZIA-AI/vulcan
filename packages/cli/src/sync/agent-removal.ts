@@ -18,6 +18,7 @@ import {
   removeMcpEntry,
 } from '../agents/index.ts';
 import type { TAgentEntry } from '../agents/index.ts';
+import { isTracked } from './agent-files.ts';
 import { BASE_DIRECTORY, stableBaseDirectoryOf } from '../common/index.ts';
 import { SyncConstants, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
@@ -79,6 +80,51 @@ const removeFile = (opts: { path: string; note?: string; parent?: string }): ISy
     }
   },
 });
+
+/**
+ * The root `.mcp.json`, once no remaining agent reads it: sync's own atlas entry is taken out (the file
+ * goes when nothing else is in it). A file git tracks is the project's, and an entry the user changed
+ * is theirs: both are left, and the line says so.
+ */
+const planSharedMcpRemoval = (opts: { root: string }): ISyncAction[] => {
+  const path = join(opts.root, AgentConstants.SHARED_MCP_FILE);
+
+  if (!existsSync(path)) {
+    return [];
+  }
+
+  const removed = removeMcpEntry({ text: readFileSync(path, 'utf8'), key: 'mcpServers' });
+
+  if (!removed.ok) {
+    return [{ path, status: SyncStatuses.SKIPPED, note: removed.reason, apply: NO_CHANGE }];
+  }
+
+  if (removed.outcome === 'absent') {
+    return [];
+  }
+
+  if (isTracked({ root: opts.root, path: AgentConstants.SHARED_MCP_FILE })) {
+    return [
+      {
+        path,
+        status: SyncStatuses.SKIPPED,
+        note: 'tracked by git - left alone',
+        apply: NO_CHANGE,
+      },
+    ];
+  }
+
+  return removed.text === undefined
+    ? [removeFile({ path })]
+    : [
+        {
+          path,
+          status: SyncStatuses.REPLACED,
+          note: 'the atlas entry taken out',
+          apply: () => writeFileSync(path, removed.text ?? ''),
+        },
+      ];
+};
 
 const planMcpRemoval = (opts: { root: string; entry: TAgentEntry }): ISyncAction[] => {
   if (opts.entry.mcp.scope !== AgentScopes.PROJECT) {
@@ -219,6 +265,10 @@ export const planAgentRemoval = (opts: {
   );
   const cleaned = new Set<string>();
   const actions: ISyncAction[] = [];
+  const stillReadsShared = table.some(
+    entry => opts.remaining.includes(entry.id) && entry.mcp.scope === AgentScopes.SHARED,
+  );
+  let sharedDone = false;
 
   for (const entry of table.filter(item => opts.removed.includes(item.id))) {
     if (entry.id === AgentConstants.DEFAULT_AGENT) {
@@ -226,6 +276,11 @@ export const planAgentRemoval = (opts: {
     }
 
     actions.push(...planMcpRemoval({ root: opts.root, entry }));
+
+    if (entry.mcp.scope === AgentScopes.SHARED && !stillReadsShared && !sharedDone) {
+      sharedDone = true;
+      actions.push(...planSharedMcpRemoval({ root: opts.root }));
+    }
 
     if (
       entry.skills.dir !== CLAUDE_SKILLS &&

@@ -9,7 +9,7 @@ Use `vulcan` to scaffold a project or create a monorepo from a preset, write the
 Run `bun x --no-install vulcan` or pass `--help` to inspect available commands:
 
 ```text
-vulcan 0.2.0 - one setup, one workflow for every project
+vulcan 0.3.7 - one setup, one workflow for every project
 
 Usage: bun x vulcan <command>
 
@@ -17,8 +17,11 @@ Usage: bun x vulcan <command>
   init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <name>]
        [--shared-dir <name>]      Create a monorepo with its first app, from a framework preset
                                   (a name missing from the flags is asked in a terminal)
-  add --preset <name|file:path> --app <name> [--backend-dir|--frontend-dir <name>]
-      [--api <app> | --no-api]    Add an app to the monorepo (a frontend says which backend to proxy to)
+  add --preset <name|file:path> (--app <name> | --lib <name>) [--dir <folder>] [--scope <@scope>]
+      [--backend-dir|--frontend-dir <name>] [--api <app> | --no-api]
+                                  Add an app or a shared library to the monorepo (a frontend says which
+                                  backend to proxy to; --dir and --scope are for a library; a terminal
+                                  asks for the kind and every name the flags leave out)
   sync [--agents <list>|list] [--dry-run] [--prune]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
                                   stored in .agents/vulcan.local.json; --agents list shows the table);
@@ -33,13 +36,15 @@ Usage: bun x vulcan <command>
   help · version
 ```
 
+The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a shared package (with `--dir` and `--scope`); see [vulcan add](/references/commands/add).
+
 If you pass an unknown command, `vulcan` prints `vulcan: unknown command 'foo' - run 'bun x vulcan help'` and exits with code 1.
 The following table lists each command, its purpose, its exit codes, and its reference page:
 
 | Command | What it does | Exit codes | Page |
 |---|---|---|---|
 | `init` | Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app | `0` on success; `1` on invalid configuration format, a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan init](/references/commands/init) |
-| `add` | Add an app from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
+| `add` | Add an app, or a shared library with `--lib`, from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
 | `sync` | Write agent adapter files and manifest; prune stale hooks and dead skill links with `--prune` | `0` on success; `1` on invalid configuration, broken settings, or unknown argument | [vulcan sync](/references/commands/sync) |
 | `agents` | Show, add, remove or re-choose the coding agents chosen on this machine, and write or take back their adapters | `0` on success or when nothing needed changing; `1` on an unknown agent or subcommand, a missing list, `setup` without a terminal, or invalid configuration | [vulcan agents](/references/commands/agents) |
 | `doctor` | Check the project against the VULCAN contract and report violations | `0` when conformant; `1` on any contract violation or unknown argument | [vulcan doctor](/references/commands/doctor) |
@@ -67,7 +72,7 @@ Spawning a child process ensures the newly installed version generates adapters 
 | `bun x --no-install vulcan upgrade <version\|tag>` | The version or tag you name | Wins over `--stable` and `--nightly` |
 
 `--nightly` reads the dist-tags of `@venizia/vulcan` with `bun pm view`, so it uses the registry your project is configured for.
-If `latest` is `0.2.0` and `next` is `0.2.0-9`, `--nightly` installs `0.2.0`. If `next` is `0.3.0-1`, it installs `0.3.0-1`.
+If `latest` is `0.3.7` and `next` is `0.3.7`, `--nightly` installs `0.3.7`. If `next` is `0.4.0-1`, it installs `0.4.0-1`.
 Passing `--stable` and `--nightly` together exits `1`.
 
 If the dist-tags cannot be used, `--nightly` prints `vulcan upgrade: --nightly could not read the dist-tags of @venizia/vulcan - pass a version instead` and exits `1`.
@@ -77,25 +82,30 @@ When the installed `@venizia/vulcan` is a prerelease and you run `upgrade` or `u
 
 ### Example run
 
-The following run upgrades `@venizia/vulcan` to version `0.2.0`:
+The following run pins `@venizia/vulcan` to version `0.3.7`, the version already installed, so `sync` changes nothing:
 
 ```text
-$ bun x --no-install vulcan upgrade 0.2.0
+$ bun x --no-install vulcan upgrade 0.3.7
 bun add v1.4.3 (c6da4a4d3)
 
-installed @venizia/vulcan@0.2.0 with binaries:
+installed @venizia/vulcan@0.3.7 with binaries:
  - vulcan
 
-[2.00ms] done
+[6.00ms] done
   unchanged CLAUDE.md
   unchanged .claude/settings.json
-  replaced  .claude/skills/docs-update
-  replaced  .claude/skills/knowledge-sync
-  replaced  .claude/skills/docs-writing
+  unchanged .claude/skills/build-a-feature
+  unchanged .claude/skills/docs-update
+  unchanged .claude/skills/docs-writing
+  unchanged .claude/skills/knowledge-sync
+  unchanged .mcp.json
   unchanged .agents/vulcan.manifest.json
+  unchanged AGENTS.md
+  unchanged .agents/vulcan.local.json
+  unchanged .git/info/exclude
 ```
 
-Everything down to `[2.00ms] done` is `bun add` output; the six indented lines after it are `vulcan sync` output.
+Everything down to `[6.00ms] done` is `bun add` output (the timing and a `Saved lockfile` line vary); the lines after it are `vulcan sync` output. When the new version changes the adapters, the same lines read `replaced`.
 The command exits 0 on success.
 
 ### Exit codes

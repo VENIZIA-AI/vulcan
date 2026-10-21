@@ -10,7 +10,7 @@ const PROJECT = {
   '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'AGENTS.md': '# x\n',
 };
-const SHIPPED = ['docs-update', 'docs-writing', 'knowledge-sync'];
+const SHIPPED = ['build-a-feature', 'docs-update', 'docs-writing', 'knowledge-sync'];
 
 const sync = (opts: { root: string; agents: string }) =>
   runCli({ args: ['sync', '--agents', opts.agents], cwd: opts.root });
@@ -19,7 +19,7 @@ const isLink = (opts: { path: string }): boolean =>
   existsSync(opts.path) && lstatSync(opts.path).isSymbolicLink();
 
 describe('shipped skills for the agents that read .agents/skills', () => {
-  test('omp gets the three shipped skills as links in .agents/skills, and no Claude folder', () => {
+  test('omp gets the four shipped skills as links in .agents/skills, and no Claude folder', () => {
     const root = createProject({ files: PROJECT });
     const result = sync({ root, agents: 'omp' });
 

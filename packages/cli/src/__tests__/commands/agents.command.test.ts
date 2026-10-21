@@ -21,7 +21,7 @@ const ENV = hermeticEnv();
 const git = (opts: { root: string; args: string[] }) =>
   Bun.spawnSync(['git', ...opts.args], {
     cwd: opts.root,
-    env: { ...process.env, ...ENV },
+    env: { ...process.env, TERM: 'dumb', ...ENV },
     stdout: 'pipe',
     stderr: 'pipe',
   });
@@ -294,13 +294,30 @@ describe('vulcan agents setup', () => {
   });
 
   describe.skipIf(!hasScript)('in a terminal', () => {
+    test('Enter keeps the stored list and the question says so', () => {
+      const root = synced({ agents: 'omp' });
+      const command = `'${process.execPath}' '${CLI}' agents setup`;
+      const child = spawnSyncBounded({
+        cmd: ['script', '-qec', command, '/dev/null'],
+        cwd: root,
+        env: { ...process.env, TERM: 'dumb', ...ENV },
+        stdin: Buffer.from('\n'),
+        stdout: 'pipe',
+        stderr: 'pipe',
+      });
+
+      expect(child.exitCode).toBe(0);
+      expect(child.stdout.toString()).toContain('Enter keeps your earlier choice: omp');
+      expect(stored({ root })).toEqual(['omp']);
+    });
+
     test('asks again with the stored list shown, and applies the answer', () => {
       const root = synced({ agents: 'omp' });
       const command = `'${process.execPath}' '${CLI}' agents setup`;
       const child = spawnSyncBounded({
         cmd: ['script', '-qec', command, '/dev/null'],
         cwd: root,
-        env: { ...process.env, ...ENV },
+        env: { ...process.env, TERM: 'dumb', ...ENV },
         stdin: Buffer.from('omp,pi\n'),
         stdout: 'pipe',
         stderr: 'pipe',

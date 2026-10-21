@@ -1,0 +1,29 @@
+{
+  "skill_name": "build-a-feature",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "If I want to implement a feature with you, what will you do with me? Which skill or workflow do you use?",
+      "expected_output": "Calls atlas search for how a feature is built in this project and atlas presets before its first answer; opens with one quoted hit and the preset list (the frontend preset included); then describes the workflow, naming the atlas call at each step it depends on; claims no lookup it has not made; nothing is written or committed",
+      "files": [".agents/vulcan.manifest.json"]
+    },
+    {
+      "id": 1,
+      "prompt": "Add a GET endpoint that returns the server time to the first backend app. Propose the surface first; do not write code yet.",
+      "expected_output": "Calls atlas search for how a controller and a route are written here and get on the hits; proposes the route, its response schema and the controller and method names, each convention backed by the atlas hit it came from; waits for approval; no source file changed",
+      "files": [".agents/vulcan.manifest.json"]
+    },
+    {
+      "id": 2,
+      "prompt": "We need a second backend app named billing and a shared library named money. Set them up.",
+      "expected_output": "Calls atlas presets, then runs the exact vulcan add commands it returned (an app with --app billing, a library with --lib money); never hand-writes a package.json, a tsconfig or scripts; runs the new packages' checks and vulcan doctor; nothing committed",
+      "files": [".agents/vulcan.manifest.json"]
+    },
+    {
+      "id": 3,
+      "prompt": "Add an endpoint that lists the products under a price. Walk me through it.",
+      "expected_output": "Asks its open decisions in one numbered round with a recommended answer each (filter shape, sorting, paging, empty result) and looks up the conventions in atlas instead of asking; proposes the route, schemas and class names with the seams to test; plans vertical slices starting with the simplest end-to-end path; writes no code before the user approves",
+      "files": [".agents/vulcan.manifest.json"]
+    }
+  ]
+}

@@ -217,55 +217,22 @@ describe('vulcan init', () => {
     );
   });
 
-  test('.mcp.json is written when absent: the atlas server over this project, pinned with --root', () => {
+  test('init never scaffolds .mcp.json: sync writes it per machine, for the agents that read it', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
     const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
 
-    expect(JSON.parse(readFileSync(join(root, '.mcp.json'), 'utf8'))).toEqual({
-      mcpServers: {
-        atlas: {
-          command: 'bun',
-          args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
-        },
-      },
-    });
-    expect(result.stderr).toContain('created  .mcp.json');
+    expect(existsSync(join(root, '.mcp.json'))).toBe(false);
+    expect(result.stderr).not.toContain('.mcp.json');
   });
 
-  test('an existing .mcp.json is never overwritten; one without atlas gets the entry as a hint', () => {
+  test('an existing .mcp.json is left alone, with no hint about it', () => {
     const mine = '{ "mcpServers": { "other": { "command": "x" } } }\n';
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE, '.mcp.json': mine } });
     const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
 
     expect(readFileSync(join(root, '.mcp.json'), 'utf8')).toBe(mine);
-    expect(result.stderr).toContain('add      .mcp.json: the atlas server');
-    expect(result.stderr).toContain(
-      '"bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."]',
-    );
-    expect(result.stderr).toContain('--root pins the project');
-  });
-
-  test('an existing .mcp.json that already has atlas is kept without a hint', () => {
-    const mine = '{ "mcpServers": { "atlas": { "command": "bun", "args": ["x", "atlas"] } } }\n';
-    const root = createProject({ files: { 'package.json': STYLED_PACKAGE, '.mcp.json': mine } });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
-
-    expect(readFileSync(join(root, '.mcp.json'), 'utf8')).toBe(mine);
-    expect(result.stderr).toContain('kept     .mcp.json');
+    expect(result.stderr).not.toContain('.mcp.json');
     expect(result.stderr).not.toContain('the atlas server');
-  });
-
-  test('an existing .mcp.json whose server runs atlas mcp under another name gets no hint', () => {
-    const root = createProject({
-      files: {
-        'package.json': STYLED_PACKAGE,
-        '.mcp.json':
-          '{ "mcpServers": { "ignis-kb": { "command": "sh", "args": ["-c", "bun x --no-install vulcan x atlas mcp"] } } }',
-      },
-    });
-    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
-
-    expect(result.stderr).not.toContain('.mcp.json: the atlas server');
   });
 
   test('the Makefile explains itself when vulcan.mk is missing: a shipped target says to install first, the project own targets still run', () => {

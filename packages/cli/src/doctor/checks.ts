@@ -23,8 +23,14 @@ import {
   projectNameOf,
   renderManifest,
 } from '../manifest/index.ts';
-import { readLocalChoice, resolveAgentsQuietly } from '../agents/index.ts';
 import {
+  AgentScopes,
+  readAgentTable,
+  readLocalChoice,
+  resolveAgentsQuietly,
+} from '../agents/index.ts';
+import {
+  isTracked,
   mergedAtlasBlock,
   planManifest,
   planPrune,
@@ -620,23 +626,33 @@ const mcpWarning = (opts: { file: string; message: string }): IViolation =>
   createViolation({ check: DoctorChecks.MCP, file: opts.file, message: opts.message });
 
 /**
- * The atlas server is registered the one way every project does: the tracked `.mcp.json` holds an
- * `atlas` entry that runs the project's own atlas (`--root .`), and the managed Claude settings
- * enable `atlas` by that name. A server under another name, or one that serves another folder, is
- * never enabled automatically or serves the wrong knowledge. Warnings, not violations.
+ * The atlas server is registered the one way every project does: the root `.mcp.json` (a per-machine
+ * file `sync` writes for the agents that read it) holds an `atlas` entry that runs the project's own
+ * atlas (`--root .`), and the managed Claude settings enable `atlas` by that name. A server under
+ * another name, or one that serves another folder, is never enabled automatically or serves the wrong
+ * knowledge. A `.mcp.json` git still tracks is told how to hand over to `sync`. Warnings, not violations.
  */
 export const checkMcpAtlas = (opts: ICheckContext): IViolation[] => {
   const warnings: IViolation[] = [];
   const file = join(opts.root, MCP_FILE);
+  const chosen = resolveAgentsQuietly({ root: opts.root, configAgents: opts.config.agents });
+  const readsMcpFile = readAgentTable().some(
+    entry => chosen.includes(entry.id) && entry.mcp.scope === AgentScopes.SHARED,
+  );
 
-  if (!existsSync(file)) {
-    warnings.push(
-      mcpWarning({
-        file: MCP_FILE,
-        message: `missing: atlas is not registered for Claude Code, omp and Copilot CLI - add ${MCP_SERVER_HINT} under mcpServers`,
-      }),
-    );
-  } else {
+  // The root `.mcp.json` is a per-machine file of the agents that read it; a missing one is the
+  // `adapters` check's (not synced yet), so only an existing file is looked at.
+  if (readsMcpFile && existsSync(file)) {
+    if (isTracked({ root: opts.root, path: MCP_FILE })) {
+      warnings.push(
+        mcpWarning({
+          file: MCP_FILE,
+          message:
+            'tracked by git; VULCAN now writes it per machine. Run `git rm --cached .mcp.json` and let sync manage it.',
+        }),
+      );
+    }
+
     const parsed = readJsonObject({ file });
 
     if (parsed === undefined) {

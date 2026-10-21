@@ -1,6 +1,6 @@
 {
   "name": "@venizia/vulcan",
-  "version": "0.3.7",
+  "version": "0.3.9",
   "description": "VULCAN - one setup, one workflow for every project: init, sync, doctor, upgrade, and `vulcan x` for the shipped tools. Bun-only.",
   "homepage": "https://github.com/VENIZIA-AI/vulcan/tree/main/packages/cli",
   "repository": {
@@ -44,6 +44,7 @@
     "test": "NODE_ENV=test bun test --env-file=.env.test"
   },
   "dependencies": {
+    "@clack/prompts": "catalog:",
     "@venizia/vulcan-atlas": "workspace:*",
     "@venizia/vulcan-okf": "workspace:*",
     "zod": "catalog:"

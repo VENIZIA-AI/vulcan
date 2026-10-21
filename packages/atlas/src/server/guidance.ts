@@ -33,6 +33,12 @@ const statusOf = (opts: { sources: IResolvedSource[]; unavailable: IUnavailableS
     }
 
     const at = `${source.origin ?? source.name} at ${(source.sha ?? '').slice(0, 8)}`;
+    const pin =
+      source.pin === undefined
+        ? ''
+        : source.pin.pinned
+          ? ` - docs pinned to ${source.pin.ref}, the ${source.pin.reason}; release table from the configured ref`
+          : ` - docs follow ${source.pin.ref}, not the installed version (${source.pin.reason})`;
 
     const note =
       source.history === false
@@ -41,7 +47,7 @@ const statusOf = (opts: { sources: IResolvedSource[]; unavailable: IUnavailableS
 
     return source.mode === 'offline-cache'
       ? `- ${source.name}: ${at} - OFFLINE: the remote was unreachable, this is the newest cache, not the ref's current commit${note}`
-      : `- ${source.name}: ${at}${note}`;
+      : `- ${source.name}: ${at}${pin}${note}`;
   });
 
   const missing = opts.unavailable.map(
@@ -82,8 +88,9 @@ const scopesPhrase = (opts: { sources: IResolvedSource[] }): string => {
 
 /**
  * What the agent reads when atlas connects. The lead paragraph alone carries the corpora, the rule
- * and the three triggers in at most 512 characters, because a client may keep only that much; the
- * status lines after it say how each source was reached.
+ * and the triggers in at most 512 characters, because a client may keep only that much; the second
+ * paragraph says when a how-to-build question must search first; the status lines after it say how
+ * each source was reached.
  */
 export const instructionsOf = (opts: {
   sources: IResolvedSource[];
@@ -93,6 +100,8 @@ export const instructionsOf = (opts: {
 
   return [
     `Atlas holds the real code and docs of ${corporaPhrase(opts)}. Do not answer facts about ${projects} from memory when atlas can answer them: call \`symbol\` for each export before you write code that imports ${scopesPhrase(opts)}, \`search\` then \`get\` when the user asks how something works or which convention applies, \`version\` or \`changes\` for a release or an upgrade, \`presets\` before you create an app or package.`,
+    '',
+    `Before you answer how to build something in ${projects} (a feature, a controller, a service, a repository, a datasource) or how a convention is organised, call \`search\` and read the hits with \`get\`; do not answer from the files you happen to open. A plan never says "check atlas" for a step you have not done: call it first.`,
     '',
     `Atlas serves ${opts.sources.length} source(s); every hit names its source.`,
     ...statusOf(opts),
