@@ -7,7 +7,7 @@ description: Give your agent search over your project docs, knowledge and code, 
 
 atlas is an MCP server. It indexes your wiki, changelogs and knowledge bundle. It reads your exported symbols and release history.
 
-`vulcan init` already writes the `.mcp.json` entry. Check it is there:
+`vulcan sync` writes the `.mcp.json` entry for the agents that read it (Claude Code, omp, Copilot CLI), and the other agents get an entry in their own file. Check it is there:
 
 ```json
 {

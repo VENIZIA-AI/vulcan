@@ -54,12 +54,12 @@ describe('the Atlas block in AGENTS.md', () => {
     expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).toContain('vulcan:atlas:start');
   });
 
-  test('a project that does not run the atlas server gets no block', () => {
+  test('it does not wait for a .mcp.json: a machine of an agent that has its own MCP file gets it too', () => {
     const root = project({ mcp: false });
-    const result = sync({ root });
+    const result = sync({ root, agents: 'antigravity' });
 
-    expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).toBe(AGENTS_MD);
-    expect(result.stderr).not.toContain('Atlas block');
+    expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).toContain('vulcan:atlas:start');
+    expect(result.stderr).toContain('replaced  AGENTS.md (Atlas block)');
   });
 
   test('a second run reports it unchanged', () => {
@@ -111,9 +111,9 @@ describe('the Atlas block in AGENTS.md', () => {
     expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain('Atlas block');
   });
 
-  test('doctor stays quiet for a project without the atlas server', async () => {
+  test('doctor notes a missing block whether or not a .mcp.json exists', async () => {
     const root = project({ mcp: false });
 
-    expect((await runDoctorNotes({ root })).map(note => note.file)).not.toContain('AGENTS.md');
+    expect((await runDoctorNotes({ root })).map(note => note.file)).toContain('AGENTS.md');
   });
 });

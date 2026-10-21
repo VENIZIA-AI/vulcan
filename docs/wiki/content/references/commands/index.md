@@ -94,6 +94,7 @@ installed @venizia/vulcan@0.3.7 with binaries:
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/knowledge-sync
+  unchanged .mcp.json
   unchanged .agents/vulcan.manifest.json
   unchanged AGENTS.md
   unchanged .agents/vulcan.local.json

@@ -41,6 +41,7 @@ $ bun x --no-install vulcan agents add pi
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/knowledge-sync
+  unchanged .mcp.json
   created   .agents/skills/docs-update
   created   .agents/skills/docs-writing
   created   .agents/skills/knowledge-sync
@@ -65,6 +66,7 @@ $ bun x --no-install vulcan agents remove pi
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/knowledge-sync
+  unchanged .mcp.json
   unchanged .agents/vulcan.manifest.json
   unchanged AGENTS.md
   replaced  .agents/vulcan.local.json
@@ -85,6 +87,7 @@ Only what `sync` created for that agent, and only while it is still what `sync` 
 | Created for the agent | On remove |
 |---|---|
 | A MCP file that holds only the atlas entry (`.cursor/mcp.json`, `.pi/mcp.json`, `.agents/mcp_config.json`, `.vscode/mcp.json`) | Deleted, and its folder when it is left empty |
+| The root `.mcp.json` of Claude Code, omp and Copilot CLI, when no remaining agent reads it | The atlas entry is taken out; the file is deleted if nothing else is in it. A tracked file is left (`skipped   .mcp.json (tracked by git - left alone)`) |
 | The atlas entry merged into a file that has your servers or keys | The atlas key is taken out, the rest stays |
 | The block between `# vulcan:atlas:start` and `# vulcan:atlas:end` in `.codex/config.toml` | The block is taken out; the file is deleted if nothing else is in it |
 | The shipped-skill links in `.agents/skills` | Removed unless another chosen agent reads the same folder; your own skills are never touched |

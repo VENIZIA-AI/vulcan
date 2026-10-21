@@ -25,19 +25,33 @@ export const atlasServerEntry = (opts: { root: string }): { command: string; arg
   ],
 });
 
+/**
+ * The atlas server as the root `.mcp.json` starts it: the same for every developer, so it is relative.
+ * Claude Code, omp and Copilot CLI launch a project server from the project root.
+ */
+export const canonicalAtlasEntry = (): { command: string; args: string[] } => ({
+  command: 'bun',
+  args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
+});
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /**
  * Whether an `atlas` entry is the one sync writes, for whatever place: `bun <root>/node_modules/.bin/vulcan
- * x atlas mcp --root <root>` (plus `type: stdio` for VS Code) with the two paths agreeing. Anything else
- * is the user's. A project that moved is recognised this way and rewritten.
+ * x atlas mcp --root <root>` (plus `type: stdio` for VS Code) with the two paths agreeing, or the relative
+ * entry of the root `.mcp.json`. Anything else is the user's. A project that moved is recognised this way
+ * and rewritten.
  */
 const isOwnEntry = (opts: { entry: unknown }): boolean => {
   const { entry } = opts;
 
   if (!isRecord(entry) || entry.command !== 'bun' || !Array.isArray(entry.args)) {
     return false;
+  }
+
+  if (JSON.stringify(entry) === JSON.stringify(canonicalAtlasEntry())) {
+    return true;
   }
 
   const keys = Object.keys(entry).filter(key => key !== 'type');

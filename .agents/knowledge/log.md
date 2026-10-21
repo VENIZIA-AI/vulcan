@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - .mcp.json is a per-machine agent file
+
+`init` no longer scaffolds the root `.mcp.json`; `sync` writes it (canonical relative atlas entry, merged, once) when a chosen agent reads it (claude, omp, copilot-cli), lists it in `.git/info/exclude`, and `agents remove` takes it back when no reader is left. A tracked `.mcp.json` is never rewritten or excluded: doctor warns to `git rm --cached` it, after which sync adopts an entry equal to the canonical one. The Atlas block of `AGENTS.md` no longer depends on `.mcp.json`; the `mcp` doctor check only looks at the file when a reader is chosen. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-21 - Enter keeps the stored agents
 
 When the agents question is asked again (`vulcan agents setup`, `vulcan sync --agents` with no value), an empty answer keeps the choice stored on the machine (also an empty one); with nothing stored it takes the detected list. The prompt names what Enter does. Before, Enter applied the detected list even under `chosen before:`. Concept: [cli](/packages/cli.md).

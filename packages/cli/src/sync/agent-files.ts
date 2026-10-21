@@ -1,9 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import {
+  AgentConstants,
   AgentRenderers,
   AgentScopes,
   atlasServerEntry,
+  canonicalAtlasEntry,
   mergeCodexToml,
   mergeMcpServers,
   readAgentTable,
@@ -15,7 +17,7 @@ import type { ISyncAction } from './common/index.ts';
 const NO_CHANGE = (): void => {};
 
 /** A file git tracks cannot be hidden by an exclude entry, and a per-developer edit would show as a diff. */
-const isTracked = (opts: { root: string; path: string }): boolean => {
+export const isTracked = (opts: { root: string; path: string }): boolean => {
   try {
     return (
       Bun.spawnSync(['git', 'ls-files', '--error-unmatch', opts.path], {
@@ -99,11 +101,63 @@ const planAgentMcp = (opts: { root: string; entry: TAgentEntry }): ISyncAction[]
   ];
 };
 
-/** The MCP files of every chosen agent, in table order. */
-export const planAgentFiles = (opts: { root: string; agents: string[] }): ISyncAction[] =>
-  readAgentTable()
+/**
+ * The root `.mcp.json` the chosen agents of the shared scope read: the canonical atlas entry, merged
+ * into what is there. A file git tracks belongs to the project, not to this machine: it is never
+ * rewritten (the doctor says how to hand it over).
+ */
+const planSharedMcp = (opts: { root: string }): ISyncAction[] => {
+  const path = join(opts.root, AgentConstants.SHARED_MCP_FILE);
+  const text = existsSync(path) ? readFileSync(path, 'utf8') : undefined;
+  const merged = mergeMcpServers({ text, key: 'mcpServers', entry: canonicalAtlasEntry() });
+
+  if (!merged.ok) {
+    return [
+      {
+        path,
+        status: SyncStatuses.SKIPPED,
+        note: `${merged.reason} - left untouched; fix it, then re-run sync`,
+        apply: NO_CHANGE,
+      },
+    ];
+  }
+
+  if (
+    !merged.changed ||
+    (text !== undefined && isTracked({ root: opts.root, path: AgentConstants.SHARED_MCP_FILE }))
+  ) {
+    return [{ path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE }];
+  }
+
+  return [
+    {
+      path,
+      status: text === undefined ? SyncStatuses.CREATED : SyncStatuses.REPLACED,
+      apply: () => writeFileSync(path, merged.text),
+    },
+  ];
+};
+
+/** The MCP files of every chosen agent, in table order; the shared `.mcp.json` once, at its first reader. */
+export const planAgentFiles = (opts: { root: string; agents: string[] }): ISyncAction[] => {
+  let sharedPlanned = false;
+
+  return readAgentTable()
     .filter(entry => opts.agents.includes(entry.id))
-    .flatMap(entry => planAgentMcp({ root: opts.root, entry }));
+    .flatMap(entry => {
+      if (entry.mcp.scope === AgentScopes.PROJECT) {
+        return planAgentMcp({ root: opts.root, entry });
+      }
+
+      if (sharedPlanned) {
+        return [];
+      }
+
+      sharedPlanned = true;
+
+      return planSharedMcp({ root: opts.root });
+    });
+};
 
 /** One line per note of a chosen agent (a trust prompt only the user can answer). */
 export const agentNotes = (opts: { agents: string[] }): { agent: string; note: string }[] =>

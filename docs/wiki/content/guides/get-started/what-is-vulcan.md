@@ -55,7 +55,7 @@ Running `vulcan init` and `vulcan sync` adds these files to your repository. The
 ./.configs/vulcan.config.mts            # committed: project configuration
 ./.dockerignore                         # committed: what a Docker build leaves out
 ./Makefile                              # committed: includes vulcan.mk
-./.mcp.json                             # committed: local atlas MCP registration
+./.mcp.json                             # gitignored: the atlas MCP entry, written by sync for Claude Code, omp and Copilot CLI
 ```
 
 See the [project layer guide](/guides/core-concepts/the-project-layer) for the full contract and responsibilities.

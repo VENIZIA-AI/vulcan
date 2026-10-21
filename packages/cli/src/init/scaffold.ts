@@ -7,32 +7,7 @@ import { InitConstants, InitStatuses } from './common/index.ts';
 import { renderDockerignore } from '../create/dockerignore.ts';
 import type { IInitEntry, IScaffoldFile } from './common/index.ts';
 
-/**
- * Whether a `.mcp.json` already serves atlas: a server named `atlas`, or any server whose arguments run
- * `atlas mcp` under another name, as separate arguments or inside a `sh -c` string. A file that is not JSON falls back to looking for the name.
- */
-export const runsAtlas = (opts: { text: string }): boolean => {
-  try {
-    const parsed: { mcpServers?: Record<string, { args?: unknown }> } = JSON.parse(opts.text);
-    const servers = parsed.mcpServers ?? {};
-
-    return (
-      'atlas' in servers ||
-      Object.values(servers).some(server => {
-        const args = Array.isArray(server.args)
-          ? server.args.flatMap(arg => String(arg).split(/\s+/))
-          : [];
-        const atlas = args.indexOf('atlas');
-
-        return atlas !== -1 && args[atlas + 1] === 'mcp';
-      })
-    );
-  } catch {
-    return opts.text.includes('"atlas"');
-  }
-};
-
-/** The entry for a `.mcp.json` that exists already: atlas serves the knowledge bundle alone, and the wiki when there is one. */
+/** The atlas entry of the root `.mcp.json`, as `sync` writes it and `doctor` shows it. */
 export const MCP_SERVER_HINT =
   '"atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }';
 
@@ -41,7 +16,6 @@ const SCAFFOLD_FILES: IScaffoldFile[] = [
   { path: 'AGENTS.md', template: 'AGENTS.md' },
   { path: '.agents/rules.md', template: 'rules.md' },
   { path: '.agents/knowledge/index.md', template: 'knowledge-index.md' },
-  { path: '.mcp.json', template: 'mcp.json' },
 ];
 
 /** The lint configs of a single-package project. A workspaces project keeps them in each app. */
@@ -206,20 +180,6 @@ export const scaffoldProject = (opts: {
       status: InitStatuses.ADD,
       subject: `Makefile: ${ProjectLayout.MAKE_INCLUDE_LINE}`,
     });
-  }
-
-  // A `.mcp.json` that was already there is the project's: it gets the atlas entry as a hint, never an edit.
-  if (
-    !entries.some(entry => entry.subject === '.mcp.json' && entry.status === InitStatuses.CREATED)
-  ) {
-    const servers = readFileSync(join(root, '.mcp.json'), 'utf8');
-
-    if (!runsAtlas({ text: servers })) {
-      entries.push({
-        status: InitStatuses.ADD,
-        subject: `.mcp.json: the atlas server, for the knowledge bundle (and the wiki, when there is one; --root pins the project): ${MCP_SERVER_HINT}`,
-      });
-    }
   }
 
   const gitignore = join(root, '.gitignore');
