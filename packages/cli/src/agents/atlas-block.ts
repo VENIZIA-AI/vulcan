@@ -16,6 +16,7 @@ export const renderAtlasBlock = (opts: { project: string; sources: string[] }): 
     `The \`atlas\` MCP server holds the real code and docs of: ${[`${opts.project} (this repository)`, ...opts.sources].join(', ')}.`,
     'Look facts up there before you answer or write from memory (V-P-07):',
     '`symbol` before you use an export (signature, import path, source line); `search`, then `get`, for how something works or which convention applies; `version` or `changes` for a release or an upgrade.',
+    'A new app or package: ask `presets` which preset and which `vulcan add` command, run it, and never hand-write package.json, tsconfig or scripts.',
     ATLAS_BLOCK_END,
     '',
   ].join('\n');

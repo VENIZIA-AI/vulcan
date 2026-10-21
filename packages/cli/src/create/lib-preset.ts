@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { z } from 'zod';
 import { CreateConstants } from './common/index.ts';
-import type { ILocatedPreset } from './common/index.ts';
+import type { ILocatedPreset, IRecordedPreset } from './common/index.ts';
 
 /** `package.json` fields a lib preset may pass through; anything else it generates itself or does not support. */
 const PACKAGE_FIELDS = ['type', 'sideEffects', 'browser', 'engines'];
@@ -136,4 +136,19 @@ export const readLibPreset = (opts: { located: ILocatedPreset }): TLibPresetResu
   }
 
   return { ok: true, lib: { ...parsed.data, files } };
+};
+
+/** What the preset records of itself: its side and summary, and the lib summary when it makes libraries. */
+export const recordedPresetOf = (opts: {
+  spec: string;
+  located: ILocatedPreset;
+}): IRecordedPreset => {
+  const lib = readLibPreset({ located: opts.located });
+
+  return {
+    spec: opts.spec,
+    side: opts.located.preset.side,
+    summary: opts.located.preset.summary,
+    ...(lib.ok ? { lib: lib.lib.summary } : {}),
+  };
 };

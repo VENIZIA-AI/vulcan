@@ -16,6 +16,17 @@ export const SymbolInputSchema = z.object({
   package: z.string().min(1).optional(),
 });
 
+export const PresetsInputSchema = z.object({
+  /** What is being created; `app` when omitted. `lib` is a shared package. */
+  kind: z.string().min(1).optional(),
+  /** The name of the new app or package, put into the command. */
+  name: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]*$/)
+    .optional(),
+  side: z.enum(['backend', 'frontend']).optional(),
+});
+
 export const VersionInputSchema = z.object({
   cwd: z.string().min(1).optional(),
 });

@@ -15,6 +15,7 @@ export class DoctorChecks {
   static readonly APPS = 'apps';
   static readonly SCRIPTS = 'scripts';
   static readonly AGENTS = 'agents';
+  static readonly DOCKERIGNORE = 'dockerignore';
   static readonly SCHEME_SET = new Set<string>([
     this.CONFIG,
     this.LAYOUT,
@@ -32,6 +33,7 @@ export class DoctorChecks {
     this.APPS,
     this.SCRIPTS,
     this.AGENTS,
+    this.DOCKERIGNORE,
   ]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);

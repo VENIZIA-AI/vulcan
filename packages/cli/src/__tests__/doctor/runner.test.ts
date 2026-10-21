@@ -715,3 +715,70 @@ describe('parseMakeTargets', () => {
     expect(parseMakeTargets({ makefile })).toEqual(['build', 'okf-check']);
   });
 });
+
+describe('doctor: a Dockerfile without a root .dockerignore (info only)', () => {
+  const PACKAGES = "[{ dir: 'api', name: 'api', path: 'services/api' }]";
+  const project = (opts: { files: Record<string, string> }): string =>
+    createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        '.configs/vulcan.config.ts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: ${PACKAGES} };\n`,
+        'services/api/package.json': JSON.stringify({
+          name: 'api',
+          scripts: {
+            'server:dev': 'x',
+            compile: 'x',
+            typecheck: 'x',
+            lint: 'x',
+            'lint:fix': 'x',
+            test: 'x',
+            clean: 'x',
+          },
+        }),
+        ...opts.files,
+      },
+    });
+
+  test('an app with a Dockerfile and no root .dockerignore gets one hint', async () => {
+    const root = project({ files: { 'services/api/.configs/builders/Dockerfile': 'FROM x\n' } });
+
+    expect(await runDoctorNotes({ root })).toEqual([
+      {
+        check: DoctorChecks.DOCKERIGNORE,
+        file: '.dockerignore',
+        message:
+          'app api has a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist and .git',
+      },
+    ]);
+  });
+
+  test('a root .dockerignore, or no Dockerfile, is silent', async () => {
+    const withIgnore = project({
+      files: {
+        'services/api/.configs/builders/Dockerfile': 'FROM x\n',
+        '.dockerignore': '**/node_modules\n',
+      },
+    });
+    const withoutDockerfile = project({ files: {} });
+
+    expect(await runDoctorNotes({ root: withIgnore })).toEqual([]);
+    expect(await runDoctorNotes({ root: withoutDockerfile })).toEqual([]);
+  });
+
+  test('two apps with a Dockerfile give one hint naming both', async () => {
+    const root = project({
+      files: {
+        '.configs/vulcan.config.ts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'api', name: 'api', path: 'services/api' }, { dir: 'jobs', name: 'jobs', path: 'services/jobs' }] };\n`,
+        'services/api/.configs/builders/Dockerfile': 'FROM x\n',
+        'services/jobs/.configs/builders/Dockerfile': 'FROM x\n',
+        'services/jobs/package.json': JSON.stringify({ name: 'jobs', scripts: {} }),
+      },
+    });
+    const notes = (await runDoctorNotes({ root })).filter(
+      note => note.check === DoctorChecks.DOCKERIGNORE,
+    );
+
+    expect(notes).toHaveLength(1);
+    expect(notes[0].message).toContain('apps api, jobs have a Dockerfile');
+  });
+});

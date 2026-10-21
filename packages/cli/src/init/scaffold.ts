@@ -4,6 +4,7 @@ import { BASE_DIRECTORY, ProjectLayout, readProperty } from '../common/index.ts'
 import { ConfigConstants, findConfigFiles } from '../config/index.ts';
 import type { TConfigExtension } from '../config/index.ts';
 import { InitConstants, InitStatuses } from './common/index.ts';
+import { renderDockerignore } from '../create/dockerignore.ts';
 import type { IInitEntry, IScaffoldFile } from './common/index.ts';
 
 /**
@@ -187,6 +188,8 @@ export const scaffoldProject = (opts: {
       })),
     );
   }
+
+  entries.push(writeIfAbsent({ root, path: '.dockerignore', content: renderDockerignore() }));
 
   const makefile = join(root, 'Makefile');
 

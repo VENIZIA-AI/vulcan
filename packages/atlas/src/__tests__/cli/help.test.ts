@@ -71,7 +71,7 @@ describe('tools', () => {
       .map(line => line.split(/\s+/)[0]);
 
     expect(result.code).toBe(0);
-    expect(names).toEqual(['search', 'get', 'symbol', 'version', 'changes']);
+    expect(names).toEqual(['search', 'get', 'symbol', 'version', 'changes', 'presets']);
   });
 
   test('outside a project it fails with the usage, not silently', () => {

@@ -591,6 +591,31 @@ export const checkAgents = (opts: ICheckContext): IViolation[] => {
 };
 
 /** Info only: the Atlas block of AGENTS.md is missing or no longer matches the config. */
+const DOCKERFILE = '.configs/builders/Dockerfile';
+
+/** A Dockerfile is built from the project root: without a root `.dockerignore` the context carries node_modules, dist and .git. */
+export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
+  if (existsSync(join(opts.root, '.dockerignore'))) {
+    return [];
+  }
+
+  const apps = resolvePackages({ config: opts.config })
+    .filter(entry => !entry.retired && existsSync(join(opts.root, entry.path, DOCKERFILE)))
+    .map(entry => entry.dir);
+
+  if (apps.length === 0) {
+    return [];
+  }
+
+  return [
+    createViolation({
+      check: DoctorChecks.DOCKERIGNORE,
+      file: '.dockerignore',
+      message: `${apps.length === 1 ? `app ${apps[0]} has` : `apps ${apps.join(', ')} have`} a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist and .git`,
+    }),
+  ];
+};
+
 export const checkAtlasBlock = (opts: ICheckContext): IViolation[] => {
   const merged = mergedAtlasBlock({ root: opts.root, config: opts.config });
 
