@@ -45,6 +45,7 @@ import {
   updateClone,
 } from './git';
 import { withPullLock } from './lock';
+import { decidePin } from './pin';
 import { downloadTarball, extractTarball, githubRepoOf, hasGit, lsRemoteByHttp } from './tarball';
 
 const COMPLETE = 'complete';
@@ -247,6 +248,8 @@ const buildArtifacts = async (opts: {
   project: IAtlasProject;
   history: boolean;
   tags?: string;
+  /** A pinned tag is read for its docs; the symbols come from what the project installed. */
+  corpusOnly?: boolean;
 }): Promise<void> => {
   const { project } = opts;
   const partial = `${opts.artifacts}.partial`;
@@ -267,7 +270,9 @@ const buildArtifacts = async (opts: {
 
   writeFileSync(join(partial, RELEASES), `${JSON.stringify(releases)}\n`);
 
-  await fetchPublishedSymbols({ source: opts.source, project, releases });
+  if (opts.corpusOnly !== true) {
+    await fetchPublishedSymbols({ source: opts.source, project, releases });
+  }
 
   if (opts.history) {
     writeFileSync(join(partial, HISTORY), '');
@@ -288,6 +293,7 @@ const pullByGit = async (opts: {
   cacheRoot: string;
   sha: string;
   tags?: string;
+  corpusOnly?: boolean;
 }): Promise<void> => {
   const gitDir = gitDirOf(opts);
   const checkout = checkoutOf(opts);
@@ -305,6 +311,7 @@ const pullByGit = async (opts: {
     project,
     history: true,
     tags: opts.tags,
+    corpusOnly: opts.corpusOnly,
   });
 };
 
@@ -373,6 +380,7 @@ const pullByTarball = async (opts: {
   sha: string;
   github: { owner: string; repo: string };
   token?: string;
+  corpusOnly?: boolean;
 }): Promise<void> => {
   const checkout = checkoutOf(opts);
   const work = mkdtempSync(join(tmpdir(), 'atlas-source-tarball-'));
@@ -395,6 +403,7 @@ const pullByTarball = async (opts: {
       artifacts: artifactsOf(opts),
       project,
       history: false,
+      corpusOnly: opts.corpusOnly,
     });
   } finally {
     rmSync(work, { recursive: true, force: true });
@@ -457,6 +466,8 @@ const lookUpRef = async (opts: {
 const resolveRemote = async (opts: {
   source: IAtlasSource;
   force: boolean;
+  /** Only the corpus is wanted (a pinned tag): the release table and the npm symbols are another ref's job. */
+  corpusOnly?: boolean;
 }): Promise<IResolvedSource> => {
   const cacheRoot = cacheRootOf(opts.source);
   const byGit = hasGit();
@@ -491,9 +502,13 @@ const resolveRemote = async (opts: {
   }
 
   if (!opts.force && isComplete({ cacheRoot, sha })) {
-    await refreshReleases({ source: opts.source, cacheRoot, sha, tags: remote.tags });
-
     const served = servedFrom({ source: opts.source, cacheRoot, sha, mode: 'cache' });
+
+    if (opts.corpusOnly === true) {
+      return served;
+    }
+
+    await refreshReleases({ source: opts.source, cacheRoot, sha, tags: remote.tags });
 
     // What npm could not give at the pull, asked again in the background: `complete` never stops
     // the retry, and a registry that stalls never holds up the start.
@@ -519,9 +534,22 @@ const resolveRemote = async (opts: {
       rmSync(checkoutOf({ cacheRoot, sha }), { recursive: true, force: true });
 
       if (byGit) {
-        await pullByGit({ source: opts.source, cacheRoot, sha, tags: remote.tags });
+        await pullByGit({
+          source: opts.source,
+          cacheRoot,
+          sha,
+          tags: remote.tags,
+          corpusOnly: opts.corpusOnly,
+        });
       } else if (github !== undefined) {
-        await pullByTarball({ source: opts.source, cacheRoot, sha, github, token });
+        await pullByTarball({
+          source: opts.source,
+          cacheRoot,
+          sha,
+          github,
+          token,
+          corpusOnly: opts.corpusOnly,
+        });
       }
 
       pruneOlderShas({ cacheRoot, served: sha });
@@ -531,9 +559,68 @@ const resolveRemote = async (opts: {
   });
 };
 
+/**
+ * A remote source as the project runs it. The ref is resolved first: its manifest and release table
+ * say which release the installed packages are. The corpus is then read at that release's tag; the
+ * release table stays the ref's, so `version` and `changes` still know the newer releases. When nothing
+ * can be pinned the ref is served and `pin.reason` says why.
+ */
+const resolveAtInstalled = async (opts: {
+  source: IAtlasSource;
+  cwd: string;
+  force: boolean;
+}): Promise<IResolvedSource> => {
+  const base = await resolveRemote({ source: opts.source, force: opts.force });
+  const atRef = (reason: string): IResolvedSource => ({
+    ...base,
+    pin: { ref: opts.source.ref, pinned: false, reason },
+  });
+
+  if (opts.source.pin === 'ref') {
+    return atRef('pin is ref');
+  }
+
+  if (base.releasesFile === undefined) {
+    return atRef('no release table to read the installed version from');
+  }
+
+  const decision = decidePin({
+    cwd: opts.cwd,
+    project: base.project,
+    table: JSON.parse(readFileSync(base.releasesFile, 'utf8')),
+  });
+
+  if (!decision.pinned) {
+    return atRef(decision.reason);
+  }
+
+  try {
+    const at = await resolveRemote({
+      source: { ...opts.source, ref: decision.tag },
+      force: opts.force,
+      corpusOnly: true,
+    });
+
+    return {
+      ...at,
+      declared: opts.source,
+      releasesFile: base.releasesFile,
+      history: base.history,
+      pin: { ref: decision.tag, pinned: true, reason: decision.basis },
+    };
+  } catch (error) {
+    return atRef(
+      `could not read ${decision.tag}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+};
+
 /** One remote source resolved again, as a start does: the cache for the SHA its ref names now, a pull when it moved. */
-export const resolveRemoteSource = (opts: { source: IAtlasSource }): Promise<IResolvedSource> =>
-  resolveRemote({ source: opts.source, force: false });
+export const resolveRemoteSource = (opts: {
+  source: IAtlasSource;
+  cwd: string;
+}): Promise<IResolvedSource> =>
+  resolveAtInstalled({ source: opts.source, cwd: opts.cwd, force: false });
 
 /**
  * Every source atlas serves: the working directory when it has a manifest (repo mode, no git), then
@@ -559,7 +646,7 @@ export const resolveSources = async (opts: {
   const remote: IResolvedSource[] = [];
 
   for (const source of opts.sources) {
-    remote.push(await resolveRemote({ source, force: opts.force ?? false }));
+    remote.push(await resolveAtInstalled({ source, cwd: opts.cwd, force: opts.force ?? false }));
   }
 
   return [...resolveSelf(opts), ...remote];
@@ -579,7 +666,7 @@ export const resolveServableSources = async (opts: {
 
   for (const source of opts.sources) {
     try {
-      remote.push(await resolveRemote({ source, force: false }));
+      remote.push(await resolveAtInstalled({ source, cwd: opts.cwd, force: false }));
     } catch (error) {
       unavailable.push({ source, reason: error instanceof Error ? error.message : String(error) });
     }

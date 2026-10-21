@@ -255,7 +255,8 @@ export const buildSourcesServer = (opts: {
   });
   const projects = projectsOf({ sources: opts.sources });
   const resolve =
-    opts.refresh?.resolve ?? ((source: IAtlasSource) => resolveRemoteSource({ source }));
+    opts.refresh?.resolve ??
+    ((source: IAtlasSource) => resolveRemoteSource({ source, cwd: opts.cwd }));
   const targets = opts.sources.flatMap((source, index): IRefreshTarget[] => {
     const entry = stores[index];
     const target =
