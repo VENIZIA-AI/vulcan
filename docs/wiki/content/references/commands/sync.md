@@ -34,13 +34,13 @@ The first `sync` in a terminal detects the agents on the machine (a binary on `P
 
 ```text
 $ bun x --no-install vulcan sync
-Which coding agents do you use in this project? (comma-separated, Enter accepts)
+Which coding agents do you use in this project? (comma-separated; Enter accepts the detected list: claude, omp)
   detected: claude, omp
   available: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
 ? Agents > claude,omp
 ```
 
-The answer is stored in `.agents/vulcan.local.json`, which is gitignored, and every later `sync` uses it without asking. Without a terminal, give the list: `vulcan sync --agents claude,omp` (`none` writes only `AGENTS.md`-level files).
+The answer is stored in `.agents/vulcan.local.json`, which is gitignored, and every later `sync` uses it without asking. On the first question an empty answer (Enter) takes the detected list. When you ask again (`vulcan sync --agents` with no value, or `vulcan agents setup`), the question shows `chosen before:` and Enter keeps that choice; to change it, type the new list, or `none`. Without a terminal, give the list: `vulcan sync --agents claude,omp` (`none` writes only `AGENTS.md`-level files).
 
 The order that decides the list is: the `--agents` flag; the stored file; the `agents` list in the project's config, when it has one; a project that already has `CLAUDE.md` or `.claude/` (treated as `claude`); then the question. When nothing is known and there is no terminal, `sync` does what it always did, writes the Claude files, and prints one line saying how to choose; it stores nothing. What each chosen agent gets from `sync`:
 

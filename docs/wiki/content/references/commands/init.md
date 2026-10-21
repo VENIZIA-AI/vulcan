@@ -264,7 +264,7 @@ Fetching preset @venizia/ignis@latest ...
 bun install v1.4.3 (c6da4a4d3)
 + @venizia/vulcan@0.3.7
 236 packages installed [69.23s]
-Which coding agents do you use in this project? (comma-separated, Enter accepts)
+Which coding agents do you use in this project? (comma-separated; Enter accepts the detected list: claude, omp)
   detected: claude, omp
   available: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
 ? Agents > claude

@@ -12,7 +12,7 @@ Which coding agents you use is your choice on your machine, stored in `.agents/v
 | `vulcan agents` or `vulcan agents list` | Prints the agents chosen on this machine, the ones it detected, and the table of every agent with the MCP file and skills folder it reads. Writes nothing |
 | `vulcan agents add pi,cursor` | Adds to the stored list and writes the adapters of the new agents |
 | `vulcan agents remove cursor` | Removes from the list and takes back what `sync` created for that agent |
-| `vulcan agents setup` | Asks again, with your earlier choice shown, then applies the answer. Needs a terminal |
+| `vulcan agents setup` | Asks again, with your earlier choice shown (`chosen before`); Enter keeps it, a typed list or `none` replaces it. Needs a terminal |
 
 `--dry-run` prints what would change and writes nothing. The ids are `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity` and `pi`; an unknown id is refused, and so is `none` for `add` and `remove` (use `sync --agents none` for an empty list).
 

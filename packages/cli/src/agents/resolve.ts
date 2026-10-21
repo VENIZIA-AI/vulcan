@@ -78,8 +78,15 @@ export const resolveAgents = (opts: {
       };
     }
 
+    // Enter keeps what this machine chose before; with no earlier choice it takes what was detected.
     return answer.trim() === ''
-      ? { ok: true, agents: opts.detected, source: 'asked', writeLocal: true, hint: undefined }
+      ? {
+          ok: true,
+          agents: stored.agents ?? opts.detected,
+          source: 'asked',
+          writeLocal: true,
+          hint: undefined,
+        }
       : fromList({ value: answer, source: 'asked' });
   };
 

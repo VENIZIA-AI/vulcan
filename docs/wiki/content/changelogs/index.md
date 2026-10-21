@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-21 | [VULCAN 0.3.8: Enter Keeps Your Chosen Agents](./2026-10-21-vulcan-0-3-8-agents-enter) | Bug Fix |
 | 2026-10-21 | [VULCAN 0.3.8: doctor Warns When atlas Is Registered the Wrong Way](./2026-10-21-vulcan-0-3-8-doctor-mcp) | Enhancement |
 | 2026-10-21 | [VULCAN 0.3.7: The Root .dockerignore Keeps .env Files Out of Images](./2026-10-21-vulcan-0-3-7-dockerignore-env) | Security |
 | 2026-10-21 | [VULCAN 0.3.6: Tool Configs Live in .configs/lints, formatters and builders](./2026-10-21-vulcan-0-3-6-configs-layout) | Enhancement, Breaking Change |
