@@ -10,6 +10,14 @@ counted as concepts.
 
 In a terminal that can draw them (stdin and stdout TTY, TERM not dumb) the questions are `@clack/prompts` menus: an agents checkbox, selects for the kind, folders, proxy backend and preset, text with a default only for new names, a summary and a confirm before writing; `NO_COLOR` honoured. Everywhere else the plain line questions stay byte for byte. The wrapper is `packages/cli/src/ui`; no command imports clack directly. Concept: [cli](/packages/cli.md).
 
+## 2026-10-21 - the build-a-feature skill ships
+
+Updated [cli](/packages/cli.md): the base ships a fourth skill, `build-a-feature` - a feature from the user's goal to a reviewed, tested change, looking up conventions and APIs in atlas at each step (`search`, `symbol`, `presets`). `sync` links it first (names sort), and its name is reserved like the other three.
+
+## 2026-10-21 - presets also lists the official presets not used yet
+
+The atlas `presets` tool answers recorded presets first (`inProject: true`), then the official ones the project has not used (ignis app and lib, ardor app and lib; `inProject: false`), with the exact command (ardor's `--api <app> | --no-api` included); a recorded `@venizia/ardor@x` replaces the official entry. Found when an agent said there is no frontend preset because the project had recorded none. Concept: [atlas](/packages/atlas.md).
+
 ## 2026-10-21 - atlas: a how-to-build question must search first
 
 The atlas server's instructions get a second paragraph (lead still <= 512 characters, whole text < 2 KB): a question about how to build something here, or how a framework organises a feature, must `search` then `get` before the answer, and a plan never says "check atlas" for a step not done; the `search` description names "how to build something"; the AGENTS.md Atlas block says the same for agents that do not show the server's text. Found by a fresh-project test where the agent read files and claimed to check atlas. Concept: [atlas](/packages/atlas.md).

@@ -43,7 +43,7 @@ Questions go through `packages/cli/src/ui` (wrappers over the pinned `@clack/pro
 |---|---|
 | `rules.md` | the base rules, `V-W/S/P/B` (interim) plus IGNIS's coding style `V-C-01..18` |
 | `slots.json` | base rules a project picks a wording for: `V-W-01` `on-user-word` or `read-only` (adds a git deny list) |
-| `skills/` | `knowledge-sync` (with its Workflow script), `docs-writing` and `docs-update` - project-neutral; skill evals have not been run against a model |
+| `skills/` | `knowledge-sync` (with its Workflow script), `docs-writing`, `docs-update` and `build-a-feature` - project-neutral; skill evals have not been run against a model |
 | `hooks/` | `session-start.ts` (rules digest) and `guard-writes.ts` (asks before `V-W-02`/`V-W-03` writes) and `guard-manifest.ts` (denies a Write/Edit/MultiEdit/NotebookEdit or a Bash redirect, `tee`, `sed -i`, `cp`/`mv` onto, or `rm` of `.agents/vulcan.manifest.json`) and `guard-package.ts` (denies a Write of a new `package.json` in a layout folder when a recorded preset makes that kind and gives the `vulcan add` command, else only a note) and `guard-remote-hosts.ts` (registered by sync only when the config sets `remoteHosts`: asks before a command reaches an unlisted host, also through HTTP clients to a readOnly host, a piped shell, a nested ssh or a loop body) |
 | `claude/settings.json` | shared Claude settings registering both hooks |
 | `make/vulcan.mk` | shipped make targets, all through `bun x --no-install vulcan` |

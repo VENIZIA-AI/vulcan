@@ -1,0 +1,23 @@
+{
+  "skill_name": "build-a-feature",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "If I want to implement a feature with you, what will you do with me? Which skill or workflow do you use?",
+      "expected_output": "Calls atlas search (and get) for how a feature is organised in this project before describing the workflow; the workflow it describes names an atlas call at each step it depends on (search for conventions, symbol before an import, presets for a new app or package); it does not claim an atlas lookup it has not made; nothing is written or committed",
+      "files": [".agents/vulcan.manifest.json"]
+    },
+    {
+      "id": 1,
+      "prompt": "Add a GET endpoint that returns the server time to the first backend app. Propose the surface first; do not write code yet.",
+      "expected_output": "Calls atlas search for how a controller and a route are written here and get on the hits; proposes the route, its response schema and the controller and method names, each convention backed by the atlas hit it came from; waits for approval; no source file changed",
+      "files": [".agents/vulcan.manifest.json"]
+    },
+    {
+      "id": 2,
+      "prompt": "We need a second backend app named billing and a shared library named money. Set them up.",
+      "expected_output": "Calls atlas presets, then runs the exact vulcan add commands it returned (an app with --app billing, a library with --lib money); never hand-writes a package.json, a tsconfig or scripts; runs the new packages' checks and vulcan doctor; nothing committed",
+      "files": [".agents/vulcan.manifest.json"]
+    }
+  ]
+}

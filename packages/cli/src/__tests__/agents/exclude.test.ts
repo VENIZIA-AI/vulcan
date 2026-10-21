@@ -8,7 +8,7 @@ import {
 } from '../../agents/index.ts';
 
 describe('excludePathsOf', () => {
-  const SKILLS = ['docs-update', 'docs-writing', 'knowledge-sync'];
+  const SKILLS = ['build-a-feature', 'docs-update', 'docs-writing', 'knowledge-sync'];
 
   test('always lists the local choice file', () => {
     expect(
@@ -64,6 +64,7 @@ describe('excludePathsOf', () => {
 
     expect(omp?.paths).toEqual([
       '/.mcp.json',
+      '/.agents/skills/build-a-feature',
       '/.agents/skills/docs-update',
       '/.agents/skills/docs-writing',
       '/.agents/skills/knowledge-sync',

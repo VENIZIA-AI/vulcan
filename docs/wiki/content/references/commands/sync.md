@@ -55,7 +55,7 @@ The order that decides the list is: the `--agents` flag; the stored file; the `a
 | `antigravity` | `mcpServers.atlas` | `.agents/mcp_config.json` |
 | `pi` | `mcpServers.atlas` | `.pi/mcp.json`; Pi ignores it until you trust the project |
 
-These files are for your machine, so the entry carries the absolute project root and calls the project's own `vulcan` (`bun <root>/node_modules/.bin/vulcan x atlas mcp --root <root>`), which works whatever directory the agent starts the server from. `sync` merges: your other servers and keys stay, an `atlas` entry that `sync` wrote itself is rewritten when the project has moved (the paths no longer match this folder: after you move, rename or copy the project, run `sync` again), any other `atlas` entry is yours and is left as it is, a file that is not valid JSON is skipped (`skipped`, with the reason), and a file git tracks is not written (it prints what to add). After the actions, `sync` prints one `note` line for each thing only you can do, such as trusting the project in Codex or Pi. Every chosen agent except Claude reads skills from `.agents/skills/<name>/SKILL.md`, so `sync` links the three shipped skills (`docs-update`, `docs-writing`, `knowledge-sync`) there, as symbolic links to the same stable path the Claude links use. Agents that share the folder share the links. A skill of yours with the same name wins: its real folder is left and reported as `skipped`. Claude keeps `.claude/skills`, which also holds your project skills. The git ignore entries for these files are described in [Keeping the adapters out of git](#keeping-the-adapters-out-of-git).
+These files are for your machine, so the entry carries the absolute project root and calls the project's own `vulcan` (`bun <root>/node_modules/.bin/vulcan x atlas mcp --root <root>`), which works whatever directory the agent starts the server from. `sync` merges: your other servers and keys stay, an `atlas` entry that `sync` wrote itself is rewritten when the project has moved (the paths no longer match this folder: after you move, rename or copy the project, run `sync` again), any other `atlas` entry is yours and is left as it is, a file that is not valid JSON is skipped (`skipped`, with the reason), and a file git tracks is not written (it prints what to add). After the actions, `sync` prints one `note` line for each thing only you can do, such as trusting the project in Codex or Pi. Every chosen agent except Claude reads skills from `.agents/skills/<name>/SKILL.md`, so `sync` links the four shipped skills (`build-a-feature`, `docs-update`, `docs-writing`, `knowledge-sync`) there, as symbolic links to the same stable path the Claude links use. Agents that share the folder share the links. A skill of yours with the same name wins: its real folder is left and reported as `skipped`. Claude keeps `.claude/skills`, which also holds your project skills. The git ignore entries for these files are described in [Keeping the adapters out of git](#keeping-the-adapters-out-of-git).
 
 ## The root .mcp.json
 
@@ -108,6 +108,7 @@ Which agents you use is your choice, so the committed `.gitignore` cannot list y
 # cursor
 /.cursor/mcp.json
 # omp
+/.agents/skills/build-a-feature
 /.agents/skills/docs-update
 /.agents/skills/docs-writing
 /.agents/skills/knowledge-sync
@@ -126,6 +127,7 @@ To generate missing adapters and the manifest, run `vulcan sync`:
 $ bun x --no-install vulcan sync
   created   CLAUDE.md
   created   .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  created   .claude/skills/build-a-feature
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing
   created   .claude/skills/knowledge-sync
@@ -144,6 +146,7 @@ Running `vulcan sync` again on an up-to-date repository makes no changes:
 $ bun x --no-install vulcan sync
   unchanged CLAUDE.md
   unchanged .claude/settings.json
+  unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/knowledge-sync
@@ -221,6 +224,7 @@ To preview filesystem operations without making changes, pass `--dry-run`:
 $ bun x --no-install vulcan sync --dry-run
   would create  CLAUDE.md
   would create  .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  would create  .claude/skills/build-a-feature
   would create  .claude/skills/docs-update
   would create  .claude/skills/docs-writing
   would create  .claude/skills/knowledge-sync
@@ -239,6 +243,7 @@ To remove obsolete hooks and dead skill links, pass `--prune`:
 $ bun x --no-install vulcan sync --prune
   unchanged CLAUDE.md
   replaced  .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/knowledge-sync

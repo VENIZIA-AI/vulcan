@@ -2,12 +2,20 @@ import type { IAtlasPreset, IAtlasProject } from '@/common/project-config';
 import type { IToolHandler } from '@/protocol/common';
 import { dirname } from 'node:path';
 import { z } from 'zod';
-import { parseInput, PresetsInputSchema, ToolTriggers } from './common';
+import {
+  OFFICIAL_PRESETS,
+  officialIdOf,
+  parseInput,
+  PresetsInputSchema,
+  ToolTriggers,
+} from './common';
 
 const DESCRIPTION =
   'Lists the presets this project can create from, the folder each one lands in and the exact ' +
-  '`vulcan add` command for the `kind` you ask (app by default, lib for a shared package). When ' +
-  'no preset fits the kind it says so plainly: then ask the user, never hand-write the package.';
+  '`vulcan add` command for the `kind` you ask (app by default, lib for a shared package): the ' +
+  'presets this project recorded first, then the official ones it has not used yet, marked ' +
+  '`inProject: false`. When no preset fits the kind it says so plainly: then ask the user, never ' +
+  'hand-write the package.';
 
 const INPUT_JSON_SCHEMA = z.toJSONSchema(PresetsInputSchema);
 
@@ -20,63 +28,75 @@ interface IPresetEntry {
   summary: string;
   folder: string | null;
   command: string;
+  /** `true` for a preset this project recorded; `false` for an official one it has not used yet. */
+  inProject: boolean;
 }
 
 /** The folder an app of this side lands in: the layout's, or nothing (never invented). */
-const appFolderOf = (opts: { project: IAtlasProject; side: IAtlasPreset['side'] }): string | null =>
-  opts.project.layout?.[opts.side] ?? null;
+const appFolderOf = (opts: {
+  project: IAtlasProject | undefined;
+  side: IAtlasPreset['side'];
+}): string | null => opts.project?.layout?.[opts.side] ?? null;
 
 /** The folder a library lands in: the layout's shared folder, else the one folder the existing libraries share. */
-const libFolderOf = (opts: { project: IAtlasProject }): string | null => {
+const libFolderOf = (opts: { project: IAtlasProject | undefined }): string | null => {
   const folders = [
     ...new Set(
-      opts.project.packages
+      (opts.project?.packages ?? [])
         .filter(entry => entry.kind === 'lib' && !entry.retired)
         .map(entry => dirname(entry.path)),
     ),
   ];
 
-  return opts.project.layout?.shared ?? (folders.length === 1 ? folders[0] : null);
+  return opts.project?.layout?.shared ?? (folders.length === 1 ? folders[0] : null);
 };
 
 const appEntry = (opts: {
-  project: IAtlasProject;
-  preset: IAtlasPreset;
+  project: IAtlasProject | undefined;
+  spec: string;
+  side: IAtlasPreset['side'];
+  summary: string;
   name: string;
+  inProject: boolean;
 }): IPresetEntry => {
-  const { preset } = opts;
-  const folder = appFolderOf({ project: opts.project, side: preset.side });
-  const dirFlag = folder === null ? ` --${preset.side}-dir <folder>` : '';
-  const api = preset.side === 'frontend' ? ' --api <backend app> | --no-api' : '';
+  const folder = appFolderOf({ project: opts.project, side: opts.side });
+  const dirFlag = folder === null ? ` --${opts.side}-dir <folder>` : '';
+  const api = opts.side === 'frontend' ? ' --api <backend app> | --no-api' : '';
 
   return {
-    preset: preset.spec,
-    side: preset.side,
-    summary: preset.summary,
+    preset: opts.spec,
+    side: opts.side,
+    summary: opts.summary,
     folder,
-    command: `${ADD} --preset ${preset.spec} --app ${opts.name}${dirFlag}${api}`,
+    command: `${ADD} --preset ${opts.spec} --app ${opts.name}${dirFlag}${api}`,
+    inProject: opts.inProject,
   };
 };
 
 const libEntry = (opts: {
-  project: IAtlasProject;
-  preset: IAtlasPreset;
+  project: IAtlasProject | undefined;
+  spec: string;
+  summary: string;
   name: string;
+  inProject: boolean;
 }): IPresetEntry => {
   const folder = libFolderOf({ project: opts.project });
 
   return {
-    preset: opts.preset.spec,
-    summary: opts.preset.lib ?? opts.preset.summary,
+    preset: opts.spec,
+    summary: opts.summary,
     folder,
-    command: `${ADD} --preset ${opts.preset.spec} --lib ${opts.name}${folder === null ? ' --dir <folder>' : ''}`,
+    command: `${ADD} --preset ${opts.spec} --lib ${opts.name}${folder === null ? ' --dir <folder>' : ''}`,
+    inProject: opts.inProject,
   };
 };
 
 /**
  * The presets of this project for the kind asked, from the manifest `vulcan sync` renders: nothing is
- * read from `node_modules`, and a kind no recorded preset makes is said plainly, never filled with an
- * app preset or an invented command.
+ * read from `node_modules`. The recorded presets come first; the official ones the project has not
+ * used follow, marked `inProject: false`, so an agent never concludes that no frontend preset exists
+ * because the project has none yet. A kind no preset makes is said plainly, never filled with an app
+ * preset or an invented command.
  */
 export const buildPresetsTool = (opts: {
   project: IAtlasProject | undefined;
@@ -102,32 +122,86 @@ export const buildPresetsTool = (opts: {
     }
 
     const recorded = project?.presets ?? [];
+    const fits = (side: IAtlasPreset['side']): boolean =>
+      input.side === undefined || side === input.side;
+    const entries: IPresetEntry[] =
+      kind === 'app'
+        ? [
+            ...recorded
+              .filter(preset => fits(preset.side))
+              .map(preset =>
+                appEntry({
+                  project,
+                  spec: preset.spec,
+                  side: preset.side,
+                  summary: preset.summary,
+                  name,
+                  inProject: true,
+                }),
+              ),
+            ...OFFICIAL_PRESETS.filter(
+              official =>
+                fits(official.side) &&
+                !recorded.some(preset => officialIdOf({ spec: preset.spec }) === official.id),
+            ).map(official =>
+              appEntry({
+                project,
+                spec: official.id,
+                side: official.side,
+                summary: official.summary,
+                name,
+                inProject: false,
+              }),
+            ),
+          ]
+        : [
+            ...recorded
+              .filter(preset => preset.lib !== undefined)
+              .map(preset =>
+                libEntry({
+                  project,
+                  spec: preset.spec,
+                  summary: preset.lib ?? preset.summary,
+                  name,
+                  inProject: true,
+                }),
+              ),
+            ...OFFICIAL_PRESETS.filter(
+              official =>
+                !recorded.some(
+                  preset =>
+                    officialIdOf({ spec: preset.spec }) === official.id && preset.lib !== undefined,
+                ),
+            ).map(official =>
+              libEntry({
+                project,
+                spec: official.id,
+                summary: official.lib,
+                name,
+                inProject: false,
+              }),
+            ),
+          ];
 
-    if (recorded.length === 0) {
+    if (entries.length === 0) {
       return {
         kind,
         presets: [],
-        note: 'this project has no recorded preset: ask the user which preset to use; the form is `vulcan add --preset <name|file:path> --app <name>` (--lib <name> for a shared package)',
+        note: `no preset makes a ${kind}: ask the user how it should be made; ${NO_HAND_WRITING}, and do not use an app preset for it`,
       };
     }
 
-    const entries =
-      project === undefined
-        ? []
-        : kind === 'app'
-          ? recorded
-              .filter(preset => input.side === undefined || preset.side === input.side)
-              .map(preset => appEntry({ project, preset, name }))
-          : recorded
-              .filter(preset => preset.lib !== undefined)
-              .map(preset => libEntry({ project, preset, name }));
+    if (entries.some(entry => entry.inProject)) {
+      return { kind, presets: entries };
+    }
 
-    return entries.length === 0
-      ? {
-          kind,
-          presets: [],
-          note: `no recorded preset makes a ${kind}: ask the user which preset to use, or how it should be made; ${NO_HAND_WRITING}, and do not use an app preset for it`,
-        }
-      : { kind, presets: entries };
+    return {
+      kind,
+      presets: entries,
+      note:
+        recorded.length === 0
+          ? 'this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use'
+          : `no recorded preset makes a ${kind === 'lib' ? 'lib' : (input.side ?? 'app')}: the entries are the official ones, marked inProject false; ask the user which to use, and ${NO_HAND_WRITING}`,
+    };
   },
 });
