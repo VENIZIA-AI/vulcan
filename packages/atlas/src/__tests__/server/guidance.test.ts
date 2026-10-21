@@ -172,6 +172,81 @@ describe('instructionsOf', () => {
   });
 });
 
+describe('skills in the instructions', () => {
+  const acme = repositoryOf({ name: 'acme', packages: ['@acme/core'] });
+  const skills = [
+    {
+      name: 'build-a-feature',
+      trigger:
+        'the user asks to build, add or implement something, asks how a feature would be built here, or asks which skill or workflow you follow for a feature',
+    },
+    { name: 'docs-update', trigger: 'the user asks to update the wiki or the docs' },
+  ];
+
+  test('one line per skill, name and trigger, after the second paragraph and before the status lines', () => {
+    const text = instructionsOf({ sources: [acme], unavailable: [], skills });
+    const paragraphs = text.split('\n\n');
+
+    expect(paragraphs[2]).toBe(
+      [
+        'Skills: a request matches one, load it before you answer. A workflow question counts.',
+        '- `build-a-feature`: the user asks to build, add or implement something, asks how a feature would be built here',
+        '- `docs-update`: the user asks to update the wiki or the docs',
+      ].join('\n'),
+    );
+    expect(paragraphs[3]).toContain('Atlas serves 1 source(s)');
+  });
+
+  test('a long trigger is cut at a comma or a word, never mid-word, at 110 characters', () => {
+    const text = instructionsOf({ sources: [acme], unavailable: [], skills });
+    const line = text.split('\n').find(row => row.startsWith('- `build-a-feature`')) ?? '';
+
+    expect(line.length).toBeLessThanOrEqual('- `build-a-feature`: '.length + 110);
+    expect(line.endsWith(',')).toBe(false);
+  });
+
+  test('no skills, no section', () => {
+    expect(instructionsOf({ sources: [acme], unavailable: [] })).not.toContain('Skills:');
+    expect(instructionsOf({ sources: [acme], unavailable: [], skills: [] })).not.toContain(
+      'Skills:',
+    );
+  });
+
+  test('four corpora, one unreachable, and four skills still fit 2048 bytes', () => {
+    const four = [
+      acme,
+      remoteOf({ name: 'anvil', packages: ['@anvil/kernel', '@anvil/boot'] }),
+      remoteOf({ name: 'bellows', packages: ['@bellows/air'] }),
+      remoteOf({ name: 'tongs', packages: ['@tongs/grip'] }),
+    ];
+    const four4 = [
+      ...skills,
+      {
+        name: 'docs-writing',
+        trigger:
+          'you write or edit anything a human will read - wiki pages, READMEs, changelogs, references',
+      },
+      {
+        name: 'knowledge-sync',
+        trigger:
+          'the user asks to sync knowledge, refresh the knowledge bundle, audit concepts against code',
+      },
+    ];
+    const text = instructionsOf({
+      sources: four,
+      unavailable: [
+        {
+          source: { name: 'ardor', repo: 'VENIZIA-AI/ardor', ref: 'develop' },
+          reason: 'the remote was unreachable',
+        },
+      ],
+      skills: four4,
+    });
+
+    expect(Buffer.byteLength(text, 'utf8')).toBeLessThan(2048);
+  });
+});
+
 describe('a server built from a project', () => {
   const call = async (opts: { method: string }) => {
     const transport = buildServer({ root: ACME, version: '0.0.0' });

@@ -18,7 +18,6 @@ export const renderAtlasBlock = (opts: { project: string; sources: string[] }): 
     '`symbol` before you use an export (signature, import path, source line); `search`, then `get`, for how something works or which convention applies; `version` or `changes` for a release or an upgrade.',
     'A new app or package: ask `presets` which preset and which `vulcan add` command, run it, and never hand-write package.json, tsconfig or scripts.',
     'How to build something here (a feature, a controller, a service, a repository): `search` first, then `get`, before you answer; a plan never says "check atlas" for a step you have not done.',
-    'To build a feature, or to answer how one would be built, load the `build-a-feature` skill first.',
     ATLAS_BLOCK_END,
     '',
   ].join('\n');

@@ -37,7 +37,7 @@ export class Transport extends BaseHelper {
   private readonly tools: IToolHandler[];
   private readonly serverName: string;
   private readonly serverVersion: string;
-  private readonly instructions?: string;
+  private readonly instructions?: string | (() => string);
   private readonly onCall?: () => void;
 
   constructor(opts: {
@@ -45,7 +45,7 @@ export class Transport extends BaseHelper {
     serverName: string;
     serverVersion: string;
     /** What a client should know before it calls - which sources, and whether one is offline. */
-    instructions?: string;
+    instructions?: string | (() => string);
     /** Called on every `tools/call`, before it runs - a server that refreshes what it serves pokes here. */
     onCall?: () => void;
   }) {
@@ -127,7 +127,14 @@ export class Transport extends BaseHelper {
             protocolVersion,
             capabilities: { tools: {} },
             serverInfo: { name: this.serverName, version: this.serverVersion },
-            ...(this.instructions === undefined ? {} : { instructions: this.instructions }),
+            ...(this.instructions === undefined
+              ? {}
+              : {
+                  instructions:
+                    typeof this.instructions === 'function'
+                      ? this.instructions()
+                      : this.instructions,
+                }),
           },
         });
       }

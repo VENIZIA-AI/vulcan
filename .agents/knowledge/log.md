@@ -6,9 +6,9 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
-## 2026-10-22 - the Atlas block says to load build-a-feature first
+## 2026-10-22 - atlas lists the project's skills in its instructions
 
-One of six GLM 5.3 Flash runs answered a feature question without loading the build-a-feature skill. The Atlas block `renderAtlasBlock` writes into AGENTS.md now ends with the line telling the agent to load the skill first, to build a feature or to answer how one would be built. Concept: [cli](/packages/cli.md).
+One of six GLM 5.3 Flash runs answered a feature question without loading the build-a-feature skill. AGENTS.md must stay routing only, so skill routing went into the atlas server's `instructions`: a third paragraph, one line per skill (`skillCatalogOf`: the shipped skills of the installed vulcan plus `.agents/skills`, shadowing names left out) with its "Use when" trigger (`triggerOf`, cut at 110 characters), built at every `initialize` so an added, renamed or deleted skill needs no edit. `vulcan doctor` warns about a skill with no "Use when". docs-writing opens with the concision rule. Concept: [atlas](/packages/atlas.md).
 
 ## 2026-10-21 - the build-a-feature description says to load it before answering
 

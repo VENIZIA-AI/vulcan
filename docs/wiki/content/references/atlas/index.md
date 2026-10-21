@@ -129,11 +129,22 @@ An agent that is not told when to use atlas answers from memory. The server ther
 Atlas holds the real code and docs of my-product (this repository) and ignis. Do not answer facts about my-product and ignis from memory when atlas can answer them: call `symbol` for each export before you write code that imports their packages (`@venizia/*`, `api`), `search` then `get` when the user asks how something works or which convention applies, `version` or `changes` for a release or an upgrade, `presets` before you create an app or package.
 
 Before you answer how to build something in my-product and ignis (a feature, a controller, a service, a repository, a datasource) or how a convention is organised, call `search` and read the hits with `get`; do not answer from the files you happen to open. A plan never says "check atlas" for a step you have not done: call it first.
+
+Skills: a request matches one, load it before you answer. A workflow question counts.
+- `build-a-feature`: the user asks to build, add or implement something, asks how a feature would be built here
+- `docs-update`: the user asks to update the wiki or the docs, document a change or a feature, refresh a page
 ```
 
 - **The tool descriptions** above.
 
-The first paragraph alone carries the corpora, the rule and the four triggers in at most 512 characters, because some clients keep only that much; the second says that a question about how to build something here must `search` first, and that a plan never says "check atlas" for a step not done; the whole text stays under 2 KB. The lines after them say how each source was reached; a source that is offline or unavailable is named there. The session-start digest repeats the corpora and the rule in an "Atlas" block, and the base rule `V-P-07` states it ([Rules](/references/rules)).
+The first paragraph alone carries the corpora, the rule and the four triggers in at most 512 characters, because some clients keep only that much; the second says that a question about how to build something here must `search` first, and that a plan never says "check atlas" for a step not done; a third lists the project's skills, one line each with its "Use when" trigger (cut at about 110 characters), and says to load a matching skill before answering, a workflow question included; the whole text stays under 2 KB.
+
+The skill lines are read from disk each time a client connects: the shipped skills of the installed `@venizia/vulcan` (`node_modules/@venizia/vulcan/base/skills`) and your own in `.agents/skills`, the set `vulcan sync` links, a project skill that shadows a shipped name left out. A skill you add, rename or delete shows on the next connect; nothing is written by hand and `AGENTS.md` does not grow. Start a skill's `description` with what it does, then a `Use when ...` sentence; `vulcan doctor` warns, without failing, about one with no such sentence.
+
+The lines after them say how each source was reached; a source that is offline or unavailable is named there. The session-start digest repeats the corpora and the rule in an "Atlas" block, and the base rule `V-P-07` states it ([Rules](/references/rules)).
+
+Which agents show these instructions to the model is recorded per agent in `vulcan agents list` (`instructionsSurfaced`).
+
 
 For tool arguments and reply schemas, see the [atlas tools reference](/references/atlas/tools).
 
