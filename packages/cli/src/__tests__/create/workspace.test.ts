@@ -10,6 +10,7 @@ import {
   readPort,
   recordPreset,
   renderAppConcept,
+  renderLibConcept,
   renderAppManifest,
   renderAppsBlock,
   renderKnowledgeIndex,
@@ -333,6 +334,41 @@ describe('workspace planners', () => {
     expect(concept).toContain('resource: services/core-api');
     expect(concept).toContain('tags: [packages, backend]');
     expect(concept).toContain('@venizia/widget');
+  });
+
+  // An agent took a one-line page for a spec; the page says it is not one and names the lookups.
+  test('the app concept says it is a summary and points at the atlas lookups of its side', () => {
+    const backend = renderAppConcept({
+      app: { name: 'core-api', side: 'backend', folder: 'services' },
+      summary: 'A fixture backend.',
+      presetPackage: '@venizia/widget',
+    });
+    const frontend = renderAppConcept({
+      app: { name: 'web', side: 'frontend', folder: 'apps' },
+      summary: 'A fixture frontend.',
+      presetPackage: '@venizia/widget',
+    });
+
+    expect(backend).toContain('a summary, not a spec');
+    expect(backend).toContain('## How things are done here');
+    expect(backend).toContain('`search` "controller routes"');
+    expect(backend).toContain('`symbol`');
+    expect(backend).toContain('`presets`');
+    expect(frontend).toContain('`search` "page resource"');
+    expect(frontend).not.toContain('controller routes');
+  });
+
+  test('the lib concept points at the lookups of a shared package', () => {
+    const lib = renderLibConcept({
+      name: 'money',
+      path: 'libs/money',
+      summary: 'A fixture library.',
+      presetPackage: '@venizia/widget',
+    });
+
+    expect(lib).toContain('a summary, not a spec');
+    expect(lib).toContain('`search` "shared package exports"');
+    expect(lib).toContain('`symbol`');
   });
 
   test('a summary with a newline, a colon and quotes still gives frontmatter that parses', () => {
