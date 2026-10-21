@@ -3,6 +3,8 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../common/index.ts';
 import { lintSkill } from '../doctor/index.ts';
+import { triggerOf } from '@venizia/vulcan-atlas';
+import { frontmatterOf } from '../skills/index.ts';
 
 const SKILLS_DIRECTORY = join(BASE_DIRECTORY, 'skills');
 const PROJECT_NAMES = /\bIGNIS\b|\bARDOR\b|\bBANA\b|ignis-docs|VENIZIA-AI\/ignis/i;
@@ -54,5 +56,33 @@ describe('the shipped skill build-a-feature', () => {
     expect(description()).toContain('Load it before you answer any of these');
     expect(description()).toContain('a question about the workflow included');
     expect(description()).toContain('lookup in atlas');
+  });
+});
+
+// Atlas lists each skill with its trigger in the server's instructions, so every skill VULCAN ships must have one.
+test('every shipped skill says when to use it, in a "Use when" sentence', () => {
+  const names = readdirSync(SKILLS_DIRECTORY);
+  const without = names.filter(name => {
+    const { description } = frontmatterOf({
+      text: readFileSync(join(SKILLS_DIRECTORY, name, 'SKILL.md'), 'utf8'),
+    }).data;
+
+    return !triggerOf({ description: typeof description === 'string' ? description : '' })
+      .hasUseWhen;
+  });
+
+  expect(names.length).toBeGreaterThan(0);
+  expect(without).toEqual([]);
+});
+
+describe('the shipped skill docs-writing', () => {
+  const body = (): string =>
+    readFileSync(join(SKILLS_DIRECTORY, 'docs-writing', 'SKILL.md'), 'utf8')
+      .split('\n')
+      .slice(0, 25)
+      .join('\n');
+
+  test('opens with the rule: be extremely concise, sacrifice grammar for the sake of concision', () => {
+    expect(body()).toContain('Be extremely concise. Sacrifice grammar for the sake of concision.');
   });
 });

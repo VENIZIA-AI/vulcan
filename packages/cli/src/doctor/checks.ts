@@ -37,6 +37,7 @@ import {
   planSync,
   SyncStatuses,
 } from '../sync/index.ts';
+import { skillCatalogOf, triggerOf } from '@venizia/vulcan-atlas';
 import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
 import { parseMakeIncludes, parseMakeTargets } from './makefile.ts';
@@ -806,3 +807,15 @@ export const checkAtlasBlock = (opts: ICheckContext): IViolation[] => {
         }),
       ];
 };
+
+/** A skill with no "Use when" part gives the atlas server's instructions nothing to say when to load it: a warning, never a failure. */
+export const checkSkillTriggers = (opts: ICheckContext): IViolation[] =>
+  skillCatalogOf({ root: opts.root })
+    .filter(entry => !triggerOf({ description: entry.description }).hasUseWhen)
+    .map(entry =>
+      createViolation({
+        check: DoctorChecks.SKILLS,
+        file: entry.source === 'project' ? `.agents/skills/${entry.name}/SKILL.md` : entry.name,
+        message: `'${entry.name}' has no "Use when" part in its description - atlas cannot say when to load it`,
+      }),
+    );
