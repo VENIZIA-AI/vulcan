@@ -1,13 +1,15 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { writeFileSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   DoctorChecks,
   parseMakeTargets,
   runDoctorChecks,
   runDoctorNotes,
+  runDoctorWarnings,
 } from '../../doctor/index.ts';
 import { renderLocalChoice } from '../../agents/index.ts';
+import { renderDockerignore } from '../../create/dockerignore.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -29,6 +31,8 @@ const CONFORMANT: Record<string, string> = {
   '.agents/rules.md': '| ID | Rule | Enforced by |\n|---|---|---|\n| W-06 | stay | SOFT |\n',
   '.agents/knowledge/index.md': '# k\n',
   Makefile: `${MAKE_INCLUDE}\nbuild:\n\t@echo build\n`,
+  '.mcp.json':
+    '{ "mcpServers": { "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] } } }\n',
   ...LINT_CONFIGS,
 };
 
@@ -716,12 +720,17 @@ describe('parseMakeTargets', () => {
   });
 });
 
-describe('doctor: a Dockerfile without a root .dockerignore (info only)', () => {
+describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
+  const dockerignoreWarnings = async (opts: { root: string }) =>
+    (await runDoctorWarnings(opts)).filter(item => item.check === DoctorChecks.DOCKERIGNORE);
   const PACKAGES = "[{ dir: 'api', name: 'api', path: 'services/api' }]";
+  const SAFE = '**/node_modules\n**/.env\n**/.env.*\n!**/.env.example\n';
   const project = (opts: { files: Record<string, string> }): string =>
     createSyncedProject({
       files: {
         ...CONFORMANT,
+        'package.json':
+          '{ "name": "demo", "workspaces": ["services/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
         '.configs/vulcan.config.ts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: ${PACKAGES} };\n`,
         'services/api/package.json': JSON.stringify({
           name: 'api',
@@ -735,50 +744,196 @@ describe('doctor: a Dockerfile without a root .dockerignore (info only)', () => 
             clean: 'x',
           },
         }),
+        'services/api/.configs/builders/Dockerfile': 'FROM x\n',
         ...opts.files,
       },
     });
+  const ADD =
+    'add **/.env, **/.env.* and !**/.env.example (in that order) to the root .dockerignore';
 
-  test('an app with a Dockerfile and no root .dockerignore gets one hint', async () => {
-    const root = project({ files: { 'services/api/.configs/builders/Dockerfile': 'FROM x\n' } });
+  test('no root .dockerignore: one warning, and never an info note', async () => {
+    const root = project({ files: {} });
 
-    expect(await runDoctorNotes({ root })).toEqual([
+    expect(await dockerignoreWarnings({ root })).toEqual([
       {
         check: DoctorChecks.DOCKERIGNORE,
         file: '.dockerignore',
-        message:
-          'app api has a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist and .git',
+        message: `app api has a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist, .git and every .env file (secrets) - create it, then ${ADD}`,
+      },
+    ]);
+    expect((await runDoctorNotes({ root })).map(note => note.check)).not.toContain(
+      DoctorChecks.DOCKERIGNORE,
+    );
+  });
+
+  test('a .dockerignore without the .env lines: one warning naming the three lines', async () => {
+    const root = project({ files: { '.dockerignore': '**/node_modules\n**/dist\n' } });
+
+    expect(await dockerignoreWarnings({ root })).toEqual([
+      {
+        check: DoctorChecks.DOCKERIGNORE,
+        file: '.dockerignore',
+        message: `app api has a Dockerfile and the root .dockerignore does not exclude .env files, which hold secrets and would land in the image layer: ${ADD}`,
       },
     ]);
   });
 
-  test('a root .dockerignore, or no Dockerfile, is silent', async () => {
-    const withIgnore = project({
-      files: {
-        'services/api/.configs/builders/Dockerfile': 'FROM x\n',
-        '.dockerignore': '**/node_modules\n',
-      },
-    });
-    const withoutDockerfile = project({ files: {} });
+  test('only .env excluded, not .env.*, still warns', async () => {
+    const root = project({ files: { '.dockerignore': '**/.env\n' } });
 
-    expect(await runDoctorNotes({ root: withIgnore })).toEqual([]);
-    expect(await runDoctorNotes({ root: withoutDockerfile })).toEqual([]);
+    expect((await dockerignoreWarnings({ root })).length).toBe(1);
   });
 
-  test('two apps with a Dockerfile give one hint naming both', async () => {
+  test('the lines doctor asks for, and the usual spellings of them, are accepted', async () => {
+    for (const text of [SAFE, '.env\n.env.*\n', '.env*\n!.env.example\n', '**/.env*\n']) {
+      const root = project({ files: { '.dockerignore': text } });
+
+      expect(await dockerignoreWarnings({ root }), text).toEqual([]);
+    }
+  });
+
+  test('the .dockerignore that init writes passes the check', async () => {
+    const root = project({ files: { '.dockerignore': renderDockerignore() } });
+
+    expect(await dockerignoreWarnings({ root })).toEqual([]);
+  });
+
+  test('a later negation that brings .env back is a warning again', async () => {
+    const root = project({ files: { '.dockerignore': '**/.env\n**/.env.*\n!**/.env*\n' } });
+
+    expect((await dockerignoreWarnings({ root })).length).toBe(1);
+  });
+
+  test('no Dockerfile: silent', async () => {
+    const root = project({ files: {} });
+
+    rmSync(join(root, 'services/api/.configs/builders/Dockerfile'));
+    expect(await dockerignoreWarnings({ root })).toEqual([]);
+  });
+
+  test('two apps with a Dockerfile give one warning naming both', async () => {
     const root = project({
       files: {
         '.configs/vulcan.config.ts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'api', name: 'api', path: 'services/api' }, { dir: 'jobs', name: 'jobs', path: 'services/jobs' }] };\n`,
-        'services/api/.configs/builders/Dockerfile': 'FROM x\n',
         'services/jobs/.configs/builders/Dockerfile': 'FROM x\n',
         'services/jobs/package.json': JSON.stringify({ name: 'jobs', scripts: {} }),
+        '.dockerignore': '**/node_modules\n',
       },
     });
-    const notes = (await runDoctorNotes({ root })).filter(
-      note => note.check === DoctorChecks.DOCKERIGNORE,
+    const warnings = await dockerignoreWarnings({ root });
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain('apps api, jobs have a Dockerfile');
+  });
+
+  test('doctor prints a warning line, stays green, and says how many', () => {
+    const root = project({ files: { '.dockerignore': '**/node_modules\n' } });
+    const result = runCli({ args: ['doctor'], cwd: root });
+
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.stderr).toContain('  warning [dockerignore] .dockerignore: ');
+    expect(result.stderr).toContain('vulcan doctor: OK with 1 warning(s)');
+  });
+});
+
+describe('doctor: the atlas server is registered the canonical way (warnings)', () => {
+  const ENTRY =
+    '"atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }';
+  const MCP = (opts: { name?: string; root?: string }): string =>
+    JSON.stringify({
+      mcpServers: {
+        [opts.name ?? 'atlas']: {
+          command: 'bun',
+          args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', opts.root ?? '.'],
+        },
+      },
+    });
+  const mcpWarnings = async (opts: { root: string }) =>
+    (await runDoctorWarnings(opts)).filter(item => item.check === DoctorChecks.MCP);
+  const project = (opts: { mcp?: string }) => {
+    const root = createSyncedProject({
+      files: { ...CONFORMANT, ...(opts.mcp === undefined ? {} : { '.mcp.json': opts.mcp }) },
+    });
+
+    if (opts.mcp === undefined) {
+      rmSync(join(root, '.mcp.json'));
+    }
+
+    return root;
+  };
+
+  test('the canonical entry and the enabled server: no warning', async () => {
+    expect(await mcpWarnings({ root: project({ mcp: MCP({}) }) })).toEqual([]);
+  });
+
+  test('no .mcp.json: a warning that shows the expected entry', async () => {
+    expect(await mcpWarnings({ root: project({}) })).toEqual([
+      {
+        check: DoctorChecks.MCP,
+        file: '.mcp.json',
+        message: `missing: atlas is not registered for Claude Code, omp and Copilot CLI - add ${ENTRY} under mcpServers`,
+      },
+    ]);
+  });
+
+  test('a file that is not JSON', async () => {
+    const warnings = await mcpWarnings({ root: project({ mcp: '{ nope' }) });
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toBe(`not valid JSON - it must hold ${ENTRY} under mcpServers`);
+  });
+
+  test('the atlas server under another name: Claude never auto-enables it', async () => {
+    const warnings = await mcpWarnings({ root: project({ mcp: MCP({ name: 'ignis-atlas' }) }) });
+
+    expect(warnings).toEqual([
+      {
+        check: DoctorChecks.MCP,
+        file: '.mcp.json',
+        message: `no server named atlas (found: ignis-atlas): a differently named server is not enabled automatically - use ${ENTRY}`,
+      },
+    ]);
+  });
+
+  test('an atlas entry that serves another root', async () => {
+    const warnings = await mcpWarnings({ root: project({ mcp: MCP({ root: '../ignis' }) }) });
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toBe(
+      `the atlas entry is { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "../ignis"] }, expected ${ENTRY}`,
+    );
+  });
+
+  test('the managed Claude settings that do not enable atlas', async () => {
+    const root = project({ mcp: MCP({}) });
+
+    writeFileSync(
+      join(root, '.claude/settings.json'),
+      JSON.stringify({ enabledMcpjsonServers: ['ignis-knowledge'] }),
     );
 
-    expect(notes).toHaveLength(1);
-    expect(notes[0].message).toContain('apps api, jobs have a Dockerfile');
+    expect(await mcpWarnings({ root })).toEqual([
+      {
+        check: DoctorChecks.MCP,
+        file: '.claude/settings.json',
+        message:
+          'enabledMcpjsonServers does not include atlas (has: ignis-knowledge): Claude asks before using the server - run vulcan sync',
+      },
+    ]);
+  });
+
+  test('no Claude settings yet: silent about them', async () => {
+    const root = project({ mcp: MCP({}) });
+
+    rmSync(join(root, '.claude/settings.json'), { force: true });
+    expect(await mcpWarnings({ root })).toEqual([]);
+  });
+
+  test('doctor prints them as warnings and stays green', () => {
+    const root = project({ mcp: MCP({ root: '../ignis' }) });
+    const result = runCli({ args: ['doctor'], cwd: root });
+
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.stderr).toContain('  warning [mcp] .mcp.json: the atlas entry is');
   });
 });

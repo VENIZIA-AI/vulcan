@@ -2,7 +2,12 @@ import { Glob } from 'bun';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
-import { coversFolder, declaresWorkspaces, readWorkspaceGlobs } from '../init/index.ts';
+import {
+  coversFolder,
+  declaresWorkspaces,
+  MCP_SERVER_HINT,
+  readWorkspaceGlobs,
+} from '../init/index.ts';
 import { resolvePackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import {
@@ -591,11 +596,162 @@ export const checkAgents = (opts: ICheckContext): IViolation[] => {
 };
 
 /** Info only: the Atlas block of AGENTS.md is missing or no longer matches the config. */
+const CANONICAL_ATLAS_ARGS = ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'];
+const MCP_FILE = '.mcp.json';
+const CLAUDE_SETTINGS_FILE = '.claude/settings.json';
+const ATLAS_SERVER = 'atlas';
+
+const readJsonObject = (opts: { file: string }): Record<string, unknown> | undefined => {
+  try {
+    const value: unknown = JSON.parse(readFileSync(opts.file, 'utf8'));
+
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? Object.fromEntries(Object.entries(value))
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
+  typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
+
+const mcpWarning = (opts: { file: string; message: string }): IViolation =>
+  createViolation({ check: DoctorChecks.MCP, file: opts.file, message: opts.message });
+
+/**
+ * The atlas server is registered the one way every project does: the tracked `.mcp.json` holds an
+ * `atlas` entry that runs the project's own atlas (`--root .`), and the managed Claude settings
+ * enable `atlas` by that name. A server under another name, or one that serves another folder, is
+ * never enabled automatically or serves the wrong knowledge. Warnings, not violations.
+ */
+export const checkMcpAtlas = (opts: ICheckContext): IViolation[] => {
+  const warnings: IViolation[] = [];
+  const file = join(opts.root, MCP_FILE);
+
+  if (!existsSync(file)) {
+    warnings.push(
+      mcpWarning({
+        file: MCP_FILE,
+        message: `missing: atlas is not registered for Claude Code, omp and Copilot CLI - add ${MCP_SERVER_HINT} under mcpServers`,
+      }),
+    );
+  } else {
+    const parsed = readJsonObject({ file });
+
+    if (parsed === undefined) {
+      warnings.push(
+        mcpWarning({
+          file: MCP_FILE,
+          message: `not valid JSON - it must hold ${MCP_SERVER_HINT} under mcpServers`,
+        }),
+      );
+    } else {
+      const holder = { value: parsed['mcpServers'] };
+      const servers = isRecord(holder) ? holder.value : {};
+      const entry = { value: servers[ATLAS_SERVER] };
+      const args = isRecord(entry) ? entry.value['args'] : undefined;
+      const isCanonical =
+        isRecord(entry) &&
+        entry.value['command'] === 'bun' &&
+        Array.isArray(args) &&
+        args.length === CANONICAL_ATLAS_ARGS.length &&
+        args.every((arg, index) => arg === CANONICAL_ATLAS_ARGS[index]);
+
+      if (!isRecord(entry)) {
+        warnings.push(
+          mcpWarning({
+            file: MCP_FILE,
+            message: `no server named atlas (found: ${Object.keys(servers).join(', ') || 'none'}): a differently named server is not enabled automatically - use ${MCP_SERVER_HINT}`,
+          }),
+        );
+      } else if (!isCanonical) {
+        const shown = JSON.stringify(entry.value)
+          .replace('{"command":', '{ "command": ')
+          .replace(',"args":[', ', "args": [')
+          .replaceAll('","', '", "')
+          .replace(/\]\}$/, '] }');
+
+        warnings.push(
+          mcpWarning({
+            file: MCP_FILE,
+            message: `the atlas entry is ${shown}, expected ${MCP_SERVER_HINT}`,
+          }),
+        );
+      }
+    }
+  }
+
+  const settings = join(opts.root, CLAUDE_SETTINGS_FILE);
+  const enabled = existsSync(settings)
+    ? readJsonObject({ file: settings })?.['enabledMcpjsonServers']
+    : undefined;
+
+  if (existsSync(settings) && !(Array.isArray(enabled) && enabled.includes(ATLAS_SERVER))) {
+    const has = Array.isArray(enabled) ? enabled.map(String).join(', ') : 'none';
+
+    warnings.push(
+      mcpWarning({
+        file: CLAUDE_SETTINGS_FILE,
+        message: `enabledMcpjsonServers does not include atlas (has: ${has}): Claude asks before using the server - run vulcan sync`,
+      }),
+    );
+  }
+
+  return warnings;
+};
+
 const DOCKERFILE = '.configs/builders/Dockerfile';
 
-/** A Dockerfile is built from the project root: without a root `.dockerignore` the context carries node_modules, dist and .git. */
+const SECRET_LINES = ['**/.env', '**/.env.*', '!**/.env.example'];
+const ADD_SECRET_LINES = `add ${SECRET_LINES[0]}, ${SECRET_LINES[1]} and ${SECRET_LINES[2]} (in that order) to the root .dockerignore`;
+
+/** Whether a `.dockerignore` pattern, as Docker reads it, names the file `opts.file` at any depth. */
+const patternNames = (opts: { pattern: string; file: string }): boolean => {
+  const bare = opts.pattern.replace(/^\*\*\//, '').replace(/^\//, '');
+
+  return (
+    bare === opts.file ||
+    (bare.endsWith('*') && opts.file.startsWith(bare.slice(0, -1)) && bare.startsWith('.env'))
+  );
+};
+
+/** Whether the last pattern that names `opts.file` excludes it: a later `!` line brings it back. */
+const excludes = (opts: { lines: string[]; file: string }): boolean => {
+  let excluded = false;
+
+  for (const line of opts.lines) {
+    const negated = line.startsWith('!');
+
+    if (patternNames({ pattern: negated ? line.slice(1) : line, file: opts.file })) {
+      excluded = !negated;
+    }
+  }
+
+  return excluded;
+};
+
+/**
+ * A Dockerfile is built from the project root. Without a root `.dockerignore` the context carries
+ * node_modules, dist, .git and every `.env` (secrets that would land in an image layer a CI cache
+ * can keep); with one that does not exclude `.env` and `.env.*` the secrets are still copied.
+ * A warning, not a violation: the exit code is unchanged, so a project made before this check
+ * does not start failing.
+ */
 export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
-  if (existsSync(join(opts.root, '.dockerignore'))) {
+  const file = join(opts.root, '.dockerignore');
+  const lines = existsSync(file)
+    ? readText({ file })
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line !== '' && !line.startsWith('#'))
+    : undefined;
+
+  if (
+    lines !== undefined &&
+    excludes({ lines, file: '.env' }) &&
+    excludes({ lines, file: '.env.production' })
+  ) {
     return [];
   }
 
@@ -607,11 +763,16 @@ export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
     return [];
   }
 
+  const subject = apps.length === 1 ? `app ${apps[0]} has` : `apps ${apps.join(', ')} have`;
+
   return [
     createViolation({
       check: DoctorChecks.DOCKERIGNORE,
       file: '.dockerignore',
-      message: `${apps.length === 1 ? `app ${apps[0]} has` : `apps ${apps.join(', ')} have`} a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist and .git`,
+      message:
+        lines === undefined
+          ? `${subject} a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist, .git and every .env file (secrets) - create it, then ${ADD_SECRET_LINES}`
+          : `${subject} a Dockerfile and the root .dockerignore does not exclude .env files, which hold secrets and would land in the image layer: ${ADD_SECRET_LINES}`,
     }),
   ];
 };

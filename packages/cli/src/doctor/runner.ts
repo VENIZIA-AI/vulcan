@@ -6,6 +6,7 @@ import {
   checkAppScripts,
   checkAtlasBlock,
   checkDockerignore,
+  checkMcpAtlas,
   checkApps,
   checkManifest,
   checkPrune,
@@ -76,5 +77,22 @@ export const runDoctorNotes = async (opts: { root: string }): Promise<IViolation
     configFile: relative(opts.root, loaded.file),
   };
 
-  return [...checkAppScripts(context), ...checkAtlasBlock(context), ...checkDockerignore(context)];
+  return [...checkAppScripts(context), ...checkAtlasBlock(context)];
+};
+
+/** Warnings: louder than a note, still never a failure - a security gap a project made earlier may carry. */
+export const runDoctorWarnings = async (opts: { root: string }): Promise<IViolation[]> => {
+  const loaded = await loadConfig({ root: opts.root });
+
+  if (!loaded.ok) {
+    return [];
+  }
+
+  const context = {
+    root: opts.root,
+    config: loaded.config,
+    configFile: relative(opts.root, loaded.file),
+  };
+
+  return [...checkMcpAtlas(context), ...checkDockerignore(context)];
 };

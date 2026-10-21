@@ -13,7 +13,7 @@ An exit code of `1` indicates one or more contract violations.
 
 Each violation line follows the shape `[check] file: message`.
 The final line prints `vulcan doctor: OK` on success or `vulcan doctor: N violation(s)` on failure.
-A line that starts with `info` is a note, not a violation: it never changes the exit code or the final line ([scripts](#scripts)).
+A line that starts with `info` is a note, not a violation: it never changes the exit code or the final line ([scripts](#scripts)). A line that starts with `warning` is louder than a note and still not a violation: the exit code stays `0`, and the final line becomes `vulcan doctor: OK with N warning(s)` ([dockerignore](#dockerignore)).
 
 When all checks pass, the command reports an OK status:
 
@@ -46,6 +46,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `scaffold` | Workspaces declare packages and the knowledge index replaces scaffold text | Add `packages` in configuration and remove `vulcan:scaffold` from `index.md` |
 | `apps` | Every `layout` folder is a workspace and every package lives in one | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
 | `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
+| `mcp` (warning) | `.mcp.json` holds the canonical `atlas` entry and the Claude settings enable `atlas` | Use the entry the warning shows and run `bun x --no-install vulcan sync` |
 
 ### config
 
@@ -281,13 +282,31 @@ vulcan doctor: OK
 
 Rename the scripts, and keep the work in `.configs/builders/` or behind `devz`, not in the `package.json` string. The exit code stays `0`, so no existing project starts failing.
 
-### dockerignore
+### mcp
 
-An info note, not a violation. An app (a live package) that holds `.configs/builders/Dockerfile` is built from the project root, so the root needs a `.dockerignore`; without one the build context carries `node_modules`, `dist` and `.git`. The note names the apps and the file to add. `vulcan init --preset` writes one; add the same lines to a project that predates it. The exit code stays `0`.
+Warnings (the same level as [dockerignore](#dockerignore): exit code `0`, `vulcan doctor: OK with N warning(s)`). Claude Code, omp and Copilot CLI read the committed `.mcp.json`, and Claude enables a project server on its own only under the name the managed settings list. The check expects:
+
+- the tracked `.mcp.json` holds the entry `vulcan init` writes, a server named `atlas` that runs `bun x --no-install vulcan x atlas mcp --root .`;
+- `.claude/settings.json` (written by `vulcan sync`, when it exists) lists `atlas` in `enabledMcpjsonServers`.
+
+Anything else is a warning that shows the expected entry: a missing file, a file that is not JSON, the server under another name (`ignis-atlas`, which Claude does not enable automatically), an `atlas` entry with another root (`--root ../ignis` serves another project's knowledge and only works where the folders sit side by side), or settings that do not enable `atlas`.
 
 ```text
-  info [dockerignore] .dockerignore: app api has a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist and .git
+  warning [mcp] .mcp.json: the atlas entry is { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "../ignis"] }, expected "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }
+  warning [mcp] .claude/settings.json: enabledMcpjsonServers does not include atlas (has: ignis-knowledge): Claude asks before using the server - run vulcan sync
 ```
+
+To serve another project's knowledge too, declare it as an `atlas.sources` entry in `.configs/vulcan.config.mts`; `--root` stays `.`.
+
+### dockerignore
+
+A warning, not a violation: it is printed as `warning [dockerignore]`, the exit code stays `0`, and the last line says `vulcan doctor: OK with 1 warning(s)`. An app (a live package) that holds `.configs/builders/Dockerfile` is built from the project root, and a Dockerfile that copies the project puts every `.env` in the image layer, which a CI cache (kaniko, for one) can keep. The warning fires when the root has no `.dockerignore`, or has one that does not exclude `.env` and `.env.*`. A later `!` line that brings them back counts as not excluding; `.env*` and `**/.env*` are accepted spellings.
+
+```text
+  warning [dockerignore] .dockerignore: app api has a Dockerfile and the root .dockerignore does not exclude .env files, which hold secrets and would land in the image layer: add **/.env, **/.env.* and !**/.env.example (in that order) to the root .dockerignore
+```
+
+Add the three lines at the end of the root `.dockerignore`, in that order: the negation of `.env.example` must come after the excludes, or Docker does not apply it. With no `.dockerignore` at all, create it (`vulcan init` writes the whole file for a new project), then add the lines.
 
 ## Run it in CI
 
