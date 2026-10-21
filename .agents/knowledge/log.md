@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - a new package's knowledge page points at atlas
+
+- `renderAppConcept` and `renderLibConcept` add a note (a summary, not a spec) and a table of the atlas lookups for the kind; an agent had taken the one-line page for a spec.
+
 ## 2026-10-21 - the build-a-feature skill ships
 
 Updated [cli](/packages/cli.md): the base ships a fourth skill, `build-a-feature` - a feature from the user's goal to a reviewed, tested change, looking up conventions and APIs in atlas at each step (`search`, `symbol`, `presets`). `sync` links it first (names sort), and its name is reserved like the other three.

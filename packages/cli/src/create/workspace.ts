@@ -1,7 +1,14 @@
 import { relative, resolve } from 'node:path';
 import { coversFolder } from '../init/index.ts';
 import { CreateConstants } from './common/index.ts';
-import type { IApp, IAppsBlock, IPreset, IPresetSpec, IRecordedPreset } from './common/index.ts';
+import type {
+  IApp,
+  IAppsBlock,
+  IPreset,
+  IPresetSpec,
+  IRecordedPreset,
+  TAppSide,
+} from './common/index.ts';
 
 const ENV_PORT = /^[A-Z0-9_]*PORT=(\d+)\s*$/m;
 
@@ -202,6 +209,34 @@ export const renderLibManifest = (opts: {
   });
 };
 
+/** The atlas lookups a package of one kind depends on: what a summary page cannot hold. */
+const ATLAS_LOOKUPS: Record<TAppSide | 'lib', [string, string][]> = {
+  backend: [
+    ['How a route and its controller are written', '`search` "controller routes", then `get`'],
+    ['How a service, a repository and a datasource fit together', '`search` "service repository datasource"'],
+  ],
+  frontend: [
+    ['How a page or a resource is added', '`search` "page resource", then `get`'],
+    ['How the app reads data from its backend', '`search` "data provider"'],
+  ],
+  lib: [['How a shared package exposes its API', '`search` "shared package exports", then `get`']],
+};
+
+/** The note and the table that turn a package page into a pointer at atlas, for its kind. */
+const renderAtlasLookups = (opts: { kind: TAppSide | 'lib' }): string[] => [
+  '> This page is a summary, not a spec: it says what the package is. How code is written here lives',
+  '> in atlas; look it up before you explain or write code.',
+  '',
+  '## How things are done here',
+  '',
+  '| You need | Ask atlas |',
+  '|---|---|',
+  ...ATLAS_LOOKUPS[opts.kind].map(([need, call]) => `| ${need} | ${call} |`),
+  '| The signature and import path of an export, before you import it | `symbol` with its name |',
+  '| A new app or package | `presets`, then the `vulcan add` command it returns |',
+  '',
+];
+
 export const renderLibConcept = (opts: {
   name: string;
   path: string;
@@ -221,6 +256,7 @@ export const renderLibConcept = (opts: {
     '',
     `The shared package at \`${opts.path}\`, created from the ${opts.presetPackage} preset (lib kind). ${oneLine({ text: opts.summary })}`,
     '',
+    ...renderAtlasLookups({ kind: 'lib' }),
   ].join('\n');
 
 export const renderAppsBlock = (opts: { block: IAppsBlock }): string =>
@@ -445,6 +481,7 @@ export const renderAppConcept = (opts: {
     '',
     `The ${opts.app.side} app at \`${opts.app.folder}/${opts.app.name}\`, created from the ${opts.presetPackage} preset. ${oneLine({ text: opts.summary })}`,
     '',
+    ...renderAtlasLookups({ kind: opts.app.side }),
   ].join('\n');
 
 export const renderLogEntry = (opts: { date: string; text: string }): string =>
