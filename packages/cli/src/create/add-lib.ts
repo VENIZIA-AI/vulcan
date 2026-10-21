@@ -9,7 +9,8 @@ import type { IAppsBlock, ILocatedPreset, IPresetSpec } from './common/index.ts'
 import { today, writeFile } from './files.ts';
 import { readLibPreset } from './lib-preset.ts';
 import type { TLibPreset } from './lib-preset.ts';
-import { askWithPrompt, readFlag } from './names.ts';
+import { ABORTED, confirmWrite, planLines } from './plan.ts';
+import { askInTerminal, readFlag } from './names.ts';
 import { copyPresetFiles } from './preset.ts';
 import { runBun } from './process.ts';
 import {
@@ -48,13 +49,13 @@ const rootScope = (opts: { manifest: Record<string, unknown> }): string =>
   typeof opts.manifest.name === 'string' ? scopeOf({ name: opts.manifest.name }) : '';
 
 /** Where the new library goes: `--dir`, the layout's shared folder, or the one folder the existing libraries share. */
-const folderOf = (opts: {
+const folderOf = async (opts: {
   args: string[];
   interactive: boolean;
   lib: string;
   config: TResolvedConfig;
   packages: IProjectPackage[];
-}): { ok: true; folder: string } | { ok: false; error: string } => {
+}): Promise<{ ok: true; folder: string } | { ok: false; error: string }> => {
   const given = readFlag({ args: opts.args, flag: CreateFlags.DIR });
   const libFolders = [
     ...new Set(
@@ -69,8 +70,15 @@ const folderOf = (opts: {
 
   if (chosen === undefined) {
     if (opts.interactive) {
-      const question = fallback === undefined ? 'Folder' : `Folder (${fallback})`;
-      const answer = askWithPrompt({ question })?.trim() ?? '';
+      // The folders the project's libraries already live in are picked; a new one is typed.
+      const answer =
+        (
+          await askInTerminal({
+            question: 'Folder',
+            previous: fallback,
+            choices: [...new Set([...(fallback === undefined ? [] : [fallback]), ...libFolders])],
+          })
+        )?.trim() ?? '';
 
       chosen = answer === '' ? fallback : answer;
     } else {
@@ -153,7 +161,7 @@ export const addLibrary = async (opts: {
   }
 
   const lib: TLibPreset = read.lib;
-  const placed = folderOf({
+  const placed = await folderOf({
     args: opts.args,
     interactive: opts.interactive,
     lib: libName,
@@ -224,6 +232,21 @@ export const addLibrary = async (opts: {
 
   if (warning !== undefined) {
     process.stderr.write(`${warning}\n`);
+  }
+
+  const confirmed = await confirmWrite({
+    title: `Add ${libName}`,
+    lines: planLines({
+      rows: [
+        ['library', path],
+        ['package', named.name],
+        ['preset', `${located.packageName} ${located.packageVersion}`],
+      ],
+    }),
+  });
+
+  if (!confirmed) {
+    return fail({ message: ABORTED });
   }
 
   const written = copyPresetFiles({

@@ -174,7 +174,7 @@ describe.skipIf(!hasScript)('vulcan sync in a terminal', () => {
     const child = spawnSyncBounded({
       cmd: ['script', '-qec', command, '/dev/null'],
       cwd: opts.root,
-      env: { ...process.env, ...opts.env },
+      env: { ...process.env, TERM: 'dumb', ...opts.env },
       stdin: Buffer.from(`${opts.answers.join('\n')}\n`),
       stdout: 'pipe',
       stderr: 'pipe',

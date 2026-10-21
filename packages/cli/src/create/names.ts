@@ -1,7 +1,15 @@
 import { readSync } from 'node:fs';
 
+import { menusAvailable, promptSelect, promptText } from '../ui/index.ts';
 import { AppSides, CreateConstants, CreateFlags } from './common/index.ts';
-import type { INameField, TAppSide, TAsk, TByteReader, TNamesResult } from './common/index.ts';
+import type {
+  IAskOptions,
+  INameField,
+  TAppSide,
+  TAsk,
+  TByteReader,
+  TNamesResult,
+} from './common/index.ts';
 
 /** The folder holding every app of one side; `add` offers the one the config already holds. */
 export const SIDE_FIELDS: Record<TAppSide, INameField> = {
@@ -25,6 +33,12 @@ export const readFlag = (opts: { args: string[]; flag: string }): string | undef
 
 const isValidName = (opts: { name: string }): boolean =>
   CreateConstants.NAME_PATTERN.test(opts.name);
+
+/** The message a menu shows under a typed name that is not one; nothing when it is fine. */
+export const nameProblem = (opts: { name: string }): string | undefined =>
+  isValidName({ name: opts.name })
+    ? undefined
+    : `'${opts.name}' is not a name: lowercase letters, digits and '-', starting with a letter or digit`;
 
 const NEWLINE = 0x0a;
 const CARRIAGE_RETURN = 0x0d;
@@ -91,7 +105,7 @@ export const readLine = (opts: {
 };
 
 /** The shown default is the user's own earlier choice, never one VULCAN made up. */
-export const askWithPrompt: TAsk = opts => {
+export const askWithPrompt = (opts: IAskOptions): string | null => {
   process.stdout.write(
     opts.previous === undefined
       ? `? ${opts.question} > `
@@ -101,9 +115,55 @@ export const askWithPrompt: TAsk = opts => {
   return readLine({ descriptor: CreateConstants.STDIN_DESCRIPTOR });
 };
 
-const askUntilValid = (opts: { field: INameField; ask: TAsk }): string | null => {
+const NEW_FOLDER = ':new-folder';
+
+/** A menu, not a line: existing folders are picked, a new name is typed with its default shown. */
+const askWithMenus: TAsk = async opts => {
+  if (opts.choices !== undefined && opts.choices.length > 0) {
+    const picked = await promptSelect({
+      message: opts.question,
+      choices: [
+        ...opts.choices.map(value => ({ value, label: value })),
+        { value: NEW_FOLDER, label: 'New folder...' },
+      ],
+      initial: opts.previous,
+    });
+
+    if (picked !== NEW_FOLDER) {
+      return picked;
+    }
+  }
+
+  return promptText({
+    message: opts.question,
+    defaultValue: opts.previous,
+    validate: opts.validate,
+  });
+};
+
+/** Menus in a terminal that can draw them, the plain question everywhere else. */
+export const askInTerminal: TAsk = opts =>
+  menusAvailable() ? askWithMenus(opts) : askWithPrompt(opts);
+
+const askUntilValid = async (opts: { field: INameField; ask: TAsk }): Promise<string | null> => {
+  const { field } = opts;
+  const validate = (value: string): string | undefined => {
+    const name = value.trim() === '' ? (field.previous ?? '') : value.trim();
+
+    if (name === '' && field.optional === true) {
+      return undefined;
+    }
+
+    return nameProblem({ name });
+  };
+
   for (;;) {
-    const answer = opts.ask({ question: opts.field.question, previous: opts.field.previous });
+    const answer = await opts.ask({
+      question: field.question,
+      previous: field.previous,
+      choices: field.choices,
+      validate,
+    });
 
     if (answer === null) {
       return null;
@@ -126,12 +186,12 @@ const askUntilValid = (opts: { field: INameField; ask: TAsk }): string | null =>
 };
 
 /** Every name from its flag; a missing one is asked in a TTY and an error otherwise. */
-export const resolveNames = (opts: {
+export const resolveNames = async (opts: {
   fields: INameField[];
   args: string[];
   interactive: boolean;
   ask: TAsk;
-}): TNamesResult => {
+}): Promise<TNamesResult> => {
   const names: Record<string, string> = {};
 
   for (const field of opts.fields) {
@@ -166,7 +226,12 @@ export const resolveNames = (opts: {
       };
     }
 
-    const answer = askUntilValid({ field, ask: opts.ask });
+    if (field.fixed === true && field.previous !== undefined) {
+      names[field.key] = field.previous;
+      continue;
+    }
+
+    const answer = await askUntilValid({ field, ask: opts.ask });
 
     if (answer === null) {
       return { ok: false, error: 'aborted' };

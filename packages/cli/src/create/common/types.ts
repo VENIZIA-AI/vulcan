@@ -12,9 +12,23 @@ export interface INameField {
   optional?: boolean;
   /** A folder the user chose before, offered as the answer; never a name VULCAN made up. */
   previous?: string;
+  /** Folders that already exist and fit this field: a menu lists them, then offers a new one. */
+  choices?: string[];
+  /** The only valid answer is `previous` (one folder per side): a menu never asks, a flag still wins. */
+  fixed?: boolean;
 }
 
-export type TAsk = (opts: { question: string; previous?: string }) => string | null;
+/** What a question carries: the text, the earlier choice, the existing folders, the check a menu runs while typing. */
+export interface IAskOptions {
+  question: string;
+  previous?: string;
+  choices?: string[];
+  /** The message to show, or nothing when the text is fine. */
+  validate?: (value: string) => string | undefined;
+}
+
+/** `null` is end of input or a cancelled menu; a menu answers later, so the answer may be a promise. */
+export type TAsk = (opts: IAskOptions) => string | null | Promise<string | null>;
 
 /** Reads at most one byte into `buffer` and returns how many were read; 0 is end of input. */
 export type TByteReader = (opts: { descriptor: number; buffer: Buffer }) => number;
