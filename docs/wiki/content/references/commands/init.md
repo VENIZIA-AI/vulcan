@@ -22,9 +22,9 @@ $ bun x --no-install vulcan init
   created  .agents/rules.md
   created  .agents/knowledge/index.md
   created  .mcp.json
-  created  .configs/oxlint.config.mts
-  created  .configs/eslint.config.mjs
-  created  .configs/oxfmt.config.mts
+  created  .configs/lints/oxlint.config.mts
+  created  .configs/lints/eslint.config.mjs
+  created  .configs/formatters/oxfmt.config.mts
   created  .configs/vulcan.config.mts
   created  .dockerignore
   created  Makefile
@@ -84,9 +84,9 @@ It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index an
 | `.agents/rules.md` | Project rule extensions that build on the base rules | Add project rules with bare rule IDs |
 | `.agents/knowledge/index.md` | Entry point of the project knowledge bundle in okf v0.2 format | Describe the project |
 | `.mcp.json` | Model Context Protocol configuration that registers the atlas server | Add project MCP servers when needed |
-| `.configs/oxlint.config.mts` | Lint configuration for oxlint extending `@venizia/dev-configs` | Add project linter rule overrides when needed |
-| `.configs/eslint.config.mjs` | Lint configuration for ESLint naming conventions extending `@venizia/dev-configs` | Add project naming convention overrides when needed |
-| `.configs/oxfmt.config.mts` | Formatter configuration for oxfmt extending `@venizia/dev-configs` | Add project formatting overrides when needed |
+| `.configs/lints/oxlint.config.mts` | Lint configuration for oxlint extending `@venizia/dev-configs` | Add project linter rule overrides when needed |
+| `.configs/lints/eslint.config.mjs` | Lint configuration for ESLint naming conventions extending `@venizia/dev-configs` | Add project naming convention overrides when needed |
+| `.configs/formatters/oxfmt.config.mts` | Formatter configuration for oxfmt extending `@venizia/dev-configs` | Add project formatting overrides when needed |
 | `.dockerignore` | Keeps dependencies, build output, `.git` and every agent's local files out of a Docker build context (the same list `init --preset` writes) | Edit it freely; `init` never overwrites it |
 | `.configs/vulcan.config.<ext>` | Main VULCAN configuration file for agents, rule slots and packages | Configure coding agents, rule slots, and workspace packages |
 | `Makefile` | Root Makefile that includes shared VULCAN make targets from `vulcan.mk` | Add project make targets |
@@ -111,9 +111,9 @@ $ bun x --no-install vulcan init
   kept     .agents/rules.md
   kept     .agents/knowledge/index.md
   kept     .mcp.json
-  kept     .configs/oxlint.config.mts
-  kept     .configs/eslint.config.mjs
-  kept     .configs/oxfmt.config.mts
+  kept     .configs/lints/oxlint.config.mts
+  kept     .configs/lints/eslint.config.mjs
+  kept     .configs/formatters/oxfmt.config.mts
   kept     .configs/vulcan.config.mts
   kept     .dockerignore
 left to do:
@@ -133,7 +133,7 @@ If `package.json` declares `workspaces`, `vulcan init` omits the three lint conf
 The command prints status `skipped` with the reason:
 
 ```text
-  skipped  .configs/{oxlint,eslint,oxfmt}: a workspaces project keeps them per app (apps/<name>/.configs/); the templates are in node_modules/@venizia/vulcan/base/templates/
+  skipped  .configs/{lints,formatters}: a workspaces project keeps them per app (apps/<name>/.configs/lints/, apps/<name>/.configs/formatters/); the templates are in node_modules/@venizia/vulcan/base/templates/
 ```
 
 ### Existing MCP configuration

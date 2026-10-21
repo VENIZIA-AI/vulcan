@@ -14,6 +14,10 @@ Preset files may use `{{appPath}}` (the app folder from the root, no slash at ei
 
 `vulcan add --lib` makes a shared package from a preset's lib kind (`vulcan.lib`, a strict second preset file; packages registered with `kind: "lib"`); `add` asks which kind and, without a terminal, prints both commands and writes nothing. atlas gains a sixth tool, `presets` (reads `layout`, `presets` and package `kind` from the manifest, never invents a command), the atlas lead and the AGENTS.md block name it as the fourth trigger within 512 characters, and the Claude `guard-package` hook denies a hand-written new `package.json` in a layout folder only when a real `vulcan add` command exists. Concepts: [cli](/packages/cli.md), [atlas](/packages/atlas.md).
 
+## 2026-10-21 - tool configs under .configs/{lints,formatters,builders}
+
+Every project keeps lint configs in `.configs/lints/`, the formatter in `.configs/formatters/` and build configs in `.configs/builders/`, each with an optional `.ignore` (oxlint and oxfmt cannot ignore package paths from a config in `.configs/`). `init` scaffolds the new paths, doctor's style check reads them and names where a legacy file belongs, `make/project.mk` reads the paths and the `.ignore` files; this repository's packages and `scripts/` moved. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-21 - the presets of a project are recorded (new apps by agents 1)
 
 `init` and `add` record the preset each app came from (`{ spec, side, summary }`) in the `vulcan:apps` block; the config reads them with `presets: apps.presets` (`add` inserts the line into an older config); `sync` renders `layout` and `presets` into the manifest, so atlas can tell an agent the exact `vulcan add` command. Concept: [cli](/packages/cli.md).

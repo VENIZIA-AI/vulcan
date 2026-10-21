@@ -16,9 +16,9 @@ const NO_INSTALL = { VULCAN_NO_INSTALL: '1' };
 const SCAFFOLD = [
   'AGENTS.md',
   '.configs/vulcan.config.mts',
-  '.configs/oxlint.config.mts',
-  '.configs/eslint.config.mjs',
-  '.configs/oxfmt.config.mts',
+  '.configs/lints/oxlint.config.mts',
+  '.configs/lints/eslint.config.mjs',
+  '.configs/formatters/oxfmt.config.mts',
   '.agents/rules.md',
   '.agents/knowledge/index.md',
   'Makefile',
@@ -38,7 +38,7 @@ describe('vulcan init', () => {
     expect(readFileSync(join(root, 'Makefile'), 'utf8')).toContain(
       'include node_modules/@venizia/vulcan/base/make/vulcan.mk',
     );
-    expect(readFileSync(join(root, '.configs/oxlint.config.mts'), 'utf8')).toContain(
+    expect(readFileSync(join(root, '.configs/lints/oxlint.config.mts'), 'utf8')).toContain(
       '@venizia/dev-configs',
     );
   });
@@ -298,8 +298,12 @@ describe('vulcan init', () => {
     });
     const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
 
-    for (const name of ['oxlint.config.mts', 'eslint.config.mjs', 'oxfmt.config.mts']) {
-      expect(existsSync(join(root, '.configs', name))).toBe(false);
+    for (const file of [
+      'lints/oxlint.config.mts',
+      'lints/eslint.config.mjs',
+      'formatters/oxfmt.config.mts',
+    ]) {
+      expect(existsSync(join(root, '.configs', file))).toBe(false);
     }
 
     expect(existsSync(join(root, '.configs/vulcan.config.mts'))).toBe(true);
@@ -313,7 +317,7 @@ describe('vulcan init', () => {
     });
 
     runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
-    expect(existsSync(join(root, '.configs/oxlint.config.mts'))).toBe(false);
+    expect(existsSync(join(root, '.configs/lints/oxlint.config.mts'))).toBe(false);
   });
 
   test('init, then sync: doctor names what is left to fill in, and is green once it is', () => {

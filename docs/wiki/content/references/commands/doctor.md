@@ -220,7 +220,7 @@ Alternatively, add the directory to `aliases` on the package or add the pattern 
 ### style
 
 A missing `@venizia/dev-configs` dependency or a lint configuration file not importing the shared style triggers this check.
-Doctor examines `oxlint|eslint|oxfmt.config.(mts|ts|mjs|js|cjs)` in `.configs/` of the root, `packages/*`, and configured package paths.
+Doctor examines `oxlint|eslint|oxfmt.config.(mts|ts|mjs|js|cjs)` in `.configs/lints/` and `.configs/formatters/` of the root, `packages/*`, and configured package paths.
 
 ```text
 $ bun x --no-install vulcan doctor
@@ -229,6 +229,7 @@ vulcan doctor: 1 violation(s)
 ```
 
 When a lint configuration file does not import the shared package, it reports `build on the shared style: import from @venizia/dev-configs`.
+A lint configuration left directly in `.configs/` is reported with where it belongs, for example `move it to .configs/formatters/oxfmt.config.mts`.
 When no lint configuration files exist at all, the check reports `add @venizia/dev-configs as a devDependency` without the suffix.
 
 ### scaffold
