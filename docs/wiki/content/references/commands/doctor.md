@@ -278,7 +278,7 @@ $ bun x --no-install vulcan doctor
 vulcan doctor: OK
 ```
 
-Rename the scripts, and keep the work in `scripts/*.sh`. The exit code stays `0`, so no existing project starts failing.
+Rename the scripts, and keep the work in `.configs/builders/` or behind `devz`, not in the `package.json` string. The exit code stays `0`, so no existing project starts failing.
 
 ### dockerignore
 

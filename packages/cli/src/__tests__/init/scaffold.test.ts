@@ -43,6 +43,30 @@ describe('vulcan init', () => {
     );
   });
 
+  test('a root .dockerignore is created when there is none, and reported', () => {
+    const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
+    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+
+    expect(result.stderr).toContain('created  .dockerignore');
+
+    const lines = readFileSync(join(root, '.dockerignore'), 'utf8').split('\n');
+
+    expect(lines).toContain('**/node_modules');
+    expect(lines).toContain('.git');
+    expect(lines).toContain('.cursor/mcp.json');
+    expect(lines).not.toContain('bun.lock');
+  });
+
+  test('an existing .dockerignore is kept byte for byte and reported', () => {
+    const root = createProject({
+      files: { 'package.json': STYLED_PACKAGE, '.dockerignore': 'mine\n' },
+    });
+    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+
+    expect(result.stderr).toContain('kept     .dockerignore');
+    expect(readFileSync(join(root, '.dockerignore'), 'utf8')).toBe('mine\n');
+  });
+
   for (const extension of ['ts', 'mjs', 'js']) {
     test(`--config ${extension} writes that format only`, () => {
       const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });

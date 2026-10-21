@@ -128,7 +128,23 @@ describe('readBaseRules', () => {
       expect(row).toContain(`\`${legacy}\``);
     }
 
-    expect(row).toContain('scripts/*.sh');
+    expect(row).toContain('`devz lint`');
+    expect(row).toContain('`devz lint --fix`');
+    expect(row).toContain('`devz clean`');
+    expect(row).toContain('bun .configs/builders/compile.ts');
+    expect(row).toContain('vite build --config .configs/builders/vite.config.mts');
+    expect(row).toContain('NODE_ENV=development bun run src/index.ts');
+    expect(row).not.toContain('scripts/');
+  });
+
+  test('V-B-05 also says what an app root holds and where every other config lives', () => {
+    const row = readBaseRules()['V-B-05'] ?? '';
+
+    expect(row).toContain(
+      'An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`',
+    );
+    expect(row).toContain('`components.json` for a shadcn frontend');
+    expect(row).toContain('`.configs/{lints,formatters,builders}/`');
   });
 });
 

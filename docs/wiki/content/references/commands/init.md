@@ -26,6 +26,7 @@ $ bun x --no-install vulcan init
   created  .configs/eslint.config.mjs
   created  .configs/oxfmt.config.mts
   created  .configs/vulcan.config.mts
+  created  .dockerignore
   created  Makefile
   updated  .gitignore: + CLAUDE.md CLAUDE.*.md .claude/ .agents/plans
 left to do:
@@ -72,7 +73,7 @@ vulcan init: --config takes one of ts, mts, mjs, js
 
 ## Generated files
 
-`vulcan init` can write nine files at the repository root, and appends to a tenth, `.gitignore`:
+`vulcan init` can write ten files at the repository root, and appends to an eleventh, `.gitignore`:
 
 The project name in the generated files comes from `package.json` `name`, or from the directory name when there is none.
 It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index and the `Makefile`.
@@ -86,6 +87,7 @@ It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index an
 | `.configs/oxlint.config.mts` | Lint configuration for oxlint extending `@venizia/dev-configs` | Add project linter rule overrides when needed |
 | `.configs/eslint.config.mjs` | Lint configuration for ESLint naming conventions extending `@venizia/dev-configs` | Add project naming convention overrides when needed |
 | `.configs/oxfmt.config.mts` | Formatter configuration for oxfmt extending `@venizia/dev-configs` | Add project formatting overrides when needed |
+| `.dockerignore` | Keeps dependencies, build output, `.git` and every agent's local files out of a Docker build context (the same list `init --preset` writes) | Edit it freely; `init` never overwrites it |
 | `.configs/vulcan.config.<ext>` | Main VULCAN configuration file for agents, rule slots and packages | Configure coding agents, rule slots, and workspace packages |
 | `Makefile` | Root Makefile that includes shared VULCAN make targets from `vulcan.mk` | Add project make targets |
 
@@ -113,6 +115,7 @@ $ bun x --no-install vulcan init
   kept     .configs/eslint.config.mjs
   kept     .configs/oxfmt.config.mts
   kept     .configs/vulcan.config.mts
+  kept     .dockerignore
 left to do:
   1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
   2. bun x --no-install vulcan sync && bun x --no-install vulcan doctor

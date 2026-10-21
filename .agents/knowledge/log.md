@@ -8,7 +8,7 @@ counted as concepts.
 
 ## 2026-10-21 - {{appPath}}, the root .dockerignore, the dockerignore note
 
-Preset files may use `{{appPath}}` (the app folder from the root, no slash at either end). `init --preset` writes a root `.dockerignore` (base patterns plus every agent's per-machine files; lockfile, manifests and sources stay in the context; the commit comes in as `APP_BUILD_COMMIT`); doctor notes an app with `.configs/builders/Dockerfile` and no root `.dockerignore`. An app root holds `.configs/`, `src/`, `package.json`, `tsconfig.json`, `.env.example`; nothing in the cli expects `scripts/` or `README.md` there. Concept: [cli](/packages/cli.md).
+Preset files may use `{{appPath}}` (the app folder from the root, no slash at either end). `init --preset` and plain `init` write a root `.dockerignore` (plain init: created or kept) (base patterns plus every agent's per-machine files; lockfile, manifests and sources stay in the context; the commit comes in as `APP_BUILD_COMMIT`); doctor notes an app with `.configs/builders/Dockerfile` and no root `.dockerignore`. An app root holds `.configs/`, `src/`, `package.json`, `tsconfig.json`, `.env.example`; nothing in the cli expects `scripts/` or `README.md` there. Concept: [cli](/packages/cli.md).
 
 ## 2026-10-21 - agents create apps and libraries with a preset (new apps by agents 2-5)
 
