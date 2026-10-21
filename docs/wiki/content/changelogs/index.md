@@ -12,6 +12,7 @@ This section tracks the history of significant changes and releases of the VULCA
 | Date | Title | Type |
 |------|-------|------|
 | 2026-10-21 | [VULCAN 0.3.9: .mcp.json Is Written Per Machine, Only for the Agents That Read It](./2026-10-21-vulcan-0-3-9-mcp-per-machine) | Enhancement, Breaking Change |
+| 2026-10-21 | [VULCAN 0.3.8: --help Lists Every Flag of add](./2026-10-21-vulcan-0-3-8-help-add) | Bug Fix |
 | 2026-10-21 | [VULCAN 0.3.8: Enter Keeps Your Chosen Agents](./2026-10-21-vulcan-0-3-8-agents-enter) | Bug Fix |
 | 2026-10-21 | [VULCAN 0.3.8: doctor Warns When atlas Is Registered the Wrong Way](./2026-10-21-vulcan-0-3-8-doctor-mcp) | Enhancement |
 | 2026-10-21 | [VULCAN 0.3.7: The Root .dockerignore Keeps .env Files Out of Images](./2026-10-21-vulcan-0-3-7-dockerignore-env) | Security |
