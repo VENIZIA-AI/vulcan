@@ -298,6 +298,42 @@ describe('vulcan add --preset', () => {
     expect(existsSync(join(root, 'services/second-api'))).toBe(false);
   });
 
+  test('the preset an app comes from is recorded once, and a new kind of preset is added beside it', () => {
+    const root = monorepo();
+
+    runCli({ args: ['add', '--preset', BACKEND, '--app', 'second-api'], cwd: root, env: ENV });
+    runCli({
+      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin', '--no-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+
+    const manifest = JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8'));
+
+    expect(manifest.presets.map((item: { side: string }) => item.side)).toEqual([
+      'backend',
+      'frontend',
+    ]);
+    expect(manifest.layout).toMatchObject({ backend: 'services', frontend: 'web' });
+  });
+
+  test('a config written before presets were recorded gets the line that reads them', () => {
+    const root = monorepo();
+    const file = join(root, '.configs/vulcan.config.mts');
+
+    writeFileSync(file, readFileSync(file, 'utf8').replace('  presets: apps.presets,\n', ''));
+    runCli({ args: ['add', '--preset', BACKEND, '--app', 'second-api'], cwd: root, env: ENV });
+
+    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+
+    expect(readFileSync(file, 'utf8')).toContain('presets: apps.presets,');
+    expect(
+      JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8')).presets,
+    ).toHaveLength(1);
+  });
+
   test('a new app on a taken port prints the port it was given', () => {
     const root = monorepo();
     const result = runCli({

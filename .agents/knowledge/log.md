@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - the presets of a project are recorded (new apps by agents 1)
+
+`init` and `add` record the preset each app came from (`{ spec, side, summary }`) in the `vulcan:apps` block; the config reads them with `presets: apps.presets` (`add` inserts the line into an older config); `sync` renders `layout` and `presets` into the manifest, so atlas can tell an agent the exact `vulcan add` command. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-20 - the agents page and the changelog (multi-agent 8 of 8)
 
 `references/agents.md` lists the seven agents and is checked against `base/agents.json` by a test, so it cannot drift; the changelog entry for the multi-agent setup is written. Concept: [cli](/packages/cli.md).
