@@ -8,7 +8,7 @@ counted as concepts.
 
 ## 2026-10-22 - every dependency to its latest
 
-Phat's standing rule: always the highest version. The catalog: @types/bun 1.4.3, @venizia/dev-configs 0.3.5, oxfmt 0.74.0, zod ^4.6.7; the docs workspace: vue ^3.5.44; the lockfiles' transitive packages refreshed with `bun update`. No package declares peerDependencies, no major was taken; TypeScript stays on 6 (typescript-eslint does not support 7).
+Phat's standing rule: always the highest version. The catalog: @types/bun 1.4.3, @venizia/dev-configs 0.3.5, eslint 10.13.0, oxfmt 0.74.0, oxlint 1.89.0, tsc-alias 1.9.8, zod ^4.6.7 (`bun outdated` hides exact pins: each entry was compared with `npm view` by hand); the docs workspace: vue ^3.5.44; the lockfiles' transitive packages refreshed with `bun update`. No package declares peerDependencies, no major was taken; TypeScript stays on 6 (typescript-eslint does not support 7).
 
 ## 2026-10-22 - atlas lists the project's skills in its instructions
 
