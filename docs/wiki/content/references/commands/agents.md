@@ -38,10 +38,12 @@ Adding an agent writes its adapters and prints one line per file (a file that di
 $ bun x --no-install vulcan agents add pi
   unchanged CLAUDE.md
   unchanged .claude/settings.json
+  unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/knowledge-sync
   unchanged .mcp.json
+  created   .agents/skills/build-a-feature
   created   .agents/skills/docs-update
   created   .agents/skills/docs-writing
   created   .agents/skills/knowledge-sync
@@ -60,9 +62,11 @@ $ bun x --no-install vulcan agents remove pi
   removed   .pi/mcp.json
   removed   .agents/skills/docs-writing
   removed   .agents/skills/knowledge-sync
+  removed   .agents/skills/build-a-feature
   removed   .agents/skills/docs-update
   unchanged CLAUDE.md
   unchanged .claude/settings.json
+  unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/knowledge-sync

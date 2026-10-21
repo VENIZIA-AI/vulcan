@@ -55,6 +55,7 @@ bun install v1.4.3 (c6da4a4d3)
 113 packages installed [769.00ms]
   unchanged CLAUDE.md
   unchanged .claude/settings.json
+  unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/knowledge-sync
@@ -122,6 +123,7 @@ bun install v1.4.3 (c6da4a4d3)
 Checked 239 installs across 278 packages (no changes) [18.00ms]
   unchanged CLAUDE.md
   unchanged .claude/settings.json
+  unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/knowledge-sync
@@ -173,6 +175,7 @@ bun install v1.4.3 (c6da4a4d3)
 Checked 240 installs across 279 packages (no changes) [19.00ms]
   unchanged CLAUDE.md
   unchanged .claude/settings.json
+  unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/knowledge-sync

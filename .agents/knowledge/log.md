@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - the build-a-feature skill ships
+
+Updated [cli](/packages/cli.md): the base ships a fourth skill, `build-a-feature` - a feature from the user's goal to a reviewed, tested change, looking up conventions and APIs in atlas at each step (`search`, `symbol`, `presets`). `sync` links it first (names sort), and its name is reserved like the other three.
+
 ## 2026-10-21 - presets also lists the official presets not used yet
 
 The atlas `presets` tool answers recorded presets first (`inProject: true`), then the official ones the project has not used (ignis app and lib, ardor app and lib; `inProject: false`), with the exact command (ardor's `--api <app> | --no-api` included); a recorded `@venizia/ardor@x` replaces the official entry. Found when an agent said there is no frontend preset because the project had recorded none. Concept: [atlas](/packages/atlas.md).

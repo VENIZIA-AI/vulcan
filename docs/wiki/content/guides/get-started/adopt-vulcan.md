@@ -202,6 +202,7 @@ bun x --no-install vulcan sync
 $ bun x --no-install vulcan sync
   created   CLAUDE.md
   created   .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  created   .claude/skills/build-a-feature
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing
   created   .claude/skills/knowledge-sync

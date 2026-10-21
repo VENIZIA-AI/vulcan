@@ -94,6 +94,7 @@ installed @venizia/vulcan@0.3.7 with binaries:
 [6.00ms] done
   unchanged CLAUDE.md
   unchanged .claude/settings.json
+  unchanged .claude/skills/build-a-feature
   unchanged .claude/skills/docs-update
   unchanged .claude/skills/docs-writing
   unchanged .claude/skills/knowledge-sync
