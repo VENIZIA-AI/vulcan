@@ -33,6 +33,10 @@ A preset is a framework's app template: `preset.json` plus a `files/` folder, fo
 
 Wiki pages: `references/commands/init.md`, `references/commands/add.md` and `references/presets.md` under `docs/wiki/content/`.
 
+## Prompts
+
+Questions go through `packages/cli/src/ui` (wrappers over the pinned `@clack/prompts`), never clack directly. `menusAvailable()` (stdin and stdout TTY, `TERM` not `dumb`) picks menus; every other case keeps the plain line questions (`askWithPrompt`) so pipes and logs are unchanged. A pty test drives a menu with `driveTerminal` (`__tests__/terminal.helper.ts`); the older pty tests set `TERM=dumb` to keep covering the plain questions.
+
 ## The shipped base (`packages/cli/base/`)
 
 | Path | What it is |

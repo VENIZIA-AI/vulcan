@@ -12,6 +12,7 @@ This section tracks the history of significant changes and releases of the VULCA
 | Date | Title | Type |
 |------|-------|------|
 | 2026-10-21 | [VULCAN 0.3.9: atlas Serves the Docs of the Version You Have Installed](./2026-10-21-vulcan-0-3-9-atlas-pin) | Behaviour change |
+| 2026-10-21 | [VULCAN 0.3.9: Menus Instead of Typed Answers](./2026-10-21-vulcan-0-3-9-prompts) | Feature |
 | 2026-10-21 | [VULCAN 0.3.9: A build-a-feature Skill for Every Project](./2026-10-21-vulcan-0-3-9-build-a-feature) | Feature |
 | 2026-10-21 | [VULCAN 0.3.9: .mcp.json Is Written Per Machine, Only for the Agents That Read It](./2026-10-21-vulcan-0-3-9-mcp-per-machine) | Enhancement, Breaking Change |
 | 2026-10-21 | [VULCAN 0.3.9: The atlas presets Tool Also Lists the Official Presets You Have Not Used](./2026-10-21-vulcan-0-3-9-presets-official) | Enhancement |
