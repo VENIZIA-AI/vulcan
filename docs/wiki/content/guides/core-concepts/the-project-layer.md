@@ -10,18 +10,19 @@ You write configuration and rules, VULCAN generates agent adapters and the manif
 | Path | Who writes it | Committed | Read by |
 |---|---|---|---|
 | `.configs/vulcan.config.*` | You (scaffolded by `vulcan init`) | Yes | `vulcan sync`, `vulcan doctor` |
-| `node_modules/@venizia/vulcan/base/` | Package manager (`@venizia/vulcan`) | No | `vulcan sync`, `vulcan doctor`, make, Claude Code |
-| `AGENTS.md` | You (scaffolded by `vulcan init`) | Yes | Claude Code |
-| `.agents/rules.md` | You (scaffolded by `vulcan init`) | Yes | Claude Code, `vulcan doctor` |
+| `node_modules/@venizia/vulcan/base/` | Package manager (`@venizia/vulcan`) | No | `vulcan sync`, `vulcan doctor`, make, your coding agents |
+| `AGENTS.md` | You (scaffolded by `vulcan init`); `vulcan sync` keeps the Atlas block between its markers | Yes | Every coding agent (Claude Code through `CLAUDE.md`) |
+| `.agents/rules.md` | You (scaffolded by `vulcan init`) | Yes | Your coding agents, `vulcan doctor` |
 | `.agents/knowledge/` | You and okf tools (`init` scaffolds `index.md`) | Yes | Claude Code, okf, atlas |
 | `.agents/skills/` | You | Yes | `vulcan sync` (links into `.claude/skills/`), `vulcan doctor` |
 | `CLAUDE.md` | `vulcan sync` | No (gitignored) | Claude Code |
 | `.claude/settings.json` | `vulcan sync` | No (gitignored) | Claude Code |
 | `.claude/vulcan-managed.json` | `vulcan sync` | No (gitignored) | `vulcan sync` |
 | `.claude/skills/*` | `vulcan sync` | No (gitignored) | Claude Code |
+| `.agents/vulcan.local.json` | `vulcan sync`, `vulcan agents` | No (gitignored) | `vulcan sync`, `vulcan doctor` |
 | `.agents/vulcan.manifest.json` | `vulcan sync` | Yes | atlas, `vulcan doctor`, the guard-remote-hosts hook, the knowledge-sync skill |
 
-Add `CLAUDE.md` and `.claude/` to `.gitignore`. `vulcan init` hints at them but does not edit `.gitignore`.
+`vulcan init` appends `CLAUDE.md`, `CLAUDE.*.md`, `.claude/`, `.agents/plans` and `.agents/vulcan.local.json` to `.gitignore`. For the files `sync` writes for the other agents you chose, it keeps a list in your clone's `.git/info/exclude`, so the committed `.gitignore` does not change with each developer's choice.
 
 ## AGENTS.md is routing only
 
@@ -61,7 +62,9 @@ The manifest carries the following fields:
 |---|---|
 | `schemaVersion` | Manifest schema version (currently 1) |
 | `name` | Config `name`, else the `package.json` name minus its scope |
-| `packages` | Workspace package entries with `name`, `dir`, `path`, `aliases`, and `retired` |
+| `packages` | Workspace package entries with `name`, `dir`, `path`, `aliases`, and `retired`; `kind: "lib"` on a shared package made by `vulcan add --lib` |
+| `layout` | The folders of backend apps, frontend apps and shared packages, when the project has them |
+| `presets` | The presets the project's apps came from, for the atlas `presets` tool |
 | `knowledge` | Paths for the knowledge bundle, wiki, changelogs, and sync areas |
 | `release` | Release tag pattern, legacy tag prefixes, and ignored tags |
 | `rules` | Path to project rules and short 8-character hashes of each base rule row |

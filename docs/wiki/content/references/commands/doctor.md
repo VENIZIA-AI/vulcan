@@ -25,7 +25,7 @@ vulcan doctor: OK
 ## Checks
 
 If the configuration cannot be loaded, `vulcan doctor` reports only `config`.
-Otherwise, it executes the other 14 checks in sequence, then prints the notes.
+Otherwise, it executes the other 14 checks in sequence, then prints the warnings and the notes.
 Doctor runs `skills` twice: shipped-name checks run before `make`, while skill linting runs after `tags`.
 
 | Check | What it verifies | Typical fix |
@@ -196,7 +196,7 @@ A missing or outdated `.agents/vulcan.manifest.json` file triggers this check.
 
 ```text
 $ bun x --no-install vulcan doctor
-  [manifest] .agents/vulcan.manifest.json: stale against the config - run 'bun x --no-install vulcan sync' and commit it
+  [manifest] .agents/vulcan.manifest.json: stale against the config, or edited by hand - the manifest is generated, never edit it: edit .configs/vulcan.config.* and run 'bun x --no-install vulcan sync' and commit it
 vulcan doctor: 1 violation(s)
 ```
 

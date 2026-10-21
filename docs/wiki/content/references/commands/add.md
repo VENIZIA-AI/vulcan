@@ -12,58 +12,91 @@ Run it at the monorepo root:
 bun x --no-install vulcan add --preset <name>
 ```
 
-The command asks what to create, its name and its folder, copies the preset, registers it, then installs and checks.
+The command asks what to create (when the preset makes more than one kind), the folder and the name, copies the preset, registers it, then installs and checks.
 In a terminal it asks. Without one, the kind and every name come from flags:
 
 ```bash
-bun x --no-install vulcan add --preset <name> --app billing
-bun x --no-install vulcan add --preset <name> --lib billing
+bun x --no-install vulcan add --preset ignis --app api2
+bun x --no-install vulcan add --preset ignis --lib billing
 ```
 
 `--app` makes a runnable app. `--lib` makes a shared package, and only a preset that ships a library kind accepts it (see [Presets](/references/presets#a-library-kind)).
-The kind is never defaulted. With neither flag, a terminal asks `What do you want to create? (app, lib)`, listing only the kinds the preset offers; a preset with one kind skips the question and asks only the name.
+A frontend, without a terminal, also needs `--api <backend app>` (the backend `/api` is proxied to) or `--no-api`; without one of them `add` stops with `vulcan add: missing --api <app> or --no-api` before it downloads anything.
+The kind is never defaulted. With neither flag, a terminal asks `What do you want to create? (app, lib)`, listing only the kinds the preset offers; a preset with one kind skips that question and asks the folder and the name as it always did.
 Without a terminal, `add` stops before it downloads or writes anything and prints both commands:
 
 ```text
-$ bun x --no-install vulcan add --preset <name> < /dev/null
+$ bun x --no-install vulcan add --preset ignis < /dev/null
 vulcan add: say what to create - `--app <name>` (a runnable app) or `--lib <name>` (a shared package)
-  bun x --no-install vulcan add --preset <name> --app <name>
-  bun x --no-install vulcan add --preset <name> --lib <name>
+  bun x --no-install vulcan add --preset ignis --app <name>
+  bun x --no-install vulcan add --preset ignis --lib <name>
 ```
 
 This page covers `add`. The first app and the monorepo come from [`vulcan init --preset`](/references/commands/init#create-a-monorepo-with-preset); the preset format is in [Presets](/references/presets).
 
 ## Add a frontend
 
-A frontend asks which backend app to proxy `/api` to. This run uses a local preset (`file:`) and adds the frontend `dashboard`:
+A frontend asks which backend app to proxy `/api` to; without a terminal it needs `--api <app>` or `--no-api`. This run adds the `ardor` frontend `web` in a terminal. `ardor` makes apps and libraries, so `add` asks the kind first:
 
 ```text
-$ bun x --no-install vulcan add --preset file:../acme-web
-? Frontend folder (holds every frontend app) > web
-? Name of this frontend app > dashboard
+$ bun x --no-install vulcan add --preset ardor
+Fetching preset @venizia/ardor@latest ...
+? What do you want to create? (app, lib) > app
+? Frontend folder (holds every frontend app) > apps
+? Name of this frontend app > web
 ? Backend app to proxy /api to (empty for none) > core-api
-  created  web/dashboard/package.json
+  created  apps/web/package.json
   created  package.json
   created  .configs/vulcan.config.mts
-  created  .agents/knowledge/packages/dashboard.md
+  created  .agents/knowledge/packages/web.md
   created  .agents/knowledge/index.md
   created  .agents/knowledge/log.md
-  skipped  bun install (VULCAN_NO_INSTALL)
-  skipped  vulcan sync (VULCAN_NO_INSTALL)
-  skipped  bun run typecheck (~/work/my-product/web/dashboard) (VULCAN_NO_INSTALL)
-  skipped  bun run build (~/work/my-product/web/dashboard) (VULCAN_NO_INSTALL)
-  skipped  bun x --no-install vulcan doctor (VULCAN_NO_INSTALL)
-  skipped  bun x --no-install vulcan x okf check --strict (VULCAN_NO_INSTALL)
-Done. web/dashboard is added. Next:
+bun install v1.4.3 (c6da4a4d3)
+113 packages installed [769.00ms]
+  unchanged CLAUDE.md
+  unchanged .claude/settings.json
+  unchanged .claude/skills/docs-update
+  unchanged .claude/skills/docs-writing
+  unchanged .claude/skills/knowledge-sync
+  replaced  .agents/vulcan.manifest.json
+  replaced  AGENTS.md (Atlas block)
+  unchanged .agents/vulcan.local.json
+  unchanged .git/info/exclude
+$ bun check --no-pretty -p tsconfig.json
+✓ No type errors in 10 files [188.95ms]
+$ devz lint
+Found 0 warnings and 0 errors.
+$ bun test
+ 1 pass
+ 0 fail
+$ vite build --config .configs/builders/vite.config.mts
+✓ built in 426ms
+vulcan doctor: OK
+check: OK - OKF v0.2 + house rules - 4 files, 2 concepts
+Done. apps/web is added. Next:
   make dev
-  open http://localhost:3000
-  open http://localhost:5173
+  open http://localhost:3000/api/hello
+  open http://localhost:3000/api/doc/explorer
+  open http://localhost:5173/
+```
+
+The output of the install, the lint and the build, and the timings, are cut or differ on your machine. The preset's files are not listed. `add` also first prints the files it copied; they depend on the preset.
+Without a terminal, the same run is one command:
+
+```bash
+bun x --no-install vulcan add --preset ardor --app web --frontend-dir apps --api core-api
+```
+
+Without `--api` and `--no-api` it stops at once:
+
+```text
+$ bun x --no-install vulcan add --preset ardor --app web --frontend-dir apps < /dev/null
+vulcan add: missing --api <app> or --no-api
 ```
 
 With a published preset, `add` first prints `Fetching preset <name>@<range> ...`, then asks; the output of `bun add` is printed only when the fetch fails.
 The last lines list every app of the monorepo, the one just added included: `make dev`, then one `open` line per url its preset declared (see `urls` in [Presets](/references/presets)), or the root of its port when it declared none.
-The `skipped` lines appear only because the run sets `VULCAN_NO_INSTALL=1`, which prints the install, `sync` and the checks instead of running them.
-The copied preset files are not listed; `web/dashboard/vite.config.ts` now proxies `/api` to the port of `core-api`:
+The frontend's dev server proxies `/api` to the port of the backend you named. A frontend preset writes that through the `{{apiUrl}}` token ([Presets](/references/presets#tokens-in-files)), so a generated `vite.config` holds, for example:
 
 ```ts
 export default defineConfig({
@@ -71,25 +104,89 @@ export default defineConfig({
 });
 ```
 
-## Add a library
+With `VULCAN_NO_INSTALL=1` the install, `sync` and the checks print as `skipped` and nothing runs; VULCAN's own tests use that.
 
-A library is a shared package: no port, no urls, no `/api` proxy. This run uses a local preset that ships a library kind and adds `billing`:
+## Add a backend app
 
 ```text
-$ bun x --no-install vulcan add --preset file:../acme-api --lib billing
-  created  libs/billing/README.md
+$ bun x --no-install vulcan add --preset ignis --app api2
+Fetching preset @venizia/ignis@latest ...
+  created  services/api2/package.json
+  created  package.json
+  created  .configs/vulcan.config.mts
+  created  .agents/knowledge/packages/api2.md
+  created  .agents/knowledge/index.md
+  created  .agents/knowledge/log.md
+bun install v1.4.3 (c6da4a4d3)
+Checked 239 installs across 278 packages (no changes) [18.00ms]
+  unchanged CLAUDE.md
+  unchanged .claude/settings.json
+  unchanged .claude/skills/docs-update
+  unchanged .claude/skills/docs-writing
+  unchanged .claude/skills/knowledge-sync
+  replaced  .agents/vulcan.manifest.json
+  unchanged AGENTS.md
+  unchanged .agents/vulcan.local.json
+  unchanged .git/info/exclude
+$ bun check
+✓ No type errors in 5 files [206.00ms]
+$ devz lint
+Found 0 warnings and 0 errors.
+$ bun test
+ 2 pass
+ 0 fail
+vulcan doctor: OK
+check: OK - OKF v0.2 + house rules - 4 files, 2 concepts
+Done. services/api2 is added. Next:
+  make dev
+  open http://localhost:3000/api/hello
+  open http://localhost:3000/api/doc/explorer
+  open http://localhost:3001/api/hello
+  open http://localhost:3001/api/doc/explorer
+```
+
+The second backend listens on `3001`: the preset's `devPort` is `3000` and `core-api` already holds it, so `add` takes the next free one (`PORT=3001` in `services/api2/.env.example`).
+
+## Add a library
+
+A library is a shared package: no port, no urls, no `/api` proxy. This run adds `billing` from the `ignis` preset to a project whose shared folder is `libs`:
+
+```text
+$ bun x --no-install vulcan add --preset ignis --lib billing
+Fetching preset @venizia/ignis@latest ...
+  created  libs/billing/tsconfig.json
   created  libs/billing/src/index.ts
+  created  libs/billing/src/services/greeting.service.test.ts
+  created  libs/billing/src/services/greeting.service.ts
+  created  libs/billing/.configs/lints/oxlint.config.mts
+  created  libs/billing/.configs/lints/eslint.config.mjs
+  created  libs/billing/.configs/formatters/oxfmt.config.mts
   created  libs/billing/package.json
   created  package.json
   created  .configs/vulcan.config.mts
   created  .agents/knowledge/packages/billing.md
   created  .agents/knowledge/index.md
   created  .agents/knowledge/log.md
-  skipped  bun install (VULCAN_NO_INSTALL)
-  skipped  vulcan sync (VULCAN_NO_INSTALL)
-  skipped  bun run typecheck (~/work/my-product/libs/billing) (VULCAN_NO_INSTALL)
-  skipped  bun x --no-install vulcan doctor (VULCAN_NO_INSTALL)
-  skipped  bun x --no-install vulcan x okf check --strict (VULCAN_NO_INSTALL)
+bun install v1.4.3 (c6da4a4d3)
+Checked 240 installs across 279 packages (no changes) [19.00ms]
+  unchanged CLAUDE.md
+  unchanged .claude/settings.json
+  unchanged .claude/skills/docs-update
+  unchanged .claude/skills/docs-writing
+  unchanged .claude/skills/knowledge-sync
+  replaced  .agents/vulcan.manifest.json
+  unchanged AGENTS.md
+  unchanged .agents/vulcan.local.json
+  unchanged .git/info/exclude
+$ bun check
+✓ No type errors in 3 files [106.20ms]
+$ devz lint
+Found 0 warnings and 0 errors.
+$ bun test
+ 1 pass
+ 0 fail
+vulcan doctor: OK
+check: OK - OKF v0.2 + house rules - 5 files, 3 concepts
 Done. libs/billing is added.
 ```
 
@@ -100,10 +197,42 @@ The `package.json` it wrote lists dependencies as `catalog:`; the ranges went in
   "name": "billing",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
-  "exports": { ".": "./src/index.ts" },
-  "dependencies": { "zod": "catalog:" }
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "imports": {
+    "#src/*.json": "./src/*.json",
+    "#src/*": "./src/*.js"
+  },
+  "scripts": {
+    "typecheck": "bun check",
+    "lint": "devz lint",
+    "lint:fix": "devz lint --fix",
+    "test": "bun test",
+    "clean": "devz clean"
+  },
+  "devDependencies": {
+    "@types/bun": "catalog:",
+    "@venizia/dev-configs": "catalog:",
+    "@venizia/ignis": "catalog:",
+    "eslint": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "@venizia/ignis": "catalog:"
+  }
 }
+```
+
+In a terminal, the library questions are the kind, the name and then the folder with its default:
+
+```text
+? What do you want to create? (app, lib) > lib
+? Name of this library > invoices
+? Folder (libs) >
 ```
 
 Where the library goes, and what it is called:
@@ -144,7 +273,7 @@ The preset says whether it is a backend or a frontend, and that side's folder is
 
 | File | Change |
 |---|---|
-| `<folder>/<app>/` | The preset's files, with `{{project}}`, `{{app}}`, `{{devPort}}` and `{{apiUrl}}` filled in, and a generated `package.json` |
+| `<folder>/<app>/` | The preset's files, with `{{project}}`, `{{app}}`, `{{appPath}}`, `{{devPort}}` and `{{apiUrl}}` filled in, and a generated `package.json` |
 | `package.json` | The folder joins `workspaces` and the preset's versions join `catalog`; an array stays an array, and the catalog stays where the project keeps it (top level or inside `workspaces`) |
 | `.configs/vulcan.config.mts` | The block between `vulcan:apps:start` and `vulcan:apps:end` is read and extended: `layout`, the new `packages` entry, the preset's `atlas` sources. Everything you added outside the markers is untouched and never copied in |
 | `.agents/knowledge/` | A concept for the app, one bullet after the last one under `## Apps` in `index.md` (a section is added when there is none; the rest of the file is yours), a dated line in `log.md` |
@@ -159,8 +288,8 @@ Two rules keep apps consistent:
 - **The port is the next free one.** The preset's `devPort` is used unless another app's `.env.example` already holds it. A second backend that asks for `3000` gets `3001`:
 
   ```text
-  $ cat services/billing/.env.example
-  APP_ENV_SERVER_PORT=3001
+  $ cat services/api2/.env.example
+  PORT=3001
   ```
 
 ## Refusals
@@ -171,6 +300,7 @@ Every refusal happens before the first write, with exit code 1.
 |---|---|
 | `vulcan add: run it at the root of a monorepo vulcan init created (no layout in .configs/vulcan.config.*)` | The folder has no `layout`. Run `add` at the monorepo root |
 | `vulcan add: the backend folder is 'services' in .configs/vulcan.config.mts; apps of one side share it, not 'apps'` | Use the stored folder, or leave the flag out |
+| `vulcan add: missing --app (Name of this app) - names are never chosen for you` | `--app` was given with no name and there is no terminal to ask. Pass the name |
 | `vulcan add: services/billing already exists` | An app or folder has that name. Pick another |
 | `vulcan add: say what to create - ...` | Neither `--app` nor `--lib`, and no terminal to ask. The message prints both commands |
 | `vulcan add: --app and --lib cannot be used together` | One kind per run |

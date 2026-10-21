@@ -21,7 +21,7 @@ In your editor, the session-start hook runs by itself at session start.
 It injects a rules digest into session context.
 To test it directly, run the hook from the project root.
 The hook uses `CLAUDE_PROJECT_DIR` or the working directory.
-The following output shows the first 11 lines of 28:
+The following output shows the first 14 of its 34 lines:
 
 ```text
 $ bun node_modules/@venizia/vulcan/base/hooks/session-start.ts
@@ -29,17 +29,20 @@ $ bun node_modules/@venizia/vulcan/base/hooks/session-start.ts
 
 Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents/rules.md`.
 
+## Atlas
+
+The `atlas` MCP server holds the real code and docs of: demo-app (this repository).
+Look facts up there before you answer or write from memory: `symbol` for an export you import, `search` for how something works, `version` or `changes` for a release (V-P-07).
+
 ## Write boundaries
 
 | ID | Rule | Enforced by |
 |----|------|-------------|
 | V-W-01 | **Slot** - the project picks one in `.configs/vulcan.config.*` (`rules: { 'V-W-01': ... }`): `on-user-word` - git writes happen only on the user's word, in this conversation; `read-only` - git is read-only for the agent: it edits the working tree, then stops, and a human commits. | slot - `read-only` adds a permissions.deny list |
-| V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook (asks) |
-| V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook (asks) |
 ```
 
-The output shows the base write-boundary rows.
-The rows for V-W-02 and V-W-03 name the guard hook.
+The `Atlas` block names the project and the sources atlas holds; the rows below it carry the base write-boundary rules.
+The rows for V-W-02 and V-W-03 (further down) name the guard hook.
 To inspect hook configuration and events, see [Hooks](/references/hooks/).
 
 ## 2. Watch a guard work
@@ -125,33 +128,34 @@ The server is declared in `.mcp.json`:
 }
 ```
 
-To view the tools atlas provides, run `vulcan x atlas tools`:
+To view the tools atlas provides, run `vulcan x atlas tools`. Each description opens with when to call the tool and names your project:
 
 ```text
 $ bun x --no-install vulcan x atlas tools
-search   Search the wiki, changelogs and knowledge bundle for chunks matching a keyword query, ranked by relevance
-get      Read one chunk's body by the id a search hit returned, or a whole document by the same id with its `#anchor` dropped, paging a long body with a cursor.
-symbol   Locate one exported symbol by name: which package and import specifier it comes from, its kind, its one-line signature, the source `file` and `line` it is declared on, and the chunk ids that document it
-version  Compare the @venizia/* packages installed in a directory against the newest versions this build knows about - the versions its generated release table carries, not the registry.
-changes  List the changelog entries between two releases: a package with two of its versions, or no package with two `YYYY-MM-DD` dates
+search   When the user asks how something works in demo-app, or about this project's conventions, search here before you answer from memory
+get      After `search`, read the hit here before you rely on it
+symbol   Before you import or call an export of demo-app, get its real signature, import path and source line here instead of recalling it
+version  When a version, an upgrade or an installed @venizia/* package comes up in demo-app, check here
+changes  When the user asks what changed, what a release added or what breaks on upgrade in demo-app, list the entries here
+presets  When you are asked to create a new app or package in demo-app, ask here which preset and which exact command to use before you write any file
 ```
 
 To search the knowledge bundle for invoice, send a search tool call:
 
 ```text
 $ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"x","version":"0"}}}' '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search","arguments":{"query":"invoice"}}}' | bun x --no-install vulcan x atlas mcp --root .
-{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"demo-app-atlas","version":"0.2.0"}}}
-{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{\"total\":1,\"returned\":1,\"hits\":[{\"id\":\"okf:overview/what-is-demo-app.md#\",\"corpus\":\"knowledge\",\"title\":\"What demo-app is\",\"headingPath\":\"What demo-app is\",\"anchor\":\"\",\"score\":-0.9779894330587897,\"snippet\":\"# What demo-app is\\n\\ndemo-app turns an order into an invoice ... \",\"source\":\"demo-app\"}]}"}]}}
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"demo-app-atlas","version":"0.3.7"},"instructions":"Atlas holds the real code and docs of demo-app (this repository). Do not answer facts about demo-app from memory when atlas can answer them: call `symbol` for each export before you write code that imports their packages, `search` then `get` when the user asks how something works or which convention applies, `version` or `changes` for a release or an upgrade, `presets` before you create an app or package.\n\nAtlas serves 1 source(s); every hit names its source.\n- demo-app: this repository, live"}}
+{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{\"total\":1,\"returned\":1,\"hits\":[{\"id\":\"okf:overview/what-is-demo-app.md#\",\"corpus\":\"knowledge\",\"title\":\"What demo-app is\",\"headingPath\":\"What demo-app is\",\"anchor\":\"\",\"score\":-0.000001746031746031746,\"snippet\":\"# What demo-app is\\n\\ndemo-app turns an order into an invoice ... \",\"source\":\"demo-app\"}]}"}]}}
 ```
 
 These are the calls an agent makes in the editor.
-The server name, `source`, and `score` show your own project name and bundle.
+The `instructions` field of the first reply is what Claude Code adds to the agent's context. The server name, `source`, and `score` show your own project name and bundle; the version is the one you installed.
 The id `okf:overview/what-is-demo-app.md#` ends in `#` because the hit is the document opening chunk with no heading anchor.
 To fetch the whole document, send a `get` call with the `#` dropped:
 
 ```text
 $ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"x","version":"0"}}}' '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get","arguments":{"id":"okf:overview/what-is-demo-app.md"}}}' | bun x --no-install vulcan x atlas mcp --root .
-{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"demo-app-atlas","version":"0.2.0"}}}
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"demo-app-atlas","version":"0.3.7"},"instructions":"Atlas holds the real code and docs of demo-app (this repository). Do not answer facts about demo-app from memory when atlas can answer them: call `symbol` for each export before you write code that imports their packages, `search` then `get` when the user asks how something works or which convention applies, `version` or `changes` for a release or an upgrade, `presets` before you create an app or package.\n\nAtlas serves 1 source(s); every hit names its source.\n- demo-app: this repository, live"}}
 {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{\"id\":\"okf:overview/what-is-demo-app.md\",\"title\":\"What demo-app is\",\"headingPath\":\"What demo-app is\",\"body\":\"# What demo-app is\\n\\ndemo-app turns an order into an invoice. The invoice is numbered per calendar year and mailed as a PDF.\"}"}]}}
 ```
 

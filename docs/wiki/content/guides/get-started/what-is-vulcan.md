@@ -9,7 +9,7 @@ Coding agents start every session with no memory of your rules and facts. Each p
 
 > [!NOTE]
 > VULCAN needs Bun 1.4 or newer and is built for VENIZIA projects.
-> It supports the `claude` agent, the only accepted `agents` value.
+> It sets up Claude Code, omp, Codex, Cursor, Copilot (CLI and in VS Code), Antigravity and Pi. Each developer chooses theirs on their own machine ([Coding agents](/references/agents)).
 
 ```bash
 bun add -d @venizia/vulcan
@@ -38,22 +38,24 @@ A project installs only one package: `@venizia/vulcan`. The other two packages s
 
 ## What a project looks like
 
-Running `vulcan init` and `vulcan sync` adds these files to your repository. The list drops `bun.lock` and `package.json`.
+Running `vulcan init` and `vulcan sync` adds these files to your repository. The list drops `bun.lock`, `package.json` and the `.claude/skills/*` links, and `sync` also edits the Atlas block of `AGENTS.md`.
 
 ```text
-./.agents/knowledge/index.md      # committed: root of the knowledge bundle
-./AGENTS.md                       # committed: agent instruction router
-./.agents/rules.md                # committed: project-specific rules
-./.agents/vulcan.manifest.json    # committed: project manifest written by sync
-./CLAUDE.md                       # gitignored: agent adapter pointing to AGENTS.md
-./.claude/settings.json           # gitignored: merged settings and registered hooks
-./.claude/vulcan-managed.json     # gitignored: record of applied settings
+./.agents/knowledge/index.md            # committed: root of the knowledge bundle
+./AGENTS.md                             # committed: agent instruction router
+./.agents/rules.md                      # committed: project-specific rules
+./.agents/vulcan.manifest.json          # committed: project manifest written by sync
+./.agents/vulcan.local.json             # gitignored: the coding agents you chose on this machine
+./CLAUDE.md                             # gitignored: agent adapter pointing to AGENTS.md
+./.claude/settings.json                 # gitignored: merged settings and registered hooks
+./.claude/vulcan-managed.json           # gitignored: record of applied settings
 ./.configs/lints/eslint.config.mjs      # committed: shared ESLint configuration
 ./.configs/lints/oxlint.config.mts      # committed: shared oxlint configuration
 ./.configs/formatters/oxfmt.config.mts  # committed: shared oxfmt configuration
-./.configs/vulcan.config.mts      # committed: project configuration
-./Makefile                        # committed: includes vulcan.mk
-./.mcp.json                       # committed: local atlas MCP registration
+./.configs/vulcan.config.mts            # committed: project configuration
+./.dockerignore                         # committed: what a Docker build leaves out
+./Makefile                              # committed: includes vulcan.mk
+./.mcp.json                             # committed: local atlas MCP registration
 ```
 
 See the [project layer guide](/guides/core-concepts/the-project-layer) for the full contract and responsibilities.
