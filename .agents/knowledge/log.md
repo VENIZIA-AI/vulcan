@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - the build-a-feature skill ships
+
+Updated [cli](/packages/cli.md): the base ships a fourth skill, `build-a-feature` - a feature from the user's goal to a reviewed, tested change, looking up conventions and APIs in atlas at each step (`search`, `symbol`, `presets`). `sync` links it first (names sort), and its name is reserved like the other three.
+
 ## 2026-10-21 - the atlas server refreshes its sources while it runs
 
 A server resolved each remote source once, at its start, and computed the project's release table once, so a session that began before a release answered `version` with old versions for days (reported by BANA; tags and a fresh pull were right). Now a `Refresher`, poked by every `tools/call`, re-resolves remote sources and the project's HEAD and tags at most every 5 minutes in the background (`VULCAN_ATLAS_REFRESH_SECONDS`, `0` off), swapping stores in place through live entries; a failure keeps the old stores. Concept: [atlas](/packages/atlas.md).

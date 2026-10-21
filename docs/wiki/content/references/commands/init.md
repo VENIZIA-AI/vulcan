@@ -260,6 +260,7 @@ Which coding agents do you use in this project? (comma-separated; Enter accepts 
 ? Agents > claude
   created   CLAUDE.md
   created   .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  created   .claude/skills/build-a-feature
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing
   created   .claude/skills/knowledge-sync
