@@ -17,8 +17,11 @@ Usage: bun x vulcan <command>
   init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <name>]
        [--shared-dir <name>]      Create a monorepo with its first app, from a framework preset
                                   (a name missing from the flags is asked in a terminal)
-  add --preset <name|file:path> --app <name> [--backend-dir|--frontend-dir <name>]
-      [--api <app> | --no-api]    Add an app to the monorepo (a frontend says which backend to proxy to)
+  add --preset <name|file:path> (--app <name> | --lib <name>) [--dir <folder>] [--scope <@scope>]
+      [--backend-dir|--frontend-dir <name>] [--api <app> | --no-api]
+                                  Add an app or a shared library to the monorepo (a frontend says which
+                                  backend to proxy to; --dir and --scope are for a library; a terminal
+                                  asks for the kind and every name the flags leave out)
   sync [--agents <list>|list] [--dry-run] [--prune]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
                                   stored in .agents/vulcan.local.json; --agents list shows the table);
@@ -33,7 +36,7 @@ Usage: bun x vulcan <command>
   help · version
 ```
 
-The `add` line of the help lists the app flags. `add` also takes `--lib <name>` (a shared package, with `--dir <folder>` and `--scope <@scope>`) and, in place of `--app`, a terminal question; see [vulcan add](/references/commands/add).
+The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a shared package (with `--dir` and `--scope`); see [vulcan add](/references/commands/add).
 
 If you pass an unknown command, `vulcan` prints `vulcan: unknown command 'foo' - run 'bun x vulcan help'` and exits with code 1.
 The following table lists each command, its purpose, its exit codes, and its reference page:

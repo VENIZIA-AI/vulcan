@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { CreateFlags } from '../create/common/index.ts';
 import { createProject, removeProjects } from './project.helper.ts';
 import { runCli } from './run.helper.ts';
 
@@ -64,6 +65,29 @@ describe('vulcan router', () => {
     }
 
     expect(existsSync(join(cwd, 'CLAUDE.md'))).toBe(false);
+  });
+
+  test('the help line of add lists every flag add takes, app and library alike', () => {
+    const help = runCli({ args: ['help'], cwd: tmpdir() }).stdout;
+    const start = help.indexOf('  add --preset');
+    const block = help.slice(start, help.indexOf('  sync ', start));
+
+    for (const flag of [
+      CreateFlags.PRESET,
+      CreateFlags.APP,
+      CreateFlags.LIB,
+      CreateFlags.DIR,
+      CreateFlags.SCOPE,
+      CreateFlags.BACKEND_DIR,
+      CreateFlags.FRONTEND_DIR,
+      CreateFlags.API,
+      CreateFlags.NO_API,
+    ]) {
+      expect(block, flag).toContain(flag);
+    }
+
+    expect(block).toContain('(--app <name> | --lib <name>)');
+    expect(block).toContain('[--dir <folder>] [--scope <@scope>]');
   });
 
   test('an argument a command does not take exits 1 naming it, and runs nothing', () => {

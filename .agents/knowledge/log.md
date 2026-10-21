@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - the help of add lists every flag
+
+`vulcan --help` shows `add --preset <name|file:path> (--app <name> | --lib <name>) [--dir <folder>] [--scope <@scope>] [--backend-dir|--frontend-dir <name>] [--api <app> | --no-api]`; a test checks that every flag `add` takes is in that block. Before, `--lib`, `--dir` and `--scope` were missing. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-21 - Enter keeps the stored agents
 
 When the agents question is asked again (`vulcan agents setup`, `vulcan sync --agents` with no value), an empty answer keeps the choice stored on the machine (also an empty one); with nothing stored it takes the detected list. The prompt names what Enter does. Before, Enter applied the detected list even under `chosen before:`. Concept: [cli](/packages/cli.md).

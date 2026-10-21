@@ -8,8 +8,11 @@ Usage: bun x vulcan <command>
   init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <name>]
        [--shared-dir <name>]      Create a monorepo with its first app, from a framework preset
                                   (a name missing from the flags is asked in a terminal)
-  add --preset <name|file:path> --app <name> [--backend-dir|--frontend-dir <name>]
-      [--api <app> | --no-api]    Add an app to the monorepo (a frontend says which backend to proxy to)
+  add --preset <name|file:path> (--app <name> | --lib <name>) [--dir <folder>] [--scope <@scope>]
+      [--backend-dir|--frontend-dir <name>] [--api <app> | --no-api]
+                                  Add an app or a shared library to the monorepo (a frontend says which
+                                  backend to proxy to; --dir and --scope are for a library; a terminal
+                                  asks for the kind and every name the flags leave out)
   sync [--agents <list>|list] [--dry-run] [--prune]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
                                   stored in .agents/vulcan.local.json; --agents list shows the table);
