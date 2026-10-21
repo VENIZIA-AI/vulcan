@@ -28,7 +28,7 @@ $ bun x --no-install vulcan init
   created  .configs/vulcan.config.mts
   created  .dockerignore
   created  Makefile
-  updated  .gitignore: + CLAUDE.md CLAUDE.*.md .claude/ .agents/plans
+  updated  .gitignore: + CLAUDE.md CLAUDE.*.md .claude/ .agents/plans .agents/vulcan.local.json
 left to do:
   1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
   2. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
@@ -163,6 +163,7 @@ CLAUDE.md
 CLAUDE.*.md
 .claude/
 .agents/plans
+.agents/vulcan.local.json
 ```
 
 Existing lines are kept in order, and the new lines follow them.
@@ -226,23 +227,31 @@ bun x @venizia/vulcan init --preset ignis
 A name without a scope means the package `@venizia/<name>`, so `ignis` is `@venizia/ignis`.
 Any npm name works, `name@version` pins a version, and the default is the `latest` tag.
 
-In a terminal, `init` asks for every name. The run below uses a local preset (`file:`) as a stand-in for a published one:
+In a terminal, `init` asks for every name. With a published preset the side of the app is not known until the package is read, so `init` asks the project name first, fetches the package, then asks the rest in the same order with the side named:
 
 ```text
-$ bun x @venizia/vulcan init --preset file:./acme-api
+$ bun x @venizia/vulcan init --preset ignis
 ? Project name (the monorepo folder) > my-product
+Fetching preset @venizia/ignis@latest ...
 ? Backend folder (holds every backend app) > services
 ? Name of this backend app > core-api
 ? Shared code folder (empty to skip) > libs
   created  package.json
   created  .gitignore
-  created  .dockerignore
   created  README.md
+  created  .dockerignore
   created  libs/.gitkeep
   created  services/core-api/tsconfig.json
   created  services/core-api/.env.example
+  created  services/core-api/src/application.ts
   created  services/core-api/src/index.ts
-  created  services/core-api/src/__tests__/smoke.test.ts
+  created  services/core-api/src/smoke.test.ts
+  created  services/core-api/src/controllers/hello.controller.ts
+  created  services/core-api/.configs/lints/oxlint.config.mts
+  created  services/core-api/.configs/lints/eslint.config.mjs
+  created  services/core-api/.configs/formatters/oxfmt.config.mts
+  created  services/core-api/.configs/builders/Dockerfile
+  created  services/core-api/.configs/builders/compile.ts
   created  services/core-api/package.json
   created  AGENTS.md
   created  .agents/rules.md
@@ -252,33 +261,50 @@ $ bun x @venizia/vulcan init --preset file:./acme-api
   created  .agents/knowledge/index.md
   created  .agents/knowledge/packages/core-api.md
   created  .agents/knowledge/log.md
-  skipped  bun install (VULCAN_NO_INSTALL)
-  skipped  git init (VULCAN_NO_INSTALL)
-  skipped  vulcan sync (VULCAN_NO_INSTALL)
-  skipped  bun run typecheck (~/work/my-product/services/core-api) (VULCAN_NO_INSTALL)
-  skipped  bun run test (~/work/my-product/services/core-api) (VULCAN_NO_INSTALL)
-  skipped  bun x --no-install vulcan doctor (VULCAN_NO_INSTALL)
-  skipped  bun x --no-install vulcan x okf check --strict (VULCAN_NO_INSTALL)
+bun install v1.4.3 (c6da4a4d3)
++ @venizia/vulcan@0.3.7
+236 packages installed [69.23s]
+Which coding agents do you use in this project? (comma-separated, Enter accepts)
+  detected: claude, omp
+  available: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
+? Agents > claude
+  created   CLAUDE.md
+  created   .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
+  created   .claude/skills/docs-update
+  created   .claude/skills/docs-writing
+  created   .claude/skills/knowledge-sync
+  created   .agents/vulcan.manifest.json
+  replaced  AGENTS.md (Atlas block)
+  created   .agents/vulcan.local.json
+  replaced  .git/info/exclude
+$ bun check
+✓ No type errors in 5 files [201.02ms]
+$ devz lint
+Found 0 warnings and 0 errors.
+Finished in 311ms on 8 files with 97 rules using 12 threads.
+Checking formatting...
+All matched files use the correct format.
+Finished in 12ms on 8 files using 12 threads.
+$ bun test
+bun test v1.4.3 (c6da4a4d3)
+src/smoke.test.ts:
+✓ core-api > GET /hello says hello [0.79ms]
+✓ core-api > GET /doc/explorer serves the API reference [3.34ms]
+ 2 pass
+ 0 fail
+ 4 expect() calls
+Ran 2 tests across 1 file. [921.00ms]
+vulcan doctor: OK
+check: OK - OKF v0.2 + house rules - 3 files, 1 concepts
 Done. Next:
   cd my-product && make dev
-  open http://localhost:3000
+  open http://localhost:3000/api/hello
+  open http://localhost:3000/api/doc/explorer
 ```
 
-The `skipped` lines appear only because the run sets `VULCAN_NO_INSTALL=1`, which prints the install, `git init`, `sync` and the checks instead of running them.
-A normal run executes each one.
+The timings, the `detected` line and the install output differ on your machine. The fetch is one line: the output of `bun add` is kept and printed only when the fetch fails, so it never lands between two questions. The agents question appears because a project made from a preset has no `agents` list in its config for `sync` to take as a suggestion; it is stored in `.agents/vulcan.local.json` ([Choosing your agents](/references/commands/sync#choosing-your-agents)). Without a terminal, `sync` writes the Claude files and prints one line saying how to choose.
 
-With a published preset the side of the app is not known until the package is read, so `init` asks the project name first, fetches the package, then asks the rest in the same order with the side named:
-
-```text
-$ bun x @venizia/vulcan init --preset ignis
-? Project name (the monorepo folder) > my-product
-Fetching preset @venizia/ignis@latest ...
-? Backend folder (holds every backend app) > services
-? Name of this backend app > core-api
-? Shared code folder (empty to skip) > libs
-```
-
-The fetch is one line. The output of `bun add` is kept and printed only when the fetch fails, so it never lands between two questions.
+A local preset (`file:<folder>`) works the same, and its side is known at once, so `init` asks the backend or frontend folder second without fetching. The package itself is then written to the catalog as `file:<absolute path>` and `init` prints a `warning:` line about it. With `VULCAN_NO_INSTALL=1` the install, `git init`, `sync` and the checks print as `skipped` instead of running; VULCAN's own tests use that.
 
 Because `.git` is not in the build context, an image cannot ask git for its commit: pass it as build arguments, `docker build -f <app>/.configs/builders/Dockerfile --build-arg APP_BUILD_COMMIT="$(git rev-parse HEAD)" --build-arg APP_BUILD_BRANCH="$(git rev-parse --abbrev-ref HEAD)" .`, run from the project root.
 
@@ -287,10 +313,17 @@ When the preset declares `urls`, the last lines are one `open http://localhost:3
 
 ### Flags
 
-Without a terminal (CI, scripts), every name comes from a flag. A missing one is an error that names it:
+Without a terminal (CI, scripts), every name comes from a flag. A missing one is an error that names it. With a published preset the app side is not known yet, so the first one named is `--app`:
 
 ```text
-$ bun x @venizia/vulcan init --preset file:./acme-api --project fresh
+$ bun x @venizia/vulcan init --preset ignis --project fresh < /dev/null
+vulcan init: missing --app (Name of the first app) - names are never chosen for you
+```
+
+With a local preset (`file:`) the side is known, so the folder flag is named first:
+
+```text
+$ bun x @venizia/vulcan init --preset file:./acme-api --project fresh < /dev/null
 vulcan init: missing --backend-dir (Backend folder (holds every backend app)) - names are never chosen for you
 ```
 
@@ -310,26 +343,40 @@ VULCAN never invents a name, so none of these has a default.
 ### What it creates
 
 ```text
-$ cd my-product && find . -type f | sort
+$ cd my-product && find . -type f -not -path '*/node_modules/*' -not -name bun.lock | LC_ALL=C sort
 ./.agents/knowledge/index.md
 ./.agents/knowledge/log.md
 ./.agents/knowledge/packages/core-api.md
 ./.agents/rules.md
+./.agents/vulcan.local.json
+./.agents/vulcan.manifest.json
+./.claude/settings.json
+./.claude/vulcan-managed.json
 ./.configs/vulcan.config.mts
 ./.dockerignore
 ./.gitignore
 ./.mcp.json
 ./AGENTS.md
-./libs/.gitkeep
+./CLAUDE.md
 ./Makefile
-./package.json
 ./README.md
+./libs/.gitkeep
+./package.json
+./services/core-api/.configs/builders/Dockerfile
+./services/core-api/.configs/builders/compile.ts
+./services/core-api/.configs/formatters/oxfmt.config.mts
+./services/core-api/.configs/lints/eslint.config.mjs
+./services/core-api/.configs/lints/oxlint.config.mts
 ./services/core-api/.env.example
 ./services/core-api/package.json
-./services/core-api/src/__tests__/smoke.test.ts
+./services/core-api/src/application.ts
+./services/core-api/src/controllers/hello.controller.ts
 ./services/core-api/src/index.ts
+./services/core-api/src/smoke.test.ts
 ./services/core-api/tsconfig.json
 ```
+
+The files `sync` wrote (`.agents/vulcan.local.json`, `.agents/vulcan.manifest.json`, `CLAUDE.md`, `.claude/`, and the `.claude/skills/*` links, which `find -type f` does not list) are in the tree too.
 
 | File | What it holds |
 |---|---|
@@ -338,6 +385,7 @@ $ cd my-product && find . -type f | sort
 | `.gitignore`, `README.md`, `Makefile` | The ignore list for agent files, a title, and the VULCAN targets plus `make dev` |
 | `.dockerignore` | The build context of a Dockerfile built from the root: `**/node_modules`, `**/dist`, `**/*.tsbuildinfo`, `**/coverage`, `**/*.log`, `.git`, `.claude`, `.agents/plans`, the secrets `**/.env` and `**/.env.*` with `!**/.env.example` kept (in that order, after a comment saying why), and the per-machine files of every coding agent (the ones `sync` keeps in `.git/info/exclude`). The lockfile, every `package.json` and the sources are not listed: the image needs them. Edit it freely; `init` only creates a project, so it never overwrites one |
 | `AGENTS.md`, `.agents/rules.md`, `.mcp.json` | The same layer as [the scaffold above](#generated-files) |
+| `.agents/vulcan.manifest.json`, `.agents/vulcan.local.json`, `CLAUDE.md`, `.claude/` | What the first `sync` writes: the manifest, your choice of agents, and the Claude adapters |
 | `.configs/vulcan.config.mts` | `name`, `layout`, one `packages` entry per app, and the preset's `atlas` sources |
 | `.agents/knowledge/` | An index, one concept per app, and a log entry naming the preset and its version |
 | `<shared>/.gitkeep` | Keeps the shared folder in git |
@@ -351,7 +399,7 @@ After the files, `init` runs these in order, in the new project:
 
 1. `bun install`
 2. `git init` on the branch `develop`; when `git` is missing, `init` prints `install git, then run: git init -b develop` with the project folder and goes on
-3. `vulcan sync`, run by the installed version
+3. `vulcan sync`, run by the installed version; in a terminal it first asks which coding agents you use
 4. each script listed in the preset's `checks`, with `bun run <script>` in the app
 5. `vulcan doctor`
 6. `vulcan x okf check --strict`

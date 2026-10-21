@@ -28,7 +28,7 @@ The second is that `preset.json`, with the files it copies next to it:
   "summary": "A small HTTP API on Bun with one route.",
   "devPort": 3000,
   "dependencies": { "hono": "^4.13.13" },
-  "devDependencies": { "typescript": "^6.0.3" },
+  "devDependencies": { "@types/bun": "^1.4.1", "@venizia/dev-configs": "^0.3.4", "typescript": "^6.0.3" },
   "scripts": { "server:dev": "bun run src/index.ts", "typecheck": "tsc --noEmit", "test": "bun test" },
   "checks": ["typecheck", "test"],
   "urls": ["/api/hello"],
@@ -44,9 +44,12 @@ vulcan-preset/
   files/
     _env.example
     tsconfig.json
+    .configs/lints/oxlint.config.mts
     src/index.ts
     src/__tests__/smoke.test.ts
 ```
+
+The app must pass `vulcan doctor`, which `init` runs last. Its `style` check wants `@venizia/dev-configs` declared and a lint config that imports it, so the example ships `.configs/lints/oxlint.config.mts` (`import { defineConfig } from 'oxlint'; import { oxlintConfigs } from '@venizia/dev-configs/linters'; export default defineConfig(oxlintConfigs);`) and lists `@venizia/dev-configs` in `devDependencies`. A preset without them ends `init` with `[style] package.json: add @venizia/dev-configs as a devDependency - here, or at the root`.
 
 ## preset.json keys
 

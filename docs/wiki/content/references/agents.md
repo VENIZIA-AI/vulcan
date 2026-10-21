@@ -22,13 +22,13 @@ The table below is the content of `base/agents.json`, the table `sync` is driven
 
 ## What you get
 
-- **The rules and the Atlas block.** Every agent reads `AGENTS.md`, which routes to the rules and the knowledge bundle and carries the [Atlas block](/references/commands/sync#the-atlas-block-in-agents-md) (the corpora, rule `V-P-07`, the three triggers). The block exists because not every agent shows the model what the atlas server says about itself, as the last column shows.
+- **The rules and the Atlas block.** Every agent reads `AGENTS.md`, which routes to the rules and the knowledge bundle and carries the [Atlas block](/references/commands/sync#the-atlas-block-in-agents-md) (the corpora, rule `V-P-07`, the four triggers: `symbol`, `search` then `get`, `version` or `changes`, `presets`). The block exists because not every agent shows the model what the atlas server says about itself, as the last column shows.
 - **Atlas.** `sync` registers the atlas server where the agent looks for MCP servers. Claude, omp and Copilot CLI read the committed root `.mcp.json`, so they need no extra file. The others get an entry in their own file, merged with what you have there; the entry carries the absolute path of the project, so run `sync` again if you move it.
 - **The shipped skills**, and every skill you write in `.agents/skills/<name>/SKILL.md`. All agents except Claude read that folder; for Claude, `sync` links the skills into `.claude/skills`.
 
 ## What the other agents lose
 
-The session-start digest, the guard hooks (`guard-writes`, `guard-manifest`, `guard-remote-hosts`) and the `claude.settings` of the config exist for Claude Code only. For another agent the rules in `AGENTS.md` are still written, but nothing enforces `V-W-02`, `V-W-03` or the manifest guard. Mapping the guards to the hooks of the other agents is a separate piece of work.
+The session-start digest, the guard hooks (`guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts`) and the `claude.settings` of the config exist for Claude Code only. For another agent the rules in `AGENTS.md` are still written, but nothing enforces `V-W-02`, `V-W-03`, the manifest guard or the package guard. Mapping the guards to the hooks of the other agents is a separate piece of work.
 
 ## Things only you can do
 

@@ -28,7 +28,7 @@ The manifest is always written.
 
 ## Choosing your agents
 
-`sync` writes adapters only for the coding agents you use, and you choose them per machine, not per project. The seven that exist are `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity` and `pi`; `vulcan sync --agents list` shows what each reads.
+`sync` writes adapters only for the coding agents you use, and you choose them per machine, not per project. The eight ids are `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity` and `pi`; `vulcan sync --agents list` shows what each reads.
 
 The first `sync` in a terminal detects the agents on the machine (a binary on `PATH`, a folder in your home or in the project) and asks you to confirm:
 
@@ -104,10 +104,15 @@ $ bun x --no-install vulcan sync
   created   CLAUDE.md
   created   .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
   created   .claude/skills/docs-update
-  created   .claude/skills/knowledge-sync
   created   .claude/skills/docs-writing
+  created   .claude/skills/knowledge-sync
   created   .agents/vulcan.manifest.json
+  replaced  AGENTS.md (Atlas block)
+  created   .agents/vulcan.local.json
+  replaced  .git/info/exclude
 ```
+
+The last three lines are the Atlas block in `AGENTS.md`, the file that stores your choice of agents, and the ignore list in your clone (a project that is not a git repository gets no `.git/info/exclude` line).
 
 Running `vulcan sync` again on an up-to-date repository makes no changes:
 
@@ -116,9 +121,12 @@ $ bun x --no-install vulcan sync
   unchanged CLAUDE.md
   unchanged .claude/settings.json
   unchanged .claude/skills/docs-update
-  unchanged .claude/skills/knowledge-sync
   unchanged .claude/skills/docs-writing
+  unchanged .claude/skills/knowledge-sync
   unchanged .agents/vulcan.manifest.json
+  unchanged AGENTS.md
+  unchanged .agents/vulcan.local.json
+  unchanged .git/info/exclude
 ```
 
 ### Action statuses
@@ -171,12 +179,11 @@ Original key ordering from `.claude/settings.json` is preserved to keep diffs st
 
 Setting `remoteHosts` in `.configs/vulcan.config.mts` registers a second `PreToolUse` hook.
 The hook runs `guard-remote-hosts.ts` on Bash commands.
-The skill lines are dropped from the output below.
+The skill lines and the lines that did not change are dropped from the output below.
 The settings and the manifest are what change when you add `remoteHosts`:
 
 ```text
 $ bun x --no-install vulcan sync
-  unchanged CLAUDE.md
   replaced  .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
   replaced  .agents/vulcan.manifest.json
 ```
@@ -190,9 +197,12 @@ $ bun x --no-install vulcan sync --dry-run
   would create  CLAUDE.md
   would create  .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
   would create  .claude/skills/docs-update
-  would create  .claude/skills/knowledge-sync
   would create  .claude/skills/docs-writing
+  would create  .claude/skills/knowledge-sync
   would create  .agents/vulcan.manifest.json
+  would replace AGENTS.md (Atlas block)
+  would create  .agents/vulcan.local.json
+  would replace .git/info/exclude
 ```
 
 ## Pruning stale entries
@@ -204,9 +214,12 @@ $ bun x --no-install vulcan sync --prune
   unchanged CLAUDE.md
   replaced  .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
   unchanged .claude/skills/docs-update
-  unchanged .claude/skills/knowledge-sync
   unchanged .claude/skills/docs-writing
+  unchanged .claude/skills/knowledge-sync
   unchanged .agents/vulcan.manifest.json
+  unchanged AGENTS.md
+  unchanged .agents/vulcan.local.json
+  unchanged .git/info/exclude
   removed   .claude/settings.json (stale hook: bun .agents/hooks/old.ts)
 ```
 
@@ -241,6 +254,7 @@ The committed manifest records resolved project metadata:
 
 ```json
 {
+  "$generated": "by vulcan sync from .configs/vulcan.config.* - do not edit",
   "schemaVersion": 1,
   "name": "vulcan",
   "packages": [
@@ -286,7 +300,7 @@ The committed manifest records resolved project metadata:
 }
 ```
 
-The sample shows 3 of the 37 base rule entries.
+The sample shows 3 of the 39 base rule entries.
 The `rules.base` section stores one short hash per base rule, so a rule change is visible in review.
 
 After the actions, `vulcan sync` prints one line per base-rule change.
@@ -298,6 +312,9 @@ The manifest also includes optional fields when configured:
 - `knowledge.wiki`: Path to wiki documentation, present when set.
 - `knowledge.changelogs`: Path to changelogs, present when set.
 - `knowledge.syncAreas`: Map of code areas to concepts, present when set.
+- `layout`: The folders of backend apps, frontend apps and shared packages (`backend`, `frontend`, `shared`), present when set; `init --preset` and `add` write it.
+- `presets`: The presets the project's apps came from, each `{ spec, side, summary }` and `lib` when the preset also makes libraries. atlas's `presets` tool answers from it.
+- `kind`: `"lib"` on a package entry that `add --lib` made (apps carry no `kind`).
 - `sources`: External repository sources for atlas, present when `atlas.sources` contains entries.
 - `remoteHosts`: Remote host security policy, present when `remoteHosts` is configured.
 
