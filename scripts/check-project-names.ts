@@ -15,7 +15,9 @@ const SOURCE_GLOBS = [
   'packages/*/src/**/*.{ts,mts,html,css,md}',
   'packages/cli/base/**/*.{md,js,mjs,ts,mts,mk,json,sh}',
 ];
-const EXEMPT = /\/(__tests__|fixtures|evals)\//;
+/** The registry of published presets is data that names the frameworks by design; nothing else is exempt. */
+const EXEMPT =
+  /\/(__tests__|fixtures|evals)\/|\/packages\/atlas\/src\/tools\/common\/official-presets\.ts$/;
 
 const readRoot = (opts: { argv: string[] }): string => {
   const index = opts.argv.indexOf('--root');

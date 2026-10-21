@@ -11,7 +11,7 @@ export class ToolTriggers {
   }
 
   static search(opts: { projects?: string }): string {
-    return `When the user asks how something works in ${opts.projects ?? FALLBACK_PROJECTS}, or about this project's conventions, search here before you answer from memory.`;
+    return `When the user asks how something works in ${opts.projects ?? FALLBACK_PROJECTS}, how to build something in it, or about this project's conventions, search here before you answer from memory.`;
   }
 
   static presets(opts: { projects?: string }): string {
