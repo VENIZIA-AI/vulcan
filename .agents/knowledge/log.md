@@ -10,6 +10,10 @@ counted as concepts.
 
 `vulcan --help` shows `add --preset <name|file:path> (--app <name> | --lib <name>) [--dir <folder>] [--scope <@scope>] [--backend-dir|--frontend-dir <name>] [--api <app> | --no-api]`; a test checks that every flag `add` takes is in that block. Before, `--lib`, `--dir` and `--scope` were missing. Concept: [cli](/packages/cli.md).
 
+## 2026-10-21 - Enter keeps the stored agents
+
+When the agents question is asked again (`vulcan agents setup`, `vulcan sync --agents` with no value), an empty answer keeps the choice stored on the machine (also an empty one); with nothing stored it takes the detected list. The prompt names what Enter does. Before, Enter applied the detected list even under `chosen before:`. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-21 - doctor warns about a wrong atlas registration
 
 A `mcp` warning (same level as `dockerignore`): the tracked `.mcp.json` must hold the `atlas` server with the canonical args (`--root .`), and the managed `.claude/settings.json` must enable `atlas`; other names or roots show the expected entry. Three repositories had a wrong entry and doctor caught none. Concept: [cli](/packages/cli.md).

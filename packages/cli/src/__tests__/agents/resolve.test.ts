@@ -7,6 +7,7 @@ import {
   renderLocalChoice,
   resolveAgents,
 } from '../../agents/index.ts';
+import { renderAgentsQuestion } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -231,5 +232,98 @@ describe('resolveAgents: refusals', () => {
     const { result } = resolve({ files: { [LOCAL_AGENTS_FILE]: '{ nope' } });
 
     expect(!result.ok && result.error).toContain('is not valid JSON');
+  });
+});
+
+describe('resolveAgents: what Enter (an empty answer) does when asked again', () => {
+  const STORED = { [LOCAL_AGENTS_FILE]: renderLocalChoice({ agents: ['claude', 'omp'] }) };
+  const DETECTED = ['claude', 'omp', 'codex', 'copilot-vscode'];
+
+  test('a stored choice is kept, not replaced by what was detected', () => {
+    const { result } = resolve({
+      files: STORED,
+      flag: '',
+      interactive: true,
+      answer: '',
+      detected: DETECTED,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      agents: ['claude', 'omp'],
+      source: 'asked',
+      writeLocal: true,
+    });
+  });
+
+  test('a stored empty choice (none) is kept too', () => {
+    const { result } = resolve({
+      files: { [LOCAL_AGENTS_FILE]: renderLocalChoice({ agents: [] }) },
+      flag: '',
+      interactive: true,
+      answer: '',
+      detected: DETECTED,
+    });
+
+    expect(result).toMatchObject({ ok: true, agents: [], source: 'asked' });
+  });
+
+  test('with nothing stored, Enter takes the detected list', () => {
+    const { result } = resolve({ interactive: true, answer: '', detected: DETECTED });
+
+    expect(result).toMatchObject({ ok: true, agents: DETECTED, source: 'asked', writeLocal: true });
+  });
+
+  test('an explicit list replaces the stored one', () => {
+    const { result } = resolve({
+      files: STORED,
+      flag: '',
+      interactive: true,
+      answer: 'omp,pi',
+      detected: DETECTED,
+    });
+
+    expect(result).toMatchObject({ ok: true, agents: ['omp', 'pi'], source: 'asked' });
+  });
+
+  test('none, typed, empties the list', () => {
+    const { result } = resolve({
+      files: STORED,
+      flag: '',
+      interactive: true,
+      answer: 'none',
+      detected: DETECTED,
+    });
+
+    expect(result).toMatchObject({ ok: true, agents: [], source: 'asked' });
+  });
+});
+
+describe('the agents question says what Enter does', () => {
+  test('with a stored choice: Enter keeps it, and it is shown', () => {
+    const text = renderAgentsQuestion({ detected: ['claude', 'codex'], stored: ['claude', 'omp'] });
+
+    expect(text).toContain('Enter keeps your earlier choice: claude, omp');
+    expect(text).toContain('  chosen before: claude, omp');
+    expect(text).not.toContain('Enter accepts');
+  });
+
+  test('a stored empty choice reads none', () => {
+    expect(renderAgentsQuestion({ detected: ['claude'], stored: [] })).toContain(
+      'Enter keeps your earlier choice: none',
+    );
+  });
+
+  test('with nothing stored: Enter takes the detected list', () => {
+    const text = renderAgentsQuestion({ detected: ['claude', 'codex'], stored: undefined });
+
+    expect(text).toContain('Enter accepts the detected list: claude, codex');
+    expect(text).not.toContain('chosen before');
+  });
+
+  test('with nothing stored and nothing detected, Enter gives none', () => {
+    expect(renderAgentsQuestion({ detected: [], stored: undefined })).toContain(
+      'Enter accepts the detected list: none',
+    );
   });
 });
