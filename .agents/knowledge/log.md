@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-22 - the Atlas block says to load build-a-feature first
+
+One of six GLM 5.3 Flash runs answered a feature question without loading the build-a-feature skill. The Atlas block `renderAtlasBlock` writes into AGENTS.md now ends with the line telling the agent to load the skill first, to build a feature or to answer how one would be built. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-21 - the build-a-feature description says to load it before answering
 
 The 0.3.9 pre-release eval on Claude Code (project-only config, atlas and read tools) showed a workflow question answered in one turn from the skill's description in 2 of 3 runs: no skill load, no atlas call, because the grounding rule is in the body. The description now says to load the skill before any such answer; 6 of 6 runs then load it and ground first. Concept: [cli](/packages/cli.md).

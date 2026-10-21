@@ -46,6 +46,22 @@ describe('the Atlas block in AGENTS.md', () => {
     expect(text.indexOf('<!-- vulcan:atlas:end')).toBeLessThan(text.indexOf('## Commands'));
   });
 
+  test('it tells the agent to load the build-a-feature skill first, to build a feature or to answer how one is built', () => {
+    const root = project();
+
+    sync({ root });
+
+    const text = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+    const block = text.slice(
+      text.indexOf('<!-- vulcan:atlas:start'),
+      text.indexOf('<!-- vulcan:atlas:end'),
+    );
+
+    expect(block).toContain(
+      'To build a feature, or to answer how one would be built, load the `build-a-feature` skill first',
+    );
+  });
+
   test('it is not tied to Claude: an agent list without claude gets it too', () => {
     const root = project();
 
