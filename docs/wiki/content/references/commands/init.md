@@ -218,6 +218,8 @@ bun x @venizia/vulcan init --preset ignis
 A name without a scope means the package `@venizia/<name>`, so `ignis` is `@venizia/ignis`.
 Any npm name works, `name@version` pins a version, and the default is the `latest` tag.
 
+> In a terminal that can draw menus, every question is a menu, not a typed answer; see [Interactive prompts](/references/prompts). The samples below show what a plain terminal (`TERM=dumb`) asks.
+
 In a terminal, `init` asks for every name. With a published preset the side of the app is not known until the package is read, so `init` asks the project name first, fetches the package, then asks the rest in the same order with the side named:
 
 ```text

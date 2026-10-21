@@ -4,11 +4,10 @@ import type { ICommandContext } from '../common/index.ts';
 import { homedir } from 'node:os';
 import {
   AgentConstants,
-  askAgentsInTerminal,
   detectAgents,
   readLocalChoice,
   readAgentTable,
-  resolveAgents,
+  resolveAgentsInTerminal,
 } from '../agents/index.ts';
 import { loadConfig } from '../config/index.ts';
 import {
@@ -82,7 +81,7 @@ export const runSyncFlow = async (
     return ExitCodes.FAILURE;
   }
 
-  const resolved = resolveAgents({
+  const resolved = await resolveAgentsInTerminal({
     root: opts.cwd,
     flag,
     configAgents: loaded.config.agents,
@@ -92,7 +91,6 @@ export const runSyncFlow = async (
       home: process.env.HOME ?? homedir(),
       path: process.env.PATH ?? '',
     }),
-    ask: askAgentsInTerminal,
   });
 
   if (!resolved.ok) {

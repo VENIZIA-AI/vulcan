@@ -21,7 +21,7 @@ const ENV = hermeticEnv();
 const git = (opts: { root: string; args: string[] }) =>
   Bun.spawnSync(['git', ...opts.args], {
     cwd: opts.root,
-    env: { ...process.env, ...ENV },
+    env: { ...process.env, TERM: 'dumb', ...ENV },
     stdout: 'pipe',
     stderr: 'pipe',
   });
@@ -300,7 +300,7 @@ describe('vulcan agents setup', () => {
       const child = spawnSyncBounded({
         cmd: ['script', '-qec', command, '/dev/null'],
         cwd: root,
-        env: { ...process.env, ...ENV },
+        env: { ...process.env, TERM: 'dumb', ...ENV },
         stdin: Buffer.from('\n'),
         stdout: 'pipe',
         stderr: 'pipe',
@@ -317,7 +317,7 @@ describe('vulcan agents setup', () => {
       const child = spawnSyncBounded({
         cmd: ['script', '-qec', command, '/dev/null'],
         cwd: root,
-        env: { ...process.env, ...ENV },
+        env: { ...process.env, TERM: 'dumb', ...ENV },
         stdin: Buffer.from('omp,pi\n'),
         stdout: 'pipe',
         stderr: 'pipe',

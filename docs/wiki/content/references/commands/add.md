@@ -12,6 +12,8 @@ Run it at the monorepo root:
 bun x --no-install vulcan add --preset <name>
 ```
 
+> In a terminal that can draw menus, every question is a menu, not a typed answer; see [Interactive prompts](/references/prompts). The samples below show what a plain terminal (`TERM=dumb`) asks.
+
 The command asks what to create (when the preset makes more than one kind), the folder and the name, copies the preset, registers it, then installs and checks.
 In a terminal it asks. Without one, the kind and every name come from flags:
 

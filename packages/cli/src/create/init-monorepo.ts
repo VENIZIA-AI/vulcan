@@ -14,7 +14,9 @@ import type {
 import { today, writeFile } from './files.ts';
 import { recordedPresetOf } from './lib-preset.ts';
 import { renderDockerignore } from './dockerignore.ts';
-import { askWithPrompt, findFolderClash, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
+import { menusAvailable, promptText } from '../ui/index.ts';
+import { ABORTED, confirmWrite, planLines } from './plan.ts';
+import { askInTerminal, findFolderClash, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
 import { renderNext } from './next.ts';
 import { isInstallSkipped, runBun, runGitInit } from './process.ts';
@@ -194,21 +196,35 @@ const runCreate = async (opts: {
   args: string[];
   scratch: string;
 }): Promise<number> => {
-  const presetValue = readFlag({ args: opts.args, flag: CreateFlags.PRESET });
+  const flagged = readFlag({ args: opts.args, flag: CreateFlags.PRESET });
 
-  if (presetValue === undefined) {
+  if (flagged === undefined && !menusAvailable()) {
+    return fail({ message: '--preset needs a value (a package name, or file:<path>)' });
+  }
+
+  // A new project has no config to read presets from, so a menu can only take the one typed.
+  const presetValue =
+    flagged ??
+    (
+      await promptText({
+        message: 'Preset (a package name, or file:<path>)',
+        validate: value => (value.trim() === '' ? 'a package name, or file:<path>' : undefined),
+      })
+    )?.trim();
+
+  if (presetValue === undefined || presetValue === '') {
     return fail({ message: '--preset needs a value (a package name, or file:<path>)' });
   }
 
   const spec = parsePresetSpec({ value: presetValue, cwd: opts.cwd });
   const interactive = process.stdin.isTTY === true;
-  const first = resolveNames({
+  const first = await resolveNames({
     fields: [
       { key: 'project', flag: CreateFlags.PROJECT, question: 'Project name (the monorepo folder)' },
     ],
     args: opts.args,
     interactive,
-    ask: askWithPrompt,
+    ask: askInTerminal,
   });
 
   if (!first.ok) {
@@ -236,11 +252,11 @@ const runCreate = async (opts: {
   if (isNpm) {
     // Without a terminal nothing is asked, so a missing flag is refused before the network is used.
     if (!interactive) {
-      const early = resolveNames({
+      const early = await resolveNames({
         fields: appFields({}),
         args: opts.args,
         interactive,
-        ask: askWithPrompt,
+        ask: askInTerminal,
       });
 
       if (!early.ok) {
@@ -272,11 +288,11 @@ const runCreate = async (opts: {
     located = result.located;
   }
 
-  const rest = resolveNames({
+  const rest = await resolveNames({
     fields: appFields({ side: located.preset.side }),
     args: opts.args,
     interactive,
-    ask: askWithPrompt,
+    ask: askInTerminal,
   });
 
   if (!rest.ok) {
@@ -308,6 +324,22 @@ const runCreate = async (opts: {
 
   if (warning !== undefined) {
     process.stderr.write(`${warning}\n`);
+  }
+
+  const confirmed = await confirmWrite({
+    title: `Create ${project}`,
+    lines: planLines({
+      rows: [
+        ['project', project],
+        ['preset', `${located.packageName} ${located.packageVersion}`],
+        [`${side} app`, `${folder}/${app}`],
+        ['shared', shared === '' ? '(none)' : shared],
+      ],
+    }),
+  });
+
+  if (!confirmed) {
+    return fail({ message: ABORTED });
   }
 
   writeMonorepo({ root, project, spec, presetValue, located, folder, app, shared });

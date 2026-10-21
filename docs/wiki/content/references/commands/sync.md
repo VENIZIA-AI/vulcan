@@ -30,6 +30,8 @@ The manifest is always written.
 
 `sync` writes adapters only for the coding agents you use, and you choose them per machine, not per project. The eight ids are `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity` and `pi`; `vulcan sync --agents list` shows what each reads.
 
+> In a terminal that can draw menus, the agents question is a menu, not a typed answer; see [Interactive prompts](/references/prompts). The sample below shows what a plain terminal (`TERM=dumb`) asks.
+
 The first `sync` in a terminal detects the agents on the machine (a binary on `PATH`, a folder in your home or in the project) and asks you to confirm:
 
 ```text

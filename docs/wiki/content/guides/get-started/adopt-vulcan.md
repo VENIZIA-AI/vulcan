@@ -22,6 +22,8 @@ A framework ships its app template as a preset. One command turns it into a mono
 bun x @venizia/vulcan init --preset ignis
 ```
 
+> In a terminal that can draw menus, every question is a menu, not a typed answer; see [Interactive prompts](/references/prompts). The samples below show what a plain terminal (`TERM=dumb`) asks.
+
 `ignis` means the package `@venizia/ignis`. In a terminal, `init` asks for the names. It never picks one for you:
 
 ```text

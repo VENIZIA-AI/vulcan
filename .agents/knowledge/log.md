@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - init, add, sync and agents setup ask with menus
+
+In a terminal that can draw them (stdin and stdout TTY, TERM not dumb) the questions are `@clack/prompts` menus: an agents checkbox, selects for the kind, folders, proxy backend and preset, text with a default only for new names, a summary and a confirm before writing; `NO_COLOR` honoured. Everywhere else the plain line questions stay byte for byte. The wrapper is `packages/cli/src/ui`; no command imports clack directly. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-21 - atlas: a how-to-build question must search first
 
 The atlas server's instructions get a second paragraph (lead still <= 512 characters, whole text < 2 KB): a question about how to build something here, or how a framework organises a feature, must `search` then `get` before the answer, and a plan never says "check atlas" for a step not done; the `search` description names "how to build something"; the AGENTS.md Atlas block says the same for agents that do not show the server's text. Found by a fresh-project test where the agent read files and claimed to check atlas. Concept: [atlas](/packages/atlas.md).

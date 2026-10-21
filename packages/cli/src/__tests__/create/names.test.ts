@@ -23,8 +23,8 @@ const scripted = (answers: (string | null)[]): TAsk => {
 };
 
 describe('resolveNames', () => {
-  test('flags fill every name without asking', () => {
-    const result = resolveNames({
+  test('flags fill every name without asking', async () => {
+    const result = await resolveNames({
       fields: FIELDS,
       args: ['--project', 'my-product', '--backend-dir', 'services', '--shared-dir', 'libs'],
       interactive: false,
@@ -37,8 +37,8 @@ describe('resolveNames', () => {
     });
   });
 
-  test('without a TTY a missing flag is an error naming it', () => {
-    const result = resolveNames({
+  test('without a TTY a missing flag is an error naming it', async () => {
+    const result = await resolveNames({
       fields: FIELDS,
       args: ['--project', 'my-product'],
       interactive: false,
@@ -52,8 +52,8 @@ describe('resolveNames', () => {
     });
   });
 
-  test('without a TTY an optional name may be absent', () => {
-    const result = resolveNames({
+  test('without a TTY an optional name may be absent', async () => {
+    const result = await resolveNames({
       fields: FIELDS,
       args: ['--project', 'p', '--backend-dir', 'b'],
       interactive: false,
@@ -63,8 +63,8 @@ describe('resolveNames', () => {
     expect(result).toEqual({ ok: true, names: { project: 'p', backend: 'b', shared: '' } });
   });
 
-  test('in a TTY an invalid answer is asked again, an empty required answer too', () => {
-    const result = resolveNames({
+  test('in a TTY an invalid answer is asked again, an empty required answer too', async () => {
+    const result = await resolveNames({
       fields: FIELDS,
       args: [],
       interactive: true,
@@ -77,8 +77,8 @@ describe('resolveNames', () => {
     });
   });
 
-  test('an invalid flag value is an error', () => {
-    const result = resolveNames({
+  test('an invalid flag value is an error', async () => {
+    const result = await resolveNames({
       fields: FIELDS,
       args: ['--project', '-x', '--backend-dir', 'b'],
       interactive: false,
@@ -88,21 +88,109 @@ describe('resolveNames', () => {
     expect(result.ok).toBe(false);
   });
 
-  test('a previous folder is offered and an empty answer keeps it', () => {
+  test('a previous folder is offered and an empty answer keeps it', async () => {
     const fields: INameField[] = [
       { key: 'backend', flag: '--backend-dir', question: 'Backend folder', previous: 'services' },
     ];
 
-    expect(resolveNames({ fields, args: [], interactive: true, ask: scripted(['']) })).toEqual({
+    expect(
+      await resolveNames({ fields, args: [], interactive: true, ask: scripted(['']) }),
+    ).toEqual({
       ok: true,
       names: { backend: 'services' },
     });
   });
 
-  test('closing the prompt (null) aborts', () => {
+  test('closing the prompt (null) aborts', async () => {
     expect(
-      resolveNames({ fields: FIELDS, args: [], interactive: true, ask: scripted([null]) }),
+      await resolveNames({ fields: FIELDS, args: [], interactive: true, ask: scripted([null]) }),
     ).toEqual({ ok: false, error: 'aborted' });
+  });
+
+  test('an answer may arrive later: menus resolve after the user has picked', async () => {
+    const result = await resolveNames({
+      fields: [{ key: 'project', flag: '--project', question: 'Project name' }],
+      args: [],
+      interactive: true,
+      ask: async () => 'my-product',
+    });
+
+    expect(result).toEqual({ ok: true, names: { project: 'my-product' } });
+  });
+
+  test('the folders a field offers reach the question, with the earlier choice', async () => {
+    const seen: { question: string; previous?: string; choices?: string[] }[] = [];
+
+    await resolveNames({
+      fields: [
+        {
+          key: 'folder',
+          flag: '--dir',
+          question: 'Folder',
+          previous: 'libs',
+          choices: ['libs', 'packages'],
+        },
+      ],
+      args: [],
+      interactive: true,
+      ask: opts => {
+        seen.push(opts);
+
+        return '';
+      },
+    });
+
+    expect(seen).toEqual([
+      expect.objectContaining({
+        question: 'Folder',
+        previous: 'libs',
+        choices: ['libs', 'packages'],
+      }),
+    ]);
+  });
+
+  test('a fixed name takes its earlier value without a question, in a terminal too', async () => {
+    const asked: string[] = [];
+    const result = await resolveNames({
+      fields: [
+        {
+          key: 'backend',
+          flag: '--backend-dir',
+          question: 'Backend',
+          previous: 'services',
+          fixed: true,
+        },
+      ],
+      args: [],
+      interactive: true,
+      ask: opts => {
+        asked.push(opts.question);
+
+        return 'other';
+      },
+    });
+
+    expect(result).toEqual({ ok: true, names: { backend: 'services' } });
+    expect(asked).toEqual([]);
+  });
+
+  test('a fixed name is still replaced by its flag', async () => {
+    const result = await resolveNames({
+      fields: [
+        {
+          key: 'backend',
+          flag: '--backend-dir',
+          question: 'Backend',
+          previous: 'services',
+          fixed: true,
+        },
+      ],
+      args: ['--backend-dir', 'api'],
+      interactive: true,
+      ask: scripted([]),
+    });
+
+    expect(result).toEqual({ ok: true, names: { backend: 'api' } });
   });
 });
 

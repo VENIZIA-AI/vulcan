@@ -10,7 +10,16 @@ import { AppSides, CreateFlags } from './common/index.ts';
 import type { IAppsBlock, ILocatedPreset, IPresetSpec, TAppSide } from './common/index.ts';
 import { today, writeFile } from './files.ts';
 import { recordedPresetOf } from './lib-preset.ts';
-import { askWithPrompt, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
+import { menusAvailable, promptSelect, promptText } from '../ui/index.ts';
+import { ABORTED, confirmWrite, planLines } from './plan.ts';
+import {
+  askInTerminal,
+  askWithPrompt,
+  nameProblem,
+  readFlag,
+  resolveNames,
+  SIDE_FIELDS,
+} from './names.ts';
 import { readExistingApps, renderNext } from './next.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
 import { isInstallSkipped, runBun } from './process.ts';
@@ -103,10 +112,22 @@ const kindCommands = (opts: { presetValue: string }): string[] => [
   `bun x --no-install vulcan add --preset ${opts.presetValue} ${CreateFlags.LIB} <name>`,
 ];
 
+const NO_BACKEND = ':none';
+const KIND_HINTS: Record<string, string> = { app: 'a runnable app', lib: 'a shared package' };
+
 const SAY_WHAT = `say what to create - \`${CreateFlags.APP} <name>\` (a runnable app) or \`${CreateFlags.LIB} <name>\` (a shared package)`;
 
 /** The terminal asks which kind, listing only what the preset offers; end of input stops the command. */
-const askKind = (opts: { offered: string[] }): string | undefined => {
+const askKind = async (opts: { offered: string[] }): Promise<string | undefined> => {
+  if (menusAvailable()) {
+    const picked = await promptSelect({
+      message: 'What do you want to create?',
+      choices: opts.offered.map(kind => ({ value: kind, label: kind, hint: KIND_HINTS[kind] })),
+    });
+
+    return picked ?? undefined;
+  }
+
   for (;;) {
     const answer = askWithPrompt({
       question: `What do you want to create? (${opts.offered.join(', ')})`,
@@ -156,13 +177,13 @@ const literal = (opts: {
 ];
 
 /** A frontend's proxy target: the chosen backend app's port, or nothing when it has no backend. */
-const resolveApiUrl = (opts: {
+const resolveApiUrl = async (opts: {
   root: string;
   args: string[];
   interactive: boolean;
   backendFolder: string | undefined;
   packages: IProjectPackage[];
-}): { ok: true; apiUrl: string } | { ok: false; error: string } => {
+}): Promise<{ ok: true; apiUrl: string } | { ok: false; error: string }> => {
   if (opts.args.includes(CreateFlags.NO_API)) {
     return { ok: true, apiUrl: '' };
   }
@@ -174,8 +195,34 @@ const resolveApiUrl = (opts: {
       return { ok: false, error: MISSING_API };
     }
 
-    chosen =
-      askWithPrompt({ question: 'Backend app to proxy /api to (empty for none)' })?.trim() ?? '';
+    if (menusAvailable()) {
+      const backends = opts.packages.filter(
+        entry =>
+          opts.backendFolder !== undefined && entry.path.startsWith(`${opts.backendFolder}/`),
+      );
+
+      // Nothing to pick from: a frontend of a project without a backend has nothing to proxy to.
+      if (backends.length === 0) {
+        return { ok: true, apiUrl: '' };
+      }
+
+      const picked = await promptSelect({
+        message: 'Backend app to proxy /api to',
+        choices: [
+          ...backends.map(entry => ({ value: entry.dir, label: entry.dir, hint: entry.path })),
+          { value: NO_BACKEND, label: 'none', hint: 'no proxy' },
+        ],
+      });
+
+      if (picked === null) {
+        return { ok: false, error: 'aborted' };
+      }
+
+      chosen = picked === NO_BACKEND ? '' : picked;
+    } else {
+      chosen =
+        askWithPrompt({ question: 'Backend app to proxy /api to (empty for none)' })?.trim() ?? '';
+    }
 
     if (chosen === '') {
       return { ok: true, apiUrl: '' };
@@ -236,11 +283,49 @@ const locate = async (opts: {
     : { ok: false, error: `could not install ${opts.spec.packageName}@${opts.spec.range}` };
 };
 
+const ANOTHER_PRESET = ':another-preset';
+const PRESET_PROMPT = 'Preset (a package name, or file:<path>)';
+
+/** A terminal picks one of the presets the project recorded, or types another; null when cancelled. */
+const askPreset = async (opts: { cwd: string }): Promise<string | null> => {
+  const loaded = await loadConfig({ root: opts.cwd });
+  const recorded = loaded.ok ? (loaded.config.presets ?? []) : [];
+
+  if (recorded.length > 0) {
+    const picked = await promptSelect({
+      message: 'Which preset?',
+      choices: [
+        ...recorded.map(entry => ({
+          value: entry.spec,
+          label: entry.spec,
+          hint: `${entry.side}: ${entry.summary}`,
+        })),
+        { value: ANOTHER_PRESET, label: 'Another preset...' },
+      ],
+    });
+
+    if (picked !== ANOTHER_PRESET) {
+      return picked;
+    }
+  }
+
+  return promptText({
+    message: PRESET_PROMPT,
+    validate: value => (value.trim() === '' ? 'a package name, or file:<path>' : undefined),
+  });
+};
+
 const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): Promise<number> => {
   const { cwd } = opts;
-  const presetValue = readFlag({ args: opts.args, flag: CreateFlags.PRESET });
+  const flagged = readFlag({ args: opts.args, flag: CreateFlags.PRESET });
 
-  if (presetValue === undefined) {
+  if (flagged === undefined && !menusAvailable()) {
+    return fail({ message: '--preset needs a value (a package name, or file:<path>)' });
+  }
+
+  const presetValue = flagged ?? (await askPreset({ cwd }))?.trim();
+
+  if (presetValue === undefined || presetValue === '') {
     return fail({ message: '--preset needs a value (a package name, or file:<path>)' });
   }
 
@@ -299,7 +384,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
 
   if (!libFlag && !appFlag) {
     const offered = ['app', ...(located.located.libFile === undefined ? [] : ['lib'])];
-    const chosen = offered.length === 1 ? 'app' : askKind({ offered });
+    const chosen = offered.length === 1 ? 'app' : await askKind({ offered });
 
     if (chosen === undefined) {
       return fail({ message: SAY_WHAT });
@@ -309,7 +394,15 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   }
 
   if (kind === 'lib') {
-    const name = libName ?? askWithPrompt({ question: 'Name of this library' })?.trim();
+    const name =
+      libName ??
+      (
+        await askInTerminal({
+          question: 'Name of this library',
+          validate: value =>
+            value.trim() === '' ? undefined : nameProblem({ name: value.trim() }),
+        })
+      )?.trim();
 
     if (name === undefined || name === '') {
       return fail({ message: `${CreateFlags.LIB} needs a name` });
@@ -348,14 +441,15 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
 
   const side = preset.side;
   const previous = config.layout[side];
-  const names = resolveNames({
+  const names = await resolveNames({
     fields: [
-      { ...SIDE_FIELDS[side], previous },
+      // A menu does not ask for what cannot change: apps of one side share the folder the config holds.
+      { ...SIDE_FIELDS[side], previous, fixed: menusAvailable() },
       { key: 'app', flag: CreateFlags.APP, question: `Name of this ${side} app` },
     ],
     args: opts.args,
     interactive,
-    ask: askWithPrompt,
+    ask: askInTerminal,
   });
 
   if (!names.ok) {
@@ -392,7 +486,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   let apiUrl = '';
 
   if (side === AppSides.FRONTEND) {
-    const api = resolveApiUrl({
+    const api = await resolveApiUrl({
       root: cwd,
       args: opts.args,
       interactive,
@@ -461,6 +555,25 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
 
   if (warning !== undefined) {
     process.stderr.write(`${warning}\n`);
+  }
+
+  const confirmed = await confirmWrite({
+    title: `Add ${app}`,
+    lines: planLines({
+      rows: [
+        ['app', `${folder}/${app}`],
+        ['side', side],
+        ['preset', `${packageName} ${packageVersion}`],
+        ['port', String(devPort)],
+        ...(side === AppSides.FRONTEND
+          ? [['proxy', apiUrl === '' ? '(none)' : apiUrl] as [string, string]]
+          : []),
+      ],
+    }),
+  });
+
+  if (!confirmed) {
+    return fail({ message: ABORTED });
   }
 
   copyPresetFiles({
