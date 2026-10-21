@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - doctor warns about a wrong atlas registration
+
+A `mcp` warning (same level as `dockerignore`): the tracked `.mcp.json` must hold the `atlas` server with the canonical args (`--root .`), and the managed `.claude/settings.json` must enable `atlas`; other names or roots show the expected entry. Three repositories had a wrong entry and doctor caught none. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-21 - the root .dockerignore excludes .env (security, 0.3.7)
 
 The `.dockerignore` of 0.3.6 let `.env` files into the build context, so an app Dockerfile that copies the project put secrets in an image layer. `init` and plain `init` now add `**/.env`, `**/.env.*`, `!**/.env.example` (in that order, with a comment); doctor has a warning level (printed `warning [dockerignore]`, exit code unchanged, last line `OK with N warning(s)`) for an app Dockerfile whose root `.dockerignore` is missing or does not exclude them. Concept: [cli](/packages/cli.md).

@@ -46,6 +46,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `scaffold` | Workspaces declare packages and the knowledge index replaces scaffold text | Add `packages` in configuration and remove `vulcan:scaffold` from `index.md` |
 | `apps` | Every `layout` folder is a workspace and every package lives in one | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
 | `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
+| `mcp` (warning) | `.mcp.json` holds the canonical `atlas` entry and the Claude settings enable `atlas` | Use the entry the warning shows and run `bun x --no-install vulcan sync` |
 
 ### config
 
@@ -280,6 +281,22 @@ vulcan doctor: OK
 ```
 
 Rename the scripts, and keep the work in `.configs/builders/` or behind `devz`, not in the `package.json` string. The exit code stays `0`, so no existing project starts failing.
+
+### mcp
+
+Warnings (the same level as [dockerignore](#dockerignore): exit code `0`, `vulcan doctor: OK with N warning(s)`). Claude Code, omp and Copilot CLI read the committed `.mcp.json`, and Claude enables a project server on its own only under the name the managed settings list. The check expects:
+
+- the tracked `.mcp.json` holds the entry `vulcan init` writes, a server named `atlas` that runs `bun x --no-install vulcan x atlas mcp --root .`;
+- `.claude/settings.json` (written by `vulcan sync`, when it exists) lists `atlas` in `enabledMcpjsonServers`.
+
+Anything else is a warning that shows the expected entry: a missing file, a file that is not JSON, the server under another name (`ignis-atlas`, which Claude does not enable automatically), an `atlas` entry with another root (`--root ../ignis` serves another project's knowledge and only works where the folders sit side by side), or settings that do not enable `atlas`.
+
+```text
+  warning [mcp] .mcp.json: the atlas entry is { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "../ignis"] }, expected "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }
+  warning [mcp] .claude/settings.json: enabledMcpjsonServers does not include atlas (has: ignis-knowledge): Claude asks before using the server - run vulcan sync
+```
+
+To serve another project's knowledge too, declare it as an `atlas.sources` entry in `.configs/vulcan.config.mts`; `--root` stays `.`.
 
 ### dockerignore
 

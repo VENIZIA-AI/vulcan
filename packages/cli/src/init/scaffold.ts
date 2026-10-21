@@ -33,7 +33,7 @@ export const runsAtlas = (opts: { text: string }): boolean => {
 };
 
 /** The entry for a `.mcp.json` that exists already: atlas serves the knowledge bundle alone, and the wiki when there is one. */
-const MCP_SERVER_HINT =
+export const MCP_SERVER_HINT =
   '"atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }';
 
 /** The files every project gets, apart from the config, whose format the user picks. */

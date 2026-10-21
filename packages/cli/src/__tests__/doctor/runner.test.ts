@@ -31,6 +31,8 @@ const CONFORMANT: Record<string, string> = {
   '.agents/rules.md': '| ID | Rule | Enforced by |\n|---|---|---|\n| W-06 | stay | SOFT |\n',
   '.agents/knowledge/index.md': '# k\n',
   Makefile: `${MAKE_INCLUDE}\nbuild:\n\t@echo build\n`,
+  '.mcp.json':
+    '{ "mcpServers": { "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] } } }\n',
   ...LINT_CONFIGS,
 };
 
@@ -719,6 +721,8 @@ describe('parseMakeTargets', () => {
 });
 
 describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
+  const dockerignoreWarnings = async (opts: { root: string }) =>
+    (await runDoctorWarnings(opts)).filter(item => item.check === DoctorChecks.DOCKERIGNORE);
   const PACKAGES = "[{ dir: 'api', name: 'api', path: 'services/api' }]";
   const SAFE = '**/node_modules\n**/.env\n**/.env.*\n!**/.env.example\n';
   const project = (opts: { files: Record<string, string> }): string =>
@@ -750,7 +754,7 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
   test('no root .dockerignore: one warning, and never an info note', async () => {
     const root = project({ files: {} });
 
-    expect(await runDoctorWarnings({ root })).toEqual([
+    expect(await dockerignoreWarnings({ root })).toEqual([
       {
         check: DoctorChecks.DOCKERIGNORE,
         file: '.dockerignore',
@@ -765,7 +769,7 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
   test('a .dockerignore without the .env lines: one warning naming the three lines', async () => {
     const root = project({ files: { '.dockerignore': '**/node_modules\n**/dist\n' } });
 
-    expect(await runDoctorWarnings({ root })).toEqual([
+    expect(await dockerignoreWarnings({ root })).toEqual([
       {
         check: DoctorChecks.DOCKERIGNORE,
         file: '.dockerignore',
@@ -777,34 +781,34 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
   test('only .env excluded, not .env.*, still warns', async () => {
     const root = project({ files: { '.dockerignore': '**/.env\n' } });
 
-    expect((await runDoctorWarnings({ root })).length).toBe(1);
+    expect((await dockerignoreWarnings({ root })).length).toBe(1);
   });
 
   test('the lines doctor asks for, and the usual spellings of them, are accepted', async () => {
     for (const text of [SAFE, '.env\n.env.*\n', '.env*\n!.env.example\n', '**/.env*\n']) {
       const root = project({ files: { '.dockerignore': text } });
 
-      expect(await runDoctorWarnings({ root }), text).toEqual([]);
+      expect(await dockerignoreWarnings({ root }), text).toEqual([]);
     }
   });
 
   test('the .dockerignore that init writes passes the check', async () => {
     const root = project({ files: { '.dockerignore': renderDockerignore() } });
 
-    expect(await runDoctorWarnings({ root })).toEqual([]);
+    expect(await dockerignoreWarnings({ root })).toEqual([]);
   });
 
   test('a later negation that brings .env back is a warning again', async () => {
     const root = project({ files: { '.dockerignore': '**/.env\n**/.env.*\n!**/.env*\n' } });
 
-    expect((await runDoctorWarnings({ root })).length).toBe(1);
+    expect((await dockerignoreWarnings({ root })).length).toBe(1);
   });
 
   test('no Dockerfile: silent', async () => {
     const root = project({ files: {} });
 
     rmSync(join(root, 'services/api/.configs/builders/Dockerfile'));
-    expect(await runDoctorWarnings({ root })).toEqual([]);
+    expect(await dockerignoreWarnings({ root })).toEqual([]);
   });
 
   test('two apps with a Dockerfile give one warning naming both', async () => {
@@ -816,7 +820,7 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
         '.dockerignore': '**/node_modules\n',
       },
     });
-    const warnings = await runDoctorWarnings({ root });
+    const warnings = await dockerignoreWarnings({ root });
 
     expect(warnings).toHaveLength(1);
     expect(warnings[0].message).toContain('apps api, jobs have a Dockerfile');
@@ -829,5 +833,107 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
     expect(result.code, result.stderr).toBe(0);
     expect(result.stderr).toContain('  warning [dockerignore] .dockerignore: ');
     expect(result.stderr).toContain('vulcan doctor: OK with 1 warning(s)');
+  });
+});
+
+describe('doctor: the atlas server is registered the canonical way (warnings)', () => {
+  const ENTRY =
+    '"atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }';
+  const MCP = (opts: { name?: string; root?: string }): string =>
+    JSON.stringify({
+      mcpServers: {
+        [opts.name ?? 'atlas']: {
+          command: 'bun',
+          args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', opts.root ?? '.'],
+        },
+      },
+    });
+  const mcpWarnings = async (opts: { root: string }) =>
+    (await runDoctorWarnings(opts)).filter(item => item.check === DoctorChecks.MCP);
+  const project = (opts: { mcp?: string }) => {
+    const root = createSyncedProject({
+      files: { ...CONFORMANT, ...(opts.mcp === undefined ? {} : { '.mcp.json': opts.mcp }) },
+    });
+
+    if (opts.mcp === undefined) {
+      rmSync(join(root, '.mcp.json'));
+    }
+
+    return root;
+  };
+
+  test('the canonical entry and the enabled server: no warning', async () => {
+    expect(await mcpWarnings({ root: project({ mcp: MCP({}) }) })).toEqual([]);
+  });
+
+  test('no .mcp.json: a warning that shows the expected entry', async () => {
+    expect(await mcpWarnings({ root: project({}) })).toEqual([
+      {
+        check: DoctorChecks.MCP,
+        file: '.mcp.json',
+        message: `missing: atlas is not registered for Claude Code, omp and Copilot CLI - add ${ENTRY} under mcpServers`,
+      },
+    ]);
+  });
+
+  test('a file that is not JSON', async () => {
+    const warnings = await mcpWarnings({ root: project({ mcp: '{ nope' }) });
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toBe(`not valid JSON - it must hold ${ENTRY} under mcpServers`);
+  });
+
+  test('the atlas server under another name: Claude never auto-enables it', async () => {
+    const warnings = await mcpWarnings({ root: project({ mcp: MCP({ name: 'ignis-atlas' }) }) });
+
+    expect(warnings).toEqual([
+      {
+        check: DoctorChecks.MCP,
+        file: '.mcp.json',
+        message: `no server named atlas (found: ignis-atlas): a differently named server is not enabled automatically - use ${ENTRY}`,
+      },
+    ]);
+  });
+
+  test('an atlas entry that serves another root', async () => {
+    const warnings = await mcpWarnings({ root: project({ mcp: MCP({ root: '../ignis' }) }) });
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toBe(
+      `the atlas entry is { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "../ignis"] }, expected ${ENTRY}`,
+    );
+  });
+
+  test('the managed Claude settings that do not enable atlas', async () => {
+    const root = project({ mcp: MCP({}) });
+
+    writeFileSync(
+      join(root, '.claude/settings.json'),
+      JSON.stringify({ enabledMcpjsonServers: ['ignis-knowledge'] }),
+    );
+
+    expect(await mcpWarnings({ root })).toEqual([
+      {
+        check: DoctorChecks.MCP,
+        file: '.claude/settings.json',
+        message:
+          'enabledMcpjsonServers does not include atlas (has: ignis-knowledge): Claude asks before using the server - run vulcan sync',
+      },
+    ]);
+  });
+
+  test('no Claude settings yet: silent about them', async () => {
+    const root = project({ mcp: MCP({}) });
+
+    rmSync(join(root, '.claude/settings.json'), { force: true });
+    expect(await mcpWarnings({ root })).toEqual([]);
+  });
+
+  test('doctor prints them as warnings and stays green', () => {
+    const root = project({ mcp: MCP({ root: '../ignis' }) });
+    const result = runCli({ args: ['doctor'], cwd: root });
+
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.stderr).toContain('  warning [mcp] .mcp.json: the atlas entry is');
   });
 });
