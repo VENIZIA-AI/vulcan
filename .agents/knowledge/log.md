@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - atlas reads the installed version in a monorepo's apps
+
+The 0.3.9 pre-release check on a project made by `vulcan init --preset ignis` showed the framework installed under `services/core-api/node_modules`, which the pin, the symbol tool's installed `.d.ts` lookup and the version tool's installed list never read (only the root). `installRootsOf` (sources/installed.ts) now names the root plus each package the manifest declares, and all three read those places. Concept: [atlas](/packages/atlas.md).
+
 ## 2026-10-21 - build-a-feature asks in rounds and builds in vertical slices
 
 - The shipped skill asks its questions in rounds with recommended answers, designs a deep interface with agreed seams, builds vertical slices red then green, and ends every step on a checkable criterion.

@@ -93,6 +93,37 @@ const consumerWith = (opts: { installed?: Record<string, string>; linked?: strin
   return cwd;
 };
 
+/** A consumer monorepo: its manifest declares the app `apps/api`, and the packages are installed under that app, not the root. */
+const workspaceConsumerWith = (opts: { installed: Record<string, string> }): string => {
+  const cwd = makeTempDirectory({ prefix: 'atlas-workspace-' });
+
+  writeSourceFile({
+    work: cwd,
+    path: '.agents/vulcan.manifest.json',
+    text: `${JSON.stringify({
+      schemaVersion: 1,
+      name: 'consumer',
+      packages: [{ name: 'api', dir: 'api', path: 'apps/api', aliases: [], retired: false }],
+      knowledge: { bundle: '.agents/knowledge' },
+      release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
+    })}\n`,
+  });
+  writeSourceFile({
+    work: cwd,
+    path: '.agents/knowledge/index.md',
+    text: '---\ntype: Concept\ntitle: Consumer\ndescription: The consumer.\n---\n\nThe consumer.\n',
+  });
+
+  for (const [name, version] of Object.entries(opts.installed)) {
+    const target = join(cwd, 'apps/api/node_modules', name);
+
+    mkdirSync(target, { recursive: true });
+    writeFileSync(join(target, 'package.json'), JSON.stringify({ name, version }));
+  }
+
+  return cwd;
+};
+
 const serve = async (opts: { cwd: string; source: IAtlasSource; refreshMs?: number }) => {
   const sources = await resolveSources({ cwd: opts.cwd, sources: [opts.source] });
   const transport = buildSourcesServer({
@@ -215,6 +246,18 @@ describe('a source is served at the version the project has installed', () => {
     expect(await forgeHits({ transport })).toBe(1);
     expect(text).toContain('develop');
     expect(text).toContain('none of its packages is installed');
+  });
+
+  test("a package installed under a workspace app's node_modules is the installed one", async () => {
+    const source = releasedSource();
+    const { transport } = await serve({
+      cwd: workspaceConsumerWith({ installed: { '@x/kernel': '1.0.0' } }),
+      source: SRC({ url: source.url }),
+    });
+    const text = await instructionsOf({ transport });
+
+    expect(await forgeHits({ transport })).toBe(0);
+    expect(text).toContain('kernel-v1.0.0');
   });
 
   test('a linked package (file: or a workspace) is not a release: the ref is served', async () => {

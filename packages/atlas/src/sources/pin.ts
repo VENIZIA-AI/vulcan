@@ -1,8 +1,9 @@
-import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IReleaseRecord, IReleaseTable } from '@/releases/common';
 import { compileReleaseTemplate } from '@/releases/template';
+import { installedDirectoriesOf } from './installed';
 
 export type TPinDecision =
   | { pinned: true; tag: string; basis: string }
@@ -53,7 +54,8 @@ const tagOf = (opts: { template: string; dir: string; version: string }): string
  * is a link, or its version has no recorded release; the reason says which.
  */
 export const decidePin = (opts: {
-  cwd: string;
+  /** The directories whose node_modules may hold the packages: the root and each workspace app. */
+  roots: string[];
   project: IAtlasProject;
   table: IReleaseTable;
 }): TPinDecision => {
@@ -61,26 +63,25 @@ export const decidePin = (opts: {
   const problems: string[] = [];
 
   for (const entry of opts.project.packages.filter(item => !item.retired)) {
-    const directory = join(opts.cwd, 'node_modules', entry.name);
+    for (const directory of installedDirectoriesOf({ roots: opts.roots, name: entry.name })) {
+      if (isLinked({ directory })) {
+        problems.push(`${entry.name} is linked (a file: or workspace package), not a release`);
+        continue;
+      }
 
-    if (!existsSync(join(directory, 'package.json'))) {
-      continue;
+      const version = versionAt({ directory });
+      const record = opts.table.releases[entry.dir]?.find(release => release.version === version);
+
+      if (version === undefined || record === undefined) {
+        problems.push(`no release of ${entry.name} ${version ?? '(no version)'} is recorded`);
+        continue;
+      }
+
+      // The same version under two apps is one fact.
+      if (!found.some(item => item.name === entry.name && item.version === version)) {
+        found.push({ name: entry.name, dir: entry.dir, version, record });
+      }
     }
-
-    if (isLinked({ directory })) {
-      problems.push(`${entry.name} is linked (a file: or workspace package), not a release`);
-      continue;
-    }
-
-    const version = versionAt({ directory });
-    const record = opts.table.releases[entry.dir]?.find(release => release.version === version);
-
-    if (version === undefined || record === undefined) {
-      problems.push(`no release of ${entry.name} ${version ?? '(no version)'} is recorded`);
-      continue;
-    }
-
-    found.push({ name: entry.name, dir: entry.dir, version, record });
   }
 
   if (found.length === 0) {

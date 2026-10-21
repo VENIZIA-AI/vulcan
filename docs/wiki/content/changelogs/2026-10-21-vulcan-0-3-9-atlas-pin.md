@@ -15,6 +15,7 @@ packages: ['@venizia/vulcan-atlas', '@venizia/vulcan']
 ## What changed
 
 - **The docs follow the installed version.** For each source in `atlas.sources`, atlas reads `node_modules/<package>/package.json` for the source's packages and reads the wiki, knowledge bundle and changelogs at the release tag of the **newest installed package** (by release order). `symbol` already read the installed `.d.ts`.
+- **A monorepo is read where it installs.** The installed version is looked up at the root and in the `node_modules` of each package the project declares, because `vulcan init` projects install the framework under the app. `symbol` (the installed `.d.ts`) and `version` (installed against newest, from each app's own `package.json`) read the same places, so they no longer miss the framework of a monorepo.
 - **The release table stays the branch's.** `version` and `changes` still report releases newer than the installed one, so "an upgrade exists" still works.
 - **It falls back to `ref`, and says why.** Nothing installed, a `file:` or workspace link, a version with no recorded release (a prerelease with no tag), or a tag that cannot be fetched: atlas serves `ref` and the status line of the `instructions` gives the reason. Otherwise the same line names the tag served and the installed version it comes from.
 - **An upgrade swaps the docs.** The background refresh reads the installed versions again; after `bun update` the docs move to the new tag within the interval.

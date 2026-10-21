@@ -45,6 +45,7 @@ import {
   updateClone,
 } from './git';
 import { withPullLock } from './lock';
+import { installRootsOf } from './installed';
 import { decidePin } from './pin';
 import { downloadTarball, extractTarball, githubRepoOf, hasGit, lsRemoteByHttp } from './tarball';
 
@@ -585,7 +586,7 @@ const resolveAtInstalled = async (opts: {
   }
 
   const decision = decidePin({
-    cwd: opts.cwd,
+    roots: installRootsOf({ cwd: opts.cwd }),
     project: base.project,
     table: JSON.parse(readFileSync(base.releasesFile, 'utf8')),
   });
