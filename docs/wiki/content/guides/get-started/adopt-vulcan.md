@@ -32,10 +32,10 @@ Fetching preset @venizia/ignis@latest ...
 ? Shared code folder (empty to skip) > libs
 ```
 
-`init` then creates the folder, writes the files and runs `bun install`. The first `vulcan sync` of a project asks which coding agents you use on this machine. The `detected` line shows what it found, so yours differs; press Enter to accept it, or type your list:
+`init` then creates the folder, writes the files and runs `bun install`. The first `vulcan sync` of a project asks which coding agents you use on this machine. The `detected` line shows what it found, so yours differs; press Enter to accept it, or type your list. When you are asked again later, Enter keeps your earlier choice instead:
 
 ```text
-Which coding agents do you use in this project? (comma-separated, Enter accepts)
+Which coding agents do you use in this project? (comma-separated; Enter accepts the detected list: claude, omp)
   detected: claude, omp
   available: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
 ? Agents > claude
