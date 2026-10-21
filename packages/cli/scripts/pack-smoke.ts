@@ -17,7 +17,7 @@ interface IStepResult {
 
 const PACKAGES_DIRECTORY = resolve(import.meta.dir, '..', '..');
 const STYLE_PACKAGE_VERSION = '0.3.1-0';
-const MINIMUM_ATLAS_TOOLS = 5;
+const MINIMUM_ATLAS_TOOLS = 6;
 
 /** The workspace catalog: the sandbox type-checks with the same typescript and Bun types. */
 const CATALOG: Record<string, string> = JSON.parse(

@@ -20,7 +20,9 @@ atlas is an MCP server. It indexes your wiki, changelogs and knowledge bundle. I
 }
 ```
 
-The agent receives five tools: `search`, `get`, `symbol`, `version` and `changes`.
+The agent receives six tools: `search`, `get`, `symbol`, `version`, `changes` and `presets`.
+
+You do not need to tell the agent to use them. The server's instructions and the tool descriptions say when to call each one, and name this project and every source it reads. The session-start digest repeats it, and the base rule `V-P-07` says facts come from atlas, not from memory.
 
 ## Before you start
 
@@ -94,7 +96,7 @@ version  Compare the @venizia/* packages installed in a directory against the ne
 changes  List the changelog entries between two releases: a package with two of its versions, or no package with two `YYYY-MM-DD` dates
 ```
 
-`vulcan x atlas tools` only lists the five tools.
+`vulcan x atlas tools` only lists the six tools.
 It does not start the server or touch the manifest.
 For a real check, restart the agent session and ask it to search.
 

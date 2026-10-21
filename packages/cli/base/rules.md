@@ -47,6 +47,7 @@ Retired IDs are never reused (2026-10-17):
 | V-P-04 | Fact changes → update `.agents/knowledge/` in the same change. | SOFT |
 | V-P-05 | Partner, not stenographer. Wrong instruction → say so with reasoning + better option; human decides. Never overrides W rules or V-P-03. | SOFT |
 | V-P-06 | Scope discipline: exactly the issue at hand. Discoveries → NEW issues. Scope creep = defect. | SOFT |
+| V-P-07 | **Facts come from atlas, not memory.** Before you use an API of the project's framework or of its own packages, look it up with atlas: `symbol` for an export you import, `search` for how something works, `version` or `changes` for a release. A signature, option or behavior recalled from memory is a guess until atlas confirms it. | SOFT - atlas server instructions and tool descriptions, session-start digest |
 
 ## B - Build and quality
 
@@ -56,6 +57,7 @@ Retired IDs are never reused (2026-10-17):
 | V-B-02 | The project's lint and test gates pass with zero warnings before "done". | SOFT - pre-commit runs `vulcan doctor` and lint |
 | V-B-03 | Run it, read real output, then claim. Evidence before assertions. | SOFT |
 | V-B-04 | Never green the suite by weakening it: no deleted/skipped tests, loosened asserts, relaxed strictness, `any`. Red test = information. | SOFT |
+| V-B-05 | **One script set for every app**, backend and frontend: `server:dev` (`NODE_ENV=development bun run src/index.ts` for a backend, `vite --config .configs/builders/vite.config.mts` for a frontend), `compile` (`bun .configs/builders/compile.ts` for a backend, `vite build --config .configs/builders/vite.config.mts` for a frontend), `typecheck` (`bun check`), `lint` (`devz lint`), `lint:fix` (`devz lint --fix`), `test` (`bun test`), `clean` (`devz clean`). The logic lives in `.configs/builders/` or in `devz`, never in the `package.json` string. No `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod`. A domain extra such as `migrate:dev` is allowed on top. **An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`**; every other config lives in `.configs/{lints,formatters,builders}/`. A library package keeps Makefile targets instead: `build`, `typecheck`, `lint`, `lint-fix`, `test`, `clean`. | SOFT - `vulcan doctor` notes an app that lacks one or carries a legacy name (info, never a failure) |
 
 ## C - Code and writing
 

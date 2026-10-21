@@ -1,0 +1,232 @@
+[
+  {
+    "id": "claude",
+    "name": "Claude Code",
+    "detect": {
+      "binaries": [
+        "claude"
+      ],
+      "homeDirs": [
+        "~/.claude"
+      ],
+      "projectDirs": [
+        ".claude"
+      ]
+    },
+    "instructions": {
+      "nativeAgentsMd": false,
+      "shim": {
+        "path": "CLAUDE.md",
+        "content": "@AGENTS.md"
+      }
+    },
+    "mcp": {
+      "scope": "shared",
+      "path": ".mcp.json",
+      "renderer": "mcpServers"
+    },
+    "skills": {
+      "dir": ".claude/skills"
+    },
+    "instructionsSurfaced": true,
+    "notes": []
+  },
+  {
+    "id": "omp",
+    "name": "omp (oh-my-pi)",
+    "detect": {
+      "binaries": [
+        "omp"
+      ],
+      "homeDirs": [
+        "~/.omp"
+      ],
+      "projectDirs": [
+        ".omp"
+      ]
+    },
+    "instructions": {
+      "nativeAgentsMd": true,
+      "shim": null
+    },
+    "mcp": {
+      "scope": "shared",
+      "path": ".mcp.json",
+      "renderer": "mcpServers"
+    },
+    "skills": {
+      "dir": ".agents/skills"
+    },
+    "instructionsSurfaced": true,
+    "notes": []
+  },
+  {
+    "id": "codex",
+    "name": "Codex",
+    "detect": {
+      "binaries": [
+        "codex"
+      ],
+      "homeDirs": [
+        "~/.codex"
+      ],
+      "projectDirs": [
+        ".codex"
+      ]
+    },
+    "instructions": {
+      "nativeAgentsMd": true,
+      "shim": null
+    },
+    "mcp": {
+      "scope": "project",
+      "path": ".codex/config.toml",
+      "renderer": "codex-toml"
+    },
+    "skills": {
+      "dir": ".agents/skills"
+    },
+    "instructionsSurfaced": true,
+    "notes": [
+      "Codex loads .codex/config.toml only for trusted projects: trust this project in Codex."
+    ]
+  },
+  {
+    "id": "cursor",
+    "name": "Cursor",
+    "detect": {
+      "binaries": [
+        "cursor",
+        "cursor-agent"
+      ],
+      "homeDirs": [
+        "~/.cursor"
+      ],
+      "projectDirs": [
+        ".cursor"
+      ]
+    },
+    "instructions": {
+      "nativeAgentsMd": true,
+      "shim": null
+    },
+    "mcp": {
+      "scope": "project",
+      "path": ".cursor/mcp.json",
+      "renderer": "mcpServers"
+    },
+    "skills": {
+      "dir": ".agents/skills"
+    },
+    "instructionsSurfaced": null,
+    "notes": []
+  },
+  {
+    "id": "copilot-cli",
+    "name": "Copilot CLI",
+    "detect": {
+      "binaries": [
+        "copilot"
+      ],
+      "homeDirs": [],
+      "projectDirs": []
+    },
+    "instructions": {
+      "nativeAgentsMd": true,
+      "shim": null
+    },
+    "mcp": {
+      "scope": "shared",
+      "path": ".mcp.json",
+      "renderer": "mcpServers"
+    },
+    "skills": {
+      "dir": ".agents/skills"
+    },
+    "instructionsSurfaced": null,
+    "notes": []
+  },
+  {
+    "id": "copilot-vscode",
+    "name": "Copilot in VS Code",
+    "detect": {
+      "binaries": [],
+      "homeDirs": [
+        "~/.vscode/extensions/github.copilot-chat-*"
+      ],
+      "projectDirs": []
+    },
+    "instructions": {
+      "nativeAgentsMd": true,
+      "shim": null
+    },
+    "mcp": {
+      "scope": "project",
+      "path": ".vscode/mcp.json",
+      "renderer": "servers"
+    },
+    "skills": {
+      "dir": ".agents/skills"
+    },
+    "instructionsSurfaced": null,
+    "notes": []
+  },
+  {
+    "id": "antigravity",
+    "name": "Antigravity CLI",
+    "detect": {
+      "binaries": [
+        "agy"
+      ],
+      "homeDirs": [
+        "~/.gemini/antigravity-cli"
+      ],
+      "projectDirs": []
+    },
+    "instructions": {
+      "nativeAgentsMd": true,
+      "shim": null
+    },
+    "mcp": {
+      "scope": "project",
+      "path": ".agents/mcp_config.json",
+      "renderer": "mcpServers"
+    },
+    "skills": {
+      "dir": ".agents/skills"
+    },
+    "instructionsSurfaced": false,
+    "notes": []
+  },
+  {
+    "id": "pi",
+    "name": "Pi",
+    "detect": {
+      "binaries": [
+        "pi"
+      ],
+      "homeDirs": [
+        "~/.pi/agent"
+      ],
+      "projectDirs": [
+        ".pi"
+      ]
+    },
+    "instructions": {
+      "nativeAgentsMd": true,
+      "shim": null
+    },
+    "mcp": {
+      "scope": "project",
+      "path": ".pi/mcp.json",
+      "renderer": "mcpServers"
+    },
+    "skills": {
+      "dir": ".agents/skills"
+    },
+    "instructionsSurfaced": "partial",
+    "notes": [
+      "Pi loads .pi/mcp.json and .agents/skills only after you trust this project: start pi here and answer the trust prompt."
+    ]
+  }
+]

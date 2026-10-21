@@ -4,3 +4,4 @@ export * from './get.tool';
 export * from './search.tool';
 export * from './symbol.tool';
 export * from './version.tool';
+export * from './presets.tool';

@@ -10,6 +10,15 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     ]);
   });
 
+  test('agents is left unset unless the project suggests a list, and names only table agents', () => {
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).agents).toBeUndefined();
+    expect(VULCAN_CONFIG_SCHEMA.parse({ agents: ['claude', 'omp'] }).agents).toEqual([
+      'claude',
+      'omp',
+    ]);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ agents: ['vim'] }).success).toBe(false);
+  });
+
   test('okf defaults to nothing selected - no renderer runs unless listed', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({});
 
@@ -47,6 +56,69 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     expect(config.atlas.sources).toEqual([
       { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
     ]);
+  });
+});
+
+describe('package kind', () => {
+  test('a package may say it is a lib or an app; nothing else', () => {
+    const base = {
+      dir: 'merchant',
+      name: '@nx-feature/merchant',
+      path: 'auroras/features/merchant',
+    };
+
+    expect(
+      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, kind: 'lib' }] }).packages[0]?.kind,
+    ).toBe('lib');
+    expect(VULCAN_CONFIG_SCHEMA.parse({ packages: [base] }).packages[0]?.kind).toBeUndefined();
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ ...base, kind: 'tool' }] }).success).toBe(
+      false,
+    );
+  });
+
+  test('resolvePackages carries the kind', () => {
+    const config = VULCAN_CONFIG_SCHEMA.parse({
+      packages: [
+        {
+          dir: 'merchant',
+          name: '@nx-feature/merchant',
+          path: 'auroras/features/merchant',
+          kind: 'lib',
+        },
+      ],
+    });
+
+    expect(resolvePackages({ config })[0]).toMatchObject({
+      kind: 'lib',
+      path: 'auroras/features/merchant',
+    });
+  });
+});
+
+describe('presets', () => {
+  test('a recorded preset may say it also makes libraries', () => {
+    const preset = {
+      spec: 'ardor',
+      side: 'frontend',
+      summary: 'An admin.',
+      lib: 'A feature library.',
+    } as const;
+
+    expect(VULCAN_CONFIG_SCHEMA.parse({ presets: [preset] }).presets).toEqual([preset]);
+  });
+
+  test('a recorded preset is { spec, side, summary }, side being backend or frontend', () => {
+    const preset = { spec: 'ignis', side: 'backend', summary: 'An API.' } as const;
+
+    expect(VULCAN_CONFIG_SCHEMA.parse({ presets: [preset] }).presets).toEqual([preset]);
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).presets).toBeUndefined();
+    expect(
+      VULCAN_CONFIG_SCHEMA.safeParse({ presets: [{ ...preset, side: 'shared' }] }).success,
+    ).toBe(false);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ presets: [{ spec: 'ignis' }] }).success).toBe(false);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ presets: [{ ...preset, extra: 1 }] }).success).toBe(
+      false,
+    );
   });
 });
 

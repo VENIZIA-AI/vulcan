@@ -1,3 +1,4 @@
+import { AgentConstants } from './agents/index.ts';
 import { COMMAND_HANDLERS } from './commands/index.ts';
 import { runHelpCommand } from './commands/help.command.ts';
 import { ExitCodes, UpgradeFlags, VulcanCommands } from './common/index.ts';
@@ -37,10 +38,18 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
       CreateFlags.FRONTEND_DIR,
       CreateFlags.APP,
       CreateFlags.API,
+      CreateFlags.LIB,
+      CreateFlags.DIR,
+      CreateFlags.SCOPE,
     ],
     positionals: 0,
   },
-  [VulcanCommands.SYNC]: { flags: ['--dry-run', '--prune'], values: [], positionals: 0 },
+  [VulcanCommands.SYNC]: {
+    flags: ['--dry-run', '--prune'],
+    values: [AgentConstants.FLAG],
+    positionals: 0,
+  },
+  [VulcanCommands.AGENTS]: { flags: ['--dry-run'], values: [], positionals: 2 },
   [VulcanCommands.DOCTOR]: { flags: [], values: [], positionals: 0 },
   [VulcanCommands.UPGRADE]: {
     flags: [UpgradeFlags.STABLE, UpgradeFlags.NIGHTLY],

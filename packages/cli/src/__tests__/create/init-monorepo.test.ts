@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { createFakeCommand } from '../fake-command.helper.ts';
 import { copyWithFields, copyWithUrls } from '../preset.helper.ts';
 import { createProject, packFolder, removeProjects } from '../project.helper.ts';
@@ -69,7 +69,7 @@ describe('vulcan init --preset', () => {
     expect(result.stderr).toContain('skipped  bun install');
     expect(result.stderr).toContain('skipped  vulcan sync');
     expect(result.stderr).toContain('skipped  git init');
-    expect(result.stderr).toContain('skipped  bun run check');
+    expect(result.stderr).toContain('skipped  bun run typecheck');
     expect(result.stderr).toContain('cd my-product && make dev');
   });
 
@@ -160,6 +160,147 @@ describe('vulcan init --preset', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('src/*');
     expect(existsSync(join(parent, 'my-product'))).toBe(false);
+  });
+
+  test("the root dev entry runs every app's server:dev, and make dev calls it", () => {
+    const parent = createProject({ files: {} });
+
+    expect(runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV }).code).toBe(0);
+
+    const root = join(parent, 'my-product');
+    const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+    const ran = Bun.spawnSync(['bun', 'run', 'dev'], { cwd: root, stdout: 'pipe', stderr: 'pipe' });
+
+    expect(manifest.scripts.dev).toBe("bun run --filter '*' server:dev");
+    expect(readFileSync(join(root, 'Makefile'), 'utf8')).toContain('\ndev:\n\t@bun run dev\n');
+    expect(ran.exitCode).toBe(0);
+    expect(ran.stdout.toString()).toContain('fixture-backend-up');
+  });
+
+  test('an app that lacks server:dev is skipped by the root dev entry, not an error', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    const root = join(parent, 'my-product');
+
+    mkdirSync(join(root, 'libs', 'shared'), { recursive: true });
+    writeFileSync(
+      join(root, 'libs', 'shared', 'package.json'),
+      '{ "name": "shared", "private": true }',
+    );
+
+    const ran = Bun.spawnSync(['bun', 'run', 'dev'], { cwd: root, stdout: 'pipe', stderr: 'pipe' });
+
+    expect(ran.exitCode).toBe(0);
+    expect(ran.stdout.toString()).toContain('fixture-backend-up');
+  });
+
+  test('the preset is recorded in the config block and reaches the manifest with the layout', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    const root = join(parent, 'my-product');
+
+    // The sync init runs after a real install is skipped here: run it, as the install would have.
+    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+
+    const config = readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8');
+    const manifest = JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8'));
+    const spec = `file:${relative(root, BACKEND)}`;
+
+    expect(config).toContain(`"spec": "${spec}"`);
+    expect(config).toContain('presets: apps.presets,');
+    expect(manifest.layout).toEqual({ backend: 'services', shared: 'libs' });
+    expect(manifest.presets).toEqual([{ spec, side: 'backend', summary: 'A fixture backend.' }]);
+  });
+
+  test('a preset that ships a library kind is recorded with its lib summary', () => {
+    const parent = createProject({ files: {} });
+    const withLib = join(import.meta.dir, '..', 'fixtures', 'preset-with-lib');
+
+    runCli({
+      args: ['init', ...FLAGS.map(flag => (flag === `file:${BACKEND}` ? `file:${withLib}` : flag))],
+      cwd: parent,
+      env: ENV,
+    });
+
+    const root = join(parent, 'my-product');
+
+    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+
+    const manifest = JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8'));
+
+    expect(manifest.presets).toHaveLength(1);
+    expect(manifest.presets[0].lib).toBe('A fixture library.');
+  });
+
+  test('{{appPath}} is the app folder from the root, in a nested layout too', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({
+      args: [
+        'init',
+        '--preset',
+        `file:${BACKEND}`,
+        '--project',
+        'my-product',
+        '--backend-dir',
+        'be',
+        '--app',
+        'api3',
+      ],
+      cwd: parent,
+      env: ENV,
+    });
+
+    const dockerfile = readFileSync(
+      join(parent, 'my-product/be/api3/.configs/builders/Dockerfile'),
+      'utf8',
+    );
+
+    expect(dockerfile).toBe('COPY be/api3/package.json ./be/api3/package.json\n');
+  });
+
+  test('a root .dockerignore is written: build output, dependencies, agent files', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    const lines = readFileSync(join(parent, 'my-product', '.dockerignore'), 'utf8').split('\n');
+
+    for (const line of [
+      '**/node_modules',
+      '**/dist',
+      '**/*.tsbuildinfo',
+      '**/coverage',
+      '**/*.log',
+      '.git',
+      '.claude',
+      '.agents/plans',
+      '.agents/vulcan.local.json',
+      'CLAUDE.md',
+      '.cursor/mcp.json',
+      '.codex/config.toml',
+    ]) {
+      expect(lines, line).toContain(line);
+    }
+
+    expect(lines.filter(line => line === '.claude')).toHaveLength(1);
+    // The image is built from these: the lockfile, every manifest and the sources stay in the context.
+    for (const kept of [
+      'bun.lock',
+      'package.json',
+      '**/package.json',
+      'src',
+      '**/src',
+      '**/*.ts',
+    ]) {
+      expect(lines, kept).not.toContain(kept);
+    }
+
+    expect(lines[0]).toContain('APP_BUILD_COMMIT');
   });
 
   test('the root .gitignore ignores *.tsbuildinfo', () => {

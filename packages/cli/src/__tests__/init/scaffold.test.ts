@@ -16,9 +16,9 @@ const NO_INSTALL = { VULCAN_NO_INSTALL: '1' };
 const SCAFFOLD = [
   'AGENTS.md',
   '.configs/vulcan.config.mts',
-  '.configs/oxlint.config.mts',
-  '.configs/eslint.config.mjs',
-  '.configs/oxfmt.config.mts',
+  '.configs/lints/oxlint.config.mts',
+  '.configs/lints/eslint.config.mjs',
+  '.configs/formatters/oxfmt.config.mts',
   '.agents/rules.md',
   '.agents/knowledge/index.md',
   'Makefile',
@@ -38,9 +38,33 @@ describe('vulcan init', () => {
     expect(readFileSync(join(root, 'Makefile'), 'utf8')).toContain(
       'include node_modules/@venizia/vulcan/base/make/vulcan.mk',
     );
-    expect(readFileSync(join(root, '.configs/oxlint.config.mts'), 'utf8')).toContain(
+    expect(readFileSync(join(root, '.configs/lints/oxlint.config.mts'), 'utf8')).toContain(
       '@venizia/dev-configs',
     );
+  });
+
+  test('a root .dockerignore is created when there is none, and reported', () => {
+    const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
+    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+
+    expect(result.stderr).toContain('created  .dockerignore');
+
+    const lines = readFileSync(join(root, '.dockerignore'), 'utf8').split('\n');
+
+    expect(lines).toContain('**/node_modules');
+    expect(lines).toContain('.git');
+    expect(lines).toContain('.cursor/mcp.json');
+    expect(lines).not.toContain('bun.lock');
+  });
+
+  test('an existing .dockerignore is kept byte for byte and reported', () => {
+    const root = createProject({
+      files: { 'package.json': STYLED_PACKAGE, '.dockerignore': 'mine\n' },
+    });
+    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+
+    expect(result.stderr).toContain('kept     .dockerignore');
+    expect(readFileSync(join(root, '.dockerignore'), 'utf8')).toBe('mine\n');
   });
 
   for (const extension of ['ts', 'mjs', 'js']) {
@@ -89,7 +113,7 @@ describe('vulcan init', () => {
 
     runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
-      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n',
+      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/vulcan.local.json\n',
     );
   });
 
@@ -100,7 +124,7 @@ describe('vulcan init', () => {
 
     runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
-      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n',
+      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/vulcan.local.json\n',
     );
   });
 
@@ -274,8 +298,12 @@ describe('vulcan init', () => {
     });
     const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
 
-    for (const name of ['oxlint.config.mts', 'eslint.config.mjs', 'oxfmt.config.mts']) {
-      expect(existsSync(join(root, '.configs', name))).toBe(false);
+    for (const file of [
+      'lints/oxlint.config.mts',
+      'lints/eslint.config.mjs',
+      'formatters/oxfmt.config.mts',
+    ]) {
+      expect(existsSync(join(root, '.configs', file))).toBe(false);
     }
 
     expect(existsSync(join(root, '.configs/vulcan.config.mts'))).toBe(true);
@@ -289,7 +317,7 @@ describe('vulcan init', () => {
     });
 
     runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
-    expect(existsSync(join(root, '.configs/oxlint.config.mts'))).toBe(false);
+    expect(existsSync(join(root, '.configs/lints/oxlint.config.mts'))).toBe(false);
   });
 
   test('init, then sync: doctor names what is left to fill in, and is green once it is', () => {

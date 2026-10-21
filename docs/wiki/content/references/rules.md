@@ -69,6 +69,7 @@ Process rules establish reading requirements, design review gates, scope boundar
 | `V-P-04` | Update `.agents/knowledge/` in the same change whenever architectural or project facts change. | SOFT |
 | `V-P-05` | Act as a partner: challenge wrong instructions constructively; human decides. | SOFT |
 | `V-P-06` | Maintain scope discipline on the current issue; file discoveries as new issues. | SOFT |
+| `V-P-07` | Take facts about the framework and the project's own packages from atlas, not from memory: `symbol` for an export, `search` for how something works, `version` or `changes` for a release. | SOFT - atlas server instructions and tool descriptions, session-start digest |
 
 ## Build and quality (B)
 
@@ -80,6 +81,7 @@ Build rules require test-driven workflows, command output verification, zero war
 | `V-B-02` | Ensure all lint and test gates pass with zero warnings before completion. | SOFT - pre-commit runs `vulcan doctor` and lint |
 | `V-B-03` | Run commands and read real output before making claims; provide evidence first. | SOFT |
 | `V-B-04` | Never pass tests by deleting cases, skipping checks, or relaxing types. | SOFT |
+| `V-B-05` | Give every app, backend and frontend, the same seven scripts: `server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean`. The work lives in `.configs/builders/` or in `devz` (`devz lint`, `devz lint --fix`, `devz clean`), never in the `package.json` string. An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`; every other config lives in `.configs/{lints,formatters,builders}/`. No `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod`. A library package keeps Makefile targets `build`, `typecheck`, `lint`, `lint-fix`, `test`, `clean`. | SOFT - `vulcan doctor` notes (info only) |
 
 ## Code and writing (C)
 

@@ -25,10 +25,10 @@ describe('parseRuleIds', () => {
     expect(parseRuleIds({ markdown })).toEqual(['V-W-01', 'V-C-04', 'W-06']);
   });
 
-  test('the shipped base: W4 S7 P6 B4 + the C group, 37 rules, every ID unique', () => {
+  test('the shipped base: W4 S7 P7 B5 + the C group, 39 rules, every ID unique', () => {
     const ids = parseRuleIds({ markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8') });
 
-    expect(ids).toHaveLength(37);
+    expect(ids).toHaveLength(39);
     expect(ids.every(id => id.startsWith('V-'))).toBe(true);
     expect(ids).toContain('V-W-01');
     expect(ids.filter(id => id.startsWith('V-C-'))).toHaveLength(16);
@@ -105,8 +105,46 @@ describe('readBaseRules', () => {
   test('every base rule ID maps to its row', () => {
     const rules = readBaseRules();
 
-    expect(Object.keys(rules)).toHaveLength(37);
+    expect(Object.keys(rules)).toHaveLength(39);
     expect(rules['V-W-02']).toStartWith('| V-W-02 | Never write to a database.');
+  });
+
+  test('V-B-05 states the seven app scripts, the legacy names and where the logic lives', () => {
+    const row = readBaseRules()['V-B-05'] ?? '';
+
+    for (const name of [
+      'server:dev',
+      'compile',
+      'typecheck',
+      'lint',
+      'lint:fix',
+      'test',
+      'clean',
+    ]) {
+      expect(row).toContain(`\`${name}\``);
+    }
+
+    for (const legacy of ['dev', 'start', 'build', 'rebuild', 'preview', 'server:prod']) {
+      expect(row).toContain(`\`${legacy}\``);
+    }
+
+    expect(row).toContain('`devz lint`');
+    expect(row).toContain('`devz lint --fix`');
+    expect(row).toContain('`devz clean`');
+    expect(row).toContain('bun .configs/builders/compile.ts');
+    expect(row).toContain('vite build --config .configs/builders/vite.config.mts');
+    expect(row).toContain('NODE_ENV=development bun run src/index.ts');
+    expect(row).not.toContain('scripts/');
+  });
+
+  test('V-B-05 also says what an app root holds and where every other config lives', () => {
+    const row = readBaseRules()['V-B-05'] ?? '';
+
+    expect(row).toContain(
+      'An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`',
+    );
+    expect(row).not.toContain('components.json');
+    expect(row).toContain('`.configs/{lints,formatters,builders}/`');
   });
 });
 

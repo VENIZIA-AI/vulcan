@@ -64,9 +64,10 @@ The table below lists all 12 top-level configuration keys:
 | Key | Type | Default | What it controls |
 |---|---|---|---|
 | `name` | `string` | root package name | Project identifier in the manifest and atlas results |
-| `agents` | `string[]` | `['claude']` | Coding agents that sync generates adapters for |
+| `agents` | `string[]` | unset | Coding agents the project suggests; each developer's choice is stored locally |
 | `rules` | `Record<string, string>` | `{}` | Base rule slot choices |
 | `layout` | `object` | `undefined` | The folders `vulcan init` and `vulcan add` put apps in |
+| `presets` | `object[]` | `undefined` | The presets this project's apps came from, as `--preset` takes them back; `init` and `add` record them |
 | `packages` | `Array<object>` | `[]` | Monorepo packages in release order |
 | `knowledge` | `object` | `{ bundle: '.agents/knowledge' }` | Locations for knowledge documents and concepts |
 | `okf` | `object` | `{ renderers: [], ... }` | Renderers, regions, and coverage checks for okf |
@@ -94,13 +95,13 @@ export default {
 
 ## agents
 
-The only accepted value in 0.2 is `'claude'`.
+An optional list of agents the project suggests. Each developer's own choice lives in `.agents/vulcan.local.json` (see [`vulcan sync`](/references/commands/sync#choosing-your-agents)); this list is used only when a machine has not chosen yet. `vulcan init` no longer writes it. Accepted ids: `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity`, `pi`.
 
-When you include `'claude'`, `vulcan sync` writes `CLAUDE.md`, `.claude/settings.json`, and links skills in `.claude/skills/`. The `vulcan doctor` command checks these generated files with the `[adapters]` label.
+When `claude` is chosen, `vulcan sync` writes `CLAUDE.md`, `.claude/settings.json`, and links skills in `.claude/skills/`. The `vulcan doctor` command checks these generated files with the `[adapters]` label.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `agents` | `string[]` | `['claude']` | Assistant identifiers that `vulcan sync` writes adapters for |
+| `agents` | `string[]` | unset | The agents the project suggests when a machine has not chosen |
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -178,6 +179,19 @@ export default {
 ```
 
 `vulcan doctor` runs the [`apps`](/references/commands/doctor#apps) check against this object: every named folder must be a workspace, and every package must live inside one of them.
+
+## presets
+
+`vulcan init --preset` and `vulcan add --preset` record the preset each app came from, so an agent asked for a new app can find the exact command. Each entry is `{ spec, side, summary }`: `spec` is what you gave `--preset` (`ignis`, `@acme/kit@1.2.0`, or a `file:` path made relative to the project), `side` is `backend` or `frontend`, and `summary` is the preset's one sentence. A preset is recorded once however many apps it made.
+
+The entries live in the `vulcan:apps` block that `init` and `add` rewrite, and the config reads them with `presets: apps.presets`. A config written before presets were recorded does not have that line; `add` inserts it after `packages: apps.packages,` the first time it runs. `vulcan sync` renders `layout` and `presets` into `.agents/vulcan.manifest.json`, which is what atlas reads. A project whose apps were not made from a preset records none.
+
+```ts
+export default {
+  layout: { backend: 'services' },
+  presets: [{ spec: 'ignis', side: 'backend', summary: 'An IGNIS API on Bun.' }],
+} satisfies VulcanConfig;
+```
 
 ## packages
 
@@ -495,7 +509,7 @@ The SessionStart hook displays these rules under the heading "The rules sessions
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `oftenDropped` | `string[]` | `['V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-W-04', 'V-C-02', 'V-C-10']` | Rule IDs highlighted at session start |
+| `oftenDropped` | `string[]` | `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-W-04', 'V-C-02', 'V-C-10']` | Rule IDs highlighted at session start |
 
 Every rule ID in `oftenDropped` must match the rule ID regular expression `/^(?:[A-Z]+-)?[A-Z]-\d{2}$/`.
 

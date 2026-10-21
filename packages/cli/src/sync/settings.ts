@@ -21,6 +21,15 @@ export const mergeSettings = (opts: { base: TSettings; overlay: TSettings }): TS
     const incoming = { value };
 
     if (
+      SyncConstants.UNION_ARRAYS.has(key) &&
+      Array.isArray(current.value) &&
+      Array.isArray(value)
+    ) {
+      merged[key] = mergeArrays({ base: current.value, overlay: value });
+      continue;
+    }
+
+    if (
       !SyncConstants.MERGE_ONE_LEVEL.has(key) ||
       !isSettingsObject(current) ||
       !isSettingsObject(incoming)
@@ -154,6 +163,23 @@ export const removeManagedSettings = (opts: {
   for (const [key, managedValue] of Object.entries(opts.managed)) {
     const current = { value: remaining[key] };
     const managed = { value: managedValue };
+
+    if (
+      SyncConstants.UNION_ARRAYS.has(key) &&
+      Array.isArray(current.value) &&
+      Array.isArray(managedValue)
+    ) {
+      const managedEntries = new Set(managedValue.map(entry => toKey({ value: entry })));
+      const kept = current.value.filter(entry => !managedEntries.has(toKey({ value: entry })));
+
+      if (kept.length > 0) {
+        remaining[key] = kept;
+      } else {
+        delete remaining[key];
+      }
+
+      continue;
+    }
 
     if (
       !SyncConstants.MERGE_ONE_LEVEL.has(key) ||

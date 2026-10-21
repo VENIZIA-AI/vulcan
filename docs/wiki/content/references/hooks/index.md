@@ -14,6 +14,7 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 | `guard-writes` | `PreToolUse` | `Bash` | Prompts for human confirmation before database writes and cluster deployments | Fires on every Bash tool command |
 | `guard-remote-hosts` | `PreToolUse` | `Bash` | Prompts for confirmation before commands reach unlisted network hosts | Fires on Bash commands only when `remoteHosts` is set |
 | `guard-manifest` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Refuses a write to `.agents/vulcan.manifest.json` | Fires on every one of those tool calls; only a write to the manifest is refused |
+| `guard-package` | `PreToolUse` | `Write` | Refuses a new `package.json` in a backend, frontend or shared folder when a `vulcan add` command exists for it | Fires on every `Write`; only the creation of a package file in a layout folder is acted on |
 
 ## Session digest
 
@@ -25,6 +26,11 @@ $ echo '{}' | bun node_modules/@venizia/vulcan/base/hooks/session-start.ts
 # VULCAN rules - read this before acting
 
 Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents/rules.md`.
+
+## Atlas
+
+The `atlas` MCP server holds the real code and docs of: my-product (this repository), ignis.
+Look facts up there before you answer or write from memory: `symbol` for an export you import, `search` for how something works, `version` or `changes` for a release (V-P-07).
 
 ## Write boundaries
 
@@ -43,10 +49,12 @@ Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents
 The rest of the output, the table of often-dropped rules, is not shown.
 The digest also prints the project's own rule rows and its minimap when it has them.
 
+The "Atlas" block, three lines under the title, appears only when the project's `.mcp.json` runs the atlas server. It names the project and every `atlas.sources` entry of the config, and says when to call each tool. It is rendered from the config, so there is nothing to set.
+
 The section titled "The rules sessions drop most" repeats rules that sessions overlook most frequently.
 These rule identifiers come from the `digest.oftenDropped` configuration key.
-The default list contains seven base rules:
-`V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-W-04`, `V-C-02`, and `V-C-10`.
+The default list contains eight base rules:
+`V-P-07`, `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-W-04`, `V-C-02`, and `V-C-10`.
 
 To change which rules appear, define `digest.oftenDropped` in `.configs/vulcan.config.mts`:
 
@@ -74,6 +82,25 @@ It refuses (a denial, not a question) these calls:
 - A Bash command that redirects into the file (`>`, `>>`), pipes to `tee`, edits it in place (`sed -i`), copies or moves onto it, or removes it.
 
 Reading it (`cat`, `jq`, `git diff`) and `vulcan sync` itself pass. The hook does not see what a script it runs writes.
+
+## guard-package
+
+An agent that needs a new app or library tends to write its `package.json`, `tsconfig.json` and scripts by hand, and gets them subtly different from the framework's. The `guard-package` hook catches the first file of that, a `Write` of a new `package.json` in a folder `layout` names, and points at the command that builds it properly.
+
+It reads only the generated manifest (`layout` and `presets`). A command exists when a recorded preset makes that kind: an app preset of the folder's side for a backend or frontend folder, a preset with a library kind for the shared folder. Then the call is denied with the exact command:
+
+```text
+services/api3 is a new backend app: create it with a preset, not by hand - run bun x --no-install vulcan add --preset ignis --app api3 (ask atlas `presets` for the choice); do not hand-write package.json, tsconfig or scripts
+```
+
+With no preset behind the folder there is no command to offer, so the hook never blocks: it adds a note to the agent's context and lets the call through.
+
+```text
+services/api3 looks like a new backend app but no recorded preset makes a backend app: ask the user how it should be made; do not hand-write package.json, tsconfig or scripts
+```
+
+It stays silent for a `package.json` that already exists, anything under `node_modules`, a file that is not named `package.json`, a path outside every layout folder or deeper than one package, a project with no manifest or `layout`, and every tool but `Write`. An unreadable manifest lets the call through.
+`vulcan add` itself writes through the CLI, not through `Write`, so it is never blocked.
 
 ## guard-writes
 

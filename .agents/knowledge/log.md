@@ -6,6 +6,66 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-21 - {{appPath}}, the root .dockerignore, the dockerignore note
+
+Preset files may use `{{appPath}}` (the app folder from the root, no slash at either end). `init --preset` and plain `init` write a root `.dockerignore` (plain init: created or kept) (base patterns plus every agent's per-machine files; lockfile, manifests and sources stay in the context; the commit comes in as `APP_BUILD_COMMIT`); doctor notes an app with `.configs/builders/Dockerfile` and no root `.dockerignore`. An app root holds `.configs/`, `src/`, `package.json`, `tsconfig.json`, `.env.example`; nothing in the cli expects `scripts/` or `README.md` there. Concept: [cli](/packages/cli.md).
+
+## 2026-10-21 - agents create apps and libraries with a preset (new apps by agents 2-5)
+
+`vulcan add --lib` makes a shared package from a preset's lib kind (`vulcan.lib`, a strict second preset file; packages registered with `kind: "lib"`); `add` asks which kind and, without a terminal, prints both commands and writes nothing. atlas gains a sixth tool, `presets` (reads `layout`, `presets` and package `kind` from the manifest, never invents a command), the atlas lead and the AGENTS.md block name it as the fourth trigger within 512 characters, and the Claude `guard-package` hook denies a hand-written new `package.json` in a layout folder only when a real `vulcan add` command exists. Concepts: [cli](/packages/cli.md), [atlas](/packages/atlas.md).
+
+## 2026-10-21 - tool configs under .configs/{lints,formatters,builders}
+
+Every project keeps lint configs in `.configs/lints/`, the formatter in `.configs/formatters/` and build configs in `.configs/builders/`, each with an optional `.ignore` (oxlint and oxfmt cannot ignore package paths from a config in `.configs/`). `init` scaffolds the new paths, doctor's style check reads them and names where a legacy file belongs, `make/project.mk` reads the paths and the `.ignore` files; this repository's packages and `scripts/` moved. Concept: [cli](/packages/cli.md).
+
+## 2026-10-21 - the presets of a project are recorded (new apps by agents 1)
+
+`init` and `add` record the preset each app came from (`{ spec, side, summary }`) in the `vulcan:apps` block; the config reads them with `presets: apps.presets` (`add` inserts the line into an older config); `sync` renders `layout` and `presets` into the manifest, so atlas can tell an agent the exact `vulcan add` command. Concept: [cli](/packages/cli.md).
+
+## 2026-10-20 - the agents page and the changelog (multi-agent 8 of 8)
+
+`references/agents.md` lists the seven agents and is checked against `base/agents.json` by a test, so it cannot drift; the changelog entry for the multi-agent setup is written. Concept: [cli](/packages/cli.md).
+
+## 2026-10-20 - Claude approves atlas; user skills follow (multi-agent 7 of 7)
+
+The managed Claude settings carry `enabledMcpjsonServers: ["atlas"]`, merged as a union with the user's own list (checked with `claude -p`: the server is `pending` at start without it, `connected` with it); a skill the user writes in `.agents/skills` is linked into `.claude/skills` and its dead link is taken back when the folder is removed. Concept: [cli](/packages/cli.md).
+
+## 2026-10-20 - vulcan agents: list, add, remove, setup (multi-agent 6 of 7)
+
+`vulcan agents` shows or changes the agents chosen on this machine; `remove` (and `sync --agents <list>` for an agent stored before) takes back what sync created for it: whole files, the merged atlas key, the Codex block, skill links no remaining agent reads, the Claude shim and managed settings; an atlas entry the user changed is left and reported. Concept: [cli](/packages/cli.md).
+
+## 2026-10-20 - the chosen agents' files in .git/info/exclude (multi-agent 5 of 7)
+
+sync writes the paths it creates for the agents chosen on this machine (Claude files, each agent's MCP file, the shipped-skill links, the local choice file) into a `# vulcan:start`/`# vulcan:end` block of the clone's `.git/info/exclude`: per developer, no churn in the committed `.gitignore`; tracked paths are not listed, worktrees and subfolders work, a non-git project gets nothing. Concept: [cli](/packages/cli.md).
+
+## 2026-10-20 - a moved project follows (multi-agent fix)
+
+The per-machine MCP files carry absolute paths, so `sync` now recognises the atlas entry it wrote itself (`bun <root>/node_modules/.bin/vulcan x atlas mcp --root <root>`, paths agreeing) and rewrites it when the project moved; any other atlas entry stays the user's. Concept: [cli](/packages/cli.md).
+
+## 2026-10-20 - the Atlas block in AGENTS.md (multi-agent 4 of 7)
+
+sync writes the atlas guidance (corpora from the config, V-P-07, the three triggers) into the committed AGENTS.md between markers, for every agent; the atlas server's instructions open with a lead of at most 512 characters that carries the same, the whole under 2 KB; doctor notes (info) a missing or stale block. Concept: [cli](/packages/cli.md).
+
+## 2026-10-20 - skill links for the other agents (multi-agent 3 of 7)
+
+When an agent other than Claude is chosen, sync links the shipped skills into `.agents/skills/<name>` (the folder five-plus agents read), the same stable-path symlinks as `.claude/skills`; agents share one set, a project skill of the same name wins, dead links into the shipped skills are taken back. Concept: [cli](/packages/cli.md).
+
+## 2026-10-20 - the MCP renderers (multi-agent 2 of 7)
+
+For each chosen agent with a project-scope entry, sync writes the atlas server into the agent's own file: `mcpServers` JSON (cursor, antigravity, pi), `servers` JSON (copilot-vscode), a marker block of `.codex/config.toml` (codex). Merge never overwrites, an invalid or git-tracked file is skipped, the per-machine files carry the absolute root, and the trust notes are printed. Concept: [cli](/packages/cli.md).
+
+## 2026-10-20 - each developer chooses their agents (multi-agent 1 of 7)
+
+`base/agents.json` is the table of the seven agents (claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi), validated by a schema. The choice is per machine in `.agents/vulcan.local.json` (gitignored): `sync --agents`, the stored file, the config's suggestion, a project that has Claude files, then the question; without a terminal and nothing known it keeps the Claude default and prints a hint. Only the Claude adapters exist so far. Concept: [cli](/packages/cli.md).
+
+## 2026-10-20 - one script standard for every app (0.3.6)
+
+Base rule `V-B-05`: every app carries `server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean` (logic in `scripts/*.sh`), no `dev`, `start`, `build`, `rebuild`, `preview`, `server:prod`. The root `dev` script `init` writes runs `server:dev` in every app. `vulcan doctor` notes (info, exit code unchanged) an app that lacks one or carries a legacy name. This repository's Makefile exposes the library targets `typecheck` and `lint-fix` next to build, lint, test, clean. Concept: [cli](/packages/cli.md).
+
+## 2026-10-20 - agents reach for atlas on their own (0.3.5)
+
+The atlas server sends `instructions` for every project (corpora, triggers, the rule), its tool descriptions open with when to call the tool and name the projects, the session-start digest has an Atlas block, and the base rule `V-P-07` (facts come from atlas, not memory) is in the default `oftenDropped` list. Concepts: [cli](/packages/cli.md).
+
 ## 2026-10-20 - a preset can declare the imports of its app (0.3.4)
 
 `preset.json` takes an optional `imports` object (keys start with `#`, values are strings); `init` and `add` write it into the app's `package.json` as given. Concept: [cli](/packages/cli.md).

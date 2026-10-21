@@ -13,6 +13,7 @@ An exit code of `1` indicates one or more contract violations.
 
 Each violation line follows the shape `[check] file: message`.
 The final line prints `vulcan doctor: OK` on success or `vulcan doctor: N violation(s)` on failure.
+A line that starts with `info` is a note, not a violation: it never changes the exit code or the final line ([scripts](#scripts)).
 
 When all checks pass, the command reports an OK status:
 
@@ -24,7 +25,7 @@ vulcan doctor: OK
 ## Checks
 
 If the configuration cannot be loaded, `vulcan doctor` reports only `config`.
-Otherwise, it executes the other 13 checks in sequence.
+Otherwise, it executes the other 14 checks in sequence, then prints the notes.
 Doctor runs `skills` twice: shipped-name checks run before `make`, while skill linting runs after `tags`.
 
 | Check | What it verifies | Typical fix |
@@ -44,6 +45,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `style` | Packages declare `@venizia/dev-configs` and lint configuration files import the shared style | Add `@venizia/dev-configs` as a devDependency and import it in lint configuration files |
 | `scaffold` | Workspaces declare packages and the knowledge index replaces scaffold text | Add `packages` in configuration and remove `vulcan:scaffold` from `index.md` |
 | `apps` | Every `layout` folder is a workspace and every package lives in one | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
+| `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
 
 ### config
 
@@ -218,7 +220,7 @@ Alternatively, add the directory to `aliases` on the package or add the pattern 
 ### style
 
 A missing `@venizia/dev-configs` dependency or a lint configuration file not importing the shared style triggers this check.
-Doctor examines `oxlint|eslint|oxfmt.config.(mts|ts|mjs|js|cjs)` in `.configs/` of the root, `packages/*`, and configured package paths.
+Doctor examines `oxlint|eslint|oxfmt.config.(mts|ts|mjs|js|cjs)` in `.configs/lints/` and `.configs/formatters/` of the root, `packages/*`, and configured package paths.
 
 ```text
 $ bun x --no-install vulcan doctor
@@ -227,6 +229,7 @@ vulcan doctor: 1 violation(s)
 ```
 
 When a lint configuration file does not import the shared package, it reports `build on the shared style: import from @venizia/dev-configs`.
+A lint configuration left directly in `.configs/` is reported with where it belongs, for example `move it to .configs/formatters/oxfmt.config.mts`.
 When no lint configuration files exist at all, the check reports `add @venizia/dev-configs as a devDependency` without the suffix.
 
 ### scaffold
@@ -242,6 +245,16 @@ vulcan doctor: 1 violation(s)
 For workspaces without declared packages, the file column is the configuration file.
 The check reports `package.json declares workspaces but the config lists no packages - add packages: [{ dir, name, path }] in release order`.
 
+### agents
+
+`.agents/vulcan.local.json`, the file where `sync` stores your agents, must be valid JSON and name only known agents. A broken file is a violation instead of a silent default. Delete it and run `vulcan sync --agents <list>`. The `adapters` check looks at the adapters of the agents you chose, so a machine that chose `omp` is not asked for `CLAUDE.md`.
+
+```text
+$ bun x --no-install vulcan doctor
+  [agents] .agents/vulcan.local.json: .agents/vulcan.local.json is not valid JSON - delete it and run: vulcan sync --agents <list>
+vulcan doctor: 1 violation(s)
+```
+
 ### apps
 
 A `layout` folder missing from `package.json` workspaces (`<folder>/*`, `<folder>/**` and the `./` forms all count), or a package outside every `layout` folder, triggers this check. Projects without `layout` skip it.
@@ -255,6 +268,26 @@ $ bun x --no-install vulcan doctor
 ```
 
 Retired packages are not checked.
+
+### scripts
+
+An info note, not a violation. Every app (a live package inside the `layout.backend` or `layout.frontend` folder) carries the seven standard scripts of rule `V-B-05`: `server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test` and `clean`. The note names, for each app, the standard scripts it lacks and the legacy ones it carries (`dev`, `start`, `build`, `rebuild`, `preview`, `server:prod`). Shared code, retired packages, apps without a `package.json` and projects without `layout` produce none. Domain extras such as `migrate:dev` are fine.
+
+```text
+$ bun x --no-install vulcan doctor
+  info [scripts] services/core-api/package.json: app core-api: missing server:dev, compile, typecheck, lint, lint:fix, clean; legacy dev, start (use the standard names)
+vulcan doctor: OK
+```
+
+Rename the scripts, and keep the work in `.configs/builders/` or behind `devz`, not in the `package.json` string. The exit code stays `0`, so no existing project starts failing.
+
+### dockerignore
+
+An info note, not a violation. An app (a live package) that holds `.configs/builders/Dockerfile` is built from the project root, so the root needs a `.dockerignore`; without one the build context carries `node_modules`, `dist` and `.git`. The note names the apps and the file to add. `vulcan init --preset` writes one; add the same lines to a project that predates it. The exit code stays `0`.
+
+```text
+  info [dockerignore] .dockerignore: app api has a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist and .git
+```
 
 ## Run it in CI
 

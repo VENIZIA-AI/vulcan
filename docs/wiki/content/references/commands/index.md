@@ -19,8 +19,12 @@ Usage: bun x vulcan <command>
                                   (a name missing from the flags is asked in a terminal)
   add --preset <name|file:path> --app <name> [--backend-dir|--frontend-dir <name>]
       [--api <app> | --no-api]    Add an app to the monorepo (a frontend says which backend to proxy to)
-  sync [--dry-run] [--prune]      Write the gitignored agent adapters (CLAUDE.md, .claude/);
+  sync [--agents <list>|list] [--dry-run] [--prune]
+                                  Write the adapters of the agents you chose (--agents claude,omp or none,
+                                  stored in .agents/vulcan.local.json; --agents list shows the table);
                                   --prune also removes stale hooks and dead skill links
+  agents [list|add <ids>|remove <ids>|setup] [--dry-run]
+                                  See, add, remove or re-choose the coding agents you use on this machine
   doctor                          Check the project follows VULCAN; exit 1 on any violation
   upgrade [--stable | --nightly] [<version|tag>]
                                   Bump the pinned @venizia/vulcan, then sync; --stable (default)
@@ -37,6 +41,7 @@ The following table lists each command, its purpose, its exit codes, and its ref
 | `init` | Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app | `0` on success; `1` on invalid configuration format, a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan init](/references/commands/init) |
 | `add` | Add an app from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
 | `sync` | Write agent adapter files and manifest; prune stale hooks and dead skill links with `--prune` | `0` on success; `1` on invalid configuration, broken settings, or unknown argument | [vulcan sync](/references/commands/sync) |
+| `agents` | Show, add, remove or re-choose the coding agents chosen on this machine, and write or take back their adapters | `0` on success or when nothing needed changing; `1` on an unknown agent or subcommand, a missing list, `setup` without a terminal, or invalid configuration | [vulcan agents](/references/commands/agents) |
 | `doctor` | Check the project against the VULCAN contract and report violations | `0` when conformant; `1` on any contract violation or unknown argument | [vulcan doctor](/references/commands/doctor) |
 | `upgrade` | Bump the pinned `@venizia/vulcan` dependency and run sync | `0` on success; `1` on unknown argument or missing binary; otherwise the exit code of `bun add` or child `vulcan sync` | [upgrade](#upgrade) |
 | `x` | Run a shipped tool (`okf` or `atlas`) at the pinned package version | `0` on tool success; `1` on missing or unknown tool, unresolvable package, or invalid configuration; forwarded exit code from tool | [x](#x) |

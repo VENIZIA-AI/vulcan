@@ -4,13 +4,14 @@ import { BASE_DIRECTORY, ProjectLayout, readProperty } from '../common/index.ts'
 import { ConfigConstants, findConfigFiles } from '../config/index.ts';
 import type { TConfigExtension } from '../config/index.ts';
 import { InitConstants, InitStatuses } from './common/index.ts';
+import { renderDockerignore } from '../create/dockerignore.ts';
 import type { IInitEntry, IScaffoldFile } from './common/index.ts';
 
 /**
  * Whether a `.mcp.json` already serves atlas: a server named `atlas`, or any server whose arguments run
  * `atlas mcp` under another name, as separate arguments or inside a `sh -c` string. A file that is not JSON falls back to looking for the name.
  */
-const runsAtlas = (opts: { text: string }): boolean => {
+export const runsAtlas = (opts: { text: string }): boolean => {
   try {
     const parsed: { mcpServers?: Record<string, { args?: unknown }> } = JSON.parse(opts.text);
     const servers = parsed.mcpServers ?? {};
@@ -45,9 +46,9 @@ const SCAFFOLD_FILES: IScaffoldFile[] = [
 
 /** The lint configs of a single-package project. A workspaces project keeps them in each app. */
 const LINT_CONFIG_FILES: IScaffoldFile[] = [
-  { path: '.configs/oxlint.config.mts', template: 'oxlint.config.mts' },
-  { path: '.configs/eslint.config.mjs', template: 'eslint.config.mjs' },
-  { path: '.configs/oxfmt.config.mts', template: 'oxfmt.config.mts' },
+  { path: '.configs/lints/oxlint.config.mts', template: 'oxlint.config.mts' },
+  { path: '.configs/lints/eslint.config.mjs', template: 'eslint.config.mjs' },
+  { path: '.configs/formatters/oxfmt.config.mts', template: 'oxfmt.config.mts' },
 ];
 
 export interface IScaffoldResult {
@@ -163,7 +164,7 @@ export const scaffoldProject = (opts: {
   if (isWorkspaces) {
     entries.push({
       status: InitStatuses.SKIPPED,
-      subject: `.configs/{oxlint,eslint,oxfmt}: a workspaces project keeps them per app (apps/<name>/.configs/); the templates are in node_modules/@venizia/vulcan/base/templates/`,
+      subject: `.configs/{lints,formatters}: a workspaces project keeps them per app (apps/<name>/.configs/lints/, apps/<name>/.configs/formatters/); the templates are in node_modules/@venizia/vulcan/base/templates/`,
     });
   }
 
@@ -187,6 +188,8 @@ export const scaffoldProject = (opts: {
       })),
     );
   }
+
+  entries.push(writeIfAbsent({ root, path: '.dockerignore', content: renderDockerignore() }));
 
   const makefile = join(root, 'Makefile');
 

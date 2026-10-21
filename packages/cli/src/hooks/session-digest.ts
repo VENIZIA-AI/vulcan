@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
 import { ConfigConstants, loadConfig } from '../config/index.ts';
 import { extractRuleRows, parseRuleIds, readSlots, RuleConstants } from '../rules/index.ts';
@@ -21,6 +21,25 @@ const selectRows = (opts: { rows: string[]; ids: string[] }): string[] =>
 
 const readText = (opts: { file: string }): string =>
   existsSync(opts.file) ? readFileSync(opts.file, 'utf8') : '';
+
+/** The Atlas block: only for a project whose `.mcp.json` runs the atlas server. */
+const buildAtlasBlock = (opts: {
+  projectRoot: string;
+  project: string;
+  sources: string[];
+}): string[] => {
+  if (!/\batlas\b/.test(readText({ file: join(opts.projectRoot, '.mcp.json') }))) {
+    return [];
+  }
+
+  return [
+    '## Atlas',
+    '',
+    `The \`atlas\` MCP server holds the real code and docs of: ${[`${opts.project} (this repository)`, ...opts.sources].join(', ')}.`,
+    'Look facts up there before you answer or write from memory: `symbol` for an export you import, `search` for how something works, `version` or `changes` for a release (V-P-07).',
+    '',
+  ];
+};
 
 /** The SessionStart context: base write boundaries, this project's slot choices and own rules, the often-dropped rules. */
 export const buildSessionDigest = async (opts: { projectRoot: string }): Promise<string> => {
@@ -53,6 +72,13 @@ export const buildSessionDigest = async (opts: { projectRoot: string }): Promise
     '',
     'Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents/rules.md`.',
     '',
+    ...buildAtlasBlock({
+      projectRoot: opts.projectRoot,
+      project: loaded.ok
+        ? (loaded.config.name ?? basename(opts.projectRoot))
+        : basename(opts.projectRoot),
+      sources: loaded.ok ? loaded.config.atlas.sources.map(source => source.name) : [],
+    }),
     '## Write boundaries',
     '',
     ...TABLE_HEADER,

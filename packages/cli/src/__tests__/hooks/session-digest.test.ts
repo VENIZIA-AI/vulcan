@@ -73,6 +73,67 @@ describe('buildSessionDigest', () => {
     expect(digest).toContain('| V-C-02 |');
   });
 
+  describe('the Atlas block', () => {
+    const ATLAS_MCP = JSON.stringify({
+      mcpServers: {
+        atlas: { command: 'bun', args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp'] },
+      },
+    });
+    const CONFIG = [
+      'export default {',
+      "  name: 'acme',",
+      "  rules: { 'V-W-01': 'on-user-word' },",
+      "  atlas: { sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' }, { name: 'ardor', repo: 'VENIZIA-AI/ardor', ref: 'develop' }] },",
+      '};',
+      '',
+    ].join('\n');
+
+    test('lists the corpora from the config and the one-line rule', async () => {
+      const root = createProject({
+        files: { '.mcp.json': ATLAS_MCP, '.configs/vulcan.config.ts': CONFIG },
+      });
+      const digest = await buildSessionDigest({ projectRoot: root });
+      const block = digest.slice(digest.indexOf('## Atlas'), digest.indexOf('## Write boundaries'));
+
+      expect(block).toContain('acme (this repository), ignis, ardor');
+      expect(block).toContain('`symbol` for an export you import');
+      expect(block).toContain('`search` for how something works');
+      expect(block).toContain('`version` or `changes`');
+      expect(block).toContain('V-P-07');
+      expect(block.trim().split('\n').length).toBeLessThanOrEqual(5);
+    });
+
+    test('a project whose atlas server is not configured gets no block', async () => {
+      const root = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
+
+      expect(await buildSessionDigest({ projectRoot: root })).not.toContain('## Atlas');
+    });
+
+    test('a project with a server but no sources names only itself', async () => {
+      const root = createProject({
+        files: {
+          '.mcp.json': ATLAS_MCP,
+          '.configs/vulcan.config.ts':
+            "export default { name: 'solo', rules: { 'V-W-01': 'on-user-word' } };\n",
+        },
+      });
+      const digest = await buildSessionDigest({ projectRoot: root });
+
+      expect(digest).toContain('solo (this repository)');
+    });
+
+    test('V-P-07 is among the rules sessions drop most', async () => {
+      const root = createProject({
+        files: { '.mcp.json': ATLAS_MCP, '.configs/vulcan.config.ts': CONFIG },
+      });
+      const digest = await buildSessionDigest({ projectRoot: root });
+      const dropped = digest.slice(digest.indexOf('## The rules sessions drop most'));
+
+      expect(dropped).toContain('| V-P-07 |');
+      expect(dropped).toContain('atlas');
+    });
+  });
+
   test('a project without a config still gets the digest, and sees the slot is not chosen', async () => {
     const digest = await buildSessionDigest({ projectRoot: createProject({ files: {} }) });
 

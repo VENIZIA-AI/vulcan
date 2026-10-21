@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { ExitCodes, ProjectLayout, VULCAN_VERSION } from '../common/index.ts';
 import { renderTemplate } from '../init/index.ts';
 import { runAppChecks } from './checks.ts';
@@ -12,6 +12,8 @@ import type {
   TAppSide,
 } from './common/index.ts';
 import { today, writeFile } from './files.ts';
+import { recordedPresetOf } from './lib-preset.ts';
+import { renderDockerignore } from './dockerignore.ts';
 import { askWithPrompt, findFolderClash, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
 import { renderNext } from './next.ts';
@@ -24,6 +26,7 @@ import {
   renderKnowledgeIndex,
   renderLogEntry,
   renderRootManifest,
+  presetSpecOf,
   renderVulcanConfig,
 } from './workspace.ts';
 
@@ -70,12 +73,14 @@ const writeMonorepo = (opts: {
   root: string;
   project: string;
   spec: IPresetSpec;
+  /** `--preset` as the user typed it, recorded so the project can name it again. */
+  presetValue: string;
   located: ILocatedPreset;
   folder: string;
   app: string;
   shared: string;
 }): void => {
-  const { root, project, spec, located, folder, app, shared } = opts;
+  const { root, project, spec, presetValue, located, folder, app, shared } = opts;
   const { preset, packageName, packageVersion } = located;
   const side = preset.side;
   const catalog = {
@@ -100,6 +105,7 @@ const writeMonorepo = (opts: {
     content: `${[...BASE_IGNORES, ...ProjectLayout.GITIGNORE_ENTRIES].join('\n')}\n`,
   });
   writeFile({ root, path: 'README.md', content: `# ${project}\n` });
+  writeFile({ root, path: '.dockerignore', content: renderDockerignore() });
 
   if (shared !== '') {
     writeFile({ root, path: `${shared}/.gitkeep`, content: '' });
@@ -110,7 +116,13 @@ const writeMonorepo = (opts: {
   const written = copyPresetFiles({
     located,
     target: appDirectory,
-    tokens: { project, app, devPort: String(preset.devPort), apiUrl: '' },
+    tokens: {
+      project,
+      app,
+      appPath: `${folder}/${app}`,
+      devPort: String(preset.devPort),
+      apiUrl: '',
+    },
   });
 
   for (const path of written) {
@@ -140,6 +152,12 @@ const writeMonorepo = (opts: {
   const block: IAppsBlock = {
     layout: { [side]: folder, ...(shared === '' ? {} : { shared }) },
     packages: [{ dir: app, name: app, path: `${folder}/${app}` }],
+    presets: [
+      recordedPresetOf({
+        spec: presetSpecOf({ value: presetValue, root, cwd: dirname(root) }),
+        located,
+      }),
+    ],
     sources: preset.atlas,
   };
 
@@ -293,7 +311,7 @@ const runCreate = async (opts: {
     process.stderr.write(`${warning}\n`);
   }
 
-  writeMonorepo({ root, project, spec, located, folder, app, shared });
+  writeMonorepo({ root, project, spec, presetValue, located, folder, app, shared });
 
   for (const step of [
     () => runBun({ cwd: root, args: ['install'], label: 'bun install' }),

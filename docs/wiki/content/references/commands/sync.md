@@ -7,7 +7,7 @@ description: Synchronize agent adapter files, Claude settings, skill links and t
 
 `vulcan sync` generates agent adapter files and project metadata from your configuration.
 It updates tool instructions, settings, hook registrations, skill links and the manifest.
-The Claude adapters (`CLAUDE.md`, settings, skill links) are planned only when `agents` includes `claude`.
+Which agents get adapters is each developer's choice on their own machine ([Choosing your agents](#choosing-your-agents)). The Claude adapters (`CLAUDE.md`, settings, skill links) are planned only when `claude` is among the chosen agents.
 The manifest is always written.
 
 | Output | Where | Committed? | Built from |
@@ -22,8 +22,78 @@ The manifest is always written.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
+| `--agents <list>` | string | the stored choice | The agents to write adapters for, comma-separated, or `none`. Stored in `.agents/vulcan.local.json`. `--agents list` prints the table of agents and writes nothing. In a terminal, `--agents` with no value asks again |
 | `--dry-run` | boolean | false | Print planned changes without writing to disk |
 | `--prune` | boolean | false | Remove stale hook commands and dead skill links |
+
+## Choosing your agents
+
+`sync` writes adapters only for the coding agents you use, and you choose them per machine, not per project. The seven that exist are `claude`, `omp`, `codex`, `cursor`, `copilot-cli`, `copilot-vscode`, `antigravity` and `pi`; `vulcan sync --agents list` shows what each reads.
+
+The first `sync` in a terminal detects the agents on the machine (a binary on `PATH`, a folder in your home or in the project) and asks you to confirm:
+
+```text
+$ bun x --no-install vulcan sync
+Which coding agents do you use in this project? (comma-separated, Enter accepts)
+  detected: claude, omp
+  available: claude, omp, codex, cursor, copilot-cli, copilot-vscode, antigravity, pi, none
+? Agents > claude,omp
+```
+
+The answer is stored in `.agents/vulcan.local.json`, which is gitignored, and every later `sync` uses it without asking. Without a terminal, give the list: `vulcan sync --agents claude,omp` (`none` writes only `AGENTS.md`-level files).
+
+The order that decides the list is: the `--agents` flag; the stored file; the `agents` list in the project's config, when it has one; a project that already has `CLAUDE.md` or `.claude/` (treated as `claude`); then the question. When nothing is known and there is no terminal, `sync` does what it always did, writes the Claude files, and prints one line saying how to choose; it stores nothing. What each chosen agent gets from `sync`:
+
+| Agent | Atlas MCP entry | Where |
+|---|---|---|
+| `claude`, `omp`, `copilot-cli` | the committed root `.mcp.json` (written by `init`), which all three read | no extra file |
+| `codex` | a block between `# vulcan:atlas:start` and `# vulcan:atlas:end` | `.codex/config.toml`; Codex loads it only for a trusted project |
+| `cursor` | `mcpServers.atlas` | `.cursor/mcp.json` |
+| `copilot-vscode` | `servers.atlas` (type `stdio`) | `.vscode/mcp.json` |
+| `antigravity` | `mcpServers.atlas` | `.agents/mcp_config.json` |
+| `pi` | `mcpServers.atlas` | `.pi/mcp.json`; Pi ignores it until you trust the project |
+
+These files are for your machine, so the entry carries the absolute project root and calls the project's own `vulcan` (`bun <root>/node_modules/.bin/vulcan x atlas mcp --root <root>`), which works whatever directory the agent starts the server from. `sync` merges: your other servers and keys stay, an `atlas` entry that `sync` wrote itself is rewritten when the project has moved (the paths no longer match this folder: after you move, rename or copy the project, run `sync` again), any other `atlas` entry is yours and is left as it is, a file that is not valid JSON is skipped (`skipped`, with the reason), and a file git tracks is not written (it prints what to add). After the actions, `sync` prints one `note` line for each thing only you can do, such as trusting the project in Codex or Pi. Every chosen agent except Claude reads skills from `.agents/skills/<name>/SKILL.md`, so `sync` links the three shipped skills (`docs-update`, `docs-writing`, `knowledge-sync`) there, as symbolic links to the same stable path the Claude links use. Agents that share the folder share the links. A skill of yours with the same name wins: its real folder is left and reported as `skipped`. Claude keeps `.claude/skills`, which also holds your project skills. The git ignore entries for these files are described in [Keeping the adapters out of git](#keeping-the-adapters-out-of-git).
+
+## The Atlas block in AGENTS.md
+
+Not every agent shows the model what the atlas server says about itself: Antigravity keeps the server's text in files it does not put in the prompt, and Pi shows one line. So `sync` also writes the same guidance into the committed `AGENTS.md`, for every agent, Claude included, between two markers:
+
+```text
+<!-- vulcan:atlas:start - generated by vulcan sync from .configs/vulcan.config.*; do not edit -->
+## Atlas
+
+The `atlas` MCP server holds the real code and docs of: my-product (this repository), ignis.
+Look facts up there before you answer or write from memory (V-P-07):
+`symbol` before you use an export (signature, import path, source line); `search`, then `get`, for how something works or which convention applies; `version` or `changes` for a release or an upgrade.
+A new app or package: ask `presets` which preset and which `vulcan add` command, run it, and never hand-write package.json, tsconfig or scripts.
+<!-- vulcan:atlas:end -->
+```
+
+The corpora come from the config (the project and every `atlas.sources` entry). `sync` inserts the block before the section that follows "Must read first" (or at the end), rewrites only what sits between the markers on later runs, and never touches your text around it. A project whose `.mcp.json` does not run the atlas server gets no block. `vulcan doctor` prints an `info` line when the block is missing or out of date; it never fails.
+
+## Your own skills
+
+A skill you write in `.agents/skills/<name>/SKILL.md` reaches every agent you chose. The agents other than Claude read that folder themselves. For Claude, `sync` links each of your skills into `.claude/skills/<name>`: one you add shows up on the next `sync`, and when you delete the folder the next `sync` removes its dead link (`removed   .claude/skills/mine (a skill that is gone)`). A real folder of yours in `.claude/skills` is never replaced.
+
+## Keeping the adapters out of git
+
+Which agents you use is your choice, so the committed `.gitignore` cannot list your adapter files without churn between teammates. `sync` writes them to your clone's own `.git/info/exclude` instead, between `# vulcan:start` and `# vulcan:end`, one comment line per agent:
+
+```text
+# vulcan:start - written by vulcan sync for the agents you chose; do not edit
+# cursor
+/.cursor/mcp.json
+# omp
+/.agents/skills/docs-update
+/.agents/skills/docs-writing
+/.agents/skills/knowledge-sync
+# local
+/.agents/vulcan.local.json
+# vulcan:end
+```
+
+The list holds the Claude files (`/CLAUDE.md`, `/.claude/`) when `claude` is chosen, each chosen agent's own MCP file, the shipped-skill links, and the file that stores your choice. A path git tracks is not listed (an exclude entry cannot hide a tracked file). Each run replaces the block, so an agent you stop using drops out of it, and its files are taken back ([`vulcan agents remove`](/references/commands/agents#what-remove-takes-back)). The file is found with `git rev-parse --git-path info/exclude`, so a worktree or a separate git directory works, and a project below the repository top is anchored with its folder. Your own lines in the file are never touched, and a project that is not a git repository gets no file.
 
 ## Synchronizing adapters
 
@@ -80,7 +150,7 @@ The exit code is also 1 when configuration fails to load.
 Each later source overrides the earlier sources:
 
 1. Personal settings: Existing user keys in `.claude/settings.json` form the base.
-2. Shipped settings: Base settings from VULCAN register the `SessionStart` hook and the `guard-writes` `PreToolUse` hook.
+2. Shipped settings: Base settings from VULCAN register the `SessionStart` hook and the `guard-writes` `PreToolUse` hook, and approve the project's `atlas` server (`enabledMcpjsonServers: ["atlas"]`), so Claude does not ask you to approve `.mcp.json` the first time. A list of your own approved servers is kept and `atlas` is added to it.
 3. Slot choices: Settings defined for chosen slot options in `base/slots.json`, such as git write restrictions for `V-W-01`.
 4. Remote hosts: If configuration defines `remoteHosts`, VULCAN adds the `guard-remote-hosts` `PreToolUse` hook.
 5. Project hooks: Custom hooks declared under `hooks` in `.configs/vulcan.config.mts`, grouped by event.

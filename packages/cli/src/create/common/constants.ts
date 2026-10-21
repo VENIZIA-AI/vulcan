@@ -48,4 +48,7 @@ export class CreateFlags {
   static readonly APP = '--app';
   static readonly API = '--api';
   static readonly NO_API = '--no-api';
+  static readonly LIB = '--lib';
+  static readonly DIR = '--dir';
+  static readonly SCOPE = '--scope';
 }

@@ -1,0 +1,100 @@
+import type { IResolvedSource, IUnavailableSource } from '@/sources/common';
+
+/** "acme", "acme and forge", "acme, forge and anvil". */
+const joinNames = (opts: { names: string[] }): string =>
+  opts.names.length <= 1
+    ? opts.names.join('')
+    : `${opts.names.slice(0, -1).join(', ')} and ${opts.names[opts.names.length - 1]}`;
+
+/** The projects atlas holds, in the order the config lists them. */
+export const projectsOf = (opts: { sources: IResolvedSource[] }): string =>
+  joinNames({ names: opts.sources.map(source => source.name) });
+
+/** `@venizia/*`, `@acme/*`: the npm scopes of the packages these projects publish; a bare name stands for itself. */
+const packageScopesOf = (opts: { sources: IResolvedSource[] }): string => {
+  const scopes = new Set<string>();
+
+  for (const source of opts.sources) {
+    for (const entry of source.project.packages) {
+      const scope = entry.name.startsWith('@') ? entry.name.split('/')[0] : undefined;
+
+      scopes.add(scope === undefined ? `\`${entry.name}\`` : `\`${scope}/*\``);
+    }
+  }
+
+  return [...scopes].sort().join(', ');
+};
+
+/** How each source was reached and which could not be served: a client sees it on initialize. */
+const statusOf = (opts: { sources: IResolvedSource[]; unavailable: IUnavailableSource[] }) => {
+  const lines = opts.sources.map(source => {
+    if (source.mode === 'repository') {
+      return `- ${source.name}: this repository, live`;
+    }
+
+    const at = `${source.origin ?? source.name} at ${(source.sha ?? '').slice(0, 8)}`;
+
+    const note =
+      source.history === false
+        ? ' - no git on this machine: version and changes have no release history'
+        : '';
+
+    return source.mode === 'offline-cache'
+      ? `- ${source.name}: ${at} - OFFLINE: the remote was unreachable, this is the newest cache, not the ref's current commit${note}`
+      : `- ${source.name}: ${at}${note}`;
+  });
+
+  const missing = opts.unavailable.map(
+    ({ source, reason }) =>
+      `- ${source.name}: UNAVAILABLE (${source.repo}@${source.ref}) - ${reason}; nothing from it is served`,
+  );
+
+  return [...lines, ...missing];
+};
+
+const CORPORA_MAX = 4;
+const SCOPES_MAX = 3;
+
+/** The corpora as the lead names them: at most four, the rest counted, so the lead keeps to 512 characters. */
+const corporaPhrase = (opts: { sources: IResolvedSource[] }): string => {
+  const names = opts.sources.map(source =>
+    source.mode === 'repository' ? `${source.name} (this repository)` : source.name,
+  );
+
+  if (names.length <= CORPORA_MAX) {
+    return joinNames({ names });
+  }
+
+  return `${names.slice(0, CORPORA_MAX).join(', ')} and ${names.length - CORPORA_MAX} more`;
+};
+
+const scopesPhrase = (opts: { sources: IResolvedSource[] }): string => {
+  const scopes = packageScopesOf(opts)
+    .split(', ')
+    .filter(scope => scope !== '');
+
+  if (scopes.length === 0) {
+    return 'their packages';
+  }
+
+  return `their packages (${scopes.slice(0, SCOPES_MAX).join(', ')}${scopes.length > SCOPES_MAX ? ', ...' : ''})`;
+};
+
+/**
+ * What the agent reads when atlas connects. The lead paragraph alone carries the corpora, the rule
+ * and the three triggers in at most 512 characters, because a client may keep only that much; the
+ * status lines after it say how each source was reached.
+ */
+export const instructionsOf = (opts: {
+  sources: IResolvedSource[];
+  unavailable: IUnavailableSource[];
+}): string => {
+  const projects = projectsOf({ sources: opts.sources });
+
+  return [
+    `Atlas holds the real code and docs of ${corporaPhrase(opts)}. Do not answer facts about ${projects} from memory when atlas can answer them: call \`symbol\` for each export before you write code that imports ${scopesPhrase(opts)}, \`search\` then \`get\` when the user asks how something works or which convention applies, \`version\` or \`changes\` for a release or an upgrade, \`presets\` before you create an app or package.`,
+    '',
+    `Atlas serves ${opts.sources.length} source(s); every hit names its source.`,
+    ...statusOf(opts),
+  ].join('\n');
+};

@@ -6,7 +6,9 @@ import {
   mergeCatalog,
   parseAppsBlock,
   pickPort,
+  presetSpecOf,
   readPort,
+  recordPreset,
   renderAppConcept,
   renderAppManifest,
   renderAppsBlock,
@@ -55,7 +57,7 @@ describe('workspace planners', () => {
       name: 'my-product',
       private: true,
       workspaces: { packages: ['services/*', 'libs/*'], catalog: { hono: '^4' } },
-      scripts: { dev: "bun run --filter '*' dev" },
+      scripts: { dev: "bun run --filter '*' server:dev" },
       devDependencies: { '@venizia/vulcan': '0.3.0' },
     });
   });
@@ -199,6 +201,72 @@ describe('workspace planners', () => {
     expect(manifest.scripts).toEqual({ dev: 'bun run src/index.ts' });
   });
 
+  test('the config reads the recorded presets from the block', () => {
+    expect(renderVulcanConfig({ project: 'my-product', block: BLOCK })).toContain(
+      'presets: apps.presets,',
+    );
+  });
+
+  test('a block records the presets its apps came from, and reads back with or without them', () => {
+    const withPresets: IAppsBlock = {
+      ...BLOCK,
+      presets: [{ spec: 'ignis', side: 'backend', summary: 'An IGNIS API.' }],
+    };
+
+    expect(parseAppsBlock({ source: renderAppsBlock({ block: withPresets }) })).toEqual({
+      ok: true,
+      block: withPresets,
+    });
+    expect(parseAppsBlock({ source: renderAppsBlock({ block: BLOCK }) })).toEqual({
+      ok: true,
+      block: BLOCK,
+    });
+  });
+
+  test('a presets entry that is not { spec, side, summary } makes the block invalid', () => {
+    const bad = renderAppsBlock({ block: BLOCK }).replace(
+      '"sources"',
+      '"presets": [{ "spec": 1 }],\n  "sources"',
+    );
+
+    expect(parseAppsBlock({ source: bad })).toEqual({ ok: false, reason: 'invalid' });
+  });
+
+  test('recordPreset adds a preset once and refreshes one that is already there', () => {
+    const once = recordPreset({
+      block: BLOCK,
+      preset: { spec: 'ignis', side: 'backend', summary: 'old' },
+    });
+    const again = recordPreset({
+      block: once,
+      preset: { spec: 'ignis', side: 'backend', summary: 'new' },
+    });
+    const other = recordPreset({
+      block: again,
+      preset: { spec: 'ardor', side: 'frontend', summary: 'An admin.' },
+    });
+
+    expect(once.presets).toEqual([{ spec: 'ignis', side: 'backend', summary: 'old' }]);
+    expect(again.presets).toEqual([{ spec: 'ignis', side: 'backend', summary: 'new' }]);
+    expect(other.presets?.map(item => item.spec)).toEqual(['ignis', 'ardor']);
+  });
+
+  test('presetSpecOf records a package spec as typed and a file: spec relative to the project', () => {
+    expect(presetSpecOf({ value: 'ignis', root: '/work/p', cwd: '/work/p' })).toBe('ignis');
+    expect(presetSpecOf({ value: '@acme/kit@1.2.0', root: '/work/p', cwd: '/work/p' })).toBe(
+      '@acme/kit@1.2.0',
+    );
+    expect(presetSpecOf({ value: 'file:../kit', root: '/work/p', cwd: '/work/p' })).toBe(
+      'file:../kit',
+    );
+    expect(presetSpecOf({ value: 'file:./presets/api', root: '/work/p', cwd: '/work/p' })).toBe(
+      'file:presets/api',
+    );
+    expect(presetSpecOf({ value: 'file:/work/other/kit', root: '/work/p', cwd: '/work/p' })).toBe(
+      'file:../other/kit',
+    );
+  });
+
   test('config block round-trips through replaceAppsBlock', () => {
     const source = renderVulcanConfig({ project: 'my-product', block: BLOCK });
 
@@ -214,10 +282,14 @@ describe('workspace planners', () => {
     expect(next?.split('vulcan:apps:start').length).toBe(2);
   });
 
+  test('the config init writes leaves the agents to each developer', () => {
+    expect(renderVulcanConfig({ project: 'my-product', block: BLOCK })).not.toContain('agents');
+  });
+
   test('replaceAppsBlock keeps what the user wrote outside the markers', () => {
     const source = renderVulcanConfig({ project: 'my-product', block: BLOCK }).replace(
-      "agents: ['claude']",
-      "agents: ['claude', 'codex']",
+      '  layout: apps.layout,',
+      "  agents: ['claude', 'codex'],\n  layout: apps.layout,",
     );
     const next = replaceAppsBlock({ source, block: { ...BLOCK, packages: [] } });
 

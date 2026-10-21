@@ -66,6 +66,29 @@ const outsideBlock = (opts: { source: string }): string => {
 };
 
 describe('vulcan add --preset', () => {
+  test('{{appPath}} is the new app folder from the root, for a frontend in its own folder', () => {
+    const root = monorepo();
+    const result = runCli({
+      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'apps', '--app', 'web', '--no-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(0);
+    expect(readFileSync(join(root, 'apps/web/.configs/builders/Dockerfile'), 'utf8')).toBe(
+      'COPY apps/web/package.json ./apps/web/package.json\n',
+    );
+  });
+
+  test('add never writes the root .dockerignore, and leaves one that exists', () => {
+    const root = monorepo();
+    const file = join(root, '.dockerignore');
+
+    writeFileSync(file, 'mine\n');
+    runCli({ args: ['add', '--preset', BACKEND, '--app', 'worker'], cwd: root, env: ENV });
+    expect(readFileSync(file, 'utf8')).toBe('mine\n');
+  });
+
   test('a frontend lands in a new folder, wired to the chosen backend', () => {
     const root = monorepo();
     const result = runCli({
@@ -298,6 +321,42 @@ describe('vulcan add --preset', () => {
     expect(existsSync(join(root, 'services/second-api'))).toBe(false);
   });
 
+  test('the preset an app comes from is recorded once, and a new kind of preset is added beside it', () => {
+    const root = monorepo();
+
+    runCli({ args: ['add', '--preset', BACKEND, '--app', 'second-api'], cwd: root, env: ENV });
+    runCli({
+      args: ['add', '--preset', FRONTEND, '--frontend-dir', 'web', '--app', 'admin', '--no-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+
+    const manifest = JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8'));
+
+    expect(manifest.presets.map((item: { side: string }) => item.side)).toEqual([
+      'backend',
+      'frontend',
+    ]);
+    expect(manifest.layout).toMatchObject({ backend: 'services', frontend: 'web' });
+  });
+
+  test('a config written before presets were recorded gets the line that reads them', () => {
+    const root = monorepo();
+    const file = join(root, '.configs/vulcan.config.mts');
+
+    writeFileSync(file, readFileSync(file, 'utf8').replace('  presets: apps.presets,\n', ''));
+    runCli({ args: ['add', '--preset', BACKEND, '--app', 'second-api'], cwd: root, env: ENV });
+
+    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+
+    expect(readFileSync(file, 'utf8')).toContain('presets: apps.presets,');
+    expect(
+      JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8')).presets,
+    ).toHaveLength(1);
+  });
+
   test('a new app on a taken port prints the port it was given', () => {
     const root = monorepo();
     const result = runCli({
@@ -318,7 +377,7 @@ describe('vulcan add --preset', () => {
     });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('missing --app');
+    expect(result.stderr).toContain('say what to create');
     expect(result.stderr).not.toContain('needs an install');
   });
 
@@ -408,12 +467,22 @@ describe('vulcan add --preset', () => {
     expect(existsSync(join(root, 'apps'))).toBe(false);
   });
 
-  test('a missing app name is an error naming --app and nothing is written', () => {
+  test('neither --app nor --lib is refused with both commands, and nothing is written', () => {
     const root = monorepo();
     const result = runCli({ args: ['add', '--preset', BACKEND], cwd: root, env: ENV });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('missing --app');
+    expect(result.stderr).toContain('say what to create');
+    expect(result.stderr).toContain('--app <name>');
+    expect(result.stderr).toContain('--lib <name>');
+  });
+
+  test('a flag that takes a name but has none is an error naming it', () => {
+    const root = monorepo();
+    const result = runCli({ args: ['add', '--preset', BACKEND, '--lib'], cwd: root, env: ENV });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('--lib needs a name');
   });
 
   test('an npm preset outside the peer range leaves the monorepo untouched', () => {

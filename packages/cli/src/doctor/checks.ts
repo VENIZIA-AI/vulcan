@@ -1,6 +1,6 @@
 import { Glob } from 'bun';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
 import { coversFolder, declaresWorkspaces, readWorkspaceGlobs } from '../init/index.ts';
 import { resolvePackages } from '../config/index.ts';
@@ -18,8 +18,15 @@ import {
   projectNameOf,
   renderManifest,
 } from '../manifest/index.ts';
-import { planManifest, planPrune, planSync, SyncStatuses } from '../sync/index.ts';
-import { DoctorChecks, DoctorConstants } from './common/index.ts';
+import { readLocalChoice, resolveAgentsQuietly } from '../agents/index.ts';
+import {
+  mergedAtlasBlock,
+  planManifest,
+  planPrune,
+  planSync,
+  SyncStatuses,
+} from '../sync/index.ts';
+import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
 import { parseMakeIncludes, parseMakeTargets } from './makefile.ts';
 
@@ -221,7 +228,11 @@ export const checkHooks = (opts: ICheckContext): IViolation[] =>
     );
 
 export const checkAdapters = (opts: ICheckContext): IViolation[] => {
-  const pending = planSync({ root: opts.root, config: opts.config })
+  const pending = planSync({
+    root: opts.root,
+    config: opts.config,
+    agents: resolveAgentsQuietly({ root: opts.root, configAgents: opts.config.agents }),
+  })
     .filter(action => action.status !== SyncStatuses.UNCHANGED)
     .filter(action => action.path !== join(opts.root, ManifestConstants.FILE));
   const absent = pending.filter(action => action.status === SyncStatuses.CREATED);
@@ -333,12 +344,19 @@ export const checkStyle = (opts: ICheckContext): IViolation[] => {
   let lintConfigs = 0;
 
   for (const owner of owners) {
-    const directory = join(owner, '.configs');
-    const names = existsSync(join(opts.root, directory))
-      ? readdirSync(join(opts.root, directory)).filter(file =>
-          DoctorConstants.LINT_CONFIG_FILE.test(file),
-        )
-      : [];
+    const configs = join(owner, '.configs');
+    const found = ['.', ...new Set(Object.values(DoctorConstants.LINT_CONFIG_FOLDERS))].flatMap(
+      folder => {
+        const directory = join(configs, folder);
+
+        return existsSync(join(opts.root, directory))
+          ? readdirSync(join(opts.root, directory))
+              .filter(file => DoctorConstants.LINT_CONFIG_FILE.test(file))
+              .map(file => ({ file: join(directory, file), name: file, legacy: folder === '.' }))
+          : [];
+      },
+    );
+    const names = found.map(item => item.file);
 
     lintConfigs += names.length;
 
@@ -356,8 +374,20 @@ export const checkStyle = (opts: ICheckContext): IViolation[] => {
       );
     }
 
-    for (const name of names) {
-      const file = join(directory, name);
+    for (const item of found) {
+      const { file } = item;
+
+      if (item.legacy) {
+        const tool = item.name.split('.')[0];
+
+        violations.push(
+          createViolation({
+            check: DoctorChecks.STYLE,
+            file,
+            message: `move it to .configs/${DoctorConstants.LINT_CONFIG_FOLDERS[tool]}/${item.name}`,
+          }),
+        );
+      }
 
       if (!readText({ file: join(opts.root, file) }).includes(ProjectLayout.STYLE_PACKAGE)) {
         violations.push(
@@ -445,6 +475,23 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
   const names = folders.map(([, folder]) => folder);
 
   for (const entry of resolvePackages({ config: opts.config }).filter(item => !item.retired)) {
+    if (entry.kind === 'lib') {
+      const parent = dirname(entry.path);
+
+      // A library lives where the project keeps libraries; it only has to be a workspace.
+      if (!coversFolder({ globs, folder: parent })) {
+        violations.push(
+          createViolation({
+            check: DoctorChecks.APPS,
+            file: opts.configFile,
+            message: `package ${entry.dir} lives at ${entry.path}, which no workspace glob covers - add '${parent}/*' to workspaces`,
+          }),
+        );
+      }
+
+      continue;
+    }
+
     if (!names.some(folder => entry.path.startsWith(`${folder}/`))) {
       violations.push(
         createViolation({
@@ -457,4 +504,128 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
   }
 
   return violations;
+};
+
+const readScriptNames = (opts: { file: string }): string[] | undefined => {
+  if (!existsSync(opts.file)) {
+    return undefined;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(opts.file, 'utf8'));
+    const scripts =
+      typeof parsed === 'object' && parsed !== null && 'scripts' in parsed ? parsed.scripts : {};
+
+    return typeof scripts === 'object' && scripts !== null ? Object.keys(scripts) : [];
+  } catch (error) {
+    console.error(
+      `[readScriptNames] ${opts.file} | ${error instanceof Error ? error.message : String(error)}`,
+    );
+
+    return undefined;
+  }
+};
+
+/**
+ * Info only, never a failure: an app that lacks a standard script or carries a legacy one gets one
+ * line naming them. Apps are the live packages inside the backend and frontend folders.
+ */
+export const checkAppScripts = (opts: ICheckContext): IViolation[] => {
+  const layout = opts.config.layout;
+
+  if (layout === undefined) {
+    return [];
+  }
+
+  const appFolders = [layout.backend, layout.frontend].filter(
+    (folder): folder is string => folder !== undefined,
+  );
+  const notes: IViolation[] = [];
+
+  for (const entry of resolvePackages({ config: opts.config }).filter(item => !item.retired)) {
+    if (!appFolders.some(folder => entry.path.startsWith(`${folder}/`))) {
+      continue;
+    }
+
+    const file = `${entry.path}/package.json`;
+    const names = readScriptNames({ file: join(opts.root, file) });
+
+    if (names === undefined) {
+      continue;
+    }
+
+    const missing = AppScripts.STANDARD.filter(name => !names.includes(name));
+    const legacy = AppScripts.LEGACY.filter(name => names.includes(name));
+    const parts = [
+      ...(missing.length === 0 ? [] : [`missing ${missing.join(', ')}`]),
+      ...(legacy.length === 0 ? [] : [`legacy ${legacy.join(', ')} (use the standard names)`]),
+    ];
+
+    if (parts.length > 0) {
+      notes.push(
+        createViolation({
+          check: DoctorChecks.SCRIPTS,
+          file,
+          message: `app ${entry.dir}: ${parts.join('; ')}`,
+        }),
+      );
+    }
+  }
+
+  return notes;
+};
+
+/** The developer's stored agents must parse and name known agents; a broken file would otherwise hide as a default. */
+export const checkAgents = (opts: ICheckContext): IViolation[] => {
+  const stored = readLocalChoice({ root: opts.root });
+
+  return stored.ok
+    ? []
+    : [
+        createViolation({
+          check: DoctorChecks.AGENTS,
+          file: '.agents/vulcan.local.json',
+          message: stored.error,
+        }),
+      ];
+};
+
+/** Info only: the Atlas block of AGENTS.md is missing or no longer matches the config. */
+const DOCKERFILE = '.configs/builders/Dockerfile';
+
+/** A Dockerfile is built from the project root: without a root `.dockerignore` the context carries node_modules, dist and .git. */
+export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
+  if (existsSync(join(opts.root, '.dockerignore'))) {
+    return [];
+  }
+
+  const apps = resolvePackages({ config: opts.config })
+    .filter(entry => !entry.retired && existsSync(join(opts.root, entry.path, DOCKERFILE)))
+    .map(entry => entry.dir);
+
+  if (apps.length === 0) {
+    return [];
+  }
+
+  return [
+    createViolation({
+      check: DoctorChecks.DOCKERIGNORE,
+      file: '.dockerignore',
+      message: `${apps.length === 1 ? `app ${apps[0]} has` : `apps ${apps.join(', ')} have`} a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist and .git`,
+    }),
+  ];
+};
+
+export const checkAtlasBlock = (opts: ICheckContext): IViolation[] => {
+  const merged = mergedAtlasBlock({ root: opts.root, config: opts.config });
+
+  return merged === undefined || !merged.changed
+    ? []
+    : [
+        createViolation({
+          check: DoctorChecks.AGENTS,
+          file: 'AGENTS.md',
+          message: `the Atlas block is missing or out of date - run '${ProjectLayout.VULCAN_COMMAND} sync'`,
+        }),
+      ];
 };

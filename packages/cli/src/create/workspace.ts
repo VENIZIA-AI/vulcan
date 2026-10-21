@@ -1,6 +1,7 @@
+import { relative, resolve } from 'node:path';
 import { coversFolder } from '../init/index.ts';
 import { CreateConstants } from './common/index.ts';
-import type { IApp, IAppsBlock, IPreset, IPresetSpec } from './common/index.ts';
+import type { IApp, IAppsBlock, IPreset, IPresetSpec, IRecordedPreset } from './common/index.ts';
 
 const ENV_PORT = /^[A-Z0-9_]*PORT=(\d+)\s*$/m;
 
@@ -20,7 +21,7 @@ export const renderRootManifest = (opts: {
       name: opts.project,
       private: true,
       workspaces: { packages: opts.workspaces, catalog: opts.catalog },
-      scripts: { dev: "bun run --filter '*' dev" },
+      scripts: { dev: "bun run --filter '*' server:dev" },
       devDependencies: { '@venizia/vulcan': opts.vulcanVersion },
     },
   });
@@ -168,6 +169,60 @@ export const renderAppManifest = (opts: {
     },
   });
 
+/** A library's package.json: generated fields first, then what the lib preset passes through. */
+export const renderLibManifest = (opts: {
+  name: string;
+  lib: {
+    scripts: Record<string, string>;
+    dependencies: Record<string, string>;
+    devDependencies: Record<string, string>;
+    peerDependencies: Record<string, string>;
+    imports: Record<string, string>;
+    exports: Record<string, unknown>;
+    packageFields: Record<string, unknown>;
+  };
+}): string => {
+  const { lib } = opts;
+  const section = (value: Record<string, unknown>, key: string): Record<string, unknown> =>
+    Object.keys(value).length === 0 ? {} : { [key]: value };
+
+  return json({
+    value: {
+      name: opts.name,
+      version: '0.0.0',
+      private: true,
+      ...lib.packageFields,
+      ...section(lib.exports, 'exports'),
+      ...section(lib.imports, 'imports'),
+      ...section(lib.scripts, 'scripts'),
+      ...section(toCatalog({ dependencies: lib.dependencies }), 'dependencies'),
+      ...section(toCatalog({ dependencies: lib.devDependencies }), 'devDependencies'),
+      ...section(toCatalog({ dependencies: lib.peerDependencies }), 'peerDependencies'),
+    },
+  });
+};
+
+export const renderLibConcept = (opts: {
+  name: string;
+  path: string;
+  summary: string;
+  presetPackage: string;
+}): string =>
+  [
+    '---',
+    'type: Package',
+    `title: ${opts.name}`,
+    `description: ${JSON.stringify(opts.summary)}`,
+    `resource: ${opts.path}`,
+    'tags: [packages, library]',
+    '---',
+    '',
+    `# ${opts.name}`,
+    '',
+    `The shared package at \`${opts.path}\`, created from the ${opts.presetPackage} preset (lib kind). ${oneLine({ text: opts.summary })}`,
+    '',
+  ].join('\n');
+
 export const renderAppsBlock = (opts: { block: IAppsBlock }): string =>
   [
     CreateConstants.APPS_BLOCK_START,
@@ -183,14 +238,42 @@ export const renderVulcanConfig = (opts: { project: string; block: IAppsBlock })
     '',
     'export default {',
     `  name: '${opts.project}',`,
-    "  agents: ['claude'],",
     "  rules: { 'V-W-01': 'on-user-word' },",
     '  layout: apps.layout,',
     '  packages: apps.packages,',
+    '  presets: apps.presets,',
     '  atlas: { sources: apps.sources },',
     '} satisfies VulcanConfig;',
     '',
   ].join('\n');
+
+/**
+ * What `--preset` was given, kept so it can be typed again from the project root: a package spec as
+ * typed, a `file:` path made relative to the project.
+ */
+export const presetSpecOf = (opts: { value: string; root: string; cwd: string }): string => {
+  const prefix = CreateConstants.PRESET_FILE_PREFIX;
+
+  if (!opts.value.startsWith(prefix)) {
+    return opts.value;
+  }
+
+  const target = resolve(opts.cwd, opts.value.slice(prefix.length));
+
+  return `${prefix}${relative(opts.root, target) || '.'}`;
+};
+
+/** The block with this preset recorded: once per spec, its side and summary refreshed. */
+export const recordPreset = (opts: { block: IAppsBlock; preset: IRecordedPreset }): IAppsBlock => {
+  const others = (opts.block.presets ?? []).filter(item => item.spec !== opts.preset.spec);
+  const index = (opts.block.presets ?? []).findIndex(item => item.spec === opts.preset.spec);
+  const presets =
+    index === -1
+      ? [...others, opts.preset]
+      : (opts.block.presets ?? []).map((item, at) => (at === index ? opts.preset : item));
+
+  return { ...opts.block, presets };
+};
 
 /** Only the text between the markers is rewritten; undefined when the user edited them away. */
 export const replaceAppsBlock = (opts: {
@@ -216,8 +299,16 @@ const hasStrings = (opts: { value: unknown; keys: string[] }): boolean => {
   return isRecord(value) && opts.keys.every(key => typeof value[key] === 'string');
 };
 
+const isRecordedPreset = (value: unknown): boolean =>
+  hasStrings({ value, keys: ['spec', 'side', 'summary'] }) &&
+  isRecord(value) &&
+  (value.side === 'backend' || value.side === 'frontend') &&
+  (value.lib === undefined || typeof value.lib === 'string');
+
 const isAppsBlock = (value: unknown): value is IAppsBlock =>
   isRecord(value) &&
+  (value.presets === undefined ||
+    (Array.isArray(value.presets) && value.presets.every(entry => isRecordedPreset(entry)))) &&
   isRecord(value.layout) &&
   Object.values(value.layout).every(folder => typeof folder === 'string') &&
   Array.isArray(value.packages) &&

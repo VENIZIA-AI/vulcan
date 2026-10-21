@@ -10,11 +10,13 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
+import { readAgentTable } from '../agents/index.ts';
 import { BASE_DIRECTORY, stableBaseDirectoryOf } from '../common/index.ts';
 import { CodingAgents } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { ManifestConstants, renderManifest } from '../manifest/index.ts';
 import { readSlots } from '../rules/index.ts';
+import { planAgentFiles } from './agent-files.ts';
 import { SyncConstants, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
 import {
@@ -174,11 +176,22 @@ const findSkillDirectories = (opts: { directory: string }): string[] =>
             existsSync(join(opts.directory, entry.name, SyncConstants.SKILL_FILE)),
         )
         .map(entry => join(opts.directory, entry.name))
+        // readdir order is the filesystem's: the plan lists skills by name, the same on every machine.
+        .sort()
     : [];
 
-/** Shipped and project skills, linked flat into `.claude/skills/<name>`; a real directory there is left alone. */
-const planSkillLinks = (opts: { root: string }): ISyncAction[] => {
-  const target = join(opts.root, SyncConstants.CLAUDE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY);
+/**
+ * Shipped skills, and for Claude the project's too, linked flat into `directory/<name>`; a real
+ * directory there is left alone. The project's own skills already live in `.agents/skills`, so that
+ * folder gets the shipped links only.
+ */
+const planSkillLinks = (opts: {
+  root: string;
+  /** The agent's skills folder from the table, relative to the project. */
+  directory: string;
+  withProject: boolean;
+}): ISyncAction[] => {
+  const target = join(opts.root, opts.directory);
 
   // A symlinked skills directory points outside the project: writing links through it would land them there.
   if (isSymlink({ path: target })) {
@@ -197,9 +210,11 @@ const planSkillLinks = (opts: { root: string }): ISyncAction[] => {
     directory: join(BASE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY),
   }).map(source => join(stableSkills, basename(source)));
   const shippedNames = new Set(shipped.map(source => basename(source)));
-  const project = findSkillDirectories({
-    directory: join(opts.root, '.agents', SyncConstants.SKILLS_DIRECTORY),
-  });
+  const project = opts.withProject
+    ? findSkillDirectories({
+        directory: join(opts.root, '.agents', SyncConstants.SKILLS_DIRECTORY),
+      })
+    : [];
 
   // Extend only: a project skill never takes a shipped skill's link; doctor reports the clash.
   const shadowing: ISyncAction[] = project
@@ -245,20 +260,25 @@ const planSkillLinks = (opts: { root: string }): ISyncAction[] => {
   // A link into the shipped skills whose skill this VULCAN no longer has (a downgrade, a retired
   // skill) is sync's own and dead: taken back. Any other link or directory stays.
   const shippedRoots = [stableSkills, join(BASE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY)];
+  // A link into the project's own skills whose folder the user removed is dead the same way.
+  const projectRoot = join(opts.root, '.agents', SyncConstants.SKILLS_DIRECTORY);
   const linked = new Set(sources.map(source => basename(source)));
   const stale = (existsSync(target) ? readdirSync(target) : [])
     .filter(name => !linked.has(name))
     .map(name => join(target, name))
+    .filter(path => isSymlink({ path }) && !existsSync(path))
+    .map(path => ({ path, destination: readlinkSync(path) }))
     .filter(
-      path =>
-        isSymlink({ path }) &&
-        !existsSync(path) &&
-        shippedRoots.some(root => readlinkSync(path).startsWith(`${root}/`)),
+      ({ destination }) =>
+        shippedRoots.some(root => destination.startsWith(`${root}/`)) ||
+        (opts.withProject && destination.startsWith(`${projectRoot}/`)),
     )
-    .map((path): ISyncAction => ({
+    .map(({ path, destination }): ISyncAction => ({
       path,
       status: SyncStatuses.REMOVED,
-      note: 'a shipped skill this version no longer has',
+      note: destination.startsWith(`${projectRoot}/`)
+        ? 'a skill that is gone'
+        : 'a shipped skill this version no longer has',
       apply: () => rmSync(path),
     }));
 
@@ -283,14 +303,30 @@ export const planManifest = (opts: { root: string; config: TResolvedConfig }): I
     : { path, status: SyncStatuses.REPLACED, apply: write };
 };
 
+const CLAUDE_SKILLS = join(SyncConstants.CLAUDE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY);
+
+/** The skills folders of the chosen agents, each once, in table order: agents that read one folder share its links. */
+const skillDirectoriesOf = (opts: { agents: string[] }): string[] => [
+  ...new Set(
+    readAgentTable()
+      .filter(entry => opts.agents.includes(entry.id))
+      .map(entry => entry.skills.dir),
+  ),
+];
+
 /** Every adapter the project's agents need, and the manifest every project carries - planned, not written. */
-export const planSync = (opts: { root: string; config: TResolvedConfig }): ISyncAction[] => [
-  ...(opts.config.agents.includes(CodingAgents.CLAUDE)
-    ? [
-        planClaudeImport({ root: opts.root }),
-        planSettings(opts),
-        ...planSkillLinks({ root: opts.root }),
-      ]
+export const planSync = (opts: {
+  root: string;
+  config: TResolvedConfig;
+  /** The agents this machine chose (`resolveAgents`); only Claude has adapters until the renderers land. */
+  agents: string[];
+}): ISyncAction[] => [
+  ...(opts.agents.includes(CodingAgents.CLAUDE)
+    ? [planClaudeImport({ root: opts.root }), planSettings(opts)]
     : []),
+  ...skillDirectoriesOf({ agents: opts.agents }).flatMap(directory =>
+    planSkillLinks({ root: opts.root, directory, withProject: directory === CLAUDE_SKILLS }),
+  ),
+  ...planAgentFiles({ root: opts.root, agents: opts.agents }),
   planManifest(opts),
 ];

@@ -1,7 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DoctorChecks, parseMakeTargets, runDoctorChecks } from '../../doctor/index.ts';
+import {
+  DoctorChecks,
+  parseMakeTargets,
+  runDoctorChecks,
+  runDoctorNotes,
+} from '../../doctor/index.ts';
+import { renderLocalChoice } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -9,11 +15,11 @@ afterAll(removeProjects);
 
 const MAKE_INCLUDE = 'include node_modules/@venizia/vulcan/base/make/vulcan.mk\n';
 const LINT_CONFIGS = {
-  '.configs/oxlint.config.mts':
+  '.configs/lints/oxlint.config.mts':
     "import { defineConfig } from 'oxlint';\nimport { oxlintConfigs } from '@venizia/dev-configs/linters';\n\nexport default defineConfig(oxlintConfigs);\n",
-  '.configs/eslint.config.mjs':
+  '.configs/lints/eslint.config.mjs':
     "import { namingConventionConfigs } from '@venizia/dev-configs/linters';\n\nexport default namingConventionConfigs;\n",
-  '.configs/oxfmt.config.mts':
+  '.configs/formatters/oxfmt.config.mts':
     "import { defineConfig } from 'oxfmt';\nimport { oxfmtConfigs } from '@venizia/dev-configs/formatters';\n\nexport default defineConfig(oxfmtConfigs);\n",
 };
 const CONFORMANT: Record<string, string> = {
@@ -274,7 +280,36 @@ describe('doctor', () => {
 
   test('a lint config that does not build on the shared one', async () => {
     const root = createSyncedProject({
-      files: { ...CONFORMANT, '.configs/oxlint.config.mts': 'export default { rules: {} };\n' },
+      files: {
+        ...CONFORMANT,
+        '.configs/lints/oxlint.config.mts': 'export default { rules: {} };\n',
+      },
+    });
+
+    expect(await findChecks({ root })).toEqual([DoctorChecks.STYLE]);
+  });
+
+  test('a lint config left directly in .configs/ is told where it belongs', async () => {
+    const root = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        '.configs/oxfmt.config.mts':
+          "import { defineConfig } from 'oxfmt';\nimport { oxfmtConfigs } from '@venizia/dev-configs/formatters';\n\nexport default defineConfig(oxfmtConfigs);\n",
+      },
+    });
+    const violations = await runDoctorChecks({ root });
+    const legacy = violations.filter(violation => violation.file === '.configs/oxfmt.config.mts');
+
+    expect(legacy.map(violation => violation.check)).toEqual([DoctorChecks.STYLE]);
+    expect(legacy[0].message).toBe('move it to .configs/formatters/oxfmt.config.mts');
+  });
+
+  test('a lint config under lints/ and formatters/ is where the style check looks', async () => {
+    const root = createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        '.configs/lints/eslint.config.mjs': 'export default [];\n',
+      },
     });
 
     expect(await findChecks({ root })).toEqual([DoctorChecks.STYLE]);
@@ -282,7 +317,10 @@ describe('doctor', () => {
 
   test('a package lint config is checked too', async () => {
     const root = createSyncedProject({
-      files: { ...CONFORMANT, 'packages/app/.configs/oxfmt.config.mts': 'export default {};\n' },
+      files: {
+        ...CONFORMANT,
+        'packages/app/.configs/formatters/oxfmt.config.mts': 'export default {};\n',
+      },
     });
 
     expect(await findChecks({ root })).toEqual([DoctorChecks.STYLE]);
@@ -330,13 +368,13 @@ describe('doctor', () => {
         '.configs/vulcan.config.ts':
           "export default { rules: { 'V-W-01': 'read-only' }, packages: [{ dir: 'kit', name: '@demo/kit', path: 'umbras/kit' }] };\n",
         'umbras/kit/package.json': '{ "name": "@demo/kit" }',
-        'umbras/kit/.configs/oxfmt.config.mts': 'export default {};\n',
+        'umbras/kit/.configs/formatters/oxfmt.config.mts': 'export default {};\n',
       },
     });
     const violations = await runDoctorChecks({ root });
 
     expect(violations.map(violation => [violation.check, violation.file])).toEqual([
-      [DoctorChecks.STYLE, 'umbras/kit/.configs/oxfmt.config.mts'],
+      [DoctorChecks.STYLE, 'umbras/kit/.configs/formatters/oxfmt.config.mts'],
     ]);
   });
 
@@ -448,6 +486,28 @@ describe('doctor: apps', () => {
     );
   });
 
+  test('a lib package may live outside every layout folder, if a workspace glob covers it', async () => {
+    const files = (opts: { workspaces: string }) => ({
+      ...CONFORMANT,
+      'package.json': `{ "name": "demo", "workspaces": ${opts.workspaces}, "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }`,
+      '.configs/vulcan.config.ts':
+        "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'merchant', name: '@nx/merchant', path: 'auroras/features/merchant', kind: 'lib' }] };\n",
+    });
+    const covered = createSyncedProject({
+      files: files({ workspaces: '["services/*", "auroras/features/*"]' }),
+    });
+    const uncovered = createSyncedProject({ files: files({ workspaces: '["services/*"]' }) });
+
+    expect(await runDoctorChecks({ root: covered })).toEqual([]);
+    expect(
+      (await runDoctorChecks({ root: uncovered }))
+        .filter(violation => violation.check === DoctorChecks.APPS)
+        .map(violation => violation.message),
+    ).toContain(
+      "package merchant lives at auroras/features/merchant, which no workspace glob covers - add 'auroras/features/*' to workspaces",
+    );
+  });
+
   test('workspace globs written folder/** or ./folder/* cover the layout folder', async () => {
     for (const globs of [['services/**'], ['./services/*'], ['./services/**']]) {
       const root = createSyncedProject({
@@ -489,11 +549,236 @@ describe('doctor: apps', () => {
   });
 });
 
+describe('doctor: app scripts (info only)', () => {
+  const STANDARD = {
+    'server:dev': 'vite',
+    compile: 'sh scripts/compile.sh',
+    typecheck: 'bun check',
+    lint: 'sh scripts/lint.sh',
+    'lint:fix': 'sh scripts/lint.sh --fix',
+    test: 'bun test',
+    clean: 'sh scripts/clean.sh',
+  };
+  const CONFIG = (opts: { packages: string }): string =>
+    `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services', frontend: 'web', shared: 'libs' }, packages: ${opts.packages} };\n`;
+  const project = (opts: { files: Record<string, string>; packages: string }): string =>
+    createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        'package.json':
+          '{ "name": "demo", "workspaces": ["services/*", "web/*", "libs/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
+        '.configs/vulcan.config.ts': CONFIG({ packages: opts.packages }),
+        ...opts.files,
+      },
+    });
+  const manifest = (opts: { name: string; scripts: Record<string, string> }): string =>
+    JSON.stringify({ name: opts.name, scripts: opts.scripts });
+
+  test('an app with the seven standard scripts, and a domain extra, has no note', async () => {
+    const root = project({
+      packages: "[{ dir: 'api', name: 'api', path: 'services/api' }]",
+      files: {
+        'services/api/package.json': manifest({
+          name: 'api',
+          scripts: { ...STANDARD, 'migrate:dev': 'bun run migrate.ts' },
+        }),
+      },
+    });
+
+    expect(await runDoctorNotes({ root })).toEqual([]);
+  });
+
+  test('one line per app names the missing standard scripts and the legacy ones it carries', async () => {
+    const root = project({
+      packages:
+        "[{ dir: 'api', name: 'api', path: 'services/api' }, { dir: 'admin', name: 'admin', path: 'web/admin' }]",
+      files: {
+        'services/api/package.json': manifest({
+          name: 'api',
+          scripts: {
+            dev: 'bun run src/index.ts',
+            start: 'bun run dist/index.js',
+            test: 'bun test',
+          },
+        }),
+        'web/admin/package.json': manifest({
+          name: 'admin',
+          scripts: { ...STANDARD, build: 'vite build', preview: 'vite preview' },
+        }),
+      },
+    });
+    const notes = await runDoctorNotes({ root });
+
+    expect(notes).toHaveLength(2);
+    expect(notes[0]).toEqual({
+      check: DoctorChecks.SCRIPTS,
+      file: 'services/api/package.json',
+      message:
+        'app api: missing server:dev, compile, typecheck, lint, lint:fix, clean; legacy dev, start (use the standard names)',
+    });
+    expect(notes[1]?.message).toBe('app admin: legacy build, preview (use the standard names)');
+  });
+
+  test('all six legacy names are recognised', async () => {
+    const root = project({
+      packages: "[{ dir: 'api', name: 'api', path: 'services/api' }]",
+      files: {
+        'services/api/package.json': manifest({
+          name: 'api',
+          scripts: {
+            ...STANDARD,
+            dev: 'x',
+            start: 'x',
+            build: 'x',
+            rebuild: 'x',
+            preview: 'x',
+            'server:prod': 'x',
+          },
+        }),
+      },
+    });
+
+    expect((await runDoctorNotes({ root }))[0]?.message).toBe(
+      'app api: legacy dev, start, build, rebuild, preview, server:prod (use the standard names)',
+    );
+  });
+
+  test('shared code, retired packages, an app without a package.json and a project without a layout are not noted', async () => {
+    const root = project({
+      packages:
+        "[{ dir: 'kit', name: 'kit', path: 'libs/kit' }, { dir: 'old', name: 'old', path: 'services/old', retired: true }, { dir: 'ghost', name: 'ghost', path: 'services/ghost' }]",
+      files: {
+        'libs/kit/package.json': manifest({ name: 'kit', scripts: { build: 'tsc' } }),
+        'services/old/package.json': manifest({ name: 'old', scripts: { dev: 'x' } }),
+      },
+    });
+
+    expect(await runDoctorNotes({ root })).toEqual([]);
+    expect(await runDoctorNotes({ root: createSyncedProject({ files: CONFORMANT }) })).toEqual([]);
+  });
+
+  test('notes never fail: runDoctorChecks stays clean and the doctor command exits 0, printing them as info', async () => {
+    const root = project({
+      packages: "[{ dir: 'api', name: 'api', path: 'services/api' }]",
+      files: {
+        'services/api/package.json': manifest({ name: 'api', scripts: { dev: 'x' } }),
+      },
+    });
+    const result = runCli({ args: ['doctor'], cwd: root });
+
+    expect(await runDoctorChecks({ root })).toEqual([]);
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain(
+      '  info [scripts] services/api/package.json: app api: missing server:dev, compile, typecheck, lint, lint:fix, test, clean; legacy dev (use the standard names)\n',
+    );
+    expect(result.stderr).toContain('vulcan doctor: OK');
+  });
+});
+
+describe('doctor: agents', () => {
+  test('a broken local choice file is a violation that says how to fix it', async () => {
+    const root = createSyncedProject({
+      files: { ...CONFORMANT, '.agents/vulcan.local.json': '{ nope' },
+    });
+    const agents = (await runDoctorChecks({ root })).filter(
+      violation => violation.check === DoctorChecks.AGENTS,
+    );
+
+    expect(agents).toEqual([
+      {
+        check: DoctorChecks.AGENTS,
+        file: '.agents/vulcan.local.json',
+        message:
+          '.agents/vulcan.local.json is not valid JSON - delete it and run: vulcan sync --agents <list>',
+      },
+    ]);
+  });
+
+  test('a stored choice that leaves Claude out means no Claude adapters are checked', async () => {
+    const root = createProject({
+      files: { ...CONFORMANT, '.agents/vulcan.local.json': renderLocalChoice({ agents: ['omp'] }) },
+    });
+
+    runCli({ args: ['sync'], cwd: root });
+
+    expect((await runDoctorChecks({ root })).map(violation => violation.check)).not.toContain(
+      DoctorChecks.ADAPTERS,
+    );
+  });
+});
+
 describe('parseMakeTargets', () => {
   test('reads rule targets; skips recipes, variables, .PHONY and pattern rules', () => {
     const makefile =
       'A := 1\nB ?= 2\n.PHONY: x\nbuild: dep\n\t@echo\nokf-check:\n\techo\n$(T): %-x:\n';
 
     expect(parseMakeTargets({ makefile })).toEqual(['build', 'okf-check']);
+  });
+});
+
+describe('doctor: a Dockerfile without a root .dockerignore (info only)', () => {
+  const PACKAGES = "[{ dir: 'api', name: 'api', path: 'services/api' }]";
+  const project = (opts: { files: Record<string, string> }): string =>
+    createSyncedProject({
+      files: {
+        ...CONFORMANT,
+        '.configs/vulcan.config.ts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: ${PACKAGES} };\n`,
+        'services/api/package.json': JSON.stringify({
+          name: 'api',
+          scripts: {
+            'server:dev': 'x',
+            compile: 'x',
+            typecheck: 'x',
+            lint: 'x',
+            'lint:fix': 'x',
+            test: 'x',
+            clean: 'x',
+          },
+        }),
+        ...opts.files,
+      },
+    });
+
+  test('an app with a Dockerfile and no root .dockerignore gets one hint', async () => {
+    const root = project({ files: { 'services/api/.configs/builders/Dockerfile': 'FROM x\n' } });
+
+    expect(await runDoctorNotes({ root })).toEqual([
+      {
+        check: DoctorChecks.DOCKERIGNORE,
+        file: '.dockerignore',
+        message:
+          'app api has a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist and .git',
+      },
+    ]);
+  });
+
+  test('a root .dockerignore, or no Dockerfile, is silent', async () => {
+    const withIgnore = project({
+      files: {
+        'services/api/.configs/builders/Dockerfile': 'FROM x\n',
+        '.dockerignore': '**/node_modules\n',
+      },
+    });
+    const withoutDockerfile = project({ files: {} });
+
+    expect(await runDoctorNotes({ root: withIgnore })).toEqual([]);
+    expect(await runDoctorNotes({ root: withoutDockerfile })).toEqual([]);
+  });
+
+  test('two apps with a Dockerfile give one hint naming both', async () => {
+    const root = project({
+      files: {
+        '.configs/vulcan.config.ts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'api', name: 'api', path: 'services/api' }, { dir: 'jobs', name: 'jobs', path: 'services/jobs' }] };\n`,
+        'services/api/.configs/builders/Dockerfile': 'FROM x\n',
+        'services/jobs/.configs/builders/Dockerfile': 'FROM x\n',
+        'services/jobs/package.json': JSON.stringify({ name: 'jobs', scripts: {} }),
+      },
+    });
+    const notes = (await runDoctorNotes({ root })).filter(
+      note => note.check === DoctorChecks.DOCKERIGNORE,
+    );
+
+    expect(notes).toHaveLength(1);
+    expect(notes[0].message).toContain('apps api, jobs have a Dockerfile');
   });
 });

@@ -98,6 +98,53 @@ describe('renderManifest', () => {
   });
 });
 
+describe('package kind in the manifest', () => {
+  test('a lib carries its kind and path, an app without a kind carries none', () => {
+    const root = createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
+    const manifest = JSON.parse(
+      render({
+        root,
+        config: {
+          packages: [
+            { dir: 'api', name: 'api', path: 'services/api' },
+            {
+              dir: 'merchant',
+              name: '@nx/merchant',
+              path: 'auroras/features/merchant',
+              kind: 'lib',
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(manifest.packages[0]).not.toHaveProperty('kind');
+    expect(manifest.packages[1]).toMatchObject({ kind: 'lib', path: 'auroras/features/merchant' });
+  });
+});
+
+describe('layout and presets in the manifest', () => {
+  test('rendered after the packages when the config has them, absent otherwise', () => {
+    const root = createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
+    const preset = { spec: 'ignis', side: 'backend', summary: 'An API.' };
+    const manifest = JSON.parse(
+      render({
+        root,
+        config: { ...CONFIG, layout: { backend: 'services', shared: 'libs' }, presets: [preset] },
+      }),
+    );
+
+    expect(Object.keys(manifest).slice(3, 6)).toEqual(['packages', 'layout', 'presets']);
+    expect(manifest.layout).toEqual({ backend: 'services', shared: 'libs' });
+    expect(manifest.presets).toEqual([preset]);
+
+    const bare = JSON.parse(render({ root, config: CONFIG }));
+
+    expect('layout' in bare).toBe(false);
+    expect('presets' in bare).toBe(false);
+  });
+});
+
 describe('the manifest in sync, doctor and vulcan x', () => {
   const PROJECT = {
     '.configs/vulcan.config.ts': `export default ${JSON.stringify(CONFIG)};\n`,

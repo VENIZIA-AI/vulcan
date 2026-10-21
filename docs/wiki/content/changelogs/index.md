@@ -11,6 +11,11 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-21 | [VULCAN 0.3.6: Tool Configs Live in .configs/lints, formatters and builders](./2026-10-21-vulcan-0-3-6-configs-layout) | Enhancement, Breaking Change |
+| 2026-10-21 | [VULCAN 0.3.6: Agents Create Apps and Libraries With a Preset](./2026-10-21-vulcan-0-3-6-presets) | Feature |
+| 2026-10-20 | [VULCAN 0.3.6: Each Developer Chooses Their Coding Agents](./2026-10-20-vulcan-0-3-6-agents) | Feature |
+| 2026-10-20 | [VULCAN 0.3.6: One Script Standard for Every App](./2026-10-20-vulcan-0-3-6) | Enhancement |
+| 2026-10-20 | [VULCAN 0.3.5: Agents Reach for atlas on Their Own](./2026-10-20-vulcan-0-3-5) | Enhancement |
 | 2026-10-20 | [VULCAN 0.3.4: A Preset Can Declare the imports of Its App](./2026-10-20-vulcan-0-3-4) | Feature |
 | 2026-10-20 | [VULCAN 0.3.3: init Asks in Order and Keeps bun add Out of the Questions](./2026-10-20-vulcan-0-3-3) | Bug Fix |
 | 2026-10-20 | [VULCAN 0.3.2: The Generated Manifest Is Protected From Hand Edits](./2026-10-20-vulcan-0-3-2) | Enhancement |
