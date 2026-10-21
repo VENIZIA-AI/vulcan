@@ -21,6 +21,8 @@ export interface IResolvedSource {
   mode: TSourceMode;
   /** The source as its manifest describes it, rooted at `root`. */
   project: IAtlasProject;
+  /** What the project declared for a remote source: how a running server asks again. */
+  declared?: IAtlasSource;
   /** The search index built at the pull, for this SHA (git mode only). */
   indexFile?: string;
   /** The release table computed at the pull, for this SHA (git mode only). */
