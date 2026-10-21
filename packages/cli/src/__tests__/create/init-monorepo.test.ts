@@ -216,6 +216,26 @@ describe('vulcan init --preset', () => {
     expect(manifest.presets).toEqual([{ spec, side: 'backend', summary: 'A fixture backend.' }]);
   });
 
+  test('a preset that ships a library kind is recorded with its lib summary', () => {
+    const parent = createProject({ files: {} });
+    const withLib = join(import.meta.dir, '..', 'fixtures', 'preset-with-lib');
+
+    runCli({
+      args: ['init', ...FLAGS.map(flag => (flag === `file:${BACKEND}` ? `file:${withLib}` : flag))],
+      cwd: parent,
+      env: ENV,
+    });
+
+    const root = join(parent, 'my-product');
+
+    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
+
+    const manifest = JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8'));
+
+    expect(manifest.presets).toHaveLength(1);
+    expect(manifest.presets[0].lib).toBe('A fixture library.');
+  });
+
   test('the root .gitignore ignores *.tsbuildinfo', () => {
     const parent = createProject({ files: {} });
 

@@ -7,15 +7,9 @@ import { readWorkspaceGlobs } from '../init/index.ts';
 import { addLibrary } from './add-lib.ts';
 import { runAppChecks } from './checks.ts';
 import { AppSides, CreateFlags } from './common/index.ts';
-import type {
-  IAppsBlock,
-  ILocatedPreset,
-  IPresetSpec,
-  IRecordedPreset,
-  TAppSide,
-} from './common/index.ts';
+import type { IAppsBlock, ILocatedPreset, IPresetSpec, TAppSide } from './common/index.ts';
 import { today, writeFile } from './files.ts';
-import { readLibPreset } from './lib-preset.ts';
+import { recordedPresetOf } from './lib-preset.ts';
 import { askWithPrompt, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
 import { readExistingApps, renderNext } from './next.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
@@ -128,18 +122,6 @@ const askKind = (opts: { offered: string[] }): string | undefined => {
       return kind;
     }
   }
-};
-
-/** What the preset records of itself: its side and summary, and the lib summary when it makes libraries. */
-const recordedOf = (opts: { spec: string; located: ILocatedPreset }): IRecordedPreset => {
-  const lib = readLibPreset({ located: opts.located });
-
-  return {
-    spec: opts.spec,
-    side: opts.located.preset.side,
-    summary: opts.located.preset.summary,
-    ...(lib.ok ? { lib: lib.lib.summary } : {}),
-  };
 };
 
 const readRootManifest = (opts: { path: string }): TRootManifest | undefined => {
@@ -349,7 +331,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
       recorded: ({ block }) =>
         recordPreset({
           block,
-          preset: recordedOf({ spec: recordedSpec, located: located.located }),
+          preset: recordedPresetOf({ spec: recordedSpec, located: located.located }),
         }),
     });
   }
@@ -457,7 +439,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   };
   const block = recordPreset({
     block: extended,
-    preset: recordedOf({ spec: recordedSpec, located: located.located }),
+    preset: recordedPresetOf({ spec: recordedSpec, located: located.located }),
   });
   const replaced = replaceAppsBlock({ source, block });
   // A config written before presets were recorded does not read them yet: the line that does goes in.

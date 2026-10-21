@@ -12,6 +12,7 @@ import type {
   TAppSide,
 } from './common/index.ts';
 import { today, writeFile } from './files.ts';
+import { recordedPresetOf } from './lib-preset.ts';
 import { askWithPrompt, findFolderClash, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
 import { renderNext } from './next.ts';
@@ -144,11 +145,10 @@ const writeMonorepo = (opts: {
     layout: { [side]: folder, ...(shared === '' ? {} : { shared }) },
     packages: [{ dir: app, name: app, path: `${folder}/${app}` }],
     presets: [
-      {
+      recordedPresetOf({
         spec: presetSpecOf({ value: presetValue, root, cwd: dirname(root) }),
-        side,
-        summary: preset.summary,
-      },
+        located,
+      }),
     ],
     sources: preset.atlas,
   };
