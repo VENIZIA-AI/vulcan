@@ -91,12 +91,12 @@ describe('vulcan sync writes the atlas entry where each agent reads it', () => {
     );
   });
 
-  test('claude, omp and copilot-cli share the committed .mcp.json: sync writes nothing more for them', () => {
-    const root = createProject({ files: { ...PROJECT, '.mcp.json': '{ "mcpServers": {} }\n' } });
+  test('claude, omp and copilot-cli share the root .mcp.json: sync writes no other agent file for them', () => {
+    const root = createProject({ files: PROJECT });
     const result = sync({ root, agents: 'omp,copilot-cli' });
 
     expect(result.code).toBe(0);
-    expect(readFileSync(join(root, '.mcp.json'), 'utf8')).toBe('{ "mcpServers": {} }\n');
+    expect(existsSync(join(root, '.mcp.json'))).toBe(true);
 
     for (const path of ['.cursor', '.pi', '.codex', '.vscode']) {
       expect(existsSync(join(root, path))).toBe(false);

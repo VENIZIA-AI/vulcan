@@ -534,6 +534,7 @@ describe('planSync with the resolved agents', () => {
       join(root, '.agents/skills/docs-update'),
       join(root, '.agents/skills/docs-writing'),
       join(root, '.agents/skills/knowledge-sync'),
+      join(root, '.mcp.json'),
       join(root, '.agents/vulcan.manifest.json'),
     ]);
     expect(without.some(action => action.path === join(root, 'CLAUDE.md'))).toBe(false);

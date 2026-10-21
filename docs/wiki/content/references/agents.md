@@ -23,7 +23,7 @@ The table below is the content of `base/agents.json`, the table `sync` is driven
 ## What you get
 
 - **The rules and the Atlas block.** Every agent reads `AGENTS.md`, which routes to the rules and the knowledge bundle and carries the [Atlas block](/references/commands/sync#the-atlas-block-in-agents-md) (the corpora, rule `V-P-07`, the four triggers: `symbol`, `search` then `get`, `version` or `changes`, `presets`). The block exists because not every agent shows the model what the atlas server says about itself, as the last column shows.
-- **Atlas.** `sync` registers the atlas server where the agent looks for MCP servers. Claude, omp and Copilot CLI read the committed root `.mcp.json`, so they need no extra file. The others get an entry in their own file, merged with what you have there; the entry carries the absolute path of the project, so run `sync` again if you move it.
+- **Atlas.** `sync` registers the atlas server where the agent looks for MCP servers. Claude, omp and Copilot CLI read the root `.mcp.json`, one file for the three; `sync` writes it on your machine when you chose one of them, with the same relative entry for everyone (`--root .`), and keeps it out of git in your clone. The others get an entry in their own file, merged with what you have there; that entry carries the absolute path of the project, so run `sync` again if you move it. A project that still tracks `.mcp.json` keeps it: `sync` does not touch a tracked file and `vulcan doctor` says how to hand it over.
 - **The shipped skills**, and every skill you write in `.agents/skills/<name>/SKILL.md`. All agents except Claude read that folder; for Claude, `sync` links the skills into `.claude/skills`.
 
 ## What the other agents lose

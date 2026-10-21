@@ -24,6 +24,7 @@ export const excludePathsOf = (opts: {
   skillNames: string[];
 }): IExcludeGroup[] => {
   const listedSkills = new Set<string>();
+  let listedShared = false;
   const groups: IExcludeGroup[] = [];
 
   for (const entry of readAgentTable().filter(item => opts.agents.includes(item.id))) {
@@ -39,6 +40,10 @@ export const excludePathsOf = (opts: {
 
     if (entry.mcp.scope === AgentScopes.PROJECT) {
       paths.push(`/${entry.mcp.path}`);
+    } else if (!listedShared) {
+      // The root `.mcp.json` several agents read is listed once, under the first of them.
+      listedShared = true;
+      paths.push(`/${AgentConstants.SHARED_MCP_FILE}`);
     }
 
     if (entry.skills.dir !== CLAUDE_SKILLS_DIRECTORY && !listedSkills.has(entry.skills.dir)) {

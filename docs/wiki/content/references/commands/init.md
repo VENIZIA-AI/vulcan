@@ -21,7 +21,6 @@ $ bun x --no-install vulcan init
   created  AGENTS.md
   created  .agents/rules.md
   created  .agents/knowledge/index.md
-  created  .mcp.json
   created  .configs/lints/oxlint.config.mts
   created  .configs/lints/eslint.config.mjs
   created  .configs/formatters/oxfmt.config.mts
@@ -73,7 +72,7 @@ vulcan init: --config takes one of ts, mts, mjs, js
 
 ## Generated files
 
-`vulcan init` can write ten files at the repository root, and appends to an eleventh, `.gitignore`:
+`vulcan init` can write nine files at the repository root, and appends to a tenth, `.gitignore`:
 
 The project name in the generated files comes from `package.json` `name`, or from the directory name when there is none.
 It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index and the `Makefile`.
@@ -83,7 +82,6 @@ It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index an
 | `AGENTS.md` | Routing file that points coding agents to base rules, project rules and facts | Usually nothing; it holds routing only |
 | `.agents/rules.md` | Project rule extensions that build on the base rules | Add project rules with bare rule IDs |
 | `.agents/knowledge/index.md` | Entry point of the project knowledge bundle in okf v0.2 format | Describe the project |
-| `.mcp.json` | Model Context Protocol configuration that registers the atlas server | Add project MCP servers when needed |
 | `.configs/lints/oxlint.config.mts` | Lint configuration for oxlint extending `@venizia/dev-configs` | Add project linter rule overrides when needed |
 | `.configs/lints/eslint.config.mjs` | Lint configuration for ESLint naming conventions extending `@venizia/dev-configs` | Add project naming convention overrides when needed |
 | `.configs/formatters/oxfmt.config.mts` | Formatter configuration for oxfmt extending `@venizia/dev-configs` | Add project formatting overrides when needed |
@@ -110,7 +108,6 @@ $ bun x --no-install vulcan init
   kept     AGENTS.md
   kept     .agents/rules.md
   kept     .agents/knowledge/index.md
-  kept     .mcp.json
   kept     .configs/lints/oxlint.config.mts
   kept     .configs/lints/eslint.config.mjs
   kept     .configs/formatters/oxfmt.config.mts
@@ -136,21 +133,15 @@ The command prints status `skipped` with the reason:
   skipped  .configs/{lints,formatters}: a workspaces project keeps them per app (apps/<name>/.configs/lints/, apps/<name>/.configs/formatters/); the templates are in node_modules/@venizia/vulcan/base/templates/
 ```
 
-### Existing MCP configuration
+### The MCP file
 
-If `.mcp.json` exists and already contains `"atlas"`, `vulcan init` reports `kept .mcp.json`.
-If `.mcp.json` exists without an `"atlas"` entry, `vulcan init` prints an `add` hint:
-
-```text
-  add      .mcp.json: the atlas server, for the knowledge bundle (and the wiki, when there is one; --root pins the project): "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }
-```
+`vulcan init` does not write `.mcp.json`. The file is an agent file like the others: `vulcan sync` writes it, on each machine, only when you chose an agent that reads it (Claude Code, omp or Copilot CLI), with the atlas entry, and lists it in your clone's `.git/info/exclude`. A project that already tracks a `.mcp.json` keeps it untouched; `vulcan doctor` says how to hand it over ([sync](/references/commands/sync#the-root-mcpjson)).
 
 ### Configuration hints
 
 `vulcan init` prints a hint for a missing entry in a file it does not edit:
 
 - For `Makefile`: prints `add Makefile: -include node_modules/@venizia/vulcan/base/make/vulcan.mk` when the include line is missing.
-- For `.mcp.json`: prints the atlas entry, as described above.
 
 Every `add` line is also listed in `left to do:` as `add <hint>`, and stays until you make the edit yourself, because init only hints.
 
@@ -255,7 +246,6 @@ Fetching preset @venizia/ignis@latest ...
   created  services/core-api/package.json
   created  AGENTS.md
   created  .agents/rules.md
-  created  .mcp.json
   created  Makefile
   created  .configs/vulcan.config.mts
   created  .agents/knowledge/index.md
@@ -273,6 +263,7 @@ Which coding agents do you use in this project? (comma-separated; Enter accepts 
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing
   created   .claude/skills/knowledge-sync
+  created   .mcp.json
   created   .agents/vulcan.manifest.json
   replaced  AGENTS.md (Atlas block)
   created   .agents/vulcan.local.json
@@ -376,7 +367,7 @@ $ cd my-product && find . -type f -not -path '*/node_modules/*' -not -name bun.l
 ./services/core-api/tsconfig.json
 ```
 
-The files `sync` wrote (`.agents/vulcan.local.json`, `.agents/vulcan.manifest.json`, `CLAUDE.md`, `.claude/`, and the `.claude/skills/*` links, which `find -type f` does not list) are in the tree too.
+The files `sync` wrote (`.agents/vulcan.local.json`, `.agents/vulcan.manifest.json`, `.mcp.json`, `CLAUDE.md`, `.claude/`, and the `.claude/skills/*` links, which `find -type f` does not list) are in the tree too.
 
 | File | What it holds |
 |---|---|
@@ -384,8 +375,8 @@ The files `sync` wrote (`.agents/vulcan.local.json`, `.agents/vulcan.manifest.js
 | `<folder>/<app>/` | The preset's files, plus a `package.json` whose dependencies are `catalog:` |
 | `.gitignore`, `README.md`, `Makefile` | The ignore list for agent files, a title, and the VULCAN targets plus `make dev` |
 | `.dockerignore` | The build context of a Dockerfile built from the root: `**/node_modules`, `**/dist`, `**/*.tsbuildinfo`, `**/coverage`, `**/*.log`, `.git`, `.claude`, `.agents/plans`, the secrets `**/.env` and `**/.env.*` with `!**/.env.example` kept (in that order, after a comment saying why), and the per-machine files of every coding agent (the ones `sync` keeps in `.git/info/exclude`). The lockfile, every `package.json` and the sources are not listed: the image needs them. Edit it freely; `init` only creates a project, so it never overwrites one |
-| `AGENTS.md`, `.agents/rules.md`, `.mcp.json` | The same layer as [the scaffold above](#generated-files) |
-| `.agents/vulcan.manifest.json`, `.agents/vulcan.local.json`, `CLAUDE.md`, `.claude/` | What the first `sync` writes: the manifest, your choice of agents, and the Claude adapters |
+| `AGENTS.md`, `.agents/rules.md` | The same layer as [the scaffold above](#generated-files) |
+| `.agents/vulcan.manifest.json`, `.agents/vulcan.local.json`, `.mcp.json`, `CLAUDE.md`, `.claude/` | What the first `sync` writes: the manifest, your choice of agents, the atlas entry for the agents that read `.mcp.json`, and the Claude adapters |
 | `.configs/vulcan.config.mts` | `name`, `layout`, one `packages` entry per app, and the preset's `atlas` sources |
 | `.agents/knowledge/` | An index, one concept per app, and a log entry naming the preset and its version |
 | `<shared>/.gitkeep` | Keeps the shared folder in git |

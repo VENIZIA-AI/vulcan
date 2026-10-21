@@ -850,30 +850,39 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
     });
   const mcpWarnings = async (opts: { root: string }) =>
     (await runDoctorWarnings(opts)).filter(item => item.check === DoctorChecks.MCP);
-  const project = (opts: { mcp?: string }) => {
-    const root = createSyncedProject({
-      files: { ...CONFORMANT, ...(opts.mcp === undefined ? {} : { '.mcp.json': opts.mcp }) },
-    });
+  // sync writes the canonical file; a test then replaces it, as a hand edit or a tracked file would.
+  const project = (opts: { mcp?: string; agents?: string[] }) => {
+    const root = createSyncedProject({ files: CONFORMANT });
 
-    if (opts.mcp === undefined) {
-      rmSync(join(root, '.mcp.json'));
+    if (opts.agents !== undefined) {
+      writeFileSync(
+        join(root, '.agents/vulcan.local.json'),
+        renderLocalChoice({ agents: opts.agents }),
+      );
+    }
+
+    if (opts.mcp !== undefined) {
+      writeFileSync(join(root, '.mcp.json'), opts.mcp);
     }
 
     return root;
   };
 
-  test('the canonical entry and the enabled server: no warning', async () => {
-    expect(await mcpWarnings({ root: project({ mcp: MCP({}) }) })).toEqual([]);
+  test('the canonical entry sync wrote and the enabled server: no warning', async () => {
+    expect(await mcpWarnings({ root: project({}) })).toEqual([]);
   });
 
-  test('no .mcp.json: a warning that shows the expected entry', async () => {
-    expect(await mcpWarnings({ root: project({}) })).toEqual([
-      {
-        check: DoctorChecks.MCP,
-        file: '.mcp.json',
-        message: `missing: atlas is not registered for Claude Code, omp and Copilot CLI - add ${ENTRY} under mcpServers`,
-      },
-    ]);
+  test('no .mcp.json: the adapters check says not synced yet, the mcp check stays quiet', async () => {
+    const root = project({});
+
+    rmSync(join(root, '.mcp.json'));
+
+    expect(await mcpWarnings({ root })).toEqual([]);
+    expect(
+      (await runDoctorChecks({ root })).some(
+        violation => violation.check === DoctorChecks.ADAPTERS,
+      ),
+    ).toBe(true);
   });
 
   test('a file that is not JSON', async () => {
@@ -902,6 +911,12 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
     expect(warnings[0].message).toBe(
       `the atlas entry is { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "../ignis"] }, expected ${ENTRY}`,
     );
+  });
+
+  test('a machine whose agents do not read .mcp.json is not asked about it', async () => {
+    const root = project({ agents: ['cursor'], mcp: MCP({ root: '../ignis' }) });
+
+    expect((await mcpWarnings({ root })).map(item => item.file)).not.toContain('.mcp.json');
   });
 
   test('the managed Claude settings that do not enable atlas', async () => {

@@ -2,7 +2,6 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { mergeAtlasBlock, renderAtlasBlock } from '../agents/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
-import { runsAtlas } from '../init/scaffold.ts';
 import { projectNameOf } from '../manifest/index.ts';
 import { SyncStatuses } from './common/index.ts';
 import type { ISyncAction } from './common/index.ts';
@@ -10,17 +9,17 @@ import type { ISyncAction } from './common/index.ts';
 const NO_CHANGE = (): void => {};
 
 /**
- * The block's text for this project, or undefined when AGENTS.md is absent or the project does not
- * run the atlas server (a block that points at a server nobody started is noise).
+ * The block's text for this project, or undefined when AGENTS.md is absent. Every project has the
+ * atlas server, and the block is what an agent that does not show the server's own text reads, so it
+ * does not wait for a per-machine MCP file to exist.
  */
 export const mergedAtlasBlock = (opts: {
   root: string;
   config: TResolvedConfig;
 }): { path: string; changed: boolean; text: string } | undefined => {
   const path = join(opts.root, 'AGENTS.md');
-  const mcp = join(opts.root, '.mcp.json');
 
-  if (!existsSync(path) || !existsSync(mcp) || !runsAtlas({ text: readFileSync(mcp, 'utf8') })) {
+  if (!existsSync(path)) {
     return undefined;
   }
 

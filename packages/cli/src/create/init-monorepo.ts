@@ -34,7 +34,6 @@ import {
 const LAYER_FILES = [
   { path: 'AGENTS.md', template: 'AGENTS.md' },
   { path: '.agents/rules.md', template: 'rules.md' },
-  { path: '.mcp.json', template: 'mcp.json' },
   { path: 'Makefile', template: 'Makefile' },
 ];
 
