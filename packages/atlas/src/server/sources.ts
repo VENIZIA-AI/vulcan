@@ -1,12 +1,14 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { AtlasConstants, AtlasModes } from '@/common';
 import { resolveRepositoryRoots } from '@/corpus';
 import { Transport } from '@/protocol';
 import { computeReleases, ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
+import { resolveRemoteSource } from '@/sources/resolver';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources/serving';
-import type { IResolvedSource, IUnavailableSource } from '@/sources/common';
+import type { IAtlasSource, IResolvedSource, IUnavailableSource } from '@/sources/common';
 import {
   cachedSymbols,
   declarationsFingerprintOf,
@@ -25,6 +27,8 @@ import {
 } from '@/tools';
 import { FreshnessGuard } from './freshness';
 import { instructionsOf, projectsOf } from './guidance';
+import { Refresher } from './refresh';
+import type { IRefreshTarget } from './refresh';
 
 const packageMapOf = (opts: { source: IResolvedSource }) =>
   opts.source.project.packages.map(entry => ({
@@ -118,6 +122,113 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
   };
 };
 
+type TStoreSet = ReturnType<typeof storesOf>;
+
+/**
+ * A source's stores behind getters, so a refresh can replace them in place: the composites read
+ * `chunks`, `releases` and `symbols` from the entry on every call.
+ */
+const liveEntry = (opts: { initial: TStoreSet }) => {
+  let current = opts.initial;
+
+  return {
+    get name() {
+      return current.name;
+    },
+    get chunks() {
+      return current.chunks;
+    },
+    get releases() {
+      return current.releases;
+    },
+    get symbols() {
+      return current.symbols;
+    },
+    replace: (next: TStoreSet): void => {
+      current = next;
+    },
+    replaceReleases: (releases: ReleaseStore): void => {
+      current = { ...current, releases };
+    },
+  };
+};
+
+type TLiveEntry = ReturnType<typeof liveEntry>;
+
+const timeOf = (opts: { file?: string }): number =>
+  opts.file !== undefined && existsSync(opts.file) ? statSync(opts.file).mtimeMs : 0;
+
+/** HEAD and every tag of the project's own repository: what changes when a release lands. */
+const repositoryFingerprintOf = (opts: { root: string }): string => {
+  const run = (args: string[]): string =>
+    spawnSync('git', args, { cwd: opts.root, encoding: 'utf8', timeout: 10_000 }).stdout ?? '';
+
+  return `${run(['rev-parse', '--verify', '--quiet', 'HEAD'])}${run(['for-each-ref', 'refs/tags', '--format=%(objectname) %(refname)'])}`;
+};
+
+/** Asks again for one remote source: a moved ref or a refreshed release table replaces its stores. */
+const remoteTarget = (opts: {
+  entry: TLiveEntry;
+  served: IResolvedSource;
+  cwd: string;
+  resolve: (source: IAtlasSource) => Promise<IResolvedSource>;
+}): IRefreshTarget | undefined => {
+  let { served } = opts;
+  const { declared } = served;
+
+  if (declared === undefined) {
+    return undefined;
+  }
+
+  return {
+    refresh: async () => {
+      const next = await opts.resolve(declared);
+
+      if (
+        next.sha === served.sha &&
+        timeOf({ file: next.releasesFile }) === timeOf({ file: served.releasesFile })
+      ) {
+        return;
+      }
+
+      opts.entry.replace(storesOf({ source: next, cwd: opts.cwd }));
+      served = next;
+    },
+  };
+};
+
+/** The project's own release table again when HEAD or a tag moved; its search index already watches the files. */
+const repositoryTarget = (opts: { entry: TLiveEntry; source: IResolvedSource }): IRefreshTarget => {
+  let seen = repositoryFingerprintOf({ root: opts.source.root });
+
+  return {
+    refresh: async () => {
+      const now = repositoryFingerprintOf({ root: opts.source.root });
+
+      if (now === seen) {
+        return;
+      }
+
+      opts.entry.replaceReleases(
+        new ReleaseStore({
+          table: computeReleases({ project: opts.source.project }),
+          emptyReason: emptyReleasesReasonOf({ source: opts.source }),
+          noEntriesReason: noEntriesReasonOf({ source: opts.source }),
+        }),
+      );
+      seen = now;
+    },
+  };
+};
+
+export interface IRefreshOptions {
+  /** How often a running server looks again; the first look comes this long after the start. */
+  intervalMs: number;
+  /** How a remote source is asked again - the resolver, unless a test supplies another. */
+  resolve?: (source: IAtlasSource) => Promise<IResolvedSource>;
+  now?: () => number;
+}
+
 /**
  * The MCP transport over every resolved source (spec v3 section 3): one store set per source,
  * served as one by the composites - a single repository answers exactly as it always has.
@@ -128,8 +239,12 @@ export const buildSourcesServer = (opts: {
   unavailable?: IUnavailableSource[];
   cwd: string;
   version: string;
+  /** Keeps a long-running server current; absent, the sources stay as the start resolved them. */
+  refresh?: IRefreshOptions;
 }): Transport => {
-  const stores = opts.sources.map(source => storesOf({ source, cwd: opts.cwd }));
+  const stores = opts.sources.map(source =>
+    liveEntry({ initial: storesOf({ source, cwd: opts.cwd }) }),
+  );
   const chunks = new SourceChunks({ sources: stores });
   const releases = new SourceReleases({ sources: stores });
   const symbols = new SourceSymbols({ sources: stores });
@@ -139,6 +254,25 @@ export const buildSourcesServer = (opts: {
     unavailable: opts.unavailable ?? [],
   });
   const projects = projectsOf({ sources: opts.sources });
+  const resolve =
+    opts.refresh?.resolve ?? ((source: IAtlasSource) => resolveRemoteSource({ source }));
+  const targets = opts.sources.flatMap((source, index): IRefreshTarget[] => {
+    const entry = stores[index];
+    const target =
+      source.mode === 'repository'
+        ? repositoryTarget({ entry, source })
+        : remoteTarget({ entry, served: source, cwd: opts.cwd, resolve });
+
+    return target === undefined ? [] : [target];
+  });
+  const refresher =
+    opts.refresh === undefined
+      ? undefined
+      : new Refresher({
+          targets,
+          intervalMs: opts.refresh.intervalMs,
+          now: opts.refresh.now,
+        });
 
   return new Transport({
     tools: [
@@ -154,5 +288,6 @@ export const buildSourcesServer = (opts: {
     serverName: project === undefined ? AtlasConstants.SERVER_NAME : `${project.name}-atlas`,
     serverVersion: opts.version,
     instructions,
+    onCall: () => refresher?.poke(),
   });
 };

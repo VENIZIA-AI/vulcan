@@ -125,6 +125,7 @@ const servedFrom = (opts: {
 
   return {
     name: opts.source.name,
+    declared: opts.source,
     origin: `${opts.source.repo}@${opts.source.ref}`,
     root: checkout,
     sha: opts.sha,
@@ -529,6 +530,10 @@ const resolveRemote = async (opts: {
     },
   });
 };
+
+/** One remote source resolved again, as a start does: the cache for the SHA its ref names now, a pull when it moved. */
+export const resolveRemoteSource = (opts: { source: IAtlasSource }): Promise<IResolvedSource> =>
+  resolveRemote({ source: opts.source, force: false });
 
 /**
  * Every source atlas serves: the working directory when it has a manifest (repo mode, no git), then
