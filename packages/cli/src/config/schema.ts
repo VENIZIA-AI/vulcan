@@ -17,6 +17,8 @@ const PROJECT_PACKAGE = z.strictObject({
   path: z.string().optional(),
   aliases: z.array(z.string()).default([]),
   retired: z.boolean().default(false),
+  /** A shared package a preset's lib kind made lives anywhere a workspace glob covers; absent means an app or a plain package. */
+  kind: z.enum(['app', 'lib']).optional(),
 });
 
 /** A path as a key: no leading `./`, no trailing slash. */
@@ -118,6 +120,18 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       frontend: FOLDER_NAME.optional(),
       shared: FOLDER_NAME.optional(),
     })
+    .optional(),
+  /** The presets this project's apps came from (`init` and `add` record them), as `--preset` takes them back. */
+  presets: z
+    .array(
+      z.strictObject({
+        spec: z.string().min(1),
+        side: z.enum(['backend', 'frontend']),
+        summary: z.string(),
+        /** The summary of the preset's lib kind, when it ships one. */
+        lib: z.string().optional(),
+      }),
+    )
     .optional(),
   /** The project's packages in release order; okf, atlas, make and release read this one list. */
   packages: z.array(PROJECT_PACKAGE).superRefine(checkPackagesUnique).default([]),

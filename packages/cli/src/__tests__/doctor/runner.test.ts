@@ -486,6 +486,28 @@ describe('doctor: apps', () => {
     );
   });
 
+  test('a lib package may live outside every layout folder, if a workspace glob covers it', async () => {
+    const files = (opts: { workspaces: string }) => ({
+      ...CONFORMANT,
+      'package.json': `{ "name": "demo", "workspaces": ${opts.workspaces}, "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }`,
+      '.configs/vulcan.config.ts':
+        "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'merchant', name: '@nx/merchant', path: 'auroras/features/merchant', kind: 'lib' }] };\n",
+    });
+    const covered = createSyncedProject({
+      files: files({ workspaces: '["services/*", "auroras/features/*"]' }),
+    });
+    const uncovered = createSyncedProject({ files: files({ workspaces: '["services/*"]' }) });
+
+    expect(await runDoctorChecks({ root: covered })).toEqual([]);
+    expect(
+      (await runDoctorChecks({ root: uncovered }))
+        .filter(violation => violation.check === DoctorChecks.APPS)
+        .map(violation => violation.message),
+    ).toContain(
+      "package merchant lives at auroras/features/merchant, which no workspace glob covers - add 'auroras/features/*' to workspaces",
+    );
+  });
+
   test('workspace globs written folder/** or ./folder/* cover the layout folder', async () => {
     for (const globs of [['services/**'], ['./services/*'], ['./services/**']]) {
       const root = createSyncedProject({

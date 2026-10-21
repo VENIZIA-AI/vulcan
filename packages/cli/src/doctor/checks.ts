@@ -1,6 +1,6 @@
 import { Glob } from 'bun';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
 import { coversFolder, declaresWorkspaces, readWorkspaceGlobs } from '../init/index.ts';
 import { resolvePackages } from '../config/index.ts';
@@ -475,6 +475,23 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
   const names = folders.map(([, folder]) => folder);
 
   for (const entry of resolvePackages({ config: opts.config }).filter(item => !item.retired)) {
+    if (entry.kind === 'lib') {
+      const parent = dirname(entry.path);
+
+      // A library lives where the project keeps libraries; it only has to be a workspace.
+      if (!coversFolder({ globs, folder: parent })) {
+        violations.push(
+          createViolation({
+            check: DoctorChecks.APPS,
+            file: opts.configFile,
+            message: `package ${entry.dir} lives at ${entry.path}, which no workspace glob covers - add '${parent}/*' to workspaces`,
+          }),
+        );
+      }
+
+      continue;
+    }
+
     if (!names.some(folder => entry.path.startsWith(`${folder}/`))) {
       violations.push(
         createViolation({

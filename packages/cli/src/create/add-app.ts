@@ -4,10 +4,18 @@ import { ExitCodes } from '../common/index.ts';
 import { loadConfig, resolvePackages } from '../config/index.ts';
 import type { IProjectPackage, TResolvedConfig } from '../config/index.ts';
 import { readWorkspaceGlobs } from '../init/index.ts';
+import { addLibrary } from './add-lib.ts';
 import { runAppChecks } from './checks.ts';
 import { AppSides, CreateFlags } from './common/index.ts';
-import type { IAppsBlock, ILocatedPreset, IPresetSpec, TAppSide } from './common/index.ts';
+import type {
+  IAppsBlock,
+  ILocatedPreset,
+  IPresetSpec,
+  IRecordedPreset,
+  TAppSide,
+} from './common/index.ts';
 import { today, writeFile } from './files.ts';
+import { readLibPreset } from './lib-preset.ts';
 import { askWithPrompt, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
 import { readExistingApps, renderNext } from './next.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
@@ -20,8 +28,10 @@ import {
   parseAppsBlock,
   pickPort,
   planRootManifest,
+  presetSpecOf,
   readCatalog,
   readPort,
+  recordPreset,
   renderAppConcept,
   renderAppManifest,
   renderKnowledgeIndex,
@@ -91,6 +101,45 @@ const missingFlag = (opts: {
   const hasApi = opts.args.includes(CreateFlags.API) || opts.args.includes(CreateFlags.NO_API);
 
   return side === AppSides.FRONTEND && !hasApi ? MISSING_API : undefined;
+};
+
+/** The two commands a project can run for this preset: what `add` prints when it is not told what to create. */
+const kindCommands = (opts: { presetValue: string }): string[] => [
+  `bun x --no-install vulcan add --preset ${opts.presetValue} ${CreateFlags.APP} <name>`,
+  `bun x --no-install vulcan add --preset ${opts.presetValue} ${CreateFlags.LIB} <name>`,
+];
+
+const SAY_WHAT = `say what to create - \`${CreateFlags.APP} <name>\` (a runnable app) or \`${CreateFlags.LIB} <name>\` (a shared package)`;
+
+/** The terminal asks which kind, listing only what the preset offers; end of input stops the command. */
+const askKind = (opts: { offered: string[] }): string | undefined => {
+  for (;;) {
+    const answer = askWithPrompt({
+      question: `What do you want to create? (${opts.offered.join(', ')})`,
+    });
+
+    if (answer === null) {
+      return undefined;
+    }
+
+    const kind = answer.trim();
+
+    if (opts.offered.includes(kind)) {
+      return kind;
+    }
+  }
+};
+
+/** What the preset records of itself: its side and summary, and the lib summary when it makes libraries. */
+const recordedOf = (opts: { spec: string; located: ILocatedPreset }): IRecordedPreset => {
+  const lib = readLibPreset({ located: opts.located });
+
+  return {
+    spec: opts.spec,
+    side: opts.located.preset.side,
+    summary: opts.located.preset.summary,
+    ...(lib.ok ? { lib: lib.lib.summary } : {}),
+  };
 };
 
 const readRootManifest = (opts: { path: string }): TRootManifest | undefined => {
@@ -229,7 +278,27 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   }
 
   const interactive = process.stdin.isTTY === true;
-  const early = interactive ? undefined : missingFlag({ args: opts.args, layout: config.layout });
+  const libFlag = opts.args.includes(CreateFlags.LIB);
+  const libName = readFlag({ args: opts.args, flag: CreateFlags.LIB });
+  const appFlag = opts.args.includes(CreateFlags.APP);
+
+  if (libFlag && appFlag) {
+    return fail({ message: `${CreateFlags.APP} and ${CreateFlags.LIB} cannot be used together` });
+  }
+
+  if (libFlag && libName === undefined) {
+    return fail({ message: `${CreateFlags.LIB} needs a name` });
+  }
+
+  // Never a default kind: without a terminal to ask, nothing is fetched or written until the flag says which.
+  if (!interactive && !libFlag && !appFlag) {
+    return fail({
+      message: `${SAY_WHAT}\n  ${kindCommands({ presetValue }).join('\n  ')}`,
+    });
+  }
+
+  const early =
+    interactive || libFlag ? undefined : missingFlag({ args: opts.args, layout: config.layout });
 
   if (early !== undefined) {
     return fail({ message: early });
@@ -243,6 +312,48 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   }
 
   const { preset, packageName, packageVersion } = located.located;
+  const recordedSpec = presetSpecOf({ value: presetValue, root: cwd, cwd });
+  let kind = libFlag ? 'lib' : 'app';
+
+  if (!libFlag && !appFlag) {
+    const offered = ['app', ...(located.located.libFile === undefined ? [] : ['lib'])];
+    const chosen = offered.length === 1 ? 'app' : askKind({ offered });
+
+    if (chosen === undefined) {
+      return fail({ message: SAY_WHAT });
+    }
+
+    kind = chosen;
+  }
+
+  if (kind === 'lib') {
+    const name = libName ?? askWithPrompt({ question: 'Name of this library' })?.trim();
+
+    if (name === undefined || name === '') {
+      return fail({ message: `${CreateFlags.LIB} needs a name` });
+    }
+
+    return addLibrary({
+      cwd,
+      args: opts.args,
+      interactive,
+      presetValue,
+      spec,
+      located: located.located,
+      config,
+      configFile: loaded.file,
+      configPath,
+      manifest,
+      packages: resolvePackages({ config }),
+      libName: name,
+      recorded: ({ block }) =>
+        recordPreset({
+          block,
+          preset: recordedOf({ spec: recordedSpec, located: located.located }),
+        }),
+    });
+  }
+
   // Before any question: a catalog the preset cannot live in is no reason to ask for names.
   const peerProblem = checkPeers({
     catalog: readCatalog({ manifest }),
@@ -333,9 +444,10 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   }
 
   // Extend what the markers hold: the resolved config also carries what the user added outside them.
-  const block: IAppsBlock = {
+  const extended: IAppsBlock = {
     layout: { ...parsed.block.layout, [side]: folder },
     packages: [...parsed.block.packages, entry],
+    ...(parsed.block.presets === undefined ? {} : { presets: parsed.block.presets }),
     sources: [
       ...parsed.block.sources,
       ...newSources.filter(
@@ -343,7 +455,19 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
       ),
     ],
   };
-  const nextConfig = replaceAppsBlock({ source, block });
+  const block = recordPreset({
+    block: extended,
+    preset: recordedOf({ spec: recordedSpec, located: located.located }),
+  });
+  const replaced = replaceAppsBlock({ source, block });
+  // A config written before presets were recorded does not read them yet: the line that does goes in.
+  const nextConfig =
+    replaced === undefined || replaced.includes('apps.presets')
+      ? replaced
+      : replaced.replace(
+          '  packages: apps.packages,\n',
+          '  packages: apps.packages,\n  presets: apps.presets,\n',
+        );
 
   if (nextConfig === undefined) {
     return fail({ message: ROOT_HINT });
