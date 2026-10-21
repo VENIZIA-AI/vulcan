@@ -42,12 +42,18 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: make catalog-check
 
-      - name: Knowledge bundle
+      # The cli imports atlas's built output (the official presets); the gates below run the cli from source.
+      - name: Build atlas
+        id: atlas
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: make atlas
+
+      - name: Knowledge bundle
+        if: ${{ !cancelled() && steps.atlas.outcome == 'success' }}
         run: make okf-check-strict
 
       - name: Agent setup (VULCAN)
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.atlas.outcome == 'success' }}
         run: make vulcan-sync vulcan-doctor
 
       - name: Gate scripts' own tests
