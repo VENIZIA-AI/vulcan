@@ -98,6 +98,31 @@ describe('renderManifest', () => {
   });
 });
 
+describe('package kind in the manifest', () => {
+  test('a lib carries its kind and path, an app without a kind carries none', () => {
+    const root = createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
+    const manifest = JSON.parse(
+      render({
+        root,
+        config: {
+          packages: [
+            { dir: 'api', name: 'api', path: 'services/api' },
+            {
+              dir: 'merchant',
+              name: '@nx/merchant',
+              path: 'auroras/features/merchant',
+              kind: 'lib',
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(manifest.packages[0]).not.toHaveProperty('kind');
+    expect(manifest.packages[1]).toMatchObject({ kind: 'lib', path: 'auroras/features/merchant' });
+  });
+});
+
 describe('layout and presets in the manifest', () => {
   test('rendered after the packages when the config has them, absent otherwise', () => {
     const root = createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
