@@ -7,7 +7,7 @@
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "noEmit": true,
-    "experimentalDecorators": true,
+    "verbatimModuleSyntax": true,
     "useDefineForClassFields": false,
     "types": [
       "bun"
