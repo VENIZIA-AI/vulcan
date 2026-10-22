@@ -421,7 +421,7 @@ Add more apps later with [`vulcan add`](/references/commands/add).
 | `vulcan init: --project 'Fresh' is not a name: lowercase letters, digits and '-'` | A flag holds an invalid name |
 | `vulcan init: @acme/api@1.0.0 has preset version 2; this VULCAN reads version 1 - upgrade @venizia/vulcan` | The preset is newer than this VULCAN. Upgrade VULCAN |
 | `vulcan init: @acme/none@1.0.0 ships no VULCAN preset (no "vulcan": { "preset" } in its package.json)` | The package is not a preset |
-| `vulcan init: @acme/api@1.0.0: ./vulcan-preset/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined` | `preset.json` breaks the format. The author fixes it |
+| `vulcan init: @acme/api@1.0.0: ./dist/presets/app/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined` | `preset.json` breaks the format. The author fixes it |
 | `vulcan init: no package at ~/work/nope - was it installed?` | The `file:` path has no `package.json` |
 
 A `file:` preset is allowed but warns, because it writes a `file:<path>` entry into `catalog` that does not work on another machine or in CI.

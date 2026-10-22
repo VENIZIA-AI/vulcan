@@ -14,8 +14,8 @@ Two things make a package a preset. The first is a `vulcan.preset` field in its 
 {
   "name": "@acme/api",
   "version": "1.0.0",
-  "files": ["vulcan-preset"],
-  "vulcan": { "preset": "./vulcan-preset/preset.json" }
+  "files": ["dist/presets"],
+  "vulcan": { "preset": "./dist/presets/app/preset.json" }
 }
 ```
 
@@ -39,15 +39,18 @@ The second is that `preset.json`, with the files it copies next to it:
 ```
 
 ```text
-vulcan-preset/
-  preset.json
-  files/
-    _env.example
-    tsconfig.json
-    .configs/lints/oxlint.config.mts
-    src/index.ts
-    src/__tests__/smoke.test.ts
+dist/presets/
+  app/
+    preset.json
+    files/
+      _env.example
+      tsconfig.json
+      .configs/lints/oxlint.config.mts
+      src/index.ts
+      src/__tests__/smoke.test.ts
 ```
+
+The folder is yours to name; the official presets build into `dist/presets/{app,lib}`, and the examples here do the same.
 
 The app must pass `vulcan doctor`, which `init` runs last. Its `style` check wants `@venizia/dev-configs` declared and a lint config that imports it, so the example ships `.configs/lints/oxlint.config.mts` (`import { defineConfig } from 'oxlint'; import { oxlintConfigs } from '@venizia/dev-configs/linters'; export default defineConfig(oxlintConfigs);`) and lists `@venizia/dev-configs` in `devDependencies`. A preset without them ends `init` with `[style] package.json: add @venizia/dev-configs as a devDependency - here, or at the root`.
 
@@ -80,8 +83,8 @@ A preset can also make shared packages (libraries) of the same framework. Add a 
 ```json
 {
   "vulcan": {
-    "preset": "./vulcan-preset/app/preset.json",
-    "lib": "./vulcan-preset/lib/preset.json"
+    "preset": "./dist/presets/app/preset.json",
+    "lib": "./dist/presets/lib/preset.json"
   }
 }
 ```
@@ -213,7 +216,7 @@ This is what VULCAN's own tests do.
 A preset that does not fit the format stops with the key and the reason:
 
 ```text
-vulcan init: @acme/api@1.0.0: ./vulcan-preset/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined
+vulcan init: @acme/api@1.0.0: ./dist/presets/app/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined
 ```
 
 ## See also
