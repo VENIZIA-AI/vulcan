@@ -146,12 +146,30 @@ export const locatePreset = (opts: { spec: IPresetSpec; root: string }): TPreset
   const packageName = String(manifest.name);
   const packageVersion = String(manifest.version);
   const shown = `${packageName}@${packageVersion}`;
-  const field = readProperty({ value: manifest[CreateConstants.PRESET_FIELD], key: 'preset' });
+  const vulcan = manifest[CreateConstants.PRESET_FIELD];
+  const oldKeys = ['preset', 'lib'].filter(
+    key => readProperty({ value: vulcan, key }) !== undefined,
+  );
+
+  // No fallback to the keys before `presets`: say what the contract is now.
+  if (oldKeys.length > 0) {
+    return {
+      ok: false,
+      error: `${shown} uses the old keys "vulcan": { ${oldKeys.map(key => `"${key}"`).join(', ')} }; the contract is now "vulcan": { "presets": { "app": "./path/preset.json", "lib": "./path/lib.json" } }`,
+    };
+  }
+
+  const presets = readProperty({ value: vulcan, key: 'presets' });
+  const field = readProperty({ value: presets, key: 'app' });
+  const libField = readProperty({ value: presets, key: 'lib' });
 
   if (typeof field !== 'string') {
     return {
       ok: false,
-      error: `${shown} ships no VULCAN preset (no "vulcan": { "preset" } in its package.json)`,
+      error:
+        typeof libField === 'string'
+          ? `${shown}: vulcan.presets.lib needs vulcan.presets.app: a lib-only package is not supported`
+          : `${shown} ships no VULCAN preset (no "vulcan": { "presets": { "app" } } in its package.json)`,
     };
   }
 
@@ -160,7 +178,7 @@ export const locatePreset = (opts: { spec: IPresetSpec; root: string }): TPreset
   if (presetFile === undefined) {
     return {
       ok: false,
-      error: `${shown}: vulcan.preset ${field} points outside the package`,
+      error: `${shown}: vulcan.presets.app ${field} points outside the package`,
     };
   }
 
@@ -201,14 +219,16 @@ export const locatePreset = (opts: { spec: IPresetSpec; root: string }): TPreset
   }
 
   const preset = { ...parsed.data, files: filesFolder };
-  const libField = readProperty({ value: manifest[CreateConstants.PRESET_FIELD], key: 'lib' });
   const libFile =
     typeof libField === 'string'
       ? resolveInside({ root: packageRoot, from: packageRoot, path: libField })
       : undefined;
 
   if (typeof libField === 'string' && libFile === undefined) {
-    return { ok: false, error: `${shown}: vulcan.lib ${libField} points outside the package` };
+    return {
+      ok: false,
+      error: `${shown}: vulcan.presets.lib ${libField} points outside the package`,
+    };
   }
 
   const located: ILocatedPreset = {

@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-22 - the preset contract is vulcan.presets.app and vulcan.presets.lib
+
+A framework package names its presets under `vulcan.presets` (`app` required, `lib` optional) instead of `vulcan.preset` and `vulcan.lib`; `locatePreset` refuses the old keys with the new shape named (no fallback) and a lib without an app. Only the cli reads these keys: the app's own `vulcan.urls`, the recorded presets in the config and atlas's `presets` tool are different data and did not change. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-22 - okf, atlas and cli have the same layout
 
 Audit with `git ls-files`, `files` and `bun pm pack --dry-run`: each package committed `.env.test`; atlas had `scripts/pack-smoke.ts` and a dead `scripts/test.sh`, cli a `scripts/pack-smoke.ts`; the `files` exclusions differed; atlas had a `test:watch` script. Now every root is `.configs/ src/ package.json tsconfig.json Makefile README.md LICENSE.md` (cli adds `base/`), the test env is `TEST_ENV` in `make/test.mk` (B-08 reworded to match IGNIS), the pack smokes are root scripts, `files` has one shape and the scripts are `force-update` and `test` (atlas adds `prepublishOnly`). The tarballs are unchanged (the dry-run lists are identical). `scripts/__tests__/package-layout.test.ts` pins it. Concept: [repository-layout](/overview/repository-layout.md).

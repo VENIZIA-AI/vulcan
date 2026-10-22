@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-22 | [VULCAN 0.3.10: The Preset Contract Is vulcan.presets.app and vulcan.presets.lib](./2026-10-22-vulcan-0-3-10-preset-keys) | Breaking |
 | 2026-10-22 | [VULCAN 0.3.10: init Writes a Root bunfig.toml With Bun Telemetry Off](./2026-10-22-vulcan-0-3-10-bunfig) | Improvement |
 | 2026-10-22 | [VULCAN 0.3.10: A Menu Fed Piped Lines Stops Instead of Hanging](./2026-10-22-vulcan-0-3-10-menus-fail-fast) | Bug Fix |
 | 2026-10-22 | [VULCAN 0.3.10: atlas Lists the Project's Skills and When to Load Them](./2026-10-22-vulcan-0-3-10-atlas-skills) | Improvement |

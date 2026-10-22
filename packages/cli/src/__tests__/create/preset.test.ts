@@ -93,7 +93,7 @@ describe('locatePreset', () => {
     const root = createProject({
       files: {
         'node_modules/@acme/kit/package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./p.json" } }',
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./p.json" } } }',
         'node_modules/@acme/kit/p.json': PRESET_JSON,
       },
     });
@@ -109,7 +109,7 @@ describe('locatePreset', () => {
     const root = createProject({
       files: {
         'node_modules/@acme/kit/package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./p.json" } }',
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./p.json" } } }',
         'node_modules/@acme/kit/p.json': '{ "presetVersion": 2 }',
       },
     });
@@ -122,7 +122,7 @@ describe('locatePreset', () => {
     });
   });
 
-  test('a package without a vulcan.preset field is refused', () => {
+  test('a package without a vulcan.presets.app field is refused', () => {
     const root = createProject({
       files: { 'node_modules/left-pad/package.json': '{ "name": "left-pad", "version": "1.0.0" }' },
     });
@@ -130,8 +130,65 @@ describe('locatePreset', () => {
     expect(locatePreset({ spec: { packageName: 'left-pad', range: 'latest' }, root })).toEqual({
       ok: false,
       error:
-        'left-pad@1.0.0 ships no VULCAN preset (no "vulcan": { "preset" } in its package.json)',
+        'left-pad@1.0.0 ships no VULCAN preset (no "vulcan": { "presets": { "app" } } in its package.json)',
     });
+  });
+
+  test('the old keys vulcan.preset and vulcan.lib are refused with the new shape named, no fallback', () => {
+    const source = createProject({
+      files: {
+        'package.json':
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json", "lib": "./lib.json" } }',
+        'preset.json': PRESET_JSON,
+      },
+    });
+    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+
+    expect(result).toEqual({
+      ok: false,
+      error:
+        '@acme/kit@1.0.0 uses the old keys "vulcan": { "preset", "lib" }; the contract is now "vulcan": { "presets": { "app": "./path/preset.json", "lib": "./path/lib.json" } }',
+    });
+  });
+
+  test('only the old vulcan.preset key is refused the same way', () => {
+    const source = createProject({
+      files: {
+        'package.json':
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+        'preset.json': PRESET_JSON,
+      },
+    });
+    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+
+    expect(!result.ok && result.error).toContain('uses the old keys "vulcan": { "preset" }');
+    expect(!result.ok && result.error).toContain('"presets": { "app"');
+  });
+
+  test('vulcan.presets.lib without vulcan.presets.app is refused: a lib-only package is not supported', () => {
+    const source = createProject({
+      files: {
+        'package.json':
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "lib": "./lib.json" } } }',
+      },
+    });
+    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+
+    expect(!result.ok && result.error).toContain('vulcan.presets.lib needs vulcan.presets.app');
+  });
+
+  test('a vulcan.presets.lib path outside the package is refused, naming the key', () => {
+    const source = createProject({
+      files: {
+        'package.json':
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./preset.json", "lib": "../lib.json" } } }',
+        'preset.json': PRESET_JSON,
+      },
+    });
+    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+
+    expect(!result.ok && result.error).toContain('vulcan.presets.lib');
+    expect(!result.ok && result.error).toContain('points outside the package');
   });
 
   test('a missing package is refused', () => {
@@ -146,7 +203,7 @@ describe('locatePreset', () => {
     const root = createProject({
       files: {
         'node_modules/@acme/kit/package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./p.json" } }',
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./p.json" } } }',
         'node_modules/@acme/kit/p.json': JSON.stringify({
           presetVersion: 1,
           side: 'sideways',
@@ -167,7 +224,7 @@ describe('locatePreset urls', () => {
     createProject({
       files: {
         'package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./preset.json" } } }',
         'preset.json': JSON.stringify({
           presetVersion: 1,
           side: 'backend',
@@ -209,7 +266,7 @@ describe('locatePreset imports', () => {
     createProject({
       files: {
         'package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./preset.json" } } }',
         'preset.json': JSON.stringify({
           presetVersion: 1,
           side: 'backend',
@@ -260,7 +317,7 @@ describe('locatePreset imports', () => {
 
 describe('locatePreset containment', () => {
   const PACKAGE_JSON =
-    '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }';
+    '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./preset.json" } } }';
 
   test('a files folder outside the package is refused', () => {
     const source = createProject({
@@ -290,30 +347,30 @@ describe('locatePreset containment', () => {
     expect(!result.ok && result.error).toContain('/etc');
   });
 
-  test('a vulcan.preset path outside the package is refused', () => {
+  test('a vulcan.presets.app path outside the package is refused', () => {
     const outside = createProject({ files: { 'preset.json': PRESET_JSON } });
     const source = createProject({
       files: {
-        'package.json': `{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "${outside}/preset.json" } }`,
+        'package.json': `{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "${outside}/preset.json" } } }`,
       },
     });
     const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
 
     expect(result.ok).toBe(false);
-    expect(!result.ok && result.error).toContain('vulcan.preset');
+    expect(!result.ok && result.error).toContain('vulcan.presets.app');
   });
 
-  test('a vulcan.preset path that climbs out with .. is refused', () => {
+  test('a vulcan.presets.app path that climbs out with .. is refused', () => {
     const source = createProject({
       files: {
         'package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "../preset.json" } }',
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "../preset.json" } } }',
       },
     });
     const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
 
     expect(result.ok).toBe(false);
-    expect(!result.ok && result.error).toContain('vulcan.preset');
+    expect(!result.ok && result.error).toContain('vulcan.presets.app');
   });
 
   test('a files folder that is a symlink out of the package is refused', () => {
@@ -398,7 +455,7 @@ describe('copyPresetFiles', () => {
     const source = createProject({
       files: {
         'package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./preset.json" } } }',
         'preset.json': PRESET_JSON,
         'files/.env.example': 'APP_ENV_SERVER_PORT={{devPort}}',
         'files/.config/tool.json': '{}',
@@ -419,7 +476,7 @@ describe('copyPresetFiles', () => {
     const source = createProject({
       files: {
         'package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./preset.json" } } }',
         'preset.json': PRESET_JSON,
         'files/_env.example': 'a',
         'files/deploy/_gitignore': 'b',
@@ -440,7 +497,7 @@ describe('copyPresetFiles', () => {
     const source = createProject({
       files: {
         'package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./preset.json" } } }',
         'preset.json': PRESET_JSON,
         'files/note.txt': '{{app}} {{unknown}}',
       },
@@ -456,7 +513,7 @@ describe('copyPresetFiles', () => {
     const source = createProject({
       files: {
         'package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./preset.json" } } }',
         'preset.json': PRESET_JSON,
         'files/_gitignore': 'a',
         'files/_npmrc': 'b',
@@ -491,7 +548,7 @@ describe('copyPresetFiles', () => {
     const source = createProject({
       files: {
         'package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./preset.json" } } }',
         'preset.json': PRESET_JSON,
       },
     });
@@ -519,7 +576,7 @@ describe('copyPresetFiles', () => {
     const source = createProject({
       files: {
         'package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./preset.json" } } }',
         'preset.json': PRESET_JSON,
         'files/run.sh': '#!/bin/sh\necho {{app}}\n',
         'files/plain.txt': 'x',
@@ -542,7 +599,7 @@ describe('copyPresetFiles', () => {
     const source = createProject({
       files: {
         'package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
+          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./preset.json" } } }',
         'preset.json': PRESET_JSON,
         'files/real.txt': 'real',
       },
