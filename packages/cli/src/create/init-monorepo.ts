@@ -13,6 +13,7 @@ import type {
 } from './common/index.ts';
 import { today, writeFile } from './files.ts';
 import { recordedPresetOf } from './lib-preset.ts';
+import { renderBunfig } from './bunfig.ts';
 import { renderDockerignore } from './dockerignore.ts';
 import { menusAvailable } from '../ui/index.ts';
 import { askPresetSpec } from './preset-menu.ts';
@@ -108,6 +109,7 @@ const writeMonorepo = (opts: {
   });
   writeFile({ root, path: 'README.md', content: `# ${project}\n` });
   writeFile({ root, path: '.dockerignore', content: renderDockerignore() });
+  writeFile({ root, path: 'bunfig.toml', content: renderBunfig() });
 
   if (shared !== '') {
     writeFile({ root, path: `${shared}/.gitkeep`, content: '' });
