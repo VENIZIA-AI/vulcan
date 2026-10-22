@@ -72,7 +72,7 @@ export interface IPresetSpec {
 
 export interface ILocatedPreset {
   preset: IPreset;
-  /** The lib preset file (`vulcan.lib`), absolute and inside the package; absent when the preset makes apps only. */
+  /** The lib preset file (`vulcan.presets.lib`), absolute and inside the package; absent when the preset makes apps only. */
   libFile?: string;
   /** The preset package's root directory. */
   packageRoot: string;

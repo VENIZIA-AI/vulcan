@@ -312,7 +312,7 @@ Every refusal happens before the first write, with exit code 1.
 | `vulcan add: services/billing already exists` | An app or folder has that name. Pick another |
 | `vulcan add: say what to create - ...` | Neither `--app` nor `--lib`, and no terminal to ask. The message prints both commands |
 | `vulcan add: --app and --lib cannot be used together` | One kind per run |
-| `vulcan add: preset @acme/api has no lib kind` | `--lib` on a preset with no `vulcan.lib`. Use `--app`, or another preset |
+| `vulcan add: preset @acme/api has no lib kind` | `--lib` on a preset with no `vulcan.presets.lib`. Use `--app`, or another preset |
 | `vulcan add: where should billing go? pass --dir <folder>` | A library with no `--dir`, no `shared` folder and no folder shared by existing libraries |
 | `vulcan add: the packages in libs use more than one scope (@a, @b) - pass --scope <@scope>` | The folder's packages disagree on a scope |
 | `vulcan add: --scope 'acme' is not a scope like @acme` | A scope starts with `@` |

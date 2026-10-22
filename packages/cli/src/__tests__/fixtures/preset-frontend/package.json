@@ -1,1 +1,1 @@
-{ "name": "@fixture/frontend", "version": "1.2.3", "vulcan": { "preset": "./vulcan-preset/preset.json" } }
+{ "name": "@fixture/frontend", "version": "1.2.3", "vulcan": { "presets": { "app": "./vulcan-preset/preset.json" } } }
