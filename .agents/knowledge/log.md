@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-22 - init writes a root bunfig.toml
+
+`vulcan init` (plain and `--preset`) writes `bunfig.toml` at the root: `telemetry = false` and a comment that Bun reads it only from the directory a command runs in (`renderBunfig`); an existing file is kept, `sync` never touches it, doctor says nothing. The VULCAN repo has the same file. `minimumReleaseAge` is deliberately absent: see the gotcha. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-22 - a menu fed piped lines stops
 
 A preset smoke hung for 40 minutes: lines piped into a menu under a pty end in LF and clack takes only CR as Enter. `guardAgainstPipedLines` (ui/keyboard.ts) wraps every prompt: the first LF while a menu is open restores the terminal, prints the way out (flags, `TERM=dumb`) and exits 1. Concept: [cli](/packages/cli.md).
