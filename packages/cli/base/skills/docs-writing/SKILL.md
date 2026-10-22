@@ -1,11 +1,13 @@
 ---
 name: docs-writing
-description: Reader-first writing method for ALL of the project's documentation. Use this EVERY time you write or edit anything a human will read - wiki pages, READMEs, changelogs, references, guides, the knowledge bundle (.agents/knowledge), or when asked to "document" a feature - even when the request never says "docs". Also use it when reviewing or simplifying existing documentation.
+description: Reader-first writing method for ALL of the project's documentation. Use when you write or edit anything a human will read - wiki pages, READMEs, changelogs, references, guides, the knowledge bundle (.agents/knowledge), or when asked to "document" a feature, even when the request never says "docs", and when reviewing or simplifying existing documentation.
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 ---
 
 # Docs Writing - think like a reader, write like a writer
+
+**Be extremely concise. Sacrifice grammar for the sake of concision.**
 
 One goal: a reader opens the page and knows within seconds what it is about, and can act on it after one read. We never prove that a topic is deep. We make it feel easy.
 

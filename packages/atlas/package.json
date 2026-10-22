@@ -1,6 +1,6 @@
 {
   "name": "@venizia/vulcan-atlas",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "description": "MCP knowledge server: search and read the wiki, changelogs and knowledge bundle by section, with citations. Bun-only, zero-dependency transport.",
   "homepage": "https://github.com/VENIZIA-AI/vulcan/tree/main/packages/atlas",
   "repository": {
@@ -36,7 +36,7 @@
     "README.md",
     "LICENSE.md",
     "dist",
-    "!/**/__tests__",
+    "!**/__tests__",
     "!**/*.tsbuildinfo"
   ],
   "publishConfig": {
@@ -46,8 +46,7 @@
   "scripts": {
     "force-update": "sh ../../scripts/force-update.sh",
     "prepublishOnly": "make rebuild",
-    "test": "NODE_ENV=test bun test --env-file=.env.test",
-    "test:watch": "NODE_ENV=test bun test --watch --env-file=.env.test"
+    "test": "bun test"
   },
   "dependencies": {
     "typescript": "catalog:",

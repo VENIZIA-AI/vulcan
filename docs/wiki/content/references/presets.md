@@ -8,14 +8,14 @@ description: The format of a VULCAN preset - the package field, the preset.json 
 A preset is the app template a framework ships in its own npm package. `vulcan init --preset` and `vulcan add --preset` read it and create the app.
 A preset is data only: VULCAN never imports or runs code from it.
 
-Two things make a package a preset. The first is a `vulcan.preset` field in its `package.json`, the path to `preset.json`:
+Two things make a package a preset. The first is a `vulcan.presets.app` field in its `package.json`, the path to `preset.json`:
 
 ```json
 {
   "name": "@acme/api",
   "version": "1.0.0",
-  "files": ["vulcan-preset"],
-  "vulcan": { "preset": "./vulcan-preset/preset.json" }
+  "files": ["dist/presets"],
+  "vulcan": { "presets": { "app": "./dist/presets/app/preset.json" } }
 }
 ```
 
@@ -39,15 +39,18 @@ The second is that `preset.json`, with the files it copies next to it:
 ```
 
 ```text
-vulcan-preset/
-  preset.json
-  files/
-    _env.example
-    tsconfig.json
-    .configs/lints/oxlint.config.mts
-    src/index.ts
-    src/__tests__/smoke.test.ts
+dist/presets/
+  app/
+    preset.json
+    files/
+      _env.example
+      tsconfig.json
+      .configs/lints/oxlint.config.mts
+      src/index.ts
+      src/__tests__/smoke.test.ts
 ```
+
+The folder is yours to name; the official presets build into `dist/presets/{app,lib}`, and the examples here do the same.
 
 The app must pass `vulcan doctor`, which `init` runs last. Its `style` check wants `@venizia/dev-configs` declared and a lint config that imports it, so the example ships `.configs/lints/oxlint.config.mts` (`import { defineConfig } from 'oxlint'; import { oxlintConfigs } from '@venizia/dev-configs/linters'; export default defineConfig(oxlintConfigs);`) and lists `@venizia/dev-configs` in `devDependencies`. A preset without them ends `init` with `[style] package.json: add @venizia/dev-configs as a devDependency - here, or at the root`.
 
@@ -66,7 +69,7 @@ The app must pass `vulcan doctor`, which `init` runs last. Its `style` check wan
 | `checks` | array of script names | no | Scripts that `init` and `add` run in the app after install, in order. Each entry must be a key of `scripts`, or the preset is refused |
 | `urls` | array of paths | no | Paths to open on the dev port, each starting with `/` (`/api/hello`). `init` and `add` end with one `open http://localhost:<port><path>` line per path. With none, they print the root. They are recorded in the app's `package.json` under `vulcan.urls`, so a later `add` prints them too |
 | `imports` | object of strings | no | Node subpath imports for the app, written to its `package.json` as `imports` exactly as given, so code can import `#src/...` with no `tsconfig` `paths`, `tsc-alias` or Vite alias. Every key must start with `#`, or the preset is refused and the message names the key. Every value is a string. The [tokens](#tokens-in-files) are not replaced here. VULCAN 0.3.3 and older ignore the key |
-| `files` | string | yes | The folder to copy, relative to `preset.json`. It, and the `vulcan.preset` path, must stay inside the package; a path that climbs out with `..` is refused |
+| `files` | string | yes | The folder to copy, relative to `preset.json`. It, and the `vulcan.presets.app` path, must stay inside the package; a path that climbs out with `..` is refused |
 | `atlas` | array of `{ name, repo, ref }` | no | Documentation sources added to `atlas.sources`, so agents read the framework's docs |
 
 The app's `package.json` is generated from these keys: `name` is the app name, `version` is `0.0.0`, and the preset package itself is a dependency.
@@ -75,18 +78,22 @@ When the preset has `imports`, the app's `package.json` carries it after `privat
 
 ## A library kind
 
-A preset can also make shared packages (libraries) of the same framework. Add a `lib` path next to `preset`; the file it names is a second, smaller preset. A package with no `lib` key makes apps only, and an older VULCAN ignores the key.
+A preset can also make shared packages (libraries) of the same framework. Add a `lib` path next to `app` under `presets`; the file it names is a second, smaller preset. A package with no `presets.lib` makes apps only.
 
 ```json
 {
   "vulcan": {
-    "preset": "./vulcan-preset/app/preset.json",
-    "lib": "./vulcan-preset/lib/preset.json"
+    "presets": {
+      "app": "./dist/presets/app/preset.json",
+      "lib": "./dist/presets/lib/preset.json"
+    }
   }
 }
 ```
 
-Both paths are any JSON file inside the package; they need not be named `preset.json`. A package that has `lib` must keep its `preset` too: a lib-only package is not supported.
+Both paths are any JSON file inside the package; they need not be named `preset.json`. A package that has `presets.lib` must keep its `presets.app` too: a lib-only package is not supported.
+
+The keys before 0.3.10, `vulcan.preset` and `vulcan.lib`, are not read and have no fallback: a package that still has them is refused with `uses the old keys "vulcan": { "preset", "lib" }; the contract is now "vulcan": { "presets": { "app": ..., "lib": ... } }`. Move the two paths under `presets`.
 
 ```json
 {
@@ -213,7 +220,7 @@ This is what VULCAN's own tests do.
 A preset that does not fit the format stops with the key and the reason:
 
 ```text
-vulcan init: @acme/api@1.0.0: ./vulcan-preset/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined
+vulcan init: @acme/api@1.0.0: ./dist/presets/app/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined
 ```
 
 ## See also

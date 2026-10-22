@@ -6,6 +6,34 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-22 - the preset contract is vulcan.presets.app and vulcan.presets.lib
+
+A framework package names its presets under `vulcan.presets` (`app` required, `lib` optional) instead of `vulcan.preset` and `vulcan.lib`; `locatePreset` refuses the old keys with the new shape named (no fallback) and a lib without an app. Only the cli reads these keys: the app's own `vulcan.urls`, the recorded presets in the config and atlas's `presets` tool are different data and did not change. Concept: [cli](/packages/cli.md).
+
+## 2026-10-22 - okf, atlas and cli have the same layout
+
+Audit with `git ls-files`, `files` and `bun pm pack --dry-run`: each package committed `.env.test`; atlas had `scripts/pack-smoke.ts` and a dead `scripts/test.sh`, cli a `scripts/pack-smoke.ts`; the `files` exclusions differed; atlas had a `test:watch` script. Now every root is `.configs/ src/ package.json tsconfig.json Makefile README.md LICENSE.md` (cli adds `base/`), the test env is `TEST_ENV` in `make/test.mk` (B-08 reworded to match IGNIS), the pack smokes are root scripts, `files` has one shape and the scripts are `force-update` and `test` (atlas adds `prepublishOnly`). The tarballs are unchanged (the dry-run lists are identical). `scripts/__tests__/package-layout.test.ts` pins it. Concept: [repository-layout](/overview/repository-layout.md).
+
+## 2026-10-22 - init writes a root bunfig.toml
+
+`vulcan init` (plain and `--preset`) writes `bunfig.toml` at the root: `telemetry = false` and a comment that Bun reads it only from the directory a command runs in (`renderBunfig`); an existing file is kept, `sync` never touches it, doctor says nothing. The VULCAN repo has the same file. `minimumReleaseAge` is deliberately absent: see the gotcha. Concept: [cli](/packages/cli.md).
+
+## 2026-10-22 - a menu fed piped lines stops
+
+A preset smoke hung for 40 minutes: lines piped into a menu under a pty end in LF and clack takes only CR as Enter. `guardAgainstPipedLines` (ui/keyboard.ts) wraps every prompt: the first LF while a menu is open restores the terminal, prints the way out (flags, `TERM=dumb`) and exits 1. Concept: [cli](/packages/cli.md).
+
+## 2026-10-22 - tsconfig: what Bun already does
+
+Bun's TypeScript findings, measured at 0 errors: `experimentalDecorators` is gone from atlas, cli and okf (no decorator in src); cli and okf get `verbatimModuleSyntax: true` (ESM only; atlas stays off, 1,285 errors); `esModuleInterop` is gone from scripts/tsconfig.json (always on). `useDefineForClassFields: false` stays: Bun applies the consumer's tsconfig to dependency TypeScript source, so cli and okf run with the consumer's value.
+
+## 2026-10-22 - every dependency to its latest
+
+Phat's standing rule: always the highest version. The catalog: @types/bun 1.4.3, @venizia/dev-configs 0.3.5, eslint 10.13.0, oxfmt 0.74.0, oxlint 1.89.0, tsc-alias 1.9.8, zod ^4.6.7 (`bun outdated` hides exact pins: each entry was compared with `npm view` by hand); the docs workspace: vue ^3.5.44; the lockfiles' transitive packages refreshed with `bun update`. No package declares peerDependencies, no major was taken; TypeScript stays on 6 (typescript-eslint does not support 7).
+
+## 2026-10-22 - atlas lists the project's skills in its instructions
+
+One of six GLM 5.3 Flash runs answered a feature question without loading the build-a-feature skill. AGENTS.md must stay routing only, so skill routing went into the atlas server's `instructions`: a third paragraph, one line per skill (`skillCatalogOf`: the shipped skills of the installed vulcan plus `.agents/skills`, shadowing names left out) with its "Use when" trigger (`triggerOf`, cut at 110 characters), built at every `initialize` so an added, renamed or deleted skill needs no edit. `vulcan doctor` warns about a skill with no "Use when". docs-writing opens with the concision rule. Concept: [atlas](/packages/atlas.md).
+
 ## 2026-10-21 - the build-a-feature description says to load it before answering
 
 The 0.3.9 pre-release eval on Claude Code (project-only config, atlas and read tools) showed a workflow question answered in one turn from the skill's description in 2 of 3 runs: no skill load, no atlas call, because the grounding rule is in the body. The description now says to load the skill before any such answer; 6 of 6 runs then load it and ground first. Concept: [cli](/packages/cli.md).

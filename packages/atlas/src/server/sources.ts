@@ -26,6 +26,7 @@ import {
   buildSymbolTool,
   buildVersionTool,
 } from '@/tools';
+import { skillCatalogOf, triggerOf } from '@/skills';
 import { FreshnessGuard } from './freshness';
 import { instructionsOf, projectsOf } from './guidance';
 import { Refresher } from './refresh';
@@ -253,10 +254,16 @@ export const buildSourcesServer = (opts: {
   const releases = new SourceReleases({ sources: stores });
   const symbols = new SourceSymbols({ sources: stores });
   const project = opts.sources.find(source => source.mode === 'repository');
-  const instructions = instructionsOf({
-    sources: opts.sources,
-    unavailable: opts.unavailable ?? [],
-  });
+  // Read when a client connects: a skill added, renamed or deleted since the start shows at once.
+  const instructions = (): string =>
+    instructionsOf({
+      sources: opts.sources,
+      unavailable: opts.unavailable ?? [],
+      skills: skillCatalogOf({ root: opts.cwd }).map(entry => ({
+        name: entry.name,
+        trigger: triggerOf({ description: entry.description }).text,
+      })),
+    });
   const projects = projectsOf({ sources: opts.sources });
   const resolve =
     opts.refresh?.resolve ??

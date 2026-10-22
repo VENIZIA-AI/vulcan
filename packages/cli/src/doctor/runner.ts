@@ -5,6 +5,7 @@ import {
   checkAgents,
   checkAppScripts,
   checkAtlasBlock,
+  checkSkillTriggers,
   checkDockerignore,
   checkMcpAtlas,
   checkApps,
@@ -94,5 +95,5 @@ export const runDoctorWarnings = async (opts: { root: string }): Promise<IViolat
     configFile: relative(opts.root, loaded.file),
   };
 
-  return [...checkMcpAtlas(context), ...checkDockerignore(context)];
+  return [...checkMcpAtlas(context), ...checkDockerignore(context), ...checkSkillTriggers(context)];
 };

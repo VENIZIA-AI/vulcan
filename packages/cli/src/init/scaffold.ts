@@ -4,6 +4,7 @@ import { BASE_DIRECTORY, ProjectLayout, readProperty } from '../common/index.ts'
 import { ConfigConstants, findConfigFiles } from '../config/index.ts';
 import type { TConfigExtension } from '../config/index.ts';
 import { InitConstants, InitStatuses } from './common/index.ts';
+import { renderBunfig } from '../create/bunfig.ts';
 import { renderDockerignore } from '../create/dockerignore.ts';
 import type { IInitEntry, IScaffoldFile } from './common/index.ts';
 
@@ -164,6 +165,7 @@ export const scaffoldProject = (opts: {
   }
 
   entries.push(writeIfAbsent({ root, path: '.dockerignore', content: renderDockerignore() }));
+  entries.push(writeIfAbsent({ root, path: 'bunfig.toml', content: renderBunfig() }));
 
   const makefile = join(root, 'Makefile');
 

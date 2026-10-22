@@ -117,7 +117,7 @@ Blocked: <what blocks, or "nothing">
 | **B-05** | **`vulcan x atlas` runs atlas's `dist`, not `src`.** The cli and okf run from source; atlas runs its build. A change to atlas's source is invisible to `vulcan x atlas ...` - and to any timing or parity check made through it - until `make atlas` rebuilt it. To test source, run `bun packages/atlas/src/cli.ts ...`. |
 | **B-06** | **Do not trust an exit code or a green summary alone.** Read the output for `error TS`, for the test counts, and for what actually ran - skipped tests included. A stale `tsbuildinfo` replays ghost diagnostics after an exports change - purge it before trusting `tsc`. A test count that is a clean multiple of the file count is tests running once per copy, not coverage. |
 | **B-07** | **Agent scripting uses `bun`** (`bun -e '…'`, `bun file.ts`, `Bun.file()`), never Python. |
-| **B-08** | **Test-only concerns go through the committed `.env.test`,** never through a default or a source change made for a test's convenience. Tests run on the Bun test runner only - never Jest, Vitest or Mocha. |
+| **B-08** | **Test-only settings live in `TEST_ENV` in `make/test.mk`,** never in a committed `.env` file (only `.env.example` is tracked), a default or a source change made for a test's convenience. Tests run on the Bun test runner only - never Jest, Vitest or Mocha. |
 
 ## C - Code and writing
 

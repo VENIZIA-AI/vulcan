@@ -1,5 +1,38 @@
 import type { IResolvedSource, IUnavailableSource } from '@/sources/common';
 
+const TRIGGER_MAX = 110;
+
+export interface ISkillLine {
+  name: string;
+  trigger: string;
+}
+
+/** A trigger cut at its last comma or space within the limit, so a line never ends mid-word. */
+const shortened = (opts: { text: string }): string => {
+  if (opts.text.length <= TRIGGER_MAX) {
+    return opts.text;
+  }
+
+  const head = opts.text.slice(0, TRIGGER_MAX + 1);
+  const comma = head.lastIndexOf(',');
+  const space = head.lastIndexOf(' ');
+  const at = comma > TRIGGER_MAX / 2 ? comma : space;
+
+  return head.slice(0, at === -1 ? TRIGGER_MAX : at).replace(/[,;:\s]+$/, '');
+};
+
+/** One line per skill, after the how-to-build paragraph and before the status lines, which a client may cut first. */
+const skillsParagraph = (opts: { skills: ISkillLine[] }): string[] =>
+  opts.skills.length === 0
+    ? []
+    : [
+        [
+          'Skills: a request matches one, load it before you answer. A workflow question counts.',
+          ...opts.skills.map(skill => `- \`${skill.name}\`: ${shortened({ text: skill.trigger })}`),
+        ].join('\n'),
+        '',
+      ];
+
 /** "acme", "acme and forge", "acme, forge and anvil". */
 const joinNames = (opts: { names: string[] }): string =>
   opts.names.length <= 1
@@ -95,6 +128,7 @@ const scopesPhrase = (opts: { sources: IResolvedSource[] }): string => {
 export const instructionsOf = (opts: {
   sources: IResolvedSource[];
   unavailable: IUnavailableSource[];
+  skills?: ISkillLine[];
 }): string => {
   const projects = projectsOf({ sources: opts.sources });
 
@@ -103,6 +137,7 @@ export const instructionsOf = (opts: {
     '',
     `Before you answer how to build something in ${projects} (a feature, a controller, a service, a repository, a datasource) or how a convention is organised, call \`search\` and read the hits with \`get\`; do not answer from the files you happen to open. A plan never says "check atlas" for a step you have not done: call it first.`,
     '',
+    ...skillsParagraph({ skills: opts.skills ?? [] }),
     `Atlas serves ${opts.sources.length} source(s); every hit names its source.`,
     ...statusOf(opts),
   ].join('\n');

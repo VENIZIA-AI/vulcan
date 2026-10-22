@@ -26,6 +26,7 @@ $ bun x --no-install vulcan init
   created  .configs/formatters/oxfmt.config.mts
   created  .configs/vulcan.config.mts
   created  .dockerignore
+  created  bunfig.toml
   created  Makefile
   updated  .gitignore: + CLAUDE.md CLAUDE.*.md .claude/ .agents/plans .agents/vulcan.local.json
 left to do:
@@ -87,6 +88,7 @@ It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index an
 | `.configs/formatters/oxfmt.config.mts` | Formatter configuration for oxfmt extending `@venizia/dev-configs` | Add project formatting overrides when needed |
 | `.dockerignore` | Keeps dependencies, build output, `.git` and every agent's local files out of a Docker build context (the same list `init --preset` writes) | Edit it freely; `init` never overwrites it |
 | `.configs/vulcan.config.<ext>` | Main VULCAN configuration file for agents, rule slots and packages | Configure coding agents, rule slots, and workspace packages |
+| `bunfig.toml` | Bun's telemetry off (`telemetry = false`) and a comment that Bun reads this file only from the directory a command runs in, so it sits at the root. No release-age gate: a gate of a few days fails a fresh install whose version floors are the latest releases | Edit it freely; `init` never overwrites it, `sync` never touches it |
 | `Makefile` | Root Makefile that includes shared VULCAN make targets from `vulcan.mk` | Add project make targets |
 
 ## Report statuses
@@ -113,6 +115,7 @@ $ bun x --no-install vulcan init
   kept     .configs/formatters/oxfmt.config.mts
   kept     .configs/vulcan.config.mts
   kept     .dockerignore
+  kept     bunfig.toml
 left to do:
   1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
   2. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
@@ -233,6 +236,7 @@ Fetching preset @venizia/ignis@latest ...
   created  .gitignore
   created  README.md
   created  .dockerignore
+  created  bunfig.toml
   created  libs/.gitkeep
   created  services/core-api/tsconfig.json
   created  services/core-api/.env.example
@@ -354,6 +358,7 @@ $ cd my-product && find . -type f -not -path '*/node_modules/*' -not -name bun.l
 ./CLAUDE.md
 ./Makefile
 ./README.md
+./bunfig.toml
 ./libs/.gitkeep
 ./package.json
 ./services/core-api/.configs/builders/Dockerfile
@@ -378,6 +383,7 @@ The files `sync` wrote (`.agents/vulcan.local.json`, `.agents/vulcan.manifest.js
 | `<folder>/<app>/` | The preset's files, plus a `package.json` whose dependencies are `catalog:` |
 | `.gitignore`, `README.md`, `Makefile` | The ignore list for agent files, a title, and the VULCAN targets plus `make dev` |
 | `.dockerignore` | The build context of a Dockerfile built from the root: `**/node_modules`, `**/dist`, `**/*.tsbuildinfo`, `**/coverage`, `**/*.log`, `.git`, `.claude`, `.agents/plans`, the secrets `**/.env` and `**/.env.*` with `!**/.env.example` kept (in that order, after a comment saying why), and the per-machine files of every coding agent (the ones `sync` keeps in `.git/info/exclude`). The lockfile, every `package.json` and the sources are not listed: the image needs them. Edit it freely; `init` only creates a project, so it never overwrites one |
+| `bunfig.toml` | `telemetry = false` and the comment above it, the same file the scaffold above writes | Edit it freely |
 | `AGENTS.md`, `.agents/rules.md` | The same layer as [the scaffold above](#generated-files) |
 | `.agents/vulcan.manifest.json`, `.agents/vulcan.local.json`, `.mcp.json`, `CLAUDE.md`, `.claude/` | What the first `sync` writes: the manifest, your choice of agents, the atlas entry for the agents that read `.mcp.json`, and the Claude adapters |
 | `.configs/vulcan.config.mts` | `name`, `layout`, one `packages` entry per app, and the preset's `atlas` sources |
@@ -414,8 +420,9 @@ Add more apps later with [`vulcan add`](/references/commands/add).
 | `vulcan init: --backend-dir and --shared-dir both name 'code' - each kind of code needs its own folder` | Two of `--backend-dir`, `--frontend-dir` and `--shared-dir` name the same folder. Give each its own |
 | `vulcan init: --project 'Fresh' is not a name: lowercase letters, digits and '-'` | A flag holds an invalid name |
 | `vulcan init: @acme/api@1.0.0 has preset version 2; this VULCAN reads version 1 - upgrade @venizia/vulcan` | The preset is newer than this VULCAN. Upgrade VULCAN |
-| `vulcan init: @acme/none@1.0.0 ships no VULCAN preset (no "vulcan": { "preset" } in its package.json)` | The package is not a preset |
-| `vulcan init: @acme/api@1.0.0: ./vulcan-preset/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined` | `preset.json` breaks the format. The author fixes it |
+| `vulcan init: @acme/none@1.0.0 ships no VULCAN preset (no "vulcan": { "presets": { "app" } } in its package.json)` | The package is not a preset |
+| `vulcan init: @acme/api@1.0.0 uses the old keys "vulcan": { "preset", "lib" }; the contract is now "vulcan": { "presets": { "app": "./path/preset.json", "lib": "./path/lib.json" } }` | The package still has the keys of 0.3.9 and older. There is no fallback: the framework author moves the paths under `presets` |
+| `vulcan init: @acme/api@1.0.0: ./dist/presets/app/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined` | `preset.json` breaks the format. The author fixes it |
 | `vulcan init: no package at ~/work/nope - was it installed?` | The `file:` path has no `package.json` |
 
 A `file:` preset is allowed but warns, because it writes a `file:<path>` entry into `catalog` that does not work on another machine or in CI.

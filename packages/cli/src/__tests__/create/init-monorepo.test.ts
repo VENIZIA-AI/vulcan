@@ -262,6 +262,18 @@ describe('vulcan init --preset', () => {
     expect(dockerfile).toBe('COPY be/api3/package.json ./be/api3/package.json\n');
   });
 
+  test('a root bunfig.toml is written with telemetry off and no release-age gate', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    const text = readFileSync(join(parent, 'my-product', 'bunfig.toml'), 'utf8');
+
+    expect(text.split('\n')).toContain('telemetry = false');
+    expect(text).toContain('only from the directory');
+    expect(text).not.toContain('minimumReleaseAge');
+  });
+
   test('a root .dockerignore is written: build output, dependencies, agent files', () => {
     const parent = createProject({ files: {} });
 
