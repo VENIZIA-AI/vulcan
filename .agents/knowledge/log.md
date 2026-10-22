@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-22 - --scope names an app's package
+
+`init --preset` and `add --app` take `--scope @acme` (`readScope`, `SCOPE_PATTERN` in create/names.ts, shared with `add --lib`) and name the app's package `@acme/<app>`: the app's package.json and the config's `packages[].name`; the folder and `dir` stay bare, `--api` still matches the dir, never inferred from other packages. A menu asks for it (`askScope`, optional); plain terminals do not. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-22 - the preset contract is vulcan.presets.app and vulcan.presets.lib
 
 A framework package names its presets under `vulcan.presets` (`app` required, `lib` optional) instead of `vulcan.preset` and `vulcan.lib`; `locatePreset` refuses the old keys with the new shape named (no fallback) and a lib without an app. Only the cli reads these keys: the app's own `vulcan.urls`, the recorded presets in the config and atlas's `presets` tool are different data and did not change. Concept: [cli](/packages/cli.md).

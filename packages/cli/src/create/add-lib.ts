@@ -10,7 +10,7 @@ import { today, writeFile } from './files.ts';
 import { readLibPreset } from './lib-preset.ts';
 import type { TLibPreset } from './lib-preset.ts';
 import { ABORTED, confirmWrite, planLines } from './plan.ts';
-import { askInTerminal, readFlag } from './names.ts';
+import { askInTerminal, readFlag, SCOPE_PATTERN } from './names.ts';
 import { copyPresetFiles } from './preset.ts';
 import { runBun } from './process.ts';
 import {
@@ -26,7 +26,6 @@ import {
 } from './workspace.ts';
 
 const KNOWLEDGE_DIRECTORY = '.agents/knowledge';
-const SCOPE_PATTERN = /^@[a-z0-9][a-z0-9-]*$/;
 const DIRECTORY_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 const fail = (opts: { message: string }): number => {

@@ -15,9 +15,11 @@ import { askPresetSpec } from './preset-menu.ts';
 import { ABORTED, confirmWrite, planLines } from './plan.ts';
 import {
   askInTerminal,
+  askScope,
   askWithPrompt,
   nameProblem,
   readFlag,
+  readScope,
   resolveNames,
   SIDE_FIELDS,
 } from './names.ts';
@@ -329,6 +331,12 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
     return fail({ message: `${CreateFlags.APP} and ${CreateFlags.LIB} cannot be used together` });
   }
 
+  const flaggedScope = readScope({ args: opts.args });
+
+  if (!flaggedScope.ok) {
+    return fail({ message: flaggedScope.error });
+  }
+
   if (libFlag && libName === undefined) {
     return fail({ message: `${CreateFlags.LIB} needs a name` });
   }
@@ -452,9 +460,20 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
     });
   }
 
+  // Optional, asked only where menus are drawn; a plain terminal and a script give --scope.
+  const scope = flaggedScope.scope ?? (menusAvailable() ? await askScope() : undefined);
+
+  if (scope === null) {
+    return fail({ message: ABORTED });
+  }
+
+  const packageOfApp = scope === undefined ? app : `${scope}/${app}`;
   const packages = resolvePackages({ config });
 
-  if (existsSync(join(cwd, folder, app)) || packages.some(entry => entry.dir === app)) {
+  if (
+    existsSync(join(cwd, folder, app)) ||
+    packages.some(entry => entry.dir === app || entry.name === packageOfApp)
+  ) {
     return fail({ message: `${folder}/${app} already exists` });
   }
 
@@ -478,7 +497,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   }
 
   const source = readFileSync(loaded.file, 'utf8');
-  const entry = { dir: app, name: app, path: `${folder}/${app}` };
+  const entry = { dir: app, name: packageOfApp, path: `${folder}/${app}` };
   const knownSources = new Set(config.atlas.sources.map(known => known.name));
   const newSources = preset.atlas.filter(candidate => !knownSources.has(candidate.name));
   const parsed = parseAppsBlock({ source });
@@ -538,6 +557,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
     lines: planLines({
       rows: [
         ['app', `${folder}/${app}`],
+        ...(scope === undefined ? [] : [['package', packageOfApp] as [string, string]]),
         ['side', side],
         ['preset', `${packageName} ${packageVersion}`],
         ['port', String(devPort)],
@@ -562,6 +582,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
     path: `${folder}/${app}/package.json`,
     content: renderAppManifest({
       app,
+      name: packageOfApp,
       preset,
       presetPackage: { name: packageName, version: packageVersion },
     }),

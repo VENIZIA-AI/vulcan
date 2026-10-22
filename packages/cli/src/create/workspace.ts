@@ -153,12 +153,14 @@ const toCatalog = (opts: { dependencies: Record<string, string> }): Record<strin
 
 export const renderAppManifest = (opts: {
   app: string;
+  /** The package name when it is not the app name: `@scope/<app>`. */
+  name?: string;
   preset: IPreset;
   presetPackage: { name: string; version: string };
 }): string =>
   json({
     value: {
-      name: opts.app,
+      name: opts.name ?? opts.app,
       version: '0.0.0',
       private: true,
       // The preset's own text: no token is replaced here, a path pattern has no use for one.

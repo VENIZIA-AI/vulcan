@@ -30,6 +30,7 @@ The menus are drawn when stdin and stdout are both a terminal and `TERM` is not 
 | The side folder of an app (`add`) | Not asked | Apps of one side share the folder the config holds |
 | The backend app to proxy `/api` to (`add`, frontend) | Select of the backend apps, plus `none` | |
 | A new project, app or library name | Text | The earlier choice is the default; a name is never made up. A name that is not one is refused where it is typed |
+| The package scope of a new app (`init`, `add --app`) | Text, optional | Like `@acme`; empty keeps the bare name. Asked only where menus are drawn; a script gives `--scope` |
 | Before anything is written | A summary, then a confirm | `init` and `add`. `No` stops with `aborted: nothing was written` |
 
 ## Scripts, pipes and a pty
