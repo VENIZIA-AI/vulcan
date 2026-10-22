@@ -1,4 +1,5 @@
 import { confirm, isCancel, multiselect, note, select, text } from '@clack/prompts';
+import { guardAgainstPipedLines } from './keyboard.ts';
 
 /** One line of a menu: what it is called, and a short note beside it. */
 export interface IChoice {
@@ -18,13 +19,15 @@ export const promptText = async (opts: {
   defaultValue?: string;
   validate?: (value: string) => string | undefined;
 }): Promise<string | null> => {
-  const value = await text({
-    message: opts.message,
-    ...(opts.defaultValue === undefined
-      ? {}
-      : { placeholder: opts.defaultValue, defaultValue: opts.defaultValue }),
-    validate: input => opts.validate?.(input ?? ''),
-  });
+  const value = await guardAgainstPipedLines(() =>
+    text({
+      message: opts.message,
+      ...(opts.defaultValue === undefined
+        ? {}
+        : { placeholder: opts.defaultValue, defaultValue: opts.defaultValue }),
+      validate: input => opts.validate?.(input ?? ''),
+    }),
+  );
 
   return isCancel(value) ? null : value;
 };
@@ -35,15 +38,17 @@ export const promptSelect = async (opts: {
   choices: IChoice[];
   initial?: string;
 }): Promise<string | null> => {
-  const value = await select({
-    message: opts.message,
-    options: opts.choices.map(choice => ({
-      value: choice.value,
-      label: choice.label,
-      ...(choice.hint === undefined ? {} : { hint: choice.hint }),
-    })),
-    initialValue: opts.initial,
-  });
+  const value = await guardAgainstPipedLines(() =>
+    select({
+      message: opts.message,
+      options: opts.choices.map(choice => ({
+        value: choice.value,
+        label: choice.label,
+        ...(choice.hint === undefined ? {} : { hint: choice.hint }),
+      })),
+      initialValue: opts.initial,
+    }),
+  );
 
   return isCancel(value) ? null : value;
 };
@@ -54,16 +59,18 @@ export const promptMultiselect = async (opts: {
   choices: IChoice[];
   initial: string[];
 }): Promise<string[] | null> => {
-  const value = await multiselect({
-    message: opts.message,
-    options: opts.choices.map(choice => ({
-      value: choice.value,
-      label: choice.label,
-      ...(choice.hint === undefined ? {} : { hint: choice.hint }),
-    })),
-    initialValues: opts.initial,
-    required: false,
-  });
+  const value = await guardAgainstPipedLines(() =>
+    multiselect({
+      message: opts.message,
+      options: opts.choices.map(choice => ({
+        value: choice.value,
+        label: choice.label,
+        ...(choice.hint === undefined ? {} : { hint: choice.hint }),
+      })),
+      initialValues: opts.initial,
+      required: false,
+    }),
+  );
 
   return isCancel(value) ? null : value;
 };
@@ -72,7 +79,9 @@ export const promptConfirm = async (opts: {
   message: string;
   initial?: boolean;
 }): Promise<boolean | null> => {
-  const value = await confirm({ message: opts.message, initialValue: opts.initial ?? true });
+  const value = await guardAgainstPipedLines(() =>
+    confirm({ message: opts.message, initialValue: opts.initial ?? true }),
+  );
 
   return isCancel(value) ? null : value;
 };

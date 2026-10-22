@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-22 - a menu fed piped lines stops
+
+A preset smoke hung for 40 minutes: lines piped into a menu under a pty end in LF and clack takes only CR as Enter. `guardAgainstPipedLines` (ui/keyboard.ts) wraps every prompt: the first LF while a menu is open restores the terminal, prints the way out (flags, `TERM=dumb`) and exits 1. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-22 - tsconfig: what Bun already does
 
 Bun's TypeScript findings, measured at 0 errors: `experimentalDecorators` is gone from atlas, cli and okf (no decorator in src); cli and okf get `verbatimModuleSyntax: true` (ESM only; atlas stays off, 1,285 errors); `esModuleInterop` is gone from scripts/tsconfig.json (always on). `useDefineForClassFields: false` stays: Bun applies the consumer's tsconfig to dependency TypeScript source, so cli and okf run with the consumer's value.
