@@ -1,8 +1,9 @@
 # Package test suites.
 
-# Packages whose package.json owns the test command (NODE_ENV=test + .env.test); `bun run` appends
-# the flags to it. The rest run `bun test` directly.
-TEST_SCRIPT := okf atlas cli
+# The test environment, in one place (no committed env file). Every package runs with it; atlas also
+# reads the sibling IGNIS checkout its repo-mode and generator tests need (IGNIS_ROOT overrides, tests only).
+TEST_ENV := NODE_ENV=test APP_ENV_LOGGER_LEVEL=error
+TEST_ENV_atlas := NODE_ENV=test APP_ENV_LOGGER_LEVEL=warn IGNIS_ROOT=../../../ignis
 
 TEST_TARGETS := $(addprefix test-,$(PACKAGES))
 
@@ -12,7 +13,6 @@ TEST_TARGETS := $(addprefix test-,$(PACKAGES))
 # TEST TARGETS
 # The one home of the test flags. `--parallel` runs the files across worker processes and implies
 # `--isolate`, so a mock, env or TLS setting one file leaks cannot pass or fail another.
-# Atlas's repo-mode and generator tests read the sibling IGNIS checkout (IGNIS_ROOT overrides, tests only).
 # ----------------------------------------------------------------------------
 BUN_TEST_FLAGS ?= --parallel
 # Packages whose tests run serially. Bun 1.4's parallel workers sometimes never reap a synchronous git
@@ -28,7 +28,7 @@ test-scripts:
 	@bun test scripts $(BUN_TEST_FLAGS)
 
 $(TEST_TARGETS): test-%:
-	@cd packages/$* && $(if $(filter $*,$(TEST_SCRIPT)),bun run test,bun test) $(if $(filter $*,$(SERIAL_TESTS)),,$(BUN_TEST_FLAGS))
+	@cd packages/$* && $(or $(TEST_ENV_$*),$(TEST_ENV)) bun test $(if $(filter $*,$(SERIAL_TESTS)),,$(BUN_TEST_FLAGS))
 
 # ----------------------------------------------------------------------------
 # SMOKE TARGETS
@@ -40,4 +40,4 @@ SMOKE_TARGETS := smoke-atlas smoke-cli
 
 $(SMOKE_TARGETS): smoke-%:
 	@echo "smoke: packages/$*"
-	@bun packages/$*/scripts/pack-smoke.ts
+	@bun scripts/pack-smoke-$*.ts

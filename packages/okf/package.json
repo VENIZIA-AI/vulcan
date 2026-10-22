@@ -32,14 +32,15 @@
     "README.md",
     "LICENSE.md",
     "src",
-    "!src/__tests__"
+    "!**/__tests__",
+    "!**/*.tsbuildinfo"
   ],
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
     "force-update": "sh ../../scripts/force-update.sh",
-    "test": "NODE_ENV=test bun test --env-file=.env.test"
+    "test": "bun test"
   },
   "dependencies": {
     "cytoscape": "catalog:",
