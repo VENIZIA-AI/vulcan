@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-22 - a menu fed piped lines stops
+
+A preset smoke hung for 40 minutes: lines piped into a menu under a pty end in LF and clack takes only CR as Enter. `guardAgainstPipedLines` (ui/keyboard.ts) wraps every prompt: the first LF while a menu is open restores the terminal, prints the way out (flags, `TERM=dumb`) and exits 1. Concept: [cli](/packages/cli.md).
+
 ## 2026-10-22 - every dependency to its latest
 
 Phat's standing rule: always the highest version. The catalog: @types/bun 1.4.3, @venizia/dev-configs 0.3.5, eslint 10.13.0, oxfmt 0.74.0, oxlint 1.89.0, tsc-alias 1.9.8, zod ^4.6.7 (`bun outdated` hides exact pins: each entry was compared with `npm view` by hand); the docs workspace: vue ^3.5.44; the lockfiles' transitive packages refreshed with `bun update`. No package declares peerDependencies, no major was taken; TypeScript stays on 6 (typescript-eslint does not support 7).

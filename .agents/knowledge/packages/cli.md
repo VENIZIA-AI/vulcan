@@ -35,7 +35,7 @@ Wiki pages: `references/commands/init.md`, `references/commands/add.md` and `ref
 
 ## Prompts
 
-Questions go through `packages/cli/src/ui` (wrappers over the pinned `@clack/prompts`), never clack directly. `menusAvailable()` (stdin and stdout TTY, `TERM` not `dumb`) picks menus; every other case keeps the plain line questions (`askWithPrompt`) so pipes and logs are unchanged. A pty test drives a menu with `driveTerminal` (`__tests__/terminal.helper.ts`); the older pty tests set `TERM=dumb` to keep covering the plain questions.
+Questions go through `packages/cli/src/ui` (wrappers over the pinned `@clack/prompts`), never clack directly. `menusAvailable()` (stdin and stdout TTY, `TERM` not `dumb`) picks menus; every other case keeps the plain line questions (`askWithPrompt`) so pipes and logs are unchanged. A pty test drives a menu with `driveTerminal` (`__tests__/terminal.helper.ts`); the older pty tests set `TERM=dumb` to keep covering the plain questions. Every prompt runs inside `guardAgainstPipedLines` (`ui/keyboard.ts`): a raw-mode keyboard sends CR for Enter, so the first LF while a menu is open means piped lines, and the command restores the terminal and exits 1 naming the flags and `TERM=dumb`.
 
 ## The shipped base (`packages/cli/base/`)
 
