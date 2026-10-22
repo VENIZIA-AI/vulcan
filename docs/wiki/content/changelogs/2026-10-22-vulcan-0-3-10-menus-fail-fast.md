@@ -1,12 +1,12 @@
 ---
-title: "VULCAN 0.3.11: A Menu Fed Piped Lines Stops Instead of Hanging"
+title: "VULCAN 0.3.10: A Menu Fed Piped Lines Stops Instead of Hanging"
 description: A menu under a pty that receives piped lines (LF) now ends the command at once with the flags and TERM=dumb as the way out, instead of waiting for a key that never comes.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-22
 
-## VULCAN 0.3.11: a menu fed piped lines stops instead of hanging
+## VULCAN 0.3.10: a menu fed piped lines stops instead of hanging
 
 <Badge type="info" text="Bug Fix" />
 

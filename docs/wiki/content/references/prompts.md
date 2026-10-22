@@ -36,7 +36,7 @@ The menus are drawn when stdin and stdout are both a terminal and `TERM` is not 
 
 Scripts pass **flags** (`--agents`, `--project`, `--app`, `--lib`, `--preset` and the folder flags): nothing is asked, with or without a terminal.
 
-A menu reads **key presses**, not lines. Piping answers into a command that runs under a pseudo-terminal (`script -qec 'vulcan add' /dev/null`, `expect`) hands it lines ending in LF, and a menu takes only CR (what Enter sends) as Enter. Since 0.3.11 the command stops at once with `this menu reads key presses, not lines` and the way out (flags, or `TERM=dumb`), exit code `1`; in 0.3.9 and 0.3.10 it waited forever. To drive a command through a pty with piped lines, set `TERM=dumb`: the plain line questions run, as they did before 0.3.9.
+A menu reads **key presses**, not lines. Piping answers into a command that runs under a pseudo-terminal (`script -qec 'vulcan add' /dev/null`, `expect`) hands it lines ending in LF, and a menu takes only CR (what Enter sends) as Enter. Since 0.3.10 the command stops at once with `this menu reads key presses, not lines` and the way out (flags, or `TERM=dumb`), exit code `1`; in 0.3.9 it waited forever. To drive a command through a pty with piped lines, set `TERM=dumb`: the plain line questions run, as they did before 0.3.9.
 
 ```bash
 printf 'my-product
