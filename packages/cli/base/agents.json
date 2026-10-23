@@ -3,15 +3,9 @@
     "id": "claude",
     "name": "Claude Code",
     "detect": {
-      "binaries": [
-        "claude"
-      ],
-      "homeDirs": [
-        "~/.claude"
-      ],
-      "projectDirs": [
-        ".claude"
-      ]
+      "binaries": ["claude"],
+      "homeDirs": ["~/.claude"],
+      "projectDirs": [".claude"]
     },
     "instructions": {
       "nativeAgentsMd": false,
@@ -35,15 +29,9 @@
     "id": "omp",
     "name": "omp (oh-my-pi)",
     "detect": {
-      "binaries": [
-        "omp"
-      ],
-      "homeDirs": [
-        "~/.omp"
-      ],
-      "projectDirs": [
-        ".omp"
-      ]
+      "binaries": ["omp"],
+      "homeDirs": ["~/.omp"],
+      "projectDirs": [".omp"]
     },
     "instructions": {
       "nativeAgentsMd": true,
@@ -64,15 +52,9 @@
     "id": "codex",
     "name": "Codex",
     "detect": {
-      "binaries": [
-        "codex"
-      ],
-      "homeDirs": [
-        "~/.codex"
-      ],
-      "projectDirs": [
-        ".codex"
-      ]
+      "binaries": ["codex"],
+      "homeDirs": ["~/.codex"],
+      "projectDirs": [".codex"]
     },
     "instructions": {
       "nativeAgentsMd": true,
@@ -95,16 +77,9 @@
     "id": "cursor",
     "name": "Cursor",
     "detect": {
-      "binaries": [
-        "cursor",
-        "cursor-agent"
-      ],
-      "homeDirs": [
-        "~/.cursor"
-      ],
-      "projectDirs": [
-        ".cursor"
-      ]
+      "binaries": ["cursor", "cursor-agent"],
+      "homeDirs": ["~/.cursor"],
+      "projectDirs": [".cursor"]
     },
     "instructions": {
       "nativeAgentsMd": true,
@@ -125,9 +100,7 @@
     "id": "copilot-cli",
     "name": "Copilot CLI",
     "detect": {
-      "binaries": [
-        "copilot"
-      ],
+      "binaries": ["copilot"],
       "homeDirs": [],
       "projectDirs": []
     },
@@ -151,9 +124,7 @@
     "name": "Copilot in VS Code",
     "detect": {
       "binaries": [],
-      "homeDirs": [
-        "~/.vscode/extensions/github.copilot-chat-*"
-      ],
+      "homeDirs": ["~/.vscode/extensions/github.copilot-chat-*"],
       "projectDirs": []
     },
     "instructions": {
@@ -175,12 +146,8 @@
     "id": "antigravity",
     "name": "Antigravity CLI",
     "detect": {
-      "binaries": [
-        "agy"
-      ],
-      "homeDirs": [
-        "~/.gemini/antigravity-cli"
-      ],
+      "binaries": ["agy"],
+      "homeDirs": ["~/.gemini/antigravity-cli"],
       "projectDirs": []
     },
     "instructions": {
@@ -202,15 +169,9 @@
     "id": "pi",
     "name": "Pi",
     "detect": {
-      "binaries": [
-        "pi"
-      ],
-      "homeDirs": [
-        "~/.pi/agent"
-      ],
-      "projectDirs": [
-        ".pi"
-      ]
+      "binaries": ["pi"],
+      "homeDirs": ["~/.pi/agent"],
+      "projectDirs": [".pi"]
     },
     "instructions": {
       "nativeAgentsMd": true,
