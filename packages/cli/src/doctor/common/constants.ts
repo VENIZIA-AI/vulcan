@@ -17,6 +17,7 @@ export class DoctorChecks {
   static readonly AGENTS = 'agents';
   static readonly DOCKERIGNORE = 'dockerignore';
   static readonly MCP = 'mcp';
+  static readonly FORMAT = 'format';
   static readonly SCHEME_SET = new Set<string>([
     this.CONFIG,
     this.LAYOUT,
@@ -36,6 +37,7 @@ export class DoctorChecks {
     this.AGENTS,
     this.DOCKERIGNORE,
     this.MCP,
+    this.FORMAT,
   ]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);
@@ -60,6 +62,8 @@ export class DoctorConstants {
   static readonly MAKE_INCLUDE_PATTERN =
     /^-?include\s+\S*@venizia\/vulcan\/base\/make\/vulcan\.mk\s*$/m;
   static readonly SHIPPED_HOOKS_PATH = '@venizia/vulcan/base/hooks/';
+  /** The `[fmt]` table header of a `bunfig.toml`, on a line of its own, a trailing comment allowed. */
+  static readonly BUNFIG_FMT_SECTION = /^\s*\[fmt\]\s*(#.*)?$/m;
   static readonly LINT_CONFIG_FILE = /^(oxlint|eslint|oxfmt)\.config\.(mts|ts|mjs|js|cjs)$/;
   /** Where each tool's config lives under `.configs/`; a file left directly in `.configs/` is told where it belongs. */
   static readonly LINT_CONFIG_FOLDERS: Record<string, string> = {

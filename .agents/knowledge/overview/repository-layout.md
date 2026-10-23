@@ -24,7 +24,7 @@ make/       build, lint, test, release, evals, help, project (included by each p
   written by `vulcan sync`.
 - `.agents/plans/` and `.agents/specs/` are gitignored: saved specs and plans stay local.
 - Each package root holds exactly `.configs/` (`lints/` oxlint and ESLint naming-convention, `formatters/`
-  oxfmt, each folder with an optional `.ignore`), `src/`, `package.json`, `tsconfig.json`, `Makefile` (including
+  oxfmt (kept until the step that drops it; `bun fmt` formats), each folder with an optional `.ignore`), `src/`, `package.json`, `tsconfig.json`, `Makefile` (including
   `make/project.mk`), `README.md` and `LICENSE.md`, the same in okf, atlas and cli (pinned in
   `scripts/__tests__/package-layout.test.ts`). Documented differences: cli also has `base/` (the rules, skills, hooks and
   templates it ships); atlas also has `.configs/builders/` (the build tsconfig) and builds a `dist`. No env file: the

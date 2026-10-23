@@ -46,6 +46,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `scaffold` | Workspaces declare packages and the knowledge index replaces scaffold text | Add `packages` in configuration and remove `vulcan:scaffold` from `index.md` |
 | `apps` | Every `layout` folder is a workspace and every package lives in one | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
 | `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
+| `format` (warning) | The root `bunfig.toml` has a `[fmt]` section and no `package.json` defines a `fmt` script | Add the section (`bun fmt --init` adds a commented one), rename the script |
 | `mcp` (warning) | `.mcp.json` (when a chosen agent reads it) holds the canonical `atlas` entry, git no longer tracks it, and the Claude settings enable `atlas` | Use the entry the warning shows, `git rm --cached .mcp.json`, and run `bun x --no-install vulcan sync` |
 
 ### config
@@ -309,6 +310,17 @@ A warning, not a violation: it is printed as `warning [dockerignore]`, the exit 
 ```
 
 Add the three lines at the end of the root `.dockerignore`, in that order: the negation of `.env.example` must come after the excludes, or Docker does not apply it. With no `.dockerignore` at all, create it (`vulcan init` writes the whole file for a new project), then add the lines.
+
+### format
+
+A warning, not a violation: it is printed as `warning [format]`, the exit code stays `0`, and the last line says `vulcan doctor: OK with N warning(s)`. `bun fmt` reads the `[fmt]` section of the root `bunfig.toml`; without it, it formats with Bun's defaults (width 80, double quotes) and rewrites a tree the shared style formatted. The warning fires when the root has no `bunfig.toml`, or has one without a `[fmt]` table. It also fires for every `package.json` (the root's and each live package's) that defines a `fmt` script: with a `fmt` script, `bun fmt` runs the script instead of formatting. The standard script names are `lint` and `lint:fix`.
+
+```text
+  warning [format] bunfig.toml: no [fmt] section - add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "avoid"): without it bun fmt formats with Bun's defaults, not the shared style
+  warning [format] package.json: defines a "fmt" script: bun fmt runs it instead of formatting - rename it (the standard names are lint and lint:fix)
+```
+
+Add the section by hand, or let `vulcan init` write the file in a new project. Always pass the code glob: a bare `bun fmt` also formats Markdown, JSON and YAML.
 
 ## Run it in CI
 

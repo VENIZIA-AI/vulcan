@@ -1,2 +1,7 @@
 # Bun reads this file only from the directory a command runs in, so it sits at the root.
 telemetry = false
+
+[fmt]
+printWidth = 100
+singleQuote = true
+arrowParens = "avoid"

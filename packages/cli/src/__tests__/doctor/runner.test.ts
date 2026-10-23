@@ -9,6 +9,7 @@ import {
   runDoctorWarnings,
 } from '../../doctor/index.ts';
 import { renderLocalChoice } from '../../agents/index.ts';
+import { renderBunfig } from '../../create/bunfig.ts';
 import { renderDockerignore } from '../../create/dockerignore.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -33,6 +34,7 @@ const CONFORMANT: Record<string, string> = {
   Makefile: `${MAKE_INCLUDE}\nbuild:\n\t@echo build\n`,
   '.mcp.json':
     '{ "mcpServers": { "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] } } }\n',
+  'bunfig.toml': renderBunfig(),
   ...LINT_CONFIGS,
 };
 
@@ -833,6 +835,116 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
     expect(result.code, result.stderr).toBe(0);
     expect(result.stderr).toContain('  warning [dockerignore] .dockerignore: ');
     expect(result.stderr).toContain('vulcan doctor: OK with 1 warning(s)');
+  });
+});
+
+describe('doctor: bun fmt (warnings)', () => {
+  const formatWarnings = async (opts: { root: string }) =>
+    (await runDoctorWarnings(opts)).filter(item => item.check === DoctorChecks.FORMAT);
+  const PACKAGES = "[{ dir: 'api', name: 'api', path: 'services/api' }]";
+  const project = (opts: { files: Record<string, string | null> }): string =>
+    createSyncedProject({
+      files: Object.fromEntries(
+        Object.entries({
+          ...CONFORMANT,
+          'package.json':
+            '{ "name": "demo", "workspaces": ["services/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
+          '.configs/vulcan.config.ts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: ${PACKAGES} };\n`,
+          'services/api/package.json': JSON.stringify({ name: 'api', scripts: { lint: 'x' } }),
+          ...opts.files,
+        }).filter((entry): entry is [string, string] => entry[1] !== null),
+      ),
+    });
+  const ADD_SECTION =
+    'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "avoid"): without it bun fmt formats with Bun\'s defaults, not the shared style';
+
+  test('the bunfig.toml that init writes passes', async () => {
+    expect(await formatWarnings({ root: project({ files: {} }) })).toEqual([]);
+  });
+
+  test('no bunfig.toml: one warning', async () => {
+    const root = project({ files: { 'bunfig.toml': null } });
+
+    expect(await formatWarnings({ root })).toEqual([
+      {
+        check: DoctorChecks.FORMAT,
+        file: 'bunfig.toml',
+        message: `missing - ${ADD_SECTION}`,
+      },
+    ]);
+  });
+
+  test('a bunfig.toml without [fmt]: one warning', async () => {
+    const root = project({ files: { 'bunfig.toml': 'telemetry = false\n' } });
+
+    expect(await formatWarnings({ root })).toEqual([
+      {
+        check: DoctorChecks.FORMAT,
+        file: 'bunfig.toml',
+        message: `no [fmt] section - ${ADD_SECTION}`,
+      },
+    ]);
+  });
+
+  test('a [fmt] section is found with comments and spacing, and only as a table header', async () => {
+    for (const text of [
+      '[fmt]\n',
+      '  [fmt]  # style\n',
+      'telemetry = false\n\n[fmt]\nsemi = false\n',
+    ]) {
+      const root = project({ files: { 'bunfig.toml': text } });
+
+      expect(await formatWarnings({ root }), text).toEqual([]);
+    }
+
+    const root = project({ files: { 'bunfig.toml': '# [fmt] is not set here\nfmt = 1\n' } });
+
+    expect((await formatWarnings({ root })).length).toBe(1);
+  });
+
+  test('a fmt script in the root package.json: one warning', async () => {
+    const root = project({
+      files: {
+        'package.json': JSON.stringify({
+          name: 'demo',
+          workspaces: ['services/*'],
+          scripts: { fmt: 'oxfmt .' },
+          devDependencies: { '@venizia/dev-configs': '0.3.1-0' },
+        }),
+      },
+    });
+
+    expect(await formatWarnings({ root })).toEqual([
+      {
+        check: DoctorChecks.FORMAT,
+        file: 'package.json',
+        message:
+          'defines a "fmt" script: bun fmt runs it instead of formatting - rename it (the standard names are lint and lint:fix)',
+      },
+    ]);
+  });
+
+  test('a fmt script in a package: one warning naming that package.json', async () => {
+    const root = project({
+      files: {
+        'services/api/package.json': JSON.stringify({
+          name: 'api',
+          scripts: { lint: 'x', fmt: 'x' },
+        }),
+      },
+    });
+    const warnings = await formatWarnings({ root });
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].file).toBe('services/api/package.json');
+  });
+
+  test('doctor prints the warning lines and stays green', () => {
+    const root = project({ files: { 'bunfig.toml': null } });
+    const result = runCli({ args: ['doctor'], cwd: root });
+
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.stderr).toContain('  warning [format] bunfig.toml: missing - ');
   });
 });
 

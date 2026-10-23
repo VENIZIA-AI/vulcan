@@ -794,6 +794,60 @@ export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
   ];
 };
 
+const FMT_SECTION_ADVICE =
+  'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "avoid"): without it bun fmt formats with Bun\'s defaults, not the shared style';
+
+/**
+ * `bun fmt` reads the `[fmt]` section of `bunfig.toml`; without it, it formats with Bun's defaults
+ * (width 80, double quotes) and rewrites a tree the shared style formatted. And a `fmt` script in a
+ * `package.json` runs instead of the formatter. Warnings, never failures: a project made before
+ * `bun fmt` does not start failing.
+ */
+export const checkFormat = (opts: ICheckContext): IViolation[] => {
+  const warnings: IViolation[] = [];
+  const bunfig = join(opts.root, 'bunfig.toml');
+
+  if (!existsSync(bunfig)) {
+    warnings.push(
+      createViolation({
+        check: DoctorChecks.FORMAT,
+        file: 'bunfig.toml',
+        message: `missing - ${FMT_SECTION_ADVICE}`,
+      }),
+    );
+  } else if (!DoctorConstants.BUNFIG_FMT_SECTION.test(readText({ file: bunfig }))) {
+    warnings.push(
+      createViolation({
+        check: DoctorChecks.FORMAT,
+        file: 'bunfig.toml',
+        message: `no [fmt] section - ${FMT_SECTION_ADVICE}`,
+      }),
+    );
+  }
+
+  const manifests = [
+    'package.json',
+    ...resolvePackages({ config: opts.config })
+      .filter(entry => !entry.retired)
+      .map(entry => `${entry.path}/package.json`),
+  ];
+
+  for (const file of manifests) {
+    if (readScriptNames({ file: join(opts.root, file) })?.includes('fmt')) {
+      warnings.push(
+        createViolation({
+          check: DoctorChecks.FORMAT,
+          file,
+          message:
+            'defines a "fmt" script: bun fmt runs it instead of formatting - rename it (the standard names are lint and lint:fix)',
+        }),
+      );
+    }
+  }
+
+  return warnings;
+};
+
 export const checkAtlasBlock = (opts: ICheckContext): IViolation[] => {
   const merged = mergedAtlasBlock({ root: opts.root, config: opts.config });
 
