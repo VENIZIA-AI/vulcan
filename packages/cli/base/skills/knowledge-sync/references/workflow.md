@@ -26,7 +26,7 @@ Workflow({
   args: {
     repo: '<git rev-parse --show-toplevel>',
     mode: '<delta|full>',
-    since: '<YYYY-MM-DD of the last sync>',     // a label in prompts and the log
+    since: '<git log -1 --format=%cs -- <bundle>>',  // a label in prompts and the report
     gitRange: '<LAST_SYNC hash>..HEAD',         // what the verifiers diff
     bundle: '<manifest knowledge.bundle>',
     brand: '<manifest name, upper case>',

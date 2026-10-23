@@ -155,7 +155,7 @@ describe('vulcan add --preset', () => {
 
     expect(index).toContain('[admin](packages/admin.md)');
     expect(index).toContain('[core-api](packages/core-api.md) - A fixture backend.');
-    expect(readFileSync(join(root, '.agents/knowledge/log.md'), 'utf8')).toContain('web/admin');
+    expect(existsSync(join(root, '.agents/knowledge/log.md'))).toBe(false);
     expect(result.stderr).toContain('skipped  bun install');
     expect(result.stderr).toContain('skipped  vulcan sync');
   });

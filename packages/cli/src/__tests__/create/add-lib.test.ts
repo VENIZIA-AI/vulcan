@@ -144,7 +144,7 @@ describe('vulcan add --lib', () => {
     expect(readFileSync(join(root, '.agents/knowledge/index.md'), 'utf8')).toContain(
       '[billing](packages/billing.md)',
     );
-    expect(readFileSync(join(root, '.agents/knowledge/log.md'), 'utf8')).toContain('libs/billing');
+    expect(existsSync(join(root, '.agents/knowledge/log.md'))).toBe(false);
   });
 
   test('ends with Done and the install, sync and checks lines', () => {

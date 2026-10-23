@@ -6,7 +6,7 @@ import { readWorkspaceGlobs } from '../init/index.ts';
 import { runAppChecks } from './checks.ts';
 import { CreateConstants, CreateFlags } from './common/index.ts';
 import type { IAppsBlock, ILocatedPreset, IPresetSpec } from './common/index.ts';
-import { today, writeFile } from './files.ts';
+import { writeFile } from './files.ts';
 import { readLibPreset } from './lib-preset.ts';
 import { renderManifestJson } from './manifest-json.ts';
 import type { TLibPreset } from './lib-preset.ts';
@@ -22,7 +22,6 @@ import {
   renderKnowledgeIndex,
   renderLibConcept,
   renderLibManifest,
-  renderLogEntry,
   replaceAppsBlock,
 } from './workspace.ts';
 
@@ -301,20 +300,6 @@ export const addLibrary = async (opts: {
           app: { name: libName, summary: lib.summary },
         })
       : renderKnowledgeIndex({ project, apps: [{ name: libName, summary: lib.summary }] }),
-  });
-
-  const logPath = join(cwd, KNOWLEDGE_DIRECTORY, 'log.md');
-  const logEntry = renderLogEntry({
-    date: today(),
-    text: `added ${path} from the ${located.packageName} ${located.packageVersion} preset (lib kind)`,
-  });
-
-  writeFile({
-    root: cwd,
-    path: `${KNOWLEDGE_DIRECTORY}/log.md`,
-    content: existsSync(logPath)
-      ? `${readFileSync(logPath, 'utf8').trimEnd()}\n\n${logEntry}`
-      : `# ${project} knowledge log\n\n${logEntry}`,
   });
 
   for (const step of [

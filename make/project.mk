@@ -7,7 +7,7 @@
 #   POST_BUILD   a shell step only this package has, run after the emit
 #
 # Every tool comes from the package's node_modules/.bin, by absolute path: a recipe never depends on
-# PATH (`sh ./scripts/build.sh` once died at `tsc-alias: not found` with half the output emitted).
+# PATH (a shell script once died at `tsc-alias: not found` with half the output emitted).
 
 BIN := $(CURDIR)/node_modules/.bin
 TSC := $(BIN)/tsc

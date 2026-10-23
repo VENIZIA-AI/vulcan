@@ -32,7 +32,7 @@ Copy it into your reply and tick each box when its criterion holds:
 - [ ] 4. Slices planned       - each slice names one behaviour, its seam, its files
 - [ ] 5. Slices built         - every slice went red, then green; every import came from `symbol`
 - [ ] 6. Checks green         - typecheck, lint, test, vulcan doctor passed; the real behaviour shown
-- [ ] 7. Knowledge current    - each changed fact is in the bundle and its log
+- [ ] 7. Knowledge current    - each changed fact is in the bundle
 - [ ] 8. Diff reviewed        - the whole diff read once, findings fixed, summary given
 ```
 
@@ -109,9 +109,9 @@ Done when every check passed in this session and the behaviour is shown.
 ## 7. Update knowledge
 
 Each fact about the project that changed - a new concept, a decision, a gotcha - goes into the
-knowledge bundle and its log in the same change.
+knowledge bundle in the same change.
 
-Done when the bundle and its log match the change.
+Done when the bundle matches the change.
 
 ## 8. Review and hand over
 

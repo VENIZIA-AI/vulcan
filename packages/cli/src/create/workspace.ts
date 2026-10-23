@@ -493,9 +493,6 @@ export const renderAppConcept = (opts: {
     ...renderAtlasLookups({ kind: opts.app.side }),
   ].join('\n');
 
-export const renderLogEntry = (opts: { date: string; text: string }): string =>
-  `## ${opts.date}\n\n- ${opts.text}\n`;
-
 export const pickPort = (opts: { preferred: number; used: number[] }): number => {
   let port = opts.preferred;
 
