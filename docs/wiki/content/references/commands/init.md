@@ -253,7 +253,6 @@ Fetching preset @venizia/ignis@latest ...
   created  .configs/vulcan.config.mts
   created  .agents/knowledge/index.md
   created  .agents/knowledge/packages/core-api.md
-  created  .agents/knowledge/log.md
 bun install v1.4.3 (c6da4a4d3)
 + @venizia/vulcan@0.3.7
 236 packages installed [69.23s]
@@ -341,7 +340,6 @@ VULCAN never invents a name, so none of these has a default.
 ```text
 $ cd my-product && find . -type f -not -path '*/node_modules/*' -not -name bun.lock | LC_ALL=C sort
 ./.agents/knowledge/index.md
-./.agents/knowledge/log.md
 ./.agents/knowledge/packages/core-api.md
 ./.agents/rules.md
 ./.agents/vulcan.local.json
@@ -385,7 +383,7 @@ The files `sync` wrote (`.agents/vulcan.local.json`, `.agents/vulcan.manifest.js
 | `AGENTS.md`, `.agents/rules.md` | The same layer as [the scaffold above](#generated-files) |
 | `.agents/vulcan.manifest.json`, `.agents/vulcan.local.json`, `.mcp.json`, `CLAUDE.md`, `.claude/` | What the first `sync` writes: the manifest, your choice of agents, the atlas entry for the agents that read `.mcp.json`, and the Claude adapters |
 | `.configs/vulcan.config.mts` | `name`, `layout`, one `packages` entry per app, and the preset's `atlas` sources |
-| `.agents/knowledge/` | An index, one concept per app, and a log entry naming the preset and its version |
+| `.agents/knowledge/` | An index and one concept per app |
 | `<shared>/.gitkeep` | Keeps the shared folder in git |
 
 Between the `vulcan:apps:start` and `vulcan:apps:end` comments, the config holds a block that `init` and [`add`](/references/commands/add) rewrite.

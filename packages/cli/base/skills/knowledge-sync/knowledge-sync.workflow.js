@@ -6,7 +6,7 @@
 // args = {
 //   repo: '/abs/path/to/project',     // repo root - `git rev-parse --show-toplevel`
 //   mode: 'delta' | 'full',
-//   since: 'YYYY-MM-DD',              // last sync date (display label only), read from log.md
+//   since: 'YYYY-MM-DD',              // last sync date (display label only): git log -1 --format=%cs -- <bundle>
 //   gitRange: '<hash>..HEAD',         // commit range since the last sync - what verifiers actually diff
 //   bundle: '.agents/knowledge',      // the manifest's knowledge.bundle
 //   brand: 'ACME',                    // the manifest's name, upper case - the spelling prose keeps
@@ -47,7 +47,9 @@ if (!REPO) {
   throw new Error('args.repo (repo root, from `git rev-parse --show-toplevel`) is required');
 }
 if (!since) {
-  throw new Error('args.since (YYYY-MM-DD, last sync date from log.md) is required');
+  throw new Error(
+    'args.since (YYYY-MM-DD, the date of the last commit that touched the bundle: git log -1 --format=%cs -- <bundle>) is required',
+  );
 }
 if (!gitRange) {
   throw new Error(

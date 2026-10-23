@@ -9,7 +9,7 @@ from the source each session. Rules live in `.agents/rules.md`, and the base rul
 `packages/cli/base/rules.md`.
 
 **The code is ground truth.** When a concept and the code disagree, the code wins and the concept is
-a bug - fix it and note it in [log](/log.md).
+a bug - fix it.
 
 ## Start here
 

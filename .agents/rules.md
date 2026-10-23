@@ -67,7 +67,6 @@ VULCAN is configuration every project's agents run with. A shortcut here ships t
 |---|---|
 | **P-01** | **Read the knowledge bundle first.** Start at [`knowledge/index.md`](knowledge/index.md), open the concepts your task touches, then act. The code is ground truth: a concept that disagrees with the code is a bug, fix it. |
 | **P-02** | **Design the surface before the body.** For a feature, propose what a project sees first - command and flags, config fields, rule IDs and wording, shipped files, output - and get a yes before implementing. Everything VULCAN ships is inherited by every project and cannot be shadowed, so reason from how IGNIS, ARDOR and BANA would use it. Priorities, in order: simplicity > flexibility > completeness. |
-| **P-03** | **Keep the knowledge bundle true.** When code changes a fact, update the concept that documents it and append an entry to `knowledge/log.md` in the same change. `vulcan x okf check` validates; it is not a commit gate. |
 | **P-04** | **Done climbs a fixed ladder, in order:** tests written and green -> build green and lint at zero -> consumers crosschecked (P-05) -> READMEs and changelog updated -> knowledge bundle updated. Lay the ladder out as the step list at the start of every change (P-09). A rung skipped is reported as skipped, never as done. |
 | **P-05** | **Crosscheck the consumers before calling a change to what ships finished.** A change to the base rules, hooks, skills, config schema, CLI output, okf or atlas is run from source against IGNIS, ARDOR and BANA, read-only (W-06): `vulcan doctor`, `vulcan x okf check`, the atlas `check` commands. A check that was fresh before the change must stay fresh. |
 | **P-06** | **What ships has consumers you cannot see.** Config fields, CLI flags, rule IDs, make targets, the base files and `@venizia/vulcan-okf`'s exports are public surface. "No usage in IGNIS, ARDOR or BANA" never justifies removing or reshaping one on its own - park it, or ask. Whether a change is breaking is decided by the tagged release, not by the working tree: `git merge-base --is-ancestor <sha> v<version>`. |
@@ -137,7 +136,6 @@ Most of these rules hold because agents read this file. Only these have tooling 
 | Rule | Enforced by | Actually blocks? |
 |---|---|---|
 | `B-02` | `.githooks/pre-commit` runs `vulcan doctor` and `make lint-all` (after `make setup-hooks`); the release workflow runs every gate | Lint blocks a commit; the release blocks on every gate |
-| `P-03` | `vulcan x okf check` in the release workflow | Conformance only, not whether prose is still true |
 | This file's rules | the session-start hook prints them into every Claude session | Reminds, never blocks |
 | everything else | this file | No |
 

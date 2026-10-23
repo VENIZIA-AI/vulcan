@@ -8,7 +8,7 @@ import { addLibrary } from './add-lib.ts';
 import { runAppChecks } from './checks.ts';
 import { AppSides, CreateFlags } from './common/index.ts';
 import type { IAppsBlock, ILocatedPreset, IPresetSpec, TAppSide } from './common/index.ts';
-import { today, writeFile } from './files.ts';
+import { writeFile } from './files.ts';
 import { recordedPresetOf } from './lib-preset.ts';
 import { renderManifestJson } from './manifest-json.ts';
 import { menusAvailable, promptSelect } from '../ui/index.ts';
@@ -42,7 +42,6 @@ import {
   renderAppConcept,
   renderAppManifest,
   renderKnowledgeIndex,
-  renderLogEntry,
   replaceAppsBlock,
 } from './workspace.ts';
 
@@ -626,20 +625,6 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
           app: { name: app, summary: preset.summary },
         })
       : renderKnowledgeIndex({ project, apps: [{ name: app, summary: preset.summary }] }),
-  });
-
-  const logPath = join(cwd, KNOWLEDGE_DIRECTORY, 'log.md');
-  const logEntry = renderLogEntry({
-    date: today(),
-    text: `added ${folder}/${app} from the ${packageName} ${packageVersion} preset`,
-  });
-
-  writeFile({
-    root: cwd,
-    path: `${KNOWLEDGE_DIRECTORY}/log.md`,
-    content: existsSync(logPath)
-      ? `${readFileSync(logPath, 'utf8').trimEnd()}\n\n${logEntry}`
-      : `# ${project} knowledge log\n\n${logEntry}`,
   });
 
   for (const step of [
