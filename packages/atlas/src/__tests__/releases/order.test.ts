@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { toAtlasProject } from '@/common/project-config';
 import { AtlasReleases } from '@/releases/generator';
+import { isFormatted } from '../format.helper';
 
 const ROOT = mkdtempSync(join(tmpdir(), 'atlas-order-'));
 
@@ -64,4 +65,13 @@ test('each changelog falls in the window after the release before it', () => {
   expect(orderOf({ file: '2026-01-02-a.md' })).toBeGreaterThan(older.order);
   expect(orderOf({ file: '2026-01-02-a.md' })).toBeLessThanOrEqual(newer.order);
   expect(orderOf({ file: '2026-01-03-b.md' })).toBeGreaterThan(newer.order);
+});
+
+test('the rendered table is already formatted for bun fmt, so a committed copy stays lint-green', () => {
+  const result = isFormatted({
+    file: 'releases.json',
+    text: AtlasReleases.render({ project: PROJECT }),
+  });
+
+  expect(result.ok, result.output).toBe(true);
 });

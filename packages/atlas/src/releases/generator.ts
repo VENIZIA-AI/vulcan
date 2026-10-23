@@ -5,6 +5,7 @@
  * table when it reads a source, so it is never one release behind.
  */
 import { resolveAll, splitFrontmatter } from '@/changelogs/resolve';
+import { formatWithBun } from '@/common/format';
 import { readAtlasProject } from '@/common/project-config';
 import type { IAtlasPackage, IAtlasProject } from '@/common/project-config';
 import { computeReleases, kindOfChangelog, titleOfChangelog } from './compute';
@@ -12,7 +13,10 @@ import { computeReleases, kindOfChangelog, titleOfChangelog } from './compute';
 export class AtlasReleases {
   /** The computed table, as JSON; the project `vulcan x` handed over unless a test passes its own. */
   static render(opts: { project?: IAtlasProject } = {}): string {
-    return `${JSON.stringify(computeReleases({ project: opts.project ?? readAtlasProject() }), null, 2)}\n`;
+    return formatWithBun({
+      text: `${JSON.stringify(computeReleases({ project: opts.project ?? readAtlasProject() }), null, 2)}\n`,
+      file: 'releases.json',
+    });
   }
 
   /**

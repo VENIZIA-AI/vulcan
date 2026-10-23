@@ -418,12 +418,19 @@ describe('workspace planners', () => {
     const block = renderAppsBlock({ block: BLOCK });
     const json = block
       .split('\n')
-      .slice(1, -1)
+      .slice(2, -1)
       .join('\n')
       .replace(/^const apps = /, '')
       .replace(/;$/, '');
 
     expect(JSON.parse(json)).toEqual(BLOCK);
+  });
+
+  test('renderAppsBlock tells bun fmt to leave the JSON as written, just above the declaration', () => {
+    const lines = renderAppsBlock({ block: BLOCK }).split('\n');
+
+    expect(lines[1]).toBe('// prettier-ignore');
+    expect(lines[2]).toMatch(/^const apps = /);
   });
 });
 

@@ -4,9 +4,7 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": [
-      "bun"
-    ],
+    "types": ["bun"],
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -15,8 +13,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": [
-    "./*.ts",
-    "./__tests__/**/*.ts"
-  ]
+  "include": ["./*.ts", "./__tests__/**/*.ts"]
 }
