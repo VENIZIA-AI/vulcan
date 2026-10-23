@@ -64,11 +64,15 @@ export class DoctorConstants {
   static readonly SHIPPED_HOOKS_PATH = '@venizia/vulcan/base/hooks/';
   /** The `[fmt]` table header of a `bunfig.toml`, on a line of its own, a trailing comment allowed. */
   static readonly BUNFIG_FMT_SECTION = /^\s*\[fmt\]\s*(#.*)?$/m;
-  static readonly LINT_CONFIG_FILE = /^(oxlint|eslint|oxfmt)\.config\.(mts|ts|mjs|js|cjs)$/;
+  static readonly BUNFIG_FMT_FLAVOR = /^\s*flavor\s*=\s*["']oxfmt["']/m;
+  /** What init wrote before `[fmt]` decided the style; `bun fmt` no longer reads it. */
+  static readonly OXFMT_CONFIG_FILE = /^oxfmt\.config\.(mts|ts|mjs|js|cjs)$/;
+  /** The oxfmt config names `bun fmt` finds by itself, in a package folder or above it; they override `[fmt]`. */
+  static readonly OXFMT_AUTOLOADED_FILES = ['.oxfmtrc.json', '.oxfmtrc.jsonc', 'oxfmt.config.ts'];
+  static readonly LINT_CONFIG_FILE = /^(oxlint|eslint)\.config\.(mts|ts|mjs|js|cjs)$/;
   /** Where each tool's config lives under `.configs/`; a file left directly in `.configs/` is told where it belongs. */
   static readonly LINT_CONFIG_FOLDERS: Record<string, string> = {
     oxlint: 'lints',
     eslint: 'lints',
-    oxfmt: 'formatters',
   };
 }

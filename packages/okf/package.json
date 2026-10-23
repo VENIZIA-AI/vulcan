@@ -51,7 +51,6 @@
     "@types/cytoscape-fcose": "catalog:",
     "@venizia/dev-configs": "catalog:",
     "eslint": "catalog:",
-    "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "typescript": "catalog:"

@@ -1,6 +1,6 @@
 # Lint and format the packages.
 
-# Each package lints itself, from its own .configs/lints/ and .configs/formatters/ and with its own tools (its node_modules/.bin).
+# Each package lints itself, from its own .configs/lints/ and with its own tools (its node_modules/.bin); `bun fmt` formats with the root bunfig.toml.
 # oxlint owns the rules, ESLint runs only naming-convention (oxlint has no port yet), bun fmt formats.
 LINT_PKG_TARGETS := $(addprefix lint-,$(PACKAGES))
 FMT_PKG_TARGETS := $(addprefix fmt-,$(PACKAGES))
@@ -41,9 +41,9 @@ $(TYPECHECK_PKG_TARGETS): typecheck-%:
 	@echo "typecheck: packages/$*"
 	@$(MAKE) --no-print-directory -C packages/$* typecheck
 
-# The root scripts/ is not a workspace member: it formats with its own oxfmt config and type-checks
+# The root scripts/ is not a workspace member: it formats with the root bunfig.toml and type-checks
 # with its own tsconfig.
-BUN_FMT_SCRIPTS_FLAGS := --no-script --config scripts/.configs/formatters/oxfmt.config.mts
+BUN_FMT_SCRIPTS_FLAGS := --no-script
 lint-scripts:
 	@echo "lint: scripts"
 	@bun fmt $(BUN_FMT_SCRIPTS_FLAGS) --check "scripts/**/*.{ts,mts}"

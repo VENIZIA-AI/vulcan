@@ -23,7 +23,6 @@ const SCAFFOLD_FILES: IScaffoldFile[] = [
 const LINT_CONFIG_FILES: IScaffoldFile[] = [
   { path: '.configs/lints/oxlint.config.mts', template: 'oxlint.config.mts' },
   { path: '.configs/lints/eslint.config.mjs', template: 'eslint.config.mjs' },
-  { path: '.configs/formatters/oxfmt.config.mts', template: 'oxfmt.config.mts' },
 ];
 
 export interface IScaffoldResult {

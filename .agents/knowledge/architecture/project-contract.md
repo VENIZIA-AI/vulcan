@@ -8,7 +8,7 @@ tags: [architecture, project, contract]
 # The project contract
 
 **Committed by the project:** `AGENTS.md`, `.configs/vulcan.config.*`,
-`.configs/lints/{oxlint,eslint}.config.*`, `.configs/formatters/oxfmt.config.*`, `.agents/{rules.md,knowledge,skills,hooks}`, and a
+`.configs/lints/{oxlint,eslint}.config.*`, `.agents/{rules.md,knowledge,skills,hooks}`, and a
 Makefile that `-include`s `vulcan.mk`.
 
 **Written by `vulcan sync`, gitignored:** `CLAUDE.md` (`@AGENTS.md`), `.claude/settings.json`
