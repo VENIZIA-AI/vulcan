@@ -2,7 +2,7 @@
 
 UPDATE_TARGETS := $(addprefix update-,$(PACKAGES))
 
-.PHONY: install clean setup-hooks build build-all docs update update-all $(PACKAGES) $(UPDATE_TARGETS)
+.PHONY: install clean setup-hooks build build-all docs $(PACKAGES) $(UPDATE_TARGETS)
 
 # ----------------------------------------------------------------------------
 # INSTALL & CLEAN
@@ -46,10 +46,6 @@ docs:
 # ----------------------------------------------------------------------------
 # FORCE UPDATE TARGETS (fetch latest from NPM registry)
 # ----------------------------------------------------------------------------
-update: install
-
-update-all: install
-
 $(UPDATE_TARGETS): update-%:
 	@echo "update: $(call PKG_NAME,$*) (forced)"
 	@bun run --filter "$(call PKG_NAME,$*)" force-update

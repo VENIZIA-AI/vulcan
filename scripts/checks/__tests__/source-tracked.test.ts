@@ -1,9 +1,9 @@
 import { expect, test } from 'bun:test';
 import { Glob } from 'bun';
 import { join } from 'node:path';
-import { spawnSyncBounded } from './spawn.helper.ts';
+import { spawnSyncBounded } from '../../__tests__/spawn.helper.ts';
 
-const ROOT = join(import.meta.dir, '..', '..');
+const ROOT = join(import.meta.dir, '..', '..', '..');
 
 // A source folder named like build output (`coverage/`, `dist/`, `build/`) is silently dropped by
 // .gitignore: it works locally and is missing from every commit - and from CI.

@@ -2,9 +2,9 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { spawnSyncBounded } from './spawn.helper.ts';
+import { spawnSyncBounded } from '../../__tests__/spawn.helper.ts';
 
-const WORKFLOW = join(import.meta.dir, '..', '..', '.github', 'workflows', 'package-release.yml');
+const WORKFLOW = join(import.meta.dir, '..', '..', '..', '.github', 'workflows', 'package-release.yml');
 const roots: string[] = [];
 
 afterAll(() => {
@@ -287,7 +287,7 @@ describe('package-release.yml: the next dist-tag', () => {
   test('a step moves next up to latest for every package in the train', () => {
     const step = findStep({ name: STEP });
 
-    expect(step.run).toContain('bun scripts/next-tag.ts');
+    expect(step.run).toContain('bun scripts/release/next-tag.ts');
     expect(step.run).toContain('--published "$NEW_VERSION"');
     expect(step.run).toContain('--tag "$NPM_TAG"');
     expect(step.run).toContain('$PUBLISH_ORDER');

@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 /**
  * Symbol table for the Atlas `symbol` tool: every exported symbol of every package `exports`
- * entry, with the kind `public-surface.ts` records plus a one-line signature and the `file:line`
+ * entry, with the kind the public surface records plus a one-line signature and the `file:line`
  * of the declaration in `src/`. Read from the built `.d.ts`, so the packages must be built first.
- * Usage: bun scripts/atlas-symbols.ts gen|check
+ * Usage: vulcan x atlas symbols
  */
 import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';

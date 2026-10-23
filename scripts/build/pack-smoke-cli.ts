@@ -15,7 +15,7 @@ interface IStepResult {
   detail: string;
 }
 
-const PACKAGES_DIRECTORY = resolve(import.meta.dir, '..', 'packages');
+const PACKAGES_DIRECTORY = resolve(import.meta.dir, '..', '..', 'packages');
 const STYLE_PACKAGE_VERSION = '0.3.1-0';
 const MINIMUM_ATLAS_TOOLS = 6;
 

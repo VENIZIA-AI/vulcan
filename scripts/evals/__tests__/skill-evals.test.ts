@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
-import { spawnSyncBounded } from './spawn.helper.ts';
+import { spawnSyncBounded } from '../../__tests__/spawn.helper.ts';
 
 // The real `claude` is never run here: every test puts this fake first on PATH. It logs each call,
 // writes an output file the way a model would, and also edits its working copy of the project, so a
@@ -72,6 +72,7 @@ respond('done');
 const SCRIPT = join(import.meta.dir, '..', 'skill-evals.ts');
 const EVALS_FILE = join(
   import.meta.dir,
+  '..',
   '..',
   '..',
   'packages/cli/base/skills/docs-writing/evals/evals.json',

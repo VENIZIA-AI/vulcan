@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const ROOT = join(import.meta.dir, '..', '..');
+const ROOT = join(import.meta.dir, '..', '..', '..');
 const PACKAGES = ['okf', 'atlas', 'cli'];
 
 /** What the root of every package holds, and nothing else; the documented differences are below. */
@@ -95,7 +95,9 @@ describe.each(PACKAGES)('the layout of packages/%s', name => {
       name === 'atlas' ? ['force-update', 'prepublishOnly', 'test'] : ['force-update', 'test'],
     );
     expect(manifestOf({ name }).scripts.test).toBe('bun test');
-    expect(manifestOf({ name }).scripts['force-update']).toBe('sh ../../scripts/force-update.sh');
+    expect(manifestOf({ name }).scripts['force-update']).toBe(
+      'sh ../../scripts/build/force-update.sh',
+    );
   });
 });
 

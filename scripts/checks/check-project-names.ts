@@ -22,7 +22,7 @@ const EXEMPT =
 const readRoot = (opts: { argv: string[] }): string => {
   const index = opts.argv.indexOf('--root');
 
-  return index === -1 ? join(import.meta.dir, '..') : (opts.argv[index + 1] ?? '.');
+  return index === -1 ? join(import.meta.dir, '..', '..') : (opts.argv[index + 1] ?? '.');
 };
 
 const root = readRoot({ argv: process.argv });

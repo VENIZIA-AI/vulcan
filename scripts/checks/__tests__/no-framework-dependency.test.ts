@@ -3,7 +3,7 @@ import { Glob } from 'bun';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const ROOT = join(import.meta.dir, '..', '..');
+const ROOT = join(import.meta.dir, '..', '..', '..');
 const FRAMEWORK = '@venizia/ignis-helpers';
 // An import, not a mention: atlas's symbol fixtures name IGNIS packages as data.
 const IMPORT = /(?:from\s+|require\(|import\()['"]@venizia\/ignis-helpers/;

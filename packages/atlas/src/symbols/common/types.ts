@@ -1,7 +1,7 @@
 import type { IPackageMapEntry } from '@/common/package-map';
 
 /**
- * One exported symbol as `scripts/atlas-symbols.ts` recorded it. `file`/`line` name the source
+ * One exported symbol as `vulcan x atlas symbols` records it. `file`/`line` name the source
  * declaration, not the `dist` file the generator read - an alias export points at what it aliases.
  */
 export interface ISymbolRecord {
