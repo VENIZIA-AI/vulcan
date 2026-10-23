@@ -7,6 +7,7 @@
  */
 import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
+import { formatWithBun } from '@/common/format';
 import { StderrLogger } from '@/common/logger';
 import { readPackageDirectory } from '@/common/package-entries';
 import type { IPackageMapEntry } from '@/common/package-map';
@@ -178,7 +179,7 @@ export class AtlasSymbols {
       })),
     };
 
-    return `${JSON.stringify(table, null, 2)}\n`;
+    return formatWithBun({ text: `${JSON.stringify(table, null, 2)}\n`, file: 'symbols.json' });
   }
 
   /**

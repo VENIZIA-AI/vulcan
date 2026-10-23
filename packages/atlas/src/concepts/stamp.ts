@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { formatWithBun } from '@/common/format';
 import type { IAtlasProject } from '@/common/project-config';
 import { parseFrontmatter } from '@/corpus/frontmatter';
 import { symbolsOfRepository } from '@/symbols/compute';
@@ -158,7 +159,10 @@ export const stampConcepts = (opts: { project: IAtlasProject }): IStampReport =>
     symbols: Object.fromEntries([...hashes].sort(([left], [right]) => byText(left, right))),
   };
 
-  writeFileSync(symbolsLockOf({ project }), `${JSON.stringify(lock, null, 2)}\n`);
+  writeFileSync(
+    symbolsLockOf({ project }),
+    formatWithBun({ text: `${JSON.stringify(lock, null, 2)}\n`, file: SYMBOLS_LOCK_NAME }),
+  );
 
   return { lockFile, stamped: hashes.size, missing };
 };

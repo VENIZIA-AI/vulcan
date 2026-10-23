@@ -25,21 +25,13 @@ CJS_OUT ?= dist/cjs
 # clean leaves an empty dist.
 EMIT_TSCONFIGS := $(if $(filter cjs,$(FORMATS)),$(CJS_TSCONFIG))
 
-# Always a glob: a bare `bun fmt` also formats Markdown, JSON and YAML. The code, and package.json,
-# which bun fmt sorts. The [fmt] section of
-# the root bunfig.toml decides the style (flavor = "oxfmt" keeps oxfmt's output); --no-script keeps a
-# `fmt` script of the package from taking over.
-BUN_FMT_FLAGS := --no-script
-FMT_GLOB := "**/*.{ts,mts,tsx,js,mjs}" "**/package.json"
+include $(dir $(lastword $(MAKEFILE_LIST)))fmt.mk
 
-# Paths a package keeps out of lint and format, one pattern per line (blank lines and # comments are
-# skipped): .configs/lints/.ignore feeds oxlint and ESLint, .configs/formatters/.ignore feeds bun fmt,
-# which does not read it by itself. They live beside the configs because oxlint resolves ignore
-# patterns from the config's own folder and refuses '..': a config in .configs/ cannot ignore package
-# paths itself.
-IGNORE_LINES = $(shell sed -e '/^\#/d' -e '/^$$/d' $(1) 2>/dev/null)
+# Paths a package keeps out of lint, one pattern per line (blank lines and # comments are skipped):
+# .configs/lints/.ignore feeds oxlint and ESLint (.configs/formatters/.ignore feeds bun fmt, see
+# fmt.mk). It lives beside the configs because oxlint resolves ignore patterns from the config's own
+# folder and refuses '..': a config in .configs/ cannot ignore package paths itself.
 LINT_IGNORE := $(foreach pattern,$(call IGNORE_LINES,.configs/lints/.ignore),--ignore-pattern $(pattern))
-FMT_IGNORE := $(foreach pattern,$(call IGNORE_LINES,.configs/formatters/.ignore),--ignore-pattern '$(pattern)')
 
 .PHONY: build typecheck clean rebuild lint lint-fix fmt
 

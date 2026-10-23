@@ -5,6 +5,8 @@ import { buildToolEnvironment } from '../../commands/x.command.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
 import { ManifestConstants, renderManifest } from '../../manifest/index.ts';
+import { renderBunfig } from '../../create/bunfig.ts';
+import { checkFiles } from '../format.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -27,6 +29,18 @@ const render = (opts: { root: string; config: object }): string =>
   renderManifest({ root: opts.root, config: VULCAN_CONFIG_SCHEMA.parse(opts.config) });
 
 describe('renderManifest', () => {
+  test('the text is already formatted for bun fmt: short arrays on one line, so lint stays green', () => {
+    const root = createProject({ files: { 'bunfig.toml': renderBunfig() } });
+    const text = render({ root, config: CONFIG });
+
+    writeFileSync(join(root, 'vulcan.manifest.json'), text);
+
+    const result = checkFiles({ root, glob: 'vulcan.manifest.json' });
+
+    expect(result.code, result.output).toBe(0);
+    expect(text).toContain('"aliases": ["k"]');
+  });
+
   test('the contract shape, data only, schemaVersion 1', () => {
     const root = createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
     const manifest = JSON.parse(render({ root, config: CONFIG }));

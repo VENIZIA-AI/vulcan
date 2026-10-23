@@ -263,9 +263,14 @@ export const renderLibConcept = (opts: {
     ...renderAtlasLookups({ kind: 'lib' }),
   ].join('\n');
 
+/**
+ * The block is JSON that `add` reads back with `JSON.parse`, so `bun fmt` must not rewrite it
+ * (it would drop the key quotes): `prettier-ignore` is honoured by both of its flavors.
+ */
 export const renderAppsBlock = (opts: { block: IAppsBlock }): string =>
   [
     CreateConstants.APPS_BLOCK_START,
+    '// prettier-ignore',
     `const apps = ${JSON.stringify(opts.block, null, 2)};`,
     CreateConstants.APPS_BLOCK_END,
   ].join('\n');

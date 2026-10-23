@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
+import { formatWithBun } from '../common/index.ts';
 import { resolvePackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { readBaseRules } from '../rules/index.ts';
@@ -85,7 +86,10 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
     ...(config.remoteHosts === undefined ? {} : { remoteHosts: config.remoteHosts }),
   };
 
-  return `${JSON.stringify(manifest, null, 2)}\n`;
+  return formatWithBun({
+    text: `${JSON.stringify(manifest, null, 2)}\n`,
+    file: ManifestConstants.FILE,
+  });
 };
 
 /**

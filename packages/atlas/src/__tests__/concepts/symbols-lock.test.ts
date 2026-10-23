@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { checkConcepts, ConceptProblems, stampConcepts, SYMBOLS_LOCK_NAME } from '@/concepts';
 import { readAtlasProject } from '@/common/project-config';
+import { isFormatted } from '../format.helper';
 import { spawnSyncBounded } from '../spawn.helper';
 
 const roots: string[] = [];
@@ -77,6 +78,19 @@ describe('concepts stamp and check (V4)', () => {
     expect(lock.schemaVersion).toBe(2);
     expect(Object.keys(lock.symbols)).toEqual(['@shop/kit#Basket', '@shop/kit#greet']);
     expect(lock.symbols['@shop/kit#greet']).toMatch(/^[0-9a-f]{8}$/);
+  });
+
+  test('the lock is already formatted for bun fmt, so a committed copy stays lint-green', () => {
+    const { root } = makeProject({ concepts: CONCEPTS, declarations: DECLARATIONS });
+
+    stampConcepts({ project: readAtlasProject({ root }) });
+
+    const result = isFormatted({
+      file: SYMBOLS_LOCK_NAME,
+      text: readFileSync(join(root, LOCK), 'utf8'),
+    });
+
+    expect(result.ok, result.output).toBe(true);
   });
 
   test('check passes against a fresh stamp', () => {
