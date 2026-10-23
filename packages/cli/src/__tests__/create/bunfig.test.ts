@@ -4,11 +4,18 @@ import { join } from 'node:path';
 import { renderBunfig } from '../../create/bunfig.ts';
 
 describe('renderBunfig', () => {
-  test('is a comment line and telemetry = false, nothing else', () => {
+  test('is a comment line, telemetry = false and the [fmt] section bun fmt reads, the oxfmt flavor included', () => {
     expect(renderBunfig()).toBe(
       [
-        '# Bun reads this file only from the directory a command runs in, so it sits at the root.',
+        '# Bun reads this file from the directory a command runs in, and bun fmt also inherits it from a parent.',
+        '# So it sits at the root, and [fmt] applies to every folder below it.',
         'telemetry = false',
+        '',
+        '[fmt]',
+        'printWidth = 100',
+        'singleQuote = true',
+        'arrowParens = "avoid"',
+        'flavor = "oxfmt"',
         '',
       ].join('\n'),
     );

@@ -91,7 +91,9 @@ html.dark {
   border-radius: 12px;
   background: var(--vp-c-bg-soft);
   text-decoration: none !important;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .guide-card h3,
@@ -212,7 +214,9 @@ html.dark {
   color: var(--vu-text-2) !important;
   font-weight: 500;
   border-bottom: 2px solid transparent;
-  transition: color 0.15s ease, border-bottom-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    border-bottom-color 0.15s ease;
 }
 
 .VPNavBarMenuLink:hover {
@@ -325,7 +329,9 @@ div[class*='language-'] .lang {
 
 div[class*='language-'] button.copy {
   color: var(--vu-text-3) !important;
-  transition: color 0.15s ease, opacity 0.15s ease;
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
 }
 
 div[class*='language-'] button.copy:hover {
@@ -517,7 +523,11 @@ div[class*='language-'] button.copy:hover {
   padding: var(--vu-s3) var(--vu-s5);
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background 0.18s ease, transform 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
   display: inline-flex;
   align-items: center;
   gap: var(--vu-s2);
@@ -576,7 +586,7 @@ html:not(.dark) .vu-btn--secondary:hover {
 
 /* Code window */
 .vu-code-win {
-  background: linear-gradient(180deg, #14110E, #0D0B08);
+  background: linear-gradient(180deg, #14110e, #0d0b08);
   border: 1px solid var(--vu-border);
   border-radius: var(--vu-r-lg);
   overflow: hidden;
@@ -619,7 +629,7 @@ html:not(.dark) .vu-btn--secondary:hover {
 .vu-code-win pre {
   font: 500 var(--vu-fs-sm) / var(--vu-lh-code) var(--vu-font-mono) !important;
   padding: var(--vu-s5) !important;
-  color: #EDE5D8 !important;
+  color: #ede5d8 !important;
   overflow: auto;
   margin: 0 !important;
   background: transparent !important;
@@ -627,11 +637,21 @@ html:not(.dark) .vu-btn--secondary:hover {
   border: none !important;
 }
 
-.vu-k { color: var(--vu-yellow); }
-.vu-d { color: var(--vu-sienna); }
-.vu-s { color: #9DBF8E; }
-.vu-c { color: var(--vu-honey); }
-.vu-p { color: #C9BFAF; }
+.vu-k {
+  color: var(--vu-yellow);
+}
+.vu-d {
+  color: var(--vu-sienna);
+}
+.vu-s {
+  color: #9dbf8e;
+}
+.vu-c {
+  color: var(--vu-honey);
+}
+.vu-p {
+  color: #c9bfaf;
+}
 
 /* Feature cards */
 .vu-features {
@@ -647,7 +667,10 @@ html:not(.dark) .vu-btn--secondary:hover {
   border-radius: var(--vu-r-md);
   padding: var(--vu-s5);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent);
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .vu-fcard:hover {

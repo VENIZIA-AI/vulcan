@@ -1,12 +1,12 @@
-name: "NPM Release"
-run-name: "NPM Release | bump: ${{ inputs.bump }}"
+name: 'NPM Release'
+run-name: 'NPM Release | bump: ${{ inputs.bump }}'
 
 on:
   workflow_dispatch:
     inputs:
       bump:
         type: choice
-        description: "Version bump for all three packages (none = publish the version already in package.json)"
+        description: 'Version bump for all three packages (none = publish the version already in package.json)'
         options:
           - prerelease
           - prepatch
@@ -17,12 +17,12 @@ on:
           - major
           - none
         required: true
-        default: "prerelease"
+        default: 'prerelease'
       issue:
         type: string
-        description: "Issue number the release commit serves (prefixes it with [#N])"
+        description: 'Issue number the release commit serves (prefixes it with [#N])'
         required: false
-        default: ""
+        default: ''
 
 # The three packages are one release train: one version, one run. `@venizia/vulcan` pins
 # `@venizia/vulcan-okf` and `@venizia/vulcan-atlas` to that exact version, so they publish first.
@@ -36,7 +36,7 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   BUMP: ${{ inputs.bump }}
-  PUBLISH_ORDER: "okf atlas cli"
+  PUBLISH_ORDER: 'okf atlas cli'
 
 jobs:
   release:
@@ -58,8 +58,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6.4.0
         with:
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

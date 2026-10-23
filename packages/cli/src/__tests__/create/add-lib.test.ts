@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { checkManifests } from '../format.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 import { spawnSyncBounded } from '../spawn.helper.ts';
@@ -54,6 +55,16 @@ const readJson = (opts: { root: string; path: string }) =>
   JSON.parse(readFileSync(join(opts.root, opts.path), 'utf8'));
 
 describe('vulcan add --lib', () => {
+  test('every package.json is sorted for bun fmt right after init and after add', () => {
+    const root = monorepo();
+
+    expect(checkManifests({ root }).code, checkManifests({ root }).output).toBe(0);
+
+    addLib({ root, args: ['--lib', 'billing'] });
+
+    expect(checkManifests({ root }).code, checkManifests({ root }).output).toBe(0);
+  });
+
   test('creates the package in the shared folder, from the lib preset', () => {
     const root = monorepo();
     const result = addLib({ root, args: ['--lib', 'billing'] });

@@ -1,33 +1,24 @@
 {
   "name": "@venizia/vulcan",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "description": "VULCAN - one setup, one workflow for every project: init, sync, doctor, upgrade, and `vulcan x` for the shipped tools. Bun-only.",
   "homepage": "https://github.com/VENIZIA-AI/vulcan/tree/main/packages/cli",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/VENIZIA-AI/vulcan.git",
-    "directory": "packages/cli"
-  },
   "bugs": {
     "url": "https://github.com/VENIZIA-AI/vulcan/issues"
   },
+  "license": "MIT",
   "author": {
     "name": "VENIZIA AI Developer",
     "email": "developer@venizia.ai",
     "url": "https://venizia.ai"
   },
-  "license": "MIT",
-  "type": "module",
-  "engines": {
-    "bun": ">=1.4"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VENIZIA-AI/vulcan.git",
+    "directory": "packages/cli"
   },
   "bin": {
     "vulcan": "./src/cli.ts"
-  },
-  "exports": {
-    ".": "./src/index.ts",
-    "./okf": "./src/okf.ts",
-    "./package.json": "./package.json"
   },
   "files": [
     "README.md",
@@ -37,6 +28,13 @@
     "!**/__tests__",
     "!**/*.tsbuildinfo"
   ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./okf": "./src/okf.ts",
+    "./package.json": "./package.json"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -54,10 +52,11 @@
     "@types/bun": "catalog:",
     "@venizia/dev-configs": "catalog:",
     "eslint": "catalog:",
-    "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "typescript": "catalog:"
   },
-  "sideEffects": false
+  "engines": {
+    "bun": ">=1.4.4"
+  }
 }

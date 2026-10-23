@@ -51,7 +51,6 @@ Running `vulcan init` and `vulcan sync` adds these files to your repository. The
 ./.claude/vulcan-managed.json           # gitignored: record of applied settings
 ./.configs/lints/eslint.config.mjs      # committed: shared ESLint configuration
 ./.configs/lints/oxlint.config.mts      # committed: shared oxlint configuration
-./.configs/formatters/oxfmt.config.mts  # committed: shared oxfmt configuration
 ./.configs/vulcan.config.mts            # committed: project configuration
 ./.dockerignore                         # committed: what a Docker build leaves out
 ./Makefile                              # committed: includes vulcan.mk

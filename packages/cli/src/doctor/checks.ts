@@ -794,6 +794,127 @@ export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
   ];
 };
 
+const FMT_SECTION_ADVICE =
+  'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "avoid", flavor = "oxfmt"): without it bun fmt formats with Bun\'s defaults, not the shared style';
+const FMT_FLAVOR_ADVICE =
+  'without it bun fmt formats like Prettier when oxfmt is not a dependency, and the output changes';
+const OXFMT_LOADED_ADVICE =
+  'bun fmt loads it and it overrides the [fmt] section of bunfig.toml - delete it, or move its settings to [fmt]';
+
+/** The folders that can hold a package.json and an oxfmt config: the root, `packages/*` and every configured package. */
+const formatOwners = (opts: ICheckContext): string[] => [
+  ...new Set([
+    '.',
+    ...listDirectories({ directory: join(opts.root, 'packages') }).map(name =>
+      join('packages', name),
+    ),
+    ...resolvePackages({ config: opts.config })
+      .filter(entry => !entry.retired)
+      .map(entry => relative(opts.root, join(opts.root, entry.path)) || '.'),
+  ]),
+];
+
+/**
+ * `bun fmt` reads the `[fmt]` section of `bunfig.toml`; without it, it formats with Bun's defaults
+ * (width 80, double quotes) and rewrites a tree the shared style formatted, and without
+ * `flavor = "oxfmt"` it formats like Prettier once oxfmt is not a dependency. A `fmt` script in a
+ * `package.json` runs instead of the formatter, and an oxfmt config `bun fmt` finds by itself
+ * overrides `[fmt]`; the `oxfmt.config.*` init used to write in `.configs/formatters/` is read by
+ * nothing. Warnings, never failures: a project made before `bun fmt` does not start failing.
+ */
+export const checkFormat = (opts: ICheckContext): IViolation[] => {
+  const warnings: IViolation[] = [];
+  const bunfig = join(opts.root, 'bunfig.toml');
+  const bunfigText = readText({ file: bunfig });
+
+  if (!existsSync(bunfig)) {
+    warnings.push(
+      createViolation({
+        check: DoctorChecks.FORMAT,
+        file: 'bunfig.toml',
+        message: `missing - ${FMT_SECTION_ADVICE}`,
+      }),
+    );
+  } else if (!DoctorConstants.BUNFIG_FMT_SECTION.test(bunfigText)) {
+    warnings.push(
+      createViolation({
+        check: DoctorChecks.FORMAT,
+        file: 'bunfig.toml',
+        message: `no [fmt] section - ${FMT_SECTION_ADVICE}`,
+      }),
+    );
+  } else if (!DoctorConstants.BUNFIG_FMT_FLAVOR.test(bunfigText)) {
+    warnings.push(
+      createViolation({
+        check: DoctorChecks.FORMAT,
+        file: 'bunfig.toml',
+        message: `[fmt] has no flavor = "oxfmt" - ${FMT_FLAVOR_ADVICE}`,
+      }),
+    );
+  }
+
+  for (const owner of formatOwners(opts)) {
+    const manifest = join(owner, 'package.json');
+    const formatters = join(owner, '.configs', 'formatters');
+
+    if (readScriptNames({ file: join(opts.root, manifest) })?.includes('fmt')) {
+      warnings.push(
+        createViolation({
+          check: DoctorChecks.FORMAT,
+          file: manifest,
+          message:
+            'defines a "fmt" script: bun fmt runs it instead of formatting - rename it (the standard names are lint and lint:fix)',
+        }),
+      );
+    }
+
+    const copy = join(owner, 'bunfig.toml');
+
+    if (
+      owner !== '.' &&
+      DoctorConstants.BUNFIG_FMT_SECTION.test(readText({ file: join(opts.root, copy) }))
+    ) {
+      warnings.push(
+        createViolation({
+          check: DoctorChecks.FORMAT,
+          file: copy,
+          message:
+            'a [fmt] copy: bun fmt inherits the root bunfig.toml, and a copy here can drift from it - delete the section',
+        }),
+      );
+    }
+
+    for (const file of DoctorConstants.OXFMT_AUTOLOADED_FILES) {
+      if (existsSync(join(opts.root, owner, file))) {
+        warnings.push(
+          createViolation({
+            check: DoctorChecks.FORMAT,
+            file: join(owner, file),
+            message: OXFMT_LOADED_ADVICE,
+          }),
+        );
+      }
+    }
+
+    if (existsSync(join(opts.root, formatters))) {
+      for (const file of readdirSync(join(opts.root, formatters)).filter(name =>
+        DoctorConstants.OXFMT_CONFIG_FILE.test(name),
+      )) {
+        warnings.push(
+          createViolation({
+            check: DoctorChecks.FORMAT,
+            file: join(formatters, file),
+            message:
+              'not used any more: bun fmt formats with the [fmt] section of bunfig.toml - delete it',
+          }),
+        );
+      }
+    }
+  }
+
+  return warnings;
+};
+
 export const checkAtlasBlock = (opts: ICheckContext): IViolation[] => {
   const merged = mergedAtlasBlock({ root: opts.root, config: opts.config });
 

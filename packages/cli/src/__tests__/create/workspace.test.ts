@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test } from 'bun:test';
 import {
   addAppBullet,
   checkPeers,
@@ -20,6 +20,10 @@ import {
   replaceAppsBlock,
 } from '../../create/workspace.ts';
 import { parseYamlMapping, splitFrontmatter } from '@venizia/vulcan-okf';
+import { renderBunfig } from '../../create/bunfig.ts';
+import { renderLibManifest } from '../../create/workspace.ts';
+import { checkManifests } from '../format.helper.ts';
+import { createProject, removeProjects } from '../project.helper.ts';
 import type { IAppsBlock, IPreset } from '../../create/index.ts';
 
 const PRESET: IPreset = {
@@ -414,11 +418,71 @@ describe('workspace planners', () => {
     const block = renderAppsBlock({ block: BLOCK });
     const json = block
       .split('\n')
-      .slice(1, -1)
+      .slice(2, -1)
       .join('\n')
       .replace(/^const apps = /, '')
       .replace(/;$/, '');
 
     expect(JSON.parse(json)).toEqual(BLOCK);
+  });
+
+  test('renderAppsBlock tells bun fmt to leave the JSON as written, just above the declaration', () => {
+    const lines = renderAppsBlock({ block: BLOCK }).split('\n');
+
+    expect(lines[1]).toBe('// prettier-ignore');
+    expect(lines[2]).toMatch(/^const apps = /);
+  });
+});
+
+afterAll(removeProjects);
+
+describe('rendered manifests are sorted the way bun fmt wants', () => {
+  const LIB = {
+    name: '@acme/billing',
+    lib: {
+      scripts: { typecheck: 'bun check', lint: 'devz lint' },
+      dependencies: { zod: '^4', '@acme/kit': '1.0.0' },
+      devDependencies: { typescript: '^6.0.3' },
+      peerDependencies: { react: '^19' },
+      imports: { '#/*': './src/*' },
+      exports: { '.': './src/index.ts' },
+      packageFields: { description: 'Billing', type: 'module', sideEffects: false },
+    },
+  };
+
+  const accepted = (opts: { text: string }): { code: number; output: string } =>
+    checkManifests({
+      root: createProject({ files: { 'bunfig.toml': renderBunfig(), 'package.json': opts.text } }),
+    });
+
+  test('the root manifest', () => {
+    const text = renderRootManifest({
+      project: 'my-product',
+      workspaces: ['services/*', 'libs/*'],
+      catalog: { zod: '^4', hono: '^4' },
+      vulcanVersion: '0.3.0',
+    });
+
+    expect(accepted({ text }).code, accepted({ text }).output).toBe(0);
+  });
+
+  test('an app manifest', () => {
+    const text = renderAppManifest({
+      app: 'core-api',
+      preset: { ...PRESET, urls: ['http://localhost:3000'], imports: { '#/*': './src/*' } },
+      presetPackage: { name: '@fixture/backend', version: '1.0.0' },
+    });
+
+    expect(accepted({ text }).code, accepted({ text }).output).toBe(0);
+  });
+
+  test('a library manifest, whatever order the lib preset passes its fields in', () => {
+    const text = renderLibManifest(LIB);
+
+    expect(Object.keys(JSON.parse(text))[0]).toBe('name');
+    expect(accepted({ text }).code, accepted({ text }).output).toBe(0);
+    expect(JSON.parse(text)).toEqual(
+      expect.objectContaining({ description: 'Billing', type: 'module', sideEffects: false }),
+    );
   });
 });

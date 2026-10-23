@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { createFakeCommand } from '../fake-command.helper.ts';
+import { checkFiles, FORMATTED_GLOB } from '../format.helper.ts';
 import { copyWithFields, copyWithUrls } from '../preset.helper.ts';
 import { createProject, packFolder, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -262,7 +263,7 @@ describe('vulcan init --preset', () => {
     expect(dockerfile).toBe('COPY be/api3/package.json ./be/api3/package.json\n');
   });
 
-  test('a root bunfig.toml is written with telemetry off and no release-age gate', () => {
+  test('a root bunfig.toml is written with telemetry off, the [fmt] section and no release-age gate', () => {
     const parent = createProject({ files: {} });
 
     runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
@@ -270,8 +271,24 @@ describe('vulcan init --preset', () => {
     const text = readFileSync(join(parent, 'my-product', 'bunfig.toml'), 'utf8');
 
     expect(text.split('\n')).toContain('telemetry = false');
-    expect(text).toContain('only from the directory');
+    expect(text.split('\n')).toContain('[fmt]');
+    expect(text).toContain('every folder below it');
     expect(text).not.toContain('minimumReleaseAge');
+  });
+
+  test('what init and sync write passes bun fmt --check over every formatted type', () => {
+    const parent = createProject({ files: {} });
+
+    runCli({ args: ['init', ...FLAGS], cwd: parent, env: ENV });
+
+    const root = join(parent, 'my-product');
+
+    Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
+    runCli({ args: ['sync'], cwd: root, env: ENV });
+
+    const result = checkFiles({ root, glob: FORMATTED_GLOB });
+
+    expect(result.code, result.output).toBe(0);
   });
 
   test('a root .dockerignore is written: build output, dependencies, agent files', () => {

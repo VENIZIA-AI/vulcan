@@ -70,7 +70,7 @@ export class ProjectLayout {
     '.agents/vulcan.local.json',
   ];
   /** What the scaffolded lint configs run; optional peers of dev-configs, so bun never installs them alone. */
-  static readonly LINT_TOOLS = ['oxlint', 'oxlint-tsgolint', 'oxfmt', 'eslint'];
+  static readonly LINT_TOOLS = ['oxlint', 'oxlint-tsgolint', 'eslint'];
   /** Written into a scaffolded file the project must fill in; doctor fails the file while it holds this. */
   static readonly SCAFFOLD_MARKER = 'vulcan:scaffold';
 }

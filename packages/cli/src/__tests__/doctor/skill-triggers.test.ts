@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
+import { renderBunfig } from '../../create/bunfig.ts';
 import { runDoctorWarnings } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
@@ -10,6 +11,7 @@ const skill = (opts: { name: string; description: string }): string =>
 const project = (opts: { description: string }) =>
   createProject({
     files: {
+      'bunfig.toml': renderBunfig(),
       '.configs/vulcan.config.ts': CONFIG,
       '.agents/skills/acme-odd/SKILL.md': skill({
         name: 'acme-odd',

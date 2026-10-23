@@ -29,5 +29,5 @@ The rules are `V-C-01..18` in `packages/cli/base/rules.md`; this is how they loo
   scripts are `# -----`.
 - **Tests** name the module they cover (`sync/planner.test.ts`); helpers are `*.helper.ts`; every
   child process in a test is bounded (`spawnSyncBounded`, or `timeout` plus `killSignal: 'SIGKILL'`).
-- `make lint-all` is the shared style (`@venizia/dev-configs`: oxlint, ESLint naming-convention,
-  oxfmt) and must be clean.
+- `make lint-all` is the shared style (`@venizia/dev-configs`: oxlint, ESLint naming-convention;
+  `bun fmt` formats with the `[fmt]` section of the root `bunfig.toml`) and must be clean.

@@ -17,7 +17,7 @@ bun x --no-install vulcan doctor
 bun x --no-install vulcan x okf check
 ```
 
-- Type-checking is `bun check --no-pretty` (Bun >= 1.4.3), the same errors as `tsc --noEmit` including options inherited through `extends`; `tsc` stays only where it emits (atlas `dist`).
+- Type-checking is `bun check --no-pretty` (Bun >= 1.4.4), the same errors as `tsc --noEmit` including options inherited through `extends`; `tsc` stays only where it emits (atlas `dist`).
 - Tests first: a test that fails, then the change.
 - A change that touches the generators or okf is checked against IGNIS read-only: `check` from
   inside IGNIS must stay fresh. Never run `gen` there.

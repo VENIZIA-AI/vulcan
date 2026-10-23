@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadConfig, resolvePackages } from '../../config/index.ts';
 import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
+import { checkManifests } from '../format.helper.ts';
 import { copyWithFields, copyWithUrls } from '../preset.helper.ts';
 import { createProject, packFolder, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -66,6 +67,32 @@ const outsideBlock = (opts: { source: string }): string => {
 };
 
 describe('vulcan add --preset', () => {
+  test('every package.json is sorted for bun fmt right after init and after add', () => {
+    const root = monorepo();
+
+    expect(checkManifests({ root }).code, checkManifests({ root }).output).toBe(0);
+
+    const result = runCli({
+      args: [
+        'add',
+        '--preset',
+        FRONTEND,
+        '--frontend-dir',
+        'web',
+        '--app',
+        'admin',
+        '--api',
+        'core-api',
+      ],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code, result.stderr).toBe(0);
+    expect(existsSync(join(root, 'web/admin/package.json'))).toBe(true);
+    expect(checkManifests({ root }).code, checkManifests({ root }).output).toBe(0);
+  });
+
   test('{{appPath}} is the new app folder from the root, for a frontend in its own folder', () => {
     const root = monorepo();
     const result = runCli({

@@ -9,13 +9,15 @@ const CHANGELOGS = fileURLToPath(new URL('../../content/changelogs', import.meta
 const changelogGroups = (): DefaultTheme.SidebarItem[] => {
   const byDate = new Map<string, DefaultTheme.SidebarItem[]>();
   const files = readdirSync(CHANGELOGS)
-    .filter((file) => /^\d{4}-\d{2}-\d{2}-.*\.md$/.test(file))
+    .filter(file => /^\d{4}-\d{2}-\d{2}-.*\.md$/.test(file))
     .sort()
     .reverse();
 
   for (const file of files) {
     const date = file.slice(0, 10);
-    const title = /^title:\s*"?(.+?)"?\s*$/m.exec(readFileSync(`${CHANGELOGS}/${file}`, 'utf8'))?.[1];
+    const title = /^title:\s*"?(.+?)"?\s*$/m.exec(
+      readFileSync(`${CHANGELOGS}/${file}`, 'utf8'),
+    )?.[1];
     const items = byDate.get(date) ?? [];
 
     items.push({ text: title ?? file, link: `/changelogs/${file.replace(/\.md$/, '')}` });
@@ -143,24 +145,35 @@ export default defineConfig({
     ],
     // Open Graph
     ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:title', content: 'VULCAN - The agentic-coding toolkit for VENIZIA projects' }],
+    [
+      'meta',
+      { property: 'og:title', content: 'VULCAN - The agentic-coding toolkit for VENIZIA projects' },
+    ],
     [
       'meta',
       {
         property: 'og:description',
-        content: 'Rules, hooks, a knowledge bundle and a search server for your coding agent, from one config file and one pinned devDependency.',
+        content:
+          'Rules, hooks, a knowledge bundle and a search server for your coding agent, from one config file and one pinned devDependency.',
       },
     ],
     ['meta', { property: 'og:image', content: '/og-image.png' }],
     ['meta', { property: 'og:url', content: 'https://vulcan.venizia.ai/' }],
     // Twitter / X card
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-    ['meta', { name: 'twitter:title', content: 'VULCAN - The agentic-coding toolkit for VENIZIA projects' }],
+    [
+      'meta',
+      {
+        name: 'twitter:title',
+        content: 'VULCAN - The agentic-coding toolkit for VENIZIA projects',
+      },
+    ],
     [
       'meta',
       {
         name: 'twitter:description',
-        content: 'Rules, hooks, a knowledge bundle and a search server for your coding agent, from one config file and one pinned devDependency.',
+        content:
+          'Rules, hooks, a knowledge bundle and a search server for your coding agent, from one config file and one pinned devDependency.',
       },
     ],
     ['meta', { name: 'twitter:image', content: '/og-image.png' }],

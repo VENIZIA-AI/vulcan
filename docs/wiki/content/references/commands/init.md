@@ -23,7 +23,6 @@ $ bun x --no-install vulcan init
   created  .agents/knowledge/index.md
   created  .configs/lints/oxlint.config.mts
   created  .configs/lints/eslint.config.mjs
-  created  .configs/formatters/oxfmt.config.mts
   created  .configs/vulcan.config.mts
   created  .dockerignore
   created  bunfig.toml
@@ -85,10 +84,9 @@ It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index an
 | `.agents/knowledge/index.md` | Entry point of the project knowledge bundle in okf v0.2 format | Describe the project |
 | `.configs/lints/oxlint.config.mts` | Lint configuration for oxlint extending `@venizia/dev-configs` | Add project linter rule overrides when needed |
 | `.configs/lints/eslint.config.mjs` | Lint configuration for ESLint naming conventions extending `@venizia/dev-configs` | Add project naming convention overrides when needed |
-| `.configs/formatters/oxfmt.config.mts` | Formatter configuration for oxfmt extending `@venizia/dev-configs` | Add project formatting overrides when needed |
 | `.dockerignore` | Keeps dependencies, build output, `.git` and every agent's local files out of a Docker build context (the same list `init --preset` writes) | Edit it freely; `init` never overwrites it |
 | `.configs/vulcan.config.<ext>` | Main VULCAN configuration file for agents, rule slots and packages | Configure coding agents, rule slots, and workspace packages |
-| `bunfig.toml` | Bun's telemetry off (`telemetry = false`) and a comment that Bun reads this file only from the directory a command runs in, so it sits at the root. No release-age gate: a gate of a few days fails a fresh install whose version floors are the latest releases | Edit it freely; `init` never overwrites it, `sync` never touches it |
+| `bunfig.toml` | Bun's telemetry off (`telemetry = false`), a comment that `bun fmt` also inherits it from a parent folder, so it sits at the root and `[fmt]` applies to every folder below it, and the `[fmt]` section `bun fmt` reads (`printWidth = 100`, `singleQuote = true`, `arrowParens = "avoid"`, the shared style, and `flavor = "oxfmt"`, which keeps oxfmt's output when oxfmt is not a dependency). It is the only formatter configuration: `init` writes no `.configs/formatters/oxfmt.config.mts`. No release-age gate: a gate of a few days fails a fresh install whose version floors are the latest releases | Edit it freely; `init` never overwrites it, `sync` never touches it |
 | `Makefile` | Root Makefile that includes shared VULCAN make targets from `vulcan.mk` | Add project make targets |
 
 ## Report statuses
@@ -112,7 +110,6 @@ $ bun x --no-install vulcan init
   kept     .agents/knowledge/index.md
   kept     .configs/lints/oxlint.config.mts
   kept     .configs/lints/eslint.config.mjs
-  kept     .configs/formatters/oxfmt.config.mts
   kept     .configs/vulcan.config.mts
   kept     .dockerignore
   kept     bunfig.toml
@@ -133,7 +130,7 @@ If `package.json` declares `workspaces`, `vulcan init` omits the three lint conf
 The command prints status `skipped` with the reason:
 
 ```text
-  skipped  .configs/{lints,formatters}: a workspaces project keeps them per app (apps/<name>/.configs/lints/, apps/<name>/.configs/formatters/); the templates are in node_modules/@venizia/vulcan/base/templates/
+  skipped  .configs/lints: a workspaces project keeps them per app (apps/<name>/.configs/lints/); the templates are in node_modules/@venizia/vulcan/base/templates/
 ```
 
 ### The MCP file
@@ -169,10 +166,10 @@ Run on an initialized project, `vulcan init` changes nothing.
 
 | Project | Packages installed |
 |---|---|
-| Single package | `oxlint`, `oxlint-tsgolint`, `oxfmt`, `eslint`, `@venizia/dev-configs` |
+| Single package | `oxlint`, `oxlint-tsgolint`, `eslint`, `@venizia/dev-configs` |
 | `package.json` declares `workspaces` | `@venizia/dev-configs` |
 
-The four lint tools are optional peers of `@venizia/dev-configs`, so `bun` never installs them on its own.
+The three lint tools are optional peers of `@venizia/dev-configs`, so `bun` never installs them on its own.
 A workspaces project keeps the lint configs, and so the lint tools, in each app.
 Before it runs, `vulcan init` prints `installing <packages>` with the list.
 If `bun add` fails, `vulcan init` prints `vulcan init: 'bun add ...' failed - run it yourself`, still prints `left to do:`, and exits with code 1.
@@ -384,7 +381,7 @@ The files `sync` wrote (`.agents/vulcan.local.json`, `.agents/vulcan.manifest.js
 | `<folder>/<app>/` | The preset's files, plus a `package.json` whose dependencies are `catalog:` |
 | `.gitignore`, `README.md`, `Makefile` | The ignore list for agent files, a title, and the VULCAN targets plus `make dev` |
 | `.dockerignore` | The build context of a Dockerfile built from the root: `**/node_modules`, `**/dist`, `**/*.tsbuildinfo`, `**/coverage`, `**/*.log`, `.git`, `.claude`, `.agents/plans`, the secrets `**/.env` and `**/.env.*` with `!**/.env.example` kept (in that order, after a comment saying why), and the per-machine files of every coding agent (the ones `sync` keeps in `.git/info/exclude`). The lockfile, every `package.json` and the sources are not listed: the image needs them. Edit it freely; `init` only creates a project, so it never overwrites one |
-| `bunfig.toml` | `telemetry = false` and the comment above it, the same file the scaffold above writes | Edit it freely |
+| `bunfig.toml` | `telemetry = false`, the comment above it and the `[fmt]` section, the same file the scaffold above writes | Edit it freely |
 | `AGENTS.md`, `.agents/rules.md` | The same layer as [the scaffold above](#generated-files) |
 | `.agents/vulcan.manifest.json`, `.agents/vulcan.local.json`, `.mcp.json`, `CLAUDE.md`, `.claude/` | What the first `sync` writes: the manifest, your choice of agents, the atlas entry for the agents that read `.mcp.json`, and the Claude adapters |
 | `.configs/vulcan.config.mts` | `name`, `layout`, one `packages` entry per app, and the preset's `atlas` sources |
