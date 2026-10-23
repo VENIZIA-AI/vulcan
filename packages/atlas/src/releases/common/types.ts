@@ -1,6 +1,6 @@
 import type { IPackageMapEntry } from '@/common/package-map';
 
-/** One published version of one package, as `scripts/atlas-releases.ts` read it off a release commit. */
+/** One published version of one package, as `vulcan x atlas releases` reads it off a release commit. */
 export interface IReleaseRecord {
   version: string;
   date: string;

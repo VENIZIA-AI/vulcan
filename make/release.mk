@@ -4,11 +4,11 @@
 
 # Every catalogued dependency is referenced as "catalog:" (root workspaces.catalog), none unused.
 catalog-check:
-	@bun scripts/check-catalog.ts
+	@bun scripts/checks/check-catalog.ts
 
 # One dispatch of .github/workflows/package-release.yml releases okf, atlas and cli as one train.
 release-plan:
-	@bun scripts/release.ts --dry-run $(ARGS)
+	@bun scripts/release/release.ts --dry-run $(ARGS)
 
 release:
-	@bun scripts/release.ts $(ARGS)
+	@bun scripts/release/release.ts $(ARGS)

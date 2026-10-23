@@ -2,10 +2,10 @@ import { afterAll, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSyncBounded } from './spawn.helper.ts';
+import { spawnSyncBounded } from '../../__tests__/spawn.helper.ts';
 
-const ROOT = join(import.meta.dir, '..', '..');
-const SCRIPT = join(ROOT, 'scripts', 'check-project-names.ts');
+const ROOT = join(import.meta.dir, '..', '..', '..');
+const SCRIPT = join(ROOT, 'scripts', 'checks', 'check-project-names.ts');
 const roots: string[] = [];
 
 afterAll(() => {

@@ -37,7 +37,7 @@ make skill-evals-plan SKILL=docs-writing PROJECT=../ignis
 make skill-evals SKILL=docs-writing PROJECT=../ignis MODELS=haiku,sonnet   # real runs
 ```
 
-- `scripts/skill-evals.ts` (core in `scripts/skill-evals-core.ts`). `PROJECT` is the checkout the
+- `scripts/evals/skill-evals.ts` (core in `scripts/evals/skill-evals-core.ts`). `PROJECT` is the checkout the
   evals' `files` live in; it defaults to this repository. A missing input file stops a real run with
   exit 2 before any call. Flags: `--grader` (default `opus`), `--out`, `--timeout` (seconds, default
   900), `--max-budget-usd` (a cap passed to every `claude` call, run and grader alike), passed as
@@ -49,4 +49,4 @@ make skill-evals SKILL=docs-writing PROJECT=../ignis MODELS=haiku,sonnet   # rea
 - One grader call per run returns `{ pass, reasons }`; malformed grader output is a recorded failure.
   Results land in `<out>/<skill>/<eval-id>/<model>/` and `<out>/<skill>/report.md`. Exit 0 when every
   run passed, 1 otherwise, 2 on bad arguments.
-- Tests never run a model: `scripts/__tests__/skill-evals.test.ts` puts a fake `claude` on `PATH`.
+- Tests never run a model: `scripts/evals/__tests__/skill-evals.test.ts` puts a fake `claude` on `PATH`.

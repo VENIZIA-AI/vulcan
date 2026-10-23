@@ -36,7 +36,7 @@ A framework package names its presets under `vulcan.presets` (`app` required, `l
 
 ## 2026-10-22 - okf, atlas and cli have the same layout
 
-Audit with `git ls-files`, `files` and `bun pm pack --dry-run`: each package committed `.env.test`; atlas had `scripts/pack-smoke.ts` and a dead `scripts/test.sh`, cli a `scripts/pack-smoke.ts`; the `files` exclusions differed; atlas had a `test:watch` script. Now every root is `.configs/ src/ package.json tsconfig.json Makefile README.md LICENSE.md` (cli adds `base/`), the test env is `TEST_ENV` in `make/test.mk` (B-08 reworded to match IGNIS), the pack smokes are root scripts, `files` has one shape and the scripts are `force-update` and `test` (atlas adds `prepublishOnly`). The tarballs are unchanged (the dry-run lists are identical). `scripts/__tests__/package-layout.test.ts` pins it. Concept: [repository-layout](/overview/repository-layout.md).
+Audit with `git ls-files`, `files` and `bun pm pack --dry-run`: each package committed `.env.test`; atlas had `scripts/pack-smoke.ts` and a dead `scripts/test.sh`, cli a `scripts/pack-smoke.ts`; the `files` exclusions differed; atlas had a `test:watch` script. Now every root is `.configs/ src/ package.json tsconfig.json Makefile README.md LICENSE.md` (cli adds `base/`), the test env is `TEST_ENV` in `make/test.mk` (B-08 reworded to match IGNIS), the pack smokes are root scripts, `files` has one shape and the scripts are `force-update` and `test` (atlas adds `prepublishOnly`). The tarballs are unchanged (the dry-run lists are identical). `scripts/checks/__tests__/package-layout.test.ts` pins it. Concept: [repository-layout](/overview/repository-layout.md).
 
 ## 2026-10-22 - init writes a root bunfig.toml
 

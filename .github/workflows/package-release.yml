@@ -242,7 +242,7 @@ jobs:
       - name: Keep next at or above latest
         run: |
           NAMES=$(for directory in $PUBLISH_ORDER; do jq -r .name "packages/$directory/package.json"; done)
-          bun scripts/next-tag.ts --published "$NEW_VERSION" --tag "$NPM_TAG" $NAMES
+          bun scripts/release/next-tag.ts --published "$NEW_VERSION" --tag "$NPM_TAG" $NAMES
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
 

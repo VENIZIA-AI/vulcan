@@ -58,7 +58,7 @@ lint-files:
 # Project Contract v1, V1: VULCAN's shipped source names no project.
 project-names-check:
 	@echo "lint: no project names in packages/*/src"
-	@bun scripts/check-project-names.ts
+	@bun scripts/checks/check-project-names.ts
 
 fmt-files:
 	@bun fmt $(BUN_FMT_FLAGS) $(FMT_GLOB) $(ROOT_FMT_IGNORE)

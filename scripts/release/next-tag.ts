@@ -3,7 +3,7 @@
  * `next` may hold a prerelease newer than `latest`, never anything older; a stable release moves
  * `latest` past a stale `next`, so this runs after every publish.
  *
- *   bun scripts/next-tag.ts [--published <version> --tag <dist-tag>] <package name>...
+ *   bun scripts/release/next-tag.ts [--published <version> --tag <dist-tag>] <package name>...
  */
 export interface IDistTags {
   latest?: string;
