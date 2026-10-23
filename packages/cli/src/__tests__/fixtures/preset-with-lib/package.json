@@ -1,1 +1,10 @@
-{ "name": "@fixture/withlib", "version": "2.0.0", "vulcan": { "presets": { "app": "./vulcan-preset/preset.json", "lib": "./vulcan-preset/lib.json" } } }
+{
+  "name": "@fixture/withlib",
+  "version": "2.0.0",
+  "vulcan": {
+    "presets": {
+      "app": "./vulcan-preset/preset.json",
+      "lib": "./vulcan-preset/lib.json"
+    }
+  }
+}

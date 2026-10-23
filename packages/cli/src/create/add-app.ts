@@ -10,6 +10,7 @@ import { AppSides, CreateFlags } from './common/index.ts';
 import type { IAppsBlock, ILocatedPreset, IPresetSpec, TAppSide } from './common/index.ts';
 import { today, writeFile } from './files.ts';
 import { recordedPresetOf } from './lib-preset.ts';
+import { renderManifestJson } from './manifest-json.ts';
 import { menusAvailable, promptSelect } from '../ui/index.ts';
 import { askPresetSpec } from './preset-menu.ts';
 import { ABORTED, confirmWrite, planLines } from './plan.ts';
@@ -602,7 +603,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   writeFile({
     root: cwd,
     path: 'package.json',
-    content: `${JSON.stringify(nextManifest, null, 2)}\n`,
+    content: renderManifestJson({ value: nextManifest }),
   });
   writeFile({ root: cwd, path: configPath, content: nextConfig });
   writeFile({

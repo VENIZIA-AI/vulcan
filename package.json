@@ -1,21 +1,14 @@
 {
   "name": "@venizia/vulcan-workspace",
   "version": "0.0.0",
+  "private": true,
   "description": "VULCAN - the agentic-coding toolkit and the single source of truth for knowledge, agent and atlas tooling across VENIZIA projects.",
   "homepage": "https://vulcan.venizia.ai",
+  "license": "MIT",
   "author": {
     "name": "VENIZIA AI Developer",
     "email": "developer@venizia.ai",
     "url": "https://venizia.ai"
-  },
-  "license": "MIT",
-  "private": true,
-  "type": "module",
-  "engines": {
-    "bun": ">=1.4.4"
-  },
-  "scripts": {
-    "force-update": "bun run --filter \"@venizia/*\" force-update"
   },
   "workspaces": {
     "packages": [
@@ -36,9 +29,16 @@
       "zod": "^4.6.7"
     }
   },
+  "type": "module",
+  "scripts": {
+    "force-update": "bun run --filter \"@venizia/*\" force-update"
+  },
   "devDependencies": {
     "@types/bun": "catalog:",
     "@venizia/dev-configs": "catalog:",
     "@venizia/vulcan": "workspace:*"
+  },
+  "engines": {
+    "bun": ">=1.4.4"
   }
 }

@@ -1,8 +1,8 @@
 {
   "name": "@venizia/vulcan-docs",
   "version": "0.0.0",
-  "description": "The VULCAN wiki site, built with VitePress from docs/wiki/content.",
   "private": true,
+  "description": "The VULCAN wiki site, built with VitePress from docs/wiki/content.",
   "type": "module",
   "scripts": {
     "docs:build": "vitepress build site",

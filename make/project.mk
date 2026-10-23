@@ -25,11 +25,12 @@ CJS_OUT ?= dist/cjs
 # clean leaves an empty dist.
 EMIT_TSCONFIGS := $(if $(filter cjs,$(FORMATS)),$(CJS_TSCONFIG))
 
-# Always the code glob: a bare `bun fmt` also formats Markdown, JSON and YAML. The [fmt] section of
+# Always a glob: a bare `bun fmt` also formats Markdown, JSON and YAML. The code, and package.json,
+# which bun fmt sorts. The [fmt] section of
 # the root bunfig.toml decides the style (flavor = "oxfmt" keeps oxfmt's output); --no-script keeps a
 # `fmt` script of the package from taking over.
 BUN_FMT_FLAGS := --no-script
-FMT_GLOB := "**/*.{ts,mts,tsx,js,mjs}"
+FMT_GLOB := "**/*.{ts,mts,tsx,js,mjs}" "**/package.json"
 
 # Paths a package keeps out of lint and format, one pattern per line (blank lines and # comments are
 # skipped): .configs/lints/.ignore feeds oxlint and ESLint, .configs/formatters/.ignore feeds bun fmt,

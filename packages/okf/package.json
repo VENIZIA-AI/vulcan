@@ -3,30 +3,22 @@
   "version": "0.3.11",
   "description": "VULCAN knowledge tooling: OKF v0.2 conformance check (plus --strict house rules), gen, coverage and the offline graph explorer for a project's .agents/knowledge bundle. Bun-only.",
   "homepage": "https://github.com/VENIZIA-AI/vulcan/tree/main/packages/okf",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/VENIZIA-AI/vulcan.git",
-    "directory": "packages/okf"
-  },
   "bugs": {
     "url": "https://github.com/VENIZIA-AI/vulcan/issues"
   },
+  "license": "MIT",
   "author": {
     "name": "VENIZIA AI Developer",
     "email": "developer@venizia.ai",
     "url": "https://venizia.ai"
   },
-  "license": "MIT",
-  "type": "module",
-  "engines": {
-    "bun": ">=1.4.4"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VENIZIA-AI/vulcan.git",
+    "directory": "packages/okf"
   },
   "bin": {
     "vulcan-okf": "./src/cli.ts"
-  },
-  "exports": {
-    ".": "./src/index.ts",
-    "./package.json": "./package.json"
   },
   "files": [
     "README.md",
@@ -35,6 +27,12 @@
     "!**/__tests__",
     "!**/*.tsbuildinfo"
   ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -55,5 +53,7 @@
     "oxlint-tsgolint": "catalog:",
     "typescript": "catalog:"
   },
-  "sideEffects": false
+  "engines": {
+    "bun": ">=1.4.4"
+  }
 }

@@ -8,6 +8,7 @@ import { CreateConstants, CreateFlags } from './common/index.ts';
 import type { IAppsBlock, ILocatedPreset, IPresetSpec } from './common/index.ts';
 import { today, writeFile } from './files.ts';
 import { readLibPreset } from './lib-preset.ts';
+import { renderManifestJson } from './manifest-json.ts';
 import type { TLibPreset } from './lib-preset.ts';
 import { ABORTED, confirmWrite, planLines } from './plan.ts';
 import { askInTerminal, readFlag, SCOPE_PATTERN } from './names.ts';
@@ -275,7 +276,7 @@ export const addLibrary = async (opts: {
   writeFile({
     root: cwd,
     path: 'package.json',
-    content: `${JSON.stringify(nextManifest, null, 2)}\n`,
+    content: renderManifestJson({ value: nextManifest }),
   });
   writeFile({ root: cwd, path: opts.configPath, content: nextConfig });
   writeFile({

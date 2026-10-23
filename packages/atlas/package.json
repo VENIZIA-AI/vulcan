@@ -3,34 +3,22 @@
   "version": "0.3.11",
   "description": "MCP knowledge server: search and read the wiki, changelogs and knowledge bundle by section, with citations. Bun-only, zero-dependency transport.",
   "homepage": "https://github.com/VENIZIA-AI/vulcan/tree/main/packages/atlas",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/VENIZIA-AI/vulcan.git",
-    "directory": "packages/atlas"
-  },
   "bugs": {
     "url": "https://github.com/VENIZIA-AI/vulcan/issues"
   },
+  "license": "MIT",
   "author": {
     "name": "VENIZIA AI Developer",
     "email": "developer@venizia.ai",
     "url": "https://venizia.ai"
   },
-  "license": "MIT",
-  "engines": {
-    "bun": ">=1.4.4"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VENIZIA-AI/vulcan.git",
+    "directory": "packages/atlas"
   },
-  "main": "./dist/cjs/index.js",
-  "types": "./dist/cjs/index.d.ts",
   "bin": {
     "vulcan-atlas": "./dist/cjs/cli.js"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/cjs/index.d.ts",
-      "default": "./dist/cjs/index.js"
-    },
-    "./package.json": "./package.json"
   },
   "files": [
     "README.md",
@@ -39,10 +27,19 @@
     "!**/__tests__",
     "!**/*.tsbuildinfo"
   ],
+  "sideEffects": false,
+  "main": "./dist/cjs/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/cjs/index.d.ts",
+      "default": "./dist/cjs/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "publishConfig": {
     "access": "public"
   },
-  "sideEffects": false,
   "scripts": {
     "force-update": "sh ../../scripts/force-update.sh",
     "prepublishOnly": "make rebuild",
@@ -59,5 +56,8 @@
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "tsc-alias": "catalog:"
+  },
+  "engines": {
+    "bun": ">=1.4.4"
   }
 }

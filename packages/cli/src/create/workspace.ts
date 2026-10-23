@@ -1,6 +1,7 @@
 import { relative, resolve } from 'node:path';
 import { coversFolder } from '../init/index.ts';
 import { CreateConstants } from './common/index.ts';
+import { renderManifestJson } from './manifest-json.ts';
 import type {
   IApp,
   IAppsBlock,
@@ -15,15 +16,13 @@ const ENV_PORT = /^[A-Z0-9_]*PORT=(\d+)\s*$/m;
 /** A newline inside a list item or a paragraph would split it. */
 const oneLine = (opts: { text: string }): string => opts.text.replace(/\s+/g, ' ').trim();
 
-const json = (opts: { value: unknown }): string => `${JSON.stringify(opts.value, null, 2)}\n`;
-
 export const renderRootManifest = (opts: {
   project: string;
   workspaces: string[];
   catalog: Record<string, string>;
   vulcanVersion: string;
 }): string =>
-  json({
+  renderManifestJson({
     value: {
       name: opts.project,
       private: true,
@@ -158,7 +157,7 @@ export const renderAppManifest = (opts: {
   preset: IPreset;
   presetPackage: { name: string; version: string };
 }): string =>
-  json({
+  renderManifestJson({
     value: {
       name: opts.name ?? opts.app,
       version: '0.0.0',
@@ -195,7 +194,7 @@ export const renderLibManifest = (opts: {
   const section = (value: Record<string, unknown>, key: string): Record<string, unknown> =>
     Object.keys(value).length === 0 ? {} : { [key]: value };
 
-  return json({
+  return renderManifestJson({
     value: {
       name: opts.name,
       version: '0.0.0',
