@@ -78,7 +78,7 @@ describe('vulcan init', () => {
     expect(result.stderr).toContain('created  bunfig.toml');
     expect(text.split('\n')).toContain('telemetry = false');
     expect(text.split('\n')).toContain('[fmt]');
-    expect(text).toContain('only from the directory');
+    expect(text).toContain('every folder below it');
     // No release-age gate: it fails a fresh install whose floors are the latest versions.
     expect(text).not.toContain('minimumReleaseAge');
   });

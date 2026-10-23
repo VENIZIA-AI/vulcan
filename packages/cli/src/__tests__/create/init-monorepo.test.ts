@@ -271,7 +271,7 @@ describe('vulcan init --preset', () => {
 
     expect(text.split('\n')).toContain('telemetry = false');
     expect(text.split('\n')).toContain('[fmt]');
-    expect(text).toContain('only from the directory');
+    expect(text).toContain('every folder below it');
     expect(text).not.toContain('minimumReleaseAge');
   });
 

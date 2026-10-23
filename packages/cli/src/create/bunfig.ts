@@ -10,7 +10,8 @@
  */
 export const renderBunfig = (): string =>
   [
-    '# Bun reads this file only from the directory a command runs in, so it sits at the root.',
+    '# Bun reads this file from the directory a command runs in, and bun fmt also inherits it from a parent.',
+    '# So it sits at the root, and [fmt] applies to every folder below it.',
     'telemetry = false',
     '',
     '[fmt]',
