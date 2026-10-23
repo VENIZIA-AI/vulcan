@@ -22,8 +22,6 @@ const LINT_CONFIGS = {
     "import { defineConfig } from 'oxlint';\nimport { oxlintConfigs } from '@venizia/dev-configs/linters';\n\nexport default defineConfig(oxlintConfigs);\n",
   '.configs/lints/eslint.config.mjs':
     "import { namingConventionConfigs } from '@venizia/dev-configs/linters';\n\nexport default namingConventionConfigs;\n",
-  '.configs/formatters/oxfmt.config.mts':
-    "import { defineConfig } from 'oxfmt';\nimport { oxfmtConfigs } from '@venizia/dev-configs/formatters';\n\nexport default defineConfig(oxfmtConfigs);\n",
 };
 const CONFORMANT: Record<string, string> = {
   '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
@@ -299,18 +297,18 @@ describe('doctor', () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
-        '.configs/oxfmt.config.mts':
-          "import { defineConfig } from 'oxfmt';\nimport { oxfmtConfigs } from '@venizia/dev-configs/formatters';\n\nexport default defineConfig(oxfmtConfigs);\n",
+        '.configs/oxlint.config.mts':
+          "import { defineConfig } from 'oxlint';\nimport { oxlintConfigs } from '@venizia/dev-configs/linters';\n\nexport default defineConfig(oxlintConfigs);\n",
       },
     });
     const violations = await runDoctorChecks({ root });
-    const legacy = violations.filter(violation => violation.file === '.configs/oxfmt.config.mts');
+    const legacy = violations.filter(violation => violation.file === '.configs/oxlint.config.mts');
 
     expect(legacy.map(violation => violation.check)).toEqual([DoctorChecks.STYLE]);
-    expect(legacy[0].message).toBe('move it to .configs/formatters/oxfmt.config.mts');
+    expect(legacy[0].message).toBe('move it to .configs/lints/oxlint.config.mts');
   });
 
-  test('a lint config under lints/ and formatters/ is where the style check looks', async () => {
+  test('a lint config under lints/ is where the style check looks', async () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
@@ -325,7 +323,7 @@ describe('doctor', () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
-        'packages/app/.configs/formatters/oxfmt.config.mts': 'export default {};\n',
+        'packages/app/.configs/lints/oxlint.config.mts': 'export default {};\n',
       },
     });
 
@@ -374,13 +372,13 @@ describe('doctor', () => {
         '.configs/vulcan.config.ts':
           "export default { rules: { 'V-W-01': 'read-only' }, packages: [{ dir: 'kit', name: '@demo/kit', path: 'umbras/kit' }] };\n",
         'umbras/kit/package.json': '{ "name": "@demo/kit" }',
-        'umbras/kit/.configs/formatters/oxfmt.config.mts': 'export default {};\n',
+        'umbras/kit/.configs/lints/oxlint.config.mts': 'export default {};\n',
       },
     });
     const violations = await runDoctorChecks({ root });
 
     expect(violations.map(violation => [violation.check, violation.file])).toEqual([
-      [DoctorChecks.STYLE, 'umbras/kit/.configs/formatters/oxfmt.config.mts'],
+      [DoctorChecks.STYLE, 'umbras/kit/.configs/lints/oxlint.config.mts'],
     ]);
   });
 
@@ -856,7 +854,9 @@ describe('doctor: bun fmt (warnings)', () => {
       ),
     });
   const ADD_SECTION =
-    'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "avoid"): without it bun fmt formats with Bun\'s defaults, not the shared style';
+    'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "avoid", flavor = "oxfmt"): without it bun fmt formats with Bun\'s defaults, not the shared style';
+  const FLAVOR_ADVICE =
+    'without it bun fmt formats like Prettier when oxfmt is not a dependency, and the output changes';
 
   test('the bunfig.toml that init writes passes', async () => {
     expect(await formatWarnings({ root: project({ files: {} }) })).toEqual([]);
@@ -888,9 +888,9 @@ describe('doctor: bun fmt (warnings)', () => {
 
   test('a [fmt] section is found with comments and spacing, and only as a table header', async () => {
     for (const text of [
-      '[fmt]\n',
-      '  [fmt]  # style\n',
-      'telemetry = false\n\n[fmt]\nsemi = false\n',
+      '[fmt]\nflavor = "oxfmt"\n',
+      "  [fmt]  # style\nflavor = 'oxfmt'\n",
+      'telemetry = false\n\n[fmt]\nsemi = false\nflavor = "oxfmt"\n',
     ]) {
       const root = project({ files: { 'bunfig.toml': text } });
 
@@ -937,6 +937,48 @@ describe('doctor: bun fmt (warnings)', () => {
 
     expect(warnings).toHaveLength(1);
     expect(warnings[0].file).toBe('services/api/package.json');
+  });
+
+  test('an oxfmt config left in .configs/formatters/ is unused: one warning to delete it', async () => {
+    const root = project({
+      files: { 'services/api/.configs/formatters/oxfmt.config.mts': 'export default {};\n' },
+    });
+
+    expect(await formatWarnings({ root })).toEqual([
+      {
+        check: DoctorChecks.FORMAT,
+        file: 'services/api/.configs/formatters/oxfmt.config.mts',
+        message:
+          'not used any more: bun fmt formats with the [fmt] section of bunfig.toml - delete it',
+      },
+    ]);
+  });
+
+  test('an oxfmt config bun fmt loads by itself overrides [fmt]: one warning per file', async () => {
+    const root = project({
+      files: { '.oxfmtrc.json': '{}\n', 'services/api/oxfmt.config.ts': 'export default {};\n' },
+    });
+    const message =
+      'bun fmt loads it and it overrides the [fmt] section of bunfig.toml - delete it, or move its settings to [fmt]';
+
+    expect(await formatWarnings({ root })).toEqual([
+      { check: DoctorChecks.FORMAT, file: '.oxfmtrc.json', message },
+      { check: DoctorChecks.FORMAT, file: 'services/api/oxfmt.config.ts', message },
+    ]);
+  });
+
+  test('a bunfig.toml [fmt] section without the oxfmt flavor: one warning', async () => {
+    const root = project({
+      files: { 'bunfig.toml': '[fmt]\nprintWidth = 100\n' },
+    });
+
+    expect(await formatWarnings({ root })).toEqual([
+      {
+        check: DoctorChecks.FORMAT,
+        file: 'bunfig.toml',
+        message: `[fmt] has no flavor = "oxfmt" - ${FLAVOR_ADVICE}`,
+      },
+    ]);
   });
 
   test('doctor prints the warning lines and stays green', () => {

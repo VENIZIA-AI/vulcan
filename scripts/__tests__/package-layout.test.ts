@@ -25,9 +25,9 @@ const PAYLOAD: Record<string, string[]> = {
 };
 /** The folders under `.configs/`: atlas also builds, so it also has `builders/`. */
 const CONFIG_FOLDERS: Record<string, string[]> = {
-  okf: ['formatters', 'lints'],
-  atlas: ['builders', 'formatters', 'lints'],
-  cli: ['formatters', 'lints'],
+  okf: ['lints'],
+  atlas: ['builders', 'lints'],
+  cli: ['lints'],
 };
 
 const tracked = (opts: { name: string }): string[] => {

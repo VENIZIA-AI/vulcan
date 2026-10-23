@@ -29,7 +29,6 @@
       "cytoscape": "^3.34.4",
       "cytoscape-fcose": "^2.2.0",
       "eslint": "10.13.0",
-      "oxfmt": "0.74.0",
       "oxlint": "1.89.0",
       "oxlint-tsgolint": "7.0.2004",
       "tsc-alias": "1.9.8",
@@ -40,7 +39,6 @@
   "devDependencies": {
     "@types/bun": "catalog:",
     "@venizia/dev-configs": "catalog:",
-    "@venizia/vulcan": "workspace:*",
-    "oxfmt": "catalog:"
+    "@venizia/vulcan": "workspace:*"
   }
 }

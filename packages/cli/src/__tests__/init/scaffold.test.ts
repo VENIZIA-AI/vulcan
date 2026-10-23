@@ -18,7 +18,6 @@ const SCAFFOLD = [
   '.configs/vulcan.config.mts',
   '.configs/lints/oxlint.config.mts',
   '.configs/lints/eslint.config.mjs',
-  '.configs/formatters/oxfmt.config.mts',
   '.agents/rules.md',
   '.agents/knowledge/index.md',
   'Makefile',
@@ -41,6 +40,15 @@ describe('vulcan init', () => {
     expect(readFileSync(join(root, '.configs/lints/oxlint.config.mts'), 'utf8')).toContain(
       '@venizia/dev-configs',
     );
+  });
+
+  test('no formatter config is written: the [fmt] section of bunfig.toml is the formatter config', () => {
+    const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
+
+    runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+
+    expect(existsSync(join(root, '.configs/formatters'))).toBe(false);
+    expect(readFileSync(join(root, 'bunfig.toml'), 'utf8')).toContain('flavor = "oxfmt"');
   });
 
   test('a root .dockerignore is created when there is none, and reported', () => {
@@ -165,7 +173,7 @@ describe('vulcan init', () => {
     const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
 
     expect(result.stderr).toContain(
-      'skipped  bun add -d --exact oxlint oxlint-tsgolint oxfmt eslint @venizia/dev-configs',
+      'skipped  bun add -d --exact oxlint oxlint-tsgolint eslint @venizia/dev-configs',
     );
     expect(readFileSync(join(root, 'package.json'), 'utf8')).toBe('{ "name": "demo" }');
   });
@@ -174,7 +182,7 @@ describe('vulcan init', () => {
     const root = createProject({ files: { 'package.json': '{ "name": "demo" }' } });
     const { stderr } = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
     const listed = stderr.indexOf(
-      'installing oxlint oxlint-tsgolint oxfmt eslint @venizia/dev-configs\n',
+      'installing oxlint oxlint-tsgolint eslint @venizia/dev-configs\n',
     );
 
     expect(listed).toBeGreaterThan(-1);
@@ -191,7 +199,7 @@ describe('vulcan init', () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(
-      "vulcan init: 'bun add -d --exact oxlint oxlint-tsgolint oxfmt eslint @venizia/dev-configs' failed - run it yourself",
+      "vulcan init: 'bun add -d --exact oxlint oxlint-tsgolint eslint @venizia/dev-configs' failed - run it yourself",
     );
     expect(result.stderr).toContain('left to do:');
     expect(existsSync(join(root, 'AGENTS.md'))).toBe(true);
@@ -212,7 +220,7 @@ describe('vulcan init', () => {
     const root = createProject({
       files: {
         'package.json':
-          '{ "name": "demo", "devDependencies": { "@venizia/dev-configs": "0.3.1", "oxlint": "1", "oxlint-tsgolint": "7", "oxfmt": "0", "eslint": "10" } }',
+          '{ "name": "demo", "devDependencies": { "@venizia/dev-configs": "0.3.1", "oxlint": "1", "oxlint-tsgolint": "7", "eslint": "10" } }',
       },
     });
     const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
