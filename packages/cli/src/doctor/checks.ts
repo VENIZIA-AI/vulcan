@@ -868,6 +868,22 @@ export const checkFormat = (opts: ICheckContext): IViolation[] => {
       );
     }
 
+    const copy = join(owner, 'bunfig.toml');
+
+    if (
+      owner !== '.' &&
+      DoctorConstants.BUNFIG_FMT_SECTION.test(readText({ file: join(opts.root, copy) }))
+    ) {
+      warnings.push(
+        createViolation({
+          check: DoctorChecks.FORMAT,
+          file: copy,
+          message:
+            'a [fmt] copy: bun fmt inherits the root bunfig.toml, and a copy here can drift from it - delete the section',
+        }),
+      );
+    }
+
     for (const file of DoctorConstants.OXFMT_AUTOLOADED_FILES) {
       if (existsSync(join(opts.root, owner, file))) {
         warnings.push(

@@ -46,7 +46,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `scaffold` | Workspaces declare packages and the knowledge index replaces scaffold text | Add `packages` in configuration and remove `vulcan:scaffold` from `index.md` |
 | `apps` | Every `layout` folder is a workspace and every package lives in one | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
 | `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
-| `format` (warning) | The root `bunfig.toml` has a `[fmt]` section with `flavor = "oxfmt"`, no `package.json` defines a `fmt` script, and no oxfmt config is left behind | Add the section, rename the script, delete the config |
+| `format` (warning) | The root `bunfig.toml` has a `[fmt]` section with `flavor = "oxfmt"`, no `package.json` defines a `fmt` script, and no oxfmt config is left behind | Add the section, rename the script, delete the config or the copy |
 | `mcp` (warning) | `.mcp.json` (when a chosen agent reads it) holds the canonical `atlas` entry, git no longer tracks it, and the Claude settings enable `atlas` | Use the entry the warning shows, `git rm --cached .mcp.json`, and run `bun x --no-install vulcan sync` |
 
 ### config
@@ -328,7 +328,7 @@ The `[fmt]` section should carry `flavor = "oxfmt"`: without it `bun fmt` format
   warning [format] .oxfmtrc.json: bun fmt loads it and it overrides the [fmt] section of bunfig.toml - delete it, or move its settings to [fmt]
 ```
 
-The `oxfmt.config.*` that `init` wrote in `.configs/formatters/` is read by nothing now, so it warns to be deleted. `.oxfmtrc.json`, `.oxfmtrc.jsonc` and `oxfmt.config.ts` in the root or a package folder are different: `bun fmt` finds them by itself and they override `[fmt]`. The check looks in the root, `packages/*` and every configured package path.
+The `oxfmt.config.*` that `init` wrote in `.configs/formatters/` is read by nothing now, so it warns to be deleted. `.oxfmtrc.json`, `.oxfmtrc.jsonc` and `oxfmt.config.ts` in the root or a package folder are different: `bun fmt` finds them by itself and they override `[fmt]`. The check looks in the root, `packages/*` and every configured package path. It also warns when a package or app folder has a `bunfig.toml` with a `[fmt]` section of its own: `bun fmt` inherits the root file, the root is the one decider, and a copy can drift from it (`init` writes only the root file; a copy comes from a preset's files).
 
 Add the section by hand, or let `vulcan init` write the file in a new project. Always pass the code glob: a bare `bun fmt` also formats Markdown, JSON and YAML.
 

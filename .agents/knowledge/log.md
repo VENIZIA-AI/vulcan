@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-23 - the bunfig comment, and one [fmt] decider
+
+The generated comment said Bun reads `bunfig.toml` only from the directory a command runs in; for `[fmt]` that is wrong (a parent bunfig is inherited: measured by vulcan, ignis and ardor), so it now says `bun fmt` inherits it and `[fmt]` applies to every folder below the root. VULCAN writes only the root file (`init`, `init --preset`); a per-app copy can only come from a preset's files, so `checkFormat` warns about a `[fmt]` section in a package or app folder.
+
 ## 2026-10-23 - package.json is sorted by bun fmt
 
 Phat: sort the keys of package.json. `bun fmt` does it by default (sort-package-json order: name, version, ... scripts left in place, dependencies A to Z); `sortPackageJson = false` is set nowhere. The package `FMT_GLOB` is `"**/*.{ts,mts,tsx,js,mjs}" "**/package.json"` and `lint-manifests` / `fmt-manifests` cover the root `package.json` and `docs/**/package.json`; one commit sorted every tracked manifest, test fixtures included. `renderManifestJson` (create/manifest-json.ts) renders every manifest VULCAN writes - `renderRootManifest`, `renderAppManifest`, `renderLibManifest`, and the root manifest `add --app` and `add --lib` rewrite - through `bun fmt --stdin-filepath package.json`, so the order is Bun's and not a copy; tests run `bun fmt --check` on a project right after `init` and `add`. The release workflow's `npm version` and `force-update.sh` change values only, so a sorted file stays sorted.

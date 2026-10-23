@@ -967,6 +967,27 @@ describe('doctor: bun fmt (warnings)', () => {
     ]);
   });
 
+  test('a [fmt] copy in an app folder: one warning, the root is the one decider', async () => {
+    const root = project({
+      files: { 'services/api/bunfig.toml': renderBunfig() },
+    });
+
+    expect(await formatWarnings({ root })).toEqual([
+      {
+        check: DoctorChecks.FORMAT,
+        file: 'services/api/bunfig.toml',
+        message:
+          'a [fmt] copy: bun fmt inherits the root bunfig.toml, and a copy here can drift from it - delete the section',
+      },
+    ]);
+  });
+
+  test("a bunfig.toml in an app folder without [fmt] is not the check's business", async () => {
+    const root = project({ files: { 'services/api/bunfig.toml': '[install]\nexact = true\n' } });
+
+    expect(await formatWarnings({ root })).toEqual([]);
+  });
+
   test('a bunfig.toml [fmt] section without the oxfmt flavor: one warning', async () => {
     const root = project({
       files: { 'bunfig.toml': '[fmt]\nprintWidth = 100\n' },
