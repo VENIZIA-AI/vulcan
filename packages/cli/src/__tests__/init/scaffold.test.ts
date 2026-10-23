@@ -62,13 +62,14 @@ describe('vulcan init', () => {
     expect(secrets).toEqual([...secrets].sort((a, b) => a - b));
   });
 
-  test('a root bunfig.toml with telemetry off is created when there is none, and reported', () => {
+  test('a root bunfig.toml with telemetry off and [fmt] is created when there is none, and reported', () => {
     const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
     const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
     const text = readFileSync(join(root, 'bunfig.toml'), 'utf8');
 
     expect(result.stderr).toContain('created  bunfig.toml');
     expect(text.split('\n')).toContain('telemetry = false');
+    expect(text.split('\n')).toContain('[fmt]');
     expect(text).toContain('only from the directory');
     // No release-age gate: it fails a fresh install whose floors are the latest versions.
     expect(text).not.toContain('minimumReleaseAge');

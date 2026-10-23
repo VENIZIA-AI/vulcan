@@ -6,6 +6,10 @@ not how.
 This file and `index.md` are reserved OKF filenames - they carry no `type:` frontmatter and are not
 counted as concepts.
 
+## 2026-10-23 - bun fmt formats VULCAN and the projects it scaffolds
+
+Bun 1.4.4 has `bun fmt` (the oxfmt engine; 0 diffs on okf, atlas, cli and `scripts/` with the same settings). `renderBunfig` adds `[fmt]` (`printWidth = 100`, `singleQuote = true`, `arrowParens = "avoid"`, the `oxfmtConfigs` of `@venizia/dev-configs`; the rest is Bun's defaults); the repository's own `bunfig.toml` is that file. `make/project.mk` and `make/lint.mk` run `bun fmt` with the code glob (a bare `bun fmt` also formats md/json/yaml) and each `.configs/formatters/.ignore` line as `--ignore-pattern`, which `bun fmt` does not read by itself. `doctor` warns (check `format`) when `bunfig.toml` is missing or has no `[fmt]`, and when a `package.json` has a `fmt` script (it runs instead of the formatter). Bun >= 1.4.4 in `engines` and `.bun-version`; CI stays on `latest`. Step 1 is additive: oxfmt, its template and the D9 checks stay, removing them is step 2 (breaking). Measured: `bun fmt` finds the `bunfig.toml` of a parent directory, so a package Makefile can run it from the package folder. Not done: the web preset values (`arrowParens = "always"`, `bracketSameLine = true`) wait for ardor's 0-diff check, and VULCAN has no way yet for a preset to change the root bunfig.
+
 ## 2026-10-22 - --scope names an app's package
 
 `init --preset` and `add --app` take `--scope @acme` (`readScope`, `SCOPE_PATTERN` in create/names.ts, shared with `add --lib`) and name the app's package `@acme/<app>`: the app's package.json and the config's `packages[].name`; the folder and `dir` stay bare, `--api` still matches the dir, never inferred from other packages. A menu asks for it (`askScope`, optional); plain terminals do not. Concept: [cli](/packages/cli.md).

@@ -13,8 +13,8 @@ BIN := $(CURDIR)/node_modules/.bin
 TSC := $(BIN)/tsc
 TSC_ALIAS := $(BIN)/tsc-alias
 
-# Type-checking runs through Bun (>= 1.4.3), which reports what tsc reports; tsc stays only where it
-# emits.
+# Type-checking and formatting run through Bun (>= 1.4.4): `bun check` reports what tsc reports (tsc
+# stays only where it emits), `bun fmt` formats with the [fmt] section of the root bunfig.toml.
 TYPECHECK := bun check --no-pretty
 
 FORMATS ?= cjs
@@ -25,15 +25,17 @@ CJS_OUT ?= dist/cjs
 # clean leaves an empty dist.
 EMIT_TSCONFIGS := $(if $(filter cjs,$(FORMATS)),$(CJS_TSCONFIG))
 
+# Always the code glob: a bare `bun fmt` also formats Markdown, JSON and YAML.
 FMT_GLOB := "**/*.{ts,mts,js,mjs}"
 
 # Paths a package keeps out of lint and format, one pattern per line (blank lines and # comments are
-# skipped): .configs/lints/.ignore feeds oxlint and ESLint, .configs/formatters/.ignore feeds oxfmt.
-# They live beside the configs because oxlint and oxfmt resolve ignore patterns from the config's own
-# folder and refuse '..': a config in .configs/ cannot ignore package paths itself.
+# skipped): .configs/lints/.ignore feeds oxlint and ESLint, .configs/formatters/.ignore feeds bun fmt,
+# which does not read it by itself. They live beside the configs because oxlint resolves ignore
+# patterns from the config's own folder and refuses '..': a config in .configs/ cannot ignore package
+# paths itself.
 IGNORE_LINES = $(shell sed -e '/^\#/d' -e '/^$$/d' $(1) 2>/dev/null)
 LINT_IGNORE := $(foreach pattern,$(call IGNORE_LINES,.configs/lints/.ignore),--ignore-pattern $(pattern))
-FMT_IGNORE := $(foreach pattern,$(call IGNORE_LINES,.configs/formatters/.ignore),'!$(pattern)')
+FMT_IGNORE := $(foreach pattern,$(call IGNORE_LINES,.configs/formatters/.ignore),--ignore-pattern '$(pattern)')
 
 .PHONY: build typecheck clean rebuild lint lint-fix fmt
 
@@ -68,7 +70,7 @@ rebuild: typecheck clean
 lint:
 	@$(BIN)/oxlint -c .configs/lints/oxlint.config.mts --deny-warnings $(LINT_IGNORE) .
 	@$(BIN)/eslint -c .configs/lints/eslint.config.mjs $(LINT_IGNORE) .
-	@$(BIN)/oxfmt -c .configs/formatters/oxfmt.config.mts --check $(FMT_GLOB) $(FMT_IGNORE)
+	@bun fmt --check $(FMT_GLOB) $(FMT_IGNORE)
 
 # The library target set is build, typecheck, lint, lint-fix, test, clean; `fmt` is the same as `lint-fix`.
 lint-fix: fmt
@@ -76,4 +78,4 @@ lint-fix: fmt
 fmt:
 	@$(BIN)/oxlint -c .configs/lints/oxlint.config.mts --fix $(LINT_IGNORE) .
 	@$(BIN)/eslint -c .configs/lints/eslint.config.mjs --fix $(LINT_IGNORE) .
-	@$(BIN)/oxfmt -c .configs/formatters/oxfmt.config.mts $(FMT_GLOB) $(FMT_IGNORE)
+	@bun fmt $(FMT_GLOB) $(FMT_IGNORE)

@@ -1,7 +1,7 @@
 # Lint and format the packages.
 
 # Each package lints itself, from its own .configs/lints/ and .configs/formatters/ and with its own tools (its node_modules/.bin).
-# oxlint owns the rules, ESLint runs only naming-convention (oxlint has no port yet), oxfmt formats.
+# oxlint owns the rules, ESLint runs only naming-convention (oxlint has no port yet), bun fmt formats.
 LINT_PKG_TARGETS := $(addprefix lint-,$(PACKAGES))
 FMT_PKG_TARGETS := $(addprefix fmt-,$(PACKAGES))
 TYPECHECK_PKG_TARGETS := $(addprefix typecheck-,$(PACKAGES))
@@ -41,11 +41,11 @@ $(TYPECHECK_PKG_TARGETS): typecheck-%:
 	@echo "typecheck: packages/$*"
 	@$(MAKE) --no-print-directory -C packages/$* typecheck
 
-# The root scripts/ is not a workspace member: it formats with its own .configs and type-checks with
-# its own tsconfig, from the root package.json's tools.
+# The root scripts/ is not a workspace member: it formats with the root bunfig.toml and type-checks
+# with its own tsconfig.
 lint-scripts:
 	@echo "lint: scripts"
-	@node_modules/.bin/oxfmt -c scripts/.configs/formatters/oxfmt.config.mts --check "scripts/**/*.{ts,mts}"
+	@bun fmt --check "scripts/**/*.{ts,mts}"
 	@bun check --no-pretty -p scripts/tsconfig.json
 
 # Project Contract v1, V1: VULCAN's shipped source names no project.
@@ -54,4 +54,4 @@ project-names-check:
 	@bun scripts/check-project-names.ts
 
 fmt-scripts:
-	@node_modules/.bin/oxfmt -c scripts/.configs/formatters/oxfmt.config.mts "scripts/**/*.{ts,mts}"
+	@bun fmt "scripts/**/*.{ts,mts}"
