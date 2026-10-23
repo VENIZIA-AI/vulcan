@@ -41,11 +41,12 @@ $(TYPECHECK_PKG_TARGETS): typecheck-%:
 	@echo "typecheck: packages/$*"
 	@$(MAKE) --no-print-directory -C packages/$* typecheck
 
-# The root scripts/ is not a workspace member: it formats with the root bunfig.toml and type-checks
+# The root scripts/ is not a workspace member: it formats with its own oxfmt config and type-checks
 # with its own tsconfig.
+BUN_FMT_SCRIPTS_FLAGS := --no-script --config scripts/.configs/formatters/oxfmt.config.mts
 lint-scripts:
 	@echo "lint: scripts"
-	@bun fmt --check "scripts/**/*.{ts,mts}"
+	@bun fmt $(BUN_FMT_SCRIPTS_FLAGS) --check "scripts/**/*.{ts,mts}"
 	@bun check --no-pretty -p scripts/tsconfig.json
 
 # Project Contract v1, V1: VULCAN's shipped source names no project.
@@ -54,4 +55,4 @@ project-names-check:
 	@bun scripts/check-project-names.ts
 
 fmt-scripts:
-	@bun fmt "scripts/**/*.{ts,mts}"
+	@bun fmt $(BUN_FMT_SCRIPTS_FLAGS) "scripts/**/*.{ts,mts}"

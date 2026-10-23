@@ -14,7 +14,7 @@ TSC := $(BIN)/tsc
 TSC_ALIAS := $(BIN)/tsc-alias
 
 # Type-checking and formatting run through Bun (>= 1.4.4): `bun check` reports what tsc reports (tsc
-# stays only where it emits), `bun fmt` formats with the [fmt] section of the root bunfig.toml.
+# stays only where it emits), `bun fmt` formats with the package's oxfmt config.
 TYPECHECK := bun check --no-pretty
 
 FORMATS ?= cjs
@@ -25,8 +25,11 @@ CJS_OUT ?= dist/cjs
 # clean leaves an empty dist.
 EMIT_TSCONFIGS := $(if $(filter cjs,$(FORMATS)),$(CJS_TSCONFIG))
 
-# Always the code glob: a bare `bun fmt` also formats Markdown, JSON and YAML.
-FMT_GLOB := "**/*.{ts,mts,js,mjs}"
+# Always the code glob: a bare `bun fmt` also formats Markdown, JSON and YAML. The oxfmt config decides
+# the style (bun fmt evaluates it); --no-script keeps a `fmt` script of the package from taking over.
+# In step 2 the config files go and the [fmt] section of the root bunfig.toml decides.
+BUN_FMT_FLAGS := --no-script --config .configs/formatters/oxfmt.config.mts
+FMT_GLOB := "**/*.{ts,mts,tsx,js,mjs}"
 
 # Paths a package keeps out of lint and format, one pattern per line (blank lines and # comments are
 # skipped): .configs/lints/.ignore feeds oxlint and ESLint, .configs/formatters/.ignore feeds bun fmt,
@@ -70,7 +73,7 @@ rebuild: typecheck clean
 lint:
 	@$(BIN)/oxlint -c .configs/lints/oxlint.config.mts --deny-warnings $(LINT_IGNORE) .
 	@$(BIN)/eslint -c .configs/lints/eslint.config.mjs $(LINT_IGNORE) .
-	@bun fmt --check $(FMT_GLOB) $(FMT_IGNORE)
+	@bun fmt $(BUN_FMT_FLAGS) --check $(FMT_GLOB) $(FMT_IGNORE)
 
 # The library target set is build, typecheck, lint, lint-fix, test, clean; `fmt` is the same as `lint-fix`.
 lint-fix: fmt
@@ -78,4 +81,4 @@ lint-fix: fmt
 fmt:
 	@$(BIN)/oxlint -c .configs/lints/oxlint.config.mts --fix $(LINT_IGNORE) .
 	@$(BIN)/eslint -c .configs/lints/eslint.config.mjs --fix $(LINT_IGNORE) .
-	@bun fmt $(FMT_GLOB) $(FMT_IGNORE)
+	@bun fmt $(BUN_FMT_FLAGS) $(FMT_GLOB) $(FMT_IGNORE)
