@@ -1,1 +1,4 @@
-{ "name": "@nx/shop-workspace", "private": true }
+{
+  "name": "@nx/shop-workspace",
+  "private": true
+}

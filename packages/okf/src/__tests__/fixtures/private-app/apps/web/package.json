@@ -1,1 +1,6 @@
-{ "name": "@nx/web", "version": "0.0.1-0", "private": true, "description": "The storefront." }
+{
+  "name": "@nx/web",
+  "version": "0.0.1-0",
+  "private": true,
+  "description": "The storefront."
+}

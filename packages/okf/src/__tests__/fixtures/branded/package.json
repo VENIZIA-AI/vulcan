@@ -1,1 +1,4 @@
-{ "name": "@venizia/acme-workspace", "private": true }
+{
+  "name": "@venizia/acme-workspace",
+  "private": true
+}
