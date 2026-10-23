@@ -25,10 +25,44 @@ export const SIDE_FIELDS: Record<TAppSide, INameField> = {
   },
 };
 
+/** `@acme`: what `--scope` takes, for a library and for an app. */
+export const SCOPE_PATTERN = /^@[a-z0-9][a-z0-9-]*$/;
+
+/**
+ * The optional scope question of a menu: a package scope typed, or nothing for a bare name. Asked only
+ * where menus are drawn; a plain terminal and a script give `--scope`. `null` is a cancel.
+ */
+export const askScope = async (): Promise<string | undefined | null> => {
+  const answer = await promptText({
+    message: 'Package scope (optional, like @acme; empty for none)',
+    validate: value =>
+      value.trim() === '' || SCOPE_PATTERN.test(value.trim())
+        ? undefined
+        : `'${value.trim()}' is not a scope like @acme`,
+  });
+
+  return answer === null ? null : answer.trim() === '' ? undefined : answer.trim();
+};
+
 export const readFlag = (opts: { args: string[]; flag: string }): string | undefined => {
   const index = opts.args.indexOf(opts.flag);
 
   return index === -1 ? undefined : opts.args[index + 1];
+};
+
+/** The scope the flag names, validated: none when absent, an error that names the flag when it is not `@scope`. */
+export const readScope = (opts: {
+  args: string[];
+}): { ok: true; scope: string | undefined } | { ok: false; error: string } => {
+  const given = readFlag({ args: opts.args, flag: CreateFlags.SCOPE });
+
+  if (given === undefined) {
+    return { ok: true, scope: undefined };
+  }
+
+  return SCOPE_PATTERN.test(given)
+    ? { ok: true, scope: given }
+    : { ok: false, error: `${CreateFlags.SCOPE} '${given}' is not a scope like @acme` };
 };
 
 const isValidName = (opts: { name: string }): boolean =>

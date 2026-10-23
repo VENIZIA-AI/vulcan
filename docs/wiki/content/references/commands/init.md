@@ -333,6 +333,7 @@ vulcan init: missing --backend-dir (Backend folder (holds every backend app)) - 
 | `--frontend-dir <name>` | The folder that holds frontend apps. Used when the preset is a frontend |
 | `--app <name>` | The name of the first app |
 | `--shared-dir <name>` | A folder for code shared between apps. Optional: leave it out, or answer empty, to skip it |
+| `--scope <@scope>` | The npm scope of the first app's package: `--scope @acme` names it `@acme/<app>`. Optional; the folder and the dir registered in the config stay bare. A menu asks for it (empty for none); a plain terminal does not |
 
 A name is lowercase letters, digits and `-`, and starts with a letter or digit.
 In a terminal an invalid name is asked again; with a flag it is an error.

@@ -27,6 +27,7 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
       CreateFlags.SHARED_DIR,
       CreateFlags.APP,
       CreateFlags.API,
+      CreateFlags.SCOPE,
     ],
     positionals: 0,
   },

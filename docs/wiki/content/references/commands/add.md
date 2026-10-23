@@ -262,7 +262,7 @@ Where the library goes, and what it is called:
 | `--no-api` | A frontend only: proxy to nothing |
 | `--lib <name>` | Create a shared library instead of an app. Not with `--app` |
 | `--dir <folder>` | A library only: the folder it goes in, from the root. Default: the `shared` folder |
-| `--scope <@scope>` | A library only: the npm scope of its name |
+| `--scope <@scope>` | The npm scope of the package name, for a library and for an app: `--app web --scope @acme` names the app `@acme/web` (a library with no flag takes the scope its folder agrees on, as above; an app with no flag stays bare). The folder and the dir registered in the config stay bare. A menu asks for it for an app (empty for none); a plain terminal does not |
 
 A name is lowercase letters, digits and `-`, and starts with a letter or digit.
 A name is never invented: without a terminal, neither `--app` nor `--lib` is an error that prints both commands, and `--lib` alone with no name is an error that names the flag.

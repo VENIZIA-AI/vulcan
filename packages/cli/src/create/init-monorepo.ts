@@ -18,7 +18,15 @@ import { renderDockerignore } from './dockerignore.ts';
 import { menusAvailable } from '../ui/index.ts';
 import { askPresetSpec } from './preset-menu.ts';
 import { ABORTED, confirmWrite, planLines } from './plan.ts';
-import { askInTerminal, findFolderClash, readFlag, resolveNames, SIDE_FIELDS } from './names.ts';
+import {
+  askInTerminal,
+  askScope,
+  findFolderClash,
+  readFlag,
+  readScope,
+  resolveNames,
+  SIDE_FIELDS,
+} from './names.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
 import { renderNext } from './next.ts';
 import { isInstallSkipped, runBun, runGitInit } from './process.ts';
@@ -81,9 +89,12 @@ const writeMonorepo = (opts: {
   located: ILocatedPreset;
   folder: string;
   app: string;
+  /** `@scope` for the app's package name; the folder stays bare. */
+  scope: string | undefined;
   shared: string;
 }): void => {
-  const { root, project, spec, presetValue, located, folder, app, shared } = opts;
+  const { root, project, spec, presetValue, located, folder, app, shared, scope } = opts;
+  const packageOfApp = scope === undefined ? app : `${scope}/${app}`;
   const { preset, packageName, packageVersion } = located;
   const side = preset.side;
   const catalog = {
@@ -138,6 +149,7 @@ const writeMonorepo = (opts: {
     path: `${folder}/${app}/package.json`,
     content: renderAppManifest({
       app,
+      name: packageOfApp,
       preset,
       presetPackage: { name: packageName, version: packageVersion },
     }),
@@ -155,7 +167,7 @@ const writeMonorepo = (opts: {
 
   const block: IAppsBlock = {
     layout: { [side]: folder, ...(shared === '' ? {} : { shared }) },
-    packages: [{ dir: app, name: app, path: `${folder}/${app}` }],
+    packages: [{ dir: app, name: packageOfApp, path: `${folder}/${app}` }],
     presets: [
       recordedPresetOf({
         spec: presetSpecOf({ value: presetValue, root, cwd: dirname(root) }),
@@ -210,6 +222,12 @@ const runCreate = async (opts: {
 
   if (presetValue === undefined || presetValue === '') {
     return fail({ message: '--preset needs a value (a package name, or file:<path>)' });
+  }
+
+  const flaggedScope = readScope({ args: opts.args });
+
+  if (!flaggedScope.ok) {
+    return fail({ message: flaggedScope.error });
   }
 
   const spec = parsePresetSpec({ value: presetValue, cwd: opts.cwd });
@@ -313,6 +331,13 @@ const runCreate = async (opts: {
     return fail({ message: clash });
   }
 
+  // Optional, asked only where menus are drawn; a plain terminal and a script give --scope.
+  const scope = flaggedScope.scope ?? (menusAvailable() ? await askScope() : undefined);
+
+  if (scope === null) {
+    return fail({ message: ABORTED });
+  }
+
   const warning = filePresetWarning({
     spec,
     packageName: located.packageName,
@@ -329,6 +354,7 @@ const runCreate = async (opts: {
         ['project', project],
         ['preset', `${located.packageName} ${located.packageVersion}`],
         [`${side} app`, `${folder}/${app}`],
+        ...(scope === undefined ? [] : [['package', `${scope}/${app}`] as [string, string]]),
         ['shared', shared === '' ? '(none)' : shared],
       ],
     }),
@@ -338,7 +364,7 @@ const runCreate = async (opts: {
     return fail({ message: ABORTED });
   }
 
-  writeMonorepo({ root, project, spec, presetValue, located, folder, app, shared });
+  writeMonorepo({ root, project, spec, presetValue, located, folder, app, scope, shared });
 
   for (const step of [
     () => runBun({ cwd: root, args: ['install'], label: 'bun install' }),

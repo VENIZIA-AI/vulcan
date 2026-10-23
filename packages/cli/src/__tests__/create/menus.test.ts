@@ -45,6 +45,7 @@ describe.skipIf(!hasScript)('vulcan init asks with menus in a terminal', () => {
     { waitFor: 'Backend folder', send: `services${KEYS.ENTER}` },
     { waitFor: 'Name of this backend app', send: `core-api${KEYS.ENTER}` },
     { waitFor: 'Shared code folder', send: `libs${KEYS.ENTER}` },
+    { waitFor: 'Package scope', send: KEYS.ENTER },
   ];
 
   test('typed names, then a summary, then a confirm, then the same project the flags build', async () => {
@@ -112,6 +113,7 @@ describe.skipIf(!hasScript)('the preset is picked or typed when --preset is miss
         { waitFor: 'Backend folder', send: `services${KEYS.ENTER}` },
         { waitFor: 'Name of this backend app', send: `core-api${KEYS.ENTER}` },
         { waitFor: 'Shared code folder', send: KEYS.ENTER },
+        { waitFor: 'Package scope', send: KEYS.ENTER },
         { waitFor: WRITE, send: KEYS.ENTER },
       ],
     });
@@ -204,6 +206,7 @@ describe.skipIf(!hasScript)('vulcan add asks with menus in a terminal', () => {
       steps: [
         { waitFor: 'What do you want to create?', send: KEYS.ENTER },
         { waitFor: 'Name of this backend app', send: `third-api${KEYS.ENTER}` },
+        { waitFor: 'Package scope', send: KEYS.ENTER },
         { waitFor: WRITE, send: KEYS.ENTER },
       ],
     });
