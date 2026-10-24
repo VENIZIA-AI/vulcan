@@ -218,6 +218,22 @@ describe('the owner cards in the digest', () => {
     expect(digest).not.toContain('How to answer the owner');
   });
 
+  test('a readable profile with a hostile language never breaks the digest', async () => {
+    for (const language of ['constructor', '__proto__', 'toString']) {
+      const root = createProject({
+        files: {
+          '.configs/vulcan.config.ts': CONFIG,
+          '.agents/local/profile.json': JSON.stringify({ schemaVersion: 1, language }),
+        },
+      });
+      const digest = await buildSessionDigest({ projectRoot: root });
+
+      expect(digest).toContain('VULCAN rules');
+      expect(digest).toContain('## How to answer the owner');
+      expect(digest).not.toContain('## Working with this person');
+    }
+  });
+
   test('an unreadable profile is ignored by the digest, not fatal', async () => {
     const root = createProject({
       files: { '.configs/vulcan.config.ts': CONFIG, '.agents/local/profile.json': '{ nope' },

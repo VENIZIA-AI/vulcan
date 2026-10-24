@@ -39,7 +39,7 @@ import {
   planSync,
   SyncStatuses,
 } from '../sync/index.ts';
-import { OwnerConstants, readProfile } from '../owner/index.ts';
+import { OwnerConstants, profileIsIgnored, readProfile } from '../owner/index.ts';
 import { skillCatalogOf, triggerOf } from '@venizia/vulcan-atlas';
 import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
@@ -1008,6 +1008,20 @@ export const checkProfile = (opts: ICheckContext): IViolation[] => {
         check: DoctorChecks.PROFILE,
         file: OwnerConstants.PROFILE_FILE,
         message: `${read.error} - fix it or delete it and run the profile form again`,
+      }),
+    );
+  }
+
+  if (
+    existsSync(join(opts.root, OwnerConstants.PROFILE_FILE)) &&
+    !profileIsIgnored({ root: opts.root })
+  ) {
+    violations.push(
+      createViolation({
+        check: DoctorChecks.PROFILE,
+        file: OwnerConstants.PROFILE_FILE,
+        message:
+          'git does not ignore this personal file - add .agents/local/ to .gitignore (vulcan sync does it)',
       }),
     );
   }

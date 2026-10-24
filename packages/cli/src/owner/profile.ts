@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { OwnerConstants } from './constants.ts';
 import { PROFILE_SCHEMA } from './schema.ts';
@@ -8,9 +9,27 @@ export type TProfileRead =
   | { ok: true; profile: TProfile | undefined }
   | { ok: false; error: string };
 
+/** A symlink at the profile's place, or at `.agents/local`, would read or write a file outside the project. */
+const linkedAt = (opts: { root: string }): string | undefined =>
+  [join(opts.root, OwnerConstants.PROFILE_FILE), join(opts.root, '.agents', 'local')].find(
+    (path) => {
+      try {
+        return lstatSync(path).isSymbolicLink();
+      } catch {
+        return false;
+      }
+    },
+  );
+
+const SYMLINK_ERROR = `${OwnerConstants.PROFILE_FILE} (or .agents/local) is a symlink - it must be a regular file inside the project`;
+
 /** The personal profile of the developer at `root`: absent reads as none, a broken file says what is wrong. */
 export const readProfile = (opts: { root: string }): TProfileRead => {
   const file = join(opts.root, OwnerConstants.PROFILE_FILE);
+
+  if (linkedAt({ root: opts.root }) !== undefined) {
+    return { ok: false, error: SYMLINK_ERROR };
+  }
 
   if (!existsSync(file)) {
     return { ok: true, profile: undefined };
@@ -39,8 +58,21 @@ export const readProfile = (opts: { root: string }): TProfileRead => {
   };
 };
 
-/** Whether the project's `.gitignore` names `.agents/local/`: a personal file must never be committed. */
+/**
+ * Whether git ignores the profile's place: `git check-ignore` decides when the project is a git repository
+ * (so a later `!` line or a nested ignore file counts); otherwise the `.gitignore` is read for the line.
+ */
 export const profileIsIgnored = (opts: { root: string }): boolean => {
+  const checked = spawnSync(
+    'git',
+    ['check-ignore', '-q', '--no-index', OwnerConstants.PROFILE_FILE],
+    { cwd: opts.root, timeout: 5000 },
+  );
+
+  if (checked.status === 0 || checked.status === 1) {
+    return checked.status === 0;
+  }
+
   const file = join(opts.root, '.gitignore');
 
   return (
@@ -76,10 +108,16 @@ export const writeProfile = (opts: {
     };
   }
 
+  if (linkedAt({ root: opts.root }) !== undefined) {
+    return { ok: false, error: SYMLINK_ERROR };
+  }
+
   const file = join(opts.root, OwnerConstants.PROFILE_FILE);
 
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, renderProfile({ profile: parsed.data }), { mode: 0o600 });
+  // `mode` applies to a new file only; an existing one keeps its old mode until this.
+  chmodSync(file, 0o600);
 
   return { ok: true };
 };

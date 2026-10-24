@@ -43,9 +43,12 @@ export const resolveOwnerView = (opts: { owner: TOwnerConfig; profile?: TProfile
     status: owner.report.status,
     labels: owner.report.labels,
   };
+  const own =
+    profile !== undefined && Object.hasOwn(profile.labels, language)
+      ? profile.labels[language]
+      : undefined;
   const labels =
-    profile?.labels[language] ??
-    (language === owner.language ? projectLabels : OwnerConstants.DEFAULT_LABELS);
+    own ?? (language === owner.language ? projectLabels : OwnerConstants.DEFAULT_LABELS);
 
   return {
     language,

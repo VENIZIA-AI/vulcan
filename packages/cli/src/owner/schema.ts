@@ -8,7 +8,12 @@ import {
   OwnerTones,
 } from './constants.ts';
 
-const TEXT = z.string().min(1);
+const TEXT = z.string().regex(OwnerConstants.LABEL_PATTERN, {
+  message: 'one line of at most 80 characters, with no backtick, pipe or quote',
+});
+const LANGUAGE = z.string().regex(OwnerConstants.LANGUAGE_PATTERN, {
+  message: 'a language code such as en or pt-BR',
+});
 const choice = (opts: { isValid: (value: string) => boolean; set: Set<string> }) =>
   z.string().refine((value) => opts.isValid(value), {
     message: `one of: ${[...opts.set].join(', ')}`,
@@ -62,7 +67,7 @@ export const OWNER_LABEL_SET = z.strictObject({
  */
 export const OWNER_SCHEMA = z
   .strictObject({
-    language: z.string().min(2).default(OwnerConstants.DEFAULT_LANGUAGE),
+    language: LANGUAGE.default(OwnerConstants.DEFAULT_LANGUAGE),
     report: z
       .strictObject({
         shape: z.array(SECTION).min(1).default(OwnerConstants.DEFAULT_SHAPE),
@@ -86,13 +91,13 @@ export const OWNER_SCHEMA = z
 export const PROFILE_SCHEMA = z.strictObject({
   schemaVersion: z.literal(OwnerConstants.PROFILE_SCHEMA_VERSION),
   /** Reply language; labels for it come from `labels` below, else English. */
-  language: z.string().min(2).optional(),
+  language: LANGUAGE.optional(),
   address: z
     .strictObject({
       /** How to address the person: a name, a pronoun, an honorific, or nothing. */
-      you: z.string().optional(),
+      you: TEXT.optional(),
       /** How the agent refers to itself. */
-      self: z.string().optional(),
+      self: TEXT.optional(),
       formality: FORMALITY.default(OwnerFormalities.NEUTRAL),
     })
     .prefault({}),
@@ -112,7 +117,7 @@ export const PROFILE_SCHEMA = z.strictObject({
   /** Stricter than the project's, never looser. */
   enforce: ENFORCE.optional(),
   /** The label set of each language the person uses, keyed by language code. */
-  labels: z.record(z.string().min(2), OWNER_LABEL_SET).default({}),
+  labels: z.record(LANGUAGE, OWNER_LABEL_SET).default({}),
 });
 
 export type TOwnerConfig = z.output<typeof OWNER_SCHEMA>;

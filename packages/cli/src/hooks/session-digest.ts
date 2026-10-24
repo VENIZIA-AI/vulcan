@@ -108,10 +108,12 @@ export const buildSessionDigest = async (opts: {
       profile: profile.ok ? profile.profile : undefined,
     });
 
+    const profileCard = renderProfileCard({ view });
+
     lines.push('', ...renderOwnerShapeCard({ view }));
 
-    if (renderProfileCard({ view }).length > 0) {
-      lines.push('', ...renderProfileCard({ view }));
+    if (profileCard.length > 0) {
+      lines.push('', ...profileCard);
     }
   }
 

@@ -15,12 +15,26 @@ describe('doctor and the personal profile', () => {
     const good = createProject({
       files: {
         '.configs/vulcan.config.ts': CONFIG,
+        '.gitignore': '.agents/local/\n',
         '.agents/local/profile.json': JSON.stringify({ schemaVersion: 1 }),
       },
     });
 
     expect(await profileWarnings({ root: none })).toEqual([]);
     expect(await profileWarnings({ root: good })).toEqual([]);
+  });
+
+  test('a profile git would pick up is flagged with the fix', async () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.ts': CONFIG,
+        '.gitignore': 'node_modules/\n',
+        '.agents/local/profile.json': JSON.stringify({ schemaVersion: 1 }),
+      },
+    });
+    const [warning] = await profileWarnings({ root });
+
+    expect(warning?.message).toContain('does not ignore this personal file');
   });
 
   test('a profile that cannot be read is named with the way out', async () => {
@@ -37,6 +51,7 @@ describe('doctor and the personal profile', () => {
     const root = createProject({
       files: {
         '.configs/vulcan.config.ts': CONFIG,
+        '.gitignore': '.agents/local/\n',
         '.agents/local/profile.json': JSON.stringify({ schemaVersion: 1 }),
       },
     });
@@ -48,8 +63,10 @@ describe('doctor and the personal profile', () => {
       expect(spawnSyncBounded({ cmd: ['git', ...args], cwd: root }).exitCode).toBe(0);
     }
 
-    const [warning] = await profileWarnings({ root });
+    const messages = (await profileWarnings({ root })).map((warning) => warning.message);
 
-    expect(warning?.message).toContain('git rm --cached .agents/local/profile.json');
+    expect(
+      messages.some((message) => message.includes('git rm --cached .agents/local/profile.json')),
+    ).toBe(true);
   });
 });

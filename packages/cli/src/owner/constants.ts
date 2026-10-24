@@ -59,6 +59,8 @@ export class OwnerDetails {
   }
 }
 
+const DEFAULT_MINIMAP_COLUMNS: [string, string, string] = ['#', 'Task', 'Status'];
+
 export class OwnerConstants {
   /** The personal profile: one file per developer per project, gitignored, inside the project. */
   static readonly PROFILE_FILE = '.agents/local/profile.json';
@@ -73,7 +75,7 @@ export class OwnerConstants {
   ];
   /** The English label set, the only one that ships: any other language is the owner's own. */
   static readonly DEFAULT_LABELS = {
-    minimapColumns: ['#', 'Task', 'Status'] as [string, string, string],
+    minimapColumns: DEFAULT_MINIMAP_COLUMNS,
     status: {
       done: 'done',
       doing: 'in progress',
@@ -91,6 +93,10 @@ export class OwnerConstants {
     },
   };
   static readonly DEFAULT_HEADLINE_MAX_SENTENCES = 2;
+  /** A language code: a 2-3 letter primary tag and optional subtags (`en`, `pt-BR`); never a word like `constructor`. */
+  static readonly LANGUAGE_PATTERN = /^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i;
+  /** A label or a form of address sits inside one line of a digest card: no line breaks, backticks, pipes or quotes. */
+  static readonly LABEL_PATTERN = /^[^\n\r`|"]{1,80}$/;
   /** The profile's free text, as the card shows it. */
   static readonly CARD_ABOUT_MAX_CHARACTERS = 200;
 }

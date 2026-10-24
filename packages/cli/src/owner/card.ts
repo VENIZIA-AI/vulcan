@@ -1,6 +1,14 @@
 import { OwnerConstants, OwnerEnforcement, OwnerSections } from './constants.ts';
 import type { IOwnerView } from './view.ts';
 
+/** Free text as one quotable line: whitespace collapsed, quotes softened, cut to the card's limit. */
+const plain = (opts: { text: string }): string =>
+  opts.text
+    .replace(/\s+/g, ' ')
+    .replace(/"/g, "'")
+    .trim()
+    .slice(0, OwnerConstants.CARD_ABOUT_MAX_CHARACTERS);
+
 const SECTION_TEXT = (opts: { section: string; view: IOwnerView }): string => {
   const { labels, headlineMaxSentences } = opts.view;
   const [number, task, status] = labels.minimapColumns;
@@ -53,10 +61,7 @@ export const renderProfileCard = (opts: { view: IOwnerView }): string[] => {
     return [];
   }
 
-  const about =
-    view.about === undefined
-      ? ''
-      : ` In their words: "${view.about.replace(/\s+/g, ' ').slice(0, OwnerConstants.CARD_ABOUT_MAX_CHARACTERS)}"`;
+  const about = view.about === undefined ? '' : ` In their words: "${plain({ text: view.about })}"`;
 
   return [
     '## Working with this person',
@@ -72,7 +77,7 @@ export const renderProfileCard = (opts: { view: IOwnerView }): string[] => {
       view.habits?.proposeCommits === true ? 'Propose commits.' : '',
       view.codeTaste === undefined
         ? ''
-        : `Code taste: ${view.codeTaste.replace(/\s+/g, ' ').slice(0, OwnerConstants.CARD_ABOUT_MAX_CHARACTERS)}`,
+        : `Their code taste, in their words: "${plain({ text: view.codeTaste })}".`,
     ]
       .filter((part) => part !== '')
       .join(' ') + about,
