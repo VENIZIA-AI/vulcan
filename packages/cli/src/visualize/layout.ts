@@ -91,7 +91,7 @@ export const renderFigure = (opts: { flow: NonNullable<TVisualizeSpec['flow']> }
       const route = routeOf({ from: centreOf(from), to: centreOf(to) });
       const name = `${edge.from}>${edge.to}`;
 
-      return `<g class="edge ${escaped(edge.variant ?? 'main')}" data-edge="${escaped(name)}"><title>${escaped(edge.label)}</title><path d="${route.path}" marker-end="url(#a)"/><text x="${route.label.x}" y="${route.label.y}" text-anchor="middle">${escaped(edge.label)}</text></g>`;
+      return `<g class="edge ${escaped(edge.variant ?? 'main')}" data-edge="${escaped(name)}"><title>${escaped(edge.label)}</title><path d="${route.path}" marker-end="url(#${edge.variant === 'error' ? 'e' : 'a'})"/><text x="${route.label.x}" y="${route.label.y}" text-anchor="middle">${escaped(edge.label)}</text></g>`;
     })
     .join('');
   const nodes = flow.nodes
@@ -103,5 +103,5 @@ export const renderFigure = (opts: { flow: NonNullable<TVisualizeSpec['flow']> }
     })
     .join('');
 
-  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="group" aria-label="flow"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>${edges}${nodes}</svg>`;
+  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="group" aria-label="flow"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="bad" d="M0 0L10 5L0 10z"/></marker></defs>${edges}${nodes}</svg>`;
 };
