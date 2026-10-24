@@ -5,7 +5,7 @@
 .DEFAULT_GOAL := help
 
 # Every package directory under packages/. Each per-package target (`<pkg>`, `update-<pkg>`,
-# `lint-<pkg>`, `fmt-<pkg>`, `test-<pkg>`) is generated from this list - add a package here and
+# `lint-<pkg>`, `lint-fix-<pkg>`, `test-<pkg>`) is generated from this list - add a package here and
 # every target exists for it.
 PACKAGES := okf atlas cli
 

@@ -40,6 +40,40 @@ describe('the root Makefile exposes the library target set', () => {
     expect(typecheck.stdout.toString()).toContain('typecheck');
   });
 
+  const dryRun = (opts: { cwd: string; target: string }) =>
+    spawnSyncBounded({
+      cmd: ['make', '-n', opts.target],
+      cwd: opts.cwd,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+
+  test('the recipe lives in lint-fix: the root lint-fix runs every package and the root files', () => {
+    const plan = dryRun({ cwd: ROOT, target: 'lint-fix' }).stdout.toString();
+
+    for (const dir of readdirSync(join(ROOT, 'packages'))) {
+      expect(plan).toContain(`-C packages/${dir} lint-fix`);
+    }
+
+    expect(plan).toContain('bun fmt');
+  });
+
+  test('there is no fmt target at the root, in a package, or as a fmt-<pkg> rule', () => {
+    const targets = [
+      { cwd: ROOT, target: 'fmt' },
+      { cwd: ROOT, target: 'fmt-packages' },
+      { cwd: ROOT, target: 'fmt-okf' },
+      { cwd: join(ROOT, 'packages', 'okf'), target: 'fmt' },
+    ];
+
+    for (const item of targets) {
+      const result = dryRun(item);
+
+      expect(result.exitCode, item.target).not.toBe(0);
+      expect(result.stderr.toString()).toContain('No rule to make target');
+    }
+  });
+
   test('make help lists them', () => {
     const help = spawnSyncBounded({
       cmd: ['make', 'help'],
