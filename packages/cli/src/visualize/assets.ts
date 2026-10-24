@@ -29,7 +29,7 @@ svg{display:block;max-width:none;color:var(--mut)}
 .node .t{font-size:14px;font-weight:600;fill:var(--fg)}.node .s{font-size:12px;fill:var(--mut)}
 .node.service rect{stroke-width:3}.node.store rect{stroke-dasharray:2 3;stroke-width:2.5}.node.actor rect{rx:32}.node.external rect{stroke-dasharray:8 4}
 .edge path{fill:none;stroke:currentColor;stroke-width:1.8}.edge text{font-size:12px;fill:var(--fg);paint-order:stroke;stroke:var(--card);stroke-width:4px}
-.edge.branch path,.edge.return path{stroke-dasharray:7 5}.edge.fanout path{stroke-width:2.6}.edge.error{color:var(--bad)}.edge.error path{stroke-dasharray:2 4}
+.edge.branch path,.edge.return path{stroke-dasharray:7 5}.edge.fanout path{stroke-width:2.6}.edge.error{color:var(--bad)}.edge.error path{stroke:var(--bad)}marker .bad{fill:var(--bad)}.edge.error path{stroke-dasharray:2 4}
 .flow .edge path{stroke-dasharray:6 6;animation:dash 1s linear infinite}
 @keyframes dash{to{stroke-dashoffset:-12}}
 .focus .node:not(.on),.focus .edge:not(.on){opacity:.22}

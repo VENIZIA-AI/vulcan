@@ -327,6 +327,20 @@ describe('a step note cannot close the page script block', () => {
   });
 });
 
+describe('an error arrow', () => {
+  test('has its own red arrowhead: a marker does not inherit the arrow colour', () => {
+    const html = rendered(
+      withFlow((flow) =>
+        flow['edges']?.push({ from: 'user', to: 'check', label: 'fails', variant: 'error' }),
+      ),
+    );
+
+    expect(html).toContain('marker-end="url(#e)"');
+    expect(html).toContain('<marker id="e"');
+    expect(PAGE_CSS).toContain('marker .bad{fill:var(--bad)}');
+  });
+});
+
 describe('the page words', () => {
   test('are English, and a spec replaces any of them - the owner own language is a setting', () => {
     const html = rendered({
