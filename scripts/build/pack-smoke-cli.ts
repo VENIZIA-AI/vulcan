@@ -396,7 +396,7 @@ try {
         cwd: sandbox,
         expectedCode: 0,
         input: buildMcpRequests(),
-        env: { XDG_CACHE_HOME: join(sourceSandbox, 'cache'), VULCAN_NPM_REGISTRY: NO_REGISTRY },
+        env: { VULCAN_NPM_REGISTRY: NO_REGISTRY },
       });
 
       failure = mcp.ok ? inspectMcpOutput({ stdout: mcp.stdout }) : mcp.detail;

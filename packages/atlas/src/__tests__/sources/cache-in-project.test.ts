@@ -2,7 +2,12 @@ import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:tes
 import { existsSync, readdirSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { cacheBaseOf, cacheRootOf, DEFAULT_CACHE_DIRECTORY, resolveSources } from '@/sources';
-import { makeSourceRepository, makeTempDirectory, NO_REGISTRY, TEMP_DIRECTORIES } from './source-repo.helper';
+import {
+  makeSourceRepository,
+  makeTempDirectory,
+  NO_REGISTRY,
+  TEMP_DIRECTORIES,
+} from './source-repo.helper';
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
