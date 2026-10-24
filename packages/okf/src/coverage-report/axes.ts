@@ -19,8 +19,8 @@ export const resourceKeysOf = (opts: {
 }): Set<string> =>
   new Set(
     opts.concepts
-      .filter(concept => !concept.reserved && concept.resource !== '')
-      .map(concept => resourceKeyOf({ value: concept.resource })),
+      .filter((concept) => !concept.reserved && concept.resource !== '')
+      .map((concept) => resourceKeyOf({ value: concept.resource })),
   );
 
 /**
@@ -53,19 +53,19 @@ export const collectCoverageAxes = (): {
   for (const axis of project.coverage) {
     const matched = [
       ...new Bun.Glob(axis.path).scanSync({ cwd: project.root, onlyFiles: false, dot: false }),
-    ].filter(path => statSync(join(project.root, path)).isDirectory());
+    ].filter((path) => statSync(join(project.root, path)).isDirectory());
 
     if (matched.length === 0) {
       problems.push(`coverage: axis '${axis.name}' (${axis.path}) matches no directory`);
       continue;
     }
 
-    const excluded = axis.exclude.map(pattern => new Bun.Glob(pattern));
+    const excluded = axis.exclude.map((pattern) => new Bun.Glob(pattern));
     const kept = matched.filter(
-      path =>
+      (path) =>
         !project.denylist.has(basename(path)) &&
         !axis.denylist.includes(basename(path)) &&
-        !excluded.some(glob => glob.match(path)),
+        !excluded.some((glob) => glob.match(path)),
     );
 
     if (kept.length === 0) {
@@ -75,12 +75,12 @@ export const collectCoverageAxes = (): {
       continue;
     }
 
-    const items = [...new Set(kept.map(path => basename(path)))].sort();
+    const items = [...new Set(kept.map((path) => basename(path)))].sort();
 
     axes.push({
       name: axis.name,
       items,
-      paths: Object.fromEntries(kept.map(path => [basename(path), path])),
+      paths: Object.fromEntries(kept.map((path) => [basename(path), path])),
     });
   }
 

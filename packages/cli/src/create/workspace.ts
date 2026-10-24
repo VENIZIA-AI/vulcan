@@ -147,7 +147,7 @@ const toCatalog = (opts: { dependencies: Record<string, string> }): Record<strin
   Object.fromEntries(
     Object.keys(opts.dependencies)
       .sort()
-      .map(name => [name, 'catalog:']),
+      .map((name) => [name, 'catalog:']),
   );
 
 export const renderAppManifest = (opts: {
@@ -310,8 +310,8 @@ export const presetSpecOf = (opts: { value: string; root: string; cwd: string })
 
 /** The block with this preset recorded: once per spec, its side and summary refreshed. */
 export const recordPreset = (opts: { block: IAppsBlock; preset: IRecordedPreset }): IAppsBlock => {
-  const others = (opts.block.presets ?? []).filter(item => item.spec !== opts.preset.spec);
-  const index = (opts.block.presets ?? []).findIndex(item => item.spec === opts.preset.spec);
+  const others = (opts.block.presets ?? []).filter((item) => item.spec !== opts.preset.spec);
+  const index = (opts.block.presets ?? []).findIndex((item) => item.spec === opts.preset.spec);
   const presets =
     index === -1
       ? [...others, opts.preset]
@@ -341,7 +341,7 @@ export const replaceAppsBlock = (opts: {
 const hasStrings = (opts: { value: unknown; keys: string[] }): boolean => {
   const { value } = opts;
 
-  return isRecord(value) && opts.keys.every(key => typeof value[key] === 'string');
+  return isRecord(value) && opts.keys.every((key) => typeof value[key] === 'string');
 };
 
 const isRecordedPreset = (value: unknown): boolean =>
@@ -353,13 +353,13 @@ const isRecordedPreset = (value: unknown): boolean =>
 const isAppsBlock = (value: unknown): value is IAppsBlock =>
   isRecord(value) &&
   (value.presets === undefined ||
-    (Array.isArray(value.presets) && value.presets.every(entry => isRecordedPreset(entry)))) &&
+    (Array.isArray(value.presets) && value.presets.every((entry) => isRecordedPreset(entry)))) &&
   isRecord(value.layout) &&
-  Object.values(value.layout).every(folder => typeof folder === 'string') &&
+  Object.values(value.layout).every((folder) => typeof folder === 'string') &&
   Array.isArray(value.packages) &&
-  value.packages.every(entry => hasStrings({ value: entry, keys: ['dir', 'name', 'path'] })) &&
+  value.packages.every((entry) => hasStrings({ value: entry, keys: ['dir', 'name', 'path'] })) &&
   Array.isArray(value.sources) &&
-  value.sources.every(entry => hasStrings({ value: entry, keys: ['name', 'repo', 'ref'] }));
+  value.sources.every((entry) => hasStrings({ value: entry, keys: ['name', 'repo', 'ref'] }));
 
 export type TAppsBlockResult =
   | { ok: true; block: IAppsBlock }
@@ -422,7 +422,7 @@ export const addAppBullet = (opts: {
   const eol = opts.source.includes('\r\n') ? '\r\n' : '\n';
   const bullet = renderAppBullet({ app: opts.app });
   const lines = opts.source.split(eol);
-  const heading = lines.findIndex(line => APPS_HEADING.test(line));
+  const heading = lines.findIndex((line) => APPS_HEADING.test(line));
 
   if (heading === -1) {
     const kept = opts.source.trimEnd();
@@ -432,7 +432,7 @@ export const addAppBullet = (opts: {
 
   const next = lines.findIndex((line, index) => index > heading && ANY_HEADING.test(line));
   const section = lines.slice(heading + 1, next === -1 ? lines.length : next);
-  const last = section.findLastIndex(line => line.startsWith('- ['));
+  const last = section.findLastIndex((line) => line.startsWith('- ['));
 
   if (last === -1) {
     lines.splice(heading, 1, lines[heading] ?? '', '', bullet);
@@ -467,7 +467,7 @@ export const renderKnowledgeIndex = (opts: {
     '',
     '## Apps',
     '',
-    ...opts.apps.map(app => renderAppBullet({ app })),
+    ...opts.apps.map((app) => renderAppBullet({ app })),
     '',
   ].join('\n');
 

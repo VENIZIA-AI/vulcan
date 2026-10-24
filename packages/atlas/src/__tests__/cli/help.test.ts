@@ -53,7 +53,7 @@ const run = (opts: { args: string[]; cwd: string }) => {
 };
 
 describe('help', () => {
-  test.each(['--help', '-h', 'help'])('%s prints the usage on stdout and exits 0', flag => {
+  test.each(['--help', '-h', 'help'])('%s prints the usage on stdout and exits 0', (flag) => {
     const result = run({ args: [flag], cwd: makeTempDirectory() });
 
     expect(result.code).toBe(0);
@@ -67,8 +67,8 @@ describe('tools', () => {
     const result = run({ args: ['tools', '--root', makeProject()], cwd: makeTempDirectory() });
     const names = result.stdout
       .split('\n')
-      .filter(line => line.trim().length > 0)
-      .map(line => line.split(/\s+/)[0]);
+      .filter((line) => line.trim().length > 0)
+      .map((line) => line.split(/\s+/)[0]);
 
     expect(result.code).toBe(0);
     expect(names).toEqual(['search', 'get', 'symbol', 'version', 'changes', 'presets']);

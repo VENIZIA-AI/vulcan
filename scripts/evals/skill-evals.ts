@@ -119,7 +119,7 @@ const createScratchProject = (opts: {
 
   cpSync(opts.project, copy, {
     recursive: true,
-    filter: source =>
+    filter: (source) =>
       source !== opts.out &&
       !source.startsWith(`${opts.out}${sep}`) &&
       !SKIPPED_NAMES.has(basename(source)) &&
@@ -129,7 +129,7 @@ const createScratchProject = (opts: {
   rmSync(installed, { recursive: true, force: true });
   cpSync(opts.skillDirectory, installed, {
     recursive: true,
-    filter: source => relative(opts.skillDirectory, source) !== 'evals',
+    filter: (source) => relative(opts.skillDirectory, source) !== 'evals',
   });
 
   return copy;
@@ -137,7 +137,7 @@ const createScratchProject = (opts: {
 
 const listFiles = (opts: { directory: string }): string[] =>
   readdirSync(opts.directory, { recursive: true, encoding: 'utf8' })
-    .filter(file => statSync(join(opts.directory, file)).isFile())
+    .filter((file) => statSync(join(opts.directory, file)).isFile())
     .sort();
 
 const findRunFailure = (opts: {
@@ -245,7 +245,7 @@ const gradeOne = (opts: {
     cwd: run.runDirectory,
     prompt: buildGraderPrompt({
       evaluation: run.evaluation,
-      outputs: opts.finished.outputFiles.map(name => ({
+      outputs: opts.finished.outputFiles.map((name) => ({
         name,
         content: readFileSync(join(run.outputsDirectory, name), 'utf8'),
       })),
@@ -331,10 +331,10 @@ const plan = buildPlan({
   maxBudgetUsd: args.maxBudgetUsd,
 });
 const reportFile = join(out, args.skill, 'report.md');
-const missing = evaluations.flatMap(evaluation =>
+const missing = evaluations.flatMap((evaluation) =>
   evaluation.files
-    .filter(file => !existsSync(join(project, file)))
-    .map(file => `eval ${evaluation.id} needs ${file} - not in ${project}`),
+    .filter((file) => !existsSync(join(project, file)))
+    .map((file) => `eval ${evaluation.id} needs ${file} - not in ${project}`),
 );
 
 console.log(
@@ -370,10 +370,10 @@ if (Bun.which('claude') === null) {
 }
 
 const skillContent = readFileSync(join(skillDirectory, 'SKILL.md'), 'utf8');
-const finishedRuns = plan.map(run =>
+const finishedRuns = plan.map((run) =>
   runOne({ run, args, project, out, skillDirectory, skillContent }),
 );
-const results: ISkillEvalResult[] = finishedRuns.map(finished => {
+const results: ISkillEvalResult[] = finishedRuns.map((finished) => {
   const { run, call } = finished;
   const graded = gradeOne({ finished, args });
 
@@ -395,7 +395,7 @@ const results: ISkillEvalResult[] = finishedRuns.map(finished => {
     verdict: graded.verdict,
   };
 });
-const passed = results.filter(result => result.verdict.pass).length;
+const passed = results.filter((result) => result.verdict.pass).length;
 
 writeFileSync(reportFile, renderReport({ skill: args.skill, grader: args.grader, results }));
 console.log(`skill-evals: passed ${passed} of ${results.length} - report ${reportFile}`);

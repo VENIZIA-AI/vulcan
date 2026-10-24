@@ -29,7 +29,7 @@ export interface ITerminalStep {
 export const hasColour = (opts: { output: string }): boolean => COLOUR.test(opts.output);
 
 const quote = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`;
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Runs the CLI under a pseudo-terminal (`script`) and presses keys when the menu they answer is on

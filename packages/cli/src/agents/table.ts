@@ -32,4 +32,4 @@ export const readAgentTable = (): TAgentEntry[] => {
   return cached;
 };
 
-export const agentIds = (): string[] => readAgentTable().map(entry => entry.id);
+export const agentIds = (): string[] => readAgentTable().map((entry) => entry.id);

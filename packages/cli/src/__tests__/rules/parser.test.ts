@@ -29,9 +29,9 @@ describe('parseRuleIds', () => {
     const ids = parseRuleIds({ markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8') });
 
     expect(ids).toHaveLength(39);
-    expect(ids.every(id => id.startsWith('V-'))).toBe(true);
+    expect(ids.every((id) => id.startsWith('V-'))).toBe(true);
     expect(ids).toContain('V-W-01');
-    expect(ids.filter(id => id.startsWith('V-C-'))).toHaveLength(16);
+    expect(ids.filter((id) => id.startsWith('V-C-'))).toHaveLength(16);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -49,7 +49,7 @@ describe('parseRuleIds', () => {
     const rows = extractRuleRows({
       markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
     });
-    const row = rows.find(line => line.includes('| V-C-02 |')) ?? '';
+    const row = rows.find((line) => line.includes('| V-C-02 |')) ?? '';
 
     expect(row).toContain('One options object first, at most 5 parameters');
     expect(row).toContain('isValidName({ name })');
@@ -62,7 +62,7 @@ describe('parseRuleIds', () => {
       markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
     });
     const rowOf = (opts: { id: string }): string =>
-      rows.find(row => row.includes(`| ${opts.id} |`)) ?? '';
+      rows.find((row) => row.includes(`| ${opts.id} |`)) ?? '';
 
     expect(rowOf({ id: 'V-C-18' })).not.toMatch(/Drizzle|Hono|PostgreSQL|SQLite/);
     expect(rowOf({ id: 'V-C-18' })).toMatch(/derived types over duplicates/i);
@@ -176,7 +176,9 @@ test('every rule ID cited inside the base rules exists in the base, with its V- 
   const ids = new Set(parseRuleIds({ markdown }));
   // Inline code holds examples of a project's bare IDs (`W-06`), never citations.
   const prose = markdown.replace(/`[^`]*`/g, '');
-  const cited = [...prose.matchAll(/(?<![A-Z]-)\b(?:V-)?[WSPBC]-\d{2}\b/g)].map(match => match[0]);
+  const cited = [...prose.matchAll(/(?<![A-Z]-)\b(?:V-)?[WSPBC]-\d{2}\b/g)].map(
+    (match) => match[0],
+  );
 
-  expect(cited.filter(id => !ids.has(id))).toEqual([]);
+  expect(cited.filter((id) => !ids.has(id))).toEqual([]);
 });

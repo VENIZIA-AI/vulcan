@@ -80,8 +80,8 @@ export const lsRemote = (opts: { url: string; ref: string }): IRemoteRef => {
   const refs = new Map(
     listed
       .split('\n')
-      .filter(line => line.length > 0)
-      .map(line => {
+      .filter((line) => line.length > 0)
+      .map((line) => {
         const [sha, name] = line.split('\t');
 
         return [name, sha] as const;

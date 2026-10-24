@@ -4,7 +4,7 @@ const RULE_TARGET = /^([A-Za-z0-9][A-Za-z0-9_.-]*)\s*:(?!=)/;
 export const parseMakeTargets = (opts: { makefile: string }): string[] =>
   opts.makefile
     .split('\n')
-    .map(line => RULE_TARGET.exec(line)?.[1])
+    .map((line) => RULE_TARGET.exec(line)?.[1])
     .filter((target): target is string => target !== undefined);
 
 const INCLUDE_LINE = /^\s*(?:-include|sinclude|include)\s+(.+?)\s*$/;
@@ -13,5 +13,5 @@ const INCLUDE_LINE = /^\s*(?:-include|sinclude|include)\s+(.+?)\s*$/;
 export const parseMakeIncludes = (opts: { makefile: string }): string[] =>
   opts.makefile
     .split('\n')
-    .flatMap(line => INCLUDE_LINE.exec(line)?.[1].split(/\s+/) ?? [])
-    .filter(path => !path.includes('$('));
+    .flatMap((line) => INCLUDE_LINE.exec(line)?.[1].split(/\s+/) ?? [])
+    .filter((path) => !path.includes('$('));

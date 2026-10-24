@@ -105,7 +105,7 @@ const decodeMappings = (mappings: string): IMappingSegment[][] => {
   let sourceLine = 0;
   let sourceColumn = 0;
 
-  return mappings.split(';').map(line => {
+  return mappings.split(';').map((line) => {
     const segments: IMappingSegment[] = [];
     let generatedColumn = 0;
 
@@ -161,7 +161,7 @@ export class AtlasSymbols {
     const project = hasAtlasProject() ? readAtlasProject() : undefined;
     const repoRoot = opts.repoRoot ?? project?.root ?? PROJECT_ROOT;
     const packages = opts.packages ?? livePackageDirs({ project: project ?? readAtlasProject() });
-    const read = packages.map(dir =>
+    const read = packages.map((dir) =>
       readPackageDirectory({
         directory: resolve(repoRoot, packagePathOf({ project, dir })),
         name: dir,
@@ -175,7 +175,7 @@ export class AtlasSymbols {
       packageMap: packages.map((dir, index) => ({
         dir,
         name: read[index].manifest.name,
-        aliases: project?.packages.find(entry => entry.dir === dir)?.aliases ?? [],
+        aliases: project?.packages.find((entry) => entry.dir === dir)?.aliases ?? [],
       })),
     };
 
@@ -187,9 +187,9 @@ export class AtlasSymbols {
    * declaration files, wherever the packages live. Paths are relative to `repoRoot`.
    */
   static recordsOf(opts: { repoRoot: string; packages: IPackageEntries[] }): ISymbolRecord[] {
-    const packages = opts.packages.map(item => ({
+    const packages = opts.packages.map((item) => ({
       ...item,
-      entries: item.entries.filter(entry =>
+      entries: item.entries.filter((entry) =>
         AtlasSymbols.isEntryBuilt({
           repoRoot: opts.repoRoot,
           packageName: item.manifest.name,
@@ -198,13 +198,13 @@ export class AtlasSymbols {
       ),
     }));
     const program = DeclarationProgram.create({
-      files: packages.flatMap(item => item.entries.map(entry => entry.file)),
+      files: packages.flatMap((item) => item.entries.map((entry) => entry.file)),
       scope: 'atlas-symbols',
     });
 
     return packages
-      .flatMap(item =>
-        item.entries.flatMap(entry => {
+      .flatMap((item) =>
+        item.entries.flatMap((entry) => {
           // One entry the compiler cannot read as a module (a script .d.ts, say) is skipped like a
           // missing one: it never takes the package's other entries, or the store, down with it.
           try {
@@ -321,7 +321,7 @@ export class AtlasSymbols {
     const specifier = subpath === '.' ? packageName : `${packageName}${subpath.slice(1)}`;
     const exported = checker.getExportsOfModule(moduleSymbol);
 
-    return exported.map(symbol => {
+    return exported.map((symbol) => {
       const resolved =
         symbol.flags & TypeScriptCompiler.get().SymbolFlags.Alias
           ? checker.getAliasedSymbol(symbol)
@@ -398,7 +398,7 @@ export class AtlasSymbols {
     }
 
     // The last segment starting at or before the name's column; a name inside a segment shares it.
-    const covering = segments.filter(segment => segment.generatedColumn <= opts.character);
+    const covering = segments.filter((segment) => segment.generatedColumn <= opts.character);
     const segment = covering[covering.length - 1] ?? segments[0];
     const sourceName = map.sources[segment.sourceIndex];
 

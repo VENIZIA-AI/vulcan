@@ -55,7 +55,7 @@ const serveKernel = () => {
 
   return Bun.serve({
     port: 0,
-    fetch: request =>
+    fetch: (request) =>
       new URL(request.url).pathname === '/@x/kernel/-/kernel-1.0.0.tgz'
         ? new Response(Bun.file(join(packed, 'kernel-1.0.0.tgz')))
         : new Response('not found', { status: 404 }),
@@ -70,7 +70,7 @@ const symbolOf = async (opts: {
   const resolved = await resolveSources({ cwd: opts.cwd, sources: opts.sources });
 
   // A start from cache asks npm again in the background; the answer waits for it here.
-  await Promise.all(resolved.map(source => source.symbolsPending ?? Promise.resolve()));
+  await Promise.all(resolved.map((source) => source.symbolsPending ?? Promise.resolve()));
 
   const reply = JSON.parse(
     (await buildSourcesServer({ sources: resolved, cwd: opts.cwd, version: '0.0.0' }).handleLine({
@@ -138,7 +138,7 @@ test('npm down at the pull: the failure is logged, and the next start fetches th
     await resolveSources({ cwd, sources });
 
     // Must run before `mockRestore()`: restoring a spy also clears its recorded calls.
-    expect(errorSpy.mock.calls.map(call => call.join(' ')).join('\n')).toContain(
+    expect(errorSpy.mock.calls.map((call) => call.join(' ')).join('\n')).toContain(
       'no symbols for @x/kernel@1.0.0',
     );
   } finally {

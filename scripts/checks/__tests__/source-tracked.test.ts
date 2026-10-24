@@ -11,7 +11,7 @@ test('no source file is ignored by git', () => {
   const files = [
     ...new Glob('packages/*/{src,base,scripts}/**/*').scanSync({ cwd: ROOT, onlyFiles: true }),
     ...new Glob('scripts/**/*').scanSync({ cwd: ROOT, onlyFiles: true }),
-  ].filter(file => !file.includes('/node_modules/'));
+  ].filter((file) => !file.includes('/node_modules/'));
   const result = spawnSyncBounded({
     cmd: ['git', 'check-ignore', '--stdin'],
     cwd: ROOT,

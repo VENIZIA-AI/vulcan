@@ -76,8 +76,8 @@ test('a source that cannot be served is reported; the project and the other sour
     ],
   });
 
-  expect(resolved.map(source => source.name)).toEqual(['own']);
-  expect(unavailable.map(entry => entry.source.name)).toEqual(['unadopted', 'gone']);
+  expect(resolved.map((source) => source.name)).toEqual(['own']);
+  expect(unavailable.map((entry) => entry.source.name)).toEqual(['unadopted', 'gone']);
   expect(unavailable[0].reason).toContain('.agents/vulcan.manifest.json');
 
   const server = buildSourcesServer({ sources: resolved, unavailable, cwd, version: '0.0.0' });
@@ -114,6 +114,6 @@ test('a project served with a reachable source keeps its own name', async () => 
     })) ?? 'null',
   );
 
-  expect(resolved.map(entry => entry.name)).toEqual(['own', 'src']);
+  expect(resolved.map((entry) => entry.name)).toEqual(['own', 'src']);
   expect(initialized.result.serverInfo.name).toBe('own-atlas');
 });

@@ -14,7 +14,7 @@ export interface IProjectPackage {
 
 /** The project's packages in release order. */
 export const resolvePackages = (opts: { config: TResolvedConfig }): IProjectPackage[] =>
-  opts.config.packages.map(entry => ({
+  opts.config.packages.map((entry) => ({
     dir: entry.dir,
     name: entry.name,
     path: entry.path ?? `${DEFAULT_PACKAGES_DIRECTORY}/${entry.dir}`,

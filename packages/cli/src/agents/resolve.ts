@@ -16,8 +16,8 @@ export const parseAgentList = (opts: { value: string }): TParsed => {
   const known = agentIds();
   const words = opts.value
     .split(',')
-    .map(word => word.trim())
-    .filter(word => word !== '');
+    .map((word) => word.trim())
+    .filter((word) => word !== '');
 
   if (words.includes(AgentConstants.NONE)) {
     return words.length === 1
@@ -28,7 +28,7 @@ export const parseAgentList = (opts: { value: string }): TParsed => {
         };
   }
 
-  const unknown = words.find(word => !known.includes(word));
+  const unknown = words.find((word) => !known.includes(word));
 
   if (unknown !== undefined) {
     return {
@@ -37,7 +37,7 @@ export const parseAgentList = (opts: { value: string }): TParsed => {
     };
   }
 
-  return { ok: true, agents: known.filter(id => words.includes(id)) };
+  return { ok: true, agents: known.filter((id) => words.includes(id)) };
 };
 
 const fromList = (opts: { value: string; source: 'flag' | 'asked' }): TAgentResolution => {
@@ -110,14 +110,14 @@ export const resolveAgents = (opts: {
   if (opts.configAgents !== undefined) {
     return {
       ok: true,
-      agents: agentIds().filter(id => opts.configAgents?.includes(id)),
+      agents: agentIds().filter((id) => opts.configAgents?.includes(id)),
       source: 'config',
       writeLocal: true,
       hint: undefined,
     };
   }
 
-  if (PROJECT_FILES.some(file => existsSync(join(opts.root, file)))) {
+  if (PROJECT_FILES.some((file) => existsSync(join(opts.root, file)))) {
     return { ok: true, agents: ['claude'], source: 'migration', writeLocal: true, hint: undefined };
   }
 

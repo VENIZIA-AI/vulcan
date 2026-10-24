@@ -39,7 +39,7 @@ test('a project typescript without the compiler API (TypeScript 7) falls back to
   const names =
     moduleSymbol === undefined
       ? []
-      : checker.getExportsOfModule(moduleSymbol).map(symbol => symbol.getName());
+      : checker.getExportsOfModule(moduleSymbol).map((symbol) => symbol.getName());
 
   expect(names).toEqual(['greet']);
 });
@@ -48,7 +48,7 @@ test('a directory without node_modules never makes Bun auto-install typescript',
   const requests: string[] = [];
   const registry = Bun.serve({
     port: 0,
-    fetch: request => {
+    fetch: (request) => {
       requests.push(new URL(request.url).pathname);
 
       return new Response('{}', { status: 404 });

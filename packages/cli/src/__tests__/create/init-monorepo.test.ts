@@ -86,7 +86,7 @@ describe('vulcan init --preset', () => {
   test('a preset with urls prints one open line per path on the dev port', () => {
     const parent = createProject({ files: {} });
     const preset = copyWithUrls({ fixture: BACKEND, urls: ['/api/hello', '/api/doc/explorer'] });
-    const flags = FLAGS.map(flag => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
+    const flags = FLAGS.map((flag) => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
     const result = runCli({ args: ['init', ...flags], cwd: parent, env: ENV });
 
     expect(result.code).toBe(0);
@@ -99,7 +99,7 @@ describe('vulcan init --preset', () => {
   test('the urls are recorded in the app manifest for add to print later', () => {
     const parent = createProject({ files: {} });
     const preset = copyWithUrls({ fixture: BACKEND, urls: ['/api/hello'] });
-    const flags = FLAGS.map(flag => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
+    const flags = FLAGS.map((flag) => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
 
     runCli({ args: ['init', ...flags], cwd: parent, env: ENV });
 
@@ -126,7 +126,7 @@ describe('vulcan init --preset', () => {
     const parent = createProject({ files: {} });
     const imports = { '#src/*.json': './src/*.json', '#src/*': './src/{{app}}/*.js' };
     const preset = copyWithFields({ fixture: BACKEND, fields: { imports } });
-    const flags = FLAGS.map(flag => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
+    const flags = FLAGS.map((flag) => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
 
     runCli({ args: ['init', ...flags], cwd: parent, env: ENV });
 
@@ -155,7 +155,7 @@ describe('vulcan init --preset', () => {
       fixture: BACKEND,
       fields: { imports: { 'src/*': './src/*.js' } },
     });
-    const flags = FLAGS.map(flag => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
+    const flags = FLAGS.map((flag) => (flag === `file:${BACKEND}` ? `file:${preset}` : flag));
     const result = runCli({ args: ['init', ...flags], cwd: parent, env: ENV });
 
     expect(result.code).toBe(1);
@@ -222,7 +222,10 @@ describe('vulcan init --preset', () => {
     const withLib = join(import.meta.dir, '..', 'fixtures', 'preset-with-lib');
 
     runCli({
-      args: ['init', ...FLAGS.map(flag => (flag === `file:${BACKEND}` ? `file:${withLib}` : flag))],
+      args: [
+        'init',
+        ...FLAGS.map((flag) => (flag === `file:${BACKEND}` ? `file:${withLib}` : flag)),
+      ],
       cwd: parent,
       env: ENV,
     });
@@ -316,12 +319,12 @@ describe('vulcan init --preset', () => {
       expect(lines, line).toContain(line);
     }
 
-    expect(lines.filter(line => line === '.claude')).toHaveLength(1);
+    expect(lines.filter((line) => line === '.claude')).toHaveLength(1);
 
     // Secrets never reach the build context; the example file does, and its negation comes last.
-    const secrets = ['**/.env', '**/.env.*', '!**/.env.example'].map(line => lines.indexOf(line));
+    const secrets = ['**/.env', '**/.env.*', '!**/.env.example'].map((line) => lines.indexOf(line));
 
-    expect(secrets.every(index => index > 0)).toBe(true);
+    expect(secrets.every((index) => index > 0)).toBe(true);
     expect(secrets).toEqual([...secrets].sort((a, b) => a - b));
     expect(lines[secrets[0] - 1]).toMatch(/^# .*secret/i);
     // The image is built from these: the lockfile, every manifest and the sources stay in the context.

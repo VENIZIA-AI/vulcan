@@ -174,8 +174,8 @@ describe('the shipped settings', () => {
   const entries = (): IEntry[] => JSON.parse(readFileSync(SETTINGS, 'utf8')).hooks.PreToolUse;
 
   test('guard-manifest.ts is registered on Write, Edit, MultiEdit, NotebookEdit and Bash', () => {
-    const entry = entries().find(item =>
-      item.hooks.some(hook => hook.command.includes('hooks/guard-manifest.ts')),
+    const entry = entries().find((item) =>
+      item.hooks.some((hook) => hook.command.includes('hooks/guard-manifest.ts')),
     );
 
     expect(entry?.matcher).toBeDefined();

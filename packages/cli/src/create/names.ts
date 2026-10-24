@@ -35,7 +35,7 @@ export const SCOPE_PATTERN = /^@[a-z0-9][a-z0-9-]*$/;
 export const askScope = async (): Promise<string | undefined | null> => {
   const answer = await promptText({
     message: 'Package scope (optional, like @acme; empty for none)',
-    validate: value =>
+    validate: (value) =>
       value.trim() === '' || SCOPE_PATTERN.test(value.trim())
         ? undefined
         : `'${value.trim()}' is not a scope like @acme`,
@@ -78,7 +78,8 @@ const NEWLINE = 0x0a;
 const CARRIAGE_RETURN = 0x0d;
 const RETRY_PAUSE_MILLISECONDS = 5;
 
-const readFromDescriptor: TByteReader = opts => readSync(opts.descriptor, opts.buffer, 0, 1, null);
+const readFromDescriptor: TByteReader = (opts) =>
+  readSync(opts.descriptor, opts.buffer, 0, 1, null);
 
 /** A sleep that does not burn the CPU: nothing else runs on this thread while a prompt waits. */
 const pauseBriefly = (): void => {
@@ -152,12 +153,12 @@ export const askWithPrompt = (opts: IAskOptions): string | null => {
 const NEW_FOLDER = ':new-folder';
 
 /** A menu, not a line: existing folders are picked, a new name is typed with its default shown. */
-const askWithMenus: TAsk = async opts => {
+const askWithMenus: TAsk = async (opts) => {
   if (opts.choices !== undefined && opts.choices.length > 0) {
     const picked = await promptSelect({
       message: opts.question,
       choices: [
-        ...opts.choices.map(value => ({ value, label: value })),
+        ...opts.choices.map((value) => ({ value, label: value })),
         { value: NEW_FOLDER, label: 'New folder...' },
       ],
       initial: opts.previous,
@@ -176,7 +177,7 @@ const askWithMenus: TAsk = async opts => {
 };
 
 /** Menus in a terminal that can draw them, the plain question everywhere else. */
-export const askInTerminal: TAsk = opts =>
+export const askInTerminal: TAsk = (opts) =>
   menusAvailable() ? askWithMenus(opts) : askWithPrompt(opts);
 
 const askUntilValid = async (opts: { field: INameField; ask: TAsk }): Promise<string | null> => {
@@ -282,7 +283,7 @@ export const findFolderClash = (opts: {
   folders: { flag: string; value: string }[];
 }): string | undefined => {
   for (const [index, first] of opts.folders.entries()) {
-    const second = opts.folders.slice(index + 1).find(other => other.value === first.value);
+    const second = opts.folders.slice(index + 1).find((other) => other.value === first.value);
 
     if (second !== undefined) {
       return `${first.flag} and ${second.flag} both name '${first.value}' - each kind of code needs its own folder`;

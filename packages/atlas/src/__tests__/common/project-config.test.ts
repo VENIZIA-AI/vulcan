@@ -69,7 +69,7 @@ describe('readAtlasProject', () => {
     );
     process.env.VULCAN_PROJECT_ROOT = root;
 
-    expect(readAtlasProject().packages.map(entry => entry.name)).toEqual(['@a/core']);
+    expect(readAtlasProject().packages.map((entry) => entry.name)).toEqual(['@a/core']);
   });
 
   test('no manifest: it stops with what to do', () => {
@@ -114,7 +114,7 @@ describe('readAtlasProject', () => {
       },
     });
 
-    expect(readAtlasProject().packages.map(entry => entry.name)).toEqual([
+    expect(readAtlasProject().packages.map((entry) => entry.name)).toEqual([
       '@venizia/ignis-kernel',
       'left-pad.js',
       'JSONStream',

@@ -90,14 +90,16 @@ describe('the root Makefile exposes the library target set', () => {
 describe('no package.json script carries a legacy name', () => {
   const manifests = [
     join(ROOT, 'package.json'),
-    ...readdirSync(join(ROOT, 'packages')).map(dir => join(ROOT, 'packages', dir, 'package.json')),
+    ...readdirSync(join(ROOT, 'packages')).map((dir) =>
+      join(ROOT, 'packages', dir, 'package.json'),
+    ),
   ];
 
   for (const file of manifests) {
     test(file.slice(ROOT.length + 1), () => {
       const scripts = Object.keys(JSON.parse(readFileSync(file, 'utf8')).scripts ?? {});
 
-      expect(scripts.filter(name => LEGACY_SCRIPTS.includes(name))).toEqual([]);
+      expect(scripts.filter((name) => LEGACY_SCRIPTS.includes(name))).toEqual([]);
     });
   }
 

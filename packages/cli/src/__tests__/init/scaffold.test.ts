@@ -64,9 +64,9 @@ describe('vulcan init', () => {
     expect(lines).toContain('.cursor/mcp.json');
     expect(lines).not.toContain('bun.lock');
 
-    const secrets = ['**/.env', '**/.env.*', '!**/.env.example'].map(line => lines.indexOf(line));
+    const secrets = ['**/.env', '**/.env.*', '!**/.env.example'].map((line) => lines.indexOf(line));
 
-    expect(secrets.every(index => index > 0)).toBe(true);
+    expect(secrets.every((index) => index > 0)).toBe(true);
     expect(secrets).toEqual([...secrets].sort((a, b) => a - b));
   });
 
@@ -343,7 +343,7 @@ describe('vulcan init', () => {
       index,
       readFileSync(index, 'utf8')
         .split('\n')
-        .filter(line => !line.includes('vulcan:scaffold'))
+        .filter((line) => !line.includes('vulcan:scaffold'))
         .join('\n'),
     );
     const filled = runCli({ args: ['doctor'], cwd: root });

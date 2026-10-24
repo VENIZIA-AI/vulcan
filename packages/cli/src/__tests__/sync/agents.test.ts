@@ -169,7 +169,7 @@ describe.skipIf(!hasScript)('vulcan sync in a terminal', () => {
     env?: Record<string, string>;
   }) => {
     const command = [process.execPath, CLI, ...opts.args]
-      .map(part => `'${part.replaceAll("'", "'\\''")}'`)
+      .map((part) => `'${part.replaceAll("'", "'\\''")}'`)
       .join(' ');
     const child = spawnSyncBounded({
       cmd: ['script', '-qec', command, '/dev/null'],

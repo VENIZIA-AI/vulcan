@@ -55,7 +55,7 @@ const normalizeVariable = (opts: { host: string }): string =>
 export const matchesHost = (opts: { host: string; entries: string[] }): boolean => {
   const host = normalizeVariable({ host: opts.host.toLowerCase() });
 
-  return opts.entries.some(entry => {
+  return opts.entries.some((entry) => {
     const wanted = normalizeVariable({ host: entry.toLowerCase() });
 
     if (!wanted.includes(WILDCARD)) {
@@ -71,7 +71,7 @@ export const matchesHost = (opts: { host: string; entries: string[] }): boolean 
 
     const pattern = wanted
       .split(WILDCARD)
-      .map(part => part.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&'))
+      .map((part) => part.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&'))
       .join('[a-z0-9._-]*');
 
     return new RegExp(`^${pattern}$`).test(host);
@@ -82,8 +82,8 @@ export const matchesHost = (opts: { host: string; entries: string[] }): boolean 
 export const parseTrustedList = (opts: { text: string }): string[] =>
   opts.text
     .split('\n')
-    .map(line => line.replace(/#.*$/, '').trim())
-    .filter(line => line !== '');
+    .map((line) => line.replace(/#.*$/, '').trim())
+    .filter((line) => line !== '');
 
 // --- reading a command ---
 
@@ -342,7 +342,7 @@ const optionEffect = (opts: { letter: string; value: string }): IOptionEffect =>
   const { letter, value } = opts;
 
   if (letter === 'J') {
-    return { hosts: value.split(',').map(jump => hostOf({ value: jump.replace(/:\d+$/, '') })) };
+    return { hosts: value.split(',').map((jump) => hostOf({ value: jump.replace(/:\d+$/, '') })) };
   }
 
   if (letter === 'F' || letter === 'S') {
@@ -365,7 +365,9 @@ const optionEffect = (opts: { letter: string; value: string }): IOptionEffect =>
   }
 
   if (key.toLowerCase() === 'proxyjump' && setting.toLowerCase() !== 'none') {
-    return { hosts: setting.split(',').map(jump => hostOf({ value: jump.replace(/:\d+$/, '') })) };
+    return {
+      hosts: setting.split(',').map((jump) => hostOf({ value: jump.replace(/:\d+$/, '') })),
+    };
   }
 
   return { hosts: key.toLowerCase() === 'hostname' ? [hostOf({ value: setting })] : [] };
@@ -442,7 +444,7 @@ const analyzeSsh = (opts: { program: string; words: string[] }): IFinding => {
     return unreadable({ why: `${opts.program} names no destination` });
   }
 
-  hosts.push(...positionals.map(positional => hostOf({ value: positional })));
+  hosts.push(...positionals.map((positional) => hostOf({ value: positional })));
 
   return {
     hosts,
@@ -538,11 +540,11 @@ const analyzeCopy = (opts: { program: string; words: string[] }): IFinding => {
     positionals.push(word);
   }
 
-  const specs = positionals.map(positional => copySpecHost({ word: positional }));
+  const specs = positionals.map((positional) => copySpecHost({ word: positional }));
 
-  hosts.push(...specs.flatMap(spec => (spec === undefined ? [] : [spec])));
+  hosts.push(...specs.flatMap((spec) => (spec === undefined ? [] : [spec])));
 
-  const safe = flags.every(flag => (scp ? SCP_SAFE_FLAGS : RSYNC_SAFE_FLAGS).test(flag));
+  const safe = flags.every((flag) => (scp ? SCP_SAFE_FLAGS : RSYNC_SAFE_FLAGS).test(flag));
   const [source = '', target = ''] = positionals;
 
   return {
@@ -563,7 +565,7 @@ const analyzeCopy = (opts: { program: string; words: string[] }): IFinding => {
 const optionValues = (opts: { words: string[]; names: string[] }): string[] =>
   opts.words.flatMap((word, index) => {
     const name = opts.names.find(
-      candidate => word === candidate || word.startsWith(`${candidate}=`),
+      (candidate) => word === candidate || word.startsWith(`${candidate}=`),
     );
 
     if (name === undefined) {
@@ -574,7 +576,7 @@ const optionValues = (opts: { words: string[]; names: string[] }): string[] =>
   });
 
 const analyzeKubernetes = (opts: { program: string; words: string[] }): IFinding => {
-  if (opts.words.some(word => word === '--kubeconfig' || word.startsWith('--kubeconfig='))) {
+  if (opts.words.some((word) => word === '--kubeconfig' || word.startsWith('--kubeconfig='))) {
     return unreadable({ why: '--kubeconfig points at contexts this guard cannot read' });
   }
 
@@ -587,7 +589,7 @@ const analyzeKubernetes = (opts: { program: string; words: string[] }): IFinding
     };
   }
 
-  const hosts = targets.map(target =>
+  const hosts = targets.map((target) =>
     target.includes('://') ? new URL(target).hostname : target.toLowerCase(),
   );
   const contexts = optionValues({ words: opts.words, names: ['--context'] });
@@ -612,7 +614,7 @@ const analyzeKubernetes = (opts: { program: string; words: string[] }): IFinding
       contexts.length === 1 &&
       targets.length === 1 &&
       KUBECTL_READ_VERBS.has(verb) &&
-      rest.every(word => KUBECTL_SAFE_WORD.test(word)),
+      rest.every((word) => KUBECTL_SAFE_WORD.test(word)),
     redirect: false,
   };
 };
@@ -643,7 +645,7 @@ const analyzeNetwork = (opts: { words: string[] }): IFinding => {
 
 /** `curl`, `wget`, `http`: a URL or bare address names a host; only a listed one matters. */
 const analyzeHttp = (opts: { words: string[] }): IFinding => {
-  const hosts = opts.words.slice(1).flatMap(word => {
+  const hosts = opts.words.slice(1).flatMap((word) => {
     const candidate = /\s/.test(word) ? /[a-z][a-z0-9+.-]*:\/\/\S*/i.exec(word)?.[0] : word;
 
     if (candidate === undefined || (candidate.startsWith('-') && !candidate.includes('://'))) {
@@ -754,7 +756,7 @@ const analyzeWords = (opts: {
     return opts.depth > MAXIMUM_DEPTH ? [unreadable({ why: 'the command nests too deeply' })] : [];
   }
 
-  if (program === 'command' && words.some(word => word === '-v' || word === '-V')) {
+  if (program === 'command' && words.some((word) => word === '-v' || word === '-V')) {
     return [];
   }
 
@@ -789,14 +791,14 @@ const analyzeWords = (opts: {
   }
 
   if (program === 'find') {
-    const start = words.findIndex(word => ['-exec', '-execdir', '-ok', '-okdir'].includes(word));
+    const start = words.findIndex((word) => ['-exec', '-execdir', '-ok', '-okdir'].includes(word));
 
     if (start === -1) {
       return [];
     }
 
     const tail = words.slice(start + 1);
-    const end = tail.findIndex(word => word === ';' || word === '+');
+    const end = tail.findIndex((word) => word === ';' || word === '+');
 
     return analyzeWords({
       words: end === -1 ? tail : tail.slice(0, end),
@@ -820,7 +822,7 @@ const analyzeWords = (opts: {
         ? []
         : opts
             .recurse({ command: finding.remote.join(' '), depth: opts.depth + 1 })
-            .filter(inner => inner.ambient !== true);
+            .filter((inner) => inner.ambient !== true);
 
     return [finding, ...nested];
   }
@@ -843,7 +845,7 @@ const analyzeWords = (opts: {
 };
 
 const analyzeCommand = (opts: { command: string; depth: number }): IFinding[] =>
-  tokenize({ command: opts.command }).flatMap(segment => {
+  tokenize({ command: opts.command }).flatMap((segment) => {
     const findings = analyzeWords({
       words: segment.words,
       depth: opts.depth,
@@ -913,10 +915,10 @@ export const inspectRemoteCommand = (opts: {
     }
   }
 
-  const devices = [...command.matchAll(DEVICE_HOST)].map(match =>
+  const devices = [...command.matchAll(DEVICE_HOST)].map((match) =>
     hostOf({ value: match[1] ?? '' }),
   );
-  const urls = [...command.matchAll(URL_HOST)].map(match => hostOf({ value: match[1] ?? '' }));
+  const urls = [...command.matchAll(URL_HOST)].map((match) => hostOf({ value: match[1] ?? '' }));
 
   for (const host of [...devices, ...urls]) {
     if (!matchesHost({ host, entries: policy.trusted })) {
@@ -939,7 +941,7 @@ export const buildRemoteDecision = (opts: { hits: IWriteHit[] }) => ({
     permissionDecision: HookConstants.GUARD_DECISION,
     permissionDecisionReason: [
       'This command may reach a remote host the project has not listed:',
-      ...opts.hits.map(hit => `  - ${hit.message}`),
+      ...opts.hits.map((hit) => `  - ${hit.message}`),
       '',
       'Read on the host, never edit, restart or copy onto it. Produce the command and hand it over.',
     ].join('\n'),

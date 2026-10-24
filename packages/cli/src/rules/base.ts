@@ -8,7 +8,7 @@ const readBaseMarkdown = (): string => readFileSync(join(BASE_DIRECTORY, 'rules.
 /** Each base rule's ID with its table row, verbatim. */
 export const readBaseRules = (): Record<string, string> =>
   Object.fromEntries(
-    extractRuleRows({ markdown: readBaseMarkdown() }).map(row => {
+    extractRuleRows({ markdown: readBaseMarkdown() }).map((row) => {
       const [id] = parseRuleIds({ markdown: row });
 
       return [id, row];

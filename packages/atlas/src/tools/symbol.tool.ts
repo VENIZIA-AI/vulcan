@@ -45,7 +45,7 @@ const responseOf = (opts: {
   records: ISymbolRecord[];
   docs: string[];
 }): ISymbolMatch | ISymbolMatchesResponse => {
-  const matches = opts.records.map(record => matchOf({ record, docs: opts.docs }));
+  const matches = opts.records.map((record) => matchOf({ record, docs: opts.docs }));
 
   return matches.length === 1 ? matches[0] : { matches };
 };
@@ -120,6 +120,6 @@ export const buildSymbolTool = (opts: {
       offset: 0,
     });
 
-    return withinBudget({ records, docs: documented.hits.map(hit => hit.id) });
+    return withinBudget({ records, docs: documented.hits.map((hit) => hit.id) });
   },
 });

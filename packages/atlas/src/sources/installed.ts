@@ -28,5 +28,5 @@ export const installRootsOf = (opts: { cwd: string }): string[] => {
 /** Every installed copy of `name` under those roots, nearest the project root first. */
 export const installedDirectoriesOf = (opts: { roots: string[]; name: string }): string[] =>
   opts.roots
-    .map(root => join(root, 'node_modules', opts.name))
-    .filter(directory => existsSync(join(directory, 'package.json')));
+    .map((root) => join(root, 'node_modules', opts.name))
+    .filter((directory) => existsSync(join(directory, 'package.json')));

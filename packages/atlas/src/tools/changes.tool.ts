@@ -143,7 +143,7 @@ const packageWindowOf = (opts: {
     versions
       .slice(versions.indexOf(to) + 1)
       .find(
-        candidate =>
+        (candidate) =>
           toDate === undefined ||
           (opts.releases.releaseDateOf({ package: name, version: candidate }) ?? '') < toDate,
       );
@@ -192,7 +192,7 @@ const dateWindowOf = (opts: { releases: IReleaseIndex; from?: string; to?: strin
   }
 
   const to = opts.to ?? dates[0];
-  const from = opts.from ?? dates.find(date => date < to);
+  const from = opts.from ?? dates.find((date) => date < to);
 
   return {
     package: null,

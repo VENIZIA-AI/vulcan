@@ -26,8 +26,8 @@ export const UI_STRINGS: Record<TLocale, IUiStrings> = {
     mapHint: 'Drag to pan · scroll to zoom · click a node to read it',
     concepts: 'concepts',
     areas: 'areas',
-    formatResults: opts => `${opts.count} result${opts.count === 1 ? '' : 's'}`,
-    formatMore: opts => `+ ${opts.count} more`,
+    formatResults: (opts) => `${opts.count} result${opts.count === 1 ? '' : 's'}`,
+    formatMore: (opts) => `+ ${opts.count} more`,
   },
   [Locales.VI]: {
     search: 'Tìm trong kiến thức…',
@@ -38,8 +38,8 @@ export const UI_STRINGS: Record<TLocale, IUiStrings> = {
     mapHint: 'Kéo để di chuyển · cuộn để zoom · click vào node để đọc',
     concepts: 'khái niệm',
     areas: 'lĩnh vực',
-    formatResults: opts => `${opts.count} kết quả`,
-    formatMore: opts => `+ ${opts.count} nữa`,
+    formatResults: (opts) => `${opts.count} kết quả`,
+    formatMore: (opts) => `+ ${opts.count} nữa`,
   },
 };
 

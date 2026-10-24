@@ -15,7 +15,7 @@ const byText = (left: string, right: string): number => {
 
 export const resolveAll = (opts: { values: string[]; packages: IAtlasPackage[] }): string[] => {
   const resolved = opts.values
-    .map(value => directoryOf({ value, packages: opts.packages }))
+    .map((value) => directoryOf({ value, packages: opts.packages }))
     .filter((name): name is string => name !== undefined);
 
   return [...new Set(resolved)].sort(byText);
@@ -24,7 +24,7 @@ export const resolveAll = (opts: { values: string[]; packages: IAtlasPackage[] }
 const cellsOf = (line: string): string[] => {
   const matched = line.match(TABLE_ROW_PATTERN);
 
-  return matched ? matched[1].split('|').map(cell => cell.trim()) : [];
+  return matched ? matched[1].split('|').map((cell) => cell.trim()) : [];
 };
 
 /**
@@ -49,7 +49,7 @@ const packageColumnValuesOf = (opts: { body: string }): string[] => {
       continue;
     }
 
-    const headerIndex = cells.findIndex(cell => cell.toLowerCase() === 'package');
+    const headerIndex = cells.findIndex((cell) => cell.toLowerCase() === 'package');
 
     if (columnIndex === -1 || headerIndex !== -1) {
       columnIndex = headerIndex;
@@ -76,7 +76,7 @@ const escapeLiteral = (opts: { text: string }): string =>
  */
 const bodyMentionsOf = (opts: { body: string; packages: IAtlasPackage[] }): string[] => {
   const names = opts.packages
-    .flatMap(entry => [entry.name, ...entry.aliases.filter(alias => alias.startsWith('@'))])
+    .flatMap((entry) => [entry.name, ...entry.aliases.filter((alias) => alias.startsWith('@'))])
     .sort((left, right) => right.length - left.length);
 
   if (names.length === 0) {
@@ -84,18 +84,18 @@ const bodyMentionsOf = (opts: { body: string; packages: IAtlasPackage[] }): stri
   }
 
   const pattern = new RegExp(
-    `(?:${names.map(name => escapeLiteral({ text: name })).join('|')})(?![a-z0-9-])`,
+    `(?:${names.map((name) => escapeLiteral({ text: name })).join('|')})(?![a-z0-9-])`,
     'g',
   );
 
-  return [...opts.body.matchAll(pattern)].map(match => match[0]);
+  return [...opts.body.matchAll(pattern)].map((match) => match[0]);
 };
 
 /** `packages/<dir>`, the heading convention every changelog before 2026-09 used to name its package. */
 const PACKAGE_PATH_PATTERN = /packages\/([a-z0-9-]+)/g;
 
 const bodyPathsOf = (opts: { body: string }): string[] =>
-  [...opts.body.matchAll(PACKAGE_PATH_PATTERN)].map(match => match[1]);
+  [...opts.body.matchAll(PACKAGE_PATH_PATTERN)].map((match) => match[1]);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);

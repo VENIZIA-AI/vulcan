@@ -19,7 +19,7 @@ const onlyOne = <T>(opts: { id: string; found: { source: string; value: T }[] })
   if (opts.found.length > 1) {
     throw new RpcError({
       code: RpcErrorCodes.INVALID_PARAMS,
-      message: `id '${opts.id}' is in more than one source (${opts.found.map(entry => entry.source).join(', ')}) - pass source`,
+      message: `id '${opts.id}' is in more than one source (${opts.found.map((entry) => entry.source).join(', ')}) - pass source`,
     });
   }
 
@@ -55,17 +55,17 @@ export class SourceChunks {
     if (wanted !== undefined && searched.length === 0) {
       throw new RpcError({
         code: RpcErrorCodes.INVALID_PARAMS,
-        message: `unknown source '${wanted}'; known sources: ${this.sources.map(entry => entry.name).join(', ')}`,
+        message: `unknown source '${wanted}'; known sources: ${this.sources.map((entry) => entry.name).join(', ')}`,
       });
     }
 
     // Each source answers its first offset+limit, so the merged page is exact.
-    const results = searched.map(entry => ({
+    const results = searched.map((entry) => ({
       source: entry.name,
       result: entry.chunks().search({ ...query, limit: query.offset + query.limit, offset: 0 }),
     }));
     const merged = results
-      .flatMap(({ source, result }) => result.hits.map(hit => ({ ...hit, source })))
+      .flatMap(({ source, result }) => result.hits.map((hit) => ({ ...hit, source })))
       .sort((left, right) => left.score - right.score);
 
     return {
@@ -75,7 +75,7 @@ export class SourceChunks {
   }
 
   get(opts: { id: string; source?: string }): (IChunk & { source: string }) | undefined {
-    const found = this.within({ source: opts.source }).flatMap(source => {
+    const found = this.within({ source: opts.source }).flatMap((source) => {
       const value = source.chunks().get({ id: opts.id });
 
       return value === undefined
@@ -87,7 +87,7 @@ export class SourceChunks {
   }
 
   list(opts: { document: string; source?: string }): IChunk[] {
-    const found = this.within({ source: opts.source }).flatMap(source => {
+    const found = this.within({ source: opts.source }).flatMap((source) => {
       const value = source.chunks().list({ document: opts.document });
 
       return value.length === 0 ? [] : [{ source: source.name, value }];
@@ -99,7 +99,7 @@ export class SourceChunks {
   private within(opts: { source?: string }): { name: string; chunks: () => ChunkStore }[] {
     return opts.source === undefined
       ? this.sources
-      : this.sources.filter(source => source.name === opts.source);
+      : this.sources.filter((source) => source.name === opts.source);
   }
 }
 
@@ -120,7 +120,7 @@ export class SourceReleases {
 
     return this.sources.length === 1
       ? only.releases.emptyReason
-      : this.sources.map(source => `${source.name}: ${source.releases.emptyReason}`).join('; ');
+      : this.sources.map((source) => `${source.name}: ${source.releases.emptyReason}`).join('; ');
   }
 
   get noEntriesReason(): string {
@@ -128,31 +128,33 @@ export class SourceReleases {
 
     return this.sources.length === 1
       ? only.releases.noEntriesReason
-      : this.sources.map(source => `${source.name}: ${source.releases.noEntriesReason}`).join('; ');
+      : this.sources
+          .map((source) => `${source.name}: ${source.releases.noEntriesReason}`)
+          .join('; ');
   }
 
   isEmpty(): boolean {
-    return this.sources.every(source => source.releases.isEmpty());
+    return this.sources.every((source) => source.releases.isEmpty());
   }
 
   packages(): string[] {
-    return [...new Set(this.sources.flatMap(source => source.releases.packages()))].sort(byText);
+    return [...new Set(this.sources.flatMap((source) => source.releases.packages()))].sort(byText);
   }
 
   declaredPackages(): string[] {
-    return [...new Set(this.sources.flatMap(source => source.releases.declaredPackages()))].sort(
+    return [...new Set(this.sources.flatMap((source) => source.releases.declaredPackages()))].sort(
       byText,
     );
   }
 
   livePackages(): string[] {
-    return [...new Set(this.sources.flatMap(source => source.releases.livePackages()))].sort(
+    return [...new Set(this.sources.flatMap((source) => source.releases.livePackages()))].sort(
       byText,
     );
   }
 
   entryDates(): string[] {
-    return [...new Set(this.sources.flatMap(source => source.releases.entryDates()))]
+    return [...new Set(this.sources.flatMap((source) => source.releases.entryDates()))]
       .sort(byText)
       .reverse();
   }
@@ -182,7 +184,7 @@ export class SourceReleases {
   }
 
   entriesBetween(opts: { package?: string; fromDate: string; toDate: string }): IChangelogRecord[] {
-    return this.tagged({ package: opts.package, read: store => store.entriesBetween(opts) });
+    return this.tagged({ package: opts.package, read: (store) => store.entriesBetween(opts) });
   }
 
   entriesBetweenOrders(opts: {
@@ -192,7 +194,10 @@ export class SourceReleases {
     fromDate: string;
     toDate: string;
   }): IChangelogRecord[] {
-    return this.tagged({ package: opts.package, read: store => store.entriesBetweenOrders(opts) });
+    return this.tagged({
+      package: opts.package,
+      read: (store) => store.entriesBetweenOrders(opts),
+    });
   }
 
   /** The one source a package belongs to; with one source, that source, whatever it is asked. */
@@ -203,13 +208,13 @@ export class SourceReleases {
 
     const owner = packageAcrossSources({
       value: opts.package,
-      sources: this.sources.map(source => ({
+      sources: this.sources.map((source) => ({
         source: source.name,
         packageMap: source.releases.packageMapEntries(),
       })),
     });
 
-    return this.sources.find(source => source.name === owner?.source);
+    return this.sources.find((source) => source.name === owner?.source);
   }
 
   /** A package's entries from its source; without a package, every source's, newest first. */
@@ -225,8 +230,8 @@ export class SourceReleases {
           );
 
     return sources
-      .flatMap(source =>
-        opts.read(source.releases).map(entry => ({ ...entry, source: source.name })),
+      .flatMap((source) =>
+        opts.read(source.releases).map((entry) => ({ ...entry, source: source.name })),
       )
       .sort((left, right) => byText(right.date, left.date));
   }
@@ -241,21 +246,21 @@ export class SourceSymbols {
   }
 
   get emptyReason(): string {
-    return this.sources.map(source => `${source.name}: ${source.symbols.emptyReason}`).join('; ');
+    return this.sources.map((source) => `${source.name}: ${source.symbols.emptyReason}`).join('; ');
   }
 
   isEmpty(): boolean {
-    return this.sources.every(source => source.symbols.isEmpty());
+    return this.sources.every((source) => source.symbols.isEmpty());
   }
 
   lookup(opts: { name: string; package?: string }): ISymbolRecord[] {
-    return this.sources.flatMap(source =>
-      source.symbols.lookup(opts).map(record => ({ ...record, source: source.name })),
+    return this.sources.flatMap((source) =>
+      source.symbols.lookup(opts).map((record) => ({ ...record, source: source.name })),
     );
   }
 
   suggest(opts: { name: string; limit?: number }): string[] {
-    const names = [...new Set(this.sources.flatMap(source => source.symbols.suggest(opts)))];
+    const names = [...new Set(this.sources.flatMap((source) => source.symbols.suggest(opts)))];
 
     return opts.limit === undefined ? names : names.slice(0, opts.limit);
   }

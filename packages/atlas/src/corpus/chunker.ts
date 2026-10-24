@@ -171,7 +171,7 @@ const splitIntoSections = (opts: { document: IDocument }): IRawSection[] => {
 const anchorsOf = (opts: { sections: IRawSection[] }): string[] => {
   const seen = new Map<string, number>();
 
-  return opts.sections.map(section => {
+  return opts.sections.map((section) => {
     if (section.level === 0) {
       return '';
     }
@@ -250,7 +250,7 @@ export const isIdentifierShaped = (token: string): boolean =>
 /** Every identifier-shaped `[A-Za-z_][A-Za-z0-9_.]*` token in `text`, split on `.` into its dotted segments; a URL-shaped word or plain prose contributes nothing. */
 const identifiersOf = (text: string): string[] => {
   const tokens: string[] = [];
-  const words = text.split(/\s+/).filter(word => !isUrlShaped(word));
+  const words = text.split(/\s+/).filter((word) => !isUrlShaped(word));
   const matches = words.join(' ').match(IDENTIFIER_PATTERN) ?? [];
 
   for (const match of matches) {
@@ -302,8 +302,8 @@ const symbolsOf = (opts: { body: string }): string => {
     }
   }
 
-  const expanded = rawTokens.flatMap(token =>
-    token.split(CAMEL_BOUNDARY_PATTERN).map(piece => piece.toLowerCase()),
+  const expanded = rawTokens.flatMap((token) =>
+    token.split(CAMEL_BOUNDARY_PATTERN).map((piece) => piece.toLowerCase()),
   );
 
   return dedupe([...rawTokens, ...expanded]).join(' ');

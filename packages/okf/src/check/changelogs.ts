@@ -37,7 +37,9 @@ const tagPatternOf = (opts: { project: IOkfProject; dir: string; version: string
 const tagsOf = (opts: { root: string }): string[] => {
   const result = spawnSync('git', ['tag', '--list'], { cwd: opts.root, encoding: 'utf8' });
 
-  return result.status === 0 ? (result.stdout ?? '').split('\n').filter(tag => tag.length > 0) : [];
+  return result.status === 0
+    ? (result.stdout ?? '').split('\n').filter((tag) => tag.length > 0)
+    : [];
 };
 
 /**
@@ -53,12 +55,12 @@ export const collectChangelogProblems = (): string[] => {
     return [];
   }
 
-  const names = new Map(project.packages.map(entry => [entry.name, entry.dir]));
+  const names = new Map(project.packages.map((entry) => [entry.name, entry.dir]));
   const problems: string[] = [];
   let tags: string[] | undefined;
 
   for (const file of readdirSync(directory)
-    .filter(name => DATED_ENTRY.test(name))
+    .filter((name) => DATED_ENTRY.test(name))
     .sort()) {
     const path = relative(project.root, join(directory, file));
     let frontmatter: TRecord;
@@ -110,7 +112,7 @@ export const collectChangelogProblems = (): string[] => {
 
     const pattern = tagPatternOf({ project, dir, version: override[2] });
 
-    if (!tags.some(tag => pattern.test(tag))) {
+    if (!tags.some((tag) => pattern.test(tag))) {
       const expected = project.tagPattern
         .replace(/<(?:dir|package)>/g, dir)
         .replace(/<version>/g, override[2])

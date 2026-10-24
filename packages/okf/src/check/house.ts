@@ -41,7 +41,7 @@ export const sameContent = (opts: { left: string; right: string }): boolean => {
   const normalize = (value: string) =>
     value
       .split('\n')
-      .map(line => line.replace(/\s+$/, ''))
+      .map((line) => line.replace(/\s+$/, ''))
       .join('\n')
       .trim();
 
@@ -66,7 +66,7 @@ export const collectHouseProblems = (opts: {
     );
   }
 
-  const ids = new Set(concepts.map(concept => concept.id));
+  const ids = new Set(concepts.map((concept) => concept.id));
 
   for (const concept of concepts) {
     for (const target of concept.links) {
@@ -91,7 +91,7 @@ export const collectHouseProblems = (opts: {
     }
   }
 
-  const filePaths = new Set(opts.files.map(file => `/${file.path.replace(/\.md$/, '')}`));
+  const filePaths = new Set(opts.files.map((file) => `/${file.path.replace(/\.md$/, '')}`));
   const resources = resourceKeysOf({ concepts });
 
   const { axes, problems: axisProblems } = collectCoverageAxes();
@@ -151,7 +151,7 @@ export const collectHouseProblems = (opts: {
   problems.push(...collectChangelogProblems());
 
   // A long agent-read file opens with its contents - an agent may read its first lines only.
-  problems.push(...collectContentsProblems({ skip: new Set(pages.map(page => page.path)) }));
+  problems.push(...collectContentsProblems({ skip: new Set(pages.map((page) => page.path)) }));
 
   return problems;
 };

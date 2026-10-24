@@ -50,8 +50,8 @@ describe('the manifest carries what presets needs', () => {
     const project = projectOf();
 
     expect(project.layout).toEqual({ backend: 'services', frontend: 'web', shared: 'libs' });
-    expect(project.presets?.map(item => item.spec)).toEqual(['ignis', 'file:../acme-web']);
-    expect(project.packages.find(item => item.dir === 'money')?.kind).toBe('lib');
+    expect(project.presets?.map((item) => item.spec)).toEqual(['ignis', 'file:../acme-web']);
+    expect(project.packages.find((item) => item.dir === 'money')?.kind).toBe('lib');
   });
 
   test('a manifest without them reads as none', () => {

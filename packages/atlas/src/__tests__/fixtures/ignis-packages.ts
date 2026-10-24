@@ -27,13 +27,13 @@ const IGNIS_LIST: Omit<IAtlasPackage, 'path'>[] = [
 ];
 
 /** Every IGNIS package lives at `packages/<dir>`. */
-export const IGNIS_PACKAGES: IAtlasPackage[] = IGNIS_LIST.map(entry => ({
+export const IGNIS_PACKAGES: IAtlasPackage[] = IGNIS_LIST.map((entry) => ({
   ...entry,
   path: `packages/${entry.dir}`,
 }));
 
 /** The same packages as a generated table's `packageMap` records them. */
-export const IGNIS_PACKAGE_MAP = IGNIS_PACKAGES.map(entry => ({
+export const IGNIS_PACKAGE_MAP = IGNIS_PACKAGES.map((entry) => ({
   dir: entry.dir,
   name: entry.name,
   aliases: entry.aliases,

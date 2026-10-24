@@ -183,7 +183,7 @@ const buildStore = (): ChunkStore => {
   const chunker = Chunker.getInstance();
   const store = new ChunkStore();
 
-  store.add({ chunks: DOCUMENTS.flatMap(document => chunker.chunk({ document })) });
+  store.add({ chunks: DOCUMENTS.flatMap((document) => chunker.chunk({ document })) });
 
   return store;
 };
@@ -194,7 +194,7 @@ describe('ranking quality over a small fixture corpus', () => {
   test('frontmatter type: Playbook is searchable even though the body never says "playbook"', () => {
     const { hits } = store.search({ query: 'release playbook', limit: 3, offset: 0 });
 
-    expect(hits.some(hit => hit.id.startsWith('okf:process/release-publish.md'))).toBe(true);
+    expect(hits.some((hit) => hit.id.startsWith('okf:process/release-publish.md'))).toBe(true);
   });
 
   test('filler words rank a query the same as its content-only equivalent', () => {
@@ -207,13 +207,17 @@ describe('ranking quality over a small fixture corpus', () => {
   test('an H3 whose own title and body never say the query terms matches through its heading path', () => {
     const { hits } = store.search({ query: 'registering artifacts', limit: 10, offset: 0 });
 
-    expect(hits.some(hit => hit.id === 'wiki:guides/bootstrapping.md#advanced-options')).toBe(true);
+    expect(hits.some((hit) => hit.id === 'wiki:guides/bootstrapping.md#advanced-options')).toBe(
+      true,
+    );
   });
 
   test('a history chunk mentioning a term four times ranks below a canonical chunk mentioning it twice', () => {
     const { hits } = store.search({ query: 'caching', limit: 10, offset: 0 });
-    const historyRank = hits.findIndex(hit => hit.id.startsWith('okf:log.md'));
-    const canonicalRank = hits.findIndex(hit => hit.id === 'okf:architecture/caching.md#overview');
+    const historyRank = hits.findIndex((hit) => hit.id.startsWith('okf:log.md'));
+    const canonicalRank = hits.findIndex(
+      (hit) => hit.id === 'okf:architecture/caching.md#overview',
+    );
 
     expect(historyRank).toBeGreaterThanOrEqual(0);
     expect(canonicalRank).toBeGreaterThanOrEqual(0);
@@ -227,15 +231,15 @@ describe('ranking quality over a small fixture corpus', () => {
     // ranked list outright, so of the 5 raw matches only 4 survive - `total` counts those 4.
     expect(total).toBe(4);
     expect(hits).toHaveLength(4);
-    expect(hits.filter(hit => hit.id.startsWith('wiki:reference/dense.md#'))).toHaveLength(2);
+    expect(hits.filter((hit) => hit.id.startsWith('wiki:reference/dense.md#'))).toHaveLength(2);
   });
 
   test('a chunk whose only match is its document title, carried by the heading path, ranks below a genuine symbols match', () => {
     const { hits } = store.search({ query: 'gizmo', limit: 10, offset: 0 });
     const titleOnlyRank = hits.findIndex(
-      hit => hit.id === 'wiki:guides/gizmo-assembly.md#safety-notes',
+      (hit) => hit.id === 'wiki:guides/gizmo-assembly.md#safety-notes',
     );
-    const symbolsRank = hits.findIndex(hit => hit.id === 'wiki:reference/other.md#usage');
+    const symbolsRank = hits.findIndex((hit) => hit.id === 'wiki:reference/other.md#usage');
 
     expect(titleOnlyRank).toBeGreaterThanOrEqual(0);
     expect(symbolsRank).toBeGreaterThanOrEqual(0);

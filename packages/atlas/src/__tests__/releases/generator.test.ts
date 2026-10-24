@@ -188,12 +188,12 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
 
     test('every committed release comes back from its tag, with its date and commit', () => {
       const spelled = (records: { version: string; date: string; sha: string }[] = []) =>
-        records.map(record => `${record.version} ${record.date} ${record.sha}`).sort();
+        records.map((record) => `${record.version} ${record.date} ${record.sha}`).sort();
       // packages/core became packages/core-server (one npm name, @venizia/ignis): the old table kept
       // its releases under 'core', they are core-server's history now. The old table's duplicate of
       // core 0.1.1 (the merge commit) is not a release.
       const tagged = (records: { version: string; sha: string; date: string }[] = []) =>
-        records.filter(record => !DUPLICATE_RELEASE_COMMITS.has(record.sha));
+        records.filter((record) => !DUPLICATE_RELEASE_COMMITS.has(record.sha));
       const expected: Record<string, { version: string; date: string; sha: string }[]> = {
         ...committed.releases,
         'core-server': tagged([
@@ -222,24 +222,24 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
       const stuck = Math.max(
         ...Object.values(committed.releases)
           .flat()
-          .map(record => record.order),
+          .map((record) => record.order),
       );
       const committedOrder = new Map(
         Object.values(committed.releases)
           .flat()
-          .filter(record => record.order !== stuck && !DUPLICATE_RELEASE_COMMITS.has(record.sha))
-          .map(record => [record.sha, record.order]),
+          .filter((record) => record.order !== stuck && !DUPLICATE_RELEASE_COMMITS.has(record.sha))
+          .map((record) => [record.sha, record.order]),
       );
       const computedOrder = new Map<string, number>(
         Object.values(computed.releases as Record<string, { sha: string; order: number }[]>)
           .flat()
-          .map(record => [record.sha, record.order]),
+          .map((record) => [record.sha, record.order]),
       );
-      const entryOrder = new Map(committed.changelogs.map(entry => [entry.id, entry.order]));
+      const entryOrder = new Map(committed.changelogs.map((entry) => [entry.id, entry.order]));
       const misplaced: string[] = [];
 
       // An entry written after the table was retired has no old position to compare with.
-      for (const entry of (computed.changelogs as { id: string; order: number }[]).filter(item =>
+      for (const entry of (computed.changelogs as { id: string; order: number }[]).filter((item) =>
         entryOrder.has(item.id),
       )) {
         for (const [sha, order] of committedOrder) {

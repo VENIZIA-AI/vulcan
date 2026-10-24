@@ -9,7 +9,7 @@ const CHANGELOGS = fileURLToPath(new URL('../../content/changelogs', import.meta
 const changelogGroups = (): DefaultTheme.SidebarItem[] => {
   const byDate = new Map<string, DefaultTheme.SidebarItem[]>();
   const files = readdirSync(CHANGELOGS)
-    .filter(file => /^\d{4}-\d{2}-\d{2}-.*\.md$/.test(file))
+    .filter((file) => /^\d{4}-\d{2}-\d{2}-.*\.md$/.test(file))
     .sort()
     .reverse();
 

@@ -28,7 +28,7 @@ const readRoot = (opts: { argv: string[] }): string => {
 const root = readRoot({ argv: process.argv });
 const offences: string[] = [];
 
-const files = SOURCE_GLOBS.flatMap(glob => [...new Glob(glob).scanSync({ cwd: root })]);
+const files = SOURCE_GLOBS.flatMap((glob) => [...new Glob(glob).scanSync({ cwd: root })]);
 
 for (const file of [...new Set(files)].sort()) {
   if (EXEMPT.test(`/${file}`) || file.includes('/node_modules/')) {
@@ -49,7 +49,7 @@ for (const file of [...new Set(files)].sort()) {
 if (offences.length > 0) {
   console.error(
     `project-names: ${offences.length} line(s) in VULCAN's source name a project - VULCAN serves every project from the contract alone:\n` +
-      offences.map(offence => `  ${offence}`).join('\n'),
+      offences.map((offence) => `  ${offence}`).join('\n'),
   );
   process.exit(1);
 }

@@ -73,7 +73,7 @@ export const isNpmPackageName = (opts: { name: string }): boolean =>
 
 /** A fetched manifest is data from elsewhere: a name that is not an npm name never reaches a path. */
 const packagesOf = (opts: { value: unknown; label: string }): IAtlasPackage[] =>
-  (Array.isArray(opts.value) ? opts.value : []).flatMap(item => {
+  (Array.isArray(opts.value) ? opts.value : []).flatMap((item) => {
     const entry = recordOf({ value: item });
     const dir = stringOf({ value: entry.dir });
     const aliases: unknown[] = Array.isArray(entry.aliases) ? entry.aliases : [];
@@ -103,7 +103,7 @@ const packagesOf = (opts: { value: unknown; label: string }): IAtlasPackage[] =>
 const layoutOf = (opts: { value: unknown }): Pick<IAtlasProject, 'layout'> => {
   const record = recordOf({ value: opts.value });
   const layout = Object.fromEntries(
-    ['backend', 'frontend', 'shared'].flatMap(key => {
+    ['backend', 'frontend', 'shared'].flatMap((key) => {
       const folder = stringOf({ value: record[key] });
 
       return folder === undefined ? [] : [[key, folder]];
@@ -167,7 +167,7 @@ export const toAtlasProject = (opts: {
       (glob): glob is string => typeof glob === 'string',
     ),
     typescriptFrom: opts.root,
-    sources: (Array.isArray(manifest.sources) ? manifest.sources : []).flatMap(item => {
+    sources: (Array.isArray(manifest.sources) ? manifest.sources : []).flatMap((item) => {
       const source = recordOf({ value: item });
       const name = stringOf({ value: source.name });
       const repo = stringOf({ value: source.repo });
@@ -225,7 +225,7 @@ export const readAtlasProject = (opts: { root?: string } = {}): IAtlasProject =>
 
 /** The packages surface and symbols walk: the live ones, in release order. */
 export const livePackageDirs = (opts: { project: IAtlasProject }): string[] => {
-  const live = opts.project.packages.filter(entry => !entry.retired).map(entry => entry.dir);
+  const live = opts.project.packages.filter((entry) => !entry.retired).map((entry) => entry.dir);
 
   if (live.length === 0) {
     throw new Error(
@@ -238,8 +238,8 @@ export const livePackageDirs = (opts: { project: IAtlasProject }): string[] => {
 
 /** Where a package lives, from the root: the manifest's `path` (an application keeps them outside packages/). */
 export const packagePathOf = (opts: { project?: IAtlasProject; dir: string }): string =>
-  opts.project?.packages.find(entry => entry.dir === opts.dir)?.path ?? `packages/${opts.dir}`;
+  opts.project?.packages.find((entry) => entry.dir === opts.dir)?.path ?? `packages/${opts.dir}`;
 
 /** Every package the project has released, retired ones included. */
 export const knownPackageDirs = (opts: { project: IAtlasProject }): string[] =>
-  opts.project.packages.map(entry => entry.dir);
+  opts.project.packages.map((entry) => entry.dir);

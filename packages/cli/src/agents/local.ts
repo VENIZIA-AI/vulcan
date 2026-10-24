@@ -52,7 +52,7 @@ export const readLocalChoice = (opts: { root: string }): TLocalChoice => {
   }
 
   const known = new Set(agentIds());
-  const unknown = checked.data.agents.find(id => !known.has(id));
+  const unknown = checked.data.agents.find((id) => !known.has(id));
 
   if (unknown !== undefined) {
     return {

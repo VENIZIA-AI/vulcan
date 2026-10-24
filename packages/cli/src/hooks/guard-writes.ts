@@ -65,7 +65,7 @@ const SCRIPT_CHECKS: IWriteCheck[] = [
 ];
 
 const extractScriptTargets = (opts: { command: string }): string[] =>
-  [...opts.command.matchAll(/\bbun\s+(?:run\s+)?(\S+\.ts)\b/g)].map(match => match[1]);
+  [...opts.command.matchAll(/\bbun\s+(?:run\s+)?(\S+\.ts)\b/g)].map((match) => match[1]);
 
 const readScript = (opts: { target: string; cwd: string }): string | undefined => {
   const path = isAbsolute(opts.target) ? opts.target : join(opts.cwd, opts.target);
@@ -75,8 +75,8 @@ const readScript = (opts: { target: string; cwd: string }): string | undefined =
 
 /** Every reason `command` looks like a write the base rules reserve for a human (V-W-02, V-W-03). */
 export const inspectCommand = (opts: { command: string; cwd: string }): IWriteHit[] => {
-  const hits: IWriteHit[] = COMMAND_CHECKS.filter(check => check.pattern.test(opts.command)).map(
-    check => ({
+  const hits: IWriteHit[] = COMMAND_CHECKS.filter((check) => check.pattern.test(opts.command)).map(
+    (check) => ({
       rule: check.rule,
       message: check.what,
     }),
@@ -89,7 +89,7 @@ export const inspectCommand = (opts: { command: string; cwd: string }): IWriteHi
       continue;
     }
 
-    for (const check of SCRIPT_CHECKS.filter(scriptCheck => scriptCheck.pattern.test(source))) {
+    for (const check of SCRIPT_CHECKS.filter((scriptCheck) => scriptCheck.pattern.test(source))) {
       hits.push({ rule: check.rule, message: `${target} looks like it is ${check.what}` });
     }
   }
@@ -136,7 +136,7 @@ export const buildGuardDecision = (opts: { hits: IWriteHit[] }) => ({
     permissionDecision: HookConstants.GUARD_DECISION,
     permissionDecisionReason: [
       `This command looks like ${opts.hits.length === 1 ? 'an action' : 'actions'} the base rules reserve for a human:`,
-      ...opts.hits.map(hit => `  - ${hit.rule}: ${hit.message}`),
+      ...opts.hits.map((hit) => `  - ${hit.rule}: ${hit.message}`),
       '',
       'The rules reject "it is only dev", "it is only a test row" and "it is reversible".',
       'Produce the script, the SQL or the manifest and hand it over instead of running it.',

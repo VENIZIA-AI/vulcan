@@ -61,9 +61,9 @@ const walkMarkdown = (opts: { dir: string }): string[] => {
  */
 export const stripCode = (opts: { text: string }): string => {
   return opts.text
-    .replace(/```[\s\S]*?```/g, block => block.replace(/[^\n]/g, ' '))
-    .replace(/~~~[\s\S]*?~~~/g, block => block.replace(/[^\n]/g, ' '))
-    .replace(/`[^`\n]*`/g, span => ' '.repeat(span.length));
+    .replace(/```[\s\S]*?```/g, (block) => block.replace(/[^\n]/g, ' '))
+    .replace(/~~~[\s\S]*?~~~/g, (block) => block.replace(/[^\n]/g, ' '))
+    .replace(/`[^`\n]*`/g, (span) => ' '.repeat(span.length));
 };
 
 const MARKDOWN_LINK = /\]\(([^)\s]+)\)/g;
@@ -87,7 +87,7 @@ const resolveLinkTarget = (opts: { target: string; fromId: string }): string | u
 export const extractLinks = (opts: { text: string; id: string }): string[] => {
   const prose = stripCode({ text: opts.text });
   const targets = [...prose.matchAll(MARKDOWN_LINK)]
-    .map(match => resolveLinkTarget({ target: match[1], fromId: opts.id }))
+    .map((match) => resolveLinkTarget({ target: match[1], fromId: opts.id }))
     .filter((target): target is string => target !== undefined);
 
   return [...new Set(targets)];
@@ -124,13 +124,13 @@ const asTags = (opts: { value: unknown }): string[] => {
   const { value } = opts;
 
   if (Array.isArray(value)) {
-    return value.map(tag => String(tag).trim()).filter(Boolean);
+    return value.map((tag) => String(tag).trim()).filter(Boolean);
   }
 
   if (typeof value === 'string') {
     return value
       .split(',')
-      .map(tag => tag.trim())
+      .map((tag) => tag.trim())
       .filter(Boolean);
   }
 
@@ -140,7 +140,7 @@ const asTags = (opts: { value: unknown }): string[] => {
 export const loadConcepts = (): Concept[] => {
   const { bundle } = readOkfProject();
 
-  return walkMarkdown({ dir: bundle }).map(file => {
+  return walkMarkdown({ dir: bundle }).map((file) => {
     const raw = readFileSync(file, 'utf8');
     const base = file.split('/').pop() ?? '';
     const reserved = RESERVED_FILES.has(base);

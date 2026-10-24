@@ -18,14 +18,14 @@ const LOG_FILE = 'log.md';
 const contentsTargets = (opts: { skip: Set<string> }): string[] => {
   const project = readOkfProject();
   const bundle = walkFiles({ dir: project.bundle }).filter(
-    file =>
+    (file) =>
       file.endsWith('.md') &&
       !opts.skip.has(file) &&
       file !== join(project.bundle, LOG_FILE) &&
       !isGenerated({ text: readFileSync(file, 'utf8') }),
   );
 
-  return [...bundle.sort(), ...project.contentsFiles.filter(file => existsSync(file))];
+  return [...bundle.sort(), ...project.contentsFiles.filter((file) => existsSync(file))];
 };
 
 const shown = (opts: { file: string }): string => relative(readOkfProject().root, opts.file);
@@ -33,18 +33,19 @@ const shown = (opts: { file: string }): string => relative(readOkfProject().root
 /** Every agent-read file whose contents list is missing or stale - `check --strict` fails on them. */
 export const collectContentsProblems = (opts: { skip: Set<string> }): string[] =>
   contentsTargets(opts)
-    .filter(file => {
+    .filter((file) => {
       const text = readFileSync(file, 'utf8');
 
       return withContents({ text }) !== text;
     })
     .map(
-      file => `contents: ${shown({ file })} has no fresh contents list - run \`vulcan x okf gen\``,
+      (file) =>
+        `contents: ${shown({ file })} has no fresh contents list - run \`vulcan x okf gen\``,
     );
 
 /** Writes every contents list `gen` owes; the files written, from the root. */
 export const writeContents = (opts: { skip: Set<string> }): string[] =>
-  contentsTargets(opts).flatMap(file => {
+  contentsTargets(opts).flatMap((file) => {
     const text = readFileSync(file, 'utf8');
     const next = withContents({ text });
 

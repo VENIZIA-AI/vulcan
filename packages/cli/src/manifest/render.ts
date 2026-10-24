@@ -58,7 +58,7 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
     [ManifestConstants.GENERATED_KEY]: ManifestConstants.GENERATED_NOTE,
     schemaVersion: ManifestConstants.SCHEMA_VERSION,
     name: projectNameOf(opts),
-    packages: resolvePackages({ config }).map(entry => ({
+    packages: resolvePackages({ config }).map((entry) => ({
       name: entry.name,
       dir: entry.dir,
       path: entry.path,

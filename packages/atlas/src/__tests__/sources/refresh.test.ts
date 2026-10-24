@@ -216,7 +216,7 @@ describe('Refresher', () => {
     let now = 0;
     let runs = 0;
     let release: () => void = () => {};
-    const gate = new Promise<void>(resolve => {
+    const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
     const refresher = new Refresher({

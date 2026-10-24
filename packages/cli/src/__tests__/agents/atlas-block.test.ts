@@ -52,7 +52,9 @@ describe('renderAtlasBlock', () => {
   });
 
   test('is short: a heading and five lines of text between the markers', () => {
-    const inner = BLOCK.split('\n').filter(line => line.trim() !== '' && !line.startsWith('<!--'));
+    const inner = BLOCK.split('\n').filter(
+      (line) => line.trim() !== '' && !line.startsWith('<!--'),
+    );
 
     expect(inner.length).toBeLessThanOrEqual(6);
   });

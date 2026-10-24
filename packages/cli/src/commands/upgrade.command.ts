@@ -116,7 +116,7 @@ const readInstalledVersion = (opts: { cwd: string }): string | undefined => {
  * cannot be resolved.
  */
 export const resolveUpgradeTarget = async (opts: ICommandContext): Promise<string | undefined> => {
-  const explicit = opts.args.find(arg => !arg.startsWith('-'));
+  const explicit = opts.args.find((arg) => !arg.startsWith('-'));
 
   if (explicit !== undefined) {
     return explicit;

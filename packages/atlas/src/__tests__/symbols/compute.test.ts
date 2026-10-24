@@ -63,10 +63,10 @@ describe('symbolsOfInstalled (D2)', () => {
 
     const symbols = symbolsOfInstalled({ directory: join(consumer, 'node_modules/@x/kit') });
 
-    expect(symbols.map(symbol => `${symbol.package} ${symbol.name} ${symbol.kind}`).sort()).toEqual(
-      ['@x/kit Kit class', '@x/kit greet function'],
-    );
-    expect(symbols.find(symbol => symbol.name === 'greet')?.signature).toContain(
+    expect(
+      symbols.map((symbol) => `${symbol.package} ${symbol.name} ${symbol.kind}`).sort(),
+    ).toEqual(['@x/kit Kit class', '@x/kit greet function']);
+    expect(symbols.find((symbol) => symbol.name === 'greet')?.signature).toContain(
       'greet(name: string): string',
     );
   });
@@ -93,10 +93,10 @@ describe('symbolsOfInstalled (D2)', () => {
 
     try {
       const symbols = symbolsOfInstalled({ directory });
-      const warnings = warnSpy.mock.calls.map(call => String(call[0]));
+      const warnings = warnSpy.mock.calls.map((call) => String(call[0]));
 
-      expect(symbols.map(symbol => symbol.name).sort()).toEqual(['Kit', 'greet']);
-      expect(warnings.filter(line => line.includes('./contracts'))).toEqual([
+      expect(symbols.map((symbol) => symbol.name).sort()).toEqual(['Kit', 'greet']);
+      expect(warnings.filter((line) => line.includes('./contracts'))).toEqual([
         '[AtlasSymbols-recordsOf] skipped an export whose declaration file is missing | package: @x/kit | subpath: ./contracts | path: dist/contracts/index.d.ts',
       ]);
     } finally {
@@ -115,7 +115,7 @@ describe('symbolsOfInstalled (D2)', () => {
     expect(existsSync(join(symbolsCacheDirectory(), '@x+kit@1.2.0.json'))).toBe(true);
     expect(
       symbolsOfInstalled({ directory })
-        .map(symbol => symbol.name)
+        .map((symbol) => symbol.name)
         .sort(),
     ).toEqual(['Kit', 'greet']);
   });
@@ -167,7 +167,7 @@ describe('symbolsOfPublished (D2)', () => {
     let served = 0;
     const registry = Bun.serve({
       port: 0,
-      fetch: request => {
+      fetch: (request) => {
         served += 1;
 
         return new URL(request.url).pathname === '/@x/kit/-/kit-1.2.0.tgz'
@@ -182,7 +182,7 @@ describe('symbolsOfPublished (D2)', () => {
       const first = await symbolsOfPublished({ name: '@x/kit', version: '1.2.0' });
       const second = await symbolsOfPublished({ name: '@x/kit', version: '1.2.0' });
 
-      expect(first.map(symbol => symbol.name).sort()).toEqual(['Kit', 'greet']);
+      expect(first.map((symbol) => symbol.name).sort()).toEqual(['Kit', 'greet']);
       expect(second).toEqual(first);
       expect(served).toBe(1);
     } finally {

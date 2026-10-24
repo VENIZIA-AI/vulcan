@@ -36,9 +36,10 @@ const namesIn = (opts: { directory: string }): string[] =>
   existsSync(opts.directory)
     ? readdirSync(opts.directory, { withFileTypes: true })
         .filter(
-          entry => entry.isDirectory() && existsSync(join(opts.directory, entry.name, SKILL_FILE)),
+          (entry) =>
+            entry.isDirectory() && existsSync(join(opts.directory, entry.name, SKILL_FILE)),
         )
-        .map(entry => entry.name)
+        .map((entry) => entry.name)
         .sort()
     : [];
 
@@ -72,7 +73,7 @@ export const skillCatalogOf = (opts: { root: string }): ISkillEntry[] => {
       description: descriptionOf({ directory: shippedDirectory, name }),
     })),
     ...namesIn({ directory: projectDirectory })
-      .filter(name => !taken.has(name))
+      .filter((name) => !taken.has(name))
       .map((name): ISkillEntry => ({
         name,
         source: 'project',

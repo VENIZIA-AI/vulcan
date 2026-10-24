@@ -25,7 +25,7 @@ export const mergedAtlasBlock = (opts: {
 
   const block = renderAtlasBlock({
     project: projectNameOf(opts),
-    sources: opts.config.atlas.sources.map(source => source.name),
+    sources: opts.config.atlas.sources.map((source) => source.name),
   });
 
   return { path, ...mergeAtlasBlock({ text: readFileSync(path, 'utf8'), block }) };

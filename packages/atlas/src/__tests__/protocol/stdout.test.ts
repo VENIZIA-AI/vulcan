@@ -81,7 +81,7 @@ describe('stdout discipline - the mcp subprocess over real stdio', () => {
     });
 
     const stdout = await collectStdout({ process: child, windowMs: READ_WINDOW_MS });
-    const lines = stdout.split('\n').filter(line => line.trim().length > 0);
+    const lines = stdout.split('\n').filter((line) => line.trim().length > 0);
 
     expect(lines.length).toBeGreaterThan(0);
 

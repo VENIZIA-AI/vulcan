@@ -96,12 +96,12 @@ describe('a pull', () => {
       const sha = git({ cwd: source.work, args: ['rev-parse', 'HEAD'] });
 
       // A failed start shows its stderr - what it hit is the finding.
-      expect(starts.map(start => (start.exitCode === 0 ? 'ok' : start.stderr))).toEqual([
+      expect(starts.map((start) => (start.exitCode === 0 ? 'ok' : start.stderr))).toEqual([
         'ok',
         'ok',
         'ok',
       ]);
-      expect(starts.map(start => start.stdout)).toEqual(
+      expect(starts.map((start) => start.stdout)).toEqual(
         [1, 2, 3].map(() => JSON.stringify({ sha })),
       );
     },
@@ -134,9 +134,9 @@ describe('a pull', () => {
     const entries = readdirSync(cacheRoot);
     const kept = pulled.slice(1).sort();
 
-    expect(entries.filter(name => /^[0-9a-f]{40}$/.test(name)).sort()).toEqual(kept);
-    expect(entries.filter(name => name.endsWith('.atlas')).sort()).toEqual(
-      kept.map(sha => `${sha}.atlas`),
+    expect(entries.filter((name) => /^[0-9a-f]{40}$/.test(name)).sort()).toEqual(kept);
+    expect(entries.filter((name) => name.endsWith('.atlas')).sort()).toEqual(
+      kept.map((sha) => `${sha}.atlas`),
     );
     expect(
       git({ cwd: join(cacheRoot, 'git'), args: ['worktree', 'list', '--porcelain'] }),

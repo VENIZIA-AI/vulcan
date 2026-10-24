@@ -20,8 +20,8 @@ const ELEMENT_IDS = [
 
 /** Every element the template must carry; a missing one is reported by name, never thrown on. */
 const collectElements = (): IExplorerElements | undefined => {
-  const byId = new Map(ELEMENT_IDS.map(id => [id, document.getElementById(id)]));
-  const missing = ELEMENT_IDS.filter(id => byId.get(id) === null);
+  const byId = new Map(ELEMENT_IDS.map((id) => [id, document.getElementById(id)]));
+  const missing = ELEMENT_IDS.filter((id) => byId.get(id) === null);
   const search = byId.get('search');
 
   if (missing.length > 0 || !(search instanceof HTMLInputElement)) {

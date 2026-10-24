@@ -14,9 +14,9 @@ const describeError = (opts: { error: unknown }): string =>
 
 /** Every `.configs/vulcan.config.<ext>` present, in lookup order. */
 export const findConfigFiles = (opts: { root: string }): string[] =>
-  ConfigExtensions.LOOKUP_ORDER.map(extension =>
+  ConfigExtensions.LOOKUP_ORDER.map((extension) =>
     join(opts.root, ConfigConstants.DIRECTORY, `${ConfigConstants.BASENAME}.${extension}`),
-  ).filter(file => existsSync(file));
+  ).filter((file) => existsSync(file));
 
 export const loadConfig = async (opts: { root: string }): Promise<TLoadResult> => {
   const files = findConfigFiles({ root: opts.root });
@@ -29,7 +29,7 @@ export const loadConfig = async (opts: { root: string }): Promise<TLoadResult> =
   }
 
   if (files.length > 1) {
-    const names = files.map(file => relative(opts.root, file)).join(', ');
+    const names = files.map((file) => relative(opts.root, file)).join(', ');
 
     return { ok: false, error: `more than one config - keep exactly one of: ${names}` };
   }
@@ -57,7 +57,7 @@ export const loadConfig = async (opts: { root: string }): Promise<TLoadResult> =
 
   if (!parsed.success) {
     const issues = parsed.error.issues
-      .map(issue => {
+      .map((issue) => {
         const path =
           issue.code === 'unrecognized_keys'
             ? issue.keys.join(', ')

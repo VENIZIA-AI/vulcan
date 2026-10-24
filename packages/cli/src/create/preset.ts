@@ -148,14 +148,14 @@ export const locatePreset = (opts: { spec: IPresetSpec; root: string }): TPreset
   const shown = `${packageName}@${packageVersion}`;
   const vulcan = manifest[CreateConstants.PRESET_FIELD];
   const oldKeys = ['preset', 'lib'].filter(
-    key => readProperty({ value: vulcan, key }) !== undefined,
+    (key) => readProperty({ value: vulcan, key }) !== undefined,
   );
 
   // No fallback to the keys before `presets`: say what the contract is now.
   if (oldKeys.length > 0) {
     return {
       ok: false,
-      error: `${shown} uses the old keys "vulcan": { ${oldKeys.map(key => `"${key}"`).join(', ')} }; the contract is now "vulcan": { "presets": { "app": "./path/preset.json", "lib": "./path/lib.json" } }`,
+      error: `${shown} uses the old keys "vulcan": { ${oldKeys.map((key) => `"${key}"`).join(', ')} }; the contract is now "vulcan": { "presets": { "app": "./path/preset.json", "lib": "./path/lib.json" } }`,
     };
   }
 
@@ -199,7 +199,7 @@ export const locatePreset = (opts: { spec: IPresetSpec; root: string }): TPreset
 
   if (!parsed.success) {
     const issues = parsed.error.issues
-      .map(issue => `${issue.path.join('.')} ${issue.message}`)
+      .map((issue) => `${issue.path.join('.')} ${issue.message}`)
       .join('; ');
 
     return { ok: false, error: `${shown}: ${field}: ${issues}` };

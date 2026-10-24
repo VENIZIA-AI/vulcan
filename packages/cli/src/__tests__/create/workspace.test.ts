@@ -252,7 +252,7 @@ describe('workspace planners', () => {
 
     expect(once.presets).toEqual([{ spec: 'ignis', side: 'backend', summary: 'old' }]);
     expect(again.presets).toEqual([{ spec: 'ignis', side: 'backend', summary: 'new' }]);
-    expect(other.presets?.map(item => item.spec)).toEqual(['ignis', 'ardor']);
+    expect(other.presets?.map((item) => item.spec)).toEqual(['ignis', 'ardor']);
   });
 
   test('presetSpecOf records a package spec as typed and a file: spec relative to the project', () => {

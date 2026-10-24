@@ -44,7 +44,7 @@ export const migrateChangelogs = (opts: {
   }
 
   for (const file of readdirSync(directory)
-    .filter(name => DATED_ENTRY.test(name))
+    .filter((name) => DATED_ENTRY.test(name))
     .sort()) {
     const path = join(directory, file);
     const text = readFileSync(path, 'utf8');
@@ -56,7 +56,7 @@ export const migrateChangelogs = (opts: {
     }
 
     const names = resolveChangelogPackages({ text, packages: project.packages }).map(
-      dir => project.packages.find(entry => entry.dir === dir)?.name ?? dir,
+      (dir) => project.packages.find((entry) => entry.dir === dir)?.name ?? dir,
     );
 
     if (names.length === 0) {
@@ -65,7 +65,7 @@ export const migrateChangelogs = (opts: {
     }
 
     if (opts.write) {
-      const line = `packages: [${names.map(name => `'${name}'`).join(', ')}]`;
+      const line = `packages: [${names.map((name) => `'${name}'`).join(', ')}]`;
 
       writeFileSync(path, withFrontmatterLine({ text, line }));
     }

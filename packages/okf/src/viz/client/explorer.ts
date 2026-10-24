@@ -83,8 +83,8 @@ export class KnowledgeExplorer {
   ) {
     this.strings = UI_STRINGS[opts.locale];
     this.copy = opts.data.copy[opts.locale];
-    this.nodeById = new Map(opts.data.nodes.map(node => [node.id, node]));
-    this.neighbours = new Map(opts.data.nodes.map(node => [node.id, new Set<string>()]));
+    this.nodeById = new Map(opts.data.nodes.map((node) => [node.id, node]));
+    this.neighbours = new Map(opts.data.nodes.map((node) => [node.id, new Set<string>()]));
 
     for (const edge of opts.data.edges) {
       this.neighbours.get(edge.source)?.add(edge.target);
@@ -124,7 +124,7 @@ export class KnowledgeExplorer {
 
   private getNodesInSection(opts: { key: string }): IVizNode[] {
     return this.opts.data.nodes
-      .filter(node => node.group === opts.key)
+      .filter((node) => node.group === opts.key)
       .sort((left, right) => left.title.localeCompare(right.title));
   }
 
@@ -172,7 +172,7 @@ export class KnowledgeExplorer {
 
   private findSidebarGroup(opts: { key: string }): HTMLElement | undefined {
     return [...this.opts.elements.side.querySelectorAll<HTMLElement>('.grp')].find(
-      group => group.dataset.key === opts.key,
+      (group) => group.dataset.key === opts.key,
     );
   }
 
@@ -203,13 +203,13 @@ export class KnowledgeExplorer {
     this.setActive({});
 
     const cards = this.opts.data.sections
-      .map(section => {
+      .map((section) => {
         const nodes = this.getNodesInSection({ key: section.key });
         const hidden = nodes.length - VizConstants.HOME_CARD_ITEMS;
         const links = nodes
           .slice(0, VizConstants.HOME_CARD_ITEMS)
           .map(
-            node =>
+            (node) =>
               `<a data-go="${escapeAttribute({ text: node.id })}">${escapeHtml({ text: node.title })}</a>`,
           )
           .join('');
@@ -248,16 +248,16 @@ export class KnowledgeExplorer {
     this.setActive({ id: node.id });
 
     const label =
-      this.opts.data.sections.find(section => section.key === node.group)?.label ?? node.group;
+      this.opts.data.sections.find((section) => section.key === node.group)?.label ?? node.group;
     const accent = this.getSectionColor({ key: node.group });
     const related = [...(this.neighbours.get(node.id) ?? [])]
-      .map(id => this.nodeById.get(id))
+      .map((id) => this.nodeById.get(id))
       .filter((neighbour): neighbour is IVizNode => neighbour !== undefined)
       .sort((left, right) => left.title.localeCompare(right.title));
 
     const chips = related
       .map(
-        neighbour =>
+        (neighbour) =>
           `<span class="chip" data-go="${escapeAttribute({ text: neighbour.id })}">` +
           `<span class="d" style="background:${this.getSectionColor({ key: neighbour.group })}"></span>${escapeHtml({ text: neighbour.title })}</span>`,
       )
@@ -270,7 +270,7 @@ export class KnowledgeExplorer {
       `<span class="badge" style="background:${accent}">${escapeHtml({ text: node.type })}</span>` +
       `<h1>${escapeHtml({ text: node.title })}</h1><p class="lead">${escapeHtml({ text: node.description })}</p>` +
       (node.tags.length
-        ? `<div class="tags">#${node.tags.map(tag => escapeHtml({ text: tag })).join('  #')}</div>`
+        ? `<div class="tags">#${node.tags.map((tag) => escapeHtml({ text: tag })).join('  #')}</div>`
         : '') +
       (node.resource
         ? `<div class="src">${escapeHtml({ text: this.strings.source })}: ${escapeHtml({ text: node.resource })}</div>`
@@ -317,7 +317,7 @@ export class KnowledgeExplorer {
 
     for (const group of side.querySelectorAll<HTMLElement>('.grp')) {
       const anyVisible = [...group.querySelectorAll('.it')].some(
-        item => !item.classList.contains('hide'),
+        (item) => !item.classList.contains('hide'),
       );
 
       group.style.display = query === '' || anyVisible ? '' : 'none';
@@ -334,8 +334,8 @@ export class KnowledgeExplorer {
     }
 
     const hits = this.opts.data.nodes
-      .map(node => ({ node, score: scoreNode({ node, query }) }))
-      .filter(hit => hit.score > 0)
+      .map((node) => ({ node, score: scoreNode({ node, query }) }))
+      .filter((hit) => hit.score > 0)
       .sort((left, right) => right.score - left.score)
       .slice(0, VizConstants.SEARCH_RESULT_LIMIT);
 
@@ -383,7 +383,7 @@ export class KnowledgeExplorer {
       });
     }
 
-    document.addEventListener('click', event => {
+    document.addEventListener('click', (event) => {
       if (!(event.target instanceof Element)) {
         return;
       }
@@ -483,14 +483,14 @@ export class KnowledgeExplorer {
 
     const { nodes, edges, sections } = this.opts.data;
     const elements: cytoscape.ElementDefinition[] = [
-      ...sections.map(section => ({
+      ...sections.map((section) => ({
         data: {
           id: `${SECTION_NODE_PREFIX}${section.key}`,
           label: section.label.toUpperCase(),
           kind: 'section',
         },
       })),
-      ...nodes.map(node => ({
+      ...nodes.map((node) => ({
         data: {
           id: node.id,
           label: node.title,
@@ -499,7 +499,7 @@ export class KnowledgeExplorer {
           degree: node.degree,
         },
       })),
-      ...edges.map(edge => ({
+      ...edges.map((edge) => ({
         data: { id: `${edge.source}>${edge.target}`, source: edge.source, target: edge.target },
       })),
     ];
@@ -513,8 +513,8 @@ export class KnowledgeExplorer {
       layout: FCOSE_LAYOUT,
     });
 
-    graph.on('tap', 'node[!kind]', event => this.openConcept({ id: event.target.id() }));
-    graph.on('mouseover', 'node[!kind]', event => {
+    graph.on('tap', 'node[!kind]', (event) => this.openConcept({ id: event.target.id() }));
+    graph.on('mouseover', 'node[!kind]', (event) => {
       const neighbourhood = event.target.closedNeighborhood();
 
       graph.elements().difference(neighbourhood).addClass('dim');

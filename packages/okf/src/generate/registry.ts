@@ -105,21 +105,21 @@ export const loadGeneration = async (): Promise<{
   const renderers: ILoadedRenderer[] = [];
 
   for (const entry of project.renderers) {
-    if (renderers.some(loaded => loaded.renderer.id === entry.id)) {
+    if (renderers.some((loaded) => loaded.renderer.id === entry.id)) {
       throw new Error(`okf: two renderers with id '${entry.id}'`);
     }
 
     renderers.push(await loadRenderer({ root: project.root, entry }));
   }
 
-  const regions = project.regions.map(region => {
+  const regions = project.regions.map((region) => {
     if (region.id === CONTENTS_ID) {
       throw new Error(
         `okf: region id '${CONTENTS_ID}' is reserved for the contents list okf writes - rename the region`,
       );
     }
 
-    const loaded = renderers.find(candidate => candidate.renderer.id === region.renderer) ?? {
+    const loaded = renderers.find((candidate) => candidate.renderer.id === region.renderer) ?? {
       renderer: builtInRenderer({ id: region.renderer }),
       context: createRenderContext({ options: {} }),
     };

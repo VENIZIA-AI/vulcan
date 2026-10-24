@@ -21,7 +21,7 @@ export const collectBindingKeys = (opts: { file: string }): BindingClass[] => {
     // value class that cannot span lines stops a non-string member from swallowing the next constant.
     const keys = [
       ...cls[2].matchAll(/^\s*static\s+readonly\s+(\w+)\s*[:=][^'"`\n]*['"`]([^'"`\n]+)['"`]/gm),
-    ].map(match => ({ key: match[1], value: match[2] }));
+    ].map((match) => ({ key: match[1], value: match[2] }));
 
     if (keys.length) {
       out.push({ name: cls[1], keys });
@@ -65,7 +65,7 @@ export const collectMakefileTargets = (): MakeTarget[] => {
   const reason = (made.stderr ?? '')
     .toString()
     .split('\n')
-    .find(line => line.includes('*** ') && !line.includes("No rule to make target ':'"));
+    .find((line) => line.includes('*** ') && !line.includes("No rule to make target ':'"));
 
   if (reason !== undefined) {
     throw new Error(`okf: make failed: ${reason}`);
@@ -74,7 +74,7 @@ export const collectMakefileTargets = (): MakeTarget[] => {
   const db = (made.stdout ?? '').toString();
   const lines = db.split('\n');
 
-  const packagesLine = lines.find(line => line.startsWith('PACKAGES := ')) ?? '';
+  const packagesLine = lines.find((line) => line.startsWith('PACKAGES := ')) ?? '';
   const packages = packagesLine.slice('PACKAGES := '.length).split(' ').filter(Boolean);
   const pkgPattern = `(${[...packages, 'core'].join('|')})`;
 
@@ -94,7 +94,7 @@ export const collectMakefileTargets = (): MakeTarget[] => {
   }
 
   const commented = new Map<string, string>();
-  const makefiles = (lines.find(line => line.startsWith('MAKEFILE_LIST := ')) ?? '')
+  const makefiles = (lines.find((line) => line.startsWith('MAKEFILE_LIST := ')) ?? '')
     .slice('MAKEFILE_LIST := '.length)
     .split(' ')
     .filter(Boolean);
@@ -125,7 +125,7 @@ export const collectMakefileTargets = (): MakeTarget[] => {
     }
 
     const description =
-      help.find(entry => entry.pattern.test(match[1]))?.description ??
+      help.find((entry) => entry.pattern.test(match[1]))?.description ??
       commented.get(match[1]) ??
       '';
 
@@ -146,16 +146,16 @@ export const collectSourceMap = (): SourceMapEntry[] => {
     }
 
     const subsystems = listDirs({ dir: src })
-      .filter(name => name !== '__tests__')
-      .map(name => ({ name, files: sourceFiles({ dir: join(src, name) }).length }))
-      .filter(entry => entry.files > 0)
+      .filter((name) => name !== '__tests__')
+      .map((name) => ({ name, files: sourceFiles({ dir: join(src, name) }).length }))
+      .filter((entry) => entry.files > 0)
       .sort((a, b) => b.files - a.files || a.name.localeCompare(b.name));
 
     out.push({
       pkg,
       // Relative to src/: a project that itself sits under a __tests__ directory still counts its files.
       total: sourceFiles({ dir: src }).filter(
-        file => !`/${relative(src, file)}`.includes('/__tests__/'),
+        (file) => !`/${relative(src, file)}`.includes('/__tests__/'),
       ).length,
       subsystems,
     });

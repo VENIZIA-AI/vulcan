@@ -54,7 +54,7 @@ const resolveAgentsWithMenu = async (opts: TResolveAgentsInput): Promise<TAgentR
   const questions: IAgentQuestion[] = [];
   const first = resolveAgents({
     ...opts,
-    ask: question => {
+    ask: (question) => {
       questions.push(question);
 
       return '';
@@ -68,7 +68,7 @@ const resolveAgentsWithMenu = async (opts: TResolveAgentsInput): Promise<TAgentR
 
   const picked = await promptMultiselect({
     message: 'Which coding agents do you use in this project?',
-    choices: readAgentTable().map(entry => ({
+    choices: readAgentTable().map((entry) => ({
       value: entry.id,
       label: entry.name,
       hint: hintOf({ id: entry.id, question }),

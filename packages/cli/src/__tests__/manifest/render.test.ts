@@ -78,7 +78,7 @@ describe('renderManifest', () => {
     const { base } = JSON.parse(render({ root, config: {} })).rules;
 
     expect(Object.keys(base)).toContain('V-W-01');
-    expect(Object.values(base).every(hash => /^[0-9a-f]{8}$/.test(String(hash)))).toBe(true);
+    expect(Object.values(base).every((hash) => /^[0-9a-f]{8}$/.test(String(hash)))).toBe(true);
   });
 
   test("the config's name wins; without one or a package name, the directory's", () => {
@@ -189,7 +189,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
 
     const stale = runCli({ args: ['doctor'], cwd: root });
 
-    expect(fresh.map(violation => violation.check)).not.toContain(DoctorChecks.MANIFEST);
+    expect(fresh.map((violation) => violation.check)).not.toContain(DoctorChecks.MANIFEST);
     expect(stale.code).toBe(1);
     expect(stale.stderr).toContain(`[${DoctorChecks.MANIFEST}]`);
     expect(stale.stderr).toContain('stale against the config');
@@ -207,7 +207,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
 
     expect($generated).toBeDefined();
     expect(JSON.parse(readFileSync(path, 'utf8')).$generated).toBeUndefined();
-    expect((await runDoctorChecks({ root })).map(violation => violation.check)).not.toContain(
+    expect((await runDoctorChecks({ root })).map((violation) => violation.check)).not.toContain(
       DoctorChecks.MANIFEST,
     );
   });

@@ -12,7 +12,7 @@ const tagPatternOf = (opts: { template: string }): RegExp =>
   new RegExp(
     `^${opts.template
       .split(/(<(?:dir|package|version|date)>)/)
-      .map(part => {
+      .map((part) => {
         switch (part) {
           case '<dir>':
           case '<package>': {
@@ -55,15 +55,15 @@ export const checkTags = (opts: ICheckContext): IViolation[] => {
   }
 
   const pattern = tagPatternOf({ template });
-  const ignored = (opts.config.atlas.ignoreTags ?? []).map(glob => new Bun.Glob(glob));
+  const ignored = (opts.config.atlas.ignoreTags ?? []).map((glob) => new Bun.Glob(glob));
   const names = new Set(
-    resolvePackages({ config: opts.config }).flatMap(entry => [entry.dir, ...entry.aliases]),
+    resolvePackages({ config: opts.config }).flatMap((entry) => [entry.dir, ...entry.aliases]),
   );
 
   return listed.stdout
     .split('\n')
-    .filter(tag => tag.length > 0 && !ignored.some(glob => glob.match(tag)))
-    .flatMap(tag => {
+    .filter((tag) => tag.length > 0 && !ignored.some((glob) => glob.match(tag)))
+    .flatMap((tag) => {
       const dir = pattern.exec(tag)?.groups?.dir;
 
       return dir === undefined || names.has(dir)

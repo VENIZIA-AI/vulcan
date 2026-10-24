@@ -23,7 +23,7 @@ const buildFixtureStore = (): ChunkStore => {
   const chunker = Chunker.getInstance();
   const store = new ChunkStore();
 
-  store.add({ chunks: documents.flatMap(document => chunker.chunk({ document })) });
+  store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
 
   return store;
 };
@@ -105,7 +105,7 @@ describe('search tool: response budget and paging (I1)', () => {
     const chunker = Chunker.getInstance();
     const store = new ChunkStore();
 
-    store.add({ chunks: documents.flatMap(document => chunker.chunk({ document })) });
+    store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
 
     return store;
   };

@@ -25,7 +25,7 @@ const REQUIREMENTS = /^## (Requirements|Prerequisites)\b/m;
 const FRONTMATTER = /^---\n([\s\S]*?)\n---\n/;
 
 const filesOf = (opts: { directory: string }): string[] =>
-  readdirSync(opts.directory).flatMap(name => {
+  readdirSync(opts.directory).flatMap((name) => {
     const path = join(opts.directory, name);
 
     return statSync(path).isDirectory() ? filesOf({ directory: path }) : [path];
@@ -78,12 +78,12 @@ export const lintSkill = (opts: { directory: string }): string[] => {
   const files = filesOf({ directory: opts.directory }).sort();
   const shown = (path: string): string => relative(opts.directory, path);
 
-  for (const file of files.filter(path => path.endsWith('.md'))) {
+  for (const file of files.filter((path) => path.endsWith('.md'))) {
     const content = readFileSync(file, 'utf8');
     const count = lineCountOf({ text: content });
     const opening = content.split('\n').slice(0, CONTENTS_WITHIN_LINES);
 
-    if (count > CONTENTS_AFTER_LINES && !opening.some(line => CONTENTS_MARK.test(line))) {
+    if (count > CONTENTS_AFTER_LINES && !opening.some((line) => CONTENTS_MARK.test(line))) {
       problems.push(
         `${shown(file)}: ${count} lines and no contents list in its first ${CONTENTS_WITHIN_LINES} lines - an agent may read only the first lines`,
       );
@@ -104,7 +104,7 @@ export const lintSkill = (opts: { directory: string }): string[] => {
     }
   }
 
-  if (files.some(path => SCRIPT.test(path)) && !REQUIREMENTS.test(text)) {
+  if (files.some((path) => SCRIPT.test(path)) && !REQUIREMENTS.test(text)) {
     problems.push(
       'SKILL.md: the skill runs scripts and has no ## Requirements section - name what they need',
     );
@@ -122,14 +122,14 @@ export const checkSkillLint = (opts: ICheckContext): IViolation[] => {
   }
 
   return readdirSync(skills)
-    .filter(name => statSync(join(skills, name)).isDirectory())
+    .filter((name) => statSync(join(skills, name)).isDirectory())
     .sort()
-    .flatMap(name => {
+    .flatMap((name) => {
       const directory = join(skills, name);
       const file = `.agents/skills/${name}`;
 
       if (!existsSync(join(directory, 'SKILL.md'))) {
-        const inner = readdirSync(directory).find(child =>
+        const inner = readdirSync(directory).find((child) =>
           existsSync(join(directory, child, 'SKILL.md')),
         );
 
@@ -144,7 +144,7 @@ export const checkSkillLint = (opts: ICheckContext): IViolation[] => {
             ];
       }
 
-      return lintSkill({ directory }).map(message => ({
+      return lintSkill({ directory }).map((message) => ({
         check: DoctorChecks.SKILLS,
         file,
         message,

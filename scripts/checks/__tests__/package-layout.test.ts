@@ -39,16 +39,16 @@ const tracked = (opts: { name: string }): string[] => {
   return result.stdout
     .toString()
     .split('\n')
-    .filter(line => line !== '')
-    .map(line => line.slice(`packages/${opts.name}/`.length));
+    .filter((line) => line !== '')
+    .map((line) => line.slice(`packages/${opts.name}/`.length));
 };
 
 const manifestOf = (opts: { name: string }) =>
   JSON.parse(readFileSync(join(ROOT, 'packages', opts.name, 'package.json'), 'utf8'));
 
-describe.each(PACKAGES)('the layout of packages/%s', name => {
+describe.each(PACKAGES)('the layout of packages/%s', (name) => {
   test('its root holds the common entries plus the documented extras, and nothing else', () => {
-    const entries = [...new Set(tracked({ name }).map(path => path.split('/')[0]))].sort();
+    const entries = [...new Set(tracked({ name }).map((path) => path.split('/')[0]))].sort();
 
     expect(entries).toEqual([...COMMON, ...(EXTRA[name] ?? [])].sort());
   });
@@ -56,16 +56,18 @@ describe.each(PACKAGES)('the layout of packages/%s', name => {
   test('no env file and no scripts folder is committed: the test env lives in make, the scripts at the root', () => {
     const paths = tracked({ name });
 
-    expect(paths.filter(path => path.split('/').some(part => part.startsWith('.env')))).toEqual([]);
-    expect(paths.filter(path => path.startsWith('scripts/'))).toEqual([]);
+    expect(paths.filter((path) => path.split('/').some((part) => part.startsWith('.env')))).toEqual(
+      [],
+    );
+    expect(paths.filter((path) => path.startsWith('scripts/'))).toEqual([]);
   });
 
   test('.configs holds the same folders as the other packages', () => {
     const folders = [
       ...new Set(
         tracked({ name })
-          .filter(path => path.startsWith('.configs/'))
-          .map(path => path.split('/')[1]),
+          .filter((path) => path.startsWith('.configs/'))
+          .map((path) => path.split('/')[1]),
       ),
     ].sort();
 

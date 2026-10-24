@@ -109,7 +109,7 @@ const createProject = (opts: { root: string }): string => {
   const project = join(opts.root, 'project');
   const evals: { evals: { files?: string[] }[] } = JSON.parse(readFileSync(EVALS_FILE, 'utf8'));
 
-  for (const file of evals.evals.flatMap(evaluation => evaluation.files ?? [])) {
+  for (const file of evals.evals.flatMap((evaluation) => evaluation.files ?? [])) {
     mkdirSync(join(project, dirname(file)), { recursive: true });
     writeFileSync(join(project, file), `# ${basename(file)}\n\nThe original page.\n`);
   }
@@ -118,7 +118,7 @@ const createProject = (opts: { root: string }): string => {
 };
 
 const readTree = (opts: { files: string[] }): string[] =>
-  opts.files.map(file => readFileSync(file, 'utf8'));
+  opts.files.map((file) => readFileSync(file, 'utf8'));
 
 const runSkillEvals = (opts: {
   args: string[];
@@ -159,7 +159,7 @@ const runSkillEvals = (opts: {
     ? readFileSync(log, 'utf8')
         .trim()
         .split('\n')
-        .map(line => JSON.parse(line))
+        .map((line) => JSON.parse(line))
     : [];
 
   return {
@@ -216,13 +216,13 @@ describe('skill-evals runs', () => {
   test('a passing run: the skill reaches the model in a scratch copy, the outputs and the verdict are kept', () => {
     const run = runSkillEvals({ args: ['--skill', 'docs-writing', '--models', 'haiku'] });
     const runDirectory = join(run.out, 'docs-writing', '0', 'haiku');
-    const modelCalls = run.calls.filter(call => !call.isGrader);
-    const graderCalls = run.calls.filter(call => call.isGrader);
+    const modelCalls = run.calls.filter((call) => !call.isGrader);
+    const graderCalls = run.calls.filter((call) => call.isGrader);
 
     expect(run.code).toBe(0);
     expect(modelCalls).toHaveLength(2);
     expect(graderCalls).toHaveLength(2);
-    expect(graderCalls.every(call => call.model === 'opus')).toBe(true);
+    expect(graderCalls.every((call) => call.model === 'opus')).toBe(true);
 
     for (const call of modelCalls) {
       expect(call.cwd.startsWith(run.project)).toBe(false);
@@ -262,12 +262,12 @@ describe('skill-evals runs', () => {
     const run = runSkillEvals({ args: ['--skill', 'docs-writing', '--models', 'haiku'] });
     const evals: { evals: { files: string[] }[] } = readJson({ file: EVALS_FILE });
     const files = evals.evals
-      .flatMap(evaluation => evaluation.files)
-      .map(file => join(run.project, file));
+      .flatMap((evaluation) => evaluation.files)
+      .map((file) => join(run.project, file));
 
     expect(run.code).toBe(0);
-    expect(readTree({ files }).every(content => !content.includes('tampered'))).toBe(true);
-    expect(readTree({ files }).every(content => content.endsWith('The original page.\n'))).toBe(
+    expect(readTree({ files }).every((content) => !content.includes('tampered'))).toBe(true);
+    expect(readTree({ files }).every((content) => content.endsWith('The original page.\n'))).toBe(
       true,
     );
   });
@@ -292,7 +292,7 @@ describe('skill-evals runs', () => {
     const runDirectory = join(run.out, 'docs-writing', '0', 'haiku');
 
     expect(run.code).toBe(1);
-    expect(run.calls.filter(call => call.isGrader)).toHaveLength(2);
+    expect(run.calls.filter((call) => call.isGrader)).toHaveLength(2);
     expect(run.stdout).toMatch(/skill-evals: 0\/haiku FAIL \d+\.\ds - claude exited 1/);
     expect(run.stdout).toMatch(/skill-evals: 0\/sonnet pass/);
     expect(run.stdout).toContain('skill-evals: passed 2 of 4');
@@ -310,7 +310,7 @@ describe('skill-evals runs', () => {
     expect(
       readJson({ file: join(run.out, 'docs-writing', '0', 'haiku', 'run.json') }).isTimedOut,
     ).toBe(true);
-    expect(run.calls.filter(call => call.isGrader)).toEqual([]);
+    expect(run.calls.filter((call) => call.isGrader)).toEqual([]);
   });
 
   test('malformed grader output is a recorded failure, never a crash', () => {
