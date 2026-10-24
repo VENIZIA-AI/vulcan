@@ -27,6 +27,10 @@ bun x --no-install vulcan x okf check
   into an empty folder (with IGNIS beside it as a real checkout, not a symlink), then install, build,
   lint and test there. A file git ignores is missing in CI even when every local gate is green.
 
+## What the base text is held to
+
+`packages/cli/src/__tests__/base-consistency.test.ts` runs with `make test`: every `V-*` id cited anywhere under `packages/cli/base/` is defined once in `base/rules.md` (a bullet there that opens with an id lists one VULCAN deliberately does not carry), every skill's frontmatter parses with a name equal to its folder, and the size budgets hold (rules under 4000 words, a shared reference under 250 lines, a skill under 24 KB). Cite a rule that does not exist and the build fails.
+
 ## Skill evals across models
 
 A shipped skill that carries `evals/evals.json` can be run against every model that will use it -
