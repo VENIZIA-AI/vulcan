@@ -76,6 +76,29 @@ const decisionOf = (stdout: string): string =>
   JSON.parse(stdout).hookSpecificOutput.permissionDecision;
 
 describe('the blocking hooks do not depend on config, rules, the digest or zod', () => {
+  test('guard-remote-hosts asks about an unlisted host and passes a local command', async () => {
+    const manifest = join(root, '.agents', 'vulcan.manifest.json');
+
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        schemaVersion: 1,
+        remoteHosts: { trusted: ['example.test'], readOnly: [] },
+      }),
+    );
+
+    const remote = await run({
+      hook: 'guard-remote-hosts',
+      payload: bash('curl https://evil.test/x'),
+    });
+    const local = await run({ hook: 'guard-remote-hosts', payload: bash('ls') });
+
+    expect(remote.code).toBe(0);
+    expect(local.code).toBe(0);
+    expect(local.stdout).toBe('');
+  });
+
   test('guard-writes asks for a deploy and passes a read', async () => {
     const deploy = await run({ hook: 'guard-writes', payload: bash('kubectl apply -f m.yaml') });
     const read = await run({ hook: 'guard-writes', payload: bash('ls') });

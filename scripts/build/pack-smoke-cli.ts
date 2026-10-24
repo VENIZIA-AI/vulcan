@@ -290,13 +290,19 @@ interface IHookEntry {
 
 /** Every hook command the sandbox's generated settings register, as Claude Code would run it. */
 const hooksOf = (opts: { sandbox: string }): IHookEntry[] => {
-  const settings: {
+  type TSettings = {
     hooks?: Record<string, { matcher?: string; hooks: { command: string }[] }[]>;
-  } = JSON.parse(readFileSync(join(opts.sandbox, '.claude', 'settings.json'), 'utf8'));
+  };
+  const settings: TSettings = JSON.parse(
+    readFileSync(join(opts.sandbox, '.claude', 'settings.json'), 'utf8'),
+  );
+  const sources = [settings];
 
-  return Object.entries(settings.hooks ?? {}).flatMap(([event, entries]) =>
-    entries.flatMap((entry) =>
-      entry.hooks.map((hook) => ({ event, matcher: entry.matcher ?? '', command: hook.command })),
+  return sources.flatMap((settings) =>
+    Object.entries(settings.hooks ?? {}).flatMap(([event, entries]) =>
+      entries.flatMap((entry) =>
+        entry.hooks.map((hook) => ({ event, matcher: entry.matcher ?? '', command: hook.command })),
+      ),
     ),
   );
 };
@@ -304,22 +310,44 @@ const hooksOf = (opts: { sandbox: string }): IHookEntry[] => {
 const hookNameOf = (opts: { hook: IHookEntry }): string =>
   /hooks\/([\w-]+)\.ts/.exec(opts.hook.command)?.[1] ?? opts.hook.command.slice(0, 40);
 
-/** One benign call for the hook's event: a Bash `ls`, a Write inside the project, or the event itself. */
-const benignPayloadOf = (opts: { hook: IHookEntry; sandbox: string; command?: string }): string => {
+/** Every benign call the hook's matcher covers: a Bash `ls`, a Write inside the project, or the event itself. */
+const benignPayloadsOf = (opts: { hook: IHookEntry; sandbox: string; command?: string }): string[] => {
   if (opts.hook.event === 'SessionStart') {
-    return '{"hook_event_name":"SessionStart","source":"startup"}';
+    return ['{"hook_event_name":"SessionStart","source":"startup"}'];
   }
 
   if (opts.hook.event === 'SubagentStart') {
-    return '{"hook_event_name":"SubagentStart","agent_type":"general-purpose","agent_id":"smoke"}';
+    return ['{"hook_event_name":"SubagentStart","agent_type":"general-purpose","agent_id":"smoke"}'];
   }
 
   const cwd = JSON.stringify(opts.sandbox);
+  const payloads: string[] = [];
 
-  return opts.hook.matcher.includes('Bash')
-    ? `{"tool_name":"Bash","tool_input":{"command":${JSON.stringify(opts.command ?? 'ls')}},"cwd":${cwd}}`
-    : `{"tool_name":"Write","tool_input":{"file_path":${JSON.stringify(join(opts.sandbox, 'a.txt'))}},"cwd":${cwd}}`;
+  if (opts.hook.matcher.includes('Bash')) {
+    payloads.push(
+      `{"tool_name":"Bash","tool_input":{"command":${JSON.stringify(opts.command ?? 'ls')}},"cwd":${cwd}}`,
+    );
+  }
+
+  if (/Write|Edit/.test(opts.hook.matcher) && opts.command === undefined) {
+    payloads.push(
+      `{"tool_name":"Write","tool_input":{"file_path":${JSON.stringify(join(opts.sandbox, 'a.txt'))}},"cwd":${cwd}}`,
+    );
+  }
+
+  return payloads;
 };
+
+/** Runs the hook on every benign payload; the first one that does not exit as expected, or `undefined`. */
+const firstUnexpected = (opts: {
+  hook: IHookEntry;
+  sandbox: string;
+  expected: number;
+  command?: string;
+}): { code: number; stderr: string } | undefined =>
+  benignPayloadsOf(opts)
+    .map((payload) => runHook({ hook: opts.hook, sandbox: opts.sandbox, payload }))
+    .find((result) => result.code !== opts.expected);
 
 const runHook = (opts: { hook: IHookEntry; sandbox: string; payload: string }) => {
   const result = spawnSync('/bin/sh', ['-c', opts.hook.command], {
@@ -333,8 +361,15 @@ const runHook = (opts: { hook: IHookEntry; sandbox: string; payload: string }) =
   return { code: result.status ?? -1, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 };
 
-const BLOCKING = new Set(['guard-writes', 'guard-manifest', 'guard-package', 'guard-git', 'guard-outside']);
-const SAFETY = new Set(['guard-writes', 'guard-manifest', 'guard-package']);
+const BLOCKING = new Set([
+  'guard-writes',
+  'guard-manifest',
+  'guard-package',
+  'guard-remote-hosts',
+  'guard-git',
+  'guard-outside',
+]);
+const SAFETY = new Set(['guard-writes', 'guard-manifest', 'guard-package', 'guard-remote-hosts']);
 
 /** A path of the installed package moved aside while `run` executes, then put back. */
 const withoutFile = <T>(opts: { path: string; run: () => T }): T => {
@@ -349,84 +384,87 @@ const withoutFile = <T>(opts: { path: string; run: () => T }): T => {
   }
 };
 
+/** Every path moved aside while `run` executes, then all put back. */
+const withoutFiles = <T>(opts: { paths: string[]; run: () => T }): T => {
+  const [first, ...rest] = opts.paths;
+
+  return first === undefined
+    ? opts.run()
+    : withoutFile({ path: first, run: () => withoutFiles({ paths: rest, run: opts.run }) });
+};
+
 /** The hooks, from the tarball: a failure message, or `undefined` when every case held. */
 const smokeHooks = (opts: { sandbox: string }): string | undefined => {
-  const hooks = hooksOf(opts);
-  const names = hooks.map((hook) => hookNameOf({ hook }));
+  const { sandbox } = opts;
+  const hooks = hooksOf({ sandbox });
+  const blocking = hooks.filter((hook) => BLOCKING.has(hookNameOf({ hook })));
 
   for (const required of [...BLOCKING, 'session-start', 'subagent-start']) {
-    if (!names.includes(required)) {
-      return `hooks: the generated settings do not register ${required}`;
+    if (!hooks.some((hook) => hookNameOf({ hook }) === required)) {
+      return `hooks: nothing registers ${required}`;
     }
   }
 
   for (const hook of hooks) {
-    const result = runHook({ hook, sandbox: opts.sandbox, payload: benignPayloadOf({ hook, ...opts }) });
+    const bad = firstUnexpected({ hook, sandbox, expected: 0 });
 
-    if (result.code !== 0) {
-      return `hooks: ${hookNameOf({ hook })} exited ${result.code} on a benign call: ${result.stderr.slice(-300)}`;
+    if (bad !== undefined) {
+      return `hooks: ${hookNameOf({ hook })} exited ${bad.code} on a benign call: ${bad.stderr.slice(-300)}`;
     }
   }
 
   const start = hooks.find((hook) => hook.event === 'SessionStart');
-  const digest = start && runHook({ hook: start, sandbox: opts.sandbox, payload: benignPayloadOf({ hook: start, ...opts }) });
+  const [startPayload] = start === undefined ? [] : benignPayloadsOf({ hook: start, sandbox });
+  const digest =
+    start === undefined || startPayload === undefined
+      ? undefined
+      : runHook({ hook: start, sandbox, payload: startPayload });
 
   if (!digest?.stdout.includes('VULCAN rules')) {
     return 'hooks: session-start printed no rules digest';
   }
 
-  const installed = join(opts.sandbox, 'node_modules', '@venizia', 'vulcan');
-  const zod = [join(opts.sandbox, 'node_modules', 'zod'), join(installed, 'node_modules', 'zod')].find(
+  const installed = join(sandbox, 'node_modules', '@venizia', 'vulcan');
+  // Every copy of zod the hooks could resolve: one left behind would make the case below pass for nothing.
+  const zods = [join(sandbox, 'node_modules', 'zod'), join(installed, 'node_modules', 'zod')].filter(
     (path) => existsSync(path),
   );
 
-  if (zod === undefined) {
+  if (zods.length === 0) {
     return 'hooks: cannot find the installed zod to make it unresolvable - the check would pass for nothing';
   }
 
   // The blocking hooks must not need zod, config or rules: a drift in those must not stop every call.
-  const withoutZod = withoutFile({
-    path: zod,
+  const withoutZod = withoutFiles({
+    paths: zods,
     run: () =>
-      hooks
-        .filter((hook) => BLOCKING.has(hookNameOf({ hook })))
-        .map((hook) => ({
-          name: hookNameOf({ hook }),
-          result: runHook({ hook, sandbox: opts.sandbox, payload: benignPayloadOf({ hook, ...opts }) }),
-        }))
-        .find((item) => item.result.code !== 0),
+      blocking
+        .map((hook) => ({ hook, bad: firstUnexpected({ hook, sandbox, expected: 0 }) }))
+        .find((item) => item.bad !== undefined),
   });
 
-  if (withoutZod !== undefined) {
-    return `hooks: ${withoutZod.name} exited ${withoutZod.result.code} with zod unresolvable: ${withoutZod.result.stderr.slice(-300)}`;
+  if (withoutZod?.bad !== undefined) {
+    return `hooks: ${hookNameOf({ hook: withoutZod.hook })} exited ${withoutZod.bad.code} with zod unresolvable: ${withoutZod.bad.stderr.slice(-300)}`;
   }
 
   // A module of the hook path gone: a safety hook crashes and blocks - except a bare `bun install`,
   // the escape - and the drift guards pass the call.
-  const broken = join(installed, 'src', 'hooks', 'common', 'constants.ts');
-
   return withoutFile({
-    path: broken,
+    path: join(installed, 'src', 'hooks', 'common', 'constants.ts'),
     run: () => {
-      for (const hook of hooks.filter((item) => BLOCKING.has(hookNameOf({ hook: item })))) {
+      for (const hook of blocking) {
         const name = hookNameOf({ hook });
-        const ls = runHook({ hook, sandbox: opts.sandbox, payload: benignPayloadOf({ hook, ...opts }) });
         const expected = SAFETY.has(name) ? 2 : 0;
+        const bad = firstUnexpected({ hook, sandbox, expected });
 
-        if (ls.code !== expected) {
-          return `hooks: with a module removed ${name} exited ${ls.code} on a benign call, expected ${expected}`;
+        if (bad !== undefined) {
+          return `hooks: with a module of the hook path removed ${name} exited ${bad.code} on a benign call, expected ${expected}`;
         }
 
-        if (hook.matcher.includes('Bash')) {
-          const install = runHook({
-            hook,
-            sandbox: opts.sandbox,
-            payload: benignPayloadOf({ hook, ...opts, command: 'bun install' }),
-          });
+        const install = firstUnexpected({ hook, sandbox, expected: 0, command: 'bun install' });
 
-          if (install.code !== 0) {
-            return `hooks: with a module removed ${name} blocked a bare bun install (exit ${install.code}) - the agent could not repair the install`;
-          }
+        if (hook.matcher.includes('Bash') && install !== undefined) {
+          return `hooks: with a module of the hook path removed ${name} blocked a bare bun install (exit ${install.code}) - the agent could not repair the install`;
         }
       }
 
@@ -514,6 +552,30 @@ try {
         failure = result.detail;
         break;
       }
+    }
+
+    // The project sets `remoteHosts`, so `sync` registers the remote-host guard too and the manifest
+    // carries the policy it reads: every hook of the product runs below, not only the default ones.
+    if (failure === undefined) {
+      const configFile = join(sandbox, '.configs/vulcan.config.mts');
+      const config = readFileSync(configFile, 'utf8');
+
+      writeFileSync(
+        configFile,
+        config.replace(
+          'export default {',
+          "export default {\n  remoteHosts: { trusted: ['example.test'], readOnly: [] },",
+        ),
+      );
+
+      const synced = runStep({
+        name: 'sync with remoteHosts',
+        command: ['bun', 'x', 'vulcan', 'sync'],
+        cwd: sandbox,
+        expectedCode: 0,
+      });
+
+      failure = synced.ok ? undefined : synced.detail;
     }
 
     // Every registered hook, from the installed tarball (the release-blocking check on the hook path).

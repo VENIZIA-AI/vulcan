@@ -14,7 +14,7 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
-- **The pack smoke runs the hooks.** After `init` and `sync` in the tarball sandbox, every hook command of the generated `.claude/settings.json` runs with a benign call and must exit 0; with `zod` made unresolvable the blocking hooks still work; with a module of the hook path removed a safety hook blocks but a bare `bun install` passes, and the drift guards pass the call.
+- **The pack smoke runs the hooks.** After `init` and `sync` in the tarball sandbox, every hook command of the generated `.claude/settings.json` runs with a benign call and must exit 0; with `zod` made unresolvable the blocking hooks still work; with `src/hooks/common/constants.ts` removed a safety hook blocks but a bare `bun install` passes, and the drift guards pass the call. The shipped `remote-hosts.json` hook runs too.
 - **Narrow imports.** `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts`, `guard-git` and `guard-outside` import only what they need; the config loader (and `zod`) is loaded by `guard-outside` alone, last, and its failure leaves the default allowlist.
 - **`guard-git` and `guard-outside` fail open.** On an internal error, a missing package or a missing `bun` they pass the call and print a note; the safety hooks stay fail closed.
 - **The `bun install` escape covers a crashed safety hook**, not only a missing package, so an agent can repair the install it depends on.
