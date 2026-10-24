@@ -22,6 +22,9 @@ Usage: bun x vulcan <command>
   agents [list|add <ids>|remove <ids>|setup] [--dry-run]
                                   See, add, remove or re-choose the coding agents you use on this machine
   doctor                          Check the project follows VULCAN; exit 1 on any violation
+  visualize <spec.json> [--out <name>] | --schema
+                                  Make one small static HTML page (a flow, a status, a before and after) from
+                                  a JSON spec, in .agents/local/prototypes/; --schema prints the spec's schema
   profile [show|edit|reset [--yes]]
                                   Tell VULCAN how you like to work (reply language, how to address you,
                                   tone, habits) in .agents/local/profile.json; no argument runs the form,

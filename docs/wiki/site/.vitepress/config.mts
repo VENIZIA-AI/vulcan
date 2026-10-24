@@ -73,6 +73,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'doctor', link: '/references/commands/doctor' },
       { text: 'clean', link: '/references/commands/clean' },
       { text: 'profile', link: '/references/commands/profile' },
+      { text: 'visualize', link: '/references/commands/visualize' },
     ],
   },
   { text: 'Rules', items: [{ text: 'Base rules and slots', link: '/references/rules' }] },

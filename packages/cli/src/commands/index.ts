@@ -9,6 +9,7 @@ import { runInitCommand } from './init.command.ts';
 import { runProfileCommand } from './profile.command.ts';
 import { runSyncCommand } from './sync.command.ts';
 import { runUpgradeCommand } from './upgrade.command.ts';
+import { runVisualizeCommand } from './visualize.command.ts';
 import { runXCommand } from './x.command.ts';
 
 /** The handler of every implemented command. */
@@ -23,5 +24,6 @@ export const COMMAND_HANDLERS: Record<string, TCommandHandler> = {
   [VulcanCommands.SYNC]: runSyncCommand,
   [VulcanCommands.UPGRADE]: runUpgradeCommand,
   [VulcanCommands.VERSION]: runVersionCommand,
+  [VulcanCommands.VISUALIZE]: runVisualizeCommand,
   [VulcanCommands.X]: runXCommand,
 };

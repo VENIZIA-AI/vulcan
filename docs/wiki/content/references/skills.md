@@ -14,6 +14,7 @@ description: The skills VULCAN ships to every project - what each is for, when a
 | `fix-a-bug` | Something is broken, throwing, failing, slow or different from what it should do | A fast deterministic way to see the bug fail first, then a fix proven by a regression test |
 | `review-a-change` | You review a change or pull request, or merge work that touches many files, the rules or security | Findings on separate axes (spec, standards, security), each verified against the code and dispositioned |
 | `report-back` | You report, finish a task, ask for approval or pass work on | A done report, an owner status in the project's reply shape, a preview before an action, or a handoff |
+| `visualize-work` | You are asked for a diagram, a visual status or handoff, or to show how something works | One small static HTML page in `.agents/local/prototypes/`, made by `vulcan visualize` from a JSON spec, with the checks it ran and the browser check reported honestly |
 | `docs-update` | You update the wiki or the docs after a change | The page that owns the topic refreshed, the changelog entry, the docs gates green |
 | `docs-writing` | You write or edit anything a human will read | Reader-first prose |
 | `knowledge-sync` | You sync or audit the knowledge bundle against the code | Concepts verified against the code and the confirmed fixes applied |

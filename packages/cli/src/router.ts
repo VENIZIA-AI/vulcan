@@ -69,6 +69,7 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
   },
   [VulcanCommands.DOCTOR]: { flags: [], values: [], positionals: 0 },
   [VulcanCommands.PROFILE]: { flags: ['--yes'], values: [], positionals: 1 },
+  [VulcanCommands.VISUALIZE]: { flags: ['--schema'], values: ['--out'], positionals: 1 },
   [VulcanCommands.UPGRADE]: {
     flags: [UpgradeFlags.STABLE, UpgradeFlags.NIGHTLY],
     values: [],

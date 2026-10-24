@@ -539,6 +539,7 @@ describe('planSync with the resolved agents', () => {
       join(root, '.agents/skills/plan-a-change'),
       join(root, '.agents/skills/report-back'),
       join(root, '.agents/skills/review-a-change'),
+      join(root, '.agents/skills/visualize-work'),
       join(root, '.mcp.json'),
       join(root, '.agents/vulcan.manifest.json'),
     ]);

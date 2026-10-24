@@ -5,6 +5,7 @@ import { BASE_DIRECTORY } from '../common/index.ts';
 import { lintSkill } from '../doctor/index.ts';
 import { triggerOf } from '@venizia/vulcan-atlas';
 import { frontmatterOf } from '../skills/index.ts';
+import { VisualizeLimits } from '../visualize/index.ts';
 
 const SKILLS_DIRECTORY = join(BASE_DIRECTORY, 'skills');
 const PROJECT_NAMES = /\bIGNIS\b|\bARDOR\b|\bBANA\b|ignis-docs|VENIZIA-AI\/ignis/i;
@@ -171,6 +172,31 @@ describe('the shipped agent-work skills', () => {
     );
     expect(text).toContain('base/references/design-pass.md');
     expect(existsSync(join(BASE_DIRECTORY, 'references', 'design-pass.md'))).toBe(true);
+  });
+});
+
+describe('the shipped skill visualize-work', () => {
+  const directory = join(SKILLS_DIRECTORY, 'visualize-work');
+  const skill = (): string => readFileSync(join(directory, 'SKILL.md'), 'utf8');
+
+  test('ships with its spec reference and evals, and lints clean', () => {
+    expect(lintSkill({ directory })).toEqual([]);
+    expect(existsSync(join(directory, 'references', 'spec.md'))).toBe(true);
+    expect(existsSync(join(directory, 'evals', 'evals.json'))).toBe(true);
+  });
+
+  test('keeps the page a local file: no publishing, nothing outside .agents/local', () => {
+    expect(skill()).toContain('.agents/local/prototypes/');
+    expect(skill()).toContain('nothing is published');
+    expect(skill()).toContain('not browser-checked');
+  });
+
+  test('the command and the skill agree on the limits', () => {
+    const reference = readFileSync(join(directory, 'references', 'spec.md'), 'utf8');
+
+    expect(reference).toContain(`${VisualizeLimits.MAX_NODES} boxes`);
+    expect(reference).toContain(`${VisualizeLimits.MAX_EDGES} arrows`);
+    expect(skill()).toContain(`${VisualizeLimits.FAIL_BYTES / 1024} KB`);
   });
 });
 
