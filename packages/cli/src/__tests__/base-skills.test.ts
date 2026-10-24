@@ -89,7 +89,15 @@ describe('the shipped skill docs-writing', () => {
 });
 
 describe('the shipped agent-work skills', () => {
-  const NAMES = ['plan-a-change', 'report-back', 'review-a-change', 'fix-a-bug'];
+  const NAMES = [
+    'plan-a-change',
+    'report-back',
+    'review-a-change',
+    'fix-a-bug',
+    'ship',
+    'retro',
+    'research',
+  ];
   const read = (name: string, file = 'SKILL.md'): string =>
     readFileSync(join(SKILLS_DIRECTORY, name, file), 'utf8');
 
@@ -131,7 +139,7 @@ describe('the shipped agent-work skills', () => {
 
     for (const reference of [
       ...everything.matchAll(
-        /`((?:plan-a-change|report-back|review-a-change|fix-a-bug|build-a-feature|docs-update|docs-writing|knowledge-sync))` skill/g,
+        /`((?:plan-a-change|report-back|review-a-change|fix-a-bug|build-a-feature|docs-update|docs-writing|knowledge-sync|visualize-work|ship|retro|research))` skill/g,
       ),
     ]) {
       expect(existsSync(join(SKILLS_DIRECTORY, reference[1], 'SKILL.md'))).toBe(true);
@@ -197,6 +205,37 @@ describe('the shipped skill visualize-work', () => {
     expect(reference).toContain(`${VisualizeLimits.MAX_NODES} boxes`);
     expect(reference).toContain(`${VisualizeLimits.MAX_EDGES} arrows`);
     expect(skill()).toContain(`${VisualizeLimits.FAIL_BYTES / 1024} KB`);
+  });
+});
+
+describe('the shipped skills ship, retro and research', () => {
+  const read = (name: string): string =>
+    readFileSync(join(SKILLS_DIRECTORY, name, 'SKILL.md'), 'utf8');
+
+  test('ship asks for the owner words before a shared action and a probe before a public claim', () => {
+    const text = read('ship');
+
+    expect(text).toContain("owner's own words");
+    expect(text).toContain('public state');
+    expect(text).toContain('Not verified');
+  });
+
+  test('retro classifies before it proposes and applies nothing without a pick', () => {
+    const text = read('retro').replaceAll('\n', ' ');
+
+    expect(text.indexOf('## 3. Classify each finding')).toBeLessThan(
+      text.indexOf('## 4. Present, and wait'),
+    );
+    expect(text).toContain('A finding without a source is dropped');
+    expect(text).toContain('Apply nothing');
+  });
+
+  test('research is read-only, treats fetched content as untrusted and keeps clones in the project', () => {
+    const text = read('research');
+
+    expect(text).toContain('untrusted data');
+    expect(text).toContain('Execute nothing');
+    expect(text).toContain('.agents/local/clones/');
   });
 });
 

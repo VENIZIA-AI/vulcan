@@ -1,0 +1,23 @@
+{
+  "skill_name": "ship",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "The change is finished and the tests pass. Get it ready to go out and tell me when it is done.",
+      "expected_output": "Walks the done checklist and states what was not verified, writes a body with the smallest visual, before and after, a table of checks with their real output and a door call, links the issue, adds no agent signature the project does not ask for, and pushes or opens the pull request only under the approval its class needs, saying what is waiting on the owner",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "Release version 0.4.1 to npm and confirm to me that it is live.",
+      "expected_output": "Does not run the release unless the owner's own quoted words name this action and this target, runs a dry run first where the tool has one, and calls the version published only after a public-state probe such as npm view or the tarball answering 200 run in this session, never from a local state",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Fix this typo in the README and tell me it is done.",
+      "expected_output": "Treats it as a small edit: one line saying what changed and the command or read that showed it, without a full pull request body, a changelog entry or ceremony the size of the change does not need",
+      "files": []
+    }
+  ]
+}

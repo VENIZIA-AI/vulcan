@@ -26,8 +26,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { basename, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import {
   buildBaselinePrompt,
   buildGraderCommand,
@@ -56,7 +55,11 @@ const REPOSITORY_ROOT = resolve(import.meta.dir, '..', '..');
 // Never copied: dependencies, history and other worktrees are large, and a symlink would lead a
 // model's edit out of the scratch copy into the original.
 const SKIPPED_NAMES = new Set(['node_modules', '.git']);
-const SKIPPED_PATHS = new Set([join('.claude', 'worktrees')]);
+const SKIPPED_PATHS = new Set([join('.claude', 'worktrees'), join('.agents', 'local')]);
+
+/** Where runs live: inside the project under test, in its gitignored scratch folder, never the system temp or home folder. */
+const scratchRootOf = (opts: { project: string }): string =>
+  join(opts.project, '.agents', 'local', 'tmp');
 
 interface IClaudeCall {
   exitCode: number;
@@ -96,6 +99,8 @@ const callClaude = (opts: {
   const result = Bun.spawnSync({
     cmd: opts.command,
     cwd: opts.cwd,
+    // The copy sits inside the project: an empty .git and a ceiling keep git from reaching the real repository.
+    env: { ...process.env, GIT_CEILING_DIRECTORIES: dirname(opts.cwd) },
     stdin: Buffer.from(opts.prompt),
     stdout: 'pipe',
     stderr: 'pipe',
@@ -120,19 +125,48 @@ const createScratchProject = (opts: {
   skillDirectory: string;
   isBaseline: boolean;
 }): string => {
-  const scratch = mkdtempSync(join(tmpdir(), 'vulcan-skill-eval-'));
+  const scratchRoot = scratchRootOf({ project: opts.project });
+
+  mkdirSync(scratchRoot, { recursive: true });
+
+  const scratch = mkdtempSync(join(scratchRoot, 'skill-eval-'));
   const copy = join(scratch, basename(opts.project));
   const installed = join(copy, '.claude', 'skills', opts.skill);
 
-  cpSync(opts.project, copy, {
-    recursive: true,
-    filter: (source) =>
-      source !== opts.out &&
-      !source.startsWith(`${opts.out}${sep}`) &&
-      !SKIPPED_NAMES.has(basename(source)) &&
-      !SKIPPED_PATHS.has(relative(opts.project, source)) &&
-      !lstatSync(source).isSymbolicLink(),
-  });
+  // The copy lives inside this repository, which may be the project itself: copy entry by entry, because
+  // a recursive copy refuses a destination inside its own source.
+  const copyTree = (source: string, destination: string): void => {
+    if (
+      source === opts.out ||
+      source.startsWith(`${opts.out}${sep}`) ||
+      SKIPPED_NAMES.has(basename(source)) ||
+      SKIPPED_PATHS.has(relative(opts.project, source)) ||
+      lstatSync(source).isSymbolicLink()
+    ) {
+      return;
+    }
+
+    if (lstatSync(source).isDirectory()) {
+      mkdirSync(destination, { recursive: true });
+
+      for (const name of readdirSync(source)) {
+        copyTree(join(source, name), join(destination, name));
+      }
+
+      return;
+    }
+
+    cpSync(source, destination);
+  };
+
+  try {
+    copyTree(opts.project, copy);
+    mkdirSync(join(copy, '.git'), { recursive: true });
+  } catch (error) {
+    rmSync(scratch, { recursive: true, force: true });
+
+    throw error;
+  }
   rmSync(installed, { recursive: true, force: true });
 
   if (opts.isBaseline) {
@@ -352,7 +386,10 @@ if (!existsSync(project) || !statSync(project).isDirectory()) {
 
 const out = resolve(
   args.out ??
-    join(tmpdir(), `vulcan-skill-evals-${new Date().toISOString().replace(/[:.]/g, '-')}`),
+    join(
+      scratchRootOf({ project }),
+      `skill-evals-${new Date().toISOString().replace(/[:.]/g, '-')}`,
+    ),
 );
 const plan = buildPlan({
   skill: args.skill,

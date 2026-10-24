@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-25 | [VULCAN 0.4.1: Three More Skills - ship, retro and research](./2026-10-25-vulcan-0-4-1-ship-retro-research) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.1: vulcan visualize Makes One Small Static Page, and the visualize-work Skill](./2026-10-25-vulcan-0-4-1-visualize) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.1: build-a-feature Plans, Tests, Documents and Reviews with the New Skills](./2026-10-25-vulcan-0-4-1-skills-work-together) | Enhancement |
 | 2026-10-25 | [VULCAN 0.4.1: Four Skills for How an Agent Plans, Fixes, Reviews and Reports, and vulcan profile](./2026-10-25-vulcan-0-4-1-agent-work-skills) | New Feature |
