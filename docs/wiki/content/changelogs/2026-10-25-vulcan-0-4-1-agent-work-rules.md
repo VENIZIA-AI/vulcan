@@ -8,7 +8,7 @@ packages: ['@venizia/vulcan']
 
 ## VULCAN 0.4.1: new base rules for how agents work
 
-<Badge type="info" text="Enhancement" />
+<Badge type="tip" text="Enhancement" />
 
 **In one line.** Agents now ask whether code needs to exist before they write it, say what they skipped, and follow one set of rules for approval, asking, reporting and delegation.
 

@@ -42,7 +42,7 @@ Write boundaries govern modifications to repository history, database state, dep
 | `V-W-02` | Never write to a database; write migration files and hand over; read-only SELECT permitted. | HARD - guard-writes hook (asks) |
 | `V-W-03` | Never deploy or hot-apply changes like container restarts or production manifests. | HARD - guard-writes hook (asks) |
 | `V-W-04` | Ask before irreversible actions including deleting unowned files, invoking external APIs, or publishing. | SOFT |
-| `V-W-06` | Shared writes follow four action classes: A free, B shared and reversible (needs a word or a standing rule), C hard to reverse (needs the owner's own quoted words naming the action), D never by an agent. A refused relayed approval goes to the owner, never around. | SOFT |
+| `V-W-06` | Shared writes follow four action classes: A free, B shared and reversible (needs the user's word, or a standing rule the user gave; a coordinating agent may relay it, never replace it), C hard to reverse (needs the owner's own quoted words naming the action), D never by an agent. A refused relayed approval goes to the owner, never around. | SOFT |
 
 ## Security (S)
 
@@ -73,9 +73,9 @@ Process rules establish reading requirements, design review gates, scope boundar
 | `V-P-07` | Take facts about the framework and the project's own packages from atlas, not from memory: `symbol` for an export, `search` for how something works, `version` or `changes` for a release. | SOFT - atlas server instructions and tool descriptions, session-start digest |
 | `V-P-08` | Ask whether it needs to exist at all, then reuse what the repository, the framework, the runtime and the installed libraries already do before writing new code; name what you reused. | SOFT - build-a-feature step 2, session-start digest |
 | `V-P-09` | Start non-trivial work with a card (goal in the user's words, done claims with probes, an anti-claim) and end with a done report; no report, not done. | SOFT |
-| `V-P-10` | Ask all open decisions once, in one numbered round with a recommended answer each; never ask for a fact you can look up. | SOFT |
+| `V-P-10` | Ask all open decisions once, in one numbered round with a recommended answer each; never ask for a fact you can look up; state a default and continue only inside what plans, approval and `V-W-06` already allow. | SOFT |
 | `V-P-11` | Reports lead with the answer, show evidence as a table, and move a long report into a file. | SOFT |
-| `V-P-12` | Delegate mechanical work to a smaller-model subagent, keep judgment, and put the goal, files, "no git writes", report shape and the rules digest in every brief. | SOFT |
+| `V-P-12` | Delegate mechanical work to a smaller-model subagent, keep judgment, and put the goal, files, "no git writes", report shape and the rules digest in every brief. | SOFT - the brief; a subagent-start hook where the tool has one |
 
 ## Build and quality (B)
 
