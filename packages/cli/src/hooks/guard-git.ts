@@ -160,7 +160,7 @@ const inspectBranch = (opts: {
   );
   const merged = opts.run({
     program: 'git',
-    args: ['branch', '--merged', '--format=%(refname:short)'],
+    args: ['branch', '--format=%(refname:short)', '--merged'],
     cwd: opts.cwd,
   });
 

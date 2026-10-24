@@ -394,4 +394,4 @@ const runCreate = async (opts: {
 };
 
 export const createMonorepo = async (opts: { cwd: string; args: string[] }): Promise<number> =>
-  withScratch({ run: (scratch) => runCreate({ ...opts, scratch }) });
+  withScratch({ root: opts.cwd, run: (scratch) => runCreate({ ...opts, scratch }) });

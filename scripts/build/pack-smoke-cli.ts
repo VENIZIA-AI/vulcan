@@ -384,13 +384,32 @@ const withoutFile = <T>(opts: { path: string; run: () => T }): T => {
   }
 };
 
-/** Every path moved aside while `run` executes, then all put back. */
-const withoutFiles = <T>(opts: { paths: string[]; run: () => T }): T => {
+/**
+ * A package moved aside and replaced by a stub that throws when it loads, while `run` executes, then put
+ * back. A stub, not an absence: the sandbox may sit inside a repository whose own node_modules would
+ * otherwise still resolve the package.
+ */
+const withBrokenPackages = <T>(opts: { paths: string[]; run: () => T }): T => {
   const [first, ...rest] = opts.paths;
 
-  return first === undefined
-    ? opts.run()
-    : withoutFile({ path: first, run: () => withoutFiles({ paths: rest, run: opts.run }) });
+  if (first === undefined) {
+    return opts.run();
+  }
+
+  return withoutFile({
+    path: first,
+    run: () => {
+      mkdirSync(first, { recursive: true });
+      writeFileSync(join(first, 'package.json'), '{"name":"stub","main":"index.js"}');
+      writeFileSync(join(first, 'index.js'), 'throw new Error("unavailable: broken by the pack smoke");\n');
+
+      try {
+        return withBrokenPackages({ paths: rest, run: opts.run });
+      } finally {
+        rmSync(first, { recursive: true, force: true });
+      }
+    },
+  });
 };
 
 /** The hooks, from the tarball: a failure message, or `undefined` when every case held. */
@@ -431,11 +450,11 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
   );
 
   if (zods.length === 0) {
-    return 'hooks: cannot find the installed zod to make it unresolvable - the check would pass for nothing';
+    return 'hooks: cannot find the installed zod to break - the check would pass for nothing';
   }
 
   // The blocking hooks must not need zod, config or rules: a drift in those must not stop every call.
-  const withoutZod = withoutFiles({
+  const withoutZod = withBrokenPackages({
     paths: zods,
     run: () =>
       blocking

@@ -14,7 +14,7 @@ afterAll(() => {
 });
 
 /**
- * A copy of the shipped package in a folder where `zod` does not resolve, with every module that is
+ * A copy of the shipped package with `zod` broken, and every module that is
  * not on a blocking hook's path made to throw when it loads: the config loader, the rules reader,
  * the digest and the hooks barrel. The blocking hooks must work all the same - a release that breaks
  * one of those modules must not stop every tool call in every project.
@@ -32,6 +32,18 @@ const brokenInstall = (): string => {
   cpSync(join(PACKAGE_ROOT, 'base', 'hooks'), join(installed, 'base', 'hooks'), {
     recursive: true,
   });
+
+  // `zod` is made to throw when it loads: the folder may sit inside a repository whose node_modules would
+  // otherwise resolve it.
+  mkdirSync(join(root, 'node_modules', 'zod'), { recursive: true });
+  writeFileSync(
+    join(root, 'node_modules', 'zod', 'package.json'),
+    '{"name":"zod","main":"index.js"}',
+  );
+  writeFileSync(
+    join(root, 'node_modules', 'zod', 'index.js'),
+    'throw new Error("zod is broken");\n',
+  );
 
   for (const file of [
     'src/config/index.ts',

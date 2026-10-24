@@ -11,8 +11,10 @@ import {
   checkMcpAtlas,
   checkApps,
   checkManifest,
+  checkLocalSize,
   checkProfile,
   checkPrune,
+  checkStaleLocal,
   checkHooks,
   checkLayout,
   checkLocalWorkspace,
@@ -82,7 +84,7 @@ export const runDoctorNotes = async (opts: { root: string }): Promise<IViolation
     configFile: relative(opts.root, loaded.file),
   };
 
-  return [...checkAppScripts(context), ...checkAtlasBlock(context)];
+  return [...checkAppScripts(context), ...checkAtlasBlock(context), ...checkLocalSize(context)];
 };
 
 /** Warnings: louder than a note, still never a failure - a security gap a project made earlier may carry. */
@@ -107,5 +109,6 @@ export const runDoctorWarnings = async (opts: { root: string }): Promise<IViolat
     ...checkLocalWorkspace(context),
     ...checkOutsideWorktrees(context),
     ...checkProfile(context),
+    ...checkStaleLocal(context),
   ];
 };

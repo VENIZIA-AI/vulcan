@@ -17,6 +17,7 @@ bun x --no-install vulcan doctor
 bun x --no-install vulcan x okf check
 ```
 
+- `make test` and the smokes make their temp folders under `.agents/local/tmp/tests/` (`TMPDIR`, gitignored): nothing is written to the system temp directory. `GIT_CEILING_DIRECTORIES` keeps git from reading this repository, and an empty `.git` marker there is where bun's own ignore lookup stops (it would otherwise read this repository's `.gitignore` and `bun fmt` in a test project would see no files). Because that folder sits inside the repository, `zod` resolves from the repository's `node_modules`: a test or smoke that needs it unavailable replaces it with a stub that throws, never just removes it. A smoke sandbox needs its own `package.json` before `bun add`, or bun edits the nearest one above it.
 - Type-checking is `bun check --no-pretty` (Bun >= 1.4.4), the same errors as `tsc --noEmit` including options inherited through `extends`; `tsc` stays only where it emits (atlas `dist`).
 - Tests first: a test that fails, then the change.
 - A change that touches the generators or okf is checked against IGNIS read-only: `check` from

@@ -52,6 +52,21 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
     positionals: 0,
   },
   [VulcanCommands.AGENTS]: { flags: ['--dry-run'], values: [], positionals: 2 },
+  [VulcanCommands.CLEAN]: {
+    flags: [
+      '--tmp',
+      '--worktrees',
+      '--clones',
+      '--cache',
+      '--reports',
+      '--prototypes',
+      '--profile',
+      '--all',
+      '--yes',
+    ],
+    values: [],
+    positionals: 0,
+  },
   [VulcanCommands.DOCTOR]: { flags: [], values: [], positionals: 0 },
   [VulcanCommands.UPGRADE]: {
     flags: [UpgradeFlags.STABLE, UpgradeFlags.NIGHTLY],

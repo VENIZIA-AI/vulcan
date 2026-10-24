@@ -22,6 +22,10 @@ Usage: bun x vulcan <command>
   agents [list|add <ids>|remove <ids>|setup] [--dry-run]
                                   See, add, remove or re-choose the coding agents you use on this machine
   doctor                          Check the project follows VULCAN; exit 1 on any violation
+  clean [--tmp|--worktrees|--clones|--cache|--all] [--reports|--prototypes|--profile] [--yes]
+                                  List what an agent left under .agents/local/ (a dry run) and, with
+                                  --yes, remove it; --tmp is the default, --worktrees takes merged or
+                                  gone branches only, --all never touches reports, prototypes or the profile
   upgrade [--stable | --nightly] [<version|tag>]
                                   Bump the pinned @venizia/vulcan, then sync; --stable (default)
                                   takes the latest tag, --nightly the newest of latest and next

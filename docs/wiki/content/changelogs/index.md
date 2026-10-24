@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-25 | [VULCAN 0.4.1: vulcan clean, and No More Scratch Outside the Project](./2026-10-25-vulcan-0-4-1-clean-and-in-project-scratch) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.1: An owner Block for How Agents Answer, and a Personal Profile](./2026-10-25-vulcan-0-4-1-owner-block-and-profile) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.1: A Release Cannot Ship Hooks That Fail to Load](./2026-10-25-vulcan-0-4-1-hooks-tripwire) | Enhancement |
 | 2026-10-25 | [VULCAN 0.4.1: Guards for Git and for Files Outside the Project, a Digest for Subagents](./2026-10-25-vulcan-0-4-1-guards-and-hooks) | Enhancement |

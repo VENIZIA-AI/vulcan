@@ -49,8 +49,11 @@ describe.skipIf(!hasScript)('a menu that is fed piped lines stops instead of wai
     expect(result.code).toBe(1);
     expect(result.plain).toContain('reads key presses, not lines');
     expect(existsSync(join(parent, 'my-product'))).toBe(false);
-    // The refusal ends the flow through its `finally`: the scratch folder of the preset is gone.
-    expect(readdirSync(tmp).filter((name) => name.startsWith('vulcan-preset-'))).toEqual([]);
+    // The refusal ends the flow through its `finally`: the scratch folder of the preset, which sat under
+    // `.agents/local/tmp/` of the working directory, is gone with the folders made for it - and nothing
+    // was ever written to the system temp directory.
+    expect(existsSync(join(parent, '.agents'))).toBe(false);
+    expect(readdirSync(tmp)).toEqual([]);
   });
 
   test('a real Enter (CR) still works, and so does TERM=dumb with piped lines', async () => {
