@@ -36,7 +36,7 @@ help:
 	@$(HELP_ROW) "project-names-check" "Gate: no project name (IGNIS, ARDOR, BANA) in packages/*/src outside tests."
 	@$(HELP_ROW) "lint-scripts" "bun check of the root scripts/."
 	@$(HELP_ROW) "lint-files" "bun fmt check of every file outside packages/ (code, json, yaml, css, html, vue; not Markdown)."
-	@$(HELP_ROW) "fmt / lint-fix / fmt-packages" "fmt-<pkg> for every package, then fmt-files (lint-fix is the library target name)."
+	@$(HELP_ROW) "lint-fix / fmt-packages" "fmt-<pkg> for every package, then fmt-files (lint-fix is the root fix target and the library target name)."
 	@$(HELP_ROW) "typecheck / typecheck-packages" "bun check of every package, including the emit configs (typecheck-<pkg> for one)."
 	@$(HELP_ROW) "test" "test-<pkg> for every package (alias of test-all)."
 	@$(HELP_ROW) "test-all" "test-<pkg> for every package, then test-scripts (BUN_TEST_FLAGS)."

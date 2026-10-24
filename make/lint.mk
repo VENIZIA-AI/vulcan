@@ -6,7 +6,7 @@ LINT_PKG_TARGETS := $(addprefix lint-,$(PACKAGES))
 FMT_PKG_TARGETS := $(addprefix fmt-,$(PACKAGES))
 TYPECHECK_PKG_TARGETS := $(addprefix typecheck-,$(PACKAGES))
 
-.PHONY: lint lint-fix lint-all lint-packages lint-scripts lint-files project-names-check fmt fmt-packages fmt-files \
+.PHONY: lint lint-fix lint-all lint-packages lint-scripts lint-files project-names-check fmt-packages fmt-files \
         typecheck typecheck-packages $(LINT_PKG_TARGETS) $(FMT_PKG_TARGETS) $(TYPECHECK_PKG_TARGETS)
 
 lint: lint-packages
@@ -17,10 +17,9 @@ lint-all: lint-packages lint-scripts lint-files project-names-check
 
 lint-packages: $(LINT_PKG_TARGETS)
 
-fmt: fmt-packages fmt-files
-
-# The library target set (build, typecheck, lint, lint-fix, test, clean): `lint-fix` is `fmt`.
-lint-fix: fmt
+# The library target set (build, typecheck, lint, lint-fix, test, clean): `lint-fix` is the root fix
+# target in all three repos, it applies the fixes and the format to the packages and to the root files.
+lint-fix: fmt-packages fmt-files
 
 typecheck: typecheck-packages
 
