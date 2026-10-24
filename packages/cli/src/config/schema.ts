@@ -251,6 +251,14 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         .default(ConfigConstants.DEFAULT_OFTEN_DROPPED),
     })
     .default({ oftenDropped: ConfigConstants.DEFAULT_OFTEN_DROPPED }),
+  /**
+   * The hooks that guard writes. `toolOwnedPaths` extends the defaults (package manager caches, the
+   * runtime dir for locks, git config, the agent tool's memory) with stores a tool in this project
+   * manages itself: absolute globs, `~` and `$NAME` allowed.
+   */
+  guard: z
+    .strictObject({ toolOwnedPaths: z.array(z.string().min(1)).default([]) })
+    .default({ toolOwnedPaths: [] }),
 });
 
 export type VulcanConfig = z.input<typeof VULCAN_CONFIG_SCHEMA>;

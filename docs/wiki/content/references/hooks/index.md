@@ -12,6 +12,9 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 |---|---|---|---|---|
 | Session digest (`session-start`) | `SessionStart` | `startup\|resume\|clear\|compact` | Quotes base write rules (`V-W-*`), slot choices, and often-dropped rules to stdout | Fires on session start, resume, clear, or compact |
 | `guard-writes` | `PreToolUse` | `Bash` | Prompts for human confirmation before database writes and cluster deployments | Fires on every Bash tool command |
+| `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes and `git branch -D` of an unmerged branch | Fires on every Bash command; only those git and gh actions are flagged |
+| `guard-outside` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
+| `subagent-start` | `SubagentStart` | all | Adds a compact rules digest to every subagent's context | Fires when a subagent starts |
 | `guard-remote-hosts` | `PreToolUse` | `Bash` | Prompts for confirmation before commands reach unlisted network hosts | Fires on Bash commands only when `remoteHosts` is set |
 | `guard-manifest` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Refuses a write to `.agents/vulcan.manifest.json` | Fires on every one of those tool calls; only a write to the manifest is refused |
 | `guard-package` | `PreToolUse` | `Write` | Refuses a new `package.json` in a backend, frontend or shared folder when a `vulcan add` command exists for it | Fires on every `Write`; only the creation of a package file in a layout folder is acted on |
@@ -101,6 +104,34 @@ services/api3 looks like a new backend app but no recorded preset makes a backen
 
 It stays silent for a `package.json` that already exists, anything under `node_modules`, a file that is not named `package.json`, a path outside every layout folder or deeper than one package, a project with no manifest or `layout`, and every tool but `Write`. An unreadable manifest lets the call through.
 `vulcan add` itself writes through the CLI, not through `Write`, so it is never blocked.
+
+## guard-git
+
+The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `$(...)`, `sh -c`, `git -C <dir>`), not with substring matching, so `git commit -m "never push --force"` and `echo git branch -D develop` pass.
+
+| Command | Answer |
+|---|---|
+| `git branch -D develop` (or `main`, `-d`, `--delete`) | deny |
+| `git push origin --delete develop`, `git push origin :main` | deny |
+| `git push --force origin develop` (`-f`, `+develop`, `--force-with-lease` to `develop` or `main`, or no refspec while on one of them) | deny |
+| `gh pr merge <pr> --delete-branch` when `gh pr view` reports the head branch as `develop` or `main` | deny |
+| `git reset --hard` | ask |
+| `git push --force` of another branch | ask |
+| `git branch -D <branch>` when the branch is not merged into the current one | ask |
+
+The branch checks run read-only `git` and `gh` queries with a five-second limit; a query that fails or times out lets the command pass. Input the hook cannot read passes too. `VULCAN_GUARDS=off` in the environment switches the guard off for a session.
+
+## guard-outside
+
+Everything an agent creates lives under the project's `.agents/local/` (`V-B-08`). The `guard-outside` hook asks when a tool call would create something outside the project root. It reads redirects (`>`, `>>`, `2>`, `&>`), `mkdir`, `touch`, `cp`, `mv`, `install`, `ln`, `rsync`, `tee`, `dd of=`, `curl -o`, `wget -O`/`-P`, `git clone`, `git worktree add` and `mktemp`, and the `Write`, `Edit`, `MultiEdit` and `NotebookEdit` tools. A relative path is taken from the hook's working directory; a symlink that leaves the project counts as outside. It is a guard against drift, not a sandbox: a path it cannot work out (an unset variable, a glob, a command substitution) passes.
+
+Stores that a package manager, a runtime or the agent tool manage themselves are allowed: the bun, npm, pnpm and yarn stores, `$XDG_RUNTIME_DIR` (lock files), git's own config and the agent tool's `projects/*/memory/` folders. Add others with `guard.toolOwnedPaths` in the [project config](/references/configuration/#guard). Pointing `TMPDIR` or `mktemp` at the system temp directory is not allowed; a gate script that needs a temp directory sets `TMPDIR` to `.agents/local/tmp/`. `VULCAN_GUARDS=off` switches the guard off for a session.
+
+The hook cannot reach what the agent tool does by itself: its own scratchpad under the system temp directory is written without a tool call. Claude Code puts its built-in worktrees under `.claude/worktrees/` in the repository, which `init` gitignores.
+
+## subagent-start
+
+On `SubagentStart` the hook prints the compact digest as `additionalContext`: the write boundaries, the slot choices, the often-dropped rules and a reminder that a subagent is read-only unless its brief says otherwise, makes no git writes, and creates files only under `.agents/local/`. It leaves out the project's own rules table (`.agents/rules.md` is named instead). It never blocks: if it fails, the subagent starts without the digest.
 
 ## guard-writes
 
