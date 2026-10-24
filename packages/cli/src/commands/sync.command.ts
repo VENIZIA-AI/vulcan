@@ -18,6 +18,7 @@ import {
   planExclude,
   planLocalChoice,
   planLocalIgnore,
+  planLocalWorkspace,
   planPrune,
   planSync,
   SyncConstants,
@@ -123,6 +124,7 @@ export const runSyncFlow = async (
     ...planSync({ root: opts.cwd, config: loaded.config, agents: resolved.agents }),
     ...planAtlasBlock({ root: opts.cwd, config: loaded.config }),
     ...stored,
+    ...planLocalWorkspace({ root: opts.cwd }),
     ...planExclude({ root: opts.cwd, agents: resolved.agents }),
     ...pruned,
   ];

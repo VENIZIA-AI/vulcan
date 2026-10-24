@@ -90,7 +90,22 @@ Build rules require test-driven workflows, command output verification, zero war
 | `V-B-05` | Give every app, backend and frontend, the same seven scripts: `server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean`. The work lives in `.configs/builders/` or in `devz` (`devz lint`, `devz lint --fix`, `devz clean`), never in the `package.json` string. An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`; every other config lives in `.configs/{lints,formatters,builders}/`. No `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod`. A library package keeps Makefile targets `build`, `typecheck`, `lint`, `lint-fix`, `test`, `clean`. | SOFT - `vulcan doctor` notes (info only) |
 | `V-B-06` | Saving code never removes validation, error handling, security checks or data safety. | SOFT |
 | `V-B-07` | Say what you skipped or did not check; mark a deliberate shortcut `// SHORTCUT: <what>, <why>, <revisit when>`. | SOFT - build-a-feature step 8 summary, session-start digest |
-| `V-B-08` | Keep scratch work in the session scratch directory and remove it at the end; the done report says so. | SOFT |
+| `V-B-08` | Create nothing outside the project: scratch, temporary files, logs, worktrees, clones and subagent output live under the gitignored `.agents/local/`, and you remove each when its lifetime ends (table below); the done report says what was removed or kept. | SOFT |
+
+### Where agent files live, and when they go
+
+`vulcan sync` creates these directories under `.agents/local/` and gitignores the folder. Nothing an agent creates goes outside the project.
+
+| Directory | Holds | Removed when |
+|---|---|---|
+| `tmp/<task>/` | scratch files, temporary files, logs, subagent output | the task ends |
+| `worktrees/<branch>/` | git worktrees (a `/` in the branch name becomes `-`) | its branch is merged or abandoned (`git worktree remove`, then `git worktree prune`) |
+| `clones/` | clones of other repositories read for research | the research that needed them is reported |
+| `cache/` | what atlas fetches; it rebuilds | the user asks |
+| `reports/` | long reports a message points to (V-P-11) | the user deletes them |
+| `prototypes/` | static HTML pages a skill writes | the user deletes them |
+
+The agent tool's own internal files (for example its scratchpad) are outside what VULCAN controls.
 
 ## Code and writing (C)
 

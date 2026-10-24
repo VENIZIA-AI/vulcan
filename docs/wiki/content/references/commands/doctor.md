@@ -48,6 +48,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
 | `format` (warning) | The root `bunfig.toml` has a `[fmt]` section with `flavor = "oxfmt"`, no `package.json` defines a `fmt` script, and no oxfmt config is left behind | Add the section, rename the script, delete the config or the copy |
 | `mcp` (warning) | `.mcp.json` (when a chosen agent reads it) holds the canonical `atlas` entry, git no longer tracks it, and the Claude settings enable `atlas` | Use the entry the warning shows, `git rm --cached .mcp.json`, and run `bun x --no-install vulcan sync` |
+| `local` (warning) | `.agents/local/` exists with its subdirectories and is gitignored, and no git worktree of the repository lives outside it | Run `bun x --no-install vulcan sync`; for a worktree, run the `git worktree move` command the warning prints |
 
 ### config
 

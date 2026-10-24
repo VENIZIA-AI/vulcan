@@ -14,7 +14,9 @@ import {
   checkPrune,
   checkHooks,
   checkLayout,
+  checkLocalWorkspace,
   checkMake,
+  checkOutsideWorktrees,
   checkRuleIds,
   checkRuleSlots,
   checkScaffold,
@@ -101,5 +103,7 @@ export const runDoctorWarnings = async (opts: { root: string }): Promise<IViolat
     ...checkDockerignore(context),
     ...checkSkillTriggers(context),
     ...checkFormat(context),
+    ...checkLocalWorkspace(context),
+    ...checkOutsideWorktrees(context),
   ];
 };

@@ -68,7 +68,23 @@ export class ProjectLayout {
     '.claude/',
     '.agents/plans',
     '.agents/vulcan.local.json',
+    '.agents/local/',
   ];
+  /** Everything an agent creates while it works lives under here, gitignored: nothing goes outside the project. */
+  static readonly LOCAL_DIRECTORY = '.agents/local';
+  /** Each directory under it, with when it goes: the one list `sync`, `doctor` and `clean` read. */
+  static readonly LOCAL_LAYOUT = [
+    { name: 'tmp', lifetime: 'task', removedWhen: 'the task ends' },
+    { name: 'worktrees', lifetime: 'branch', removedWhen: 'its branch is merged or abandoned' },
+    {
+      name: 'clones',
+      lifetime: 'research',
+      removedWhen: 'the research that needed them is reported',
+    },
+    { name: 'cache', lifetime: 'kept', removedWhen: 'the user asks; it rebuilds' },
+    { name: 'reports', lifetime: 'kept', removedWhen: 'the user deletes it' },
+    { name: 'prototypes', lifetime: 'kept', removedWhen: 'the user deletes it' },
+  ] as const;
   /** What the scaffolded lint configs run; optional peers of dev-configs, so bun never installs them alone. */
   static readonly LINT_TOOLS = ['oxlint', 'oxlint-tsgolint', 'eslint'];
   /** Written into a scaffolded file the project must fill in; doctor fails the file while it holds this. */

@@ -1,6 +1,7 @@
 import { Glob } from 'bun';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
+import { basename, dirname, join, relative, sep } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
 import {
   coversFolder,
@@ -32,6 +33,7 @@ import {
 import {
   isTracked,
   mergedAtlasBlock,
+  planLocalWorkspace,
   planManifest,
   planPrune,
   planSync,
@@ -940,3 +942,56 @@ export const checkSkillTriggers = (opts: ICheckContext): IViolation[] =>
         message: `'${entry.name}' has no "Use when" part in its description - atlas cannot say when to load it`,
       }),
     );
+
+/** `.agents/local/` exists with its subdirectories and is gitignored: `sync` does both, so an upgraded project that has not synced yet is told here. */
+export const checkLocalWorkspace = (opts: ICheckContext): IViolation[] =>
+  planLocalWorkspace({ root: opts.root })
+    .filter((action) => action.status !== SyncStatuses.UNCHANGED)
+    .map((action) =>
+      createViolation({
+        check: DoctorChecks.LOCAL,
+        file: relative(opts.root, action.path) || '.',
+        message: `${action.note ?? 'out of date'} - run 'bun x --no-install vulcan sync'`,
+      }),
+    );
+
+/**
+ * A worktree of this repository that lives outside it: the repository's own `git worktree list` names it
+ * (git metadata is inside the project), and the exact command moves it in. Nothing is moved or removed.
+ */
+export const checkOutsideWorktrees = (opts: ICheckContext): IViolation[] => {
+  const listed = spawnSync('git', ['worktree', 'list', '--porcelain'], {
+    cwd: opts.root,
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+
+  if (listed.status !== 0) {
+    return [];
+  }
+
+  const [boundary, ...linked] = listed.stdout
+    .split('\n')
+    .filter((line) => line.startsWith('worktree '))
+    .map((line) => line.slice('worktree '.length));
+
+  if (boundary === undefined) {
+    return [];
+  }
+
+  const inside = (path: string): boolean => {
+    const real = existsSync(path) ? realpathSync(path) : path;
+
+    return real === boundary || real.startsWith(`${boundary}${sep}`);
+  };
+
+  return linked
+    .filter((path) => !inside(path))
+    .map((path) =>
+      createViolation({
+        check: DoctorChecks.LOCAL,
+        file: path,
+        message: `a git worktree outside the project - move it in: git worktree move '${path}' '${join(boundary, ProjectLayout.LOCAL_DIRECTORY, 'worktrees', basename(path))}'`,
+      }),
+    );
+};

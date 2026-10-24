@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { LOCAL_AGENTS_FILE, renderLocalChoice } from '../agents/index.ts';
+import { ProjectLayout } from '../common/index.ts';
 import { SyncStatuses } from './common/index.ts';
 import type { ISyncAction } from './common/index.ts';
 
@@ -26,8 +27,8 @@ export const planLocalChoice = (opts: { root: string; agents: string[] }): ISync
   };
 };
 
-/** The one line sync adds to a committed `.gitignore`; a project without one is left alone. */
-export const planLocalIgnore = (opts: { root: string }): ISyncAction[] => {
+/** One line sync adds to a committed `.gitignore`; a project without one is left alone. */
+const planIgnoreLine = (opts: { root: string; line: string }): ISyncAction[] => {
   const path = join(opts.root, '.gitignore');
 
   if (!existsSync(path)) {
@@ -36,7 +37,7 @@ export const planLocalIgnore = (opts: { root: string }): ISyncAction[] => {
 
   const text = readFileSync(path, 'utf8');
 
-  if (text.split('\n').some((line) => line.trim() === LOCAL_AGENTS_FILE)) {
+  if (text.split('\n').some((line) => line.trim() === opts.line)) {
     return [];
   }
 
@@ -44,12 +45,41 @@ export const planLocalIgnore = (opts: { root: string }): ISyncAction[] => {
     {
       path,
       status: SyncStatuses.REPLACED,
-      note: `added ${LOCAL_AGENTS_FILE}`,
+      note: `added ${opts.line}`,
       apply: () =>
         writeFileSync(
           path,
-          `${text}${text === '' || text.endsWith('\n') ? '' : '\n'}${LOCAL_AGENTS_FILE}\n`,
+          `${text}${text === '' || text.endsWith('\n') ? '' : '\n'}${opts.line}\n`,
         ),
+    },
+  ];
+};
+
+/** The one line sync adds to a committed `.gitignore`; a project without one is left alone. */
+export const planLocalIgnore = (opts: { root: string }): ISyncAction[] =>
+  planIgnoreLine({ root: opts.root, line: LOCAL_AGENTS_FILE });
+
+/**
+ * The project's local workspace: `.agents/local/` is gitignored and holds what an agent creates while
+ * it works (scratch, worktrees, clones, cache, prototypes), so nothing lands outside the project.
+ */
+export const planLocalWorkspace = (opts: { root: string }): ISyncAction[] => {
+  const directory = join(opts.root, ProjectLayout.LOCAL_DIRECTORY);
+  const missing = ProjectLayout.LOCAL_LAYOUT.map((entry) => entry.name).filter(
+    (name) => !existsSync(join(directory, name)),
+  );
+
+  return [
+    ...planIgnoreLine({ root: opts.root, line: `${ProjectLayout.LOCAL_DIRECTORY}/` }),
+    {
+      path: directory,
+      status: missing.length === 0 ? SyncStatuses.UNCHANGED : SyncStatuses.CREATED,
+      ...(missing.length === 0 ? {} : { note: `created ${missing.join(', ')}` }),
+      apply: () => {
+        for (const name of missing) {
+          mkdirSync(join(directory, name), { recursive: true });
+        }
+      },
     },
   ];
 };
