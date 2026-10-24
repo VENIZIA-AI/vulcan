@@ -18,6 +18,7 @@ export class DoctorChecks {
   static readonly DOCKERIGNORE = 'dockerignore';
   static readonly MCP = 'mcp';
   static readonly FORMAT = 'format';
+  static readonly LOCAL = 'local';
   static readonly SCHEME_SET = new Set<string>([
     this.CONFIG,
     this.LAYOUT,
@@ -38,6 +39,7 @@ export class DoctorChecks {
     this.DOCKERIGNORE,
     this.MCP,
     this.FORMAT,
+    this.LOCAL,
   ]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);

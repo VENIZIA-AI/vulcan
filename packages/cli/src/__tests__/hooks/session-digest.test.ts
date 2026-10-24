@@ -132,6 +132,29 @@ describe('buildSessionDigest', () => {
       expect(dropped).toContain('| V-P-07 |');
       expect(dropped).toContain('atlas');
     });
+
+    test('the default often-dropped list keeps the original eight rules and adds reuse and the skipped line', async () => {
+      const root = createProject({
+        files: { '.mcp.json': ATLAS_MCP, '.configs/vulcan.config.ts': CONFIG },
+      });
+      const digest = await buildSessionDigest({ projectRoot: root });
+      const dropped = digest.slice(digest.indexOf('## The rules sessions drop most'));
+
+      for (const id of [
+        'V-P-07',
+        'V-B-03',
+        'V-P-05',
+        'V-P-06',
+        'V-B-04',
+        'V-W-04',
+        'V-C-02',
+        'V-C-10',
+        'V-P-08',
+        'V-B-07',
+      ]) {
+        expect(dropped).toContain(`| ${id} |`);
+      }
+    });
   });
 
   test('a project without a config still gets the digest, and sees the slot is not chosen', async () => {
