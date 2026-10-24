@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseSourceArgument, readSourceArguments, readUserSources } from '@/cli/sources';
+import { parseSourceArgument, readSourceArguments } from '@/cli/sources';
 import { spawnSyncBounded } from '../spawn.helper';
 import {
   git,
@@ -20,7 +20,7 @@ afterAll(() => {
 
 const PACKAGE_ROOT = join(__dirname, '..', '..', '..');
 
-describe('--source and the user config', () => {
+describe('--source', () => {
   test('owner/repo@ref, owner/repo (develop) and a git URL@ref', () => {
     expect(parseSourceArgument({ value: 'VENIZIA-AI/ignis@main' })).toEqual({
       name: 'ignis',
@@ -46,31 +46,20 @@ describe('--source and the user config', () => {
       ),
     ).toEqual(['one', 'two']);
   });
-
-  test('outside a project, the user config names the sources', () => {
-    const config = makeTempDirectory({ prefix: 'atlas-xdg-config-' });
-
-    mkdirSync(join(config, 'vulcan'));
-    writeFileSync(
-      join(config, 'vulcan', 'atlas.json'),
-      JSON.stringify({ sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis' }] }),
-    );
-
-    expect(readUserSources({ configHome: config })).toEqual([
-      { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
-    ]);
-    expect(
-      readUserSources({ configHome: makeTempDirectory({ prefix: 'atlas-xdg-empty-' }) }),
-    ).toEqual([]);
-  });
 });
 
 describe('vulcan-atlas over git sources', () => {
   const run = (opts: { args: string[]; cwd: string; cache: string; input?: string }) => {
     const result = spawnSyncBounded({
-      cmd: [process.execPath, join(PACKAGE_ROOT, 'src/cli.ts'), ...opts.args],
+      cmd: [
+        process.execPath,
+        join(PACKAGE_ROOT, 'src/cli.ts'),
+        ...opts.args,
+        '--cache-dir',
+        opts.cache,
+      ],
       cwd: opts.cwd,
-      env: { ...process.env, XDG_CACHE_HOME: opts.cache, VULCAN_NPM_REGISTRY: NO_REGISTRY },
+      env: { ...process.env, VULCAN_NPM_REGISTRY: NO_REGISTRY },
       stdin: opts.input === undefined ? 'ignore' : Buffer.from(opts.input),
       stdout: 'pipe',
       stderr: 'pipe',

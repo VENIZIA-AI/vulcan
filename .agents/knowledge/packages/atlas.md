@@ -13,9 +13,9 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
 
 - **What it serves**: the project it runs in, read live from its manifest
   (`.agents/vulcan.manifest.json`), and every source the manifest lists; outside a project,
-  `--source` or the user config `$XDG_CONFIG_HOME/vulcan/atlas.json`. With none of these it exits 2:
+  `--source`. With none of these it exits 2:
   atlas ships code only, no packaged corpus. A source is fetched by git (or as a GitHub tarball when
-  git is missing) into `$XDG_CACHE_HOME/vulcan/atlas/v1/`.
+  git is missing) into `.agents/local/cache/atlas/v1/` of the project (`--cache-dir` moves it); atlas touches nothing outside the project directory.
 - **A source's ref** is a branch, a tag or a commit SHA (7 to 40 hex characters), matched by whole
   name: `develop` never resolves to `feature/develop`. A ref the remote does not have is an error
   naming it. Only a remote that cannot be asked within 10 s serves the cache (OFFLINE): the SHA last

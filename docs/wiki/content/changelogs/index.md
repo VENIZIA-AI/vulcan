@@ -12,6 +12,7 @@ This section tracks the history of significant changes and releases of the VULCA
 | Date | Title | Type |
 |------|-------|------|
 | 2026-10-25 | [VULCAN 0.4.1: New Base Rules for How Agents Work](./2026-10-25-vulcan-0-4-1-agent-work-rules) | Enhancement |
+| 2026-10-25 | [VULCAN 0.4.1: atlas Keeps Its Cache Inside the Project](./2026-10-25-vulcan-0-4-1-atlas-cache-in-project) | Behaviour change |
 | 2026-10-25 | [VULCAN 0.4.1: Arrow Functions Always Keep Their Parentheses](./2026-10-25-vulcan-0-4-1-arrow-parens-always) | Behaviour change |
 | 2026-10-24 | [VULCAN 0.3.13: A Menu Fed Piped Lines Leaves No Temp Folder](./2026-10-24-vulcan-0-3-13-menu-refusal-scratch) | Bug Fix |
 | 2026-10-23 | [VULCAN 0.3.13: No More Knowledge log.md](./2026-10-23-vulcan-0-3-13-no-knowledge-log) | Behaviour change |

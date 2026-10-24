@@ -22,17 +22,17 @@ afterAll(() => {
 });
 
 const previous = { ...process.env };
+let cacheDir: string;
 // The fake GitHub below runs git itself - by its full path, since a test takes git off PATH.
 const GIT = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
 
 beforeEach(() => {
-  process.env.XDG_CACHE_HOME = makeTempDirectory({ prefix: 'atlas-cache-' });
+  cacheDir = makeTempDirectory({ prefix: 'atlas-cache-' });
   process.env.VULCAN_NPM_REGISTRY = NO_REGISTRY;
 });
 
 afterEach(() => {
   for (const key of [
-    'XDG_CACHE_HOME',
     'VULCAN_NPM_REGISTRY',
     'VULCAN_GITHUB_URL',
     'VULCAN_CODELOAD_URL',
@@ -121,6 +121,7 @@ describe('a source without git on the machine', () => {
     try {
       const [resolved] = await resolveSources({
         cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
+        cacheDir,
         sources: [{ name: 'src', repo: 'acme/src', ref: 'develop' }],
       });
 
@@ -182,6 +183,7 @@ describe('a source without git on the machine', () => {
     try {
       await resolveSources({
         cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
+        cacheDir,
         sources: [{ name: 'src', repo: 'acme/src', ref: 'develop' }],
       });
 
@@ -198,6 +200,7 @@ describe('a source without git on the machine', () => {
 
       const failure = await resolveSources({
         cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
+        cacheDir,
         sources: [{ name: 'missing', repo: 'acme/missing', ref: 'develop' }],
       }).then(
         () => undefined,
@@ -230,6 +233,7 @@ describe('a source without git on the machine', () => {
     try {
       const [resolved] = await resolveSources({
         cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
+        cacheDir,
         sources: [{ name: 'src', repo: 'acme/src', ref: 'develop' }],
       });
 
@@ -258,6 +262,7 @@ describe('a source without git on the machine', () => {
       try {
         const failure = await resolveSources({
           cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
+          cacheDir,
           sources: [{ name: 'src', repo: 'acme/src', ref: 'develop' }],
         }).then(
           () => undefined,

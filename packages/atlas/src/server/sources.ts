@@ -6,6 +6,7 @@ import { resolveRepositoryRoots } from '@/corpus';
 import { Transport } from '@/protocol';
 import { computeReleases, ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
+import { cacheBaseOf } from '@/sources/cache';
 import { installedDirectoriesOf, installRootsOf } from '@/sources/installed';
 import { resolveRemoteSource } from '@/sources/resolver';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources/serving';
@@ -47,8 +48,10 @@ const remoteSymbolsOf = (opts: {
   source: IResolvedSource;
   cwd: string;
   releases: ReleaseStore;
-}): ISymbolRecord[] =>
-  opts.source.project.packages
+}): ISymbolRecord[] => {
+  const cacheBase = opts.source.cacheBase ?? cacheBaseOf({ cwd: opts.cwd });
+
+  return opts.source.project.packages
     .filter((entry) => !entry.retired)
     .flatMap((entry) => {
       const [installed] = installedDirectoriesOf({
@@ -57,13 +60,16 @@ const remoteSymbolsOf = (opts: {
       });
 
       if (installed !== undefined) {
-        return symbolsOfInstalled({ directory: installed });
+        return symbolsOfInstalled({ directory: installed, cacheBase });
       }
 
       const version = opts.releases.newestOf({ package: entry.name })?.version;
 
-      return version === undefined ? [] : (cachedSymbols({ name: entry.name, version }) ?? []);
+      return version === undefined
+        ? []
+        : (cachedSymbols({ name: entry.name, version, cacheBase }) ?? []);
     });
+};
 
 /** D1: a source fetched without git has no history; anything else has none of the tags it declares. */
 const emptyReleasesReasonOf = (opts: { source: IResolvedSource }): string =>
@@ -243,6 +249,8 @@ export const buildSourcesServer = (opts: {
   /** Sources this start could not serve; `initialize` names each with its reason. */
   unavailable?: IUnavailableSource[];
   cwd: string;
+  /** Where atlas keeps what it fetches; absent, `<cwd>/.agents/local/cache`. */
+  cacheDir?: string;
   version: string;
   /** Keeps a long-running server current; absent, the sources stay as the start resolved them. */
   refresh?: IRefreshOptions;
@@ -267,7 +275,8 @@ export const buildSourcesServer = (opts: {
   const projects = projectsOf({ sources: opts.sources });
   const resolve =
     opts.refresh?.resolve ??
-    ((source: IAtlasSource) => resolveRemoteSource({ source, cwd: opts.cwd }));
+    ((source: IAtlasSource) =>
+      resolveRemoteSource({ source, cwd: opts.cwd, cacheDir: opts.cacheDir }));
   const targets = opts.sources.flatMap((source, index): IRefreshTarget[] => {
     const entry = stores[index];
     const target =

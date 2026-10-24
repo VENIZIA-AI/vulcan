@@ -45,10 +45,9 @@ dependency on an MCP SDK - it speaks JSON-RPC over stdio itself.
 | Source | Read from | Freshness |
 |---|---|---|
 | The project it starts in | its manifest's bundle, wiki and changelogs; releases from its git tags; symbols from its built `.d.ts` | Re-indexes before a tool call when a file changed |
-| Each `atlas.sources` entry, or `--source <owner/repo>@<ref>` | a git partial clone and sparse checkout under `$XDG_CACHE_HOME/vulcan/atlas/v1/` (a GitHub tarball when git is missing) | The ref's commit (a branch, a tag or a SHA) and the remote's tags, checked at start; a new tag updates the releases without a new pull. When the remote does not answer within 10 s, the commit last served for that ref. The cache keeps the newest 3 SHAs |
-| `$XDG_CONFIG_HOME/vulcan/atlas.json` `{ "sources": [...] }` | the same, outside any project | Same |
+| Each `atlas.sources` entry, or `--source <owner/repo>@<ref>` | a git partial clone and sparse checkout under `.agents/local/cache/atlas/v1/` in the project (`--cache-dir <dir>` moves it; a GitHub tarball when git is missing) | The ref's commit (a branch, a tag or a SHA) and the remote's tags, checked at start; a new tag updates the releases without a new pull. When the remote does not answer within 10 s, the commit last served for that ref. The cache keeps the newest 3 SHAs |
 
-atlas ships code only - no packaged corpus. With no project, no `--source` and no user config it
+atlas ships code only - no packaged corpus. With no project and no `--source` it
 exits 2. Every hit names its source. `search` takes `source` to read one source; `get` takes it only
 when two sources hold the same id. An unknown source name is an error that lists the known ones.
 A private repository uses `GITHUB_TOKEN`, else `gh auth token`, sent in request headers only.

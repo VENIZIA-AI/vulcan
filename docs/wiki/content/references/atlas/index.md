@@ -55,8 +55,8 @@ If an editor starts in a subdirectory, atlas fails to locate the project manifes
 Pass `--source <owner/repo>@<ref>` to serve external documentation alongside your project.
 Without `@<ref>`, `--source` uses `develop`.
 Git URLs are accepted in place of `owner/repo`.
-atlas performs a git partial clone and sparse checkout under `$XDG_CACHE_HOME/vulcan/atlas/v1/`.
-When `XDG_CACHE_HOME` is unset, the cache defaults to `~/.cache`.
+atlas performs a git partial clone and sparse checkout under `.agents/local/cache/atlas/v1/` in the project (gitignored).
+`--cache-dir <dir>` puts the cache in another directory; outside a project it defaults to the current directory's `.agents/local/cache/`.
 
 ### Terminal versus client execution
 
@@ -70,17 +70,17 @@ atlas then starts the MCP server over stdio and answers JSON-RPC requests.
 ### The nothing to serve error
 
 atlas ships code only and carries no built-in documentation corpus.
-If you start atlas outside a VULCAN project without `--source` or user configuration, it exits with code 2.
+If you start atlas outside a VULCAN project without `--source`, it exits with code 2.
 The example below was run outside any project:
 
 ```text
 $ bun x --no-install vulcan x atlas tools
-vulcan-atlas: nothing to serve at /tmp/wiki-empty - run in a project (`vulcan sync` writes .agents/vulcan.manifest.json), or pass --source <owner/repo>@<ref>, or list sources in $XDG_CONFIG_HOME/vulcan/atlas.json
-usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | pull [--source <name>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help
+vulcan-atlas: nothing to serve at /tmp/wiki-empty - run in a project (`vulcan sync` writes .agents/vulcan.manifest.json), or pass --source <owner/repo>@<ref>
+usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help
 ```
 
 To resolve this error, run atlas inside a VULCAN project.
-You can also provide `--source` or add sources to `$XDG_CONFIG_HOME/vulcan/atlas.json`.
+You can also provide `--source`.
 
 ## What atlas reads
 

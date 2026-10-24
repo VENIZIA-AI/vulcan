@@ -3,7 +3,6 @@ import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildSourcesServer } from '@/server/index';
 import { resolveServableSources } from '@/sources';
-import { restoreVariable } from '../env.helper';
 import {
   commitAll,
   git,
@@ -21,15 +20,14 @@ afterAll(() => {
   }
 });
 
-const previousCache = process.env.XDG_CACHE_HOME;
+let cacheDir: string;
 
 beforeEach(() => {
-  process.env.XDG_CACHE_HOME = makeTempDirectory({ prefix: 'atlas-cache-' });
+  cacheDir = makeTempDirectory({ prefix: 'atlas-cache-' });
   process.env.VULCAN_NPM_REGISTRY = NO_REGISTRY;
 });
 
 afterEach(() => {
-  restoreVariable({ name: 'XDG_CACHE_HOME', value: previousCache });
   delete process.env.VULCAN_NPM_REGISTRY;
 });
 
@@ -70,6 +68,7 @@ test('a source that cannot be served is reported; the project and the other sour
   const cwd = makeConsumer();
   const { resolved, unavailable } = await resolveServableSources({
     cwd,
+    cacheDir,
     sources: [
       { name: 'unadopted', repo: makeUnadoptedSource(), ref: 'develop' },
       { name: 'gone', repo: `file://${join(cwd, 'no-such.git')}`, ref: 'develop' },
@@ -105,6 +104,7 @@ test('a project served with a reachable source keeps its own name', async () => 
   const source = makeSourceRepository();
   const { resolved } = await resolveServableSources({
     cwd,
+    cacheDir,
     sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
   });
   const server = buildSourcesServer({ sources: resolved, cwd, version: '0.0.0' });

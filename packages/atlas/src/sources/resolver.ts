@@ -25,7 +25,7 @@ import { computeReleases } from '@/releases/compute';
 import { ChunkStore } from '@/search/store';
 import { StderrLogger } from '@/common/logger';
 import { symbolsOfPublished } from '@/symbols/compute';
-import { artifactsOf, cacheRootOf, checkoutOf, urlOf } from './cache';
+import { artifactsOf, cacheBaseOf, cacheRootOf, checkoutOf, urlOf } from './cache';
 import type {
   IAtlasSource,
   IRemoteRef,
@@ -114,6 +114,7 @@ const projectOf = (opts: { checkout: string; source: IAtlasSource }): IAtlasProj
 
 const servedFrom = (opts: {
   source: IAtlasSource;
+  cacheBase: string;
   cacheRoot: string;
   sha: string;
   mode: TSourceMode;
@@ -136,6 +137,7 @@ const servedFrom = (opts: {
     indexFile: join(artifacts, INDEX),
     releasesFile: join(artifacts, RELEASES),
     history: existsSync(join(artifacts, HISTORY)),
+    cacheBase: opts.cacheBase,
   };
 };
 
@@ -219,6 +221,7 @@ const fetchPublishedSymbols = async (opts: {
   source: IAtlasSource;
   project: IAtlasProject;
   releases: IReleaseTable;
+  cacheBase: string;
 }): Promise<void> => {
   for (const entry of opts.project.packages.filter((item) => !item.retired)) {
     const version = opts.releases.releases[entry.dir]?.[0]?.version;
@@ -228,7 +231,7 @@ const fetchPublishedSymbols = async (opts: {
     }
 
     try {
-      await symbolsOfPublished({ name: entry.name, version });
+      await symbolsOfPublished({ name: entry.name, version, cacheBase: opts.cacheBase });
     } catch (error) {
       StderrLogger.get('fetchPublishedSymbols').warn(
         `no symbols for ${entry.name}@${version} yet, the next start asks npm again | source: ${opts.source.name} | error: %s`,
@@ -245,6 +248,7 @@ const fetchPublishedSymbols = async (opts: {
  */
 const buildArtifacts = async (opts: {
   source: IAtlasSource;
+  cacheBase: string;
   artifacts: string;
   project: IAtlasProject;
   history: boolean;
@@ -272,7 +276,12 @@ const buildArtifacts = async (opts: {
   writeFileSync(join(partial, RELEASES), `${JSON.stringify(releases)}\n`);
 
   if (opts.corpusOnly !== true) {
-    await fetchPublishedSymbols({ source: opts.source, project, releases });
+    await fetchPublishedSymbols({
+      source: opts.source,
+      project,
+      releases,
+      cacheBase: opts.cacheBase,
+    });
   }
 
   if (opts.history) {
@@ -291,6 +300,7 @@ const buildArtifacts = async (opts: {
 /** A pull by git: the partial clone brought up to date, a sparse checkout - the manifest first, then its paths. */
 const pullByGit = async (opts: {
   source: IAtlasSource;
+  cacheBase: string;
   cacheRoot: string;
   sha: string;
   tags?: string;
@@ -308,6 +318,7 @@ const pullByGit = async (opts: {
   setSparsePaths({ directory: checkout, paths: declaredPathsOf({ project, checkout }) });
   await buildArtifacts({
     source: opts.source,
+    cacheBase: opts.cacheBase,
     artifacts: artifactsOf(opts),
     project,
     history: true,
@@ -377,6 +388,7 @@ const refreshReleases = async (opts: {
 /** A pull with no git on the machine: the tarball of the SHA, the manifest first, then its paths. No history. */
 const pullByTarball = async (opts: {
   source: IAtlasSource;
+  cacheBase: string;
   cacheRoot: string;
   sha: string;
   github: { owner: string; repo: string };
@@ -401,6 +413,7 @@ const pullByTarball = async (opts: {
     extractTarball({ archive, directory: checkout, paths: declaredPathsOf({ project, checkout }) });
     await buildArtifacts({
       source: opts.source,
+      cacheBase: opts.cacheBase,
       artifacts: artifactsOf(opts),
       project,
       history: false,
@@ -466,11 +479,12 @@ const lookUpRef = async (opts: {
  */
 const resolveRemote = async (opts: {
   source: IAtlasSource;
+  cacheBase: string;
   force: boolean;
   /** Only the corpus is wanted (a pinned tag): the release table and the npm symbols are another ref's job. */
   corpusOnly?: boolean;
 }): Promise<IResolvedSource> => {
-  const cacheRoot = cacheRootOf(opts.source);
+  const cacheRoot = cacheRootOf({ repo: opts.source.repo, cacheBase: opts.cacheBase });
   const byGit = hasGit();
   const github = githubRepoOf(opts.source);
 
@@ -490,7 +504,13 @@ const resolveRemote = async (opts: {
       throw new Error(`atlas: ${describe(opts)} is unreachable and has no cache`);
     }
 
-    return servedFrom({ source: opts.source, cacheRoot, sha: cached, mode: 'offline-cache' });
+    return servedFrom({
+      source: opts.source,
+      cacheBase: opts.cacheBase,
+      cacheRoot,
+      sha: cached,
+      mode: 'offline-cache',
+    });
   }
 
   const { sha } = remote;
@@ -503,7 +523,13 @@ const resolveRemote = async (opts: {
   }
 
   if (!opts.force && isComplete({ cacheRoot, sha })) {
-    const served = servedFrom({ source: opts.source, cacheRoot, sha, mode: 'cache' });
+    const served = servedFrom({
+      source: opts.source,
+      cacheBase: opts.cacheBase,
+      cacheRoot,
+      sha,
+      mode: 'cache',
+    });
 
     if (opts.corpusOnly === true) {
       return served;
@@ -517,6 +543,7 @@ const resolveRemote = async (opts: {
       source: opts.source,
       project: served.project,
       releases: JSON.parse(readFileSync(served.releasesFile ?? '', 'utf8')),
+      cacheBase: opts.cacheBase,
     });
 
     return { ...served, symbolsPending };
@@ -528,7 +555,13 @@ const resolveRemote = async (opts: {
     run: async () => {
       // Another start pulled it while this one waited for the lock.
       if (!opts.force && isComplete({ cacheRoot, sha })) {
-        return servedFrom({ source: opts.source, cacheRoot, sha, mode: 'cache' });
+        return servedFrom({
+          source: opts.source,
+          cacheBase: opts.cacheBase,
+          cacheRoot,
+          sha,
+          mode: 'cache',
+        });
       }
 
       // A pull interrupted before it finished left a checkout behind: start that SHA over.
@@ -537,6 +570,7 @@ const resolveRemote = async (opts: {
       if (byGit) {
         await pullByGit({
           source: opts.source,
+          cacheBase: opts.cacheBase,
           cacheRoot,
           sha,
           tags: remote.tags,
@@ -545,6 +579,7 @@ const resolveRemote = async (opts: {
       } else if (github !== undefined) {
         await pullByTarball({
           source: opts.source,
+          cacheBase: opts.cacheBase,
           cacheRoot,
           sha,
           github,
@@ -555,7 +590,13 @@ const resolveRemote = async (opts: {
 
       pruneOlderShas({ cacheRoot, served: sha });
 
-      return servedFrom({ source: opts.source, cacheRoot, sha, mode: 'fresh' });
+      return servedFrom({
+        source: opts.source,
+        cacheBase: opts.cacheBase,
+        cacheRoot,
+        sha,
+        mode: 'fresh',
+      });
     },
   });
 };
@@ -569,9 +610,14 @@ const resolveRemote = async (opts: {
 const resolveAtInstalled = async (opts: {
   source: IAtlasSource;
   cwd: string;
+  cacheBase: string;
   force: boolean;
 }): Promise<IResolvedSource> => {
-  const base = await resolveRemote({ source: opts.source, force: opts.force });
+  const base = await resolveRemote({
+    source: opts.source,
+    cacheBase: opts.cacheBase,
+    force: opts.force,
+  });
   const atRef = (reason: string): IResolvedSource => ({
     ...base,
     pin: { ref: opts.source.ref, pinned: false, reason },
@@ -598,6 +644,7 @@ const resolveAtInstalled = async (opts: {
   try {
     const at = await resolveRemote({
       source: { ...opts.source, ref: decision.tag },
+      cacheBase: opts.cacheBase,
       force: opts.force,
       corpusOnly: true,
     });
@@ -620,8 +667,14 @@ const resolveAtInstalled = async (opts: {
 export const resolveRemoteSource = (opts: {
   source: IAtlasSource;
   cwd: string;
+  cacheDir?: string;
 }): Promise<IResolvedSource> =>
-  resolveAtInstalled({ source: opts.source, cwd: opts.cwd, force: false });
+  resolveAtInstalled({
+    source: opts.source,
+    cwd: opts.cwd,
+    cacheBase: cacheBaseOf(opts),
+    force: false,
+  });
 
 /**
  * Every source atlas serves: the working directory when it has a manifest (repo mode, no git), then
@@ -642,12 +695,16 @@ const resolveSelf = (opts: { cwd: string }): IResolvedSource[] =>
 export const resolveSources = async (opts: {
   cwd: string;
   sources: IAtlasSource[];
+  cacheDir?: string;
   force?: boolean;
 }): Promise<IResolvedSource[]> => {
   const remote: IResolvedSource[] = [];
+  const cacheBase = cacheBaseOf(opts);
 
   for (const source of opts.sources) {
-    remote.push(await resolveAtInstalled({ source, cwd: opts.cwd, force: opts.force ?? false }));
+    remote.push(
+      await resolveAtInstalled({ source, cwd: opts.cwd, cacheBase, force: opts.force ?? false }),
+    );
   }
 
   return [...resolveSelf(opts), ...remote];
@@ -661,13 +718,15 @@ export const resolveSources = async (opts: {
 export const resolveServableSources = async (opts: {
   cwd: string;
   sources: IAtlasSource[];
+  cacheDir?: string;
 }): Promise<{ resolved: IResolvedSource[]; unavailable: IUnavailableSource[] }> => {
   const remote: IResolvedSource[] = [];
   const unavailable: IUnavailableSource[] = [];
+  const cacheBase = cacheBaseOf(opts);
 
   for (const source of opts.sources) {
     try {
-      remote.push(await resolveAtInstalled({ source, cwd: opts.cwd, force: false }));
+      remote.push(await resolveAtInstalled({ source, cwd: opts.cwd, cacheBase, force: false }));
     } catch (error) {
       unavailable.push({ source, reason: error instanceof Error ? error.message : String(error) });
     }

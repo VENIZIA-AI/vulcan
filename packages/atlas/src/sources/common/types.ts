@@ -48,6 +48,8 @@ export interface IResolvedSource {
   releasesFile?: string;
   /** Whether releases have history - a source pulled without git has none. */
   history?: boolean;
+  /** The cache base this source was resolved into (`.agents/local/cache` by default); remote sources only. */
+  cacheBase?: string;
   /**
    * The npm symbols a start from cache is still asking for, in the background - a registry that
    * stalls never holds up a start. The symbol store finds them once they land.

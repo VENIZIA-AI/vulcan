@@ -3,7 +3,6 @@ import { lstatSync, mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync }
 import { join } from 'node:path';
 import { buildSourcesServer } from '@/server/index';
 import { cacheRootOf, resolveSources } from '@/sources';
-import { restoreVariable } from '../env.helper';
 import {
   commitAll,
   git,
@@ -20,25 +19,24 @@ afterAll(() => {
   }
 });
 
-const previousCache = process.env.XDG_CACHE_HOME;
+let cacheDir: string;
 
 beforeEach(() => {
-  process.env.XDG_CACHE_HOME = makeTempDirectory({ prefix: 'atlas-cache-' });
+  cacheDir = makeTempDirectory({ prefix: 'atlas-cache-' });
   process.env.VULCAN_NPM_REGISTRY = NO_REGISTRY;
 });
 
 afterEach(() => {
-  restoreVariable({ name: 'XDG_CACHE_HOME', value: previousCache });
   delete process.env.VULCAN_NPM_REGISTRY;
 });
 
 const SOURCES_MODULE = join(__dirname, '../../sources/index.ts');
 
 /** One cold start in its own process - what three MCP clients starting at once amount to. */
-const startInProcess = async (opts: { url: string; cwd: string }) => {
+const startInProcess = async (opts: { url: string; cwd: string; cacheDir: string }) => {
   const script = [
     `const { resolveSources } = require(${JSON.stringify(SOURCES_MODULE)});`,
-    `resolveSources({ cwd: ${JSON.stringify(opts.cwd)}, sources: [{ name: 'src', repo: ${JSON.stringify(opts.url)}, ref: 'develop' }] })`,
+    `resolveSources({ cwd: ${JSON.stringify(opts.cwd)}, cacheDir: ${JSON.stringify(opts.cacheDir)}, sources: [{ name: 'src', repo: ${JSON.stringify(opts.url)}, ref: 'develop' }] })`,
     '  .then(([resolved]) => console.log(JSON.stringify({ sha: resolved.sha })))',
     '  .catch(error => { console.error(String(error)); process.exit(1); });',
   ].join('\n');
@@ -91,7 +89,7 @@ describe('a pull', () => {
       const source = makeSourceRepository();
       const cwd = makeTempDirectory({ prefix: 'atlas-consumer-' });
       const starts = await Promise.all(
-        [1, 2, 3].map(() => startInProcess({ url: source.url, cwd })),
+        [1, 2, 3].map(() => startInProcess({ url: source.url, cwd, cacheDir })),
       );
       const sha = git({ cwd: source.work, args: ['rev-parse', 'HEAD'] });
 
@@ -125,12 +123,12 @@ describe('a pull', () => {
         git({ cwd: source.work, args: ['push', '-q', 'origin', 'develop'] });
       }
 
-      const [resolved] = await resolveSources({ cwd, sources });
+      const [resolved] = await resolveSources({ cwd, sources, cacheDir });
 
       pulled.push(resolved.sha ?? '');
     }
 
-    const cacheRoot = cacheRootOf({ repo: source.url });
+    const cacheRoot = cacheRootOf({ repo: source.url, cacheBase: cacheDir });
     const entries = readdirSync(cacheRoot);
     const kept = pulled.slice(1).sort();
 
@@ -147,19 +145,19 @@ describe('a pull', () => {
     const source = makeSourceRepository();
     const cwd = makeTempDirectory({ prefix: 'atlas-consumer-' });
     const sources = [{ name: 'src', repo: source.url, ref: 'develop' }];
-    const gitDir = join(cacheRootOf({ repo: source.url }), 'git');
+    const gitDir = join(cacheRootOf({ repo: source.url, cacheBase: cacheDir }), 'git');
 
     mkdirSync(gitDir, { recursive: true });
     writeFileSync(join(gitDir, 'config'), 'half a clone\n');
 
-    const [started] = await resolveSources({ cwd, sources });
+    const [started] = await resolveSources({ cwd, sources, cacheDir });
 
     expect(started.mode).toBe('fresh');
 
     rmSync(gitDir, { recursive: true, force: true });
     mkdirSync(gitDir);
 
-    const [pulled] = await resolveSources({ cwd, sources, force: true });
+    const [pulled] = await resolveSources({ cwd, sources, cacheDir, force: true });
 
     expect(pulled.mode).toBe('fresh');
     expect(git({ cwd: gitDir, args: ['rev-parse', '--is-bare-repository'] })).toBe('true');
@@ -182,6 +180,7 @@ describe('a pull', () => {
     const resolved = await resolveSources({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
+      cacheDir,
     });
 
     expect(lstatSync(join(resolved[0].root, '.agents/knowledge')).isSymbolicLink()).toBe(false);
