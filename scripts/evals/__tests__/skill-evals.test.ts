@@ -217,6 +217,27 @@ describe('skill-evals --dry-run', () => {
     expect(existsSync(run.out)).toBe(false);
   });
 
+  test('with no --out the runs are planned inside the project, never the system temp folder', () => {
+    const repository = join(import.meta.dir, '..', '..', '..');
+    const result = Bun.spawnSync(
+      [
+        'bun',
+        join(repository, 'scripts/evals/skill-evals.ts'),
+        '--skill',
+        'docs-writing',
+        '--models',
+        'haiku',
+        '--dry-run',
+      ],
+      { cwd: repository, env: { ...process.env, TMPDIR: '/nonexistent-system-tmp' } },
+    );
+    const stdout = result.stdout.toString();
+
+    expect(result.exitCode).toBe(0);
+    expect(stdout).toContain(`${join(repository, '.agents', 'local', 'tmp')}/skill-evals-`);
+    expect(stdout).not.toContain('/nonexistent-system-tmp');
+  });
+
   test('an input file missing from the project is named, and the dry run still exits 0', () => {
     const run = runSkillEvals({
       args: ['--skill', 'docs-writing', '--models', 'haiku', '--dry-run'],
@@ -244,7 +265,7 @@ describe('skill-evals runs', () => {
     expect(graderCalls.every((call) => call.model === 'opus')).toBe(true);
 
     for (const call of modelCalls) {
-      expect(call.cwd.startsWith(run.project)).toBe(false);
+      expect(call.cwd.startsWith(join(run.project, '.agents', 'local', 'tmp'))).toBe(true);
       expect(call.hasSkill).toBe(true);
       expect(call.hasSkillEvals).toBe(false);
       expect(call.prompt).toContain('<skill name="docs-writing">');
@@ -389,7 +410,7 @@ describe('skill-evals --baseline', () => {
       expect(call.prompt).not.toContain('.claude/skills');
       expect(call.prompt).toContain('Task:');
       expect(call.prompt).toMatch(/^Output directory: .+\/baseline\/outputs$/m);
-      expect(call.cwd.startsWith(run.project)).toBe(false);
+      expect(call.cwd.startsWith(join(run.project, '.agents', 'local', 'tmp'))).toBe(true);
     }
 
     for (const call of runs.filter((candidate) => candidate.arm === 'skill')) {

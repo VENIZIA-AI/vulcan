@@ -1,0 +1,17 @@
+{
+  "skill_name": "retro",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "The agent edited a file it was told not to touch, twice this week. Run a retro and fix it.",
+      "expected_output": "Looks for the evidence itself (the commits, any session record in the project) and, where none is found, says plainly that the evidence is missing instead of inventing findings, ties every finding it does make to a source, classifies before proposing and prefers a mechanical check or a failing test over another sentence of rule, presents ranked candidates and applies nothing until the owner picks",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "Run a retro on today's round of work.",
+      "expected_output": "Reads the commits and review findings of the round, checks the previous retro's action items against the commits or says no earlier retro exists, keeps what was found clean separate from what could not be checked for lack of evidence, says nothing, the rule exists, for a lapse on a rule that was already loaded, and does not add a rule or change a skill without the owner's pick",
+      "files": []
+    }
+  ]
+}
