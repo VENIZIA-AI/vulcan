@@ -5,14 +5,23 @@ const REFUSAL = [
   'Pass the flags instead (for example --agents claude,omp; see --help of the command), or set TERM=dumb to keep the plain line questions.',
 ].join('\n');
 
+/** The command was given piped lines where a menu needs key presses; the way out is already printed. */
+export class PipedInputRefusal extends Error {}
+
 /**
  * A keyboard in raw mode sends CR for Enter, never LF. LF means the answers were piped in (a script
  * feeding a pty), and a menu would wait for a key that never comes. So while a menu is open, the first
- * LF restores the terminal and ends the command with the way out: a refusal, not a hang.
+ * LF restores the terminal, prints the way out and ends the menu with a `PipedInputRefusal`: a
+ * refusal, not a hang. It is thrown, not `process.exit`, so the `finally` blocks of the flow run (the
+ * scratch folder of a preset is removed) and the router turns it into exit code 1.
  */
 export const guardAgainstPipedLines = async <TResult>(
   run: () => Promise<TResult>,
 ): Promise<TResult> => {
+  let refuseMenu: (error: PipedInputRefusal) => void = () => {};
+  const refused = new Promise<never>((_resolve, reject) => {
+    refuseMenu = reject;
+  });
   const refuse = (chunk: Buffer | string): void => {
     const bytes = typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
 
@@ -26,13 +35,13 @@ export const guardAgainstPipedLines = async <TResult>(
 
     process.stdout.write(SHOW_CURSOR);
     process.stderr.write(`\n${REFUSAL}\n`);
-    process.exit(1);
+    refuseMenu(new PipedInputRefusal(REFUSAL));
   };
 
   process.stdin.on('data', refuse);
 
   try {
-    return await run();
+    return await Promise.race([run(), refused]);
   } finally {
     process.stdin.off('data', refuse);
   }

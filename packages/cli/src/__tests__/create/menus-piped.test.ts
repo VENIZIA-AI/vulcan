@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { driveTerminal, KEYS } from '../terminal.helper.ts';
@@ -38,16 +38,19 @@ describe.skipIf(!hasScript)('a menu that is fed piped lines stops instead of wai
 
   test('a text prompt: the typed name followed by LF stops the command, nothing is written', async () => {
     const parent = createProject({ files: {} });
+    const tmp = createProject({ files: {} });
     const result = await driveTerminal({
       args: ['init', '--preset', BACKEND],
       cwd: parent,
-      env: ENV,
+      env: { ...ENV, TMPDIR: tmp },
       steps: [{ waitFor: 'Project name', send: `my-product${LF}` }],
     });
 
     expect(result.code).toBe(1);
     expect(result.plain).toContain('reads key presses, not lines');
     expect(existsSync(join(parent, 'my-product'))).toBe(false);
+    // The refusal ends the flow through its `finally`: the scratch folder of the preset is gone.
+    expect(readdirSync(tmp).filter(name => name.startsWith('vulcan-preset-'))).toEqual([]);
   });
 
   test('a real Enter (CR) still works, and so does TERM=dumb with piped lines', async () => {
