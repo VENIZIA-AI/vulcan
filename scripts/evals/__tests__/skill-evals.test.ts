@@ -23,7 +23,11 @@ const args = process.argv.slice(2);
 const prompt = await Bun.stdin.text();
 const model = args[args.indexOf('--model') + 1];
 const isGrader = args.includes('--json-schema');
-const isTargeted = process.env.FAKE_CLAUDE_MODEL === undefined || process.env.FAKE_CLAUDE_MODEL === model;
+const isBaselineCall = isGrader ? process.cwd().endsWith('/baseline') : !prompt.includes('<skill name=');
+const arm = isBaselineCall ? 'baseline' : 'skill';
+const isTargeted =
+  (process.env.FAKE_CLAUDE_MODEL === undefined || process.env.FAKE_CLAUDE_MODEL === model) &&
+  (process.env.FAKE_CLAUDE_ARM === undefined || process.env.FAKE_CLAUDE_ARM === arm);
 const mode = isTargeted ? (process.env.FAKE_CLAUDE_MODE ?? 'pass') : 'pass';
 
 appendFileSync(
@@ -32,6 +36,7 @@ appendFileSync(
     args,
     model,
     isGrader,
+    arm,
     cwd: process.cwd(),
     hasSkill: existsSync('.claude/skills/docs-writing/SKILL.md'),
     hasSkillEvals: existsSync('.claude/skills/docs-writing/evals'),
@@ -89,6 +94,7 @@ interface IFakeCall {
   args: string[];
   model: string;
   isGrader: boolean;
+  arm: 'skill' | 'baseline';
   cwd: string;
   hasSkill: boolean;
   hasSkillEvals: boolean;
@@ -325,6 +331,126 @@ describe('skill-evals runs', () => {
     expect(grade.reasons[0]).toStartWith('grader output is malformed');
     expect(run.stdout).toMatch(/skill-evals: 0\/haiku FAIL \d+\.\ds - grader output is malformed/);
     expect(existsSync(join(run.out, 'docs-writing', 'report.md'))).toBe(true);
+  });
+});
+
+describe('skill-evals --baseline', () => {
+  const baselineArgs = ['--skill', 'docs-writing', '--models', 'haiku', '--baseline'];
+
+  test('runs both arms: only the skill arm directory lacks baseline, each arm keeps its own files', () => {
+    const run = runSkillEvals({ args: baselineArgs });
+    const skillDirectory = join(run.out, 'docs-writing', '0', 'haiku');
+    const baselineDirectory = join(skillDirectory, 'baseline');
+    const runs = run.calls.filter((call) => !call.isGrader);
+
+    expect(run.code).toBe(0);
+    expect(runs.filter((call) => call.arm === 'skill')).toHaveLength(2);
+    expect(runs.filter((call) => call.arm === 'baseline')).toHaveLength(2);
+    expect(run.calls.filter((call) => call.isGrader)).toHaveLength(4);
+    expect(existsSync(join(skillDirectory, 'baseline'))).toBe(true);
+    expect(existsSync(join(skillDirectory, 'outputs', 'philosophy.md'))).toBe(true);
+    expect(existsSync(join(skillDirectory, 'outputs', 'baseline'))).toBe(false);
+
+    for (const file of ['run.json', 'grade.json', 'response.json', 'grader-response.json']) {
+      expect(existsSync(join(baselineDirectory, file))).toBe(true);
+    }
+
+    expect(existsSync(join(baselineDirectory, 'outputs', 'philosophy.md'))).toBe(true);
+    expect(readJson({ file: join(baselineDirectory, 'run.json') }).isBaseline).toBe(true);
+    expect(readJson({ file: join(skillDirectory, 'run.json') }).isBaseline).toBeUndefined();
+    expect(run.stdout).toContain('skill-evals: ran 0/haiku/baseline');
+    expect(run.stdout).toContain('skill-evals: passed 2 of 2');
+    expect(run.stdout).toContain(
+      'skill-evals: haiku - skill passed 2 of 2, baseline passed 2 of 2',
+    );
+  });
+
+  test('the baseline arm has no skill installed and no skill text in its prompt; the skill arm keeps both', () => {
+    const run = runSkillEvals({ args: baselineArgs });
+    const runs = run.calls.filter((call) => !call.isGrader);
+
+    for (const call of runs.filter((candidate) => candidate.arm === 'baseline')) {
+      expect(call.hasSkill).toBe(false);
+      expect(call.prompt).not.toContain('<skill name=');
+      expect(call.prompt).not.toContain('.claude/skills');
+      expect(call.prompt).toContain('Task:');
+      expect(call.prompt).toMatch(/^Output directory: .+\/baseline\/outputs$/m);
+      expect(call.cwd.startsWith(run.project)).toBe(false);
+    }
+
+    for (const call of runs.filter((candidate) => candidate.arm === 'skill')) {
+      expect(call.hasSkill).toBe(true);
+      expect(call.prompt).toContain('<skill name="docs-writing">');
+    }
+  });
+
+  test('the report has a skill and a baseline column and a line per model', () => {
+    const run = runSkillEvals({
+      args: ['--skill', 'docs-writing', '--models', 'haiku,sonnet', '--baseline'],
+    });
+    const report = readFileSync(join(run.out, 'docs-writing', 'report.md'), 'utf8');
+
+    expect(report).toContain('| Eval | Model | Skill | Baseline |');
+    expect(report).toMatch(/\| 0 \| haiku \| pass \| pass \| \d+\.\ds \|/);
+    expect(report).toContain('- haiku: skill passed 2 of 2, baseline passed 2 of 2');
+    expect(report).toContain('- sonnet: skill passed 2 of 2, baseline passed 2 of 2');
+  });
+
+  test('a failing baseline with a passing skill arm exits 0 and shows FAIL in the baseline column', () => {
+    const run = runSkillEvals({
+      args: baselineArgs,
+      env: { FAKE_CLAUDE_MODE: 'verdict-fails', FAKE_CLAUDE_ARM: 'baseline' },
+    });
+    const report = readFileSync(join(run.out, 'docs-writing', 'report.md'), 'utf8');
+
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain('skill-evals: 0/haiku/baseline FAIL');
+    expect(run.stdout).toContain(
+      'skill-evals: haiku - skill passed 2 of 2, baseline passed 0 of 2',
+    );
+    expect(report).toMatch(/\| 0 \| haiku \| pass \| FAIL \|/);
+  });
+
+  test('a failing skill arm exits 1 even when the baseline passes', () => {
+    const run = runSkillEvals({
+      args: baselineArgs,
+      env: { FAKE_CLAUDE_MODE: 'verdict-fails', FAKE_CLAUDE_ARM: 'skill' },
+    });
+    const report = readFileSync(join(run.out, 'docs-writing', 'report.md'), 'utf8');
+
+    expect(run.code).toBe(1);
+    expect(run.stdout).toContain('skill-evals: passed 0 of 2');
+    expect(report).toMatch(/\| 0 \| haiku \| FAIL \| pass \|/);
+  });
+
+  test('without --baseline there is no baseline directory and the report keeps its shape', () => {
+    const run = runSkillEvals({ args: ['--skill', 'docs-writing', '--models', 'haiku'] });
+
+    expect(existsSync(join(run.out, 'docs-writing', '0', 'haiku', 'baseline'))).toBe(false);
+    expect(run.calls.every((call) => call.arm === 'skill')).toBe(true);
+    expect(readFileSync(join(run.out, 'docs-writing', 'report.md'), 'utf8')).toContain(
+      '| Eval | Model | Result | Duration | First reason |',
+    );
+  });
+
+  test('--dry-run plans both arms and counts the real calls, runs plus grader calls', () => {
+    const run = runSkillEvals({
+      args: ['--skill', 'docs-writing', '--models', 'haiku,sonnet', '--baseline', '--dry-run'],
+    });
+
+    expect(run.code).toBe(0);
+    expect(run.stdout).toContain(
+      'skill-evals: docs-writing - 2 evals x 2 models = 4 skill runs + 4 baseline runs, graded by opus',
+    );
+    expect(run.stdout).toContain(
+      `skill-evals: run 0/haiku/baseline -> ${run.out}/docs-writing/0/haiku/baseline`,
+    );
+    expect(run.stdout).toContain(`--add-dir ${run.out}/docs-writing/0/haiku/baseline/outputs`);
+    expect(run.stdout).toContain(
+      'skill-evals: 16 real claude calls (8 runs + 8 grader calls), baseline included',
+    );
+    expect(run.calls).toEqual([]);
+    expect(existsSync(run.out)).toBe(false);
   });
 });
 

@@ -1,0 +1,17 @@
+{
+  "skill_name": "fix-a-bug",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "A function in this repository sometimes returns the wrong value for one input and I do not know why. Find and fix it.",
+      "expected_output": "Builds and runs a red-capable, deterministic, fast command that reproduces the failure before any theory; minimises it; lists three to five ranked falsifiable hypotheses and shows them; changes one variable at a time; writes a regression test that is red before the fix and green after; removes any tagged debug output; says what was ruled out; commits nothing",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "The page renders blank on a phone but fine on my laptop. Fix it.",
+      "expected_output": "Reproduces the bug in a real browser at a mobile width before reading code for a cause; builds a loop an agent can rerun; does not guess a cause first; writes the regression check at a seam that reproduces the real pattern, or says plainly that no correct seam exists",
+      "files": []
+    }
+  ]
+}

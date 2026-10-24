@@ -54,7 +54,11 @@ describe.skipIf(!hasScript)('vulcan init asks with menus in a terminal', () => {
       args: ['init', '--preset', BACKEND],
       cwd: parent,
       env: ENV,
-      steps: [...initSteps, { waitFor: WRITE, send: KEYS.ENTER }],
+      steps: [
+        ...initSteps,
+        { waitFor: WRITE, send: KEYS.ENTER },
+        { waitFor: 'Tell VULCAN how you like to work', send: `n${KEYS.ENTER}` },
+      ],
     });
     const root = join(parent, 'my-product');
 
@@ -115,6 +119,7 @@ describe.skipIf(!hasScript)('the preset is picked or typed when --preset is miss
         { waitFor: 'Shared code folder', send: KEYS.ENTER },
         { waitFor: 'Package scope', send: KEYS.ENTER },
         { waitFor: WRITE, send: KEYS.ENTER },
+        { waitFor: 'Tell VULCAN how you like to work', send: `n${KEYS.ENTER}` },
       ],
     });
 

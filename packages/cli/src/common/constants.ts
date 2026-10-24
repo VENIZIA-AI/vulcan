@@ -6,6 +6,7 @@ export class VulcanCommands {
   static readonly DOCTOR = 'doctor';
   static readonly UPGRADE = 'upgrade';
   static readonly CLEAN = 'clean';
+  static readonly PROFILE = 'profile';
   static readonly X = 'x';
   static readonly HELP = 'help';
   static readonly VERSION = 'version';
@@ -17,6 +18,7 @@ export class VulcanCommands {
     this.DOCTOR,
     this.UPGRADE,
     this.CLEAN,
+    this.PROFILE,
     this.X,
     this.HELP,
     this.VERSION,

@@ -1,0 +1,23 @@
+{
+  "skill_name": "plan-a-change",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Plan this change, do not start it: add a retry option to the project's HTTP client helper so a request is retried on a network error. Show me the plan.",
+      "expected_output": "Ends with the plan and starts no work; restates the goal in the user's words and says what will not be done; looks facts up instead of asking them; asks open decisions in one numbered round, each with a recommended answer; the card has the goal verbatim, claims each with a named probe (test, cli, read and so on) and an out-of-scope line and a docs impact line; names the lane and why; slices are vertical with one behaviour and one seam each",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "Rename one exported function across the whole repository and every caller. Plan it, do not do it.",
+      "expected_output": "Picks the larger lane when two fit; plans an expand, migrate-in-batches, contract sequence instead of one sweep; each batch is a slice with its own proof command; the docs slice sits next to the code slices; no work starts and the turn ends on the plan",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "We need to add a new third-party dependency for date parsing. Plan the change, do not install anything.",
+      "expected_output": "Treats the new dependency as a design-pass trigger: records the decision with the simpler alternative rejected and why (for example the runtime's own date handling), names what is deferred with a reason, keeps Open empty or names who resolves each item, installs nothing",
+      "files": []
+    }
+  ]
+}

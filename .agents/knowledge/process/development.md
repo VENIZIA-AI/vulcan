@@ -38,6 +38,7 @@ make skill-evals-plan SKILL=docs-writing PROJECT=../ignis
 make skill-evals SKILL=docs-writing PROJECT=../ignis MODELS=haiku,sonnet   # real runs
 ```
 
+- `--baseline` (in `ARGS`) also runs every case with the skill NOT installed and not in the prompt, grades it the same way, and reports both arms; the exit code follows the skill arm only (a baseline is expected to do worse). A real run doubles the calls.
 - `scripts/evals/skill-evals.ts` (core in `scripts/evals/skill-evals-core.ts`). `PROJECT` is the checkout the
   evals' `files` live in; it defaults to this repository. A missing input file stops a real run with
   exit 2 before any call. Flags: `--grader` (default `opus`), `--out`, `--timeout` (seconds, default

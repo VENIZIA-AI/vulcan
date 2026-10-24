@@ -59,6 +59,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Presets', link: '/references/presets' },
       { text: 'Interactive prompts', link: '/references/prompts' },
       { text: 'Coding agents', link: '/references/agents' },
+      { text: 'Shipped skills', link: '/references/skills' },
     ],
   },
   {
@@ -71,6 +72,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'agents', link: '/references/commands/agents' },
       { text: 'doctor', link: '/references/commands/doctor' },
       { text: 'clean', link: '/references/commands/clean' },
+      { text: 'profile', link: '/references/commands/profile' },
     ],
   },
   { text: 'Rules', items: [{ text: 'Base rules and slots', link: '/references/rules' }] },
