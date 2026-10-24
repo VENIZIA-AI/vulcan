@@ -37,6 +37,10 @@ describe('a test run leaves no temp directory behind', () => {
   for (const target of [
     { pkg: 'atlas', file: 'src/__tests__/common/project.test.ts' },
     { pkg: 'atlas', file: 'src/__tests__/common/project-config.test.ts' },
+    // The files that make their directories through sources/source-repo.helper.ts.
+    { pkg: 'atlas', file: 'src/__tests__/sources/refs.test.ts' },
+    { pkg: 'atlas', file: 'src/__tests__/sources/installed.test.ts' },
+    { pkg: 'atlas', file: 'src/__tests__/server/skills.test.ts' },
     { pkg: 'okf', file: 'src/__tests__/walk.test.ts' },
   ]) {
     test(`${target.pkg}: ${target.file}`, () => {
