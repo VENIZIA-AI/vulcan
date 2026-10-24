@@ -1,6 +1,6 @@
 ---
 name: knowledge-sync
-description: Re-syncs a project's OKF knowledge bundle against its source code - verifies the curated concepts whose code changed since the last sync (delta) or every concept (full), applies the confirmed fixes and logs the sync. Use when the user asks to sync knowledge, refresh the knowledge bundle, audit concepts against code, or run a periodic knowledge audit.
+description: Re-syncs the OKF knowledge bundle against the source code, verifying concepts whose code changed (delta) or all of them (full) and applying the confirmed fixes. Use when asked to sync knowledge, refresh the bundle, audit concepts against code or run a periodic audit.
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, Workflow
 ---
@@ -10,6 +10,9 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, Workflow
 The generated layer (`vulcan x okf gen`) heals itself; curated concepts stay true only when someone
 re-reads the code. Code is ground truth - never fix a concept from docs, `AGENTS.md` or memory. Every
 finding cites a `file:line` witness. Nothing is committed: the user reviews the diff.
+
+This skill is the periodic audit, run when asked or on a schedule - not once per change. The facts a
+single change alters are updated by the change itself (`build-a-feature` step 7).
 
 ## Requirements
 

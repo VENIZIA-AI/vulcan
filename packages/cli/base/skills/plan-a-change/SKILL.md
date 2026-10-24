@@ -52,7 +52,7 @@ Done when no decision is open.
 
 ## 3. Write the card
 
-Sections, claims, probes and the rules of the card are in [references/spec-card.md](references/spec-card.md).
+Sections, claims and the rules of the card are in [references/spec-card.md](references/spec-card.md); the probe kinds and the evidence each claim type needs are in `node_modules/@venizia/vulcan/base/references/evidence.md`, and how to test them in `node_modules/@venizia/vulcan/base/references/testing.md`.
 In short: **Goal** (verbatim), **Out of scope**, **Claims** (each with a probe that would show it
 false), **Anti-claims**, **Seams**, **Docs impact**, **Open**, **Decisions**. Omit a section that is
 empty, except Goal and Claims. A claim with no nameable probe goes to Open, not Claims.
@@ -62,8 +62,8 @@ Done when every claim has a probe and **Open** is empty.
 ## 4. Design pass
 
 Lane L, or any of: a new public API, a cross-package change, auth or security, a data model, a new
-dependency, a new abstraction. The method is in [references/design-pass.md](references/design-pass.md):
-write only the decisions where two implementers could choose differently, the alternative rejected and
+dependency, a new abstraction. The method is in `node_modules/@venizia/vulcan/base/references/design-pass.md`:
+write only the decisions where two implementers could choose differently (the subagent brief for "design it twice" is in `node_modules/@venizia/vulcan/base/references/delegation-brief.md`), the alternative rejected and
 why, and what is deferred and why. A new dependency or abstraction needs one line: "simpler alternative
 rejected because ...".
 

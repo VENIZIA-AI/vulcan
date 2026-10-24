@@ -1,6 +1,6 @@
 ---
 name: docs-writing
-description: Reader-first writing method for ALL of the project's documentation. Use when you write or edit anything a human will read - wiki pages, READMEs, changelogs, references, guides, the knowledge bundle (.agents/knowledge), or when asked to "document" a feature, even when the request never says "docs", and when reviewing or simplifying existing documentation.
+description: Reader-first writing method for all documentation. Use when you write or edit anything a human will read (wiki pages, READMEs, changelogs, references, guides, the knowledge bundle), when asked to document a feature, or to simplify existing docs.
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 ---
@@ -32,7 +32,7 @@ Two questions classify any page (the Diataxis compass):
 | facts (knowing) | work | **Reference** |
 | understanding (thinking) | study | **Concept / explanation** |
 
-Each type has a fixed section order and hard rules. Read `references/page-anatomy.md` before structuring the page - it has the five skeletons (tutorial, how-to, reference, concept, changelog) and 14 pass/fail structure rules.
+A document an agent reads (a skill, a rules file, `AGENTS.md`) follows the same method with different costs: see `references/agent-documents.md`. Each type has a fixed section order and hard rules. Read `references/page-anatomy.md` before structuring the page - it has the five skeletons (tutorial, how-to, reference, concept, changelog) and 14 pass/fail structure rules.
 
 The rules that kill the most density, apply them everywhere:
 

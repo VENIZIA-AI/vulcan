@@ -74,7 +74,7 @@ Done when one hypothesis is confirmed by a loop result, and the others are ruled
    (V-B-06).
 3. Run the test (green), then the loop, then the project's gates.
 
-If no correct seam exists for a regression test, that is itself the finding: report it, do not write a
+How a test is kept honest, and what to mock, is in `node_modules/@venizia/vulcan/base/references/testing.md`. If no correct seam exists for a regression test, that is itself the finding: report it, do not write a
 test that cannot fail. A test that passes before the fix tests nothing.
 
 ## 6. Clean up and report
