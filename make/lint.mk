@@ -3,11 +3,11 @@
 # Each package lints itself, from its own .configs/lints/ and with its own tools (its node_modules/.bin); `bun fmt` formats with the root bunfig.toml.
 # oxlint owns the rules, ESLint runs only naming-convention (oxlint has no port yet), bun fmt formats.
 LINT_PKG_TARGETS := $(addprefix lint-,$(PACKAGES))
-FMT_PKG_TARGETS := $(addprefix fmt-,$(PACKAGES))
+FIX_PKG_TARGETS := $(addprefix lint-fix-,$(PACKAGES))
 TYPECHECK_PKG_TARGETS := $(addprefix typecheck-,$(PACKAGES))
 
-.PHONY: lint lint-fix lint-all lint-packages lint-scripts lint-files project-names-check fmt-packages fmt-files \
-        typecheck typecheck-packages $(LINT_PKG_TARGETS) $(FMT_PKG_TARGETS) $(TYPECHECK_PKG_TARGETS)
+.PHONY: lint lint-fix lint-all lint-packages lint-scripts lint-files project-names-check lint-fix-packages fmt-files \
+        typecheck typecheck-packages $(LINT_PKG_TARGETS) $(FIX_PKG_TARGETS) $(TYPECHECK_PKG_TARGETS)
 
 lint: lint-packages
 	@echo "lint: done"
@@ -19,13 +19,13 @@ lint-packages: $(LINT_PKG_TARGETS)
 
 # The library target set (build, typecheck, lint, lint-fix, test, clean): `lint-fix` is the root fix
 # target in all three repos, it applies the fixes and the format to the packages and to the root files.
-lint-fix: fmt-packages fmt-files
+lint-fix: lint-fix-packages fmt-files
 
 typecheck: typecheck-packages
 
 typecheck-packages: $(TYPECHECK_PKG_TARGETS)
 
-fmt-packages: $(FMT_PKG_TARGETS)
+lint-fix-packages: $(FIX_PKG_TARGETS)
 
 # Static pattern rules: make skips implicit-rule search for .PHONY targets, so a plain `lint-%`
 # would never match.
@@ -33,8 +33,8 @@ $(LINT_PKG_TARGETS): lint-%:
 	@echo "lint: packages/$*"
 	@$(MAKE) --no-print-directory -C packages/$* lint
 
-$(FMT_PKG_TARGETS): fmt-%:
-	@$(MAKE) --no-print-directory -C packages/$* fmt
+$(FIX_PKG_TARGETS): lint-fix-%:
+	@$(MAKE) --no-print-directory -C packages/$* lint-fix
 
 $(TYPECHECK_PKG_TARGETS): typecheck-%:
 	@echo "typecheck: packages/$*"

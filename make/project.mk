@@ -33,7 +33,7 @@ include $(dir $(lastword $(MAKEFILE_LIST)))fmt.mk
 # folder and refuses '..': a config in .configs/ cannot ignore package paths itself.
 LINT_IGNORE := $(foreach pattern,$(call IGNORE_LINES,.configs/lints/.ignore),--ignore-pattern $(pattern))
 
-.PHONY: build typecheck clean rebuild lint lint-fix fmt
+.PHONY: build typecheck clean rebuild lint lint-fix
 
 # tsconfig.json covers the tests too, so a broken test fails here, before anything is emitted.
 typecheck:
@@ -68,10 +68,8 @@ lint:
 	@$(BIN)/eslint -c .configs/lints/eslint.config.mjs $(LINT_IGNORE) .
 	@bun fmt $(BUN_FMT_FLAGS) --check $(FMT_GLOB) $(FMT_IGNORE)
 
-# The library target set is build, typecheck, lint, lint-fix, test, clean; `fmt` is the same as `lint-fix`.
-lint-fix: fmt
-
-fmt:
+# The library target set is build, typecheck, lint, lint-fix, test, clean.
+lint-fix:
 	@$(BIN)/oxlint -c .configs/lints/oxlint.config.mts --fix $(LINT_IGNORE) .
 	@$(BIN)/eslint -c .configs/lints/eslint.config.mjs --fix $(LINT_IGNORE) .
 	@bun fmt $(BUN_FMT_FLAGS) $(FMT_GLOB) $(FMT_IGNORE)
