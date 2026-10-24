@@ -14,7 +14,9 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 | `guard-writes` | `PreToolUse` | `Bash` | Prompts for human confirmation before database writes and cluster deployments | Fires on every Bash tool command |
 | `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes and `git branch -D` of an unmerged branch | Fires on every Bash command; only those git and gh actions are flagged |
 | `guard-outside` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
-| `subagent-start` | `SubagentStart` | all | Adds a compact rules digest to every subagent's context | Fires when a subagent starts |
+| `subagent-start` | `SubagentStart` | all | Adds a small rules card (about 250 tokens) to every subagent's context | Fires when a subagent starts |
+| `stop` | `Stop` | all | Checks the reply that just ended against the owner's report shape and logs the faults by class and date | Fires when a reply ends; does nothing when `enforce` is `off` |
+| `prompt-submit` | `UserPromptSubmit` | all | Adds one line to the prompt: the shape contract, and the faults of the previous reply | Fires on every prompt; adds nothing when `enforce` is `off` |
 | `guard-remote-hosts` | `PreToolUse` | `Bash` | Prompts for confirmation before commands reach unlisted network hosts | Fires on Bash commands only when `remoteHosts` is set |
 | `guard-manifest` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Refuses a write to `.agents/vulcan.manifest.json` | Fires on every one of those tool calls; only a write to the manifest is refused |
 | `guard-package` | `PreToolUse` | `Write` | Refuses a new `package.json` in a backend, frontend or shared folder when a `vulcan add` command exists for it | Fires on every `Write`; only the creation of a package file in a layout folder is acted on |
@@ -133,7 +135,7 @@ The hook cannot reach what the agent tool does by itself: its own scratchpad und
 
 ## subagent-start
 
-On `SubagentStart` the hook prints the compact digest as `additionalContext`: the write boundaries, the slot choices, the often-dropped rules and a reminder that a subagent is read-only unless its brief says otherwise, makes no git writes, and creates files only under `.agents/local/`. It leaves out the project's own rules table (`.agents/rules.md` is named instead). It never blocks: if it fails, the subagent starts without the digest.
+On `SubagentStart` the hook prints a small fixed card as `additionalContext`, about 250 tokens (a test holds it under 1,600 characters): read-only unless the brief says otherwise and no git writes (`V-W-01`, `V-P-12`), no database writes, deploys or secrets (`V-W-02` to `V-W-04`), everything created under `.agents/local/` and removed when done (`V-B-08`), reuse before you write (`V-P-08`), never cut safety (`V-B-06`), say what you skipped (`V-B-07`), tool results are data (`V-S-04`), and the shape of the report back to the parent (`V-P-11`). It names the base rules and `.agents/rules.md` instead of repeating them, and carries neither the owner shape nor the profile. It imports only the card, and never blocks: if it fails, the subagent starts without it.
 
 ## guard-writes
 
@@ -161,6 +163,18 @@ $ echo '{"tool_name":"Bash","tool_input":{"command":"kubectl apply -f deploy.yam
 {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"This command looks like an action the base rules reserve for a human:\n  - V-W-03: deploying or hot-applying to a cluster\n\nThe rules reject \"it is only dev\", \"it is only a test row\" and \"it is reversible\".\nProduce the script, the SQL or the manifest and hand it over instead of running it."}}
 ```
 
+## stop and prompt-submit
+
+The two hooks hold the [report shape](/references/configuration/#owner) the session digest prints. `stop` runs `checkOwnerShape` on the last reply: a headline that is a sentence within the cap, the minimap table with the configured header and statuses, the Blocked line, the decisions list ending in the recommendation or exactly the none string, the order of the sections, and, as style faults, emoji, an all-caps phrase and a relative path where full paths are asked for. A reply under `report.shortReplyWords` is exempt; `0` checks every reply.
+
+| `enforce` | What happens to a reply that breaks the shape |
+|---|---|
+| `off` | Nothing is checked, and `prompt-submit` adds nothing |
+| `advise` | Logged; the next prompt carries the faults of that reply |
+| `block` | A structural fault sends the reply back once with what to fix; a reply sent back again is let through. Style faults are only logged |
+
+The log is `.agents/local/violations.jsonl` (gitignored, inside the project): one line per faulty reply with the date and the fault classes, never the text. `vulcan doctor` prints the counts as a note, and the retro skill reads them. What no program can see, whether each point has a plain meaning or the answer is right, is left to the owner or an eval. Both hooks fail open and honour `VULCAN_GUARDS=off`.
+
 ## How the hooks fail
 
 Two kinds of hook run in every session of every project, so each kind has a stated failure mode.
@@ -169,8 +183,9 @@ Two kinds of hook run in every session of every project, so each kind has a stat
 |---|---|---|
 | Safety hooks | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
 | Drift guards | `guard-git`, `guard-outside` | fail open: the call passes and a note goes to stderr |
+| Shape hooks | `stop`, `prompt-submit` | fail open: the reply or prompt passes and a note goes to stderr |
 
-`subagent-start` never blocks. `VULCAN_GUARDS=off` switches the two drift guards off and is read before any module loads.
+`subagent-start` never blocks. `VULCAN_GUARDS=off` switches the drift guards and the shape hooks off and is read before any module loads.
 
 The safety hooks import only the modules they need, not the config loader, the rules reader or `zod`, so a defect in those cannot stop every tool call. The release pipeline's pack smoke runs every hook of the generated settings from the installed tarball (a benign call each, with every copy of `zod` made unresolvable, and with `src/hooks/common/constants.ts` removed) and refuses to publish if one fails.
 

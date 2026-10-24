@@ -93,6 +93,9 @@ export class OwnerConstants {
     },
   };
   static readonly DEFAULT_HEADLINE_MAX_SENTENCES = 2;
+  /** A reply shorter than this many words (an acknowledgement) is exempt from the shape; 0 checks every reply. */
+  static readonly DEFAULT_SHORT_REPLY_WORDS = 20;
+  static readonly MAX_SHORT_REPLY_WORDS = 200;
   /** A language code: a 2-3 letter primary tag and optional subtags (`en`, `pt-BR`); never a word like `constructor`. */
   static readonly LANGUAGE_PATTERN = /^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i;
   /** A label or a form of address sits inside one line of a digest card: no line breaks, backticks, pipes or quotes. */

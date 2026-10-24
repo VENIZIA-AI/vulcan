@@ -13,6 +13,7 @@ import {
   checkManifest,
   checkLocalSize,
   checkProfile,
+  checkReplyShape,
   checkPrune,
   checkStaleLocal,
   checkHooks,
@@ -84,7 +85,12 @@ export const runDoctorNotes = async (opts: { root: string }): Promise<IViolation
     configFile: relative(opts.root, loaded.file),
   };
 
-  return [...checkAppScripts(context), ...checkAtlasBlock(context), ...checkLocalSize(context)];
+  return [
+    ...checkAppScripts(context),
+    ...checkAtlasBlock(context),
+    ...checkLocalSize(context),
+    ...checkReplyShape(context),
+  ];
 };
 
 /** Warnings: louder than a note, still never a failure - a security gap a project made earlier may carry. */

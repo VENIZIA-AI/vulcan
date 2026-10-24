@@ -6,5 +6,7 @@ export * from './guard-outside.ts';
 export * from './guard-package.ts';
 export * from './guard-writes.ts';
 export * from './session-digest.ts';
+export * from './subagent-card.ts';
+export * from './owner-reply.ts';
 export * from './remote-hosts.ts';
 export * from './shell.ts';

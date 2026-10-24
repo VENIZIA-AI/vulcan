@@ -47,8 +47,8 @@ const shippedHooks = (): IShippedHook[] => {
   );
 };
 
-/** The guards that fail OPEN: drift guards, which pass a call when they cannot run. */
-const FAIL_OPEN = ['guard-git.ts', 'guard-outside.ts'];
+/** The hooks that fail OPEN: the drift guards and the owner-shape hooks, which pass when they cannot run. */
+const FAIL_OPEN = ['guard-git.ts', 'guard-outside.ts', 'stop.ts', 'prompt-submit.ts'];
 const closedHooks = (): IShippedHook[] =>
   shippedHooks().filter((hook) => !FAIL_OPEN.some((name) => hook.command.includes(name)));
 const openHooks = (): IShippedHook[] =>
@@ -85,14 +85,14 @@ describe('the drift guards fail open', () => {
   test('with node_modules absent or bun missing, guard-git and guard-outside pass the call and say so', () => {
     const root = makeRoot();
 
-    expect(openHooks().length).toBe(2);
+    expect(openHooks().length).toBe(4);
 
     for (const hook of openHooks()) {
       const absent = runHook({ command: hook.command, root, stdin: BASH_INPUT('ls') });
       const noBun = runHook({ command: hook.command, root, path: '/nonexistent' });
 
       expect(absent.code, hook.command).toBe(0);
-      expect(absent.stderr).toContain('the call passes');
+      expect(absent.stderr).toMatch(/the (call|reply) passes|the prompt goes through/);
       expect(noBun.code, hook.command).toBe(0);
     }
   });

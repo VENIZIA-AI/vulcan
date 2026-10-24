@@ -1129,3 +1129,33 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
     expect(result.stderr).toContain('  warning [mcp] .mcp.json: the atlas entry is');
   });
 });
+
+describe('the report shape note', () => {
+  test('counts the replies that broke the shape from the log, and says nothing without one', async () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+        '.agents/local/violations.jsonl':
+          '{"date":"2026-10-24","classes":["emoji","blocked-missing"]}\n{"date":"2026-10-25","classes":["emoji"]}\n',
+      },
+    });
+    const quiet = createProject({
+      files: {
+        '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+      },
+    });
+    const notes = (await runDoctorNotes({ root })).filter((note) =>
+      note.file.endsWith('violations.jsonl'),
+    );
+
+    expect(notes).toHaveLength(1);
+    expect(notes[0]?.message).toBe(
+      '2 replies broke the report shape on 2 days (emoji 2, blocked-missing 1); the retro skill turns a pattern into a check',
+    );
+    expect(
+      (await runDoctorNotes({ root: quiet })).filter((note) =>
+        note.file.endsWith('violations.jsonl'),
+      ),
+    ).toEqual([]);
+  });
+});

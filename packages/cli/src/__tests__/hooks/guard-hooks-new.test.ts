@@ -132,7 +132,7 @@ describe('the subagent-start hook', () => {
     files: { '.configs/vulcan.config.ts': CONFIG, '.agents/rules.md': '# r\n' },
   });
 
-  test('adds the compact digest as context: write boundaries and the often-dropped rules, not the project table', async () => {
+  test('adds the small subagent card as context: the gates, not the digest or the project table', async () => {
     const result = await runHook({
       hook: 'subagent-start',
       root,
@@ -142,9 +142,10 @@ describe('the subagent-start hook', () => {
 
     expect(result.code).toBe(0);
     expect(output.hookEventName).toBe('SubagentStart');
-    expect(output.additionalContext).toContain('V-W-02');
-    expect(output.additionalContext).toContain('The rules sessions drop most');
-    expect(output.additionalContext).toContain('no git writes');
+    expect(output.additionalContext).toContain('V-B-08');
+    expect(output.additionalContext).toContain('No git writes');
+    expect(output.additionalContext.length).toBeLessThanOrEqual(1600);
+    expect(output.additionalContext).not.toContain('The rules sessions drop most');
     expect(output.additionalContext).not.toContain("This project's own rules\n");
   });
 });
