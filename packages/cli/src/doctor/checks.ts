@@ -39,6 +39,7 @@ import {
   planSync,
   SyncStatuses,
 } from '../sync/index.ts';
+import { OwnerConstants, profileIsIgnored, readProfile } from '../owner/index.ts';
 import { skillCatalogOf, triggerOf } from '@venizia/vulcan-atlas';
 import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
@@ -994,4 +995,50 @@ export const checkOutsideWorktrees = (opts: ICheckContext): IViolation[] => {
         message: `a git worktree outside the project - move it in: git worktree move '${path}' '${join(boundary, ProjectLayout.LOCAL_DIRECTORY, 'worktrees', basename(path))}'`,
       }),
     );
+};
+
+/** The personal profile: a file that cannot be read is named, and one git tracks is a personal file about to be shared. */
+export const checkProfile = (opts: ICheckContext): IViolation[] => {
+  const read = readProfile({ root: opts.root });
+  const violations: IViolation[] = [];
+
+  if (!read.ok) {
+    violations.push(
+      createViolation({
+        check: DoctorChecks.PROFILE,
+        file: OwnerConstants.PROFILE_FILE,
+        message: `${read.error} - fix it or delete it and run the profile form again`,
+      }),
+    );
+  }
+
+  if (
+    existsSync(join(opts.root, OwnerConstants.PROFILE_FILE)) &&
+    !profileIsIgnored({ root: opts.root })
+  ) {
+    violations.push(
+      createViolation({
+        check: DoctorChecks.PROFILE,
+        file: OwnerConstants.PROFILE_FILE,
+        message:
+          'git does not ignore this personal file - add .agents/local/ to .gitignore (vulcan sync does it)',
+      }),
+    );
+  }
+
+  if (
+    existsSync(join(opts.root, OwnerConstants.PROFILE_FILE)) &&
+    isTracked({ root: opts.root, path: OwnerConstants.PROFILE_FILE })
+  ) {
+    violations.push(
+      createViolation({
+        check: DoctorChecks.PROFILE,
+        file: OwnerConstants.PROFILE_FILE,
+        message:
+          'git tracks this personal file - run: git rm --cached .agents/local/profile.json (and keep .agents/local/ in .gitignore)',
+      }),
+    );
+  }
+
+  return violations;
 };

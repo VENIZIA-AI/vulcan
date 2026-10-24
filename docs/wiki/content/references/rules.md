@@ -102,6 +102,7 @@ Build rules require test-driven workflows, command output verification, zero war
 | `worktrees/<branch>/` | git worktrees (a `/` in the branch name becomes `-`) | its branch is merged or abandoned (`git worktree remove`, then `git worktree prune`) |
 | `clones/` | clones of other repositories read for research | the research that needed them is reported |
 | `cache/` | what atlas fetches; it rebuilds | the user asks |
+| `profile.json` | the developer's own settings (address, language, tone, habits), see [the personal profile](/references/configuration/#the-personal-profile) | the user deletes it |
 | `reports/` | long reports a message points to (V-P-11) | the user deletes them |
 | `prototypes/` | static HTML pages a skill writes | the user deletes them |
 

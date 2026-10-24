@@ -22,7 +22,7 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 ## Session digest
 
 The session-start hook injects rule context into your agent at the start of a session.
-It quotes base write rules (`V-W-*`), slot selections from configuration, and often-dropped rules.
+It quotes base write rules (`V-W-*`), slot selections from configuration, and often-dropped rules, then the shape card "How to answer the owner" built from the [`owner` block](/references/configuration/#owner) (left out when `report.enforce` is `off`) and, when the developer has a [profile](/references/configuration/#the-personal-profile), a short "Working with this person" card.
 
 ```text
 $ echo '{}' | bun node_modules/@venizia/vulcan/base/hooks/session-start.ts

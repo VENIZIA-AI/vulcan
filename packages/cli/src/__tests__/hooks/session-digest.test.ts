@@ -179,3 +179,66 @@ test('the session-start hook prints the digest for CLAUDE_PROJECT_DIR', () => {
   expect(child.exitCode).toBe(0);
   expect(child.stdout.toString()).toContain('this project: `on-user-word`');
 });
+
+describe('the owner cards in the digest', () => {
+  const CONFIG = "export default { rules: { 'V-W-01': 'on-user-word' } };\n";
+
+  test('every session gets the English shape card, with no profile card', async () => {
+    const root = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
+    const digest = await buildSessionDigest({ projectRoot: root });
+
+    expect(digest).toContain('## How to answer the owner');
+    expect(digest).toContain('`Blocked:`');
+    expect(digest).not.toContain('## Working with this person');
+  });
+
+  test('a profile adds its card; a project that sets enforce off drops the shape card', async () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.ts':
+          "export default { rules: { 'V-W-01': 'on-user-word' }, owner: { report: { enforce: 'off' } } };\n",
+        '.agents/local/profile.json': JSON.stringify({
+          schemaVersion: 1,
+          address: { you: 'Sam' },
+          tone: 'terse',
+        }),
+      },
+    });
+    const digest = await buildSessionDigest({ projectRoot: root });
+
+    expect(digest).toContain('## Working with this person');
+    expect(digest).toContain('Address them as "Sam"');
+    expect(digest).not.toContain('## How to answer the owner');
+  });
+
+  test('a subagent digest carries neither card', async () => {
+    const root = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
+    const digest = await buildSessionDigest({ projectRoot: root, compact: true });
+
+    expect(digest).not.toContain('How to answer the owner');
+  });
+
+  test('a readable profile with a hostile language never breaks the digest', async () => {
+    for (const language of ['constructor', '__proto__', 'toString']) {
+      const root = createProject({
+        files: {
+          '.configs/vulcan.config.ts': CONFIG,
+          '.agents/local/profile.json': JSON.stringify({ schemaVersion: 1, language }),
+        },
+      });
+      const digest = await buildSessionDigest({ projectRoot: root });
+
+      expect(digest).toContain('VULCAN rules');
+      expect(digest).toContain('## How to answer the owner');
+      expect(digest).not.toContain('## Working with this person');
+    }
+  });
+
+  test('an unreadable profile is ignored by the digest, not fatal', async () => {
+    const root = createProject({
+      files: { '.configs/vulcan.config.ts': CONFIG, '.agents/local/profile.json': '{ nope' },
+    });
+
+    expect(await buildSessionDigest({ projectRoot: root })).toContain('VULCAN rules');
+  });
+});

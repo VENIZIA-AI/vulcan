@@ -77,6 +77,7 @@ The table below lists all 12 top-level configuration keys:
 | `hooks` | `Array<object>` | `[]` | Custom project event hooks |
 | `digest` | `object` | `{ oftenDropped: [...] }` | Rules printed at session startup |
 | `guard` | `object` | `{ toolOwnedPaths: [] }` | Tool-owned stores the outside-the-project guard allows |
+| `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
 
 ## name
 
@@ -524,6 +525,48 @@ export default {
   },
 } satisfies VulcanConfig;
 ```
+
+## owner
+
+The `owner` object is the project's contract for how an agent answers its owners. Every default is neutral and English; a project changes only what it needs. `vulcan sync` and the session digest print it as the shape card "How to answer the owner".
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `language` | `string` | `'en'` | The language the project's labels are written in, as a code such as `en` or `pt-BR` |
+| `report.shape` | `string[]` | `['headline', 'minimap', 'blocked', 'detail', 'decisions']` | The sections of a reply, in order; any non-empty subset of those five |
+| `report.minimapColumns` | `[string, string, string]` | `['#', 'Task', 'Status']` | The header of the status table |
+| `report.status` | `object` | `done`, `in progress`, `waiting`, `not started`, `blocked`, `dropped` | The words for the six statuses (keys `done`, `doing`, `waiting`, `todo`, `blocked`, `dropped`) |
+| `report.labels` | `object` | `Blocked:`, `Decisions needed`, `none`, `Nothing needed yet.`, `I recommend **{x}**.` | Keys `blocked`, `decisions`, `noBlocker`, `noDecision`, `recommend`; `recommend` must contain `{x}` |
+| `report.headlineMaxSentences` | `number` | `2` | Sentences allowed in the headline, 1 to 5 |
+| `report.absolutePaths` | `boolean` | `true` | Name a file the owner should open by its full path |
+| `report.enforce` | `'off' \| 'advise' \| 'block'` | `'advise'` | How hard the shape is held; `off` prints no shape card. A person's profile may only make it stricter |
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  owner: {
+    report: { shape: ['headline', 'decisions'], headlineMaxSentences: 1 },
+  },
+} satisfies VulcanConfig;
+```
+
+### The personal profile
+
+Each developer has their own settings, in `.agents/local/profile.json` inside the project (gitignored with the rest of `.agents/local/`; nothing is written outside the project). It holds how to address the person, the reply language and its label set, tone, how much detail to report, working habits, and a free line in their own words. The profile changes style and defaults only: it never changes the project's shape or status set, never loosens a base rule, and `enforce` is the stricter of the project's and the person's.
+
+| Field | Meaning |
+|---|---|
+| `language` | Reply language; labels for it come from `labels`, else English |
+| `address.you`, `address.self`, `address.formality` | How to address the person (a name, a pronoun, an honorific or nothing), how the agent refers to itself, `informal` / `neutral` / `formal` |
+| `tone` | `terse`, `neutral` or `friendly` |
+| `reportDetail` | `headline` or `tables` |
+| `habits.askBeforeReversible`, `habits.proposeCommits` | Ask before a reversible choice, or state a default and continue (V-P-10); whether to propose commits |
+| `about`, `codeTaste` | Free text, recorded as written; never scored or used to infer traits |
+| `enforce` | `off`, `advise` or `block`; counts only when stricter than the project's |
+| `labels` | A label set per language code, in the same shape as `report.minimapColumns`, `report.status` and `report.labels` |
+
+Labels and forms of address are one line each (at most 80 characters, no backtick, pipe or quote) because they sit inside a card line; a language is a code such as `en` or `pt-BR`. The file must be a regular file inside the project: a symlink at its place or at `.agents/local` is refused on read and on write. The session digest prints a short "Working with this person" card from it, with the free text cut and quoted as one line. `vulcan doctor` warns when the file cannot be read, when git would pick it up (`git check-ignore` decides, so a later `!` line counts), and when git tracks it. The file is created with mode 0600 and is never read by atlas, telemetry or any network call.
 
 ## guard
 

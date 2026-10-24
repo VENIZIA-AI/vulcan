@@ -19,6 +19,7 @@ export class DoctorChecks {
   static readonly MCP = 'mcp';
   static readonly FORMAT = 'format';
   static readonly LOCAL = 'local';
+  static readonly PROFILE = 'profile';
   static readonly SCHEME_SET = new Set<string>([
     this.CONFIG,
     this.LAYOUT,
@@ -40,6 +41,7 @@ export class DoctorChecks {
     this.MCP,
     this.FORMAT,
     this.LOCAL,
+    this.PROFILE,
   ]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);
