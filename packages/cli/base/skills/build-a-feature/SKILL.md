@@ -27,13 +27,13 @@ Copy it into your reply and tick each box when its criterion holds:
 
 ```
 - [ ] 1. Goal settled        - every open decision answered by the user
-- [ ] 2. Conventions grounded - each layer the feature touches has an atlas hit you quote
+- [ ] 2. Conventions grounded - each layer the feature touches has an atlas hit you quote, and what already exists is listed
 - [ ] 3. Interface approved   - the user said yes to the interface and the seams to test
 - [ ] 4. Slices planned       - each slice names one behaviour, its seam, its files
 - [ ] 5. Slices built         - every slice went red, then green; every import came from `symbol`
 - [ ] 6. Checks green         - typecheck, lint, test, vulcan doctor passed; the real behaviour shown
 - [ ] 7. Knowledge current    - each changed fact is in the bundle
-- [ ] 8. Diff reviewed        - the whole diff read once, findings fixed, summary given
+- [ ] 8. Diff reviewed        - the whole diff read once, findings fixed, summary given with what was skipped
 ```
 
 ## 1. Settle the goal
@@ -62,7 +62,12 @@ A knowledge page under `.agents/knowledge/packages/` is a summary of what a pack
 code is written comes from atlas. When atlas has nothing on a point, tell the user and mark the
 point **unverified**.
 
-Done when each layer has a quoted atlas hit, or is marked unverified.
+Then list what already exists for the feature before you design anything: the code and precedent in
+this repository, what the framework provides (its `symbol` and `search` hits), what the runtime and
+the installed libraries already do. Say, per piece of the feature, "reused: X" or "new: why nothing
+above covers it" (V-P-08).
+
+Done when each layer has a quoted atlas hit, or is marked unverified, and each piece is marked reused or new.
 
 ## 3. Design the interface
 
@@ -92,7 +97,9 @@ For each slice, in order:
    computed independently of the code under test. Run it: it goes **red**, for the reason you expect.
 2. Call `symbol` for each export of the framework or of a workspace package you are about to
    import or call, and use the signature and import path it returns.
-3. Write the smallest code that turns the test **green**. Run it.
+3. Write the smallest code that turns the test **green**: only what the slice needs, nothing for a
+   later need (V-C-11). Keep its validation, error handling, security and data safety (V-B-06). Mark a
+   deliberate shortcut in the code with `// SHORTCUT: <what>, <why>, <revisit when>` (V-B-07). Run it.
 
 A database change is a migration file you write and hand to the user to apply.
 
@@ -117,6 +124,8 @@ Done when the bundle matches the change.
 
 Read the whole diff once, for bugs and for the project's rules. Refactor here, with the tests
 green. Fix what you find, then summarise the change with the checks you ran and their results.
+End the summary with a "Skipped / not checked / shortcuts" line: what you did not run, what you did not
+verify, and every `SHORTCUT:` you added - or the words "none" (V-B-07).
 The user decides when to commit.
 
-Done when the diff is clean and the summary names every check and its result.
+Done when the diff is clean, the summary names every check and its result, and the skipped line is there.

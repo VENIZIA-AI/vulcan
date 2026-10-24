@@ -42,6 +42,7 @@ Write boundaries govern modifications to repository history, database state, dep
 | `V-W-02` | Never write to a database; write migration files and hand over; read-only SELECT permitted. | HARD - guard-writes hook (asks) |
 | `V-W-03` | Never deploy or hot-apply changes like container restarts or production manifests. | HARD - guard-writes hook (asks) |
 | `V-W-04` | Ask before irreversible actions including deleting unowned files, invoking external APIs, or publishing. | SOFT |
+| `V-W-06` | Shared writes follow four action classes: A free, B shared and reversible (needs a word or a standing rule), C hard to reverse (needs the owner's own quoted words naming the action), D never by an agent. A refused relayed approval goes to the owner, never around. | SOFT |
 
 ## Security (S)
 
@@ -70,6 +71,11 @@ Process rules establish reading requirements, design review gates, scope boundar
 | `V-P-05` | Act as a partner: challenge wrong instructions constructively; human decides. | SOFT |
 | `V-P-06` | Maintain scope discipline on the current issue; file discoveries as new issues. | SOFT |
 | `V-P-07` | Take facts about the framework and the project's own packages from atlas, not from memory: `symbol` for an export, `search` for how something works, `version` or `changes` for a release. | SOFT - atlas server instructions and tool descriptions, session-start digest |
+| `V-P-08` | Ask whether it needs to exist at all, then reuse what the repository, the framework, the runtime and the installed libraries already do before writing new code; name what you reused. | SOFT - build-a-feature step 2, session-start digest |
+| `V-P-09` | Start non-trivial work with a card (goal in the user's words, done claims with probes, an anti-claim) and end with a done report; no report, not done. | SOFT |
+| `V-P-10` | Ask all open decisions once, in one numbered round with a recommended answer each; never ask for a fact you can look up. | SOFT |
+| `V-P-11` | Reports lead with the answer, show evidence as a table, and move a long report into a file. | SOFT |
+| `V-P-12` | Delegate mechanical work to a smaller-model subagent, keep judgment, and put the goal, files, "no git writes", report shape and the rules digest in every brief. | SOFT |
 
 ## Build and quality (B)
 
@@ -82,6 +88,9 @@ Build rules require test-driven workflows, command output verification, zero war
 | `V-B-03` | Run commands and read real output before making claims; provide evidence first. | SOFT |
 | `V-B-04` | Never pass tests by deleting cases, skipping checks, or relaxing types. | SOFT |
 | `V-B-05` | Give every app, backend and frontend, the same seven scripts: `server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean`. The work lives in `.configs/builders/` or in `devz` (`devz lint`, `devz lint --fix`, `devz clean`), never in the `package.json` string. An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`; every other config lives in `.configs/{lints,formatters,builders}/`. No `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod`. A library package keeps Makefile targets `build`, `typecheck`, `lint`, `lint-fix`, `test`, `clean`. | SOFT - `vulcan doctor` notes (info only) |
+| `V-B-06` | Saving code never removes validation, error handling, security checks or data safety. | SOFT |
+| `V-B-07` | Say what you skipped or did not check; mark a deliberate shortcut `// SHORTCUT: <what>, <why>, <revisit when>`. | SOFT - build-a-feature step 8 summary, session-start digest |
+| `V-B-08` | Keep scratch work in the session scratch directory and remove it at the end; the done report says so. | SOFT |
 
 ## Code and writing (C)
 
@@ -97,7 +106,7 @@ Code and writing rules define TypeScript standards, parameter limits, naming pat
 | `V-C-08` | Define enumerable strings as constant classes with validation sets; prefix types with T or I. | SOFT |
 | `V-C-09` | Limit comments to constraints code cannot show; avoid dates, history, or restating code. | SOFT |
 | `V-C-10` | Avoid explicit type casts in new code; refine types instead. | SOFT |
-| `V-C-11` | Prioritize simplicity in code and prose; justify complexity with correctness, speed, or safety. | SOFT |
+| `V-C-11` | Prioritize simplicity in code and prose; justify complexity with correctness, speed, or safety. Small means only what the task needs, not golfed. | SOFT |
 | `V-C-12` | Follow existing repository patterns and conventions; never invent a second style. | SOFT |
 | `V-C-13` | Use hyphens instead of dashes; spell brands accurately; keep documentation native to generators. | SOFT - `okf check --strict` (bundle) |
 | `V-C-14` | Use camelCase for types; restrict snake_case to external boundary mappers. | LINT (naming convention) + SOFT |
