@@ -22,4 +22,4 @@ packages: ['@venizia/vulcan']
 
 ## Upgrading
 
-Run `vulcan sync`; nothing else is needed. A project that sets no `owner` key gets the English contract in its digest and nothing else changes. The form that fills the profile in comes in a later change; until then the file can be written by hand.
+Run `vulcan sync`; nothing else is needed. A project that sets no `owner` key gets the English contract in its digest and nothing else changes. [`vulcan profile`](/references/commands/profile) asks the questions and writes the file; `vulcan init` offers it once in a terminal.

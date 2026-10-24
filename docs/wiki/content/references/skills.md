@@ -1,0 +1,30 @@
+---
+title: Shipped skills
+description: The skills VULCAN ships to every project - what each is for, when an agent loads it, and what it never does.
+---
+
+# Shipped skills
+
+`vulcan sync` links these skills into every project, for each agent that reads skills. A project cannot shadow their names (`vulcan doctor` names a clash). Each one has a description an agent reads to decide when to load it, and a body that is loaded only then.
+
+| Skill | Use it when | What it produces |
+|---|---|---|
+| `build-a-feature` | You build, add or implement something, or ask how a feature would be built | A reviewed, tested change, every convention and API looked up in atlas |
+| `plan-a-change` | You plan, scope or spec a change, or the work is more than a small obvious edit | A card the owner approves before any work: goal in their words, claims each with a probe, out of scope, docs impact, and the slices |
+| `fix-a-bug` | Something is broken, throwing, failing, slow or different from what it should do | A fast deterministic way to see the bug fail first, then a fix proven by a regression test |
+| `review-a-change` | You review a change or pull request, or merge work that touches many files, the rules or security | Findings on separate axes (spec, standards, security), each verified against the code and dispositioned |
+| `report-back` | You report, finish a task, ask for approval or pass work on | A done report, an owner status in the project's reply shape, a preview before an action, or a handoff |
+| `docs-update` | You update the wiki or the docs after a change | The page that owns the topic refreshed, the changelog entry, the docs gates green |
+| `docs-writing` | You write or edit anything a human will read | Reader-first prose |
+| `knowledge-sync` | You sync or audit the knowledge bundle against the code | Concepts verified against the code and the confirmed fixes applied |
+
+## What they do not do
+
+- No skill commits, pushes or publishes: git writes follow rule `V-W-01`, and a release follows `V-W-06`.
+- A skill that changes files works only inside the project; scratch goes under `.agents/local/` (`V-B-08`).
+- `plan-a-change` ends on the plan, and `review-a-change` is read-only: a reviewer reports, it does not fix.
+- `report-back` does not restate the reply shape: the session digest carries it, built from the [`owner` block](/references/configuration/#owner) and the developer's [profile](/references/configuration/#the-personal-profile).
+
+## Checking a skill
+
+A skill with `evals/evals.json` can be run against the models that will use it, with and without the skill, from the VULCAN repository: `make skill-evals-plan SKILL=plan-a-change` prints what a run would cost without running anything, and `make skill-evals SKILL=plan-a-change ARGS="--baseline"` runs each case on each model once with the skill and once without it, and reports both. Real runs spend model quota.

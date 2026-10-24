@@ -7,6 +7,7 @@ import { CreateFlags } from '../create/common/index.ts';
 import { createMonorepo } from '../create/init-monorepo.ts';
 import { runBun } from '../create/process.ts';
 import { InitConstants, scaffoldProject } from '../init/index.ts';
+import { offerProfile } from './profile.command.ts';
 
 export const runInitCommand = async (opts: ICommandContext): Promise<number> => {
   if (opts.args.includes(CreateFlags.PRESET)) {
@@ -56,6 +57,8 @@ export const runInitCommand = async (opts: ICommandContext): Promise<number> => 
 
   process.stderr.write('left to do:\n');
   result.todo.forEach((line, index) => process.stderr.write(`  ${index + 1}. ${line}\n`));
+
+  await offerProfile({ root: opts.cwd });
 
   return installCode === ExitCodes.OK ? ExitCodes.OK : ExitCodes.FAILURE;
 };

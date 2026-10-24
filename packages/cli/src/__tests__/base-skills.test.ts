@@ -86,3 +86,91 @@ describe('the shipped skill docs-writing', () => {
     expect(body()).toContain('Be extremely concise. Sacrifice grammar for the sake of concision.');
   });
 });
+
+describe('the shipped agent-work skills', () => {
+  const NAMES = ['plan-a-change', 'report-back', 'review-a-change', 'fix-a-bug'];
+  const read = (name: string, file = 'SKILL.md'): string =>
+    readFileSync(join(SKILLS_DIRECTORY, name, file), 'utf8');
+
+  test.each(NAMES)('%s ships, passes the skill lint and is named like its folder', (name) => {
+    expect(lintSkill({ directory: join(SKILLS_DIRECTORY, name) })).toEqual([]);
+    expect(frontmatterOf({ text: read(name) }).data.name).toBe(name);
+  });
+
+  // A description is context every turn pays for: a trigger, short, and a "Use when" part atlas can read.
+  test.each(NAMES)('%s has a short description with a "Use when" part', (name) => {
+    const description = /^description: (.*)$/m.exec(read(name))?.[1] ?? '';
+
+    expect(description.split(/\s+/).length).toBeLessThanOrEqual(50);
+    expect(description).toContain('Use when');
+    expect(triggerOf({ description }).text.length).toBeGreaterThan(0);
+  });
+
+  test.each(NAMES)('%s has evals with a prompt, an expected output and no project name', (name) => {
+    const text = read(name, 'evals/evals.json');
+    // The wire names stay behind string-literal access (V-C-14).
+    const file: Record<string, unknown> = JSON.parse(text);
+    const cases: Record<string, unknown>[] = Array.isArray(file['evals']) ? file['evals'] : [];
+
+    expect(file['skill_name']).toBe(name);
+    expect(cases.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(cases.map((item) => item['id'])).size).toBe(cases.length);
+
+    for (const item of cases) {
+      expect(String(item['prompt']).length).toBeGreaterThan(20);
+      expect(String(item['expected_output']).length).toBeGreaterThan(40);
+      expect(Array.isArray(item['files'])).toBe(true);
+    }
+
+    expect(text).not.toMatch(PROJECT_NAMES);
+  });
+
+  test('the skills point at each other by their real names', () => {
+    const everything = NAMES.map((name) => read(name)).join('\n');
+
+    for (const reference of [
+      ...everything.matchAll(
+        /`((?:plan-a-change|report-back|review-a-change|fix-a-bug|build-a-feature|docs-update|docs-writing|knowledge-sync))` skill/g,
+      ),
+    ]) {
+      expect(existsSync(join(SKILLS_DIRECTORY, reference[1], 'SKILL.md'))).toBe(true);
+    }
+  });
+
+  test('report-back leaves the owner shape to the digest and names the rules it follows', () => {
+    const text = read('report-back');
+
+    expect(text).toContain('How to answer the owner');
+    expect(text).toContain('V-P-11');
+    expect(text).toContain('V-W-06');
+    expect(text).not.toMatch(/Blocked:|Decisions needed|Nothing needed yet/);
+  });
+
+  test('fix-a-bug builds the loop before any theory', () => {
+    const text = read('fix-a-bug');
+
+    expect(text.indexOf('## 1. Build the loop')).toBeLessThan(text.indexOf('## 3. Hypothesise'));
+    expect(text).toContain('red-capable');
+    expect(text).toContain('regression test');
+  });
+
+  test('review-a-change keeps the axes apart and the reviewer read-only', () => {
+    const text = read('review-a-change');
+
+    expect(text).toContain('never merged');
+    expect(text).toContain('read-only');
+    expect(text).toContain('no citation means no finding');
+  });
+
+  test('plan-a-change ends on the plan and carries its two references', () => {
+    const text = read('plan-a-change');
+
+    expect(text).toContain('A plan ends with the plan');
+    expect(existsSync(join(SKILLS_DIRECTORY, 'plan-a-change', 'references', 'spec-card.md'))).toBe(
+      true,
+    );
+    expect(
+      existsSync(join(SKILLS_DIRECTORY, 'plan-a-change', 'references', 'design-pass.md')),
+    ).toBe(true);
+  });
+});

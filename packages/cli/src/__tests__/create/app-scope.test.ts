@@ -178,6 +178,7 @@ describe.skipIf(!hasScript)(
           { waitFor: 'Shared code folder', send: KEYS.ENTER },
           { waitFor: 'Package scope', send: `@nx-app${KEYS.ENTER}` },
           { waitFor: 'Write these files?', send: KEYS.ENTER },
+          { waitFor: 'Tell VULCAN how you like to work', send: `n${KEYS.ENTER}` },
         ],
       });
 
