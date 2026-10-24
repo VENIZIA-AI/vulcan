@@ -1,12 +1,8 @@
 # The VULCAN monorepo. Each file under make/ holds one job; `make help` lists every target.
 # make/project.mk is not included here: it is the per-package include, used by packages/*/Makefile.
 
-.PHONY: all
-
-# A bare `make` prints the target list; `make all` / `make build` builds.
+# A bare `make` prints the target list; `make build` builds.
 .DEFAULT_GOAL := help
-
-all: build
 
 # Every package directory under packages/. Each per-package target (`<pkg>`, `update-<pkg>`,
 # `lint-<pkg>`, `fmt-<pkg>`, `test-<pkg>`) is generated from this list - add a package here and

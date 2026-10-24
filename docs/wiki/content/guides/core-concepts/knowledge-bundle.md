@@ -36,7 +36,6 @@ The knowledge bundle lives at `.agents/knowledge/` by default:
 | `index.md` | Root bundle entry point | Carries no frontmatter except `okf_version` at root |
 | `<section>/<name>.md` | Curated concepts | Requires YAML frontmatter with a non-empty `type` |
 | `reference/` | Generated reference pages | Derived from source code by `vulcan x okf gen` |
-| `log.md` | Knowledge sync audit log | Dated entries `## YYYY-MM-DD`, newest first |
 
 ## Checking it
 
@@ -81,7 +80,7 @@ It requires the Workflow tool, and `vulcan doctor` must pass before starting.
 
 The skill audits concepts against code, treating source code as ground truth.
 Every finding cites a `file:line` witness.
-The skill logs confirmed changes to `.agents/knowledge/log.md` and does not commit edits.
+The skill reports confirmed changes and does not commit edits.
 
 Before finishing, the skill runs three validation gates:
 

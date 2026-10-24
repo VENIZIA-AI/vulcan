@@ -1,6 +1,6 @@
 {
   "name": "@venizia/vulcan",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "description": "VULCAN - one setup, one workflow for every project: init, sync, doctor, upgrade, and `vulcan x` for the shipped tools. Bun-only.",
   "homepage": "https://github.com/VENIZIA-AI/vulcan/tree/main/packages/cli",
   "bugs": {
@@ -39,7 +39,7 @@
     "access": "public"
   },
   "scripts": {
-    "force-update": "sh ../../scripts/force-update.sh",
+    "force-update": "sh ../../scripts/build/force-update.sh",
     "test": "bun test"
   },
   "dependencies": {

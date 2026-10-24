@@ -14,7 +14,6 @@ import {
   renderAppManifest,
   renderAppsBlock,
   renderKnowledgeIndex,
-  renderLogEntry,
   renderRootManifest,
   renderVulcanConfig,
   replaceAppsBlock,
@@ -399,12 +398,6 @@ describe('workspace planners', () => {
     });
 
     expect(index).toContain('- [core-api](packages/core-api.md) - First line second line');
-  });
-
-  test('a log entry is a dated heading with one bullet', () => {
-    expect(renderLogEntry({ date: '2026-10-20', text: 'Added core-api.' })).toBe(
-      '## 2026-10-20\n\n- Added core-api.\n',
-    );
   });
 
   test('ports: the preferred one when free, the next free otherwise; read from .env.example', () => {

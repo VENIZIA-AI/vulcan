@@ -7,7 +7,7 @@ SKILL_EVALS_ARGS = --skill "$(SKILL)" $(if $(MODELS),--models "$(MODELS)") $(if 
 
 # make skill-evals SKILL=docs-writing PROJECT=../ignis [MODELS=haiku,sonnet] [ARGS="--out .evals"]
 skill-evals:
-	@bun scripts/skill-evals.ts $(SKILL_EVALS_ARGS)
+	@bun scripts/evals/skill-evals.ts $(SKILL_EVALS_ARGS)
 
 skill-evals-plan:
-	@bun scripts/skill-evals.ts --dry-run $(SKILL_EVALS_ARGS)
+	@bun scripts/evals/skill-evals.ts --dry-run $(SKILL_EVALS_ARGS)

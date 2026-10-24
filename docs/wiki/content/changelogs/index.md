@@ -11,6 +11,8 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-24 | [VULCAN 0.3.13: A Menu Fed Piped Lines Leaves No Temp Folder](./2026-10-24-vulcan-0-3-13-menu-refusal-scratch) | Bug Fix |
+| 2026-10-23 | [VULCAN 0.3.13: No More Knowledge log.md](./2026-10-23-vulcan-0-3-13-no-knowledge-log) | Behaviour change |
 | 2026-10-23 | [VULCAN 0.3.12: bun fmt Formats the Project, bunfig.toml [fmt] Replaces the oxfmt Config](./2026-10-23-vulcan-0-3-12-bun-fmt) | Behaviour change |
 | 2026-10-22 | [VULCAN 0.3.11: --scope Gives an App's Package a Scope](./2026-10-22-vulcan-0-3-11-app-scope) | Feature |
 | 2026-10-22 | [VULCAN 0.3.10: The Preset Contract Is vulcan.presets.app and vulcan.presets.lib](./2026-10-22-vulcan-0-3-10-preset-keys) | Breaking |

@@ -52,7 +52,6 @@ Fetching preset @venizia/ardor@latest ...
   created  .configs/vulcan.config.mts
   created  .agents/knowledge/packages/web.md
   created  .agents/knowledge/index.md
-  created  .agents/knowledge/log.md
 bun install v1.4.3 (c6da4a4d3)
 113 packages installed [769.00ms]
   unchanged CLAUDE.md
@@ -120,7 +119,6 @@ Fetching preset @venizia/ignis@latest ...
   created  .configs/vulcan.config.mts
   created  .agents/knowledge/packages/api2.md
   created  .agents/knowledge/index.md
-  created  .agents/knowledge/log.md
 bun install v1.4.3 (c6da4a4d3)
 Checked 239 installs across 278 packages (no changes) [18.00ms]
   unchanged CLAUDE.md
@@ -166,13 +164,12 @@ Fetching preset @venizia/ignis@latest ...
   created  libs/billing/src/services/greeting.service.ts
   created  libs/billing/.configs/lints/oxlint.config.mts
   created  libs/billing/.configs/lints/eslint.config.mjs
-  created  libs/billing/.configs/formatters/oxfmt.config.mts
+  created  libs/billing/.configs/formatters/.ignore
   created  libs/billing/package.json
   created  package.json
   created  .configs/vulcan.config.mts
   created  .agents/knowledge/packages/billing.md
   created  .agents/knowledge/index.md
-  created  .agents/knowledge/log.md
 bun install v1.4.3 (c6da4a4d3)
 Checked 240 installs across 279 packages (no changes) [19.00ms]
   unchanged CLAUDE.md
@@ -224,7 +221,6 @@ The `package.json` it wrote lists dependencies as `catalog:`; the ranges went in
     "@venizia/dev-configs": "catalog:",
     "@venizia/ignis": "catalog:",
     "eslint": "catalog:",
-    "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "typescript": "catalog:"
@@ -284,7 +280,7 @@ The preset says whether it is a backend or a frontend, and that side's folder is
 | `<folder>/<app>/` | The preset's files, with `{{project}}`, `{{app}}`, `{{appPath}}`, `{{devPort}}` and `{{apiUrl}}` filled in, and a generated `package.json` |
 | `package.json` | The folder joins `workspaces` and the preset's versions join `catalog`; an array stays an array, and the catalog stays where the project keeps it (top level or inside `workspaces`) |
 | `.configs/vulcan.config.mts` | The block between `vulcan:apps:start` and `vulcan:apps:end` is read and extended: `layout`, the new `packages` entry, the preset's `atlas` sources. Everything you added outside the markers is untouched and never copied in |
-| `.agents/knowledge/` | A concept for the app, one bullet after the last one under `## Apps` in `index.md` (a section is added when there is none; the rest of the file is yours), a dated line in `log.md` |
+| `.agents/knowledge/` | A concept for the app, one bullet after the last one under `## Apps` in `index.md` (a section is added when there is none; the rest of the file is yours) |
 
 Then it runs `bun install`, `vulcan sync` from the installed CLI, the preset's `checks` in the new app, `vulcan doctor` and `vulcan x okf check --strict`.
 The first failure stops the command, and the files stay for you to inspect.

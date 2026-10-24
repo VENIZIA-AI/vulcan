@@ -23,7 +23,7 @@ test: test-all
 
 test-all: $(TEST_TARGETS) test-scripts
 
-# The root scripts/ (force-update and the release tooling) have their own tests.
+# The root scripts/ (release, checks, build, evals) have their own tests, in each group's __tests__/.
 test-scripts:
 	@bun test scripts $(BUN_TEST_FLAGS)
 
@@ -40,4 +40,4 @@ SMOKE_TARGETS := smoke-atlas smoke-cli
 
 $(SMOKE_TARGETS): smoke-%:
 	@echo "smoke: packages/$*"
-	@bun scripts/pack-smoke-$*.ts
+	@bun scripts/build/pack-smoke-$*.ts

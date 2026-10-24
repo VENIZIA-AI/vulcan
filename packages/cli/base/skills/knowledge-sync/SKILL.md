@@ -26,7 +26,7 @@ Copy it into your reply and tick it off:
 - [ ] 3. Targets built, workflow run
 - [ ] 4. Gaps decided
 - [ ] 5. Gates green (loop until they are)
-- [ ] 6. Log entry written; reported
+- [ ] 6. Reported
 ```
 
 ## 1. Prerequisites
@@ -39,9 +39,10 @@ Copy it into your reply and tick it off:
 
 1. `bun x --no-install vulcan x okf gen`, then `vulcan x okf check --strict` - it must pass before
    anything else, so no verifier chases a fact `gen` fixes.
-2. Anchor the last sync by commit, never by date:
-   `LAST_SYNC=$(git log -1 --format=%H -G '^## [0-9-]+ - knowledge-sync' -- <bundle>/log.md)`.
-   Empty: no sync yet - run `full`, or anchor on the commit that added `<bundle>/index.md`. A bare
+2. Anchor the last sync by commit, never by date: the last commit that touched the bundle,
+   `LAST_SYNC=$(git log -1 --format=%H -- <bundle>)`, and its date `SINCE=$(git log -1 --format=%cs -- <bundle>)`
+   (a label for the workflow). The user may name another commit or date instead - use theirs. Empty:
+   no sync yet - run `full`, or anchor on the commit that added `<bundle>/index.md`. A bare
    `--since=<date>` is wrong: git reads today's date as "now" and returns nothing.
 3. Changed areas: `git log $LAST_SYNC..HEAD --no-merges --name-only --format= -- <package paths> Makefile make/ scripts/ .github/`,
    plus `git diff HEAD --stat` for uncommitted code. Commits that touch only the bundle or `docs/` are
@@ -50,8 +51,8 @@ Copy it into your reply and tick it off:
 
 ## 3. Targets and the workflow
 
-Mode: `delta` by default; `full` when asked (monthly, quarterly, "full") or when the last full sync
-in `log.md` is over 30 days old. Build the targets and run the workflow as
+Mode: `delta` by default; `full` when asked (monthly, quarterly, "full") or when the last commit
+that touched the bundle (`SINCE`) is over 30 days old. Build the targets and run the workflow as
 [references/workflow.md](references/workflow.md) describes - one target per changed area, from the
 area map when the project has one, else from each concept's `resource`.
 
@@ -70,11 +71,8 @@ to it. Never lose a unique fact.
 
 A gate that fails: fix what it names, run all three again. Stop only when all three pass.
 
-## 6. Log and report
+## 6. Report
 
-1. Prepend to `<bundle>/log.md`: `## YYYY-MM-DD - knowledge-sync (<mode>): <summary>` - the
-   `knowledge-sync` word is what the next sync anchors on - then one line of method (verifiers,
-   findings, confirmed, files touched) and bullets for the corrections that change how someone works.
-2. Report in the user's language: gate status and scale first (findings applied, files, claims
-   confirmed), then each notable correction (was -> is, with its witness), new or merged concepts,
-   and anything an applier skipped, with the reason. Do not commit.
+Report in the user's language: gate status and scale first (findings applied, files, claims
+confirmed), then each notable correction (was -> is, with its witness), new or merged concepts, and
+anything an applier skipped, with the reason. Do not commit.

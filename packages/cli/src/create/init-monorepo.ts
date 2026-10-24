@@ -11,7 +11,7 @@ import type {
   IPresetSpec,
   TAppSide,
 } from './common/index.ts';
-import { today, writeFile } from './files.ts';
+import { writeFile } from './files.ts';
 import { recordedPresetOf } from './lib-preset.ts';
 import { renderBunfig } from './bunfig.ts';
 import { renderDockerignore } from './dockerignore.ts';
@@ -36,7 +36,6 @@ import {
   renderAppConcept,
   renderAppManifest,
   renderKnowledgeIndex,
-  renderLogEntry,
   renderRootManifest,
   presetSpecOf,
   renderVulcanConfig,
@@ -195,14 +194,6 @@ const writeMonorepo = (opts: {
       summary: preset.summary,
       presetPackage: packageName,
     }),
-  });
-  writeFile({
-    root,
-    path: '.agents/knowledge/log.md',
-    content: `# ${project} knowledge log\n\n${renderLogEntry({
-      date: today(),
-      text: `created from the ${packageName} ${packageVersion} preset: ${folder}/${app}`,
-    })}`,
   });
 };
 

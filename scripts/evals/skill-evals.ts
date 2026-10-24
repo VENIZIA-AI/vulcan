@@ -2,9 +2,9 @@
  * Runs a shipped skill's evals/evals.json against several models through `claude -p`, grades every
  * run with one grader model, and writes a report. Each run spends real model quota: dry-run first.
  *
- *   bun scripts/skill-evals.ts --skill docs-writing --project ../ignis --dry-run
- *   bun scripts/skill-evals.ts --skill docs-writing --project ../ignis --models haiku,sonnet
- *   bun scripts/skill-evals.ts --skill docs-writing --project ../ignis --out .evals --timeout 600
+ *   bun scripts/evals/skill-evals.ts --skill docs-writing --project ../ignis --dry-run
+ *   bun scripts/evals/skill-evals.ts --skill docs-writing --project ../ignis --models haiku,sonnet
+ *   bun scripts/evals/skill-evals.ts --skill docs-writing --project ../ignis --out .evals --timeout 600
  *
  * Every run works in a scratch copy of the project (no node_modules, .git or symlinks), with the skill
  * installed at .claude/skills/<name>/ and SKILL.md inline in the prompt. The original is never edited.
@@ -45,7 +45,7 @@ import type {
   IVerdict,
 } from './skill-evals-core.ts';
 
-const REPOSITORY_ROOT = resolve(import.meta.dir, '..');
+const REPOSITORY_ROOT = resolve(import.meta.dir, '..', '..');
 
 // Never copied: dependencies, history and other worktrees are large, and a symlink would lead a
 // model's edit out of the scratch copy into the original.

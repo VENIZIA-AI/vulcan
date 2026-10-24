@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
-const PACKAGE_DIRECTORY = resolve(import.meta.dir, '..', 'packages', 'atlas');
+const PACKAGE_DIRECTORY = resolve(import.meta.dir, '..', '..', 'packages', 'atlas');
 const PACKAGE_NAME = '@venizia/vulcan-atlas';
 
 // A registry that refuses at once: the pull's npm symbol step skips instead of reaching npm.

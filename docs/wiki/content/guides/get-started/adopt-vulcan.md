@@ -65,7 +65,6 @@ The project it creates (the files `init` and `sync` wrote, without `node_modules
 ```text
 $ cd my-product && find . -type f -not -path '*/node_modules/*' -not -name bun.lock | LC_ALL=C sort
 ./.agents/knowledge/index.md
-./.agents/knowledge/log.md
 ./.agents/knowledge/packages/core-api.md
 ./.agents/rules.md
 ./.agents/vulcan.local.json
@@ -84,7 +83,7 @@ $ cd my-product && find . -type f -not -path '*/node_modules/*' -not -name bun.l
 ./package.json
 ./services/core-api/.configs/builders/Dockerfile
 ./services/core-api/.configs/builders/compile.ts
-./services/core-api/.configs/formatters/oxfmt.config.mts
+./services/core-api/.configs/formatters/.ignore
 ./services/core-api/.configs/lints/eslint.config.mjs
 ./services/core-api/.configs/lints/oxlint.config.mts
 ./services/core-api/.env.example

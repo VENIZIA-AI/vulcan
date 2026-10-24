@@ -40,7 +40,6 @@ describe('vulcan init --preset', () => {
       '.agents/rules.md',
       '.configs/vulcan.config.mts',
       '.agents/knowledge/index.md',
-      '.agents/knowledge/log.md',
       '.agents/knowledge/packages/core-api.md',
       'services/core-api/package.json',
       'services/core-api/src/index.ts',
@@ -49,6 +48,8 @@ describe('vulcan init --preset', () => {
     ]) {
       expect(existsSync(join(root, path))).toBe(true);
     }
+
+    expect(existsSync(join(root, '.agents/knowledge/log.md'))).toBe(false);
 
     const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 

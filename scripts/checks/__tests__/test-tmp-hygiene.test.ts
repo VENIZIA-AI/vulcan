@@ -2,9 +2,9 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSyncBounded } from './spawn.helper.ts';
+import { spawnSyncBounded } from '../../__tests__/spawn.helper.ts';
 
-const PACKAGES = join(import.meta.dir, '..', '..', 'packages');
+const PACKAGES = join(import.meta.dir, '..', '..', '..', 'packages');
 const roots: string[] = [];
 
 afterAll(() => {

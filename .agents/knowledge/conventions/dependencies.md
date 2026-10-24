@@ -18,4 +18,4 @@ tags: [conventions, dependencies, catalog]
   dependency, never vendored.
 - **No project framework.** No VULCAN package depends on `@venizia/ignis-*`: a shared tool that pins one
   framework release forces it on every consumer and installs a second copy next to IGNIS's own.
-  `scripts/__tests__/no-framework-dependency.test.ts` fails on any such import or declaration.
+  `scripts/checks/__tests__/no-framework-dependency.test.ts` fails on any such import or declaration.

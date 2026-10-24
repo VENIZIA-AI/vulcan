@@ -2,10 +2,10 @@
  * Dispatches the NPM Release workflow for the okf/atlas/cli train, waits for it, and proves what it
  * published - the IGNIS release flow, for a train that releases in one run.
  *
- *   bun scripts/release.ts                     # prerelease, asks first
- *   bun scripts/release.ts --dry-run           # print the plan and every blocker, dispatch nothing
- *   bun scripts/release.ts --bump none --yes   # publish the version already in package.json
- *   bun scripts/release.ts --issue 12          # prefix the release commit with [#12]
+ *   bun scripts/release/release.ts                     # prerelease, asks first
+ *   bun scripts/release/release.ts --dry-run           # print the plan and every blocker, dispatch nothing
+ *   bun scripts/release/release.ts --bump none --yes   # publish the version already in package.json
+ *   bun scripts/release/release.ts --issue 12          # prefix the release commit with [#12]
  */
 import {
   buildDispatchCommand,
