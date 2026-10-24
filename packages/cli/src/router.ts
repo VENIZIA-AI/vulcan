@@ -3,6 +3,7 @@ import { COMMAND_HANDLERS } from './commands/index.ts';
 import { runHelpCommand } from './commands/help.command.ts';
 import { ExitCodes, UpgradeFlags, VulcanCommands } from './common/index.ts';
 import { CreateFlags } from './create/common/index.ts';
+import { PipedInputRefusal } from './ui/keyboard.ts';
 
 const HELP_ALIASES = new Set(['--help', '-h']);
 const VERSION_ALIASES = new Set(['--version', '-v']);
@@ -128,5 +129,14 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
     }
   }
 
-  return handler({ args, cwd: opts.cwd });
+  try {
+    return await handler({ args, cwd: opts.cwd });
+  } catch (error) {
+    // The refusal is already printed; every `finally` between the menu and here has run.
+    if (error instanceof PipedInputRefusal) {
+      return ExitCodes.FAILURE;
+    }
+
+    throw error;
+  }
 };
