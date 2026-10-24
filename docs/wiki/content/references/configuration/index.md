@@ -76,6 +76,7 @@ The table below lists all 12 top-level configuration keys:
 | `claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
 | `hooks` | `Array<object>` | `[]` | Custom project event hooks |
 | `digest` | `object` | `{ oftenDropped: [...] }` | Rules printed at session startup |
+| `guard` | `object` | `{ toolOwnedPaths: [] }` | Tool-owned stores the outside-the-project guard allows |
 
 ## name
 
@@ -520,6 +521,24 @@ import type { VulcanConfig } from '@venizia/vulcan';
 export default {
   digest: {
     oftenDropped: ['V-B-03', 'V-P-06', 'V-W-04'],
+  },
+} satisfies VulcanConfig;
+```
+
+## guard
+
+The `guard` object configures the write guards.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `toolOwnedPaths` | `string[]` | `[]` | Absolute globs, `~` and `$NAME` allowed, of stores a tool in this project manages itself. They extend the built-in list (package manager caches, `$XDG_RUNTIME_DIR`, git config, the agent tool's memory folders); a pattern with an unset variable allows nothing. |
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  guard: {
+    toolOwnedPaths: ['/srv/build-cache/**', '~/.cache/my-tool/**'],
   },
 } satisfies VulcanConfig;
 ```
