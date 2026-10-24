@@ -12,7 +12,7 @@ export {};
 
 try {
   const { buildGuardDecision, inspectCommand, parseHookCommand } =
-    await import('../../src/hooks/index.ts');
+    await import('../../src/hooks/guard-writes.ts');
   const hookCommand = parseHookCommand({ text: await Bun.stdin.text() });
   const hits = hookCommand
     ? inspectCommand({ command: hookCommand.command, cwd: hookCommand.cwd ?? process.cwd() })

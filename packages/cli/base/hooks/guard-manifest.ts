@@ -13,7 +13,7 @@ export {};
 
 try {
   const { buildManifestDecision, inspectManifestWrite, parseManifestHookInput } =
-    await import('../../src/hooks/index.ts');
+    await import('../../src/hooks/guard-manifest.ts');
   const input = parseManifestHookInput({ text: await Bun.stdin.text() });
 
   if (input && inspectManifestWrite({ input })) {

@@ -13,8 +13,9 @@
 export {};
 
 try {
-  const { buildPackageDecision, inspectPackageWrite, parseManifestHookInput } =
-    await import('../../src/hooks/index.ts');
+  const { buildPackageDecision, inspectPackageWrite } =
+    await import('../../src/hooks/guard-package.ts');
+  const { parseManifestHookInput } = await import('../../src/hooks/guard-manifest.ts');
   const input = parseManifestHookInput({ text: await Bun.stdin.text() });
   const verdict = input && inspectPackageWrite({ input });
 

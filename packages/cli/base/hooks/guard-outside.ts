@@ -2,39 +2,45 @@
  * PreToolUse hook on Bash and file writes: asks when a file, worktree, clone or temp file would be
  * created outside the project (V-B-08). Stores a package manager, runtime or the agent tool manage
  * themselves are allowed - a default list, extended by `guard.toolOwnedPaths` in the project config.
- * `TMPDIR` or `mktemp` pointed at the system temp directory is not allowed. `VULCAN_GUARDS=off`
- * switches it off for the session; input it cannot read passes.
+ * `TMPDIR` or `mktemp` pointed at the system temp directory is not allowed.
  *
- * It fails closed: Claude Code blocks a PreToolUse call only on exit 2. The modules load inside the try.
+ * It fails OPEN: it guards against drift, not against an attacker, and a guard that blocks every call
+ * when it breaks costs more than it protects. Input it cannot read, a missing module or an internal
+ * error pass the call with a note on stderr; a project config that cannot be read leaves the default
+ * allowlist. `VULCAN_GUARDS=off` switches it off, read before anything is imported. It imports only
+ * the modules it needs - the config loader (and zod) is loaded on its own, last, and may fail alone.
  */
 
 // A module, so the awaits below are top-level; it has no static import, by design.
 export {};
 
-// Read before anything is imported: a broken install must not take the way out with it.
 if (process.env.VULCAN_GUARDS === 'off') {
   process.exit(0);
 }
 
 try {
-  const {
-    buildToolDecision,
-    GuardDecisions,
-    guardsAreOff,
-    inspectOutside,
-    parseManifestHookInput,
-  } = await import('../../src/hooks/index.ts');
-  const { loadConfig } = await import('../../src/config/index.ts');
+  const { GuardDecisions } = await import('../../src/hooks/common/index.ts');
+  const { buildToolDecision } = await import('../../src/hooks/decision.ts');
+  const { inspectOutside } = await import('../../src/hooks/guard-outside.ts');
+  const { parseManifestHookInput } = await import('../../src/hooks/guard-manifest.ts');
   const input = parseManifestHookInput({ text: await Bun.stdin.text() });
 
-  if (input && !guardsAreOff()) {
+  if (input) {
     const projectRoot = process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd();
-    const loaded = await loadConfig({ root: projectRoot });
-    const hits = inspectOutside({
-      input,
-      projectRoot,
-      toolOwnedPaths: loaded.ok ? loaded.config.guard.toolOwnedPaths : [],
-    });
+    let toolOwnedPaths: string[] = [];
+
+    try {
+      const { loadConfig } = await import('../../src/config/index.ts');
+      const loaded = await loadConfig({ root: projectRoot });
+
+      toolOwnedPaths = loaded.ok ? loaded.config.guard.toolOwnedPaths : [];
+    } catch (error) {
+      console.error(
+        `vulcan: the guard-outside hook could not read the project config (${error instanceof Error ? error.message : String(error)}) - the default allowlist applies`,
+      );
+    }
+
+    const hits = inspectOutside({ input, projectRoot, toolOwnedPaths });
 
     if (hits.length > 0) {
       console.log(
@@ -55,7 +61,6 @@ try {
   }
 } catch (error) {
   console.error(
-    `vulcan: the guard-outside hook failed (${error instanceof Error ? error.message : String(error)}) - blocked; run bun install`,
+    `vulcan: the guard-outside hook failed (${error instanceof Error ? error.message : String(error)}) - the call passes; run bun install`,
   );
-  process.exit(2);
 }

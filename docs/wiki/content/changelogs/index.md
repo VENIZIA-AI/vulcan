@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-25 | [VULCAN 0.4.1: A Release Cannot Ship Hooks That Fail to Load](./2026-10-25-vulcan-0-4-1-hooks-tripwire) | Enhancement |
 | 2026-10-25 | [VULCAN 0.4.1: Guards for Git and for Files Outside the Project, a Digest for Subagents](./2026-10-25-vulcan-0-4-1-guards-and-hooks) | Enhancement |
 | 2026-10-25 | [VULCAN 0.4.1: New Base Rules for How Agents Work](./2026-10-25-vulcan-0-4-1-agent-work-rules) | Enhancement |
 | 2026-10-25 | [VULCAN 0.4.1: atlas Keeps Its Cache Inside the Project](./2026-10-25-vulcan-0-4-1-atlas-cache-in-project) | Behaviour change |
