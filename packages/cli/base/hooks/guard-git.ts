@@ -12,6 +12,11 @@
 // A module, so the awaits below are top-level; it has no static import, by design.
 export {};
 
+// Read before anything is imported: a broken install must not take the way out with it.
+if (process.env.VULCAN_GUARDS === 'off') {
+  process.exit(0);
+}
+
 try {
   const { buildToolDecision, GuardDecisions, guardsAreOff, inspectGit, parseHookCommand } =
     await import('../../src/hooks/index.ts');

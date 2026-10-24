@@ -121,7 +121,7 @@ The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `
 
 `git push -fu`, `git branch -m develop x`, `git update-ref -d refs/heads/develop` and `git push --mirror` are read too. A heredoc body (a commit message passed with `<<'EOF'`) is data and is not read as commands; a body fed to a shell (`bash <<EOF`) is not read at all.
 
-The branch checks run read-only `git` and `gh` queries with a five-second limit; a query that fails or times out lets the command pass. Input the hook cannot read passes too. `VULCAN_GUARDS=off` in the environment switches the guard off for a session.
+The branch checks run read-only `git` and `gh` queries with a five-second limit; a query that fails or times out lets the command pass. Input the hook cannot read passes too. `VULCAN_GUARDS=off` in the environment switches the guard off for a session; it is read before any module is loaded, so it still works when an install is broken and the guard cannot start.
 
 ## guard-outside
 

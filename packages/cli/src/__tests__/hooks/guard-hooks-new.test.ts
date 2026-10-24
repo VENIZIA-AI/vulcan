@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
+import { copyFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { SPAWN_TIMEOUT_MS } from '../spawn.helper.ts';
@@ -146,4 +147,33 @@ describe('the subagent-start hook', () => {
     expect(output.additionalContext).toContain('no git writes');
     expect(output.additionalContext).not.toContain("This project's own rules\n");
   });
+});
+
+describe('the kill switch does not depend on the install being healthy', () => {
+  test.each(['guard-git', 'guard-outside'])(
+    '%s exits 0 with VULCAN_GUARDS=off when its modules cannot be loaded, and 2 without it',
+    async (hook) => {
+      // A copy of the hook where `../../src/hooks/index.ts` does not exist: the import fails.
+      const broken = join(createProject({ files: {} }), 'a', 'b');
+
+      mkdirSync(broken, { recursive: true });
+      copyFileSync(join(HOOKS, `${hook}.ts`), join(broken, `${hook}.ts`));
+
+      const run = async (env: Record<string, string>) => {
+        const child = Bun.spawn([process.execPath, join(broken, `${hook}.ts`)], {
+          stdin: new TextEncoder().encode(bash({ command: 'ls', cwd: broken })),
+          stdout: 'pipe',
+          stderr: 'pipe',
+          env: { ...process.env, ...env },
+          timeout: SPAWN_TIMEOUT_MS,
+          killSignal: 'SIGKILL',
+        });
+
+        return child.exited;
+      };
+
+      expect(await run({})).toBe(2);
+      expect(await run({ VULCAN_GUARDS: 'off' })).toBe(0);
+    },
+  );
 });
