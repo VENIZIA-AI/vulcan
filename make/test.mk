@@ -5,6 +5,14 @@
 TEST_ENV := NODE_ENV=test APP_ENV_LOGGER_LEVEL=error
 TEST_ENV_atlas := NODE_ENV=test APP_ENV_LOGGER_LEVEL=warn IGNIS_ROOT=../../../ignis
 
+# Every test and smoke makes its temp folders under here, inside the repository and gitignored: nothing
+# is written to the system temp directory. git is told not to look above it, so a test project is never
+# taken for part of this repository, and the empty `.git` marker is where bun's own ignore lookup stops
+# (it would otherwise read this repository's .gitignore, which ignores .agents/local/, and `bun fmt`
+# in a test project would then see no files).
+TEST_TMP := $(CURDIR)/.agents/local/tmp/tests
+TEST_TMP_ENV := TMPDIR=$(TEST_TMP) GIT_CEILING_DIRECTORIES=$(TEST_TMP)
+
 TEST_TARGETS := $(addprefix test-,$(PACKAGES))
 
 .PHONY: test test-all test-scripts $(TEST_TARGETS)
@@ -25,10 +33,10 @@ test-all: $(TEST_TARGETS) test-scripts
 
 # The root scripts/ (release, checks, build, evals) have their own tests, in each group's __tests__/.
 test-scripts:
-	@bun test scripts $(BUN_TEST_FLAGS)
+	@mkdir -p $(TEST_TMP)/.git && $(TEST_TMP_ENV) bun test scripts $(BUN_TEST_FLAGS)
 
 $(TEST_TARGETS): test-%:
-	@cd packages/$* && $(or $(TEST_ENV_$*),$(TEST_ENV)) bun test $(if $(filter $*,$(SERIAL_TESTS)),,$(BUN_TEST_FLAGS))
+	@mkdir -p $(TEST_TMP)/.git && cd packages/$* && $(TEST_TMP_ENV) $(or $(TEST_ENV_$*),$(TEST_ENV)) bun test $(if $(filter $*,$(SERIAL_TESTS)),,$(BUN_TEST_FLAGS))
 
 # ----------------------------------------------------------------------------
 # SMOKE TARGETS
@@ -40,4 +48,4 @@ SMOKE_TARGETS := smoke-atlas smoke-cli
 
 $(SMOKE_TARGETS): smoke-%:
 	@echo "smoke: packages/$*"
-	@bun scripts/build/pack-smoke-$*.ts
+	@mkdir -p $(TEST_TMP)/.git && $(TEST_TMP_ENV) bun scripts/build/pack-smoke-$*.ts

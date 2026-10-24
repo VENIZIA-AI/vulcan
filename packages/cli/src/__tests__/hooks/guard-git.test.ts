@@ -1,6 +1,11 @@
-import { describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test } from 'bun:test';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { inspectGit } from '../../hooks/index.ts';
 import type { IGitRunner } from '../../hooks/index.ts';
+import { createProject, removeProjects } from '../project.helper.ts';
+
+afterAll(removeProjects);
 
 /** A fake `git`/`gh`: the current branch, the merged branches and the head branch of a pull request. */
 const runner =
@@ -12,7 +17,7 @@ const runner =
       return opts.current;
     }
 
-    if (text.includes('branch --merged')) {
+    if (text.includes('branch') && text.includes('--merged')) {
       return opts.merged?.join('\n');
     }
 
@@ -169,5 +174,39 @@ describe('inspectGit passes', () => {
     const hits = inspectGit({ command: 'git reset --hard', cwd: '/p', run: runner({}) });
 
     expect(hits.every((hit) => /^V-[WP]-\d{2}$/.test(hit.rule))).toBe(true);
+  });
+});
+
+describe('inspectGit against a real repository', () => {
+  const git = (opts: { cwd: string; args: string[] }): void => {
+    expect(Bun.spawnSync(['git', ...opts.args], { cwd: opts.cwd }).exitCode).toBe(0);
+  };
+  const repository = (): string => {
+    const root = createProject({ files: { 'a.txt': 'a' } });
+
+    git({ cwd: root, args: ['init', '-q', '-b', 'develop'] });
+    git({ cwd: root, args: ['config', 'user.email', 'a@example.com'] });
+    git({ cwd: root, args: ['config', 'user.name', 'a'] });
+    git({ cwd: root, args: ['add', '.'] });
+    git({ cwd: root, args: ['commit', '-q', '-m', 'init'] });
+
+    return root;
+  };
+
+  test('branch -D asks for an unmerged branch and passes a merged one, with the real git', () => {
+    const root = repository();
+
+    git({ cwd: root, args: ['checkout', '-q', '-b', 'unmerged'] });
+    writeFileSync(join(root, 'b.txt'), 'b');
+    git({ cwd: root, args: ['add', '.'] });
+    git({ cwd: root, args: ['commit', '-q', '-m', 'work'] });
+    git({ cwd: root, args: ['checkout', '-q', 'develop'] });
+    git({ cwd: root, args: ['branch', 'merged'] });
+
+    const askFor = (name: string): string[] =>
+      inspectGit({ command: `git branch -D ${name}`, cwd: root }).map((hit) => hit.decision);
+
+    expect(askFor('unmerged')).toEqual(['ask']);
+    expect(askFor('merged')).toEqual([]);
   });
 });

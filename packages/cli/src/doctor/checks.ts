@@ -39,6 +39,7 @@ import {
   planSync,
   SyncStatuses,
 } from '../sync/index.ts';
+import { formatAge, formatBytes, LocalConstants, LocalStates, scanLocal } from '../local/index.ts';
 import { OwnerConstants, profileIsIgnored, readProfile } from '../owner/index.ts';
 import { skillCatalogOf, triggerOf } from '@venizia/vulcan-atlas';
 import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
@@ -1041,4 +1042,48 @@ export const checkProfile = (opts: ICheckContext): IViolation[] => {
   }
 
   return violations;
+};
+
+/** What an agent left under `.agents/local/` that has outlived its use, one line each with the command that clears it. */
+export const checkStaleLocal = (opts: ICheckContext): IViolation[] =>
+  scanLocal({ root: opts.root })
+    .filter((entry) =>
+      [LocalStates.STALE, LocalStates.MERGED, LocalStates.GONE, LocalStates.ORPHAN].includes(
+        entry.state,
+      ),
+    )
+    .map((entry) =>
+      createViolation({
+        check: DoctorChecks.LOCAL,
+        file: `${ProjectLayout.LOCAL_DIRECTORY}/${entry.scope}/${entry.name}`,
+        message: `${entry.state === LocalStates.STALE ? `left ${formatAge({ ageMs: entry.ageMs })} ago` : entry.note} (${formatBytes({ bytes: entry.bytes })}) - run: vulcan clean --${entry.scope} --yes`,
+      }),
+    );
+
+/** The size of `.agents/local/` once it is large: where the space went, and the command that gives it back. */
+export const checkLocalSize = (opts: ICheckContext): IViolation[] => {
+  const entries = scanLocal({ root: opts.root });
+  const total = entries.reduce((sum, entry) => sum + entry.bytes, 0);
+
+  if (total < LocalConstants.NOTE_BYTES) {
+    return [];
+  }
+
+  const byScope = new Map<string, number>();
+
+  for (const entry of entries) {
+    byScope.set(entry.scope, (byScope.get(entry.scope) ?? 0) + entry.bytes);
+  }
+
+  const parts = [...byScope.entries()]
+    .sort((first, second) => second[1] - first[1])
+    .map(([scope, bytes]) => `${scope} ${formatBytes({ bytes })}`);
+
+  return [
+    createViolation({
+      check: DoctorChecks.LOCAL,
+      file: ProjectLayout.LOCAL_DIRECTORY,
+      message: `holds ${formatBytes({ bytes: total })} (${parts.join(', ')}); vulcan clean lists what an agent left and --yes removes it`,
+    }),
+  ];
 };

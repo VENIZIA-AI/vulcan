@@ -107,6 +107,9 @@ const main = (): void => {
   const sandbox = mkdtempSync(join(tmpdir(), 'vulcan-atlas-smoke-'));
 
   try {
+    // Its own manifest first: without one `bun add` would take the nearest package.json above the sandbox.
+    writeFileSync(join(sandbox, 'package.json'), JSON.stringify({ name: 'smoke', private: true }));
+
     const installed = run({ command: ['bun', 'add', tarball!], cwd: sandbox });
 
     if (installed.status !== 0) {

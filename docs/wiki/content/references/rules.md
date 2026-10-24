@@ -106,7 +106,7 @@ Build rules require test-driven workflows, command output verification, zero war
 | `reports/` | long reports a message points to (V-P-11) | the user deletes them |
 | `prototypes/` | static HTML pages a skill writes | the user deletes them |
 
-The agent tool's own internal files (for example its scratchpad) are outside what VULCAN controls.
+[`vulcan clean`](/references/commands/clean) lists and removes what has outlived its use. The agent tool's own internal files (for example its scratchpad) are outside what VULCAN controls.
 
 ## Code and writing (C)
 

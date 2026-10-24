@@ -661,4 +661,4 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
 };
 
 export const addApp = async (opts: { cwd: string; args: string[] }): Promise<number> =>
-  withScratch({ run: (scratch) => runAdd({ ...opts, scratch }) });
+  withScratch({ root: opts.cwd, run: (scratch) => runAdd({ ...opts, scratch }) });
