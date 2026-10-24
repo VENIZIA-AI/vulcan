@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { buildSourcesServer } from '@/server/index';
 import { resolveSources } from '@/sources';
 import type { IAtlasSource } from '@/sources';
-import { restoreVariable } from '../env.helper';
 import {
   commitAll,
   git,
@@ -22,15 +21,14 @@ afterAll(() => {
   }
 });
 
-const previousCache = process.env.XDG_CACHE_HOME;
+let cacheDir: string;
 
 beforeEach(() => {
-  process.env.XDG_CACHE_HOME = makeTempDirectory({ prefix: 'atlas-cache-' });
+  cacheDir = makeTempDirectory({ prefix: 'atlas-cache-' });
   process.env.VULCAN_NPM_REGISTRY = NO_REGISTRY;
 });
 
 afterEach(() => {
-  restoreVariable({ name: 'XDG_CACHE_HOME', value: previousCache });
   delete process.env.VULCAN_NPM_REGISTRY;
 });
 
@@ -125,7 +123,7 @@ const workspaceConsumerWith = (opts: { installed: Record<string, string> }): str
 };
 
 const serve = async (opts: { cwd: string; source: IAtlasSource; refreshMs?: number }) => {
-  const sources = await resolveSources({ cwd: opts.cwd, sources: [opts.source] });
+  const sources = await resolveSources({ cwd: opts.cwd, cacheDir, sources: [opts.source] });
   const transport = buildSourcesServer({
     sources,
     cwd: opts.cwd,

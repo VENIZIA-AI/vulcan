@@ -112,7 +112,6 @@ describe('vulcan x', () => {
       const result = runCli({
         args: ['x', 'atlas', 'mcp'],
         cwd: tmpdir(),
-        env: { XDG_CONFIG_HOME: join(tmpdir(), 'vulcan-x-test-no-config') },
       });
 
       expect(result.code).toBe(2);

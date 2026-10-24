@@ -4,10 +4,10 @@ import {
   findPackageDirectory,
   isBareInteractiveRun,
   ModeUsageError,
+  readCacheDirArgument,
   readPackageVersion,
   readRootArgument,
   readSourceArguments,
-  readUserSources,
 } from './cli/index';
 import { runChangelogsCommand } from './changelogs/command';
 import { runConceptsCommand } from './concepts/command';
@@ -20,7 +20,7 @@ import type { IAtlasSource } from './sources/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
 
-const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | pull [--source <name>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help`;
+const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help`;
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -93,15 +93,15 @@ if (subcommand === AtlasCommands.CONCEPTS) {
 
 /**
  * The sources to serve: the project's own (repo mode) and the sources its manifest declares, plus
- * `--source`; outside any project, `--source` and the user config. atlas ships code only - with
- * none of these there is nothing to serve.
+ * `--source`; outside any project, `--source` alone. atlas ships code only - with none of these
+ * there is nothing to serve. Nothing is read from outside the project directory.
  */
 const sourcesToServe = (opts: {
   root: string;
   argv: string[];
 }): { project: boolean; sources: IAtlasSource[] } => {
   const project = hasAtlasProject({ root: opts.root });
-  const declared = project ? readAtlasProject({ root: opts.root }).sources : readUserSources();
+  const declared = project ? readAtlasProject({ root: opts.root }).sources : [];
 
   return { project, sources: [...declared, ...readSourceArguments({ argv: opts.argv })] };
 };
@@ -117,7 +117,12 @@ const buildServer = async (opts: {
     return undefined;
   }
 
-  const { resolved, unavailable } = await resolveServableSources({ cwd: opts.root, sources });
+  const cacheDir = readCacheDirArgument({ argv });
+  const { resolved, unavailable } = await resolveServableSources({
+    cwd: opts.root,
+    sources,
+    cacheDir,
+  });
 
   for (const { source, reason } of unavailable) {
     console.error(
@@ -135,6 +140,7 @@ const buildServer = async (opts: {
     sources: resolved,
     unavailable,
     cwd: opts.root,
+    cacheDir,
     version: opts.version,
     ...(intervalMs === undefined ? {} : { refresh: { intervalMs } }),
   });
@@ -159,7 +165,12 @@ const pull = async (): Promise<number> => {
     );
   }
 
-  const pulled = await resolveSources({ cwd: root, sources: named, force: true });
+  const pulled = await resolveSources({
+    cwd: root,
+    sources: named,
+    cacheDir: readCacheDirArgument({ argv }),
+    force: true,
+  });
 
   for (const source of pulled.filter((entry) => entry.mode !== 'repository')) {
     console.log(`pull: ${source.name} ${(source.sha ?? '').slice(0, 8)} (${source.mode})`);
@@ -169,7 +180,7 @@ const pull = async (): Promise<number> => {
 };
 
 const NOTHING_TO_SERVE = (opts: { root: string }): string =>
-  `nothing to serve at ${opts.root} - run in a project (\`vulcan sync\` writes .agents/vulcan.manifest.json), or pass --source <owner/repo>@<ref>, or list sources in $XDG_CONFIG_HOME/vulcan/atlas.json`;
+  `nothing to serve at ${opts.root} - run in a project (\`vulcan sync\` writes .agents/vulcan.manifest.json), or pass --source <owner/repo>@<ref>`;
 
 /** The server the arguments ask for; a usage error names what is missing. */
 const readServer = async (): Promise<Transport> => {
@@ -208,6 +219,9 @@ const listTools = async (): Promise<void> => {
 };
 
 const main = async (): Promise<void> => {
+  // A flag with no value is the same usage error whether or not there is anything to serve.
+  readCacheDirArgument({ argv });
+
   if (subcommand === AtlasCommands.PULL) {
     process.exit(await pull());
   }
@@ -222,6 +236,10 @@ const main = async (): Promise<void> => {
 };
 
 main().catch((error: unknown) => {
+  if (error instanceof ModeUsageError) {
+    usageError(error.message);
+  }
+
   console.error(`${AtlasConstants.SERVER_NAME}: ${messageOf(error)}`);
   process.exit(1);
 });

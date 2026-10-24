@@ -1,7 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { rmSync } from 'node:fs';
 import { resolveSources } from '@/sources';
-import { restoreVariable } from '../env.helper';
 import {
   commitAll,
   git,
@@ -18,15 +17,14 @@ afterAll(() => {
   }
 });
 
-const previousCache = process.env.XDG_CACHE_HOME;
+let cacheDir: string;
 
 beforeEach(() => {
-  process.env.XDG_CACHE_HOME = makeTempDirectory({ prefix: 'atlas-cache-' });
+  cacheDir = makeTempDirectory({ prefix: 'atlas-cache-' });
   process.env.VULCAN_NPM_REGISTRY = NO_REGISTRY;
 });
 
 afterEach(() => {
-  restoreVariable({ name: 'XDG_CACHE_HOME', value: previousCache });
   delete process.env.VULCAN_NPM_REGISTRY;
 });
 
@@ -61,6 +59,7 @@ describe('a source ref', () => {
     const cwd = consumer();
     const [byFull] = await resolveSources({
       cwd,
+      cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: first }],
     });
 
@@ -69,6 +68,7 @@ describe('a source ref', () => {
 
     const [byShort] = await resolveSources({
       cwd,
+      cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: first.slice(0, 7) }],
     });
 
@@ -81,6 +81,7 @@ describe('a source ref', () => {
     const sha = git({ cwd: source.work, args: ['rev-parse', 'HEAD'] });
     const [resolved] = await resolveSources({
       cwd: consumer(),
+      cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: sha.slice(0, 10) }],
     });
 
@@ -92,10 +93,18 @@ describe('a source ref', () => {
     const source = makeSourceRepository();
     const cwd = consumer();
 
-    await resolveSources({ cwd, sources: [{ name: 'src', repo: source.url, ref: 'develop' }] });
+    await resolveSources({
+      cwd,
+      cacheDir,
+      sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
+    });
 
     const failure = await failureOf(
-      resolveSources({ cwd, sources: [{ name: 'src', repo: source.url, ref: 'no-such-branch' }] }),
+      resolveSources({
+        cwd,
+        cacheDir,
+        sources: [{ name: 'src', repo: source.url, ref: 'no-such-branch' }],
+      }),
     );
 
     expect(failure).toContain("no branch or tag 'no-such-branch'");
@@ -111,6 +120,7 @@ describe('a source ref', () => {
     const failure = await failureOf(
       resolveSources({
         cwd: consumer(),
+        cacheDir,
         sources: [{ name: 'src', repo: source.url, ref: 'release' }],
       }),
     );

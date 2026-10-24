@@ -64,23 +64,22 @@ sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop', pin: 'ref' 
 
 ## Where to declare sources
 
-You can declare external sources in three places:
+You can declare external sources in two places:
 
 - Project configuration: Add sources under `atlas.sources`. `vulcan sync` writes them to `.agents/vulcan.manifest.json`.
 - Command line flag: Pass `--source <value>` or `--source=<value>` when starting atlas.
-- User configuration file: List sources in `$XDG_CONFIG_HOME/vulcan/atlas.json` (defaults to `~/.config/vulcan/atlas.json`), which uses the same `sources` array.
 
 The `--source` flag accepts an `owner/repo` path or a git URL.
 The `@<ref>` suffix is optional and defaults to `develop`.
 The source name is the repository base name without `.git` (`ignis` for `VENIZIA-AI/ignis`).
 In a project, atlas serves the current repository live and adds every declared source.
-Outside a project, atlas reads only `--source` flags and `$XDG_CONFIG_HOME/vulcan/atlas.json`.
+Outside a project, atlas reads only `--source` flags.
 If you start atlas outside a project with no sources, atlas prints a usage error and halts with exit code 2.
 
 ## How atlas fetches sources
 
 When git is installed, atlas creates a partial clone with a sparse checkout.
-Files are cached under `$XDG_CACHE_HOME/vulcan/atlas/v1/` (defaults to `~/.cache/vulcan/atlas/v1/`).
+Files are cached under `.agents/local/cache/atlas/v1/` in the project (gitignored). Outside a project the cache goes under the root directory's `.agents/local/cache/` (the working directory unless `--root` is given). `--cache-dir <dir>` (on `mcp`, `pull` and `tools`) puts it in another directory; a relative path is taken from that root. atlas reads and writes nothing under your home or config folders.
 atlas checks out `.agents` to read the manifest, then checks out declared knowledge directories.
 
 ### Tarball fallback

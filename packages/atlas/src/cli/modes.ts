@@ -95,3 +95,32 @@ export const readRootArgument = (opts: { argv: string[] }): IRootArgument => {
 
   return { value, explicit: true };
 };
+
+/** `--cache-dir`'s value from `argv`; `undefined` when absent, so the project's `.agents/local/cache` applies. */
+export const readCacheDirArgument = (opts: { argv: string[] }): string | undefined => {
+  const joined = opts.argv.find((argument) => argument.startsWith('--cache-dir='));
+
+  if (joined !== undefined) {
+    const value = joined.slice('--cache-dir='.length);
+
+    if (value.length === 0) {
+      throw new ModeUsageError('--cache-dir requires a value');
+    }
+
+    return value;
+  }
+
+  const index = opts.argv.indexOf('--cache-dir');
+
+  if (index === -1) {
+    return undefined;
+  }
+
+  const value = opts.argv[index + 1];
+
+  if (value === undefined || value.startsWith('--')) {
+    throw new ModeUsageError('--cache-dir requires a value');
+  }
+
+  return value;
+};
