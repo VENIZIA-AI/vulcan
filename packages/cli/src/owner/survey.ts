@@ -41,6 +41,15 @@ const labelProblem = (value: string): string | undefined =>
 const optionalLabelProblem = (value: string): string | undefined =>
   value === '' ? undefined : labelProblem(value);
 
+const aboutProblem = (value: string): string | undefined =>
+  value.length > 2000 ? 'at most 2000 characters' : undefined;
+
+const codeTasteProblem = (value: string): string | undefined =>
+  value.length > 1000 ? 'at most 1000 characters' : undefined;
+
+/** A single dash clears an optional value that an earlier run set: an empty answer keeps it. */
+export const CLEAR_ANSWER = '-';
+
 const languageProblem = (value: string): string | undefined =>
   OwnerConstants.LANGUAGE_PATTERN.test(value) ? undefined : 'a language code such as en or pt-BR';
 
@@ -130,6 +139,20 @@ export const runSurvey = async (opts: {
     defaultValue: string,
     validate?: (value: string) => string | undefined,
   ) => io.text({ message, defaultValue, validate });
+  /** An optional free value: a single dash clears what an earlier run set. */
+  const optional = async (
+    message: string,
+    defaultValue: string,
+    validate?: (value: string) => string | undefined,
+  ) => {
+    const answer = await io.text({
+      message: defaultValue === '' ? message : `${message} (${CLEAR_ANSWER} clears it)`,
+      defaultValue,
+      validate: (value) => (value === CLEAR_ANSWER ? undefined : validate?.(value)),
+    });
+
+    return answer === CLEAR_ANSWER ? '' : answer;
+  };
   const language = await text(
     'Reply language (a code such as en, fr, pt-BR)',
     existing?.language ?? opts.systemLanguage,
@@ -140,7 +163,7 @@ export const runSurvey = async (opts: {
     return null;
   }
 
-  const you = await text(
+  const you = await optional(
     'How should I address you? (a name, a pronoun, an honorific, or leave empty for none)',
     existing?.address.you ?? '',
     optionalLabelProblem,
@@ -148,7 +171,7 @@ export const runSurvey = async (opts: {
   const self =
     you === null
       ? null
-      : await text(
+      : await optional(
           'How should I refer to myself? (leave empty for neutral)',
           existing?.address.self ?? '',
           optionalLabelProblem,
@@ -195,16 +218,18 @@ export const runSurvey = async (opts: {
   const about =
     commits === null
       ? null
-      : await text(
+      : await optional(
           'Anything about how you like to work, or to be worked with? (your own words, optional)',
           existing?.about ?? '',
+          aboutProblem,
         );
   const codeTaste =
     about === null
       ? null
-      : await text(
+      : await optional(
           'Taste in code that no formatter or lint rule already enforces? (optional)',
           existing?.codeTaste ?? '',
+          codeTasteProblem,
         );
 
   if (

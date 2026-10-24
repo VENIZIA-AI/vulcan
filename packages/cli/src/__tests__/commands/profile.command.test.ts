@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { spawnSyncBounded } from '../spawn.helper.ts';
@@ -174,6 +174,93 @@ describe('vulcan profile', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('is not valid JSON');
     expect(result.stderr).toContain('vulcan profile reset --yes');
+  });
+
+  test('a yes/no question that is answered with something else is asked again, not read as no', () => {
+    const root = project();
+    const result = profile({
+      root,
+      lines: [
+        ...ANSWERS.slice(0, 6),
+        'maybe',
+        'y',
+        'y',
+        'n',
+        'Short answers.',
+        'Early returns.',
+      ].slice(0, 11),
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain('answer y or n');
+    expect(JSON.parse(readFileSync(join(root, FILE), 'utf8')).habits.askBeforeReversible).toBe(
+      true,
+    );
+  });
+
+  test('a single dash clears an optional value that an earlier run set; an empty answer keeps it', () => {
+    const root = project();
+
+    profile({ root, lines: ANSWERS });
+    profile({ root, lines: ['', '-', '', '', '', '', '', '', '', '-', ''] });
+
+    const saved = JSON.parse(readFileSync(join(root, FILE), 'utf8'));
+
+    expect(saved.address.you).toBeUndefined();
+    expect(saved.address.self).toBe('I');
+    expect(saved.about).toBe('Short answers.');
+    expect(saved.codeTaste).toBeUndefined();
+  });
+
+  test('free text over the limit is asked again, not a crash after the last question', () => {
+    const root = project();
+    const result = profile({
+      root,
+      lines: [...ANSWERS.slice(0, 8), 'x'.repeat(2001), 'Short answers.', 'Early returns.'],
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain('at most 2000 characters');
+    expect(JSON.parse(readFileSync(join(root, FILE), 'utf8')).about).toBe('Short answers.');
+  });
+
+  test('without the ignore line it refuses before asking anything, so no answer is typed for nothing', () => {
+    const root = createProject({
+      files: { '.configs/vulcan.config.ts': CONFIG, 'package.json': '{}' },
+    });
+    const result = profile({ root, lines: ANSWERS });
+
+    expect(result.code).toBe(1);
+    expect(result.stdout).not.toContain('?');
+    expect(result.stderr).toContain('.gitignore does not list .agents/local/');
+  });
+
+  test('reset never follows a symlink out of the project, and a profile that is a folder is left alone', () => {
+    const outside = createProject({ files: { 'profile.json': '{"keep":true}' } });
+    const viaFolder = project();
+    const viaFile = project();
+    const asDirectory = project();
+
+    mkdirSync(join(viaFolder, '.agents'), { recursive: true });
+    symlinkSync(outside, join(viaFolder, '.agents/local'));
+    mkdirSync(join(viaFile, '.agents/local'), { recursive: true });
+    symlinkSync(join(outside, 'profile.json'), join(viaFile, FILE));
+    mkdirSync(join(asDirectory, FILE), { recursive: true });
+
+    for (const root of [viaFolder, viaFile]) {
+      const result = profile({ root, args: ['reset', '--yes'] });
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain('symlink');
+    }
+
+    expect(readFileSync(join(outside, 'profile.json'), 'utf8')).toBe('{"keep":true}');
+
+    const directory = profile({ root: asDirectory, args: ['reset', '--yes'] });
+
+    expect(directory.code).toBe(1);
+    expect(directory.stderr).toContain('is not a file');
+    expect(existsSync(join(asDirectory, FILE))).toBe(true);
   });
 
   test('an unknown argument is refused', () => {

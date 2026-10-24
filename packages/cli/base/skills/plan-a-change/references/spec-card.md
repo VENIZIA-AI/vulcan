@@ -1,7 +1,7 @@
 # The spec card
 
 The card is the agreement between the owner and the agent. It is small text, and a section that is empty
-is left out. Lane S uses three lines, lane M the first five sections in chat, lane L all of them in a file.
+is left out. Lane S uses three lines. Lane M uses Goal, Out of scope, Claims (each with its probe) and Docs impact, in chat or the pull request description. Lane L uses all of them, in a file.
 
 **Contents**: [Sections](#sections) · [Rules of the card](#rules-of-the-card) · [Probes](#probes) · [Evidence by claim type](#evidence-by-claim-type)
 
@@ -42,7 +42,7 @@ The probe is on the claim's line. The vocabulary is closed, so the probe says ho
 | `cli` | A command, with its exit code and output |
 | `http` | `curl -i` against the running route |
 | `browser` | A real browser view, at 390 px and at desktop width |
-| `eval` | A skill or rule eval, reported as pass^k |
+| `eval` | A skill or rule eval, reported as the cases passed over the cases run, with the baseline arm beside it |
 | `gate` | `vulcan doctor`, lint, `okf check` or the project's own gate |
 | `read` | A read-back of a file or a configuration |
 | `manual` | Attested by the owner, dated; never enough alone for secrets, auth, money, publishing or deletion |
@@ -60,6 +60,6 @@ An unavailable verifier is reported as deferred-verify, never as passed.
 | A publish, release or deploy | A probe of public state: `npm view`, `gh`, `git ls-remote`, the tarball answering 200 |
 | A UI | A real browser; appearance is shown in pixels |
 | A configuration | A read-back |
-| Behavioural quality | An eval, pass^k, with a baseline arm |
+| Behavioural quality | An eval: cases passed over cases run, with a baseline arm |
 
 "Should work" is never evidence.

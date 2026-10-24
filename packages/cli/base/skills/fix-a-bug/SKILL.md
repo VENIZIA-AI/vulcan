@@ -8,8 +8,9 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 # Fix a bug
 
 Build the loop first. A fast, deterministic way to see the bug fail is the whole skill: with one, you
-find the cause by looking; without one, you guess. No theory, no reading code for a cause, before the loop
-exists. Code analysis without a reproduction is speculation. Nothing is committed; the owner decides.
+find the cause by looking; without one, you guess. Read code to build the loop (to find the failing test
+or the right seam), but do not name a cause from reading alone: code analysis without a reproduction is
+speculation. Nothing is committed; the owner decides.
 
 `$ARGUMENTS` describes the bug. With none, ask for the symptom and where it appears.
 
@@ -53,8 +54,9 @@ configuration, then dependencies, then code paths. The minimal case often names 
 ## 3. Hypothesise
 
 Write three to five hypotheses, ranked by likelihood. Each says what would be true if it is the cause and
-what observation would **falsify** it. Show the list to the owner before you test: they often know which
-to drop. A hypothesis that cannot be falsified is not one.
+what observation would **falsify** it. Put the list in your reply before you test, so the owner can
+redirect you, and do not wait for an answer unless a test would be destructive. A hypothesis that cannot
+be falsified is not one.
 
 ## 4. Test one thing at a time
 

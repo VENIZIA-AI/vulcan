@@ -40,6 +40,9 @@ appendFileSync(
     cwd: process.cwd(),
     hasSkill: existsSync('.claude/skills/docs-writing/SKILL.md'),
     hasSkillEvals: existsSync('.claude/skills/docs-writing/evals'),
+    hasOtherCopy:
+      existsSync('.agents/skills/docs-writing') ||
+      existsSync('packages/cli/base/skills/docs-writing'),
     prompt,
   }) + '\\n',
 );
@@ -98,6 +101,7 @@ interface IFakeCall {
   cwd: string;
   hasSkill: boolean;
   hasSkillEvals: boolean;
+  hasOtherCopy: boolean;
   prompt: string;
 }
 
@@ -118,6 +122,15 @@ const createProject = (opts: { root: string }): string => {
   for (const file of evals.evals.flatMap((evaluation) => evaluation.files ?? [])) {
     mkdirSync(join(project, dirname(file)), { recursive: true });
     writeFileSync(join(project, file), `# ${basename(file)}\n\nThe original page.\n`);
+  }
+
+  // Other copies of the skill in the project, as this repository itself has: a baseline run must not see them.
+  for (const copy of [
+    '.agents/skills/docs-writing',
+    'packages/cli/base/skills/docs-writing/evals',
+  ]) {
+    mkdirSync(join(project, copy), { recursive: true });
+    writeFileSync(join(project, copy, 'SKILL.md'), '# a copy of the skill\n');
   }
 
   return project;
@@ -371,6 +384,7 @@ describe('skill-evals --baseline', () => {
 
     for (const call of runs.filter((candidate) => candidate.arm === 'baseline')) {
       expect(call.hasSkill).toBe(false);
+      expect(call.hasOtherCopy).toBe(false);
       expect(call.prompt).not.toContain('<skill name=');
       expect(call.prompt).not.toContain('.claude/skills');
       expect(call.prompt).toContain('Task:');

@@ -10,7 +10,7 @@ export type TProfileRead =
   | { ok: false; error: string };
 
 /** A symlink at the profile's place, or at `.agents/local`, would read or write a file outside the project. */
-const linkedAt = (opts: { root: string }): string | undefined =>
+export const linkedAt = (opts: { root: string }): string | undefined =>
   [join(opts.root, OwnerConstants.PROFILE_FILE), join(opts.root, '.agents', 'local')].find(
     (path) => {
       try {

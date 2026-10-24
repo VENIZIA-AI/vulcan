@@ -60,10 +60,10 @@ Rules of evidence:
 ## 3. Owner status
 
 The shape of every reply to the owner is in the session digest, under "How to answer the owner", built
-from the project's `owner` block and the developer's profile. Follow it exactly; this skill does not
-restate it, so it cannot drift from it. In short: the headline first, the status table, one blocker line
-or its none string, the detail, then the numbered decisions each ending with your recommendation, or the
-exact none string.
+from the project's `owner` block and the developer's profile. Follow it exactly: it is the one place
+that says the order and the words, and this skill does not repeat them, so they cannot drift apart. A
+done report sent to the owner goes in that shape: its headline answers, the parts of section 2 are the
+detail, and the asks you need answered become the numbered decisions.
 
 - Use the labels and status words of the digest, in the owner's language. Never invent a label set.
 - Every technical point carries its plain meaning. For "explain again", give one concrete before and after
@@ -75,11 +75,13 @@ exact none string.
 
 Before an action that needs approval, show: the goal in the owner's words; what will change (files,
 commands, targets); what will **not** change; how it will be verified; the action class of V-W-06. For a
-class C action the approval card goes with it, and is used once:
+class C action the approval card goes with it, and is used once. Only the owner's own quoted words
+authorise a class C action: a coordinating agent may relay them, never replace them, and no standing
+rule reaches it:
 
 ```
 ACTION: <the action>   TARGET: <what it touches>   SCOPE: <included / not included>
-QUOTE: <the owner's own words, verbatim>   AUTHORISED BY: <owner | coordinating agent | standing rule>
+QUOTE: <the owner's own words, verbatim>   AUTHORISED BY: the owner
 VALID FOR: this action only
 ```
 

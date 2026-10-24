@@ -135,6 +135,17 @@ const createScratchProject = (opts: {
   });
   rmSync(installed, { recursive: true, force: true });
 
+  if (opts.isBaseline) {
+    // Every other copy of the skill in the project goes too, and the evals file with its expected outputs
+    // beside it: a baseline run must have no way to read the skill it is compared with.
+    for (const path of [
+      join('.agents', 'skills', opts.skill),
+      join('packages', 'cli', 'base', 'skills', opts.skill),
+    ]) {
+      rmSync(join(copy, path), { recursive: true, force: true });
+    }
+  }
+
   if (!opts.isBaseline) {
     cpSync(opts.skillDirectory, installed, {
       recursive: true,

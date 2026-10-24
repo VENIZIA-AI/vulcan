@@ -1,6 +1,6 @@
 ---
 name: plan-a-change
-description: Turns a request into a card the owner approves before any work starts, with the goal in their words, claims with probes, out of scope and docs impact. Use when asked to plan, scope or spec a change, or before work beyond a small obvious edit.
+description: Turns a request into a card the owner approves before work starts, with the goal in their words, claims with probes, out of scope and docs impact. Use when asked to plan, scope or spec a change, or when a request needs owner decisions first.
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 ---
@@ -42,9 +42,10 @@ When two lanes fit, take the larger. Done when the lane and its reason are in yo
 1. Restate the goal in the owner's words, and say what will **not** be done. A goal read wrongly costs
    more than a question.
 2. Look up every fact first: the repository, atlas, the knowledge bundle. Ask only decisions.
-3. Ask in **one numbered round**. Each question carries your recommended answer, worded so that "yes"
-   accepts it. Lane M asks at most three; "proceed" accepts the defaults. Lane L asks in rounds until
-   no question is left, then asks for one confirmation.
+3. Ask in **one numbered round**: every question you can ask now, each with your recommended answer,
+   worded so that "yes" accepts it. Lane M asks at most three; "proceed" accepts the defaults. In lane L
+   an answer can open a new question: ask those in the next round, and so on until none is left, then
+   ask for one confirmation.
 4. For a reversible choice, state the default in one line and continue (V-P-10).
 
 Done when no decision is open.

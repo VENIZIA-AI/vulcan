@@ -20,7 +20,7 @@ is read-only: it reports, it does not fix. Nothing is committed.
 - [ ] 2. Independence and axes chosen by the lane
 - [ ] 3. Reviewers briefed    - parallel, one brief per axis, read-only
 - [ ] 4. Findings triaged     - each verified against the code, then adopted, rebutted or deferred
-- [ ] 5. Loop closed          - one round of fixes, the findings re-checked, never "until clean"
+- [ ] 5. Loop closed          - fixes, then only the findings re-checked; two rounds at most, never "until clean"
 - [ ] 6. Reported             - which axes ran, which did not and why
 ```
 

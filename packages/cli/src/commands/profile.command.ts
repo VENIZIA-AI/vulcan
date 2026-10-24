@@ -1,10 +1,12 @@
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, lstatSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { askWithPrompt } from '../create/names.ts';
 import {
+  linkedAt,
   OwnerConstants,
+  profileIsIgnored,
   readProfile,
   renderProfile,
   runSurvey,
@@ -83,7 +85,17 @@ const lineIo: ISurveyIo = {
 
     const value = answer.trim().toLowerCase();
 
-    return value === '' ? opts.initial : value.startsWith('y');
+    if (value === '') {
+      return opts.initial;
+    }
+
+    if (['y', 'yes', 'n', 'no'].includes(value)) {
+      return value.startsWith('y');
+    }
+
+    process.stderr.write('  answer y or n\n');
+
+    return lineIo.confirm(opts);
   },
 };
 
@@ -94,6 +106,15 @@ export const fillInProfile = async (opts: { root: string }): Promise<number> => 
   if (!current.ok) {
     process.stderr.write(
       `vulcan profile: ${current.error} - delete it with 'vulcan profile reset --yes' and run again\n`,
+    );
+
+    return ExitCodes.FAILURE;
+  }
+
+  // Before the questions, not after: an answer that cannot be saved is an answer typed for nothing.
+  if (!profileIsIgnored({ root: opts.root })) {
+    process.stderr.write(
+      'vulcan profile: .gitignore does not list .agents/local/ - run vulcan sync (or add the line) first; a personal file must not be committable\n',
     );
 
     return ExitCodes.FAILURE;
@@ -195,10 +216,28 @@ export const runProfileCommand = async (opts: ICommandContext): Promise<number> 
     return ExitCodes.OK;
   }
 
+  // The same refusal as read and write: a link at the file's place or at `.agents/local` must never
+  // turn a reset into a delete outside the project.
+  if (linkedAt({ root: opts.cwd }) !== undefined) {
+    process.stderr.write(
+      `vulcan profile: ${OwnerConstants.PROFILE_FILE} (or .agents/local) is a symlink - remove the link yourself; nothing was deleted\n`,
+    );
+
+    return ExitCodes.FAILURE;
+  }
+
   if (!existsSync(file)) {
     process.stderr.write('vulcan profile: nothing to reset\n');
 
     return ExitCodes.OK;
+  }
+
+  if (!lstatSync(file).isFile()) {
+    process.stderr.write(
+      `vulcan profile: ${OwnerConstants.PROFILE_FILE} is not a file - nothing was deleted\n`,
+    );
+
+    return ExitCodes.FAILURE;
   }
 
   if (!opts.args.includes(YES_FLAG)) {
