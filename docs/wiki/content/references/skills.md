@@ -18,6 +18,22 @@ description: The skills VULCAN ships to every project - what each is for, when a
 | `docs-writing` | You write or edit anything a human will read | Reader-first prose |
 | `knowledge-sync` | You sync or audit the knowledge bundle against the code | Concepts verified against the code and the confirmed fixes applied |
 
+## How they fit together
+
+A change runs through them in order, and each hands to the next: `plan-a-change` writes the card (its **Docs impact** line names the pages that change); `build-a-feature` builds in vertical slices, with a docs slice next to the code slices; `docs-update` delivers the docs before review; `review-a-change` reviews as the lane asks; `report-back` reports with the evidence. `fix-a-bug` replaces the build with the loop-first path for a bug. `knowledge-sync` is the periodic audit, not a per-change step.
+
+Detail that several skills share lives in `node_modules/@venizia/vulcan/base/references/`, loaded only when a skill points at it:
+
+| Reference | Holds | Loaded by |
+|---|---|---|
+| `design-pass.md` | The decisions worth writing down, designing an interface twice, what becomes knowledge | `plan-a-change`, `build-a-feature` step 3 |
+| `testing.md` | Where a test lives, the red-green loop, anti-patterns, mocking, fixtures, blast radius, evals | `build-a-feature` step 5, `fix-a-bug`, `review-a-change`, `plan-a-change` |
+| `evidence.md` | The evidence each kind of claim needs, and the probe kinds a card names | `plan-a-change`, `report-back` |
+| `delegation-brief.md` | The brief a subagent gets, the four statuses, liveness, parallel work | the delegation rule `V-P-12` |
+| `phase-boundaries.md` | Continue, clear, hand off, subagent or compact: the order of questions | `report-back` |
+
+`docs-writing` also carries `references/agent-documents.md`: the method for a document an agent reads (a skill, a rules file, `AGENTS.md`).
+
 ## What they do not do
 
 - No skill commits, pushes or publishes: git writes follow rule `V-W-01`, and a release follows `V-W-06`.

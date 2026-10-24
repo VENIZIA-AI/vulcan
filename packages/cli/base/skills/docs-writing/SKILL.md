@@ -1,6 +1,6 @@
 ---
 name: docs-writing
-description: Reader-first writing method for ALL of the project's documentation. Use when you write or edit anything a human will read - wiki pages, READMEs, changelogs, references, guides, the knowledge bundle (.agents/knowledge), or when asked to "document" a feature, even when the request never says "docs", and when reviewing or simplifying existing documentation.
+description: Reader-first writing method for all documentation. Use when you write or edit anything a human will read (wiki pages, READMEs, changelogs, references, guides, the knowledge bundle), when asked to document a feature, or to simplify existing docs.
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 ---
@@ -90,5 +90,7 @@ Read the finished page once, top to bottom, as the reader from Step 1. If any se
 - The knowledge bundle (`.agents/knowledge`) follows the same sentence rules. Its readers are agents, but a wall of text fails them too - use short paragraphs and bullets, keep the "constraint the code cannot show" focus.
 
 ## Worked example
+
+A document an agent reads (a skill, a rules file, `AGENTS.md`) follows the same method with different costs: see `references/agent-documents.md`.
 
 `references/before-after.md` shows one real changelog rewritten with this method - read it when you need to calibrate how far to go. The short version: the before had a 5-line bullet with two exceptions buried mid-paragraph; the after says the same facts in three sentences of one idea each, and moved every number into a table.

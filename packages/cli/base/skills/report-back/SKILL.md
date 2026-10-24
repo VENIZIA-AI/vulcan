@@ -38,7 +38,8 @@ Lane S ends with one line: what changed and the command that proved it.
 Each part is a table or a short list, in this order:
 
 1. **Claims closed**: each claim of the card with its evidence stub (the command and its result, the test
-   name, the commit). Evidence by claim type is in the `plan-a-change` skill (`references/spec-card.md`).
+   name, the commit). What counts as evidence for each kind of claim is in
+   `node_modules/@venizia/vulcan/base/references/evidence.md`.
 2. **Checks**: every gate you ran and its result, quoted from this session.
 3. **Docs**: the docs gates, and the pages that changed, or `none` with the reason.
 4. **Review**: the dispositions from the `review-a-change` skill, or why no independent review ran.
@@ -100,7 +101,8 @@ A handoff is by pointer. Write a short file in `.agents/local/reports/` with:
 - no secrets: redact them.
 
 Put the file's path in the message. Every move except "continue" turns a primary source into a secondary
-one, so hand off only when the next unit of work needs a fresh window.
+one, so hand off only when the next unit of work needs a fresh window; the order of questions is in
+`node_modules/@venizia/vulcan/base/references/phase-boundaries.md`.
 
 ## 6. Send
 

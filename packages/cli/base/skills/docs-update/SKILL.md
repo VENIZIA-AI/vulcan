@@ -1,6 +1,6 @@
 ---
 name: docs-update
-description: Updates the project's human-facing docs after a code change - refreshes the page that owns a topic, adds a page for a new feature, writes the changelog entry, then runs the docs gates until they pass. Use when the user asks to update the wiki or the docs, document a change or a feature, refresh a page, add a changelog entry, or keep the docs in step with the code.
+description: Updates the project's human-facing docs after a code change - the page that owns the topic, the changelog entry, then the docs gates. Use when asked to update the wiki or docs, document a change, refresh a page or add a changelog entry.
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 ---
@@ -13,6 +13,17 @@ page and the code disagree, the page is the bug. Nothing is committed: the user 
 
 `$ARGUMENTS` says what to document - `add a changelog entry for the retry option`, `refresh the
 storage reference`. With no arguments, ask what to document.
+
+**Contents**: [Where this runs in a change](#where-this-runs-in-a-change) · [Checklist](#checklist) · [1. Paths](#1-paths) · [2. Code](#2-code) · [3. Pick the page](#3-pick-the-page) · [4. Write](#4-write) · [5. Changelog](#5-changelog) · [6. Gates](#6-gates---validate-fix-repeat) · [7. Report](#7-report)
+
+## Where this runs in a change
+
+Docs are a slice of the change, built with the code and never a last group. The card's **Docs impact**
+(see the `plan-a-change` skill) names the pages, the knowledge concepts and the changelog entry that change.
+This skill delivers them after the checks are green and before review (`build-a-feature` step 7), so the
+reviewer sees the docs in the diff. Docs impact `none` needs no run, unless the change is user-visible: then
+the same rule applies at one-line scale. Not knowing which docs change is an open question of the card, not
+a reason to skip this.
 
 ## Checklist
 
