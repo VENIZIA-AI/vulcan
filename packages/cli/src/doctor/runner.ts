@@ -11,6 +11,7 @@ import {
   checkMcpAtlas,
   checkApps,
   checkManifest,
+  checkProfile,
   checkPrune,
   checkHooks,
   checkLayout,
@@ -105,5 +106,6 @@ export const runDoctorWarnings = async (opts: { root: string }): Promise<IViolat
     ...checkFormat(context),
     ...checkLocalWorkspace(context),
     ...checkOutsideWorktrees(context),
+    ...checkProfile(context),
   ];
 };

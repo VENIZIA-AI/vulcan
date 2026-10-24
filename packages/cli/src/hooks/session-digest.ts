@@ -2,6 +2,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
 import { ConfigConstants, loadConfig } from '../config/index.ts';
+import {
+  OWNER_SCHEMA,
+  readProfile,
+  renderOwnerShapeCard,
+  renderProfileCard,
+  resolveOwnerView,
+} from '../owner/index.ts';
 import { HookConstants } from './common/index.ts';
 import { extractRuleRows, parseRuleIds, readSlots, RuleConstants } from '../rules/index.ts';
 
@@ -93,6 +100,20 @@ export const buildSessionDigest = async (opts: {
     '',
     ...slotRows,
   ];
+
+  if (opts.compact !== true) {
+    const profile = readProfile({ root: opts.projectRoot });
+    const view = resolveOwnerView({
+      owner: loaded.ok ? loaded.config.owner : OWNER_SCHEMA.parse(undefined),
+      profile: profile.ok ? profile.profile : undefined,
+    });
+
+    lines.push('', ...renderOwnerShapeCard({ view }));
+
+    if (renderProfileCard({ view }).length > 0) {
+      lines.push('', ...renderProfileCard({ view }));
+    }
+  }
 
   if (opts.compact === true) {
     lines.push(

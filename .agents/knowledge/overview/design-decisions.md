@@ -27,6 +27,7 @@ tags: [overview, decisions]
 | VULCAN adopts all of IGNIS's W, S, P, B rules with IGNIS's IDs (`.agents/rules.md`); no agent signature in commits (W-00) | God, 2026-10-17 |
 | VULCAN is the capital of how agents work: every rule, skill and digest line about agent behaviour lives here and projects inherit it; it does not absorb per-repo tooling | God, 2026-10-24 |
 | VULCAN reads and writes nothing outside the project directory; personal and cache files live in `.agents/local/`, gitignored | God, 2026-10-25 |
+| The owner report contract is a top-level typed `owner` config key (not a slot rule); a person's own settings live in `.agents/local/profile.json` | God, 2026-10-25 |
 | Every default is neutral and in English; an owner's language, labels and form of address are that owner's own setting | God, 2026-10-25 |
 
 ## Open

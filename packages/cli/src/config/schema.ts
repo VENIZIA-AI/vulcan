@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { OWNER_SCHEMA } from '../owner/schema.ts';
 import { CodingAgents, ConfigConstants, HookEvents } from './common/index.ts';
 
 const CODING_AGENT = z.string().refine((value) => CodingAgents.isValid(value), {
@@ -251,6 +252,8 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         .default(ConfigConstants.DEFAULT_OFTEN_DROPPED),
     })
     .default({ oftenDropped: ConfigConstants.DEFAULT_OFTEN_DROPPED }),
+  /** The report contract for answers to the project's owners; English and `advise` by default. */
+  owner: OWNER_SCHEMA,
   /**
    * The hooks that guard writes. `toolOwnedPaths` extends the defaults (package manager caches, the
    * runtime dir for locks, git config, the agent tool's memory) with stores a tool in this project
