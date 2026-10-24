@@ -183,6 +183,50 @@ describe('checkOwnerShape', () => {
     );
   });
 
+  test('symbols in the owner own status words and labels are the shape, not an emoji fault', () => {
+    const symbols = {
+      minimapColumns: ['#', 'Việc', 'Trạng thái'],
+      status: {
+        done: '✅ xong',
+        doing: '◀ đang làm',
+        waiting: '⏳ chờ',
+        todo: '⬜ chưa bắt đầu',
+        blocked: '⛔ bị chặn',
+        dropped: '❌ bỏ',
+      },
+      labels: {
+        blocked: 'Chặn:',
+        decisions: 'Anh cần làm',
+        noBlocker: 'không có',
+        noDecision: 'Chưa cần làm gì.',
+        recommend: 'Em đề xuất **{x}**.',
+      },
+    };
+    const reply = [
+      'Em đã xong phần kiểm tra và PR đã mở.',
+      '',
+      '| # | Việc | Trạng thái |',
+      '|---|---|---|',
+      '| 1 | Kiểm tra | ✅ xong |',
+      '| 2 | Review | ◀ đang làm |',
+      '| 3 | Phát hành | ⏳ chờ |',
+      '| 4 | Dọn dẹp | ⬜ chưa bắt đầu |',
+      '| 5 | Bản cũ | ⛔ bị chặn |',
+      '| 6 | Thử nghiệm | ❌ bỏ |',
+      '',
+      'Chặn: không có',
+      '',
+      'Em đã chạy đủ các bước kiểm tra trên nhánh này.',
+      '',
+      '## Anh cần làm',
+      '',
+      '1. Gộp luôn? Em đề xuất **có**.',
+    ].join('\n');
+
+    expect(classesOf(reply, symbols)).toEqual([]);
+    expect(classesOf(reply.replace('Review', 'Review 🚀'), symbols)).toEqual([ShapeClasses.EMOJI]);
+  });
+
   test('fenced code is data: a table or heading inside it is not structure', () => {
     const text = `${GOOD}\n\n\`\`\`\n# not a heading\n| # | Task | Status |\n\`\`\``;
 
