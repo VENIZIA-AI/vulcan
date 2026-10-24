@@ -17,6 +17,7 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 | `subagent-start` | `SubagentStart` | all | Adds a small rules card (about 250 tokens) to every subagent's context | Fires when a subagent starts |
 | `stop` | `Stop` | all | Checks the reply that just ended against the owner's report shape and logs the faults by class and date | Fires when a reply ends; does nothing when `enforce` is `off` |
 | `prompt-submit` | `UserPromptSubmit` | all | Adds one line to the prompt: the shape contract, and the faults of the previous reply | Fires on every prompt; adds nothing when `enforce` is `off` |
+| `post-tool` | `PostToolUse`, `PostToolUseFailure` | all | Keeps notes about the turn for the Stop check, says when the agent seems stuck, and suggests the evals when a skill or rules file is changed | Fires after every tool call (about 10 ms); speaks only on a loop or a skill or rules edit |
 | `guard-remote-hosts` | `PreToolUse` | `Bash` | Prompts for confirmation before commands reach unlisted network hosts | Fires on Bash commands only when `remoteHosts` is set |
 | `guard-manifest` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Refuses a write to `.agents/vulcan.manifest.json` | Fires on every one of those tool calls; only a write to the manifest is refused |
 | `guard-package` | `PreToolUse` | `Write` | Refuses a new `package.json` in a backend, frontend or shared folder when a `vulcan add` command exists for it | Fires on every `Write`; only the creation of a package file in a layout folder is acted on |
@@ -175,6 +176,15 @@ The two hooks hold the [report shape](/references/configuration/#owner) the sess
 
 The log is `.agents/local/violations.jsonl` (gitignored, inside the project): one line per faulty reply with the date and the fault classes, never the text. `vulcan doctor` prints the counts as a note, and the retro skill reads them. What no program can see, whether each point has a plain meaning or the answer is right, is left to the owner or an eval. Both hooks fail open and honour `VULCAN_GUARDS=off`.
 
+## post-tool and the claims at Stop
+
+`post-tool` appends one line per call to `.agents/local/cache/signals.jsonl` (gitignored, kept per session, cut down at a new prompt once it grows): the call, whether a public-state probe ran (`npm view`, `gh` reads, `git ls-remote`, `curl` of an outside URL; not a `gh pr create`, a POST or a localhost URL), and which gate commands ran (tests, lint, build, typecheck, `vulcan doctor`, found by parsing the command, so a commit message that mentions `tsc` is not one) with whether each passed. A result with a non-zero exit code is a failure; a command sent to the background has no result yet and counts as none. It never blocks. It tells the model:
+
+- **Loop check**: the same call three times in a row within a minute (polling further apart is not a loop), two calls alternating for three rounds, or one call failing three times with the same input in the last six. Each agent's loop is its own; said once in five minutes.
+- **After an edit of a skill or a rules file**: run the skill's evals, or keep to the admission bar for a rule.
+
+At Stop, the same check that holds the report shape also compares the reply with the note. A reply that says something is published, released, deployed or live, with no public-state probe in the turn, is logged as `public-claim-no-probe`. A reply that says the checks pass, while a gate of the turn still failed on its latest run, is logged as `contradicted-completion`. The phrases match as whole words in a sentence that does not deny, ask, quote or speak of the future ("nothing was published yet", "was it released?", "I will tell you when it is released" are not claims). The words are English plus any the project adds in `owner.report.claimWords` (`public` and `done`, for the owner's language, three characters or more). A match is a hint, so these two classes are only logged, never blocked and never said back to the model as a fault of the last reply, and a short reply is checked too. A pipeline such as `bun test | tail` hides the exit code, and the hook cannot see a result it is not given.
+
 ## How the hooks fail
 
 Two kinds of hook run in every session of every project, so each kind has a stated failure mode.
@@ -183,9 +193,9 @@ Two kinds of hook run in every session of every project, so each kind has a stat
 |---|---|---|
 | Safety hooks | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
 | Drift guards | `guard-git`, `guard-outside` | fail open: the call passes and a note goes to stderr |
-| Shape hooks | `stop`, `prompt-submit` | fail open: the reply or prompt passes and a note goes to stderr |
+| Shape and signal hooks | `stop`, `prompt-submit`, `post-tool` | fail open: the reply, prompt or call passes and a note goes to stderr |
 
-`subagent-start` never blocks. `VULCAN_GUARDS=off` switches the drift guards and the shape hooks off and is read before any module loads.
+`subagent-start` never blocks. `VULCAN_GUARDS=off` switches the drift guards, the shape hooks and `post-tool` off and is read before any module loads.
 
 The safety hooks import only the modules they need, not the config loader, the rules reader or `zod`, so a defect in those cannot stop every tool call. The release pipeline's pack smoke runs every hook of the generated settings from the installed tarball (a benign call each, with every copy of `zod` made unresolvable, and with `src/hooks/common/constants.ts` removed) and refuses to publish if one fails.
 

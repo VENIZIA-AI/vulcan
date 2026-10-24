@@ -91,6 +91,28 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/post-tool.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\" || echo \"vulcan: the post-tool hook failed - the call is unaffected\" >&2; exit 0; fi; echo \"vulcan: the post-tool hook cannot run: node_modules/@venizia/vulcan or bun is missing - the call is unaffected\" >&2; exit 0",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/post-tool.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\" || echo \"vulcan: the post-tool hook failed - the call is unaffected\" >&2; exit 0; fi; echo \"vulcan: the post-tool hook cannot run: node_modules/@venizia/vulcan or bun is missing - the call is unaffected\" >&2; exit 0",
+            "timeout": 15
+          }
+        ]
+      }
     ]
   }
 }

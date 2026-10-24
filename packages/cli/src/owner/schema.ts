@@ -37,6 +37,15 @@ const DETAIL = choice({
   set: OwnerDetails.SCHEME_SET,
 });
 
+/** A phrase, not a stray letter pair: at least three characters, one of them not a space. */
+const CLAIM_WORDS = z
+  .array(
+    z
+      .string()
+      .max(60)
+      .regex(/^(?=.*\S).{3,}$/u),
+  )
+  .max(20);
 const SHORT_REPLY_WORDS = z.number().int().min(0).max(OwnerConstants.MAX_SHORT_REPLY_WORDS);
 
 const DEFAULTS = OwnerConstants.DEFAULT_LABELS;
@@ -84,6 +93,13 @@ export const OWNER_SCHEMA = z
           .default(OwnerConstants.DEFAULT_HEADLINE_MAX_SENTENCES),
         absolutePaths: z.boolean().default(true),
         enforce: ENFORCE.default(OwnerEnforcement.ADVISE),
+        /** Words that say something is in public state, or that the checks pass, in the owner's language, added to the English ones. */
+        claimWords: z
+          .strictObject({
+            public: CLAIM_WORDS.default([]),
+            done: CLAIM_WORDS.default([]),
+          })
+          .prefault({}),
         /** Replies under this many words are exempt from the shape; 0 holds every reply to it. */
         shortReplyWords: SHORT_REPLY_WORDS.default(OwnerConstants.DEFAULT_SHORT_REPLY_WORDS),
       })

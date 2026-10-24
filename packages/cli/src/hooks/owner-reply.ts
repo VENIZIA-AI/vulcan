@@ -12,6 +12,7 @@ import {
   ShapeClasses,
 } from '../owner/index.ts';
 import type { IOwnerView } from '../owner/index.ts';
+import { checkClaims, readSignals, startTurn } from '../signals/index.ts';
 
 /** What to do about each class, in the words of the block message. */
 const FIXES: Record<string, string> = {
@@ -58,6 +59,8 @@ export const buildStopOutput = async (opts: {
 
   const { last_assistant_message: text } = input;
   const isRetry = 'stop_hook_active' in input && input.stop_hook_active === true;
+  const session =
+    'session_id' in input && typeof input.session_id === 'string' ? input.session_id : '';
   const view = await loadOwnerView({ projectRoot: opts.projectRoot });
 
   if (typeof text !== 'string' || view.enforce === OwnerEnforcement.OFF) {
@@ -65,11 +68,19 @@ export const buildStopOutput = async (opts: {
   }
 
   const result = checkOwnerShape({ text, view });
+  // A claim is checked on every reply, a short one too: "Published." is the shortest wrong one.
+  const claims = checkClaims({
+    text,
+    state: readSignals({ root: opts.projectRoot, session }),
+    publicWords: view.claimWords.public,
+    doneWords: view.claimWords.done,
+  });
+  const classes = [...result.classes, ...claims];
 
   // Every reply updates the note the next prompt reads, an exempt short one too; a write that fails never
   // costs the decision below.
   try {
-    recordReply({ root: opts.projectRoot, classes: result.classes });
+    recordReply({ root: opts.projectRoot, classes });
   } catch {
     // The log is advisory.
   }
@@ -108,14 +119,28 @@ export const buildStopOutput = async (opts: {
  * One line added to every prompt while the shape is held: the contract, and the faults of the reply
  * before when it had any. Empty when the shape is not enforced.
  */
-export const buildPromptContract = async (opts: { projectRoot: string }): Promise<string> => {
+export const buildPromptContract = async (opts: {
+  projectRoot: string;
+  /** The session the prompt belongs to; its turn begins here. */
+  session?: string;
+}): Promise<string> => {
+  // A new turn begins with this prompt: the notes of the last one are forgotten, whatever is enforced.
+  try {
+    startTurn({ root: opts.projectRoot, session: opts.session ?? '' });
+  } catch {
+    // The notes are advisory.
+  }
+
   const view = await loadOwnerView({ projectRoot: opts.projectRoot });
 
   if (view.enforce === OwnerEnforcement.OFF) {
     return '';
   }
 
-  const last = readLastClasses({ root: opts.projectRoot });
+  // A claim match is a hint, so it is logged but never said back to the model as a fault of the last reply.
+  const last = readLastClasses({ root: opts.projectRoot }).filter((name) =>
+    ShapeClasses.isValid(name),
+  );
 
   return last.length === 0
     ? 'Owner reply contract: follow the report shape from the session rules.'

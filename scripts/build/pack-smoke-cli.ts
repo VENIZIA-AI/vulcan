@@ -320,6 +320,10 @@ const benignPayloadsOf = (opts: { hook: IHookEntry; sandbox: string; command?: s
     return ['{"hook_event_name":"Stop","last_assistant_message":"Everything is in order and nothing needs your attention right now, because the work is done and every check ran as expected today.","stop_hook_active":false}'];
   }
 
+  if (opts.hook.event === 'PostToolUse' || opts.hook.event === 'PostToolUseFailure') {
+    return [`{"hook_event_name":"${opts.hook.event}","tool_name":"Bash","tool_input":{"command":"ls"}}`];
+  }
+
   if (opts.hook.event === 'UserPromptSubmit') {
     return ['{"hook_event_name":"UserPromptSubmit","prompt":"hello"}'];
   }
@@ -426,7 +430,7 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
   const hooks = hooksOf({ sandbox });
   const blocking = hooks.filter((hook) => BLOCKING.has(hookNameOf({ hook })));
 
-  for (const required of [...BLOCKING, 'session-start', 'subagent-start', 'stop', 'prompt-submit']) {
+  for (const required of [...BLOCKING, 'session-start', 'subagent-start', 'stop', 'prompt-submit', 'post-tool']) {
     if (!hooks.some((hook) => hookNameOf({ hook }) === required)) {
       return `hooks: nothing registers ${required}`;
     }

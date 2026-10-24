@@ -45,6 +45,7 @@ import {
   profileIsIgnored,
   readProfile,
   readViolationCounts,
+  violationLogBytes,
   ViolationConstants,
 } from '../owner/index.ts';
 import { skillCatalogOf, triggerOf } from '@venizia/vulcan-atlas';
@@ -1066,7 +1067,7 @@ export const checkStaleLocal = (opts: ICheckContext): IViolation[] =>
       }),
     );
 
-/** How often replies to the owner broke the report shape, from the log the Stop hook keeps; a note, never a failure. */
+/** How often replies to the owner were flagged (the report shape, or a claim the turn did not back), from the log the Stop hook keeps; a note, never a failure. */
 export const checkReplyShape = (opts: ICheckContext): IViolation[] => {
   const { byClass, replies, days } = readViolationCounts({ root: opts.root });
 
@@ -1078,11 +1079,22 @@ export const checkReplyShape = (opts: ICheckContext): IViolation[] => {
     .sort((first, second) => second[1] - first[1])
     .map(([name, count]) => `${name} ${count}`);
 
+  const isFull = violationLogBytes({ root: opts.root }) > ViolationConstants.LOG_MAX_BYTES;
+
   return [
+    ...(isFull
+      ? [
+          createViolation({
+            check: DoctorChecks.LOCAL,
+            file: `${ProjectLayout.LOCAL_DIRECTORY}/${ViolationConstants.LOG_FILE}`,
+            message: `the log is full (${formatBytes({ bytes: ViolationConstants.LOG_MAX_BYTES })}) and no longer grows; keep or delete it, and a new one starts`,
+          }),
+        ]
+      : []),
     createViolation({
       check: DoctorChecks.LOCAL,
       file: `${ProjectLayout.LOCAL_DIRECTORY}/${ViolationConstants.LOG_FILE}`,
-      message: `${replies} repl${replies === 1 ? 'y' : 'ies'} broke the report shape on ${days} day${days === 1 ? '' : 's'} (${parts.join(', ')}); the retro skill turns a pattern into a check`,
+      message: `${replies} repl${replies === 1 ? 'y was' : 'ies were'} flagged on ${days} day${days === 1 ? '' : 's'} (${parts.join(', ')}); the retro skill turns a pattern into a check`,
     }),
   ];
 };

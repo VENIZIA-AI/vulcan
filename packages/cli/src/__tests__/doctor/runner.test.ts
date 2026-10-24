@@ -1150,7 +1150,7 @@ describe('the report shape note', () => {
 
     expect(notes).toHaveLength(1);
     expect(notes[0]?.message).toBe(
-      '2 replies broke the report shape on 2 days (emoji 2, blocked-missing 1); the retro skill turns a pattern into a check',
+      '2 replies were flagged on 2 days (emoji 2, blocked-missing 1); the retro skill turns a pattern into a check',
     );
     expect(
       (await runDoctorNotes({ root: quiet })).filter((note) =>

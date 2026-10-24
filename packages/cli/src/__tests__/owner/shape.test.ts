@@ -135,6 +135,54 @@ describe('checkOwnerShape', () => {
     expect(classesOf(GOOD, custom)).toContain(ShapeClasses.MINIMAP_MISSING);
   });
 
+  test('a label set with diacritics and its own recommend pattern is held to as written', () => {
+    const vietnamese = {
+      minimapColumns: ['#', 'Việc', 'Trạng thái'],
+      status: {
+        done: 'xong',
+        doing: 'đang làm',
+        waiting: 'chờ',
+        todo: 'chưa làm',
+        blocked: 'kẹt',
+        dropped: 'bỏ',
+      },
+      labels: {
+        blocked: 'Chặn:',
+        decisions: 'Anh cần quyết định',
+        noBlocker: 'không',
+        noDecision: 'Chưa cần gì.',
+        recommend: 'Em đề xuất **{x}**.',
+      },
+    };
+    const reply = [
+      'Em đã xong phần kiểm tra và PR đã mở.',
+      '',
+      '| # | Việc | Trạng thái |',
+      '|---|---|---|',
+      '| 1 | Kiểm tra | xong |',
+      '| 2 | Review | đang làm |',
+      '',
+      '**Chặn:** không',
+      '',
+      'Em đã chạy đủ các bước kiểm tra trên nhánh này.',
+      '',
+      '## Anh cần quyết định',
+      '',
+      '1. Gộp luôn? Em đề xuất **có**.',
+    ].join('\n');
+
+    expect(classesOf(reply, vietnamese)).toEqual([]);
+    expect(classesOf(reply.replace('Chặn:', 'Blocked:'), vietnamese)).toContain(
+      ShapeClasses.BLOCKED_MISSING,
+    );
+    expect(classesOf(reply.replace('đang làm', 'in progress'), vietnamese)).toContain(
+      ShapeClasses.MINIMAP_STATUS,
+    );
+    expect(classesOf(reply.replace(' Em đề xuất **có**.', ''), vietnamese)).toContain(
+      ShapeClasses.DECISIONS_NO_RECOMMENDATION,
+    );
+  });
+
   test('fenced code is data: a table or heading inside it is not structure', () => {
     const text = `${GOOD}\n\n\`\`\`\n# not a heading\n| # | Task | Status |\n\`\`\``;
 
