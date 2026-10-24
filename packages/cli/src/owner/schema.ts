@@ -37,6 +37,8 @@ const DETAIL = choice({
   set: OwnerDetails.SCHEME_SET,
 });
 
+const SHORT_REPLY_WORDS = z.number().int().min(0).max(OwnerConstants.MAX_SHORT_REPLY_WORDS);
+
 const DEFAULTS = OwnerConstants.DEFAULT_LABELS;
 
 /** The words of one language: the minimap header, the six statuses and five labels. A closed list. */
@@ -82,6 +84,8 @@ export const OWNER_SCHEMA = z
           .default(OwnerConstants.DEFAULT_HEADLINE_MAX_SENTENCES),
         absolutePaths: z.boolean().default(true),
         enforce: ENFORCE.default(OwnerEnforcement.ADVISE),
+        /** Replies under this many words are exempt from the shape; 0 holds every reply to it. */
+        shortReplyWords: SHORT_REPLY_WORDS.default(OwnerConstants.DEFAULT_SHORT_REPLY_WORDS),
       })
       .prefault({}),
   })
@@ -116,6 +120,8 @@ export const PROFILE_SCHEMA = z.strictObject({
   codeTaste: z.string().max(1000).optional(),
   /** Stricter than the project's, never looser. */
   enforce: ENFORCE.optional(),
+  /** Lower than the project's, never higher: 0 holds every reply to the shape. */
+  shortReplyWords: SHORT_REPLY_WORDS.optional(),
   /** The label set of each language the person uses, keyed by language code. */
   labels: z.record(LANGUAGE, OWNER_LABEL_SET).default({}),
 });

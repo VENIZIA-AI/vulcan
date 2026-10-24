@@ -1,6 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildSessionDigest } from '../../hooks/index.ts';
+import {
+  buildSessionDigest,
+  SUBAGENT_CARD,
+  SUBAGENT_CARD_MAX_CHARACTERS,
+} from '../../hooks/index.ts';
+import { BASE_DIRECTORY } from '../../common/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { spawnSyncBounded } from '../spawn.helper.ts';
 
@@ -211,11 +217,28 @@ describe('the owner cards in the digest', () => {
     expect(digest).not.toContain('## How to answer the owner');
   });
 
-  test('a subagent digest carries neither card', async () => {
-    const root = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
-    const digest = await buildSessionDigest({ projectRoot: root, compact: true });
+  test('a subagent gets the small card, with neither the owner shape nor the profile', () => {
+    expect(SUBAGENT_CARD).not.toContain('How to answer the owner');
+    expect(SUBAGENT_CARD).not.toContain('Working with this person');
+  });
 
-    expect(digest).not.toContain('How to answer the owner');
+  // Paid once per subagent: ten subagents multiply it by ten. Growing it is a decision, not a drift.
+  test('the subagent card stays within its size budget, about 400 tokens', () => {
+    expect(SUBAGENT_CARD.length).toBeLessThanOrEqual(SUBAGENT_CARD_MAX_CHARACTERS);
+    expect(SUBAGENT_CARD_MAX_CHARACTERS).toBeLessThanOrEqual(1600);
+  });
+
+  test('every rule the subagent card cites exists in the base rules, and the safety gates are all there', () => {
+    const rules = readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8');
+    const cited = [...SUBAGENT_CARD.matchAll(/\bV-[A-Z]-\d\d\b/g)].map((match) => match[0]);
+
+    for (const id of cited) {
+      expect(rules, id).toContain(`| ${id} |`);
+    }
+
+    for (const id of ['V-B-08', 'V-W-01', 'V-P-08', 'V-B-06', 'V-B-07', 'V-P-11']) {
+      expect(cited, id).toContain(id);
+    }
   });
 
   test('a readable profile with a hostile language never breaks the digest', async () => {

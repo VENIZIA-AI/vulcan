@@ -9,7 +9,6 @@ import {
   renderProfileCard,
   resolveOwnerView,
 } from '../owner/index.ts';
-import { HookConstants } from './common/index.ts';
 import { extractRuleRows, parseRuleIds, readSlots, RuleConstants } from '../rules/index.ts';
 
 /** A project row whose first cell lists IDs - `| V-W-02, V-W-03 |` - elaborates those base rules. */
@@ -50,11 +49,7 @@ const buildAtlasBlock = (opts: {
 };
 
 /** The SessionStart context: base write boundaries, this project's slot choices and own rules, the often-dropped rules. */
-export const buildSessionDigest = async (opts: {
-  projectRoot: string;
-  /** A subagent's digest: the write boundaries, the slots and the often-dropped rules, not the project's own table. */
-  compact?: boolean;
-}): Promise<string> => {
+export const buildSessionDigest = async (opts: { projectRoot: string }): Promise<string> => {
   const baseRows = extractRuleRows({
     markdown: readText({ file: join(BASE_DIRECTORY, 'rules.md') }),
   });
@@ -101,32 +96,24 @@ export const buildSessionDigest = async (opts: {
     ...slotRows,
   ];
 
-  if (opts.compact !== true) {
-    const profile = readProfile({ root: opts.projectRoot });
-    const view = resolveOwnerView({
-      owner: loaded.ok ? loaded.config.owner : OWNER_SCHEMA.parse(undefined),
-      profile: profile.ok ? profile.profile : undefined,
-    });
+  const profile = readProfile({ root: opts.projectRoot });
+  const view = resolveOwnerView({
+    owner: loaded.ok ? loaded.config.owner : OWNER_SCHEMA.parse(undefined),
+    profile: profile.ok ? profile.profile : undefined,
+  });
+  const profileCard = renderProfileCard({ view });
 
-    const profileCard = renderProfileCard({ view });
+  lines.push('', ...renderOwnerShapeCard({ view }));
 
-    lines.push('', ...renderOwnerShapeCard({ view }));
-
-    if (profileCard.length > 0) {
-      lines.push('', ...profileCard);
-    }
+  if (profileCard.length > 0) {
+    lines.push('', ...profileCard);
   }
 
-  if (opts.compact === true) {
-    lines.push(
-      '',
-      "This project's own rules: `.agents/rules.md`. You work for a main agent: read-only unless your brief says otherwise, no git writes, and every file you create goes under `.agents/local/` (V-P-12, V-B-08).",
-    );
-  } else if (projectRows.length > 0) {
+  if (projectRows.length > 0) {
     lines.push('', "## This project's own rules", '', ...TABLE_HEADER, ...projectRows);
   }
 
-  if (opts.compact !== true && minimap !== undefined && minimap.length > 0) {
+  if (minimap !== undefined && minimap.length > 0) {
     lines.push('', "## This project's minimap", '', minimap);
   }
 
@@ -140,11 +127,3 @@ export const buildSessionDigest = async (opts: {
 
   return `${lines.join('\n')}\n`;
 };
-
-/** The SubagentStart answer: the compact digest as the subagent's added context. */
-export const buildSubagentStartOutput = async (opts: { projectRoot: string }) => ({
-  hookSpecificOutput: {
-    hookEventName: HookConstants.SUBAGENT_START,
-    additionalContext: await buildSessionDigest({ projectRoot: opts.projectRoot, compact: true }),
-  },
-});

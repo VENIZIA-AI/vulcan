@@ -40,7 +40,13 @@ import {
   SyncStatuses,
 } from '../sync/index.ts';
 import { formatAge, formatBytes, LocalConstants, LocalStates, scanLocal } from '../local/index.ts';
-import { OwnerConstants, profileIsIgnored, readProfile } from '../owner/index.ts';
+import {
+  OwnerConstants,
+  profileIsIgnored,
+  readProfile,
+  readViolationCounts,
+  ViolationConstants,
+} from '../owner/index.ts';
 import { skillCatalogOf, triggerOf } from '@venizia/vulcan-atlas';
 import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
@@ -1059,6 +1065,27 @@ export const checkStaleLocal = (opts: ICheckContext): IViolation[] =>
         message: `${entry.state === LocalStates.STALE ? `left ${formatAge({ ageMs: entry.ageMs })} ago` : entry.note} (${formatBytes({ bytes: entry.bytes })}) - run: vulcan clean --${entry.scope} --yes`,
       }),
     );
+
+/** How often replies to the owner broke the report shape, from the log the Stop hook keeps; a note, never a failure. */
+export const checkReplyShape = (opts: ICheckContext): IViolation[] => {
+  const { byClass, replies, days } = readViolationCounts({ root: opts.root });
+
+  if (replies === 0) {
+    return [];
+  }
+
+  const parts = [...byClass.entries()]
+    .sort((first, second) => second[1] - first[1])
+    .map(([name, count]) => `${name} ${count}`);
+
+  return [
+    createViolation({
+      check: DoctorChecks.LOCAL,
+      file: `${ProjectLayout.LOCAL_DIRECTORY}/${ViolationConstants.LOG_FILE}`,
+      message: `${replies} repl${replies === 1 ? 'y' : 'ies'} broke the report shape on ${days} day${days === 1 ? '' : 's'} (${parts.join(', ')}); the retro skill turns a pattern into a check`,
+    }),
+  ];
+};
 
 /** The size of `.agents/local/` once it is large: where the space went, and the command that gives it back. */
 export const checkLocalSize = (opts: ICheckContext): IViolation[] => {

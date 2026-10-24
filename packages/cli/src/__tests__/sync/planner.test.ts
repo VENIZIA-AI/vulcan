@@ -177,7 +177,7 @@ describe('.claude/settings.json', () => {
     runSync({ root });
     const settings = readSettings({ root });
 
-    expect(settings.hooks.Stop[0].hooks[0].command).toBe('echo bye');
+    expect(settings.hooks.Stop.at(-1).hooks[0].command).toBe('echo bye');
     // guard-writes, guard-manifest, guard-package, guard-git and guard-outside ship; the config's hook comes after all five.
     expect(settings.hooks.PreToolUse).toHaveLength(6);
     expect(settings.hooks.PreToolUse[5].matcher).toBe('Edit');
@@ -210,7 +210,8 @@ describe('.claude/settings.json', () => {
       "export default { rules: { 'V-W-01': 'read-only' } };\n",
     );
     runSync({ root });
-    expect(readSettings({ root }).hooks.Stop).toBeUndefined();
+    expect(JSON.stringify(readSettings({ root }).hooks)).not.toContain('echo bye');
+    expect(readSettings({ root }).hooks.Stop).toHaveLength(1);
   });
 
   test('claude.settings from the config are shared, removable, and never touch personal keys', () => {

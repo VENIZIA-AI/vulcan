@@ -316,6 +316,14 @@ const benignPayloadsOf = (opts: { hook: IHookEntry; sandbox: string; command?: s
     return ['{"hook_event_name":"SessionStart","source":"startup"}'];
   }
 
+  if (opts.hook.event === 'Stop') {
+    return ['{"hook_event_name":"Stop","last_assistant_message":"Everything is in order and nothing needs your attention right now, because the work is done and every check ran as expected today.","stop_hook_active":false}'];
+  }
+
+  if (opts.hook.event === 'UserPromptSubmit') {
+    return ['{"hook_event_name":"UserPromptSubmit","prompt":"hello"}'];
+  }
+
   if (opts.hook.event === 'SubagentStart') {
     return ['{"hook_event_name":"SubagentStart","agent_type":"general-purpose","agent_id":"smoke"}'];
   }
@@ -418,7 +426,7 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
   const hooks = hooksOf({ sandbox });
   const blocking = hooks.filter((hook) => BLOCKING.has(hookNameOf({ hook })));
 
-  for (const required of [...BLOCKING, 'session-start', 'subagent-start']) {
+  for (const required of [...BLOCKING, 'session-start', 'subagent-start', 'stop', 'prompt-submit']) {
     if (!hooks.some((hook) => hookNameOf({ hook }) === required)) {
       return `hooks: nothing registers ${required}`;
     }
@@ -441,6 +449,17 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
 
   if (!digest?.stdout.includes('VULCAN rules')) {
     return 'hooks: session-start printed no rules digest';
+  }
+
+  const prompt = hooks.find((hook) => hook.event === 'UserPromptSubmit');
+  const [promptPayload] = prompt === undefined ? [] : benignPayloadsOf({ hook: prompt, sandbox });
+  const contract =
+    prompt === undefined || promptPayload === undefined
+      ? undefined
+      : runHook({ hook: prompt, sandbox, payload: promptPayload });
+
+  if (!contract?.stdout.includes('Owner reply contract')) {
+    return 'hooks: prompt-submit printed no owner reply contract';
   }
 
   const installed = join(sandbox, 'node_modules', '@venizia', 'vulcan');

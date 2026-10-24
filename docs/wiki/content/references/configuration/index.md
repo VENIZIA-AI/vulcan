@@ -539,7 +539,8 @@ The `owner` object is the project's contract for how an agent answers its owners
 | `report.labels` | `object` | `Blocked:`, `Decisions needed`, `none`, `Nothing needed yet.`, `I recommend **{x}**.` | Keys `blocked`, `decisions`, `noBlocker`, `noDecision`, `recommend`; `recommend` must contain `{x}` |
 | `report.headlineMaxSentences` | `number` | `2` | Sentences allowed in the headline, 1 to 5 |
 | `report.absolutePaths` | `boolean` | `true` | Name a file the owner should open by its full path |
-| `report.enforce` | `'off' \| 'advise' \| 'block'` | `'advise'` | How hard the shape is held; `off` prints no shape card. A person's profile may only make it stricter |
+| `report.enforce` | `'off' \| 'advise' \| 'block'` | `'advise'` | How hard the shape is held; `off` prints no shape card and checks nothing, `advise` logs a reply that breaks the shape and reminds the next turn, `block` also sends a structurally wrong reply back once. A person's profile may only make it stricter |
+| `report.shortReplyWords` | `number` | `20` | A reply under this many words, an acknowledgement, is exempt from the shape; `0` holds every reply to it. A profile may only lower it |
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -564,6 +565,7 @@ Each developer has their own settings, in `.agents/local/profile.json` inside th
 | `habits.askBeforeReversible`, `habits.proposeCommits` | Ask before a reversible choice, or state a default and continue (V-P-10); whether to propose commits |
 | `about`, `codeTaste` | Free text, recorded as written; never scored or used to infer traits |
 | `enforce` | `off`, `advise` or `block`; counts only when stricter than the project's |
+| `shortReplyWords` | A number from 0; counts only when lower than the project's, and `0` holds every reply to the shape |
 | `labels` | A label set per language code, in the same shape as `report.minimapColumns`, `report.status` and `report.labels` |
 
 Labels and forms of address are one line each (at most 80 characters, no backtick, pipe or quote) because they sit inside a card line; a language is a code such as `en` or `pt-BR`. The file must be a regular file inside the project: a symlink at its place or at `.agents/local` is refused on read and on write. [`vulcan profile`](/references/commands/profile) asks the questions and writes the file; `vulcan init` offers it once in a terminal. The session digest prints a short "Working with this person" card from it, with the free text cut and quoted as one line. `vulcan doctor` warns when the file cannot be read, when git would pick it up (`git check-ignore` decides, so a later `!` line counts), and when git tracks it. The file is created with mode 0600 and is never read by atlas, telemetry or any network call.
