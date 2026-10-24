@@ -9,15 +9,15 @@ Everything an agent creates while it works lives under the project's gitignored 
 
 | Flag | Scope | What it takes |
 |---|---|---|
-| `--tmp` (the default) | `tmp/` | every item: scratch, temporary files, logs, subagent output |
-| `--worktrees` | `worktrees/` | a worktree whose branch is merged into the main checkout's branch or no longer exists, and a folder git does not list; an unmerged one is kept, and said so |
+| `--tmp` (the default) | `tmp/` | every item, whatever its age: scratch, temporary files, logs, subagent output. Run it when no task is using them |
+| `--worktrees` | `worktrees/` | a worktree whose branch is merged into the branch checked out at the project root or no longer exists, and that holds no uncommitted or untracked file; plus a folder git does not list. An unmerged worktree, one on a detached HEAD and one with uncommitted work are kept, and the reason is printed |
 | `--clones` | `clones/` | clones of other repositories |
 | `--cache` | `cache/` | what atlas fetched; it rebuilds |
 | `--all` | the four above | never `reports/`, `prototypes/` or the profile |
 | `--reports`, `--prototypes`, `--profile` | `reports/`, `prototypes/`, `profile.json` | only when named; they are kept until you delete them |
 | `--yes` | | removes what the dry run listed |
 
-A worktree is removed with `git worktree remove`, then `git worktree prune`. A symlink under `.agents/local/` is unlinked and never followed; a path that does not resolve to a place inside `.agents/local/` is refused. If `.agents/local` is itself a symlink, nothing is scanned.
+A worktree is removed with `git worktree remove`, then `git worktree prune`. A symlink under `.agents/local/` is unlinked and never followed; a path that does not resolve to a place inside `.agents/local/` is refused. If `.agents` or `.agents/local` is a symlink, or `.agents/local` resolves outside the project, nothing is scanned or removed. A scope folder that is a file or a link is skipped. An item's age is its newest change anywhere inside it, not its folder's own time. For a worktree on a deleted branch git keeps no commit to compare with, so work that was staged but never committed there cannot be told from the checkout itself.
 
 The dry run lists each item with its size and age, then what it would remove:
 

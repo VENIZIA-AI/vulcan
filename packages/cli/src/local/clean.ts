@@ -79,7 +79,8 @@ export const runClean = (opts: {
     }
   }
 
-  if (removed.some((entry) => entry.registered)) {
+  // Pruned after any worktree entry goes, registered or not: git then forgets one whose folder is gone.
+  if (removed.some((entry) => entry.scope === 'worktrees')) {
     git({ cwd: opts.root, args: ['worktree', 'prune'] });
   }
 

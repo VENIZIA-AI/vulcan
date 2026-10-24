@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   symlinkSync,
   truncateSync,
   utimesSync,
@@ -10,7 +11,14 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { runDoctorNotes, runDoctorWarnings } from '../../doctor/index.ts';
-import { isInsideLocal, planClean, runClean, scanLocal } from '../../local/index.ts';
+import {
+  isInsideLocal,
+  localRootOf,
+  parseWorktreeList,
+  planClean,
+  runClean,
+  scanLocal,
+} from '../../local/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -132,6 +140,48 @@ describe('scanLocal', () => {
     });
   });
 
+  test('a merged worktree with uncommitted or untracked files is dirty and never removable', () => {
+    const root = repository();
+
+    worktree({ root, name: 'merged-clean' });
+    worktree({ root, name: 'merged-dirty' });
+    worktree({ root, name: 'merged-untracked' });
+    writeFileSync(join(root, '.agents/local/worktrees/merged-dirty/a.txt'), 'edited');
+    writeFileSync(join(root, '.agents/local/worktrees/merged-untracked/new.txt'), 'new');
+
+    const state = Object.fromEntries(
+      scanLocal({ root }).map((entry) => [entry.name, [entry.state, entry.removable]]),
+    );
+
+    expect(state).toEqual({
+      'merged-clean': ['merged', true],
+      'merged-dirty': ['dirty', false],
+      'merged-untracked': ['dirty', false],
+    });
+
+    const result = runClean({ root, plan: planClean({ root, scopes: ['worktrees'] }) });
+
+    expect(names({ entries: result.removed })).toEqual(['worktrees/merged-clean']);
+    expect(readFileSync(join(root, '.agents/local/worktrees/merged-dirty/a.txt'), 'utf8')).toBe(
+      'edited',
+    );
+  });
+
+  test('age is the newest change anywhere inside an item, not the folder own time', () => {
+    const root = repository();
+
+    file({ root, path: 'tmp/long-task/deep/out.log', text: 'still writing' });
+    utimesSync(
+      join(root, '.agents/local/tmp/long-task'),
+      new Date(Date.now() - 5 * DAY),
+      new Date(Date.now() - 5 * DAY),
+    );
+
+    const [entry] = scanLocal({ root }).filter((item) => item.name === 'long-task');
+
+    expect(entry?.state).toBe('ok');
+  });
+
   test('a symlinked .agents/local is not scanned', () => {
     const root = createProject({ files: {} });
     const outside = createProject({ files: { 'tmp/a.txt': 'x' } });
@@ -140,6 +190,93 @@ describe('scanLocal', () => {
     symlinkSync(outside, join(root, '.agents/local'));
 
     expect(scanLocal({ root })).toEqual([]);
+  });
+});
+
+describe('a link can never move clean out of the project', () => {
+  test('a symlinked .agents is not trusted: nothing is scanned, nothing outside is removed', () => {
+    const root = createProject({ files: { 'package.json': '{}' } });
+    const outside = createProject({ files: { 'local/tmp/x/keep.txt': 'precious' } });
+
+    symlinkSync(outside, join(root, '.agents'));
+
+    expect(localRootOf({ root })).toBeUndefined();
+    expect(scanLocal({ root })).toEqual([]);
+    expect(isInsideLocal({ root, path: join(root, '.agents/local/tmp/x') })).toBe(false);
+
+    const entry = {
+      scope: 'tmp',
+      name: 'x',
+      path: join(root, '.agents/local/tmp/x'),
+      bytes: 1,
+      ageMs: 0,
+      state: 'ok',
+      removable: true,
+      isSymlink: false,
+      registered: false,
+      note: '',
+    };
+    const result = runClean({ root, plan: { remove: [entry], keep: [] } });
+
+    expect(result.removed).toEqual([]);
+    expect(readFileSync(join(outside, 'local/tmp/x/keep.txt'), 'utf8')).toBe('precious');
+  });
+
+  test('.agents/local resolves inside the project to be trusted, and only then', () => {
+    const root = repository();
+
+    expect(localRootOf({ root })?.endsWith('/.agents/local')).toBe(true);
+    expect(localRootOf({ root: createProject({ files: {} }) })).toBeUndefined();
+  });
+
+  test('a scope folder that is a file, or a link, is skipped without throwing, in clean and in doctor', async () => {
+    const root = repository();
+    const outside = createProject({ files: { 'a.txt': 'x' } });
+
+    rmSync(join(root, '.agents/local/tmp'), { recursive: true });
+    writeFileSync(join(root, '.agents/local/tmp'), 'not a folder');
+    rmSync(join(root, '.agents/local/clones'), { recursive: true });
+    symlinkSync(outside, join(root, '.agents/local/clones'));
+
+    expect(() => scanLocal({ root })).not.toThrow();
+    expect(scanLocal({ root }).filter((entry) => ['tmp', 'clones'].includes(entry.scope))).toEqual(
+      [],
+    );
+    expect(() => runDoctorWarnings({ root })).not.toThrow();
+    expect(
+      (await runDoctorNotes({ root })).filter((entry) => entry.file === '.agents/local'),
+    ).toEqual([]);
+  });
+});
+
+describe('parseWorktreeList', () => {
+  test('reads NUL separated records, a path with a line break whole', () => {
+    const output =
+      [
+        [
+          'worktree /repo',
+          'HEAD 1111111111111111111111111111111111111111',
+          'branch refs/heads/develop',
+        ].join('\0'),
+        [
+          'worktree /repo/.agents/local/worktrees/odd\nname',
+          'HEAD 2222222222222222222222222222222222222222',
+          'branch refs/heads/odd',
+        ].join('\0'),
+        [
+          'worktree /repo/.agents/local/worktrees/loose',
+          'HEAD 3333333333333333333333333333333333333333',
+          'detached',
+        ].join('\0'),
+      ].join('\0\0') + '\0\0';
+    const map = parseWorktreeList({ output });
+
+    expect(map.get('/repo/.agents/local/worktrees/odd\nname')?.branch).toBe('odd');
+    expect(map.get('/repo/.agents/local/worktrees/loose')).toEqual({
+      branch: undefined,
+      head: '3333333333333333333333333333333333333333',
+    });
+    expect(map.get('/repo')?.branch).toBe('develop');
   });
 });
 
@@ -315,7 +452,7 @@ describe('doctor and what an agent left behind', () => {
   test('warns about stale tmp, a merged worktree and an old clone, each with the command', async () => {
     const root = repository();
 
-    file({ root, path: 'tmp/old/a.txt' });
+    file({ root, path: 'tmp/old/a.txt', ageDays: 3 });
     utimesSync(
       join(root, '.agents/local/tmp/old'),
       new Date(Date.now() - 3 * DAY),

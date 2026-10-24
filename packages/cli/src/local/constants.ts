@@ -11,6 +11,8 @@ export class LocalStates {
   static readonly UNMERGED = 'unmerged';
   /** A folder in `worktrees/` that git does not list. */
   static readonly ORPHAN = 'orphan';
+  /** A worktree on a merged or gone branch that still holds uncommitted or untracked files: never removed. */
+  static readonly DIRTY = 'dirty';
   /** git could not say (not a repository, or git is missing): left alone. */
   static readonly UNKNOWN = 'unknown';
 }
