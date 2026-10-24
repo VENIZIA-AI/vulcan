@@ -33,6 +33,9 @@ Usage: bun x vulcan <command>
                                   Tell VULCAN how you like to work (reply language, how to address you,
                                   tone, habits) in .agents/local/profile.json; no argument runs the form,
                                   show prints it, reset deletes it
+  visualize <spec.json> [--out <name>] | --schema
+                                  Make one small static HTML page (a flow, a status, a before and after)
+                                  from a JSON spec, in .agents/local/prototypes/; --schema prints the schema
   clean [--tmp|--worktrees|--clones|--cache|--all] [--reports|--prototypes|--profile] [--yes]
                                   List what an agent left under .agents/local/ (a dry run) and, with
                                   --yes, remove it; --tmp is the default, --worktrees takes merged or
@@ -55,6 +58,7 @@ The following table lists each command, its purpose, its exit codes, and its ref
 | `add` | Add an app, or a shared library with `--lib`, from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
 | `sync` | Write agent adapter files and manifest; prune stale hooks and dead skill links with `--prune` | `0` on success; `1` on invalid configuration, broken settings, or unknown argument | [vulcan sync](/references/commands/sync) |
 | `agents` | Show, add, remove or re-choose the coding agents chosen on this machine, and write or take back their adapters | `0` on success or when nothing needed changing; `1` on an unknown agent or subcommand, a missing list, `setup` without a terminal, or invalid configuration | [vulcan agents](/references/commands/agents) |
+| `visualize` | Make one small static HTML page from a JSON spec, in `.agents/local/prototypes/`; `--schema` prints the spec's JSON Schema | `0` on success; `1` when the spec is missing or not renderable, nothing is written, or `.agents/local/` is missing | [vulcan visualize](/references/commands/visualize) |
 | `profile` | Tell VULCAN how you like to work (language, how to address you, tone, habits); `show` prints it, `reset` deletes it | `0` on success; `1` when cancelled, unreadable, not gitignored or on an unknown argument | [vulcan profile](/references/commands/profile) |
 | `clean` | List what an agent left under `.agents/local/` and remove it with `--yes` | `0` on a dry run, a removal or nothing to remove; `1` when an item cannot be removed or on an unknown flag | [vulcan clean](/references/commands/clean) |
 | `doctor` | Check the project against the VULCAN contract and report violations | `0` when conformant; `1` on any contract violation or unknown argument | [vulcan doctor](/references/commands/doctor) |

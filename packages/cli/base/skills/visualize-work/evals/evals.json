@@ -1,0 +1,17 @@
+{
+  "skill_name": "visualize-work",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Make a one-page visual of how a request travels through this project's main command, for the owner to read. Do not publish it.",
+      "expected_output": "Writes a JSON spec under .agents/local/tmp with a title that states the takeaway, a one-sentence verdict, boxes placed on a grid with every arrow labelled by a verb, and runs `vulcan visualize` to write the page under .agents/local/prototypes; reports the full path, the checks the command ran, and either the browser check at 390 and 1280 px or says it was not browser-checked; publishes or uploads nothing",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "Show before and after of the change we just made, as a page I can open.",
+      "expected_output": "Uses the before and after section with items marked added and removed, a verdict sentence, evidence rows labelled verified only for probes actually run in the session, keeps to one page, writes through `vulcan visualize` into .agents/local/prototypes, and states what was and was not checked",
+      "files": []
+    }
+  ]
+}
