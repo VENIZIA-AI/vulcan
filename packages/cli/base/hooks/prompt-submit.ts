@@ -14,8 +14,26 @@ if (process.env.VULCAN_GUARDS === 'off') {
 
 try {
   const { buildPromptContract } = await import('../../src/hooks/owner-reply.ts');
+  let session = '';
+
+  try {
+    const event: unknown = JSON.parse(await Bun.stdin.text());
+
+    if (
+      typeof event === 'object' &&
+      event !== null &&
+      'session_id' in event &&
+      typeof event.session_id === 'string'
+    ) {
+      session = event.session_id;
+    }
+  } catch {
+    // No readable event: the turn is noted for no session, and nothing is echoed.
+  }
+
   const line = await buildPromptContract({
     projectRoot: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+    session,
   });
 
   if (line !== '') {

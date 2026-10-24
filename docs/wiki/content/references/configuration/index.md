@@ -540,6 +540,7 @@ The `owner` object is the project's contract for how an agent answers its owners
 | `report.headlineMaxSentences` | `number` | `2` | Sentences allowed in the headline, 1 to 5 |
 | `report.absolutePaths` | `boolean` | `true` | Name a file the owner should open by its full path |
 | `report.enforce` | `'off' \| 'advise' \| 'block'` | `'advise'` | How hard the shape is held; `off` prints no shape card and checks nothing, `advise` logs a reply that breaks the shape and reminds the next turn, `block` also sends a structurally wrong reply back once. A person's profile may only make it stricter |
+| `report.claimWords` | `{ public?: string[]; done?: string[] }` | `{}` | Words in the owner's language that say something is published or live (`public`), or that the checks pass (`done`), added to the English ones the Stop check looks for |
 | `report.shortReplyWords` | `number` | `20` | A reply under this many words, an acknowledgement, is exempt from the shape; `0` holds every reply to it. A profile may only lower it |
 
 ```ts

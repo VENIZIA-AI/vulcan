@@ -1,7 +1,11 @@
 import { appendFileSync, lstatSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { localRootOf } from '../local/scan.ts';
+import { ClaimClasses } from '../signals/constants.ts';
 import { ShapeClasses } from './shape.ts';
+
+const isKnownClass = (value: string): boolean =>
+  ShapeClasses.isValid(value) || ClaimClasses.isValid(value);
 
 export class ViolationConstants {
   /** One line per checked reply that broke the shape: the date and the classes, never the reply. */
@@ -106,6 +110,13 @@ export const wasBlockedRecently = (opts: { root: string; now?: number }): boolea
   );
 };
 
+/** The size of the violation log in bytes, 0 when there is none or it is not ours to read. */
+export const violationLogBytes = (opts: { root: string }): number => {
+  const log = fileOf({ root: opts.root, name: ViolationConstants.LOG_FILE });
+
+  return log === undefined ? 0 : (lstatSync(log, { throwIfNoEntry: false })?.size ?? 0);
+};
+
 /** The classes the previous reply broke, or none when there is no note or it is stale. */
 export const readLastClasses = (opts: { root: string; now?: number }): string[] => {
   const last = fileOf({ root: opts.root, name: ViolationConstants.LAST_FILE });
@@ -132,7 +143,7 @@ export const readLastClasses = (opts: { root: string; now?: number }): string[] 
     }
 
     return classes.filter(
-      (value): value is string => typeof value === 'string' && ShapeClasses.isValid(value),
+      (value): value is string => typeof value === 'string' && isKnownClass(value),
     );
   } catch {
     return [];
@@ -177,7 +188,7 @@ export const readViolationCounts = (opts: {
         }
 
         for (const value of entry.classes) {
-          if (typeof value === 'string' && ShapeClasses.isValid(value)) {
+          if (typeof value === 'string' && isKnownClass(value)) {
             byClass.set(value, (byClass.get(value) ?? 0) + 1);
           }
         }

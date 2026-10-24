@@ -19,6 +19,9 @@ packages: ['@venizia/vulcan']
 - **`prompt-submit` hook**: one line each prompt while the shape is held, naming the faults of the previous reply.
 - **`owner.report.shortReplyWords`** (default 20): a reply under this many words is exempt. `0` holds every reply to the shape. A profile may only lower it, like `enforce` may only be raised.
 - **`vulcan doctor`** prints the counts from the log as a note.
+- **Claims are compared with the turn**: a reply that says something is published, released or live with no `npm view`, `gh`, `git ls-remote` or `curl` in the turn is logged as `public-claim-no-probe`; one that says the checks pass after a failed gate is logged as `contradicted-completion`. Log only. `owner.report.claimWords` adds the owner's own words.
+- **`post-tool` hook**: tells the model when it seems stuck (the same call three times within a minute, two calls alternating for three rounds, one call failing three times) and, after an edit of a skill or a rules file, to run the evals or keep to the admission bar. About 10 ms per call, never blocks.
+- **`vulcan doctor`** says when the violation log is full (512 KB) and has stopped growing.
 - **A small subagent card**: a subagent now starts with a fixed card of about 250 tokens (read-only, no git writes, files under `.agents/local/`, reuse before you write, never cut safety, say what you skipped, the report shape back) instead of the 1,500-token digest; a test pins the size.
 - Both hooks fail open and honour `VULCAN_GUARDS=off`. The pack smoke runs them from the tarball.
 
