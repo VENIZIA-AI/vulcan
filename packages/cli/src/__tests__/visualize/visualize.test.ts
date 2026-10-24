@@ -331,7 +331,7 @@ describe('an error arrow', () => {
   test('has its own red arrowhead: a marker does not inherit the arrow colour', () => {
     const html = rendered(
       withFlow((flow) =>
-        flow['edges']?.push({ from: 'user', to: 'check', label: 'fails', variant: 'error' }),
+        flow['edges']?.push({ from: 'digest', to: 'user', label: 'fails', variant: 'error' }),
       ),
     );
 
