@@ -19,7 +19,7 @@ make release ARGS="--bump prerelease"        # dispatch package-release.yml and 
 or `none` (publish the version already in package.json).
 
 1. The workflow sets one version on all three packages, then runs every gate: build, lint, catalog,
-   test, the VULCAN contract, both pack smokes, and the packed manifests.
+   test, the VULCAN contract, both pack smokes, and the packed manifests. The cli pack smoke also runs every hook of the generated `.claude/settings.json` from the installed tarball: a benign call each, with `zod` made unresolvable, and with `src/hooks/common/constants.ts` removed. A release whose hooks cannot load stops every tool call in every project that syncs it, so this step blocks the release.
 2. The packages pin each other exactly: the cli names okf and atlas as `workspace:*` in the tree, and
    `bun publish` writes the train's version into the tarball. The workflow checks every packed
    manifest for it. It publishes okf, atlas, cli in that order with `bun publish` - prerelease to `next`, stable to

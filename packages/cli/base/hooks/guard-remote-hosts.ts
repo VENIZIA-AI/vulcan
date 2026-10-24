@@ -11,8 +11,9 @@
 export {};
 
 try {
-  const { buildRemoteDecision, inspectRemoteCommand, parseHookCommand, parseTrustedList } =
-    await import('../../src/hooks/index.ts');
+  const { buildRemoteDecision, inspectRemoteCommand, parseTrustedList } =
+    await import('../../src/hooks/remote-hosts.ts');
+  const { parseHookCommand } = await import('../../src/hooks/guard-writes.ts');
   const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
   const manifestFile = Bun.file(`${root}/.agents/vulcan.manifest.json`);
 

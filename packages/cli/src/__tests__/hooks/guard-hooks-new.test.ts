@@ -151,9 +151,9 @@ describe('the subagent-start hook', () => {
 
 describe('the kill switch does not depend on the install being healthy', () => {
   test.each(['guard-git', 'guard-outside'])(
-    '%s exits 0 with VULCAN_GUARDS=off when its modules cannot be loaded, and 2 without it',
+    '%s: with its modules unloadable it passes the call and says so; with VULCAN_GUARDS=off it is silent',
     async (hook) => {
-      // A copy of the hook where `../../src/hooks/index.ts` does not exist: the import fails.
+      // A copy of the hook where `../../src/hooks/*` does not exist: the import fails.
       const broken = join(createProject({ files: {} }), 'a', 'b');
 
       mkdirSync(broken, { recursive: true });
@@ -168,12 +168,16 @@ describe('the kill switch does not depend on the install being healthy', () => {
           timeout: SPAWN_TIMEOUT_MS,
           killSignal: 'SIGKILL',
         });
+        const stderr = await new Response(child.stderr).text();
 
-        return child.exited;
+        return { code: await child.exited, stderr };
       };
+      const failing = await run({});
+      const off = await run({ VULCAN_GUARDS: 'off' });
 
-      expect(await run({})).toBe(2);
-      expect(await run({ VULCAN_GUARDS: 'off' })).toBe(0);
+      expect(failing.code).toBe(0);
+      expect(failing.stderr).toContain('the call passes');
+      expect(off).toEqual({ code: 0, stderr: '' });
     },
   );
 });

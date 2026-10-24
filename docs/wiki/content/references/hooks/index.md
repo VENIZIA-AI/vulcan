@@ -163,9 +163,18 @@ $ echo '{"tool_name":"Bash","tool_input":{"command":"kubectl apply -f deploy.yam
 
 ## How the hooks fail
 
-Shipped hook commands in `.claude/settings.json` fail closed when dependencies are missing.
-If `node_modules/@venizia/vulcan` is absent or `bun` is missing from `PATH`, the command exits with code 2.
-Claude Code treats exit code 2 as a blocking failure only for a `PreToolUse` hook (the command is blocked).
+Two kinds of hook run in every session of every project, so each kind has a stated failure mode.
+
+| Kind | Hooks | When it cannot run (missing package, missing `bun`, a crash) |
+|---|---|---|
+| Safety hooks | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
+| Drift guards | `guard-git`, `guard-outside` | fail open: the call passes and a note goes to stderr |
+
+`subagent-start` never blocks. `VULCAN_GUARDS=off` switches the two drift guards off and is read before any module loads.
+
+The safety hooks import only the modules they need, not the config loader, the rules reader or `zod`, so a defect in those cannot stop every tool call. The release pipeline's pack smoke runs every hook of the generated settings from the installed tarball (a benign call each, with every copy of `zod` made unresolvable, and with `src/hooks/common/constants.ts` removed) and refuses to publish if one fails.
+
+A safety hook's command exits 2 when `node_modules/@venizia/vulcan` is absent, `bun` is missing from `PATH` or the hook crashes. Claude Code treats exit code 2 as a blocking failure only for a `PreToolUse` hook (the call is blocked); `session-start` also exits 2 but cannot block a session.
 
 If `bun` is missing from `PATH`, the wrapper prints:
 
@@ -186,9 +195,8 @@ vulcan: the guard-writes hook failed (...) - blocked; run bun install
 vulcan: the guard-remote-hosts hook failed (...) - blocked
 ```
 
-When `node_modules` or `bun` is missing, only `guard-writes` lets `bun install` or `bun i` through.
+When `node_modules` or `bun` is missing, or the hook crashes, the Bash safety hooks (`guard-writes`, `guard-manifest`, `guard-remote-hosts`) let `bun install` or `bun i` through; the agent can then repair the install. `guard-package` watches `Write` calls only, so it has no `bun install` to let through.
 Both forms accept the usual flags: `--frozen-lockfile`, `--production`, `-p`, `--no-save`, `--ignore-scripts`, `--force`, `--verbose`, or `--silent`.
-The `session-start` and `guard-remote-hosts` commands exit 2 when `node_modules` or `bun` is missing.
 
 When `node_modules` is missing, `guard-writes` exits 2 on other commands, while `bun install` exits 0:
 
