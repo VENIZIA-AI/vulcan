@@ -854,7 +854,7 @@ describe('doctor: bun fmt (warnings)', () => {
       ),
     });
   const ADD_SECTION =
-    'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "avoid", flavor = "oxfmt"): without it bun fmt formats with Bun\'s defaults, not the shared style';
+    'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "always", flavor = "oxfmt"): without it bun fmt formats with Bun\'s defaults, not the shared style';
   const FLAVOR_ADVICE =
     'without it bun fmt formats like Prettier when oxfmt is not a dependency, and the output changes';
 

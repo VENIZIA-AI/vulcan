@@ -17,7 +17,7 @@ export const renderBunfig = (): string =>
     '[fmt]',
     'printWidth = 100',
     'singleQuote = true',
-    'arrowParens = "avoid"',
+    'arrowParens = "always"',
     'flavor = "oxfmt"',
     '',
   ].join('\n');

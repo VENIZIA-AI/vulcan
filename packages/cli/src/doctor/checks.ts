@@ -795,7 +795,7 @@ export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
 };
 
 const FMT_SECTION_ADVICE =
-  'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "avoid", flavor = "oxfmt"): without it bun fmt formats with Bun\'s defaults, not the shared style';
+  'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "always", flavor = "oxfmt"): without it bun fmt formats with Bun\'s defaults, not the shared style';
 const FMT_FLAVOR_ADVICE =
   'without it bun fmt formats like Prettier when oxfmt is not a dependency, and the output changes';
 const OXFMT_LOADED_ADVICE =

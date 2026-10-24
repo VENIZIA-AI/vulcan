@@ -5,7 +5,7 @@ import { spawnSyncBounded } from './spawn.helper';
 
 /** The `[fmt]` section `vulcan init` writes to the project root. */
 const BUNFIG =
-  '[fmt]\nprintWidth = 100\nsingleQuote = true\narrowParens = "avoid"\nflavor = "oxfmt"\n';
+  '[fmt]\nprintWidth = 100\nsingleQuote = true\narrowParens = "always"\nflavor = "oxfmt"\n';
 
 /** Whether `bun fmt --check` accepts `text` as the file `file` of a project formatted by `init`'s `[fmt]`. */
 export const isFormatted = (opts: {
