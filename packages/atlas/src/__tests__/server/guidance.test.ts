@@ -10,7 +10,7 @@ const ACME = join(__dirname, '..', 'fixtures', 'acme');
 const projectOf = (opts: { name: string; packages: string[] }): IAtlasProject => ({
   root: '/work',
   name: opts.name,
-  packages: opts.packages.map(name => ({
+  packages: opts.packages.map((name) => ({
     dir: name.replace(/^@[^/]+\//, ''),
     name,
     path: `packages/${name}`,
@@ -120,7 +120,7 @@ describe('instructionsOf', () => {
   });
 
   test('more than four corpora are shortened to "and N more" so the lead still fits', () => {
-    const many = ['forge', 'anvil', 'bellows', 'tongs', 'quench', 'temper'].map(name =>
+    const many = ['forge', 'anvil', 'bellows', 'tongs', 'quench', 'temper'].map((name) =>
       remoteOf({ name, packages: [`@${name}/pkg`] }),
     );
     const lead = leadOf({ text: instructionsOf({ sources: many, unavailable: [] }) });
@@ -199,7 +199,7 @@ describe('skills in the instructions', () => {
 
   test('a long trigger is cut at a comma or a word, never mid-word, at 110 characters', () => {
     const text = instructionsOf({ sources: [acme], unavailable: [], skills });
-    const line = text.split('\n').find(row => row.startsWith('- `build-a-feature`')) ?? '';
+    const line = text.split('\n').find((row) => row.startsWith('- `build-a-feature`')) ?? '';
 
     expect(line.length).toBeLessThanOrEqual('- `build-a-feature`: '.length + 110);
     expect(line.endsWith(',')).toBe(false);

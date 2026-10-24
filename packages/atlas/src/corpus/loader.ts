@@ -10,7 +10,7 @@ const messageOf = (error: unknown): string =>
 
 const isExcluded = (opts: { relativePath: string; exclude: string[] }): boolean =>
   opts.exclude.some(
-    prefix => opts.relativePath === prefix || opts.relativePath.startsWith(`${prefix}/`),
+    (prefix) => opts.relativePath === prefix || opts.relativePath.startsWith(`${prefix}/`),
   );
 
 const H1_PATTERN = /^#\s+(.+?)\s*$/m;
@@ -45,7 +45,7 @@ export class CorpusLoader extends BaseHelper {
   load(opts: { roots: ICorpusRoot[]; within?: string }): IDocument[] {
     this.skipped = [];
 
-    return opts.roots.flatMap(root => this.loadRoot({ root, within: opts.within }));
+    return opts.roots.flatMap((root) => this.loadRoot({ root, within: opts.within }));
   }
 
   private isOutside(opts: { path: string; within?: string }): boolean {
@@ -75,8 +75,10 @@ export class CorpusLoader extends BaseHelper {
 
     const exclude = root.exclude ?? [];
     const relativePaths = [...new Bun.Glob('**/*.md').scanSync({ cwd: root.directory })]
-      .filter(relativePath => !isExcluded({ relativePath, exclude }))
-      .filter(relativePath => !this.isOutside({ path: join(root.directory, relativePath), within }))
+      .filter((relativePath) => !isExcluded({ relativePath, exclude }))
+      .filter(
+        (relativePath) => !this.isOutside({ path: join(root.directory, relativePath), within }),
+      )
       .sort();
 
     const documents: IDocument[] = [];

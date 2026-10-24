@@ -143,8 +143,8 @@ export const planAgentFiles = (opts: { root: string; agents: string[] }): ISyncA
   let sharedPlanned = false;
 
   return readAgentTable()
-    .filter(entry => opts.agents.includes(entry.id))
-    .flatMap(entry => {
+    .filter((entry) => opts.agents.includes(entry.id))
+    .flatMap((entry) => {
       if (entry.mcp.scope === AgentScopes.PROJECT) {
         return planAgentMcp({ root: opts.root, entry });
       }
@@ -162,5 +162,5 @@ export const planAgentFiles = (opts: { root: string; agents: string[] }): ISyncA
 /** One line per note of a chosen agent (a trust prompt only the user can answer). */
 export const agentNotes = (opts: { agents: string[] }): { agent: string; note: string }[] =>
   readAgentTable()
-    .filter(entry => opts.agents.includes(entry.id))
-    .flatMap(entry => entry.notes.map(note => ({ agent: entry.id, note })));
+    .filter((entry) => opts.agents.includes(entry.id))
+    .flatMap((entry) => entry.notes.map((note) => ({ agent: entry.id, note })));

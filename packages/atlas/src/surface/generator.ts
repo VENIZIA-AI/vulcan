@@ -34,17 +34,17 @@ export class PublicSurface {
     const project = hasAtlasProject() ? readAtlasProject() : undefined;
     const repoRoot = opts.repoRoot ?? project?.root ?? PROJECT_ROOT;
     const packages = opts.packages ?? livePackageDirs({ project: project ?? readAtlasProject() });
-    const read = packages.map(dir =>
+    const read = packages.map((dir) =>
       readPackageDirectory({
         directory: resolve(repoRoot, packagePathOf({ project, dir })),
         name: dir,
       }),
     );
     const program = DeclarationProgram.create({
-      files: read.flatMap(item => item.entries.map(entry => entry.file)),
+      files: read.flatMap((item) => item.entries.map((entry) => entry.file)),
       scope: 'public-surface',
     });
-    const sections = read.map(item => PublicSurface.renderPackage({ program, read: item }));
+    const sections = read.map((item) => PublicSurface.renderPackage({ program, read: item }));
 
     return [
       '---',
@@ -82,16 +82,16 @@ export class PublicSurface {
     read: IPackageEntries;
   }): string {
     const { manifest } = opts.read;
-    const surfaces = opts.read.entries.map(item =>
+    const surfaces = opts.read.entries.map((item) =>
       PublicSurface.surfaceOf({ program: opts.program, entry: item.subpath, file: item.file }),
     );
-    const lines = surfaces.flatMap(surface => {
+    const lines = surfaces.flatMap((surface) => {
       const suffix = surface.entry === '.' ? '' : surface.entry.slice(1);
 
       return [
         `### \`${manifest.name}${suffix}\` (${surface.symbols.length})`,
         '',
-        ...surface.symbols.map(symbol => `- \`${symbol.name}\` ${symbol.kind}`),
+        ...surface.symbols.map((symbol) => `- \`${symbol.name}\` ${symbol.kind}`),
         '',
       ];
     });
@@ -108,7 +108,10 @@ export class PublicSurface {
 
     const symbols = checker
       .getExportsOfModule(moduleSymbol)
-      .map(symbol => ({ name: symbol.getName(), kind: PublicSurface.kindOf({ checker, symbol }) }))
+      .map((symbol) => ({
+        name: symbol.getName(),
+        kind: PublicSurface.kindOf({ checker, symbol }),
+      }))
       .sort((left, right) => left.name.localeCompare(right.name));
 
     return { entry: opts.entry, symbols };
@@ -156,7 +159,7 @@ export class PublicSurface {
   private static normalize(text: string): string {
     return text
       .split('\n')
-      .map(line => line.replace(/\s+$/, ''))
+      .map((line) => line.replace(/\s+$/, ''))
       .join('\n')
       .trim();
   }

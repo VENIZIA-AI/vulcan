@@ -149,7 +149,7 @@ describe('layout', () => {
 describe('resolvePackages', () => {
   test('atlas.packages was removed: the error names the top-level packages that replaces it', () => {
     const result = VULCAN_CONFIG_SCHEMA.safeParse({ atlas: { packages: { b: '@x/b' } } });
-    const messages = result.success ? [] : result.error.issues.map(issue => issue.message);
+    const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
 
     expect(result.success).toBe(false);
     expect(messages.join('; ')).toContain('atlas.packages was removed');
@@ -162,7 +162,7 @@ describe('resolvePackages', () => {
     ['legacyTagPrefixes', ['old-']],
   ])('atlas.%s was removed: the error names the key and says no tool reads it', (key, value) => {
     const result = VULCAN_CONFIG_SCHEMA.safeParse({ atlas: { [key]: value } });
-    const messages = result.success ? [] : result.error.issues.map(issue => issue.message);
+    const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
 
     expect(result.success).toBe(false);
     expect(messages.join('; ')).toContain(`atlas.${key} was removed`);
@@ -184,7 +184,9 @@ describe('packages are keyed uniquely', () => {
   const messageOf = (packages: object[]): string | undefined => {
     const result = VULCAN_CONFIG_SCHEMA.safeParse({ packages });
 
-    return result.success ? undefined : result.error.issues.map(issue => issue.message).join('; ');
+    return result.success
+      ? undefined
+      : result.error.issues.map((issue) => issue.message).join('; ');
   };
 
   test('two packages whose directories share a name work when their keys and paths differ', () => {
@@ -195,7 +197,7 @@ describe('packages are keyed uniquely', () => {
       ],
     });
 
-    expect(resolvePackages({ config }).map(entry => entry.path)).toEqual([
+    expect(resolvePackages({ config }).map((entry) => entry.path)).toEqual([
       'umbras/core',
       'auroras/kits/core',
     ]);

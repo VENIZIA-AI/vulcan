@@ -76,6 +76,8 @@ The table below lists all 12 top-level configuration keys:
 | `claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
 | `hooks` | `Array<object>` | `[]` | Custom project event hooks |
 | `digest` | `object` | `{ oftenDropped: [...] }` | Rules printed at session startup |
+| `guard` | `object` | `{ toolOwnedPaths: [] }` | Tool-owned stores the outside-the-project guard allows |
+| `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
 
 ## name
 
@@ -510,7 +512,7 @@ The SessionStart hook displays these rules under the heading "The rules sessions
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `oftenDropped` | `string[]` | `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-W-04', 'V-C-02', 'V-C-10']` | Rule IDs highlighted at session start |
+| `oftenDropped` | `string[]` | `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-W-04', 'V-C-02', 'V-C-10', 'V-P-08', 'V-B-07']` | Rule IDs highlighted at session start |
 
 Every rule ID in `oftenDropped` must match the rule ID regular expression `/^(?:[A-Z]+-)?[A-Z]-\d{2}$/`.
 
@@ -520,6 +522,69 @@ import type { VulcanConfig } from '@venizia/vulcan';
 export default {
   digest: {
     oftenDropped: ['V-B-03', 'V-P-06', 'V-W-04'],
+  },
+} satisfies VulcanConfig;
+```
+
+## owner
+
+The `owner` object is the project's contract for how an agent answers its owners. Every default is neutral and English; a project changes only what it needs. `vulcan sync` and the session digest print it as the shape card "How to answer the owner".
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `language` | `string` | `'en'` | The language the project's labels are written in, as a code such as `en` or `pt-BR` |
+| `report.shape` | `string[]` | `['headline', 'minimap', 'blocked', 'detail', 'decisions']` | The sections of a reply, in order; any non-empty subset of those five |
+| `report.minimapColumns` | `[string, string, string]` | `['#', 'Task', 'Status']` | The header of the status table |
+| `report.status` | `object` | `done`, `in progress`, `waiting`, `not started`, `blocked`, `dropped` | The words for the six statuses (keys `done`, `doing`, `waiting`, `todo`, `blocked`, `dropped`) |
+| `report.labels` | `object` | `Blocked:`, `Decisions needed`, `none`, `Nothing needed yet.`, `I recommend **{x}**.` | Keys `blocked`, `decisions`, `noBlocker`, `noDecision`, `recommend`; `recommend` must contain `{x}` |
+| `report.headlineMaxSentences` | `number` | `2` | Sentences allowed in the headline, 1 to 5 |
+| `report.absolutePaths` | `boolean` | `true` | Name a file the owner should open by its full path |
+| `report.enforce` | `'off' \| 'advise' \| 'block'` | `'advise'` | How hard the shape is held; `off` prints no shape card and checks nothing, `advise` logs a reply that breaks the shape and reminds the next turn, `block` also sends a structurally wrong reply back once. A person's profile may only make it stricter |
+| `report.claimWords` | `{ public?: string[]; done?: string[] }` | `{}` | Words in the owner's language that say something is published or live (`public`), or that the checks pass (`done`), added to the English ones the Stop check looks for |
+| `report.shortReplyWords` | `number` | `20` | A reply under this many words, an acknowledgement, is exempt from the shape; `0` holds every reply to it. A profile may only lower it |
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  owner: {
+    report: { shape: ['headline', 'decisions'], headlineMaxSentences: 1 },
+  },
+} satisfies VulcanConfig;
+```
+
+### The personal profile
+
+Each developer has their own settings, in `.agents/local/profile.json` inside the project (gitignored with the rest of `.agents/local/`; nothing is written outside the project). It holds how to address the person, the reply language and its label set, tone, how much detail to report, working habits, and a free line in their own words. The profile changes style and defaults only: it never changes the project's shape or status set, never loosens a base rule, and `enforce` is the stricter of the project's and the person's.
+
+| Field | Meaning |
+|---|---|
+| `language` | Reply language; labels for it come from `labels`, else English |
+| `address.you`, `address.self`, `address.formality` | How to address the person (a name, a pronoun, an honorific or nothing), how the agent refers to itself, `informal` / `neutral` / `formal` |
+| `tone` | `terse`, `neutral` or `friendly` |
+| `reportDetail` | `headline` or `tables` |
+| `habits.askBeforeReversible`, `habits.proposeCommits` | Ask before a reversible choice, or state a default and continue (V-P-10); whether to propose commits |
+| `about`, `codeTaste` | Free text, recorded as written; never scored or used to infer traits |
+| `enforce` | `off`, `advise` or `block`; counts only when stricter than the project's |
+| `shortReplyWords` | A number from 0; counts only when lower than the project's, and `0` holds every reply to the shape |
+| `labels` | A label set per language code, in the same shape as `report.minimapColumns`, `report.status` and `report.labels` |
+
+Labels and forms of address are one line each (at most 80 characters, no backtick, pipe or quote) because they sit inside a card line; a language is a code such as `en` or `pt-BR`. The file must be a regular file inside the project: a symlink at its place or at `.agents/local` is refused on read and on write. [`vulcan profile`](/references/commands/profile) asks the questions and writes the file; `vulcan init` offers it once in a terminal. The session digest prints a short "Working with this person" card from it, with the free text cut and quoted as one line. `vulcan doctor` warns when the file cannot be read, when git would pick it up (`git check-ignore` decides, so a later `!` line counts), and when git tracks it. The file is created with mode 0600 and is never read by atlas, telemetry or any network call.
+
+## guard
+
+The `guard` object configures the write guards.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `toolOwnedPaths` | `string[]` | `[]` | Absolute globs, `~` and `$NAME` allowed, of stores a tool in this project manages itself. They extend the built-in list (package manager caches, `$XDG_RUNTIME_DIR`, git config, the agent tool's memory folders); a pattern with an unset variable allows nothing. |
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  guard: {
+    toolOwnedPaths: ['/srv/build-cache/**', '~/.cache/my-tool/**'],
   },
 } satisfies VulcanConfig;
 ```

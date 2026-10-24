@@ -2,6 +2,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
 import { ConfigConstants, loadConfig } from '../config/index.ts';
+import {
+  OWNER_SCHEMA,
+  readProfile,
+  renderOwnerShapeCard,
+  renderProfileCard,
+  resolveOwnerView,
+} from '../owner/index.ts';
 import { extractRuleRows, parseRuleIds, readSlots, RuleConstants } from '../rules/index.ts';
 
 /** A project row whose first cell lists IDs - `| V-W-02, V-W-03 |` - elaborates those base rules. */
@@ -16,7 +23,7 @@ const TABLE_HEADER = ['| ID | Rule | Enforced by |', '|----|------|-------------
 /** Each listed ID's row, plain or bold (`| **W-00** |`), quoted from its rule file so it cannot drift. */
 const selectRows = (opts: { rows: string[]; ids: string[] }): string[] =>
   opts.ids
-    .map(id => opts.rows.find(row => parseRuleIds({ markdown: row })[0] === id))
+    .map((id) => opts.rows.find((row) => parseRuleIds({ markdown: row })[0] === id))
     .filter((row): row is string => row !== undefined);
 
 const readText = (opts: { file: string }): string =>
@@ -49,7 +56,7 @@ export const buildSessionDigest = async (opts: { projectRoot: string }): Promise
   const projectText = readText({ file: join(opts.projectRoot, '.agents', 'rules.md') });
   const projectRows = projectText
     .split('\n')
-    .filter(line => extractRuleRows({ markdown: line }).length > 0 || ID_LIST_ROW.test(line));
+    .filter((line) => extractRuleRows({ markdown: line }).length > 0 || ID_LIST_ROW.test(line));
   const minimap = MINIMAP.exec(projectText)?.[1].trim();
   const loaded = await loadConfig({ root: opts.projectRoot });
   const choices = loaded.ok ? loaded.config.rules : {};
@@ -77,17 +84,30 @@ export const buildSessionDigest = async (opts: { projectRoot: string }): Promise
       project: loaded.ok
         ? (loaded.config.name ?? basename(opts.projectRoot))
         : basename(opts.projectRoot),
-      sources: loaded.ok ? loaded.config.atlas.sources.map(source => source.name) : [],
+      sources: loaded.ok ? loaded.config.atlas.sources.map((source) => source.name) : [],
     }),
     '## Write boundaries',
     '',
     ...TABLE_HEADER,
-    ...baseRows.filter(row => row.startsWith(`| ${RuleConstants.BASE_NAMESPACE}W-`)),
+    ...baseRows.filter((row) => row.startsWith(`| ${RuleConstants.BASE_NAMESPACE}W-`)),
     '',
     "## This project's slot choices",
     '',
     ...slotRows,
   ];
+
+  const profile = readProfile({ root: opts.projectRoot });
+  const view = resolveOwnerView({
+    owner: loaded.ok ? loaded.config.owner : OWNER_SCHEMA.parse(undefined),
+    profile: profile.ok ? profile.profile : undefined,
+  });
+  const profileCard = renderProfileCard({ view });
+
+  lines.push('', ...renderOwnerShapeCard({ view }));
+
+  if (profileCard.length > 0) {
+    lines.push('', ...profileCard);
+  }
 
   if (projectRows.length > 0) {
     lines.push('', "## This project's own rules", '', ...TABLE_HEADER, ...projectRows);

@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
+import { ProjectLayout } from '../../common/index.ts';
 import { renderBunfig } from '../../create/bunfig.ts';
 import { runDoctorWarnings } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -12,6 +13,9 @@ const project = (opts: { description: string }) =>
   createProject({
     files: {
       'bunfig.toml': renderBunfig(),
+      ...Object.fromEntries(
+        ProjectLayout.LOCAL_LAYOUT.map((entry) => [`.agents/local/${entry.name}/.gitkeep`, '']),
+      ),
       '.configs/vulcan.config.ts': CONFIG,
       '.agents/skills/acme-odd/SKILL.md': skill({
         name: 'acme-odd',

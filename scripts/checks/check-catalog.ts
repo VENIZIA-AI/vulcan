@@ -33,7 +33,7 @@ export const findCatalogProblems = async (opts: { root: string }): Promise<strin
 
   const problems: string[] = [];
   const referenced = new Set<string>();
-  const files = MANIFEST_GLOBS.flatMap(pattern => [
+  const files = MANIFEST_GLOBS.flatMap((pattern) => [
     ...new Glob(pattern).scanSync(opts.root),
   ]).sort();
 
@@ -67,7 +67,7 @@ export const findCatalogProblems = async (opts: { root: string }): Promise<strin
   }
 
   // An entry nobody references drifts out of date unnoticed.
-  for (const name of Object.keys(catalog).filter(entry => !referenced.has(entry))) {
+  for (const name of Object.keys(catalog).filter((entry) => !referenced.has(entry))) {
     problems.push(`package.json: catalog entry "${name}" is referenced by no workspace - drop it`);
   }
 

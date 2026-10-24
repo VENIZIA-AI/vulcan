@@ -6,12 +6,12 @@ const RULE_ROW = new RegExp(`^\\|\\s*(?:\\*\\*)?(${RuleConstants.ID_SOURCE})(?:\
 export const parseRuleIds = (opts: { markdown: string }): string[] =>
   opts.markdown
     .split('\n')
-    .map(line => RULE_ROW.exec(line)?.[1])
+    .map((line) => RULE_ROW.exec(line)?.[1])
     .filter((id): id is string => id !== undefined);
 
 /** The table rows of every rule, verbatim, in order. */
 export const extractRuleRows = (opts: { markdown: string }): string[] =>
-  opts.markdown.split('\n').filter(line => RULE_ROW.test(line));
+  opts.markdown.split('\n').filter((line) => RULE_ROW.test(line));
 
 const BASE_ID = new RegExp(`(?<![A-Z-])${RuleConstants.BASE_ID_SOURCE}\\b`, 'g');
 const EXTENDS_LIST = new RegExp(
@@ -27,9 +27,9 @@ const RETIRED_ITEM = new RegExp(`^- \`(${RuleConstants.BASE_ID_SOURCE})\` - `);
 export const parseBaseReferences = (opts: { markdown: string }): string[] => {
   const references = new Set<string>();
 
-  for (const line of opts.markdown.split('\n').filter(row => row.startsWith('|'))) {
+  for (const line of opts.markdown.split('\n').filter((row) => row.startsWith('|'))) {
     const firstCell = line.split('|')[1] ?? '';
-    const lists = [...line.matchAll(EXTENDS_LIST)].map(match => match[0]);
+    const lists = [...line.matchAll(EXTENDS_LIST)].map((match) => match[0]);
 
     for (const text of [...lists, firstCell]) {
       for (const match of text.matchAll(BASE_ID)) {
@@ -45,5 +45,5 @@ export const parseBaseReferences = (opts: { markdown: string }): string[] => {
 export const parseRetiredRuleIds = (opts: { markdown: string }): string[] =>
   opts.markdown
     .split('\n')
-    .map(line => RETIRED_ITEM.exec(line)?.[1])
+    .map((line) => RETIRED_ITEM.exec(line)?.[1])
     .filter((id): id is string => id !== undefined);

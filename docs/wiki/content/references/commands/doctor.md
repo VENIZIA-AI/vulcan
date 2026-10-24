@@ -48,6 +48,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
 | `format` (warning) | The root `bunfig.toml` has a `[fmt]` section with `flavor = "oxfmt"`, no `package.json` defines a `fmt` script, and no oxfmt config is left behind | Add the section, rename the script, delete the config or the copy |
 | `mcp` (warning) | `.mcp.json` (when a chosen agent reads it) holds the canonical `atlas` entry, git no longer tracks it, and the Claude settings enable `atlas` | Use the entry the warning shows, `git rm --cached .mcp.json`, and run `bun x --no-install vulcan sync` |
+| `local` (warning) | `.agents/local/` exists with its subdirectories and is gitignored, no git worktree of the repository lives outside it, and nothing under it has outlived its use (`tmp/` older than a day, `clones/` older than two weeks, a worktree on a merged or gone branch) | Run `bun x --no-install vulcan sync`; for a worktree outside, run the `git worktree move` command the warning prints; for leftovers, run the `vulcan clean` command it names. An info line prints the size of `.agents/local/` once it passes 50 MB |
 
 ### config
 
@@ -316,7 +317,7 @@ Add the three lines at the end of the root `.dockerignore`, in that order: the n
 A warning, not a violation: it is printed as `warning [format]`, the exit code stays `0`, and the last line says `vulcan doctor: OK with N warning(s)`. `bun fmt` reads the `[fmt]` section of the root `bunfig.toml`; without it, it formats with Bun's defaults (width 80, double quotes) and rewrites a tree the shared style formatted. The warning fires when the root has no `bunfig.toml`, or has one without a `[fmt]` table. It also fires for every `package.json` (the root's and each live package's) that defines a `fmt` script: with a `fmt` script, `bun fmt` runs the script instead of formatting. The standard script names are `lint` and `lint:fix`.
 
 ```text
-  warning [format] bunfig.toml: no [fmt] section - add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "avoid", flavor = "oxfmt"): without it bun fmt formats with Bun's defaults, not the shared style
+  warning [format] bunfig.toml: no [fmt] section - add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "always", flavor = "oxfmt"): without it bun fmt formats with Bun's defaults, not the shared style
   warning [format] package.json: defines a "fmt" script: bun fmt runs it instead of formatting - rename it (the standard names are lint and lint:fix)
 ```
 

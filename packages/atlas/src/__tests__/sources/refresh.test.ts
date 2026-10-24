@@ -4,7 +4,6 @@ import { readAtlasProject } from '@/common/project-config';
 import { buildSourcesServer, Refresher, refreshIntervalMs } from '@/server/index';
 import { resolveSources } from '@/sources';
 import type { IResolvedSource } from '@/sources';
-import { restoreVariable } from '../env.helper';
 import {
   commitAll,
   git,
@@ -21,15 +20,14 @@ afterAll(() => {
   }
 });
 
-const previousCache = process.env.XDG_CACHE_HOME;
+let cacheDir: string;
 
 beforeEach(() => {
-  process.env.XDG_CACHE_HOME = makeTempDirectory({ prefix: 'atlas-cache-' });
+  cacheDir = makeTempDirectory({ prefix: 'atlas-cache-' });
   process.env.VULCAN_NPM_REGISTRY = NO_REGISTRY;
 });
 
 afterEach(() => {
-  restoreVariable({ name: 'XDG_CACHE_HOME', value: previousCache });
   delete process.env.VULCAN_NPM_REGISTRY;
   delete process.env.VULCAN_ATLAS_REFRESH_SECONDS;
 });
@@ -78,6 +76,7 @@ describe('a remote source keeps up with its ref while the server runs', () => {
     const source = makeSourceRepository();
     const sources = await resolveSources({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
+      cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
     const transport = buildSourcesServer({
@@ -104,6 +103,7 @@ describe('a remote source keeps up with its ref while the server runs', () => {
     const source = makeSourceRepository();
     const sources = await resolveSources({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
+      cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
     const transport = buildSourcesServer({
@@ -133,6 +133,7 @@ describe('a remote source keeps up with its ref while the server runs', () => {
     const source = makeSourceRepository();
     const sources = await resolveSources({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
+      cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
     let lookups = 0;
@@ -161,6 +162,7 @@ describe('a remote source keeps up with its ref while the server runs', () => {
     const source = makeSourceRepository();
     const sources = await resolveSources({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
+      cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
     const transport = buildSourcesServer({
@@ -216,7 +218,7 @@ describe('Refresher', () => {
     let now = 0;
     let runs = 0;
     let release: () => void = () => {};
-    const gate = new Promise<void>(resolve => {
+    const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
     const refresher = new Refresher({

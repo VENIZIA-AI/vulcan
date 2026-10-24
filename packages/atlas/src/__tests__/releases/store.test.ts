@@ -55,7 +55,7 @@ const TABLE: IReleaseTable = {
 const store = new ReleaseStore({ table: TABLE });
 
 const idsOf = (opts: { package?: string; fromDate: string; toDate: string }): string[] =>
-  store.entriesBetween(opts).map(entry => entry.id);
+  store.entriesBetween(opts).map((entry) => entry.id);
 
 describe('ReleaseStore versions', () => {
   test('lists a package version newest first', () => {
@@ -120,7 +120,7 @@ describe('ReleaseStore.entriesBetween', () => {
   test('answers newest first', () => {
     const dates = store
       .entriesBetween({ fromDate: '', toDate: '2026-09-05' })
-      .map(entry => entry.date);
+      .map((entry) => entry.date);
 
     expect(dates).toEqual([...dates].sort().reverse());
   });
@@ -185,6 +185,6 @@ describe('ReleaseStore identity is the npm name (C2)', () => {
     const entries = named.entriesBetween({ package: 'kernel', fromDate: '', toDate: '9999-12-31' });
 
     expect(entries.length).toBeGreaterThan(0);
-    expect(entries.every(entry => entry.packages.includes('@acme/kernel'))).toBe(true);
+    expect(entries.every((entry) => entry.packages.includes('@acme/kernel'))).toBe(true);
   });
 });

@@ -27,7 +27,7 @@ test('the source walk skips __tests__: a test fixture is never counted as source
   writeFileSync(join(root, 'src', 'service.ts'), 'export class RealService {}\n');
   writeFileSync(join(root, 'src', '__tests__', 'fake.ts'), 'export class FakeService {}\n');
 
-  expect(walkFiles({ dir: root }).map(file => relative(root, file))).toEqual([
+  expect(walkFiles({ dir: root }).map((file) => relative(root, file))).toEqual([
     join('src', 'service.ts'),
   ]);
 });
@@ -42,7 +42,7 @@ test('the walk is sorted, so generated output never depends on the file system o
   mkdirSync(join(root, 'nested'));
   writeFileSync(join(root, 'nested', 'a.ts'), '\n');
 
-  expect(walkFiles({ dir: root }).map(file => relative(root, file))).toEqual([
+  expect(walkFiles({ dir: root }).map((file) => relative(root, file))).toEqual([
     'alpha.ts',
     'beta.ts',
     'mid.ts',

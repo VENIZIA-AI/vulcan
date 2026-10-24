@@ -24,13 +24,13 @@ const hasHomeEntry = (opts: { home: string; pattern: string }): boolean => {
  */
 export const detectAgents = (opts: { root: string; home: string; path: string }): string[] =>
   readAgentTable()
-    .filter(entry => {
+    .filter((entry) => {
       const { binaries, homeDirs, projectDirs } = entry.detect;
 
       return (
-        binaries.some(name => Bun.which(name, { PATH: opts.path, cwd: opts.root }) !== null) ||
-        homeDirs.some(pattern => hasHomeEntry({ home: opts.home, pattern })) ||
-        projectDirs.some(directory => existsSync(join(opts.root, directory)))
+        binaries.some((name) => Bun.which(name, { PATH: opts.path, cwd: opts.root }) !== null) ||
+        homeDirs.some((pattern) => hasHomeEntry({ home: opts.home, pattern })) ||
+        projectDirs.some((directory) => existsSync(join(opts.root, directory)))
       );
     })
-    .map(entry => entry.id);
+    .map((entry) => entry.id);

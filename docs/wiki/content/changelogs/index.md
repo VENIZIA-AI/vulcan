@@ -11,6 +11,18 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-25 | [VULCAN 0.4.1: The Report Shape Is Checked After Every Reply](./2026-10-25-vulcan-0-4-1-owner-shape-checks) | New Feature |
+| 2026-10-25 | [VULCAN 0.4.1: Three More Skills - ship, retro and research](./2026-10-25-vulcan-0-4-1-ship-retro-research) | New Feature |
+| 2026-10-25 | [VULCAN 0.4.1: vulcan visualize Makes One Small Static Page, and the visualize-work Skill](./2026-10-25-vulcan-0-4-1-visualize) | New Feature |
+| 2026-10-25 | [VULCAN 0.4.1: build-a-feature Plans, Tests, Documents and Reviews with the New Skills](./2026-10-25-vulcan-0-4-1-skills-work-together) | Enhancement |
+| 2026-10-25 | [VULCAN 0.4.1: Four Skills for How an Agent Plans, Fixes, Reviews and Reports, and vulcan profile](./2026-10-25-vulcan-0-4-1-agent-work-skills) | New Feature |
+| 2026-10-25 | [VULCAN 0.4.1: vulcan clean, and No More Scratch Outside the Project](./2026-10-25-vulcan-0-4-1-clean-and-in-project-scratch) | New Feature |
+| 2026-10-25 | [VULCAN 0.4.1: An owner Block for How Agents Answer, and a Personal Profile](./2026-10-25-vulcan-0-4-1-owner-block-and-profile) | New Feature |
+| 2026-10-25 | [VULCAN 0.4.1: A Release Cannot Ship Hooks That Fail to Load](./2026-10-25-vulcan-0-4-1-hooks-tripwire) | Enhancement |
+| 2026-10-25 | [VULCAN 0.4.1: Guards for Git and for Files Outside the Project, a Digest for Subagents](./2026-10-25-vulcan-0-4-1-guards-and-hooks) | Enhancement |
+| 2026-10-25 | [VULCAN 0.4.1: New Base Rules for How Agents Work](./2026-10-25-vulcan-0-4-1-agent-work-rules) | Enhancement |
+| 2026-10-25 | [VULCAN 0.4.1: atlas Keeps Its Cache Inside the Project](./2026-10-25-vulcan-0-4-1-atlas-cache-in-project) | Behaviour change |
+| 2026-10-25 | [VULCAN 0.4.1: Arrow Functions Always Keep Their Parentheses](./2026-10-25-vulcan-0-4-1-arrow-parens-always) | Behaviour change |
 | 2026-10-24 | [VULCAN 0.3.13: A Menu Fed Piped Lines Leaves No Temp Folder](./2026-10-24-vulcan-0-3-13-menu-refusal-scratch) | Bug Fix |
 | 2026-10-23 | [VULCAN 0.3.13: No More Knowledge log.md](./2026-10-23-vulcan-0-3-13-no-knowledge-log) | Behaviour change |
 | 2026-10-23 | [VULCAN 0.3.12: bun fmt Formats the Project, bunfig.toml [fmt] Replaces the oxfmt Config](./2026-10-23-vulcan-0-3-12-bun-fmt) | Behaviour change |

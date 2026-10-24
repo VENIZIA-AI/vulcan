@@ -61,7 +61,7 @@ const fail = (opts: { message: string }): number => {
 
 /** The side the flags give away: a frontend flag, or only the backend folder; undefined when they do not say. */
 const sideNamedBy = (opts: { args: string[] }): TAppSide | undefined => {
-  const frontend = [CreateFlags.FRONTEND_DIR, CreateFlags.API, CreateFlags.NO_API].some(flag =>
+  const frontend = [CreateFlags.FRONTEND_DIR, CreateFlags.API, CreateFlags.NO_API].some((flag) =>
     opts.args.includes(flag),
   );
   const backend = opts.args.includes(CreateFlags.BACKEND_DIR);
@@ -125,7 +125,7 @@ const askKind = async (opts: { offered: string[] }): Promise<string | undefined>
   if (menusAvailable()) {
     const picked = await promptSelect({
       message: 'What do you want to create?',
-      choices: opts.offered.map(kind => ({ value: kind, label: kind, hint: KIND_HINTS[kind] })),
+      choices: opts.offered.map((kind) => ({ value: kind, label: kind, hint: KIND_HINTS[kind] })),
     });
 
     return picked ?? undefined;
@@ -174,7 +174,7 @@ const literal = (opts: {
   `  layout: { ${opts.side}: '${opts.folder}' },`,
   `  packages: { dir: '${opts.app.dir}', name: '${opts.app.name}', path: '${opts.app.path}' },`,
   ...opts.sources.map(
-    source =>
+    (source) =>
       `  sources: { name: '${source.name}', repo: '${source.repo}', ref: '${source.ref}' },`,
   ),
 ];
@@ -200,7 +200,7 @@ const resolveApiUrl = async (opts: {
 
     if (menusAvailable()) {
       const backends = opts.packages.filter(
-        entry =>
+        (entry) =>
           opts.backendFolder !== undefined && entry.path.startsWith(`${opts.backendFolder}/`),
       );
 
@@ -212,7 +212,7 @@ const resolveApiUrl = async (opts: {
       const picked = await promptSelect({
         message: 'Backend app to proxy /api to',
         choices: [
-          ...backends.map(entry => ({ value: entry.dir, label: entry.dir, hint: entry.path })),
+          ...backends.map((entry) => ({ value: entry.dir, label: entry.dir, hint: entry.path })),
           { value: NO_BACKEND, label: 'none', hint: 'no proxy' },
         ],
       });
@@ -233,7 +233,7 @@ const resolveApiUrl = async (opts: {
   }
 
   const backend = opts.packages.find(
-    entry =>
+    (entry) =>
       entry.dir === chosen &&
       opts.backendFolder !== undefined &&
       entry.path.startsWith(`${opts.backendFolder}/`),
@@ -262,8 +262,8 @@ const resolveApiUrl = async (opts: {
 };
 
 const usedPorts = (opts: { root: string; packages: IProjectPackage[] }): number[] =>
-  readExistingApps({ root: opts.root, paths: opts.packages.map(entry => entry.path) }).map(
-    app => app.port,
+  readExistingApps({ root: opts.root, paths: opts.packages.map((entry) => entry.path) }).map(
+    (app) => app.port,
   );
 
 const locate = async (opts: {
@@ -383,7 +383,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
       (
         await askInTerminal({
           question: 'Name of this library',
-          validate: value =>
+          validate: (value) =>
             value.trim() === '' ? undefined : nameProblem({ name: value.trim() }),
         })
       )?.trim();
@@ -472,7 +472,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
 
   if (
     existsSync(join(cwd, folder, app)) ||
-    packages.some(entry => entry.dir === app || entry.name === packageOfApp)
+    packages.some((entry) => entry.dir === app || entry.name === packageOfApp)
   ) {
     return fail({ message: `${folder}/${app} already exists` });
   }
@@ -498,8 +498,8 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
 
   const source = readFileSync(loaded.file, 'utf8');
   const entry = { dir: app, name: packageOfApp, path: `${folder}/${app}` };
-  const knownSources = new Set(config.atlas.sources.map(known => known.name));
-  const newSources = preset.atlas.filter(candidate => !knownSources.has(candidate.name));
+  const knownSources = new Set(config.atlas.sources.map((known) => known.name));
+  const newSources = preset.atlas.filter((candidate) => !knownSources.has(candidate.name));
   const parsed = parseAppsBlock({ source });
 
   // The user's config is theirs: with the block gone or no longer JSON it is never rewritten, only described.
@@ -522,7 +522,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
     sources: [
       ...parsed.block.sources,
       ...newSources.filter(
-        candidate => !parsed.block.sources.some(existing => existing.name === candidate.name),
+        (candidate) => !parsed.block.sources.some((existing) => existing.name === candidate.name),
       ),
     ],
   };
@@ -651,7 +651,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
       done: `Done. ${folder}/${app} is added.`,
       command: 'make dev',
       apps: [
-        ...readExistingApps({ root: cwd, paths: packages.map(existing => existing.path) }),
+        ...readExistingApps({ root: cwd, paths: packages.map((existing) => existing.path) }),
         { port: devPort, urls: preset.urls },
       ],
     }),
@@ -661,4 +661,4 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
 };
 
 export const addApp = async (opts: { cwd: string; args: string[] }): Promise<number> =>
-  withScratch({ run: scratch => runAdd({ ...opts, scratch }) });
+  withScratch({ root: opts.cwd, run: (scratch) => runAdd({ ...opts, scratch }) });

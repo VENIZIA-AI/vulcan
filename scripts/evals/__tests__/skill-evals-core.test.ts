@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  buildBaselinePrompt,
   buildGraderCommand,
   buildGraderPrompt,
   buildPlan,
@@ -31,7 +32,12 @@ describe('parseSkillEvalArgs', () => {
       timeoutSeconds: 900,
       maxBudgetUsd: undefined,
       isDryRun: false,
+      isBaseline: false,
     });
+  });
+
+  test('--baseline is a boolean flag', () => {
+    expect(parseSkillEvalArgs({ args: ['--skill', 'x', '--baseline'] }).isBaseline).toBe(true);
   });
 
   test('--max-budget-usd caps every claude call, and takes a positive amount only', () => {
@@ -81,6 +87,7 @@ describe('parseSkillEvalArgs', () => {
       timeoutSeconds: 30,
       maxBudgetUsd: '3',
       isDryRun: true,
+      isBaseline: false,
     });
   });
 
@@ -178,7 +185,7 @@ describe('buildPlan', () => {
       out: '/tmp/out',
     });
 
-    expect(plan.map(run => `${run.evaluation.id}/${run.model} ${run.runDirectory}`)).toEqual([
+    expect(plan.map((run) => `${run.evaluation.id}/${run.model} ${run.runDirectory}`)).toEqual([
       '0/haiku /tmp/out/docs-writing/0/haiku',
       '0/opus /tmp/out/docs-writing/0/opus',
       '1/haiku /tmp/out/docs-writing/1/haiku',
@@ -191,6 +198,24 @@ describe('buildPlan', () => {
         outputsDirectory: '/tmp/out/docs-writing/0/haiku/outputs',
       }),
     );
+  });
+});
+
+describe('buildPlan with a baseline', () => {
+  test('each skill run is followed by its baseline run in <model>/baseline/', () => {
+    const plan = buildPlan({
+      skill: 'docs-writing',
+      evaluations: [EVALUATION],
+      models: ['haiku'],
+      out: '/tmp/out',
+      isBaseline: true,
+    });
+
+    expect(plan.map((run) => `${run.isBaseline} ${run.runDirectory}`)).toEqual([
+      'false /tmp/out/docs-writing/0/haiku',
+      'true /tmp/out/docs-writing/0/haiku/baseline',
+    ]);
+    expect(plan[1].outputsDirectory).toBe('/tmp/out/docs-writing/0/haiku/baseline/outputs');
   });
 });
 
@@ -251,6 +276,15 @@ describe('buildRunPrompt / buildGraderPrompt', () => {
       '<skill name="docs-writing">\n# Docs writing\nShort sentences.\n</skill>',
     );
     expect(prompt).toContain('.claude/skills/docs-writing/');
+    expect(prompt).toContain(EVALUATION.prompt);
+    expect(prompt).toContain('Input files: docs/page.md');
+    expect(prompt).toMatch(/^Output directory: \/o$/m);
+  });
+
+  test('the baseline prompt has the task and output rules and no skill', () => {
+    const prompt = buildBaselinePrompt({ evaluation: EVALUATION, outputsDirectory: '/o' });
+
+    expect(prompt).not.toContain('skill');
     expect(prompt).toContain(EVALUATION.prompt);
     expect(prompt).toContain('Input files: docs/page.md');
     expect(prompt).toMatch(/^Output directory: \/o$/m);
@@ -339,6 +373,39 @@ describe('parseVerdict', () => {
 
   test('stdout that is not a claude response at all is malformed', () => {
     expect(parseVerdict({ stdout: '' }).isMalformed).toBe(true);
+  });
+});
+
+describe('renderReport with a baseline', () => {
+  const result = (opts: { model: string; pass: boolean; reason: string }) => ({
+    evalId: '0',
+    model: opts.model,
+    durationMs: 1000,
+    costUsd: 0.1,
+    verdict: { pass: opts.pass, reasons: [opts.reason], isMalformed: false },
+  });
+
+  test('one row per eval x model with both arms, and a line per model', () => {
+    const report = renderReport({
+      skill: 'docs-writing',
+      grader: 'opus',
+      results: [
+        result({ model: 'haiku', pass: true, reason: 'tight' }),
+        result({ model: 'opus', pass: true, reason: 'tight' }),
+      ],
+      baselineResults: [
+        result({ model: 'haiku', pass: false, reason: 'wall of text' }),
+        result({ model: 'opus', pass: true, reason: 'fine' }),
+      ],
+    });
+
+    expect(report).toContain('| Eval | Model | Skill | Baseline |');
+    expect(report).toContain('| 0 | haiku | pass | FAIL | 1.0s | tight | wall of text |');
+    expect(report).toContain('| 0 | opus | pass | pass | 1.0s | tight | fine |');
+    expect(report).toContain('- haiku: skill passed 1 of 1, baseline passed 0 of 1');
+    expect(report).toContain('- opus: skill passed 1 of 1, baseline passed 1 of 1');
+    expect(report).toContain('**Skill passed 2 of 2.**');
+    expect(report).toContain('Cost $0.40');
   });
 });
 

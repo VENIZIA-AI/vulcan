@@ -30,16 +30,16 @@ const SECRET_COMMENT =
  */
 export const renderDockerignore = (): string => {
   const agentPaths = excludePathsOf({
-    agents: readAgentTable().map(entry => entry.id),
+    agents: readAgentTable().map((entry) => entry.id),
     skillNames: shippedSkillNames(),
   })
-    .flatMap(group => group.paths)
-    .map(path => path.replace(/^\//, '').replace(/\/$/, ''));
+    .flatMap((group) => group.paths)
+    .map((path) => path.replace(/^\//, '').replace(/\/$/, ''));
   const patterns = [...new Set([...BASE_PATTERNS, ...SECRET_PATTERNS, ...agentPaths])];
 
   return [
     '# Written by vulcan init; edit it freely, vulcan never overwrites it. .git is excluded, so pass the commit: docker build --build-arg APP_BUILD_COMMIT="$(git rev-parse HEAD)" ...',
-    ...patterns.flatMap(pattern =>
+    ...patterns.flatMap((pattern) =>
       pattern === SECRET_PATTERNS[0] ? [SECRET_COMMENT, pattern] : [pattern],
     ),
     '',

@@ -55,7 +55,7 @@ const ancestorsOf = (opts: { startDirectory: string }): string[] => {
  */
 export const findPackageDirectory = (opts: { startDirectory: string }): string => {
   const found = ancestorsOf({ startDirectory: opts.startDirectory }).find(
-    directory => readPackageName({ directory }) === PACKAGE_NAME,
+    (directory) => readPackageName({ directory }) === PACKAGE_NAME,
   );
 
   if (!found) {
@@ -69,7 +69,7 @@ export const findPackageDirectory = (opts: { startDirectory: string }): string =
 
 /** `--root`'s value from `argv`; cwd when absent. Throws when the flag is present with no value. */
 export const readRootArgument = (opts: { argv: string[] }): IRootArgument => {
-  const joined = opts.argv.find(argument => argument.startsWith('--root='));
+  const joined = opts.argv.find((argument) => argument.startsWith('--root='));
 
   if (joined !== undefined) {
     const value = joined.slice('--root='.length);
@@ -94,4 +94,33 @@ export const readRootArgument = (opts: { argv: string[] }): IRootArgument => {
   }
 
   return { value, explicit: true };
+};
+
+/** `--cache-dir`'s value from `argv`; `undefined` when absent, so the project's `.agents/local/cache` applies. */
+export const readCacheDirArgument = (opts: { argv: string[] }): string | undefined => {
+  const joined = opts.argv.find((argument) => argument.startsWith('--cache-dir='));
+
+  if (joined !== undefined) {
+    const value = joined.slice('--cache-dir='.length);
+
+    if (value.length === 0) {
+      throw new ModeUsageError('--cache-dir requires a value');
+    }
+
+    return value;
+  }
+
+  const index = opts.argv.indexOf('--cache-dir');
+
+  if (index === -1) {
+    return undefined;
+  }
+
+  const value = opts.argv[index + 1];
+
+  if (value === undefined || value.startsWith('--')) {
+    throw new ModeUsageError('--cache-dir requires a value');
+  }
+
+  return value;
 };

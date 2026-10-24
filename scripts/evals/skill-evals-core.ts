@@ -6,6 +6,7 @@ export class SkillEvalConstants {
   static readonly TIMEOUT_SECONDS = 900;
   static readonly SKILLS_DIRECTORY = 'packages/cli/base/skills';
   static readonly OUTPUTS_DIRECTORY = 'outputs';
+  static readonly BASELINE_DIRECTORY = 'baseline';
 }
 
 export interface ISkillEvalArgs {
@@ -18,6 +19,8 @@ export interface ISkillEvalArgs {
   /** Passed to every `claude` call as `--max-budget-usd`; no cap when absent. */
   maxBudgetUsd: string | undefined;
   isDryRun: boolean;
+  /** Also run every case without the skill, to show what the model does on its own. */
+  isBaseline: boolean;
 }
 
 export interface ISkillEval {
@@ -33,6 +36,8 @@ export interface ISkillEvalRun {
   runDirectory: string;
   outputsDirectory: string;
   command: string[];
+  /** The baseline arm: the same case without the skill installed or in the prompt. */
+  isBaseline: boolean;
 }
 
 export interface IVerdict {
@@ -65,7 +70,7 @@ const VALUE_FLAGS = new Set([
   '--timeout',
   '--max-budget-usd',
 ]);
-const BOOLEAN_FLAGS = new Set(['--dry-run']);
+const BOOLEAN_FLAGS = new Set(['--dry-run', '--baseline']);
 
 // Names become path segments under <out>, so anything that could climb out of it is refused.
 const PATH_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -79,7 +84,7 @@ const VERDICT_SCHEMA = {
   required: ['pass', 'reasons'],
 };
 
-/** Reads `--skill <name> [--models a,b] [--grader m] [--project d] [--out d] [--timeout s] [--max-budget-usd n] [--dry-run]`. */
+/** Reads `--skill <name> [--models a,b] [--grader m] [--project d] [--out d] [--timeout s] [--max-budget-usd n] [--dry-run] [--baseline]`. */
 export const parseSkillEvalArgs = (opts: { args: string[] }): ISkillEvalArgs => {
   const values = new Map<string, string>();
   const booleans = new Set<string>();
@@ -117,8 +122,8 @@ export const parseSkillEvalArgs = (opts: { args: string[] }): ISkillEvalArgs => 
   }
 
   const models = (values.get('--models')?.split(',') ?? SkillEvalConstants.MODELS)
-    .map(model => model.trim())
-    .filter(model => model.length > 0);
+    .map((model) => model.trim())
+    .filter((model) => model.length > 0);
   const grader = values.get('--grader') ?? SkillEvalConstants.GRADER;
 
   for (const model of models) {
@@ -159,6 +164,7 @@ export const parseSkillEvalArgs = (opts: { args: string[] }): ISkillEvalArgs => 
     timeoutSeconds: Number(timeout),
     maxBudgetUsd,
     isDryRun: booleans.has('--dry-run'),
+    isBaseline: booleans.has('--baseline'),
   };
 };
 
@@ -264,26 +270,36 @@ export const buildPlan = (opts: {
   models: string[];
   out: string;
   maxBudgetUsd?: string;
+  /** Adds a baseline run after each skill run, in `<model>/baseline/`. */
+  isBaseline?: boolean;
 }): ISkillEvalRun[] =>
-  opts.evaluations.flatMap(evaluation =>
-    opts.models.map(model => {
-      const runDirectory = join(opts.out, opts.skill, evaluation.id, model);
-      const outputsDirectory = join(runDirectory, SkillEvalConstants.OUTPUTS_DIRECTORY);
+  opts.evaluations.flatMap((evaluation) =>
+    opts.models.flatMap((model) => {
+      const arms = opts.isBaseline === true ? [false, true] : [false];
 
-      return {
-        evaluation,
-        model,
-        runDirectory,
-        outputsDirectory,
-        command: buildRunCommand({ model, outputsDirectory, maxBudgetUsd: opts.maxBudgetUsd }),
-      };
+      return arms.map((isBaseline): ISkillEvalRun => {
+        const skillDirectory = join(opts.out, opts.skill, evaluation.id, model);
+        const runDirectory = isBaseline
+          ? join(skillDirectory, SkillEvalConstants.BASELINE_DIRECTORY)
+          : skillDirectory;
+        const outputsDirectory = join(runDirectory, SkillEvalConstants.OUTPUTS_DIRECTORY);
+
+        return {
+          evaluation,
+          model,
+          runDirectory,
+          outputsDirectory,
+          command: buildRunCommand({ model, outputsDirectory, maxBudgetUsd: opts.maxBudgetUsd }),
+          isBaseline,
+        };
+      });
     }),
   );
 
 /** A command as a shell line, for the plan: an empty or spaced argument is quoted. */
 export const toCommandLine = (opts: { command: string[] }): string =>
   opts.command
-    .map(part =>
+    .map((part) =>
       /^[A-Za-z0-9_./:=,@-]+$/.test(part) ? part : `'${part.replaceAll("'", "'\\''")}'`,
     )
     .join(' ');
@@ -292,6 +308,15 @@ export const toCommandLine = (opts: { command: string[] }): string =>
  * The skill reaches the model twice: SKILL.md inline, so every model surely has it, and the whole
  * skill directory installed in the copy, so the references SKILL.md links to resolve.
  */
+const buildTaskLines = (opts: { evaluation: ISkillEval; outputsDirectory: string }): string[] => [
+  'Task:',
+  opts.evaluation.prompt,
+  '',
+  ...(opts.evaluation.files.length > 0 ? [`Input files: ${opts.evaluation.files.join(', ')}`] : []),
+  `Output directory: ${opts.outputsDirectory}`,
+  'The output path is that directory: write every file you produce there, named after its input file. Never edit the project files.',
+];
+
 export const buildRunPrompt = (opts: {
   skill: string;
   skillContent: string;
@@ -305,15 +330,14 @@ export const buildRunPrompt = (opts: {
     '',
     `Use the ${opts.skill} skill above for this task. Its files, references included, are installed at .claude/skills/${opts.skill}/.`,
     '',
-    'Task:',
-    opts.evaluation.prompt,
-    '',
-    ...(opts.evaluation.files.length > 0
-      ? [`Input files: ${opts.evaluation.files.join(', ')}`]
-      : []),
-    `Output directory: ${opts.outputsDirectory}`,
-    'The output path is that directory: write every file you produce there, named after its input file. Never edit the project files.',
+    ...buildTaskLines(opts),
   ].join('\n');
+
+/** The baseline prompt: the same task and output rules, with no mention of the skill. */
+export const buildBaselinePrompt = (opts: {
+  evaluation: ISkillEval;
+  outputsDirectory: string;
+}): string => buildTaskLines(opts).join('\n');
 
 export const buildGraderPrompt = (opts: {
   evaluation: ISkillEval;
@@ -330,7 +354,7 @@ export const buildGraderPrompt = (opts: {
     '',
     'The files the model wrote:',
     ...opts.outputs.map(
-      output => `<file name="${output.name}">\n${output.content.trimEnd()}\n</file>`,
+      (output) => `<file name="${output.name}">\n${output.content.trimEnd()}\n</file>`,
     ),
     '',
     'Reply with only a JSON object, {"pass": boolean, "reasons": string[]}, most important reason first.',
@@ -371,7 +395,7 @@ const toVerdict = (opts: { value: unknown }): IVerdict | undefined => {
     !isRecord(value) ||
     typeof value.pass !== 'boolean' ||
     !Array.isArray(value.reasons) ||
-    !value.reasons.every(reason => typeof reason === 'string')
+    !value.reasons.every((reason) => typeof reason === 'string')
   ) {
     return undefined;
   }
@@ -415,20 +439,90 @@ export const toSeconds = (opts: { durationMs: number }): string =>
 const toCell = (opts: { text: string }): string =>
   opts.text.replaceAll('|', '\\|').replaceAll('\n', ' ');
 
+const toResultWord = (opts: { result: ISkillEvalResult | undefined }): string => {
+  if (opts.result === undefined) {
+    return '-';
+  }
+
+  return opts.result.verdict.pass ? 'pass' : 'FAIL';
+};
+
+const countPassed = (opts: { results: ISkillEvalResult[] }): number =>
+  opts.results.filter((result) => result.verdict.pass).length;
+
+const toCostText = (opts: { results: ISkillEvalResult[] }): string => {
+  const costs = opts.results.flatMap((result) =>
+    result.costUsd === undefined ? [] : [result.costUsd],
+  );
+
+  return costs.length === 0
+    ? ''
+    : ` Cost $${costs.reduce((sum, value) => sum + value, 0).toFixed(2)} (as claude reported it).`;
+};
+
+/** Both arms side by side: one row per eval x model, one line per model with what each arm passed. */
+const renderComparisonReport = (opts: {
+  skill: string;
+  grader: string;
+  results: ISkillEvalResult[];
+  baselineResults: ISkillEvalResult[];
+}): string => {
+  const findBaseline = (lookup: { result: ISkillEvalResult }) =>
+    opts.baselineResults.find(
+      (candidate) =>
+        candidate.evalId === lookup.result.evalId && candidate.model === lookup.result.model,
+    );
+  const rows = opts.results.map((result) => {
+    const baseline = findBaseline({ result });
+    const cells = [
+      result.evalId,
+      result.model,
+      toResultWord({ result }),
+      toResultWord({ result: baseline }),
+      toSeconds({ durationMs: result.durationMs }),
+      toCell({ text: result.verdict.reasons[0] ?? '-' }),
+      toCell({ text: baseline?.verdict.reasons[0] ?? '-' }),
+    ];
+
+    return `| ${cells.join(' | ')} |`;
+  });
+  const models = [...new Set(opts.results.map((result) => result.model))];
+  const modelLines = models.map((model) => {
+    const skillResults = opts.results.filter((result) => result.model === model);
+    const baselineResults = opts.baselineResults.filter((result) => result.model === model);
+
+    return `- ${model}: skill passed ${countPassed({ results: skillResults })} of ${skillResults.length}, baseline passed ${countPassed({ results: baselineResults })} of ${baselineResults.length}`;
+  });
+  const cost = toCostText({ results: [...opts.results, ...opts.baselineResults] });
+
+  return [
+    `# Skill evals - ${opts.skill}`,
+    '',
+    '| Eval | Model | Skill | Baseline | Skill duration | Skill first reason | Baseline first reason |',
+    '|---|---|---|---|---|---|---|',
+    ...rows,
+    '',
+    ...modelLines,
+    '',
+    `**Skill passed ${countPassed({ results: opts.results })} of ${opts.results.length}.** Baseline (no skill) passed ${countPassed({ results: opts.baselineResults })} of ${opts.baselineResults.length}. Graded by ${opts.grader}.${cost}`,
+    '',
+  ].join('\n');
+};
+
+/** `baselineResults` present: the comparison report; absent: the skill-only report, unchanged. */
 export const renderReport = (opts: {
   skill: string;
   grader: string;
   results: ISkillEvalResult[];
+  baselineResults?: ISkillEvalResult[];
 }): string => {
-  const passed = opts.results.filter(result => result.verdict.pass).length;
-  const costs = opts.results.flatMap(result =>
-    result.costUsd === undefined ? [] : [result.costUsd],
-  );
-  const cost =
-    costs.length === 0
-      ? ''
-      : ` Cost $${costs.reduce((sum, value) => sum + value, 0).toFixed(2)} (as claude reported it).`;
-  const rows = opts.results.map(result => {
+  if (opts.baselineResults !== undefined) {
+    return renderComparisonReport({ ...opts, baselineResults: opts.baselineResults });
+  }
+
+  const passed = countPassed({ results: opts.results });
+  const cost = toCostText({ results: opts.results });
+  const rows = opts.results.map((result) => {
     const cells = [
       result.evalId,
       result.model,

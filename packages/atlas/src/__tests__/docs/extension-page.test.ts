@@ -24,7 +24,7 @@ const ID_PATTERN = /`((?:wiki|changelog|okf):[^`<>]+)`/g;
 const idsQuotedOn = (opts: { page: string }): string[] => {
   const text = readFileSync(opts.page, 'utf8');
 
-  return [...text.matchAll(ID_PATTERN)].map(match => match[1]);
+  return [...text.matchAll(ID_PATTERN)].map((match) => match[1]);
 };
 
 const hasRepositoryRoots =
@@ -46,7 +46,7 @@ describe.skipIf(!hasRepositoryRoots)(
     const chunker = Chunker.getInstance();
     const store = new ChunkStore();
 
-    store.add({ chunks: documents.flatMap(document => chunker.chunk({ document })) });
+    store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
     const transport = new Transport({
       tools: [buildGetTool({ store })],
       serverName: 'atlas-test',
@@ -57,9 +57,9 @@ describe.skipIf(!hasRepositoryRoots)(
       expect(ids.length).toBeGreaterThan(0);
     });
 
-    const rows: Array<[string]> = ids.map(id => [id]);
+    const rows: Array<[string]> = ids.map((id) => [id]);
 
-    test.each(rows)('%s resolves through the get tool', async id => {
+    test.each(rows)('%s resolves through the get tool', async (id) => {
       const reply = await transport.handleLine({
         line: JSON.stringify({
           jsonrpc: '2.0',

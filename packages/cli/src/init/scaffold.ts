@@ -85,7 +85,7 @@ export const readWorkspaceGlobs = (opts: { root: string }): string[] => {
  * `folder/**`, with or without a leading `./`.
  */
 export const coversFolder = (opts: { globs: string[]; folder: string }): boolean =>
-  opts.globs.some(glob => {
+  opts.globs.some((glob) => {
     const plain = glob.replace(/^\.\//, '');
 
     return plain === `${opts.folder}/*` || plain === `${opts.folder}/**`;
@@ -127,7 +127,7 @@ export const scaffoldProject = (opts: {
   const isWorkspaces = declaresWorkspaces({ root });
   const entries: IInitEntry[] = (
     isWorkspaces ? SCAFFOLD_FILES : [...SCAFFOLD_FILES, ...LINT_CONFIG_FILES]
-  ).map(file =>
+  ).map((file) =>
     writeIfAbsent({
       root,
       path: file.path,
@@ -186,7 +186,7 @@ export const scaffoldProject = (opts: {
   const gitignore = join(root, '.gitignore');
   const existing = existsSync(gitignore) ? readFileSync(gitignore, 'utf8') : '';
   const lines = existing.split('\n');
-  const missingIgnores = ProjectLayout.GITIGNORE_ENTRIES.filter(entry => !lines.includes(entry));
+  const missingIgnores = ProjectLayout.GITIGNORE_ENTRIES.filter((entry) => !lines.includes(entry));
 
   if (missingIgnores.length > 0) {
     const separator = existing === '' || existing.endsWith('\n') ? '' : '\n';
@@ -203,12 +203,12 @@ export const scaffoldProject = (opts: {
   const needed = isWorkspaces
     ? [ProjectLayout.STYLE_PACKAGE]
     : [...ProjectLayout.LINT_TOOLS, ProjectLayout.STYLE_PACKAGE];
-  const install = needed.filter(packageName => !(packageName in declared));
+  const install = needed.filter((packageName) => !(packageName in declared));
   const todo = [
     `describe the project in ${ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE}/index.md, then delete the ${ProjectLayout.SCAFFOLD_MARKER} line`,
     ...entries
-      .filter(entry => entry.status === InitStatuses.ADD)
-      .map(entry => `add ${entry.subject}`),
+      .filter((entry) => entry.status === InitStatuses.ADD)
+      .map((entry) => `add ${entry.subject}`),
     `${ProjectLayout.VULCAN_COMMAND} sync && ${ProjectLayout.VULCAN_COMMAND} doctor`,
   ];
 

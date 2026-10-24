@@ -5,6 +5,9 @@ export class VulcanCommands {
   static readonly AGENTS = 'agents';
   static readonly DOCTOR = 'doctor';
   static readonly UPGRADE = 'upgrade';
+  static readonly CLEAN = 'clean';
+  static readonly PROFILE = 'profile';
+  static readonly VISUALIZE = 'visualize';
   static readonly X = 'x';
   static readonly HELP = 'help';
   static readonly VERSION = 'version';
@@ -15,6 +18,9 @@ export class VulcanCommands {
     this.AGENTS,
     this.DOCTOR,
     this.UPGRADE,
+    this.CLEAN,
+    this.PROFILE,
+    this.VISUALIZE,
     this.X,
     this.HELP,
     this.VERSION,
@@ -68,7 +74,24 @@ export class ProjectLayout {
     '.claude/',
     '.agents/plans',
     '.agents/vulcan.local.json',
+    '.agents/local/',
   ];
+  /** Everything an agent creates while it works lives under here, gitignored: nothing goes outside the project. */
+  static readonly LOCAL_DIRECTORY = '.agents/local';
+  /** Each directory under it, with when it goes: the one list `sync`, `doctor` and `clean` read. */
+  static readonly LOCAL_LAYOUT = [
+    { name: 'tmp', lifetime: 'task', removedWhen: 'the task ends', staleAfterDays: 1 },
+    { name: 'worktrees', lifetime: 'branch', removedWhen: 'its branch is merged or abandoned' },
+    {
+      name: 'clones',
+      lifetime: 'research',
+      removedWhen: 'the research that needed them is reported',
+      staleAfterDays: 14,
+    },
+    { name: 'cache', lifetime: 'kept', removedWhen: 'the user asks; it rebuilds' },
+    { name: 'reports', lifetime: 'kept', removedWhen: 'the user deletes it' },
+    { name: 'prototypes', lifetime: 'kept', removedWhen: 'the user deletes it' },
+  ] as const;
   /** What the scaffolded lint configs run; optional peers of dev-configs, so bun never installs them alone. */
   static readonly LINT_TOOLS = ['oxlint', 'oxlint-tsgolint', 'eslint'];
   /** Written into a scaffolded file the project must fill in; doctor fails the file while it holds this. */

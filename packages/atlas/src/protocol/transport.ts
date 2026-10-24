@@ -60,7 +60,7 @@ export class Transport extends BaseHelper {
 
   /** What `tools/list` answers, for a caller that has no MCP client (`vulcan-atlas tools`). */
   listTools(): IToolDefinition[] {
-    return this.tools.map(tool => tool.definition);
+    return this.tools.map((tool) => tool.definition);
   }
 
   /** Parses one line, routes it, and returns the reply to send - or `null` for a notification. Never throws. */
@@ -142,7 +142,7 @@ export class Transport extends BaseHelper {
       case 'tools/list': {
         return this.reply({
           id: request.id,
-          result: { tools: this.tools.map(tool => tool.definition) },
+          result: { tools: this.tools.map((tool) => tool.definition) },
         });
       }
 
@@ -173,7 +173,7 @@ export class Transport extends BaseHelper {
 
   private async callTool(request: IRpcRequest): Promise<string> {
     const name = readString(request.params?.name) ?? '';
-    const handler = this.tools.find(tool => tool.definition.name === name);
+    const handler = this.tools.find((tool) => tool.definition.name === name);
 
     // MCP maps an unknown tool name to invalid params, not an internal error.
     if (!handler) {

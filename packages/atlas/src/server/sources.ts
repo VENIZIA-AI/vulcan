@@ -33,7 +33,7 @@ import { Refresher } from './refresh';
 import type { IRefreshTarget } from './refresh';
 
 const packageMapOf = (opts: { source: IResolvedSource }) =>
-  opts.source.project.packages.map(entry => ({
+  opts.source.project.packages.map((entry) => ({
     dir: entry.dir,
     name: entry.name,
     aliases: entry.aliases,
@@ -47,23 +47,32 @@ const remoteSymbolsOf = (opts: {
   source: IResolvedSource;
   cwd: string;
   releases: ReleaseStore;
-}): ISymbolRecord[] =>
-  opts.source.project.packages
-    .filter(entry => !entry.retired)
-    .flatMap(entry => {
+}): ISymbolRecord[] => {
+  const { cacheBase } = opts.source;
+
+  if (cacheBase === undefined) {
+    throw new Error(`atlas: remote source '${opts.source.name}' was resolved without a cache base`);
+  }
+
+  return opts.source.project.packages
+    .filter((entry) => !entry.retired)
+    .flatMap((entry) => {
       const [installed] = installedDirectoriesOf({
         roots: installRootsOf({ cwd: opts.cwd }),
         name: entry.name,
       });
 
       if (installed !== undefined) {
-        return symbolsOfInstalled({ directory: installed });
+        return symbolsOfInstalled({ directory: installed, cacheBase });
       }
 
       const version = opts.releases.newestOf({ package: entry.name })?.version;
 
-      return version === undefined ? [] : (cachedSymbols({ name: entry.name, version }) ?? []);
+      return version === undefined
+        ? []
+        : (cachedSymbols({ name: entry.name, version, cacheBase }) ?? []);
     });
+};
 
 /** D1: a source fetched without git has no history; anything else has none of the tags it declares. */
 const emptyReleasesReasonOf = (opts: { source: IResolvedSource }): string =>
@@ -243,23 +252,25 @@ export const buildSourcesServer = (opts: {
   /** Sources this start could not serve; `initialize` names each with its reason. */
   unavailable?: IUnavailableSource[];
   cwd: string;
+  /** Where atlas keeps what it fetches; absent, `<cwd>/.agents/local/cache`. */
+  cacheDir?: string;
   version: string;
   /** Keeps a long-running server current; absent, the sources stay as the start resolved them. */
   refresh?: IRefreshOptions;
 }): Transport => {
-  const stores = opts.sources.map(source =>
+  const stores = opts.sources.map((source) =>
     liveEntry({ initial: storesOf({ source, cwd: opts.cwd }) }),
   );
   const chunks = new SourceChunks({ sources: stores });
   const releases = new SourceReleases({ sources: stores });
   const symbols = new SourceSymbols({ sources: stores });
-  const project = opts.sources.find(source => source.mode === 'repository');
+  const project = opts.sources.find((source) => source.mode === 'repository');
   // Read when a client connects: a skill added, renamed or deleted since the start shows at once.
   const instructions = (): string =>
     instructionsOf({
       sources: opts.sources,
       unavailable: opts.unavailable ?? [],
-      skills: skillCatalogOf({ root: opts.cwd }).map(entry => ({
+      skills: skillCatalogOf({ root: opts.cwd }).map((entry) => ({
         name: entry.name,
         trigger: triggerOf({ description: entry.description }).text,
       })),
@@ -267,7 +278,8 @@ export const buildSourcesServer = (opts: {
   const projects = projectsOf({ sources: opts.sources });
   const resolve =
     opts.refresh?.resolve ??
-    ((source: IAtlasSource) => resolveRemoteSource({ source, cwd: opts.cwd }));
+    ((source: IAtlasSource) =>
+      resolveRemoteSource({ source, cwd: opts.cwd, cacheDir: opts.cacheDir }));
   const targets = opts.sources.flatMap((source, index): IRefreshTarget[] => {
     const entry = stores[index];
     const target =

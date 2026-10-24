@@ -65,7 +65,7 @@ atlas: {
 
 Run `vulcan sync` to register the new source in the manifest.
 Without git on the machine, a GitHub `owner/repo` source comes as a tarball with no release history.
-The cache directory defaults to `~/.cache` when `XDG_CACHE_HOME` is unset.
+The cache lives inside the project, in `.agents/local/cache/` (gitignored); `--cache-dir <dir>` puts it elsewhere. atlas writes nothing outside the project directory.
 For cache layouts, authentication, and source settings, see [atlas sources](/references/atlas/sources).
 
 ## When a result is empty
@@ -79,7 +79,7 @@ When atlas cannot find data for a tool call, it returns an explanation:
 | `no releases: no tag matches <pattern> in this ref's history` | No git tags match the configured tag pattern in this branch. | Tag releases matching `tagPattern`, or update the pattern. |
 | `no release history: <name> was fetched without git` | The remote source was fetched as a tarball without git history. | Install git on the machine to fetch release history. |
 | `no dated changelog entries ...` | The directory lacks files named `YYYY-MM-DD-<slug>.md` with `packages:` frontmatter, or none is declared. | Add `packages:` frontmatter to `YYYY-MM-DD-<slug>.md` files, or set `knowledge.changelogs`. |
-| `vulcan-atlas: nothing to serve at <dir>` | The directory has no manifest and no sources were provided. atlas exits with code 2. | Run `vulcan sync`, pass `--source <owner/repo>@<ref>`, or list sources in `$XDG_CONFIG_HOME/vulcan/atlas.json`. |
+| `vulcan-atlas: nothing to serve at <dir>` | The directory has no manifest and no sources were provided. atlas exits with code 2. | Run `vulcan sync`, or pass `--source <owner/repo>@<ref>`. |
 
 A project with no documentation of its own finds nothing until you declare a source. atlas does not read `node_modules` for documentation.
 

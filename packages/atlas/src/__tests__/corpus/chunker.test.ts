@@ -68,7 +68,7 @@ describe('Chunker - guide.md fixture (fence, tiny merge, heading path, anchors)'
     expect(registering.anchor).toBe('registering-artifacts');
     expect(registering.id).toBe('wiki:guide.md#registering-artifacts');
     expect(registering.body).toContain('## not a heading');
-    expect(chunks.some(chunk => chunk.title === 'not a heading')).toBe(false);
+    expect(chunks.some((chunk) => chunk.title === 'not a heading')).toBe(false);
   });
 
   test('an H3 under an H2 gets a heading path joining the title, the H2 and the H3, and its own anchor', () => {
@@ -83,7 +83,7 @@ describe('Chunker - guide.md fixture (fence, tiny merge, heading path, anchors)'
   });
 
   test('the trailing one-line H2 merges into the previous chunk instead of becoming its own', () => {
-    expect(chunks.some(chunk => chunk.title === 'See also')).toBe(false);
+    expect(chunks.some((chunk) => chunk.title === 'See also')).toBe(false);
     expect(chunks[3].body).toContain('See the index.');
   });
 
@@ -114,7 +114,7 @@ describe('Chunker - symbols from code spans', () => {
       file: 'guide.md',
     });
     const chunks = Chunker.getInstance().chunk({ document });
-    const symbolsSection = chunks.find(chunk => chunk.title === 'Symbols and lookups');
+    const symbolsSection = chunks.find((chunk) => chunk.title === 'Symbols and lookups');
 
     expect(symbolsSection?.symbols).toBe('bootChecks binding boot checks');
   });
@@ -194,7 +194,7 @@ describe('Chunker - tilde fences', () => {
     expect(chunks).toHaveLength(1);
     expect(chunks[0].title).toBe('Real heading');
     expect(chunks[0].body).toContain('## not a real heading');
-    expect(chunks.some(chunk => chunk.title === 'not a real heading')).toBe(false);
+    expect(chunks.some((chunk) => chunk.title === 'not a real heading')).toBe(false);
   });
 
   test('identifiers inside a tilde-fenced block are indexed the same as inside a backtick fence', () => {
@@ -269,10 +269,10 @@ describe('Chunker - duplicate anchors', () => {
     ].join('\n');
 
     const chunks = Chunker.getInstance().chunk({ document: buildDocument({ body }) });
-    const notes = chunks.filter(chunk => chunk.title === 'Notes');
+    const notes = chunks.filter((chunk) => chunk.title === 'Notes');
 
-    expect(notes.map(chunk => chunk.anchor)).toEqual(['notes', 'notes-1', 'notes-2']);
-    expect(notes.map(chunk => chunk.id)).toEqual([
+    expect(notes.map((chunk) => chunk.anchor)).toEqual(['notes', 'notes-1', 'notes-2']);
+    expect(notes.map((chunk) => chunk.id)).toEqual([
       'wiki:doc.md#notes',
       'wiki:doc.md#notes-1',
       'wiki:doc.md#notes-2',
@@ -290,7 +290,7 @@ describe('Chunker - oversized sections split at paragraph boundaries', () => {
     const chunks = Chunker.getInstance().chunk({ document: buildDocument({ body }) });
 
     // The body starts at the H2 - no intro text - so every chunk belongs to "Big section".
-    const parts = chunks.filter(chunk => chunk.title === 'Big section');
+    const parts = chunks.filter((chunk) => chunk.title === 'Big section');
 
     expect(parts).toEqual(chunks);
     expect(parts.length).toBeGreaterThan(1);
@@ -305,7 +305,7 @@ describe('Chunker - oversized sections split at paragraph boundaries', () => {
 
     for (let index = 0; index < paragraphs.length; index += 1) {
       const marker = `Marker ${index}.`;
-      const occurrences = parts.filter(part => part.body.includes(marker)).length;
+      const occurrences = parts.filter((part) => part.body.includes(marker)).length;
 
       expect(occurrences).toBe(1);
     }
@@ -445,13 +445,13 @@ describe('Chunker - a tiny H2 immediately followed by H3s (C1)', () => {
   const chunks = Chunker.getInstance().chunk({ document: buildDocument({ body }) });
 
   test('the H3 heading path names its immediate H2 parent, even though the H2 is tiny and merges away', () => {
-    const child = chunks.find(chunk => chunk.title === 'Child');
+    const child = chunks.find((chunk) => chunk.title === 'Child');
 
     expect(child?.headingPath).toBe('Doc > Parent > Child');
   });
 
   test('the tiny H2 does not survive as a chunk of its own', () => {
-    expect(chunks.some(chunk => chunk.title === 'Parent')).toBe(false);
+    expect(chunks.some((chunk) => chunk.title === 'Parent')).toBe(false);
   });
 
   test('a one-line H2 with no children still has its heading text searchable once it merges away', () => {
@@ -524,8 +524,8 @@ describe('Chunker - the open-fence warning follows CommonMark fences', () => {
       Chunker.getInstance().chunk({ document: opts.document });
 
       return warnSpy.mock.calls
-        .map(call => String(call[0]))
-        .filter(line => line.includes('open fence'));
+        .map((call) => String(call[0]))
+        .filter((line) => line.includes('open fence'));
     } finally {
       warnSpy.mockRestore();
     }

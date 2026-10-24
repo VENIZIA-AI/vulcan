@@ -2,7 +2,6 @@ import { afterAll, afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdirSync, renameSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { cacheRootOf, resolveSources } from '@/sources';
-import { restoreVariable } from '../env.helper';
 import {
   makeSourceRepository,
   makeTempDirectory,
@@ -16,15 +15,14 @@ afterAll(() => {
   }
 });
 
-const previousCache = process.env.XDG_CACHE_HOME;
+let cacheDir: string;
 
 beforeEach(() => {
-  process.env.XDG_CACHE_HOME = makeTempDirectory({ prefix: 'atlas-cache-' });
+  cacheDir = makeTempDirectory({ prefix: 'atlas-cache-' });
   process.env.VULCAN_NPM_REGISTRY = NO_REGISTRY;
 });
 
 afterEach(() => {
-  restoreVariable({ name: 'XDG_CACHE_HOME', value: previousCache });
   delete process.env.VULCAN_NPM_REGISTRY;
 });
 
@@ -42,20 +40,25 @@ test(
     const cwd = makeTempDirectory({ prefix: 'atlas-consumer-' });
     const [cached] = await resolveSources({
       cwd,
+      cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
     const silent = listenSilently();
     const repo = `http://127.0.0.1:${silent.port}/acme/source.git`;
 
     // The same cache, under the silent host's name: the remote is all that changed.
-    mkdirSync(dirname(cacheRootOf({ repo })), { recursive: true });
-    renameSync(cacheRootOf({ repo: source.url }), cacheRootOf({ repo }));
+    mkdirSync(dirname(cacheRootOf({ repo, cacheBase: cacheDir })), { recursive: true });
+    renameSync(
+      cacheRootOf({ repo: source.url, cacheBase: cacheDir }),
+      cacheRootOf({ repo, cacheBase: cacheDir }),
+    );
 
     const started = Date.now();
 
     try {
       const [offline] = await resolveSources({
         cwd,
+        cacheDir,
         sources: [{ name: 'src', repo, ref: 'develop' }],
       });
 

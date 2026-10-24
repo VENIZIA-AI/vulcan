@@ -36,8 +36,8 @@ const commandsOf = (opts: { root: string }): string[] => {
     readFileSync(settingsPath(opts), 'utf8'),
   );
 
-  return Object.values(settings.hooks ?? {}).flatMap(entries =>
-    entries.flatMap(entry => entry.hooks.map(hook => hook.command)),
+  return Object.values(settings.hooks ?? {}).flatMap((entries) =>
+    entries.flatMap((entry) => entry.hooks.map((hook) => hook.command)),
   );
 };
 
@@ -85,7 +85,7 @@ describe('vulcan sync --prune', () => {
     expect(commands).not.toContain(DEAD_PLUGIN);
     expect(commands).toContain(MINE_ALIVE);
     expect(commands).toContain(MINE_ELSEWHERE);
-    expect(commands.some(command => command.includes('base/hooks/guard-writes.ts'))).toBe(true);
+    expect(commands.some((command) => command.includes('base/hooks/guard-writes.ts'))).toBe(true);
     expect(existsSync(join(root, '.claude', 'skills', 'old-skill'))).toBe(false);
     expect(lstatSync(join(root, '.claude', 'skills', 'hand-made')).isDirectory()).toBe(true);
     expect(runCli({ args: ['sync', '--prune'], cwd: root }).stderr).not.toContain('removed');
@@ -105,7 +105,7 @@ describe('vulcan sync --prune', () => {
     ];
     const settings = JSON.parse(readFileSync(settingsPath({ root }), 'utf8'));
 
-    settings.hooks.Stop = mine.map(command => ({ hooks: [{ type: 'command', command }] }));
+    settings.hooks.Stop = mine.map((command) => ({ hooks: [{ type: 'command', command }] }));
     writeFileSync(settingsPath({ root }), `${JSON.stringify(settings, null, 2)}\n`);
 
     expect(runCli({ args: ['sync', '--prune'], cwd: root }).stderr).not.toContain('removed');
@@ -135,7 +135,7 @@ describe('vulcan sync --prune', () => {
     ];
     const settings = JSON.parse(readFileSync(settingsPath({ root }), 'utf8'));
 
-    settings.hooks.Stop = mine.map(command => ({ hooks: [{ type: 'command', command }] }));
+    settings.hooks.Stop = mine.map((command) => ({ hooks: [{ type: 'command', command }] }));
     writeFileSync(settingsPath({ root }), `${JSON.stringify(settings, null, 2)}\n`);
 
     expect(runCli({ args: ['sync', '--prune'], cwd: root }).stderr).not.toContain('removed');
@@ -179,7 +179,9 @@ describe('vulcan sync --prune', () => {
     expect(prune.stderr).not.toContain('TypeError');
     expect(prune.code).toBe(0);
     expect(
-      (await runDoctorChecks({ root })).filter(violation => violation.check === DoctorChecks.PRUNE),
+      (await runDoctorChecks({ root })).filter(
+        (violation) => violation.check === DoctorChecks.PRUNE,
+      ),
     ).toEqual([]);
   });
 
@@ -206,8 +208,8 @@ describe('vulcan sync --prune', () => {
 
     expect(
       before
-        .filter(violation => violation.check === DoctorChecks.PRUNE)
-        .map(violation => violation.message),
+        .filter((violation) => violation.check === DoctorChecks.PRUNE)
+        .map((violation) => violation.message),
     ).toEqual([
       `stale hook: ${DEAD_PLUGIN} - run 'bun x --no-install vulcan sync --prune'`,
       `stale hook: ${OLD_SHIPPED} - run 'bun x --no-install vulcan sync --prune'`,
@@ -217,7 +219,9 @@ describe('vulcan sync --prune', () => {
     runCli({ args: ['sync', '--prune'], cwd: root });
 
     expect(
-      (await runDoctorChecks({ root })).filter(violation => violation.check === DoctorChecks.PRUNE),
+      (await runDoctorChecks({ root })).filter(
+        (violation) => violation.check === DoctorChecks.PRUNE,
+      ),
     ).toEqual([]);
   });
 });

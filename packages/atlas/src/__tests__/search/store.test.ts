@@ -113,8 +113,8 @@ describe('ChunkStore', () => {
       // All three WIKI matches share `guide.md` - diversification drops the third from the ranked
       // list before paging even runs, and there is no fourth WIKI document to fill the gap here, so
       // both the page and `total` reflect only the two survivors, not the raw three-way union.
-      expect(hits.map(hit => hit.id)).toEqual([AND_MATCH.id, OR_REGISTER_ONLY.id]);
-      expect(new Set(hits.map(hit => hit.id)).size).toBe(hits.length);
+      expect(hits.map((hit) => hit.id)).toEqual([AND_MATCH.id, OR_REGISTER_ONLY.id]);
+      expect(new Set(hits.map((hit) => hit.id)).size).toBe(hits.length);
       expect(total).toBe(2);
     });
 
@@ -143,8 +143,8 @@ describe('ChunkStore', () => {
         offset: 1,
       });
 
-      expect(firstPage.hits.map(hit => hit.id)).toEqual([AND_MATCH.id]);
-      expect(secondPage.hits.map(hit => hit.id)).toEqual([OR_REGISTER_ONLY.id]);
+      expect(firstPage.hits.map((hit) => hit.id)).toEqual([AND_MATCH.id]);
+      expect(secondPage.hits.map((hit) => hit.id)).toEqual([OR_REGISTER_ONLY.id]);
       expect(firstPage.total).toBe(2);
       expect(secondPage.total).toBe(2);
     });
@@ -159,7 +159,7 @@ describe('ChunkStore', () => {
         offset: 0,
       });
 
-      expect(hits.some(hit => hit.id === OTHER_CORPUS.id)).toBe(false);
+      expect(hits.some((hit) => hit.id === OTHER_CORPUS.id)).toBe(false);
       expect(total).toBe(2);
     });
 
@@ -171,7 +171,7 @@ describe('ChunkStore', () => {
         offset: 0,
       });
 
-      expect(hits.map(hit => hit.id)).toEqual([OTHER_CORPUS.id]);
+      expect(hits.map((hit) => hit.id)).toEqual([OTHER_CORPUS.id]);
       expect(total).toBe(1);
     });
   });
@@ -199,7 +199,7 @@ describe('ChunkStore', () => {
       const { hits, total } = store.search({ query: 'verifybindings', limit: 10, offset: 0 });
 
       expect(total).toBe(2);
-      expect(hits.map(hit => hit.id)).toEqual([SYMBOL_HIT.id, PROSE_HIT.id]);
+      expect(hits.map((hit) => hit.id)).toEqual([SYMBOL_HIT.id, PROSE_HIT.id]);
     });
   });
 
@@ -228,14 +228,14 @@ describe('ChunkStore', () => {
 
       const { hits } = isolated.search({ query: 'verifybindings', limit: 10, offset: 0 });
 
-      expect(hits.map(hit => hit.id)).toEqual([canonical.id, history.id]);
+      expect(hits.map((hit) => hit.id)).toEqual([canonical.id, history.id]);
       isolated.close();
     });
   });
 
   describe('per-document diversification', () => {
     test('a document with three matching sections contributes at most two hits, and total reflects the diversified count', () => {
-      const denseDocument = [1, 2, 3].map(index =>
+      const denseDocument = [1, 2, 3].map((index) =>
         buildChunk({
           id: `wiki:dense.md#section-${index}`,
           document: 'dense.md',
@@ -244,7 +244,7 @@ describe('ChunkStore', () => {
           body: `Mentions verifybindings once in prose, in section ${index}.`,
         }),
       );
-      const otherDocuments = [1, 2].map(index =>
+      const otherDocuments = [1, 2].map((index) =>
         buildChunk({
           id: `wiki:other-${index}.md#section`,
           document: `other-${index}.md`,
@@ -265,14 +265,14 @@ describe('ChunkStore', () => {
 
       expect(total).toBe(4);
       expect(hits).toHaveLength(4);
-      expect(hits.filter(hit => hit.id.startsWith('wiki:dense.md#'))).toHaveLength(2);
+      expect(hits.filter((hit) => hit.id.startsWith('wiki:dense.md#'))).toHaveLength(2);
       isolated.close();
     });
   });
 
   describe('limit is a length guarantee', () => {
     test('limit: 3 returns 3 hits when the top 3 raw matches come from one document and a fourth document exists', () => {
-      const denseDocument = [1, 2, 3].map(index =>
+      const denseDocument = [1, 2, 3].map((index) =>
         buildChunk({
           id: `wiki:dense.md#section-${index}`,
           document: 'dense.md',
@@ -305,8 +305,8 @@ describe('ChunkStore', () => {
 
       expect(total).toBe(3);
       expect(hits).toHaveLength(3);
-      expect(hits.filter(hit => hit.id.startsWith('wiki:dense.md#'))).toHaveLength(2);
-      expect(hits.some(hit => hit.id === fourthDocument.id)).toBe(true);
+      expect(hits.filter((hit) => hit.id.startsWith('wiki:dense.md#'))).toHaveLength(2);
+      expect(hits.some((hit) => hit.id === fourthDocument.id)).toBe(true);
       isolated.close();
     });
   });
@@ -325,9 +325,9 @@ describe('ChunkStore', () => {
     test('returns every chunk for one document, and none from another', () => {
       const chunks = store.list({ document: 'guide.md' });
 
-      expect(chunks.map(chunk => chunk.id).sort()).toEqual(
+      expect(chunks.map((chunk) => chunk.id).sort()).toEqual(
         [AND_MATCH, OR_REGISTER_ONLY, OR_ARTIFACTS_ONLY, SYMBOL_HIT, PROSE_HIT]
-          .map(chunk => chunk.id)
+          .map((chunk) => chunk.id)
           .sort(),
       );
     });

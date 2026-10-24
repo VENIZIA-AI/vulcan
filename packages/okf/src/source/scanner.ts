@@ -38,13 +38,13 @@ export const listDirs = (opts: { dir: string }): string[] => {
   }
 
   return readdirSync(dir)
-    .filter(name => !PRUNE_DIRS.has(name) && statSync(join(dir, name)).isDirectory())
+    .filter((name) => !PRUNE_DIRS.has(name) && statSync(join(dir, name)).isDirectory())
     .sort();
 };
 
 export const sourceFiles = (opts: { dir: string }): string[] => {
   return walkFiles({ dir: opts.dir }).filter(
-    file => file.endsWith('.ts') && !file.endsWith('.d.ts'),
+    (file) => file.endsWith('.ts') && !file.endsWith('.d.ts'),
   );
 };
 
@@ -61,19 +61,19 @@ export const repoRelative = (opts: { path: string }): string => {
 export const listPackages = (): { dir: string; path: string }[] => {
   const project = readOkfProject();
   const configured = project.packages
-    .filter(entry => !entry.retired && existsSync(entry.path))
-    .map(entry => ({ dir: entry.dir, path: entry.path }));
+    .filter((entry) => !entry.retired && existsSync(entry.path))
+    .map((entry) => ({ dir: entry.dir, path: entry.path }));
   const listed =
     project.packages.length > 0
       ? configured
-      : listDirs({ dir: join(project.root, 'packages') }).map(dir => ({
+      : listDirs({ dir: join(project.root, 'packages') }).map((dir) => ({
           dir,
           path: join(project.root, 'packages', dir),
         }));
 
   return listed
-    .filter(entry => !project.denylist.has(entry.dir))
+    .filter((entry) => !project.denylist.has(entry.dir))
     .sort((left, right) => (left.dir < right.dir ? -1 : left.dir > right.dir ? 1 : 0));
 };
 
-export const packageDirs = (): string[] => listPackages().map(entry => entry.dir);
+export const packageDirs = (): string[] => listPackages().map((entry) => entry.dir);

@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/guard-writes.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\"; s=$?; [ \"$s\" -eq 0 ] && exit 0; exit 2; fi; if grep -Eq '\"command\" *: *\"bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*\"'; then exit 0; fi; [ -f \"$f\" ] || echo \"vulcan: the guard-writes hook cannot run: node_modules/@venizia/vulcan is missing - run bun install (the one command that passes until then)\" >&2; command -v bun >/dev/null 2>&1 || echo \"vulcan: the guard-writes hook cannot run: bun is not on PATH - put bun on PATH (Claude Code may have started without your shell's PATH)\" >&2; exit 2"
+            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/guard-writes.ts\"; in=$(cat); ok() { printf '%s' \"$in\" | grep -Eq '\"command\" *: *\"bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*\"'; }; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then printf '%s' \"$in\" | bun \"$f\"; s=$?; [ \"$s\" -eq 0 ] && exit 0; ok && exit 0; exit 2; fi; ok && exit 0; [ -f \"$f\" ] || echo \"vulcan: the guard-writes hook cannot run: node_modules/@venizia/vulcan is missing - run bun install (the one command that passes until then)\" >&2; command -v bun >/dev/null 2>&1 || echo \"vulcan: the guard-writes hook cannot run: bun is not on PATH - put bun on PATH (Claude Code may have started without your shell's PATH)\" >&2; exit 2"
           }
         ]
       },
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/guard-manifest.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\"; s=$?; [ \"$s\" -eq 0 ] && exit 0; exit 2; fi; if grep -Eq '\"command\" *: *\"bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*\"'; then exit 0; fi; [ -f \"$f\" ] || echo \"vulcan: the guard-manifest hook cannot run: node_modules/@venizia/vulcan is missing - run bun install (the one command that passes until then)\" >&2; command -v bun >/dev/null 2>&1 || echo \"vulcan: the guard-manifest hook cannot run: bun is not on PATH - put bun on PATH (Claude Code may have started without your shell's PATH)\" >&2; exit 2"
+            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/guard-manifest.ts\"; in=$(cat); ok() { printf '%s' \"$in\" | grep -Eq '\"command\" *: *\"bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*\"'; }; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then printf '%s' \"$in\" | bun \"$f\"; s=$?; [ \"$s\" -eq 0 ] && exit 0; ok && exit 0; exit 2; fi; ok && exit 0; [ -f \"$f\" ] || echo \"vulcan: the guard-manifest hook cannot run: node_modules/@venizia/vulcan is missing - run bun install (the one command that passes until then)\" >&2; command -v bun >/dev/null 2>&1 || echo \"vulcan: the guard-manifest hook cannot run: bun is not on PATH - put bun on PATH (Claude Code may have started without your shell's PATH)\" >&2; exit 2"
           }
         ]
       },
@@ -37,7 +37,79 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/guard-package.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\"; s=$?; [ \"$s\" -eq 0 ] && exit 0; exit 2; fi; if grep -Eq '\"command\" *: *\"bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*\"'; then exit 0; fi; [ -f \"$f\" ] || echo \"vulcan: the guard-package hook cannot run: node_modules/@venizia/vulcan is missing - run bun install (the one command that passes until then)\" >&2; command -v bun >/dev/null 2>&1 || echo \"vulcan: the guard-package hook cannot run: bun is not on PATH - put bun on PATH (Claude Code may have started without your shell's PATH)\" >&2; exit 2"
+            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/guard-package.ts\"; in=$(cat); ok() { printf '%s' \"$in\" | grep -Eq '\"command\" *: *\"bun (install|i)( (--frozen-lockfile|--production|-p|--no-save|--ignore-scripts|--force|--verbose|--silent))*\"'; }; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then printf '%s' \"$in\" | bun \"$f\"; s=$?; [ \"$s\" -eq 0 ] && exit 0; ok && exit 0; exit 2; fi; ok && exit 0; [ -f \"$f\" ] || echo \"vulcan: the guard-package hook cannot run: node_modules/@venizia/vulcan is missing - run bun install (the one command that passes until then)\" >&2; command -v bun >/dev/null 2>&1 || echo \"vulcan: the guard-package hook cannot run: bun is not on PATH - put bun on PATH (Claude Code may have started without your shell's PATH)\" >&2; exit 2"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/guard-git.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\" || echo \"vulcan: the guard-git hook failed - the call passes\" >&2; exit 0; fi; echo \"vulcan: the guard-git hook cannot run: node_modules/@venizia/vulcan or bun is missing - the call passes\" >&2; exit 0"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/guard-outside.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\" || echo \"vulcan: the guard-outside hook failed - the call passes\" >&2; exit 0; fi; echo \"vulcan: the guard-outside hook cannot run: node_modules/@venizia/vulcan or bun is missing - the call passes\" >&2; exit 0"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/subagent-start.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\"; s=$?; [ \"$s\" -eq 0 ] && exit 0; exit 2; fi; [ -f \"$f\" ] || echo \"vulcan: the subagent-start hook cannot run: node_modules/@venizia/vulcan is missing - run bun install\" >&2; command -v bun >/dev/null 2>&1 || echo \"vulcan: the subagent-start hook cannot run: bun is not on PATH - put bun on PATH (Claude Code may have started without your shell's PATH)\" >&2; exit 2"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/prompt-submit.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\" || echo \"vulcan: the prompt-submit hook failed - the prompt goes through\" >&2; exit 0; fi; echo \"vulcan: the prompt-submit hook cannot run: node_modules/@venizia/vulcan or bun is missing - the prompt goes through\" >&2; exit 0",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/stop.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\" || echo \"vulcan: the stop hook failed - the reply passes\" >&2; exit 0; fi; echo \"vulcan: the stop hook cannot run: node_modules/@venizia/vulcan or bun is missing - the reply passes\" >&2; exit 0",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/post-tool.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\" || echo \"vulcan: the post-tool hook failed - the call is unaffected\" >&2; exit 0; fi; echo \"vulcan: the post-tool hook cannot run: node_modules/@venizia/vulcan or bun is missing - the call is unaffected\" >&2; exit 0",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/post-tool.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\" || echo \"vulcan: the post-tool hook failed - the call is unaffected\" >&2; exit 0; fi; echo \"vulcan: the post-tool hook cannot run: node_modules/@venizia/vulcan or bun is missing - the call is unaffected\" >&2; exit 0",
+            "timeout": 15
           }
         ]
       }

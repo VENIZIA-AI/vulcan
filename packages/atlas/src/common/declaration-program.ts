@@ -23,7 +23,7 @@ export class DeclarationProgram {
   }
 
   static create(opts: { files: string[]; scope: string }): DeclarationProgram {
-    const missing = opts.files.find(file => !existsSync(file));
+    const missing = opts.files.find((file) => !existsSync(file));
 
     if (missing !== undefined) {
       throw new Error(`[${opts.scope}] ${missing} does not exist - build the package first`);

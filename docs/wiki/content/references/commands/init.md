@@ -86,7 +86,7 @@ It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index an
 | `.configs/lints/eslint.config.mjs` | Lint configuration for ESLint naming conventions extending `@venizia/dev-configs` | Add project naming convention overrides when needed |
 | `.dockerignore` | Keeps dependencies, build output, `.git` and every agent's local files out of a Docker build context (the same list `init --preset` writes) | Edit it freely; `init` never overwrites it |
 | `.configs/vulcan.config.<ext>` | Main VULCAN configuration file for agents, rule slots and packages | Configure coding agents, rule slots, and workspace packages |
-| `bunfig.toml` | Bun's telemetry off (`telemetry = false`), a comment that `bun fmt` also inherits it from a parent folder, so it sits at the root and `[fmt]` applies to every folder below it, and the `[fmt]` section `bun fmt` reads (`printWidth = 100`, `singleQuote = true`, `arrowParens = "avoid"`, the shared style, and `flavor = "oxfmt"`, which keeps oxfmt's output when oxfmt is not a dependency). It is the only formatter configuration: `init` writes no `.configs/formatters/oxfmt.config.mts`. No release-age gate: a gate of a few days fails a fresh install whose version floors are the latest releases | Edit it freely; `init` never overwrites it, `sync` never touches it |
+| `bunfig.toml` | Bun's telemetry off (`telemetry = false`), a comment that `bun fmt` also inherits it from a parent folder, so it sits at the root and `[fmt]` applies to every folder below it, and the `[fmt]` section `bun fmt` reads (`printWidth = 100`, `singleQuote = true`, `arrowParens = "always"`, the shared style, and `flavor = "oxfmt"`, which keeps oxfmt's output when oxfmt is not a dependency). It is the only formatter configuration: `init` writes no `.configs/formatters/oxfmt.config.mts`. No release-age gate: a gate of a few days fails a fresh install whose version floors are the latest releases | Edit it freely; `init` never overwrites it, `sync` never touches it |
 | `Makefile` | Root Makefile that includes shared VULCAN make targets from `vulcan.mk` | Add project make targets |
 
 ## Report statuses
@@ -265,7 +265,11 @@ Which coding agents do you use in this project? (comma-separated; Enter accepts 
   created   .claude/skills/build-a-feature
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing
+  created   .claude/skills/fix-a-bug
   created   .claude/skills/knowledge-sync
+  created   .claude/skills/plan-a-change
+  created   .claude/skills/report-back
+  created   .claude/skills/review-a-change
   created   .mcp.json
   created   .agents/vulcan.manifest.json
   replaced  AGENTS.md (Atlas block)

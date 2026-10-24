@@ -33,11 +33,11 @@ const splitCells = (opts: { line: string }): string[] =>
     .replace(/^\|/, '')
     .replace(/\|$/, '')
     .split('|')
-    .map(cell => cell.trim());
+    .map((cell) => cell.trim());
 
 const renderRow = (opts: { line: string; cellTag: 'th' | 'td' }): string =>
   `<tr>${splitCells({ line: opts.line })
-    .map(cell => `<${opts.cellTag}>${renderInline({ text: cell })}</${opts.cellTag}>`)
+    .map((cell) => `<${opts.cellTag}>${renderInline({ text: cell })}</${opts.cellTag}>`)
     .join('')}</tr>`;
 
 /**

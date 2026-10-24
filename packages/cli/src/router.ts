@@ -52,7 +52,24 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
     positionals: 0,
   },
   [VulcanCommands.AGENTS]: { flags: ['--dry-run'], values: [], positionals: 2 },
+  [VulcanCommands.CLEAN]: {
+    flags: [
+      '--tmp',
+      '--worktrees',
+      '--clones',
+      '--cache',
+      '--reports',
+      '--prototypes',
+      '--profile',
+      '--all',
+      '--yes',
+    ],
+    values: [],
+    positionals: 0,
+  },
   [VulcanCommands.DOCTOR]: { flags: [], values: [], positionals: 0 },
+  [VulcanCommands.PROFILE]: { flags: ['--yes'], values: [], positionals: 1 },
+  [VulcanCommands.VISUALIZE]: { flags: ['--schema'], values: ['--out'], positionals: 1 },
   [VulcanCommands.UPGRADE]: {
     flags: [UpgradeFlags.STABLE, UpgradeFlags.NIGHTLY],
     values: [],
@@ -114,7 +131,7 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
   const accepted = ACCEPTED_ARGS[name];
 
   if (accepted !== undefined) {
-    if (args.some(arg => HELP_ALIASES.has(arg))) {
+    if (args.some((arg) => HELP_ALIASES.has(arg))) {
       return runHelpCommand();
     }
 

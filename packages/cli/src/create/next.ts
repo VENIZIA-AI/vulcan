@@ -26,12 +26,12 @@ const readRecordedUrls = (opts: { directory: string }): string[] => {
   const recorded = existsSync(file) ? readJson({ file })?.vulcan : undefined;
   const urls = (recorded as { urls?: unknown } | undefined)?.urls;
 
-  return Array.isArray(urls) ? urls.filter(url => typeof url === 'string') : [];
+  return Array.isArray(urls) ? urls.filter((url) => typeof url === 'string') : [];
 };
 
 /** The apps already in the monorepo: those with a `*PORT=` line in .env.example, as they were made. */
 export const readExistingApps = (opts: { root: string; paths: string[] }): INextApp[] =>
-  opts.paths.flatMap(path => {
+  opts.paths.flatMap((path) => {
     const directory = join(opts.root, path);
     const envFile = join(directory, '.env.example');
     const port = existsSync(envFile)
@@ -43,9 +43,9 @@ export const readExistingApps = (opts: { root: string; paths: string[] }): INext
 
 /** The closing message: what ran, then one `open` line per url, or per app root when it has none. */
 export const renderNext = (opts: { done: string; command: string; apps: INextApp[] }): string => {
-  const lines = opts.apps.flatMap(app =>
+  const lines = opts.apps.flatMap((app) =>
     (app.urls.length === 0 ? [''] : app.urls).map(
-      path => `  open http://localhost:${app.port}${path}`,
+      (path) => `  open http://localhost:${app.port}${path}`,
     ),
   );
 

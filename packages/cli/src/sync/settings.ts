@@ -7,9 +7,9 @@ export const isSettingsObject = (opts: { value: unknown }): opts is { value: TSe
 
 /** Arrays concatenate without duplicates, so a second sync adds nothing. */
 const mergeArrays = (opts: { base: unknown[]; overlay: unknown[] }): unknown[] => {
-  const seen = new Set(opts.base.map(entry => JSON.stringify(entry)));
+  const seen = new Set(opts.base.map((entry) => JSON.stringify(entry)));
 
-  return [...opts.base, ...opts.overlay.filter(entry => !seen.has(JSON.stringify(entry)))];
+  return [...opts.base, ...opts.overlay.filter((entry) => !seen.has(JSON.stringify(entry)))];
 };
 
 /** `overlay` wins key by key; one level deep into the object-of-entries keys (SyncConstants.MERGE_ONE_LEVEL). */
@@ -80,8 +80,8 @@ const toHookEntry = (opts: {
 /** Every hook command in one event's entries; anything that is not an entry or a command is skipped. */
 export const extractEntryCommands = (opts: { entries: unknown }): string[] =>
   Array.isArray(opts.entries)
-    ? opts.entries.flatMap(entry =>
-        (toHookEntry({ entry })?.hooks ?? []).flatMap(hook => toHookCommand({ hook }) ?? []),
+    ? opts.entries.flatMap((entry) =>
+        (toHookEntry({ entry })?.hooks ?? []).flatMap((hook) => toHookCommand({ hook }) ?? []),
       )
     : [];
 
@@ -90,7 +90,7 @@ export const extractHookCommands = (opts: { settings: TSettings | undefined }): 
   const hooks = { value: opts.settings?.[SyncConstants.HOOKS_KEY] };
 
   return isSettingsObject(hooks)
-    ? Object.values(hooks.value).flatMap(entries => extractEntryCommands({ entries }))
+    ? Object.values(hooks.value).flatMap((entries) => extractEntryCommands({ entries }))
     : [];
 };
 
@@ -102,14 +102,14 @@ export const removeHookCommands = (opts: {
   entries: unknown[];
   commands: Set<string>;
 }): unknown[] =>
-  opts.entries.flatMap(entry => {
+  opts.entries.flatMap((entry) => {
     const hookEntry = toHookEntry({ entry });
 
     if (hookEntry === undefined) {
       return [entry];
     }
 
-    const kept = hookEntry.hooks.filter(hook => {
+    const kept = hookEntry.hooks.filter((hook) => {
       const command = toHookCommand({ hook });
 
       return command === undefined || !opts.commands.has(command);
@@ -125,11 +125,11 @@ export const removeHookCommands = (opts: {
 /** `settings` with its keys in `reference`'s order: keys `reference` has keep their place, new keys follow. */
 const orderKeysLike = (opts: { settings: TSettings; reference: TSettings }): TSettings => {
   const keys = [
-    ...Object.keys(opts.reference).filter(key => key in opts.settings),
-    ...Object.keys(opts.settings).filter(key => !(key in opts.reference)),
+    ...Object.keys(opts.reference).filter((key) => key in opts.settings),
+    ...Object.keys(opts.settings).filter((key) => !(key in opts.reference)),
   ];
 
-  return Object.fromEntries(keys.map(key => [key, opts.settings[key]]));
+  return Object.fromEntries(keys.map((key) => [key, opts.settings[key]]));
 };
 
 /**
@@ -139,7 +139,7 @@ const orderKeysLike = (opts: { settings: TSettings; reference: TSettings }): TSe
 export const keepKeyOrder = (opts: { settings: TSettings; reference: TSettings }): TSettings => {
   const ordered = orderKeysLike(opts);
 
-  for (const key of Object.keys(ordered).filter(entry =>
+  for (const key of Object.keys(ordered).filter((entry) =>
     SyncConstants.MERGE_ONE_LEVEL.has(entry),
   )) {
     const value = { value: ordered[key] };
@@ -169,8 +169,8 @@ export const removeManagedSettings = (opts: {
       Array.isArray(current.value) &&
       Array.isArray(managedValue)
     ) {
-      const managedEntries = new Set(managedValue.map(entry => toKey({ value: entry })));
-      const kept = current.value.filter(entry => !managedEntries.has(toKey({ value: entry })));
+      const managedEntries = new Set(managedValue.map((entry) => toKey({ value: entry })));
+      const kept = current.value.filter((entry) => !managedEntries.has(toKey({ value: entry })));
 
       if (kept.length > 0) {
         remaining[key] = kept;
@@ -199,8 +199,8 @@ export const removeManagedSettings = (opts: {
       const innerCurrent = inner[innerKey];
 
       if (Array.isArray(innerCurrent) && Array.isArray(innerManaged)) {
-        const managedKeys = new Set(innerManaged.map(entry => toKey({ value: entry })));
-        const unmatched = innerCurrent.filter(entry => !managedKeys.has(toKey({ value: entry })));
+        const managedKeys = new Set(innerManaged.map((entry) => toKey({ value: entry })));
+        const unmatched = innerCurrent.filter((entry) => !managedKeys.has(toKey({ value: entry })));
         // A hand-edited entry no longer matches whole: its managed hooks still go, by command.
         const kept =
           key === SyncConstants.HOOKS_KEY

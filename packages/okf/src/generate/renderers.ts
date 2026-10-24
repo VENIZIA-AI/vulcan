@@ -49,7 +49,7 @@ const sourceMapRenderer = defineRenderer({
     const total = facts.reduce((sum, entry) => sum + entry.total, 0);
 
     const body = facts
-      .map(entry => {
+      .map((entry) => {
         const heading = `## ${entry.pkg}  (${entry.total} source files)`;
 
         // A package may keep a flat src/ (no subsystem dirs) - render prose, not an empty table.
@@ -57,7 +57,7 @@ const sourceMapRenderer = defineRenderer({
           return [heading, '', '_Flat `src/` - no subsystem directories._'].join('\n');
         }
 
-        const rows = entry.subsystems.map(sub => `| \`${sub.name}/\` | ${sub.files} |`);
+        const rows = entry.subsystems.map((sub) => `| \`${sub.name}/\` | ${sub.files} |`);
 
         return [heading, '', '| Subsystem | Files |', '|---|---|', ...rows].join('\n');
       })
@@ -96,7 +96,7 @@ const makefileTargetsRenderer = defineRenderer({
   id: 'makefile-targets',
   collect: () => collectMakefileTargets(),
   render: ({ context, facts }) => {
-    const rows = facts.map(target => {
+    const rows = facts.map((target) => {
       return `| \`make ${target.name}\` | ${target.deps ? `\`${target.deps}\`` : '-'} | ${target.description || '-'} |`;
     });
 
@@ -146,8 +146,8 @@ const bindingKeysRenderer = defineRenderer({
     const total = facts.reduce((sum, entry) => sum + entry.keys.length, 0);
 
     const body = facts
-      .map(entry => {
-        const rows = entry.keys.map(key => `| \`${key.key}\` | \`${key.value}\` |`);
+      .map((entry) => {
+        const rows = entry.keys.map((key) => `| \`${key.key}\` | \`${key.value}\` |`);
 
         return [`## ${entry.name}`, '', '| Constant | Key |', '|---|---|', ...rows].join('\n');
       })
@@ -190,7 +190,7 @@ const packagesTableRenderer = defineRenderer({
   id: 'packages-table',
   collect: () => collectPackageManifests(),
   region: ({ facts }) => {
-    const rows = facts.map(entry => {
+    const rows = facts.map((entry) => {
       return `| [\`${entry.dir}\`](/packages/${entry.dir}.md) | \`${entry.name}\` | ${entry.description || '-'} |`;
     });
 

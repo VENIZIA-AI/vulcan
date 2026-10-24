@@ -1,6 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildSessionDigest } from '../../hooks/index.ts';
+import {
+  buildSessionDigest,
+  SUBAGENT_CARD,
+  SUBAGENT_CARD_MAX_CHARACTERS,
+} from '../../hooks/index.ts';
+import { BASE_DIRECTORY } from '../../common/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { spawnSyncBounded } from '../spawn.helper.ts';
 
@@ -132,6 +138,29 @@ describe('buildSessionDigest', () => {
       expect(dropped).toContain('| V-P-07 |');
       expect(dropped).toContain('atlas');
     });
+
+    test('the default often-dropped list keeps the original eight rules and adds reuse and the skipped line', async () => {
+      const root = createProject({
+        files: { '.mcp.json': ATLAS_MCP, '.configs/vulcan.config.ts': CONFIG },
+      });
+      const digest = await buildSessionDigest({ projectRoot: root });
+      const dropped = digest.slice(digest.indexOf('## The rules sessions drop most'));
+
+      for (const id of [
+        'V-P-07',
+        'V-B-03',
+        'V-P-05',
+        'V-P-06',
+        'V-B-04',
+        'V-W-04',
+        'V-C-02',
+        'V-C-10',
+        'V-P-08',
+        'V-B-07',
+      ]) {
+        expect(dropped).toContain(`| ${id} |`);
+      }
+    });
   });
 
   test('a project without a config still gets the digest, and sees the slot is not chosen', async () => {
@@ -155,4 +184,84 @@ test('the session-start hook prints the digest for CLAUDE_PROJECT_DIR', () => {
 
   expect(child.exitCode).toBe(0);
   expect(child.stdout.toString()).toContain('this project: `on-user-word`');
+});
+
+describe('the owner cards in the digest', () => {
+  const CONFIG = "export default { rules: { 'V-W-01': 'on-user-word' } };\n";
+
+  test('every session gets the English shape card, with no profile card', async () => {
+    const root = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
+    const digest = await buildSessionDigest({ projectRoot: root });
+
+    expect(digest).toContain('## How to answer the owner');
+    expect(digest).toContain('`Blocked:`');
+    expect(digest).not.toContain('## Working with this person');
+  });
+
+  test('a profile adds its card; a project that sets enforce off drops the shape card', async () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.ts':
+          "export default { rules: { 'V-W-01': 'on-user-word' }, owner: { report: { enforce: 'off' } } };\n",
+        '.agents/local/profile.json': JSON.stringify({
+          schemaVersion: 1,
+          address: { you: 'Sam' },
+          tone: 'terse',
+        }),
+      },
+    });
+    const digest = await buildSessionDigest({ projectRoot: root });
+
+    expect(digest).toContain('## Working with this person');
+    expect(digest).toContain('Address them as "Sam"');
+    expect(digest).not.toContain('## How to answer the owner');
+  });
+
+  test('a subagent gets the small card, with neither the owner shape nor the profile', () => {
+    expect(SUBAGENT_CARD).not.toContain('How to answer the owner');
+    expect(SUBAGENT_CARD).not.toContain('Working with this person');
+  });
+
+  // Paid once per subagent: ten subagents multiply it by ten. Growing it is a decision, not a drift.
+  test('the subagent card stays within its size budget, about 400 tokens', () => {
+    expect(SUBAGENT_CARD.length).toBeLessThanOrEqual(SUBAGENT_CARD_MAX_CHARACTERS);
+    expect(SUBAGENT_CARD_MAX_CHARACTERS).toBeLessThanOrEqual(1600);
+  });
+
+  test('every rule the subagent card cites exists in the base rules, and the safety gates are all there', () => {
+    const rules = readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8');
+    const cited = [...SUBAGENT_CARD.matchAll(/\bV-[A-Z]-\d\d\b/g)].map((match) => match[0]);
+
+    for (const id of cited) {
+      expect(rules, id).toContain(`| ${id} |`);
+    }
+
+    for (const id of ['V-B-08', 'V-W-01', 'V-P-08', 'V-B-06', 'V-B-07', 'V-P-11']) {
+      expect(cited, id).toContain(id);
+    }
+  });
+
+  test('a readable profile with a hostile language never breaks the digest', async () => {
+    for (const language of ['constructor', '__proto__', 'toString']) {
+      const root = createProject({
+        files: {
+          '.configs/vulcan.config.ts': CONFIG,
+          '.agents/local/profile.json': JSON.stringify({ schemaVersion: 1, language }),
+        },
+      });
+      const digest = await buildSessionDigest({ projectRoot: root });
+
+      expect(digest).toContain('VULCAN rules');
+      expect(digest).toContain('## How to answer the owner');
+      expect(digest).not.toContain('## Working with this person');
+    }
+  });
+
+  test('an unreadable profile is ignored by the digest, not fatal', async () => {
+    const root = createProject({
+      files: { '.configs/vulcan.config.ts': CONFIG, '.agents/local/profile.json': '{ nope' },
+    });
+
+    expect(await buildSessionDigest({ projectRoot: root })).toContain('VULCAN rules');
+  });
 });

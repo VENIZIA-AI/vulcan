@@ -71,7 +71,7 @@ export const inspectManifestWrite = (opts: { input: IManifestHookInput }): boole
   const { tool, filePath, command, cwd } = opts.input;
 
   if (tool === BASH_TOOL) {
-    return command !== undefined && WRITE_PATTERNS.some(pattern => pattern.test(command));
+    return command !== undefined && WRITE_PATTERNS.some((pattern) => pattern.test(command));
   }
 
   if (filePath === undefined) {

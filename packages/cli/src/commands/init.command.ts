@@ -7,6 +7,7 @@ import { CreateFlags } from '../create/common/index.ts';
 import { createMonorepo } from '../create/init-monorepo.ts';
 import { runBun } from '../create/process.ts';
 import { InitConstants, scaffoldProject } from '../init/index.ts';
+import { offerProfile } from './profile.command.ts';
 
 export const runInitCommand = async (opts: ICommandContext): Promise<number> => {
   if (opts.args.includes(CreateFlags.PRESET)) {
@@ -15,7 +16,7 @@ export const runInitCommand = async (opts: ICommandContext): Promise<number> => 
 
   const flagIndex = opts.args.indexOf(InitConstants.CONFIG_FLAG);
   const requested = flagIndex === -1 ? ConfigExtensions.MTS : (opts.args[flagIndex + 1] ?? '');
-  const extension = ConfigExtensions.LOOKUP_ORDER.find(value => value === requested);
+  const extension = ConfigExtensions.LOOKUP_ORDER.find((value) => value === requested);
 
   if (extension === undefined) {
     process.stderr.write(
@@ -56,6 +57,8 @@ export const runInitCommand = async (opts: ICommandContext): Promise<number> => 
 
   process.stderr.write('left to do:\n');
   result.todo.forEach((line, index) => process.stderr.write(`  ${index + 1}. ${line}\n`));
+
+  await offerProfile({ root: opts.cwd });
 
   return installCode === ExitCodes.OK ? ExitCodes.OK : ExitCodes.FAILURE;
 };

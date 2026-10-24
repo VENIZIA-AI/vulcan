@@ -9,7 +9,7 @@ const CHANGELOGS = fileURLToPath(new URL('../../content/changelogs', import.meta
 const changelogGroups = (): DefaultTheme.SidebarItem[] => {
   const byDate = new Map<string, DefaultTheme.SidebarItem[]>();
   const files = readdirSync(CHANGELOGS)
-    .filter(file => /^\d{4}-\d{2}-\d{2}-.*\.md$/.test(file))
+    .filter((file) => /^\d{4}-\d{2}-\d{2}-.*\.md$/.test(file))
     .sort()
     .reverse();
 
@@ -59,6 +59,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Presets', link: '/references/presets' },
       { text: 'Interactive prompts', link: '/references/prompts' },
       { text: 'Coding agents', link: '/references/agents' },
+      { text: 'Shipped skills', link: '/references/skills' },
     ],
   },
   {
@@ -70,6 +71,9 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'sync', link: '/references/commands/sync' },
       { text: 'agents', link: '/references/commands/agents' },
       { text: 'doctor', link: '/references/commands/doctor' },
+      { text: 'clean', link: '/references/commands/clean' },
+      { text: 'profile', link: '/references/commands/profile' },
+      { text: 'visualize', link: '/references/commands/visualize' },
     ],
   },
   { text: 'Rules', items: [{ text: 'Base rules and slots', link: '/references/rules' }] },

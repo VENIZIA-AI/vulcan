@@ -9,7 +9,6 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AtlasTimeouts } from '@/common/constants';
 import { readPackageDirectory } from '@/common/package-entries';
@@ -31,15 +30,15 @@ interface ISymbolsCache {
   symbols: ISymbolRecord[];
 }
 
-/** `$XDG_CACHE_HOME/vulcan/atlas/v1/symbols` - a published version never changes, so it never expires. */
-export const symbolsCacheDirectory = (): string =>
-  join(process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache'), 'vulcan', 'atlas', 'v1', 'symbols');
+/** `<cacheBase>/atlas/v1/symbols` - a published version never changes, so it never expires. */
+export const symbolsCacheDirectory = (opts: { cacheBase: string }): string =>
+  join(opts.cacheBase, 'atlas', 'v1', 'symbols');
 
 /**
  * `@scope+name@version.json`: `+` is in no npm name, so two names never share a file. A name or a
  * version read from a fetched source is checked first - neither may carry a path out of the cache.
  */
-const cacheFileOf = (opts: { name: string; version: string }): string => {
+const cacheFileOf = (opts: { name: string; version: string; cacheBase: string }): string => {
   if (!isNpmPackageName({ name: opts.name })) {
     throw new Error(`atlas: '${opts.name}' is not an npm package name`);
   }
@@ -48,13 +47,14 @@ const cacheFileOf = (opts: { name: string; version: string }): string => {
     throw new Error(`atlas: '${opts.version}' is not a version`);
   }
 
-  return join(symbolsCacheDirectory(), `${opts.name.replace('/', '+')}@${opts.version}.json`);
+  return join(symbolsCacheDirectory(opts), `${opts.name.replace('/', '+')}@${opts.version}.json`);
 };
 
 /** The cached symbols of `name@version`, or `undefined` when no pull or install has read them yet. */
 export const cachedSymbols = (opts: {
   name: string;
   version: string;
+  cacheBase: string;
 }): ISymbolRecord[] | undefined => {
   const file = cacheFileOf(opts);
 
@@ -67,11 +67,17 @@ export const cachedSymbols = (opts: {
   return cache.schemaVersion === SYMBOLS_SCHEMA_VERSION ? cache.symbols : undefined;
 };
 
-const writeCache = (opts: { name: string; version: string; symbols: ISymbolRecord[] }): void => {
+const writeCache = (opts: {
+  name: string;
+  version: string;
+  symbols: ISymbolRecord[];
+  cacheBase: string;
+}): void => {
   const file = cacheFileOf(opts);
-  const cache: ISymbolsCache = { schemaVersion: SYMBOLS_SCHEMA_VERSION, ...opts };
+  const { name, version, symbols } = opts;
+  const cache: ISymbolsCache = { schemaVersion: SYMBOLS_SCHEMA_VERSION, name, version, symbols };
 
-  mkdirSync(symbolsCacheDirectory(), { recursive: true });
+  mkdirSync(symbolsCacheDirectory(opts), { recursive: true });
   // Written whole, then moved into place: a reader never sees half a file.
   writeFileSync(`${file}.partial`, JSON.stringify(cache));
   renameSync(`${file}.partial`, file);
@@ -81,11 +87,14 @@ const writeCache = (opts: { name: string; version: string; symbols: ISymbolRecor
  * Project Contract v1, D2: the symbols of an installed package, read from its own declaration files -
  * the exact version the consumer runs, with no network. Cached by `name@version`.
  */
-export const symbolsOfInstalled = (opts: { directory: string }): ISymbolRecord[] => {
+export const symbolsOfInstalled = (opts: {
+  directory: string;
+  cacheBase: string;
+}): ISymbolRecord[] => {
   const { name, version }: { name: string; version: string } = JSON.parse(
     readFileSync(join(opts.directory, 'package.json'), 'utf8'),
   );
-  const cached = cachedSymbols({ name, version });
+  const cached = cachedSymbols({ name, version, cacheBase: opts.cacheBase });
 
   if (cached !== undefined) {
     return cached;
@@ -96,7 +105,7 @@ export const symbolsOfInstalled = (opts: { directory: string }): ISymbolRecord[]
     packages: [readPackageDirectory({ directory: opts.directory })],
   });
 
-  writeCache({ name, version, symbols });
+  writeCache({ name, version, symbols, cacheBase: opts.cacheBase });
 
   return symbols;
 };
@@ -108,6 +117,7 @@ export const symbolsOfInstalled = (opts: { directory: string }): ISymbolRecord[]
 export const symbolsOfPublished = async (opts: {
   name: string;
   version: string;
+  cacheBase: string;
 }): Promise<ISymbolRecord[]> => {
   const cached = cachedSymbols(opts);
 
@@ -125,7 +135,11 @@ export const symbolsOfPublished = async (opts: {
     throw new Error(`atlas: no npm tarball for ${opts.name}@${opts.version} (${response.status})`);
   }
 
-  const work = mkdtempSync(join(tmpdir(), 'atlas-tarball-'));
+  const scratch = join(opts.cacheBase, 'tmp');
+
+  mkdirSync(scratch, { recursive: true });
+
+  const work = mkdtempSync(join(scratch, 'atlas-tarball-'));
 
   try {
     const tarball = join(work, 'package.tgz');
@@ -138,7 +152,7 @@ export const symbolsOfPublished = async (opts: {
       throw new Error(`atlas: could not unpack ${opts.name}@${opts.version}: ${unpacked.stderr}`);
     }
 
-    return symbolsOfInstalled({ directory: join(work, 'package') });
+    return symbolsOfInstalled({ directory: join(work, 'package'), cacheBase: opts.cacheBase });
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
@@ -156,7 +170,7 @@ export const declarationsFingerprintOf = (opts: { project: IAtlasProject }): str
   let newestMtimeMs = 0;
   let totalBytes = 0;
 
-  for (const entry of opts.project.packages.filter(item => !item.retired)) {
+  for (const entry of opts.project.packages.filter((item) => !item.retired)) {
     const directory = join(opts.project.root, entry.path);
 
     if (!existsSync(directory)) {
@@ -183,9 +197,9 @@ export const declarationsFingerprintOf = (opts: { project: IAtlasProject }): str
 export const symbolsOfRepository = (opts: { project: IAtlasProject }): ISymbolRecord[] => {
   const packages = opts.project.packages
     .filter(
-      entry => !entry.retired && existsSync(join(opts.project.root, entry.path, 'package.json')),
+      (entry) => !entry.retired && existsSync(join(opts.project.root, entry.path, 'package.json')),
     )
-    .map(entry =>
+    .map((entry) =>
       readPackageDirectory({ directory: join(opts.project.root, entry.path), name: entry.dir }),
     );
 

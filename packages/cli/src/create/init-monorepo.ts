@@ -30,6 +30,7 @@ import {
 import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
 import { renderNext } from './next.ts';
 import { isInstallSkipped, runBun, runGitInit } from './process.ts';
+import { offerProfile } from '../commands/profile.command.ts';
 import { installNpmPreset, withScratch } from './scratch.ts';
 import {
   filePresetWarning,
@@ -389,9 +390,10 @@ const runCreate = async (opts: {
       apps: [{ port: located.preset.devPort, urls: located.preset.urls }],
     }),
   );
+  await offerProfile({ root });
 
   return ExitCodes.OK;
 };
 
 export const createMonorepo = async (opts: { cwd: string; args: string[] }): Promise<number> =>
-  withScratch({ run: scratch => runCreate({ ...opts, scratch }) });
+  withScratch({ root: opts.cwd, run: (scratch) => runCreate({ ...opts, scratch }) });

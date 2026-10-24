@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Proves the packed tarball starts outside the workspace: pack, install into an empty directory,
- * point the user config at a local bare repository, and run `initialize` + `tools/list` + one
+ * name a local bare repository with `--source`, and run `initialize` + `tools/list` + one
  * `search` over stdio. atlas ships code only, so the hit has to come from that source. Catches a
  * dependency the workspace hoists but the manifest never declared - the gate `bun test` cannot see.
  */
@@ -107,6 +107,9 @@ const main = (): void => {
   const sandbox = mkdtempSync(join(tmpdir(), 'vulcan-atlas-smoke-'));
 
   try {
+    // Its own manifest first: without one `bun add` would take the nearest package.json above the sandbox.
+    writeFileSync(join(sandbox, 'package.json'), JSON.stringify({ name: 'smoke', private: true }));
+
     const installed = run({ command: ['bun', 'add', tarball!], cwd: sandbox });
 
     if (installed.status !== 0) {
@@ -114,14 +117,6 @@ const main = (): void => {
     }
 
     const bare = makeSource({ sandbox });
-    const configHome = join(sandbox, 'config');
-
-    mkdirSync(join(configHome, 'vulcan'), { recursive: true });
-    writeFileSync(
-      join(configHome, 'vulcan', 'atlas.json'),
-      JSON.stringify({ sources: [{ name: 'smoke', repo: `file://${bare}`, ref: 'develop' }] }),
-    );
-
     const cli = join(sandbox, 'node_modules', ...PACKAGE_NAME.split('/'), 'dist', 'cjs', 'cli.js');
     const input = [
       {
@@ -147,14 +142,10 @@ const main = (): void => {
       .join('\n');
 
     const session = run({
-      command: ['bun', cli, 'mcp'],
+      command: ['bun', cli, 'mcp', '--source', `file://${bare}@develop`, '--cache-dir', join(sandbox, 'cache')],
       cwd: sandbox,
       input: `${input}\n`,
-      env: {
-        XDG_CONFIG_HOME: configHome,
-        XDG_CACHE_HOME: join(sandbox, 'cache'),
-        VULCAN_NPM_REGISTRY: NO_REGISTRY,
-      },
+      env: { VULCAN_NPM_REGISTRY: NO_REGISTRY },
     });
 
     if (session.status !== 0) {

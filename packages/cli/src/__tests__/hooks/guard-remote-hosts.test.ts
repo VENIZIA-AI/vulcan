@@ -20,11 +20,11 @@ const readSettings = (opts: { root: string }) =>
 /** Every command the synced settings register for Bash PreToolUse. */
 const bashHooks = (opts: { root: string }): string[] =>
   (readSettings(opts).hooks.PreToolUse as { matcher: string; hooks: { command: string }[] }[])
-    .filter(entry => entry.matcher === 'Bash')
-    .flatMap(entry => entry.hooks.map(hook => hook.command));
+    .filter((entry) => entry.matcher === 'Bash')
+    .flatMap((entry) => entry.hooks.map((hook) => hook.command));
 
 const remoteHook = (opts: { root: string }): string | undefined =>
-  bashHooks(opts).find(command => command.includes('guard-remote-hosts.ts'));
+  bashHooks(opts).find((command) => command.includes('guard-remote-hosts.ts'));
 
 /** A synced project with the package linked into node_modules, as `bun install` leaves it. */
 const makeProject = (opts: { config: string; files?: Record<string, string> }): string => {
@@ -203,7 +203,9 @@ describe('remoteHosts entries are validated', () => {
   const messageOf = (entries: string[]): string | undefined => {
     const result = VULCAN_CONFIG_SCHEMA.safeParse({ remoteHosts: { trusted: entries } });
 
-    return result.success ? undefined : result.error.issues.map(issue => issue.message).join('; ');
+    return result.success
+      ? undefined
+      : result.error.issues.map((issue) => issue.message).join('; ');
   };
 
   test.each([
@@ -213,13 +215,13 @@ describe('remoteHosts entries are validated', () => {
     'lab-1.example.com',
     '$LAB_HOST',
     '${LAB_HOST}',
-  ])('%s is a host or a pattern', entry => {
+  ])('%s is a host or a pattern', (entry) => {
     expect(messageOf([entry])).toBeUndefined();
   });
 
   test.each(['*', '**', '*.*', '.', 'user@lab1', 'lab1:22', 'lab1/path', 'ssh://lab1', 'a b', ''])(
     "'%s' is refused",
-    entry => {
+    (entry) => {
       expect(messageOf([entry])).toBeDefined();
     },
   );

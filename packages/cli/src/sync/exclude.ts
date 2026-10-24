@@ -27,11 +27,11 @@ export const shippedSkillNames = (): string[] => {
   return existsSync(directory)
     ? readdirSync(directory, { withFileTypes: true })
         .filter(
-          entry =>
+          (entry) =>
             entry.isDirectory() &&
             existsSync(join(directory, entry.name, SyncConstants.SKILL_FILE)),
         )
-        .map(entry => entry.name)
+        .map((entry) => entry.name)
         .sort()
     : [];
 };
@@ -52,23 +52,23 @@ export const planExclude = (opts: { root: string; agents: string[] }): ISyncActi
   const path = resolve(opts.root, location);
   const prefix = git({ root: opts.root, args: ['rev-parse', '--show-prefix'] }) ?? '';
   const anchored = excludePathsOf({ agents: opts.agents, skillNames: shippedSkillNames() }).map(
-    group => ({ ...group, paths: group.paths.map(item => `/${prefix}${item.slice(1)}`) }),
+    (group) => ({ ...group, paths: group.paths.map((item) => `/${prefix}${item.slice(1)}`) }),
   );
-  const candidates = anchored.flatMap(group => group.paths).filter(item => !item.endsWith('/'));
+  const candidates = anchored.flatMap((group) => group.paths).filter((item) => !item.endsWith('/'));
   const tracked = new Set(
     (
       git({
         root: opts.root,
-        args: ['ls-files', '--', ...candidates.map(item => item.slice(`/${prefix}`.length))],
+        args: ['ls-files', '--', ...candidates.map((item) => item.slice(`/${prefix}`.length))],
       }) ?? ''
     )
       .split('\n')
-      .filter(line => line !== '')
-      .map(line => `/${prefix}${line}`),
+      .filter((line) => line !== '')
+      .map((line) => `/${prefix}${line}`),
   );
   const groups = anchored
-    .map(group => ({ ...group, paths: group.paths.filter(item => !tracked.has(item)) }))
-    .filter(group => group.paths.length > 0);
+    .map((group) => ({ ...group, paths: group.paths.filter((item) => !tracked.has(item)) }))
+    .filter((group) => group.paths.length > 0);
   const before = existsSync(path) ? readFileSync(path, 'utf8') : undefined;
   const merged = mergeExcludeBlock({ text: before, block: renderExcludeBlock({ groups }) });
 

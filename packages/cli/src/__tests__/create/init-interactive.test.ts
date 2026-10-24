@@ -58,7 +58,7 @@ const bunForNpmPreset = (): string =>
 
 /** The index of each text in the output, in the order given; a text that is missing is -1. */
 const positions = (opts: { output: string; texts: string[] }): number[] =>
-  opts.texts.map(text => opts.output.indexOf(text));
+  opts.texts.map((text) => opts.output.indexOf(text));
 
 const isAscending = (opts: { values: number[] }): boolean =>
   opts.values.every(

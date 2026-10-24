@@ -25,13 +25,13 @@ describe('parseRuleIds', () => {
     expect(parseRuleIds({ markdown })).toEqual(['V-W-01', 'V-C-04', 'W-06']);
   });
 
-  test('the shipped base: W4 S7 P7 B5 + the C group, 39 rules, every ID unique', () => {
+  test('the shipped base: W5 S7 P12 B8 + the C group, 48 rules, every ID unique', () => {
     const ids = parseRuleIds({ markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8') });
 
-    expect(ids).toHaveLength(39);
-    expect(ids.every(id => id.startsWith('V-'))).toBe(true);
+    expect(ids).toHaveLength(48);
+    expect(ids.every((id) => id.startsWith('V-'))).toBe(true);
     expect(ids).toContain('V-W-01');
-    expect(ids.filter(id => id.startsWith('V-C-'))).toHaveLength(16);
+    expect(ids.filter((id) => id.startsWith('V-C-'))).toHaveLength(16);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -49,7 +49,7 @@ describe('parseRuleIds', () => {
     const rows = extractRuleRows({
       markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
     });
-    const row = rows.find(line => line.includes('| V-C-02 |')) ?? '';
+    const row = rows.find((line) => line.includes('| V-C-02 |')) ?? '';
 
     expect(row).toContain('One options object first, at most 5 parameters');
     expect(row).toContain('isValidName({ name })');
@@ -62,7 +62,7 @@ describe('parseRuleIds', () => {
       markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
     });
     const rowOf = (opts: { id: string }): string =>
-      rows.find(row => row.includes(`| ${opts.id} |`)) ?? '';
+      rows.find((row) => row.includes(`| ${opts.id} |`)) ?? '';
 
     expect(rowOf({ id: 'V-C-18' })).not.toMatch(/Drizzle|Hono|PostgreSQL|SQLite/);
     expect(rowOf({ id: 'V-C-18' })).toMatch(/derived types over duplicates/i);
@@ -105,8 +105,31 @@ describe('readBaseRules', () => {
   test('every base rule ID maps to its row', () => {
     const rules = readBaseRules();
 
-    expect(Object.keys(rules)).toHaveLength(39);
+    expect(Object.keys(rules)).toHaveLength(48);
     expect(rules['V-W-02']).toStartWith('| V-W-02 | Never write to a database.');
+  });
+
+  test('the agent-work rules are present, each with its own key phrase', () => {
+    const rules = readBaseRules();
+    const phrases: Record<string, string> = {
+      'V-W-06': 'Approval has a card',
+      'V-P-08': 'does it need to exist at all?',
+      'V-P-09': 'Work card and done report',
+      'V-P-10': 'Ask once, with a recommendation',
+      'V-P-11': 'answer first',
+      'V-P-12': 'Delegate by kind',
+      'V-B-06': 'Small never cuts safety',
+      'V-B-07': '// SHORTCUT: <what>, <why>, <revisit when>',
+      'V-B-08': 'Leave no trace',
+    };
+
+    for (const [id, phrase] of Object.entries(phrases)) {
+      expect(rules[id] ?? '').toContain(phrase);
+    }
+  });
+
+  test('V-C-11 says small is not golfed', () => {
+    expect(readBaseRules()['V-C-11'] ?? '').toContain('not golfed');
   });
 
   test('V-B-05 states the seven app scripts, the legacy names and where the logic lives', () => {
@@ -176,7 +199,9 @@ test('every rule ID cited inside the base rules exists in the base, with its V- 
   const ids = new Set(parseRuleIds({ markdown }));
   // Inline code holds examples of a project's bare IDs (`W-06`), never citations.
   const prose = markdown.replace(/`[^`]*`/g, '');
-  const cited = [...prose.matchAll(/(?<![A-Z]-)\b(?:V-)?[WSPBC]-\d{2}\b/g)].map(match => match[0]);
+  const cited = [...prose.matchAll(/(?<![A-Z]-)\b(?:V-)?[WSPBC]-\d{2}\b/g)].map(
+    (match) => match[0],
+  );
 
-  expect(cited.filter(id => !ids.has(id))).toEqual([]);
+  expect(cited.filter((id) => !ids.has(id))).toEqual([]);
 });

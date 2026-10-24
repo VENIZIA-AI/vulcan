@@ -25,10 +25,10 @@ const escapeScriptClose = (opts: { text: string }): string =>
   opts.text.replace(/<\/(script)/gi, '<\\/$1');
 
 export const buildVizData = (opts: { concepts: Concept[] }): IVizData => {
-  const concepts = opts.concepts.filter(concept => !concept.reserved);
-  const ids = new Set(concepts.map(concept => concept.id));
+  const concepts = opts.concepts.filter((concept) => !concept.reserved);
+  const ids = new Set(concepts.map((concept) => concept.id));
 
-  const nodes: IVizNode[] = concepts.map(concept => ({
+  const nodes: IVizNode[] = concepts.map((concept) => ({
     id: concept.id,
     type: concept.type,
     title: concept.title,
@@ -39,7 +39,7 @@ export const buildVizData = (opts: { concepts: Concept[] }): IVizData => {
     group: extractSection({ id: concept.id }),
     degree: 0,
   }));
-  const nodeById = new Map(nodes.map(node => [node.id, node]));
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
 
   const edges: IVizEdge[] = [];
   const seen = new Set<string>();
@@ -67,15 +67,15 @@ export const buildVizData = (opts: { concepts: Concept[] }): IVizData => {
 
   const project = readOkfProject();
   const known = new Set(project.sections.order);
-  const present = new Set(nodes.map(node => node.group));
+  const present = new Set(nodes.map((node) => node.group));
   const ordered = [
-    ...project.sections.order.filter(section => present.has(section)),
-    ...[...present].filter(section => !known.has(section)).sort(),
+    ...project.sections.order.filter((section) => present.has(section)),
+    ...[...present].filter((section) => !known.has(section)).sort(),
   ];
-  const sections: IVizSection[] = ordered.map(key => ({
+  const sections: IVizSection[] = ordered.map((key) => ({
     key,
     label: toSectionTitle({ key, labels: project.sections.labels }),
-    count: nodes.filter(node => node.group === key).length,
+    count: nodes.filter((node) => node.group === key).length,
   }));
 
   return {
@@ -110,7 +110,7 @@ export const bundleVizClient = async (): Promise<string> => {
   const [output] = result.outputs;
 
   if (!result.success || output === undefined) {
-    const reasons = result.logs.map(log => String(log)).join('\n');
+    const reasons = result.logs.map((log) => String(log)).join('\n');
 
     console.error(
       `[bundleVizClient] failed to bundle ${relative(readOkfProject().root, CLIENT_ENTRY)}\n${reasons}`,

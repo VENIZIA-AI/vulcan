@@ -27,3 +27,23 @@ export interface IManifestHookInput {
   command: string | undefined;
   cwd: string | undefined;
 }
+
+/** One thing a guard found: how to answer (`ask` or `deny`), the rule it enforces, and what the command does. */
+export interface IGitHit {
+  decision: TGuardDecision;
+  rule: string;
+  message: string;
+}
+
+/** Runs a read-only `git` or `gh` query for a guard; `undefined` when it cannot answer. */
+export type IGitRunner = (opts: {
+  program: string;
+  args: string[];
+  cwd: string | undefined;
+}) => string | undefined;
+
+/** A path a command would create or write outside the project, and what writes it. */
+export interface IOutsideHit {
+  path: string;
+  message: string;
+}

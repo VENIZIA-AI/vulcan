@@ -108,7 +108,7 @@ test('a denylist on one axis leaves the other axes alone', () => {
 
   const { axes } = collectCoverageAxes();
 
-  expect(axes.map(axis => [axis.name, axis.items])).toEqual([
+  expect(axes.map((axis) => [axis.name, axis.items])).toEqual([
     ['filtered', ['admin', 'kernel']],
     ['whole', ['admin', 'kernel', 'react']],
   ]);

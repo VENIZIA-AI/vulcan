@@ -62,7 +62,7 @@ describe('inspectCommand', () => {
       cwd: FIXTURES,
     });
 
-    expect(hits.map(hit => hit.rule).sort()).toEqual(['V-W-02', 'V-W-03']);
+    expect(hits.map((hit) => hit.rule).sort()).toEqual(['V-W-02', 'V-W-03']);
   });
 });
 

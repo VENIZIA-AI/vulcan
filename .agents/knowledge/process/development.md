@@ -17,6 +17,7 @@ bun x --no-install vulcan doctor
 bun x --no-install vulcan x okf check
 ```
 
+- `make test` and the smokes make their temp folders under `.agents/local/tmp/tests/` (`TMPDIR`, gitignored): nothing is written to the system temp directory. `GIT_CEILING_DIRECTORIES` keeps git from reading this repository, and an empty `.git` marker there is where bun's own ignore lookup stops (it would otherwise read this repository's `.gitignore` and `bun fmt` in a test project would see no files). Because that folder sits inside the repository, `zod` resolves from the repository's `node_modules`: a test or smoke that needs it unavailable replaces it with a stub that throws, never just removes it. A smoke sandbox needs its own `package.json` before `bun add`, or bun edits the nearest one above it.
 - Type-checking is `bun check --no-pretty` (Bun >= 1.4.4), the same errors as `tsc --noEmit` including options inherited through `extends`; `tsc` stays only where it emits (atlas `dist`).
 - Tests first: a test that fails, then the change.
 - A change that touches the generators or okf is checked against IGNIS read-only: `check` from
@@ -25,6 +26,10 @@ bun x --no-install vulcan x okf check
 - Before a release, rehearse CI on exactly what git commits: copy `git ls-files -co --exclude-standard`
   into an empty folder (with IGNIS beside it as a real checkout, not a symlink), then install, build,
   lint and test there. A file git ignores is missing in CI even when every local gate is green.
+
+## What the base text is held to
+
+`packages/cli/src/__tests__/base-consistency.test.ts` runs with `make test`: every `V-*` id cited anywhere under `packages/cli/base/` is defined once in `base/rules.md` (a bullet there that opens with an id lists one VULCAN deliberately does not carry), every skill's frontmatter parses with a name equal to its folder, and the size budgets hold (rules under 4000 words, a shared reference under 250 lines, a skill under 24 KB). Cite a rule that does not exist and the build fails.
 
 ## Skill evals across models
 
@@ -37,6 +42,7 @@ make skill-evals-plan SKILL=docs-writing PROJECT=../ignis
 make skill-evals SKILL=docs-writing PROJECT=../ignis MODELS=haiku,sonnet   # real runs
 ```
 
+- `--baseline` (in `ARGS`) also runs every case with the skill NOT installed and not in the prompt, grades it the same way, and reports both arms; the exit code follows the skill arm only (a baseline is expected to do worse). A real run doubles the calls.
 - `scripts/evals/skill-evals.ts` (core in `scripts/evals/skill-evals-core.ts`). `PROJECT` is the checkout the
   evals' `files` live in; it defaults to this repository. A missing input file stops a real run with
   exit 2 before any call. Flags: `--grader` (default `opus`), `--out`, `--timeout` (seconds, default

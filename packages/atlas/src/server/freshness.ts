@@ -17,7 +17,7 @@ interface ICorpusFingerprint {
 /** Mirrors `CorpusLoader`'s own exclude semantics: an excluded relative path, or anything under it, is never counted. */
 const isExcluded = (opts: { relativePath: string; exclude: string[] }): boolean =>
   opts.exclude.some(
-    prefix => opts.relativePath === prefix || opts.relativePath.startsWith(`${prefix}/`),
+    (prefix) => opts.relativePath === prefix || opts.relativePath.startsWith(`${prefix}/`),
   );
 
 /** One glob walk per root; `statSync` runs only for files already known to belong to the corpus. */
@@ -28,7 +28,7 @@ const fingerprintOf = (opts: { roots: ICorpusRoot[] }): ICorpusFingerprint => {
 
   // A declared root that does not exist yet - no changelog written - counts as empty, so the walk
   // sees it the moment it appears.
-  for (const root of opts.roots.filter(entry => existsSync(entry.directory))) {
+  for (const root of opts.roots.filter((entry) => existsSync(entry.directory))) {
     const exclude = root.exclude ?? [];
     const relativePaths = new Bun.Glob('**/*.md').scanSync({ cwd: root.directory });
 
@@ -59,7 +59,7 @@ const buildStore = (opts: { roots: ICorpusRoot[] }): ChunkStore => {
 
   const store = new ChunkStore();
 
-  store.add({ chunks: documents.flatMap(document => chunker.chunk({ document })) });
+  store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
 
   return store;
 };

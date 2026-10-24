@@ -206,7 +206,11 @@ $ bun x --no-install vulcan sync
   created   .claude/skills/build-a-feature
   created   .claude/skills/docs-update
   created   .claude/skills/docs-writing
+  created   .claude/skills/fix-a-bug
   created   .claude/skills/knowledge-sync
+  created   .claude/skills/plan-a-change
+  created   .claude/skills/report-back
+  created   .claude/skills/review-a-change
   created   .mcp.json
   created   .agents/vulcan.manifest.json
   replaced  AGENTS.md (Atlas block)

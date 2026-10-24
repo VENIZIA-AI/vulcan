@@ -157,16 +157,16 @@ const SECTION_HINTS = {
   reference:
     'audit only the CURATED files - a file with a generated: frontmatter key is generated, skip it',
 };
-const spotGroups = SECTIONS.map(section => ({
+const spotGroups = SECTIONS.map((section) => ({
   key: section,
   dirs: SECTION_HINTS[section] ? `${section}/ - ${SECTION_HINTS[section]}` : `${section}/`,
 }));
 
 phase('Verify');
-const deltaConceptList = deltaTargets.flatMap(t => t.concepts).join(', ');
+const deltaConceptList = deltaTargets.flatMap((t) => t.concepts).join(', ');
 const finderThunks = [
   ...deltaTargets.map(
-    t => () =>
+    (t) => () =>
       agent(
         `${COMMON}${DELTA}\nAssigned code area: ${t.area}\nAssigned concept files (under ${KB}/): ${t.concepts.join(', ')}\nContext hints from the orchestrator (verify, do not trust): ${t.hint}`,
         {
@@ -182,7 +182,7 @@ const finderThunks = [
 if (mode === 'full') {
   finderThunks.push(
     ...spotGroups.map(
-      g => () =>
+      (g) => () =>
         agent(
           `${COMMON}\nFocus mode SPOT-AUDIT: sweep for anything past syncs missed or that drifted. First \`ls\` your assigned directory group and audit EVERY concept file in it${deltaConceptList ? `, EXCEPT these already covered by delta verifiers this run: ${deltaConceptList}` : ''}.\nAssigned group: ${g.dirs}`,
           { label: `spot:${g.key}`, phase: 'Verify', model: 'sonnet', schema: FINDINGS_SCHEMA },
@@ -203,8 +203,8 @@ if (mode === 'full') {
 
 const finderResults = await parallel(finderThunks);
 const ok = finderResults.filter(Boolean);
-const allFindings = ok.flatMap(r => r.findings ?? []);
-const gaps = ok.flatMap(r => r.gaps ?? []);
+const allFindings = ok.flatMap((r) => r.findings ?? []);
+const gaps = ok.flatMap((r) => r.gaps ?? []);
 const confirmedTotal = ok.reduce((sum, r) => sum + (r.confirmedCount ?? 0), 0);
 log(
   `Verify done (${mode}): ${allFindings.length} findings, ${gaps.length} gap proposals, ${confirmedTotal} claims confirmed`,
@@ -236,7 +236,7 @@ log(`Findings span ${files.length} concept files -> one applier per file`);
 phase('Apply');
 const applyResults = await parallel(
   files.map(
-    path => () =>
+    (path) => () =>
       agent(
         `You are a careful knowledge curator for the ${BRAND} repository at ${REPO}.
 Target file: ${REPO}/${path}
@@ -263,8 +263,8 @@ Return counts + a one-line summary of what you changed.`,
 // misattributes every summary after a dead applier to the wrong file.
 const applySummaries = files
   .map((file, index) => ({ file, result: applyResults[index] }))
-  .filter(entry => entry.result)
-  .map(entry => ({ file: entry.file, ...entry.result }));
+  .filter((entry) => entry.result)
+  .map((entry) => ({ file: entry.file, ...entry.result }));
 
 const totalApplied = applySummaries.reduce((sum, r) => sum + (r.applied ?? 0), 0);
 const totalSkipped = applySummaries.reduce((sum, r) => sum + (r.skipped ?? 0), 0);
@@ -287,5 +287,5 @@ return {
   findingsByFile: byFile,
   applySummaries,
   gaps,
-  notes: ok.map(r => r.notes).filter(Boolean),
+  notes: ok.map((r) => r.notes).filter(Boolean),
 };

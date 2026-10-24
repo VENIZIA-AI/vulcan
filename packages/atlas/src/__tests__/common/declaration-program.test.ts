@@ -29,7 +29,7 @@ test('one program serves every entry of a run', () => {
 
     return checker
       .getExportsOfModule(moduleSymbol)
-      .map(symbol => symbol.getName())
+      .map((symbol) => symbol.getName())
       .sort();
   };
 

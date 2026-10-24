@@ -3,9 +3,24 @@
  * Proves the three packed tarballs work outside the workspace: an empty project installs
  * @venizia/vulcan alone, then runs init, sync, doctor, `x okf` and `x atlas mcp` - the project
  * itself and a source it declares, a local bare repository read through git.
+ *
+ * It also runs every hook the generated `.claude/settings.json` registers, from the installed tarball:
+ * each hook runs one benign call and must exit 0; with `zod` made unresolvable the blocking hooks still
+ * work; with a module of the hook path removed a crashed safety hook still lets `bun install` through,
+ * and the drift guards pass the call. A release whose hooks cannot load stops every tool call in every
+ * project that syncs it, so none goes out before this step passes.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
@@ -266,6 +281,240 @@ const makeSource = (opts: { sandbox: string }): { url?: string; failure?: string
   return failure === undefined ? { url: `file://${bare}` } : { failure };
 };
 
+
+interface IHookEntry {
+  event: string;
+  matcher: string;
+  command: string;
+}
+
+/** Every hook command the sandbox's generated settings register, as Claude Code would run it. */
+const hooksOf = (opts: { sandbox: string }): IHookEntry[] => {
+  type TSettings = {
+    hooks?: Record<string, { matcher?: string; hooks: { command: string }[] }[]>;
+  };
+  const settings: TSettings = JSON.parse(
+    readFileSync(join(opts.sandbox, '.claude', 'settings.json'), 'utf8'),
+  );
+  const sources = [settings];
+
+  return sources.flatMap((settings) =>
+    Object.entries(settings.hooks ?? {}).flatMap(([event, entries]) =>
+      entries.flatMap((entry) =>
+        entry.hooks.map((hook) => ({ event, matcher: entry.matcher ?? '', command: hook.command })),
+      ),
+    ),
+  );
+};
+
+const hookNameOf = (opts: { hook: IHookEntry }): string =>
+  /hooks\/([\w-]+)\.ts/.exec(opts.hook.command)?.[1] ?? opts.hook.command.slice(0, 40);
+
+/** Every benign call the hook's matcher covers: a Bash `ls`, a Write inside the project, or the event itself. */
+const benignPayloadsOf = (opts: { hook: IHookEntry; sandbox: string; command?: string }): string[] => {
+  if (opts.hook.event === 'SessionStart') {
+    return ['{"hook_event_name":"SessionStart","source":"startup"}'];
+  }
+
+  if (opts.hook.event === 'Stop') {
+    return ['{"hook_event_name":"Stop","last_assistant_message":"Everything is in order and nothing needs your attention right now, because the work is done and every check ran as expected today.","stop_hook_active":false}'];
+  }
+
+  if (opts.hook.event === 'PostToolUse' || opts.hook.event === 'PostToolUseFailure') {
+    return [`{"hook_event_name":"${opts.hook.event}","tool_name":"Bash","tool_input":{"command":"ls"}}`];
+  }
+
+  if (opts.hook.event === 'UserPromptSubmit') {
+    return ['{"hook_event_name":"UserPromptSubmit","prompt":"hello"}'];
+  }
+
+  if (opts.hook.event === 'SubagentStart') {
+    return ['{"hook_event_name":"SubagentStart","agent_type":"general-purpose","agent_id":"smoke"}'];
+  }
+
+  const cwd = JSON.stringify(opts.sandbox);
+  const payloads: string[] = [];
+
+  if (opts.hook.matcher.includes('Bash')) {
+    payloads.push(
+      `{"tool_name":"Bash","tool_input":{"command":${JSON.stringify(opts.command ?? 'ls')}},"cwd":${cwd}}`,
+    );
+  }
+
+  if (/Write|Edit/.test(opts.hook.matcher) && opts.command === undefined) {
+    payloads.push(
+      `{"tool_name":"Write","tool_input":{"file_path":${JSON.stringify(join(opts.sandbox, 'a.txt'))}},"cwd":${cwd}}`,
+    );
+  }
+
+  return payloads;
+};
+
+/** Runs the hook on every benign payload; the first one that does not exit as expected, or `undefined`. */
+const firstUnexpected = (opts: {
+  hook: IHookEntry;
+  sandbox: string;
+  expected: number;
+  command?: string;
+}): { code: number; stderr: string } | undefined =>
+  benignPayloadsOf(opts)
+    .map((payload) => runHook({ hook: opts.hook, sandbox: opts.sandbox, payload }))
+    .find((result) => result.code !== opts.expected);
+
+const runHook = (opts: { hook: IHookEntry; sandbox: string; payload: string }) => {
+  const result = spawnSync('/bin/sh', ['-c', opts.hook.command], {
+    cwd: opts.sandbox,
+    input: opts.payload,
+    encoding: 'utf8',
+    env: { ...process.env, CLAUDE_PROJECT_DIR: opts.sandbox },
+    timeout: 60_000,
+  });
+
+  return { code: result.status ?? -1, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+};
+
+const BLOCKING = new Set([
+  'guard-writes',
+  'guard-manifest',
+  'guard-package',
+  'guard-remote-hosts',
+  'guard-git',
+  'guard-outside',
+]);
+const SAFETY = new Set(['guard-writes', 'guard-manifest', 'guard-package', 'guard-remote-hosts']);
+
+/** A path of the installed package moved aside while `run` executes, then put back. */
+const withoutFile = <T>(opts: { path: string; run: () => T }): T => {
+  const aside = `${opts.path}.smoke-aside`;
+
+  renameSync(opts.path, aside);
+
+  try {
+    return opts.run();
+  } finally {
+    renameSync(aside, opts.path);
+  }
+};
+
+/**
+ * A package moved aside and replaced by a stub that throws when it loads, while `run` executes, then put
+ * back. A stub, not an absence: the sandbox may sit inside a repository whose own node_modules would
+ * otherwise still resolve the package.
+ */
+const withBrokenPackages = <T>(opts: { paths: string[]; run: () => T }): T => {
+  const [first, ...rest] = opts.paths;
+
+  if (first === undefined) {
+    return opts.run();
+  }
+
+  return withoutFile({
+    path: first,
+    run: () => {
+      mkdirSync(first, { recursive: true });
+      writeFileSync(join(first, 'package.json'), '{"name":"stub","main":"index.js"}');
+      writeFileSync(join(first, 'index.js'), 'throw new Error("unavailable: broken by the pack smoke");\n');
+
+      try {
+        return withBrokenPackages({ paths: rest, run: opts.run });
+      } finally {
+        rmSync(first, { recursive: true, force: true });
+      }
+    },
+  });
+};
+
+/** The hooks, from the tarball: a failure message, or `undefined` when every case held. */
+const smokeHooks = (opts: { sandbox: string }): string | undefined => {
+  const { sandbox } = opts;
+  const hooks = hooksOf({ sandbox });
+  const blocking = hooks.filter((hook) => BLOCKING.has(hookNameOf({ hook })));
+
+  for (const required of [...BLOCKING, 'session-start', 'subagent-start', 'stop', 'prompt-submit', 'post-tool']) {
+    if (!hooks.some((hook) => hookNameOf({ hook }) === required)) {
+      return `hooks: nothing registers ${required}`;
+    }
+  }
+
+  for (const hook of hooks) {
+    const bad = firstUnexpected({ hook, sandbox, expected: 0 });
+
+    if (bad !== undefined) {
+      return `hooks: ${hookNameOf({ hook })} exited ${bad.code} on a benign call: ${bad.stderr.slice(-300)}`;
+    }
+  }
+
+  const start = hooks.find((hook) => hook.event === 'SessionStart');
+  const [startPayload] = start === undefined ? [] : benignPayloadsOf({ hook: start, sandbox });
+  const digest =
+    start === undefined || startPayload === undefined
+      ? undefined
+      : runHook({ hook: start, sandbox, payload: startPayload });
+
+  if (!digest?.stdout.includes('VULCAN rules')) {
+    return 'hooks: session-start printed no rules digest';
+  }
+
+  const prompt = hooks.find((hook) => hook.event === 'UserPromptSubmit');
+  const [promptPayload] = prompt === undefined ? [] : benignPayloadsOf({ hook: prompt, sandbox });
+  const contract =
+    prompt === undefined || promptPayload === undefined
+      ? undefined
+      : runHook({ hook: prompt, sandbox, payload: promptPayload });
+
+  if (!contract?.stdout.includes('Owner reply contract')) {
+    return 'hooks: prompt-submit printed no owner reply contract';
+  }
+
+  const installed = join(sandbox, 'node_modules', '@venizia', 'vulcan');
+  // Every copy of zod the hooks could resolve: one left behind would make the case below pass for nothing.
+  const zods = [join(sandbox, 'node_modules', 'zod'), join(installed, 'node_modules', 'zod')].filter(
+    (path) => existsSync(path),
+  );
+
+  if (zods.length === 0) {
+    return 'hooks: cannot find the installed zod to break - the check would pass for nothing';
+  }
+
+  // The blocking hooks must not need zod, config or rules: a drift in those must not stop every call.
+  const withoutZod = withBrokenPackages({
+    paths: zods,
+    run: () =>
+      blocking
+        .map((hook) => ({ hook, bad: firstUnexpected({ hook, sandbox, expected: 0 }) }))
+        .find((item) => item.bad !== undefined),
+  });
+
+  if (withoutZod?.bad !== undefined) {
+    return `hooks: ${hookNameOf({ hook: withoutZod.hook })} exited ${withoutZod.bad.code} with zod unresolvable: ${withoutZod.bad.stderr.slice(-300)}`;
+  }
+
+  // A module of the hook path gone: a safety hook crashes and blocks - except a bare `bun install`,
+  // the escape - and the drift guards pass the call.
+  return withoutFile({
+    path: join(installed, 'src', 'hooks', 'common', 'constants.ts'),
+    run: () => {
+      for (const hook of blocking) {
+        const name = hookNameOf({ hook });
+        const expected = SAFETY.has(name) ? 2 : 0;
+        const bad = firstUnexpected({ hook, sandbox, expected });
+
+        if (bad !== undefined) {
+          return `hooks: with a module of the hook path removed ${name} exited ${bad.code} on a benign call, expected ${expected}`;
+        }
+
+        const install = firstUnexpected({ hook, sandbox, expected: 0, command: 'bun install' });
+
+        if (hook.matcher.includes('Bash') && install !== undefined) {
+          return `hooks: with a module of the hook path removed ${name} blocked a bare bun install (exit ${install.code}) - the agent could not repair the install`;
+        }
+      }
+
+      return undefined;
+    },
+  });
+};
+
 const tarballs: string[] = [];
 const sandbox = mkdtempSync(join(tmpdir(), 'vulcan-cli-smoke-'));
 // The source lives beside the project, never inside it: the project's okf and git see none of it.
@@ -347,6 +596,33 @@ try {
       }
     }
 
+    // The project sets `remoteHosts`, so `sync` registers the remote-host guard too and the manifest
+    // carries the policy it reads: every hook of the product runs below, not only the default ones.
+    if (failure === undefined) {
+      const configFile = join(sandbox, '.configs/vulcan.config.mts');
+      const config = readFileSync(configFile, 'utf8');
+
+      writeFileSync(
+        configFile,
+        config.replace(
+          'export default {',
+          "export default {\n  remoteHosts: { trusted: ['example.test'], readOnly: [] },",
+        ),
+      );
+
+      const synced = runStep({
+        name: 'sync with remoteHosts',
+        command: ['bun', 'x', 'vulcan', 'sync'],
+        cwd: sandbox,
+        expectedCode: 0,
+      });
+
+      failure = synced.ok ? undefined : synced.detail;
+    }
+
+    // Every registered hook, from the installed tarball (the release-blocking check on the hook path).
+    failure ??= smokeHooks({ sandbox });
+
     // A project module, written the way the adoption guide says: resolves, type-checks, renders.
     const source = failure === undefined ? makeSource({ sandbox: sourceSandbox }) : {};
 
@@ -396,7 +672,7 @@ try {
         cwd: sandbox,
         expectedCode: 0,
         input: buildMcpRequests(),
-        env: { XDG_CACHE_HOME: join(sourceSandbox, 'cache'), VULCAN_NPM_REGISTRY: NO_REGISTRY },
+        env: { VULCAN_NPM_REGISTRY: NO_REGISTRY },
       });
 
       failure = mcp.ok ? inspectMcpOutput({ stdout: mcp.stdout }) : mcp.detail;
@@ -417,5 +693,5 @@ if (failure !== undefined) {
 }
 
 console.log(
-  'pack-smoke: OK - install, init, sync, doctor, x okf check, an okf module from @venizia/vulcan/okf (bun check, gen), x atlas mcp over the project and a bare-repository source (JSON-RPC only on stdout)',
+  'pack-smoke: OK - install, init, sync, doctor, every registered hook from the tarball (benign calls, zod unresolvable, a crashed safety hook), x okf check, an okf module from @venizia/vulcan/okf (bun check, gen), x atlas mcp over the project and a bare-repository source (JSON-RPC only on stdout)',
 );

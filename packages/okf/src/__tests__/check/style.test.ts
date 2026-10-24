@@ -3,7 +3,7 @@ import { styleRules } from '../../check/house.ts';
 import { sanitizeProse } from '../../source/index.ts';
 
 const flagged = (opts: { brand: string; text: string }): boolean =>
-  styleRules({ brand: opts.brand }).some(rule => rule.pattern.test(opts.text));
+  styleRules({ brand: opts.brand }).some((rule) => rule.pattern.test(opts.text));
 
 test('an all-caps brand flags its title-case spelling, never itself', () => {
   expect(flagged({ brand: 'ARDOR', text: 'Ardor ships a kernel' })).toBe(true);

@@ -36,7 +36,7 @@ test('the configured live packages, by directory name, wherever they live', () =
 test('no configured packages: every directory under packages/', () => {
   useProjectConfig({ root: join(import.meta.dir, '..', 'fixtures', 'sources'), config: {} });
 
-  expect(listPackages().map(entry => entry.dir)).toEqual(['admin', 'kernel', 'react']);
+  expect(listPackages().map((entry) => entry.dir)).toEqual(['admin', 'kernel', 'react']);
 });
 
 test('the packages table and the source map read each package where it lives', async () => {

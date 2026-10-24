@@ -1,0 +1,17 @@
+{
+  "skill_name": "review-a-change",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Review the last commit in this repository for correctness and for the project's rules. The change touches several files.",
+      "expected_output": "Pins the diff command and checks it is not empty; reviews Spec and Standards as separate axes and does not merge them; every finding cites path:line; the author's own summary is treated as unverified; each finding is verified against the code before it is accepted and dispositioned adopted, rebutted or deferred; says which axes ran and which did not; edits nothing and commits nothing",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "This change touches authentication and the shipped rules. Review it before I merge.",
+      "expected_output": "Treats it as lane L: uses a fresh non-forked reviewer per axis with briefs under 400 words that give steps and evidence to return and not the expected result; includes a Security axis; asks for a declined-to-judge list; a skipped independent review would need one logged line; reports without an overall verdict",
+      "files": []
+    }
+  ]
+}

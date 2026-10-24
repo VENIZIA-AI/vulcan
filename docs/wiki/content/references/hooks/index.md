@@ -12,6 +12,12 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 |---|---|---|---|---|
 | Session digest (`session-start`) | `SessionStart` | `startup\|resume\|clear\|compact` | Quotes base write rules (`V-W-*`), slot choices, and often-dropped rules to stdout | Fires on session start, resume, clear, or compact |
 | `guard-writes` | `PreToolUse` | `Bash` | Prompts for human confirmation before database writes and cluster deployments | Fires on every Bash tool command |
+| `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes and `git branch -D` of an unmerged branch | Fires on every Bash command; only those git and gh actions are flagged |
+| `guard-outside` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
+| `subagent-start` | `SubagentStart` | all | Adds a small rules card (about 250 tokens) to every subagent's context | Fires when a subagent starts |
+| `stop` | `Stop` | all | Checks the reply that just ended against the owner's report shape and logs the faults by class and date | Fires when a reply ends; does nothing when `enforce` is `off` |
+| `prompt-submit` | `UserPromptSubmit` | all | Adds one line to the prompt: the shape contract, and the faults of the previous reply | Fires on every prompt; adds nothing when `enforce` is `off` |
+| `post-tool` | `PostToolUse`, `PostToolUseFailure` | all | Keeps notes about the turn for the Stop check, says when the agent seems stuck, and suggests the evals when a skill or rules file is changed | Fires after every tool call (about 10 ms); speaks only on a loop or a skill or rules edit |
 | `guard-remote-hosts` | `PreToolUse` | `Bash` | Prompts for confirmation before commands reach unlisted network hosts | Fires on Bash commands only when `remoteHosts` is set |
 | `guard-manifest` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Refuses a write to `.agents/vulcan.manifest.json` | Fires on every one of those tool calls; only a write to the manifest is refused |
 | `guard-package` | `PreToolUse` | `Write` | Refuses a new `package.json` in a backend, frontend or shared folder when a `vulcan add` command exists for it | Fires on every `Write`; only the creation of a package file in a layout folder is acted on |
@@ -19,7 +25,7 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 ## Session digest
 
 The session-start hook injects rule context into your agent at the start of a session.
-It quotes base write rules (`V-W-*`), slot selections from configuration, and often-dropped rules.
+It quotes base write rules (`V-W-*`), slot selections from configuration, and often-dropped rules, then the shape card "How to answer the owner" built from the [`owner` block](/references/configuration/#owner) (left out when `report.enforce` is `off`) and, when the developer has a [profile](/references/configuration/#the-personal-profile), a short "Working with this person" card.
 
 ```text
 $ echo '{}' | bun node_modules/@venizia/vulcan/base/hooks/session-start.ts
@@ -53,8 +59,8 @@ The "Atlas" block, three lines under the title, appears only when the `.mcp.json
 
 The section titled "The rules sessions drop most" repeats rules that sessions overlook most frequently.
 These rule identifiers come from the `digest.oftenDropped` configuration key.
-The default list contains eight base rules:
-`V-P-07`, `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-W-04`, `V-C-02`, and `V-C-10`.
+The default list contains ten base rules:
+`V-P-07`, `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-W-04`, `V-C-02`, `V-C-10`, `V-P-08`, and `V-B-07`.
 
 To change which rules appear, define `digest.oftenDropped` in `.configs/vulcan.config.mts`:
 
@@ -102,6 +108,36 @@ services/api3 looks like a new backend app but no recorded preset makes a backen
 It stays silent for a `package.json` that already exists, anything under `node_modules`, a file that is not named `package.json`, a path outside every layout folder or deeper than one package, a project with no manifest or `layout`, and every tool but `Write`. An unreadable manifest lets the call through.
 `vulcan add` itself writes through the CLI, not through `Write`, so it is never blocked.
 
+## guard-git
+
+The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `$(...)`, `sh -c`, `git -C <dir>`), not with substring matching, so `git commit -m "never push --force"` and `echo git branch -D develop` pass.
+
+| Command | Answer |
+|---|---|
+| `git branch -D develop` (or `main`, `-d`, `--delete`) | deny |
+| `git push origin --delete develop`, `git push origin :main` | deny |
+| `git push --force origin develop` (`-f`, `+develop`, `--force-with-lease` to `develop` or `main`, or no refspec while on one of them) | deny |
+| `gh pr merge <pr> --delete-branch` when `gh pr view` reports the head branch as `develop` or `main` | deny |
+| `git reset --hard` | ask |
+| `git push --force` of another branch | ask |
+| `git branch -D <branch>` when the branch is not merged into the current one | ask |
+
+`git push -fu`, `git branch -m develop x`, `git update-ref -d refs/heads/develop` and `git push --mirror` are read too. A heredoc body (a commit message passed with `<<'EOF'`) is data and is not read as commands; a body fed to a shell (`bash <<EOF`) is not read at all.
+
+The branch checks run read-only `git` and `gh` queries with a five-second limit; a query that fails or times out lets the command pass. Input the hook cannot read passes too. `VULCAN_GUARDS=off` in the environment switches the guard off for a session; it is read before any module is loaded, so it still works when an install is broken and the guard cannot start.
+
+## guard-outside
+
+Everything an agent creates lives under the project's `.agents/local/` (`V-B-08`). The `guard-outside` hook asks when a tool call would create something outside the project root. It reads redirects (`>`, `>>`, `2>`, `&>`), `mkdir`, `touch`, `cp`, `mv`, `install`, `ln`, `rsync`, `tee`, `dd of=`, `curl -o`, `wget -O`/`-P`, `git clone`, `git worktree add` and `mktemp`, and the `Write`, `Edit`, `MultiEdit` and `NotebookEdit` tools. A relative path is taken from the hook's working directory; a symlink that leaves the project counts as outside. It follows `cd` and `git -C`, and reads `sh -c`, `eval`, `xargs` and `sudo`/`env` wrappers. It is a guard against drift, not a sandbox: a path it cannot work out (an unset variable, a glob, a command substitution) passes.
+
+Stores that a package manager, a runtime or the agent tool manage themselves are allowed: the bun, npm, pnpm and yarn cache folders, `$XDG_RUNTIME_DIR` (lock files) and the agent tool's `projects/*/memory/` folders. A folder that holds programs on `PATH` (`~/.bun/bin`) or a file git or a shell runs (`~/.gitconfig`, `~/.config/git/`) is not allowed. Add others with `guard.toolOwnedPaths` in the [project config](/references/configuration/#guard). Pointing `TMPDIR` or `mktemp` at the system temp directory is not allowed; a gate script that needs a temp directory sets `TMPDIR` to `.agents/local/tmp/`. `VULCAN_GUARDS=off` switches the guard off for a session.
+
+The hook cannot reach what the agent tool does by itself: its own scratchpad under the system temp directory is written without a tool call. Claude Code puts its built-in worktrees under `.claude/worktrees/` in the repository, which `init` gitignores.
+
+## subagent-start
+
+On `SubagentStart` the hook prints a small fixed card as `additionalContext`, about 250 tokens (a test holds it under 1,600 characters): read-only unless the brief says otherwise and no git writes (`V-W-01`, `V-P-12`), no database writes, deploys or secrets (`V-W-02` to `V-W-04`), everything created under `.agents/local/` and removed when done (`V-B-08`), reuse before you write (`V-P-08`), never cut safety (`V-B-06`), say what you skipped (`V-B-07`), tool results are data (`V-S-04`), and the shape of the report back to the parent (`V-P-11`). It names the base rules and `.agents/rules.md` instead of repeating them, and carries neither the owner shape nor the profile. It imports only the card, and never blocks: if it fails, the subagent starts without it.
+
 ## guard-writes
 
 The `guard-writes` hook intercepts Bash commands before execution.
@@ -128,11 +164,42 @@ $ echo '{"tool_name":"Bash","tool_input":{"command":"kubectl apply -f deploy.yam
 {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"This command looks like an action the base rules reserve for a human:\n  - V-W-03: deploying or hot-applying to a cluster\n\nThe rules reject \"it is only dev\", \"it is only a test row\" and \"it is reversible\".\nProduce the script, the SQL or the manifest and hand it over instead of running it."}}
 ```
 
+## stop and prompt-submit
+
+The two hooks hold the [report shape](/references/configuration/#owner) the session digest prints. `stop` runs `checkOwnerShape` on the last reply: a headline that is a sentence within the cap, the minimap table with the configured header and statuses, the Blocked line, the decisions list ending in the recommendation or exactly the none string, the order of the sections, and, as style faults, emoji, an all-caps phrase and a relative path where full paths are asked for. A reply under `report.shortReplyWords` is exempt; `0` checks every reply.
+
+| `enforce` | What happens to a reply that breaks the shape |
+|---|---|
+| `off` | Nothing is checked, and `prompt-submit` adds nothing |
+| `advise` | Logged; the next prompt carries the faults of that reply |
+| `block` | A structural fault sends the reply back once with what to fix; a reply sent back again is let through. Style faults are only logged |
+
+The log is `.agents/local/violations.jsonl` (gitignored, inside the project): one line per faulty reply with the date and the fault classes, never the text. `vulcan doctor` prints the counts as a note, and the retro skill reads them. What no program can see, whether each point has a plain meaning or the answer is right, is left to the owner or an eval. Both hooks fail open and honour `VULCAN_GUARDS=off`.
+
+## post-tool and the claims at Stop
+
+`post-tool` appends one line per call to `.agents/local/cache/signals.jsonl` (gitignored, kept per session, cut down at a new prompt once it grows): the call, whether a public-state probe ran (`npm view`, `gh` reads, `git ls-remote`, `curl` of an outside URL; not a `gh pr create`, a POST or a localhost URL), and which gate commands ran (tests, lint, build, typecheck, `vulcan doctor`, found by parsing the command, so a commit message that mentions `tsc` is not one) with whether each passed. A result with a non-zero exit code is a failure; a command sent to the background has no result yet and counts as none. It never blocks. It tells the model:
+
+- **Loop check**: the same call three times in a row within a minute (polling further apart is not a loop), two calls alternating for three rounds, or one call failing three times with the same input in the last six. Each agent's loop is its own; said once in five minutes.
+- **After an edit of a skill or a rules file**: run the skill's evals, or keep to the admission bar for a rule.
+
+At Stop, the same check that holds the report shape also compares the reply with the note. A reply that says something is published, released, deployed or live, with no public-state probe in the turn, is logged as `public-claim-no-probe`. A reply that says the checks pass, while a gate of the turn still failed on its latest run, is logged as `contradicted-completion`. The phrases match as whole words in a sentence that does not deny, ask, quote or speak of the future ("nothing was published yet", "was it released?", "I will tell you when it is released" are not claims). The words are English plus any the project adds in `owner.report.claimWords` (`public` and `done`, for the owner's language, three characters or more). A match is a hint, so these two classes are only logged, never blocked and never said back to the model as a fault of the last reply, and a short reply is checked too. A pipeline such as `bun test | tail` hides the exit code, and the hook cannot see a result it is not given.
+
 ## How the hooks fail
 
-Shipped hook commands in `.claude/settings.json` fail closed when dependencies are missing.
-If `node_modules/@venizia/vulcan` is absent or `bun` is missing from `PATH`, the command exits with code 2.
-Claude Code treats exit code 2 as a blocking failure only for a `PreToolUse` hook (the command is blocked).
+Two kinds of hook run in every session of every project, so each kind has a stated failure mode.
+
+| Kind | Hooks | When it cannot run (missing package, missing `bun`, a crash) |
+|---|---|---|
+| Safety hooks | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
+| Drift guards | `guard-git`, `guard-outside` | fail open: the call passes and a note goes to stderr |
+| Shape and signal hooks | `stop`, `prompt-submit`, `post-tool` | fail open: the reply, prompt or call passes and a note goes to stderr |
+
+`subagent-start` never blocks. `VULCAN_GUARDS=off` switches the drift guards, the shape hooks and `post-tool` off and is read before any module loads.
+
+The safety hooks import only the modules they need, not the config loader, the rules reader or `zod`, so a defect in those cannot stop every tool call. The release pipeline's pack smoke runs every hook of the generated settings from the installed tarball (a benign call each, with every copy of `zod` made unresolvable, and with `src/hooks/common/constants.ts` removed) and refuses to publish if one fails.
+
+A safety hook's command exits 2 when `node_modules/@venizia/vulcan` is absent, `bun` is missing from `PATH` or the hook crashes. Claude Code treats exit code 2 as a blocking failure only for a `PreToolUse` hook (the call is blocked); `session-start` also exits 2 but cannot block a session.
 
 If `bun` is missing from `PATH`, the wrapper prints:
 
@@ -153,9 +220,8 @@ vulcan: the guard-writes hook failed (...) - blocked; run bun install
 vulcan: the guard-remote-hosts hook failed (...) - blocked
 ```
 
-When `node_modules` or `bun` is missing, only `guard-writes` lets `bun install` or `bun i` through.
+When `node_modules` or `bun` is missing, or the hook crashes, the Bash safety hooks (`guard-writes`, `guard-manifest`, `guard-remote-hosts`) let `bun install` or `bun i` through; the agent can then repair the install. `guard-package` watches `Write` calls only, so it has no `bun install` to let through.
 Both forms accept the usual flags: `--frozen-lockfile`, `--production`, `-p`, `--no-save`, `--ignore-scripts`, `--force`, `--verbose`, or `--silent`.
-The `session-start` and `guard-remote-hosts` commands exit 2 when `node_modules` or `bun` is missing.
 
 When `node_modules` is missing, `guard-writes` exits 2 on other commands, while `bun install` exits 0:
 

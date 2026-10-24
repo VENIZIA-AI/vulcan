@@ -157,7 +157,7 @@ describe('vulcan sync with nothing chosen', () => {
 
     const ignore = readFileSync(join(root, '.gitignore'), 'utf8');
 
-    expect(ignore).toBe(`node_modules/\n${LOCAL}\n`);
+    expect(ignore).toBe(`node_modules/\n.agents/local/\n${LOCAL}\n`);
   });
 });
 
@@ -169,7 +169,7 @@ describe.skipIf(!hasScript)('vulcan sync in a terminal', () => {
     env?: Record<string, string>;
   }) => {
     const command = [process.execPath, CLI, ...opts.args]
-      .map(part => `'${part.replaceAll("'", "'\\''")}'`)
+      .map((part) => `'${part.replaceAll("'", "'\\''")}'`)
       .join(' ');
     const child = spawnSyncBounded({
       cmd: ['script', '-qec', command, '/dev/null'],

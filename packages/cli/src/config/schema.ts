@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { OWNER_SCHEMA } from '../owner/schema.ts';
 import { CodingAgents, ConfigConstants, HookEvents } from './common/index.ts';
 
-const CODING_AGENT = z.string().refine(value => CodingAgents.isValid(value), {
+const CODING_AGENT = z.string().refine((value) => CodingAgents.isValid(value), {
   message: `one of: ${[...CodingAgents.SCHEME_SET].join(', ')}`,
 });
-const HOOK_EVENT = z.string().refine(value => HookEvents.isValid(value), {
+const HOOK_EVENT = z.string().refine((value) => HookEvents.isValid(value), {
   message: `one of: ${[...HookEvents.SCHEME_SET].join(', ')}`,
 });
 
@@ -68,7 +69,7 @@ const checkPackagesUnique = (
  * leading `[#<issue>] ` is optional and a trailing ` [<mode>]` is tolerated. A release train that
  * tags once leaves `<dir>` out (`v<version>`).
  */
-const RELEASE_TEMPLATE = z.string().refine(value => value.includes('<version>'), {
+const RELEASE_TEMPLATE = z.string().refine((value) => value.includes('<version>'), {
   message: 'a template with <version> (and <dir> or <package> for per-package releases)',
 });
 
@@ -82,7 +83,7 @@ const removedAtlasKey = (opts: { key: string }) =>
 
 /** A renderer by id: a built-in, or a project module (`module`); a bare string is the id alone. */
 const OKF_RENDERER = z.union([
-  z.string().transform(id => ({ id, options: {} })),
+  z.string().transform((id) => ({ id, options: {} })),
   z.strictObject({
     id: z.string(),
     module: z.string().optional(),
@@ -97,7 +98,7 @@ const REMOTE_HOST = z
     /^(?:\$\{?\w+\}?|[A-Za-z0-9._*-]+)$/,
     'a host name or a pattern with *, not a user, a path or a port',
   )
-  .refine(value => value.replaceAll('*', '').replaceAll('.', '') !== '', {
+  .refine((value) => value.replaceAll('*', '').replaceAll('.', '') !== '', {
     message: 'a pattern needs at least one literal character beyond * and .',
   });
 
@@ -251,6 +252,16 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         .default(ConfigConstants.DEFAULT_OFTEN_DROPPED),
     })
     .default({ oftenDropped: ConfigConstants.DEFAULT_OFTEN_DROPPED }),
+  /** The report contract for answers to the project's owners; English and `advise` by default. */
+  owner: OWNER_SCHEMA,
+  /**
+   * The hooks that guard writes. `toolOwnedPaths` extends the defaults (package manager caches, the
+   * runtime dir for locks, git config, the agent tool's memory) with stores a tool in this project
+   * manages itself: absolute globs, `~` and `$NAME` allowed.
+   */
+  guard: z
+    .strictObject({ toolOwnedPaths: z.array(z.string().min(1)).default([]) })
+    .default({ toolOwnedPaths: [] }),
 });
 
 export type VulcanConfig = z.input<typeof VULCAN_CONFIG_SCHEMA>;

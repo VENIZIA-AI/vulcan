@@ -159,13 +159,13 @@ describe('concepts stamp and check (V4)', () => {
       write('packages/kit/dist/index.d.ts', change(MEMBERS));
 
       return checkConcepts({ project: readAtlasProject({ root }) }).problems.map(
-        problem => `${problem.symbol} ${problem.problem}`,
+        (problem) => `${problem.symbol} ${problem.problem}`,
       );
     };
 
     test('a member added to an interface fails', () => {
       expect(
-        problemsAfter(source =>
+        problemsAfter((source) =>
           source.replace('  total(): number;', '  total(): number;\n  empty(): boolean;'),
         ),
       ).toEqual([`@shop/kit#Cart ${ConceptProblems.CHANGED}`]);
@@ -173,7 +173,7 @@ describe('concepts stamp and check (V4)', () => {
 
     test('a member signature changed in a class fails', () => {
       expect(
-        problemsAfter(source =>
+        problemsAfter((source) =>
           source.replace('add(item: string): void', 'add(item: string, count: number): void'),
         ),
       ).toEqual([`@shop/kit#Basket ${ConceptProblems.CHANGED}`]);
@@ -181,7 +181,7 @@ describe('concepts stamp and check (V4)', () => {
 
     test('whitespace, line breaks and comments do not move the lock', () => {
       expect(
-        problemsAfter(source =>
+        problemsAfter((source) =>
           source
             .replace('  items: string[];', '/** The items. */\n    items:   string[];   // inline')
             .replace(

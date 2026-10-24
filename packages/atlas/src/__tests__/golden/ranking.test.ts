@@ -29,7 +29,7 @@ const buildStore = (): ChunkStore => {
 
   const store = new ChunkStore();
 
-  store.add({ chunks: documents.flatMap(document => chunker.chunk({ document })) });
+  store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
 
   return store;
 };
@@ -41,7 +41,7 @@ const buildStore = (): ChunkStore => {
  */
 describe.skipIf(!IGNIS_IS_PRESENT)('golden ranking set over the real repository corpus', () => {
   const store = buildStore();
-  const rows: Array<[string, string[], string[]]> = queries.map(row => [
+  const rows: Array<[string, string[], string[]]> = queries.map((row) => [
     row.query,
     row.expectAnyOf,
     row.rejectAnyOf ?? [],
@@ -51,9 +51,9 @@ describe.skipIf(!IGNIS_IS_PRESENT)('golden ranking set over the real repository 
     '"%s" ranks an expected id in the top 3, with no rejected id present',
     (query, expectAnyOf, rejectAnyOf) => {
       const { hits } = store.search({ query, limit: TOP_N, offset: 0 });
-      const top3 = hits.map(hit => hit.id);
-      const matched = top3.some(id => expectAnyOf.some(prefix => id.startsWith(prefix)));
-      const rejectedHit = top3.find(id => rejectAnyOf.some(prefix => id.startsWith(prefix)));
+      const top3 = hits.map((hit) => hit.id);
+      const matched = top3.some((id) => expectAnyOf.some((prefix) => id.startsWith(prefix)));
+      const rejectedHit = top3.find((id) => rejectAnyOf.some((prefix) => id.startsWith(prefix)));
 
       // The custom message - not just a boolean - is what a miss prints, so the actual top 3
       // reads straight off the test output instead of requiring a rerun under a debugger.

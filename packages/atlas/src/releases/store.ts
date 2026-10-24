@@ -45,7 +45,7 @@ export class ReleaseStore extends BaseHelper {
 
     // Newest first, so every window answers in that order without re-sorting.
     this.changelogs = [...(opts.table.changelogs ?? [])]
-      .map(entry => ({ ...entry, packages: entry.packages.map(nameOf) }))
+      .map((entry) => ({ ...entry, packages: entry.packages.map(nameOf) }))
       .sort((left, right) => byText(right.date, left.date));
     this.live = [...(opts.table.livePackages ?? [])].map(nameOf).sort(byText);
   }
@@ -63,13 +63,13 @@ export class ReleaseStore extends BaseHelper {
   /** Every package released or declared in the package list, sorted. */
   declaredPackages(): string[] {
     return [
-      ...new Set([...this.releases.keys(), ...this.packageMap.map(entry => entry.name)]),
+      ...new Set([...this.releases.keys(), ...this.packageMap.map((entry) => entry.name)]),
     ].sort(byText);
   }
 
   /** Every date a changelog entry carries, newest first, each date once. */
   entryDates(): string[] {
-    return [...new Set(this.changelogs.map(record => record.date))];
+    return [...new Set(this.changelogs.map((record) => record.date))];
   }
 
   /** The table's package map - how a composite of sources routes a package to its owner. */
@@ -86,7 +86,7 @@ export class ReleaseStore extends BaseHelper {
   declares(opts: { package: string }): boolean {
     const name = this.packageOf(opts);
 
-    return this.releases.has(name) || this.packageMap.some(entry => entry.name === name);
+    return this.releases.has(name) || this.packageMap.some((entry) => entry.name === name);
   }
 
   /** The packages that exist today; a table generated before this list existed answers with every package it knows. */
@@ -96,12 +96,12 @@ export class ReleaseStore extends BaseHelper {
 
   /** Every known version of one package, newest first; an unknown package has none. */
   versionsOf(opts: { package: string }): string[] {
-    return this.recordsOf(opts).map(record => record.version);
+    return this.recordsOf(opts).map((record) => record.version);
   }
 
   /** The date one version shipped on, or `undefined` when the table never saw it. */
   releaseDateOf(opts: { package: string; version: string }): string | undefined {
-    return this.recordsOf(opts).find(record => record.version === opts.version)?.date;
+    return this.recordsOf(opts).find((record) => record.version === opts.version)?.date;
   }
 
   /** The newest release of one package, or `undefined` when the table never saw it. */
@@ -118,7 +118,7 @@ export class ReleaseStore extends BaseHelper {
     const wanted =
       opts.package === undefined ? undefined : this.packageOf({ package: opts.package });
 
-    return this.changelogs.filter(entry => {
+    return this.changelogs.filter((entry) => {
       if (entry.date <= opts.fromDate || entry.date > opts.toDate) {
         return false;
       }
@@ -142,7 +142,7 @@ export class ReleaseStore extends BaseHelper {
     const wanted =
       opts.package === undefined ? undefined : this.packageOf({ package: opts.package });
 
-    return this.changelogs.filter(entry => {
+    return this.changelogs.filter((entry) => {
       const inside =
         entry.order === undefined
           ? entry.date > opts.fromDate && entry.date <= opts.toDate
@@ -158,7 +158,7 @@ export class ReleaseStore extends BaseHelper {
 
   /** The recorded commit position of one release, or `undefined` when the table carries none. */
   releaseOrderOf(opts: { package: string; version: string }): number | undefined {
-    return this.recordsOf(opts).find(record => record.version === opts.version)?.order;
+    return this.recordsOf(opts).find((record) => record.version === opts.version)?.order;
   }
 
   private recordsOf(opts: { package: string }): IReleaseRecord[] {

@@ -1,5 +1,4 @@
-import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 /** The cache layout this atlas reads and writes (V2): a layout from another version is never read. */
 const CACHE_LAYOUT = 'v1';
@@ -15,13 +14,23 @@ const segmentOf = (opts: { segment: string }): string => {
   return cleaned === '.' || cleaned === '..' ? '_' : cleaned;
 };
 
+/** Where atlas keeps what it fetches, inside the project: nothing is written outside the project directory. */
+export const DEFAULT_CACHE_DIRECTORY = '.agents/local/cache';
+
 /**
- * `$XDG_CACHE_HOME/vulcan/atlas/v1/<host>/<path>/` (default `~/.cache`): every segment of the
+ * The cache base: `cacheDir` (absolute, or relative to `cwd`) or `<cwd>/.agents/local/cache`. Outside
+ * a project `cwd` is still where the cache goes, so atlas never writes to a home or config folder.
+ */
+export const cacheBaseOf = (opts: { cwd: string; cacheDir?: string }): string =>
+  resolve(opts.cwd, opts.cacheDir ?? DEFAULT_CACHE_DIRECTORY);
+
+/**
+ * `<cacheBase>/atlas/v1/<host>/<path>/`: every segment of the
  * repository's path, so two repositories never share one - GitHub's reads `<host>/<owner>/<repo>`.
  * `git/` holds one partial clone, `<sha>/` a sparse checkout of that commit, `<sha>.atlas/` what the
  * pull built for it.
  */
-export const cacheRootOf = (opts: { repo: string }): string => {
+export const cacheRootOf = (opts: { repo: string; cacheBase: string }): string => {
   const url = urlOf(opts);
   const withScheme = /^[a-z][\w+.-]*:\/\/(?:[^@/]+@)?([^/]*)(.*)$/i.exec(url);
   const scpLike = withScheme === null ? /^(?:[^@/]+@)?([^/:]+):(.*)$/.exec(url) : null;
@@ -31,11 +40,10 @@ export const cacheRootOf = (opts: { repo: string }): string => {
   const segments = path
     .replace(/\.git\/?$/, '')
     .split('/')
-    .filter(segment => segment.length > 0)
-    .map(segment => segmentOf({ segment }));
-  const base = process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache');
+    .filter((segment) => segment.length > 0)
+    .map((segment) => segmentOf({ segment }));
 
-  return join(base, 'vulcan', 'atlas', CACHE_LAYOUT, segmentOf({ segment: host }), ...segments);
+  return join(opts.cacheBase, 'atlas', CACHE_LAYOUT, segmentOf({ segment: host }), ...segments);
 };
 
 export const checkoutOf = (opts: { cacheRoot: string; sha: string }): string =>

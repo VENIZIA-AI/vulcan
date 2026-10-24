@@ -12,7 +12,8 @@ import {
 import { restoreVariable } from '../env.helper';
 
 const roots: string[] = [];
-const previous = { cache: process.env.XDG_CACHE_HOME, registry: process.env.VULCAN_NPM_REGISTRY };
+const previous = { registry: process.env.VULCAN_NPM_REGISTRY };
+let cacheDir: string;
 
 const temp = (opts: { prefix: string }): string => {
   const root = mkdtempSync(join(tmpdir(), opts.prefix));
@@ -41,11 +42,10 @@ const KIT = {
 };
 
 beforeEach(() => {
-  process.env.XDG_CACHE_HOME = temp({ prefix: 'atlas-symbols-cache-' });
+  cacheDir = temp({ prefix: 'atlas-symbols-cache-' });
 });
 
 afterEach(() => {
-  restoreVariable({ name: 'XDG_CACHE_HOME', value: previous.cache });
   restoreVariable({ name: 'VULCAN_NPM_REGISTRY', value: previous.registry });
 });
 
@@ -61,12 +61,15 @@ describe('symbolsOfInstalled (D2)', () => {
 
     write({ root: join(consumer, 'node_modules/@x/kit'), files: KIT });
 
-    const symbols = symbolsOfInstalled({ directory: join(consumer, 'node_modules/@x/kit') });
+    const symbols = symbolsOfInstalled({
+      cacheBase: cacheDir,
+      directory: join(consumer, 'node_modules/@x/kit'),
+    });
 
-    expect(symbols.map(symbol => `${symbol.package} ${symbol.name} ${symbol.kind}`).sort()).toEqual(
-      ['@x/kit Kit class', '@x/kit greet function'],
-    );
-    expect(symbols.find(symbol => symbol.name === 'greet')?.signature).toContain(
+    expect(
+      symbols.map((symbol) => `${symbol.package} ${symbol.name} ${symbol.kind}`).sort(),
+    ).toEqual(['@x/kit Kit class', '@x/kit greet function']);
+    expect(symbols.find((symbol) => symbol.name === 'greet')?.signature).toContain(
       'greet(name: string): string',
     );
   });
@@ -92,11 +95,11 @@ describe('symbolsOfInstalled (D2)', () => {
     });
 
     try {
-      const symbols = symbolsOfInstalled({ directory });
-      const warnings = warnSpy.mock.calls.map(call => String(call[0]));
+      const symbols = symbolsOfInstalled({ cacheBase: cacheDir, directory });
+      const warnings = warnSpy.mock.calls.map((call) => String(call[0]));
 
-      expect(symbols.map(symbol => symbol.name).sort()).toEqual(['Kit', 'greet']);
-      expect(warnings.filter(line => line.includes('./contracts'))).toEqual([
+      expect(symbols.map((symbol) => symbol.name).sort()).toEqual(['Kit', 'greet']);
+      expect(warnings.filter((line) => line.includes('./contracts'))).toEqual([
         '[AtlasSymbols-recordsOf] skipped an export whose declaration file is missing | package: @x/kit | subpath: ./contracts | path: dist/contracts/index.d.ts',
       ]);
     } finally {
@@ -109,13 +112,15 @@ describe('symbolsOfInstalled (D2)', () => {
     const directory = join(consumer, 'node_modules/@x/kit');
 
     write({ root: directory, files: KIT });
-    symbolsOfInstalled({ directory });
+    symbolsOfInstalled({ cacheBase: cacheDir, directory });
     rmSync(join(directory, 'dist'), { recursive: true });
 
-    expect(existsSync(join(symbolsCacheDirectory(), '@x+kit@1.2.0.json'))).toBe(true);
     expect(
-      symbolsOfInstalled({ directory })
-        .map(symbol => symbol.name)
+      existsSync(join(symbolsCacheDirectory({ cacheBase: cacheDir }), '@x+kit@1.2.0.json')),
+    ).toBe(true);
+    expect(
+      symbolsOfInstalled({ cacheBase: cacheDir, directory })
+        .map((symbol) => symbol.name)
         .sort(),
     ).toEqual(['Kit', 'greet']);
   });
@@ -133,25 +138,31 @@ describe('the symbols cache', () => {
           'package.json': JSON.stringify({ ...JSON.parse(KIT['package.json']), name }),
         },
       });
-      symbolsOfInstalled({ directory: join(consumer, 'node_modules', name) });
+      symbolsOfInstalled({ cacheBase: cacheDir, directory: join(consumer, 'node_modules', name) });
     }
 
-    expect(cachedSymbols({ name: '@a/b__c', version: '1.2.0' })?.[0]?.package).toBe('@a/b__c');
-    expect(cachedSymbols({ name: '@a__b/c', version: '1.2.0' })?.[0]?.package).toBe('@a__b/c');
+    expect(
+      cachedSymbols({ cacheBase: cacheDir, name: '@a/b__c', version: '1.2.0' })?.[0]?.package,
+    ).toBe('@a/b__c');
+    expect(
+      cachedSymbols({ cacheBase: cacheDir, name: '@a__b/c', version: '1.2.0' })?.[0]?.package,
+    ).toBe('@a__b/c');
   });
 
   test('a name or a version that could leave the cache directory is refused', async () => {
-    expect(() => cachedSymbols({ name: '../../escape', version: '1.0.0' })).toThrow(
-      "atlas: '../../escape' is not an npm package name",
-    );
-    expect(() => cachedSymbols({ name: '@x/kit', version: '1.0.0/../../escape' })).toThrow(
-      "atlas: '1.0.0/../../escape' is not a version",
-    );
+    expect(() =>
+      cachedSymbols({ cacheBase: cacheDir, name: '../../escape', version: '1.0.0' }),
+    ).toThrow("atlas: '../../escape' is not an npm package name");
+    expect(() =>
+      cachedSymbols({ cacheBase: cacheDir, name: '@x/kit', version: '1.0.0/../../escape' }),
+    ).toThrow("atlas: '1.0.0/../../escape' is not a version");
     expect(
       String(
-        await symbolsOfPublished({ name: '@x/kit', version: '1.0.0/../x' }).catch(
-          (error: unknown) => error,
-        ),
+        await symbolsOfPublished({
+          cacheBase: cacheDir,
+          name: '@x/kit',
+          version: '1.0.0/../x',
+        }).catch((error: unknown) => error),
       ),
     ).toContain("atlas: '1.0.0/../x' is not a version");
   });
@@ -167,7 +178,7 @@ describe('symbolsOfPublished (D2)', () => {
     let served = 0;
     const registry = Bun.serve({
       port: 0,
-      fetch: request => {
+      fetch: (request) => {
         served += 1;
 
         return new URL(request.url).pathname === '/@x/kit/-/kit-1.2.0.tgz'
@@ -179,10 +190,18 @@ describe('symbolsOfPublished (D2)', () => {
     process.env.VULCAN_NPM_REGISTRY = `http://localhost:${registry.port}`;
 
     try {
-      const first = await symbolsOfPublished({ name: '@x/kit', version: '1.2.0' });
-      const second = await symbolsOfPublished({ name: '@x/kit', version: '1.2.0' });
+      const first = await symbolsOfPublished({
+        cacheBase: cacheDir,
+        name: '@x/kit',
+        version: '1.2.0',
+      });
+      const second = await symbolsOfPublished({
+        cacheBase: cacheDir,
+        name: '@x/kit',
+        version: '1.2.0',
+      });
 
-      expect(first.map(symbol => symbol.name).sort()).toEqual(['Kit', 'greet']);
+      expect(first.map((symbol) => symbol.name).sort()).toEqual(['Kit', 'greet']);
       expect(second).toEqual(first);
       expect(served).toBe(1);
     } finally {
@@ -199,7 +218,11 @@ describe('symbolsOfPublished (D2)', () => {
     process.env.VULCAN_NPM_REGISTRY = `http://localhost:${registry.port}`;
 
     try {
-      const failure = await symbolsOfPublished({ name: '@x/kit', version: '9.9.9' }).then(
+      const failure = await symbolsOfPublished({
+        cacheBase: cacheDir,
+        name: '@x/kit',
+        version: '9.9.9',
+      }).then(
         () => undefined,
         (error: unknown) => error,
       );

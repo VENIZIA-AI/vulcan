@@ -1,6 +1,7 @@
 import { Glob } from 'bun';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
+import { basename, dirname, join, relative, sep } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
 import {
   coversFolder,
@@ -32,11 +33,21 @@ import {
 import {
   isTracked,
   mergedAtlasBlock,
+  planLocalWorkspace,
   planManifest,
   planPrune,
   planSync,
   SyncStatuses,
 } from '../sync/index.ts';
+import { formatAge, formatBytes, LocalConstants, LocalStates, scanLocal } from '../local/index.ts';
+import {
+  OwnerConstants,
+  profileIsIgnored,
+  readProfile,
+  readViolationCounts,
+  violationLogBytes,
+  ViolationConstants,
+} from '../owner/index.ts';
 import { skillCatalogOf, triggerOf } from '@venizia/vulcan-atlas';
 import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
@@ -64,14 +75,14 @@ const readText = (opts: { file: string }): string =>
 const listDirectories = (opts: { directory: string }): string[] =>
   existsSync(opts.directory)
     ? readdirSync(opts.directory, { withFileTypes: true })
-        .filter(entry => entry.isDirectory())
-        .map(entry => entry.name)
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
     : [];
 
 export const checkLayout = (opts: ICheckContext): IViolation[] =>
   ['AGENTS.md', '.agents/rules.md', opts.config.knowledge.bundle]
-    .filter(path => !existsSync(join(opts.root, path)))
-    .map(path =>
+    .filter((path) => !existsSync(join(opts.root, path)))
+    .map((path) =>
       createViolation({
         check: DoctorChecks.LAYOUT,
         file: path,
@@ -90,8 +101,8 @@ export const checkRuleIds = (opts: ICheckContext): IViolation[] => {
   return parseBaseReferences({
     markdown: readText({ file: join(opts.root, '.agents', 'rules.md') }),
   })
-    .filter(id => base[id] === undefined)
-    .map(id =>
+    .filter((id) => base[id] === undefined)
+    .map((id) =>
       createViolation({
         check: DoctorChecks.RULE_IDS,
         file: '.agents/rules.md',
@@ -132,7 +143,7 @@ export const checkRuleSlots = (opts: ICheckContext): IViolation[] => {
     }
   }
 
-  for (const id of Object.keys(opts.config.rules).filter(ruleId => slots[ruleId] === undefined)) {
+  for (const id of Object.keys(opts.config.rules).filter((ruleId) => slots[ruleId] === undefined)) {
     const namespaced = `${RuleConstants.BASE_NAMESPACE}${id}`;
 
     violations.push(
@@ -154,8 +165,8 @@ export const checkSkills = (opts: ICheckContext): IViolation[] => {
   const shipped = new Set(listDirectories({ directory: join(BASE_DIRECTORY, 'skills') }));
 
   return listDirectories({ directory: join(opts.root, '.agents', 'skills') })
-    .filter(name => shipped.has(name))
-    .map(name =>
+    .filter((name) => shipped.has(name))
+    .map((name) =>
       createViolation({
         check: DoctorChecks.SKILLS,
         file: `.agents/skills/${name}`,
@@ -186,7 +197,7 @@ const findProjectMakefiles = (opts: { root: string }): string[] => {
     })) {
       const matches = [...new Glob(pattern).scanSync({ cwd: opts.root, onlyFiles: true })].sort();
 
-      pending.push(...matches.filter(match => !match.split('/').includes('node_modules')));
+      pending.push(...matches.filter((match) => !match.split('/').includes('node_modules')));
     }
   }
 
@@ -214,7 +225,7 @@ export const checkMake = (opts: ICheckContext): IViolation[] => {
   for (const file of findProjectMakefiles({ root: opts.root })) {
     const targets = parseMakeTargets({ makefile: readText({ file: join(opts.root, file) }) });
 
-    for (const target of targets.filter(name => shipped.has(name))) {
+    for (const target of targets.filter((name) => shipped.has(name))) {
       violations.push(
         createViolation({
           check: DoctorChecks.MAKE,
@@ -230,8 +241,8 @@ export const checkMake = (opts: ICheckContext): IViolation[] => {
 
 export const checkHooks = (opts: ICheckContext): IViolation[] =>
   opts.config.hooks
-    .filter(hook => hook.command.includes(DoctorConstants.SHIPPED_HOOKS_PATH))
-    .map(hook =>
+    .filter((hook) => hook.command.includes(DoctorConstants.SHIPPED_HOOKS_PATH))
+    .map((hook) =>
       createViolation({
         check: DoctorChecks.HOOKS,
         file: opts.configFile,
@@ -245,10 +256,10 @@ export const checkAdapters = (opts: ICheckContext): IViolation[] => {
     config: opts.config,
     agents: resolveAgentsQuietly({ root: opts.root, configAgents: opts.config.agents }),
   })
-    .filter(action => action.status !== SyncStatuses.UNCHANGED)
-    .filter(action => action.path !== join(opts.root, ManifestConstants.FILE));
-  const absent = pending.filter(action => action.status === SyncStatuses.CREATED);
-  const differing = pending.filter(action => action.status !== SyncStatuses.CREATED);
+    .filter((action) => action.status !== SyncStatuses.UNCHANGED)
+    .filter((action) => action.path !== join(opts.root, ManifestConstants.FILE));
+  const absent = pending.filter((action) => action.status === SyncStatuses.CREATED);
+  const differing = pending.filter((action) => action.status !== SyncStatuses.CREATED);
 
   // A clean checkout has none of the gitignored adapters: say so once, with the fix, not once per file.
   const violations =
@@ -264,7 +275,7 @@ export const checkAdapters = (opts: ICheckContext): IViolation[] => {
 
   return [
     ...violations,
-    ...differing.map(action =>
+    ...differing.map((action) =>
       createViolation({
         check: DoctorChecks.ADAPTERS,
         file: relative(opts.root, action.path),
@@ -279,7 +290,7 @@ export const checkAdapters = (opts: ICheckContext): IViolation[] => {
 
 /** What `sync --prune` would remove: an old VULCAN or plugin-era hook command, a dead skill link. */
 export const checkPrune = (opts: ICheckContext): IViolation[] =>
-  planPrune({ root: opts.root }).map(action =>
+  planPrune({ root: opts.root }).map((action) =>
     createViolation({
       check: DoctorChecks.PRUNE,
       file: relative(opts.root, action.path),
@@ -344,11 +355,11 @@ export const checkStyle = (opts: ICheckContext): IViolation[] => {
   const owners = [
     ...new Set([
       '.',
-      ...listDirectories({ directory: join(opts.root, 'packages') }).map(name =>
+      ...listDirectories({ directory: join(opts.root, 'packages') }).map((name) =>
         join('packages', name),
       ),
       ...resolvePackages({ config: opts.config }).map(
-        entry => relative(opts.root, join(opts.root, entry.path)) || '.',
+        (entry) => relative(opts.root, join(opts.root, entry.path)) || '.',
       ),
     ]),
   ];
@@ -358,17 +369,17 @@ export const checkStyle = (opts: ICheckContext): IViolation[] => {
   for (const owner of owners) {
     const configs = join(owner, '.configs');
     const found = ['.', ...new Set(Object.values(DoctorConstants.LINT_CONFIG_FOLDERS))].flatMap(
-      folder => {
+      (folder) => {
         const directory = join(configs, folder);
 
         return existsSync(join(opts.root, directory))
           ? readdirSync(join(opts.root, directory))
-              .filter(file => DoctorConstants.LINT_CONFIG_FILE.test(file))
-              .map(file => ({ file: join(directory, file), name: file, legacy: folder === '.' }))
+              .filter((file) => DoctorConstants.LINT_CONFIG_FILE.test(file))
+              .map((file) => ({ file: join(directory, file), name: file, legacy: folder === '.' }))
           : [];
       },
     );
-    const names = found.map(item => item.file);
+    const names = found.map((item) => item.file);
 
     lintConfigs += names.length;
 
@@ -486,7 +497,7 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
     );
   const names = folders.map(([, folder]) => folder);
 
-  for (const entry of resolvePackages({ config: opts.config }).filter(item => !item.retired)) {
+  for (const entry of resolvePackages({ config: opts.config }).filter((item) => !item.retired)) {
     if (entry.kind === 'lib') {
       const parent = dirname(entry.path);
 
@@ -504,7 +515,7 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
       continue;
     }
 
-    if (!names.some(folder => entry.path.startsWith(`${folder}/`))) {
+    if (!names.some((folder) => entry.path.startsWith(`${folder}/`))) {
       violations.push(
         createViolation({
           check: DoctorChecks.APPS,
@@ -554,8 +565,8 @@ export const checkAppScripts = (opts: ICheckContext): IViolation[] => {
   );
   const notes: IViolation[] = [];
 
-  for (const entry of resolvePackages({ config: opts.config }).filter(item => !item.retired)) {
-    if (!appFolders.some(folder => entry.path.startsWith(`${folder}/`))) {
+  for (const entry of resolvePackages({ config: opts.config }).filter((item) => !item.retired)) {
+    if (!appFolders.some((folder) => entry.path.startsWith(`${folder}/`))) {
       continue;
     }
 
@@ -566,8 +577,8 @@ export const checkAppScripts = (opts: ICheckContext): IViolation[] => {
       continue;
     }
 
-    const missing = AppScripts.STANDARD.filter(name => !names.includes(name));
-    const legacy = AppScripts.LEGACY.filter(name => names.includes(name));
+    const missing = AppScripts.STANDARD.filter((name) => !names.includes(name));
+    const legacy = AppScripts.LEGACY.filter((name) => names.includes(name));
     const parts = [
       ...(missing.length === 0 ? [] : [`missing ${missing.join(', ')}`]),
       ...(legacy.length === 0 ? [] : [`legacy ${legacy.join(', ')} (use the standard names)`]),
@@ -638,7 +649,7 @@ export const checkMcpAtlas = (opts: ICheckContext): IViolation[] => {
   const file = join(opts.root, MCP_FILE);
   const chosen = resolveAgentsQuietly({ root: opts.root, configAgents: opts.config.agents });
   const readsMcpFile = readAgentTable().some(
-    entry => chosen.includes(entry.id) && entry.mcp.scope === AgentScopes.SHARED,
+    (entry) => chosen.includes(entry.id) && entry.mcp.scope === AgentScopes.SHARED,
   );
 
   // The root `.mcp.json` is a per-machine file of the agents that read it; a missing one is the
@@ -760,8 +771,8 @@ export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
   const lines = existsSync(file)
     ? readText({ file })
         .split('\n')
-        .map(line => line.trim())
-        .filter(line => line !== '' && !line.startsWith('#'))
+        .map((line) => line.trim())
+        .filter((line) => line !== '' && !line.startsWith('#'))
     : undefined;
 
   if (
@@ -773,8 +784,8 @@ export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
   }
 
   const apps = resolvePackages({ config: opts.config })
-    .filter(entry => !entry.retired && existsSync(join(opts.root, entry.path, DOCKERFILE)))
-    .map(entry => entry.dir);
+    .filter((entry) => !entry.retired && existsSync(join(opts.root, entry.path, DOCKERFILE)))
+    .map((entry) => entry.dir);
 
   if (apps.length === 0) {
     return [];
@@ -795,7 +806,7 @@ export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
 };
 
 const FMT_SECTION_ADVICE =
-  'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "avoid", flavor = "oxfmt"): without it bun fmt formats with Bun\'s defaults, not the shared style';
+  'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "always", flavor = "oxfmt"): without it bun fmt formats with Bun\'s defaults, not the shared style';
 const FMT_FLAVOR_ADVICE =
   'without it bun fmt formats like Prettier when oxfmt is not a dependency, and the output changes';
 const OXFMT_LOADED_ADVICE =
@@ -805,12 +816,12 @@ const OXFMT_LOADED_ADVICE =
 const formatOwners = (opts: ICheckContext): string[] => [
   ...new Set([
     '.',
-    ...listDirectories({ directory: join(opts.root, 'packages') }).map(name =>
+    ...listDirectories({ directory: join(opts.root, 'packages') }).map((name) =>
       join('packages', name),
     ),
     ...resolvePackages({ config: opts.config })
-      .filter(entry => !entry.retired)
-      .map(entry => relative(opts.root, join(opts.root, entry.path)) || '.'),
+      .filter((entry) => !entry.retired)
+      .map((entry) => relative(opts.root, join(opts.root, entry.path)) || '.'),
   ]),
 ];
 
@@ -897,7 +908,7 @@ export const checkFormat = (opts: ICheckContext): IViolation[] => {
     }
 
     if (existsSync(join(opts.root, formatters))) {
-      for (const file of readdirSync(join(opts.root, formatters)).filter(name =>
+      for (const file of readdirSync(join(opts.root, formatters)).filter((name) =>
         DoctorConstants.OXFMT_CONFIG_FILE.test(name),
       )) {
         warnings.push(
@@ -932,11 +943,186 @@ export const checkAtlasBlock = (opts: ICheckContext): IViolation[] => {
 /** A skill with no "Use when" part gives the atlas server's instructions nothing to say when to load it: a warning, never a failure. */
 export const checkSkillTriggers = (opts: ICheckContext): IViolation[] =>
   skillCatalogOf({ root: opts.root })
-    .filter(entry => !triggerOf({ description: entry.description }).hasUseWhen)
-    .map(entry =>
+    .filter((entry) => !triggerOf({ description: entry.description }).hasUseWhen)
+    .map((entry) =>
       createViolation({
         check: DoctorChecks.SKILLS,
         file: entry.source === 'project' ? `.agents/skills/${entry.name}/SKILL.md` : entry.name,
         message: `'${entry.name}' has no "Use when" part in its description - atlas cannot say when to load it`,
       }),
     );
+
+/** `.agents/local/` exists with its subdirectories and is gitignored: `sync` does both, so an upgraded project that has not synced yet is told here. */
+export const checkLocalWorkspace = (opts: ICheckContext): IViolation[] =>
+  planLocalWorkspace({ root: opts.root })
+    .filter((action) => action.status !== SyncStatuses.UNCHANGED)
+    .map((action) =>
+      createViolation({
+        check: DoctorChecks.LOCAL,
+        file: relative(opts.root, action.path) || '.',
+        message: `${action.note ?? 'out of date'} - run 'bun x --no-install vulcan sync'`,
+      }),
+    );
+
+/**
+ * A worktree of this repository that lives outside it: the repository's own `git worktree list` names it
+ * (git metadata is inside the project), and the exact command moves it in. Nothing is moved or removed.
+ */
+export const checkOutsideWorktrees = (opts: ICheckContext): IViolation[] => {
+  const listed = spawnSync('git', ['worktree', 'list', '--porcelain'], {
+    cwd: opts.root,
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+
+  if (listed.status !== 0) {
+    return [];
+  }
+
+  const [boundary, ...linked] = listed.stdout
+    .split('\n')
+    .filter((line) => line.startsWith('worktree '))
+    .map((line) => line.slice('worktree '.length));
+
+  if (boundary === undefined) {
+    return [];
+  }
+
+  const inside = (path: string): boolean => {
+    const real = existsSync(path) ? realpathSync(path) : path;
+
+    return real === boundary || real.startsWith(`${boundary}${sep}`);
+  };
+
+  return linked
+    .filter((path) => !inside(path))
+    .map((path) =>
+      createViolation({
+        check: DoctorChecks.LOCAL,
+        file: path,
+        message: `a git worktree outside the project - move it in: git worktree move '${path}' '${join(boundary, ProjectLayout.LOCAL_DIRECTORY, 'worktrees', basename(path))}'`,
+      }),
+    );
+};
+
+/** The personal profile: a file that cannot be read is named, and one git tracks is a personal file about to be shared. */
+export const checkProfile = (opts: ICheckContext): IViolation[] => {
+  const read = readProfile({ root: opts.root });
+  const violations: IViolation[] = [];
+
+  if (!read.ok) {
+    violations.push(
+      createViolation({
+        check: DoctorChecks.PROFILE,
+        file: OwnerConstants.PROFILE_FILE,
+        message: `${read.error} - fix it or delete it and run the profile form again`,
+      }),
+    );
+  }
+
+  if (
+    existsSync(join(opts.root, OwnerConstants.PROFILE_FILE)) &&
+    !profileIsIgnored({ root: opts.root })
+  ) {
+    violations.push(
+      createViolation({
+        check: DoctorChecks.PROFILE,
+        file: OwnerConstants.PROFILE_FILE,
+        message:
+          'git does not ignore this personal file - add .agents/local/ to .gitignore (vulcan sync does it)',
+      }),
+    );
+  }
+
+  if (
+    existsSync(join(opts.root, OwnerConstants.PROFILE_FILE)) &&
+    isTracked({ root: opts.root, path: OwnerConstants.PROFILE_FILE })
+  ) {
+    violations.push(
+      createViolation({
+        check: DoctorChecks.PROFILE,
+        file: OwnerConstants.PROFILE_FILE,
+        message:
+          'git tracks this personal file - run: git rm --cached .agents/local/profile.json (and keep .agents/local/ in .gitignore)',
+      }),
+    );
+  }
+
+  return violations;
+};
+
+/** What an agent left under `.agents/local/` that has outlived its use, one line each with the command that clears it. */
+export const checkStaleLocal = (opts: ICheckContext): IViolation[] =>
+  scanLocal({ root: opts.root })
+    .filter((entry) =>
+      [LocalStates.STALE, LocalStates.MERGED, LocalStates.GONE, LocalStates.ORPHAN].includes(
+        entry.state,
+      ),
+    )
+    .map((entry) =>
+      createViolation({
+        check: DoctorChecks.LOCAL,
+        file: `${ProjectLayout.LOCAL_DIRECTORY}/${entry.scope}/${entry.name}`,
+        message: `${entry.state === LocalStates.STALE ? `left ${formatAge({ ageMs: entry.ageMs })} ago` : entry.note} (${formatBytes({ bytes: entry.bytes })}) - run: vulcan clean --${entry.scope} --yes`,
+      }),
+    );
+
+/** How often replies to the owner were flagged (the report shape, or a claim the turn did not back), from the log the Stop hook keeps; a note, never a failure. */
+export const checkReplyShape = (opts: ICheckContext): IViolation[] => {
+  const { byClass, replies, days } = readViolationCounts({ root: opts.root });
+
+  if (replies === 0) {
+    return [];
+  }
+
+  const parts = [...byClass.entries()]
+    .sort((first, second) => second[1] - first[1])
+    .map(([name, count]) => `${name} ${count}`);
+
+  const isFull = violationLogBytes({ root: opts.root }) > ViolationConstants.LOG_MAX_BYTES;
+
+  return [
+    ...(isFull
+      ? [
+          createViolation({
+            check: DoctorChecks.LOCAL,
+            file: `${ProjectLayout.LOCAL_DIRECTORY}/${ViolationConstants.LOG_FILE}`,
+            message: `the log is full (${formatBytes({ bytes: ViolationConstants.LOG_MAX_BYTES })}) and no longer grows; keep or delete it, and a new one starts`,
+          }),
+        ]
+      : []),
+    createViolation({
+      check: DoctorChecks.LOCAL,
+      file: `${ProjectLayout.LOCAL_DIRECTORY}/${ViolationConstants.LOG_FILE}`,
+      message: `${replies} repl${replies === 1 ? 'y was' : 'ies were'} flagged on ${days} day${days === 1 ? '' : 's'} (${parts.join(', ')}); the retro skill turns a pattern into a check`,
+    }),
+  ];
+};
+
+/** The size of `.agents/local/` once it is large: where the space went, and the command that gives it back. */
+export const checkLocalSize = (opts: ICheckContext): IViolation[] => {
+  const entries = scanLocal({ root: opts.root });
+  const total = entries.reduce((sum, entry) => sum + entry.bytes, 0);
+
+  if (total < LocalConstants.NOTE_BYTES) {
+    return [];
+  }
+
+  const byScope = new Map<string, number>();
+
+  for (const entry of entries) {
+    byScope.set(entry.scope, (byScope.get(entry.scope) ?? 0) + entry.bytes);
+  }
+
+  const parts = [...byScope.entries()]
+    .sort((first, second) => second[1] - first[1])
+    .map(([scope, bytes]) => `${scope} ${formatBytes({ bytes })}`);
+
+  return [
+    createViolation({
+      check: DoctorChecks.LOCAL,
+      file: ProjectLayout.LOCAL_DIRECTORY,
+      message: `holds ${formatBytes({ bytes: total })} (${parts.join(', ')}); vulcan clean lists what an agent left and --yes removes it`,
+    }),
+  ];
+};

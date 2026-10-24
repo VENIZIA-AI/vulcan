@@ -122,7 +122,7 @@ test('okf.contents.files takes globs: every match gets a list, a literal still w
   });
 
   expect(
-    collectContentsProblems({ skip: new Set() }).filter(problem => problem.includes('SKILL.md')),
+    collectContentsProblems({ skip: new Set() }).filter((problem) => problem.includes('SKILL.md')),
   ).toEqual([
     'contents: .agents/skills/alpha/SKILL.md has no fresh contents list - run `vulcan x okf gen`',
     'contents: .agents/skills/beta/SKILL.md has no fresh contents list - run `vulcan x okf gen`',
@@ -140,6 +140,6 @@ test('a file named by both a glob and a literal path is listed once', () => {
   });
 
   expect(
-    collectContentsProblems({ skip: new Set() }).filter(problem => problem.includes('AGENTS.md')),
+    collectContentsProblems({ skip: new Set() }).filter((problem) => problem.includes('AGENTS.md')),
   ).toHaveLength(1);
 });

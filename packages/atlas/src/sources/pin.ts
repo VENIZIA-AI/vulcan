@@ -62,7 +62,7 @@ export const decidePin = (opts: {
   const found: IInstalled[] = [];
   const problems: string[] = [];
 
-  for (const entry of opts.project.packages.filter(item => !item.retired)) {
+  for (const entry of opts.project.packages.filter((item) => !item.retired)) {
     for (const directory of installedDirectoriesOf({ roots: opts.roots, name: entry.name })) {
       if (isLinked({ directory })) {
         problems.push(`${entry.name} is linked (a file: or workspace package), not a release`);
@@ -70,7 +70,7 @@ export const decidePin = (opts: {
       }
 
       const version = versionAt({ directory });
-      const record = opts.table.releases[entry.dir]?.find(release => release.version === version);
+      const record = opts.table.releases[entry.dir]?.find((release) => release.version === version);
 
       if (version === undefined || record === undefined) {
         problems.push(`no release of ${entry.name} ${version ?? '(no version)'} is recorded`);
@@ -78,7 +78,7 @@ export const decidePin = (opts: {
       }
 
       // The same version under two apps is one fact.
-      if (!found.some(item => item.name === entry.name && item.version === version)) {
+      if (!found.some((item) => item.name === entry.name && item.version === version)) {
         found.push({ name: entry.name, dir: entry.dir, version, record });
       }
     }
@@ -112,7 +112,7 @@ export const decidePin = (opts: {
     };
   }
 
-  const others = found.filter(item => item !== newest);
+  const others = found.filter((item) => item !== newest);
 
   return {
     pinned: true,
@@ -120,7 +120,7 @@ export const decidePin = (opts: {
     basis: `installed ${newest.name} ${newest.version}${
       others.length === 0
         ? ''
-        : ` (the newest of ${found.map(item => `${item.name} ${item.version}`).join(', ')})`
+        : ` (the newest of ${found.map((item) => `${item.name} ${item.version}`).join(', ')})`
     }`,
   };
 };

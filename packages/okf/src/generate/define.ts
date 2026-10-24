@@ -60,8 +60,8 @@ const namesPerDir = (opts: {
   const pattern = new RegExp(opts.pattern.source, flags);
 
   return opts.dirs
-    .filter(dir => existsSync(join(opts.root, dir)))
-    .map(dir => {
+    .filter((dir) => existsSync(join(opts.root, dir)))
+    .map((dir) => {
       const names = new Set<string>();
 
       for (const file of sourceFiles({ dir: join(opts.root, dir) })) {
@@ -78,7 +78,7 @@ const namesPerDir = (opts: {
 
 const page: IRenderPage = {
   // No `generated.at` - a timestamp would make every regeneration look like a change.
-  header: opts =>
+  header: (opts) =>
     [
       '---',
       'type: Reference',
@@ -92,7 +92,7 @@ const page: IRenderPage = {
       '',
       '',
     ].join('\n'),
-  note: opts =>
+  note: (opts) =>
     `> Generated from source - do not edit; run \`make okf-gen\`.${opts.seeAlso === '' ? '' : ` ${opts.seeAlso}`}\n\n`,
 };
 
@@ -111,7 +111,7 @@ export const createRenderContext = (opts: { options: Record<string, unknown> }):
           root,
           dirs,
           pattern: new RegExp(`export\\s+(?:abstract\\s+)?class\\s+(\\w+${suffix})\\b`),
-        }).map(entry => ({ dir: entry.dir, classes: entry.names })),
+        }).map((entry) => ({ dir: entry.dir, classes: entry.names })),
       exportedNames: ({ dirs, pattern }) => namesPerDir({ root, dirs, pattern }),
     },
     page,

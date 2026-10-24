@@ -99,7 +99,7 @@ describe('changes tool', () => {
     expect(payload.package).toBe('@venizia/ignis-kernel');
     expect(payload.from).toBe('0.2.0-13');
     expect(payload.to).toBe('0.2.0-16');
-    expect(payload.entries.map(item => item.id)).toEqual([
+    expect(payload.entries.map((item) => item.id)).toEqual([
       'changelog:2026-09-05-list-response',
       'changelog:2026-09-02-decorators',
     ]);
@@ -113,7 +113,7 @@ describe('changes tool', () => {
       }),
     );
 
-    expect(payload.entries.map(item => item.id)).not.toContain('changelog:2026-08-31-lower-edge');
+    expect(payload.entries.map((item) => item.id)).not.toContain('changelog:2026-08-31-lower-edge');
   });
 
   test('a package with no versions given spans the newest day of releases, never an empty same-day window', async () => {
@@ -122,7 +122,7 @@ describe('changes tool', () => {
     // 0.2.0-15 shares 2026-09-05 with 0.2.0-16, so the lower bound is the newest EARLIER day.
     expect(payload.to).toBe('0.2.0-16');
     expect(payload.from).toBe('0.2.0-14');
-    expect(payload.entries.map(record => record.id)).toEqual([
+    expect(payload.entries.map((record) => record.id)).toEqual([
       'changelog:2026-09-05-list-response',
     ]);
   });
@@ -143,7 +143,7 @@ describe('changes tool', () => {
     expect(payload.package).toBeNull();
     expect(payload.from).toBe('2026-09-01');
     expect(payload.to).toBe('2026-09-05');
-    expect(payload.entries.map(item => item.id)).toEqual([
+    expect(payload.entries.map((item) => item.id)).toEqual([
       'changelog:2026-09-05-list-response',
       'changelog:2026-09-04-helpers-seams',
       'changelog:2026-09-02-decorators',
@@ -155,7 +155,7 @@ describe('changes tool', () => {
 
     expect(payload.to).toBe('2026-09-05');
     expect(payload.from).toBe('2026-09-04');
-    expect(payload.entries.map(item => item.id)).toEqual(['changelog:2026-09-05-list-response']);
+    expect(payload.entries.map((item) => item.id)).toEqual(['changelog:2026-09-05-list-response']);
   });
 
   test('every entry carries its date, title, kind and packages', async () => {
@@ -187,7 +187,7 @@ describe('changes tool', () => {
     const payload = payloadOf(await callChanges({ releases, args: { package: 'boot' } }));
 
     expect(payload.package).toBe('@venizia/ignis-boot');
-    expect(payload.entries.map(item => item.id)).toEqual(['changelog:2026-09-02-decorators']);
+    expect(payload.entries.map((item) => item.id)).toEqual(['changelog:2026-09-02-decorators']);
     expect((payload as { note?: string }).note).toContain(
       'no release of @venizia/ignis-boot is recorded on this ref',
     );
@@ -315,7 +315,7 @@ describe('changes tool', () => {
     const byDate = await callChanges({ releases: dated, args: { to: '2026-09-05' } });
     const byPackage = await callChanges({ releases: dated, args: { package: 'kernel' } });
 
-    expect(payloadOf(byDate).entries.map(found => found.id)).toEqual([
+    expect(payloadOf(byDate).entries.map((found) => found.id)).toEqual([
       'changelog:2026-09-05-list-response',
     ]);
     expect(byPackage.error?.message).toBe('no release history: ignis was fetched without git');
@@ -341,7 +341,7 @@ describe.skipIf(!hasRepositoryRoots)('the P3 acceptance gate, over the real rele
   const chunker = Chunker.getInstance();
   const store = new ChunkStore();
 
-  store.add({ chunks: documents.flatMap(document => chunker.chunk({ document })) });
+  store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
 
   const getTransport = new Transport({
     tools: [buildGetTool({ store })],
@@ -361,10 +361,10 @@ describe.skipIf(!hasRepositoryRoots)('the P3 acceptance gate, over the real rele
     const toDate = realReleases.releaseDateOf({ package: 'kernel', version: '0.2.0-16' }) ?? '';
     const expected = realReleases
       .entriesBetween({ package: 'kernel', fromDate, toDate })
-      .map(item => item.id);
+      .map((item) => item.id);
 
     expect(payload.truncated).toBeUndefined();
-    expect(payload.entries.map(item => item.id)).toEqual(expected);
+    expect(payload.entries.map((item) => item.id)).toEqual(expected);
 
     for (const item of payload.entries) {
       expect(item.date > fromDate && item.date <= toDate).toBe(true);

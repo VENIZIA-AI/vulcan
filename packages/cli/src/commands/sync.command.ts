@@ -18,6 +18,7 @@ import {
   planExclude,
   planLocalChoice,
   planLocalIgnore,
+  planLocalWorkspace,
   planPrune,
   planSync,
   SyncConstants,
@@ -34,7 +35,7 @@ const DRY_RUN_LABELS: Record<string, string> = {
   [SyncStatuses.REPLACED]: 'would replace',
   [SyncStatuses.REMOVED]: 'would remove',
 };
-const DRY_RUN_LABEL_WIDTH = Math.max(...Object.values(DRY_RUN_LABELS).map(label => label.length));
+const DRY_RUN_LABEL_WIDTH = Math.max(...Object.values(DRY_RUN_LABELS).map((label) => label.length));
 
 /** `--agents` is undefined when absent and '' when it has no value after it. */
 const readAgentsFlag = (opts: { args: string[] }): string | undefined => {
@@ -102,10 +103,10 @@ export const runSyncFlow = async (
   const previous = readLocalChoice({ root: opts.cwd });
   const dropped =
     resolved.source === 'flag' || resolved.source === 'asked'
-      ? (previous.ok ? (previous.agents ?? []) : []).filter(id => !resolved.agents.includes(id))
+      ? (previous.ok ? (previous.agents ?? []) : []).filter((id) => !resolved.agents.includes(id))
       : [];
   const removed = [...new Set([...(opts.cleanup ?? []), ...dropped])].filter(
-    id => !resolved.agents.includes(id),
+    (id) => !resolved.agents.includes(id),
   );
   const dryRun = opts.args.includes(DRY_RUN_FLAG);
   // Planned before anything is written: prune reads the managed record of the previous sync.
@@ -123,6 +124,7 @@ export const runSyncFlow = async (
     ...planSync({ root: opts.cwd, config: loaded.config, agents: resolved.agents }),
     ...planAtlasBlock({ root: opts.cwd, config: loaded.config }),
     ...stored,
+    ...planLocalWorkspace({ root: opts.cwd }),
     ...planExclude({ root: opts.cwd, agents: resolved.agents }),
     ...pruned,
   ];
@@ -154,7 +156,7 @@ export const runSyncFlow = async (
   }
 
   const settingsBroken = actions.some(
-    action =>
+    (action) =>
       action.status === SyncStatuses.SKIPPED && action.path.endsWith(SyncConstants.SETTINGS_FILE),
   );
 

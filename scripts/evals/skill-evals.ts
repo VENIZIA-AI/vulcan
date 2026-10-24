@@ -5,9 +5,14 @@
  *   bun scripts/evals/skill-evals.ts --skill docs-writing --project ../ignis --dry-run
  *   bun scripts/evals/skill-evals.ts --skill docs-writing --project ../ignis --models haiku,sonnet
  *   bun scripts/evals/skill-evals.ts --skill docs-writing --project ../ignis --out .evals --timeout 600
+ *   bun scripts/evals/skill-evals.ts --skill docs-writing --project ../ignis --baseline --dry-run
  *
  * Every run works in a scratch copy of the project (no node_modules, .git or symlinks), with the skill
  * installed at .claude/skills/<name>/ and SKILL.md inline in the prompt. The original is never edited.
+ *
+ * --baseline also runs every case and model without the skill (not installed, not in the prompt), into
+ * <out>/<skill>/<eval-id>/<model>/baseline/, graded the same way, and the report shows both arms. The exit
+ * code follows the skill arm only: a failing baseline is information, since it is expected to do worse.
  */
 import {
   cpSync,
@@ -21,9 +26,9 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { basename, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import {
+  buildBaselinePrompt,
   buildGraderCommand,
   buildGraderPrompt,
   buildPlan,
@@ -50,7 +55,11 @@ const REPOSITORY_ROOT = resolve(import.meta.dir, '..', '..');
 // Never copied: dependencies, history and other worktrees are large, and a symlink would lead a
 // model's edit out of the scratch copy into the original.
 const SKIPPED_NAMES = new Set(['node_modules', '.git']);
-const SKIPPED_PATHS = new Set([join('.claude', 'worktrees')]);
+const SKIPPED_PATHS = new Set([join('.claude', 'worktrees'), join('.agents', 'local')]);
+
+/** Where runs live: inside the project under test, in its gitignored scratch folder, never the system temp or home folder. */
+const scratchRootOf = (opts: { project: string }): string =>
+  join(opts.project, '.agents', 'local', 'tmp');
 
 interface IClaudeCall {
   exitCode: number;
@@ -90,6 +99,8 @@ const callClaude = (opts: {
   const result = Bun.spawnSync({
     cmd: opts.command,
     cwd: opts.cwd,
+    // The copy sits inside the project: an empty .git and a ceiling keep git from reaching the real repository.
+    env: { ...process.env, GIT_CEILING_DIRECTORIES: dirname(opts.cwd) },
     stdin: Buffer.from(opts.prompt),
     stdout: 'pipe',
     stderr: 'pipe',
@@ -112,32 +123,76 @@ const createScratchProject = (opts: {
   out: string;
   skill: string;
   skillDirectory: string;
+  isBaseline: boolean;
 }): string => {
-  const scratch = mkdtempSync(join(tmpdir(), 'vulcan-skill-eval-'));
+  const scratchRoot = scratchRootOf({ project: opts.project });
+
+  mkdirSync(scratchRoot, { recursive: true });
+
+  const scratch = mkdtempSync(join(scratchRoot, 'skill-eval-'));
   const copy = join(scratch, basename(opts.project));
   const installed = join(copy, '.claude', 'skills', opts.skill);
 
-  cpSync(opts.project, copy, {
-    recursive: true,
-    filter: source =>
-      source !== opts.out &&
-      !source.startsWith(`${opts.out}${sep}`) &&
-      !SKIPPED_NAMES.has(basename(source)) &&
-      !SKIPPED_PATHS.has(relative(opts.project, source)) &&
-      !lstatSync(source).isSymbolicLink(),
-  });
+  // The copy lives inside this repository, which may be the project itself: copy entry by entry, because
+  // a recursive copy refuses a destination inside its own source.
+  const copyTree = (source: string, destination: string): void => {
+    if (
+      source === opts.out ||
+      source.startsWith(`${opts.out}${sep}`) ||
+      SKIPPED_NAMES.has(basename(source)) ||
+      SKIPPED_PATHS.has(relative(opts.project, source)) ||
+      lstatSync(source).isSymbolicLink()
+    ) {
+      return;
+    }
+
+    if (lstatSync(source).isDirectory()) {
+      mkdirSync(destination, { recursive: true });
+
+      for (const name of readdirSync(source)) {
+        copyTree(join(source, name), join(destination, name));
+      }
+
+      return;
+    }
+
+    cpSync(source, destination);
+  };
+
+  try {
+    copyTree(opts.project, copy);
+    mkdirSync(join(copy, '.git'), { recursive: true });
+  } catch (error) {
+    rmSync(scratch, { recursive: true, force: true });
+
+    throw error;
+  }
   rmSync(installed, { recursive: true, force: true });
-  cpSync(opts.skillDirectory, installed, {
-    recursive: true,
-    filter: source => relative(opts.skillDirectory, source) !== 'evals',
-  });
+
+  if (opts.isBaseline) {
+    // Every other copy of the skill in the project goes too, and the evals file with its expected outputs
+    // beside it: a baseline run must have no way to read the skill it is compared with.
+    for (const path of [
+      join('.agents', 'skills', opts.skill),
+      join('packages', 'cli', 'base', 'skills', opts.skill),
+    ]) {
+      rmSync(join(copy, path), { recursive: true, force: true });
+    }
+  }
+
+  if (!opts.isBaseline) {
+    cpSync(opts.skillDirectory, installed, {
+      recursive: true,
+      filter: (source) => relative(opts.skillDirectory, source) !== 'evals',
+    });
+  }
 
   return copy;
 };
 
 const listFiles = (opts: { directory: string }): string[] =>
   readdirSync(opts.directory, { recursive: true, encoding: 'utf8' })
-    .filter(file => statSync(join(opts.directory, file)).isFile())
+    .filter((file) => statSync(join(opts.directory, file)).isFile())
     .sort();
 
 const findRunFailure = (opts: {
@@ -166,6 +221,9 @@ const findRunFailure = (opts: {
   return undefined;
 };
 
+const toRunLabel = (opts: { run: ISkillEvalRun }): string =>
+  `${opts.run.evaluation.id}/${opts.run.model}${opts.run.isBaseline ? '/baseline' : ''}`;
+
 const runOne = (opts: {
   run: ISkillEvalRun;
   args: ISkillEvalArgs;
@@ -183,6 +241,7 @@ const runOne = (opts: {
     out: opts.out,
     skill: opts.args.skill,
     skillDirectory: opts.skillDirectory,
+    isBaseline: run.isBaseline,
   });
   let call: IClaudeCall;
 
@@ -190,12 +249,17 @@ const runOne = (opts: {
     call = callClaude({
       command: run.command,
       cwd: copy,
-      prompt: buildRunPrompt({
-        skill: opts.args.skill,
-        skillContent: opts.skillContent,
-        evaluation: run.evaluation,
-        outputsDirectory: run.outputsDirectory,
-      }),
+      prompt: run.isBaseline
+        ? buildBaselinePrompt({
+            evaluation: run.evaluation,
+            outputsDirectory: run.outputsDirectory,
+          })
+        : buildRunPrompt({
+            skill: opts.args.skill,
+            skillContent: opts.skillContent,
+            evaluation: run.evaluation,
+            outputsDirectory: run.outputsDirectory,
+          }),
       timeoutSeconds: opts.args.timeoutSeconds,
     });
   } finally {
@@ -213,6 +277,7 @@ const runOne = (opts: {
       {
         evalId: run.evaluation.id,
         model: run.model,
+        ...(run.isBaseline ? { isBaseline: true } : {}),
         command: run.command,
         exitCode: call.exitCode,
         isTimedOut: call.isTimedOut,
@@ -224,7 +289,7 @@ const runOne = (opts: {
     )}\n`,
   );
   console.log(
-    `skill-evals: ran ${run.evaluation.id}/${run.model} ${toSeconds({ durationMs: call.durationMs })}${failure === undefined ? '' : ` - ${failure}`}`,
+    `skill-evals: ran ${toRunLabel({ run })} ${toSeconds({ durationMs: call.durationMs })}${failure === undefined ? '' : ` - ${failure}`}`,
   );
 
   return { run, call, outputFiles, failure };
@@ -245,7 +310,7 @@ const gradeOne = (opts: {
     cwd: run.runDirectory,
     prompt: buildGraderPrompt({
       evaluation: run.evaluation,
-      outputs: opts.finished.outputFiles.map(name => ({
+      outputs: opts.finished.outputFiles.map((name) => ({
         name,
         content: readFileSync(join(run.outputsDirectory, name), 'utf8'),
       })),
@@ -321,7 +386,10 @@ if (!existsSync(project) || !statSync(project).isDirectory()) {
 
 const out = resolve(
   args.out ??
-    join(tmpdir(), `vulcan-skill-evals-${new Date().toISOString().replace(/[:.]/g, '-')}`),
+    join(
+      scratchRootOf({ project }),
+      `skill-evals-${new Date().toISOString().replace(/[:.]/g, '-')}`,
+    ),
 );
 const plan = buildPlan({
   skill: args.skill,
@@ -329,16 +397,22 @@ const plan = buildPlan({
   models: args.models,
   out,
   maxBudgetUsd: args.maxBudgetUsd,
+  isBaseline: args.isBaseline,
 });
+const skillRunCount = plan.filter((run) => !run.isBaseline).length;
 const reportFile = join(out, args.skill, 'report.md');
-const missing = evaluations.flatMap(evaluation =>
+const missing = evaluations.flatMap((evaluation) =>
   evaluation.files
-    .filter(file => !existsSync(join(project, file)))
-    .map(file => `eval ${evaluation.id} needs ${file} - not in ${project}`),
+    .filter((file) => !existsSync(join(project, file)))
+    .map((file) => `eval ${evaluation.id} needs ${file} - not in ${project}`),
 );
 
+const runCountText = args.isBaseline
+  ? `${toCount({ count: skillRunCount, noun: 'skill run' })} + ${toCount({ count: plan.length - skillRunCount, noun: 'baseline run' })}`
+  : toCount({ count: plan.length, noun: 'run' });
+
 console.log(
-  `skill-evals: ${args.skill} - ${toCount({ count: evaluations.length, noun: 'eval' })} x ${toCount({ count: args.models.length, noun: 'model' })} = ${toCount({ count: plan.length, noun: 'run' })}, graded by ${args.grader}`,
+  `skill-evals: ${args.skill} - ${toCount({ count: evaluations.length, noun: 'eval' })} x ${toCount({ count: args.models.length, noun: 'model' })} = ${runCountText}, graded by ${args.grader}`,
 );
 
 if (args.isDryRun) {
@@ -349,7 +423,7 @@ if (args.isDryRun) {
   }
 
   for (const run of plan) {
-    console.log(`skill-evals: run ${run.evaluation.id}/${run.model} -> ${run.runDirectory}`);
+    console.log(`skill-evals: run ${toRunLabel({ run })} -> ${run.runDirectory}`);
     console.log(`skill-evals:   ${toCommandLine({ command: run.command })}`);
   }
 
@@ -357,6 +431,13 @@ if (args.isDryRun) {
     `skill-evals: grade ${toCommandLine({ command: buildGraderCommand({ grader: args.grader, maxBudgetUsd: args.maxBudgetUsd }) })}`,
   );
   console.log(`skill-evals: report ${reportFile}`);
+
+  if (args.isBaseline) {
+    console.log(
+      `skill-evals: ${toCount({ count: plan.length * 2, noun: 'real claude call' })} (${toCount({ count: plan.length, noun: 'run' })} + ${toCount({ count: plan.length, noun: 'grader call' })}), baseline included`,
+    );
+  }
+
   console.log('skill-evals: dry run - nothing ran');
   process.exit(0);
 }
@@ -370,10 +451,10 @@ if (Bun.which('claude') === null) {
 }
 
 const skillContent = readFileSync(join(skillDirectory, 'SKILL.md'), 'utf8');
-const finishedRuns = plan.map(run =>
+const finishedRuns = plan.map((run) =>
   runOne({ run, args, project, out, skillDirectory, skillContent }),
 );
-const results: ISkillEvalResult[] = finishedRuns.map(finished => {
+const gradedResults = finishedRuns.map((finished) => {
   const { run, call } = finished;
   const graded = gradeOne({ finished, args });
 
@@ -382,10 +463,10 @@ const results: ISkillEvalResult[] = finishedRuns.map(finished => {
     `${JSON.stringify(graded.verdict, null, 2)}\n`,
   );
   console.log(
-    `skill-evals: ${run.evaluation.id}/${run.model} ${graded.verdict.pass ? 'pass' : 'FAIL'} ${toSeconds({ durationMs: call.durationMs })} - ${graded.verdict.reasons[0] ?? '-'}`,
+    `skill-evals: ${toRunLabel({ run })} ${graded.verdict.pass ? 'pass' : 'FAIL'} ${toSeconds({ durationMs: call.durationMs })} - ${graded.verdict.reasons[0] ?? '-'}`,
   );
 
-  return {
+  const result: ISkillEvalResult = {
     evalId: run.evaluation.id,
     model: run.model,
     durationMs: call.durationMs,
@@ -394,9 +475,36 @@ const results: ISkillEvalResult[] = finishedRuns.map(finished => {
     }),
     verdict: graded.verdict,
   };
-});
-const passed = results.filter(result => result.verdict.pass).length;
 
-writeFileSync(reportFile, renderReport({ skill: args.skill, grader: args.grader, results }));
+  return { isBaseline: run.isBaseline, result };
+});
+const results = gradedResults.filter((graded) => !graded.isBaseline).map((graded) => graded.result);
+const baselineResults = gradedResults
+  .filter((graded) => graded.isBaseline)
+  .map((graded) => graded.result);
+const passed = results.filter((result) => result.verdict.pass).length;
+
+writeFileSync(
+  reportFile,
+  renderReport({
+    skill: args.skill,
+    grader: args.grader,
+    results,
+    baselineResults: args.isBaseline ? baselineResults : undefined,
+  }),
+);
 console.log(`skill-evals: passed ${passed} of ${results.length} - report ${reportFile}`);
+
+if (args.isBaseline) {
+  for (const model of args.models) {
+    const modelPassed = (arm: { list: ISkillEvalResult[] }) =>
+      arm.list.filter((result) => result.model === model && result.verdict.pass).length;
+    const modelTotal = results.filter((result) => result.model === model).length;
+
+    console.log(
+      `skill-evals: ${model} - skill passed ${modelPassed({ list: results })} of ${modelTotal}, baseline passed ${modelPassed({ list: baselineResults })} of ${modelTotal}`,
+    );
+  }
+}
+
 process.exit(passed === results.length ? 0 : 1);

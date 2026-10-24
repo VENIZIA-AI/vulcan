@@ -27,7 +27,7 @@ export const excludePathsOf = (opts: {
   let listedShared = false;
   const groups: IExcludeGroup[] = [];
 
-  for (const entry of readAgentTable().filter(item => opts.agents.includes(item.id))) {
+  for (const entry of readAgentTable().filter((item) => opts.agents.includes(item.id))) {
     const paths: string[] = [];
 
     if (entry.instructions.shim !== null) {
@@ -48,7 +48,7 @@ export const excludePathsOf = (opts: {
 
     if (entry.skills.dir !== CLAUDE_SKILLS_DIRECTORY && !listedSkills.has(entry.skills.dir)) {
       listedSkills.add(entry.skills.dir);
-      paths.push(...opts.skillNames.map(name => `/${entry.skills.dir}/${name}`));
+      paths.push(...opts.skillNames.map((name) => `/${entry.skills.dir}/${name}`));
     }
 
     if (paths.length > 0) {
@@ -62,7 +62,7 @@ export const excludePathsOf = (opts: {
 export const renderExcludeBlock = (opts: { groups: IExcludeGroup[] }): string =>
   [
     EXCLUDE_BLOCK_START,
-    ...opts.groups.flatMap(group => [`# ${group.title}`, ...group.paths]),
+    ...opts.groups.flatMap((group) => [`# ${group.title}`, ...group.paths]),
     EXCLUDE_BLOCK_END,
     '',
   ].join('\n');

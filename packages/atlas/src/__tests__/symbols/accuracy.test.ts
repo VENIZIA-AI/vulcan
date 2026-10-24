@@ -82,26 +82,26 @@ describe.skipIf(!hasManifest || !IGNIS_IS_BUILT)('symbol accuracy on a 50-symbol
       : [];
   // The aliases are pinned by the whole-table test below; the sample measures the rest.
   const sample = sampleOf({
-    symbols: symbols.filter(entry => !KNOWN_ALIASES.has(entry.name)),
+    symbols: symbols.filter((entry) => !KNOWN_ALIASES.has(entry.name)),
     size: SAMPLE_SIZE,
   });
 
   test('the sample covers every package the table names, at the full sample size', () => {
     expect(sample).toHaveLength(SAMPLE_SIZE);
-    expect(new Set(sample.map(entry => entry.package)).size).toBe(
-      new Set(symbols.map(entry => entry.package)).size,
+    expect(new Set(sample.map((entry) => entry.package)).size).toBe(
+      new Set(symbols.map((entry) => entry.package)).size,
     );
   });
 
   test('every symbol lands in a file that names it, except the aliases listed here', () => {
-    const unresolved = symbols.filter(entry => !fileMentionsItsName({ entry }));
+    const unresolved = symbols.filter((entry) => !fileMentionsItsName({ entry }));
 
-    expect([...new Set(unresolved.map(entry => entry.name))].sort()).toEqual(
+    expect([...new Set(unresolved.map((entry) => entry.name))].sort()).toEqual(
       [...ALIASES_MISSING_FROM_THEIR_FILE].sort(),
     );
   });
 
-  const rows: Array<[string, ISymbolRecord]> = sample.map(entry => [
+  const rows: Array<[string, ISymbolRecord]> = sample.map((entry) => [
     `${entry.specifier} ${entry.name}`,
     entry,
   ]);

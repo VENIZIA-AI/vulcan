@@ -177,10 +177,10 @@ describe('.claude/settings.json', () => {
     runSync({ root });
     const settings = readSettings({ root });
 
-    expect(settings.hooks.Stop[0].hooks[0].command).toBe('echo bye');
-    // guard-writes, guard-manifest and guard-package ship; the config's hook comes after all three.
-    expect(settings.hooks.PreToolUse).toHaveLength(4);
-    expect(settings.hooks.PreToolUse[3].matcher).toBe('Edit');
+    expect(settings.hooks.Stop.at(-1).hooks[0].command).toBe('echo bye');
+    // guard-writes, guard-manifest, guard-package, guard-git and guard-outside ship; the config's hook comes after all five.
+    expect(settings.hooks.PreToolUse).toHaveLength(6);
+    expect(settings.hooks.PreToolUse[5].matcher).toBe('Edit');
   });
 
   test('switching V-W-01 back to on-user-word removes the deny list sync added', () => {
@@ -210,7 +210,8 @@ describe('.claude/settings.json', () => {
       "export default { rules: { 'V-W-01': 'read-only' } };\n",
     );
     runSync({ root });
-    expect(readSettings({ root }).hooks.Stop).toBeUndefined();
+    expect(JSON.stringify(readSettings({ root }).hooks)).not.toContain('echo bye');
+    expect(readSettings({ root }).hooks.Stop).toHaveLength(1);
   });
 
   test('claude.settings from the config are shared, removable, and never touch personal keys', () => {
@@ -264,8 +265,8 @@ describe('.claude/settings.json', () => {
 
   const guardCommandsOf = (opts: { root: string }): string[] =>
     Object.values(readSettings(opts).hooks as Record<string, { hooks: { command: string }[] }[]>)
-      .flatMap(entries => entries.flatMap(entry => entry.hooks.map(hook => hook.command)))
-      .filter(command => command.includes('guard-writes.ts'));
+      .flatMap((entries) => entries.flatMap((entry) => entry.hooks.map((hook) => hook.command)))
+      .filter((command) => command.includes('guard-writes.ts'));
 
   test('an upgrade takes back a hand-edited shipped hook by its command; other hooks in its entry stay', () => {
     const root = createProject({ files: READ_ONLY_PROJECT });
@@ -415,7 +416,7 @@ describe('skills', () => {
     // What a newer VULCAN linked before the project went back to this one.
     symlinkSync(join(installed, 'base', 'skills', 'gone-skill'), link);
 
-    const flagged = (await runDoctorChecks({ root })).map(violation => violation.file);
+    const flagged = (await runDoctorChecks({ root })).map((violation) => violation.file);
 
     expect(flagged).toContain('.claude/skills/gone-skill');
 
@@ -530,17 +531,25 @@ describe('planSync with the resolved agents', () => {
     const without = planSync({ root, config: loaded.config, agents: ['omp'] });
     const withClaude = planSync({ root, config: loaded.config, agents: ['claude', 'omp'] });
 
-    expect(without.map(action => action.path)).toEqual([
+    expect(without.map((action) => action.path)).toEqual([
       join(root, '.agents/skills/build-a-feature'),
       join(root, '.agents/skills/docs-update'),
       join(root, '.agents/skills/docs-writing'),
+      join(root, '.agents/skills/fix-a-bug'),
       join(root, '.agents/skills/knowledge-sync'),
+      join(root, '.agents/skills/plan-a-change'),
+      join(root, '.agents/skills/report-back'),
+      join(root, '.agents/skills/research'),
+      join(root, '.agents/skills/retro'),
+      join(root, '.agents/skills/review-a-change'),
+      join(root, '.agents/skills/ship'),
+      join(root, '.agents/skills/visualize-work'),
       join(root, '.mcp.json'),
       join(root, '.agents/vulcan.manifest.json'),
     ]);
-    expect(without.some(action => action.path === join(root, 'CLAUDE.md'))).toBe(false);
+    expect(without.some((action) => action.path === join(root, 'CLAUDE.md'))).toBe(false);
     expect(withClaude.length).toBeGreaterThan(without.length);
-    expect(withClaude.some(action => action.path === join(root, 'CLAUDE.md'))).toBe(true);
+    expect(withClaude.some((action) => action.path === join(root, 'CLAUDE.md'))).toBe(true);
   });
 });
 

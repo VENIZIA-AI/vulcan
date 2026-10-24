@@ -137,7 +137,7 @@ describe('FreshnessGuard', () => {
     const originalLoad = loader.load.bind(loader);
     let injected = false;
 
-    const loadSpy = spyOn(loader, 'load').mockImplementation(opts => {
+    const loadSpy = spyOn(loader, 'load').mockImplementation((opts) => {
       const documents = originalLoad(opts);
 
       if (!injected) {
