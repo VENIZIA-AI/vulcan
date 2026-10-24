@@ -56,7 +56,7 @@ Pass `--source <owner/repo>@<ref>` to serve external documentation alongside you
 Without `@<ref>`, `--source` uses `develop`.
 Git URLs are accepted in place of `owner/repo`.
 atlas performs a git partial clone and sparse checkout under `.agents/local/cache/atlas/v1/` in the project (gitignored).
-`--cache-dir <dir>` puts the cache in another directory; outside a project it defaults to the current directory's `.agents/local/cache/`.
+`--cache-dir <dir>` puts the cache in another directory (a relative path is taken from the project root, which is the working directory unless `--root` is given); outside a project it defaults to the root directory's `.agents/local/cache/`.
 
 ### Terminal versus client execution
 
@@ -152,7 +152,7 @@ For tool arguments and reply schemas, see the [atlas tools reference](/reference
 
 To fetch external sources, run `vulcan x atlas pull`.
 Inside a project, it fetches sources declared in the manifest plus any `--source` arguments.
-The user configuration file is read only outside a project.
+Sources come only from the manifest and `--source`; no user-level file is read.
 To fetch a single named source, pass `--source <name>`.
 `pull` prints a line for each remote source (`pull: <name> <8-character sha> (<mode>)`).
 Repository-mode sources print nothing because atlas reads project files directly.

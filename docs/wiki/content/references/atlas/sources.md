@@ -79,7 +79,7 @@ If you start atlas outside a project with no sources, atlas prints a usage error
 ## How atlas fetches sources
 
 When git is installed, atlas creates a partial clone with a sparse checkout.
-Files are cached under `.agents/local/cache/atlas/v1/` in the project (gitignored). Outside a project the cache goes under the current directory's `.agents/local/cache/`. `--cache-dir <dir>` (on `mcp`, `pull` and `tools`) puts it in another directory. atlas reads and writes nothing under your home or config folders.
+Files are cached under `.agents/local/cache/atlas/v1/` in the project (gitignored). Outside a project the cache goes under the root directory's `.agents/local/cache/` (the working directory unless `--root` is given). `--cache-dir <dir>` (on `mcp`, `pull` and `tools`) puts it in another directory; a relative path is taken from that root. atlas reads and writes nothing under your home or config folders.
 atlas checks out `.agents` to read the manifest, then checks out declared knowledge directories.
 
 ### Tarball fallback

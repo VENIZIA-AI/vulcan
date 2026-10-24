@@ -14,8 +14,8 @@ packages: ['@venizia/vulcan-atlas']
 
 ## What changed
 
-- **The cache default is `.agents/local/cache/`** (gitignored). It held `$XDG_CACHE_HOME/vulcan/atlas` (default `~/.cache/vulcan/atlas`) before. The symbols cache moved with it. Outside a project the cache goes under the current directory's `.agents/local/cache/`.
-- **`--cache-dir <dir>`** on `mcp`, `pull` and `tools` puts the cache elsewhere (a relative path is taken from the working directory).
+- **The cache default is `.agents/local/cache/`** (gitignored). It held `$XDG_CACHE_HOME/vulcan/atlas` (default `~/.cache/vulcan/atlas`) before. The symbols cache moved with it. Outside a project the cache goes under the root directory's `.agents/local/cache/` (the working directory unless `--root` is given). The temporary directories atlas unpacks tarballs in are inside the cache too (`.agents/local/cache/tmp/`), not in the system temp directory.
+- **`--cache-dir <dir>`** on `mcp`, `pull` and `tools` puts the cache elsewhere (a relative path is taken from the project root).
 - **The user-level `$XDG_CONFIG_HOME/vulcan/atlas.json` is no longer read.** List sources in `atlas.sources` of the project config, or pass `--source`.
 
 ## Upgrading

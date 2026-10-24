@@ -219,6 +219,9 @@ const listTools = async (): Promise<void> => {
 };
 
 const main = async (): Promise<void> => {
+  // A flag with no value is the same usage error whether or not there is anything to serve.
+  readCacheDirArgument({ argv });
+
   if (subcommand === AtlasCommands.PULL) {
     process.exit(await pull());
   }

@@ -2,6 +2,7 @@ import {
   findPackageDirectory,
   ModeUsageError,
   readPackageVersion,
+  readCacheDirArgument,
   readRootArgument,
 } from '@/cli/index';
 import { hasAtlasProject, MANIFEST_FILE } from '@/common/project-config';
@@ -52,6 +53,28 @@ const makePackageDirectory = (opts: { withSnapshot: boolean }): string => {
 
   return packageDirectory;
 };
+
+describe('readCacheDirArgument', () => {
+  test('both spellings give the value, and an absent flag gives none', () => {
+    expect(readCacheDirArgument({ argv: ['mcp', '--cache-dir', '/data/atlas'] })).toBe(
+      '/data/atlas',
+    );
+    expect(readCacheDirArgument({ argv: ['--cache-dir=build/atlas'] })).toBe('build/atlas');
+    expect(readCacheDirArgument({ argv: ['mcp'] })).toBeUndefined();
+  });
+
+  test('an empty value, a following flag or no value is a usage error', () => {
+    expect(() => readCacheDirArgument({ argv: ['--cache-dir='] })).toThrow(
+      '--cache-dir requires a value',
+    );
+    expect(() => readCacheDirArgument({ argv: ['--cache-dir', '--verbose'] })).toThrow(
+      '--cache-dir requires a value',
+    );
+    expect(() => readCacheDirArgument({ argv: ['mcp', '--cache-dir'] })).toThrow(
+      '--cache-dir requires a value',
+    );
+  });
+});
 
 describe('readRootArgument (M11)', () => {
   test('--root=<dir> is the same as --root <dir>; an empty value or a following flag is a usage error', () => {

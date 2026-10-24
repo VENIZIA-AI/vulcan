@@ -10,7 +10,6 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
 import {
@@ -396,7 +395,11 @@ const pullByTarball = async (opts: {
   corpusOnly?: boolean;
 }): Promise<void> => {
   const checkout = checkoutOf(opts);
-  const work = mkdtempSync(join(tmpdir(), 'atlas-source-tarball-'));
+  const scratch = join(opts.cacheBase, 'tmp');
+
+  mkdirSync(scratch, { recursive: true });
+
+  const work = mkdtempSync(join(scratch, 'atlas-source-tarball-'));
 
   try {
     const archive = await downloadTarball({

@@ -6,7 +6,6 @@ import { resolveRepositoryRoots } from '@/corpus';
 import { Transport } from '@/protocol';
 import { computeReleases, ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
-import { cacheBaseOf } from '@/sources/cache';
 import { installedDirectoriesOf, installRootsOf } from '@/sources/installed';
 import { resolveRemoteSource } from '@/sources/resolver';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources/serving';
@@ -49,7 +48,11 @@ const remoteSymbolsOf = (opts: {
   cwd: string;
   releases: ReleaseStore;
 }): ISymbolRecord[] => {
-  const cacheBase = opts.source.cacheBase ?? cacheBaseOf({ cwd: opts.cwd });
+  const { cacheBase } = opts.source;
+
+  if (cacheBase === undefined) {
+    throw new Error(`atlas: remote source '${opts.source.name}' was resolved without a cache base`);
+  }
 
   return opts.source.project.packages
     .filter((entry) => !entry.retired)

@@ -9,7 +9,6 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AtlasTimeouts } from '@/common/constants';
 import { readPackageDirectory } from '@/common/package-entries';
@@ -136,7 +135,11 @@ export const symbolsOfPublished = async (opts: {
     throw new Error(`atlas: no npm tarball for ${opts.name}@${opts.version} (${response.status})`);
   }
 
-  const work = mkdtempSync(join(tmpdir(), 'atlas-tarball-'));
+  const scratch = join(opts.cacheBase, 'tmp');
+
+  mkdirSync(scratch, { recursive: true });
+
+  const work = mkdtempSync(join(scratch, 'atlas-tarball-'));
 
   try {
     const tarball = join(work, 'package.tgz');
