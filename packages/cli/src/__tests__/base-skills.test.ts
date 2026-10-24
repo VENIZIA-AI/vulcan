@@ -246,6 +246,20 @@ describe('every shipped skill and the shared references', () => {
     }
   });
 
+  // A reference that nothing names is never loaded, whatever its header says.
+  test.each(references)('%s is named by at least one skill or by a base rule', (name) => {
+    const texts = [
+      readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
+      ...ALL.flatMap((skill) =>
+        readdirSync(join(SKILLS_DIRECTORY, skill), { recursive: true, withFileTypes: true })
+          .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+          .map((entry) => readFileSync(join(entry.parentPath, entry.name), 'utf8')),
+      ),
+    ];
+
+    expect(texts.some((text) => text.includes(`base/references/${name}`))).toBe(true);
+  });
+
   test('build-a-feature wires the cards, the design pass, the testing reference, the docs and the review', () => {
     const text = readFileSync(join(SKILLS_DIRECTORY, 'build-a-feature', 'SKILL.md'), 'utf8');
 

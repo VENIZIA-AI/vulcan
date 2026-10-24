@@ -36,8 +36,9 @@ layout you would choose. The level follows the claim:
   literal, the spec, or a worked example computed by hand.
 - Horizontal slicing: all the tests first, then all the code. Work in vertical slices.
 - A hand-written state in place of the transition: a test of a state machine edge must produce the edge.
-  The check: delete the one line that sets the flag and run it again; if it is still green, the test is
-  decoration.
+  The check: remove the one line that sets the flag, in a copy of the file under `.agents/local/tmp/` or
+  by hand and put it back by hand (never with a git command that discards edits, V-W-01), and run the
+  test again; if it is still green, the test is decoration.
 - A test that cannot go red.
 - Widening or weakening an assertion to make it pass (V-B-04).
 
@@ -51,15 +52,18 @@ generic fetcher: it is easier to fake and easier to read.
 
 Fixtures are data. A test makes its own temp folder under the project's `.agents/local/tmp/` and removes
 it; it runs alone and in any order. The environment is scrubbed: no test depends on a variable of the
-machine. A file a test writes can be redirected by an environment variable, so test output never lands in
-real telemetry. No retries, no sleeps (wait on the condition), no fixed ports (use port 0), no per-test
-timeouts to hide slowness. A flaky test is marked and tracked, never retried.
+machine. Anything a test writes beyond its temp folder (a log, telemetry, state) goes where an environment
+variable says, and the test sets that variable to its own temp folder, so test output never lands in real
+telemetry. No retries, no sleeps (wait on the condition), no fixed ports (use port 0), and a slow test
+is explained, not given a longer timeout. A flaky test is named in a tracking note and fixed; it is
+never skipped or retried without the owner's word (V-B-04).
 
 ## Blast radius
 
 Lane L, or a surface that holds secrets, auth, publishing or deletion, needs a deterministic probe and a
 small diff a person can read line by line. Add a mutation check on the guard that matters: remove the
-one line and run the tests again; a guard whose tests stay green is not tested.
+one line (on a copy, or by hand, and restore it by hand) and run the tests again; a guard whose tests
+stay green is not tested. Check that the line is back before you finish.
 
 ## Async UI and shipped UI
 

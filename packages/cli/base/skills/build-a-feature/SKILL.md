@@ -26,11 +26,11 @@ it creates), then describe the steps below.
 Copy it into your reply and tick each box when its criterion holds:
 
 ```
-- [ ] 1. Goal settled        - the card written and approved: every open decision answered, Docs impact decided
+- [ ] 1. Goal settled        - the card written and approved: every open decision answered (Docs impact decided, unless lane S)
 - [ ] 2. Conventions grounded - each layer the feature touches has an atlas hit you quote, and what already exists is listed
 - [ ] 3. Interface approved   - the user said yes to the interface and the seams to test (lane L: the design pass done)
 - [ ] 4. Slices planned       - each slice names one behaviour, its seam, its files
-- [ ] 5. Slices built         - every slice went red, then green; every import came from `symbol`; the docs slice built too
+- [ ] 5. Slices built         - every slice went red, then green; every import came from `symbol`
 - [ ] 6. Checks green         - typecheck, lint, test, vulcan doctor passed; the real behaviour shown
 - [ ] 7. Docs and knowledge current - Docs impact delivered, the docs gates green, each changed fact in the bundle
 - [ ] 8. Diff reviewed        - reviewed as the lane asks, findings dispositioned, summary given with what was skipped
@@ -40,14 +40,17 @@ Copy it into your reply and tick each box when its criterion holds:
 
 Write the card with the `plan-a-change` skill: the goal in the user's words, the claims each with a
 probe, what is out of scope, and **Docs impact**. This skill is lane M by default; a change across
-packages, a public surface, security or a data model is lane L (a full card in a file, and the design
-pass in step 3). A small, obvious change with no decision is lane S: three lines in chat.
+packages, a public surface, security, a data model, publishing, deleting or the rules themselves is lane L
+(a full card in a file, and the design pass in step 3). A small, obvious change with no decision is lane S:
+three lines in chat, and steps 3 and 4 are a line each.
 
-Ask in **one numbered round**: every question you can ask now, each with your recommended answer. A
-question about how the project or its framework works is a fact: look it up in atlas (step 2) instead of
-asking. The user answers decisions.
+Ask the way `plan-a-change` says: one numbered round of every question you can ask now, each with your
+recommended answer (lane M asks at most three; lane L may need a second round). A question about how the
+project or its framework works is a fact: look it up in atlas (step 2) instead of asking. The user answers
+decisions.
 
-Done when the card is approved, no decision is open, and Docs impact is decided.
+Done when the card is approved, no decision is open, and Docs impact is decided (lane S: only when the
+change is user-visible).
 
 ## 2. Ground the conventions
 
@@ -78,7 +81,7 @@ and method names, options, configuration and environment keys, files to add. Aim
 interface: the fewest methods and parameters that cover the behaviour, with the complexity behind
 them. Name the convention behind each choice and the atlas hit it came from.
 
-Then name the **seams** to test: the public interfaces where a test observes the behaviour (an
+Then name the **seams** to test (where a test lives: `node_modules/@venizia/vulcan/base/references/testing.md`): the public interfaces where a test observes the behaviour (an
 HTTP route, a service method, a page's rendered output). Tests live at these seams only.
 
 For lane L, or a new public API, a cross-package change, auth or security, a data model, a new
@@ -109,8 +112,8 @@ For each slice, in order:
 A database change is a migration file you write and hand to the user to apply.
 
 How to test, what a test must not do, and when to mock: `node_modules/@venizia/vulcan/base/references/testing.md`. A slice that
-changes user-visible behaviour, a public API, a convention or a knowledge fact is not built until its
-docs slice is.
+changes user-visible behaviour, a public API, a convention or a knowledge fact is not complete until its
+docs slice is delivered in step 7. Work you hand to a subagent follows `node_modules/@venizia/vulcan/base/references/delegation-brief.md`.
 
 Done when every slice went red, then green.
 
@@ -124,7 +127,8 @@ Done when every check passed in this session and the behaviour is shown.
 
 ## 7. Update docs and knowledge
 
-When **Docs impact** is not `none`, run the `docs-update` skill now: it refreshes the page that owns the
+When **Docs impact** is not `none`, run the `docs-update` skill now, after the checks of step 6 and
+before review: it refreshes the page that owns the
 topic, writes the changelog entry when the change is release-worthy, and runs the docs gates. Then each
 fact about the project that changed - a new concept, a decision, a gotcha - goes into the knowledge
 bundle in the same change. The reviewer sees the docs in the diff.

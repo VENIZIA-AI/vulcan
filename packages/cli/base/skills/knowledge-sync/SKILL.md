@@ -1,6 +1,6 @@
 ---
 name: knowledge-sync
-description: Re-syncs the OKF knowledge bundle against the source code, verifying concepts whose code changed (delta) or all of them (full) and applying the confirmed fixes. Use when asked to sync knowledge, refresh the bundle or audit concepts against code.
+description: Re-syncs the OKF knowledge bundle against the source code, verifying concepts whose code changed (delta) or all of them (full) and applying the confirmed fixes. Use when asked to sync knowledge, refresh the bundle, audit concepts against code or run a periodic audit.
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, Workflow
 ---

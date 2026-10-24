@@ -29,7 +29,7 @@ Detail that several skills share lives in `node_modules/@venizia/vulcan/base/ref
 | `design-pass.md` | The decisions worth writing down, designing an interface twice, what becomes knowledge | `plan-a-change`, `build-a-feature` step 3 |
 | `testing.md` | Where a test lives, the red-green loop, anti-patterns, mocking, fixtures, blast radius, evals | `build-a-feature` step 5, `fix-a-bug`, `review-a-change`, `plan-a-change` |
 | `evidence.md` | The evidence each kind of claim needs, and the probe kinds a card names | `plan-a-change`, `report-back` |
-| `delegation-brief.md` | The brief a subagent gets, the four statuses, liveness, parallel work | the delegation rule `V-P-12` |
+| `delegation-brief.md` | The brief a subagent gets, the four statuses, liveness, parallel work | the delegation rule `V-P-12`, `plan-a-change`, `build-a-feature`, `review-a-change` |
 | `phase-boundaries.md` | Continue, clear, hand off, subagent or compact: the order of questions | `report-back` |
 
 `docs-writing` also carries `references/agent-documents.md`: the method for a document an agent reads (a skill, a rules file, `AGENTS.md`).

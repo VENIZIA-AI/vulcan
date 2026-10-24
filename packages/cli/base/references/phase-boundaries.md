@@ -6,10 +6,10 @@ secondary one.
 
 | # | Question | If yes |
 |---|---|---|
-| 1 | Is the context still sharp, and is the next work the same unit? | **Continue** |
+| 1 | Does the next work need what is in this conversation, and is the context still sharp? | **Continue** |
 | 2 | Is the unit done, with nothing the next one needs from this conversation? | **Clear** the context and start from the card |
-| 3 | Does the next unit need a fresh window but not this conversation? | **Hand off**: write a pointer file (see `report-back`) and start there |
-| 4 | Is the next piece isolated, with a clear input and a clear output? | **Subagent**, with a brief (see `delegation-brief.md`) |
+| 3 | Does the next unit need a fresh window but not this conversation? | **Hand off**: write a pointer file (see the `report-back` skill) and start there |
+| 4 | Is the next piece isolated, with a clear input and a clear output? | **Subagent**, with a brief (`node_modules/@venizia/vulcan/base/references/delegation-brief.md`) |
 | 5 | None of the above, and the context must shrink? | **Compact**, last, because it keeps a summary of a summary |
 
 Sizing: a unit of work fits one fresh context, roughly the part of a window a model uses well, not the

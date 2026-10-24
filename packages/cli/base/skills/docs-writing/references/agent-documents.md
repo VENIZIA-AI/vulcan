@@ -12,7 +12,7 @@ A description or an `AGENTS.md` line is a context pointer: it is loaded on every
 is used, so it carries only what decides whether to load the rest.
 
 - Front-load the word that decides: the verb the reader would search for.
-- One trigger per branch. "Use when A, or B, or C" names three situations; more is a list nobody reads.
+- Name the situations that should load it, a handful at most; a long list is a list nobody reads.
 - Cut identity the body already carries: the description does not repeat what the first heading says.
 - Use progressive disclosure: the steps in the file, the detail one pointer away, loaded when the pointer
   fires. A reference is linked from the file that needs it, one level deep.
@@ -47,7 +47,7 @@ dated incident, a failing test, a reproduction); one with no provenance is metho
 
 ## Checks before you finish
 
-- Descriptions: at most about 50 words, a trigger, a `NOT FOR` clause where two skills are confusable.
+- Descriptions: about 50 words, a "Use when" part, and a `NOT FOR` clause where two skills are easily confused and the words allow.
 - `SKILL.md` under 500 lines; any file past 100 lines opens with a contents list.
 - Every rule or skill you changed has its eval (or its check) run again.
 - Read it once as the agent that loads it with nothing else: can it act, and does it know when it is done?

@@ -60,7 +60,9 @@ Each brief is under 400 words and holds:
 - a citation rule: every finding cites `path:line` or the claim ID, and no citation means no finding;
 - "end with a list of what you set aside and did not judge".
 
-Start the reviewers in parallel, before you read any output.
+Start the reviewers in parallel (they are read-only, so they share the checkout), before you read any
+output. The brief template, the four statuses and the liveness rule are in
+`node_modules/@venizia/vulcan/base/references/delegation-brief.md`; what a test must show is in `node_modules/@venizia/vulcan/base/references/testing.md`.
 
 ## 4. Triage
 

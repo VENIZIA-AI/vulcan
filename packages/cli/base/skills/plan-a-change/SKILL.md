@@ -63,7 +63,7 @@ Done when every claim has a probe and **Open** is empty.
 
 Lane L, or any of: a new public API, a cross-package change, auth or security, a data model, a new
 dependency, a new abstraction. The method is in `node_modules/@venizia/vulcan/base/references/design-pass.md`:
-write only the decisions where two implementers could choose differently, the alternative rejected and
+write only the decisions where two implementers could choose differently (the subagent brief for "design it twice" is in `node_modules/@venizia/vulcan/base/references/delegation-brief.md`), the alternative rejected and
 why, and what is deferred and why. A new dependency or abstraction needs one line: "simpler alternative
 rejected because ...".
 

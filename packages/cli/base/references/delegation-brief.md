@@ -49,10 +49,12 @@ set aside and did not judge (see `review-a-change`).
 
 ## Parallel work
 
-Parallel agents in one checkout are not allowed: they collide at merge time. Use a worktree under
-`.agents/local/worktrees/` for each parallel slice, or run the slices one after another. Each slice
-merges the integration tip first so the last merge is a fast-forward. Subagents get pointers to files,
-not each other's summaries.
+Read-only subagents may run in parallel in one checkout. Parallel agents that **write** collide at merge
+time: give each parallel slice its own worktree under `.agents/local/worktrees/`, or run the slices one
+after another. Making a worktree and merging are git writes: they happen on the owner's word (V-W-01),
+and a merge into the integration branch is a class B action (V-W-06). A slice that merges the
+integration tip first leaves the last merge a fast-forward. Subagents get pointers to files, not each
+other's summaries.
 
 ## Multi-session work
 

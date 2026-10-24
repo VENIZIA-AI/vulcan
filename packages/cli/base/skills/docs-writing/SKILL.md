@@ -32,7 +32,7 @@ Two questions classify any page (the Diataxis compass):
 | facts (knowing) | work | **Reference** |
 | understanding (thinking) | study | **Concept / explanation** |
 
-Each type has a fixed section order and hard rules. Read `references/page-anatomy.md` before structuring the page - it has the five skeletons (tutorial, how-to, reference, concept, changelog) and 14 pass/fail structure rules.
+A document an agent reads (a skill, a rules file, `AGENTS.md`) follows the same method with different costs: see `references/agent-documents.md`. Each type has a fixed section order and hard rules. Read `references/page-anatomy.md` before structuring the page - it has the five skeletons (tutorial, how-to, reference, concept, changelog) and 14 pass/fail structure rules.
 
 The rules that kill the most density, apply them everywhere:
 
@@ -90,7 +90,5 @@ Read the finished page once, top to bottom, as the reader from Step 1. If any se
 - The knowledge bundle (`.agents/knowledge`) follows the same sentence rules. Its readers are agents, but a wall of text fails them too - use short paragraphs and bullets, keep the "constraint the code cannot show" focus.
 
 ## Worked example
-
-A document an agent reads (a skill, a rules file, `AGENTS.md`) follows the same method with different costs: see `references/agent-documents.md`.
 
 `references/before-after.md` shows one real changelog rewritten with this method - read it when you need to calibrate how far to go. The short version: the before had a 5-line bullet with two exceptions buried mid-paragraph; the after says the same facts in three sentences of one idea each, and moved every number into a table.
