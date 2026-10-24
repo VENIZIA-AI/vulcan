@@ -51,6 +51,25 @@ describe('parseShell', () => {
     expect(programOf({ command: command! })).toEqual({ name: 'git', index: 3, args: ['status'] });
   });
 
+  test('a heredoc body is data, the commands around it are read', () => {
+    expect(wordsOf('cat <<EOF\ngit push -f origin main\nEOF\nls')).toEqual([
+      ['cat', 'EOF'],
+      ['ls'],
+    ]);
+    expect(
+      wordsOf(`git commit -m "$(cat <<'EOF'\nnever rm -rf\nEOF\n)"`).some((w) => w[0] === 'rm'),
+    ).toBe(false);
+  });
+
+  test('shell keywords and braces open a command', () => {
+    expect(programOf({ command: parseShell({ command: '{ git status; }' })[0]! }).name).toBe('git');
+    expect(
+      parseShell({ command: 'if true; then git status; fi' }).map(
+        (c) => programOf({ command: c }).name,
+      ),
+    ).toContain('git');
+  });
+
   test('an empty line and unbalanced quotes do not throw', () => {
     expect(parseShell({ command: '' })).toEqual([]);
     expect(() => parseShell({ command: `echo "unterminated` })).not.toThrow();

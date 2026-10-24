@@ -20,17 +20,20 @@ export class HookConstants {
   /** Set to `off` to switch the guards off for a session; the hooks then pass every call. */
   static readonly KILL_SWITCH_ENV = 'VULCAN_GUARDS';
   static readonly KILL_SWITCH_OFF = 'off';
-  /** Tool-owned stores an agent may write into: package manager caches, the runtime dir for locks, git's config, the agent tool's memory. */
+  /**
+   * Tool-owned stores an agent may write into: package manager caches, the runtime dir for locks, the
+   * agent tool's memory. Never a directory on PATH (`~/.bun/bin`) or a file git or a shell runs (`~/.gitconfig`).
+   */
   static readonly TOOL_OWNED_PATHS = [
-    '$BUN_INSTALL/**',
-    '~/.bun/**',
-    '~/.npm/**',
+    '$BUN_INSTALL/install/**',
+    '~/.bun/install/**',
+    '~/.npm/_cacache/**',
+    '~/.npm/_logs/**',
     '~/.pnpm-store/**',
-    '~/.local/share/pnpm/**',
-    '~/.yarn/**',
+    '~/.local/share/pnpm/store/**',
+    '~/.yarn/berry/cache/**',
+    '~/.yarn/cache/**',
     '$XDG_RUNTIME_DIR/**',
-    '~/.gitconfig',
-    '~/.config/git/**',
     '$CLAUDE_CONFIG_DIR/projects/*/memory/**',
     '~/.claude/projects/*/memory/**',
     '/dev/null',

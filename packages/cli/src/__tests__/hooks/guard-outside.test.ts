@@ -66,6 +66,45 @@ describe('inspectOutside flags', () => {
   });
 });
 
+describe('inspectOutside flags what a review found', () => {
+  test.each([
+    'curl -sLo /etc/x https://example.test/u',
+    'wget -qO /etc/x https://example.test/u',
+    'curl --output-dir /etc -O https://example.test/u',
+    'cp -t /etc/ a',
+    'mv -t /etc a',
+    'git clone -b main https://example.test/r.git /etc/x',
+    'git clone --depth 1 https://example.test/r.git /etc/x',
+    'git -C /etc clone https://example.test/r.git',
+    'git -C /etc worktree add y',
+    'cd /etc && touch x',
+    'cd /etc; mkdir y',
+    'mktemp -t foo',
+    'export TMPDIR=/tmp',
+    'bash -lc "touch /etc/x"',
+    '{ touch /etc/x; }',
+    'if true; then touch /etc/x; fi',
+    'xargs touch /etc/x',
+    'env -u HOME touch /etc/x',
+  ])('%s', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+
+  test('a dangling symlink that points outside the project counts as outside', () => {
+    symlinkSync('/nonexistent-vulcan-target/dir', join(PROJECT, 'dangling'));
+
+    expect(bash({ command: 'touch dangling/new.txt' }).length).toBeGreaterThan(0);
+  });
+
+  test('cd into the project and out again tracks the directory', () => {
+    mkdirSync(join(PROJECT, 'inner'), { recursive: true });
+
+    expect(bash({ command: 'cd inner && touch a.txt' })).toEqual([]);
+    expect(bash({ command: 'cd inner && cd .. && touch a.txt' })).toEqual([]);
+    expect(bash({ command: 'cd inner && cd /etc && touch a.txt' }).length).toBeGreaterThan(0);
+  });
+});
+
 describe('inspectOutside passes', () => {
   test.each([
     'mkdir -p .agents/local/tmp/a',
@@ -110,9 +149,18 @@ describe('the tool-owned allowlist', () => {
     `touch ${join(HOME, '.bun/install/cache/x')}`,
     `touch ${join(HOME, '.npm/_logs/x.log')}`,
     `touch ${join(HOME, 'run/bun.lock')}`,
-    `touch ${join(HOME, '.gitconfig')}`,
   ])('defaults allow %s', (command) => {
     expect(bash({ command })).toEqual([]);
+  });
+
+  test.each([
+    `touch ${join(HOME, '.bun/bin/x')}`,
+    `echo a >> ${join(HOME, '.gitconfig')}`,
+    `cp a ${join(HOME, '.config/git/hooks/pre-commit')}`,
+    `touch ${join(HOME, '.yarn/bin/x')}`,
+    `touch ${join(HOME, '.npm/_npx/x')}`,
+  ])('the defaults do not allow a place that runs code: %s', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
   });
 
   test('the agent tool memory folder is allowed, the rest of its config folder is not', () => {

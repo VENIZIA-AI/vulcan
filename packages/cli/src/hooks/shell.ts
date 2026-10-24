@@ -14,7 +14,43 @@ interface IWordRead {
 
 /** What stops an unquoted word. */
 const WORD_END = new Set([' ', '\t', '\n', ';', '|', '&', '<', '>', '(', ')']);
-const WRAPPERS = new Set(['sudo', 'env', 'command', 'time', 'nohup', 'exec', 'nice']);
+const WRAPPERS = new Set(['sudo', 'env', 'command', 'time', 'nohup', 'exec', 'nice', 'xargs']);
+/** Shell keywords and braces that open a command: the program is the word after them. */
+const KEYWORDS = new Set([
+  '{',
+  '}',
+  '!',
+  'if',
+  'then',
+  'else',
+  'elif',
+  'do',
+  'while',
+  'until',
+  'fi',
+  'done',
+]);
+/** Wrapper options that take the next word as their value. */
+const WRAPPER_VALUE_FLAGS = new Set([
+  '-u',
+  '-g',
+  '-h',
+  '-p',
+  '-C',
+  '-D',
+  '-R',
+  '-T',
+  '-U',
+  '-S',
+  '-n',
+  '-I',
+  '-P',
+  '-L',
+  '-s',
+  '-d',
+  '-E',
+  '-a',
+]);
 const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash']);
 const MAX_DEPTH = 4;
 
@@ -111,8 +147,14 @@ export const programOf = (opts: {
   while (index < opts.command.words.length) {
     const word = opts.command.words[index];
 
-    if (WRAPPERS.has(basenameOf({ word })) || isAssignment({ word }) || /^-/.test(word)) {
+    if (WRAPPERS.has(basenameOf({ word })) || isAssignment({ word }) || KEYWORDS.has(word)) {
       index += 1;
+      continue;
+    }
+
+    if (/^-/.test(word)) {
+      // An option of the wrapper; `-u X`, `-n 5` take a value that is not the program.
+      index += WRAPPER_VALUE_FLAGS.has(word) ? 2 : 1;
       continue;
     }
 
@@ -123,12 +165,45 @@ export const programOf = (opts: {
 };
 
 /**
+ * A heredoc's body is data for the command that reads it (a commit message, a file), not commands: the
+ * lines between `<<WORD` and the line `WORD` are dropped. A body fed to a shell (`bash <<EOF`) is not read.
+ */
+const stripHeredocs = (opts: { command: string }): string => {
+  const lines = opts.command.split('\n');
+  const kept: string[] = [];
+  let terminator: string | undefined;
+  let stripTabs = false;
+
+  for (const line of lines) {
+    if (terminator !== undefined) {
+      if ((stripTabs ? line.replace(/^\t+/, '') : line).trim() === terminator) {
+        terminator = undefined;
+      }
+
+      continue;
+    }
+
+    kept.push(line);
+
+    const match = /<<(-?)\s*(["']?)([A-Za-z_]\w*)\2/.exec(line);
+
+    if (match !== null) {
+      stripTabs = match[1] === '-';
+      terminator = match[3];
+    }
+  }
+
+  return kept.join('\n');
+};
+
+/**
  * The simple commands of a shell line, in order: `;`, `&&`, `||`, `|`, `&` and newlines split them;
  * `$(...)`, backticks and `sh -c '...'` arguments are parsed as commands too. It reads quoting, not
  * every corner of the shell: a line it cannot follow yields fewer commands, never an error.
  */
 export const parseShell = (opts: { command: string; depth?: number }): ISimpleCommand[] => {
   const depth = opts.depth ?? 0;
+  const text = stripHeredocs({ command: opts.command });
   const commands: ISimpleCommand[] = [];
   const nestedTexts: string[] = [];
   let current: ISimpleCommand = { words: [], redirects: [], assignments: [] };
@@ -146,8 +221,8 @@ export const parseShell = (opts: { command: string; depth?: number }): ISimpleCo
     current = { words: [], redirects: [], assignments: [] };
   };
 
-  while (index < opts.command.length) {
-    const char = opts.command[index];
+  while (index < text.length) {
+    const char = text[index];
 
     if (char === ' ' || char === '\t') {
       index += 1;
@@ -160,7 +235,7 @@ export const parseShell = (opts: { command: string; depth?: number }): ISimpleCo
       continue;
     }
 
-    if (char === '&' && opts.command[index + 1] !== '>') {
+    if (char === '&' && text[index + 1] !== '>') {
       finish();
       index += 1;
       continue;
@@ -170,20 +245,20 @@ export const parseShell = (opts: { command: string; depth?: number }): ISimpleCo
       // `>`, `>>`, `>|`, `&>`, `&>>`; `>&2` duplicates a descriptor and names no file.
       let cursor = index + (char === '&' ? 1 : 0);
 
-      while (opts.command[cursor] === '>' || opts.command[cursor] === '|') {
+      while (text[cursor] === '>' || text[cursor] === '|') {
         cursor += 1;
       }
 
-      if (opts.command[cursor] === '&' && /[\d-]/.test(opts.command[cursor + 1] ?? '')) {
+      if (text[cursor] === '&' && /[\d-]/.test(text[cursor + 1] ?? '')) {
         index = cursor + 2;
         continue;
       }
 
-      while (opts.command[cursor] === ' ' || opts.command[cursor] === '\t') {
+      while (text[cursor] === ' ' || text[cursor] === '\t') {
         cursor += 1;
       }
 
-      const target = readWord({ text: opts.command, from: cursor });
+      const target = readWord({ text, from: cursor });
 
       if (target.value !== '') {
         current.redirects.push(target.value);
@@ -199,10 +274,10 @@ export const parseShell = (opts: { command: string; depth?: number }): ISimpleCo
       continue;
     }
 
-    const word = readWord({ text: opts.command, from: index });
+    const word = readWord({ text, from: index });
 
     // A digit just before `>` is a descriptor (`2>file`), not a word.
-    if (/^\d$/.test(word.value) && opts.command[word.next] === '>') {
+    if (/^\d$/.test(word.value) && text[word.next] === '>') {
       index = word.next;
       continue;
     }
@@ -229,7 +304,7 @@ export const parseShell = (opts: { command: string; depth?: number }): ISimpleCo
 
     if (program.index !== -1 && SHELLS.has(basenameOf({ word: program.name }))) {
       const flag = command.words.findIndex(
-        (word, position) => position > program.index && word === '-c',
+        (word, position) => position > program.index && /^-[a-zA-Z]*c$/.test(word),
       );
       const script = flag === -1 ? undefined : command.words[flag + 1];
 
@@ -237,10 +312,14 @@ export const parseShell = (opts: { command: string; depth?: number }): ISimpleCo
         nestedTexts.push(script);
       }
     }
+
+    if (program.index !== -1 && basenameOf({ word: program.name }) === 'eval') {
+      nestedTexts.push(program.args.join(' '));
+    }
   }
 
   return [
     ...commands,
-    ...nestedTexts.flatMap((text) => parseShell({ command: text, depth: depth + 1 })),
+    ...nestedTexts.flatMap((nested) => parseShell({ command: nested, depth: depth + 1 })),
   ];
 };

@@ -43,6 +43,19 @@ describe('inspectGit denies', () => {
     'git -C /p push --force origin main',
     'cd x && git push -f origin develop',
     `bash -c 'git push --force origin main'`,
+    'git push -fu origin develop',
+    'git push -uf origin main',
+    'env -u X git branch -D develop',
+    'sudo -u deploy git push -f origin main',
+    'nice -n 5 git push -f origin main',
+    '{ git push -f origin main; }',
+    'if true; then git push -f origin main; fi',
+    `sh -lc "git push -f origin main"`,
+    `eval "git push -f origin main"`,
+    'xargs git push -f origin main',
+    'git branch -m develop old-develop',
+    'git branch --move main x',
+    'git update-ref -d refs/heads/develop',
   ])('%s', (command) => {
     expect(decisions({ command })).toContain('deny');
   });
@@ -64,6 +77,10 @@ describe('inspectGit denies', () => {
 });
 
 describe('inspectGit asks', () => {
+  test('git push --mirror', () => {
+    expect(decisions({ command: 'git push --mirror origin' })).toEqual(['ask']);
+  });
+
   test('git reset --hard', () => {
     expect(decisions({ command: 'git reset --hard HEAD~1' })).toEqual(['ask']);
   });
@@ -80,6 +97,36 @@ describe('inspectGit asks', () => {
 });
 
 describe('inspectGit passes', () => {
+  test('a heredoc commit message that mentions a force-push is data, not a command', () => {
+    const message = [
+      "git commit -m \"$(cat <<'EOF'",
+      '[#1] fix: never',
+      'git push -f origin main',
+      'git branch -D develop',
+      'EOF',
+      ')"',
+    ].join('\n');
+
+    expect(decisions({ command: message })).toEqual([]);
+    expect(decisions({ command: 'cat <<EOF\ngit branch -D develop\nEOF' })).toEqual([]);
+  });
+
+  test('a command after a heredoc is still read', () => {
+    expect(decisions({ command: 'cat <<EOF\nnote\nEOF\ngit push -f origin main' })).toContain(
+      'deny',
+    );
+  });
+
+  test.each([
+    'git push -u origin topic',
+    'git branch -m topic better-topic',
+    'git update-ref refs/heads/topic HEAD',
+    'env -u X git status',
+    'xargs echo git push -f origin main',
+  ])('and %s passes', (command) => {
+    expect(decisions({ command })).toEqual([]);
+  });
+
   test.each([
     'git status',
     'git push origin topic',

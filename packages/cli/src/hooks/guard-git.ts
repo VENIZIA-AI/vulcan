@@ -62,10 +62,11 @@ const inspectPush = (opts: {
   const positional = opts.rest.filter((word) => !word.startsWith('-'));
   const [, ...refspecs] = positional;
   const forced =
-    flags.some((flag) => flag === '-f' || flag.startsWith('--force')) ||
+    flags.some((flag) => /^-[a-zA-Z]*f[a-zA-Z]*$/.test(flag) || flag.startsWith('--force')) ||
     refspecs.some((refspec) => refspec.startsWith('+'));
   const deleting =
-    flags.includes('-d') || flags.includes('--delete') || refspecs.some((r) => r.startsWith(':'));
+    flags.some((flag) => /^-[a-zA-Z]*d[a-zA-Z]*$/.test(flag) || flag === '--delete') ||
+    refspecs.some((r) => r.startsWith(':'));
   const current = (): string | undefined =>
     opts.run({
       program: 'git',
@@ -96,6 +97,14 @@ const inspectPush = (opts: {
     }
   }
 
+  if (flags.includes('--mirror')) {
+    hits.push({
+      decision: GuardDecisions.ASK,
+      rule: 'V-W-06',
+      message: 'git push --mirror overwrites and deletes remote branches to match this clone',
+    });
+  }
+
   if (forced && !hits.some((hit) => hit.message.startsWith('force-pushing'))) {
     hits.push({
       decision: GuardDecisions.ASK,
@@ -112,10 +121,27 @@ const inspectBranch = (opts: {
   cwd: string | undefined;
   run: IGitRunner;
 }): IGitHit[] => {
-  const flags = opts.rest.filter((word) => word.startsWith('-'));
+  const flags = opts.rest.filter((word) => word.startsWith('-') && word !== '--');
+  const renaming = flags.some(
+    (flag) => flag === '--move' || (/^-[a-zA-Z]+$/.test(flag) && /[mM]/.test(flag)),
+  );
   const deleting = flags.some(
     (flag) => flag === '--delete' || (/^-[a-zA-Z]+$/.test(flag) && /[dD]/.test(flag)),
   );
+
+  if (renaming) {
+    const [from] = opts.rest.filter((word) => !word.startsWith('-'));
+
+    return from !== undefined && isProtected({ name: from })
+      ? [
+          {
+            decision: GuardDecisions.DENY,
+            rule: 'V-W-06',
+            message: `renaming the branch '${from}'`,
+          },
+        ]
+      : [];
+  }
 
   if (!deleting) {
     return [];
@@ -224,6 +250,18 @@ const inspectOne = (opts: {
 
   if (call.sub === 'branch') {
     return inspectBranch({ rest: call.rest, cwd, run: opts.run });
+  }
+
+  if (call.sub === 'update-ref' && call.rest.some((word) => word === '-d' || word === '--delete')) {
+    const refs = call.rest.filter((word) => !word.startsWith('-'));
+
+    return refs
+      .filter((ref) => isProtected({ name: ref }))
+      .map((ref) => ({
+        decision: GuardDecisions.DENY,
+        rule: 'V-W-06',
+        message: `deleting the ref '${ref}'`,
+      }));
   }
 
   if (call.sub === 'reset' && call.rest.includes('--hard')) {
