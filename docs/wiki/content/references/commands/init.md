@@ -243,7 +243,7 @@ Fetching preset @venizia/ignis@latest ...
   created  services/core-api/src/controllers/hello.controller.ts
   created  services/core-api/.configs/lints/oxlint.config.mts
   created  services/core-api/.configs/lints/eslint.config.mjs
-  created  services/core-api/.configs/formatters/oxfmt.config.mts
+  created  services/core-api/.configs/formatters/.ignore
   created  services/core-api/.configs/builders/Dockerfile
   created  services/core-api/.configs/builders/compile.ts
   created  services/core-api/package.json
@@ -359,7 +359,7 @@ $ cd my-product && find . -type f -not -path '*/node_modules/*' -not -name bun.l
 ./package.json
 ./services/core-api/.configs/builders/Dockerfile
 ./services/core-api/.configs/builders/compile.ts
-./services/core-api/.configs/formatters/oxfmt.config.mts
+./services/core-api/.configs/formatters/.ignore
 ./services/core-api/.configs/lints/eslint.config.mjs
 ./services/core-api/.configs/lints/oxlint.config.mts
 ./services/core-api/.env.example

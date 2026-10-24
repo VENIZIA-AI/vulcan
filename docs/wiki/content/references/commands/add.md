@@ -164,7 +164,7 @@ Fetching preset @venizia/ignis@latest ...
   created  libs/billing/src/services/greeting.service.ts
   created  libs/billing/.configs/lints/oxlint.config.mts
   created  libs/billing/.configs/lints/eslint.config.mjs
-  created  libs/billing/.configs/formatters/oxfmt.config.mts
+  created  libs/billing/.configs/formatters/.ignore
   created  libs/billing/package.json
   created  package.json
   created  .configs/vulcan.config.mts
@@ -221,7 +221,6 @@ The `package.json` it wrote lists dependencies as `catalog:`; the ranges went in
     "@venizia/dev-configs": "catalog:",
     "@venizia/ignis": "catalog:",
     "eslint": "catalog:",
-    "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "typescript": "catalog:"
