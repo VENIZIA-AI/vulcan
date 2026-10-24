@@ -248,7 +248,7 @@ describe('resolveSources', () => {
     const resolved = await resolveSources({ cwd, sources: [] });
 
     expect(
-      resolved.map(entry => ({ mode: entry.mode, root: entry.root, name: entry.name })),
+      resolved.map((entry) => ({ mode: entry.mode, root: entry.root, name: entry.name })),
     ).toEqual([{ mode: 'repository', root: cwd, name: 'self' }]);
   });
 });

@@ -10,7 +10,7 @@ const SKILLS_DIRECTORY = join(BASE_DIRECTORY, 'skills');
 const PROJECT_NAMES = /\bIGNIS\b|\bARDOR\b|\bBANA\b|ignis-docs|VENIZIA-AI\/ignis/i;
 
 // Every project gets these and cannot shadow them (D2), so none may be written for one project.
-test.each(readdirSync(SKILLS_DIRECTORY))('the shipped skill %s names no single project', name => {
+test.each(readdirSync(SKILLS_DIRECTORY))('the shipped skill %s names no single project', (name) => {
   const skill = readFileSync(join(SKILLS_DIRECTORY, name, 'SKILL.md'), 'utf8');
 
   expect(skill).not.toMatch(PROJECT_NAMES);
@@ -26,11 +26,11 @@ describe('the shipped skill docs-update', () => {
 
   test('names no project in any file, its evals included - they run against any project', () => {
     const files = readdirSync(directory, { recursive: true, withFileTypes: true })
-      .filter(entry => entry.isFile())
-      .map(entry => join(entry.parentPath, entry.name));
+      .filter((entry) => entry.isFile())
+      .map((entry) => join(entry.parentPath, entry.name));
 
     expect(files.length).toBeGreaterThan(1);
-    expect(files.filter(file => PROJECT_NAMES.test(readFileSync(file, 'utf8')))).toEqual([]);
+    expect(files.filter((file) => PROJECT_NAMES.test(readFileSync(file, 'utf8')))).toEqual([]);
   });
 
   test('reads its paths from the manifest, never a fixed layout', () => {
@@ -62,7 +62,7 @@ describe('the shipped skill build-a-feature', () => {
 // Atlas lists each skill with its trigger in the server's instructions, so every skill VULCAN ships must have one.
 test('every shipped skill says when to use it, in a "Use when" sentence', () => {
   const names = readdirSync(SKILLS_DIRECTORY);
-  const without = names.filter(name => {
+  const without = names.filter((name) => {
     const { description } = frontmatterOf({
       text: readFileSync(join(SKILLS_DIRECTORY, name, 'SKILL.md'), 'utf8'),
     }).data;

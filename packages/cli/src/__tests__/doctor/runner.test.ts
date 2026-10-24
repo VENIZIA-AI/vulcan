@@ -45,7 +45,7 @@ const createSyncedProject = (opts: { files: Record<string, string> }): string =>
 };
 
 const findChecks = async (opts: { root: string }): Promise<string[]> =>
-  (await runDoctorChecks({ root: opts.root })).map(violation => violation.check);
+  (await runDoctorChecks({ root: opts.root })).map((violation) => violation.check);
 
 describe('doctor', () => {
   test('a conformant, synced project has no violations and exits 0', async () => {
@@ -118,7 +118,7 @@ describe('doctor', () => {
     });
     const violations = await runDoctorChecks({ root });
 
-    expect(violations.map(violation => violation.message)).toEqual([
+    expect(violations.map((violation) => violation.message)).toEqual([
       'V-C-03 is retired in the base - drop the reference',
       'V-W-05 is retired in the base - drop the reference',
     ]);
@@ -140,7 +140,7 @@ describe('doctor', () => {
 
   test("bare W/S/P/B/C IDs are the project's own: they never collide with the base", async () => {
     const rows = ['W-01', 'W-02', 'S-05', 'P-03', 'B-02', 'C-18'].map(
-      id => `| ${id} | mine | SOFT |`,
+      (id) => `| ${id} | mine | SOFT |`,
     );
     const root = createSyncedProject({
       files: { ...CONFORMANT, '.agents/rules.md': `${rows.join('\n')}\n` },
@@ -302,9 +302,11 @@ describe('doctor', () => {
       },
     });
     const violations = await runDoctorChecks({ root });
-    const legacy = violations.filter(violation => violation.file === '.configs/oxlint.config.mts');
+    const legacy = violations.filter(
+      (violation) => violation.file === '.configs/oxlint.config.mts',
+    );
 
-    expect(legacy.map(violation => violation.check)).toEqual([DoctorChecks.STYLE]);
+    expect(legacy.map((violation) => violation.check)).toEqual([DoctorChecks.STYLE]);
     expect(legacy[0].message).toBe('move it to .configs/lints/oxlint.config.mts');
   });
 
@@ -377,7 +379,7 @@ describe('doctor', () => {
     });
     const violations = await runDoctorChecks({ root });
 
-    expect(violations.map(violation => [violation.check, violation.file])).toEqual([
+    expect(violations.map((violation) => [violation.check, violation.file])).toEqual([
       [DoctorChecks.STYLE, 'umbras/kit/.configs/lints/oxlint.config.mts'],
     ]);
   });
@@ -399,7 +401,7 @@ describe('doctor on a clean checkout', () => {
   test('adapters that were never written are one line with the fix, not one stale line per file', async () => {
     const root = createProject({ files: CONFORMANT });
     const adapters = (await runDoctorChecks({ root })).filter(
-      violation => violation.check === DoctorChecks.ADAPTERS,
+      (violation) => violation.check === DoctorChecks.ADAPTERS,
     );
 
     expect(adapters).toHaveLength(1);
@@ -414,11 +416,11 @@ describe('doctor on a clean checkout', () => {
 
     writeFileSync(join(root, '.claude/settings.json'), '{ "permissions": { "allow": ["x"] } }\n');
     const adapters = (await runDoctorChecks({ root })).filter(
-      violation => violation.check === DoctorChecks.ADAPTERS,
+      (violation) => violation.check === DoctorChecks.ADAPTERS,
     );
 
-    expect(adapters.map(violation => violation.file)).toContain('.claude/settings.json');
-    expect(adapters.every(violation => !violation.message.includes('not synced yet'))).toBe(true);
+    expect(adapters.map((violation) => violation.file)).toContain('.claude/settings.json');
+    expect(adapters.every((violation) => !violation.message.includes('not synced yet'))).toBe(true);
   });
 });
 
@@ -432,7 +434,7 @@ describe('doctor: the scaffold is filled in', () => {
     });
     const violations = await runDoctorChecks({ root });
 
-    expect(violations.map(violation => violation.check)).toEqual([DoctorChecks.SCAFFOLD]);
+    expect(violations.map((violation) => violation.check)).toEqual([DoctorChecks.SCAFFOLD]);
     expect(violations[0]?.message).toContain('packages');
   });
 
@@ -463,7 +465,7 @@ describe('doctor: the scaffold is filled in', () => {
     });
     const violations = await runDoctorChecks({ root });
 
-    expect(violations.map(violation => violation.check)).toEqual([DoctorChecks.SCAFFOLD]);
+    expect(violations.map((violation) => violation.check)).toEqual([DoctorChecks.SCAFFOLD]);
     expect(violations[0]?.file).toBe('.agents/knowledge/index.md');
   });
 });
@@ -481,8 +483,8 @@ describe('doctor: apps', () => {
     });
     const violations = await runDoctorChecks({ root });
     const apps = violations
-      .filter(violation => violation.check === DoctorChecks.APPS)
-      .map(violation => violation.message);
+      .filter((violation) => violation.check === DoctorChecks.APPS)
+      .map((violation) => violation.message);
 
     expect(apps).toContain("layout.frontend 'web' is not in package.json workspaces - add 'web/*'");
     expect(apps).toContain(
@@ -505,8 +507,8 @@ describe('doctor: apps', () => {
     expect(await runDoctorChecks({ root: covered })).toEqual([]);
     expect(
       (await runDoctorChecks({ root: uncovered }))
-        .filter(violation => violation.check === DoctorChecks.APPS)
-        .map(violation => violation.message),
+        .filter((violation) => violation.check === DoctorChecks.APPS)
+        .map((violation) => violation.message),
     ).toContain(
       "package merchant lives at auroras/features/merchant, which no workspace glob covers - add 'auroras/features/*' to workspaces",
     );
@@ -538,10 +540,10 @@ describe('doctor: apps', () => {
       },
     });
     const apps = (await runDoctorChecks({ root })).filter(
-      violation => violation.check === DoctorChecks.APPS,
+      (violation) => violation.check === DoctorChecks.APPS,
     );
 
-    expect(apps.map(violation => violation.message)).toContain(
+    expect(apps.map((violation) => violation.message)).toContain(
       "layout.backend 'services' is not in package.json workspaces - add 'services/*'",
     );
   });
@@ -685,7 +687,7 @@ describe('doctor: agents', () => {
       files: { ...CONFORMANT, '.agents/vulcan.local.json': '{ nope' },
     });
     const agents = (await runDoctorChecks({ root })).filter(
-      violation => violation.check === DoctorChecks.AGENTS,
+      (violation) => violation.check === DoctorChecks.AGENTS,
     );
 
     expect(agents).toEqual([
@@ -705,7 +707,7 @@ describe('doctor: agents', () => {
 
     runCli({ args: ['sync'], cwd: root });
 
-    expect((await runDoctorChecks({ root })).map(violation => violation.check)).not.toContain(
+    expect((await runDoctorChecks({ root })).map((violation) => violation.check)).not.toContain(
       DoctorChecks.ADAPTERS,
     );
   });
@@ -722,7 +724,7 @@ describe('parseMakeTargets', () => {
 
 describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
   const dockerignoreWarnings = async (opts: { root: string }) =>
-    (await runDoctorWarnings(opts)).filter(item => item.check === DoctorChecks.DOCKERIGNORE);
+    (await runDoctorWarnings(opts)).filter((item) => item.check === DoctorChecks.DOCKERIGNORE);
   const PACKAGES = "[{ dir: 'api', name: 'api', path: 'services/api' }]";
   const SAFE = '**/node_modules\n**/.env\n**/.env.*\n!**/.env.example\n';
   const project = (opts: { files: Record<string, string> }): string =>
@@ -761,7 +763,7 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
         message: `app api has a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist, .git and every .env file (secrets) - create it, then ${ADD}`,
       },
     ]);
-    expect((await runDoctorNotes({ root })).map(note => note.check)).not.toContain(
+    expect((await runDoctorNotes({ root })).map((note) => note.check)).not.toContain(
       DoctorChecks.DOCKERIGNORE,
     );
   });
@@ -838,7 +840,7 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
 
 describe('doctor: bun fmt (warnings)', () => {
   const formatWarnings = async (opts: { root: string }) =>
-    (await runDoctorWarnings(opts)).filter(item => item.check === DoctorChecks.FORMAT);
+    (await runDoctorWarnings(opts)).filter((item) => item.check === DoctorChecks.FORMAT);
   const PACKAGES = "[{ dir: 'api', name: 'api', path: 'services/api' }]";
   const project = (opts: { files: Record<string, string | null> }): string =>
     createSyncedProject({
@@ -854,7 +856,7 @@ describe('doctor: bun fmt (warnings)', () => {
       ),
     });
   const ADD_SECTION =
-    'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "avoid", flavor = "oxfmt"): without it bun fmt formats with Bun\'s defaults, not the shared style';
+    'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "always", flavor = "oxfmt"): without it bun fmt formats with Bun\'s defaults, not the shared style';
   const FLAVOR_ADVICE =
     'without it bun fmt formats like Prettier when oxfmt is not a dependency, and the output changes';
 
@@ -1024,7 +1026,7 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
       },
     });
   const mcpWarnings = async (opts: { root: string }) =>
-    (await runDoctorWarnings(opts)).filter(item => item.check === DoctorChecks.MCP);
+    (await runDoctorWarnings(opts)).filter((item) => item.check === DoctorChecks.MCP);
   // sync writes the canonical file; a test then replaces it, as a hand edit or a tracked file would.
   const project = (opts: { mcp?: string; agents?: string[] }) => {
     const root = createSyncedProject({ files: CONFORMANT });
@@ -1055,7 +1057,7 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
     expect(await mcpWarnings({ root })).toEqual([]);
     expect(
       (await runDoctorChecks({ root })).some(
-        violation => violation.check === DoctorChecks.ADAPTERS,
+        (violation) => violation.check === DoctorChecks.ADAPTERS,
       ),
     ).toBe(true);
   });
@@ -1091,7 +1093,7 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
   test('a machine whose agents do not read .mcp.json is not asked about it', async () => {
     const root = project({ agents: ['cursor'], mcp: MCP({ root: '../ignis' }) });
 
-    expect((await mcpWarnings({ root })).map(item => item.file)).not.toContain('.mcp.json');
+    expect((await mcpWarnings({ root })).map((item) => item.file)).not.toContain('.mcp.json');
   });
 
   test('the managed Claude settings that do not enable atlas', async () => {

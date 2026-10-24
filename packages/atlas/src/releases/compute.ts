@@ -74,12 +74,12 @@ const hasCommits = (opts: { root: string }): boolean =>
 const positionsOf = (opts: { root: string }): Map<string, number> => {
   const line = git({ root: opts.root, args: ['rev-list', '--first-parent', '--reverse', 'HEAD'] })
     .split('\n')
-    .filter(hash => hash.length > 0);
+    .filter((hash) => hash.length > 0);
   const parents = new Map(
     git({ root: opts.root, args: ['log', '--format=%H %P', 'HEAD'] })
       .split('\n')
-      .filter(entry => entry.length > 0)
-      .map(entry => {
+      .filter((entry) => entry.length > 0)
+      .map((entry) => {
         const [hash, ...rest] = entry.split(' ');
 
         return [hash, rest] as const;
@@ -111,7 +111,7 @@ const positionsOf = (opts: { root: string }): Map<string, number> => {
  * uncommitted, and still all of them once committed after the newest release.
  */
 const releaseCommitsBefore = (opts: { positions: number[]; position: number }): number =>
-  opts.positions.filter(position => position < opts.position).length;
+  opts.positions.filter((position) => position < opts.position).length;
 
 interface IPositionedRelease {
   dir: string;
@@ -125,15 +125,15 @@ const releasesOf = (opts: {
 }): IPositionedRelease[] => {
   const { project } = opts;
   const pattern = compileReleaseTemplate({ template: project.tagPattern });
-  const ignored = project.ignoreTags.map(glob => new Bun.Glob(glob));
-  const live = project.packages.filter(entry => !entry.retired).map(entry => entry.dir);
+  const ignored = project.ignoreTags.map((glob) => new Bun.Glob(glob));
+  const live = project.packages.filter((entry) => !entry.retired).map((entry) => entry.dir);
   const format =
     '%(refname:strip=2)%09%(objectname)%09%(*objectname)%09%(authordate:short)%09%(*authordate:short)';
 
   return git({ root: project.root, args: ['for-each-ref', 'refs/tags', `--format=${format}`] })
     .split('\n')
-    .filter(entry => entry.length > 0)
-    .flatMap(entry => {
+    .filter((entry) => entry.length > 0)
+    .flatMap((entry) => {
       const [tag, object, peeled, date, peeledDate] = entry.split('\t');
       const commit = peeled.length > 0 ? peeled : object;
       const position = opts.positions.get(commit);
@@ -141,7 +141,7 @@ const releasesOf = (opts: {
 
       // A tag outside HEAD's history (an unmerged branch) released nothing on this ref.
       if (
-        ignored.some(glob => glob.match(tag)) ||
+        ignored.some((glob) => glob.match(tag)) ||
         groups?.version === undefined ||
         position === undefined
       ) {
@@ -161,7 +161,7 @@ const releasesOf = (opts: {
         order: position,
       };
 
-      return dirs.map(dir => ({ dir, record }));
+      return dirs.map((dir) => ({ dir, record }));
     });
 };
 
@@ -190,7 +190,7 @@ const changelogPositionsOf = (opts: {
   // `git log` is newest first; a rename must see the add before it, so walk it oldest first.
   const blocks = log
     .split(/^commit /m)
-    .filter(block => block.trim().length > 0)
+    .filter((block) => block.trim().length > 0)
     .reverse();
 
   for (const block of blocks) {
@@ -237,10 +237,10 @@ export const kindOfChangelog = (opts: { text: string }): string | null =>
 export const computeReleases = (opts: { project: IAtlasProject }): IReleaseTable => {
   const { project } = opts;
   const live = project.packages
-    .filter(entry => !entry.retired)
-    .map(entry => entry.dir)
+    .filter((entry) => !entry.retired)
+    .map((entry) => entry.dir)
     .sort(byText);
-  const packageMap = project.packages.map(entry => ({
+  const packageMap = project.packages.map((entry) => ({
     dir: entry.dir,
     name: entry.name,
     aliases: entry.aliases,
@@ -253,7 +253,7 @@ export const computeReleases = (opts: { project: IAtlasProject }): IReleaseTable
   const hasHistory = isRepositoryRoot({ root: project.root }) && hasCommits({ root: project.root });
   const positions = hasHistory ? positionsOf({ root: project.root }) : new Map<string, number>();
   const positioned = hasHistory ? releasesOf({ project, positions }) : [];
-  const releasePositions = [...new Set(positioned.map(entry => entry.record.order ?? 0))].sort(
+  const releasePositions = [...new Set(positioned.map((entry) => entry.record.order ?? 0))].sort(
     (left, right) => left - right,
   );
   const countOf = (position: number): number =>
@@ -261,10 +261,10 @@ export const computeReleases = (opts: { project: IAtlasProject }): IReleaseTable
 
   const releases: Record<string, IReleaseRecord[]> = {};
 
-  for (const dir of [...new Set(positioned.map(entry => entry.dir))].sort(byText)) {
+  for (const dir of [...new Set(positioned.map((entry) => entry.dir))].sort(byText)) {
     releases[dir] = positioned
-      .filter(entry => entry.dir === dir)
-      .map(entry => ({ ...entry.record, order: countOf(entry.record.order ?? 0) }))
+      .filter((entry) => entry.dir === dir)
+      .map((entry) => ({ ...entry.record, order: countOf(entry.record.order ?? 0) }))
       .sort((left, right) => (right.order ?? 0) - (left.order ?? 0));
   }
 
@@ -281,8 +281,8 @@ export const computeReleases = (opts: { project: IAtlasProject }): IReleaseTable
       ? changelogPositionsOf({ root: project.root, directory, positions })
       : undefined;
     const files = readdirSync(directory)
-      .filter(file => DATE_PREFIX_PATTERN.test(file))
-      .filter(file => isWithinDirectory({ path: join(directory, file), directory: project.root }))
+      .filter((file) => DATE_PREFIX_PATTERN.test(file))
+      .filter((file) => isWithinDirectory({ path: join(directory, file), directory: project.root }))
       .sort(byText)
       .reverse();
 
@@ -292,8 +292,10 @@ export const computeReleases = (opts: { project: IAtlasProject }): IReleaseTable
       const listed: unknown[] = Array.isArray(data.packages) ? data.packages : [];
       const override =
         typeof data.release === 'string' ? RELEASE_OVERRIDE_PATTERN.exec(data.release) : null;
-      const overrideDir = project.packages.find(entry => entry.name === override?.[1])?.dir;
-      const placed = releases[overrideDir ?? '']?.find(record => record.version === override?.[2]);
+      const overrideDir = project.packages.find((entry) => entry.name === override?.[1])?.dir;
+      const placed = releases[overrideDir ?? '']?.find(
+        (record) => record.version === override?.[2],
+      );
 
       changelogs.push({
         id: `changelog:${file.replace(/\.md$/, '')}`,

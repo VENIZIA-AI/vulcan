@@ -30,7 +30,7 @@ const resolve = (opts: {
     configAgents: opts.configAgents,
     interactive: opts.interactive ?? false,
     detected: opts.detected ?? NOTHING_DETECTED.detected,
-    ask: question => {
+    ask: (question) => {
       asked.push(question);
 
       return opts.answer === undefined ? '' : opts.answer;

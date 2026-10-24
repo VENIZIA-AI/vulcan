@@ -74,7 +74,7 @@ const documentPathOf = (opts: { id: string }): string | undefined => {
  */
 const wholeDocumentBodyOf = (opts: { chunks: IChunk[] }): string =>
   opts.chunks
-    .map(chunk =>
+    .map((chunk) =>
       chunk.anchor === '' || CONTINUATION_PART_PATTERN.test(chunk.anchor)
         ? chunk.body
         : `${chunk.title}\n\n${chunk.body}`,

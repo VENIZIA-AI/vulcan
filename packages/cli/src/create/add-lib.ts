@@ -39,7 +39,7 @@ const isProjectFolder = (opts: { folder: string }): boolean =>
   opts.folder
     .replace(/\/+$/, '')
     .split('/')
-    .every(segment => DIRECTORY_SEGMENT.test(segment) && segment !== '..');
+    .every((segment) => DIRECTORY_SEGMENT.test(segment) && segment !== '..');
 
 const scopeOf = (opts: { name: string }): string =>
   opts.name.startsWith('@') ? opts.name.split('/')[0] : '';
@@ -59,8 +59,8 @@ const folderOf = async (opts: {
   const libFolders = [
     ...new Set(
       opts.packages
-        .filter(entry => entry.kind === 'lib' && !entry.retired)
-        .map(entry => dirname(entry.path)),
+        .filter((entry) => entry.kind === 'lib' && !entry.retired)
+        .map((entry) => dirname(entry.path)),
     ),
   ];
   const fallback =
@@ -113,14 +113,14 @@ const nameOf = (opts: {
   }
 
   const siblings = opts.packages.filter(
-    entry => !entry.retired && dirname(entry.path) === opts.folder,
+    (entry) => !entry.retired && dirname(entry.path) === opts.folder,
   );
-  const scopes = [...new Set(siblings.map(entry => scopeOf({ name: entry.name })))].sort();
+  const scopes = [...new Set(siblings.map((entry) => scopeOf({ name: entry.name })))].sort();
 
   if (scopes.length > 1) {
     return {
       ok: false,
-      error: `the packages in ${opts.folder} use more than one scope (${scopes.map(scope => scope || 'unscoped').join(', ')}) - pass ${CreateFlags.SCOPE} <@scope>`,
+      error: `the packages in ${opts.folder} use more than one scope (${scopes.map((scope) => scope || 'unscoped').join(', ')}) - pass ${CreateFlags.SCOPE} <@scope>`,
     };
   }
 
@@ -189,7 +189,7 @@ export const addLibrary = async (opts: {
 
   if (
     existsSync(join(cwd, path)) ||
-    opts.packages.some(entry => entry.dir === libName || entry.name === named.name)
+    opts.packages.some((entry) => entry.dir === libName || entry.name === named.name)
   ) {
     return fail({ message: `${path} already exists` });
   }

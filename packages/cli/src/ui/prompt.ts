@@ -25,7 +25,7 @@ export const promptText = async (opts: {
       ...(opts.defaultValue === undefined
         ? {}
         : { placeholder: opts.defaultValue, defaultValue: opts.defaultValue }),
-      validate: input => opts.validate?.(input ?? ''),
+      validate: (input) => opts.validate?.(input ?? ''),
     }),
   );
 
@@ -41,7 +41,7 @@ export const promptSelect = async (opts: {
   const value = await guardAgainstPipedLines(() =>
     select({
       message: opts.message,
-      options: opts.choices.map(choice => ({
+      options: opts.choices.map((choice) => ({
         value: choice.value,
         label: choice.label,
         ...(choice.hint === undefined ? {} : { hint: choice.hint }),
@@ -62,7 +62,7 @@ export const promptMultiselect = async (opts: {
   const value = await guardAgainstPipedLines(() =>
     multiselect({
       message: opts.message,
-      options: opts.choices.map(choice => ({
+      options: opts.choices.map((choice) => ({
         value: choice.value,
         label: choice.label,
         ...(choice.hint === undefined ? {} : { hint: choice.hint }),

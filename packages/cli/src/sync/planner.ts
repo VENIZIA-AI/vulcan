@@ -171,11 +171,11 @@ const findSkillDirectories = (opts: { directory: string }): string[] =>
   existsSync(opts.directory)
     ? readdirSync(opts.directory, { withFileTypes: true })
         .filter(
-          entry =>
+          (entry) =>
             entry.isDirectory() &&
             existsSync(join(opts.directory, entry.name, SyncConstants.SKILL_FILE)),
         )
-        .map(entry => join(opts.directory, entry.name))
+        .map((entry) => join(opts.directory, entry.name))
         // readdir order is the filesystem's: the plan lists skills by name, the same on every machine.
         .sort()
     : [];
@@ -208,8 +208,8 @@ const planSkillLinks = (opts: {
   const stableSkills = join(stableBaseDirectoryOf(opts), SyncConstants.SKILLS_DIRECTORY);
   const shipped = findSkillDirectories({
     directory: join(BASE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY),
-  }).map(source => join(stableSkills, basename(source)));
-  const shippedNames = new Set(shipped.map(source => basename(source)));
+  }).map((source) => join(stableSkills, basename(source)));
+  const shippedNames = new Set(shipped.map((source) => basename(source)));
   const project = opts.withProject
     ? findSkillDirectories({
         directory: join(opts.root, '.agents', SyncConstants.SKILLS_DIRECTORY),
@@ -218,14 +218,14 @@ const planSkillLinks = (opts: {
 
   // Extend only: a project skill never takes a shipped skill's link; doctor reports the clash.
   const shadowing: ISyncAction[] = project
-    .filter(source => shippedNames.has(basename(source)))
-    .map(source => ({
+    .filter((source) => shippedNames.has(basename(source)))
+    .map((source) => ({
       path: source,
       status: SyncStatuses.SKIPPED,
       note: "shadows a shipped skill - rename it ('vulcan doctor' reports it)",
       apply: NO_CHANGE,
     }));
-  const sources = [...shipped, ...project.filter(source => !shippedNames.has(basename(source)))];
+  const sources = [...shipped, ...project.filter((source) => !shippedNames.has(basename(source)))];
 
   const links = sources.map((source): ISyncAction => {
     const path = join(target, basename(source));
@@ -262,15 +262,15 @@ const planSkillLinks = (opts: {
   const shippedRoots = [stableSkills, join(BASE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY)];
   // A link into the project's own skills whose folder the user removed is dead the same way.
   const projectRoot = join(opts.root, '.agents', SyncConstants.SKILLS_DIRECTORY);
-  const linked = new Set(sources.map(source => basename(source)));
+  const linked = new Set(sources.map((source) => basename(source)));
   const stale = (existsSync(target) ? readdirSync(target) : [])
-    .filter(name => !linked.has(name))
-    .map(name => join(target, name))
-    .filter(path => isSymlink({ path }) && !existsSync(path))
-    .map(path => ({ path, destination: readlinkSync(path) }))
+    .filter((name) => !linked.has(name))
+    .map((name) => join(target, name))
+    .filter((path) => isSymlink({ path }) && !existsSync(path))
+    .map((path) => ({ path, destination: readlinkSync(path) }))
     .filter(
       ({ destination }) =>
-        shippedRoots.some(root => destination.startsWith(`${root}/`)) ||
+        shippedRoots.some((root) => destination.startsWith(`${root}/`)) ||
         (opts.withProject && destination.startsWith(`${projectRoot}/`)),
     )
     .map(({ path, destination }): ISyncAction => ({
@@ -309,8 +309,8 @@ const CLAUDE_SKILLS = join(SyncConstants.CLAUDE_DIRECTORY, SyncConstants.SKILLS_
 const skillDirectoriesOf = (opts: { agents: string[] }): string[] => [
   ...new Set(
     readAgentTable()
-      .filter(entry => opts.agents.includes(entry.id))
-      .map(entry => entry.skills.dir),
+      .filter((entry) => opts.agents.includes(entry.id))
+      .map((entry) => entry.skills.dir),
   ),
 ];
 
@@ -324,7 +324,7 @@ export const planSync = (opts: {
   ...(opts.agents.includes(CodingAgents.CLAUDE)
     ? [planClaudeImport({ root: opts.root }), planSettings(opts)]
     : []),
-  ...skillDirectoriesOf({ agents: opts.agents }).flatMap(directory =>
+  ...skillDirectoriesOf({ agents: opts.agents }).flatMap((directory) =>
     planSkillLinks({ root: opts.root, directory, withProject: directory === CLAUDE_SKILLS }),
   ),
   ...planAgentFiles({ root: opts.root, agents: opts.agents }),

@@ -586,15 +586,15 @@ describe('vulcan add --preset', () => {
       throw new Error(loaded.error);
     }
 
-    const dirs = resolvePackages({ config: loaded.config }).map(entry => entry.dir);
-    const sourceNames = loaded.config.atlas.sources.map(source => source.name);
+    const dirs = resolvePackages({ config: loaded.config }).map((entry) => entry.dir);
+    const sourceNames = loaded.config.atlas.sources.map((source) => source.name);
 
     expect(dirs.toSorted()).toEqual(['billing', 'core-api', 'worker']);
     expect(sourceNames.toSorted()).toEqual(['extra', 'fixture']);
     expect(loaded.config.layout).toEqual({ backend: 'services', shared: 'libs' });
 
     const apps = (await runDoctorChecks({ root })).filter(
-      violation => violation.check === DoctorChecks.APPS,
+      (violation) => violation.check === DoctorChecks.APPS,
     );
 
     expect(apps).toEqual([]);

@@ -32,7 +32,7 @@ const makeProject = (opts: { files: Record<string, string> }): string => {
 };
 
 const descriptionOf = (opts: { name: string }): string | undefined =>
-  collectMakefileTargets().find(target => target.name === opts.name)?.description;
+  collectMakefileTargets().find((target) => target.name === opts.name)?.description;
 
 test("an included module's targets carry their ## descriptions", () => {
   makeProject({
@@ -87,7 +87,7 @@ test("make's warnings are not failures", () => {
     files: { Makefile: 'build:\n\t@true\n\nbuild:\n\t@false\n' },
   });
 
-  expect(collectMakefileTargets().map(target => target.name)).toContain('build');
+  expect(collectMakefileTargets().map((target) => target.name)).toContain('build');
 });
 
 test('a ## inside an inline recipe is the recipe, never the description', () => {

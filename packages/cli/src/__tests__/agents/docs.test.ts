@@ -14,7 +14,7 @@ const PAGE = join(
 );
 const page = readFileSync(PAGE, 'utf8');
 const rowOf = (opts: { id: string }): string =>
-  page.split('\n').find(line => line.startsWith(`| \`${opts.id}\` |`)) ?? '';
+  page.split('\n').find((line) => line.startsWith(`| \`${opts.id}\` |`)) ?? '';
 
 // The page is written by hand but checked against the table, so it cannot drift from what sync does.
 describe('references/agents.md follows base/agents.json', () => {
@@ -39,7 +39,7 @@ describe('references/agents.md follows base/agents.json', () => {
   });
 
   test('every note of the table is on the page', () => {
-    for (const note of readAgentTable().flatMap(entry => entry.notes)) {
+    for (const note of readAgentTable().flatMap((entry) => entry.notes)) {
       expect(page).toContain(note);
     }
   });
@@ -48,9 +48,9 @@ describe('references/agents.md follows base/agents.json', () => {
     const listed = page
       .slice(0, page.indexOf('## What you get'))
       .split('\n')
-      .filter(line => /^\| `[a-z-]+` \|/.test(line))
-      .map(line => /^\| `([a-z-]+)` \|/.exec(line)?.[1]);
+      .filter((line) => /^\| `[a-z-]+` \|/.test(line))
+      .map((line) => /^\| `([a-z-]+)` \|/.exec(line)?.[1]);
 
-    expect(listed).toEqual(readAgentTable().map(entry => entry.id));
+    expect(listed).toEqual(readAgentTable().map((entry) => entry.id));
   });
 });

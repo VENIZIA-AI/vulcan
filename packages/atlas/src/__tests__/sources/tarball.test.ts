@@ -66,7 +66,7 @@ const serveGitHub = (opts: { bare: string; prefix: string }) => {
   const seen: { path: string; authorization: string | null }[] = [];
   const server = Bun.serve({
     port: 0,
-    fetch: request => {
+    fetch: (request) => {
       const url = new URL(request.url);
 
       seen.push({ path: url.pathname, authorization: request.headers.get('authorization') });
@@ -143,7 +143,7 @@ describe('a source without git on the machine', () => {
       );
 
       expect(initialized.result.instructions).toContain('no git on this machine');
-      expect(github.seen.some(request => request.path.includes('/api'))).toBe(false);
+      expect(github.seen.some((request) => request.path.includes('/api'))).toBe(false);
 
       // D1: no history without git - the tools say so, and the dated entries still answer by date.
       const server = buildSourcesServer({
@@ -194,7 +194,7 @@ describe('a source without git on the machine', () => {
           : header === 'token ghs_secret_value';
 
       expect(github.seen.length).toBeGreaterThan(1);
-      expect(github.seen.every(request => carries(request.authorization))).toBe(true);
+      expect(github.seen.every((request) => carries(request.authorization))).toBe(true);
 
       const failure = await resolveSources({
         cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
@@ -235,7 +235,7 @@ describe('a source without git on the machine', () => {
 
       expect(resolved.sha).toBe(sha);
       expect(existsSync(join(resolved.root, '.agents/knowledge/overview/kernel.md'))).toBe(true);
-      expect(github.seen.filter(request => request.path.includes('/tar.gz/'))).toHaveLength(1);
+      expect(github.seen.filter((request) => request.path.includes('/tar.gz/'))).toHaveLength(1);
     } finally {
       await github.server.stop(true);
     }

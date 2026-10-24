@@ -31,8 +31,8 @@ export const cacheRootOf = (opts: { repo: string }): string => {
   const segments = path
     .replace(/\.git\/?$/, '')
     .split('/')
-    .filter(segment => segment.length > 0)
-    .map(segment => segmentOf({ segment }));
+    .filter((segment) => segment.length > 0)
+    .map((segment) => segmentOf({ segment }));
   const base = process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache');
 
   return join(base, 'vulcan', 'atlas', CACHE_LAYOUT, segmentOf({ segment: host }), ...segments);

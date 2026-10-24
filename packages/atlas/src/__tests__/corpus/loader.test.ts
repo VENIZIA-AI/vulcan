@@ -15,7 +15,7 @@ describe('CorpusLoader', () => {
       roots: [{ corpus: Corpora.WIKI, directory: join(FIXTURES_ROOT, 'wiki') }],
     });
 
-    const guide = documents.find(document => document.path === 'guide.md');
+    const guide = documents.find((document) => document.path === 'guide.md');
 
     expect(guide).toBeDefined();
     expect(guide?.corpus).toBe(Corpora.WIKI);
@@ -32,7 +32,7 @@ describe('CorpusLoader', () => {
       roots: [{ corpus: Corpora.WIKI, directory: join(FIXTURES_ROOT, 'wiki') }],
     });
 
-    const document = documents.find(entry => entry.path === 'no-frontmatter.md');
+    const document = documents.find((entry) => entry.path === 'no-frontmatter.md');
 
     expect(document).toBeDefined();
     expect(document?.title).toBe('No Frontmatter Title');
@@ -68,8 +68,8 @@ describe('CorpusLoader', () => {
       ],
     });
 
-    expect(documents.some(document => document.path.startsWith('excluded/'))).toBe(false);
-    expect(documents.some(document => document.path === 'guide.md')).toBe(true);
+    expect(documents.some((document) => document.path.startsWith('excluded/'))).toBe(false);
+    expect(documents.some((document) => document.path === 'guide.md')).toBe(true);
   });
 
   test('excludes an exact file match, not only a directory prefix', () => {
@@ -79,8 +79,8 @@ describe('CorpusLoader', () => {
       ],
     });
 
-    expect(documents.some(document => document.path === 'guide.md')).toBe(false);
-    expect(documents.some(document => document.path === 'excluded/skip-me.md')).toBe(true);
+    expect(documents.some((document) => document.path === 'guide.md')).toBe(false);
+    expect(documents.some((document) => document.path === 'excluded/skip-me.md')).toBe(true);
   });
 
   test('skips a document with invalid YAML frontmatter, records it, and warns through the logger', () => {
@@ -99,8 +99,8 @@ describe('CorpusLoader', () => {
       warnSpy.mockRestore();
     }
 
-    expect(documents.some(document => document.path === 'broken.md')).toBe(false);
-    expect(documents.some(document => document.path === 'guide.md')).toBe(true);
+    expect(documents.some((document) => document.path === 'broken.md')).toBe(false);
+    expect(documents.some((document) => document.path === 'guide.md')).toBe(true);
     expect(loader.skipped).toHaveLength(1);
     expect(loader.skipped[0].corpus).toBe(Corpora.WIKI);
     expect(loader.skipped[0].path).toBe('broken.md');
@@ -133,7 +133,7 @@ describe('CorpusLoader', () => {
       ],
     });
 
-    expect(documents.every(document => document.corpus === Corpora.WIKI)).toBe(true);
+    expect(documents.every((document) => document.corpus === Corpora.WIKI)).toBe(true);
     expect(documents.length).toBeGreaterThan(0);
   });
 
@@ -160,7 +160,7 @@ describe('CorpusLoader', () => {
         within: checkout,
       });
 
-      expect(documents.map(document => document.path)).toEqual(['guide.md']);
+      expect(documents.map((document) => document.path)).toEqual(['guide.md']);
     });
   });
 });

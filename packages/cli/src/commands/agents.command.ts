@@ -74,7 +74,7 @@ const runList = async (opts: { root: string }): Promise<number> => {
 };
 
 export const runAgentsCommand = async (opts: ICommandContext): Promise<number> => {
-  const words = opts.args.filter(arg => !arg.startsWith('--'));
+  const words = opts.args.filter((arg) => !arg.startsWith('--'));
   const dryRun = opts.args.includes(DRY_RUN_FLAG) ? [DRY_RUN_FLAG] : [];
   const [subcommand = 'list', value] = words;
 
@@ -121,8 +121,8 @@ export const runAgentsCommand = async (opts: ICommandContext): Promise<number> =
   }
 
   const known = agentIds();
-  const already = parsed.agents.filter(id => current.agents.includes(id));
-  const absent = parsed.agents.filter(id => !current.agents.includes(id));
+  const already = parsed.agents.filter((id) => current.agents.includes(id));
+  const absent = parsed.agents.filter((id) => !current.agents.includes(id));
   const touched = subcommand === 'add' ? absent : already;
   const skipped = subcommand === 'add' ? already : absent;
 
@@ -136,7 +136,7 @@ export const runAgentsCommand = async (opts: ICommandContext): Promise<number> =
     return ExitCodes.OK;
   }
 
-  const next = known.filter(id =>
+  const next = known.filter((id) =>
     subcommand === 'add'
       ? [...current.agents, ...touched].includes(id)
       : current.agents.includes(id) && !touched.includes(id),

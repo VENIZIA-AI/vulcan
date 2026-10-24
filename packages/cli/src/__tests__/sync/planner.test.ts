@@ -264,8 +264,8 @@ describe('.claude/settings.json', () => {
 
   const guardCommandsOf = (opts: { root: string }): string[] =>
     Object.values(readSettings(opts).hooks as Record<string, { hooks: { command: string }[] }[]>)
-      .flatMap(entries => entries.flatMap(entry => entry.hooks.map(hook => hook.command)))
-      .filter(command => command.includes('guard-writes.ts'));
+      .flatMap((entries) => entries.flatMap((entry) => entry.hooks.map((hook) => hook.command)))
+      .filter((command) => command.includes('guard-writes.ts'));
 
   test('an upgrade takes back a hand-edited shipped hook by its command; other hooks in its entry stay', () => {
     const root = createProject({ files: READ_ONLY_PROJECT });
@@ -415,7 +415,7 @@ describe('skills', () => {
     // What a newer VULCAN linked before the project went back to this one.
     symlinkSync(join(installed, 'base', 'skills', 'gone-skill'), link);
 
-    const flagged = (await runDoctorChecks({ root })).map(violation => violation.file);
+    const flagged = (await runDoctorChecks({ root })).map((violation) => violation.file);
 
     expect(flagged).toContain('.claude/skills/gone-skill');
 
@@ -530,7 +530,7 @@ describe('planSync with the resolved agents', () => {
     const without = planSync({ root, config: loaded.config, agents: ['omp'] });
     const withClaude = planSync({ root, config: loaded.config, agents: ['claude', 'omp'] });
 
-    expect(without.map(action => action.path)).toEqual([
+    expect(without.map((action) => action.path)).toEqual([
       join(root, '.agents/skills/build-a-feature'),
       join(root, '.agents/skills/docs-update'),
       join(root, '.agents/skills/docs-writing'),
@@ -538,9 +538,9 @@ describe('planSync with the resolved agents', () => {
       join(root, '.mcp.json'),
       join(root, '.agents/vulcan.manifest.json'),
     ]);
-    expect(without.some(action => action.path === join(root, 'CLAUDE.md'))).toBe(false);
+    expect(without.some((action) => action.path === join(root, 'CLAUDE.md'))).toBe(false);
     expect(withClaude.length).toBeGreaterThan(without.length);
-    expect(withClaude.some(action => action.path === join(root, 'CLAUDE.md'))).toBe(true);
+    expect(withClaude.some((action) => action.path === join(root, 'CLAUDE.md'))).toBe(true);
   });
 });
 

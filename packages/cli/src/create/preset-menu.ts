@@ -16,16 +16,16 @@ export interface IKnownPreset {
  * or `file:` path. null when the user cancelled.
  */
 export const askPresetSpec = async (opts: { recorded: IKnownPreset[] }): Promise<string | null> => {
-  const used = new Set(opts.recorded.map(entry => officialIdOf({ spec: entry.spec })));
+  const used = new Set(opts.recorded.map((entry) => officialIdOf({ spec: entry.spec })));
   const picked = await promptSelect({
     message: 'Which preset?',
     choices: [
-      ...opts.recorded.map(entry => ({
+      ...opts.recorded.map((entry) => ({
         value: entry.spec,
         label: entry.spec,
         hint: `${entry.side}: ${entry.summary}`,
       })),
-      ...OFFICIAL_PRESETS.filter(entry => !used.has(entry.id)).map(entry => ({
+      ...OFFICIAL_PRESETS.filter((entry) => !used.has(entry.id)).map((entry) => ({
         value: entry.id,
         label: entry.id,
         hint: `official, ${entry.side} (app or lib)`,
@@ -40,6 +40,6 @@ export const askPresetSpec = async (opts: { recorded: IKnownPreset[] }): Promise
 
   return promptText({
     message: 'Preset (a package name, or file:<path>)',
-    validate: value => (value.trim() === '' ? 'a package name, or file:<path>' : undefined),
+    validate: (value) => (value.trim() === '' ? 'a package name, or file:<path>' : undefined),
   });
 };

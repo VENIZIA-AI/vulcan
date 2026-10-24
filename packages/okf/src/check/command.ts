@@ -10,8 +10,8 @@ import { repoRelative, walkFiles } from '../source/index.ts';
 
 export const readBundleFiles = (): IBundleFile[] =>
   walkFiles({ dir: readOkfProject().bundle })
-    .filter(file => file.endsWith('.md'))
-    .map(file => ({
+    .filter((file) => file.endsWith('.md'))
+    .map((file) => ({
       path: relative(readOkfProject().bundle, file),
       text: readFileSync(file, 'utf8'),
     }));
@@ -24,10 +24,10 @@ export const formatIssue = (opts: { issue: IConformanceIssue }): string =>
 export const check = async (opts: { strict: boolean }): Promise<void> => {
   const files = readBundleFiles();
   const issues = checkBundle({ files });
-  const warnings = issues.filter(issue => issue.severity === IssueSeverities.WARNING);
+  const warnings = issues.filter((issue) => issue.severity === IssueSeverities.WARNING);
   const problems = issues
-    .filter(issue => issue.severity === IssueSeverities.ERROR)
-    .map(issue => formatIssue({ issue }));
+    .filter((issue) => issue.severity === IssueSeverities.ERROR)
+    .map((issue) => formatIssue({ issue }));
 
   if (opts.strict) {
     problems.push(...collectHouseProblems({ files, ...(await loadGeneration()) }));
@@ -36,20 +36,20 @@ export const check = async (opts: { strict: boolean }): Promise<void> => {
   if (warnings.length) {
     console.error(
       `check: ${warnings.length} warning(s):\n` +
-        warnings.map(issue => '  - ' + formatIssue({ issue })).join('\n'),
+        warnings.map((issue) => '  - ' + formatIssue({ issue })).join('\n'),
     );
   }
 
   if (problems.length) {
     console.error(
       `check: ${problems.length} problem(s):\n` +
-        problems.map(problem => '  - ' + problem).join('\n'),
+        problems.map((problem) => '  - ' + problem).join('\n'),
     );
     process.exit(1);
   }
 
   const conceptCount = files.filter(
-    file => !RESERVED_FILES.has(file.path.split('/').pop() ?? ''),
+    (file) => !RESERVED_FILES.has(file.path.split('/').pop() ?? ''),
   ).length;
   const scope = opts.strict
     ? `OKF v${OkfVersions.LATEST} + house rules`

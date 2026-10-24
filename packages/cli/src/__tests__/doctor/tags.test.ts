@@ -35,7 +35,7 @@ const projectWithTags = (opts: { tags: string[] }): string => {
 
 const tagViolations = async (opts: { root: string }) =>
   (await runDoctorChecks({ root: opts.root })).filter(
-    violation => violation.check === DoctorChecks.TAGS,
+    (violation) => violation.check === DoctorChecks.TAGS,
   );
 
 test('every tag the pattern reads names a declared package - by directory, alias or retired', async () => {
@@ -50,7 +50,7 @@ test('a tag naming no declared package is a violation (positive control)', async
   const root = projectWithTags({ tags: ['core-server-v1.0.0', 'ghost-v1.0.0'] });
   const violations = await tagViolations({ root });
 
-  expect(violations.map(violation => violation.message)).toEqual([
+  expect(violations.map((violation) => violation.message)).toEqual([
     "tag ghost-v1.0.0 reads as a release of 'ghost', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (atlas.ignoreTags)",
   ]);
 });

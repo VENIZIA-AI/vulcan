@@ -54,7 +54,7 @@ const isOwnEntry = (opts: { entry: unknown }): boolean => {
     return true;
   }
 
-  const keys = Object.keys(entry).filter(key => key !== 'type');
+  const keys = Object.keys(entry).filter((key) => key !== 'type');
   const [bin, ...rest] = entry.args;
   const root = rest[4];
 
@@ -131,7 +131,7 @@ const codexBlock = (opts: { root: string }): string => {
     CODEX_BLOCK_START,
     CODEX_TABLE,
     `command = ${JSON.stringify(command)}`,
-    `args = [${args.map(arg => JSON.stringify(arg)).join(', ')}]`,
+    `args = [${args.map((arg) => JSON.stringify(arg)).join(', ')}]`,
     CODEX_BLOCK_END,
     '',
   ].join('\n');

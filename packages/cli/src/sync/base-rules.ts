@@ -60,7 +60,7 @@ export const diffBaseRules = (opts: { root: string }): IBaseRuleChange[] => {
     });
   }
 
-  for (const id of Object.keys(synced).filter(syncedId => installed[syncedId] === undefined)) {
+  for (const id of Object.keys(synced).filter((syncedId) => installed[syncedId] === undefined)) {
     changes.push({
       id,
       change: BaseRuleChanges.REMOVED,

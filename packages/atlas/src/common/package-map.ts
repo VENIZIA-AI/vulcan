@@ -20,13 +20,13 @@ export const directoryOf = (opts: {
 }): string | undefined => {
   const cleaned = opts.value.replace(/`/g, '').trim();
   const named = opts.packages.find(
-    entry =>
+    (entry) =>
       entry.name === cleaned ||
       unscopedOf({ name: entry.name }) === cleaned ||
       entry.dir === cleaned,
   );
 
-  return named?.dir ?? opts.packages.find(entry => entry.aliases.includes(cleaned))?.dir;
+  return named?.dir ?? opts.packages.find((entry) => entry.aliases.includes(cleaned))?.dir;
 };
 
 /**
@@ -36,19 +36,19 @@ export const directoryOf = (opts: {
  */
 export const packageOfQuery = (opts: { value: string; packageMap: IPackageMapEntry[] }): string => {
   const wanted = opts.value.trim();
-  const lowered = opts.packageMap.map(entry => ({
+  const lowered = opts.packageMap.map((entry) => ({
     dir: entry.dir,
     name: entry.name.toLowerCase(),
-    aliases: entry.aliases.map(alias => alias.toLowerCase()),
+    aliases: entry.aliases.map((alias) => alias.toLowerCase()),
   }));
   const dir = directoryOf({ value: wanted.toLowerCase(), packages: lowered });
 
-  return opts.packageMap.find(entry => entry.dir === dir)?.name ?? wanted;
+  return opts.packageMap.find((entry) => entry.dir === dir)?.name ?? wanted;
 };
 
 /** A table key (a directory) as its npm name; a table without a map keeps its keys. */
 export const packageOfDirectory = (opts: { dir: string; packageMap: IPackageMapEntry[] }): string =>
-  opts.packageMap.find(entry => entry.dir === opts.dir)?.name ?? opts.dir;
+  opts.packageMap.find((entry) => entry.dir === opts.dir)?.name ?? opts.dir;
 
 /**
  * A package asked about across every source atlas serves: the one source that knows it, with its
@@ -62,14 +62,14 @@ export const packageAcrossSources = (opts: {
   const matches = opts.sources.flatMap(({ source, packageMap }) => {
     const name = packageOfQuery({ value: opts.value, packageMap });
 
-    return packageMap.some(entry => entry.name === name) ? [{ source, name }] : [];
+    return packageMap.some((entry) => entry.name === name) ? [{ source, name }] : [];
   });
 
   if (matches.length > 1) {
     throw new RpcError({
       code: RpcErrorCodes.INVALID_PARAMS,
       message: `'${opts.value}' names a package in more than one source - ask by npm name: ${matches
-        .map(match => `${match.name} (${match.source})`)
+        .map((match) => `${match.name} (${match.source})`)
         .join(', ')}`,
     });
   }

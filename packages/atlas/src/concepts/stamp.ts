@@ -40,7 +40,7 @@ export const readDeclaredSymbols = (opts: { project: IAtlasProject }): IDeclared
 
   const paths = [...new Bun.Glob('**/*.md').scanSync({ cwd: bundle })].sort(byText);
 
-  return paths.flatMap(path => {
+  return paths.flatMap((path) => {
     const { data } = parseFrontmatter({
       text: readFileSync(join(bundle, path), 'utf8'),
       path,
@@ -48,7 +48,7 @@ export const readDeclaredSymbols = (opts: { project: IAtlasProject }): IDeclared
     const declared: unknown[] = Array.isArray(data.symbols) ? data.symbols : [];
     const concept = relative(opts.project.root, join(bundle, path));
 
-    return declared.map(symbol => ({ concept, symbol: String(symbol) }));
+    return declared.map((symbol) => ({ concept, symbol: String(symbol) }));
   });
 };
 
@@ -63,7 +63,7 @@ const splitDeclaration = (opts: {
 
   return at > 0 &&
     name.length > 0 &&
-    opts.project.packages.some(entry => entry.name === packageName)
+    opts.project.packages.some((entry) => entry.name === packageName)
     ? { packageName, name }
     : undefined;
 };
@@ -87,9 +87,9 @@ export const resolveDeclaredSymbol = (opts: {
 
   const signatures = opts.records
     .filter(
-      record => record.package === declaration.packageName && record.name === declaration.name,
+      (record) => record.package === declaration.packageName && record.name === declaration.name,
     )
-    .map(record => `${record.signature}\n${record.shape ?? ''}`);
+    .map((record) => `${record.signature}\n${record.shape ?? ''}`);
 
   if (signatures.length === 0) {
     return { problem: ConceptProblems.MISSING };

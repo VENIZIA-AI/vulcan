@@ -47,7 +47,7 @@ const listToolNames = async (opts: {
     }),
   );
 
-  return (reply.result?.tools ?? []).map(tool => tool.name);
+  return (reply.result?.tools ?? []).map((tool) => tool.name);
 };
 
 describe('buildServer', () => {

@@ -111,7 +111,7 @@ describe('withContents', () => {
 
 /** The contents list `withContents` writes for a long file with these `##` headings. */
 const listOf = (opts: { headings: string[] }): string[] => {
-  const body = opts.headings.map(heading => `## ${heading}\n\nText.\n`).join('\n');
+  const body = opts.headings.map((heading) => `## ${heading}\n\nText.\n`).join('\n');
   const lines = withContents({ text: `# Title\n\n${body}\n${filler({ lines: 110 })}\n` }).split(
     '\n',
   );

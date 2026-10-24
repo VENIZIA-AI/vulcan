@@ -79,11 +79,11 @@ test('one export whose .d.ts is missing is skipped with a warning; the built ent
 
   try {
     const reply = await callSymbol({ root, name: 'greet' });
-    const warnings = warnSpy.mock.calls.map(call => String(call[0]));
+    const warnings = warnSpy.mock.calls.map((call) => String(call[0]));
 
     expect(reply.error).toBeUndefined();
     expect(reply.result.content[0].text).toContain('greet(name: string): string');
-    expect(warnings.filter(line => line.includes('./contracts'))).toEqual([
+    expect(warnings.filter((line) => line.includes('./contracts'))).toEqual([
       '[AtlasSymbols-recordsOf] skipped an export whose declaration file is missing | package: @shop/kit | subpath: ./contracts | path: umbras/kit/dist/contracts/index.d.ts',
     ]);
   } finally {
@@ -106,12 +106,12 @@ test('one export whose .d.ts cannot be read as a module is skipped too; the othe
 
   try {
     const reply = await callSymbol({ root, name: 'greet' });
-    const warnings = warnSpy.mock.calls.map(call => String(call[0]));
+    const warnings = warnSpy.mock.calls.map((call) => String(call[0]));
 
     expect(reply.error).toBeUndefined();
     expect(reply.result.content[0].text).toContain('greet(name: string): string');
     expect(
-      warnings.some(line => line.includes('./globals') && line.includes('could not be read')),
+      warnings.some((line) => line.includes('./globals') && line.includes('could not be read')),
     ).toBe(true);
   } finally {
     warnSpy.mockRestore();

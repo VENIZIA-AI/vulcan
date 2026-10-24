@@ -178,7 +178,7 @@ describe('buildPlan', () => {
       out: '/tmp/out',
     });
 
-    expect(plan.map(run => `${run.evaluation.id}/${run.model} ${run.runDirectory}`)).toEqual([
+    expect(plan.map((run) => `${run.evaluation.id}/${run.model} ${run.runDirectory}`)).toEqual([
       '0/haiku /tmp/out/docs-writing/0/haiku',
       '0/opus /tmp/out/docs-writing/0/opus',
       '1/haiku /tmp/out/docs-writing/1/haiku',

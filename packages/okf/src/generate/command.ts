@@ -19,7 +19,7 @@ const currentOf = (opts: { path: string }): string | undefined =>
  */
 export const gen = async (): Promise<void> => {
   const { renderers, regions } = await loadGeneration();
-  const regionWrites = regions.flatMap(region => {
+  const regionWrites = regions.flatMap((region) => {
     const current = currentOf({ path: region.file });
 
     if (current === undefined) {
@@ -40,7 +40,7 @@ export const gen = async (): Promise<void> => {
     return text === current ? [] : [{ region, text }];
   });
   const rendered = renderPages({ renderers });
-  const pages = rendered.filter(page => currentOf({ path: page.path }) !== page.content);
+  const pages = rendered.filter((page) => currentOf({ path: page.path }) !== page.content);
 
   for (const { region, text } of regionWrites) {
     writeFileSync(region.file, text);
@@ -54,7 +54,7 @@ export const gen = async (): Promise<void> => {
   }
 
   // Every project's long agent-read files carry a contents list, whatever it renders.
-  const contents = writeContents({ skip: new Set(rendered.map(page => page.path)) });
+  const contents = writeContents({ skip: new Set(rendered.map((page) => page.path)) });
 
   for (const file of contents) {
     console.log(`gen: wrote the contents list of ${file}`);

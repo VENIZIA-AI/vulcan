@@ -62,7 +62,7 @@ describe('SourceChunks', () => {
     const { total, hits } = chunks.search({ query: 'flywheel', limit: 10, offset: 0 });
 
     expect(total).toBe(3);
-    expect(hits.map(hit => `${hit.source} ${hit.id}`).sort()).toEqual([
+    expect(hits.map((hit) => `${hit.source} ${hit.id}`).sort()).toEqual([
       'ardor wiki:admin.md#panel',
       'ignis wiki:guide.md#boot',
       'ignis wiki:shared.md#x',
@@ -73,7 +73,7 @@ describe('SourceChunks', () => {
     const first = chunks.search({ query: 'flywheel', limit: 2, offset: 0 }).hits;
     const rest = chunks.search({ query: 'flywheel', limit: 2, offset: 2 }).hits;
 
-    expect([...first, ...rest].map(hit => hit.id).sort()).toEqual([
+    expect([...first, ...rest].map((hit) => hit.id).sort()).toEqual([
       'wiki:admin.md#panel',
       'wiki:guide.md#boot',
       'wiki:shared.md#x',
@@ -89,7 +89,7 @@ describe('SourceChunks', () => {
     });
 
     expect(total).toBe(1);
-    expect(hits.map(hit => `${hit.source} ${hit.id}`)).toEqual(['ardor wiki:admin.md#panel']);
+    expect(hits.map((hit) => `${hit.source} ${hit.id}`)).toEqual(['ardor wiki:admin.md#panel']);
   });
 
   test('a search tool call with an unknown source is invalid params naming the known sources', async () => {
@@ -203,7 +203,7 @@ describe('SourceReleases', () => {
   test('a date window spans every source, each entry naming its source', () => {
     const entries = releases.entriesBetween({ fromDate: '2026-01-01', toDate: '2026-01-03' });
 
-    expect(entries.map(entry => `${entry.source} ${entry.id}`).sort()).toEqual([
+    expect(entries.map((entry) => `${entry.source} ${entry.id}`).sort()).toEqual([
       'ardor changelog:2026-01-02-kernel',
       'ignis changelog:2026-01-02-kernel',
     ]);
@@ -236,7 +236,7 @@ describe('SourceSymbols', () => {
     });
 
     expect(
-      symbols.lookup({ name: 'boot' }).map(found => `${found.source} ${found.package}`),
+      symbols.lookup({ name: 'boot' }).map((found) => `${found.source} ${found.package}`),
     ).toEqual(['ignis @venizia/ignis-kernel', 'ardor @venizia/ardor-kernel']);
   });
 });

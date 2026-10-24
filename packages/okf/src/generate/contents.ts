@@ -195,7 +195,7 @@ export const withContents = (opts: { text: string }): string => {
   }
 
   const { start, end } = markers({ id: CONTENTS_ID });
-  const list = headings.map(heading => `- [${heading.text}](#${heading.anchor})`).join('\n');
+  const list = headings.map((heading) => `- [${heading.text}](#${heading.anchor})`).join('\n');
   const block = `${start}\n**Contents**\n\n${list}\n${end}\n\n`;
   const at = insertionPointOf({ text: bare });
 

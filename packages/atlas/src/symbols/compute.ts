@@ -156,7 +156,7 @@ export const declarationsFingerprintOf = (opts: { project: IAtlasProject }): str
   let newestMtimeMs = 0;
   let totalBytes = 0;
 
-  for (const entry of opts.project.packages.filter(item => !item.retired)) {
+  for (const entry of opts.project.packages.filter((item) => !item.retired)) {
     const directory = join(opts.project.root, entry.path);
 
     if (!existsSync(directory)) {
@@ -183,9 +183,9 @@ export const declarationsFingerprintOf = (opts: { project: IAtlasProject }): str
 export const symbolsOfRepository = (opts: { project: IAtlasProject }): ISymbolRecord[] => {
   const packages = opts.project.packages
     .filter(
-      entry => !entry.retired && existsSync(join(opts.project.root, entry.path, 'package.json')),
+      (entry) => !entry.retired && existsSync(join(opts.project.root, entry.path, 'package.json')),
     )
-    .map(entry =>
+    .map((entry) =>
       readPackageDirectory({ directory: join(opts.project.root, entry.path), name: entry.dir }),
     );
 

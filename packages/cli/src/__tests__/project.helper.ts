@@ -32,7 +32,7 @@ export const packFolder = (opts: { folder: string }): string => {
     throw new Error(`bun pm pack failed in ${opts.folder}: ${result.stderr.toString()}`);
   }
 
-  const [tarball] = readdirSync(destination).filter(name => name.endsWith('.tgz'));
+  const [tarball] = readdirSync(destination).filter((name) => name.endsWith('.tgz'));
 
   return join(destination, tarball);
 };

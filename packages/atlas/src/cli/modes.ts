@@ -55,7 +55,7 @@ const ancestorsOf = (opts: { startDirectory: string }): string[] => {
  */
 export const findPackageDirectory = (opts: { startDirectory: string }): string => {
   const found = ancestorsOf({ startDirectory: opts.startDirectory }).find(
-    directory => readPackageName({ directory }) === PACKAGE_NAME,
+    (directory) => readPackageName({ directory }) === PACKAGE_NAME,
   );
 
   if (!found) {
@@ -69,7 +69,7 @@ export const findPackageDirectory = (opts: { startDirectory: string }): string =
 
 /** `--root`'s value from `argv`; cwd when absent. Throws when the flag is present with no value. */
 export const readRootArgument = (opts: { argv: string[] }): IRootArgument => {
-  const joined = opts.argv.find(argument => argument.startsWith('--root='));
+  const joined = opts.argv.find((argument) => argument.startsWith('--root='));
 
   if (joined !== undefined) {
     const value = joined.slice('--root='.length);

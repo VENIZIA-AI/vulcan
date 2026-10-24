@@ -87,14 +87,14 @@ describe('computeReleases (D1)', () => {
 
   const table = computeReleases({ project: projectAt({ root }) });
   const orderOf = (opts: { dir: string; version: string }): number =>
-    table.releases[opts.dir]?.find(record => record.version === opts.version)?.order ?? -1;
+    table.releases[opts.dir]?.find((record) => record.version === opts.version)?.order ?? -1;
   const entryOrder = (opts: { file: string }): number =>
-    table.changelogs.find(entry => entry.file === opts.file)?.order ?? -1;
+    table.changelogs.find((entry) => entry.file === opts.file)?.order ?? -1;
 
   test('every tag matching the pattern is a release; ignored tags and unknown packages are not', () => {
     expect(Object.keys(table.releases).sort()).toEqual(['kernel', 'web']);
-    expect(table.releases.kernel.map(record => record.version)).toEqual(['1.1.0', '1.0.0']);
-    expect(table.releases.web.map(record => record.version)).toEqual(['0.1.0']);
+    expect(table.releases.kernel.map((record) => record.version)).toEqual(['1.1.0', '1.0.0']);
+    expect(table.releases.web.map((record) => record.version)).toEqual(['0.1.0']);
   });
 
   test('a tag on a merged branch takes the position of the merge that brought it in', () => {
@@ -135,7 +135,7 @@ describe('computeReleases (D1)', () => {
       }),
     });
 
-    expect(renamedTable.releases['core-server']?.map(record => record.version)).toEqual([
+    expect(renamedTable.releases['core-server']?.map((record) => record.version)).toEqual([
       '0.2.0',
       '0.1.0',
     ]);
@@ -163,10 +163,12 @@ describe('computeReleases (D1)', () => {
       }),
     });
 
-    expect(groupedTable.releases['umbras-core']?.map(record => record.version)).toEqual([
+    expect(groupedTable.releases['umbras-core']?.map((record) => record.version)).toEqual([
       '0.0.1-0',
     ]);
-    expect(groupedTable.releases['kits-core']?.map(record => record.version)).toEqual(['0.0.1-0']);
+    expect(groupedTable.releases['kits-core']?.map((record) => record.version)).toEqual([
+      '0.0.1-0',
+    ]);
   });
 
   test('a merge that repeats a release subject is no second release - the tag names one commit', () => {
@@ -188,7 +190,7 @@ describe('computeReleases (D1)', () => {
 
     const mergedTable = computeReleases({ project: projectAt({ root: merged.root }) });
 
-    expect(mergedTable.releases.kernel?.map(record => record.version)).toEqual(['1.0.0']);
+    expect(mergedTable.releases.kernel?.map((record) => record.version)).toEqual(['1.0.0']);
   });
 
   test('a repo-level pattern (no <dir>) releases every live package at once', () => {
@@ -201,8 +203,8 @@ describe('computeReleases (D1)', () => {
       project: projectAt({ root: repo.root, release: { tagPattern: '<date>_v<version>' } }),
     });
 
-    expect(repoTable.releases.kernel?.map(record => record.version)).toEqual(['1.0.0']);
-    expect(repoTable.releases.web?.map(record => record.version)).toEqual(['1.0.0']);
+    expect(repoTable.releases.kernel?.map((record) => record.version)).toEqual(['1.0.0']);
+    expect(repoTable.releases.web?.map((record) => record.version)).toEqual(['1.0.0']);
   });
 });
 
@@ -214,7 +216,7 @@ describe('computeReleases on the edges of a repository', () => {
       livePackages: ['kernel', 'web'],
       releases: {},
       changelogs: [],
-      packageMap: PACKAGES.map(entry => ({
+      packageMap: PACKAGES.map((entry) => ({
         dir: entry.dir,
         name: entry.name,
         aliases: entry.aliases,
@@ -258,7 +260,7 @@ describe('computeReleases on the edges of a repository', () => {
     const crlfTable = computeReleases({ project: projectAt({ root: crlf.root }) });
 
     expect(
-      crlfTable.changelogs.map(entry => ({ title: entry.title, packages: entry.packages })),
+      crlfTable.changelogs.map((entry) => ({ title: entry.title, packages: entry.packages })),
     ).toEqual([{ title: 'Crlf', packages: ['web'] }]);
   });
 });

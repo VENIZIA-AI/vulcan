@@ -160,7 +160,9 @@ export class SymbolStore extends BaseHelper {
     const packageMap = this.packageMap;
     const wanted = packageOfQuery({ value: opts.package, packageMap });
 
-    return found.filter(record => packageOfQuery({ value: record.package, packageMap }) === wanted);
+    return found.filter(
+      (record) => packageOfQuery({ value: record.package, packageMap }) === wanted,
+    );
   }
 
   /** The closest known names to `name`: prefix matches first, then substrings, then near-misses. */
@@ -171,19 +173,19 @@ export class SymbolStore extends BaseHelper {
     const wanted = opts.name.toLowerCase();
     const lowerNames = [...this.namesByLowerCase.keys()];
 
-    const prefixed = lowerNames.filter(name => name.startsWith(wanted)).sort(byName);
-    const contained = lowerNames.filter(name => name.includes(wanted)).sort(byName);
+    const prefixed = lowerNames.filter((name) => name.startsWith(wanted)).sort(byName);
+    const contained = lowerNames.filter((name) => name.includes(wanted)).sort(byName);
     const near = lowerNames
-      .map(name => ({
+      .map((name) => ({
         name,
         distance: distanceWithin({ left: wanted, right: name, max: MAX_SUGGESTION_DISTANCE }),
       }))
-      .filter(entry => entry.distance <= MAX_SUGGESTION_DISTANCE)
+      .filter((entry) => entry.distance <= MAX_SUGGESTION_DISTANCE)
       .sort((left, right) => left.distance - right.distance || byName(left.name, right.name))
-      .map(entry => entry.name);
+      .map((entry) => entry.name);
 
     const ordered = dedupe([...prefixed, ...contained, ...near]).flatMap(
-      lower => this.namesByLowerCase.get(lower) ?? [],
+      (lower) => this.namesByLowerCase.get(lower) ?? [],
     );
 
     return ordered.slice(0, limit);

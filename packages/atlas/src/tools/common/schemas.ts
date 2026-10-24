@@ -49,7 +49,7 @@ const INVALID_TYPE_PREFIX_PATTERN = /^Invalid input: /;
 
 /** `path: reason`, the zod default message stripped of its generic "Invalid input: " prefix. */
 const messageOf = (opts: { issue: z.core.$ZodIssue }): string => {
-  const path = opts.issue.path.map(segment => String(segment)).join('.');
+  const path = opts.issue.path.map((segment) => String(segment)).join('.');
   const reason = opts.issue.message.replace(INVALID_TYPE_PREFIX_PATTERN, '');
 
   return path.length > 0 ? `${path}: ${reason}` : reason;

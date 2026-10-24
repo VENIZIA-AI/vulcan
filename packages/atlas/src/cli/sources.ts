@@ -43,7 +43,7 @@ export const readUserSources = (opts: { configHome?: string } = {}): IAtlasSourc
     readFileSync(file, 'utf8'),
   );
 
-  return (config.sources ?? []).flatMap(source =>
+  return (config.sources ?? []).flatMap((source) =>
     typeof source.name === 'string' && typeof source.repo === 'string'
       ? [
           {

@@ -64,7 +64,7 @@ describe('skillCatalogOf', () => {
     shipped({ root, name: 'build-a-feature', description: 'Builds. Use when the user builds.' });
     own({ root, name: 'acme-release', description: 'Ships. Use when the user ships.' });
 
-    expect(skillCatalogOf({ root }).map(entry => [entry.name, entry.source])).toEqual([
+    expect(skillCatalogOf({ root }).map((entry) => [entry.name, entry.source])).toEqual([
       ['acme-release', 'project'],
       ['build-a-feature', 'shipped'],
       ['docs-update', 'shipped'],
@@ -85,16 +85,16 @@ describe('skillCatalogOf', () => {
     const root = makeTempDirectory({ prefix: 'atlas-skills-' });
 
     own({ root, name: 'acme-a', description: 'A. Use when the user wants a.' });
-    expect(skillCatalogOf({ root }).map(entry => entry.name)).toEqual(['acme-a']);
+    expect(skillCatalogOf({ root }).map((entry) => entry.name)).toEqual(['acme-a']);
 
     own({ root, name: 'acme-b', description: 'B. Use when the user wants b.' });
-    expect(skillCatalogOf({ root }).map(entry => entry.name)).toEqual(['acme-a', 'acme-b']);
+    expect(skillCatalogOf({ root }).map((entry) => entry.name)).toEqual(['acme-a', 'acme-b']);
 
     renameSync(join(root, '.agents/skills/acme-a'), join(root, '.agents/skills/acme-c'));
-    expect(skillCatalogOf({ root }).map(entry => entry.name)).toEqual(['acme-b', 'acme-c']);
+    expect(skillCatalogOf({ root }).map((entry) => entry.name)).toEqual(['acme-b', 'acme-c']);
 
     rmSync(join(root, '.agents/skills/acme-b'), { recursive: true });
-    expect(skillCatalogOf({ root }).map(entry => entry.name)).toEqual(['acme-c']);
+    expect(skillCatalogOf({ root }).map((entry) => entry.name)).toEqual(['acme-c']);
   });
 
   test('a folder with no SKILL.md is not a skill, and no vulcan installed is no shipped skill', () => {

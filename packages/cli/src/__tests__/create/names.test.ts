@@ -133,7 +133,7 @@ describe('resolveNames', () => {
       ],
       args: [],
       interactive: true,
-      ask: opts => {
+      ask: (opts) => {
         seen.push(opts);
 
         return '';
@@ -163,7 +163,7 @@ describe('resolveNames', () => {
       ],
       args: [],
       interactive: true,
-      ask: opts => {
+      ask: (opts) => {
         asked.push(opts.question);
 
         return 'other';
@@ -212,32 +212,32 @@ describe('readLine', () => {
   };
 
   test('a bare newline is the empty string, not an abort', () => {
-    withInput({ content: '\n', run: descriptor => expect(readLine({ descriptor })).toBe('') });
+    withInput({ content: '\n', run: (descriptor) => expect(readLine({ descriptor })).toBe('') });
   });
 
   test('a text line is returned without its newline', () => {
     withInput({
       content: 'services\n',
-      run: descriptor => expect(readLine({ descriptor })).toBe('services'),
+      run: (descriptor) => expect(readLine({ descriptor })).toBe('services'),
     });
   });
 
   test('a trailing carriage return is stripped', () => {
     withInput({
       content: 'services\r\n',
-      run: descriptor => expect(readLine({ descriptor })).toBe('services'),
+      run: (descriptor) => expect(readLine({ descriptor })).toBe('services'),
     });
-    withInput({ content: '\r\n', run: descriptor => expect(readLine({ descriptor })).toBe('') });
+    withInput({ content: '\r\n', run: (descriptor) => expect(readLine({ descriptor })).toBe('') });
   });
 
   test('end of input with nothing read is null, the abort', () => {
-    withInput({ content: '', run: descriptor => expect(readLine({ descriptor })).toBeNull() });
+    withInput({ content: '', run: (descriptor) => expect(readLine({ descriptor })).toBeNull() });
   });
 
   test('a line then end of input: the line, then null', () => {
     withInput({
       content: 'libs\n',
-      run: descriptor => {
+      run: (descriptor) => {
         expect(readLine({ descriptor })).toBe('libs');
         expect(readLine({ descriptor })).toBeNull();
       },
@@ -247,7 +247,7 @@ describe('readLine', () => {
   test('lines are read one at a time and an empty one between them stays empty', () => {
     withInput({
       content: 'a\n\nb\n',
-      run: descriptor => {
+      run: (descriptor) => {
         expect(readLine({ descriptor })).toBe('a');
         expect(readLine({ descriptor })).toBe('');
         expect(readLine({ descriptor })).toBe('b');
@@ -259,7 +259,7 @@ describe('readLine', () => {
   test('text before end of input without a newline is still an answer', () => {
     withInput({
       content: 'tail',
-      run: descriptor => {
+      run: (descriptor) => {
         expect(readLine({ descriptor })).toBe('tail');
         expect(readLine({ descriptor })).toBeNull();
       },
@@ -269,7 +269,7 @@ describe('readLine', () => {
   test('multi-byte characters survive the byte-wise read', () => {
     withInput({
       content: 'caf\u00e9\n',
-      run: descriptor => expect(readLine({ descriptor })).toBe('caf\u00e9'),
+      run: (descriptor) => expect(readLine({ descriptor })).toBe('caf\u00e9'),
     });
   });
 

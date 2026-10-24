@@ -230,7 +230,7 @@ const checkIndex = (opts: { file: IBundleFile }): IConformanceIssue[] => {
   }
 
   const issues: IConformanceIssue[] = [];
-  const extraKeys = Object.keys(parsed.data).filter(key => key !== SpecConstants.VERSION_KEY);
+  const extraKeys = Object.keys(parsed.data).filter((key) => key !== SpecConstants.VERSION_KEY);
 
   if (extraKeys.length > 0) {
     issues.push(
@@ -305,7 +305,7 @@ const checkLog = (opts: { file: IBundleFile }): IConformanceIssue[] => {
 
 /** OKF v0.2 conformance (§11) plus soft guidance. Never throws: every finding is an issue. */
 export const checkBundle = (opts: { files: IBundleFile[] }): IConformanceIssue[] =>
-  opts.files.flatMap(file => {
+  opts.files.flatMap((file) => {
     switch (getBaseName({ path: file.path })) {
       case ReservedFiles.INDEX: {
         return checkIndex({ file });

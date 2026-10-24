@@ -72,7 +72,7 @@ export const lsRemoteByHttp = async (opts: {
   }
 
   const refs = new Map(
-    [...Buffer.from(body).toString('utf8').matchAll(ADVERTISED_REF)].map(match => [
+    [...Buffer.from(body).toString('utf8').matchAll(ADVERTISED_REF)].map((match) => [
       match[2],
       match[1],
     ]),
@@ -132,8 +132,10 @@ export const extractTarball = (opts: {
     throw new Error(`atlas: could not read the tarball: ${listed.stderr}`);
   }
 
-  const members = listed.stdout.split('\n').map(member => member.slice(member.indexOf('/') + 1));
-  const present = opts.paths.filter(path => members.some(member => member.startsWith(`${path}/`)));
+  const members = listed.stdout.split('\n').map((member) => member.slice(member.indexOf('/') + 1));
+  const present = opts.paths.filter((path) =>
+    members.some((member) => member.startsWith(`${path}/`)),
+  );
 
   mkdirSync(opts.directory, { recursive: true });
 
@@ -150,7 +152,7 @@ export const extractTarball = (opts: {
       opts.directory,
       '--strip-components=1',
       '--wildcards',
-      ...present.map(path => `*/${path}/*`),
+      ...present.map((path) => `*/${path}/*`),
     ],
     { encoding: 'utf8' },
   );

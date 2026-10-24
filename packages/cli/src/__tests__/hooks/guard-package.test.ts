@@ -279,8 +279,8 @@ describe('the shipped settings', () => {
     const entries: { matcher?: string; hooks: { command: string }[] }[] = JSON.parse(
       readFileSync(SETTINGS, 'utf8'),
     ).hooks.PreToolUse;
-    const entry = entries.find(item =>
-      item.hooks.some(hook => hook.command.includes('hooks/guard-package.ts')),
+    const entry = entries.find((item) =>
+      item.hooks.some((hook) => hook.command.includes('hooks/guard-package.ts')),
     );
 
     expect(entry?.matcher).toBe('Write');

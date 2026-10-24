@@ -114,7 +114,7 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
   const accepted = ACCEPTED_ARGS[name];
 
   if (accepted !== undefined) {
-    if (args.some(arg => HELP_ALIASES.has(arg))) {
+    if (args.some((arg) => HELP_ALIASES.has(arg))) {
       return runHelpCommand();
     }
 

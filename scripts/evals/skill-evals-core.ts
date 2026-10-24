@@ -117,8 +117,8 @@ export const parseSkillEvalArgs = (opts: { args: string[] }): ISkillEvalArgs => 
   }
 
   const models = (values.get('--models')?.split(',') ?? SkillEvalConstants.MODELS)
-    .map(model => model.trim())
-    .filter(model => model.length > 0);
+    .map((model) => model.trim())
+    .filter((model) => model.length > 0);
   const grader = values.get('--grader') ?? SkillEvalConstants.GRADER;
 
   for (const model of models) {
@@ -265,8 +265,8 @@ export const buildPlan = (opts: {
   out: string;
   maxBudgetUsd?: string;
 }): ISkillEvalRun[] =>
-  opts.evaluations.flatMap(evaluation =>
-    opts.models.map(model => {
+  opts.evaluations.flatMap((evaluation) =>
+    opts.models.map((model) => {
       const runDirectory = join(opts.out, opts.skill, evaluation.id, model);
       const outputsDirectory = join(runDirectory, SkillEvalConstants.OUTPUTS_DIRECTORY);
 
@@ -283,7 +283,7 @@ export const buildPlan = (opts: {
 /** A command as a shell line, for the plan: an empty or spaced argument is quoted. */
 export const toCommandLine = (opts: { command: string[] }): string =>
   opts.command
-    .map(part =>
+    .map((part) =>
       /^[A-Za-z0-9_./:=,@-]+$/.test(part) ? part : `'${part.replaceAll("'", "'\\''")}'`,
     )
     .join(' ');
@@ -330,7 +330,7 @@ export const buildGraderPrompt = (opts: {
     '',
     'The files the model wrote:',
     ...opts.outputs.map(
-      output => `<file name="${output.name}">\n${output.content.trimEnd()}\n</file>`,
+      (output) => `<file name="${output.name}">\n${output.content.trimEnd()}\n</file>`,
     ),
     '',
     'Reply with only a JSON object, {"pass": boolean, "reasons": string[]}, most important reason first.',
@@ -371,7 +371,7 @@ const toVerdict = (opts: { value: unknown }): IVerdict | undefined => {
     !isRecord(value) ||
     typeof value.pass !== 'boolean' ||
     !Array.isArray(value.reasons) ||
-    !value.reasons.every(reason => typeof reason === 'string')
+    !value.reasons.every((reason) => typeof reason === 'string')
   ) {
     return undefined;
   }
@@ -420,15 +420,15 @@ export const renderReport = (opts: {
   grader: string;
   results: ISkillEvalResult[];
 }): string => {
-  const passed = opts.results.filter(result => result.verdict.pass).length;
-  const costs = opts.results.flatMap(result =>
+  const passed = opts.results.filter((result) => result.verdict.pass).length;
+  const costs = opts.results.flatMap((result) =>
     result.costUsd === undefined ? [] : [result.costUsd],
   );
   const cost =
     costs.length === 0
       ? ''
       : ` Cost $${costs.reduce((sum, value) => sum + value, 0).toFixed(2)} (as claude reported it).`;
-  const rows = opts.results.map(result => {
+  const rows = opts.results.map((result) => {
     const cells = [
       result.evalId,
       result.model,

@@ -14,8 +14,8 @@ export const pad = (opts: { value: string; width: number }): string => {
 };
 
 export const coverage = async (): Promise<void> => {
-  const concepts = loadConceptsOrExit().filter(concept => !concept.reserved);
-  const ids = new Set(concepts.map(concept => concept.id));
+  const concepts = loadConceptsOrExit().filter((concept) => !concept.reserved);
+  const ids = new Set(concepts.map((concept) => concept.id));
 
   const hasId = (opts: { id: string }): boolean => ids.has(opts.id);
   const resources = resourceKeysOf({ concepts });
@@ -30,7 +30,7 @@ export const coverage = async (): Promise<void> => {
   }): void => {
     const { name, items, covered } = opts;
 
-    const missing = items.filter(item => !covered(item));
+    const missing = items.filter((item) => !covered(item));
     const value = items.length - missing.length;
 
     structCovered += value;
@@ -57,7 +57,7 @@ export const coverage = async (): Promise<void> => {
     struct({
       name: axis.name,
       items: axis.items,
-      covered: item => isItemCovered({ axis, item, ids, resources }),
+      covered: (item) => isItemCovered({ axis, item, ids, resources }),
     });
   }
 
@@ -79,13 +79,13 @@ export const coverage = async (): Promise<void> => {
     const facts = renderer.collect({ context });
     const row = renderer.coverage({ facts });
     const rendered = renderer.render?.({ context, facts });
-    const paths = rendered === undefined ? [] : [rendered].flat().map(file => file.path);
+    const paths = rendered === undefined ? [] : [rendered].flat().map((file) => file.path);
 
     ref({
       name: row.name,
       count: row.count,
       generated:
-        paths.length > 0 && paths.every(path => hasId({ id: '/' + path.replace(/\.md$/, '') })),
+        paths.length > 0 && paths.every((path) => hasId({ id: '/' + path.replace(/\.md$/, '') })),
     });
   }
 

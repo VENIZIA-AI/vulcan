@@ -28,7 +28,9 @@ const skillsParagraph = (opts: { skills: ISkillLine[] }): string[] =>
     : [
         [
           'Skills: a request matches one, load it before you answer. A workflow question counts.',
-          ...opts.skills.map(skill => `- \`${skill.name}\`: ${shortened({ text: skill.trigger })}`),
+          ...opts.skills.map(
+            (skill) => `- \`${skill.name}\`: ${shortened({ text: skill.trigger })}`,
+          ),
         ].join('\n'),
         '',
       ];
@@ -41,7 +43,7 @@ const joinNames = (opts: { names: string[] }): string =>
 
 /** The projects atlas holds, in the order the config lists them. */
 export const projectsOf = (opts: { sources: IResolvedSource[] }): string =>
-  joinNames({ names: opts.sources.map(source => source.name) });
+  joinNames({ names: opts.sources.map((source) => source.name) });
 
 /** `@venizia/*`, `@acme/*`: the npm scopes of the packages these projects publish; a bare name stands for itself. */
 const packageScopesOf = (opts: { sources: IResolvedSource[] }): string => {
@@ -60,7 +62,7 @@ const packageScopesOf = (opts: { sources: IResolvedSource[] }): string => {
 
 /** How each source was reached and which could not be served: a client sees it on initialize. */
 const statusOf = (opts: { sources: IResolvedSource[]; unavailable: IUnavailableSource[] }) => {
-  const lines = opts.sources.map(source => {
+  const lines = opts.sources.map((source) => {
     if (source.mode === 'repository') {
       return `- ${source.name}: this repository, live`;
     }
@@ -96,7 +98,7 @@ const SCOPES_MAX = 3;
 
 /** The corpora as the lead names them: at most four, the rest counted, so the lead keeps to 512 characters. */
 const corporaPhrase = (opts: { sources: IResolvedSource[] }): string => {
-  const names = opts.sources.map(source =>
+  const names = opts.sources.map((source) =>
     source.mode === 'repository' ? `${source.name} (this repository)` : source.name,
   );
 
@@ -110,7 +112,7 @@ const corporaPhrase = (opts: { sources: IResolvedSource[] }): string => {
 const scopesPhrase = (opts: { sources: IResolvedSource[] }): string => {
   const scopes = packageScopesOf(opts)
     .split(', ')
-    .filter(scope => scope !== '');
+    .filter((scope) => scope !== '');
 
   if (scopes.length === 0) {
     return 'their packages';

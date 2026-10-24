@@ -43,7 +43,7 @@ describe('buildVizData', () => {
       { source: '/packages/a', target: '/packages/b' },
       { source: '/packages/b', target: '/packages/a' },
     ]);
-    expect(data.nodes.map(node => node.degree)).toEqual([2, 2]);
+    expect(data.nodes.map((node) => node.degree)).toEqual([2, 2]);
   });
 
   test('reserved files (index.md, log.md) are not nodes', () => {
@@ -51,7 +51,7 @@ describe('buildVizData', () => {
       concepts: [makeConcept({ id: '/index', reserved: true }), makeConcept({ id: '/packages/a' })],
     });
 
-    expect(data.nodes.map(node => node.id)).toEqual(['/packages/a']);
+    expect(data.nodes.map((node) => node.id)).toEqual(['/packages/a']);
   });
 
   test('sections follow the configured order, unknown sections after them in name order', () => {
@@ -64,13 +64,13 @@ describe('buildVizData', () => {
       ],
     });
 
-    expect(data.sections.map(section => section.key)).toEqual([
+    expect(data.sections.map((section) => section.key)).toEqual([
       'overview',
       'packages',
       'alpha-beta',
       'zeta',
     ]);
-    expect(data.sections.find(section => section.key === 'alpha-beta')?.label).toBe('Alpha Beta');
+    expect(data.sections.find((section) => section.key === 'alpha-beta')?.label).toBe('Alpha Beta');
   });
 
   test('a node carries its resource, so the reader can show its source', () => {

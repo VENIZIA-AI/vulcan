@@ -172,11 +172,11 @@ export const inspectPackageWrite = (opts: {
   const what = isLib ? 'lib' : `${key} app`;
   const commands = isLib
     ? project.presets
-        .filter(preset => preset.lib)
-        .map(preset => `${ADD} --preset ${preset.spec} --lib ${created.name}`)
+        .filter((preset) => preset.lib)
+        .map((preset) => `${ADD} --preset ${preset.spec} --lib ${created.name}`)
     : project.presets
-        .filter(preset => preset.side === key)
-        .map(preset => appCommand({ preset, name: created.name }));
+        .filter((preset) => preset.side === key)
+        .map((preset) => appCommand({ preset, name: created.name }));
 
   if (commands.length > 0) {
     return {

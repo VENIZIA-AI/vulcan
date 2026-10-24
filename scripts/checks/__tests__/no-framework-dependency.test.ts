@@ -14,10 +14,10 @@ test('no VULCAN source file imports the IGNIS framework', () => {
   const files = [
     ...new Glob('packages/*/{src,base,scripts}/**/*.ts').scanSync({ cwd: ROOT }),
     ...new Glob('scripts/**/*.ts').scanSync({ cwd: ROOT }),
-  ].filter(file => !file.includes('/node_modules/'));
+  ].filter((file) => !file.includes('/node_modules/'));
 
   expect(files.length).toBeGreaterThan(100);
-  expect(files.filter(file => IMPORT.test(readFileSync(join(ROOT, file), 'utf8')))).toEqual([]);
+  expect(files.filter((file) => IMPORT.test(readFileSync(join(ROOT, file), 'utf8')))).toEqual([]);
 });
 
 test('no VULCAN package or the root catalog declares the IGNIS framework', () => {
@@ -29,6 +29,6 @@ test('no VULCAN package or the root catalog declares the IGNIS framework', () =>
   ];
 
   expect(
-    manifests.filter(file => readFileSync(join(ROOT, file), 'utf8').includes(FRAMEWORK)),
+    manifests.filter((file) => readFileSync(join(ROOT, file), 'utf8').includes(FRAMEWORK)),
   ).toEqual([]);
 });

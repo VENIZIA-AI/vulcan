@@ -16,11 +16,11 @@ export const AGENT_ENTRY_SCHEMA = z
       shim: z.strictObject({ path: z.string(), content: z.string() }).nullable(),
     }),
     mcp: z.strictObject({
-      scope: z.string().refine(value => AgentScopes.isValid(value), {
+      scope: z.string().refine((value) => AgentScopes.isValid(value), {
         message: `one of: ${[...AgentScopes.SCHEME_SET].join(', ')}`,
       }),
       path: z.string().min(1),
-      renderer: z.string().refine(value => AgentRenderers.isValid(value), {
+      renderer: z.string().refine((value) => AgentRenderers.isValid(value), {
         message: `one of: ${[...AgentRenderers.SCHEME_SET].join(', ')}`,
       }),
     }),

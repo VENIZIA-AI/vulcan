@@ -36,7 +36,7 @@ export const planLocalIgnore = (opts: { root: string }): ISyncAction[] => {
 
   const text = readFileSync(path, 'utf8');
 
-  if (text.split('\n').some(line => line.trim() === LOCAL_AGENTS_FILE)) {
+  if (text.split('\n').some((line) => line.trim() === LOCAL_AGENTS_FILE)) {
     return [];
   }
 

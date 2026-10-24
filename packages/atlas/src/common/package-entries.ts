@@ -13,7 +13,7 @@ export const declarationEntriesOf = (
       subpath,
       types: typeof target === 'string' ? target : (target.types ?? ''),
     }))
-    .filter(entry => DECLARATION_FILE.test(entry.types));
+    .filter((entry) => DECLARATION_FILE.test(entry.types));
 
 /** Any package directory - a project's own, an installed one, an unpacked tarball - and its typed entries. */
 export const readPackageDirectory = (opts: {
@@ -23,7 +23,7 @@ export const readPackageDirectory = (opts: {
   const manifest: IPackageManifest = JSON.parse(
     readFileSync(resolve(opts.directory, 'package.json'), 'utf8'),
   );
-  const entries = declarationEntriesOf({ exports: manifest.exports ?? {} }).map(entry => ({
+  const entries = declarationEntriesOf({ exports: manifest.exports ?? {} }).map((entry) => ({
     subpath: entry.subpath,
     file: resolve(opts.directory, entry.types),
   }));

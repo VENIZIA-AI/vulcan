@@ -70,7 +70,7 @@ const makeProject = (opts: {
 
   const config = {
     okf: {
-      renderers: opts.modules.map(module => ({
+      renderers: opts.modules.map((module) => ({
         id: module.id,
         module: `.agents/okf/${module.id}.ts`,
       })),

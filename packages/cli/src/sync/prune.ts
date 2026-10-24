@@ -111,14 +111,14 @@ export const planPrune = (opts: { root: string }): ISyncAction[] => {
   const staleCommands = [
     ...new Set(extractHookCommands({ settings: readJson({ path: settingsPath }) })),
   ].filter(
-    command => !managed.has(command) && isStaleCommand({ root: opts.root, command, shipped }),
+    (command) => !managed.has(command) && isStaleCommand({ root: opts.root, command, shipped }),
   );
   const skills = join(directory, SyncConstants.SKILLS_DIRECTORY);
   // lstat, not stat: a symlinked skills directory leads out of the project and is never walked.
   const deadLinks = lstatSync(skills, { throwIfNoEntry: false })?.isDirectory()
     ? readdirSync(skills)
-        .map(name => join(skills, name))
-        .filter(path => isDeadLink({ path }))
+        .map((name) => join(skills, name))
+        .filter((path) => isDeadLink({ path }))
     : [];
 
   return [

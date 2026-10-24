@@ -19,7 +19,7 @@ describe('findConfigFiles', () => {
       },
     });
 
-    expect(findConfigFiles({ root }).map(file => file.split('/').pop())).toEqual([
+    expect(findConfigFiles({ root }).map((file) => file.split('/').pop())).toEqual([
       'vulcan.config.ts',
       'vulcan.config.js',
     ]);

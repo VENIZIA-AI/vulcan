@@ -90,7 +90,7 @@ test('a region takes its renderer from the built-ins when okf.renderers does not
   });
   const { regions } = await loadGeneration();
 
-  expect(regions.map(region => region.id)).toEqual(['packages-table']);
+  expect(regions.map((region) => region.id)).toEqual(['packages-table']);
   expect(regions[0].file).toBe(join(FIXTURES, '.agents/knowledge/overview/layout.md'));
 });
 

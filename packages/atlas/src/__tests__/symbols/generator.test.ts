@@ -82,8 +82,8 @@ describe.skipIf(!IGNIS_IS_BUILT || !existsSync(join(IGNIS_ROOT, '.agents/vulcan.
       "renders IGNIS's live packages, each mapped to its npm name",
       () => {
         const packages = readAtlasProject({ root: IGNIS_ROOT })
-          .packages.filter(entry => !entry.retired)
-          .map(entry => entry.dir);
+          .packages.filter((entry) => !entry.retired)
+          .map((entry) => entry.dir);
         const { packageMap, symbols } = JSON.parse(
           AtlasSymbols.render({ repoRoot: IGNIS_ROOT, packages }),
         );

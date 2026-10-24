@@ -87,8 +87,8 @@ const recordedShas = (opts: { cacheRoot: string }): Set<string> => {
 
   return new Set(
     readdirSync(directory)
-      .filter(name => name.startsWith('ref-'))
-      .map(name => readFileSync(join(directory, name), 'utf8').trim()),
+      .filter((name) => name.startsWith('ref-'))
+      .map((name) => readFileSync(join(directory, name), 'utf8').trim()),
   );
 };
 
@@ -149,15 +149,15 @@ const completeShas = (opts: { cacheRoot: string }): string[] => {
   }
 
   return readdirSync(opts.cacheRoot)
-    .filter(name => name.endsWith('.atlas'))
-    .map(name => name.slice(0, -'.atlas'.length))
-    .filter(sha => isComplete({ cacheRoot: opts.cacheRoot, sha }))
-    .map(sha => ({
+    .filter((name) => name.endsWith('.atlas'))
+    .map((name) => name.slice(0, -'.atlas'.length))
+    .filter((sha) => isComplete({ cacheRoot: opts.cacheRoot, sha }))
+    .map((sha) => ({
       sha,
       at: statSync(join(artifactsOf({ cacheRoot: opts.cacheRoot, sha }), COMPLETE)).mtimeMs,
     }))
     .sort((left, right) => right.at - left.at)
-    .map(entry => entry.sha);
+    .map((entry) => entry.sha);
 };
 
 /** The SHA last served for `ref`, for an offline start - never another ref's. */
@@ -177,9 +177,9 @@ const lastServedFor = (opts: { cacheRoot: string; ref: string }): string | undef
 const pruneOlderShas = (opts: { cacheRoot: string; served: string }): void => {
   const recorded = recordedShas(opts);
   const older = completeShas(opts)
-    .filter(sha => sha !== opts.served)
+    .filter((sha) => sha !== opts.served)
     .slice(KEPT_SHAS - 1)
-    .filter(sha => !recorded.has(sha));
+    .filter((sha) => !recorded.has(sha));
 
   for (const sha of older) {
     rmSync(checkoutOf({ cacheRoot: opts.cacheRoot, sha }), { recursive: true, force: true });
@@ -202,11 +202,11 @@ const declaredPathsOf = (opts: { project: IAtlasProject; checkout: string }): st
     '.agents',
     ...[bundle, wiki, changelogs]
       .filter((path): path is string => path !== undefined)
-      .map(path => relative(opts.checkout, path)),
+      .map((path) => relative(opts.checkout, path)),
   ];
 
   return [...new Set(paths)].filter(
-    path => !paths.some(other => other !== path && path.startsWith(`${other}/`)),
+    (path) => !paths.some((other) => other !== path && path.startsWith(`${other}/`)),
   );
 };
 
@@ -220,7 +220,7 @@ const fetchPublishedSymbols = async (opts: {
   project: IAtlasProject;
   releases: IReleaseTable;
 }): Promise<void> => {
-  for (const entry of opts.project.packages.filter(item => !item.retired)) {
+  for (const entry of opts.project.packages.filter((item) => !item.retired)) {
     const version = opts.releases.releases[entry.dir]?.[0]?.version;
 
     if (version === undefined) {
@@ -263,7 +263,7 @@ const buildArtifacts = async (opts: {
 
   rmSync(partial, { recursive: true, force: true });
   mkdirSync(partial, { recursive: true });
-  store.add({ chunks: documents.flatMap(document => chunker.chunk({ document })) });
+  store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
   writeFileSync(join(partial, INDEX), store.serialize());
   store.close();
 

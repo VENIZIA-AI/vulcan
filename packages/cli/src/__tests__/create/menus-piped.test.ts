@@ -50,7 +50,7 @@ describe.skipIf(!hasScript)('a menu that is fed piped lines stops instead of wai
     expect(result.plain).toContain('reads key presses, not lines');
     expect(existsSync(join(parent, 'my-product'))).toBe(false);
     // The refusal ends the flow through its `finally`: the scratch folder of the preset is gone.
-    expect(readdirSync(tmp).filter(name => name.startsWith('vulcan-preset-'))).toEqual([]);
+    expect(readdirSync(tmp).filter((name) => name.startsWith('vulcan-preset-'))).toEqual([]);
   });
 
   test('a real Enter (CR) still works, and so does TERM=dumb with piped lines', async () => {

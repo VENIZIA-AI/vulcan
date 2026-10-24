@@ -43,7 +43,7 @@ export const renderPages = (opts: { renderers: ILoadedRenderer[] }): IRenderedPa
         throw new Error(`okf: renderer '${renderer.id}' writes ${file.path}, outside the bundle`);
       }
 
-      const owner = pages.find(page => page.path === path);
+      const owner = pages.find((page) => page.path === path);
 
       if (owner !== undefined) {
         throw new Error(

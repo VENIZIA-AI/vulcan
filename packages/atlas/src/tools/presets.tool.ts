@@ -43,8 +43,8 @@ const libFolderOf = (opts: { project: IAtlasProject | undefined }): string | nul
   const folders = [
     ...new Set(
       (opts.project?.packages ?? [])
-        .filter(entry => entry.kind === 'lib' && !entry.retired)
-        .map(entry => dirname(entry.path)),
+        .filter((entry) => entry.kind === 'lib' && !entry.retired)
+        .map((entry) => dirname(entry.path)),
     ),
   ];
 
@@ -128,8 +128,8 @@ export const buildPresetsTool = (opts: {
       kind === 'app'
         ? [
             ...recorded
-              .filter(preset => fits(preset.side))
-              .map(preset =>
+              .filter((preset) => fits(preset.side))
+              .map((preset) =>
                 appEntry({
                   project,
                   spec: preset.spec,
@@ -140,10 +140,10 @@ export const buildPresetsTool = (opts: {
                 }),
               ),
             ...OFFICIAL_PRESETS.filter(
-              official =>
+              (official) =>
                 fits(official.side) &&
-                !recorded.some(preset => officialIdOf({ spec: preset.spec }) === official.id),
-            ).map(official =>
+                !recorded.some((preset) => officialIdOf({ spec: preset.spec }) === official.id),
+            ).map((official) =>
               appEntry({
                 project,
                 spec: official.id,
@@ -156,8 +156,8 @@ export const buildPresetsTool = (opts: {
           ]
         : [
             ...recorded
-              .filter(preset => preset.lib !== undefined)
-              .map(preset =>
+              .filter((preset) => preset.lib !== undefined)
+              .map((preset) =>
                 libEntry({
                   project,
                   spec: preset.spec,
@@ -167,12 +167,12 @@ export const buildPresetsTool = (opts: {
                 }),
               ),
             ...OFFICIAL_PRESETS.filter(
-              official =>
+              (official) =>
                 !recorded.some(
-                  preset =>
+                  (preset) =>
                     officialIdOf({ spec: preset.spec }) === official.id && preset.lib !== undefined,
                 ),
-            ).map(official =>
+            ).map((official) =>
               libEntry({
                 project,
                 spec: official.id,
@@ -191,7 +191,7 @@ export const buildPresetsTool = (opts: {
       };
     }
 
-    if (entries.some(entry => entry.inProject)) {
+    if (entries.some((entry) => entry.inProject)) {
       return { kind, presets: entries };
     }
 

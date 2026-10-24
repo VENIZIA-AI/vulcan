@@ -42,7 +42,7 @@ describe('--source and the user config', () => {
   test('--source repeats, in both spellings', () => {
     expect(
       readSourceArguments({ argv: ['mcp', '--source', 'a/one', '--source=b/two@main'] }).map(
-        source => source.name,
+        (source) => source.name,
       ),
     ).toEqual(['one', 'two']);
   });
@@ -98,12 +98,12 @@ describe('vulcan-atlas over git sources', () => {
       args: ['mcp', '--source', `${source.url}@develop`],
       cwd: makeTempDirectory({ prefix: 'atlas-empty-' }),
       cache: makeTempDirectory({ prefix: 'atlas-cache-' }),
-      input: `${requests.map(request => JSON.stringify(request)).join('\n')}\n`,
+      input: `${requests.map((request) => JSON.stringify(request)).join('\n')}\n`,
     });
     const replies = result.stdout
       .split('\n')
-      .filter(line => line.trim().length > 0)
-      .map(line => JSON.parse(line));
+      .filter((line) => line.trim().length > 0)
+      .map((line) => JSON.parse(line));
     const sha = git({ cwd: source.work, args: ['rev-parse', 'HEAD'] }).slice(0, 8);
 
     expect(result.stderr).not.toContain('Error');

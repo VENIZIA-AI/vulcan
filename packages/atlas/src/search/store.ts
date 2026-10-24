@@ -197,11 +197,11 @@ export class ChunkStore extends BaseHelper {
 
     // A single-term query has an identical AND and OR plan - the OR pass would only re-fetch rows
     // already in andRows, all filtered back out, so skip it instead of querying twice for nothing.
-    const andIds = new Set(andRows.map(row => row.id));
+    const andIds = new Set(andRows.map((row) => row.id));
     const orRows =
       plan.and === plan.or
         ? []
-        : this.matchRows({ match: plan.or, corpus }).filter(row => !andIds.has(row.id));
+        : this.matchRows({ match: plan.or, corpus }).filter((row) => !andIds.has(row.id));
 
     const combined = [...andRows, ...orRows];
     const diversified = diversify({
@@ -209,8 +209,8 @@ export class ChunkStore extends BaseHelper {
       maxPerDocument: RankingWeights.MAX_HITS_PER_DOCUMENT,
     });
     const page = diversified.slice(offset, offset + limit);
-    const snippets = this.snippetsFor({ match: plan.or, ids: page.map(row => row.id) });
-    const hits = page.map(row => hitOf({ row, snippet: snippets.get(row.id) ?? '' }));
+    const snippets = this.snippetsFor({ match: plan.or, ids: page.map((row) => row.id) });
+    const hits = page.map((row) => hitOf({ row, snippet: snippets.get(row.id) ?? '' }));
 
     this.logger
       .for('search')
@@ -252,6 +252,6 @@ export class ChunkStore extends BaseHelper {
       .query<ISnippetRow, TSnippetParams>(snippetSql({ idCount: ids.length }))
       .all(match, ...ids);
 
-    return new Map(rows.map(row => [row.id, row.snippet]));
+    return new Map(rows.map((row) => [row.id, row.snippet]));
   }
 }

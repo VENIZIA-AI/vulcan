@@ -40,7 +40,7 @@ const brandOf = (opts: { root: string }): string => {
 };
 
 const packagesOf = (opts: { value: unknown; root: string }): IOkfPackage[] =>
-  arrayOf(opts).flatMap(item => {
+  arrayOf(opts).flatMap((item) => {
     const entry = recordOf({ value: item });
     const dir = entry.dir;
 
@@ -57,7 +57,7 @@ const packagesOf = (opts: { value: unknown; root: string }): IOkfPackage[] =>
   });
 
 const renderersOf = (opts: { value: unknown }): IOkfRendererEntry[] =>
-  arrayOf(opts).flatMap(item => {
+  arrayOf(opts).flatMap((item) => {
     if (typeof item === 'string') {
       return [{ id: item, options: {} }];
     }
@@ -81,7 +81,7 @@ const renderersOf = (opts: { value: unknown }): IOkfRendererEntry[] =>
   });
 
 const regionsOf = (opts: { value: unknown; bundle: string }): IOkfRegionEntry[] =>
-  arrayOf(opts).flatMap(item => {
+  arrayOf(opts).flatMap((item) => {
     const entry = recordOf({ value: item });
     const { id, file, renderer } = entry;
 
@@ -93,7 +93,7 @@ const regionsOf = (opts: { value: unknown; bundle: string }): IOkfRegionEntry[] 
 const coverageOf = (opts: {
   value: unknown;
 }): { name: string; path: string; exclude: string[]; denylist: string[] }[] =>
-  arrayOf(opts).flatMap(item => {
+  arrayOf(opts).flatMap((item) => {
     const entry = recordOf({ value: item });
 
     return typeof entry.name === 'string' && typeof entry.path === 'string'
@@ -113,11 +113,11 @@ const GLOB_CHARACTERS = /[*?[\]{}]/;
 /** `okf.contents.files`: literal paths and globs from the root, as absolute paths, each file once, in the order given. */
 const contentsFilesOf = (opts: { patterns: string[]; root: string }): string[] => [
   ...new Set(
-    opts.patterns.flatMap(pattern =>
+    opts.patterns.flatMap((pattern) =>
       GLOB_CHARACTERS.test(pattern)
         ? [...new Bun.Glob(pattern).scanSync({ cwd: opts.root, onlyFiles: true })]
             .sort()
-            .map(file => resolve(opts.root, file))
+            .map((file) => resolve(opts.root, file))
         : [resolve(opts.root, pattern)],
     ),
   ),
@@ -196,7 +196,7 @@ export const readOkfProject = (): IOkfProject => {
     denylist: new Set(stringsOf({ value: okf.denylist })),
     viz: {
       outputs: (outputs.length > 0 ? outputs : [OkfProjectConstants.DEFAULT_VIZ_OUTPUT]).map(
-        output => resolve(root, output),
+        (output) => resolve(root, output),
       ),
       brand: stringOf({ value: viz.brand, fallback: brandOf({ root }) }),
       ...(copy === undefined ? {} : { copy }),

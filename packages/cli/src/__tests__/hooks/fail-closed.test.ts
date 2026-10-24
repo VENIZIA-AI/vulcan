@@ -43,7 +43,7 @@ const shippedHooks = (): IShippedHook[] => {
   } = JSON.parse(readFileSync(SHIPPED_SETTINGS, 'utf8'));
 
   return Object.entries(settings.hooks).flatMap(([event, entries]) =>
-    entries.flatMap(entry => entry.hooks.map(hook => ({ event, command: hook.command }))),
+    entries.flatMap((entry) => entry.hooks.map((hook) => ({ event, command: hook.command }))),
   );
 };
 
@@ -76,7 +76,7 @@ const BASH_INPUT = (command: string): string =>
 // Claude Code blocks a PreToolUse call only on exit 2; any other failure lets the call through.
 describe('shipped hooks fail closed', () => {
   test('the shipped settings register at least the guard-writes hook', () => {
-    expect(shippedHooks().some(hook => hook.command.includes('guard-writes.ts'))).toBe(true);
+    expect(shippedHooks().some((hook) => hook.command.includes('guard-writes.ts'))).toBe(true);
   });
 
   test('with node_modules absent, every shipped hook exits 2 and says to run bun install', () => {
@@ -94,7 +94,7 @@ describe('shipped hooks fail closed', () => {
   // Phat: CHO PHÉP INSTALL - a blocked bun install would leave the agent unable to repair the cause.
   test('with node_modules absent, guard-writes lets a bare bun install through, nothing else', () => {
     const root = makeRoot();
-    const [guard] = shippedHooks().filter(hook => hook.command.includes('guard-writes.ts'));
+    const [guard] = shippedHooks().filter((hook) => hook.command.includes('guard-writes.ts'));
     const passes = [
       'bun install',
       'bun i',
@@ -170,7 +170,7 @@ describe('shipped hooks fail closed', () => {
   test('with the package installed, guard-writes runs: a read passes, a deploy asks', () => {
     const root = makeRoot();
     const installed = join(root, 'node_modules', '@venizia', 'vulcan');
-    const [guard] = shippedHooks().filter(hook => hook.command.includes('guard-writes.ts'));
+    const [guard] = shippedHooks().filter((hook) => hook.command.includes('guard-writes.ts'));
 
     mkdirSync(dirname(installed), { recursive: true });
     symlinkSync(PACKAGE_ROOT, installed);
@@ -191,7 +191,7 @@ describe('shipped hooks fail closed', () => {
   test('bun itself failing before the hook runs (a broken bunfig.toml) still blocks', () => {
     const root = makeRoot();
     const installed = join(root, 'node_modules', '@venizia', 'vulcan');
-    const [guard] = shippedHooks().filter(hook => hook.command.includes('guard-writes.ts'));
+    const [guard] = shippedHooks().filter((hook) => hook.command.includes('guard-writes.ts'));
 
     mkdirSync(dirname(installed), { recursive: true });
     symlinkSync(PACKAGE_ROOT, installed);

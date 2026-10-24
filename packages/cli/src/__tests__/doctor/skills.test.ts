@@ -116,8 +116,8 @@ describe('doctor [skills]', () => {
       },
     });
     const messages = (await runDoctorChecks({ root }))
-      .filter(violation => violation.check === DoctorChecks.SKILLS)
-      .map(violation => `${violation.file}: ${violation.message}`);
+      .filter((violation) => violation.check === DoctorChecks.SKILLS)
+      .map((violation) => `${violation.file}: ${violation.message}`);
 
     expect(messages).toEqual([
       ".agents/skills/checking-links: SKILL.md: name 'Bad Name' - at most 64 characters of a-z, 0-9 and hyphens, never 'claude' or 'anthropic'",
@@ -130,9 +130,9 @@ describe('doctor [skills]', () => {
 
     expect(shipped.length).toBeGreaterThan(1);
     expect(
-      shipped.flatMap(name =>
+      shipped.flatMap((name) =>
         lintSkill({ directory: join(BASE_DIRECTORY, 'skills', name) }).map(
-          problem => `${name}: ${problem}`,
+          (problem) => `${name}: ${problem}`,
         ),
       ),
     ).toEqual([]);
@@ -148,8 +148,8 @@ describe('doctor [skills] - a project skill named like a shipped one', () => {
       },
     });
     const messages = (await runDoctorChecks({ root }))
-      .filter(violation => violation.check === DoctorChecks.SKILLS)
-      .map(violation => violation.message);
+      .filter((violation) => violation.check === DoctorChecks.SKILLS)
+      .map((violation) => violation.message);
 
     expect(messages).toContain(
       "'knowledge-sync' is a shipped skill - rename the project skill, for example to 'shop-knowledge-sync'",

@@ -65,7 +65,7 @@ const isSkillLink = (opts: { root: string; path: string }): boolean => {
     join(opts.root, '.agents', SyncConstants.SKILLS_DIRECTORY),
   ];
 
-  return shipped.some(directory => target === directory || target.startsWith(`${directory}/`));
+  return shipped.some((directory) => target === directory || target.startsWith(`${directory}/`));
 };
 
 const removeFile = (opts: { path: string; note?: string; parent?: string }): ISyncAction => ({
@@ -191,8 +191,8 @@ const planSkillLinkRemoval = (opts: { root: string; directory: string }): ISyncA
   }
 
   const links = readdirSync(target)
-    .map(name => join(target, name))
-    .filter(path => isSkillLink({ root: opts.root, path }));
+    .map((name) => join(target, name))
+    .filter((path) => isSkillLink({ root: opts.root, path }));
 
   return links.map((path, index) => ({
     path,
@@ -261,16 +261,16 @@ export const planAgentRemoval = (opts: {
 }): ISyncAction[] => {
   const table = readAgentTable();
   const kept = new Set(
-    table.filter(entry => opts.remaining.includes(entry.id)).map(entry => entry.skills.dir),
+    table.filter((entry) => opts.remaining.includes(entry.id)).map((entry) => entry.skills.dir),
   );
   const cleaned = new Set<string>();
   const actions: ISyncAction[] = [];
   const stillReadsShared = table.some(
-    entry => opts.remaining.includes(entry.id) && entry.mcp.scope === AgentScopes.SHARED,
+    (entry) => opts.remaining.includes(entry.id) && entry.mcp.scope === AgentScopes.SHARED,
   );
   let sharedDone = false;
 
-  for (const entry of table.filter(item => opts.removed.includes(item.id))) {
+  for (const entry of table.filter((item) => opts.removed.includes(item.id))) {
     if (entry.id === AgentConstants.DEFAULT_AGENT) {
       actions.push(...planClaudeRemoval({ root: opts.root }));
     }

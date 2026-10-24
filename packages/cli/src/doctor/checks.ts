@@ -64,14 +64,14 @@ const readText = (opts: { file: string }): string =>
 const listDirectories = (opts: { directory: string }): string[] =>
   existsSync(opts.directory)
     ? readdirSync(opts.directory, { withFileTypes: true })
-        .filter(entry => entry.isDirectory())
-        .map(entry => entry.name)
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
     : [];
 
 export const checkLayout = (opts: ICheckContext): IViolation[] =>
   ['AGENTS.md', '.agents/rules.md', opts.config.knowledge.bundle]
-    .filter(path => !existsSync(join(opts.root, path)))
-    .map(path =>
+    .filter((path) => !existsSync(join(opts.root, path)))
+    .map((path) =>
       createViolation({
         check: DoctorChecks.LAYOUT,
         file: path,
@@ -90,8 +90,8 @@ export const checkRuleIds = (opts: ICheckContext): IViolation[] => {
   return parseBaseReferences({
     markdown: readText({ file: join(opts.root, '.agents', 'rules.md') }),
   })
-    .filter(id => base[id] === undefined)
-    .map(id =>
+    .filter((id) => base[id] === undefined)
+    .map((id) =>
       createViolation({
         check: DoctorChecks.RULE_IDS,
         file: '.agents/rules.md',
@@ -132,7 +132,7 @@ export const checkRuleSlots = (opts: ICheckContext): IViolation[] => {
     }
   }
 
-  for (const id of Object.keys(opts.config.rules).filter(ruleId => slots[ruleId] === undefined)) {
+  for (const id of Object.keys(opts.config.rules).filter((ruleId) => slots[ruleId] === undefined)) {
     const namespaced = `${RuleConstants.BASE_NAMESPACE}${id}`;
 
     violations.push(
@@ -154,8 +154,8 @@ export const checkSkills = (opts: ICheckContext): IViolation[] => {
   const shipped = new Set(listDirectories({ directory: join(BASE_DIRECTORY, 'skills') }));
 
   return listDirectories({ directory: join(opts.root, '.agents', 'skills') })
-    .filter(name => shipped.has(name))
-    .map(name =>
+    .filter((name) => shipped.has(name))
+    .map((name) =>
       createViolation({
         check: DoctorChecks.SKILLS,
         file: `.agents/skills/${name}`,
@@ -186,7 +186,7 @@ const findProjectMakefiles = (opts: { root: string }): string[] => {
     })) {
       const matches = [...new Glob(pattern).scanSync({ cwd: opts.root, onlyFiles: true })].sort();
 
-      pending.push(...matches.filter(match => !match.split('/').includes('node_modules')));
+      pending.push(...matches.filter((match) => !match.split('/').includes('node_modules')));
     }
   }
 
@@ -214,7 +214,7 @@ export const checkMake = (opts: ICheckContext): IViolation[] => {
   for (const file of findProjectMakefiles({ root: opts.root })) {
     const targets = parseMakeTargets({ makefile: readText({ file: join(opts.root, file) }) });
 
-    for (const target of targets.filter(name => shipped.has(name))) {
+    for (const target of targets.filter((name) => shipped.has(name))) {
       violations.push(
         createViolation({
           check: DoctorChecks.MAKE,
@@ -230,8 +230,8 @@ export const checkMake = (opts: ICheckContext): IViolation[] => {
 
 export const checkHooks = (opts: ICheckContext): IViolation[] =>
   opts.config.hooks
-    .filter(hook => hook.command.includes(DoctorConstants.SHIPPED_HOOKS_PATH))
-    .map(hook =>
+    .filter((hook) => hook.command.includes(DoctorConstants.SHIPPED_HOOKS_PATH))
+    .map((hook) =>
       createViolation({
         check: DoctorChecks.HOOKS,
         file: opts.configFile,
@@ -245,10 +245,10 @@ export const checkAdapters = (opts: ICheckContext): IViolation[] => {
     config: opts.config,
     agents: resolveAgentsQuietly({ root: opts.root, configAgents: opts.config.agents }),
   })
-    .filter(action => action.status !== SyncStatuses.UNCHANGED)
-    .filter(action => action.path !== join(opts.root, ManifestConstants.FILE));
-  const absent = pending.filter(action => action.status === SyncStatuses.CREATED);
-  const differing = pending.filter(action => action.status !== SyncStatuses.CREATED);
+    .filter((action) => action.status !== SyncStatuses.UNCHANGED)
+    .filter((action) => action.path !== join(opts.root, ManifestConstants.FILE));
+  const absent = pending.filter((action) => action.status === SyncStatuses.CREATED);
+  const differing = pending.filter((action) => action.status !== SyncStatuses.CREATED);
 
   // A clean checkout has none of the gitignored adapters: say so once, with the fix, not once per file.
   const violations =
@@ -264,7 +264,7 @@ export const checkAdapters = (opts: ICheckContext): IViolation[] => {
 
   return [
     ...violations,
-    ...differing.map(action =>
+    ...differing.map((action) =>
       createViolation({
         check: DoctorChecks.ADAPTERS,
         file: relative(opts.root, action.path),
@@ -279,7 +279,7 @@ export const checkAdapters = (opts: ICheckContext): IViolation[] => {
 
 /** What `sync --prune` would remove: an old VULCAN or plugin-era hook command, a dead skill link. */
 export const checkPrune = (opts: ICheckContext): IViolation[] =>
-  planPrune({ root: opts.root }).map(action =>
+  planPrune({ root: opts.root }).map((action) =>
     createViolation({
       check: DoctorChecks.PRUNE,
       file: relative(opts.root, action.path),
@@ -344,11 +344,11 @@ export const checkStyle = (opts: ICheckContext): IViolation[] => {
   const owners = [
     ...new Set([
       '.',
-      ...listDirectories({ directory: join(opts.root, 'packages') }).map(name =>
+      ...listDirectories({ directory: join(opts.root, 'packages') }).map((name) =>
         join('packages', name),
       ),
       ...resolvePackages({ config: opts.config }).map(
-        entry => relative(opts.root, join(opts.root, entry.path)) || '.',
+        (entry) => relative(opts.root, join(opts.root, entry.path)) || '.',
       ),
     ]),
   ];
@@ -358,17 +358,17 @@ export const checkStyle = (opts: ICheckContext): IViolation[] => {
   for (const owner of owners) {
     const configs = join(owner, '.configs');
     const found = ['.', ...new Set(Object.values(DoctorConstants.LINT_CONFIG_FOLDERS))].flatMap(
-      folder => {
+      (folder) => {
         const directory = join(configs, folder);
 
         return existsSync(join(opts.root, directory))
           ? readdirSync(join(opts.root, directory))
-              .filter(file => DoctorConstants.LINT_CONFIG_FILE.test(file))
-              .map(file => ({ file: join(directory, file), name: file, legacy: folder === '.' }))
+              .filter((file) => DoctorConstants.LINT_CONFIG_FILE.test(file))
+              .map((file) => ({ file: join(directory, file), name: file, legacy: folder === '.' }))
           : [];
       },
     );
-    const names = found.map(item => item.file);
+    const names = found.map((item) => item.file);
 
     lintConfigs += names.length;
 
@@ -486,7 +486,7 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
     );
   const names = folders.map(([, folder]) => folder);
 
-  for (const entry of resolvePackages({ config: opts.config }).filter(item => !item.retired)) {
+  for (const entry of resolvePackages({ config: opts.config }).filter((item) => !item.retired)) {
     if (entry.kind === 'lib') {
       const parent = dirname(entry.path);
 
@@ -504,7 +504,7 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
       continue;
     }
 
-    if (!names.some(folder => entry.path.startsWith(`${folder}/`))) {
+    if (!names.some((folder) => entry.path.startsWith(`${folder}/`))) {
       violations.push(
         createViolation({
           check: DoctorChecks.APPS,
@@ -554,8 +554,8 @@ export const checkAppScripts = (opts: ICheckContext): IViolation[] => {
   );
   const notes: IViolation[] = [];
 
-  for (const entry of resolvePackages({ config: opts.config }).filter(item => !item.retired)) {
-    if (!appFolders.some(folder => entry.path.startsWith(`${folder}/`))) {
+  for (const entry of resolvePackages({ config: opts.config }).filter((item) => !item.retired)) {
+    if (!appFolders.some((folder) => entry.path.startsWith(`${folder}/`))) {
       continue;
     }
 
@@ -566,8 +566,8 @@ export const checkAppScripts = (opts: ICheckContext): IViolation[] => {
       continue;
     }
 
-    const missing = AppScripts.STANDARD.filter(name => !names.includes(name));
-    const legacy = AppScripts.LEGACY.filter(name => names.includes(name));
+    const missing = AppScripts.STANDARD.filter((name) => !names.includes(name));
+    const legacy = AppScripts.LEGACY.filter((name) => names.includes(name));
     const parts = [
       ...(missing.length === 0 ? [] : [`missing ${missing.join(', ')}`]),
       ...(legacy.length === 0 ? [] : [`legacy ${legacy.join(', ')} (use the standard names)`]),
@@ -638,7 +638,7 @@ export const checkMcpAtlas = (opts: ICheckContext): IViolation[] => {
   const file = join(opts.root, MCP_FILE);
   const chosen = resolveAgentsQuietly({ root: opts.root, configAgents: opts.config.agents });
   const readsMcpFile = readAgentTable().some(
-    entry => chosen.includes(entry.id) && entry.mcp.scope === AgentScopes.SHARED,
+    (entry) => chosen.includes(entry.id) && entry.mcp.scope === AgentScopes.SHARED,
   );
 
   // The root `.mcp.json` is a per-machine file of the agents that read it; a missing one is the
@@ -760,8 +760,8 @@ export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
   const lines = existsSync(file)
     ? readText({ file })
         .split('\n')
-        .map(line => line.trim())
-        .filter(line => line !== '' && !line.startsWith('#'))
+        .map((line) => line.trim())
+        .filter((line) => line !== '' && !line.startsWith('#'))
     : undefined;
 
   if (
@@ -773,8 +773,8 @@ export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
   }
 
   const apps = resolvePackages({ config: opts.config })
-    .filter(entry => !entry.retired && existsSync(join(opts.root, entry.path, DOCKERFILE)))
-    .map(entry => entry.dir);
+    .filter((entry) => !entry.retired && existsSync(join(opts.root, entry.path, DOCKERFILE)))
+    .map((entry) => entry.dir);
 
   if (apps.length === 0) {
     return [];
@@ -795,7 +795,7 @@ export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
 };
 
 const FMT_SECTION_ADVICE =
-  'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "avoid", flavor = "oxfmt"): without it bun fmt formats with Bun\'s defaults, not the shared style';
+  'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "always", flavor = "oxfmt"): without it bun fmt formats with Bun\'s defaults, not the shared style';
 const FMT_FLAVOR_ADVICE =
   'without it bun fmt formats like Prettier when oxfmt is not a dependency, and the output changes';
 const OXFMT_LOADED_ADVICE =
@@ -805,12 +805,12 @@ const OXFMT_LOADED_ADVICE =
 const formatOwners = (opts: ICheckContext): string[] => [
   ...new Set([
     '.',
-    ...listDirectories({ directory: join(opts.root, 'packages') }).map(name =>
+    ...listDirectories({ directory: join(opts.root, 'packages') }).map((name) =>
       join('packages', name),
     ),
     ...resolvePackages({ config: opts.config })
-      .filter(entry => !entry.retired)
-      .map(entry => relative(opts.root, join(opts.root, entry.path)) || '.'),
+      .filter((entry) => !entry.retired)
+      .map((entry) => relative(opts.root, join(opts.root, entry.path)) || '.'),
   ]),
 ];
 
@@ -897,7 +897,7 @@ export const checkFormat = (opts: ICheckContext): IViolation[] => {
     }
 
     if (existsSync(join(opts.root, formatters))) {
-      for (const file of readdirSync(join(opts.root, formatters)).filter(name =>
+      for (const file of readdirSync(join(opts.root, formatters)).filter((name) =>
         DoctorConstants.OXFMT_CONFIG_FILE.test(name),
       )) {
         warnings.push(
@@ -932,8 +932,8 @@ export const checkAtlasBlock = (opts: ICheckContext): IViolation[] => {
 /** A skill with no "Use when" part gives the atlas server's instructions nothing to say when to load it: a warning, never a failure. */
 export const checkSkillTriggers = (opts: ICheckContext): IViolation[] =>
   skillCatalogOf({ root: opts.root })
-    .filter(entry => !triggerOf({ description: entry.description }).hasUseWhen)
-    .map(entry =>
+    .filter((entry) => !triggerOf({ description: entry.description }).hasUseWhen)
+    .map((entry) =>
       createViolation({
         check: DoctorChecks.SKILLS,
         file: entry.source === 'project' ? `.agents/skills/${entry.name}/SKILL.md` : entry.name,

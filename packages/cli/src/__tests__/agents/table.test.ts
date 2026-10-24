@@ -28,8 +28,8 @@ describe('the shipped agent table', () => {
   const table = readAgentTable();
 
   test('holds exactly the seven agents Phat named, Copilot being two products', () => {
-    expect(table.map(entry => entry.id)).toEqual(SEVEN_AGENTS);
-    expect(new Set(table.map(entry => entry.id)).size).toBe(table.length);
+    expect(table.map((entry) => entry.id)).toEqual(SEVEN_AGENTS);
+    expect(new Set(table.map((entry) => entry.id)).size).toBe(table.length);
   });
 
   test('the ids are the ones a config may name', () => {
@@ -37,22 +37,22 @@ describe('the shipped agent table', () => {
   });
 
   test('only Claude needs a shim, and it imports AGENTS.md', () => {
-    const shims = table.filter(entry => entry.instructions.shim !== null);
+    const shims = table.filter((entry) => entry.instructions.shim !== null);
 
-    expect(shims.map(entry => entry.id)).toEqual(['claude']);
+    expect(shims.map((entry) => entry.id)).toEqual(['claude']);
     expect(shims[0]?.instructions.shim).toEqual({ path: 'CLAUDE.md', content: '@AGENTS.md' });
   });
 
   test('omp, Copilot CLI and Claude share the committed root .mcp.json; the others write their own file', () => {
-    const shared = table.filter(entry => entry.mcp.scope === 'shared').map(entry => entry.id);
+    const shared = table.filter((entry) => entry.mcp.scope === 'shared').map((entry) => entry.id);
 
     expect(shared).toEqual(['claude', 'omp', 'copilot-cli']);
 
-    for (const entry of table.filter(item => item.mcp.scope === 'shared')) {
+    for (const entry of table.filter((item) => item.mcp.scope === 'shared')) {
       expect(entry.mcp.path).toBe('.mcp.json');
     }
 
-    expect(Object.fromEntries(table.map(entry => [entry.id, entry.mcp.path]))).toMatchObject({
+    expect(Object.fromEntries(table.map((entry) => [entry.id, entry.mcp.path]))).toMatchObject({
       codex: '.codex/config.toml',
       cursor: '.cursor/mcp.json',
       'copilot-vscode': '.vscode/mcp.json',
@@ -62,7 +62,7 @@ describe('the shipped agent table', () => {
   });
 
   test('the renderers follow the file formats: VS Code servers, Codex TOML, mcpServers elsewhere', () => {
-    const renderers = Object.fromEntries(table.map(entry => [entry.id, entry.mcp.renderer]));
+    const renderers = Object.fromEntries(table.map((entry) => [entry.id, entry.mcp.renderer]));
 
     expect(renderers['copilot-vscode']).toBe('servers');
     expect(renderers.codex).toBe('codex-toml');
@@ -78,7 +78,9 @@ describe('the shipped agent table', () => {
   });
 
   test('what was measured is recorded: omp shows the instructions, Antigravity does not, Pi only a line', () => {
-    const surfaced = Object.fromEntries(table.map(entry => [entry.id, entry.instructionsSurfaced]));
+    const surfaced = Object.fromEntries(
+      table.map((entry) => [entry.id, entry.instructionsSurfaced]),
+    );
 
     expect(surfaced.claude).toBe(true);
     expect(surfaced.omp).toBe(true);
@@ -88,7 +90,7 @@ describe('the shipped agent table', () => {
 
   test('Codex and Pi tell the user to trust the project', () => {
     for (const id of ['codex', 'pi']) {
-      expect(table.find(entry => entry.id === id)?.notes.join(' ')).toContain('trust');
+      expect(table.find((entry) => entry.id === id)?.notes.join(' ')).toContain('trust');
     }
   });
 });

@@ -120,7 +120,7 @@ export const readLibPreset = (opts: { located: ILocatedPreset }): TLibPresetResu
 
   if (!parsed.success) {
     const issues = parsed.error.issues
-      .map(issue => `${issue.path.join('.')} ${issue.message}`)
+      .map((issue) => `${issue.path.join('.')} ${issue.message}`)
       .join('; ');
 
     return { ok: false, error: `${shown}: lib preset: ${issues}` };

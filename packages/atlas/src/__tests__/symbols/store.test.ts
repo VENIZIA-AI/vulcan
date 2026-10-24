@@ -36,7 +36,7 @@ describe('SymbolStore.lookup', () => {
   test('returns every record when one name exists in two packages', () => {
     const found = buildStore().lookup({ name: 'respond' });
 
-    expect(found.map(entry => entry.package).sort()).toEqual([
+    expect(found.map((entry) => entry.package).sort()).toEqual([
       '@venizia/ignis',
       '@venizia/ignis-kernel',
     ]);
@@ -166,7 +166,7 @@ describe('SymbolStore, while its loader fails', () => {
         store.lookup({ name });
       }
 
-      const logged = errorSpy.mock.calls.map(call => String(call[1]));
+      const logged = errorSpy.mock.calls.map((call) => String(call[1]));
 
       // Must run before `mockRestore()`: restoring a spy also clears its recorded calls.
       expect(loads).toBe(5);

@@ -16,7 +16,7 @@ const TABLE_HEADER = ['| ID | Rule | Enforced by |', '|----|------|-------------
 /** Each listed ID's row, plain or bold (`| **W-00** |`), quoted from its rule file so it cannot drift. */
 const selectRows = (opts: { rows: string[]; ids: string[] }): string[] =>
   opts.ids
-    .map(id => opts.rows.find(row => parseRuleIds({ markdown: row })[0] === id))
+    .map((id) => opts.rows.find((row) => parseRuleIds({ markdown: row })[0] === id))
     .filter((row): row is string => row !== undefined);
 
 const readText = (opts: { file: string }): string =>
@@ -49,7 +49,7 @@ export const buildSessionDigest = async (opts: { projectRoot: string }): Promise
   const projectText = readText({ file: join(opts.projectRoot, '.agents', 'rules.md') });
   const projectRows = projectText
     .split('\n')
-    .filter(line => extractRuleRows({ markdown: line }).length > 0 || ID_LIST_ROW.test(line));
+    .filter((line) => extractRuleRows({ markdown: line }).length > 0 || ID_LIST_ROW.test(line));
   const minimap = MINIMAP.exec(projectText)?.[1].trim();
   const loaded = await loadConfig({ root: opts.projectRoot });
   const choices = loaded.ok ? loaded.config.rules : {};
@@ -77,12 +77,12 @@ export const buildSessionDigest = async (opts: { projectRoot: string }): Promise
       project: loaded.ok
         ? (loaded.config.name ?? basename(opts.projectRoot))
         : basename(opts.projectRoot),
-      sources: loaded.ok ? loaded.config.atlas.sources.map(source => source.name) : [],
+      sources: loaded.ok ? loaded.config.atlas.sources.map((source) => source.name) : [],
     }),
     '## Write boundaries',
     '',
     ...TABLE_HEADER,
-    ...baseRows.filter(row => row.startsWith(`| ${RuleConstants.BASE_NAMESPACE}W-`)),
+    ...baseRows.filter((row) => row.startsWith(`| ${RuleConstants.BASE_NAMESPACE}W-`)),
     '',
     "## This project's slot choices",
     '',
