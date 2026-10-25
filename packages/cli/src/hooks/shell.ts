@@ -3,6 +3,8 @@ export interface ISimpleCommand {
   words: string[];
   redirects: string[];
   assignments: string[];
+  /** The body of the heredoc this command reads, when it is not read as commands itself (data, or a query or script for another program). */
+  heredoc?: string;
 }
 
 interface IWordRead {
@@ -617,7 +619,7 @@ export const programOf = (opts: {
  */
 const heredocOf = (opts: {
   line: string;
-}): { delimiter: string; stripTabs: boolean } | undefined => {
+}): { delimiter: string; stripTabs: boolean; at: number } | undefined => {
   const { line } = opts;
   let quote: string | undefined;
 
@@ -651,7 +653,7 @@ const heredocOf = (opts: {
       const match = /^<<(-?)\s*(["']?)([A-Za-z_]\w*)\2/.exec(line.slice(index));
 
       if (match !== null) {
-        return { delimiter: match[3] ?? '', stripTabs: match[1] === '-' };
+        return { delimiter: match[3] ?? '', stripTabs: match[1] === '-', at: index };
       }
 
       index += 1;
@@ -661,20 +663,84 @@ const heredocOf = (opts: {
   return undefined;
 };
 
+/** The program of the last simple command of `prefix`: what a heredoc that starts after it is fed to. */
+const programBefore = (opts: { prefix: string }): string => {
+  const { prefix } = opts;
+  let words: string[] = [];
+  let index = 0;
+
+  while (index < prefix.length) {
+    const char = prefix[index] ?? '';
+
+    if (char === ' ' || char === '\t') {
+      index += 1;
+      continue;
+    }
+
+    if (';|&()\n'.includes(char)) {
+      words = [];
+      index += 1;
+      continue;
+    }
+
+    if (char === '>' || char === '<') {
+      // A redirect and its target are not words of the command.
+      let cursor = index + 1;
+
+      while (prefix[cursor] === '>' || prefix[cursor] === '&' || prefix[cursor] === ' ') {
+        cursor += 1;
+      }
+
+      index = Math.max(readWord({ text: prefix, from: cursor }).next, index + 1);
+      continue;
+    }
+
+    const word = readWord({ text: prefix, from: index });
+
+    words.push(word.value);
+    index = Math.max(word.next, index + 1);
+  }
+
+  return basenameOf({
+    word: programOf({ command: { words, redirects: [], assignments: [] } }).name,
+  });
+};
+
+export interface IHeredoc {
+  body: string;
+  /** The body was left in the text because a shell reads it as commands (`bash <<EOF`). */
+  isInline: boolean;
+}
+
 /**
  * A heredoc's body is data for the command that reads it (a commit message, a file), not commands: the
- * lines between `<<WORD` and the line `WORD` are dropped. A body fed to a shell (`bash <<EOF`) is not read.
+ * lines between `<<WORD` and the line `WORD` are taken out of the text and kept in `heredocs`, in order, for
+ * the command to carry. A body fed to a shell (`bash <<EOF`) is a script: it stays in the text and is read
+ * as commands.
  */
-const stripHeredocs = (opts: { command: string }): string => {
+export const splitHeredocs = (opts: {
+  command: string;
+}): { text: string; heredocs: IHeredoc[] } => {
   const lines = opts.command.split('\n');
   const kept: string[] = [];
+  const heredocs: IHeredoc[] = [];
   let terminator: string | undefined;
   let stripTabs = false;
+  let body: string[] = [];
+  let isInline = false;
 
   for (const line of lines) {
     if (terminator !== undefined) {
       if ((stripTabs ? line.replace(/^\t+/, '') : line).trim() === terminator) {
         terminator = undefined;
+        heredocs.push({ body: body.join('\n'), isInline });
+        continue;
+      }
+
+      body.push(line);
+
+      if (isInline) {
+        kept.push(line);
       }
 
       continue;
@@ -687,10 +753,16 @@ const stripHeredocs = (opts: { command: string }): string => {
     if (heredoc !== undefined) {
       stripTabs = heredoc.stripTabs;
       terminator = heredoc.delimiter;
+      body = [];
+      isInline = SHELLS.has(programBefore({ prefix: line.slice(0, heredoc.at) }));
     }
   }
 
-  return kept.join('\n');
+  if (terminator !== undefined) {
+    heredocs.push({ body: body.join('\n'), isInline });
+  }
+
+  return { text: kept.join('\n'), heredocs };
 };
 
 /** Appends every item; a spread into `push` overflows the stack at a few hundred thousand items. */
@@ -772,7 +844,9 @@ const parseWithBudget = (opts: {
     return [];
   }
 
-  const text = stripHeredocs({ command: opts.command });
+  const heredocSplit = splitHeredocs({ command: opts.command });
+  const { text } = heredocSplit;
+  let heredocIndex = 0;
   const commands: ISimpleCommand[] = [];
   const nestedTexts: string[] = [];
   let current: ISimpleCommand = { words: [], redirects: [], assignments: [] };
@@ -845,6 +919,23 @@ const parseWithBudget = (opts: {
     }
 
     if (char === '<') {
+      const operator =
+        text[index + 2] === '<' ? null : /^<<-?\s*["']?[A-Za-z_]\w*["']?/.exec(text.slice(index));
+
+      if (operator !== null) {
+        // The delimiter is part of the operator, not a word; the body goes to the command that reads it.
+        const heredoc = heredocSplit.heredocs[heredocIndex];
+
+        heredocIndex += 1;
+
+        if (heredoc !== undefined && !heredoc.isInline) {
+          current.heredoc = heredoc.body;
+        }
+
+        index += operator[0].length;
+        continue;
+      }
+
       index += 1;
       continue;
     }

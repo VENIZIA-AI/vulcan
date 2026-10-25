@@ -55,7 +55,7 @@ try {
               'This would create files outside the project (V-B-08):',
               ...hits.map((hit) => `  - ${hit.message} (${hit.path})`),
               '',
-              'Everything an agent creates lives under .agents/local/ (tmp/, worktrees/, clones/). Use it, or confirm if the owner asked for this exact path.',
+              'Scratch files go under .agents/local/tmp/<task>/ (worktrees under .agents/local/worktrees/, clones under .agents/local/clones/), never in /tmp or the home folder. Use that place, or confirm only if the owner asked for this exact path.',
               'A store a tool manages itself can be allowed with guard.toolOwnedPaths in .configs/vulcan.config.*.',
             ],
           }),
