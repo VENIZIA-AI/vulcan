@@ -144,4 +144,69 @@ describe('mergeExcludeBlock', () => {
     expect(merged).toEqual({ changed: true, text: `*.log\n\n${other}\nafter\n` });
     expect(merged.text).not.toContain('cursor');
   });
+
+  test('a project below the top level has a block of its own: merging it leaves the top level block alone', () => {
+    const root = renderExcludeBlock({ groups: [{ title: 'claude', paths: ['/.mcp.json'] }] });
+    const nested = renderExcludeBlock({
+      groups: [{ title: 'claude', paths: ['/apps/web/.mcp.json'] }],
+      prefix: 'apps/web/',
+    });
+    const merged = mergeExcludeBlock({ text: root, block: nested, prefix: 'apps/web/' });
+
+    expect(nested.split('\n')[0]).toContain('(apps/web/)');
+    expect(merged.text).toContain(root);
+    expect(merged.text).toContain('/apps/web/.mcp.json');
+    expect(merged.text.match(/# vulcan:end/g)).toHaveLength(2);
+  });
+
+  test('the top level block is replaced without touching a nested one, and the other way round', () => {
+    const nested = renderExcludeBlock({
+      groups: [{ title: 'claude', paths: ['/apps/web/.mcp.json'] }],
+      prefix: 'apps/web/',
+    });
+    const before = `${block}\n${nested}`;
+    const rootAgain = renderExcludeBlock({ groups: [{ title: 'pi', paths: ['/.pi/mcp.json'] }] });
+    const nestedAgain = renderExcludeBlock({
+      groups: [{ title: 'pi', paths: ['/apps/web/.pi/mcp.json'] }],
+      prefix: 'apps/web/',
+    });
+    const afterRoot = mergeExcludeBlock({ text: before, block: rootAgain });
+
+    expect(afterRoot.text).toContain('/apps/web/.mcp.json');
+    expect(afterRoot.text).not.toContain('cursor');
+
+    const afterNested = mergeExcludeBlock({
+      text: afterRoot.text,
+      block: nestedAgain,
+      prefix: 'apps/web/',
+    });
+
+    expect(afterNested.text).toContain('/.pi/mcp.json');
+    expect(afterNested.text).toContain('/apps/web/.pi/mcp.json');
+    expect(afterNested.text).not.toContain('/apps/web/.mcp.json');
+  });
+
+  test('the same nested block again changes nothing', () => {
+    const nested = renderExcludeBlock({
+      groups: [{ title: 'claude', paths: ['/apps/web/.mcp.json'] }],
+      prefix: 'apps/web/',
+    });
+
+    expect(mergeExcludeBlock({ text: nested, block: nested, prefix: 'apps/web/' }).changed).toBe(
+      false,
+    );
+  });
+
+  test('a block with no end marker never swallows the block that follows it', () => {
+    const nested = renderExcludeBlock({
+      groups: [{ title: 'claude', paths: ['/apps/web/.mcp.json'] }],
+      prefix: 'apps/web/',
+    });
+    const dangling = nested.replace('# vulcan:end\n', '');
+    const before = `${dangling}${block}`;
+    const merged = mergeExcludeBlock({ text: before, block: nested, prefix: 'apps/web/' });
+
+    expect(merged.text).toContain(block);
+    expect(merged.text).toContain('/.cursor/mcp.json');
+  });
 });

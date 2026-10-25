@@ -6,6 +6,8 @@ export const EXCLUDE_BLOCK_START =
   '# vulcan:start - written by vulcan sync for the agents you chose; do not edit';
 export const EXCLUDE_BLOCK_END = '# vulcan:end';
 const START_PREFIX = '# vulcan:start';
+/** A block's start line: the project it belongs to sits in brackets after the marker, none for the git top level. */
+const START_PATTERN = /^# vulcan:start(?: \((.*)\))? - written/;
 const CLAUDE_SKILLS_DIRECTORY = '.claude/skills';
 
 export interface IExcludeGroup {
@@ -59,28 +61,55 @@ export const excludePathsOf = (opts: {
   return [...groups, { title: 'local', paths: [`/${LOCAL_AGENTS_FILE}`] }];
 };
 
-export const renderExcludeBlock = (opts: { groups: IExcludeGroup[] }): string =>
+/**
+ * One block per project: a project below the git top level (an app in a monorepo, a scratch app
+ * inside a repo) names its path from the top level in the start line, so syncing it never touches
+ * the block of the top level or of another project. The top level keeps the plain start line.
+ */
+export const renderExcludeBlock = (opts: { groups: IExcludeGroup[]; prefix?: string }): string =>
   [
-    EXCLUDE_BLOCK_START,
+    opts.prefix === undefined || opts.prefix === ''
+      ? EXCLUDE_BLOCK_START
+      : EXCLUDE_BLOCK_START.replace(START_PREFIX, `${START_PREFIX} (${opts.prefix})`),
     ...opts.groups.flatMap((group) => [`# ${group.title}`, ...group.paths]),
     EXCLUDE_BLOCK_END,
     '',
   ].join('\n');
 
-/** The block replaces itself between its markers; the user's own lines in the file are never touched. */
+const blockKeyOf = (line: string): string | undefined => {
+  const match = START_PATTERN.exec(line);
+
+  return match === null ? undefined : (match[1] ?? '');
+};
+
+/**
+ * The block of `opts.prefix` replaces itself between its markers; the user's own lines in the
+ * file, and the blocks of other projects, are never touched.
+ */
 export const mergeExcludeBlock = (opts: {
   text: string | undefined;
   block: string;
+  prefix?: string;
 }): { changed: boolean; text: string } => {
   if (opts.text === undefined || opts.text === '') {
     return { changed: true, text: opts.block };
   }
 
-  const start = opts.text.indexOf(START_PREFIX);
-  const end = opts.text.indexOf(EXCLUDE_BLOCK_END);
+  const lines = opts.text.split('\n');
+  const start = lines.findIndex((line) => blockKeyOf(line) === (opts.prefix ?? ''));
+  const stop = lines.findIndex(
+    (line, index) =>
+      index > start && (line.trimEnd() === EXCLUDE_BLOCK_END || blockKeyOf(line) !== undefined),
+  );
 
-  if (start !== -1 && end > start) {
-    const text = `${opts.text.slice(0, start)}${opts.block.trimEnd()}${opts.text.slice(end + EXCLUDE_BLOCK_END.length)}`;
+  // A block with no end marker before the next block starts is left alone: replacing it would
+  // swallow the next project's block.
+  if (start !== -1 && stop !== -1 && lines[stop]?.trimEnd() === EXCLUDE_BLOCK_END) {
+    const text = [
+      ...lines.slice(0, start),
+      ...opts.block.trimEnd().split('\n'),
+      ...lines.slice(stop + 1),
+    ].join('\n');
 
     return { changed: text !== opts.text, text };
   }

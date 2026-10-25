@@ -146,3 +146,61 @@ describe('the chosen agents go to .git/info/exclude', () => {
     expect(status({ root: top })).not.toContain('.cursor');
   });
 });
+
+describe('a project inside another git repository', () => {
+  const nestedApp = (opts: { root: string; path: string }): string => {
+    const directory = join(opts.root, opts.path);
+
+    mkdirSync(join(directory, '.configs'), { recursive: true });
+    writeFileSync(
+      join(directory, '.configs/vulcan.config.ts'),
+      PROJECT['.configs/vulcan.config.ts'],
+    );
+    writeFileSync(join(directory, 'AGENTS.md'), '# x\n');
+
+    return directory;
+  };
+
+  test('syncing it never replaces the block of the enclosing repository', () => {
+    const root = repo();
+
+    sync({ root, agents: 'claude' });
+
+    const before = exclude({ root });
+    const app = nestedApp({ root, path: 'apps/web' });
+    const result = sync({ root: app, agents: 'claude' });
+    const after = exclude({ root });
+
+    expect(result.code).toBe(0);
+    expect(after).toContain(before.trimEnd());
+    expect(after).toContain('/apps/web/.mcp.json');
+    expect(after).toContain('/.mcp.json');
+    expect(after).toContain('/CLAUDE.md');
+    expect(status({ root })).not.toContain('.mcp.json');
+  });
+
+  test('syncing the repository after the app keeps the block of the app', () => {
+    const root = repo();
+    const app = nestedApp({ root, path: 'apps/web' });
+
+    sync({ root: app, agents: 'claude' });
+    sync({ root, agents: 'claude' });
+
+    expect(exclude({ root })).toContain('/apps/web/.mcp.json');
+    expect(exclude({ root })).toContain('/.mcp.json');
+    expect(sync({ root: app, agents: 'claude' }).stderr).toMatch(/unchanged\s+\S*info\/exclude/);
+  });
+
+  test('a project directory that git already ignores writes no block', () => {
+    const root = repo({ files: { '.gitignore': '.agents/local/\n' } });
+
+    sync({ root, agents: 'claude' });
+
+    const before = exclude({ root });
+    const scratch = nestedApp({ root, path: '.agents/local/tmp/smoke/demo' });
+
+    sync({ root: scratch, agents: 'claude' });
+
+    expect(exclude({ root })).toBe(before);
+  });
+});
