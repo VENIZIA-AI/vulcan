@@ -284,20 +284,44 @@ export const inspectGit = (opts: {
   run?: IGitRunner;
 }): IGitHit[] => {
   const parsed = parseShellChecked({ command: opts.command });
+  const run = opts.run ?? runQuery;
+  let queries = 0;
+  let isCapped = false;
+
+  // Every query is a process and can take seconds: a line may make a few, and asks past them.
+  const limited: IGitRunner = (call) => {
+    queries += 1;
+
+    if (queries > HookConstants.MAX_QUERIES) {
+      isCapped = true;
+
+      return undefined;
+    }
+
+    return run(call);
+  };
   const hits = parsed.commands.flatMap((command) =>
-    inspectOne({ command, cwd: opts.cwd, run: opts.run ?? runQuery }),
+    inspectOne({ command, cwd: opts.cwd, run: limited }),
   );
 
   // Part of the line was not read: never an allow.
-  return parsed.isOverBudget
-    ? [
-        ...hits,
-        {
-          decision: GuardDecisions.ASK,
-          rule: 'V-W-06',
-          message:
-            'this command line is larger, or nests deeper, than the guard reads, so it could not be checked: confirm only if the owner asked for exactly this',
-        },
-      ]
-    : hits;
+  if (parsed.isOverBudget) {
+    hits.push({
+      decision: GuardDecisions.ASK,
+      rule: 'V-W-06',
+      message:
+        'this command line is larger, or nests deeper, than the guard reads, so it could not be checked',
+    });
+  }
+
+  if (isCapped) {
+    hits.push({
+      decision: GuardDecisions.ASK,
+      rule: 'V-W-06',
+      message:
+        'this command line needs more git or gh queries than the guard runs, so part of it could not be checked',
+    });
+  }
+
+  return hits;
 };

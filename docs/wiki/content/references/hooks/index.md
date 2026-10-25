@@ -115,7 +115,7 @@ The guards that read a command (`guard-git`, `guard-outside`, `guard-scripting`,
 
 **Quoting the guards read.** Single quotes, double quotes (a backslash escapes only `$`, a backtick, `"`, `\` and a newline), backslashes, ANSI-C quotes `$'...'` (`\n`, `\t`, octal `\nnn`, `\xHH`, `\uHHHH`, `\UHHHHHHHH`, `\cX`; a NUL ends the string) and `$"..."`, so `$'git' push -f origin main` and `env -S $'git push -f origin main'` are read as the commands they are. **What they do not read: a variable.** `$VAR`, `${VAR}` and `${VAR:-git}` are not expanded, so `X=git; $X push -f origin main` passes: a static parser cannot know a variable's value, and the guards are drift guards, not a security boundary (an action of class C still needs the owner's own words, `V-W-06`).
 
-**The budget.** The parser reads at most 2,000 commands and 20,000 words of one line, and nests at most four levels (`sh -c`, `eval`, `$(...)`, `env -S`). A line past either, or one with a command left unread at the depth limit, is not allowed by silence: `guard-git` and `guard-outside` ask (`guard-remote-hosts` already asks past its depth), and the cost of reading a line is linear in its length.
+**The budget.** The parser reads at most 2,000 commands, 20,000 words and 100,000 characters of one line (the characters of nested texts count together), and nests at most four levels (`sh -c`, `eval`, `watch`, `$(...)`, `env -S`). A line past a limit, or one with a command left unread at the depth limit, is not allowed by silence: `guard-git` and `guard-outside` ask (`guard-remote-hosts` already asks past its depth). The cost of reading a line is linear in its length, and a parse that fails for any reason (a stack or memory limit) reads nothing and asks, instead of crashing the hook and letting the call pass.
 
 The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `$(...)`, `sh -c`, `git -C <dir>`), not with substring matching, so `git commit -m "never push --force"` and `echo git branch -D develop` pass.
 
@@ -131,7 +131,42 @@ The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `
 
 `git push -fu`, `git branch -m develop x`, `git update-ref -d refs/heads/develop` and `git push --mirror` are read too. A heredoc body (a commit message passed with `<<'EOF'`) is data and is not read as commands; a body fed to a shell (`bash <<EOF`) is not read at all.
 
-The branch checks run read-only `git` and `gh` queries with a five-second limit; a query that fails or times out lets the command pass. Input the hook cannot read passes too. `VULCAN_GUARDS=off` in the environment switches the guard off for a session; it is read before any module is loaded, so it still works when an install is broken and the guard cannot start.
+The branch checks run read-only `git` and `gh` queries with a five-second limit, at most four for one command line (past them the guard asks); a query that fails or times out lets the command pass. Input the hook cannot read passes too. `VULCAN_GUARDS=off` in the environment switches the guard off for a session; it is read before any module is loaded, so it still works when an install is broken and the guard cannot start.
+
+### What the guards are, and are not
+
+The guards that read a command line stop **accidental and drifting commands**: an agent that force-pushes `develop` because a flag looked right, writes outside the project because a path was relative, or runs `ssh` to a host nobody named. They are not a sandbox and not a security boundary. A shell is a language no hand-written parser reads completely, and each independent review of this one has found another spelling that hides a command; every one found so far is fixed and kept below as a test. What stays out of reach of a static parser is stated, not promised away: a variable (`X=git; $X push -f origin main`), a command built at run time, a script file that holds the push. Anything that must not happen by any route belongs in the permission settings (`permissions.deny`, the `read-only` slot of `V-W-01`) or in the remote's branch protection, not in a guard.
+
+When a guard cannot read a line in full (it is over a limit above), it asks. When the hook itself crashes or times out, the wrapper in `settings.json` lets the call pass, by design, so a broken install does not block every command.
+
+**Every bypass found so far.** Each row is a way to hide `git push -f origin main` from `guard-git`; each is denied today and is a test in `guard-regressions.test.ts`.
+
+| ID | Found in | Spelling | What the parser missed |
+|---|---|---|---|
+| E-1 | #409 | `env --split "git push -f origin main"` | a long option shortened to a prefix |
+| E-2 | #409 | `env -S "-u X git push -f origin main"` | `env`'s own options inside the `-S` value |
+| E-3 | #409 | `env -S "-S 'git push -f origin main'"` | a nested `-S` |
+| E-4 | #409 | `env -S 'git\_push\_-f\_origin\_main'` | `\_` separates words in an `-S` value |
+| E-5 | #409 | `env -S "git push -f origin main\c trailing"` | `\c` ends an `-S` value |
+| E-6 | #409 | `env` followed by `-S env` 110 times, then the push | a parse that took minutes and gigabytes; now linear |
+| Q-1 | #412 | `$'git' push -f origin main` | ANSI-C quoting |
+| Q-2 | #412 | `env -S $'git push -f origin main'` | ANSI-C quoting inside `-S` |
+| Q-3 | #412 | `sh -c $'git push -f origin main'` | ANSI-C quoting inside a script |
+| B-1 | #414 | `env -S "-u '\c' git push -f origin main"` | `\c` is plain text inside single quotes |
+| B-2 | #414 | `env -S "-u 'x\_y'z git push -f origin main"` | `\_` is plain text inside single quotes |
+| B-3 | #414 | `echo $'\c'; git push -f origin main` | `\c` took the closing quote |
+| B-4 | #414 | `echo $'\c\\'; git push -f origin main` | `\c\\` took the closing quote |
+| B-5 | #414 | `xargs --eof git push -f origin main` | `--eof` takes its value only with `=` |
+| B-6 | #414 | `xargs --max-lines git push -f origin main` | `--max-lines` takes its value only with `=` |
+| B-7 | #414 | `"gi\<newline>t" push -f origin main` | a backslash before a newline in double quotes |
+| B-8 | #414 | `gi\<newline>t push -f origin main` | a backslash before a newline joins the lines |
+| B-9 | #414 | `git \<newline> push -f origin main` | the same, between words |
+| B-10 | #414 | `echo '<<EOF'`, a newline, then the push | a `<<` inside quotes is not a heredoc |
+| B-11 | #414 | `cat <<< word`, a newline, then the push | `<<<` is a here-string, not a heredoc |
+| B-12 | #414 | `echo "$(echo ')'; git push -f origin main)"` | a `)` inside quotes does not close `$(` |
+| B-13 | #414 | `watch -n 1 'git push -f origin main'` | `watch` hands its words to a shell |
+
+Three more ways to make a guard fail are closed the same way: about 700,000 substitutions in one word overflowed the stack and crashed the hook, a megabyte through an `env -S` and `eval` chain took seconds and gigabytes, and a line of many `gh pr merge` commands ran one process each. Each now asks.
 
 ## guard-scripting
 

@@ -12,10 +12,10 @@ interface IWordRead {
   nested: string[];
 }
 
-/** What stops an unquoted word. */
 /** What a backslash inside double quotes escapes, as the shell reads it. */
 const DOUBLE_QUOTE_ESCAPES = new Set(['$', '`', '"', '\\', '\n']);
 
+/** What stops an unquoted word. */
 const WORD_END = new Set([' ', '\t', '\n', ';', '|', '&', '<', '>', '(', ')']);
 /** Shell keywords and braces that open a command: the program is the word after them. */
 const KEYWORDS = new Set([
@@ -95,13 +95,12 @@ const WRAPPER_OPTIONS: Record<string, IWrapperOptions> = {
   }),
   setsid: wrapperOptions({}),
   watch: wrapperOptions({ shortValues: 'nq', longValues: ['--interval', '--equexit'] }),
+  // `--eof`, `--max-lines` and `--replace` take an optional value attached with `=`, never the next word.
   xargs: wrapperOptions({
     shortValues: 'IanPdELs',
     longValues: [
       '--arg-file',
       '--delimiter',
-      '--eof',
-      '--max-lines',
       '--max-args',
       '--max-procs',
       '--max-chars',
@@ -154,20 +153,46 @@ const MAX_DEPTH = 4;
 export class ShellBudget {
   static readonly MAX_COMMANDS = 2000;
   static readonly MAX_WORDS = 20_000;
+  /** The characters of a line and of every text nested in it, together: a line over it is not read at all. */
+  static readonly MAX_CHARS = 100_000;
 }
 
 interface IBudget {
   commands: number;
   words: number;
+  chars: number;
   /** Something was not read: the budget ran out, or a command nests deeper than the depth limit. */
   isOver: boolean;
 }
 
+/**
+ * The index of the character that closes what was opened just before `from` (`$(` or a backtick), or the end
+ * of the text when it never closes. Quotes and backslashes are read: a `)` inside quotes does not close.
+ */
 const closingOf = (opts: { text: string; from: number; open: string; close: string }): number => {
   let depth = 1;
+  let quote: string | undefined;
 
   for (let index = opts.from; index < opts.text.length; index += 1) {
     const char = opts.text[index];
+
+    if (char === '\\' && quote !== "'") {
+      index += 1;
+      continue;
+    }
+
+    if (quote !== undefined) {
+      if (char === quote) {
+        quote = undefined;
+      }
+
+      continue;
+    }
+
+    if (char === "'" || char === '"') {
+      quote = char;
+      continue;
+    }
 
     if (char === opts.open && opts.open !== opts.close) {
       depth += 1;
@@ -206,18 +231,27 @@ const fromCodePoint = (opts: { code: number }): string =>
     : '';
 
 /**
- * The text of an ANSI-C quoted string `$'...'`, from the character after the opening quote to the closing
- * quote (or the end of the text when it is not closed): \n, \t, \\, \', octal \nnn, \xHH, \uHHHH,
- * \UHHHHHHHH, \cX. An unknown escape keeps its backslash. A NUL ends the string, as in bash.
+ * The text of an ANSI-C quoted string `$'...'`, from the character after the opening quote. The shell finds
+ * the closing quote first, a backslash skipping the character after it (so `\'` does not close, and neither
+ * does the `c` of `\c`), and decodes what is between: \n, \t, \\, \', octal \nnn, \xHH, \uHHHH, \UHHHHHHHH,
+ * \cX. An unknown escape keeps its backslash. A NUL ends the string, as in bash. An unclosed string runs to
+ * the end of the text.
  */
 const readAnsiC = (opts: { text: string; from: number }): { value: string; next: number } => {
   const { text } = opts;
+  let end = opts.from;
+
+  while (end < text.length && text[end] !== "'") {
+    end += text[end] === '\\' ? 2 : 1;
+  }
+
+  const content = text.slice(opts.from, Math.min(end, text.length));
   let value = '';
-  let index = opts.from;
+  let index = 0;
   let isEnded = false;
 
-  while (index < text.length && text[index] !== "'") {
-    const char = text[index] ?? '';
+  while (index < content.length) {
+    const char = content[index] ?? '';
 
     if (char !== '\\') {
       value += isEnded ? '' : char;
@@ -225,9 +259,9 @@ const readAnsiC = (opts: { text: string; from: number }): { value: string; next:
       continue;
     }
 
-    const next = text[index + 1] ?? '';
-    const octal = /^[0-7]{1,3}/.exec(text.slice(index + 1, index + 4))?.[0];
-    const hex = /^[xuU][0-9a-fA-F]+/.exec(text.slice(index + 1, index + 10))?.[0];
+    const next = content[index + 1] ?? '';
+    const octal = /^[0-7]{1,3}/.exec(content.slice(index + 1, index + 4))?.[0];
+    const hex = /^[xuU][0-9a-fA-F]+/.exec(content.slice(index + 1, index + 10))?.[0];
     let decoded: string;
     let length = 2;
 
@@ -239,9 +273,12 @@ const readAnsiC = (opts: { text: string; from: number }): { value: string; next:
 
       decoded = fromCodePoint({ code: Number.parseInt(digits, 16) });
       length = 2 + digits.length;
-    } else if (next === 'c' && text[index + 2] !== undefined) {
-      decoded = String.fromCharCode((text[index + 2]?.charCodeAt(0) ?? 0) & 0x1f);
-      length = 3;
+    } else if (next === 'c' && content[index + 2] !== undefined) {
+      const control = content[index + 2] ?? '';
+
+      decoded = control === '?' ? '\x7f' : String.fromCharCode(control.charCodeAt(0) & 0x1f);
+      // `\c\\` takes both backslashes.
+      length = control === '\\' && content[index + 3] === '\\' ? 4 : 3;
     } else {
       decoded = ANSI_C_ESCAPES[next] ?? `\\${next}`;
     }
@@ -255,7 +292,7 @@ const readAnsiC = (opts: { text: string; from: number }): { value: string; next:
     index += length;
   }
 
-  return { value, next: Math.min(index + 1, text.length) };
+  return { value, next: Math.min(end + 1, text.length) };
 };
 
 /** One word from `from`: quotes and escapes resolved, substitutions set aside in `nested`. */
@@ -276,6 +313,12 @@ const readWord = (opts: { text: string; from: number }): IWordRead => {
     // Inside double quotes a backslash escapes only a few characters; before any other it is itself.
     if (char === '\\' && quote !== "'") {
       const next = text[index + 1] ?? '';
+
+      // A backslash before a newline joins the lines: both vanish.
+      if (next === '\n') {
+        index += 2;
+        continue;
+      }
 
       if (quote === '"' && !DOUBLE_QUOTE_ESCAPES.has(next)) {
         value += char;
@@ -433,7 +476,18 @@ export const splitEnvString = (opts: { value: string }): string[] => {
 
       index += 1;
 
-      if (next === undefined || next === 'c') {
+      if (next === undefined) {
+        break;
+      }
+
+      // In single quotes only `\\` and `\'` are escapes: every other backslash stays, `\c` and `\_` included.
+      if (quote === "'") {
+        current += next === '\\' || next === "'" ? next : `\\${next}`;
+        hasWord = true;
+        continue;
+      }
+
+      if (next === 'c') {
         break;
       }
 
@@ -448,12 +502,7 @@ export const splitEnvString = (opts: { value: string }): string[] => {
         continue;
       }
 
-      current +=
-        quote === "'"
-          ? next === '\\' || next === "'"
-            ? next
-            : `\\${next}`
-          : (ENV_ESCAPES[next] ?? next);
+      current += ENV_ESCAPES[next] ?? next;
       hasWord = true;
       continue;
     }
@@ -463,6 +512,7 @@ export const splitEnvString = (opts: { value: string }): string[] => {
         quote = undefined;
       } else {
         current += char;
+        hasWord = true;
       }
 
       continue;
@@ -562,6 +612,56 @@ export const programOf = (opts: {
 };
 
 /**
+ * The delimiter of a heredoc started on `line`: a `<<WORD` outside quotes. `<<<` is a here-string, and a `<<`
+ * inside quotes is text.
+ */
+const heredocOf = (opts: {
+  line: string;
+}): { delimiter: string; stripTabs: boolean } | undefined => {
+  const { line } = opts;
+  let quote: string | undefined;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+
+    if (char === '\\' && quote !== "'") {
+      index += 1;
+      continue;
+    }
+
+    if (quote !== undefined) {
+      if (char === quote) {
+        quote = undefined;
+      }
+
+      continue;
+    }
+
+    if (char === "'" || char === '"') {
+      quote = char;
+      continue;
+    }
+
+    if (char === '<' && line[index + 1] === '<') {
+      if (line[index + 2] === '<') {
+        index += 2;
+        continue;
+      }
+
+      const match = /^<<(-?)\s*(["']?)([A-Za-z_]\w*)\2/.exec(line.slice(index));
+
+      if (match !== null) {
+        return { delimiter: match[3] ?? '', stripTabs: match[1] === '-' };
+      }
+
+      index += 1;
+    }
+  }
+
+  return undefined;
+};
+
+/**
  * A heredoc's body is data for the command that reads it (a commit message, a file), not commands: the
  * lines between `<<WORD` and the line `WORD` are dropped. A body fed to a shell (`bash <<EOF`) is not read.
  */
@@ -582,44 +682,96 @@ const stripHeredocs = (opts: { command: string }): string => {
 
     kept.push(line);
 
-    const match = /<<(-?)\s*(["']?)([A-Za-z_]\w*)\2/.exec(line);
+    const heredoc = heredocOf({ line });
 
-    if (match !== null) {
-      stripTabs = match[1] === '-';
-      terminator = match[3];
+    if (heredoc !== undefined) {
+      stripTabs = heredoc.stripTabs;
+      terminator = heredoc.delimiter;
     }
   }
 
   return kept.join('\n');
 };
 
+/** Appends every item; a spread into `push` overflows the stack at a few hundred thousand items. */
+const pushAll = (opts: { target: string[]; items: string[] }): void => {
+  for (const item of opts.items) {
+    opts.target.push(item);
+  }
+};
+
 /**
- * The simple commands of a shell line, in order: `;`, `&&`, `||`, `|`, `&` and newlines split them;
- * `$(...)`, backticks, `sh -c '...'` arguments and the command line of `env -S` are parsed as commands too. It reads quoting, not
- * every corner of the shell: a line it cannot follow yields fewer commands, never an error.
+ * The command lines a command carries as text: the script of `sh -c`, the words of `eval`, and the string
+ * `watch` joins its words into and hands to a shell (`watch 'git push'`).
  */
-/** Whether the command carries another command line to read: a shell script, an eval, or an `env -S`. */
+const nestedScripts = (opts: {
+  command: ISimpleCommand;
+  program: ReturnType<typeof programOf>;
+}): string[] => {
+  const { command, program } = opts;
+
+  if (program.index === -1) {
+    return [];
+  }
+
+  const name = basenameOf({ word: program.name });
+  const scripts: string[] = [];
+
+  if (SHELLS.has(name)) {
+    const flag = command.words.findIndex(
+      (word, position) => position > program.index && /^-[a-zA-Z]*c$/.test(word),
+    );
+    const script = flag === -1 ? undefined : command.words[flag + 1];
+
+    if (script !== undefined) {
+      scripts.push(script);
+    }
+  }
+
+  if (name === 'eval') {
+    scripts.push(program.args.join(' '));
+  }
+
+  if (
+    /\s/.test(program.name) &&
+    command.words.slice(0, program.index).some((word) => basenameOf({ word }) === 'watch')
+  ) {
+    scripts.push([program.name, ...program.args].join(' '));
+  }
+
+  return scripts;
+};
+
+/** Whether the command carries another command line to read: a script, an eval, a `watch` string, or an `env -S`. */
 const nests = (opts: { command: ISimpleCommand }): boolean => {
   const program = programOf({ command: opts.command });
-  const name = basenameOf({ word: program.name });
 
   return (
-    program.splitCommands.length > 0 ||
-    (program.index !== -1 &&
-      (name === 'eval' ||
-        (SHELLS.has(name) &&
-          opts.command.words.some(
-            (word, position) => position > program.index && /^-[a-zA-Z]*c$/.test(word),
-          ))))
+    program.splitCommands.length > 0 || nestedScripts({ command: opts.command, program }).length > 0
   );
 };
 
+/**
+ * The simple commands of a shell line, in order: `;`, `&&`, `||`, `|`, `&` and newlines split them;
+ * `$(...)`, backticks, `sh -c '...'` arguments and the command line of `env -S` are parsed as commands too. It
+ * reads quoting, not every corner of the shell: a line it cannot follow yields fewer commands, never an error.
+ */
 const parseWithBudget = (opts: {
   command: string;
   depth: number;
   budget: IBudget;
 }): ISimpleCommand[] => {
   const { depth, budget } = opts;
+
+  // The characters of every text read count together, nested texts too: a line over the cap is not read.
+  budget.chars += opts.command.length;
+
+  if (budget.chars > ShellBudget.MAX_CHARS) {
+    budget.isOver = true;
+
+    return [];
+  }
+
   const text = stripHeredocs({ command: opts.command });
   const commands: ISimpleCommand[] = [];
   const nestedTexts: string[] = [];
@@ -643,6 +795,12 @@ const parseWithBudget = (opts: {
 
     if (char === ' ' || char === '\t') {
       index += 1;
+      continue;
+    }
+
+    // A backslash before a newline joins the lines: both vanish.
+    if (char === '\\' && text[index + 1] === '\n') {
+      index += 2;
       continue;
     }
 
@@ -681,7 +839,7 @@ const parseWithBudget = (opts: {
         current.redirects.push(target.value);
       }
 
-      nestedTexts.push(...target.nested);
+      pushAll({ target: nestedTexts, items: target.nested });
       index = Math.max(target.next, cursor + 1);
       continue;
     }
@@ -699,7 +857,7 @@ const parseWithBudget = (opts: {
       continue;
     }
 
-    nestedTexts.push(...word.nested);
+    pushAll({ target: nestedTexts, items: word.nested });
 
     if (current.words.length === 0 && isAssignment({ word: word.value })) {
       current.assignments.push(word.value);
@@ -756,20 +914,7 @@ const parseWithBudget = (opts: {
       budget.isOver = true;
     }
 
-    if (program.index !== -1 && SHELLS.has(basenameOf({ word: program.name }))) {
-      const flag = command.words.findIndex(
-        (word, position) => position > program.index && /^-[a-zA-Z]*c$/.test(word),
-      );
-      const script = flag === -1 ? undefined : command.words[flag + 1];
-
-      if (script !== undefined) {
-        nestedTexts.push(script);
-      }
-    }
-
-    if (program.index !== -1 && basenameOf({ word: program.name }) === 'eval') {
-      nestedTexts.push(program.args.join(' '));
-    }
+    pushAll({ target: nestedTexts, items: nestedScripts({ command, program }) });
   }
 
   return [
@@ -791,16 +936,31 @@ export interface IParsedShell {
  * The commands of a line and whether all of it was read. A guard that can refuse must treat
  * `isOverBudget` as "ask": an unread part is never an "allow".
  */
+/** A parse that throws (a stack or memory limit) reads nothing and says so: the line is not allowed by silence. */
+const parseGuarded = (opts: {
+  command: string;
+  depth: number;
+  budget: IBudget;
+}): ISimpleCommand[] => {
+  try {
+    return parseWithBudget(opts);
+  } catch {
+    opts.budget.isOver = true;
+
+    return [];
+  }
+};
+
 export const parseShellChecked = (opts: { command: string }): IParsedShell => {
-  const budget: IBudget = { commands: 0, words: 0, isOver: false };
-  const commands = parseWithBudget({ command: opts.command, depth: 0, budget });
+  const budget: IBudget = { commands: 0, words: 0, chars: 0, isOver: false };
+  const commands = parseGuarded({ command: opts.command, depth: 0, budget });
 
   return { commands, isOverBudget: budget.isOver };
 };
 
 export const parseShell = (opts: { command: string; depth?: number }): ISimpleCommand[] =>
-  parseWithBudget({
+  parseGuarded({
     command: opts.command,
     depth: opts.depth ?? 0,
-    budget: { commands: 0, words: 0, isOver: false },
+    budget: { commands: 0, words: 0, chars: 0, isOver: false },
   });

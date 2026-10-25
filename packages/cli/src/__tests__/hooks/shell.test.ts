@@ -294,6 +294,11 @@ describe('parseShell', () => {
     expect(firstWords("echo $'a'$'b' 'c'")).toEqual(['echo', 'ab', 'c']);
     expect(firstWords("echo $'\\xZZ'")).toEqual(['echo', '\\xZZ']);
     expect(firstWords("echo $'\\U7fffffff'")).toEqual(['echo', '']);
+    // `\c` takes the character after it, or stays when the quote closes right behind it; `\c\\` takes both backslashes.
+    expect(firstWords(String.raw`echo $'\c'`)).toEqual(['echo', String.raw`\c`]);
+    expect(firstWords(String.raw`echo $'\c\\'`)).toEqual(['echo', '\x1c']);
+    expect(firstWords(String.raw`echo $'\c?' x`)).toEqual(['echo', '\x7f', 'x']);
+    expect(firstWords(String.raw`echo $'a\c'b`)).toEqual(['echo', String.raw`a\cb`]);
     // Inside single or double quotes the `$` is just a character.
     expect(firstWords("echo '$'x")).toEqual(['echo', '$x']);
     expect(firstWords('echo "$\'x\'"')).toEqual(['echo', "$'x'"]);
@@ -353,9 +358,14 @@ describe('parseShell', () => {
       );
     const evals = (levels: number): string => `${'eval '.repeat(levels)}git push -f origin main`;
 
+    // The limit is exact: four levels are read, the fifth is the first flagged.
     expect(parseShellChecked({ command: substitutions(3) }).isOverBudget).toBe(false);
+    expect(parseShellChecked({ command: substitutions(4) }).isOverBudget).toBe(false);
+    expect(parseShellChecked({ command: substitutions(5) }).isOverBudget).toBe(true);
     expect(parseShellChecked({ command: substitutions(8) }).isOverBudget).toBe(true);
     expect(parseShellChecked({ command: evals(3) }).isOverBudget).toBe(false);
+    expect(parseShellChecked({ command: evals(4) }).isOverBudget).toBe(false);
+    expect(parseShellChecked({ command: evals(5) }).isOverBudget).toBe(true);
     expect(parseShellChecked({ command: evals(8) }).isOverBudget).toBe(true);
     expect(parseShellChecked({ command: "bash -c 'git status'" }).isOverBudget).toBe(false);
   });

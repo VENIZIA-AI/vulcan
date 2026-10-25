@@ -15,6 +15,8 @@ export class HookConstants {
   static readonly SUBAGENT_START = 'SubagentStart';
   /** `git` and `gh` queries the guards make; a slow one is dropped and the command passes. */
   static readonly QUERY_TIMEOUT_MS = 5000;
+  /** The `git` and `gh` queries one command line may make; past it the guard asks instead of querying on. */
+  static readonly MAX_QUERIES = 4;
   /** Branches no agent deletes or force-pushes (V-W-06). */
   static readonly PROTECTED_BRANCHES = new Set(['develop', 'main']);
   /** Set to `off` to switch the guards off for a session; the hooks then pass every call. */
