@@ -1,6 +1,6 @@
 import { HookConstants } from './common/index.ts';
 import type { IWriteHit } from './common/index.ts';
-import { optionTakesNextWord } from './shell.ts';
+import { optionTakesNextWord, programOf } from './shell.ts';
 
 // -----------------------------------------------------------------------------
 // The remote-host guard: a Bash command that reaches a host the project has not listed asks first.
@@ -758,6 +758,17 @@ const analyzeWords = (opts: {
 
   if (program === 'command' && words.some((word) => word === '-v' || word === '-V')) {
     return [];
+  }
+
+  if (program === 'env') {
+    // `env -S "ssh host"` carries a whole command line in one word: it is read as one.
+    const splits = programOf({
+      command: { words, redirects: [], assignments: [] },
+    }).splitStrings;
+
+    if (splits.length > 0) {
+      return splits.flatMap((command) => opts.recurse({ command, depth: opts.depth + 1 }));
+    }
   }
 
   if (WRAPPERS.has(program) || program === 'command' || program === 'builtin') {

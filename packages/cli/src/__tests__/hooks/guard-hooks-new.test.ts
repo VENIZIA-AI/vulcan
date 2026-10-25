@@ -93,6 +93,7 @@ describe('the guard-scripting hook', () => {
     'cat a | python3 -c "import sys"',
     'FOO=1 python3 x.py',
     'sudo python3 x.py',
+    'env -S "python3 x.py"',
     '/usr/bin/python3 x.py',
     'sh -c "python3 x.py"',
   ])('adds the advice for %s, and never asks or denies', async (command) => {
