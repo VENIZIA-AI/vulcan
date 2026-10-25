@@ -85,19 +85,26 @@ const resolveInside = (opts: { root: string; from: string; path: string }): stri
   return resolved;
 };
 
-/** Text gets its tokens replaced; anything with a NUL byte or invalid UTF-8 is copied as it is. */
-const substituteTokens = (opts: { content: Buffer; tokens: Record<string, string> }): Buffer => {
+/** A file's text when it is UTF-8 without a NUL byte; undefined for anything else, which is data and is copied as it is. */
+export const decodeText = (opts: { content: Buffer }): string | undefined => {
   if (opts.content.includes(0)) {
-    return opts.content;
+    return undefined;
   }
 
   try {
-    const text = UTF8.decode(opts.content);
-
-    return Buffer.from(text.replace(TOKEN, (match, key: string) => opts.tokens[key] ?? match));
+    return UTF8.decode(opts.content);
   } catch {
-    return opts.content;
+    return undefined;
   }
+};
+
+/** Text gets its tokens replaced; anything else is copied as it is. */
+const substituteTokens = (opts: { content: Buffer; tokens: Record<string, string> }): Buffer => {
+  const text = decodeText({ content: opts.content });
+
+  return text === undefined
+    ? opts.content
+    : Buffer.from(text.replace(TOKEN, (match, key: string) => opts.tokens[key] ?? match));
 };
 
 export const parsePresetSpec = (opts: { value: string; cwd: string }): IPresetSpec => {
@@ -116,7 +123,7 @@ export const parsePresetSpec = (opts: { value: string; cwd: string }): IPresetSp
   return { packageName, range };
 };
 
-const readJson = (opts: { file: string }): Record<string, unknown> | undefined => {
+export const readJson = (opts: { file: string }): Record<string, unknown> | undefined => {
   if (!existsSync(opts.file)) {
     return undefined;
   }
@@ -242,14 +249,24 @@ export const locatePreset = (opts: { spec: IPresetSpec; root: string }): TPreset
   return { ok: true, located };
 };
 
-export const copyPresetFiles = (opts: {
+/** One file a preset makes: where it lands in the app, what it holds once its tokens are replaced, its mode. */
+export interface IRenderedPresetFile {
+  path: string;
+  content: Buffer;
+  mode: number;
+}
+
+/**
+ * Every file the preset makes, as the app would get it: the dotfile names, the tokens replaced, symlinks
+ * skipped. Nothing is written: `copyPresetFiles` writes what this returns, and `preset diff` compares it.
+ */
+export const renderPresetFiles = (opts: {
   located: ILocatedPreset;
-  target: string;
   tokens: Record<string, string>;
-  /** The folder to copy when it is not the app's: a lib preset's own. */
+  /** The folder to render when it is not the app's: a lib preset's own. */
   files?: string;
-}): string[] => {
-  const written: string[] = [];
+}): IRenderedPresetFile[] => {
+  const rendered: IRenderedPresetFile[] = [];
   const files = opts.files ?? opts.located.preset.files;
 
   for (const path of new Glob('**/*').scanSync({ cwd: files, dot: true })) {
@@ -261,23 +278,39 @@ export const copyPresetFiles = (opts: {
     }
 
     const name = basename(path);
-    const relativePath = CreateConstants.PRESET_DOTFILE_NAMES.includes(name)
-      ? join(dirname(path), `.${name.slice(1)}`)
-      : path;
-    const destination = join(opts.target, relativePath);
-    const { mode } = statSync(source);
+
+    rendered.push({
+      path: CreateConstants.PRESET_DOTFILE_NAMES.includes(name)
+        ? join(dirname(path), `.${name.slice(1)}`)
+        : path,
+      content: substituteTokens({ content: readFileSync(source), tokens: opts.tokens }),
+      mode: statSync(source).mode,
+    });
+  }
+
+  return rendered;
+};
+
+export const copyPresetFiles = (opts: {
+  located: ILocatedPreset;
+  target: string;
+  tokens: Record<string, string>;
+  /** The folder to copy when it is not the app's: a lib preset's own. */
+  files?: string;
+}): string[] => {
+  const written: string[] = [];
+
+  for (const file of renderPresetFiles(opts)) {
+    const destination = join(opts.target, file.path);
 
     mkdirSync(dirname(destination), { recursive: true });
-    writeFileSync(
-      destination,
-      substituteTokens({ content: readFileSync(source), tokens: opts.tokens }),
-    );
+    writeFileSync(destination, file.content);
 
-    if (mode & EXECUTABLE_BITS) {
-      chmodSync(destination, mode & PERMISSION_BITS);
+    if (file.mode & EXECUTABLE_BITS) {
+      chmodSync(destination, file.mode & PERMISSION_BITS);
     }
 
-    written.push(relativePath);
+    written.push(file.path);
   }
 
   return written;

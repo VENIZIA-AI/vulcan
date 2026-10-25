@@ -24,6 +24,10 @@ Usage: bun x vulcan <command>
                                   backend to proxy to; --dir is for a library; --scope names the package
                                   @scope/<name>, for an app or a library; a terminal asks for the kind
                                   and every name the flags leave out)
+  preset diff <app> [--preset <name|file:path>] [--api <app> | --no-api] [--full] [--check]
+                                  Read-only: set each file the app's preset makes now against the file
+                                  the app has (same, differs, missing in the app); --full prints the
+                                  unified diffs, --check exits 1 when anything differs or is missing
   sync [--agents <list>|list] [--dry-run] [--prune]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
                                   stored in .agents/vulcan.local.json; --agents list shows the table);
@@ -58,6 +62,7 @@ The following table lists each command, its purpose, its exit codes, and its ref
 |---|---|---|---|
 | `init` | Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app | `0` on success; `1` on invalid configuration format, a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan init](/references/commands/init) |
 | `add` | Add an app, or a shared library with `--lib`, from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
+| `preset` | `preset diff <app>`: read-only report of each file the app's preset makes now against the file the app has | `0` after a report (with `--check`, `1` when anything differs or is missing); `1` on a refusal or an unknown argument | [vulcan preset diff](/references/commands/preset) |
 | `sync` | Write agent adapter files and manifest; prune stale hooks and dead skill links with `--prune` | `0` on success; `1` on invalid configuration, broken settings, or unknown argument | [vulcan sync](/references/commands/sync) |
 | `agents` | Show, add, remove or re-choose the coding agents chosen on this machine, and write or take back their adapters | `0` on success or when nothing needed changing; `1` on an unknown agent or subcommand, a missing list, `setup` without a terminal, or invalid configuration | [vulcan agents](/references/commands/agents) |
 | `visualize` | Make one small static HTML page from a JSON spec, in `.agents/local/prototypes/`; `--schema` prints the spec's JSON Schema | `0` on success; `1` when the spec is missing or not renderable, nothing is written, or `.agents/local/` is missing | [vulcan visualize](/references/commands/visualize) |

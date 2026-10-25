@@ -51,4 +51,28 @@ export class CreateFlags {
   static readonly LIB = '--lib';
   static readonly DIR = '--dir';
   static readonly SCOPE = '--scope';
+  static readonly FULL = '--full';
+  static readonly CHECK = '--check';
+}
+
+/** One line of a line diff: kept, only in the preset (added) or only in the app (removed). */
+export class DiffEditKinds {
+  static readonly KEEP = 'keep';
+  static readonly ADD = 'add';
+  static readonly REMOVE = 'remove';
+  static readonly SCHEME_SET = new Set<string>([this.KEEP, this.ADD, this.REMOVE]);
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
+/** What `preset diff` says of a file the preset makes, next to the file the app has. */
+export class PresetDiffStatuses {
+  static readonly SAME = 'same';
+  static readonly DIFFERS = 'differs';
+  static readonly MISSING = 'missing';
+  static readonly SCHEME_SET = new Set<string>([this.SAME, this.DIFFERS, this.MISSING]);
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
 }
