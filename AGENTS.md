@@ -10,7 +10,7 @@ This is the **only tracked instruction file**. Tool files are gitignored adapter
 
 | Read before you touch anything | What lives there |
 |---|---|
-| **`packages/cli/base/rules.md`** | **THE base rules** every VULCAN project inherits, IDs `V-*`: write boundaries, security, process, build, and the coding style `V-C-01` … `V-C-18` |
+| **`packages/cli/base/rules.md`** | **THE base rules** every VULCAN project inherits, IDs `V-*`: write boundaries, security, process, build, and the coding style `V-C-01` … `V-C-19` |
 | **[`.agents/rules.md`](.agents/rules.md)** | VULCAN's own rules - IGNIS's W, S, P, B adopted with their IDs, bare: W-00 no agent signature, W-01 git on the user's word, P-09 the minimap, B-01 Bun only, ... |
 | **[`.agents/knowledge/index.md`](.agents/knowledge/index.md)** | **THE facts** - what VULCAN is, the layout, the packages, conventions, gotchas, how to release |
 

@@ -7,12 +7,12 @@ tags: [conventions, style, code]
 
 # Coding style
 
-The rules are `V-C-01..18` in `packages/cli/base/rules.md`; this is how they look here.
+The rules are `V-C-01..19` in `packages/cli/base/rules.md`; this is how they look here.
 
 - **Names.** VULCAN in prose, always caps. Files are kebab-case, named by role, never repeating the
   folder (`V-C-17`): `commands/sync.command.ts`, `sync/planner.ts`. Durable artifacts carry ISO
   dates (C-19).
-- **Options objects everywhere** (`V-C-02`); verb-first arrow functions (`V-C-07`); full-word names
+- **Options objects everywhere** (`V-C-02`), with options that serve one concern grouped into a named sub-object, not prefixed siblings (`V-C-19`); verb-first arrow functions (`V-C-07`); full-word names
   (`V-C-04`).
 - **Enumerable strings** are const classes with `SCHEME_SET` / `isValid` (`V-C-08`) - see any
   `common/constants.ts`.

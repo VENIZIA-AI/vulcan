@@ -130,6 +130,7 @@ Code and writing rules define TypeScript standards, parameter limits, naming pat
 | `V-C-15` | Use a single method with mode options rather than multiple specialized methods. | SOFT |
 | `V-C-16` | Maintain one canonical implementation per concept; consolidate duplicated logic. | SOFT |
 | `V-C-17` | Name files by role without repeating parent folder names. | SOFT |
+| `V-C-19` | Options that serve one concern live in one named sub-object (`{ limit: { default, max } }`), not as prefixed siblings (`defaultLimit`, `maxLimit`); a shared prefix or suffix across sibling names marks a scattered group. New code; an existing shape changes when touched. | SOFT |
 | `V-C-18` | Derive compile-time types from schemas or functions rather than duplicating definitions. | SOFT |
 
 ## Retired rules
