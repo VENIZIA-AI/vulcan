@@ -398,6 +398,69 @@ describe('vulcan add --lib with several shared folders', () => {
   });
 });
 
+describe('vulcan add --lib says why a folder it used was not recorded', () => {
+  const lib = `file:${join(FIXTURES, 'preset-with-lib')}`;
+  const project = (): string => {
+    const parent = createProject({ files: {} });
+    const init = runCli({
+      args: [
+        'init',
+        '--preset',
+        lib,
+        '--project',
+        'p',
+        '--backend-dir',
+        'umbras',
+        '--app',
+        'core-api',
+        '--shared-dir',
+        'kits',
+      ],
+      cwd: parent,
+      env: ENV,
+    });
+
+    expect(init.code, init.stderr).toBe(0);
+
+    return join(parent, 'p');
+  };
+  const addLib = (opts: { root: string; name: string; dir: string }) =>
+    runCli({
+      args: ['add', '--preset', lib, '--lib', opts.name, '--dir', opts.dir],
+      cwd: opts.root,
+      env: ENV,
+    });
+
+  test.each([
+    ['libs/UI', 'lowercase letters'],
+    ['kits/deep', 'are nested'],
+    ['a/b/c/d/e', 'more than 4 segments'],
+    ['umbras', "names 'umbras' again"],
+  ])('--dir %s is used, not recorded, and the reason is said', async (dir, why) => {
+    const root = project();
+    const result = addLib({ root, name: 'money', dir });
+
+    expect(result.code, result.stderr).toBe(0);
+    expect(existsSync(join(root, dir, 'money/package.json'))).toBe(true);
+    expect(result.stderr).toContain(`note: '${dir}' is not added to layout.shared`);
+    expect(result.stderr).toContain(why);
+    expect(result.stderr).toContain('guard-package does not cover it');
+    expect((await layoutOf({ root }))?.shared).toBe('kits');
+  });
+
+  test('a listed folder and a valid new one print no note', async () => {
+    const root = project();
+    const listed = addLib({ root, name: 'money', dir: 'kits' });
+    const added = addLib({ root, name: 'tax', dir: 'kits2/b' });
+
+    expect(listed.code, listed.stderr).toBe(0);
+    expect(listed.stderr).not.toContain('note:');
+    expect(added.code, added.stderr).toBe(0);
+    expect(added.stderr).not.toContain('note:');
+    expect((await layoutOf({ root }))?.shared).toEqual(['kits', 'kits2/b']);
+  });
+});
+
 /** A project shaped like BANA's: grouped apps and libraries, and four folders the layout does not manage. */
 const groupedProject = (opts: { other?: string[]; extraPackage?: string } = {}): string => {
   const packages = [

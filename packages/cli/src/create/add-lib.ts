@@ -228,10 +228,12 @@ export const addLibrary = async (opts: {
   const sharedBefore = parsed.block.layout.shared;
   const grown = withLayoutFolder({ value: sharedBefore, folder });
   // A valid folder the layout does not list yet is added to layout.shared, unless it would nest with another folder.
-  const isNewFolder =
-    !layoutFoldersOf({ value: sharedBefore }).includes(folder) &&
-    layoutFolderProblem({ folder }) === undefined &&
-    layoutOverlapProblems({ layout: { ...parsed.block.layout, shared: grown } }).length === 0;
+  const isListed = layoutFoldersOf({ value: sharedBefore }).includes(folder);
+  const notRecorded = isListed
+    ? undefined
+    : (layoutFolderProblem({ folder }) ??
+      layoutOverlapProblems({ layout: { ...parsed.block.layout, shared: grown } }).join('; '));
+  const isNewFolder = !isListed && notRecorded === '';
   const block = opts.recorded({
     block: {
       ...parsed.block,
@@ -258,6 +260,13 @@ export const addLibrary = async (opts: {
 
   if (warning !== undefined) {
     process.stderr.write(`${warning}\n`);
+  }
+
+  // The folder is used all the same; the layout does not list it, so `guard-package` does not cover it.
+  if (notRecorded !== undefined && notRecorded !== '') {
+    process.stderr.write(
+      `note: '${folder}' is not added to layout.shared (${notRecorded}); guard-package does not cover it\n`,
+    );
   }
 
   const rows: [string, string][] = [['library', path]];
