@@ -17,7 +17,7 @@ The table below is the content of `base/agents.json`, the table `sync` is driven
 | `cursor` | Cursor | `AGENTS.md` | `.cursor/mcp.json` | `.agents/skills` | not yet | not documented |
 | `copilot-cli` | Copilot CLI | `AGENTS.md` | `.mcp.json` (shared) | `.agents/skills` | not yet | not documented |
 | `copilot-vscode` | Copilot in VS Code | `AGENTS.md` | `.vscode/mcp.json` | `.agents/skills` | not yet | not documented |
-| `antigravity` | Antigravity CLI | `AGENTS.md` | `.agents/mcp_config.json` | `.agents/skills` | not yet | not shown: it keeps the text in files and lists only the tool names |
+| `antigravity` | Antigravity CLI | `AGENTS.md` | `.agents/mcp_config.json` | `.agents/skills` | `.agents/hooks.json` | not shown: it keeps the text in files and lists only the tool names |
 | `pi` | Pi | `AGENTS.md` | `.pi/mcp.json` | `.agents/skills` | `.pi/extensions/vulcan-guards.ts` | one line only, as a server summary |
 
 ## What you get
@@ -28,7 +28,7 @@ The table below is the content of `base/agents.json`, the table `sync` is driven
 
 ## What the other agents lose
 
-The session-start digest, the owner-reply check and the `claude.settings` of the config exist for Claude Code only. The guards reach two more agents, through a file `sync` writes for them: omp loads `.omp/hooks/pre/vulcan-guards.ts` and pi loads `.pi/extensions/vulcan-guards.ts`, and both run the same guard scripts Claude Code runs (see [the guards on omp and pi](/references/hooks/#the-guards-on-omp-and-pi)). For the other agents (Codex, Cursor, both Copilots, Antigravity) the rules in `AGENTS.md` are still written, but nothing enforces `V-W-02`, `V-W-03`, `V-W-06`, the manifest guard or the package guard yet.
+The session-start digest, the owner-reply check and the `claude.settings` of the config exist for Claude Code only. The guards reach three more agents, through a file `sync` writes for them: omp loads `.omp/hooks/pre/vulcan-guards.ts`, pi loads `.pi/extensions/vulcan-guards.ts`, and Antigravity reads a hook in `.agents/hooks.json`; all three run the same guard scripts Claude Code runs (see [the guards on omp and pi](/references/hooks/#the-guards-on-omp-and-pi) and [on Antigravity](/references/hooks/#the-guards-on-antigravity)). For the other agents (Codex, Cursor, both Copilots) the rules in `AGENTS.md` are still written, but nothing enforces `V-W-02`, `V-W-03`, `V-W-06`, the manifest guard or the package guard yet.
 
 ## Things only you can do
 

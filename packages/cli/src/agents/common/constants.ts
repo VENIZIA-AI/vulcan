@@ -13,8 +13,10 @@ export class AgentScopes {
 /** How a guard reaches an agent that has no Claude-style hook commands: a file the agent loads. */
 export class AgentGuardKinds {
   static readonly EXTENSION = 'extension';
+  /** A hooks file that names a command: Antigravity's `.agents/hooks.json`. */
+  static readonly HOOKS_JSON = 'hooks-json';
 
-  static readonly SCHEME_SET = new Set<string>([this.EXTENSION]);
+  static readonly SCHEME_SET = new Set<string>([this.EXTENSION, this.HOOKS_JSON]);
 
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);

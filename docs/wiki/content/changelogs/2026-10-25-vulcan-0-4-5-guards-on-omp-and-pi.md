@@ -1,6 +1,6 @@
 ---
 title: "VULCAN 0.4.5: The Guards Reach omp and pi"
-description: vulcan sync writes a guard file for omp and pi that runs the same guard scripts Claude Code runs, so a force-push to main and a write outside the project are refused there too; Codex, Cursor, Copilot and Antigravity are not wired yet.
+description: vulcan sync writes a guard file for omp and pi that runs the same guard scripts Claude Code runs, so a force-push to main and a write outside the project are refused there too; Codex, Cursor and Copilot are not wired yet.
 packages: ['@venizia/vulcan']
 ---
 

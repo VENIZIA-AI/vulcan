@@ -210,6 +210,68 @@ const runGuard = (opts: {
   return answerOf({ stdout: result.stdout });
 };
 
+class Verdicts {
+  static readonly ALLOW = 'allow';
+  static readonly ASK = 'ask';
+  static readonly DENY = 'deny';
+}
+
+export interface IVerdict {
+  kind: string;
+  reason: string;
+}
+
+/**
+ * What the guards say about one tool call: `deny` (blocked), `ask` (the owner decides; one reason holds every
+ * guard that asked) or `allow`. Exported so a host that is not an extension (Antigravity's hook command) can
+ * use the same policy.
+ */
+export const verdictOf = (opts: {
+  toolName: string;
+  input: Record<string, unknown>;
+  cwd: string;
+}): IVerdict => {
+  const root = rootOf({ cwd: opts.cwd });
+  const claudeEvent = claudeEventOf({ event: opts, root });
+  const asks: string[] = [];
+
+  if (claudeEvent === undefined) {
+    return { kind: Verdicts.ALLOW, reason: '' };
+  }
+
+  for (const guard of GUARDS.filter((item) => item.tools.includes(opts.toolName))) {
+    const answer = runGuard({ guard, root, claudeEvent });
+
+    if (answer.kind === Answers.DENY) {
+      return { kind: Verdicts.DENY, reason: answer.reason };
+    }
+
+    if (answer.kind === Answers.ASK) {
+      asks.push(answer.reason);
+    }
+
+    if (answer.kind === Answers.MISSING) {
+      const isRepair = opts.toolName === Tools.BASH && BUN_INSTALL.test(String(opts.input.command));
+
+      if (guard.onFailure === Failures.BLOCK && !isRepair) {
+        return { kind: Verdicts.DENY, reason: answer.reason };
+      }
+    }
+
+    if (answer.kind === Answers.FAILED) {
+      if (guard.onFailure === Failures.BLOCK) {
+        return { kind: Verdicts.DENY, reason: answer.reason };
+      }
+
+      asks.push(answer.reason);
+    }
+  }
+
+  return asks.length > 0
+    ? { kind: Verdicts.ASK, reason: asks.join('\n\n') }
+    : { kind: Verdicts.ALLOW, reason: '' };
+};
+
 /** Asks the owner when there is a UI to ask; without one the call is blocked, never let through. */
 const askOwner = async (opts: {
   context: IToolContext;
@@ -226,54 +288,14 @@ const askOwner = async (opts: {
 
 export default function vulcanGuards(host: IHost): void {
   host.on('tool_call', async (event, context) => {
-    const root = rootOf({ cwd: context.cwd });
-    const claudeEvent = claudeEventOf({ event, root });
+    const verdict = verdictOf({ toolName: event.toolName, input: event.input, cwd: context.cwd });
 
-    if (claudeEvent === undefined) {
-      return undefined;
+    if (verdict.kind === Verdicts.DENY) {
+      return { block: true, reason: verdict.reason };
     }
 
-    for (const guard of GUARDS.filter((item) => item.tools.includes(event.toolName))) {
-      const answer = runGuard({ guard, root, claudeEvent });
-
-      if (answer.kind === Answers.DENY) {
-        return { block: true, reason: answer.reason };
-      }
-
-      if (answer.kind === Answers.ASK) {
-        const declined = await askOwner({ context, reason: answer.reason });
-
-        if (declined !== undefined) {
-          return declined;
-        }
-
-        continue;
-      }
-
-      if (answer.kind === Answers.MISSING) {
-        const isRepair =
-          event.toolName === Tools.BASH && BUN_INSTALL.test(String(event.input.command));
-
-        if (guard.onFailure === Failures.BLOCK && !isRepair) {
-          return { block: true, reason: answer.reason };
-        }
-
-        continue;
-      }
-
-      if (answer.kind === Answers.FAILED) {
-        if (guard.onFailure === Failures.BLOCK) {
-          return { block: true, reason: answer.reason };
-        }
-
-        const declined = await askOwner({ context, reason: answer.reason });
-
-        if (declined !== undefined) {
-          return declined;
-        }
-      }
-    }
-
-    return undefined;
+    return verdict.kind === Verdicts.ASK
+      ? askOwner({ context, reason: verdict.reason })
+      : undefined;
   });
 }
