@@ -110,3 +110,17 @@ export class OwnerReplySwitch {
   /** The only value that counts: anything else is ignored, so a stray value never switches the check off. */
   static readonly OFF = 'off';
 }
+
+/**
+ * How the words of a reply are held: `exact` when a label set exists for the reader's language (the
+ * owner's own words, or the shipped English), `free` when the reader's language is not English and has
+ * none: the agent writes the labels in that language and the check looks at the structure only.
+ */
+export class OwnerLabelModes {
+  static readonly EXACT = 'exact';
+  static readonly FREE = 'free';
+  static readonly SCHEME_SET = new Set<string>([this.EXACT, this.FREE]);
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}

@@ -1,5 +1,6 @@
 import { OwnerConstants, OwnerDetails, OwnerFormalities, OwnerTones } from './constants.ts';
 import { OWNER_LABEL_SET, PROFILE_SCHEMA } from './schema.ts';
+import { isEnglishLanguage } from './view.ts';
 import type { TOwnerLabelSet, TProfile } from './schema.ts';
 
 export interface ISurveyChoice {
@@ -124,7 +125,7 @@ const askLabels = async (opts: { io: ISurveyIo }): Promise<TOwnerLabelSet | null
 /**
  * The questions, in order, each with a default taken on an empty answer and each skippable: the
  * reply language, how to address the person, tone, report detail, working habits, a free line in their
- * words and code taste, and - for a language that is not English - the words for the report. Nothing is
+ * words and code taste, and - for a language that is not English - whether to type the words for the report or let the agent write them. Nothing is
  * inferred from the answers. `existing` supplies the defaults when the form is run again. Returns the
  * profile, or `null` when the user cancelled.
  */
@@ -242,11 +243,11 @@ export const runSurvey = async (opts: {
 
   const labels: Record<string, TOwnerLabelSet> = { ...existing?.labels };
 
-  if (language !== OwnerConstants.DEFAULT_LANGUAGE && !(language in labels)) {
+  if (!isEnglishLanguage({ language }) && !(language in labels)) {
     const typed = await io.select({
-      message: `Words for reports in ${language}: only English ships. Type them now, or keep English?`,
+      message: `Words for reports in ${language}: no set ships. Let the agent write them in ${language} (only the structure is checked), or type them now?`,
       choices: [
-        { value: 'keep', label: 'keep English' },
+        { value: 'keep', label: `let the agent write them in ${language}` },
         { value: 'type', label: 'type them now' },
       ],
       initial: 'keep',

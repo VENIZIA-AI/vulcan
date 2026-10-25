@@ -1,4 +1,4 @@
-import { OwnerConstants, OwnerEnforcement, OwnerSections } from './constants.ts';
+import { OwnerConstants, OwnerEnforcement, OwnerLabelModes, OwnerSections } from './constants.ts';
 import type { IOwnerView } from './view.ts';
 
 /** Free text as one quotable line: whitespace collapsed, quotes softened, cut to the card's limit. */
@@ -9,7 +9,37 @@ const plain = (opts: { text: string }): string =>
     .trim()
     .slice(0, OwnerConstants.CARD_ABOUT_MAX_CHARACTERS);
 
+/** A section described without a word of its own: the reader's language has no label set, the agent writes the labels. */
+const FREE_SECTION_TEXT = (opts: { section: string; view: IOwnerView }): string => {
+  const { headlineMaxSentences, language } = opts.view;
+
+  switch (opts.section) {
+    case OwnerSections.HEADLINE: {
+      return `a headline: the answer first, at most ${headlineMaxSentences} sentence${headlineMaxSentences === 1 ? '' : 's'}, no preamble`;
+    }
+    case OwnerSections.MINIMAP: {
+      return `a table of three columns (number, task, status) with its header row, one status per row, the header and the status words written in ${language}`;
+    }
+    case OwnerSections.BLOCKED: {
+      return `one line, led by a short label in ${language}, naming the blocker or saying there is none`;
+    }
+    case OwnerSections.DETAIL: {
+      return 'detail: tables over prose, every technical point with its plain meaning';
+    }
+    case OwnerSections.DECISIONS: {
+      return `a decisions heading in ${language}, then a numbered list, each item ending with your recommendation worded so that a yes accepts it, or one line saying nothing is needed`;
+    }
+    default: {
+      return opts.section;
+    }
+  }
+};
+
 const SECTION_TEXT = (opts: { section: string; view: IOwnerView }): string => {
+  if (opts.view.labelMode === OwnerLabelModes.FREE) {
+    return FREE_SECTION_TEXT(opts);
+  }
+
   const { labels, headlineMaxSentences } = opts.view;
   const [number, task, status] = labels.minimapColumns;
   const statuses = Object.values(labels.status).join(', ');
@@ -49,6 +79,11 @@ export const renderOwnerShapeCard = (opts: { view: IOwnerView }): string[] => {
     '',
     `Every reply, in this order: ${view.shape.map((section) => SECTION_TEXT({ section, view })).join('; ')}.`,
     ...(view.absolutePaths ? ['Name a file the owner should open by its full absolute path.'] : []),
+    ...(view.labelMode === OwnerLabelModes.FREE
+      ? [
+          `No label has a fixed word here: write the table header, the status words, the blocked label, the decisions heading and the recommendation in ${view.language}, in the form of address the profile gives.`,
+        ]
+      : []),
     `Language: ${view.language}. Identifiers stay in backticks. Say what is unverified and what you got wrong, plainly.`,
   ];
 };

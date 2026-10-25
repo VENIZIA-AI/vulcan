@@ -110,7 +110,7 @@ export const OWNER_SCHEMA = z
 /** `.agents/local/profile.json`: what one developer told VULCAN about how to work with them. */
 export const PROFILE_SCHEMA = z.strictObject({
   schemaVersion: z.literal(OwnerConstants.PROFILE_SCHEMA_VERSION),
-  /** Reply language; labels for it come from `labels` below, else English. */
+  /** Reply language; labels for it come from `labels` below. A language that is not English with none has its labels written by the agent, and only the structure is checked. */
   language: LANGUAGE.optional(),
   address: z
     .strictObject({
