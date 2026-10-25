@@ -11,10 +11,13 @@ import {
 import { basename, dirname, join } from 'node:path';
 import {
   AgentConstants,
+  AgentGuardKinds,
   AgentRenderers,
   AgentScopes,
+  GUARD_HOOK_NAME,
   readAgentTable,
   removeCodexBlock,
+  removeGuardHook,
   removeMcpEntry,
 } from '../agents/index.ts';
 import type { TAgentEntry } from '../agents/index.ts';
@@ -126,6 +129,51 @@ const planSharedMcpRemoval = (opts: { root: string }): ISyncAction[] => {
       ];
 };
 
+/** VULCAN's entry taken out of a hooks file; the file goes when nothing else is in it. */
+const planGuardHookRemoval = (opts: {
+  root: string;
+  path: string;
+  relative: string;
+}): ISyncAction[] => {
+  if (!existsSync(opts.path)) {
+    return [];
+  }
+
+  const removed = removeGuardHook({ text: readFileSync(opts.path, 'utf8') });
+
+  if (!removed.ok) {
+    return [
+      { path: opts.path, status: SyncStatuses.SKIPPED, note: removed.reason, apply: NO_CHANGE },
+    ];
+  }
+
+  if (removed.outcome === 'absent') {
+    return [];
+  }
+
+  if (isTracked({ root: opts.root, path: opts.relative })) {
+    return [
+      {
+        path: opts.path,
+        status: SyncStatuses.SKIPPED,
+        note: 'tracked by git - left alone',
+        apply: NO_CHANGE,
+      },
+    ];
+  }
+
+  return removed.text === undefined
+    ? [removeFile({ path: opts.path })]
+    : [
+        {
+          path: opts.path,
+          status: SyncStatuses.REPLACED,
+          note: `the '${GUARD_HOOK_NAME}' hook taken out`,
+          apply: () => writeFileSync(opts.path, removed.text ?? ''),
+        },
+      ];
+};
+
 /** The guard extension sync wrote, taken back with its folders once they are empty; a file of the user's stays. */
 const planGuardsRemoval = (opts: { root: string; entry: TAgentEntry }): ISyncAction[] => {
   if (opts.entry.guards === null) {
@@ -133,6 +181,10 @@ const planGuardsRemoval = (opts: { root: string; entry: TAgentEntry }): ISyncAct
   }
 
   const path = join(opts.root, opts.entry.guards.path);
+
+  if (opts.entry.guards.kind === AgentGuardKinds.HOOKS_JSON) {
+    return planGuardHookRemoval({ root: opts.root, path, relative: opts.entry.guards.path });
+  }
 
   if (
     !existsSync(path) ||
