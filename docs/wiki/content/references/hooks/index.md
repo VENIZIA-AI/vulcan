@@ -131,7 +131,7 @@ The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `
 
 `git push -fu`, `git branch -m develop x`, `git update-ref -d refs/heads/develop` and `git push --mirror` are read too. A heredoc body (a commit message passed with `<<'EOF'`) is data and is not read as commands; a body fed to a shell (`bash <<EOF`) is not read at all.
 
-The branch checks run read-only `git` and `gh` queries with a five-second limit, at most four for one command line (past them the guard asks); a query that fails or times out lets the command pass. Input the hook cannot read passes too. `VULCAN_GUARDS=off` in the environment switches the guard off for a session; it is read before any module is loaded, so it still works when an install is broken and the guard cannot start.
+The branch checks run read-only `git` and `gh` queries with a five-second limit, at most four for one command line (past them the guard asks); a query that fails or times out lets the command pass. Input the hook cannot read passes too. A hook that crashes or times out asks, for a command that names `git` or `gh` (see [How the hooks fail](#how-the-hooks-fail)). `VULCAN_GUARDS=off` in the environment switches the guard off for a session; it is read before any module is loaded, so it still works when an install is broken and the guard cannot start.
 
 ### What the guards are, and are not
 
@@ -243,15 +243,18 @@ At Stop, the same check that holds the report shape also compares the reply with
 
 ## How the hooks fail
 
-Two kinds of hook run in every session of every project, so each kind has a stated failure mode.
+Several kinds of hook run in every session of every project, so each kind has a stated failure mode.
 
 | Kind | Hooks | When it cannot run (missing package, missing `bun`, a crash) |
 |---|---|---|
 | Safety hooks | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
-| Drift guards | `guard-git`, `guard-scripting`, `guard-outside` | fail open: the call passes and a note goes to stderr |
+| Deny-class guards | `guard-git`, `guard-outside` | a missing package or `bun` passes, with a note on stderr (a broken install must not stop every call); a hook that started and then crashed, was killed, ran out of memory or past 30 seconds **asks**. `guard-git` asks only about a command that names `git` or `gh`; `guard-outside` asks about the call |
+| Drift guard | `guard-scripting` | fail open: the call passes and a note goes to stderr |
 | Shape and signal hooks | `stop`, `prompt-submit`, `post-tool` | fail open: the reply, prompt or call passes and a note goes to stderr |
 
-`subagent-start` never blocks. `VULCAN_GUARDS=off` switches the drift guards, the shape hooks and `post-tool` off and is read before any module loads.
+`subagent-start` never blocks. `VULCAN_GUARDS=off` switches the guards, the shape hooks and `post-tool` off and is read before any module loads.
+
+**Why the deny-class guards ask.** A guard that refuses must not be switched off by the same input that breaks it: a line that overflowed the stack or ran for minutes used to crash `guard-git`, and the wrapper let the call through. The wrapper of `guard-git` and `guard-outside` runs the hook under `timeout 30` (where `timeout` exists; macOS has none, and a hook that hangs there is bounded by Claude Code's own limit) and, when the hook ends with a non-zero status, prints an `ask` decision and exits 0. A hook that fails inside its own `try` (an internal error, a module that does not load) asks the same way, with the error in the reason. The cost is noise on a broken install: `guard-git` asks about each `git` or `gh` command and `guard-outside` about each call until you run `bun install` or set `VULCAN_GUARDS=off`. A missing package or `bun` is not that case and still passes, so the first `bun install` of a fresh clone is never blocked.
 
 The safety hooks import only the modules they need, not the config loader, the rules reader or `zod`, so a defect in those cannot stop every tool call. The release pipeline's pack smoke runs every hook of the generated settings from the installed tarball (a benign call each, with every copy of `zod` made unresolvable, and with `src/hooks/common/constants.ts` removed) and refuses to publish if one fails.
 

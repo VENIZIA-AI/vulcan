@@ -214,7 +214,7 @@ describe('the subagent-start hook', () => {
 
 describe('the kill switch does not depend on the install being healthy', () => {
   test.each(['guard-git', 'guard-scripting', 'guard-outside'])(
-    '%s: with its modules unloadable it passes the call and says so; with VULCAN_GUARDS=off it is silent',
+    '%s: with its modules unloadable it says so (guard-outside asks); with VULCAN_GUARDS=off it is silent',
     async (hook) => {
       // A copy of the hook where `../../src/hooks/*` does not exist: the import fails.
       const broken = join(createProject({ files: {} }), 'a', 'b');
@@ -232,15 +232,18 @@ describe('the kill switch does not depend on the install being healthy', () => {
           killSignal: 'SIGKILL',
         });
         const stderr = await new Response(child.stderr).text();
+        const stdout = await new Response(child.stdout).text();
 
-        return { code: await child.exited, stderr };
+        return { code: await child.exited, stderr, stdout };
       };
       const failing = await run({});
       const off = await run({ VULCAN_GUARDS: 'off' });
 
       expect(failing.code).toBe(0);
-      expect(failing.stderr).toContain('the call passes');
-      expect(off).toEqual({ code: 0, stderr: '' });
+      expect(failing.stderr).toContain(`the ${hook} hook failed`);
+      // guard-outside asks about every call it could not check; guard-git only about git and gh; the advice hook stays silent.
+      expect(failing.stdout.includes('"permissionDecision":"ask"')).toBe(hook === 'guard-outside');
+      expect(off).toEqual({ code: 0, stderr: '', stdout: '' });
     },
   );
 });

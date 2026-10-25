@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/guard-git.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\" || echo \"vulcan: the guard-git hook failed - the call passes\" >&2; exit 0; fi; echo \"vulcan: the guard-git hook cannot run: node_modules/@venizia/vulcan or bun is missing - the call passes\" >&2; exit 0"
+            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/guard-git.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then in=$(cat); t=; command -v timeout >/dev/null 2>&1 && t=\"timeout 30\"; out=$(printf '%s' \"$in\" | $t bun \"$f\"); s=$?; [ \"$s\" -eq 0 ] && { printf '%s' \"$out\"; exit 0; }; if printf '%s' \"$in\" | grep -Eq '(^|[^[:alnum:]_])(git|gh)([^[:alnum:]_]|$)'; then printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"The guard-git hook crashed or timed out, so this command was not checked. Confirm only if the owner asked for exactly this; VULCAN_GUARDS=off switches the guards off for a session.\"}}'; exit 0; fi; echo \"vulcan: the guard-git hook failed - the call passes\" >&2; exit 0; fi; echo \"vulcan: the guard-git hook cannot run: node_modules/@venizia/vulcan or bun is missing - the call passes\" >&2; exit 0"
           }
         ]
       },
@@ -64,7 +64,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/guard-outside.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\" || echo \"vulcan: the guard-outside hook failed - the call passes\" >&2; exit 0; fi; echo \"vulcan: the guard-outside hook cannot run: node_modules/@venizia/vulcan or bun is missing - the call passes\" >&2; exit 0"
+            "command": "f=\"${CLAUDE_PROJECT_DIR}/node_modules/@venizia/vulcan/base/hooks/guard-outside.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then in=$(cat); t=; command -v timeout >/dev/null 2>&1 && t=\"timeout 30\"; out=$(printf '%s' \"$in\" | $t bun \"$f\"); s=$?; [ \"$s\" -eq 0 ] && { printf '%s' \"$out\"; exit 0; }; printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"The guard-outside hook crashed or timed out, so this call was not checked. Confirm only if the owner asked for exactly this; VULCAN_GUARDS=off switches the guards off for a session.\"}}'; exit 0; fi; echo \"vulcan: the guard-outside hook cannot run: node_modules/@venizia/vulcan or bun is missing - the call passes\" >&2; exit 0"
           }
         ]
       }
