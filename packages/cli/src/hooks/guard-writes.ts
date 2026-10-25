@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { HookConstants } from './common/index.ts';
 import type { IHookCommand, IWriteCheck, IWriteHit } from './common/index.ts';
+import { commandTextsOf } from './command-view.ts';
 import { forHost } from './decision.ts';
 
 const MUTATING_VERB = '(?:POST|PUT|PATCH|DELETE)';
@@ -76,14 +77,17 @@ const readScript = (opts: { target: string; cwd: string }): string | undefined =
 
 /** Every reason `command` looks like a write the base rules reserve for a human (V-W-02, V-W-03). */
 export const inspectCommand = (opts: { command: string; cwd: string }): IWriteHit[] => {
-  const hits: IWriteHit[] = COMMAND_CHECKS.filter((check) => check.pattern.test(opts.command)).map(
-    (check) => ({
-      rule: check.rule,
-      message: check.what,
-    }),
-  );
+  // The patterns run on what the command runs, not on its text: a heredoc written to a file, the pattern
+  // of an `rg` and a commit message are data.
+  const texts = commandTextsOf({ command: opts.command, withMessages: true });
+  const hits: IWriteHit[] = COMMAND_CHECKS.filter((check) =>
+    texts.some((text) => check.pattern.test(text)),
+  ).map((check) => ({
+    rule: check.rule,
+    message: check.what,
+  }));
 
-  for (const target of extractScriptTargets({ command: opts.command })) {
+  for (const target of extractScriptTargets({ command: texts.join('\n') })) {
     const source = readScript({ target, cwd: opts.cwd });
 
     if (source === undefined) {

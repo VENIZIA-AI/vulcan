@@ -385,10 +385,7 @@ describe('parseShell', () => {
   });
 
   test('a heredoc body is data, the commands around it are read', () => {
-    expect(wordsOf('cat <<EOF\ngit push -f origin main\nEOF\nls')).toEqual([
-      ['cat', 'EOF'],
-      ['ls'],
-    ]);
+    expect(wordsOf('cat <<EOF\ngit push -f origin main\nEOF\nls')).toEqual([['cat'], ['ls']]);
     expect(
       wordsOf(`git commit -m "$(cat <<'EOF'\nnever rm -rf\nEOF\n)"`).some((w) => w[0] === 'rm'),
     ).toBe(false);

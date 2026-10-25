@@ -1,7 +1,8 @@
 import { HookConstants } from './common/index.ts';
 import type { IWriteHit } from './common/index.ts';
+import { isDataOnly } from './command-view.ts';
 import { forHost } from './decision.ts';
-import { optionTakesNextWord, programOf } from './shell.ts';
+import { optionTakesNextWord, programOf, splitHeredocs } from './shell.ts';
 
 // -----------------------------------------------------------------------------
 // The remote-host guard: a Bash command that reaches a host the project has not listed asks first.
@@ -753,6 +754,11 @@ const analyzeWords = (opts: {
 
   const program = basenameOf({ word: words[0] ?? '' });
 
+  // `rg -n "ssh|scp" docs/`: the arguments of a search or a print are data.
+  if (isDataOnly({ command: { words, redirects: [], assignments: [] }, withMessages: false })) {
+    return [];
+  }
+
   if (program === '' || LOOKUPS.has(program) || opts.depth > MAXIMUM_DEPTH) {
     return opts.depth > MAXIMUM_DEPTH ? [unreadable({ why: 'the command nests too deeply' })] : [];
   }
@@ -859,7 +865,8 @@ const analyzeWords = (opts: {
 };
 
 const analyzeCommand = (opts: { command: string; depth: number }): IFinding[] =>
-  tokenize({ command: opts.command }).flatMap((segment) => {
+  // A heredoc body that is data (`cat > f <<EOF`) is not a command; one a shell reads stays in the text.
+  tokenize({ command: splitHeredocs({ command: opts.command }).text }).flatMap((segment) => {
     const findings = analyzeWords({
       words: segment.words,
       depth: opts.depth,

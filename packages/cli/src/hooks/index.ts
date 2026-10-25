@@ -12,3 +12,4 @@ export * from './owner-reply.ts';
 export * from './remote-hosts.ts';
 export * from './codex-patch.ts';
 export * from './shell.ts';
+export * from './command-view.ts';
