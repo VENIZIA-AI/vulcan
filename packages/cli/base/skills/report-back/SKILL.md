@@ -100,6 +100,10 @@ A handoff is by pointer. Write a short file in `.agents/local/reports/` with:
 - the skills the next agent should load;
 - no secrets: redact them.
 
+The reader is the next agent, so the file and the message use the plain format that agent asked for, not the
+owner's report shape. A session you start for it is started with `VULCAN_OWNER_REPLY=off`
+(`node_modules/@venizia/vulcan/base/references/delegation-brief.md`, "Starting another session").
+
 Put the file's path in the message. Every move except "continue" turns a primary source into a secondary
 one, so hand off only when the next unit of work needs a fresh window; the order of questions is in
 `node_modules/@venizia/vulcan/base/references/phase-boundaries.md`.

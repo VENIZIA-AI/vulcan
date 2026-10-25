@@ -13,6 +13,8 @@ import {
   checkManifest,
   checkLocalSize,
   checkProfile,
+  checkOwnerReplySettings,
+  checkOwnerReplySwitch,
   checkReplyShape,
   checkPrune,
   checkStaleLocal,
@@ -72,7 +74,11 @@ export const runDoctorChecks = async (opts: { root: string }): Promise<IViolatio
 };
 
 /** Notes that never fail the doctor: what a project could change, one line each. */
-export const runDoctorNotes = async (opts: { root: string }): Promise<IViolation[]> => {
+export const runDoctorNotes = async (opts: {
+  root: string;
+  /** The environment of the shell running doctor; defaults to the process environment. */
+  env?: Record<string, string | undefined>;
+}): Promise<IViolation[]> => {
   const loaded = await loadConfig({ root: opts.root });
 
   if (!loaded.ok) {
@@ -90,6 +96,7 @@ export const runDoctorNotes = async (opts: { root: string }): Promise<IViolation
     ...checkAtlasBlock(context),
     ...checkLocalSize(context),
     ...checkReplyShape(context),
+    ...checkOwnerReplySwitch({ env: opts.env ?? process.env }),
   ];
 };
 
@@ -115,6 +122,7 @@ export const runDoctorWarnings = async (opts: { root: string }): Promise<IViolat
     ...checkLocalWorkspace(context),
     ...checkOutsideWorktrees(context),
     ...checkProfile(context),
+    ...checkOwnerReplySettings(context),
     ...checkStaleLocal(context),
   ];
 };

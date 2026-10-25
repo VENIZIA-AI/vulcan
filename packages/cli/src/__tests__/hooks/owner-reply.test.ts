@@ -1,11 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildPromptContract, buildStopOutput } from '../../hooks/index.ts';
+import { buildPromptContract, buildSessionDigest, buildStopOutput } from '../../hooks/index.ts';
+import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { spawnSyncBounded } from '../spawn.helper.ts';
 
 afterAll(removeProjects);
+isolateOwnerReplySwitch();
 
 /** A Stop event; the wire names stay behind string-literal access. */
 const reply = (opts: {
@@ -305,5 +307,60 @@ describe('the hook files', () => {
     });
 
     expect(result.stdout.toString()).toContain('Owner reply contract');
+  });
+
+  test('VULCAN_OWNER_REPLY=off exempts a session read by an agent: nothing is checked, logged, blocked or added to the prompt', () => {
+    const root = project('block');
+    const event = JSON.stringify(reply({ text: BAD }));
+    const off = { VULCAN_OWNER_REPLY: 'off' };
+
+    expect(run({ hook: 'stop', root, stdin: event, env: off }).stdout.toString()).toBe('');
+    expect(logOf(root)).toBe('');
+    expect(run({ hook: 'prompt-submit', root, stdin: '{}', env: off }).stdout.toString()).toBe('');
+
+    // The same project without the variable is held to the shape.
+    expect(run({ hook: 'stop', root, stdin: event }).stdout.toString()).toContain('block');
+    expect(run({ hook: 'prompt-submit', root, stdin: '{}' }).stdout.toString()).toContain(
+      'Owner reply contract',
+    );
+  });
+
+  test('only the exact value off counts', async () => {
+    const root = project('block');
+
+    for (const value of ['OFF', '1', 'true', 'on', '']) {
+      const env = { VULCAN_OWNER_REPLY: value };
+      const output = await buildStopOutput({ projectRoot: root, input: reply({ text: BAD }), env });
+
+      expect(output?.['decision']).toBe('block');
+      expect(await buildPromptContract({ projectRoot: root, env })).toContain(
+        'Owner reply contract',
+      );
+      expect(await buildSessionDigest({ projectRoot: root, env })).toContain(
+        '## How to answer the owner',
+      );
+      rmSync(join(root, '.agents/local/cache'), { recursive: true, force: true });
+    }
+  });
+
+  test('a session with the switch leaves no log line and no note, not even a retry guard', async () => {
+    const root = project('block');
+    const env = { VULCAN_OWNER_REPLY: 'off' };
+
+    await buildStopOutput({
+      projectRoot: root,
+      input: reply({ text: BAD, session: 'agent-a' }),
+      env,
+    });
+    await buildPromptContract({ projectRoot: root, session: 'agent-a', env });
+
+    expect(logOf(root)).toBe('');
+    expect(existsSync(join(root, '.agents/local/cache/replies'))).toBe(false);
+    // The owner's session in the same project is still held to the shape.
+    expect(
+      (
+        await buildStopOutput({ projectRoot: root, input: reply({ text: BAD, session: 'owner' }) })
+      )?.['decision'],
+    ).toBe('block');
   });
 });

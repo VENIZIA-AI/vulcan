@@ -103,3 +103,10 @@ export class OwnerConstants {
   /** The profile's free text, as the card shows it. */
   static readonly CARD_ABOUT_MAX_CHARACTERS = 200;
 }
+
+/** The launcher of a session whose replies an agent reads sets this; the owner's own sessions never have it. */
+export class OwnerReplySwitch {
+  static readonly ENV = 'VULCAN_OWNER_REPLY';
+  /** The only value that counts: anything else is ignored, so a stray value never switches the check off. */
+  static readonly OFF = 'off';
+}

@@ -41,7 +41,9 @@ import {
 } from '../sync/index.ts';
 import { formatAge, formatBytes, LocalConstants, LocalStates, scanLocal } from '../local/index.ts';
 import {
+  isOwnerReplyOff,
   OwnerConstants,
+  OwnerReplySwitch,
   profileIsIgnored,
   readProfile,
   readViolationCounts,
@@ -1117,6 +1119,38 @@ export const checkReplyShape = (opts: ICheckContext): IViolation[] => {
     }),
   ];
 };
+
+/** The owner reply shape is off for this shell (`VULCAN_OWNER_REPLY=off`): a session an agent starts sets it, an owner who exported it by mistake sees why nothing is checked; a note, never a failure. */
+export const checkOwnerReplySwitch = (opts: {
+  env: Record<string, string | undefined>;
+}): IViolation[] =>
+  isOwnerReplyOff({ env: opts.env })
+    ? [
+        createViolation({
+          check: DoctorChecks.LOCAL,
+          file: OwnerReplySwitch.ENV,
+          message: `set to ${OwnerReplySwitch.OFF} in this shell: a session started from here is not held to the owner reply shape and its replies are not logged. Unset it for a session whose reader is the owner`,
+        }),
+      ]
+    : [];
+
+/** A Claude Code settings file of the project sets `VULCAN_OWNER_REPLY=off` in `env`: every session of the project then skips the owner reply shape. A warning, never a failure. */
+export const checkOwnerReplySettings = (opts: { root: string }): IViolation[] =>
+  ['.claude/settings.json', '.claude/settings.local.json'].flatMap((file) => {
+    const env = readJsonObject({ file: join(opts.root, file) })?.['env'];
+
+    return typeof env === 'object' &&
+      env !== null &&
+      Reflect.get(env, OwnerReplySwitch.ENV) === OwnerReplySwitch.OFF
+      ? [
+          createViolation({
+            check: DoctorChecks.LOCAL,
+            file,
+            message: `env sets ${OwnerReplySwitch.ENV}=${OwnerReplySwitch.OFF}: every session of this project skips the owner reply shape. Remove it and set the variable on the command that starts a session whose reader is an agent`,
+          }),
+        ]
+      : [];
+  });
 
 /** The size of `.agents/local/` once it is large: where the space went, and the command that gives it back. */
 export const checkLocalSize = (opts: ICheckContext): IViolation[] => {

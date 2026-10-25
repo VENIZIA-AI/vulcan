@@ -7,10 +7,12 @@ import {
   SUBAGENT_CARD_MAX_CHARACTERS,
 } from '../../hooks/index.ts';
 import { BASE_DIRECTORY } from '../../common/index.ts';
+import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { spawnSyncBounded } from '../spawn.helper.ts';
 
 afterAll(removeProjects);
+isolateOwnerReplySwitch();
 
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'session-start.ts');
 
@@ -215,6 +217,26 @@ describe('the owner cards in the digest', () => {
     expect(digest).toContain('## Working with this person');
     expect(digest).toContain('Address them as "Sam"');
     expect(digest).not.toContain('## How to answer the owner');
+  });
+
+  test('VULCAN_OWNER_REPLY=off leaves out the shape card and the profile card, and keeps the rules', async () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.ts': CONFIG,
+        '.agents/local/profile.json': JSON.stringify({ schemaVersion: 1, address: { you: 'Sam' } }),
+      },
+    });
+    const digest = await buildSessionDigest({
+      projectRoot: root,
+      env: { VULCAN_OWNER_REPLY: 'off' },
+    });
+
+    expect(digest).not.toContain('## How to answer the owner');
+    expect(digest).not.toContain('## Working with this person');
+    expect(digest).toContain('| V-W-02 |');
+    expect(await buildSessionDigest({ projectRoot: root, env: {} })).toContain(
+      '## How to answer the owner',
+    );
   });
 
   test('a subagent gets the small card, with neither the owner shape nor the profile', () => {

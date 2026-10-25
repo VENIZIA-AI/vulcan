@@ -3,6 +3,7 @@ import { basename, join } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
 import { ConfigConstants, loadConfig } from '../config/index.ts';
 import {
+  isOwnerReplyOff,
   OWNER_SCHEMA,
   readProfile,
   renderOwnerShapeCard,
@@ -49,7 +50,11 @@ const buildAtlasBlock = (opts: {
 };
 
 /** The SessionStart context: base write boundaries, this project's slot choices and own rules, the often-dropped rules. */
-export const buildSessionDigest = async (opts: { projectRoot: string }): Promise<string> => {
+export const buildSessionDigest = async (opts: {
+  projectRoot: string;
+  /** The environment of the session; `VULCAN_OWNER_REPLY=off` leaves out the owner's shape and profile cards. */
+  env?: Record<string, string | undefined>;
+}): Promise<string> => {
   const baseRows = extractRuleRows({
     markdown: readText({ file: join(BASE_DIRECTORY, 'rules.md') }),
   });
@@ -103,10 +108,13 @@ export const buildSessionDigest = async (opts: { projectRoot: string }): Promise
   });
   const profileCard = renderProfileCard({ view });
 
-  lines.push('', ...renderOwnerShapeCard({ view }));
+  // A session whose reader is an agent: the owner's shape and the person's profile are not its business.
+  if (!isOwnerReplyOff({ env: opts.env ?? process.env })) {
+    lines.push('', ...renderOwnerShapeCard({ view }));
 
-  if (profileCard.length > 0) {
-    lines.push('', ...profileCard);
+    if (profileCard.length > 0) {
+      lines.push('', ...profileCard);
+    }
   }
 
   if (projectRows.length > 0) {
