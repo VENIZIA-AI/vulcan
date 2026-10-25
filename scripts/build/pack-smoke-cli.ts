@@ -379,6 +379,7 @@ const BLOCKING = new Set([
   'guard-package',
   'guard-remote-hosts',
   'guard-git',
+  'guard-scripting',
   'guard-outside',
 ]);
 const SAFETY = new Set(['guard-writes', 'guard-manifest', 'guard-package', 'guard-remote-hosts']);
