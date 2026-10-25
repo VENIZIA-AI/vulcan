@@ -333,18 +333,38 @@ describe('the violation log', () => {
 
     const stale = new Date(Date.now() - 31 * 60 * 1000);
 
-    utimesSync(join(notes, 'old.json'), stale, stale);
+    utimesSync(join(notes, readdirSync(notes)[0] ?? ''), stale, stale);
     recordReply({ root, classes: [], session: 'new' });
 
     expect(existsSync(legacy)).toBe(false);
-    expect(readdirSync(notes)).toEqual(['new.json']);
+    expect(readdirSync(notes)).toHaveLength(1);
+    expect(readdirSync(notes)[0]).toMatch(/^new-[0-9a-f]{8}\.json$/);
 
     for (let index = 0; index < 40; index += 1) {
       recordReply({ root, classes: [], session: `many-${index}` });
     }
 
     expect(readdirSync(notes).length).toBeLessThanOrEqual(32);
-    expect(readdirSync(notes)).toContain('many-39.json');
+    expect(readdirSync(notes).some((name) => name.startsWith('many-39-'))).toBe(true);
+  });
+
+  test('ids that reduce to the same characters, or share a long prefix, keep separate notes', () => {
+    const root = project();
+    const long = 'x'.repeat(80);
+
+    recordReply({ root, classes: ['emoji'], session: 'a/b' });
+    recordReply({ root, classes: [], session: 'a_b' });
+    recordReply({ root, classes: ['shouting'], session: `${long}1` });
+    recordReply({ root, classes: [], session: `${long}2` });
+    recordReply({ root, classes: ['emoji'], session: 'default' });
+    recordReply({ root, classes: [] });
+
+    expect(readLastClasses({ root, session: 'a/b' })).toEqual(['emoji']);
+    expect(readLastClasses({ root, session: 'a_b' })).toEqual([]);
+    expect(readLastClasses({ root, session: `${long}1` })).toEqual(['shouting']);
+    expect(readLastClasses({ root, session: `${long}2` })).toEqual([]);
+    expect(readLastClasses({ root, session: 'default' })).toEqual(['emoji']);
+    expect(readLastClasses({ root })).toEqual([]);
   });
 
   test('a symlinked note folder is never written through', () => {

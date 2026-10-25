@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   appendFileSync,
   lstatSync,
@@ -52,13 +53,22 @@ const fileOf = (opts: { root: string; name: string }): string | undefined => {
   }
 };
 
-/** A session id as a file name: its safe characters only, never a path. */
+/**
+ * A session id as a file name: its safe characters, then a short hash of the whole id, so two ids
+ * that reduce to the same characters (or share a long prefix) never share a note. No id is `default`.
+ */
 const noteName = (opts: { session?: string }): string => {
-  const name = (opts.session ?? '')
+  const session = opts.session ?? '';
+
+  if (session === '') {
+    return ViolationConstants.DEFAULT_SESSION;
+  }
+
+  const safe = session
     .replace(/[^A-Za-z0-9_-]/g, '_')
     .slice(0, ViolationConstants.SESSION_NAME_MAX);
 
-  return name === '' ? ViolationConstants.DEFAULT_SESSION : name;
+  return `${safe}-${createHash('sha256').update(session).digest('hex').slice(0, 8)}`;
 };
 
 /**
@@ -85,7 +95,7 @@ const notesDirectoryOf = (opts: { root: string; create: boolean }): string | und
           return undefined;
         }
 
-        mkdirSync(current);
+        mkdirSync(current, { recursive: true });
       } else if (!kind.isDirectory()) {
         return undefined;
       }
@@ -110,9 +120,14 @@ const noteFileOf = (opts: {
   }
 
   const path = join(directory, `${noteName({ session: opts.session })}.json`);
-  const kind = lstatSync(path, { throwIfNoEntry: false });
 
-  return kind === undefined || kind.isFile() ? path : undefined;
+  try {
+    const kind = lstatSync(path, { throwIfNoEntry: false });
+
+    return kind === undefined || kind.isFile() ? path : undefined;
+  } catch {
+    return undefined;
+  }
 };
 
 const readNote = (opts: { root: string; session?: string }): Record<string, unknown> => {
