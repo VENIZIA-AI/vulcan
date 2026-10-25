@@ -634,6 +634,17 @@ const readJsonObject = (opts: { file: string }): Record<string, unknown> | undef
 const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
   typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
 
+/** Whether git lists the file as untracked and not ignored: what a clean-tree check, such as a release, refuses on. */
+const isUntrackedAndVisible = (opts: { root: string; path: string }): boolean => {
+  const listed = spawnSync('git', ['status', '--porcelain', '--', opts.path], {
+    cwd: opts.root,
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+
+  return listed.status === 0 && listed.stdout.startsWith('?? ');
+};
+
 const mcpWarning = (opts: { file: string; message: string }): IViolation =>
   createViolation({ check: DoctorChecks.MCP, file: opts.file, message: opts.message });
 
@@ -642,7 +653,7 @@ const mcpWarning = (opts: { file: string; message: string }): IViolation =>
  * file `sync` writes for the agents that read it) holds an `atlas` entry that runs the project's own
  * atlas (`--root .`), and the managed Claude settings enable `atlas` by that name. A server under
  * another name, or one that serves another folder, is never enabled automatically or serves the wrong
- * knowledge. A `.mcp.json` git still tracks is told how to hand over to `sync`. Warnings, not violations.
+ * knowledge. A `.mcp.json` git still tracks is told how to hand over to `sync`; one that is untracked and not ignored is told how to hide it. Warnings, not violations.
  */
 export const checkMcpAtlas = (opts: ICheckContext): IViolation[] => {
   const warnings: IViolation[] = [];
@@ -661,6 +672,14 @@ export const checkMcpAtlas = (opts: ICheckContext): IViolation[] => {
           file: MCP_FILE,
           message:
             'tracked by git; VULCAN now writes it per machine. Run `git rm --cached .mcp.json` and let sync manage it.',
+        }),
+      );
+    } else if (isUntrackedAndVisible({ root: opts.root, path: MCP_FILE })) {
+      warnings.push(
+        mcpWarning({
+          file: MCP_FILE,
+          message:
+            'untracked and not ignored, so a clean-tree check (a release) refuses to run. Add `/.mcp.json` to .gitignore, or run `vulcan sync` at the top level of the repository, which lists it in .git/info/exclude.',
         }),
       );
     }

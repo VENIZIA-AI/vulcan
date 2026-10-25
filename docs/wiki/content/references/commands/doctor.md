@@ -47,7 +47,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `apps` | Every `layout` folder is a workspace and every package lives in one | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
 | `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
 | `format` (warning) | The root `bunfig.toml` has a `[fmt]` section with `flavor = "oxfmt"`, no `package.json` defines a `fmt` script, and no oxfmt config is left behind | Add the section, rename the script, delete the config or the copy |
-| `mcp` (warning) | `.mcp.json` (when a chosen agent reads it) holds the canonical `atlas` entry, git no longer tracks it, and the Claude settings enable `atlas` | Use the entry the warning shows, `git rm --cached .mcp.json`, and run `bun x --no-install vulcan sync` |
+| `mcp` (warning) | `.mcp.json` (when a chosen agent reads it) holds the canonical `atlas` entry, git no longer tracks it, git does not list it as untracked and not ignored (a release refuses on that), and the Claude settings enable `atlas` | Use the entry the warning shows, `git rm --cached .mcp.json`, add `/.mcp.json` to `.gitignore` or run `vulcan sync` at the top level, and run `bun x --no-install vulcan sync` |
 | `local` (warning) | `.agents/local/` exists with its subdirectories and is gitignored, no git worktree of the repository lives outside it, and nothing under it has outlived its use (`tmp/` older than a day, `clones/` older than two weeks, a worktree on a merged or gone branch) | Run `bun x --no-install vulcan sync`; for a worktree outside, run the `git worktree move` command the warning prints; for leftovers, run the `vulcan clean` command it names. An info line prints the size of `.agents/local/` once it passes 50 MB |
 
 ### config
@@ -290,6 +290,7 @@ Warnings (the same level as [dockerignore](#dockerignore): exit code `0`, `vulca
 
 - `.mcp.json` holds the entry `sync` writes, a server named `atlas` that runs `bun x --no-install vulcan x atlas mcp --root .`;
 - git does not track it: a project that still commits `.mcp.json` gets `tracked by git; VULCAN now writes it per machine. Run `git rm --cached .mcp.json` and let sync manage it.`;
+- git does not list it as untracked and not ignored: a clone where nothing hides it gets `untracked and not ignored, so a clean-tree check (a release) refuses to run. Add `/.mcp.json` to .gitignore, or run `vulcan sync` at the top level of the repository, which lists it in .git/info/exclude.`;
 - `.claude/settings.json` (written by `vulcan sync`, when it exists) lists `atlas` in `enabledMcpjsonServers`.
 
 Anything else is a warning that shows the expected entry: a file that is not JSON, the server under another name (`ignis-atlas`, which Claude does not enable automatically), an `atlas` entry with another root (`--root ../ignis` serves another project's knowledge and only works where the folders sit side by side), or settings that do not enable `atlas`.
