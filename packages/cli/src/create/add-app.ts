@@ -180,7 +180,7 @@ const literal = (opts: {
 ];
 
 /** A frontend's proxy target: the chosen backend app's port, or nothing when it has no backend. */
-const resolveApiUrl = async (opts: {
+export const resolveApiUrl = async (opts: {
   root: string;
   args: string[];
   interactive: boolean;
@@ -266,7 +266,7 @@ const usedPorts = (opts: { root: string; packages: IProjectPackage[] }): number[
     (app) => app.port,
   );
 
-const locate = async (opts: {
+export const locate = async (opts: {
   cwd: string;
   scratch: string;
   spec: IPresetSpec;

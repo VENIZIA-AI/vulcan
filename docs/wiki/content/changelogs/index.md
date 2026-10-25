@@ -12,6 +12,7 @@ This section tracks the history of significant changes and releases of the VULCA
 | Date | Title | Type |
 |------|-------|------|
 | 2026-10-25 | [VULCAN 0.4.4: Agent Scripting Uses Bun by Default, and a Hook Reminds](./2026-10-25-vulcan-0-4-4-scripting-advice) | New Feature |
+| 2026-10-25 | [VULCAN 0.4.4: vulcan preset diff Shows What a Preset Changed Since an App Was Made](./2026-10-25-vulcan-0-4-4-preset-diff) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.4: Labels Follow the Reader's Language](./2026-10-25-vulcan-0-4-4-labels-follow-the-reader) | Bug Fix |
 | 2026-10-25 | [VULCAN 0.4.4: A Session Whose Reader Is an Agent Is Not Held to the Owner's Shape](./2026-10-25-vulcan-0-4-4-owner-reply-off-for-agent-readers) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.4: The Last-Reply Reminder Is Kept Per Session](./2026-10-25-vulcan-0-4-4-reply-note-per-session) | Bug Fix |

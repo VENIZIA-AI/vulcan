@@ -326,6 +326,7 @@ The preset itself can also be refused; those messages are listed under [`vulcan 
 
 ## See also
 
+- [`vulcan preset diff`](/references/commands/preset): what a preset changed since `add` copied it
 - [`vulcan init`](/references/commands/init)
 - [Presets](/references/presets)
 - [The `layout` key](/references/configuration/)

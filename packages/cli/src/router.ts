@@ -46,6 +46,11 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
     ],
     positionals: 0,
   },
+  [VulcanCommands.PRESET]: {
+    flags: [CreateFlags.NO_API, CreateFlags.FULL, CreateFlags.CHECK],
+    values: [CreateFlags.PRESET, CreateFlags.API],
+    positionals: 2,
+  },
   [VulcanCommands.SYNC]: {
     flags: ['--dry-run', '--prune'],
     values: [AgentConstants.FLAG],

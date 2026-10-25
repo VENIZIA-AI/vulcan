@@ -72,6 +72,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'agents', link: '/references/commands/agents' },
       { text: 'doctor', link: '/references/commands/doctor' },
       { text: 'clean', link: '/references/commands/clean' },
+      { text: 'preset', link: '/references/commands/preset' },
       { text: 'profile', link: '/references/commands/profile' },
       { text: 'visualize', link: '/references/commands/visualize' },
     ],

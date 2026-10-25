@@ -6,6 +6,7 @@ import { runCleanCommand } from './clean.command.ts';
 import { runDoctorCommand } from './doctor.command.ts';
 import { runHelpCommand, runVersionCommand } from './help.command.ts';
 import { runInitCommand } from './init.command.ts';
+import { runPresetCommand } from './preset.command.ts';
 import { runProfileCommand } from './profile.command.ts';
 import { runSyncCommand } from './sync.command.ts';
 import { runUpgradeCommand } from './upgrade.command.ts';
@@ -20,6 +21,7 @@ export const COMMAND_HANDLERS: Record<string, TCommandHandler> = {
   [VulcanCommands.DOCTOR]: runDoctorCommand,
   [VulcanCommands.HELP]: runHelpCommand,
   [VulcanCommands.INIT]: runInitCommand,
+  [VulcanCommands.PRESET]: runPresetCommand,
   [VulcanCommands.PROFILE]: runProfileCommand,
   [VulcanCommands.SYNC]: runSyncCommand,
   [VulcanCommands.UPGRADE]: runUpgradeCommand,
