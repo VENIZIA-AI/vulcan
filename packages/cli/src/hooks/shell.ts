@@ -13,6 +13,9 @@ interface IWordRead {
 }
 
 /** What stops an unquoted word. */
+/** What a backslash inside double quotes escapes, as the shell reads it. */
+const DOUBLE_QUOTE_ESCAPES = new Set(['$', '`', '"', '\\', '\n']);
+
 const WORD_END = new Set([' ', '\t', '\n', ';', '|', '&', '<', '>', '(', ')']);
 /** Shell keywords and braces that open a command: the program is the word after them. */
 const KEYWORDS = new Set([
@@ -119,8 +122,15 @@ export const optionTakesNextWord = (opts: { wrapper: string; word: string }): bo
     return false;
   }
 
+  // A long option may be shortened to any prefix (`--adj 5` is `--adjustment 5`), as getopt_long reads it.
   if (opts.word.startsWith('--')) {
-    return options.longValues.includes(opts.word);
+    const name = opts.word.slice(2);
+
+    return (
+      name !== '' &&
+      !name.includes('=') &&
+      options.longValues.some((long) => long.slice(2).startsWith(name))
+    );
   }
 
   // A cluster such as `-nu`: the first letter that takes a value ends it; with letters left after it the
@@ -139,6 +149,19 @@ export const wrapperPositionals = (opts: { wrapper: string }): number =>
   WRAPPER_OPTIONS[opts.wrapper]?.positionals ?? 0;
 const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash']);
 const MAX_DEPTH = 4;
+
+/** What the parser reads of one command line at most: a guard that reads more would be slow, and a slow guard is skipped. */
+export class ShellBudget {
+  static readonly MAX_COMMANDS = 2000;
+  static readonly MAX_WORDS = 20_000;
+}
+
+interface IBudget {
+  commands: number;
+  words: number;
+  /** Something was not read: the budget ran out, or a command nests deeper than the depth limit. */
+  isOver: boolean;
+}
 
 const closingOf = (opts: { text: string; from: number; open: string; close: string }): number => {
   let depth = 1;
@@ -175,8 +198,17 @@ const readWord = (opts: { text: string; from: number }): IWordRead => {
       break;
     }
 
+    // Inside double quotes a backslash escapes only a few characters; before any other it is itself.
     if (char === '\\' && quote !== "'") {
-      value += text[index + 1] ?? '';
+      const next = text[index + 1] ?? '';
+
+      if (quote === '"' && !DOUBLE_QUOTE_ESCAPES.has(next)) {
+        value += char;
+        index += 1;
+        continue;
+      }
+
+      value += next;
       index += 2;
       continue;
     }
@@ -236,11 +268,17 @@ const splitStringOf = (opts: {
   const { word, next } = opts;
 
   if (word.startsWith('--')) {
-    if (word.startsWith('--split-string=')) {
-      return { value: word.slice('--split-string='.length), takesNext: false };
+    const equals = word.indexOf('=');
+    const name = word.slice(2, equals === -1 ? undefined : equals);
+
+    // `--split-string` by any prefix: no other option of env starts with an s.
+    if (name === '' || !'split-string'.startsWith(name)) {
+      return undefined;
     }
 
-    return word === '--split-string' ? { value: next ?? '', takesNext: true } : undefined;
+    return equals === -1
+      ? { value: next ?? '', takesNext: true }
+      : { value: word.slice(equals + 1), takesNext: false };
   }
 
   const letters = WRAPPER_OPTIONS['env']?.shortValues ?? '';
@@ -262,17 +300,122 @@ const splitStringOf = (opts: {
   return undefined;
 };
 
+const ENV_ESCAPES: Record<string, string> = {
+  t: '\t',
+  n: '\n',
+  r: '\r',
+  v: '\v',
+  f: '\f',
+  '\\': '\\',
+  '#': '#',
+  $: '$',
+  '"': '"',
+  "'": "'",
+};
+
 /**
- * The program a command runs, past wrappers such as `sudo`, `env` and `time`, and the command lines an
- * `env -S` carries: each is the value followed by the words after it, ready to be parsed as shell text.
+ * The words `env -S` makes of its value, by `env`'s own rules and not the shell's: blanks separate, quotes
+ * group (in single quotes only `\\\\` and `\\'` are escapes), `\\_` separates outside double quotes and is a
+ * space inside them, `\\c` ends the string, a `#` at the start of a word starts a comment, and `;`, `|`
+ * and `$(...)` mean nothing. An empty quoted string is a word.
+ */
+export const splitEnvString = (opts: { value: string }): string[] => {
+  const { value } = opts;
+  const words: string[] = [];
+  let current = '';
+  let hasWord = false;
+  let quote: string | undefined;
+
+  const flush = (): void => {
+    if (hasWord) {
+      words.push(current);
+    }
+
+    current = '';
+    hasWord = false;
+  };
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index] ?? '';
+
+    if (char === '\\') {
+      const next = value[index + 1];
+
+      index += 1;
+
+      if (next === undefined || next === 'c') {
+        break;
+      }
+
+      if (next === '_') {
+        if (quote === '"') {
+          current += ' ';
+          hasWord = true;
+        } else {
+          flush();
+        }
+
+        continue;
+      }
+
+      current +=
+        quote === "'"
+          ? next === '\\' || next === "'"
+            ? next
+            : `\\${next}`
+          : (ENV_ESCAPES[next] ?? next);
+      hasWord = true;
+      continue;
+    }
+
+    if (quote !== undefined) {
+      if (char === quote) {
+        quote = undefined;
+      } else {
+        current += char;
+      }
+
+      continue;
+    }
+
+    if (char === "'" || char === '"') {
+      quote = char;
+      hasWord = true;
+      continue;
+    }
+
+    if (char === '#' && !hasWord) {
+      break;
+    }
+
+    if (/\s/.test(char)) {
+      flush();
+      continue;
+    }
+
+    current += char;
+    hasWord = true;
+  }
+
+  flush();
+
+  return words;
+};
+
+/**
+ * The program a command runs, past wrappers such as `sudo`, `env` and `time`, and the command `env -S`
+ * carries: the words `env` makes of the value, then the words after it, behind an `env` word, so its own
+ * options inside the value apply. Only the first `-S` of a command counts: it holds the rest of the line.
+ * `--` ends the options, so a word after it is the program even when it starts with a dash.
  */
 export const programOf = (opts: {
   command: ISimpleCommand;
-}): { name: string; index: number; args: string[]; splitStrings: string[] } => {
+}): { name: string; index: number; args: string[]; splitCommands: string[][] } => {
   let index = 0;
   let wrapper = '';
   let positionals = 0;
-  const splitStrings: string[] = [];
+  let optionsEnded = false;
+  const splitCommands: string[][] = [];
 
   while (index < opts.command.words.length) {
     const word = opts.command.words[index];
@@ -280,6 +423,7 @@ export const programOf = (opts: {
     if (WRAPPERS.has(basenameOf({ word }))) {
       wrapper = basenameOf({ word });
       positionals = wrapperPositionals({ wrapper });
+      optionsEnded = false;
       index += 1;
       continue;
     }
@@ -289,16 +433,24 @@ export const programOf = (opts: {
       continue;
     }
 
-    if (/^-/.test(word)) {
+    if (word === '--') {
+      optionsEnded = true;
+      index += 1;
+      continue;
+    }
+
+    if (!optionsEnded && /^-/.test(word)) {
       const split =
-        wrapper === 'env'
+        wrapper === 'env' && splitCommands.length === 0
           ? splitStringOf({ word, next: opts.command.words[index + 1] })
           : undefined;
 
       if (split !== undefined && split.value !== '') {
-        splitStrings.push(
-          [split.value, ...opts.command.words.slice(index + (split.takesNext ? 2 : 1))].join(' '),
-        );
+        splitCommands.push([
+          'env',
+          ...splitEnvString({ value: split.value }),
+          ...opts.command.words.slice(index + (split.takesNext ? 2 : 1)),
+        ]);
       }
 
       // An option of the wrapper; `-u X` and `nice -n 5` take a value that is not the program.
@@ -313,10 +465,10 @@ export const programOf = (opts: {
       continue;
     }
 
-    return { name: word, index, args: opts.command.words.slice(index + 1), splitStrings };
+    return { name: word, index, args: opts.command.words.slice(index + 1), splitCommands };
   }
 
-  return { name: '', index: -1, args: [], splitStrings };
+  return { name: '', index: -1, args: [], splitCommands };
 };
 
 /**
@@ -356,8 +508,28 @@ const stripHeredocs = (opts: { command: string }): string => {
  * `$(...)`, backticks, `sh -c '...'` arguments and the command line of `env -S` are parsed as commands too. It reads quoting, not
  * every corner of the shell: a line it cannot follow yields fewer commands, never an error.
  */
-export const parseShell = (opts: { command: string; depth?: number }): ISimpleCommand[] => {
-  const depth = opts.depth ?? 0;
+/** Whether the command carries another command line to read: a shell script, an eval, or an `env -S`. */
+const nests = (opts: { command: ISimpleCommand }): boolean => {
+  const program = programOf({ command: opts.command });
+  const name = basenameOf({ word: program.name });
+
+  return (
+    program.splitCommands.length > 0 ||
+    (program.index !== -1 &&
+      (name === 'eval' ||
+        (SHELLS.has(name) &&
+          opts.command.words.some(
+            (word, position) => position > program.index && /^-[a-zA-Z]*c$/.test(word),
+          ))))
+  );
+};
+
+const parseWithBudget = (opts: {
+  command: string;
+  depth: number;
+  budget: IBudget;
+}): ISimpleCommand[] => {
+  const { depth, budget } = opts;
   const text = stripHeredocs({ command: opts.command });
   const commands: ISimpleCommand[] = [];
   const nestedTexts: string[] = [];
@@ -450,15 +622,49 @@ export const parseShell = (opts: { command: string; depth?: number }): ISimpleCo
 
   finish();
 
-  if (depth >= MAX_DEPTH) {
+  budget.commands += commands.length;
+  budget.words += commands.reduce((sum, command) => sum + command.words.length, 0);
+
+  if (budget.commands > ShellBudget.MAX_COMMANDS || budget.words > ShellBudget.MAX_WORDS) {
+    budget.isOver = true;
+
     return commands;
   }
 
-  for (const command of commands) {
+  // At the depth limit nothing nests further; a command that would is a part of the line left unread.
+  if (depth >= MAX_DEPTH) {
+    budget.isOver ||= nestedTexts.length > 0 || commands.some((command) => nests({ command }));
+
+    return commands;
+  }
+
+  // `env -S "git push -f origin main"` is a command line in one word: the command it makes joins the queue,
+  // one nesting level deeper, and is read like any other.
+  const synthesized: ISimpleCommand[] = [];
+  const queue = commands.map((command) => ({ command, level: 0 }));
+
+  for (const { command, level } of queue) {
     const program = programOf({ command });
 
-    // `env -S "git push -f origin main"` is a command line in one word.
-    nestedTexts.push(...program.splitStrings);
+    if (depth + level < MAX_DEPTH) {
+      for (const words of program.splitCommands) {
+        const split: ISimpleCommand = { words, redirects: [], assignments: [] };
+
+        budget.commands += 1;
+        budget.words += words.length;
+
+        if (budget.commands > ShellBudget.MAX_COMMANDS || budget.words > ShellBudget.MAX_WORDS) {
+          budget.isOver = true;
+
+          return [...commands, ...synthesized];
+        }
+
+        synthesized.push(split);
+        queue.push({ command: split, level: level + 1 });
+      }
+    } else if (program.splitCommands.length > 0) {
+      budget.isOver = true;
+    }
 
     if (program.index !== -1 && SHELLS.has(basenameOf({ word: program.name }))) {
       const flag = command.words.findIndex(
@@ -478,6 +684,33 @@ export const parseShell = (opts: { command: string; depth?: number }): ISimpleCo
 
   return [
     ...commands,
-    ...nestedTexts.flatMap((nested) => parseShell({ command: nested, depth: depth + 1 })),
+    ...synthesized,
+    ...nestedTexts.flatMap((nested) =>
+      parseWithBudget({ command: nested, depth: depth + 1, budget }),
+    ),
   ];
 };
+
+export interface IParsedShell {
+  commands: ISimpleCommand[];
+  /** Part of the line was not read: it is larger, or nests deeper, than the parser's budget. */
+  isOverBudget: boolean;
+}
+
+/**
+ * The commands of a line and whether all of it was read. A guard that can refuse must treat
+ * `isOverBudget` as "ask": an unread part is never an "allow".
+ */
+export const parseShellChecked = (opts: { command: string }): IParsedShell => {
+  const budget: IBudget = { commands: 0, words: 0, isOver: false };
+  const commands = parseWithBudget({ command: opts.command, depth: 0, budget });
+
+  return { commands, isOverBudget: budget.isOver };
+};
+
+export const parseShell = (opts: { command: string; depth?: number }): ISimpleCommand[] =>
+  parseWithBudget({
+    command: opts.command,
+    depth: opts.depth ?? 0,
+    budget: { commands: 0, words: 0, isOver: false },
+  });

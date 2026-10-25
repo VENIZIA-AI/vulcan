@@ -761,13 +761,15 @@ const analyzeWords = (opts: {
   }
 
   if (program === 'env') {
-    // `env -S "ssh host"` carries a whole command line in one word: it is read as one.
+    // `env -S "ssh host"` carries a whole command line in one word: the command it makes is read as one.
     const splits = programOf({
       command: { words, redirects: [], assignments: [] },
-    }).splitStrings;
+    }).splitCommands;
 
     if (splits.length > 0) {
-      return splits.flatMap((command) => opts.recurse({ command, depth: opts.depth + 1 }));
+      return splits.flatMap((splitWords) =>
+        analyzeWords({ words: splitWords, depth: opts.depth + 1, recurse: opts.recurse }),
+      );
     }
   }
 

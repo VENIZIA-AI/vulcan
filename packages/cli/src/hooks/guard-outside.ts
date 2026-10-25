@@ -1,7 +1,7 @@
 import { lstatSync, readlinkSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
-import { basenameOf, parseShell, programOf } from './shell.ts';
+import { basenameOf, parseShellChecked, programOf } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 import { HookConstants } from './common/index.ts';
 import type { IManifestHookInput, IOutsideHit } from './common/index.ts';
@@ -360,10 +360,16 @@ export const inspectOutside = (opts: {
     });
   }
 
+  let isUnread = false;
+
   if (opts.input.command !== undefined) {
     let base = start;
 
-    for (const command of parseShell({ command: opts.input.command })) {
+    const parsed = parseShellChecked({ command: opts.input.command });
+
+    isUnread = parsed.isOverBudget;
+
+    for (const command of parsed.commands) {
       const program = programOf({ command });
 
       if (basenameOf({ word: program.name }) === 'cd') {
@@ -379,7 +385,16 @@ export const inspectOutside = (opts: {
     }
   }
 
-  const hits: IOutsideHit[] = [];
+  // Part of the line was not read: never an allow.
+  const hits: IOutsideHit[] = isUnread
+    ? [
+        {
+          path: '(the command line)',
+          message:
+            'this command line is larger, or nests deeper, than the guard reads, so it could not be checked',
+        },
+      ]
+    : [];
 
   for (const target of targets) {
     const expanded = expandPath({ word: target.word, home, env });

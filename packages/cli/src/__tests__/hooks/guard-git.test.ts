@@ -54,6 +54,9 @@ describe('inspectGit denies', () => {
     'sudo -u deploy git push -f origin main',
     'nice -n 5 git push -f origin main',
     'env -S "git push -f origin main"',
+    'env --split "git push -f origin main"',
+    'env -S "-u X git push -f origin main"',
+    "env -S 'git\\_push\\_-f\\_origin\\_main'",
     "env -S'git push --force origin develop'",
     'env --split-string="git push -f origin main"',
     'sudo env -S "git push -f origin main"',
@@ -85,6 +88,24 @@ describe('inspectGit denies', () => {
     'git update-ref -d refs/heads/develop',
   ])('%s', (command) => {
     expect(decisions({ command })).toContain('deny');
+  });
+
+  test('a line the parser could not read in full asks, never allows', () => {
+    const deep = `env${' -S env'.repeat(110)} git push -f origin main`;
+    const wide = Array.from({ length: 2100 }, () => 'ls').join('; ');
+    const started = performance.now();
+
+    for (const command of [
+      deep,
+      wide,
+      'echo $(echo $(echo $(echo $(echo $(echo ls)))))',
+      'eval eval eval eval eval eval ls',
+    ]) {
+      expect(decisions({ command })).toContain('ask');
+    }
+
+    expect(performance.now() - started).toBeLessThan(2000);
+    expect(decisions({ command: 'git status' })).toEqual([]);
   });
 
   test('a force-push with no refspec while on develop', () => {

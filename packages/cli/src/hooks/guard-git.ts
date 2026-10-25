@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { basenameOf, parseShell, programOf } from './shell.ts';
+import { basenameOf, parseShellChecked, programOf } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { IGitHit, IGitRunner } from './common/index.ts';
@@ -282,7 +282,22 @@ export const inspectGit = (opts: {
   command: string;
   cwd: string | undefined;
   run?: IGitRunner;
-}): IGitHit[] =>
-  parseShell({ command: opts.command }).flatMap((command) =>
+}): IGitHit[] => {
+  const parsed = parseShellChecked({ command: opts.command });
+  const hits = parsed.commands.flatMap((command) =>
     inspectOne({ command, cwd: opts.cwd, run: opts.run ?? runQuery }),
   );
+
+  // Part of the line was not read: never an allow.
+  return parsed.isOverBudget
+    ? [
+        ...hits,
+        {
+          decision: GuardDecisions.ASK,
+          rule: 'V-W-06',
+          message:
+            'this command line is larger, or nests deeper, than the guard reads, so it could not be checked: confirm only if the owner asked for exactly this',
+        },
+      ]
+    : hits;
+};

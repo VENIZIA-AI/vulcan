@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { parseShell, programOf } from '../../hooks/index.ts';
+import {
+  parseShell,
+  parseShellChecked,
+  programOf,
+  ShellBudget,
+  splitEnvString,
+} from '../../hooks/index.ts';
 
 const wordsOf = (command: string): string[][] =>
   parseShell({ command }).map((simple) => simple.words);
@@ -146,7 +152,7 @@ describe('parseShell', () => {
       name: 'git',
       index: 3,
       args: ['status'],
-      splitStrings: [],
+      splitCommands: [],
     });
   });
 
@@ -190,10 +196,127 @@ describe('parseShell', () => {
     ).toBe(false);
   });
 
+  const isForcePush = (command: string): boolean =>
+    parseShell({ command }).some(
+      (simple) => programOf({ command: simple }).name === 'git' && simple.words.includes('-f'),
+    );
+
+  // GNU getopt accepts any unique prefix of a long option; only --split-string starts with an s.
+  test.each([
+    'env --split "git push -f origin main"',
+    'env --split="git push -f origin main"',
+    'env --split-s "git push -f origin main"',
+    'env --s="git push -f origin main"',
+    'env --split-string "git push -f origin main"',
+  ])('the abbreviated long option in %s is read', (command) => {
+    expect(isForcePush(command)).toBe(true);
+  });
+
+  test('other long options are shortened the same way when they take a value', () => {
+    const [simple] = parseShell({ command: 'nice --adj 5 git status' });
+
+    expect(programOf({ command: simple! }).name).toBe('git');
+  });
+
+  // env reads its own options again inside the value.
+  test.each([
+    'env -S "-u X git push -f origin main"',
+    'env -S "-C . git push -f origin main"',
+    'env -S "-i -u X git push -f origin main"',
+    'env -S "-S \'git push -f origin main\'"',
+    'env -S "--split-string=\'git push -f origin main\'"',
+    'env -S "--split \'git push -f origin main\'"',
+  ])('the options inside the value of %s are read', (command) => {
+    expect(isForcePush(command)).toBe(true);
+  });
+
+  // env's own escapes, not the shell's.
+  test.each([
+    "env -S 'git\\_push\\_-f\\_origin\\_main'",
+    'env -S "git push -f origin main\\c trailing"',
+    'env -S "git push -f \'origin main\'"',
+  ])('the escapes in %s are env escapes', (command) => {
+    expect(isForcePush(command)).toBe(true);
+  });
+
+  test.each([
+    'env -S "echo a;git push -f origin main"',
+    'env -S "echo a|git push -f origin main"',
+    'env -S "echo \\$(git push -f origin main)"',
+    'env -S "echo # git push -f origin main"',
+    'env -- -S "git push -f origin main"',
+    'env -S "echo git push -f origin main"',
+    'env -S "git\\tpush -f origin main"',
+  ])('%s makes no git push: env does not read these as a shell does', (command) => {
+    expect(isForcePush(command)).toBe(false);
+  });
+
+  test('splitEnvString splits by env rules', () => {
+    expect(splitEnvString({ value: 'a b  c' })).toEqual(['a', 'b', 'c']);
+    expect(splitEnvString({ value: 'a \'b c\' "d e"' })).toEqual(['a', 'b c', 'd e']);
+    expect(splitEnvString({ value: 'a\\_b' })).toEqual(['a', 'b']);
+    expect(splitEnvString({ value: '"a\\_b"' })).toEqual(['a b']);
+    expect(splitEnvString({ value: 'a\\cb c' })).toEqual(['a']);
+    expect(splitEnvString({ value: 'a # comment' })).toEqual(['a']);
+    expect(splitEnvString({ value: 'a#b' })).toEqual(['a#b']);
+    expect(splitEnvString({ value: "'a\\'b' c" })).toEqual(["a'b", 'c']);
+    expect(splitEnvString({ value: "'a\\nb'" })).toEqual(['a\\nb']);
+    expect(splitEnvString({ value: 'a\\nb' })).toEqual(['a\nb']);
+    expect(splitEnvString({ value: '' })).toEqual([]);
+    expect(splitEnvString({ value: '""' })).toEqual(['']);
+    expect(splitEnvString({ value: 'a;b|c $(d)' })).toEqual(['a;b|c', '$(d)']);
+  });
+
+  // The cost of a line is linear in its length, whatever it repeats; what is not read is said.
+  test.each([20, 80, 110, 400])(
+    'env then -S env x%i then a push is parsed fast, and is read or flagged',
+    (count) => {
+      const command = `env${' -S env'.repeat(count)} git push -f origin main`;
+      const started = performance.now();
+      const parsed = parseShellChecked({ command });
+
+      expect(performance.now() - started).toBeLessThan(1000);
+      expect(
+        parsed.isOverBudget ||
+          parsed.commands.some(
+            (simple) =>
+              programOf({ command: simple }).name === 'git' && simple.words.includes('-f'),
+          ),
+      ).toBe(true);
+    },
+  );
+
+  test('the budget: too many commands or words, or a line nested past the depth limit, is flagged', () => {
+    expect(parseShellChecked({ command: 'git status && ls' }).isOverBudget).toBe(false);
+    expect(
+      parseShellChecked({
+        command: Array.from({ length: ShellBudget.MAX_COMMANDS + 1 }, () => 'ls').join('; '),
+      }).isOverBudget,
+    ).toBe(true);
+    expect(
+      parseShellChecked({ command: `echo ${'a '.repeat(ShellBudget.MAX_WORDS + 1)}` }).isOverBudget,
+    ).toBe(true);
+
+    // Substitutions and evals nest without quoting trouble; four levels are read, a fifth is flagged.
+    const substitutions = (levels: number): string =>
+      Array.from({ length: levels }).reduce<string>(
+        (text) => `echo $(${text})`,
+        'git push -f origin main',
+      );
+    const evals = (levels: number): string => `${'eval '.repeat(levels)}git push -f origin main`;
+
+    expect(parseShellChecked({ command: substitutions(3) }).isOverBudget).toBe(false);
+    expect(parseShellChecked({ command: substitutions(8) }).isOverBudget).toBe(true);
+    expect(parseShellChecked({ command: evals(3) }).isOverBudget).toBe(false);
+    expect(parseShellChecked({ command: evals(8) }).isOverBudget).toBe(true);
+    expect(parseShellChecked({ command: "bash -c 'git status'" }).isOverBudget).toBe(false);
+  });
+
   test('a value that is not a command line is read as what it is, and nesting stops at the depth limit', () => {
     expect(
-      programOf({ command: parseShell({ command: 'env -S "FOO=1 git status"' })[0]! }).splitStrings,
-    ).toEqual(['FOO=1 git status']);
+      programOf({ command: parseShell({ command: 'env -S "FOO=1 git status"' })[0]! })
+        .splitCommands,
+    ).toEqual([['env', 'FOO=1', 'git', 'status']]);
 
     const deep = Array.from({ length: 12 }).reduce<string>(
       (text) => `env -S "${text.replaceAll('"', '\\"')}"`,
