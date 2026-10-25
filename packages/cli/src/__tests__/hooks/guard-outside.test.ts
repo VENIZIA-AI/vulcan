@@ -27,6 +27,18 @@ const file = (opts: { tool: string; path: string }): string[] =>
     env: ENV,
   }).map((hit) => hit.message);
 
+describe('inspectOutside on a line it cannot read in full', () => {
+  test('asks, never allows', () => {
+    const wide = Array.from({ length: 2100 }, () => 'ls').join('; ');
+
+    expect(bash({ command: wide }).join(' ')).toContain('larger, or nests deeper');
+    expect(bash({ command: `env${' -S env'.repeat(110)} touch x` }).join(' ')).toContain(
+      'larger, or nests deeper',
+    );
+    expect(bash({ command: 'ls' })).toEqual([]);
+  });
+});
+
 describe('inspectOutside flags', () => {
   test.each([
     'mkdir /tmp/scratch',

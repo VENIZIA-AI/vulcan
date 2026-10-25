@@ -9,6 +9,22 @@ const POLICY = {
 const asks = (command: string): boolean =>
   inspectRemoteCommand({ command, policy: POLICY }).length > 0;
 
+describe('a nest of env -S is read fast and asks', () => {
+  test.each([20, 80, 110, 400])('env then -S env x%i then ssh asks in under a second', (count) => {
+    const started = performance.now();
+
+    expect(asks(`env${' -S env'.repeat(count)} ssh evil.com`)).toBe(true);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  test('the abbreviated option, options inside the value, and env escapes are read', () => {
+    expect(asks('env --split "ssh evil.com"')).toBe(true);
+    expect(asks('env -S "-u X ssh evil.com"')).toBe(true);
+    expect(asks("env -S 'ssh\\_evil.com'")).toBe(true);
+    expect(asks('env -S "echo a;ssh evil.com"')).toBe(false);
+  });
+});
+
 describe('matchesHost: exact, or a pattern whose only wildcard is *', () => {
   test('an exact name matches itself only, case-insensitively', () => {
     expect(matchesHost({ host: 'LAB1', entries: ['lab1'] })).toBe(true);
