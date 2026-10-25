@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { AgentConstants } from './common/index.ts';
+import { AgentConstants, AgentSources } from './common/index.ts';
 import type { TAgentResolution, TAskAgents } from './common/index.ts';
 import { readLocalChoice } from './local.ts';
 import { agentIds } from './table.ts';
@@ -40,7 +40,10 @@ export const parseAgentList = (opts: { value: string }): TParsed => {
   return { ok: true, agents: known.filter((id) => words.includes(id)) };
 };
 
-const fromList = (opts: { value: string; source: 'flag' | 'asked' }): TAgentResolution => {
+const fromList = (opts: {
+  value: string;
+  source: typeof AgentSources.FLAG | typeof AgentSources.ASKED;
+}): TAgentResolution => {
   const parsed = parseAgentList({ value: opts.value });
 
   return parsed.ok
@@ -83,11 +86,11 @@ export const resolveAgents = (opts: {
       ? {
           ok: true,
           agents: stored.agents ?? opts.detected,
-          source: 'asked',
+          source: AgentSources.ASKED,
           writeLocal: true,
           hint: undefined,
         }
-      : fromList({ value: answer, source: 'asked' });
+      : fromList({ value: answer, source: AgentSources.ASKED });
   };
 
   if (opts.flag === '') {
@@ -100,25 +103,37 @@ export const resolveAgents = (opts: {
   }
 
   if (opts.flag !== undefined) {
-    return fromList({ value: opts.flag, source: 'flag' });
+    return fromList({ value: opts.flag, source: AgentSources.FLAG });
   }
 
   if (stored.agents !== undefined) {
-    return { ok: true, agents: stored.agents, source: 'local', writeLocal: false, hint: undefined };
+    return {
+      ok: true,
+      agents: stored.agents,
+      source: AgentSources.LOCAL,
+      writeLocal: false,
+      hint: undefined,
+    };
   }
 
   if (opts.configAgents !== undefined) {
     return {
       ok: true,
       agents: agentIds().filter((id) => opts.configAgents?.includes(id)),
-      source: 'config',
+      source: AgentSources.CONFIG,
       writeLocal: true,
       hint: undefined,
     };
   }
 
   if (PROJECT_FILES.some((file) => existsSync(join(opts.root, file)))) {
-    return { ok: true, agents: ['claude'], source: 'migration', writeLocal: true, hint: undefined };
+    return {
+      ok: true,
+      agents: ['claude'],
+      source: AgentSources.MIGRATION,
+      writeLocal: true,
+      hint: undefined,
+    };
   }
 
   if (opts.interactive) {
@@ -128,7 +143,7 @@ export const resolveAgents = (opts: {
   return {
     ok: true,
     agents: [AgentConstants.DEFAULT_AGENT],
-    source: 'default',
+    source: AgentSources.DEFAULT,
     writeLocal: false,
     hint: NO_TTY_HINT,
   };

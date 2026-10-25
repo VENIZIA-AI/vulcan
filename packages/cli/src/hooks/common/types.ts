@@ -1,7 +1,8 @@
 import type { TConstValue } from '../../common/index.ts';
-import type { GuardDecisions } from './constants.ts';
+import type { GuardDecisions, PackageVerdictKinds } from './constants.ts';
 
 export type TGuardDecision = TConstValue<typeof GuardDecisions>;
+export type TPackageVerdictKind = TConstValue<typeof PackageVerdictKinds>;
 
 export interface IWriteCheck {
   rule: string;

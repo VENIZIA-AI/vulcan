@@ -8,6 +8,18 @@ export class GuardDecisions {
   }
 }
 
+/** What the package guard says about a hand-made package: refuse where a `vulcan add` command exists, else warn. */
+export class PackageVerdictKinds {
+  static readonly DENY = GuardDecisions.DENY;
+  static readonly WARN = 'warn';
+
+  static readonly SCHEME_SET = new Set<string>([this.DENY, this.WARN]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
 export class HookConstants {
   /** `ask` until the transcript shows the guard does not over-fire; a false positive costs one keystroke. */
   static readonly GUARD_DECISION = GuardDecisions.ASK;

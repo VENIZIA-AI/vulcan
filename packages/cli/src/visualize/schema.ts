@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  ChangeKinds,
   DEFAULT_CHROME,
   EdgeVariants,
   EvidenceLabels,
@@ -7,6 +8,7 @@ import {
   StatusStates,
   VisualizeLimits,
 } from './constants.ts';
+import type { TChangeKind } from './constants.ts';
 
 /** One line of plain text: no markup is interpreted anywhere, it is all escaped. */
 const text = (max: number) =>
@@ -64,7 +66,7 @@ const STEP = z.strictObject({
     .default([]),
 });
 
-const SIDE = (changed: 'added' | 'removed') =>
+const SIDE = (changed: TChangeKind) =>
   z.strictObject({
     title: text(VisualizeLimits.MAX_LABEL),
     items: rows(
@@ -137,7 +139,9 @@ export const VISUALIZE_SCHEMA = z.strictObject({
       steps: z.array(STEP).max(VisualizeLimits.MAX_STEPS).default([]),
     })
     .optional(),
-  beforeAfter: z.strictObject({ before: SIDE('removed'), after: SIDE('added') }).optional(),
+  beforeAfter: z
+    .strictObject({ before: SIDE(ChangeKinds.REMOVED), after: SIDE(ChangeKinds.ADDED) })
+    .optional(),
   decisions: z
     .array(
       z.strictObject({

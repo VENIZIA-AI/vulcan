@@ -24,6 +24,30 @@ export class VizConstants {
   static readonly SEARCH_RESULT_LIMIT = 40;
 }
 
+/** The color scheme the explorer follows: the wiki's, or the system's. */
+export class ThemeModes {
+  static readonly LIGHT = 'light';
+  static readonly DARK = 'dark';
+
+  static readonly SCHEME_SET = new Set<string>([this.LIGHT, this.DARK]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
+/** The cell tags of a markdown table: a header cell and a data cell. */
+export class TableCells {
+  static readonly HEADER = 'th';
+  static readonly DATA = 'td';
+
+  static readonly SCHEME_SET = new Set<string>([this.HEADER, this.DATA]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
 /** The placeholders `template.html` carries; the builder fills them, the client never sees them. */
 export class VizTemplateTokens {
   static readonly DATA = '__OKF_DATA__';

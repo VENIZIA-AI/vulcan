@@ -7,6 +7,18 @@ export class AppSides {
   }
 }
 
+/** Why the `vulcan:apps` block of the config could not be read: its markers are gone, or what is between them is not JSON. */
+export class AppsBlockProblems {
+  static readonly MISSING = 'missing';
+  static readonly INVALID = 'invalid';
+
+  static readonly SCHEME_SET = new Set<string>([this.MISSING, this.INVALID]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
 export class CreateConstants {
   static readonly NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
   /** A plain version with an optional prerelease and build part; ranges and URLs are not one. */

@@ -1,3 +1,4 @@
+import type { TPackageKind } from './common/index.ts';
 import type { TResolvedConfig } from './schema.ts';
 
 const DEFAULT_PACKAGES_DIRECTORY = 'packages';
@@ -9,7 +10,7 @@ export interface IProjectPackage {
   path: string;
   aliases: string[];
   retired: boolean;
-  kind?: 'app' | 'lib';
+  kind?: TPackageKind;
 }
 
 /** The project's packages in release order. */

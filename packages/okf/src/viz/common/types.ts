@@ -1,8 +1,10 @@
 import type { TConstValue } from '../../common/index.ts';
-import type { Locales, VizViews } from './constants.ts';
+import type { Locales, TableCells, ThemeModes, VizViews } from './constants.ts';
 
 export type TLocale = TConstValue<typeof Locales>;
 export type TVizView = TConstValue<typeof VizViews>;
+export type TThemeMode = TConstValue<typeof ThemeModes>;
+export type TTableCell = TConstValue<typeof TableCells>;
 
 export interface IVizNode {
   id: string;

@@ -1,6 +1,7 @@
 import { relative, resolve } from 'node:path';
 import { coversFolder } from '../init/index.ts';
-import { CreateConstants } from './common/index.ts';
+import { PackageKinds } from '../config/index.ts';
+import { AppsBlockProblems, CreateConstants } from './common/index.ts';
 import { renderManifestJson } from './manifest-json.ts';
 import type {
   IApp,
@@ -9,6 +10,7 @@ import type {
   IPresetSpec,
   IRecordedPreset,
   TAppSide,
+  TAppsBlockProblem,
 } from './common/index.ts';
 
 const ENV_PORT = /^[A-Z0-9_]*PORT=(\d+)\s*$/m;
@@ -211,7 +213,7 @@ export const renderLibManifest = (opts: {
 };
 
 /** The atlas lookups a package of one kind depends on: what a summary page cannot hold. */
-const ATLAS_LOOKUPS: Record<TAppSide | 'lib', [string, string][]> = {
+const ATLAS_LOOKUPS: Record<TAppSide | typeof PackageKinds.LIB, [string, string][]> = {
   backend: [
     ['How a route and its controller are written', '`search` "controller routes", then `get`'],
     [
@@ -227,7 +229,7 @@ const ATLAS_LOOKUPS: Record<TAppSide | 'lib', [string, string][]> = {
 };
 
 /** The note and the table that turn a package page into a pointer at atlas, for its kind. */
-const renderAtlasLookups = (opts: { kind: TAppSide | 'lib' }): string[] => [
+const renderAtlasLookups = (opts: { kind: TAppSide | typeof PackageKinds.LIB }): string[] => [
   '> This page is a summary, not a spec: it says what the package is. How code is written here lives',
   '> in atlas; look it up before you explain or write code.',
   '',
@@ -260,7 +262,7 @@ export const renderLibConcept = (opts: {
     '',
     `The shared package at \`${opts.path}\`, created from the ${opts.presetPackage} preset (lib kind). ${oneLine({ text: opts.summary })}`,
     '',
-    ...renderAtlasLookups({ kind: 'lib' }),
+    ...renderAtlasLookups({ kind: PackageKinds.LIB }),
   ].join('\n');
 
 /**
@@ -367,7 +369,7 @@ const isAppsBlock = (value: unknown): value is IAppsBlock =>
 
 export type TAppsBlockResult =
   | { ok: true; block: IAppsBlock }
-  | { ok: false; reason: 'missing' | 'invalid' };
+  | { ok: false; reason: TAppsBlockProblem };
 
 const APPS_DECLARATION = 'const apps = ';
 
@@ -377,14 +379,14 @@ export const parseAppsBlock = (opts: { source: string }): TAppsBlockResult => {
   const end = opts.source.indexOf(CreateConstants.APPS_BLOCK_END);
 
   if (start === -1 || end === -1 || end < start) {
-    return { ok: false, reason: 'missing' };
+    return { ok: false, reason: AppsBlockProblems.MISSING };
   }
 
   const body = opts.source.slice(start + CreateConstants.APPS_BLOCK_START.length, end);
   const declaration = body.indexOf(APPS_DECLARATION);
 
   if (declaration === -1) {
-    return { ok: false, reason: 'invalid' };
+    return { ok: false, reason: AppsBlockProblems.INVALID };
   }
 
   try {
@@ -395,13 +397,15 @@ export const parseAppsBlock = (opts: { source: string }): TAppsBlockResult => {
         .replace(/;$/, ''),
     );
 
-    return isAppsBlock(parsed) ? { ok: true, block: parsed } : { ok: false, reason: 'invalid' };
+    return isAppsBlock(parsed)
+      ? { ok: true, block: parsed }
+      : { ok: false, reason: AppsBlockProblems.INVALID };
   } catch (error) {
     console.error(
       `[parseAppsBlock] the vulcan:apps block is not JSON | ${error instanceof Error ? error.message : String(error)}`,
     );
 
-    return { ok: false, reason: 'invalid' };
+    return { ok: false, reason: AppsBlockProblems.INVALID };
   }
 };
 

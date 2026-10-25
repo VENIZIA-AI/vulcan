@@ -15,7 +15,7 @@ import type { IProjectPackage, TResolvedConfig } from '../config/index.ts';
 import { readWorkspaceGlobs } from '../init/index.ts';
 import { addLibrary } from './add-lib.ts';
 import { runAppChecks } from './checks.ts';
-import { AppSides, CreateFlags } from './common/index.ts';
+import { AppSides, AppsBlockProblems, CreateFlags } from './common/index.ts';
 import type { IAppsBlock, ILocatedPreset, IPresetSpec, TAppSide } from './common/index.ts';
 import { writeFile } from './files.ts';
 import { recordedPresetOf } from './lib-preset.ts';
@@ -525,7 +525,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   if (!parsed.ok) {
     return fail({
       message: [
-        parsed.reason === 'missing'
+        parsed.reason === AppsBlockProblems.MISSING
           ? `the vulcan:apps block is gone from ${configPath} - add by hand:`
           : `the vulcan:apps block in ${configPath} is not the JSON vulcan wrote - add by hand:`,
         ...literal({ side, folders: grown, app: entry, sources: newSources }),

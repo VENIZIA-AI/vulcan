@@ -1,4 +1,5 @@
 import { readAtlasProject } from '@/common/project-config';
+import { SourceModes } from '@/sources/common';
 import type { Transport } from '@/protocol';
 import { buildSourcesServer } from './server/index';
 
@@ -10,7 +11,7 @@ export const buildServer = (opts: { root: string; version: string }): Transport 
   const project = readAtlasProject({ root: opts.root });
 
   return buildSourcesServer({
-    sources: [{ name: project.name, root: opts.root, mode: 'repository', project }],
+    sources: [{ name: project.name, root: opts.root, mode: SourceModes.REPOSITORY, project }],
     cwd: opts.root,
     version: opts.version,
   });

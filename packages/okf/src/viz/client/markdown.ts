@@ -1,3 +1,5 @@
+import { TableCells } from '../common/index.ts';
+import type { TTableCell } from '../common/index.ts';
 import { escapeHtml } from './html.ts';
 
 const TABLE_ROW = /^\s*\|.*\|\s*$/;
@@ -35,7 +37,7 @@ const splitCells = (opts: { line: string }): string[] =>
     .split('|')
     .map((cell) => cell.trim());
 
-const renderRow = (opts: { line: string; cellTag: 'th' | 'td' }): string =>
+const renderRow = (opts: { line: string; cellTag: TTableCell }): string =>
   `<tr>${splitCells({ line: opts.line })
     .map((cell) => `<${opts.cellTag}>${renderInline({ text: cell })}</${opts.cellTag}>`)
     .join('')}</tr>`;
@@ -99,12 +101,12 @@ export const renderMarkdown = (opts: { source: string }): string => {
 
     if (isTableRow({ line }) && next !== undefined && isTableSeparator({ line: next })) {
       flushBlocks();
-      let table = `<table><thead>${renderRow({ line, cellTag: 'th' })}</thead><tbody>`;
+      let table = `<table><thead>${renderRow({ line, cellTag: TableCells.HEADER })}</thead><tbody>`;
 
       index += 2;
 
       while (index < lines.length && isTableRow({ line: lines[index] })) {
-        table += renderRow({ line: lines[index], cellTag: 'td' });
+        table += renderRow({ line: lines[index], cellTag: TableCells.DATA });
         index++;
       }
 

@@ -75,6 +75,54 @@ export class AtlasCommands {
   }
 }
 
+/** Where a skill of the catalog comes from: the package ships it, or the project wrote it. */
+export class SkillSources {
+  static readonly SHIPPED = 'shipped';
+  static readonly PROJECT = 'project';
+
+  static readonly SCHEME_SET = new Set<string>([this.SHIPPED, this.PROJECT]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
+/** What a package of the project is: an app, or a shared package (a lib) a preset made. */
+export class PackageKinds {
+  static readonly APP = 'app';
+  static readonly LIB = 'lib';
+
+  static readonly SCHEME_SET = new Set<string>([this.APP, this.LIB]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
+/** The side of the stack an app of a preset is on. */
+export class AppSides {
+  static readonly BACKEND = 'backend';
+  static readonly FRONTEND = 'frontend';
+
+  static readonly SCHEME_SET = new Set<string>([this.BACKEND, this.FRONTEND]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
+/** What a source's corpus is read at: the release tag of the installed package, or the configured ref. */
+export class SourcePins {
+  static readonly INSTALLED = 'installed';
+  static readonly REF = 'ref';
+
+  static readonly SCHEME_SET = new Set<string>([this.INSTALLED, this.REF]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
 /** The levels a log line carries; `emerg` is never a configured threshold. */
 export class LogLevels {
   static readonly DEBUG = 'debug';

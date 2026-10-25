@@ -1,9 +1,11 @@
+import { ThemeModes } from '../common/index.ts';
+import type { TThemeMode } from '../common/index.ts';
 import { readParentDocument } from './frame.ts';
 
 type TPalette = Record<string, string>;
 
-const FALLBACK_PALETTES: Record<'light' | 'dark', TPalette> = {
-  light: {
+const FALLBACK_PALETTES: Record<TThemeMode, TPalette> = {
+  [ThemeModes.LIGHT]: {
     bg: '#ffffff',
     'bg-soft': '#f7f7f9',
     'bg-alt': '#eeeef1',
@@ -12,7 +14,7 @@ const FALLBACK_PALETTES: Record<'light' | 'dark', TPalette> = {
     border: '#e3e3e8',
     brand: '#3b5bdb',
   },
-  dark: {
+  [ThemeModes.DARK]: {
     bg: '#16161a',
     'bg-soft': '#1c1c21',
     'bg-alt': '#121215',
@@ -54,7 +56,7 @@ export class VizTheme {
       }
     }
 
-    root.style.setProperty('color-scheme', this.dark ? 'dark' : 'light');
+    root.style.setProperty('color-scheme', this.dark ? ThemeModes.DARK : ThemeModes.LIGHT);
   }
 
   static watch(opts: { onChange: () => void }): void {
@@ -78,7 +80,7 @@ export class VizTheme {
   private static readSystemPalette(): TPalette {
     this.dark = matchMedia(DARK_QUERY).matches;
 
-    return FALLBACK_PALETTES[this.dark ? 'dark' : 'light'];
+    return FALLBACK_PALETTES[this.dark ? ThemeModes.DARK : ThemeModes.LIGHT];
   }
 
   private static readWikiPalette(): TPalette | undefined {

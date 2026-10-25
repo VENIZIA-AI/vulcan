@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, normalize, relative, sep } from 'node:path';
-import { GuardDecisions, HookConstants } from './common/index.ts';
-import type { IManifestHookInput } from './common/index.ts';
+import { GuardDecisions, HookConstants, PackageVerdictKinds } from './common/index.ts';
+import type { IManifestHookInput, TPackageVerdictKind } from './common/index.ts';
 import { forHost } from './decision.ts';
 import { LayoutKeys, validLayoutFolders } from '../common/layout-folder.ts';
 
@@ -13,7 +13,7 @@ const NO_HAND_WRITING = 'do not hand-write package.json, tsconfig or scripts';
 
 export interface IPackageVerdict {
   /** `deny` only when a real `vulcan add` command exists for the folder; otherwise `warn`. */
-  kind: 'deny' | 'warn';
+  kind: TPackageVerdictKind;
   message: string;
 }
 
@@ -184,13 +184,13 @@ export const inspectPackageWrite = (opts: {
 
   if (commands.length > 0) {
     return {
-      kind: GuardDecisions.DENY,
+      kind: PackageVerdictKinds.DENY,
       message: `${created.folder}/${created.name} is a new ${what}: create it with a preset, not by hand - run ${commands.join(' or ')} (ask atlas \`presets\` for the choice); ${NO_HAND_WRITING}`,
     };
   }
 
   return {
-    kind: 'warn',
+    kind: PackageVerdictKinds.WARN,
     message:
       project.presets.length === 0
         ? `${created.folder}/${created.name} looks like a new ${what} and this project recorded no preset: ask the user which preset to use (\`vulcan add --preset <name|file:path> --app <name>\`, --lib <name> for a shared package); ${NO_HAND_WRITING}`
@@ -199,7 +199,7 @@ export const inspectPackageWrite = (opts: {
 };
 
 export const buildPackageDecision = (opts: { verdict: IPackageVerdict }) =>
-  opts.verdict.kind === GuardDecisions.DENY
+  opts.verdict.kind === PackageVerdictKinds.DENY
     ? forHost({
         output: {
           hookSpecificOutput: {
