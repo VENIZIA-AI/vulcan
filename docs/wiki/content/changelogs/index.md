@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-25 | [VULCAN 0.4.5: add --lib Says Why a Folder Was Not Recorded in the Layout](./2026-10-25-vulcan-0-4-5-lib-dir-note) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.4: Layout Folders Can Be Paths, Lists, and a List of Folders Left Alone](./2026-10-25-vulcan-0-4-4-layout-paths) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.4: V-C-19, Group Options That Serve One Concern](./2026-10-25-vulcan-0-4-4-rule-v-c-19) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.4: A Work Item a Person Can Read and a Fresh Agent Can Do](./2026-10-25-vulcan-0-4-4-work-item) | New Feature |
