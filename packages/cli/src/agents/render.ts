@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import { RemoveOutcomes } from './common/index.ts';
 
 export const CODEX_BLOCK_START = '# vulcan:atlas:start';
 export const CODEX_BLOCK_END = '# vulcan:atlas:end';
@@ -174,8 +175,8 @@ export const mergeCodexToml = (opts: { text: string | undefined; root: string })
 };
 
 export type TRemoveResult =
-  | { ok: true; outcome: 'absent' }
-  | { ok: true; outcome: 'removed'; text: string | undefined }
+  | { ok: true; outcome: typeof RemoveOutcomes.ABSENT }
+  | { ok: true; outcome: typeof RemoveOutcomes.REMOVED; text: string | undefined }
   | { ok: false; reason: string };
 
 /**
@@ -198,7 +199,7 @@ export const removeMcpEntry = (opts: { text: string; key: string }): TRemoveResu
   const servers = document[opts.key];
 
   if (!isRecord(servers) || !Object.hasOwn(servers, SERVER_NAME)) {
-    return { ok: true, outcome: 'absent' };
+    return { ok: true, outcome: RemoveOutcomes.ABSENT };
   }
 
   if (!isOwnEntry({ entry: servers[SERVER_NAME] })) {
@@ -219,7 +220,7 @@ export const removeMcpEntry = (opts: { text: string; key: string }): TRemoveResu
 
   return {
     ok: true,
-    outcome: 'removed',
+    outcome: RemoveOutcomes.REMOVED,
     text: onlyEmptyInputs ? undefined : `${JSON.stringify(remaining, null, 2)}\n`,
   };
 };

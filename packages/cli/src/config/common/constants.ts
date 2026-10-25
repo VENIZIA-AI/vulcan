@@ -1,3 +1,15 @@
+/** What a package of the project is: an app, or a shared package (a lib) a preset made. */
+export class PackageKinds {
+  static readonly APP = 'app';
+  static readonly LIB = 'lib';
+
+  static readonly SCHEME_SET = new Set<string>([this.APP, this.LIB]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
 /** Config file extensions, in lookup order. */
 export class ConfigExtensions {
   static readonly TS = 'ts';

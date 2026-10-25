@@ -18,6 +18,7 @@ import {
   readAtlasProject,
   toAtlasProject,
 } from '@/common/project-config';
+import { SourcePins } from '@/common/constants';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IReleaseTable } from '@/releases/common';
 import { computeReleases } from '@/releases/compute';
@@ -32,6 +33,7 @@ import type {
   IUnavailableSource,
   TSourceMode,
 } from './common';
+import { SourceModes } from './common';
 import { githubTokenOf } from './credentials';
 import {
   commitOf,
@@ -512,7 +514,7 @@ const resolveRemote = async (opts: {
       cacheBase: opts.cacheBase,
       cacheRoot,
       sha: cached,
-      mode: 'offline-cache',
+      mode: SourceModes.OFFLINE_CACHE,
     });
   }
 
@@ -531,7 +533,7 @@ const resolveRemote = async (opts: {
       cacheBase: opts.cacheBase,
       cacheRoot,
       sha,
-      mode: 'cache',
+      mode: SourceModes.CACHE,
     });
 
     if (opts.corpusOnly === true) {
@@ -563,7 +565,7 @@ const resolveRemote = async (opts: {
           cacheBase: opts.cacheBase,
           cacheRoot,
           sha,
-          mode: 'cache',
+          mode: SourceModes.CACHE,
         });
       }
 
@@ -598,7 +600,7 @@ const resolveRemote = async (opts: {
         cacheBase: opts.cacheBase,
         cacheRoot,
         sha,
-        mode: 'fresh',
+        mode: SourceModes.FRESH,
       });
     },
   });
@@ -626,7 +628,7 @@ const resolveAtInstalled = async (opts: {
     pin: { ref: opts.source.ref, pinned: false, reason },
   });
 
-  if (opts.source.pin === 'ref') {
+  if (opts.source.pin === SourcePins.REF) {
     return atRef('pin is ref');
   }
 
@@ -689,7 +691,7 @@ const resolveSelf = (opts: { cwd: string }): IResolvedSource[] =>
         (() => {
           const project = readAtlasProject({ root: opts.cwd });
 
-          return { name: project.name, root: opts.cwd, mode: 'repository' as const, project };
+          return { name: project.name, root: opts.cwd, mode: SourceModes.REPOSITORY, project };
         })(),
       ]
     : [];

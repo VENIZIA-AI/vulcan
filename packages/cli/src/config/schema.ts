@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { layoutFolderProblem, layoutOverlapProblems } from '../common/layout-folder.ts';
 import { OWNER_SCHEMA } from '../owner/schema.ts';
-import { CodingAgents, ConfigConstants, HookEvents } from './common/index.ts';
+import { CodingAgents, ConfigConstants, HookEvents, PackageKinds } from './common/index.ts';
 
 const CODING_AGENT = z.string().refine((value) => CodingAgents.isValid(value), {
   message: `one of: ${[...CodingAgents.SCHEME_SET].join(', ')}`,
@@ -30,7 +30,7 @@ const PROJECT_PACKAGE = z.strictObject({
   aliases: z.array(z.string()).default([]),
   retired: z.boolean().default(false),
   /** A shared package a preset's lib kind made lives anywhere a workspace glob covers; absent means an app or a plain package. */
-  kind: z.enum(['app', 'lib']).optional(),
+  kind: z.enum([PackageKinds.APP, PackageKinds.LIB]).optional(),
 });
 
 /** A path as a key: no leading `./`, no trailing slash. */

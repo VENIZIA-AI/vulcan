@@ -1,8 +1,9 @@
 import type { ILayout } from '../../common/layout-folder.ts';
 import type { TConstValue } from '../../common/index.ts';
-import type { AppSides } from './constants.ts';
+import type { AppSides, AppsBlockProblems } from './constants.ts';
 
 export type TAppSide = TConstValue<typeof AppSides>;
+export type TAppsBlockProblem = TConstValue<typeof AppsBlockProblems>;
 
 /** One name init or add needs: the flag that carries it, the question that asks it. */
 export interface INameField {

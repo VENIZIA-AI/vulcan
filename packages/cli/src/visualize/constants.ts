@@ -1,3 +1,19 @@
+import type { TConstValue } from '../common/index.ts';
+
+/** Which side of a before/after page a row is on: what was added, what was removed. */
+export class ChangeKinds {
+  static readonly ADDED = 'added';
+  static readonly REMOVED = 'removed';
+
+  static readonly SCHEME_SET = new Set<string>([this.ADDED, this.REMOVED]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
+export type TChangeKind = TConstValue<typeof ChangeKinds>;
+
 export class StatusStates {
   static readonly OK = 'ok';
   static readonly WARN = 'warn';

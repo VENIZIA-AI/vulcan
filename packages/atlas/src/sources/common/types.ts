@@ -1,4 +1,8 @@
 import type { IAtlasProject } from '@/common/project-config';
+import type { TConstValue, TSourcePin } from '@/common/types';
+import type { SourceModes } from './constants';
+
+export type { TSourcePin };
 
 /** A source a project reads knowledge from: \`atlas.sources\` of its config, or \`--source\`. */
 export interface IAtlasSource {
@@ -14,8 +18,6 @@ export interface IAtlasSource {
   pin?: TSourcePin;
 }
 
-export type TSourcePin = 'installed' | 'ref';
-
 /** Which ref a source's corpus is at, and why: the server's instructions say so. */
 export interface ISourcePin {
   /** The ref the corpus was read at: a release tag when pinned, else the configured ref. */
@@ -26,7 +28,7 @@ export interface ISourcePin {
 }
 
 /** How a source was reached this start - the server's instructions say so when it matters. */
-export type TSourceMode = 'repository' | 'cache' | 'fresh' | 'offline-cache';
+export type TSourceMode = TConstValue<typeof SourceModes>;
 
 export interface IResolvedSource {
   name: string;

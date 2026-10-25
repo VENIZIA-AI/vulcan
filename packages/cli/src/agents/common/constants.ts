@@ -10,6 +10,29 @@ export class AgentScopes {
   }
 }
 
+/** Why an agent's list was chosen: a flag, the local file, the config, a migration, the question, or the default. */
+export class AgentSources {
+  static readonly FLAG = 'flag';
+  static readonly LOCAL = 'local';
+  static readonly CONFIG = 'config';
+  static readonly MIGRATION = 'migration';
+  static readonly ASKED = 'asked';
+  static readonly DEFAULT = 'default';
+
+  static readonly SCHEME_SET = new Set<string>([
+    this.FLAG,
+    this.LOCAL,
+    this.CONFIG,
+    this.MIGRATION,
+    this.ASKED,
+    this.DEFAULT,
+  ]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
 /** What taking an entry out of an agent's file found: it was not there, or it was and is gone. */
 export class RemoveOutcomes {
   static readonly ABSENT = 'absent';

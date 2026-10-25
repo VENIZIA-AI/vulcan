@@ -103,7 +103,7 @@ const planSharedMcpRemoval = (opts: { root: string }): ISyncAction[] => {
     return [{ path, status: SyncStatuses.SKIPPED, note: removed.reason, apply: NO_CHANGE }];
   }
 
-  if (removed.outcome === 'absent') {
+  if (removed.outcome === RemoveOutcomes.ABSENT) {
     return [];
   }
 
@@ -280,7 +280,7 @@ const planMcpRemoval = (opts: { root: string; entry: TAgentEntry }): ISyncAction
     return [{ path, status: SyncStatuses.SKIPPED, note: removed.reason, apply: NO_CHANGE }];
   }
 
-  if (removed.outcome === 'absent') {
+  if (removed.outcome === RemoveOutcomes.ABSENT) {
     return [];
   }
 
