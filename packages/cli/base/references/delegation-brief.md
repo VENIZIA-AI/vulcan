@@ -4,7 +4,7 @@ A subagent knows only what the brief says. This is the template, and the rules a
 puts mechanical work (sweeps, greps, renames, gates, counting) with a smaller-model subagent and keeps
 judgment with the main agent, which re-checks what comes back.
 
-**Contents**: [The brief](#the-brief) · [What comes back](#what-comes-back) · [Liveness](#liveness) · [Verifier and reviewer briefs](#verifier-and-reviewer-briefs) · [Parallel work](#parallel-work) · [Multi-session work](#multi-session-work)
+**Contents**: [The brief](#the-brief) · [What comes back](#what-comes-back) · [Liveness](#liveness) · [Verifier and reviewer briefs](#verifier-and-reviewer-briefs) · [Parallel work](#parallel-work) · [Multi-session work](#multi-session-work) · [Starting another session](#starting-another-session)
 
 ## The brief
 
@@ -61,3 +61,18 @@ other's summaries.
 Keep a small ledger next to the card: slice, state, evidence stub. A fresh context resumes from the
 ledger and the card, never from the conversation. Size each unit of work to about one fresh context; a
 unit that does not fit is split before it starts.
+
+## Starting another session
+
+A subagent started through the tool's own subagent mechanism is already exempt from the owner's report
+shape: it gets the subagent card, not the owner shape or the profile. A session you start another way (a
+new terminal, `claude -p`, a script, a session another agent works in) is not: its hooks hold its replies to
+the owner's shape, log them as faults and, under `enforce: block`, send them back, although its reader is
+you.
+
+Start it with `VULCAN_OWNER_REPLY=off` on the command that starts it (`VULCAN_OWNER_REPLY=off claude -p ...`), never with `export`, which reaches every later session started from that shell. Only the exact value `off` counts. The
+session then gets no owner shape card and no profile card, and its replies are not checked, logged or
+blocked; everything else (the guards, the rules, the signals) stays on. Say in the brief which plain
+format you want back (the four statuses and the evidence table above are the default), in the language
+you work in. Never set it in a shell the owner works in, or in the `env` of a settings file: `vulcan doctor` prints a
+note when it is set in the shell that runs it and a warning when a Claude Code settings file sets it.

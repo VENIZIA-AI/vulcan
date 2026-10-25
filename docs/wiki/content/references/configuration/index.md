@@ -553,6 +553,10 @@ export default {
 } satisfies VulcanConfig;
 ```
 
+### A session whose reader is an agent
+
+The shape is for a reader who is the owner. A session another agent starts (a script, `claude -p`, another terminal) is started with `VULCAN_OWNER_REPLY=off` in its environment: it gets no shape card and no profile card, and its replies are not checked, logged or blocked. Only the exact value `off` counts; the variable is not a VULCAN config key. Set it on the command that starts the session (`VULCAN_OWNER_REPLY=off claude -p ...`), never with `export` in a shell or terminal multiplexer the owner works in, and never in the `env` of a committed Claude Code settings file: either would switch the check off for the owner's own sessions. `vulcan doctor` prints a note when it is set in the shell that runs it, and a warning when `.claude/settings.json` or `.claude/settings.local.json` sets it in `env`. Subagents started through the tool's own mechanism are exempt already. See [hooks](/references/hooks/#stop-and-prompt-submit).
+
 ### The personal profile
 
 Each developer has their own settings, in `.agents/local/profile.json` inside the project (gitignored with the rest of `.agents/local/`; nothing is written outside the project). It holds how to address the person, the reply language and its label set, tone, how much detail to report, working habits, and a free line in their own words. The profile changes style and defaults only: it never changes the project's shape or status set, never loosens a base rule, and `enforce` is the stricter of the project's and the person's.

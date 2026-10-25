@@ -11,10 +11,12 @@ import {
 import { renderLocalChoice } from '../../agents/index.ts';
 import { renderBunfig } from '../../create/bunfig.ts';
 import { renderDockerignore } from '../../create/dockerignore.ts';
+import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
 afterAll(removeProjects);
+isolateOwnerReplySwitch();
 
 const MAKE_INCLUDE = 'include node_modules/@venizia/vulcan/base/make/vulcan.mk\n';
 const LINT_CONFIGS = {
@@ -1157,5 +1159,47 @@ describe('the report shape note', () => {
         note.file.endsWith('violations.jsonl'),
       ),
     ).toEqual([]);
+  });
+
+  test('a note says when VULCAN_OWNER_REPLY=off is set in the shell that runs doctor', async () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+      },
+    });
+    const notesOf = async (env: Record<string, string>): Promise<string[]> =>
+      (await runDoctorNotes({ root, env }))
+        .filter((note) => note.file === 'VULCAN_OWNER_REPLY')
+        .map((note) => note.message);
+
+    const set = await notesOf({ VULCAN_OWNER_REPLY: 'off' });
+
+    expect(set).toHaveLength(1);
+    expect(set[0]).toContain('not held to the owner reply shape');
+    expect(await notesOf({ VULCAN_OWNER_REPLY: 'OFF' })).toEqual([]);
+    expect(await notesOf({})).toEqual([]);
+  });
+
+  test('a warning says when a Claude Code settings file of the project sets the switch in env', async () => {
+    const config = "export default { rules: { 'V-W-01': 'read-only' } };\n";
+    const flagged = createProject({
+      files: {
+        '.configs/vulcan.config.ts': config,
+        '.claude/settings.local.json': JSON.stringify({ env: { VULCAN_OWNER_REPLY: 'off' } }),
+      },
+    });
+    const harmless = createProject({
+      files: {
+        '.configs/vulcan.config.ts': config,
+        '.claude/settings.json': JSON.stringify({ env: { VULCAN_OWNER_REPLY: 'on' } }),
+      },
+    });
+    const warningsOf = async (root: string): Promise<string[]> =>
+      (await runDoctorWarnings({ root }))
+        .filter((warning) => warning.message.includes('VULCAN_OWNER_REPLY'))
+        .map((warning) => warning.file);
+
+    expect(await warningsOf(flagged)).toEqual(['.claude/settings.local.json']);
+    expect(await warningsOf(harmless)).toEqual([]);
   });
 });

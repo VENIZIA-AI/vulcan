@@ -3,6 +3,7 @@
  * contract, and the faults of the previous reply when it had any. Nothing is added when the shape is not
  * enforced. It never blocks a prompt: any failure prints a note and the prompt goes through.
  * `VULCAN_GUARDS=off` switches it off, read before anything is imported.
+ * `VULCAN_OWNER_REPLY=off` exempts a session whose reader is an agent; the check is made in the builder.
  */
 
 // A module, so the awaits below are top-level; it has no static import, by design.
