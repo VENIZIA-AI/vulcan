@@ -1,16 +1,20 @@
 ---
-title: "VULCAN 0.4.5: The Guards Reach Antigravity"
+title: "VULCAN X.Y.Z: The Guards Reach Antigravity"
 description: vulcan sync writes a guard hook into .agents/hooks.json for Antigravity, so a force-push to main is refused there; an ask is approved by agy --dangerously-skip-permissions, which the hooks page says.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-25
 
-## VULCAN 0.4.5: the guards reach Antigravity
+## VULCAN X.Y.Z: the guards reach Antigravity
 
 <Badge type="tip" text="New Feature" />
 
 **In one line.** For Antigravity, `vulcan sync` now adds a `vulcan-guards` hook to `.agents/hooks.json` that runs the same guard scripts as Claude Code, so `git push -f origin main` is refused in `agy`; a write outside the project is asked about, which `--dangerously-skip-permissions` approves.
+
+**Who is affected.** Users of Antigravity (`agy`). Probed with `agy` 1.4.7: a `deny` holds, an `ask` does not under `--dangerously-skip-permissions`.
+
+**What to do.** Update `@venizia/vulcan` and run `vulcan sync --agents <your list>` with `antigravity` in it.
 
 ## What changed
 
@@ -27,7 +31,3 @@ Run on 2026-10-25 with `agy` 1.4.7 in a scratch project with a local bare remote
 - **With the hook:** `git push -f origin main` is refused (`tool call denied by pre-tool hook: ... V-W-06`), and `git status --short` runs. The hook loads although `.git/info/exclude` lists the file.
 - **An `ask` is approved by that flag.** The write outside the project ran, because the flag auto-approves every permission request, `force_ask` included. Without the flag, headless `agy` denies every `run_command` that has no allow rule, so the `ask` path cannot be told apart from the default there. `deny` is not affected.
 - **Not verified:** the confirmation prompt of an `ask` in an interactive session; the real shape of the file tools (`write_to_file` and the two replace tools), which follows the documented field names and the unit tests; what Antigravity does when a hook times out or exits non-zero (undocumented; the adapter always exits 0); the IDE and the App, which read the same file per the documentation.
-
-## Upgrading
-
-Run `vulcan sync --agents <your list>` with `antigravity` in it.
