@@ -39,13 +39,19 @@ export const shippedSkillNames = (): string[] => {
 /**
  * The files sync creates for the chosen agents, listed in this clone's `.git/info/exclude` (D1): the
  * choice is per developer, so a committed `.gitignore` would flip-flop. A re-run replaces the block, so
- * an agent that is no longer chosen drops out. Paths git tracks are not listed; outside a git
+ * an agent that is no longer chosen drops out. A project below the git top level keeps its own block,
+ * so it never replaces the block of the top level. Paths git tracks are not listed; outside a git
  * repository nothing is written.
  */
 export const planExclude = (opts: { root: string; agents: string[] }): ISyncAction[] => {
   const location = git({ root: opts.root, args: ['rev-parse', '--git-path', 'info/exclude'] });
 
   if (location === undefined || location === '') {
+    return [];
+  }
+
+  // A project directory git already ignores (scratch under .agents/local/) needs no entries of its own.
+  if (git({ root: opts.root, args: ['check-ignore', '-q', '.'] }) !== undefined) {
     return [];
   }
 
@@ -70,7 +76,11 @@ export const planExclude = (opts: { root: string; agents: string[] }): ISyncActi
     .map((group) => ({ ...group, paths: group.paths.filter((item) => !tracked.has(item)) }))
     .filter((group) => group.paths.length > 0);
   const before = existsSync(path) ? readFileSync(path, 'utf8') : undefined;
-  const merged = mergeExcludeBlock({ text: before, block: renderExcludeBlock({ groups }) });
+  const merged = mergeExcludeBlock({
+    text: before,
+    block: renderExcludeBlock({ groups, prefix }),
+    prefix,
+  });
 
   if (!merged.changed) {
     return [{ path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE }];
