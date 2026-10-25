@@ -371,6 +371,18 @@ Antigravity runs the command from the folder of the hooks file, so the wrapper l
 
 **Checked on 2026-10-25 with `agy` 1.4.7, in a scratch project with a local bare remote, print mode with the flag above:** before the hook, `git push -f origin main` reached git and the write outside the project happened; with it, the push is refused (`tool call denied by pre-tool hook`, `V-W-06`) although `.git/info/exclude` lists the file, and `git status --short` runs. **Not verified:** the confirmation prompt of an `ask` in an interactive session; the real event of the three file tools (the field names follow the documentation and the unit tests); Antigravity's behaviour when a hook times out or exits non-zero; the IDE and the App.
 
+## The guards on Codex, Cursor and Copilot
+
+**None of this was run in Codex, Cursor or Copilot: it follows their documentation (read 2026-10-25) and the unit tests, and is NOT VERIFIED.**
+
+**Codex** loads hooks from `.codex/hooks.json` (and `[hooks]` in `config.toml`) once you have reviewed and trusted them in `/hooks`; the trust is tied to the hook's hash. `vulcan sync` merges one `PreToolUse` entry with the matcher `Bash|apply_patch` into `hooks.PreToolUse`, next to any entry of yours. The command runs from the git top level (Codex runs hooks from the session folder) and starts `base/hooks/codex-guards.ts`, which reads Codex's event (`tool_name`, `tool_input.command`, `cwd`), runs the guard scripts through the policy of the omp and pi file and prints Codex's deny shape. A patch (`apply_patch`, whose `tool_input.command` is the patch text) is read file by file: `*** Add File:` counts as a write, `*** Update File:`, `*** Delete File:` and `*** Move to:` as edits, so the manifest guard and `guard-outside` see the paths. Codex does not support `ask` for a tool call (the hook is marked failed and the call continues), so an ask is printed as a deny that says a human must confirm, and a script that crashed is a deny; a missing package or `bun` prints nothing and passes with a note. `--dangerously-bypass-hook-trust` runs unreviewed hooks, which is the user's call.
+
+**Cursor** loads the Claude hooks of `.claude/settings.json` by default (Settings, Agents, Third-Party Imports turns it off), maps `PreToolUse` to `preToolUse`, `Bash` to `Shell` and `Edit` to `Write`, honours `hookSpecificOutput.permissionDecision` and exit code 2, and sets `CLAUDE_PROJECT_DIR` and `CURSOR_PROJECT_DIR`. What the guards do about it: the manifest guard reads `Shell` (and `shell`, `bash`) as `Bash`; where `CURSOR_PROJECT_DIR` is set an `ask` is printed as a `deny`, because Cursor accepts but does not enforce an `ask` on a tool call. `sync` writes no `.cursor/hooks.json`: a second set could run the guards twice.
+
+**Copilot** (the CLI and the Copilot harness of VS Code) reads `.claude/settings.json` hooks as well, and documents `permissionDecision` and `permissionDecisionReason` at the top level of a `preToolUse` answer, where a Claude hook puts them under `hookSpecificOutput`. Every decision of the guards carries both; Claude Code ignores the top-level pair (checked with a real run). A non-zero exit of a Copilot `preToolUse` hook denies the call, and Copilot does not document `CLAUDE_PROJECT_DIR`, which is why every wrapper falls back to the working directory.
+
+**Not verified:** that Codex accepts the entry and honours the deny; what Cursor puts on stdin of an imported Claude hook and whether its tool name is `Shell`; whether Copilot reads the top-level fields from a Claude settings file and runs those hooks from the project root; the trust steps of Codex, Cursor and Copilot.
+
 ## See also
 
 - [Rules](/references/rules)

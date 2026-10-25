@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, normalize, relative, sep } from 'node:path';
 import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { IManifestHookInput } from './common/index.ts';
+import { forHost } from './decision.ts';
 import { LayoutKeys, validLayoutFolders } from '../common/layout-folder.ts';
 
 const MANIFEST_FILE = '.agents/vulcan.manifest.json';
@@ -199,13 +200,15 @@ export const inspectPackageWrite = (opts: {
 
 export const buildPackageDecision = (opts: { verdict: IPackageVerdict }) =>
   opts.verdict.kind === GuardDecisions.DENY
-    ? {
-        hookSpecificOutput: {
-          hookEventName: HookConstants.PRE_TOOL_USE,
-          permissionDecision: GuardDecisions.DENY,
-          permissionDecisionReason: opts.verdict.message,
+    ? forHost({
+        output: {
+          hookSpecificOutput: {
+            hookEventName: HookConstants.PRE_TOOL_USE,
+            permissionDecision: GuardDecisions.DENY,
+            permissionDecisionReason: opts.verdict.message,
+          },
         },
-      }
+      })
     : {
         hookSpecificOutput: {
           hookEventName: HookConstants.PRE_TOOL_USE,

@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { HookConstants } from './common/index.ts';
 import type { IHookCommand, IWriteCheck, IWriteHit } from './common/index.ts';
+import { forHost } from './decision.ts';
 
 const MUTATING_VERB = '(?:POST|PUT|PATCH|DELETE)';
 
@@ -130,16 +131,19 @@ export const parseHookCommand = (opts: { text: string }): IHookCommand | undefin
     : undefined;
 };
 
-export const buildGuardDecision = (opts: { hits: IWriteHit[] }) => ({
-  hookSpecificOutput: {
-    hookEventName: HookConstants.PRE_TOOL_USE,
-    permissionDecision: HookConstants.GUARD_DECISION,
-    permissionDecisionReason: [
-      `This command looks like ${opts.hits.length === 1 ? 'an action' : 'actions'} the base rules reserve for a human:`,
-      ...opts.hits.map((hit) => `  - ${hit.rule}: ${hit.message}`),
-      '',
-      'The rules reject "it is only dev", "it is only a test row" and "it is reversible".',
-      'Produce the script, the SQL or the manifest and hand it over instead of running it.',
-    ].join('\n'),
-  },
-});
+export const buildGuardDecision = (opts: { hits: IWriteHit[] }) =>
+  forHost({
+    output: {
+      hookSpecificOutput: {
+        hookEventName: HookConstants.PRE_TOOL_USE,
+        permissionDecision: HookConstants.GUARD_DECISION,
+        permissionDecisionReason: [
+          `This command looks like ${opts.hits.length === 1 ? 'an action' : 'actions'} the base rules reserve for a human:`,
+          ...opts.hits.map((hit) => `  - ${hit.rule}: ${hit.message}`),
+          '',
+          'The rules reject "it is only dev", "it is only a test row" and "it is reversible".',
+          'Produce the script, the SQL or the manifest and hand it over instead of running it.',
+        ].join('\n'),
+      },
+    },
+  });

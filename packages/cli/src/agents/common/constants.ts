@@ -10,13 +10,27 @@ export class AgentScopes {
   }
 }
 
+/** What taking an entry out of an agent's file found: it was not there, or it was and is gone. */
+export class RemoveOutcomes {
+  static readonly ABSENT = 'absent';
+  static readonly REMOVED = 'removed';
+
+  static readonly SCHEME_SET = new Set<string>([this.ABSENT, this.REMOVED]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
 /** How a guard reaches an agent that has no Claude-style hook commands: a file the agent loads. */
 export class AgentGuardKinds {
   static readonly EXTENSION = 'extension';
   /** A hooks file that names a command: Antigravity's `.agents/hooks.json`. */
   static readonly HOOKS_JSON = 'hooks-json';
+  /** Codex's `.codex/hooks.json`: `hooks.PreToolUse` is a list of matcher entries. */
+  static readonly CODEX_HOOKS = 'codex-hooks';
 
-  static readonly SCHEME_SET = new Set<string>([this.EXTENSION, this.HOOKS_JSON]);
+  static readonly SCHEME_SET = new Set<string>([this.EXTENSION, this.HOOKS_JSON, this.CODEX_HOOKS]);
 
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);

@@ -8,7 +8,7 @@ import {
   AgentScopes,
   atlasServerEntry,
   canonicalAtlasEntry,
-  GUARD_HOOK_NAME,
+  mergeCodexHooks,
   mergeCodexToml,
   mergeGuardHook,
   mergeMcpServers,
@@ -205,7 +205,10 @@ const planGuardHooksJson = (opts: { root: string; entry: TAgentEntry }): ISyncAc
 
   const path = join(opts.root, opts.entry.guards.path);
   const text = existsSync(path) ? readFileSync(path, 'utf8') : undefined;
-  const merged = mergeGuardHook({ text });
+  const merged =
+    opts.entry.guards.kind === AgentGuardKinds.CODEX_HOOKS
+      ? mergeCodexHooks({ text })
+      : mergeGuardHook({ text });
 
   if (!merged.ok) {
     return [
@@ -227,7 +230,7 @@ const planGuardHooksJson = (opts: { root: string; entry: TAgentEntry }): ISyncAc
       {
         path,
         status: SyncStatuses.SKIPPED,
-        note: `tracked by git - left alone; add the '${GUARD_HOOK_NAME}' hook by hand (see the hooks reference)`,
+        note: 'tracked by git - left alone; add the VULCAN guard hook by hand (see the hooks reference)',
         apply: NO_CHANGE,
       },
     ];
@@ -246,7 +249,8 @@ const planGuardHooksJson = (opts: { root: string; entry: TAgentEntry }): ISyncAc
 };
 
 const planAgentGuards = (opts: { root: string; entry: TAgentEntry }): ISyncAction[] =>
-  opts.entry.guards?.kind === AgentGuardKinds.HOOKS_JSON
+  opts.entry.guards?.kind === AgentGuardKinds.HOOKS_JSON ||
+  opts.entry.guards?.kind === AgentGuardKinds.CODEX_HOOKS
     ? planGuardHooksJson(opts)
     : planGuardExtension(opts);
 

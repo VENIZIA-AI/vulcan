@@ -23,13 +23,14 @@ const sync = (opts: { root: string; agents: string }) =>
   runCli({ args: ['sync', '--agents', opts.agents], cwd: opts.root });
 
 describe('the guard extension of an agent that takes one', () => {
-  test('the table gives omp and pi an extension, Antigravity a hooks file and nobody else a guard', () => {
+  test('the table gives omp and pi an extension, Antigravity and Codex a hooks file and nobody else a guard', () => {
     const guarded = readAgentTable()
       .filter((entry) => entry.guards !== null)
       .map((entry) => [entry.id, entry.guards?.kind, entry.guards?.path]);
 
     expect(guarded).toEqual([
       ['omp', 'extension', OMP],
+      ['codex', 'codex-hooks', '.codex/hooks.json'],
       ['antigravity', 'hooks-json', '.agents/hooks.json'],
       ['pi', 'extension', PI],
     ]);

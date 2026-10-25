@@ -14,9 +14,10 @@ import {
   AgentGuardKinds,
   AgentRenderers,
   AgentScopes,
-  GUARD_HOOK_NAME,
   readAgentTable,
+  RemoveOutcomes,
   removeCodexBlock,
+  removeCodexHooks,
   removeGuardHook,
   removeMcpEntry,
 } from '../agents/index.ts';
@@ -134,12 +135,19 @@ const planGuardHookRemoval = (opts: {
   root: string;
   path: string;
   relative: string;
+  kind: string;
 }): ISyncAction[] => {
   if (!existsSync(opts.path)) {
     return [];
   }
 
-  const removed = removeGuardHook({ text: readFileSync(opts.path, 'utf8') });
+  const text = readFileSync(opts.path, 'utf8');
+  const removed =
+    opts.kind === AgentGuardKinds.CODEX_HOOKS
+      ? removeCodexHooks({ text })
+      : removeGuardHook({ text });
+  const folder = dirname(opts.path);
+  const parent = OWN_FOLDERS.has(basename(folder)) ? folder : undefined;
 
   if (!removed.ok) {
     return [
@@ -147,7 +155,7 @@ const planGuardHookRemoval = (opts: {
     ];
   }
 
-  if (removed.outcome === 'absent') {
+  if (removed.outcome === RemoveOutcomes.ABSENT) {
     return [];
   }
 
@@ -163,12 +171,12 @@ const planGuardHookRemoval = (opts: {
   }
 
   return removed.text === undefined
-    ? [removeFile({ path: opts.path })]
+    ? [removeFile({ path: opts.path, parent })]
     : [
         {
           path: opts.path,
           status: SyncStatuses.REPLACED,
-          note: `the '${GUARD_HOOK_NAME}' hook taken out`,
+          note: 'the VULCAN guard hook taken out',
           apply: () => writeFileSync(opts.path, removed.text ?? ''),
         },
       ];
@@ -182,8 +190,16 @@ const planGuardsRemoval = (opts: { root: string; entry: TAgentEntry }): ISyncAct
 
   const path = join(opts.root, opts.entry.guards.path);
 
-  if (opts.entry.guards.kind === AgentGuardKinds.HOOKS_JSON) {
-    return planGuardHookRemoval({ root: opts.root, path, relative: opts.entry.guards.path });
+  if (
+    opts.entry.guards.kind === AgentGuardKinds.HOOKS_JSON ||
+    opts.entry.guards.kind === AgentGuardKinds.CODEX_HOOKS
+  ) {
+    return planGuardHookRemoval({
+      root: opts.root,
+      path,
+      relative: opts.entry.guards.path,
+      kind: opts.entry.guards.kind,
+    });
   }
 
   if (
