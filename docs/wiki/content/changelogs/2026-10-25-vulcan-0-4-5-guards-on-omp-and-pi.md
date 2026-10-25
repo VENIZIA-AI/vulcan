@@ -1,16 +1,20 @@
 ---
-title: "VULCAN 0.4.5: The Guards Reach omp and pi"
+title: "VULCAN X.Y.Z: The Guards Reach omp and pi"
 description: vulcan sync writes a guard file for omp and pi that runs the same guard scripts Claude Code runs, so a force-push to main and a write outside the project are refused there too; Codex, Cursor and Copilot are not wired yet.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-25
 
-## VULCAN 0.4.5: the guards reach omp and pi
+## VULCAN X.Y.Z: the guards reach omp and pi
 
 <Badge type="tip" text="New Feature" />
 
 **In one line.** Until now the guards ran in Claude Code only; on omp and pi nothing enforced `V-W-06` or `V-B-08`, so `git push -f origin main` and a write outside the project went through. For the two agents you choose, `vulcan sync` now writes a guard file that runs the same scripts.
+
+**Who is affected.** Users of omp and of pi. Until now the guards ran in Claude Code only: on these two agents nothing enforced `V-W-06` or `V-B-08`. Probed with omp 18.8.9 and a real model; pi 1.4.0 only through its SDK with a scripted provider (no credentials on the probe machine).
+
+**What to do.** Update `@venizia/vulcan` and run `vulcan sync --agents <your list>` with `omp` or `pi` in it. Pi loads project extensions only after you trust the project.
 
 ## What changed
 
@@ -27,7 +31,3 @@ Run on 2026-10-25 on a Linux laptop, in a scratch project with a local bare remo
 - **omp 18.8.9**, real model: before, nothing from VULCAN fired (the push reached git, the file was created); with the hook, the push and the write are refused and `git status` runs.
 - **pi 1.4.0**: no provider credentials on that machine, so a real pi session was driven with pi's own scripted faux provider; the extension in `.pi/extensions/` was found and refused the push and the write.
 - **Not verified:** pi with a real model and through its project-trust prompt on the command line; the confirmation dialog of an `ask` in a real terminal; other tools of the two agents (`python`, `notebook`, `powershell`); Windows.
-
-## Upgrading
-
-Run `vulcan sync --agents claude,omp,pi` (your own list): it writes the file for omp and pi. Pi loads project extensions only after you trust the project.

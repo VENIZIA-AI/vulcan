@@ -1,16 +1,20 @@
 ---
-title: "VULCAN 0.4.5: The Guards Reach Codex, and Read Better in Cursor and Copilot"
+title: "VULCAN X.Y.Z: The Guards Reach Codex, and Read Better in Cursor and Copilot"
 description: vulcan sync writes a guard hook into .codex/hooks.json for Codex, and the decisions of the existing guards carry the fields Cursor and Copilot read; none of the three was run, so all of it is marked NOT VERIFIED.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-25
 
-## VULCAN 0.4.5: the guards reach Codex, and read better in Cursor and Copilot
+## VULCAN X.Y.Z: the guards reach Codex, and read better in Cursor and Copilot
 
-<Badge type="tip" text="New Feature" />
+<Badge type="tip" text="New Feature" /> <Badge type="warning" text="Not verified" />
 
 **In one line.** Codex gets a guard hook from `vulcan sync`, and the answers of the guards that Cursor and Copilot already read from `.claude/settings.json` now fit what those two document. **Nothing in this entry was run in Codex, Cursor or Copilot: it follows their documentation (read 2026-10-25) and the unit tests, and is NOT VERIFIED.**
+
+**Who is affected.** Users of Codex, Cursor and Copilot (the CLI and the Copilot harness of VS Code). **None of the three was run: the work follows their documentation and unit tests, and is NOT VERIFIED.**
+
+**What to do.** Update `@venizia/vulcan` and run `vulcan sync --agents <your list>` with `codex` in it, then review and trust the hook in `/hooks` in Codex. For Cursor and Copilot there is nothing to write: run `vulcan sync` to get the wrappers with the working-directory fallback.
 
 ## What changed
 
@@ -24,7 +28,3 @@ packages: ['@venizia/vulcan']
 - **Checked:** unit tests of the Codex adapter and wrapper against the real guard scripts (Bash and `apply_patch` events in Codex's documented shape), the hooks file merge and removal, the sync flow, the decision shapes, and a real Claude Code run with a hook that prints both shapes.
 - **NOT VERIFIED:** Codex, Cursor and Copilot themselves: not installed on any machine available here. In particular whether Codex accepts the entry as written and honours the deny, what Cursor sends on stdin to an imported Claude hook and whether it reads `Shell` as assumed, whether Copilot reads our top-level fields from a Claude settings file, and the project-trust steps of Codex and Cursor.
 - **Not wired:** a native `.cursor/hooks.json` and a `.github/hooks` file; the Claude import is used instead, and writing a second set could run the guards twice.
-
-## Upgrading
-
-Run `vulcan sync --agents <your list>` with `codex` in it, then `/hooks` in Codex to trust the hook.

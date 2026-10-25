@@ -11,16 +11,17 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
-| 2026-10-25 | [VULCAN 0.4.5: The Hook Wrappers No Longer Need CLAUDE_PROJECT_DIR](./2026-10-25-vulcan-0-4-5-hooks-without-project-dir) | Bug Fix |
-| 2026-10-25 | [VULCAN 0.4.5: The Write and Remote-Host Guards Stop Asking About Data](./2026-10-25-vulcan-0-4-5-guard-noise) | Behaviour Change |
-| 2026-10-25 | [VULCAN 0.4.5: The Guards Reach Codex, and Read Better in Cursor and Copilot](./2026-10-25-vulcan-0-4-5-guards-on-codex-cursor-copilot) | New Feature |
-| 2026-10-25 | [VULCAN 0.4.5: The Guards Reach Antigravity](./2026-10-25-vulcan-0-4-5-guards-on-antigravity) | New Feature |
-| 2026-10-25 | [VULCAN 0.4.5: The Guards Reach omp and pi](./2026-10-25-vulcan-0-4-5-guards-on-omp-and-pi) | New Feature |
-| 2026-10-25 | [VULCAN 0.4.5: The Deny-Class Guards Ask When They Crash or Time Out](./2026-10-25-vulcan-0-4-5-guards-ask-on-failure) | Bug Fix |
-| 2026-10-25 | [VULCAN 0.4.5: The Guard Parser Closes What the Second Review Found](./2026-10-25-vulcan-0-4-5-guard-parser-review) | Bug Fix |
-| 2026-10-25 | [VULCAN 0.4.5: The Guards Read ANSI-C Quoting](./2026-10-25-vulcan-0-4-5-ansi-c-quoting) | Bug Fix |
-| 2026-10-25 | [VULCAN 0.4.5: add --lib Says Why a Folder Was Not Recorded in the Layout](./2026-10-25-vulcan-0-4-5-lib-dir-note) | New Feature |
-| 2026-10-25 | [VULCAN 0.4.5: The Guards Read the Command Line of env -S](./2026-10-25-vulcan-0-4-5-env-split-string) | Bug Fix |
+| 2026-10-25 | [VULCAN X.Y.Z: The Guards Get Stronger, Quieter and Reach Six More Agents (Overview)](./2026-10-25-vulcan-x-y-z-batch-overview) | Security, Behaviour change, New Feature |
+| 2026-10-25 | [VULCAN X.Y.Z: The Hook Wrappers No Longer Need CLAUDE_PROJECT_DIR](./2026-10-25-vulcan-0-4-5-hooks-without-project-dir) | Bug Fix |
+| 2026-10-25 | [VULCAN X.Y.Z: The Write and Remote-Host Guards Stop Asking About Data](./2026-10-25-vulcan-0-4-5-guard-noise) | Behaviour change |
+| 2026-10-25 | [VULCAN X.Y.Z: The Guards Reach Codex, and Read Better in Cursor and Copilot](./2026-10-25-vulcan-0-4-5-guards-on-codex-cursor-copilot) | New Feature, not verified |
+| 2026-10-25 | [VULCAN X.Y.Z: The Guards Reach Antigravity](./2026-10-25-vulcan-0-4-5-guards-on-antigravity) | New Feature |
+| 2026-10-25 | [VULCAN X.Y.Z: The Guards Reach omp and pi](./2026-10-25-vulcan-0-4-5-guards-on-omp-and-pi) | New Feature |
+| 2026-10-25 | [VULCAN X.Y.Z: The Deny-Class Guards Ask When They Crash or Time Out](./2026-10-25-vulcan-0-4-5-guards-ask-on-failure) | Behaviour change |
+| 2026-10-25 | [VULCAN X.Y.Z: The Guard Parser Closes What the Second Review Found](./2026-10-25-vulcan-0-4-5-guard-parser-review) | Security |
+| 2026-10-25 | [VULCAN X.Y.Z: The Guards Read ANSI-C Quoting](./2026-10-25-vulcan-0-4-5-ansi-c-quoting) | Security |
+| 2026-10-25 | [VULCAN X.Y.Z: add --lib Says Why a Folder Was Not Recorded in the Layout](./2026-10-25-vulcan-0-4-5-lib-dir-note) | New Feature |
+| 2026-10-25 | [VULCAN X.Y.Z: The Guards Read the Command Line of env -S](./2026-10-25-vulcan-0-4-5-env-split-string) | Security |
 | 2026-10-25 | [VULCAN 0.4.4: Layout Folders Can Be Paths, Lists, and a List of Folders Left Alone](./2026-10-25-vulcan-0-4-4-layout-paths) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.4: V-C-19, Group Options That Serve One Concern](./2026-10-25-vulcan-0-4-4-rule-v-c-19) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.4: A Work Item a Person Can Read and a Fresh Agent Can Do](./2026-10-25-vulcan-0-4-4-work-item) | New Feature |
