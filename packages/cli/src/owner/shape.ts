@@ -271,7 +271,15 @@ const decisionsFrom = (opts: { lines: string[]; view: IOwnerView; from: number }
 };
 
 const styleProblems = (opts: { lines: string[]; view: IOwnerView }): string[] => {
-  const prose = opts.lines.map((line) => line.replace(/`[^`]*`/g, '')).join('\n');
+  // The owner's own status words and labels may carry symbols: they are the shape, not a fault.
+  const configured = [
+    ...Object.values(opts.view.labels.status),
+    ...Object.values(opts.view.labels.labels),
+  ].sort((first, second) => second.length - first.length);
+  const prose = configured.reduce(
+    (text, word) => text.replaceAll(word, ' '),
+    opts.lines.map((line) => line.replace(/`[^`]*`/g, '')).join('\n'),
+  );
   const classes: string[] = [];
 
   if (/\p{Emoji_Presentation}/u.test(prose)) {

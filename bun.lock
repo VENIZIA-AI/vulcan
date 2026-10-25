@@ -12,7 +12,7 @@
     },
     "packages/atlas": {
       "name": "@venizia/vulcan-atlas",
-      "version": "0.4.1",
+      "version": "0.4.2",
       "bin": {
         "vulcan-atlas": "./dist/cjs/cli.js",
       },
@@ -31,7 +31,7 @@
     },
     "packages/cli": {
       "name": "@venizia/vulcan",
-      "version": "0.4.1",
+      "version": "0.4.2",
       "bin": {
         "vulcan": "./src/cli.ts",
       },
@@ -52,7 +52,7 @@
     },
     "packages/okf": {
       "name": "@venizia/vulcan-okf",
-      "version": "0.4.1",
+      "version": "0.4.2",
       "bin": {
         "vulcan-okf": "./src/cli.ts",
       },
