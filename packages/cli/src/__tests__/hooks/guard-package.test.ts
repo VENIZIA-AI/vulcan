@@ -118,6 +118,74 @@ describe('inspectPackageWrite - a real command exists', () => {
   });
 });
 
+describe('inspectPackageWrite - a layout with several folders per side', () => {
+  const GROUPED = {
+    ...MANIFEST,
+    layout: {
+      backend: 'umbras',
+      frontend: ['auroras/apps', 'auroras/guests', 'auroras/public'],
+      shared: ['auroras/kits'],
+      other: ['third-parties', 'auroras/tools', 'docs', 'qc'],
+    },
+  };
+
+  test('a new package.json in any folder of a list is denied, with the folder named in the command', () => {
+    const root = project({ manifest: GROUPED });
+    const verdict = write({ root, path: 'auroras/guests/shop/package.json' });
+
+    expect(verdict?.kind).toBe('deny');
+    expect(verdict?.message).toContain(
+      'vulcan add --preset file:../acme-web --app shop --frontend-dir auroras/guests --api <backend app> | --no-api',
+    );
+    expect(write({ root, path: 'auroras/public/site/package.json' })?.message).toContain(
+      '--frontend-dir auroras/public',
+    );
+    expect(write({ root, path: 'auroras/kits/money/package.json' })?.message).toContain(
+      '--lib money',
+    );
+  });
+
+  test('a side with one folder keeps the command it had, with no folder flag', () => {
+    const verdict = write({
+      root: project({ manifest: GROUPED }),
+      path: 'umbras/api3/package.json',
+    });
+
+    expect(verdict?.message).toContain('vulcan add --preset ignis --app api3 (ask');
+    expect(verdict?.message).not.toContain('--backend-dir');
+  });
+
+  test('a folder listed under other is not guarded', () => {
+    const root = project({ manifest: GROUPED });
+
+    for (const path of [
+      'third-parties/x/package.json',
+      'auroras/tools/linter/package.json',
+      'docs/wiki/package.json',
+      'qc/tests/package.json',
+    ]) {
+      expect(write({ root, path }), path).toBeUndefined();
+    }
+  });
+
+  test('the manifest is never trusted: a folder that is not one is dropped, the valid ones still count', () => {
+    const root = project({
+      manifest: {
+        ...MANIFEST,
+        layout: {
+          backend: ['../outside', '/abs', 'a//b', 'a/node_modules/b', 'UPPER', 'ok/dir', 7, null],
+          frontend: 'web',
+        },
+      },
+    });
+
+    expect(write({ root, path: 'ok/dir/api/package.json' })?.kind).toBe('deny');
+    expect(write({ root, path: 'web/admin/package.json' })?.kind).toBe('deny');
+    expect(write({ root, path: 'outside/api/package.json' })).toBeUndefined();
+    expect(write({ root, path: 'UPPER/api/package.json' })).toBeUndefined();
+  });
+});
+
 describe('inspectPackageWrite - silent', () => {
   test('a package.json that already exists is left alone', () => {
     const root = project({ files: ['services/api/package.json'] });

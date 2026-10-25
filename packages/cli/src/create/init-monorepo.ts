@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ExitCodes, ProjectLayout, VULCAN_VERSION } from '../common/index.ts';
+import { layoutOverlapProblems } from '../common/layout-folder.ts';
 import { renderTemplate } from '../init/index.ts';
 import { runAppChecks } from './checks.ts';
 import { AppSides, CreateFlags } from './common/index.ts';
@@ -77,6 +78,7 @@ const appFields = (opts: { side?: TAppSide }): INameField[] => [
     flag: CreateFlags.SHARED_DIR,
     question: 'Shared code folder (empty to skip)',
     optional: true,
+    isPath: true,
   },
 ];
 
@@ -321,6 +323,21 @@ const runCreate = async (opts: {
 
   if (clash !== undefined) {
     return fail({ message: clash });
+  }
+
+  const overlaps = layoutOverlapProblems({
+    layout: {
+      [side]: folder,
+      ...(shared === '' ? {} : { shared }),
+      ...(otherFolder === undefined
+        ? {}
+        : { [side === AppSides.BACKEND ? 'frontend' : 'backend']: otherFolder }),
+    },
+  });
+
+  // A folder inside another would give a package path two owners.
+  if (overlaps.length > 0) {
+    return fail({ message: overlaps.join('; ') });
   }
 
   // Optional, asked only where menus are drawn; a plain terminal and a script give --scope.

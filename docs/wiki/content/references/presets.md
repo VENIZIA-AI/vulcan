@@ -130,7 +130,7 @@ The app-only keys `side`, `devPort`, `urls` and `peers` are not allowed here: th
 The library files take the tokens `{{project}}`, `{{lib}}` (the folder name, `billing`) and `{{package}}` (the npm name, `@acme/billing`).
 
 `vulcan add --lib` generates `package.json` as `name`, `version` (`0.0.0`), `private`, the `packageFields`, `exports`, `imports`, `scripts`, then the three dependency maps.
-A library lands in the `--dir` folder, else the `shared` folder of `layout`, else the one folder the existing libraries share; with none of those, `add` asks for `--dir`.
+A library lands in the `--dir` folder, else the one `shared` folder of `layout`, else the one folder the existing libraries share; with none of those, or with several `shared` folders, `add` asks for `--dir`.
 Its name takes `--scope`, else the scope the packages already in that folder agree on, else the project's own scope, else none.
 See [`vulcan add`](/references/commands/add#add-a-library).
 

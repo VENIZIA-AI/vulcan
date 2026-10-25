@@ -241,7 +241,7 @@ In a terminal, the library questions are the kind, the name and then the folder 
 
 Where the library goes, and what it is called:
 
-- **The folder** is `--dir`, else the `shared` folder of `layout`, else the one folder the existing libraries share. With none of those, `add` refuses: `vulcan add: where should billing go? pass --dir <folder>`. In a terminal it asks `Folder (libs)`, with that default.
+- **The folder** is `--dir`, else the one `shared` folder of `layout`, else the one folder the existing libraries share. With several `shared` folders and no `--dir`, `add` refuses and lists them (`pass --dir <folder> (the layout lists 'kits/a', 'kits/b')`); a terminal picks one. A `--dir` the layout does not list yet is added to `layout.shared` when it is a valid layout folder that nests with no other. With none of those, `add` refuses: `vulcan add: where should billing go? pass --dir <folder>`. In a terminal it asks `Folder (libs)`, with that default.
 - **The scope** is `--scope @acme`, else the scope the packages in that folder agree on, else the scope of the project's own `package.json` (`@acme/shop` gives `@acme`), else none. If the packages there use more than one scope, `add` refuses and asks for `--scope`.
 - **The workspace** must cover the folder. A new folder is added to `workspaces`, as for an app.
 - **The registration** is a `packages` entry with `kind: "lib"` and an explicit `path`, so `doctor` does not ask a library to live in a backend or frontend folder; it only checks that a `workspaces` glob covers it. The knowledge page is tagged `library`.
@@ -252,8 +252,8 @@ Where the library goes, and what it is called:
 |---|---|
 | `--preset <name\|file:path>` | The preset package. Required. A name without a scope means `@venizia/<name>`; `name@version` pins a version, and the default is `latest` |
 | `--app <name>` | The name of the new app. Always asked in a terminal, never pre-filled |
-| `--backend-dir <name>` | The folder for backend apps. Used when the preset is a backend |
-| `--frontend-dir <name>` | The folder for frontend apps. Used when the preset is a frontend |
+| `--backend-dir <path>` | The folder for backend apps. Used when the preset is a backend |
+| `--frontend-dir <path>` | The folder for frontend apps. Used when the preset is a frontend |
 | `--api <app>` | A frontend only: the backend app to proxy `/api` to |
 | `--no-api` | A frontend only: proxy to nothing |
 | `--lib <name>` | Create a shared library instead of an app. Not with `--app` |
@@ -262,11 +262,15 @@ Where the library goes, and what it is called:
 
 A name is lowercase letters, digits and `-`, and starts with a letter or digit.
 A name is never invented: without a terminal, neither `--app` nor `--lib` is an error that prints both commands, and `--lib` alone with no name is an error that names the flag.
-Without a terminal, the flags are checked before the preset is downloaded: neither `--app` nor `--lib`, a side folder that neither the flag nor `layout` gives, and a frontend with neither `--api` nor `--no-api`. A preset's side is known then only from the flags (`--frontend-dir`, `--api` or `--no-api` mean a frontend, `--backend-dir` alone a backend); with none of them, the side check waits for the download.
+Without a terminal, the flags are checked before the preset is downloaded: neither `--app` nor `--lib`, a side folder that neither the flag nor `layout` gives (or, when `layout` lists several for the side, the flag is missing), and a frontend with neither `--api` nor `--no-api`. A preset's side is known then only from the flags (`--frontend-dir`, `--api` or `--no-api` mean a frontend, `--backend-dir` alone a backend); with none of them, the side check waits for the download.
 
 ## The folder
 
-The preset says whether it is a backend or a frontend, and that side's folder is the one `layout` already holds in `.configs/vulcan.config.mts`.
+The preset says whether it is a backend or a frontend, and the app goes in one of that side's folders in `.configs/vulcan.config.mts`. A folder is a path of 1 to 4 segments (`--frontend-dir auroras/guests`; see [the `layout` key](/references/configuration/#layout)).
+
+- One folder listed: it is the folder. Another valid folder given with the flag is added to the list (the string becomes a list) and the confirmation says so.
+- Several folders listed: pick one with the flag, or in a terminal from a menu. Without a terminal and without the flag, `add` refuses and lists them.
+- A folder that is another key's, or nested in or around a listed one, is refused.
 
 - The question shows the folder you chose before in parentheses: `Backend folder (holds every backend app) (services)`.
 - Without a terminal and without the flag, the stored folder is used.
@@ -303,7 +307,9 @@ Every refusal happens before the first write, with exit code 1.
 | Message | Cause and fix |
 |---|---|
 | `vulcan add: run it at the root of a monorepo vulcan init created (no layout in .configs/vulcan.config.*)` | The folder has no `layout`. Run `add` at the monorepo root |
-| `vulcan add: the backend folder is 'services' in .configs/vulcan.config.mts; apps of one side share it, not 'apps'` | Use the stored folder, or leave the flag out |
+| `vulcan add: the backend folder 'services/x' does not fit the layout of .configs/vulcan.config.mts: ... are nested` | A folder inside another listed folder, or around one. Pick a folder that is neither |
+| `vulcan add: missing --backend-dir (Backend folder (holds every backend app); the layout lists umbras, umbras-2) - names are never chosen for you` | Several folders are listed and there is no terminal. Pass one |
+| `vulcan add: --backend-dir '../x' ...` | The folder is not a layout folder: no `..`, no leading or trailing `/`, no backslash, no `node_modules`, at most 4 segments of lowercase letters, digits and `-` |
 | `vulcan add: missing --app (Name of this app) - names are never chosen for you` | `--app` was given with no name and there is no terminal to ask. Pass the name |
 | `vulcan add: services/billing already exists` | An app or folder has that name. Pick another |
 | `vulcan add: say what to create - ...` | Neither `--app` nor `--lib`, and no terminal to ask. The message prints both commands |

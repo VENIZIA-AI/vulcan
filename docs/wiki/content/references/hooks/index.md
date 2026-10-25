@@ -92,7 +92,7 @@ Reading it (`cat`, `jq`, `git diff`) and `vulcan sync` itself pass. The hook doe
 
 ## guard-package
 
-An agent that needs a new app or library tends to write its `package.json`, `tsconfig.json` and scripts by hand, and gets them subtly different from the framework's. The `guard-package` hook catches the first file of that, a `Write` of a new `package.json` in a folder `layout` names, and points at the command that builds it properly.
+An agent that needs a new app or library tends to write its `package.json`, `tsconfig.json` and scripts by hand, and gets them subtly different from the framework's. The `guard-package` hook catches the first file of that, a `Write` of a new `package.json` in a folder `layout` names, and points at the command that builds it properly. A side can list several folders (`frontend: ['auroras/apps', 'auroras/guests']`); the hook matches any of them, and the command it prints names the folder (`--frontend-dir auroras/guests`) when the side lists more than one. Folders under `layout.other` are not guarded. The hook reads the manifest through the same folder rule as the config and drops a folder that is not valid (`..`, a leading `/`, `node_modules`, more than 4 segments), so a manifest is never trusted.
 
 It reads only the generated manifest (`layout` and `presets`). A command exists when a recorded preset makes that kind: an app preset of the folder's side for a backend or frontend folder, a preset with a library kind for the shared folder. Then the call is denied with the exact command:
 

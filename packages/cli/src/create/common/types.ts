@@ -1,3 +1,4 @@
+import type { ILayout } from '../../common/layout-folder.ts';
 import type { TConstValue } from '../../common/index.ts';
 import type { AppSides } from './constants.ts';
 
@@ -16,6 +17,8 @@ export interface INameField {
   choices?: string[];
   /** The only valid answer is `previous` (one folder per side): a menu never asks, a flag still wins. */
   fixed?: boolean;
+  /** The value is a folder path (1 to 4 segments) and not a single name. */
+  isPath?: boolean;
 }
 
 /** What a question carries: the text, the earlier choice, the existing folders, the check a menu runs while typing. */
@@ -102,7 +105,7 @@ export interface IRecordedPreset {
 
 /** What `init` and `add` own in the config: the layout, the package list, the presets and the atlas sources. */
 export interface IAppsBlock {
-  layout: { backend?: string; frontend?: string; shared?: string };
+  layout: ILayout;
   packages: { dir: string; name: string; path: string; kind?: 'lib' }[];
   /** Absent in a block written before presets were recorded. */
   presets?: IRecordedPreset[];

@@ -26,20 +26,33 @@ interface IPresetEntry {
   preset: string;
   side?: string;
   summary: string;
+  /** The one folder it lands in; null when the layout names none or several (then `folders` lists them). */
   folder: string | null;
+  /** Every folder the layout lists for this kind, when there is more than one: name one with the folder flag. */
+  folders?: string[];
   command: string;
   /** `true` for a preset this project recorded; `false` for an official one it has not used yet. */
   inProject: boolean;
 }
 
-/** The folder an app of this side lands in: the layout's, or nothing (never invented). */
-const appFolderOf = (opts: {
+/** A layout value as a list: one folder, several, or none. */
+const listOf = (opts: { value: string | string[] | undefined }): string[] =>
+  opts.value === undefined ? [] : typeof opts.value === 'string' ? [opts.value] : opts.value;
+
+/** The folders an app of this side can land in: the layout's, or none (never invented). */
+const appFoldersOf = (opts: {
   project: IAtlasProject | undefined;
   side: IAtlasPreset['side'];
-}): string | null => opts.project?.layout?.[opts.side] ?? null;
+}): string[] => listOf({ value: opts.project?.layout?.[opts.side] });
 
-/** The folder a library lands in: the layout's shared folder, else the one folder the existing libraries share. */
-const libFolderOf = (opts: { project: IAtlasProject | undefined }): string | null => {
+/** The folders a library can land in: the layout's shared folders, else the one folder the existing libraries share. */
+const libFoldersOf = (opts: { project: IAtlasProject | undefined }): string[] => {
+  const shared = listOf({ value: opts.project?.layout?.shared });
+
+  if (shared.length > 0) {
+    return shared;
+  }
+
   const folders = [
     ...new Set(
       (opts.project?.packages ?? [])
@@ -48,8 +61,14 @@ const libFolderOf = (opts: { project: IAtlasProject | undefined }): string | nul
     ),
   ];
 
-  return opts.project?.layout?.shared ?? (folders.length === 1 ? folders[0] : null);
+  return folders.length === 1 ? folders : [];
 };
+
+/** The folder flag of a command: nothing when the layout names the one folder, a placeholder (with the list) otherwise. */
+const folderFlagOf = (opts: { flag: string; folders: string[] }): string =>
+  opts.folders.length === 1
+    ? ''
+    : ` ${opts.flag} <${opts.folders.length === 0 ? 'folder' : opts.folders.join('|')}>`;
 
 const appEntry = (opts: {
   project: IAtlasProject | undefined;
@@ -59,15 +78,16 @@ const appEntry = (opts: {
   name: string;
   inProject: boolean;
 }): IPresetEntry => {
-  const folder = appFolderOf({ project: opts.project, side: opts.side });
-  const dirFlag = folder === null ? ` --${opts.side}-dir <folder>` : '';
+  const folders = appFoldersOf({ project: opts.project, side: opts.side });
+  const dirFlag = folderFlagOf({ flag: `--${opts.side}-dir`, folders });
   const api = opts.side === 'frontend' ? ' --api <backend app> | --no-api' : '';
 
   return {
     preset: opts.spec,
     side: opts.side,
     summary: opts.summary,
-    folder,
+    folder: folders.length === 1 ? (folders[0] ?? null) : null,
+    ...(folders.length > 1 ? { folders } : {}),
     command: `${ADD} --preset ${opts.spec} --app ${opts.name}${dirFlag}${api}`,
     inProject: opts.inProject,
   };
@@ -80,13 +100,14 @@ const libEntry = (opts: {
   name: string;
   inProject: boolean;
 }): IPresetEntry => {
-  const folder = libFolderOf({ project: opts.project });
+  const folders = libFoldersOf({ project: opts.project });
 
   return {
     preset: opts.spec,
     summary: opts.summary,
-    folder,
-    command: `${ADD} --preset ${opts.spec} --lib ${opts.name}${folder === null ? ' --dir <folder>' : ''}`,
+    folder: folders.length === 1 ? (folders[0] ?? null) : null,
+    ...(folders.length > 1 ? { folders } : {}),
+    command: `${ADD} --preset ${opts.spec} --lib ${opts.name}${folderFlagOf({ flag: '--dir', folders })}`,
     inProject: opts.inProject,
   };
 };

@@ -2,6 +2,8 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { TConstValue } from '../common/index.ts';
 import { ExitCodes } from '../common/index.ts';
+import { layoutFoldersOf } from '../common/layout-folder.ts';
+import type { ILayout } from '../common/layout-folder.ts';
 import { loadConfig, resolvePackages } from '../config/index.ts';
 import { locate, resolveApiUrl } from './add-app.ts';
 import { AppSides, CreateConstants, CreateFlags, PresetDiffStatuses } from './common/index.ts';
@@ -33,15 +35,15 @@ const fail = (opts: { message: string }): number => {
 };
 
 /** The side of the app by the layout folder it lives in. */
-const sideOf = (opts: {
-  layout: { backend?: string; frontend?: string };
-  path: string;
-}): TAppSide | undefined => {
-  if (opts.layout.backend !== undefined && opts.path.startsWith(`${opts.layout.backend}/`)) {
+const sideOf = (opts: { layout: ILayout; path: string }): TAppSide | undefined => {
+  const isIn = (side: { folders: string[] }): boolean =>
+    side.folders.some((folder) => opts.path.startsWith(`${folder}/`));
+
+  if (isIn({ folders: layoutFoldersOf({ value: opts.layout.backend }) })) {
     return AppSides.BACKEND;
   }
 
-  return opts.layout.frontend !== undefined && opts.path.startsWith(`${opts.layout.frontend}/`)
+  return isIn({ folders: layoutFoldersOf({ value: opts.layout.frontend }) })
     ? AppSides.FRONTEND
     : undefined;
 };
@@ -331,7 +333,7 @@ export const runPresetDiff = async (opts: { cwd: string; args: string[] }): Prom
         root: cwd,
         args,
         interactive: false,
-        backendFolder: config.layout?.backend,
+        backendFolders: layoutFoldersOf({ value: config.layout?.backend }),
         packages,
       });
 

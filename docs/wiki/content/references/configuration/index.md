@@ -66,7 +66,7 @@ The table below lists all 12 top-level configuration keys:
 | `name` | `string` | root package name | Project identifier in the manifest and atlas results |
 | `agents` | `string[]` | unset | Coding agents the project suggests; each developer's choice is stored locally |
 | `rules` | `Record<string, string>` | `{}` | Base rule slot choices |
-| `layout` | `object` | `undefined` | The folders `vulcan init` and `vulcan add` put apps in |
+| `layout` | `object` | `undefined` | The folders `vulcan init` and `vulcan add` put apps in, as a path or a list of paths per side, and the folders left alone |
 | `presets` | `object[]` | `undefined` | The presets this project's apps came from, as `--preset` takes them back; `init` and `add` record them |
 | `packages` | `Array<object>` | `[]` | Monorepo packages in release order |
 | `knowledge` | `object` | `{ bundle: '.agents/knowledge' }` | Locations for knowledge documents and concepts |
@@ -166,11 +166,31 @@ The `layout` object records the folders that hold your apps. `vulcan init` and `
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `backend` | `string` | none | Folder for backend apps |
-| `frontend` | `string` | none | Folder for frontend apps |
-| `shared` | `string` | none | Folder for code shared between apps |
+| `backend` | `string` or `string[]` | none | Folder, or folders, for backend apps |
+| `frontend` | `string` or `string[]` | none | Folder, or folders, for frontend apps |
+| `shared` | `string` or `string[]` | none | Folder, or folders, for code shared between apps |
+| `other` | `string` or `string[]` | none | Folders the layout deliberately does not manage: documentation, third-party code, tests |
 
-Each value is a folder name matching `/^[a-z0-9][a-z0-9-]*$/`. The object is strict, so any other key is an error.
+Each value is a folder path, or a list of them; a plain string stays valid. The object is strict, so any other key is an error. A folder path is checked by one rule, in the schema, in `add` and in the `guard-package` hook alike:
+
+- 1 to 4 segments joined by `/`, each matching `/^[a-z0-9][a-z0-9-]*$/` (`auroras/apps` is two);
+- no `..`, no `.` segment, no leading or trailing `/`, no backslash, no empty segment, no `node_modules` segment;
+- unique across the four keys, and no folder inside another (`auroras` and `auroras/apps` cannot both be listed), so a package path belongs to exactly one folder.
+
+A side whose apps are grouped lists each group's folder:
+
+```ts
+export default {
+  layout: {
+    backend: 'umbras',
+    frontend: ['auroras/apps', 'auroras/guests', 'auroras/public'],
+    shared: 'auroras/kits',
+    other: ['auroras/tools', 'third-parties', 'docs', 'qc'],
+  },
+} satisfies VulcanConfig;
+```
+
+`other` lists folders that hold packages the layout does not manage. A package there is allowed by [`doctor`](/references/commands/doctor#apps), is never the target of `vulcan add`, and is not guarded by `guard-package`. A package under no listed folder is still reported.
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -180,7 +200,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-`vulcan doctor` runs the [`apps`](/references/commands/doctor#apps) check against this object: every named folder must be a workspace, and every package must live inside one of them.
+`vulcan doctor` runs the [`apps`](/references/commands/doctor#apps) check against this object: every `backend`, `frontend` and `shared` folder must be a workspace, and every package must live inside a listed folder (an `other` folder included).
 
 ## presets
 
