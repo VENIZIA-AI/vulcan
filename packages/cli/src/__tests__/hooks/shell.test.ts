@@ -142,7 +142,65 @@ describe('parseShell', () => {
   test('programOf skips wrappers and flags before the program', () => {
     const [command] = parseShell({ command: 'sudo -n env git status' });
 
-    expect(programOf({ command: command! })).toEqual({ name: 'git', index: 3, args: ['status'] });
+    expect(programOf({ command: command! })).toEqual({
+      name: 'git',
+      index: 3,
+      args: ['status'],
+      splitStrings: [],
+    });
+  });
+
+  // `env -S` holds a whole command line in one word: it is parsed like `sh -c`.
+  test.each([
+    'env -S "git push -f origin main"',
+    "env -S 'git push -f origin main'",
+    "env -S'git push -f origin main'",
+    'env -iS "git push -f origin main"',
+    'env -i -S "git push -f origin main"',
+    'env --split-string="git push -f origin main"',
+    'env --split-string "git push -f origin main"',
+    'sudo env -S "git push -f origin main"',
+    'sudo -E env -i -S "git push -f origin main"',
+    'timeout 5 env -S "git push -f origin main"',
+    'FOO=1 env -S "git push -f origin main"',
+    'env -S "git push" -f origin main',
+    'env -S "env -S \'git push -f origin main\'"',
+    'env -S "bash -c \'git push -f origin main\'"',
+  ])('the command line in %s is read as commands', (command) => {
+    expect(
+      parseShell({ command }).some(
+        (simple) => programOf({ command: simple }).name === 'git' && simple.words.includes('-f'),
+      ),
+    ).toBe(true);
+  });
+
+  test.each([
+    'echo env -S "git push -f origin main"',
+    'git commit -m "env -S git push -f origin main"',
+    'env -S',
+    'env -S ""',
+    'env -uS "git push -f origin main"',
+    'ls -S "git push -f origin main"',
+    'sudo -S git status',
+  ])('%s does not make a git push', (command) => {
+    expect(
+      parseShell({ command }).some(
+        (simple) => programOf({ command: simple }).name === 'git' && simple.words.includes('-f'),
+      ),
+    ).toBe(false);
+  });
+
+  test('a value that is not a command line is read as what it is, and nesting stops at the depth limit', () => {
+    expect(
+      programOf({ command: parseShell({ command: 'env -S "FOO=1 git status"' })[0]! }).splitStrings,
+    ).toEqual(['FOO=1 git status']);
+
+    const deep = Array.from({ length: 12 }).reduce<string>(
+      (text) => `env -S "${text.replaceAll('"', '\\"')}"`,
+      'git push -f origin main',
+    );
+
+    expect(() => parseShell({ command: deep })).not.toThrow();
   });
 
   test('a heredoc body is data, the commands around it are read', () => {
