@@ -1,6 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
+import {
+  describeFolders,
+  layoutFolderProblem,
+  layoutFoldersOf,
+  layoutOverlapProblems,
+  listedFoldersNote,
+  withLayoutFolder,
+} from '../common/layout-folder.ts';
 import type { IProjectPackage, TResolvedConfig } from '../config/index.ts';
 import { readWorkspaceGlobs } from '../init/index.ts';
 import { runAppChecks } from './checks.ts';
@@ -63,8 +71,14 @@ const folderOf = async (opts: {
         .map((entry) => dirname(entry.path)),
     ),
   ];
+  const shared = layoutFoldersOf({ value: opts.config.layout?.shared });
+  // One shared folder is the answer; with none the one folder the libraries share is; several are for `--dir` or a menu.
   const fallback =
-    opts.config.layout?.shared ?? (libFolders.length === 1 ? libFolders[0] : undefined);
+    shared.length === 1
+      ? shared[0]
+      : shared.length === 0 && libFolders.length === 1
+        ? libFolders[0]
+        : undefined;
   let chosen = given;
 
   if (chosen === undefined) {
@@ -75,7 +89,9 @@ const folderOf = async (opts: {
           await askInTerminal({
             question: 'Folder',
             previous: fallback,
-            choices: [...new Set([...(fallback === undefined ? [] : [fallback]), ...libFolders])],
+            choices: [
+              ...new Set([...shared, ...(fallback === undefined ? [] : [fallback]), ...libFolders]),
+            ],
           })
         )?.trim() ?? '';
 
@@ -86,7 +102,10 @@ const folderOf = async (opts: {
   }
 
   if (chosen === undefined) {
-    return { ok: false, error: `where should ${opts.lib} go? pass ${CreateFlags.DIR} <folder>` };
+    return {
+      ok: false,
+      error: `where should ${opts.lib} go? pass ${CreateFlags.DIR} <folder>${shared.length > 1 ? ` (${listedFoldersNote({ folders: shared })})` : ''}`,
+    };
   }
 
   const folder = chosen.replace(/^\.\//, '').replace(/\/+$/, '');
@@ -206,9 +225,17 @@ export const addLibrary = async (opts: {
     });
   }
 
+  const sharedBefore = parsed.block.layout.shared;
+  const grown = withLayoutFolder({ value: sharedBefore, folder });
+  // A valid folder the layout does not list yet is added to layout.shared, unless it would nest with another folder.
+  const isNewFolder =
+    !layoutFoldersOf({ value: sharedBefore }).includes(folder) &&
+    layoutFolderProblem({ folder }) === undefined &&
+    layoutOverlapProblems({ layout: { ...parsed.block.layout, shared: grown } }).length === 0;
   const block = opts.recorded({
     block: {
       ...parsed.block,
+      layout: isNewFolder ? { ...parsed.block.layout, shared: grown } : parsed.block.layout,
       packages: [...parsed.block.packages, { dir: libName, name: named.name, path, kind: 'lib' }],
     },
   });
@@ -233,16 +260,21 @@ export const addLibrary = async (opts: {
     process.stderr.write(`${warning}\n`);
   }
 
-  const confirmed = await confirmWrite({
-    title: `Add ${libName}`,
-    lines: planLines({
-      rows: [
-        ['library', path],
-        ['package', named.name],
-        ['preset', `${located.packageName} ${located.packageVersion}`],
-      ],
-    }),
-  });
+  const rows: [string, string][] = [['library', path]];
+
+  if (isNewFolder) {
+    rows.push([
+      'layout',
+      `adds '${folder}' to layout.shared (now ${describeFolders({ folders: layoutFoldersOf({ value: grown }) })})`,
+    ]);
+  }
+
+  rows.push(
+    ['package', named.name],
+    ['preset', `${located.packageName} ${located.packageVersion}`],
+  );
+
+  const confirmed = await confirmWrite({ title: `Add ${libName}`, lines: planLines({ rows }) });
 
   if (!confirmed) {
     return fail({ message: ABORTED });

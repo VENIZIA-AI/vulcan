@@ -290,7 +290,7 @@ The answer lists the presets this project recorded first (`inProject: true`), th
 | `name` | String | `<name>` | The new name (lowercase letters, digits and `-`), put into the command |
 | `side` | `backend` or `frontend` | Both | Narrows the apps list to one side |
 
-For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `command` and `inProject`; for `kind: "lib"`, `preset`, `summary`, `folder`, `command` and `inProject`. A side or kind with no folder in the manifest has `folder: null` and the command carries `--backend-dir <folder>`, `--frontend-dir <folder>` or `--dir <folder>`: the tool never invents a folder. A frontend's command ends with `--api <backend app> | --no-api`.
+For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `command` and `inProject`; for `kind: "lib"`, `preset`, `summary`, `folder`, `command` and `inProject`. A side or kind whose layout lists several folders has `folder: null`, a `folders` list, and a command with a folder placeholder (`--frontend-dir <auroras/apps|auroras/guests>`): the agent picks one. A side or kind with no folder in the manifest has `folder: null` and the command carries `--backend-dir <folder>`, `--frontend-dir <folder>` or `--dir <folder>`: the tool never invents a folder. A frontend's command ends with `--api <backend app> | --no-api`.
 
 ```json
 {

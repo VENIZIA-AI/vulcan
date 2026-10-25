@@ -1,3 +1,4 @@
+import { Glob } from 'bun';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout, readProperty } from '../common/index.ts';
@@ -82,13 +83,23 @@ export const readWorkspaceGlobs = (opts: { root: string }): string[] => {
 
 /**
  * Whether a workspace glob list covers the packages directly under `folder`: `folder/*` or
- * `folder/**`, with or without a leading `./`.
+ * `folder/**`, with or without a leading `./`, or any glob that matches a package there
+ * (`auroras/*\/*` covers `auroras/apps`).
  */
 export const coversFolder = (opts: { globs: string[]; folder: string }): boolean =>
   opts.globs.some((glob) => {
     const plain = glob.replace(/^\.\//, '');
 
-    return plain === `${opts.folder}/*` || plain === `${opts.folder}/**`;
+    // A negation (`!umbras/legacy`) excludes packages; it never covers a folder.
+    if (plain.startsWith('!')) {
+      return false;
+    }
+
+    return (
+      plain === `${opts.folder}/*` ||
+      plain === `${opts.folder}/**` ||
+      new Glob(plain).match(`${opts.folder}/package-probe`)
+    );
   });
 
 /** The `package.json` name, or the directory name when there is none. */

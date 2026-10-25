@@ -481,7 +481,7 @@ describe('vulcan add --preset', () => {
     expect(existsSync(join(root, 'web'))).toBe(false);
   });
 
-  test('a folder that differs from the one the config holds for that side is refused', () => {
+  test('a folder the config does not list yet joins the side as a list', () => {
     const root = monorepo();
     const result = runCli({
       args: ['add', '--preset', BACKEND, '--backend-dir', 'apps', '--app', 'worker'],
@@ -489,9 +489,12 @@ describe('vulcan add --preset', () => {
       env: ENV,
     });
 
-    expect(result.code).toBe(1);
-    expect(result.stderr).toContain("backend folder is 'services'");
-    expect(existsSync(join(root, 'apps'))).toBe(false);
+    expect(result.code, result.stderr).toBe(0);
+    expect(existsSync(join(root, 'apps/worker/package.json'))).toBe(true);
+    const config = readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8');
+
+    expect(config).toContain('"services",');
+    expect(config).toContain('"apps"');
   });
 
   test('neither --app nor --lib is refused with both commands, and nothing is written', () => {

@@ -14,12 +14,12 @@ vulcan 0.4.3 - one setup, one workflow for every project
 Usage: bun x vulcan <command>
 
   init [--config ts|mts|mjs|js]   Scaffold the project layer (never overwrites)
-  init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <name>]
-       [--shared-dir <name>] [--scope <@scope>]
+  init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <path>]
+       [--shared-dir <path>] [--scope <@scope>]
                                   Create a monorepo with its first app, from a framework preset
                                   (a name missing from the flags is asked in a terminal)
   add --preset <name|file:path> (--app <name> | --lib <name>) [--dir <folder>] [--scope <@scope>]
-      [--backend-dir|--frontend-dir <name>] [--api <app> | --no-api]
+      [--backend-dir|--frontend-dir <path>] [--api <app> | --no-api]
                                   Add an app or a shared library to the monorepo (a frontend says which
                                   backend to proxy to; --dir is for a library; --scope names the package
                                   @scope/<name>, for an app or a library; a terminal asks for the kind

@@ -1,6 +1,15 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
+import {
+  describeFolders,
+  LayoutKeys,
+  layoutFoldersOf,
+  layoutOverlapProblems,
+  listedFoldersNote,
+  withLayoutFolder,
+} from '../common/layout-folder.ts';
+import type { ILayout } from '../common/layout-folder.ts';
 import { loadConfig, resolvePackages } from '../config/index.ts';
 import type { IProjectPackage, TResolvedConfig } from '../config/index.ts';
 import { readWorkspaceGlobs } from '../init/index.ts';
@@ -79,10 +88,7 @@ const sideNamedBy = (opts: { args: string[] }): TAppSide | undefined => {
  * neither --api nor --no-api cannot be fixed by the download. The side is known from the flags when
  * they name it; a preset whose side only its package says is checked after the download.
  */
-const missingFlag = (opts: {
-  args: string[];
-  layout: Partial<Record<TAppSide, string>>;
-}): string | undefined => {
+const missingFlag = (opts: { args: string[]; layout: ILayout }): string | undefined => {
   const side = sideNamedBy({ args: opts.args });
 
   if (readFlag({ args: opts.args, flag: CreateFlags.APP }) === undefined) {
@@ -97,11 +103,11 @@ const missingFlag = (opts: {
 
   const folder = SIDE_FIELDS[side];
 
-  if (
-    readFlag({ args: opts.args, flag: folder.flag }) === undefined &&
-    opts.layout[side] === undefined
-  ) {
-    return `missing ${folder.flag} (${folder.question}) - names are never chosen for you`;
+  const listed = layoutFoldersOf({ value: opts.layout[side] });
+
+  // One listed folder is the answer; none, or several, is for the flag to say.
+  if (readFlag({ args: opts.args, flag: folder.flag }) === undefined && listed.length !== 1) {
+    return `missing ${folder.flag} (${folder.question}${listed.length > 1 ? `; ${listedFoldersNote({ folders: listed })}` : ''}) - names are never chosen for you`;
   }
 
   const hasApi = opts.args.includes(CreateFlags.API) || opts.args.includes(CreateFlags.NO_API);
@@ -167,11 +173,12 @@ const readRootManifest = (opts: { path: string }): TRootManifest | undefined => 
 /** The lines a user adds by hand when the apps block cannot be extended: only what is new. */
 const literal = (opts: {
   side: string;
-  folder: string;
+  /** What the side's layout value becomes: one folder, or the list. */
+  folders: string | string[];
   app: IAppsBlock['packages'][number];
   sources: IAppsBlock['sources'];
 }): string[] => [
-  `  layout: { ${opts.side}: '${opts.folder}' },`,
+  `  layout: { ${opts.side}: ${typeof opts.folders === 'string' ? `'${opts.folders}'` : `[${opts.folders.map((folder) => `'${folder}'`).join(', ')}]`} },`,
   `  packages: { dir: '${opts.app.dir}', name: '${opts.app.name}', path: '${opts.app.path}' },`,
   ...opts.sources.map(
     (source) =>
@@ -184,7 +191,7 @@ export const resolveApiUrl = async (opts: {
   root: string;
   args: string[];
   interactive: boolean;
-  backendFolder: string | undefined;
+  backendFolders: string[];
   packages: IProjectPackage[];
 }): Promise<{ ok: true; apiUrl: string } | { ok: false; error: string }> => {
   if (opts.args.includes(CreateFlags.NO_API)) {
@@ -199,9 +206,8 @@ export const resolveApiUrl = async (opts: {
     }
 
     if (menusAvailable()) {
-      const backends = opts.packages.filter(
-        (entry) =>
-          opts.backendFolder !== undefined && entry.path.startsWith(`${opts.backendFolder}/`),
+      const backends = opts.packages.filter((entry) =>
+        opts.backendFolders.some((folder) => entry.path.startsWith(`${folder}/`)),
       );
 
       // Nothing to pick from: a frontend of a project without a backend has nothing to proxy to.
@@ -235,8 +241,7 @@ export const resolveApiUrl = async (opts: {
   const backend = opts.packages.find(
     (entry) =>
       entry.dir === chosen &&
-      opts.backendFolder !== undefined &&
-      entry.path.startsWith(`${opts.backendFolder}/`),
+      opts.backendFolders.some((folder) => entry.path.startsWith(`${folder}/`)),
   );
 
   if (backend === undefined) {
@@ -424,11 +429,17 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   }
 
   const side = preset.side;
-  const previous = config.layout[side];
+  const listed = layoutFoldersOf({ value: config.layout[side] });
+  const [only] = listed;
   const names = await resolveNames({
     fields: [
-      // A menu does not ask for what cannot change: apps of one side share the folder the config holds.
-      { ...SIDE_FIELDS[side], previous, fixed: menusAvailable() },
+      // One listed folder is the answer and a menu does not ask; several are picked from; a new one is a flag.
+      {
+        ...SIDE_FIELDS[side],
+        previous: listed.length === 1 ? only : undefined,
+        choices: listed.length > 1 ? listed : undefined,
+        fixed: menusAvailable() && listed.length === 1,
+      },
       { key: 'app', flag: CreateFlags.APP, question: `Name of this ${side} app` },
     ],
     args: opts.args,
@@ -442,23 +453,31 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
 
   const { folder, app } = names.names;
 
-  // layout holds one folder per side, so a different answer would strand the apps already there.
-  if (previous !== undefined && folder !== previous) {
-    return fail({
-      message: `the ${side} folder is '${previous}' in ${configPath}; apps of one side share it, not '${folder}'`,
-    });
-  }
-
   const otherSide = Object.entries(config.layout).find(
-    ([key, value]) => key !== side && value === folder,
+    ([key, value]) => key !== side && layoutFoldersOf({ value }).includes(folder),
   );
 
-  // One folder holds one kind of code: a folder another side already owns would mix them.
+  // One folder holds one kind of code: a folder another key already owns would mix them.
   if (otherSide !== undefined) {
     return fail({
-      message: `the ${side} folder '${folder}' is the ${otherSide[0]} folder in ${configPath}; each kind of code needs its own folder`,
+      message:
+        otherSide[0] === LayoutKeys.OTHER
+          ? `the ${side} folder '${folder}' is listed under layout.other in ${configPath}: folders the layout leaves alone are not app targets`
+          : `the ${side} folder '${folder}' is the ${otherSide[0]} folder in ${configPath}; each kind of code needs its own folder`,
     });
   }
+
+  const grown = withLayoutFolder({ value: config.layout[side], folder });
+  const overlaps = layoutOverlapProblems({ layout: { ...config.layout, [side]: grown } });
+
+  // A folder inside another (or around one) would give a package path two owners.
+  if (overlaps.length > 0) {
+    return fail({
+      message: `the ${side} folder '${folder}' does not fit the layout of ${configPath}: ${overlaps.join('; ')}`,
+    });
+  }
+
+  const isNewFolder = !listed.includes(folder);
 
   // Optional, asked only where menus are drawn; a plain terminal and a script give --scope.
   const scope = flaggedScope.scope ?? (menusAvailable() ? await askScope() : undefined);
@@ -485,7 +504,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
       root: cwd,
       args: opts.args,
       interactive,
-      backendFolder: config.layout.backend,
+      backendFolders: layoutFoldersOf({ value: config.layout.backend }),
       packages,
     });
 
@@ -509,14 +528,17 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
         parsed.reason === 'missing'
           ? `the vulcan:apps block is gone from ${configPath} - add by hand:`
           : `the vulcan:apps block in ${configPath} is not the JSON vulcan wrote - add by hand:`,
-        ...literal({ side, folder, app: entry, sources: newSources }),
+        ...literal({ side, folders: grown, app: entry, sources: newSources }),
       ].join('\n'),
     });
   }
 
   // Extend what the markers hold: the resolved config also carries what the user added outside them.
   const extended: IAppsBlock = {
-    layout: { ...parsed.block.layout, [side]: folder },
+    layout: {
+      ...parsed.block.layout,
+      [side]: withLayoutFolder({ value: parsed.block.layout[side], folder }),
+    },
     packages: [...parsed.block.packages, entry],
     ...(parsed.block.presets === undefined ? {} : { presets: parsed.block.presets }),
     sources: [
@@ -552,21 +574,30 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
     process.stderr.write(`${warning}\n`);
   }
 
-  const confirmed = await confirmWrite({
-    title: `Add ${app}`,
-    lines: planLines({
-      rows: [
-        ['app', `${folder}/${app}`],
-        ...(scope === undefined ? [] : [['package', packageOfApp] as [string, string]]),
-        ['side', side],
-        ['preset', `${packageName} ${packageVersion}`],
-        ['port', String(devPort)],
-        ...(side === AppSides.FRONTEND
-          ? [['proxy', apiUrl === '' ? '(none)' : apiUrl] as [string, string]]
-          : []),
-      ],
-    }),
-  });
+  const rows: [string, string][] = [['app', `${folder}/${app}`]];
+
+  if (isNewFolder) {
+    rows.push([
+      'layout',
+      `adds '${folder}' to layout.${side} (now ${describeFolders({ folders: layoutFoldersOf({ value: grown }) })})`,
+    ]);
+  }
+
+  if (scope !== undefined) {
+    rows.push(['package', packageOfApp]);
+  }
+
+  rows.push(
+    ['side', side],
+    ['preset', `${packageName} ${packageVersion}`],
+    ['port', String(devPort)],
+  );
+
+  if (side === AppSides.FRONTEND) {
+    rows.push(['proxy', apiUrl === '' ? '(none)' : apiUrl]);
+  }
+
+  const confirmed = await confirmWrite({ title: `Add ${app}`, lines: planLines({ rows }) });
 
   if (!confirmed) {
     return fail({ message: ABORTED });

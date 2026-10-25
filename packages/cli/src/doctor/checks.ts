@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
+import { LayoutKeys, layoutFoldersOf } from '../common/layout-folder.ts';
 import {
   coversFolder,
   declaresWorkspaces,
@@ -485,19 +486,24 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
   }
 
   const globs = readWorkspaceGlobs({ root: opts.root });
-  const folders = Object.entries(layout).filter(
-    (entry): entry is [string, string] => entry[1] !== undefined,
+  const folders = LayoutKeys.ALL.flatMap((key) =>
+    layoutFoldersOf({ value: layout[key] }).map((folder) => ({ side: key, folder })),
   );
+  // A folder under `other` is deliberately not managed: it need not be a workspace, only a package in it is allowed.
   const violations = folders
-    .filter(([, folder]) => !coversFolder({ globs, folder }))
-    .map(([side, folder]) =>
+    .filter(({ side, folder }) => side !== LayoutKeys.OTHER && !coversFolder({ globs, folder }))
+    .map(({ side, folder }) =>
       createViolation({
         check: DoctorChecks.APPS,
         file: 'package.json',
         message: `layout.${side} '${folder}' is not in package.json workspaces - add '${folder}/*'`,
       }),
     );
-  const names = folders.map(([, folder]) => folder);
+  const names = folders.map(({ folder }) => folder);
+  // A package may be an `other` folder itself (a docs site at `docs`); a side folder only holds packages.
+  const otherNames = folders
+    .filter(({ side }) => side === LayoutKeys.OTHER)
+    .map(({ folder }) => folder);
 
   for (const entry of resolvePackages({ config: opts.config }).filter((item) => !item.retired)) {
     if (entry.kind === 'lib') {
@@ -517,7 +523,10 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
       continue;
     }
 
-    if (!names.some((folder) => entry.path.startsWith(`${folder}/`))) {
+    if (
+      !names.some((folder) => entry.path.startsWith(`${folder}/`)) &&
+      !otherNames.includes(entry.path)
+    ) {
       violations.push(
         createViolation({
           check: DoctorChecks.APPS,
@@ -562,9 +571,10 @@ export const checkAppScripts = (opts: ICheckContext): IViolation[] => {
     return [];
   }
 
-  const appFolders = [layout.backend, layout.frontend].filter(
-    (folder): folder is string => folder !== undefined,
-  );
+  const appFolders = [
+    ...layoutFoldersOf({ value: layout.backend }),
+    ...layoutFoldersOf({ value: layout.frontend }),
+  ];
   const notes: IViolation[] = [];
 
   for (const entry of resolvePackages({ config: opts.config }).filter((item) => !item.retired)) {
