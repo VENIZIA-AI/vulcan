@@ -74,7 +74,7 @@ Process rules establish reading requirements, design review gates, scope boundar
 | `V-P-08` | Ask whether it needs to exist at all, then reuse what the repository, the framework, the runtime and the installed libraries already do before writing new code; name what you reused. | SOFT - build-a-feature step 2, session-start digest |
 | `V-P-09` | Start non-trivial work with a card (goal in the user's words, done claims with probes, an anti-claim) and end with a done report; no report, not done. | SOFT |
 | `V-P-10` | Ask all open decisions once, in one numbered round with a recommended answer each; never ask for a fact you can look up; state a default and continue only inside what plans, approval and `V-W-06` already allow. | SOFT |
-| `V-P-11` | Reports lead with the answer, show evidence as a table, and move a long report into a file. | SOFT |
+| `V-P-11` | Reports lead with the answer, show evidence as a table, and move a long report into a file. The reader decides the form: the owner gets the report shape in their own language (labels and address from the `owner` config and the profile), another agent gets the plain format it asked for. | SOFT |
 | `V-P-12` | Delegate mechanical work to a smaller-model subagent, keep judgment, and put the goal, files, "no git writes", report shape and the rules digest in every brief (template: `delegation-brief.md` in the shipped references). | SOFT - the brief; a subagent-start hook where the tool has one |
 
 ## Build and quality (B)
@@ -91,6 +91,7 @@ Build rules require test-driven workflows, command output verification, zero war
 | `V-B-06` | Saving code never removes validation, error handling, security checks or data safety. | SOFT |
 | `V-B-07` | Say what you skipped or did not check; mark a deliberate shortcut `// SHORTCUT: <what>, <why>, <revisit when>`. | SOFT - build-a-feature step 8 summary, session-start digest |
 | `V-B-08` | Create nothing outside the project: scratch, temporary files, logs, worktrees, clones and subagent output live under the gitignored `.agents/local/`, and you remove each when its lifetime ends (table below); the done report says what was removed or kept. | SOFT |
+| `V-B-09` | Agent scripting uses bun by default (`bun -e`, `bun file.ts`, `Bun.file()`); Python or another language is allowed when the task needs it (an existing project script, a tool only that language has), said in one line. | SOFT - the `guard-scripting` hook reminds, never blocks |
 
 ### Where agent files live, and when they go
 
@@ -129,6 +130,7 @@ Code and writing rules define TypeScript standards, parameter limits, naming pat
 | `V-C-15` | Use a single method with mode options rather than multiple specialized methods. | SOFT |
 | `V-C-16` | Maintain one canonical implementation per concept; consolidate duplicated logic. | SOFT |
 | `V-C-17` | Name files by role without repeating parent folder names. | SOFT |
+| `V-C-19` | Options that serve one concern live in one named sub-object (`{ limit: { default, max } }`), not as prefixed siblings (`defaultLimit`, `maxLimit`); a shared prefix or suffix across sibling names marks a scattered group. New code; an existing shape changes when touched. | SOFT |
 | `V-C-18` | Derive compile-time types from schemas or functions rather than duplicating definitions. | SOFT |
 
 ## Retired rules

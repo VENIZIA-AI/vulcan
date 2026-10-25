@@ -61,7 +61,7 @@ bun x --no-install vulcan x okf check
 
 ## Code
 
-The code follows the base coding style, `V-C-01` to `V-C-18` (`V-C-03` and `V-C-05` are retired) in
+The code follows the base coding style, `V-C-01` to `V-C-19` (`V-C-03` and `V-C-05` are retired) in
 [`packages/cli/base/rules.md`](packages/cli/base/rules.md): options objects, full-word names, const
 classes for enumerable strings, scope folders with barrels, no casts, comments only for a constraint
 the code cannot show. `make lint-all` checks what a linter can.

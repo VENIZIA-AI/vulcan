@@ -149,6 +149,38 @@ describe('presets (kind app)', () => {
     );
   });
 
+  test('a side with several folders lists them and asks for one with the folder flag', async () => {
+    const project = projectOf({
+      manifest: {
+        ...MANIFEST,
+        layout: {
+          backend: 'umbras',
+          frontend: ['auroras/apps', 'auroras/guests'],
+          shared: ['auroras/kits', 'auroras/features'],
+        },
+      },
+    });
+    const app = await ask({ project, args: { name: 'shop', side: 'frontend' } });
+    const lib = await ask({ project, args: { kind: 'lib', name: 'money' } });
+    const backend = await ask({ project, args: { name: 'api3', side: 'backend' } });
+
+    expect(app.presets[0].folder).toBeNull();
+    expect(app.presets[0].folders).toEqual(['auroras/apps', 'auroras/guests']);
+    expect(app.presets[0].command).toBe(
+      'bun x --no-install vulcan add --preset file:../acme-web --app shop --frontend-dir <auroras/apps|auroras/guests> --api <backend app> | --no-api',
+    );
+    expect(lib.presets[0].folders).toEqual(['auroras/kits', 'auroras/features']);
+    expect(lib.presets[0].command).toBe(
+      'bun x --no-install vulcan add --preset ignis --lib money --dir <auroras/kits|auroras/features>',
+    );
+    // One folder in a list is the folder, as a string was.
+    expect(backend.presets[0].folder).toBe('umbras');
+    expect(backend.presets[0].folders).toBeUndefined();
+    expect(backend.presets[0].command).toBe(
+      'bun x --no-install vulcan add --preset ignis --app api3',
+    );
+  });
+
   test('side narrows the list', async () => {
     const answer = await ask({ args: { side: 'frontend' } });
 

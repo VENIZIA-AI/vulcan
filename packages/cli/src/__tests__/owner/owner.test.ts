@@ -198,6 +198,8 @@ describe('resolveOwnerView', () => {
       'Blocked:',
     );
     expect(resolveOwnerView({ owner: french }).labels.labels.blocked).toBe('Bloque :');
+    expect(resolveOwnerView({ owner: french, profile: german }).labelMode).toBe('free');
+    expect(resolveOwnerView({ owner: french }).labelMode).toBe('exact');
   });
 
   test('enforce is the stricter of the project and the person, never looser', () => {
@@ -369,5 +371,21 @@ describe('a hostile profile', () => {
     writeFileSync(join(root, '.gitignore'), '.agents/local/*\n!.agents/local/profile.json\n');
 
     expect(profileIsIgnored({ root })).toBe(false);
+  });
+});
+
+describe('the shape card in the free label mode', () => {
+  test('it tells the agent to write the labels in the language, quoting no fixed word', () => {
+    const owner = OWNER_SCHEMA.parse({});
+    const profile = PROFILE_SCHEMA.parse({ ...PROFILE, language: 'eo' });
+    const free = renderOwnerShapeCard({ view: resolveOwnerView({ owner, profile }) }).join('\n');
+    const exact = renderOwnerShapeCard({ view: resolveOwnerView({ owner }) }).join('\n');
+
+    expect(free).toContain('No label has a fixed word here');
+    expect(free).toContain('in eo');
+    expect(free).not.toContain('Blocked:');
+    expect(free).not.toContain('Decisions needed');
+    expect(exact).toContain('Blocked:');
+    expect(exact).not.toContain('No label has a fixed word here');
   });
 });

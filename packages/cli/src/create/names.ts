@@ -1,5 +1,6 @@
 import { readSync } from 'node:fs';
 
+import { layoutFolderProblem, listedFoldersNote } from '../common/layout-folder.ts';
 import { menusAvailable, promptSelect, promptText } from '../ui/index.ts';
 import { AppSides, CreateConstants, CreateFlags } from './common/index.ts';
 import type {
@@ -17,11 +18,13 @@ export const SIDE_FIELDS: Record<TAppSide, INameField> = {
     key: 'folder',
     flag: CreateFlags.BACKEND_DIR,
     question: 'Backend folder (holds every backend app)',
+    isPath: true,
   },
   [AppSides.FRONTEND]: {
     key: 'folder',
     flag: CreateFlags.FRONTEND_DIR,
     question: 'Frontend folder (holds every frontend app)',
+    isPath: true,
   },
 };
 
@@ -73,6 +76,12 @@ export const nameProblem = (opts: { name: string }): string | undefined =>
   isValidName({ name: opts.name })
     ? undefined
     : `'${opts.name}' is not a name: lowercase letters, digits and '-', starting with a letter or digit`;
+
+/** Why a value is not valid for a field: a folder path for a path field, a name for the rest. Undefined when it is valid. */
+export const fieldProblem = (opts: { field: INameField; value: string }): string | undefined =>
+  opts.field.isPath === true
+    ? layoutFolderProblem({ folder: opts.value })
+    : nameProblem({ name: opts.value });
 
 const NEWLINE = 0x0a;
 const CARRIAGE_RETURN = 0x0d;
@@ -141,10 +150,13 @@ export const readLine = (opts: {
 
 /** The shown default is the user's own earlier choice, never one VULCAN made up. */
 export const askWithPrompt = (opts: IAskOptions): string | null => {
+  const choices =
+    opts.choices !== undefined && opts.choices.length > 1 ? ` [${opts.choices.join(', ')}]` : '';
+
   process.stdout.write(
     opts.previous === undefined
-      ? `? ${opts.question} > `
-      : `? ${opts.question} (${opts.previous}) > `,
+      ? `? ${opts.question}${choices} > `
+      : `? ${opts.question}${choices} (${opts.previous}) > `,
   );
 
   return readLine({ descriptor: CreateConstants.STDIN_DESCRIPTOR });
@@ -189,7 +201,7 @@ const askUntilValid = async (opts: { field: INameField; ask: TAsk }): Promise<st
       return undefined;
     }
 
-    return nameProblem({ name });
+    return fieldProblem({ field, value: name });
   };
 
   for (;;) {
@@ -210,13 +222,13 @@ const askUntilValid = async (opts: { field: INameField; ask: TAsk }): Promise<st
       return '';
     }
 
-    if (isValidName({ name })) {
+    const problem = fieldProblem({ field, value: name });
+
+    if (problem === undefined) {
       return name;
     }
 
-    process.stderr.write(
-      `  '${name}' is not a name: lowercase letters, digits and '-', starting with a letter or digit\n`,
-    );
+    process.stderr.write(`  ${problem}\n`);
   }
 };
 
@@ -233,10 +245,15 @@ export const resolveNames = async (opts: {
     const flagged = readFlag({ args: opts.args, flag: field.flag });
 
     if (flagged !== undefined) {
-      if (!isValidName({ name: flagged })) {
+      const problem = fieldProblem({ field, value: flagged });
+
+      if (problem !== undefined) {
         return {
           ok: false,
-          error: `${field.flag} '${flagged}' is not a name: lowercase letters, digits and '-'`,
+          error:
+            field.isPath === true
+              ? `${field.flag} ${problem}`
+              : `${field.flag} '${flagged}' is not a name: lowercase letters, digits and '-'`,
         };
       }
 
@@ -255,9 +272,14 @@ export const resolveNames = async (opts: {
         continue;
       }
 
+      const listed =
+        field.choices !== undefined && field.choices.length > 1
+          ? `; ${listedFoldersNote({ folders: field.choices })}`
+          : '';
+
       return {
         ok: false,
-        error: `missing ${field.flag} (${field.question}) - names are never chosen for you`,
+        error: `missing ${field.flag} (${field.question}${listed}) - names are never chosen for you`,
       };
     }
 

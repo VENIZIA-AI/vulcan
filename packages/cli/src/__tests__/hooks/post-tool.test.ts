@@ -4,10 +4,12 @@ import { join } from 'node:path';
 import { buildPostToolOutput } from '../../hooks/post-tool.ts';
 import { buildPromptContract, buildStopOutput } from '../../hooks/index.ts';
 import { readSignals } from '../../signals/index.ts';
+import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { spawnSyncBounded } from '../spawn.helper.ts';
 
 afterAll(removeProjects);
+isolateOwnerReplySwitch();
 
 const HOOKS = join(import.meta.dir, '..', '..', '..', 'base', 'hooks');
 const LONG =

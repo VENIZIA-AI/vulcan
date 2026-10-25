@@ -355,7 +355,11 @@ const isAppsBlock = (value: unknown): value is IAppsBlock =>
   (value.presets === undefined ||
     (Array.isArray(value.presets) && value.presets.every((entry) => isRecordedPreset(entry)))) &&
   isRecord(value.layout) &&
-  Object.values(value.layout).every((folder) => typeof folder === 'string') &&
+  Object.values(value.layout).every(
+    (folders) =>
+      typeof folders === 'string' ||
+      (Array.isArray(folders) && folders.every((folder) => typeof folder === 'string')),
+  ) &&
   Array.isArray(value.packages) &&
   value.packages.every((entry) => hasStrings({ value: entry, keys: ['dir', 'name', 'path'] })) &&
   Array.isArray(value.sources) &&

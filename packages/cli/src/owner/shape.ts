@@ -1,4 +1,4 @@
-import { OwnerDetails, OwnerSections } from './constants.ts';
+import { OwnerDetails, OwnerLabelModes, OwnerSections } from './constants.ts';
 import type { IOwnerView } from './view.ts';
 
 /** What a reply can get wrong. A structural one can be blocked; a style one is only ever logged. */
@@ -270,6 +270,102 @@ const decisionsFrom = (opts: { lines: string[]; view: IOwnerView; from: number }
   };
 };
 
+// ---- the free label mode: no word is expected, only the structure ----
+
+const TABLE_SEPARATOR = /^\s*\|?\s*:?-{2,}:?\s*(?:\|\s*:?-{2,}:?\s*)+\|?\s*$/;
+/** A short label ending in a colon, as the first words of a line: `Label: text`, `**Label:** text`, `- **Label**: text`. */
+const LABEL_LINE =
+  /^\s*(?:>\s*)*(?:[-*+]\s+)?(?:\*\*|__)?([^\s:|#*_`][^:|`*_\n]{0,39}?)(?:\*\*|__)?\s*[:：]\s*(?:\*\*|__)?\s*(.*)$/u;
+const MARKDOWN_HEADING = /^\s*#{1,6}\s+\S/;
+const BOLD_ONLY_LINE = /^\s*(?:\*\*|__)[^*_]{1,60}(?:\*\*|__)\s*:?\s*$/;
+const NUMBERED_ITEM = /^\s*\d+[.)]\s/;
+const FREE_LABEL_MAX_WORDS = 5;
+const FREE_NONE_LINE_MAX_CHARACTERS = 160;
+
+/** The label and the text after it when the line is a labelled line, else undefined. */
+const labelLineOf = (opts: { line: string }): { label: string; rest: string } | undefined => {
+  const match = LABEL_LINE.exec(opts.line);
+  const label = match?.[1]?.trim() ?? '';
+  const rest = match?.[2]?.trim() ?? '';
+
+  return label !== '' &&
+    /\p{L}/u.test(label) &&
+    label.split(/\s+/).length <= FREE_LABEL_MAX_WORDS &&
+    !rest.startsWith('//')
+    ? { label, rest }
+    : undefined;
+};
+
+/** A table (a header row, its separator row) from `from`, whatever its words. */
+const freeMinimapFrom = (opts: { lines: string[]; from: number }): IFound => {
+  const at = opts.lines.findIndex(
+    (line, index) =>
+      index >= opts.from &&
+      TABLE_ROW.test(line) &&
+      cellsOf({ line }).length >= 3 &&
+      TABLE_SEPARATOR.test(opts.lines[index + 1] ?? ''),
+  );
+
+  return { at, problems: at === -1 ? [ShapeClasses.MINIMAP_MISSING] : [] };
+};
+
+/** The first labelled line outside a table from `from`: the blocker, or the word for none. */
+const freeBlockedFrom = (opts: { lines: string[]; from: number }): IFound => {
+  const at = opts.lines.findIndex(
+    (line, index) =>
+      index >= opts.from && !TABLE_ROW.test(line) && labelLineOf({ line }) !== undefined,
+  );
+
+  return { at, problems: at === -1 ? [ShapeClasses.BLOCKED_MISSING] : [] };
+};
+
+/**
+ * A decisions heading (a markdown heading, a bold-only line, or a label ending in a colon) followed by a
+ * numbered list or by one short line, or a last line that is a label with the none text after it.
+ */
+const freeDecisionsFrom = (opts: { lines: string[]; from: number }): IFound => {
+  const lastText = opts.lines.findLastIndex((line) => line.trim() !== '');
+  const isHeading = (index: number): boolean => {
+    const line = opts.lines[index] ?? '';
+    const labelled = labelLineOf({ line });
+
+    return (
+      MARKDOWN_HEADING.test(line) ||
+      BOLD_ONLY_LINE.test(line) ||
+      (labelled !== undefined && (labelled.rest === '' || index === lastText))
+    );
+  };
+  const headings: number[] = [];
+
+  for (let at = opts.from; at < opts.lines.length; at += 1) {
+    if (isHeading(at)) {
+      headings.push(at);
+    }
+  }
+
+  if (headings.length === 0) {
+    return { at: -1, problems: [ShapeClasses.DECISIONS_MISSING] };
+  }
+
+  for (const [position, heading] of headings.entries()) {
+    const content = opts.lines
+      .slice(heading + 1, headings[position + 1] ?? opts.lines.length)
+      .filter((line) => line.trim() !== '');
+    const own = labelLineOf({ line: opts.lines[heading] ?? '' });
+    const isNoneOnTheLine = own !== undefined && own.rest !== '' && heading === lastText;
+    const isShortLine =
+      content.length === 1 &&
+      !NOT_A_SENTENCE.test(content[0]?.trim() ?? '') &&
+      (content[0]?.trim().length ?? 0) <= FREE_NONE_LINE_MAX_CHARACTERS;
+
+    if (isNoneOnTheLine || content.some((line) => NUMBERED_ITEM.test(line)) || isShortLine) {
+      return { at: heading, problems: [] };
+    }
+  }
+
+  return { at: headings[0] ?? -1, problems: [ShapeClasses.DECISIONS_MALFORMED] };
+};
+
 const styleProblems = (opts: { lines: string[]; view: IOwnerView }): string[] => {
   // The owner's own status words and labels may carry symbols: they are the shape, not a fault.
   const configured = [
@@ -314,7 +410,10 @@ const styleProblems = (opts: { lines: string[]; view: IOwnerView }): string[] =>
  * section is looked for after the one before it, so a headline that begins with a label is still a
  * headline. Pure and deterministic; what it cannot see (whether a point has a plain meaning, whether the
  * answer is right) is for an eval or the owner. A reply under `shortReplyWords` is exempt, and a person
- * who asked for headline-only reports is held to the headline and the style only.
+ * who asked for headline-only reports is held to the headline and the style only. In the `free` label mode
+ * (a language that is not English with no label set) no word is expected: the table, a labelled blocker
+ * line and a decisions heading with a numbered list or one line are looked for, and the status words and
+ * the recommendation are not checked.
  */
 export const checkOwnerShape = (opts: { text: string; view: IOwnerView }): IShapeResult => {
   const { text, view } = opts;
@@ -343,20 +442,27 @@ export const checkOwnerShape = (opts: { text: string; view: IOwnerView }): IShap
       continue;
     }
 
+    const isFree = view.labelMode === OwnerLabelModes.FREE;
     const run = (from: number): IFound => {
       if (section === OwnerSections.MINIMAP) {
-        return minimapFrom({ lines, view, from });
+        return isFree ? freeMinimapFrom({ lines, from }) : minimapFrom({ lines, view, from });
       }
 
       if (section === OwnerSections.BLOCKED) {
+        if (isFree) {
+          return freeBlockedFrom({ lines, from });
+        }
+
         const at = findLabelFrom({ lines, label: view.labels.labels.blocked, from });
 
         return { at, problems: at === -1 ? [ShapeClasses.BLOCKED_MISSING] : [] };
       }
 
-      return section === OwnerSections.DECISIONS
-        ? decisionsFrom({ lines, view, from })
-        : { at: -1, problems: [] };
+      if (section === OwnerSections.DECISIONS) {
+        return isFree ? freeDecisionsFrom({ lines, from }) : decisionsFrom({ lines, view, from });
+      }
+
+      return { at: -1, problems: [] };
     };
     const after = run(cursor);
 

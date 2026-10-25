@@ -1,9 +1,18 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import {
   checkOwnerShape,
   OWNER_SCHEMA,
+  PROFILE_SCHEMA,
   readLastClasses,
   readViolationCounts,
   recordReply,
@@ -100,131 +109,128 @@ describe('checkOwnerShape', () => {
 
   test('a project with its own labels is held to them, not to the English ones', () => {
     const custom = {
-      minimapColumns: ['N', 'Cong viec', 'Trang thai'],
+      minimapColumns: ['N', 'Job', 'State'],
       status: {
-        done: 'xong',
-        doing: 'dang lam',
-        waiting: 'cho',
-        todo: 'chua',
-        blocked: 'ket',
-        dropped: 'bo',
+        done: 'fin',
+        doing: 'wip',
+        waiting: 'hold',
+        todo: 'new',
+        blocked: 'stuck',
+        dropped: 'drop',
       },
       labels: {
-        blocked: 'Chan:',
-        decisions: 'Can quyet',
-        noBlocker: 'khong',
-        noDecision: 'Chua can gi.',
-        recommend: 'De xuat **{x}**.',
+        blocked: 'Stuck by:',
+        decisions: 'Choose',
+        noBlocker: 'nil',
+        noDecision: 'Nothing to choose.',
+        recommend: 'I suggest **{x}**.',
       },
     };
     const text = [
-      'Xong roi.',
+      'All done.',
       '',
-      '| N | Cong viec | Trang thai |',
+      '| N | Job | State |',
       '|---|---|---|',
-      '| 1 | Build | xong |',
+      '| 1 | Build | fin |',
       '',
-      'Chan: khong',
+      'Stuck by: nil',
       '',
-      'Can quyet',
+      'Choose',
       '',
-      '1. Gop? De xuat **co**.',
+      '1. Merge? I suggest **yes**.',
     ].join('\n');
 
     expect(classesOf(text, custom)).toEqual([]);
     expect(classesOf(GOOD, custom)).toContain(ShapeClasses.MINIMAP_MISSING);
   });
 
+  // The one fixture with diacritics, in invented words: it holds the matching to the characters as written.
+  const DIACRITICS = {
+    minimapColumns: ['#', 'Tasko', 'Ŝtato'],
+    status: {
+      done: 'farita',
+      doing: 'farata',
+      waiting: 'atendas',
+      todo: 'ankoraŭ ne',
+      blocked: 'ĉesigita',
+      dropped: 'forĵetita',
+    },
+    labels: {
+      blocked: 'Ĉesigo:',
+      decisions: 'Decidoj necesaj',
+      noBlocker: 'neniu',
+      noDecision: 'Nenio necesas.',
+      recommend: 'Mi proponas **{x}**.',
+    },
+  };
+
   test('a label set with diacritics and its own recommend pattern is held to as written', () => {
-    const vietnamese = {
-      minimapColumns: ['#', 'Việc', 'Trạng thái'],
-      status: {
-        done: 'xong',
-        doing: 'đang làm',
-        waiting: 'chờ',
-        todo: 'chưa làm',
-        blocked: 'kẹt',
-        dropped: 'bỏ',
-      },
-      labels: {
-        blocked: 'Chặn:',
-        decisions: 'Anh cần quyết định',
-        noBlocker: 'không',
-        noDecision: 'Chưa cần gì.',
-        recommend: 'Em đề xuất **{x}**.',
-      },
-    };
     const reply = [
-      'Em đã xong phần kiểm tra và PR đã mở.',
+      'La kontrolo estas farita kaj la peto estas malfermita.',
       '',
-      '| # | Việc | Trạng thái |',
+      '| # | Tasko | Ŝtato |',
       '|---|---|---|',
-      '| 1 | Kiểm tra | xong |',
-      '| 2 | Review | đang làm |',
+      '| 1 | Kontrolo | farita |',
+      '| 2 | Revizio | farata |',
       '',
-      '**Chặn:** không',
+      '**Ĉesigo:** neniu',
       '',
-      'Em đã chạy đủ các bước kiểm tra trên nhánh này.',
+      'La kontrolo funkciis sur ĉi tiu branĉo.',
       '',
-      '## Anh cần quyết định',
+      '## Decidoj necesaj',
       '',
-      '1. Gộp luôn? Em đề xuất **có**.',
+      '1. Kunfandi? Mi proponas **jes**.',
     ].join('\n');
 
-    expect(classesOf(reply, vietnamese)).toEqual([]);
-    expect(classesOf(reply.replace('Chặn:', 'Blocked:'), vietnamese)).toContain(
+    expect(classesOf(reply, DIACRITICS)).toEqual([]);
+    expect(classesOf(reply.replace('Ĉesigo:', 'Blocked:'), DIACRITICS)).toContain(
       ShapeClasses.BLOCKED_MISSING,
     );
-    expect(classesOf(reply.replace('đang làm', 'in progress'), vietnamese)).toContain(
+    expect(classesOf(reply.replace('farata', 'in progress'), DIACRITICS)).toContain(
       ShapeClasses.MINIMAP_STATUS,
     );
-    expect(classesOf(reply.replace(' Em đề xuất **có**.', ''), vietnamese)).toContain(
+    expect(classesOf(reply.replace(' Mi proponas **jes**.', ''), DIACRITICS)).toContain(
       ShapeClasses.DECISIONS_NO_RECOMMENDATION,
     );
   });
 
   test('symbols in the owner own status words and labels are the shape, not an emoji fault', () => {
     const symbols = {
-      minimapColumns: ['#', 'Việc', 'Trạng thái'],
+      ...DIACRITICS,
       status: {
-        done: '✅ xong',
-        doing: '◀ đang làm',
-        waiting: '⏳ chờ',
-        todo: '⬜ chưa bắt đầu',
-        blocked: '⛔ bị chặn',
-        dropped: '❌ bỏ',
-      },
-      labels: {
-        blocked: 'Chặn:',
-        decisions: 'Anh cần làm',
-        noBlocker: 'không có',
-        noDecision: 'Chưa cần làm gì.',
-        recommend: 'Em đề xuất **{x}**.',
+        done: '✅ farita',
+        doing: '◀ farata',
+        waiting: '⏳ atendas',
+        todo: '⬜ ankoraŭ ne',
+        blocked: '⛔ ĉesigita',
+        dropped: '❌ forĵetita',
       },
     };
     const reply = [
-      'Em đã xong phần kiểm tra và PR đã mở.',
+      'La kontrolo estas farita kaj la peto estas malfermita.',
       '',
-      '| # | Việc | Trạng thái |',
+      '| # | Tasko | Ŝtato |',
       '|---|---|---|',
-      '| 1 | Kiểm tra | ✅ xong |',
-      '| 2 | Review | ◀ đang làm |',
-      '| 3 | Phát hành | ⏳ chờ |',
-      '| 4 | Dọn dẹp | ⬜ chưa bắt đầu |',
-      '| 5 | Bản cũ | ⛔ bị chặn |',
-      '| 6 | Thử nghiệm | ❌ bỏ |',
+      '| 1 | Kontrolo | ✅ farita |',
+      '| 2 | Revizio | ◀ farata |',
+      '| 3 | Eldono | ⏳ atendas |',
+      '| 4 | Purigado | ⬜ ankoraŭ ne |',
+      '| 5 | Malnova | ⛔ ĉesigita |',
+      '| 6 | Provo | ❌ forĵetita |',
       '',
-      'Chặn: không có',
+      'Ĉesigo: neniu',
       '',
-      'Em đã chạy đủ các bước kiểm tra trên nhánh này.',
+      'La kontrolo funkciis sur ĉi tiu branĉo.',
       '',
-      '## Anh cần làm',
+      '## Decidoj necesaj',
       '',
-      '1. Gộp luôn? Em đề xuất **có**.',
+      '1. Kunfandi? Mi proponas **jes**.',
     ].join('\n');
 
     expect(classesOf(reply, symbols)).toEqual([]);
-    expect(classesOf(reply.replace('Review', 'Review 🚀'), symbols)).toEqual([ShapeClasses.EMOJI]);
+    expect(classesOf(reply.replace('Revizio', 'Revizio 🚀'), symbols)).toEqual([
+      ShapeClasses.EMOJI,
+    ]);
   });
 
   test('fenced code is data: a table or heading inside it is not structure', () => {
@@ -312,6 +318,63 @@ describe('the violation log', () => {
     recordReply({ root, classes: [ShapeClasses.EMOJI], now: new Date('2026-10-25T10:00:00Z') });
 
     expect(readLastClasses({ root, now: new Date('2026-10-25T10:31:00Z').getTime() })).toEqual([]);
+  });
+
+  test('the notes are one file per session, bounded by age and by count, and the old one-file note goes', () => {
+    const root = project();
+    const notes = join(root, '.agents/local/cache/replies');
+    const legacy = join(root, '.agents/local/last-reply.json');
+
+    writeFileSync(legacy, '{"at":1,"classes":["emoji"]}\n');
+
+    recordReply({ root, classes: ['emoji'], session: 'old' });
+
+    const stale = new Date(Date.now() - 31 * 60 * 1000);
+
+    utimesSync(join(notes, readdirSync(notes)[0] ?? ''), stale, stale);
+    recordReply({ root, classes: [], session: 'new' });
+
+    expect(existsSync(legacy)).toBe(false);
+    expect(readdirSync(notes)).toHaveLength(1);
+    expect(readdirSync(notes)[0]).toMatch(/^new-[0-9a-f]{8}\.json$/);
+
+    for (let index = 0; index < 40; index += 1) {
+      recordReply({ root, classes: [], session: `many-${index}` });
+    }
+
+    expect(readdirSync(notes).length).toBeLessThanOrEqual(32);
+    expect(readdirSync(notes).some((name) => name.startsWith('many-39-'))).toBe(true);
+  });
+
+  test('ids that reduce to the same characters, or share a long prefix, keep separate notes', () => {
+    const root = project();
+    const long = 'x'.repeat(80);
+
+    recordReply({ root, classes: ['emoji'], session: 'a/b' });
+    recordReply({ root, classes: [], session: 'a_b' });
+    recordReply({ root, classes: ['shouting'], session: `${long}1` });
+    recordReply({ root, classes: [], session: `${long}2` });
+    recordReply({ root, classes: ['emoji'], session: 'default' });
+    recordReply({ root, classes: [] });
+
+    expect(readLastClasses({ root, session: 'a/b' })).toEqual(['emoji']);
+    expect(readLastClasses({ root, session: 'a_b' })).toEqual([]);
+    expect(readLastClasses({ root, session: `${long}1` })).toEqual(['shouting']);
+    expect(readLastClasses({ root, session: `${long}2` })).toEqual([]);
+    expect(readLastClasses({ root, session: 'default' })).toEqual(['emoji']);
+    expect(readLastClasses({ root })).toEqual([]);
+  });
+
+  test('a symlinked note folder is never written through', () => {
+    const root = project();
+    const outside = createProject({ files: { 'victim.txt': 'keep' } });
+
+    mkdirSync(join(root, '.agents/local/cache'));
+    symlinkSync(outside, join(root, '.agents/local/cache/replies'));
+    recordReply({ root, classes: ['emoji'], session: 'a' });
+
+    expect(readdirSync(outside)).toEqual(['victim.txt']);
+    expect(readLastClasses({ root, session: 'a' })).toEqual([]);
   });
 
   test('counts by class across the log, skipping damaged lines and unknown classes', () => {
@@ -463,5 +526,104 @@ describe('checkOwnerShape does not reject a correct reply', () => {
       labels: { ...OWNER_SCHEMA.parse(undefined).report.labels, recommend: '{x}.' },
     });
     expect(performance.now() - start).toBeLessThan(2000);
+  });
+});
+
+const DIACRITICS_FOR_FREE = {
+  minimapColumns: ['#', 'Tasko', 'Stato'],
+  status: {
+    done: 'farita',
+    doing: 'farata',
+    waiting: 'atendas',
+    todo: 'ankoraŭ ne',
+    blocked: 'ĉesigita',
+    dropped: 'forĵetita',
+  },
+  labels: {
+    blocked: 'Ĉesigo:',
+    decisions: 'Decidoj',
+    noBlocker: 'neniu',
+    noDecision: 'Nenio necesas.',
+    recommend: 'Mi proponas **{x}**.',
+  },
+};
+
+describe('the free label mode: a language with no label set, only the structure is checked', () => {
+  const freeView = (opts: { language: string; change?: Record<string, unknown> }) =>
+    resolveOwnerView({
+      owner: OWNER_SCHEMA.parse({ report: { shortReplyWords: 0, ...opts.change } }),
+      profile: PROFILE_SCHEMA.parse({ schemaVersion: 1, language: opts.language }),
+    });
+  const free = freeView({ language: 'eo' });
+  const FREE_GOOD = [
+    'La kontrolo estas farita.',
+    '',
+    '| # | Tasko | Stato |',
+    '|---|---|---|',
+    '| 1 | Kontrolo | iu ajn vorto |',
+    '',
+    '**Ĉesigo:** neniu',
+    '',
+    'Detaloj sekvas ĉi tie.',
+    '',
+    '## Decidoj',
+    '',
+    '1. Kunfandi? Mi proponas jes.',
+  ].join('\n');
+  const classesIn = (text: string) => checkOwnerShape({ text, view: free }).classes;
+
+  test('the view is free for a language that is not English and has no set', () => {
+    expect(free.labelMode).toBe('free');
+    expect(freeView({ language: 'en-GB' }).labelMode).toBe('exact');
+    expect(view().labelMode).toBe('exact');
+  });
+
+  test('a reply in the shape, in any words, has no fault; so has the English one', () => {
+    expect(classesIn(FREE_GOOD)).toEqual([]);
+    expect(classesIn(GOOD)).toEqual([]);
+  });
+
+  test('a set written for the language makes it exact; a set for another language does not', () => {
+    const owner = (language: string) =>
+      OWNER_SCHEMA.parse({ language, report: { shortReplyWords: 0, ...DIACRITICS_FOR_FREE } });
+    const profile = PROFILE_SCHEMA.parse({ schemaVersion: 1, language: 'eo' });
+
+    // The project's labels belong to its own language, English here: they do not reach an eo reader.
+    expect(resolveOwnerView({ owner: owner('en'), profile }).labelMode).toBe('free');
+    expect(resolveOwnerView({ owner: owner('eo'), profile }).labelMode).toBe('exact');
+    expect(resolveOwnerView({ owner: owner('eo') }).labelMode).toBe('exact');
+  });
+
+  test('a missing table, blocker line or decisions section is still a fault', () => {
+    expect(classesIn(FREE_GOOD.replace(/\| .*\n/g, ''))).toContain(ShapeClasses.MINIMAP_MISSING);
+    expect(classesIn(FREE_GOOD.replace('**Ĉesigo:** neniu\n', ''))).toContain(
+      ShapeClasses.BLOCKED_MISSING,
+    );
+    expect(
+      classesIn(FREE_GOOD.replace('## Decidoj\n\n1. Kunfandi? Mi proponas jes.', '')),
+    ).toContain(ShapeClasses.DECISIONS_MISSING);
+  });
+
+  test('the decisions are a numbered list or one short line, not a paragraph', () => {
+    const head = FREE_GOOD.replace('1. Kunfandi? Mi proponas jes.', '');
+
+    expect(classesIn(`${head}Nenio necesas.`)).toEqual([]);
+    expect(classesIn(`${head}Unua linio de teksto.\nDua linio de teksto.`)).toContain(
+      ShapeClasses.DECISIONS_MALFORMED,
+    );
+    expect(
+      classesIn(
+        FREE_GOOD.replace('## Decidoj\n\n1. Kunfandi? Mi proponas jes.', 'Decidoj: nenio necesas.'),
+      ),
+    ).toEqual([]);
+  });
+
+  test('the status words and the recommendation are not checked, the headline and the style still are', () => {
+    expect(classesIn(FREE_GOOD.replace('iu ajn vorto', 'xyzzy'))).toEqual([]);
+    expect(classesIn(FREE_GOOD.replace(' Mi proponas jes.', ''))).toEqual([]);
+    expect(classesIn(FREE_GOOD.replace('La kontrolo estas farita.', '## Titolo'))).toContain(
+      ShapeClasses.HEADLINE_NOT_SENTENCE,
+    );
+    expect(classesIn(`${FREE_GOOD}\n\nBone \u{1F680}.`)).toContain(ShapeClasses.EMOJI);
   });
 });

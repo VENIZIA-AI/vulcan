@@ -92,13 +92,17 @@ work around it. End the turn on the preview.
 
 ## 5. Handoff
 
-A handoff is by pointer. Write a short file in `.agents/local/reports/` with:
+A handoff is by pointer. Where the work has a work item (`node_modules/@venizia/vulcan/base/references/work-item.md`) the handoff is an update of the item: state, evidence stubs on the criteria ticked, what is open, what is not verified, and a lane's done report goes on the item. Where it has none, write a short file in `.agents/local/reports/` with:
 
 - the goal, in the owner's words, and the state in one paragraph;
 - pointers, not copies: the card, the ledger, the commits, the pull request, the files that matter;
 - what is decided, what is open, what is not verified;
 - the skills the next agent should load;
 - no secrets: redact them.
+
+The reader is the next agent, so the file and the message use the plain format that agent asked for, not the
+owner's report shape. A session you start for it is started with `VULCAN_OWNER_REPLY=off`
+(`node_modules/@venizia/vulcan/base/references/delegation-brief.md`, "Starting another session").
 
 Put the file's path in the message. Every move except "continue" turns a primary source into a secondary
 one, so hand off only when the next unit of work needs a fresh window; the order of questions is in

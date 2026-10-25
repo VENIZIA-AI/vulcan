@@ -41,8 +41,12 @@ export interface IAtlasProject {
   name: string;
   /** Release order; retired ones included, so their old changelogs and tags stay readable. */
   packages: IAtlasPackage[];
-  /** The folders `vulcan add` puts apps and shared packages in; absent in an older manifest. */
-  layout?: { backend?: string; frontend?: string; shared?: string };
+  /** The folders `vulcan add` puts apps and shared packages in, each a folder or a list of folders; absent in an older manifest. */
+  layout?: {
+    backend?: string | string[];
+    frontend?: string | string[];
+    shared?: string | string[];
+  };
   /** The presets this project's apps came from; absent when none was recorded. */
   presets?: IAtlasPreset[];
   /** `release.tagPattern`, the template of a release tag. */
@@ -103,10 +107,18 @@ const packagesOf = (opts: { value: unknown; label: string }): IAtlasPackage[] =>
 const layoutOf = (opts: { value: unknown }): Pick<IAtlasProject, 'layout'> => {
   const record = recordOf({ value: opts.value });
   const layout = Object.fromEntries(
-    ['backend', 'frontend', 'shared'].flatMap((key) => {
-      const folder = stringOf({ value: record[key] });
+    ['backend', 'frontend', 'shared'].flatMap((key): [string, string | string[]][] => {
+      const value = record[key];
+      const folder = stringOf({ value });
+      const folders = Array.isArray(value)
+        ? value.filter((entry): entry is string => typeof entry === 'string')
+        : [];
 
-      return folder === undefined ? [] : [[key, folder]];
+      if (folder !== undefined) {
+        return [[key, folder]];
+      }
+
+      return folders.length === 0 ? [] : [[key, folders]];
     }),
   );
 

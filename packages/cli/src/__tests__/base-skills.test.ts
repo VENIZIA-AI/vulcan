@@ -263,13 +263,14 @@ describe('every shipped skill and the shared references', () => {
 
   const references = readdirSync(REFERENCES_DIRECTORY);
 
-  test('the shared references are the five the skills point at', () => {
+  test('the shared references are the six the skills point at', () => {
     expect([...references].sort()).toEqual([
       'delegation-brief.md',
       'design-pass.md',
       'evidence.md',
       'phase-boundaries.md',
       'testing.md',
+      'work-item.md',
     ]);
   });
 
@@ -323,6 +324,54 @@ describe('every shipped skill and the shared references', () => {
     ];
 
     expect(texts.some((text) => text.includes(`base/references/${name}`))).toBe(true);
+  });
+
+  test('plan-a-change writes lane L slices as work items and names no files', () => {
+    const text = readFileSync(join(SKILLS_DIRECTORY, 'plan-a-change', 'SKILL.md'), 'utf8');
+
+    expect(text).toContain('base/references/work-item.md');
+    expect(text).toMatch(/key\s+interfaces/);
+    expect(text).not.toContain('one seam, its files');
+  });
+
+  test('the work-item reference has the template, the writing rules and the self-check, and shows no local path', () => {
+    const text = readFileSync(join(REFERENCES_DIRECTORY, 'work-item.md'), 'utf8');
+
+    for (const part of ['## The template', '## Writing rules', '## The self-check']) {
+      expect(text).toContain(part);
+    }
+
+    // The nine fixed headings, in order, in the table of the template and in the example.
+    const headings = [
+      'Category',
+      'Summary',
+      'Current behaviour',
+      'Desired behaviour',
+      'Key interfaces',
+      'Acceptance criteria',
+      'Out of scope',
+      'Blocked by',
+      'Parent',
+    ];
+    const example = [...text.matchAll(/^## (.+)$/gm)]
+      .map((match) => match[1])
+      .filter((heading) => headings.includes(heading ?? ''));
+
+    expect(example).toEqual(headings);
+    expect(text).toContain("the project's `owner.language`");
+
+    expect(text).not.toMatch(/(?:^|[\s(])(?:\/home\/|\/Users\/|~\/|[A-Z]:\\)/m);
+  });
+
+  test('the brief, the handoff, the pull request and the phase table point at the work item', () => {
+    for (const file of [
+      join(BASE_DIRECTORY, 'references', 'delegation-brief.md'),
+      join(BASE_DIRECTORY, 'references', 'phase-boundaries.md'),
+      join(SKILLS_DIRECTORY, 'report-back', 'SKILL.md'),
+      join(SKILLS_DIRECTORY, 'ship', 'SKILL.md'),
+    ]) {
+      expect(readFileSync(file, 'utf8'), file).toMatch(/work[ -]item/);
+    }
   });
 
   test('build-a-feature wires the cards, the design pass, the testing reference, the docs and the review', () => {

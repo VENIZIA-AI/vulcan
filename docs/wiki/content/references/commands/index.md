@@ -9,19 +9,25 @@ Use `vulcan` to scaffold a project or create a monorepo from a preset, write the
 Run `bun x --no-install vulcan` or pass `--help` to inspect available commands:
 
 ```text
-vulcan 0.3.7 - one setup, one workflow for every project
+vulcan 0.4.3 - one setup, one workflow for every project
 
 Usage: bun x vulcan <command>
 
   init [--config ts|mts|mjs|js]   Scaffold the project layer (never overwrites)
-  init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <name>]
-       [--shared-dir <name>]      Create a monorepo with its first app, from a framework preset
+  init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <path>]
+       [--shared-dir <path>] [--scope <@scope>]
+                                  Create a monorepo with its first app, from a framework preset
                                   (a name missing from the flags is asked in a terminal)
   add --preset <name|file:path> (--app <name> | --lib <name>) [--dir <folder>] [--scope <@scope>]
-      [--backend-dir|--frontend-dir <name>] [--api <app> | --no-api]
+      [--backend-dir|--frontend-dir <path>] [--api <app> | --no-api]
                                   Add an app or a shared library to the monorepo (a frontend says which
-                                  backend to proxy to; --dir and --scope are for a library; a terminal
-                                  asks for the kind and every name the flags leave out)
+                                  backend to proxy to; --dir is for a library; --scope names the package
+                                  @scope/<name>, for an app or a library; a terminal asks for the kind
+                                  and every name the flags leave out)
+  preset diff <app> [--preset <name|file:path>] [--api <app> | --no-api] [--full] [--check]
+                                  Read-only: set each file the app's preset makes now against the file
+                                  the app has (same, differs, missing in the app); --full prints the
+                                  unified diffs, --check exits 1 when anything differs or is missing
   sync [--agents <list>|list] [--dry-run] [--prune]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
                                   stored in .agents/vulcan.local.json; --agents list shows the table);
@@ -29,13 +35,13 @@ Usage: bun x vulcan <command>
   agents [list|add <ids>|remove <ids>|setup] [--dry-run]
                                   See, add, remove or re-choose the coding agents you use on this machine
   doctor                          Check the project follows VULCAN; exit 1 on any violation
+  visualize <spec.json> [--out <name>] | --schema
+                                  Make one small static HTML page (a flow, a status, a before and after) from
+                                  a JSON spec, in .agents/local/prototypes/; --schema prints the spec's schema
   profile [show|edit|reset [--yes]]
                                   Tell VULCAN how you like to work (reply language, how to address you,
                                   tone, habits) in .agents/local/profile.json; no argument runs the form,
                                   show prints it, reset deletes it
-  visualize <spec.json> [--out <name>] | --schema
-                                  Make one small static HTML page (a flow, a status, a before and after)
-                                  from a JSON spec, in .agents/local/prototypes/; --schema prints the schema
   clean [--tmp|--worktrees|--clones|--cache|--all] [--reports|--prototypes|--profile] [--yes]
                                   List what an agent left under .agents/local/ (a dry run) and, with
                                   --yes, remove it; --tmp is the default, --worktrees takes merged or
@@ -47,7 +53,7 @@ Usage: bun x vulcan <command>
   help · version
 ```
 
-The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a shared package (with `--dir` and `--scope`); see [vulcan add](/references/commands/add).
+The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a shared package (with `--dir`); `--scope` names the package for either; see [vulcan add](/references/commands/add).
 
 If you pass an unknown command, `vulcan` prints `vulcan: unknown command 'foo' - run 'bun x vulcan help'` and exits with code 1.
 The following table lists each command, its purpose, its exit codes, and its reference page:
@@ -56,6 +62,7 @@ The following table lists each command, its purpose, its exit codes, and its ref
 |---|---|---|---|
 | `init` | Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app | `0` on success; `1` on invalid configuration format, a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan init](/references/commands/init) |
 | `add` | Add an app, or a shared library with `--lib`, from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
+| `preset` | `preset diff <app>`: read-only report of each file the app's preset makes now against the file the app has | `0` after a report (with `--check`, `1` when anything differs or is missing); `1` on a refusal or an unknown argument | [vulcan preset diff](/references/commands/preset) |
 | `sync` | Write agent adapter files and manifest; prune stale hooks and dead skill links with `--prune` | `0` on success; `1` on invalid configuration, broken settings, or unknown argument | [vulcan sync](/references/commands/sync) |
 | `agents` | Show, add, remove or re-choose the coding agents chosen on this machine, and write or take back their adapters | `0` on success or when nothing needed changing; `1` on an unknown agent or subcommand, a missing list, `setup` without a terminal, or invalid configuration | [vulcan agents](/references/commands/agents) |
 | `visualize` | Make one small static HTML page from a JSON spec, in `.agents/local/prototypes/`; `--schema` prints the spec's JSON Schema | `0` on success; `1` when the spec is missing or not renderable, nothing is written, or `.agents/local/` is missing | [vulcan visualize](/references/commands/visualize) |

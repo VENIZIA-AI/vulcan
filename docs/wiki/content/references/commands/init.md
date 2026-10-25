@@ -329,10 +329,10 @@ vulcan init: missing --backend-dir (Backend folder (holds every backend app)) - 
 |---|---|
 | `--preset <name\|file:path>` | The preset package. Required. Its presence selects this mode |
 | `--project <name>` | The project name and the folder to create in the current directory |
-| `--backend-dir <name>` | The folder that holds backend apps. Used when the preset is a backend |
-| `--frontend-dir <name>` | The folder that holds frontend apps. Used when the preset is a frontend |
+| `--backend-dir <path>` | The folder that holds backend apps, a path of 1 to 4 segments (`auroras/apps`). Used when the preset is a backend |
+| `--frontend-dir <path>` | The folder that holds frontend apps, a path of 1 to 4 segments. Used when the preset is a frontend |
 | `--app <name>` | The name of the first app |
-| `--shared-dir <name>` | A folder for code shared between apps. Optional: leave it out, or answer empty, to skip it |
+| `--shared-dir <path>` | A folder, a path of 1 to 4 segments, for code shared between apps. Optional: leave it out, or answer empty, to skip it |
 | `--scope <@scope>` | The npm scope of the first app's package: `--scope @acme` names it `@acme/<app>`. Optional; the folder and the dir registered in the config stay bare. A menu asks for it (empty for none); a plain terminal does not |
 
 A name is lowercase letters, digits and `-`, and starts with a letter or digit.

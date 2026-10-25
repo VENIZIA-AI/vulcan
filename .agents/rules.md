@@ -28,7 +28,7 @@ pull requests and reports ("breaks B-05").
 | [S - Security](#s---security) | S-01 … S-06 | Secrets, injected content, leaks, guard defaults, dependencies |
 | [P - Process](#p---process) | P-01 … P-15 | How work starts, how it is tracked, how it is measured, how it is judged done |
 | [B - Build and quality](#b---build-and-quality) | B-01 … B-08 | Build, lint, verify, what a tool really runs |
-| [C - Code and writing](#c---code-and-writing) | V-C-01 … V-C-18, C-19 | Style in code and in prose - the shared VULCAN base, plus dates |
+| [C - Code and writing](#c---code-and-writing) | V-C-01 … V-C-19, C-19 | Style in code and in prose - the shared VULCAN base, plus dates |
 
 ---
 
@@ -72,7 +72,7 @@ VULCAN is configuration every project's agents run with. A shortcut here ships t
 | **P-06** | **What ships has consumers you cannot see.** Config fields, CLI flags, rule IDs, make targets, the base files and `@venizia/vulcan-okf`'s exports are public surface. "No usage in IGNIS, ARDOR or BANA" never justifies removing or reshaping one on its own - park it, or ask. Whether a change is breaking is decided by the tagged release, not by the working tree: `git merge-base --is-ancestor <sha> v<version>`. |
 | **P-07** | **Breaking changes ship batched, and the train releases together.** Three separate "small" breaking notes hide the total from the projects - gather them into one changelog entry. okf, atlas and cli always release as one version. |
 | **P-08** | **Think from first principles - a partner, not a stenographer.** Verify against the code before asserting; never answer from memory of an earlier exploration. When a request, a spec or a prior decision looks wrong, say so with reasoning and a better option, then let the human decide. A decision is ratified only when the human said yes explicitly - never inferred from silence or from your own proposal having been sensible. |
-| **P-09** | **Carry the minimap in every status message.** Work runs against a step list, and every message that reports state - progress, a result, an answer to a question asked mid-task - opens with the full map and the current position marked, so the human catches a wrong turn immediately. The writer never decides the map is unnecessary this time. The map lives in the message, not in a file. Shape and rules: [The minimap](#the-minimap-p-09) below. |
+| **P-09** | **Carry the minimap in every status message.** Work runs against a step list, and every message that reports state - progress, a result, an answer to a question asked mid-task - opens with the full map and the current position marked, so the human catches a wrong turn immediately. The writer never decides the map is unnecessary this time. The map lives in the message, not in a file. It is for a human reader: a report to another agent (a session it started, a cross-session message, a subagent) uses the plain format the receiving agent asked for, with no map unless it asked for one. Shape and rules: [The minimap](#the-minimap-p-09) below. |
 | **P-10** | **Report like a colleague who was away, not like a log.** Outcome first, reasons after. Say what was verified and how; say plainly what failed, was skipped or is unproven - hiding a failure costs more than the failure. Gloss every abbreviation on first use. A measurement carries its witness: a `file:line`, a command and its output. Chat is Vietnamese or English; code, comments, commits and docs are English (V-C-01). |
 | **P-11** | **Work from lean, grounded context.** Re-read the artifact that owns a fact before acting on it; conversation memory and summaries drift. Orchestrate: hand bulk reading and bulk generation to subagents on the right tier - Haiku for mechanical work, Sonnet for standard work, Opus for architecture-critical work - and declare the model explicitly. Keep the main thread for decisions, and curate everything a subagent returns against ground truth before it enters a durable artifact. |
 | **P-12** | **Subagents never run a git command that changes state.** `log`, `diff`, `show`, `status`, `blame` only. The controller holds the working tree. |
@@ -83,7 +83,7 @@ VULCAN is configuration every project's agents run with. A shortcut here ships t
 ### The minimap (P-09)
 
 <!-- minimap-shape:start -->
-One shape, so every session draws the same map. Column headers follow the chat language.
+One shape, so every session draws the same map. The map, its column headers and its status words are in the reader's language and form of address, taken from the owner config and profile, never fixed words.
 
 ```
 | # | Step | Status |
@@ -115,13 +115,13 @@ Blocked: <what blocks, or "nothing">
 | **B-04** | **Know the two build traps.** A stale `.tsbuildinfo` makes `tsc` believe it is up to date and emit nothing - a build that prints `DONE` over an empty `dist/`; `make clean` (part of `make rebuild`) removes the ones under `.configs/` too. `tsc-alias` must read the package's root `tsconfig.json`: pointed at a `.configs/builders/` file it resolves `paths` there and leaves every `@/` import unrewritten. Build through `make` and confirm the `DONE` line. |
 | **B-05** | **`vulcan x atlas` runs atlas's `dist`, not `src`.** The cli and okf run from source; atlas runs its build. A change to atlas's source is invisible to `vulcan x atlas ...` - and to any timing or parity check made through it - until `make atlas` rebuilt it. To test source, run `bun packages/atlas/src/cli.ts ...`. |
 | **B-06** | **Do not trust an exit code or a green summary alone.** Read the output for `error TS`, for the test counts, and for what actually ran - skipped tests included. A stale `tsbuildinfo` replays ghost diagnostics after an exports change - purge it before trusting `tsc`. A test count that is a clean multiple of the file count is tests running once per copy, not coverage. |
-| **B-07** | **Agent scripting uses `bun`** (`bun -e '…'`, `bun file.ts`, `Bun.file()`), never Python. |
+| **B-07** | **Moved to the base rules as `V-B-09`:** agent scripting uses bun by default; Python or another language is allowed when the task needs it. The ID B-07 is kept here so old references resolve. |
 | **B-08** | **Test-only settings live in `TEST_ENV` in `make/test.mk`,** never in a committed `.env` file (only `.env.example` is tracked), a default or a source change made for a test's convenience. Tests run on the Bun test runner only - never Jest, Vitest or Mocha. |
 
 ## C - Code and writing
 
-The code and writing rules are the shared VULCAN base, `V-C-01` … `V-C-18` (`V-C-03` and `V-C-05` retired), in
-`packages/cli/base/rules.md` - IGNIS's own C rules, moved upstream verbatim. Cite them as `V-C-xx`.
+The code and writing rules are the shared VULCAN base, `V-C-01` … `V-C-19` (`V-C-03` and `V-C-05` retired), in
+`packages/cli/base/rules.md` - IGNIS's own C rules, moved upstream verbatim, and `V-C-19` added since. Cite them as `V-C-xx`. The bare `C-19` below is this repository's own rule (ISO dates) and is not `V-C-19`.
 
 | ID | Rule |
 |---|---|

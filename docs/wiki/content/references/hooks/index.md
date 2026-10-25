@@ -13,10 +13,11 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 | Session digest (`session-start`) | `SessionStart` | `startup\|resume\|clear\|compact` | Quotes base write rules (`V-W-*`), slot choices, and often-dropped rules to stdout | Fires on session start, resume, clear, or compact |
 | `guard-writes` | `PreToolUse` | `Bash` | Prompts for human confirmation before database writes and cluster deployments | Fires on every Bash tool command |
 | `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes and `git branch -D` of an unmerged branch | Fires on every Bash command; only those git and gh actions are flagged |
+| `guard-scripting` | `PreToolUse` | `Bash` | Adds one line of advice when a command runs `python`, `python3` or `pip`: agent scripting uses bun by default, another language is fine when the task needs it (`V-B-09`); it never asks and never blocks | Fires on every Bash command; only a command that runs one of those programs gets the line |
 | `guard-outside` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
 | `subagent-start` | `SubagentStart` | all | Adds a small rules card (about 250 tokens) to every subagent's context | Fires when a subagent starts |
-| `stop` | `Stop` | all | Checks the reply that just ended against the owner's report shape and logs the faults by class and date | Fires when a reply ends; does nothing when `enforce` is `off` |
-| `prompt-submit` | `UserPromptSubmit` | all | Adds one line to the prompt: the shape contract, and the faults of the previous reply | Fires on every prompt; adds nothing when `enforce` is `off` |
+| `stop` | `Stop` | all | Checks the reply that just ended against the owner's report shape and logs the faults by class and date | Fires when a reply ends; does nothing when `enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off` |
+| `prompt-submit` | `UserPromptSubmit` | all | Adds one line to the prompt: the shape contract, and the faults of the previous reply | Fires on every prompt; adds nothing when `enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off` |
 | `post-tool` | `PostToolUse`, `PostToolUseFailure` | all | Keeps notes about the turn for the Stop check, says when the agent seems stuck, and suggests the evals when a skill or rules file is changed | Fires after every tool call (about 10 ms); speaks only on a loop or a skill or rules edit |
 | `guard-remote-hosts` | `PreToolUse` | `Bash` | Prompts for confirmation before commands reach unlisted network hosts | Fires on Bash commands only when `remoteHosts` is set |
 | `guard-manifest` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Refuses a write to `.agents/vulcan.manifest.json` | Fires on every one of those tool calls; only a write to the manifest is refused |
@@ -59,8 +60,8 @@ The "Atlas" block, three lines under the title, appears only when the `.mcp.json
 
 The section titled "The rules sessions drop most" repeats rules that sessions overlook most frequently.
 These rule identifiers come from the `digest.oftenDropped` configuration key.
-The default list contains ten base rules:
-`V-P-07`, `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-W-04`, `V-C-02`, `V-C-10`, `V-P-08`, and `V-B-07`.
+The default list contains eleven base rules:
+`V-P-07`, `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-W-04`, `V-C-02`, `V-C-10`, `V-P-08`, `V-B-07`, and `V-B-09`.
 
 To change which rules appear, define `digest.oftenDropped` in `.configs/vulcan.config.mts`:
 
@@ -91,7 +92,7 @@ Reading it (`cat`, `jq`, `git diff`) and `vulcan sync` itself pass. The hook doe
 
 ## guard-package
 
-An agent that needs a new app or library tends to write its `package.json`, `tsconfig.json` and scripts by hand, and gets them subtly different from the framework's. The `guard-package` hook catches the first file of that, a `Write` of a new `package.json` in a folder `layout` names, and points at the command that builds it properly.
+An agent that needs a new app or library tends to write its `package.json`, `tsconfig.json` and scripts by hand, and gets them subtly different from the framework's. The `guard-package` hook catches the first file of that, a `Write` of a new `package.json` in a folder `layout` names, and points at the command that builds it properly. A side can list several folders (`frontend: ['auroras/apps', 'auroras/guests']`); the hook matches any of them, and the command it prints names the folder (`--frontend-dir auroras/guests`) when the side lists more than one. Folders under `layout.other` are not guarded. The hook reads the manifest through the same folder rule as the config and drops a folder that is not valid (`..`, a leading `/`, `node_modules`, more than 4 segments), so a manifest is never trusted.
 
 It reads only the generated manifest (`layout` and `presets`). A command exists when a recorded preset makes that kind: an app preset of the folder's side for a backend or frontend folder, a preset with a library kind for the shared folder. Then the call is denied with the exact command:
 
@@ -110,6 +111,8 @@ It stays silent for a `package.json` that already exists, anything under `node_m
 
 ## guard-git
 
+The guards that read a command (`guard-git`, `guard-outside`, `guard-scripting`, `guard-remote-hosts`) look past the wrappers `sudo`, `doas`, `env`, `nice`, `ionice`, `nohup`, `setsid`, `exec`, `command`, `time`, `timeout`, `watch`, `stdbuf` and `xargs`, and past each one's own options with the right meaning for that wrapper: `-n` takes a value for `nice` and `xargs` and is a switch for `sudo`, `-E` is a switch for `sudo` and takes a value for `xargs`, `timeout 5` takes a duration. So `sudo -E git push -f origin main`, `timeout 5 git push -f origin main` and `env -i git push -f origin main` are read as the `git` push they are. `env -S "..."` (a command line in one word) is not read.
+
 The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `$(...)`, `sh -c`, `git -C <dir>`), not with substring matching, so `git commit -m "never push --force"` and `echo git branch -D develop` pass.
 
 | Command | Answer |
@@ -125,6 +128,16 @@ The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `
 `git push -fu`, `git branch -m develop x`, `git update-ref -d refs/heads/develop` and `git push --mirror` are read too. A heredoc body (a commit message passed with `<<'EOF'`) is data and is not read as commands; a body fed to a shell (`bash <<EOF`) is not read at all.
 
 The branch checks run read-only `git` and `gh` queries with a five-second limit; a query that fails or times out lets the command pass. Input the hook cannot read passes too. `VULCAN_GUARDS=off` in the environment switches the guard off for a session; it is read before any module is loaded, so it still works when an install is broken and the guard cannot start.
+
+## guard-scripting
+
+`V-B-09` says agent scripting uses bun by default and allows another language when the task needs it. The `guard-scripting` hook is a reminder, not a gate: when a Bash command runs `python`, `python3` (any `python3.x`), `pip` or `pip3` it adds one line to the model's context and lets the call through:
+
+```text
+V-B-09: agent scripting uses bun by default (bun -e, bun file.ts, Bun.file()). Python or another language is fine when the task needs it (an existing project script, a tool only that language has); say so in one line when you use it.
+```
+
+It reads the command with the shell parser of `guard-git`, so only a program that is run counts: `python3 fix.py`, `cd src && python3 x.py`, `cat a | python3 -c ...`, `sudo python3 x.py` and `sh -c "python3 x.py"` get the line, while `echo python3`, `grep python3 packages`, a commit message that names python and a heredoc body do not. It never asks, never denies, and does not look at what a script does. It sees the program a command runs, past `sudo`, `doas`, `env`, `nice`, `ionice`, `nohup`, `setsid`, `exec`, `command`, `time`, `timeout`, `watch`, `stdbuf` and `xargs`, but not one a program it does not know starts (`uv run python`, `ssh host python3`, `docker run image python3`), and `command -v python3` is a check, not a run. It fails open and honours `VULCAN_GUARDS=off`. The rule `V-B-09` is in the default `digest.oftenDropped` list, so the session digest repeats it.
 
 ## guard-outside
 
@@ -174,7 +187,11 @@ The two hooks hold the [report shape](/references/configuration/#owner) the sess
 | `advise` | Logged; the next prompt carries the faults of that reply |
 | `block` | A structural fault sends the reply back once with what to fix; a reply sent back again is let through. Style faults are only logged |
 
-The log is `.agents/local/violations.jsonl` (gitignored, inside the project): one line per faulty reply with the date and the fault classes, never the text. `vulcan doctor` prints the counts as a note, and the retro skill reads them. What no program can see, whether each point has a plain meaning or the answer is right, is left to the owner or an eval. Both hooks fail open and honour `VULCAN_GUARDS=off`.
+The log is `.agents/local/violations.jsonl` (gitignored, inside the project): one line per faulty reply with the date and the fault classes, never the text. The note the next prompt reads (the faults of the last reply, and the block cooldown) is kept per session in `.agents/local/cache/replies/<session>.json`, so a session never hears about another session's reply; notes older than 30 minutes and all but the 32 newest are removed on every write. `vulcan doctor` prints the counts as a note, and the retro skill reads them. What no program can see, whether each point has a plain meaning or the answer is right, is left to the owner or an eval. Both hooks fail open and honour `VULCAN_GUARDS=off`.
+
+### Sessions whose reader is an agent
+
+`VULCAN_OWNER_REPLY=off` in the environment of a session switches the shape off for that session only: `session-start` leaves out the shape card and the profile card, `stop` checks and logs nothing and never blocks, `prompt-submit` adds nothing. The value is read when the hooks run, only `off` counts, the claim checks at Stop are skipped with it, and everything else (the guards, `post-tool`, the rules) stays on. Set it on the command that starts the session, never with `export`, and never in the `env` of a committed Claude Code settings file. The launcher of a session whose reader is an agent sets it (see "Starting another session" in the delegation brief of the shipped references); `vulcan doctor` prints a note when it is set in the shell that runs it and a warning when a Claude Code settings file of the project sets it in `env`, so an owner who exported it by mistake sees why nothing is checked. Subagents started through the tool's own mechanism never had the shape.
 
 ## post-tool and the claims at Stop
 
@@ -192,7 +209,7 @@ Two kinds of hook run in every session of every project, so each kind has a stat
 | Kind | Hooks | When it cannot run (missing package, missing `bun`, a crash) |
 |---|---|---|
 | Safety hooks | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
-| Drift guards | `guard-git`, `guard-outside` | fail open: the call passes and a note goes to stderr |
+| Drift guards | `guard-git`, `guard-scripting`, `guard-outside` | fail open: the call passes and a note goes to stderr |
 | Shape and signal hooks | `stop`, `prompt-submit`, `post-tool` | fail open: the reply, prompt or call passes and a note goes to stderr |
 
 `subagent-start` never blocks. `VULCAN_GUARDS=off` switches the drift guards, the shape hooks and `post-tool` off and is read before any module loads.

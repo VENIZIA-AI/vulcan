@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { layoutFolderProblem, layoutOverlapProblems } from '../common/layout-folder.ts';
 import { OWNER_SCHEMA } from '../owner/schema.ts';
 import { CodingAgents, ConfigConstants, HookEvents } from './common/index.ts';
 
@@ -9,7 +10,17 @@ const HOOK_EVENT = z.string().refine((value) => HookEvents.isValid(value), {
   message: `one of: ${[...HookEvents.SCHEME_SET].join(', ')}`,
 });
 
-const FOLDER_NAME = z.string().regex(/^[a-z0-9][a-z0-9-]*$/);
+/** A layout folder: 1 to 4 plain segments, never climbing, never absolute (the validator `guard-package` shares). */
+const LAYOUT_FOLDER = z.string().superRefine((value, context) => {
+  const problem = layoutFolderProblem({ folder: value });
+
+  if (problem !== undefined) {
+    context.addIssue({ code: 'custom', message: problem });
+  }
+});
+
+/** One folder, or a list of them: a side whose apps are grouped keeps each group's folder. */
+const LAYOUT_VALUE = z.union([LAYOUT_FOLDER, z.array(LAYOUT_FOLDER).min(1)]);
 
 const PROJECT_PACKAGE = z.strictObject({
   dir: z.string().regex(/^[a-z0-9][a-z0-9.-]*$/),
@@ -117,9 +128,16 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   /** The folders `vulcan init` and `add` put apps in, as the user named them. */
   layout: z
     .strictObject({
-      backend: FOLDER_NAME.optional(),
-      frontend: FOLDER_NAME.optional(),
-      shared: FOLDER_NAME.optional(),
+      backend: LAYOUT_VALUE.optional(),
+      frontend: LAYOUT_VALUE.optional(),
+      shared: LAYOUT_VALUE.optional(),
+      /** Folders the layout does not manage (docs, third-party code, tests): packages there are allowed, never targeted by `add`, never guarded. */
+      other: LAYOUT_VALUE.optional(),
+    })
+    .superRefine((layout, context) => {
+      for (const problem of layoutOverlapProblems({ layout })) {
+        context.addIssue({ code: 'custom', message: problem });
+      }
     })
     .optional(),
   /** The presets this project's apps came from (`init` and `add` record them), as `--preset` takes them back. */

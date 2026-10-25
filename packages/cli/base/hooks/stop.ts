@@ -6,6 +6,7 @@
  * It fails OPEN: a Stop hook runs after the message is on screen, and one that fails must not hold a
  * session. Input it cannot read, a missing module or an internal error pass with a note on stderr.
  * `VULCAN_GUARDS=off` switches it off, read before anything is imported.
+ * `VULCAN_OWNER_REPLY=off` exempts a session whose reader is an agent; the check is made in the builder.
  */
 
 // A module, so the awaits below are top-level; it has no static import, by design.

@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, normalize, relative, sep } from 'node:path';
 import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { IManifestHookInput } from './common/index.ts';
+import { LayoutKeys, validLayoutFolders } from '../common/layout-folder.ts';
 
 const MANIFEST_FILE = '.agents/vulcan.manifest.json';
 const PACKAGE_FILE = 'package.json';
@@ -23,17 +24,13 @@ interface IRecordedPreset {
 
 interface IProjectView {
   root: string;
-  layout: Record<string, string>;
+  /** The valid folders of each managed key; `other` is not here: it is not guarded. */
+  layout: Record<string, string[]>;
   presets: IRecordedPreset[];
 }
 
 const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
   typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
-
-const toFolder = (opts: { value: unknown }): string | undefined =>
-  typeof opts.value === 'string' && opts.value !== ''
-    ? normalize(opts.value).replace(/\/+$/, '')
-    : undefined;
 
 /** The nearest project above `start`: the folder holding the generated manifest. */
 const findRoot = (opts: { start: string }): string | undefined => {
@@ -81,14 +78,15 @@ const readProject = (opts: { start: string }): IProjectView | undefined => {
   }
 
   const layoutHolder = { value: holder.value['layout'] };
-  const layout: Record<string, string> = {};
+  const layout: Record<string, string[]> = {};
 
+  // The manifest is read through the same validator as the config: a folder that is not one is dropped.
   if (isRecord(layoutHolder)) {
-    for (const key of ['backend', 'frontend', 'shared']) {
-      const folder = toFolder({ value: layoutHolder.value[key] });
+    for (const key of LayoutKeys.MANAGED) {
+      const folders = validLayoutFolders({ value: layoutHolder.value[key] });
 
-      if (folder !== undefined) {
-        layout[key] = folder;
+      if (folders.length > 0) {
+        layout[key] = folders;
       }
     }
   }
@@ -128,8 +126,8 @@ const newPackageOf = (opts: {
   return { folder, name };
 };
 
-const appCommand = (opts: { preset: IRecordedPreset; name: string }): string =>
-  `${ADD} --preset ${opts.preset.spec} --app ${opts.name}${opts.preset.side === 'frontend' ? ' --api <backend app> | --no-api' : ''}`;
+const appCommand = (opts: { preset: IRecordedPreset; name: string; folderFlag: string }): string =>
+  `${ADD} --preset ${opts.preset.spec} --app ${opts.name}${opts.folderFlag}${opts.preset.side === 'frontend' ? ' --api <backend app> | --no-api' : ''}`;
 
 /**
  * Whether this tool call creates the `package.json` of a new app or shared package in one of the
@@ -161,22 +159,27 @@ export const inspectPackageWrite = (opts: {
     return undefined;
   }
 
-  const entry = Object.entries(project.layout).find(([, folder]) => folder === created.folder);
+  const entry = Object.entries(project.layout).find(([, folders]) =>
+    folders.includes(created.folder),
+  );
 
   if (entry === undefined) {
     return undefined;
   }
 
-  const [key] = entry;
+  const [key, folders] = entry;
   const isLib = key === 'shared';
   const what = isLib ? 'lib' : `${key} app`;
+  // A side with several folders needs the one it is written in named, so the command is exact.
+  const folderFlag =
+    folders.length > 1 ? ` ${isLib ? '--dir' : `--${key}-dir`} ${created.folder}` : '';
   const commands = isLib
     ? project.presets
         .filter((preset) => preset.lib)
-        .map((preset) => `${ADD} --preset ${preset.spec} --lib ${created.name}`)
+        .map((preset) => `${ADD} --preset ${preset.spec} --lib ${created.name}${folderFlag}`)
     : project.presets
         .filter((preset) => preset.side === key)
-        .map((preset) => appCommand({ preset, name: created.name }));
+        .map((preset) => appCommand({ preset, name: created.name, folderFlag }));
 
   if (commands.length > 0) {
     return {

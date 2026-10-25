@@ -23,7 +23,7 @@ Copy it into your reply and tick each box when its criterion holds:
 - [ ] 2. Intake done        - the goal restated, what will NOT be done said, every open decision asked once
 - [ ] 3. Card written       - goal verbatim, claims each with a probe, out of scope, docs impact
 - [ ] 4. Design pass        - lane L or a trigger below: decisions only where implementers could diverge
-- [ ] 5. Slices planned     - each names one behaviour, one seam, its files
+- [ ] 5. Slices planned     - each a work item: one behaviour, one seam, its key interfaces, Blocked by and Parent
 - [ ] 6. Handed over        - the card shown, the turn ended, nothing started
 ```
 
@@ -72,16 +72,25 @@ Done when each such decision has its rejected alternative.
 ## 5. Plan the slices
 
 Split the work into **vertical slices**: each a thin path through every layer it needs, for one
-behaviour, testable at one agreed seam, small enough for one fresh context. The first slice is the
+behaviour, testable at one agreed seam, small enough for one fresh context. Name a slice's key
+interfaces (types, functions, routes, commands), never its files: paths go stale. The first slice is the
 simplest end-to-end path. Prefactor first ("make the change easy, then make the easy change"). A change
 that touches many files the same way is expand, migrate in batches, contract. Plan the **docs slice**
 next to the code slices, never as a last group, whenever **Docs impact** is not `none`.
+
+In lane L, or when there is more than one slice, write each slice as a **work item**
+(`node_modules/@venizia/vulcan/base/references/work-item.md`): its acceptance criteria are the card's claims
+for that slice, with their ids and probes; Blocked by names only what truly gates it; Parent names the card.
+The headings are the fixed English names of the reference; the body is in the project's `owner.language`. Publish the items through the
+project's own tracker, or as files next to the card; this skill names no tracker. Run the self-check of the
+reference before an item is marked ready for an agent: the point of an item is that a person on the team
+can read it and a fresh agent can do it from the item and the knowledge bundle alone.
 
 A slice boundary is a proposed commit point; the commit stays the owner's word (V-W-01). More than one
 slice or session: keep a small ledger next to the card - slice, state, evidence stub - so a fresh context
 resumes from the file, not from the conversation.
 
-Done when each slice names its behaviour, seam and files.
+Done when each slice names its behaviour, seam and key interfaces and, in lane L, is a work item that passes the self-check.
 
 ## 6. Hand over
 

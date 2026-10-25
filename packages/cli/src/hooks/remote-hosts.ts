@@ -1,5 +1,6 @@
 import { HookConstants } from './common/index.ts';
 import type { IWriteHit } from './common/index.ts';
+import { optionTakesNextWord } from './shell.ts';
 
 // -----------------------------------------------------------------------------
 // The remote-host guard: a Bash command that reaches a host the project has not listed asks first.
@@ -238,23 +239,23 @@ const SHELL_KEYWORDS = new Set([
 
 const HTTP_CLIENTS = new Set(['curl', 'wget', 'http', 'https', 'httpie', 'xh', 'xhs']);
 
-/** Programs that run the rest of their line; the value is the options that take an argument. */
-const WRAPPERS: Record<string, Set<string>> = {
-  sudo: new Set(['-u', '-g', '-h', '-p', '-C', '-D', '-r', '-t', '-U']),
-  doas: new Set(['-u', '-C']),
-  env: new Set(['-u', '-C', '-S']),
-  time: new Set(['-f', '-o']),
-  nohup: new Set(),
-  nice: new Set(['-n']),
-  ionice: new Set(['-c', '-n', '-p']),
-  exec: new Set(['-a']),
-  stdbuf: new Set(['-i', '-o', '-e']),
-  timeout: new Set(['-s', '-k']),
-  setsid: new Set(),
-  xargs: new Set(['-I', '-n', '-P', '-d', '-E', '-s', '-L', '-a']),
-  watch: new Set(['-n', '--interval', '-d']),
-  sshpass: new Set(['-p', '-f', '-P', '-d']),
-};
+/** Programs that run the rest of their line; the options each takes a value for are in `hooks/shell.ts`. */
+const WRAPPERS = new Set([
+  'sudo',
+  'doas',
+  'env',
+  'time',
+  'nohup',
+  'nice',
+  'ionice',
+  'exec',
+  'stdbuf',
+  'timeout',
+  'setsid',
+  'xargs',
+  'watch',
+  'sshpass',
+]);
 
 const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh', 'ash']);
 
@@ -713,14 +714,13 @@ const MAXIMUM_DEPTH = 4;
 
 /** Skips a wrapper's own options (and the values its options take); the words after are its command. */
 const unwrap = (opts: { program: string; words: string[] }): string[] => {
-  const takesValue = WRAPPERS[opts.program] ?? new Set<string>();
   let index = 1;
 
   while (index < opts.words.length) {
     const word = opts.words[index] ?? '';
 
     if (word.startsWith('-') && word.length > 1) {
-      index += takesValue.has(word) ? 2 : 1;
+      index += optionTakesNextWord({ wrapper: opts.program, word }) ? 2 : 1;
     } else if (
       ENVIRONMENT_ASSIGNMENT.test(word) ||
       (/^\d[\w.]*$/.test(word) && opts.program !== 'sshpass')
@@ -760,7 +760,7 @@ const analyzeWords = (opts: {
     return [];
   }
 
-  if (program in WRAPPERS || program === 'command' || program === 'builtin') {
+  if (WRAPPERS.has(program) || program === 'command' || program === 'builtin') {
     return analyzeWords({
       words: unwrap({ program, words }),
       depth: opts.depth + 1,

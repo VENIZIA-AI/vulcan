@@ -78,6 +78,67 @@ describe('the guard-git hook', () => {
   });
 });
 
+describe('the guard-scripting hook', () => {
+  const root = createProject({ files: {} });
+  const adviceFor = async (command: string): Promise<{ code: number; stdout: string }> =>
+    runHook({ hook: 'guard-scripting', root, stdin: bash({ command, cwd: root }) });
+
+  test.each([
+    'python3 fix.py',
+    'python -c "print(1)"',
+    'python3.12 -m venv .venv',
+    'pip install requests',
+    'pip3 install x',
+    'cd src && python3 build.py',
+    'cat a | python3 -c "import sys"',
+    'FOO=1 python3 x.py',
+    'sudo python3 x.py',
+    '/usr/bin/python3 x.py',
+    'sh -c "python3 x.py"',
+  ])('adds the advice for %s, and never asks or denies', async (command) => {
+    const result = await adviceFor(command);
+    const output = JSON.parse(result.stdout).hookSpecificOutput;
+
+    expect(result.code).toBe(0);
+    expect(output.hookEventName).toBe('PreToolUse');
+    expect(output.additionalContext).toContain('V-B-09');
+    expect(output.additionalContext).toContain('fine when the task needs it');
+    expect(output.permissionDecision).toBeUndefined();
+  });
+
+  test.each([
+    'ls -la',
+    'bun -e "console.log(1)"',
+    'bun x --no-install vulcan doctor',
+    'echo python3',
+    'git commit -m "replace the python script with bun"',
+    'grep -rn python3 packages',
+    'cat <<EOF\npython3 x.py\nEOF',
+    'ls pythonic',
+    'command -v python3',
+    'command -v python3 >/dev/null && echo yes',
+    'pipx --version',
+    'bun add pip-tools',
+  ])('is silent for %s: a mention is not a run', async (command) => {
+    expect(await adviceFor(command)).toEqual({ code: 0, stdout: '' });
+  });
+
+  test('is silent for input it cannot read, and with the kill switch on', async () => {
+    expect(await runHook({ hook: 'guard-scripting', root, stdin: 'not json' })).toEqual({
+      code: 0,
+      stdout: '',
+    });
+    expect(
+      await runHook({
+        hook: 'guard-scripting',
+        root,
+        env: { VULCAN_GUARDS: 'off' },
+        stdin: bash({ command: 'python3 x.py', cwd: root }),
+      }),
+    ).toEqual({ code: 0, stdout: '' });
+  });
+});
+
 describe('the guard-outside hook', () => {
   const root = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
 
@@ -151,7 +212,7 @@ describe('the subagent-start hook', () => {
 });
 
 describe('the kill switch does not depend on the install being healthy', () => {
-  test.each(['guard-git', 'guard-outside'])(
+  test.each(['guard-git', 'guard-scripting', 'guard-outside'])(
     '%s: with its modules unloadable it passes the call and says so; with VULCAN_GUARDS=off it is silent',
     async (hook) => {
       // A copy of the hook where `../../src/hooks/*` does not exist: the import fails.

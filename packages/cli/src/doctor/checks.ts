@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
+import { LayoutKeys, layoutFoldersOf } from '../common/layout-folder.ts';
 import {
   coversFolder,
   declaresWorkspaces,
@@ -41,7 +42,9 @@ import {
 } from '../sync/index.ts';
 import { formatAge, formatBytes, LocalConstants, LocalStates, scanLocal } from '../local/index.ts';
 import {
+  isOwnerReplyOff,
   OwnerConstants,
+  OwnerReplySwitch,
   profileIsIgnored,
   readProfile,
   readViolationCounts,
@@ -483,19 +486,24 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
   }
 
   const globs = readWorkspaceGlobs({ root: opts.root });
-  const folders = Object.entries(layout).filter(
-    (entry): entry is [string, string] => entry[1] !== undefined,
+  const folders = LayoutKeys.ALL.flatMap((key) =>
+    layoutFoldersOf({ value: layout[key] }).map((folder) => ({ side: key, folder })),
   );
+  // A folder under `other` is deliberately not managed: it need not be a workspace, only a package in it is allowed.
   const violations = folders
-    .filter(([, folder]) => !coversFolder({ globs, folder }))
-    .map(([side, folder]) =>
+    .filter(({ side, folder }) => side !== LayoutKeys.OTHER && !coversFolder({ globs, folder }))
+    .map(({ side, folder }) =>
       createViolation({
         check: DoctorChecks.APPS,
         file: 'package.json',
         message: `layout.${side} '${folder}' is not in package.json workspaces - add '${folder}/*'`,
       }),
     );
-  const names = folders.map(([, folder]) => folder);
+  const names = folders.map(({ folder }) => folder);
+  // A package may be an `other` folder itself (a docs site at `docs`); a side folder only holds packages.
+  const otherNames = folders
+    .filter(({ side }) => side === LayoutKeys.OTHER)
+    .map(({ folder }) => folder);
 
   for (const entry of resolvePackages({ config: opts.config }).filter((item) => !item.retired)) {
     if (entry.kind === 'lib') {
@@ -515,7 +523,10 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
       continue;
     }
 
-    if (!names.some((folder) => entry.path.startsWith(`${folder}/`))) {
+    if (
+      !names.some((folder) => entry.path.startsWith(`${folder}/`)) &&
+      !otherNames.includes(entry.path)
+    ) {
       violations.push(
         createViolation({
           check: DoctorChecks.APPS,
@@ -560,9 +571,10 @@ export const checkAppScripts = (opts: ICheckContext): IViolation[] => {
     return [];
   }
 
-  const appFolders = [layout.backend, layout.frontend].filter(
-    (folder): folder is string => folder !== undefined,
-  );
+  const appFolders = [
+    ...layoutFoldersOf({ value: layout.backend }),
+    ...layoutFoldersOf({ value: layout.frontend }),
+  ];
   const notes: IViolation[] = [];
 
   for (const entry of resolvePackages({ config: opts.config }).filter((item) => !item.retired)) {
@@ -1117,6 +1129,38 @@ export const checkReplyShape = (opts: ICheckContext): IViolation[] => {
     }),
   ];
 };
+
+/** The owner reply shape is off for this shell (`VULCAN_OWNER_REPLY=off`): a session an agent starts sets it, an owner who exported it by mistake sees why nothing is checked; a note, never a failure. */
+export const checkOwnerReplySwitch = (opts: {
+  env: Record<string, string | undefined>;
+}): IViolation[] =>
+  isOwnerReplyOff({ env: opts.env })
+    ? [
+        createViolation({
+          check: DoctorChecks.LOCAL,
+          file: OwnerReplySwitch.ENV,
+          message: `set to ${OwnerReplySwitch.OFF} in this shell: a session started from here is not held to the owner reply shape and its replies are not logged. Unset it for a session whose reader is the owner`,
+        }),
+      ]
+    : [];
+
+/** A Claude Code settings file of the project sets `VULCAN_OWNER_REPLY=off` in `env`: every session of the project then skips the owner reply shape. A warning, never a failure. */
+export const checkOwnerReplySettings = (opts: { root: string }): IViolation[] =>
+  ['.claude/settings.json', '.claude/settings.local.json'].flatMap((file) => {
+    const env = readJsonObject({ file: join(opts.root, file) })?.['env'];
+
+    return typeof env === 'object' &&
+      env !== null &&
+      Reflect.get(env, OwnerReplySwitch.ENV) === OwnerReplySwitch.OFF
+      ? [
+          createViolation({
+            check: DoctorChecks.LOCAL,
+            file,
+            message: `env sets ${OwnerReplySwitch.ENV}=${OwnerReplySwitch.OFF}: every session of this project skips the owner reply shape. Remove it and set the variable on the command that starts a session whose reader is an agent`,
+          }),
+        ]
+      : [];
+  });
 
 /** The size of `.agents/local/` once it is large: where the space went, and the command that gives it back. */
 export const checkLocalSize = (opts: ICheckContext): IViolation[] => {

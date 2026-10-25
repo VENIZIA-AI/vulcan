@@ -1,11 +1,13 @@
-import { OwnerConstants, OwnerEnforcement } from './constants.ts';
+import { OwnerConstants, OwnerEnforcement, OwnerLabelModes } from './constants.ts';
 import type { TOwnerConfig, TOwnerLabelSet, TProfile } from './schema.ts';
 
 /** What one person's replies follow: the project's contract with that person's own settings laid over it. */
 export interface IOwnerView {
   language: string;
-  /** The words for `language`: the person's own set, the project's when the languages match, else English. */
+  /** The words for `language`: the person's own set, the project's when the languages match, else the English set (only used for English). */
   labels: TOwnerLabelSet;
+  /** `free` when no label set exists for a language that is not English: the words are the agent's, and only the structure is checked. */
+  labelMode: string;
   shape: string[];
   headlineMaxSentences: number;
   absolutePaths: boolean;
@@ -23,6 +25,13 @@ export interface IOwnerView {
   codeTaste: string | undefined;
 }
 
+/** Whether a language code is English, whatever its region (`en`, `en-GB`). */
+export const isEnglishLanguage = (opts: { language: string }): boolean =>
+  opts.language.split('-')[0]?.toLowerCase() === OwnerConstants.DEFAULT_LANGUAGE;
+
+const sameLabelSet = (opts: { first: TOwnerLabelSet; second: TOwnerLabelSet }): boolean =>
+  JSON.stringify(opts.first) === JSON.stringify(opts.second);
+
 /** The stricter of two enforcement levels. */
 export const stricterEnforcement = (opts: {
   first: string;
@@ -37,7 +46,9 @@ export const stricterEnforcement = (opts: {
 /**
  * Language, address, tone, detail and habits come from the person's profile; the shape, status set and
  * label defaults from the project block, which a profile may not change; `enforce` is the stricter of
- * the two. A language with no label set of its own gets English, never another language's words.
+ * the two. A language with no label set of its own gets the English words and, unless it is English,
+ * the `free` label mode: the agent writes the labels in the reader's language and the check looks at the
+ * structure, never at another language's words.
  */
 export const resolveOwnerView = (opts: { owner: TOwnerConfig; profile?: TProfile }): IOwnerView => {
   const { owner, profile } = opts;
@@ -51,12 +62,17 @@ export const resolveOwnerView = (opts: { owner: TOwnerConfig; profile?: TProfile
     profile !== undefined && Object.hasOwn(profile.labels, language)
       ? profile.labels[language]
       : undefined;
-  const labels =
-    own ?? (language === owner.language ? projectLabels : OwnerConstants.DEFAULT_LABELS);
+  const chosen = own ?? (language === owner.language ? projectLabels : undefined);
+  const labels = chosen ?? OwnerConstants.DEFAULT_LABELS;
+  const isFree =
+    !isEnglishLanguage({ language }) &&
+    (chosen === undefined ||
+      sameLabelSet({ first: chosen, second: OwnerConstants.DEFAULT_LABELS }));
 
   return {
     language,
     labels,
+    labelMode: isFree ? OwnerLabelModes.FREE : OwnerLabelModes.EXACT,
     shape: owner.report.shape,
     headlineMaxSentences: owner.report.headlineMaxSentences,
     absolutePaths: owner.report.absolutePaths,

@@ -5,16 +5,20 @@ const HELP = `vulcan ${VULCAN_VERSION} - one setup, one workflow for every proje
 Usage: bun x vulcan <command>
 
   init [--config ts|mts|mjs|js]   Scaffold the project layer (never overwrites)
-  init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <name>]
-       [--shared-dir <name>] [--scope <@scope>]
+  init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <path>]
+       [--shared-dir <path>] [--scope <@scope>]
                                   Create a monorepo with its first app, from a framework preset
                                   (a name missing from the flags is asked in a terminal)
   add --preset <name|file:path> (--app <name> | --lib <name>) [--dir <folder>] [--scope <@scope>]
-      [--backend-dir|--frontend-dir <name>] [--api <app> | --no-api]
+      [--backend-dir|--frontend-dir <path>] [--api <app> | --no-api]
                                   Add an app or a shared library to the monorepo (a frontend says which
                                   backend to proxy to; --dir is for a library; --scope names the package
                                   @scope/<name>, for an app or a library; a terminal asks for the kind
                                   and every name the flags leave out)
+  preset diff <app> [--preset <name|file:path>] [--api <app> | --no-api] [--full] [--check]
+                                  Read-only: set each file the app's preset makes now against the file
+                                  the app has (same, differs, missing in the app); --full prints the
+                                  unified diffs, --check exits 1 when anything differs or is missing
   sync [--agents <list>|list] [--dry-run] [--prune]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
                                   stored in .agents/vulcan.local.json; --agents list shows the table);

@@ -136,14 +136,14 @@ describe('runSurvey', () => {
     ]);
     const profile = await runSurvey({ io, systemLanguage: 'en' });
 
-    expect(asked.some((message) => message.includes('only English ships'))).toBe(true);
+    expect(asked.some((message) => message.includes('no set ships'))).toBe(true);
     expect(profile?.language).toBe('fr');
     expect(profile?.labels.fr?.status.done).toBe('fait');
     expect(profile?.labels.fr?.labels.recommend).toBe('Je recommande **{x}**.');
     expect(profile?.labels.fr?.minimapColumns).toEqual(['n', 'Tache', 'Etat']);
   });
 
-  test('keeping English stores no label set; a set already stored is not asked for again', async () => {
+  test('letting the agent write the words stores no label set; a set already stored is not asked for again', async () => {
     const keep = await runSurvey({
       io: ioWith(['fr', ...Array.from({ length: 9 }, () => undefined)]).io,
       systemLanguage: 'en',
@@ -172,7 +172,7 @@ describe('runSurvey', () => {
     const again = await runSurvey({ io, existing, systemLanguage: 'en' });
 
     expect(again?.labels.fr?.labels.blocked).toBe('x');
-    expect(asked.some((message) => message.includes('only English ships'))).toBe(false);
+    expect(asked.some((message) => message.includes('no set ships'))).toBe(false);
   });
 
   test('run again, the earlier answers are the defaults and the stricter enforce is kept', async () => {

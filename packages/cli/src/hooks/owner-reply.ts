@@ -3,6 +3,7 @@ import {
   checkOwnerShape,
   OWNER_SCHEMA,
   OwnerEnforcement,
+  isOwnerReplyOff,
   readLastClasses,
   readProfile,
   markBlocked,
@@ -45,13 +46,20 @@ export const loadOwnerView = async (opts: { projectRoot: string }): Promise<IOwn
 /**
  * The Stop hook's answer for the last reply: it is checked and recorded (classes and date only), and
  * only under `block`, once per message and only for a structural fault, is it sent back to be restated.
- * Anything it cannot read passes: it never stops a session by failing.
+ * Anything it cannot read passes: it never stops a session by failing. A session started with
+ * `VULCAN_OWNER_REPLY=off` (a session whose reader is an agent) is not checked, logged or blocked at all.
  */
 export const buildStopOutput = async (opts: {
   projectRoot: string;
   input: unknown;
+  /** The environment of the session; `VULCAN_OWNER_REPLY=off` exempts it. */
+  env?: Record<string, string | undefined>;
 }): Promise<Record<string, unknown> | undefined> => {
   const { input } = opts;
+
+  if (isOwnerReplyOff({ env: opts.env ?? process.env })) {
+    return undefined;
+  }
 
   if (typeof input !== 'object' || input === null || !('last_assistant_message' in input)) {
     return undefined;
@@ -80,7 +88,7 @@ export const buildStopOutput = async (opts: {
   // Every reply updates the note the next prompt reads, an exempt short one too; a write that fails never
   // costs the decision below.
   try {
-    recordReply({ root: opts.projectRoot, classes });
+    recordReply({ root: opts.projectRoot, classes, session });
   } catch {
     // The log is advisory.
   }
@@ -95,13 +103,13 @@ export const buildStopOutput = async (opts: {
     view.enforce !== OwnerEnforcement.BLOCK ||
     isRetry ||
     structural.length === 0 ||
-    wasBlockedRecently({ root: opts.projectRoot })
+    wasBlockedRecently({ root: opts.projectRoot, session })
   ) {
     return undefined;
   }
 
   try {
-    markBlocked({ root: opts.projectRoot });
+    markBlocked({ root: opts.projectRoot, session });
   } catch {
     // Without the note the stop_hook_active flag is the only guard against a second block.
   }
@@ -123,12 +131,18 @@ export const buildPromptContract = async (opts: {
   projectRoot: string;
   /** The session the prompt belongs to; its turn begins here. */
   session?: string;
+  /** The environment of the session; `VULCAN_OWNER_REPLY=off` exempts it. */
+  env?: Record<string, string | undefined>;
 }): Promise<string> => {
   // A new turn begins with this prompt: the notes of the last one are forgotten, whatever is enforced.
   try {
     startTurn({ root: opts.projectRoot, session: opts.session ?? '' });
   } catch {
     // The notes are advisory.
+  }
+
+  if (isOwnerReplyOff({ env: opts.env ?? process.env })) {
+    return '';
   }
 
   const view = await loadOwnerView({ projectRoot: opts.projectRoot });
@@ -138,7 +152,7 @@ export const buildPromptContract = async (opts: {
   }
 
   // A claim match is a hint, so it is logged but never said back to the model as a fault of the last reply.
-  const last = readLastClasses({ root: opts.projectRoot }).filter((name) =>
+  const last = readLastClasses({ root: opts.projectRoot, session: opts.session }).filter((name) =>
     ShapeClasses.isValid(name),
   );
 

@@ -66,7 +66,7 @@ The table below lists all 12 top-level configuration keys:
 | `name` | `string` | root package name | Project identifier in the manifest and atlas results |
 | `agents` | `string[]` | unset | Coding agents the project suggests; each developer's choice is stored locally |
 | `rules` | `Record<string, string>` | `{}` | Base rule slot choices |
-| `layout` | `object` | `undefined` | The folders `vulcan init` and `vulcan add` put apps in |
+| `layout` | `object` | `undefined` | The folders `vulcan init` and `vulcan add` put apps in, as a path or a list of paths per side, and the folders left alone |
 | `presets` | `object[]` | `undefined` | The presets this project's apps came from, as `--preset` takes them back; `init` and `add` record them |
 | `packages` | `Array<object>` | `[]` | Monorepo packages in release order |
 | `knowledge` | `object` | `{ bundle: '.agents/knowledge' }` | Locations for knowledge documents and concepts |
@@ -166,11 +166,31 @@ The `layout` object records the folders that hold your apps. `vulcan init` and `
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `backend` | `string` | none | Folder for backend apps |
-| `frontend` | `string` | none | Folder for frontend apps |
-| `shared` | `string` | none | Folder for code shared between apps |
+| `backend` | `string` or `string[]` | none | Folder, or folders, for backend apps |
+| `frontend` | `string` or `string[]` | none | Folder, or folders, for frontend apps |
+| `shared` | `string` or `string[]` | none | Folder, or folders, for code shared between apps |
+| `other` | `string` or `string[]` | none | Folders the layout deliberately does not manage: documentation, third-party code, tests |
 
-Each value is a folder name matching `/^[a-z0-9][a-z0-9-]*$/`. The object is strict, so any other key is an error.
+Each value is a folder path, or a list of them; a plain string stays valid. The object is strict, so any other key is an error. A folder path is checked by one rule, in the schema, in `add` and in the `guard-package` hook alike:
+
+- 1 to 4 segments joined by `/`, each matching `/^[a-z0-9][a-z0-9-]*$/` (`auroras/apps` is two);
+- no `..`, no `.` segment, no leading or trailing `/`, no backslash, no empty segment, no `node_modules` segment;
+- unique across the four keys, and no folder inside another (`auroras` and `auroras/apps` cannot both be listed), so a package path belongs to exactly one folder.
+
+A side whose apps are grouped lists each group's folder:
+
+```ts
+export default {
+  layout: {
+    backend: 'umbras',
+    frontend: ['auroras/apps', 'auroras/guests', 'auroras/public'],
+    shared: 'auroras/kits',
+    other: ['auroras/tools', 'third-parties', 'docs', 'qc'],
+  },
+} satisfies VulcanConfig;
+```
+
+`other` lists folders that hold packages the layout does not manage. A package there is allowed by [`doctor`](/references/commands/doctor#apps), is never the target of `vulcan add`, and is not guarded by `guard-package`. A package under no listed folder is still reported.
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -180,7 +200,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-`vulcan doctor` runs the [`apps`](/references/commands/doctor#apps) check against this object: every named folder must be a workspace, and every package must live inside one of them.
+`vulcan doctor` runs the [`apps`](/references/commands/doctor#apps) check against this object: every `backend`, `frontend` and `shared` folder must be a workspace, and every package must live inside a listed folder (an `other` folder included).
 
 ## presets
 
@@ -512,7 +532,7 @@ The SessionStart hook displays these rules under the heading "The rules sessions
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `oftenDropped` | `string[]` | `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-W-04', 'V-C-02', 'V-C-10', 'V-P-08', 'V-B-07']` | Rule IDs highlighted at session start |
+| `oftenDropped` | `string[]` | `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-W-04', 'V-C-02', 'V-C-10', 'V-P-08', 'V-B-07', 'V-B-09']` | Rule IDs highlighted at session start |
 
 Every rule ID in `oftenDropped` must match the rule ID regular expression `/^(?:[A-Z]+-)?[A-Z]-\d{2}$/`.
 
@@ -553,13 +573,29 @@ export default {
 } satisfies VulcanConfig;
 ```
 
+### Labels follow the reader
+
+No label is a fixed word. What the reply is held to depends on whether a label set exists for the reader's language:
+
+| The reader's language | Label set | What the card says | What the check does |
+|---|---|---|---|
+| English (`en`, `en-GB`) | the project's `owner.report` words, which default to the English ones | quotes the words | exact words: the table header, the statuses, the blocked label, the decisions label, the none strings, the recommendation |
+| Another language, with a set (the `owner` block when `owner.language` is that language, or the person's `labels` for it) | that set | quotes the words | exact words, as above |
+| Another language, with none (a project left at the default words, a person who skipped the label questions) | none | tells the agent to write the table header, the status words, the blocked label, the decisions heading and the recommendation in that language and form of address | structure only: a headline that is a sentence, a table with its header and separator row, a labelled blocker line after it, a decisions heading with a numbered list or one short line, the order; the status words and the recommendation are not checked, and the style faults still are |
+
+A person who wants their own exact words types them in the profile form, or a project writes them in `owner.report`; nothing else is needed for a language to be held exactly.
+
+### A session whose reader is an agent
+
+The shape is for a reader who is the owner. A session another agent starts (a script, `claude -p`, another terminal) is started with `VULCAN_OWNER_REPLY=off` in its environment: it gets no shape card and no profile card, and its replies are not checked, logged or blocked. Only the exact value `off` counts; the variable is not a VULCAN config key. Set it on the command that starts the session (`VULCAN_OWNER_REPLY=off claude -p ...`), never with `export` in a shell or terminal multiplexer the owner works in, and never in the `env` of a committed Claude Code settings file: either would switch the check off for the owner's own sessions. `vulcan doctor` prints a note when it is set in the shell that runs it, and a warning when `.claude/settings.json` or `.claude/settings.local.json` sets it in `env`. Subagents started through the tool's own mechanism are exempt already. See [hooks](/references/hooks/#stop-and-prompt-submit).
+
 ### The personal profile
 
 Each developer has their own settings, in `.agents/local/profile.json` inside the project (gitignored with the rest of `.agents/local/`; nothing is written outside the project). It holds how to address the person, the reply language and its label set, tone, how much detail to report, working habits, and a free line in their own words. The profile changes style and defaults only: it never changes the project's shape or status set, never loosens a base rule, and `enforce` is the stricter of the project's and the person's.
 
 | Field | Meaning |
 |---|---|
-| `language` | Reply language; labels for it come from `labels`, else English |
+| `language` | Reply language; labels for it come from `labels`. A language that is not English with no label set gets labels the agent writes ([labels follow the reader](#labels-follow-the-reader)) |
 | `address.you`, `address.self`, `address.formality` | How to address the person (a name, a pronoun, an honorific or nothing), how the agent refers to itself, `informal` / `neutral` / `formal` |
 | `tone` | `terse`, `neutral` or `friendly` |
 | `reportDetail` | `headline` or `tables` |

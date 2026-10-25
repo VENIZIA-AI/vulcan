@@ -14,7 +14,6 @@ interface IWordRead {
 
 /** What stops an unquoted word. */
 const WORD_END = new Set([' ', '\t', '\n', ';', '|', '&', '<', '>', '(', ')']);
-const WRAPPERS = new Set(['sudo', 'env', 'command', 'time', 'nohup', 'exec', 'nice', 'xargs']);
 /** Shell keywords and braces that open a command: the program is the word after them. */
 const KEYWORDS = new Set([
   '{',
@@ -30,27 +29,114 @@ const KEYWORDS = new Set([
   'fi',
   'done',
 ]);
-/** Wrapper options that take the next word as their value. */
-const WRAPPER_VALUE_FLAGS = new Set([
-  '-u',
-  '-g',
-  '-h',
-  '-p',
-  '-C',
-  '-D',
-  '-R',
-  '-T',
-  '-U',
-  '-S',
-  '-n',
-  '-I',
-  '-P',
-  '-L',
-  '-s',
-  '-d',
-  '-E',
-  '-a',
-]);
+/**
+ * What each wrapper's own options take. Option letters mean different things per wrapper: `-n` is a
+ * value for `nice`, `watch` and `xargs` and a plain switch for `sudo`; `-E` is a switch for `sudo` and a
+ * value for `xargs`. So the table is per wrapper, and a wrapper's switches never swallow the program.
+ * `shortValues` are the option letters that take a value, `longValues` the long options that take one
+ * as the next word (`--opt=value` is one word), `positionals` the plain words before the command
+ * (`timeout 5 cmd`).
+ */
+interface IWrapperOptions {
+  shortValues: string;
+  longValues: string[];
+  positionals: number;
+}
+
+const wrapperOptions = (opts: {
+  shortValues?: string;
+  longValues?: string[];
+  positionals?: number;
+}): IWrapperOptions => ({
+  shortValues: opts.shortValues ?? '',
+  longValues: opts.longValues ?? [],
+  positionals: opts.positionals ?? 0,
+});
+
+const WRAPPER_OPTIONS: Record<string, IWrapperOptions> = {
+  sudo: wrapperOptions({
+    shortValues: 'CDghprRtTUu',
+    longValues: [
+      '--user',
+      '--group',
+      '--host',
+      '--prompt',
+      '--chdir',
+      '--chroot',
+      '--role',
+      '--type',
+      '--command-timeout',
+      '--other-user',
+      '--close-from',
+    ],
+  }),
+  doas: wrapperOptions({ shortValues: 'Cu' }),
+  env: wrapperOptions({
+    shortValues: 'uCSaf',
+    longValues: ['--unset', '--chdir', '--split-string', '--argv0', '--file'],
+  }),
+  command: wrapperOptions({}),
+  time: wrapperOptions({ shortValues: 'fo', longValues: ['--format', '--output'] }),
+  nohup: wrapperOptions({}),
+  exec: wrapperOptions({ shortValues: 'a' }),
+  nice: wrapperOptions({ shortValues: 'n', longValues: ['--adjustment'] }),
+  ionice: wrapperOptions({
+    shortValues: 'cnpPu',
+    longValues: ['--class', '--classdata', '--pid', '--pgid', '--uid'],
+  }),
+  stdbuf: wrapperOptions({ shortValues: 'ioe', longValues: ['--input', '--output', '--error'] }),
+  timeout: wrapperOptions({
+    shortValues: 'sk',
+    longValues: ['--signal', '--kill-after'],
+    positionals: 1,
+  }),
+  setsid: wrapperOptions({}),
+  watch: wrapperOptions({ shortValues: 'nq', longValues: ['--interval', '--equexit'] }),
+  xargs: wrapperOptions({
+    shortValues: 'IanPdELs',
+    longValues: [
+      '--arg-file',
+      '--delimiter',
+      '--eof',
+      '--max-lines',
+      '--max-args',
+      '--max-procs',
+      '--max-chars',
+      '--process-slot-var',
+    ],
+  }),
+  // Not a wrapper of a local command: its options are known so `remote-hosts` can read past them.
+  sshpass: wrapperOptions({ shortValues: 'pfPd' }),
+};
+/** The programs whose words after their own options are the command they run. */
+const WRAPPERS = new Set(Object.keys(WRAPPER_OPTIONS).filter((name) => name !== 'sshpass'));
+
+/** Whether the option word `word` of `wrapper` takes the next word as its value. */
+export const optionTakesNextWord = (opts: { wrapper: string; word: string }): boolean => {
+  const options = WRAPPER_OPTIONS[opts.wrapper];
+
+  if (options === undefined || !opts.word.startsWith('-') || opts.word === '-') {
+    return false;
+  }
+
+  if (opts.word.startsWith('--')) {
+    return options.longValues.includes(opts.word);
+  }
+
+  // A cluster such as `-nu`: the first letter that takes a value ends it; with letters left after it the
+  // rest is the value, and with none left the value is the next word.
+  for (let at = 1; at < opts.word.length; at += 1) {
+    if (options.shortValues.includes(opts.word[at] ?? '')) {
+      return at === opts.word.length - 1;
+    }
+  }
+
+  return false;
+};
+
+/** The plain words a wrapper takes before its command (`timeout 5 cmd`). */
+export const wrapperPositionals = (opts: { wrapper: string }): number =>
+  WRAPPER_OPTIONS[opts.wrapper]?.positionals ?? 0;
 const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash']);
 const MAX_DEPTH = 4;
 
@@ -143,18 +229,34 @@ export const programOf = (opts: {
   command: ISimpleCommand;
 }): { name: string; index: number; args: string[] } => {
   let index = 0;
+  let wrapper = '';
+  let positionals = 0;
 
   while (index < opts.command.words.length) {
     const word = opts.command.words[index];
 
-    if (WRAPPERS.has(basenameOf({ word })) || isAssignment({ word }) || KEYWORDS.has(word)) {
+    if (WRAPPERS.has(basenameOf({ word }))) {
+      wrapper = basenameOf({ word });
+      positionals = wrapperPositionals({ wrapper });
+      index += 1;
+      continue;
+    }
+
+    if (isAssignment({ word }) || KEYWORDS.has(word)) {
       index += 1;
       continue;
     }
 
     if (/^-/.test(word)) {
-      // An option of the wrapper; `-u X`, `-n 5` take a value that is not the program.
-      index += WRAPPER_VALUE_FLAGS.has(word) ? 2 : 1;
+      // An option of the wrapper; `-u X` and `nice -n 5` take a value that is not the program.
+      index += optionTakesNextWord({ wrapper, word }) ? 2 : 1;
+      continue;
+    }
+
+    // `timeout 5 cmd`: a plain word the wrapper itself takes.
+    if (positionals > 0) {
+      positionals -= 1;
+      index += 1;
       continue;
     }
 
