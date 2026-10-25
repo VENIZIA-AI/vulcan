@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-25 | [VULCAN 0.4.5: The Hook Wrappers No Longer Need CLAUDE_PROJECT_DIR](./2026-10-25-vulcan-0-4-5-hooks-without-project-dir) | Bug Fix |
 | 2026-10-25 | [VULCAN 0.4.5: The Deny-Class Guards Ask When They Crash or Time Out](./2026-10-25-vulcan-0-4-5-guards-ask-on-failure) | Bug Fix |
 | 2026-10-25 | [VULCAN 0.4.5: The Guard Parser Closes What the Second Review Found](./2026-10-25-vulcan-0-4-5-guard-parser-review) | Bug Fix |
 | 2026-10-25 | [VULCAN 0.4.5: The Guards Read ANSI-C Quoting](./2026-10-25-vulcan-0-4-5-ansi-c-quoting) | Bug Fix |

@@ -15,6 +15,7 @@ import { spawnSyncBounded } from '../spawn.helper.ts';
 
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 const SHIPPED_SETTINGS = join(PACKAGE_ROOT, 'base', 'claude', 'settings.json');
+const REMOTE_HOSTS_TEMPLATE = join(PACKAGE_ROOT, 'base', 'claude', 'remote-hosts.json');
 
 const roots: string[] = [];
 
@@ -37,16 +38,21 @@ interface IShippedHook {
   command: string;
 }
 
-/** Every hook command the shipped settings register, as Claude Code would run it. */
-const shippedHooks = (): IShippedHook[] => {
+/** Every hook command of a settings file, as Claude Code would run it. */
+const hooksOf = (path: string): IShippedHook[] => {
   const settings: {
     hooks: Record<string, { hooks: { command: string }[] }[]>;
-  } = JSON.parse(readFileSync(SHIPPED_SETTINGS, 'utf8'));
+  } = JSON.parse(readFileSync(path, 'utf8'));
 
   return Object.entries(settings.hooks).flatMap(([event, entries]) =>
     entries.flatMap((entry) => entry.hooks.map((hook) => ({ event, command: hook.command }))),
   );
 };
+
+/** Every hook command the shipped settings register. */
+const shippedHooks = (): IShippedHook[] => hooksOf(SHIPPED_SETTINGS);
+/** The hook sync adds only when the config sets `remoteHosts`: its command is shipped in a template. */
+const remoteHostsHooks = (): IShippedHook[] => hooksOf(REMOTE_HOSTS_TEMPLATE);
 
 /** The hooks that fail OPEN: the drift guard and the owner-shape hooks, which pass when they cannot run. */
 const FAIL_OPEN = ['guard-scripting.ts', 'stop.ts', 'prompt-submit.ts', 'post-tool.ts'];
@@ -68,16 +74,24 @@ const runHook = (opts: {
   stdin?: string;
   path?: string;
   env?: Record<string, string>;
+  /** The host does not set CLAUDE_PROJECT_DIR at all; the hook still runs from the project root. */
+  unsetProjectDir?: boolean;
 }) => {
+  const environment: Record<string, string | undefined> = {
+    ...process.env,
+    CLAUDE_PROJECT_DIR: opts.root,
+    ...(opts.path === undefined ? {} : { PATH: opts.path }),
+    ...opts.env,
+  };
+
+  if (opts.unsetProjectDir === true) {
+    delete environment.CLAUDE_PROJECT_DIR;
+  }
+
   const result = spawnSyncBounded({
     cmd: ['/bin/sh', '-c', opts.command],
     cwd: opts.root,
-    env: {
-      ...process.env,
-      CLAUDE_PROJECT_DIR: opts.root,
-      ...(opts.path === undefined ? {} : { PATH: opts.path }),
-      ...opts.env,
-    },
+    env: environment,
     stdin: new Blob([opts.stdin ?? '']),
     stdout: 'pipe',
     stderr: 'pipe',
@@ -293,6 +307,98 @@ describe('the deny-class guards ask when the hook starts and then fails', () => 
     expect(runHook({ command: git.command, root, stdin: BASH_INPUT('git status') }).stdout).toBe(
       '',
     );
+  });
+});
+
+// Copilot and Cursor read `.claude/settings.json` too and may not set CLAUDE_PROJECT_DIR: a wrapper that
+// built its path from the bare variable looked in `/node_modules`, found nothing and exited 2.
+describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
+  const everyHook = (): IShippedHook[] => [...shippedHooks(), ...remoteHostsHooks()];
+  const nameOf = (hook: IShippedHook): string =>
+    /hooks\/([\w-]+)\.ts/.exec(hook.command)?.[1] ?? '';
+
+  /** A project with the package installed, so a hook that finds it can run. */
+  const installedRoot = (): string => {
+    const root = makeRoot();
+    const installed = join(root, 'node_modules', '@venizia', 'vulcan');
+
+    mkdirSync(dirname(installed), { recursive: true });
+    symlinkSync(PACKAGE_ROOT, installed);
+
+    return root;
+  };
+
+  test('every wrapper is written with the working directory as the fallback', () => {
+    expect(everyHook().length).toBe(13);
+
+    for (const hook of everyHook()) {
+      expect(hook.command, nameOf(hook)).toContain('${CLAUDE_PROJECT_DIR:-$PWD}/node_modules');
+      expect(hook.command, nameOf(hook)).not.toContain('${CLAUDE_PROJECT_DIR}');
+    }
+  });
+
+  test.each(['ls', 'git status', ''])(
+    'with the package present, an unset variable answers like a set one, for every wrapper (input %j)',
+    (command) => {
+      const root = installedRoot();
+      const stdin = command === '' ? '' : BASH_INPUT(command);
+
+      for (const hook of everyHook()) {
+        const set = runHook({ command: hook.command, root, stdin });
+        const unset = runHook({ command: hook.command, root, stdin, unsetProjectDir: true });
+
+        expect(unset.code, nameOf(hook)).toBe(set.code);
+        expect(unset.stdout, nameOf(hook)).toBe(set.stdout);
+      }
+    },
+  );
+
+  // guard-remote-hosts is left out: with no remoteHosts policy in the project it blocks, set or unset.
+  test('with the package present, an unset variable does not make a safety hook exit 2', () => {
+    const root = installedRoot();
+
+    for (const hook of shippedHooks()) {
+      const result = runHook({
+        command: hook.command,
+        root,
+        stdin: BASH_INPUT('ls'),
+        unsetProjectDir: true,
+      });
+
+      expect(result.code, nameOf(hook)).toBe(0);
+    }
+  });
+
+  test('with the install missing, an unset variable still exits 2 for a safety hook and 0 for the rest', () => {
+    const root = makeRoot();
+
+    for (const hook of everyHook()) {
+      const result = runHook({
+        command: hook.command,
+        root,
+        stdin: BASH_INPUT('ls'),
+        unsetProjectDir: true,
+      });
+      const passes = [...FAIL_OPEN, ...ASKING].some((name) => hook.command.includes(name));
+
+      expect(result.code, nameOf(hook)).toBe(passes ? 0 : 2);
+    }
+  });
+
+  test('a variable that is set still wins over the working directory', () => {
+    const root = installedRoot();
+    const elsewhere = makeRoot();
+
+    for (const hook of [...closedHooks(), ...remoteHostsHooks()]) {
+      const result = runHook({
+        command: hook.command,
+        root,
+        stdin: BASH_INPUT('ls'),
+        env: { CLAUDE_PROJECT_DIR: elsewhere },
+      });
+
+      expect(result.code, nameOf(hook)).toBe(2);
+    }
   });
 });
 
