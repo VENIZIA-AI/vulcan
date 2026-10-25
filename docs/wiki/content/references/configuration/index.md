@@ -553,6 +553,18 @@ export default {
 } satisfies VulcanConfig;
 ```
 
+### Labels follow the reader
+
+No label is a fixed word. What the reply is held to depends on whether a label set exists for the reader's language:
+
+| The reader's language | Label set | What the card says | What the check does |
+|---|---|---|---|
+| English (`en`, `en-GB`) | the project's `owner.report` words, which default to the English ones | quotes the words | exact words: the table header, the statuses, the blocked label, the decisions label, the none strings, the recommendation |
+| Another language, with a set (the `owner` block when `owner.language` is that language, or the person's `labels` for it) | that set | quotes the words | exact words, as above |
+| Another language, with none (a project left at the default words, a person who skipped the label questions) | none | tells the agent to write the table header, the status words, the blocked label, the decisions heading and the recommendation in that language and form of address | structure only: a headline that is a sentence, a table with its header and separator row, a labelled blocker line after it, a decisions heading with a numbered list or one short line, the order; the status words and the recommendation are not checked, and the style faults still are |
+
+A person who wants their own exact words types them in the profile form, or a project writes them in `owner.report`; nothing else is needed for a language to be held exactly.
+
 ### A session whose reader is an agent
 
 The shape is for a reader who is the owner. A session another agent starts (a script, `claude -p`, another terminal) is started with `VULCAN_OWNER_REPLY=off` in its environment: it gets no shape card and no profile card, and its replies are not checked, logged or blocked. Only the exact value `off` counts; the variable is not a VULCAN config key. Set it on the command that starts the session (`VULCAN_OWNER_REPLY=off claude -p ...`), never with `export` in a shell or terminal multiplexer the owner works in, and never in the `env` of a committed Claude Code settings file: either would switch the check off for the owner's own sessions. `vulcan doctor` prints a note when it is set in the shell that runs it, and a warning when `.claude/settings.json` or `.claude/settings.local.json` sets it in `env`. Subagents started through the tool's own mechanism are exempt already. See [hooks](/references/hooks/#stop-and-prompt-submit).
@@ -563,7 +575,7 @@ Each developer has their own settings, in `.agents/local/profile.json` inside th
 
 | Field | Meaning |
 |---|---|
-| `language` | Reply language; labels for it come from `labels`, else English |
+| `language` | Reply language; labels for it come from `labels`. A language that is not English with no label set gets labels the agent writes ([labels follow the reader](#labels-follow-the-reader)) |
 | `address.you`, `address.self`, `address.formality` | How to address the person (a name, a pronoun, an honorific or nothing), how the agent refers to itself, `informal` / `neutral` / `formal` |
 | `tone` | `terse`, `neutral` or `friendly` |
 | `reportDetail` | `headline` or `tables` |

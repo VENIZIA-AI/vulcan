@@ -30,7 +30,7 @@ description: Tell VULCAN how you like to work - reply language, how to address y
 | 9 | Anything about how you like to work, in your own words | none |
 | 10 | Taste in code that no formatter or lint rule enforces | none |
 
-Only English labels ship. If question 1 is another language, the form asks whether to type the words for the report now (the three column headers, the six statuses and five labels, each defaulting to the English one) or keep English. Typed words are stored in the profile under that language.
+Only English labels ship, and no label is a fixed word. If question 1 is a language other than English, the form asks whether to type the words for the report now (the three column headers, the six statuses and five labels, each defaulting to the English one) or let the agent write them in that language. Typed words are stored in the profile under that language and are held exactly. When you let the agent write them, the session digest tells it to write every label in your language and form of address, and the check looks at the structure only (see [labels follow the reader](/references/configuration/#labels-follow-the-reader)).
 
 The form runs as menus in a terminal that can draw them and as plain lines otherwise: an empty line takes the default, a value that does not fit is asked again with the reason, and the end of the input cancels with nothing written.
 

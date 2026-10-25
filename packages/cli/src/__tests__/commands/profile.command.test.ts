@@ -78,13 +78,13 @@ describe('vulcan profile', () => {
     const root = project();
     const result = profile({
       root,
-      // Ten questions and, for a language that is not English, one more: type the report words or keep English.
+      // Ten questions and, for a language that is not English, one more: type the report words or let the agent write them.
       lines: Array.from({ length: 11 }, () => ''),
       env: { LANG: 'fr_FR.UTF-8' },
     });
 
     expect(result.code).toBe(0);
-    // French is not English: the form offers the report words; an empty answer keeps English.
+    // French is not English: the form offers the report words; an empty answer lets the agent write them.
     expect(JSON.parse(readFileSync(join(root, FILE), 'utf8')).language).toBe('fr');
   }, 30_000);
 
