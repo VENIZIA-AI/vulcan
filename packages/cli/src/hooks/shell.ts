@@ -183,6 +183,81 @@ const closingOf = (opts: { text: string; from: number; open: string; close: stri
   return opts.text.length;
 };
 
+const ANSI_C_ESCAPES: Record<string, string> = {
+  a: '\x07',
+  b: '\b',
+  e: '\x1b',
+  E: '\x1b',
+  f: '\f',
+  n: '\n',
+  r: '\r',
+  t: '\t',
+  v: '\v',
+  '\\': '\\',
+  "'": "'",
+  '"': '"',
+  '?': '?',
+};
+
+/** The character of a code point, or nothing for one that is not a character. */
+const fromCodePoint = (opts: { code: number }): string =>
+  Number.isInteger(opts.code) && opts.code >= 0 && opts.code <= 0x10ffff
+    ? String.fromCodePoint(opts.code)
+    : '';
+
+/**
+ * The text of an ANSI-C quoted string `$'...'`, from the character after the opening quote to the closing
+ * quote (or the end of the text when it is not closed): \n, \t, \\, \', octal \nnn, \xHH, \uHHHH,
+ * \UHHHHHHHH, \cX. An unknown escape keeps its backslash. A NUL ends the string, as in bash.
+ */
+const readAnsiC = (opts: { text: string; from: number }): { value: string; next: number } => {
+  const { text } = opts;
+  let value = '';
+  let index = opts.from;
+  let isEnded = false;
+
+  while (index < text.length && text[index] !== "'") {
+    const char = text[index] ?? '';
+
+    if (char !== '\\') {
+      value += isEnded ? '' : char;
+      index += 1;
+      continue;
+    }
+
+    const next = text[index + 1] ?? '';
+    const octal = /^[0-7]{1,3}/.exec(text.slice(index + 1, index + 4))?.[0];
+    const hex = /^[xuU][0-9a-fA-F]+/.exec(text.slice(index + 1, index + 10))?.[0];
+    let decoded: string;
+    let length = 2;
+
+    if (octal !== undefined) {
+      decoded = fromCodePoint({ code: Number.parseInt(octal, 8) });
+      length = 1 + octal.length;
+    } else if (hex !== undefined) {
+      const digits = hex.slice(1, 1 + { x: 2, u: 4, U: 8 }[hex[0] ?? 'x']!);
+
+      decoded = fromCodePoint({ code: Number.parseInt(digits, 16) });
+      length = 2 + digits.length;
+    } else if (next === 'c' && text[index + 2] !== undefined) {
+      decoded = String.fromCharCode((text[index + 2]?.charCodeAt(0) ?? 0) & 0x1f);
+      length = 3;
+    } else {
+      decoded = ANSI_C_ESCAPES[next] ?? `\\${next}`;
+    }
+
+    if (decoded === '\0') {
+      isEnded = true;
+    } else if (!isEnded) {
+      value += decoded;
+    }
+
+    index += length;
+  }
+
+  return { value, next: Math.min(index + 1, text.length) };
+};
+
 /** One word from `from`: quotes and escapes resolved, substitutions set aside in `nested`. */
 const readWord = (opts: { text: string; from: number }): IWordRead => {
   const { text } = opts;
@@ -209,6 +284,21 @@ const readWord = (opts: { text: string; from: number }): IWordRead => {
       }
 
       value += next;
+      index += 2;
+      continue;
+    }
+
+    // `$'...'` is ANSI-C quoting and `$"..."` is double quotes with a locale mark; both read as the shell reads them.
+    if (quote === undefined && char === '$' && text[index + 1] === "'") {
+      const decoded = readAnsiC({ text, from: index + 2 });
+
+      value += decoded.value;
+      index = decoded.next;
+      continue;
+    }
+
+    if (quote === undefined && char === '$' && text[index + 1] === '"') {
+      quote = '"';
       index += 2;
       continue;
     }

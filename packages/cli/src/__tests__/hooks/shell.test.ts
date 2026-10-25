@@ -251,6 +251,54 @@ describe('parseShell', () => {
     expect(isForcePush(command)).toBe(false);
   });
 
+  // ANSI-C quoting: the shell reads $'...' as the same words.
+  test.each([
+    "$'git' push -f origin main",
+    "env -S $'git push -f origin main'",
+    "sh -c $'git push -f origin main'",
+    "$'\\x67it' push -f origin main",
+    "$'\\147it' push -f origin main",
+    "$'\\u0067it' push -f origin main",
+    "$'g\\x69t' push -f origin main",
+    'git$"" push -f origin main',
+    '$"git" push -f origin main',
+    "sudo $'git' push -f origin main",
+    "bash -c $'git push -f origin main'",
+  ])('%s is a git push', (command) => {
+    expect(isForcePush(command)).toBe(true);
+  });
+
+  test.each([
+    "echo $'git push -f origin main'",
+    "git commit -m $'git push -f origin main'",
+    "$'git\\x20push' -f origin main",
+    "$'git\\npush' -f origin main",
+    "echo '$'\"'\"'git push -f'",
+    'echo "$\'git push -f origin main\'"',
+  ])('%s is not a git push', (command) => {
+    expect(isForcePush(command)).toBe(false);
+  });
+
+  test("the escapes of $'...' are decoded", () => {
+    const firstWords = (command: string): string[] => parseShell({ command })[0]?.words ?? [];
+
+    expect(firstWords("echo $'a\\nb\\tc'")).toEqual(['echo', 'a\nb\tc']);
+    expect(firstWords("echo $'\\x41\\101\\u0041\\U00000041'")).toEqual(['echo', 'AAAA']);
+    expect(firstWords("echo $'a\\'b'")).toEqual(['echo', "a'b"]);
+    expect(firstWords("echo $'a\\\\b'")).toEqual(['echo', 'a\\b']);
+    expect(firstWords("echo $'\\q'")).toEqual(['echo', '\\q']);
+    expect(firstWords("echo $'a\\0b'")).toEqual(['echo', 'a']);
+    expect(firstWords("echo $'a\\x00b'c")).toEqual(['echo', 'ac']);
+    expect(firstWords("echo $'\\cA'")).toEqual(['echo', '\x01']);
+    expect(firstWords("echo $'abc")).toEqual(['echo', 'abc']);
+    expect(firstWords("echo $'a'$'b' 'c'")).toEqual(['echo', 'ab', 'c']);
+    expect(firstWords("echo $'\\xZZ'")).toEqual(['echo', '\\xZZ']);
+    expect(firstWords("echo $'\\U7fffffff'")).toEqual(['echo', '']);
+    // Inside single or double quotes the `$` is just a character.
+    expect(firstWords("echo '$'x")).toEqual(['echo', '$x']);
+    expect(firstWords('echo "$\'x\'"')).toEqual(['echo', "$'x'"]);
+  });
+
   test('splitEnvString splits by env rules', () => {
     expect(splitEnvString({ value: 'a b  c' })).toEqual(['a', 'b', 'c']);
     expect(splitEnvString({ value: 'a \'b c\' "d e"' })).toEqual(['a', 'b c', 'd e']);
