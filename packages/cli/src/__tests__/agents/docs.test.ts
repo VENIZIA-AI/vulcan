@@ -31,6 +31,20 @@ describe('references/agents.md follows base/agents.json', () => {
     });
   }
 
+  test('the guards column names the file sync writes for omp and pi and nothing for the rest', () => {
+    for (const entry of readAgentTable()) {
+      const row = rowOf({ id: entry.id });
+
+      if (entry.guards === null) {
+        expect(row).toContain(
+          entry.id === 'claude' ? 'hooks in `.claude/settings.json`' : 'not yet',
+        );
+      } else {
+        expect(row).toContain(`\`${entry.guards.path}\``);
+      }
+    }
+  });
+
   test('the instructions column says what was measured', () => {
     expect(rowOf({ id: 'claude' })).toContain('shown');
     expect(rowOf({ id: 'omp' })).toContain('shown');

@@ -10,6 +10,17 @@ export class AgentScopes {
   }
 }
 
+/** How a guard reaches an agent that has no Claude-style hook commands: a file the agent loads. */
+export class AgentGuardKinds {
+  static readonly EXTENSION = 'extension';
+
+  static readonly SCHEME_SET = new Set<string>([this.EXTENSION]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
 /** The file formats an agent's MCP entry is written in. */
 export class AgentRenderers {
   static readonly MCP_SERVERS = 'mcpServers';
@@ -35,4 +46,8 @@ export class AgentConstants {
   static readonly SHARED_MCP_FILE = '.mcp.json';
   static readonly DEFAULT_AGENT = 'claude';
   static readonly EXAMPLE_LIST = 'claude,omp';
+  /** The extension template sync copies for an agent whose `guards` kind is `extension`, under the package's base. */
+  static readonly GUARD_EXTENSION_TEMPLATE = 'extensions/vulcan-guards.ts';
+  /** The first line of the template: a file that starts with it is sync's, to rewrite or remove. */
+  static readonly GUARD_EXTENSION_MARKER = '// Written by `vulcan sync`';
 }

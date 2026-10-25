@@ -20,6 +20,7 @@ const VALID_ENTRY = {
   instructions: { nativeAgentsMd: true, shim: null },
   mcp: { scope: 'project', path: '.demo/mcp.json', renderer: 'mcpServers' },
   skills: { dir: '.agents/skills' },
+  guards: null,
   instructionsSurfaced: null,
   notes: [],
 };

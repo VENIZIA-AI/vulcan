@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AgentConstants, AgentRenderers, AgentScopes } from './constants.ts';
+import { AgentConstants, AgentGuardKinds, AgentRenderers, AgentScopes } from './constants.ts';
 
 /** One agent of `base/agents.json`: strict, so a typo in the table is an error, not a silent gap. */
 export const AGENT_ENTRY_SCHEMA = z
@@ -25,6 +25,15 @@ export const AGENT_ENTRY_SCHEMA = z
       }),
     }),
     skills: z.strictObject({ dir: z.string().min(1) }),
+    /** How the guards reach this agent; `null` where nothing is wired (Claude has its own hooks in settings.json). */
+    guards: z
+      .strictObject({
+        kind: z.string().refine((value) => AgentGuardKinds.isValid(value), {
+          message: `one of: ${[...AgentGuardKinds.SCHEME_SET].join(', ')}`,
+        }),
+        path: z.string().min(1),
+      })
+      .nullable(),
     instructionsSurfaced: z.union([z.boolean(), z.literal('partial'), z.null()]),
     notes: z.array(z.string()),
   })

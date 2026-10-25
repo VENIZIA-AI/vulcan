@@ -48,6 +48,10 @@ export const excludePathsOf = (opts: {
       paths.push(`/${AgentConstants.SHARED_MCP_FILE}`);
     }
 
+    if (entry.guards !== null) {
+      paths.push(`/${entry.guards.path}`);
+    }
+
     if (entry.skills.dir !== CLAUDE_SKILLS_DIRECTORY && !listedSkills.has(entry.skills.dir)) {
       listedSkills.add(entry.skills.dir);
       paths.push(...opts.skillNames.map((name) => `/${entry.skills.dir}/${name}`));
