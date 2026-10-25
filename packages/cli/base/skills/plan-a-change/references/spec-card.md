@@ -27,6 +27,7 @@ In this order:
 - If you can edit the Goal without changing any claim, the claims are not tied to it.
 - Split a claim while it joins two checkable things with "and" or "or", while one part can pass as another
   fails, or while it says "all" or "every" without listing.
+- In lane L each slice is written as a work item (`node_modules/@venizia/vulcan/base/references/work-item.md`): its acceptance criteria are the claims of that slice, with the same ids and probes.
 - The card carries no changelog: git is the change record. When a claim closes, its evidence shrinks to a
   one-line stub (the commit, the test name or the command).
 - Fog goes to Open, never into a claim. Docs impact unknown is itself an Open question.

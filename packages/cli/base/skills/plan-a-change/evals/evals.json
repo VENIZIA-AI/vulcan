@@ -18,6 +18,24 @@
       "prompt": "We need to add a new third-party dependency for date parsing. Plan the change, do not install anything.",
       "expected_output": "Treats the new dependency as a design-pass trigger: records the decision with the simpler alternative rejected and why (for example the runtime's own date handling), names what is deferred with a reason, keeps Open empty or names who resolves each item, installs nothing",
       "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Plan a feature that spans a data model, an HTTP route and a screen: users can archive a project and see archived projects in a separate list. Plan it and write the slices as work items, do not start.",
+      "expected_output": "Treats the feature as lane L; the slices are vertical (each one behaviour through the layers it needs, at one seam) and each is written as a work item with the nine fixed English headings in order (Category, Summary, Current behaviour, Desired behaviour, Key interfaces, Acceptance criteria, Out of scope, Blocked by, Parent) and the body in the project language; acceptance criteria each carry a probe, Blocked by names only what truly gates the item (or says none), Parent names the card; the acceptance criteria are the claims of the card with the same ids; key interfaces are named by type, function, route or command and no item names a file path or a line number; no work starts",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Here is a draft ticket. Make it ready for an agent. Draft: \"Fix the login bug. Open src/auth/session.ts, line 88, the checkToken function is wrong, ask lane-two what it found yesterday and fix it so login works again. Done when it works.\"",
+      "expected_output": "Rewrites the draft as a work item with the nine fixed English headings, without the file path, the line number or the session name: it names the behaviour and the interfaces (the token check and what it should accept or reject), states current and desired behaviour, gives testable acceptance criteria each with a probe in place of \"it works\", states what is out of scope, says Blocked by none or names a real blocker, and marks readiness; where a fact is missing it asks one numbered round of questions with a recommended answer (what the lane found) or marks the item as needing a human, instead of inventing it; it runs the self-check and reports which lines held",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Plan adding a retry option to the HTTP client helper, write the first slice as a work item, then check it cold: give a fresh subagent only the item and the knowledge bundle, ask it whether it could start without asking anything, and fix the item for every gap it names. Do not implement.",
+      "expected_output": "Writes the first slice as a work item with the nine fixed English headings; launches a fresh subagent whose brief is the item (by reference, not restated) plus the knowledge bundle and asks the single question whether it could start; the subagent is read-only and its brief names the plain format to return; every gap it reports changes the item (a missing interface name, an untestable criterion, a missing out-of-scope line) and the report says what changed; nothing is implemented",
+      "files": []
     }
   ]
 }
