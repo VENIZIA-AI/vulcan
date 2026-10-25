@@ -224,13 +224,55 @@ const isAssignment = (opts: { word: string }): boolean => /^[A-Za-z_]\w*=/.test(
 export const basenameOf = (opts: { word: string }): string =>
   opts.word.split('/').pop() ?? opts.word;
 
-/** The program a command runs, past wrappers such as `sudo`, `env` and `time`. */
+/**
+ * The command line `env -S` (`--split-string`) holds in one word, from its value on: `-S 'a b'`, `-S'a b'`,
+ * `-iS 'a b'`, `--split-string='a b'`, `--split-string 'a b'`. `takesNext` says the value is the next word.
+ * A cluster ends at its first option that takes a value, so `-uS` holds a name, not a command line.
+ */
+const splitStringOf = (opts: {
+  word: string;
+  next: string | undefined;
+}): { value: string; takesNext: boolean } | undefined => {
+  const { word, next } = opts;
+
+  if (word.startsWith('--')) {
+    if (word.startsWith('--split-string=')) {
+      return { value: word.slice('--split-string='.length), takesNext: false };
+    }
+
+    return word === '--split-string' ? { value: next ?? '', takesNext: true } : undefined;
+  }
+
+  const letters = WRAPPER_OPTIONS['env']?.shortValues ?? '';
+
+  for (let at = 1; at < word.length; at += 1) {
+    if (letters.includes(word[at] ?? '')) {
+      if (word[at] !== 'S') {
+        return undefined;
+      }
+
+      const rest = word.slice(at + 1);
+
+      return rest === ''
+        ? { value: next ?? '', takesNext: true }
+        : { value: rest, takesNext: false };
+    }
+  }
+
+  return undefined;
+};
+
+/**
+ * The program a command runs, past wrappers such as `sudo`, `env` and `time`, and the command lines an
+ * `env -S` carries: each is the value followed by the words after it, ready to be parsed as shell text.
+ */
 export const programOf = (opts: {
   command: ISimpleCommand;
-}): { name: string; index: number; args: string[] } => {
+}): { name: string; index: number; args: string[]; splitStrings: string[] } => {
   let index = 0;
   let wrapper = '';
   let positionals = 0;
+  const splitStrings: string[] = [];
 
   while (index < opts.command.words.length) {
     const word = opts.command.words[index];
@@ -248,6 +290,17 @@ export const programOf = (opts: {
     }
 
     if (/^-/.test(word)) {
+      const split =
+        wrapper === 'env'
+          ? splitStringOf({ word, next: opts.command.words[index + 1] })
+          : undefined;
+
+      if (split !== undefined && split.value !== '') {
+        splitStrings.push(
+          [split.value, ...opts.command.words.slice(index + (split.takesNext ? 2 : 1))].join(' '),
+        );
+      }
+
       // An option of the wrapper; `-u X` and `nice -n 5` take a value that is not the program.
       index += optionTakesNextWord({ wrapper, word }) ? 2 : 1;
       continue;
@@ -260,10 +313,10 @@ export const programOf = (opts: {
       continue;
     }
 
-    return { name: word, index, args: opts.command.words.slice(index + 1) };
+    return { name: word, index, args: opts.command.words.slice(index + 1), splitStrings };
   }
 
-  return { name: '', index: -1, args: [] };
+  return { name: '', index: -1, args: [], splitStrings };
 };
 
 /**
@@ -300,7 +353,7 @@ const stripHeredocs = (opts: { command: string }): string => {
 
 /**
  * The simple commands of a shell line, in order: `;`, `&&`, `||`, `|`, `&` and newlines split them;
- * `$(...)`, backticks and `sh -c '...'` arguments are parsed as commands too. It reads quoting, not
+ * `$(...)`, backticks, `sh -c '...'` arguments and the command line of `env -S` are parsed as commands too. It reads quoting, not
  * every corner of the shell: a line it cannot follow yields fewer commands, never an error.
  */
 export const parseShell = (opts: { command: string; depth?: number }): ISimpleCommand[] => {
@@ -403,6 +456,9 @@ export const parseShell = (opts: { command: string; depth?: number }): ISimpleCo
 
   for (const command of commands) {
     const program = programOf({ command });
+
+    // `env -S "git push -f origin main"` is a command line in one word.
+    nestedTexts.push(...program.splitStrings);
 
     if (program.index !== -1 && SHELLS.has(basenameOf({ word: program.name }))) {
       const flag = command.words.findIndex(

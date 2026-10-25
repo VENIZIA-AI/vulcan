@@ -86,6 +86,7 @@ describe('inspectOutside flags what a review found', () => {
     'if true; then touch /etc/x; fi',
     'xargs touch /etc/x',
     'env -u HOME touch /etc/x',
+    'env -S "touch /etc/x"',
   ])('%s', (command) => {
     expect(bash({ command }).length).toBeGreaterThan(0);
   });
