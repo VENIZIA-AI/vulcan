@@ -80,7 +80,7 @@ export const buildStopOutput = async (opts: {
   // Every reply updates the note the next prompt reads, an exempt short one too; a write that fails never
   // costs the decision below.
   try {
-    recordReply({ root: opts.projectRoot, classes });
+    recordReply({ root: opts.projectRoot, classes, session });
   } catch {
     // The log is advisory.
   }
@@ -95,13 +95,13 @@ export const buildStopOutput = async (opts: {
     view.enforce !== OwnerEnforcement.BLOCK ||
     isRetry ||
     structural.length === 0 ||
-    wasBlockedRecently({ root: opts.projectRoot })
+    wasBlockedRecently({ root: opts.projectRoot, session })
   ) {
     return undefined;
   }
 
   try {
-    markBlocked({ root: opts.projectRoot });
+    markBlocked({ root: opts.projectRoot, session });
   } catch {
     // Without the note the stop_hook_active flag is the only guard against a second block.
   }
@@ -138,7 +138,7 @@ export const buildPromptContract = async (opts: {
   }
 
   // A claim match is a hint, so it is logged but never said back to the model as a fault of the last reply.
-  const last = readLastClasses({ root: opts.projectRoot }).filter((name) =>
+  const last = readLastClasses({ root: opts.projectRoot, session: opts.session }).filter((name) =>
     ShapeClasses.isValid(name),
   );
 

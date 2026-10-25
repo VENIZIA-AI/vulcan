@@ -174,7 +174,7 @@ The two hooks hold the [report shape](/references/configuration/#owner) the sess
 | `advise` | Logged; the next prompt carries the faults of that reply |
 | `block` | A structural fault sends the reply back once with what to fix; a reply sent back again is let through. Style faults are only logged |
 
-The log is `.agents/local/violations.jsonl` (gitignored, inside the project): one line per faulty reply with the date and the fault classes, never the text. `vulcan doctor` prints the counts as a note, and the retro skill reads them. What no program can see, whether each point has a plain meaning or the answer is right, is left to the owner or an eval. Both hooks fail open and honour `VULCAN_GUARDS=off`.
+The log is `.agents/local/violations.jsonl` (gitignored, inside the project): one line per faulty reply with the date and the fault classes, never the text. The note the next prompt reads (the faults of the last reply, and the block cooldown) is kept per session in `.agents/local/cache/replies/<session>.json`, so a session never hears about another session's reply; notes older than 30 minutes and all but the 32 newest are removed on every write. `vulcan doctor` prints the counts as a note, and the retro skill reads them. What no program can see, whether each point has a plain meaning or the answer is right, is left to the owner or an eval. Both hooks fail open and honour `VULCAN_GUARDS=off`.
 
 ## post-tool and the claims at Stop
 

@@ -1,5 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import {
   checkOwnerShape,
@@ -312,6 +320,43 @@ describe('the violation log', () => {
     recordReply({ root, classes: [ShapeClasses.EMOJI], now: new Date('2026-10-25T10:00:00Z') });
 
     expect(readLastClasses({ root, now: new Date('2026-10-25T10:31:00Z').getTime() })).toEqual([]);
+  });
+
+  test('the notes are one file per session, bounded by age and by count, and the old one-file note goes', () => {
+    const root = project();
+    const notes = join(root, '.agents/local/cache/replies');
+    const legacy = join(root, '.agents/local/last-reply.json');
+
+    writeFileSync(legacy, '{"at":1,"classes":["emoji"]}\n');
+
+    recordReply({ root, classes: ['emoji'], session: 'old' });
+
+    const stale = new Date(Date.now() - 31 * 60 * 1000);
+
+    utimesSync(join(notes, 'old.json'), stale, stale);
+    recordReply({ root, classes: [], session: 'new' });
+
+    expect(existsSync(legacy)).toBe(false);
+    expect(readdirSync(notes)).toEqual(['new.json']);
+
+    for (let index = 0; index < 40; index += 1) {
+      recordReply({ root, classes: [], session: `many-${index}` });
+    }
+
+    expect(readdirSync(notes).length).toBeLessThanOrEqual(32);
+    expect(readdirSync(notes)).toContain('many-39.json');
+  });
+
+  test('a symlinked note folder is never written through', () => {
+    const root = project();
+    const outside = createProject({ files: { 'victim.txt': 'keep' } });
+
+    mkdirSync(join(root, '.agents/local/cache'));
+    symlinkSync(outside, join(root, '.agents/local/cache/replies'));
+    recordReply({ root, classes: ['emoji'], session: 'a' });
+
+    expect(readdirSync(outside)).toEqual(['victim.txt']);
+    expect(readLastClasses({ root, session: 'a' })).toEqual([]);
   });
 
   test('counts by class across the log, skipping damaged lines and unknown classes', () => {
