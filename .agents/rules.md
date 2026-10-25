@@ -28,7 +28,7 @@ pull requests and reports ("breaks B-05").
 | [S - Security](#s---security) | S-01 … S-06 | Secrets, injected content, leaks, guard defaults, dependencies |
 | [P - Process](#p---process) | P-01 … P-15 | How work starts, how it is tracked, how it is measured, how it is judged done |
 | [B - Build and quality](#b---build-and-quality) | B-01 … B-08 | Build, lint, verify, what a tool really runs |
-| [C - Code and writing](#c---code-and-writing) | V-C-01 … V-C-18, C-19 | Style in code and in prose - the shared VULCAN base, plus dates |
+| [C - Code and writing](#c---code-and-writing) | V-C-01 … V-C-19, C-19 | Style in code and in prose - the shared VULCAN base, plus dates |
 
 ---
 
@@ -120,8 +120,8 @@ Blocked: <what blocks, or "nothing">
 
 ## C - Code and writing
 
-The code and writing rules are the shared VULCAN base, `V-C-01` … `V-C-18` (`V-C-03` and `V-C-05` retired), in
-`packages/cli/base/rules.md` - IGNIS's own C rules, moved upstream verbatim. Cite them as `V-C-xx`.
+The code and writing rules are the shared VULCAN base, `V-C-01` … `V-C-19` (`V-C-03` and `V-C-05` retired), in
+`packages/cli/base/rules.md` - IGNIS's own C rules, moved upstream verbatim, and `V-C-19` added since. Cite them as `V-C-xx`. The bare `C-19` below is this repository's own rule (ISO dates) and is not `V-C-19`.
 
 | ID | Rule |
 |---|---|
