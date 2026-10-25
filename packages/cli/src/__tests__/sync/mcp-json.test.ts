@@ -256,3 +256,34 @@ describe('agents remove takes .mcp.json back when no remaining agent reads it', 
     expect(readFileSync(join(root, '.mcp.json'), 'utf8')).toBe(text);
   });
 });
+
+describe('doctor on an untracked .mcp.json', () => {
+  const WARNING = 'warning [mcp] .mcp.json: untracked and not ignored';
+
+  test('a synced clone hides it, so there is no warning', () => {
+    const root = repo();
+
+    sync({ root, agents: 'omp' });
+
+    expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain(WARNING);
+  });
+
+  test('warns when nothing ignores it, and stops once .gitignore lists it', () => {
+    const root = repo();
+
+    sync({ root, agents: 'omp' });
+    writeFileSync(join(root, '.git/info/exclude'), '');
+
+    expect(runCli({ args: ['doctor'], cwd: root }).stderr).toContain(WARNING);
+
+    writeFileSync(join(root, '.gitignore'), '/.mcp.json\n');
+
+    expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain(WARNING);
+  });
+
+  test('a project that is not a git repository gets no warning', () => {
+    const root = createProject({ files: { ...PROJECT, '.mcp.json': '{}\n' } });
+
+    expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain(WARNING);
+  });
+});
