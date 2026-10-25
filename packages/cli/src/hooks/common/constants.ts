@@ -12,6 +12,8 @@ export class HookConstants {
   /** `ask` until the transcript shows the guard does not over-fire; a false positive costs one keystroke. */
   static readonly GUARD_DECISION = GuardDecisions.ASK;
   static readonly PRE_TOOL_USE = 'PreToolUse';
+  /** Cursor sets it for every hook it runs, including the Claude hooks it imports; Claude Code never does. */
+  static readonly CURSOR_PROJECT_DIR_ENV = 'CURSOR_PROJECT_DIR';
   static readonly SUBAGENT_START = 'SubagentStart';
   /** `git` and `gh` queries the guards make; a slow one is dropped and the command passes. */
   static readonly QUERY_TIMEOUT_MS = 5000;

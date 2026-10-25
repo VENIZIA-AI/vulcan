@@ -73,10 +73,14 @@
     "skills": {
       "dir": ".agents/skills"
     },
-    "guards": null,
+    "guards": {
+      "kind": "codex-hooks",
+      "path": ".codex/hooks.json"
+    },
     "instructionsSurfaced": true,
     "notes": [
-      "Codex loads .codex/config.toml only for trusted projects: trust this project in Codex."
+      "Codex loads .codex/config.toml only for trusted projects: trust this project in Codex.",
+      "Codex runs the guard hook of .codex/hooks.json only after you review and trust it in /hooks."
     ]
   },
   {

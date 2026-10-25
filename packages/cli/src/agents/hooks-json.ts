@@ -1,3 +1,5 @@
+import { RemoveOutcomes } from './common/index.ts';
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -81,8 +83,8 @@ export const mergeGuardHook = (opts: { text: string | undefined }): THooksMerge 
 };
 
 export type THooksRemoval =
-  | { ok: true; outcome: 'absent' }
-  | { ok: true; outcome: 'removed'; text: string | undefined }
+  | { ok: true; outcome: typeof RemoveOutcomes.ABSENT }
+  | { ok: true; outcome: typeof RemoveOutcomes.REMOVED; text: string | undefined }
   | { ok: false; reason: string };
 
 /** The hooks file without VULCAN's entry; `text` is undefined when nothing else was in it. */
@@ -94,7 +96,7 @@ export const removeGuardHook = (opts: { text: string }): THooksRemoval => {
   }
 
   if (!Object.hasOwn(parsed.hooks, GUARD_HOOK_NAME)) {
-    return { ok: true, outcome: 'absent' };
+    return { ok: true, outcome: RemoveOutcomes.ABSENT };
   }
 
   const others = Object.fromEntries(
@@ -103,7 +105,7 @@ export const removeGuardHook = (opts: { text: string }): THooksRemoval => {
 
   return {
     ok: true,
-    outcome: 'removed',
+    outcome: RemoveOutcomes.REMOVED,
     text: Object.keys(others).length === 0 ? undefined : `${JSON.stringify(others, null, 2)}\n`,
   };
 };

@@ -295,10 +295,13 @@ describe('parse and decision', () => {
     const deny = buildPackageDecision({ verdict: { kind: 'deny', message: 'use add' } });
     const warn = buildPackageDecision({ verdict: { kind: 'warn', message: 'ask the user' } });
 
-    expect(deny.hookSpecificOutput.permissionDecision).toBe('deny');
-    expect(deny.hookSpecificOutput.permissionDecisionReason).toBe('use add');
-    expect(warn.hookSpecificOutput.additionalContext).toBe('ask the user');
-    expect(warn.hookSpecificOutput).not.toHaveProperty('permissionDecision');
+    const denied: Record<string, unknown> = deny.hookSpecificOutput;
+    const warned: Record<string, unknown> = warn.hookSpecificOutput;
+
+    expect(denied.permissionDecision).toBe('deny');
+    expect(denied.permissionDecisionReason).toBe('use add');
+    expect(warned.additionalContext).toBe('ask the user');
+    expect(warned).not.toHaveProperty('permissionDecision');
   });
 });
 

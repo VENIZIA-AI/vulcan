@@ -1,5 +1,6 @@
 import { HookConstants } from './common/index.ts';
 import type { IWriteHit } from './common/index.ts';
+import { forHost } from './decision.ts';
 import { optionTakesNextWord, programOf } from './shell.ts';
 
 // -----------------------------------------------------------------------------
@@ -948,15 +949,18 @@ export const inspectRemoteCommand = (opts: {
   return hits;
 };
 
-export const buildRemoteDecision = (opts: { hits: IWriteHit[] }) => ({
-  hookSpecificOutput: {
-    hookEventName: HookConstants.PRE_TOOL_USE,
-    permissionDecision: HookConstants.GUARD_DECISION,
-    permissionDecisionReason: [
-      'This command may reach a remote host the project has not listed:',
-      ...opts.hits.map((hit) => `  - ${hit.message}`),
-      '',
-      'Read on the host, never edit, restart or copy onto it. Produce the command and hand it over.',
-    ].join('\n'),
-  },
-});
+export const buildRemoteDecision = (opts: { hits: IWriteHit[] }) =>
+  forHost({
+    output: {
+      hookSpecificOutput: {
+        hookEventName: HookConstants.PRE_TOOL_USE,
+        permissionDecision: HookConstants.GUARD_DECISION,
+        permissionDecisionReason: [
+          'This command may reach a remote host the project has not listed:',
+          ...opts.hits.map((hit) => `  - ${hit.message}`),
+          '',
+          'Read on the host, never edit, restart or copy onto it. Produce the command and hand it over.',
+        ].join('\n'),
+      },
+    },
+  });
