@@ -13,6 +13,7 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 | Session digest (`session-start`) | `SessionStart` | `startup\|resume\|clear\|compact` | Quotes base write rules (`V-W-*`), slot choices, and often-dropped rules to stdout | Fires on session start, resume, clear, or compact |
 | `guard-writes` | `PreToolUse` | `Bash` | Prompts for human confirmation before database writes and cluster deployments | Fires on every Bash tool command |
 | `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes and `git branch -D` of an unmerged branch | Fires on every Bash command; only those git and gh actions are flagged |
+| `guard-scripting` | `PreToolUse` | `Bash` | Adds one line of advice when a command runs `python`, `python3` or `pip`: agent scripting uses bun by default, another language is fine when the task needs it (`V-B-09`); it never asks and never blocks | Fires on every Bash command; only a command that runs one of those programs gets the line |
 | `guard-outside` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
 | `subagent-start` | `SubagentStart` | all | Adds a small rules card (about 250 tokens) to every subagent's context | Fires when a subagent starts |
 | `stop` | `Stop` | all | Checks the reply that just ended against the owner's report shape and logs the faults by class and date | Fires when a reply ends; does nothing when `enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off` |
@@ -59,8 +60,8 @@ The "Atlas" block, three lines under the title, appears only when the `.mcp.json
 
 The section titled "The rules sessions drop most" repeats rules that sessions overlook most frequently.
 These rule identifiers come from the `digest.oftenDropped` configuration key.
-The default list contains ten base rules:
-`V-P-07`, `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-W-04`, `V-C-02`, `V-C-10`, `V-P-08`, and `V-B-07`.
+The default list contains eleven base rules:
+`V-P-07`, `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-W-04`, `V-C-02`, `V-C-10`, `V-P-08`, `V-B-07`, and `V-B-09`.
 
 To change which rules appear, define `digest.oftenDropped` in `.configs/vulcan.config.mts`:
 
@@ -125,6 +126,16 @@ The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `
 `git push -fu`, `git branch -m develop x`, `git update-ref -d refs/heads/develop` and `git push --mirror` are read too. A heredoc body (a commit message passed with `<<'EOF'`) is data and is not read as commands; a body fed to a shell (`bash <<EOF`) is not read at all.
 
 The branch checks run read-only `git` and `gh` queries with a five-second limit; a query that fails or times out lets the command pass. Input the hook cannot read passes too. `VULCAN_GUARDS=off` in the environment switches the guard off for a session; it is read before any module is loaded, so it still works when an install is broken and the guard cannot start.
+
+## guard-scripting
+
+`V-B-09` says agent scripting uses bun by default and allows another language when the task needs it. The `guard-scripting` hook is a reminder, not a gate: when a Bash command runs `python`, `python3` (any `python3.x`), `pip` or `pip3` it adds one line to the model's context and lets the call through:
+
+```text
+V-B-09: agent scripting uses bun by default (bun -e, bun file.ts, Bun.file()). Python or another language is fine when the task needs it (an existing project script, a tool only that language has); say so in one line when you use it.
+```
+
+It reads the command with the shell parser of `guard-git`, so only a program that is run counts: `python3 fix.py`, `cd src && python3 x.py`, `cat a | python3 -c ...`, `sudo python3 x.py` and `sh -c "python3 x.py"` get the line, while `echo python3`, `grep python3 packages`, a commit message that names python and a heredoc body do not. It never asks, never denies, and does not look at what a script does. It fails open and honours `VULCAN_GUARDS=off`. The rule `V-B-09` is in the default `digest.oftenDropped` list, so the session digest repeats it.
 
 ## guard-outside
 
@@ -196,7 +207,7 @@ Two kinds of hook run in every session of every project, so each kind has a stat
 | Kind | Hooks | When it cannot run (missing package, missing `bun`, a crash) |
 |---|---|---|
 | Safety hooks | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
-| Drift guards | `guard-git`, `guard-outside` | fail open: the call passes and a note goes to stderr |
+| Drift guards | `guard-git`, `guard-scripting`, `guard-outside` | fail open: the call passes and a note goes to stderr |
 | Shape and signal hooks | `stop`, `prompt-submit`, `post-tool` | fail open: the reply, prompt or call passes and a note goes to stderr |
 
 `subagent-start` never blocks. `VULCAN_GUARDS=off` switches the drift guards, the shape hooks and `post-tool` off and is read before any module loads.
