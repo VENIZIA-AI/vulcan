@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-25 | [VULCAN 0.4.4: The Guards Read Past a Wrapper's Own Options Correctly](./2026-10-25-vulcan-0-4-4-wrapper-flags) | Bug Fix |
 | 2026-10-25 | [VULCAN 0.4.4: Agent Scripting Uses Bun by Default, and a Hook Reminds](./2026-10-25-vulcan-0-4-4-scripting-advice) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.4: Labels Follow the Reader's Language](./2026-10-25-vulcan-0-4-4-labels-follow-the-reader) | Bug Fix |
 | 2026-10-25 | [VULCAN 0.4.4: A Session Whose Reader Is an Agent Is Not Held to the Owner's Shape](./2026-10-25-vulcan-0-4-4-owner-reply-off-for-agent-readers) | New Feature |
