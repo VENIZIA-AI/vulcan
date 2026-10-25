@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { BASE_DIRECTORY } from '../common/index.ts';
 import {
   AgentConstants,
   AgentRenderers,
@@ -138,24 +139,78 @@ const planSharedMcp = (opts: { root: string }): ISyncAction[] => {
   ];
 };
 
-/** The MCP files of every chosen agent, in table order; the shared `.mcp.json` once, at its first reader. */
+/**
+ * The guard extension of an agent that takes one (omp, pi): the shipped template, copied into the folder the
+ * agent loads extensions from. A file that does not start with sync's marker is the user's own, and a file
+ * git tracks belongs to the project: both are left alone and the line says so.
+ */
+const planAgentGuards = (opts: { root: string; entry: TAgentEntry }): ISyncAction[] => {
+  if (opts.entry.guards === null) {
+    return [];
+  }
+
+  const path = join(opts.root, opts.entry.guards.path);
+  const text = readFileSync(join(BASE_DIRECTORY, AgentConstants.GUARD_EXTENSION_TEMPLATE), 'utf8');
+  const before = existsSync(path) ? readFileSync(path, 'utf8') : undefined;
+
+  if (before === text) {
+    return [{ path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE }];
+  }
+
+  if (before !== undefined && !before.startsWith(AgentConstants.GUARD_EXTENSION_MARKER)) {
+    return [
+      {
+        path,
+        status: SyncStatuses.SKIPPED,
+        note: `a file of your own is there - left alone; copy node_modules/@venizia/vulcan/base/${AgentConstants.GUARD_EXTENSION_TEMPLATE} over it to add the guards`,
+        apply: NO_CHANGE,
+      },
+    ];
+  }
+
+  if (before !== undefined && isTracked({ root: opts.root, path: opts.entry.guards.path })) {
+    return [
+      {
+        path,
+        status: SyncStatuses.SKIPPED,
+        note: 'tracked by git - left alone; copy the shipped extension over it to update the guards',
+        apply: NO_CHANGE,
+      },
+    ];
+  }
+
+  return [
+    {
+      path,
+      status: before === undefined ? SyncStatuses.CREATED : SyncStatuses.REPLACED,
+      apply: () => {
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(path, text);
+      },
+    },
+  ];
+};
+
+/** The MCP files and guard extensions of every chosen agent, in table order; the shared `.mcp.json` once, at its first reader. */
 export const planAgentFiles = (opts: { root: string; agents: string[] }): ISyncAction[] => {
   let sharedPlanned = false;
 
   return readAgentTable()
     .filter((entry) => opts.agents.includes(entry.id))
     .flatMap((entry) => {
+      const guards = planAgentGuards({ root: opts.root, entry });
+
       if (entry.mcp.scope === AgentScopes.PROJECT) {
-        return planAgentMcp({ root: opts.root, entry });
+        return [...planAgentMcp({ root: opts.root, entry }), ...guards];
       }
 
       if (sharedPlanned) {
-        return [];
+        return guards;
       }
 
       sharedPlanned = true;
 
-      return planSharedMcp({ root: opts.root });
+      return [...planSharedMcp({ root: opts.root }), ...guards];
     });
 };
 

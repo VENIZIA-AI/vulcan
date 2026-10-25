@@ -342,6 +342,25 @@ The guard asks. It blocks only when it cannot run.
 
 See [remote-host-guard](/references/hooks/remote-host-guard) for host pattern syntax and inspection rules.
 
+## The guards on omp and pi
+
+omp and pi take extensions instead of hook commands, so `vulcan sync` writes one file for each of the two you choose (`.omp/hooks/pre/vulcan-guards.ts`, `.pi/extensions/vulcan-guards.ts`; the content is `base/extensions/vulcan-guards.ts`, and its first line is how `sync` knows the file is its own). Before each `bash`, `write` and `edit` call the file runs the guard scripts of the Claude settings (`guard-writes`, `guard-manifest`, `guard-package`, `guard-git`, `guard-outside`; each for the tools its `matcher` names) with a Claude-shaped event on stdin and reads the `permissionDecision` of the answer:
+
+| Answer | omp or pi |
+|---|---|
+| `deny` | the call is blocked with the guard's reason |
+| `ask` | the owner is asked; with no UI (a print-mode run) the call is blocked and says to hand it to the owner |
+| no output | the call runs |
+| a safety guard (`guard-writes`, `guard-manifest`, `guard-package`) that crashes, times out (30 s) or whose script is missing | blocked, bar a bare `bun install` when the install is missing |
+| `guard-git` or `guard-outside` that crashes or times out | asks, as the Claude wrappers do |
+| `guard-git` or `guard-outside` whose script is missing | the call runs |
+
+`VULCAN_GUARDS=off` is read by the guard scripts, so it switches the guards off here too. `guard-scripting` (advice) and `guard-remote-hosts` are not run on these two agents.
+
+omp skips files git ignores when it looks for extensions, `.git/info/exclude` included, and `sync` hides its files that way, so the omp file is a hook (`.omp/hooks/pre/`), which loads either way. Pi loads project extensions only after you trust the project.
+
+**Checked on 2026-10-25, on a Linux laptop, in a scratch project with a local bare remote:** omp 18.8.9 with a real model refused `git push -f origin main` (`V-W-06`) and a write outside the project (`V-B-08`) and ran `git status`; before the file existed the same push reached git and the same write happened. Pi 1.4.0 had no provider credentials there, so a real pi session was driven with pi's own scripted faux provider, and the file in `.pi/extensions/` refused the same two calls. **Not verified:** pi with a real model and through its project-trust prompt on the command line, the dialog an `ask` opens in a real terminal, tools other than `bash`, `write` and `edit` (omp's `python` and `notebook`, pi's `powershell`), and Windows. Codex, Cursor, both Copilots and Antigravity are not wired yet.
+
 ## See also
 
 - [Rules](/references/rules)

@@ -8,7 +8,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import {
   AgentConstants,
   AgentRenderers,
@@ -27,7 +27,7 @@ import { isSettingsObject, removeManagedSettings } from './settings.ts';
 const NO_CHANGE = (): void => {};
 const CLAUDE_SKILLS = join(SyncConstants.CLAUDE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY);
 /** Parents sync may delete once empty: its own agent folders, never `.agents` or the project. */
-const OWN_FOLDERS = new Set(['.cursor', '.codex', '.pi', '.vscode', '.claude']);
+const OWN_FOLDERS = new Set(['.cursor', '.codex', '.pi', '.omp', '.vscode', '.claude']);
 
 const isSymlink = (opts: { path: string }): boolean =>
   lstatSync(opts.path, { throwIfNoEntry: false })?.isSymbolicLink() ?? false;
@@ -124,6 +124,51 @@ const planSharedMcpRemoval = (opts: { root: string }): ISyncAction[] => {
           apply: () => writeFileSync(path, removed.text ?? ''),
         },
       ];
+};
+
+/** The guard extension sync wrote, taken back with its folders once they are empty; a file of the user's stays. */
+const planGuardsRemoval = (opts: { root: string; entry: TAgentEntry }): ISyncAction[] => {
+  if (opts.entry.guards === null) {
+    return [];
+  }
+
+  const path = join(opts.root, opts.entry.guards.path);
+
+  if (
+    !existsSync(path) ||
+    !readFileSync(path, 'utf8').startsWith(AgentConstants.GUARD_EXTENSION_MARKER)
+  ) {
+    return [];
+  }
+
+  if (isTracked({ root: opts.root, path: opts.entry.guards.path })) {
+    return [
+      { path, status: SyncStatuses.SKIPPED, note: 'tracked by git - left alone', apply: NO_CHANGE },
+    ];
+  }
+
+  return [
+    {
+      path,
+      status: SyncStatuses.REMOVED,
+      apply: () => {
+        rmSync(path, { force: true });
+
+        // The folders the file sat in, innermost first, up to and including the agent's own folder.
+        let directory = dirname(path);
+
+        while (directory.startsWith(`${opts.root}/`)) {
+          removeIfEmpty({ path: directory });
+
+          if (OWN_FOLDERS.has(basename(directory))) {
+            break;
+          }
+
+          directory = dirname(directory);
+        }
+      },
+    },
+  ];
 };
 
 const planMcpRemoval = (opts: { root: string; entry: TAgentEntry }): ISyncAction[] => {
@@ -276,6 +321,7 @@ export const planAgentRemoval = (opts: {
     }
 
     actions.push(...planMcpRemoval({ root: opts.root, entry }));
+    actions.push(...planGuardsRemoval({ root: opts.root, entry }));
 
     if (entry.mcp.scope === AgentScopes.SHARED && !stillReadsShared && !sharedDone) {
       sharedDone = true;

@@ -22,6 +22,7 @@
     "skills": {
       "dir": ".claude/skills"
     },
+    "guards": null,
     "instructionsSurfaced": true,
     "notes": []
   },
@@ -44,6 +45,10 @@
     },
     "skills": {
       "dir": ".agents/skills"
+    },
+    "guards": {
+      "kind": "extension",
+      "path": ".omp/hooks/pre/vulcan-guards.ts"
     },
     "instructionsSurfaced": true,
     "notes": []
@@ -68,6 +73,7 @@
     "skills": {
       "dir": ".agents/skills"
     },
+    "guards": null,
     "instructionsSurfaced": true,
     "notes": [
       "Codex loads .codex/config.toml only for trusted projects: trust this project in Codex."
@@ -93,6 +99,7 @@
     "skills": {
       "dir": ".agents/skills"
     },
+    "guards": null,
     "instructionsSurfaced": null,
     "notes": []
   },
@@ -116,6 +123,7 @@
     "skills": {
       "dir": ".agents/skills"
     },
+    "guards": null,
     "instructionsSurfaced": null,
     "notes": []
   },
@@ -139,6 +147,7 @@
     "skills": {
       "dir": ".agents/skills"
     },
+    "guards": null,
     "instructionsSurfaced": null,
     "notes": []
   },
@@ -162,6 +171,7 @@
     "skills": {
       "dir": ".agents/skills"
     },
+    "guards": null,
     "instructionsSurfaced": false,
     "notes": []
   },
@@ -184,6 +194,10 @@
     },
     "skills": {
       "dir": ".agents/skills"
+    },
+    "guards": {
+      "kind": "extension",
+      "path": ".pi/extensions/vulcan-guards.ts"
     },
     "instructionsSurfaced": "partial",
     "notes": [
