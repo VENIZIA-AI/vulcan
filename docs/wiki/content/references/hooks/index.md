@@ -111,6 +111,8 @@ It stays silent for a `package.json` that already exists, anything under `node_m
 
 ## guard-git
 
+The guards that read a command (`guard-git`, `guard-outside`, `guard-scripting`, `guard-remote-hosts`) look past the wrappers `sudo`, `doas`, `env`, `nice`, `ionice`, `nohup`, `setsid`, `exec`, `command`, `time`, `timeout`, `watch`, `stdbuf` and `xargs`, and past each one's own options with the right meaning for that wrapper: `-n` takes a value for `nice` and `xargs` and is a switch for `sudo`, `-E` is a switch for `sudo` and takes a value for `xargs`, `timeout 5` takes a duration. So `sudo -E git push -f origin main`, `timeout 5 git push -f origin main` and `env -i git push -f origin main` are read as the `git` push they are. `env -S "..."` (a command line in one word) is not read.
+
 The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `$(...)`, `sh -c`, `git -C <dir>`), not with substring matching, so `git commit -m "never push --force"` and `echo git branch -D develop` pass.
 
 | Command | Answer |
@@ -135,7 +137,7 @@ The branch checks run read-only `git` and `gh` queries with a five-second limit;
 V-B-09: agent scripting uses bun by default (bun -e, bun file.ts, Bun.file()). Python or another language is fine when the task needs it (an existing project script, a tool only that language has); say so in one line when you use it.
 ```
 
-It reads the command with the shell parser of `guard-git`, so only a program that is run counts: `python3 fix.py`, `cd src && python3 x.py`, `cat a | python3 -c ...`, `sudo python3 x.py` and `sh -c "python3 x.py"` get the line, while `echo python3`, `grep python3 packages`, a commit message that names python and a heredoc body do not. It never asks, never denies, and does not look at what a script does. It sees the program a command runs, not one a wrapper it does not know starts (`timeout 5 python3`, `watch`, `uv run python`, `ssh host python3`, `docker run image python3`), and `command -v python3` is a check, not a run. It fails open and honours `VULCAN_GUARDS=off`. The rule `V-B-09` is in the default `digest.oftenDropped` list, so the session digest repeats it.
+It reads the command with the shell parser of `guard-git`, so only a program that is run counts: `python3 fix.py`, `cd src && python3 x.py`, `cat a | python3 -c ...`, `sudo python3 x.py` and `sh -c "python3 x.py"` get the line, while `echo python3`, `grep python3 packages`, a commit message that names python and a heredoc body do not. It never asks, never denies, and does not look at what a script does. It sees the program a command runs, past `sudo`, `doas`, `env`, `nice`, `ionice`, `nohup`, `setsid`, `exec`, `command`, `time`, `timeout`, `watch`, `stdbuf` and `xargs`, but not one a program it does not know starts (`uv run python`, `ssh host python3`, `docker run image python3`), and `command -v python3` is a check, not a run. It fails open and honours `VULCAN_GUARDS=off`. The rule `V-B-09` is in the default `digest.oftenDropped` list, so the session digest repeats it.
 
 ## guard-outside
 
