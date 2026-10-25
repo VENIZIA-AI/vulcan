@@ -89,7 +89,7 @@ const BASH_INPUT = (command: string): string =>
 
 // Claude Code blocks a PreToolUse call only on exit 2; any other failure lets the call through.
 describe('the drift guards fail open', () => {
-  test('with node_modules absent or bun missing, guard-git and guard-outside pass the call and say so', () => {
+  test('with node_modules absent or bun missing, every drift guard and shape hook passes the call and says so', () => {
     const root = makeRoot();
 
     expect(openHooks().length).toBe(7);

@@ -115,6 +115,8 @@ describe('the guard-scripting hook', () => {
     'grep -rn python3 packages',
     'cat <<EOF\npython3 x.py\nEOF',
     'ls pythonic',
+    'command -v python3',
+    'command -v python3 >/dev/null && echo yes',
     'pipx --version',
     'bun add pip-tools',
   ])('is silent for %s: a mention is not a run', async (command) => {
