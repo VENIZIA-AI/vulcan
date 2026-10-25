@@ -92,7 +92,7 @@ work around it. End the turn on the preview.
 
 ## 5. Handoff
 
-A handoff is by pointer. Write a short file in `.agents/local/reports/` with:
+A handoff is by pointer. Where the work has a work item (`node_modules/@venizia/vulcan/base/references/work-item.md`) the handoff is an update of the item: state, evidence stubs on the criteria ticked, what is open, what is not verified, and a lane's done report goes on the item. Where it has none, write a short file in `.agents/local/reports/` with:
 
 - the goal, in the owner's words, and the state in one paragraph;
 - pointers, not copies: the card, the ledger, the commits, the pull request, the files that matter;

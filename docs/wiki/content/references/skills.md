@@ -10,7 +10,7 @@ description: The skills VULCAN ships to every project - what each is for, when a
 | Skill | Use it when | What it produces |
 |---|---|---|
 | `build-a-feature` | You build, add or implement something, or ask how a feature would be built | A reviewed, tested change, every convention and API looked up in atlas |
-| `plan-a-change` | You plan, scope or spec a change, or the work is more than a small obvious edit | A card the owner approves before any work: goal in their words, claims each with a probe, out of scope, docs impact, and the slices |
+| `plan-a-change` | You plan, scope or spec a change, or the work is more than a small obvious edit | A card the owner approves before any work: goal in their words, claims each with a probe, out of scope, docs impact, and the slices, written in lane L as work items a person can read and a fresh agent can do |
 | `fix-a-bug` | Something is broken, throwing, failing, slow or different from what it should do | A fast deterministic way to see the bug fail first, then a fix proven by a regression test |
 | `review-a-change` | You review a change or pull request, or merge work that touches many files, the rules or security | Findings on separate axes (spec, standards, security), each verified against the code and dispositioned |
 | `report-back` | You report, finish a task, ask for approval or pass work on | A done report, an owner status in the project's reply shape, a preview before an action, or a handoff |
@@ -35,6 +35,7 @@ Detail that several skills share lives in `node_modules/@venizia/vulcan/base/ref
 | `evidence.md` | The evidence each kind of claim needs, and the probe kinds a card names | `plan-a-change`, `report-back` |
 | `delegation-brief.md` | The brief a subagent gets, the four statuses, liveness, parallel work | the delegation rule `V-P-12`, `plan-a-change`, `build-a-feature`, `review-a-change` |
 | `phase-boundaries.md` | Continue, clear, hand off, subagent or compact: the order of questions | `report-back` |
+| `work-item.md` | The work item: a tracker-neutral template (nine fixed English headings, the body in the project's `owner.language`), the writing rules, the self-check for "ready for an agent" | `plan-a-change`, `report-back`, `ship`, the delegation brief |
 
 `docs-writing` also carries `references/agent-documents.md`: the method for a document an agent reads (a skill, a rules file, `AGENTS.md`).
 

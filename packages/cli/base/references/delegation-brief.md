@@ -11,7 +11,7 @@ judgment with the main agent, which re-checks what comes back.
 A brief is built only from files you read this turn, never from memory. It holds:
 
 1. **The goal**, in one paragraph, and the claim or claims this piece of work serves.
-2. **Pointers**, not pasted text: the paths of the card, the notes and the files to read.
+2. **Pointers**, not pasted text: a work item first (`node_modules/@venizia/vulcan/base/references/work-item.md`; a tracker reference or its file), then the card, the notes and the files to read. When the work has an item the brief never restates it: the item holds the goal, the criteria and what is out of scope, and the brief adds only the rules, the limits and the format to return.
 3. **The rules**: the digest reaches the subagent through the tool's subagent-start hook where one
    exists; otherwise name the rule IDs it must keep.
 4. **Limits**: read-only unless the brief says otherwise; **no git writes**; every file it creates goes
@@ -72,7 +72,8 @@ you.
 
 Start it with `VULCAN_OWNER_REPLY=off` on the command that starts it (`VULCAN_OWNER_REPLY=off claude -p ...`), never with `export`, which reaches every later session started from that shell. Only the exact value `off` counts. The
 session then gets no owner shape card and no profile card, and its replies are not checked, logged or
-blocked; everything else (the guards, the rules, the signals) stays on. Say in the brief which plain
+blocked; everything else (the guards, the rules, the signals) stays on. A session started for one piece of
+work is handed the item and the format ("take item X, return as Y"), not a long message. Say in the brief which plain
 format you want back (the four statuses and the evidence table above are the default), in the language
 you work in. Never set it in a shell the owner works in, or in the `env` of a settings file: `vulcan doctor` prints a
 note when it is set in the shell that runs it and a warning when a Claude Code settings file sets it.

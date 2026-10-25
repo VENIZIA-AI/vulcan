@@ -79,4 +79,4 @@ Where the tool has a dry run, run it first and show it; then run the real action
 ## 5. Hand over
 
 End with the `report-back` skill: a done report, or a handoff by pointer when the work passes to another
-session (the card, the commits and the pull request by path or link, never copied).
+session (the card, the commits and the pull request by path or link, never copied). Where the work has a work item, the pull request closes it, its acceptance criteria are the checklist, and the item is updated rather than a local file written.
