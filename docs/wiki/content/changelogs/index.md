@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-25 | [VULCAN 0.4.4: The Last-Reply Reminder Is Kept Per Session](./2026-10-25-vulcan-0-4-4-reply-note-per-session) | Bug Fix |
 | 2026-10-25 | [VULCAN 0.4.3: Syncing a Project Inside a Repository No Longer Wipes the Repository's Ignore List](./2026-10-25-vulcan-0-4-3-exclude-block-per-project) | Bug Fix |
 | 2026-10-25 | [VULCAN 0.4.2: Symbols in Your Own Status Words Are Not an Emoji Fault](./2026-10-25-vulcan-0-4-2-status-symbols) | Bug Fix |
 | 2026-10-25 | [VULCAN 0.4.1: The Report Shape Is Checked After Every Reply](./2026-10-25-vulcan-0-4-1-owner-shape-checks) | New Feature |

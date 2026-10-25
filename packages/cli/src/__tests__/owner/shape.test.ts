@@ -1,5 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import {
   checkOwnerShape,
@@ -312,6 +320,63 @@ describe('the violation log', () => {
     recordReply({ root, classes: [ShapeClasses.EMOJI], now: new Date('2026-10-25T10:00:00Z') });
 
     expect(readLastClasses({ root, now: new Date('2026-10-25T10:31:00Z').getTime() })).toEqual([]);
+  });
+
+  test('the notes are one file per session, bounded by age and by count, and the old one-file note goes', () => {
+    const root = project();
+    const notes = join(root, '.agents/local/cache/replies');
+    const legacy = join(root, '.agents/local/last-reply.json');
+
+    writeFileSync(legacy, '{"at":1,"classes":["emoji"]}\n');
+
+    recordReply({ root, classes: ['emoji'], session: 'old' });
+
+    const stale = new Date(Date.now() - 31 * 60 * 1000);
+
+    utimesSync(join(notes, readdirSync(notes)[0] ?? ''), stale, stale);
+    recordReply({ root, classes: [], session: 'new' });
+
+    expect(existsSync(legacy)).toBe(false);
+    expect(readdirSync(notes)).toHaveLength(1);
+    expect(readdirSync(notes)[0]).toMatch(/^new-[0-9a-f]{8}\.json$/);
+
+    for (let index = 0; index < 40; index += 1) {
+      recordReply({ root, classes: [], session: `many-${index}` });
+    }
+
+    expect(readdirSync(notes).length).toBeLessThanOrEqual(32);
+    expect(readdirSync(notes).some((name) => name.startsWith('many-39-'))).toBe(true);
+  });
+
+  test('ids that reduce to the same characters, or share a long prefix, keep separate notes', () => {
+    const root = project();
+    const long = 'x'.repeat(80);
+
+    recordReply({ root, classes: ['emoji'], session: 'a/b' });
+    recordReply({ root, classes: [], session: 'a_b' });
+    recordReply({ root, classes: ['shouting'], session: `${long}1` });
+    recordReply({ root, classes: [], session: `${long}2` });
+    recordReply({ root, classes: ['emoji'], session: 'default' });
+    recordReply({ root, classes: [] });
+
+    expect(readLastClasses({ root, session: 'a/b' })).toEqual(['emoji']);
+    expect(readLastClasses({ root, session: 'a_b' })).toEqual([]);
+    expect(readLastClasses({ root, session: `${long}1` })).toEqual(['shouting']);
+    expect(readLastClasses({ root, session: `${long}2` })).toEqual([]);
+    expect(readLastClasses({ root, session: 'default' })).toEqual(['emoji']);
+    expect(readLastClasses({ root })).toEqual([]);
+  });
+
+  test('a symlinked note folder is never written through', () => {
+    const root = project();
+    const outside = createProject({ files: { 'victim.txt': 'keep' } });
+
+    mkdirSync(join(root, '.agents/local/cache'));
+    symlinkSync(outside, join(root, '.agents/local/cache/replies'));
+    recordReply({ root, classes: ['emoji'], session: 'a' });
+
+    expect(readdirSync(outside)).toEqual(['victim.txt']);
+    expect(readLastClasses({ root, session: 'a' })).toEqual([]);
   });
 
   test('counts by class across the log, skipping damaged lines and unknown classes', () => {

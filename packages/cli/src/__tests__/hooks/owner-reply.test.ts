@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildPromptContract, buildStopOutput } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -8,8 +8,16 @@ import { spawnSyncBounded } from '../spawn.helper.ts';
 afterAll(removeProjects);
 
 /** A Stop event; the wire names stay behind string-literal access. */
-const reply = (opts: { text: unknown; isRetry?: boolean }): Record<string, unknown> => {
+const reply = (opts: {
+  text: unknown;
+  isRetry?: boolean;
+  session?: string;
+}): Record<string, unknown> => {
   const event: Record<string, unknown> = {};
+
+  if (opts.session !== undefined) {
+    event['session_id'] = opts.session;
+  }
 
   event['last_assistant_message'] = opts.text;
   event['stop_hook_active'] = opts.isRetry === true;
@@ -152,6 +160,68 @@ describe('buildStopOutput', () => {
 
     expect(output).toBeUndefined();
     expect(logOf(root)).toContain('emoji');
+  });
+});
+
+describe('two sessions in one project', () => {
+  test("a session's next prompt reports its own last reply, not the one that stopped last", async () => {
+    const root = project('advise');
+
+    await buildStopOutput({ projectRoot: root, input: reply({ text: BAD, session: 'lane-a' }) });
+    await buildStopOutput({ projectRoot: root, input: reply({ text: GOOD, session: 'lane-b' }) });
+
+    expect(await buildPromptContract({ projectRoot: root, session: 'lane-a' })).toContain(
+      'Your last reply broke it',
+    );
+    expect(await buildPromptContract({ projectRoot: root, session: 'lane-b' })).toBe(
+      'Owner reply contract: follow the report shape from the session rules.',
+    );
+    expect(await buildPromptContract({ projectRoot: root, session: 'lane-c' })).not.toContain(
+      'broke it',
+    );
+  });
+
+  test('the other order: the clean session stopping last does not hide the faulty one', async () => {
+    const root = project('advise');
+
+    await buildStopOutput({ projectRoot: root, input: reply({ text: GOOD, session: 'lane-b' }) });
+    await buildStopOutput({ projectRoot: root, input: reply({ text: BAD, session: 'lane-a' }) });
+
+    expect(await buildPromptContract({ projectRoot: root, session: 'lane-b' })).not.toContain(
+      'broke it',
+    );
+  });
+
+  test("one session's block does not stop a block in another, and each keeps its own cooldown", async () => {
+    const root = project('block');
+    const event = (session: string): Record<string, unknown> => {
+      const input = reply({ text: BAD, session });
+
+      delete input['stop_hook_active'];
+
+      return input;
+    };
+
+    expect((await buildStopOutput({ projectRoot: root, input: event('lane-a') }))?.decision).toBe(
+      'block',
+    );
+    expect((await buildStopOutput({ projectRoot: root, input: event('lane-b') }))?.decision).toBe(
+      'block',
+    );
+    expect(await buildStopOutput({ projectRoot: root, input: event('lane-a') })).toBeUndefined();
+    expect(await buildStopOutput({ projectRoot: root, input: event('lane-b') })).toBeUndefined();
+  });
+
+  test('a session id never leaves the note folder', async () => {
+    const root = project('advise');
+
+    await buildStopOutput({
+      projectRoot: root,
+      input: reply({ text: BAD, session: '../../../escape' }),
+    });
+
+    expect(existsSync(join(root, 'escape.json'))).toBe(false);
+    expect(readdirSync(join(root, '.agents/local/cache/replies'))).toHaveLength(1);
   });
 });
 
