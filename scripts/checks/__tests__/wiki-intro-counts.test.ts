@@ -55,4 +55,12 @@ describe('the numbers on the intro pages', () => {
     expect(page).toContain(`${real.skills} workflows`);
     expect(page).toContain(`An MCP server with ${real.tools} tools`);
   });
+
+  test('the root README states the same numbers', () => {
+    const real = counts();
+    const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
+
+    expect(readme).toContain(`**${real.rules} base rules**`);
+    expect(readme).toContain(`**${real.skills} skills`);
+  });
 });
