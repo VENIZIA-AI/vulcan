@@ -218,6 +218,38 @@ $ echo '{"tool_name":"Bash","tool_input":{"command":"kubectl apply -f deploy.yam
 {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"This command looks like an action the base rules reserve for a human:\n  - V-W-03: deploying or hot-applying to a cluster\n\nThe rules reject \"it is only dev\", \"it is only a test row\" and \"it is reversible\".\nProduce the script, the SQL or the manifest and hand it over instead of running it."}}
 ```
 
+### Trusted scripts
+
+`guard-writes` reads the body of a `bun <script>.ts` command and asks `V-W-02` when it finds a mutating fetch or a database write. A project's own CLI that calls its API would ask on every run, and neither `permissions.allow` (a hook ask wins over it) nor `remoteHosts` (ssh only) silences that. List the script instead, in `.configs/vulcan.config.*`:
+
+```ts
+export default {
+  guard: { writes: { trustedScripts: ['auroras/tools/i18n/cli.ts'] } },
+} satisfies VulcanConfig;
+```
+
+Entries are repo-relative `.ts` paths, no globs, an exact match resolved against the repo root (see [`guard`](/references/configuration/#guard)). A listed script skips the script-body check only while git tracks it and its working tree file, its index entry and `HEAD` hold the same bytes. Any other state runs the normal check, and the ask says why:
+
+| State | When | Ask text adds |
+|---|---|---|
+| trusted | tracked, and identical in the working tree, the index and `HEAD` | nothing: the body is not read |
+| modified | the working tree or the index differs from `HEAD`, or the merge is unresolved | `modified trusted script (...)` |
+| untracked | git does not track it | `it is not tracked by git` |
+| uncommitted | tracked, but not in the last commit yet | `it is not in the last commit yet` |
+| symlink | the path goes through a symlink, or the entry is one | `a symlink, which git does not follow` |
+| unknown | git is missing, slow or fails | `git could not say ...` or `git could not read the file` |
+| missing | the file does not exist | `the file does not exist` |
+
+The ask reads `<script> looks like it is ... (listed in guard.writes.trustedScripts, but not trusted: <reason>)`. The hook reads the list from the config on each call; a config that cannot be read leaves it empty, so every script is read. The checks on the command line itself (`curl -X POST`, `kubectl apply`, a migration, `psql`) still apply to a trusted script's command.
+
+`vulcan doctor` prints one info line per listed script with its state, and warns when a listed path does not exist, is untracked, is not committed yet, is a symlink or git cannot say.
+
+Limits, stated plainly:
+
+- The trust is committed and unchanged, not reviewed. A commit that edits the script and the config list is what your team reviews in a pull request.
+- The imports of a script are not read, trusted or not.
+- This is not a sandbox: see [what the guards are, and are not](#what-the-guards-are-and-are-not). Anything that must never run belongs in `permissions.deny`, the read-only slot of `V-W-01` or branch protection.
+
 ## stop and prompt-submit
 
 The two hooks hold the [report shape](/references/configuration/#owner) the session digest prints. `stop` runs `checkOwnerShape` on the last reply: a headline that is a sentence within the cap, the minimap table with the configured header and statuses, the Blocked line, the decisions list ending in the recommendation or exactly the none string, the order of the sections, and, as style faults, emoji, an all-caps phrase and a relative path where full paths are asked for. A reply under `report.shortReplyWords` is exempt; `0` checks every reply.

@@ -1,9 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { HookConstants } from './common/index.ts';
+import { TrustStates } from './common/index.ts';
 import type { IHookCommand, IWriteCheck, IWriteHit } from './common/index.ts';
 import { commandTextsOf } from './command-view.ts';
 import { forHost } from './decision.ts';
+import { listedScriptOf, trustOf } from './trusted-scripts.ts';
 
 const MUTATING_VERB = '(?:POST|PUT|PATCH|DELETE)';
 
@@ -75,8 +77,17 @@ const readScript = (opts: { target: string; cwd: string }): string | undefined =
   return existsSync(path) ? readFileSync(path, 'utf8') : undefined;
 };
 
-/** Every reason `command` looks like a write the base rules reserve for a human (V-W-02, V-W-03). */
-export const inspectCommand = (opts: { command: string; cwd: string }): IWriteHit[] => {
+/**
+ * Every reason `command` looks like a write the base rules reserve for a human (V-W-02, V-W-03).
+ * `trust` lists the scripts the project vouches for (`guard.writes.trustedScripts`, repo-relative, under
+ * `root`): a listed script that is tracked and identical to HEAD skips the script checks only. The checks
+ * on the command line itself always run, and a listed script that git says changed is checked like any other.
+ */
+export const inspectCommand = (opts: {
+  command: string;
+  cwd: string;
+  trust?: { root: string; scripts: string[] };
+}): IWriteHit[] => {
   // The patterns run on what the command runs, not on its text: a heredoc written to a file, the pattern
   // of an `rg` and a commit message are data.
   const texts = commandTextsOf({ command: opts.command, withMessages: true });
@@ -94,8 +105,29 @@ export const inspectCommand = (opts: { command: string; cwd: string }): IWriteHi
       continue;
     }
 
+    const listed =
+      opts.trust === undefined
+        ? undefined
+        : listedScriptOf({
+            target,
+            cwd: opts.cwd,
+            root: opts.trust.root,
+            scripts: opts.trust.scripts,
+          });
+    const trust =
+      listed === undefined || opts.trust === undefined
+        ? undefined
+        : trustOf({ root: opts.trust.root, script: listed });
+
+    if (trust?.state === TrustStates.TRUSTED) {
+      continue;
+    }
+
     for (const check of SCRIPT_CHECKS.filter((scriptCheck) => scriptCheck.pattern.test(source))) {
-      hits.push({ rule: check.rule, message: `${target} looks like it is ${check.what}` });
+      hits.push({
+        rule: check.rule,
+        message: `${target} looks like it is ${check.what}${trust === undefined ? '' : ` (listed in guard.writes.trustedScripts, but not trusted: ${trust.reason})`}`,
+      });
     }
   }
 
