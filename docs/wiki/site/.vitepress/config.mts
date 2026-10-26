@@ -134,6 +134,8 @@ export default defineConfig({
   description: 'The agentic-coding toolkit for VENIZIA projects',
   cleanUrls: true,
   head: [
+    // The home page and its terminal hide their reveal states only under this class, set before first paint.
+    ['script', {}, "document.documentElement.classList.add('js');"],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
     ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }],
     ['link', { rel: 'manifest', href: '/site.webmanifest' }],
@@ -199,12 +201,6 @@ export default defineConfig({
     editLink: {
       pattern: 'https://github.com/VENIZIA-AI/vulcan/edit/develop/docs/wiki/content/:path',
       text: 'Edit this page on GitHub',
-    },
-    footer: {
-      message:
-        'Released under the MIT License. VULCAN is part of <a href="https://venizia.ai" target="_blank" rel="noopener noreferrer">VENIZIA</a>.',
-      copyright:
-        'Copyright © 2025 <a href="https://venizia.ai" target="_blank" rel="noopener noreferrer">Venizia Co., Ltd.</a>',
     },
     docFooter: {
       prev: 'Previous page',

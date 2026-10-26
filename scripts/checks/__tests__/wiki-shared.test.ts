@@ -88,6 +88,7 @@ describe('the shared wiki theme', () => {
 type TSelectors = {
   vitepress: string;
   selectors: { selector: string; file: string; needle: string }[];
+  slots: { slot: string; file: string; needle: string }[];
 };
 
 /** The installed VitePress, found the way node would: the nearest node_modules above the wiki. */
@@ -124,6 +125,16 @@ describe('the VitePress pieces the shared CSS overrides', () => {
     expect(unused.map((entry) => entry.selector)).toEqual([]);
   });
 
+  test('every listed slot is filled by a shared component', () => {
+    const components = walk('')
+      .filter((path) => path.endsWith('.vue'))
+      .map((path) => readFileSync(join(DIR, path), 'utf8'))
+      .join('\n');
+    const unused = declared.slots.filter((entry) => !components.includes(`#${entry.slot}`));
+
+    expect(unused.map((entry) => entry.slot)).toEqual([]);
+  });
+
   test('every listed piece still exists in the installed VitePress', () => {
     const installed = findVitepress();
 
@@ -137,6 +148,12 @@ describe('the VitePress pieces the shared CSS overrides', () => {
       readFileSync(join(installed, 'package.json'), 'utf8'),
     ).version;
     const theme = join(installed, 'dist', 'client', 'theme-default');
+    const present = (entry: { file: string; needle: string }): boolean =>
+      existsSync(join(theme, entry.file)) &&
+      readFileSync(join(theme, entry.file), 'utf8').includes(entry.needle);
+    const goneSlots = declared.slots
+      .filter((entry) => !present(entry))
+      .map((entry) => `slot ${entry.slot} (${entry.file})`);
     const gone = declared.selectors.filter(
       (entry) =>
         !existsSync(join(theme, entry.file)) ||
@@ -144,7 +161,7 @@ describe('the VitePress pieces the shared CSS overrides', () => {
     );
 
     expect(
-      gone.map((entry) => `${entry.selector} (${entry.file})`),
+      [...gone.map((entry) => `${entry.selector} (${entry.file})`), ...goneSlots],
       version === declared.vitepress
         ? `vitepress-selectors.json lists pieces that VitePress ${version} does not have; fix the list and the stylesheets together.`
         : `The shared stylesheets were written for VitePress ${declared.vitepress}; ${version} is installed and no longer has these. ` +
