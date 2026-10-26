@@ -12,6 +12,7 @@ This section tracks the history of significant changes and releases of the VULCA
 | Date | Title | Type |
 |------|-------|------|
 | 2026-10-27 | [VULCAN X.Y.Z: A Delegation Brief Names the Skill Instead of Retyping It](./2026-10-27-vulcan-0-4-6-delegation-names-the-skill) | Enhancement |
+| 2026-10-27 | [Repository: A commit-msg Hook and a CI Check Reject an Agent Signature (W-00)](./2026-10-27-agent-signature-check) | Enhancement |
 | 2026-10-26 | [Wiki: A New Home Page, a Venizia Switcher and a Smooth Light and Dark Switch](./2026-10-26-wiki-new-look) | Enhancement |
 | 2026-10-26 | [VULCAN 0.4.5: A Project Can List Its Own CLIs as Trusted Scripts](./2026-10-26-vulcan-0-4-5-trusted-scripts) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.5: The Guards Get Stronger, Quieter and Reach Six More Agents (Overview)](./2026-10-25-vulcan-0-4-5-batch-overview) | Security, Behavior Change, New Feature |
