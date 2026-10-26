@@ -13,6 +13,8 @@ import './shared/header.css';
 import './shared/theme-switch.css';
 import './shared/home.css';
 import './shared/footer.css';
+import './shared/changelog.css';
+import ChangelogIndex from './shared/ChangelogIndex.vue';
 import SiteLayout from './shared/SiteLayout.vue';
 import HomeLanding from './HomeLanding.vue';
 import { HOME, SITE, VERSION } from './home-content';
@@ -22,5 +24,6 @@ export default {
   Layout: () => h(SiteLayout, { site: SITE, version: VERSION, home: HOME }),
   enhanceApp({ app }) {
     app.component('HomeLanding', HomeLanding);
+    app.component('ChangelogIndex', ChangelogIndex);
   },
 } satisfies Theme;
