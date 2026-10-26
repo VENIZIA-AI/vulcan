@@ -72,7 +72,7 @@ the code cannot show. `make lint-all` checks what a linter can.
 - **A shipped skill or hook.** It reaches every project and cannot be shadowed, so it must stay
   project-neutral: no single project's names, paths or stack.
 - **A breaking change.** Write a changelog entry from
-  [the template](docs/wiki/content/changelogs/template.md), with the migration steps.
+  [the template](.agents/knowledge/process/writing-a-changelog-entry.md), with the migration steps.
 
 ## Pull request checklist
 

@@ -224,7 +224,7 @@ $ echo '{"tool_name":"Bash","tool_input":{"command":"kubectl apply -f deploy.yam
 
 ```ts
 export default {
-  guard: { writes: { trustedScripts: ['auroras/tools/i18n/cli.ts'] } },
+  guard: { writes: { trustedScripts: ['tools/i18n/cli.ts'] } },
 } satisfies VulcanConfig;
 ```
 

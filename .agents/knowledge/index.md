@@ -45,3 +45,4 @@ One release train: the three packages always share a version.
 - [Development](/process/development.md) - the gates before a change is done
 - [Releasing](/process/releasing.md) - one dispatch releases okf, atlas and cli
 - [Admission bar](/process/admission-bar.md) - what a new rule, skill or hook must show before it is added
+- [Writing a changelog entry](/process/writing-a-changelog-entry.md) - the parts every entry needs and the template to copy
