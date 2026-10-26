@@ -1,12 +1,12 @@
 ---
-title: "VULCAN X.Y.Z: The Guard Parser Closes What the Second Review Found"
+title: "VULCAN 0.4.5: The Guard Parser Closes What the Second Review Found"
 description: A second independent review of the guard parser found hidden spellings of a force-push and three ways to make a guard crash or stall; they are fixed, kept as a test table, and the hooks page says what the guards are and are not.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-25
 
-## VULCAN X.Y.Z: the guard parser closes what the second review found
+## VULCAN 0.4.5: the guard parser closes what the second review found
 
 <Badge type="danger" text="Security" />
 

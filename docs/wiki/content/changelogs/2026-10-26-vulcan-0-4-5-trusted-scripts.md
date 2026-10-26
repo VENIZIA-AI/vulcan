@@ -1,12 +1,12 @@
 ---
-title: "VULCAN X.Y.Z: A Project Can List Its Own CLIs as Trusted Scripts"
+title: "VULCAN 0.4.5: A Project Can List Its Own CLIs as Trusted Scripts"
 description: guard.writes.trustedScripts in the VULCAN config names scripts that guard-writes does not read for mutating calls, only while git tracks them and they equal the last commit; the command line is still checked.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-26
 
-## VULCAN X.Y.Z: a project can list its own CLIs as trusted scripts
+## VULCAN 0.4.5: a project can list its own CLIs as trusted scripts
 
 <Badge type="tip" text="New Feature" />
 

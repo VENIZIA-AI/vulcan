@@ -1,14 +1,14 @@
 ---
-title: "VULCAN X.Y.Z: The Deny-Class Guards Ask When They Crash or Time Out"
+title: "VULCAN 0.4.5: The Deny-Class Guards Ask When They Crash or Time Out"
 description: guard-git and guard-outside no longer let a call through when the hook started and then crashed, was killed or ran past 30 seconds; they ask. A missing package or bun still passes.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-25
 
-## VULCAN X.Y.Z: the deny-class guards ask when they crash or time out
+## VULCAN 0.4.5: the deny-class guards ask when they crash or time out
 
-<Badge type="warning" text="Behaviour change" />
+<Badge type="warning" text="Behavior Change" />
 
 **In one line.** A hook that crashed, ran out of memory or hung used to let the call through (`... || echo "... the call passes"; exit 0`); for `guard-git` and `guard-outside` it now asks.
 

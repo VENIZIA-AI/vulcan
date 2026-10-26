@@ -1,16 +1,16 @@
 ---
-title: "VULCAN X.Y.Z: The Guards Get Stronger, Quieter and Reach Six More Agents (Overview)"
+title: "VULCAN 0.4.5: The Guards Get Stronger, Quieter and Reach Six More Agents (Overview)"
 description: One page for the whole release after 0.4.4 - the guard bypass fixes, the guards that now ask when they crash and stop asking about data, the guards for omp, pi, Antigravity, Codex, Cursor and Copilot, and what to run when you upgrade.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-25
 
-## VULCAN X.Y.Z: the guards get stronger, quieter and reach six more agents
+## VULCAN 0.4.5: the guards get stronger, quieter and reach six more agents
 
-<Badge type="danger" text="Security" /> <Badge type="warning" text="Behaviour change" /> <Badge type="tip" text="New Feature" /> <Badge type="warning" text="Not verified" />
+<Badge type="danger" text="Security" /> <Badge type="warning" text="Behavior Change" /> <Badge type="tip" text="New Feature" /> <Badge type="warning" text="Not verified" />
 
-The version number is set when the release is cut: every `X.Y.Z` in these entries is filled in then. Everything below is on `develop` since 0.4.4.
+Everything below is new since 0.4.4.
 
 **In one line.** The guards that read a command line (`guard-git`, `guard-outside`, `guard-writes`, `guard-remote-hosts`) refuse more of what they should, ask less about what is only data, ask instead of passing when they crash, and now run in omp, pi, Antigravity, Codex, and, through the Claude hooks they read, Cursor and Copilot. The last three (Codex, Cursor, Copilot) were built from their documentation and never run: **NOT VERIFIED**.
 
@@ -48,7 +48,7 @@ Guard bypasses: spellings that hid a force-push or a write from the guards. They
 | `$'...'` quoting decoded (`$'git' push -f origin main`) | [ANSI-C quoting](./2026-10-25-vulcan-0-4-5-ansi-c-quoting) | #413 |
 | Second independent review: `xargs --eof`, a backslash before a newline, quotes inside `$(...)`, quoted `<<`, `watch '...'`, crashes and stalls; the regression table and "what the guards are and are not" | [Second review](./2026-10-25-vulcan-0-4-5-guard-parser-review) | #415 |
 
-## Behaviour changes
+## Behavior changes
 
 | Change | Entry | Pull request |
 |---|---|---|
@@ -77,7 +77,7 @@ Guard bypasses: spellings that hid a force-push or a write from the guards. They
 |---|---|---|
 | "What the guards are, and are not", and the table of every bypass found so far | [Hooks reference](/references/hooks/#what-the-guards-are-and-are-not) | #415 |
 | The hooks reference describes each agent's guard, what was checked and what was not | [Hooks reference](/references/hooks/#the-guards-on-omp-and-pi) | #421, #423, #425 |
-| Every raw string-literal union becomes a const class (V-C-08): no behaviour change | none: internal | #426 |
+| Every raw string-literal union becomes a const class (V-C-08): no behavior change | none: internal | #426 |
 | Repository tooling: a test run, a smoke and the build tools write no temp file outside the repository. A `[test] preload` in the root and package `bunfig.toml` points a bare `bun test` at `.agents/local/tmp/tests` (as `make test` does), `NODE_COMPILE_CACHE` moves Node's compile cache from `/tmp` to `.agents/local/cache`, and a hygiene test fails when a test run leaves a folder in the system temp or in the test folder. Only contributors to this repository are affected | none: internal (`.agents/knowledge/process/development.md`) | #434 |
 
 ## What was not checked

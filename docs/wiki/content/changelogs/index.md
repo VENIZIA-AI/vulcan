@@ -11,18 +11,18 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
-| 2026-10-26 | [VULCAN X.Y.Z: A Project Can List Its Own CLIs as Trusted Scripts](./2026-10-26-vulcan-0-4-5-trusted-scripts) | New Feature |
-| 2026-10-25 | [VULCAN X.Y.Z: The Guards Get Stronger, Quieter and Reach Six More Agents (Overview)](./2026-10-25-vulcan-x-y-z-batch-overview) | Security, Behaviour change, New Feature |
-| 2026-10-25 | [VULCAN X.Y.Z: The Hook Wrappers No Longer Need CLAUDE_PROJECT_DIR](./2026-10-25-vulcan-0-4-5-hooks-without-project-dir) | Bug Fix |
-| 2026-10-25 | [VULCAN X.Y.Z: The Write and Remote-Host Guards Stop Asking About Data](./2026-10-25-vulcan-0-4-5-guard-noise) | Behaviour change |
-| 2026-10-25 | [VULCAN X.Y.Z: The Guards Reach Codex, and Read Better in Cursor and Copilot](./2026-10-25-vulcan-0-4-5-guards-on-codex-cursor-copilot) | New Feature, not verified |
-| 2026-10-25 | [VULCAN X.Y.Z: The Guards Reach Antigravity](./2026-10-25-vulcan-0-4-5-guards-on-antigravity) | New Feature |
-| 2026-10-25 | [VULCAN X.Y.Z: The Guards Reach omp and pi](./2026-10-25-vulcan-0-4-5-guards-on-omp-and-pi) | New Feature |
-| 2026-10-25 | [VULCAN X.Y.Z: The Deny-Class Guards Ask When They Crash or Time Out](./2026-10-25-vulcan-0-4-5-guards-ask-on-failure) | Behaviour change |
-| 2026-10-25 | [VULCAN X.Y.Z: The Guard Parser Closes What the Second Review Found](./2026-10-25-vulcan-0-4-5-guard-parser-review) | Security |
-| 2026-10-25 | [VULCAN X.Y.Z: The Guards Read ANSI-C Quoting](./2026-10-25-vulcan-0-4-5-ansi-c-quoting) | Security |
-| 2026-10-25 | [VULCAN X.Y.Z: add --lib Says Why a Folder Was Not Recorded in the Layout](./2026-10-25-vulcan-0-4-5-lib-dir-note) | New Feature |
-| 2026-10-25 | [VULCAN X.Y.Z: The Guards Read the Command Line of env -S](./2026-10-25-vulcan-0-4-5-env-split-string) | Security |
+| 2026-10-26 | [VULCAN 0.4.5: A Project Can List Its Own CLIs as Trusted Scripts](./2026-10-26-vulcan-0-4-5-trusted-scripts) | New Feature |
+| 2026-10-25 | [VULCAN 0.4.5: The Guards Get Stronger, Quieter and Reach Six More Agents (Overview)](./2026-10-25-vulcan-0-4-5-batch-overview) | Security, Behavior Change, New Feature |
+| 2026-10-25 | [VULCAN 0.4.5: The Hook Wrappers No Longer Need CLAUDE_PROJECT_DIR](./2026-10-25-vulcan-0-4-5-hooks-without-project-dir) | Bug Fix |
+| 2026-10-25 | [VULCAN 0.4.5: The Write and Remote-Host Guards Stop Asking About Data](./2026-10-25-vulcan-0-4-5-guard-noise) | Behavior Change |
+| 2026-10-25 | [VULCAN 0.4.5: The Guards Reach Codex, and Read Better in Cursor and Copilot](./2026-10-25-vulcan-0-4-5-guards-on-codex-cursor-copilot) | New Feature, not verified |
+| 2026-10-25 | [VULCAN 0.4.5: The Guards Reach Antigravity](./2026-10-25-vulcan-0-4-5-guards-on-antigravity) | New Feature |
+| 2026-10-25 | [VULCAN 0.4.5: The Guards Reach omp and pi](./2026-10-25-vulcan-0-4-5-guards-on-omp-and-pi) | New Feature |
+| 2026-10-25 | [VULCAN 0.4.5: The Deny-Class Guards Ask When They Crash or Time Out](./2026-10-25-vulcan-0-4-5-guards-ask-on-failure) | Behavior Change |
+| 2026-10-25 | [VULCAN 0.4.5: The Guard Parser Closes What the Second Review Found](./2026-10-25-vulcan-0-4-5-guard-parser-review) | Security |
+| 2026-10-25 | [VULCAN 0.4.5: The Guards Read ANSI-C Quoting](./2026-10-25-vulcan-0-4-5-ansi-c-quoting) | Security |
+| 2026-10-25 | [VULCAN 0.4.5: add --lib Says Why a Folder Was Not Recorded in the Layout](./2026-10-25-vulcan-0-4-5-lib-dir-note) | New Feature |
+| 2026-10-25 | [VULCAN 0.4.5: The Guards Read the Command Line of env -S](./2026-10-25-vulcan-0-4-5-env-split-string) | Security |
 | 2026-10-25 | [VULCAN 0.4.4: Layout Folders Can Be Paths, Lists, and a List of Folders Left Alone](./2026-10-25-vulcan-0-4-4-layout-paths) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.4: V-C-19, Group Options That Serve One Concern](./2026-10-25-vulcan-0-4-4-rule-v-c-19) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.4: A Work Item a Person Can Read and a Fresh Agent Can Do](./2026-10-25-vulcan-0-4-4-work-item) | New Feature |
@@ -44,11 +44,11 @@ This section tracks the history of significant changes and releases of the VULCA
 | 2026-10-25 | [VULCAN 0.4.1: A Release Cannot Ship Hooks That Fail to Load](./2026-10-25-vulcan-0-4-1-hooks-tripwire) | Enhancement |
 | 2026-10-25 | [VULCAN 0.4.1: Guards for Git and for Files Outside the Project, a Digest for Subagents](./2026-10-25-vulcan-0-4-1-guards-and-hooks) | Enhancement |
 | 2026-10-25 | [VULCAN 0.4.1: New Base Rules for How Agents Work](./2026-10-25-vulcan-0-4-1-agent-work-rules) | Enhancement |
-| 2026-10-25 | [VULCAN 0.4.1: atlas Keeps Its Cache Inside the Project](./2026-10-25-vulcan-0-4-1-atlas-cache-in-project) | Behaviour change |
-| 2026-10-25 | [VULCAN 0.4.1: Arrow Functions Always Keep Their Parentheses](./2026-10-25-vulcan-0-4-1-arrow-parens-always) | Behaviour change |
+| 2026-10-25 | [VULCAN 0.4.1: atlas Keeps Its Cache Inside the Project](./2026-10-25-vulcan-0-4-1-atlas-cache-in-project) | Behavior Change |
+| 2026-10-25 | [VULCAN 0.4.1: Arrow Functions Always Keep Their Parentheses](./2026-10-25-vulcan-0-4-1-arrow-parens-always) | Behavior Change |
 | 2026-10-24 | [VULCAN 0.3.13: A Menu Fed Piped Lines Leaves No Temp Folder](./2026-10-24-vulcan-0-3-13-menu-refusal-scratch) | Bug Fix |
-| 2026-10-23 | [VULCAN 0.3.13: No More Knowledge log.md](./2026-10-23-vulcan-0-3-13-no-knowledge-log) | Behaviour change |
-| 2026-10-23 | [VULCAN 0.3.12: bun fmt Formats the Project, bunfig.toml [fmt] Replaces the oxfmt Config](./2026-10-23-vulcan-0-3-12-bun-fmt) | Behaviour change |
+| 2026-10-23 | [VULCAN 0.3.13: No More Knowledge log.md](./2026-10-23-vulcan-0-3-13-no-knowledge-log) | Behavior Change |
+| 2026-10-23 | [VULCAN 0.3.12: bun fmt Formats the Project, bunfig.toml [fmt] Replaces the oxfmt Config](./2026-10-23-vulcan-0-3-12-bun-fmt) | Behavior Change |
 | 2026-10-22 | [VULCAN 0.3.11: --scope Gives an App's Package a Scope](./2026-10-22-vulcan-0-3-11-app-scope) | Feature |
 | 2026-10-22 | [VULCAN 0.3.10: The Preset Contract Is vulcan.presets.app and vulcan.presets.lib](./2026-10-22-vulcan-0-3-10-preset-keys) | Breaking |
 | 2026-10-22 | [VULCAN 0.3.10: init Writes a Root bunfig.toml With Bun Telemetry Off](./2026-10-22-vulcan-0-3-10-bunfig) | Improvement |
@@ -56,7 +56,7 @@ This section tracks the history of significant changes and releases of the VULCA
 | 2026-10-22 | [VULCAN 0.3.10: atlas Lists the Project's Skills and When to Load Them](./2026-10-22-vulcan-0-3-10-atlas-skills) | Improvement |
 | 2026-10-21 | [VULCAN 0.3.9: build-a-feature Asks in Rounds and Builds in Vertical Slices](./2026-10-21-vulcan-0-3-9-build-a-feature-practices) | Enhancement |
 | 2026-10-21 | [VULCAN 0.3.9: A New Package's Knowledge Page Points at Atlas](./2026-10-21-vulcan-0-3-9-knowledge-page-points-at-atlas) | Enhancement |
-| 2026-10-21 | [VULCAN 0.3.9: atlas Serves the Docs of the Version You Have Installed](./2026-10-21-vulcan-0-3-9-atlas-pin) | Behaviour change |
+| 2026-10-21 | [VULCAN 0.3.9: atlas Serves the Docs of the Version You Have Installed](./2026-10-21-vulcan-0-3-9-atlas-pin) | Behavior Change |
 | 2026-10-21 | [VULCAN 0.3.9: Menus Instead of Typed Answers](./2026-10-21-vulcan-0-3-9-prompts) | Feature |
 | 2026-10-21 | [VULCAN 0.3.9: A build-a-feature Skill for Every Project](./2026-10-21-vulcan-0-3-9-build-a-feature) | Feature |
 | 2026-10-21 | [VULCAN 0.3.9: .mcp.json Is Written Per Machine, Only for the Agents That Read It](./2026-10-21-vulcan-0-3-9-mcp-per-machine) | Enhancement, Breaking Change |

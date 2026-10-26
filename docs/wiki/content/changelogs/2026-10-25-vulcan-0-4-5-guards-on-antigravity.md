@@ -1,12 +1,12 @@
 ---
-title: "VULCAN X.Y.Z: The Guards Reach Antigravity"
+title: "VULCAN 0.4.5: The Guards Reach Antigravity"
 description: vulcan sync writes a guard hook into .agents/hooks.json for Antigravity, so a force-push to main is refused there; an ask is approved by agy --dangerously-skip-permissions, which the hooks page says.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-25
 
-## VULCAN X.Y.Z: the guards reach Antigravity
+## VULCAN 0.4.5: the guards reach Antigravity
 
 <Badge type="tip" text="New Feature" />
 

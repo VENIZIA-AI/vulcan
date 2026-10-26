@@ -1,12 +1,12 @@
 ---
-title: "VULCAN X.Y.Z: The Guards Reach omp and pi"
+title: "VULCAN 0.4.5: The Guards Reach omp and pi"
 description: vulcan sync writes a guard file for omp and pi that runs the same guard scripts Claude Code runs, so a force-push to main and a write outside the project are refused there too; Codex, Cursor and Copilot are not wired yet.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-25
 
-## VULCAN X.Y.Z: the guards reach omp and pi
+## VULCAN 0.4.5: the guards reach omp and pi
 
 <Badge type="tip" text="New Feature" />
 

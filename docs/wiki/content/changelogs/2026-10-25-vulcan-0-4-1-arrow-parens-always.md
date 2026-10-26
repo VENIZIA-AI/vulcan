@@ -8,7 +8,7 @@ packages: ['@venizia/vulcan']
 
 ## VULCAN 0.4.1: arrow functions always keep their parentheses
 
-<Badge type="warning" text="Behaviour change" />
+<Badge type="warning" text="Behavior Change" />
 
 **In one line.** `(item) => item.id`, never `item => item.id`: the format standard is `arrowParens = "always"`.
 

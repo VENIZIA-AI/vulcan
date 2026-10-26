@@ -1,12 +1,12 @@
 ---
-title: "VULCAN X.Y.Z: The Hook Wrappers No Longer Need CLAUDE_PROJECT_DIR"
+title: "VULCAN 0.4.5: The Hook Wrappers No Longer Need CLAUDE_PROJECT_DIR"
 description: The wrappers in .claude/settings.json built their path from CLAUDE_PROJECT_DIR alone, so a host that reads that file without setting the variable got exit 2 from every safety hook; they now fall back to the working directory.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-25
 
-## VULCAN X.Y.Z: the hook wrappers no longer need `CLAUDE_PROJECT_DIR`
+## VULCAN 0.4.5: the hook wrappers no longer need `CLAUDE_PROJECT_DIR`
 
 <Badge type="info" text="Bug Fix" />
 

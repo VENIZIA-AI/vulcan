@@ -1,12 +1,12 @@
 ---
-title: "VULCAN X.Y.Z: The Guards Reach Codex, and Read Better in Cursor and Copilot"
+title: "VULCAN 0.4.5: The Guards Reach Codex, and Read Better in Cursor and Copilot"
 description: vulcan sync writes a guard hook into .codex/hooks.json for Codex, and the decisions of the existing guards carry the fields Cursor and Copilot read; none of the three was run, so all of it is marked NOT VERIFIED.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-25
 
-## VULCAN X.Y.Z: the guards reach Codex, and read better in Cursor and Copilot
+## VULCAN 0.4.5: the guards reach Codex, and read better in Cursor and Copilot
 
 <Badge type="tip" text="New Feature" /> <Badge type="warning" text="Not verified" />
 
