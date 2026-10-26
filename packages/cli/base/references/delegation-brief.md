@@ -12,12 +12,13 @@ A brief is built only from files you read this turn, never from memory. It holds
 
 1. **The goal**, in one paragraph, and the claim or claims this piece of work serves.
 2. **Pointers**, not pasted text: a work item first (`node_modules/@venizia/vulcan/base/references/work-item.md`; a tracker reference or its file), then the card, the notes and the files to read. When the work has an item the brief never restates it: the item holds the goal, the criteria and what is out of scope, and the brief adds only the rules, the limits and the format to return.
-3. **The rules**: the digest reaches the subagent through the tool's subagent-start hook where one
+3. **The skill**, when the work matches one (`research`, `review-a-change`, `fix-a-bug`, `plan-a-change` and the rest): name it and tell the receiver to load it before it starts. Never retype its steps: a copy written by hand goes stale, the receiver may follow it instead of the skill, and the skill is the one source of how that work is done. A message to another session is a brief too: it names the skill the same way.
+4. **The rules**: the digest reaches the subagent through the tool's subagent-start hook where one
    exists; otherwise name the rule IDs it must keep.
-4. **Limits**: read-only unless the brief says otherwise; **no git writes**; every file it creates goes
+5. **Limits**: read-only unless the brief says otherwise; **no git writes**; every file it creates goes
    under `.agents/local/` (V-B-08); no network beyond what the task needs.
-5. **What to return**: one of four statuses and the evidence (below), in a stated shape, under 400 words.
-6. **A completion checklist** the subagent ticks, and a size bound, so one silent failure loses little.
+6. **What to return**: one of four statuses and the evidence (below), in a stated shape, under 400 words.
+7. **A completion checklist** the subagent ticks, and a size bound, so one silent failure loses little.
 
 Do not paste a summary of what you found into a brief: pass the path. A summary is a secondary source,
 and a subagent that trusts it inherits your mistakes.
