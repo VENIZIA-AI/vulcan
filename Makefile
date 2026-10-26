@@ -17,7 +17,13 @@ PACKAGES := okf atlas cli
 # The npm name of a package directory, read from its package.json: $(call PKG_NAME,atlas).
 PKG_NAME = $(shell sed -n 's/^  "name": "\(.*\)",$$/\1/p' packages/$(1)/package.json)
 
-# The shipped VULCAN targets (sync, doctor, okf-*, surface/symbols/releases), exactly as every project gets them.
+# The repository the wiki's GitHub links point into, for the shipped wiki-links-check gate.
+WIKI_REPO := VENIZIA-AI/vulcan
+# The wiki and the knowledge bundle describe the files of a consumer project (.agents/hooks.json, .agents/local/profile.json),
+# so a backticked path is not held to this repository's tracked files; only the GitHub links and concept resources are.
+WIKI_LINKS_FLAGS := --skip-prose docs/wiki/content,.agents/knowledge
+
+# The shipped VULCAN targets (sync, doctor, okf-*, surface/symbols/releases, the wiki gates), exactly as every project gets them.
 -include node_modules/@venizia/vulcan/base/make/vulcan.mk
 include make/build.mk
 include make/lint.mk

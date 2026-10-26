@@ -12,6 +12,7 @@ make build             # type-check every package with `bun check`; only atlas e
 make lint-all          # every package, then scripts/
 make test              # every package suite (--parallel), then scripts/
 make catalog-check
+make docs wiki-links-check wiki-anchors-check
 make smoke-atlas smoke-cli
 bun x --no-install vulcan doctor
 bun x --no-install vulcan x okf check
