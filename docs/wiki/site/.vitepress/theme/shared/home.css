@@ -792,6 +792,13 @@
   }
 }
 
+/* the headline keeps three lines at most down to 320 wide: 27px from 370, 23px at 320 */
+@media (max-width: 400px) {
+  .vh h1 {
+    font-size: clamp(23px, 7.3vw - 0.4px, 27px);
+  }
+}
+
 @media (max-width: 560px) {
   .vh .stat {
     border-right: 0;

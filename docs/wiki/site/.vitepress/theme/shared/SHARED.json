@@ -1,5 +1,5 @@
 {
-  "fingerprint": "fa71952f2e98f6fec7de61a73d29c214bc4f05247155af3d9491337b5f73a002",
+  "fingerprint": "3c59788b2bc948d6b2271d0a50c7094a586a7972783ace5a893b7fed2c1a8eb9",
   "files": {
     "EcosystemSwitcher.vue": "8f88184713bb819da6010634bc05f00fbfc2035d3a05614edb3df67a56e71ba3",
     "HomeLayout.vue": "8785c016644a6b9eb36c4c0a51b75ecb1b979ef0f2fdbd75ecfc84e745f73d17",
@@ -22,10 +22,10 @@
     "fonts/jetbrains-mono-latin-400-normal.woff2": "14425ba9c695763c1547f48a206b7aa60350a33ae23de09f0407877f3fcd89eb",
     "fonts/jetbrains-mono-latin-500-normal.woff2": "cb182feeed4d798ff6961d3c79f7026279448fca0676438aaecb21f3fc39553a",
     "footer.css": "b1bfd64d004ef23fa79fa7568aa3b4ba1c36a0da80924012af4bfe8a40c2b1e0",
-    "header.css": "4733b37c5c7bf204a3d2c91cd4bbada87d8fc892b9b3d19868dba6dff3012c86",
+    "header.css": "30e8896d29c5bbca3dd9ff34f7b6660752ccc119dc12d8b720b92de902bf104b",
     "highlight.ts": "10405f487837df4fd9276301653b8f568ab91592170aab7d47abeb5162164eaa",
     "home-types.ts": "3e9efd210599c296b7e6537a9373e6a18a8a287767972354531ad63ff27789ec",
-    "home.css": "4bc863f3fe48306ca671261a121e112767ea26cc634516bea33a209729d0e8c6",
+    "home.css": "f8a73aba37a499071ca689ad10f954cf063dc2627c3c61ae5480918eee9f7072",
     "theme-switch.css": "b50ed2f76bbc7fa84a3b683b5fe6f4d5ff6d3c2475c9f58f4dff4044769d87e2",
     "toggle-appearance.ts": "8e5ee789efa7d5c0848a76006ca849772d6d3991f838cc25a972de33d0488040",
     "tokens.css": "a9d10dd2c39a03d9c2e34ff886eba27c5ac0ffbe0ef144344a232d348b838d67",
