@@ -12,8 +12,8 @@
           </div>
           <h1>One agent setup<br /><span class="vu-gtext">for every project</span></h1>
           <p class="vu-lede">
-            Rules, hooks, a knowledge bundle and a search server for your coding agent, from one
-            config file and one pinned devDependency.
+            The rules and workflow centre for your coding agents: shared rules, guards, skills,
+            project knowledge and search, from one config file and one pinned devDependency.
           </p>
           <div class="vu-cta">
             <a href="/guides/get-started/what-is-vulcan" class="vu-btn vu-btn--primary"
@@ -25,15 +25,15 @@
           </div>
           <div class="vu-stats">
             <div class="vu-stat">
-              <div class="vu-stat__n vu-gtext">37</div>
+              <div class="vu-stat__n vu-gtext">50</div>
               <div class="vu-stat__l">base rules</div>
             </div>
             <div class="vu-stat">
-              <div class="vu-stat__n vu-gtext">13</div>
-              <div class="vu-stat__l">doctor checks</div>
+              <div class="vu-stat__n vu-gtext">7</div>
+              <div class="vu-stat__l">coding agents</div>
             </div>
             <div class="vu-stat">
-              <div class="vu-stat__n vu-gtext">5</div>
+              <div class="vu-stat__n vu-gtext">6</div>
               <div class="vu-stat__l">atlas tools</div>
             </div>
           </div>
@@ -58,6 +58,7 @@
   <span class="vu-p">packages</span>: [{ <span class="vu-p">dir</span>: <span class="vu-s">'api'</span>, <span class="vu-p">name</span>: <span class="vu-s">'@acme/api'</span> }],
   <span class="vu-p">okf</span>: { <span class="vu-p">renderers</span>: [<span class="vu-s">'makefile-targets'</span>] },
   <span class="vu-p">remoteHosts</span>: { <span class="vu-p">trusted</span>: [<span class="vu-s">'lab1'</span>], <span class="vu-p">readOnly</span>: [<span class="vu-s">'prod1'</span>] },
+  <span class="vu-p">guard</span>: { <span class="vu-p">writes</span>: { <span class="vu-p">trustedScripts</span>: [<span class="vu-s">'tools/cli.ts'</span>] } },
 } <span class="vu-k">satisfies</span> <span class="vu-c">VulcanConfig</span>;</pre>
         </div>
       </section>
@@ -68,9 +69,14 @@
     <div class="vu-wrap">
       <section class="vu-section">
         <div class="vu-section-head">
-          <div class="vu-label">Core Capabilities</div>
-          <h2>Everything your agent needs</h2>
-          <p>Shared rules, safety hooks, project knowledge and semantic search.</p>
+          <div class="vu-label">What it offers today</div>
+          <h2>One setup your agents share</h2>
+          <p>
+            VULCAN is on the 0.4 line and still changing.
+            <a href="/guides/get-started/what-is-vulcan#how-mature-it-is"
+              >See what has been checked</a
+            >.
+          </p>
         </div>
         <div class="vu-features">
           <a href="/references/rules" class="vu-fcard">
@@ -92,7 +98,8 @@
             </div>
             <h3>Base rules</h3>
             <p>
-              Thirty-seven non-negotiable coding and process standards shared across all projects.
+              Fifty rules in five groups: write boundaries, security, process, build and style. Most
+              are read by the agent; a few are enforced by hooks.
             </p>
           </a>
           <a href="/guides/core-concepts/hooks-and-guards" class="vu-fcard">
@@ -113,12 +120,13 @@
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
             </div>
-            <h3>Hooks that ask</h3>
+            <h3>Guards that ask</h3>
             <p>
-              Intercept destructive operations, database writes, and untrusted remote host commands.
+              Hooks ask or refuse before a database write, a deploy, a force-push or a file outside
+              the project. Not a sandbox. Codex, Cursor and Copilot: not verified.
             </p>
           </a>
-          <a href="/guides/core-concepts/knowledge-bundle" class="vu-fcard">
+          <a href="/references/skills" class="vu-fcard">
             <div class="vu-fcard__icon">
               <!-- book / knowledge -->
               <svg
@@ -136,8 +144,11 @@
                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
               </svg>
             </div>
-            <h3>Knowledge bundle</h3>
-            <p>OKF-validated markdown architecture facts curated specifically for coding agents.</p>
+            <h3>Skills and work items</h3>
+            <p>
+              Twelve workflows an agent loads when the task fits, and a work item format a person
+              can read and a fresh agent can do.
+            </p>
           </a>
           <a href="/guides/core-concepts/atlas" class="vu-fcard">
             <div class="vu-fcard__icon">
@@ -157,10 +168,13 @@
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
             </div>
-            <h3>Atlas search</h3>
-            <p>Model Context Protocol server exposing symbol index and cross-repository search.</p>
+            <h3>Knowledge and atlas</h3>
+            <p>
+              Project facts as markdown checked in Open Knowledge Format, searched by an MCP server
+              with six tools.
+            </p>
           </a>
-          <a href="/references/commands/doctor" class="vu-fcard">
+          <a href="/guides/core-concepts/owner-and-replies" class="vu-fcard">
             <div class="vu-fcard__icon">
               <!-- check-circle / doctor -->
               <svg
@@ -178,10 +192,10 @@
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
             </div>
-            <h3>Doctor</h3>
+            <h3>Replies that follow the reader</h3>
             <p>
-              Thirteen automated diagnostic checks verifying contract adherence and configuration
-              integrity.
+              The owner gets a fixed reply shape in their language; another agent gets the plain
+              format it asked for.
             </p>
           </a>
           <a href="/references/commands/" class="vu-fcard">
@@ -204,7 +218,10 @@
               </svg>
             </div>
             <h3>One upgrade</h3>
-            <p>Synchronize adapters, skills, and configuration from a single devDependency bump.</p>
+            <p>
+              Bump one devDependency, run <code>vulcan sync</code>, and let
+              <code>vulcan doctor</code> check the result.
+            </p>
           </a>
         </div>
       </section>

@@ -1,17 +1,17 @@
 ---
 title: Guides
-description: Learn how to adopt VULCAN, configure agent rules and hooks, and explore core concepts.
+description: Learn how to adopt VULCAN, set the rules and guards your coding agents follow, and explore the core concepts.
 ---
 
 # Guides
 
-These guides walk you through adopting and configuring VULCAN in your project. Follow the setup path to install the toolkit, then explore the core concepts.
+VULCAN is the rules and workflow centre for the coding agents in your repository. These guides walk you through adopting it and show what each part does today. Follow the setup path to install it, then read the core concepts you need.
 
 <div class="guide-cards">
 
 <a href="/guides/get-started/what-is-vulcan" class="guide-card">
 <h3>What is VULCAN</h3>
-<p>Understand what VULCAN provides and how it fits your project.</p>
+<p>See what VULCAN offers today, how mature each part is, and what it does not do.</p>
 </a>
 
 <a href="/guides/get-started/adopt-vulcan" class="guide-card highlight">
@@ -36,7 +36,17 @@ These guides walk you through adopting and configuring VULCAN in your project. F
 
 <a href="/guides/core-concepts/hooks-and-guards" class="guide-card">
 <h3>Hooks and guards</h3>
-<p>Make the agent ask before it writes to a database, deploys or reaches unlisted hosts.</p>
+<p>Make the agent ask before it writes to a database, deploys, force-pushes or reaches unlisted hosts, and see which agents run the guards.</p>
+</a>
+
+<a href="/guides/core-concepts/owner-and-replies" class="guide-card">
+<h3>The owner and the reply shape</h3>
+<p>Get answers in a fixed shape and your language, and let another agent get the plain format.</p>
+</a>
+
+<a href="/guides/core-concepts/work-items" class="guide-card">
+<h3>Work items</h3>
+<p>Write a unit of work a person can read and a fresh agent can do.</p>
 </a>
 
 <a href="/guides/core-concepts/knowledge-bundle" class="guide-card">
@@ -78,7 +88,7 @@ These guides walk you through adopting and configuring VULCAN in your project. F
 <span class="stage-num">3</span>
 <h4>Know the parts</h4>
 </div>
-<p><a href="/guides/core-concepts/the-project-layer">The project layer</a> - <a href="/guides/core-concepts/rules-and-slots">Rules and slots</a> - <a href="/guides/core-concepts/hooks-and-guards">Hooks and guards</a> - <a href="/guides/core-concepts/knowledge-bundle">The knowledge bundle</a> - <a href="/guides/core-concepts/atlas">atlas</a></p>
+<p><a href="/guides/core-concepts/the-project-layer">The project layer</a> - <a href="/guides/core-concepts/rules-and-slots">Rules and slots</a> - <a href="/guides/core-concepts/hooks-and-guards">Hooks and guards</a> - <a href="/guides/core-concepts/owner-and-replies">The owner and the reply shape</a> - <a href="/guides/core-concepts/work-items">Work items</a> - <a href="/guides/core-concepts/knowledge-bundle">The knowledge bundle</a> - <a href="/guides/core-concepts/atlas">atlas</a></p>
 <span class="stage-desc">Learn what each part does and which files it touches.</span>
 </div>
 

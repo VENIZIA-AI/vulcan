@@ -795,3 +795,24 @@ html:not(.dark) .vu-btn--secondary:hover {
     flex-direction: column;
   }
 }
+
+/* The Venizia wordmark in the header: a wide logo keeps its aspect ratio at the height of the header icons. */
+.VPSocialLink[aria-label='Venizia'] {
+  width: auto;
+  padding: 0 6px 0 0;
+}
+
+/* The divider before it, as VitePress draws its own between the menu and the social links (VPNavBar.vue). */
+.VPSocialLink[aria-label='Venizia']::before {
+  flex: none;
+  margin: 0 8px;
+  width: 1px;
+  height: 24px;
+  background-color: var(--vp-c-divider);
+  content: '';
+}
+
+.VPSocialLink[aria-label='Venizia'] svg {
+  width: auto;
+  height: 18px;
+}

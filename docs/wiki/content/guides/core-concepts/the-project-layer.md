@@ -20,9 +20,25 @@ You write configuration and rules, VULCAN generates agent adapters and the manif
 | `.claude/vulcan-managed.json` | `vulcan sync` | No (gitignored) | `vulcan sync` |
 | `.claude/skills/*` | `vulcan sync` | No (gitignored) | Claude Code |
 | `.agents/vulcan.local.json` | `vulcan sync`, `vulcan agents` | No (gitignored) | `vulcan sync`, `vulcan doctor` |
-| `.agents/vulcan.manifest.json` | `vulcan sync` | Yes | atlas, `vulcan doctor`, the guard-remote-hosts hook, the knowledge-sync skill |
+| `.agents/local/` | Agents and `vulcan sync` (creates the folders) | No (gitignored) | Agents, `vulcan clean` |
+| `.agents/vulcan.manifest.json` | `vulcan sync` | Yes | atlas, `vulcan doctor`, the guard-package and guard-remote-hosts hooks, the knowledge-sync skill |
 
-`vulcan init` appends `CLAUDE.md`, `CLAUDE.*.md`, `.claude/`, `.agents/plans` and `.agents/vulcan.local.json` to `.gitignore`. For the files `sync` writes for the other agents you chose, it keeps a list in your clone's `.git/info/exclude`, so the committed `.gitignore` does not change with each developer's choice.
+`vulcan init` appends `CLAUDE.md`, `CLAUDE.*.md`, `.claude/`, `.agents/plans`, `.agents/vulcan.local.json` and `.agents/local/` to `.gitignore`. For the files `sync` writes for the other agents you chose, it keeps a list in your clone's `.git/info/exclude`, so the committed `.gitignore` does not change with each developer's choice.
+
+## What `.agents/local/` holds
+
+Everything an agent creates while it works goes here, inside the project and out of git. `vulcan sync` creates one folder per kind:
+
+| Folder | Holds | Goes when |
+|---|---|---|
+| `tmp/` | Scratch for one task | The task ends |
+| `worktrees/` | Git worktrees, one per branch | The branch is merged or abandoned |
+| `clones/` | Clones made for research | The research is reported |
+| `cache/` | atlas source cache | You ask; it rebuilds |
+| `reports/` | Reports an agent wrote | You delete them |
+| `prototypes/` | Throwaway prototypes and `vulcan visualize` pages | You delete them |
+
+`vulcan clean` lists what an agent left behind (a dry run) and removes it with `--yes`. See [the clean reference](/references/commands/clean).
 
 ## AGENTS.md is routing only
 
@@ -54,7 +70,7 @@ Extensions must avoid naming collisions with shipped identifiers:
 
 atlas reads `.agents/vulcan.manifest.json` directly to discover metadata and packages. atlas never evaluates `.configs/vulcan.config.*` and never runs project code.
 
-The `remoteHosts` policy lives in the manifest. The guard-remote-hosts hook reads this policy at run time. The knowledge-sync skill reads bundle paths and package paths from the manifest.
+The `remoteHosts` policy lives in the manifest. The guard-remote-hosts hook reads it at run time (see [Hooks and guards](/guides/core-concepts/hooks-and-guards)). The guard-package hook reads `layout` and `presets` from it. The knowledge-sync skill reads bundle paths and package paths from the manifest.
 
 The manifest carries the following fields:
 
@@ -63,10 +79,10 @@ The manifest carries the following fields:
 | `schemaVersion` | Manifest schema version (currently 1) |
 | `name` | Config `name`, else the `package.json` name minus its scope |
 | `packages` | Workspace package entries with `name`, `dir`, `path`, `aliases`, and `retired`; `kind: "lib"` on a shared package made by `vulcan add --lib` |
-| `layout` | The folders of backend apps, frontend apps and shared packages, when the project has them |
+| `layout` | The `backend`, `frontend`, `shared` and `other` folders, when the project has them (`other` holds folders the layout does not manage, such as docs) |
 | `presets` | The presets the project's apps came from, for the atlas `presets` tool |
 | `knowledge` | Paths for the knowledge bundle, wiki, changelogs, and sync areas |
-| `release` | Release tag pattern, legacy tag prefixes, and ignored tags |
+| `release` | Release `tagPattern` and `ignoreTags` |
 | `rules` | Path to project rules and short 8-character hashes of each base rule row |
 | `sources` | External knowledge sources from `atlas.sources` when configured |
 | `remoteHosts` | Remote-host security policy when configured |

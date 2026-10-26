@@ -89,15 +89,16 @@ To view the tools atlas provides, run `vulcan x atlas tools`:
 
 ```text
 $ bun x --no-install vulcan x atlas tools
-search   Search the wiki, changelogs and knowledge bundle for chunks matching a keyword query, ranked by relevance
-get      Read one chunk's body by the id a search hit returned, or a whole document by the same id with its `#anchor` dropped, paging a long body with a cursor.
-symbol   Locate one exported symbol by name: which package and import specifier it comes from, its kind, its one-line signature, the source `file` and `line` it is declared on, and the chunk ids that document it
-version  Compare the @venizia/* packages installed in a directory against the newest versions this build knows about - the versions its generated release table carries, not the registry.
-changes  List the changelog entries between two releases: a package with two of its versions, or no package with two `YYYY-MM-DD` dates
+search   When the user asks how something works in demo-app, how to build something in it, or about this project's conventions, search here before you answer from memory
+get      After `search`, read the hit here before you rely on it
+symbol   Before you import or call an export of demo-app, get its real signature, import path and source line here instead of recalling it
+version  When a version, an upgrade or an installed @venizia/* package comes up in demo-app, check here
+changes  When the user asks what changed, what a release added or what breaks on upgrade in demo-app, list the entries here
+presets  When you are asked to create a new app or package in demo-app, ask here which preset and which exact command to use before you write any file
 ```
 
-`vulcan x atlas tools` only lists the six tools.
-It does not start the server or touch the manifest.
+`vulcan x atlas tools` lists the six tools, with the descriptions your agent sees. It does not start the server.
+The descriptions name your project, here `demo-app`.
 For a real check, restart the agent session and ask it to search.
 
 ## See also
