@@ -22,8 +22,8 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { useRepoTmp } from '../test/repo-tmp.ts';
 
 interface IStepResult {
   ok: boolean;
@@ -530,9 +530,9 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
 };
 
 const tarballs: string[] = [];
-const sandbox = mkdtempSync(join(tmpdir(), 'vulcan-cli-smoke-'));
+const sandbox = mkdtempSync(join(useRepoTmp(), 'vulcan-cli-smoke-'));
 // The source lives beside the project, never inside it: the project's okf and git see none of it.
-const sourceSandbox = mkdtempSync(join(tmpdir(), 'vulcan-cli-smoke-source-'));
+const sourceSandbox = mkdtempSync(join(useRepoTmp(), 'vulcan-cli-smoke-source-'));
 let failure: string | undefined;
 
 try {
