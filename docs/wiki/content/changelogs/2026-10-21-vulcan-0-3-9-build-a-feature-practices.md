@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.3.9: build-a-feature Asks in Rounds and Builds in Vertical Slices"
+title: 'VULCAN 0.3.9: build-a-feature Asks in Rounds and Builds in Vertical Slices'
 description: The shipped build-a-feature skill settles decisions in rounds, agrees the interface and the seams to test, and builds one tested slice at a time.
 packages: ['@venizia/vulcan']
 ---

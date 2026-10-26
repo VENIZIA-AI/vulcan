@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.3.10: The Preset Contract Is vulcan.presets.app and vulcan.presets.lib"
+title: 'VULCAN 0.3.10: The Preset Contract Is vulcan.presets.app and vulcan.presets.lib'
 description: A framework package names its presets under vulcan.presets (app and lib) instead of vulcan.preset and vulcan.lib. The old keys are refused with the new shape named.
 packages: ['@venizia/vulcan']
 ---

@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type DefaultTheme } from 'vitepress';
+import { venziaCodeTheme } from './theme/shared/code-theme.ts';
 import { VENIZIA_LOGO_SVG } from './theme/shared/venizia-logo.ts';
 
 const CHANGELOGS = fileURLToPath(new URL('../../content/changelogs', import.meta.url));
@@ -125,8 +126,9 @@ export default defineConfig({
   base: '/',
   appearance: 'dark',
   markdown: {
-    // The code windows are dark in both themes (theme/shared/tokens.css), so one dark theme serves both.
-    theme: 'one-dark-pro',
+    // The code windows are dark in both themes (theme/shared/tokens.css), so one dark theme serves both: the
+    // shared theme built from VULCAN's accent on dark (the same value as --accent-on-dark in theme/product.css).
+    theme: venziaCodeTheme({ accent: '#dead6a' }),
   },
   srcDir: '../content',
   outDir: './.vitepress/dist',

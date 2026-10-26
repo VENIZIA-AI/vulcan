@@ -42,17 +42,16 @@ packages: ['@venizia/vulcan']
 - Base rules still contain stack-specific references such as `V-C-15` (zod-per-variant with `z.infer`), `V-C-12` (IGNIS binding keys), `V-C-08` (`IsolationLevels`), and `V-C-13` (plain VitePress).
 - Retired IDs are permanently reserved and never reused.
 
-| Rule | Before | After |
-|---|---|---|
-| `V-C-18` | Hard stack (Drizzle, Hono, Zod, PostgreSQL+SQLite) plus derived types | Derived types over duplicates only; stack is a project rule |
-| `V-P-02` | No code until PRD reaches `gate: planned` | Design the surface before the body; propose API and get approval |
-| `V-C-03` | `@inject` on every container-built constructor parameter | Retired with never reused note |
-| `V-C-05` | Errors are `getError` / `ApplicationError` | Retired with never reused note |
-| `V-W-05` | Task-manager writes only in workflow loop | Retired with never reused note |
-| `V-W-02` | Never write to a database | Retained in base rules |
-| `V-W-03` | Never deploy or hot-apply | Retained in base rules |
+| Rule     | Before                                                                | After                                                            |
+| -------- | --------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `V-C-18` | Hard stack (Drizzle, Hono, Zod, PostgreSQL+SQLite) plus derived types | Derived types over duplicates only; stack is a project rule      |
+| `V-P-02` | No code until PRD reaches `gate: planned`                             | Design the surface before the body; propose API and get approval |
+| `V-C-03` | `@inject` on every container-built constructor parameter              | Retired with never reused note                                   |
+| `V-C-05` | Errors are `getError` / `ApplicationError`                            | Retired with never reused note                                   |
+| `V-W-05` | Task-manager writes only in workflow loop                             | Retired with never reused note                                   |
+| `V-W-02` | Never write to a database                                             | Retained in base rules                                           |
+| `V-W-03` | Never deploy or hot-apply                                             | Retained in base rules                                           |
 
-| File | Package |
-|------|---------|
+| File                         | Package           |
+| ---------------------------- | ----------------- |
 | `packages/cli/base/rules.md` | `@venizia/vulcan` |
-

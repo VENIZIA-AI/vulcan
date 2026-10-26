@@ -8,13 +8,13 @@ description: Validate, generate, inspect coverage, and visualize knowledge bundl
 `okf` manages knowledge bundles in Open Knowledge Format (OKF) v0.2.
 You run commands through `vulcan x okf <command>`.
 
-| Command | What it does | Exit codes |
-|---|---|---|
-| `vulcan x okf check` | Validate the bundle against OKF v0.2 conformance rules | `0` (pass), `1` (conformance error) |
-| `vulcan x okf check --strict` | Check OKF v0.2 conformance and project house rules | `0` (pass), `1` (rule violation) |
-| `vulcan x okf gen` | Regenerate source-derived pages, regions, and contents lists | `0` (success), `1` (generation failure) |
+| Command                             | What it does                                                 | Exit codes                                                                            |
+| ----------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `vulcan x okf check`                | Validate the bundle against OKF v0.2 conformance rules       | `0` (pass), `1` (conformance error)                                                   |
+| `vulcan x okf check --strict`       | Check OKF v0.2 conformance and project house rules           | `0` (pass), `1` (rule violation)                                                      |
+| `vulcan x okf gen`                  | Regenerate source-derived pages, regions, and contents lists | `0` (success), `1` (generation failure)                                               |
 | `vulcan x okf coverage [--min <n>]` | Report source coverage and evaluate coverage threshold gates | `0` (pass), `1` (gate failure, project error, bad frontmatter), `2` (invalid `--min`) |
-| `vulcan x okf viz` | Build the offline HTML knowledge graph explorer | `0` (success), `1` (build failure) |
+| `vulcan x okf viz`                  | Build the offline HTML knowledge graph explorer              | `0` (success), `1` (build failure)                                                    |
 
 Running an invalid command or omitting the command prints usage and exits with code `2`.
 
@@ -44,7 +44,7 @@ It may carry frontmatter containing only `okf_version` (a root index with no fro
 
 ```md
 ---
-okf_version: "0.2"
+okf_version: '0.2'
 ---
 
 # demo-app knowledge
@@ -80,21 +80,21 @@ Guidance warnings print to standard error.
 
 The check validates concepts, root and nested index files, log headings, and trust metadata:
 
-| Rule | Failure message |
-|---|---|
-| `§11.1` | `no YAML frontmatter block` |
-| `§11.1` | `unparseable frontmatter - <reason>` |
-| `§11.2` | `missing or empty top-level type` |
-| `§8` | `a nested index.md carries no frontmatter` |
-| `§8` | `unparseable frontmatter - <reason>` |
-| `§8` | `the root index may carry only okf_version - remove: <keys>` |
-| `§9` | `date heading is not YYYY-MM-DD: "## <heading>"` |
-| `§9` | `entries must be newest first: <date> follows <previous>` |
-| `§5` (warning) | `<field> must be an ISO 8601 datetime with an offset, e.g. 2026-06-30T14:00:00Z (got <value>)` |
-| `§5.1` (warning) | `sources[<index>] needs a resource` |
-| `§5.4` (warning) | `status must be draft, stable or deprecated (got <status>)` |
-| `§7` (warning) | `<field> must be <producer>/<version>, human:<id> or process:<id> (got <value>)` |
-| `§12` (warning) | `declares okf_version <version>; the latest is 0.2 (read best-effort)` |
+| Rule             | Failure message                                                                                |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| `§11.1`          | `no YAML frontmatter block`                                                                    |
+| `§11.1`          | `unparseable frontmatter - <reason>`                                                           |
+| `§11.2`          | `missing or empty top-level type`                                                              |
+| `§8`             | `a nested index.md carries no frontmatter`                                                     |
+| `§8`             | `unparseable frontmatter - <reason>`                                                           |
+| `§8`             | `the root index may carry only okf_version - remove: <keys>`                                   |
+| `§9`             | `date heading is not YYYY-MM-DD: "## <heading>"`                                               |
+| `§9`             | `entries must be newest first: <date> follows <previous>`                                      |
+| `§5` (warning)   | `<field> must be an ISO 8601 datetime with an offset, e.g. 2026-06-30T14:00:00Z (got <value>)` |
+| `§5.1` (warning) | `sources[<index>] needs a resource`                                                            |
+| `§5.4` (warning) | `status must be draft, stable or deprecated (got <status>)`                                    |
+| `§7` (warning)   | `<field> must be <producer>/<version>, human:<id> or process:<id> (got <value>)`               |
+| `§12` (warning)  | `declares okf_version <version>; the latest is 0.2 (read best-effort)`                         |
 
 When check finds problems or warnings, messages print to standard error:
 
@@ -269,12 +269,12 @@ For an invalid value, the message shows `got "<value>"`.
 You define structural coverage axes under `okf.coverage` in `.configs/vulcan.config.mts`.
 Each axis globs directories under the repository root:
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `name` | `string` | none | Section name and concept directory prefix |
-| `path` | `string` | none | Directory glob pattern relative to repository root |
-| `exclude` | `string[]` | `[]` | Globs from repository root excluded from this axis |
-| `denylist` | `string[]` | `[]` | Directory names excluded from this axis |
+| Option     | Type       | Default | Meaning                                            |
+| ---------- | ---------- | ------- | -------------------------------------------------- |
+| `name`     | `string`   | none    | Section name and concept directory prefix          |
+| `path`     | `string`   | none    | Directory glob pattern relative to repository root |
+| `exclude`  | `string[]` | `[]`    | Globs from repository root excluded from this axis |
+| `denylist` | `string[]` | `[]`    | Directory names excluded from this axis            |
 
 The global `okf.denylist` lists directory names excluded across every axis.
 An axis item is covered when a concept exists at `/<name>/<directory>.md`.
@@ -303,13 +303,13 @@ viz: 2 nodes, 0 edges, 2 sections
 
 The shared Makefile at `packages/cli/base/make/vulcan.mk` defines five `okf-*` targets:
 
-| Target | Description |
-|---|---|
-| `make okf-check` | Check the knowledge bundle against OKF v0.2 |
-| `make okf-check-strict` | okf-check plus the house rules: links, style, coverage, freshness |
-| `make okf-gen` | Regenerate the generated pages and regions of the knowledge bundle |
-| `make okf-coverage` | Report how much of the code the knowledge bundle covers |
-| `make okf-viz` | Build the knowledge graph view |
+| Target                  | Description                                                        |
+| ----------------------- | ------------------------------------------------------------------ |
+| `make okf-check`        | Check the knowledge bundle against OKF v0.2                        |
+| `make okf-check-strict` | okf-check plus the house rules: links, style, coverage, freshness  |
+| `make okf-gen`          | Regenerate the generated pages and regions of the knowledge bundle |
+| `make okf-coverage`     | Report how much of the code the knowledge bundle covers            |
+| `make okf-viz`          | Build the knowledge graph view                                     |
 
 ## See also
 

@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.4.1: vulcan visualize Makes One Small Static Page, and the visualize-work Skill"
+title: 'VULCAN 0.4.1: vulcan visualize Makes One Small Static Page, and the visualize-work Skill'
 description: A new command renders a JSON spec into one small, self-contained HTML page in .agents/local/prototypes/, and a new skill teaches an agent when and how to use it.
 packages: ['@venizia/vulcan']
 ---

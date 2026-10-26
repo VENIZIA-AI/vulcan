@@ -29,11 +29,11 @@ Copy it into your reply and tick each box when its criterion holds:
 
 ## 1. Choose the lane
 
-| Lane | What it is | The card |
-|---|---|---|
-| S | A small, obvious change with no decision | Three lines in chat: the goal in the owner's words, the one command that proves it, what is out |
-| M | A feature slice or a bug fix that carries a decision | Spec-lite in chat or the pull request description: goal, out of scope, claims with probes, docs impact |
-| L | Cross-package, public surface, security, a data model, publishing, deleting, or the rules themselves | The full card as a file in the project's specs folder (default `.agents/specs/YYYY-MM-DD-slug.md`) and a cold read by a fresh subagent |
+| Lane | What it is                                                                                           | The card                                                                                                                               |
+| ---- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| S    | A small, obvious change with no decision                                                             | Three lines in chat: the goal in the owner's words, the one command that proves it, what is out                                        |
+| M    | A feature slice or a bug fix that carries a decision                                                 | Spec-lite in chat or the pull request description: goal, out of scope, claims with probes, docs impact                                 |
+| L    | Cross-package, public surface, security, a data model, publishing, deleting, or the rules themselves | The full card as a file in the project's specs folder (default `.agents/specs/YYYY-MM-DD-slug.md`) and a cold read by a fresh subagent |
 
 When two lanes fit, take the larger. Done when the lane and its reason are in your reply.
 

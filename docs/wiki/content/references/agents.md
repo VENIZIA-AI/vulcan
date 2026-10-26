@@ -9,16 +9,16 @@ VULCAN sets up seven coding agents (eight entries, because Copilot is two produc
 
 The table below is the content of `base/agents.json`, the table `sync` is driven by.
 
-| Agent | Name | Instructions | Atlas MCP entry | Skills | Guards | The atlas server's own text |
-|---|---|---|---|---|---|---|
-| `claude` | Claude Code | `AGENTS.md` through the shim `CLAUDE.md` (`@AGENTS.md`) | `.mcp.json` (shared) | `.claude/skills` | hooks in `.claude/settings.json` | shown to the model |
-| `omp` | omp (oh-my-pi) | `AGENTS.md` | `.mcp.json` (shared) | `.agents/skills` | `.omp/hooks/pre/vulcan-guards.ts` | shown to the model |
-| `codex` | Codex | `AGENTS.md` | `.codex/config.toml` | `.agents/skills` | `.codex/hooks.json` | shown to the model (documented) |
-| `cursor` | Cursor | `AGENTS.md` | `.cursor/mcp.json` | `.agents/skills` | not yet | not documented |
-| `copilot-cli` | Copilot CLI | `AGENTS.md` | `.mcp.json` (shared) | `.agents/skills` | not yet | not documented |
-| `copilot-vscode` | Copilot in VS Code | `AGENTS.md` | `.vscode/mcp.json` | `.agents/skills` | not yet | not documented |
-| `antigravity` | Antigravity CLI | `AGENTS.md` | `.agents/mcp_config.json` | `.agents/skills` | `.agents/hooks.json` | not shown: it keeps the text in files and lists only the tool names |
-| `pi` | Pi | `AGENTS.md` | `.pi/mcp.json` | `.agents/skills` | `.pi/extensions/vulcan-guards.ts` | one line only, as a server summary |
+| Agent            | Name               | Instructions                                            | Atlas MCP entry           | Skills           | Guards                            | The atlas server's own text                                         |
+| ---------------- | ------------------ | ------------------------------------------------------- | ------------------------- | ---------------- | --------------------------------- | ------------------------------------------------------------------- |
+| `claude`         | Claude Code        | `AGENTS.md` through the shim `CLAUDE.md` (`@AGENTS.md`) | `.mcp.json` (shared)      | `.claude/skills` | hooks in `.claude/settings.json`  | shown to the model                                                  |
+| `omp`            | omp (oh-my-pi)     | `AGENTS.md`                                             | `.mcp.json` (shared)      | `.agents/skills` | `.omp/hooks/pre/vulcan-guards.ts` | shown to the model                                                  |
+| `codex`          | Codex              | `AGENTS.md`                                             | `.codex/config.toml`      | `.agents/skills` | `.codex/hooks.json`               | shown to the model (documented)                                     |
+| `cursor`         | Cursor             | `AGENTS.md`                                             | `.cursor/mcp.json`        | `.agents/skills` | not yet                           | not documented                                                      |
+| `copilot-cli`    | Copilot CLI        | `AGENTS.md`                                             | `.mcp.json` (shared)      | `.agents/skills` | not yet                           | not documented                                                      |
+| `copilot-vscode` | Copilot in VS Code | `AGENTS.md`                                             | `.vscode/mcp.json`        | `.agents/skills` | not yet                           | not documented                                                      |
+| `antigravity`    | Antigravity CLI    | `AGENTS.md`                                             | `.agents/mcp_config.json` | `.agents/skills` | `.agents/hooks.json`              | not shown: it keeps the text in files and lists only the tool names |
+| `pi`             | Pi                 | `AGENTS.md`                                             | `.pi/mcp.json`            | `.agents/skills` | `.pi/extensions/vulcan-guards.ts` | one line only, as a server summary                                  |
 
 ## What you get
 
@@ -42,16 +42,16 @@ The session-start digest, the owner-reply check and the `claude.settings` of the
 
 The first `sync` in a terminal looks for each agent on the machine: a binary on `PATH`, a folder in your home, a folder in the project. It only pre-selects; you confirm.
 
-| Agent | Signals |
-|---|---|
-| `claude` | `claude`, `~/.claude`, `.claude/` |
-| `omp` | `omp`, `~/.omp`, `.omp/` |
-| `codex` | `codex`, `~/.codex`, `.codex/` |
-| `cursor` | `cursor`, `cursor-agent`, `~/.cursor`, `.cursor/` |
-| `copilot-cli` | `copilot` |
+| Agent            | Signals                                                           |
+| ---------------- | ----------------------------------------------------------------- |
+| `claude`         | `claude`, `~/.claude`, `.claude/`                                 |
+| `omp`            | `omp`, `~/.omp`, `.omp/`                                          |
+| `codex`          | `codex`, `~/.codex`, `.codex/`                                    |
+| `cursor`         | `cursor`, `cursor-agent`, `~/.cursor`, `.cursor/`                 |
+| `copilot-cli`    | `copilot`                                                         |
 | `copilot-vscode` | the extension folder `~/.vscode/extensions/github.copilot-chat-*` |
-| `antigravity` | `agy`, `~/.gemini/antigravity-cli` |
-| `pi` | `pi`, `~/.pi/agent`, `.pi/` |
+| `antigravity`    | `agy`, `~/.gemini/antigravity-cli`                                |
+| `pi`             | `pi`, `~/.pi/agent`, `.pi/`                                       |
 
 ## Adding an agent to VULCAN
 

@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.4.1: An owner Block for How Agents Answer, and a Personal Profile"
+title: 'VULCAN 0.4.1: An owner Block for How Agents Answer, and a Personal Profile'
 description: A top-level owner config key sets the shape, status words and labels of an agent's answers, English and advise by default; each developer's own settings live in .agents/local/profile.json; the session digest prints both as short cards.
 packages: ['@venizia/vulcan']
 ---

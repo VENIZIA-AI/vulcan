@@ -11,13 +11,13 @@ At an agreed seam, and only there: a public boundary where a test observes behav
 service method, a rendered page, a command's output). The project's existing test layout wins over any
 layout you would choose. The level follows the claim:
 
-| The claim is about | The test is |
-|---|---|
-| A pure function | A unit test, or a property test |
-| A module's behaviour | A test at its seam |
-| A command line tool | A subprocess test: arguments in, exit code and output out |
-| A UI | A real browser |
-| A skill or a rule | An eval, with a baseline arm |
+| The claim is about   | The test is                                               |
+| -------------------- | --------------------------------------------------------- |
+| A pure function      | A unit test, or a property test                           |
+| A module's behaviour | A test at its seam                                        |
+| A command line tool  | A subprocess test: arguments in, exit code and output out |
+| A UI                 | A real browser                                            |
+| A skill or a rule    | An eval, with a baseline arm                              |
 
 ## The loop
 

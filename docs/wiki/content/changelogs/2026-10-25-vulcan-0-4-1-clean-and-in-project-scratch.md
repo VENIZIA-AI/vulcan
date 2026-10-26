@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.4.1: vulcan clean, and No More Scratch Outside the Project"
+title: 'VULCAN 0.4.1: vulcan clean, and No More Scratch Outside the Project'
 description: vulcan clean lists and removes what an agent left under .agents/local/, doctor reports leftovers and the size, an npm preset installs in .agents/local/tmp instead of the system temp directory, and the repository's own tests and smokes use a temp folder inside it.
 packages: ['@venizia/vulcan']
 ---

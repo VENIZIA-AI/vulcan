@@ -6,10 +6,10 @@ Everyone here follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Setup
 
-| Tool | Version |
-|------|---------|
-| Bun | >= 1.4 (`curl -fsSL https://bun.sh/install \| bash`) |
-| Git | any recent |
+| Tool | Version                                              |
+| ---- | ---------------------------------------------------- |
+| Bun  | >= 1.4 (`curl -fsSL https://bun.sh/install \| bash`) |
+| Git  | any recent                                           |
 
 ```bash
 git clone https://github.com/VENIZIA-AI/vulcan.git

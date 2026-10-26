@@ -7,11 +7,11 @@ description: Make one small static HTML page - a flow, a status, a before and af
 
 `vulcan visualize <spec.json>` turns a JSON spec into one self-contained HTML page and writes it to `.agents/local/prototypes/<name>.html` (gitignored, inside the project). The page is for a reader who should understand in one look: a verdict first, a figure of boxes and labelled arrows, a few cards, tables for evidence and risks. It loads nothing from the network, uses no font or image, and is never published; you open the file.
 
-| Command | What it does |
-|---|---|
-| `vulcan visualize <spec.json>` | Renders the page; the name is the spec's file name |
-| `vulcan visualize <spec.json> --out <name>` | Names the page (lowercase letters, digits, dashes) |
-| `vulcan visualize --schema` | Prints the spec's JSON Schema; no project is needed |
+| Command                                     | What it does                                        |
+| ------------------------------------------- | --------------------------------------------------- |
+| `vulcan visualize <spec.json>`              | Renders the page; the name is the spec's file name  |
+| `vulcan visualize <spec.json> --out <name>` | Names the page (lowercase letters, digits, dashes)  |
+| `vulcan visualize --schema`                 | Prints the spec's JSON Schema; no project is needed |
 
 ## What it checks
 

@@ -1,5 +1,5 @@
 ---
-title: "Wiki: A New Home Page, a Venizia Switcher and a Smooth Light and Dark Switch"
+title: 'Wiki: A New Home Page, a Venizia Switcher and a Smooth Light and Dark Switch'
 description: The VULCAN wiki has a new home page and footer, one look shared with the IGNIS and ARDOR wikis, a switcher between the Venizia sites, a smoother light and dark switch and flatter callouts and code windows. Only readers of the wiki are affected.
 packages: []
 ---

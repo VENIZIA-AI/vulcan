@@ -24,12 +24,12 @@ was not checked and what you need from the reader. Lead with the answer (V-P-11)
 
 ## 1. Pick the mode
 
-| Mode | When | Reader |
-|---|---|---|
-| Done report | Work ends, at any lane above S | the owner or the next agent |
-| Owner status | The owner asks where things stand, or you reach a decision | the owner |
-| Preview | Before an action that needs approval | the owner |
-| Handoff | Work passes to another session or context | the next agent |
+| Mode         | When                                                       | Reader                      |
+| ------------ | ---------------------------------------------------------- | --------------------------- |
+| Done report  | Work ends, at any lane above S                             | the owner or the next agent |
+| Owner status | The owner asks where things stand, or you reach a decision | the owner                   |
+| Preview      | Before an action that needs approval                       | the owner                   |
+| Handoff      | Work passes to another session or context                  | the next agent              |
 
 Lane S ends with one line: what changed and the command that proved it.
 

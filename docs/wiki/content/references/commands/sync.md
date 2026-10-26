@@ -10,21 +10,21 @@ It updates tool instructions, settings, hook registrations, skill links and the 
 Which agents get adapters is each developer's choice on their own machine ([Choosing your agents](#choosing-your-agents)). The Claude adapters (`CLAUDE.md`, settings, skill links) are planned only when `claude` is among the chosen agents.
 The manifest is always written.
 
-| Output | Where | Committed? | Built from |
-|---|---|---|---|
-| Agent instructions | `CLAUDE.md` | No (gitignored adapter) | `@AGENTS.md` import line |
-| Claude settings | `.claude/settings.json` | No (gitignored adapter) | Shipped settings, slot choices, project hooks, `claude.settings`, and personal settings |
-| Skill links | `.claude/skills/<name>` | No (gitignored adapter) | Symbolic links to shipped and project skills |
-| Project manifest | `.agents/vulcan.manifest.json` | Yes (committed manifest) | Project configuration and base rule hashes |
-| Managed overlay | `.claude/vulcan-managed.json` | No (gitignored adapter) | Managed overlay record of settings written by VULCAN |
+| Output             | Where                          | Committed?               | Built from                                                                              |
+| ------------------ | ------------------------------ | ------------------------ | --------------------------------------------------------------------------------------- |
+| Agent instructions | `CLAUDE.md`                    | No (gitignored adapter)  | `@AGENTS.md` import line                                                                |
+| Claude settings    | `.claude/settings.json`        | No (gitignored adapter)  | Shipped settings, slot choices, project hooks, `claude.settings`, and personal settings |
+| Skill links        | `.claude/skills/<name>`        | No (gitignored adapter)  | Symbolic links to shipped and project skills                                            |
+| Project manifest   | `.agents/vulcan.manifest.json` | Yes (committed manifest) | Project configuration and base rule hashes                                              |
+| Managed overlay    | `.claude/vulcan-managed.json`  | No (gitignored adapter)  | Managed overlay record of settings written by VULCAN                                    |
 
 ## Options
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `--agents <list>` | string | the stored choice | The agents to write adapters for, comma-separated, or `none`. Stored in `.agents/vulcan.local.json`. `--agents list` prints the table of agents and writes nothing. In a terminal, `--agents` with no value asks again |
-| `--dry-run` | boolean | false | Print planned changes without writing to disk |
-| `--prune` | boolean | false | Remove stale hook commands and dead skill links |
+| Option            | Type    | Default           | Meaning                                                                                                                                                                                                                |
+| ----------------- | ------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--agents <list>` | string  | the stored choice | The agents to write adapters for, comma-separated, or `none`. Stored in `.agents/vulcan.local.json`. `--agents list` prints the table of agents and writes nothing. In a terminal, `--agents` with no value asks again |
+| `--dry-run`       | boolean | false             | Print planned changes without writing to disk                                                                                                                                                                          |
+| `--prune`         | boolean | false             | Remove stale hook commands and dead skill links                                                                                                                                                                        |
 
 ## Choosing your agents
 
@@ -46,14 +46,14 @@ The answer is stored in `.agents/vulcan.local.json`, which is gitignored, and ev
 
 The order that decides the list is: the `--agents` flag; the stored file; the `agents` list in the project's config, when it has one; a project that already has `CLAUDE.md` or `.claude/` (treated as `claude`); then the question. When nothing is known and there is no terminal, `sync` does what it always did, writes the Claude files, and prints one line saying how to choose; it stores nothing. What each chosen agent gets from `sync`:
 
-| Agent | Atlas MCP entry | Where |
-|---|---|---|
+| Agent                          | Atlas MCP entry                                                       | Where                                                                     |
+| ------------------------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | `claude`, `omp`, `copilot-cli` | `mcpServers.atlas`, the same relative entry for everyone (`--root .`) | the root `.mcp.json`, one file for the three ([below](#the-root-mcpjson)) |
-| `codex` | a block between `# vulcan:atlas:start` and `# vulcan:atlas:end` | `.codex/config.toml`; Codex loads it only for a trusted project |
-| `cursor` | `mcpServers.atlas` | `.cursor/mcp.json` |
-| `copilot-vscode` | `servers.atlas` (type `stdio`) | `.vscode/mcp.json` |
-| `antigravity` | `mcpServers.atlas` | `.agents/mcp_config.json` |
-| `pi` | `mcpServers.atlas` | `.pi/mcp.json`; Pi ignores it until you trust the project |
+| `codex`                        | a block between `# vulcan:atlas:start` and `# vulcan:atlas:end`       | `.codex/config.toml`; Codex loads it only for a trusted project           |
+| `cursor`                       | `mcpServers.atlas`                                                    | `.cursor/mcp.json`                                                        |
+| `copilot-vscode`               | `servers.atlas` (type `stdio`)                                        | `.vscode/mcp.json`                                                        |
+| `antigravity`                  | `mcpServers.atlas`                                                    | `.agents/mcp_config.json`                                                 |
+| `pi`                           | `mcpServers.atlas`                                                    | `.pi/mcp.json`; Pi ignores it until you trust the project                 |
 
 These files are for your machine, so the entry carries the absolute project root and calls the project's own `vulcan` (`bun <root>/node_modules/.bin/vulcan x atlas mcp --root <root>`), which works whatever directory the agent starts the server from. `sync` merges: your other servers and keys stay, an `atlas` entry that `sync` wrote itself is rewritten when the project has moved (the paths no longer match this folder: after you move, rename or copy the project, run `sync` again), any other `atlas` entry is yours and is left as it is, a file that is not valid JSON is skipped (`skipped`, with the reason), and a file git tracks is not written (it prints what to add). After the actions, `sync` prints one `note` line for each thing only you can do, such as trusting the project in Codex or Pi. Every chosen agent except Claude reads skills from `.agents/skills/<name>/SKILL.md`, so `sync` links the four shipped skills (`build-a-feature`, `docs-update`, `docs-writing`, `knowledge-sync`) there, as symbolic links to the same stable path the Claude links use. Agents that share the folder share the links. A skill of yours with the same name wins: its real folder is left and reported as `skipped`. Claude keeps `.claude/skills`, which also holds your project skills. The git ignore entries for these files are described in [Keeping the adapters out of git](#keeping-the-adapters-out-of-git).
 
@@ -173,13 +173,13 @@ $ bun x --no-install vulcan sync
 
 `vulcan sync` prints an action status for each planned target:
 
-| Status | Meaning |
-|---|---|
-| `created` | The target file or symbolic link did not exist and was written. |
-| `unchanged` | The target file or symbolic link already matches the planned content. |
-| `replaced` | The target existed with different content or pointed elsewhere, and was rewritten. |
-| `removed` | A stale hook command was taken out of `.claude/settings.json` under `--prune`, or a dead skill link was removed. Plain `sync` removes only a dead link into a shipped skill; `--prune` removes every dead skill link. |
-| `skipped` | The target was left untouched due to a conflict or invalid content. |
+| Status      | Meaning                                                                                                                                                                                                               |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `created`   | The target file or symbolic link did not exist and was written.                                                                                                                                                       |
+| `unchanged` | The target file or symbolic link already matches the planned content.                                                                                                                                                 |
+| `replaced`  | The target existed with different content or pointed elsewhere, and was rewritten.                                                                                                                                    |
+| `removed`   | A stale hook command was taken out of `.claude/settings.json` under `--prune`, or a dead skill link was removed. Plain `sync` removes only a dead link into a shipped skill; `--prune` removes every dead skill link. |
+| `skipped`   | The target was left untouched due to a conflict or invalid content.                                                                                                                                                   |
 
 An old `CLAUDE.md` symlink is replaced (`replaced (old symlink)`).
 The `CLAUDE.md` that `bun init` writes (it starts with `Default to using Bun instead of Node.js.`) is replaced too (`replaced (bun init's template)`), because those are Bun's tips and not your project's words.

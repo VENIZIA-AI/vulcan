@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.4.1: New Base Rules for How Agents Work"
+title: 'VULCAN 0.4.1: New Base Rules for How Agents Work'
 description: Nine new base rules cover approval, reuse, work and done reports, asking, reporting, delegation, safety, skipped work and scratch files; the session digest adds two of them.
 packages: ['@venizia/vulcan']
 ---

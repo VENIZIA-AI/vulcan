@@ -69,8 +69,13 @@ export const HOME: THomeContent = {
 export default {
   agents: ['claude', 'omp'],
   rules: { 'V-W-01': 'on-user-word' },
-  remoteHosts: { trusted: ['lab1'], readOnly: ['prod1'] },
-  guard: { writes: { trustedScripts: ['tools/i18n/cli.ts'] } },
+  remoteHosts: {
+    trusted: ['lab1'],
+    readOnly: ['prod1'],
+  },
+  guard: {
+    writes: { trustedScripts: ['tools/i18n/cli.ts'] },
+  },
 } satisfies VulcanConfig;`,
       note: 'The config of a project. <a href="/references/configuration/">Every key is in the reference.</a>',
     },

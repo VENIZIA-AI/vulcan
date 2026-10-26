@@ -4,7 +4,6 @@ about: Something in vulcan, okf or atlas does not work as documented
 title: ''
 labels: ''
 assignees: ''
-
 ---
 
 **What happened**
@@ -17,6 +16,7 @@ bun x --no-install vulcan ...
 **What you expected**
 
 **Versions**
+
 - `bun x --no-install vulcan version`:
 - `bun --version`:
 - OS:

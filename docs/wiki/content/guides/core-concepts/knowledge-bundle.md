@@ -31,21 +31,21 @@ Links use bundle-absolute paths with a leading slash and the `.md` extension, su
 
 The knowledge bundle lives at `.agents/knowledge/` by default:
 
-| Path | Purpose | Rules |
-|---|---|---|
-| `index.md` | Root bundle entry point | Carries no frontmatter except `okf_version` at root |
-| `<section>/<name>.md` | Curated concepts | Requires YAML frontmatter with a non-empty `type` |
-| `reference/` | Generated reference pages | Derived from source code by `vulcan x okf gen` |
+| Path                  | Purpose                   | Rules                                               |
+| --------------------- | ------------------------- | --------------------------------------------------- |
+| `index.md`            | Root bundle entry point   | Carries no frontmatter except `okf_version` at root |
+| `<section>/<name>.md` | Curated concepts          | Requires YAML frontmatter with a non-empty `type`   |
+| `reference/`          | Generated reference pages | Derived from source code by `vulcan x okf gen`      |
 
 ## Checking it
 
 Run `vulcan x okf check` to validate conformance to the Open Knowledge Format v0.2 specification.
 Both commands exit with code 0 on success and exit with code 1 on errors.
 
-| Command | What it adds | What a failure looks like |
-|---|---|---|
-| `vulcan x okf check` | Validates OKF conformance. Every concept needs parseable frontmatter with a non-empty `type`. `index.md` carries no frontmatter except `okf_version` at the root. Soft guidance (status, timestamps, actors) prints as warnings and does not fail. | `.agents/knowledge/overview/example.md: §11.2 missing or empty top-level type` |
-| `vulcan x okf check --strict` | Enforces project house rules. Checks link resolution, brand casing, hyphen style, structural coverage, and generation freshness. | `.agents/knowledge/overview/example.md: broken link -> /overview/missing.md` |
+| Command                       | What it adds                                                                                                                                                                                                                                       | What a failure looks like                                                      |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `vulcan x okf check`          | Validates OKF conformance. Every concept needs parseable frontmatter with a non-empty `type`. `index.md` carries no frontmatter except `okf_version` at the root. Soft guidance (status, timestamps, actors) prints as warnings and does not fail. | `.agents/knowledge/overview/example.md: §11.2 missing or empty top-level type` |
+| `vulcan x okf check --strict` | Enforces project house rules. Checks link resolution, brand casing, hyphen style, structural coverage, and generation freshness.                                                                                                                   | `.agents/knowledge/overview/example.md: broken link -> /overview/missing.md`   |
 
 ## Generated pages
 
@@ -53,7 +53,9 @@ Both commands exit with code 0 on success and exit with code 1 on errors.
 To enable `makefile-targets`, add the config line:
 
 ```ts
-okf: { renderers: ['makefile-targets'] }
+okf: {
+  renderers: ['makefile-targets'];
+}
 ```
 
 Each generated page carries this notice:

@@ -32,10 +32,10 @@ the pull request description for the goal and the claims; without them the Spec 
 
 ## 2. Choose independence and axes
 
-| Lane | Independence | Axes |
-|---|---|---|
-| S | Read the diff yourself | Standards, lightly |
-| M | Self-review; a fresh reviewer is optional | Spec, Standards |
+| Lane                                                                | Independence                                                                                     | Axes                                                      |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| S                                                                   | Read the diff yourself                                                                           | Standards, lightly                                        |
+| M                                                                   | Self-review; a fresh reviewer is optional                                                        | Spec, Standards                                           |
 | L, or auth, security, publishing, deleting, or the rules themselves | A fresh, non-forked reviewer per axis. Skipping it needs one logged line naming the skip and why | Spec, Standards, and Security for a security-class change |
 
 The axes run as separate reviewers and are never merged or re-ranked: a blended verdict lets the passing

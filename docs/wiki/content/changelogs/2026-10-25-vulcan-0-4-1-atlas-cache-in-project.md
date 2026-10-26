@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.4.1: atlas Keeps Its Cache Inside the Project"
+title: 'VULCAN 0.4.1: atlas Keeps Its Cache Inside the Project'
 description: atlas writes its source cache to .agents/local/cache in the project, takes --cache-dir to move it, and no longer reads a user-level atlas.json or writes under the home folder.
 packages: ['@venizia/vulcan-atlas']
 ---

@@ -27,12 +27,12 @@ and a subagent that trusts it inherits your mistakes.
 
 Each report ends with one status:
 
-| Status | Means |
-|---|---|
-| done | The work is complete and the evidence is attached |
-| done with concerns | Complete, with doubts named |
-| needs context | Stopped for a fact only the main agent has |
-| blocked | Cannot continue; the reason is named |
+| Status             | Means                                             |
+| ------------------ | ------------------------------------------------- |
+| done               | The work is complete and the evidence is attached |
+| done with concerns | Complete, with doubts named                       |
+| needs context      | Stopped for a fact only the main agent has        |
+| blocked            | Cannot continue; the reason is named              |
 
 Treat the report as unverified claims about the files. Check the result on disk, or by running the
 command, before a claim closes on it. A brief that asks for a count asks for the command that produced it.

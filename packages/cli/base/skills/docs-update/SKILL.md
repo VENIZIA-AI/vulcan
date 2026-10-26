@@ -44,13 +44,13 @@ Copy it into your reply and tick it off, in order:
 1. `bun x --no-install vulcan doctor` passes, so the manifest is fresh. Fix what it names first.
 2. Read `.agents/vulcan.manifest.json`. Every path comes from it, never from a layout you expect:
 
-| Key | What it gives you |
-|---|---|
-| `knowledge.wiki` | the docs root - every page lives under it |
-| `knowledge.changelogs` | the changelog directory |
-| `packages[].path` | where each package's source lives |
-| `packages[].name` | the npm names a changelog entry declares |
-| `name` | the brand, upper case in prose |
+| Key                    | What it gives you                         |
+| ---------------------- | ----------------------------------------- |
+| `knowledge.wiki`       | the docs root - every page lives under it |
+| `knowledge.changelogs` | the changelog directory                   |
+| `packages[].path`      | where each package's source lives         |
+| `packages[].name`      | the npm names a changelog entry declares  |
+| `name`                 | the brand, upper case in prose            |
 
 A key the manifest lacks is a part the project does not have. No `knowledge.wiki`: the human-facing
 docs are the package READMEs (`<packages[].path>/README.md`) and the changelog - ask before creating

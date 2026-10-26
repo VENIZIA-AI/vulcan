@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.4.1: build-a-feature Plans, Tests, Documents and Reviews with the New Skills"
+title: 'VULCAN 0.4.1: build-a-feature Plans, Tests, Documents and Reviews with the New Skills'
 description: build-a-feature now starts from a plan-a-change card, runs a design pass and the testing reference, delivers docs before review and ends in review-a-change and report-back; five shared references and shorter skill descriptions come with it.
 packages: ['@venizia/vulcan']
 ---

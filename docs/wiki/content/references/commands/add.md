@@ -248,17 +248,17 @@ Where the library goes, and what it is called:
 
 ## Options
 
-| Flag | Meaning |
-|---|---|
-| `--preset <name\|file:path>` | The preset package. Required. A name without a scope means `@venizia/<name>`; `name@version` pins a version, and the default is `latest` |
-| `--app <name>` | The name of the new app. Always asked in a terminal, never pre-filled |
-| `--backend-dir <path>` | The folder for backend apps. Used when the preset is a backend |
-| `--frontend-dir <path>` | The folder for frontend apps. Used when the preset is a frontend |
-| `--api <app>` | A frontend only: the backend app to proxy `/api` to |
-| `--no-api` | A frontend only: proxy to nothing |
-| `--lib <name>` | Create a shared library instead of an app. Not with `--app` |
-| `--dir <folder>` | A library only: the folder it goes in, from the root. Default: the `shared` folder |
-| `--scope <@scope>` | The npm scope of the package name, for a library and for an app: `--app web --scope @acme` names the app `@acme/web` (a library with no flag takes the scope its folder agrees on, as above; an app with no flag stays bare). The folder and the dir registered in the config stay bare. A menu asks for it for an app (empty for none); a plain terminal does not |
+| Flag                         | Meaning                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--preset <name\|file:path>` | The preset package. Required. A name without a scope means `@venizia/<name>`; `name@version` pins a version, and the default is `latest`                                                                                                                                                                                                                           |
+| `--app <name>`               | The name of the new app. Always asked in a terminal, never pre-filled                                                                                                                                                                                                                                                                                              |
+| `--backend-dir <path>`       | The folder for backend apps. Used when the preset is a backend                                                                                                                                                                                                                                                                                                     |
+| `--frontend-dir <path>`      | The folder for frontend apps. Used when the preset is a frontend                                                                                                                                                                                                                                                                                                   |
+| `--api <app>`                | A frontend only: the backend app to proxy `/api` to                                                                                                                                                                                                                                                                                                                |
+| `--no-api`                   | A frontend only: proxy to nothing                                                                                                                                                                                                                                                                                                                                  |
+| `--lib <name>`               | Create a shared library instead of an app. Not with `--app`                                                                                                                                                                                                                                                                                                        |
+| `--dir <folder>`             | A library only: the folder it goes in, from the root. Default: the `shared` folder                                                                                                                                                                                                                                                                                 |
+| `--scope <@scope>`           | The npm scope of the package name, for a library and for an app: `--app web --scope @acme` names the app `@acme/web` (a library with no flag takes the scope its folder agrees on, as above; an app with no flag stays bare). The folder and the dir registered in the config stay bare. A menu asks for it for an app (empty for none); a plain terminal does not |
 
 A name is lowercase letters, digits and `-`, and starts with a letter or digit.
 A name is never invented: without a terminal, neither `--app` nor `--lib` is an error that prints both commands, and `--lib` alone with no name is an error that names the flag.
@@ -279,12 +279,12 @@ The preset says whether it is a backend or a frontend, and the app goes in one o
 
 ## What it writes
 
-| File | Change |
-|---|---|
-| `<folder>/<app>/` | The preset's files, with `{{project}}`, `{{app}}`, `{{appPath}}`, `{{devPort}}` and `{{apiUrl}}` filled in, and a generated `package.json` |
-| `package.json` | The folder joins `workspaces` and the preset's versions join `catalog`; an array stays an array, and the catalog stays where the project keeps it (top level or inside `workspaces`) |
+| File                         | Change                                                                                                                                                                                                                        |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<folder>/<app>/`            | The preset's files, with `{{project}}`, `{{app}}`, `{{appPath}}`, `{{devPort}}` and `{{apiUrl}}` filled in, and a generated `package.json`                                                                                    |
+| `package.json`               | The folder joins `workspaces` and the preset's versions join `catalog`; an array stays an array, and the catalog stays where the project keeps it (top level or inside `workspaces`)                                          |
 | `.configs/vulcan.config.mts` | The block between `vulcan:apps:start` and `vulcan:apps:end` is read and extended: `layout`, the new `packages` entry, the preset's `atlas` sources. Everything you added outside the markers is untouched and never copied in |
-| `.agents/knowledge/` | A concept for the app, one bullet after the last one under `## Apps` in `index.md` (a section is added when there is none; the rest of the file is yours) |
+| `.agents/knowledge/`         | A concept for the app, one bullet after the last one under `## Apps` in `index.md` (a section is added when there is none; the rest of the file is yours)                                                                     |
 
 Then it runs `bun install`, `vulcan sync` from the installed CLI, the preset's `checks` in the new app, `vulcan doctor` and `vulcan x okf check --strict`.
 The first failure stops the command, and the files stay for you to inspect.
@@ -304,29 +304,29 @@ Two rules keep apps consistent:
 
 Every refusal happens before the first write, with exit code 1.
 
-| Message | Cause and fix |
-|---|---|
-| `vulcan add: run it at the root of a monorepo vulcan init created (no layout in .configs/vulcan.config.*)` | The folder has no `layout`. Run `add` at the monorepo root |
-| `vulcan add: the backend folder 'services/x' does not fit the layout of .configs/vulcan.config.mts: ... are nested` | A folder inside another listed folder, or around one. Pick a folder that is neither |
-| `vulcan add: missing --backend-dir (Backend folder (holds every backend app); the layout lists umbras, umbras-2) - names are never chosen for you` | Several folders are listed and there is no terminal. Pass one |
-| `vulcan add: --backend-dir '../x' ...` | The folder is not a layout folder: no `..`, no leading or trailing `/`, no backslash, no `node_modules`, at most 4 segments of lowercase letters, digits and `-` |
-| `vulcan add: missing --app (Name of this app) - names are never chosen for you` | `--app` was given with no name and there is no terminal to ask. Pass the name |
-| `vulcan add: services/billing already exists` | An app or folder has that name. Pick another |
-| `vulcan add: say what to create - ...` | Neither `--app` nor `--lib`, and no terminal to ask. The message prints both commands |
-| `vulcan add: --app and --lib cannot be used together` | One kind per run |
-| `vulcan add: preset @acme/api has no lib kind` | `--lib` on a preset with no `vulcan.presets.lib`. Use `--app`, or another preset |
-| `vulcan add: where should billing go? pass --dir <folder>` | A library with no `--dir`, no `shared` folder and no folder shared by existing libraries |
-| `vulcan add: the packages in libs use more than one scope (@a, @b) - pass --scope <@scope>` | The folder's packages disagree on a scope |
-| `vulcan add: --scope 'acme' is not a scope like @acme` | A scope starts with `@` |
-| `vulcan add: the monorepo pins typescript ^6.0.3, but the preset needs ^7.0.0 - move the catalog first` | The preset declares `peers` that the catalog does not satisfy. Change the catalog version first |
-| `vulcan add: the monorepo pins x ^0.2.2-5, a prerelease, which does not meet the preset's ^0.2.2 ...` | A prerelease sorts before its release, so it does not meet a plain range. Pin a release in the catalog first |
-| `vulcan add: the monorepo pins x workspace:*, which is not a version vulcan can compare ...` | The catalog value is a range, a `workspace:` link or a URL. Pin a version first |
-| `vulcan add: the frontend folder 'services' is the backend folder in .configs/vulcan.config.mts; each kind of code needs its own folder` | A folder holds one kind of code. Pick another |
-| `vulcan add: missing --api <app> or --no-api` | A frontend without a terminal needs one of the two flags |
-| `vulcan add: --api 'x' is not a backend app of this monorepo` | `--api` takes the name of an app under the backend folder |
-| `vulcan add: no *PORT=<number> line in services/core-api/.env.example to proxy to` | The backend app has no port line to read |
-| `vulcan add: the vulcan:apps block is gone from .configs/vulcan.config.mts - add by hand:` | The markers were edited away. `add` prints the lines to paste and never rewrites your config |
-| `vulcan add: the vulcan:apps block in .configs/vulcan.config.mts is not the JSON vulcan wrote - add by hand:` | The block between the markers was edited into something else. Same: the new lines are printed |
+| Message                                                                                                                                            | Cause and fix                                                                                                                                                    |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vulcan add: run it at the root of a monorepo vulcan init created (no layout in .configs/vulcan.config.*)`                                         | The folder has no `layout`. Run `add` at the monorepo root                                                                                                       |
+| `vulcan add: the backend folder 'services/x' does not fit the layout of .configs/vulcan.config.mts: ... are nested`                                | A folder inside another listed folder, or around one. Pick a folder that is neither                                                                              |
+| `vulcan add: missing --backend-dir (Backend folder (holds every backend app); the layout lists umbras, umbras-2) - names are never chosen for you` | Several folders are listed and there is no terminal. Pass one                                                                                                    |
+| `vulcan add: --backend-dir '../x' ...`                                                                                                             | The folder is not a layout folder: no `..`, no leading or trailing `/`, no backslash, no `node_modules`, at most 4 segments of lowercase letters, digits and `-` |
+| `vulcan add: missing --app (Name of this app) - names are never chosen for you`                                                                    | `--app` was given with no name and there is no terminal to ask. Pass the name                                                                                    |
+| `vulcan add: services/billing already exists`                                                                                                      | An app or folder has that name. Pick another                                                                                                                     |
+| `vulcan add: say what to create - ...`                                                                                                             | Neither `--app` nor `--lib`, and no terminal to ask. The message prints both commands                                                                            |
+| `vulcan add: --app and --lib cannot be used together`                                                                                              | One kind per run                                                                                                                                                 |
+| `vulcan add: preset @acme/api has no lib kind`                                                                                                     | `--lib` on a preset with no `vulcan.presets.lib`. Use `--app`, or another preset                                                                                 |
+| `vulcan add: where should billing go? pass --dir <folder>`                                                                                         | A library with no `--dir`, no `shared` folder and no folder shared by existing libraries                                                                         |
+| `vulcan add: the packages in libs use more than one scope (@a, @b) - pass --scope <@scope>`                                                        | The folder's packages disagree on a scope                                                                                                                        |
+| `vulcan add: --scope 'acme' is not a scope like @acme`                                                                                             | A scope starts with `@`                                                                                                                                          |
+| `vulcan add: the monorepo pins typescript ^6.0.3, but the preset needs ^7.0.0 - move the catalog first`                                            | The preset declares `peers` that the catalog does not satisfy. Change the catalog version first                                                                  |
+| `vulcan add: the monorepo pins x ^0.2.2-5, a prerelease, which does not meet the preset's ^0.2.2 ...`                                              | A prerelease sorts before its release, so it does not meet a plain range. Pin a release in the catalog first                                                     |
+| `vulcan add: the monorepo pins x workspace:*, which is not a version vulcan can compare ...`                                                       | The catalog value is a range, a `workspace:` link or a URL. Pin a version first                                                                                  |
+| `vulcan add: the frontend folder 'services' is the backend folder in .configs/vulcan.config.mts; each kind of code needs its own folder`           | A folder holds one kind of code. Pick another                                                                                                                    |
+| `vulcan add: missing --api <app> or --no-api`                                                                                                      | A frontend without a terminal needs one of the two flags                                                                                                         |
+| `vulcan add: --api 'x' is not a backend app of this monorepo`                                                                                      | `--api` takes the name of an app under the backend folder                                                                                                        |
+| `vulcan add: no *PORT=<number> line in services/core-api/.env.example to proxy to`                                                                 | The backend app has no port line to read                                                                                                                         |
+| `vulcan add: the vulcan:apps block is gone from .configs/vulcan.config.mts - add by hand:`                                                         | The markers were edited away. `add` prints the lines to paste and never rewrites your config                                                                     |
+| `vulcan add: the vulcan:apps block in .configs/vulcan.config.mts is not the JSON vulcan wrote - add by hand:`                                      | The block between the markers was edited into something else. Same: the new lines are printed                                                                    |
 
 The preset itself can also be refused; those messages are listed under [`vulcan init`](/references/commands/init#refusals).
 

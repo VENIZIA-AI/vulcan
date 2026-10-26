@@ -27,12 +27,12 @@ Format: RULE | why | BAD -> GOOD.
 
 ## Hard numbers
 
-| Metric | Number | Source |
-|---|---|---|
-| Words per sentence (target) | 15-20 | plainlanguage.gov |
-| Words per sentence (hard split) | > 25 | GOV.UK |
-| Sentences per paragraph | max 3-4 | GOV.UK |
-| Reading-age target | ~9 | GOV.UK |
-| One-sentence paragraphs | 3-5 per ~1000 words, payoffs only | Pocock analysis |
-| First code block | within ~15 lines of the top | Pocock analysis |
-| Acronyms | spell out on first use, once per page | GitLab |
+| Metric                          | Number                                | Source            |
+| ------------------------------- | ------------------------------------- | ----------------- |
+| Words per sentence (target)     | 15-20                                 | plainlanguage.gov |
+| Words per sentence (hard split) | > 25                                  | GOV.UK            |
+| Sentences per paragraph         | max 3-4                               | GOV.UK            |
+| Reading-age target              | ~9                                    | GOV.UK            |
+| One-sentence paragraphs         | 3-5 per ~1000 words, payoffs only     | Pocock analysis   |
+| First code block                | within ~15 lines of the top           | Pocock analysis   |
+| Acronyms                        | spell out on first use, once per page | GitLab            |

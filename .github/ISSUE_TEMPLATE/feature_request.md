@@ -4,7 +4,6 @@ about: Suggest a rule, a check, a skill or a tool for every VULCAN project
 title: ''
 labels: ''
 assignees: ''
-
 ---
 
 **The problem**

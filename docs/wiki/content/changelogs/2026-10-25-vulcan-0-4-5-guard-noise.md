@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.4.5: The Write and Remote-Host Guards Stop Asking About Data"
+title: 'VULCAN 0.4.5: The Write and Remote-Host Guards Stop Asking About Data'
 description: A heredoc written to a file and the quoted pattern of rg, grep and similar tools are data, not commands; the write guard and the remote-host guard now read the command through the shared parser, so 12 of 16 noisy shapes no longer ask and the 24 real ones still do.
 packages: ['@venizia/vulcan']
 ---
@@ -33,10 +33,10 @@ BANA scanned 228 transcripts over 3 days (13,000 Bash calls): the base hooks rai
 
 A corpus of 16 shapes that must stay quiet (heredoc docs, quoted `rg`, `grep`, `git grep`, a commit message, `echo`, `gh issue`) and 24 that must ask (a deploy, `bash <<EOF`, `ssh host <<EOF`, `psql <<EOF`, a mutating `curl`, `find -exec`, `sh -c`, a pipe into `sh`, an unlisted host, a SQL write, a migration), run through `guard-writes` and `guard-remote-hosts`:
 
-| | Before | After |
-|---|---|---|
-| Quiet shapes that asked | 12 of 16 | 0 of 16 |
-| Real shapes that asked | 24 of 24 | 24 of 24 |
+|                         | Before   | After    |
+| ----------------------- | -------- | -------- |
+| Quiet shapes that asked | 12 of 16 | 0 of 16  |
+| Real shapes that asked  | 24 of 24 | 24 of 24 |
 
 The corpus is `noise-corpus.ts` in the tests, built from the shapes BANA described, not from its transcripts.
 

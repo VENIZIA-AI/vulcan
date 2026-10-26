@@ -56,12 +56,12 @@ change is user-visible).
 
 For each layer the feature touches, find how this project already does it:
 
-| You need | Call |
-|---|---|
+| You need                                                                                                  | Call                                                              |
+| --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | How a feature of this kind is organised (routes, controllers, services, repositories, datasources, pages) | `search` with the kind and the layer, then `get` on the best hits |
-| The project's own concepts and decisions | `search` with `corpus: "knowledge"` |
-| A new app or a shared package | `presets`, then the exact `vulcan add` command it returns |
-| What changed in a release you depend on | `changes`, `version` |
+| The project's own concepts and decisions                                                                  | `search` with `corpus: "knowledge"`                               |
+| A new app or a shared package                                                                             | `presets`, then the exact `vulcan add` command it returns         |
+| What changed in a release you depend on                                                                   | `changes`, `version`                                              |
 
 A knowledge page under `.agents/knowledge/packages/` is a summary of what a package is; the way
 code is written comes from atlas. When atlas has nothing on a point, tell the user and mark the

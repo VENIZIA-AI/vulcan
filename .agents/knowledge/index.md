@@ -1,5 +1,5 @@
 ---
-okf_version: "0.2"
+okf_version: '0.2'
 ---
 
 # VULCAN knowledge
@@ -13,21 +13,21 @@ a bug - fix it.
 
 ## Start here
 
-| Concept | What it answers |
-|---|---|
-| [What is VULCAN](/overview/what-is-vulcan.md) | What this is and who uses it |
-| [Repository layout](/overview/repository-layout.md) | What lives where |
-| [Design decisions](/overview/design-decisions.md) | The calls made, and what is still open |
-| [Gotchas](/conventions/gotchas.md) | The traps that cost real time |
+| Concept                                             | What it answers                        |
+| --------------------------------------------------- | -------------------------------------- |
+| [What is VULCAN](/overview/what-is-vulcan.md)       | What this is and who uses it           |
+| [Repository layout](/overview/repository-layout.md) | What lives where                       |
+| [Design decisions](/overview/design-decisions.md)   | The calls made, and what is still open |
+| [Gotchas](/conventions/gotchas.md)                  | The traps that cost real time          |
 
 ## Packages
 
 One release train: the three packages always share a version.
 
-| Package | Role |
-|---|---|
-| [cli](/packages/cli.md) | `@venizia/vulcan` - the `vulcan` CLI and the shipped base |
-| [okf](/packages/okf.md) | `@venizia/vulcan-okf` - OKF v0.2 check, gen, coverage, viz |
+| Package                     | Role                                                                        |
+| --------------------------- | --------------------------------------------------------------------------- |
+| [cli](/packages/cli.md)     | `@venizia/vulcan` - the `vulcan` CLI and the shipped base                   |
+| [okf](/packages/okf.md)     | `@venizia/vulcan-okf` - OKF v0.2 check, gen, coverage, viz                  |
 | [atlas](/packages/atlas.md) | `@venizia/vulcan-atlas` - the MCP knowledge server and the table generators |
 
 ## Architecture

@@ -21,20 +21,20 @@ Run it at the monorepo root. `<app>` is the `dir` of the app in the config `pack
 
 ## Options
 
-| Flag | Meaning |
-|---|---|
-| `--preset <name\|file:path>` | The preset to render, when it cannot be found from the app. A bare `name` is read from the app's or the monorepo's `node_modules`; `name@range` is fetched into a scratch folder under `.agents/local/tmp/` (network) and removed afterwards; `file:<path>` reads a checkout |
-| `--api <backend app>`, `--no-api` | A frontend whose preset files use the proxy target needs one of them, as it did when `add` made the app; the proxy target cannot be recovered from the app |
-| `--full` | Print the unified diff under each file that differs: `-` is the app's line, `+` the preset's |
-| `--check` | Exit `1` when a file differs or is missing, for CI; without it the exit code is `0` after any report |
+| Flag                              | Meaning                                                                                                                                                                                                                                                                      |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--preset <name\|file:path>`      | The preset to render, when it cannot be found from the app. A bare `name` is read from the app's or the monorepo's `node_modules`; `name@range` is fetched into a scratch folder under `.agents/local/tmp/` (network) and removed afterwards; `file:<path>` reads a checkout |
+| `--api <backend app>`, `--no-api` | A frontend whose preset files use the proxy target needs one of them, as it did when `add` made the app; the proxy target cannot be recovered from the app                                                                                                                   |
+| `--full`                          | Print the unified diff under each file that differs: `-` is the app's line, `+` the preset's                                                                                                                                                                                 |
+| `--check`                         | Exit `1` when a file differs or is missing, for CI; without it the exit code is `0` after any report                                                                                                                                                                         |
 
 ## What each line says
 
-| Status | Means |
-|---|---|
-| `same` | The app's file holds exactly what the preset makes now |
+| Status    | Means                                                                                                                                                                                                                                                                                                                          |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `same`    | The app's file holds exactly what the preset makes now                                                                                                                                                                                                                                                                         |
 | `differs` | The app's file is not what the preset makes now (`(the app has a folder here)` when a folder stands where the file should be). `(+N -M)` counts the lines only the preset has and the lines only the app has; `(binary)` is a file compared by bytes; `(line endings or the last newline)` is the same lines in another ending |
-| `missing` | The preset makes the file and the app has none at that path. It is new in the preset, or the app deleted it: without the version the app was made from the two cannot be told apart |
+| `missing` | The preset makes the file and the app has none at that path. It is new in the preset, or the app deleted it: without the version the app was made from the two cannot be told apart                                                                                                                                            |
 
 Files only the app has are not listed. The generated `package.json` is not compared: the app owns it after creation.
 
@@ -58,10 +58,10 @@ Apply a change, merge a change with the app's own edits, report the generated `p
 
 ## Exit codes
 
-| Code | When |
-|---|---|
-| `0` | A report was printed (with `--check`: and nothing differs or is missing) |
-| `1` | `--check` and a file differs or is missing; an unknown app, no preset found, a preset that is not installed (run `bun install`), a refusal from the preset, a missing `--api` or `--no-api`, an unknown argument, or no monorepo at the working directory |
+| Code | When                                                                                                                                                                                                                                                      |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | A report was printed (with `--check`: and nothing differs or is missing)                                                                                                                                                                                  |
+| `1`  | `--check` and a file differs or is missing; an unknown app, no preset found, a preset that is not installed (run `bun install`), a refusal from the preset, a missing `--api` or `--no-api`, an unknown argument, or no monorepo at the working directory |
 
 ## See also
 

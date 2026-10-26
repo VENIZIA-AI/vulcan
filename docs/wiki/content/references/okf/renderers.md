@@ -8,15 +8,15 @@ description: Configure built-in and custom renderers, managed regions, sections,
 okf generates reference documents and managed markdown blocks from source code.
 You configure okf through the `okf` object in `.configs/vulcan.config.mts`.
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `renderers` | `Array<string \| object>` | `[]` | Built-in renderer identifiers or custom generator modules |
-| `regions` | `Array<object>` | `[]` | Target files and renderers for managed markdown blocks |
-| `sections` | `object` | `{ order: [], labels: {} }` | Section order and display titles for knowledge concepts |
-| `coverage` | `Array<object>` | `[]` | Directory axes checked for concept documentation coverage |
-| `denylist` | `string[]` | `[]` | Directory names dropped across every coverage axis |
-| `contents` | `object` | `{ files: ['AGENTS.md', '.agents/rules.md'] }` | Files that receive generated table of contents when exceeding 100 lines |
-| `viz` | `object` | `{ outputs: ['.agents/knowledge/viz.html'] }` | Output paths, brand name, and UI copy for the graph explorer |
+| Option      | Type                      | Default                                        | Meaning                                                                 |
+| ----------- | ------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------- |
+| `renderers` | `Array<string \| object>` | `[]`                                           | Built-in renderer identifiers or custom generator modules               |
+| `regions`   | `Array<object>`           | `[]`                                           | Target files and renderers for managed markdown blocks                  |
+| `sections`  | `object`                  | `{ order: [], labels: {} }`                    | Section order and display titles for knowledge concepts                 |
+| `coverage`  | `Array<object>`           | `[]`                                           | Directory axes checked for concept documentation coverage               |
+| `denylist`  | `string[]`                | `[]`                                           | Directory names dropped across every coverage axis                      |
+| `contents`  | `object`                  | `{ files: ['AGENTS.md', '.agents/rules.md'] }` | Files that receive generated table of contents when exceeding 100 lines |
+| `viz`       | `object`                  | `{ outputs: ['.agents/knowledge/viz.html'] }`  | Output paths, brand name, and UI copy for the graph explorer            |
 
 To configure okf features, export an `okf` section in `.configs/vulcan.config.mts`:
 
@@ -25,16 +25,11 @@ import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
   okf: {
-    renderers: [
-      'source-map',
-      'makefile-targets',
-    ],
+    renderers: ['source-map', 'makefile-targets'],
     regions: [
       { id: 'packages-table', file: 'overview/repository-layout.md', renderer: 'packages-table' },
     ],
-    coverage: [
-      { name: 'packages', path: 'packages/*' },
-    ],
+    coverage: [{ name: 'packages', path: 'packages/*' }],
   },
 } satisfies VulcanConfig;
 ```
@@ -43,12 +38,12 @@ export default {
 
 okf ships four built-in renderers:
 
-| Id | Writes | Collects from | Options |
-|---|---|---|---|
-| `source-map` | Whole page (`reference/source-map.md`) | `packages/*/src` subsystems and source files | `path`, `seeAlso` |
-| `makefile-targets` | Whole page (`reference/makefile-targets.md`) | Root make database targets, prerequisites, and descriptions | `path`, `seeAlso` |
-| `binding-keys` | Whole page (`reference/binding-keys.md`) | Source file configured in `options.source` | `source` (required), `path`, `description`, `seeAlso` |
-| `packages-table` | Managed region only | Package manifests and directories | None |
+| Id                 | Writes                                       | Collects from                                               | Options                                               |
+| ------------------ | -------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------- |
+| `source-map`       | Whole page (`reference/source-map.md`)       | `packages/*/src` subsystems and source files                | `path`, `seeAlso`                                     |
+| `makefile-targets` | Whole page (`reference/makefile-targets.md`) | Root make database targets, prerequisites, and descriptions | `path`, `seeAlso`                                     |
+| `binding-keys`     | Whole page (`reference/binding-keys.md`)     | Source file configured in `options.source`                  | `source` (required), `path`, `description`, `seeAlso` |
+| `packages-table`   | Managed region only                          | Package manifests and directories                           | None                                                  |
 
 To pass options, use the object form `{ id, module, options }` in `okf.renderers`.
 `module` is an optional path from the repository root.
@@ -69,10 +64,10 @@ For each package, it scans package directories under `packages/*/src` and counts
 Subsystems named `__tests__` or with zero files are left out.
 Rows sort by file count.
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `path` | `string` | `'reference/source-map.md'` | Output path relative to bundle |
-| `seeAlso` | `string` | see note below | Related concept link on notice line |
+| Option    | Type     | Default                     | Meaning                             |
+| --------- | -------- | --------------------------- | ----------------------------------- |
+| `path`    | `string` | `'reference/source-map.md'` | Output path relative to bundle      |
+| `seeAlso` | `string` | see note below              | Related concept link on notice line |
 
 ### makefile-targets
 
@@ -82,10 +77,10 @@ It lists generated targets too.
 Descriptions come first from `make help` rows in `make/help.mk`, then from a `target: ## description` line.
 It fails with an error if `make` fails or is missing.
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `path` | `string` | `'reference/makefile-targets.md'` | Output path relative to bundle |
-| `seeAlso` | `string` | see note below | Related concept link on notice line |
+| Option    | Type     | Default                           | Meaning                             |
+| --------- | -------- | --------------------------------- | ----------------------------------- |
+| `path`    | `string` | `'reference/makefile-targets.md'` | Output path relative to bundle      |
+| `seeAlso` | `string` | see note below                    | Related concept link on notice line |
 
 ### binding-keys
 
@@ -97,12 +92,12 @@ Because `binding-keys` requires `options.source`, declare it using the object fo
 { id: 'binding-keys', options: { source: 'packages/kernel/src/keys.ts' } }
 ```
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `source` | `string` | none (required) | Path to binding keys file from repository root |
-| `path` | `string` | `'reference/binding-keys.md'` | Output path relative to bundle |
-| `description` | `string` | `'Every dependency-injection binding key declared in the kernel (generated).'` | Frontmatter description text |
-| `seeAlso` | `string` | see note below | Related concept link on notice line |
+| Option        | Type     | Default                                                                        | Meaning                                        |
+| ------------- | -------- | ------------------------------------------------------------------------------ | ---------------------------------------------- |
+| `source`      | `string` | none (required)                                                                | Path to binding keys file from repository root |
+| `path`        | `string` | `'reference/binding-keys.md'`                                                  | Output path relative to bundle                 |
+| `description` | `string` | `'Every dependency-injection binding key declared in the kernel (generated).'` | Frontmatter description text                   |
+| `seeAlso`     | `string` | see note below                                                                 | Related concept link on notice line            |
 
 If you omit `options.source`, collection halts with an error.
 
@@ -137,11 +132,11 @@ Under the frontmatter, okf adds a warning notice without a timestamp:
 
 When you omit `seeAlso`, okf appends a default link if that concept exists in the bundle:
 
-| Renderer | Default link target |
-|---|---|
-| `source-map` | `overview/monorepo-layout.md` |
-| `makefile-targets` | `process/build-system.md` |
-| `binding-keys` | `conventions/binding-key-namespaces.md` |
+| Renderer           | Default link target                     |
+| ------------------ | --------------------------------------- |
+| `source-map`       | `overview/monorepo-layout.md`           |
+| `makefile-targets` | `process/build-system.md`               |
+| `binding-keys`     | `conventions/binding-key-namespaces.md` |
 
 If you provide an explicit `seeAlso` string, okf prints your text as given.
 
@@ -161,9 +156,7 @@ import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
   okf: {
-    renderers: [
-      { id: 'probe', module: '.agents/okf/probe.ts' },
-    ],
+    renderers: [{ id: 'probe', module: '.agents/okf/probe.ts' }],
   },
 } satisfies VulcanConfig;
 ```
@@ -180,6 +173,7 @@ Only `id` and `collect` are required.
 - `coverage`: Reports facts to `vulcan x okf coverage`. Its signature is `({ facts }) => { name, count }`.
 
 The `context` object provides repository paths, source scanners, and formatting helpers:
+
 - `context.root`: Absolute path to the repository root.
 - `context.bundle`: Absolute path to the knowledge bundle directory.
 - `context.options`: Options object declared in configuration.
@@ -197,8 +191,12 @@ export default defineRenderer({
   render: ({ context, facts }) => ({
     path: 'reference/probe.md',
     content:
-      context.page.header({ title: 'Probe', description: 'Smoke.', resource: '.agents', tags: ['reference'] }) +
-      `${facts.length} directories.\n`,
+      context.page.header({
+        title: 'Probe',
+        description: 'Smoke.',
+        resource: '.agents',
+        tags: ['reference'],
+      }) + `${facts.length} directories.\n`,
   }),
 });
 ```
@@ -220,11 +218,11 @@ Content outside the markers remains untouched.
 
 To configure a region, add an entry to `okf.regions`:
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `id` | `string` | none | Unique region identifier matching marker comments |
-| `file` | `string` | none | Path to markdown file relative to bundle |
-| `renderer` | `string` | required | Identifier of renderer generating region content |
+| Option     | Type     | Default  | Meaning                                           |
+| ---------- | -------- | -------- | ------------------------------------------------- |
+| `id`       | `string` | none     | Unique region identifier matching marker comments |
+| `file`     | `string` | none     | Path to markdown file relative to bundle          |
+| `renderer` | `string` | required | Identifier of renderer generating region content  |
 
 The `renderer` key is required.
 A region without one is dropped silently.
@@ -242,6 +240,7 @@ Each region uses HTML comment markers:
 
 ```md
 <!-- okf:generated:<id> start -->
+
 Managed content here.
 <!-- okf:generated:<id> end -->
 ```
@@ -255,6 +254,7 @@ For example, the `packages-table` region uses these markers:
 ```
 
 If markers are malformed, okf halts with an error:
+
 - Missing markers: a region is missing its markers (`okf: <file>: managed region '<id>' is missing its markers - add <start> and <end>`).
 - Duplicate start marker: `okf: <file>: managed region '<id>' is malformed - a duplicate start marker`.
 - Duplicate end marker: `okf: <file>: managed region '<id>' is malformed - a duplicate end marker`.
@@ -271,10 +271,10 @@ okf: region '<id>' names renderer '<renderer>', which renders no region
 
 The `sections` object configures how okf groups and orders knowledge concepts:
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `order` | `string[]` | `[]` | Ordered list of section keys |
-| `labels` | `Record<string, string>` | `{}` | Mapping of section keys to human-readable titles |
+| Option   | Type                     | Default | Meaning                                          |
+| -------- | ------------------------ | ------- | ------------------------------------------------ |
+| `order`  | `string[]`               | `[]`    | Ordered list of section keys                     |
+| `labels` | `Record<string, string>` | `{}`    | Mapping of section keys to human-readable titles |
 
 `order` and `labels` affect only the viz explorer, nothing else.
 
@@ -296,14 +296,15 @@ For example, okf converts `core-concepts` to `Core Concepts`.
 Setting `okf.coverage` defines structural coverage axes for your codebase.
 Each axis verifies that source directories have corresponding concept documents in the bundle.
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `name` | `string` | none | Axis name and target concept subfolder |
-| `path` | `string` | none | Glob pattern matching source directories from repository root |
-| `exclude` | `string[]` | `[]` | Glob patterns from repository root dropped from this axis |
-| `denylist` | `string[]` | `[]` | Directory base names dropped from this axis only |
+| Option     | Type       | Default | Meaning                                                       |
+| ---------- | ---------- | ------- | ------------------------------------------------------------- |
+| `name`     | `string`   | none    | Axis name and target concept subfolder                        |
+| `path`     | `string`   | none    | Glob pattern matching source directories from repository root |
+| `exclude`  | `string[]` | `[]`    | Glob patterns from repository root dropped from this axis     |
+| `denylist` | `string[]` | `[]`    | Directory base names dropped from this axis only              |
 
 A directory item is covered when either condition holds:
+
 - A concept exists at `/<name>/<directory>.md`.
 - Any concept declares the item directory in its frontmatter `resource:` property.
 
@@ -349,8 +350,8 @@ Structural gaps fail under `vulcan x okf check --strict`.
 okf generates table of contents blocks for long agent-read documents.
 This gives agents a quick overview of headings when inspecting files partially.
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
+| Option  | Type       | Default                             | Meaning                                         |
+| ------- | ---------- | ----------------------------------- | ----------------------------------------------- |
 | `files` | `string[]` | `['AGENTS.md', '.agents/rules.md']` | File paths or globs relative to repository root |
 
 The `contents.files` array accepts exact paths and glob patterns relative to the repository root.
@@ -369,10 +370,12 @@ okf places the contents list immediately after frontmatter and the `# ` document
 
 ```md
 <!-- okf:generated:contents start -->
+
 **Contents**
 
 - [First heading](#first-heading)
 - [Second heading](#second-heading)
+
 <!-- okf:generated:contents end -->
 ```
 
@@ -382,11 +385,11 @@ Under `vulcan x okf check --strict`, missing or stale contents lists fail verifi
 
 The `okf.viz` object configures the offline knowledge graph explorer:
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
+| Option    | Type       | Default                          | Meaning                                       |
+| --------- | ---------- | -------------------------------- | --------------------------------------------- |
 | `outputs` | `string[]` | `['.agents/knowledge/viz.html']` | Output file paths relative to repository root |
-| `brand` | `string` | derived from package name | Brand name shown in explorer headings |
-| `copy` | `object` | default copy | Localized headings and section descriptions |
+| `brand`   | `string`   | derived from package name        | Brand name shown in explorer headings         |
+| `copy`    | `object`   | default copy                     | Localized headings and section descriptions   |
 
 `outputs` defines target HTML files.
 `vulcan x okf viz` writes the explorer to every file path in this array.

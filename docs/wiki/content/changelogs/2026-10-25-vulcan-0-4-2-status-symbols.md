@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.4.2: Symbols in Your Own Status Words Are Not an Emoji Fault"
+title: 'VULCAN 0.4.2: Symbols in Your Own Status Words Are Not an Emoji Fault'
 description: The report-shape check no longer flags the emoji or symbols an owner put in their own status words and labels, so a correct reply is not logged or reminded about.
 packages: ['@venizia/vulcan']
 ---

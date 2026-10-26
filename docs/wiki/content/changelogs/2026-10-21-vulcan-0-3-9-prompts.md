@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.3.9: Menus Instead of Typed Answers"
+title: 'VULCAN 0.3.9: Menus Instead of Typed Answers'
 description: In a terminal, init, add, sync and agents setup ask with checkboxes, selects and text inputs with defaults, show a summary and ask before writing. Without a terminal nothing changes.
 packages: ['@venizia/vulcan']
 ---

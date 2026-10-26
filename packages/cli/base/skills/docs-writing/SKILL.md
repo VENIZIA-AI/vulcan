@@ -25,12 +25,12 @@ Write the answers down (a scratch note is fine). Every structural decision follo
 
 Two questions classify any page (the Diataxis compass):
 
-| Does it inform... | ...for study or work? | Page type |
-|---|---|---|
-| action (doing) | study | **Tutorial** |
-| action (doing) | work | **How-to / guide** |
-| facts (knowing) | work | **Reference** |
-| understanding (thinking) | study | **Concept / explanation** |
+| Does it inform...        | ...for study or work? | Page type                 |
+| ------------------------ | --------------------- | ------------------------- |
+| action (doing)           | study                 | **Tutorial**              |
+| action (doing)           | work                  | **How-to / guide**        |
+| facts (knowing)          | work                  | **Reference**             |
+| understanding (thinking) | study                 | **Concept / explanation** |
 
 A document an agent reads (a skill, a rules file, `AGENTS.md`) follows the same method with different costs: see `references/agent-documents.md`. Each type has a fixed section order and hard rules. Read `references/page-anatomy.md` before structuring the page - it has the five skeletons (tutorial, how-to, reference, concept, changelog) and 14 pass/fail structure rules.
 
@@ -57,17 +57,17 @@ The full voice guide (reverse-engineered from Matt Pocock's writing, with quoted
 
 Sentence-level gates (full list with BAD -> GOOD pairs in `references/sentence-rules.md`):
 
-| Gate | Limit |
-|---|---|
-| Sentence length | target <= 20 words; split anything over 25 |
-| Paragraph length | max 3-4 sentences |
-| Ideas per sentence | one |
-| Voice | active; present tense; "you" + imperative |
-| First code block / table | within the first screen (~15 lines from the top) |
-| Banned words | simply, just, easy, obviously, please, utilize, leverage, "This page/section describes" |
-| Pronouns | replace ambiguous "it/this" with the noun |
-| Conditions | condition BEFORE instruction ("To save the file, click Save") |
-| One term per concept | never alternate repository/repo/store for one thing |
+| Gate                     | Limit                                                                                   |
+| ------------------------ | --------------------------------------------------------------------------------------- |
+| Sentence length          | target <= 20 words; split anything over 25                                              |
+| Paragraph length         | max 3-4 sentences                                                                       |
+| Ideas per sentence       | one                                                                                     |
+| Voice                    | active; present tense; "you" + imperative                                               |
+| First code block / table | within the first screen (~15 lines from the top)                                        |
+| Banned words             | simply, just, easy, obviously, please, utilize, leverage, "This page/section describes" |
+| Pronouns                 | replace ambiguous "it/this" with the noun                                               |
+| Conditions               | condition BEFORE instruction ("To save the file, click Save")                           |
+| One term per concept     | never alternate repository/repo/store for one thing                                     |
 
 Then run the mechanical gates:
 

@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.4.4: The Last-Reply Reminder Is Kept Per Session"
+title: 'VULCAN 0.4.4: The Last-Reply Reminder Is Kept Per Session'
 description: The note that tells a session its last reply broke the report shape, and the block cooldown, are kept per session, so several sessions in one project no longer hear about each other's replies.
 packages: ['@venizia/vulcan']
 ---

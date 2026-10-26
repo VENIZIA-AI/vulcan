@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.3.13: A Menu Fed Piped Lines Leaves No Temp Folder"
+title: 'VULCAN 0.3.13: A Menu Fed Piped Lines Leaves No Temp Folder'
 description: When init --preset or add --preset stops at a menu because it was fed piped lines, the preset's scratch folder in the temp directory is now removed.
 packages: ['@venizia/vulcan']
 ---

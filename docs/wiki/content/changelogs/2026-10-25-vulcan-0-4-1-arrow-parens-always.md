@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.4.1: Arrow Functions Always Keep Their Parentheses"
+title: 'VULCAN 0.4.1: Arrow Functions Always Keep Their Parentheses'
 description: The [fmt] section that init writes sets arrowParens = "always", so an arrow function has parentheses around its parameter, and VULCAN is reformatted to match.
 packages: ['@venizia/vulcan']
 ---

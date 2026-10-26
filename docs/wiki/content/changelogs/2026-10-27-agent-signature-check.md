@@ -1,5 +1,5 @@
 ---
-title: "Repository: A commit-msg Hook and a CI Check Reject an Agent Signature (W-00)"
+title: 'Repository: A commit-msg Hook and a CI Check Reject an Agent Signature (W-00)'
 description: Rule W-00 (never sign a commit as an agent) now has a mechanical check - a git commit-msg hook and a CI step that read the commit messages - instead of resting on agents reading the rule.
 packages: []
 ---

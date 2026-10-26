@@ -11,27 +11,27 @@ The menus are drawn when stdin and stdout are both a terminal and `TERM` is not 
 
 ## Keys
 
-| Menu | Keys |
-|---|---|
-| Select (one choice) | `Up` / `Down` move, `Enter` chooses |
+| Menu                  | Keys                                                               |
+| --------------------- | ------------------------------------------------------------------ |
+| Select (one choice)   | `Up` / `Down` move, `Enter` chooses                                |
 | Checkbox (any number) | `Up` / `Down` move, `Space` ticks, `a` ticks all, `Enter` confirms |
-| Text | type, `Enter` accepts; a default is shown and taken on `Enter` |
-| Confirm | `Y` / `N` or `Left` / `Right`, `Enter` accepts |
-| Any menu | `Esc` or `Ctrl-C` cancels: the command stops and writes nothing |
+| Text                  | type, `Enter` accepts; a default is shown and taken on `Enter`     |
+| Confirm               | `Y` / `N` or `Left` / `Right`, `Enter` accepts                     |
+| Any menu              | `Esc` or `Ctrl-C` cancels: the command stops and writes nothing    |
 
 ## What is a menu
 
-| Question | Menu | Notes |
-|---|---|---|
-| Which coding agents (`sync`, `agents setup`) | Checkbox | What this machine chose before is ticked; with no earlier choice, what was detected. The hints say `detected` and `chosen before`. Nothing ticked means `none` |
-| What to create (`add`) | Select | `app` or `lib`; only the kinds the preset offers |
-| The preset (`add`, `init --preset` with no value) | Select of the presets the project recorded (`add` only), then the official ones it has not used, then `Another preset...` | `Another preset...` opens a text input for a package name or `file:<path>`. The official list is the one atlas answers `presets` from |
-| The shared or library folder (`add`) | Select of the folders that exist, plus `New folder...` | `New folder...` opens a text input |
-| The side folder of an app (`add`) | Not asked | Apps of one side share the folder the config holds |
-| The backend app to proxy `/api` to (`add`, frontend) | Select of the backend apps, plus `none` | |
-| A new project, app or library name | Text | The earlier choice is the default; a name is never made up. A name that is not one is refused where it is typed |
-| The package scope of a new app (`init`, `add --app`) | Text, optional | Like `@acme`; empty keeps the bare name. Asked only where menus are drawn; a script gives `--scope` |
-| Before anything is written | A summary, then a confirm | `init` and `add`. `No` stops with `aborted: nothing was written` |
+| Question                                             | Menu                                                                                                                      | Notes                                                                                                                                                          |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Which coding agents (`sync`, `agents setup`)         | Checkbox                                                                                                                  | What this machine chose before is ticked; with no earlier choice, what was detected. The hints say `detected` and `chosen before`. Nothing ticked means `none` |
+| What to create (`add`)                               | Select                                                                                                                    | `app` or `lib`; only the kinds the preset offers                                                                                                               |
+| The preset (`add`, `init --preset` with no value)    | Select of the presets the project recorded (`add` only), then the official ones it has not used, then `Another preset...` | `Another preset...` opens a text input for a package name or `file:<path>`. The official list is the one atlas answers `presets` from                          |
+| The shared or library folder (`add`)                 | Select of the folders that exist, plus `New folder...`                                                                    | `New folder...` opens a text input                                                                                                                             |
+| The side folder of an app (`add`)                    | Not asked                                                                                                                 | Apps of one side share the folder the config holds                                                                                                             |
+| The backend app to proxy `/api` to (`add`, frontend) | Select of the backend apps, plus `none`                                                                                   |                                                                                                                                                                |
+| A new project, app or library name                   | Text                                                                                                                      | The earlier choice is the default; a name is never made up. A name that is not one is refused where it is typed                                                |
+| The package scope of a new app (`init`, `add --app`) | Text, optional                                                                                                            | Like `@acme`; empty keeps the bare name. Asked only where menus are drawn; a script gives `--scope`                                                            |
+| Before anything is written                           | A summary, then a confirm                                                                                                 | `init` and `add`. `No` stops with `aborted: nothing was written`                                                                                               |
 
 ## Scripts, pipes and a pty
 

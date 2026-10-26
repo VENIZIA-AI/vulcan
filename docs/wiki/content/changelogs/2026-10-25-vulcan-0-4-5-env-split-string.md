@@ -1,5 +1,5 @@
 ---
-title: "VULCAN 0.4.5: The Guards Read the Command Line of env -S"
+title: 'VULCAN 0.4.5: The Guards Read the Command Line of env -S'
 description: env -S and env --split-string carry a whole command line in one word; the guards now read it as commands, so env -S "git push -f origin main" is denied like the plain command.
 packages: ['@venizia/vulcan']
 ---
