@@ -626,7 +626,7 @@ import type { VulcanConfig } from '@venizia/vulcan';
 export default {
   guard: {
     toolOwnedPaths: ['/srv/build-cache/**', '~/.cache/my-tool/**'],
-    writes: { trustedScripts: ['auroras/tools/i18n/cli.ts'] },
+    writes: { trustedScripts: ['tools/i18n/cli.ts'] },
   },
 } satisfies VulcanConfig;
 ```
