@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type DefaultTheme } from 'vitepress';
+import { VENIZIA_LOGO_SVG } from './venizia-logo.ts';
 
 const CHANGELOGS = fileURLToPath(new URL('../../content/changelogs', import.meta.url));
 
@@ -44,6 +45,8 @@ const guidesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'The project layer', link: '/guides/core-concepts/the-project-layer' },
       { text: 'Rules and slots', link: '/guides/core-concepts/rules-and-slots' },
       { text: 'Hooks and guards', link: '/guides/core-concepts/hooks-and-guards' },
+      { text: 'The owner and the reply shape', link: '/guides/core-concepts/owner-and-replies' },
+      { text: 'Work items', link: '/guides/core-concepts/work-items' },
       { text: 'The knowledge bundle', link: '/guides/core-concepts/knowledge-bundle' },
       { text: 'Atlas', link: '/guides/core-concepts/atlas' },
     ],
@@ -190,6 +193,8 @@ export default defineConfig({
       { text: 'Guide', link: '/guides/', activeMatch: '/guides/' },
       { text: 'References', link: '/references/', activeMatch: '/references/' },
       { text: 'Changelog', link: '/changelogs/', activeMatch: '/changelogs/' },
+      // Back to the Venizia home page, from every page of this wiki.
+      { text: 'Venizia', link: 'https://venizia.ai' },
     ],
     sidebar: {
       '/guides/': guidesSidebar,
@@ -201,14 +206,19 @@ export default defineConfig({
       level: [2, 3],
       label: 'On this page',
     },
-    socialLinks: [{ icon: 'github', link: 'https://github.com/VENIZIA-AI/vulcan' }],
+    socialLinks: [
+      { icon: 'github', link: 'https://github.com/VENIZIA-AI/vulcan' },
+      // The Venizia wordmark, right after the GitHub icon; theme/style.css sizes it.
+      { icon: { svg: VENIZIA_LOGO_SVG }, link: 'https://venizia.ai', ariaLabel: 'Venizia' },
+    ],
     editLink: {
       pattern: 'https://github.com/VENIZIA-AI/vulcan/edit/develop/docs/wiki/content/:path',
       text: 'Edit this page on GitHub',
     },
     footer: {
-      message: 'Released under the MIT License.',
-      copyright: 'Copyright (c) 2026 VENIZIA',
+      message:
+        'Released under the MIT License. VULCAN is part of <a href="https://venizia.ai">VENIZIA</a>.',
+      copyright: 'Copyright © 2025 <a href="https://venizia.ai">VENIZIA Ltd. Co.</a>',
     },
     docFooter: {
       prev: 'Previous page',
