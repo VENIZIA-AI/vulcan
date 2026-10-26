@@ -10,6 +10,10 @@
 # PATH (a shell script once died at `tsc-alias: not found` with half the output emitted).
 
 BIN := $(CURDIR)/node_modules/.bin
+
+# The compile cache of the Node tools lives in the repository, not the system temp (the root Makefile sets
+# the same path; a package built alone gets it here).
+export NODE_COMPILE_CACHE ?= $(abspath $(CURDIR)/../../.agents/local/cache/node-compile)
 TSC := $(BIN)/tsc
 TSC_ALIAS := $(BIN)/tsc-alias
 

@@ -7,8 +7,8 @@
  */
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { useRepoTmp } from '../test/repo-tmp.ts';
 
 const PACKAGE_DIRECTORY = resolve(import.meta.dir, '..', '..', 'packages', 'atlas');
 const PACKAGE_NAME = '@venizia/vulcan-atlas';
@@ -104,7 +104,7 @@ const main = (): void => {
     fail('no tarball produced');
   }
 
-  const sandbox = mkdtempSync(join(tmpdir(), 'vulcan-atlas-smoke-'));
+  const sandbox = mkdtempSync(join(useRepoTmp(), 'vulcan-atlas-smoke-'));
 
   try {
     // Its own manifest first: without one `bun add` would take the nearest package.json above the sandbox.

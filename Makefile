@@ -4,6 +4,11 @@
 # A bare `make` prints the target list; `make build` builds.
 .DEFAULT_GOAL := help
 
+# Node keeps a compile cache for the tools make runs (ESLint, the type checker), by default in the system
+# temp (/tmp/node-compile-cache). It goes in the repository instead, gitignored, like every other scratch
+# file (V-B-08); the packages inherit it, and their own Makefile sets the same path when run alone.
+export NODE_COMPILE_CACHE ?= $(CURDIR)/.agents/local/cache/node-compile
+
 # Every package directory under packages/. Each per-package target (`<pkg>`, `update-<pkg>`,
 # `lint-<pkg>`, `lint-fix-<pkg>`, `test-<pkg>`) is generated from this list - add a package here and
 # every target exists for it.
