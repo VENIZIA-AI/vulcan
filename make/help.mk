@@ -34,6 +34,7 @@ help:
 	@$(HELP_ROW) "lint / lint-packages" "lint-<pkg> for every package."
 	@$(HELP_ROW) "lint-all" "lint-<pkg> for every package, lint-scripts, lint-files, then project-names-check."
 	@$(HELP_ROW) "project-names-check" "Gate: no project name (IGNIS, ARDOR, BANA) in packages/*/src outside tests."
+	@$(HELP_ROW) "agent-signature-check" "Gate (W-00): no commit of origin/develop..HEAD (or RANGE=...) signs itself as an agent."
 	@$(HELP_ROW) "lint-scripts" "bun check of the root scripts/."
 	@$(HELP_ROW) "lint-files" "bun fmt check of every file outside packages/ (code, json, yaml, css, html, vue; not Markdown)."
 	@$(HELP_ROW) "lint-fix / lint-fix-packages" "lint-fix-<pkg> for every package, then fmt-files (lint-fix is the root fix target and the library target name)."

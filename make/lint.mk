@@ -6,7 +6,7 @@ LINT_PKG_TARGETS := $(addprefix lint-,$(PACKAGES))
 FIX_PKG_TARGETS := $(addprefix lint-fix-,$(PACKAGES))
 TYPECHECK_PKG_TARGETS := $(addprefix typecheck-,$(PACKAGES))
 
-.PHONY: lint lint-fix lint-all lint-packages lint-scripts lint-wiki lint-files project-names-check lint-fix-packages lint-fix-wiki fmt-files \
+.PHONY: lint lint-fix lint-all lint-packages lint-scripts lint-wiki lint-files project-names-check agent-signature-check lint-fix-packages lint-fix-wiki fmt-files \
         typecheck typecheck-packages $(LINT_PKG_TARGETS) $(FIX_PKG_TARGETS) $(TYPECHECK_PKG_TARGETS)
 
 lint: lint-packages
@@ -71,6 +71,12 @@ lint-files:
 project-names-check:
 	@echo "lint: no project names in packages/*/src"
 	@bun scripts/checks/check-project-names.ts
+
+# W-00: no commit of the branch signs itself as an agent. RANGE is the branch, `origin/develop..HEAD` by default; a clone
+# also gets the check at commit time from `make setup-hooks` (the commit-msg hook).
+agent-signature-check:
+	@echo "lint: no agent signature in the branch commits"
+	@bun scripts/checks/check-agent-signature.ts --range $(or $(RANGE),origin/develop..HEAD)
 
 fmt-files:
 	@bun fmt $(BUN_FMT_FLAGS) $(FMT_GLOB) $(ROOT_FMT_IGNORE)
