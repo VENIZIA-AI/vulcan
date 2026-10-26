@@ -5,12 +5,13 @@ import { join } from 'node:path';
 const ROOT = join(import.meta.dir, '..', '..', '..');
 const PACKAGES = ['okf', 'atlas', 'cli'];
 
-/** What the root of every package holds, and nothing else; the documented differences are below. */
+/** What the root of every package holds, and nothing else; the documented differences are below. `bunfig.toml` holds the `[test] preload` that keeps a bare `bun test` out of the system temp (scripts/test/repo-tmp.ts). */
 const COMMON = [
   '.configs',
   'LICENSE.md',
   'Makefile',
   'README.md',
+  'bunfig.toml',
   'package.json',
   'src',
   'tsconfig.json',
