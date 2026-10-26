@@ -52,6 +52,7 @@ import {
   ViolationConstants,
 } from '../owner/index.ts';
 import { skillCatalogOf, triggerOf } from '@venizia/vulcan-atlas';
+import { trustOf, TrustStates } from '../hooks/index.ts';
 import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
 import { parseMakeIncludes, parseMakeTargets } from './makefile.ts';
@@ -1163,6 +1164,47 @@ export const checkOwnerReplySettings = (opts: { root: string }): IViolation[] =>
   });
 
 /** The size of `.agents/local/` once it is large: where the space went, and the command that gives it back. */
+/** The states of a listed script worth a warning: a typo or a script nobody committed. A modified one is normal work, so it is only a note. */
+const STALE_TRUST_STATES = new Set<string>([
+  TrustStates.MISSING,
+  TrustStates.UNTRACKED,
+  TrustStates.UNCOMMITTED,
+  TrustStates.SYMLINK,
+  TrustStates.UNKNOWN,
+]);
+
+/** One line per script in `guard.writes.trustedScripts` with what git says about it now (a note). */
+export const checkTrustedScripts = (opts: ICheckContext): IViolation[] =>
+  opts.config.guard.writes.trustedScripts.map((script) => {
+    const trust = trustOf({ root: opts.root, script });
+
+    return createViolation({
+      check: DoctorChecks.GUARDS,
+      file: script,
+      message:
+        trust.state === TrustStates.TRUSTED
+          ? 'guard-writes does not read this script for mutating calls (guard.writes.trustedScripts); it is ' +
+            trust.reason
+          : `listed in guard.writes.trustedScripts, but guard-writes reads it like any script now: ${trust.reason}`,
+    });
+  });
+
+/** A listed script that does not exist or is not committed: the exemption never applies (a warning). */
+export const checkStaleTrustedScripts = (opts: ICheckContext): IViolation[] =>
+  opts.config.guard.writes.trustedScripts.flatMap((script) => {
+    const trust = trustOf({ root: opts.root, script });
+
+    return STALE_TRUST_STATES.has(trust.state)
+      ? [
+          createViolation({
+            check: DoctorChecks.GUARDS,
+            file: script,
+            message: `guard.writes.trustedScripts lists it, but it never takes effect: ${trust.reason}; fix the path, or commit the script`,
+          }),
+        ]
+      : [];
+  });
+
 export const checkLocalSize = (opts: ICheckContext): IViolation[] => {
   const entries = scanLocal({ root: opts.root });
   const total = entries.reduce((sum, entry) => sum + entry.bytes, 0);

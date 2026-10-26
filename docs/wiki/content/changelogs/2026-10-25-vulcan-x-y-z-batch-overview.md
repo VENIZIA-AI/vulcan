@@ -62,6 +62,7 @@ Guard bypasses: spellings that hid a force-push or a write from the guards. They
 | The guards for omp and pi (one extension, written by `vulcan sync`) | [omp and pi](./2026-10-25-vulcan-0-4-5-guards-on-omp-and-pi) | #421 |
 | The guards for Antigravity (a hook in `.agents/hooks.json`) | [Antigravity](./2026-10-25-vulcan-0-4-5-guards-on-antigravity) | #423 |
 | The guards for Codex, and the decisions fitted to what Cursor and Copilot read (**NOT VERIFIED**) | [Codex, Cursor and Copilot](./2026-10-25-vulcan-0-4-5-guards-on-codex-cursor-copilot) | #425 |
+| `guard.writes.trustedScripts`: a project lists its own CLIs and `guard-writes` skips their body while git tracks them and they equal `HEAD`; the command line is still checked | [Trusted scripts](./2026-10-26-vulcan-0-4-5-trusted-scripts) | #432 |
 | `vulcan add --lib` says why a `--dir` folder was not recorded in the layout | [add --lib note](./2026-10-25-vulcan-0-4-5-lib-dir-note) | #408 |
 
 ## Fixes

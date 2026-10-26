@@ -1,3 +1,4 @@
+import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import { layoutFolderProblem, layoutOverlapProblems } from '../common/layout-folder.ts';
 import { OWNER_SCHEMA } from '../owner/schema.ts';
@@ -16,6 +17,23 @@ const LAYOUT_FOLDER = z.string().superRefine((value, context) => {
 
   if (problem !== undefined) {
     context.addIssue({ code: 'custom', message: problem });
+  }
+});
+
+/** A script `guard-writes` may trust: a repo-relative `.ts` path - no glob, no `~`, never climbing out of the repo. */
+const TRUSTED_SCRIPT = z.string().superRefine((value, context) => {
+  const problem = /[*?[\]{}!]/.test(value)
+    ? 'no globs: list each script by its exact path'
+    : isAbsolute(value) || value.startsWith('~')
+      ? 'a path relative to the repo root'
+      : value.split(/[\\/]/).includes('..')
+        ? 'a path inside the repo, without ..'
+        : /\.ts$/.test(value)
+          ? undefined
+          : 'a .ts file - guard-writes reads only bun scripts ending in .ts';
+
+  if (problem !== undefined) {
+    context.addIssue({ code: 'custom', message: `${value}: ${problem}` });
   }
 });
 
@@ -275,11 +293,18 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   /**
    * The hooks that guard writes. `toolOwnedPaths` extends the defaults (package manager caches, the
    * runtime dir for locks, git config, the agent tool's memory) with stores a tool in this project
-   * manages itself: absolute globs, `~` and `$NAME` allowed.
+   * manages itself: absolute globs, `~` and `$NAME` allowed. `writes.trustedScripts` lists the project's own
+   * CLIs (repo-relative `.ts` paths, no globs) whose body guard-writes does not read for mutating calls
+   * while git tracks them and they equal HEAD; the command line is still checked.
    */
   guard: z
-    .strictObject({ toolOwnedPaths: z.array(z.string().min(1)).default([]) })
-    .default({ toolOwnedPaths: [] }),
+    .strictObject({
+      toolOwnedPaths: z.array(z.string().min(1)).default([]),
+      writes: z
+        .strictObject({ trustedScripts: z.array(TRUSTED_SCRIPT).default([]) })
+        .default({ trustedScripts: [] }),
+    })
+    .default({ toolOwnedPaths: [], writes: { trustedScripts: [] } }),
 });
 
 export type VulcanConfig = z.input<typeof VULCAN_CONFIG_SCHEMA>;

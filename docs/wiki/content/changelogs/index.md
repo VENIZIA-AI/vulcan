@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-26 | [VULCAN X.Y.Z: A Project Can List Its Own CLIs as Trusted Scripts](./2026-10-26-vulcan-0-4-5-trusted-scripts) | New Feature |
 | 2026-10-25 | [VULCAN X.Y.Z: The Guards Get Stronger, Quieter and Reach Six More Agents (Overview)](./2026-10-25-vulcan-x-y-z-batch-overview) | Security, Behaviour change, New Feature |
 | 2026-10-25 | [VULCAN X.Y.Z: The Hook Wrappers No Longer Need CLAUDE_PROJECT_DIR](./2026-10-25-vulcan-0-4-5-hooks-without-project-dir) | Bug Fix |
 | 2026-10-25 | [VULCAN X.Y.Z: The Write and Remote-Host Guards Stop Asking About Data](./2026-10-25-vulcan-0-4-5-guard-noise) | Behaviour change |

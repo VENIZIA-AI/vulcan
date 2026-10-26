@@ -20,6 +20,31 @@ export class PackageVerdictKinds {
   }
 }
 
+/** What git says about a script a project trusts: only `TRUSTED` skips the script checks of guard-writes. */
+export class TrustStates {
+  static readonly TRUSTED = 'trusted';
+  static readonly MISSING = 'missing';
+  static readonly UNTRACKED = 'untracked';
+  static readonly UNCOMMITTED = 'uncommitted';
+  static readonly MODIFIED = 'modified';
+  static readonly SYMLINK = 'symlink';
+  static readonly UNKNOWN = 'unknown';
+
+  static readonly SCHEME_SET = new Set<string>([
+    this.TRUSTED,
+    this.MISSING,
+    this.UNTRACKED,
+    this.UNCOMMITTED,
+    this.MODIFIED,
+    this.SYMLINK,
+    this.UNKNOWN,
+  ]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
 export class HookConstants {
   /** `ask` until the transcript shows the guard does not over-fire; a false positive costs one keystroke. */
   static readonly GUARD_DECISION = GuardDecisions.ASK;
