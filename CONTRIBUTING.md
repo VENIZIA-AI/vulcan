@@ -50,6 +50,7 @@ feature/*, fix/*, docs/*, chore/*, test/* (your work)
 make lint-all          # oxlint, ESLint naming-convention, bun fmt, scripts
 make test              # every package, then the root scripts
 make catalog-check     # catalogued dependencies stay catalog:
+make docs wiki-links-check wiki-anchors-check   # the wiki builds, its source links and #fragments resolve
 make smoke-cli         # the packed tarballs, installed alone in an empty project
 bun x --no-install vulcan doctor
 bun x --no-install vulcan x okf check

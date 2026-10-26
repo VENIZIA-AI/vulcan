@@ -205,6 +205,17 @@ The following table lists the targets provided by `vulcan.mk`:
 | `atlas-releases` | Print the release table atlas computes from the tags |
 | `changelogs-migrate` | Write the packages: list into changelog entries that declare none |
 | `knowledge-symbols-check` | Fail when a symbol a concept names is gone or its signature changed |
+| `wiki-links-check` | Fail when the wiki or the knowledge bundle names a source path git does not track |
+| `wiki-anchors-check` | Fail when a wiki `#fragment` link has no matching heading; needs a build |
+
+### The wiki gates
+
+Two gates keep a VitePress wiki honest, and they take the same arguments in every repository:
+
+- `make wiki-links-check` reads every `.md` file under `docs/wiki/content` and `.agents/knowledge`. A GitHub link into your repository (`<owner>/<name>/blob/main/<path>` or `tree/main/<path>`), a backticked path under `packages/`, `examples/`, `scripts/`, `docs/` or `.agents/`, and a concept's `resource:` must each be tracked by git: a gitignored file is not on GitHub. Set `WIKI_REPO` (`owner/name`) in your Makefile before the include; without it the gate refuses to run. `WIKI_LINKS_FLAGS` takes `--dirs` (the folders to walk), `--skip-prose` (folders where a backticked path may name history or a file of another project, so only links and resources are checked; the changelogs by default) and `--skip` (generated pages that are never checked).
+- `make wiki-anchors-check` reads the built site (`make docs` first) and fails on a link to a heading, or to a page, that does not exist; it reads the ids VitePress emitted, never a computed slug. `WIKI_ANCHORS_FLAGS` takes `--content` and `--dist`.
+
+The entry scripts are `base/checks/wiki-source-links.ts` and `wiki-anchors.ts`, run by bun from the repository root.
 
 ## See also
 

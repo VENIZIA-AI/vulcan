@@ -48,7 +48,7 @@ The order that decides the list is: the `--agents` flag; the stored file; the `a
 
 | Agent | Atlas MCP entry | Where |
 |---|---|---|
-| `claude`, `omp`, `copilot-cli` | `mcpServers.atlas`, the same relative entry for everyone (`--root .`) | the root `.mcp.json`, one file for the three ([below](#the-root-mcpjson)) |
+| `claude`, `omp`, `copilot-cli` | `mcpServers.atlas`, the same relative entry for everyone (`--root .`) | the root `.mcp.json`, one file for the three ([below](#the-root-mcp-json)) |
 | `codex` | a block between `# vulcan:atlas:start` and `# vulcan:atlas:end` | `.codex/config.toml`; Codex loads it only for a trusted project |
 | `cursor` | `mcpServers.atlas` | `.cursor/mcp.json` |
 | `copilot-vscode` | `servers.atlas` (type `stdio`) | `.vscode/mcp.json` |
