@@ -64,6 +64,7 @@ describe('excludePathsOf', () => {
 
     expect(omp?.paths).toEqual([
       '/.mcp.json',
+      '/.omp/hooks/pre/vulcan-guards.ts',
       '/.agents/skills/build-a-feature',
       '/.agents/skills/docs-update',
       '/.agents/skills/docs-writing',

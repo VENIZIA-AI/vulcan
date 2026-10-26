@@ -76,7 +76,7 @@ The table below lists all 12 top-level configuration keys:
 | `claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
 | `hooks` | `Array<object>` | `[]` | Custom project event hooks |
 | `digest` | `object` | `{ oftenDropped: [...] }` | Rules printed at session startup |
-| `guard` | `object` | `{ toolOwnedPaths: [] }` | Tool-owned stores the outside-the-project guard allows |
+| `guard` | `object` | `{ toolOwnedPaths: [], writes: { trustedScripts: [] } }` | Tool-owned stores the outside-the-project guard allows, and the project's own scripts the write guard does not read |
 | `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
 
 ## name
@@ -614,6 +614,11 @@ The `guard` object configures the write guards.
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `toolOwnedPaths` | `string[]` | `[]` | Absolute globs, `~` and `$NAME` allowed, of stores a tool in this project manages itself. They extend the built-in list (package manager caches, `$XDG_RUNTIME_DIR`, git config, the agent tool's memory folders); a pattern with an unset variable allows nothing. |
+| `writes.trustedScripts` | `string[]` | `[]` | The project's own CLIs that `guard-writes` does not read for mutating calls. Repo-relative `.ts` paths, matched exactly against the script of a `bun <script>.ts` command. |
+
+`writes.trustedScripts` validation: each entry must be a path relative to the repo root (no absolute path, no `~`), must not contain `..`, must end in `.ts`, and takes no glob (`* ? [ ] { } !` are refused), so list every script by its exact path. A config that breaks a rule fails the schema, and the message names the entry.
+
+A listed script skips the script-body check only while git tracks it and its working tree file, its index entry and `HEAD` hold the same bytes. The checks on the command line itself (`curl -X POST`, `kubectl apply`, a migration, `psql`) still apply. The states, the ask text and the limits are on the [hooks page](/references/hooks/#trusted-scripts).
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -621,6 +626,7 @@ import type { VulcanConfig } from '@venizia/vulcan';
 export default {
   guard: {
     toolOwnedPaths: ['/srv/build-cache/**', '~/.cache/my-tool/**'],
+    writes: { trustedScripts: ['auroras/tools/i18n/cli.ts'] },
   },
 } satisfies VulcanConfig;
 ```

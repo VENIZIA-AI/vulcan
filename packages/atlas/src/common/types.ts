@@ -1,4 +1,12 @@
-import type { AtlasModes, Corpora, LogLevels } from './constants';
+import type {
+  AppSides,
+  AtlasModes,
+  Corpora,
+  LogLevels,
+  PackageKinds,
+  SkillSources,
+  SourcePins,
+} from './constants';
 
 /** The values of a const class's static fields: `TConstValue<typeof Colors>` is `'red' | 'blue'`. */
 export type TConstValue<TClass> = Extract<TClass[keyof TClass], string | number> & {};
@@ -6,6 +14,10 @@ export type TConstValue<TClass> = Extract<TClass[keyof TClass], string | number>
 export type TAtlasMode = TConstValue<typeof AtlasModes>;
 export type TCorpus = TConstValue<typeof Corpora>;
 export type TLogLevel = TConstValue<typeof LogLevels>;
+export type TSkillSource = TConstValue<typeof SkillSources>;
+export type TPackageKind = TConstValue<typeof PackageKinds>;
+export type TAppSide = TConstValue<typeof AppSides>;
+export type TSourcePin = TConstValue<typeof SourcePins>;
 
 /** A scoped logger; `for` narrows the scope to one method. Every line goes to stderr. */
 export interface ILogger {

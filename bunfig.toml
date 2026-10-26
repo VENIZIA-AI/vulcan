@@ -7,3 +7,6 @@ printWidth = 100
 singleQuote = true
 arrowParens = "always"
 flavor = "oxfmt"
+
+[test]
+preload = ["./scripts/test/repo-tmp.preload.ts"]

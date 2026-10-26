@@ -1,7 +1,8 @@
+import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import { layoutFolderProblem, layoutOverlapProblems } from '../common/layout-folder.ts';
 import { OWNER_SCHEMA } from '../owner/schema.ts';
-import { CodingAgents, ConfigConstants, HookEvents } from './common/index.ts';
+import { CodingAgents, ConfigConstants, HookEvents, PackageKinds } from './common/index.ts';
 
 const CODING_AGENT = z.string().refine((value) => CodingAgents.isValid(value), {
   message: `one of: ${[...CodingAgents.SCHEME_SET].join(', ')}`,
@@ -19,6 +20,23 @@ const LAYOUT_FOLDER = z.string().superRefine((value, context) => {
   }
 });
 
+/** A script `guard-writes` may trust: a repo-relative `.ts` path - no glob, no `~`, never climbing out of the repo. */
+const TRUSTED_SCRIPT = z.string().superRefine((value, context) => {
+  const problem = /[*?[\]{}!]/.test(value)
+    ? 'no globs: list each script by its exact path'
+    : isAbsolute(value) || value.startsWith('~')
+      ? 'a path relative to the repo root'
+      : value.split(/[\\/]/).includes('..')
+        ? 'a path inside the repo, without ..'
+        : /\.ts$/.test(value)
+          ? undefined
+          : 'a .ts file - guard-writes reads only bun scripts ending in .ts';
+
+  if (problem !== undefined) {
+    context.addIssue({ code: 'custom', message: `${value}: ${problem}` });
+  }
+});
+
 /** One folder, or a list of them: a side whose apps are grouped keeps each group's folder. */
 const LAYOUT_VALUE = z.union([LAYOUT_FOLDER, z.array(LAYOUT_FOLDER).min(1)]);
 
@@ -30,7 +48,7 @@ const PROJECT_PACKAGE = z.strictObject({
   aliases: z.array(z.string()).default([]),
   retired: z.boolean().default(false),
   /** A shared package a preset's lib kind made lives anywhere a workspace glob covers; absent means an app or a plain package. */
-  kind: z.enum(['app', 'lib']).optional(),
+  kind: z.enum([PackageKinds.APP, PackageKinds.LIB]).optional(),
 });
 
 /** A path as a key: no leading `./`, no trailing slash. */
@@ -275,11 +293,18 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   /**
    * The hooks that guard writes. `toolOwnedPaths` extends the defaults (package manager caches, the
    * runtime dir for locks, git config, the agent tool's memory) with stores a tool in this project
-   * manages itself: absolute globs, `~` and `$NAME` allowed.
+   * manages itself: absolute globs, `~` and `$NAME` allowed. `writes.trustedScripts` lists the project's own
+   * CLIs (repo-relative `.ts` paths, no globs) whose body guard-writes does not read for mutating calls
+   * while git tracks them and they equal HEAD; the command line is still checked.
    */
   guard: z
-    .strictObject({ toolOwnedPaths: z.array(z.string().min(1)).default([]) })
-    .default({ toolOwnedPaths: [] }),
+    .strictObject({
+      toolOwnedPaths: z.array(z.string().min(1)).default([]),
+      writes: z
+        .strictObject({ trustedScripts: z.array(TRUSTED_SCRIPT).default([]) })
+        .default({ trustedScripts: [] }),
+    })
+    .default({ toolOwnedPaths: [], writes: { trustedScripts: [] } }),
 });
 
 export type VulcanConfig = z.input<typeof VULCAN_CONFIG_SCHEMA>;

@@ -7,7 +7,8 @@
  * It also runs every hook the generated `.claude/settings.json` registers, from the installed tarball:
  * each hook runs one benign call and must exit 0; with `zod` made unresolvable the blocking hooks still
  * work; with a module of the hook path removed a crashed safety hook still lets `bun install` through,
- * and the drift guards pass the call. A release whose hooks cannot load stops every tool call in every
+ * and the drift guards pass the call, except that guard-git asks about a git command it could not check.
+ * A release whose hooks cannot load stops every tool call in every
  * project that syncs it, so none goes out before this step passes.
  */
 import { spawnSync } from 'node:child_process';
@@ -21,8 +22,8 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { useRepoTmp } from '../test/repo-tmp.ts';
 
 interface IStepResult {
   ok: boolean;
@@ -491,7 +492,7 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
   }
 
   // A module of the hook path gone: a safety hook crashes and blocks - except a bare `bun install`,
-  // the escape - and the drift guards pass the call.
+  // the escape - and the drift guards pass the call; guard-git asks about a git command it could not check.
   return withoutFile({
     path: join(installed, 'src', 'hooks', 'common', 'constants.ts'),
     run: () => {
@@ -511,15 +512,27 @@ const smokeHooks = (opts: { sandbox: string }): string | undefined => {
         }
       }
 
+      const git = blocking.find((hook) => hookNameOf({ hook }) === 'guard-git');
+      const gitStatus = '{"tool_name":"Bash","tool_input":{"command":"git status"},"cwd":"/tmp"}';
+
+      if (
+        git !== undefined &&
+        !runHook({ hook: git, sandbox, payload: gitStatus }).stdout.includes(
+          '"permissionDecision":"ask"',
+        )
+      ) {
+        return 'hooks: with a module of the hook path removed guard-git passed a git command unchecked instead of asking';
+      }
+
       return undefined;
     },
   });
 };
 
 const tarballs: string[] = [];
-const sandbox = mkdtempSync(join(tmpdir(), 'vulcan-cli-smoke-'));
+const sandbox = mkdtempSync(join(useRepoTmp(), 'vulcan-cli-smoke-'));
 // The source lives beside the project, never inside it: the project's okf and git see none of it.
-const sourceSandbox = mkdtempSync(join(tmpdir(), 'vulcan-cli-smoke-source-'));
+const sourceSandbox = mkdtempSync(join(useRepoTmp(), 'vulcan-cli-smoke-source-'));
 let failure: string | undefined;
 
 try {

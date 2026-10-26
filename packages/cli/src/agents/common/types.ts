@@ -1,4 +1,6 @@
 import type { z } from 'zod';
+import type { TConstValue } from '../../common/index.ts';
+import type { AgentSources } from './constants.ts';
 import type { AGENT_ENTRY_SCHEMA } from './schema.ts';
 
 export type TAgentEntry = z.infer<typeof AGENT_ENTRY_SCHEMA>;
@@ -11,7 +13,7 @@ export interface IAgentQuestion {
 
 export type TAskAgents = (question: IAgentQuestion) => string | null;
 
-export type TAgentSource = 'flag' | 'local' | 'config' | 'migration' | 'asked' | 'default';
+export type TAgentSource = TConstValue<typeof AgentSources>;
 
 export type TAgentResolution =
   | {

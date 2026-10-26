@@ -7,3 +7,5 @@ export * from './table.ts';
 export * from './render.ts';
 export * from './atlas-block.ts';
 export * from './exclude.ts';
+export * from './hooks-json.ts';
+export * from './codex-hooks.ts';

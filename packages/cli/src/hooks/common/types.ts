@@ -1,7 +1,15 @@
 import type { TConstValue } from '../../common/index.ts';
-import type { GuardDecisions } from './constants.ts';
+import type { GuardDecisions, PackageVerdictKinds, TrustStates } from './constants.ts';
 
 export type TGuardDecision = TConstValue<typeof GuardDecisions>;
+export type TPackageVerdictKind = TConstValue<typeof PackageVerdictKinds>;
+export type TTrustState = TConstValue<typeof TrustStates>;
+
+/** Whether a listed trusted script may skip the script checks, and if not, why - in words an ask can show. */
+export interface IScriptTrust {
+  state: TTrustState;
+  reason: string;
+}
 
 export interface IWriteCheck {
   rule: string;

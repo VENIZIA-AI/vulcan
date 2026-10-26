@@ -15,6 +15,8 @@ export const hermeticEnv = (): Record<string, string> => {
 
   return {
     HOME: createProject({ files: {} }),
+    // The children keep the temp folder of the run, so what they make is in the repository, not in /tmp.
+    ...(process.env.TMPDIR === undefined ? {} : { TMPDIR: process.env.TMPDIR }),
     PATH: `${bin}:/usr/bin:/bin`,
     GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_CONFIG_SYSTEM: '/dev/null',

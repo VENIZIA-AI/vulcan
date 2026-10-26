@@ -20,6 +20,7 @@ export class DoctorChecks {
   static readonly FORMAT = 'format';
   static readonly LOCAL = 'local';
   static readonly PROFILE = 'profile';
+  static readonly GUARDS = 'guards';
   static readonly SCHEME_SET = new Set<string>([
     this.CONFIG,
     this.LAYOUT,
@@ -42,6 +43,7 @@ export class DoctorChecks {
     this.FORMAT,
     this.LOCAL,
     this.PROFILE,
+    this.GUARDS,
   ]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);

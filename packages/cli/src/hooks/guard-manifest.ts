@@ -1,6 +1,10 @@
 import { isAbsolute, join, normalize } from 'node:path';
 import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { IManifestHookInput } from './common/index.ts';
+import { forHost } from './decision.ts';
+
+/** The shell tool under the names the hosts give it: Cursor's `Shell`, and a lower-case `bash`. */
+const SHELL_NAMES = new Set(['Shell', 'shell', 'bash']);
 
 export const MANIFEST_BLOCK_MESSAGE =
   'vulcan.manifest.json is generated - edit .configs/vulcan.config.* and run `vulcan sync`';
@@ -30,6 +34,13 @@ const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unk
 const toText = (opts: { value: unknown }): string | undefined =>
   typeof opts.value === 'string' && opts.value !== '' ? opts.value : undefined;
 
+/** The tool name, with the shell tool of another host read as Claude's `Bash`. */
+const toolOf = (opts: { value: unknown }): string | undefined => {
+  const name = toText(opts);
+
+  return name !== undefined && SHELL_NAMES.has(name) ? BASH_TOOL : name;
+};
+
 /** The tool call from the hook's JSON; `undefined` when it is not what Claude Code sends. */
 export const parseManifestHookInput = (opts: { text: string }): IManifestHookInput | undefined => {
   let payload: unknown;
@@ -53,7 +64,7 @@ export const parseManifestHookInput = (opts: { text: string }): IManifestHookInp
   // The wire names are snake_case; they stay behind string-literal access here, at the boundary (V-C-14).
   const toolInput = { value: holder.value['tool_input'] };
   const input = isRecord(toolInput) ? toolInput.value : {};
-  const tool = toText({ value: holder.value['tool_name'] });
+  const tool = toolOf({ value: holder.value['tool_name'] });
 
   return tool === undefined
     ? undefined
@@ -83,10 +94,13 @@ export const inspectManifestWrite = (opts: { input: IManifestHookInput }): boole
   return normalize(absolute).endsWith(MANIFEST_SUFFIX);
 };
 
-export const buildManifestDecision = () => ({
-  hookSpecificOutput: {
-    hookEventName: HookConstants.PRE_TOOL_USE,
-    permissionDecision: GuardDecisions.DENY,
-    permissionDecisionReason: MANIFEST_BLOCK_MESSAGE,
-  },
-});
+export const buildManifestDecision = () =>
+  forHost({
+    output: {
+      hookSpecificOutput: {
+        hookEventName: HookConstants.PRE_TOOL_USE,
+        permissionDecision: GuardDecisions.DENY,
+        permissionDecisionReason: MANIFEST_BLOCK_MESSAGE,
+      },
+    },
+  });

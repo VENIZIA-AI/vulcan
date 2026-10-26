@@ -9,10 +9,11 @@ import {
   listedFoldersNote,
   withLayoutFolder,
 } from '../common/layout-folder.ts';
+import { PackageKinds } from '../config/index.ts';
 import type { IProjectPackage, TResolvedConfig } from '../config/index.ts';
 import { readWorkspaceGlobs } from '../init/index.ts';
 import { runAppChecks } from './checks.ts';
-import { CreateConstants, CreateFlags } from './common/index.ts';
+import { AppsBlockProblems, CreateConstants, CreateFlags } from './common/index.ts';
 import type { IAppsBlock, ILocatedPreset, IPresetSpec } from './common/index.ts';
 import { writeFile } from './files.ts';
 import { readLibPreset } from './lib-preset.ts';
@@ -67,7 +68,7 @@ const folderOf = async (opts: {
   const libFolders = [
     ...new Set(
       opts.packages
-        .filter((entry) => entry.kind === 'lib' && !entry.retired)
+        .filter((entry) => entry.kind === PackageKinds.LIB && !entry.retired)
         .map((entry) => dirname(entry.path)),
     ),
   ];
@@ -219,7 +220,7 @@ export const addLibrary = async (opts: {
   if (!parsed.ok) {
     return fail({
       message:
-        parsed.reason === 'missing'
+        parsed.reason === AppsBlockProblems.MISSING
           ? `the vulcan:apps block is gone from ${opts.configPath} - add the package by hand: { dir: '${libName}', name: '${named.name}', path: '${path}', kind: 'lib' }`
           : `the vulcan:apps block in ${opts.configPath} is not the JSON vulcan wrote - add the package by hand: { dir: '${libName}', name: '${named.name}', path: '${path}', kind: 'lib' }`,
     });
@@ -228,15 +229,20 @@ export const addLibrary = async (opts: {
   const sharedBefore = parsed.block.layout.shared;
   const grown = withLayoutFolder({ value: sharedBefore, folder });
   // A valid folder the layout does not list yet is added to layout.shared, unless it would nest with another folder.
-  const isNewFolder =
-    !layoutFoldersOf({ value: sharedBefore }).includes(folder) &&
-    layoutFolderProblem({ folder }) === undefined &&
-    layoutOverlapProblems({ layout: { ...parsed.block.layout, shared: grown } }).length === 0;
+  const isListed = layoutFoldersOf({ value: sharedBefore }).includes(folder);
+  const notRecorded = isListed
+    ? undefined
+    : (layoutFolderProblem({ folder }) ??
+      layoutOverlapProblems({ layout: { ...parsed.block.layout, shared: grown } }).join('; '));
+  const isNewFolder = !isListed && notRecorded === '';
   const block = opts.recorded({
     block: {
       ...parsed.block,
       layout: isNewFolder ? { ...parsed.block.layout, shared: grown } : parsed.block.layout,
-      packages: [...parsed.block.packages, { dir: libName, name: named.name, path, kind: 'lib' }],
+      packages: [
+        ...parsed.block.packages,
+        { dir: libName, name: named.name, path, kind: PackageKinds.LIB },
+      ],
     },
   });
   const replaced = replaceAppsBlock({ source, block });
@@ -258,6 +264,13 @@ export const addLibrary = async (opts: {
 
   if (warning !== undefined) {
     process.stderr.write(`${warning}\n`);
+  }
+
+  // The folder is used all the same; the layout does not list it, so `guard-package` does not cover it.
+  if (notRecorded !== undefined && notRecorded !== '') {
+    process.stderr.write(
+      `note: '${folder}' is not added to layout.shared (${notRecorded}); guard-package does not cover it\n`,
+    );
   }
 
   const rows: [string, string][] = [['library', path]];

@@ -1,5 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+import { PackageKinds, SourcePins } from './constants';
+import type { TAppSide, TPackageKind, TSourcePin } from './types';
 
 /** The project manifest (Project Contract v1, C1) - what atlas reads, and nothing else. */
 export const MANIFEST_FILE = '.agents/vulcan.manifest.json';
@@ -23,13 +25,13 @@ export interface IAtlasPackage {
   aliases: string[];
   retired: boolean;
   /** `lib` for a shared package a preset's lib kind made; absent for an app or a plain package. */
-  kind?: 'app' | 'lib';
+  kind?: TPackageKind;
 }
 
 /** A preset an app of the project came from, as `vulcan add --preset` takes it back. */
 export interface IAtlasPreset {
   spec: string;
-  side: 'backend' | 'frontend';
+  side: TAppSide;
   summary: string;
   /** The summary of the preset's lib kind, when it makes libraries. */
   lib?: string;
@@ -58,7 +60,7 @@ export interface IAtlasProject {
   /** Absolute paths. */
   knowledge: { bundle: string; wiki?: string; changelogs?: string };
   /** The sources this project reads knowledge from (git mode): `atlas.sources` of its config. */
-  sources: { name: string; repo: string; ref: string; pin?: 'installed' | 'ref' }[];
+  sources: { name: string; repo: string; ref: string; pin?: TSourcePin }[];
 }
 
 type TRecord = Record<string, unknown>;
@@ -99,7 +101,9 @@ const packagesOf = (opts: { value: unknown; label: string }): IAtlasPackage[] =>
         path: stringOf({ value: entry.path }) ?? `packages/${dir}`,
         aliases: aliases.filter((alias): alias is string => typeof alias === 'string'),
         retired: entry.retired === true,
-        ...(entry.kind === 'lib' || entry.kind === 'app' ? { kind: entry.kind } : {}),
+        ...(entry.kind === PackageKinds.LIB || entry.kind === PackageKinds.APP
+          ? { kind: entry.kind }
+          : {}),
       },
     ];
   });
@@ -183,7 +187,10 @@ export const toAtlasProject = (opts: {
       const source = recordOf({ value: item });
       const name = stringOf({ value: source.name });
       const repo = stringOf({ value: source.repo });
-      const pin = source.pin === 'installed' || source.pin === 'ref' ? source.pin : undefined;
+      const pin =
+        source.pin === SourcePins.INSTALLED || source.pin === SourcePins.REF
+          ? source.pin
+          : undefined;
 
       return name === undefined || repo === undefined
         ? []

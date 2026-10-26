@@ -1,6 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { splitFrontmatter } from '@/changelogs/resolve';
+import { SkillSources } from '@/common/constants';
+import type { TSkillSource } from '@/common/types';
 
 const SKILL_FILE = 'SKILL.md';
 const SHIPPED_DIRECTORY = join('node_modules', '@venizia', 'vulcan', 'base', 'skills');
@@ -27,7 +29,7 @@ export const triggerOf = (opts: { description: string }): { text: string; hasUse
 
 export interface ISkillEntry {
   name: string;
-  source: 'shipped' | 'project';
+  source: TSkillSource;
   /** The description's own words; empty when the frontmatter cannot be read. */
   description: string;
 }
@@ -69,14 +71,14 @@ export const skillCatalogOf = (opts: { root: string }): ISkillEntry[] => {
   return [
     ...shipped.map((name): ISkillEntry => ({
       name,
-      source: 'shipped',
+      source: SkillSources.SHIPPED,
       description: descriptionOf({ directory: shippedDirectory, name }),
     })),
     ...namesIn({ directory: projectDirectory })
       .filter((name) => !taken.has(name))
       .map((name): ISkillEntry => ({
         name,
-        source: 'project',
+        source: SkillSources.PROJECT,
         description: descriptionOf({ directory: projectDirectory, name }),
       })),
   ].sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));

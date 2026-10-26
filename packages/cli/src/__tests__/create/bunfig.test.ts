@@ -23,9 +23,12 @@ describe('renderBunfig', () => {
 });
 
 describe("the VULCAN repository's own bunfig.toml", () => {
-  test('is the file init writes', () => {
+  // What init writes, then the one section only this repository has: its bare `bun test` keeps temp folders in the repo.
+  test('is the file init writes, plus the test preload', () => {
     const root = join(import.meta.dir, '..', '..', '..', '..', '..');
 
-    expect(readFileSync(join(root, 'bunfig.toml'), 'utf8')).toBe(renderBunfig());
+    expect(readFileSync(join(root, 'bunfig.toml'), 'utf8')).toBe(
+      `${renderBunfig()}\n[test]\npreload = ["./scripts/test/repo-tmp.preload.ts"]\n`,
+    );
   });
 });

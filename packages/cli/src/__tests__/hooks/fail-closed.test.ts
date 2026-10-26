@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import {
+  chmodSync,
   copyFileSync,
   mkdirSync,
   mkdtempSync,
@@ -14,6 +15,7 @@ import { spawnSyncBounded } from '../spawn.helper.ts';
 
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 const SHIPPED_SETTINGS = join(PACKAGE_ROOT, 'base', 'claude', 'settings.json');
+const REMOTE_HOSTS_TEMPLATE = join(PACKAGE_ROOT, 'base', 'claude', 'remote-hosts.json');
 
 const roots: string[] = [];
 
@@ -36,41 +38,60 @@ interface IShippedHook {
   command: string;
 }
 
-/** Every hook command the shipped settings register, as Claude Code would run it. */
-const shippedHooks = (): IShippedHook[] => {
+/** Every hook command of a settings file, as Claude Code would run it. */
+const hooksOf = (path: string): IShippedHook[] => {
   const settings: {
     hooks: Record<string, { hooks: { command: string }[] }[]>;
-  } = JSON.parse(readFileSync(SHIPPED_SETTINGS, 'utf8'));
+  } = JSON.parse(readFileSync(path, 'utf8'));
 
   return Object.entries(settings.hooks).flatMap(([event, entries]) =>
     entries.flatMap((entry) => entry.hooks.map((hook) => ({ event, command: hook.command }))),
   );
 };
 
-/** The hooks that fail OPEN: the drift guards and the owner-shape hooks, which pass when they cannot run. */
-const FAIL_OPEN = [
-  'guard-git.ts',
-  'guard-scripting.ts',
-  'guard-outside.ts',
-  'stop.ts',
-  'prompt-submit.ts',
-  'post-tool.ts',
-];
+/** Every hook command the shipped settings register. */
+const shippedHooks = (): IShippedHook[] => hooksOf(SHIPPED_SETTINGS);
+/** The hook sync adds only when the config sets `remoteHosts`: its command is shipped in a template. */
+const remoteHostsHooks = (): IShippedHook[] => hooksOf(REMOTE_HOSTS_TEMPLATE);
+
+/** The hooks that fail OPEN: the drift guard and the owner-shape hooks, which pass when they cannot run. */
+const FAIL_OPEN = ['guard-scripting.ts', 'stop.ts', 'prompt-submit.ts', 'post-tool.ts'];
+/** The deny-class guards: a missing package or bun passes; a hook that started and then failed asks. */
+const ASKING = ['guard-git.ts', 'guard-outside.ts'];
 const closedHooks = (): IShippedHook[] =>
-  shippedHooks().filter((hook) => !FAIL_OPEN.some((name) => hook.command.includes(name)));
+  shippedHooks().filter(
+    (hook) => ![...FAIL_OPEN, ...ASKING].some((name) => hook.command.includes(name)),
+  );
 const openHooks = (): IShippedHook[] =>
   shippedHooks().filter((hook) => FAIL_OPEN.some((name) => hook.command.includes(name)));
+const askingHooks = (): IShippedHook[] =>
+  shippedHooks().filter((hook) => ASKING.some((name) => hook.command.includes(name)));
 
 /** Claude Code runs a hook command through the shell, with the project root in CLAUDE_PROJECT_DIR. */
-const runHook = (opts: { command: string; root: string; stdin?: string; path?: string }) => {
+const runHook = (opts: {
+  command: string;
+  root: string;
+  stdin?: string;
+  path?: string;
+  env?: Record<string, string>;
+  /** The host does not set CLAUDE_PROJECT_DIR at all; the hook still runs from the project root. */
+  unsetProjectDir?: boolean;
+}) => {
+  const environment: Record<string, string | undefined> = {
+    ...process.env,
+    CLAUDE_PROJECT_DIR: opts.root,
+    ...(opts.path === undefined ? {} : { PATH: opts.path }),
+    ...opts.env,
+  };
+
+  if (opts.unsetProjectDir === true) {
+    delete environment.CLAUDE_PROJECT_DIR;
+  }
+
   const result = spawnSyncBounded({
     cmd: ['/bin/sh', '-c', opts.command],
     cwd: opts.root,
-    env: {
-      ...process.env,
-      CLAUDE_PROJECT_DIR: opts.root,
-      ...(opts.path === undefined ? {} : { PATH: opts.path }),
-    },
+    env: environment,
     stdin: new Blob([opts.stdin ?? '']),
     stdout: 'pipe',
     stderr: 'pipe',
@@ -92,9 +113,11 @@ describe('the drift guards fail open', () => {
   test('with node_modules absent or bun missing, every drift guard and shape hook passes the call and says so', () => {
     const root = makeRoot();
 
-    expect(openHooks().length).toBe(7);
+    expect(openHooks().length).toBe(5);
+    expect(askingHooks().length).toBe(2);
 
-    for (const hook of openHooks()) {
+    // A missing package or bun is a broken install, not a failed guard: the deny-class guards pass too.
+    for (const hook of [...openHooks(), ...askingHooks()]) {
       const absent = runHook({ command: hook.command, root, stdin: BASH_INPUT('ls') });
       const noBun = runHook({ command: hook.command, root, path: '/nonexistent' });
 
@@ -113,6 +136,7 @@ describe('the drift guards fail open', () => {
 
     for (const hook of [
       ...openHooks(),
+      ...askingHooks(),
       ...closedHooks().filter((item) => item.event === 'PreToolUse'),
     ]) {
       const name = /hooks\/([\w-]+)\.ts/.exec(hook.command)?.[1] ?? '';
@@ -122,7 +146,7 @@ describe('the drift guards fail open', () => {
       copyFileSync(join(PACKAGE_ROOT, 'base', 'hooks', `${name}.ts`), join(target, `${name}.ts`));
 
       const result = runHook({ command: hook.command, root: lonely, stdin: BASH_INPUT('ls') });
-      const open = FAIL_OPEN.includes(`${name}.ts`);
+      const open = [...FAIL_OPEN, ...ASKING].includes(`${name}.ts`);
 
       expect(result.code, name).toBe(open ? 0 : 2);
     }
@@ -156,6 +180,225 @@ describe('a crashed safety hook', () => {
       runHook({ command: guard.command, root: lonely, stdin: BASH_INPUT('bun install && ls') })
         .code,
     ).toBe(2);
+  });
+});
+
+describe('the deny-class guards ask when the hook starts and then fails', () => {
+  const ASK = '"permissionDecision":"ask"';
+  const [git] = askingHooks().filter((hook) => hook.command.includes('guard-git.ts'));
+  const [outside] = askingHooks().filter((hook) => hook.command.includes('guard-outside.ts'));
+
+  /** A project whose installed hook is `script`, with no `src` beside it. */
+  const rootWithHook = (opts: { name: string; script: string }): string => {
+    const root = makeRoot();
+    const target = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
+
+    mkdirSync(target, { recursive: true });
+    writeFileSync(join(target, `${opts.name}.ts`), opts.script);
+
+    return root;
+  };
+
+  test.each([
+    ['exits non-zero', 'process.exit(3);'],
+    ['is killed', "process.kill(process.pid, 'SIGKILL');"],
+    ['throws at load', "throw new Error('boom');"],
+  ])(
+    'a hook that %s: guard-git asks about a git or gh command and passes the rest',
+    (_, script) => {
+      const root = rootWithHook({ name: 'guard-git', script });
+
+      for (const command of ['git status', 'cd x && gh pr list', 'sudo git push']) {
+        const result = runHook({ command: git.command, root, stdin: BASH_INPUT(command) });
+
+        expect(result.code, command).toBe(0);
+        expect(result.stdout, command).toContain(ASK);
+        expect(result.stdout).toContain('The guard-git hook crashed or timed out');
+      }
+
+      for (const command of ['ls', 'echo digit', 'bun test']) {
+        const result = runHook({ command: git.command, root, stdin: BASH_INPUT(command) });
+
+        expect(result.code, command).toBe(0);
+        expect(result.stdout, command).toBe('');
+        expect(result.stderr).toContain('the guard-git hook failed - the call passes');
+      }
+    },
+  );
+
+  test.each([
+    ['exits non-zero', 'process.exit(3);'],
+    ['is killed', "process.kill(process.pid, 'SIGKILL');"],
+  ])('a hook that %s: guard-outside asks about every call', (_, script) => {
+    const root = rootWithHook({ name: 'guard-outside', script });
+    const result = runHook({ command: outside.command, root, stdin: BASH_INPUT('ls') });
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain(ASK);
+    expect(result.stdout).toContain('The guard-outside hook crashed or timed out');
+  });
+
+  test('a timeout (exit 124 of timeout(1)) asks the same way', () => {
+    const root = rootWithHook({ name: 'guard-git', script: 'process.exit(0);' });
+    const fake = join(root, 'fake-bin');
+
+    mkdirSync(fake, { recursive: true });
+    writeFileSync(join(fake, 'timeout'), '#!/bin/sh\nexit 124\n');
+    chmodSync(join(fake, 'timeout'), 0o755);
+
+    const result = runHook({
+      command: git.command,
+      root,
+      stdin: BASH_INPUT('git status'),
+      path: `${fake}:${process.env.PATH ?? ''}`,
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain(ASK);
+  });
+
+  test('a hook that finishes is forwarded as it is: silence stays silence, a decision stays a decision', () => {
+    const silent = rootWithHook({ name: 'guard-git', script: 'process.exit(0);' });
+    const loud = rootWithHook({ name: 'guard-git', script: 'console.log(\'{"x":1}\');' });
+
+    expect(
+      runHook({ command: git.command, root: silent, stdin: BASH_INPUT('git status') }),
+    ).toEqual({ code: 0, stdout: '', stderr: '' });
+    expect(
+      runHook({ command: git.command, root: loud, stdin: BASH_INPUT('git status') }).stdout,
+    ).toBe('{"x":1}');
+  });
+
+  test('with the package unloadable (its modules missing), a git command asks and ls passes', () => {
+    const root = makeRoot();
+    const target = join(root, 'node_modules', '@venizia', 'vulcan', 'base', 'hooks');
+
+    mkdirSync(target, { recursive: true });
+    copyFileSync(join(PACKAGE_ROOT, 'base', 'hooks', 'guard-git.ts'), join(target, 'guard-git.ts'));
+    copyFileSync(
+      join(PACKAGE_ROOT, 'base', 'hooks', 'guard-outside.ts'),
+      join(target, 'guard-outside.ts'),
+    );
+
+    expect(
+      runHook({ command: git.command, root, stdin: BASH_INPUT('git status') }).stdout,
+    ).toContain(ASK);
+    expect(runHook({ command: git.command, root, stdin: BASH_INPUT('ls') }).stdout).toBe('');
+    expect(runHook({ command: outside.command, root, stdin: BASH_INPUT('ls') }).stdout).toContain(
+      ASK,
+    );
+  });
+
+  test('VULCAN_GUARDS=off is silent through the wrapper, and the working package still decides', () => {
+    const root = makeRoot();
+    const installed = join(root, 'node_modules', '@venizia', 'vulcan');
+
+    mkdirSync(dirname(installed), { recursive: true });
+    symlinkSync(PACKAGE_ROOT, installed);
+
+    const push = BASH_INPUT('git push -f origin main');
+
+    expect(
+      runHook({ command: git.command, root, stdin: push, env: { VULCAN_GUARDS: 'off' } }),
+    ).toEqual({ code: 0, stdout: '', stderr: '' });
+    expect(runHook({ command: git.command, root, stdin: push }).stdout).toContain(
+      '"permissionDecision":"deny"',
+    );
+    expect(runHook({ command: git.command, root, stdin: BASH_INPUT('git status') }).stdout).toBe(
+      '',
+    );
+  });
+});
+
+// Copilot and Cursor read `.claude/settings.json` too and may not set CLAUDE_PROJECT_DIR: a wrapper that
+// built its path from the bare variable looked in `/node_modules`, found nothing and exited 2.
+describe('the wrappers do not depend on CLAUDE_PROJECT_DIR being set', () => {
+  const everyHook = (): IShippedHook[] => [...shippedHooks(), ...remoteHostsHooks()];
+  const nameOf = (hook: IShippedHook): string =>
+    /hooks\/([\w-]+)\.ts/.exec(hook.command)?.[1] ?? '';
+
+  /** A project with the package installed, so a hook that finds it can run. */
+  const installedRoot = (): string => {
+    const root = makeRoot();
+    const installed = join(root, 'node_modules', '@venizia', 'vulcan');
+
+    mkdirSync(dirname(installed), { recursive: true });
+    symlinkSync(PACKAGE_ROOT, installed);
+
+    return root;
+  };
+
+  test('every wrapper is written with the working directory as the fallback', () => {
+    expect(everyHook().length).toBe(13);
+
+    for (const hook of everyHook()) {
+      expect(hook.command, nameOf(hook)).toContain('${CLAUDE_PROJECT_DIR:-$PWD}/node_modules');
+      expect(hook.command, nameOf(hook)).not.toContain('${CLAUDE_PROJECT_DIR}');
+    }
+  });
+
+  test.each(['ls', 'git status', ''])(
+    'with the package present, an unset variable answers like a set one, for every wrapper (input %j)',
+    (command) => {
+      const root = installedRoot();
+      const stdin = command === '' ? '' : BASH_INPUT(command);
+
+      for (const hook of everyHook()) {
+        const set = runHook({ command: hook.command, root, stdin });
+        const unset = runHook({ command: hook.command, root, stdin, unsetProjectDir: true });
+
+        expect(unset.code, nameOf(hook)).toBe(set.code);
+        expect(unset.stdout, nameOf(hook)).toBe(set.stdout);
+      }
+    },
+  );
+
+  // guard-remote-hosts is left out: with no remoteHosts policy in the project it blocks, set or unset.
+  test('with the package present, an unset variable does not make a safety hook exit 2', () => {
+    const root = installedRoot();
+
+    for (const hook of shippedHooks()) {
+      const result = runHook({
+        command: hook.command,
+        root,
+        stdin: BASH_INPUT('ls'),
+        unsetProjectDir: true,
+      });
+
+      expect(result.code, nameOf(hook)).toBe(0);
+    }
+  });
+
+  test('with the install missing, an unset variable still exits 2 for a safety hook and 0 for the rest', () => {
+    const root = makeRoot();
+
+    for (const hook of everyHook()) {
+      const result = runHook({
+        command: hook.command,
+        root,
+        stdin: BASH_INPUT('ls'),
+        unsetProjectDir: true,
+      });
+      const passes = [...FAIL_OPEN, ...ASKING].some((name) => hook.command.includes(name));
+
+      expect(result.code, nameOf(hook)).toBe(passes ? 0 : 2);
+    }
+  });
+
+  test('a variable that is set still wins over the working directory', () => {
+    const root = installedRoot();
+    const elsewhere = makeRoot();
+
+    for (const hook of [...closedHooks(), ...remoteHostsHooks()]) {
+      const result = runHook({
+        command: hook.command,
+        root,
+        stdin: BASH_INPUT('ls'),
+        env: { CLAUDE_PROJECT_DIR: elsewhere },
+      });
+
+      expect(result.code, nameOf(hook)).toBe(2);
+    }
   });
 });
 

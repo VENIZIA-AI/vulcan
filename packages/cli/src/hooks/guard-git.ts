@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { basenameOf, parseShell, programOf } from './shell.ts';
+import { basenameOf, parseShellChecked, programOf } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { IGitHit, IGitRunner } from './common/index.ts';
@@ -282,7 +282,46 @@ export const inspectGit = (opts: {
   command: string;
   cwd: string | undefined;
   run?: IGitRunner;
-}): IGitHit[] =>
-  parseShell({ command: opts.command }).flatMap((command) =>
-    inspectOne({ command, cwd: opts.cwd, run: opts.run ?? runQuery }),
+}): IGitHit[] => {
+  const parsed = parseShellChecked({ command: opts.command });
+  const run = opts.run ?? runQuery;
+  let queries = 0;
+  let isCapped = false;
+
+  // Every query is a process and can take seconds: a line may make a few, and asks past them.
+  const limited: IGitRunner = (call) => {
+    queries += 1;
+
+    if (queries > HookConstants.MAX_QUERIES) {
+      isCapped = true;
+
+      return undefined;
+    }
+
+    return run(call);
+  };
+  const hits = parsed.commands.flatMap((command) =>
+    inspectOne({ command, cwd: opts.cwd, run: limited }),
   );
+
+  // Part of the line was not read: never an allow.
+  if (parsed.isOverBudget) {
+    hits.push({
+      decision: GuardDecisions.ASK,
+      rule: 'V-W-06',
+      message:
+        'this command line is larger, or nests deeper, than the guard reads, so it could not be checked',
+    });
+  }
+
+  if (isCapped) {
+    hits.push({
+      decision: GuardDecisions.ASK,
+      rule: 'V-W-06',
+      message:
+        'this command line needs more git or gh queries than the guard runs, so part of it could not be checked',
+    });
+  }
+
+  return hits;
+};

@@ -9,16 +9,16 @@ VULCAN sets up seven coding agents (eight entries, because Copilot is two produc
 
 The table below is the content of `base/agents.json`, the table `sync` is driven by.
 
-| Agent | Name | Instructions | Atlas MCP entry | Skills | The atlas server's own text |
-|---|---|---|---|---|---|
-| `claude` | Claude Code | `AGENTS.md` through the shim `CLAUDE.md` (`@AGENTS.md`) | `.mcp.json` (shared) | `.claude/skills` | shown to the model |
-| `omp` | omp (oh-my-pi) | `AGENTS.md` | `.mcp.json` (shared) | `.agents/skills` | shown to the model |
-| `codex` | Codex | `AGENTS.md` | `.codex/config.toml` | `.agents/skills` | shown to the model (documented) |
-| `cursor` | Cursor | `AGENTS.md` | `.cursor/mcp.json` | `.agents/skills` | not documented |
-| `copilot-cli` | Copilot CLI | `AGENTS.md` | `.mcp.json` (shared) | `.agents/skills` | not documented |
-| `copilot-vscode` | Copilot in VS Code | `AGENTS.md` | `.vscode/mcp.json` | `.agents/skills` | not documented |
-| `antigravity` | Antigravity CLI | `AGENTS.md` | `.agents/mcp_config.json` | `.agents/skills` | not shown: it keeps the text in files and lists only the tool names |
-| `pi` | Pi | `AGENTS.md` | `.pi/mcp.json` | `.agents/skills` | one line only, as a server summary |
+| Agent | Name | Instructions | Atlas MCP entry | Skills | Guards | The atlas server's own text |
+|---|---|---|---|---|---|---|
+| `claude` | Claude Code | `AGENTS.md` through the shim `CLAUDE.md` (`@AGENTS.md`) | `.mcp.json` (shared) | `.claude/skills` | hooks in `.claude/settings.json` | shown to the model |
+| `omp` | omp (oh-my-pi) | `AGENTS.md` | `.mcp.json` (shared) | `.agents/skills` | `.omp/hooks/pre/vulcan-guards.ts` | shown to the model |
+| `codex` | Codex | `AGENTS.md` | `.codex/config.toml` | `.agents/skills` | `.codex/hooks.json` | shown to the model (documented) |
+| `cursor` | Cursor | `AGENTS.md` | `.cursor/mcp.json` | `.agents/skills` | not yet | not documented |
+| `copilot-cli` | Copilot CLI | `AGENTS.md` | `.mcp.json` (shared) | `.agents/skills` | not yet | not documented |
+| `copilot-vscode` | Copilot in VS Code | `AGENTS.md` | `.vscode/mcp.json` | `.agents/skills` | not yet | not documented |
+| `antigravity` | Antigravity CLI | `AGENTS.md` | `.agents/mcp_config.json` | `.agents/skills` | `.agents/hooks.json` | not shown: it keeps the text in files and lists only the tool names |
+| `pi` | Pi | `AGENTS.md` | `.pi/mcp.json` | `.agents/skills` | `.pi/extensions/vulcan-guards.ts` | one line only, as a server summary |
 
 ## What you get
 
@@ -28,11 +28,12 @@ The table below is the content of `base/agents.json`, the table `sync` is driven
 
 ## What the other agents lose
 
-The session-start digest, the guard hooks (`guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts`) and the `claude.settings` of the config exist for Claude Code only. For another agent the rules in `AGENTS.md` are still written, but nothing enforces `V-W-02`, `V-W-03`, the manifest guard or the package guard. Mapping the guards to the hooks of the other agents is a separate piece of work.
+The session-start digest, the owner-reply check and the `claude.settings` of the config exist for Claude Code only. The guards reach four more agents, through a file `sync` writes for them: omp loads `.omp/hooks/pre/vulcan-guards.ts`, pi loads `.pi/extensions/vulcan-guards.ts`, Antigravity reads a hook in `.agents/hooks.json` and Codex one in `.codex/hooks.json`; all four run the same guard scripts Claude Code runs (see [omp and pi](/references/hooks/#the-guards-on-omp-and-pi), [Antigravity](/references/hooks/#the-guards-on-antigravity) and [Codex, Cursor and Copilot](/references/hooks/#the-guards-on-codex-cursor-and-copilot); the Codex hook was built from the documentation and not run). Cursor and both Copilots read the Claude hooks of `.claude/settings.json` themselves, so `sync` writes nothing for them; for those the rules in `AGENTS.md` are still written, and the guards run only as far as the section on Cursor and Copilot says. For the other agents the rules in `AGENTS.md` are still written, but nothing enforces `V-W-02`, `V-W-03`, `V-W-06`, the manifest guard or the package guard yet.
 
 ## Things only you can do
 
 - Codex: Codex loads .codex/config.toml only for trusted projects: trust this project in Codex.
+- Codex: Codex runs the guard hook of .codex/hooks.json only after you review and trust it in /hooks.
 - Pi: Pi loads .pi/mcp.json and .agents/skills only after you trust this project: start pi here and answer the trust prompt.
 
 `sync` prints these as `note` lines.

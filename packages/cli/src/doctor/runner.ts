@@ -18,6 +18,8 @@ import {
   checkReplyShape,
   checkPrune,
   checkStaleLocal,
+  checkStaleTrustedScripts,
+  checkTrustedScripts,
   checkHooks,
   checkLayout,
   checkLocalWorkspace,
@@ -97,6 +99,7 @@ export const runDoctorNotes = async (opts: {
     ...checkLocalSize(context),
     ...checkReplyShape(context),
     ...checkOwnerReplySwitch({ env: opts.env ?? process.env }),
+    ...checkTrustedScripts(context),
   ];
 };
 
@@ -124,5 +127,6 @@ export const runDoctorWarnings = async (opts: { root: string }): Promise<IViolat
     ...checkProfile(context),
     ...checkOwnerReplySettings(context),
     ...checkStaleLocal(context),
+    ...checkStaleTrustedScripts(context),
   ];
 };

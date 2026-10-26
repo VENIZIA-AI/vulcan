@@ -8,13 +8,54 @@ export class GuardDecisions {
   }
 }
 
+/** What the package guard says about a hand-made package: refuse where a `vulcan add` command exists, else warn. */
+export class PackageVerdictKinds {
+  static readonly DENY = GuardDecisions.DENY;
+  static readonly WARN = 'warn';
+
+  static readonly SCHEME_SET = new Set<string>([this.DENY, this.WARN]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
+/** What git says about a script a project trusts: only `TRUSTED` skips the script checks of guard-writes. */
+export class TrustStates {
+  static readonly TRUSTED = 'trusted';
+  static readonly MISSING = 'missing';
+  static readonly UNTRACKED = 'untracked';
+  static readonly UNCOMMITTED = 'uncommitted';
+  static readonly MODIFIED = 'modified';
+  static readonly SYMLINK = 'symlink';
+  static readonly UNKNOWN = 'unknown';
+
+  static readonly SCHEME_SET = new Set<string>([
+    this.TRUSTED,
+    this.MISSING,
+    this.UNTRACKED,
+    this.UNCOMMITTED,
+    this.MODIFIED,
+    this.SYMLINK,
+    this.UNKNOWN,
+  ]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
 export class HookConstants {
   /** `ask` until the transcript shows the guard does not over-fire; a false positive costs one keystroke. */
   static readonly GUARD_DECISION = GuardDecisions.ASK;
   static readonly PRE_TOOL_USE = 'PreToolUse';
+  /** Cursor sets it for every hook it runs, including the Claude hooks it imports; Claude Code never does. */
+  static readonly CURSOR_PROJECT_DIR_ENV = 'CURSOR_PROJECT_DIR';
   static readonly SUBAGENT_START = 'SubagentStart';
   /** `git` and `gh` queries the guards make; a slow one is dropped and the command passes. */
   static readonly QUERY_TIMEOUT_MS = 5000;
+  /** The `git` and `gh` queries one command line may make; past it the guard asks instead of querying on. */
+  static readonly MAX_QUERIES = 4;
   /** Branches no agent deletes or force-pushes (V-W-06). */
   static readonly PROTECTED_BRANCHES = new Set(['develop', 'main']);
   /** Set to `off` to switch the guards off for a session; the hooks then pass every call. */

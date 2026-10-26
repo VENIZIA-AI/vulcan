@@ -8,7 +8,7 @@ packages: ['@venizia/vulcan-atlas', '@venizia/vulcan']
 
 ## VULCAN 0.3.9: atlas serves the docs of the version you have installed
 
-<Badge type="warning" text="Behaviour change" />
+<Badge type="warning" text="Behavior Change" />
 
 **In one line.** A project that pins `@venizia/ignis` 0.3.4 no longer reads docs for unreleased `develop` code through `search` and `get`; it reads the docs of the 0.3.4 release.
 

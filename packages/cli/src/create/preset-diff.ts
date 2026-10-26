@@ -4,7 +4,7 @@ import type { TConstValue } from '../common/index.ts';
 import { ExitCodes } from '../common/index.ts';
 import { layoutFoldersOf } from '../common/layout-folder.ts';
 import type { ILayout } from '../common/layout-folder.ts';
-import { loadConfig, resolvePackages } from '../config/index.ts';
+import { loadConfig, PackageKinds, resolvePackages } from '../config/index.ts';
 import { locate, resolveApiUrl } from './add-app.ts';
 import { AppSides, CreateConstants, CreateFlags, PresetDiffStatuses } from './common/index.ts';
 import type { ILocatedPreset, IRecordedPreset, IPresetSpec, TAppSide } from './common/index.ts';
@@ -270,7 +270,9 @@ export const runPresetDiff = async (opts: { cwd: string; args: string[] }): Prom
   const app = packages.find((entry) => entry.dir === appName || entry.path === appName);
 
   if (config.layout === undefined || app === undefined) {
-    const known = packages.filter((entry) => entry.kind !== 'lib').map((entry) => entry.dir);
+    const known = packages
+      .filter((entry) => entry.kind !== PackageKinds.LIB)
+      .map((entry) => entry.dir);
 
     return fail({
       message: `no app '${appName}' in the config packages${known.length === 0 ? '' : ` (apps: ${known.join(', ')})`}`,

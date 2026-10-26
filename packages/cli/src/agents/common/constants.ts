@@ -10,6 +10,56 @@ export class AgentScopes {
   }
 }
 
+/** Why an agent's list was chosen: a flag, the local file, the config, a migration, the question, or the default. */
+export class AgentSources {
+  static readonly FLAG = 'flag';
+  static readonly LOCAL = 'local';
+  static readonly CONFIG = 'config';
+  static readonly MIGRATION = 'migration';
+  static readonly ASKED = 'asked';
+  static readonly DEFAULT = 'default';
+
+  static readonly SCHEME_SET = new Set<string>([
+    this.FLAG,
+    this.LOCAL,
+    this.CONFIG,
+    this.MIGRATION,
+    this.ASKED,
+    this.DEFAULT,
+  ]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
+/** What taking an entry out of an agent's file found: it was not there, or it was and is gone. */
+export class RemoveOutcomes {
+  static readonly ABSENT = 'absent';
+  static readonly REMOVED = 'removed';
+
+  static readonly SCHEME_SET = new Set<string>([this.ABSENT, this.REMOVED]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
+/** How a guard reaches an agent that has no Claude-style hook commands: a file the agent loads. */
+export class AgentGuardKinds {
+  static readonly EXTENSION = 'extension';
+  /** A hooks file that names a command: Antigravity's `.agents/hooks.json`. */
+  static readonly HOOKS_JSON = 'hooks-json';
+  /** Codex's `.codex/hooks.json`: `hooks.PreToolUse` is a list of matcher entries. */
+  static readonly CODEX_HOOKS = 'codex-hooks';
+
+  static readonly SCHEME_SET = new Set<string>([this.EXTENSION, this.HOOKS_JSON, this.CODEX_HOOKS]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
 /** The file formats an agent's MCP entry is written in. */
 export class AgentRenderers {
   static readonly MCP_SERVERS = 'mcpServers';
@@ -35,4 +85,8 @@ export class AgentConstants {
   static readonly SHARED_MCP_FILE = '.mcp.json';
   static readonly DEFAULT_AGENT = 'claude';
   static readonly EXAMPLE_LIST = 'claude,omp';
+  /** The extension template sync copies for an agent whose `guards` kind is `extension`, under the package's base. */
+  static readonly GUARD_EXTENSION_TEMPLATE = 'extensions/vulcan-guards.ts';
+  /** The first line of the template: a file that starts with it is sync's, to rewrite or remove. */
+  static readonly GUARD_EXTENSION_MARKER = '// Written by `vulcan sync`';
 }

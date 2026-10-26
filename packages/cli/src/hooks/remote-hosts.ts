@@ -1,6 +1,8 @@
 import { HookConstants } from './common/index.ts';
 import type { IWriteHit } from './common/index.ts';
-import { optionTakesNextWord } from './shell.ts';
+import { isDataOnly } from './command-view.ts';
+import { forHost } from './decision.ts';
+import { optionTakesNextWord, programOf, splitHeredocs } from './shell.ts';
 
 // -----------------------------------------------------------------------------
 // The remote-host guard: a Bash command that reaches a host the project has not listed asks first.
@@ -752,12 +754,30 @@ const analyzeWords = (opts: {
 
   const program = basenameOf({ word: words[0] ?? '' });
 
+  // `rg -n "ssh|scp" docs/`: the arguments of a search or a print are data.
+  if (isDataOnly({ command: { words, redirects: [], assignments: [] }, withMessages: false })) {
+    return [];
+  }
+
   if (program === '' || LOOKUPS.has(program) || opts.depth > MAXIMUM_DEPTH) {
     return opts.depth > MAXIMUM_DEPTH ? [unreadable({ why: 'the command nests too deeply' })] : [];
   }
 
   if (program === 'command' && words.some((word) => word === '-v' || word === '-V')) {
     return [];
+  }
+
+  if (program === 'env') {
+    // `env -S "ssh host"` carries a whole command line in one word: the command it makes is read as one.
+    const splits = programOf({
+      command: { words, redirects: [], assignments: [] },
+    }).splitCommands;
+
+    if (splits.length > 0) {
+      return splits.flatMap((splitWords) =>
+        analyzeWords({ words: splitWords, depth: opts.depth + 1, recurse: opts.recurse }),
+      );
+    }
   }
 
   if (WRAPPERS.has(program) || program === 'command' || program === 'builtin') {
@@ -845,7 +865,8 @@ const analyzeWords = (opts: {
 };
 
 const analyzeCommand = (opts: { command: string; depth: number }): IFinding[] =>
-  tokenize({ command: opts.command }).flatMap((segment) => {
+  // A heredoc body that is data (`cat > f <<EOF`) is not a command; one a shell reads stays in the text.
+  tokenize({ command: splitHeredocs({ command: opts.command }).text }).flatMap((segment) => {
     const findings = analyzeWords({
       words: segment.words,
       depth: opts.depth,
@@ -935,15 +956,18 @@ export const inspectRemoteCommand = (opts: {
   return hits;
 };
 
-export const buildRemoteDecision = (opts: { hits: IWriteHit[] }) => ({
-  hookSpecificOutput: {
-    hookEventName: HookConstants.PRE_TOOL_USE,
-    permissionDecision: HookConstants.GUARD_DECISION,
-    permissionDecisionReason: [
-      'This command may reach a remote host the project has not listed:',
-      ...opts.hits.map((hit) => `  - ${hit.message}`),
-      '',
-      'Read on the host, never edit, restart or copy onto it. Produce the command and hand it over.',
-    ].join('\n'),
-  },
-});
+export const buildRemoteDecision = (opts: { hits: IWriteHit[] }) =>
+  forHost({
+    output: {
+      hookSpecificOutput: {
+        hookEventName: HookConstants.PRE_TOOL_USE,
+        permissionDecision: HookConstants.GUARD_DECISION,
+        permissionDecisionReason: [
+          'This command may reach a remote host the project has not listed:',
+          ...opts.hits.map((hit) => `  - ${hit.message}`),
+          '',
+          'Read on the host, never edit, restart or copy onto it. Produce the command and hand it over.',
+        ].join('\n'),
+      },
+    },
+  });

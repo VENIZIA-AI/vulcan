@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { PAGE_CSS, PAGE_JS } from './assets.ts';
-import { DEFAULT_CHROME } from './constants.ts';
-import type { TChrome } from './constants.ts';
+import { ChangeKinds, DEFAULT_CHROME } from './constants.ts';
+import type { TChangeKind, TChrome } from './constants.ts';
 import { escapeText, renderFigure } from './layout.ts';
 import type { TVisualizeSpec } from './schema.ts';
 
@@ -108,14 +108,14 @@ const beforeAfterSection = (opts: { spec: TVisualizeSpec; chrome: TChrome }): st
   const side = (given: {
     title: string;
     items: { text: string; change?: string }[];
-    kind: 'added' | 'removed';
+    kind: TChangeKind;
   }): string => {
     const { title, items, kind } = given;
 
     return `<section><h3>${escaped(title)}</h3><ul>${items
       .map((item) =>
         item.change === kind
-          ? `<li class="${kind}">${escaped(item.text)} <small>(${escaped(kind === 'added' ? chrome.added : chrome.removed)})</small></li>`
+          ? `<li class="${kind}">${escaped(item.text)} <small>(${escaped(kind === ChangeKinds.ADDED ? chrome.added : chrome.removed)})</small></li>`
           : `<li>${escaped(item.text)}</li>`,
       )
       .join('')}</ul></section>`;
@@ -123,7 +123,7 @@ const beforeAfterSection = (opts: { spec: TVisualizeSpec; chrome: TChrome }): st
 
   return sectionOf({
     title: `${chrome.before} / ${chrome.after}`,
-    body: `<div class="ba">${side({ ...beforeAfter.before, kind: 'removed' })}${side({ ...beforeAfter.after, kind: 'added' })}</div>`,
+    body: `<div class="ba">${side({ ...beforeAfter.before, kind: ChangeKinds.REMOVED })}${side({ ...beforeAfter.after, kind: ChangeKinds.ADDED })}</div>`,
   });
 };
 
