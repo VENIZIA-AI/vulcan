@@ -1,5 +1,6 @@
 import { defineConfig, type DefaultTheme } from 'vitepress';
 import { writeChangelogFeed } from './theme/shared/changelog-loader.ts';
+import { venziaCodeTheme } from './theme/shared/code-theme.ts';
 import { VENIZIA_LOGO_SVG } from './theme/shared/venizia-logo.ts';
 
 // The sidebars mirror IGNIS: Guides and References each have an index landing page.
@@ -84,8 +85,9 @@ export default defineConfig({
   base: '/',
   appearance: 'dark',
   markdown: {
-    // The code windows are dark in both themes (theme/shared/tokens.css), so one dark theme serves both.
-    theme: 'one-dark-pro',
+    // The code windows are dark in both themes (theme/shared/tokens.css), so one dark theme serves both: the
+    // shared theme built from VULCAN's accent on dark (the same value as --accent-on-dark in theme/product.css).
+    theme: venziaCodeTheme({ accent: '#dead6a' }),
   },
   srcDir: '../content',
   outDir: './.vitepress/dist',
