@@ -6,6 +6,7 @@
  * one place a catalogued version lives.
  */
 import { Glob } from 'bun';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 type TDependencies = Record<string, string>;
@@ -19,6 +20,12 @@ interface IManifest {
 
 /** The root and every workspace member. */
 const MANIFEST_GLOBS = ['package.json', 'packages/*/package.json'];
+
+/**
+ * Projects outside the workspace (the wiki has its own lockfile): `catalog:` does not resolve there, so a
+ * catalogued dependency is pinned to exactly the catalog's version instead, and cannot drift from it.
+ */
+const PINNED_MANIFESTS = ['docs/wiki/package.json'];
 
 /** `peerDependencies` are compatibility statements for consumers, deliberately looser than the install range. */
 const CATALOGUED_BLOCKS = ['dependencies', 'devDependencies'] as const;
@@ -36,9 +43,11 @@ export const findCatalogProblems = async (opts: { root: string }): Promise<strin
   const files = MANIFEST_GLOBS.flatMap((pattern) => [
     ...new Glob(pattern).scanSync(opts.root),
   ]).sort();
+  const pinned = PINNED_MANIFESTS.filter((file) => existsSync(join(opts.root, file)));
 
-  for (const file of files) {
+  for (const file of [...files, ...pinned]) {
     const manifest: IManifest = await Bun.file(join(opts.root, file)).json();
+    const isPinned = pinned.includes(file);
 
     for (const block of CATALOGUED_BLOCKS) {
       for (const [name, range] of Object.entries(manifest[block] ?? {})) {
@@ -48,7 +57,13 @@ export const findCatalogProblems = async (opts: { root: string }): Promise<strin
 
         referenced.add(name);
 
-        if (range !== 'catalog:') {
+        if (isPinned) {
+          if (range !== catalog[name]) {
+            problems.push(
+              `${file}: ${block}.${name} is "${range}" but the catalog pins "${catalog[name]}" - this project is outside the workspace, so pin exactly that`,
+            );
+          }
+        } else if (range !== 'catalog:') {
           problems.push(
             `${file}: ${block}.${name} is "${range}" but the catalog owns it - use "catalog:" (catalog pins ${catalog[name]})`,
           );
