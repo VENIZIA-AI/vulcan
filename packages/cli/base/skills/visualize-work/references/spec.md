@@ -15,7 +15,8 @@ never markup. `bun x --no-install vulcan visualize --schema` prints the full JSO
 | `status` | `{ state: ok \| warn \| blocked \| info, label? }`; shown as a shape and a word, never colour alone |
 | `asOf`, `scope` | An ISO date, and a sentence on what the page covers |
 | `verdict`, `caption` | One sentence the reader can stop at; one line under the figure |
-| `strip` | Four sentences: `healthy`, `blockedBy`, `changed`, `next` |
+| `strip` | Four sentences: `healthy`, `blockedBy`, `changed`, `next`; `next` (what the owner has to do) and `blockedBy` open the page, in a box of their own |
+| `minimap` | Rows of `{ task, status }`, `status` one of `done`, `in progress`, `waiting`, `not started`, `blocked`, `dropped`; the owner's map of the work, drawn with a shape and a word per row |
 | `flow` | `nodes` (`id`, `label`, `sublabel?`, `detail?`, `row`, `col`, `kind?`), `edges` (`from`, `to`, `label`, `variant?`), `steps` (`title`, `note`, `nodes`, `edges`) |
 | `beforeAfter` | `before` and `after`, each a `title` and `items` of `{ text, change? }` (`added` in after, `removed` in before) |
 | `decisions` | One to five of `{ question, recommended, changes }` |

@@ -367,6 +367,93 @@ describe('the page words', () => {
   });
 });
 
+describe('the page reads the answer first', () => {
+  test('the owner action, then the minimap, then the figure, then the decisions and the evidence', () => {
+    const html = rendered(fullSpec());
+    const at = (part: string): number => html.indexOf(part);
+
+    expect(at('class="verdict"')).toBeLessThan(at('class="owner"'));
+    expect(at('class="owner"')).toBeLessThan(at('Where things stand'));
+    expect(at('Where things stand')).toBeLessThan(at('How it flows'));
+    expect(at('How it flows')).toBeLessThan(at('id="decisions"'));
+    expect(at('id="decisions"')).toBeLessThan(at('>Evidence<'));
+    expect(html).toContain('What you need to do');
+    expect(html).toContain('<a href="#decisions">Decisions needed (');
+  });
+
+  test('the minimap gives every task a shape and a word, and a spec replaces the words', () => {
+    const html = rendered(fullSpec());
+
+    for (const state of ['done', 'in-progress', 'not-started']) {
+      expect(html).toContain(`class="st ${state}"><i></i>`);
+    }
+
+    expect(html).toContain('in progress</span>');
+
+    const french = rendered({
+      ...fullSpec(),
+      chrome: { minimap: 'Ou en sont les choses', minimapStates: { done: 'fait' } },
+    });
+
+    expect(french).toContain('Ou en sont les choses');
+    expect(french).toContain('fait</span>');
+  });
+
+  test('a status the minimap does not know, an empty minimap and a long task are refused', () => {
+    const row = { task: 'T', status: 'done' };
+
+    expect(problems({ ...fullSpec(), minimap: [{ ...row, status: 'almost' }] }).join()).toContain(
+      'minimap',
+    );
+    expect(problems({ ...fullSpec(), minimap: [] }).join()).toContain('minimap');
+    expect(
+      problems({ ...fullSpec(), minimap: [{ ...row, task: 'x'.repeat(61) }] }).join(),
+    ).toContain('minimap');
+    expect(problems({ ...fullSpec(), minimap: [{ ...row, extra: 1 }] }).join()).toContain(
+      'minimap',
+    );
+  });
+
+  test('evidence tags differ in shape as well as in word, and tables name each cell for a phone', () => {
+    const html = rendered(fullSpec());
+
+    expect(html).toMatch(/class="ev verified">verified</);
+    expect(html).toContain('.ev.inferred{color:var(--warn);border-style:dashed}');
+    expect(html).toContain('.ev.guess{color:var(--mut);border-style:dotted}');
+    expect(html).toContain('<table class="stack">');
+    expect(html).toContain('data-label="Claim"');
+    expect(html).toContain('.stack td[data-label]::before{content:attr(data-label)');
+  });
+
+  test('a flow is also a list for a phone, and the figure gives way to it before its text drops under 12 px', () => {
+    const html = rendered(fullSpec());
+
+    expect(html).toContain('<ol class="path">');
+    expect(html).toContain('<span class="verb main">');
+    expect(html).toMatch(/class="fig c3"/);
+    expect(html).toContain('.fig.c3{display:none}');
+    expect(html).toContain('.fig.c3~.path');
+
+    // 3 columns are 3 x 270 + 48 = 858 px; 92% of that, plus the page padding, is the width below which the list shows.
+    expect(html).toContain(
+      `@media (max-width:${Math.ceil(858 * 0.92) + 66}px){.fig.c3{display:none}`,
+    );
+    expect(PAGE_CSS).toContain('@media (max-width:');
+  });
+
+  test('there is no inline style anywhere: the page policy would block it', () => {
+    const html = rendered(fullSpec());
+
+    expect(html).not.toMatch(/ style=/);
+  });
+
+  test('print shows the figure and not the phone list', () => {
+    expect(PAGE_CSS).toContain(
+      '@media print{body{background:#fff;color:#000}.bar,#theme{display:none}.fig{overflow:visible;display:block!important}.path,.path-detail{display:none!important}',
+    );
+  });
+});
+
 describe('the size', () => {
   test('a page that uses every section stays far under the cap, and says its size', () => {
     const result = render(fullSpec());

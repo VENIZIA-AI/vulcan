@@ -13,6 +13,11 @@ export const fullSpec = (): Record<string, unknown> => ({
     changed: 'The ignore check runs first.',
     next: 'Review the questions.',
   },
+  minimap: [
+    { task: 'Ignore check', status: 'done' },
+    { task: 'Ten questions', status: 'in progress' },
+    { task: 'Digest', status: 'not started' },
+  ],
   flow: {
     nodes: [
       {

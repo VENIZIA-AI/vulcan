@@ -47,6 +47,7 @@ The rules that make a page worth opening:
 - **Label evidence honestly**: `verified` only for a probe you ran in this session, `inferred` for a
   conclusion you drew, `guess` for the rest. An analogy is never presented as a fact. A claim that something
   is published or live needs a public-state probe, as in `report-back`.
+- **Give the owner the map**: a `minimap` row for each task or step the page is about, with the status words the owner shape uses; put what the owner has to do in `strip.next` and what blocks it in `strip.blockedBy`, because the page shows those two first, right after the verdict.
 - **Decisions are one to five forks**, each with a recommended default and the claim it changes.
 - **No secrets, no private data** in any field: the page is a file others may open.
 - **The owner's language is a setting**: when the reply language of the profile is not English, set
@@ -71,7 +72,7 @@ Done when it prints the path.
 ## 4. Look at it
 
 The command cannot see the page. Open it in a browser at 390 px and at 1280 px (a browser tool, or ask the
-owner to open it) and check: the page does not scroll sideways (a wide figure scrolls inside its own frame),
+owner to open it) and check: the page does not scroll sideways (at 390 px a figure gives way to a list),
 no text is smaller than 12 px, nothing overlaps (arrow labels against boxes), the dark theme is readable,
 hover or focus on a box shows its detail, Next steps through the lit boxes, and the console is clean.
 

@@ -4,6 +4,7 @@ import {
   DEFAULT_CHROME,
   EdgeVariants,
   EvidenceLabels,
+  MinimapStates,
   NodeKinds,
   StatusStates,
   VisualizeLimits,
@@ -93,6 +94,16 @@ const CHROME = z
         info: text(VisualizeLimits.MAX_LABEL).optional(),
       })
       .optional(),
+    minimapStates: z
+      .strictObject({
+        done: text(VisualizeLimits.MAX_LABEL).optional(),
+        'in-progress': text(VisualizeLimits.MAX_LABEL).optional(),
+        waiting: text(VisualizeLimits.MAX_LABEL).optional(),
+        'not-started': text(VisualizeLimits.MAX_LABEL).optional(),
+        blocked: text(VisualizeLimits.MAX_LABEL).optional(),
+        dropped: text(VisualizeLimits.MAX_LABEL).optional(),
+      })
+      .optional(),
     evidenceLabels: z
       .strictObject({
         verified: text(VisualizeLimits.MAX_LABEL).optional(),
@@ -132,6 +143,13 @@ export const VISUALIZE_SCHEMA = z.strictObject({
       next: text(VisualizeLimits.MAX_SENTENCE),
     })
     .optional(),
+  /** Where each task stands, one row each: the owner's map of the work. */
+  minimap: rows(
+    z.strictObject({
+      task: text(VisualizeLimits.MAX_LABEL),
+      status: choice({ set: MinimapStates.SCHEME_SET }),
+    }),
+  ).optional(),
   flow: z
     .strictObject({
       nodes: z.array(NODE).min(1).max(VisualizeLimits.MAX_NODES),

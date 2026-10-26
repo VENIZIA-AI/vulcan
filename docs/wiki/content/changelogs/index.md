@@ -11,6 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
+| 2026-10-27 | [VULCAN X.Y.Z: The visualize Page Puts the Answer, the Minimap and Your Action First](./2026-10-27-vulcan-0-4-6-visualize-page) | Enhancement |
 | 2026-10-26 | [Wiki: A New Home Page, a Venizia Switcher and a Smooth Light and Dark Switch](./2026-10-26-wiki-new-look) | Enhancement |
 | 2026-10-26 | [VULCAN 0.4.5: A Project Can List Its Own CLIs as Trusted Scripts](./2026-10-26-vulcan-0-4-5-trusted-scripts) | New Feature |
 | 2026-10-25 | [VULCAN 0.4.5: The Guards Get Stronger, Quieter and Reach Six More Agents (Overview)](./2026-10-25-vulcan-0-4-5-batch-overview) | Security, Behavior Change, New Feature |

@@ -25,6 +25,32 @@ export class StatusStates {
   }
 }
 
+/** Where a task stands on the minimap: a shape and a word each, never colour alone. */
+export class MinimapStates {
+  static readonly DONE = 'done';
+  static readonly IN_PROGRESS = 'in progress';
+  static readonly WAITING = 'waiting';
+  static readonly NOT_STARTED = 'not started';
+  static readonly BLOCKED = 'blocked';
+  static readonly DROPPED = 'dropped';
+  static readonly SCHEME_SET = new Set<string>([
+    this.DONE,
+    this.IN_PROGRESS,
+    this.WAITING,
+    this.NOT_STARTED,
+    this.BLOCKED,
+    this.DROPPED,
+  ]);
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+
+  /** The class and chrome key of a state: the words have spaces, the keys do not. */
+  static keyOf(value: string): string {
+    return value.replaceAll(' ', '-');
+  }
+}
+
 /** How an edge reads: the main path, a branch, a return, a fan-out or a failure. Never by colour alone. */
 export class EdgeVariants {
   static readonly MAIN = 'main';
@@ -107,7 +133,18 @@ export const DEFAULT_CHROME = {
   healthy: 'Healthy?',
   blockedBy: 'Blocked by',
   changed: 'What changed',
-  next: 'What needs action',
+  next: 'What you need to do',
+  minimap: 'Where things stand',
+  task: 'Task',
+  minimapStates: {
+    done: 'done',
+    'in-progress': 'in progress',
+    waiting: 'waiting',
+    'not-started': 'not started',
+    blocked: 'blocked',
+    dropped: 'dropped',
+  },
+  footer: 'Static page by vulcan visualize; it loads nothing.',
   flow: 'How it flows',
   legend: 'Legend',
   play: 'Play',
