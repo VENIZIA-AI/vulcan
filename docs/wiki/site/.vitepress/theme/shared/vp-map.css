@@ -1,0 +1,52 @@
+/*
+ * Shared by the three wikis (IGNIS, ARDOR, VULCAN): a byte-identical copy in each, kept in step by
+ * scripts/wiki-shared in VULCAN. Edit it there, never in a copy.
+ *
+ * No side stripes. A one-sided coloured border reads as generated, so nothing marks a state with a bar
+ * on one side: the pieces below are the default theme's own, each given a frame or a square instead.
+ * vitepress-selectors.json lists them with the VitePress version they were written for; a test checks
+ * that each still exists, so a VitePress upgrade that renames one says so.
+ */
+
+/* a blockquote is a full hairline box with a soft background */
+.vp-doc blockquote {
+  margin: 16px 0;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  padding: 4px 16px;
+  background: var(--vp-c-bg-soft);
+}
+
+/* the active sidebar item is marked by its tint, not by a bar at its left */
+.VPSidebarItem .indicator {
+  display: none;
+}
+
+/* the moving outline marker is a 6px square on the outline's rule, not a bar */
+.VPDocAsideOutline .outline-marker {
+  left: -3.5px;
+  width: 6px;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 0;
+}
+
+/* the active tab of a code group: a 6px square before the label, not a bar under it */
+.vp-code-group .tabs label::after {
+  display: none;
+}
+
+.vp-code-group .tabs label::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  background-color: transparent;
+  vertical-align: middle;
+  transition: background-color 0.25s;
+}
+
+.vp-code-group input:checked + label::before {
+  background-color: var(--vp-code-tab-active-bar-color);
+}

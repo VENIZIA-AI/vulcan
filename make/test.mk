@@ -31,8 +31,10 @@ test: test-all
 
 test-all: $(TEST_TARGETS) test-scripts
 
-# The root scripts/ (release, checks, build, evals) have their own tests, in each group's __tests__/.
+# The root scripts/ (release, checks, build, evals, wiki-shared) have their own tests, in each group's __tests__/.
+# The wiki's own dependencies are installed first: one test checks the VitePress pieces the shared theme overrides.
 test-scripts:
+	@cd docs/wiki && bun install --frozen-lockfile --silent
 	@mkdir -p $(TEST_TMP)/.git && $(TEST_TMP_ENV) bun test scripts $(BUN_TEST_FLAGS)
 
 $(TEST_TARGETS): test-%:

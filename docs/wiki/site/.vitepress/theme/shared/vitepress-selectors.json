@@ -1,0 +1,30 @@
+{
+  "vitepress": "1.6.4",
+  "selectors": [
+    {
+      "selector": ".vp-doc blockquote",
+      "file": "styles/components/vp-doc.css",
+      "needle": ".vp-doc blockquote {"
+    },
+    {
+      "selector": ".VPSidebarItem .indicator",
+      "file": "components/VPSidebarItem.vue",
+      "needle": ".indicator {"
+    },
+    {
+      "selector": ".VPDocAsideOutline .outline-marker",
+      "file": "components/VPDocAsideOutline.vue",
+      "needle": ".outline-marker {"
+    },
+    {
+      "selector": ".vp-code-group .tabs label::after",
+      "file": "styles/components/vp-code-group.css",
+      "needle": ".vp-code-group .tabs label::after {"
+    },
+    {
+      "selector": ".vp-code-group input:checked + label",
+      "file": "styles/components/vp-code-group.css",
+      "needle": ".vp-code-group input:checked + label {"
+    }
+  ]
+}

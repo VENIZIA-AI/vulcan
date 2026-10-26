@@ -5,6 +5,7 @@ import DefaultTheme from 'vitepress/theme';
 
 import './design-tokens.css';
 import './style.css';
+import './shared/vp-map.css';
 import HomeLanding from './HomeLanding.vue';
 
 export default {
