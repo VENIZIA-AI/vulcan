@@ -78,6 +78,7 @@ Guard bypasses: spellings that hid a force-push or a write from the guards. They
 | "What the guards are, and are not", and the table of every bypass found so far | [Hooks reference](/references/hooks/#what-the-guards-are-and-are-not) | #415 |
 | The hooks reference describes each agent's guard, what was checked and what was not | [Hooks reference](/references/hooks/#the-guards-on-omp-and-pi) | #421, #423, #425 |
 | Every raw string-literal union becomes a const class (V-C-08): no behaviour change | none: internal | #426 |
+| Repository tooling: a test run, a smoke and the build tools write no temp file outside the repository. A `[test] preload` in the root and package `bunfig.toml` points a bare `bun test` at `.agents/local/tmp/tests` (as `make test` does), `NODE_COMPILE_CACHE` moves Node's compile cache from `/tmp` to `.agents/local/cache`, and a hygiene test fails when a test run leaves a folder in the system temp or in the test folder. Only contributors to this repository are affected | none: internal (`.agents/knowledge/process/development.md`) | #434 |
 
 ## What was not checked
 
