@@ -1,8 +1,8 @@
 <div align="center">
 
-<br />
+<a href="https://vulcan.venizia.ai"><img src="https://vulcan.venizia.ai/logo.svg" alt="VULCAN" height="96"></a>
 
-# :gear: VULCAN
+# VULCAN
 
 **One setup, one workflow and one coding style for every VENIZIA project.**
 
