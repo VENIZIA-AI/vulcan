@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.4.1: A Release Cannot Ship Hooks That Fail to Load'
+title: "VULCAN 0.4.1: A Release Cannot Ship Hooks That Fail to Load"
 description: The release pack smoke runs every hook from the installed tarball, the blocking hooks no longer load the config loader or zod, the two drift guards fail open, and a crashed safety hook still lets bun install through.
 packages: ['@venizia/vulcan']
 ---

@@ -2,9 +2,9 @@
 
 ## Supported versions
 
-| Version                        | Supported |
-| ------------------------------ | --------- |
-| 0.1.x (prerelease, npm `next`) | yes       |
+| Version | Supported |
+|---------|-----------|
+| 0.1.x (prerelease, npm `next`) | yes |
 
 ## Reporting a vulnerability
 

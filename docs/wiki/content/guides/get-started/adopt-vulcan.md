@@ -62,13 +62,13 @@ Without a terminal (CI, scripts), pass each answer as a flag:
 bun x @venizia/vulcan init --preset ignis --project my-product --backend-dir services --app core-api --shared-dir libs
 ```
 
-| Question                                                     | Flag                                                                 |
-| ------------------------------------------------------------ | -------------------------------------------------------------------- |
-| Project name                                                 | `--project my-product`                                               |
-| Backend folder (or `Frontend folder`, for a frontend preset) | `--backend-dir services` (or `--frontend-dir`)                       |
-| Name of this app                                             | `--app core-api`                                                     |
-| Shared code folder                                           | `--shared-dir libs` (leave it out to skip)                           |
-| Package scope (optional)                                     | `--scope @acme` (a plain terminal never asks; leave it out for none) |
+| Question | Flag |
+|---|---|
+| Project name | `--project my-product` |
+| Backend folder (or `Frontend folder`, for a frontend preset) | `--backend-dir services` (or `--frontend-dir`) |
+| Name of this app | `--app core-api` |
+| Shared code folder | `--shared-dir libs` (leave it out to skip) |
+| Package scope (optional) | `--scope @acme` (a plain terminal never asks; leave it out for none) |
 
 A missing flag is an error that names it (`vulcan init: missing --app (Name of the first app) - names are never chosen for you`). Without a terminal there is no agents question either: `sync` writes the Claude files and prints one line saying how to choose (`vulcan sync --agents claude,omp`).
 
@@ -262,13 +262,13 @@ For individual check details and remediation, see the [doctor reference](/refere
 Existing repositories may trigger doctor checks during adoption.
 The table below lists common findings and how to resolve them:
 
-| You already have                           | What to do                                                                                                                                                      |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| An existing Makefile                       | Add `-include node_modules/@venizia/vulcan/base/make/vulcan.mk`, and do not reuse shipped target names. See the [make check](/references/commands/doctor#make). |
-| A project skill with a shipped name        | Rename the directory under `.agents/skills/` to avoid collisions. See the [skills check](/references/commands/doctor#skills).                                   |
-| Project hooks calling shipped hooks        | Remove shipped hook paths from `hooks` in `.configs/vulcan.config.mts`. See the [hooks check](/references/commands/doctor#hooks).                               |
-| Lint configs not built on the shared style | Add `@venizia/dev-configs` as a devDependency and import from it in lint configurations. See the [style check](/references/commands/doctor#style).              |
-| Git tags of another layout                 | Declare the package, add an alias, or add the tags to `atlas.ignoreTags`. See the [tags check](/references/commands/doctor#tags).                               |
+| You already have | What to do |
+|---|---|
+| An existing Makefile | Add `-include node_modules/@venizia/vulcan/base/make/vulcan.mk`, and do not reuse shipped target names. See the [make check](/references/commands/doctor#make). |
+| A project skill with a shipped name | Rename the directory under `.agents/skills/` to avoid collisions. See the [skills check](/references/commands/doctor#skills). |
+| Project hooks calling shipped hooks | Remove shipped hook paths from `hooks` in `.configs/vulcan.config.mts`. See the [hooks check](/references/commands/doctor#hooks). |
+| Lint configs not built on the shared style | Add `@venizia/dev-configs` as a devDependency and import from it in lint configurations. See the [style check](/references/commands/doctor#style). |
+| Git tags of another layout | Declare the package, add an alias, or add the tags to `atlas.ignoreTags`. See the [tags check](/references/commands/doctor#tags). |
 
 ## Run it in CI
 

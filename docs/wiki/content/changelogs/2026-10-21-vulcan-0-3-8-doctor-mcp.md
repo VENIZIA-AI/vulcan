@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.3.8: doctor Warns When atlas Is Registered the Wrong Way'
+title: "VULCAN 0.3.8: doctor Warns When atlas Is Registered the Wrong Way"
 description: vulcan doctor warns when the tracked .mcp.json lacks the canonical atlas entry or the Claude settings do not enable atlas, the two mistakes that made Claude Code never start atlas in three repositories.
 packages: ['@venizia/vulcan']
 ---

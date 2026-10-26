@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.3.9: .mcp.json Is Written Per Machine, Only for the Agents That Read It'
+title: "VULCAN 0.3.9: .mcp.json Is Written Per Machine, Only for the Agents That Read It"
 description: vulcan init no longer scaffolds a tracked .mcp.json; vulcan sync writes it on each machine when you chose Claude Code, omp or Copilot CLI, keeps it out of git, and agents remove takes it back. A project that tracks it today keeps it, and doctor says how to hand it over.
 packages: ['@venizia/vulcan']
 ---

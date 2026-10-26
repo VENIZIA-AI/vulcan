@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.4.1: Four Skills for How an Agent Plans, Fixes, Reviews and Reports, and vulcan profile'
+title: "VULCAN 0.4.1: Four Skills for How an Agent Plans, Fixes, Reviews and Reports, and vulcan profile"
 description: Every project gets plan-a-change, fix-a-bug, review-a-change and report-back, a vulcan profile command that asks how you like to work, and an eval runner that compares a skill with no skill.
 packages: ['@venizia/vulcan']
 ---

@@ -42,9 +42,9 @@ dependency on an MCP SDK - it speaks JSON-RPC over stdio itself.
 
 ## What it serves
 
-| Source                                                       | Read from                                                                                                                                                                                        | Freshness                                                                                                                                                                                                                                                   |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The project it starts in                                     | its manifest's bundle, wiki and changelogs; releases from its git tags; symbols from its built `.d.ts`                                                                                           | Re-indexes before a tool call when a file changed                                                                                                                                                                                                           |
+| Source | Read from | Freshness |
+|---|---|---|
+| The project it starts in | its manifest's bundle, wiki and changelogs; releases from its git tags; symbols from its built `.d.ts` | Re-indexes before a tool call when a file changed |
 | Each `atlas.sources` entry, or `--source <owner/repo>@<ref>` | a git partial clone and sparse checkout under `.agents/local/cache/atlas/v1/` in the project (`--cache-dir <dir>` moves it, a relative path from the root; a GitHub tarball when git is missing) | The ref's commit (a branch, a tag or a SHA) and the remote's tags, checked at start; a new tag updates the releases without a new pull. When the remote does not answer within 10 s, the commit last served for that ref. The cache keeps the newest 3 SHAs |
 
 atlas ships code only - no packaged corpus. With no project and no `--source` it
@@ -54,14 +54,14 @@ A private repository uses `GITHUB_TOKEN`, else `gh auth token`, sent in request 
 
 ## Tools
 
-| Tool      | Input                                                                                                                                                   | Returns                                                                                                                                                                                                                                 |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `search`  | `query` (2+ characters), `corpus?` (`all`, `wiki`, `changelog`, `knowledge`), `source?` (one source of several), `limit?` (1-50, default 10), `offset?` | A ranked page of hits: `id`, `corpus`, `title`, `headingPath`, `anchor`, `snippet`, `score`; plus `total`, `returned`, and `nextOffset` when more remain                                                                                |
-| `get`     | `id` (from a hit), `source?`, `maxChars?` (500-50000, default 8000), `cursor?`                                                                          | The section's `body`, with `next` when it continues                                                                                                                                                                                     |
-| `symbol`  | `name`, `package?` (an npm name, a directory or an alias)                                                                                               | Where an exported symbol is declared (`file`, `line`, `signature`, the import `specifier`) and the pages that document it; `matches` when several packages export it. An unknown name answers `matches: []` and up to 5 `closest` names |
-| `version` | `cwd?` (a project directory)                                                                                                                            | The served packages installed there, the newest release atlas computed for each, and which are `behind`                                                                                                                                 |
-| `changes` | `package?`, `from?`, `to?` (versions, or dates)                                                                                                         | The changelog entries between two versions                                                                                                                                                                                              |
-| `presets` | `kind?` (`app`, or `lib` for a shared package), `name?`, `side?` (`backend`, `frontend`)                                                                | The presets the project can create from, the folder each lands in and the exact `vulcan add` command; `presets: []` with a `note` when no preset makes the kind                                                                         |
+| Tool | Input | Returns |
+|---|---|---|
+| `search` | `query` (2+ characters), `corpus?` (`all`, `wiki`, `changelog`, `knowledge`), `source?` (one source of several), `limit?` (1-50, default 10), `offset?` | A ranked page of hits: `id`, `corpus`, `title`, `headingPath`, `anchor`, `snippet`, `score`; plus `total`, `returned`, and `nextOffset` when more remain |
+| `get` | `id` (from a hit), `source?`, `maxChars?` (500-50000, default 8000), `cursor?` | The section's `body`, with `next` when it continues |
+| `symbol` | `name`, `package?` (an npm name, a directory or an alias) | Where an exported symbol is declared (`file`, `line`, `signature`, the import `specifier`) and the pages that document it; `matches` when several packages export it. An unknown name answers `matches: []` and up to 5 `closest` names |
+| `version` | `cwd?` (a project directory) | The served packages installed there, the newest release atlas computed for each, and which are `behind` |
+| `changes` | `package?`, `from?`, `to?` (versions, or dates) | The changelog entries between two versions |
+| `presets` | `kind?` (`app`, or `lib` for a shared package), `name?`, `side?` (`backend`, `frontend`) | The presets the project can create from, the folder each lands in and the exact `vulcan add` command; `presets: []` with a `note` when no preset makes the kind |
 
 Page `search` with `offset: nextOffset`, not `offset + limit`: the reply-size budget can return fewer
 hits than `limit`. Pass a hit's `id` to `get` to read the whole section.
@@ -82,21 +82,21 @@ vulcan-atlas help
 `vulcan-atlas --help`, `-h` and `help` print the usage on stdout and exit `0`. With no subcommand atlas
 serves MCP, so run by hand it waits for a client on stdin.
 
-| Command                 | What it does                                                                                                                                                                                                            |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mcp`                   | Serves the project at `--root` (default: the working directory) and its sources over stdio                                                                                                                              |
-| `tools`                 | Prints the tools the server offers, one line each - a check that needs no MCP client                                                                                                                                    |
-| `pull`                  | Fetches every source, or one, now                                                                                                                                                                                       |
-| `surface gen\|check`    | Writes or checks `reference/public-surface.md` from the built `.d.ts`; `check` exits `1` when it is stale                                                                                                               |
-| `symbols`, `releases`   | Print what the `symbol`, `version` and `changes` tools read - nothing to commit                                                                                                                                         |
-| `changelogs migrate`    | Writes the `packages:` list into every changelog entry that declares none                                                                                                                                               |
+| Command | What it does |
+|---|---|
+| `mcp` | Serves the project at `--root` (default: the working directory) and its sources over stdio |
+| `tools` | Prints the tools the server offers, one line each - a check that needs no MCP client |
+| `pull` | Fetches every source, or one, now |
+| `surface gen\|check` | Writes or checks `reference/public-surface.md` from the built `.d.ts`; `check` exits `1` when it is stale |
+| `symbols`, `releases` | Print what the `symbol`, `version` and `changes` tools read - nothing to commit |
+| `changelogs migrate` | Writes the `packages:` list into every changelog entry that declares none |
 | `concepts stamp\|check` | Locks the whole declaration of each symbol a concept names in `symbols:` - members, parameters, no comments or layout; `check` exits `1` when one is gone or changed. A lock from an older atlas asks for a new `stamp` |
 
-| Exit code | Meaning                                                 |
-| --------- | ------------------------------------------------------- |
-| `0`       | The client closed the connection, or the command passed |
-| `1`       | A failure, or a `check` that found something stale      |
-| `2`       | Bad arguments, or nothing to serve                      |
+| Exit code | Meaning |
+|---|---|
+| `0` | The client closed the connection, or the command passed |
+| `1` | A failure, or a `check` that found something stale |
+| `2` | Bad arguments, or nothing to serve |
 
 The packages come from the manifest's `packages` - npm names, directories, aliases, retired ones.
 `surface` and the symbol reader use the project's own `typescript` and read its built `.d.ts`, so

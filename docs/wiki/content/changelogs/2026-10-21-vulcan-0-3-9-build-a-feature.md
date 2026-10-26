@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.3.9: A build-a-feature Skill for Every Project'
+title: "VULCAN 0.3.9: A build-a-feature Skill for Every Project"
 description: A fourth shipped skill takes a feature from the user's goal to a reviewed, tested change, looking up conventions and APIs in atlas at each step.
 packages: ['@venizia/vulcan']
 ---

@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.4.1: Three More Skills - ship, retro and research'
+title: "VULCAN 0.4.1: Three More Skills - ship, retro and research"
 description: ship closes a change out with evidence and approval, retro turns a failure into evidence-tied candidates and applies nothing without a pick, research investigates outside sources read-only.
 packages: ['@venizia/vulcan']
 ---

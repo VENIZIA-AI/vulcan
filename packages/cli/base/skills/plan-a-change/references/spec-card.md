@@ -9,16 +9,16 @@ is left out. Lane S uses three lines. Lane M uses Goal, Out of scope, Claims (ea
 
 In this order:
 
-| Section      | Content                                                                                                                          |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| Goal         | The owner's words, verbatim. It changes only through a dated Decisions line                                                      |
-| Out of scope | What is not built, in prose                                                                                                      |
-| Claims       | `C1..Cn`: one observable behaviour each, and for each the probe that would show it false. Behaviour is phrased WHEN ... THEN ... |
-| Anti-claims  | What must not happen, in the universal form where you can ("no X in any path"). Lane L has at least one                          |
-| Seams        | The public boundaries tests attach to. An existing seam is preferred; the ideal count is one                                     |
-| Docs impact  | The pages, knowledge concepts and changelog entry that change, or `none` with the reason                                         |
-| Open         | Questions too dim to be claims, each naming who resolves it. Empty before work starts                                            |
-| Decisions    | Dated, append-only. Dead ends and rejected alternatives stay. A `refined:` prefix marks a change of goal or claim                |
+| Section | Content |
+|---|---|
+| Goal | The owner's words, verbatim. It changes only through a dated Decisions line |
+| Out of scope | What is not built, in prose |
+| Claims | `C1..Cn`: one observable behaviour each, and for each the probe that would show it false. Behaviour is phrased WHEN ... THEN ... |
+| Anti-claims | What must not happen, in the universal form where you can ("no X in any path"). Lane L has at least one |
+| Seams | The public boundaries tests attach to. An existing seam is preferred; the ideal count is one |
+| Docs impact | The pages, knowledge concepts and changelog entry that change, or `none` with the reason |
+| Open | Questions too dim to be claims, each naming who resolves it. Empty before work starts |
+| Decisions | Dated, append-only. Dead ends and rejected alternatives stay. A `refined:` prefix marks a change of goal or claim |
 
 ## Rules of the card
 

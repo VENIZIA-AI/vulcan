@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN X.Y.Z: A Delegation Brief Names the Skill Instead of Retyping It'
+title: "VULCAN X.Y.Z: A Delegation Brief Names the Skill Instead of Retyping It"
 description: The delegation brief template gains one item - when the work matches a skill, name it and tell the receiver to load it - so a handed-over task follows the skill and not a stale hand-written copy of it.
 packages: ['@venizia/vulcan']
 ---

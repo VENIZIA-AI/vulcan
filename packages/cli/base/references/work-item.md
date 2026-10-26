@@ -8,17 +8,17 @@ An item is one slice of a card (see `plan-a-change`). The card holds the goal, t
 
 One fixed structure, the same in every project: a title line, then these nine headings, spelled exactly as written and in this order. The body under each heading is written in the language of the team that reads the item: the project's `owner.language`, English when it is unset. The fixed headings make an item searchable in any tracker and checkable by heading.
 
-| Heading             | Holds                                                                                                                                                                                                                                                                                                                     |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Category            | bug, enhancement or chore                                                                                                                                                                                                                                                                                                 |
-| Summary             | The outcome, in one or two sentences                                                                                                                                                                                                                                                                                      |
-| Current behaviour   | What happens now; for an enhancement, the status quo it builds on                                                                                                                                                                                                                                                         |
-| Desired behaviour   | What happens when the item is done, with the edge cases and the error cases                                                                                                                                                                                                                                               |
-| Key interfaces      | The names a reader looks for or changes: types, functions, routes, commands, permission codes, config keys. Never a path, never a line                                                                                                                                                                                    |
+| Heading | Holds |
+|---|---|
+| Category | bug, enhancement or chore |
+| Summary | The outcome, in one or two sentences |
+| Current behaviour | What happens now; for an enhancement, the status quo it builds on |
+| Desired behaviour | What happens when the item is done, with the edge cases and the error cases |
+| Key interfaces | The names a reader looks for or changes: types, functions, routes, commands, permission codes, config keys. Never a path, never a line |
 | Acceptance criteria | A checklist. Each criterion is one observable behaviour (WHEN ... THEN ...) with the probe that shows it: `test`, `property`, `cli`, `http`, `browser`, `eval`, `gate`, `read` or `manual` (see `node_modules/@venizia/vulcan/base/references/evidence.md`). They are the card's claims for this slice, with the same ids |
-| Out of scope        | What must not be changed, including the neighbour that looks related                                                                                                                                                                                                                                                      |
-| Blocked by          | The items that must finish first, or "none". Only what truly gates this one                                                                                                                                                                                                                                               |
-| Parent              | The card or item this slice belongs to, or "none"                                                                                                                                                                                                                                                                         |
+| Out of scope | What must not be changed, including the neighbour that looks related |
+| Blocked by | The items that must finish first, or "none". Only what truly gates this one |
+| Parent | The card or item this slice belongs to, or "none" |
 
 The title is one line: what changes, for whom. Whether the item is ready for an agent or needs a human (and the decision that is open) is the tracker's own state or label; the strings belong to the project's tracker.
 

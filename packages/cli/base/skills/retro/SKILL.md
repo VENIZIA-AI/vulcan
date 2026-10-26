@@ -42,14 +42,14 @@ could not be checked because the evidence was missing. Missing evidence is never
 
 Classify before proposing anything, in this order:
 
-| Class            | When                                                        | Result                                                                                             |
-| ---------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Mechanical check | The violation can be detected by a program                  | A lint rule, a hook or a CI job; the default for anything mechanical. Propose a failing test first |
-| Rule             | A judgement call no program can make                        | One line in the rules, through the admission bar below                                             |
-| Skill edit       | The skill led the agent wrong, or left a step out           | The smallest edit to the skill, and its eval                                                       |
-| Knowledge fact   | The agent lacked a fact the project could state             | A line in the knowledge bundle (`knowledge-sync` skill)                                            |
-| Out of scope     | The proposal was considered and rejected                    | One file in `.agents/out-of-scope/`: the reasons, the date, what would reopen it                   |
-| Nothing          | A rule already exists and was loaded; the lapse was one-off | Say so: "nothing, the rule exists"                                                                 |
+| Class | When | Result |
+|---|---|---|
+| Mechanical check | The violation can be detected by a program | A lint rule, a hook or a CI job; the default for anything mechanical. Propose a failing test first |
+| Rule | A judgement call no program can make | One line in the rules, through the admission bar below |
+| Skill edit | The skill led the agent wrong, or left a step out | The smallest edit to the skill, and its eval |
+| Knowledge fact | The agent lacked a fact the project could state | A line in the knowledge bundle (`knowledge-sync` skill) |
+| Out of scope | The proposal was considered and rejected | One file in `.agents/out-of-scope/`: the reasons, the date, what would reopen it |
+| Nothing | A rule already exists and was loaded; the lapse was one-off | Say so: "nothing, the rule exists" |
 
 The admission bar for a rule or a skill line: an observed failure with a date; a mechanical violation
 becomes a check, not a rule; and the test of whether a smarter model would make the line unnecessary.

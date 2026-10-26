@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.3.8: Enter Keeps Your Chosen Agents'
+title: "VULCAN 0.3.8: Enter Keeps Your Chosen Agents"
 description: When vulcan asks again which coding agents you use, pressing Enter keeps the choice stored on your machine instead of applying the detected agents; the question now says what Enter does.
 packages: ['@venizia/vulcan']
 ---

@@ -8,20 +8,20 @@ description: Reference for VULCAN hooks, event matchers, failure modes, and cust
 VULCAN registers hooks in coding agent settings to enforce write boundaries and inject project rules.
 When you run `vulcan sync`, the command configures hook triggers in `.claude/settings.json`.
 
-| Hook                             | Event                               | Matcher                                      | What it does                                                                                                                                                                                                                       | When it acts                                                                                                      |
-| -------------------------------- | ----------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Session digest (`session-start`) | `SessionStart`                      | `startup\|resume\|clear\|compact`            | Quotes base write rules (`V-W-*`), slot choices, and often-dropped rules to stdout                                                                                                                                                 | Fires on session start, resume, clear, or compact                                                                 |
-| `guard-writes`                   | `PreToolUse`                        | `Bash`                                       | Prompts for human confirmation before database writes and cluster deployments                                                                                                                                                      | Fires on every Bash tool command                                                                                  |
-| `guard-git`                      | `PreToolUse`                        | `Bash`                                       | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes and `git branch -D` of an unmerged branch | Fires on every Bash command; only those git and gh actions are flagged                                            |
-| `guard-scripting`                | `PreToolUse`                        | `Bash`                                       | Adds one line of advice when a command runs `python`, `python3` or `pip`: agent scripting uses bun by default, another language is fine when the task needs it (`V-B-09`); it never asks and never blocks                          | Fires on every Bash command; only a command that runs one of those programs gets the line                         |
-| `guard-outside`                  | `PreToolUse`                        | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project                                                                                                                                                    | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
-| `subagent-start`                 | `SubagentStart`                     | all                                          | Adds a small rules card (about 250 tokens) to every subagent's context                                                                                                                                                             | Fires when a subagent starts                                                                                      |
-| `stop`                           | `Stop`                              | all                                          | Checks the reply that just ended against the owner's report shape and logs the faults by class and date                                                                                                                            | Fires when a reply ends; does nothing when `enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off`         |
-| `prompt-submit`                  | `UserPromptSubmit`                  | all                                          | Adds one line to the prompt: the shape contract, and the faults of the previous reply                                                                                                                                              | Fires on every prompt; adds nothing when `enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off`           |
-| `post-tool`                      | `PostToolUse`, `PostToolUseFailure` | all                                          | Keeps notes about the turn for the Stop check, says when the agent seems stuck, and suggests the evals when a skill or rules file is changed                                                                                       | Fires after every tool call (about 10 ms); speaks only on a loop or a skill or rules edit                         |
-| `guard-remote-hosts`             | `PreToolUse`                        | `Bash`                                       | Prompts for confirmation before commands reach unlisted network hosts                                                                                                                                                              | Fires on Bash commands only when `remoteHosts` is set                                                             |
-| `guard-manifest`                 | `PreToolUse`                        | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Refuses a write to `.agents/vulcan.manifest.json`                                                                                                                                                                                  | Fires on every one of those tool calls; only a write to the manifest is refused                                   |
-| `guard-package`                  | `PreToolUse`                        | `Write`                                      | Refuses a new `package.json` in a backend, frontend or shared folder when a `vulcan add` command exists for it                                                                                                                     | Fires on every `Write`; only the creation of a package file in a layout folder is acted on                        |
+| Hook | Event | Matcher | What it does | When it acts |
+|---|---|---|---|---|
+| Session digest (`session-start`) | `SessionStart` | `startup\|resume\|clear\|compact` | Quotes base write rules (`V-W-*`), slot choices, and often-dropped rules to stdout | Fires on session start, resume, clear, or compact |
+| `guard-writes` | `PreToolUse` | `Bash` | Prompts for human confirmation before database writes and cluster deployments | Fires on every Bash tool command |
+| `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes and `git branch -D` of an unmerged branch | Fires on every Bash command; only those git and gh actions are flagged |
+| `guard-scripting` | `PreToolUse` | `Bash` | Adds one line of advice when a command runs `python`, `python3` or `pip`: agent scripting uses bun by default, another language is fine when the task needs it (`V-B-09`); it never asks and never blocks | Fires on every Bash command; only a command that runs one of those programs gets the line |
+| `guard-outside` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
+| `subagent-start` | `SubagentStart` | all | Adds a small rules card (about 250 tokens) to every subagent's context | Fires when a subagent starts |
+| `stop` | `Stop` | all | Checks the reply that just ended against the owner's report shape and logs the faults by class and date | Fires when a reply ends; does nothing when `enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off` |
+| `prompt-submit` | `UserPromptSubmit` | all | Adds one line to the prompt: the shape contract, and the faults of the previous reply | Fires on every prompt; adds nothing when `enforce` is `off` or the session has `VULCAN_OWNER_REPLY=off` |
+| `post-tool` | `PostToolUse`, `PostToolUseFailure` | all | Keeps notes about the turn for the Stop check, says when the agent seems stuck, and suggests the evals when a skill or rules file is changed | Fires after every tool call (about 10 ms); speaks only on a loop or a skill or rules edit |
+| `guard-remote-hosts` | `PreToolUse` | `Bash` | Prompts for confirmation before commands reach unlisted network hosts | Fires on Bash commands only when `remoteHosts` is set |
+| `guard-manifest` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Refuses a write to `.agents/vulcan.manifest.json` | Fires on every one of those tool calls; only a write to the manifest is refused |
+| `guard-package` | `PreToolUse` | `Write` | Refuses a new `package.json` in a backend, frontend or shared folder when a `vulcan add` command exists for it | Fires on every `Write`; only the creation of a package file in a layout folder is acted on |
 
 ## Session digest
 
@@ -119,15 +119,15 @@ The guards that read a command (`guard-git`, `guard-outside`, `guard-scripting`,
 
 The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `$(...)`, `sh -c`, `git -C <dir>`), not with substring matching, so `git commit -m "never push --force"` and `echo git branch -D develop` pass.
 
-| Command                                                                                                                               | Answer |
-| ------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| `git branch -D develop` (or `main`, `-d`, `--delete`)                                                                                 | deny   |
-| `git push origin --delete develop`, `git push origin :main`                                                                           | deny   |
-| `git push --force origin develop` (`-f`, `+develop`, `--force-with-lease` to `develop` or `main`, or no refspec while on one of them) | deny   |
-| `gh pr merge <pr> --delete-branch` when `gh pr view` reports the head branch as `develop` or `main`                                   | deny   |
-| `git reset --hard`                                                                                                                    | ask    |
-| `git push --force` of another branch                                                                                                  | ask    |
-| `git branch -D <branch>` when the branch is not merged into the current one                                                           | ask    |
+| Command | Answer |
+|---|---|
+| `git branch -D develop` (or `main`, `-d`, `--delete`) | deny |
+| `git push origin --delete develop`, `git push origin :main` | deny |
+| `git push --force origin develop` (`-f`, `+develop`, `--force-with-lease` to `develop` or `main`, or no refspec while on one of them) | deny |
+| `gh pr merge <pr> --delete-branch` when `gh pr view` reports the head branch as `develop` or `main` | deny |
+| `git reset --hard` | ask |
+| `git push --force` of another branch | ask |
+| `git branch -D <branch>` when the branch is not merged into the current one | ask |
 
 `git push -fu`, `git branch -m develop x`, `git update-ref -d refs/heads/develop` and `git push --mirror` are read too. A heredoc body (a commit message passed with `<<'EOF'`) is data and is not read as commands; a body fed to a shell (`bash <<EOF`) is a script and is read as commands.
 
@@ -141,30 +141,30 @@ When a guard cannot read a line in full (it is over a limit above), it asks. Whe
 
 **Every bypass found so far.** Each row is a way to hide `git push -f origin main` from `guard-git`; each is denied today and is a test in `guard-regressions.test.ts`.
 
-| ID   | Found in | Spelling                                            | What the parser missed                              |
-| ---- | -------- | --------------------------------------------------- | --------------------------------------------------- |
-| E-1  | #409     | `env --split "git push -f origin main"`             | a long option shortened to a prefix                 |
-| E-2  | #409     | `env -S "-u X git push -f origin main"`             | `env`'s own options inside the `-S` value           |
-| E-3  | #409     | `env -S "-S 'git push -f origin main'"`             | a nested `-S`                                       |
-| E-4  | #409     | `env -S 'git\_push\_-f\_origin\_main'`              | `\_` separates words in an `-S` value               |
-| E-5  | #409     | `env -S "git push -f origin main\c trailing"`       | `\c` ends an `-S` value                             |
-| E-6  | #409     | `env` followed by `-S env` 110 times, then the push | a parse that took minutes and gigabytes; now linear |
-| Q-1  | #412     | `$'git' push -f origin main`                        | ANSI-C quoting                                      |
-| Q-2  | #412     | `env -S $'git push -f origin main'`                 | ANSI-C quoting inside `-S`                          |
-| Q-3  | #412     | `sh -c $'git push -f origin main'`                  | ANSI-C quoting inside a script                      |
-| B-1  | #414     | `env -S "-u '\c' git push -f origin main"`          | `\c` is plain text inside single quotes             |
-| B-2  | #414     | `env -S "-u 'x\_y'z git push -f origin main"`       | `\_` is plain text inside single quotes             |
-| B-3  | #414     | `echo $'\c'; git push -f origin main`               | `\c` took the closing quote                         |
-| B-4  | #414     | `echo $'\c\\'; git push -f origin main`             | `\c\\` took the closing quote                       |
-| B-5  | #414     | `xargs --eof git push -f origin main`               | `--eof` takes its value only with `=`               |
-| B-6  | #414     | `xargs --max-lines git push -f origin main`         | `--max-lines` takes its value only with `=`         |
-| B-7  | #414     | `"gi\<newline>t" push -f origin main`               | a backslash before a newline in double quotes       |
-| B-8  | #414     | `gi\<newline>t push -f origin main`                 | a backslash before a newline joins the lines        |
-| B-9  | #414     | `git \<newline> push -f origin main`                | the same, between words                             |
-| B-10 | #414     | `echo '<<EOF'`, a newline, then the push            | a `<<` inside quotes is not a heredoc               |
-| B-11 | #414     | `cat <<< word`, a newline, then the push            | `<<<` is a here-string, not a heredoc               |
-| B-12 | #414     | `echo "$(echo ')'; git push -f origin main)"`       | a `)` inside quotes does not close `$(`             |
-| B-13 | #414     | `watch -n 1 'git push -f origin main'`              | `watch` hands its words to a shell                  |
+| ID | Found in | Spelling | What the parser missed |
+|---|---|---|---|
+| E-1 | #409 | `env --split "git push -f origin main"` | a long option shortened to a prefix |
+| E-2 | #409 | `env -S "-u X git push -f origin main"` | `env`'s own options inside the `-S` value |
+| E-3 | #409 | `env -S "-S 'git push -f origin main'"` | a nested `-S` |
+| E-4 | #409 | `env -S 'git\_push\_-f\_origin\_main'` | `\_` separates words in an `-S` value |
+| E-5 | #409 | `env -S "git push -f origin main\c trailing"` | `\c` ends an `-S` value |
+| E-6 | #409 | `env` followed by `-S env` 110 times, then the push | a parse that took minutes and gigabytes; now linear |
+| Q-1 | #412 | `$'git' push -f origin main` | ANSI-C quoting |
+| Q-2 | #412 | `env -S $'git push -f origin main'` | ANSI-C quoting inside `-S` |
+| Q-3 | #412 | `sh -c $'git push -f origin main'` | ANSI-C quoting inside a script |
+| B-1 | #414 | `env -S "-u '\c' git push -f origin main"` | `\c` is plain text inside single quotes |
+| B-2 | #414 | `env -S "-u 'x\_y'z git push -f origin main"` | `\_` is plain text inside single quotes |
+| B-3 | #414 | `echo $'\c'; git push -f origin main` | `\c` took the closing quote |
+| B-4 | #414 | `echo $'\c\\'; git push -f origin main` | `\c\\` took the closing quote |
+| B-5 | #414 | `xargs --eof git push -f origin main` | `--eof` takes its value only with `=` |
+| B-6 | #414 | `xargs --max-lines git push -f origin main` | `--max-lines` takes its value only with `=` |
+| B-7 | #414 | `"gi\<newline>t" push -f origin main` | a backslash before a newline in double quotes |
+| B-8 | #414 | `gi\<newline>t push -f origin main` | a backslash before a newline joins the lines |
+| B-9 | #414 | `git \<newline> push -f origin main` | the same, between words |
+| B-10 | #414 | `echo '<<EOF'`, a newline, then the push | a `<<` inside quotes is not a heredoc |
+| B-11 | #414 | `cat <<< word`, a newline, then the push | `<<<` is a here-string, not a heredoc |
+| B-12 | #414 | `echo "$(echo ')'; git push -f origin main)"` | a `)` inside quotes does not close `$(` |
+| B-13 | #414 | `watch -n 1 'git push -f origin main'` | `watch` hands its words to a shell |
 
 Three more ways to make a guard fail are closed the same way: about 700,000 substitutions in one word overflowed the stack and crashed the hook, a megabyte through an `env -S` and `eval` chain took seconds and gigabytes, and a line of many `gh pr merge` commands ran one process each. Each now asks.
 
@@ -230,15 +230,15 @@ export default {
 
 Entries are repo-relative `.ts` paths, no globs, an exact match resolved against the repo root (see [`guard`](/references/configuration/#guard)). A listed script skips the script-body check only while git tracks it and its working tree file, its index entry and `HEAD` hold the same bytes. Any other state runs the normal check, and the ask says why:
 
-| State       | When                                                                          | Ask text adds                                            |
-| ----------- | ----------------------------------------------------------------------------- | -------------------------------------------------------- |
-| trusted     | tracked, and identical in the working tree, the index and `HEAD`              | nothing: the body is not read                            |
-| modified    | the working tree or the index differs from `HEAD`, or the merge is unresolved | `modified trusted script (...)`                          |
-| untracked   | git does not track it                                                         | `it is not tracked by git`                               |
-| uncommitted | tracked, but not in the last commit yet                                       | `it is not in the last commit yet`                       |
-| symlink     | the path goes through a symlink, or the entry is one                          | `a symlink, which git does not follow`                   |
-| unknown     | git is missing, slow or fails                                                 | `git could not say ...` or `git could not read the file` |
-| missing     | the file does not exist                                                       | `the file does not exist`                                |
+| State | When | Ask text adds |
+|---|---|---|
+| trusted | tracked, and identical in the working tree, the index and `HEAD` | nothing: the body is not read |
+| modified | the working tree or the index differs from `HEAD`, or the merge is unresolved | `modified trusted script (...)` |
+| untracked | git does not track it | `it is not tracked by git` |
+| uncommitted | tracked, but not in the last commit yet | `it is not in the last commit yet` |
+| symlink | the path goes through a symlink, or the entry is one | `a symlink, which git does not follow` |
+| unknown | git is missing, slow or fails | `git could not say ...` or `git could not read the file` |
+| missing | the file does not exist | `the file does not exist` |
 
 The ask reads `<script> looks like it is ... (listed in guard.writes.trustedScripts, but not trusted: <reason>)`. The hook reads the list from the config on each call; a config that cannot be read leaves it empty, so every script is read. The checks on the command line itself (`curl -X POST`, `kubectl apply`, a migration, `psql`) still apply to a trusted script's command.
 
@@ -254,11 +254,11 @@ Limits, stated plainly:
 
 The two hooks hold the [report shape](/references/configuration/#owner) the session digest prints. `stop` runs `checkOwnerShape` on the last reply: a headline that is a sentence within the cap, the minimap table with the configured header and statuses, the Blocked line, the decisions list ending in the recommendation or exactly the none string, the order of the sections, and, as style faults, emoji, an all-caps phrase and a relative path where full paths are asked for. A reply under `report.shortReplyWords` is exempt; `0` checks every reply.
 
-| `enforce` | What happens to a reply that breaks the shape                                                                                       |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `off`     | Nothing is checked, and `prompt-submit` adds nothing                                                                                |
-| `advise`  | Logged; the next prompt carries the faults of that reply                                                                            |
-| `block`   | A structural fault sends the reply back once with what to fix; a reply sent back again is let through. Style faults are only logged |
+| `enforce` | What happens to a reply that breaks the shape |
+|---|---|
+| `off` | Nothing is checked, and `prompt-submit` adds nothing |
+| `advise` | Logged; the next prompt carries the faults of that reply |
+| `block` | A structural fault sends the reply back once with what to fix; a reply sent back again is let through. Style faults are only logged |
 
 The log is `.agents/local/violations.jsonl` (gitignored, inside the project): one line per faulty reply with the date and the fault classes, never the text. The note the next prompt reads (the faults of the last reply, and the block cooldown) is kept per session in `.agents/local/cache/replies/<session>.json`, so a session never hears about another session's reply; notes older than 30 minutes and all but the 32 newest are removed on every write. `vulcan doctor` prints the counts as a note, and the retro skill reads them. What no program can see, whether each point has a plain meaning or the answer is right, is left to the owner or an eval. Both hooks fail open and honour `VULCAN_GUARDS=off`.
 
@@ -279,12 +279,12 @@ At Stop, the same check that holds the report shape also compares the reply with
 
 Several kinds of hook run in every session of every project, so each kind has a stated failure mode.
 
-| Kind                   | Hooks                                                                   | When it cannot run (missing package, missing `bun`, a crash)                                                                                                                                                                                                                                               |
-| ---------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Safety hooks           | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes                                                                                                                                                                                                                           |
-| Deny-class guards      | `guard-git`, `guard-outside`                                            | a missing package or `bun` passes, with a note on stderr (a broken install must not stop every call); a hook that started and then crashed, was killed, ran out of memory or past 30 seconds **asks**. `guard-git` asks only about a command that names `git` or `gh`; `guard-outside` asks about the call |
-| Drift guard            | `guard-scripting`                                                       | fail open: the call passes and a note goes to stderr                                                                                                                                                                                                                                                       |
-| Shape and signal hooks | `stop`, `prompt-submit`, `post-tool`                                    | fail open: the reply, prompt or call passes and a note goes to stderr                                                                                                                                                                                                                                      |
+| Kind | Hooks | When it cannot run (missing package, missing `bun`, a crash) |
+|---|---|---|
+| Safety hooks | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | fail closed: exit 2, the tool call is blocked; a bare `bun install` still passes |
+| Deny-class guards | `guard-git`, `guard-outside` | a missing package or `bun` passes, with a note on stderr (a broken install must not stop every call); a hook that started and then crashed, was killed, ran out of memory or past 30 seconds **asks**. `guard-git` asks only about a command that names `git` or `gh`; `guard-outside` asks about the call |
+| Drift guard | `guard-scripting` | fail open: the call passes and a note goes to stderr |
+| Shape and signal hooks | `stop`, `prompt-submit`, `post-tool` | fail open: the reply, prompt or call passes and a note goes to stderr |
 
 `subagent-start` never blocks. `VULCAN_GUARDS=off` switches the guards, the shape hooks and `post-tool` off and is read before any module loads.
 
@@ -336,11 +336,11 @@ In contrast, `guard-remote-hosts` asks with "the hook input could not be read".
 
 To add project hooks, define entries under the `hooks` key in `.configs/vulcan.config.mts`:
 
-| Option    | Type   | Default  | Meaning                                                                                            |
-| --------- | ------ | -------- | -------------------------------------------------------------------------------------------------- |
-| `event`   | string | required | Claude Code hook event: `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `SessionStart`, or `Stop` |
-| `matcher` | string | none     | Optional regex pattern for tool names or trigger modes                                             |
-| `command` | string | required | Shell command executed when the event fires                                                        |
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `event` | string | required | Claude Code hook event: `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `SessionStart`, or `Stop` |
+| `matcher` | string | none | Optional regex pattern for tool names or trigger modes |
+| `command` | string | required | Shell command executed when the event fires |
 
 Project hooks must not call shipped hook scripts located in `@venizia/vulcan/base/hooks/`.
 `vulcan sync` registers shipped hooks automatically.
@@ -380,14 +380,14 @@ See [remote-host-guard](/references/hooks/remote-host-guard) for host pattern sy
 
 omp and pi take extensions instead of hook commands, so `vulcan sync` writes one file for each of the two you choose (`.omp/hooks/pre/vulcan-guards.ts`, `.pi/extensions/vulcan-guards.ts`; the content is `base/extensions/vulcan-guards.ts`, and its first line is how `sync` knows the file is its own). Before each `bash`, `write` and `edit` call the file runs the guard scripts of the Claude settings (`guard-writes`, `guard-manifest`, `guard-package`, `guard-git`, `guard-outside`; each for the tools its `matcher` names) with a Claude-shaped event on stdin and reads the `permissionDecision` of the answer:
 
-| Answer                                                                                                                       | omp or pi                                                                                              |
-| ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `deny`                                                                                                                       | the call is blocked with the guard's reason                                                            |
-| `ask`                                                                                                                        | the owner is asked; with no UI (a print-mode run) the call is blocked and says to hand it to the owner |
-| no output                                                                                                                    | the call runs                                                                                          |
-| a safety guard (`guard-writes`, `guard-manifest`, `guard-package`) that crashes, times out (30 s) or whose script is missing | blocked, bar a bare `bun install` when the install is missing                                          |
-| `guard-git` or `guard-outside` that crashes or times out                                                                     | asks, as the Claude wrappers do                                                                        |
-| `guard-git` or `guard-outside` whose script is missing                                                                       | the call runs                                                                                          |
+| Answer | omp or pi |
+|---|---|
+| `deny` | the call is blocked with the guard's reason |
+| `ask` | the owner is asked; with no UI (a print-mode run) the call is blocked and says to hand it to the owner |
+| no output | the call runs |
+| a safety guard (`guard-writes`, `guard-manifest`, `guard-package`) that crashes, times out (30 s) or whose script is missing | blocked, bar a bare `bun install` when the install is missing |
+| `guard-git` or `guard-outside` that crashes or times out | asks, as the Claude wrappers do |
+| `guard-git` or `guard-outside` whose script is missing | the call runs |
 
 `VULCAN_GUARDS=off` is read by the guard scripts, so it switches the guards off here too. `guard-scripting` (advice) and `guard-remote-hosts` are not run on these two agents.
 

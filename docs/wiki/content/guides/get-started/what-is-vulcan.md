@@ -22,16 +22,16 @@ bun x --no-install vulcan doctor
 
 ## What you get today
 
-| Part                                                                     | What it does                                                                                                                                                                                       | Where to read more                                               |
-| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [Base rules](/guides/core-concepts/rules-and-slots)                      | 50 rules in five groups (write boundaries, security, process, build, coding style) that the agent reads at session start. A project picks a wording for a few and adds its own                     | `node_modules/@venizia/vulcan/base/rules.md`, `.agents/rules.md` |
-| [Guards](/guides/core-concepts/hooks-and-guards)                         | Hooks that ask or refuse before a database write, a deploy, a force-push to `develop` or `main`, a file outside the project, or a call to an unlisted host. Your own CLIs can be listed as trusted | `vulcan sync`, `guard` and `remoteHosts` in the config           |
-| [Skills](/references/skills)                                             | 12 workflows an agent loads when the task matches: plan, build, fix, review, report, ship, research, retro, docs                                                                                   | `vulcan sync` links them                                         |
-| [The owner and the reply shape](/guides/core-concepts/owner-and-replies) | The agent answers its owner in a fixed shape, in the owner's language, and another agent in the plain format it asked for                                                                          | `owner` in the config, `vulcan profile`                          |
-| [Work items](/guides/core-concepts/work-items)                           | A template for a unit of work a person can read and a fresh agent can do                                                                                                                           | `base/references/work-item.md`                                   |
-| [Knowledge bundle](/guides/core-concepts/knowledge-bundle)               | Markdown facts about your project, checked in Open Knowledge Format v0.2                                                                                                                           | `vulcan x okf`                                                   |
-| [atlas](/guides/core-concepts/atlas)                                     | An MCP server with 6 tools that searches your docs, changelogs and symbols, and those of other projects                                                                                            | `vulcan x atlas mcp`                                             |
-| [doctor](/references/commands/doctor)                                    | Checks that the repository follows the contract                                                                                                                                                    | `vulcan doctor`                                                  |
+| Part | What it does | Where to read more |
+|---|---|---|
+| [Base rules](/guides/core-concepts/rules-and-slots) | 50 rules in five groups (write boundaries, security, process, build, coding style) that the agent reads at session start. A project picks a wording for a few and adds its own | `node_modules/@venizia/vulcan/base/rules.md`, `.agents/rules.md` |
+| [Guards](/guides/core-concepts/hooks-and-guards) | Hooks that ask or refuse before a database write, a deploy, a force-push to `develop` or `main`, a file outside the project, or a call to an unlisted host. Your own CLIs can be listed as trusted | `vulcan sync`, `guard` and `remoteHosts` in the config |
+| [Skills](/references/skills) | 12 workflows an agent loads when the task matches: plan, build, fix, review, report, ship, research, retro, docs | `vulcan sync` links them |
+| [The owner and the reply shape](/guides/core-concepts/owner-and-replies) | The agent answers its owner in a fixed shape, in the owner's language, and another agent in the plain format it asked for | `owner` in the config, `vulcan profile` |
+| [Work items](/guides/core-concepts/work-items) | A template for a unit of work a person can read and a fresh agent can do | `base/references/work-item.md` |
+| [Knowledge bundle](/guides/core-concepts/knowledge-bundle) | Markdown facts about your project, checked in Open Knowledge Format v0.2 | `vulcan x okf` |
+| [atlas](/guides/core-concepts/atlas) | An MCP server with 6 tools that searches your docs, changelogs and symbols, and those of other projects | `vulcan x atlas mcp` |
+| [doctor](/references/commands/doctor) | Checks that the repository follows the contract | `vulcan doctor` |
 
 Also in the box: `vulcan add` makes an app or a shared library from a framework preset, `vulcan preset diff` shows where an app drifted from its preset, `vulcan clean` removes what agents left under `.agents/local/`, and `vulcan visualize` makes a small HTML page from a JSON spec ([commands](/references/commands/)).
 
@@ -41,12 +41,12 @@ VULCAN is on the 0.4 line. The config schema and the commands still change betwe
 
 What has been run, and what has not:
 
-| Part                  | Checked                                                                  | Not checked                                                                                                                                           |
-| --------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Guards                | Claude Code, omp (with a real model) and Antigravity; pi through its SDK | **NOT VERIFIED**: the Codex, Cursor and Copilot guards were built from their documentation and unit tests and never run. The guards are not a sandbox |
-| Rules, skills, doctor | Covered by the test suite and the release gates                          | The shipped skills have no measured effect on the quality of an agent's work                                                                          |
-| atlas, okf            | Tests, and a smoke that installs the packed tarball and talks to it      | Windows                                                                                                                                               |
-| Owner reply shape     | Tests and daily use on Claude Code                                       | Languages other than English with real transcripts                                                                                                    |
+| Part | Checked | Not checked |
+|---|---|---|
+| Guards | Claude Code, omp (with a real model) and Antigravity; pi through its SDK | **NOT VERIFIED**: the Codex, Cursor and Copilot guards were built from their documentation and unit tests and never run. The guards are not a sandbox |
+| Rules, skills, doctor | Covered by the test suite and the release gates | The shipped skills have no measured effect on the quality of an agent's work |
+| atlas, okf | Tests, and a smoke that installs the packed tarball and talks to it | Windows |
+| Owner reply shape | Tests and daily use on Claude Code | Languages other than English with real transcripts |
 
 The [changelog](/changelogs/) lists what each release verified and left open.
 
@@ -54,10 +54,10 @@ The [changelog](/changelogs/) lists what each release verified and left open.
 
 A project installs only `@venizia/vulcan`. The other two ship inside it as dependencies, and all three share one version.
 
-| Package                 | What it provides                                                               |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| `@venizia/vulcan`       | The `vulcan` CLI, base rules, hooks, skills and configuration schemas          |
-| `@venizia/vulcan-okf`   | Open Knowledge Format v0.2 checks, generator, coverage tool and graph viewer   |
+| Package | What it provides |
+|---|---|
+| `@venizia/vulcan` | The `vulcan` CLI, base rules, hooks, skills and configuration schemas |
+| `@venizia/vulcan-okf` | Open Knowledge Format v0.2 checks, generator, coverage tool and graph viewer |
 | `@venizia/vulcan-atlas` | The MCP server that indexes and searches documentation, changelogs and symbols |
 
 ## What a project looks like

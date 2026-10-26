@@ -16,15 +16,15 @@ The reason is shown to you. The answer carries `permissionDecision` twice, under
 
 ## The guards
 
-| Guard                | Acts on                                                                                                                                                                                 | Answer                                                   |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `guard-writes`       | A Bash command that writes to a database, runs a migration or deploys; the body of a `bun script.ts` it runs                                                                            | Asks (`V-W-02`, `V-W-03`)                                |
-| `guard-git`          | `git` and `gh`: deleting or force-pushing `develop` or `main`, `gh pr merge --delete-branch` on a pull request headed by one of them, `reset --hard`, `branch -D` of an unmerged branch | Refuses the first group, asks about the rest (`V-W-06`)  |
-| `guard-outside`      | A file, worktree, clone or temp file created outside the project                                                                                                                        | Asks (`V-B-08`)                                          |
-| `guard-remote-hosts` | A command that reaches a host you have not listed in `remoteHosts` (only registered when that key is set)                                                                               | Asks                                                     |
-| `guard-manifest`     | A write to `.agents/vulcan.manifest.json`, which `vulcan sync` generates                                                                                                                | Refuses                                                  |
-| `guard-package`      | A hand-written new `package.json` in a backend, frontend or shared folder, when a `vulcan add` command exists                                                                           | Refuses, and gives the command                           |
-| `guard-scripting`    | A command that runs `python` or `pip`                                                                                                                                                   | Adds one line of advice (`V-B-09`); never asks or blocks |
+| Guard | Acts on | Answer |
+|---|---|---|
+| `guard-writes` | A Bash command that writes to a database, runs a migration or deploys; the body of a `bun script.ts` it runs | Asks (`V-W-02`, `V-W-03`) |
+| `guard-git` | `git` and `gh`: deleting or force-pushing `develop` or `main`, `gh pr merge --delete-branch` on a pull request headed by one of them, `reset --hard`, `branch -D` of an unmerged branch | Refuses the first group, asks about the rest (`V-W-06`) |
+| `guard-outside` | A file, worktree, clone or temp file created outside the project | Asks (`V-B-08`) |
+| `guard-remote-hosts` | A command that reaches a host you have not listed in `remoteHosts` (only registered when that key is set) | Asks |
+| `guard-manifest` | A write to `.agents/vulcan.manifest.json`, which `vulcan sync` generates | Refuses |
+| `guard-package` | A hand-written new `package.json` in a backend, frontend or shared folder, when a `vulcan add` command exists | Refuses, and gives the command |
+| `guard-scripting` | A command that runs `python` or `pip` | Adds one line of advice (`V-B-09`); never asks or blocks |
 
 Around them, `session-start` prints the rules digest into the session, `subagent-start` gives every subagent a small rules card, and `stop` and `prompt-submit` check the shape of replies ([The owner and the reply shape](/guides/core-concepts/owner-and-replies)). Each hook, matcher and failure mode is in the [Hooks reference](/references/hooks/).
 
@@ -38,25 +38,25 @@ Whatever must never happen belongs in `permissions.deny`, the `read-only` slot o
 
 A broken install must not stop every command, and a guard must not be switched off by the input that breaks it. So each kind fails its own way:
 
-| Kind                   | Hooks                                                                   | If it cannot run                                                                                      |
-| ---------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Safety hooks           | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | Exit 2: the tool call is blocked. A bare `bun install` still passes                                   |
-| Deny-class guards      | `guard-git`, `guard-outside`                                            | A missing package or `bun` passes with a note; a hook that started and then crashed or timed out asks |
-| Advice and shape hooks | `guard-scripting`, `stop`, `prompt-submit`, `post-tool`                 | Fail open: the call passes                                                                            |
+| Kind | Hooks | If it cannot run |
+|---|---|---|
+| Safety hooks | `guard-writes`, `guard-manifest`, `guard-package`, `guard-remote-hosts` | Exit 2: the tool call is blocked. A bare `bun install` still passes |
+| Deny-class guards | `guard-git`, `guard-outside` | A missing package or `bun` passes with a note; a hook that started and then crashed or timed out asks |
+| Advice and shape hooks | `guard-scripting`, `stop`, `prompt-submit`, `post-tool` | Fail open: the call passes |
 
 `VULCAN_GUARDS=off` switches the guards off for one session; set it only for the command that needs it.
 
 ## Which agents run them
 
-| Agent                     | How the guards run                                                                                                                                 | Checked                                                                             |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Claude Code               | Hooks in `.claude/settings.json`                                                                                                                   | Real sessions                                                                       |
-| omp                       | `.omp/hooks/pre/vulcan-guards.ts`, written by `vulcan sync`                                                                                        | omp 18.8.9 with a real model                                                        |
-| pi                        | `.pi/extensions/vulcan-guards.ts`, written by `vulcan sync`; pi asks you to trust the project first                                                | pi 1.4.0 through its SDK with a scripted provider, not a real model                 |
-| Antigravity               | A `vulcan-guards` entry in `.agents/hooks.json`, written by `vulcan sync`                                                                          | `agy` 1.4.7: a `deny` holds; `agy --dangerously-skip-permissions` approves an `ask` |
-| Codex                     | A hook in `.codex/hooks.json`, written by `vulcan sync`; Codex runs it after you trust it in `/hooks`; it cannot ask, so an ask is shown as a deny | **NOT VERIFIED**                                                                    |
-| Cursor                    | Reads the Claude hooks in `.claude/settings.json`                                                                                                  | **NOT VERIFIED**                                                                    |
-| Copilot (CLI and VS Code) | Reads the Claude hooks in `.claude/settings.json`                                                                                                  | **NOT VERIFIED**                                                                    |
+| Agent | How the guards run | Checked |
+|---|---|---|
+| Claude Code | Hooks in `.claude/settings.json` | Real sessions |
+| omp | `.omp/hooks/pre/vulcan-guards.ts`, written by `vulcan sync` | omp 18.8.9 with a real model |
+| pi | `.pi/extensions/vulcan-guards.ts`, written by `vulcan sync`; pi asks you to trust the project first | pi 1.4.0 through its SDK with a scripted provider, not a real model |
+| Antigravity | A `vulcan-guards` entry in `.agents/hooks.json`, written by `vulcan sync` | `agy` 1.4.7: a `deny` holds; `agy --dangerously-skip-permissions` approves an `ask` |
+| Codex | A hook in `.codex/hooks.json`, written by `vulcan sync`; Codex runs it after you trust it in `/hooks`; it cannot ask, so an ask is shown as a deny | **NOT VERIFIED** |
+| Cursor | Reads the Claude hooks in `.claude/settings.json` | **NOT VERIFIED** |
+| Copilot (CLI and VS Code) | Reads the Claude hooks in `.claude/settings.json` | **NOT VERIFIED** |
 
 NOT VERIFIED means built from the agent's documentation and unit tests, and never run in that agent. omp and pi run the three safety guards, `guard-git` and `guard-outside`; they do not run `guard-scripting` or `guard-remote-hosts`. Choose your agents with `vulcan sync --agents <list>` ([Coding agents](/references/agents)).
 

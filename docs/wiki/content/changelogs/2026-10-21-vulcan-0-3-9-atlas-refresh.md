@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.3.9: The atlas Server Keeps Up With Releases While It Runs'
+title: "VULCAN 0.3.9: The atlas Server Keeps Up With Releases While It Runs"
 description: A long agent session no longer reports old versions. The atlas MCP server looks again at its remote sources and at the project's own tags every five minutes, in the background, instead of only at its start.
 packages: ['@venizia/vulcan-atlas']
 ---

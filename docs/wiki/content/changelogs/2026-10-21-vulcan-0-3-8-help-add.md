@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.3.8: --help Lists Every Flag of add'
+title: "VULCAN 0.3.8: --help Lists Every Flag of add"
 description: vulcan --help now shows --lib, --dir and --scope next to --app in the add entry.
 packages: ['@venizia/vulcan']
 ---

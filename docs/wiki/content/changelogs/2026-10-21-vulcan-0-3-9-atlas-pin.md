@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.3.9: atlas Serves the Docs of the Version You Have Installed'
+title: "VULCAN 0.3.9: atlas Serves the Docs of the Version You Have Installed"
 description: For a source declared in atlas.sources, search and get now read the docs at the release tag of the installed version, not at the branch. version and changes still know the newer releases. Opt out per source with pin 'ref'.
 packages: ['@venizia/vulcan-atlas', '@venizia/vulcan']
 ---

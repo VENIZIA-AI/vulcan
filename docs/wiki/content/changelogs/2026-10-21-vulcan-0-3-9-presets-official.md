@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.3.9: The atlas presets Tool Also Lists the Official Presets You Have Not Used'
+title: "VULCAN 0.3.9: The atlas presets Tool Also Lists the Official Presets You Have Not Used"
 description: The atlas presets tool answers with the presets the project recorded first, then the official ignis and ardor presets it has not used yet, each marked inProject false, with the exact vulcan add command.
 packages: ['@venizia/vulcan-atlas']
 ---

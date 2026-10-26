@@ -47,17 +47,17 @@ The health route card.
 
 The title line says what changes and for whom. Nine headings follow, spelled as written and in this order. The body under them is in the project's `owner.language`, English when it is unset. Fixed headings make an item searchable in any tracker and checkable by heading.
 
-| Heading             | Holds                                                             |
-| ------------------- | ----------------------------------------------------------------- |
-| Category            | `bug`, `enhancement` or `chore`                                   |
-| Summary             | The outcome, in one or two sentences                              |
-| Current behaviour   | What happens now                                                  |
-| Desired behaviour   | What happens when done, with edge and error cases                 |
-| Key interfaces      | Names to find or change: types, routes, commands, config keys     |
+| Heading | Holds |
+|---|---|
+| Category | `bug`, `enhancement` or `chore` |
+| Summary | The outcome, in one or two sentences |
+| Current behaviour | What happens now |
+| Desired behaviour | What happens when done, with edge and error cases |
+| Key interfaces | Names to find or change: types, routes, commands, config keys |
 | Acceptance criteria | A checklist: one WHEN ... THEN ... behaviour each, with its probe |
-| Out of scope        | What must not change, including the neighbour that looks related  |
-| Blocked by          | The items that truly gate this one, or "none"                     |
-| Parent              | The card or item this slice belongs to, or "none"                 |
+| Out of scope | What must not change, including the neighbour that looks related |
+| Blocked by | The items that truly gate this one, or "none" |
+| Parent | The card or item this slice belongs to, or "none" |
 
 ## The writing rules
 

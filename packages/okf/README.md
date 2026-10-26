@@ -9,13 +9,13 @@ v0.2. Part of VULCAN; the bundle is served over MCP by `@venizia/vulcan-atlas`, 
 Run through the pinned `vulcan` CLI (`bun x vulcan x okf <command>`) or the project's make targets.
 The tooling reads the project it runs in (the working directory).
 
-| Command                | What it does                                                                                    |
-| ---------------------- | ----------------------------------------------------------------------------------------------- |
-| `check`                | Gate: OKF v0.2 conformance (spec §11). Errors fail; soft-guidance warnings print and never fail |
-| `check --strict`       | `check` plus the house rules: every link resolves, docs style, structural coverage, freshness   |
-| `gen`                  | Regenerate all source-derived content                                                           |
-| `coverage [--min <n>]` | Report the bundle against the source inventory; `--min` fails below `<n>` percent               |
-| `viz`                  | Build the offline graph explorer, `.agents/knowledge/viz.html`                                  |
+| Command | What it does |
+|---|---|
+| `check` | Gate: OKF v0.2 conformance (spec §11). Errors fail; soft-guidance warnings print and never fail |
+| `check --strict` | `check` plus the house rules: every link resolves, docs style, structural coverage, freshness |
+| `gen` | Regenerate all source-derived content |
+| `coverage [--min <n>]` | Report the bundle against the source inventory; `--min` fails below `<n>` percent |
+| `viz` | Build the offline graph explorer, `.agents/knowledge/viz.html` |
 
 ## OKF v0.2 conformance (`check`)
 
@@ -73,19 +73,19 @@ The [renderers reference](../../docs/wiki/content/references/okf/renderers.md) s
 
 ## Layout
 
-| Path                   | Role                                                                                          |
-| ---------------------- | --------------------------------------------------------------------------------------------- |
-| `src/cli.ts`           | `vulcan-okf` entry; spawns `src/run.ts`, the command runner                                   |
-| `src/index.ts`         | the public API: the OKF v0.2 conformance layer                                                |
-| `src/source/`          | source scanning and the shared fact collectors (one per fact, used by gen and coverage)       |
-| `src/generate/`        | `gen`: the built-in renderers, project modules (`defineRenderer`), regions and contents lists |
-| `src/check/`           | `check`: OKF conformance, plus the house rules under `--strict`                               |
-| `src/coverage-report/` | `coverage`: the bundle against the source inventory                                           |
-| `src/lib.ts`           | bundle loader: frontmatter, links, concept model                                              |
-| `src/spec/`            | OKF v0.2 conformance - pure, never throws                                                     |
-| `src/viz/`             | explorer: builder (Bun), typed browser client, template                                       |
-| `src/project/`         | reads the project config `vulcan x` hands okf - everything project-specific                   |
-| `src/config.ts`        | constants that hold for every project: pruned directories, reserved files                     |
+| Path | Role |
+|---|---|
+| `src/cli.ts` | `vulcan-okf` entry; spawns `src/run.ts`, the command runner |
+| `src/index.ts` | the public API: the OKF v0.2 conformance layer |
+| `src/source/` | source scanning and the shared fact collectors (one per fact, used by gen and coverage) |
+| `src/generate/` | `gen`: the built-in renderers, project modules (`defineRenderer`), regions and contents lists |
+| `src/check/` | `check`: OKF conformance, plus the house rules under `--strict` |
+| `src/coverage-report/` | `coverage`: the bundle against the source inventory |
+| `src/lib.ts` | bundle loader: frontmatter, links, concept model |
+| `src/spec/` | OKF v0.2 conformance - pure, never throws |
+| `src/viz/` | explorer: builder (Bun), typed browser client, template |
+| `src/project/` | reads the project config `vulcan x` hands okf - everything project-specific |
+| `src/config.ts` | constants that hold for every project: pruned directories, reserved files |
 
 ---
 

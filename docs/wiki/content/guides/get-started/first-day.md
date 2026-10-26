@@ -8,12 +8,12 @@ description: Work through the four daily tools in VULCAN across an agent session
 Your project is set up and `vulcan doctor` passes.
 This tutorial walks you through the four tools you touch during daily work.
 
-| Step                        | What you touch       | Observable result                                                                                                              |
-| --------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| 1. Start an agent session   | Session-start hook   | Rule digest prints to session context (Claude Code)                                                                            |
-| 2. Watch a guard work       | Guard-writes hook    | Mutating commands ask for human confirmation (Claude Code, omp, pi; see [Which agents are guarded](#which-agents-are-guarded)) |
-| 3. Write one knowledge page | OKF conformance gate | New concept page passes strict check                                                                                           |
-| 4. Ask atlas                | atlas MCP server     | Search hits return chunk ids and bodies                                                                                        |
+| Step | What you touch | Observable result |
+|---|---|---|
+| 1. Start an agent session | Session-start hook | Rule digest prints to session context (Claude Code) |
+| 2. Watch a guard work | Guard-writes hook | Mutating commands ask for human confirmation (Claude Code, omp, pi; see [Which agents are guarded](#which-agents-are-guarded)) |
+| 3. Write one knowledge page | OKF conformance gate | New concept page passes strict check |
+| 4. Ask atlas | atlas MCP server | Search hits return chunk ids and bodies |
 
 ## 1. Start an agent session
 
@@ -168,15 +168,15 @@ The response returns the markdown body of the concept page.
 
 The guards in steps 1 and 2 run on every agent you picked, but how they run differs. `vulcan sync` writes the wiring; [Hooks](/references/hooks/) has the detail.
 
-| Agent                  | Guard                                                                      | Status                                                                                       |
-| ---------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Claude Code            | hooks in `.claude/settings.json` (guards, session digest)                  | checked in real sessions                                                                     |
-| omp                    | `.omp/hooks/pre/vulcan-guards.ts`                                          | checked with a real model (omp 18.8.9)                                                       |
-| pi                     | `.pi/extensions/vulcan-guards.ts`; pi loads it after you trust the project | checked through pi 1.4.0's SDK with a scripted provider, not a real model                    |
-| Antigravity            | a `vulcan-guards` entry in `.agents/hooks.json`                            | checked with `agy` 1.4.7: a deny holds, and `--dangerously-skip-permissions` approves an ask |
-| Codex                  | `.codex/hooks.json`; Codex runs it only after you trust it in `/hooks`     | NOT VERIFIED; Codex cannot ask, so an ask is shown as a deny                                 |
-| Cursor                 | reads Claude's `.claude/settings.json`, no file written                    | NOT VERIFIED                                                                                 |
-| Copilot (CLI, VS Code) | reads Claude's `.claude/settings.json`, no file written                    | NOT VERIFIED                                                                                 |
+| Agent | Guard | Status |
+|---|---|---|
+| Claude Code | hooks in `.claude/settings.json` (guards, session digest) | checked in real sessions |
+| omp | `.omp/hooks/pre/vulcan-guards.ts` | checked with a real model (omp 18.8.9) |
+| pi | `.pi/extensions/vulcan-guards.ts`; pi loads it after you trust the project | checked through pi 1.4.0's SDK with a scripted provider, not a real model |
+| Antigravity | a `vulcan-guards` entry in `.agents/hooks.json` | checked with `agy` 1.4.7: a deny holds, and `--dangerously-skip-permissions` approves an ask |
+| Codex | `.codex/hooks.json`; Codex runs it only after you trust it in `/hooks` | NOT VERIFIED; Codex cannot ask, so an ask is shown as a deny |
+| Cursor | reads Claude's `.claude/settings.json`, no file written | NOT VERIFIED |
+| Copilot (CLI, VS Code) | reads Claude's `.claude/settings.json`, no file written | NOT VERIFIED |
 
 NOT VERIFIED means built from the agent's documentation and unit tests, never run in that agent. Do not rely on those guards yet.
 

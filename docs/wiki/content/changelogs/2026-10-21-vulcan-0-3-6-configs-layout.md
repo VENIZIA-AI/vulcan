@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.3.6: Tool Configs Live in .configs/lints, formatters and builders'
+title: "VULCAN 0.3.6: Tool Configs Live in .configs/lints, formatters and builders"
 description: init scaffolds the lint and format configs into .configs/lints and .configs/formatters, doctor looks there and says where a config left in .configs belongs, and the shared make targets read the new paths and the .ignore files.
 packages: ['@venizia/vulcan']
 ---

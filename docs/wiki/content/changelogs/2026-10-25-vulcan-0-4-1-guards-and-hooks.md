@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.4.1: Guards for Git and for Files Outside the Project, a Digest for Subagents'
+title: "VULCAN 0.4.1: Guards for Git and for Files Outside the Project, a Digest for Subagents"
 description: Three hooks ship with the base - guard-git, guard-outside and subagent-start - and a guard.toolOwnedPaths key lets a project allow the stores its tools manage themselves.
 packages: ['@venizia/vulcan']
 ---

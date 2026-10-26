@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.4.5: The Deny-Class Guards Ask When They Crash or Time Out'
+title: "VULCAN 0.4.5: The Deny-Class Guards Ask When They Crash or Time Out"
 description: guard-git and guard-outside no longer let a call through when the hook started and then crashed, was killed or ran past 30 seconds; they ask. A missing package or bun still passes.
 packages: ['@venizia/vulcan']
 ---

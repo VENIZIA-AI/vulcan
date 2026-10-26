@@ -72,14 +72,14 @@ For cache layouts, authentication, and source settings, see [atlas sources](/ref
 
 When atlas cannot find data for a tool call, it returns an explanation:
 
-| You see                                                                   | Meaning                                                                                                   | Fix                                                                                         |
-| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `no symbols - build the packages first: atlas reads their exports' .d.ts` | The packages lack built `.d.ts` declaration files.                                                        | Build your packages before calling `symbol`.                                                |
-| `none of its packages is installed here or on npm`                        | The remote source package is not in `node_modules` or on npm.                                             | Install the package or publish it to npm.                                                   |
-| `no releases: no tag matches <pattern> in this ref's history`             | No git tags match the configured tag pattern in this branch.                                              | Tag releases matching `tagPattern`, or update the pattern.                                  |
-| `no release history: <name> was fetched without git`                      | The remote source was fetched as a tarball without git history.                                           | Install git on the machine to fetch release history.                                        |
-| `no dated changelog entries ...`                                          | The directory lacks files named `YYYY-MM-DD-<slug>.md` with `packages:` frontmatter, or none is declared. | Add `packages:` frontmatter to `YYYY-MM-DD-<slug>.md` files, or set `knowledge.changelogs`. |
-| `vulcan-atlas: nothing to serve at <dir>`                                 | The directory has no manifest and no sources were provided. atlas exits with code 2.                      | Run `vulcan sync`, or pass `--source <owner/repo>@<ref>`.                                   |
+| You see | Meaning | Fix |
+|---|---|---|
+| `no symbols - build the packages first: atlas reads their exports' .d.ts` | The packages lack built `.d.ts` declaration files. | Build your packages before calling `symbol`. |
+| `none of its packages is installed here or on npm` | The remote source package is not in `node_modules` or on npm. | Install the package or publish it to npm. |
+| `no releases: no tag matches <pattern> in this ref's history` | No git tags match the configured tag pattern in this branch. | Tag releases matching `tagPattern`, or update the pattern. |
+| `no release history: <name> was fetched without git` | The remote source was fetched as a tarball without git history. | Install git on the machine to fetch release history. |
+| `no dated changelog entries ...` | The directory lacks files named `YYYY-MM-DD-<slug>.md` with `packages:` frontmatter, or none is declared. | Add `packages:` frontmatter to `YYYY-MM-DD-<slug>.md` files, or set `knowledge.changelogs`. |
+| `vulcan-atlas: nothing to serve at <dir>` | The directory has no manifest and no sources were provided. atlas exits with code 2. | Run `vulcan sync`, or pass `--source <owner/repo>@<ref>`. |
 
 A project with no documentation of its own finds nothing until you declare a source. atlas does not read `node_modules` for documentation.
 

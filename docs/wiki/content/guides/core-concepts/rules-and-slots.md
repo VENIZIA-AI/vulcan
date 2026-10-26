@@ -7,13 +7,13 @@ description: Understand why VULCAN ships base rules, how slots work, and how pro
 
 Base rules are the same in every VULCAN project. There are 50, in five groups:
 
-| Group | Covers           | Rules |
-| ----- | ---------------- | ----- |
-| `W`   | Write boundaries | 5     |
-| `S`   | Security         | 7     |
-| `P`   | Process          | 12    |
-| `B`   | Build            | 9     |
-| `C`   | Coding style     | 17    |
+| Group | Covers | Rules |
+|---|---|---|
+| `W` | Write boundaries | 5 |
+| `S` | Security | 7 |
+| `P` | Process | 12 |
+| `B` | Build | 9 |
+| `C` | Coding style | 17 |
 
 The [rules reference](/references/rules) lists them. A slot is a base rule that leaves its choice to project configuration.
 
@@ -31,10 +31,10 @@ export default {
 
 Rule `V-W-01` defines git write boundaries and provides two options:
 
-| Option         | Meaning                                                                                                                                                                                  |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `on-user-word` | Git writes happen only on the user's word, in this conversation.                                                                                                                         |
-| `read-only`    | Git is read-only for the agent: it edits the working tree, then stops; a human commits. Every git verb that writes the index, the history, a ref, the config or the work tree is denied. |
+| Option | Meaning |
+|---|---|
+| `on-user-word` | Git writes happen only on the user's word, in this conversation. |
+| `read-only` | Git is read-only for the agent: it edits the working tree, then stops; a human commits. Every git verb that writes the index, the history, a ref, the config or the work tree is denied. |
 
 The `read-only` option adds 40 deny patterns to `permissions.deny`.
 
@@ -54,9 +54,9 @@ You define project rules in `.agents/rules.md`. Project rules use bare IDs such 
 
 Add a project rule as a row in the markdown table:
 
-| ID   | Rule                                              | Enforced by |
-| ---- | ------------------------------------------------- | ----------- |
-| C-19 | ISO dates (2026-10-17) in every durable artifact. | SOFT        |
+| ID | Rule | Enforced by |
+|---|---|---|
+| C-19 | ISO dates (2026-10-17) in every durable artifact. | SOFT |
 
 A `V-` ID is allowed in your rules only when it points at a base rule (`Extends V-W-01`). If a project rule uses an unassigned `V-` ID, `vulcan doctor` reports a violation and exits with code 1:
 

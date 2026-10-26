@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.4.5: The Guards Read ANSI-C Quoting'
+title: "VULCAN 0.4.5: The Guards Read ANSI-C Quoting"
 description: The guards decode $'...' words, so $'git' push -f origin main and env -S $'git push -f origin main' are read as the commands they are; a variable in a command is still not expanded, and the hooks page says so.
 packages: ['@venizia/vulcan']
 ---

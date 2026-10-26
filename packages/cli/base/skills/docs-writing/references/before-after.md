@@ -4,7 +4,7 @@ From the 2026-07-18 Repository Read Retry changelog. Every fact survives; the re
 
 ## Before (one bullet, 5 lines, two exceptions buried mid-paragraph)
 
-> **Never a new error, and never a fabricated result either - with two deliberate exceptions.** A real database/engine error is never retried - it propagates immediately, exactly as before. Retries only happen because a read _succeeded_ but the predicate said "not yet." On exhaustion the framework returns the last result as-is - it does not throw and does not invent a "not found." The two exceptions: an invalid `maxAttempts` (below `1`) throws immediately, before any read runs; and an aborted `signal` rejects the call rather than falling back to the last result, since the caller cancelled and no longer wants one.
+> **Never a new error, and never a fabricated result either - with two deliberate exceptions.** A real database/engine error is never retried - it propagates immediately, exactly as before. Retries only happen because a read *succeeded* but the predicate said "not yet." On exhaustion the framework returns the last result as-is - it does not throw and does not invent a "not found." The two exceptions: an invalid `maxAttempts` (below `1`) throws immediately, before any read runs; and an aborted `signal` rejects the call rather than falling back to the last result, since the caller cancelled and no longer wants one.
 
 Why it fails: 96 words in one bullet. Double negation ("never... never... with exceptions"). The reader must hold two exceptions in their head while parsing four other claims. Nothing is scannable.
 

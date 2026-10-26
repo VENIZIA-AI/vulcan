@@ -1,7 +1,7 @@
 ---
 type: Package
 title: atlas
-description: '@venizia/vulcan-atlas - the MCP knowledge server, and the surface, symbols and releases table generators.'
+description: "@venizia/vulcan-atlas - the MCP knowledge server, and the surface, symbols and releases table generators."
 tags: [packages, atlas, mcp]
 ---
 

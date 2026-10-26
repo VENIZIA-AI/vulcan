@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.3.9: Agents Must Search atlas Before They Answer How to Build Something'
+title: "VULCAN 0.3.9: Agents Must Search atlas Before They Answer How to Build Something"
 description: The atlas server's instructions and the Atlas block of AGENTS.md now say that a question about how to build something in the project must search atlas first, and that a plan never says "check atlas" for a step it has not done.
 packages: ['@venizia/vulcan', '@venizia/vulcan-atlas']
 ---

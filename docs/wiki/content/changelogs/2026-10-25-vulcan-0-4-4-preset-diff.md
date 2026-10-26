@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.4.4: vulcan preset diff Shows What a Preset Changed Since an App Was Made'
+title: "VULCAN 0.4.4: vulcan preset diff Shows What a Preset Changed Since an App Was Made"
 description: A new read-only command sets each file an app's preset makes now against the file the app has, so a preset that improved later can be taken in without copying files by hand.
 packages: ['@venizia/vulcan']
 ---

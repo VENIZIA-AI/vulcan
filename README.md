@@ -50,15 +50,7 @@ echo '{"tool_name":"Bash","tool_input":{"command":"git push --force origin main"
 ```
 
 ```json
-{
-  "hookSpecificOutput": {
-    "hookEventName": "PreToolUse",
-    "permissionDecision": "deny",
-    "permissionDecisionReason": "This command is refused by the base rules:\n  - V-W-06: force-pushing to 'main'\n\nHand the exact command to the owner instead (V-W-06); VULCAN_GUARDS=off switches the guards off for a session."
-  },
-  "permissionDecision": "deny",
-  "permissionDecisionReason": "..."
-}
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"This command is refused by the base rules:\n  - V-W-06: force-pushing to 'main'\n\nHand the exact command to the owner instead (V-W-06); VULCAN_GUARDS=off switches the guards off for a session."},"permissionDecision":"deny","permissionDecisionReason":"..."}
 ```
 
 The guards stop accidental commands; they are not a sandbox.
@@ -79,11 +71,11 @@ The guards stop accidental commands; they are not a sandbox.
 
 The three always carry the same version. A project depends on `@venizia/vulcan` only.
 
-| Package                                    | What it is                                                                                                                  | npm                                                                                                                                                  |
-| :----------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@venizia/vulcan`](packages/cli/)         | The `vulcan` CLI and the shipped base: rules, skills, hooks, templates                                                      | [![npm](https://img.shields.io/npm/v/@venizia/vulcan.svg?style=flat-square&color=cb3837)](https://www.npmjs.com/package/@venizia/vulcan)             |
-| [`@venizia/vulcan-okf`](packages/okf/)     | Knowledge-bundle tooling for the [Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format) v0.2 | [![npm](https://img.shields.io/npm/v/@venizia/vulcan-okf.svg?style=flat-square&color=cb3837)](https://www.npmjs.com/package/@venizia/vulcan-okf)     |
-| [`@venizia/vulcan-atlas`](packages/atlas/) | An MCP server that searches a project's wiki, changelogs and knowledge                                                      | [![npm](https://img.shields.io/npm/v/@venizia/vulcan-atlas.svg?style=flat-square&color=cb3837)](https://www.npmjs.com/package/@venizia/vulcan-atlas) |
+| Package | What it is | npm |
+| :--- | :--- | :--- |
+| [`@venizia/vulcan`](packages/cli/) | The `vulcan` CLI and the shipped base: rules, skills, hooks, templates | [![npm](https://img.shields.io/npm/v/@venizia/vulcan.svg?style=flat-square&color=cb3837)](https://www.npmjs.com/package/@venizia/vulcan) |
+| [`@venizia/vulcan-okf`](packages/okf/) | Knowledge-bundle tooling for the [Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format) v0.2 | [![npm](https://img.shields.io/npm/v/@venizia/vulcan-okf.svg?style=flat-square&color=cb3837)](https://www.npmjs.com/package/@venizia/vulcan-okf) |
+| [`@venizia/vulcan-atlas`](packages/atlas/) | An MCP server that searches a project's wiki, changelogs and knowledge | [![npm](https://img.shields.io/npm/v/@venizia/vulcan-atlas.svg?style=flat-square&color=cb3837)](https://www.npmjs.com/package/@venizia/vulcan-atlas) |
 
 ## Contributing
 

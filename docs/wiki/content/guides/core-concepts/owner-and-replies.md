@@ -26,10 +26,10 @@ The headline answers first, the minimap shows progress, and Blocked names what s
 
 ## Why the shape follows the reader
 
-| Reader        | Gets                                                               |
-| ------------- | ------------------------------------------------------------------ |
-| The owner     | The shape above, with labels and form of address in their language |
-| Another agent | The plain format it asked for, with no shape and no check          |
+| Reader | Gets |
+|---|---|
+| The owner | The shape above, with labels and form of address in their language |
+| Another agent | The plain format it asked for, with no shape and no check |
 
 A wall of prose makes the owner hunt for the answer. A minimap table breaks a script. So the shape belongs to the owner's sessions only.
 
@@ -48,11 +48,11 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-| `report.enforce`   | What happens to a reply that breaks the shape             |
-| ------------------ | --------------------------------------------------------- |
-| `off`              | Nothing is checked or printed                             |
+| `report.enforce` | What happens to a reply that breaks the shape |
+|---|---|
+| `off` | Nothing is checked or printed |
 | `advise` (default) | The fault is logged and the next prompt reminds the agent |
-| `block`            | A structural fault sends the reply back once              |
+| `block` | A structural fault sends the reply back once |
 
 ## Set your own profile
 

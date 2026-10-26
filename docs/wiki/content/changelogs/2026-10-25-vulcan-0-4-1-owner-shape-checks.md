@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.4.1: The Report Shape Is Checked After Every Reply'
+title: "VULCAN 0.4.1: The Report Shape Is Checked After Every Reply"
 description: A Stop hook checks each reply to the owner against the configured report shape and logs the faults by class; a prompt hook reminds the next turn; under enforce block a structural fault is sent back once.
 packages: ['@venizia/vulcan']
 ---

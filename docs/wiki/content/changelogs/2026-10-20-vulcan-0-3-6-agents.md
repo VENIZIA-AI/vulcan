@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.3.6: Each Developer Chooses Their Coding Agents'
+title: "VULCAN 0.3.6: Each Developer Chooses Their Coding Agents"
 description: vulcan sync writes the adapters of the coding agents each developer uses, registers atlas where each agent looks for MCP servers, and puts the atlas guidance into AGENTS.md; vulcan agents adds or removes an agent.
 packages: ['@venizia/vulcan', '@venizia/vulcan-atlas']
 ---
@@ -39,10 +39,10 @@ None.
 - The guard hooks, the session-start digest and `claude.settings` stay Claude Code only.
 - `doctor` gains an `[agents]` check for a broken stored choice, and an `info` line when the Atlas block of `AGENTS.md` is missing or out of date.
 
-| File                                                                                       | Package |
-| ------------------------------------------------------------------------------------------ | ------- |
-| `packages/cli/base/agents.json`                                                            | cli     |
-| `packages/cli/src/agents/`                                                                 | cli     |
-| `packages/cli/src/sync/agent-files.ts`, `agent-removal.ts`, `exclude.ts`, `atlas-block.ts` | cli     |
-| `packages/cli/src/commands/agents.command.ts`                                              | cli     |
-| `packages/atlas/src/server/guidance.ts`                                                    | atlas   |
+| File | Package |
+|------|---------|
+| `packages/cli/base/agents.json` | cli |
+| `packages/cli/src/agents/` | cli |
+| `packages/cli/src/sync/agent-files.ts`, `agent-removal.ts`, `exclude.ts`, `atlas-block.ts` | cli |
+| `packages/cli/src/commands/agents.command.ts` | cli |
+| `packages/atlas/src/server/guidance.ts` | atlas |

@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.4.4: Layout Folders Can Be Paths, Lists, and a List of Folders Left Alone'
+title: "VULCAN 0.4.4: Layout Folders Can Be Paths, Lists, and a List of Folders Left Alone"
 description: layout.backend, frontend and shared accept a path or a list of paths such as auroras/apps, and layout.other lists folders the layout does not manage, so a real grouped monorepo can declare its layout and guard-package covers it.
 packages: ['@venizia/vulcan']
 ---

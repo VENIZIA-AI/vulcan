@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.3.6: Agents Create Apps and Libraries With a Preset'
+title: "VULCAN 0.3.6: Agents Create Apps and Libraries With a Preset"
 description: vulcan add --lib makes a shared package from a preset's library kind, add asks which kind, atlas answers which preset and command to use, and a Claude hook stops a hand-written package.json.
 packages: ['@venizia/vulcan', '@venizia/vulcan-atlas']
 ---

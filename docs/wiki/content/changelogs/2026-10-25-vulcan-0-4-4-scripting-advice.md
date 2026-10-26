@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.4.4: Agent Scripting Uses Bun by Default, and a Hook Reminds'
+title: "VULCAN 0.4.4: Agent Scripting Uses Bun by Default, and a Hook Reminds"
 description: The rule that agent scripts use bun moves into the base rules as V-B-09, as a preference that allows another language when the task needs it, and a new guard-scripting hook adds a one-line reminder when a command runs python or pip.
 packages: ['@venizia/vulcan']
 ---

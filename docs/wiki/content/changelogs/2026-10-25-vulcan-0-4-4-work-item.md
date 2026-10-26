@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.4.4: A Work Item a Person Can Read and a Fresh Agent Can Do'
+title: "VULCAN 0.4.4: A Work Item a Person Can Read and a Fresh Agent Can Do"
 description: A shipped work-item reference, slices of a plan written as work items, and a delegation brief, handoff and pull request that lean on the item instead of a long message or a local file.
 packages: ['@venizia/vulcan']
 ---

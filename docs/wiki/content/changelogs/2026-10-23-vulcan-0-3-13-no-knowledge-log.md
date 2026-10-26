@@ -1,5 +1,5 @@
 ---
-title: 'VULCAN 0.3.13: No More Knowledge log.md'
+title: "VULCAN 0.3.13: No More Knowledge log.md"
 description: init --preset and add stop writing the knowledge log, the knowledge-sync skill anchors the last sync on git, and no shipped rule or skill asks for a log entry.
 packages: ['@venizia/vulcan']
 ---

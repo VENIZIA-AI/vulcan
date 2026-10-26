@@ -8,14 +8,14 @@ description: Arguments, schemas, and return formats for the six atlas MCP tools.
 atlas provides six MCP tools for search, retrieval, code inspection, release tracking, and creating apps and packages.
 Agents call these tools over JSON-RPC 2.0 stdio.
 
-| Tool      | Required arguments |
-| --------- | ------------------ |
-| `search`  | `query`            |
-| `get`     | `id`               |
-| `symbol`  | `name`             |
-| `version` | None               |
-| `changes` | None               |
-| `presets` | None               |
+| Tool | Required arguments |
+|---|---|
+| `search` | `query` |
+| `get` | `id` |
+| `symbol` | `name` |
+| `version` | None |
+| `changes` | None |
+| `presets` | None |
 
 The following output drops the initialize handshake line:
 
@@ -37,12 +37,12 @@ In chunk citations, the knowledge bundle prefix is `okf`.
 In `search` tool arguments, pass `knowledge` to filter by that corpus.
 Pass `all` to search across every corpus without filtering.
 
-| Id                                                                           | What it points at                  |
-| ---------------------------------------------------------------------------- | ---------------------------------- |
-| `wiki:guides/core-concepts/components-guide.md#step-4-create-the-controller` | One step of a wiki guide           |
-| `okf:overview/design-decisions.md#decorator-based-dependency-injection`      | One section of a knowledge concept |
-| `changelog:2026-09-02-bundle-safe-helpers#what-changed`                      | One section of a changelog entry   |
-| `okf:process/release-publish.md#steps`                                       | One section of a process page      |
+| Id | What it points at |
+|---|---|
+| `wiki:guides/core-concepts/components-guide.md#step-4-create-the-controller` | One step of a wiki guide |
+| `okf:overview/design-decisions.md#decorator-based-dependency-injection` | One section of a knowledge concept |
+| `changelog:2026-09-02-bundle-safe-helpers#what-changed` | One section of a changelog entry |
+| `okf:process/release-publish.md#steps` | One section of a process page |
 
 When you drop the anchor and hash from an identifier, `get` reads the entire document.
 It joins all sections in document order under their headings.
@@ -61,13 +61,13 @@ When the entire body has been returned, `get` omits `next`.
 
 `search` finds chunks in the wiki, changelogs, and knowledge bundle matching a query.
 
-| Option   | Type   | Default         | Meaning                                                           |
-| -------- | ------ | --------------- | ----------------------------------------------------------------- |
-| `query`  | String | None (required) | Search query; minimum length 2 characters                         |
-| `corpus` | String | `'all'`         | Corpus filter: `'all'`, `'wiki'`, `'changelog'`, or `'knowledge'` |
-| `source` | String | None            | Restricts hits to one source                                      |
-| `limit`  | Number | `10`            | Maximum hits to return; integer from 1 to 50                      |
-| `offset` | Number | `0`             | Starting hit offset; non-negative integer                         |
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `query` | String | None (required) | Search query; minimum length 2 characters |
+| `corpus` | String | `'all'` | Corpus filter: `'all'`, `'wiki'`, `'changelog'`, or `'knowledge'` |
+| `source` | String | None | Restricts hits to one source |
+| `limit` | Number | `10` | Maximum hits to return; integer from 1 to 50 |
+| `offset` | Number | `0` | Starting hit offset; non-negative integer |
 
 `search` replies with the following fields:
 
@@ -99,12 +99,12 @@ If `query` is missing or under 2 characters, `search` returns error `-32602` nam
 
 `get` reads one chunk body by ID, or a whole document without an anchor.
 
-| Option     | Type   | Default         | Meaning                                                          |
-| ---------- | ------ | --------------- | ---------------------------------------------------------------- |
-| `id`       | String | None (required) | Citation chunk ID or whole document ID                           |
-| `source`   | String | None            | Source name when multiple sources share an ID                    |
-| `maxChars` | Number | `8000`          | Maximum Unicode code points to return; integer from 500 to 50000 |
-| `cursor`   | String | None            | Base64-encoded offset from a prior response                      |
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `id` | String | None (required) | Citation chunk ID or whole document ID |
+| `source` | String | None | Source name when multiple sources share an ID |
+| `maxChars` | Number | `8000` | Maximum Unicode code points to return; integer from 500 to 50000 |
+| `cursor` | String | None | Base64-encoded offset from a prior response |
 
 A chunk-read reply has `id`, `title`, `headingPath`, and `body`.
 It includes `source` on every chunk read, even with one source.
@@ -123,10 +123,10 @@ If `cursor` is malformed or out of range, `get` returns error `-32602` with mess
 
 `symbol` locates an exported TypeScript symbol across declared packages.
 
-| Option    | Type   | Default         | Meaning                                      |
-| --------- | ------ | --------------- | -------------------------------------------- |
-| `name`    | String | None (required) | Name of the exported symbol to locate        |
-| `package` | String | None            | Package name or alias to resolve ambiguities |
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `name` | String | None (required) | Name of the exported symbol to locate |
+| `package` | String | None | Package name or alias to resolve ambiguities |
 
 When exactly one match exists, `symbol` returns a flat record:
 
@@ -154,7 +154,9 @@ An unknown symbol name is not an error.
 {
   "name": "respnd",
   "matches": [],
-  "closest": ["respond"]
+  "closest": [
+    "respond"
+  ]
 }
 ```
 
@@ -167,9 +169,9 @@ With several sources, each reason is prefixed `<source>: `.
 
 `version` compares installed `@venizia` packages against the newest versions in the release table.
 
-| Option | Type   | Default                   | Meaning                                           |
-| ------ | ------ | ------------------------- | ------------------------------------------------- |
-| `cwd`  | String | Current working directory | Root directory containing package.json to inspect |
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `cwd` | String | Current working directory | Root directory containing package.json to inspect |
 
 `version` replies with `installed`, `snapshot`, and `behind` fields:
 
@@ -204,11 +206,11 @@ When `package.json` is missing, `version` answers with `installed: {}`.
 
 `changes` lists changelog entries between two package releases or between two calendar dates.
 
-| Option    | Type   | Default                 | Meaning                                                             |
-| --------- | ------ | ----------------------- | ------------------------------------------------------------------- |
-| `package` | String | None                    | Package name or alias; omitted, filters across all packages by date |
-| `from`    | String | Earlier release or date | Starting version or starting YYYY-MM-DD date                        |
-| `to`      | String | Newest release or date  | Ending version or ending YYYY-MM-DD date                            |
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `package` | String | None | Package name or alias; omitted, filters across all packages by date |
+| `from` | String | Earlier release or date | Starting version or starting YYYY-MM-DD date |
+| `to` | String | Newest release or date | Ending version or ending YYYY-MM-DD date |
 
 For a package, `from` defaults to the newest release on an earlier day than `to`.
 Without a package, `from` defaults to the newest entry date below `to`.
@@ -234,14 +236,19 @@ Each entry carries `id`, `date`, `title`, `kind`, and `packages`.
       "date": "2026-09-05",
       "title": "list-response",
       "kind": "New Feature",
-      "packages": ["@venizia/ignis-kernel"]
+      "packages": [
+        "@venizia/ignis-kernel"
+      ]
     },
     {
       "id": "changelog:2026-09-02-decorators",
       "date": "2026-09-02",
       "title": "decorators",
       "kind": null,
-      "packages": ["@venizia/ignis-boot", "@venizia/ignis-kernel"]
+      "packages": [
+        "@venizia/ignis-boot",
+        "@venizia/ignis-kernel"
+      ]
     }
   ]
 }
@@ -277,11 +284,11 @@ to must be a YYYY-MM-DD date when no package is given; got '0.2.0-16'
 
 The answer lists the presets this project recorded first (`inProject: true`), then the official presets it has not used yet (`inProject: false`): `ignis` (a backend app, a shared library) and `ardor` (a frontend app, a shared feature package). A project that only ever made a backend therefore still learns that an ARDOR frontend exists, with its command.
 
-| Option | Type                    | Default  | Meaning                                                                                         |
-| ------ | ----------------------- | -------- | ----------------------------------------------------------------------------------------------- |
-| `kind` | String                  | `app`    | What is created: `app`, or `lib` for a shared package. Any other word is a kind no preset makes |
-| `name` | String                  | `<name>` | The new name (lowercase letters, digits and `-`), put into the command                          |
-| `side` | `backend` or `frontend` | Both     | Narrows the apps list to one side                                                               |
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `kind` | String | `app` | What is created: `app`, or `lib` for a shared package. Any other word is a kind no preset makes |
+| `name` | String | `<name>` | The new name (lowercase letters, digits and `-`), put into the command |
+| `side` | `backend` or `frontend` | Both | Narrows the apps list to one side |
 
 For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `command` and `inProject`; for `kind: "lib"`, `preset`, `summary`, `folder`, `command` and `inProject`. A side or kind whose layout lists several folders has `folder: null`, a `folders` list, and a command with a folder placeholder (`--frontend-dir <auroras/apps|auroras/guests>`): the agent picks one. A side or kind with no folder in the manifest has `folder: null` and the command carries `--backend-dir <folder>`, `--frontend-dir <folder>` or `--dir <folder>`: the tool never invents a folder. A frontend's command ends with `--api <backend app> | --no-api`.
 
@@ -311,24 +318,24 @@ For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `com
 
 A recorded preset of the same package (`ignis`, `@venizia/ignis`, `ignis@0.3.5`) replaces the official entry, so a preset is listed once. When no entry is in the project, a `note` says so. When nothing fits the kind, `presets` is empty and a `note` says what to do instead. The tool never offers an app preset for a library, or a command that does not exist:
 
-| Case                                      | `note`                                                                                                                                                                                           |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| A kind other than `app` or `lib`          | `no preset makes a <kind> (vulcan add makes apps and libs): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app or lib preset for it` |
-| The project recorded no preset            | `this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use`                                                                          |
-| No recorded preset makes the kind or side | `no recorded preset makes a lib: the entries are the official ones, marked inProject false; ask the user which to use, and do not hand-write package.json, tsconfig or scripts`                  |
+| Case | `note` |
+|---|---|
+| A kind other than `app` or `lib` | `no preset makes a <kind> (vulcan add makes apps and libs): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app or lib preset for it` |
+| The project recorded no preset | `this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use` |
+| No recorded preset makes the kind or side | `no recorded preset makes a lib: the entries are the official ones, marked inProject false; ask the user which to use, and do not hand-write package.json, tsconfig or scripts` |
 
 ## Errors
 
 The following table lists common error messages and fallback responses across tools:
 
-| Tool                 | Condition                         | Message or behavior                                           |
-| -------------------- | --------------------------------- | ------------------------------------------------------------- |
-| `search`             | Unknown `source`                  | `unknown source 'x'; known sources: a, b`                     |
-| `get`                | Identifier in multiple sources    | `id '...' is in more than one source (a, b) - pass source`    |
-| `version`, `changes` | No matching release tags          | `no releases: no tag matches <pattern> in this ref's history` |
-| `version`, `changes` | Remote source fetched without git | `no release history: <name> was fetched without git`          |
-| `version`            | Manifest cannot be parsed         | `unreadable package.json: <file path>`                        |
-| `version`            | Missing `package.json`            | Answers `{"installed": {}}`                                   |
+| Tool | Condition | Message or behavior |
+|---|---|---|
+| `search` | Unknown `source` | `unknown source 'x'; known sources: a, b` |
+| `get` | Identifier in multiple sources | `id '...' is in more than one source (a, b) - pass source` |
+| `version`, `changes` | No matching release tags | `no releases: no tag matches <pattern> in this ref's history` |
+| `version`, `changes` | Remote source fetched without git | `no release history: <name> was fetched without git` |
+| `version` | Manifest cannot be parsed | `unreadable package.json: <file path>` |
+| `version` | Missing `package.json` | Answers `{"installed": {}}` |
 
 ## Using the tools from a client
 
@@ -340,15 +347,7 @@ Clients begin communication by sending an `initialize` request.
 In repository mode, the `initialize` reply names the server `<project>-atlas`:
 
 ```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": {
-    "protocolVersion": "2024-11-05",
-    "capabilities": { "tools": {} },
-    "serverInfo": { "name": "demo-app-atlas", "version": "0.2.0" }
-  }
-}
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"demo-app-atlas","version":"0.2.0"}}}
 ```
 
 An agent discovers available tools by sending a `tools/list` request.

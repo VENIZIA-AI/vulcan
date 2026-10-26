@@ -13,7 +13,9 @@ import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
   atlas: {
-    sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' }],
+    sources: [
+      { name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' },
+    ],
   },
 } satisfies VulcanConfig;
 ```
@@ -24,12 +26,12 @@ To update the project manifest, run `vulcan sync`:
 bun x --no-install vulcan sync
 ```
 
-| Field  | Type                     | Default       | Meaning                                                                                                          |
-| ------ | ------------------------ | ------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `name` | `string`                 | required      | Source identifier reported in citations and search hits                                                          |
-| `repo` | `string`                 | required      | GitHub `owner/repo` path or git URL                                                                              |
-| `ref`  | `string`                 | `'develop'`   | Git branch name, tag, or commit hash to fetch                                                                    |
-| `pin`  | `'installed'` or `'ref'` | `'installed'` | `installed` reads the docs at the release tag of the version the project has installed; `ref` always reads `ref` |
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `name` | `string` | required | Source identifier reported in citations and search hits |
+| `repo` | `string` | required | GitHub `owner/repo` path or git URL |
+| `ref` | `string` | `'develop'` | Git branch name, tag, or commit hash to fetch |
+| `pin` | `'installed'` or `'ref'` | `'installed'` | `installed` reads the docs at the release tag of the version the project has installed; `ref` always reads `ref` |
 
 ## Which version of the docs
 
@@ -44,13 +46,13 @@ How it is decided, at every start:
 
 atlas serves `ref` instead, and says why in the status line of the server's `instructions`, when:
 
-| Case                                                                                    | Reason shown                                                     |
-| --------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| None of the source's packages is installed                                              | `none of its packages is installed here`                         |
-| An installed package is a `file:` or workspace link                                     | `<name> is linked (a file: or workspace package), not a release` |
-| The installed version has no recorded release (a prerelease with no tag, a local build) | `no release of <name> <version> is recorded`                     |
-| The tag cannot be fetched                                                               | `could not read <tag>: ...`                                      |
-| `pin: 'ref'`                                                                            | `pin is ref`                                                     |
+| Case | Reason shown |
+|---|---|
+| None of the source's packages is installed | `none of its packages is installed here` |
+| An installed package is a `file:` or workspace link | `<name> is linked (a file: or workspace package), not a release` |
+| The installed version has no recorded release (a prerelease with no tag, a local build) | `no release of <name> <version> is recorded` |
+| The tag cannot be fetched | `could not read <tag>: ...` |
+| `pin: 'ref'` | `pin is ref` |
 
 A running server looks at the installed versions again with the [refresh](/references/atlas/#staying-current-while-the-server-runs): after `bun update`, the docs swap to the new version's tag within the interval, with no restart.
 
@@ -151,14 +153,14 @@ vulcan-atlas: source '<name>' is not served - <reason>
 
 A source is not served when it hits any of these conditions:
 
-| Condition                     | Reason message                                                                                                                  |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Unreachable with no cache     | `atlas: source '<name>' (<repo>@<ref>) is unreachable and has no cache`                                                         |
-| Missing ref on remote         | `atlas: source '<name>' (<repo>@<ref>) - the remote has no branch or tag '<ref>'`                                               |
-| Git URL without git           | `atlas: source '<name>' (<repo>@<ref>) needs git on this machine - only an owner/repo source has a tarball path`                |
-| Short commit hash without git | `atlas: source '<name>' (<repo>@<ref>) - a short commit hash needs git on this machine; give all 40 characters`                 |
-| Missing manifest              | `atlas: source '<name>' (<repo>@<ref>) has no .agents/vulcan.manifest.json - its maintainers run \`vulcan sync\` and commit it` |
-| Incompatible manifest         | `atlas: the manifest is schemaVersion <n>; @venizia/vulcan-atlas reads 1 - upgrade @venizia/vulcan`                             |
+| Condition | Reason message |
+|---|---|
+| Unreachable with no cache | `atlas: source '<name>' (<repo>@<ref>) is unreachable and has no cache` |
+| Missing ref on remote | `atlas: source '<name>' (<repo>@<ref>) - the remote has no branch or tag '<ref>'` |
+| Git URL without git | `atlas: source '<name>' (<repo>@<ref>) needs git on this machine - only an owner/repo source has a tarball path` |
+| Short commit hash without git | `atlas: source '<name>' (<repo>@<ref>) - a short commit hash needs git on this machine; give all 40 characters` |
+| Missing manifest | `atlas: source '<name>' (<repo>@<ref>) has no .agents/vulcan.manifest.json - its maintainers run \`vulcan sync\` and commit it` |
+| Incompatible manifest | `atlas: the manifest is schemaVersion <n>; @venizia/vulcan-atlas reads 1 - upgrade @venizia/vulcan` |
 
 If every source is unavailable and no local project exists, atlas halts with exit code 2:
 
@@ -191,10 +193,10 @@ none of its packages is installed here or on npm
 
 ## Other atlas keys
 
-| Option       | Type       | Default              | Meaning                                                                                            |
-| ------------ | ---------- | -------------------- | -------------------------------------------------------------------------------------------------- |
-| `tagPattern` | `string`   | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` or `<package>`                            |
-| `ignoreTags` | `string[]` | `undefined`          | Globs of tags to ignore. Read by `vulcan doctor` (`[tags]`) and by atlas when it computes releases |
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` or `<package>` |
+| `ignoreTags` | `string[]` | `undefined` | Globs of tags to ignore. Read by `vulcan doctor` (`[tags]`) and by atlas when it computes releases |
 
 ### Template placeholders
 
