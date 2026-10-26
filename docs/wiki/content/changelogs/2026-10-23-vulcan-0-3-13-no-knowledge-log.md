@@ -8,7 +8,7 @@ packages: ['@venizia/vulcan']
 
 ## VULCAN 0.3.13: no more knowledge `log.md`
 
-<Badge type="warning" text="Behaviour change" />
+<Badge type="warning" text="Behavior Change" />
 
 **In one line.** Nothing in VULCAN writes `.agents/knowledge/log.md` any more; git is the history.
 

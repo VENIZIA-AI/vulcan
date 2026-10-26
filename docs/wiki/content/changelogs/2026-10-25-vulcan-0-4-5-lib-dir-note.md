@@ -1,12 +1,12 @@
 ---
-title: "VULCAN X.Y.Z: add --lib Says Why a Folder Was Not Recorded in the Layout"
+title: "VULCAN 0.4.5: add --lib Says Why a Folder Was Not Recorded in the Layout"
 description: A --dir that is not a valid layout folder is still used, and add now prints one line with the reason, so the lost guard-package coverage is not silent.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-25
 
-## VULCAN X.Y.Z: `add --lib` says why a folder was not recorded in the layout
+## VULCAN 0.4.5: `add --lib` says why a folder was not recorded in the layout
 
 <Badge type="tip" text="New Feature" />
 

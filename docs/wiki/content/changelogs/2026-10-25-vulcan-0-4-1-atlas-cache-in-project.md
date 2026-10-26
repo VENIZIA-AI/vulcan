@@ -8,7 +8,7 @@ packages: ['@venizia/vulcan-atlas']
 
 ## VULCAN 0.4.1: atlas keeps its cache inside the project
 
-<Badge type="warning" text="Behaviour change" />
+<Badge type="warning" text="Behavior Change" />
 
 **In one line.** atlas reads and writes nothing outside the project directory: its cache is `.agents/local/cache/` in the project, and sources come only from the project config or `--source`.
 

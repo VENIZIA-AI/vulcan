@@ -1,14 +1,14 @@
 ---
-title: "VULCAN X.Y.Z: The Write and Remote-Host Guards Stop Asking About Data"
+title: "VULCAN 0.4.5: The Write and Remote-Host Guards Stop Asking About Data"
 description: A heredoc written to a file and the quoted pattern of rg, grep and similar tools are data, not commands; the write guard and the remote-host guard now read the command through the shared parser, so 12 of 16 noisy shapes no longer ask and the 24 real ones still do.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-25
 
-## VULCAN X.Y.Z: the write and remote-host guards stop asking about data
+## VULCAN 0.4.5: the write and remote-host guards stop asking about data
 
-<Badge type="warning" text="Behaviour change" />
+<Badge type="warning" text="Behavior Change" />
 
 **In one line.** `cat > docs/deploy.md <<EOF ... kubectl apply ... EOF` and `rg -n "kubectl apply|docker compose up" docs/` no longer ask: a heredoc written to a file and the arguments of a search are data. A heredoc that feeds a program that runs it (`bash <<EOF`, `ssh host <<EOF`, `psql <<EOF`) still asks, and so does everything that really runs.
 
