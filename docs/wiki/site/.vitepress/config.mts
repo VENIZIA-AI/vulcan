@@ -193,8 +193,6 @@ export default defineConfig({
       { text: 'Guide', link: '/guides/', activeMatch: '/guides/' },
       { text: 'References', link: '/references/', activeMatch: '/references/' },
       { text: 'Changelog', link: '/changelogs/', activeMatch: '/changelogs/' },
-      // Back to the Venizia home page, from every page of this wiki.
-      { text: 'Venizia', link: 'https://venizia.ai' },
     ],
     sidebar: {
       '/guides/': guidesSidebar,
@@ -217,8 +215,9 @@ export default defineConfig({
     },
     footer: {
       message:
-        'Released under the MIT License. VULCAN is part of <a href="https://venizia.ai">VENIZIA</a>.',
-      copyright: 'Copyright © 2025 <a href="https://venizia.ai">VENIZIA Ltd. Co.</a>',
+        'Released under the MIT License. VULCAN is part of <a href="https://venizia.ai" target="_blank" rel="noopener noreferrer">VENIZIA</a>.',
+      copyright:
+        'Copyright © 2025 <a href="https://venizia.ai" target="_blank" rel="noopener noreferrer">VENIZIA Ltd. Co.</a>',
     },
     docFooter: {
       prev: 'Previous page',
