@@ -115,6 +115,38 @@
       "selector": ".VPSwitchAppearance .icon .sun",
       "file": "components/VPSwitchAppearance.vue",
       "needle": ".sun {"
+    },
+    {
+      "selector": ".VPPage",
+      "file": "components/VPPage.vue",
+      "needle": "VPPage"
+    },
+    {
+      "selector": ".VPDoc .aside-curtain",
+      "file": "components/VPDoc.vue",
+      "needle": ".aside-curtain {"
+    }
+  ],
+  "slots": [
+    {
+      "slot": "nav-bar-title-after",
+      "file": "components/VPNavBar.vue",
+      "needle": "nav-bar-title-after"
+    },
+    {
+      "slot": "nav-bar-content-after",
+      "file": "components/VPNavBar.vue",
+      "needle": "nav-bar-content-after"
+    },
+    {
+      "slot": "nav-screen-content-after",
+      "file": "components/VPNav.vue",
+      "needle": "nav-screen-content-after"
+    },
+    {
+      "slot": "layout-bottom",
+      "file": "Layout.vue",
+      "needle": "layout-bottom"
     }
   ]
 }

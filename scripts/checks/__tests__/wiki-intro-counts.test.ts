@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readBaseRules } from '../../../packages/cli/src/rules/index.ts';
+import { COUNTS, HOME } from '../../../docs/wiki/site/.vitepress/theme/home-content.ts';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
 const CLI_BASE = join(ROOT, 'packages', 'cli', 'base');
@@ -25,16 +26,13 @@ const counts = () => {
 };
 
 const statOf = (opts: { label: string }): number => {
-  const landing = read({ path: 'site/.vitepress/theme/HomeLanding.vue' });
-  const match = new RegExp(
-    `vu-stat__n vu-gtext">(\\d+)</div>\\s*<div class="vu-stat__l">${opts.label}</div>`,
-  ).exec(landing);
+  const stat = HOME.stats.find(([, label]) => label === opts.label);
 
-  if (match === null) {
-    throw new Error(`HomeLanding.vue has no stat labelled "${opts.label}"`);
+  if (stat === undefined) {
+    throw new Error(`home-content.ts has no stat labelled "${opts.label}"`);
   }
 
-  return Number(match[1]);
+  return Number(stat[0]);
 };
 
 // A number on the first screen of the wiki is a claim: it is checked against the code.
@@ -43,8 +41,19 @@ describe('the numbers on the intro pages', () => {
     const real = counts();
 
     expect(statOf({ label: 'base rules' })).toBe(real.rules);
+    expect(statOf({ label: 'skills' })).toBe(real.skills);
     expect(statOf({ label: 'coding agents' })).toBe(real.agents);
     expect(statOf({ label: 'atlas tools' })).toBe(real.tools);
+  });
+
+  test('the sentences of the home page use the same counts', () => {
+    const real = counts();
+    const text = HOME.cells.map((cell) => cell.text).join(' ');
+
+    expect(COUNTS).toEqual(real);
+    expect(text).toContain(`${real.rules} rules in five groups`);
+    expect(text).toContain(`${real.skills} workflows`);
+    expect(text).toContain(`An MCP server with ${real.tools} tools`);
   });
 
   test('what-is-vulcan states the same numbers', () => {

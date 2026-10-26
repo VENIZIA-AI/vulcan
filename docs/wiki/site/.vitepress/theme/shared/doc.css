@@ -353,6 +353,11 @@ html .VPSidebar .VPSidebarItem.level-0.has-active > .item > .text,
   font-weight: 500;
 }
 
+/* the default theme fades the outline into the bottom of the window with a fixed curtain; it would lie over the footer */
+.VPDoc .aside-curtain {
+  display: none;
+}
+
 /* ---- the local bar of a narrow screen ----------------------------------------------------------- */
 .VPLocalNav {
   border-bottom: 1px solid var(--stroke);
