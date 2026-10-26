@@ -11,7 +11,7 @@ This section tracks the history of significant changes and releases of the VULCA
 
 | Date | Title | Type |
 |------|-------|------|
-| 2026-10-27 | [VULCAN X.Y.Z: The visualize Page Puts the Answer, the Minimap and Your Action First](./2026-10-27-vulcan-0-4-6-visualize-page) | Enhancement |
+| 2026-10-27 | [VULCAN X.Y.Z: visualize Pages Cover Every Kind of Explanation, With Charts and a Slide Mode](./2026-10-27-vulcan-0-4-6-visualize-page) | Enhancement |
 | 2026-10-27 | [VULCAN X.Y.Z: A Delegation Brief Names the Skill Instead of Retyping It](./2026-10-27-vulcan-0-4-6-delegation-names-the-skill) | Enhancement |
 | 2026-10-27 | [Repository: A commit-msg Hook and a CI Check Reject an Agent Signature (W-00)](./2026-10-27-agent-signature-check) | Enhancement |
 | 2026-10-26 | [Wiki: A New Home Page, a Venizia Switcher and a Smooth Light and Dark Switch](./2026-10-26-wiki-new-look) | Enhancement |

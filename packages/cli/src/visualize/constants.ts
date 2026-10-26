@@ -51,6 +51,34 @@ export class MinimapStates {
   }
 }
 
+/** The state of a box, a milestone or a chart part: a minimap state, or plain information. Never told by colour alone. */
+export class NodeStates {
+  static readonly SCHEME_SET = new Set<string>([...MinimapStates.SCHEME_SET, 'info']);
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+
+  /** The colour family of a state: green, blue, amber, red, or neutral. */
+  static toneOf(value: string): string {
+    const tones: Record<string, string> = {
+      done: 'ok',
+      'in progress': 'info',
+      waiting: 'warn',
+      blocked: 'bad',
+      info: 'info',
+    };
+
+    return tones[value] ?? 'mut';
+  }
+
+  /** The icon of a state. */
+  static iconOf(value: string): string {
+    return MinimapStates.keyOf(value) === 'in-progress'
+      ? 'progress'
+      : MinimapStates.keyOf(value).replaceAll('-', '');
+  }
+}
+
 /** How an edge reads: the main path, a branch, a return, a fan-out or a failure. Never by colour alone. */
 export class EdgeVariants {
   static readonly MAIN = 'main';
@@ -113,6 +141,21 @@ export class VisualizeLimits {
   /** An arrow label has to fit the gap between two boxes. */
   static readonly MAX_EDGE_LABEL = 20;
   static readonly MAX_DETAIL = 600;
+  static readonly MAX_COMPARE_OPTIONS = 6;
+  static readonly MAX_CRITERIA = 8;
+  static readonly MAX_BRANCHES = 8;
+  static readonly MAX_BRANCH_ITEMS = 6;
+  static readonly MAX_EXPLAINER_STEPS = 8;
+  static readonly MAX_LAYERS = 5;
+  static readonly MAX_LAYER_BOXES = 6;
+  static readonly MAX_LINKS = 20;
+  static readonly MAX_TIMELINE = 20;
+  static readonly MAX_TILES = 6;
+  static readonly MAX_CHARTS = 4;
+  static readonly MAX_POINTS = 12;
+  static readonly MAX_SERIES = 3;
+  static readonly MAX_PARTS = 5;
+  static readonly MAX_LIST = 6;
   /** Typical pages are 20-40 KB; a page past `FAIL_BYTES` is refused: two pages, not one dense one. */
   static readonly WARN_BYTES = 60 * 1024;
   static readonly FAIL_BYTES = 100 * 1024;
@@ -143,7 +186,9 @@ export const DEFAULT_CHROME = {
     'not-started': 'not started',
     blocked: 'blocked',
     dropped: 'dropped',
+    info: 'for information',
   },
+  actions: 'Do these, in order',
   footer: 'Static page by vulcan visualize; it loads nothing.',
   flow: 'How it flows',
   legend: 'Legend',
@@ -175,5 +220,28 @@ export const DEFAULT_CHROME = {
   log: 'Log',
   links: 'Links',
   theme: 'Theme',
+  present: 'Present',
+  exitPresent: 'Exit',
+  slide: 'Slide',
+  slideOf: 'of',
+  comparison: 'Comparison',
+  total: 'Total score',
+  outOf: 'out of',
+  pros: 'For',
+  cons: 'Against',
+  ideaMap: 'Idea map',
+  explainer: 'How it works',
+  architecture: 'Architecture',
+  timeline: 'Timeline',
+  findings: 'Findings',
+  decisionRecord: 'Decision record',
+  context: 'Context',
+  optionsConsidered: 'Options considered',
+  decision: 'Decision',
+  chosen: 'Chosen',
+  consequences: 'Consequences',
+  tableView: 'Table view',
+  value: 'Value',
+  uses: 'Uses',
 };
 export type TChrome = typeof DEFAULT_CHROME;

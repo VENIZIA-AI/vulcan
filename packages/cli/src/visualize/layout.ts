@@ -1,3 +1,5 @@
+import { NodeStates } from './constants.ts';
+import { iconSvg } from './icons.ts';
 import type { TVisualizeSpec } from './schema.ts';
 
 /** Escapes text for HTML and for an attribute value: everything the spec says is data, never markup. */
@@ -9,9 +11,9 @@ export const escapeText = (opts: { value: string }): string =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
 
-const CELL_WIDTH = 270;
+const CELL_WIDTH = 290;
 const CELL_HEIGHT = 112;
-const BOX_WIDTH = 156;
+const BOX_WIDTH = 176;
 const BOX_HEIGHT = 60;
 const MARGIN = 24;
 
@@ -108,8 +110,16 @@ export const renderFigure = (opts: { flow: NonNullable<TVisualizeSpec['flow']> }
     .map((node) => {
       const centre = centreOf(node);
       const lines = node.sublabel === undefined ? 1 : 2;
+      const tone = node.state === undefined ? '' : ` c-${NodeStates.toneOf(node.state)}`;
+      const left = centre.x - BOX_WIDTH / 2;
+      const anchor = node.state === undefined ? 'middle' : 'start';
+      const textX = node.state === undefined ? centre.x : left + 40;
+      const mark =
+        node.state === undefined
+          ? ''
+          : `<g class="st" transform="translate(${left + 12} ${centre.y - 10})">${iconSvg({ name: NodeStates.iconOf(node.state), size: 20 }).replace('<svg', '<svg x="0" y="0"')}</g>`;
 
-      return `<g class="node ${escaped(node.kind ?? 'step')}" tabindex="0" role="img" aria-label="${escaped(node.label)}${node.sublabel === undefined ? '' : `, ${escaped(node.sublabel)}`}" data-node="${escaped(node.id)}" data-detail="${escaped(node.detail ?? node.sublabel ?? node.label)}"><title>${escaped(node.label)}</title><rect x="${centre.x - BOX_WIDTH / 2}" y="${centre.y - BOX_HEIGHT / 2}" width="${BOX_WIDTH}" height="${BOX_HEIGHT}" rx="4"/><text x="${centre.x}" y="${centre.y + (lines === 1 ? 5 : -4)}" text-anchor="middle" class="t">${escaped(node.label)}</text>${node.sublabel === undefined ? '' : `<text x="${centre.x}" y="${centre.y + 17}" text-anchor="middle" class="s">${escaped(node.sublabel)}</text>`}</g>`;
+      return `<g class="node ${escaped(node.kind ?? 'step')}${tone}" tabindex="0" role="img" aria-label="${escaped(node.label)}${node.sublabel === undefined ? '' : `, ${escaped(node.sublabel)}`}" data-node="${escaped(node.id)}" data-detail="${escaped(node.detail ?? node.sublabel ?? node.label)}"><title>${escaped(node.label)}</title><rect x="${left}" y="${centre.y - BOX_HEIGHT / 2}" width="${BOX_WIDTH}" height="${BOX_HEIGHT}" rx="4"/>${mark}<text x="${textX}" y="${centre.y + (lines === 1 ? 5 : -4)}" text-anchor="${anchor}" class="t">${escaped(node.label)}</text>${node.sublabel === undefined ? '' : `<text x="${textX}" y="${centre.y + 17}" text-anchor="${anchor}" class="s">${escaped(node.sublabel)}</text>`}</g>`;
     })
     .join('');
 
@@ -123,7 +133,15 @@ export const renderFigure = (opts: { flow: NonNullable<TVisualizeSpec['flow']> }
 export const renderPathList = (opts: { flow: NonNullable<TVisualizeSpec['flow']> }): string => {
   const { flow } = opts;
   const byId = new Map(flow.nodes.map((node) => [node.id, node]));
-  const nameOf = (id: string): string => escaped(byId.get(id)?.label ?? id);
+  const nameOf = (id: string): string => {
+    const node = byId.get(id);
+    const mark =
+      node?.state === undefined
+        ? ''
+        : `<span class="inl c-${NodeStates.toneOf(node.state)}">${iconSvg({ name: NodeStates.iconOf(node.state), size: 16 })}</span>`;
+
+    return `${mark}${escaped(node?.label ?? id)}`;
+  };
   const arrows = flow.edges
     .map(
       (edge) =>

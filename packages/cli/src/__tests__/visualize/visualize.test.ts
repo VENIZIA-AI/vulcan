@@ -262,9 +262,12 @@ describe('the page is safe by construction', () => {
       `'sha256-${createHash('sha256').update(text).digest('base64')}'`;
 
     expect(policy).toContain('default-src &#39;none&#39;');
-    expect(policy).toContain(hash(PAGE_CSS).replaceAll("'", '&#39;'));
+    const style = /<style>([\s\S]*?)<\/style>/.exec(html)?.[1] ?? '';
+
+    // The style is the page's own sheet and the rules this page needs; the policy holds the hash of exactly that text.
+    expect(style.startsWith(PAGE_CSS)).toBe(true);
+    expect(policy).toContain(hash(style).replaceAll("'", '&#39;'));
     expect(policy).toContain(hash(PAGE_JS).replaceAll("'", '&#39;'));
-    expect(html).toContain(`<style>${PAGE_CSS}</style>`);
     expect(html).toContain(`<script>${PAGE_JS}</script>`);
     expect(policy).not.toContain('unsafe');
   });
@@ -304,7 +307,7 @@ describe('the page is safe by construction', () => {
     expect(PAGE_CSS).toContain('prefers-reduced-motion:reduce');
     expect(PAGE_CSS).toContain('@media print');
     expect(PAGE_CSS).toContain('prefers-color-scheme:dark');
-    expect(rendered(fullSpec())).toContain('<ol class="steps">');
+    expect(rendered(fullSpec())).toContain('<ol class="steps-note">');
   });
 });
 
@@ -368,27 +371,41 @@ describe('the page words', () => {
 });
 
 describe('the page reads the answer first', () => {
-  test('the owner action, then the minimap, then the figure, then the decisions and the evidence', () => {
+  test('the banner, the tiles and the minimap, then your action, then the figure, the decisions and the evidence', () => {
     const html = rendered(fullSpec());
     const at = (part: string): number => html.indexOf(part);
 
-    expect(at('class="verdict"')).toBeLessThan(at('class="owner"'));
-    expect(at('class="owner"')).toBeLessThan(at('Where things stand'));
-    expect(at('Where things stand')).toBeLessThan(at('How it flows'));
-    expect(at('How it flows')).toBeLessThan(at('id="decisions"'));
-    expect(at('id="decisions"')).toBeLessThan(at('>Evidence<'));
+    expect(at('data-hero')).toBeLessThan(at('class="tiles"'));
+    expect(at('class="tiles"')).toBeLessThan(at('id="minimap"'));
+    expect(at('id="minimap"')).toBeLessThan(at('class="two"'));
+    expect(at('class="two"')).toBeLessThan(at('id="flow"'));
+    expect(at('id="flow"')).toBeLessThan(at('id="decisions"'));
+    expect(at('id="decisions"')).toBeLessThan(at('id="evidence"'));
     expect(html).toContain('What you need to do');
-    expect(html).toContain('<a href="#decisions">Decisions needed (');
+    expect(html).toContain('<a class="jump" href="#decisions">Decisions needed (');
   });
 
-  test('the minimap gives every task a shape and a word, and a spec replaces the words', () => {
+  test('the banner carries the state as an icon, a colour and a word', () => {
     const html = rendered(fullSpec());
 
-    for (const state of ['done', 'in-progress', 'not-started']) {
-      expect(html).toContain(`class="st ${state}"><i></i>`);
-    }
+    expect(html).toMatch(/<header class="banner c-ok"/);
+    expect(html).toContain('class="word">On track<');
+    expect(rendered({ ...fullSpec(), status: { state: 'blocked' } })).toMatch(
+      /<header class="banner c-bad"/,
+    );
+    expect(
+      rendered({ ...fullSpec(), status: { state: 'warn', label: 'Waiting for you' } }),
+    ).toContain('class="word">Waiting for you<');
+  });
 
-    expect(html).toContain('in progress</span>');
+  test('the minimap gives every task a shape and a word, the tiles count the states, and a spec replaces the words', () => {
+    const html = rendered(fullSpec());
+
+    expect(html).toContain('class="seg c-ok"');
+    expect(html).toContain('class="seg c-info"');
+    expect(html).toContain('class="seg c-mut"');
+    expect(html).toContain('<span>in progress</span>');
+    expect(html).toMatch(/class="tile c-ok"[^>]*>.*?<span class="n">1 \/ 3<\/span>/);
 
     const french = rendered({
       ...fullSpec(),
@@ -396,7 +413,7 @@ describe('the page reads the answer first', () => {
     });
 
     expect(french).toContain('Ou en sont les choses');
-    expect(french).toContain('fait</span>');
+    expect(french).toContain('<span>fait</span>');
   });
 
   test('a status the minimap does not know, an empty minimap and a long task are refused', () => {
@@ -415,13 +432,15 @@ describe('the page reads the answer first', () => {
   });
 
   test('evidence tags differ in shape as well as in word, and tables name each cell for a phone', () => {
-    const html = rendered(fullSpec());
+    const html = rendered({
+      ...fullSpec(),
+      risks: [{ risk: 'R', impact: 'I', fallback: 'F' }],
+    });
 
-    expect(html).toMatch(/class="ev verified">verified</);
-    expect(html).toContain('.ev.inferred{color:var(--warn);border-style:dashed}');
-    expect(html).toContain('.ev.guess{color:var(--mut);border-style:dotted}');
+    expect(html).toMatch(/class="badge ev-verified">/);
+    expect(html).toContain('.ev-inferred{--c:var(--warn)');
     expect(html).toContain('<table class="stack">');
-    expect(html).toContain('data-label="Claim"');
+    expect(html).toContain('data-label="Risk"');
     expect(html).toContain('.stack td[data-label]::before{content:attr(data-label)');
   });
 
@@ -430,27 +449,23 @@ describe('the page reads the answer first', () => {
 
     expect(html).toContain('<ol class="path">');
     expect(html).toContain('<span class="verb main">');
-    expect(html).toMatch(/class="fig c3"/);
-    expect(html).toContain('.fig.c3{display:none}');
-    expect(html).toContain('.fig.c3~.path');
-
-    // 3 columns are 3 x 270 + 48 = 858 px; 92% of that, plus the page padding, is the width below which the list shows.
+    // 3 columns are 3 x 290 + 48 = 918 px; 92% of that, plus the page padding, is the width below which the list shows.
+    expect(html).toMatch(/class="fig f918"/);
     expect(html).toContain(
-      `@media (max-width:${Math.ceil(858 * 0.92) + 66}px){.fig.c3{display:none}`,
+      `@media (max-width:${Math.ceil(918 * 0.92) + 66}px){.fig.f918{display:none}`,
     );
-    expect(PAGE_CSS).toContain('@media (max-width:');
+    expect(html).toContain('.fig.f918~.path');
   });
 
   test('there is no inline style anywhere: the page policy would block it', () => {
-    const html = rendered(fullSpec());
-
-    expect(html).not.toMatch(/ style=/);
+    expect(rendered(fullSpec())).not.toMatch(/ style=/);
   });
 
   test('print shows the figure and not the phone list', () => {
     expect(PAGE_CSS).toContain(
-      '@media print{body{background:#fff;color:#000}.bar,#theme{display:none}.fig{overflow:visible;display:block!important}.path,.path-detail{display:none!important}',
+      '.fig{overflow:visible;display:block!important}.path,.path-detail{display:none!important}',
     );
+    expect(PAGE_CSS).toContain('[data-slide]{display:block!important');
   });
 });
 
