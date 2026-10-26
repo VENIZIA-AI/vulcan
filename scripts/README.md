@@ -9,7 +9,7 @@ Root tooling of the VULCAN monorepo, grouped by purpose. Each group keeps its te
 | `release/` | `release.ts` | Plans and dispatches the release workflow | `make release`, `make release-plan` |
 | `release/` | `release-args.ts` | Reads `--bump`, `--issue`, `--dry-run`, `--yes` | `release.ts` |
 | `release/` | `next-tag.ts` | Moves `next` up to `latest` after a publish | `package-release.yml`, step "Keep next at or above latest" |
-| `checks/` | `check-catalog.ts` | Every shared dependency is `catalog:` and every catalog entry is used | `make catalog-check` (CI, release workflow) |
+| `checks/` | `check-catalog.ts` | Every shared dependency is `catalog:` (pinned to exactly the catalog version in `docs/wiki`, outside the workspace) and every catalog entry is used | `make catalog-check` (CI, release workflow) |
 | `checks/` | `check-project-names.ts` | No project name (IGNIS, ARDOR, BANA) in `packages/*/src` outside tests | `make project-names-check`, part of `make lint-all` |
 | `build/` | `pack-smoke-atlas.ts` | Packs atlas, installs it alone in an empty project, runs it | `make smoke-atlas` (CI, release workflow) |
 | `build/` | `pack-smoke-cli.ts` | The same for the cli | `make smoke-cli` (CI, release workflow) |

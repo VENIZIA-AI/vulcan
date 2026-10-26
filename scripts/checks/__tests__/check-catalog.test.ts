@@ -51,6 +51,50 @@ describe('findCatalogProblems', () => {
     ]);
   });
 
+  test('the wiki, outside the workspace, pins a catalogued dependency to exactly the catalog version', async () => {
+    const root = createWorkspace({
+      root: CATALOG_ROOT,
+      packages: { cli: { dependencies: { zod: 'catalog:' } } },
+    });
+
+    mkdirSync(join(root, 'docs', 'wiki'), { recursive: true });
+    writeFileSync(
+      join(root, 'docs', 'wiki', 'package.json'),
+      JSON.stringify({ devDependencies: { oxfmt: '0.1.0', vitepress: '^1.6.4' } }),
+    );
+
+    expect(await findCatalogProblems({ root })).toEqual([]);
+  });
+
+  test('the wiki drifting from the catalog, or using catalog:, is a problem', async () => {
+    const root = createWorkspace({
+      root: {
+        ...CATALOG_ROOT,
+        workspaces: { ...CATALOG_ROOT.workspaces, catalog: { zod: '4.5.4' } },
+      },
+      packages: { cli: { dependencies: { zod: 'catalog:' } } },
+    });
+
+    mkdirSync(join(root, 'docs', 'wiki'), { recursive: true });
+    writeFileSync(
+      join(root, 'docs', 'wiki', 'package.json'),
+      JSON.stringify({ devDependencies: { zod: '4.5.3' } }),
+    );
+
+    expect(await findCatalogProblems({ root })).toEqual([
+      'docs/wiki/package.json: devDependencies.zod is "4.5.3" but the catalog pins "4.5.4" - this project is outside the workspace, so pin exactly that',
+    ]);
+
+    writeFileSync(
+      join(root, 'docs', 'wiki', 'package.json'),
+      JSON.stringify({ devDependencies: { zod: 'catalog:' } }),
+    );
+
+    expect(await findCatalogProblems({ root })).toEqual([
+      'docs/wiki/package.json: devDependencies.zod is "catalog:" but the catalog pins "4.5.4" - this project is outside the workspace, so pin exactly that',
+    ]);
+  });
+
   test('a catalog entry nobody references is a problem', async () => {
     const root = createWorkspace({
       root: CATALOG_ROOT,
