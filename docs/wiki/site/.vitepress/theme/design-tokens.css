@@ -11,8 +11,9 @@
  * Refs: w3.org/TR/WCAG21 - webaim.org/resources/contrastchecker
  *       designsystems.com/space-grids-and-layouts - baymard.com/blog/line-length-readability
  *
- * Usage: import in `theme/index.ts` BEFORE style.css. The --vp-* mappings make
- * it drop-in for VitePress; the --vu-* tokens are the canonical primitives.
+ * Usage: import in `theme/index.ts` BEFORE style.css. The --vu-* tokens are the
+ * primitives of the home page; the VitePress mapping and the shared look are in
+ * theme/shared (tokens.css, vp-map.css) and theme/product.css.
  * ============================================================================= */
 
 :root {
@@ -35,8 +36,8 @@
   --vu-gold: var(--vu-yellow);
 
   /* ---- Typography : scale = 16 x 1.25^n ------------------------------------ */
-  --vu-font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --vu-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --vu-font-sans: var(--font-sans);
+  --vu-font-mono: var(--font-mono);
   --vu-fs-caption: 0.75rem; /* 12px - labels, captions, badges               */
   --vu-fs-sm: 0.875rem; /* 14px - secondary, tables, inline code         */
   --vu-fs-body: 1rem; /* 16px - BASE body / docs prose                 */
@@ -96,27 +97,6 @@
   --vu-link: var(--vu-bronze); /* 5.89:1 on white - AA  */
   --vu-primary: var(--vu-bronze);
   --vu-on-primary: #ffffff; /* white text 5.89:1      */
-
-  /* ---- VitePress mapping --------------------------------------------------- */
-  --vp-c-brand-1: var(--vu-bronze);
-  --vp-c-brand-2: var(--vu-bronze-deep);
-  --vp-c-brand-3: var(--vu-bronze);
-  --vp-c-brand-soft: rgba(196, 138, 90, 0.16);
-  --vp-c-bg: var(--vu-bg);
-  --vp-c-bg-alt: #faf6ef; /* parchment                                        */
-  --vp-c-bg-soft: #faf6ef;
-  --vp-c-text-1: #1F1A12; /* 17.3:1 on white                                  */
-  --vp-c-text-2: #4A4234; /*  9.9:1                                           */
-  --vp-c-text-3: #5E5545; /*  7.3:1                                           */
-  --vp-button-brand-bg: var(--vu-bronze); /* white text 5.89:1      */
-  --vp-button-brand-text: #ffffff;
-  --vp-button-brand-hover-bg: var(--vu-bronze-deep);
-  --vp-button-brand-hover-text: #ffffff;
-  --vp-button-brand-active-bg: var(--vu-bronze-deep);
-  --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: var(--vu-gradient);
-  --vp-font-family-base: var(--vu-font-sans);
-  --vp-font-family-mono: var(--vu-font-mono);
 }
 
 /* ===========================================================================
@@ -138,24 +118,4 @@
   --vu-rose: var(--vu-honey);
   --vu-rose-lt: var(--vu-honey);
   --vu-rose-deep: var(--vu-yellow);
-
-  /* ---- VitePress mapping --------------------------------------------------- */
-  --vp-c-brand-1: var(--vu-honey);
-  --vp-c-brand-2: var(--vu-yellow);
-  --vp-c-brand-3: var(--vu-honey);
-  --vp-c-brand-soft: rgba(222, 173, 106, 0.16);
-  --vp-c-bg: #0D0B08; /* devglow amber background                         */
-  --vp-c-bg-alt: #0F0D0A;
-  --vp-c-bg-soft: #1A1814;
-  --vp-c-bg-elv: #1A1814;
-  --vp-c-divider: #2A2820;
-  --vp-c-gutter: #0F0D0A;
-  --vp-c-text-1: #EDE5D8; /* 15.7:1 on the dark bg                            */
-  --vp-c-text-2: #C9BFAF; /* 10.8:1                                           */
-  --vp-c-text-3: #A39A8C; /*  7.1:1                                           */
-  --vp-button-brand-bg: var(--vu-honey); /* dark text 9.63:1       */
-  --vp-button-brand-text: #0D0B08;
-  --vp-button-brand-hover-bg: var(--vu-yellow);
-  --vp-button-brand-hover-text: #0D0B08;
-  --vp-button-brand-active-bg: var(--vu-yellow);
 }

@@ -113,9 +113,12 @@ describe('the VitePress pieces the shared CSS overrides', () => {
   const declared: TSelectors = JSON.parse(
     readFileSync(join(DIR, 'vitepress-selectors.json'), 'utf8'),
   );
-  const css = readFileSync(join(DIR, 'vp-map.css'), 'utf8');
+  const css = walk('')
+    .filter((path) => path.endsWith('.css'))
+    .map((path) => readFileSync(join(DIR, path), 'utf8'))
+    .join('\n');
 
-  test('every listed selector is used by vp-map.css, so the list stays honest', () => {
+  test('every listed selector is used by a shared stylesheet, so the list stays honest', () => {
     const unused = declared.selectors.filter((entry) => !css.includes(entry.selector));
 
     expect(unused.map((entry) => entry.selector)).toEqual([]);
@@ -143,8 +146,8 @@ describe('the VitePress pieces the shared CSS overrides', () => {
     expect(
       gone.map((entry) => `${entry.selector} (${entry.file})`),
       version === declared.vitepress
-        ? `vitepress-selectors.json lists pieces that VitePress ${version} does not have; fix the list and vp-map.css together.`
-        : `vp-map.css was written for VitePress ${declared.vitepress}; ${version} is installed and no longer has these. ` +
+        ? `vitepress-selectors.json lists pieces that VitePress ${version} does not have; fix the list and the stylesheets together.`
+        : `The shared stylesheets were written for VitePress ${declared.vitepress}; ${version} is installed and no longer has these. ` +
             'Read the default theme pieces named in vitepress-selectors.json, update the overrides, then set "vitepress" in that file to the new version.',
     ).toEqual([]);
   });

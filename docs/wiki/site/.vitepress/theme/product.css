@@ -1,0 +1,20 @@
+/*
+ * VULCAN's accent, the one thing this wiki sets on top of the shared theme (theme/shared). The values
+ * are the brand ramp of design-tokens.css: --vu-bronze on light, --vu-honey on dark. See
+ * shared/tokens.css for what each variable is for.
+ */
+:root {
+  --accent: #8a5a20;
+  --accent-ink: #ffffff;
+  --accent-text: #8a5a20;
+  --accent-2: #c48a5a; /* --vu-sienna */
+  --accent-on-dark: #dead6a;
+  --glow: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+
+.dark {
+  --accent: #dead6a;
+  --accent-ink: #1a1200;
+  --accent-text: #dead6a;
+  --glow: color-mix(in srgb, var(--accent) 16%, transparent);
+}

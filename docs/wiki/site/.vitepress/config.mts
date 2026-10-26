@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type DefaultTheme } from 'vitepress';
-import { VENIZIA_LOGO_SVG } from './venizia-logo.ts';
+import { VENIZIA_LOGO_SVG } from './theme/shared/venizia-logo.ts';
 
 const CHANGELOGS = fileURLToPath(new URL('../../content/changelogs', import.meta.url));
 
@@ -125,10 +125,8 @@ export default defineConfig({
   base: '/',
   appearance: 'dark',
   markdown: {
-    theme: {
-      light: 'github-light',
-      dark: 'one-dark-pro',
-    },
+    // The code windows are dark in both themes (theme/shared/tokens.css), so one dark theme serves both.
+    theme: 'one-dark-pro',
   },
   srcDir: '../content',
   outDir: './.vitepress/dist',
@@ -140,17 +138,6 @@ export default defineConfig({
     ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }],
     ['link', { rel: 'manifest', href: '/site.webmanifest' }],
     ['meta', { name: 'theme-color', content: '#E8930A' }],
-    // Fonts - preconnect
-    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
-    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
-    // Fonts - stylesheet
-    [
-      'link',
-      {
-        rel: 'stylesheet',
-        href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap',
-      },
-    ],
     // Open Graph
     ['meta', { property: 'og:type', content: 'website' }],
     [
@@ -206,7 +193,7 @@ export default defineConfig({
     },
     socialLinks: [
       { icon: 'github', link: 'https://github.com/VENIZIA-AI/vulcan' },
-      // The Venizia wordmark, right after the GitHub icon; theme/style.css sizes it.
+      // The Venizia wordmark, right after the GitHub icon; theme/shared/header.css sizes it.
       { icon: { svg: VENIZIA_LOGO_SVG }, link: 'https://venizia.ai', ariaLabel: 'Venizia' },
     ],
     editLink: {
