@@ -1,6 +1,6 @@
 ---
 name: visualize-work
-description: Makes one small static HTML page from a JSON spec - a flow, a status, a before and after, a handoff the owner reads instead of Markdown. Use when asked for a diagram, a visual status or handoff, or to show how something works.
+description: "Use when asked to show, present, explain, diagram or compare something visually, or when a page would be read faster than Markdown: how something works, a status or handoff, options compared with scores and a pick, a brainstorm or idea map, a timeline or roadmap, findings with charts, an architecture, a decision record, before and after. Makes one static HTML page from a JSON spec, with a slide mode for presenting. Skip for a plain written answer, long prose documents (docs-writing), and UI mockups of a product."
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 ---

@@ -1,6 +1,6 @@
 ---
 name: docs-writing
-description: Reader-first writing method for all documentation. Use when you write or edit anything a human will read (wiki pages, READMEs, changelogs, references, guides, the knowledge bundle), when asked to document a feature, or to simplify existing docs.
+description: "Use when you write or edit prose a human will read: a wiki page, README, guide, reference, changelog entry, or when asked to simplify, tighten or restructure existing docs. A reader-first method: the answer first, short sentences, one idea per paragraph, no filler. Skip for deciding which docs a code change needs (docs-update), reports to the owner (report-back), and for code comments or commit messages."
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 ---

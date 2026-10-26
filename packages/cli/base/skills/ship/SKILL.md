@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Closes a change out - the done checklist, the pull request body, the public-state probes and the approval card before anything shared. Use when work is finished and about to be committed, pushed, opened as a pull request, released or handed over.
+description: "Use when work is finished and is about to leave this session: commit, push, open a pull request, release, publish a package, or hand over to the next session or person. Sets what must be true first (the done checklist and the public-state probes), drafts the pull request body, and prepares the approval request for anything others will see. Skip for writing or debugging code, running tests on their own, resolving merge conflicts, reviewing someone else's pull request (review-a-change), and checking the status of open pull requests."
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 ---
