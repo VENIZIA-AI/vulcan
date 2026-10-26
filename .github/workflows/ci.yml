@@ -38,6 +38,10 @@ jobs:
         id: install
         run: bun install
 
+      - name: No agent signature in the branch commits
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: make agent-signature-check
+
       - name: Dependency catalog
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: make catalog-check

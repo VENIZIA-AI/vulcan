@@ -374,6 +374,15 @@ describe('every shipped skill and the shared references', () => {
     }
   });
 
+  test('the delegation brief tells the sender to name the skill the receiver must load, not to retype its steps', () => {
+    const text = readFileSync(join(BASE_DIRECTORY, 'references', 'delegation-brief.md'), 'utf8');
+
+    expect(text).toContain('3. **The skill**, when the work matches one');
+    expect(text).toContain('tell the receiver to load it');
+    expect(text).toContain('Never retype its steps');
+    expect(text).toContain('A message to another session is a brief too');
+  });
+
   test('build-a-feature wires the cards, the design pass, the testing reference, the docs and the review', () => {
     const text = readFileSync(join(SKILLS_DIRECTORY, 'build-a-feature', 'SKILL.md'), 'utf8');
 

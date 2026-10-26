@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# ----------------------------------------------------------------------------
+# Commit-msg Hook
+# Rejects a commit message that signs the commit as an agent (W-00)
+# ----------------------------------------------------------------------------
+
+set -e
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+
+exec bun "$ROOT_DIR/scripts/checks/check-agent-signature.ts" "$1"
