@@ -255,7 +255,6 @@ html.dark {
 .VPDocAside .outline-link.active,
 .outline-link.active {
   color: var(--vu-link) !important;
-  border-left-color: var(--vp-c-brand-1) !important;
 }
 
 /* Prose: token-grounded type scale and line-height */
