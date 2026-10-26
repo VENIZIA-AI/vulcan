@@ -324,10 +324,10 @@ A warning, not a violation: it is printed as `warning [format]`, the exit code s
   warning [format] package.json: defines a "fmt" script: bun fmt runs it instead of formatting - rename it (the standard names are lint and lint:fix)
 ```
 
-The `[fmt]` section should carry `flavor = "oxfmt"`: without it `bun fmt` formats like Prettier once oxfmt is not a dependency (a union type's first member moves to its own line, for one), and the output changes.
+The `[fmt]` section should carry `flavor = "oxfmt"`: without it `bun fmt` uses its default style once oxfmt is not a dependency (a union type's first member moves to its own line, for one), and the output changes.
 
 ```text
-  warning [format] bunfig.toml: [fmt] has no flavor = "oxfmt" - without it bun fmt formats like Prettier when oxfmt is not a dependency, and the output changes
+  warning [format] bunfig.toml: [fmt] has no flavor = "oxfmt" - without it bun fmt uses its default style when oxfmt is not a dependency, and the output changes
   warning [format] packages/app/.configs/formatters/oxfmt.config.mts: not used any more: bun fmt formats with the [fmt] section of bunfig.toml - delete it
   warning [format] .oxfmtrc.json: bun fmt loads it and it overrides the [fmt] section of bunfig.toml - delete it, or move its settings to [fmt]
 ```

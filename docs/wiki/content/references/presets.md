@@ -190,7 +190,7 @@ npm drops dotfiles from a tarball. A preset ships these four names with a leadin
 | `_env.example` | `.env.example` |
 
 Only these four file names are renamed, in any folder of `files/`. Every other name keeps its spelling, so `__root.tsx`, `_app.tsx`, `_layout.tsx` and `_redirects` are copied as they are, and folder names are never renamed.
-Any other dotfile (`.editorconfig`, `.prettierrc`) copies from a `file:` preset under its real name, but an npm package would not carry it.
+Any other dotfile (`.editorconfig`, for one) copies from a `file:` preset under its real name, but an npm package would not carry it.
 
 ## presetVersion
 
