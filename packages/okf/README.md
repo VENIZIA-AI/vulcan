@@ -86,3 +86,16 @@ The [renderers reference](../../docs/wiki/content/references/okf/renderers.md) s
 | `src/viz/` | explorer: builder (Bun), typed browser client, template |
 | `src/project/` | reads the project config `vulcan x` hands okf - everything project-specific |
 | `src/config.ts` | constants that hold for every project: pruned directories, reserved files |
+
+---
+
+<p align="center">
+  <a href="https://venizia.ai">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://venizia.ai/assets/logo-white.svg">
+      <img src="https://venizia.ai/assets/logo.svg" alt="VENIZIA" height="28">
+    </picture>
+  </a>
+  <br>
+  <sub><code>@venizia/vulcan-okf</code> is part of VULCAN, built and maintained by <a href="https://venizia.ai">VENIZIA</a>.</sub>
+</p>
