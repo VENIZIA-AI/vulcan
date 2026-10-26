@@ -1,6 +1,6 @@
 ---
 name: review-a-change
-description: Reviews a diff with fresh eyes on separate axes (spec, standards, security when it matters) and triages every finding against the code. Use when asked to review a change or pull request, or before merging work that touches many files, the rules or security.
+description: "Use when a change needs an independent review before it goes in: a branch, a pull request, recent commits or an uncommitted diff, including edits to rules, instructions or config; or to decide which reviewer comments are valid. Judges on separate axes (does it do what it claims, does it follow the standards, is it safe) and triages every finding against the code. Read-only: it reports, it does not fix. Skip for applying review feedback, summarising a diff, opening a pull request, and reviewing wording or designs rather than code."
 user-invocable: true
 allowed-tools: Read, Grep, Glob, Bash, Agent
 ---

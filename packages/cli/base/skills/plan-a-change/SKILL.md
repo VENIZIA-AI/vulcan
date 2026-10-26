@@ -1,6 +1,6 @@
 ---
 name: plan-a-change
-description: Turns a request into a card the owner approves before work starts, with the goal in their words, claims with probes, out of scope and docs impact. Use when asked to plan, scope or spec a change, or when a request needs owner decisions first.
+description: "Use when the person who approves work needs to see the effect of a proposed change before any code changes. Trigger on proposed changes raised as a question or a choice: what a rename, migration, or public API change would break, which option to pick before anyone builds it, which decisions need sign-off, or how to split a large change into pieces that can be approved one at a time. Produces a card that restates the goal in the requester's words, lists checkable claims, out-of-scope items, and docs impact, and waits for approval. Skip for running tests, debugging, reviewing a diff, committing, or executing a plan that is already approved."
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 ---
