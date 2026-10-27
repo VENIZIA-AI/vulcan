@@ -61,6 +61,8 @@ export interface IAtlasProject {
   knowledge: { bundle: string; wiki?: string; changelogs?: string };
   /** The sources this project reads knowledge from (git mode): `atlas.sources` of its config. */
   sources: { name: string; repo: string; ref: string; pin?: TSourcePin }[];
+  /** The ed25519 public keys (base64, 32 raw bytes) whose signature a prebuilt index of this project must carry; absent when it publishes none. */
+  indexKeys?: string[];
 }
 
 type TRecord = Record<string, unknown>;
@@ -129,6 +131,16 @@ const layoutOf = (opts: { value: unknown }): Pick<IAtlasProject, 'layout'> => {
   return Object.keys(layout).length === 0 ? {} : { layout };
 };
 
+/** `atlas.index.keys` of the manifest: the strings in it; nothing is added when there are none. */
+const indexKeysOf = (opts: { value: unknown }): Pick<IAtlasProject, 'indexKeys'> => {
+  const index = recordOf({ value: recordOf({ value: opts.value }).index });
+  const keys = (Array.isArray(index.keys) ? index.keys : []).filter(
+    (key): key is string => typeof key === 'string' && key.length > 0,
+  );
+
+  return keys.length === 0 ? {} : { indexKeys: keys };
+};
+
 const presetsOf = (opts: { value: unknown }): Pick<IAtlasProject, 'presets'> => {
   const presets = (Array.isArray(opts.value) ? opts.value : []).flatMap((item): IAtlasPreset[] => {
     const entry = recordOf({ value: item });
@@ -183,6 +195,7 @@ export const toAtlasProject = (opts: {
       (glob): glob is string => typeof glob === 'string',
     ),
     typescriptFrom: opts.root,
+    ...indexKeysOf({ value: manifest.atlas }),
     sources: (Array.isArray(manifest.sources) ? manifest.sources : []).flatMap((item) => {
       const source = recordOf({ value: item });
       const name = stringOf({ value: source.name });

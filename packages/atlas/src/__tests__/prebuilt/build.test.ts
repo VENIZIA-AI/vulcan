@@ -1,5 +1,4 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { Database } from 'bun:sqlite';
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
@@ -8,6 +7,7 @@ import { buildIndexPair, generateKeyPair, verifyPair } from '@/prebuilt';
 import { lsRemote } from '@/sources/git';
 import { resolveSources } from '@/sources';
 import { spawnSyncBounded } from '../spawn.helper';
+import { rowsOf } from './pair.helper';
 import {
   commitAll,
   git,
@@ -25,21 +25,6 @@ afterAll(() => {
 });
 
 const PACKAGE_ROOT = join(__dirname, '..', '..', '..');
-
-/** The ten stored columns of every chunk, in the order the table holds them. */
-const rowsOf = (opts: { bytes: Uint8Array }): unknown[] => {
-  const database = Database.deserialize(opts.bytes);
-  const rows = database
-    .query(
-      `SELECT id, corpus, document, anchor, heading_path, title, body, symbols, metadata, authority
-       FROM chunks ORDER BY rowid`,
-    )
-    .all();
-
-  database.close();
-
-  return rows;
-};
 
 const pair = generateKeyPair();
 

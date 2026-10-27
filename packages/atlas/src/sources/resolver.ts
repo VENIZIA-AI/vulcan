@@ -22,6 +22,7 @@ import type { IAtlasProject } from '@/common/project-config';
 import type { IReleaseTable } from '@/releases/common';
 import { computeReleases } from '@/releases/compute';
 import { StderrLogger } from '@/common/logger';
+import { attemptPrebuilt } from '@/prebuilt/attempt';
 import { symbolsOfPublished } from '@/symbols/compute';
 import { artifactsOf, cacheBaseOf, cacheRootOf, checkoutOf, urlOf } from './cache';
 import type {
@@ -54,6 +55,8 @@ const INDEX = 'index.sqlite';
 const RELEASES = 'releases.json';
 /** The `INDEX_FORMAT` the set was built at; a set of another format is rebuilt, never read as current. */
 const FORMAT = 'format';
+/** Present when the index came from a prebuilt pair: names the atlas version that built it. */
+const PREBUILT = 'prebuilt';
 /** Written by a pull through git: the release table carries the history the tags give. */
 const HISTORY = 'history';
 /** The fingerprint of the remote's tags the release table was computed from. */
@@ -114,6 +117,13 @@ const projectOf = (opts: { checkout: string; source: IAtlasSource }): IAtlasProj
   });
 };
 
+/** The atlas version that built the index, when the set came from a prebuilt pair. */
+const prebuiltByOf = (opts: { artifacts: string }): { prebuiltBy?: string } => {
+  const file = join(opts.artifacts, PREBUILT);
+
+  return existsSync(file) ? { prebuiltBy: readFileSync(file, 'utf8').trim() } : {};
+};
+
 /** The set's `format` file names this atlas's `INDEX_FORMAT`; one without the file is older. */
 const isCurrentFormat = (opts: { cacheRoot: string; sha: string }): boolean => {
   const file = join(artifactsOf(opts), FORMAT);
@@ -149,6 +159,7 @@ const servedFrom = (opts: {
     releasesFile: join(artifacts, RELEASES),
     history: existsSync(join(artifacts, HISTORY)),
     ...(isCurrentFormat({ cacheRoot: opts.cacheRoot, sha: opts.sha }) ? {} : { oldFormat: true }),
+    ...prebuiltByOf({ artifacts }),
     cacheBase: opts.cacheBase,
   };
 };
@@ -272,15 +283,17 @@ const buildArtifacts = async (opts: {
   tags?: string;
   /** A pinned tag is read for its docs; the symbols come from what the project installed. */
   corpusOnly?: boolean;
+  /** A verified downloaded index (and, while the tags are unchanged, its release table) in place of building them. */
+  prebuilt?: { index: Uint8Array; releases?: IReleaseTable; builtBy: string };
 }): Promise<void> => {
   const { project } = opts;
   const partial = `${opts.artifacts}.partial`;
 
   rmSync(partial, { recursive: true, force: true });
   mkdirSync(partial, { recursive: true });
-  writeFileSync(join(partial, INDEX), indexBytesOf({ project }));
+  writeFileSync(join(partial, INDEX), opts.prebuilt?.index ?? indexBytesOf({ project }));
 
-  const releases = computeReleases({ project });
+  const releases = opts.prebuilt?.releases ?? computeReleases({ project });
 
   writeFileSync(join(partial, RELEASES), `${JSON.stringify(releases)}\n`);
 
@@ -301,6 +314,10 @@ const buildArtifacts = async (opts: {
     writeFileSync(join(partial, TAGS), `${opts.tags}\n`);
   }
 
+  if (opts.prebuilt !== undefined) {
+    writeFileSync(join(partial, PREBUILT), `${opts.prebuilt.builtBy}\n`);
+  }
+
   writeFileSync(join(partial, FORMAT), `${AtlasConstants.INDEX_FORMAT}\n`);
   writeFileSync(join(partial, COMPLETE), `${new Date().toISOString()}\n`);
   rmSync(opts.artifacts, { recursive: true, force: true });
@@ -315,6 +332,8 @@ const pullByGit = async (opts: {
   sha: string;
   tags?: string;
   corpusOnly?: boolean;
+  /** Whether a prebuilt index may be downloaded, and the keys that must have signed it. */
+  prebuilt?: { enabled: boolean; keys?: string[] };
 }): Promise<void> => {
   const gitDir = gitDirOf(opts);
   const checkout = checkoutOf(opts);
@@ -324,8 +343,32 @@ const pullByGit = async (opts: {
   sparseCheckout({ gitDir, directory: checkout, sha: opts.sha, paths: ['.agents'] });
 
   const project = projectOf({ checkout, source: opts.source });
+  const hit = await attemptPrebuilt({
+    enabled: opts.prebuilt?.enabled ?? false,
+    source: opts.source,
+    sha: opts.sha,
+    keys: opts.prebuilt?.keys ?? project.indexKeys ?? [],
+  });
+  // The release table of a pair is the one its tags made: valid only while the remote's tags are the same.
+  const releases =
+    hit !== undefined && opts.tags !== undefined && hit.payload.tags === opts.tags
+      ? hit.payload.releases
+      : undefined;
 
-  setSparsePaths({ directory: checkout, paths: declaredPathsOf({ project, checkout }) });
+  // A local build reads every declared path; a downloaded index needs the changelogs alone, to compute
+  // the release table here, and nothing at all when the pair's table is still current.
+  setSparsePaths({
+    directory: checkout,
+    paths:
+      hit === undefined
+        ? declaredPathsOf({ project, checkout })
+        : [
+            '.agents',
+            ...(releases !== undefined || project.knowledge.changelogs === undefined
+              ? []
+              : [relative(checkout, project.knowledge.changelogs)]),
+          ],
+  });
   await buildArtifacts({
     source: opts.source,
     cacheBase: opts.cacheBase,
@@ -334,6 +377,9 @@ const pullByGit = async (opts: {
     history: true,
     tags: opts.tags,
     corpusOnly: opts.corpusOnly,
+    ...(hit === undefined
+      ? {}
+      : { prebuilt: { index: hit.index, releases, builtBy: hit.payload.atlas } }),
   });
 };
 
@@ -497,6 +543,9 @@ const resolveRemote = async (opts: {
   force: boolean;
   /** Only the corpus is wanted (a pinned tag): the release table and the npm symbols are another ref's job. */
   corpusOnly?: boolean;
+  /** Whether a prebuilt index may be downloaded (default yes), and the keys the ref's manifest lists when this is a pinned tag. */
+  prebuilt?: boolean;
+  indexKeys?: string[];
 }): Promise<IResolvedSource> => {
   const cacheRoot = cacheRootOf({ repo: opts.source.repo, cacheBase: opts.cacheBase });
   const byGit = hasGit();
@@ -589,6 +638,10 @@ const resolveRemote = async (opts: {
           sha,
           tags: remote.tags,
           corpusOnly: opts.corpusOnly,
+          prebuilt: {
+            enabled: opts.prebuilt !== false,
+            keys: opts.indexKeys,
+          },
         });
       } else if (github !== undefined) {
         await pullByTarball({
@@ -626,11 +679,13 @@ const resolveAtInstalled = async (opts: {
   cwd: string;
   cacheBase: string;
   force: boolean;
+  prebuilt?: boolean;
 }): Promise<IResolvedSource> => {
   const base = await resolveRemote({
     source: opts.source,
     cacheBase: opts.cacheBase,
     force: opts.force,
+    prebuilt: opts.prebuilt,
   });
   const atRef = (reason: string): IResolvedSource => ({
     ...base,
@@ -661,6 +716,9 @@ const resolveAtInstalled = async (opts: {
       cacheBase: opts.cacheBase,
       force: opts.force,
       corpusOnly: true,
+      prebuilt: opts.prebuilt,
+      // The keys are the ref's: a tag older than the keys has none of its own, and one signed by a key since removed is refused.
+      indexKeys: base.project.indexKeys ?? [],
     });
 
     return {
@@ -682,12 +740,14 @@ export const resolveRemoteSource = (opts: {
   source: IAtlasSource;
   cwd: string;
   cacheDir?: string;
+  prebuilt?: boolean;
 }): Promise<IResolvedSource> =>
   resolveAtInstalled({
     source: opts.source,
     cwd: opts.cwd,
     cacheBase: cacheBaseOf(opts),
     force: false,
+    prebuilt: opts.prebuilt,
   });
 
 /**
@@ -711,13 +771,20 @@ export const resolveSources = async (opts: {
   sources: IAtlasSource[];
   cacheDir?: string;
   force?: boolean;
+  prebuilt?: boolean;
 }): Promise<IResolvedSource[]> => {
   const remote: IResolvedSource[] = [];
   const cacheBase = cacheBaseOf(opts);
 
   for (const source of opts.sources) {
     remote.push(
-      await resolveAtInstalled({ source, cwd: opts.cwd, cacheBase, force: opts.force ?? false }),
+      await resolveAtInstalled({
+        source,
+        cwd: opts.cwd,
+        cacheBase,
+        force: opts.force ?? false,
+        prebuilt: opts.prebuilt,
+      }),
     );
   }
 
@@ -733,6 +800,7 @@ export const resolveServableSources = async (opts: {
   cwd: string;
   sources: IAtlasSource[];
   cacheDir?: string;
+  prebuilt?: boolean;
 }): Promise<{ resolved: IResolvedSource[]; unavailable: IUnavailableSource[] }> => {
   const remote: IResolvedSource[] = [];
   const unavailable: IUnavailableSource[] = [];
@@ -740,7 +808,15 @@ export const resolveServableSources = async (opts: {
 
   for (const source of opts.sources) {
     try {
-      remote.push(await resolveAtInstalled({ source, cwd: opts.cwd, cacheBase, force: false }));
+      remote.push(
+        await resolveAtInstalled({
+          source,
+          cwd: opts.cwd,
+          cacheBase,
+          force: false,
+          prebuilt: opts.prebuilt,
+        }),
+      );
     } catch (error) {
       unavailable.push({ source, reason: error instanceof Error ? error.message : String(error) });
     }

@@ -48,6 +48,7 @@ To register atlas with an MCP client, add the `atlas` server entry to `.mcp.json
 |---|---|---|---|
 | `--root <dir>` | Path | Working directory | Root directory of the project to serve |
 | `--source <owner/repo>@<ref>` | String | None | External repository source to fetch and serve |
+| `--no-prebuilt` | Flag | Off | Never download a prebuilt index; every source's index is built here (see [the prebuilt index](/references/atlas/sources#prebuilt-index)) |
 
 To ensure atlas finds `.agents/vulcan.manifest.json`, pin `--root .` in `.mcp.json`.
 Without `--root`, atlas uses the current working directory of the launching process.

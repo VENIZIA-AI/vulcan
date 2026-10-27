@@ -144,6 +144,11 @@ export class ChunkStore extends BaseHelper {
     }
   }
 
+  /** How many chunks the index holds; throws when the database has no `chunks` table. */
+  rowCount(): number {
+    return this.database.query<{ n: number }, []>('SELECT count(*) AS n FROM chunks').get()?.n ?? 0;
+  }
+
   /** The whole index as bytes, for the cache. */
   serialize(): Uint8Array {
     return this.database.serialize();

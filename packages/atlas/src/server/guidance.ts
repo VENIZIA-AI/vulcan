@@ -79,6 +79,9 @@ const statusOf = (opts: { sources: IResolvedSource[]; unavailable: IUnavailableS
       source.history === false
         ? ' - no git on this machine: version and changes have no release history'
         : '',
+      source.prebuiltBy === undefined
+        ? ''
+        : ` - index: prebuilt, built by atlas ${source.prebuiltBy}`,
       source.oldFormat === true
         ? ' - its index was built by another atlas format: served as it is, rebuilt when the remote is reachable'
         : '',
