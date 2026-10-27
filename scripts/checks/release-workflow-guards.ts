@@ -9,6 +9,7 @@
  *   C5   bun is an exact version
  *   C6   the npm token only in the steps that publish or set a dist-tag; no secret the guard does not know
  *   C6.1 the atlas key only in the atlas step
+ *   C16  the release job names the environment npm-release (its reviewers and its ref rule are GitHub settings)
  *   C17  every checkout is the dispatched commit, and the run name carries it
  *   D6   every action is pinned by a full commit SHA (a local action is not an action to pin)
  */
@@ -93,6 +94,13 @@ export const checkReleaseWorkflowGuards = (opts: {
 
   if (Object.values(testPermissions).some((level) => level === 'write')) {
     violations.push('C2: the test job must not have write access');
+  }
+
+  const environment = { value: release['environment'] };
+  const environmentName = isRecord(environment) ? environment.value['name'] : environment.value;
+
+  if (environmentName !== 'npm-release') {
+    violations.push('C16: the release job must name the environment npm-release');
   }
 
   const needs = release['needs'];
