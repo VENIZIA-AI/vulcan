@@ -143,7 +143,7 @@ export const findReleaseBlockers = (opts: {
 };
 
 /**
- * What the run really published, from `bun publish`'s own `+ <name>@<version>` lines. A green run is
+ * What the run really published, from the `+ <name>@<version>` line the publish step prints for each package. A green run is
  * not proof - it can publish and still fail, or go green having published nothing - and the
  * registry shows a new version minutes late (IGNIS measured 3 to 16).
  */

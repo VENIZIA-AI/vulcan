@@ -321,8 +321,9 @@ describe('package-release.yml: the next dist-tag', () => {
     expect(step.if).toBeUndefined();
   });
 
-  test('it can write dist-tags: the npm token is in its environment', () => {
-    expect(Object.keys(findStep({ name: STEP }).env ?? {})).toContain('NODE_AUTH_TOKEN');
+  test("it holds no token: over trusted publishing the job's own identity lets it move a dist-tag", () => {
+    expect(Object.keys(findStep({ name: STEP }).env ?? {})).not.toContain('NODE_AUTH_TOKEN');
+    expect(findStep({ name: STEP }).run).not.toContain('secrets.');
   });
 });
 

@@ -9,8 +9,8 @@ tags: [conventions, dependencies, catalog]
 
 - Versions live once, in the root `workspaces.catalog`. Packages reference them as `catalog:`,
   siblings as `workspace:*`. `make catalog-check` guards both.
-- **Runtime dependencies are caret ranges.** `bun publish` copies the catalog range into the
-  published manifest; an exact pin would force a second copy of zod on every consumer. Dev-only
+- **Runtime dependencies are caret ranges.** `bun pm pack` copies the catalog range into the
+  published manifest (npm then publishes that tarball); an exact pin would force a second copy of zod on every consumer. Dev-only
   tools stay exact, and `bun.lock` pins every install (`V-S-05`: pinned, never `:latest`).
 - `bun pm pack` resolves `workspace:*` from `bun.lock`: after a version change, `bun install` before
   packing, or the cli ships pinned to siblings that are not on npm (`make smoke-cli` catches it).
