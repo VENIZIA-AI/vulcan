@@ -1,32 +1,7 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { defineConfig, type DefaultTheme } from 'vitepress';
+import { writeChangelogFeed } from './theme/shared/changelog-loader.ts';
+import { venziaCodeTheme } from './theme/shared/code-theme.ts';
 import { VENIZIA_LOGO_SVG } from './theme/shared/venizia-logo.ts';
-
-const CHANGELOGS = fileURLToPath(new URL('../../content/changelogs', import.meta.url));
-
-// Every dated entry, titled from its frontmatter and grouped by the date in its file name, newest
-// date first - a new entry needs no sidebar edit.
-const changelogGroups = (): DefaultTheme.SidebarItem[] => {
-  const byDate = new Map<string, DefaultTheme.SidebarItem[]>();
-  const files = readdirSync(CHANGELOGS)
-    .filter((file) => /^\d{4}-\d{2}-\d{2}-.*\.md$/.test(file))
-    .sort()
-    .reverse();
-
-  for (const file of files) {
-    const date = file.slice(0, 10);
-    const title = /^title:\s*"?(.+?)"?\s*$/m.exec(
-      readFileSync(`${CHANGELOGS}/${file}`, 'utf8'),
-    )?.[1];
-    const items = byDate.get(date) ?? [];
-
-    items.push({ text: title ?? file, link: `/changelogs/${file.replace(/\.md$/, '')}` });
-    byDate.set(date, items);
-  }
-
-  return [...byDate].map(([date, items]) => ({ text: date, collapsed: true, items }));
-};
 
 // The sidebars mirror IGNIS: Guides and References each have an index landing page.
 const guidesSidebar: DefaultTheme.SidebarItem[] = [
@@ -105,35 +80,41 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
   },
 ];
 
-const changelogsSidebar = (): DefaultTheme.SidebarItem[] => [
-  {
-    text: 'Overview',
-    items: [
-      { text: 'Introduction', link: '/changelogs/' },
-      { text: 'Template', link: '/changelogs/template' },
-    ],
-  },
-  {
-    text: 'History',
-    collapsed: false,
-    items: changelogGroups(),
-  },
-];
-
 export default defineConfig({
   // Served at the root of vulcan.venizia.ai.
   base: '/',
   appearance: 'dark',
   markdown: {
-    // The code windows are dark in both themes (theme/shared/tokens.css), so one dark theme serves both.
-    theme: 'one-dark-pro',
+    // The code windows are dark in both themes (theme/shared/tokens.css), so one dark theme serves both: the
+    // shared theme built from VULCAN's accent on dark (the same value as --accent-on-dark in theme/product.css).
+    theme: venziaCodeTheme({ accent: '#dead6a' }),
   },
   srcDir: '../content',
   outDir: './.vitepress/dist',
   title: 'VULCAN',
   description: 'The agentic-coding toolkit for VENIZIA projects',
   cleanUrls: true,
+  // The changelog feed (RSS 2.0) is written next to the pages; the changelog has no sidebar, its index is the way in.
+  buildEnd: async (config) => {
+    await writeChangelogFeed({
+      outDir: config.outDir,
+      site: {
+        title: 'VULCAN changelog',
+        description: 'What changed in VULCAN, who is affected and what to do about it.',
+        siteUrl: 'https://vulcan.venizia.ai',
+      },
+    });
+  },
   head: [
+    [
+      'link',
+      {
+        rel: 'alternate',
+        type: 'application/rss+xml',
+        title: 'VULCAN changelog',
+        href: '/changelog.xml',
+      },
+    ],
     // The home page and its terminal hide their reveal states only under this class, set before first paint.
     ['script', {}, "document.documentElement.classList.add('js');"],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
@@ -186,7 +167,6 @@ export default defineConfig({
     sidebar: {
       '/guides/': guidesSidebar,
       '/references/': referencesSidebar,
-      '/changelogs/': changelogsSidebar(),
     },
     search: { provider: 'local' },
     outline: {

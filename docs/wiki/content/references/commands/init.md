@@ -135,7 +135,7 @@ The command prints status `skipped` with the reason:
 
 ### The MCP file
 
-`vulcan init` does not write `.mcp.json`. The file is an agent file like the others: `vulcan sync` writes it, on each machine, only when you chose an agent that reads it (Claude Code, omp or Copilot CLI), with the atlas entry, and lists it in your clone's `.git/info/exclude`. A project that already tracks a `.mcp.json` keeps it untouched; `vulcan doctor` says how to hand it over ([sync](/references/commands/sync#the-root-mcpjson)).
+`vulcan init` does not write `.mcp.json`. The file is an agent file like the others: `vulcan sync` writes it, on each machine, only when you chose an agent that reads it (Claude Code, omp or Copilot CLI), with the atlas entry, and lists it in your clone's `.git/info/exclude`. A project that already tracks a `.mcp.json` keeps it untouched; `vulcan doctor` says how to hand it over ([sync](/references/commands/sync#the-root-mcp-json)).
 
 ### Configuration hints
 

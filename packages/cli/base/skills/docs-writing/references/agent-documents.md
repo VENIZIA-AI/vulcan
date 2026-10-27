@@ -47,7 +47,7 @@ dated incident, a failing test, a reproduction); one with no provenance is metho
 
 ## Checks before you finish
 
-- Descriptions: about 50 words, a "Use when" part, and a `NOT FOR` clause where two skills are easily confused and the words allow.
+- Descriptions: under 700 characters, a "Use when" part with the concrete moments, what the skill produces, and a short "Skip for" list that names the near neighbours.
 - `SKILL.md` under 500 lines; any file past 100 lines opens with a contents list.
 - Every rule or skill you changed has its eval (or its check) run again.
 - Read it once as the agent that loads it with nothing else: can it act, and does it know when it is done?

@@ -1,6 +1,6 @@
 ---
 name: retro
-description: Looks back at a failure or a round of work and ranks what went wrong as evidence-tied candidates - a check, a rule, a skill edit or nothing - changing nothing without the owner's pick. Use when asked for a retro, after a failure, or when a mistake repeats.
+description: "Use when asked for a retro, after a failure or a round of work, or when the same mistake repeats: what went wrong, why the process let it happen, and what to change. Ranks findings as evidence-tied candidates (a check, a rule, a skill edit or nothing) and changes nothing until the owner picks. Skip for finding and fixing a current bug (fix-a-bug), reviewing a diff, status reports, and for blaming a person."
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 ---

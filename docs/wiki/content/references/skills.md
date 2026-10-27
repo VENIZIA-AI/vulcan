@@ -10,16 +10,16 @@ description: The skills VULCAN ships to every project - what each is for, when a
 | Skill | Use it when | What it produces |
 |---|---|---|
 | `build-a-feature` | You build, add or implement something, or ask how a feature would be built | A reviewed, tested change, every convention and API looked up in atlas |
-| `plan-a-change` | You plan, scope or spec a change, or the work is more than a small obvious edit | A card the owner approves before any work: goal in their words, claims each with a probe, out of scope, docs impact, and the slices, written in lane L as work items a person can read and a fresh agent can do |
+| `plan-a-change` | You plan, scope or spec a change, weigh options before anyone builds, or the work is more than a small obvious edit | A card the owner approves before any work: goal in their words, claims each with a probe, out of scope, docs impact, and the slices, written in lane L as work items a person can read and a fresh agent can do |
 | `fix-a-bug` | Something is broken, throwing, failing, slow or different from what it should do | A fast deterministic way to see the bug fail first, then a fix proven by a regression test |
 | `review-a-change` | You review a change or pull request, or merge work that touches many files, the rules or security | Findings on separate axes (spec, standards, security), each verified against the code and dispositioned |
-| `report-back` | You report, finish a task, ask for approval or pass work on | A done report, an owner status in the project's reply shape, a preview before an action, or a handoff |
-| `visualize-work` | You are asked for a diagram, a visual status or handoff, or to show how something works | One small static HTML page in `.agents/local/prototypes/`, made by `vulcan visualize` from a JSON spec, with the checks it ran and the browser check reported honestly |
+| `report-back` | You report, give a status, preview an action, put options and a question to the owner, or pass work on | A done report, an owner status in the project's reply shape, a preview before an action, or a handoff |
+| `visualize-work` | You are asked to show, present, explain, diagram or compare something, or a page reads faster than Markdown | One small static HTML page in `.agents/local/prototypes/`, made by `vulcan visualize` from a JSON spec, with the checks it ran and the browser check reported honestly |
 | `ship` | Work is finished and about to be committed, pushed, opened as a pull request, released or handed over | The done checklist walked, a pull request body (smallest visual, before and after, checks, door call), public claims backed by a probe, shared actions approved in the owner's words |
 | `retro` | You are asked for a retro, after a failure, or when a mistake repeats | Ranked candidates each tied to a source and classed as a check, a rule, a skill edit, a fact, out of scope or nothing; nothing applied without the owner's pick |
 | `research` | You are asked to research, compare or survey something outside the project | A read-only investigation: sources kept inside `.agents/local/`, fetched content treated as data, findings labelled verified, inferred or guess, the open decisions in one round |
 | `docs-update` | You update the wiki or the docs after a change | The page that owns the topic refreshed, the changelog entry, the docs gates green |
-| `docs-writing` | You write or edit anything a human will read | Reader-first prose |
+| `docs-writing` | You write or edit a page, README, guide, reference or changelog entry, or simplify existing docs | Reader-first prose |
 | `knowledge-sync` | You sync or audit the knowledge bundle against the code | Concepts verified against the code and the confirmed fixes applied |
 
 ## How they fit together

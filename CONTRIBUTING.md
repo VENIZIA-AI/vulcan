@@ -50,6 +50,7 @@ feature/*, fix/*, docs/*, chore/*, test/* (your work)
 make lint-all          # oxlint, ESLint naming-convention, bun fmt, scripts
 make test              # every package, then the root scripts
 make catalog-check     # catalogued dependencies stay catalog:
+make docs wiki-links-check wiki-anchors-check   # the wiki builds, its source links and #fragments resolve
 make smoke-cli         # the packed tarballs, installed alone in an empty project
 bun x --no-install vulcan doctor
 bun x --no-install vulcan x okf check
@@ -72,7 +73,7 @@ the code cannot show. `make lint-all` checks what a linter can.
 - **A shipped skill or hook.** It reaches every project and cannot be shadowed, so it must stay
   project-neutral: no single project's names, paths or stack.
 - **A breaking change.** Write a changelog entry from
-  [the template](docs/wiki/content/changelogs/template.md), with the migration steps.
+  [the template](.agents/knowledge/process/writing-a-changelog-entry.md), with the migration steps.
 
 ## Pull request checklist
 
