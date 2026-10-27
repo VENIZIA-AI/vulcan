@@ -19,7 +19,7 @@ usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | inde
 | `mcp` | Serves the project over stdio (default when started by a client) |
 | `tools` | Prints the tools the server offers, one per line |
 | `pull` | Fetches every external source, or one named source |
-| `index --out <dir>` | Builds and signs the index of HEAD into `<dir>`; `index keygen` writes the key pair for it |
+| `index --out <dir>` | Builds and signs the index of HEAD into `<dir>`; `index keygen` writes the key pair for it; `index publish` is what the CI action runs |
 | `surface gen\|check` | Writes or checks `.agents/knowledge/reference/public-surface.md` from built `.d.ts` files |
 | `symbols` | Prints what the `symbol` tool reads from built `.d.ts` declaration files |
 | `releases` | Prints what the `version` and `changes` tools read from git tags |
@@ -185,6 +185,52 @@ Without a key the command writes nothing and says so.
 `vulcan x atlas index keygen` writes a key pair.
 The private key goes to `.agents/local/atlas-index.key` with mode 0600, and only while `.agents/local/` is gitignored; it never overwrites a key.
 The public key is printed, together with the command that stores the private key as the Actions secret `ATLAS_INDEX_KEY`.
+
+### Publishing from CI
+
+`vulcan x atlas index publish` builds the pair of HEAD and attaches it to the release `atlas-index` of the repository named by `GITHUB_REPOSITORY`.
+The composite action `VENIZIA-AI/vulcan/.github/actions/atlas-index` runs it as one step of a job that has already installed the project:
+
+```yaml
+on:
+  push:
+    branches: [main, develop]
+    tags: ['*']
+
+permissions:
+  contents: write
+
+jobs:
+  atlas-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - uses: VENIZIA-AI/vulcan/.github/actions/atlas-index@<tag or commit>
+        env:
+          ATLAS_INDEX_KEY: ${{ secrets.ATLAS_INDEX_KEY }}
+```
+
+The job needs `contents: write`, the whole history (`fetch-depth: 0`: a shallow checkout is refused, because its release table would come from part of the history), and the private key as the secret `ATLAS_INDEX_KEY`.
+It uses the project's own installed atlas, so `bun x --no-install vulcan` must resolve.
+
+It publishes only when all of these hold; otherwise it uploads nothing, says why and succeeds:
+
+- the event is a `push`, never a pull request or a manual run;
+- the ref is the default branch, `develop`, or a tag whose commit is on one of them (never the tag `atlas-index` itself);
+- `ATLAS_INDEX_KEY` is set and the job has its token.
+
+What it does, in order: builds and signs the pair; makes the release `atlas-index` if it is not there (a pre-release that is not the latest release; its tag is made once and never moved); removes any older pair of the same commit; uploads the gz and then the envelope; prunes.
+Every URL comes from `GITHUB_REPOSITORY`: the action has no input that names another repository, and the token goes to the API host and to the upload host the API names only if it is the API's own.
+
+Retention is fixed. The release keeps the pairs of the newest 20 branch heads and of every release-tag commit, never more than 300 pairs in all (a release holds 1000 assets, two to a pair); past 300 the oldest tag pairs go first.
+A pair with a file missing is left for a day, in case a run is still uploading it, and then removed. A file on the release that is not a pair is never touched.
+A reader that finds no pair builds the index itself, so an old pinned release is slower, not broken.
+
+A pair built from a checkout with part of the history says so (`history: false` in the envelope), and a reader then computes the release table itself.
 
 ## Staying current while the server runs
 

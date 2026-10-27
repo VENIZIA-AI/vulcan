@@ -49,3 +49,19 @@ export const pairNamesOf = (opts: { sha: string }): { gz: string; envelope: stri
   gz: `${opts.sha}${PrebuiltConstants.INDEX_SUFFIX}`,
   envelope: `${opts.sha}${PrebuiltConstants.ENVELOPE_SUFFIX}`,
 });
+
+/** How a repository publishes its pairs, and how many it keeps. */
+export class PublishConstants {
+  /** Besides the default branch, the branch whose head every project publishes. */
+  static readonly DEVELOP_BRANCH = 'develop';
+  static readonly RELEASE_NAME = 'atlas index';
+  static readonly RELEASE_NOTES =
+    'The signed atlas index of each commit of this repository, read by atlas. Maintained by CI; do not edit.';
+  /** The newest branch-head pairs kept. */
+  static readonly KEEP_HEADS = 20;
+  /** Pairs kept in all: a release has 1000 assets at most, two to a pair. */
+  static readonly MAX_PAIRS = 300;
+  /** A pair with one asset missing is left alone for this long (a run may be uploading it), then removed. */
+  static readonly ORPHAN_AGE_MS = 24 * 60 * 60 * 1000;
+  static readonly SCRATCH_OUT = '.agents/local/tmp/atlas-index-out';
+}

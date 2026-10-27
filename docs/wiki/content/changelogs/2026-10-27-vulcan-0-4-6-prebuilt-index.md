@@ -12,7 +12,7 @@ packages: ['@venizia/vulcan-atlas']
 
 **In one line.** A repository can publish the search index of each commit, signed, and atlas downloads and verifies it for a declared source instead of building it, with a local build on any miss.
 
-This entry grows with the release: it lists what has landed so far. Publishing from CI comes next.
+This entry grows with the release: it lists what has landed so far. The setup for VULCAN's own repository comes with the last slice.
 
 ## What changed
 
@@ -20,6 +20,8 @@ This entry grows with the release: it lists what has landed so far. Publishing f
 - **atlas downloads it.** For a GitHub source whose manifest lists public keys (`atlas.index.keys`), atlas looks for the signed pair of the commit it resolved on the release `atlas-index`, checks the signature, the commit, the repository, the format, the digest and the size, and only then installs it. The release table comes with it while the tags are unchanged. A private repository works with the token atlas already uses (`GITHUB_TOKEN`, else `gh auth token`); a classic token with the `repo` scope was checked, a fine-grained one was not.
 - **Any failure builds locally.** A missing pair, a bad signature, another format or a failed request prints one line with its reason and atlas builds the index as before. `--no-prebuilt` turns the download off.
 - **The start notice names it.** `<name>: <origin> at <sha> - index: prebuilt, built by atlas <version>`.
+- **A CI action publishes it.** `VENIZIA-AI/vulcan/.github/actions/atlas-index` is one step for a job that has installed the project: it builds and signs the pair of the commit and attaches it to the release `atlas-index` of the same repository (made once, a pre-release that is not the latest release). It runs only for a push to the default branch, to `develop` or of a tag on one of them, only with the key set, and needs `contents: write`. The release keeps the newest 20 branch-head pairs and every release-tag commit's pair, 300 pairs at most.
+- **A shallow checkout says so.** A pair built from part of the history carries `history: false`, and a reader computes the release table itself instead of trusting it; publishing from a shallow checkout is refused.
 - **`vulcan x atlas index keygen`.** It writes an ed25519 key pair: the private key under `.agents/local/` (mode 0600, only while that folder is gitignored, never over an existing key) and the public key printed with the command that stores the private key as an Actions secret.
 
 ## Who is affected

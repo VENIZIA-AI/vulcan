@@ -351,7 +351,10 @@ const pullByGit = async (opts: {
   });
   // The release table of a pair is the one its tags made: valid only while the remote's tags are the same.
   const releases =
-    hit !== undefined && opts.tags !== undefined && hit.payload.tags === opts.tags
+    hit !== undefined &&
+    hit.payload.history &&
+    opts.tags !== undefined &&
+    hit.payload.tags === opts.tags
       ? hit.payload.releases
       : undefined;
 

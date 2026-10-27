@@ -5,6 +5,7 @@ import { ChunkStore } from '@/search/store';
 import { MissReasons, PrebuiltConstants, pairNamesOf } from './constants';
 import { verifyEnvelope } from './envelope';
 import type { IIndexPayload } from './envelope';
+import { itemsOf, numberOf, recordOf, stringOf } from './wire';
 
 export interface IPrebuiltHit {
   hit: true;
@@ -189,7 +190,15 @@ const findPair = async (opts: {
       });
     }
 
-    const assets = JSON.parse(textOf({ bytes: reply.body })) as IAsset[];
+    const assets = itemsOf({ value: JSON.parse(textOf({ bytes: reply.body })) }).flatMap(
+      (item): IAsset[] => {
+        const record = recordOf({ value: item });
+        const name = stringOf({ value: record['name'] });
+        const url = stringOf({ value: record['url'] });
+
+        return name === undefined || url === undefined ? [] : [{ name, url }];
+      },
+    );
 
     for (const asset of assets) {
       if (asset.name === opts.names.gz) {
@@ -251,9 +260,11 @@ export const fetchPrebuilt = async (opts: {
       });
     }
 
-    const releaseId = (JSON.parse(textOf({ bytes: release.body })) as { id?: unknown }).id;
+    const releaseId = numberOf({
+      value: recordOf({ value: JSON.parse(textOf({ bytes: release.body })) })['id'],
+    });
 
-    if (typeof releaseId !== 'number') {
+    if (releaseId === undefined) {
       return miss({ reason: MissReasons.NO_RELEASE });
     }
 

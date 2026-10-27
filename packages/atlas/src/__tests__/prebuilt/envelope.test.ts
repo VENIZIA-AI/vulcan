@@ -25,7 +25,7 @@ const payloadFor = (opts: { gz: Uint8Array }): IIndexPayload => ({
 const GZ = gzipSync(INDEX);
 
 const change = (opts: { text: string; edit: (envelope: Record<string, string>) => void }) => {
-  const envelope = JSON.parse(opts.text) as Record<string, string>;
+  const envelope: Record<string, string> = JSON.parse(opts.text);
 
   opts.edit(envelope);
 
@@ -118,7 +118,7 @@ describe('the signed envelope of a prebuilt index (C8)', () => {
 
   test('a payload that is signed but is not the shape of one is malformed', () => {
     const bad = signEnvelope({
-      payload: { ...payload, sha: 'not-a-sha' } as IIndexPayload,
+      payload: { ...payload, sha: 'not-a-sha' },
       privateKey: pair.privateKey,
     });
 

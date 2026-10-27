@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { ModeUsageError, readRootArgument } from '@/cli/modes';
 import { buildIndexPair } from './build';
+import { publishIndex } from './publish';
 import { PrebuiltConstants } from './constants';
 import { generateKeyPair } from './keys';
 
@@ -69,12 +70,35 @@ export const runKeygen = (opts: {
   return { file, publicKey: pair.publicKey };
 };
 
-/** `index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>]`, or `index keygen`. */
-export const runIndexCommand = (opts: { argv: string[]; version: string }): number => {
+/**
+ * `index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>]`, `index keygen`, or
+ * `index publish [--key-env <name>] [--root <dir>]` (what the CI action runs).
+ */
+export const runIndexCommand = async (opts: {
+  argv: string[];
+  version: string;
+}): Promise<number> => {
   const root = readRootArgument({ argv: opts.argv }).value;
 
   if (opts.argv[1] === 'keygen') {
     runKeygen({ root, print: (line) => console.log(line) });
+
+    return 0;
+  }
+
+  if (opts.argv[1] === 'publish') {
+    const result = await publishIndex({
+      root,
+      env: process.env,
+      keyEnv: flagValue({ argv: opts.argv, name: '--key-env' }) ?? PrebuiltConstants.KEY_ENV,
+      atlasVersion: opts.version,
+    });
+
+    console.log(
+      result.published
+        ? `publish: ${result.sha.slice(0, 8)} uploaded ${result.uploaded.length} files, removed ${result.deleted.length}, kept ${result.kept} pairs`
+        : `publish: nothing uploaded - ${result.reason}`,
+    );
 
     return 0;
   }

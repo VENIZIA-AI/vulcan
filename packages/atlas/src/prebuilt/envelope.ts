@@ -26,6 +26,15 @@ export interface IIndexPayload {
   releases: IReleaseTable;
 }
 
+const isReleaseTable = (value: unknown): value is IReleaseTable =>
+  typeof value === 'object' &&
+  value !== null &&
+  'releases' in value &&
+  typeof value.releases === 'object' &&
+  value.releases !== null &&
+  'changelogs' in value &&
+  Array.isArray(value.changelogs);
+
 const PayloadSchema = z
   .object({
     format: z.number().int().positive(),
@@ -37,12 +46,8 @@ const PayloadSchema = z
     digest: z.string().regex(/^[0-9a-f]{64}$/),
     tags: z.string(),
     history: z.boolean(),
-    releases: z
-      .object({
-        releases: z.record(z.string(), z.array(z.object({}).passthrough())),
-        changelogs: z.array(z.unknown()),
-      })
-      .passthrough(),
+    // The table as written: a schema object would put its own keys first, and the order is the signed bytes'.
+    releases: z.custom<IReleaseTable>(isReleaseTable),
   })
   .strict();
 
@@ -97,12 +102,10 @@ export const verifyEnvelope = (opts: { envelope: string; keys: string[] }): TPai
     return miss({ reason: MissReasons.SIGNATURE });
   }
 
-  let raw: unknown;
   let payload: ReturnType<typeof PayloadSchema.safeParse>;
 
   try {
-    raw = JSON.parse(payloadBytes.toString('utf8'));
-    payload = PayloadSchema.safeParse(raw);
+    payload = PayloadSchema.safeParse(JSON.parse(payloadBytes.toString('utf8')));
   } catch {
     return miss({ reason: MissReasons.MALFORMED });
   }
@@ -112,8 +115,7 @@ export const verifyEnvelope = (opts: { envelope: string; keys: string[] }): TPai
   }
 
   // The schema checks the parts a reader relies on; the release table is read as JSON by its own store.
-  // The parsed text itself, not the schema's copy of it: the release table keeps the key order it was written in.
-  return { ok: true, payload: raw as IIndexPayload };
+  return { ok: true, payload: payload.data };
 };
 
 /** An envelope that verifies, and a gz whose sha256 is the digest the payload signed. */

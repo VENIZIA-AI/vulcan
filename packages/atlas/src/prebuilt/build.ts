@@ -86,6 +86,8 @@ export const buildIndexPair = (opts: {
   repo?: string;
   privateKey: string | undefined;
   atlasVersion: string;
+  /** Publishing needs the whole history: a shallow checkout is refused instead of building a release table from part of it. */
+  requireFullHistory?: boolean;
 }): IBuiltPair => {
   const root = resolve(opts.root);
   const out = resolve(root, opts.out);
@@ -101,6 +103,15 @@ export const buildIndexPair = (opts: {
   }
 
   const sha = commitOf({ root });
+  const shallow =
+    git({ cwd: root, args: ['rev-parse', '--is-shallow-repository'] }).trim() === 'true';
+
+  if (shallow && opts.requireFullHistory === true) {
+    throw new Error(
+      'atlas index: the checkout is shallow, so its release table would come from part of the history - fetch it whole (actions/checkout: fetch-depth: 0)',
+    );
+  }
+
   const repo = repositoryOf({ root, repo: opts.repo });
   const scratch = join(
     root,
@@ -136,7 +147,8 @@ export const buildIndexPair = (opts: {
       bytes: index.length,
       digest: createHash('sha256').update(gz).digest('hex'),
       tags: localTagsFingerprint({ root }),
-      history: true,
+      // A shallow checkout has part of the history: the release table below says so and a reader computes its own.
+      history: !shallow,
       releases: computeReleases({ project }),
     };
     const names = pairNamesOf({ sha });

@@ -146,7 +146,7 @@ describe('fetchPrebuilt: what is missing, slow, too large or the wrong size is a
     const noEnvelope = await fetchFixture();
 
     expect(noEnvelope).toMatchObject({ hit: false, reason: 'no-pair' });
-    expect((noEnvelope as IPrebuiltMiss).detail).toContain('.atlas.json');
+    expect(noEnvelope.hit ? '' : noEnvelope.detail).toContain('.atlas.json');
     fake.assets.clear();
     fake.assets.set(`${fixture.sha}.atlas.json`, Buffer.from(fixture.envelope));
     expect(await fetchFixture()).toMatchObject({ hit: false, reason: 'no-pair' });
@@ -255,7 +255,7 @@ describe('attemptPrebuilt asks the network only when it may (C15)', () => {
   const source = { name: 'src', repo: 'acme/src', ref: 'develop' };
 
   test.each([
-    ['the manifest lists no keys', { enabled: true, keys: [] as string[], repo: 'acme/src' }],
+    ['the manifest lists no keys', { enabled: true, keys: [], repo: 'acme/src' }],
     ['the download is off', { enabled: false, keys: ['k'], repo: 'acme/src' }],
     [
       'the source is a git URL',
