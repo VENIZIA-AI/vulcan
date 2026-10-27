@@ -12,7 +12,7 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 |---|---|---|---|---|
 | Session digest (`session-start`) | `SessionStart` | `startup\|resume\|clear\|compact` | Quotes base write rules (`V-W-*`), slot choices, and often-dropped rules to stdout | Fires on session start, resume, clear, or compact |
 | `guard-writes` | `PreToolUse` | `Bash` | Prompts for human confirmation before database writes and cluster deployments | Fires on every Bash tool command |
-| `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes and `git branch -D` of an unmerged branch | Fires on every Bash command; only those git and gh actions are flagged |
+| `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes, `git branch -D` of an unmerged branch, and a blanket stage of more than 50 changed paths | Fires on every Bash command; only those git and gh actions are flagged |
 | `guard-scripting` | `PreToolUse` | `Bash` | Adds one line of advice when a command runs `python`, `python3` or `pip`: agent scripting uses bun by default, another language is fine when the task needs it (`V-B-09`); it never asks and never blocks | Fires on every Bash command; only a command that runs one of those programs gets the line |
 | `guard-outside` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
 | `subagent-start` | `SubagentStart` | all | Adds a small rules card (about 250 tokens) to every subagent's context | Fires when a subagent starts |
@@ -130,6 +130,9 @@ The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `
 | `git reset --hard` | ask |
 | `git push --force` of another branch | ask |
 | `git branch -D <branch>` when the branch is not merged into the current one | ask |
+| `git add -A`, `git add --all`, `git add .`, `git add -u`, `git commit -a` when it would stage more than 50 changed paths (`-u` and `-a` count tracked files only) | ask, naming the count |
+
+The blanket stage ask exists because a formatter run followed by `git add -A` once committed 152 files nobody meant to stage. It reads `git status --porcelain` and asks only past 50 paths: on this repository's develop the median commit touches 7 files and 2.2% touch more than 50, so a small change is never asked about. A stage of named paths (`git add src/a.ts`), `git add -p` and a status that cannot be read pass; the guard asks, it does not deny, and a command that changes directory first (`cd x && git add -A`) is checked in the folder the session started in.
 
 `git push -fu`, `git branch -m develop x`, `git update-ref -d refs/heads/develop` and `git push --mirror` are read too. A heredoc body (a commit message passed with `<<'EOF'`) is data and is not read as commands; a body fed to a shell (`bash <<EOF`) is a script and is read as commands.
 

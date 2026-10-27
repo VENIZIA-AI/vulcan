@@ -56,6 +56,11 @@ export class HookConstants {
   static readonly QUERY_TIMEOUT_MS = 5000;
   /** The `git` and `gh` queries one command line may make; past it the guard asks instead of querying on. */
   static readonly MAX_QUERIES = 4;
+  /**
+   * A blanket stage (`git add -A`, `git commit -a`) asks past this many changed paths. A formatter run once put 152
+   * unintended files into one commit; on this repository's develop the median commit touches 7 files and 2.2% touch more than 50.
+   */
+  static readonly BLANKET_STAGE_PATHS = 50;
   /** Branches no agent deletes or force-pushes (V-W-06). */
   static readonly PROTECTED_BRANCHES = new Set(['develop', 'main']);
   /**
