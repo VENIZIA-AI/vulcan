@@ -100,16 +100,20 @@ The `changes` tool still filters dated changelog entries by calendar date.
 
 atlas builds the search index once per commit SHA.
 Subsequent starts on the same commit use the cached index.
+Each cached index records the format it was built at, in a `format` file beside it.
+When an atlas version changes what an index holds, its format number changes, and a cached index of the old format is built again on the next start that can reach the remote.
 On startup, atlas checks whether the remote reference moved.
 If the reference moved to a newer commit, atlas pulls the new commit.
 If new tags appear on the same commit, atlas updates release records without re-indexing markdown files.
 The cache keeps the newest 3 commits per source.
 When the remote repository is unreachable, atlas serves the commit last served for that ref.
 atlas never serves another ref's cache.
+An unreachable remote serves the newest cache whatever its format, and the notice says so.
 atlas tells the client at startup:
 
 ```text
 - <name>: <origin> at <sha> - OFFLINE: the remote was unreachable, this is the newest cache, not the ref's current commit
+- <name>: <origin> at <sha> - OFFLINE: ... - its index was built by another atlas format: served as it is, rebuilt when the remote is reachable
 ```
 
 ## Pre-fetching with pull

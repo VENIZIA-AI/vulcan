@@ -50,6 +50,8 @@ export interface IResolvedSource {
   releasesFile?: string;
   /** Whether releases have history - a source pulled without git has none. */
   history?: boolean;
+  /** Set when the cached index was built at another `INDEX_FORMAT`: only an offline start serves it. */
+  oldFormat?: boolean;
   /** The cache base this source was resolved into (`.agents/local/cache` by default); remote sources only. */
   cacheBase?: string;
   /**
