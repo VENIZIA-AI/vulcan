@@ -7,7 +7,7 @@ import { buildIndexPair, generateKeyPair, verifyPair } from '@/prebuilt';
 import { lsRemote } from '@/sources/git';
 import { resolveSources } from '@/sources';
 import { spawnSyncBounded } from '../spawn.helper';
-import { rowsOf } from './pair.helper';
+import { payloadOf, rowsOf } from './pair.helper';
 import {
   commitAll,
   git,
@@ -99,6 +99,8 @@ describe('atlas index: build and sign the index of HEAD (C5)', () => {
     expect(files({ out: join(shallow, '.agents/local/tmp/pair') })).toContain(
       `${built.sha}.atlas.gz`,
     );
+    // Part of the history: the pair says so, and a reader computes the release table itself.
+    expect(payloadOf({ envelope: readFileSync(built.envelope, 'utf8') }).history).toBe(false);
   });
 
   test('no commit, no key and an output outside the project are refused, and nothing is written', () => {

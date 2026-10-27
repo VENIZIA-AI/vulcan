@@ -46,7 +46,13 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
   uses the pair's release table only while the remote's tags fingerprint equals its payload's, and checks out the
   changelog directory alone otherwise. A pinned tag takes the ref's keys, not its own. `--no-prebuilt` and
   `prebuilt: false` thread through `resolveSources`, `resolveServableSources`, `resolveRemoteSource` and the
-  server's refresh. The CI action is a later slice of the same release.
+  server's refresh. Publishing (`prebuilt/publish.ts`, `.github/actions/atlas-index`): `publishGuard` allows a `push` to the
+  default branch (read from the event file), `develop` or a tag whose commit is on one of them, never the
+  `atlas-index` tag, never without the key and the token; `publishIndex` builds (a shallow checkout is
+  refused and a shallow pair says `history: false`), makes the release `atlas-index` once (pre-release, not
+  latest, tag never moved), removes the old pair of the commit, uploads gz then envelope (upload host
+  checked against `GITHUB_REPOSITORY`) and prunes with `decidePrune` (newest 20 heads, every tag-commit pair,
+  300 pairs in all, orphans after a day; the pair being published always stays and counts).
 - **Package list**: every tool reads `packages` from the manifest - npm names, directories, aliases,
   retired packages. No project's names are built in.
 - **Releases and symbols** are computed: releases from the tags, symbols from the built `.d.ts` of

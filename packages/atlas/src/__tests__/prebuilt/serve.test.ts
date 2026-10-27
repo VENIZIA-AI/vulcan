@@ -209,7 +209,7 @@ describe("the answers equal a local build's (C11)", () => {
       })) ?? 'null',
     );
 
-    return reply.result.content[0].text as string;
+    return String(reply.result.content[0].text);
   };
 
   test('search, get, version and changes answer the same from a download and from a build', async () => {
@@ -230,16 +230,18 @@ describe("the answers equal a local build's (C11)", () => {
       name: 'search',
       args: { query: 'kernel boots' },
     });
-    const id = JSON.parse(search).hits[0].id as string;
+    const id = String(JSON.parse(search).hits[0].id);
 
     expect(JSON.parse(search).total).toBeGreaterThan(0);
 
-    for (const [name, args] of [
+    const questions: [string, Record<string, unknown>][] = [
       ['search', { query: 'kernel boots' }],
       ['get', { id }],
       ['version', {}],
       ['changes', {}],
-    ] as [string, Record<string, unknown>][]) {
+    ];
+
+    for (const [name, args] of questions) {
       expect(await call({ transport: downloaded, name, args })).toBe(
         await call({ transport: built, name, args }),
       );
@@ -266,6 +268,30 @@ describe('when the tags moved since the pair was built (C18)', () => {
     ]);
     expect(existsSync(join(resolved.root, 'docs/changelogs'))).toBe(true);
     expect(existsSync(join(resolved.root, 'packages'))).toBe(false);
+  });
+});
+
+describe('a pair built from part of the history does not supply the release table', () => {
+  test('the table is computed here, the index is still the downloaded one', async () => {
+    const source = makePrebuiltSource();
+
+    answerFrom({ bare: source.bare });
+    putOnRelease({
+      pair: {
+        ...source.pair,
+        envelope: resigned({
+          pair: source.pair,
+          edit: (payload) => {
+            payload.history = false;
+          },
+        }),
+      },
+    });
+
+    const resolved = await resolve({ cacheDir: newCache() });
+
+    expect(resolved.prebuiltBy).toBe('9.9.9');
+    expect(existsSync(join(resolved.root, 'docs/changelogs'))).toBe(true);
   });
 });
 

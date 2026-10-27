@@ -15,12 +15,14 @@ export interface IFixturePair {
 }
 
 /** The payload an envelope carries, read back (a test reads it; the reader verifies it). */
-export const payloadOf = (opts: { envelope: string }): IIndexPayload =>
-  JSON.parse(
-    Buffer.from((JSON.parse(opts.envelope) as { payload: string }).payload, 'base64').toString(
-      'utf8',
-    ),
-  ) as IIndexPayload;
+export const payloadOf = (opts: { envelope: string }): IIndexPayload => {
+  const envelope: { payload: string } = JSON.parse(opts.envelope);
+  const payload: IIndexPayload = JSON.parse(
+    Buffer.from(envelope.payload, 'base64').toString('utf8'),
+  );
+
+  return payload;
+};
 
 /** A pair for the commit of a source repository, built the way CI builds it, signed with a fresh key. */
 export const makeFixturePair = (

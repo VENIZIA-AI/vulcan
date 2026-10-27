@@ -21,7 +21,7 @@ import type { IAtlasSource } from './sources/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
 
-const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help`;
+const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help`;
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -80,26 +80,6 @@ if (subcommand === AtlasCommands.CHANGELOGS) {
   try {
     process.exit(runChangelogsCommand({ command: argv[1], argv }));
   } catch (error) {
-    console.error(`${AtlasConstants.SERVER_NAME}: ${messageOf(error)}`);
-    process.exit(1);
-  }
-}
-
-if (subcommand === AtlasCommands.INDEX) {
-  try {
-    process.exit(
-      runIndexCommand({
-        argv,
-        version:
-          readPackageVersion({ directory: findPackageDirectory({ startDirectory: __dirname }) }) ??
-          FALLBACK_VERSION,
-      }),
-    );
-  } catch (error) {
-    if (error instanceof ModeUsageError) {
-      usageError(error.message);
-    }
-
     console.error(`${AtlasConstants.SERVER_NAME}: ${messageOf(error)}`);
     process.exit(1);
   }
@@ -250,6 +230,17 @@ const main = async (): Promise<void> => {
 
   if (subcommand === AtlasCommands.PULL) {
     process.exit(await pull());
+  }
+
+  if (subcommand === AtlasCommands.INDEX) {
+    process.exit(
+      await runIndexCommand({
+        argv,
+        version:
+          readPackageVersion({ directory: findPackageDirectory({ startDirectory: __dirname }) }) ??
+          FALLBACK_VERSION,
+      }),
+    );
   }
 
   if (subcommand === AtlasCommands.TOOLS) {
