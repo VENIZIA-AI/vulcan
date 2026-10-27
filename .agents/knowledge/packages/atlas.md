@@ -32,6 +32,12 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
   any change to the chunker output, the table or the stored authority; `index-format.test.ts` fails
   until its locked digest moves with it. Symlinks
   check out as plain files, and a corpus root or file whose real path leaves the checkout is skipped.
+- **The prebuilt index** (`prebuilt/`, `sources/index-build.ts`): `indexBytesOf` builds a project's index and is
+  the one function both `pull` and `atlas index` use. `atlas index --out` builds HEAD in a scratch worktree
+  (tracked files only), gzips the index and signs an envelope (`signEnvelope`, `verifyPair`: ed25519 over the
+  exact payload bytes, `node:crypto` only; the payload carries the format, sha, repo, size, digest, tags
+  fingerprint and release table). Keys: `generateKeyPair`, `atlas index keygen` (private key under
+  `.agents/local/`, 0600, only while it is gitignored). Reading a pair and the CI action are later slices of the same release.
 - **Package list**: every tool reads `packages` from the manifest - npm names, directories, aliases,
   retired packages. No project's names are built in.
 - **Releases and symbols** are computed: releases from the tags, symbols from the built `.d.ts` of

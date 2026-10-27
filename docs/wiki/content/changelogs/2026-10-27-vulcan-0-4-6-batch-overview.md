@@ -39,6 +39,7 @@ Everything below is new since 0.4.5.
 | Change | Entry | Pull request |
 |---|---|---|
 | `vulcan visualize` makes a page for eleven kinds of explanation, with charts, a state-coloured banner, a slide mode and a layout that fits a phone; existing specs render as before | [Visualize pages](./2026-10-27-vulcan-0-4-6-visualize-page) | #475 |
+| `atlas index` builds and signs the index of a commit, and `atlas index keygen` makes the key; the first step of a prebuilt index that other projects can download | [Prebuilt index](./2026-10-27-vulcan-0-4-6-prebuilt-index) | #PRNUM |
 | `make wiki-links-check` and `make wiki-anchors-check`: a source path git does not track, and a link to a heading that does not exist, fail the build | [Wiki gates](./2026-10-27-vulcan-0-4-6-wiki-gates) | #490 |
 
 ## Docs and internal

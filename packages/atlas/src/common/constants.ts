@@ -63,6 +63,7 @@ export class AtlasCommands {
   static readonly CHANGELOGS = 'changelogs';
   static readonly CONCEPTS = 'concepts';
   static readonly PULL = 'pull';
+  static readonly INDEX = 'index';
   static readonly TOOLS = 'tools';
   static readonly HELP = 'help';
   static readonly SCHEME_SET = new Set<string>([
@@ -73,6 +74,7 @@ export class AtlasCommands {
     this.CHANGELOGS,
     this.CONCEPTS,
     this.PULL,
+    this.INDEX,
     this.TOOLS,
     this.HELP,
   ]);
