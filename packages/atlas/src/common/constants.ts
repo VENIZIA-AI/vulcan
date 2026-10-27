@@ -16,6 +16,12 @@ export class AtlasConstants {
   static readonly GET_BUDGET_CHARS = 8000;
   static readonly SNIPPET_MAX_CHARS = 300;
   static readonly SEARCH_DEFAULT_LIMIT = 10;
+  /**
+   * The format of a source's built index (the rows its chunker produces and the table they sit in).
+   * Bump it with any change to either: the format-lock test fails until you do. A cached or
+   * downloaded index of another format is never read as if it were current.
+   */
+  static readonly INDEX_FORMAT = 1;
 }
 
 /** Every wait atlas puts on the network or on git: past its bound, a call counts as failed. */

@@ -26,7 +26,11 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
   `git/` directory that is not a repository (a killed clone) is cloned again. Each start also
   fingerprints the tags `ls-remote` lists: a tag pushed on a cached SHA recomputes `releases.json`
   with no new pull. Starts racing on one cold cache take
-  turns under a lock (`<cache>/pull.lock`); a SHA's artifacts appear whole or not at all. Symlinks
+  turns under a lock (`<cache>/pull.lock`); a SHA's artifacts appear whole or not at all. Every set
+  carries a `format` file with `AtlasConstants.INDEX_FORMAT`: an online start rebuilds a set of another
+  format, an offline start serves it with a notice (`IResolvedSource.oldFormat`). Raise the constant with
+  any change to the chunker output, the table or the stored authority; `index-format.test.ts` fails
+  until its locked digest moves with it. Symlinks
   check out as plain files, and a corpus root or file whose real path leaves the checkout is skipped.
 - **Package list**: every tool reads `packages` from the manifest - npm names, directories, aliases,
   retired packages. No project's names are built in.

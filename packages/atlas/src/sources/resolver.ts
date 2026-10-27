@@ -18,7 +18,7 @@ import {
   readAtlasProject,
   toAtlasProject,
 } from '@/common/project-config';
-import { SourcePins } from '@/common/constants';
+import { AtlasConstants, SourcePins } from '@/common/constants';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IReleaseTable } from '@/releases/common';
 import { computeReleases } from '@/releases/compute';
@@ -53,6 +53,8 @@ import { downloadTarball, extractTarball, githubRepoOf, hasGit, lsRemoteByHttp }
 const COMPLETE = 'complete';
 const INDEX = 'index.sqlite';
 const RELEASES = 'releases.json';
+/** The `INDEX_FORMAT` the set was built at; a set of another format is rebuilt, never read as current. */
+const FORMAT = 'format';
 /** Written by a pull through git: the release table carries the history the tags give. */
 const HISTORY = 'history';
 /** The fingerprint of the remote's tags the release table was computed from. */
@@ -113,6 +115,15 @@ const projectOf = (opts: { checkout: string; source: IAtlasSource }): IAtlasProj
   });
 };
 
+/** The set's `format` file names this atlas's `INDEX_FORMAT`; one without the file is older. */
+const isCurrentFormat = (opts: { cacheRoot: string; sha: string }): boolean => {
+  const file = join(artifactsOf(opts), FORMAT);
+
+  return (
+    existsSync(file) && readFileSync(file, 'utf8').trim() === String(AtlasConstants.INDEX_FORMAT)
+  );
+};
+
 const servedFrom = (opts: {
   source: IAtlasSource;
   cacheBase: string;
@@ -138,12 +149,18 @@ const servedFrom = (opts: {
     indexFile: join(artifacts, INDEX),
     releasesFile: join(artifacts, RELEASES),
     history: existsSync(join(artifacts, HISTORY)),
+    ...(isCurrentFormat({ cacheRoot: opts.cacheRoot, sha: opts.sha }) ? {} : { oldFormat: true }),
     cacheBase: opts.cacheBase,
   };
 };
 
+/** A pull finished for this SHA, at whatever format: what an offline start can still serve. */
 const isComplete = (opts: { cacheRoot: string; sha: string }): boolean =>
   existsSync(join(artifactsOf(opts), COMPLETE)) && existsSync(checkoutOf(opts));
+
+/** A complete set built at this atlas's format: what an online start serves without pulling. */
+const isCurrentSet = (opts: { cacheRoot: string; sha: string }): boolean =>
+  isComplete(opts) && isCurrentFormat(opts);
 
 /** Every SHA pulled completely, the most recent pull first. */
 const completeShas = (opts: { cacheRoot: string }): string[] => {
@@ -293,6 +310,7 @@ const buildArtifacts = async (opts: {
     writeFileSync(join(partial, TAGS), `${opts.tags}\n`);
   }
 
+  writeFileSync(join(partial, FORMAT), `${AtlasConstants.INDEX_FORMAT}\n`);
   writeFileSync(join(partial, COMPLETE), `${new Date().toISOString()}\n`);
   rmSync(opts.artifacts, { recursive: true, force: true });
   renameSync(partial, opts.artifacts);
@@ -527,7 +545,7 @@ const resolveRemote = async (opts: {
     );
   }
 
-  if (!opts.force && isComplete({ cacheRoot, sha })) {
+  if (!opts.force && isCurrentSet({ cacheRoot, sha })) {
     const served = servedFrom({
       source: opts.source,
       cacheBase: opts.cacheBase,
@@ -559,7 +577,7 @@ const resolveRemote = async (opts: {
     label: describe(opts),
     run: async () => {
       // Another start pulled it while this one waited for the lock.
-      if (!opts.force && isComplete({ cacheRoot, sha })) {
+      if (!opts.force && isCurrentSet({ cacheRoot, sha })) {
         return servedFrom({
           source: opts.source,
           cacheBase: opts.cacheBase,

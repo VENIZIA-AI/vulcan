@@ -20,7 +20,7 @@ Everything below is new since 0.4.5.
 
 1. **Update `@venizia/vulcan`** (and `@venizia/vulcan-atlas` and `@venizia/vulcan-okf` if you pin them). The skill descriptions, the delegation brief and the gates load from `node_modules`.
 2. **Run `vulcan sync`.** It refreshes the skill links; on a project that is already in step it reports nothing to change. No config change is needed.
-3. **Restart your agent sessions.** A running session keeps the skill descriptions it loaded at the start.
+3. **Restart your agent sessions.** A running session keeps the skill descriptions it loaded at the start. The first start after the update builds the index of each declared atlas source again, once.
 4. **Run `vulcan doctor`.** It should be OK. A project that already has a target named `wiki-links-check` or `wiki-anchors-check` is told about the clash.
 5. **Optional, projects with a VitePress wiki:** add `WIKI_REPO := <owner>/<name>` before the `vulcan.mk` include and run `make wiki-links-check` and `make docs wiki-anchors-check` ([the gates](./2026-10-27-vulcan-0-4-6-wiki-gates)).
 6. **Optional:** a project that saved pages with `vulcan visualize` can render them again; nothing requires it.
@@ -31,6 +31,7 @@ Everything below is new since 0.4.5.
 |---|---|---|
 | Eight skill descriptions say when to load the skill, what it produces and what to skip; the limit is 700 characters | [Skill descriptions](./2026-10-27-vulcan-0-4-6-skill-descriptions) | #487 |
 | The delegation brief names the skill the receiver must load, not a retyped copy of its steps | [Delegation brief](./2026-10-27-vulcan-0-4-6-delegation-names-the-skill) | #479 |
+| atlas records the format of every cached index and builds an older one again, once, instead of serving it | [Index format](./2026-10-27-vulcan-0-4-6-atlas-index-format) | #497, #498 |
 | The package READMEs credit the VENIZIA logo, the LICENSE files name Venizia Co., Ltd., and one doctor warning drops the name of another formatter | [READMEs and legal name](./2026-10-27-vulcan-0-4-6-readme-and-legal-name) | #444, #450, #446 |
 
 ## Features
