@@ -43,6 +43,9 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   BUMP: ${{ inputs.bump }}
   PUBLISH_ORDER: 'okf atlas cli'
+  # The tarballs bun packs and the validation checks, and the publish then publishes: one folder inside the workspace.
+  # Absolute, because npm reads `.agents/x/y.tgz` as a package spec and `/abs/y.tgz` as a file.
+  TARBALLS: ${{ github.workspace }}/.agents/local/tmp/release-tarballs
 
 jobs:
   # Build, lint, the unit tests and VULCAN's own contract, on the dispatched commit, in a job that holds no
@@ -96,9 +99,12 @@ jobs:
     # not this file's; this line is what makes the job subject to them.
     environment: npm-release
     # The release pushes the release commit and the tag, and puts the pair of the tag commit on the release
-    # `atlas-index`: both write contents.
+    # `atlas-index`: both write contents. `id-token` is what trusted publishing signs with: npm exchanges the
+    # job's identity for a short-lived publish credential, so the release holds no npm token at all. Only this
+    # job has it, and a trusted publisher on npmjs.com names this workflow file and the environment above.
     permissions:
       contents: write
+      id-token: write
 
     steps:
       # -------------------------------------------------------------------------
@@ -116,8 +122,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24'
+          node-version: 24.22.1
           registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -128,6 +135,13 @@ jobs:
         run: |
           git config user.name "venizia-ci"
           git config user.email "developer@venizia.ai"
+
+      # Trusted publishing needs npm 11.5.1 or later to publish and 11.21.0 or later to move a dist-tag; the npm
+      # that ships with this Node is older. An exact version, never `latest`, asserted.
+      - name: Install the npm that publishes
+        run: |
+          npm install --global npm@11.21.1 --ignore-scripts
+          [ "$(npm --version)" = "11.21.1" ] || { echo "ERROR | npm is $(npm --version), expected 11.21.1"; exit 1; }
 
       # -------------------------------------------------------------------------
       # VERSION
@@ -182,23 +196,21 @@ jobs:
           make smoke-atlas
           make smoke-cli
 
-      # Only `bun publish` resolves `catalog:` and `workspace:` while packing; npm ships them
-      # verbatim and breaks every consumer.
-      - name: Assert the publisher is bun
-        run: |
-          grep -q 'bun publish' "$GITHUB_WORKSPACE/.github/workflows/package-release.yml" \
-            || { echo "ERROR | the publish step must use 'bun publish' - npm ships catalog: verbatim"; exit 1; }
-
-      # The manifest npm receives, not the one in the tree: no unresolved protocol, siblings pinned
-      # to this train, and every other runtime dependency served by the registry.
+      # The files that get published, and the manifest in each, not the one in the tree. Only `bun pm pack`
+      # resolves `catalog:` and `workspace:` while packing (npm ships them verbatim and breaks every consumer), so bun
+      # packs, once, here; the publish step publishes these very files after checking their sha256. The check: no
+      # unresolved protocol, siblings pinned to this train, and every other runtime dependency served by the registry.
       - name: Validate the packed manifests
         run: |
+          rm -rf "$TARBALLS"
+          mkdir -p "$TARBALLS"
+
           for directory in $PUBLISH_ORDER; do
-            (cd "packages/$directory" && bun pm pack --quiet > /dev/null)
-            TARBALL=$(ls -t packages/$directory/*.tgz | head -1)
-            tar -xzOf "$TARBALL" package/package.json > "$RUNNER_TEMP/$directory.manifest.json"
-            rm -f "$TARBALL"
+            (cd "packages/$directory" && bun pm pack --quiet --filename "$TARBALLS/$directory.tgz" > /dev/null)
+            tar -xzOf "$TARBALLS/$directory.tgz" package/package.json > "$RUNNER_TEMP/$directory.manifest.json"
           done
+
+          (cd "$TARBALLS" && sha256sum *.tgz > SHA256SUMS)
 
           bun -e '
             const directories = process.env.PUBLISH_ORDER.split(" ");
@@ -260,6 +272,9 @@ jobs:
         run: |
           echo "IS_PUBLISHED=true" >> "$GITHUB_ENV"
 
+          # What is published is what was validated: the same files, byte for byte.
+          (cd "$TARBALLS" && sha256sum --check --quiet SHA256SUMS)
+
           for directory in $PUBLISH_ORDER; do
             NAME=$(jq -r .name "packages/$directory/package.json")
 
@@ -268,13 +283,14 @@ jobs:
               continue
             fi
 
+            # Trusted publishing: no token; npm signs in with this job's identity and writes the provenance.
             # --ignore-scripts: the build above already ran; atlas's prepublishOnly would rebuild.
-            (cd "packages/$directory" && bun publish --access public --tag "$NPM_TAG" --ignore-scripts)
+            npm publish "$TARBALLS/$directory.tgz" --access public --tag "$NPM_TAG" --ignore-scripts --provenance
+
+            # The line the release driver reads to learn what this run published.
+            echo "+ $NAME@$NEW_VERSION"
             echo "publish: $NAME@$NEW_VERSION ($NPM_TAG)"
           done
-        env:
-          # NPM_CONFIG_TOKEN: bun reads neither NODE_AUTH_TOKEN nor the .npmrc setup-node writes.
-          NPM_CONFIG_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
 
       # `next` is never below `latest` (it may hold a newer prerelease). A stable release moves `latest`
       # past a stale `next`, so every run - a bump `none` dispatch included, which publishes nothing -
@@ -285,8 +301,6 @@ jobs:
         run: |
           NAMES=$(for directory in $PUBLISH_ORDER; do jq -r .name "packages/$directory/package.json"; done)
           bun scripts/release/next-tag.ts --published "$NEW_VERSION" --tag "$NPM_TAG" $NAMES
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
 
       # -------------------------------------------------------------------------
       # RECORD IN GIT

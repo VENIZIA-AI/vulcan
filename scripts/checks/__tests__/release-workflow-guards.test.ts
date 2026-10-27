@@ -267,6 +267,153 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)
     ).toContain('C17');
   });
 
+  /** Changes the `run` text of one step of the release job in a copy of the real workflow. */
+  const withRun = (opts: { step: string; change: (run: string) => string }): string[] =>
+    mutated({
+      change: (workflow) => {
+        for (const step of stepsOf({ workflow, name: 'release' })) {
+          if (step['name'] === opts.step && typeof step['run'] === 'string') {
+            step['run'] = opts.change(step['run']);
+          }
+        }
+      },
+    });
+
+  test('C20: id-token write missing from the release job, on the test job, or at the workflow level is noticed', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          job({ workflow, name: 'release' })['permissions'] = { contents: 'write' };
+        },
+      }),
+    ).toContain('C20');
+    expect(
+      mutated({
+        change: (workflow) => {
+          job({ workflow, name: 'test' })['permissions'] = {
+            contents: 'read',
+            'id-token': 'write',
+          };
+        },
+      }),
+    ).toContain('C20');
+    expect(
+      mutated({
+        change: (workflow) => {
+          workflow['permissions'] = { contents: 'read', 'id-token': 'write' };
+        },
+      }),
+    ).toContain('C20');
+  });
+
+  test('C6: any reference to the npm token is noticed, in the publish step and in the dist-tag step too', () => {
+    for (const name of ['Publish to NPM', 'Keep next at or above latest']) {
+      expect(
+        mutated({
+          change: (workflow) => {
+            for (const step of stepsOf({ workflow, name: 'release' })) {
+              if (step['name'] === name) {
+                step['env'] = { NODE_AUTH_TOKEN: '${{ secrets.NPM_ACCESS_TOKEN }}' };
+              }
+            }
+          },
+        }),
+      ).toContain('C6');
+    }
+
+    expect(
+      withRun({ step: 'Publish to NPM', change: (run) => `${run}\nexport NPM_CONFIG_TOKEN=x` }),
+    ).toContain('C6');
+  });
+
+  test('C21: bun publish anywhere, a missing --provenance or a publish that is not npm of a packed tarball is noticed', () => {
+    expect(withRun({ step: 'Publish to NPM', change: (run) => `${run}\nbun publish` })).toContain(
+      'C21',
+    );
+    expect(
+      withRun({ step: 'Publish to NPM', change: (run) => run.replace('--provenance', '') }),
+    ).toContain('C21');
+    expect(
+      withRun({ step: 'Publish to NPM', change: (run) => run.replace('npm publish', 'echo') }),
+    ).toContain('C21');
+    expect(
+      withRun({
+        step: 'Publish to NPM',
+        change: (run) => run.replace('$TARBALLS/$directory.tgz', '.'),
+      }),
+    ).toContain('C21');
+    expect(
+      withRun({
+        step: 'Validate the packed manifests',
+        change: (run) => run.replaceAll('bun pm pack', 'npm pack'),
+      }),
+    ).toContain('C21');
+  });
+
+  test('C23: an npm that is not exact, is older than 11.21.0, or is not asserted is noticed', () => {
+    const install = 'Install the npm that publishes';
+
+    expect(
+      withRun({ step: install, change: (run) => run.replaceAll('11.21.1', 'latest') }),
+    ).toContain('C23');
+    expect(
+      withRun({ step: install, change: (run) => run.replaceAll('11.21.1', '11.19.1') }),
+    ).toContain('C23');
+    expect(
+      withRun({ step: install, change: (run) => run.replaceAll('npm --version', 'true') }),
+    ).toContain('C23');
+    expect(
+      mutated({
+        change: (workflow) => {
+          const steps = job({ workflow, name: 'release' })['steps'];
+
+          if (Array.isArray(steps)) {
+            steps.splice(
+              steps.findIndex((step) => isRecord({ value: step }) && step['name'] === install),
+              1,
+            );
+          }
+        },
+      }),
+    ).toContain('C23');
+  });
+
+  test('C24: a publish that does not check the recorded sha256, or a validation that records none, is noticed', () => {
+    expect(
+      withRun({
+        step: 'Publish to NPM',
+        change: (run) => run.replace('sha256sum --check', 'true'),
+      }),
+    ).toContain('C24');
+    expect(
+      withRun({
+        step: 'Validate the packed manifests',
+        change: (run) => run.replaceAll('sha256sum', 'true'),
+      }),
+    ).toContain('C24');
+  });
+
+  test('C5: a Node that is not exact, or a Node setup that caches, is noticed', () => {
+    const node = (opts: { inputs: Record<string, unknown> }) =>
+      mutated({
+        change: (workflow) => {
+          for (const step of stepsOf({ workflow, name: 'release' })) {
+            if (
+              typeof step['uses'] === 'string' &&
+              step['uses'].startsWith('actions/setup-node@')
+            ) {
+              step['with'] = opts.inputs;
+            }
+          }
+        },
+      });
+
+    expect(node({ inputs: { 'node-version': '24', 'package-manager-cache': false } })).toContain(
+      'C5',
+    );
+    expect(node({ inputs: { 'node-version': '24.22.1' } })).toContain('C5');
+  });
+
   test('D6: an action pinned by a tag is noticed; a local action is not', () => {
     expect(
       mutated({
