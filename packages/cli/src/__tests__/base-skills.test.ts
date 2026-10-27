@@ -184,6 +184,34 @@ describe('the shipped agent-work skills', () => {
   });
 });
 
+describe('the plan-a-change card names who runs each outward action', () => {
+  const directory = join(SKILLS_DIRECTORY, 'plan-a-change');
+
+  test('the card template has a Runs by section for outward actions, and the checklist asks for it', () => {
+    const card = readFileSync(join(directory, 'references', 'spec-card.md'), 'utf8');
+    const skill = readFileSync(join(directory, 'SKILL.md'), 'utf8');
+
+    expect(card).toContain('| Runs by |');
+    expect(card).toContain('a release dispatch');
+    expect(card).toContain('the session');
+    expect(skill).toContain('who runs each outward action');
+  });
+
+  test('an eval holds a plan with outward actions to the Runs by line', () => {
+    const evals: { evals: Record<string, unknown>[] } = JSON.parse(
+      readFileSync(join(directory, 'evals', 'evals.json'), 'utf8'),
+    );
+
+    expect(
+      evals.evals.some(
+        (entry) =>
+          String(entry['prompt']).includes('release') &&
+          String(entry['expected_output']).includes('Runs by'),
+      ),
+    ).toBe(true);
+  });
+});
+
 describe('the shipped skill visualize-work', () => {
   const directory = join(SKILLS_DIRECTORY, 'visualize-work');
   const skill = (): string => readFileSync(join(directory, 'SKILL.md'), 'utf8');
