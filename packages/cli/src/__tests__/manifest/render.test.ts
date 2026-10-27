@@ -1,10 +1,11 @@
 import { afterAll, describe, expect, test } from 'bun:test';
+import { generateKeyPairSync } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildToolEnvironment } from '../../commands/x.command.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
-import { ManifestConstants, renderManifest } from '../../manifest/index.ts';
+import { isManifestCurrent, ManifestConstants, renderManifest } from '../../manifest/index.ts';
 import { renderBunfig } from '../../create/bunfig.ts';
 import { checkFiles } from '../format.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -112,6 +113,93 @@ describe('renderManifest', () => {
   });
 });
 
+/** The public key `atlas index keygen` prints: the base64 of the 32 raw bytes of an ed25519 key. */
+const newPublicKey = (): string => {
+  const spki = generateKeyPairSync('ed25519').publicKey.export({ format: 'der', type: 'spki' });
+
+  return spki.subarray(spki.length - 32).toString('base64');
+};
+
+describe('the prebuilt index in the manifest (C27)', () => {
+  const root = createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
+
+  test('the keys ride in an atlas block after the rules, and the switch beside them', () => {
+    const key = newPublicKey();
+    const manifest = JSON.parse(
+      render({
+        root,
+        config: { ...CONFIG, atlas: { ...CONFIG.atlas, index: { keys: [key] }, prebuilt: false } },
+      }),
+    );
+
+    expect(Object.keys(manifest)).toEqual([
+      '$generated',
+      'schemaVersion',
+      'name',
+      'packages',
+      'knowledge',
+      'release',
+      'rules',
+      'atlas',
+    ]);
+    expect(manifest.atlas).toEqual({ index: { keys: [key] }, prebuilt: false });
+    expect(manifest.schemaVersion).toBe(1);
+  });
+
+  test('sources come first, then the atlas block, then the remote-host guard', () => {
+    const manifest = JSON.parse(
+      render({
+        root,
+        config: {
+          atlas: {
+            sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis' }],
+            index: { keys: [newPublicKey()] },
+          },
+          remoteHosts: { trusted: ['github.com'] },
+        },
+      }),
+    );
+    const keys = Object.keys(manifest);
+
+    expect(keys.indexOf('sources')).toBeLessThan(keys.indexOf('atlas'));
+    expect(keys.indexOf('atlas')).toBeLessThan(keys.indexOf('remoteHosts'));
+  });
+
+  test('a config that sets neither renders the text it always did', () => {
+    const plain = render({ root, config: CONFIG });
+
+    expect(
+      render({
+        root,
+        config: { ...CONFIG, atlas: { ...CONFIG.atlas, index: { keys: [] }, prebuilt: true } },
+      }),
+    ).toBe(plain);
+    expect(JSON.parse(plain)).not.toHaveProperty('atlas');
+  });
+
+  test.each([
+    ['text that is not base64 of 32 bytes', 'not-a-key'],
+    ['a key of the wrong length', Buffer.alloc(31).toString('base64')],
+    ['a key with a trailing space', `${newPublicKey()} `],
+  ])('%s is refused when the config is read', (_label, key) => {
+    const result = VULCAN_CONFIG_SCHEMA.safeParse({ atlas: { index: { keys: [key] } } });
+
+    expect(result.success).toBe(false);
+    expect(result.success ? '' : result.error.message).toContain('atlas index keygen');
+  });
+
+  test('a manifest rendered before the keys were listed is stale against the config', () => {
+    const before = render({ root, config: CONFIG });
+    const after = render({
+      root,
+      config: { ...CONFIG, atlas: { ...CONFIG.atlas, index: { keys: [newPublicKey()] } } },
+    });
+
+    expect(isManifestCurrent({ committed: before, rendered: after })).toBe(false);
+    expect(isManifestCurrent({ committed: after, rendered: after })).toBe(true);
+  });
+});
+
 describe('package kind in the manifest', () => {
   test('a lib carries its kind and path, an app without a kind carries none', () => {
     const root = createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
@@ -173,6 +261,25 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     expect(existsSync(join(root, ManifestConstants.FILE))).toBe(true);
     expect(runCli({ args: ['sync'], cwd: root }).stderr).toContain(
       `unchanged ${ManifestConstants.FILE}`,
+    );
+  });
+
+  test('sync writes the listed keys into the manifest, and doctor accepts it', async () => {
+    const key = newPublicKey();
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.ts': `export default ${JSON.stringify({ ...CONFIG, atlas: { ...CONFIG.atlas, index: { keys: [key] } } })};\n`,
+        'AGENTS.md': '# x\n',
+      },
+    });
+
+    runCli({ args: ['sync'], cwd: root });
+
+    expect(JSON.parse(readFileSync(join(root, ManifestConstants.FILE), 'utf8')).atlas).toEqual({
+      index: { keys: [key] },
+    });
+    expect((await runDoctorChecks({ root })).map((violation) => violation.check)).not.toContain(
+      DoctorChecks.MANIFEST,
     );
   });
 

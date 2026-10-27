@@ -12,7 +12,7 @@ packages: ['@venizia/vulcan-atlas']
 
 **In one line.** A repository can publish the search index of each commit, signed, and atlas downloads and verifies it for a declared source instead of building it, with a local build on any miss.
 
-This entry grows with the release: it lists what has landed so far. The setup for VULCAN's own repository comes with the last slice.
+This entry grows with the release: it lists what has landed so far.
 
 ## What changed
 
@@ -22,12 +22,14 @@ This entry grows with the release: it lists what has landed so far. The setup fo
 - **The start notice names it.** `<name>: <origin> at <sha> - index: prebuilt, built by atlas <version>`.
 - **A CI action publishes it.** `VENIZIA-AI/vulcan/.github/actions/atlas-index` is one step for a job that has installed the project: it builds and signs the pair of the commit and attaches it to the release `atlas-index` of the same repository (made once, a pre-release that is not the latest release). It runs only for a push to the default branch, to `develop` or of a tag on one of them, only with the key set, and needs `contents: write`. The release keeps the newest 20 branch-head pairs and every release-tag commit's pair, 300 pairs at most.
 - **A shallow checkout says so.** A pair built from part of the history carries `history: false`, and a reader computes the release table itself instead of trusting it; publishing from a shallow checkout is refused.
+- **Two config keys.** `atlas.index.keys` lists the public keys a repository's published index may be signed with, and `atlas.prebuilt: false` turns the download off for the sources a project reads. `vulcan sync` writes them to the manifest in an `atlas` block (`schemaVersion` stays 1), and only when set; a project that sets neither has the manifest it had. A key that is not the base64 of 32 bytes fails when the config is read. The previous atlas (0.4.5) was checked reading a manifest that carries the block.
+- **VULCAN publishes its own.** `atlas-index.yml` runs on a push to `main`, `develop` or a tag and uses the action of that commit; the public key is listed in VULCAN's config.
 - **`vulcan x atlas index keygen`.** It writes an ed25519 key pair: the private key under `.agents/local/` (mode 0600, only while that folder is gitignored, never over an existing key) and the public key printed with the command that stores the private key as an Actions secret.
 
 ## Who is affected
 
 - **Every project.** No action needed: a source with no keys in its manifest is built here as before.
-- **A repository that wants to publish its index.** Run `vulcan x atlas index keygen` once and keep the private key only as the Actions secret `ATLAS_INDEX_KEY`.
+- **A repository that wants to publish its index.** Make a key pair, store the private key as an Actions secret, list the public key, add the workflow: [the guide](/guides/core-concepts/atlas#publish-your-index-so-the-projects-that-read-yours-do-not-build-it).
 
 ## Details
 

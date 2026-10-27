@@ -379,6 +379,15 @@ The keys `releaseCommit`, `typescriptFrom` and `legacyTagPrefixes` were removed 
 | `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` or `<package>` |
 | `sources` | `Array<object>` | `[]` | External repositories to query through atlas |
 | `ignoreTags` | `string[]` | `undefined` | Glob patterns of git tags ignored by checks |
+| `index.keys` | `string[]` | `[]` | The public keys a prebuilt atlas index of this repository may be signed with; each is the base64 of 32 bytes, as `vulcan x atlas index keygen` prints it |
+| `prebuilt` | `boolean` | `true` | `false`: atlas never downloads a prebuilt index for a source this project reads |
+
+### index and prebuilt
+
+`index.keys` and `prebuilt` are written to the manifest as `atlas: { index: { keys }, prebuilt }`, and only when set: a project that sets neither has the manifest it always had (`schemaVersion` stays 1, and an atlas that does not know the block ignores it).
+A key that is not the base64 of 32 bytes fails when the config is read.
+Listing keys lets the projects that read this one as a source use the signed index its CI publishes; replacing the list is how a key is rotated.
+See [the prebuilt index](/references/atlas/prebuilt-index).
 
 ### tagPattern and the tags check
 

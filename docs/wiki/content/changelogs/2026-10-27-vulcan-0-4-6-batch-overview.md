@@ -24,6 +24,7 @@ Everything below is new since 0.4.5.
 4. **Run `vulcan doctor`.** It should be OK. A project that already has a target named `wiki-links-check` or `wiki-anchors-check` is told about the clash.
 5. **Optional, projects with a VitePress wiki:** add `WIKI_REPO := <owner>/<name>` before the `vulcan.mk` include and run `make wiki-links-check` and `make docs wiki-anchors-check` ([the gates](./2026-10-27-vulcan-0-4-6-wiki-gates)).
 6. **Optional:** a project that saved pages with `vulcan visualize` can render them again; nothing requires it.
+7. **Optional, a repository that other projects read as a source:** publish its atlas index so they download it instead of building it ([the guide](/guides/core-concepts/atlas#publish-your-index-so-the-projects-that-read-yours-do-not-build-it)). A project that only reads sources needs nothing; it can turn the download off with `atlas.prebuilt: false`.
 
 ## Enhancements
 
@@ -39,7 +40,7 @@ Everything below is new since 0.4.5.
 | Change | Entry | Pull request |
 |---|---|---|
 | `vulcan visualize` makes a page for eleven kinds of explanation, with charts, a state-coloured banner, a slide mode and a layout that fits a phone; existing specs render as before | [Visualize pages](./2026-10-27-vulcan-0-4-6-visualize-page) | #475 |
-| A repository can publish a signed prebuilt atlas index of each commit (`atlas index`, `atlas index keygen`), and atlas downloads and verifies it for a declared source instead of building it, with a local build on any miss | [Prebuilt index](./2026-10-27-vulcan-0-4-6-prebuilt-index) | #499, #500, #501, #502, #503, #504 |
+| A repository can publish a signed prebuilt atlas index of each commit (`atlas index`, `atlas index keygen`), and atlas downloads and verifies it for a declared source instead of building it, with a local build on any miss | [Prebuilt index](./2026-10-27-vulcan-0-4-6-prebuilt-index) | #499, #500, #501, #502, #503, #504, #505 |
 | `make wiki-links-check` and `make wiki-anchors-check`: a source path git does not track, and a link to a heading that does not exist, fail the build | [Wiki gates](./2026-10-27-vulcan-0-4-6-wiki-gates) | #490 |
 
 ## Docs and internal

@@ -63,6 +63,8 @@ export interface IAtlasProject {
   sources: { name: string; repo: string; ref: string; pin?: TSourcePin }[];
   /** The ed25519 public keys (base64, 32 raw bytes) whose signature a prebuilt index of this project must carry; absent when it publishes none. */
   indexKeys?: string[];
+  /** `false` when the manifest turns the prebuilt-index download off for this project's sources; absent otherwise. */
+  prebuilt?: false;
 }
 
 type TRecord = Record<string, unknown>;
@@ -196,6 +198,7 @@ export const toAtlasProject = (opts: {
     ),
     typescriptFrom: opts.root,
     ...indexKeysOf({ value: manifest.atlas }),
+    ...(recordOf({ value: manifest.atlas }).prebuilt === false ? { prebuilt: false as const } : {}),
     sources: (Array.isArray(manifest.sources) ? manifest.sources : []).flatMap((item) => {
       const source = recordOf({ value: item });
       const name = stringOf({ value: source.name });

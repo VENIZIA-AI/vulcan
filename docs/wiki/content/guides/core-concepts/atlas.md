@@ -101,7 +101,22 @@ presets  When you are asked to create a new app or package in demo-app, ask here
 The descriptions name your project, here `demo-app`.
 For a real check, restart the agent session and ask it to search.
 
+## Publish your index, so the projects that read yours do not build it
+
+A repository that others read as a source can publish a signed copy of its index, one per commit. A project that lists it as a source then downloads that copy, checks it, and skips building it; a miss or a failed check builds it as before. Set it up once:
+
+1. **Make a key pair.** `bun x --no-install vulcan x atlas index keygen` writes the private key to `.agents/local/atlas-index.key` (mode 0600, only while `.agents/local/` is gitignored) and prints the public key.
+2. **Store the private key as an Actions secret, then delete the file.** `gh secret set ATLAS_INDEX_KEY < .agents/local/atlas-index.key`, then `rm .agents/local/atlas-index.key`. The key lives nowhere else.
+3. **List the public key in the config.** `atlas: { index: { keys: ['<the public key>'] } }` in `.configs/vulcan.config.mts`, then `vulcan sync` and commit the manifest.
+4. **Add the workflow.** The workflow of [the atlas reference](/references/atlas/#publishing-from-ci): a push to the default branch, `develop` or a tag, `contents: write`, a checkout with `fetch-depth: 0`, and the action `VENIZIA-AI/vulcan/.github/actions/atlas-index`, pinned to a commit.
+5. **Check the release.** After the first push, the release `atlas-index` of the repository holds `<sha>.atlas.json` and `<sha>.atlas.gz`.
+
+The projects that read yours need nothing but their usual token: for a private repository, `GITHUB_TOKEN` or `gh auth token` (a classic token with the `repo` scope was checked; a fine-grained token was not). They can turn the download off with `atlas.prebuilt: false` or `--no-prebuilt`.
+The files, the checks and rotating a key are in [the prebuilt index](/references/atlas/prebuilt-index).
+
 ## See also
+
+- [The prebuilt index](/references/atlas/prebuilt-index)
 
 - [atlas reference](/references/atlas/)
 - [atlas tools](/references/atlas/tools)
