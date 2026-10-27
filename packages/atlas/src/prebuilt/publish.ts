@@ -18,15 +18,53 @@ export type TGuard = { publish: true } | { publish: false; reason: string };
 
 const PAIR_NAME = /^([0-9a-f]{40})\.atlas\.(gz|json)$/;
 
-/** Whether `sha` is on `origin/<branch>`, from the refs a full checkout has. */
-const isOnBranch = (opts: { root: string; sha: string; branch: string }): boolean =>
-  spawnSync(
-    'git',
-    ['merge-base', '--is-ancestor', opts.sha, `refs/remotes/origin/${opts.branch}`],
-    {
+/**
+ * Whether `sha` is on `<branch>`, from the refs a full checkout has: `origin/<branch>`, and the local branch
+ * of that name when the checkout made one (the branch a run was started on).
+ */
+export const isOnBranch = (opts: { root: string; sha: string; branch: string }): boolean =>
+  [`refs/remotes/origin/${opts.branch}`, `refs/heads/${opts.branch}`].some(
+    (ref) =>
+      spawnSync('git', ['merge-base', '--is-ancestor', opts.sha, ref], { cwd: opts.root })
+        .status === 0,
+  );
+
+/** Whether `ref` is the plain name of a tag or a branch: not an option, a hash, `HEAD`, a `refs/` path or a revision expression. */
+const isPlainRefName = (opts: { ref: string }): boolean =>
+  PublishConstants.REF_NAME.test(opts.ref) &&
+  !PublishConstants.HASH_LIKE.test(opts.ref) &&
+  !opts.ref.includes('..') &&
+  !opts.ref.startsWith('refs/') &&
+  !opts.ref.endsWith('/') &&
+  !opts.ref.endsWith('.lock') &&
+  opts.ref !== 'HEAD';
+
+/**
+ * The commit a tag or a branch name points at in this checkout (a tag first, then `origin/<name>`, then the
+ * local branch); `undefined` for anything that is not the plain name of one.
+ */
+export const refCommitOf = (opts: { root: string; ref: string }): string | undefined => {
+  if (!isPlainRefName({ ref: opts.ref })) {
+    return undefined;
+  }
+
+  for (const full of [
+    `refs/tags/${opts.ref}`,
+    `refs/remotes/origin/${opts.ref}`,
+    `refs/heads/${opts.ref}`,
+  ]) {
+    const found = spawnSync('git', ['rev-parse', '--verify', '--quiet', `${full}^{commit}`], {
       cwd: opts.root,
-    },
-  ).status === 0;
+      encoding: 'utf8',
+    });
+
+    if (found.status === 0 && /^[0-9a-f]{40}$/.test(found.stdout.trim())) {
+      return found.stdout.trim();
+    }
+  }
+
+  return undefined;
+};
 
 /** The default branch the event names; `undefined` when the event file cannot be read. */
 const defaultBranchOf = (opts: { env: TEnv }): string | undefined => {
@@ -42,21 +80,34 @@ const defaultBranchOf = (opts: { env: TEnv }): string | undefined => {
 };
 
 /**
- * Whether this run may publish. Only a `push`, only to the default branch, to `develop`, or of a tag
- * whose commit is on one of them; never a pull request, never the `atlas-index` tag the release itself
- * makes, never without the key and Actions' own token. Every refusal says why.
+ * Whether this run may publish. A `push` or a manual run (`workflow_dispatch`), only on the default branch,
+ * on `develop`, or on a tag whose commit is on one of them; never a pull request, never the `atlas-index` tag
+ * the release itself makes, never without the key and Actions' own token. A manual run may also name a `ref`
+ * (a tag or a branch) to publish the pair of that commit instead of its own: the commit must be on the
+ * default branch or `develop`, and a name that is not the plain name of a tag or a branch is refused before
+ * git is asked anything. Every refusal says why.
  */
 export const publishGuard = (opts: {
   root: string;
   env: TEnv;
   keyEnv: string;
+  /** A tag or a branch whose commit to publish; only a manual run may give one. */
+  ref?: string;
+  commitOf?: (opts: { ref: string }) => string | undefined;
   onBranch?: (opts: { sha: string; branch: string }) => boolean;
 }): TGuard => {
   const { env } = opts;
   const no = (reason: string): TGuard => ({ publish: false, reason });
+  const named = opts.ref ?? '';
 
-  if (env.GITHUB_EVENT_NAME !== 'push') {
-    return no(`the event is ${env.GITHUB_EVENT_NAME ?? 'not Actions'}, only a push publishes`);
+  if (env.GITHUB_EVENT_NAME !== 'push' && env.GITHUB_EVENT_NAME !== 'workflow_dispatch') {
+    return no(
+      `the event is ${env.GITHUB_EVENT_NAME ?? 'not Actions'}, only a push or a manual run publishes`,
+    );
+  }
+
+  if (named.length > 0 && env.GITHUB_EVENT_NAME !== 'workflow_dispatch') {
+    return no('a ref can only be given to a manual run');
   }
 
   if ((env[opts.keyEnv] ?? '').trim().length === 0) {
@@ -71,6 +122,26 @@ export const publishGuard = (opts: {
   const branches = [...new Set([defaultBranch, PublishConstants.DEVELOP_BRANCH])].filter(
     (branch): branch is string => branch !== undefined,
   );
+  if (named.length > 0) {
+    if (!isPlainRefName({ ref: named })) {
+      return no(`'${named}' is not the plain name of a tag or a branch`);
+    }
+
+    const sha = (opts.commitOf ?? ((found) => refCommitOf({ root: opts.root, ref: found.ref })))({
+      ref: named,
+    });
+
+    if (sha === undefined) {
+      return no(`'${named}' is not a tag or a branch of this checkout`);
+    }
+
+    const onBranch = opts.onBranch ?? ((found) => isOnBranch({ root: opts.root, ...found }));
+
+    return branches.some((branch) => onBranch({ sha, branch }))
+      ? { publish: true }
+      : no(`'${named}' is not on the default branch or ${PublishConstants.DEVELOP_BRANCH}`);
+  }
+
   const ref = env.GITHUB_REF ?? '';
 
   if (ref.startsWith('refs/heads/')) {
@@ -335,7 +406,7 @@ export interface IPublished {
 }
 
 /**
- * Publishes the pair of HEAD to the release `atlas-index` of `GITHUB_REPOSITORY`: the guard first; then the
+ * Publishes the pair of HEAD (of the commit `ref` names, for a manual run) to the release `atlas-index` of `GITHUB_REPOSITORY`: the guard first; then the
  * pair is built and signed; the release is made once (a pre-release that is not latest, its tag never
  * moved); an older pair of the same commit is removed before the new one goes up; the release is pruned.
  * Every URL is built from `GITHUB_REPOSITORY`: there is no input that names another repository, and the
@@ -346,6 +417,8 @@ export const publishIndex = async (opts: {
   env: TEnv;
   keyEnv: string;
   atlasVersion: string;
+  /** A tag or a branch of a manual run: the pair of its commit is published instead of HEAD's. */
+  ref?: string;
   now?: () => number;
   onBranch?: (opts: { sha: string; branch: string }) => boolean;
 }): Promise<IPublished | { published: false; reason: string }> => {
@@ -386,6 +459,8 @@ export const publishIndex = async (opts: {
   };
 
   const out = join(opts.root, PublishConstants.SCRATCH_OUT);
+  const commit =
+    (opts.ref ?? '').length > 0 ? refCommitOf({ root: opts.root, ref: opts.ref ?? '' }) : undefined;
 
   rmSync(out, { recursive: true, force: true });
 
@@ -397,8 +472,9 @@ export const publishIndex = async (opts: {
       privateKey: opts.env[opts.keyEnv],
       atlasVersion: opts.atlasVersion,
       requireFullHistory: true,
+      commit,
     });
-    const release = await ensureRelease({ call, base, sha: opts.env.GITHUB_SHA ?? built.sha });
+    const release = await ensureRelease({ call, base, sha: built.sha });
     const names = pairNamesOf({ sha: built.sha });
     const listed = await listAssets({ call, base, releaseId: release.id });
     const deleted: string[] = [];
