@@ -50,6 +50,10 @@ describe('the guard: only a push to a protected ref publishes (C24)', () => {
     publishGuard({ root: '.', env: opts.env, keyEnv: 'ATLAS_INDEX_KEY', onBranch: opts.onBranch });
 
   test.each([
+    [
+      'a manual run on develop',
+      { GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF: 'refs/heads/develop' },
+    ],
     ['a push to develop', { GITHUB_REF: 'refs/heads/develop' }],
     ['a push to the default branch the event names', { GITHUB_REF: 'refs/heads/main' }],
   ])('%s publishes', (_label, changes) => {
@@ -62,7 +66,8 @@ describe('the guard: only a push to a protected ref publishes (C24)', () => {
       { GITHUB_EVENT_NAME: 'pull_request', GITHUB_REF: 'refs/pull/4/merge' },
       'pull_request',
     ],
-    ['a manual run', { GITHUB_EVENT_NAME: 'workflow_dispatch' }, 'workflow_dispatch'],
+    ['a scheduled run', { GITHUB_EVENT_NAME: 'schedule' }, 'schedule'],
+    ['an issue event', { GITHUB_EVENT_NAME: 'issues' }, 'issues'],
     ['an empty key', { ATLAS_INDEX_KEY: '' }, 'ATLAS_INDEX_KEY is empty'],
     ['a missing key', { ATLAS_INDEX_KEY: undefined }, 'ATLAS_INDEX_KEY is empty'],
     ['no token', { GITHUB_TOKEN: undefined }, 'GITHUB_TOKEN'],

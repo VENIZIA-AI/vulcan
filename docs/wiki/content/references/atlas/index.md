@@ -219,9 +219,19 @@ It uses the project's own installed atlas, so `bun x --no-install vulcan` must r
 
 It publishes only when all of these hold; otherwise it uploads nothing, says why and succeeds:
 
-- the event is a `push`, never a pull request or a manual run;
-- the ref is the default branch, `develop`, or a tag whose commit is on one of them (never the tag `atlas-index` itself);
+- the event is a `push` or a manual run (`workflow_dispatch`), never a pull request or anything else;
+- the ref is the default branch, `develop`, or a tag whose commit is on one of them (never the tag `atlas-index` itself), or the run was given a `ref` that passes the check below;
 - `ATLAS_INDEX_KEY` is set and the job has its token.
+
+#### A pair a push never made
+
+A push made with the Actions token (for example the release commit and tag a release workflow pushes) starts no workflow, so such a commit gets no pair from a push trigger.
+Two ways to make it:
+
+- **A step of the same job.** Give the action a `ref` after the push: `with: { ref: <the tag> }`.
+- **A manual run.** Add a `workflow_dispatch` trigger with a `ref` input and hand that input to the action as its `ref`; start it on the default branch or `develop`, because GitHub runs a manual run with the workflow file of the ref it starts on: `gh workflow run atlas-index.yml --ref develop -f ref=v0.4.6`.
+
+The action then publishes the pair of that tag or branch instead of HEAD (`vulcan x atlas index publish --ref <name>`, which the action runs). Only a manual run may give a `ref`. The name must be the plain name of a tag or a branch of the checkout: a commit hash, `HEAD`, a `refs/` path, an option or a revision expression such as `develop~1` is refused before git is asked anything, and so is a name whose commit is on neither the default branch nor `develop`. The `ref` is never checked out as the workflow's checkout; the pair is built in a scratch worktree of its commit, after the check.
 
 What it does, in order: builds and signs the pair; makes the release `atlas-index` if it is not there (a pre-release that is not the latest release; its tag is made once and never moved); removes any older pair of the same commit; uploads the gz and then the envelope; prunes.
 Every URL comes from `GITHUB_REPOSITORY`: the action has no input that names another repository, and the token goes to the API host and to the upload host the API names only if it is the API's own.

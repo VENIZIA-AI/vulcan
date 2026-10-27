@@ -42,6 +42,10 @@ jobs:
   release:
     name: NPM Release
     runs-on: ubuntu-26.04
+    # The release pushes the release commit and the tag, and puts the pair of the tag commit on the release
+    # `atlas-index`: both write contents.
+    permissions:
+      contents: write
 
     steps:
       # -------------------------------------------------------------------------
@@ -320,6 +324,22 @@ jobs:
           git push origin "$TAG_NAME"
 
           echo "IS_TAGGED=true" >> "$GITHUB_ENV"
+
+      # -------------------------------------------------------------------------
+      # ATLAS INDEX
+      # -------------------------------------------------------------------------
+      # The push above is made with the Actions token, and GitHub starts no workflow from such a push, so
+      # `atlas-index.yml` never runs for the release commit or the tag. The pair of the tag commit is made
+      # here instead, from this checkout (full history, develop's refs, the tag just made). It does nothing
+      # while ATLAS_INDEX_KEY is empty, refuses a tag whose commit is not on develop (develop moved on during
+      # the run and the tag went on the commit as built), and never fails a release that has published.
+      - name: Publish the atlas index of the release
+        continue-on-error: true
+        uses: ./.github/actions/atlas-index
+        with:
+          ref: ${{ env.TAG_NAME }}
+        env:
+          ATLAS_INDEX_KEY: ${{ secrets.ATLAS_INDEX_KEY }}
 
       # -------------------------------------------------------------------------
       # FAILURE REPORTS

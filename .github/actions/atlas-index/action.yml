@@ -3,14 +3,20 @@ description: >-
   Builds the atlas index of the commit this run checked out, signs it with the private key in the
   environment variable named by key-env, and attaches it to the release atlas-index of this repository.
   Run it after the project's own install, with full history (actions/checkout with fetch-depth 0) and the
-  job permission contents write. It publishes only for a push to the default branch, to develop, or of a
-  tag on one of them, and only when the key is set; for anything else it uploads nothing and succeeds.
+  job permission contents write. It publishes only for a push or a manual run on the default branch, on
+  develop, or on a tag on one of them, and only when the key is set; for anything else it uploads nothing
+  and succeeds. With a ref (a manual run only) it publishes the pair of that tag or branch instead: the
+  commit must be on the default branch or develop.
 
 inputs:
   key-env:
     description: The name of the environment variable that holds the private key, set from an Actions secret on the step that uses this action.
     required: false
     default: ATLAS_INDEX_KEY
+  ref:
+    description: A tag or a branch whose commit to publish instead of the checked out one; a manual run only, and the commit must be on the default branch or develop. Empty means the checked out commit.
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -20,4 +26,10 @@ runs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
         ATLAS_KEY_ENV: ${{ inputs.key-env }}
-      run: bun x --no-install vulcan x atlas index publish --key-env "$ATLAS_KEY_ENV"
+        ATLAS_REF: ${{ inputs.ref }}
+      run: |
+        if [ -n "$ATLAS_REF" ]; then
+          bun x --no-install vulcan x atlas index publish --key-env "$ATLAS_KEY_ENV" --ref "$ATLAS_REF"
+        else
+          bun x --no-install vulcan x atlas index publish --key-env "$ATLAS_KEY_ENV"
+        fi
