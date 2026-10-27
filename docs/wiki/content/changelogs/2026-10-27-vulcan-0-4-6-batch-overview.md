@@ -8,7 +8,7 @@ packages: ['@venizia/vulcan', '@venizia/vulcan-atlas', '@venizia/vulcan-okf']
 
 ## VULCAN X.Y.Z: skills that load when they should, and two wiki link gates
 
-<Badge type="tip" text="Enhancement" /> <Badge type="tip" text="New Feature" /> <Badge type="warning" text="Behavior Change" />
+<Badge type="tip" text="Enhancement" /> <Badge type="tip" text="New Feature" /> <Badge type="warning" text="Behavior Change" /> <Badge type="danger" text="Security" />
 
 Everything below is new since 0.4.5.
 
@@ -25,6 +25,7 @@ Everything below is new since 0.4.5.
 5. **Optional, projects with a VitePress wiki:** add `WIKI_REPO := <owner>/<name>` before the `vulcan.mk` include and run `make wiki-links-check` and `make docs wiki-anchors-check` ([the gates](./2026-10-27-vulcan-0-4-6-wiki-gates)).
 6. **Optional:** a project that saved pages with `vulcan visualize` can render them again; nothing requires it.
 7. **Optional, a repository that other projects read as a source:** publish its atlas index so they download it instead of building it ([the guide](/guides/core-concepts/atlas#publish-your-index-so-the-projects-that-read-yours-do-not-build-it)). A project that only reads sources needs nothing; it can turn the download off with `atlas.prebuilt: false`.
+8. **Optional, a project with its own deploy, migrate or release commands:** list them in `guard.writes.commands` and the branches in `guard.git.askPush`, run `vulcan sync` and commit the manifest ([the hooks reference](/references/hooks/#your-own-commands)).
 
 ## Enhancements
 
@@ -33,6 +34,7 @@ Everything below is new since 0.4.5.
 | Eight skill descriptions say when to load the skill, what it produces and what to skip; the limit is 700 characters | [Skill descriptions](./2026-10-27-vulcan-0-4-6-skill-descriptions) | #487 |
 | The delegation brief names the skill the receiver must load, not a retyped copy of its steps | [Delegation brief](./2026-10-27-vulcan-0-4-6-delegation-names-the-skill) | #479 |
 | A Claude Code session runs Bash with `TMPDIR` in the project (`.agents/local/tmp`), a launch file moves Claude Code's own files too, and a bare `mktemp` no longer asks | [Temporary files](./2026-10-27-vulcan-0-4-6-project-temp-folder) | #509, #510 |
+| A project lists its own deploy and migrate commands (`guard.writes.commands`) and the branches a plain `git push` asks about (`guard.git.askPush`); the guards ask on them, inside compound commands too, and the V-W-02 and V-W-03 wording says what the hook covers | [Guard patterns](./2026-10-27-vulcan-0-4-6-guard-patterns) | #511, #PRGUARD |
 | atlas records the format of every cached index and builds an older one again, once, instead of serving it | [Index format](./2026-10-27-vulcan-0-4-6-atlas-index-format) | #497, #498 |
 | The package READMEs credit the VENIZIA logo, the LICENSE files name Venizia Co., Ltd., and one doctor warning drops the name of another formatter | [READMEs and legal name](./2026-10-27-vulcan-0-4-6-readme-and-legal-name) | #444, #450, #446 |
 

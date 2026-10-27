@@ -28,6 +28,10 @@ The reason is shown to you. The answer carries `permissionDecision` twice, under
 
 Around them, `session-start` prints the rules digest into the session and, in Claude Code, exports `TMPDIR` (the project's `.agents/local/tmp`) into every Bash command ([Temporary files](/references/agents#temporary-files)), `subagent-start` gives every subagent a small rules card, and `stop` and `prompt-submit` check the shape of replies ([The owner and the reply shape](/guides/core-concepts/owner-and-replies)). Each hook, matcher and failure mode is in the [Hooks reference](/references/hooks/).
 
+## Your own deploy and migrate commands
+
+The guards know a fixed list of commands (`kubectl apply`, `docker compose up`, `db:migrate`, and the others). A project whose deploys are `make deploy-develop-*` or whose migrations are `bun run migrate:up` lists them in the config (`guard.writes.commands`), and lists the branches a plain `git push` should ask about (`guard.git.askPush`); `vulcan sync` writes both to the manifest and the guards ask on a match, inside compound commands too. How to write them, and a Claude Code only second layer through `permissions.ask`, are in the [hooks reference](/references/hooks/#your-own-commands).
+
 ## What the guards are not
 
 They stop accidental and drifting commands: a force-push because a flag looked right, a write outside the project because a path was relative, an `ssh` to a host nobody named. They are not a sandbox. A shell is a language no hand-written parser reads completely, and each review of the parser has found spellings it missed (the [reference lists every one](/references/hooks/#what-the-guards-are-and-are-not)).

@@ -1205,6 +1205,34 @@ export const checkStaleTrustedScripts = (opts: ICheckContext): IViolation[] =>
       : [];
   });
 
+/**
+ * The commands and push targets the project adds to guard-writes and guard-git, one note each: so the
+ * guards' reach beyond their own list is visible where a person looks, with the rule and the pattern.
+ */
+export const checkGuardPatterns = (opts: ICheckContext): IViolation[] => {
+  const { commands } = opts.config.guard.writes;
+  const { askPush } = opts.config.guard.git;
+
+  return [
+    ...commands.map((command) =>
+      createViolation({
+        check: DoctorChecks.GUARDS,
+        file: opts.configFile,
+        message: `guard.writes.commands: ${command.rule} '${command.what}' asks when a command matches /${command.pattern}/${command.ignoreCase === true ? 'i' : ''}`,
+      }),
+    ),
+    ...(askPush.length === 0
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.GUARDS,
+            file: opts.configFile,
+            message: `guard.git.askPush: a plain git push asks for ${askPush.join(', ')}`,
+          }),
+        ]),
+  ];
+};
+
 export const checkLocalSize = (opts: ICheckContext): IViolation[] => {
   const entries = scanLocal({ root: opts.root });
   const total = entries.reduce((sum, entry) => sum + entry.bytes, 0);

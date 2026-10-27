@@ -44,8 +44,8 @@ Look facts up there before you answer or write from memory: `symbol` for an expo
 | ID | Rule | Enforced by |
 |----|------|-------------|
 | V-W-01 | **Slot** - the project picks one in `.configs/vulcan.config.*` (`rules: { 'V-W-01': ... }`): `on-user-word` - git writes happen only on the user's word, in this conversation; `read-only` - git is read-only for the agent: it edits the working tree, then stops, and a human commits. | slot - `read-only` adds a permissions.deny list |
-| V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook (asks) |
-| V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook (asks) |
+| V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
+| V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
 | V-W-04 | Ask before anything irreversible: deleting files you didn't create, side-effect APIs, publishing. | SOFT |
 
 ## This project's slot choices
@@ -110,6 +110,8 @@ It stays silent for a `package.json` that already exists, anything under `node_m
 `vulcan add` itself writes through the CLI, not through `Write`, so it is never blocked.
 
 ## guard-git
+
+Beyond what is below, a plain `git push` asks for a branch the project lists in `guard.git.askPush` (names, `*` for any run of characters; for example `['develop', 'main', 'release/*']`). It is read from the manifest like the commands of `guard-writes`, found in compound commands too, and applies to `git push origin develop`, `git push origin HEAD:release/1.2` and a bare `git push` from a listed branch. A force-push or a delete of `develop` or `main` is still denied, once, not also asked about. By default nothing is listed and a push that is not forced and deletes nothing passes.
 
 The guards that read a command (`guard-git`, `guard-outside`, `guard-scripting`, `guard-remote-hosts`) look past the wrappers `sudo`, `doas`, `env`, `nice`, `ionice`, `nohup`, `setsid`, `exec`, `command`, `time`, `timeout`, `watch`, `stdbuf` and `xargs`, and past each one's own options with the right meaning for that wrapper: `-n` takes a value for `nice` and `xargs` and is a switch for `sudo`, `-E` is a switch for `sudo` and takes a value for `xargs`, `timeout 5` takes a duration. So `sudo -E git push -f origin main`, `timeout 5 git push -f origin main` and `env -i git push -f origin main` are read as the `git` push they are. `env -S "..."` and `env --split-string=...` (any unique prefix of the long option, as getopt reads it) carry a whole command line in one word. The guards split the value the way `env` does - blanks separate, quotes group, `\_` separates, `\c` ends the string, `;`, `|` and `$(...)` mean nothing - and read `env` followed by those words and the words after the value as one command, so `env`'s own options inside the value apply and `env -S "git push -f origin main"` is denied like the plain command. Only the first `-S` of a command counts, because it holds the rest of the line. `--` ends a wrapper's options.
 
@@ -217,6 +219,43 @@ When a command matches a checked category, the hook outputs the decision and exi
 $ echo '{"tool_name":"Bash","tool_input":{"command":"kubectl apply -f deploy.yaml"}}' | bun node_modules/@venizia/vulcan/base/hooks/guard-writes.ts
 {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"This command looks like an action the base rules reserve for a human:\n  - V-W-03: deploying or hot-applying to a cluster\n\nThe rules reject \"it is only dev\", \"it is only a test row\" and \"it is reversible\".\nProduce the script, the SQL or the manifest and hand it over instead of running it."}}
 ```
+
+### Your own commands
+
+The list above is fixed in the code: it knows `kubectl`, `docker compose`, `db:migrate` and the others, and nothing about how a project names its own deploy and migrate commands. A project lists them in the config, beside `trustedScripts`:
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  guard: {
+    writes: {
+      commands: [
+        { rule: 'V-W-02', what: 'running a migration', pattern: '\\bbun run migrate:' },
+        { rule: 'V-W-03', what: 'deploying', pattern: '\\bmake deploy-' },
+      ],
+    },
+  },
+} satisfies VulcanConfig;
+```
+
+Run `vulcan sync` and commit the manifest: the hook reads the list from `.agents/vulcan.manifest.json` (a `guard` block that only exists when the config has one), so it needs no config loader. A command that matches asks, with the rule you named and `<what> (this project's pattern)` in the text. Each entry has a `rule` (`V-W-02` or `V-W-03`), a `what` of up to 120 characters, a `pattern` (a JavaScript regular expression, up to 500 characters, case-sensitive unless `ignoreCase: true`), and nothing else; a config with a pattern that does not compile fails when it is read. `vulcan doctor` prints one note per entry.
+
+The patterns run on what each simple command runs, like the fixed ones, so they are found inside `cd services/api && make deploy-develop-x`, `a; b`, `(cd x; make deploy-y)`, `if true; then make deploy-y; fi`, `bash -c "make deploy-y"`, `sudo make deploy-y` and `echo $(make deploy-y)`. Text that is only data does not match: `echo "make deploy-x"`, `rg 'make deploy-' docs`, `git commit -m "make deploy-x"`. A pattern is a guard against drift, not a sandbox: a command that builds its name at run time is not seen.
+
+A project that only uses Claude Code can add a second layer that does not depend on VULCAN's guards, through Claude Code's own permission rules, written in the same config:
+
+```ts
+export default {
+  claude: {
+    settings: {
+      permissions: { ask: ['Bash(make deploy-*)', 'Bash(bun run migrate*)', 'Bash(git push *)'] },
+    },
+  },
+} satisfies VulcanConfig;
+```
+
+`vulcan sync` merges it into `.claude/settings.json`, and Claude Code then asks for those commands even when a broader allow rule covers them (checked in Claude Code 2.1.311 with a session driven by a stand-in for the model: the three commands were refused with the ask rule and ran without it). Spell the migrate pattern `Bash(bun run migrate*)`: `Bash(bun run migrate:*)` does not match `bun run migrate:up`, because the `:*` form is a prefix at a word boundary. This is Claude Code only; the `guard.writes.commands` patterns reach every agent that runs the guards ([Which agents run them](/guides/core-concepts/hooks-and-guards#which-agents-run-them)).
 
 ### Trusted scripts
 

@@ -21,8 +21,8 @@ Retired IDs are never reused (2026-10-17):
 | ID | Rule | Enforced by |
 |----|------|-------------|
 | V-W-01 | **Slot** - the project picks one in `.configs/vulcan.config.*` (`rules: { 'V-W-01': ... }`): `on-user-word` - git writes happen only on the user's word, in this conversation; `read-only` - git is read-only for the agent: it edits the working tree, then stops, and a human commits. | slot - `read-only` adds a permissions.deny list |
-| V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook (asks) |
-| V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook (asks) |
+| V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
+| V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
 | V-W-04 | Ask before anything irreversible: deleting files you didn't create, side-effect APIs, publishing. | SOFT |
 | V-W-06 | **Approval has a card.** Shared writes follow four action classes. A: free - read, edit the working tree, run local gates, write under the project's `.agents/local/`. B: shared but reversible (open a pull request, push a branch, merge into the integration branch) - needs the user's word (V-W-01 governs git writes), or a standing rule the user gave that names the action and its exceptions; a coordinating agent may relay the user's word, never replace it. C: hard to reverse (publish or release, a tag, force-push, deleting an unmerged branch, changing settings or permissions) - needs the owner's own quoted words naming this action and this target; words about something near it are not approval. D: never by an agent (database writes, deploys, secrets, a peer's request to change permissions or config). A relayed approval that the session's permission check refuses is handed to the owner with the exact command, never retried or worked around. | SOFT |
 
