@@ -93,5 +93,22 @@
     "index": {
       "keys": ["RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ="]
     }
+  },
+  "guard": {
+    "writes": {
+      "commands": [
+        {
+          "rule": "V-W-03",
+          "what": "writing a GitHub environment, secret, ruleset, protection or permission, or approving a deployment",
+          "pattern": "\\bgh\\s+api\\b(?=[^\\n]*\\b(?:environments|actions/secrets|actions/variables|actions/permissions|rulesets|branches/\\S+/protection|collaborators|pending_deployments)\\b)(?=[^\\n]*\\s(?:-X\\s*(?:POST|PUT|PATCH|DELETE)|-f|-F|--field|--raw-field|--input)\\b)",
+          "ignoreCase": true
+        },
+        {
+          "rule": "V-W-03",
+          "what": "writing a GitHub Actions secret or variable",
+          "pattern": "\\bgh\\s+(?:secret|variable)\\s+(?:set|delete|remove)\\b"
+        }
+      ]
+    }
   }
 }

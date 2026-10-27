@@ -43,6 +43,10 @@ IGNIS; atlas tests that measure IGNIS's real corpus skip there and run on a mach
 
 The wiki site deploys with `deploy-docs.yml` on a push to `develop` that touches `docs/wiki/`, or on a manual dispatch. Merging a pull request into `develop` publishes it; `main` receives `develop` by an ordinary merge and does not deploy.
 
+## Who does what on the release path
+
+Agents prepare and verify; the owner writes. An agent never approves a deployment and never writes a secret, an environment, a ruleset, a branch protection, a collaborator role or the Actions permissions (`W-08`, `V-W-06` class D, whoever relays the owner's word); it reads them back with `gh api` GET and reports. `guard.writes.commands` in `.configs/vulcan.config.mts` lists the commands and guard-writes asks before them; `scripts/checks/__tests__/release-guards-config.test.ts` holds the list. A guard against drift, not a sandbox.
+
 ## Publishing the atlas index
 
 `atlas-index.yml` runs on a push to `main`, `develop` or a tag, or by hand (`workflow_dispatch`, with an optional `ref` input), and publishes the signed atlas index of that commit to the release `atlas-index` of this repository, through the local action `.github/actions/atlas-index` (so it is always the action of the commit being indexed). It needs the repository secret `ATLAS_INDEX_KEY`; with the secret empty it uploads nothing and succeeds. The public key is `atlas.index.keys` in `.configs/vulcan.config.mts`, rendered into the manifest.
