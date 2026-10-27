@@ -1,5 +1,5 @@
 name: 'NPM Release'
-run-name: 'NPM Release | bump: ${{ inputs.bump }}'
+run-name: 'NPM Release | bump: ${{ inputs.bump }} | ${{ github.sha }}'
 
 on:
   workflow_dispatch:
@@ -33,15 +33,64 @@ concurrency:
   group: npm-release
   cancel-in-progress: false
 
+# Read-only by default; the one job that pushes the release commit and the tag says so for itself. Every job
+# runs only for the develop ref and checks out the commit that was dispatched, so what the tests ran on, what
+# the approver sees in the run name and what is published are the same commit. The actions and bun are pinned.
+permissions:
+  contents: read
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   BUMP: ${{ inputs.bump }}
   PUBLISH_ORDER: 'okf atlas cli'
 
 jobs:
+  # Build, lint, the unit tests and VULCAN's own contract, on the dispatched commit, in a job that holds no
+  # secret and cannot write: the release job below needs it, so a failing gate publishes nothing.
+  test:
+    name: Gates
+    runs-on: ubuntu-26.04
+    if: github.ref == 'refs/heads/develop'
+
+    steps:
+      - name: Checkout the dispatched commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
+      - name: Install
+        run: bun install
+
+      - name: Build
+        run: make build
+
+      - name: Lint
+        run: make lint-all
+
+      - name: Dependency catalog
+        run: make catalog-check
+
+      - name: Test
+        run: make test
+
+      # The contract VULCAN ships, checked on VULCAN itself. CI has no adapters yet, so sync first.
+      - name: VULCAN contract
+        run: |
+          bun x --no-install vulcan sync
+          bun x --no-install vulcan doctor
+          bun x --no-install vulcan x okf check --strict
+
   release:
     name: NPM Release
     runs-on: ubuntu-26.04
+    needs: test
+    if: github.ref == 'refs/heads/develop'
     # The release pushes the release commit and the tag, and puts the pair of the tag commit on the release
     # `atlas-index`: both write contents.
     permissions:
@@ -51,24 +100,25 @@ jobs:
       # -------------------------------------------------------------------------
       # SETUP
       # -------------------------------------------------------------------------
-      # As in IGNIS: the release builds develop, whatever ref it was dispatched from; main only ever
-      # receives merges from develop.
-      - name: Checkout develop
-        uses: actions/checkout@v6.0.3
+      # The commit that was dispatched (the head of develop at that moment): the one the test job ran on and
+      # the one the run name shows. The release commit is pushed to develop below with a rebase and a retry
+      # if develop moved, and the tag goes on the commit as built.
+      - name: Checkout the dispatched commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          ref: develop
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          bun-version: 1.4.4
 
       - name: Setup Git
         run: |
@@ -120,22 +170,6 @@ jobs:
       # -------------------------------------------------------------------------
       - name: Build
         run: make build
-
-      - name: Lint
-        run: make lint-all
-
-      - name: Dependency catalog
-        run: make catalog-check
-
-      - name: Test
-        run: make test
-
-      # The contract VULCAN ships, checked on VULCAN itself. CI has no adapters yet, so sync first.
-      - name: VULCAN contract
-        run: |
-          bun x --no-install vulcan sync
-          bun x --no-install vulcan doctor
-          bun x --no-install vulcan x okf check --strict
 
       # The packed tarballs, installed alone in an empty project. smoke-cli also fails on sibling
       # pins in the packed cli that differ from the train's version.
