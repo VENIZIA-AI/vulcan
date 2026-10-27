@@ -101,7 +101,7 @@ export const verifyPair = (opts: {
     return miss({ reason: MissReasons.SIGNATURE });
   }
 
-  let payload: z.SafeParseReturnType<unknown, unknown>;
+  let payload: ReturnType<typeof PayloadSchema.safeParse>;
 
   try {
     payload = PayloadSchema.safeParse(JSON.parse(payloadBytes.toString('utf8')));
@@ -113,7 +113,8 @@ export const verifyPair = (opts: {
     return miss({ reason: MissReasons.MALFORMED });
   }
 
-  const checked = payload.data as IIndexPayload;
+  // The schema checks the parts a reader relies on; the release table is read as JSON by its own store.
+  const checked = payload.data as unknown as IIndexPayload;
 
   if (createHash('sha256').update(opts.gz).digest('hex') !== checked.digest) {
     return miss({ reason: MissReasons.DIGEST });
