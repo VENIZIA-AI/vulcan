@@ -1,4 +1,4 @@
-/** What a prebuilt index is called and where its key lives. */
+/** What a prebuilt index is called, where its key lives, and how much of it a reader will take. */
 export class PrebuiltConstants {
   /** The environment variable the signing key is read from: in CI an Actions secret of this name. */
   static readonly KEY_ENV = 'ATLAS_INDEX_KEY';
@@ -10,10 +10,22 @@ export class PrebuiltConstants {
   static readonly INDEX_SUFFIX = '.atlas.gz';
   /** `<sha>.atlas.json`: the signed envelope that describes the gz. */
   static readonly ENVELOPE_SUFFIX = '.atlas.json';
+  /** The one release of a repository that holds its pairs. */
+  static readonly RELEASE_TAG = 'atlas-index';
   static readonly PUBLIC_KEY_BYTES = 32;
   static readonly SIGNATURE_BYTES = 64;
   /** The fixed DER header of an ed25519 public key (SPKI), in front of its 32 raw bytes. */
   static readonly SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
+  /** An envelope is a few hundred KB at most (it carries the release table). */
+  static readonly MAX_ENVELOPE_BYTES = 8 * 1024 * 1024;
+  /** A gz larger than this is refused unread; a documentation index of a large repository is a few MB gzipped. */
+  static readonly MAX_GZ_BYTES = 128 * 1024 * 1024;
+  /** A payload that announces a larger index than this is refused before the gz is downloaded. */
+  static readonly MAX_INDEX_BYTES = 512 * 1024 * 1024;
+  static readonly ASSETS_PER_PAGE = 100;
+  /** Pages of release assets read before the pair counts as absent (2000 assets, twice the cap of GitHub). */
+  static readonly MAX_ASSET_PAGES = 20;
+  static readonly MAX_REDIRECTS = 3;
 }
 
 /** Why a pair is not used. A closed list: the reader prints one of these and builds locally. */
@@ -21,6 +33,16 @@ export class MissReasons {
   static readonly MALFORMED = 'malformed';
   static readonly SIGNATURE = 'signature';
   static readonly DIGEST = 'digest';
+  static readonly SHA = 'sha';
+  static readonly REPO = 'repo';
+  static readonly FORMAT = 'format';
+  static readonly TOO_LARGE = 'too-large';
+  static readonly SIZE = 'size';
+  static readonly UNREADABLE = 'unreadable';
+  static readonly NO_RELEASE = 'no-release';
+  static readonly NO_PAIR = 'no-pair';
+  static readonly UNREACHABLE = 'unreachable';
+  static readonly FOREIGN_URL = 'foreign-url';
 }
 
 export const pairNamesOf = (opts: { sha: string }): { gz: string; envelope: string } => ({

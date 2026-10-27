@@ -37,7 +37,16 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
   (tracked files only), gzips the index and signs an envelope (`signEnvelope`, `verifyPair`: ed25519 over the
   exact payload bytes, `node:crypto` only; the payload carries the format, sha, repo, size, digest, tags
   fingerprint and release table). Keys: `generateKeyPair`, `atlas index keygen` (private key under
-  `.agents/local/`, 0600, only while it is gitignored). Reading a pair and the CI action are later slices of the same release.
+  `.agents/local/`, 0600, only while it is gitignored). Reading a pair: `attemptPrebuilt` (skips unless the download is on, the source is a GitHub `owner/repo` and its
+  manifest has `atlas.index.keys`, then prints one stderr line on a miss) calls `fetchPrebuilt`, which never throws:
+  release listing, the pair's two assets by name (API asset URL, never `browser_download_url`; the token goes to the
+  API host only and the redirect is followed by hand without it), then signature, sha, repo, format, caps, digest,
+  bounded gunzip, an open probe (`ChunkStore.rowCount`). `pullByGit` installs a hit through `buildArtifacts`
+  (`prebuilt` option; a `prebuilt` marker file records the building atlas version, `IResolvedSource.prebuiltBy`),
+  uses the pair's release table only while the remote's tags fingerprint equals its payload's, and checks out the
+  changelog directory alone otherwise. A pinned tag takes the ref's keys, not its own. `--no-prebuilt` and
+  `prebuilt: false` thread through `resolveSources`, `resolveServableSources`, `resolveRemoteSource` and the
+  server's refresh. The CI action is a later slice of the same release.
 - **Package list**: every tool reads `packages` from the manifest - npm names, directories, aliases,
   retired packages. No project's names are built in.
 - **Releases and symbols** are computed: releases from the tags, symbols from the built `.d.ts` of

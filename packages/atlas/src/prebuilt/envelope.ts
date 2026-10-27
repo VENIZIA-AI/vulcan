@@ -61,15 +61,11 @@ export const signEnvelope = (opts: { payload: IIndexPayload; privateKey: string 
 const miss = (opts: { reason: string }): TPairCheck => ({ ok: false, reason: opts.reason });
 
 /**
- * A pair is usable only when a listed key verifies the signature over the payload bytes, the payload
- * has the shape of one, and the gz is the one the payload names. What the payload says about the
- * commit, the repository and the format is the reader's to compare.
+ * An envelope is usable only when a listed key verifies the signature over the payload bytes and the
+ * payload has the shape of one. What it says about the commit, the repository and the format is the
+ * reader's to compare, and the gz it names is checked by `verifyPair`.
  */
-export const verifyPair = (opts: {
-  envelope: string;
-  gz: Uint8Array;
-  keys: string[];
-}): TPairCheck => {
+export const verifyEnvelope = (opts: { envelope: string; keys: string[] }): TPairCheck => {
   let text: unknown;
 
   try {
@@ -101,10 +97,12 @@ export const verifyPair = (opts: {
     return miss({ reason: MissReasons.SIGNATURE });
   }
 
+  let raw: unknown;
   let payload: ReturnType<typeof PayloadSchema.safeParse>;
 
   try {
-    payload = PayloadSchema.safeParse(JSON.parse(payloadBytes.toString('utf8')));
+    raw = JSON.parse(payloadBytes.toString('utf8'));
+    payload = PayloadSchema.safeParse(raw);
   } catch {
     return miss({ reason: MissReasons.MALFORMED });
   }
@@ -114,11 +112,23 @@ export const verifyPair = (opts: {
   }
 
   // The schema checks the parts a reader relies on; the release table is read as JSON by its own store.
-  const checked = payload.data as unknown as IIndexPayload;
+  // The parsed text itself, not the schema's copy of it: the release table keeps the key order it was written in.
+  return { ok: true, payload: raw as IIndexPayload };
+};
 
-  if (createHash('sha256').update(opts.gz).digest('hex') !== checked.digest) {
-    return miss({ reason: MissReasons.DIGEST });
+/** An envelope that verifies, and a gz whose sha256 is the digest the payload signed. */
+export const verifyPair = (opts: {
+  envelope: string;
+  gz: Uint8Array;
+  keys: string[];
+}): TPairCheck => {
+  const checked = verifyEnvelope(opts);
+
+  if (!checked.ok) {
+    return checked;
   }
 
-  return { ok: true, payload: checked };
+  return createHash('sha256').update(opts.gz).digest('hex') === checked.payload.digest
+    ? checked
+    : miss({ reason: MissReasons.DIGEST });
 };

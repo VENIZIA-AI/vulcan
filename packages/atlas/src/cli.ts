@@ -21,7 +21,7 @@ import type { IAtlasSource } from './sources/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
 
-const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help`;
+const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help`;
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -57,6 +57,8 @@ const GENERATOR_BY_COMMAND: Record<string, (opts: { command?: string }) => numbe
 };
 
 const argv = process.argv.slice(2);
+/** `--no-prebuilt`: never download a prebuilt index; every source is built here. */
+const prebuilt = !argv.includes('--no-prebuilt');
 const subcommand = readSubcommand({ argv });
 
 if (!AtlasCommands.isValid(subcommand)) {
@@ -143,6 +145,7 @@ const buildServer = async (opts: {
     cwd: opts.root,
     sources,
     cacheDir,
+    prebuilt,
   });
 
   for (const { source, reason } of unavailable) {
@@ -162,6 +165,7 @@ const buildServer = async (opts: {
     unavailable,
     cwd: opts.root,
     cacheDir,
+    prebuilt,
     version: opts.version,
     ...(intervalMs === undefined ? {} : { refresh: { intervalMs } }),
   });
@@ -191,6 +195,7 @@ const pull = async (): Promise<number> => {
     sources: named,
     cacheDir: readCacheDirArgument({ argv }),
     force: true,
+    prebuilt,
   });
 
   for (const source of pulled.filter((entry) => entry.mode !== 'repository')) {

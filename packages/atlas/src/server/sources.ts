@@ -254,6 +254,8 @@ export const buildSourcesServer = (opts: {
   cwd: string;
   /** Where atlas keeps what it fetches; absent, `<cwd>/.agents/local/cache`. */
   cacheDir?: string;
+  /** Whether a refresh may download a prebuilt index (default yes). */
+  prebuilt?: boolean;
   version: string;
   /** Keeps a long-running server current; absent, the sources stay as the start resolved them. */
   refresh?: IRefreshOptions;
@@ -279,7 +281,12 @@ export const buildSourcesServer = (opts: {
   const resolve =
     opts.refresh?.resolve ??
     ((source: IAtlasSource) =>
-      resolveRemoteSource({ source, cwd: opts.cwd, cacheDir: opts.cacheDir }));
+      resolveRemoteSource({
+        source,
+        cwd: opts.cwd,
+        cacheDir: opts.cacheDir,
+        prebuilt: opts.prebuilt,
+      }));
   const targets = opts.sources.flatMap((source, index): IRefreshTarget[] => {
     const entry = stores[index];
     const target =

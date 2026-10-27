@@ -1,8 +1,11 @@
+export { attemptPrebuilt } from './attempt';
 export { buildIndexPair } from './build';
 export type { IBuiltPair } from './build';
 export { runIndexCommand, runKeygen } from './command';
 export { MissReasons, PrebuiltConstants, pairNamesOf } from './constants';
-export { signEnvelope, verifyPair } from './envelope';
+export { signEnvelope, verifyEnvelope, verifyPair } from './envelope';
 export type { IIndexPayload, TPairCheck } from './envelope';
+export { fetchPrebuilt } from './fetch';
+export type { IPrebuiltHit, IPrebuiltLimits, IPrebuiltMiss } from './fetch';
 export { generateKeyPair, privateKeyOf, publicKeyOf } from './keys';
 export type { IIndexKeyPair } from './keys';

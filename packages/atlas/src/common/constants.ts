@@ -32,6 +32,8 @@ export class AtlasTimeouts {
   static readonly GIT_TRANSFER_MS = 60_000;
   /** A tarball download - a source's commit, or a package version from npm. */
   static readonly DOWNLOAD_MS = 60_000;
+  /** One request for a prebuilt index: the release listing, an envelope, a gz. */
+  static readonly PREBUILT_MS = 30_000;
   /** git on a local repository - the tags and history the release table reads. */
   static readonly LOCAL_GIT_MS = 30_000;
 }
