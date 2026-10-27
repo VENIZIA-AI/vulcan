@@ -96,8 +96,8 @@ export const checkReleaseWorkflowGuards = (opts: {
     violations.push('C2: the test job must not have write access');
   }
 
-  const environment = release['environment'];
-  const environmentName = isRecord({ value: environment }) ? environment['name'] : environment;
+  const environment = { value: release['environment'] };
+  const environmentName = isRecord(environment) ? environment.value['name'] : environment.value;
 
   if (environmentName !== 'npm-release') {
     violations.push('C16: the release job must name the environment npm-release');
