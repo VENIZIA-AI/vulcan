@@ -25,6 +25,7 @@ or `none` (publish the version already in package.json).
    manifest for it. It publishes okf, atlas, cli in that order with `bun publish` - prerelease to `next`, stable to
    `latest`. A version already on npm is skipped. A prerelease never moves `latest`: it stays on a
    stable version (as in IGNIS). `next` is never below `latest`: after the publish, the step "Keep next at or above latest" (`scripts/release/next-tag.ts`) reads both tags of each of the three packages and moves `next` to `latest` where it is missing or lower. It is non-fatal and prints a warning for every move. A dispatch with bump `none` publishes nothing and still runs it, so it also heals the tags of a release already out. There is no dist-tag workflow, as in IGNIS; any other tag move is `npm dist-tag add <name>@<version> <tag>` by the package owner.
+2a. `make release` does not report success until every tarball of the train answers 200 (`scripts/release/release-wait.ts`, up to 20 minutes, polled every 10 seconds): the registry lists a version minutes before it serves the file, and a consumer that installs it at once gets a 404. A tarball still unserved after that fails the command with the publish itself done.
 3. It commits `chore(release): v<version> [<bump>]` on `develop` and tags `v<version>` on that
    commit as built. When `develop` moved during the run, the push rebases, but the tag stays on the
    release commit, so it never holds merges that were not published.

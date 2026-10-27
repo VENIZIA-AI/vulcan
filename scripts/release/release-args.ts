@@ -28,6 +28,9 @@ export class ReleaseBumps {
 export class ReleaseConstants {
   static readonly WORKFLOW = 'package-release.yml';
   static readonly BRANCH = 'develop';
+  /** How long after the publish a tarball may stay unserved (IGNIS saw about 8 minutes; npm has taken 16). */
+  static readonly TARBALL_WAIT_MS = 20 * 60 * 1000;
+  static readonly TARBALL_POLL_MS = 10 * 1000;
 }
 
 export interface IReleaseArgs {
@@ -148,12 +151,12 @@ export const findPublishedVersions = (opts: {
   log: string;
   packageNames: string[];
 }): Record<string, string | undefined> => {
-  const lines = opts.log.split('\n').filter(line => !line.includes('echo'));
+  const lines = opts.log.split('\n').filter((line) => !line.includes('echo'));
 
   return Object.fromEntries(
-    opts.packageNames.map(name => {
+    opts.packageNames.map((name) => {
       const marker = `+ ${name}@`;
-      const line = lines.find(entry => entry.includes(marker));
+      const line = lines.find((entry) => entry.includes(marker));
 
       return [name, line?.slice(line.indexOf(marker) + marker.length).trim()];
     }),
