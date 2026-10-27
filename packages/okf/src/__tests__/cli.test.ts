@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { clearProjectConfig, useProjectConfig } from './project.helper.ts';
-import { spawnSyncBounded } from './spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterEach(clearProjectConfig);
 

@@ -11,7 +11,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { spawnSyncBounded } from '../spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 const SHIPPED_SETTINGS = join(PACKAGE_ROOT, 'base', 'claude', 'settings.json');

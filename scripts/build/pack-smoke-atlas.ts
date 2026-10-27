@@ -8,7 +8,7 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { useRepoTmp } from '../test/repo-tmp.ts';
+import { useRepoTmp } from '@venizia/dev-configs/testing';
 
 const PACKAGE_DIRECTORY = resolve(import.meta.dir, '..', '..', 'packages', 'atlas');
 const PACKAGE_NAME = '@venizia/vulcan-atlas';

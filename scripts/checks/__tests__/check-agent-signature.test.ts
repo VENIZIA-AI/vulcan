@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '../../__tests__/spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { signaturesOf } from '../check-agent-signature.ts';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');

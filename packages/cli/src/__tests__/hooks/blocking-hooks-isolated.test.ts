@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { SPAWN_TIMEOUT_MS } from '../spawn.helper.ts';
+import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 const roots: string[] = [];

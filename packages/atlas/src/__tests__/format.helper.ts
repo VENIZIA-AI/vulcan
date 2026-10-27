@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSyncBounded } from './spawn.helper';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 /** The `[fmt]` section `vulcan init` writes to the project root. */
 const BUNFIG =

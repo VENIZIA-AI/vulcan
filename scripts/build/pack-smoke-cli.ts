@@ -23,7 +23,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { useRepoTmp } from '../test/repo-tmp.ts';
+import { useRepoTmp } from '@venizia/dev-configs/testing';
 
 interface IStepResult {
   ok: boolean;

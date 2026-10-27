@@ -6,7 +6,7 @@ import { AtlasConstants } from '@/common';
 import { buildIndexPair, generateKeyPair, verifyPair } from '@/prebuilt';
 import { lsRemote } from '@/sources/git';
 import { resolveSources } from '@/sources';
-import { spawnSyncBounded } from '../spawn.helper';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { payloadOf, rowsOf } from './pair.helper';
 import {
   commitAll,

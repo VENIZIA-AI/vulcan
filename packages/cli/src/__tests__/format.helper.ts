@@ -1,4 +1,4 @@
-import { spawnSyncBounded } from './spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 /**
  * `bun fmt --check` over the files matching `glob` under `root`, with the `bunfig.toml` found there:

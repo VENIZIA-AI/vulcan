@@ -7,7 +7,7 @@ import {
   inspectPackageWrite,
   parseManifestHookInput,
 } from '../../hooks/index.ts';
-import { spawnSyncBounded } from '../spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-package.ts');
 const SETTINGS = join(import.meta.dir, '..', '..', '..', 'base', 'claude', 'settings.json');

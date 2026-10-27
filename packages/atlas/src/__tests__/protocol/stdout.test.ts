@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
-import { SPAWN_TIMEOUT_MS } from '../spawn.helper';
+import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
 // __dirname, not import.meta: tsconfig.json (unlike tsconfig.build.json) does not exclude
 // __tests__, and this package's module mode treats every file as CommonJS output.

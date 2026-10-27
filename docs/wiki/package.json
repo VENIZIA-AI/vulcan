@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "@types/bun": "1.4.3",
-    "@venizia/dev-configs": "0.4.0",
+    "@venizia/dev-configs": "0.4.4",
     "eslint": "10.13.0",
     "oxlint": "1.89.0",
     "oxlint-tsgolint": "7.0.2004",

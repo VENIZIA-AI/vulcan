@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const ROOT = join(import.meta.dir, '..', '..', '..');
 const PACKAGES = ['okf', 'atlas', 'cli'];
 
-/** What the root of every package holds, and nothing else; the documented differences are below. `bunfig.toml` holds the `[test] preload` that keeps a bare `bun test` out of the system temp (scripts/test/repo-tmp.ts). */
+/** What the root of every package holds, and nothing else; the documented differences are below. `bunfig.toml` holds the `[test] preload` that keeps a bare `bun test` out of the system temp (`@venizia/dev-configs/testing/tmpdir-preload`). */
 const COMMON = [
   '.configs',
   'LICENSE.md',

@@ -6,7 +6,7 @@ import { buildPromptContract, buildStopOutput } from '../../hooks/index.ts';
 import { readSignals } from '../../signals/index.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
-import { spawnSyncBounded } from '../spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 isolateOwnerReplySwitch();
