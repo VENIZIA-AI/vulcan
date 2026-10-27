@@ -253,3 +253,103 @@ describe('inspectGit against a real repository', () => {
     expect(askFor('merged')).toEqual([]);
   });
 });
+
+// A formatter run followed by `git add -A` once committed 152 files nobody meant to stage. A blanket stage asks only when it
+// would stage a lot (the threshold is HookConstants.BLANKET_STAGE_PATHS): on this repository's develop, 2.2% of commits
+// touch more than 50 files, and the median is 7, so a small pull request is never asked about.
+describe('inspectGit asks before a blanket stage that is large', () => {
+  /** A fake `git status --porcelain` of `tracked` modified paths and `untracked` new ones; counts the queries made. */
+  const status = (opts: { tracked: number; untracked: number }) => {
+    const calls: string[] = [];
+    const run: IGitRunner = (call) => {
+      calls.push([call.program, ...call.args].join(' '));
+
+      if (call.args[0] === 'status') {
+        return [
+          ...Array.from({ length: opts.tracked }, (_, index) => ` M src/file-${index}.ts`),
+          ...Array.from({ length: opts.untracked }, (_, index) => `?? new/file-${index}.ts`),
+        ].join('\n');
+      }
+
+      return undefined;
+    };
+
+    return { run, calls };
+  };
+  const answer = (opts: { command: string; tracked: number; untracked?: number }) => {
+    const fake = status({ tracked: opts.tracked, untracked: opts.untracked ?? 0 });
+    const hits = inspectGit({ command: opts.command, cwd: '/p', run: fake.run });
+
+    return { hits, calls: fake.calls };
+  };
+
+  test.each([
+    'git add -A',
+    'git add --all',
+    'git add .',
+    'git add -A -v',
+    'git -C /p add -A',
+    'git add -u',
+    'git add --update',
+    'git commit -a -m "x"',
+    'git commit -am "x"',
+    'git commit --all -m "x"',
+    'git commit -sam "x"',
+  ])('%s asks when it would stage 161 paths, and says how many', (command) => {
+    const { hits } = answer({ command, tracked: 161 });
+
+    expect(hits.map((hit) => hit.decision)).toEqual(['ask']);
+    expect(hits[0].message).toContain('161');
+    expect(hits[0].message).toContain('name the files');
+  });
+
+  test.each(['git add -A', 'git add --all', 'git add .', 'git commit -a -m "x"', 'git add -u'])(
+    '%s is quiet at 50 paths and asks at 51',
+    (command) => {
+      expect(answer({ command, tracked: 50 }).hits).toEqual([]);
+      expect(answer({ command, tracked: 51 }).hits.map((hit) => hit.decision)).toEqual(['ask']);
+    },
+  );
+
+  test('git add -A counts new files too; git add -u and git commit -a count only tracked ones', () => {
+    expect(answer({ command: 'git add -A', tracked: 20, untracked: 40 }).hits).toHaveLength(1);
+    expect(answer({ command: 'git add -u', tracked: 20, untracked: 400 }).hits).toEqual([]);
+    expect(answer({ command: 'git commit -a -m x', tracked: 20, untracked: 400 }).hits).toEqual([]);
+  });
+
+  test.each([
+    'git add src/a.ts src/b.ts',
+    'git add -A src',
+    'git add -p',
+    'git add -N src/a.ts',
+    'git commit -m "x"',
+    'git commit --amend --no-edit',
+    'git commit --allow-empty -m x',
+    'git status',
+    'git diff --stat',
+  ])('%s is never a blanket stage: no ask, and git is not even queried', (command) => {
+    const { hits, calls } = answer({ command, tracked: 300, untracked: 300 });
+
+    expect(hits).toEqual([]);
+    expect(calls).toEqual([]);
+  });
+
+  test('a status that cannot be read lets the command pass', () => {
+    const run: IGitRunner = () => undefined;
+
+    expect(inspectGit({ command: 'git add -A', cwd: '/p', run })).toEqual([]);
+  });
+
+  test('inside a compound command: asked once for the add, not for the commit without -a', () => {
+    const { hits } = answer({ command: 'cd /p && git add -A && git commit -m "x"', tracked: 161 });
+
+    expect(hits.map((hit) => hit.decision)).toEqual(['ask']);
+  });
+
+  test('the ask names the rule of the shared write and never denies', () => {
+    const { hits } = answer({ command: 'git add -A', tracked: 161 });
+
+    expect(hits[0].rule).toBe('V-W-06');
+    expect(hits.some((hit) => hit.decision === 'deny')).toBe(false);
+  });
+});

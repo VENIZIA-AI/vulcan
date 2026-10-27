@@ -133,6 +133,53 @@ const inspectPush = (opts: {
   return hits;
 };
 
+/**
+ * `git add -A`, `--all`, `.`, `-u` and `git commit -a` stage every change, a formatter's or a generator's included. Past
+ * `HookConstants.BLANKET_STAGE_PATHS` changed paths the guard asks, so the files are named. A stage of named paths, `-p` and a
+ * status that cannot be read pass: the guard asks, it does not deny, and it is not a sandbox.
+ */
+const inspectStage = (opts: {
+  sub: string;
+  rest: string[];
+  cwd: string | undefined;
+  run: IGitRunner;
+}): IGitHit[] => {
+  const flags = opts.rest.filter((word) => word.startsWith('-') && word !== '--');
+  const paths = opts.rest.filter((word) => !word.startsWith('-'));
+  const everything =
+    opts.sub === 'add' &&
+    (flags.some((flag) => flag === '--all' || /^-[a-zA-Z]*A[a-zA-Z]*$/.test(flag)) ||
+      paths.includes('.')) &&
+    paths.every((path) => path === '.');
+  const tracked =
+    (opts.sub === 'add' && flags.some((flag) => flag === '-u' || flag === '--update')) ||
+    (opts.sub === 'commit' &&
+      flags.some((flag) => flag === '--all' || /^-[a-zA-Z]*a[a-zA-Z]*$/.test(flag)));
+
+  if (!everything && !tracked) {
+    return [];
+  }
+
+  const status = opts.run({ program: 'git', args: ['status', '--porcelain'], cwd: opts.cwd });
+
+  if (status === undefined) {
+    return [];
+  }
+
+  const lines = status.split('\n').filter((line) => line.length > 0);
+  const count = (everything ? lines : lines.filter((line) => !line.startsWith('??'))).length;
+
+  return count > HookConstants.BLANKET_STAGE_PATHS
+    ? [
+        {
+          decision: GuardDecisions.ASK,
+          rule: 'V-W-06',
+          message: `this stages ${count} changed paths at once (more than ${HookConstants.BLANKET_STAGE_PATHS}), a formatter's or a generator's included; name the files you mean`,
+        },
+      ]
+    : [];
+};
+
 const inspectBranch = (opts: {
   rest: string[];
   cwd: string | undefined;
@@ -268,6 +315,10 @@ const inspectOne = (opts: {
 
   if (call.sub === 'branch') {
     return inspectBranch({ rest: call.rest, cwd, run: opts.run });
+  }
+
+  if (call.sub === 'add' || call.sub === 'commit') {
+    return inspectStage({ sub: call.sub, rest: call.rest, cwd, run: opts.run });
   }
 
   if (call.sub === 'update-ref' && call.rest.some((word) => word === '-d' || word === '--delete')) {
