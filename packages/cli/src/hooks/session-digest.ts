@@ -11,6 +11,7 @@ import {
   resolveOwnerView,
 } from '../owner/index.ts';
 import { extractRuleRows, parseRuleIds, readSlots, RuleConstants } from '../rules/index.ts';
+import { projectTmpOf } from './project-tmp.ts';
 
 /** A project row whose first cell lists IDs - `| V-W-02, V-W-03 |` - elaborates those base rules. */
 const ID_LIST_ROW =
@@ -95,6 +96,10 @@ export const buildSessionDigest = async (opts: {
     '',
     ...TABLE_HEADER,
     ...baseRows.filter((row) => row.startsWith(`| ${RuleConstants.BASE_NAMESPACE}W-`)),
+    '',
+    '## Temporary files',
+    '',
+    `Scratch and temporary files go in \`${projectTmpOf({ root: opts.projectRoot })}\`, never /tmp (V-B-08). In Claude Code every Bash command already runs with \`TMPDIR\` set to it; in any other agent run \`export TMPDIR=${projectTmpOf({ root: opts.projectRoot })}\` first. Remove what you made when the task ends.`,
     '',
     "## This project's slot choices",
     '',

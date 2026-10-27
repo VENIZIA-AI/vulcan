@@ -10,6 +10,7 @@ export * from './trusted-scripts.ts';
 export * from './session-digest.ts';
 export * from './subagent-card.ts';
 export * from './owner-reply.ts';
+export * from './project-tmp.ts';
 export * from './remote-hosts.ts';
 export * from './codex-patch.ts';
 export * from './shell.ts';
