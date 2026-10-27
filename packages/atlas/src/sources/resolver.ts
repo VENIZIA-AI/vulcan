@@ -11,7 +11,6 @@ import {
 } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { join, relative } from 'node:path';
-import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
 import {
   hasAtlasProject,
   MANIFEST_FILE,
@@ -22,7 +21,6 @@ import { AtlasConstants, SourcePins } from '@/common/constants';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IReleaseTable } from '@/releases/common';
 import { computeReleases } from '@/releases/compute';
-import { ChunkStore } from '@/search/store';
 import { StderrLogger } from '@/common/logger';
 import { symbolsOfPublished } from '@/symbols/compute';
 import { artifactsOf, cacheBaseOf, cacheRootOf, checkoutOf, urlOf } from './cache';
@@ -35,6 +33,7 @@ import type {
 } from './common';
 import { SourceModes } from './common';
 import { githubTokenOf } from './credentials';
+import { indexBytesOf } from './index-build';
 import {
   commitOf,
   git,
@@ -276,18 +275,10 @@ const buildArtifacts = async (opts: {
 }): Promise<void> => {
   const { project } = opts;
   const partial = `${opts.artifacts}.partial`;
-  const store = new ChunkStore();
-  const chunker = Chunker.getInstance();
-  const documents = CorpusLoader.getInstance().load({
-    roots: resolveRepositoryRoots({ project }),
-    within: project.root,
-  });
 
   rmSync(partial, { recursive: true, force: true });
   mkdirSync(partial, { recursive: true });
-  store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
-  writeFileSync(join(partial, INDEX), store.serialize());
-  store.close();
+  writeFileSync(join(partial, INDEX), indexBytesOf({ project }));
 
   const releases = computeReleases({ project });
 

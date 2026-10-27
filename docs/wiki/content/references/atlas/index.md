@@ -11,7 +11,7 @@ Use atlas to search documentation, read sections, look up exported symbols, and 
 
 ```text
 $ bun x --no-install vulcan x atlas help
-usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | pull [--source <name>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help
+usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | index --out <dir> | index keygen | pull [--source <name>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help
 ```
 
 | Command | What it does |
@@ -19,6 +19,7 @@ usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | pull
 | `mcp` | Serves the project over stdio (default when started by a client) |
 | `tools` | Prints the tools the server offers, one per line |
 | `pull` | Fetches every external source, or one named source |
+| `index --out <dir>` | Builds and signs the index of HEAD into `<dir>`; `index keygen` writes the key pair for it |
 | `surface gen\|check` | Writes or checks `.agents/knowledge/reference/public-surface.md` from built `.d.ts` files |
 | `symbols` | Prints what the `symbol` tool reads from built `.d.ts` declaration files |
 | `releases` | Prints what the `version` and `changes` tools read from git tags |
@@ -76,7 +77,7 @@ The example below was run outside any project:
 ```text
 $ bun x --no-install vulcan x atlas tools
 vulcan-atlas: nothing to serve at /tmp/wiki-empty - run in a project (`vulcan sync` writes .agents/vulcan.manifest.json), or pass --source <owner/repo>@<ref>
-usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help
+usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | index --out <dir> | index keygen | pull [--source <name>] [--cache-dir <dir>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help
 ```
 
 To resolve this error, run atlas inside a VULCAN project.
@@ -157,6 +158,32 @@ To fetch a single named source, pass `--source <name>`.
 `pull` prints a line for each remote source (`pull: <name> <8-character sha> (<mode>)`).
 Repository-mode sources print nothing because atlas reads project files directly.
 For source caching and configuration details, see the [atlas sources reference](/references/atlas/sources).
+
+## Index
+
+`vulcan x atlas index --out <dir>` builds the search index of HEAD of the repository it runs in and signs it.
+It writes two files, named by the commit:
+
+| File | Holds |
+|---|---|
+| `<sha>.atlas.gz` | The gzip of the commit's `index.sqlite`, and nothing else |
+| `<sha>.atlas.json` | An envelope: the payload as base64, and an ed25519 signature over those exact bytes |
+
+The payload names the index format, the commit, the repository (`owner/name`, lowercase), the size of the decompressed index, the sha256 of the gz, the fingerprint of the repository's tags, and the release table.
+The index is built from the tracked files of the commit, in a scratch worktree under `.agents/local/tmp/`, so an untracked, ignored or edited file never reaches it; the rows are the ones `pull` builds for the same commit.
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--out <dir>` | None (required) | Where the pair is written; must be inside the project |
+| `--key-env <name>` | `ATLAS_INDEX_KEY` | The environment variable that holds the private key |
+| `--repo <owner/name>` | `GITHUB_REPOSITORY`, else the GitHub `origin` | The repository the pair is valid for |
+| `--root <dir>` | Working directory | The repository to index |
+
+Without a key the command writes nothing and says so.
+
+`vulcan x atlas index keygen` writes a key pair.
+The private key goes to `.agents/local/atlas-index.key` with mode 0600, and only while `.agents/local/` is gitignored; it never overwrites a key.
+The public key is printed, together with the command that stores the private key as the Actions secret `ATLAS_INDEX_KEY`.
 
 ## Staying current while the server runs
 
