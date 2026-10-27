@@ -113,3 +113,16 @@ Moved from IGNIS (`@venizia/ignis-atlas` 0.1.2-5) into VULCAN as `@venizia/vulca
 Background: [Atlas on the IGNIS wiki](https://ignis.venizia.ai/extensions/atlas).
 
 MIT licensed - see [LICENSE.md](LICENSE.md).
+
+---
+
+<p align="center">
+  <a href="https://venizia.ai">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://venizia.ai/assets/logo-white.svg">
+      <img src="https://venizia.ai/assets/logo.svg" alt="VENIZIA" height="28">
+    </picture>
+  </a>
+  <br>
+  <sub><code>@venizia/vulcan-atlas</code> is part of VULCAN, built and maintained by <a href="https://venizia.ai">VENIZIA</a>.</sub>
+</p>

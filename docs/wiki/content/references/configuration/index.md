@@ -76,7 +76,7 @@ The table below lists all 12 top-level configuration keys:
 | `claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
 | `hooks` | `Array<object>` | `[]` | Custom project event hooks |
 | `digest` | `object` | `{ oftenDropped: [...] }` | Rules printed at session startup |
-| `guard` | `object` | `{ toolOwnedPaths: [], writes: { trustedScripts: [] } }` | Tool-owned stores the outside-the-project guard allows, and the project's own scripts the write guard does not read |
+| `guard` | `object` | `{ toolOwnedPaths: [], writes: { trustedScripts: [], commands: [] }, git: { askPush: [] } }` | Tool-owned stores the outside-the-project guard allows, the project's own scripts the write guard does not read, and the commands and push targets the guards ask about beyond their own list |
 | `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
 
 ## name
@@ -379,6 +379,15 @@ The keys `releaseCommit`, `typescriptFrom` and `legacyTagPrefixes` were removed 
 | `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` or `<package>` |
 | `sources` | `Array<object>` | `[]` | External repositories to query through atlas |
 | `ignoreTags` | `string[]` | `undefined` | Glob patterns of git tags ignored by checks |
+| `index.keys` | `string[]` | `[]` | The public keys a prebuilt atlas index of this repository may be signed with; each is the base64 of 32 bytes, as `vulcan x atlas index keygen` prints it |
+| `prebuilt` | `boolean` | `true` | `false`: atlas never downloads a prebuilt index for a source this project reads |
+
+### index and prebuilt
+
+`index.keys` and `prebuilt` are written to the manifest as `atlas: { index: { keys }, prebuilt }`, and only when set: a project that sets neither has the manifest it always had (`schemaVersion` stays 1, and an atlas that does not know the block ignores it).
+A key that is not the base64 of 32 bytes fails when the config is read.
+Listing keys lets the projects that read this one as a source use the signed index its CI publishes; replacing the list is how a key is rotated.
+See [the prebuilt index](/references/atlas/prebuilt-index).
 
 ### tagPattern and the tags check
 
@@ -614,6 +623,8 @@ The `guard` object configures the write guards.
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `toolOwnedPaths` | `string[]` | `[]` | Absolute globs, `~` and `$NAME` allowed, of stores a tool in this project manages itself. They extend the built-in list (package manager caches, `$XDG_RUNTIME_DIR`, git config, the agent tool's memory folders); a pattern with an unset variable allows nothing. |
+| `writes.commands` | `Array<{ rule, what, pattern, ignoreCase? }>` | `[]` | Commands of this project that `guard-writes` asks about beside its fixed list: `rule` is `V-W-02` (a database write, a migration) or `V-W-03` (a deploy), `what` names the action (1 to 120 characters), `pattern` is a JavaScript regular expression (1 to 500 characters, case-sensitive unless `ignoreCase` is `true`). A pattern that does not compile fails the config. Written to the manifest by `vulcan sync`. |
+| `git.askPush` | `string[]` | `[]` | Branch names, with `*` for any run of characters, that a plain `git push` asks about in `guard-git`. Letters, digits, `. _ / * -` only. Written to the manifest by `vulcan sync`. |
 | `writes.trustedScripts` | `string[]` | `[]` | The project's own CLIs that `guard-writes` does not read for mutating calls. Repo-relative `.ts` paths, matched exactly against the script of a `bun <script>.ts` command. |
 
 `writes.trustedScripts` validation: each entry must be a path relative to the repo root (no absolute path, no `~`), must not contain `..`, must end in `.ts`, and takes no glob (`* ? [ ] { } !` are refused), so list every script by its exact path. A config that breaks a rule fails the schema, and the message names the entry.
@@ -626,7 +637,11 @@ import type { VulcanConfig } from '@venizia/vulcan';
 export default {
   guard: {
     toolOwnedPaths: ['/srv/build-cache/**', '~/.cache/my-tool/**'],
-    writes: { trustedScripts: ['auroras/tools/i18n/cli.ts'] },
+    writes: {
+      trustedScripts: ['tools/i18n/cli.ts'],
+      commands: [{ rule: 'V-W-03', what: 'deploying', pattern: '\\bmake deploy-' }],
+    },
+    git: { askPush: ['develop', 'main'] },
   },
 } satisfies VulcanConfig;
 ```

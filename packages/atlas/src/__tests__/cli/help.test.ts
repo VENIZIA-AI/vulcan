@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { isBareInteractiveRun } from '@/cli/interactive';
 import { MANIFEST_FILE } from '@/common/project-config';
-import { spawnSyncBounded } from '../spawn.helper';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const CLI = join(__dirname, '..', '..', 'cli.ts');
 

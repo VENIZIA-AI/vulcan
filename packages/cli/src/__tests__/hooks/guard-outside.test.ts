@@ -10,13 +10,18 @@ const HOME = createProject({ files: {} });
 const ENV = { HOME, XDG_RUNTIME_DIR: join(HOME, 'run'), BUN_INSTALL: join(HOME, '.bun') };
 const PROJECT = createProject({ files: { 'package.json': '{}' } });
 
-const bash = (opts: { command: string; cwd?: string; toolOwnedPaths?: string[] }): string[] =>
+const bash = (opts: {
+  command: string;
+  cwd?: string;
+  toolOwnedPaths?: string[];
+  env?: Record<string, string | undefined>;
+}): string[] =>
   inspectOutside({
     input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: opts.cwd ?? PROJECT },
     projectRoot: PROJECT,
     toolOwnedPaths: opts.toolOwnedPaths,
     home: HOME,
-    env: ENV,
+    env: opts.env ?? ENV,
   }).map((hit) => hit.message);
 
 const file = (opts: { tool: string; path: string }): string[] =>
@@ -26,6 +31,39 @@ const file = (opts: { tool: string; path: string }): string[] =>
     home: HOME,
     env: ENV,
   }).map((hit) => hit.message);
+
+describe('mktemp where the temp folder is inside the project', () => {
+  // Claude Code: the session-start hook exports TMPDIR into every Bash command, so a bare mktemp lands in the project.
+  const inClaudeCode = { ...ENV, CLAUDE_PROJECT_DIR: PROJECT };
+
+  test.each(['mktemp', 'mktemp -d', 'mktemp -t foo', 'mktemp -d -t work.XXXX'])(
+    '%s is not asked about while the session-start hook route is in force',
+    (command) => {
+      expect(bash({ command, env: inClaudeCode })).toEqual([]);
+    },
+  );
+
+  test.each([
+    'mktemp /tmp/work.XXXX',
+    'mktemp -p /tmp',
+    'mktemp -d --tmpdir=/var/tmp',
+    'TMPDIR=/tmp mktemp -d',
+    'export TMPDIR=/tmp',
+  ])('%s still asks: the path is chosen by hand', (command) => {
+    expect(bash({ command, env: inClaudeCode }).length).toBe(1);
+  });
+
+  test('outside Claude Code (no CLAUDE_PROJECT_DIR, no TMPDIR) a bare mktemp asks, as before', () => {
+    expect(bash({ command: 'mktemp -d' }).length).toBe(1);
+  });
+
+  test('a TMPDIR inside the project (the launch route) is the folder mktemp uses; one outside is not', () => {
+    expect(
+      bash({ command: 'mktemp -d', env: { ...ENV, TMPDIR: join(PROJECT, '.agents/local/tmp') } }),
+    ).toEqual([]);
+    expect(bash({ command: 'mktemp -d', env: { ...ENV, TMPDIR: '/var/tmp' } }).length).toBe(1);
+  });
+});
 
 describe('inspectOutside on a line it cannot read in full', () => {
   test('asks, never allows', () => {

@@ -42,3 +42,12 @@ IGNIS; atlas tests that measure IGNIS's real corpus skip there and run on a mach
 ## Publishing the wiki
 
 The wiki site deploys with `deploy-docs.yml` on a push to `develop` that touches `docs/wiki/`, or on a manual dispatch. Merging a pull request into `develop` publishes it; `main` receives `develop` by an ordinary merge and does not deploy.
+
+## Publishing the atlas index
+
+`atlas-index.yml` runs on a push to `main`, `develop` or a tag and publishes the signed atlas index of that commit to the release `atlas-index` of this repository, through the local action `.github/actions/atlas-index` (so it is always the action of the commit being indexed). It needs the repository secret `ATLAS_INDEX_KEY`; with the secret empty it uploads nothing and succeeds. The public key is `atlas.index.keys` in `.configs/vulcan.config.mts`, rendered into the manifest.
+
+- **A release changes nothing here.** The tag push publishes the pair of the tag commit like any other push, and the release keeps every tag commit's pair (at most 300 pairs, the newest 20 branch heads besides).
+- **A change to what an index holds raises `AtlasConstants.INDEX_FORMAT`** (and the locked digest in `index-format.test.ts`): a published pair of another format is never used by a reader, so the old pairs stop helping until CI has published the commit again.
+- **Rotating the key.** In this repository the installed atlas has no `index` command until the release that carries it is installed, so make the pair from source: `bun packages/atlas/src/cli.ts index keygen`, then `gh secret set ATLAS_INDEX_KEY < .agents/local/atlas-index.key`, `rm` the file, replace the key in the config and run `bun x --no-install vulcan sync`. The private key goes nowhere but the secret.
+- **A pair that is not there is not an error.** A reader builds the index itself; look at the release's assets and the run of `atlas-index.yml` before suspecting atlas.

@@ -2,6 +2,9 @@
   "$schema": "http://json.schemastore.org/tsconfig",
   "extends": "@venizia/dev-configs/tsconfig.common.json",
   "compilerOptions": {
+    // The shared preset sets these today; atlas is published as CommonJS, so a change of the preset must not move it.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "outDir": "dist/cjs",
     "rootDir": "src",
     "paths": { "@/*": ["./src/*"] },

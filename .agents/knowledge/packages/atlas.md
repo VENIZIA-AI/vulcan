@@ -26,8 +26,33 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
   `git/` directory that is not a repository (a killed clone) is cloned again. Each start also
   fingerprints the tags `ls-remote` lists: a tag pushed on a cached SHA recomputes `releases.json`
   with no new pull. Starts racing on one cold cache take
-  turns under a lock (`<cache>/pull.lock`); a SHA's artifacts appear whole or not at all. Symlinks
+  turns under a lock (`<cache>/pull.lock`); a SHA's artifacts appear whole or not at all. Every set
+  carries a `format` file with `AtlasConstants.INDEX_FORMAT`: an online start rebuilds a set of another
+  format, an offline start serves it with a notice (`IResolvedSource.oldFormat`). Raise the constant with
+  any change to the chunker output, the table or the stored authority; `index-format.test.ts` fails
+  until its locked digest moves with it. Symlinks
   check out as plain files, and a corpus root or file whose real path leaves the checkout is skipped.
+- **The prebuilt index** (`prebuilt/`, `sources/index-build.ts`): `indexBytesOf` builds a project's index and is
+  the one function both `pull` and `atlas index` use. `atlas index --out` builds HEAD in a scratch worktree
+  (tracked files only), gzips the index and signs an envelope (`signEnvelope`, `verifyPair`: ed25519 over the
+  exact payload bytes, `node:crypto` only; the payload carries the format, sha, repo, size, digest, tags
+  fingerprint and release table). Keys: `generateKeyPair`, `atlas index keygen` (private key under
+  `.agents/local/`, 0600, only while it is gitignored). The keys and the switch come from the config (`atlas.index.keys`, validated as the base64 of 32 bytes, and `atlas.prebuilt`), rendered by `manifest/render.ts` (`atlasBlockOf`, only when set) into the manifest's `atlas` block; `readAtlasProject` reads them as `indexKeys` and `prebuilt` (the latter only when `false`), and `--no-prebuilt` or `prebuilt: false` stops every download. Reading a pair: `attemptPrebuilt` (skips unless the download is on, the source is a GitHub `owner/repo` and its
+  manifest has `atlas.index.keys`, then prints one stderr line on a miss) calls `fetchPrebuilt`, which never throws:
+  release listing, the pair's two assets by name (API asset URL, never `browser_download_url`; the token goes to the
+  API host only and the redirect is followed by hand without it), then signature, sha, repo, format, caps, digest,
+  bounded gunzip, an open probe (`ChunkStore.rowCount`). `pullByGit` installs a hit through `buildArtifacts`
+  (`prebuilt` option; a `prebuilt` marker file records the building atlas version, `IResolvedSource.prebuiltBy`),
+  uses the pair's release table only while the remote's tags fingerprint equals its payload's, and checks out the
+  changelog directory alone otherwise. A pinned tag takes the ref's keys, not its own. `--no-prebuilt` and
+  `prebuilt: false` thread through `resolveSources`, `resolveServableSources`, `resolveRemoteSource` and the
+  server's refresh. Publishing (`prebuilt/publish.ts`, `.github/actions/atlas-index`): `publishGuard` allows a `push` to the
+  default branch (read from the event file), `develop` or a tag whose commit is on one of them, never the
+  `atlas-index` tag, never without the key and the token; `publishIndex` builds (a shallow checkout is
+  refused and a shallow pair says `history: false`), makes the release `atlas-index` once (pre-release, not
+  latest, tag never moved), removes the old pair of the commit, uploads gz then envelope (upload host
+  checked against `GITHUB_REPOSITORY`) and prunes with `decidePrune` (newest 20 heads, every tag-commit pair,
+  300 pairs in all, orphans after a day; the pair being published always stays and counts).
 - **Package list**: every tool reads `packages` from the manifest - npm names, directories, aliases,
   retired packages. No project's names are built in.
 - **Releases and symbols** are computed: releases from the tags, symbols from the built `.d.ts` of

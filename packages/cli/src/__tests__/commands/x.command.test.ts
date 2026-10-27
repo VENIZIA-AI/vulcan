@@ -6,7 +6,7 @@ import { buildToolEnvironment, resolveToolBin } from '../../commands/x.command.t
 import { VulcanTools } from '../../common/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
-import { SPAWN_TIMEOUT_MS } from '../spawn.helper.ts';
+import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 

@@ -9,7 +9,7 @@ import {
 import { BASE_DIRECTORY } from '../../common/index.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
-import { spawnSyncBounded } from '../spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 isolateOwnerReplySwitch();
@@ -186,6 +186,18 @@ test('the session-start hook prints the digest for CLAUDE_PROJECT_DIR', () => {
 
   expect(child.exitCode).toBe(0);
   expect(child.stdout.toString()).toContain('this project: `on-user-word`');
+});
+
+describe('the temporary-files line of the digest', () => {
+  test('names the project folder and says which agents have TMPDIR set for them', async () => {
+    const root = createProject({ files: {} });
+    const digest = await buildSessionDigest({ projectRoot: root });
+
+    expect(digest).toContain('## Temporary files');
+    expect(digest).toContain(join(root, '.agents/local/tmp'));
+    expect(digest).toContain('never /tmp');
+    expect(digest).toContain('export TMPDIR=');
+  });
 });
 
 describe('the owner cards in the digest', () => {

@@ -1,8 +1,14 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '../../../packages/cli/src/__tests__/spawn.helper.ts';
-import { REPO_ROOT, TEST_TMP } from '../../test/repo-tmp.ts';
+import {
+  findRepositoryRoot,
+  REPO_TMP_DIRECTORY,
+  spawnSyncBounded,
+} from '@venizia/dev-configs/testing';
+
+const REPO_ROOT = findRepositoryRoot(import.meta.dir);
+const TEST_TMP = join(REPO_ROOT, REPO_TMP_DIRECTORY);
 
 const PACKAGES = join(REPO_ROOT, 'packages');
 const SYSTEM_TEMP = '/tmp';

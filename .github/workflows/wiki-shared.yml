@@ -1,0 +1,32 @@
+name: Wiki shared theme
+
+# The three wikis (IGNIS, ARDOR, VULCAN) keep identical copies of the shared theme folder. This
+# compares the SHARED.json each repository publishes on develop with the canonical one here and fails
+# when a copy has drifted. It reads two public files; no wiki and no package depends on it.
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  compare:
+    name: Compare the copies
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.3
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # --allow-missing until IGNIS and ARDOR have adopted the folder; remove it when they have.
+      - name: Compare with IGNIS and ARDOR
+        run: bun scripts/wiki-shared/check.ts --remote --allow-missing

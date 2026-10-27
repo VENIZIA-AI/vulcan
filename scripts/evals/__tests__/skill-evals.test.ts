@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
-import { spawnSyncBounded } from '../../__tests__/spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 // The real `claude` is never run here: every test puts this fake first on PATH. It logs each call,
 // writes an output file the way a model would, and also edits its working copy of the project, so a

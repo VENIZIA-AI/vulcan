@@ -50,7 +50,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `mcp` (warning) | `.mcp.json` (when a chosen agent reads it) holds the canonical `atlas` entry, git no longer tracks it, git does not list it as untracked and not ignored (a release refuses on that), and the Claude settings enable `atlas` | Use the entry the warning shows, `git rm --cached .mcp.json`, add `/.mcp.json` to `.gitignore` or run `vulcan sync` at the top level, and run `bun x --no-install vulcan sync` |
 | `local` (note) | `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor`: sessions started from it are not held to the owner reply shape | Unset it in a shell the owner works in; a started session gets it on its own command line only |
 | `local` (warning) | `.claude/settings.json` or `.claude/settings.local.json` sets `VULCAN_OWNER_REPLY=off` in `env`: every session of the project skips the owner reply shape | Remove it from `env` |
-| `local` (warning) | `.agents/local/` exists with its subdirectories and is gitignored, no git worktree of the repository lives outside it, and nothing under it has outlived its use (`tmp/` older than a day, `clones/` older than two weeks, a worktree on a merged or gone branch) | Run `bun x --no-install vulcan sync`; for a worktree outside, run the `git worktree move` command the warning prints; for leftovers, run the `vulcan clean` command it names. An info line prints the size of `.agents/local/` once it passes 50 MB |
+| `local` (warning) | `.agents/local/` exists with its subdirectories, is gitignored and holds the Claude Code launch file (`claude.launch.settings.json`, written by `sync` for the project's temp folder), no git worktree of the repository lives outside it, and nothing under it has outlived its use (`tmp/` older than a day, `clones/` older than two weeks, a worktree on a merged or gone branch) | Run `bun x --no-install vulcan sync`; for a worktree outside, run the `git worktree move` command the warning prints; for leftovers, run the `vulcan clean` command it names. An info line prints the size of `.agents/local/` once it passes 50 MB |
 
 ### config
 
@@ -324,10 +324,10 @@ A warning, not a violation: it is printed as `warning [format]`, the exit code s
   warning [format] package.json: defines a "fmt" script: bun fmt runs it instead of formatting - rename it (the standard names are lint and lint:fix)
 ```
 
-The `[fmt]` section should carry `flavor = "oxfmt"`: without it `bun fmt` formats like Prettier once oxfmt is not a dependency (a union type's first member moves to its own line, for one), and the output changes.
+The `[fmt]` section should carry `flavor = "oxfmt"`: without it `bun fmt` uses its default style once oxfmt is not a dependency (a union type's first member moves to its own line, for one), and the output changes.
 
 ```text
-  warning [format] bunfig.toml: [fmt] has no flavor = "oxfmt" - without it bun fmt formats like Prettier when oxfmt is not a dependency, and the output changes
+  warning [format] bunfig.toml: [fmt] has no flavor = "oxfmt" - without it bun fmt uses its default style when oxfmt is not a dependency, and the output changes
   warning [format] packages/app/.configs/formatters/oxfmt.config.mts: not used any more: bun fmt formats with the [fmt] section of bunfig.toml - delete it
   warning [format] .oxfmtrc.json: bun fmt loads it and it overrides the [fmt] section of bunfig.toml - delete it, or move its settings to [fmt]
 ```

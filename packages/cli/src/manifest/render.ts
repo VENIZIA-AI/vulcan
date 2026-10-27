@@ -46,6 +46,40 @@ export const buildBaseRuleHashes = (): Record<string, string> =>
     }),
   );
 
+/** The manifest's `guard` block: what the project adds to guard-writes and guard-git, as data a hook reads without the config. */
+const guardBlockOf = (opts: { config: TResolvedConfig }): { guard?: Record<string, unknown> } => {
+  const { commands } = opts.config.guard.writes;
+  const { askPush } = opts.config.guard.git;
+  const block = {
+    ...(commands.length === 0
+      ? {}
+      : {
+          writes: {
+            commands: commands.map((command) => ({
+              rule: command.rule,
+              what: command.what,
+              pattern: command.pattern,
+              ...(command.ignoreCase === true ? { ignoreCase: true } : {}),
+            })),
+          },
+        }),
+    ...(askPush.length === 0 ? {} : { git: { askPush } }),
+  };
+
+  return Object.keys(block).length === 0 ? {} : { guard: block };
+};
+
+/** The manifest's `atlas` block: only what the config sets (keys listed, the download turned off). */
+const atlasBlockOf = (opts: { config: TResolvedConfig }): { atlas?: Record<string, unknown> } => {
+  const keys = opts.config.atlas.index?.keys ?? [];
+  const block = {
+    ...(keys.length === 0 ? {} : { index: { keys } }),
+    ...(opts.config.atlas.prebuilt === false ? { prebuilt: false } : {}),
+  };
+
+  return Object.keys(block).length === 0 ? {} : { atlas: block };
+};
+
 /**
  * The project manifest (Project Contract v1, C1): data only, rendered from the config with a fixed
  * key order, so the committed file is byte-stable and a stale one shows as a diff.
@@ -82,6 +116,10 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
     rules: { project: ManifestConstants.PROJECT_RULES, base: buildBaseRuleHashes() },
     // The sources this project reads knowledge from (atlas, git mode); a project without any carries none.
     ...(config.atlas.sources.length === 0 ? {} : { sources: config.atlas.sources }),
+    // The prebuilt index: the keys a published pair is checked with, and the switch; neither set, nothing is written.
+    ...atlasBlockOf({ config }),
+    // The commands and push targets the guards ask about beyond their own list; neither set, nothing is written.
+    ...guardBlockOf({ config }),
     // The remote-host guard reads its policy here; a project without the key has no guard.
     ...(config.remoteHosts === undefined ? {} : { remoteHosts: config.remoteHosts }),
   };

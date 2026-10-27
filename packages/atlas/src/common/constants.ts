@@ -16,6 +16,12 @@ export class AtlasConstants {
   static readonly GET_BUDGET_CHARS = 8000;
   static readonly SNIPPET_MAX_CHARS = 300;
   static readonly SEARCH_DEFAULT_LIMIT = 10;
+  /**
+   * The format of a source's built index (the rows its chunker produces and the table they sit in).
+   * Bump it with any change to either: the format-lock test fails until you do. A cached or
+   * downloaded index of another format is never read as if it were current.
+   */
+  static readonly INDEX_FORMAT = 1;
 }
 
 /** Every wait atlas puts on the network or on git: past its bound, a call counts as failed. */
@@ -26,6 +32,8 @@ export class AtlasTimeouts {
   static readonly GIT_TRANSFER_MS = 60_000;
   /** A tarball download - a source's commit, or a package version from npm. */
   static readonly DOWNLOAD_MS = 60_000;
+  /** One request for a prebuilt index: the release listing, an envelope, a gz. */
+  static readonly PREBUILT_MS = 30_000;
   /** git on a local repository - the tags and history the release table reads. */
   static readonly LOCAL_GIT_MS = 30_000;
 }
@@ -57,6 +65,7 @@ export class AtlasCommands {
   static readonly CHANGELOGS = 'changelogs';
   static readonly CONCEPTS = 'concepts';
   static readonly PULL = 'pull';
+  static readonly INDEX = 'index';
   static readonly TOOLS = 'tools';
   static readonly HELP = 'help';
   static readonly SCHEME_SET = new Set<string>([
@@ -67,6 +76,7 @@ export class AtlasCommands {
     this.CHANGELOGS,
     this.CONCEPTS,
     this.PULL,
+    this.INDEX,
     this.TOOLS,
     this.HELP,
   ]);

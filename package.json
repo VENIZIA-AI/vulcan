@@ -18,7 +18,7 @@
       "@clack/prompts": "1.8.1",
       "@types/bun": "1.4.3",
       "@types/cytoscape-fcose": "2.2.5",
-      "@venizia/dev-configs": "0.4.0",
+      "@venizia/dev-configs": "0.4.4",
       "cytoscape": "^3.34.4",
       "cytoscape-fcose": "^2.2.0",
       "eslint": "10.13.0",

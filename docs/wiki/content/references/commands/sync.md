@@ -48,7 +48,7 @@ The order that decides the list is: the `--agents` flag; the stored file; the `a
 
 | Agent | Atlas MCP entry | Where |
 |---|---|---|
-| `claude`, `omp`, `copilot-cli` | `mcpServers.atlas`, the same relative entry for everyone (`--root .`) | the root `.mcp.json`, one file for the three ([below](#the-root-mcpjson)) |
+| `claude`, `omp`, `copilot-cli` | `mcpServers.atlas`, the same relative entry for everyone (`--root .`) | the root `.mcp.json`, one file for the three ([below](#the-root-mcp-json)) |
 | `codex` | a block between `# vulcan:atlas:start` and `# vulcan:atlas:end` | `.codex/config.toml`; Codex loads it only for a trusted project |
 | `cursor` | `mcpServers.atlas` | `.cursor/mcp.json` |
 | `copilot-vscode` | `servers.atlas` (type `stdio`) | `.vscode/mcp.json` |
@@ -98,6 +98,10 @@ The corpora come from the config (the project and every `atlas.sources` entry). 
 ## Your own skills
 
 A skill you write in `.agents/skills/<name>/SKILL.md` reaches every agent you chose. The agents other than Claude read that folder themselves. For Claude, `sync` links each of your skills into `.claude/skills/<name>`: one you add shows up on the next `sync`, and when you delete the folder the next `sync` removes its dead link (`removed   .claude/skills/mine (a skill that is gone)`). A real folder of yours in `.claude/skills` is never replaced.
+
+## The temp folder
+
+`sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/`, and writes `.agents/local/claude.launch.settings.json` for this checkout: `TMPDIR` and `CLAUDE_CODE_TMPDIR` set to `.agents/local/tmp`, to start Claude Code with `claude --settings .agents/local/claude.launch.settings.json`. The session-start hook it registers also exports `TMPDIR` into every Bash command. What each route moves, and what still needs the launch file, is in [Temporary files](/references/agents#temporary-files).
 
 ## Keeping the adapters out of git
 

@@ -840,7 +840,7 @@ export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
 const FMT_SECTION_ADVICE =
   'add a [fmt] section (printWidth = 100, singleQuote = true, arrowParens = "always", flavor = "oxfmt"): without it bun fmt formats with Bun\'s defaults, not the shared style';
 const FMT_FLAVOR_ADVICE =
-  'without it bun fmt formats like Prettier when oxfmt is not a dependency, and the output changes';
+  'without it bun fmt uses its default style when oxfmt is not a dependency, and the output changes';
 const OXFMT_LOADED_ADVICE =
   'bun fmt loads it and it overrides the [fmt] section of bunfig.toml - delete it, or move its settings to [fmt]';
 
@@ -1204,6 +1204,34 @@ export const checkStaleTrustedScripts = (opts: ICheckContext): IViolation[] =>
         ]
       : [];
   });
+
+/**
+ * The commands and push targets the project adds to guard-writes and guard-git, one note each: so the
+ * guards' reach beyond their own list is visible where a person looks, with the rule and the pattern.
+ */
+export const checkGuardPatterns = (opts: ICheckContext): IViolation[] => {
+  const { commands } = opts.config.guard.writes;
+  const { askPush } = opts.config.guard.git;
+
+  return [
+    ...commands.map((command) =>
+      createViolation({
+        check: DoctorChecks.GUARDS,
+        file: opts.configFile,
+        message: `guard.writes.commands: ${command.rule} '${command.what}' asks when a command matches /${command.pattern}/${command.ignoreCase === true ? 'i' : ''}`,
+      }),
+    ),
+    ...(askPush.length === 0
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.GUARDS,
+            file: opts.configFile,
+            message: `guard.git.askPush: a plain git push asks for ${askPush.join(', ')}`,
+          }),
+        ]),
+  ];
+};
 
 export const checkLocalSize = (opts: ICheckContext): IViolation[] => {
   const entries = scanLocal({ root: opts.root });

@@ -28,7 +28,7 @@ describe("the VULCAN repository's own bunfig.toml", () => {
     const root = join(import.meta.dir, '..', '..', '..', '..', '..');
 
     expect(readFileSync(join(root, 'bunfig.toml'), 'utf8')).toBe(
-      `${renderBunfig()}\n[test]\npreload = ["./scripts/test/repo-tmp.preload.ts"]\n`,
+      `${renderBunfig()}\n[test]\npreload = ["@venizia/dev-configs/testing/tmpdir-preload"]\n`,
     );
   });
 });

@@ -1,0 +1,54 @@
+name: Atlas index
+run-name: 'Atlas index | ${{ github.ref_name }}'
+
+# Publishes the signed atlas index of each commit atlas can be asked for (the default branch, develop and
+# the release tags) to the release `atlas-index` of this repository, so the projects that read VULCAN as a
+# source download it instead of building it. The action refuses anything but a push to those refs and
+# does nothing while the secret ATLAS_INDEX_KEY is empty. It is the local action of this commit, never a
+# ref that can move.
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atlas-index-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  publish:
+    name: Publish the pair
+    runs-on: ubuntu-26.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.3
+        with:
+          # The release table is generated from release commits and tags; a shallow clone has none.
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install
+
+      # `vulcan x atlas` runs atlas's built dist.
+      - name: Build atlas
+        run: make atlas
+
+      - name: Publish the atlas index
+        uses: ./.github/actions/atlas-index
+        env:
+          ATLAS_INDEX_KEY: ${{ secrets.ATLAS_INDEX_KEY }}

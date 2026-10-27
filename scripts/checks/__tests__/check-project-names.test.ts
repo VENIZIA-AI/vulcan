@@ -2,7 +2,7 @@ import { afterAll, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '../../__tests__/spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
 const SCRIPT = join(ROOT, 'scripts', 'checks', 'check-project-names.ts');

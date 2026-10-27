@@ -39,8 +39,8 @@ Write boundaries govern modifications to repository history, database state, dep
 | ID | Rule | Enforced by |
 |----|------|-------------|
 | `V-W-01` | Project chooses git write policy: writes on user instruction or agent is read-only. | slot - `read-only` adds a permissions.deny list |
-| `V-W-02` | Never write to a database; write migration files and hand over; read-only SELECT permitted. | HARD - guard-writes hook (asks) |
-| `V-W-03` | Never deploy or hot-apply changes like container restarts or production manifests. | HARD - guard-writes hook (asks) |
+| `V-W-02` | Never write to a database; write migration files and hand over; read-only SELECT permitted. | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
+| `V-W-03` | Never deploy or hot-apply changes like container restarts or production manifests. | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
 | `V-W-04` | Ask before irreversible actions including deleting unowned files, invoking external APIs, or publishing. | SOFT |
 | `V-W-06` | Shared writes follow four action classes: A free, B shared and reversible (needs the user's word, or a standing rule the user gave; a coordinating agent may relay it, never replace it), C hard to reverse (needs the owner's own quoted words naming the action), D never by an agent. A refused relayed approval goes to the owner, never around. | SOFT |
 
@@ -233,8 +233,8 @@ Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents
 | ID | Rule | Enforced by |
 |----|------|-------------|
 | V-W-01 | **Slot** - the project picks one in `.configs/vulcan.config.*` (`rules: { 'V-W-01': ... }`): `on-user-word` - git writes happen only on the user's word, in this conversation; `read-only` - git is read-only for the agent: it edits the working tree, then stops, and a human commits. | slot - `read-only` adds a permissions.deny list |
-| V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook (asks) |
-| V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook (asks) |
+| V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
+| V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
 | V-W-04 | Ask before anything irreversible: deleting files you didn't create, side-effect APIs, publishing. | SOFT |
 
 ## This project's slot choices

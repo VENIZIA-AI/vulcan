@@ -11,6 +11,41 @@ const HOOK_EVENT = z.string().refine((value) => HookEvents.isValid(value), {
   message: `one of: ${[...HookEvents.SCHEME_SET].join(', ')}`,
 });
 
+/** An ed25519 public key as `atlas index keygen` prints it: the base64 of its 32 raw bytes, nothing else. */
+const INDEX_PUBLIC_KEY = z.string().refine(
+  (value) => {
+    const raw = Buffer.from(value, 'base64');
+
+    return raw.length === 32 && raw.toString('base64') === value;
+  },
+  { message: 'the public key `atlas index keygen` prints: the base64 of 32 bytes' },
+);
+
+const compiles = (value: string): boolean => {
+  try {
+    return new RegExp(value) instanceof RegExp;
+  } catch {
+    return false;
+  }
+};
+
+/** A command the project says is a database write (V-W-02) or a deploy (V-W-03): guard-writes asks when its pattern matches. */
+const GUARD_COMMAND = z.strictObject({
+  rule: z.enum(['V-W-02', 'V-W-03']),
+  what: z.string().min(1).max(120),
+  pattern: z
+    .string()
+    .min(1)
+    .max(500)
+    .refine(compiles, { message: 'a regular expression (JavaScript syntax)' }),
+  ignoreCase: z.boolean().optional(),
+});
+
+/** A branch a plain `git push` asks about: a name, with `*` for any run of characters. */
+const PUSH_TARGET = z
+  .string()
+  .regex(/^[A-Za-z0-9._/*-]+$/, { message: 'a branch name, with * for any run of characters' });
+
 /** A layout folder: 1 to 4 plain segments, never climbing, never absolute (the validator `guard-package` shares). */
 const LAYOUT_FOLDER = z.string().superRefine((value, context) => {
   const problem = layoutFolderProblem({ folder: value });
@@ -253,6 +288,14 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         .default([]),
       /** Tags neither read nor checked (globs) - an old layout's tags. */
       ignoreTags: z.array(z.string()).optional(),
+      /**
+       * The prebuilt atlas index this repository publishes: the public keys (any one may have signed a
+       * pair) that a project reading this one as a source checks the signature against. Rotation is a
+       * new list; a pair signed by a key no longer listed is not used.
+       */
+      index: z.strictObject({ keys: z.array(INDEX_PUBLIC_KEY).default([]) }).optional(),
+      /** `false`: atlas never downloads a prebuilt index for a source this project reads; the default is to. */
+      prebuilt: z.boolean().optional(),
     })
     .default({
       tagPattern: '<dir>-v<version>',
@@ -295,16 +338,27 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    * runtime dir for locks, git config, the agent tool's memory) with stores a tool in this project
    * manages itself: absolute globs, `~` and `$NAME` allowed. `writes.trustedScripts` lists the project's own
    * CLIs (repo-relative `.ts` paths, no globs) whose body guard-writes does not read for mutating calls
-   * while git tracks them and they equal HEAD; the command line is still checked.
+   * while git tracks them and they equal HEAD; the command line is still checked. `writes.commands` adds the
+   * project's own deploy and migrate commands to what guard-writes asks about (a pattern, matched inside
+   * compound commands too), and `git.askPush` lists the branches a plain `git push` asks about; `vulcan sync`
+   * writes both to the manifest, where the hooks read them.
    */
   guard: z
     .strictObject({
       toolOwnedPaths: z.array(z.string().min(1)).default([]),
       writes: z
-        .strictObject({ trustedScripts: z.array(TRUSTED_SCRIPT).default([]) })
-        .default({ trustedScripts: [] }),
+        .strictObject({
+          trustedScripts: z.array(TRUSTED_SCRIPT).default([]),
+          commands: z.array(GUARD_COMMAND).default([]),
+        })
+        .default({ trustedScripts: [], commands: [] }),
+      git: z.strictObject({ askPush: z.array(PUSH_TARGET).default([]) }).default({ askPush: [] }),
     })
-    .default({ toolOwnedPaths: [], writes: { trustedScripts: [] } }),
+    .default({
+      toolOwnedPaths: [],
+      writes: { trustedScripts: [], commands: [] },
+      git: { askPush: [] },
+    }),
 });
 
 export type VulcanConfig = z.input<typeof VULCAN_CONFIG_SCHEMA>;

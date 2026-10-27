@@ -106,11 +106,12 @@ describe('the shipped agent-work skills', () => {
     expect(frontmatterOf({ text: read(name) }).data.name).toBe(name);
   });
 
-  // A description is context every turn pays for: a trigger, short, and a "Use when" part atlas can read.
+  // A description is context every turn pays for: a trigger, under 700 characters (the routing eval found the
+  // moments, the product and a "Skip for" list route better than one sentence), and a "Use when" part atlas can read.
   test.each(NAMES)('%s has a short description with a "Use when" part', (name) => {
     const description = /^description: (.*)$/m.exec(read(name))?.[1] ?? '';
 
-    expect(description.split(/\s+/).length).toBeLessThanOrEqual(50);
+    expect(description.length).toBeLessThanOrEqual(700);
     expect(description).toContain('Use when');
     expect(triggerOf({ description }).text.length).toBeGreaterThan(0);
   });
@@ -243,17 +244,15 @@ describe('every shipped skill and the shared references', () => {
   const REFERENCES_DIRECTORY = join(BASE_DIRECTORY, 'references');
   const ALL = readdirSync(SKILLS_DIRECTORY);
 
-  // A description is context every turn pays for. build-a-feature carries one extra sentence, the rule
-  // that it is loaded before a workflow question is answered.
+  // A description is context every turn pays for: under 700 characters. build-a-feature carries one extra
+  // sentence, the rule that it is loaded before a workflow question is answered.
   test.each(ALL)('the description of %s is short and has a "Use when" part', (name) => {
     const description =
       /^description: (.*)$/m.exec(
         readFileSync(join(SKILLS_DIRECTORY, name, 'SKILL.md'), 'utf8'),
       )?.[1] ?? '';
 
-    expect(description.split(/\s+/).length).toBeLessThanOrEqual(
-      name === 'build-a-feature' ? 75 : 50,
-    );
+    expect(description.length).toBeLessThanOrEqual(700);
     expect(description).toContain('Use when');
   });
 
@@ -372,6 +371,15 @@ describe('every shipped skill and the shared references', () => {
     ]) {
       expect(readFileSync(file, 'utf8'), file).toMatch(/work[ -]item/);
     }
+  });
+
+  test('the delegation brief tells the sender to name the skill the receiver must load, not to retype its steps', () => {
+    const text = readFileSync(join(BASE_DIRECTORY, 'references', 'delegation-brief.md'), 'utf8');
+
+    expect(text).toContain('3. **The skill**, when the work matches one');
+    expect(text).toContain('tell the receiver to load it');
+    expect(text).toContain('Never retype its steps');
+    expect(text).toContain('A message to another session is a brief too');
   });
 
   test('build-a-feature wires the cards, the design pass, the testing reference, the docs and the review', () => {

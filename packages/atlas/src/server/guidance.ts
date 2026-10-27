@@ -75,10 +75,17 @@ const statusOf = (opts: { sources: IResolvedSource[]; unavailable: IUnavailableS
           ? ` - docs pinned to ${source.pin.ref}, the ${source.pin.reason}; release table from the configured ref`
           : ` - docs follow ${source.pin.ref}, not the installed version (${source.pin.reason})`;
 
-    const note =
+    const note = [
       source.history === false
         ? ' - no git on this machine: version and changes have no release history'
-        : '';
+        : '',
+      source.prebuiltBy === undefined
+        ? ''
+        : ` - index: prebuilt, built by atlas ${source.prebuiltBy}`,
+      source.oldFormat === true
+        ? ' - its index was built by another atlas format: served as it is, rebuilt when the remote is reachable'
+        : '',
+    ].join('');
 
     return source.mode === 'offline-cache'
       ? `- ${source.name}: ${at} - OFFLINE: the remote was unreachable, this is the newest cache, not the ref's current commit${note}`

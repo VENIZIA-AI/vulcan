@@ -12,7 +12,7 @@
     },
     "packages/atlas": {
       "name": "@venizia/vulcan-atlas",
-      "version": "0.4.5",
+      "version": "0.4.6",
       "bin": {
         "vulcan-atlas": "./dist/cjs/cli.js",
       },
@@ -31,7 +31,7 @@
     },
     "packages/cli": {
       "name": "@venizia/vulcan",
-      "version": "0.4.5",
+      "version": "0.4.6",
       "bin": {
         "vulcan": "./src/cli.ts",
       },
@@ -52,7 +52,7 @@
     },
     "packages/okf": {
       "name": "@venizia/vulcan-okf",
-      "version": "0.4.5",
+      "version": "0.4.6",
       "bin": {
         "vulcan-okf": "./src/cli.ts",
       },
@@ -75,7 +75,7 @@
     "@clack/prompts": "1.8.1",
     "@types/bun": "1.4.3",
     "@types/cytoscape-fcose": "2.2.5",
-    "@venizia/dev-configs": "0.4.0",
+    "@venizia/dev-configs": "0.4.4",
     "cytoscape": "^3.34.4",
     "cytoscape-fcose": "^2.2.0",
     "eslint": "10.13.0",
@@ -218,7 +218,7 @@
 
     "@typescript-eslint/visitor-keys": ["@typescript-eslint/visitor-keys@8.72.0", "", { "dependencies": { "@typescript-eslint/types": "8.72.0", "eslint-visitor-keys": "^5.0.0" } }, "sha512-E2mroviasaWecDzTGiGMtuEguuLVOeRggnrIn93CJuxYJzQBHbyymlT08aVQydbBal5538o+JkBKXh2sRuCyIA=="],
 
-    "@venizia/dev-configs": ["@venizia/dev-configs@0.4.0", "", { "dependencies": { "@eslint/js": "^10.0.1", "eslint-plugin-n": "^18.5.0", "eslint-plugin-unicorn": "^78.0.0", "typescript-eslint": "^8.72.0" }, "peerDependencies": { "eslint": "^9.0.0 || ^10.0.0", "oxlint": ">=1.89.0", "oxlint-tsgolint": ">=7.0.2004", "typescript": "^5.0.0 || ^6.0.0" }, "optionalPeers": ["eslint", "oxlint", "oxlint-tsgolint", "typescript"], "bin": { "devz": "dist/cli/index.js" } }, "sha512-fD06+qfbo0Q7gZrhrntPvdKZH5niW4Rq8M/CPsE4J+3ca81tUQVlVIW/iKzyb163oKM+kq4XkpNyIB5XS6DMTg=="],
+    "@venizia/dev-configs": ["@venizia/dev-configs@0.4.4", "", { "dependencies": { "@eslint/js": "^10.0.1", "eslint-plugin-n": "^18.5.0", "eslint-plugin-unicorn": "^78.0.0", "typescript-eslint": "^8.72.0" }, "peerDependencies": { "eslint": "^9.0.0 || ^10.0.0", "oxlint": ">=1.89.0", "oxlint-tsgolint": ">=7.0.2004", "typescript": "^5.0.0 || ^6.0.0" }, "optionalPeers": ["eslint", "oxlint", "oxlint-tsgolint", "typescript"], "bin": { "devz": "dist/cli/index.js" } }, "sha512-JMUAIOmKmDKM0e1Suvc6Y/3MxFgw/yIbJ6MORGzzPyhIb4U6nSBAu2WZlQraC0/y7oCEcLHsE7M/0pOq19TONw=="],
 
     "@venizia/vulcan": ["@venizia/vulcan@workspace:packages/cli"],
 

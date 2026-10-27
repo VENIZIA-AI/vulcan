@@ -50,6 +50,10 @@ export interface IResolvedSource {
   releasesFile?: string;
   /** Whether releases have history - a source pulled without git has none. */
   history?: boolean;
+  /** Set when the cached index was built at another `INDEX_FORMAT`: only an offline start serves it. */
+  oldFormat?: boolean;
+  /** The atlas version that built the index, when it was downloaded as a verified prebuilt pair rather than built here. */
+  prebuiltBy?: string;
   /** The cache base this source was resolved into (`.agents/local/cache` by default); remote sources only. */
   cacheBase?: string;
   /**

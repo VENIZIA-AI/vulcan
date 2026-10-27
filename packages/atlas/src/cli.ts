@@ -15,12 +15,13 @@ import { runReleasesCommand } from './releases/generator';
 import { buildSourcesServer, refreshIntervalMs } from './server/index';
 import type { Transport } from './protocol/index';
 import { hasAtlasProject, readAtlasProject } from './common/project-config';
+import { runIndexCommand } from './prebuilt/index';
 import { resolveServableSources, resolveSources } from './sources/index';
 import type { IAtlasSource } from './sources/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
 
-const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help`;
+const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help`;
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -56,6 +57,15 @@ const GENERATOR_BY_COMMAND: Record<string, (opts: { command?: string }) => numbe
 };
 
 const argv = process.argv.slice(2);
+/**
+ * Whether this start may download a prebuilt index: not with `--no-prebuilt`, and not when the project's
+ * manifest (`atlas.prebuilt: false`) turns it off. Every source is then built here.
+ */
+const prebuiltAllowed = (opts: { root: string }): boolean =>
+  !argv.includes('--no-prebuilt') &&
+  !(
+    hasAtlasProject({ root: opts.root }) && readAtlasProject({ root: opts.root }).prebuilt === false
+  );
 const subcommand = readSubcommand({ argv });
 
 if (!AtlasCommands.isValid(subcommand)) {
@@ -118,10 +128,12 @@ const buildServer = async (opts: {
   }
 
   const cacheDir = readCacheDirArgument({ argv });
+  const prebuilt = prebuiltAllowed({ root: opts.root });
   const { resolved, unavailable } = await resolveServableSources({
     cwd: opts.root,
     sources,
     cacheDir,
+    prebuilt,
   });
 
   for (const { source, reason } of unavailable) {
@@ -141,6 +153,7 @@ const buildServer = async (opts: {
     unavailable,
     cwd: opts.root,
     cacheDir,
+    prebuilt,
     version: opts.version,
     ...(intervalMs === undefined ? {} : { refresh: { intervalMs } }),
   });
@@ -170,6 +183,7 @@ const pull = async (): Promise<number> => {
     sources: named,
     cacheDir: readCacheDirArgument({ argv }),
     force: true,
+    prebuilt: prebuiltAllowed({ root }),
   });
 
   for (const source of pulled.filter((entry) => entry.mode !== 'repository')) {
@@ -224,6 +238,17 @@ const main = async (): Promise<void> => {
 
   if (subcommand === AtlasCommands.PULL) {
     process.exit(await pull());
+  }
+
+  if (subcommand === AtlasCommands.INDEX) {
+    process.exit(
+      await runIndexCommand({
+        argv,
+        version:
+          readPackageVersion({ directory: findPackageDirectory({ startDirectory: __dirname }) }) ??
+          FALLBACK_VERSION,
+      }),
+    );
   }
 
   if (subcommand === AtlasCommands.TOOLS) {

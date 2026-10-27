@@ -5,6 +5,7 @@ import { TrustStates } from './common/index.ts';
 import type { IHookCommand, IWriteCheck, IWriteHit } from './common/index.ts';
 import { commandTextsOf } from './command-view.ts';
 import { forHost } from './decision.ts';
+import type { IProjectCommandCheck } from './project-guards.ts';
 import { listedScriptOf, trustOf } from './trusted-scripts.ts';
 
 const MUTATING_VERB = '(?:POST|PUT|PATCH|DELETE)';
@@ -87,16 +88,26 @@ export const inspectCommand = (opts: {
   command: string;
   cwd: string;
   trust?: { root: string; scripts: string[] };
+  /** The project's own commands (`guard.writes.commands`), checked beside the fixed list. */
+  extra?: IProjectCommandCheck[];
 }): IWriteHit[] => {
   // The patterns run on what the command runs, not on its text: a heredoc written to a file, the pattern
   // of an `rg` and a commit message are data.
   const texts = commandTextsOf({ command: opts.command, withMessages: true });
-  const hits: IWriteHit[] = COMMAND_CHECKS.filter((check) =>
-    texts.some((text) => check.pattern.test(text)),
-  ).map((check) => ({
-    rule: check.rule,
-    message: check.what,
-  }));
+  const checks: IWriteCheck[] = [
+    ...COMMAND_CHECKS,
+    ...(opts.extra ?? []).map((check) => ({
+      rule: check.rule,
+      what: `${check.what} (this project's pattern)`,
+      pattern: check.pattern,
+    })),
+  ];
+  const hits: IWriteHit[] = checks
+    .filter((check) => texts.some((text) => check.pattern.test(text)))
+    .map((check) => ({
+      rule: check.rule,
+      message: check.what,
+    }));
 
   for (const target of extractScriptTargets({ command: texts.join('\n') })) {
     const source = readScript({ target, cwd: opts.cwd });

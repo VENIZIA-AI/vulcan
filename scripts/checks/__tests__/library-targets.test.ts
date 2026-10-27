@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '../../__tests__/spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
 // VULCAN's packages are libraries: they keep Makefile targets, and their package.json scripts carry

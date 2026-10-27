@@ -2,7 +2,7 @@ import { afterAll, expect, test } from 'bun:test';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '../../__tests__/spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const SCRIPT = join(import.meta.dir, '..', 'force-update.sh');
 const roots: string[] = [];

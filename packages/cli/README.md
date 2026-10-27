@@ -74,3 +74,16 @@ not re-registered) · `adapters` (sync is current, no hand-written `CLAUDE.md`, 
 The session-start digest prints the base write boundaries, the slot choices, the project's own rules (bold `| **W-00** |` rows and `| V-W-02, V-W-03 |` rows that elaborate base rules), the project's `<!-- minimap-shape:start -->` ... `<!-- minimap-shape:end -->` block from `.agents/rules.md` verbatim, and the `digest.oftenDropped` rules.
 
 MIT licensed - see [LICENSE.md](LICENSE.md).
+
+---
+
+<p align="center">
+  <a href="https://venizia.ai">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://venizia.ai/assets/logo-white.svg">
+      <img src="https://venizia.ai/assets/logo.svg" alt="VENIZIA" height="28">
+    </picture>
+  </a>
+  <br>
+  <sub>VULCAN is built and maintained by <a href="https://venizia.ai">VENIZIA</a>.</sub>
+</p>

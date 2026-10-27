@@ -1,0 +1,75 @@
+import { describe, expect, test } from 'bun:test';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { readBaseRules } from '../../../packages/cli/src/rules/index.ts';
+import { COUNTS, HOME } from '../../../docs/wiki/site/.vitepress/theme/home-content.ts';
+
+const ROOT = join(import.meta.dir, '..', '..', '..');
+const CLI_BASE = join(ROOT, 'packages', 'cli', 'base');
+const WIKI = join(ROOT, 'docs', 'wiki');
+
+const read = (opts: { path: string }): string => readFileSync(join(WIKI, opts.path), 'utf8');
+
+/** What the intro pages count, counted from the shipped files, so a number cannot go stale unnoticed. */
+const counts = () => {
+  const agents: { id: string }[] = JSON.parse(readFileSync(join(CLI_BASE, 'agents.json'), 'utf8'));
+
+  return {
+    rules: Object.keys(readBaseRules()).length,
+    skills: readdirSync(join(CLI_BASE, 'skills')).length,
+    tools: readdirSync(join(ROOT, 'packages', 'atlas', 'src', 'tools')).filter((file) =>
+      file.endsWith('.tool.ts'),
+    ).length,
+    // Copilot is two entries (CLI and VS Code) and one product.
+    agents: new Set(agents.map((agent) => agent.id.split('-')[0])).size,
+  };
+};
+
+const statOf = (opts: { label: string }): number => {
+  const stat = HOME.stats.find(([, label]) => label === opts.label);
+
+  if (stat === undefined) {
+    throw new Error(`home-content.ts has no stat labelled "${opts.label}"`);
+  }
+
+  return Number(stat[0]);
+};
+
+// A number on the first screen of the wiki is a claim: it is checked against the code.
+describe('the numbers on the intro pages', () => {
+  test('the stats of the home page match the shipped files', () => {
+    const real = counts();
+
+    expect(statOf({ label: 'base rules' })).toBe(real.rules);
+    expect(statOf({ label: 'skills' })).toBe(real.skills);
+    expect(statOf({ label: 'coding agents' })).toBe(real.agents);
+    expect(statOf({ label: 'atlas tools' })).toBe(real.tools);
+  });
+
+  test('the sentences of the home page use the same counts', () => {
+    const real = counts();
+    const text = HOME.cells.map((cell) => cell.text).join(' ');
+
+    expect(COUNTS).toEqual(real);
+    expect(text).toContain(`${real.rules} rules in five groups`);
+    expect(text).toContain(`${real.skills} workflows`);
+    expect(text).toContain(`An MCP server with ${real.tools} tools`);
+  });
+
+  test('what-is-vulcan states the same numbers', () => {
+    const real = counts();
+    const page = read({ path: 'content/guides/get-started/what-is-vulcan.md' });
+
+    expect(page).toContain(`${real.rules} rules in five groups`);
+    expect(page).toContain(`${real.skills} workflows`);
+    expect(page).toContain(`An MCP server with ${real.tools} tools`);
+  });
+
+  test('the root README states the same numbers', () => {
+    const real = counts();
+    const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
+
+    expect(readme).toContain(`**${real.rules} base rules**`);
+    expect(readme).toContain(`**${real.skills} skills`);
+  });
+});

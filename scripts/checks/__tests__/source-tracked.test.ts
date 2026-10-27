@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { Glob } from 'bun';
 import { join } from 'node:path';
-import { spawnSyncBounded } from '../../__tests__/spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
 

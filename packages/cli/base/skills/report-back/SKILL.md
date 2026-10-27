@@ -1,6 +1,6 @@
 ---
 name: report-back
-description: Writes what you tell the user - a done report, a status for the owner, a preview before an action, a handoff to another session. Use when you are about to report, finish a task, ask for approval, or pass work on.
+description: "Use when you are about to tell the owner something that matters: a done report, the status of the work, what you did and what is left, a preview of an action before you take it, options with a recommendation and a question for the owner to answer, or a handover to another session or person. Shapes the message as the answer first, then what is blocked, what needs the owner, and which claims were verified. Skip for plan cards to approve before work starts (plan-a-change), visual pages (visualize-work), the pull request body and commit steps (ship), and documentation."
 user-invocable: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 ---

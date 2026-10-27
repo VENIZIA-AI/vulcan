@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { inspectCommand } from '../../hooks/index.ts';
-import { SPAWN_TIMEOUT_MS } from '../spawn.helper.ts';
+import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
 const FIXTURES = join(import.meta.dir, '..', 'fixtures', 'guard-writes');
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-writes.ts');

@@ -18,7 +18,7 @@ packages: ['@venizia/vulcan']
 
 ```ts
 export default {
-  guard: { writes: { trustedScripts: ['auroras/tools/i18n/cli.ts'] } },
+  guard: { writes: { trustedScripts: ['tools/i18n/cli.ts'] } },
 } satisfies VulcanConfig;
 ```
 

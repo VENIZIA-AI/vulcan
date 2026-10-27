@@ -58,6 +58,11 @@ export class HookConstants {
   static readonly MAX_QUERIES = 4;
   /** Branches no agent deletes or force-pushes (V-W-06). */
   static readonly PROTECTED_BRANCHES = new Set(['develop', 'main']);
+  /**
+   * Where a session's temporary files go, from the project root: `ProjectLayout.LOCAL_DIRECTORY` and `tmp`.
+   * Spelt out here because the blocking hooks import nothing that reads the package (a test holds the two equal).
+   */
+  static readonly PROJECT_TMP = '.agents/local/tmp';
   /** Set to `off` to switch the guards off for a session; the hooks then pass every call. */
   static readonly KILL_SWITCH_ENV = 'VULCAN_GUARDS';
   static readonly KILL_SWITCH_OFF = 'off';

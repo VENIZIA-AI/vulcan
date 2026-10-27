@@ -3,6 +3,7 @@ import { basenameOf, parseShellChecked, programOf } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { IGitHit, IGitRunner } from './common/index.ts';
+import { matchesBranch } from './project-guards.ts';
 
 /** `git` and `gh` read-only queries the guard makes; `undefined` when the tool is missing, slow or fails. */
 export const runQuery: IGitRunner = (opts) => {
@@ -57,6 +58,7 @@ const inspectPush = (opts: {
   rest: string[];
   cwd: string | undefined;
   run: IGitRunner;
+  askPush: string[];
 }): IGitHit[] => {
   const flags = opts.rest.filter((word) => word.startsWith('-') && word !== '-');
   const positional = opts.rest.filter((word) => !word.startsWith('-'));
@@ -94,6 +96,21 @@ const inspectPush = (opts: {
         rule: 'V-W-06',
         message: `force-pushing to '${name}'`,
       });
+    }
+  }
+
+  // A target the project lists asks even for a plain push; a hit already made says the push needs a human.
+  if (hits.length === 0 && !deleting) {
+    for (const name of targets) {
+      const branch = name.replace(/^\+/, '').replace(/^refs\/heads\//, '');
+
+      if (matchesBranch({ name: branch, patterns: opts.askPush })) {
+        hits.push({
+          decision: GuardDecisions.ASK,
+          rule: 'V-W-06',
+          message: `pushing to '${branch}', a target this project lists in guard.git.askPush`,
+        });
+      }
     }
   }
 
@@ -229,6 +246,7 @@ const inspectOne = (opts: {
   command: ISimpleCommand;
   cwd: string | undefined;
   run: IGitRunner;
+  askPush: string[];
 }): IGitHit[] => {
   const program = programOf({ command: opts.command });
   const name = basenameOf({ word: program.name });
@@ -245,7 +263,7 @@ const inspectOne = (opts: {
   const cwd = call.dir ?? opts.cwd;
 
   if (call.sub === 'push') {
-    return inspectPush({ rest: call.rest, cwd, run: opts.run });
+    return inspectPush({ rest: call.rest, cwd, run: opts.run, askPush: opts.askPush });
   }
 
   if (call.sub === 'branch') {
@@ -282,6 +300,8 @@ export const inspectGit = (opts: {
   command: string;
   cwd: string | undefined;
   run?: IGitRunner;
+  /** Branches (names, `*` allowed) a plain `git push` asks about: `guard.git.askPush`. */
+  askPush?: string[];
 }): IGitHit[] => {
   const parsed = parseShellChecked({ command: opts.command });
   const run = opts.run ?? runQuery;
@@ -301,7 +321,7 @@ export const inspectGit = (opts: {
     return run(call);
   };
   const hits = parsed.commands.flatMap((command) =>
-    inspectOne({ command, cwd: opts.cwd, run: limited }),
+    inspectOne({ command, cwd: opts.cwd, run: limited, askPush: opts.askPush ?? [] }),
   );
 
   // Part of the line was not read: never an allow.

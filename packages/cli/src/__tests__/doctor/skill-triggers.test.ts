@@ -1,7 +1,10 @@
 import { afterAll, describe, expect, test } from 'bun:test';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
 import { renderBunfig } from '../../create/bunfig.ts';
 import { runDoctorWarnings } from '../../doctor/index.ts';
+import { CLAUDE_LAUNCH_FILE, renderClaudeLaunch } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -9,8 +12,8 @@ afterAll(removeProjects);
 const CONFIG = "export default { name: 'acme', rules: { 'V-W-01': 'read-only' } };\n";
 const skill = (opts: { name: string; description: string }): string =>
   `---\nname: ${opts.name}\ndescription: ${opts.description}\n---\n\n# ${opts.name}\n`;
-const project = (opts: { description: string }) =>
-  createProject({
+const project = (opts: { description: string }) => {
+  const root = createProject({
     files: {
       'bunfig.toml': renderBunfig(),
       ...Object.fromEntries(
@@ -23,6 +26,12 @@ const project = (opts: { description: string }) =>
       }),
     },
   });
+
+  // What sync leaves in the local folder: the launch file names this very checkout.
+  writeFileSync(join(root, CLAUDE_LAUNCH_FILE), renderClaudeLaunch({ root }));
+
+  return root;
+};
 
 describe('doctor warns about a skill with no "Use when" part', () => {
   test('a warning on the skill file, saying atlas cannot tell when to load it', async () => {

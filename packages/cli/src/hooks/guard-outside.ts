@@ -4,6 +4,7 @@ import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { basenameOf, parseShellChecked, programOf } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 import { HookConstants } from './common/index.ts';
+import { projectTmpOf } from './project-tmp.ts';
 import type { IManifestHookInput, IOutsideHit } from './common/index.ts';
 
 const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
@@ -238,7 +239,7 @@ const gitTargets = (opts: { rest: string[]; base: string; dir: string | undefine
 };
 
 /** The words a simple command would create or write, with a name for what writes them. */
-const targetsOf = (opts: { command: ISimpleCommand; base: string }): ITarget[] => {
+const targetsOf = (opts: { command: ISimpleCommand; base: string; tmp: string }): ITarget[] => {
   const program = programOf({ command: opts.command });
   const name = basenameOf({ word: program.name });
   const { args } = program;
@@ -314,7 +315,7 @@ const targetsOf = (opts: { command: ISimpleCommand; base: string }): ITarget[] =
     if (directory !== undefined) {
       add(directory, 'mktemp creates a temporary file');
     } else if (inTmpdir || template === undefined) {
-      add(tmpdir(), 'mktemp creates a file in the system temp directory');
+      add(opts.tmp, 'mktemp creates a file in the system temp directory');
     } else {
       add(template, 'mktemp creates a temporary file');
     }
@@ -325,6 +326,21 @@ const targetsOf = (opts: { command: ISimpleCommand; base: string }): ITarget[] =
   }
 
   return targets;
+};
+
+/**
+ * The folder a bare `mktemp` uses in the command: the `TMPDIR` this hook runs with (Claude Code started
+ * with the launch file or the variables), else the project's own folder when Claude Code's session-start
+ * hook exports it (`CLAUDE_PROJECT_DIR` is set only by Claude Code), else the system temp directory.
+ */
+const commandTmpdirOf = (opts: { env: TEnvironment; projectRoot: string }): string => {
+  if (opts.env.TMPDIR !== undefined && opts.env.TMPDIR !== '') {
+    return opts.env.TMPDIR;
+  }
+
+  return opts.env.CLAUDE_PROJECT_DIR === undefined
+    ? tmpdir()
+    : projectTmpOf({ root: opts.projectRoot });
 };
 
 /**
@@ -350,6 +366,7 @@ export const inspectOutside = (opts: {
     env,
   });
   const start = opts.input.cwd ?? opts.projectRoot;
+  const tmp = commandTmpdirOf({ env, projectRoot: opts.projectRoot });
   const targets: ITarget[] = [];
 
   if (FILE_TOOLS.has(opts.input.tool) && opts.input.filePath !== undefined) {
@@ -381,7 +398,7 @@ export const inspectOutside = (opts: {
         continue;
       }
 
-      targets.push(...targetsOf({ command, base }));
+      targets.push(...targetsOf({ command, base, tmp }));
     }
   }
 

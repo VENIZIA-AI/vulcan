@@ -38,6 +38,10 @@ jobs:
         id: install
         run: bun install
 
+      - name: No agent signature in the branch commits
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: make agent-signature-check
+
       - name: Dependency catalog
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: make catalog-check
@@ -87,6 +91,11 @@ jobs:
       - name: Lint
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: make lint-all
+
+      # The wiki builds, then its two link gates read the build: a source path git does not track, a dead #fragment.
+      - name: Wiki links
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: make docs wiki-links-check wiki-anchors-check
 
       # The make targets own the test flags (BUN_TEST_FLAGS, default --parallel), so CI and a
       # developer's `make test` run the very same command.

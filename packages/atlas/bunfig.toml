@@ -1,2 +1,2 @@
 [test]
-preload = ["../../scripts/test/repo-tmp.preload.ts"]
+preload = ["@venizia/dev-configs/testing/tmpdir-preload"]

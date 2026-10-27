@@ -1,4 +1,4 @@
-import { spawnSyncBounded } from './spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 /** Git without the machine's configuration: no global hook, identity or template reaches a test repository. */
 const GIT_ENV = {

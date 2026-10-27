@@ -4,7 +4,9 @@ import {
   DEFAULT_CHROME,
   EdgeVariants,
   EvidenceLabels,
+  MinimapStates,
   NodeKinds,
+  NodeStates,
   StatusStates,
   VisualizeLimits,
 } from './constants.ts';
@@ -37,6 +39,8 @@ const HTTPS = z
 const rows = <T extends z.ZodType>(item: T) =>
   z.array(item).min(1).max(VisualizeLimits.MAX_ROWS_PER_TABLE);
 
+const STATE = choice({ set: NodeStates.SCHEME_SET });
+
 const NODE = z.strictObject({
   id: ID,
   label: text(VisualizeLimits.MAX_LABEL),
@@ -45,6 +49,7 @@ const NODE = z.strictObject({
   row: GRID,
   col: GRID,
   kind: choice({ set: NodeKinds.SCHEME_SET }).optional(),
+  state: STATE.optional(),
 });
 
 const EDGE = z.strictObject({
@@ -77,6 +82,207 @@ const SIDE = (changed: TChangeKind) =>
     ),
   });
 
+const LIST = (max = VisualizeLimits.MAX_LIST) =>
+  z.array(text(VisualizeLimits.MAX_SENTENCE)).min(1).max(max);
+const NUMBER = z.number().finite().min(-1_000_000_000).max(1_000_000_000);
+
+const COMPARISON = z.strictObject({
+  criteria: z.array(text(VisualizeLimits.MAX_LABEL)).min(1).max(VisualizeLimits.MAX_CRITERIA),
+  options: z
+    .array(
+      z.strictObject({
+        name: text(VisualizeLimits.MAX_LABEL),
+        line: text(VisualizeLimits.MAX_SENTENCE).optional(),
+        /** One score from 1 to 5 per criterion, in the order of `criteria`. */
+        scores: z.array(z.number().int().min(1).max(5)).min(1).max(VisualizeLimits.MAX_CRITERIA),
+        pros: LIST().optional(),
+        cons: LIST().optional(),
+        recommended: z.boolean().optional(),
+      }),
+    )
+    .min(2)
+    .max(VisualizeLimits.MAX_COMPARE_OPTIONS),
+  note: text(VisualizeLimits.MAX_SENTENCE).optional(),
+});
+
+const IDEA_MAP = z.strictObject({
+  center: text(VisualizeLimits.MAX_LABEL),
+  branches: z
+    .array(
+      z.strictObject({
+        label: text(VisualizeLimits.MAX_LABEL),
+        items: z
+          .array(text(VisualizeLimits.MAX_LABEL))
+          .min(1)
+          .max(VisualizeLimits.MAX_BRANCH_ITEMS),
+        note: text(VisualizeLimits.MAX_SENTENCE).optional(),
+      }),
+    )
+    .min(2)
+    .max(VisualizeLimits.MAX_BRANCHES),
+});
+
+const DIAGRAM = z.discriminatedUnion('type', [
+  z.strictObject({
+    type: z.literal('row'),
+    nodes: z
+      .array(
+        z.strictObject({
+          label: text(VisualizeLimits.MAX_LABEL),
+          sub: text(VisualizeLimits.MAX_LABEL).optional(),
+        }),
+      )
+      .min(2)
+      .max(5),
+    /** Labels of the arrows between consecutive boxes; one fewer than the boxes. */
+    arrows: z.array(text(VisualizeLimits.MAX_EDGE_LABEL)).max(4).optional(),
+  }),
+  z.strictObject({
+    type: z.literal('layers'),
+    layers: z
+      .array(
+        z.strictObject({
+          label: text(VisualizeLimits.MAX_LABEL),
+          items: z.array(text(VisualizeLimits.MAX_LABEL)).min(1).max(5),
+        }),
+      )
+      .min(2)
+      .max(VisualizeLimits.MAX_LAYERS),
+  }),
+]);
+
+const EXPLAINER = z.strictObject({
+  steps: z
+    .array(
+      z.strictObject({
+        title: text(VisualizeLimits.MAX_LABEL),
+        text: text(VisualizeLimits.MAX_SENTENCE),
+        diagram: DIAGRAM.optional(),
+      }),
+    )
+    .min(1)
+    .max(VisualizeLimits.MAX_EXPLAINER_STEPS),
+});
+
+const ARCHITECTURE = z.strictObject({
+  layers: z
+    .array(
+      z.strictObject({
+        label: text(VisualizeLimits.MAX_LABEL),
+        boxes: z
+          .array(
+            z.strictObject({
+              id: ID,
+              label: text(VisualizeLimits.MAX_LABEL),
+              sub: text(VisualizeLimits.MAX_LABEL).optional(),
+              state: STATE.optional(),
+            }),
+          )
+          .min(1)
+          .max(VisualizeLimits.MAX_LAYER_BOXES),
+      }),
+    )
+    .min(1)
+    .max(VisualizeLimits.MAX_LAYERS),
+  links: z
+    .array(
+      z.strictObject({ from: ID, to: ID, label: text(VisualizeLimits.MAX_EDGE_LABEL).optional() }),
+    )
+    .max(VisualizeLimits.MAX_LINKS)
+    .default([]),
+});
+
+const TIMELINE = z.strictObject({
+  items: z
+    .array(
+      z.strictObject({
+        date: text(VisualizeLimits.MAX_LABEL),
+        title: text(VisualizeLimits.MAX_LABEL),
+        text: text(VisualizeLimits.MAX_SENTENCE).optional(),
+        state: STATE.optional(),
+      }),
+    )
+    .min(2)
+    .max(VisualizeLimits.MAX_TIMELINE),
+});
+
+const CHART = z.discriminatedUnion('type', [
+  z.strictObject({
+    type: z.literal('bar'),
+    title: text(VisualizeLimits.MAX_LABEL),
+    unit: text(16).optional(),
+    labels: z.array(text(VisualizeLimits.MAX_LABEL)).min(2).max(VisualizeLimits.MAX_POINTS),
+    /** One value per label, from zero up: a bar starts at the baseline. */
+    values: z.array(NUMBER.min(0)).min(2).max(VisualizeLimits.MAX_POINTS),
+  }),
+  z.strictObject({
+    type: z.literal('line'),
+    title: text(VisualizeLimits.MAX_LABEL),
+    unit: text(16).optional(),
+    labels: z.array(text(VisualizeLimits.MAX_LABEL)).min(3).max(VisualizeLimits.MAX_POINTS),
+    series: z
+      .array(
+        z.strictObject({
+          name: text(VisualizeLimits.MAX_LABEL),
+          values: z.array(NUMBER).min(3).max(VisualizeLimits.MAX_POINTS),
+        }),
+      )
+      .min(1)
+      .max(VisualizeLimits.MAX_SERIES),
+  }),
+  z.strictObject({
+    type: z.literal('donut'),
+    title: text(VisualizeLimits.MAX_LABEL),
+    unit: text(16).optional(),
+    parts: z
+      .array(
+        z.strictObject({
+          label: text(VisualizeLimits.MAX_LABEL),
+          value: NUMBER.min(0),
+          state: STATE.optional(),
+        }),
+      )
+      .min(2)
+      .max(VisualizeLimits.MAX_PARTS),
+  }),
+]);
+
+const FINDINGS = z.strictObject({
+  numbers: z
+    .array(
+      z.strictObject({
+        value: text(16),
+        label: text(VisualizeLimits.MAX_LABEL),
+        state: STATE.optional(),
+      }),
+    )
+    .min(1)
+    .max(VisualizeLimits.MAX_TILES)
+    .optional(),
+  charts: z.array(CHART).min(1).max(VisualizeLimits.MAX_CHARTS).optional(),
+  callouts: z
+    .array(z.strictObject({ text: text(VisualizeLimits.MAX_SENTENCE), state: STATE.optional() }))
+    .min(1)
+    .max(4)
+    .optional(),
+});
+
+const DECISION_RECORD = z.strictObject({
+  context: text(VisualizeLimits.MAX_SENTENCE),
+  options: z
+    .array(
+      z.strictObject({
+        name: text(VisualizeLimits.MAX_LABEL),
+        summary: text(VisualizeLimits.MAX_SENTENCE),
+        chosen: z.boolean().optional(),
+      }),
+    )
+    .min(2)
+    .max(5),
+  decision: text(VisualizeLimits.MAX_SENTENCE),
+  consequences: LIST(),
+});
+
 /** The words of the page, English by default; any of them may be replaced (the owner's language). */
 const CHROME = z
   .strictObject({
@@ -90,6 +296,17 @@ const CHROME = z
         ok: text(VisualizeLimits.MAX_LABEL).optional(),
         warn: text(VisualizeLimits.MAX_LABEL).optional(),
         blocked: text(VisualizeLimits.MAX_LABEL).optional(),
+        info: text(VisualizeLimits.MAX_LABEL).optional(),
+      })
+      .optional(),
+    minimapStates: z
+      .strictObject({
+        done: text(VisualizeLimits.MAX_LABEL).optional(),
+        'in-progress': text(VisualizeLimits.MAX_LABEL).optional(),
+        waiting: text(VisualizeLimits.MAX_LABEL).optional(),
+        'not-started': text(VisualizeLimits.MAX_LABEL).optional(),
+        blocked: text(VisualizeLimits.MAX_LABEL).optional(),
+        dropped: text(VisualizeLimits.MAX_LABEL).optional(),
         info: text(VisualizeLimits.MAX_LABEL).optional(),
       })
       .optional(),
@@ -132,6 +349,28 @@ export const VISUALIZE_SCHEMA = z.strictObject({
       next: text(VisualizeLimits.MAX_SENTENCE),
     })
     .optional(),
+  /** Where each task stands, one row each: the owner's map of the work. */
+  minimap: rows(
+    z.strictObject({
+      task: text(VisualizeLimits.MAX_LABEL),
+      status: choice({ set: MinimapStates.SCHEME_SET }),
+      note: text(VisualizeLimits.MAX_SENTENCE).optional(),
+    }),
+  ).optional(),
+  /** What the owner has to do, in order: shown as a numbered checklist under `strip.next`. */
+  actions: LIST().optional(),
+  /** Key numbers; with a `minimap` and no tiles, the page counts the states itself. */
+  tiles: z
+    .array(
+      z.strictObject({
+        value: text(16),
+        label: text(VisualizeLimits.MAX_LABEL),
+        state: STATE.optional(),
+      }),
+    )
+    .min(1)
+    .max(VisualizeLimits.MAX_TILES)
+    .optional(),
   flow: z
     .strictObject({
       nodes: z.array(NODE).min(1).max(VisualizeLimits.MAX_NODES),
@@ -139,6 +378,13 @@ export const VISUALIZE_SCHEMA = z.strictObject({
       steps: z.array(STEP).max(VisualizeLimits.MAX_STEPS).default([]),
     })
     .optional(),
+  architecture: ARCHITECTURE.optional(),
+  comparison: COMPARISON.optional(),
+  ideaMap: IDEA_MAP.optional(),
+  explainer: EXPLAINER.optional(),
+  timeline: TIMELINE.optional(),
+  findings: FINDINGS.optional(),
+  decisionRecord: DECISION_RECORD.optional(),
   beforeAfter: z
     .strictObject({ before: SIDE(ChangeKinds.REMOVED), after: SIDE(ChangeKinds.ADDED) })
     .optional(),

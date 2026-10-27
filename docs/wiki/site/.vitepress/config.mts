@@ -1,31 +1,7 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { defineConfig, type DefaultTheme } from 'vitepress';
-
-const CHANGELOGS = fileURLToPath(new URL('../../content/changelogs', import.meta.url));
-
-// Every dated entry, titled from its frontmatter and grouped by the date in its file name, newest
-// date first - a new entry needs no sidebar edit.
-const changelogGroups = (): DefaultTheme.SidebarItem[] => {
-  const byDate = new Map<string, DefaultTheme.SidebarItem[]>();
-  const files = readdirSync(CHANGELOGS)
-    .filter((file) => /^\d{4}-\d{2}-\d{2}-.*\.md$/.test(file))
-    .sort()
-    .reverse();
-
-  for (const file of files) {
-    const date = file.slice(0, 10);
-    const title = /^title:\s*"?(.+?)"?\s*$/m.exec(
-      readFileSync(`${CHANGELOGS}/${file}`, 'utf8'),
-    )?.[1];
-    const items = byDate.get(date) ?? [];
-
-    items.push({ text: title ?? file, link: `/changelogs/${file.replace(/\.md$/, '')}` });
-    byDate.set(date, items);
-  }
-
-  return [...byDate].map(([date, items]) => ({ text: date, collapsed: true, items }));
-};
+import { writeChangelogFeed } from './theme/shared/changelog-loader.ts';
+import { venziaCodeTheme } from './theme/shared/code-theme.ts';
+import { VENIZIA_LOGO_SVG } from './theme/shared/venizia-logo.ts';
 
 // The sidebars mirror IGNIS: Guides and References each have an index landing page.
 const guidesSidebar: DefaultTheme.SidebarItem[] = [
@@ -44,6 +20,8 @@ const guidesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'The project layer', link: '/guides/core-concepts/the-project-layer' },
       { text: 'Rules and slots', link: '/guides/core-concepts/rules-and-slots' },
       { text: 'Hooks and guards', link: '/guides/core-concepts/hooks-and-guards' },
+      { text: 'The owner and the reply shape', link: '/guides/core-concepts/owner-and-replies' },
+      { text: 'Work items', link: '/guides/core-concepts/work-items' },
       { text: 'The knowledge bundle', link: '/guides/core-concepts/knowledge-bundle' },
       { text: 'Atlas', link: '/guides/core-concepts/atlas' },
     ],
@@ -98,22 +76,8 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Overview', link: '/references/atlas/' },
       { text: 'Tools', link: '/references/atlas/tools' },
       { text: 'Sources', link: '/references/atlas/sources' },
+      { text: 'Prebuilt index', link: '/references/atlas/prebuilt-index' },
     ],
-  },
-];
-
-const changelogsSidebar = (): DefaultTheme.SidebarItem[] => [
-  {
-    text: 'Overview',
-    items: [
-      { text: 'Introduction', link: '/changelogs/' },
-      { text: 'Template', link: '/changelogs/template' },
-    ],
-  },
-  {
-    text: 'History',
-    collapsed: false,
-    items: changelogGroups(),
   },
 ];
 
@@ -122,32 +86,42 @@ export default defineConfig({
   base: '/',
   appearance: 'dark',
   markdown: {
-    theme: {
-      light: 'github-light',
-      dark: 'one-dark-pro',
-    },
+    // The code windows are dark in both themes (theme/shared/tokens.css), so one dark theme serves both: the
+    // shared theme built from VULCAN's accent on dark (the same value as --accent-on-dark in theme/product.css).
+    theme: venziaCodeTheme({ accent: '#dead6a' }),
   },
   srcDir: '../content',
   outDir: './.vitepress/dist',
   title: 'VULCAN',
   description: 'The agentic-coding toolkit for VENIZIA projects',
   cleanUrls: true,
+  // The changelog feed (RSS 2.0) is written next to the pages; the changelog has no sidebar, its index is the way in.
+  buildEnd: async (config) => {
+    await writeChangelogFeed({
+      outDir: config.outDir,
+      site: {
+        title: 'VULCAN changelog',
+        description: 'What changed in VULCAN, who is affected and what to do about it.',
+        siteUrl: 'https://vulcan.venizia.ai',
+      },
+    });
+  },
   head: [
+    [
+      'link',
+      {
+        rel: 'alternate',
+        type: 'application/rss+xml',
+        title: 'VULCAN changelog',
+        href: '/changelog.xml',
+      },
+    ],
+    // The home page and its terminal hide their reveal states only under this class, set before first paint.
+    ['script', {}, "document.documentElement.classList.add('js');"],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
     ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }],
     ['link', { rel: 'manifest', href: '/site.webmanifest' }],
     ['meta', { name: 'theme-color', content: '#E8930A' }],
-    // Fonts - preconnect
-    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
-    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
-    // Fonts - stylesheet
-    [
-      'link',
-      {
-        rel: 'stylesheet',
-        href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap',
-      },
-    ],
     // Open Graph
     ['meta', { property: 'og:type', content: 'website' }],
     [
@@ -194,21 +168,20 @@ export default defineConfig({
     sidebar: {
       '/guides/': guidesSidebar,
       '/references/': referencesSidebar,
-      '/changelogs/': changelogsSidebar(),
     },
     search: { provider: 'local' },
     outline: {
       level: [2, 3],
       label: 'On this page',
     },
-    socialLinks: [{ icon: 'github', link: 'https://github.com/VENIZIA-AI/vulcan' }],
+    socialLinks: [
+      { icon: 'github', link: 'https://github.com/VENIZIA-AI/vulcan' },
+      // The Venizia wordmark, right after the GitHub icon; theme/shared/header.css sizes it.
+      { icon: { svg: VENIZIA_LOGO_SVG }, link: 'https://venizia.ai', ariaLabel: 'Venizia' },
+    ],
     editLink: {
       pattern: 'https://github.com/VENIZIA-AI/vulcan/edit/develop/docs/wiki/content/:path',
       text: 'Edit this page on GitHub',
-    },
-    footer: {
-      message: 'Released under the MIT License.',
-      copyright: 'Copyright (c) 2026 VENIZIA',
     },
     docFooter: {
       prev: 'Previous page',

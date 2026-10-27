@@ -100,17 +100,77 @@ The `changes` tool still filters dated changelog entries by calendar date.
 
 atlas builds the search index once per commit SHA.
 Subsequent starts on the same commit use the cached index.
+Each cached index records the format it was built at, in a `format` file beside it.
+When an atlas version changes what an index holds, its format number changes, and a cached index of the old format is built again on the next start that can reach the remote.
 On startup, atlas checks whether the remote reference moved.
 If the reference moved to a newer commit, atlas pulls the new commit.
 If new tags appear on the same commit, atlas updates release records without re-indexing markdown files.
 The cache keeps the newest 3 commits per source.
 When the remote repository is unreachable, atlas serves the commit last served for that ref.
 atlas never serves another ref's cache.
+An unreachable remote serves the newest cache whatever its format, and the notice says so.
 atlas tells the client at startup:
 
 ```text
 - <name>: <origin> at <sha> - OFFLINE: the remote was unreachable, this is the newest cache, not the ref's current commit
+- <name>: <origin> at <sha> - OFFLINE: ... - its index was built by another atlas format: served as it is, rebuilt when the remote is reachable
 ```
+
+## Prebuilt index
+
+A repository can publish the search index of each commit, signed, so the projects that read it as a source skip building it.
+atlas uses such an index for a source when all of these hold:
+
+- the source is a GitHub `owner/repo` and atlas reads it with git;
+- the source's manifest lists public keys under `atlas.index.keys`;
+- you did not pass `--no-prebuilt`.
+
+Then atlas looks for the pair of the commit it resolved on the release `atlas-index` of that repository: `<sha>.atlas.json` (the signed envelope) and `<sha>.atlas.gz` (the gzipped index).
+It reads a token only now, `GITHUB_TOKEN` or else `gh auth token`, and sends it to the GitHub API host and to no other host.
+The asset itself is a redirect to a storage host; that request carries no token.
+atlas uses the asset URL of the API, never `browser_download_url`, which does not accept a token.
+
+Before it opens a byte of the index, atlas checks, in this order:
+
+1. one of the listed keys verified the signature of the envelope;
+2. the envelope names this commit, this repository and this atlas's index format;
+3. the gz is within its size limit and its sha256 is the digest the envelope names;
+4. it decompresses to exactly the size the envelope names;
+5. the result opens as an index and holds chunks.
+
+Only then is the pair installed, the same way a local build is.
+When the remote's tags are the ones the pair was built with, its release table is used too, and the changelog directory is not checked out; otherwise the release table is computed here and only the index is the downloaded one.
+
+Any failure is a miss, never an error. atlas prints one line on standard error and builds the index itself:
+
+```text
+[prebuilt] the prebuilt index is not used, building it here | source: ignis | commit: 50a00944 | reason: no-pair (<sha>.atlas.json is not on the release)
+```
+
+| Reason | Meaning |
+|---|---|
+| `no-release` | The repository has no release `atlas-index` |
+| `no-pair` | The release has no pair for this commit (CI may still be running) |
+| `unreachable` | A request failed, timed out or answered an error |
+| `foreign-url` | An asset URL pointed at a host other than the API host |
+| `malformed` | The envelope is not the shape of one |
+| `signature` | No listed key verifies the envelope |
+| `sha`, `repo`, `format` | The envelope is for another commit, another repository or another index format |
+| `too-large` | The envelope, the gz or the index it announces is over its limit |
+| `digest` | The gz is not the one the envelope names |
+| `size` | The index is not the size the envelope names |
+| `unreadable` | The index does not open, or has no chunks |
+
+A start from a source whose index was downloaded says so, and keeps saying so from the cache:
+
+```text
+- <name>: <origin> at <sha> - index: prebuilt, built by atlas <version>
+```
+
+`pull --force` downloads the pair again. `--no-prebuilt` turns the download off for `mcp`, `tools` and `pull`.
+A source without keys, and a source reached by a git URL or by tarball, is built here as before.
+
+For a private repository, the token must be able to read the repository's releases. A classic token with the `repo` scope, which is what `gh auth token` gives, was checked against a private repository: it lists the release, downloads the asset and gets 404 without the token. A fine-grained token was not checked.
 
 ## Pre-fetching with pull
 
