@@ -31,7 +31,7 @@ Everything below is new since 0.4.5.
 |---|---|---|
 | Eight skill descriptions say when to load the skill, what it produces and what to skip; the limit is 700 characters | [Skill descriptions](./2026-10-27-vulcan-0-4-6-skill-descriptions) | #487 |
 | The delegation brief names the skill the receiver must load, not a retyped copy of its steps | [Delegation brief](./2026-10-27-vulcan-0-4-6-delegation-names-the-skill) | #479 |
-| atlas records the format of every cached index and builds an older one again, once, instead of serving it | [Index format](./2026-10-27-vulcan-0-4-6-atlas-index-format) | PRNUM |
+| atlas records the format of every cached index and builds an older one again, once, instead of serving it | [Index format](./2026-10-27-vulcan-0-4-6-atlas-index-format) | #497, #498 |
 | The package READMEs credit the VENIZIA logo, the LICENSE files name Venizia Co., Ltd., and one doctor warning drops the name of another formatter | [READMEs and legal name](./2026-10-27-vulcan-0-4-6-readme-and-legal-name) | #444, #450, #446 |
 
 ## Features
