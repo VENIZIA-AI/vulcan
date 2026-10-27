@@ -20,6 +20,28 @@ export default {
     // the private key is the Actions secret ATLAS_INDEX_KEY and exists nowhere else.
     index: { keys: ['RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ='] },
   },
+  // The release path is the owner's: an agent does not approve a waiting deployment or write a secret, an environment, a
+  // ruleset, a branch protection, a collaborator role or the Actions permissions (rule W-08). A write to one of these through
+  // `gh api` is an explicit -X POST, PUT, PATCH or DELETE or any body flag (gh turns -f, -F, --field, --raw-field and --input
+  // into a POST); a read of the same endpoints asks nothing. Guards ask, they do not deny, and they are not a sandbox.
+  guard: {
+    writes: {
+      commands: [
+        {
+          rule: 'V-W-03',
+          what: 'writing a GitHub environment, secret, ruleset, protection or permission, or approving a deployment',
+          pattern:
+            '\\bgh\\s+api\\b(?=[^\\n]*\\b(?:environments|actions/secrets|actions/variables|actions/permissions|rulesets|branches/\\S+/protection|collaborators|pending_deployments)\\b)(?=[^\\n]*\\s(?:-X\\s*(?:POST|PUT|PATCH|DELETE)|-f|-F|--field|--raw-field|--input)\\b)',
+          ignoreCase: true,
+        },
+        {
+          rule: 'V-W-03',
+          what: 'writing a GitHub Actions secret or variable',
+          pattern: '\\bgh\\s+(?:secret|variable)\\s+(?:set|delete|remove)\\b',
+        },
+      ],
+    },
+  },
   // A plugin this repository never uses still costs the skill listing: figma and chrome-devtools-mcp are 21 entries and
   // 8.4 KB of its 30 KB budget. `sync` merges this into .claude/settings.json; it overrides the person's own enabledPlugins here only.
   claude: {

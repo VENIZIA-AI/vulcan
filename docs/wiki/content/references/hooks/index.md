@@ -243,6 +243,8 @@ Run `vulcan sync` and commit the manifest: the hook reads the list from `.agents
 
 The patterns run on what each simple command runs, like the fixed ones, so they are found inside `cd services/api && make deploy-develop-x`, `a; b`, `(cd x; make deploy-y)`, `if true; then make deploy-y; fi`, `bash -c "make deploy-y"`, `sudo make deploy-y` and `echo $(make deploy-y)`. Text that is only data does not match: `echo "make deploy-x"`, `rg 'make deploy-' docs`, `git commit -m "make deploy-x"`. A pattern is a guard against drift, not a sandbox: a command that builds its name at run time is not seen.
 
+A pattern also sees the request of `gh api`, `gh secret` and `gh variable`, so a project can ask before an agent writes a secret, an environment or a ruleset through the GitHub CLI: `gh secret set X`, or `gh api -X PUT repos/o/r/rulesets`. The arguments of every other `gh` subcommand (`gh pr`, `gh issue`, `gh release`) stay data, so a body that quotes a command is still quiet. `gh` turns `-f`, `-F`, `--field`, `--raw-field` and `--input` into a POST, so a pattern for a write checks for those flags as well as `-X POST`.
+
 A project that only uses Claude Code can add a second layer that does not depend on VULCAN's guards, through Claude Code's own permission rules, written in the same config:
 
 ```ts

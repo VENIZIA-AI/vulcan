@@ -1,7 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
-import { inspectCommand, inspectGit, matchesBranch, readGuardPolicy } from '../../hooks/index.ts';
+import {
+  commandTextsOf,
+  inspectCommand,
+  inspectGit,
+  matchesBranch,
+  readGuardPolicy,
+} from '../../hooks/index.ts';
 import type { IGitRunner, IProjectCommandCheck } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
@@ -101,6 +107,71 @@ const gitHits = (opts: { command: string; askPush?: string[]; current?: string }
     run: runner({ current: opts.current ?? 'topic' }),
     askPush: opts.askPush,
   });
+
+// A project can list the commands that write a GitHub setting or secret. The arguments of `gh pr` and `gh issue` are messages
+// (data, so a body that quotes a command is quiet); the arguments of `gh api`, `gh secret` and `gh variable` are the request,
+// so a project pattern sees them.
+describe("the project's patterns see the request of gh api, gh secret and gh variable, and not a message", () => {
+  const GH: IProjectCommandCheck[] = [
+    {
+      rule: 'V-W-03',
+      what: 'writing a GitHub secret',
+      pattern: /\bgh\s+(?:secret|variable)\s+(?:set|delete|remove)\b/,
+    },
+    {
+      rule: 'V-W-03',
+      what: 'approving a deployment',
+      pattern: /\bgh\s+api\b.*pending_deployments.*\s-f\b/,
+    },
+  ];
+
+  test.each([
+    ['gh secret set', 'gh secret set X < key'],
+    ['gh secret delete', 'gh secret delete X'],
+    ['gh variable set', 'gh variable set X --body 1'],
+    [
+      'gh api with a body flag',
+      'gh api repos/o/r/actions/runs/9/pending_deployments -f state=approved',
+    ],
+    ['under cd and &&', 'cd x && gh secret set X'],
+    ['under sudo', 'sudo gh secret delete X'],
+  ])('%s asks with the pattern', (_label, command) => {
+    expect(hitsOf({ command, extra: GH })).toEqual([expect.stringContaining('V-W-03')]);
+  });
+
+  test.each([
+    [
+      'an issue body that quotes the command',
+      'gh issue create --title t --body "run gh secret set X by hand"',
+    ],
+    ['a pull request body', 'gh pr create --title t --body "gh secret delete X is the owner\'s"'],
+    [
+      'a pull request comment',
+      'gh pr comment 5 --body "gh api pending_deployments -f state=approved"',
+    ],
+    ['a release note', 'gh release create v1 --notes "gh secret set"'],
+    ['a read', 'gh secret list'],
+    ['a read of the api', 'gh api repos/o/r/environments'],
+  ])('%s stays quiet', (_label, command) => {
+    expect(hitsOf({ command, extra: GH })).toEqual([]);
+  });
+
+  test('commandTextsOf keeps the whole request of gh api, gh secret and gh variable, and only the name of the others', () => {
+    expect(commandTextsOf({ command: 'gh secret set X', withMessages: true })).toEqual([
+      'gh secret set X',
+    ]);
+    expect(
+      commandTextsOf({ command: 'gh api -X PUT repos/o/r/rulesets', withMessages: true }),
+    ).toEqual(['gh api -X PUT repos/o/r/rulesets']);
+    expect(commandTextsOf({ command: 'gh -R o/r variable set X', withMessages: true })).toEqual([
+      'gh -R o/r variable set X',
+    ]);
+    expect(
+      commandTextsOf({ command: 'gh pr create --body "gh secret set"', withMessages: true }),
+    ).toEqual(['gh']);
+    expect(commandTextsOf({ command: 'gh issue list', withMessages: true })).toEqual(['gh']);
+  });
+});
 
 describe('guard-git asks for the push targets the project lists', () => {
   test('git push origin develop: not asked without the list, asked with it', () => {
