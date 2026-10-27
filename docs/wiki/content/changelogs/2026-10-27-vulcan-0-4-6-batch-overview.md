@@ -1,6 +1,6 @@
 ---
 title: "VULCAN X.Y.Z: Skills That Load When They Should, and Two Wiki Link Gates (Overview)"
-description: One page for the whole release after 0.4.5 - eight skill descriptions rewritten and tested, a delegation brief that names the skill, two wiki link gates in vulcan.mk, and what to run when you upgrade.
+description: One page for the whole release after 0.4.5 - eight skill descriptions rewritten and tested, a delegation brief that names the skill, a visualize page for eleven kinds of explanation, two wiki link gates in vulcan.mk, and what to run when you upgrade.
 packages: ['@venizia/vulcan', '@venizia/vulcan-atlas', '@venizia/vulcan-okf']
 ---
 
@@ -12,7 +12,7 @@ packages: ['@venizia/vulcan', '@venizia/vulcan-atlas', '@venizia/vulcan-okf']
 
 Everything below is new since 0.4.5.
 
-**In one line.** An agent now loads the right skill more often and the wrong one less often, a handed-over task names its skill, and a VitePress wiki can check its source links and its heading links with two make targets.
+**In one line.** An agent now loads the right skill more often and the wrong one less often, a handed-over task names its skill, `vulcan visualize` makes a readable page for any kind of explanation, and a VitePress wiki can check its source links and its heading links with two make targets.
 
 **Who is affected.** Every project that syncs VULCAN gets the new skill descriptions and the delegation brief by updating the package. Only a project with a VitePress wiki has a reason to use the new gates.
 
@@ -37,6 +37,7 @@ Everything below is new since 0.4.5.
 
 | Change | Entry | Pull request |
 |---|---|---|
+| `vulcan visualize` makes a page for eleven kinds of explanation, with charts, a state-coloured banner, a slide mode and a layout that fits a phone; existing specs render as before | [Visualize pages](./2026-10-27-vulcan-0-4-6-visualize-page) | #475 |
 | `make wiki-links-check` and `make wiki-anchors-check`: a source path git does not track, and a link to a heading that does not exist, fail the build | [Wiki gates](./2026-10-27-vulcan-0-4-6-wiki-gates) | #490 |
 
 ## Docs and internal

@@ -1,3 +1,5 @@
+import { NodeStates } from './constants.ts';
+import { iconSvg } from './icons.ts';
 import type { TVisualizeSpec } from './schema.ts';
 
 /** Escapes text for HTML and for an attribute value: everything the spec says is data, never markup. */
@@ -9,11 +11,21 @@ export const escapeText = (opts: { value: string }): string =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
 
-const CELL_WIDTH = 300;
-const CELL_HEIGHT = 120;
-const BOX_WIDTH = 160;
-const BOX_HEIGHT = 64;
-const MARGIN = 28;
+const CELL_WIDTH = 290;
+const CELL_HEIGHT = 112;
+const BOX_WIDTH = 176;
+const BOX_HEIGHT = 60;
+const MARGIN = 24;
+
+/** Below this share of its natural width the figure is replaced by a list, so no text drops under 12 px. */
+export const FIGURE_FIT = 0.92;
+
+/** The natural width of a figure of `cols` columns, in pixels. */
+export const figureWidth = (opts: { cols: number }): number => MARGIN * 2 + opts.cols * CELL_WIDTH;
+
+/** How many columns a flow spans. */
+export const columnsOf = (opts: { flow: NonNullable<TVisualizeSpec['flow']> }): number =>
+  Math.max(...opts.flow.nodes.map((node) => node.col)) + 1;
 
 interface IPoint {
   x: number;
@@ -77,7 +89,7 @@ const routeOf = (opts: { from: IPoint; to: IPoint }): { path: string; label: IPo
 export const renderFigure = (opts: { flow: NonNullable<TVisualizeSpec['flow']> }): string => {
   const { flow } = opts;
   const byId = new Map(flow.nodes.map((node) => [node.id, node]));
-  const width = MARGIN * 2 + (Math.max(...flow.nodes.map((node) => node.col)) + 1) * CELL_WIDTH;
+  const width = figureWidth({ cols: columnsOf({ flow }) });
   const height = MARGIN * 2 + (Math.max(...flow.nodes.map((node) => node.row)) + 1) * CELL_HEIGHT;
   const edges = flow.edges
     .map((edge) => {
@@ -98,10 +110,48 @@ export const renderFigure = (opts: { flow: NonNullable<TVisualizeSpec['flow']> }
     .map((node) => {
       const centre = centreOf(node);
       const lines = node.sublabel === undefined ? 1 : 2;
+      const tone = node.state === undefined ? '' : ` c-${NodeStates.toneOf(node.state)}`;
+      const left = centre.x - BOX_WIDTH / 2;
+      const anchor = node.state === undefined ? 'middle' : 'start';
+      const textX = node.state === undefined ? centre.x : left + 40;
+      const mark =
+        node.state === undefined
+          ? ''
+          : `<g class="st" transform="translate(${left + 12} ${centre.y - 10})">${iconSvg({ name: NodeStates.iconOf(node.state), size: 20 }).replace('<svg', '<svg x="0" y="0"')}</g>`;
 
-      return `<g class="node ${escaped(node.kind ?? 'step')}" tabindex="0" role="img" aria-label="${escaped(node.label)}${node.sublabel === undefined ? '' : `, ${escaped(node.sublabel)}`}" data-node="${escaped(node.id)}" data-detail="${escaped(node.detail ?? node.sublabel ?? node.label)}"><title>${escaped(node.label)}</title><rect x="${centre.x - BOX_WIDTH / 2}" y="${centre.y - BOX_HEIGHT / 2}" width="${BOX_WIDTH}" height="${BOX_HEIGHT}" rx="10"/><text x="${centre.x}" y="${centre.y + (lines === 1 ? 5 : -4)}" text-anchor="middle" class="t">${escaped(node.label)}</text>${node.sublabel === undefined ? '' : `<text x="${centre.x}" y="${centre.y + 16}" text-anchor="middle" class="s">${escaped(node.sublabel)}</text>`}</g>`;
+      return `<g class="node ${escaped(node.kind ?? 'step')}${tone}" tabindex="0" role="img" aria-label="${escaped(node.label)}${node.sublabel === undefined ? '' : `, ${escaped(node.sublabel)}`}" data-node="${escaped(node.id)}" data-detail="${escaped(node.detail ?? node.sublabel ?? node.label)}"><title>${escaped(node.label)}</title><rect x="${left}" y="${centre.y - BOX_HEIGHT / 2}" width="${BOX_WIDTH}" height="${BOX_HEIGHT}" rx="4"/>${mark}<text x="${textX}" y="${centre.y + (lines === 1 ? 5 : -4)}" text-anchor="${anchor}" class="t">${escaped(node.label)}</text>${node.sublabel === undefined ? '' : `<text x="${textX}" y="${centre.y + 17}" text-anchor="${anchor}" class="s">${escaped(node.sublabel)}</text>`}</g>`;
     })
     .join('');
 
   return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="group" aria-label="flow"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="bad" d="M0 0L10 5L0 10z"/></marker></defs>${edges}${nodes}</svg>`;
+};
+
+/**
+ * The same flow as a list, for a phone where the figure cannot be read: one row per arrow, then one per box that
+ * has a detail. Page CSS shows it only on a narrow screen.
+ */
+export const renderPathList = (opts: { flow: NonNullable<TVisualizeSpec['flow']> }): string => {
+  const { flow } = opts;
+  const byId = new Map(flow.nodes.map((node) => [node.id, node]));
+  const nameOf = (id: string): string => {
+    const node = byId.get(id);
+    const mark =
+      node?.state === undefined
+        ? ''
+        : `<span class="inl c-${NodeStates.toneOf(node.state)}">${iconSvg({ name: NodeStates.iconOf(node.state), size: 16 })}</span>`;
+
+    return `${mark}${escaped(node?.label ?? id)}`;
+  };
+  const arrows = flow.edges
+    .map(
+      (edge) =>
+        `<li><b>${nameOf(edge.from)}</b><span class="verb ${escaped(edge.variant ?? 'main')}">${escaped(edge.label)}</span><b>${nameOf(edge.to)}</b></li>`,
+    )
+    .join('');
+  const details = flow.nodes
+    .filter((node) => node.detail !== undefined)
+    .map((node) => `<li><b>${escaped(node.label)}</b> ${escaped(node.detail ?? '')}</li>`)
+    .join('');
+
+  return `<ol class="path">${arrows}</ol>${details === '' ? '' : `<ul class="path-detail">${details}</ul>`}`;
 };
