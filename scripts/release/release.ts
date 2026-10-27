@@ -101,7 +101,7 @@ const blockers = findReleaseBlockers({
 });
 
 const manifests = await Promise.all(
-  PACKAGE_DIRECTORIES.map(directory => Bun.file(`packages/${directory}/package.json`).json()),
+  PACKAGE_DIRECTORIES.map((directory) => Bun.file(`packages/${directory}/package.json`).json()),
 );
 const trainVersion: string = manifests[2].version;
 const command = buildDispatchCommand({ args });
@@ -158,7 +158,7 @@ const released = capture({
   command: ['git', 'show', `origin/${ReleaseConstants.BRANCH}:packages/cli/package.json`],
 }).stdout;
 const releasedVersion: string = released.length > 0 ? JSON.parse(released).version : trainVersion;
-const names: string[] = manifests.map(manifest => manifest.name);
+const names: string[] = manifests.map((manifest) => manifest.name);
 const published = findPublishedVersions({
   log: capture({ command: ['gh', 'run', 'view', runId, '--log'] }).stdout,
   packageNames: names,
@@ -193,7 +193,7 @@ for (const name of names) {
 // The registry lists a version minutes before its tarball is served; a consumer that installs it at once gets a 404.
 // The release is done when every tarball answers 200.
 if (watched.exitCode === 0 && isComplete) {
-  const targets = names.map(name => ({ name, version: published[name] ?? releasedVersion }));
+  const targets = names.map((name) => ({ name, version: published[name] ?? releasedVersion }));
   let polls = 0;
 
   console.log(
@@ -202,7 +202,7 @@ if (watched.exitCode === 0 && isComplete) {
 
   const served = await waitForTarballs({
     targets,
-    urlOf: target => {
+    urlOf: (target) => {
       const url = capture({
         command: ['npm', 'view', `${target.name}@${target.version}`, 'dist.tarball'],
         isQuiet: true,
@@ -210,16 +210,18 @@ if (watched.exitCode === 0 && isComplete) {
 
       return url.length > 0 ? url : undefined;
     },
-    statusOf: url => headStatusOf({ url }),
+    statusOf: (url) => headStatusOf({ url }),
     now: Date.now,
     sleep: Bun.sleep,
     timeoutMs: ReleaseConstants.TARBALL_WAIT_MS,
     intervalMs: ReleaseConstants.TARBALL_POLL_MS,
-    onWait: missing => {
+    onWait: (missing) => {
       polls += 1;
 
       if (polls % 6 === 1) {
-        console.log(`release: not served yet: ${missing.map(target => `${target.name}@${target.version}`).join(', ')}`);
+        console.log(
+          `release: not served yet: ${missing.map((target) => `${target.name}@${target.version}`).join(', ')}`,
+        );
       }
     },
   });

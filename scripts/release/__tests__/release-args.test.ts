@@ -90,7 +90,7 @@ describe('buildDispatchCommand', () => {
     });
 
     expect(command).not.toContain('-f issue=');
-    expect(command.some(part => part.startsWith('issue='))).toBe(false);
+    expect(command.some((part) => part.startsWith('issue='))).toBe(false);
   });
 });
 

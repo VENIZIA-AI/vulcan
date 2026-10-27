@@ -23,12 +23,16 @@ const clock = () => {
 describe('waitForTarballs waits until every tarball of the train is served', () => {
   test('a tarball that answers 404 twice and then 200 is waited for, and the wait is reported', async () => {
     const time = clock();
-    const answers = new Map<string, number[]>([['u/okf', [404, 404, 200]], ['u/atlas', [200]], ['u/cli', [200]]]);
+    const answers = new Map<string, number[]>([
+      ['u/okf', [404, 404, 200]],
+      ['u/atlas', [200]],
+      ['u/cli', [200]],
+    ]);
     const waits: string[] = [];
     const result = await waitForTarballs({
       targets: TARGETS,
-      urlOf: target => `u/${target.name.split('/')[1]}`,
-      statusOf: async url => {
+      urlOf: (target) => `u/${target.name.split('/')[1]}`,
+      statusOf: async (url) => {
         const queue = answers.get(url) ?? [];
 
         return queue.length > 1 ? (queue.shift() ?? 0) : (queue[0] ?? 0);
@@ -37,11 +41,11 @@ describe('waitForTarballs waits until every tarball of the train is served', () 
       sleep: time.sleep,
       timeoutMs: 600_000,
       intervalMs: 10_000,
-      onWait: missing => waits.push(missing.map(target => target.name).join(',')),
+      onWait: (missing) => waits.push(missing.map((target) => target.name).join(',')),
     });
 
     expect(result.missing).toEqual([]);
-    expect(result.ready.map(target => target.name)).toEqual(['@v/okf', '@v/atlas', '@v/cli']);
+    expect(result.ready.map((target) => target.name)).toEqual(['@v/okf', '@v/atlas', '@v/cli']);
     expect(time.waited()).toBe(20_000);
     expect(waits).toEqual(['@v/okf', '@v/okf']);
   });
@@ -67,16 +71,16 @@ describe('waitForTarballs waits until every tarball of the train is served', () 
     const time = clock();
     const result = await waitForTarballs({
       targets: TARGETS,
-      urlOf: target => `u/${target.name}`,
-      statusOf: async url => (url.endsWith('atlas') ? 404 : 200),
+      urlOf: (target) => `u/${target.name}`,
+      statusOf: async (url) => (url.endsWith('atlas') ? 404 : 200),
       now: time.now,
       sleep: time.sleep,
       timeoutMs: 60_000,
       intervalMs: 10_000,
     });
 
-    expect(result.missing.map(target => target.name)).toEqual(['@v/atlas']);
-    expect(result.ready.map(target => target.name)).toEqual(['@v/okf', '@v/cli']);
+    expect(result.missing.map((target) => target.name)).toEqual(['@v/atlas']);
+    expect(result.ready.map((target) => target.name)).toEqual(['@v/okf', '@v/cli']);
     expect(time.waited()).toBeGreaterThanOrEqual(60_000);
     expect(time.waited()).toBeLessThan(80_000);
   });

@@ -151,12 +151,12 @@ export const findPublishedVersions = (opts: {
   log: string;
   packageNames: string[];
 }): Record<string, string | undefined> => {
-  const lines = opts.log.split('\n').filter(line => !line.includes('echo'));
+  const lines = opts.log.split('\n').filter((line) => !line.includes('echo'));
 
   return Object.fromEntries(
-    opts.packageNames.map(name => {
+    opts.packageNames.map((name) => {
       const marker = `+ ${name}@`;
-      const line = lines.find(entry => entry.includes(marker));
+      const line = lines.find((entry) => entry.includes(marker));
 
       return [name, line?.slice(line.indexOf(marker) + marker.length).trim()];
     }),

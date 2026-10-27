@@ -4,7 +4,15 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
-const WORKFLOW = join(import.meta.dir, '..', '..', '..', '.github', 'workflows', 'package-release.yml');
+const WORKFLOW = join(
+  import.meta.dir,
+  '..',
+  '..',
+  '..',
+  '.github',
+  'workflows',
+  'package-release.yml',
+);
 const roots: string[] = [];
 
 afterAll(() => {
@@ -40,7 +48,7 @@ const readSteps = (): IWorkflowStep[] => {
     throw new Error(`[readSteps] ${WORKFLOW} has no jobs.release.steps list`);
   }
 
-  return steps.flatMap(value => {
+  return steps.flatMap((value) => {
     const step = { value };
 
     if (!isRecord(step)) {
@@ -65,7 +73,7 @@ const readSteps = (): IWorkflowStep[] => {
 };
 
 const findStep = (opts: { name: string }): IWorkflowStep => {
-  const step = readSteps().find(candidate => candidate.name === opts.name);
+  const step = readSteps().find((candidate) => candidate.name === opts.name);
 
   if (step?.run === undefined) {
     throw new Error(`[findStep] no step '${opts.name}' with a run script in ${WORKFLOW}`);
@@ -289,7 +297,7 @@ describe('package-release.yml: tagging', () => {
 describe('package-release.yml: the next dist-tag', () => {
   const STEP = 'Keep next at or above latest';
   const stepNames = (): string[] =>
-    readSteps().flatMap(step => (step.name === undefined ? [] : [step.name]));
+    readSteps().flatMap((step) => (step.name === undefined ? [] : [step.name]));
 
   test('a step moves next up to latest for every package in the train', () => {
     const step = findStep({ name: STEP });
@@ -321,9 +329,9 @@ describe('package-release.yml: the next dist-tag', () => {
 describe('package-release.yml: the atlas index of the release', () => {
   const STEP = 'Publish the atlas index of the release';
   const stepNames = (): string[] =>
-    readSteps().flatMap(step => (step.name === undefined ? [] : [step.name]));
+    readSteps().flatMap((step) => (step.name === undefined ? [] : [step.name]));
   const stepNamed = (): IWorkflowStep => {
-    const step = readSteps().find(candidate => candidate.name === STEP);
+    const step = readSteps().find((candidate) => candidate.name === STEP);
 
     if (step === undefined) {
       throw new Error(`[stepNamed] no step '${STEP}' in ${WORKFLOW}`);

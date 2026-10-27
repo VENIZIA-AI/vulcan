@@ -115,8 +115,8 @@ const main = (): void => {
   const args = process.argv.slice(2);
   const version = readFlag({ args, flag: '--published' });
   const tag = readFlag({ args, flag: '--tag' });
-  const flagValues = new Set([version, tag].filter(value => value !== undefined));
-  const packages = args.filter(arg => !arg.startsWith('--') && !flagValues.has(arg));
+  const flagValues = new Set([version, tag].filter((value) => value !== undefined));
+  const packages = args.filter((arg) => !arg.startsWith('--') && !flagValues.has(arg));
 
   const result = healNextTags({
     packages,
@@ -136,7 +136,7 @@ const main = (): void => {
         }
       }
     },
-    log: line => console.log(line),
+    log: (line) => console.log(line),
   });
 
   console.log(`next-tag: ${result.moved.length} moved, ${result.failed.length} failed`);

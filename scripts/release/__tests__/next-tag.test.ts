@@ -61,15 +61,15 @@ describe('healNextTags', () => {
     const result = healNextTags({
       packages: names,
       read: () => ({ latest: '0.3.1', next: '0.2.0-9' }),
-      move: opts => {
+      move: (opts) => {
         moves.push(`${opts.name}@${opts.version}`);
       },
-      log: line => lines.push(line),
+      log: (line) => lines.push(line),
     });
 
-    expect(moves).toEqual(names.map(name => `${name}@0.3.1`));
+    expect(moves).toEqual(names.map((name) => `${name}@0.3.1`));
     expect(result).toEqual({ moved: names, failed: [] });
-    expect(lines.filter(line => line.includes('0.2.0-9'))).toHaveLength(3);
+    expect(lines.filter((line) => line.includes('0.2.0-9'))).toHaveLength(3);
   });
 
   test('a package already at or above latest is not touched', () => {
@@ -77,7 +77,7 @@ describe('healNextTags', () => {
     const result = healNextTags({
       packages: names,
       read: () => ({ latest: '0.3.1', next: '0.3.1' }),
-      move: opts => {
+      move: (opts) => {
         moves.push(opts.name);
       },
       log: () => {},
@@ -92,17 +92,19 @@ describe('healNextTags', () => {
     const result = healNextTags({
       packages: names,
       read: () => ({ latest: '0.3.1' }),
-      move: opts => {
+      move: (opts) => {
         if (opts.name === '@venizia/vulcan-atlas') {
           throw new Error('E403');
         }
       },
-      log: line => lines.push(line),
+      log: (line) => lines.push(line),
     });
 
     expect(result.failed).toEqual(['@venizia/vulcan-atlas']);
     expect(result.moved).toEqual(['@venizia/vulcan-okf', '@venizia/vulcan']);
-    expect(lines.some(line => line.startsWith('::warning::') && line.includes('E403'))).toBe(true);
+    expect(lines.some((line) => line.startsWith('::warning::') && line.includes('E403'))).toBe(
+      true,
+    );
   });
 
   test('a registry read that fails is reported and skipped', () => {
@@ -113,11 +115,11 @@ describe('healNextTags', () => {
         throw new Error('offline');
       },
       move: () => {},
-      log: line => lines.push(line),
+      log: (line) => lines.push(line),
     });
 
     expect(result).toEqual({ moved: [], failed: ['@venizia/vulcan'] });
-    expect(lines.some(line => line.startsWith('::warning::') && line.includes('offline'))).toBe(
+    expect(lines.some((line) => line.startsWith('::warning::') && line.includes('offline'))).toBe(
       true,
     );
   });
