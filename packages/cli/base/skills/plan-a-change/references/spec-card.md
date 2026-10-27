@@ -13,6 +13,7 @@ In this order:
 |---|---|
 | Goal | The owner's words, verbatim. It changes only through a dated Decisions line |
 | Out of scope | What is not built, in prose |
+| Runs by | Each outward action the plan needs and who runs it: a release dispatch, creating or deleting a repository, closing an issue, a push to a shared ref, writing a setting. Name the agent, or the owner where the session's permission check may refuse the action; the plan then stops there and hands it over instead of finding out mid-run. Left out when the plan has none |
 | Claims | `C1..Cn`: one observable behaviour each, and for each the probe that would show it false. Behaviour is phrased WHEN ... THEN ... |
 | Anti-claims | What must not happen, in the universal form where you can ("no X in any path"). Lane L has at least one |
 | Seams | The public boundaries tests attach to. An existing seam is preferred; the ideal count is one |

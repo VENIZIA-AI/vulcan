@@ -21,7 +21,7 @@ Copy it into your reply and tick each box when its criterion holds:
 ```
 - [ ] 1. Lane chosen        - S, M or L, with the reason in one line
 - [ ] 2. Intake done        - the goal restated, what will NOT be done said, every open decision asked once
-- [ ] 3. Card written       - goal verbatim, claims each with a probe, out of scope, docs impact
+- [ ] 3. Card written       - goal verbatim, claims each with a probe, out of scope, docs impact, who runs each outward action
 - [ ] 4. Design pass        - lane L or a trigger below: decisions only where implementers could diverge
 - [ ] 5. Slices planned     - each a work item: one behaviour, one seam, its key interfaces, Blocked by and Parent
 - [ ] 6. Handed over        - the card shown, the turn ended, nothing started
