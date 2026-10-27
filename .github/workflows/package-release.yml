@@ -91,6 +91,10 @@ jobs:
     runs-on: ubuntu-26.04
     needs: test
     if: github.ref == 'refs/heads/develop'
+    # The environment holds the release's reviewers (the owner approves each run, on the commit shown in the run name)
+    # and its ref rule (develop only): a run waits here before any step of this job starts. Its settings are GitHub's,
+    # not this file's; this line is what makes the job subject to them.
+    environment: npm-release
     # The release pushes the release commit and the tag, and puts the pair of the tag commit on the release
     # `atlas-index`: both write contents.
     permissions:

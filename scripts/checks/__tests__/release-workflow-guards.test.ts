@@ -79,7 +79,7 @@ const addStep = (opts: {
   steps.push(opts.step);
 };
 
-describe('the release workflow keeps its guards (C1 to C3, C5, C6, C17, D6)', () => {
+describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)', () => {
   test('the real workflow breaks none of them', () => {
     expect(checkReleaseWorkflowGuards({ workflow: load() })).toEqual([]);
   });
@@ -220,6 +220,30 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C17, D6)', ()
         },
       }),
     ).toContain('C6.1');
+  });
+
+  test('C16: a release job with no environment, or another one, is noticed', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          delete job({ workflow, name: 'release' })['environment'];
+        },
+      }),
+    ).toContain('C16');
+    expect(
+      mutated({
+        change: (workflow) => {
+          job({ workflow, name: 'release' })['environment'] = 'github-pages';
+        },
+      }),
+    ).toContain('C16');
+    expect(
+      mutated({
+        change: (workflow) => {
+          job({ workflow, name: 'release' })['environment'] = { name: 'npm-release' };
+        },
+      }),
+    ).not.toContain('C16');
   });
 
   test('C17: a checkout of a branch name, or a run name without the commit, is noticed', () => {
