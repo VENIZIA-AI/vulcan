@@ -57,8 +57,15 @@ const GENERATOR_BY_COMMAND: Record<string, (opts: { command?: string }) => numbe
 };
 
 const argv = process.argv.slice(2);
-/** `--no-prebuilt`: never download a prebuilt index; every source is built here. */
-const prebuilt = !argv.includes('--no-prebuilt');
+/**
+ * Whether this start may download a prebuilt index: not with `--no-prebuilt`, and not when the project's
+ * manifest (`atlas.prebuilt: false`) turns it off. Every source is then built here.
+ */
+const prebuiltAllowed = (opts: { root: string }): boolean =>
+  !argv.includes('--no-prebuilt') &&
+  !(
+    hasAtlasProject({ root: opts.root }) && readAtlasProject({ root: opts.root }).prebuilt === false
+  );
 const subcommand = readSubcommand({ argv });
 
 if (!AtlasCommands.isValid(subcommand)) {
@@ -121,6 +128,7 @@ const buildServer = async (opts: {
   }
 
   const cacheDir = readCacheDirArgument({ argv });
+  const prebuilt = prebuiltAllowed({ root: opts.root });
   const { resolved, unavailable } = await resolveServableSources({
     cwd: opts.root,
     sources,
@@ -175,7 +183,7 @@ const pull = async (): Promise<number> => {
     sources: named,
     cacheDir: readCacheDirArgument({ argv }),
     force: true,
-    prebuilt,
+    prebuilt: prebuiltAllowed({ root }),
   });
 
   for (const source of pulled.filter((entry) => entry.mode !== 'repository')) {

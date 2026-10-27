@@ -76,6 +76,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Overview', link: '/references/atlas/' },
       { text: 'Tools', link: '/references/atlas/tools' },
       { text: 'Sources', link: '/references/atlas/sources' },
+      { text: 'Prebuilt index', link: '/references/atlas/prebuilt-index' },
     ],
   },
 ];

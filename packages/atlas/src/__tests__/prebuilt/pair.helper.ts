@@ -4,7 +4,12 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { buildIndexPair, generateKeyPair, signEnvelope } from '@/prebuilt';
 import type { IIndexKeyPair, IIndexPayload } from '@/prebuilt';
-import { makeSourceRepository } from '../sources/source-repo.helper';
+import {
+  commitAll,
+  git,
+  makeSourceRepository,
+  writeSourceFile,
+} from '../sources/source-repo.helper';
 
 export interface IFixturePair {
   sha: string;
@@ -92,4 +97,26 @@ export const rowsOf = (opts: { bytes: Uint8Array }): unknown[] => {
   database.close();
 
   return rows;
+};
+
+/** A source whose manifest lists a key, with the pair CI would have built for that commit on the fake release. */
+export const makePrebuiltSource = () => {
+  const source = makeSourceRepository();
+  const keys = generateKeyPair();
+  const manifest = JSON.parse(
+    readFileSync(join(source.work, '.agents/vulcan.manifest.json'), 'utf8'),
+  );
+
+  manifest.atlas = { index: { keys: [keys.publicKey] } };
+  writeSourceFile({
+    work: source.work,
+    path: '.agents/vulcan.manifest.json',
+    text: `${JSON.stringify(manifest, null, 2)}\n`,
+  });
+  commitAll({ work: source.work, message: 'chore: list the index key' });
+  git({ cwd: source.work, args: ['push', '-q', 'origin', 'develop'] });
+
+  const pair = makeFixturePair({ work: source.work, keys });
+
+  return { ...source, keys, pair };
 };

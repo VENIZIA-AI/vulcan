@@ -46,6 +46,17 @@ export const buildBaseRuleHashes = (): Record<string, string> =>
     }),
   );
 
+/** The manifest's `atlas` block: only what the config sets (keys listed, the download turned off). */
+const atlasBlockOf = (opts: { config: TResolvedConfig }): { atlas?: Record<string, unknown> } => {
+  const keys = opts.config.atlas.index?.keys ?? [];
+  const block = {
+    ...(keys.length === 0 ? {} : { index: { keys } }),
+    ...(opts.config.atlas.prebuilt === false ? { prebuilt: false } : {}),
+  };
+
+  return Object.keys(block).length === 0 ? {} : { atlas: block };
+};
+
 /**
  * The project manifest (Project Contract v1, C1): data only, rendered from the config with a fixed
  * key order, so the committed file is byte-stable and a stale one shows as a diff.
@@ -82,6 +93,8 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
     rules: { project: ManifestConstants.PROJECT_RULES, base: buildBaseRuleHashes() },
     // The sources this project reads knowledge from (atlas, git mode); a project without any carries none.
     ...(config.atlas.sources.length === 0 ? {} : { sources: config.atlas.sources }),
+    // The prebuilt index: the keys a published pair is checked with, and the switch; neither set, nothing is written.
+    ...atlasBlockOf({ config }),
     // The remote-host guard reads its policy here; a project without the key has no guard.
     ...(config.remoteHosts === undefined ? {} : { remoteHosts: config.remoteHosts }),
   };

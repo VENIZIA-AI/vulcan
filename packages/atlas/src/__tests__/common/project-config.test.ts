@@ -156,6 +156,44 @@ describe('live and known packages', () => {
   });
 });
 
+describe('the prebuilt index in a manifest', () => {
+  const KEY = 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=';
+  const manifest = (atlas?: unknown) => ({
+    packages: [{ name: '@a/kernel', dir: 'kernel', aliases: [], retired: false }],
+    knowledge: { bundle: '.agents/knowledge' },
+    release: { tagPattern: '<dir>-v<version>', ignoreTags: [] },
+    ...(atlas === undefined ? {} : { atlas }),
+  });
+
+  test('the listed keys and the switch are read; text that is not a key is dropped', () => {
+    useAtlasProject({
+      root: ROOT,
+      manifest: manifest({ index: { keys: [KEY, 7, ''] }, prebuilt: false }),
+    });
+
+    const project = readAtlasProject();
+
+    expect(project.indexKeys).toEqual([KEY]);
+    expect(project.prebuilt).toBe(false);
+  });
+
+  test('a manifest with no atlas block has neither', () => {
+    useAtlasProject({ root: ROOT, manifest: manifest() });
+
+    const project = readAtlasProject();
+
+    expect(project.indexKeys).toBeUndefined();
+    expect(project.prebuilt).toBeUndefined();
+  });
+
+  test('prebuilt true, or anything but false, is the default', () => {
+    useAtlasProject({ root: ROOT, manifest: manifest({ prebuilt: true }) });
+    expect(readAtlasProject().prebuilt).toBeUndefined();
+    useAtlasProject({ root: ROOT, manifest: manifest({ prebuilt: 'no' }) });
+    expect(readAtlasProject().prebuilt).toBeUndefined();
+  });
+});
+
 describe('directoryOf', () => {
   const packages = [
     { dir: 'core-server', name: '@venizia/ignis', aliases: ['core'], retired: false },

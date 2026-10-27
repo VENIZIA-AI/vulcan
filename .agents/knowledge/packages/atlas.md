@@ -37,7 +37,7 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
   (tracked files only), gzips the index and signs an envelope (`signEnvelope`, `verifyPair`: ed25519 over the
   exact payload bytes, `node:crypto` only; the payload carries the format, sha, repo, size, digest, tags
   fingerprint and release table). Keys: `generateKeyPair`, `atlas index keygen` (private key under
-  `.agents/local/`, 0600, only while it is gitignored). Reading a pair: `attemptPrebuilt` (skips unless the download is on, the source is a GitHub `owner/repo` and its
+  `.agents/local/`, 0600, only while it is gitignored). The keys and the switch come from the config (`atlas.index.keys`, validated as the base64 of 32 bytes, and `atlas.prebuilt`), rendered by `manifest/render.ts` (`atlasBlockOf`, only when set) into the manifest's `atlas` block; `readAtlasProject` reads them as `indexKeys` and `prebuilt` (the latter only when `false`), and `--no-prebuilt` or `prebuilt: false` stops every download. Reading a pair: `attemptPrebuilt` (skips unless the download is on, the source is a GitHub `owner/repo` and its
   manifest has `atlas.index.keys`, then prints one stderr line on a miss) calls `fetchPrebuilt`, which never throws:
   release listing, the pair's two assets by name (API asset URL, never `browser_download_url`; the token goes to the
   API host only and the redirect is followed by hand without it), then signature, sha, repo, format, caps, digest,

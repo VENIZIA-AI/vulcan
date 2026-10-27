@@ -11,6 +11,16 @@ const HOOK_EVENT = z.string().refine((value) => HookEvents.isValid(value), {
   message: `one of: ${[...HookEvents.SCHEME_SET].join(', ')}`,
 });
 
+/** An ed25519 public key as `atlas index keygen` prints it: the base64 of its 32 raw bytes, nothing else. */
+const INDEX_PUBLIC_KEY = z.string().refine(
+  (value) => {
+    const raw = Buffer.from(value, 'base64');
+
+    return raw.length === 32 && raw.toString('base64') === value;
+  },
+  { message: 'the public key `atlas index keygen` prints: the base64 of 32 bytes' },
+);
+
 /** A layout folder: 1 to 4 plain segments, never climbing, never absolute (the validator `guard-package` shares). */
 const LAYOUT_FOLDER = z.string().superRefine((value, context) => {
   const problem = layoutFolderProblem({ folder: value });
@@ -253,6 +263,14 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         .default([]),
       /** Tags neither read nor checked (globs) - an old layout's tags. */
       ignoreTags: z.array(z.string()).optional(),
+      /**
+       * The prebuilt atlas index this repository publishes: the public keys (any one may have signed a
+       * pair) that a project reading this one as a source checks the signature against. Rotation is a
+       * new list; a pair signed by a key no longer listed is not used.
+       */
+      index: z.strictObject({ keys: z.array(INDEX_PUBLIC_KEY).default([]) }).optional(),
+      /** `false`: atlas never downloads a prebuilt index for a source this project reads; the default is to. */
+      prebuilt: z.boolean().optional(),
     })
     .default({
       tagPattern: '<dir>-v<version>',

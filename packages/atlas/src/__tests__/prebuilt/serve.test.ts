@@ -7,17 +7,15 @@ import { buildSourcesServer } from '@/server/index';
 import { resolveSources } from '@/sources';
 import type { IResolvedSource } from '@/sources';
 import {
-  commitAll,
   git,
   makeSourceRepository,
   makeTempDirectory,
   NO_REGISTRY,
   TEMP_DIRECTORIES,
-  writeSourceFile,
 } from '../sources/source-repo.helper';
 import { startFakeGithub } from './fake-github.helper';
 import type { IFakeGithub } from './fake-github.helper';
-import { makeFixturePair, resigned, rowsOf } from './pair.helper';
+import { makePrebuiltSource, resigned, rowsOf } from './pair.helper';
 import type { IFixturePair } from './pair.helper';
 
 const SOURCE = { name: 'src', repo: 'acme/src', ref: 'develop' };
@@ -52,28 +50,6 @@ afterEach(async () => {
     delete process.env[name];
   }
 });
-
-/** A source whose manifest lists a key, with the pair CI would have built for that commit on the fake release. */
-const makePrebuiltSource = () => {
-  const source = makeSourceRepository();
-  const keys = generateKeyPair();
-  const manifest = JSON.parse(
-    readFileSync(join(source.work, '.agents/vulcan.manifest.json'), 'utf8'),
-  );
-
-  manifest.atlas = { index: { keys: [keys.publicKey] } };
-  writeSourceFile({
-    work: source.work,
-    path: '.agents/vulcan.manifest.json',
-    text: `${JSON.stringify(manifest, null, 2)}\n`,
-  });
-  commitAll({ work: source.work, message: 'chore: list the index key' });
-  git({ cwd: source.work, args: ['push', '-q', 'origin', 'develop'] });
-
-  const pair = makeFixturePair({ work: source.work, keys });
-
-  return { ...source, keys, pair };
-};
 
 /** Git asks `https://github.com/acme/src.git`; this answers it from the local bare repository. */
 const answerFrom = (opts: { bare: string }): void => {
