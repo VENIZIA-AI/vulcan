@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { checkConcepts, ConceptProblems, stampConcepts, SYMBOLS_LOCK_NAME } from '@/concepts';
 import { readAtlasProject } from '@/common/project-config';
 import { isFormatted } from '../format.helper';
-import { spawnSyncBounded } from '../spawn.helper';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const roots: string[] = [];
 

@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { spawnSyncBounded } from '../spawn.helper';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 /** A registry that refuses at once: a test never reaches npm, and a pull's tarball step skips fast. */
 export const NO_REGISTRY = 'http://127.0.0.1:9';

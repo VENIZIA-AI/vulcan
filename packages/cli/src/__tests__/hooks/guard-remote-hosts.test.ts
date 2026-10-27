@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
-import { spawnSyncBounded } from '../spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 

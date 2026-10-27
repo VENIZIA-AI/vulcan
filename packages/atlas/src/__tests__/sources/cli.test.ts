@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseSourceArgument, readSourceArguments } from '@/cli/sources';
-import { spawnSyncBounded } from '../spawn.helper';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import {
   git,
   makeSourceRepository,

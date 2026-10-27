@@ -54,6 +54,7 @@ These change this repository only; the packages are the same.
 | A commit-msg hook and a CI check reject an agent signature in a commit message | [Agent signature check](./2026-10-27-agent-signature-check) | #477 |
 | This repository turns off two editor plugins so the skill listing keeps its descriptions | none: internal | #481 |
 | The shared wiki theme gets one entry file and `shared/base.css` | none: internal | #492 |
+| The dev-configs catalog pin moves from 0.4.0 to 0.4.4; the shared test helpers, the temp-folder preload and the catalog check replace this repository's copies; atlas keeps pinning `nodenext`, so its published output is the same | none: internal | #507, #508 |
 
 ## What was not checked
 

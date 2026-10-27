@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { inspectCommand, listedScriptOf, trustOf, TrustStates } from '../../hooks/index.ts';
 import { git, initRepo } from '../git-repo.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
-import { SPAWN_TIMEOUT_MS } from '../spawn.helper.ts';
+import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 

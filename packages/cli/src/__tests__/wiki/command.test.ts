@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runAnchorsCommand, runSourceLinksCommand } from '../../wiki/index.ts';
 import { git } from '../git-repo.helper.ts';
-import { spawnSyncBounded } from '../spawn.helper.ts';
+import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const roots: string[] = [];
 
