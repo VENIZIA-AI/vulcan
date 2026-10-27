@@ -90,8 +90,8 @@ Look facts up there before you answer or write from memory: `symbol` for an expo
 | ID | Rule | Enforced by |
 |----|------|-------------|
 | V-W-01 | **Slot** - the project picks one in `.configs/vulcan.config.*` ... | slot - `read-only` adds a permissions.deny list |
-| V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook (asks) |
-| V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook (asks) |
+| V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
+| V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
 | V-W-04 | Ask before anything irreversible: deleting files you didn't create, side-effect APIs, publishing. | SOFT |
 | V-W-06 | **Approval has a card.** Shared writes follow four action classes. ... | SOFT |
 

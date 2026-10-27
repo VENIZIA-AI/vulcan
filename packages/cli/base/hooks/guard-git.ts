@@ -9,7 +9,8 @@
  * package or `bun` (the settings wrapper says so on stderr). A guard that started and then failed - a crash
  * or a timeout, here an internal error or an unloadable module - ASKS about a command that names `git` or
  * `gh`, instead of passing it unchecked. `VULCAN_GUARDS=off` switches it off, read before anything is
- * imported. It imports only the modules it needs - no config, no zod.
+ * imported. It imports only the modules it needs - no config, no zod. The branches the project lists in
+ * `guard.git.askPush` are read from the manifest, and a plain push to one of them asks.
  */
 
 // A module, so the awaits below are top-level; it has no static import, by design.
@@ -26,9 +27,15 @@ try {
   const { buildToolDecision } = await import('../../src/hooks/decision.ts');
   const { inspectGit } = await import('../../src/hooks/guard-git.ts');
   const { parseHookCommand } = await import('../../src/hooks/guard-writes.ts');
+  const { readGuardPolicy } = await import('../../src/hooks/project-guards.ts');
   const hookCommand = parseHookCommand({ text });
+  const cwd = hookCommand?.cwd ?? process.cwd();
   const hits = hookCommand
-    ? inspectGit({ command: hookCommand.command, cwd: hookCommand.cwd ?? process.cwd() })
+    ? inspectGit({
+        command: hookCommand.command,
+        cwd,
+        askPush: readGuardPolicy({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd }).askPush,
+      })
     : [];
 
   if (hits.length > 0) {

@@ -1,6 +1,8 @@
 /**
  * PreToolUse hook on Bash: catches the writes V-W-02 and V-W-03 reserve for a human, reading the
  * command and any local script it runs. It asks rather than denies (src/hooks/common/constants.ts).
+ * The project's own deploy and migrate commands (`guard.writes.commands`) are read from the manifest and
+ * checked beside the fixed list, inside compound commands too.
  * A script the project lists in `guard.writes.trustedScripts` is not read for writes while git says it
  * is tracked and unchanged; a config that cannot be read leaves the list empty, so every script is read.
  *
@@ -15,6 +17,7 @@ export {};
 try {
   const { buildGuardDecision, inspectCommand, parseHookCommand } =
     await import('../../src/hooks/guard-writes.ts');
+  const { readGuardPolicy } = await import('../../src/hooks/project-guards.ts');
   const hookCommand = parseHookCommand({ text: await Bun.stdin.text() });
   const cwd = hookCommand?.cwd ?? process.cwd();
   let scripts: string[] = [];
@@ -39,6 +42,7 @@ try {
         command: hookCommand.command,
         cwd,
         trust: { root: process.env.CLAUDE_PROJECT_DIR ?? cwd, scripts },
+        extra: readGuardPolicy({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd }).commands,
       })
     : [];
 
