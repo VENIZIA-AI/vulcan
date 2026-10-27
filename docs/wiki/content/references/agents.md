@@ -38,6 +38,27 @@ The session-start digest, the owner-reply check and the `claude.settings` of the
 
 `sync` prints these as `note` lines.
 
+## Temporary files
+
+Rule `V-B-08` keeps everything an agent makes inside the project, in `.agents/local/tmp/`. A command that makes a temporary file (`mktemp`, a script, bun, node) uses the folder in `TMPDIR`, so that variable is what moves the files. These routes were run in Claude Code 2.1.311 (a session driven by a stand-in for the model, in a scratch project), not read from its documentation:
+
+| How `TMPDIR` is set | Bash commands | Claude Code's own task-output files | MCP servers |
+|---|---|---|---|
+| Nothing | the system temp folder | `/tmp/claude-<uid>/` | the system temp folder |
+| `env` in the project's `.claude/settings.json` or `settings.local.json` | **not applied** (Claude Code applies the block, but not these two variables) | not applied | not applied |
+| The session-start hook of `vulcan sync` | yes | **no** | **no** |
+| The launch file, `claude --settings .agents/local/claude.launch.settings.json` | yes | yes, under `.agents/local/tmp/claude-<uid>/` | yes |
+| The variables in the launch environment, or in your user settings file | yes | yes | yes |
+
+What `vulcan sync` sets up, for Claude Code:
+
+- **The session-start hook** appends `export TMPDIR=<project>/.agents/local/tmp` to the file Claude Code sources before each Bash command. Nothing to start differently; from the first command of a session, `mktemp -d` and every script it runs use the project folder, and `guard-outside` no longer asks about a bare `mktemp`.
+- **The launch file** `.agents/local/claude.launch.settings.json` (gitignored, one checkout, absolute paths) sets `TMPDIR` and `CLAUDE_CODE_TMPDIR`. Start Claude Code with `claude --settings .agents/local/claude.launch.settings.json` (an alias is enough) and its own background-task output files and its MCP servers, Playwright included, use the project folder too.
+
+What still needs the launch file or the launch variables, stated plainly: without them, Claude Code's own task-output files stay in `/tmp/claude-<uid>/` and an MCP server uses the system temp folder; the hook does not reach them. A path an agent writes by hand (`/tmp/x`) still asks, on purpose. Any agent other than Claude Code has no hook of this kind: the rules and the session digest tell it to use `.agents/local/tmp`, and it needs `TMPDIR` in its own launch environment (`export TMPDIR=$PWD/.agents/local/tmp`); VULCAN has not checked whether those agents can set it from their configuration.
+
+`vulcan doctor` warns when the folder or the launch file is missing or names another checkout, and `vulcan sync` fixes both. The folder is a task scratch folder: remove what you made when the task ends; `vulcan clean` lists what is older than a day.
+
 ## Detecting your agents
 
 The first `sync` in a terminal looks for each agent on the machine: a binary on `PATH`, a folder in your home, a folder in the project. It only pre-selects; you confirm.

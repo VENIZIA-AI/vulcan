@@ -99,6 +99,10 @@ The corpora come from the config (the project and every `atlas.sources` entry). 
 
 A skill you write in `.agents/skills/<name>/SKILL.md` reaches every agent you chose. The agents other than Claude read that folder themselves. For Claude, `sync` links each of your skills into `.claude/skills/<name>`: one you add shows up on the next `sync`, and when you delete the folder the next `sync` removes its dead link (`removed   .claude/skills/mine (a skill that is gone)`). A real folder of yours in `.claude/skills` is never replaced.
 
+## The temp folder
+
+`sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/`, and writes `.agents/local/claude.launch.settings.json` for this checkout: `TMPDIR` and `CLAUDE_CODE_TMPDIR` set to `.agents/local/tmp`, to start Claude Code with `claude --settings .agents/local/claude.launch.settings.json`. The session-start hook it registers also exports `TMPDIR` into every Bash command. What each route moves, and what still needs the launch file, is in [Temporary files](/references/agents#temporary-files).
+
 ## Keeping the adapters out of git
 
 Which agents you use is your choice, so the committed `.gitignore` cannot list your adapter files without churn between teammates. `sync` writes them to your clone's own `.git/info/exclude` instead, between `# vulcan:start` and `# vulcan:end`, one comment line per agent:

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { LOCAL_AGENTS_FILE, renderLocalChoice } from '../agents/index.ts';
 import { ProjectLayout } from '../common/index.ts';
+import { planClaudeLaunch } from './claude-launch.ts';
 import { SyncStatuses } from './common/index.ts';
 import type { ISyncAction } from './common/index.ts';
 
@@ -71,6 +72,7 @@ export const planLocalWorkspace = (opts: { root: string }): ISyncAction[] => {
 
   return [
     ...planIgnoreLine({ root: opts.root, line: `${ProjectLayout.LOCAL_DIRECTORY}/` }),
+    ...planClaudeLaunch({ root: opts.root }),
     {
       path: directory,
       status: missing.length === 0 ? SyncStatuses.UNCHANGED : SyncStatuses.CREATED,

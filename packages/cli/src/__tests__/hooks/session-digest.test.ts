@@ -188,6 +188,18 @@ test('the session-start hook prints the digest for CLAUDE_PROJECT_DIR', () => {
   expect(child.stdout.toString()).toContain('this project: `on-user-word`');
 });
 
+describe('the temporary-files line of the digest', () => {
+  test('names the project folder and says which agents have TMPDIR set for them', async () => {
+    const root = createProject({ files: {} });
+    const digest = await buildSessionDigest({ projectRoot: root });
+
+    expect(digest).toContain('## Temporary files');
+    expect(digest).toContain(join(root, '.agents/local/tmp'));
+    expect(digest).toContain('never /tmp');
+    expect(digest).toContain('export TMPDIR=');
+  });
+});
+
 describe('the owner cards in the digest', () => {
   const CONFIG = "export default { rules: { 'V-W-01': 'on-user-word' } };\n";
 

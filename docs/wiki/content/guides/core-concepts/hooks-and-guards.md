@@ -26,7 +26,7 @@ The reason is shown to you. The answer carries `permissionDecision` twice, under
 | `guard-package` | A hand-written new `package.json` in a backend, frontend or shared folder, when a `vulcan add` command exists | Refuses, and gives the command |
 | `guard-scripting` | A command that runs `python` or `pip` | Adds one line of advice (`V-B-09`); never asks or blocks |
 
-Around them, `session-start` prints the rules digest into the session, `subagent-start` gives every subagent a small rules card, and `stop` and `prompt-submit` check the shape of replies ([The owner and the reply shape](/guides/core-concepts/owner-and-replies)). Each hook, matcher and failure mode is in the [Hooks reference](/references/hooks/).
+Around them, `session-start` prints the rules digest into the session and, in Claude Code, exports `TMPDIR` (the project's `.agents/local/tmp`) into every Bash command ([Temporary files](/references/agents#temporary-files)), `subagent-start` gives every subagent a small rules card, and `stop` and `prompt-submit` check the shape of replies ([The owner and the reply shape](/guides/core-concepts/owner-and-replies)). Each hook, matcher and failure mode is in the [Hooks reference](/references/hooks/).
 
 ## What the guards are not
 
