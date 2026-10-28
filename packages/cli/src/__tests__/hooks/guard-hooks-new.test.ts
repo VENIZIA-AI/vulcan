@@ -156,6 +156,41 @@ describe('the guard-outside hook', () => {
     expect(decision.permissionDecisionReason).toContain('/var/tmp/vulcan-outside-test');
   });
 
+  test('denies, naming V-B-08 and the place to use, a write into the agent tool scratchpad', async () => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root,
+      stdin: bash({
+        command: 'cd /tmp/claude-1000/-home-user-project/0b1c2d3e/scratchpad && echo x > out.ts',
+        cwd: root,
+      }),
+    });
+    const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+    expect(result.code).toBe(0);
+    expect(decision.permissionDecision).toBe('deny');
+    expect(decision.permissionDecisionReason).toContain('V-B-08');
+    expect(decision.permissionDecisionReason).toContain('scratchpad');
+    expect(decision.permissionDecisionReason).toContain('.agents/local/tmp/');
+  });
+
+  test('a deny wins when one call touches the scratchpad and another outside path', async () => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root,
+      stdin: bash({
+        command: 'mkdir /var/tmp/vulcan-outside-test && touch /tmp/claude-1000/p/s/scratchpad/a',
+        cwd: root,
+      }),
+    });
+
+    const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+    expect(decision.permissionDecision).toBe('deny');
+    expect(decision.permissionDecisionReason).toContain('/var/tmp/vulcan-outside-test');
+    expect(decision.permissionDecisionReason).toContain('/tmp/claude-1000/p/s/scratchpad/a');
+  });
+
   test('allows a path the project config lists in guard.toolOwnedPaths', async () => {
     const result = await runHook({
       hook: 'guard-outside',

@@ -14,7 +14,7 @@ export const SUBAGENT_CARD = [
   '',
   '- Read-only unless your brief says otherwise. No git writes (V-W-01, V-P-12).',
   '- Never write a database, deploy, or touch secrets; ask before anything irreversible (V-W-02, V-W-03, V-W-04).',
-  '- Everything you create (scratch, clones, logs, output) goes under `.agents/local/`, never `/tmp` or the home folder; remove it when done (V-B-08).',
+  '- Everything you create (scratch, clones, logs, output) goes under `.agents/local/`, never `/tmp`, the home folder or the scratchpad folder your tool offers (it is under `/tmp`; this rule wins); remove it when done (V-B-08).',
   '- Reuse before you write: look for what already does the job (V-P-08).',
   '- Small never cuts safety: keep validation, error handling and security checks (V-B-06).',
   '- Say what you skipped or could not check; a check that did not run never reads as one that did (V-B-07).',

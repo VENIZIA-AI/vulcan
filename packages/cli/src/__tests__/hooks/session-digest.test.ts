@@ -262,6 +262,18 @@ describe('the owner cards in the digest', () => {
     expect(SUBAGENT_CARD_MAX_CHARACTERS).toBeLessThanOrEqual(1600);
   });
 
+  test('the card, the rule and the digest all say the scratchpad an agent tool offers is a temp folder to avoid', async () => {
+    const rules = readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8');
+    const row = rules.split('\n').find((line) => line.startsWith('| V-B-08 |')) ?? '';
+    const root = createProject({ files: { 'package.json': '{}' } });
+    const digest = await buildSessionDigest({ projectRoot: root });
+
+    expect(SUBAGENT_CARD).toContain('scratchpad');
+    expect(row).toContain('scratchpad');
+    expect(digest).toContain('scratchpad');
+    expect(row).not.toContain('internal files are outside this rule');
+  });
+
   test('every rule the subagent card cites exists in the base rules, and the safety gates are all there', () => {
     const rules = readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8');
     const cited = [...SUBAGENT_CARD.matchAll(/\bV-[A-Z]-\d\d\b/g)].map((match) => match[0]);

@@ -99,7 +99,7 @@ export const buildSessionDigest = async (opts: {
     '',
     '## Temporary files',
     '',
-    `Scratch and temporary files go in \`${projectTmpOf({ root: opts.projectRoot })}\`, never /tmp (V-B-08). In Claude Code every Bash command already runs with \`TMPDIR\` set to it; in any other agent run \`export TMPDIR=${projectTmpOf({ root: opts.projectRoot })}\` first. Remove what you made when the task ends.`,
+    `Scratch and temporary files go in \`${projectTmpOf({ root: opts.projectRoot })}\`, never /tmp (V-B-08). The scratchpad folder your tool offers is under /tmp too: do not use it, this rule wins over the tool's line. In Claude Code every Bash command already runs with \`TMPDIR\` set to it; in any other agent run \`export TMPDIR=${projectTmpOf({ root: opts.projectRoot })}\` first. Remove what you made when the task ends.`,
     '',
     "## This project's slot choices",
     '',
