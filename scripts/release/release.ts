@@ -15,6 +15,7 @@ import {
   ReleaseConstants,
 } from './release-args.ts';
 import type { IReleaseArgs } from './release-args.ts';
+import { headStatusOf, waitForTarballs } from './release-wait.ts';
 
 const PACKAGE_DIRECTORIES = ['okf', 'atlas', 'cli'];
 
@@ -100,7 +101,7 @@ const blockers = findReleaseBlockers({
 });
 
 const manifests = await Promise.all(
-  PACKAGE_DIRECTORIES.map(directory => Bun.file(`packages/${directory}/package.json`).json()),
+  PACKAGE_DIRECTORIES.map((directory) => Bun.file(`packages/${directory}/package.json`).json()),
 );
 const trainVersion: string = manifests[2].version;
 const command = buildDispatchCommand({ args });
@@ -157,7 +158,7 @@ const released = capture({
   command: ['git', 'show', `origin/${ReleaseConstants.BRANCH}:packages/cli/package.json`],
 }).stdout;
 const releasedVersion: string = released.length > 0 ? JSON.parse(released).version : trainVersion;
-const names: string[] = manifests.map(manifest => manifest.name);
+const names: string[] = manifests.map((manifest) => manifest.name);
 const published = findPublishedVersions({
   log: capture({ command: ['gh', 'run', 'view', runId, '--log'] }).stdout,
   packageNames: names,
@@ -187,6 +188,54 @@ for (const name of names) {
     `release: ${name} has no publish line in run ${runId} - check its Publish step: gh run view ${runId} --log`,
   );
   isComplete = false;
+}
+
+// The registry lists a version minutes before its tarball is served; a consumer that installs it at once gets a 404.
+// The release is done when every tarball answers 200.
+if (watched.exitCode === 0 && isComplete) {
+  const targets = names.map((name) => ({ name, version: published[name] ?? releasedVersion }));
+  let polls = 0;
+
+  console.log(
+    `release: waiting until every tarball is served (up to ${ReleaseConstants.TARBALL_WAIT_MS / 60_000} minutes)`,
+  );
+
+  const served = await waitForTarballs({
+    targets,
+    urlOf: (target) => {
+      const url = capture({
+        command: ['npm', 'view', `${target.name}@${target.version}`, 'dist.tarball'],
+        isQuiet: true,
+      }).stdout;
+
+      return url.length > 0 ? url : undefined;
+    },
+    statusOf: (url) => headStatusOf({ url }),
+    now: Date.now,
+    sleep: Bun.sleep,
+    timeoutMs: ReleaseConstants.TARBALL_WAIT_MS,
+    intervalMs: ReleaseConstants.TARBALL_POLL_MS,
+    onWait: (missing) => {
+      polls += 1;
+
+      if (polls % 6 === 1) {
+        console.log(
+          `release: not served yet: ${missing.map((target) => `${target.name}@${target.version}`).join(', ')}`,
+        );
+      }
+    },
+  });
+
+  for (const target of served.ready) {
+    console.log(`release: tarball served ${target.name}@${target.version}`);
+  }
+
+  for (const target of served.missing) {
+    console.error(
+      `release: the tarball of ${target.name}@${target.version} is still not served after ${ReleaseConstants.TARBALL_WAIT_MS / 60_000} minutes - the publish is done, check the registry before anyone installs it`,
+    );
+    isComplete = false;
+  }
 }
 
 process.exit(watched.exitCode === 0 && isComplete ? 0 : 1);

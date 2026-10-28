@@ -21,11 +21,18 @@ export interface IBuiltPair {
 const REPOSITORY_NAME = /^[\w.-]+\/[\w.-]+$/;
 const GITHUB_REMOTE = /github\.com[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/;
 
-const commitOf = (opts: { root: string }): string => {
+/** HEAD, or `commit` when one is named; a name that is not a commit of this repository is refused. */
+const commitOf = (opts: { root: string; commit?: string }): string => {
+  const named = opts.commit ?? 'HEAD';
+
   try {
-    return git({ cwd: opts.root, args: ['rev-parse', '--verify', 'HEAD^{commit}'] }).trim();
+    return git({ cwd: opts.root, args: ['rev-parse', '--verify', `${named}^{commit}`] }).trim();
   } catch {
-    throw new Error(`atlas index: ${opts.root} has no commit to index`);
+    throw new Error(
+      opts.commit === undefined
+        ? `atlas index: ${opts.root} has no commit to index`
+        : `atlas index: ${opts.commit} is not a commit of ${opts.root}`,
+    );
   }
 };
 
@@ -88,6 +95,8 @@ export const buildIndexPair = (opts: {
   atlasVersion: string;
   /** Publishing needs the whole history: a shallow checkout is refused instead of building a release table from part of it. */
   requireFullHistory?: boolean;
+  /** The commit to index instead of HEAD (a full hash the caller resolved). */
+  commit?: string;
 }): IBuiltPair => {
   const root = resolve(opts.root);
   const out = resolve(root, opts.out);
@@ -102,7 +111,7 @@ export const buildIndexPair = (opts: {
     throw new Error('atlas index: --out must be a folder inside the project');
   }
 
-  const sha = commitOf({ root });
+  const sha = commitOf({ root, commit: opts.commit });
   const shallow =
     git({ cwd: root, args: ['rev-parse', '--is-shallow-repository'] }).trim() === 'true';
 

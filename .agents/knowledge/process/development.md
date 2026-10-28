@@ -7,6 +7,16 @@ tags: [process, testing, lint]
 
 # Development
 
+One command runs every check CI runs, in CI's order, and stops at the first that fails, by make's own exit status:
+
+```bash
+make gates                       # the whole list, read from .github/workflows/ci.yml
+make gates ARGS="--keep-going"    # run them all and report every failure
+make gates ARGS="--list"          # print the list, run nothing
+```
+
+A test fails when `ci.yml` has a make line the reader misses, or when CI loses one of the checks it has always held. Do not pipe a gate through `tail` or `grep` to read it: the exit status of the pipe is not make's. The checks one by one:
+
 ```bash
 make build             # type-check every package with `bun check`; only atlas emits (tsc)
 make lint-all          # every package, then scripts/

@@ -72,7 +72,8 @@ export const runKeygen = (opts: {
 
 /**
  * `index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>]`, `index keygen`, or
- * `index publish [--key-env <name>] [--root <dir>]` (what the CI action runs).
+ * `index publish [--key-env <name>] [--ref <tag-or-branch>] [--root <dir>]` (what the CI action runs;
+ * `--ref` is for a manual run: it publishes the pair of that commit).
  */
 export const runIndexCommand = async (opts: {
   argv: string[];
@@ -92,6 +93,7 @@ export const runIndexCommand = async (opts: {
       env: process.env,
       keyEnv: flagValue({ argv: opts.argv, name: '--key-env' }) ?? PrebuiltConstants.KEY_ENV,
       atlasVersion: opts.version,
+      ref: flagValue({ argv: opts.argv, name: '--ref' }),
     });
 
     console.log(

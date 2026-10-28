@@ -18,6 +18,8 @@ bun.lockb
 # These files are generated from source code and don't need to be in version control.
 dist/
 release/
+# The release scripts are source, not build output: without this line a new file there is silently ignored.
+!/scripts/release/
 build/
 app_data/
 *.tsbuildinfo

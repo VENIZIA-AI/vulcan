@@ -36,6 +36,12 @@
       "prompt": "Plan adding a retry option to the HTTP client helper, write the first slice as a work item, then check it cold: give a fresh subagent only the item and the knowledge bundle, ask it whether it could start without asking anything, and fix the item for every gap it names. Do not implement.",
       "expected_output": "Writes the first slice as a work item with the nine fixed English headings; launches a fresh subagent whose brief is the item (by reference, not restated) plus the knowledge bundle and asks the single question whether it could start; the subagent is read-only and its brief names the plain format to return; every gap it reports changes the item (a missing interface name, an untestable criterion, a missing out-of-scope line) and the report says what changed; nothing is implemented",
       "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "Plan this: publish the next patch release of the project's package, then close the release issue and delete the temporary probe repository we made for it. Show me the plan, do not start it.",
+      "expected_output": "Ends with the plan and starts no work; the card has a Runs by line that names who runs each outward action (the release dispatch, closing the issue, deleting the repository) and marks the ones the session's permission check may refuse as the owner's to run, so the plan hands them over instead of attempting them; goal verbatim, claims with probes, out of scope and docs impact as usual",
+      "files": []
     }
   ]
 }

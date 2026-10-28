@@ -120,7 +120,7 @@ The `rules` map assigns choices to base rule slots. `vulcan sync` updates genera
 The SessionStart hook reads your choices and displays them during session startup. The base defines the `V-W-01` slot with two choices:
 
 - `on-user-word`: Git operations occur only when you request them in conversation.
-- `read-only`: Git operations are read-only for the agent. `vulcan sync` writes a `permissions.deny` list to `.claude/settings.json`.
+- `read-only`: Git operations are read-only for the agent. `vulcan sync` writes a `permissions.deny` list to `.claude/settings.json`. It denies all 30 git write verbs and takes no exception; a project that needs one chooses `on-user-word` and writes its own deny list ([the slot reference](/references/rules#read-only-takes-no-exceptions)).
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|

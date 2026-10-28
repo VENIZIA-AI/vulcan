@@ -8,6 +8,6 @@ export type { IIndexPayload, TPairCheck } from './envelope';
 export { fetchPrebuilt } from './fetch';
 export type { IPrebuiltHit, IPrebuiltLimits, IPrebuiltMiss } from './fetch';
 export { generateKeyPair, privateKeyOf, publicKeyOf } from './keys';
-export { decidePrune, publishGuard, publishIndex } from './publish';
+export { decidePrune, isOnBranch, publishGuard, publishIndex, refCommitOf } from './publish';
 export type { IAssetInfo, IPublished, TGuard } from './publish';
 export type { IIndexKeyPair } from './keys';

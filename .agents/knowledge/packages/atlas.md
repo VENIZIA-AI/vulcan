@@ -46,9 +46,10 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
   uses the pair's release table only while the remote's tags fingerprint equals its payload's, and checks out the
   changelog directory alone otherwise. A pinned tag takes the ref's keys, not its own. `--no-prebuilt` and
   `prebuilt: false` thread through `resolveSources`, `resolveServableSources`, `resolveRemoteSource` and the
-  server's refresh. Publishing (`prebuilt/publish.ts`, `.github/actions/atlas-index`): `publishGuard` allows a `push` to the
-  default branch (read from the event file), `develop` or a tag whose commit is on one of them, never the
-  `atlas-index` tag, never without the key and the token; `publishIndex` builds (a shallow checkout is
+  server's refresh. Publishing (`prebuilt/publish.ts`, `.github/actions/atlas-index`): `publishGuard` allows a `push` or a
+  manual run to the default branch (read from the event file), `develop` or a tag whose commit is on one of them, never the
+  `atlas-index` tag; a manual run may also give a `ref` (`refCommitOf`: the plain name of a tag or a branch, its commit on
+  the default branch or `develop`, checked before git builds anything; `buildIndexPair`'s `commit` option indexes it), never without the key and the token; `publishIndex` builds (a shallow checkout is
   refused and a shallow pair says `history: false`), makes the release `atlas-index` once (pre-release, not
   latest, tag never moved), removes the old pair of the commit, uploads gz then envelope (upload host
   checked against `GITHUB_REPOSITORY`) and prunes with `decidePrune` (newest 20 heads, every tag-commit pair,

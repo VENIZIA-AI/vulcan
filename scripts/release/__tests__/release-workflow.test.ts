@@ -4,7 +4,15 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
-const WORKFLOW = join(import.meta.dir, '..', '..', '..', '.github', 'workflows', 'package-release.yml');
+const WORKFLOW = join(
+  import.meta.dir,
+  '..',
+  '..',
+  '..',
+  '.github',
+  'workflows',
+  'package-release.yml',
+);
 const roots: string[] = [];
 
 afterAll(() => {
@@ -17,6 +25,9 @@ interface IWorkflowStep {
   name?: string;
   if?: string;
   run?: string;
+  uses?: string;
+  with?: Record<string, unknown>;
+  continueOnError?: boolean;
   env?: Record<string, unknown>;
 }
 
@@ -37,7 +48,7 @@ const readSteps = (): IWorkflowStep[] => {
     throw new Error(`[readSteps] ${WORKFLOW} has no jobs.release.steps list`);
   }
 
-  return steps.flatMap(value => {
+  return steps.flatMap((value) => {
     const step = { value };
 
     if (!isRecord(step)) {
@@ -45,12 +56,16 @@ const readSteps = (): IWorkflowStep[] => {
     }
 
     const env = { value: step.value.env };
+    const given = { value: step.value.with };
 
     return [
       {
         name: toText({ value: step.value.name }),
         if: toText({ value: step.value.if }),
         run: toText({ value: step.value.run }),
+        uses: toText({ value: step.value.uses }),
+        with: isRecord(given) ? given.value : undefined,
+        continueOnError: step.value['continue-on-error'] === true,
         env: isRecord(env) ? env.value : undefined,
       },
     ];
@@ -58,7 +73,7 @@ const readSteps = (): IWorkflowStep[] => {
 };
 
 const findStep = (opts: { name: string }): IWorkflowStep => {
-  const step = readSteps().find(candidate => candidate.name === opts.name);
+  const step = readSteps().find((candidate) => candidate.name === opts.name);
 
   if (step?.run === undefined) {
     throw new Error(`[findStep] no step '${opts.name}' with a run script in ${WORKFLOW}`);
@@ -282,7 +297,7 @@ describe('package-release.yml: tagging', () => {
 describe('package-release.yml: the next dist-tag', () => {
   const STEP = 'Keep next at or above latest';
   const stepNames = (): string[] =>
-    readSteps().flatMap(step => (step.name === undefined ? [] : [step.name]));
+    readSteps().flatMap((step) => (step.name === undefined ? [] : [step.name]));
 
   test('a step moves next up to latest for every package in the train', () => {
     const step = findStep({ name: STEP });
@@ -306,7 +321,52 @@ describe('package-release.yml: the next dist-tag', () => {
     expect(step.if).toBeUndefined();
   });
 
-  test('it can write dist-tags: the npm token is in its environment', () => {
-    expect(Object.keys(findStep({ name: STEP }).env ?? {})).toContain('NODE_AUTH_TOKEN');
+  test("it holds no token: over trusted publishing the job's own identity lets it move a dist-tag", () => {
+    expect(Object.keys(findStep({ name: STEP }).env ?? {})).not.toContain('NODE_AUTH_TOKEN');
+    expect(findStep({ name: STEP }).run).not.toContain('secrets.');
+  });
+});
+
+describe('package-release.yml: the atlas index of the release', () => {
+  const STEP = 'Publish the atlas index of the release';
+  const stepNames = (): string[] =>
+    readSteps().flatMap((step) => (step.name === undefined ? [] : [step.name]));
+  const stepNamed = (): IWorkflowStep => {
+    const step = readSteps().find((candidate) => candidate.name === STEP);
+
+    if (step === undefined) {
+      throw new Error(`[stepNamed] no step '${STEP}' in ${WORKFLOW}`);
+    }
+
+    return step;
+  };
+
+  test('the pair of the tag commit is published by the local action, with the tag as the ref', () => {
+    const step = stepNamed();
+
+    expect(step.uses).toBe('./.github/actions/atlas-index');
+    expect(step.with?.['ref']).toBe('${{ env.TAG_NAME }}');
+  });
+
+  test('it runs after the tag is pushed: the release pushes with the Actions token, which starts no workflow of its own', () => {
+    expect(stepNames().indexOf(STEP)).toBeGreaterThan(stepNames().indexOf('Create tag'));
+  });
+
+  test('it cannot fail a release that has already published: continue-on-error', () => {
+    expect(stepNamed().continueOnError).toBe(true);
+  });
+
+  test('the signing key reaches the step as an Actions secret, nowhere else', () => {
+    expect(stepNamed().env?.['ATLAS_INDEX_KEY']).toBe('${{ secrets.ATLAS_INDEX_KEY }}');
+    expect(readFileSync(WORKFLOW, 'utf8').match(/secrets\.ATLAS_INDEX_KEY/g)).toHaveLength(1);
+  });
+
+  test('the job can write contents: the pair goes up as an asset of a release', () => {
+    const workflow = { value: Bun.YAML.parse(readFileSync(WORKFLOW, 'utf8')) };
+    const jobs = { value: isRecord(workflow) ? workflow.value.jobs : undefined };
+    const release = { value: isRecord(jobs) ? jobs.value.release : undefined };
+    const permissions = { value: isRecord(release) ? release.value.permissions : undefined };
+
+    expect(isRecord(permissions) ? permissions.value.contents : undefined).toBe('write');
   });
 });

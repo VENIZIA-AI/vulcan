@@ -90,7 +90,7 @@ describe('buildDispatchCommand', () => {
     });
 
     expect(command).not.toContain('-f issue=');
-    expect(command.some(part => part.startsWith('issue='))).toBe(false);
+    expect(command.some((part) => part.startsWith('issue='))).toBe(false);
   });
 });
 
@@ -112,7 +112,7 @@ describe('findReleaseBlockers', () => {
 });
 
 describe('findPublishedVersions', () => {
-  test("reads bun publish's own '+ <name>@<version>' lines, never an echo of them", () => {
+  test("reads the '+ <name>@<version>' lines the publish step prints, never an echo of them", () => {
     const log = [
       'release\tPublish to NPM\t + @venizia/vulcan-okf@0.1.0-1',
       'release\tPublish to NPM\t echo "+ @venizia/vulcan-atlas@9.9.9"',
