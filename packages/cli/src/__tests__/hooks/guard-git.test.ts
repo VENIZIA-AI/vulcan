@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { inspectGit } from '../../hooks/index.ts';
 import type { IGitRunner } from '../../hooks/index.ts';
@@ -351,5 +351,102 @@ describe('inspectGit asks before a blanket stage that is large', () => {
 
     expect(hits[0].rule).toBe('V-W-06');
     expect(hits.some((hit) => hit.decision === 'deny')).toBe(false);
+  });
+});
+
+// `git status --porcelain` prints a new folder as one line, so counting its lines undercounts the files a blanket stage
+// would take. These tests use a real repository: the fake status of the block above has one line per file and could not see it.
+describe('a blanket stage is counted file by file on a real repository', () => {
+  const git = (opts: { cwd: string; args: string[] }): void => {
+    expect(Bun.spawnSync(['git', ...opts.args], { cwd: opts.cwd }).exitCode).toBe(0);
+  };
+  const repository = (opts: { tracked?: number } = {}): string => {
+    const files: Record<string, string> = { 'a.txt': 'a', '.gitignore': 'ignored/\n' };
+
+    for (let index = 0; index < (opts.tracked ?? 0); index += 1) {
+      files[`tracked/t${index}.txt`] = 'old';
+    }
+
+    const root = createProject({ files });
+
+    git({ cwd: root, args: ['init', '-q', '-b', 'topic'] });
+    git({ cwd: root, args: ['config', 'user.email', 'a@example.com'] });
+    git({ cwd: root, args: ['config', 'user.name', 'a'] });
+    git({ cwd: root, args: ['add', '.'] });
+    git({ cwd: root, args: ['commit', '-q', '-m', 'init'] });
+
+    return root;
+  };
+  const files = (opts: { root: string; folder: string; count: number; text?: string }): void => {
+    mkdirSync(join(opts.root, opts.folder), { recursive: true });
+
+    for (let index = 0; index < opts.count; index += 1) {
+      writeFileSync(join(opts.root, opts.folder, `f${index}.txt`), opts.text ?? 'new');
+    }
+  };
+  const asks = (opts: { root: string; command: string }): string[] =>
+    inspectGit({ command: opts.command, cwd: opts.root }).map((hit) => hit.decision);
+
+  test('60 new files in ONE new folder: git add -A and git add . ask', () => {
+    const root = repository();
+
+    files({ root, folder: 'fresh', count: 60 });
+
+    expect(asks({ root, command: 'git add -A' })).toEqual(['ask']);
+    expect(asks({ root, command: 'git add .' })).toEqual(['ask']);
+  });
+
+  test('50 new files in one new folder are quiet, 51 ask: the threshold counts files, not folders', () => {
+    const root = repository();
+
+    files({ root, folder: 'fresh', count: 50 });
+    expect(asks({ root, command: 'git add -A' })).toEqual([]);
+
+    files({ root, folder: 'fresh', count: 51 });
+    expect(asks({ root, command: 'git add -A' })).toEqual(['ask']);
+  });
+
+  test('files spread over several new folders add up', () => {
+    const root = repository();
+
+    for (const folder of ['one', 'two', 'three']) {
+      files({ root, folder, count: 20 });
+    }
+
+    expect(asks({ root, command: 'git add -A' })).toEqual(['ask']);
+  });
+
+  test('modified tracked files and new files add up for -A', () => {
+    const root = repository({ tracked: 30 });
+
+    for (let index = 0; index < 30; index += 1) {
+      writeFileSync(join(root, `tracked/t${index}.txt`), 'changed');
+    }
+
+    files({ root, folder: 'fresh', count: 30 });
+
+    expect(asks({ root, command: 'git add -A' })).toEqual(['ask']);
+    expect(asks({ root, command: 'git add -u' })).toEqual([]);
+    expect(asks({ root, command: 'git commit -am x' })).toEqual([]);
+  });
+
+  test('the formatter case: 60 modified tracked files ask for -u and for commit -a', () => {
+    const root = repository({ tracked: 60 });
+
+    for (let index = 0; index < 60; index += 1) {
+      writeFileSync(join(root, `tracked/t${index}.txt`), 'formatted');
+    }
+
+    expect(asks({ root, command: 'git add -u' })).toEqual(['ask']);
+    expect(asks({ root, command: 'git commit -am x' })).toEqual(['ask']);
+  });
+
+  test('ignored files are not counted', () => {
+    const root = repository();
+
+    files({ root, folder: 'ignored', count: 200 });
+    files({ root, folder: 'fresh', count: 5 });
+
+    expect(asks({ root, command: 'git add -A' })).toEqual([]);
   });
 });
