@@ -160,7 +160,12 @@ const inspectStage = (opts: {
     return [];
   }
 
-  const status = opts.run({ program: 'git', args: ['status', '--porcelain'], cwd: opts.cwd });
+  // One line per file: the default status prints a new folder as one line, which would undercount what `git add -A` takes.
+  const status = opts.run({
+    program: 'git',
+    args: ['status', '--porcelain', '--untracked-files=all'],
+    cwd: opts.cwd,
+  });
 
   if (status === undefined) {
     return [];
