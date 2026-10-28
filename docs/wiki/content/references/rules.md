@@ -158,6 +158,35 @@ The `read-only` option adds 40 git command patterns to `permissions.deny` in age
 These patterns deny git commands that write index, history, refs, configuration, or working trees.
 Denials include `git add`, `git commit`, `git push`, `git checkout`, `git branch`, and `git reset`.
 
+### `read-only` takes no exceptions
+
+`read-only` denies all 30 git write verbs in every form: `add`, `rm`, `mv`, `restore`, `commit`, `push`, `pull`, `merge`, `rebase`, `reset`, `revert`, `cherry-pick`, `checkout`, `switch`, `branch`, `tag`, `stash`, `clean`, `apply`, `am`, `worktree`, `remote`, `config`, `submodule`, `update-ref`, `filter-branch`, `gc`, `init`, `clone` and `notes`. It takes no exception. A deny rule wins over an allow rule, and a permission pattern cannot allow one exact form of a verb (`git pull --ff-only origin develop`) and deny the others, so an allow list in the project's settings cannot reopen a verb that `read-only` denies.
+
+A project that needs exceptions chooses `on-user-word` and writes its own deny list in `claude.settings.permissions.deny`: it names the verbs it denies and leaves the others out. For example, to let agents run `git pull`, `git stash`, `git restore` and `git switch` and nothing that writes the history or the remote:
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  rules: { 'V-W-01': 'on-user-word' },
+  claude: {
+    settings: {
+      permissions: {
+        deny: [
+          'Bash(git add)', 'Bash(git add:*)', 'Bash(git rm:*)', 'Bash(git mv:*)',
+          'Bash(git commit)', 'Bash(git commit:*)', 'Bash(git push)', 'Bash(git push:*)',
+          'Bash(git merge)', 'Bash(git merge:*)', 'Bash(git rebase)', 'Bash(git rebase:*)',
+          'Bash(git reset)', 'Bash(git reset:*)', 'Bash(git revert:*)', 'Bash(git cherry-pick:*)',
+          'Bash(git checkout)', 'Bash(git checkout:*)', 'Bash(git tag:*)', 'Bash(git clean:*)',
+        ],
+      },
+    },
+  },
+} satisfies VulcanConfig;
+```
+
+The verbs left out of the list are allowed in full: `git pull --rebase` is as open as `git pull --ff-only origin develop`. To hold a verb to one form, the place is a hook, which parses the command, not a permission list. A known limit: `read-only` also denies listing branches with `git branch`; that is not changed.
+
 ### Select a slot option
 
 To set a slot option, add the rule key to `.configs/vulcan.config.mts`:
