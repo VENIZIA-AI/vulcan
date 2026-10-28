@@ -45,6 +45,7 @@ These change this repository only; the packages are the same.
 | `make release` waits until every published tarball answers 200 before it reports success; `scripts/release/` is no longer ignored by git (it had hidden the release scripts from the linter) | the releasing page | #526 |
 | The release workflow runs only for the develop ref, with read-only default permissions, a test job that holds no secret, one pinned commit in every job, and pinned actions and bun; a test removes each guard from a copy and fails if the check does not notice | the releasing page | #525 |
 | The release job names the `npm-release` environment, so each release waits for the owner's approval before any step starts; a temporary probe workflow showed the reviewer and the ref rule work, and was removed | the releasing page | #531, #533, #535 |
+| The slot reference says `read-only` takes no exceptions, how a project keeps its own (`on-user-word` plus its own deny list, with an example) and the known limit on `git branch` | the rules page, the configuration reference | #542 |
 | This repository lists its own `guard.writes.commands` for GitHub writes and has the rule `W-08` (agents never approve a deployment or write a secret or a setting) | `.agents/rules.md` | #524 |
 
 ## What was not checked
