@@ -78,7 +78,7 @@ The manifest carries the following fields:
 |---|---|
 | `schemaVersion` | Manifest schema version (currently 1) |
 | `name` | Config `name`, else the `package.json` name minus its scope |
-| `packages` | Workspace package entries with `name`, `dir`, `path`, `aliases`, and `retired`; `kind: "lib"` on a shared package made by `vulcan add --lib` |
+| `packages` | Workspace package entries with `name`, `dir`, `path`, `aliases`, and `retired`; `kind: "lib"` on a library other apps import, made by `vulcan add --lib` |
 | `layout` | The `backend`, `frontend`, `shared` and `other` folders, when the project has them (`other` holds folders the layout does not manage, such as docs) |
 | `presets` | The presets the project's apps came from, for the atlas `presets` tool |
 | `knowledge` | Paths for the knowledge bundle, wiki, changelogs, and sync areas |
