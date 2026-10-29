@@ -91,14 +91,17 @@ export const parseReleaseArgs = (opts: { args: string[] }): IReleaseArgs => {
 };
 
 /**
- * The `gh` command that dispatches one release of the whole okf/atlas/cli train. No `--ref`: it runs on
- * the default branch, develop, as in IGNIS; an issue is sent only when there is one.
+ * The `gh` command that dispatches one release of the whole okf/atlas/cli train. The ref is always named,
+ * never left to the repository's default branch (which is moving from develop to main): this driver releases a
+ * prerelease from develop. An issue is sent only when there is one.
  */
 export const buildDispatchCommand = (opts: { args: IReleaseArgs }): string[] => [
   'gh',
   'workflow',
   'run',
   ReleaseConstants.WORKFLOW,
+  '--ref',
+  ReleaseConstants.BRANCH,
   '-f',
   `bump=${opts.args.bump}`,
   ...(opts.args.issue === undefined ? [] : ['-f', `issue=${opts.args.issue}`]),

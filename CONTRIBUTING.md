@@ -37,7 +37,7 @@ feature/*, fix/*, docs/*, chore/*, test/* (your work)
 
 - Open pull requests to `develop`, never to `main`.
 - `main` only receives merges from `develop`.
-- Releases run from `develop` and are tagged `v<version>`.
+- A prerelease runs from `develop` and is tagged `v<version>`; a stable release runs from `main` (its steps are not in the workflow yet, so the workflow refuses a stable until they are).
 
 ## Workflow
 

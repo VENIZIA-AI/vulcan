@@ -79,26 +79,139 @@ const addStep = (opts: {
   steps.push(opts.step);
 };
 
-describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)', () => {
+describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, C20, C25, C26, D6)', () => {
   test('the real workflow breaks none of them', () => {
     expect(checkReleaseWorkflowGuards({ workflow: load() })).toEqual([]);
   });
 
-  test('C1: a job that runs for any ref but develop is noticed, for either job', () => {
+  test('C1: a plan job that does not run the planning script, or that names an environment or a condition, is noticed', () => {
     expect(
       mutated({
         change: (workflow) => {
-          delete job({ workflow, name: 'release' })['if'];
+          stepsOf({ workflow, name: 'plan' }).forEach((step) => {
+            if (typeof step['run'] === 'string') {
+              step['run'] = 'echo nothing planned';
+            }
+          });
         },
       }),
     ).toContain('C1');
     expect(
       mutated({
         change: (workflow) => {
-          job({ workflow, name: 'test' })['if'] = "github.ref != 'refs/heads/x'";
+          job({ workflow, name: 'plan' })['environment'] = 'npm-release';
         },
       }),
     ).toContain('C1');
+    expect(
+      mutated({
+        change: (workflow) => {
+          job({ workflow, name: 'plan' })['if'] = "github.ref == 'refs/heads/develop'";
+        },
+      }),
+    ).toContain('C1');
+  });
+
+  test('C1: a test job or a publish job that no longer needs the plan is noticed', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          delete job({ workflow, name: 'test' })['needs'];
+        },
+      }),
+    ).toContain('C1');
+    expect(
+      mutated({
+        change: (workflow) => {
+          job({ workflow, name: 'publish' })['needs'] = ['test', 'approve'];
+        },
+      }),
+    ).toContain('C1');
+  });
+
+  test('C2 and C20: a write or an id-token on the plan or the approve job is noticed', () => {
+    for (const name of ['plan', 'approve']) {
+      expect(
+        mutated({
+          change: (workflow) => {
+            job({ workflow, name })['permissions'] = { contents: 'write' };
+          },
+        }),
+      ).toContain('C2');
+      expect(
+        mutated({
+          change: (workflow) => {
+            job({ workflow, name })['permissions'] = { 'id-token': 'write' };
+          },
+        }),
+      ).toContain('C20');
+    }
+  });
+
+  test('C25: an approve job on the wrong environment, with a permission, for every kind, or without the plan and the gates is noticed', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          job({ workflow, name: 'approve' })['environment'] = 'npm-release';
+        },
+      }),
+    ).toContain('C25');
+    expect(
+      mutated({
+        change: (workflow) => {
+          job({ workflow, name: 'approve' })['permissions'] = { contents: 'read' };
+        },
+      }),
+    ).toContain('C25');
+    expect(
+      mutated({
+        change: (workflow) => {
+          delete job({ workflow, name: 'approve' })['if'];
+        },
+      }),
+    ).toContain('C25');
+    expect(
+      mutated({
+        change: (workflow) => {
+          job({ workflow, name: 'approve' })['needs'] = ['plan'];
+        },
+      }),
+    ).toContain('C25');
+    expect(
+      mutated({
+        change: (workflow) => {
+          job({ workflow, name: 'publish' })['needs'] = ['plan', 'test'];
+        },
+      }),
+    ).toContain('C25');
+  });
+
+  test('C26: a publish condition that lets a stable through without its approval, or ignores a failed dependency, is noticed', () => {
+    const conditions = [
+      "${{ !cancelled() && needs.plan.result == 'success' && needs.test.result == 'success' }}",
+      "${{ !cancelled() && needs.plan.result == 'success' && needs.test.result == 'success' && needs.approve.result != 'failure' }}",
+      "${{ needs.plan.result == 'success' && needs.test.result == 'success' && (needs.approve.result == 'success' || needs.approve.result == 'skipped') }}",
+      '${{ always() }}',
+    ];
+
+    for (const condition of conditions) {
+      expect(
+        mutated({
+          change: (workflow) => {
+            job({ workflow, name: 'publish' })['if'] = condition;
+          },
+        }),
+        condition,
+      ).toContain('C26');
+    }
+
+    expect(
+      mutated({
+        change: (workflow) => {
+          delete job({ workflow, name: 'publish' })['if'];
+        },
+      }),
+    ).toContain('C26');
   });
 
   test('C2: write access at the workflow level, a missing read default, or a write on the test job is noticed', () => {
@@ -126,7 +239,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)
     expect(
       mutated({
         change: (workflow) => {
-          delete job({ workflow, name: 'release' })['permissions'];
+          delete job({ workflow, name: 'publish' })['permissions'];
         },
       }),
     ).toContain('C2');
@@ -136,7 +249,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)
     expect(
       mutated({
         change: (workflow) => {
-          delete job({ workflow, name: 'release' })['needs'];
+          delete job({ workflow, name: 'publish' })['needs'];
         },
       }),
     ).toContain('C3');
@@ -165,7 +278,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)
 
   test('C5: bun at latest, or at a range, is noticed', () => {
     const setup = (opts: { workflow: Record<string, unknown>; version: string }): void => {
-      for (const step of stepsOf({ workflow: opts.workflow, name: 'release' })) {
+      for (const step of stepsOf({ workflow: opts.workflow, name: 'publish' })) {
         if (typeof step['uses'] === 'string' && step['uses'].startsWith('oven-sh/setup-bun@')) {
           step['with'] = { 'bun-version': opts.version };
         }
@@ -186,7 +299,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)
         change: (workflow) => {
           addStep({
             workflow,
-            name: 'release',
+            name: 'publish',
             step: { name: 'Lint', run: 'true', env: { T: '${{ secrets.NPM_ACCESS_TOKEN }}' } },
           });
         },
@@ -200,7 +313,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)
         change: (workflow) => {
           addStep({
             workflow,
-            name: 'release',
+            name: 'publish',
             step: { name: 'x', run: 'true', env: { T: '${{ secrets.SOMETHING_ELSE }}' } },
           });
         },
@@ -214,7 +327,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)
         change: (workflow) => {
           addStep({
             workflow,
-            name: 'release',
+            name: 'publish',
             step: { name: 'Lint', run: 'true', env: { T: '${{ secrets.ATLAS_INDEX_KEY }}' } },
           });
         },
@@ -226,21 +339,21 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)
     expect(
       mutated({
         change: (workflow) => {
-          delete job({ workflow, name: 'release' })['environment'];
+          delete job({ workflow, name: 'publish' })['environment'];
         },
       }),
     ).toContain('C16');
     expect(
       mutated({
         change: (workflow) => {
-          job({ workflow, name: 'release' })['environment'] = 'github-pages';
+          job({ workflow, name: 'publish' })['environment'] = 'github-pages';
         },
       }),
     ).toContain('C16');
     expect(
       mutated({
         change: (workflow) => {
-          job({ workflow, name: 'release' })['environment'] = { name: 'npm-release' };
+          job({ workflow, name: 'publish' })['environment'] = { name: 'npm-release' };
         },
       }),
     ).not.toContain('C16');
@@ -250,7 +363,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)
     expect(
       mutated({
         change: (workflow) => {
-          for (const step of stepsOf({ workflow, name: 'release' })) {
+          for (const step of stepsOf({ workflow, name: 'publish' })) {
             if (typeof step['uses'] === 'string' && step['uses'].startsWith('actions/checkout@')) {
               step['with'] = { ref: 'develop', 'fetch-depth': 0 };
             }
@@ -271,7 +384,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)
   const withRun = (opts: { step: string; change: (run: string) => string }): string[] =>
     mutated({
       change: (workflow) => {
-        for (const step of stepsOf({ workflow, name: 'release' })) {
+        for (const step of stepsOf({ workflow, name: 'publish' })) {
           if (step['name'] === opts.step && typeof step['run'] === 'string') {
             step['run'] = opts.change(step['run']);
           }
@@ -283,7 +396,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)
     expect(
       mutated({
         change: (workflow) => {
-          job({ workflow, name: 'release' })['permissions'] = { contents: 'write' };
+          job({ workflow, name: 'publish' })['permissions'] = { contents: 'write' };
         },
       }),
     ).toContain('C20');
@@ -311,7 +424,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)
       expect(
         mutated({
           change: (workflow) => {
-            for (const step of stepsOf({ workflow, name: 'release' })) {
+            for (const step of stepsOf({ workflow, name: 'publish' })) {
               if (step['name'] === name) {
                 step['env'] = { NODE_AUTH_TOKEN: '${{ secrets.NPM_ACCESS_TOKEN }}' };
               }
@@ -365,7 +478,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)
     expect(
       mutated({
         change: (workflow) => {
-          const steps = job({ workflow, name: 'release' })['steps'];
+          const steps = job({ workflow, name: 'publish' })['steps'];
 
           if (Array.isArray(steps)) {
             steps.splice(
@@ -397,7 +510,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, D6)
     const node = (opts: { inputs: Record<string, unknown> }) =>
       mutated({
         change: (workflow) => {
-          for (const step of stepsOf({ workflow, name: 'release' })) {
+          for (const step of stepsOf({ workflow, name: 'publish' })) {
             if (
               typeof step['uses'] === 'string' &&
               step['uses'].startsWith('actions/setup-node@')

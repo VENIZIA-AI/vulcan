@@ -33,9 +33,15 @@ concurrency:
   group: npm-release
   cancel-in-progress: false
 
-# Read-only by default; the one job that pushes the release commit and the tag says so for itself. Every job
-# runs only for the develop ref and checks out the commit that was dispatched, so what the tests ran on, what
-# the approver sees in the run name and what is published are the same commit. The actions and bun are pinned.
+# Read-only by default; the one job that pushes the release commit and the tag says so for itself, and it
+# alone holds `id-token`. Every job checks out the commit that was dispatched, so what the tests ran on, what the
+# approver sees in the run name and what is published are the same commit. The actions and bun are pinned.
+#
+# Four jobs. `plan` decides what this dispatch would release and refuses a ref and a version that do not belong
+# together (a prerelease runs from develop, a stable from main) before anything is built. `test` runs the gates.
+# `approve` is the one human stop and exists for a stable only: environment release-approval, whose reviewer is the
+# owner. `publish` is the only job with the publish identity (environment npm-release, which waits for nobody); it
+# runs after `approve` succeeded, or after `approve` was skipped because the plan says prerelease.
 permissions:
   contents: read
 
@@ -48,12 +54,40 @@ env:
   TARBALLS: ${{ github.workspace }}/.agents/local/tmp/release-tarballs
 
 jobs:
+  # What this dispatch would release, from the bump and the ref, before anything is built: the target version, its
+  # kind (a prerelease needs no approval, a stable needs one) and the dist-tag. It refuses a ref and a version that
+  # do not belong together. The logic is scripts/release/plan.ts, which has its own tests.
+  plan:
+    name: Plan
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      kind: ${{ steps.plan.outputs.kind }}
+      npm_tag: ${{ steps.plan.outputs.npm_tag }}
+
+    steps:
+      - name: Checkout the dispatched commit
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
+      - name: Plan the release
+        id: plan
+        run: bun scripts/release/plan.ts --bump "$BUMP" --ref "$GITHUB_REF"
+
   # Build, lint, the unit tests and VULCAN's own contract, on the dispatched commit, in a job that holds no
-  # secret and cannot write: the release job below needs it, so a failing gate publishes nothing.
+  # secret and cannot write: the publish job below needs it, so a failing gate publishes nothing.
   test:
     name: Gates
     runs-on: ubuntu-26.04
-    if: github.ref == 'refs/heads/develop'
+    needs: plan
 
     steps:
       - name: Checkout the dispatched commit
@@ -89,14 +123,39 @@ jobs:
           bun x --no-install vulcan doctor
           bun x --no-install vulcan x okf check --strict
 
-  release:
+  # The one human stop, for a stable only: the plan says so, and the job is skipped for a prerelease. It runs after
+  # the gates, so the owner never approves a release that fails them, and its name carries the target version. The
+  # environment release-approval holds the reviewer and its ref rule (main only); its settings are GitHub's, not this
+  # file's, and this line is what makes the job subject to them. The job holds no permission and runs nothing but an
+  # echo: the approval is the click.
+  approve:
+    name: Approve ${{ needs.plan.outputs.version }}
+    runs-on: ubuntu-26.04
+    needs: [plan, test]
+    if: ${{ needs.plan.outputs.kind == 'stable' }}
+    environment: release-approval
+    permissions: {}
+
+    steps:
+      - name: Approved
+        run: echo "approved - $VERSION"
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+
+  publish:
     name: NPM Release
     runs-on: ubuntu-26.04
-    needs: test
-    if: github.ref == 'refs/heads/develop'
-    # The environment holds the release's reviewers (the owner approves each run, on the commit shown in the run name)
-    # and its ref rule (develop only): a run waits here before any step of this job starts. Its settings are GitHub's,
-    # not this file's; this line is what makes the job subject to them.
+    needs: [plan, test, approve]
+    # A prerelease has no approval, so `approve` is skipped for it and publish still runs; a stable runs only after
+    # `approve` succeeded. A skipped `approve` on a stable stops it. A job whose `needs` was skipped is skipped
+    # unless its `if` says otherwise, so both cases are written out; a failed or cancelled dependency stops it too.
+    if: >-
+      ${{ !cancelled() && needs.plan.result == 'success' && needs.test.result == 'success'
+      && (needs.approve.result == 'success'
+      || (needs.approve.result == 'skipped' && needs.plan.outputs.kind == 'prerelease')) }}
+    # The environment holds the publish identity's ref rule (develop and main): a run from any other ref cannot
+    # reach it. It has no reviewers: the owner's approval is the `approve` job's, and only a stable has one. Its
+    # settings are GitHub's, not this file's; this line is what makes the job subject to them.
     environment: npm-release
     # The release pushes the release commit and the tag, and puts the pair of the tag commit on the release
     # `atlas-index`: both write contents. `id-token` is what trusted publishing signs with: npm exchanges the
@@ -146,7 +205,13 @@ jobs:
       # -------------------------------------------------------------------------
       # VERSION
       # -------------------------------------------------------------------------
+      # The plan job already worked out the version and the dist-tag. This step applies the bump to the three
+      # package.json files and stops if its own arithmetic differs from the plan's: what was approved and what is
+      # published cannot drift apart.
       - name: Set the release version
+        env:
+          PLAN_VERSION: ${{ needs.plan.outputs.version }}
+          PLAN_NPM_TAG: ${{ needs.plan.outputs.npm_tag }}
         run: |
           if [ "$BUMP" = "none" ]; then
             NEW_VERSION=$(jq -r .version packages/cli/package.json)
@@ -168,10 +233,12 @@ jobs:
             fi
           done
 
-          case "$NEW_VERSION" in
-            *-*) NPM_TAG="next" ;;
-            *)   NPM_TAG="latest" ;;
-          esac
+          if [ "$NEW_VERSION" != "$PLAN_VERSION" ]; then
+            echo "ERROR | the plan said $PLAN_VERSION, the bump gave $NEW_VERSION - nothing is published"
+            exit 1
+          fi
+
+          NPM_TAG="$PLAN_NPM_TAG"
 
           echo "NEW_VERSION=$NEW_VERSION" >> "$GITHUB_ENV"
           echo "NPM_TAG=$NPM_TAG" >> "$GITHUB_ENV"
