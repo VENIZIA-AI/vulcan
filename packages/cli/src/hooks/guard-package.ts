@@ -199,7 +199,7 @@ export const inspectPackageWrite = (opts: {
     kind: PackageVerdictKinds.WARN,
     message:
       project.presets.length === 0
-        ? `${created.folder}/${created.name} looks like a new ${what} and this project recorded no preset: ask the user which preset to use (\`vulcan add --preset <name|file:path> --app <name>\`, --lib <name> for a shared package); ${NO_HAND_WRITING}`
+        ? `${created.folder}/${created.name} looks like a new ${what} and this project recorded no preset: ask the user which preset to use (\`vulcan add --preset <name|file:path> --app <name>\`, --lib <name> for a library other apps import, --shared <name> for a side-neutral package); ${NO_HAND_WRITING}`
         : `${created.folder}/${created.name} looks like a new ${what} but no recorded preset makes a ${what}: ask the user how it should be made; ${NO_HAND_WRITING}`,
   };
 };

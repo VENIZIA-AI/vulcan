@@ -140,7 +140,7 @@ describe('vulcan add --lib', () => {
 
     expect(page).toContain('resource: libs/billing');
     expect(page).toContain('tags: [packages, library]');
-    expect(page).toContain('The shared package at `libs/billing`');
+    expect(page).toContain('The library at `libs/billing`');
     expect(readFileSync(join(root, '.agents/knowledge/index.md'), 'utf8')).toContain(
       '[billing](packages/billing.md)',
     );

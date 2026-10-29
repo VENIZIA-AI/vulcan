@@ -22,9 +22,9 @@ Usage: bun x vulcan <command>
       [--scope <@scope>] [--backend-dir|--frontend-dir <path>] [--api <app> | --no-api]
                                   Add an app, a library other apps import (--lib) or a side-neutral package
                                   other apps import (--shared) to the monorepo (a frontend says which
-                                  backend to proxy to; --dir is for a library or a shared package; --scope
-                                  names the package @scope/<name>; a terminal asks for the kind and every
-                                  name the flags leave out)
+                                  backend to proxy to; --dir is for a library or a shared package;
+                                  --scope names the package @scope/<name>; a terminal asks for the kind
+                                  and every name the flags leave out)
   preset diff <package> [--preset <name|file:path>] [--api <app> | --no-api] [--full] [--check]
                                   Read-only: set each file the preset makes now (for an app, a library or
                                   a shared package) against the file the package has (same, differs,

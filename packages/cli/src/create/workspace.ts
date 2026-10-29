@@ -237,7 +237,7 @@ const ATLAS_LOOKUPS: Record<TAppSide | typeof PackageKinds.LIB, [string, string]
     ['How a page or a resource is added', '`search` "page resource", then `get`'],
     ['How the app reads data from its backend', '`search` "data provider"'],
   ],
-  lib: [['How a shared package exposes its API', '`search` "shared package exports", then `get`']],
+  lib: [['How a library exposes its API', '`search` "library exports", then `get`']],
 };
 
 /** The note and the table that turn a package page into a pointer at atlas, for its kind. */
@@ -274,7 +274,7 @@ export const renderLibConcept = (opts: {
     '',
     `# ${opts.name}`,
     '',
-    `The shared package at \`${opts.path}\`, created from the ${opts.presetPackage} preset (${opts.kind ?? LibraryKinds.LIB} kind). ${oneLine({ text: opts.summary })}`,
+    `The ${opts.kind === LibraryKinds.SHARED ? 'side-neutral package' : 'library'} at \`${opts.path}\`, created from the ${opts.presetPackage} preset (${opts.kind ?? LibraryKinds.LIB} kind). ${oneLine({ text: opts.summary })}`,
     '',
     ...renderAtlasLookups({ kind: PackageKinds.LIB }),
   ].join('\n');

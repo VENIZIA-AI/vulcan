@@ -483,7 +483,7 @@ describe('workspace planners', () => {
     expect(frontend).not.toContain('controller routes');
   });
 
-  test('the lib concept points at the lookups of a shared package', () => {
+  test('the lib concept points at the lookups of a library', () => {
     const lib = renderLibConcept({
       name: 'money',
       path: 'libs/money',
@@ -492,7 +492,7 @@ describe('workspace planners', () => {
     });
 
     expect(lib).toContain('a summary, not a spec');
-    expect(lib).toContain('`search` "shared package exports"');
+    expect(lib).toContain('`search` "library exports"');
     expect(lib).toContain('`symbol`');
   });
 
