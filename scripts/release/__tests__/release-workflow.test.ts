@@ -527,9 +527,7 @@ describe('package-release.yml: a stable', () => {
       JSON.parse(git({ args: ['show', 'origin/develop:packages/cli/package.json'], cwd: verify }))
         .version,
     ).toBe('0.1.0');
-    expect(git({ args: ['ls-remote', '--heads', 'origin'], cwd: verify })).not.toContain(
-      'refs/heads/feat',
-    );
+    expect(git({ args: ['rev-parse', 'HEAD'], cwd: checkout })).toBe(result.env.RELEASE_SHA);
   });
 
   test('a second run of the merge back finds develop holding the release and skips it', () => {
@@ -567,6 +565,8 @@ describe('package-release.yml: a stable', () => {
     git({ args: ['commit', '--quiet', '-am', 'develop edits shared'], cwd: other });
     git({ args: ['push', '--quiet', 'origin', 'HEAD:develop'], cwd: other });
     writeFile({ path: join(checkout, 'shared.txt'), text: 'main edit\n' });
+    git({ args: ['commit', '--quiet', '-am', 'main edits shared'], cwd: checkout });
+    git({ args: ['push', '--quiet', 'origin', 'HEAD:main'], cwd: checkout });
     writeFile({
       path: join(checkout, 'packages', 'cli', 'package.json'),
       text: manifestText({ version: '0.1.0' }),
@@ -587,46 +587,12 @@ describe('package-release.yml: a stable', () => {
   });
 });
 
-describe('package-release.yml: the order of a stable', () => {
-  const names = (): string[] =>
-    readSteps().flatMap((step) => (step.name === undefined ? [] : [step.name]));
-
-  test('the branch check is the first step that can see a moved branch, and comes before the version and the publish', () => {
-    const order = names();
-    const guard = order.indexOf('Refuse a stable when a branch moved since the plan');
-
-    expect(guard).toBeGreaterThan(-1);
-    expect(guard).toBeLessThan(order.indexOf('Set the release version'));
-    expect(guard).toBeLessThan(order.indexOf('Publish to NPM'));
-  });
-
-  test('the merge back comes after the tag and before the atlas index, which wants the tag commit on develop', () => {
-    const order = names();
-    const merge = order.indexOf('Merge main back into develop');
-
-    expect(merge).toBeGreaterThan(order.indexOf('Create tag'));
-    expect(merge).toBeLessThan(order.indexOf('Publish the atlas index of the release'));
-  });
-
-  test('both stable steps run for a stable only, and the branch of the release commit follows the kind', () => {
-    for (const name of [
-      'Refuse a stable when a branch moved since the plan',
-      'Merge main back into develop',
-    ]) {
-      expect(findStep({ name }).if).toContain("needs.plan.outputs.kind == 'stable'");
-    }
-
+describe('package-release.yml: where the release commit goes', () => {
+  test('a stable goes to main and a prerelease to develop', () => {
     const env = { value: readJob({ name: 'publish' }).env };
     const target = isRecord(env) ? toText({ value: env.value.TARGET_BRANCH }) : undefined;
 
-    expect(target).toContain("'main'");
-    expect(target).toContain("'develop'");
-  });
-
-  test('the merge back runs the script from a copy of main, not the one on develop', () => {
-    expect(findStep({ name: 'Merge main back into develop' }).run).toContain(
-      'cp scripts/release/merge-back.ts "$RUNNER_TEMP/merge-back.ts"',
-    );
+    expect(target).toBe("${{ needs.plan.outputs.kind == 'stable' && 'main' || 'develop' }}");
   });
 });
 

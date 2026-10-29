@@ -12,6 +12,7 @@
  * It pushes a branch and opens a pull request: run it on the owner's word.
  */
 import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
+import { ReleaseConstants } from './release-args.ts';
 
 export interface ISyncCheck {
   /** The commit the tag points at. */
@@ -37,7 +38,7 @@ export class ReleaseSyncPr {
     const { cwd, tag } = opts;
     const peeled = ReleaseMergeBack.git({
       cwd,
-      args: ['rev-parse', '--verify', `${tag}^{commit}`],
+      args: ['rev-parse', '--verify', `refs/tags/${tag}^{commit}`],
     });
 
     if (peeled.status !== 0) {
@@ -45,7 +46,7 @@ export class ReleaseSyncPr {
         commit: '',
         version: '',
         subjects: [],
-        problems: [`the tag ${tag} does not exist here`],
+        problems: [`${tag} is not a tag here (a tag name, not a branch or a commit)`],
       };
     }
 
@@ -64,8 +65,8 @@ export class ReleaseSyncPr {
       );
     }
 
-    const isAncestor = (opts: { ancestor: string; of: string }): boolean =>
-      ReleaseMergeBack.git({ cwd, args: ['merge-base', '--is-ancestor', opts.ancestor, opts.of] })
+    const isAncestor = (pair: { ancestor: string; of: string }): boolean =>
+      ReleaseMergeBack.git({ cwd, args: ['merge-base', '--is-ancestor', pair.ancestor, pair.of] })
         .status === 0;
 
     if (!isAncestor({ ancestor: commit, of: opts.develop })) {
@@ -104,17 +105,23 @@ export class ReleaseSyncPr {
       '',
       `Brings ${opts.subjects.length} commit${opts.subjects.length === 1 ? '' : 's'}:`,
       '',
-      ...opts.subjects.map((subject) => `- ${subject}`),
+      // In a fence, so a subject cannot ping anyone, close an issue or break the markdown.
+      '```text',
+      ...opts.subjects.map((subject) => subject.replaceAll('```', "'''")),
+      '```',
       '',
     ].join('\n');
   }
 
   /** The tree of main against the tree of the tag, after the merge. */
   static verify(opts: { cwd: string; tag: string; main: string }): string[] {
-    const treeOf = (ref: string): string =>
-      ReleaseMergeBack.git({ cwd: opts.cwd, args: ['rev-parse', `${ref}^{tree}`] }).stdout.trim();
-    const main = treeOf(opts.main);
-    const tagged = treeOf(opts.tag);
+    const treeOf = (spec: { ref: string }): string =>
+      ReleaseMergeBack.git({
+        cwd: opts.cwd,
+        args: ['rev-parse', `${spec.ref}^{tree}`],
+      }).stdout.trim();
+    const main = treeOf({ ref: opts.main });
+    const tagged = treeOf({ ref: `refs/tags/${opts.tag}` });
 
     return main !== '' && main === tagged
       ? []
@@ -123,10 +130,15 @@ export class ReleaseSyncPr {
         ];
   }
 
-  static main(opts: { args: string[]; env: Record<string, string | undefined> }): number {
+  static main(opts: {
+    args: string[];
+    env: Record<string, string | undefined>;
+    /** The directory git runs in; the process's own when absent. */
+    cwd?: string;
+  }): number {
     const [command] = opts.args;
     const tag = ReleaseMergeBack.flagValue({ args: opts.args, flag: '--tag' });
-    const cwd = process.cwd();
+    const cwd = opts.cwd ?? process.cwd();
 
     if ((command !== 'open' && command !== 'verify') || tag === undefined) {
       console.error('sync-pr: open|verify --tag <prerelease tag> [--dry-run]');
@@ -136,7 +148,14 @@ export class ReleaseSyncPr {
 
     ReleaseMergeBack.git({
       cwd,
-      args: ['fetch', '--quiet', '--tags', 'origin', 'main', 'develop'],
+      args: [
+        'fetch',
+        '--quiet',
+        '--tags',
+        'origin',
+        ReleaseConstants.STABLE_BRANCH,
+        ReleaseConstants.BRANCH,
+      ],
     });
 
     if (command === 'verify') {
@@ -186,7 +205,19 @@ export class ReleaseSyncPr {
     }
 
     const created = Bun.spawnSync(
-      ['gh', 'pr', 'create', '--base', 'main', '--head', branch, '--title', title, '--body', body],
+      [
+        'gh',
+        'pr',
+        'create',
+        '--base',
+        ReleaseConstants.STABLE_BRANCH,
+        '--head',
+        branch,
+        '--title',
+        title,
+        '--body',
+        body,
+      ],
       { cwd, stdout: 'inherit', stderr: 'inherit' },
     );
 

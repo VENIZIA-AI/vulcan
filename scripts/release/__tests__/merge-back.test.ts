@@ -357,3 +357,114 @@ describe('ReleaseMergeBack.mergeInto', () => {
     expect(result.head).toBe(head);
   });
 });
+
+describe('ReleaseMergeBack.flagValue', () => {
+  test('a value is the next argument, and a flag followed by a flag has none', () => {
+    expect(ReleaseMergeBack.flagValue({ args: ['--bump', 'patch'], flag: '--bump' })).toBe('patch');
+    expect(
+      ReleaseMergeBack.flagValue({ args: ['--bump', '--ref', 'x'], flag: '--bump' }),
+    ).toBeUndefined();
+    expect(ReleaseMergeBack.flagValue({ args: ['--bump'], flag: '--bump' })).toBeUndefined();
+    expect(ReleaseMergeBack.flagValue({ args: [], flag: '--bump' })).toBeUndefined();
+  });
+});
+
+describe('ReleaseMergeBack.trial: a package.json it cannot read', () => {
+  test('one indented with tabs stops the trial before the approval, not the merge after the publish', () => {
+    const root = fixture({ developVersion: '0.4.9-3' });
+
+    write({
+      root,
+      path: 'packages/a/package.json',
+      text: `${JSON.stringify({ name: '@fixture/a', version: '0.4.9-2' }, null, '\t')}\n`,
+    });
+    run({ cwd: root, args: ['commit', '-q', '-am', 'main reindents a'] });
+
+    const result = ReleaseMergeBack.trial({
+      cwd: root,
+      version: '0.4.9',
+      main: 'main',
+      develop: 'develop',
+      scratchRoot: scratch(),
+    });
+
+    expect(result.problems.join('\n')).toContain('packages/a/package.json');
+    expect(result.problems.join('\n')).toContain('two spaces');
+  });
+});
+
+describe('ReleaseMergeBack.main', () => {
+  const trialArgs = ['trial', '--main', 'main', '--develop', 'develop'];
+  const main = (opts: { args: string[]; cwd: string; output?: string }) =>
+    ReleaseMergeBack.main({
+      args: opts.args,
+      cwd: opts.cwd,
+      env: {
+        RUNNER_TEMP: scratch(),
+        ...(opts.output === undefined ? {} : { GITHUB_OUTPUT: opts.output }),
+      },
+    });
+
+  test('an unknown command and a trial without exactly one of version and versions exit 2', () => {
+    const root = fixture({ developVersion: '0.4.9-3' });
+
+    expect(main({ args: [], cwd: root })).toBe(2);
+    expect(main({ args: trialArgs, cwd: root })).toBe(2);
+    expect(
+      main({ args: [...trialArgs, '--version', '0.4.9', '--versions', 'a=0.4.9'], cwd: root }),
+    ).toBe(2);
+  });
+
+  test('a malformed --versions or an unknown --lock exits 2', () => {
+    const root = fixture({ developVersion: '0.4.9-3' });
+
+    expect(main({ args: [...trialArgs, '--versions', 'a'], cwd: root })).toBe(2);
+    expect(main({ args: [...trialArgs, '--version', '0.4.9', '--lock', 'never'], cwd: root })).toBe(
+      2,
+    );
+  });
+
+  test('a trial that goes through exits 0 and writes the head of develop it read', () => {
+    const root = fixture({ developVersion: '0.4.9-3' });
+    const output = join(scratch(), 'github-output');
+
+    writeFileSync(output, '');
+
+    expect(main({ args: [...trialArgs, '--version', '0.4.9'], cwd: root, output })).toBe(0);
+    expect(readFileSync(output, 'utf8')).toBe(
+      `develop_sha=${run({ cwd: root, args: ['rev-parse', 'develop'] })}\n`,
+    );
+  });
+
+  test('a trial that stops exits 1', () => {
+    const root = fixture({ developVersion: '0.4.9-3' });
+
+    run({ cwd: root, args: ['checkout', '-q', 'develop'] });
+    write({ root, path: 'src/shared.ts', text: 'export const shared = 2;\n' });
+    run({ cwd: root, args: ['commit', '-q', '-am', 'develop edits shared'] });
+    run({ cwd: root, args: ['checkout', '-q', 'main'] });
+    write({ root, path: 'src/shared.ts', text: 'export const shared = 3;\n' });
+    run({ cwd: root, args: ['commit', '-q', '-am', 'main edits shared'] });
+
+    expect(main({ args: [...trialArgs, '--version', '0.4.9'], cwd: root })).toBe(1);
+  });
+
+  test('apply needs --from, and merges into the worktree --repo names, leaving the caller untouched', () => {
+    const root = fixture({ developVersion: '0.4.9-3' });
+
+    run({ cwd: root, args: ['checkout', '-q', '-b', 'release', 'main'] });
+    release({ root, version: '0.4.9', message: 'chore(release): v' });
+
+    const worktree = join(scratch(), 'develop-merge');
+
+    run({ cwd: root, args: ['worktree', 'add', '--detach', worktree, 'develop'] });
+
+    const before = run({ cwd: root, args: ['rev-parse', 'HEAD'] });
+
+    expect(main({ args: ['apply'], cwd: root })).toBe(2);
+    expect(main({ args: ['apply', '--repo', worktree, '--from', 'release'], cwd: root })).toBe(0);
+    expect(run({ cwd: root, args: ['rev-parse', 'HEAD'] })).toBe(before);
+    expect(versionIn({ root: worktree, file: 'packages/a/package.json' })).toBe('0.4.9');
+    expect(run({ cwd: worktree, args: ['log', '-1', '--format=%P'] }).split(' ')).toHaveLength(2);
+  });
+});

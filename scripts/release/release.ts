@@ -6,6 +6,8 @@
  *   bun scripts/release/release.ts --dry-run           # print the plan and every blocker, dispatch nothing
  *   bun scripts/release/release.ts --bump none --yes   # publish the version already in package.json
  *   bun scripts/release/release.ts --issue 12          # prefix the release commit with [#12]
+ *   bun scripts/release/release.ts --bump patch        # a stable: dispatched on main, waits for the approval
+ *   bun scripts/release/release.ts --bump none --branch main   # heal a stable run (develop when --branch is absent)
  */
 import {
   buildDispatchCommand,

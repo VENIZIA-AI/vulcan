@@ -1,12 +1,16 @@
 /**
  * The merge back of a stable release: `main`, which now holds the release commit, flows into `develop`.
  *
- *   bun scripts/release/merge-back.ts trial --version <v> [--main <ref>] [--develop <ref>]
- *   bun scripts/release/merge-back.ts apply --from <commit> [--message <text>]
+ *   bun scripts/release/merge-back.ts trial (--version <v> | --versions <dir=v,...>) [--lock keep|regenerate]
+ *     [--main <ref>] [--develop <ref>]
+ *   bun scripts/release/merge-back.ts apply --from <commit> [--repo <worktree of develop>] [--message <text>]
  *
  * `trial` runs in the plan job, before anyone is asked to approve: in throwaway worktrees it makes the release
- * commit the run would make, merges it into `develop`, and reports. `apply` runs in the publish job, in a checkout
- * of `develop`: it makes the same merge and commits it; the workflow pushes.
+ * commit the run would make, merges it into `develop`, and reports. `--version` puts one version on every
+ * package (a train); `--versions` gives each listed `packages/<dir>` its own and leaves the rest; `--lock keep`
+ * leaves bun.lock out of the release commit. `apply` runs in the publish job, in a worktree of `develop` named
+ * by `--repo`: it makes the same merge and commits it, and the workflow pushes. The process itself runs in the
+ * checkout of the release, so no file of `develop` (a bunfig.toml, a .env) configures it.
  *
  * A conflict is resolved only when it is the `version` field of a `package.json` (the greater version wins, so a
  * stable `0.4.9` beats `0.4.9-3` and `0.4.10-0` beats `0.4.9`) or `bun.lock` (regenerated, never merged by hand,
@@ -191,7 +195,6 @@ export class ReleaseMergeBack {
     from: string;
     scratchRoot: string;
     commit?: { message: string };
-    regenerateLock?: boolean;
   }): IMergeBackResult {
     const { cwd } = opts;
     const result: IMergeBackResult = { resolved: [], lockRegenerated: false, problems: [] };
@@ -227,12 +230,16 @@ export class ReleaseMergeBack {
           continue;
         }
 
-        const stage = (number: number): string | undefined => {
-          const shown = ReleaseMergeBack.git({ cwd, args: ['show', `:${number}:${file}`] });
+        const readStage = (opts: { stage: number }): string | undefined => {
+          const shown = ReleaseMergeBack.git({ cwd, args: ['show', `:${opts.stage}:${file}`] });
 
           return shown.status === 0 ? shown.stdout : undefined;
         };
-        const [base, ours, theirs] = [stage(1), stage(2), stage(3)];
+        const [base, ours, theirs] = [
+          readStage({ stage: 1 }),
+          readStage({ stage: 2 }),
+          readStage({ stage: 3 }),
+        ];
 
         if (base === undefined || ours === undefined || theirs === undefined) {
           result.problems.push(`${file}: added or deleted on one side, not a version conflict`);
@@ -257,7 +264,7 @@ export class ReleaseMergeBack {
       }
 
       if (result.problems.length === 0 && lockConflicted) {
-        ReleaseMergeBack.regenerateLock({ cwd, result, enabled: opts.regenerateLock ?? true });
+        ReleaseMergeBack.regenerateLock({ cwd, result });
       }
     }
 
@@ -282,14 +289,8 @@ export class ReleaseMergeBack {
   }
 
   /** `bun.lock` is taken from `develop`, regenerated for the merged package.json files, and checked. */
-  static regenerateLock(opts: { cwd: string; result: IMergeBackResult; enabled: boolean }): void {
+  static regenerateLock(opts: { cwd: string; result: IMergeBackResult }): void {
     const { cwd, result } = opts;
-
-    if (!opts.enabled) {
-      result.problems.push(`${MergeBackConstants.LOCK_FILE} conflicts and regeneration is off`);
-
-      return;
-    }
 
     ReleaseMergeBack.mustGit({
       cwd,
@@ -387,13 +388,23 @@ export class ReleaseMergeBack {
           continue;
         }
 
+        const current = readFileSync(join(releaseTree, file), 'utf8');
+
+        // A file the version line of which this script cannot find would pass the trial unchanged and stop the
+        // merge after the publish: say so here, before the approval.
+        if (ReleaseMergeBack.versionOf({ text: current }) === undefined) {
+          return {
+            resolved: [],
+            lockRegenerated: false,
+            problems: [`${file} has no top-level "version" line indented by two spaces`],
+            developHead,
+          };
+        }
+
         touched.add(directory);
         writeFileSync(
           join(releaseTree, file),
-          ReleaseMergeBack.withVersion({
-            text: readFileSync(join(releaseTree, file), 'utf8'),
-            version,
-          }),
+          ReleaseMergeBack.withVersion({ text: current, version }),
         );
       }
 
@@ -493,10 +504,15 @@ export class ReleaseMergeBack {
     return value === undefined || value.startsWith('--') ? undefined : value;
   }
 
-  static main(opts: { args: string[]; env: Record<string, string | undefined> }): number {
+  static main(opts: {
+    args: string[];
+    env: Record<string, string | undefined>;
+    /** The directory the git commands of `trial` run in; the process's own when absent. */
+    cwd?: string;
+  }): number {
     const [command] = opts.args;
     const scratchRoot = opts.env['RUNNER_TEMP'] ?? tmpdir();
-    const cwd = process.cwd();
+    const cwd = opts.cwd ?? process.cwd();
 
     try {
       if (command === 'trial') {
@@ -519,10 +535,15 @@ export class ReleaseMergeBack {
           return 2;
         }
 
-        const versions =
-          listed === undefined
-            ? undefined
-            : Object.fromEntries(listed.split(',').map((pair) => pair.split('=')));
+        const pairs = listed?.split(',').map((pair) => pair.split('=')) ?? [];
+
+        if (pairs.some(([directory, given]) => !directory || !given)) {
+          console.error('merge-back trial: --versions is <dir=version>,<dir=version>');
+
+          return 2;
+        }
+
+        const versions = listed === undefined ? undefined : Object.fromEntries(pairs);
 
         const result = ReleaseMergeBack.trial({
           cwd,
@@ -573,7 +594,7 @@ export class ReleaseMergeBack {
         }
 
         const result = ReleaseMergeBack.mergeInto({
-          cwd,
+          cwd: ReleaseMergeBack.flagValue({ args: opts.args, flag: '--repo' }) ?? cwd,
           from,
           scratchRoot,
           commit: {
@@ -599,7 +620,9 @@ export class ReleaseMergeBack {
       return 1;
     }
 
-    console.error('merge-back: the command is trial or apply');
+    console.error(
+      'merge-back: trial (--version <v> | --versions <dir=v,...>) [--lock keep|regenerate] | apply --from <commit> [--repo <worktree>]',
+    );
 
     return 2;
   }

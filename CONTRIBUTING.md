@@ -36,7 +36,7 @@ feature/*, fix/*, docs/*, chore/*, test/* (your work)
 ```
 
 - Open pull requests to `develop`, never to `main`.
-- `main` only receives merges from `develop`.
+- `main` receives `develop` through the Sync pull request, and the release commit of a stable.
 - A prerelease runs from `develop` and is tagged `vulcan-v<version>`; a stable release runs from `main`, waits for one approval, and is merged back into `develop`.
 
 ## Workflow

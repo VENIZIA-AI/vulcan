@@ -633,6 +633,28 @@ describe('the release workflow keeps the guards of the stable path (C27 to C30)'
     ).toContain('C28');
   });
 
+  test('C28: a merge back that checks develop out in the release checkout, or one with no worktree, is noticed', () => {
+    for (const run of [
+      'git checkout --quiet -B develop origin/develop\nbun "$RUNNER_TEMP/merge-back.ts" apply --repo . --from "$RELEASE_SHA"',
+      'cp scripts/release/merge-back.ts "$RUNNER_TEMP/merge-back.ts"\nbun "$RUNNER_TEMP/merge-back.ts" apply --from "$RELEASE_SHA"',
+    ]) {
+      expect(
+        mutated({
+          change: (workflow) => {
+            const step = stepsOf({ workflow, name: 'publish' }).find(
+              (entry) => entry['name'] === MERGE_BACK,
+            );
+
+            if (step !== undefined) {
+              step['run'] = run;
+            }
+          },
+        }),
+        run,
+      ).toContain('C28');
+    }
+  });
+
   test('C29: a force push, a moved or deleted tag, a deleted branch is noticed; a plain push is not', () => {
     for (const run of [
       'git push --force origin HEAD:main',
@@ -643,6 +665,14 @@ describe('the release workflow keeps the guards of the stable path (C27 to C30)'
       'git tag -f vulcan-v0.4.9',
       'git tag -d vulcan-v0.4.9',
       'git branch -D develop',
+      'git push -fu origin HEAD:main',
+      'git push --mirror origin',
+      'git -C "$RUNNER_TEMP/x" push --force origin HEAD:develop',
+      'git push origin "+HEAD:main"',
+      'git tag -fa vulcan-v0.4.9 -m x',
+      'git branch -Dq develop',
+      'git update-ref -d refs/heads/develop',
+      'gh api -X DELETE repos/VENIZIA-AI/vulcan/git/refs/heads/develop',
     ]) {
       expect(
         mutated({

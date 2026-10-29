@@ -21,7 +21,8 @@
  *   C26  the publish condition, evaluated: a prerelease publishes with approve skipped, a stable only after approve
  *        succeeded, and a failed or cancelled dependency stops either
  *   C27  a stable checks before it publishes that main and develop are where the plan saw them
- *   C28  a stable merges main back into develop after the tag and before the atlas index, with a copy of the script
+ *   C28  a stable merges main back into develop after the tag and before the atlas index, from a copy of the script
+ *        and a worktree of develop, so the checkout stays on the release commit
  *   C29  nothing force-pushes, moves or deletes a tag, or deletes a branch
  *   C30  the plan job tries the merge back of a stable (--merge-trial) and hands develop's head on
  *   D6   every action is pinned by a full commit SHA (a local action is not an action to pin)
@@ -47,10 +48,24 @@ const MERGE_BACK_STEP = 'Merge main back into develop';
 const TAG_STEP = 'Create tag';
 const VERSION_STEP = 'Set the release version';
 /** A git command that rewrites or removes history the release has already made public. */
-const DESTRUCTIVE_GIT = [
-  /git\s+push\b[^\n]*(?:--force\b|--force-with-lease\b|--delete\b|\s-f\b|\s\+\S|\s:\S)/,
-  /git\s+tag\b[^\n]*\s(?:-f|--force|-d|--delete)\b/,
-  /git\s+branch\b[^\n]*\s(?:-D|-d|--delete)\b/,
+const DESTRUCTIVE_GIT: { name: string; pattern: RegExp }[] = [
+  {
+    name: 'a push that forces, deletes, mirrors or prunes, or pushes a + or : refspec',
+    pattern:
+      /\bgit\b[^\n]*\bpush\b[^\n]*(?:--force|--delete|--mirror|--prune|\s-[A-Za-z]*f[A-Za-z]*\b|\s["']?[+:]\S)/,
+  },
+  {
+    name: 'a tag that is forced, replaced or deleted',
+    pattern: /\bgit\b[^\n]*\btag\b[^\n]*(?:--force|--delete|\s-[A-Za-z]*[fd][A-Za-z]*\b)/,
+  },
+  {
+    name: 'a branch that is deleted',
+    pattern: /\bgit\b[^\n]*\bbranch\b[^\n]*(?:--delete|\s-[A-Za-z]*[Dd][A-Za-z]*\b)/,
+  },
+  {
+    name: 'a ref that is deleted',
+    pattern: /\bgit\b[^\n]*\bupdate-ref\b[^\n]*\s-d\b|\bgh\s+api\b[^\n]*(?:-X|--method)\s+DELETE/,
+  },
 ];
 
 const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
@@ -330,20 +345,23 @@ export const checkReleaseWorkflowGuards = (opts: {
     merge === undefined ||
     !stableOnly({ step: merge }) ||
     !merge.run.includes('cp scripts/release/merge-back.ts "$RUNNER_TEMP/merge-back.ts"') ||
-    !merge.run.includes('merge-back.ts" apply') ||
+    !merge.run.includes('git worktree add --detach "$RUNNER_TEMP/develop-merge" origin/develop') ||
+    !merge.run.includes('merge-back.ts" apply --repo "$RUNNER_TEMP/develop-merge"') ||
+    merge.run.includes('git checkout') ||
+    position({ name: TAG_STEP }) < 0 ||
     position({ name: MERGE_BACK_STEP }) < position({ name: TAG_STEP }) ||
     position({ name: MERGE_BACK_STEP }) > position({ name: ATLAS_STEPS[0] })
   ) {
     violations.push(
-      `C28: '${MERGE_BACK_STEP}' must run for a stable only, after '${TAG_STEP}' and before the atlas index, from a copy of main's merge-back.ts`,
+      `C28: '${MERGE_BACK_STEP}' must run for a stable only, after '${TAG_STEP}' and before the atlas index, from a copy of main's merge-back.ts and a worktree of develop, never a checkout of develop`,
     );
   }
 
   for (const step of all) {
-    for (const pattern of DESTRUCTIVE_GIT.filter((candidate) => candidate.test(step.run))) {
-      violations.push(
-        `C29: '${step.name}' runs a git command that rewrites or deletes (${pattern.source.slice(0, 30)})`,
-      );
+    for (const { name } of DESTRUCTIVE_GIT.filter((candidate) =>
+      candidate.pattern.test(step.run),
+    )) {
+      violations.push(`C29: '${step.name}' runs ${name}`);
     }
   }
 

@@ -1,7 +1,8 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { MergeBackConstants, ReleaseMergeBack } from '../merge-back.ts';
 import { ReleasePlan, ReleasePlanConstants } from '../plan.ts';
 
 const roots: string[] = [];
@@ -218,18 +219,6 @@ describe('ReleasePlan.plan: what the later jobs may carry', () => {
   });
 });
 
-describe('ReleasePlan.flagValue', () => {
-  test('a value is the next argument, and a flag followed by a flag has none', () => {
-    expect(ReleasePlan.flagValue({ args: ['--bump', 'patch'], flag: '--bump' })).toBe('patch');
-    expect(
-      ReleasePlan.flagValue({ args: ['--bump', '--ref', 'x'], flag: '--bump' }),
-    ).toBeUndefined();
-    expect(ReleasePlan.flagValue({ args: ['--bump'], flag: '--bump' })).toBeUndefined();
-    expect(ReleasePlan.flagValue({ args: [], flag: '--bump' })).toBeUndefined();
-    expect(ReleasePlan.flagValue({ args: ['--issue', ''], flag: '--issue' })).toBe('');
-  });
-});
-
 describe('ReleasePlan.main', () => {
   const setup = (version: string) => {
     const root = scratch();
@@ -290,5 +279,183 @@ describe('ReleasePlan.main', () => {
 
   test('missing flags exit 2', () => {
     expect(ReleasePlan.main({ args: ['--bump', 'patch'], env: {} })).toBe(2);
+  });
+});
+
+describe('ReleasePlan.main: an --issue that is not a number', () => {
+  const setup = (): { manifest: string; env: Record<string, string> } => {
+    const root = scratch();
+    const manifest = join(root, 'package.json');
+
+    writeFileSync(manifest, `${JSON.stringify({ name: 'x', version: '0.4.7' })}\n`);
+
+    return { manifest, env: { RUNNER_TEMP: root } };
+  };
+  const issue = (value: string): number => {
+    const { manifest, env } = setup();
+
+    return ReleasePlan.main({
+      args: ['--bump', 'prerelease', '--ref', DEVELOP_REF, '--package', manifest, '--issue', value],
+      env,
+    });
+  };
+
+  test('is refused even when it looks like a flag, because the workflow passes the same input to the commit', () => {
+    expect(issue('--evil\nCo-Authored-By: x')).toBe(1);
+    expect(issue('--5')).toBe(1);
+    expect(issue('abc')).toBe(1);
+    expect(issue('549')).toBe(0);
+    expect(issue('')).toBe(0);
+  });
+});
+
+describe('ReleasePlan: one train, one version', () => {
+  const trainOf = (versions: Record<string, string>): string => {
+    const root = scratch();
+
+    for (const [name, version] of Object.entries(versions)) {
+      mkdirSync(join(root, name), { recursive: true });
+      writeFileSync(
+        join(root, name, 'package.json'),
+        `${JSON.stringify({ name: `@x/${name}`, version })}\n`,
+      );
+    }
+
+    return root;
+  };
+
+  test('readTrain lists name@version for every package folder, and trainProblems names the ones that differ', () => {
+    const train = ReleasePlan.readTrain({
+      directory: trainOf({ okf: '0.4.9-3', atlas: '0.4.9-3', cli: '0.4.9-2' }),
+    });
+
+    expect(train.sort()).toEqual(['@x/atlas@0.4.9-3', '@x/cli@0.4.9-2', '@x/okf@0.4.9-3']);
+    expect(ReleasePlan.trainProblems({ train, version: '0.4.9-3' })[0]).toContain('@x/cli@0.4.9-2');
+    expect(
+      ReleasePlan.trainProblems({ train: ['@x/a@0.4.9-3', '@x/b@0.4.9-3'], version: '0.4.9-3' }),
+    ).toEqual([]);
+  });
+
+  test('main refuses a train that differs before anything else, and lists the packages in the summary when it agrees', () => {
+    const root = scratch();
+    const manifest = join(root, 'package.json');
+    const summary = join(root, 'summary');
+    const agreeing = trainOf({ okf: '0.4.7', cli: '0.4.7' });
+    const differing = trainOf({ okf: '0.4.6', cli: '0.4.7' });
+
+    writeFileSync(manifest, `${JSON.stringify({ name: 'x', version: '0.4.7' })}\n`);
+    writeFileSync(summary, '');
+
+    const run = (train: string) =>
+      ReleasePlan.main({
+        args: [
+          '--bump',
+          'prerelease',
+          '--ref',
+          DEVELOP_REF,
+          '--package',
+          manifest,
+          '--train',
+          train,
+        ],
+        env: { RUNNER_TEMP: root, GITHUB_STEP_SUMMARY: summary },
+      });
+
+    expect(run(differing)).toBe(1);
+    expect(run(agreeing)).toBe(0);
+    expect(readFileSync(summary, 'utf8')).toContain('Packages: @x/');
+  });
+});
+
+describe('ReleasePlan.main: --merge-trial', () => {
+  /** A repository where main is at 0.1.0-0 and develop one prerelease ahead, with the refs a clone has. */
+  const repository = (): { root: string; mainSha: string; developSha: string } => {
+    const root = scratch();
+    const git = (args: string[]): string =>
+      ReleaseMergeBack.mustGit({ cwd: root, args: [...MergeBackConstants.IDENTITY, ...args] });
+    const manifest = (version: string): string =>
+      `${JSON.stringify({ name: '@x/cli', version }, null, 2)}\n`;
+
+    git(['init', '-q', '-b', 'main']);
+    mkdirSync(join(root, 'packages', 'cli'), { recursive: true });
+    writeFileSync(
+      join(root, 'package.json'),
+      `${JSON.stringify({ name: 'x', private: true, workspaces: ['packages/*'] }, null, 2)}\n`,
+    );
+    writeFileSync(join(root, 'packages', 'cli', 'package.json'), manifest('0.1.0-0'));
+    writeFileSync(join(root, 'shared.txt'), 'one\n');
+    git(['add', '-A']);
+    git(['commit', '-q', '-m', 'sync']);
+
+    const mainSha = git(['rev-parse', 'HEAD']);
+
+    git(['checkout', '-q', '-b', 'develop']);
+    writeFileSync(join(root, 'packages', 'cli', 'package.json'), manifest('0.1.0-1'));
+    git(['commit', '-q', '-am', 'chore(release): v0.1.0-1']);
+    git(['update-ref', 'refs/remotes/origin/develop', 'develop']);
+    git(['checkout', '-q', 'main']);
+
+    return { root, mainSha, developSha: git(['rev-parse', 'develop']) };
+  };
+
+  const run = (opts: { root: string; mainSha: string }) => {
+    const output = join(opts.root, '..', `output-${Date.now()}`);
+
+    writeFileSync(output, '');
+
+    const code = ReleasePlan.main({
+      args: [
+        '--bump',
+        'patch',
+        '--ref',
+        MAIN_REF,
+        '--package',
+        join(opts.root, 'packages', 'cli', 'package.json'),
+        '--merge-trial',
+      ],
+      env: { RUNNER_TEMP: scratch(), GITHUB_OUTPUT: output, GITHUB_SHA: opts.mainSha },
+      cwd: opts.root,
+    });
+
+    return { code, output: readFileSync(output, 'utf8') };
+  };
+
+  test('a stable whose merge back goes through hands develop_sha on', () => {
+    const { root, mainSha, developSha } = repository();
+
+    expect(run({ root, mainSha })).toEqual({
+      code: 0,
+      output: `version=0.1.0\nkind=stable\nnpm_tag=latest\ndevelop_sha=${developSha}\n`,
+    });
+  });
+
+  test('a stable whose merge back would stop exits 1 and writes nothing for the later jobs', () => {
+    const { root, mainSha } = repository();
+
+    writeFileSync(join(root, 'shared.txt'), 'main edit\n');
+    ReleaseMergeBack.mustGit({
+      cwd: root,
+      args: [...MergeBackConstants.IDENTITY, 'commit', '-q', '-am', 'main edits shared'],
+    });
+
+    const mainNow = ReleaseMergeBack.mustGit({ cwd: root, args: ['rev-parse', 'HEAD'] });
+
+    ReleaseMergeBack.mustGit({
+      cwd: root,
+      args: [...MergeBackConstants.IDENTITY, 'checkout', '-q', 'develop'],
+    });
+    writeFileSync(join(root, 'shared.txt'), 'develop edit\n');
+    ReleaseMergeBack.mustGit({
+      cwd: root,
+      args: [...MergeBackConstants.IDENTITY, 'commit', '-q', '-am', 'develop edits shared'],
+    });
+    ReleaseMergeBack.mustGit({
+      cwd: root,
+      args: ['update-ref', 'refs/remotes/origin/develop', 'develop'],
+    });
+    ReleaseMergeBack.mustGit({ cwd: root, args: ['checkout', '-q', 'main'] });
+
+    expect(mainSha).not.toBe(mainNow);
+    expect(run({ root, mainSha: mainNow })).toEqual({ code: 1, output: '' });
   });
 });

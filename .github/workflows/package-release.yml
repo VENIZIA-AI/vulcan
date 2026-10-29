@@ -98,7 +98,7 @@ jobs:
         id: plan
         env:
           RELEASE_ISSUE: ${{ inputs.issue }}
-        run: bun scripts/release/plan.ts --bump "$BUMP" --ref "$GITHUB_REF" --issue "$RELEASE_ISSUE" --merge-trial
+        run: bun scripts/release/plan.ts --bump "$BUMP" --ref "$GITHUB_REF" --issue "$RELEASE_ISSUE" --train packages --merge-trial
 
   # Build, lint, the unit tests and VULCAN's own contract, on the dispatched commit, in a job that holds no
   # secret and cannot write: the publish job below needs it, so a failing gate publishes nothing.
@@ -286,9 +286,9 @@ jobs:
           echo "TAG_NAME=vulcan-v$NEW_VERSION" >> "$GITHUB_ENV"
           echo "release: v$NEW_VERSION ($BUMP) to the '$NPM_TAG' dist-tag"
 
-      # AFTER the version change: `bun pm pack` reads each sibling's version from its package.json on disk
-      # (bun.lock records no version for a workspace package), so the pins in the packed cli follow the bump
-      # above. The install rewrites bun.lock to the new versions, and the release commit carries it.
+      # AFTER the version change: `bun pm pack` reads each sibling's version from its package.json on disk, not
+      # from bun.lock, so the pins in the packed cli follow the bump above. The install rewrites the workspace
+      # versions in bun.lock, and the release commit carries it.
       - name: Install
         run: bun install
 
@@ -497,9 +497,10 @@ jobs:
       # -------------------------------------------------------------------------
       # main now holds the release commit and its tag; develop gets it by a merge, so main never holds a commit
       # develop lacks. The plan job tried this merge before the approval; the first step of this job checked
-      # develop had not moved since. The script is copied out first and run from there: it is main's, the one that
-      # was tested and approved, not whatever develop holds. A merge that is more than versions and the lockfile
-      # stops, and the report below says how to finish it.
+      # develop had not moved since. develop is checked out in a worktree of its own and this checkout stays on
+      # the release commit: the script runs from here, so a bunfig.toml or a .env that develop gained after the
+      # gate configures nothing that runs, and the atlas index below still reads the action of the release commit.
+      # A merge that is more than versions and the lockfile stops, and the report below says how to finish it.
       - name: Merge main back into develop
         if: ${{ needs.plan.outputs.kind == 'stable' }}
         run: |
@@ -512,9 +513,9 @@ jobs:
           fi
 
           cp scripts/release/merge-back.ts "$RUNNER_TEMP/merge-back.ts"
-          git checkout --quiet -B develop origin/develop
-          bun "$RUNNER_TEMP/merge-back.ts" apply --from "$RELEASE_SHA" --message "Merge main into develop (release v$NEW_VERSION)"
-          git push origin HEAD:develop
+          git worktree add --detach "$RUNNER_TEMP/develop-merge" origin/develop
+          bun "$RUNNER_TEMP/merge-back.ts" apply --repo "$RUNNER_TEMP/develop-merge" --from "$RELEASE_SHA" --message "Merge main into develop (release v$NEW_VERSION)"
+          git -C "$RUNNER_TEMP/develop-merge" push origin HEAD:develop
 
           echo "IS_MERGED_BACK=true" >> "$GITHUB_ENV"
 

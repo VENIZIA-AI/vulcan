@@ -50,13 +50,21 @@ The release ships code only and clones no IGNIS; atlas tests that measure IGNIS'
 
 ## A stable from main
 
-A prerelease goes through `develop`, `next` and BANA first; the stable is the same code, promoted.
+A prerelease goes through `develop`, `next` and BANA first. The stable is the same code, promoted.
 
-1. **The Sync PR.** `bun scripts/release/sync-pr.ts open --tag vulcan-v<prerelease>` cuts the branch `sync/<tag>` at the commit of the prerelease BANA gated, never at the tip of `develop`, and opens the pull request into `main`. It refuses a tag that is not a prerelease, is not in the history of `develop`, or whose history lacks a commit `main` has. The owner merges it. `bun scripts/release/sync-pr.ts verify --tag <tag>` then checks that the tree of `main` equals the tree of the tag. Run it on the owner's word: it pushes a branch and opens a pull request.
-2. **Dispatch on `main`**: `make release ARGS="--bump patch"` (`minor` and `major` move all three packages: the repositories share one MAJOR.MINOR). The plan job prints the target (`0.4.9-1` and `patch` give `0.4.9`; `0.4.0-N` and `minor` give `0.4.0`), then tries the merge back in throwaway worktrees (`scripts/release/merge-back.ts trial`): it makes the release commit the run would make on `main` and merges it into `develop`. A conflict that is only the `version` of a `package.json` is resolved by taking the greater version, so `0.4.9` beats `0.4.9-3` and `0.4.10-0` beats `0.4.9`; `bun.lock` is regenerated (`bun install --lockfile-only`), never merged by hand, and must differ from `develop`'s only in workspace versions; anything else stops the plan, before the approval, with the file named.
-3. **One approval.** `approve` waits on `release-approval`; nothing after it waits again. The first step of `publish` then checks that `main` is still the dispatched commit and `develop` is still the head the trial read, and stops before anything is published if either moved.
-4. **After the publish**: the release commit goes to `main` with no rebase (a refused push means `main` moved, and the run stops and reports), the tag goes on it, and `main` is merged back into `develop` by `merge-back.ts apply`, run from a copy of `main`'s script. `next` moves to the stable only where the stable is the higher version.
-5. **A merge back that stops after the publish** is reported by name in the run (the version is out and tagged on `main`). Finish the merge by hand, or fix `develop` and dispatch `--bump none --branch main`: it publishes nothing, tags nothing and merges back.
+1. **The Sync PR.** `bun scripts/release/sync-pr.ts open --tag vulcan-v<prerelease>` cuts the branch `sync/<tag>` at the commit BANA gated, never at the tip of `develop`. It opens the pull request into `main`. The owner merges it. Run it on the owner's word: it pushes a branch and opens a pull request.
+   - It refuses a name that is not a tag, a tag that is not a prerelease, a tag outside the history of `develop`, and a tag whose history lacks a commit `main` has.
+   - After the merge, `bun scripts/release/sync-pr.ts verify --tag <tag>` checks that the tree of `main` equals the tree of the tag.
+2. **Dispatch on `main`.** `make release ARGS="--bump patch"`. `minor` and `major` move all three packages: the repositories share one MAJOR.MINOR. The plan job prints the target (`0.4.9-1` and `patch` give `0.4.9`; `0.4.0-N` and `minor` give `0.4.0`). It refuses a train whose packages are not all at one version, and lists them.
+3. **The merge trial.** Still in the plan job, `scripts/release/merge-back.ts trial` makes the release commit the run would make on `main`, in a throwaway worktree. It merges that commit into `develop` in another worktree.
+   - A conflict that is only the `version` of a `package.json` takes the greater version: `0.4.9` beats `0.4.9-3`, and `0.4.10-0` beats `0.4.9`.
+   - `bun.lock` is regenerated with `bun install --lockfile-only`, never merged by hand, and may differ from `develop`'s only in workspace versions.
+   - Any other conflict stops the plan before the approval, with the file named. So does a `package.json` the script cannot read (it expects two-space indentation).
+   - `trial` takes `--version <v>` for a train, or `--versions <dir=v,...>` for packages that release apart, and `--lock keep` to leave `bun.lock` out of the release commit.
+4. **One approval.** `approve` waits on `release-approval`; nothing after it waits again. The first step of `publish` checks that `main` is still the dispatched commit and `develop` is still the head the trial read. If either moved, nothing is published.
+5. **After the publish.** The release commit goes to `main` with no rebase: a refused push means `main` moved, and the run stops and reports. The tag goes on that commit. `next` moves to the stable only where the stable is the higher version.
+6. **The merge back.** `merge-back.ts apply` merges the release commit into a worktree of `develop`, and the step pushes it. The checkout stays on the release commit, so nothing `develop` gained after the gate configures what runs.
+7. **A merge back that stops after the publish** is reported by name in the run: the version is out and tagged on `main`. Finish the merge by hand. Or fix `develop` and run `make release ARGS="--bump none --branch main"`: it publishes nothing, tags nothing and merges back.
 
 ## Trusted publishing (no npm token)
 

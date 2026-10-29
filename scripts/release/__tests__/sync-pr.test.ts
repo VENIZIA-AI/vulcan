@@ -65,9 +65,9 @@ describe('ReleaseSyncPr.check', () => {
     ]);
   });
 
-  test('a tag that does not exist is named', () => {
+  test('a name that is not a tag is refused, a branch name included', () => {
     expect(check({ cwd: fixture(), tag: 'vulcan-v9.9.9-0' }).problems[0]).toContain(
-      'does not exist',
+      'is not a tag here',
     );
   });
 
@@ -123,7 +123,7 @@ describe('ReleaseSyncPr: the branch, the title and the body', () => {
     expect(ReleaseSyncPr.titleOf({ version: '0.4.9-1' })).toBe('Sync main: prerelease 0.4.9-1');
     expect(body).toContain('`vulcan-v0.4.9-1` (abcdef0)');
     expect(body).toContain('Brings 1 commit:');
-    expect(body).toContain('- [#11] fix(b): second change');
+    expect(body).toContain('```text\n[#11] fix(b): second change\n```');
   });
 });
 
@@ -146,5 +146,85 @@ describe('ReleaseSyncPr.verify', () => {
     expect(ReleaseSyncPr.verify({ cwd: root, tag: 'vulcan-v0.4.9-1', main: 'main' })[0]).toContain(
       'is not the tree',
     );
+  });
+});
+
+describe('ReleaseSyncPr.check: only a tag will do', () => {
+  test('a branch name or a commit is refused as the tag, even when it satisfies every other rule', () => {
+    const root = fixture();
+    const commitId = git({ cwd: root, args: ['rev-parse', 'vulcan-v0.4.9-1^{commit}'] });
+
+    expect(check({ cwd: root, tag: 'develop' }).problems[0]).toContain('is not a tag here');
+    expect(check({ cwd: root, tag: commitId }).problems[0]).toContain('is not a tag here');
+  });
+});
+
+describe('ReleaseSyncPr.bodyOf', () => {
+  test('a subject cannot ping anyone, close an issue or break out of its fence', () => {
+    const body = ReleaseSyncPr.bodyOf({
+      tag: 'vulcan-v0.4.9-1',
+      version: '0.4.9-1',
+      commit: 'abcdef0123456789',
+      subjects: ['fixes #9 and thanks @someone', 'closes```'],
+    });
+
+    expect(body).toContain("```text\nfixes #9 and thanks @someone\ncloses'''\n```");
+  });
+});
+
+describe('ReleaseSyncPr.main', () => {
+  /** The fixture with the remote-tracking refs the script reads, as a clone would have them. */
+  const cloned = (): string => {
+    const root = fixture();
+
+    git({ cwd: root, args: ['update-ref', 'refs/remotes/origin/main', 'main'] });
+    git({ cwd: root, args: ['update-ref', 'refs/remotes/origin/develop', 'develop'] });
+
+    return root;
+  };
+
+  test('open --dry-run prints the branch, the title and the body, and pushes and opens nothing', () => {
+    const root = cloned();
+
+    expect(
+      ReleaseSyncPr.main({
+        args: ['open', '--tag', 'vulcan-v0.4.9-1', '--dry-run'],
+        env: {},
+        cwd: root,
+      }),
+    ).toBe(0);
+    expect(git({ cwd: root, args: ['branch', '--list', 'sync/*'] })).toBe('');
+  });
+
+  test('open refuses a tag that is not a prerelease, and a missing --tag or an unknown command exit 2', () => {
+    const root = cloned();
+
+    git({ cwd: root, args: ['tag', '-a', 'vulcan-v0.4.8', '-m', 'stable', 'main'] });
+
+    expect(
+      ReleaseSyncPr.main({
+        args: ['open', '--tag', 'vulcan-v0.4.8', '--dry-run'],
+        env: {},
+        cwd: root,
+      }),
+    ).toBe(1);
+    expect(ReleaseSyncPr.main({ args: ['open'], env: {}, cwd: root })).toBe(2);
+    expect(ReleaseSyncPr.main({ args: ['merge', '--tag', 'x'], env: {}, cwd: root })).toBe(2);
+  });
+
+  test('verify exits 0 when the tree of main is the tree of the tag, and 1 when it is not', () => {
+    const root = cloned();
+
+    expect(
+      ReleaseSyncPr.main({ args: ['verify', '--tag', 'vulcan-v0.4.9-1'], env: {}, cwd: root }),
+    ).toBe(1);
+
+    git({ cwd: root, args: ['checkout', '-q', 'main'] });
+    git({ cwd: root, args: ['merge', '-q', '--no-ff', '-m', 'Sync', 'vulcan-v0.4.9-1'] });
+    git({ cwd: root, args: ['update-ref', 'refs/remotes/origin/main', 'main'] });
+
+    expect(
+      ReleaseSyncPr.main({ args: ['verify', '--tag', 'vulcan-v0.4.9-1'], env: {}, cwd: root }),
+    ).toBe(0);
   });
 });

@@ -38,9 +38,7 @@ export class ReleaseBumps {
 
 export class ReleaseConstants {
   static readonly WORKFLOW = 'package-release.yml';
-  /** Where a prerelease is made. */
   static readonly BRANCH = 'develop';
-  /** Where a stable is made. */
   static readonly STABLE_BRANCH = 'main';
   /** How long after the publish a tarball may stay unserved (IGNIS saw about 8 minutes; npm has taken 16). */
   static readonly TARBALL_WAIT_MS = 20 * 60 * 1000;
