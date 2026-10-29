@@ -36,6 +36,14 @@ export class ReleaseBumps {
   }
 }
 
+/** What a release is by its version: a version with a prerelease part is a prerelease, anything else a stable. */
+export class ReleaseKinds {
+  static readonly PRERELEASE = 'prerelease';
+  static readonly STABLE = 'stable';
+}
+
+export type TReleaseKind = typeof ReleaseKinds.PRERELEASE | typeof ReleaseKinds.STABLE;
+
 export class ReleaseConstants {
   static readonly WORKFLOW = 'package-release.yml';
   static readonly BRANCH = 'develop';

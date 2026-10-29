@@ -2,7 +2,7 @@
  * The `plan` job of package-release.yml: what a dispatch would release, decided before anything is built.
  *
  *   bun scripts/release/plan.ts --bump <mode> --ref <refs/heads/...> [--issue <n>] [--package <package.json>]
- *     [--train <packages folder>] [--merge-trial]
+ *     [--train <packages folder>] [--merge-trial] [--release-notes]
  *
  * It resolves the target version of the bump, says whether that version is a prerelease or a stable (a
  * prerelease needs no approval, a stable needs one), and refuses a branch and version that do not belong
@@ -12,6 +12,9 @@
  *
  * With `--train`, every package under the folder must carry the version of `--package` (one train, one
  * version), and the summary lists them; a mismatch is refused here rather than after the approval.
+ *
+ * With `--release-notes`, a stable with no changelog entry since the previous stable is refused: its GitHub
+ * Release would have no notes (github-release.ts).
  *
  * With `--merge-trial`, a stable also tries the merge of main back into develop (merge-back.ts) and refuses
  * when it would stop; `develop_sha` is the head of develop that trial read.
@@ -27,20 +30,15 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { GithubRelease } from './github-release.ts';
 import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
-import { ReleaseBumps } from './release-args.ts';
-
-export class ReleaseKinds {
-  static readonly PRERELEASE = 'prerelease';
-  static readonly STABLE = 'stable';
-}
+import { ReleaseBumps, ReleaseKinds } from './release-args.ts';
+import type { TReleaseKind } from './release-args.ts';
 
 export class ReleaseNpmTags {
   static readonly NEXT = 'next';
   static readonly LATEST = 'latest';
 }
-
-export type TReleaseKind = typeof ReleaseKinds.PRERELEASE | typeof ReleaseKinds.STABLE;
 
 export interface IReleasePlan {
   version: string;
@@ -311,6 +309,20 @@ export class ReleasePlan {
 
     if (result.plan !== undefined && train !== undefined) {
       result.problems.push(...ReleasePlan.trainProblems({ train, version: currentVersion }));
+    }
+
+    if (
+      result.plan?.kind === ReleaseKinds.STABLE &&
+      args.includes('--release-notes') &&
+      result.problems.length === 0
+    ) {
+      result.problems.push(
+        ...GithubRelease.check({
+          cwd: opts.cwd ?? process.cwd(),
+          version: result.plan.version,
+          to: opts.env['GITHUB_SHA'] ?? 'HEAD',
+        }),
+      );
     }
 
     if (result.plan !== undefined) {

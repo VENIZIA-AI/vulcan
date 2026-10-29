@@ -11,6 +11,7 @@
  *
  * It pushes a branch and opens a pull request: run it on the owner's word.
  */
+import { GithubRelease } from './github-release.ts';
 import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
 import { ReleaseConstants } from './release-args.ts';
 
@@ -105,10 +106,7 @@ export class ReleaseSyncPr {
       '',
       `Brings ${opts.subjects.length} commit${opts.subjects.length === 1 ? '' : 's'}:`,
       '',
-      // In a fence, so a subject cannot ping anyone, close an issue or break the markdown.
-      '```text',
-      ...opts.subjects.map((subject) => subject.replaceAll('```', "'''")),
-      '```',
+      ...GithubRelease.fencedLines({ lines: opts.subjects }),
       '',
     ].join('\n');
   }

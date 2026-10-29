@@ -25,6 +25,8 @@
  *        and a worktree of develop, so the checkout stays on the release commit
  *   C29  nothing force-pushes, moves or deletes a tag, or deletes a branch
  *   C30  the plan job tries the merge back of a stable (--merge-trial) and hands develop's head on
+ *   C31  the publish job makes the GitHub Release after the tag and cannot fail the run for it; the plan job asks
+ *        for the changelog check of a stable (--release-notes)
  *   D6   every action is pinned by a full commit SHA (a local action is not an action to pin)
  */
 import { PublishCondition } from './publish-condition.ts';
@@ -45,6 +47,7 @@ const ATLAS_STEPS = ['Publish the atlas index of the release'];
 const SECRET_REFERENCE = /secrets\.[A-Za-z0-9_]+/g;
 const BRANCHES_MOVED_STEP = 'Refuse a stable when a branch moved since the plan';
 const MERGE_BACK_STEP = 'Merge main back into develop';
+const RELEASE_STEP = 'Create the GitHub Release';
 const TAG_STEP = 'Create tag';
 const VERSION_STEP = 'Set the release version';
 /** A git command that rewrites or removes history the release has already made public. */
@@ -354,6 +357,22 @@ export const checkReleaseWorkflowGuards = (opts: {
   ) {
     violations.push(
       `C28: '${MERGE_BACK_STEP}' must run for a stable only, after '${TAG_STEP}' and before the atlas index, from a copy of main's merge-back.ts and a worktree of develop, never a checkout of develop`,
+    );
+  }
+
+  const githubRelease = named({ name: RELEASE_STEP });
+
+  if (
+    githubRelease === undefined ||
+    !githubRelease.text.includes('"continue-on-error":true') ||
+    !githubRelease.run.includes('scripts/release/github-release.ts create --tag "$TAG_NAME"') ||
+    !githubRelease.text.includes('"GH_TOKEN":"${{ github.token }}"') ||
+    position({ name: RELEASE_STEP }) < position({ name: TAG_STEP }) ||
+    position({ name: TAG_STEP }) < 0 ||
+    !stepsOf({ job: plan }).some((step) => step.run.includes('--release-notes'))
+  ) {
+    violations.push(
+      `C31: '${RELEASE_STEP}' must come after '${TAG_STEP}', continue on error, use the job's github.token and run github-release.ts create on the tag; the plan job must pass --release-notes`,
     );
   }
 

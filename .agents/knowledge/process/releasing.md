@@ -7,6 +7,18 @@ tags: [process, release, npm]
 
 # Releasing
 
+<!-- okf:generated:contents start -->
+**Contents**
+
+- [A stable from main](#a-stable-from-main)
+- [GitHub Releases](#github-releases)
+- [Accepted risks of the stable path](#accepted-risks-of-the-stable-path)
+- [Trusted publishing (no npm token)](#trusted-publishing-no-npm-token)
+- [Publishing the wiki](#publishing-the-wiki)
+- [Who does what on the release path](#who-does-what-on-the-release-path)
+- [Publishing the atlas index](#publishing-the-atlas-index)
+<!-- okf:generated:contents end -->
+
 A prerelease runs from `develop`, as in IGNIS: be on `develop`, clean and level with `origin/develop`,
 or the script refuses - the workflow builds `origin/develop`, not your checkout. A stable release runs from `main`:
 its release commit goes to `main`, and `main` is merged back into `develop` ([A stable](#a-stable-from-main) below).
@@ -65,6 +77,29 @@ A prerelease goes through `develop`, `next` and BANA first. The stable is the sa
 5. **After the publish.** The release commit goes to `main` with no rebase: a refused push means `main` moved, and the run stops and reports. The tag goes on that commit. `next` moves to the stable only where the stable is the higher version.
 6. **The merge back.** `merge-back.ts apply` merges the release commit into a worktree of `develop`, and the step pushes it. The checkout stays on the release commit, so nothing `develop` gained after the gate configures what runs.
 7. **A merge back that stops after the publish** is reported by name in the run: the version is out and tagged on `main`. Finish the merge by hand. Or fix `develop` and run `make release ARGS="--bump none --branch main"`: it publishes nothing, tags nothing and merges back.
+
+## GitHub Releases
+
+Every publish makes one GitHub Release on its tag (`scripts/release/github-release.ts create`, the step "Create the GitHub Release", after the tag).
+
+| Kind | Marked | Title | Notes |
+|---|---|---|---|
+| Stable | Latest, when no higher stable tag exists | `VULCAN <version>` | The changelog entries added since the previous stable tag, without front matter, date heading or the `VULCAN X.Y.Z:` prefix of their headings, then the three packages with their npm links |
+| Prerelease | Pre-release, never Latest | `VULCAN <version>` | The install line with `@next`, the `[#N]` commit subjects since the previous tag (at most 30, with a line that counts the rest), then the packages |
+
+- **A stable ships with its changelog.** The plan job stops a stable, before the approval, when no entry was added since the previous stable tag. The previous stable is read through `tagPattern` and `legacyTagPatterns`, so the first stable after the rename looks back to `v0.4.7`.
+- **A repeat makes nothing twice.** A tag that has a Release is skipped. A dispatch with bump `none` makes a missing one.
+- **A failure never fails a publish.** The step continues on error and reports in the run summary.
+- **To make a missing Release,** dispatch `make release ARGS="--bump none"` (add `--branch main` for a stable). It releases the version at the head of that branch, so do it before the next release lands.
+- **The atlas index release is not touched.** The script refuses the tag `atlas-index`.
+- **Backfill, on the owner's word only.** `bun scripts/release/github-release.ts backfill --tag v0.4.7` prints the notes and whether the Release would be Latest. `--yes` writes it, with commit subjects when no entry covers the tag. It makes the Release of a stable only, and it is a public write.
+
+## Accepted risks of the stable path
+
+The owner decided both and they are not open questions.
+
+- **`main` has no required pull-request rule.** The release run pushes its release commit to `main`, and Actions cannot bypass such a rule. Write access to the repository was trimmed to five admins instead. The approval covers the commit named in the run, not a review of it.
+- **`phatnt199` is the only approver of a stable.** The reviewer of `release-approval` is the owner, with self-review allowed and admin bypass off. An agent session that holds that account's token could approve; the `guard-writes` hook asks before it, and it is not a barrier.
 
 ## Trusted publishing (no npm token)
 

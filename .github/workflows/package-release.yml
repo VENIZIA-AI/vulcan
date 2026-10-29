@@ -98,7 +98,7 @@ jobs:
         id: plan
         env:
           RELEASE_ISSUE: ${{ inputs.issue }}
-        run: bun scripts/release/plan.ts --bump "$BUMP" --ref "$GITHUB_REF" --issue "$RELEASE_ISSUE" --train packages --merge-trial
+        run: bun scripts/release/plan.ts --bump "$BUMP" --ref "$GITHUB_REF" --issue "$RELEASE_ISSUE" --train packages --merge-trial --release-notes
 
   # Build, lint, the unit tests and VULCAN's own contract, on the dispatched commit, in a job that holds no
   # secret and cannot write: the publish job below needs it, so a failing gate publishes nothing.
@@ -491,6 +491,21 @@ jobs:
           git push origin "$TAG_NAME"
 
           echo "IS_TAGGED=true" >> "$GITHUB_ENV"
+
+      # -------------------------------------------------------------------------
+      # GITHUB RELEASE
+      # -------------------------------------------------------------------------
+      # One Release on the tag of the run: a stable is marked Latest with the changelog entries since the previous
+      # stable, a prerelease is marked Pre-release and never Latest. A tag that has a Release is skipped, so a
+      # dispatch with bump none makes a missing one. A failure is reported in the run summary and never fails or
+      # undoes a publish. The script refuses the tag of the atlas index, whose release is not a publish's.
+      - name: Create the GitHub Release
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_KIND: ${{ needs.plan.outputs.kind }}
+        run: bun scripts/release/github-release.ts create --tag "$TAG_NAME" --version "$NEW_VERSION" --kind "$RELEASE_KIND"
 
       # -------------------------------------------------------------------------
       # MERGE BACK (a stable only)
