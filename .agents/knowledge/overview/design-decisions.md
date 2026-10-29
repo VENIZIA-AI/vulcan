@@ -23,7 +23,8 @@ tags: [overview, decisions]
 | Base rules fit every project: `V-C-18` keeps only derived types; the stack, `V-C-03` (`@inject`) and `V-C-05` (`getError`) move to IGNIS; `V-P-02` is design the surface first; `V-W-05` retired | God, 2026-10-17 |
 | V-C-02: one options object first, at most 5 parameters; a second parameter only where the first object cannot carry it | God, 2026-10-17 |
 | No VULCAN package depends on an IGNIS package (`@venizia/ignis-helpers` dropped) | God, 2026-10-17 |
-| Branches as in IGNIS: pull requests to `develop`, `main` only from `develop`, releases from `develop` | God, 2026-10-17 |
+| Branches as in IGNIS: pull requests to `develop`; superseded for releases by the next row | God, 2026-10-17 |
+| Features go to `develop` and a stable comes from `main`, which becomes the default branch: a pull request names its base, a feature says `Refs #N`, and the Sync pull request closes the issues | Phat, 2026-10-29 |
 | VULCAN adopts all of IGNIS's W, S, P, B rules with IGNIS's IDs (`.agents/rules.md`); no agent signature in commits (W-00) | God, 2026-10-17 |
 | VULCAN is the capital of how agents work: every rule, skill and digest line about agent behaviour lives here and projects inherit it; it does not absorb per-repo tooling | God, 2026-10-24 |
 | VULCAN reads and writes nothing outside the project directory; personal and cache files live in `.agents/local/`, gitignored | God, 2026-10-25 |

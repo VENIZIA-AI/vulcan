@@ -6,12 +6,13 @@
  *   bun scripts/release/sync-pr.ts verify --tag <prerelease tag>
  *
  * `open` checks the tag (a prerelease, on develop's history, with main inside its history), pushes the branch
- * `sync/<tag>` at the tag's commit and opens the pull request into `main` from it. The owner merges it; this
+ * `sync/<tag>` at the tag's commit and opens the pull request into `main` from it, with one `Closes #N` for each
+ * issue the commits it brings serve. The owner merges it; this
  * script never merges. `verify` runs after the merge: the tree of `main` must equal the tree of the tag.
  *
  * It pushes a branch and opens a pull request: run it on the owner's word.
  */
-import { GithubRelease } from './github-release.ts';
+import { GithubRelease, GithubReleaseConstants } from './github-release.ts';
 import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
 import { ReleaseConstants } from './release-args.ts';
 
@@ -94,12 +95,28 @@ export class ReleaseSyncPr {
     return `Sync main: prerelease ${opts.version}`;
   }
 
+  /**
+   * The issues the commits serve, from the leading `[#N]` tokens of their subjects (`[#42][#44] ...` serves two):
+   * each once, in ascending order. A subject with no leading token serves none.
+   */
+  static issuesOf(opts: { subjects: string[] }): number[] {
+    const numbers = opts.subjects.flatMap((subject) => {
+      const leading = GithubReleaseConstants.ISSUE_TOKENS.exec(subject)?.[0] ?? '';
+
+      return [...leading.matchAll(/\d+/g)].map((match) => Number(match[0]));
+    });
+
+    return [...new Set(numbers)].sort((first, second) => first - second);
+  }
+
   static bodyOf(opts: {
     tag: string;
     version: string;
     commit: string;
     subjects: string[];
   }): string {
+    const issues = ReleaseSyncPr.issuesOf({ subjects: opts.subjects });
+
     return [
       `Sync main with the prerelease ${opts.version}: the exact commit of the tag \`${opts.tag}\` (${opts.commit.slice(0, 7)}), not the tip of develop.`,
       'Merge with a plain merge commit. After the merge the tree of main equals the tree of the tag (`bun scripts/release/sync-pr.ts verify`).',
@@ -107,6 +124,7 @@ export class ReleaseSyncPr {
       `Brings ${opts.subjects.length} commit${opts.subjects.length === 1 ? '' : 's'}:`,
       '',
       ...GithubRelease.fencedLines({ lines: opts.subjects }),
+      ...(issues.length === 0 ? [] : ['', ...issues.map((issue) => `Closes #${issue}`)]),
       '',
     ].join('\n');
   }

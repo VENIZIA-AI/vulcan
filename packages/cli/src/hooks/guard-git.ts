@@ -250,13 +250,61 @@ const inspectBranch = (opts: {
   return hits;
 };
 
+/** Options of `gh` that take a value, which `ghCall` skips together with it. */
+const GH_OPTIONS_WITH_VALUE = new Set(['-R', '--repo', '--hostname']);
+
+/** Options of `gh pr create` that take a value: a word after one is its value, never an option. */
+const GH_CREATE_OPTIONS_WITH_VALUE = new Set([
+  '--title',
+  '-t',
+  '--body',
+  '-b',
+  '--body-file',
+  '-F',
+  '--head',
+  '-H',
+  '--assignee',
+  '-a',
+  '--label',
+  '-l',
+  '--milestone',
+  '-m',
+  '--project',
+  '-p',
+  '--reviewer',
+  '-r',
+  '--template',
+  '-T',
+]);
+
+/** The group, the action and the words after them of a `gh` line, past options such as `-R <repo>`. */
+const ghCall = (opts: { args: string[] }): { group: string; action: string; rest: string[] } => {
+  const names: string[] = [];
+  let index = 0;
+
+  while (index < opts.args.length && names.length < 2) {
+    const word = opts.args[index];
+
+    if (GH_OPTIONS_WITH_VALUE.has(word)) {
+      index += 2;
+    } else if (word.startsWith('-')) {
+      index += 1;
+    } else {
+      names.push(word);
+      index += 1;
+    }
+  }
+
+  return { group: names[0] ?? '', action: names[1] ?? '', rest: opts.args.slice(index) };
+};
+
 /** `gh pr merge [<pr>] --delete-branch`: the PR's head branch decides, and `gh` is asked for it. */
 const inspectGhMerge = (opts: {
   args: string[];
   cwd: string | undefined;
   run: IGitRunner;
 }): IGitHit[] => {
-  const [group, action, ...rest] = opts.args;
+  const { group, action, rest } = ghCall({ args: opts.args });
 
   if (group !== 'pr' || action !== 'merge') {
     return [];
@@ -294,6 +342,45 @@ const inspectGhMerge = (opts: {
     : [];
 };
 
+/**
+ * `gh pr create` with no base: the pull request would target the repository's default branch, which may not be
+ * the branch the project's changes go to (a project whose default is `main` takes its features on `develop`).
+ * `--help` only reads.
+ */
+const inspectGhCreate = (opts: { args: string[] }): IGitHit[] => {
+  const { group, action, rest } = ghCall({ args: opts.args });
+
+  if (group !== 'pr' || (action !== 'create' && action !== 'new')) {
+    return [];
+  }
+
+  let namesBase = false;
+
+  for (let index = 0; index < rest.length; index += 1) {
+    const word = rest[index];
+
+    if (word === '--base' || word.startsWith('--base=') || word.startsWith('-B')) {
+      namesBase = true;
+      break;
+    }
+
+    if (GH_CREATE_OPTIONS_WITH_VALUE.has(word)) {
+      index += 1;
+    }
+  }
+
+  return namesBase || rest.includes('--help') || rest.includes('-h')
+    ? []
+    : [
+        {
+          decision: GuardDecisions.ASK,
+          rule: 'V-W-06',
+          message:
+            "'gh pr create' names no --base, so the pull request targets the default branch; pass --base <branch>",
+        },
+      ];
+};
+
 const inspectOne = (opts: {
   command: ISimpleCommand;
   cwd: string | undefined;
@@ -304,7 +391,10 @@ const inspectOne = (opts: {
   const name = basenameOf({ word: program.name });
 
   if (name === 'gh') {
-    return inspectGhMerge({ args: program.args, cwd: opts.cwd, run: opts.run });
+    return [
+      ...inspectGhMerge({ args: program.args, cwd: opts.cwd, run: opts.run }),
+      ...inspectGhCreate({ args: program.args }),
+    ];
   }
 
   if (name !== 'git') {
