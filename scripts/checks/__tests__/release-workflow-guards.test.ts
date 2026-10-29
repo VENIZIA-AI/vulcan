@@ -542,3 +542,156 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, C20
     expect(checkReleaseWorkflowGuards({ workflow: load() })).not.toContain('D6');
   });
 });
+
+describe('the release workflow keeps the guards of the stable path (C27 to C30)', () => {
+  const BRANCHES_MOVED = 'Refuse a stable when a branch moved since the plan';
+  const MERGE_BACK = 'Merge main back into develop';
+
+  const publishSteps = (opts: { workflow: Record<string, unknown> }): unknown[] => {
+    const steps = job({ workflow: opts.workflow, name: 'publish' })['steps'];
+
+    if (!Array.isArray(steps)) {
+      throw new Error('[publishSteps] the publish job has no steps');
+    }
+
+    return steps;
+  };
+  const indexOfStep = (opts: { workflow: Record<string, unknown>; name: string }): number =>
+    publishSteps(opts).findIndex((step) => {
+      const holder = { value: step };
+
+      return isRecord(holder) && holder.value['name'] === opts.name;
+    });
+  const removeStep = (opts: { workflow: Record<string, unknown>; name: string }): void => {
+    publishSteps(opts).splice(indexOfStep(opts), 1);
+  };
+
+  test('C27: no branch check, one that runs for every kind, or one that comes after the publish is noticed', () => {
+    expect(
+      mutated({ change: (workflow) => removeStep({ workflow, name: BRANCHES_MOVED }) }),
+    ).toContain('C27');
+    expect(
+      mutated({
+        change: (workflow) => {
+          const step = stepsOf({ workflow, name: 'publish' }).find(
+            (entry) => entry['name'] === BRANCHES_MOVED,
+          );
+
+          delete step?.['if'];
+        },
+      }),
+    ).toContain('C27');
+    expect(
+      mutated({
+        change: (workflow) => {
+          const steps = publishSteps({ workflow });
+          const [moved] = steps.splice(indexOfStep({ workflow, name: BRANCHES_MOVED }), 1);
+
+          steps.push(moved);
+        },
+      }),
+    ).toContain('C27');
+  });
+
+  test('C28: no merge back, one for every kind, one without the copied script, or one before the tag is noticed', () => {
+    expect(mutated({ change: (workflow) => removeStep({ workflow, name: MERGE_BACK }) })).toContain(
+      'C28',
+    );
+    expect(
+      mutated({
+        change: (workflow) => {
+          const step = stepsOf({ workflow, name: 'publish' }).find(
+            (entry) => entry['name'] === MERGE_BACK,
+          );
+
+          delete step?.['if'];
+        },
+      }),
+    ).toContain('C28');
+    expect(
+      mutated({
+        change: (workflow) => {
+          const step = stepsOf({ workflow, name: 'publish' }).find(
+            (entry) => entry['name'] === MERGE_BACK,
+          );
+
+          if (step !== undefined) {
+            step['run'] = 'bun scripts/release/merge-back.ts apply --from "$RELEASE_SHA"';
+          }
+        },
+      }),
+    ).toContain('C28');
+    expect(
+      mutated({
+        change: (workflow) => {
+          const steps = publishSteps({ workflow });
+          const [merge] = steps.splice(indexOfStep({ workflow, name: MERGE_BACK }), 1);
+
+          steps.splice(indexOfStep({ workflow, name: 'Create tag' }), 0, merge);
+        },
+      }),
+    ).toContain('C28');
+  });
+
+  test('C29: a force push, a moved or deleted tag, a deleted branch is noticed; a plain push is not', () => {
+    for (const run of [
+      'git push --force origin HEAD:main',
+      'git push --force-with-lease origin HEAD:develop',
+      'git push origin +HEAD:main',
+      'git push origin :refs/tags/vulcan-v0.4.9',
+      'git push origin --delete develop',
+      'git tag -f vulcan-v0.4.9',
+      'git tag -d vulcan-v0.4.9',
+      'git branch -D develop',
+    ]) {
+      expect(
+        mutated({
+          change: (workflow) =>
+            addStep({ workflow, name: 'publish', step: { name: 'Rewrite', run } }),
+        }),
+        run,
+      ).toContain('C29');
+    }
+
+    expect(
+      mutated({
+        change: (workflow) =>
+          addStep({
+            workflow,
+            name: 'publish',
+            step: {
+              name: 'Plain',
+              run: 'git push origin HEAD:develop && git push origin vulcan-v0.4.9',
+            },
+          }),
+      }),
+    ).not.toContain('C29');
+  });
+
+  test('C30: a plan job that does not try the merge back, or does not hand develop on, is noticed', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          stepsOf({ workflow, name: 'plan' }).forEach((step) => {
+            if (typeof step['run'] === 'string') {
+              step['run'] = step['run'].replace('--merge-trial', '');
+            }
+          });
+        },
+      }),
+    ).toContain('C30');
+    expect(
+      mutated({
+        change: (workflow) => {
+          const outputs = job({ workflow, name: 'plan' })['outputs'];
+
+          const holder = { value: outputs };
+
+          if (isRecord(holder)) {
+            delete holder.value['develop_sha'];
+          }
+        },
+      }),
+    ).toContain('C30');
+  });
+});

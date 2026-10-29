@@ -2,15 +2,21 @@
  * The `plan` job of package-release.yml: what a dispatch would release, decided before anything is built.
  *
  *   bun scripts/release/plan.ts --bump <mode> --ref <refs/heads/...> [--issue <n>] [--package <package.json>]
+ *     [--merge-trial]
  *
  * It resolves the target version of the bump, says whether that version is a prerelease or a stable (a
  * prerelease needs no approval, a stable needs one), and refuses a branch and version that do not belong
- * together. It prints the target, writes `version`, `kind` and `npm_tag` to GITHUB_OUTPUT and a short
- * summary to GITHUB_STEP_SUMMARY, and exits 1 with every reason when it refuses.
+ * together: a prerelease runs from develop, a stable from main and only over a prerelease. It prints the
+ * target, writes `version`, `kind`, `npm_tag` and `develop_sha` to GITHUB_OUTPUT and a short summary to
+ * GITHUB_STEP_SUMMARY, and exits 1 with every reason when it refuses.
+ *
+ * With `--merge-trial`, a stable also tries the merge of main back into develop (merge-back.ts) and refuses
+ * when it would stop; `develop_sha` is the head of develop that trial read.
  */
 import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
 import { ReleaseBumps } from './release-args.ts';
 
 export class ReleaseKinds {
@@ -44,10 +50,6 @@ export class ReleasePlanConstants {
 
   /** A version the later jobs may carry in their environment: digits, an optional prerelease part, no build part. */
   static readonly VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
-
-  /** Said for a stable until the steps that make one are in the workflow. */
-  static readonly STABLE_PENDING =
-    'a stable release is not available yet: the steps that make one (the release commit on main and the merge back into develop) are not in this workflow, so it refuses a stable until they are';
 }
 
 /** Decides what one dispatch of the release workflow would release, and whether it may. */
@@ -105,7 +107,7 @@ export class ReleasePlan {
 
   /** Why a version of this kind may not run from this ref; empty when it may. */
   static checkRef(opts: { ref: string; kind: TReleaseKind }): string[] {
-    const { DEVELOP_REF, MAIN_REF, STABLE_PENDING } = ReleasePlanConstants;
+    const { DEVELOP_REF, MAIN_REF } = ReleasePlanConstants;
 
     if (opts.ref !== DEVELOP_REF && opts.ref !== MAIN_REF) {
       return [
@@ -121,7 +123,25 @@ export class ReleasePlan {
       return ['a stable release runs from main, not develop'];
     }
 
-    return opts.kind === ReleaseKinds.STABLE ? [STABLE_PENDING] : [];
+    return [];
+  }
+
+  /**
+   * A stable bump needs a prerelease to promote: over a version that is already a stable it would invent a
+   * new one nobody tested on `next`. `none` publishes what is there and is how a half-finished run is healed.
+   */
+  static checkPromotion(opts: {
+    bump: string;
+    currentVersion: string;
+    kind: TReleaseKind;
+  }): string[] {
+    const promotes = opts.bump !== ReleaseBumps.NONE && opts.kind === ReleaseKinds.STABLE;
+
+    return promotes && ReleasePlan.kindOf({ version: opts.currentVersion }) === ReleaseKinds.STABLE
+      ? [
+          `main is at ${opts.currentVersion}, a stable: a stable bump promotes a prerelease, so there is nothing to promote (a stable already exists for it)`,
+        ]
+      : [];
   }
 
   static plan(opts: {
@@ -169,7 +189,17 @@ export class ReleasePlan {
         kind,
         npmTag: kind === ReleaseKinds.PRERELEASE ? ReleaseNpmTags.NEXT : ReleaseNpmTags.LATEST,
       },
-      problems: ReleasePlan.checkRef({ ref: opts.ref, kind }),
+      problems: [
+        ...ReleasePlan.checkRef({ ref: opts.ref, kind }),
+        // On develop a stable is refused already; this is about main, where one is allowed.
+        ...(opts.ref === ReleasePlanConstants.MAIN_REF
+          ? ReleasePlan.checkPromotion({
+              bump: opts.bump,
+              currentVersion: opts.currentVersion,
+              kind,
+            })
+          : []),
+      ],
     };
   }
 
@@ -250,11 +280,45 @@ export class ReleasePlan {
 
     const output = opts.env['GITHUB_OUTPUT'];
     const summary = opts.env['GITHUB_STEP_SUMMARY'];
+    let developSha = '';
+
+    // The merge back of a stable is tried here, before anyone is asked to approve: a stop after the click would
+    // need a second click on the re-run.
+    if (result.plan.kind === ReleaseKinds.STABLE && args.includes('--merge-trial')) {
+      const trial = ReleaseMergeBack.trial({
+        cwd: process.cwd(),
+        version: result.plan.version,
+        main: opts.env['GITHUB_SHA'] ?? MergeBackConstants.DEFAULT_MAIN,
+        develop: MergeBackConstants.DEFAULT_DEVELOP,
+        scratchRoot: opts.env['RUNNER_TEMP'] ?? tmpdir(),
+      });
+
+      developSha = trial.developHead;
+
+      if (summary !== undefined) {
+        appendFileSync(
+          summary,
+          ReleaseMergeBack.summaryOf({ result: trial, version: result.plan.version }),
+        );
+      }
+
+      for (const problem of trial.problems) {
+        console.error(`ERROR | merge back: ${problem}`);
+      }
+
+      if (trial.problems.length > 0) {
+        return 1;
+      }
+
+      console.log(
+        `plan: the merge of main into develop goes through (resolved: ${trial.resolved.join(', ') || 'none'})`,
+      );
+    }
 
     if (output !== undefined) {
       appendFileSync(
         output,
-        `version=${result.plan.version}\nkind=${result.plan.kind}\nnpm_tag=${result.plan.npmTag}\n`,
+        `version=${result.plan.version}\nkind=${result.plan.kind}\nnpm_tag=${result.plan.npmTag}\ndevelop_sha=${developSha}\n`,
       );
     }
 

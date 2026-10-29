@@ -84,10 +84,8 @@ describe('ReleasePlan.checkRef: a version and a branch that belong together', ()
     ]);
   });
 
-  test('a stable on main is refused until its own steps exist, and says so', () => {
-    expect(ReleasePlan.checkRef({ ref: MAIN_REF, kind: 'stable' })).toEqual([
-      ReleasePlanConstants.STABLE_PENDING,
-    ]);
+  test('a stable on main is allowed', () => {
+    expect(ReleasePlan.checkRef({ ref: MAIN_REF, kind: 'stable' })).toEqual([]);
   });
 
   test('any other ref is refused for both kinds, naming the ref', () => {
@@ -97,6 +95,32 @@ describe('ReleasePlan.checkRef: a version and a branch that belong together', ()
       );
       expect(ReleasePlan.checkRef({ ref: 'refs/tags/v0.4.7', kind })).toHaveLength(1);
     }
+  });
+});
+
+describe('ReleasePlan.checkPromotion: a stable bump promotes a prerelease', () => {
+  test('patch, minor and major over a stable are refused, naming the version', () => {
+    for (const bump of ['patch', 'minor', 'major']) {
+      const problems = ReleasePlan.checkPromotion({
+        bump,
+        currentVersion: '0.4.9',
+        kind: ReleasePlan.kindOf({
+          version: ReleasePlan.targetOf({ bump, currentVersion: '0.4.9', scratchRoot: scratch() }),
+        }),
+      });
+
+      expect(problems, bump).toHaveLength(1);
+      expect(problems[0]).toContain('0.4.9');
+    }
+  });
+
+  test('over a prerelease they are allowed, and none is allowed over a stable (it heals a half-finished run)', () => {
+    expect(
+      ReleasePlan.checkPromotion({ bump: 'patch', currentVersion: '0.4.9-3', kind: 'stable' }),
+    ).toEqual([]);
+    expect(
+      ReleasePlan.checkPromotion({ bump: 'none', currentVersion: '0.4.9', kind: 'stable' }),
+    ).toEqual([]);
   });
 });
 
@@ -134,6 +158,28 @@ describe('ReleasePlan.plan', () => {
     expect(plan('prerelease', MAIN_REF, '0.4.7').problems).toEqual([
       'a prerelease runs from develop, not main',
     ]);
+  });
+
+  test('a stable on main is planned under the latest dist-tag: patch, minor and major over a prerelease', () => {
+    for (const [bump, version] of [
+      ['patch', '0.4.9'],
+      ['minor', '0.5.0'],
+      ['major', '1.0.0'],
+    ] as const) {
+      expect(plan(bump, MAIN_REF, '0.4.9-3'), bump).toEqual({
+        plan: { version, kind: 'stable', npmTag: 'latest' },
+        problems: [],
+      });
+    }
+  });
+
+  test('the quirk shows in the target: minor over 0.4.0-3 on main is 0.4.0', () => {
+    expect(plan('minor', MAIN_REF, '0.4.0-3').plan?.version).toBe('0.4.0');
+  });
+
+  test('a stable bump on main over a stable is refused, and none over it is not', () => {
+    expect(plan('patch', MAIN_REF, '0.4.9').problems[0]).toContain('nothing to promote');
+    expect(plan('none', MAIN_REF, '0.4.9').problems).toEqual([]);
   });
 
   test('an unknown bump is refused before npm is asked', () => {
@@ -211,8 +257,24 @@ describe('ReleasePlan.main', () => {
     });
 
     expect(code).toBe(0);
-    expect(readFileSync(output, 'utf8')).toBe('version=0.4.8-0\nkind=prerelease\nnpm_tag=next\n');
+    expect(readFileSync(output, 'utf8')).toBe(
+      'version=0.4.8-0\nkind=prerelease\nnpm_tag=next\ndevelop_sha=\n',
+    );
     expect(readFileSync(summary, 'utf8')).toContain('Approval: none');
+  });
+
+  test('a stable on main writes kind=stable, and the summary says one approval', () => {
+    const { manifest, output, summary, env } = setup('0.4.9-3');
+    const code = ReleasePlan.main({
+      args: ['--bump', 'patch', '--ref', MAIN_REF, '--package', manifest],
+      env,
+    });
+
+    expect(code).toBe(0);
+    expect(readFileSync(output, 'utf8')).toBe(
+      'version=0.4.9\nkind=stable\nnpm_tag=latest\ndevelop_sha=\n',
+    );
+    expect(readFileSync(summary, 'utf8')).toContain('one approval');
   });
 
   test('a refusal exits 1 and writes nothing for the later jobs to read', () => {

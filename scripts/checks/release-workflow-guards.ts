@@ -20,12 +20,18 @@
  *        the plan and the gates; the publish job needs it
  *   C26  the publish condition, evaluated: a prerelease publishes with approve skipped, a stable only after approve
  *        succeeded, and a failed or cancelled dependency stops either
+ *   C27  a stable checks before it publishes that main and develop are where the plan saw them
+ *   C28  a stable merges main back into develop after the tag and before the atlas index, with a copy of the script
+ *   C29  nothing force-pushes, moves or deletes a tag, or deletes a branch
+ *   C30  the plan job tries the merge back of a stable (--merge-trial) and hands develop's head on
  *   D6   every action is pinned by a full commit SHA (a local action is not an action to pin)
  */
 import { PublishCondition } from './publish-condition.ts';
 
 const PLAN_SCRIPT = 'scripts/release/plan.ts';
 const STABLE_ONLY = "${{ needs.plan.outputs.kind == 'stable' }}";
+/** What the step conditions of a stable-only step say, without the expression braces. */
+const STABLE_CONDITION = "needs.plan.outputs.kind == 'stable'";
 const EXACT_VERSION = /^\d+\.\d+\.\d+$/;
 const FULL_SHA = /@[0-9a-f]{40}$/;
 const NPM_TOKEN_NAMES = ['NPM_ACCESS_TOKEN', 'NPM_CONFIG_TOKEN', 'NODE_AUTH_TOKEN'];
@@ -36,6 +42,16 @@ const PUBLISH_STEP = 'Publish to NPM';
 const VALIDATE_STEP = 'Validate the packed manifests';
 const ATLAS_STEPS = ['Publish the atlas index of the release'];
 const SECRET_REFERENCE = /secrets\.[A-Za-z0-9_]+/g;
+const BRANCHES_MOVED_STEP = 'Refuse a stable when a branch moved since the plan';
+const MERGE_BACK_STEP = 'Merge main back into develop';
+const TAG_STEP = 'Create tag';
+const VERSION_STEP = 'Set the release version';
+/** A git command that rewrites or removes history the release has already made public. */
+const DESTRUCTIVE_GIT = [
+  /git\s+push\b[^\n]*(?:--force\b|--force-with-lease\b|--delete\b|\s-f\b|\s\+\S|\s:\S)/,
+  /git\s+tag\b[^\n]*\s(?:-f|--force|-d|--delete)\b/,
+  /git\s+branch\b[^\n]*\s(?:-D|-d|--delete)\b/,
+];
 
 const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
   typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
@@ -121,6 +137,15 @@ export const checkReleaseWorkflowGuards = (opts: {
     )
   ) {
     violations.push(`C1: the plan job must run ${PLAN_SCRIPT} on the bump and the ref`);
+  }
+
+  if (
+    !stepsOf({ job: plan }).some(
+      (step) => step.run.includes(PLAN_SCRIPT) && step.run.includes('--merge-trial'),
+    ) ||
+    !JSON.stringify(plan['outputs'] ?? {}).includes('develop_sha')
+  ) {
+    violations.push('C30: the plan job must run plan.ts with --merge-trial and output develop_sha');
   }
 
   if (plan['environment'] !== undefined || plan['if'] !== undefined) {
@@ -278,6 +303,49 @@ export const checkReleaseWorkflowGuards = (opts: {
   const publish = named({ name: PUBLISH_STEP });
   const validate = named({ name: VALIDATE_STEP });
   const install = named({ name: INSTALL_NPM_STEP });
+
+  const publishSteps = stepsOf({ job: publishJob });
+  const position = (opts: { name: string }): number =>
+    publishSteps.findIndex((entry) => entry.name === opts.name);
+  const stableOnly = (opts: { step: IStep | undefined }): boolean =>
+    opts.step?.text.includes(STABLE_CONDITION) ?? false;
+  const guard = named({ name: BRANCHES_MOVED_STEP });
+
+  if (
+    guard === undefined ||
+    !stableOnly({ step: guard }) ||
+    !guard.run.includes('$GITHUB_SHA') ||
+    !guard.text.includes('PLAN_DEVELOP_SHA') ||
+    position({ name: BRANCHES_MOVED_STEP }) > position({ name: VERSION_STEP }) ||
+    position({ name: BRANCHES_MOVED_STEP }) > position({ name: PUBLISH_STEP })
+  ) {
+    violations.push(
+      `C27: '${BRANCHES_MOVED_STEP}' must run for a stable only, compare main with $GITHUB_SHA and develop with the plan's head, and come before the version and the publish`,
+    );
+  }
+
+  const merge = named({ name: MERGE_BACK_STEP });
+
+  if (
+    merge === undefined ||
+    !stableOnly({ step: merge }) ||
+    !merge.run.includes('cp scripts/release/merge-back.ts "$RUNNER_TEMP/merge-back.ts"') ||
+    !merge.run.includes('merge-back.ts" apply') ||
+    position({ name: MERGE_BACK_STEP }) < position({ name: TAG_STEP }) ||
+    position({ name: MERGE_BACK_STEP }) > position({ name: ATLAS_STEPS[0] })
+  ) {
+    violations.push(
+      `C28: '${MERGE_BACK_STEP}' must run for a stable only, after '${TAG_STEP}' and before the atlas index, from a copy of main's merge-back.ts`,
+    );
+  }
+
+  for (const step of all) {
+    for (const pattern of DESTRUCTIVE_GIT.filter((candidate) => candidate.test(step.run))) {
+      violations.push(
+        `C29: '${step.name}' runs a git command that rewrites or deletes (${pattern.source.slice(0, 30)})`,
+      );
+    }
+  }
 
   for (const step of all.filter((entry) => entry.run.includes('bun publish'))) {
     violations.push(

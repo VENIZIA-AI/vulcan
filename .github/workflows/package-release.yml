@@ -38,10 +38,15 @@ concurrency:
 # approver sees in the run name and what is published are the same commit. The actions and bun are pinned.
 #
 # Four jobs. `plan` decides what this dispatch would release and refuses a ref and a version that do not belong
-# together (a prerelease runs from develop, a stable from main) before anything is built. `test` runs the gates.
-# `approve` is the one human stop and exists for a stable only: environment release-approval, whose reviewer is the
-# owner. `publish` is the only job with the publish identity (environment npm-release, which waits for nobody); it
-# runs after `approve` succeeded, or after `approve` was skipped because the plan says prerelease.
+# together (a prerelease runs from develop, a stable from main and only over a prerelease) before anything is built;
+# for a stable it also tries the merge of main back into develop, so a merge that would stop stops before the
+# approval. `test` runs the gates. `approve` is the one human stop and exists for a stable only: environment
+# release-approval, whose reviewer is the owner. `publish` is the only job with the publish identity (environment
+# npm-release, which waits for nobody); it runs after `approve` succeeded, or after `approve` was skipped because the
+# plan says prerelease.
+#
+# A prerelease commits its release to develop. A stable commits its release to main, tags it there, and then merges
+# main back into develop (scripts/release/merge-back.ts); nothing waits for a second approval after the click.
 permissions:
   contents: read
 
@@ -66,12 +71,16 @@ jobs:
       version: ${{ steps.plan.outputs.version }}
       kind: ${{ steps.plan.outputs.kind }}
       npm_tag: ${{ steps.plan.outputs.npm_tag }}
+      # The head of develop the merge trial read (empty for a prerelease): the publish job stops if develop moved.
+      develop_sha: ${{ steps.plan.outputs.develop_sha }}
 
     steps:
+      # Full history: the merge trial of a stable needs the branches and their common ancestor.
       - name: Checkout the dispatched commit
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -89,7 +98,7 @@ jobs:
         id: plan
         env:
           RELEASE_ISSUE: ${{ inputs.issue }}
-        run: bun scripts/release/plan.ts --bump "$BUMP" --ref "$GITHUB_REF" --issue "$RELEASE_ISSUE"
+        run: bun scripts/release/plan.ts --bump "$BUMP" --ref "$GITHUB_REF" --issue "$RELEASE_ISSUE" --merge-trial
 
   # Build, lint, the unit tests and VULCAN's own contract, on the dispatched commit, in a job that holds no
   # secret and cannot write: the publish job below needs it, so a failing gate publishes nothing.
@@ -166,6 +175,9 @@ jobs:
     # reach it. It has no reviewers: the owner's approval is the `approve` job's, and only a stable has one. Its
     # settings are GitHub's, not this file's; this line is what makes the job subject to them.
     environment: npm-release
+    env:
+      # The branch the release commit goes to: main for a stable, develop for a prerelease.
+      TARGET_BRANCH: ${{ needs.plan.outputs.kind == 'stable' && 'main' || 'develop' }}
     # The release pushes the release commit and the tag, and puts the pair of the tag commit on the release
     # `atlas-index`: both write contents. `id-token` is what trusted publishing signs with: npm exchanges the
     # job's identity for a short-lived publish credential, so the release holds no npm token at all. Only this
@@ -203,6 +215,26 @@ jobs:
         run: |
           git config user.name "venizia-ci"
           git config user.email "developer@venizia.ai"
+
+      # A stable is approved against what the plan saw: main where the dispatch left it, and the head of develop the
+      # merge trial read. Either moving means the approved merge is not the one that would run, so nothing is
+      # published; it is checked before the first mutation.
+      - name: Refuse a stable when a branch moved since the plan
+        if: ${{ needs.plan.outputs.kind == 'stable' }}
+        env:
+          PLAN_DEVELOP_SHA: ${{ needs.plan.outputs.develop_sha }}
+        run: |
+          git fetch --quiet origin main develop
+
+          if [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
+            echo "ERROR | main moved since this run was dispatched ($GITHUB_SHA, now $(git rev-parse origin/main)) - nothing is published"
+            exit 1
+          fi
+
+          if [ "$(git rev-parse origin/develop)" != "$PLAN_DEVELOP_SHA" ]; then
+            echo "ERROR | develop moved since the plan tested the merge back ($PLAN_DEVELOP_SHA, now $(git rev-parse origin/develop)) - nothing is published; dispatch again"
+            exit 1
+          fi
 
       # Trusted publishing needs npm 11.5.1 or later to publish and 11.21.0 or later to move a dist-tag; the npm
       # that ships with this Node is older. An exact version, never `latest`, asserted.
@@ -254,8 +286,9 @@ jobs:
           echo "TAG_NAME=vulcan-v$NEW_VERSION" >> "$GITHUB_ENV"
           echo "release: v$NEW_VERSION ($BUMP) to the '$NPM_TAG' dist-tag"
 
-      # AFTER the version change: `bun pm pack` resolves `workspace:*` from bun.lock, so a lock that
-      # still records the old versions ships a cli pinned to siblings that are not on npm.
+      # AFTER the version change: `bun pm pack` reads each sibling's version from its package.json on disk
+      # (bun.lock records no version for a workspace package), so the pins in the packed cli follow the bump
+      # above. The install rewrites bun.lock to the new versions, and the release commit carries it.
       - name: Install
         run: bun install
 
@@ -400,14 +433,20 @@ jobs:
 
       # develop can move between checkout and push; the version is already on npm, so rebase and retry
       # once instead of leaving develop behind a release that really happened. The rebased commit also
-      # carries develop's newer merges, which is why the tag goes on RELEASE_SHA instead.
+      # carries develop's newer merges, which is why the tag goes on RELEASE_SHA instead. A stable goes to
+      # main, which the first step of this job checked was where the dispatch left it: a refused push there
+      # means main moved since, and the release commit is not rebased onto it - the run stops and reports.
       - name: Push release
         if: env.BUMP != 'none'
         run: |
-          git push origin HEAD:develop || {
-            git pull --rebase origin develop
-            git push origin HEAD:develop
-          }
+          if [ "$TARGET_BRANCH" = "main" ]; then
+            git push origin HEAD:main
+          else
+            git push origin HEAD:develop || {
+              git pull --rebase origin develop
+              git push origin HEAD:develop
+            }
+          fi
 
           echo "IS_PUSHED=true" >> "$GITHUB_ENV"
 
@@ -454,6 +493,32 @@ jobs:
           echo "IS_TAGGED=true" >> "$GITHUB_ENV"
 
       # -------------------------------------------------------------------------
+      # MERGE BACK (a stable only)
+      # -------------------------------------------------------------------------
+      # main now holds the release commit and its tag; develop gets it by a merge, so main never holds a commit
+      # develop lacks. The plan job tried this merge before the approval; the first step of this job checked
+      # develop had not moved since. The script is copied out first and run from there: it is main's, the one that
+      # was tested and approved, not whatever develop holds. A merge that is more than versions and the lockfile
+      # stops, and the report below says how to finish it.
+      - name: Merge main back into develop
+        if: ${{ needs.plan.outputs.kind == 'stable' }}
+        run: |
+          git fetch --quiet origin develop
+
+          if git merge-base --is-ancestor "$RELEASE_SHA" origin/develop; then
+            echo "merge back: develop already holds $RELEASE_SHA - skipped"
+            echo "IS_MERGED_BACK=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          cp scripts/release/merge-back.ts "$RUNNER_TEMP/merge-back.ts"
+          git checkout --quiet -B develop origin/develop
+          bun "$RUNNER_TEMP/merge-back.ts" apply --from "$RELEASE_SHA" --message "Merge main into develop (release v$NEW_VERSION)"
+          git push origin HEAD:develop
+
+          echo "IS_MERGED_BACK=true" >> "$GITHUB_ENV"
+
+      # -------------------------------------------------------------------------
       # ATLAS INDEX
       # -------------------------------------------------------------------------
       # The push above is made with the Actions token, and GitHub starts no workflow from such a push, so
@@ -474,13 +539,13 @@ jobs:
       # -------------------------------------------------------------------------
       # Reported, never repaired: npm cannot un-publish, and force-pushing develop to chase a live
       # version does more damage than the mismatch.
-      - name: Report - published, develop not updated
+      - name: Report - published, release branch not updated
         if: failure() && env.IS_PUBLISHED == 'true' && env.IS_PUSHED != 'true' && env.BUMP != 'none'
         run: |
-          echo "WARNING | a publish of v$NEW_VERSION was attempted, but develop still records the old version"
+          echo "WARNING | a publish of v$NEW_VERSION was attempted, but $TARGET_BRANCH still records the old version"
           echo "  confirm first: npm view @venizia/vulcan versions"
-          echo "  if it IS live: set all three package.json to $NEW_VERSION, run bun install, commit to develop,"
-          echo "                 then dispatch with bump 'none' - it publishes whatever is missing and tags"
+          echo "  if it IS live: set all three package.json to $NEW_VERSION, run bun install, commit to $TARGET_BRANCH,"
+          echo "                 then dispatch with bump 'none' from $TARGET_BRANCH - it publishes whatever is missing and tags"
           echo "  if it is NOT live: nothing to clean up - dispatch again with the same bump"
 
       - name: Report - tag missing
@@ -488,3 +553,11 @@ jobs:
         run: |
           echo "WARNING | $NEW_VERSION may be published without its git tag $TAG_NAME"
           echo "  create it: git tag -a $TAG_NAME -m \"VULCAN $NEW_VERSION\" ${RELEASE_SHA:-<the release commit>} && git push origin $TAG_NAME"
+
+      - name: Report - published, merge back not done
+        if: failure() && needs.plan.outputs.kind == 'stable' && env.IS_TAGGED == 'true' && env.IS_MERGED_BACK != 'true'
+        run: |
+          echo "WARNING | v$NEW_VERSION is published, tagged $TAG_NAME and on main, but main is not merged back into develop"
+          echo "  the usual cause is a conflict that is more than a version or the lockfile; read the merge step above"
+          echo "  finish it: git checkout develop && git merge ${RELEASE_SHA:-main}, resolve, commit, push"
+          echo "  or, once develop is ready, dispatch bump 'none' on main: it publishes nothing, tags nothing, and merges back"

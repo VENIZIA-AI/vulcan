@@ -187,6 +187,7 @@ const RELEASE_ENV = {
   NEW_VERSION: '0.2.0',
   TAG_NAME: 'v0.2.0',
   RELEASE_ISSUE: '',
+  TARGET_BRANCH: 'develop',
 };
 const RELEASE_STEPS = ['Commit release', 'Push release', 'Create tag'];
 
@@ -379,6 +380,256 @@ describe('package-release.yml: the atlas index of the release', () => {
   });
 });
 
+const manifestText = (opts: { version: string }): string =>
+  `${JSON.stringify({ name: 'x', version: opts.version }, null, 2)}\n`;
+
+/**
+ * An origin the way a stable run meets it: `main` is the Sync's state (0.1.0-0), `develop` has published a
+ * prerelease since (0.1.0-1), and the runner has `main` checked out with the merge-back script in it.
+ */
+const createStableRemote = (): { root: string; checkout: string; origin: string } => {
+  const root = mkdtempSync(join(tmpdir(), 'release-workflow-stable-'));
+  const origin = join(root, 'origin.git');
+  const checkout = join(root, 'checkout');
+
+  roots.push(root);
+  git({ args: ['init', '--quiet', '--bare', '--initial-branch=main', origin], cwd: root });
+  git({ args: ['clone', '--quiet', origin, checkout], cwd: root });
+  writeFile({
+    path: join(checkout, 'packages', 'cli', 'package.json'),
+    text: manifestText({ version: '0.1.0-0' }),
+  });
+  writeFile({ path: join(checkout, 'bun.lock'), text: '{}\n' });
+  writeFile({ path: join(checkout, 'shared.txt'), text: 'one\n' });
+  writeFile({
+    path: join(checkout, 'scripts', 'release', 'merge-back.ts'),
+    text: readFileSync(join(import.meta.dir, '..', 'merge-back.ts'), 'utf8'),
+  });
+  git({ args: ['add', '.'], cwd: checkout });
+  git({ args: ['commit', '--quiet', '-m', 'sync'], cwd: checkout });
+  git({ args: ['push', '--quiet', 'origin', 'HEAD:main'], cwd: checkout });
+  git({ args: ['checkout', '--quiet', '-b', 'develop'], cwd: checkout });
+  writeFile({
+    path: join(checkout, 'packages', 'cli', 'package.json'),
+    text: manifestText({ version: '0.1.0-1' }),
+  });
+  git({
+    args: ['commit', '--quiet', '-am', 'chore(release): v0.1.0-1 [prerelease]'],
+    cwd: checkout,
+  });
+  git({ args: ['push', '--quiet', 'origin', 'HEAD:develop'], cwd: checkout });
+  git({ args: ['checkout', '--quiet', 'main'], cwd: checkout });
+
+  return { root, checkout, origin };
+};
+
+const STABLE_ENV = {
+  BUMP: 'patch',
+  NEW_VERSION: '0.1.0',
+  TAG_NAME: 'vulcan-v0.1.0',
+  RELEASE_ISSUE: '',
+  TARGET_BRANCH: 'main',
+};
+const STABLE_STEPS = [
+  'Commit release',
+  'Push release',
+  'Create tag',
+  'Merge main back into develop',
+];
+
+describe('package-release.yml: a stable', () => {
+  const GUARD = 'Refuse a stable when a branch moved since the plan';
+
+  const guard = (opts: { checkout: string; sha: string; developSha: string }) =>
+    runSteps({
+      names: [GUARD],
+      cwd: opts.checkout,
+      env: { GITHUB_SHA: opts.sha, PLAN_DEVELOP_SHA: opts.developSha },
+    });
+
+  test('runs when main is where the dispatch left it and develop is where the plan saw it', () => {
+    const { checkout } = createStableRemote();
+    const result = guard({
+      checkout,
+      sha: git({ args: ['rev-parse', 'origin/main'], cwd: checkout }),
+      developSha: git({ args: ['rev-parse', 'origin/develop'], cwd: checkout }),
+    });
+
+    expect(result.code, result.output).toBe(0);
+  });
+
+  test('stops before anything is published when main moved', () => {
+    const { checkout } = createStableRemote();
+    const result = guard({
+      checkout,
+      sha: '0000000000000000000000000000000000000000',
+      developSha: git({ args: ['rev-parse', 'origin/develop'], cwd: checkout }),
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain('main moved');
+  });
+
+  test('stops before anything is published when develop moved since the plan tested the merge', () => {
+    const { root, checkout, origin } = createStableRemote();
+    const other = join(root, 'other');
+    const planned = git({ args: ['rev-parse', 'origin/develop'], cwd: checkout });
+
+    git({ args: ['clone', '--quiet', '--branch', 'develop', origin, other], cwd: root });
+    writeFile({ path: join(other, 'newer.txt'), text: 'a prerelease after the plan\n' });
+    git({ args: ['add', '.'], cwd: other });
+    git({ args: ['commit', '--quiet', '-m', 'develop moved'], cwd: other });
+    git({ args: ['push', '--quiet', 'origin', 'HEAD:develop'], cwd: other });
+
+    const result = guard({
+      checkout,
+      sha: git({ args: ['rev-parse', 'origin/main'], cwd: checkout }),
+      developSha: planned,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain('develop moved');
+  });
+
+  test('the release commit goes to main, the tag on it, and main is merged back into develop with the stable version', () => {
+    const { root, checkout, origin } = createStableRemote();
+    const verify = join(root, 'verify');
+
+    writeFile({
+      path: join(checkout, 'packages', 'cli', 'package.json'),
+      text: manifestText({ version: '0.1.0' }),
+    });
+
+    const result = runSteps({
+      names: STABLE_STEPS,
+      cwd: checkout,
+      env: { ...STABLE_ENV, RUNNER_TEMP: root },
+    });
+
+    expect(result.code, result.output).toBe(0);
+    expect(result.env.IS_MERGED_BACK).toBe('true');
+    git({ args: ['clone', '--quiet', origin, verify], cwd: root });
+    git({ args: ['fetch', '--quiet', '--tags', 'origin'], cwd: verify });
+
+    const tagged = git({ args: ['rev-parse', 'vulcan-v0.1.0^{commit}'], cwd: verify });
+
+    expect(git({ args: ['log', '-1', '--format=%s', 'origin/main'], cwd: verify })).toBe(
+      'chore(release): v0.1.0 [patch]',
+    );
+    expect(tagged).toBe(git({ args: ['rev-parse', 'origin/main'], cwd: verify }));
+    expect(
+      git({ args: ['merge-base', '--is-ancestor', tagged, 'origin/develop'], cwd: verify }),
+    ).toBe('');
+    expect(
+      git({ args: ['log', '-1', '--format=%P', 'origin/develop'], cwd: verify }).split(' '),
+    ).toHaveLength(2);
+    expect(
+      JSON.parse(git({ args: ['show', 'origin/develop:packages/cli/package.json'], cwd: verify }))
+        .version,
+    ).toBe('0.1.0');
+    expect(git({ args: ['ls-remote', '--heads', 'origin'], cwd: verify })).not.toContain(
+      'refs/heads/feat',
+    );
+  });
+
+  test('a second run of the merge back finds develop holding the release and skips it', () => {
+    const { root, checkout } = createStableRemote();
+
+    writeFile({
+      path: join(checkout, 'packages', 'cli', 'package.json'),
+      text: manifestText({ version: '0.1.0' }),
+    });
+
+    const first = runSteps({
+      names: STABLE_STEPS,
+      cwd: checkout,
+      env: { ...STABLE_ENV, RUNNER_TEMP: root },
+    });
+
+    expect(first.code, first.output).toBe(0);
+
+    const again = runSteps({
+      names: ['Merge main back into develop'],
+      cwd: checkout,
+      env: { ...STABLE_ENV, RUNNER_TEMP: root, RELEASE_SHA: first.env.RELEASE_SHA },
+    });
+
+    expect(again.code, again.output).toBe(0);
+    expect(again.output).toContain('already holds');
+  });
+
+  test('a conflict that is more than a version stops the merge back, leaves develop as it was and does not set the flag', () => {
+    const { root, checkout, origin } = createStableRemote();
+    const other = join(root, 'other');
+
+    git({ args: ['clone', '--quiet', '--branch', 'develop', origin, other], cwd: root });
+    writeFile({ path: join(other, 'shared.txt'), text: 'develop edit\n' });
+    git({ args: ['commit', '--quiet', '-am', 'develop edits shared'], cwd: other });
+    git({ args: ['push', '--quiet', 'origin', 'HEAD:develop'], cwd: other });
+    writeFile({ path: join(checkout, 'shared.txt'), text: 'main edit\n' });
+    writeFile({
+      path: join(checkout, 'packages', 'cli', 'package.json'),
+      text: manifestText({ version: '0.1.0' }),
+    });
+
+    const before = git({ args: ['rev-parse', 'develop'], cwd: other });
+    const result = runSteps({
+      names: STABLE_STEPS,
+      cwd: checkout,
+      env: { ...STABLE_ENV, RUNNER_TEMP: root },
+    });
+
+    expect(result.code).not.toBe(0);
+    expect(result.output).toContain('shared.txt');
+    expect(result.env.IS_MERGED_BACK).toBeUndefined();
+    git({ args: ['fetch', '--quiet', 'origin'], cwd: other });
+    expect(git({ args: ['rev-parse', 'origin/develop'], cwd: other })).toBe(before);
+  });
+});
+
+describe('package-release.yml: the order of a stable', () => {
+  const names = (): string[] =>
+    readSteps().flatMap((step) => (step.name === undefined ? [] : [step.name]));
+
+  test('the branch check is the first step that can see a moved branch, and comes before the version and the publish', () => {
+    const order = names();
+    const guard = order.indexOf('Refuse a stable when a branch moved since the plan');
+
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(order.indexOf('Set the release version'));
+    expect(guard).toBeLessThan(order.indexOf('Publish to NPM'));
+  });
+
+  test('the merge back comes after the tag and before the atlas index, which wants the tag commit on develop', () => {
+    const order = names();
+    const merge = order.indexOf('Merge main back into develop');
+
+    expect(merge).toBeGreaterThan(order.indexOf('Create tag'));
+    expect(merge).toBeLessThan(order.indexOf('Publish the atlas index of the release'));
+  });
+
+  test('both stable steps run for a stable only, and the branch of the release commit follows the kind', () => {
+    for (const name of [
+      'Refuse a stable when a branch moved since the plan',
+      'Merge main back into develop',
+    ]) {
+      expect(findStep({ name }).if).toContain("needs.plan.outputs.kind == 'stable'");
+    }
+
+    const env = { value: readJob({ name: 'publish' }).env };
+    const target = isRecord(env) ? toText({ value: env.value.TARGET_BRANCH }) : undefined;
+
+    expect(target).toContain("'main'");
+    expect(target).toContain("'develop'");
+  });
+
+  test('the merge back runs the script from a copy of main, not the one on develop', () => {
+    expect(findStep({ name: 'Merge main back into develop' }).run).toContain(
+      'cp scripts/release/merge-back.ts "$RUNNER_TEMP/merge-back.ts"',
+    );
+  });
+});
+
 describe('package-release.yml: the job graph', () => {
   const textOf = (opts: { value: unknown }): string => toText(opts) ?? '';
   const needsOf = (opts: { name: string }): string[] => {
@@ -428,6 +679,7 @@ describe('package-release.yml: the job graph', () => {
       'version',
       'kind',
       'npm_tag',
+      'develop_sha',
     ]);
   });
 

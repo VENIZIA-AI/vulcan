@@ -39,6 +39,18 @@ describe('planNextTag', () => {
     expect(planNextTag({ tags, published: { version: '0.3.1', tag: 'latest' } })).toBe('0.3.1');
   });
 
+  test('a stable that is below next leaves next alone: 0.4.9 stable, next at 0.4.10-0', () => {
+    const tags: IDistTags = { latest: '0.4.8', next: '0.4.10-0' };
+
+    expect(planNextTag({ tags, published: { version: '0.4.9', tag: 'latest' } })).toBeUndefined();
+  });
+
+  test('a stable above next moves next to it: 0.4.9 stable, next at 0.4.9-3', () => {
+    const tags: IDistTags = { latest: '0.4.8', next: '0.4.9-3' };
+
+    expect(planNextTag({ tags, published: { version: '0.4.9', tag: 'latest' } })).toBe('0.4.9');
+  });
+
   test('a prerelease just published to next counts as next before the registry shows it', () => {
     const tags: IDistTags = { latest: '0.3.1', next: '0.2.0-9' };
 
