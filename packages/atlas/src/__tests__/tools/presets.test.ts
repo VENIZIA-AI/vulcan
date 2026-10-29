@@ -240,7 +240,7 @@ describe('presets (kind lib)', () => {
       },
       {
         preset: 'ardor',
-        summary: 'ARDOR: a shared feature package (official; not yet in this project)',
+        summary: 'ARDOR: a feature package other apps import (official; not yet in this project)',
         folder: 'libs',
         command: 'bun x --no-install vulcan add --preset ardor --lib billing',
         inProject: false,
@@ -296,7 +296,7 @@ describe('presets (nothing fits)', () => {
 
       expect(answer.presets).toEqual([]);
       expect(answer.note).toBe(
-        `no preset makes a ${kind} (vulcan add makes apps and libs): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app or lib preset for it`,
+        `no preset makes a ${kind} (vulcan add makes apps, libs and shared packages): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app, lib or shared preset for it`,
       );
     }
   });

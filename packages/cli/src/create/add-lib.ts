@@ -9,8 +9,8 @@ import {
   listedFoldersNote,
   withLayoutFolder,
 } from '../common/layout-folder.ts';
-import { PackageKinds } from '../config/index.ts';
-import type { IProjectPackage, TResolvedConfig } from '../config/index.ts';
+import { LibraryKinds, PackageKinds } from '../config/index.ts';
+import type { IProjectPackage, TLibraryKind, TResolvedConfig } from '../config/index.ts';
 import { readWorkspaceGlobs } from '../init/index.ts';
 import { runAppChecks } from './checks.ts';
 import { AppsBlockProblems, CreateConstants, CreateFlags } from './common/index.ts';
@@ -163,9 +163,12 @@ export const addLibrary = async (opts: {
   manifest: Record<string, unknown>;
   packages: IProjectPackage[];
   libName: string;
+  /** Which preset kind makes the package: `lib` (the default) or the side-neutral `shared`. */
+  kind?: TLibraryKind;
   recorded: (opts: { block: IAppsBlock }) => IAppsBlock;
 }): Promise<number> => {
   const { cwd, config, located, libName } = opts;
+  const kind = opts.kind ?? LibraryKinds.LIB;
 
   if (!CreateConstants.NAME_PATTERN.test(libName)) {
     return fail({
@@ -173,7 +176,7 @@ export const addLibrary = async (opts: {
     });
   }
 
-  const read = readLibPreset({ located });
+  const read = readLibPreset({ located, kind });
 
   if (!read.ok) {
     return fail({ message: read.error });
@@ -241,7 +244,13 @@ export const addLibrary = async (opts: {
       layout: isNewFolder ? { ...parsed.block.layout, shared: grown } : parsed.block.layout,
       packages: [
         ...parsed.block.packages,
-        { dir: libName, name: named.name, path, kind: PackageKinds.LIB },
+        {
+          dir: libName,
+          name: named.name,
+          path,
+          kind: PackageKinds.LIB,
+          ...(kind === LibraryKinds.SHARED ? { presetKind: LibraryKinds.SHARED } : {}),
+        },
       ],
     },
   });
@@ -273,7 +282,9 @@ export const addLibrary = async (opts: {
     );
   }
 
-  const rows: [string, string][] = [['library', path]];
+  const rows: [string, string][] = [
+    [kind === LibraryKinds.SHARED ? 'shared package' : 'library', path],
+  ];
 
   if (isNewFolder) {
     rows.push([
@@ -297,7 +308,11 @@ export const addLibrary = async (opts: {
     located,
     files: lib.files,
     target: join(cwd, path),
-    tokens: { project, lib: libName, package: named.name },
+    tokens: {
+      project,
+      [kind === LibraryKinds.SHARED ? 'shared' : 'lib']: libName,
+      package: named.name,
+    },
   });
 
   for (const file of written) {
@@ -331,6 +346,7 @@ export const addLibrary = async (opts: {
       path,
       summary: lib.summary,
       presetPackage: located.packageName,
+      kind,
     }),
   });
 

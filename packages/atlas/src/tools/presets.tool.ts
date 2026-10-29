@@ -12,7 +12,8 @@ import {
 
 const DESCRIPTION =
   'Lists the presets this project can create from, the folder each one lands in and the exact ' +
-  '`vulcan add` command for the `kind` you ask (app by default, lib for a shared package): the ' +
+  '`vulcan add` command for the `kind` you ask (app by default, lib for a library other apps import, shared ' +
+  'for a side-neutral package other apps import): the ' +
   'presets this project recorded first, then the official ones it has not used yet, marked ' +
   '`inProject: false`. When no preset fits the kind it says so plainly: then ask the user, never ' +
   'hand-write the package.';
@@ -99,6 +100,8 @@ const libEntry = (opts: {
   summary: string;
   name: string;
   inProject: boolean;
+  /** `lib` (the default) or the side-neutral `shared`: the flag of the command. */
+  kind?: 'lib' | 'shared';
 }): IPresetEntry => {
   const folders = libFoldersOf({ project: opts.project });
 
@@ -107,7 +110,7 @@ const libEntry = (opts: {
     summary: opts.summary,
     folder: folders.length === 1 ? (folders[0] ?? null) : null,
     ...(folders.length > 1 ? { folders } : {}),
-    command: `${ADD} --preset ${opts.spec} --lib ${opts.name}${folderFlagOf({ flag: '--dir', folders })}`,
+    command: `${ADD} --preset ${opts.spec} --${opts.kind ?? 'lib'} ${opts.name}${folderFlagOf({ flag: '--dir', folders })}`,
     inProject: opts.inProject,
   };
 };
@@ -134,11 +137,11 @@ export const buildPresetsTool = (opts: {
     const name = input.name ?? '<name>';
     const { project } = opts;
 
-    if (kind !== 'app' && kind !== 'lib') {
+    if (kind !== 'app' && kind !== 'lib' && kind !== 'shared') {
       return {
         kind,
         presets: [],
-        note: `no preset makes a ${kind} (vulcan add makes apps and libs): ask the user how it should be made; ${NO_HAND_WRITING}, and do not use an app or lib preset for it`,
+        note: `no preset makes a ${kind} (vulcan add makes apps, libs and shared packages): ask the user how it should be made; ${NO_HAND_WRITING}, and do not use an app, lib or shared preset for it`,
       };
     }
 
@@ -175,34 +178,69 @@ export const buildPresetsTool = (opts: {
               }),
             ),
           ]
-        : [
-            ...recorded
-              .filter((preset) => preset.lib !== undefined)
-              .map((preset) =>
+        : kind === 'lib'
+          ? [
+              ...recorded
+                .filter((preset) => preset.lib !== undefined)
+                .map((preset) =>
+                  libEntry({
+                    project,
+                    spec: preset.spec,
+                    summary: preset.lib ?? preset.summary,
+                    name,
+                    inProject: true,
+                  }),
+                ),
+              ...OFFICIAL_PRESETS.filter(
+                (official) =>
+                  !recorded.some(
+                    (preset) =>
+                      officialIdOf({ spec: preset.spec }) === official.id &&
+                      preset.lib !== undefined,
+                  ),
+              ).map((official) =>
                 libEntry({
                   project,
-                  spec: preset.spec,
-                  summary: preset.lib ?? preset.summary,
+                  spec: official.id,
+                  summary: official.lib,
                   name,
-                  inProject: true,
+                  inProject: false,
                 }),
               ),
-            ...OFFICIAL_PRESETS.filter(
-              (official) =>
+            ]
+          : [
+              ...recorded
+                .filter((preset) => preset.shared !== undefined)
+                .map((preset) =>
+                  libEntry({
+                    project,
+                    spec: preset.spec,
+                    summary: preset.shared ?? preset.summary,
+                    name,
+                    inProject: true,
+                    kind: 'shared',
+                  }),
+                ),
+              ...OFFICIAL_PRESETS.flatMap((official) =>
+                official.shared !== undefined &&
                 !recorded.some(
                   (preset) =>
-                    officialIdOf({ spec: preset.spec }) === official.id && preset.lib !== undefined,
-                ),
-            ).map((official) =>
-              libEntry({
-                project,
-                spec: official.id,
-                summary: official.lib,
-                name,
-                inProject: false,
-              }),
-            ),
-          ];
+                    officialIdOf({ spec: preset.spec }) === official.id &&
+                    preset.shared !== undefined,
+                )
+                  ? [
+                      libEntry({
+                        project,
+                        spec: official.id,
+                        summary: official.shared,
+                        name,
+                        inProject: false,
+                        kind: 'shared',
+                      }),
+                    ]
+                  : [],
+              ),
+            ];
 
     if (entries.length === 0) {
       return {
@@ -222,7 +260,7 @@ export const buildPresetsTool = (opts: {
       note:
         recorded.length === 0
           ? 'this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use'
-          : `no recorded preset makes a ${kind === 'lib' ? 'lib' : (input.side ?? 'app')}: the entries are the official ones, marked inProject false; ask the user which to use, and ${NO_HAND_WRITING}`,
+          : `no recorded preset makes a ${kind === 'app' ? (input.side ?? 'app') : kind}: the entries are the official ones, marked inProject false; ask the user which to use, and ${NO_HAND_WRITING}`,
     };
   },
 });

@@ -1,6 +1,7 @@
 import { relative, resolve } from 'node:path';
 import { coversFolder } from '../init/index.ts';
-import { PackageKinds } from '../config/index.ts';
+import { LibraryKinds, PackageKinds } from '../config/index.ts';
+import type { TLibraryKind } from '../config/index.ts';
 import { AppsBlockProblems, CreateConstants } from './common/index.ts';
 import { renderManifestJson } from './manifest-json.ts';
 import type {
@@ -259,6 +260,8 @@ export const renderLibConcept = (opts: {
   path: string;
   summary: string;
   presetPackage: string;
+  /** Which preset kind made the package; `lib` when absent. */
+  kind?: TLibraryKind;
 }): string =>
   [
     '---',
@@ -271,7 +274,7 @@ export const renderLibConcept = (opts: {
     '',
     `# ${opts.name}`,
     '',
-    `The shared package at \`${opts.path}\`, created from the ${opts.presetPackage} preset (lib kind). ${oneLine({ text: opts.summary })}`,
+    `The shared package at \`${opts.path}\`, created from the ${opts.presetPackage} preset (${opts.kind ?? LibraryKinds.LIB} kind). ${oneLine({ text: opts.summary })}`,
     '',
     ...renderAtlasLookups({ kind: PackageKinds.LIB }),
   ].join('\n');
@@ -361,7 +364,8 @@ const isRecordedPreset = (value: unknown): boolean =>
   hasStrings({ value, keys: ['spec', 'side', 'summary'] }) &&
   isRecord(value) &&
   (value.side === 'backend' || value.side === 'frontend') &&
-  (value.lib === undefined || typeof value.lib === 'string');
+  (value.lib === undefined || typeof value.lib === 'string') &&
+  (value.shared === undefined || typeof value.shared === 'string');
 
 const isAppsBlock = (value: unknown): value is IAppsBlock =>
   isRecord(value) &&
@@ -374,7 +378,13 @@ const isAppsBlock = (value: unknown): value is IAppsBlock =>
       (Array.isArray(folders) && folders.every((folder) => typeof folder === 'string')),
   ) &&
   Array.isArray(value.packages) &&
-  value.packages.every((entry) => hasStrings({ value: entry, keys: ['dir', 'name', 'path'] })) &&
+  value.packages.every(
+    (entry) =>
+      hasStrings({ value: entry, keys: ['dir', 'name', 'path'] }) &&
+      isRecord(entry) &&
+      (entry.presetKind === undefined ||
+        (typeof entry.presetKind === 'string' && LibraryKinds.isValid(entry.presetKind))),
+  ) &&
   Array.isArray(value.sources) &&
   value.sources.every((entry) => hasStrings({ value: entry, keys: ['name', 'repo', 'ref'] }));
 

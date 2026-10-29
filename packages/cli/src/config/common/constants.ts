@@ -10,6 +10,18 @@ export class PackageKinds {
   }
 }
 
+/** Which preset kind made a library: the kind of one framework (`lib`) or the side-neutral kind (`shared`). */
+export class LibraryKinds {
+  static readonly LIB = 'lib';
+  static readonly SHARED = 'shared';
+
+  static readonly SCHEME_SET = new Set<string>([this.LIB, this.SHARED]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
 /** Config file extensions, in lookup order. */
 export class ConfigExtensions {
   static readonly TS = 'ts';

@@ -35,6 +35,8 @@ export interface IAtlasPreset {
   summary: string;
   /** The summary of the preset's lib kind, when it makes libraries. */
   lib?: string;
+  /** The summary of the preset's shared kind, when it makes side-neutral packages. */
+  shared?: string;
 }
 
 export interface IAtlasProject {
@@ -151,12 +153,21 @@ const presetsOf = (opts: { value: unknown }): Pick<IAtlasProject, 'presets'> => 
     const spec = stringOf({ value: entry.spec });
     const summary = stringOf({ value: entry.summary });
     const lib = stringOf({ value: entry.lib });
+    const shared = stringOf({ value: entry.shared });
 
     return spec === undefined ||
       summary === undefined ||
       (entry.side !== 'backend' && entry.side !== 'frontend')
       ? []
-      : [{ spec, side: entry.side, summary, ...(lib === undefined ? {} : { lib }) }];
+      : [
+          {
+            spec,
+            side: entry.side,
+            summary,
+            ...(lib === undefined ? {} : { lib }),
+            ...(shared === undefined ? {} : { shared }),
+          },
+        ];
   });
 
   return presets.length === 0 ? {} : { presets };

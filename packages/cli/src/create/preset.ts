@@ -169,6 +169,7 @@ export const locatePreset = (opts: { spec: IPresetSpec; root: string }): TPreset
   const presets = readProperty({ value: vulcan, key: 'presets' });
   const field = readProperty({ value: presets, key: 'app' });
   const libField = readProperty({ value: presets, key: 'lib' });
+  const sharedField = readProperty({ value: presets, key: 'shared' });
 
   if (typeof field !== 'string') {
     return {
@@ -238,9 +239,22 @@ export const locatePreset = (opts: { spec: IPresetSpec; root: string }): TPreset
     };
   }
 
+  const sharedFile =
+    typeof sharedField === 'string'
+      ? resolveInside({ root: packageRoot, from: packageRoot, path: sharedField })
+      : undefined;
+
+  if (typeof sharedField === 'string' && sharedFile === undefined) {
+    return {
+      ok: false,
+      error: `${shown}: vulcan.presets.shared ${sharedField} points outside the package`,
+    };
+  }
+
   const located: ILocatedPreset = {
     preset,
     ...(libFile === undefined ? {} : { libFile }),
+    ...(sharedFile === undefined ? {} : { sharedFile }),
     packageRoot,
     packageName,
     packageVersion,

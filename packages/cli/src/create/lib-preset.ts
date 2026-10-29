@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { z } from 'zod';
+import { LibraryKinds } from '../config/index.ts';
+import type { TLibraryKind } from '../config/index.ts';
 import { CreateConstants } from './common/index.ts';
 import type { ILocatedPreset, IRecordedPreset } from './common/index.ts';
 
@@ -86,14 +88,21 @@ const escapes = (opts: { root: string; path: string }): boolean => {
   return isAbsolute(relativePath) || relativePath === '..' || relativePath.startsWith(`..${sep}`);
 };
 
-/** The lib preset of a located preset package, validated; the app side is never touched by an error here. */
-export const readLibPreset = (opts: { located: ILocatedPreset }): TLibPresetResult => {
+/**
+ * The lib preset, or with `kind: 'shared'` the shared preset (the same schema), of a located preset package,
+ * validated; the app side is never touched by an error here.
+ */
+export const readLibPreset = (opts: {
+  located: ILocatedPreset;
+  kind?: TLibraryKind;
+}): TLibPresetResult => {
   const { located } = opts;
+  const kind = opts.kind ?? LibraryKinds.LIB;
   const shown = `${located.packageName}@${located.packageVersion}`;
-  const file = located.libFile;
+  const file = kind === LibraryKinds.SHARED ? located.sharedFile : located.libFile;
 
   if (file === undefined) {
-    return { ok: false, error: `preset ${located.packageName} has no lib kind` };
+    return { ok: false, error: `preset ${located.packageName} has no ${kind} kind` };
   }
 
   let raw: unknown;
@@ -112,7 +121,7 @@ export const readLibPreset = (opts: { located: ILocatedPreset }): TLibPresetResu
   ) {
     return {
       ok: false,
-      error: `${shown}: the lib preset has preset version ${String(typeof raw === 'object' && raw !== null && 'presetVersion' in raw ? raw.presetVersion : undefined)}; this VULCAN reads version ${CreateConstants.PRESET_VERSION} - upgrade @venizia/vulcan`,
+      error: `${shown}: the ${kind} preset has preset version ${String(typeof raw === 'object' && raw !== null && 'presetVersion' in raw ? raw.presetVersion : undefined)}; this VULCAN reads version ${CreateConstants.PRESET_VERSION} - upgrade @venizia/vulcan`,
     };
   }
 
@@ -123,7 +132,7 @@ export const readLibPreset = (opts: { located: ILocatedPreset }): TLibPresetResu
       .map((issue) => `${issue.path.join('.')} ${issue.message}`)
       .join('; ');
 
-    return { ok: false, error: `${shown}: lib preset: ${issues}` };
+    return { ok: false, error: `${shown}: ${kind} preset: ${issues}` };
   }
 
   const files = resolve(dirname(file), parsed.data.files);
@@ -131,7 +140,7 @@ export const readLibPreset = (opts: { located: ILocatedPreset }): TLibPresetResu
   if (escapes({ root: located.packageRoot, path: files }) || !existsSync(files)) {
     return {
       ok: false,
-      error: `${shown}: lib preset: files ${parsed.data.files} is missing or points outside the package`,
+      error: `${shown}: ${kind} preset: files ${parsed.data.files} is missing or points outside the package`,
     };
   }
 
@@ -144,11 +153,13 @@ export const recordedPresetOf = (opts: {
   located: ILocatedPreset;
 }): IRecordedPreset => {
   const lib = readLibPreset({ located: opts.located });
+  const shared = readLibPreset({ located: opts.located, kind: LibraryKinds.SHARED });
 
   return {
     spec: opts.spec,
     side: opts.located.preset.side,
     summary: opts.located.preset.summary,
     ...(lib.ok ? { lib: lib.lib.summary } : {}),
+    ...(shared.ok ? { shared: shared.lib.summary } : {}),
   };
 };

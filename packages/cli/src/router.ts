@@ -41,6 +41,7 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
       CreateFlags.APP,
       CreateFlags.API,
       CreateFlags.LIB,
+      CreateFlags.SHARED,
       CreateFlags.DIR,
       CreateFlags.SCOPE,
     ],
