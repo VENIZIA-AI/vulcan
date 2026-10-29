@@ -123,6 +123,84 @@ describe('workspace planners', () => {
     }
   });
 
+  describe('checkPeers with the versions the preset lists itself', () => {
+    const own = {
+      dependencies: { kit: '0.4.6-0' },
+      devDependencies: { tool: '0.4.7-1' },
+    };
+
+    test('a pin equal to the preset own version in dependencies passes, prerelease or not', () => {
+      expect(
+        checkPeers({ catalog: { kit: '0.4.6-0' }, peers: { kit: '^0.4.0' }, presetVersions: own }),
+      ).toBeUndefined();
+      expect(
+        checkPeers({
+          catalog: { kit: '0.4.6' },
+          peers: { kit: '^0.4.0' },
+          presetVersions: { dependencies: { kit: '0.4.6' }, devDependencies: {} },
+        }),
+      ).toBeUndefined();
+    });
+
+    test('a pin equal to the preset own version in devDependencies passes', () => {
+      expect(
+        checkPeers({
+          catalog: { tool: '0.4.7-1' },
+          peers: { tool: '^0.4.0' },
+          presetVersions: own,
+        }),
+      ).toBeUndefined();
+    });
+
+    test('a pin that differs from the preset own version is checked as today', () => {
+      const peers = { kit: '^0.4.0' };
+
+      // A prerelease that is not the preset's own.
+      expect(checkPeers({ catalog: { kit: '0.4.6-1' }, peers, presetVersions: own })).toContain(
+        'a prerelease',
+      );
+      // A release below the range.
+      expect(checkPeers({ catalog: { kit: '0.3.9' }, peers, presetVersions: own })).toBe(
+        'the monorepo pins kit 0.3.9, but the preset needs ^0.4.0 - move the catalog first',
+      );
+      // Not a version at all.
+      expect(checkPeers({ catalog: { kit: 'workspace:*' }, peers, presetVersions: own })).toContain(
+        'not a version',
+      );
+    });
+
+    test('a caret pin is not equal to the bare version the preset lists, so it is checked as today', () => {
+      const message = checkPeers({
+        catalog: { kit: '^0.4.6-0' },
+        peers: { kit: '^0.4.0' },
+        presetVersions: own,
+      });
+
+      expect(message).toContain('kit ^0.4.6-0');
+      expect(message).toContain('a prerelease');
+    });
+
+    test('a peer for a package the preset does not list is checked as today', () => {
+      expect(
+        checkPeers({
+          catalog: { other: '0.4.6-0' },
+          peers: { other: '^0.4.0' },
+          presetVersions: own,
+        }),
+      ).toContain('a prerelease');
+    });
+
+    test('the range || exact form keeps working', () => {
+      expect(
+        checkPeers({
+          catalog: { kit: '0.4.6-0' },
+          peers: { kit: '^0.4.0 || 0.4.6-0' },
+          presetVersions: { dependencies: {}, devDependencies: {} },
+        }),
+      ).toBeUndefined();
+    });
+  });
+
   test('parseAppsBlock reads back the block renderAppsBlock wrote, around any user lines', () => {
     const source = `import x from 'y';\n${renderAppsBlock({ block: BLOCK })}\nexport default { packages: [...apps.packages, { dir: 'w' }] };\n`;
 

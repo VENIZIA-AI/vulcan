@@ -64,7 +64,7 @@ The app must pass `vulcan doctor`, which `init` runs last. Its `style` check wan
 | `devPort` | positive integer | yes | The default dev port. `add` picks the next free one when another app holds it |
 | `dependencies` | object | no | Package to range. They go in the root `catalog` and in the app as `catalog:` |
 | `devDependencies` | object | no | The same, for development |
-| `peers` | object | no | Package to range that the root `catalog` must already satisfy when `add` runs |
+| `peers` | object | no | Package to range that the root `catalog` must already satisfy when `add` runs. A catalog pin equal to the version this preset lists for that package in `dependencies` or `devDependencies` is accepted without the comparison, a prerelease included |
 | `scripts` | object | no | The `scripts` of the app's `package.json`. Use the standard seven (`server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean`; rule `V-B-05`): the root `dev` script runs `server:dev` in every app, and `vulcan doctor` notes an app that lacks one or carries `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod` |
 | `checks` | array of script names | no | Scripts that `init` and `add` run in the app after install, in order. Each entry must be a key of `scripts`, or the preset is refused |
 | `urls` | array of paths | no | Paths to open on the dev port, each starting with `/` (`/api/hello`). `init` and `add` end with one `open http://localhost:<port><path>` line per path. With none, they print the root. They are recorded in the app's `package.json` under `vulcan.urls`, so a later `add` prints them too |

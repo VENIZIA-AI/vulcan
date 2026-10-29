@@ -121,11 +121,22 @@ export const planRootManifest = (opts: {
 export const checkPeers = (opts: {
   catalog: Record<string, string>;
   peers: Record<string, string>;
+  /** What the preset itself lists, so the catalog `init` wrote from it is not held to its own range. */
+  presetVersions?: Pick<IPreset, 'dependencies' | 'devDependencies'>;
 }): string | undefined => {
   for (const [name, range] of Object.entries(opts.peers)) {
     const pinned = opts.catalog[name];
 
     if (pinned === undefined) {
+      continue;
+    }
+
+    // A pin equal to the version this preset lists is satisfied by construction (`init` wrote it
+    // from the preset); only a pin set by something else is compared with the range.
+    if (
+      pinned === opts.presetVersions?.dependencies[name] ||
+      pinned === opts.presetVersions?.devDependencies[name]
+    ) {
       continue;
     }
 
