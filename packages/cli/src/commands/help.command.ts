@@ -16,10 +16,11 @@ Usage: bun x vulcan <command>
                                   backend to proxy to; --dir is for a library or a shared package; --scope
                                   names the package @scope/<name>; a terminal asks for the kind and every
                                   name the flags leave out)
-  preset diff <app> [--preset <name|file:path>] [--api <app> | --no-api] [--full] [--check]
-                                  Read-only: set each file the app's preset makes now against the file
-                                  the app has (same, differs, missing in the app); --full prints the
-                                  unified diffs, --check exits 1 when anything differs or is missing
+  preset diff <package> [--preset <name|file:path>] [--api <app> | --no-api] [--full] [--check]
+                                  Read-only: set each file the preset makes now (for an app, a library or
+                                  a shared package) against the file the package has (same, differs,
+                                  missing in the app); --full prints the unified diffs, --check exits 1
+                                  when anything differs or is missing
   sync [--agents <list>|list] [--dry-run] [--prune]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
                                   stored in .agents/vulcan.local.json; --agents list shows the table);

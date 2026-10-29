@@ -4,12 +4,14 @@ import type { TConstValue } from '../common/index.ts';
 import { ExitCodes } from '../common/index.ts';
 import { layoutFoldersOf } from '../common/layout-folder.ts';
 import type { ILayout } from '../common/layout-folder.ts';
-import { loadConfig, PackageKinds, resolvePackages } from '../config/index.ts';
+import { LibraryKinds, loadConfig, PackageKinds, resolvePackages } from '../config/index.ts';
+import type { IProjectPackage, TLibraryKind } from '../config/index.ts';
 import { locate, resolveApiUrl } from './add-app.ts';
 import { AppSides, CreateConstants, CreateFlags, PresetDiffStatuses } from './common/index.ts';
 import type { ILocatedPreset, IRecordedPreset, IPresetSpec, TAppSide } from './common/index.ts';
 import { diffLines } from './diff.ts';
 import type { ILineDiff } from './diff.ts';
+import { readLibPreset } from './lib-preset.ts';
 import { readFlag } from './names.ts';
 import {
   decodeText,
@@ -23,7 +25,7 @@ import { withScratch } from './scratch.ts';
 import { readPort } from './workspace.ts';
 
 const SUBCOMMAND = 'diff';
-const USAGE = `usage: vulcan preset ${SUBCOMMAND} <app> [--preset <name|file:path>] [--api <backend app> | --no-api] [--full] [--check]`;
+const USAGE = `usage: vulcan preset ${SUBCOMMAND} <package> [--preset <name|file:path>] [--api <backend app> | --no-api] [--full] [--check]`;
 const API_URL_TOKEN = '{{apiUrl}}';
 /** Flags that take the next word as their value. */
 const VALUE_FLAGS = [CreateFlags.PRESET, CreateFlags.API];
@@ -236,14 +238,181 @@ const locateInstalled = (opts: { spec: IPresetSpec; appDirectory: string; root: 
   return inApp.ok ? inApp : locatePreset({ spec: opts.spec, root: opts.root });
 };
 
+/** Finds the preset (the `--preset` value, else the detected spec) where it lives and hands it to `compare`. */
+const locateAndCompare = async (opts: {
+  cwd: string;
+  flagValue: string | undefined;
+  detectedSpec: string | undefined;
+  /** The folder of the package being compared: an installed preset is looked for in its own `node_modules` first. */
+  packageDirectory: string;
+  compare: (found: { located: ILocatedPreset; source: string }) => Promise<number>;
+}): Promise<number> => {
+  const { cwd, compare } = opts;
+  const value = opts.flagValue ?? opts.detectedSpec ?? '';
+  const spec = parsePresetSpec({ value, cwd });
+  // `name@range` is fetched; a bare name, a detected spec or a `file:` folder is read where it already is.
+  const isFetched = opts.flagValue !== undefined && opts.flagValue.lastIndexOf('@') > 0;
+
+  if (isFetched) {
+    return withScratch({
+      root: cwd,
+      run: async (scratch) => {
+        const located = await locate({ cwd, scratch, spec });
+
+        return located.ok
+          ? compare({
+              located: located.located,
+              source: `fetched ${spec.packageName}@${spec.range}`,
+            })
+          : fail({ message: located.error });
+      },
+    });
+  }
+
+  const located =
+    spec.packageName === undefined
+      ? locatePreset({ spec, root: cwd })
+      : locateInstalled({ spec, appDirectory: opts.packageDirectory, root: cwd });
+
+  if (!located.ok) {
+    return fail({
+      message: `${located.error}${spec.packageName === undefined ? '' : ` - run bun install, or give ${CreateFlags.PRESET} ${spec.packageName}@<range> to fetch it`}`,
+    });
+  }
+
+  return compare({
+    located: located.located,
+    source:
+      spec.packageName === undefined
+        ? `file:${spec.range.slice(CreateConstants.PRESET_FILE_PREFIX.length)}`
+        : 'installed in node_modules',
+  });
+};
+
+
+const PRESET_HINT = `say which with ${CreateFlags.PRESET} <name|file:path>`;
+const MANIFEST_FILE = 'package.json';
+
+/**
+ * The recorded preset a library or shared package is set against: the one recorded preset (a package counted
+ * once, as `detectPreset` does) whose record ships the package's kind. A package made by the shared kind
+ * never takes a lib kind and the reverse, so nothing falls back to the other kind.
+ */
+const detectLibraryPreset = (opts: {
+  root: string;
+  recorded: IRecordedPreset[];
+  kind: TLibraryKind;
+}): { ok: true; spec: string } | { ok: false; error: string } => {
+  const matching = new Map<string, string>();
+
+  for (const preset of opts.recorded) {
+    const ships = (opts.kind === LibraryKinds.SHARED ? preset.shared : preset.lib) !== undefined;
+
+    if (ships) {
+      // The last record of a package wins: it is the newest spec `add` wrote.
+      matching.set(packageNameOf({ spec: preset.spec, root: opts.root }) ?? preset.spec, preset.spec);
+    }
+  }
+
+  const [only] = [...matching.values()];
+
+  if (matching.size === 1 && only !== undefined) {
+    return { ok: true, spec: only };
+  }
+
+  const known =
+    opts.recorded.length === 0
+      ? 'the config records no preset'
+      : `recorded: ${opts.recorded.map((preset) => preset.spec).join(', ')}`;
+
+  return {
+    ok: false,
+    error: `${matching.size === 0 ? `no recorded preset ships the ${opts.kind} kind` : `more than one recorded preset ships the ${opts.kind} kind`} (${known}) - ${PRESET_HINT}`,
+  };
+};
+
+/**
+ * `preset diff` of a package whose config entry has `kind: 'lib'`: the files of the preset kind that made it
+ * (`presetKind`, absent means `lib`), rendered with that kind's tokens, set against the package's folder.
+ */
+const diffLibrary = async (opts: {
+  cwd: string;
+  args: string[];
+  library: IProjectPackage;
+  kind: TLibraryKind;
+  recorded: IRecordedPreset[];
+  configName: string | undefined;
+  presetValue: string | undefined;
+}): Promise<number> => {
+  const { cwd, args, library, kind } = opts;
+  const noun = kind === LibraryKinds.SHARED ? 'shared package' : 'library';
+
+  for (const flag of [CreateFlags.API, CreateFlags.NO_API]) {
+    if (args.includes(flag)) {
+      return fail({
+        message: `${library.dir} is a ${noun}: it has no proxy target, so ${flag} does not apply`,
+      });
+    }
+  }
+
+  const detected =
+    opts.presetValue === undefined
+      ? detectLibraryPreset({ root: cwd, recorded: opts.recorded, kind })
+      : undefined;
+
+  if (detected !== undefined && !detected.ok) {
+    return fail({ message: detected.error });
+  }
+
+  const rootManifest = readJson({ file: join(cwd, MANIFEST_FILE) });
+  const rootName = rootManifest?.['name'];
+  const project = opts.configName ?? (typeof rootName === 'string' ? rootName : library.dir);
+  const directory = join(cwd, library.path);
+
+  return locateAndCompare({
+    cwd,
+    flagValue: opts.presetValue,
+    detectedSpec: detected?.ok === true ? detected.spec : undefined,
+    packageDirectory: directory,
+    compare: async ({ located, source }) => {
+      const read = readLibPreset({ located, kind });
+
+      if (!read.ok) {
+        return fail({ message: `${read.error} (${library.dir} is a ${noun})` });
+      }
+
+      // A package.json among the files is skipped: add replaces it with a generated one.
+      const rendered = renderPresetFiles({
+        located,
+        files: read.lib.files,
+        tokens: { project, [kind]: library.dir, package: library.name },
+      }).filter((file) => file.path !== MANIFEST_FILE);
+      const reports = comparePresetFiles({ rendered, appDirectory: directory });
+
+      printReport({
+        appPath: library.path,
+        located,
+        source,
+        reports,
+        isFull: args.includes(CreateFlags.FULL),
+      });
+
+      return args.includes(CreateFlags.CHECK) &&
+        reports.some((report) => report.status !== PresetDiffStatuses.SAME)
+        ? ExitCodes.FAILURE
+        : ExitCodes.OK;
+    },
+  });
+};
+
 export const runPresetDiff = async (opts: { cwd: string; args: string[] }): Promise<number> => {
   const { cwd, args } = opts;
   const positionals = args.filter(
     (arg, index) => !arg.startsWith('-') && !VALUE_FLAGS.includes(args[index - 1] ?? ''),
   );
-  const [subcommand, appName] = positionals;
+  const [subcommand, packageName] = positionals;
 
-  if (subcommand !== SUBCOMMAND || appName === undefined) {
+  if (subcommand !== SUBCOMMAND || packageName === undefined) {
     return fail({ message: USAGE });
   }
 
@@ -267,16 +436,43 @@ export const runPresetDiff = async (opts: { cwd: string; args: string[] }): Prom
 
   const { config } = loaded;
   const packages = resolvePackages({ config });
-  const app = packages.find((entry) => entry.dir === appName || entry.path === appName);
+  const app = packages.find((entry) => entry.dir === packageName || entry.path === packageName);
 
-  if (config.layout === undefined || app === undefined) {
-    const known = packages
-      .filter((entry) => entry.kind !== PackageKinds.LIB)
-      .map((entry) => entry.dir);
+  const notFound = (): number => {
+    const listOf = (opts: { isLibrary: boolean }): string[] =>
+      packages
+        .filter((entry) => (entry.kind === PackageKinds.LIB) === opts.isLibrary)
+        .map((entry) => entry.dir);
+    const apps = listOf({ isLibrary: false });
+    const libraries = listOf({ isLibrary: true });
+    const known = [
+      ...(apps.length === 0 ? [] : [`apps: ${apps.join(', ')}`]),
+      ...(libraries.length === 0 ? [] : [`libraries: ${libraries.join(', ')}`]),
+    ];
 
     return fail({
-      message: `no app '${appName}' in the config packages${known.length === 0 ? '' : ` (apps: ${known.join(', ')})`}`,
+      message: `no app '${packageName}' in the config packages${known.length === 0 ? '' : ` (${known.join('; ')})`}`,
     });
+  };
+
+  if (app === undefined) {
+    return notFound();
+  }
+
+  if (app.kind === PackageKinds.LIB) {
+    return diffLibrary({
+      cwd,
+      args,
+      library: app,
+      kind: app.presetKind ?? LibraryKinds.LIB,
+      recorded: config.presets ?? [],
+      configName: config.name,
+      presetValue: presetFlag.value,
+    });
+  }
+
+  if (config.layout === undefined) {
+    return notFound();
   }
 
   const side = sideOf({ layout: config.layout, path: app.path });
@@ -364,43 +560,11 @@ export const runPresetDiff = async (opts: { cwd: string; args: string[] }): Prom
       : ExitCodes.OK;
   };
 
-  const value = presetFlag.value ?? (detected?.ok === true ? detected.spec : '');
-  const spec = parsePresetSpec({ value, cwd });
-  // `name@range` is fetched; a bare name, a detected spec or a `file:` folder is read where it already is.
-  const isFetched = presetFlag.value !== undefined && presetFlag.value.lastIndexOf('@') > 0;
-
-  if (isFetched) {
-    return withScratch({
-      root: cwd,
-      run: async (scratch) => {
-        const located = await locate({ cwd, scratch, spec });
-
-        return located.ok
-          ? compare({
-              located: located.located,
-              source: `fetched ${spec.packageName}@${spec.range}`,
-            })
-          : fail({ message: located.error });
-      },
-    });
-  }
-
-  const located =
-    spec.packageName === undefined
-      ? locatePreset({ spec, root: cwd })
-      : locateInstalled({ spec, appDirectory, root: cwd });
-
-  if (!located.ok) {
-    return fail({
-      message: `${located.error}${spec.packageName === undefined ? '' : ` - run bun install, or give ${CreateFlags.PRESET} ${spec.packageName}@<range> to fetch it`}`,
-    });
-  }
-
-  return compare({
-    located: located.located,
-    source:
-      spec.packageName === undefined
-        ? `file:${spec.range.slice(CreateConstants.PRESET_FILE_PREFIX.length)}`
-        : 'installed in node_modules',
+  return locateAndCompare({
+    cwd,
+    flagValue: presetFlag.value,
+    detectedSpec: detected?.ok === true ? detected.spec : undefined,
+    packageDirectory: appDirectory,
+    compare,
   });
 };
