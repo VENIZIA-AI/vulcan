@@ -1,7 +1,7 @@
 /**
  * The `plan` job of package-release.yml: what a dispatch would release, decided before anything is built.
  *
- *   bun scripts/release/plan.ts --bump <mode> --ref <refs/heads/...> [--package <package.json>]
+ *   bun scripts/release/plan.ts --bump <mode> --ref <refs/heads/...> [--issue <n>] [--package <package.json>]
  *
  * It resolves the target version of the bump, says whether that version is a prerelease or a stable (a
  * prerelease needs no approval, a stable needs one), and refuses a branch and version that do not belong
@@ -13,13 +13,23 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ReleaseBumps } from './release-args.ts';
 
-export type TReleaseKind = 'prerelease' | 'stable';
+export class ReleaseKinds {
+  static readonly PRERELEASE = 'prerelease';
+  static readonly STABLE = 'stable';
+}
+
+export class ReleaseNpmTags {
+  static readonly NEXT = 'next';
+  static readonly LATEST = 'latest';
+}
+
+export type TReleaseKind = typeof ReleaseKinds.PRERELEASE | typeof ReleaseKinds.STABLE;
 
 export interface IReleasePlan {
   version: string;
   kind: TReleaseKind;
   /** The dist-tag the publish goes under: `next` for a prerelease, `latest` for a stable. */
-  npmTag: 'next' | 'latest';
+  npmTag: typeof ReleaseNpmTags.NEXT | typeof ReleaseNpmTags.LATEST;
 }
 
 export interface IReleasePlanResult {
@@ -32,16 +42,23 @@ export class ReleasePlanConstants {
   static readonly MAIN_REF = 'refs/heads/main';
   static readonly DEFAULT_PACKAGE = 'packages/cli/package.json';
 
-  /** Said for a stable until its own steps exist (the release commit on main and the merge back into develop). */
+  /** A version the later jobs may carry in their environment: digits, an optional prerelease part, no build part. */
+  static readonly VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+
+  /** Said for a stable until the steps that make one are in the workflow. */
   static readonly STABLE_PENDING =
-    'a stable release is not available yet: its steps (the release commit on main and the merge back into develop) arrive with slice S3 of the release card, and this workflow refuses a stable until then';
+    'a stable release is not available yet: the steps that make one (the release commit on main and the merge back into develop) are not in this workflow, so it refuses a stable until they are';
 }
 
 /** Decides what one dispatch of the release workflow would release, and whether it may. */
 export class ReleasePlan {
   /** A version with a prerelease part (`0.4.8-0`) is a prerelease, anything else a stable. */
   static kindOf(opts: { version: string }): TReleaseKind {
-    return opts.version.includes('-') ? 'prerelease' : 'stable';
+    return opts.version.includes('-') ? ReleaseKinds.PRERELEASE : ReleaseKinds.STABLE;
+  }
+
+  static isVersion(opts: { value: string }): boolean {
+    return ReleasePlanConstants.VERSION_PATTERN.test(opts.value);
   }
 
   /**
@@ -74,7 +91,7 @@ export class ReleasePlan {
         );
       }
 
-      const version = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')).version;
+      const { version } = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'));
 
       if (typeof version !== 'string') {
         throw new Error(`npm version ${opts.bump} from ${opts.currentVersion} wrote no version`);
@@ -96,15 +113,15 @@ export class ReleasePlan {
       ];
     }
 
-    if (opts.kind === 'prerelease' && opts.ref === MAIN_REF) {
+    if (opts.kind === ReleaseKinds.PRERELEASE && opts.ref === MAIN_REF) {
       return ['a prerelease runs from develop, not main'];
     }
 
-    if (opts.kind === 'stable' && opts.ref === DEVELOP_REF) {
+    if (opts.kind === ReleaseKinds.STABLE && opts.ref === DEVELOP_REF) {
       return ['a stable release runs from main, not develop'];
     }
 
-    return opts.kind === 'stable' ? [STABLE_PENDING] : [];
+    return opts.kind === ReleaseKinds.STABLE ? [STABLE_PENDING] : [];
   }
 
   static plan(opts: {
@@ -112,35 +129,59 @@ export class ReleasePlan {
     ref: string;
     currentVersion: string;
     scratchRoot: string;
+    /** The issue number the release commit serves; empty or absent for none. */
+    issue?: string;
   }): IReleasePlanResult {
+    const problems: string[] = [];
+
     if (!ReleaseBumps.isValid(opts.bump)) {
-      return {
-        plan: undefined,
-        problems: [
-          `the bump '${opts.bump}' is not one of: ${[...ReleaseBumps.SCHEME_SET].join(', ')}`,
-        ],
-      };
+      problems.push(
+        `the bump '${opts.bump}' is not one of: ${[...ReleaseBumps.SCHEME_SET].join(', ')}`,
+      );
+    }
+
+    if (opts.issue !== undefined && opts.issue !== '' && !/^\d+$/.test(opts.issue)) {
+      problems.push(`the issue must be a number, not '${opts.issue}'`);
+    }
+
+    if (!ReleasePlan.isVersion({ value: opts.currentVersion })) {
+      problems.push(`the version in package.json is not a plain version: '${opts.currentVersion}'`);
+    }
+
+    if (problems.length > 0) {
+      return { plan: undefined, problems };
     }
 
     const version = ReleasePlan.targetOf(opts);
+
+    if (!ReleasePlan.isVersion({ value: version })) {
+      return {
+        plan: undefined,
+        problems: [`the target of '${opts.bump}' is not a plain version: '${version}'`],
+      };
+    }
+
     const kind = ReleasePlan.kindOf({ version });
-    const problems = ReleasePlan.checkRef({ ref: opts.ref, kind });
 
     return {
-      plan: { version, kind, npmTag: kind === 'prerelease' ? 'next' : 'latest' },
-      problems,
+      plan: {
+        version,
+        kind,
+        npmTag: kind === ReleaseKinds.PRERELEASE ? ReleaseNpmTags.NEXT : ReleaseNpmTags.LATEST,
+      },
+      problems: ReleasePlan.checkRef({ ref: opts.ref, kind }),
     };
   }
 
   /** What the run page shows about the plan: the target, and who has to approve it. */
   static summaryOf(opts: { plan: IReleasePlan; bump: string; ref: string }): string {
     const approval =
-      opts.plan.kind === 'stable'
+      opts.plan.kind === ReleaseKinds.STABLE
         ? 'one approval, on the release-approval environment'
         : 'none (a prerelease needs no approval)';
 
     return [
-      `### Release plan`,
+      '### Release plan',
       '',
       `- Target: **${opts.plan.version}** (${opts.plan.kind}), from \`${opts.bump}\` on \`${opts.ref}\``,
       `- Published under the \`${opts.plan.npmTag}\` dist-tag`,
@@ -149,15 +190,21 @@ export class ReleasePlan {
     ].join('\n');
   }
 
-  static main(opts: { args: string[]; env: Record<string, string | undefined> }): number {
-    const read = (flag: string): string | undefined => {
-      const index = opts.args.indexOf(flag);
+  /** The value after `flag`; `undefined` when the flag is absent or is followed by another flag. */
+  static flagValue(opts: { args: string[]; flag: string }): string | undefined {
+    const index = opts.args.indexOf(opts.flag);
+    const value = index === -1 ? undefined : opts.args[index + 1];
 
-      return index === -1 ? undefined : opts.args[index + 1];
-    };
-    const bump = read('--bump');
-    const ref = read('--ref');
-    const packagePath = read('--package') ?? ReleasePlanConstants.DEFAULT_PACKAGE;
+    return value === undefined || value.startsWith('--') ? undefined : value;
+  }
+
+  static main(opts: { args: string[]; env: Record<string, string | undefined> }): number {
+    const { args } = opts;
+    const bump = ReleasePlan.flagValue({ args, flag: '--bump' });
+    const ref = ReleasePlan.flagValue({ args, flag: '--ref' });
+    const issue = ReleasePlan.flagValue({ args, flag: '--issue' });
+    const packagePath =
+      ReleasePlan.flagValue({ args, flag: '--package' }) ?? ReleasePlanConstants.DEFAULT_PACKAGE;
 
     if (bump === undefined || ref === undefined) {
       console.error('plan: --bump <mode> and --ref <refs/heads/...> are required');
@@ -165,7 +212,7 @@ export class ReleasePlan {
       return 2;
     }
 
-    const currentVersion = JSON.parse(readFileSync(packagePath, 'utf8')).version;
+    const { version: currentVersion } = JSON.parse(readFileSync(packagePath, 'utf8'));
 
     if (typeof currentVersion !== 'string') {
       console.error(`plan: ${packagePath} has no version`);
@@ -180,6 +227,7 @@ export class ReleasePlan {
         bump,
         ref,
         currentVersion,
+        issue,
         scratchRoot: opts.env['RUNNER_TEMP'] ?? tmpdir(),
       });
     } catch (error) {

@@ -92,7 +92,7 @@ export const parseReleaseArgs = (opts: { args: string[] }): IReleaseArgs => {
 
 /**
  * The `gh` command that dispatches one release of the whole okf/atlas/cli train. The ref is always named,
- * never left to the repository's default branch (which is moving from develop to main): this driver releases a
+ * never left to the repository's default branch: this driver releases a
  * prerelease from develop. An issue is sent only when there is one.
  */
 export const buildDispatchCommand = (opts: { args: IReleaseArgs }): string[] => [

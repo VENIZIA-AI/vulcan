@@ -57,7 +57,7 @@ describe('ReleasePlan.targetOf: the arithmetic of npm version', () => {
     expect(target('minor', '0.4.0-3')).toBe('0.4.0');
   });
 
-  test('none is the version already there, and the scratch folder is gone afterwards', () => {
+  test('none is the version already there, and a bump leaves no scratch folder behind', () => {
     const root = scratch();
 
     expect(ReleasePlan.targetOf({ bump: 'none', currentVersion: '0.4.7', scratchRoot: root })).toBe(
@@ -88,7 +88,6 @@ describe('ReleasePlan.checkRef: a version and a branch that belong together', ()
     expect(ReleasePlan.checkRef({ ref: MAIN_REF, kind: 'stable' })).toEqual([
       ReleasePlanConstants.STABLE_PENDING,
     ]);
-    expect(ReleasePlanConstants.STABLE_PENDING).toContain('slice S3');
   });
 
   test('any other ref is refused for both kinds, naming the ref', () => {
@@ -142,6 +141,46 @@ describe('ReleasePlan.plan', () => {
 
     expect(result.plan).toBeUndefined();
     expect(result.problems[0]).toContain("the bump 'sideways' is not one of");
+  });
+});
+
+describe('ReleasePlan.plan: what the later jobs may carry', () => {
+  const plan = (opts: { bump?: string; currentVersion?: string; issue?: string }) =>
+    ReleasePlan.plan({
+      bump: opts.bump ?? 'prerelease',
+      ref: DEVELOP_REF,
+      currentVersion: opts.currentVersion ?? '0.4.7',
+      issue: opts.issue,
+      scratchRoot: scratch(),
+    });
+
+  test('a version with a newline, a build part or anything but digits and a prerelease part is refused', () => {
+    for (const currentVersion of ['0.4.8-1\nNAME=value', '1.0.0+a-b', 'v0.4.8', '0.4', '0.4.8-']) {
+      const result = plan({ bump: 'none', currentVersion });
+
+      expect(result.plan, currentVersion).toBeUndefined();
+      expect(result.problems[0], currentVersion).toContain('is not a plain version');
+    }
+  });
+
+  test('an issue is a number or nothing', () => {
+    expect(plan({ issue: '549' }).problems).toEqual([]);
+    expect(plan({ issue: '' }).problems).toEqual([]);
+    expect(plan({ issue: undefined }).problems).toEqual([]);
+    expect(plan({ issue: '12\nCo-Authored-By: x' }).problems[0]).toContain('must be a number');
+    expect(plan({ issue: 'abc' }).plan).toBeUndefined();
+  });
+});
+
+describe('ReleasePlan.flagValue', () => {
+  test('a value is the next argument, and a flag followed by a flag has none', () => {
+    expect(ReleasePlan.flagValue({ args: ['--bump', 'patch'], flag: '--bump' })).toBe('patch');
+    expect(
+      ReleasePlan.flagValue({ args: ['--bump', '--ref', 'x'], flag: '--bump' }),
+    ).toBeUndefined();
+    expect(ReleasePlan.flagValue({ args: ['--bump'], flag: '--bump' })).toBeUndefined();
+    expect(ReleasePlan.flagValue({ args: [], flag: '--bump' })).toBeUndefined();
+    expect(ReleasePlan.flagValue({ args: ['--issue', ''], flag: '--issue' })).toBe('');
   });
 });
 

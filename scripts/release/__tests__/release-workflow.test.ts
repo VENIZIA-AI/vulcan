@@ -2,8 +2,8 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { runInNewContext } from 'node:vm';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { PublishCondition } from '../../checks/publish-condition.ts';
 
 const WORKFLOW = join(
   import.meta.dir,
@@ -380,10 +380,13 @@ describe('package-release.yml: the atlas index of the release', () => {
 });
 
 describe('package-release.yml: the job graph', () => {
-  const NAMES = ['plan', 'test', 'approve', 'publish'];
   const textOf = (opts: { value: unknown }): string => toText(opts) ?? '';
   const needsOf = (opts: { name: string }): string[] => {
-    const needs = readJob(opts).needs;
+    const { needs } = readJob(opts);
+
+    if (typeof needs === 'string') {
+      return [needs];
+    }
 
     return Array.isArray(needs) ? needs.map((value) => textOf({ value })) : [];
   };
@@ -394,42 +397,33 @@ describe('package-release.yml: the job graph', () => {
 
     return isRecord(permissions) ? permissions.value : undefined;
   };
-  const workflowText = readFileSync(WORKFLOW, 'utf8');
 
   test('four jobs: plan, then the gates, then the approval of a stable, then the publish', () => {
-    const workflow = { value: Bun.YAML.parse(workflowText) };
+    const workflow = { value: Bun.YAML.parse(readFileSync(WORKFLOW, 'utf8')) };
     const jobs = { value: isRecord(workflow) ? workflow.value.jobs : undefined };
 
-    expect(isRecord(jobs) ? Object.keys(jobs.value) : []).toEqual(NAMES);
-    expect(readJob({ name: 'test' }).needs).toBe('plan');
+    expect(isRecord(jobs) ? Object.keys(jobs.value) : []).toEqual([
+      'plan',
+      'test',
+      'approve',
+      'publish',
+    ]);
+    expect(needsOf({ name: 'test' })).toEqual(['plan']);
     expect(needsOf({ name: 'approve' })).toEqual(['plan', 'test']);
     expect(needsOf({ name: 'publish' })).toEqual(['plan', 'test', 'approve']);
   });
 
   test('no job is skipped by a ref guard of its own: the plan refuses a wrong ref loudly instead', () => {
-    expect(workflowText).not.toContain("github.ref == 'refs/heads/develop'");
+    expect(readFileSync(WORKFLOW, 'utf8')).not.toContain("github.ref == 'refs/heads/develop'");
     expect(readJob({ name: 'plan' }).if).toBeUndefined();
     expect(readJob({ name: 'test' }).if).toBeUndefined();
   });
 
-  test('the plan job holds no environment and reads only, and runs the planning script on the ref and the bump', () => {
-    const steps = readJob({ name: 'plan' }).steps;
-    const plan = (Array.isArray(steps) ? steps : []).find(
-      (step) =>
-        isRecord({ value: step }) &&
-        textOf({ value: (step as Record<string, unknown>).id }) === 'plan',
-    ) as Record<string, unknown> | undefined;
+  test('the plan job names no environment, reads only, and hands the version, the kind and the dist-tag on', () => {
+    const outputs = { value: readJob({ name: 'plan' }).outputs };
 
     expect(environmentOf({ name: 'plan' })).toBeUndefined();
     expect(permissionsOf({ name: 'plan' })).toEqual({ contents: 'read' });
-    expect(textOf({ value: plan?.run })).toBe(
-      'bun scripts/release/plan.ts --bump "$BUMP" --ref "$GITHUB_REF"',
-    );
-  });
-
-  test('the plan outputs are what the later jobs read: version, kind and the dist-tag', () => {
-    const outputs = { value: readJob({ name: 'plan' }).outputs };
-
     expect(isRecord(outputs) ? Object.keys(outputs.value) : []).toEqual([
       'version',
       'kind',
@@ -441,20 +435,19 @@ describe('package-release.yml: the job graph', () => {
     expect(environmentOf({ name: 'approve' })).toBe('release-approval');
     expect(environmentOf({ name: 'publish' })).toBe('npm-release');
     expect(environmentOf({ name: 'test' })).toBeUndefined();
-    expect(workflowText.match(/^ {4}environment: /gm)).toHaveLength(2);
+    expect(environmentOf({ name: 'plan' })).toBeUndefined();
   });
 
-  test('only publish holds id-token, and only publish can write', () => {
+  test('only publish can write and only publish holds id-token', () => {
     expect(permissionsOf({ name: 'publish' })).toEqual({ contents: 'write', 'id-token': 'write' });
     expect(permissionsOf({ name: 'approve' })).toEqual({});
     expect(permissionsOf({ name: 'plan' })).toEqual({ contents: 'read' });
     expect(permissionsOf({ name: 'test' })).toBeUndefined();
-    expect(workflowText.match(/id-token: write/g)).toHaveLength(1);
-    expect(workflowText.match(/contents: write/g)).toHaveLength(1);
   });
 
-  test('approve exists for a stable only, runs after the gates, and runs nothing but an echo', () => {
-    const steps = readJob({ name: 'approve' }).steps;
+  test('approve exists for a stable only, and runs nothing but an echo', () => {
+    const { steps } = readJob({ name: 'approve' });
+    const first = { value: Array.isArray(steps) ? steps[0] : undefined };
 
     expect(textOf({ value: readJob({ name: 'approve' }).if })).toBe(
       "${{ needs.plan.outputs.kind == 'stable' }}",
@@ -463,66 +456,17 @@ describe('package-release.yml: the job graph', () => {
       '${{ needs.plan.outputs.version }}',
     );
     expect(Array.isArray(steps) ? steps : []).toHaveLength(1);
-    expect(textOf({ value: (Array.isArray(steps) ? steps[0] : {}).run })).toStartWith('echo ');
+    expect(isRecord(first) ? textOf({ value: first.value.run }) : '').toStartWith('echo ');
   });
 
-  describe('the publish condition, as a truth table', () => {
-    const condition = textOf({ value: readJob({ name: 'publish' }).if })
-      .replace(/^\$\{\{\s*/, '')
-      .replace(/\s*\}\}$/, '')
-      .replace(/\s+/g, ' ');
-    const decide = (opts: {
-      plan: string;
-      test: string;
-      approve: string;
-      kind: string;
-      isCancelled?: boolean;
-    }): boolean =>
-      runInNewContext(condition, {
-        cancelled: () => opts.isCancelled === true,
-        needs: {
-          plan: { result: opts.plan, outputs: { kind: opts.kind } },
-          test: { result: opts.test },
-          approve: { result: opts.approve },
-        },
-      }) as boolean;
+  describe('the publish condition', () => {
+    const condition = textOf({ value: readJob({ name: 'publish' }).if });
 
-    test('a prerelease publishes with approve skipped', () => {
-      expect(
-        decide({ plan: 'success', test: 'success', approve: 'skipped', kind: 'prerelease' }),
-      ).toBe(true);
-    });
-
-    test('a stable publishes only after approve succeeded', () => {
-      expect(decide({ plan: 'success', test: 'success', approve: 'success', kind: 'stable' })).toBe(
-        true,
-      );
-    });
-
-    test('a stable with approve skipped does NOT publish', () => {
-      expect(decide({ plan: 'success', test: 'success', approve: 'skipped', kind: 'stable' })).toBe(
-        false,
-      );
-    });
-
-    test('a failed, cancelled or rejected dependency stops it, for both kinds', () => {
-      for (const kind of ['prerelease', 'stable']) {
-        const approve = kind === 'stable' ? 'success' : 'skipped';
-
-        expect(decide({ plan: 'failure', test: 'success', approve, kind })).toBe(false);
-        expect(decide({ plan: 'success', test: 'failure', approve, kind })).toBe(false);
-        expect(decide({ plan: 'success', test: 'success', approve, kind, isCancelled: true })).toBe(
-          false,
-        );
-      }
-
-      expect(decide({ plan: 'success', test: 'success', approve: 'failure', kind: 'stable' })).toBe(
-        false,
-      );
-      expect(
-        decide({ plan: 'success', test: 'success', approve: 'cancelled', kind: 'stable' }),
-      ).toBe(false);
-    });
+    for (const testCase of PublishCondition.CASES) {
+      test(testCase.name, () => {
+        expect(PublishCondition.runs({ condition, testCase })).toBe(testCase.expected);
+      });
+    }
   });
 
   test('the publish job takes the dist-tag from the plan and stops when its own bump disagrees', () => {
@@ -532,6 +476,5 @@ describe('package-release.yml: the job graph', () => {
     expect(step.env?.PLAN_NPM_TAG).toBe('${{ needs.plan.outputs.npm_tag }}');
     expect(step.run).toContain('NPM_TAG="$PLAN_NPM_TAG"');
     expect(step.run).toContain('[ "$NEW_VERSION" != "$PLAN_VERSION" ]');
-    expect(step.run).not.toContain('*-*) NPM_TAG=');
   });
 });

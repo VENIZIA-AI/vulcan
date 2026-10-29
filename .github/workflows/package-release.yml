@@ -78,9 +78,18 @@ jobs:
         with:
           bun-version: 1.4.4
 
+      # The npm that works the version out is the one that publishes it (see the publish job), so the two
+      # cannot read the same bump differently.
+      - name: Install the npm that works the version out
+        run: |
+          npm install --global npm@11.21.1 --ignore-scripts
+          [ "$(npm --version)" = "11.21.1" ] || { echo "ERROR | npm is $(npm --version), expected 11.21.1"; exit 1; }
+
       - name: Plan the release
         id: plan
-        run: bun scripts/release/plan.ts --bump "$BUMP" --ref "$GITHUB_REF"
+        env:
+          RELEASE_ISSUE: ${{ inputs.issue }}
+        run: bun scripts/release/plan.ts --bump "$BUMP" --ref "$GITHUB_REF" --issue "$RELEASE_ISSUE"
 
   # Build, lint, the unit tests and VULCAN's own contract, on the dispatched commit, in a job that holds no
   # secret and cannot write: the publish job below needs it, so a failing gate publishes nothing.

@@ -22,7 +22,7 @@
  *        succeeded, and a failed or cancelled dependency stops either
  *   D6   every action is pinned by a full commit SHA (a local action is not an action to pin)
  */
-import { runInNewContext } from 'node:vm';
+import { PublishCondition } from './publish-condition.ts';
 
 const PLAN_SCRIPT = 'scripts/release/plan.ts';
 const STABLE_ONLY = "${{ needs.plan.outputs.kind == 'stable' }}";
@@ -39,6 +39,25 @@ const SECRET_REFERENCE = /secrets\.[A-Za-z0-9_]+/g;
 
 const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
   typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
+
+const needsOf = (opts: { job: Record<string, unknown> }): string[] => {
+  const { needs } = opts.job;
+
+  if (typeof needs === 'string') {
+    return [needs];
+  }
+
+  return Array.isArray(needs)
+    ? needs.filter((entry): entry is string => typeof entry === 'string')
+    : [];
+};
+
+/** The environment a job names, written `environment: name` or `environment: { name: ... }`. */
+const environmentNameOf = (opts: { job: Record<string, unknown> }): unknown => {
+  const environment = { value: opts.job['environment'] };
+
+  return isRecord(environment) ? environment.value['name'] : environment.value;
+};
 
 const recordAt = (opts: { value: unknown; key: string }): Record<string, unknown> => {
   const holder = { value: opts.value };
@@ -87,24 +106,13 @@ export const checkReleaseWorkflowGuards = (opts: {
   const plan = recordAt({ value: jobs, key: 'plan' });
   const test = recordAt({ value: jobs, key: 'test' });
   const approve = recordAt({ value: jobs, key: 'approve' });
-  const release = recordAt({ value: jobs, key: 'publish' });
+  const publishJob = recordAt({ value: jobs, key: 'publish' });
   const all = [
     ...stepsOf({ job: plan }),
     ...stepsOf({ job: test }),
     ...stepsOf({ job: approve }),
-    ...stepsOf({ job: release }),
+    ...stepsOf({ job: publishJob }),
   ];
-  const needsOf = (opts: { job: Record<string, unknown> }): string[] => {
-    const needs = opts.job['needs'];
-
-    if (typeof needs === 'string') {
-      return [needs];
-    }
-
-    return Array.isArray(needs)
-      ? needs.filter((entry): entry is string => typeof entry === 'string')
-      : [];
-  };
 
   if (
     !stepsOf({ job: plan }).some(
@@ -119,7 +127,7 @@ export const checkReleaseWorkflowGuards = (opts: {
     violations.push('C1: the plan job must name no environment and carry no condition of its own');
   }
 
-  if (!needsOf({ job: test }).includes('plan') || !needsOf({ job: release }).includes('plan')) {
+  if (!needsOf({ job: test }).includes('plan') || !needsOf({ job: publishJob }).includes('plan')) {
     violations.push('C1: the test job and the publish job must need the plan job');
   }
 
@@ -129,13 +137,13 @@ export const checkReleaseWorkflowGuards = (opts: {
     violations.push('C2: the workflow default permissions must be exactly contents: read');
   }
 
-  const releasePermissions = recordAt({ value: release, key: 'permissions' });
+  const publishPermissions = recordAt({ value: publishJob, key: 'permissions' });
 
-  if (releasePermissions['contents'] !== 'write') {
+  if (publishPermissions['contents'] !== 'write') {
     violations.push('C2: the publish job must state contents: write');
   }
 
-  if (releasePermissions['id-token'] !== 'write') {
+  if (publishPermissions['id-token'] !== 'write') {
     violations.push('C20: the publish job must state id-token: write');
   }
 
@@ -158,16 +166,11 @@ export const checkReleaseWorkflowGuards = (opts: {
     }
   }
 
-  const environment = { value: release['environment'] };
-  const environmentName = isRecord(environment) ? environment.value['name'] : environment.value;
-
-  if (environmentName !== 'npm-release') {
+  if (environmentNameOf({ job: publishJob }) !== 'npm-release') {
     violations.push('C16: the publish job must name the environment npm-release');
   }
 
-  const needs = release['needs'];
-
-  if (needs !== 'test' && !(Array.isArray(needs) && needs.includes('test'))) {
+  if (!needsOf({ job: publishJob }).includes('test')) {
     violations.push('C3: the publish job must need the test job');
   }
 
@@ -175,20 +178,13 @@ export const checkReleaseWorkflowGuards = (opts: {
     violations.push('C3: the test job must name no environment');
   }
 
-  const approveEnvironment = { value: approve['environment'] };
-  const approveEnvironmentName = isRecord(approveEnvironment)
-    ? approveEnvironment.value['name']
-    : approveEnvironment.value;
-  const approvePermissions = approve['permissions'];
+  const approvePermissions = { value: approve['permissions'] };
 
-  if (approveEnvironmentName !== 'release-approval') {
+  if (environmentNameOf({ job: approve }) !== 'release-approval') {
     violations.push('C25: the approve job must name the environment release-approval');
   }
 
-  if (
-    !isRecord({ value: approvePermissions }) ||
-    Object.keys(approvePermissions as object).length > 0
-  ) {
+  if (!isRecord(approvePermissions) || Object.keys(approvePermissions.value).length > 0) {
     violations.push('C25: the approve job must state permissions: {} (it holds none)');
   }
 
@@ -203,47 +199,16 @@ export const checkReleaseWorkflowGuards = (opts: {
     violations.push('C25: the approve job must need the plan job and the test job');
   }
 
-  if (!needsOf({ job: release }).includes('approve')) {
+  if (!needsOf({ job: publishJob }).includes('approve')) {
     violations.push('C25: the publish job must need the approve job');
   }
 
-  const condition = typeof release['if'] === 'string' ? release['if'] : '';
-  const expression = condition
-    .replace(/^\$\{\{\s*/, '')
-    .replace(/\s*\}\}$/, '')
-    .replace(/\s+/g, ' ');
-  const publishes = (opts: {
-    kind: string;
-    approve: string;
-    plan?: string;
-    test?: string;
-    isCancelled?: boolean;
-  }): boolean | undefined => {
-    try {
-      return runInNewContext(expression, {
-        cancelled: () => opts.isCancelled === true,
-        needs: {
-          plan: { result: opts.plan ?? 'success', outputs: { kind: opts.kind } },
-          test: { result: opts.test ?? 'success' },
-          approve: { result: opts.approve },
-        },
-      }) as boolean;
-    } catch {
-      return undefined;
-    }
-  };
+  const condition = typeof publishJob['if'] === 'string' ? publishJob['if'] : '';
+  const wrong = PublishCondition.failures({ condition });
 
-  if (
-    publishes({ kind: 'prerelease', approve: 'skipped' }) !== true ||
-    publishes({ kind: 'stable', approve: 'success' }) !== true ||
-    publishes({ kind: 'stable', approve: 'skipped' }) !== false ||
-    publishes({ kind: 'stable', approve: 'failure' }) !== false ||
-    publishes({ kind: 'prerelease', approve: 'skipped', test: 'failure' }) !== false ||
-    publishes({ kind: 'prerelease', approve: 'skipped', plan: 'failure' }) !== false ||
-    publishes({ kind: 'prerelease', approve: 'skipped', isCancelled: true }) !== false
-  ) {
+  if (wrong.length > 0) {
     violations.push(
-      'C26: the publish condition must let a prerelease through with approve skipped, a stable only after approve succeeded, and stop on a failed or cancelled dependency',
+      `C26: the publish condition gets ${wrong.length} case(s) wrong, the first being: ${wrong[0]}`,
     );
   }
 
@@ -309,7 +274,7 @@ export const checkReleaseWorkflowGuards = (opts: {
   }
 
   const named = (opts: { name: string }): IStep | undefined =>
-    stepsOf({ job: release }).find((entry) => entry.name === opts.name);
+    stepsOf({ job: publishJob }).find((entry) => entry.name === opts.name);
   const publish = named({ name: PUBLISH_STEP });
   const validate = named({ name: VALIDATE_STEP });
   const install = named({ name: INSTALL_NPM_STEP });
