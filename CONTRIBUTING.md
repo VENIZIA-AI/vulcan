@@ -57,7 +57,7 @@ bun x --no-install vulcan x okf check
 ```
 
 4. Commit with a one-line message, `[#N] type(scope): subject`, and no agent signature (W-00).
-   Open a pull request with `gh pr create --base develop` whose body says `Refs #N`. The Sync pull request lists `Closes #N` and closes the issues once `main` is the default branch. Releases are separate: a maintainer dispatches
+   Open a pull request with `gh pr create --base develop` whose body says `Refs #N`. The Sync pull request lists `Closes #N` and closes the issues when it merges into `main`, the default branch. Releases are separate: a maintainer dispatches
    `make release` (see [`.agents/knowledge/process/releasing.md`](.agents/knowledge/process/releasing.md)).
 
 ## Code
