@@ -57,7 +57,7 @@ describe('parseReleaseArgs', () => {
 });
 
 describe('buildDispatchCommand', () => {
-  test('dispatches package-release.yml on the default branch (develop) with the bump and the issue', () => {
+  test('dispatches package-release.yml on an explicit ref, develop, with the bump and the issue', () => {
     const command = buildDispatchCommand({
       args: {
         bump: 'prerelease',
@@ -72,6 +72,8 @@ describe('buildDispatchCommand', () => {
       'workflow',
       'run',
       'package-release.yml',
+      '--ref',
+      'develop',
       '-f',
       'bump=prerelease',
       '-f',

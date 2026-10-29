@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
+import { PublishCondition } from '../../checks/publish-condition.ts';
 
 const WORKFLOW = join(
   import.meta.dir,
@@ -37,15 +38,25 @@ const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unk
 const toText = (opts: { value: unknown }): string | undefined =>
   typeof opts.value === 'string' ? opts.value : undefined;
 
-/** The release job's steps, read through type checks: the YAML is data until it has the shape. */
-const readSteps = (): IWorkflowStep[] => {
+/** One job of the workflow as plain data; the YAML is data until it has the shape. */
+const readJob = (opts: { name: string }): Record<string, unknown> => {
   const workflow = { value: Bun.YAML.parse(readFileSync(WORKFLOW, 'utf8')) };
   const jobs = { value: isRecord(workflow) ? workflow.value.jobs : undefined };
-  const release = { value: isRecord(jobs) ? jobs.value.release : undefined };
-  const steps = isRecord(release) ? release.value.steps : undefined;
+  const job = { value: isRecord(jobs) ? jobs.value[opts.name] : undefined };
+
+  if (!isRecord(job)) {
+    throw new Error(`[readJob] ${WORKFLOW} has no job '${opts.name}'`);
+  }
+
+  return job.value;
+};
+
+/** The publish job's steps, read through type checks. */
+const readSteps = (): IWorkflowStep[] => {
+  const steps = readJob({ name: 'publish' }).steps;
 
   if (!Array.isArray(steps)) {
-    throw new Error(`[readSteps] ${WORKFLOW} has no jobs.release.steps list`);
+    throw new Error(`[readSteps] ${WORKFLOW} has no jobs.publish.steps list`);
   }
 
   return steps.flatMap((value) => {
@@ -362,11 +373,108 @@ describe('package-release.yml: the atlas index of the release', () => {
   });
 
   test('the job can write contents: the pair goes up as an asset of a release', () => {
-    const workflow = { value: Bun.YAML.parse(readFileSync(WORKFLOW, 'utf8')) };
-    const jobs = { value: isRecord(workflow) ? workflow.value.jobs : undefined };
-    const release = { value: isRecord(jobs) ? jobs.value.release : undefined };
-    const permissions = { value: isRecord(release) ? release.value.permissions : undefined };
+    const permissions = { value: readJob({ name: 'publish' }).permissions };
 
     expect(isRecord(permissions) ? permissions.value.contents : undefined).toBe('write');
+  });
+});
+
+describe('package-release.yml: the job graph', () => {
+  const textOf = (opts: { value: unknown }): string => toText(opts) ?? '';
+  const needsOf = (opts: { name: string }): string[] => {
+    const { needs } = readJob(opts);
+
+    if (typeof needs === 'string') {
+      return [needs];
+    }
+
+    return Array.isArray(needs) ? needs.map((value) => textOf({ value })) : [];
+  };
+  const environmentOf = (opts: { name: string }): string | undefined =>
+    toText({ value: readJob(opts).environment });
+  const permissionsOf = (opts: { name: string }): Record<string, unknown> | undefined => {
+    const permissions = { value: readJob(opts).permissions };
+
+    return isRecord(permissions) ? permissions.value : undefined;
+  };
+
+  test('four jobs: plan, then the gates, then the approval of a stable, then the publish', () => {
+    const workflow = { value: Bun.YAML.parse(readFileSync(WORKFLOW, 'utf8')) };
+    const jobs = { value: isRecord(workflow) ? workflow.value.jobs : undefined };
+
+    expect(isRecord(jobs) ? Object.keys(jobs.value) : []).toEqual([
+      'plan',
+      'test',
+      'approve',
+      'publish',
+    ]);
+    expect(needsOf({ name: 'test' })).toEqual(['plan']);
+    expect(needsOf({ name: 'approve' })).toEqual(['plan', 'test']);
+    expect(needsOf({ name: 'publish' })).toEqual(['plan', 'test', 'approve']);
+  });
+
+  test('no job is skipped by a ref guard of its own: the plan refuses a wrong ref loudly instead', () => {
+    expect(readFileSync(WORKFLOW, 'utf8')).not.toContain("github.ref == 'refs/heads/develop'");
+    expect(readJob({ name: 'plan' }).if).toBeUndefined();
+    expect(readJob({ name: 'test' }).if).toBeUndefined();
+  });
+
+  test('the plan job names no environment, reads only, and hands the version, the kind and the dist-tag on', () => {
+    const outputs = { value: readJob({ name: 'plan' }).outputs };
+
+    expect(environmentOf({ name: 'plan' })).toBeUndefined();
+    expect(permissionsOf({ name: 'plan' })).toEqual({ contents: 'read' });
+    expect(isRecord(outputs) ? Object.keys(outputs.value) : []).toEqual([
+      'version',
+      'kind',
+      'npm_tag',
+    ]);
+  });
+
+  test('the environments: the stable approval is release-approval, the publish identity is npm-release, the rest have none', () => {
+    expect(environmentOf({ name: 'approve' })).toBe('release-approval');
+    expect(environmentOf({ name: 'publish' })).toBe('npm-release');
+    expect(environmentOf({ name: 'test' })).toBeUndefined();
+    expect(environmentOf({ name: 'plan' })).toBeUndefined();
+  });
+
+  test('only publish can write and only publish holds id-token', () => {
+    expect(permissionsOf({ name: 'publish' })).toEqual({ contents: 'write', 'id-token': 'write' });
+    expect(permissionsOf({ name: 'approve' })).toEqual({});
+    expect(permissionsOf({ name: 'plan' })).toEqual({ contents: 'read' });
+    expect(permissionsOf({ name: 'test' })).toBeUndefined();
+  });
+
+  test('approve exists for a stable only, and runs nothing but an echo', () => {
+    const { steps } = readJob({ name: 'approve' });
+    const first = { value: Array.isArray(steps) ? steps[0] : undefined };
+
+    expect(textOf({ value: readJob({ name: 'approve' }).if })).toBe(
+      "${{ needs.plan.outputs.kind == 'stable' }}",
+    );
+    expect(textOf({ value: readJob({ name: 'approve' }).name })).toContain(
+      '${{ needs.plan.outputs.version }}',
+    );
+    expect(Array.isArray(steps) ? steps : []).toHaveLength(1);
+    expect(isRecord(first) ? textOf({ value: first.value.run }) : '').toStartWith('echo ');
+  });
+
+  describe('the publish condition', () => {
+    const condition = textOf({ value: readJob({ name: 'publish' }).if });
+
+    for (const testCase of PublishCondition.CASES) {
+      test(testCase.name, () => {
+        expect(PublishCondition.runs({ condition, testCase })).toBe(testCase.expected);
+      });
+    }
+  });
+
+  test('the publish job takes the dist-tag from the plan and stops when its own bump disagrees', () => {
+    const step = findStep({ name: 'Set the release version' });
+
+    expect(step.env?.PLAN_VERSION).toBe('${{ needs.plan.outputs.version }}');
+    expect(step.env?.PLAN_NPM_TAG).toBe('${{ needs.plan.outputs.npm_tag }}');
+    expect(step.run).toContain('NPM_TAG="$PLAN_NPM_TAG"');
+    expect(step.run).toContain('[ "$NEW_VERSION" != "$PLAN_VERSION" ]');
   });
 });
