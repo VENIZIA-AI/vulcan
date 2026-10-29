@@ -385,7 +385,13 @@ The keys `releaseCommit`, `typescriptFrom` and `legacyTagPrefixes` were removed 
 
 ### legacyTagPatterns
 
-A project that renames its release tags keeps its old releases with `legacyTagPatterns`: templates of the earlier layout, read after `tagPattern`. Atlas and the changelog check try `tagPattern` first. A tag it reads is never read by a legacy template, and a legacy template reads only a tag whose version starts with a digit; without that, `v<version>` would read `vulcan-v0.4.8` as the version `ulcan-v0.4.8`. A release read through a legacy template keeps the name of its tag, so a pin to it names the old tag.
+After you rename your release tags, `legacyTagPatterns` keeps the old tags readable as releases. List the templates of the earlier layout.
+
+Atlas and the changelog check read a tag through `tagPattern` first. A tag that template reads is never read again by a legacy one.
+
+A legacy template reads only a tag whose version starts with a digit. Without that rule, `v<version>` would read `vulcan-v0.4.8` as the version `ulcan-v0.4.8`.
+
+A release read through a legacy template keeps the name of its tag, so a pin to it names the old tag.
 
 ```ts
 atlas: { tagPattern: 'vulcan-v<version>', legacyTagPatterns: ['v<version>'] },

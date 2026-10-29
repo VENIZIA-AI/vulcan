@@ -1,37 +1,28 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { rmSync } from 'node:fs';
 import { toAtlasProject } from '@/common/project-config';
 import type { IReleaseTable } from '@/releases/common';
 import { decidePin } from '@/sources/pin';
-
-const roots: string[] = [];
+import { install, makeTempDirectory, TEMP_DIRECTORIES } from './source-repo.helper';
 
 afterAll(() => {
-  for (const root of roots) {
-    rmSync(root, { recursive: true, force: true });
+  for (const directory of TEMP_DIRECTORIES) {
+    rmSync(directory, { recursive: true, force: true });
   }
 });
 
-/** A root with `@a/kernel` installed at `version`, a copy and not a link. */
+/** A root with `@a/kernel` installed at `version`. */
 const installed = (opts: { version: string }): string => {
-  const root = mkdtempSync(join(tmpdir(), 'atlas-pin-legacy-'));
-  const directory = join(root, 'node_modules', '@a', 'kernel');
+  const root = makeTempDirectory({ prefix: 'atlas-pin-legacy-' });
 
-  roots.push(root);
-  mkdirSync(directory, { recursive: true });
-  writeFileSync(
-    join(directory, 'package.json'),
-    JSON.stringify({ name: '@a/kernel', version: opts.version }),
-  );
+  install({ root, name: '@a/kernel', version: opts.version });
 
   return root;
 };
 
-const project = (root: string) =>
+const project = (opts: { root: string }) =>
   toAtlasProject({
-    root,
+    root: opts.root,
     manifest: {
       schemaVersion: 1,
       packages: [{ name: '@a/kernel', dir: 'kernel', aliases: [], retired: false }],
@@ -53,14 +44,14 @@ const TABLE: IReleaseTable = {
 describe('decidePin across a tag rename', () => {
   test('an installed release of the old layout pins the tag it was read from, not one rebuilt from the template', () => {
     const root = installed({ version: '0.4.7' });
-    const decision = decidePin({ roots: [root], project: project(root), table: TABLE });
+    const decision = decidePin({ roots: [root], project: project({ root }), table: TABLE });
 
     expect(decision).toMatchObject({ pinned: true, tag: 'v0.4.7' });
   });
 
   test('an installed release of the new layout pins the tag the current template names', () => {
     const root = installed({ version: '0.4.8' });
-    const decision = decidePin({ roots: [root], project: project(root), table: TABLE });
+    const decision = decidePin({ roots: [root], project: project({ root }), table: TABLE });
 
     expect(decision).toMatchObject({ pinned: true, tag: 'vulcan-v0.4.8' });
   });

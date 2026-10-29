@@ -16,7 +16,7 @@ export default {
   ],
   atlas: {
     // One tag per release train, named like IGNIS and ARDOR name theirs (`<name>-v<version>`), so one tag ruleset,
-    // `*-v*`, covers all three repositories. The tags of 0.4.7 and before are `v<version>`; they stay, and are still releases.
+    // `*-v*`, covers all three repositories.
     tagPattern: 'vulcan-v<version>',
     legacyTagPatterns: ['v<version>'],
     // The public key of this repository's CI, which signs the atlas index it publishes (workflow atlas-index.yml);

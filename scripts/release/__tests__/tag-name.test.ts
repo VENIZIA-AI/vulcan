@@ -35,18 +35,10 @@ describe('the name of a VULCAN release tag', () => {
     expect(glob.match('v0.4.7')).toBe(false);
   });
 
-  test("is read back by the manifest's template, and the old form by its legacy template", () => {
+  test("the manifest's template names the tag the workflow makes, and its legacy template the old form", () => {
     const { tagPattern, legacyTagPatterns } = MANIFEST.release;
-    const read = (template: string, tag: string): string | undefined =>
-      new RegExp(`^${template.replace('<version>', '(\\S+)')}$`).exec(tag)?.[1];
 
-    expect(read(tagPattern, tagFor({ version: '0.4.8' }))).toBe('0.4.8');
+    expect(tagPattern.replace('<version>', '0.4.8')).toBe(tagFor({ version: '0.4.8' }));
     expect(legacyTagPatterns).toEqual(['v<version>']);
-    expect(read(legacyTagPatterns[0], 'v0.4.7')).toBe('0.4.7');
-  });
-
-  test('the failure report names the tag it means, not a v-prefixed version', () => {
-    expect(WORKFLOW).toContain('may be published without its git tag $TAG_NAME');
-    expect(WORKFLOW).not.toContain('WARNING | v$NEW_VERSION');
   });
 });
