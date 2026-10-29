@@ -35,8 +35,8 @@ develop (staging)
 feature/*, fix/*, docs/*, chore/*, test/* (your work)
 ```
 
-- Open pull requests to `develop`, never to `main`.
-- `main` receives `develop` through the Sync pull request, and the release commit of a stable.
+- Open pull requests with `gh pr create --base develop`, never to `main`, and never with the base left out.
+- `main` receives the Sync pull request and the release commit of a stable.
 - A prerelease runs from `develop` and is tagged `vulcan-v<version>`; a stable release runs from `main`, waits for one approval, and is merged back into `develop`.
 
 ## Workflow
@@ -57,7 +57,7 @@ bun x --no-install vulcan x okf check
 ```
 
 4. Commit with a one-line message, `[#N] type(scope): subject`, and no agent signature (W-00).
-   Open a pull request to `develop` whose body says `Closes #N`. Releases are separate: a maintainer dispatches
+   Open a pull request with `gh pr create --base develop` whose body says `Refs #N`: the issue closes when the Sync pull request, whose body lists `Closes #N`, reaches `main`. Releases are separate: a maintainer dispatches
    `make release` (see [`.agents/knowledge/process/releasing.md`](.agents/knowledge/process/releasing.md)).
 
 ## Code

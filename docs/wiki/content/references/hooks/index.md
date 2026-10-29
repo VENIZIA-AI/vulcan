@@ -12,7 +12,7 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 |---|---|---|---|---|
 | Session digest (`session-start`) | `SessionStart` | `startup\|resume\|clear\|compact` | Quotes base write rules (`V-W-*`), slot choices, and often-dropped rules to stdout | Fires on session start, resume, clear, or compact |
 | `guard-writes` | `PreToolUse` | `Bash` | Prompts for human confirmation before database writes and cluster deployments | Fires on every Bash tool command |
-| `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes, `git branch -D` of an unmerged branch, and a blanket stage of more than 50 changed paths | Fires on every Bash command; only those git and gh actions are flagged |
+| `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes, `git branch -D` of an unmerged branch, a blanket stage of more than 50 changed paths, and `gh pr create` with no `--base` | Fires on every Bash command; only those git and gh actions are flagged |
 | `guard-scripting` | `PreToolUse` | `Bash` | Adds one line of advice when a command runs `python`, `python3` or `pip`: agent scripting uses bun by default, another language is fine when the task needs it (`V-B-09`); it never asks and never blocks | Fires on every Bash command; only a command that runs one of those programs gets the line |
 | `guard-outside` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
 | `subagent-start` | `SubagentStart` | all | Adds a small rules card (about 250 tokens) to every subagent's context | Fires when a subagent starts |
@@ -127,6 +127,7 @@ The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `
 | `git push origin --delete develop`, `git push origin :main` | deny |
 | `git push --force origin develop` (`-f`, `+develop`, `--force-with-lease` to `develop` or `main`, or no refspec while on one of them) | deny |
 | `gh pr merge <pr> --delete-branch` when `gh pr view` reports the head branch as `develop` or `main` | deny |
+| `gh pr create` with no `--base` (`--base <branch>`, `--base=<branch>`, `-B <branch>` and `--help` pass) | ask |
 | `git reset --hard` | ask |
 | `git push --force` of another branch | ask |
 | `git branch -D <branch>` when the branch is not merged into the current one | ask |

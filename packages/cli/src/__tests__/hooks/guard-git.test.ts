@@ -450,3 +450,35 @@ describe('a blanket stage is counted file by file on a real repository', () => {
     expect(asks({ root, command: 'git add -A' })).toEqual([]);
   });
 });
+
+describe('inspectGit and gh pr create', () => {
+  test.each([
+    'gh pr create',
+    'gh pr create --title "x" --body "y"',
+    'gh pr create --head feat/x --project "Venizia Forge"',
+    'gh pr create --title "--base in a title" --body-file body.md',
+    'cd /p && gh pr create --fill',
+  ])('asks when it names no base: %s', (command) => {
+    expect(decisions({ command })).toEqual(['ask']);
+  });
+
+  test.each([
+    'gh pr create --base develop --title x --body y',
+    'gh pr create --base=develop --fill',
+    'gh pr create -B develop --fill',
+    'gh pr create --title x --base main --head sync/vulcan-v0.4.9-1',
+    'gh pr create --help',
+    'gh pr view 12',
+    'gh pr list --base develop',
+    'echo gh pr create',
+  ])('passes: %s', (command) => {
+    expect(decisions({ command })).toEqual([]);
+  });
+
+  test('the hit cites a rule and names the flag to pass', () => {
+    const [hit] = inspectGit({ command: 'gh pr create', cwd: '/p', run: runner({}) });
+
+    expect(hit.rule).toMatch(/^V-[WP]-\d{2}$/);
+    expect(hit.message).toContain('--base');
+  });
+});

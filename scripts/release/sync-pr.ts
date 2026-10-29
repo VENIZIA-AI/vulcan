@@ -94,6 +94,20 @@ export class ReleaseSyncPr {
     return `Sync main: prerelease ${opts.version}`;
   }
 
+  /**
+   * The issues the commits serve, from the leading `[#N]` tokens of their subjects (`[#42][#44] ...` serves two):
+   * each once, in ascending order. A subject with no leading token serves none.
+   */
+  static issuesOf(opts: { subjects: string[] }): number[] {
+    const numbers = opts.subjects.flatMap((subject) => {
+      const leading = /^(?:\[#\d+\])+/.exec(subject)?.[0] ?? '';
+
+      return [...leading.matchAll(/\d+/g)].map((match) => Number(match[0]));
+    });
+
+    return [...new Set(numbers)].sort((first, second) => first - second);
+  }
+
   static bodyOf(opts: {
     tag: string;
     version: string;
@@ -107,6 +121,8 @@ export class ReleaseSyncPr {
       `Brings ${opts.subjects.length} commit${opts.subjects.length === 1 ? '' : 's'}:`,
       '',
       ...GithubRelease.fencedLines({ lines: opts.subjects }),
+      '',
+      ...ReleaseSyncPr.issuesOf({ subjects: opts.subjects }).map((issue) => `Closes #${issue}`),
       '',
     ].join('\n');
   }

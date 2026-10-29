@@ -48,8 +48,11 @@ The body is read by a person who has not seen the work. In this order:
    (revert and it is gone), and the blast radius if it is wrong.
 5. **Not verified**: the items from the checklist.
 
-The issue is closed by the body (`Closes #N`). Follow the project's rule on signatures in commits and
-pull requests: add no agent signature the project does not ask for.
+Open the pull request with its base named, `gh pr create --base <branch>`, and take the branch from the project's
+rules: a missing base targets the repository's default branch, which may not be where the change goes. The body
+names the issue the way the project's rules say (`Closes #N` closes it only when the pull request reaches the
+default branch). Follow the project's rule on signatures in commits and pull requests: add no agent signature the
+project does not ask for.
 
 ## 3. Claims about public state
 

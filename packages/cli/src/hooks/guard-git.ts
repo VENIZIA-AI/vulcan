@@ -294,6 +294,34 @@ const inspectGhMerge = (opts: {
     : [];
 };
 
+/**
+ * `gh pr create` with no base: the pull request would target the repository's default branch, which may not be
+ * the branch the project's changes go to (a project whose default is `main` takes its features on `develop`).
+ * `--help` only reads.
+ */
+const inspectGhCreate = (opts: { args: string[] }): IGitHit[] => {
+  const [group, action, ...rest] = opts.args;
+
+  if (group !== 'pr' || action !== 'create') {
+    return [];
+  }
+
+  const namesBase = rest.some(
+    (word) => word === '--base' || word.startsWith('--base=') || /^-B/.test(word),
+  );
+
+  return namesBase || rest.includes('--help') || rest.includes('-h')
+    ? []
+    : [
+        {
+          decision: GuardDecisions.ASK,
+          rule: 'V-W-06',
+          message:
+            "'gh pr create' names no --base, so the pull request targets the default branch; pass --base <branch> as the project's rule says",
+        },
+      ];
+};
+
 const inspectOne = (opts: {
   command: ISimpleCommand;
   cwd: string | undefined;
@@ -304,7 +332,10 @@ const inspectOne = (opts: {
   const name = basenameOf({ word: program.name });
 
   if (name === 'gh') {
-    return inspectGhMerge({ args: program.args, cwd: opts.cwd, run: opts.run });
+    return [
+      ...inspectGhMerge({ args: program.args, cwd: opts.cwd, run: opts.run }),
+      ...inspectGhCreate({ args: program.args }),
+    ];
   }
 
   if (name !== 'git') {
