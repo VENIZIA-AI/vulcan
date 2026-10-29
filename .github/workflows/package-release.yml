@@ -501,6 +501,7 @@ jobs:
       # undoes a publish. The script refuses the tag of the atlas index, whose release is not a publish's.
       - name: Create the GitHub Release
         continue-on-error: true
+        timeout-minutes: 5
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_KIND: ${{ needs.plan.outputs.kind }}

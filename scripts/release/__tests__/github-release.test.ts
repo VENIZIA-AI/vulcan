@@ -70,7 +70,10 @@ const fixture = (): string => {
     root,
     message: '[#10] feat(b): second change',
     files: {
-      'docs/changelogs/2026-10-20-b.md': entry({ title: 'Change B', body: 'B body line.' }),
+      'docs/changelogs/2026-10-20-b.md': entry({
+        title: 'VULCAN X.Y.Z: change b is described',
+        body: 'B body line.',
+      }),
     },
   });
   tag({ root, name: 'vulcan-v0.4.8-0' });
@@ -90,17 +93,23 @@ const fixture = (): string => {
   return root;
 };
 
+interface IStubGh {
+  gh: TGh;
+  calls: string[][];
+  /** The notes file of the last create, read while it still existed. */
+  notes: () => string;
+  created: () => string[];
+}
+
 /** A stand-in for `gh`: records every call, and reads the notes file while it still exists. */
-const stubGh = (opts: {
-  existing?: boolean;
-  createFails?: boolean;
-}): { gh: TGh; calls: string[][]; notes: () => string } => {
+const stubGh = (opts: { existing?: boolean; createFails?: boolean }): IStubGh => {
   const calls: string[][] = [];
   let notes = '';
 
   return {
     calls,
     notes: () => notes,
+    created: () => calls.find((call) => call[1] === 'create') ?? [],
     gh: ({ args }) => {
       calls.push(args);
 
@@ -108,9 +117,7 @@ const stubGh = (opts: {
         return { status: opts.existing === true ? 0 : 1, stdout: '', stderr: 'release not found' };
       }
 
-      const file = args[args.indexOf('--notes-file') + 1];
-
-      notes = readFileSync(file, 'utf8');
+      notes = readFileSync(args[args.indexOf('--notes-file') + 1], 'utf8');
 
       return opts.createFails === true
         ? { status: 1, stdout: '', stderr: 'HTTP 422: tag does not exist' }
@@ -118,6 +125,26 @@ const stubGh = (opts: {
     },
   };
 };
+
+const make = (opts: {
+  root: string;
+  tag: string;
+  kind: string;
+  version: string;
+  stub: IStubGh;
+  withSubjectFallback?: boolean;
+  dryRun?: boolean;
+}) =>
+  GithubRelease.create({
+    cwd: opts.root,
+    tag: opts.tag,
+    kind: opts.kind,
+    version: opts.version,
+    gh: opts.stub.gh,
+    scratchRoot: scratch(),
+    withSubjectFallback: opts.withSubjectFallback,
+    dryRun: opts.dryRun,
+  });
 
 describe('GithubRelease.versionOfTag', () => {
   test('reads the version under either template, and nothing that does not start with a digit', () => {
@@ -133,7 +160,7 @@ describe('GithubRelease.versionOfTag', () => {
   });
 });
 
-describe('GithubRelease.previousTag', () => {
+describe('GithubRelease.previousTag and isNewestStable', () => {
   const tags = [
     'v0.4.6',
     'v0.4.7',
@@ -142,96 +169,96 @@ describe('GithubRelease.previousTag', () => {
     'vulcan-v0.4.8',
     'atlas-index',
   ];
-  const previous = (version: string, stableOnly: boolean) =>
-    GithubRelease.previousTag({ tags, templates: TEMPLATES, version, stableOnly });
+  const previous = (opts: { version: string; stableOnly: boolean }) =>
+    GithubRelease.previousTag({ tags, templates: TEMPLATES, ...opts });
+  const isNewest = (opts: { version: string }) =>
+    GithubRelease.isNewestStable({ tags, templates: TEMPLATES, ...opts });
 
   test('a stable looks back to the highest stable below it, over the legacy name too', () => {
-    expect(previous('0.4.8', true)).toBe('v0.4.7');
-    expect(previous('0.4.9', true)).toBe('vulcan-v0.4.8');
+    expect(previous({ version: '0.4.8', stableOnly: true })).toBe('v0.4.7');
+    expect(previous({ version: '0.4.9', stableOnly: true })).toBe('vulcan-v0.4.8');
   });
 
   test('a prerelease looks back to the highest tag of any kind below it, and numbers compare as numbers', () => {
-    expect(previous('0.4.8-1', false)).toBe('vulcan-v0.4.8-0');
-    expect(previous('0.4.8-10', false)).toBe('vulcan-v0.4.8-1');
-    expect(previous('0.4.6', false)).toBeUndefined();
+    expect(previous({ version: '0.4.8-1', stableOnly: false })).toBe('vulcan-v0.4.8-0');
+    expect(previous({ version: '0.4.8-10', stableOnly: false })).toBe('vulcan-v0.4.8-1');
+    expect(previous({ version: '0.4.6', stableOnly: false })).toBeUndefined();
+  });
+
+  test('a stable is the newest only when no stable tag is above it, whatever prereleases there are', () => {
+    expect(isNewest({ version: '0.4.8' })).toBe(true);
+    expect(isNewest({ version: '0.4.7' })).toBe(false);
+    expect(isNewest({ version: '0.4.9' })).toBe(true);
   });
 });
 
 describe('GithubRelease.stableNotes', () => {
-  test('joins the entries added since the previous stable, without front matter or date heading, and skips older ones', () => {
-    const root = fixture();
-    const notes = GithubRelease.stableNotes({
-      cwd: root,
-      from: 'v0.4.7',
-      to: 'vulcan-v0.4.8',
-      folder: 'docs/changelogs',
-    });
+  const notesOf = (opts: { root: string; from?: string; to: string }) =>
+    GithubRelease.stableNotes({ ...opts, cwd: opts.root, folder: 'docs/changelogs' });
 
-    expect(notes).toContain('## Change B');
+  test('joins the entries added since the previous stable, in date order, and skips older ones', () => {
+    const notes = notesOf({ root: fixture(), from: 'v0.4.7', to: 'vulcan-v0.4.8' });
+
+    expect(notes).toContain('Change C');
     expect(notes).toContain('C body line.');
     expect(notes).not.toContain('Old change');
     expect(notes).not.toContain('---');
     expect(notes).not.toContain('# Changelog - ');
-    expect(notes.indexOf('Change B')).toBeLessThan(notes.indexOf('Change C'));
+    expect(notes.indexOf('B body line.')).toBeLessThan(notes.indexOf('C body line.'));
+  });
+
+  test('an entry heading loses the VULCAN X.Y.Z prefix, and its first letter is capital', () => {
+    const notes = notesOf({ root: fixture(), from: 'v0.4.7', to: 'vulcan-v0.4.8' });
+
+    expect(notes).toContain('## Change b is described');
+    expect(notes).not.toContain('X.Y.Z');
+    expect(GithubRelease.stripEntry({ text: '## VULCAN 0.2.0-0: the contract\n\nBody.' })).toBe(
+      '## The contract\n\nBody.',
+    );
   });
 
   test('is empty when no entry was added in the range', () => {
-    expect(
-      GithubRelease.stableNotes({
-        cwd: fixture(),
-        from: 'vulcan-v0.4.8-1',
-        to: 'vulcan-v0.4.8',
-        folder: 'docs/changelogs',
-      }),
-    ).toBe('');
+    expect(notesOf({ root: fixture(), from: 'vulcan-v0.4.8-1', to: 'vulcan-v0.4.8' })).toBe('');
+  });
+
+  test('an entry renamed inside the range still counts, under its new name', () => {
+    const root = fixture();
+    const first = 'docs/changelogs/2026-10-27-d-first-name.md';
+
+    commit({
+      root,
+      message: '[#13] feat(d): added',
+      files: { [first]: entry({ title: 'Change D', body: 'D body.' }) },
+    });
+    git({ cwd: root, args: ['mv', first, 'docs/changelogs/2026-10-27-d.md'] });
+    commit({ root, message: '[#13] docs(d): renamed' });
+
+    expect(notesOf({ root, from: 'vulcan-v0.4.8', to: 'HEAD' })).toContain('D body.');
   });
 });
 
 describe('GithubRelease.check: a stable ships with its changelog', () => {
-  test('passes when an entry was added since the previous stable', () => {
-    expect(GithubRelease.check({ cwd: fixture(), version: '0.4.8', to: 'vulcan-v0.4.8' })).toEqual(
-      [],
-    );
-  });
-
-  test('stops, naming the tag it looked back to, when none was', () => {
+  test('passes when an entry was added since the previous stable, and stops when none was', () => {
     const root = fixture();
 
-    expect(GithubRelease.check({ cwd: root, version: '0.4.9', to: 'vulcan-v0.4.8' })[0]).toContain(
-      'since vulcan-v0.4.8',
+    expect(GithubRelease.check({ cwd: root, version: '0.4.8', to: 'vulcan-v0.4.8' })).toEqual([]);
+    expect(GithubRelease.check({ cwd: root, version: '0.4.9', to: 'vulcan-v0.4.8' })).toHaveLength(
+      1,
     );
   });
 });
 
 describe('GithubRelease.create', () => {
-  const create = (opts: {
-    root: string;
-    tag: string;
-    kind: string;
-    version: string;
-    stub: ReturnType<typeof stubGh>;
-    withSubjectFallback?: boolean;
-  }) =>
-    GithubRelease.create({
-      cwd: opts.root,
-      tag: opts.tag,
-      kind: opts.kind,
-      version: opts.version,
-      gh: opts.stub.gh,
-      scratchRoot: scratch(),
-      withSubjectFallback: opts.withSubjectFallback,
-    });
-
-  test('a stable is marked Latest, titled with its version, with the entries and the packages as notes', () => {
+  test('a stable that is the newest is marked Latest, titled with its version, with the entries and the packages as notes', () => {
     const stub = stubGh({});
-    const outcome = create({
+    const outcome = make({
       root: fixture(),
       tag: 'vulcan-v0.4.8',
       kind: 'stable',
       version: '0.4.8',
       stub,
     });
-    const created = stub.calls.find((call) => call[1] === 'create') ?? [];
+    const created = stub.created();
 
     expect(outcome.state).toBe('created');
     expect(created).toContain('--latest');
@@ -242,29 +269,53 @@ describe('GithubRelease.create', () => {
     expect(stub.notes()).toContain('[@x/cli@0.4.8](https://www.npmjs.com/package/@x/cli/v/0.4.8)');
   });
 
+  test('a stable that is not the newest is never marked Latest', () => {
+    const stub = stubGh({});
+
+    make({
+      root: fixture(),
+      tag: 'v0.4.7',
+      kind: 'stable',
+      version: '0.4.7',
+      stub,
+      withSubjectFallback: true,
+    });
+
+    expect(stub.created()).toContain('--latest=false');
+    expect(stub.created()).not.toContain('--latest');
+  });
+
   test('a prerelease is marked Pre-release and never Latest, with the install line and the issue subjects only', () => {
     const stub = stubGh({});
-    const outcome = create({
+    const outcome = make({
       root: fixture(),
       tag: 'vulcan-v0.4.8-1',
       kind: 'prerelease',
       version: '0.4.8-1',
       stub,
     });
-    const created = stub.calls.find((call) => call[1] === 'create') ?? [];
 
     expect(outcome.state).toBe('created');
-    expect(created).toContain('--prerelease');
-    expect(created).not.toContain('--latest');
+    expect(stub.created()).toContain('--prerelease');
+    expect(stub.created()).not.toContain('--latest');
     expect(stub.notes()).toContain('npm install @x/cli@next');
     expect(stub.notes()).toContain('[#11] fix(c): third change');
     expect(stub.notes()).not.toContain('housekeeping');
     expect(stub.notes()).not.toContain('[#10]');
   });
 
+  test('more subjects than the cap are cut, and the notes say how many were left out', () => {
+    const subjects = Array.from({ length: 33 }, (_, index) => `[#${index}] change ${index}`);
+    const capped = GithubRelease.cappedSubjects({ subjects });
+
+    expect(capped).toHaveLength(31);
+    expect(capped.at(-1)).toBe('... and 3 more');
+    expect(GithubRelease.cappedSubjects({ subjects: subjects.slice(0, 30) })).toHaveLength(30);
+  });
+
   test('a tag that has a Release is skipped, and nothing is created', () => {
     const stub = stubGh({ existing: true });
-    const outcome = create({
+    const outcome = make({
       root: fixture(),
       tag: 'vulcan-v0.4.8',
       kind: 'stable',
@@ -273,61 +324,58 @@ describe('GithubRelease.create', () => {
     });
 
     expect(outcome.state).toBe('exists');
-    expect(stub.calls.filter((call) => call[1] === 'create')).toEqual([]);
+    expect(stub.created()).toEqual([]);
   });
 
-  test('the tag of the atlas index is refused before gh is asked anything', () => {
+  test('the tag of the atlas index and an unknown kind are refused before gh is asked anything', () => {
     const stub = stubGh({});
-    const outcome = create({
-      root: fixture(),
-      tag: 'atlas-index',
-      kind: 'stable',
-      version: '0.4.8',
-      stub,
-    });
+    const root = fixture();
 
-    expect(outcome.state).toBe('refused');
+    expect(make({ root, tag: 'atlas-index', kind: 'stable', version: '0.4.8', stub }).state).toBe(
+      'refused',
+    );
+    expect(make({ root, tag: 'vulcan-v0.4.8', kind: 'latest', version: '0.4.8', stub }).state).toBe(
+      'refused',
+    );
     expect(stub.calls).toEqual([]);
   });
 
-  test('a kind that is not stable or prerelease is refused', () => {
-    const stub = stubGh({});
-
-    expect(
-      create({ root: fixture(), tag: 'vulcan-v0.4.8', kind: 'latest', version: '0.4.8', stub })
-        .state,
-    ).toBe('refused');
-  });
-
-  test('a failed create is an outcome with the reason, not an exception', () => {
-    const outcome = create({
+  test('a failed create, and a git failure, are outcomes with a reason, not exceptions', () => {
+    const failing = make({
       root: fixture(),
       tag: 'vulcan-v0.4.8',
       kind: 'stable',
       version: '0.4.8',
       stub: stubGh({ createFails: true }),
     });
+    const broken = make({
+      root: scratch(),
+      tag: 'vulcan-v0.4.8',
+      kind: 'stable',
+      version: '0.4.8',
+      stub: stubGh({}),
+    });
 
-    expect(outcome.state).toBe('failed');
-    expect(outcome.message).toContain('HTTP 422');
+    expect(failing.state).toBe('failed');
+    expect(failing.message).toContain('HTTP 422');
+    expect(broken.state).toBe('failed');
   });
 
-  test('a stable with no entry in its range creates nothing, unless it is a backfill', () => {
+  test('a stable with no entry in its range makes nothing; a backfill falls back to the commits', () => {
     const root = fixture();
 
     commit({ root, message: '[#12] chore(x): a change with no entry' });
     tag({ root, name: 'vulcan-v0.4.9' });
 
     const stub = stubGh({});
-    const outcome = create({ root, tag: 'vulcan-v0.4.9', kind: 'stable', version: '0.4.9', stub });
-
-    expect(outcome.state).toBe('failed');
-    expect(stub.calls.filter((call) => call[1] === 'create')).toEqual([]);
-
     const backfill = stubGh({});
 
+    expect(make({ root, tag: 'vulcan-v0.4.9', kind: 'stable', version: '0.4.9', stub }).state).toBe(
+      'failed',
+    );
+    expect(stub.created()).toEqual([]);
     expect(
-      create({
+      make({
         root,
         tag: 'vulcan-v0.4.9',
         kind: 'stable',
@@ -336,8 +384,61 @@ describe('GithubRelease.create', () => {
         withSubjectFallback: true,
       }).state,
     ).toBe('created');
-    expect(backfill.notes()).toContain('Commits in this release:');
     expect(backfill.notes()).toContain('[#12] chore(x): a change with no entry');
+  });
+
+  test('a backfill whose range holds no commit of its own makes nothing', () => {
+    const root = fixture();
+
+    tag({ root, name: 'vulcan-v0.4.9' });
+
+    const stub = stubGh({});
+
+    expect(
+      make({
+        root,
+        tag: 'vulcan-v0.4.9',
+        kind: 'stable',
+        version: '0.4.9',
+        stub,
+        withSubjectFallback: true,
+      }).state,
+    ).toBe('failed');
+    expect(stub.created()).toEqual([]);
+  });
+
+  test('a backfill of a prerelease is refused: a backfill makes the Release of a stable only', () => {
+    const stub = stubGh({});
+
+    expect(
+      make({
+        root: fixture(),
+        tag: 'vulcan-v0.4.8-1',
+        kind: 'prerelease',
+        version: '0.4.8-1',
+        stub,
+        withSubjectFallback: true,
+      }).state,
+    ).toBe('refused');
+    expect(stub.calls).toEqual([]);
+  });
+
+  test('a dry run stops before gh creates anything and returns the notes and whether it would be Latest', () => {
+    const stub = stubGh({});
+    const outcome = make({
+      root: fixture(),
+      tag: 'v0.4.7',
+      kind: 'stable',
+      version: '0.4.7',
+      stub,
+      withSubjectFallback: true,
+      dryRun: true,
+    });
+
+    expect(outcome.state).toBe('planned');
+    expect(outcome.message).toContain('not Latest');
+    expect(outcome.message).toContain('Old change');
+    expect(stub.created()).toEqual([]);
   });
 
   test('a subject cannot ping anyone or close an issue through the notes', () => {
@@ -347,20 +448,26 @@ describe('GithubRelease.create', () => {
       notes: '',
       subjects: ['[#9] fixes #3, thanks @someone', 'closes```'],
       packages: ['@x/cli'],
-      mainPackage: '@x/cli',
     });
 
     expect(body).toContain("```text\n[#9] fixes #3, thanks @someone\ncloses'''\n```");
   });
 });
 
+describe('GithubRelease.manifestOf', () => {
+  test('names what is missing instead of failing with a bare TypeError', () => {
+    const root = scratch();
+
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    writeFileSync(join(root, '.agents', 'vulcan.manifest.json'), '{"packages":[]}\n');
+
+    expect(() => GithubRelease.manifestOf({ cwd: root })).toThrow('release.tagPattern');
+    expect(GithubRelease.manifestOf({ cwd: fixture() }).packages).toEqual(['@x/okf', '@x/cli']);
+  });
+});
+
 describe('GithubRelease.main', () => {
-  const run = (opts: {
-    args: string[];
-    root: string;
-    stub: ReturnType<typeof stubGh>;
-    summary?: string;
-  }) =>
+  const run = (opts: { args: string[]; root: string; stub: IStubGh; summary?: string }) =>
     GithubRelease.main({
       args: opts.args,
       cwd: opts.root,
@@ -371,17 +478,21 @@ describe('GithubRelease.main', () => {
       },
     });
 
-  test('create exits 0 for a made or an existing Release, 1 for a failed one, and reports it in the summary', () => {
+  test('create exits 0 for a made or an existing Release and 1 for a failed one, and a failure and a crash reach the summary', () => {
     const summary = join(scratch(), 'summary');
+    const crashed = join(scratch(), 'summary');
     const root = fixture();
     const args = ['create', '--tag', 'vulcan-v0.4.8', '--version', '0.4.8', '--kind', 'stable'];
 
     writeFileSync(summary, '');
+    writeFileSync(crashed, '');
 
     expect(run({ args, root, stub: stubGh({}), summary })).toBe(0);
     expect(run({ args, root, stub: stubGh({ existing: true }) })).toBe(0);
     expect(run({ args, root, stub: stubGh({ createFails: true }), summary })).toBe(1);
-    expect(readFileSync(summary, 'utf8')).toContain('- failed:');
+    expect(readFileSync(summary, 'utf8')).toContain('failed');
+    expect(run({ args, root: scratch(), stub: stubGh({}), summary: crashed })).toBe(1);
+    expect(readFileSync(crashed, 'utf8')).toContain('GitHub Release');
   });
 
   test('check exits 1 for a stable with no entry, and a missing flag or unknown command exits 2', () => {
@@ -399,15 +510,18 @@ describe('GithubRelease.main', () => {
     expect(run({ args: ['publish'], root, stub })).toBe(2);
   });
 
-  test('backfill writes nothing without --yes, and with it makes the Release of the old tag, Latest', () => {
+  test('backfill writes nothing without --yes, with it makes the Release of an old stable, and refuses a prerelease tag', () => {
     const root = fixture();
     const dry = stubGh({});
     const written = stubGh({});
 
     expect(run({ args: ['backfill', '--tag', 'v0.4.7'], root, stub: dry })).toBe(0);
-    expect(dry.calls).toEqual([]);
+    expect(dry.created()).toEqual([]);
     expect(run({ args: ['backfill', '--tag', 'v0.4.7', '--yes'], root, stub: written })).toBe(0);
-    expect(written.calls.find((call) => call[1] === 'create')).toContain('--latest');
+    expect(written.created()).toContain('--latest=false');
+    expect(
+      run({ args: ['backfill', '--tag', 'vulcan-v0.4.8-1', '--yes'], root, stub: stubGh({}) }),
+    ).toBe(1);
     expect(
       run({ args: ['backfill', '--tag', 'atlas-index', '--yes'], root, stub: stubGh({}) }),
     ).toBe(2);

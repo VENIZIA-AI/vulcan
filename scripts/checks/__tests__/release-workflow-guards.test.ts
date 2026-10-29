@@ -543,28 +543,28 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, C20
   });
 });
 
+const publishSteps = (opts: { workflow: Record<string, unknown> }): unknown[] => {
+  const steps = job({ workflow: opts.workflow, name: 'publish' })['steps'];
+
+  if (!Array.isArray(steps)) {
+    throw new Error('[publishSteps] the publish job has no steps');
+  }
+
+  return steps;
+};
+const indexOfStep = (opts: { workflow: Record<string, unknown>; name: string }): number =>
+  publishSteps(opts).findIndex((step) => {
+    const holder = { value: step };
+
+    return isRecord(holder) && holder.value['name'] === opts.name;
+  });
+const removeStep = (opts: { workflow: Record<string, unknown>; name: string }): void => {
+  publishSteps(opts).splice(indexOfStep(opts), 1);
+};
+
 describe('the release workflow keeps the guards of the stable path (C27 to C31)', () => {
   const BRANCHES_MOVED = 'Refuse a stable when a branch moved since the plan';
   const MERGE_BACK = 'Merge main back into develop';
-
-  const publishSteps = (opts: { workflow: Record<string, unknown> }): unknown[] => {
-    const steps = job({ workflow: opts.workflow, name: 'publish' })['steps'];
-
-    if (!Array.isArray(steps)) {
-      throw new Error('[publishSteps] the publish job has no steps');
-    }
-
-    return steps;
-  };
-  const indexOfStep = (opts: { workflow: Record<string, unknown>; name: string }): number =>
-    publishSteps(opts).findIndex((step) => {
-      const holder = { value: step };
-
-      return isRecord(holder) && holder.value['name'] === opts.name;
-    });
-  const removeStep = (opts: { workflow: Record<string, unknown>; name: string }): void => {
-    publishSteps(opts).splice(indexOfStep(opts), 1);
-  };
 
   test('C27: no branch check, one that runs for every kind, or one that comes after the publish is noticed', () => {
     expect(
@@ -743,13 +743,7 @@ describe('the release workflow keeps the guard of the GitHub Release (C31)', () 
   test('a missing step, one that can fail the run, one without the job token or one before the tag is noticed', () => {
     expect(
       mutated({
-        change: (workflow) => {
-          const steps = job({ workflow, name: 'publish' })['steps'];
-
-          if (Array.isArray(steps)) {
-            steps.splice(steps.indexOf(releaseStep({ workflow })), 1);
-          }
-        },
+        change: (workflow) => removeStep({ workflow, name: RELEASE }),
       }),
     ).toContain('C31');
     expect(

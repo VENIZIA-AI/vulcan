@@ -23,6 +23,9 @@ const scratch = (): string => {
 
 const { DEVELOP_REF, MAIN_REF } = ReleasePlanConstants;
 
+const git = (opts: { cwd: string; args: string[] }): string =>
+  ReleaseMergeBack.mustGit({ cwd: opts.cwd, args: [...MergeBackConstants.IDENTITY, ...opts.args] });
+
 describe('ReleasePlan.kindOf', () => {
   test('a version with a prerelease part is a prerelease, anything else a stable', () => {
     expect(ReleasePlan.kindOf({ version: '0.4.8-0' })).toBe('prerelease');
@@ -371,12 +374,10 @@ describe('ReleasePlan.main: --merge-trial', () => {
   /** A repository where main is at 0.1.0-0 and develop one prerelease ahead, with the refs a clone has. */
   const repository = (): { root: string; mainSha: string; developSha: string } => {
     const root = scratch();
-    const git = (args: string[]): string =>
-      ReleaseMergeBack.mustGit({ cwd: root, args: [...MergeBackConstants.IDENTITY, ...args] });
     const manifest = (version: string): string =>
       `${JSON.stringify({ name: '@x/cli', version }, null, 2)}\n`;
 
-    git(['init', '-q', '-b', 'main']);
+    git({ cwd: root, args: ['init', '-q', '-b', 'main'] });
     mkdirSync(join(root, 'packages', 'cli'), { recursive: true });
     writeFileSync(
       join(root, 'package.json'),
@@ -384,18 +385,18 @@ describe('ReleasePlan.main: --merge-trial', () => {
     );
     writeFileSync(join(root, 'packages', 'cli', 'package.json'), manifest('0.1.0-0'));
     writeFileSync(join(root, 'shared.txt'), 'one\n');
-    git(['add', '-A']);
-    git(['commit', '-q', '-m', 'sync']);
+    git({ cwd: root, args: ['add', '-A'] });
+    git({ cwd: root, args: ['commit', '-q', '-m', 'sync'] });
 
-    const mainSha = git(['rev-parse', 'HEAD']);
+    const mainSha = git({ cwd: root, args: ['rev-parse', 'HEAD'] });
 
-    git(['checkout', '-q', '-b', 'develop']);
+    git({ cwd: root, args: ['checkout', '-q', '-b', 'develop'] });
     writeFileSync(join(root, 'packages', 'cli', 'package.json'), manifest('0.1.0-1'));
-    git(['commit', '-q', '-am', 'chore(release): v0.1.0-1']);
-    git(['update-ref', 'refs/remotes/origin/develop', 'develop']);
-    git(['checkout', '-q', 'main']);
+    git({ cwd: root, args: ['commit', '-q', '-am', 'chore(release): v0.1.0-1'] });
+    git({ cwd: root, args: ['update-ref', 'refs/remotes/origin/develop', 'develop'] });
+    git({ cwd: root, args: ['checkout', '-q', 'main'] });
 
-    return { root, mainSha, developSha: git(['rev-parse', 'develop']) };
+    return { root, mainSha, developSha: git({ cwd: root, args: ['rev-parse', 'develop'] }) };
   };
 
   const run = (opts: { root: string; mainSha: string }) => {
@@ -478,10 +479,8 @@ describe('ReleasePlan.main: --release-notes', () => {
 
   test('a stable with no changelog entry is refused, and one with an entry is planned', () => {
     const root = scratch();
-    const git = (args: string[]): string =>
-      ReleaseMergeBack.mustGit({ cwd: root, args: [...MergeBackConstants.IDENTITY, ...args] });
 
-    git(['init', '-q', '-b', 'main']);
+    git({ cwd: root, args: ['init', '-q', '-b', 'main'] });
     mkdirSync(join(root, 'packages', 'cli'), { recursive: true });
     mkdirSync(join(root, '.agents'), { recursive: true });
     mkdirSync(join(root, 'docs', 'changelogs'), { recursive: true });
@@ -497,8 +496,8 @@ describe('ReleasePlan.main: --release-notes', () => {
         packages: [{ name: '@x/cli' }],
       })}\n`,
     );
-    git(['add', '-A']);
-    git(['commit', '-q', '-m', 'sync']);
+    git({ cwd: root, args: ['add', '-A'] });
+    git({ cwd: root, args: ['commit', '-q', '-m', 'sync'] });
 
     expect(stable({ root })).toBe(1);
 
@@ -506,8 +505,8 @@ describe('ReleasePlan.main: --release-notes', () => {
       join(root, 'docs', 'changelogs', '2026-10-30-a.md'),
       '---\ntitle: a\n---\n\n# Changelog - 2026-10-30\n\nA change.\n',
     );
-    git(['add', '-A']);
-    git(['commit', '-q', '-m', 'an entry']);
+    git({ cwd: root, args: ['add', '-A'] });
+    git({ cwd: root, args: ['commit', '-q', '-m', 'an entry'] });
 
     expect(stable({ root })).toBe(0);
   });

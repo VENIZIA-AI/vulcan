@@ -32,19 +32,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GithubRelease } from './github-release.ts';
 import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
-import { ReleaseBumps } from './release-args.ts';
-
-export class ReleaseKinds {
-  static readonly PRERELEASE = 'prerelease';
-  static readonly STABLE = 'stable';
-}
+import { ReleaseBumps, ReleaseKinds } from './release-args.ts';
+import type { TReleaseKind } from './release-args.ts';
 
 export class ReleaseNpmTags {
   static readonly NEXT = 'next';
   static readonly LATEST = 'latest';
 }
-
-export type TReleaseKind = typeof ReleaseKinds.PRERELEASE | typeof ReleaseKinds.STABLE;
 
 export interface IReleasePlan {
   version: string;

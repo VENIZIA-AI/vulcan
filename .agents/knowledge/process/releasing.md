@@ -84,14 +84,15 @@ Every publish makes one GitHub Release on its tag (`scripts/release/github-relea
 
 | Kind | Marked | Title | Notes |
 |---|---|---|---|
-| Stable | Latest | `VULCAN <version>` | The changelog entries added since the previous stable tag, without front matter or date heading, then the three packages with their npm links |
-| Prerelease | Pre-release, never Latest | `VULCAN <version>` | The install line with `@next`, the `[#N]` commit subjects since the previous tag (at most 30), then the packages |
+| Stable | Latest, when no higher stable tag exists | `VULCAN <version>` | The changelog entries added since the previous stable tag, without front matter, date heading or the `VULCAN X.Y.Z:` prefix of their headings, then the three packages with their npm links |
+| Prerelease | Pre-release, never Latest | `VULCAN <version>` | The install line with `@next`, the `[#N]` commit subjects since the previous tag (at most 30, with a line that counts the rest), then the packages |
 
 - **A stable ships with its changelog.** The plan job stops a stable, before the approval, when no entry was added since the previous stable tag. The previous stable is read through `tagPattern` and `legacyTagPatterns`, so the first stable after the rename looks back to `v0.4.7`.
 - **A repeat makes nothing twice.** A tag that has a Release is skipped. A dispatch with bump `none` makes a missing one.
-- **A failure never fails a publish.** The step continues on error and reports in the run summary. Run `make release ARGS="--bump none"` (from `main` for a stable: add `--branch main`) to make the Release afterwards.
+- **A failure never fails a publish.** The step continues on error and reports in the run summary.
+- **To make a missing Release,** dispatch `make release ARGS="--bump none"` (add `--branch main` for a stable). It releases the version at the head of that branch, so do it before the next release lands.
 - **The atlas index release is not touched.** The script refuses the tag `atlas-index`.
-- **Backfill, on the owner's word only.** `bun scripts/release/github-release.ts backfill --tag v0.4.7` prints what it would do; `--yes` writes the Release, marked Latest, with commit subjects when no entry covers the tag. It is a public write.
+- **Backfill, on the owner's word only.** `bun scripts/release/github-release.ts backfill --tag v0.4.7` prints the notes and whether the Release would be Latest. `--yes` writes it, with commit subjects when no entry covers the tag. It makes the Release of a stable only, and it is a public write.
 
 ## Accepted risks of the stable path
 

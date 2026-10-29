@@ -1,38 +1,39 @@
 /**
- * The GitHub Release of a publish: one Release on the tag the run made, so the Releases page shows what shipped.
+ * The GitHub Release of a publish: one Release on the tag the run made.
  *
  *   bun scripts/release/github-release.ts create --tag <tag> --version <v> --kind stable|prerelease
- *   bun scripts/release/github-release.ts check  --version <v> [--to <commit>]
+ *   bun scripts/release/github-release.ts check --version <v> [--to <commit>]
  *   bun scripts/release/github-release.ts backfill --tag <tag> [--yes]
  *
- * `create` runs in the publish job after the tag. A stable is marked Latest, with the changelog entries added since
- * the previous stable tag as its notes; a prerelease is marked Pre-release, never Latest, with the `[#N]` commit
- * subjects since the previous tag and the `@next` install line. It skips a tag that already has a Release, and it
- * refuses the `atlas-index` tag, whose release is the atlas index's own. `check` runs in the plan job: a stable
- * with no changelog entry since the previous stable stops before the approval. `backfill` makes the Release of an
- * existing stable tag, falling back to commit subjects when no entry covers it; it writes to GitHub only with
- * `--yes`, on the owner's word.
+ * It never creates, edits or moves the `atlas-index` release, and `backfill` writes to GitHub only with `--yes`.
  */
 import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ReleaseMergeBack } from './merge-back.ts';
+import { ReleaseKinds } from './release-args.ts';
+import type { TReleaseKind } from './release-args.ts';
 
 export class GithubReleaseConstants {
-  /** The release the atlas index publishes its pairs to; this script never creates, edits or moves it. */
+  /** The release the atlas index publishes its pairs to. */
   static readonly ATLAS_INDEX_TAG = 'atlas-index';
   static readonly MANIFEST = '.agents/vulcan.manifest.json';
   static readonly MAX_PRERELEASE_SUBJECTS = 30;
   static readonly DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
   static readonly FRONT_MATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
   static readonly DATE_HEADING = /^# Changelog - \d{4}-\d{2}-\d{2}\s*$/m;
+  /** `## VULCAN X.Y.Z: title` or `## VULCAN 0.2.0-0: title`: the product and version prefix of an entry's heading. */
+  static readonly VERSION_HEADING = /^(##\s+)VULCAN\s+(?:X\.Y\.Z|\d[^:\n]*):\s*(\S)/m;
   static readonly ISSUE_SUBJECT = /^\[#\d+\]/;
   static readonly TITLE_PREFIX = 'VULCAN';
+  static readonly USAGE =
+    'github-release: create --tag <tag> --version <v> --kind stable|prerelease | check --version <v> [--to <commit>] | backfill --tag <tag> [--yes]';
 }
 
 export interface IGithubReleaseManifest {
   templates: string[];
   changelogs: string;
+  /** The npm names of the packages, in release order: the last is the one users install. */
   packages: string[];
 }
 
@@ -44,7 +45,7 @@ export interface IGhResult {
 
 export type TGh = (opts: { args: string[] }) => IGhResult;
 
-export type TGithubReleaseState = 'created' | 'exists' | 'refused' | 'failed';
+export type TGithubReleaseState = 'created' | 'exists' | 'planned' | 'refused' | 'failed';
 
 export interface IGithubReleaseOutcome {
   state: TGithubReleaseState;
@@ -68,15 +69,48 @@ export class GithubRelease {
     };
   }
 
+  static isRecord(opts: { value: unknown }): opts is { value: Record<string, unknown> } {
+    return typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
+  }
+
   static manifestOf(opts: { cwd: string }): IGithubReleaseManifest {
-    const manifest = JSON.parse(
+    const parsed: unknown = JSON.parse(
       readFileSync(join(opts.cwd, GithubReleaseConstants.MANIFEST), 'utf8'),
     );
+    const root = { value: parsed };
+
+    if (!GithubRelease.isRecord(root)) {
+      throw new Error(`${GithubReleaseConstants.MANIFEST} is not an object`);
+    }
+
+    const release = { value: root.value['release'] };
+    const knowledge = { value: root.value['knowledge'] };
+    const packages = root.value['packages'];
+    const pattern = GithubRelease.isRecord(release) ? release.value['tagPattern'] : undefined;
+    const legacy = GithubRelease.isRecord(release) ? release.value['legacyTagPatterns'] : undefined;
+    const changelogs = GithubRelease.isRecord(knowledge)
+      ? knowledge.value['changelogs']
+      : undefined;
+
+    if (typeof pattern !== 'string' || typeof changelogs !== 'string' || !Array.isArray(packages)) {
+      throw new Error(
+        `${GithubReleaseConstants.MANIFEST} needs release.tagPattern, knowledge.changelogs and packages`,
+      );
+    }
 
     return {
-      templates: [manifest.release.tagPattern, ...(manifest.release.legacyTagPatterns ?? [])],
-      changelogs: manifest.knowledge.changelogs,
-      packages: manifest.packages.map((entry: { name: string }) => entry.name),
+      templates: [
+        pattern,
+        ...(Array.isArray(legacy) ? legacy.filter((entry) => typeof entry === 'string') : []),
+      ],
+      changelogs,
+      packages: packages.flatMap((entry) => {
+        const holder = { value: entry };
+
+        return GithubRelease.isRecord(holder) && typeof holder.value['name'] === 'string'
+          ? [holder.value['name']]
+          : [];
+      }),
     };
   }
 
@@ -123,18 +157,43 @@ export class GithubRelease {
     return best?.tag;
   }
 
+  /** Whether no stable tag is above `version`: the only case in which a Release may be marked Latest. */
+  static isNewestStable(opts: { tags: string[]; templates: string[]; version: string }): boolean {
+    return opts.tags.every((tag) => {
+      const version = GithubRelease.versionOfTag({ tag, templates: opts.templates });
+
+      return (
+        version === undefined ||
+        version.includes('-') ||
+        Bun.semver.order(version, opts.version) <= 0
+      );
+    });
+  }
+
   static tagsOf(opts: { cwd: string }): string[] {
     return ReleaseMergeBack.mustGit({ cwd: opts.cwd, args: ['tag', '--list'] })
       .split('\n')
       .filter((tag) => tag !== '');
   }
 
-  /** The dated changelog files added in `from..to`, oldest first; `from` absent means everything up to `to`. */
+  /**
+   * The dated changelog files added in `from..to`, oldest first; `from` absent means everything up to `to`.
+   * Renames are not followed: an entry renamed inside the range counts under its new name.
+   */
   static entriesAdded(opts: { cwd: string; from?: string; to: string; folder: string }): string[] {
     const range = opts.from === undefined ? opts.to : `${opts.from}..${opts.to}`;
     const names = ReleaseMergeBack.mustGit({
       cwd: opts.cwd,
-      args: ['log', '--diff-filter=A', '--name-only', '--format=', range, '--', opts.folder],
+      args: [
+        'log',
+        '--no-renames',
+        '--diff-filter=A',
+        '--name-only',
+        '--format=',
+        range,
+        '--',
+        opts.folder,
+      ],
     })
       .split('\n')
       .filter((path) => GithubReleaseConstants.DATED_ENTRY.test(path.split('/').pop() ?? ''));
@@ -142,11 +201,18 @@ export class GithubRelease {
     return [...new Set(names)].sort();
   }
 
-  /** An entry without its front matter and its date heading: what a reader of the Release wants. */
+  /**
+   * An entry as a Release shows it: no front matter, no date heading, and its heading without the
+   * `VULCAN X.Y.Z:` prefix (the Release is titled with the version already).
+   */
   static stripEntry(opts: { text: string }): string {
     return opts.text
       .replace(GithubReleaseConstants.FRONT_MATTER, '')
       .replace(GithubReleaseConstants.DATE_HEADING, '')
+      .replace(
+        GithubReleaseConstants.VERSION_HEADING,
+        (_match, heading: string, first: string) => `${heading}${first.toUpperCase()}`,
+      )
       .trim();
   }
 
@@ -181,9 +247,18 @@ export class GithubRelease {
       : subjects;
   }
 
-  /** A fenced list: a subject cannot ping anyone, close an issue or break the markdown. */
+  /** A fenced list: a line in it cannot ping anyone, close an issue or break the markdown. */
   static fencedLines(opts: { lines: string[] }): string[] {
     return ['```text', ...opts.lines.map((line) => line.replaceAll('```', "'''")), '```'];
+  }
+
+  /** At most `MAX_PRERELEASE_SUBJECTS` subjects, with a closing line that says how many were left out. */
+  static cappedSubjects(opts: { subjects: string[] }): string[] {
+    const max = GithubReleaseConstants.MAX_PRERELEASE_SUBJECTS;
+
+    return opts.subjects.length <= max
+      ? opts.subjects
+      : [...opts.subjects.slice(0, max), `... and ${opts.subjects.length - max} more`];
   }
 
   static packagesOf(opts: { names: string[]; version: string }): string[] {
@@ -198,18 +273,18 @@ export class GithubRelease {
   }
 
   static bodyOf(opts: {
-    kind: string;
+    kind: TReleaseKind;
     version: string;
     notes: string;
     subjects: string[];
+    /** In release order: the last package is the one named in the install line of a prerelease. */
     packages: string[];
-    mainPackage: string;
   }): string {
     const sections =
-      opts.kind === 'stable'
+      opts.kind === ReleaseKinds.STABLE
         ? [opts.notes]
         : [
-            `Install: \`npm install ${opts.mainPackage}@next\``,
+            `Install: \`npm install ${opts.packages.at(-1) ?? ''}@next\``,
             '',
             ...(opts.subjects.length === 0
               ? []
@@ -251,7 +326,10 @@ export class GithubRelease {
       : [];
   }
 
-  /** Makes the Release of `tag`, or says why it did not. Never throws: a failure is an outcome. */
+  /**
+   * Makes the Release of `tag`, or says why it did not: a git or filesystem failure is an outcome too.
+   * With `dryRun` it stops before `gh` creates anything and returns the notes as the message.
+   */
   static create(opts: {
     cwd: string;
     tag: string;
@@ -261,6 +339,7 @@ export class GithubRelease {
     scratchRoot: string;
     /** Falls back to commit subjects when no changelog entry covers a stable (a backfill). */
     withSubjectFallback?: boolean;
+    dryRun?: boolean;
   }): IGithubReleaseOutcome {
     if (opts.tag === GithubReleaseConstants.ATLAS_INDEX_TAG) {
       return {
@@ -269,22 +348,50 @@ export class GithubRelease {
       };
     }
 
-    if (opts.kind !== 'stable' && opts.kind !== 'prerelease') {
+    if (opts.kind !== ReleaseKinds.STABLE && opts.kind !== ReleaseKinds.PRERELEASE) {
       return { state: 'refused', message: `the kind '${opts.kind}' is not stable or prerelease` };
+    }
+
+    if (opts.withSubjectFallback && opts.kind !== ReleaseKinds.STABLE) {
+      return { state: 'refused', message: 'a backfill makes the Release of a stable only' };
     }
 
     if (opts.gh({ args: ['release', 'view', opts.tag, '--json', 'tagName'] }).status === 0) {
       return { state: 'exists', message: `${opts.tag} already has a Release - skipped` };
     }
 
+    try {
+      return GithubRelease.make({ ...opts, kind: opts.kind });
+    } catch (error) {
+      return { state: 'failed', message: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  private static make(opts: {
+    cwd: string;
+    tag: string;
+    kind: TReleaseKind;
+    version: string;
+    gh: TGh;
+    scratchRoot: string;
+    withSubjectFallback?: boolean;
+    dryRun?: boolean;
+  }): IGithubReleaseOutcome {
+    const stable = opts.kind === ReleaseKinds.STABLE;
     const manifest = GithubRelease.manifestOf({ cwd: opts.cwd });
+    const tags = GithubRelease.tagsOf({ cwd: opts.cwd });
     const from = GithubRelease.previousTag({
-      tags: GithubRelease.tagsOf({ cwd: opts.cwd }),
+      tags,
       templates: manifest.templates,
       version: opts.version,
-      stableOnly: opts.kind === 'stable',
+      stableOnly: stable,
     });
-    const stable = opts.kind === 'stable';
+    const subjects = GithubRelease.subjectsOf({
+      cwd: opts.cwd,
+      from,
+      to: opts.tag,
+      onlyIssues: !(stable && opts.withSubjectFallback),
+    });
     let notes = stable
       ? GithubRelease.stableNotes({
           cwd: opts.cwd,
@@ -293,15 +400,9 @@ export class GithubRelease {
           folder: manifest.changelogs,
         })
       : '';
-    const subjects = GithubRelease.subjectsOf({
-      cwd: opts.cwd,
-      from,
-      to: opts.tag,
-      onlyIssues: !(stable && opts.withSubjectFallback),
-    }).slice(0, GithubReleaseConstants.MAX_PRERELEASE_SUBJECTS);
 
     if (stable && notes === '') {
-      if (!opts.withSubjectFallback) {
+      if (!opts.withSubjectFallback || subjects.length === 0) {
         return {
           state: 'failed',
           message: `no changelog entry was added since ${from ?? 'the start of history'}, so ${opts.tag} has no notes`,
@@ -311,8 +412,26 @@ export class GithubRelease {
       notes = [
         'Commits in this release:',
         '',
-        ...GithubRelease.fencedLines({ lines: subjects }),
+        ...GithubRelease.fencedLines({ lines: GithubRelease.cappedSubjects({ subjects }) }),
       ].join('\n');
+    }
+
+    const body = GithubRelease.bodyOf({
+      kind: opts.kind,
+      version: opts.version,
+      notes,
+      subjects: GithubRelease.cappedSubjects({ subjects }),
+      packages: manifest.packages,
+    });
+    const latest =
+      stable &&
+      GithubRelease.isNewestStable({ tags, templates: manifest.templates, version: opts.version });
+
+    if (opts.dryRun) {
+      return {
+        state: 'planned',
+        message: `${opts.tag} (${opts.kind}, ${latest ? 'Latest' : 'not Latest'}), notes since ${from ?? 'the start of history'}:\n\n${body}`,
+      };
     }
 
     const directory = mkdtempSync(join(opts.scratchRoot, 'github-release-'));
@@ -320,17 +439,7 @@ export class GithubRelease {
     try {
       const file = join(directory, 'notes.md');
 
-      writeFileSync(
-        file,
-        GithubRelease.bodyOf({
-          kind: opts.kind,
-          version: opts.version,
-          notes,
-          subjects,
-          packages: manifest.packages,
-          mainPackage: manifest.packages.at(-1) ?? '',
-        }),
-      );
+      writeFileSync(file, body);
 
       const created = opts.gh({
         args: [
@@ -342,7 +451,7 @@ export class GithubRelease {
           '--notes-file',
           file,
           '--verify-tag',
-          ...(stable ? ['--latest'] : ['--prerelease']),
+          stable ? (latest ? '--latest' : '--latest=false') : '--prerelease',
         ],
       });
 
@@ -360,6 +469,35 @@ export class GithubRelease {
     );
   }
 
+  /** The tag, version and kind a `create` or a `backfill` asks for; `undefined` when the flags do not give them. */
+  static requestOf(opts: {
+    args: string[];
+    manifest: IGithubReleaseManifest;
+  }): { tag: string; version: string; kind: string } | undefined {
+    const tag = ReleaseMergeBack.flagValue({ args: opts.args, flag: '--tag' });
+
+    if (tag === undefined) {
+      return undefined;
+    }
+
+    if (opts.args[0] === 'backfill') {
+      const version = GithubRelease.versionOfTag({ tag, templates: opts.manifest.templates });
+
+      return version === undefined
+        ? undefined
+        : {
+            tag,
+            version,
+            kind: version.includes('-') ? ReleaseKinds.PRERELEASE : ReleaseKinds.STABLE,
+          };
+    }
+
+    const version = ReleaseMergeBack.flagValue({ args: opts.args, flag: '--version' });
+    const kind = ReleaseMergeBack.flagValue({ args: opts.args, flag: '--kind' });
+
+    return version === undefined || kind === undefined ? undefined : { tag, version, kind };
+  }
+
   static main(opts: {
     args: string[];
     env: Record<string, string | undefined>;
@@ -368,21 +506,24 @@ export class GithubRelease {
   }): number {
     const [command] = opts.args;
     const cwd = opts.cwd ?? process.cwd();
-    const flag = (name: string): string | undefined =>
-      ReleaseMergeBack.flagValue({ args: opts.args, flag: name });
     const scratchRoot = opts.env['RUNNER_TEMP'] ?? tmpdir();
+    const summary = opts.env['GITHUB_STEP_SUMMARY'];
 
     try {
       if (command === 'check') {
-        const version = flag('--version');
+        const version = ReleaseMergeBack.flagValue({ args: opts.args, flag: '--version' });
 
         if (version === undefined) {
-          console.error('github-release check: --version <v> is required');
+          console.error(GithubReleaseConstants.USAGE);
 
           return 2;
         }
 
-        const problems = GithubRelease.check({ cwd, version, to: flag('--to') ?? 'HEAD' });
+        const problems = GithubRelease.check({
+          cwd,
+          version,
+          to: ReleaseMergeBack.flagValue({ args: opts.args, flag: '--to' }) ?? 'HEAD',
+        });
 
         problems.forEach((problem) => console.error(`ERROR | ${problem}`));
 
@@ -390,42 +531,26 @@ export class GithubRelease {
       }
 
       if (command === 'create' || command === 'backfill') {
-        const backfill = command === 'backfill';
-        const tag = flag('--tag');
-        const manifest = GithubRelease.manifestOf({ cwd });
-        const version = backfill
-          ? tag === undefined
-            ? undefined
-            : GithubRelease.versionOfTag({ tag, templates: manifest.templates })
-          : flag('--version');
-        const kind = backfill ? 'stable' : flag('--kind');
+        const request = GithubRelease.requestOf({
+          args: opts.args,
+          manifest: GithubRelease.manifestOf({ cwd }),
+        });
 
-        if (tag === undefined || version === undefined || kind === undefined) {
-          console.error(
-            'github-release: create --tag <tag> --version <v> --kind stable|prerelease | backfill --tag <tag> [--yes]',
-          );
+        if (request === undefined) {
+          console.error(GithubReleaseConstants.USAGE);
 
           return 2;
         }
 
-        if (backfill && !opts.args.includes('--yes')) {
-          console.log(
-            `github-release: would create the Release of ${tag} (${version}, Latest). Add --yes to write it to GitHub.`,
-          );
-
-          return 0;
-        }
-
+        const backfill = command === 'backfill';
         const outcome = GithubRelease.create({
           cwd,
-          tag,
-          kind,
-          version,
+          ...request,
           gh: opts.gh ?? GithubRelease.ghOf({ cwd }),
           scratchRoot,
           withSubjectFallback: backfill,
+          dryRun: backfill && !opts.args.includes('--yes'),
         });
-        const summary = opts.env['GITHUB_STEP_SUMMARY'];
 
         console.log(`github-release: ${outcome.state} - ${outcome.message}`);
 
@@ -433,15 +558,21 @@ export class GithubRelease {
           appendFileSync(summary, GithubRelease.summaryOf({ outcome }));
         }
 
-        return outcome.state === 'created' || outcome.state === 'exists' ? 0 : 1;
+        return outcome.state === 'failed' || outcome.state === 'refused' ? 1 : 0;
       }
     } catch (error) {
-      console.error(`ERROR | ${error instanceof Error ? error.message : String(error)}`);
+      const message = error instanceof Error ? error.message : String(error);
+
+      console.error(`ERROR | ${message}`);
+
+      if (summary !== undefined) {
+        appendFileSync(summary, GithubRelease.summaryOf({ outcome: { state: 'failed', message } }));
+      }
 
       return 1;
     }
 
-    console.error('github-release: create | check | backfill');
+    console.error(GithubReleaseConstants.USAGE);
 
     return 2;
   }
