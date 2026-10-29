@@ -40,7 +40,7 @@ bun x --no-install vulcan x okf check
 
 ## Branches and pull requests
 
-`main` holds what was released, and `develop` is the branch the team works on. The owner makes `main` the default branch; until that setting changes, `develop` is still the default. A stable is cut from `main`; see [Releasing](/process/releasing.md).
+`main` is the default branch and holds what was released. `develop` is the branch the team works on. A stable is cut from `main`; see [Releasing](/process/releasing.md).
 
 | You want to | Do |
 |---|---|
@@ -49,9 +49,8 @@ bun x --no-install vulcan x okf check
 | Close an issue | Merge the Sync pull request into the default branch: its body lists one `Closes #N` for each `[#N]` commit it brings |
 
 - **Name the base every time.** A pull request with no `--base` targets the default branch. The `guard-git` hook asks before `gh pr create` without one.
-- **A feature pull request does not close its issue.** GitHub closes an issue only when a pull request reaches the default branch. Once that is `main`, `Closes #N` in a pull request into `develop` does nothing.
-- **Until the owner makes `main` the default,** no pull request closes an issue by itself. Close it by hand after the merge.
-- **Clones.** Once `main` is the default, a clone checks it out first. Run `git switch develop` before you branch for a feature, and branch from `origin/develop`.
+- **A feature pull request does not close its issue.** GitHub closes an issue only when a pull request reaches the default branch, which is `main`. `Closes #N` in a pull request into `develop` does nothing, so a feature says `Refs #N`.
+- **Clones.** A clone checks out `main` first. Run `git switch develop` before you branch for a feature, and branch from `origin/develop`.
 
 ## What the base text is held to
 

@@ -10,7 +10,7 @@ packages: ['@venizia/vulcan']
 
 <Badge type="tip" text="Enhancement" /> <Badge type="warning" text="Behaviour Change" />
 
-**In one line.** `guard-git` now asks before `gh pr create` without `--base`, and the rules say to pass it, ready for `main` to become the default branch.
+**In one line.** `guard-git` now asks before `gh pr create` without `--base`, and the rules say to pass it, now that `main` is the default branch.
 
 ## What changed
 
@@ -27,6 +27,5 @@ packages: ['@venizia/vulcan']
 
 ## Details
 
-- GitHub closes an issue by `Closes #N` only when the pull request reaches the default branch.
-- Until the owner switches the default branch to `main`, nothing closes an issue by itself: a feature pull request says `Refs #N`, and the Sync does not reach the default branch. Close the issue by hand after the merge.
+- GitHub closes an issue by `Closes #N` only when the pull request reaches the default branch, which is `main`. A feature pull request into `develop` says `Refs #N`; the Sync closes the issues.
 - Not run yet: the Sync pull request with a real tag. The tests build the body from fixture histories.
