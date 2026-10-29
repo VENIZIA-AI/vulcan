@@ -8,33 +8,34 @@ tags: [process, release, npm]
 # Releasing
 
 A prerelease runs from `develop`, as in IGNIS: be on `develop`, clean and level with `origin/develop`,
-or the script refuses - the workflow builds `origin/develop`, not your checkout. A stable release runs from `main`
-and has steps of its own (the release commit on `main`, the merge back into `develop`) that are not in the workflow
-yet: until they are, the plan job refuses a stable with a message that says so.
+or the script refuses - the workflow builds `origin/develop`, not your checkout. A stable release runs from `main`:
+its release commit goes to `main`, and `main` is merged back into `develop` ([A stable](#a-stable-from-main) below).
 
 ```bash
 make release-plan ARGS="--bump prerelease"   # print the dispatch, change nothing
 make release ARGS="--bump prerelease"        # dispatch package-release.yml and watch it
+make release ARGS="--bump patch"             # a stable: dispatched on main, waits for the owner's approval
 ```
 
 `--bump` is `prerelease` (default), `prepatch`, `preminor`, `premajor`, `patch`, `minor`, `major`
 or `none` (publish the version already in package.json). The bump is judged by the version it gives, not by its name:
 `prerelease`, `prepatch`, `preminor`, `premajor` and `none` over a prerelease version give a prerelease (`0.4.8-0`, published to
 `next`, no approval); `patch`, `minor`, `major` and `none` over a stable version give a stable (`latest`, one approval, from `main`).
-`make release` always dispatches with `--ref develop`, never the repository's default branch.
+`make release` always names the ref, never the repository's default branch: `develop` for a prerelease, `main` for `patch`, `minor` and `major`. `none` follows `--branch develop|main` (develop without it), and the driver compares your checkout with that branch.
 
 0. The workflow has four jobs: `plan`, `test`, `approve` and `publish`. Every job checks out the commit that was dispatched, `github.sha`, never a branch name, and the run name carries it, so what the tests ran on, what the approver sees and what is published are one commit. The workflow's default permissions are read-only; only the publish job has `contents: write` and `id-token: write`. The actions are pinned by full commit SHA with the tag in a comment, and bun by exact version: raising either is a deliberate pull request. `scripts/checks/release-workflow-guards.ts` states these guards and its test removes each from a copy of the workflow, so a pull request that drops one fails CI.
-0a. `plan` runs `scripts/release/plan.ts` on the bump and the ref before anything is built. It works out the target version (by `npm version` itself, in a scratch folder, so `0.4.8-3` plus `patch` is `0.4.8`), says whether it is a prerelease or a stable, prints the target to the run summary and passes the version, the kind and the dist-tag to the later jobs. It refuses a version that does not belong to the ref: a prerelease runs from `develop` only, a stable from `main` only, and any other ref runs nothing. A refusal fails the plan job and names every reason, so a wrong dispatch is a red run, not a silent skip.
+0a. `plan` runs `scripts/release/plan.ts` on the bump and the ref before anything is built. It works out the target version (by `npm version` itself, in a scratch folder, so `0.4.8-3` plus `patch` is `0.4.8`), says whether it is a prerelease or a stable, prints the target to the run summary and passes the version, the kind and the dist-tag to the later jobs. It refuses a version that does not belong to the ref: a prerelease runs from `develop` only, a stable from `main` only, and any other ref runs nothing. On `main` it also refuses a stable bump over a version that is already stable: `patch`, `minor` and `major` promote a prerelease, and `none` is the one bump that publishes what is there. A refusal fails the plan job and names every reason, so a wrong dispatch is a red run, not a silent skip. For a stable the plan job also tries the merge back before anyone approves ([A stable](#a-stable-from-main)).
 0b. A prerelease has no approval. `approve` is the one human stop and exists for a stable only: it names the environment `release-approval`, whose one reviewer is the owner and whose ref rule is `main`; it runs after the gates (the owner never approves a release that fails them), holds no permission and runs one `echo`, and its name carries the target version. The owner approves in the Actions page (the run, Review deployments, release-approval, Approve and deploy), or with their own `gh`; an agent never approves (`W-08`). `publish` names the environment `npm-release`, which holds the ref rule (`develop` and `main`) and waits for nobody. It runs after `approve` succeeded, or after `approve` was skipped because the plan said prerelease; a skipped `approve` on a stable stops it, and so does a failed or cancelled dependency. The workflow test and the guard check evaluate that condition for each case. The environments' reviewers and ref rules are GitHub settings that only the owner writes; the workflow test keeps the lines that make the jobs subject to them.
 1. The `test` job (build, lint, catalog, unit tests, the VULCAN contract) holds no secret and cannot write; the publish job needs it, so a failing gate publishes nothing. The publish job then sets one version on all three packages (and stops if its own arithmetic differs from the plan's) and runs what depends on that version: both pack smokes and the packed manifests. The cli pack smoke also runs every hook of the generated `.claude/settings.json` from the installed tarball: a benign call each, with `zod` made unresolvable, and with `src/hooks/common/constants.ts` removed. A release whose hooks cannot load stops every tool call in every project that syncs it, so this step blocks the release.
 2. The packages pin each other exactly: the cli names okf and atlas as `workspace:*` in the tree, and
-   `bun pm pack` writes the train's version into the tarball. The workflow packs each package once with bun (only bun
+   `bun pm pack` writes the train's version into the tarball (it reads each sibling's version from its `package.json`
+   on disk, not from `bun.lock`). The workflow packs each package once with bun (only bun
    resolves `catalog:` and `workspace:`), checks every packed manifest for it, records the sha256 of each tarball, and
    publishes those very files with `npm publish --provenance` after checking the sha256 again: okf, atlas, cli in that order -
    prerelease to `next`, stable to `latest`. There is no npm token: the publish uses npm's trusted publishing (see below). A version already on npm is skipped. A prerelease never moves `latest`: it stays on a
    stable version (as in IGNIS). `next` is never below `latest`: after the publish, the step "Keep next at or above latest" (`scripts/release/next-tag.ts`) reads both tags of each of the three packages and moves `next` to `latest` where it is missing or lower. It is non-fatal and prints a warning for every move. A dispatch with bump `none` publishes nothing and still runs it, so it also heals the tags of a release already out. There is no dist-tag workflow, as in IGNIS; any other tag move is `npm dist-tag add <name>@<version> <tag>` by the package owner.
 2a. `make release` does not report success until every tarball of the train answers 200 (`scripts/release/release-wait.ts`, up to 20 minutes, polled every 10 seconds): the registry lists a version minutes before it serves the file, and a consumer that installs it at once gets a 404. A tarball still unserved after that fails the command with the publish itself done.
-3. It commits `chore(release): v<version> [<bump>]` on `develop` and tags `vulcan-v<version>` on that
+3. It commits `chore(release): v<version> [<bump>]` on `develop` (on `main` for a stable) and tags `vulcan-v<version>` on that
    commit as built. The tags of earlier releases are `v<version>`; they stay as they are, and `atlas.legacyTagPatterns` in `.configs/vulcan.config.mts` keeps them readable as releases for atlas and the changelog check. The tag ruleset `*-v*` does not match the old tags. When `develop` moved during the run, the push rebases, but the tag stays on the
    release commit, so it never holds merges that were not published.
 4. A tag already on origin at the release commit is skipped, so a `none` retry after a finished
@@ -46,6 +47,24 @@ download, so an install right after a green run may still fail. Confirm with
 
 A failed run is retried by dispatching again; the failure reports in the run say which case applies.
 The release ships code only and clones no IGNIS; atlas tests that measure IGNIS's real corpus skip there and run on a machine with IGNIS.
+
+## A stable from main
+
+A prerelease goes through `develop`, `next` and BANA first. The stable is the same code, promoted.
+
+1. **The Sync PR.** `bun scripts/release/sync-pr.ts open --tag vulcan-v<prerelease>` cuts the branch `sync/<tag>` at the commit BANA gated, never at the tip of `develop`. It opens the pull request into `main`. The owner merges it. Run it on the owner's word: it pushes a branch and opens a pull request.
+   - It refuses a name that is not a tag, a tag that is not a prerelease, a tag outside the history of `develop`, and a tag whose history lacks a commit `main` has.
+   - After the merge, `bun scripts/release/sync-pr.ts verify --tag <tag>` checks that the tree of `main` equals the tree of the tag.
+2. **Dispatch on `main`.** `make release ARGS="--bump patch"`. `minor` and `major` move all three packages: the repositories share one MAJOR.MINOR. The plan job prints the target (`0.4.9-1` and `patch` give `0.4.9`; `0.4.0-N` and `minor` give `0.4.0`). It refuses a train whose packages are not all at one version, and lists them.
+3. **The merge trial.** Still in the plan job, `scripts/release/merge-back.ts trial` makes the release commit the run would make on `main`, in a throwaway worktree. It merges that commit into `develop` in another worktree.
+   - A conflict that is only the `version` of a `package.json` takes the greater version: `0.4.9` beats `0.4.9-3`, and `0.4.10-0` beats `0.4.9`.
+   - `bun.lock` is regenerated with `bun install --lockfile-only`, never merged by hand, and may differ from `develop`'s only in workspace versions.
+   - Any other conflict stops the plan before the approval, with the file named. So does a `package.json` the script cannot read (it expects two-space indentation).
+   - `trial` takes `--version <v>` for a train, or `--versions <dir=v,...>` for packages that release apart, and `--lock keep` to leave `bun.lock` out of the release commit.
+4. **One approval.** `approve` waits on `release-approval`; nothing after it waits again. The first step of `publish` checks that `main` is still the dispatched commit and `develop` is still the head the trial read. If either moved, nothing is published.
+5. **After the publish.** The release commit goes to `main` with no rebase: a refused push means `main` moved, and the run stops and reports. The tag goes on that commit. `next` moves to the stable only where the stable is the higher version.
+6. **The merge back.** `merge-back.ts apply` merges the release commit into a worktree of `develop`, and the step pushes it. The checkout stays on the release commit, so nothing `develop` gained after the gate configures what runs.
+7. **A merge back that stops after the publish** is reported by name in the run: the version is out and tagged on `main`. Finish the merge by hand. Or fix `develop` and run `make release ARGS="--bump none --branch main"`: it publishes nothing, tags nothing and merges back.
 
 ## Trusted publishing (no npm token)
 

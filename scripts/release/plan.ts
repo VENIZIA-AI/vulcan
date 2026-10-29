@@ -2,15 +2,32 @@
  * The `plan` job of package-release.yml: what a dispatch would release, decided before anything is built.
  *
  *   bun scripts/release/plan.ts --bump <mode> --ref <refs/heads/...> [--issue <n>] [--package <package.json>]
+ *     [--train <packages folder>] [--merge-trial]
  *
  * It resolves the target version of the bump, says whether that version is a prerelease or a stable (a
  * prerelease needs no approval, a stable needs one), and refuses a branch and version that do not belong
- * together. It prints the target, writes `version`, `kind` and `npm_tag` to GITHUB_OUTPUT and a short
- * summary to GITHUB_STEP_SUMMARY, and exits 1 with every reason when it refuses.
+ * together: a prerelease runs from develop, a stable from main and only over a prerelease. It prints the
+ * target, writes `version`, `kind`, `npm_tag` and `develop_sha` to GITHUB_OUTPUT and a short summary to
+ * GITHUB_STEP_SUMMARY, and exits 1 with every reason when it refuses.
+ *
+ * With `--train`, every package under the folder must carry the version of `--package` (one train, one
+ * version), and the summary lists them; a mismatch is refused here rather than after the approval.
+ *
+ * With `--merge-trial`, a stable also tries the merge of main back into develop (merge-back.ts) and refuses
+ * when it would stop; `develop_sha` is the head of develop that trial read.
  */
-import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
 import { ReleaseBumps } from './release-args.ts';
 
 export class ReleaseKinds {
@@ -44,10 +61,6 @@ export class ReleasePlanConstants {
 
   /** A version the later jobs may carry in their environment: digits, an optional prerelease part, no build part. */
   static readonly VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
-
-  /** Said for a stable until the steps that make one are in the workflow. */
-  static readonly STABLE_PENDING =
-    'a stable release is not available yet: the steps that make one (the release commit on main and the merge back into develop) are not in this workflow, so it refuses a stable until they are';
 }
 
 /** Decides what one dispatch of the release workflow would release, and whether it may. */
@@ -105,7 +118,7 @@ export class ReleasePlan {
 
   /** Why a version of this kind may not run from this ref; empty when it may. */
   static checkRef(opts: { ref: string; kind: TReleaseKind }): string[] {
-    const { DEVELOP_REF, MAIN_REF, STABLE_PENDING } = ReleasePlanConstants;
+    const { DEVELOP_REF, MAIN_REF } = ReleasePlanConstants;
 
     if (opts.ref !== DEVELOP_REF && opts.ref !== MAIN_REF) {
       return [
@@ -121,7 +134,25 @@ export class ReleasePlan {
       return ['a stable release runs from main, not develop'];
     }
 
-    return opts.kind === ReleaseKinds.STABLE ? [STABLE_PENDING] : [];
+    return [];
+  }
+
+  /**
+   * A stable bump needs a prerelease to promote: over a version that is already a stable it would invent a
+   * new one nobody tested on `next`. `none` publishes what is there and is how a half-finished run is healed.
+   */
+  static checkPromotion(opts: {
+    bump: string;
+    currentVersion: string;
+    kind: TReleaseKind;
+  }): string[] {
+    const promotes = opts.bump !== ReleaseBumps.NONE && opts.kind === ReleaseKinds.STABLE;
+
+    return promotes && ReleasePlan.kindOf({ version: opts.currentVersion }) === ReleaseKinds.STABLE
+      ? [
+          `main is at ${opts.currentVersion}, a stable: a stable bump promotes a prerelease, so there is nothing to promote (a stable already exists for it)`,
+        ]
+      : [];
   }
 
   static plan(opts: {
@@ -169,12 +200,47 @@ export class ReleasePlan {
         kind,
         npmTag: kind === ReleaseKinds.PRERELEASE ? ReleaseNpmTags.NEXT : ReleaseNpmTags.LATEST,
       },
-      problems: ReleasePlan.checkRef({ ref: opts.ref, kind }),
+      problems: [
+        ...ReleasePlan.checkRef({ ref: opts.ref, kind }),
+        ...(opts.ref === ReleasePlanConstants.MAIN_REF
+          ? ReleasePlan.checkPromotion({
+              bump: opts.bump,
+              currentVersion: opts.currentVersion,
+              kind,
+            })
+          : []),
+      ],
     };
   }
 
+  /** The `name@version` of every package under `directory` that has a package.json. */
+  static readTrain(opts: { directory: string }): string[] {
+    return readdirSync(opts.directory)
+      .map((entry) => join(opts.directory, entry, 'package.json'))
+      .filter((path) => existsSync(path))
+      .map((path) => {
+        const { name, version } = JSON.parse(readFileSync(path, 'utf8'));
+
+        return `${String(name)}@${String(version)}`;
+      });
+  }
+
+  /** One train has one version: why the packages do not all carry `version`; empty when they do. */
+  static trainProblems(opts: { train: string[]; version: string }): string[] {
+    const apart = opts.train.filter((entry) => !entry.endsWith(`@${opts.version}`));
+
+    return apart.length === 0
+      ? []
+      : [`the packages are one train at ${opts.version}, but ${apart.join(', ')} differ`];
+  }
+
   /** What the run page shows about the plan: the target, and who has to approve it. */
-  static summaryOf(opts: { plan: IReleasePlan; bump: string; ref: string }): string {
+  static summaryOf(opts: {
+    plan: IReleasePlan;
+    bump: string;
+    ref: string;
+    train?: string[];
+  }): string {
     const approval =
       opts.plan.kind === ReleaseKinds.STABLE
         ? 'one approval, on the release-approval environment'
@@ -186,25 +252,29 @@ export class ReleasePlan {
       `- Target: **${opts.plan.version}** (${opts.plan.kind}), from \`${opts.bump}\` on \`${opts.ref}\``,
       `- Published under the \`${opts.plan.npmTag}\` dist-tag`,
       `- Approval: ${approval}`,
+      ...(opts.train === undefined ? [] : [`- Packages: ${opts.train.join(', ')}`]),
       '',
     ].join('\n');
   }
 
-  /** The value after `flag`; `undefined` when the flag is absent or is followed by another flag. */
-  static flagValue(opts: { args: string[]; flag: string }): string | undefined {
-    const index = opts.args.indexOf(opts.flag);
-    const value = index === -1 ? undefined : opts.args[index + 1];
-
-    return value === undefined || value.startsWith('--') ? undefined : value;
-  }
-
-  static main(opts: { args: string[]; env: Record<string, string | undefined> }): number {
+  static main(opts: {
+    args: string[];
+    env: Record<string, string | undefined>;
+    /** The directory the merge trial runs git in; the process's own when absent. */
+    cwd?: string;
+  }): number {
     const { args } = opts;
-    const bump = ReleasePlan.flagValue({ args, flag: '--bump' });
-    const ref = ReleasePlan.flagValue({ args, flag: '--ref' });
-    const issue = ReleasePlan.flagValue({ args, flag: '--issue' });
+    const bump = ReleaseMergeBack.flagValue({ args, flag: '--bump' });
+    const ref = ReleaseMergeBack.flagValue({ args, flag: '--ref' });
+    const scratchRoot = opts.env['RUNNER_TEMP'] ?? tmpdir();
+    // The issue is read as given, even when it starts with `--`: the workflow passes the same input to the
+    // commit message, so a value that is not a number must be refused here, not skipped as a missing value.
+    const issueIndex = args.indexOf('--issue');
+    const issue = issueIndex === -1 ? undefined : (args[issueIndex + 1] ?? '');
     const packagePath =
-      ReleasePlan.flagValue({ args, flag: '--package' }) ?? ReleasePlanConstants.DEFAULT_PACKAGE;
+      ReleaseMergeBack.flagValue({ args, flag: '--package' }) ??
+      ReleasePlanConstants.DEFAULT_PACKAGE;
+    const trainFolder = ReleaseMergeBack.flagValue({ args, flag: '--train' });
 
     if (bump === undefined || ref === undefined) {
       console.error('plan: --bump <mode> and --ref <refs/heads/...> are required');
@@ -228,12 +298,19 @@ export class ReleasePlan {
         ref,
         currentVersion,
         issue,
-        scratchRoot: opts.env['RUNNER_TEMP'] ?? tmpdir(),
+        scratchRoot,
       });
     } catch (error) {
       console.error(`ERROR | ${error instanceof Error ? error.message : String(error)}`);
 
       return 1;
+    }
+
+    const train =
+      trainFolder === undefined ? undefined : ReleasePlan.readTrain({ directory: trainFolder });
+
+    if (result.plan !== undefined && train !== undefined) {
+      result.problems.push(...ReleasePlan.trainProblems({ train, version: currentVersion }));
     }
 
     if (result.plan !== undefined) {
@@ -250,16 +327,50 @@ export class ReleasePlan {
 
     const output = opts.env['GITHUB_OUTPUT'];
     const summary = opts.env['GITHUB_STEP_SUMMARY'];
+    let developSha = '';
+
+    // The merge back of a stable is tried here, before anyone is asked to approve: a stop after the click would
+    // need a second click on the re-run.
+    if (result.plan.kind === ReleaseKinds.STABLE && args.includes('--merge-trial')) {
+      const trial = ReleaseMergeBack.trial({
+        cwd: opts.cwd ?? process.cwd(),
+        version: result.plan.version,
+        main: opts.env['GITHUB_SHA'] ?? MergeBackConstants.DEFAULT_MAIN,
+        develop: MergeBackConstants.DEFAULT_DEVELOP,
+        scratchRoot,
+      });
+
+      developSha = trial.developHead;
+
+      if (summary !== undefined) {
+        appendFileSync(
+          summary,
+          ReleaseMergeBack.summaryOf({ result: trial, version: result.plan.version }),
+        );
+      }
+
+      for (const problem of trial.problems) {
+        console.error(`ERROR | merge back: ${problem}`);
+      }
+
+      if (trial.problems.length > 0) {
+        return 1;
+      }
+
+      console.log(
+        `plan: the merge of main into develop goes through (resolved: ${trial.resolved.join(', ') || 'none'})`,
+      );
+    }
 
     if (output !== undefined) {
       appendFileSync(
         output,
-        `version=${result.plan.version}\nkind=${result.plan.kind}\nnpm_tag=${result.plan.npmTag}\n`,
+        `version=${result.plan.version}\nkind=${result.plan.kind}\nnpm_tag=${result.plan.npmTag}\ndevelop_sha=${developSha}\n`,
       );
     }
 
     if (summary !== undefined) {
-      appendFileSync(summary, ReleasePlan.summaryOf({ plan: result.plan, bump, ref }));
+      appendFileSync(summary, ReleasePlan.summaryOf({ plan: result.plan, bump, ref, train }));
     }
 
     return 0;
