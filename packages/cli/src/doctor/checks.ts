@@ -1173,25 +1173,64 @@ const STALE_TRUST_STATES = new Set<string>([
   TrustStates.UNKNOWN,
 ]);
 
+const QUOTES = ["'", '"', '`'];
+
+/** The path of a `guard.writes.trustedScripts` entry, and the subcommands when it is the object form. */
+const trustedScriptOf = (opts: {
+  entry: TResolvedConfig['guard']['writes']['trustedScripts'][number];
+}): { script: string; readOnly: string[] | undefined } =>
+  typeof opts.entry === 'string'
+    ? { script: opts.entry, readOnly: undefined }
+    : { script: opts.entry.script, readOnly: opts.entry.readOnly };
+
 /** One line per script in `guard.writes.trustedScripts` with what git says about it now (a note). */
 export const checkTrustedScripts = (opts: ICheckContext): IViolation[] =>
-  opts.config.guard.writes.trustedScripts.map((script) => {
+  opts.config.guard.writes.trustedScripts.map((entry) => {
+    const { script, readOnly } = trustedScriptOf({ entry });
     const trust = trustOf({ root: opts.root, script });
+    const scope = readOnly === undefined ? 'mutating calls' : `the calls ${readOnly.join(', ')}`;
 
     return createViolation({
       check: DoctorChecks.GUARDS,
       file: script,
       message:
         trust.state === TrustStates.TRUSTED
-          ? 'guard-writes does not read this script for mutating calls (guard.writes.trustedScripts); it is ' +
+          ? `guard-writes does not read this script for ${scope} (guard.writes.trustedScripts); it is ` +
             trust.reason
           : `listed in guard.writes.trustedScripts, but guard-writes reads it like any script now: ${trust.reason}`,
     });
   });
 
+/**
+ * A subcommand an object entry lists that its script never holds as a quoted string (a note). It reads the
+ * text of the file, so it cannot tell a subcommand the script handles another way from a typo.
+ */
+export const checkReadOnlySubcommands = (opts: ICheckContext): IViolation[] =>
+  opts.config.guard.writes.trustedScripts.flatMap((entry) => {
+    const { script, readOnly } = trustedScriptOf({ entry });
+    const path = join(opts.root, script);
+
+    if (readOnly === undefined || !existsSync(path)) {
+      return [];
+    }
+
+    const source = readFileSync(path, 'utf8');
+
+    return readOnly
+      .filter((word) => !QUOTES.some((quote) => source.includes(`${quote}${word}${quote}`)))
+      .map((word) =>
+        createViolation({
+          check: DoctorChecks.GUARDS,
+          file: script,
+          message: `guard.writes.trustedScripts lists the subcommand '${word}' for this script, but the script does not hold it as a quoted string; this is a check of the text of the file, not what the script does`,
+        }),
+      );
+  });
+
 /** A listed script that does not exist or is not committed: the exemption never applies (a warning). */
 export const checkStaleTrustedScripts = (opts: ICheckContext): IViolation[] =>
-  opts.config.guard.writes.trustedScripts.flatMap((script) => {
+  opts.config.guard.writes.trustedScripts.flatMap((entry) => {
+    const { script } = trustedScriptOf({ entry });
     const trust = trustOf({ root: opts.root, script });
 
     return STALE_TRUST_STATES.has(trust.state)

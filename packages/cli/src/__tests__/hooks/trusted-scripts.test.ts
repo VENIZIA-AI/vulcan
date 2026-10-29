@@ -405,3 +405,380 @@ describe('the guard-writes hook with trusted scripts', () => {
     expect(result.stdout).not.toBe('');
   });
 });
+
+// A release script with a read-only subcommand and a publishing one: the file holds a POST, so it is flagged as a whole.
+const RELEASE = [
+  'const [command] = Bun.argv.slice(2);',
+  "if (command === 'plan') console.log('matrix');",
+  "if (command === 'registry') console.log('lookup');",
+  "if (command === 'run') await fetch(url, { method: 'POST' });",
+  'export {};',
+  '',
+].join('\n');
+const RELEASE_PATH = 'tools/release.ts';
+const READ_ONLY = [{ script: RELEASE_PATH, readOnly: ['plan', 'registry'] }];
+
+describe('inspectCommand with read-only subcommands', () => {
+  const release = (opts: { files?: Record<string, string> } = {}) => {
+    const root = repoWith({ files: { [RELEASE_PATH]: RELEASE, ...opts.files } });
+
+    return { root, trust: { root, scripts: [], readOnlyScripts: READ_ONLY } };
+  };
+
+  test('the script is flagged without the entry: the file holds a POST', () => {
+    const { root } = release();
+
+    expect(
+      inspectCommand({ command: `bun ${RELEASE_PATH} plan`, cwd: root }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  test.each([
+    `bun ${RELEASE_PATH} plan`,
+    `bun ${RELEASE_PATH} registry packages/a/package.json`,
+    `bun run ${RELEASE_PATH} plan`,
+    `bun ./${RELEASE_PATH} plan --json`,
+    `bun ${RELEASE_PATH} plan > plan.txt`,
+    `bun ${RELEASE_PATH} plan; echo done`,
+    `GITHUB_OUTPUT=out.txt bun ${RELEASE_PATH} plan`,
+  ])('a listed subcommand is quiet: %s', (command) => {
+    const { root, trust } = release();
+
+    expect(inspectCommand({ command, cwd: root, trust })).toEqual([]);
+  });
+
+  test('an absolute path and a call from a subfolder are quiet too', () => {
+    const { root, trust } = release({ files: { 'sub/keep.txt': 'x' } });
+
+    expect(
+      inspectCommand({ command: `bun ${join(root, RELEASE_PATH)} plan`, cwd: '/', trust }),
+    ).toEqual([]);
+    expect(
+      inspectCommand({ command: 'bun ../tools/release.ts plan', cwd: join(root, 'sub'), trust }),
+    ).toEqual([]);
+  });
+
+  test('the run subcommand of the same script still asks, as it does with no entry', () => {
+    const { root, trust } = release();
+    const withEntry = inspectCommand({ command: `bun ${RELEASE_PATH} run`, cwd: root, trust });
+    const without = inspectCommand({ command: `bun ${RELEASE_PATH} run`, cwd: root });
+
+    expect(withEntry.length).toBeGreaterThan(0);
+    expect(withEntry).toEqual(without);
+    expect(withEntry.map((hit) => hit.message).join('\n')).not.toContain('trustedScripts');
+  });
+
+  test.each([
+    ['no subcommand', `bun ${RELEASE_PATH}`],
+    ['a flag only', `bun ${RELEASE_PATH} --help`],
+    ['a flag before the subcommand', `bun ${RELEASE_PATH} --dry-run plan`],
+    ['a longer word', `bun ${RELEASE_PATH} plan-all`],
+    ['a prefix of a listed word', `bun ${RELEASE_PATH} pla`],
+    ['another case', `bun ${RELEASE_PATH} PLAN`],
+    ['a word that holds the subcommand and more', `bun ${RELEASE_PATH} "plan x"`],
+    ['an equals form', `bun ${RELEASE_PATH} plan=1`],
+    ['a separator stuck to the word', `bun ${RELEASE_PATH} "plan;"`],
+    ['a subcommand from a variable', `bun ${RELEASE_PATH} $SUBCOMMAND`],
+    ['the subcommand after another word', `bun ${RELEASE_PATH} run plan`],
+  ])('asks for %s', (_name, command) => {
+    const { root, trust } = release();
+
+    expect(inspectCommand({ command, cwd: root, trust }).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    ['a semicolon', `bun ${RELEASE_PATH} plan; bun ${RELEASE_PATH} run`],
+    ['and', `bun ${RELEASE_PATH} plan && bun ${RELEASE_PATH} run`],
+    ['or', `bun ${RELEASE_PATH} plan || bun ${RELEASE_PATH} run`],
+    ['a pipe', `bun ${RELEASE_PATH} plan | bun ${RELEASE_PATH} run`],
+    ['run first', `bun ${RELEASE_PATH} run; bun ${RELEASE_PATH} plan`],
+    ['a subshell', `(bun ${RELEASE_PATH} plan; bun ${RELEASE_PATH} run)`],
+    ['a newline', `bun ${RELEASE_PATH} plan\nbun ${RELEASE_PATH} run`],
+  ])('a compound command with %s judges each command on its own', (_name, command) => {
+    const { root, trust } = release();
+    const hits = inspectCommand({ command, cwd: root, trust });
+    const runOnly = inspectCommand({ command: `bun ${RELEASE_PATH} run`, cwd: root });
+
+    expect(hits).toEqual(runOnly);
+  });
+
+  test('a compound command of two listed subcommands is quiet', () => {
+    const { root, trust } = release();
+
+    expect(
+      inspectCommand({
+        command: `bun ${RELEASE_PATH} plan && bun ${RELEASE_PATH} registry a.json`,
+        cwd: root,
+        trust,
+      }),
+    ).toEqual([]);
+  });
+
+  test('a listed call that carries another call of the script in its arguments asks', () => {
+    const { root, trust } = release();
+
+    expect(
+      inspectCommand({
+        command: `bun ${RELEASE_PATH} plan "bun ${RELEASE_PATH} run"`,
+        cwd: root,
+        trust,
+      }).length,
+    ).toBeGreaterThan(0);
+    expect(
+      inspectCommand({
+        command: `bun ${RELEASE_PATH} plan; bun ${RELEASE_PATH} "plan x"`,
+        cwd: root,
+        trust,
+      }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  test('a pipe into the script, then a publishing call, asks', () => {
+    const { root, trust } = release();
+
+    expect(
+      inspectCommand({
+        command: `echo x | bun ${RELEASE_PATH} plan; bun ${RELEASE_PATH} run`,
+        cwd: root,
+        trust,
+      }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  test('the command line is still checked next to a listed subcommand', () => {
+    const { root, trust } = release();
+    const hits = inspectCommand({
+      command: `bun ${RELEASE_PATH} plan && curl -X POST https://x.dev/a`,
+      cwd: root,
+      trust,
+    });
+
+    expect(hits).toHaveLength(1);
+    expect(hits[0].rule).toBe('V-W-02');
+    expect(hits[0].message).toContain('calling an endpoint');
+  });
+
+  test('a listed subcommand of an edited script asks, saying modified trusted script', () => {
+    const { root, trust } = release();
+
+    writeFileSync(join(root, RELEASE_PATH), `${RELEASE}// edited\n`);
+
+    const hits = inspectCommand({ command: `bun ${RELEASE_PATH} plan`, cwd: root, trust });
+    const text = hits.map((hit) => hit.message).join('\n');
+
+    expect(hits.length).toBeGreaterThan(0);
+    expect(text).toContain('listed in guard.writes.trustedScripts');
+    expect(text).toContain('modified trusted script');
+  });
+
+  test('an untracked or uncommitted script is checked like any other', () => {
+    const { root } = release();
+
+    writeFileSync(join(root, 'tools', 'new.ts'), RELEASE);
+
+    const untracked = inspectCommand({
+      command: 'bun tools/new.ts plan',
+      cwd: root,
+      trust: {
+        root,
+        scripts: [],
+        readOnlyScripts: [{ script: 'tools/new.ts', readOnly: ['plan'] }],
+      },
+    });
+
+    expect(untracked.map((hit) => hit.message).join('\n')).toContain('not tracked');
+
+    git({ cwd: root, args: ['add', 'tools/new.ts'] });
+
+    const staged = inspectCommand({
+      command: 'bun tools/new.ts plan',
+      cwd: root,
+      trust: {
+        root,
+        scripts: [],
+        readOnlyScripts: [{ script: 'tools/new.ts', readOnly: ['plan'] }],
+      },
+    });
+
+    expect(staged.map((hit) => hit.message).join('\n')).toContain('not in the last commit');
+  });
+
+  test('a subcommand listed for one script does not open another script', () => {
+    const { root, trust } = release({ files: { 'tools/other.ts': RELEASE } });
+
+    expect(
+      inspectCommand({ command: 'bun tools/other.ts plan', cwd: root, trust }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  test('a subcommand listed for another script does not open this one', () => {
+    const { root } = release();
+    const trust = {
+      root,
+      scripts: [],
+      readOnlyScripts: [{ script: RELEASE_PATH, readOnly: ['registry'] }],
+    };
+
+    expect(
+      inspectCommand({ command: `bun ${RELEASE_PATH} plan`, cwd: root, trust }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  test('a path string entry behaves as before: every subcommand of the script is quiet', () => {
+    const { root } = release();
+    const trust = { root, scripts: [RELEASE_PATH] };
+
+    for (const command of [
+      `bun ${RELEASE_PATH} plan`,
+      `bun ${RELEASE_PATH} run`,
+      `bun ${RELEASE_PATH}`,
+    ]) {
+      expect(inspectCommand({ command, cwd: root, trust })).toEqual([]);
+    }
+  });
+
+  test('a path string entry wins over an object entry for the same script', () => {
+    const { root } = release();
+    const trust = { root, scripts: [RELEASE_PATH], readOnlyScripts: READ_ONLY };
+
+    expect(inspectCommand({ command: `bun ${RELEASE_PATH} run`, cwd: root, trust })).toEqual([]);
+  });
+
+  test('no readOnly entries and an empty list change nothing', () => {
+    const { root } = release();
+
+    for (const trust of [
+      { root, scripts: [] },
+      { root, scripts: [], readOnlyScripts: [] },
+    ]) {
+      expect(
+        inspectCommand({ command: `bun ${RELEASE_PATH} plan`, cwd: root, trust }).length,
+      ).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('the guard-writes hook with read-only subcommands', () => {
+  const MANIFEST_PATH = '.agents/vulcan.manifest.json';
+  const manifestOf = (opts: { readOnlyScripts: unknown }): string =>
+    JSON.stringify({
+      schemaVersion: 1,
+      guard: { writes: { readOnlyScripts: opts.readOnlyScripts } },
+    });
+
+  const runHook = (opts: { root: string; command: string }) => {
+    const child = Bun.spawnSync([process.execPath, HOOK], {
+      stdin: new TextEncoder().encode(
+        JSON.stringify(
+          Object.fromEntries([
+            ['tool_name', 'Bash'],
+            ['tool_input', { command: opts.command }],
+            ['cwd', opts.root],
+          ]),
+        ),
+      ),
+      env: { ...process.env, CLAUDE_PROJECT_DIR: opts.root },
+      timeout: SPAWN_TIMEOUT_MS,
+      killSignal: 'SIGKILL',
+    });
+
+    return {
+      code: child.exitCode,
+      stdout: child.stdout.toString().trim(),
+      stderr: child.stderr.toString(),
+    };
+  };
+
+  const project = (opts: { manifest?: string }) =>
+    repoWith({
+      files: {
+        [RELEASE_PATH]: RELEASE,
+        ...(opts.manifest === undefined ? {} : { [MANIFEST_PATH]: opts.manifest }),
+      },
+    });
+
+  test('a listed subcommand stays silent and run asks', () => {
+    const root = project({ manifest: manifestOf({ readOnlyScripts: READ_ONLY }) });
+    const plan = runHook({ root, command: `bun ${RELEASE_PATH} plan` });
+    const registry = runHook({ root, command: `bun ${RELEASE_PATH} registry a.json` });
+    const run = runHook({ root, command: `bun ${RELEASE_PATH} run` });
+
+    expect(plan).toEqual({ code: 0, stdout: '', stderr: '' });
+    expect(registry).toEqual({ code: 0, stdout: '', stderr: '' });
+    expect(JSON.parse(run.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+  });
+
+  test('a compound command asks for the publishing call only', () => {
+    const root = project({ manifest: manifestOf({ readOnlyScripts: READ_ONLY }) });
+    const result = runHook({
+      root,
+      command: `bun ${RELEASE_PATH} plan && bun ${RELEASE_PATH} run`,
+    });
+
+    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+  });
+
+  test('after the script is edited the hook asks even for a listed subcommand', () => {
+    const root = project({ manifest: manifestOf({ readOnlyScripts: READ_ONLY }) });
+
+    writeFileSync(join(root, RELEASE_PATH), `${RELEASE}// edited\n`);
+
+    const decision = JSON.parse(
+      runHook({ root, command: `bun ${RELEASE_PATH} plan` }).stdout,
+    ).hookSpecificOutput;
+
+    expect(decision.permissionDecision).toBe('ask');
+    expect(decision.permissionDecisionReason).toContain('modified trusted script');
+  });
+
+  test('a project with no manifest, or one that lists none, asks as before', () => {
+    for (const manifest of [undefined, manifestOf({ readOnlyScripts: [] }), '{ nope']) {
+      const root = project({ manifest });
+      const result = runHook({ root, command: `bun ${RELEASE_PATH} plan` });
+
+      expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+    }
+  });
+
+  test('an entry of the manifest that is not usable is skipped, said once, and the others stay', () => {
+    const root = project({
+      manifest: manifestOf({
+        readOnlyScripts: [
+          { script: RELEASE_PATH },
+          { script: 7, readOnly: ['plan'] },
+          { script: RELEASE_PATH, readOnly: ['plan', 3, ''] },
+          'tools/other.ts',
+          ...READ_ONLY,
+        ],
+      }),
+    });
+    const result = runHook({ root, command: `bun ${RELEASE_PATH} plan` });
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr.match(/readOnlyScripts/g)).toHaveLength(4);
+  });
+
+  test('a path string in the config still trusts every subcommand', () => {
+    const root = repoWith({
+      files: {
+        [RELEASE_PATH]: RELEASE,
+        '.configs/vulcan.config.ts': `export default { guard: { writes: { trustedScripts: ['${RELEASE_PATH}'] } } };\n`,
+      },
+    });
+
+    expect(runHook({ root, command: `bun ${RELEASE_PATH} run` }).stdout).toBe('');
+  });
+
+  test('an object entry in the config alone is not read by the hook before a sync: it asks', () => {
+    const root = repoWith({
+      files: {
+        [RELEASE_PATH]: RELEASE,
+        '.configs/vulcan.config.ts': `export default { guard: { writes: { trustedScripts: [{ script: '${RELEASE_PATH}', readOnly: ['plan'] }] } } };\n`,
+      },
+    });
+    const result = runHook({ root, command: `bun ${RELEASE_PATH} plan` });
+
+    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+  });
+});

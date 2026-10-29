@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { IReadOnlyScript } from './common/index.ts';
 
 /** A command the project says is a database write or a deploy: guard-writes asks on a match. */
 export interface IProjectCommandCheck {
@@ -12,6 +13,8 @@ export interface IProjectCommandCheck {
 export interface IGuardPolicy {
   commands: IProjectCommandCheck[];
   askPush: string[];
+  /** `guard.writes.readOnlyScripts`; absent when the manifest lists none. */
+  readOnlyScripts?: IReadOnlyScript[];
 }
 
 /** Spelt out: the blocking hooks import nothing that reads the package (a test holds it equal to the manifest's name). */
@@ -61,8 +64,33 @@ const commandOf = (opts: { value: unknown }): IProjectCommandCheck | undefined =
   }
 };
 
+const readOnlyScriptOf = (opts: { value: unknown }): IReadOnlyScript | undefined => {
+  const holder = { value: opts.value };
+  const script = isRecord(holder) ? holder.value['script'] : undefined;
+  const listed = isRecord(holder) ? holder.value['readOnly'] : undefined;
+  const words = Array.isArray(listed)
+    ? listed.filter((word): word is string => typeof word === 'string' && word !== '')
+    : [];
+
+  if (
+    typeof script !== 'string' ||
+    script === '' ||
+    !Array.isArray(listed) ||
+    words.length !== listed.length
+  ) {
+    note({
+      message:
+        'ignoring a guard.writes.readOnlyScripts entry that has no script or no readOnly list of words',
+    });
+
+    return undefined;
+  }
+
+  return { script, readOnly: words };
+};
+
 /**
- * The commands and push targets a project lists, from the committed manifest (`vulcan sync` renders
+ * The commands, push targets and read-only scripts a project lists, from the committed manifest (`vulcan sync` renders
  * them from the config), so a hook reads them with no config loader and no zod. A project with no
  * manifest, or none of the block, has none; an entry that cannot be used is skipped, said once on
  * stderr, and the others stay.
@@ -97,7 +125,13 @@ export const readGuardPolicy = (opts: { root: string }): IGuardPolicy => {
   const writes = { value: guard.value['writes'] };
   const git = { value: guard.value['git'] };
   const listed = isRecord(writes) ? writes.value['commands'] : undefined;
+  const scripts = isRecord(writes) ? writes.value['readOnlyScripts'] : undefined;
   const targets = isRecord(git) ? git.value['askPush'] : undefined;
+  const readOnlyScripts = (Array.isArray(scripts) ? scripts : []).flatMap((entry) => {
+    const script = readOnlyScriptOf({ value: entry });
+
+    return script === undefined ? [] : [script];
+  });
 
   return {
     commands: (Array.isArray(listed) ? listed : []).flatMap((entry) => {
@@ -108,6 +142,7 @@ export const readGuardPolicy = (opts: { root: string }): IGuardPolicy => {
     askPush: (Array.isArray(targets) ? targets : []).filter(
       (target): target is string => typeof target === 'string' && target !== '',
     ),
+    ...(readOnlyScripts.length === 0 ? {} : { readOnlyScripts }),
   };
 };
 

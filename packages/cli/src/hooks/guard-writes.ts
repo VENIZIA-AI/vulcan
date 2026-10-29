@@ -2,11 +2,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { HookConstants } from './common/index.ts';
 import { TrustStates } from './common/index.ts';
-import type { IHookCommand, IWriteCheck, IWriteHit } from './common/index.ts';
+import type { IHookCommand, IReadOnlyScript, IWriteCheck, IWriteHit } from './common/index.ts';
 import { commandTextsOf } from './command-view.ts';
 import { forHost } from './decision.ts';
 import type { IProjectCommandCheck } from './project-guards.ts';
-import { listedScriptOf, trustOf } from './trusted-scripts.ts';
+import { listedScriptOf, ReadOnlyScripts, trustOf } from './trusted-scripts.ts';
 
 const MUTATING_VERB = '(?:POST|PUT|PATCH|DELETE)';
 
@@ -83,11 +83,13 @@ const readScript = (opts: { target: string; cwd: string }): string | undefined =
  * `trust` lists the scripts the project vouches for (`guard.writes.trustedScripts`, repo-relative, under
  * `root`): a listed script that is tracked and identical to HEAD skips the script checks only. The checks
  * on the command line itself always run, and a listed script that git says changed is checked like any other.
+ * `trust.readOnlyScripts` (`guard.writes.trustedScripts` objects, from the manifest) skips them for one call: the
+ * word right after the script is one of the entry's `readOnly` words and the script is tracked and equals HEAD.
  */
 export const inspectCommand = (opts: {
   command: string;
   cwd: string;
-  trust?: { root: string; scripts: string[] };
+  trust?: { root: string; scripts: string[]; readOnlyScripts?: IReadOnlyScript[] };
   /** The project's own commands (`guard.writes.commands`), checked beside the fixed list. */
   extra?: IProjectCommandCheck[];
 }): IWriteHit[] => {
@@ -109,22 +111,42 @@ export const inspectCommand = (opts: {
       message: check.what,
     }));
 
-  for (const target of extractScriptTargets({ command: texts.join('\n') })) {
+  const targets = extractScriptTargets({ command: texts.join('\n') });
+  const entries = opts.trust?.readOnlyScripts ?? [];
+  // A subcommand counts only when the shell's own words give the same scripts in the same order as the text
+  // does; any other line (a script named in an argument, a pipe into a runner) is read as a whole.
+  const invocations =
+    entries.length === 0 ? [] : ReadOnlyScripts.extractInvocations({ command: opts.command });
+  const isPaired =
+    invocations.length === targets.length &&
+    invocations.every((invocation, index) => invocation.script === targets[index]);
+
+  for (const [index, target] of targets.entries()) {
     const source = readScript({ target, cwd: opts.cwd });
 
     if (source === undefined) {
       continue;
     }
 
+    const subcommand = isPaired ? invocations[index]?.subcommand : undefined;
     const listed =
       opts.trust === undefined
         ? undefined
-        : listedScriptOf({
+        : (listedScriptOf({
             target,
             cwd: opts.cwd,
             root: opts.trust.root,
             scripts: opts.trust.scripts,
-          });
+          }) ??
+          (subcommand === undefined
+            ? undefined
+            : ReadOnlyScripts.find({
+                target,
+                subcommand,
+                cwd: opts.cwd,
+                root: opts.trust.root,
+                entries,
+              })));
     const trust =
       listed === undefined || opts.trust === undefined
         ? undefined

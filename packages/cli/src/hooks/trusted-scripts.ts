@@ -2,7 +2,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { HookConstants, TrustStates } from './common/index.ts';
-import type { IScriptTrust } from './common/index.ts';
+import type { IReadOnlyScript, IScriptInvocation, IScriptTrust } from './common/index.ts';
+import { basenameOf, parseShell, programOf } from './shell.ts';
 
 /** Variables that point git at another repository or index than the one in `cwd`. */
 const REDIRECTING_VARIABLES = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'];
@@ -132,3 +133,45 @@ export const listedScriptOf = (opts: {
 
   return opts.scripts.find((script) => resolve(opts.root, script) === path);
 };
+
+export class ReadOnlyScripts {
+  /**
+   * The `bun x.ts` calls of a command line, in order, one per simple command: the script word and the word
+   * right after it. The words are the shell's own, so a quoted `"plan x"` stays one word and a `;` or `&&`
+   * ends the command and is never part of one.
+   */
+  static extractInvocations(opts: { command: string }): IScriptInvocation[] {
+    return parseShell({ command: opts.command }).flatMap((command) => {
+      const { name, args } = programOf({ command });
+
+      if (basenameOf({ word: name }) !== 'bun') {
+        return [];
+      }
+
+      const [script, subcommand] = args[0] === 'run' ? args.slice(1) : args;
+
+      return script !== undefined && script.endsWith('.ts') ? [{ script, subcommand }] : [];
+    });
+  }
+
+  /**
+   * The listed script a call to `target` with `subcommand` is read-only for: both resolved to absolute
+   * paths, the subcommand matched as one whole word. `undefined` when no entry covers this call.
+   */
+  static find(opts: {
+    target: string;
+    subcommand: string;
+    cwd: string;
+    root: string;
+    entries: IReadOnlyScript[];
+  }): string | undefined {
+    return listedScriptOf({
+      target: opts.target,
+      cwd: opts.cwd,
+      root: opts.root,
+      scripts: opts.entries
+        .filter((entry) => entry.readOnly.includes(opts.subcommand))
+        .map((entry) => entry.script),
+    });
+  }
+}

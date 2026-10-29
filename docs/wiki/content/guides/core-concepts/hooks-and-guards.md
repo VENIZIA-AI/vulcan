@@ -76,7 +76,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-Entries are exact repo-relative `.ts` paths. A modified or uncommitted script asks again and says why, and the command line itself is still checked. Trust means committed and unchanged, not reviewed: the pull request that edits the script and the list is your review. [`guard`](/references/configuration/#guard) and the [reference](/references/hooks/#trusted-scripts) have the details; `vulcan doctor` lists each entry.
+Entries are exact repo-relative `.ts` paths. A modified or uncommitted script asks again and says why, and the command line itself is still checked. Trust means committed and unchanged, not reviewed: the pull request that edits the script and the list is your review. A script with both a read-only and a publishing subcommand can list only the read-only ones: `{ script: 'scripts/release/release-run.ts', readOnly: ['plan', 'registry'] }`. [`guard`](/references/configuration/#guard) and the [reference](/references/hooks/#trusted-scripts) have the details; `vulcan doctor` lists each entry.
 
 ## Guarding remote hosts
 

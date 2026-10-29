@@ -56,7 +56,7 @@ const LAYOUT_FOLDER = z.string().superRefine((value, context) => {
 });
 
 /** A script `guard-writes` may trust: a repo-relative `.ts` path - no glob, no `~`, never climbing out of the repo. */
-const TRUSTED_SCRIPT = z.string().superRefine((value, context) => {
+const TRUSTED_SCRIPT_PATH = z.string().superRefine((value, context) => {
   const problem = /[*?[\]{}!]/.test(value)
     ? 'no globs: list each script by its exact path'
     : isAbsolute(value) || value.startsWith('~')
@@ -71,6 +71,15 @@ const TRUSTED_SCRIPT = z.string().superRefine((value, context) => {
     context.addIssue({ code: 'custom', message: `${value}: ${problem}` });
   }
 });
+
+/**
+ * A trusted script, whole or by subcommand: a path trusts the whole file; an object trusts only the calls
+ * whose first argument after the script is one of `readOnly` (one word each, matched exactly).
+ */
+const TRUSTED_SCRIPT = z.union([
+  TRUSTED_SCRIPT_PATH,
+  z.strictObject({ script: TRUSTED_SCRIPT_PATH, readOnly: z.array(z.string().min(1)) }),
+]);
 
 /** One folder, or a list of them: a side whose apps are grouped keeps each group's folder. */
 const LAYOUT_VALUE = z.union([LAYOUT_FOLDER, z.array(LAYOUT_FOLDER).min(1)]);
@@ -344,7 +353,9 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    * runtime dir for locks, git config, the agent tool's memory) with stores a tool in this project
    * manages itself: absolute globs, `~` and `$NAME` allowed. `writes.trustedScripts` lists the project's own
    * CLIs (repo-relative `.ts` paths, no globs) whose body guard-writes does not read for mutating calls
-   * while git tracks them and they equal HEAD; the command line is still checked. `writes.commands` adds the
+   * while git tracks them and they equal HEAD; the command line is still checked. An entry may instead be
+   * `{ script, readOnly: ['plan'] }`: only a call whose first argument after the script is listed skips the
+   * read, and `vulcan sync` writes those entries to the manifest. `writes.commands` adds the
    * project's own deploy and migrate commands to what guard-writes asks about (a pattern, matched inside
    * compound commands too), and `git.askPush` lists the branches a plain `git push` asks about; `vulcan sync`
    * writes both to the manifest, where the hooks read them.
