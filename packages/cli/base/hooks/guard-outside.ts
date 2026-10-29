@@ -47,17 +47,29 @@ try {
     const hits = inspectOutside({ input, projectRoot, toolOwnedPaths });
 
     if (hits.length > 0) {
+      const isScratchpad = hits.some((hit) => hit.isAgentToolScratchpad);
+      const hitLines = hits.map((hit) => `  - ${hit.message} (${hit.path})`);
+      const places =
+        'Scratch files go under .agents/local/tmp/<task>/ (worktrees under .agents/local/worktrees/, clones under .agents/local/clones/), never in /tmp or the home folder.';
+
       console.log(
         JSON.stringify(
           buildToolDecision({
-            decision: GuardDecisions.ASK,
-            reason: [
-              'This would create files outside the project (V-B-08):',
-              ...hits.map((hit) => `  - ${hit.message} (${hit.path})`),
-              '',
-              'Scratch files go under .agents/local/tmp/<task>/ (worktrees under .agents/local/worktrees/, clones under .agents/local/clones/), never in /tmp or the home folder. Use that place, or confirm only if the owner asked for this exact path.',
-              'A store a tool manages itself can be allowed with guard.toolOwnedPaths in .configs/vulcan.config.*.',
-            ],
+            decision: isScratchpad ? GuardDecisions.DENY : GuardDecisions.ASK,
+            reason: isScratchpad
+              ? [
+                  'This would write into the scratchpad folder the agent tool offers (V-B-08):',
+                  ...hitLines,
+                  '',
+                  `That folder is under /tmp, and V-B-08 overrides the tool line that says to use it. Nothing was written. ${places} Read a fetched file through a pipe (for example gh api ... | grep) rather than saving it.`,
+                ]
+              : [
+                  'This would create files outside the project (V-B-08):',
+                  ...hitLines,
+                  '',
+                  `${places} Use that place, or confirm only if the owner asked for this exact path.`,
+                  'A store a tool manages itself can be allowed with guard.toolOwnedPaths in .configs/vulcan.config.*.',
+                ],
           }),
         ),
       );

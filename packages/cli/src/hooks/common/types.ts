@@ -54,4 +54,6 @@ export type IGitRunner = (opts: {
 export interface IOutsideHit {
   path: string;
   message: string;
+  /** Whether the path is under the scratchpad folder an agent tool offers: the hook denies it, it does not ask. */
+  isAgentToolScratchpad: boolean;
 }

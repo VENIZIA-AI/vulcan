@@ -68,6 +68,16 @@ export class HookConstants {
    * Spelt out here because the blocking hooks import nothing that reads the package (a test holds the two equal).
    */
   static readonly PROJECT_TMP = '.agents/local/tmp';
+  /**
+   * The scratchpad folder an agent tool offers a session sits under the system temp directory (Claude Code:
+   * `/tmp/claude-<uid>/<project>/<session>/scratchpad`), so guard-outside denies a write there instead of asking.
+   * The folder itself and everything below it; the tool's sibling folders (`tasks`) are not covered.
+   * Only this Linux path is covered; another system's folder was not verified.
+   */
+  static readonly AGENT_TOOL_SCRATCHPAD_PATTERNS = [
+    '/tmp/claude-[0-9]*/*/*/scratchpad',
+    '/tmp/claude-[0-9]*/*/*/scratchpad/**',
+  ];
   /** Set to `off` to switch the guards off for a session; the hooks then pass every call. */
   static readonly KILL_SWITCH_ENV = 'VULCAN_GUARDS';
   static readonly KILL_SWITCH_OFF = 'off';

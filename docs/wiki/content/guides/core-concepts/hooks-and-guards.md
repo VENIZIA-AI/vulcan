@@ -20,7 +20,7 @@ The reason is shown to you. The answer carries `permissionDecision` twice, under
 |---|---|---|
 | `guard-writes` | A Bash command that writes to a database, runs a migration or deploys; the body of a `bun script.ts` it runs | Asks (`V-W-02`, `V-W-03`) |
 | `guard-git` | `git` and `gh`: deleting or force-pushing `develop` or `main`, `gh pr merge --delete-branch` on a pull request headed by one of them, `reset --hard`, `branch -D` of an unmerged branch | Refuses the first group, asks about the rest (`V-W-06`) |
-| `guard-outside` | A file, worktree, clone or temp file created outside the project | Asks (`V-B-08`) |
+| `guard-outside` | A file, worktree, clone or temp file created outside the project | Asks (`V-B-08`); denies a write into the scratchpad folder the agent tool offers |
 | `guard-remote-hosts` | A command that reaches a host you have not listed in `remoteHosts` (only registered when that key is set) | Asks |
 | `guard-manifest` | A write to `.agents/vulcan.manifest.json`, which `vulcan sync` generates | Refuses |
 | `guard-package` | A hand-written new `package.json` in a backend, frontend or shared folder, when a `vulcan add` command exists | Refuses, and gives the command |

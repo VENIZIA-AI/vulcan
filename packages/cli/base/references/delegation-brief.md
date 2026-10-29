@@ -16,7 +16,9 @@ A brief is built only from files you read this turn, never from memory. It holds
 4. **The rules**: the digest reaches the subagent through the tool's subagent-start hook where one
    exists; otherwise name the rule IDs it must keep.
 5. **Limits**: read-only unless the brief says otherwise; **no git writes**; every file it creates goes
-   under `.agents/local/` (V-B-08); no network beyond what the task needs.
+   under one named folder of `.agents/local/` (V-B-08), never `/tmp` and never the scratchpad folder its
+   tool offers (that is a `/tmp` folder: say so, because the tool's own text tells it to use it); no
+   network beyond what the task needs.
 6. **What to return**: one of four statuses and the evidence (below), in a stated shape, under 400 words.
 7. **A completion checklist** the subagent ticks, and a size bound, so one silent failure loses little.
 
