@@ -10,14 +10,14 @@ packages: ['@venizia/vulcan']
 
 <Badge type="tip" text="Enhancement" /> <Badge type="warning" text="Behaviour Change" />
 
-**In one line.** With `main` as the default branch, a pull request that names no base would land on `main`, so `guard-git` now asks about it and the rules say to pass `--base`.
+**In one line.** `guard-git` now asks before `gh pr create` without `--base`, and the rules say to pass it, ready for `main` to become the default branch.
 
 ## What changed
 
 - **A guard.** `guard-git` asks before `gh pr create` that names no `--base`. `--base <branch>`, `--base=<branch>`, `-B <branch>` and `--help` pass. Every project that syncs VULCAN gets it.
 - **The ship skill names the base.** It tells an agent to open a pull request with `gh pr create --base <branch>`, the branch coming from the project's rules. It no longer says the body always closes the issue.
 - **VULCAN's own rules.** A feature uses `--base develop` and `Refs #N`. The Sync pull request uses `--base main`.
-- **The Sync closes the issues.** The body of `scripts/release/sync-pr.ts open` lists one `Closes #N` for each issue a `[#N]` commit subject names, once each, so the issues close when the Sync merges.
+- **The Sync lists the issues.** The body of `scripts/release/sync-pr.ts open` has one `Closes #N` for each issue a `[#N]` commit subject names, once each. They close when the Sync merges into the default branch.
 - **Knowledge.** The development page has a section on branches and pull requests, and the design decisions record the flow.
 
 ## Who is affected
@@ -27,5 +27,6 @@ packages: ['@venizia/vulcan']
 
 ## Details
 
-- GitHub closes an issue by `Closes #N` only when the pull request reaches the default branch. Until the owner switches the default branch to `main`, a feature pull request into `develop` still closes its issue; the rule is ready for the switch.
+- GitHub closes an issue by `Closes #N` only when the pull request reaches the default branch.
+- Until the owner switches the default branch to `main`, nothing closes an issue by itself: a feature pull request says `Refs #N`, and the Sync does not reach the default branch. Close the issue by hand after the merge.
 - Not run yet: the Sync pull request with a real tag. The tests build the body from fixture histories.

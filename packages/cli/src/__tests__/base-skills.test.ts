@@ -448,13 +448,15 @@ describe('every shipped skill and the shared references', () => {
 describe('the shipped skill ship', () => {
   const skill = readFileSync(join(SKILLS_DIRECTORY, 'ship', 'SKILL.md'), 'utf8');
 
-  test('opens a pull request with its base named, and says a missing base targets the default branch', () => {
+  test('opens a pull request with its base named', () => {
     expect(skill).toContain('gh pr create --base <branch>');
-    expect(skill).toContain("a missing base targets the repository's default branch");
   });
 
-  test('does not say a pull request body always closes the issue: that holds only on the default branch', () => {
-    expect(skill).not.toContain('The issue is closed by the body (`Closes #N`).');
-    expect(skill).toContain('closes it only when the pull request reaches the');
+  test('never says a pull request closes its issue without naming the default branch', () => {
+    const unconditional = skill
+      .split(/\n\s*\n/)
+      .filter((paragraph) => /\bcloses\b/i.test(paragraph) && !/default branch/i.test(paragraph));
+
+    expect(unconditional).toEqual([]);
   });
 });

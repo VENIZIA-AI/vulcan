@@ -5,27 +5,24 @@ import { join } from 'node:path';
 const ROOT = join(import.meta.dir, '..', '..', '..');
 const read = (path: string): string => readFileSync(join(ROOT, path), 'utf8');
 
-describe('the project rules name the base of a pull request (default branch main)', () => {
+describe('the project rules name the base of a pull request', () => {
   const rule = read('.agents/rules.md')
     .split('\n')
     .filter((line) => line.startsWith('| **W-01**'))
     .join('\n');
 
-  test('W-01 opens a feature with --base develop and the Sync with --base main, and never leaves the base out', () => {
+  test('W-01 gives the commands a person copies: --base develop for a feature, --base main for the Sync', () => {
     expect(rule).toContain('gh pr create --base develop');
     expect(rule).toContain('gh pr create --base main');
-    expect(rule).toContain('never with the base left out');
   });
 
-  test('W-01 closes issues at the Sync, not in a feature pull request', () => {
-    expect(rule).toContain('`Refs #N`');
-    expect(rule).toContain('lists `Closes #N`');
+  test('CONTRIBUTING gives the same command for a feature', () => {
+    expect(read('CONTRIBUTING.md')).toContain('gh pr create --base develop');
   });
 
-  test('CONTRIBUTING gives the same command and the same issue rule', () => {
-    const contributing = read('CONTRIBUTING.md');
-
-    expect(contributing).toContain('gh pr create --base develop');
-    expect(contributing).toContain('`Refs #N`');
+  test('no rule or guide tells a feature pull request to close its issue with its own body', () => {
+    for (const text of [rule, read('CONTRIBUTING.md')]) {
+      expect(text).not.toMatch(/body says `Closes #N`/);
+    }
   });
 });

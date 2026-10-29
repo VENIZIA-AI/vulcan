@@ -64,7 +64,7 @@ The release ships code only and clones no IGNIS; atlas tests that measure IGNIS'
 
 A prerelease goes through `develop`, `next` and BANA first. The stable is the same code, promoted.
 
-1. **The Sync PR.** `bun scripts/release/sync-pr.ts open --tag vulcan-v<prerelease>` cuts the branch `sync/<tag>` at the commit BANA gated, never at the tip of `develop`. It opens the pull request into `main`, and the body lists one `Closes #N` for each issue a `[#N]` commit subject names, so the issues close when it merges. The owner merges it. Run it on the owner's word: it pushes a branch and opens a pull request.
+1. **The Sync PR.** `bun scripts/release/sync-pr.ts open --tag vulcan-v<prerelease>` cuts the branch `sync/<tag>` at the commit BANA gated, never at the tip of `develop`. It opens the pull request into `main`, and the body lists one `Closes #N` for each issue a `[#N]` commit subject names. They close when it merges into the default branch. The owner merges it. Run it on the owner's word: it pushes a branch and opens a pull request.
    - It refuses a name that is not a tag, a tag that is not a prerelease, a tag outside the history of `develop`, and a tag whose history lacks a commit `main` has.
    - After the merge, `bun scripts/release/sync-pr.ts verify --tag <tag>` checks that the tree of `main` equals the tree of the tag.
 2. **Dispatch on `main`.** `make release ARGS="--bump patch"`. `minor` and `major` move all three packages: the repositories share one MAJOR.MINOR. The plan job prints the target (`0.4.9-1` and `patch` give `0.4.9`; `0.4.0-N` and `minor` give `0.4.0`). It refuses a train whose packages are not all at one version, and lists them.

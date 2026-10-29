@@ -25,6 +25,8 @@ export class GithubReleaseConstants {
   /** `## VULCAN X.Y.Z: title` or `## VULCAN 0.2.0-0: title`: the product and version prefix of an entry's heading. */
   static readonly VERSION_HEADING = /^(##\s+)VULCAN\s+(?:X\.Y\.Z|\d[^:\n]*):\s*(\S)/m;
   static readonly ISSUE_SUBJECT = /^\[#\d+\]/;
+  /** The unspaced run of `[#N]` tokens a subject opens with: `[#42][#44] ...` serves two issues. */
+  static readonly ISSUE_TOKENS = /^(?:\[#\d+\])+/;
   static readonly TITLE_PREFIX = 'VULCAN';
   static readonly USAGE =
     'github-release: create --tag <tag> --version <v> --kind stable|prerelease | check --version <v> [--to <commit>] | backfill --tag <tag> [--yes]';

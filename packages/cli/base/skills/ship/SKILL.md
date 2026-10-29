@@ -48,11 +48,12 @@ The body is read by a person who has not seen the work. In this order:
    (revert and it is gone), and the blast radius if it is wrong.
 5. **Not verified**: the items from the checklist.
 
-Open the pull request with its base named, `gh pr create --base <branch>`, and take the branch from the project's
-rules: a missing base targets the repository's default branch, which may not be where the change goes. The body
-names the issue the way the project's rules say (`Closes #N` closes it only when the pull request reaches the
-default branch). Follow the project's rule on signatures in commits and pull requests: add no agent signature the
-project does not ask for.
+Open the pull request with its base named, `gh pr create --base <branch>`. Take the branch from the project's rules.
+A missing base targets the repository's default branch, which may not be where the change goes.
+
+The body names the issue the way the project's rules say. `Closes #N` closes it only when the pull request reaches
+the default branch. Follow the project's rule on signatures in commits and pull requests: add no agent signature
+the project does not ask for.
 
 ## 3. Claims about public state
 
@@ -82,4 +83,4 @@ Where the tool has a dry run, run it first and show it; then run the real action
 ## 5. Hand over
 
 End with the `report-back` skill: a done report, or a handoff by pointer when the work passes to another
-session (the card, the commits and the pull request by path or link, never copied). Where the work has a work item, the pull request closes it, its acceptance criteria are the checklist, and the item is updated rather than a local file written.
+session (the card, the commits and the pull request by path or link, never copied). Where the work has a work item, the pull request names it, its acceptance criteria are the checklist, and the item is updated rather than a local file written.
