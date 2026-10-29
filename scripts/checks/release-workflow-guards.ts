@@ -27,6 +27,8 @@
  *   C30  the plan job tries the merge back of a stable (--merge-trial) and hands develop's head on
  *   C31  the publish job makes the GitHub Release after the tag and cannot fail the run for it; the plan job asks
  *        for the changelog check of a stable (--release-notes)
+ *   C32  a job that installs npm globally sets up Node first: the runner's own prefix is not writable, so a global
+ *        install without a setup-node step fails with EACCES (it failed the first prerelease in the plan job)
  *   D6   every action is pinned by a full commit SHA (a local action is not an action to pin)
  */
 import { PublishCondition } from './publish-condition.ts';
@@ -48,6 +50,8 @@ const SECRET_REFERENCE = /secrets\.[A-Za-z0-9_]+/g;
 const BRANCHES_MOVED_STEP = 'Refuse a stable when a branch moved since the plan';
 const MERGE_BACK_STEP = 'Merge main back into develop';
 const RELEASE_STEP = 'Create the GitHub Release';
+/** `npm install --global ...` or `npm i -g ...`: it writes to the global prefix of the npm on the PATH. */
+const GLOBAL_NPM_INSTALL = /\bnpm\s+(?:install|i)\b[^\n]*(?:--global\b|\s-g\b)/;
 const TAG_STEP = 'Create tag';
 const VERSION_STEP = 'Set the release version';
 /** A git command that rewrites or removes history the release has already made public. */
@@ -382,6 +386,23 @@ export const checkReleaseWorkflowGuards = (opts: {
     )) {
       violations.push(`C29: '${step.name}' runs ${name}`);
     }
+  }
+
+  for (const [jobName, job] of Object.entries({ plan, test, approve, publish: publishJob })) {
+    const steps = stepsOf({ job });
+
+    steps.forEach((step, index) => {
+      const installsGlobally = GLOBAL_NPM_INSTALL.test(step.run);
+      const hasNode = steps
+        .slice(0, index)
+        .some((earlier) => earlier.uses.startsWith('actions/setup-node@'));
+
+      if (installsGlobally && !hasNode) {
+        violations.push(
+          `C32: '${step.name}' in the ${jobName} job installs npm globally with no earlier actions/setup-node step: the runner's prefix is not writable (EACCES)`,
+        );
+      }
+    });
   }
 
   for (const step of all.filter((entry) => entry.run.includes('bun publish'))) {

@@ -28,5 +28,6 @@ packages: ['@venizia/vulcan-okf', '@venizia/vulcan-atlas', '@venizia/vulcan']
 ## Details
 
 - The workflow file name and the environment `npm-release` are unchanged: the trusted publishers on npmjs.com name them. `release-approval` is a new environment and no trusted publisher names it.
-- The stable path (the release commit on `main`, the merge back into `develop`) is a separate change. Until it lands, no stable can be published by this workflow.
+- The plan job sets up Node before it installs the pinned npm globally. Without that the install wrote to the runner's read-only `/usr/local` and failed. A guard now checks that every job that installs npm globally sets up Node first.
+- The stable path (the release commit on `main`, the merge back into `develop`) is a separate change: see the entry on a stable from `main`.
 - Not run yet: a real prerelease through the new job graph. The tests cover the plan, the job graph, the permissions and the publish condition for every case; the first real run is the end-to-end check.

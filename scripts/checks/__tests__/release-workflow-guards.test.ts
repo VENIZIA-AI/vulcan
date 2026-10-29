@@ -789,3 +789,62 @@ describe('the release workflow keeps the guard of the GitHub Release (C31)', () 
     ).toContain('C31');
   });
 });
+
+describe('the release workflow keeps the guard of the global npm install (C32)', () => {
+  const NODE_STEP = 'Setup Node.js';
+
+  test('a plan job or a publish job that installs npm globally without setting up Node first is noticed', () => {
+    for (const name of ['plan', 'publish']) {
+      expect(
+        mutated({
+          change: (workflow) => {
+            const steps = job({ workflow, name })['steps'];
+
+            if (Array.isArray(steps)) {
+              steps.splice(
+                steps.findIndex((step) => {
+                  const holder = { value: step };
+
+                  return isRecord(holder) && holder.value['name'] === NODE_STEP;
+                }),
+                1,
+              );
+            }
+          },
+        }),
+        name,
+      ).toContain('C32');
+    }
+  });
+
+  test('a Node set up after the global install does not count, and a short -g install is caught too', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          const steps = job({ workflow, name: 'test' })['steps'];
+
+          if (Array.isArray(steps)) {
+            steps.unshift({ name: 'Short', run: 'npm i -g npm@11.21.1' });
+            steps.push({
+              name: NODE_STEP,
+              uses: 'actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e',
+            });
+          }
+        },
+      }),
+    ).toContain('C32');
+  });
+
+  test('a local install, or one in a job with Node set up first, passes', () => {
+    expect(
+      mutated({
+        change: (workflow) =>
+          addStep({
+            workflow,
+            name: 'test',
+            step: { name: 'Local', run: 'npm install --prefix "$RUNNER_TEMP/npm" npm@11.21.1' },
+          }),
+      }),
+    ).not.toContain('C32');
+  });
+});
