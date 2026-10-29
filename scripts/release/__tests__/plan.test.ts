@@ -459,3 +459,56 @@ describe('ReleasePlan.main: --merge-trial', () => {
     expect(run({ root, mainSha: mainNow })).toEqual({ code: 1, output: '' });
   });
 });
+
+describe('ReleasePlan.main: --release-notes', () => {
+  const stable = (opts: { root: string }): number =>
+    ReleasePlan.main({
+      args: [
+        '--bump',
+        'patch',
+        '--ref',
+        MAIN_REF,
+        '--package',
+        join(opts.root, 'packages', 'cli', 'package.json'),
+        '--release-notes',
+      ],
+      env: { RUNNER_TEMP: scratch() },
+      cwd: opts.root,
+    });
+
+  test('a stable with no changelog entry is refused, and one with an entry is planned', () => {
+    const root = scratch();
+    const git = (args: string[]): string =>
+      ReleaseMergeBack.mustGit({ cwd: root, args: [...MergeBackConstants.IDENTITY, ...args] });
+
+    git(['init', '-q', '-b', 'main']);
+    mkdirSync(join(root, 'packages', 'cli'), { recursive: true });
+    mkdirSync(join(root, '.agents'), { recursive: true });
+    mkdirSync(join(root, 'docs', 'changelogs'), { recursive: true });
+    writeFileSync(
+      join(root, 'packages', 'cli', 'package.json'),
+      `${JSON.stringify({ name: '@x/cli', version: '0.1.0-0' }, null, 2)}\n`,
+    );
+    writeFileSync(
+      join(root, '.agents', 'vulcan.manifest.json'),
+      `${JSON.stringify({
+        release: { tagPattern: 'vulcan-v<version>' },
+        knowledge: { changelogs: 'docs/changelogs' },
+        packages: [{ name: '@x/cli' }],
+      })}\n`,
+    );
+    git(['add', '-A']);
+    git(['commit', '-q', '-m', 'sync']);
+
+    expect(stable({ root })).toBe(1);
+
+    writeFileSync(
+      join(root, 'docs', 'changelogs', '2026-10-30-a.md'),
+      '---\ntitle: a\n---\n\n# Changelog - 2026-10-30\n\nA change.\n',
+    );
+    git(['add', '-A']);
+    git(['commit', '-q', '-m', 'an entry']);
+
+    expect(stable({ root })).toBe(0);
+  });
+});

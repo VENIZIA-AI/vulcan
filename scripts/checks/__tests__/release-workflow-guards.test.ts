@@ -543,7 +543,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, C20
   });
 });
 
-describe('the release workflow keeps the guards of the stable path (C27 to C30)', () => {
+describe('the release workflow keeps the guards of the stable path (C27 to C31)', () => {
   const BRANCHES_MOVED = 'Refuse a stable when a branch moved since the plan';
   const MERGE_BACK = 'Merge main back into develop';
 
@@ -723,5 +723,75 @@ describe('the release workflow keeps the guards of the stable path (C27 to C30)'
         },
       }),
     ).toContain('C30');
+  });
+});
+
+describe('the release workflow keeps the guard of the GitHub Release (C31)', () => {
+  const RELEASE = 'Create the GitHub Release';
+  const releaseStep = (opts: { workflow: Record<string, unknown> }): Record<string, unknown> => {
+    const found = stepsOf({ workflow: opts.workflow, name: 'publish' }).find(
+      (entry) => entry['name'] === RELEASE,
+    );
+
+    if (found === undefined) {
+      throw new Error(`[releaseStep] no step '${RELEASE}'`);
+    }
+
+    return found;
+  };
+
+  test('a missing step, one that can fail the run, one without the job token or one before the tag is noticed', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          const steps = job({ workflow, name: 'publish' })['steps'];
+
+          if (Array.isArray(steps)) {
+            steps.splice(steps.indexOf(releaseStep({ workflow })), 1);
+          }
+        },
+      }),
+    ).toContain('C31');
+    expect(
+      mutated({
+        change: (workflow) => {
+          delete releaseStep({ workflow })['continue-on-error'];
+        },
+      }),
+    ).toContain('C31');
+    expect(
+      mutated({
+        change: (workflow) => {
+          delete releaseStep({ workflow })['env'];
+        },
+      }),
+    ).toContain('C31');
+    expect(
+      mutated({
+        change: (workflow) => {
+          const steps = job({ workflow, name: 'publish' })['steps'];
+
+          if (Array.isArray(steps)) {
+            const [moved] = steps.splice(steps.indexOf(releaseStep({ workflow })), 1);
+
+            steps.unshift(moved);
+          }
+        },
+      }),
+    ).toContain('C31');
+  });
+
+  test('a plan job that does not ask for the changelog check is noticed', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          stepsOf({ workflow, name: 'plan' }).forEach((step) => {
+            if (typeof step['run'] === 'string') {
+              step['run'] = step['run'].replace('--release-notes', '');
+            }
+          });
+        },
+      }),
+    ).toContain('C31');
   });
 });
