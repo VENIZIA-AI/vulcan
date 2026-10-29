@@ -22,7 +22,11 @@ const PACKAGES = [
 ];
 
 /** A project with a `changes/` directory holding `entries`, its tags in a git repository. */
-const project = (opts: { entries: Record<string, string>; tags?: string[] }): void => {
+const project = (opts: {
+  entries: Record<string, string>;
+  tags?: string[];
+  atlas?: Record<string, unknown>;
+}): void => {
   const root = mkdtempSync(join(tmpdir(), 'okf-changelogs-'));
 
   roots.push(root);
@@ -48,7 +52,11 @@ const project = (opts: { entries: Record<string, string>; tags?: string[] }): vo
 
   useProjectConfig({
     root,
-    config: { packages: PACKAGES, knowledge: { changelogs: 'changes' }, atlas: {} },
+    config: {
+      packages: PACKAGES,
+      knowledge: { changelogs: 'changes' },
+      atlas: opts.atlas ?? {},
+    },
   });
 };
 
@@ -165,5 +173,27 @@ test('a missing dated tag is named with its date spelled out, never a raw <date>
 
   expect(collectChangelogProblems()).toEqual([
     "changelog: changes/2026-01-01-a.md: release '@acme/kernel@9.9.9' names no tag (kernel-v9.9.9-YYYY-MM-DD)",
+  ]);
+});
+
+test('a release override is satisfied by a tag of a legacy template, and the message names the current one', () => {
+  project({
+    entries: {
+      '2026-01-01-a.md': entry({
+        frontmatter: "packages: ['@acme/kernel']\nrelease: '@acme/kernel@1.0.0'",
+      }),
+      '2026-01-02-b.md': entry({
+        frontmatter: "packages: ['@acme/kernel']\nrelease: '@acme/kernel@2.0.0'",
+      }),
+      '2026-01-03-c.md': entry({
+        frontmatter: "packages: ['@acme/kernel']\nrelease: '@acme/kernel@9.9.9'",
+      }),
+    },
+    tags: ['v1.0.0', 'acme-v2.0.0'],
+    atlas: { tagPattern: 'acme-v<version>', legacyTagPatterns: ['v<version>'] },
+  });
+
+  expect(collectChangelogProblems()).toEqual([
+    "changelog: changes/2026-01-03-c.md: release '@acme/kernel@9.9.9' names no tag (acme-v9.9.9)",
   ]);
 });

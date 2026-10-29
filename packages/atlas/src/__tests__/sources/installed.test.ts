@@ -1,24 +1,19 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { installedDirectoriesOf, installRootsOf } from '@/sources/installed';
-import { makeTempDirectory, TEMP_DIRECTORIES, writeSourceFile } from './source-repo.helper';
+import {
+  install,
+  makeTempDirectory,
+  TEMP_DIRECTORIES,
+  writeSourceFile,
+} from './source-repo.helper';
 
 afterAll(() => {
   for (const directory of TEMP_DIRECTORIES) {
     rmSync(directory, { recursive: true, force: true });
   }
 });
-
-const install = (opts: { root: string; name: string; version: string }): void => {
-  const target = join(opts.root, 'node_modules', opts.name);
-
-  mkdirSync(target, { recursive: true });
-  writeFileSync(
-    join(target, 'package.json'),
-    JSON.stringify({ name: opts.name, version: opts.version }),
-  );
-};
 
 describe('where a project installs its packages', () => {
   test('without a manifest the root is the only place', () => {

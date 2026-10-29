@@ -74,6 +74,27 @@ describe('renderManifest', () => {
     expect(manifest.rules.project).toBe('.agents/rules.md');
   });
 
+  test('legacy tag templates are written after the current one, and only when the config lists some', () => {
+    const root = createProject({ files: {} });
+    const withLegacy = JSON.parse(
+      render({
+        root,
+        config: { atlas: { tagPattern: 'vulcan-v<version>', legacyTagPatterns: ['v<version>'] } },
+      }),
+    );
+    const without = JSON.parse(
+      render({ root, config: { atlas: { tagPattern: 'vulcan-v<version>' } } }),
+    );
+
+    expect(Object.keys(withLegacy.release)).toEqual([
+      'tagPattern',
+      'legacyTagPatterns',
+      'ignoreTags',
+    ]);
+    expect(withLegacy.release.legacyTagPatterns).toEqual(['v<version>']);
+    expect(Object.keys(without.release)).toEqual(['tagPattern', 'ignoreTags']);
+  });
+
   test('every base rule is recorded with a hash of its text', () => {
     const root = createProject({ files: {} });
     const { base } = JSON.parse(render({ root, config: {} })).rules;

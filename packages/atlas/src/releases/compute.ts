@@ -118,13 +118,38 @@ interface IPositionedRelease {
   record: IReleaseRecord;
 }
 
-/** Every tag the pattern reads, for a declared package - ignored tags and unknown packages left out. */
+/**
+ * The groups of the first template that reads the tag. The current template is tried first, so a tag it reads is never
+ * read by a legacy one; a legacy template reads only a tag whose version starts with a digit, because `<version>` is
+ * `\S+` and `v<version>` would otherwise read `vulcan-v0.4.8` as the version `ulcan-v0.4.8`.
+ */
+const groupsOf = (opts: {
+  patterns: RegExp[];
+  tag: string;
+}): { version: string; dir: string | undefined; isLegacy: boolean } | undefined => {
+  for (const [index, pattern] of opts.patterns.entries()) {
+    const groups = pattern.exec(opts.tag)?.groups;
+    const version = groups?.version;
+
+    if (version === undefined || (index > 0 && !/^\d/.test(version))) {
+      continue;
+    }
+
+    return { version, dir: groups?.dir, isLegacy: index > 0 };
+  }
+
+  return undefined;
+};
+
+/** Every tag the patterns read, for a declared package - ignored tags and unknown packages left out. */
 const releasesOf = (opts: {
   project: IAtlasProject;
   positions: Map<string, number>;
 }): IPositionedRelease[] => {
   const { project } = opts;
-  const pattern = compileReleaseTemplate({ template: project.tagPattern });
+  const patterns = [project.tagPattern, ...(project.legacyTagPatterns ?? [])].map((template) =>
+    compileReleaseTemplate({ template }),
+  );
   const ignored = project.ignoreTags.map((glob) => new Bun.Glob(glob));
   const live = project.packages.filter((entry) => !entry.retired).map((entry) => entry.dir);
   const format =
@@ -137,28 +162,25 @@ const releasesOf = (opts: {
       const [tag, object, peeled, date, peeledDate] = entry.split('\t');
       const commit = peeled.length > 0 ? peeled : object;
       const position = opts.positions.get(commit);
-      const groups = pattern.exec(tag)?.groups;
+      const read = groupsOf({ patterns, tag });
 
       // A tag outside HEAD's history (an unmerged branch) released nothing on this ref.
-      if (
-        ignored.some((glob) => glob.match(tag)) ||
-        groups?.version === undefined ||
-        position === undefined
-      ) {
+      if (ignored.some((glob) => glob.match(tag)) || read === undefined || position === undefined) {
         return [];
       }
 
       // A tag's directory resolves like any value - a renamed package's old tags are its history.
       const owner =
-        groups.dir === undefined
+        read.dir === undefined
           ? undefined
-          : directoryOf({ value: groups.dir, packages: project.packages });
-      const dirs = groups.dir === undefined ? live : owner === undefined ? [] : [owner];
+          : directoryOf({ value: read.dir, packages: project.packages });
+      const dirs = read.dir === undefined ? live : owner === undefined ? [] : [owner];
       const record: IReleaseRecord = {
-        version: groups.version,
+        version: read.version,
         date: peeledDate.length > 0 ? peeledDate : date,
         sha: commit.slice(0, SHORT_SHA_LENGTH),
         order: position,
+        ...(read.isLegacy ? { tag } : {}),
       };
 
       return dirs.map((dir) => ({ dir, record }));

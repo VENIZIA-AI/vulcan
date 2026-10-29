@@ -53,6 +53,8 @@ export interface IAtlasProject {
   presets?: IAtlasPreset[];
   /** `release.tagPattern`, the template of a release tag. */
   tagPattern: string;
+  /** `release.legacyTagPatterns`: templates of an earlier tag layout, read after `tagPattern`; absent in an older manifest. */
+  legacyTagPatterns?: string[];
   /** `release.ignoreTags`: globs of tags neither read nor checked. */
   ignoreTags: string[];
   /** Absolute: where the project's `typescript` resolves from. */
@@ -160,6 +162,15 @@ const presetsOf = (opts: { value: unknown }): Pick<IAtlasProject, 'presets'> => 
   return presets.length === 0 ? {} : { presets };
 };
 
+/** `release.legacyTagPatterns` as strings; nothing when the manifest has none (an older one). */
+const legacyTagPatternsOf = (opts: { value: unknown }): { legacyTagPatterns?: string[] } => {
+  const patterns = (Array.isArray(opts.value) ? opts.value : []).filter(
+    (entry): entry is string => typeof entry === 'string',
+  );
+
+  return patterns.length === 0 ? {} : { legacyTagPatterns: patterns };
+};
+
 /**
  * A project from its manifest (`vulcan sync` rendered it from a validated config): defaults for
  * anything absent, every path absolute. A schemaVersion this atlas does not read fails loudly.
@@ -193,6 +204,7 @@ export const toAtlasProject = (opts: {
     ...layoutOf({ value: manifest.layout }),
     ...presetsOf({ value: manifest.presets }),
     tagPattern: stringOf({ value: release.tagPattern }) ?? DEFAULT_TAG_PATTERN,
+    ...legacyTagPatternsOf({ value: release.legacyTagPatterns }),
     ignoreTags: (Array.isArray(release.ignoreTags) ? release.ignoreTags : []).filter(
       (glob): glob is string => typeof glob === 'string',
     ),

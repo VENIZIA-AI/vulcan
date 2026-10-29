@@ -48,6 +48,18 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     expect(config.atlas.sources).toEqual([]);
   });
 
+  test('legacy tag templates are optional, and each needs <version> like the current one', () => {
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).atlas.legacyTagPatterns).toBeUndefined();
+    expect(
+      VULCAN_CONFIG_SCHEMA.parse({
+        atlas: { tagPattern: 'vulcan-v<version>', legacyTagPatterns: ['v<version>'] },
+      }).atlas.legacyTagPatterns,
+    ).toEqual(['v<version>']);
+    expect(() => VULCAN_CONFIG_SCHEMA.parse({ atlas: { legacyTagPatterns: ['release'] } })).toThrow(
+      'a template with <version>',
+    );
+  });
+
   test('a source defaults its ref to develop', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({
       atlas: { sources: [{ name: 'ignis', repo: 'VENIZIA-AI/ignis' }] },

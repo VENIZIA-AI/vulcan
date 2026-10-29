@@ -251,7 +251,7 @@ jobs:
 
           echo "NEW_VERSION=$NEW_VERSION" >> "$GITHUB_ENV"
           echo "NPM_TAG=$NPM_TAG" >> "$GITHUB_ENV"
-          echo "TAG_NAME=v$NEW_VERSION" >> "$GITHUB_ENV"
+          echo "TAG_NAME=vulcan-v$NEW_VERSION" >> "$GITHUB_ENV"
           echo "release: v$NEW_VERSION ($BUMP) to the '$NPM_TAG' dist-tag"
 
       # AFTER the version change: `bun pm pack` resolves `workspace:*` from bun.lock, so a lock that
@@ -486,5 +486,5 @@ jobs:
       - name: Report - tag missing
         if: failure() && env.IS_PUBLISHED == 'true' && env.IS_TAGGED != 'true' && env.TAG_CONFLICT == ''
         run: |
-          echo "WARNING | v$NEW_VERSION may be published without its git tag"
+          echo "WARNING | $NEW_VERSION may be published without its git tag $TAG_NAME"
           echo "  create it: git tag -a $TAG_NAME -m \"VULCAN $NEW_VERSION\" ${RELEASE_SHA:-<the release commit>} && git push origin $TAG_NAME"

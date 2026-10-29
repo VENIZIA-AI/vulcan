@@ -27,6 +27,8 @@ export interface IOkfProject {
   changelogs?: string;
   /** `atlas.tagPattern`, the template of a release tag. */
   tagPattern: string;
+  /** `atlas.legacyTagPatterns`: templates of an earlier tag layout that still name releases. */
+  legacyTagPatterns: string[];
   /** Absolute; `okf.contents.files` - agent-read files outside the bundle that carry a contents list. */
   contentsFiles: string[];
   packages: IOkfPackage[];

@@ -99,11 +99,14 @@ export const decidePin = (opts: {
       ? item
       : best,
   );
-  const tag = tagOf({
-    template: opts.project.tagPattern,
-    dir: newest.dir,
-    version: newest.version,
-  });
+  // A release read through a legacy template carries its tag; any other is named by the current template.
+  const tag =
+    newest.record.tag ??
+    tagOf({
+      template: opts.project.tagPattern,
+      dir: newest.dir,
+      version: newest.version,
+    });
 
   if (tag === undefined) {
     return {
