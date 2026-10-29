@@ -208,3 +208,36 @@ describe('directoryOf', () => {
     expect(directoryOf({ value: 'unknown', packages })).toBeUndefined();
   });
 });
+
+describe('release.legacyTagPatterns', () => {
+  test('a manifest that lists legacy templates gives them in order; non-strings are dropped', () => {
+    useAtlasProject({
+      root: ROOT,
+      manifest: {
+        schemaVersion: 1,
+        release: {
+          tagPattern: 'vulcan-v<version>',
+          legacyTagPatterns: ['v<version>', 7, 'old-<version>'],
+        },
+      },
+    });
+
+    expect(readAtlasProject().legacyTagPatterns).toEqual(['v<version>', 'old-<version>']);
+  });
+
+  test('an older manifest, or an empty list, has none', () => {
+    useAtlasProject({
+      root: ROOT,
+      manifest: { schemaVersion: 1, release: { tagPattern: 'v<version>' } },
+    });
+
+    expect(readAtlasProject().legacyTagPatterns).toBeUndefined();
+
+    useAtlasProject({
+      root: ROOT,
+      manifest: { schemaVersion: 1, release: { tagPattern: 'v<version>', legacyTagPatterns: [] } },
+    });
+
+    expect(readAtlasProject().legacyTagPatterns).toBeUndefined();
+  });
+});

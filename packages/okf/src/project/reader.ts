@@ -175,6 +175,7 @@ export const readOkfProject = (): IOkfProject => {
       value: atlas.tagPattern,
       fallback: OkfProjectConstants.DEFAULT_TAG_PATTERN,
     }),
+    legacyTagPatterns: stringsOf({ value: atlas.legacyTagPatterns }),
     contentsFiles: contentsFilesOf({
       patterns: Array.isArray(recordOf({ value: okf.contents }).files)
         ? stringsOf({ value: recordOf({ value: okf.contents }).files })

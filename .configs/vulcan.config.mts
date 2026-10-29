@@ -15,7 +15,10 @@ export default {
     { dir: 'cli', name: '@venizia/vulcan' },
   ],
   atlas: {
-    tagPattern: 'v<version>',
+    // One tag per release train, named like IGNIS and ARDOR name theirs (`<name>-v<version>`), so one tag ruleset,
+    // `*-v*`, covers all three repositories. The tags of 0.4.7 and before are `v<version>`; they stay, and are still releases.
+    tagPattern: 'vulcan-v<version>',
+    legacyTagPatterns: ['v<version>'],
     // The public key of this repository's CI, which signs the atlas index it publishes (workflow atlas-index.yml);
     // the private key is the Actions secret ATLAS_INDEX_KEY and exists nowhere else.
     index: { keys: ['RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ='] },

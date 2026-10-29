@@ -342,7 +342,8 @@ The committed manifest records resolved project metadata:
     "changelogs": "docs/wiki/content/changelogs"
   },
   "release": {
-    "tagPattern": "v<version>",
+    "tagPattern": "vulcan-v<version>",
+    "legacyTagPatterns": ["v<version>"],
     "ignoreTags": []
   },
   "rules": {
