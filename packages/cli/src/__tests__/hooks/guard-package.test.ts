@@ -95,6 +95,105 @@ describe('inspectPackageWrite - a real command exists', () => {
     expect(verdict?.message).not.toContain('--app billing');
   });
 
+  test('a new package.json in the shared folder offers the lib command of each lib preset and the shared command of each shared preset', () => {
+    const root = project({
+      manifest: {
+        ...MANIFEST,
+        presets: [
+          { spec: 'ignis', side: 'backend', summary: 'An API.', lib: 'A library.' },
+          { spec: 'file:../kit', side: 'frontend', summary: 'A kit.', shared: 'Shared.' },
+          {
+            spec: 'file:../both',
+            side: 'backend',
+            summary: 'Both.',
+            lib: 'A lib.',
+            shared: 'A shared.',
+          },
+          { spec: 'file:../neither', side: 'backend', summary: 'Neither.' },
+        ],
+      },
+    });
+    const verdict = write({ root, path: 'libs/billing/package.json' });
+    const message = verdict?.message ?? '';
+
+    expect(verdict?.kind).toBe('deny');
+    expect(message).toContain('bun x --no-install vulcan add --preset ignis --lib billing');
+    expect(message).toContain('bun x --no-install vulcan add --preset file:../both --lib billing');
+    expect(message).toContain(
+      'bun x --no-install vulcan add --preset file:../kit --shared billing',
+    );
+    expect(message).toContain(
+      'bun x --no-install vulcan add --preset file:../both --shared billing',
+    );
+    expect(message).not.toContain('--preset ignis --shared');
+    expect(message).not.toContain('--preset file:../kit --lib');
+    expect(message).not.toContain('file:../neither');
+    expect(message).not.toContain('--app billing');
+  });
+
+  test('a preset with only a shared kind makes the shared folder a deny, with no lib command', () => {
+    const root = project({
+      manifest: {
+        ...MANIFEST,
+        presets: [{ spec: 'file:../kit', side: 'frontend', summary: 'A kit.', shared: 'Shared.' }],
+      },
+    });
+    const verdict = write({ root, path: 'libs/billing/package.json' });
+
+    expect(verdict?.kind).toBe('deny');
+    expect(verdict?.message).toContain('--preset file:../kit --shared billing');
+    expect(verdict?.message).not.toContain('--lib billing');
+  });
+
+  test('a shared folder in a list names the folder in both the lib and the shared command', () => {
+    const root = project({
+      manifest: {
+        ...MANIFEST,
+        layout: { ...MANIFEST.layout, shared: ['libs/a', 'libs/b'] },
+        presets: [{ spec: 'ignis', side: 'backend', summary: 'An API.', lib: 'L', shared: 'S' }],
+      },
+    });
+    const verdict = write({ root, path: 'libs/b/billing/package.json' });
+
+    expect(verdict?.message).toContain('--preset ignis --lib billing --dir libs/b');
+    expect(verdict?.message).toContain('--preset ignis --shared billing --dir libs/b');
+  });
+
+  test('a new package.json in a side folder never offers the shared command', () => {
+    const root = project({
+      manifest: {
+        ...MANIFEST,
+        presets: [
+          { spec: 'ignis', side: 'backend', summary: 'An API.', lib: 'L', shared: 'S' },
+          { spec: 'file:../acme-web', side: 'frontend', summary: 'An admin.', shared: 'S' },
+        ],
+      },
+    });
+    const backend = write({ root, path: 'services/api3/package.json' });
+    const frontend = write({ root, path: 'web/admin2/package.json' });
+
+    expect(backend?.kind).toBe('deny');
+    expect(backend?.message).toContain('--preset ignis --app api3');
+    expect(backend?.message).not.toContain('--shared');
+    expect(backend?.message).not.toContain('--lib');
+    expect(frontend?.kind).toBe('deny');
+    expect(frontend?.message).toContain('--preset file:../acme-web --app admin2');
+    expect(frontend?.message).not.toContain('--shared');
+  });
+
+  test('a recorded preset whose shared is not a string offers no shared command', () => {
+    const root = project({
+      manifest: {
+        ...MANIFEST,
+        presets: [{ spec: 'ignis', side: 'backend', summary: 'An API.', lib: 'L', shared: 5 }],
+      },
+    });
+    const verdict = write({ root, path: 'libs/billing/package.json' });
+
+    expect(verdict?.message).toContain('--lib billing');
+    expect(verdict?.message).not.toContain('--shared');
+  });
+
   test('a nested layout folder counts', () => {
     const root = project({
       manifest: { ...MANIFEST, layout: { shared: 'auroras/features' } },

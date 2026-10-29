@@ -102,6 +102,56 @@ describe('package kind', () => {
     );
   });
 
+  test('a package may say which preset kind made it: lib or shared; nothing else', () => {
+    const base = {
+      dir: 'money',
+      name: '@nx/money',
+      path: 'libs/money',
+      kind: 'lib',
+    } as const;
+
+    expect(
+      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, presetKind: 'lib' }] }).packages[0]
+        ?.presetKind,
+    ).toBe('lib');
+    expect(
+      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, presetKind: 'shared' }] }).packages[0]
+        ?.presetKind,
+    ).toBe('shared');
+    expect(
+      VULCAN_CONFIG_SCHEMA.parse({ packages: [base] }).packages[0]?.presetKind,
+    ).toBeUndefined();
+    expect(
+      VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ ...base, presetKind: 'app' }] }).success,
+    ).toBe(false);
+    expect(
+      VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ ...base, presetKind: '' }] }).success,
+    ).toBe(false);
+  });
+
+  test('an entry without presetKind parses to exactly what it did before', () => {
+    const entry = { dir: 'money', name: '@nx/money', path: 'libs/money', kind: 'lib' } as const;
+
+    expect(VULCAN_CONFIG_SCHEMA.parse({ packages: [entry] }).packages[0]).toEqual({
+      ...entry,
+      aliases: [],
+      retired: false,
+    });
+  });
+
+  test('resolvePackages carries presetKind only when it is set', () => {
+    const config = VULCAN_CONFIG_SCHEMA.parse({
+      packages: [
+        { dir: 'money', name: '@nx/money', path: 'libs/money', kind: 'lib', presetKind: 'shared' },
+        { dir: 'feature', name: '@nx/feature', path: 'libs/feature', kind: 'lib' },
+      ],
+    });
+    const packages = resolvePackages({ config });
+
+    expect(packages[0]).toMatchObject({ presetKind: 'shared' });
+    expect(packages[1]).not.toHaveProperty('presetKind');
+  });
+
   test('resolvePackages carries the kind', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({
       packages: [
@@ -131,6 +181,28 @@ describe('presets', () => {
     } as const;
 
     expect(VULCAN_CONFIG_SCHEMA.parse({ presets: [preset] }).presets).toEqual([preset]);
+  });
+
+  test('a recorded preset may say it also makes shared packages', () => {
+    const preset = {
+      spec: 'ardor',
+      side: 'frontend',
+      summary: 'An admin.',
+      lib: 'A feature library.',
+      shared: 'A side-neutral package.',
+    } as const;
+    const sharedOnly = {
+      spec: 'ignis',
+      side: 'backend',
+      summary: 'An API.',
+      shared: 'Types.',
+    } as const;
+
+    expect(VULCAN_CONFIG_SCHEMA.parse({ presets: [preset] }).presets).toEqual([preset]);
+    expect(VULCAN_CONFIG_SCHEMA.parse({ presets: [sharedOnly] }).presets).toEqual([sharedOnly]);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ presets: [{ ...preset, shared: 1 }] }).success).toBe(
+      false,
+    );
   });
 
   test('a recorded preset is { spec, side, summary }, side being backend or frontend', () => {

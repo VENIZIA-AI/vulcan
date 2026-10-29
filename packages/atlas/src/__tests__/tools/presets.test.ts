@@ -25,6 +25,20 @@ const MANIFEST = {
   ],
 };
 
+const SHARED_MANIFEST = {
+  ...MANIFEST,
+  presets: [
+    {
+      spec: 'ignis',
+      side: 'backend',
+      summary: 'An IGNIS API on Bun.',
+      lib: 'An IGNIS library.',
+      shared: 'An IGNIS side-neutral package.',
+    },
+    { spec: 'file:../acme-web', side: 'frontend', summary: 'An admin.' },
+  ],
+};
+
 const projectOf = (opts: { manifest?: unknown } = {}): IAtlasProject =>
   toAtlasProject({ root: '/work/shop', manifest: opts.manifest ?? MANIFEST });
 
@@ -52,6 +66,30 @@ describe('the manifest carries what presets needs', () => {
     expect(project.layout).toEqual({ backend: 'services', frontend: 'web', shared: 'libs' });
     expect(project.presets?.map((item) => item.spec)).toEqual(['ignis', 'file:../acme-web']);
     expect(project.packages.find((item) => item.dir === 'money')?.kind).toBe('lib');
+  });
+
+  test('a shared summary on a preset is kept, and a preset without one has none', () => {
+    const project = projectOf({ manifest: SHARED_MANIFEST });
+
+    expect(project.presets?.[0]).toEqual({
+      spec: 'ignis',
+      side: 'backend',
+      summary: 'An IGNIS API on Bun.',
+      lib: 'An IGNIS library.',
+      shared: 'An IGNIS side-neutral package.',
+    });
+    expect(project.presets?.[1]).not.toHaveProperty('shared');
+  });
+
+  test('a shared summary that is not a string is dropped, the preset kept', () => {
+    const project = projectOf({
+      manifest: {
+        ...MANIFEST,
+        presets: [{ spec: 'ignis', side: 'backend', summary: 'An API.', shared: 7 }],
+      },
+    });
+
+    expect(project.presets).toEqual([{ spec: 'ignis', side: 'backend', summary: 'An API.' }]);
   });
 
   test('a manifest without them reads as none', () => {
@@ -286,6 +324,109 @@ describe('presets (kind lib)', () => {
     expect(answer.note).toBe(
       'no recorded preset makes a lib: the entries are the official ones, marked inProject false; ask the user which to use, and do not hand-write package.json, tsconfig or scripts',
     );
+  });
+});
+
+describe('presets (kind shared)', () => {
+  test('lists the recorded presets that have a shared summary, with the shared flag and the folder', async () => {
+    const answer = await ask({
+      project: projectOf({ manifest: SHARED_MANIFEST }),
+      args: { kind: 'shared', name: 'contracts' },
+    });
+
+    expect(answer.kind).toBe('shared');
+    expect(answer.presets).toEqual([
+      {
+        preset: 'ignis',
+        summary: 'An IGNIS side-neutral package.',
+        folder: 'libs',
+        command: 'bun x --no-install vulcan add --preset ignis --shared contracts',
+        inProject: true,
+      },
+    ]);
+    expect(answer.note).toBeUndefined();
+  });
+
+  test('a preset with only a lib kind is left out of shared, and one with only a shared kind is left out of lib', async () => {
+    const project = projectOf({
+      manifest: {
+        ...MANIFEST,
+        presets: [
+          { spec: 'ignis', side: 'backend', summary: 'An API.', lib: 'A lib.' },
+          { spec: 'file:../kit', side: 'frontend', summary: 'A kit.', shared: 'Shared.' },
+        ],
+      },
+    });
+    const shared = await ask({ project, args: { kind: 'shared', name: 'x' } });
+    const lib = await ask({ project, args: { kind: 'lib', name: 'x' } });
+
+    expect(shared.presets.map((item: { preset: string }) => item.preset)).toEqual(['file:../kit']);
+    expect(lib.presets.map((item: { preset: string }) => item.preset)).toEqual(['ignis', 'ardor']);
+    expect(lib.presets[0].command).toContain('--lib x');
+  });
+
+  test('a shared folder list asks for one with the dir flag', async () => {
+    const project = projectOf({
+      manifest: {
+        ...SHARED_MANIFEST,
+        layout: { ...MANIFEST.layout, shared: ['libs/a', 'libs/b'] },
+      },
+    });
+    const answer = await ask({ project, args: { kind: 'shared', name: 'contracts' } });
+
+    expect(answer.presets[0].folders).toEqual(['libs/a', 'libs/b']);
+    expect(answer.presets[0].command).toBe(
+      'bun x --no-install vulcan add --preset ignis --shared contracts --dir <libs/a|libs/b>',
+    );
+  });
+
+  test('with no preset that has a shared kind it says so and invents no command', async () => {
+    const answer = await ask({ args: { kind: 'shared', name: 'contracts' } });
+
+    expect(answer.kind).toBe('shared');
+    expect(answer.presets).toEqual([]);
+    expect(answer.note).toContain('no preset makes a shared');
+    expect(JSON.stringify(answer)).not.toContain('vulcan add');
+  });
+
+  test('without a project the answer is the same: no shared preset, no command', async () => {
+    const answer = await ask({ project: undefined, args: { kind: 'shared', name: 'contracts' } });
+
+    expect(answer.presets).toEqual([]);
+    expect(JSON.stringify(answer)).not.toContain('vulcan add');
+  });
+
+  test('kind app and kind lib list what they listed before when a preset also has a shared kind', async () => {
+    const project = projectOf({ manifest: SHARED_MANIFEST });
+    const app = await ask({ project, args: { name: 'api3', side: 'backend' } });
+    const lib = await ask({ project, args: { kind: 'lib', name: 'billing' } });
+
+    expect(app.presets).toEqual([
+      {
+        preset: 'ignis',
+        side: 'backend',
+        summary: 'An IGNIS API on Bun.',
+        folder: 'services',
+        command: 'bun x --no-install vulcan add --preset ignis --app api3',
+        inProject: true,
+      },
+    ]);
+    expect(lib.presets).toEqual([
+      {
+        preset: 'ignis',
+        summary: 'An IGNIS library.',
+        folder: 'libs',
+        command: 'bun x --no-install vulcan add --preset ignis --lib billing',
+        inProject: true,
+      },
+      {
+        preset: 'ardor',
+        summary: 'ARDOR: a feature package other apps import (official; not yet in this project)',
+        folder: 'libs',
+        command: 'bun x --no-install vulcan add --preset ardor --lib billing',
+        inProject: false,
+      },
+    ]);
   });
 });
 
