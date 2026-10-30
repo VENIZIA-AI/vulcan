@@ -1,5 +1,9 @@
-name: 'NPM Release'
-run-name: 'NPM Release | bump: ${{ inputs.bump }} | ${{ github.sha }}'
+name: Release
+# The title of the run. `release.ts` sends `label` (`0.4.8 stable · atlas,okf,vulcan · #581 · 285d5bd`: version, kind,
+# packages, issue, short commit) and the plan job refuses a label that is not what it computed, so the title cannot
+# name a release the run does not make. A dispatch by hand has no label: the title is the bump, the issue and the
+# whole commit.
+run-name: "Release · ${{ inputs.label || format('{0}{1} · {2}', inputs.bump, inputs.issue && format(' · #{0}', inputs.issue) || '', github.sha) }}"
 
 on:
   workflow_dispatch:
@@ -23,6 +27,11 @@ on:
         description: 'Issue number the release commit serves (prefixes it with [#N])'
         required: false
         default: ''
+      label:
+        type: string
+        description: 'The run title, filled in by scripts/release/release.ts; the plan job refuses one that is not its own (empty = titled by the bump)'
+        required: false
+        default: ''
 
 # The three packages are one release train: one version, one run. `@venizia/vulcan` pins
 # `@venizia/vulcan-okf` and `@venizia/vulcan-atlas` to that exact version, so they publish first.
@@ -35,7 +44,7 @@ concurrency:
 
 # Read-only by default; the one job that pushes the release commit and the tag says so for itself, and it
 # alone holds `id-token`. Every job checks out the commit that was dispatched, so what the tests ran on, what the
-# approver sees in the run name and what is published are the same commit. The actions and bun are pinned.
+# approver sees in the run title and what is published are the same commit. The actions and bun are pinned.
 #
 # Four jobs. `plan` decides what this dispatch would release and refuses a ref and a version that do not belong
 # together (a prerelease runs from develop, a stable from main and only over a prerelease) before anything is built;
@@ -106,7 +115,8 @@ jobs:
         id: plan
         env:
           RELEASE_ISSUE: ${{ inputs.issue }}
-        run: bun scripts/release/plan.ts --bump "$BUMP" --ref "$GITHUB_REF" --issue "$RELEASE_ISSUE" --train packages --merge-trial --release-notes
+          RELEASE_LABEL: ${{ inputs.label }}
+        run: bun scripts/release/plan.ts --bump "$BUMP" --ref "$GITHUB_REF" --issue "$RELEASE_ISSUE" --label "$RELEASE_LABEL" --train packages --merge-trial --release-notes
 
   # Build, lint, the unit tests and VULCAN's own contract, on the dispatched commit, in a job that holds no
   # secret and cannot write: the publish job below needs it, so a failing gate publishes nothing.
@@ -199,7 +209,7 @@ jobs:
       # SETUP
       # -------------------------------------------------------------------------
       # The commit that was dispatched (the head of develop at that moment): the one the test job ran on and
-      # the one the run name shows. The release commit is pushed to develop below with a rebase and a retry
+      # the one the run title shows. The release commit is pushed to develop below with a rebase and a retry
       # if develop moved, and the tag goes on the commit as built.
       - name: Checkout the dispatched commit
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -546,7 +556,7 @@ jobs:
       # ATLAS INDEX
       # -------------------------------------------------------------------------
       # The push above is made with the Actions token, and GitHub starts no workflow from such a push, so
-      # `atlas-index.yml` never runs for the release commit or the tag. The pair of the tag commit is made
+      # the `atlas-index` job of deploy-docs.yml never runs for the release commit or the tag. The pair of the tag commit is made
       # here instead, from this checkout (full history, develop's refs, the tag just made). It does nothing
       # while ATLAS_INDEX_KEY is empty, refuses a tag whose commit is not on develop (develop moved on during
       # the run and the tag went on the commit as built), and never fails a release that has published.

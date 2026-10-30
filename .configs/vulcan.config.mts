@@ -19,7 +19,7 @@ export default {
     // `*-v*`, covers all three repositories.
     tagPattern: 'vulcan-v<version>',
     legacyTagPatterns: ['v<version>'],
-    // The public key of this repository's CI, which signs the atlas index it publishes (workflow atlas-index.yml);
+    // The public key of this repository's CI, which signs the atlas index it publishes (the atlas-index job of the workflow deploy-docs.yml);
     // the private key is the Actions secret ATLAS_INDEX_KEY and exists nowhere else.
     index: { keys: ['RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ='] },
   },

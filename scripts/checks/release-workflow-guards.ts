@@ -11,7 +11,7 @@
  *   C6   no npm token in any form (the release publishes through trusted publishing); no secret the guard does not know
  *   C6.1 the atlas key only in the atlas step
  *   C16  the publish job names the environment npm-release (its ref rule is a GitHub setting)
- *   C17  every checkout is the dispatched commit, and the run name carries it
+ *   C17  every checkout is the dispatched commit, and the run name carries it (the label ends in its short form)
  *   C20  id-token: write on the publish job and on nothing else (it is what trusted publishing signs with)
  *   C21  the release publishes a tarball bun packed, with `npm publish --provenance`; `bun publish` appears nowhere
  *   C23  an exact npm of at least 11.21.0 (the first that moves a dist-tag over OIDC) is installed and asserted
@@ -29,6 +29,8 @@
  *        for the changelog check of a stable (--release-notes)
  *   C32  a job that installs npm globally sets up Node first: the runner's own prefix is not writable, so a global
  *        install without a setup-node step fails with EACCES (it failed the first prerelease in the plan job)
+ *   C33  the run title is the dispatcher's label, and the plan job passes it to plan.ts, which refuses one that is not
+ *        what it computed (the title cannot name a version, a package set or a commit the run does not release)
  *   D6   every action is pinned by a full commit SHA (a local action is not an action to pin)
  */
 import { PublishCondition } from './publish-condition.ts';
@@ -313,11 +315,31 @@ export const checkReleaseWorkflowGuards = (opts: {
     }
   }
 
+  const runName = workflow['run-name'];
+
+  // The title is the dispatcher's label, which ends in the short commit and which the plan job checks (C33), or the
+  // whole commit for a dispatch by hand.
   if (
-    typeof workflow['run-name'] !== 'string' ||
-    !workflow['run-name'].includes('${{ github.sha }}')
+    typeof runName !== 'string' ||
+    !/\$\{\{\s*inputs\.label\s*\|\|[\s\S]*github\.sha[\s\S]*\}\}\s*$/.test(runName)
   ) {
-    violations.push('C17: the run name must carry ${{ github.sha }}');
+    violations.push(
+      'C17: the run name must be one expression, ${{ inputs.label || ... github.sha ... }}: the label (which ends in the short commit) and, for a dispatch by hand, the whole commit',
+    );
+  }
+
+  if (
+    !stepsOf({ job: plan }).some(
+      (step) =>
+        step.run.includes(PLAN_SCRIPT) &&
+        step.run.includes('--label "$RELEASE_LABEL"') &&
+        step.run.includes('--train packages') &&
+        step.text.includes('"RELEASE_LABEL":"${{ inputs.label }}"'),
+    )
+  ) {
+    violations.push(
+      'C33: the plan job must pass the label input to plan.ts (--label "$RELEASE_LABEL", from inputs.label in the step env) and the train (--train packages, without which plan.ts skips the label check), so the run title is checked',
+    );
   }
 
   const named = (opts: { name: string }): IStep | undefined =>
