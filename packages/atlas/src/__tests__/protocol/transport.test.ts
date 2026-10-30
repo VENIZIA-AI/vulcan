@@ -23,16 +23,15 @@ const parse = (line: string | null) => JSON.parse(line ?? 'null');
 
 describe('Transport', () => {
   test('initialize answers with the negotiated version and the server info', async () => {
-    const reply = parse(
-      await buildTransport().handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'initialize',
-          params: { protocolVersion: '2025-06-18' },
-        }),
+    const result2 = await buildTransport().handleLine({
+      line: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: { protocolVersion: '2025-06-18' },
       }),
-    );
+    });
+    const reply = parse(result2);
 
     expect(reply.result.serverInfo.name).toBe('atlas-test');
     expect(reply.result.capabilities.tools).toEqual({});
@@ -40,56 +39,52 @@ describe('Transport', () => {
   });
 
   test('initialize echoes an older supported version instead of negotiating up to the newest (M21)', async () => {
-    const reply = parse(
-      await buildTransport().handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'initialize',
-          params: { protocolVersion: '2024-11-05' },
-        }),
+    const result2 = await buildTransport().handleLine({
+      line: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: { protocolVersion: '2024-11-05' },
       }),
-    );
+    });
+    const reply = parse(result2);
 
     expect(reply.result.protocolVersion).toBe('2024-11-05');
   });
 
   test('initialize answers with the newest supported version when the client requests an unsupported one (M21)', async () => {
-    const reply = parse(
-      await buildTransport().handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'initialize',
-          params: { protocolVersion: '1999-01-01' },
-        }),
+    const result2 = await buildTransport().handleLine({
+      line: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: { protocolVersion: '1999-01-01' },
       }),
-    );
+    });
+    const reply = parse(result2);
 
     expect(reply.result.protocolVersion).toBe(AtlasConstants.PROTOCOL_VERSION);
   });
 
   test('tools/list returns every definition', async () => {
-    const reply = parse(
-      await buildTransport().handleLine({
-        line: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }),
-      }),
-    );
+    const result2 = await buildTransport().handleLine({
+      line: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }),
+    });
+    const reply = parse(result2);
 
     expect(reply.result.tools.map((tool: { name: string }) => tool.name)).toEqual(['echo']);
   });
 
   test('tools/call dispatches and wraps the result in a text content block', async () => {
-    const reply = parse(
-      await buildTransport().handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 3,
-          method: 'tools/call',
-          params: { name: 'echo', arguments: { text: 'hi' } },
-        }),
+    const result2 = await buildTransport().handleLine({
+      line: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 3,
+        method: 'tools/call',
+        params: { name: 'echo', arguments: { text: 'hi' } },
       }),
-    );
+    });
+    const reply = parse(result2);
 
     expect(reply.result.content[0].type).toBe('text');
     expect(JSON.parse(reply.result.content[0].text)).toEqual({ text: 'hi' });
@@ -98,48 +93,43 @@ describe('Transport', () => {
   test('an unknown method is -32601; a notification gets no reply; malformed JSON gets -32700 with no id', async () => {
     const transport = buildTransport();
 
-    expect(
-      parse(
-        await transport.handleLine({
-          line: JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'nope' }),
-        }),
-      ).error.code,
-    ).toBe(-32601);
-    expect(
-      await transport.handleLine({
-        line: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }),
-      }),
-    ).toBeNull();
-    expect(parse(await transport.handleLine({ line: '{not json' })).error.code).toBe(-32700);
+    const result = await transport.handleLine({
+      line: JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'nope' }),
+    });
+    expect(parse(result).error.code).toBe(-32601);
+    const result2 = await transport.handleLine({
+      line: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }),
+    });
+    expect(result2).toBeNull();
+    const result3 = await transport.handleLine({ line: '{not json' });
+    expect(parse(result3).error.code).toBe(-32700);
   });
 
   test('a tool that throws becomes -32603 with the message', async () => {
     const transport = new Transport({ tools: [failing], serverName: 'x', serverVersion: '0' });
-    const reply = parse(
-      await transport.handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 5,
-          method: 'tools/call',
-          params: { name: 'fail', arguments: {} },
-        }),
+    const result = await transport.handleLine({
+      line: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 5,
+        method: 'tools/call',
+        params: { name: 'fail', arguments: {} },
       }),
-    );
+    });
+    const reply = parse(result);
 
     expect(reply.error).toEqual({ code: -32603, message: 'boom' });
   });
 
   test('tools/call with an unknown tool name is -32602 (invalid params)', async () => {
-    const reply = parse(
-      await buildTransport().handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 9,
-          method: 'tools/call',
-          params: { name: 'nope', arguments: {} },
-        }),
+    const result = await buildTransport().handleLine({
+      line: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 9,
+        method: 'tools/call',
+        params: { name: 'nope', arguments: {} },
       }),
-    );
+    });
+    const reply = parse(result);
 
     expect(reply.error).toEqual({ code: -32602, message: 'unknown tool: nope' });
   });

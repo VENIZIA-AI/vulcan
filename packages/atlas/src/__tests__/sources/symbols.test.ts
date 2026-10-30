@@ -71,16 +71,19 @@ const symbolOf = async (opts: {
   // A start from cache asks npm again in the background; the answer waits for it here.
   await Promise.all(resolved.map((source) => source.symbolsPending ?? Promise.resolve()));
 
-  const reply = JSON.parse(
-    (await buildSourcesServer({ sources: resolved, cwd: opts.cwd, version: '0.0.0' }).handleLine({
-      line: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name: 'symbol', arguments: { name: opts.name } },
-      }),
-    })) ?? 'null',
-  );
+  const result = await buildSourcesServer({
+    sources: resolved,
+    cwd: opts.cwd,
+    version: '0.0.0',
+  }).handleLine({
+    line: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'symbol', arguments: { name: opts.name } },
+    }),
+  });
+  const reply = JSON.parse(result ?? 'null');
 
   return reply;
 };

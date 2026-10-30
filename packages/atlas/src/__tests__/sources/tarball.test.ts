@@ -133,15 +133,14 @@ describe('a source without git on the machine', () => {
       expect(existsSync(join(resolved.root, '.configs'))).toBe(false);
       expect(resolved.history).toBe(false);
 
-      const initialized = JSON.parse(
-        (await buildSourcesServer({
-          sources: [resolved],
-          cwd: resolved.root,
-          version: '0.0.0',
-        }).handleLine({
-          line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
-        })) ?? 'null',
-      );
+      const result2 = await buildSourcesServer({
+        sources: [resolved],
+        cwd: resolved.root,
+        version: '0.0.0',
+      }).handleLine({
+        line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+      });
+      const initialized = JSON.parse(result2 ?? 'null');
 
       expect(initialized.result.instructions).toContain('no git on this machine');
       expect(github.seen.some((request) => request.path.includes('/api'))).toBe(false);
@@ -152,12 +151,13 @@ describe('a source without git on the machine', () => {
         cwd: resolved.root,
         version: '0.0.0',
       });
-      const call = async (opts: { name: string; arguments: object }) =>
-        JSON.parse(
-          (await server.handleLine({
-            line: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: opts }),
-          })) ?? 'null',
-        );
+      const call = async (opts: { name: string; arguments: object }) => {
+        const line = await server.handleLine({
+          line: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: opts }),
+        });
+
+        return JSON.parse(line ?? 'null');
+      };
       const version = await call({ name: 'version', arguments: {} });
       const byPackage = await call({ name: 'changes', arguments: { package: '@x/kernel' } });
       const byDate = await call({ name: 'changes', arguments: { to: '2026-01-01' } });

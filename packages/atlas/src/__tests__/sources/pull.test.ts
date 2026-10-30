@@ -68,18 +68,15 @@ const searchFor = async (opts: {
     version: '0.0.0',
   });
 
-  return JSON.stringify(
-    JSON.parse(
-      (await server.handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'tools/call',
-          params: { name: 'search', arguments: { query: opts.query } },
-        }),
-      })) ?? 'null',
-    ),
-  );
+  const result = await server.handleLine({
+    line: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'search', arguments: { query: opts.query } },
+    }),
+  });
+  return JSON.stringify(JSON.parse(result ?? 'null'));
 };
 
 describe('a pull', () => {
@@ -184,8 +181,10 @@ describe('a pull', () => {
     });
 
     expect(lstatSync(join(resolved[0].root, '.agents/knowledge')).isSymbolicLink()).toBe(false);
-    expect(await searchFor({ resolved, query: 'zanzibar archipelago' })).not.toContain('Zanzibar');
+    const result = await searchFor({ resolved, query: 'zanzibar archipelago' });
+    expect(result).not.toContain('Zanzibar');
     // Positive control: the changelog beside it is still served.
-    expect(await searchFor({ resolved, query: 'first change' })).toContain('2026-01-01-first');
+    const result2 = await searchFor({ resolved, query: 'first change' });
+    expect(result2).toContain('2026-01-01-first');
   });
 });

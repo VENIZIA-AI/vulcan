@@ -98,16 +98,15 @@ describe('SourceChunks', () => {
       serverName: 'atlas-test',
       serverVersion: '0.0.0',
     });
-    const reply = JSON.parse(
-      (await transport.handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'tools/call',
-          params: { name: 'search', arguments: { query: 'flywheel', source: 'bana' } },
-        }),
-      })) ?? 'null',
-    );
+    const result = await transport.handleLine({
+      line: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'search', arguments: { query: 'flywheel', source: 'bana' } },
+      }),
+    });
+    const reply = JSON.parse(result ?? 'null');
 
     expect(reply.error?.code).toBe(RpcErrorCodes.INVALID_PARAMS);
     expect(reply.error?.message).toBe("unknown source 'bana'; known sources: ignis, ardor");
@@ -183,16 +182,15 @@ describe('SourceReleases', () => {
       serverName: 'atlas-test',
       serverVersion: '0.0.0',
     });
-    const reply = JSON.parse(
-      (await transport.handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'tools/call',
-          params: { name: 'changes', arguments: { package: 'kernel' } },
-        }),
-      })) ?? 'null',
-    );
+    const result = await transport.handleLine({
+      line: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'changes', arguments: { package: 'kernel' } },
+      }),
+    });
+    const reply = JSON.parse(result ?? 'null');
 
     expect(reply.error.code).toBe(RpcErrorCodes.INVALID_PARAMS);
     expect(reply.error.message).toContain(
@@ -268,21 +266,22 @@ describe('SourceReleases with a local project that has no release on this ref', 
       { name: 'bana', releases: local },
     ],
   });
-  const ask = async (args: Record<string, unknown>) =>
-    JSON.parse(
-      (await new Transport({
-        tools: [buildChangesTool({ releases })],
-        serverName: 'atlas-test',
-        serverVersion: '0.0.0',
-      }).handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'tools/call',
-          params: { name: 'changes', arguments: args },
-        }),
-      })) ?? 'null',
-    );
+  const ask = async (args: Record<string, unknown>) => {
+    const line = await new Transport({
+      tools: [buildChangesTool({ releases })],
+      serverName: 'atlas-test',
+      serverVersion: '0.0.0',
+    }).handleLine({
+      line: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'changes', arguments: args },
+      }),
+    });
+
+    return JSON.parse(line ?? 'null');
+  };
 
   test('a declared package answers by npm name, directory key and alias - never "unknown package"', async () => {
     for (const name of ['@nx/core', 'umbras-core', 'apps/core']) {

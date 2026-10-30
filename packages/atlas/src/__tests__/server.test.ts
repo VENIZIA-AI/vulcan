@@ -41,11 +41,10 @@ const parseReply = (
 const listToolNames = async (opts: {
   transport: ReturnType<typeof buildServer>;
 }): Promise<string[]> => {
-  const reply = parseReply(
-    await opts.transport.handleLine({
-      line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
-    }),
-  );
+  const result2 = await opts.transport.handleLine({
+    line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+  });
+  const reply = parseReply(result2);
 
   return (reply.result?.tools ?? []).map((tool) => tool.name);
 };
@@ -57,14 +56,8 @@ describe('buildServer', () => {
       version: TEST_VERSION,
     });
 
-    expect(await listToolNames({ transport })).toEqual([
-      'search',
-      'get',
-      'symbol',
-      'version',
-      'changes',
-      'presets',
-    ]);
+    const result = await listToolNames({ transport });
+    expect(result).toEqual(['search', 'get', 'symbol', 'version', 'changes', 'presets']);
   });
 
   test('serverInfo.version is whatever version buildServer was given, not a hardcoded string (I6)', async () => {
@@ -72,11 +65,10 @@ describe('buildServer', () => {
       root: REPOSITORY_ROOT,
       version: TEST_VERSION,
     });
-    const reply = parseReply(
-      await transport.handleLine({
-        line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
-      }),
-    );
+    const result2 = await transport.handleLine({
+      line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+    });
+    const reply = parseReply(result2);
 
     expect(reply.result?.serverInfo?.version).toBe(TEST_VERSION);
   });

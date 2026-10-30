@@ -89,12 +89,11 @@ const payloadOf = (reply: { result?: { content: { text: string }[] } }): IChange
 
 describe('changes tool', () => {
   test('two versions of one package answer with the entries in that window', async () => {
-    const payload = payloadOf(
-      await callChanges({
-        releases,
-        args: { package: 'kernel', from: '0.2.0-13', to: '0.2.0-16' },
-      }),
-    );
+    const result = await callChanges({
+      releases,
+      args: { package: 'kernel', from: '0.2.0-13', to: '0.2.0-16' },
+    });
+    const payload = payloadOf(result);
 
     expect(payload.package).toBe('@venizia/ignis-kernel');
     expect(payload.from).toBe('0.2.0-13');
@@ -106,18 +105,18 @@ describe('changes tool', () => {
   });
 
   test('an entry dated exactly on the opening release is excluded', async () => {
-    const payload = payloadOf(
-      await callChanges({
-        releases,
-        args: { package: 'kernel', from: '0.2.0-13', to: '0.2.0-16' },
-      }),
-    );
+    const result = await callChanges({
+      releases,
+      args: { package: 'kernel', from: '0.2.0-13', to: '0.2.0-16' },
+    });
+    const payload = payloadOf(result);
 
     expect(payload.entries.map((item) => item.id)).not.toContain('changelog:2026-08-31-lower-edge');
   });
 
   test('a package with no versions given spans the newest day of releases, never an empty same-day window', async () => {
-    const payload = payloadOf(await callChanges({ releases, args: { package: 'kernel' } }));
+    const result = await callChanges({ releases, args: { package: 'kernel' } });
+    const payload = payloadOf(result);
 
     // 0.2.0-15 shares 2026-09-05 with 0.2.0-16, so the lower bound is the newest EARLIER day.
     expect(payload.to).toBe('0.2.0-16');
@@ -128,17 +127,15 @@ describe('changes tool', () => {
   });
 
   test('the npm spelling of a package name is accepted', async () => {
-    const payload = payloadOf(
-      await callChanges({ releases, args: { package: '@venizia/ignis-kernel' } }),
-    );
+    const result = await callChanges({ releases, args: { package: '@venizia/ignis-kernel' } });
+    const payload = payloadOf(result);
 
     expect(payload.package).toBe('@venizia/ignis-kernel');
   });
 
   test('no package spans every package and reads from and to as dates', async () => {
-    const payload = payloadOf(
-      await callChanges({ releases, args: { from: '2026-09-01', to: '2026-09-05' } }),
-    );
+    const result = await callChanges({ releases, args: { from: '2026-09-01', to: '2026-09-05' } });
+    const payload = payloadOf(result);
 
     expect(payload.package).toBeNull();
     expect(payload.from).toBe('2026-09-01');
@@ -151,7 +148,8 @@ describe('changes tool', () => {
   });
 
   test('no package and no dates default to the newest day of changes', async () => {
-    const payload = payloadOf(await callChanges({ releases, args: {} }));
+    const result = await callChanges({ releases, args: {} });
+    const payload = payloadOf(result);
 
     expect(payload.to).toBe('2026-09-05');
     expect(payload.from).toBe('2026-09-04');
@@ -159,9 +157,8 @@ describe('changes tool', () => {
   });
 
   test('every entry carries its date, title, kind and packages', async () => {
-    const payload = payloadOf(
-      await callChanges({ releases, args: { package: 'kernel', from: '0.2.0-14' } }),
-    );
+    const result = await callChanges({ releases, args: { package: 'kernel', from: '0.2.0-14' } });
+    const payload = payloadOf(result);
 
     expect(payload.entries[0]).toEqual({
       id: 'changelog:2026-09-05-list-response',
@@ -173,18 +170,18 @@ describe('changes tool', () => {
   });
 
   test('two releases of one day leave an empty window - the window is dates, not commits', async () => {
-    const payload = payloadOf(
-      await callChanges({
-        releases,
-        args: { package: 'kernel', from: '0.2.0-15', to: '0.2.0-16' },
-      }),
-    );
+    const result = await callChanges({
+      releases,
+      args: { package: 'kernel', from: '0.2.0-15', to: '0.2.0-16' },
+    });
+    const payload = payloadOf(result);
 
     expect(payload.entries).toEqual([]);
   });
 
   test('a declared package with no release answers its changelog entries and says there is no release', async () => {
-    const payload = payloadOf(await callChanges({ releases, args: { package: 'boot' } }));
+    const result = await callChanges({ releases, args: { package: 'boot' } });
+    const payload = payloadOf(result);
 
     expect(payload.package).toBe('@venizia/ignis-boot');
     expect(payload.entries.map((item) => item.id)).toEqual(['changelog:2026-09-02-decorators']);
@@ -350,12 +347,11 @@ describe.skipIf(!hasRepositoryRoots)('the P3 acceptance gate, over the real rele
   });
 
   test('kernel 0.2.0-13 to 0.2.0-16 lists exactly the entries dated inside that window', async () => {
-    const payload = payloadOf(
-      await callChanges({
-        releases: realReleases,
-        args: { package: 'kernel', from: '0.2.0-13', to: '0.2.0-16' },
-      }),
-    );
+    const result = await callChanges({
+      releases: realReleases,
+      args: { package: 'kernel', from: '0.2.0-13', to: '0.2.0-16' },
+    });
+    const payload = payloadOf(result);
 
     const fromDate = realReleases.releaseDateOf({ package: 'kernel', version: '0.2.0-13' }) ?? '';
     const toDate = realReleases.releaseDateOf({ package: 'kernel', version: '0.2.0-16' }) ?? '';
@@ -373,12 +369,11 @@ describe.skipIf(!hasRepositoryRoots)('the P3 acceptance gate, over the real rele
   });
 
   test('every id it returned resolves through the get tool', async () => {
-    const payload = payloadOf(
-      await callChanges({
-        releases: realReleases,
-        args: { package: 'kernel', from: '0.2.0-13', to: '0.2.0-16' },
-      }),
-    );
+    const result = await callChanges({
+      releases: realReleases,
+      args: { package: 'kernel', from: '0.2.0-13', to: '0.2.0-16' },
+    });
+    const payload = payloadOf(result);
 
     expect(payload.entries.length).toBeGreaterThan(0);
 

@@ -139,44 +139,52 @@ const call = async (opts: {
   name: string;
   args?: Record<string, unknown>;
 }) => {
-  const reply = JSON.parse(
-    (await opts.transport.handleLine({
-      line: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name: opts.name, arguments: opts.args ?? {} },
-      }),
-    })) ?? 'null',
-  );
+  const result2 = await opts.transport.handleLine({
+    line: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: opts.name, arguments: opts.args ?? {} },
+    }),
+  });
+  const reply = JSON.parse(result2 ?? 'null');
 
   return JSON.parse(reply.result.content[0].text);
 };
 
-const instructionsOf = async (opts: { transport: ReturnType<typeof buildSourcesServer> }) =>
-  JSON.parse(
-    (await opts.transport.handleLine({
-      line: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'initialize',
-        params: {
-          protocolVersion: '2024-11-05',
-          capabilities: {},
-          clientInfo: { name: 't', version: '0' },
-        },
-      }),
-    })) ?? 'null',
-  ).result.instructions as string;
+const instructionsOf = async (opts: { transport: ReturnType<typeof buildSourcesServer> }) => {
+  const line = await opts.transport.handleLine({
+    line: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2024-11-05',
+        capabilities: {},
+        clientInfo: { name: 't', version: '0' },
+      },
+    }),
+  });
 
-const forgeHits = async (opts: { transport: ReturnType<typeof buildSourcesServer> }) =>
-  (await call({ transport: opts.transport, name: 'search', args: { query: 'forge' } })).total;
+  return JSON.parse(line ?? 'null').result.instructions as string;
+};
+
+const forgeHits = async (opts: { transport: ReturnType<typeof buildSourcesServer> }) => {
+  const answer = await call({
+    transport: opts.transport,
+    name: 'search',
+    args: { query: 'forge' },
+  });
+
+  return answer.total;
+};
 
 const eventually = async (opts: { read: () => Promise<unknown>; expected: unknown }) => {
   let last: unknown;
 
   for (let attempt = 0; attempt < 80; attempt += 1) {
-    last = await opts.read();
+    const result = await opts.read();
+    last = result;
 
     if (JSON.stringify(last) === JSON.stringify(opts.expected)) {
       return last;
@@ -204,9 +212,11 @@ describe('a source is served at the version the project has installed', () => {
     });
 
     // The forge page was added after kernel-v1.0.0.
-    expect(await forgeHits({ transport })).toBe(0);
+    const result = await forgeHits({ transport });
+    expect(result).toBe(0);
     expect(sources[0].origin).toContain('kernel-v1.0.0');
-    expect((await call({ transport, name: 'version' })).snapshot['@x/kernel']).toBe('1.1.0');
+    const result2 = await call({ transport, name: 'version' });
+    expect(result2.snapshot['@x/kernel']).toBe('1.1.0');
   });
 
   test('kernel 1.1.0 installed: the docs are the tag of 1.1.0', async () => {
@@ -216,7 +226,8 @@ describe('a source is served at the version the project has installed', () => {
       source: SRC({ url: source.url }),
     });
 
-    expect(await forgeHits({ transport })).toBe(1);
+    const result = await forgeHits({ transport });
+    expect(result).toBe(1);
   });
 
   test('two packages installed: the newest release among them decides, and the status says which', async () => {
@@ -228,7 +239,8 @@ describe('a source is served at the version the project has installed', () => {
     });
     const text = await instructionsOf({ transport });
 
-    expect(await forgeHits({ transport })).toBe(1);
+    const result = await forgeHits({ transport });
+    expect(result).toBe(1);
     expect(text).toContain('helpers-v0.5.0');
     expect(text).toContain('@x/helpers 0.5.0');
   });
@@ -241,7 +253,8 @@ describe('a source is served at the version the project has installed', () => {
     });
     const text = await instructionsOf({ transport });
 
-    expect(await forgeHits({ transport })).toBe(1);
+    const result = await forgeHits({ transport });
+    expect(result).toBe(1);
     expect(text).toContain('develop');
     expect(text).toContain('none of its packages is installed');
   });
@@ -254,7 +267,8 @@ describe('a source is served at the version the project has installed', () => {
     });
     const text = await instructionsOf({ transport });
 
-    expect(await forgeHits({ transport })).toBe(0);
+    const result = await forgeHits({ transport });
+    expect(result).toBe(0);
     expect(text).toContain('kernel-v1.0.0');
   });
 
@@ -266,7 +280,8 @@ describe('a source is served at the version the project has installed', () => {
     });
     const text = await instructionsOf({ transport });
 
-    expect(await forgeHits({ transport })).toBe(1);
+    const result = await forgeHits({ transport });
+    expect(result).toBe(1);
     expect(text).toContain('linked');
   });
 
@@ -278,7 +293,8 @@ describe('a source is served at the version the project has installed', () => {
     });
     const text = await instructionsOf({ transport });
 
-    expect(await forgeHits({ transport })).toBe(1);
+    const result = await forgeHits({ transport });
+    expect(result).toBe(1);
     expect(text).toContain('no release of @x/kernel 0.9.0');
   });
 
@@ -290,7 +306,8 @@ describe('a source is served at the version the project has installed', () => {
     });
     const text = await instructionsOf({ transport });
 
-    expect(await forgeHits({ transport })).toBe(1);
+    const result = await forgeHits({ transport });
+    expect(result).toBe(1);
     expect(text).toContain('pin is ref');
   });
 
@@ -312,7 +329,8 @@ describe('a source is served at the version the project has installed', () => {
     const cwd = consumerWith({ installed: { '@x/kernel': '1.0.0' } });
     const { transport } = await serve({ cwd, source: SRC({ url: source.url }), refreshMs: 20 });
 
-    expect(await forgeHits({ transport })).toBe(0);
+    const result = await forgeHits({ transport });
+    expect(result).toBe(0);
 
     writeFileSync(
       join(cwd, 'node_modules/@x/kernel/package.json'),
@@ -320,6 +338,7 @@ describe('a source is served at the version the project has installed', () => {
     );
     await Bun.sleep(40);
 
-    expect(await eventually({ read: () => forgeHits({ transport }), expected: 1 })).toBe(1);
+    const result2 = await eventually({ read: () => forgeHits({ transport }), expected: 1 });
+    expect(result2).toBe(1);
   });
 });

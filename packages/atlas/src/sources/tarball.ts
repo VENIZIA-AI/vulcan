@@ -35,9 +35,13 @@ const fetchBody = async (opts: {
       signal: AbortSignal.timeout(opts.timeout),
     });
 
-    return response.ok
-      ? { status: response.status, body: await response.arrayBuffer() }
-      : { status: response.status };
+    if (!response.ok) {
+      return { status: response.status };
+    }
+
+    const body = await response.arrayBuffer();
+
+    return { status: response.status, body };
   } catch (error) {
     StderrLogger.get('fetchBody').warn('the request failed | error: %s', error);
 

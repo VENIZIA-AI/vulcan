@@ -251,11 +251,10 @@ describe('a server built from a project', () => {
   const call = async (opts: { method: string }) => {
     const transport = buildServer({ root: ACME, version: '0.0.0' });
 
-    return JSON.parse(
-      (await transport.handleLine({
-        line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: opts.method, params: {} }),
-      })) ?? 'null',
-    );
+    const result = await transport.handleLine({
+      line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: opts.method, params: {} }),
+    });
+    return JSON.parse(result ?? 'null');
   };
 
   test('initialize carries the instructions', async () => {

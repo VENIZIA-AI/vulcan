@@ -79,7 +79,8 @@ const pull = async (opts: { root: string; cache: string; bare: string; flags?: s
 
   await child.exited;
 
-  return { code: child.exitCode, stdout: await new Response(child.stdout).text() };
+  const result = await new Response(child.stdout).text();
+  return { code: child.exitCode, stdout: result };
 };
 
 /** Whether the pulled set was installed from a downloaded pair. */

@@ -113,7 +113,8 @@ export const withPullLock = async <TResult>(opts: {
   }
 
   try {
-    return await opts.run();
+    const result = await opts.run();
+    return result;
   } finally {
     if (ownerOf({ lock })?.token === token) {
       rmSync(lock, { recursive: true, force: true });
