@@ -16,10 +16,11 @@
       "okf:process/testing.md",
       "changelog:2026-08-13-browser-pure-kernel",
       "okf:conventions/gotchas.md",
-      "okf:packages/core-worker.md"
+      "okf:packages/core-worker.md",
+      "wiki:best-practices/code-style-standards/tooling.md"
     ],
     "rejectAnyOf": ["okf:log.md"],
-    "why": "A one-word query correctly returns canonical purity pages (gotchas.md's purity entries, core-worker.md's purity enforcement); the regression that mattered was okf:log.md's history entries filling the top 3, and authority now keeps them out."
+    "why": "A one-word query correctly returns canonical purity pages (gotchas.md's purity entries, core-worker.md's purity enforcement); the regression that mattered was okf:log.md's history entries filling the top 3, and authority now keeps them out. 2026-10-30: IGNIS's code-style tooling page gained a 'Checking browser purity' section, which is the page a reader of this one word wants, so it is accepted too."
   },
   {
     "query": "repository transaction",
@@ -32,7 +33,13 @@
   },
   {
     "query": "verifyBindings",
-    "expectAnyOf": ["wiki:references/base/bootstrapping.md", "changelog:2026-09-05-boot-checks"]
+    "expectAnyOf": [
+      "wiki:references/base/bootstrapping.md",
+      "changelog:2026-09-05-boot-checks",
+      "okf:packages/inversion.md",
+      "wiki:extensions/helpers/inversion/reference.md"
+    ],
+    "why": "verifyBindings is a function of @venizia/ignis-inversion as well as a boot step. 2026-10-30: its own pages (the inversion knowledge page's 'Verifying a container' and the inversion helper reference) now rank in the top 3 for the bare name, and both define it, so they are accepted next to the boot step pages."
   },
   {
     "query": "release playbook",
