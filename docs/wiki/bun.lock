@@ -6,7 +6,7 @@
       "name": "@venizia/vulcan-docs",
       "devDependencies": {
         "@types/bun": "1.4.3",
-        "@venizia/dev-configs": "0.4.4",
+        "@venizia/dev-configs": "0.4.7-0",
         "eslint": "10.13.0",
         "oxlint": "1.89.0",
         "oxlint-tsgolint": "7.0.2004",
@@ -323,7 +323,7 @@
 
     "@ungap/structured-clone": ["@ungap/structured-clone@1.4.0", "", {}, "sha512-1mEZtMKPM09vDmQt5y7YvmN2+DFTP7Tg0EWXdic8/C6VRnpb33e4ghisCIE3WZjsE2N8mf+QV1Zqh7ZFYLWInQ=="],
 
-    "@venizia/dev-configs": ["@venizia/dev-configs@0.4.4", "", { "dependencies": { "@eslint/js": "^10.0.1", "eslint-plugin-n": "^18.5.0", "eslint-plugin-unicorn": "^78.0.0", "typescript-eslint": "^8.72.0" }, "peerDependencies": { "eslint": "^9.0.0 || ^10.0.0", "oxlint": ">=1.89.0", "oxlint-tsgolint": ">=7.0.2004", "typescript": "^5.0.0 || ^6.0.0" }, "optionalPeers": ["eslint", "oxlint", "oxlint-tsgolint", "typescript"], "bin": { "devz": "dist/cli/index.js" } }, "sha512-JMUAIOmKmDKM0e1Suvc6Y/3MxFgw/yIbJ6MORGzzPyhIb4U6nSBAu2WZlQraC0/y7oCEcLHsE7M/0pOq19TONw=="],
+    "@venizia/dev-configs": ["@venizia/dev-configs@0.4.7-0", "", { "dependencies": { "@eslint/js": "^10.0.1", "eslint-plugin-n": "^18.5.0", "eslint-plugin-unicorn": "^78.0.0", "typescript-eslint": "^8.72.0" }, "peerDependencies": { "eslint": "^9.0.0 || ^10.0.0", "oxlint": ">=1.89.0", "oxlint-tsgolint": ">=7.0.2004", "typescript": "^5.0.0 || ^6.0.0" }, "optionalPeers": ["eslint", "oxlint", "oxlint-tsgolint", "typescript"], "bin": { "devz": "dist/cli/index.js" } }, "sha512-0YLgSIVbTPNZeSIhsWi0qCPgO5lvndq55LMMMIL16MvsvPVwcwXSWGZ22HwSor3irRkSQyXZdpukLwA9Sk6r0g=="],
 
     "@vitejs/plugin-vue": ["@vitejs/plugin-vue@5.2.4", "", { "peerDependencies": { "vite": "^5.0.0 || ^6.0.0", "vue": "^3.2.25" } }, "sha512-7Yx/SXSOcQq5HiiV3orevHUFn+pmMB4cgbEkDYgnkUWb0WfeQ/wa2yFv6D5ICiCQOVpjA7vYDXrC7AGO8yjDHA=="],
 
