@@ -57,6 +57,8 @@ What `vulcan sync` sets up, for Claude Code:
 
 What still needs the launch file or the launch variables, stated plainly: without them, Claude Code's own task-output files stay in `/tmp/claude-<uid>/` and an MCP server uses the system temp folder; the hook does not reach them. A path an agent writes by hand (`/tmp/x`) still asks, on purpose. Any agent other than Claude Code has no hook of this kind: the rules and the session digest tell it to use `.agents/local/tmp`, and it needs `TMPDIR` in its own launch environment (`export TMPDIR=$PWD/.agents/local/tmp`); VULCAN has not checked whether those agents can set it from their configuration.
 
+When Claude Code starts in a project that has the launch file but `CLAUDE_CODE_TMPDIR` is not set, or points outside the project, the session-start digest opens with a "Launch warning" that gives the start command above, and the agent says so in its first reply. A session that uses a folder inside the project gets no warning.
+
 `vulcan doctor` warns when the folder or the launch file is missing or names another checkout, and `vulcan sync` fixes both. The folder is a task scratch folder: remove what you made when the task ends; `vulcan clean` lists what is older than a day.
 
 ## Detecting your agents

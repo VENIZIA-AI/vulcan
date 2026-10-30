@@ -11,6 +11,7 @@ import {
   resolveOwnerView,
 } from '../owner/index.ts';
 import { extractRuleRows, parseRuleIds, readSlots, RuleConstants } from '../rules/index.ts';
+import { ClaudeLaunch } from '../sync/claude-launch.ts';
 import { projectTmpOf } from './project-tmp.ts';
 
 /** A project row whose first cell lists IDs - `| V-W-02, V-W-03 |` - elaborates those base rules. */
@@ -80,9 +81,15 @@ export const buildSessionDigest = async (opts: {
     return `| ${id} | this project: \`${choice}\` - ${slot.options[choice]?.text ?? `unknown option - run \`${ProjectLayout.VULCAN_COMMAND} doctor\``} |`;
   });
 
+  const launchWarning = ClaudeLaunch.missWarning({
+    root: opts.projectRoot,
+    env: opts.env ?? process.env,
+  });
+
   const lines = [
     '# VULCAN rules - read this before acting',
     '',
+    ...(launchWarning === undefined ? [] : ['## Launch warning', '', launchWarning, '']),
     'Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents/rules.md`.',
     '',
     ...buildAtlasBlock({
