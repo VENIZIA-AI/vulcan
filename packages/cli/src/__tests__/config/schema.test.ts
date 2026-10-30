@@ -19,6 +19,21 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     expect(VULCAN_CONFIG_SCHEMA.safeParse({ agents: ['vim'] }).success).toBe(false);
   });
 
+  test('theme is the colour the project is known by: left unset, hex only, strict', () => {
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).theme).toBeUndefined();
+    expect(
+      VULCAN_CONFIG_SCHEMA.parse({
+        theme: { accent: '#0277bd', accentDark: '#38bdf8', accentText: '#01579b' },
+      }).theme,
+    ).toEqual({ accent: '#0277bd', accentDark: '#38bdf8', accentText: '#01579b' });
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: 'blue' } }).success).toBe(false);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: '#fff' } }).success).toBe(false);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: {} }).success).toBe(false);
+    expect(
+      VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: '#0277bd', brand: '#000000' } }).success,
+    ).toBe(false);
+  });
+
   test('okf defaults to nothing selected - no renderer runs unless listed', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({});
 

@@ -186,6 +186,15 @@ describe('the prebuilt index in the manifest (C27)', () => {
     expect(keys.indexOf('atlas')).toBeLessThan(keys.indexOf('remoteHosts'));
   });
 
+  test('the theme is written to the manifest only when the config sets one, and the schema version stays 1', () => {
+    const theme = { accent: '#0277bd', accentDark: '#38bdf8', accentText: '#01579b' };
+    const manifest = JSON.parse(render({ root, config: { theme } }));
+
+    expect(manifest.theme).toEqual(theme);
+    expect(manifest.schemaVersion).toBe(1);
+    expect(JSON.parse(render({ root, config: CONFIG }))).not.toHaveProperty('theme');
+  });
+
   test('a config that sets neither renders the text it always did', () => {
     const plain = render({ root, config: CONFIG });
 

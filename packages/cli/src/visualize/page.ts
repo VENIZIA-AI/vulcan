@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto';
 import { PAGE_CSS, PAGE_JS } from './assets.ts';
-import { DEFAULT_CHROME, NodeStates } from './constants.ts';
+import { NodeStates } from './constants.ts';
 import type { TChrome } from './constants.ts';
 import { iconSvg } from './icons.ts';
 import { stateIcon } from './charts.ts';
+import { chromeOf } from './labels.ts';
 import { escapeText, FIGURE_FIT } from './layout.ts';
 import type { TVisualizeSpec } from './schema.ts';
+import type { IResolvedTheme } from './theme.ts';
 import {
   architectureSection,
   beforeAfterSection,
@@ -29,40 +31,7 @@ import type { ISectionContext } from './sections.ts';
 
 const escaped = (value: string): string => escapeText({ value });
 
-const definedOnly = (opts: {
-  value: Record<string, string | undefined> | undefined;
-}): Record<string, string> =>
-  Object.fromEntries(
-    Object.entries(opts.value ?? {}).filter(
-      (entry): entry is [string, string] => entry[1] !== undefined,
-    ),
-  );
-
-/** The strings of the page: English, with whatever the spec replaces. */
-export const chromeOf = (opts: { spec: TVisualizeSpec }): TChrome => {
-  const given = opts.spec.chrome ?? {};
-  const merged: Record<string, unknown> = { ...DEFAULT_CHROME };
-
-  for (const [key, value] of Object.entries(given)) {
-    if (typeof value === 'string') {
-      merged[key] = value;
-    }
-  }
-
-  return {
-    ...DEFAULT_CHROME,
-    ...Object.fromEntries(Object.entries(merged).filter(([, value]) => typeof value === 'string')),
-    statusStates: { ...DEFAULT_CHROME.statusStates, ...definedOnly({ value: given.statusStates }) },
-    minimapStates: {
-      ...DEFAULT_CHROME.minimapStates,
-      ...definedOnly({ value: given.minimapStates }),
-    },
-    evidenceLabels: {
-      ...DEFAULT_CHROME.evidenceLabels,
-      ...definedOnly({ value: given.evidenceLabels }),
-    },
-  };
-};
+export { chromeOf };
 
 const sha256 = (opts: { text: string }): string =>
   `'sha256-${createHash('sha256').update(opts.text).digest('base64')}'`;
@@ -174,9 +143,16 @@ const ownerHtml = (opts: { spec: TVisualizeSpec; chrome: TChrome }): string => {
 };
 
 /** The whole page: one file, no network, a content-security policy that allows only the page's own style and script by hash. */
-export const renderPage = (opts: { spec: TVisualizeSpec }): string => {
+export const renderPage = (opts: {
+  spec: TVisualizeSpec;
+  /** The page's language: the spec's, else the owner's profile, else English. */
+  language?: string;
+  /** The checked colours of the page; the stylesheet takes its tokens from them. */
+  theme?: IResolvedTheme;
+}): string => {
   const { spec } = opts;
-  const chrome = chromeOf({ spec });
+  const language = opts.language ?? spec.language ?? 'en';
+  const chrome = chromeOf({ spec, language });
   const ctx: ISectionContext = { spec, chrome, fits: new Set<number>() };
   const state = BANNER_STATE[spec.status.state] ?? 'info';
   const word =
@@ -213,5 +189,5 @@ export const renderPage = (opts: { spec: TVisualizeSpec }): string => {
   const tools = `<div class="tools"><button id="present" type="button" data-on="${escaped(chrome.present)}" data-off="${escaped(chrome.exitPresent)}">${escaped(chrome.present)}</button><button id="theme" type="button">${escaped(chrome.theme)}</button></div>`;
   const deck = `<nav class="deck" aria-label="${escaped(chrome.slide)}"><button id="slide-prev" type="button">${escaped(chrome.previous)}</button><span id="slide-count" aria-live="polite"></span><button id="slide-next" type="button">${escaped(chrome.following)}</button></nav>`;
 
-  return `<!doctype html><html lang="${escaped(spec.language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${escaped(policy)}"><meta name="generator" content="vulcan visualize"><title>${escaped(spec.title)}</title><style>${css}</style></head><body>${mini}<main class="wrap">${tools}${body}<footer>${escaped(chrome.footer)}</footer></main>${deck}<script>${PAGE_JS}</script></body></html>`;
+  return `<!doctype html><html lang="${escaped(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${escaped(policy)}"><meta name="generator" content="vulcan visualize"><title>${escaped(spec.title)}</title><style>${css}</style></head><body>${mini}<main class="wrap">${tools}${body}<footer>${escaped(chrome.footer)}</footer></main>${deck}<script>${PAGE_JS}</script></body></html>`;
 };

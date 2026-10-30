@@ -346,6 +346,25 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       localFile: z.string().default('.agents/hooks/trusted-hosts.local'),
     })
     .optional(),
+  /**
+   * The colour the project is known by: `vulcan visualize` takes the accent of its pages from here (the spec's own
+   * `accent` wins). `accent` is the colour for marks and fills; `accentDark` is the same on dark grounds (derived
+   * when absent); `accentText` is a darker accent for text, when `accent` is too light to be read as text.
+   * `vulcan sync` copies it to the manifest, where the generator reads it.
+   */
+  theme: z
+    .strictObject({
+      accent: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #8a5a20'),
+      accentDark: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #dead6a')
+        .optional(),
+      accentText: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #01579b')
+        .optional(),
+    })
+    .optional(),
   /** Team-shared Claude settings (permissions, env, enabledPlugins...), merged by sync over personal keys. */
   claude: z
     .strictObject({ settings: z.record(z.string(), z.unknown()).default({}) })

@@ -133,6 +133,8 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
     ...guardBlockOf({ config }),
     // The remote-host guard reads its policy here; a project without the key has no guard.
     ...(config.remoteHosts === undefined ? {} : { remoteHosts: config.remoteHosts }),
+    // The colour `vulcan visualize` takes for its pages; a project without the key gets the neutral default.
+    ...(config.theme === undefined ? {} : { theme: config.theme }),
   };
 
   return formatWithBun({

@@ -36,6 +36,7 @@ const HTTPS = z
   .string()
   .max(500)
   .regex(/^https:\/\/[^\s"'<>\p{Cc}]+$/u, 'an https URL');
+const HEX_COLOUR = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #8a5a20');
 const rows = <T extends z.ZodType>(item: T) =>
   z.array(item).min(1).max(VisualizeLimits.MAX_ROWS_PER_TABLE);
 
@@ -325,10 +326,17 @@ export const VISUALIZE_SCHEMA = z.strictObject({
   schemaVersion: z.literal(VisualizeLimits.SCHEMA_VERSION),
   /** The takeaway, not a topic. */
   title: text(VisualizeLimits.MAX_TITLE),
+  /** The page's language; absent, it is the owner's profile language, else English. */
   language: z
     .string()
     .regex(/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/)
-    .default('en'),
+    .optional(),
+  /** The accent of this page; it wins over the project's `theme`. A six-digit hex colour. */
+  accent: HEX_COLOUR.optional(),
+  /** The accent on dark grounds; derived from `accent` when absent. */
+  accentDark: HEX_COLOUR.optional(),
+  /** A darker accent for text, when `accent` is too light to be read as text. */
+  accentText: HEX_COLOUR.optional(),
   status: z.strictObject({
     state: choice({ set: StatusStates.SCHEME_SET }),
     label: text(VisualizeLimits.MAX_LABEL).optional(),
