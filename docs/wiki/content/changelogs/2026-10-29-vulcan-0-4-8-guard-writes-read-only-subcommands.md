@@ -14,7 +14,7 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
-- **A new entry shape.** `trustedScripts` takes a path string, as before, or an object with `script` and `readOnly`. The `script` follows the rules of a path string. `readOnly` is a list of non-empty words.
+- **A new entry shape.** `trustedScripts` takes a path string, as before, or an object with `script` and `readOnly`. The `script` follows the rules of a path string. `readOnly` is a list of one or more non-empty words; an empty list is refused.
 - **A call is judged by its subcommand.** `guard-writes` skips the body check of the script when the first argument after it is one of the `readOnly` words. The word is one argument of the shell command, matched exactly.
 - **Everything else is checked as before.** No argument, a flag first, an unlisted word and a call the hook cannot read as separate commands all get the body check. `plan; bun script.ts run` asks for the `run` call only.
 - **The same trust condition.** The script must be tracked and equal to `HEAD`. An edited script asks even for a listed subcommand, and the ask says why.
@@ -30,5 +30,5 @@ packages: ['@venizia/vulcan']
 ## Details
 
 - `SCRIPT_CHECKS` are unchanged. The skip is a declared list per script, not a guess from the file text.
-- A script path with a space is not matched for a subcommand. The call is checked as a whole.
+- The hook splits a command at spaces, so it never reads a script whose path contains a space, with or without a `readOnly` list. That gap is older than this change and is not closed here.
 - Not run yet: the entry in IGNIS and ARDOR. Those projects adopt the key in their own change.

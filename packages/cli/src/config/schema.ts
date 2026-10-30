@@ -78,7 +78,7 @@ const TRUSTED_SCRIPT_PATH = z.string().superRefine((value, context) => {
  */
 const TRUSTED_SCRIPT = z.union([
   TRUSTED_SCRIPT_PATH,
-  z.strictObject({ script: TRUSTED_SCRIPT_PATH, readOnly: z.array(z.string().min(1)) }),
+  z.strictObject({ script: TRUSTED_SCRIPT_PATH, readOnly: z.array(z.string().min(1)).min(1) }),
 ]);
 
 /** One folder, or a list of them: a side whose apps are grouped keeps each group's folder. */

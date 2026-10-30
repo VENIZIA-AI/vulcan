@@ -1205,27 +1205,30 @@ export const checkTrustedScripts = (opts: ICheckContext): IViolation[] =>
  * A subcommand an object entry lists that its script never holds as a quoted string (a note). It reads the
  * text of the file, so it cannot tell a subcommand the script handles another way from a typo.
  */
-export const checkReadOnlySubcommands = (opts: ICheckContext): IViolation[] =>
-  opts.config.guard.writes.trustedScripts.flatMap((entry) => {
-    const { script, readOnly } = trustedScriptOf({ entry });
-    const path = join(opts.root, script);
+export class ReadOnlySubcommandChecks {
+  static check(opts: ICheckContext): IViolation[] {
+    return opts.config.guard.writes.trustedScripts.flatMap((entry) => {
+      const { script, readOnly } = trustedScriptOf({ entry });
+      const path = join(opts.root, script);
 
-    if (readOnly === undefined || !existsSync(path)) {
-      return [];
-    }
+      if (readOnly === undefined || !existsSync(path)) {
+        return [];
+      }
 
-    const source = readFileSync(path, 'utf8');
+      const source = readFileSync(path, 'utf8');
 
-    return readOnly
-      .filter((word) => !QUOTES.some((quote) => source.includes(`${quote}${word}${quote}`)))
-      .map((word) =>
-        createViolation({
-          check: DoctorChecks.GUARDS,
-          file: script,
-          message: `guard.writes.trustedScripts lists the subcommand '${word}' for this script, but the script does not hold it as a quoted string; this is a check of the text of the file, not what the script does`,
-        }),
-      );
-  });
+      return readOnly
+        .filter((word) => !QUOTES.some((quote) => source.includes(`${quote}${word}${quote}`)))
+        .map((word) =>
+          createViolation({
+            check: DoctorChecks.GUARDS,
+            file: script,
+            message: `guard.writes.trustedScripts lists the subcommand '${word}' for this script, but the script does not hold it as a quoted string; this is a check of the text of the file, not what the script does`,
+          }),
+        );
+    });
+  }
+}
 
 /** A listed script that does not exist or is not committed: the exemption never applies (a warning). */
 export const checkStaleTrustedScripts = (opts: ICheckContext): IViolation[] =>

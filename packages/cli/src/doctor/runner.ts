@@ -18,7 +18,7 @@ import {
   checkReplyShape,
   checkPrune,
   checkStaleLocal,
-  checkReadOnlySubcommands,
+  ReadOnlySubcommandChecks,
   checkStaleTrustedScripts,
   checkTrustedScripts,
   checkHooks,
@@ -103,7 +103,7 @@ export const runDoctorNotes = async (opts: {
     ...checkReplyShape(context),
     ...checkOwnerReplySwitch({ env: opts.env ?? process.env }),
     ...checkTrustedScripts(context),
-    ...checkReadOnlySubcommands(context),
+    ...ReadOnlySubcommandChecks.check(context),
   ];
 };
 

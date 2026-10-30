@@ -101,6 +101,7 @@ describe('guard.writes.trustedScripts with a readOnly list', () => {
       name: 'a readOnly with an empty string',
       value: { script: 'cli.ts', readOnly: ['plan', ''] },
     },
+    { name: 'an empty readOnly list', value: { script: 'cli.ts', readOnly: [] } },
     { name: 'a readOnly with a number', value: { script: 'cli.ts', readOnly: [1] } },
     { name: 'a readOnly with a nested list', value: { script: 'cli.ts', readOnly: [['plan']] } },
     { name: 'a script that is not a string', value: { script: 7, readOnly: ['plan'] } },
