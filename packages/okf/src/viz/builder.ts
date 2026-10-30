@@ -123,10 +123,11 @@ export const bundleVizClient = async (): Promise<string> => {
 
 export const buildViz = async (): Promise<void> => {
   const data = buildVizData({ concepts: loadConceptsOrExit() });
+  const clientScript = await bundleVizClient();
   const html = assembleVizHtml({
     template: readFileSync(TEMPLATE_FILE, 'utf8'),
     data,
-    clientScript: await bundleVizClient(),
+    clientScript,
   });
 
   const project = readOkfProject();

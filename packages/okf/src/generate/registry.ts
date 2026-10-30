@@ -85,10 +85,11 @@ const loadRenderer = async (opts: {
     console.warn(`okf: module '${entry.id}' replaces the built-in renderer`);
   }
 
-  const renderer =
+  const pending =
     entry.module === undefined
       ? builtInRenderer({ id: entry.id })
-      : await moduleRenderer({ root: opts.root, id: entry.id, module: entry.module });
+      : moduleRenderer({ root: opts.root, id: entry.id, module: entry.module });
+  const renderer = await pending;
 
   return { renderer, context: createRenderContext({ options: entry.options }) };
 };
@@ -109,7 +110,9 @@ export const loadGeneration = async (): Promise<{
       throw new Error(`okf: two renderers with id '${entry.id}'`);
     }
 
-    renderers.push(await loadRenderer({ root: project.root, entry }));
+    const renderer = await loadRenderer({ root: project.root, entry });
+
+    renderers.push(renderer);
   }
 
   const regions = project.regions.map((region) => {

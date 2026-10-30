@@ -70,8 +70,10 @@ export const coverage = async (): Promise<void> => {
     );
   };
 
+  const generation = await loadGeneration();
+
   // One row per configured renderer that reports one, from the same facts its table renders.
-  for (const { renderer, context } of (await loadGeneration()).renderers) {
+  for (const { renderer, context } of generation.renderers) {
     if (renderer.coverage === undefined) {
       continue;
     }
