@@ -25,6 +25,8 @@ A library or a shared package takes the same command. This run compares a shared
 bun x --no-install vulcan preset diff common --preset @acme/kit
 ```
 
+The output for an app names the folder "the app": `missing in the app`, `(the app)` in a `--full` diff. For a library or a shared package it says "the package" in the same places: `4 files: 2 same, 1 differ, 1 missing in the package`.
+
 ## Options
 
 | Flag | Meaning |
@@ -39,7 +41,7 @@ bun x --no-install vulcan preset diff common --preset @acme/kit
 | Status | Means |
 |---|---|
 | `same` | The package's file holds exactly what the preset makes now |
-| `differs` | The package's file is not what the preset makes now (`(the app has a folder here)` when a folder stands where the file should be). `(+N -M)` counts the lines only the preset has and the lines only the package has; `(binary)` is a file compared by bytes; `(line endings or the last newline)` is the same lines in another ending |
+| `differs` | The package's file is not what the preset makes now (`(the app has a folder here)` when a folder stands where the file should be; a library or a shared package says `the package`). `(+N -M)` counts the lines only the preset has and the lines only the package has; `(binary)` is a file compared by bytes; `(line endings or the last newline)` is the same lines in another ending |
 | `missing` | The preset makes the file and the package has none at that path. It is new in the preset, or the package deleted it: without the version the package was made from the two cannot be told apart |
 
 Files only the package has are not listed. A `package.json` among the preset's files is not compared: `add` replaces it with a generated one, and the package owns it after creation.

@@ -23,7 +23,7 @@ bun x --no-install vulcan add --preset ignis --lib billing
 bun x --no-install vulcan add --preset ignis --shared common
 ```
 
-`--app` makes a runnable app. `--lib` makes a library other apps import, and only a preset that ships a library kind accepts it (see [Presets](/references/presets#a-library-kind)). `--shared` makes a side-neutral package other apps import, and only a preset that ships a shared kind accepts it (see [Presets](/references/presets#a-shared-kind)).
+`--app` makes a runnable app. `--lib` makes a library other apps import, which may use the project's framework; only a preset that ships a library kind accepts it (see [Presets](/references/presets#a-library-kind)). `--shared` makes a side-neutral package that depends on no framework; only a preset that ships a shared kind accepts it (see [Presets](/references/presets#a-shared-kind)).
 A frontend, without a terminal, also needs `--api <backend app>` (the backend `/api` is proxied to) or `--no-api`; without one of them `add` stops with `vulcan add: missing --api <app> or --no-api` before it downloads anything.
 The kind is never defaulted. With no kind flag, a terminal asks `What do you want to create? (app, lib, shared)`, listing only the kinds the preset offers; a preset with one kind skips that question and asks the folder and the name as it always did.
 Without a terminal, `add` stops before it downloads or writes anything and prints the command of each kind:
@@ -283,8 +283,8 @@ The package's entry in the `packages` list of the config then reads:
 | `--frontend-dir <path>` | The folder for frontend apps. Used when the preset is a frontend |
 | `--api <app>` | A frontend only: the backend app to proxy `/api` to |
 | `--no-api` | A frontend only: proxy to nothing |
-| `--lib <name>` | Create a library other apps import, instead of an app. Not with `--app` or `--shared` |
-| `--shared <name>` | Create a side-neutral package other apps import, from the preset's shared kind. Not with `--app` or `--lib`. `--shared-dir` is a different flag: the folder option of `init` |
+| `--lib <name>` | Create a library other apps import, instead of an app. It may use the project's framework. Not with `--app` or `--shared` |
+| `--shared <name>` | Create a side-neutral package, from the preset's shared kind. It depends on no framework, so apps of either side import it. Not with `--app` or `--lib`. `--shared-dir` is a different flag: the folder option of `init` |
 | `--dir <folder>` | A library or shared package only: the folder it goes in, from the root. Default: the `shared` folder |
 | `--scope <@scope>` | The npm scope of the package name, for a library, a shared package and an app: `--app web --scope @acme` names the app `@acme/web` (a library with no flag takes the scope its folder agrees on, as above; an app with no flag stays bare). The folder and the dir registered in the config stay bare. A menu asks for it for an app (empty for none); a plain terminal does not |
 
@@ -344,7 +344,7 @@ Every refusal happens before the first write, with exit code 1.
 | `vulcan add: --app, --lib and --shared cannot be used together` | One kind per run |
 | `vulcan add: --shared needs a name` | `--shared` with no name and no terminal to ask. Pass the name (`--lib` says the same with `--lib`) |
 | `vulcan add: preset @acme/api has no lib kind` | `--lib` on a preset with no `vulcan.presets.lib`. Use `--app`, or another preset |
-| `vulcan add: preset @acme/api has no shared kind (it makes: app and lib); a preset with one: run bun x --no-install vulcan add --preset ignis --shared x` | `--shared` on a preset with no `vulcan.presets.shared`. Nothing is written. The message names what the preset makes, then every preset that has a shared kind with its command: the project's recorded presets first, then the official ones. When none is known it says `no preset known to this project or to the official list has one` instead |
+| `vulcan add: preset @acme/api has no shared kind (it makes: app and lib); a preset with one: run bun x --no-install vulcan add --preset ignis --shared x` | `--shared` on a preset with no `vulcan.presets.shared`. Nothing is written. The message names what the preset makes. It then names every preset that has a shared kind, each with its command. The project's recorded presets come first, then the official ones. When none is known it says `no preset known to this project or to the official list has one` |
 | `vulcan add: where should billing go? pass --dir <folder>` | A library with no `--dir`, no `shared` folder and no folder shared by existing libraries |
 | `vulcan add: the packages in libs use more than one scope (@a, @b) - pass --scope <@scope>` | The folder's packages disagree on a scope |
 | `vulcan add: --scope 'acme' is not a scope like @acme` | A scope starts with `@` |

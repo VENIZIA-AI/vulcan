@@ -89,8 +89,8 @@ const escapes = (opts: { root: string; path: string }): boolean => {
 };
 
 /**
- * The lib preset, or with `kind: 'shared'` the shared preset (the same schema), of a located preset package,
- * validated; the app side is never touched by an error here.
+ * The lib preset of a located preset package, validated; with `kind: 'shared'` it reads the shared kind,
+ * which has the same schema. The app side is never touched by an error here.
  */
 export const readLibPreset = (opts: {
   located: ILocatedPreset;

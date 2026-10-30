@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
-import { PackageKinds, SourcePins } from './constants';
-import type { TAppSide, TPackageKind, TSourcePin } from './types';
+import { LibraryKinds, PackageKinds, SourcePins } from './constants';
+import type { TAppSide, TLibraryKind, TPackageKind, TSourcePin } from './types';
 
 /** The project manifest (Project Contract v1, C1) - what atlas reads, and nothing else. */
 export const MANIFEST_FILE = '.agents/vulcan.manifest.json';
@@ -24,8 +24,10 @@ export interface IAtlasPackage {
   path: string;
   aliases: string[];
   retired: boolean;
-  /** `lib` for a shared package a preset's lib kind made; absent for an app or a plain package. */
+  /** `lib` for a library a preset made; absent for an app or a plain package. */
   kind?: TPackageKind;
+  /** Which preset kind made a library; absent means `lib`. */
+  presetKind?: TLibraryKind;
 }
 
 /** A preset an app of the project came from, as `vulcan add --preset` takes it back. */
@@ -45,7 +47,7 @@ export interface IAtlasProject {
   name: string;
   /** Release order; retired ones included, so their old changelogs and tags stay readable. */
   packages: IAtlasPackage[];
-  /** The folders `vulcan add` puts apps and shared packages in, each a folder or a list of folders; absent in an older manifest. */
+  /** The folders `vulcan add` puts apps and packages in, each a folder or a list of folders; absent in an older manifest. */
   layout?: {
     backend?: string | string[];
     frontend?: string | string[];
@@ -111,6 +113,9 @@ const packagesOf = (opts: { value: unknown; label: string }): IAtlasPackage[] =>
         retired: entry.retired === true,
         ...(entry.kind === PackageKinds.LIB || entry.kind === PackageKinds.APP
           ? { kind: entry.kind }
+          : {}),
+        ...(entry.presetKind === LibraryKinds.LIB || entry.presetKind === LibraryKinds.SHARED
+          ? { presetKind: entry.presetKind }
           : {}),
       },
     ];

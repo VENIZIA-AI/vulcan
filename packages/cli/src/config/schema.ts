@@ -88,9 +88,9 @@ const PROJECT_PACKAGE = z.strictObject({
   path: z.string().optional(),
   aliases: z.array(z.string()).default([]),
   retired: z.boolean().default(false),
-  /** A shared package a preset's lib kind made lives anywhere a workspace glob covers; absent means an app or a plain package. */
+  /** A library a preset made lives anywhere a workspace glob covers; absent means an app or a plain package. */
   kind: z.enum([PackageKinds.APP, PackageKinds.LIB]).optional(),
-  /** Which preset kind made a library; absent means the `lib` kind, which every library made before was. */
+  /** Which preset kind made a library; absent means the `lib` kind. */
   presetKind: z.enum([LibraryKinds.LIB, LibraryKinds.SHARED]).optional(),
 });
 

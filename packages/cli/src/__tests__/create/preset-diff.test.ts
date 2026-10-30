@@ -438,7 +438,7 @@ const record = (opts: {
 }): Record<string, unknown> => ({ side: 'backend', summary: 's', ...opts });
 
 describe('vulcan preset diff on a library or a shared package', () => {
-  test('a library just made by add --lib is the same as the lib kind of its preset, even with --check', () => {
+  test('a library made by add --lib is the same as the lib kind of its preset, even with --check, and the output says package', () => {
     const { root } = libraryMonorepo();
     const result = diffPackage({ root, name: 'billing', args: ['--check'] });
 
@@ -446,7 +446,7 @@ describe('vulcan preset diff on a library or a shared package', () => {
     expect(result.stdout).toContain('libs/billing against @fixture/withshared@3.0.0');
     expect(result.stdout).toContain('same     README.md');
     expect(result.stdout).toContain('same     src/index.ts');
-    expect(result.stdout).toMatch(/\d+ files: \d+ same, 0 differ, 0 missing in the app/);
+    expect(result.stdout).toMatch(/\d+ files: \d+ same, 0 differ, 0 missing in the package\n/);
   });
 
   test('an edited library differs, a new preset file is missing, --check exits 1, --full prints the diff', () => {
@@ -465,9 +465,23 @@ describe('vulcan preset diff on a library or a shared package', () => {
     expect(result.stdout).toContain('same     src/index.ts');
     expect(checked.code).toBe(1);
     expect(checked.stdout).toBe(result.stdout);
-    expect(full.stdout).toContain('--- libs/billing/README.md (the app)');
+    expect(full.stdout).toContain('--- libs/billing/README.md (the package)');
+    expect(full.stdout).not.toContain('(the app)');
     expect(full.stdout).toContain('+++ README.md (the preset)');
     expect(full.stdout).toContain('+# billing');
+    expect(full.stdout).toContain('1 differ, 1 missing in the package');
+  });
+
+  test('a folder where the preset has a file is reported as the package having a folder', () => {
+    const { root, libFiles } = libraryMonorepo();
+
+    writeFileSync(join(libFiles, 'gzip.conf'), 'gzip on\n');
+    mkdirSync(join(root, 'libs/billing/gzip.conf'));
+
+    const result = diffPackage({ root, name: 'billing' });
+
+    expect(result.stdout).toContain('differs  gzip.conf  (the package has a folder here)');
+    expect(result.stdout).not.toContain('(the app has a folder here)');
   });
 
   test('a shared package is set against the shared kind with the shared token, and --check follows the files', () => {
@@ -497,7 +511,10 @@ describe('vulcan preset diff on a library or a shared package', () => {
 
     writeFileSync(join(libFiles, 'src/token.ts'), token);
     writeFileSync(join(sharedFiles, 'src/token.ts'), sharedToken);
-    writeFileSync(join(root, 'libs/billing/src/token.ts'), "export const t = 'p billing billing';\n");
+    writeFileSync(
+      join(root, 'libs/billing/src/token.ts'),
+      "export const t = 'p billing billing';\n",
+    );
     writeFileSync(join(root, 'libs/common/src/token.ts'), "export const t = 'p common common';\n");
 
     const named = diffPackage({ root, name: 'billing' });
@@ -516,13 +533,19 @@ describe('vulcan preset diff on a library or a shared package', () => {
 
     writeFileSync(manifest, JSON.stringify({ ...rootJson, name: 'rootname' }));
     expect(diffPackage({ root, name: 'billing' }).stdout).toContain('differs  src/token.ts');
-    writeFileSync(join(root, 'libs/billing/src/token.ts'), "export const t = 'rootname billing billing';\n");
+    writeFileSync(
+      join(root, 'libs/billing/src/token.ts'),
+      "export const t = 'rootname billing billing';\n",
+    );
     expect(diffPackage({ root, name: 'billing' }).stdout).toContain('same     src/token.ts');
 
     // No name anywhere: the dir of the package.
     delete rootJson.name;
     writeFileSync(manifest, JSON.stringify(rootJson));
-    writeFileSync(join(root, 'libs/common/src/token.ts'), "export const t = 'common common common';\n");
+    writeFileSync(
+      join(root, 'libs/common/src/token.ts'),
+      "export const t = 'common common common';\n",
+    );
     expect(diffPackage({ root, name: 'common' }).stdout).toContain('same     src/token.ts');
   });
 
@@ -535,7 +558,9 @@ describe('vulcan preset diff on a library or a shared package', () => {
     });
 
     expect(scoped.code, scoped.stderr).toBe(0);
-    expect(readFileSync(join(root, 'libs/tools/README.md'), 'utf8')).toBe('# @acme/tools (shared)\n');
+    expect(readFileSync(join(root, 'libs/tools/README.md'), 'utf8')).toBe(
+      '# @acme/tools (shared)\n',
+    );
 
     const byPath = diffPackage({ root, name: 'libs/tools', args: ['--check'] });
 
@@ -558,13 +583,15 @@ describe('vulcan preset diff on a library or a shared package', () => {
     }
   });
 
-  test('an app and a library named together: the app is still compared with the app kind', () => {
+  test('in a project that has libraries too, an app is still compared with the app files and says app', () => {
     const { root } = libraryMonorepo();
     const app = diffPackage({ root, name: 'core-api', args: ['--check'] });
 
     expect(app.code, app.stderr).toBe(0);
     expect(app.stdout).toContain('services/core-api against @fixture/withshared@3.0.0');
     expect(app.stdout).toContain('same     .env.example');
+    expect(app.stdout).toMatch(/0 differ, 0 missing in the app\n/);
+    expect(app.stdout).not.toContain('the package');
   });
 
   test('--api and --no-api stop for a library and a shared package: they have no proxy target', () => {

@@ -241,7 +241,9 @@ The `packages` array defines monorepo packages in release order. Manifest render
 | `kind` | `app` or `lib` | unset | `lib` for a package `vulcan add --lib` or `--shared` made, so `doctor` does not ask it to live in a backend or frontend folder. Unset for an app or a plain package |
 | `presetKind` | `lib` or `shared` | unset | Which preset kind made a package whose `kind` is `lib`. `vulcan add --shared` writes `shared`; `--lib` writes nothing, and an unset value means `lib`. `vulcan preset diff` reads it |
 
-`vulcan add` writes `kind` and `presetKind`; you do not set them by hand. The schema is strict, so a VULCAN that predates `presetKind` and the `shared` summary cannot read a config that holds them: upgrade the project's VULCAN before you record a shared package, and remove both keys if you go back.
+`vulcan add` writes `kind` and `presetKind`; you do not set them by hand. The schema is strict. A VULCAN that predates `presetKind` and the `shared` summary cannot read a config that holds them. Upgrade the project's VULCAN before you record a shared package. Remove both keys if you go back.
+
+`vulcan sync` copies `presetKind` into the manifest, so atlas reads it too.
 
 The schema requires strict uniqueness across all packages:
 

@@ -16,7 +16,7 @@ packages: ['@venizia/vulcan', '@venizia/vulcan-atlas']
 
 - **A third preset kind.** `"vulcan": { "presets": { "app": ..., "lib": ..., "shared": "<file>" } }`. The `shared` file has the same keys as a lib preset file. `app` stays required, and a package with no `shared` makes no shared packages.
 - **`vulcan add --shared`.** `vulcan add --preset <name> --shared <name> [--dir <folder>] [--scope <@scope>]` makes the package by the rules of `--lib`, in the same `layout.shared` folder. Its files take `{{project}}`, `{{shared}}` and `{{package}}`.
-- **The two kinds mean two things.** The `lib` kind makes a library other apps import. The `shared` kind makes a side-neutral package. A lib-only package, with no `app`, is still not supported.
+- **The two kinds mean two things.** The `lib` kind makes a library other apps import, and it may use the project's framework. The `shared` kind makes a side-neutral package that depends on no framework. A lib-only package, with no `app`, is still not supported.
 - **No app of the preset is needed.** `add --shared` adds no dependency on the preset's package. A project with only frontend apps can run `vulcan add --preset ignis --shared x` with no IGNIS app and no backend folder.
 - **A refusal that points the way.** `--shared` on a preset with no shared kind writes nothing. The message names what the preset makes and every preset that has a shared kind, with its command. When none is known it says so.
 - **Two new config keys.** A recorded preset gains an optional `shared` summary. A package entry gains an optional `presetKind`, `lib` or `shared`; `add --shared` writes `shared`, and an entry without the key counts as `lib`.
@@ -32,6 +32,6 @@ packages: ['@venizia/vulcan', '@venizia/vulcan-atlas']
 
 ## Details
 
-- The first preset that ships a shared kind is IGNIS's, in a later release. Until it publishes one, the official list in atlas offers no shared preset, and `--shared` on `ignis` or `ardor` is refused with the message above.
+- No official preset ships a shared kind yet. The official list in atlas offers no shared preset, and `--shared` on `ignis` or `ardor` is refused with the message above.
 - `--shared-dir` is unchanged: it is the folder flag of `init`, not a kind flag.
 - The messages that name the kinds changed on purpose: `--app, --lib and --shared cannot be used together`, and the `say what to create` line, which now prints three commands.

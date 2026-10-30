@@ -7,7 +7,7 @@ export interface IOfficialPreset {
   side: IAtlasPreset['side'];
   summary: string;
   lib: string;
-  /** The summary of the preset's shared kind; absent until the preset's package publishes one. */
+  /** The summary of the preset's shared kind; absent when the preset's package ships none. */
   shared?: string;
 }
 

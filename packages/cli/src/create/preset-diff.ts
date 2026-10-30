@@ -27,6 +27,9 @@ import { readPort } from './workspace.ts';
 const SUBCOMMAND = 'diff';
 const USAGE = `usage: vulcan preset ${SUBCOMMAND} <package> [--preset <name|file:path>] [--api <backend app> | --no-api] [--full] [--check]`;
 const API_URL_TOKEN = '{{apiUrl}}';
+/** What the compared folder is called in the output. */
+const APP_SUBJECT = 'app';
+const PACKAGE_SUBJECT = 'package';
 /** Flags that take the next word as their value. */
 const VALUE_FLAGS = [CreateFlags.PRESET, CreateFlags.API];
 
@@ -151,11 +154,11 @@ export const comparePresetFiles = (opts: {
           };
     });
 
-const describeDifference = (opts: { report: IPresetFileReport }): string => {
+const describeDifference = (opts: { report: IPresetFileReport; subject: string }): string => {
   const { diff, isBinary, isFolder } = opts.report;
 
   if (isFolder === true) {
-    return '(the app has a folder here)';
+    return `(the ${opts.subject} has a folder here)`;
   }
 
   if (isBinary === true) {
@@ -177,6 +180,8 @@ const describeDifference = (opts: { report: IPresetFileReport }): string => {
 
 const printReport = (opts: {
   appPath: string;
+  /** What the folder is called in the output: `app`, or `package` for a library or a shared package. */
+  subject: string;
   located: ILocatedPreset;
   source: string;
   reports: IPresetFileReport[];
@@ -190,13 +195,16 @@ const printReport = (opts: {
   ];
 
   for (const report of reports) {
-    const note = report.status === PresetDiffStatuses.DIFFERS ? describeDifference({ report }) : '';
+    const note =
+      report.status === PresetDiffStatuses.DIFFERS
+        ? describeDifference({ report, subject: opts.subject })
+        : '';
 
     lines.push(`  ${report.status.padEnd(8)} ${report.path}${note === '' ? '' : `  ${note}`}`);
 
     if (opts.isFull && report.diff?.hunks !== undefined && report.diff.hunks.length > 0) {
       lines.push(
-        `    --- ${opts.appPath}/${report.path} (the app)`,
+        `    --- ${opts.appPath}/${report.path} (the ${opts.subject})`,
         `    +++ ${report.path} (the preset)`,
         ...report.diff.hunks.flatMap((hunk) => hunk.split('\n').map((line) => `    ${line}`)),
       );
@@ -204,7 +212,7 @@ const printReport = (opts: {
   }
 
   lines.push(
-    `${reports.length} file${reports.length === 1 ? '' : 's'}: ${countOf(PresetDiffStatuses.SAME)} same, ${countOf(PresetDiffStatuses.DIFFERS)} differ, ${countOf(PresetDiffStatuses.MISSING)} missing in the app`,
+    `${reports.length} file${reports.length === 1 ? '' : 's'}: ${countOf(PresetDiffStatuses.SAME)} same, ${countOf(PresetDiffStatuses.DIFFERS)} differ, ${countOf(PresetDiffStatuses.MISSING)} missing in the ${opts.subject}`,
   );
   process.stdout.write(`${lines.join('\n')}\n`);
 };
@@ -289,7 +297,6 @@ const locateAndCompare = async (opts: {
   });
 };
 
-
 const PRESET_HINT = `say which with ${CreateFlags.PRESET} <name|file:path>`;
 const MANIFEST_FILE = 'package.json';
 
@@ -310,7 +317,10 @@ const detectLibraryPreset = (opts: {
 
     if (ships) {
       // The last record of a package wins: it is the newest spec `add` wrote.
-      matching.set(packageNameOf({ spec: preset.spec, root: opts.root }) ?? preset.spec, preset.spec);
+      matching.set(
+        packageNameOf({ spec: preset.spec, root: opts.root }) ?? preset.spec,
+        preset.spec,
+      );
     }
   }
 
@@ -391,6 +401,7 @@ const diffLibrary = async (opts: {
 
       printReport({
         appPath: library.path,
+        subject: PACKAGE_SUBJECT,
         located,
         source,
         reports,
@@ -402,6 +413,24 @@ const diffLibrary = async (opts: {
         ? ExitCodes.FAILURE
         : ExitCodes.OK;
     },
+  });
+};
+
+/** The refusal for a name that is no package of the config: it lists the apps and the libraries there are. */
+const reportNotFound = (opts: { packages: IProjectPackage[]; packageName: string }): number => {
+  const namesOf = (query: { isLibrary: boolean }): string[] =>
+    opts.packages
+      .filter((entry) => (entry.kind === PackageKinds.LIB) === query.isLibrary)
+      .map((entry) => entry.dir);
+  const apps = namesOf({ isLibrary: false });
+  const libraries = namesOf({ isLibrary: true });
+  const known = [
+    ...(apps.length === 0 ? [] : [`apps: ${apps.join(', ')}`]),
+    ...(libraries.length === 0 ? [] : [`libraries: ${libraries.join(', ')}`]),
+  ];
+
+  return fail({
+    message: `no app '${opts.packageName}' in the config packages${known.length === 0 ? '' : ` (${known.join('; ')})`}`,
   });
 };
 
@@ -438,25 +467,8 @@ export const runPresetDiff = async (opts: { cwd: string; args: string[] }): Prom
   const packages = resolvePackages({ config });
   const app = packages.find((entry) => entry.dir === packageName || entry.path === packageName);
 
-  const notFound = (): number => {
-    const listOf = (opts: { isLibrary: boolean }): string[] =>
-      packages
-        .filter((entry) => (entry.kind === PackageKinds.LIB) === opts.isLibrary)
-        .map((entry) => entry.dir);
-    const apps = listOf({ isLibrary: false });
-    const libraries = listOf({ isLibrary: true });
-    const known = [
-      ...(apps.length === 0 ? [] : [`apps: ${apps.join(', ')}`]),
-      ...(libraries.length === 0 ? [] : [`libraries: ${libraries.join(', ')}`]),
-    ];
-
-    return fail({
-      message: `no app '${packageName}' in the config packages${known.length === 0 ? '' : ` (${known.join('; ')})`}`,
-    });
-  };
-
   if (app === undefined) {
-    return notFound();
+    return reportNotFound({ packages, packageName });
   }
 
   if (app.kind === PackageKinds.LIB) {
@@ -472,7 +484,7 @@ export const runPresetDiff = async (opts: { cwd: string; args: string[] }): Prom
   }
 
   if (config.layout === undefined) {
-    return notFound();
+    return reportNotFound({ packages, packageName });
   }
 
   const side = sideOf({ layout: config.layout, path: app.path });
@@ -548,6 +560,7 @@ export const runPresetDiff = async (opts: { cwd: string; args: string[] }): Prom
 
     printReport({
       appPath: app.path,
+      subject: APP_SUBJECT,
       located,
       source: found.source,
       reports,

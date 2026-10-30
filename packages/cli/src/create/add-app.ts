@@ -10,9 +10,10 @@ import {
   withLayoutFolder,
 } from '../common/layout-folder.ts';
 import type { ILayout } from '../common/layout-folder.ts';
-import { OFFICIAL_PRESETS } from '@venizia/vulcan-atlas';
-import { LibraryKinds, loadConfig, resolvePackages } from '../config/index.ts';
-import type { IProjectPackage, TResolvedConfig } from '../config/index.ts';
+import { OFFICIAL_PRESETS, officialIdOf } from '@venizia/vulcan-atlas';
+import type { IOfficialPreset } from '@venizia/vulcan-atlas';
+import { LibraryKinds, loadConfig, PackageKinds, resolvePackages } from '../config/index.ts';
+import type { IProjectPackage, TLibraryKind, TResolvedConfig } from '../config/index.ts';
 import { readWorkspaceGlobs } from '../init/index.ts';
 import { addLibrary } from './add-lib.ts';
 import { runAppChecks } from './checks.ts';
@@ -116,21 +117,46 @@ const missingFlag = (opts: { args: string[]; layout: ILayout }): string | undefi
   return side === AppSides.FRONTEND && !hasApi ? MISSING_API : undefined;
 };
 
-/** The commands a project can run for this preset: what `add` prints when it is not told what to create. */
-const kindCommands = (opts: { presetValue: string }): string[] => [
-  `bun x --no-install vulcan add --preset ${opts.presetValue} ${CreateFlags.APP} <name>`,
-  `bun x --no-install vulcan add --preset ${opts.presetValue} ${CreateFlags.LIB} <name>`,
-  `bun x --no-install vulcan add --preset ${opts.presetValue} ${CreateFlags.SHARED} <name>`,
-];
+/** What `add` makes: an app, or one of the library kinds. */
+type TAddKind = typeof PackageKinds.APP | TLibraryKind;
 
-const NO_BACKEND = ':none';
-const KIND_HINTS: Record<string, string> = {
-  app: 'a runnable app',
-  lib: 'a library other apps import',
-  shared: 'a side-neutral package other apps import',
+/** Per kind: the flag that names it and the words a menu and a message describe it with. */
+const ADD_KINDS: Record<TAddKind, { flag: string; hint: string }> = {
+  [PackageKinds.APP]: { flag: CreateFlags.APP, hint: 'a runnable app' },
+  [LibraryKinds.LIB]: { flag: CreateFlags.LIB, hint: 'a library other apps import' },
+  [LibraryKinds.SHARED]: {
+    flag: CreateFlags.SHARED,
+    hint: 'a side-neutral package other apps import',
+  },
 };
 
-const SAY_WHAT = `say what to create - \`${CreateFlags.APP} <name>\` (a runnable app), \`${CreateFlags.LIB} <name>\` (a library other apps import) or \`${CreateFlags.SHARED} <name>\` (a side-neutral package other apps import)`;
+const ADD_KIND_ORDER: TAddKind[] = [PackageKinds.APP, LibraryKinds.LIB, LibraryKinds.SHARED];
+
+/** The commands a project can run for this preset: what `add` prints when it is not told what to create. */
+const kindCommands = (opts: { presetValue: string }): string[] =>
+  ADD_KIND_ORDER.map(
+    (kind) =>
+      `bun x --no-install vulcan add --preset ${opts.presetValue} ${ADD_KINDS[kind].flag} <name>`,
+  );
+
+const NO_BACKEND = ':none';
+
+const DESCRIBED_KINDS = ADD_KIND_ORDER.map(
+  (kind) => `\`${ADD_KINDS[kind].flag} <name>\` (${ADD_KINDS[kind].hint})`,
+);
+
+const SAY_WHAT = `say what to create - ${DESCRIBED_KINDS.slice(0, -1).join(', ')} or ${DESCRIBED_KINDS.at(-1)}`;
+
+/** The kinds a located preset makes: always an app, a library kind only when its file is there. */
+const kindsOffered = (opts: { located: ILocatedPreset }): TAddKind[] => {
+  const hasFile: Record<TAddKind, boolean> = {
+    [PackageKinds.APP]: true,
+    [LibraryKinds.LIB]: opts.located.libFile !== undefined,
+    [LibraryKinds.SHARED]: opts.located.sharedFile !== undefined,
+  };
+
+  return ADD_KIND_ORDER.filter((kind) => hasFile[kind]);
+};
 
 /**
  * Why a preset cannot make a shared package, and where one can be had: the presets this project recorded with a
@@ -140,24 +166,23 @@ const noSharedKindMessage = (opts: {
   located: ILocatedPreset;
   recorded: TResolvedConfig['presets'];
   name: string;
+  official?: IOfficialPreset[];
 }): string => {
-  const makes = [
-    'app',
-    ...(opts.located.libFile === undefined ? [] : ['lib']),
-  ].join(' and ');
+  const { official = OFFICIAL_PRESETS } = opts;
+  const recorded = (opts.recorded ?? []).filter((preset) => preset.shared !== undefined);
   const known = [
-    ...(opts.recorded ?? [])
+    ...recorded.map((preset) => preset.spec),
+    ...official
       .filter((preset) => preset.shared !== undefined)
-      .map((preset) => preset.spec),
-    ...OFFICIAL_PRESETS.filter((official) => official.shared !== undefined)
-      .map((official) => official.id)
-      .filter((id) => !(opts.recorded ?? []).some((preset) => preset.spec === id)),
+      .map((preset) => preset.id)
+      .filter((id) => !recorded.some((preset) => officialIdOf({ spec: preset.spec }) === id)),
   ];
   const commands = known.map(
-    (spec) => `bun x --no-install vulcan add --preset ${spec} ${CreateFlags.SHARED} ${opts.name}`,
+    (spec) =>
+      `bun x --no-install vulcan add --preset ${spec} ${ADD_KINDS[LibraryKinds.SHARED].flag} ${opts.name}`,
   );
 
-  return `preset ${opts.located.packageName} has no shared kind (it makes: ${makes}); ${
+  return `preset ${opts.located.packageName} has no shared kind (it makes: ${kindsOffered({ located: opts.located }).join(' and ')}); ${
     commands.length === 0
       ? 'no preset known to this project or to the official list has one'
       : `a preset with one: run ${commands.join(' or ')}`
@@ -165,14 +190,18 @@ const noSharedKindMessage = (opts: {
 };
 
 /** The terminal asks which kind, listing only what the preset offers; end of input stops the command. */
-const askKind = async (opts: { offered: string[] }): Promise<string | undefined> => {
+const askKind = async (opts: { offered: TAddKind[] }): Promise<TAddKind | undefined> => {
   if (menusAvailable()) {
     const picked = await promptSelect({
       message: 'What do you want to create?',
-      choices: opts.offered.map((kind) => ({ value: kind, label: kind, hint: KIND_HINTS[kind] })),
+      choices: opts.offered.map((kind) => ({
+        value: kind,
+        label: kind,
+        hint: ADD_KINDS[kind].hint,
+      })),
     });
 
-    return picked ?? undefined;
+    return opts.offered.find((kind) => kind === picked);
   }
 
   for (;;) {
@@ -184,10 +213,10 @@ const askKind = async (opts: { offered: string[] }): Promise<string | undefined>
       return undefined;
     }
 
-    const kind = answer.trim();
+    const chosen = opts.offered.find((kind) => kind === answer.trim());
 
-    if (opts.offered.includes(kind)) {
-      return kind;
+    if (chosen !== undefined) {
+      return chosen;
     }
   }
 };
@@ -336,7 +365,12 @@ const askPreset = async (opts: { cwd: string }): Promise<string | null> => {
   return askPresetSpec({ recorded: loaded.ok ? (loaded.config.presets ?? []) : [] });
 };
 
-const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): Promise<number> => {
+const runAdd = async (opts: {
+  cwd: string;
+  args: string[];
+  scratch: string;
+  official?: IOfficialPreset[];
+}): Promise<number> => {
   const { cwd } = opts;
   const flagged = readFlag({ args: opts.args, flag: CreateFlags.PRESET });
 
@@ -366,41 +400,40 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   }
 
   const interactive = process.stdin.isTTY === true;
-  const libFlag = opts.args.includes(CreateFlags.LIB);
-  const libName = readFlag({ args: opts.args, flag: CreateFlags.LIB });
-  const sharedFlag = opts.args.includes(CreateFlags.SHARED);
-  const sharedName = readFlag({ args: opts.args, flag: CreateFlags.SHARED });
-  const appFlag = opts.args.includes(CreateFlags.APP);
+  const flaggedKinds = ADD_KIND_ORDER.filter((candidate) =>
+    opts.args.includes(ADD_KINDS[candidate].flag),
+  );
 
-  if ([appFlag, libFlag, sharedFlag].filter(Boolean).length > 1) {
+  if (flaggedKinds.length > 1) {
     return fail({
       message: `${CreateFlags.APP}, ${CreateFlags.LIB} and ${CreateFlags.SHARED} cannot be used together`,
     });
   }
 
+  const [flaggedKind] = flaggedKinds;
+  const flagsLibrary = flaggedKind !== undefined && flaggedKind !== PackageKinds.APP;
   const flaggedScope = readScope({ args: opts.args });
 
   if (!flaggedScope.ok) {
     return fail({ message: flaggedScope.error });
   }
 
-  if (libFlag && libName === undefined) {
-    return fail({ message: `${CreateFlags.LIB} needs a name` });
-  }
-
-  if (sharedFlag && sharedName === undefined) {
-    return fail({ message: `${CreateFlags.SHARED} needs a name` });
+  if (
+    flagsLibrary &&
+    readFlag({ args: opts.args, flag: ADD_KINDS[flaggedKind].flag }) === undefined
+  ) {
+    return fail({ message: `${ADD_KINDS[flaggedKind].flag} needs a name` });
   }
 
   // Never a default kind: without a terminal to ask, nothing is fetched or written until the flag says which.
-  if (!interactive && !libFlag && !sharedFlag && !appFlag) {
+  if (!interactive && flaggedKind === undefined) {
     return fail({
       message: `${SAY_WHAT}\n  ${kindCommands({ presetValue }).join('\n  ')}`,
     });
   }
 
   const early =
-    interactive || libFlag || sharedFlag
+    interactive || flagsLibrary
       ? undefined
       : missingFlag({ args: opts.args, layout: config.layout });
 
@@ -417,25 +450,22 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
 
   const { preset, packageName, packageVersion } = located.located;
   const recordedSpec = presetSpecOf({ value: presetValue, root: cwd, cwd });
-  let kind: string = libFlag ? 'lib' : sharedFlag ? 'shared' : 'app';
+  let kind: TAddKind = flaggedKind ?? PackageKinds.APP;
 
-  if (sharedFlag && located.located.sharedFile === undefined) {
+  if (flaggedKind === LibraryKinds.SHARED && located.located.sharedFile === undefined) {
     return fail({
       message: noSharedKindMessage({
         located: located.located,
         recorded: config.presets,
-        name: sharedName ?? '<name>',
+        name: readFlag({ args: opts.args, flag: ADD_KINDS[flaggedKind].flag }) ?? '<name>',
+        official: opts.official,
       }),
     });
   }
 
-  if (!libFlag && !sharedFlag && !appFlag) {
-    const offered = [
-      'app',
-      ...(located.located.libFile === undefined ? [] : ['lib']),
-      ...(located.located.sharedFile === undefined ? [] : ['shared']),
-    ];
-    const chosen = offered.length === 1 ? 'app' : await askKind({ offered });
+  if (flaggedKind === undefined) {
+    const offered = kindsOffered({ located: located.located });
+    const chosen = offered.length === 1 ? PackageKinds.APP : await askKind({ offered });
 
     if (chosen === undefined) {
       return fail({ message: SAY_WHAT });
@@ -444,9 +474,9 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
     kind = chosen;
   }
 
-  if (kind === 'lib' || kind === 'shared') {
+  if (kind !== PackageKinds.APP) {
     const name =
-      (kind === 'shared' ? sharedName : libName) ??
+      readFlag({ args: opts.args, flag: ADD_KINDS[kind].flag }) ??
       (
         await askInTerminal({
           question: 'Name of this library',
@@ -456,9 +486,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
       )?.trim();
 
     if (name === undefined || name === '') {
-      return fail({
-        message: `${kind === 'shared' ? CreateFlags.SHARED : CreateFlags.LIB} needs a name`,
-      });
+      return fail({ message: `${ADD_KINDS[kind].flag} needs a name` });
     }
 
     return addLibrary({
@@ -474,7 +502,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
       manifest,
       packages: resolvePackages({ config }),
       libName: name,
-      kind: kind === 'shared' ? LibraryKinds.SHARED : LibraryKinds.LIB,
+      kind,
       recorded: ({ block }) =>
         recordPreset({
           block,
@@ -757,5 +785,10 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   return ExitCodes.OK;
 };
 
-export const addApp = async (opts: { cwd: string; args: string[] }): Promise<number> =>
+export const addApp = async (opts: {
+  cwd: string;
+  args: string[];
+  /** The official presets a refusal names; the published list by default. */
+  official?: IOfficialPreset[];
+}): Promise<number> =>
   withScratch({ root: opts.cwd, run: (scratch) => runAdd({ ...opts, scratch }) });

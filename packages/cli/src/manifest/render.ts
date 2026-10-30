@@ -99,6 +99,7 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
       aliases: entry.aliases,
       retired: entry.retired,
       ...(entry.kind === undefined ? {} : { kind: entry.kind }),
+      ...(entry.presetKind === undefined ? {} : { presetKind: entry.presetKind }),
     })),
     // Where each kind of app goes and the presets that make one: what an agent asked for a new app needs.
     ...(config.layout === undefined ? {} : { layout: config.layout }),

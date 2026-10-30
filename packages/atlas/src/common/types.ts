@@ -2,6 +2,7 @@ import type {
   AppSides,
   AtlasModes,
   Corpora,
+  LibraryKinds,
   LogLevels,
   PackageKinds,
   SkillSources,
@@ -16,6 +17,7 @@ export type TCorpus = TConstValue<typeof Corpora>;
 export type TLogLevel = TConstValue<typeof LogLevels>;
 export type TSkillSource = TConstValue<typeof SkillSources>;
 export type TPackageKind = TConstValue<typeof PackageKinds>;
+export type TLibraryKind = TConstValue<typeof LibraryKinds>;
 export type TAppSide = TConstValue<typeof AppSides>;
 export type TSourcePin = TConstValue<typeof SourcePins>;
 

@@ -1,4 +1,4 @@
-/** What a package of the project is: an app, or a shared package (a lib) a preset made. */
+/** What a package of the project is: an app, or a library other apps import. */
 export class PackageKinds {
   static readonly APP = 'app';
   static readonly LIB = 'lib';
@@ -10,7 +10,7 @@ export class PackageKinds {
   }
 }
 
-/** Which preset kind made a library: the kind of one framework (`lib`) or the side-neutral kind (`shared`). */
+/** Which preset kind made a library: `lib` (may use the project's framework) or `shared` (depends on no framework). */
 export class LibraryKinds {
   static readonly LIB = 'lib';
   static readonly SHARED = 'shared';
