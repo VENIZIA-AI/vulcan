@@ -11,6 +11,18 @@ export interface IScriptTrust {
   reason: string;
 }
 
+/** A script the project vouches for on some subcommands only: the first argument after the script is one of `readOnly`. */
+export interface IReadOnlyScript {
+  script: string;
+  readOnly: string[];
+}
+
+/** One `bun x.ts` call as the shell sees it: the script word and the word right after it, if any. */
+export interface IScriptInvocation {
+  script: string;
+  subcommand: string | undefined;
+}
+
 export interface IWriteCheck {
   rule: string;
   what: string;

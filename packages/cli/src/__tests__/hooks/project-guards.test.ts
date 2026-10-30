@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, spyOn, test } from 'bun:test';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import {
@@ -398,5 +398,60 @@ describe('the hooks read the manifest', () => {
     expect(result.code).toBe(0);
     expect(result.stderr).toContain('ignoring');
     expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+  });
+});
+
+describe('readGuardPolicy and the read-only scripts', () => {
+  const ENTRY = { script: 'tools/release.ts', readOnly: ['plan', 'registry'] };
+
+  test('reads the entries of guard.writes.readOnlyScripts', () => {
+    const root = manifestWith({ guard: { writes: { readOnlyScripts: [ENTRY] } } });
+
+    expect(readGuardPolicy({ root }).readOnlyScripts).toEqual([ENTRY]);
+  });
+
+  test('a manifest that lists none has no readOnlyScripts key, so the empty policy keeps its shape', () => {
+    expect(readGuardPolicy({ root: manifestWith({ guard: { writes: {} } }) })).toEqual({
+      commands: [],
+      askPush: [],
+    });
+    expect(
+      readGuardPolicy({ root: manifestWith({ guard: { writes: { readOnlyScripts: [] } } }) }),
+    ).not.toHaveProperty('readOnlyScripts');
+  });
+
+  test('an entry that is not usable is skipped and said once each, and the others stay', () => {
+    const spy = spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      const root = manifestWith({
+        guard: {
+          writes: {
+            readOnlyScripts: [
+              { script: 'a.ts' },
+              { script: 'a.ts', readOnly: 'plan' },
+              { script: 'a.ts', readOnly: ['plan', 7] },
+              { script: 'a.ts', readOnly: [''] },
+              { script: '', readOnly: ['plan'] },
+              'a.ts',
+              null,
+              ENTRY,
+            ],
+          },
+        },
+      });
+
+      expect(readGuardPolicy({ root }).readOnlyScripts).toEqual([ENTRY]);
+      expect(spy).toHaveBeenCalledTimes(7);
+      expect(String(spy.mock.calls[0][0])).toContain('guard.writes.readOnlyScripts');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test('a list that is not a list is ignored', () => {
+    const root = manifestWith({ guard: { writes: { readOnlyScripts: 'plan' } } });
+
+    expect(readGuardPolicy({ root })).toEqual({ commands: [], askPush: [] });
   });
 });

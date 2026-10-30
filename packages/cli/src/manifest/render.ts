@@ -46,23 +46,29 @@ export const buildBaseRuleHashes = (): Record<string, string> =>
     }),
   );
 
-/** The manifest's `guard` block: what the project adds to guard-writes and guard-git, as data a hook reads without the config. */
+/** The manifest's `guard` block: what the project adds to guard-writes and guard-git, as data a hook reads without the config (the read-only script entries of `trustedScripts` included). */
 const guardBlockOf = (opts: { config: TResolvedConfig }): { guard?: Record<string, unknown> } => {
-  const { commands } = opts.config.guard.writes;
+  const { commands, trustedScripts } = opts.config.guard.writes;
   const { askPush } = opts.config.guard.git;
-  const block = {
+  // Only the object entries: a path string is read from the config by the hook, as before.
+  const readOnlyScripts = trustedScripts.flatMap((entry) =>
+    typeof entry === 'string' ? [] : [{ script: entry.script, readOnly: entry.readOnly }],
+  );
+  const writes = {
     ...(commands.length === 0
       ? {}
       : {
-          writes: {
-            commands: commands.map((command) => ({
-              rule: command.rule,
-              what: command.what,
-              pattern: command.pattern,
-              ...(command.ignoreCase === true ? { ignoreCase: true } : {}),
-            })),
-          },
+          commands: commands.map((command) => ({
+            rule: command.rule,
+            what: command.what,
+            pattern: command.pattern,
+            ...(command.ignoreCase === true ? { ignoreCase: true } : {}),
+          })),
         }),
+    ...(readOnlyScripts.length === 0 ? {} : { readOnlyScripts }),
+  };
+  const block = {
+    ...(Object.keys(writes).length === 0 ? {} : { writes }),
     ...(askPush.length === 0 ? {} : { git: { askPush } }),
   };
 

@@ -83,3 +83,39 @@ describe('the guard block of the manifest', () => {
     );
   });
 });
+
+describe('the guard block and the read-only scripts', () => {
+  const ENTRY = { script: 'scripts/release/release-run.ts', readOnly: ['plan', 'registry'] };
+
+  test('carries the object entries of trustedScripts as writes.readOnlyScripts, after the commands', () => {
+    const manifest = JSON.parse(
+      render({
+        guard: { writes: { trustedScripts: ['cli.ts', ENTRY], commands: GUARD.writes.commands } },
+      }),
+    );
+
+    expect(manifest.guard.writes.readOnlyScripts).toEqual([ENTRY]);
+    expect(Object.keys(manifest.guard.writes)).toEqual(['commands', 'readOnlyScripts']);
+  });
+
+  test('an object entry alone writes only the entry', () => {
+    expect(JSON.parse(render({ guard: { writes: { trustedScripts: [ENTRY] } } })).guard).toEqual({
+      writes: { readOnlyScripts: [ENTRY] },
+    });
+  });
+
+  test('a list of path strings renders the text it always did: the hook reads those from the config', () => {
+    expect(render({ guard: { writes: { trustedScripts: ['cli.ts', 'tools/b.ts'] } } })).toBe(
+      render({}),
+    );
+  });
+
+  test('a manifest rendered before an entry was added is stale against the config', () => {
+    expect(
+      isManifestCurrent({
+        committed: render({}),
+        rendered: render({ guard: { writes: { trustedScripts: [ENTRY] } } }),
+      }),
+    ).toBe(false);
+  });
+});

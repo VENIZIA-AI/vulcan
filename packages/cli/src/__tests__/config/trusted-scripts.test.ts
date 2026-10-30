@@ -73,3 +73,52 @@ describe('guard.writes.trustedScripts', () => {
     expect(VULCAN_CONFIG_SCHEMA.safeParse({ guard: { trusted: [] } }).success).toBe(false);
   });
 });
+
+describe('guard.writes.trustedScripts with a readOnly list', () => {
+  const ENTRY = { script: 'scripts/release/release-run.ts', readOnly: ['plan', 'registry'] };
+
+  test('accepts a path string and an object with script and readOnly in one list', () => {
+    const result = parseScripts({ scripts: ['cli.ts', ENTRY] });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.guard.writes.trustedScripts).toEqual(['cli.ts', ENTRY]);
+  });
+
+  test('the script of an object is held to the rules of a string entry', () => {
+    for (const value of ['tools/*.ts', '/etc/cli.ts', '~/cli.ts', '../cli.ts', 'tools/cli.js']) {
+      const result = parseScripts({ scripts: [{ script: value, readOnly: ['plan'] }] });
+
+      expect(result.success).toBe(false);
+      expect(result.error?.issues.map((issue) => issue.message).join('\n')).toContain(value);
+    }
+  });
+
+  test.each([
+    { name: 'an object without script', value: { readOnly: ['plan'] } },
+    { name: 'an object without readOnly', value: { script: 'cli.ts' } },
+    { name: 'a readOnly that is a string', value: { script: 'cli.ts', readOnly: 'plan' } },
+    {
+      name: 'a readOnly with an empty string',
+      value: { script: 'cli.ts', readOnly: ['plan', ''] },
+    },
+    { name: 'an empty readOnly list', value: { script: 'cli.ts', readOnly: [] } },
+    { name: 'a readOnly glob', value: { script: 'cli.ts', readOnly: ['*'] } },
+    { name: 'a readOnly with a space', value: { script: 'cli.ts', readOnly: ['plan x'] } },
+    { name: 'a readOnly with a separator', value: { script: 'cli.ts', readOnly: ['plan;run'] } },
+    { name: 'a readOnly with a leading space', value: { script: 'cli.ts', readOnly: [' plan'] } },
+    { name: 'a readOnly with a number', value: { script: 'cli.ts', readOnly: [1] } },
+    { name: 'a readOnly with a nested list', value: { script: 'cli.ts', readOnly: [['plan']] } },
+    { name: 'a script that is not a string', value: { script: 7, readOnly: ['plan'] } },
+    { name: 'an unknown key', value: { script: 'cli.ts', readOnly: ['plan'], allow: ['run'] } },
+    { name: 'a number', value: 7 },
+    { name: 'a list', value: [['cli.ts']] },
+  ])('rejects $name', ({ value }) => {
+    expect(parseScripts({ scripts: [value] }).success).toBe(false);
+  });
+
+  test('one bad object fails the whole list', () => {
+    expect(
+      parseScripts({ scripts: [ENTRY, { script: 'tools/*.ts', readOnly: ['plan'] }] }).success,
+    ).toBe(false);
+  });
+});

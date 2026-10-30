@@ -5,6 +5,8 @@
  * checked beside the fixed list, inside compound commands too.
  * A script the project lists in `guard.writes.trustedScripts` is not read for writes while git says it
  * is tracked and unchanged; a config that cannot be read leaves the list empty, so every script is read.
+ * An entry of `guard.writes.readOnlyScripts` in the manifest (the object form of `trustedScripts`, written by
+ * `vulcan sync`) skips that read for the calls whose first argument after the script is one of its words.
  *
  * It fails closed: Claude Code blocks a PreToolUse call only on exit 2, so a hook that throws - a
  * partial install, say, where its own modules are missing - would let every command through. The
@@ -29,7 +31,12 @@ try {
       const { loadConfig } = await import('../../src/config/index.ts');
       const loaded = await loadConfig({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd });
 
-      scripts = loaded.ok ? loaded.config.guard.writes.trustedScripts : [];
+      // The objects are the read-only entries: the manifest carries them, so only the paths count here.
+      scripts = loaded.ok
+        ? loaded.config.guard.writes.trustedScripts.filter(
+            (entry): entry is string => typeof entry === 'string',
+          )
+        : [];
     } catch (error) {
       console.error(
         `vulcan: the guard-writes hook could not read the project config (${error instanceof Error ? error.message : String(error)}) - every script is read`,
@@ -37,12 +44,14 @@ try {
     }
   }
 
+  const root = process.env.CLAUDE_PROJECT_DIR ?? cwd;
+  const policy = readGuardPolicy({ root });
   const hits = hookCommand
     ? inspectCommand({
         command: hookCommand.command,
         cwd,
-        trust: { root: process.env.CLAUDE_PROJECT_DIR ?? cwd, scripts },
-        extra: readGuardPolicy({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd }).commands,
+        trust: { root, scripts, readOnlyScripts: policy.readOnlyScripts },
+        extra: policy.commands,
       })
     : [];
 

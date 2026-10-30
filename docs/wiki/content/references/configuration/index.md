@@ -642,9 +642,11 @@ The `guard` object configures the write guards.
 | `toolOwnedPaths` | `string[]` | `[]` | Absolute globs, `~` and `$NAME` allowed, of stores a tool in this project manages itself. They extend the built-in list (package manager caches, `$XDG_RUNTIME_DIR`, git config, the agent tool's memory folders); a pattern with an unset variable allows nothing. |
 | `writes.commands` | `Array<{ rule, what, pattern, ignoreCase? }>` | `[]` | Commands of this project that `guard-writes` asks about beside its fixed list: `rule` is `V-W-02` (a database write, a migration) or `V-W-03` (a deploy), `what` names the action (1 to 120 characters), `pattern` is a JavaScript regular expression (1 to 500 characters, case-sensitive unless `ignoreCase` is `true`). A pattern that does not compile fails the config. Written to the manifest by `vulcan sync`. |
 | `git.askPush` | `string[]` | `[]` | Branch names, with `*` for any run of characters, that a plain `git push` asks about in `guard-git`. Letters, digits, `. _ / * -` only. Written to the manifest by `vulcan sync`. |
-| `writes.trustedScripts` | `string[]` | `[]` | The project's own CLIs that `guard-writes` does not read for mutating calls. Repo-relative `.ts` paths, matched exactly against the script of a `bun <script>.ts` command. |
+| `writes.trustedScripts` | `Array<string \| { script, readOnly }>` | `[]` | The project's own CLIs that `guard-writes` does not read for mutating calls. A path string trusts the whole script. An object `{ script, readOnly: ['plan', 'registry'] }` trusts only the calls whose first argument after the script is one of the `readOnly` words. Matched exactly against the script of a `bun <script>.ts` command. |
 
-`writes.trustedScripts` validation: each entry must be a path relative to the repo root (no absolute path, no `~`), must not contain `..`, must end in `.ts`, and takes no glob (`* ? [ ] { } !` are refused), so list every script by its exact path. A config that breaks a rule fails the schema, and the message names the entry.
+`writes.trustedScripts` validation: each path, and the `script` of each object, must be a path relative to the repo root (no absolute path, no `~`), must not contain `..`, must end in `.ts`, and takes no glob (`* ? [ ] { } !` are refused), so list every script by its exact path. An object needs `script` and `readOnly`, takes no other key, and `readOnly` is a list of one or more plain words (letters, digits and `_ . : -`; no space, glob or shell character). A config that breaks a rule fails the schema, and the message names the entry.
+
+A `readOnly` word is one argument, matched exactly: `plan` does not match `plan-all`, `PLAN` or `"plan x"`. A call with no argument, a flag first (`--dry-run plan`) or any other word is checked as if the script were not listed. The object entries are written to the manifest by `vulcan sync`, as `guard.writes.readOnlyScripts`, and the hook reads them there; run `vulcan sync` after you add one. Path strings stay in the config.
 
 A listed script skips the script-body check only while git tracks it and its working tree file, its index entry and `HEAD` hold the same bytes. The checks on the command line itself (`curl -X POST`, `kubectl apply`, a migration, `psql`) still apply. The states, the ask text and the limits are on the [hooks page](/references/hooks/#trusted-scripts).
 
@@ -655,7 +657,10 @@ export default {
   guard: {
     toolOwnedPaths: ['/srv/build-cache/**', '~/.cache/my-tool/**'],
     writes: {
-      trustedScripts: ['tools/i18n/cli.ts'],
+      trustedScripts: [
+        'tools/i18n/cli.ts',
+        { script: 'scripts/release/release-run.ts', readOnly: ['plan', 'registry'] },
+      ],
       commands: [{ rule: 'V-W-03', what: 'deploying', pattern: '\\bmake deploy-' }],
     },
     git: { askPush: ['develop', 'main'] },

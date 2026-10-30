@@ -291,10 +291,46 @@ The ask reads `<script> looks like it is ... (listed in guard.writes.trustedScri
 
 `vulcan doctor` prints one info line per listed script with its state, and warns when a listed path does not exist, is untracked, is not committed yet, is a symlink or git cannot say.
 
+#### Read-only subcommands
+
+A release script often has a read-only subcommand and a publishing one in the same file. List the read-only ones, and `guard-writes` skips the body check for those calls only:
+
+```ts
+export default {
+  guard: {
+    writes: {
+      trustedScripts: [
+        { script: 'scripts/release/release-run.ts', readOnly: ['plan', 'registry'] },
+      ],
+    },
+  },
+} satisfies VulcanConfig;
+```
+
+Run `vulcan sync` after you add an entry. The hook reads the object entries from the manifest, under `guard.writes.readOnlyScripts`, with no config loader.
+
+| Command | Result |
+|---|---|
+| `bun scripts/release/release-run.ts plan` | quiet: `plan` is listed |
+| `bun scripts/release/release-run.ts registry package.json` | quiet: the first argument is `registry` |
+| `bun scripts/release/release-run.ts run` | asks as before: `run` is not listed |
+| `bun scripts/release/release-run.ts` or `... --dry-run plan` | asks: no argument, or a flag first |
+| `bun scripts/release/release-run.ts plan; bun scripts/release/release-run.ts run` | asks for the `run` call only: each command is judged on its own |
+| `bun scripts/release/release-run.ts plan && curl -X POST https://example.com` | asks: the command line is still checked |
+
+The word is one argument of the command, matched exactly. A call the hook cannot read as separate commands, for example one that names the script again inside an argument, is checked as a whole. The script must be tracked and equal to `HEAD`, the same condition as a path entry. An edited script asks even for a listed subcommand.
+
+`vulcan doctor` adds an info line for each listed word the script does not hold as a quoted string. This checks the text of the file, not what the script does, so it can miss a subcommand the script parses another way. It is a note, never a failure.
+
 Limits, stated plainly:
 
 - The trust is committed and unchanged, not reviewed. A commit that edits the script and the config list is what your team reviews in a pull request.
 - The imports of a script are not read, trusted or not.
+- Only the first word is judged. Flags and words after it are trusted with it, and so is anything the call prints, even if it is piped into a shell.
+- A `readOnly` word is one plain word: letters, digits and `_ . : -`. A space, a glob or a shell character is refused by the schema.
+- A script listed as a path string and as an object is trusted whole: the string wins.
+- The hook matches the script by its path as written, resolved from the hook's folder, and does not follow links or a `cd` earlier in the line. This holds for a path entry too.
+- A removed entry keeps its trust until `vulcan sync` rewrites the manifest and you commit it. `vulcan doctor` flags the difference.
 - This is not a sandbox: see [what the guards are, and are not](#what-the-guards-are-and-are-not). Anything that must never run belongs in `permissions.deny`, the read-only slot of `V-W-01` or branch protection.
 
 ## stop and prompt-submit
