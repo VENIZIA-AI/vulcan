@@ -14,8 +14,8 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
-- **The refusal ends the command the normal way.** A menu that gets a line feed (answers piped into a pty) still restores the terminal, prints the way out and exits with code 1. It used to call `process.exit` in the middle of the command, which skipped the cleanup of the folder the preset is fetched into. It now throws a typed refusal, so that cleanup runs, and the router turns it into exit code 1.
+- **The refusal cleans up.** A menu that gets piped lines still restores the terminal, prints the way out and exits with code 1, and now also removes the folder the preset was fetched into.
 
 ## Who is affected
 
-- **Scripts that pipe lines into a menu.** The exit code and the message are the same. Only the leftover empty folder in `/tmp` is gone; pass the flags instead of piping answers.
+- **Scripts that pipe lines into a menu.** The exit code and the message are the same; only the leftover folder is gone. Pass the flags instead of piping answers.

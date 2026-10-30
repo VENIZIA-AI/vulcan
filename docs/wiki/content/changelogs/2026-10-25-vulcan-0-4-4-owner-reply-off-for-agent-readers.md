@@ -1,24 +1,32 @@
 ---
-title: "VULCAN 0.4.4: A Session Whose Reader Is an Agent Is Not Held to the Owner's Shape"
-description: A session started with VULCAN_OWNER_REPLY=off gets no owner shape card and no profile card, and its replies are not checked, logged or blocked. The rules say the report form follows the reader.
+title: "VULCAN 0.4.4: Owner Reply Shape Off for Agent Readers, Labels in Your Language, a Reminder per Session"
+description: VULCAN_OWNER_REPLY=off leaves a session out of the owner shape, labels are written in the reader's language, and the last-reply reminder is kept per session.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - 2026-10-25
 
-## VULCAN 0.4.4: a session whose reader is an agent is not held to the owner's shape
+## VULCAN 0.4.4: owner reply shape off for agent readers, labels in your language, a reminder per session
 
-<Badge type="tip" text="New Feature" />
+<Badge type="tip" text="New Feature" /> <Badge type="warning" text="Bug Fix" />
 
-**In one line.** A session that another agent starts, to report back to that agent, can be started with `VULCAN_OWNER_REPLY=off` and is then left out of the owner reply shape completely.
+**In one line.** A session started for another agent can skip the owner reply shape, a reader in another language is no longer held to English labels, and sessions in one project stop hearing about each other's replies.
 
 ## What changed
 
-- **The switch.** `VULCAN_OWNER_REPLY=off` in the environment of a session switches the owner shape off for that session only. `session-start` leaves out the shape card and the profile card, `stop` checks, logs and blocks nothing, and `prompt-submit` adds nothing. Only the exact value `off` counts. The guards, the rules and the turn notes stay on. It is not a VULCAN config key; set it on the command that starts the session, never with `export` and never in the `env` of a committed Claude Code settings file. The claim checks at Stop are skipped with the rest.
-- **A note in `doctor`.** `vulcan doctor` prints `info [local] VULCAN_OWNER_REPLY: set to off in this shell ...` when it is set in the shell that runs it, so an owner who exported it by mistake sees why nothing is checked. It prints a warning when `.claude/settings.json` or `.claude/settings.local.json` sets it in `env`.
-- **The rules say who reads.** `V-P-11` now says the report form follows the reader: the owner gets the project's shape in their own language, with labels and address from the `owner` config and their profile; another agent gets the plain format it asked for. The minimap rule of this repository says the same.
-- **Launching a session is documented.** The delegation brief has a section "Starting another session", the `report-back` handoff and the phase-boundaries table point to it. The skill-evals runner is left unchanged on purpose: an eval of `report-back` expects the shape card. A subagent started through the tool's own mechanism was never held to the shape.
+### Shape off for an agent reader
 
-## Upgrading
+- **`VULCAN_OWNER_REPLY=off`** switches the owner shape off for that session only: no shape or profile card, and replies are not checked, logged or blocked. Only the exact value `off` counts; guards and rules stay on. Set it on the command that starts the session, never with `export` or in a committed Claude Code settings `env`; `vulcan doctor` notes it in your shell and warns about the settings file.
+- **`V-P-11`** now says the report form follows the reader: the owner gets the project's shape, another agent gets the plain format it asked for.
 
-Run `vulcan sync` so the changed rule reaches `.agents/vulcan.manifest.json`. A launcher that starts sessions for an agent adds `VULCAN_OWNER_REPLY=off` to their environment; nothing else changes for an owner's own sessions.
+### Labels follow the reader's language
+
+- **Fixed.** A reader who answers in another language and skipped the label questions was held to the English `Blocked:` and `Decisions needed`. Now the agent writes the labels in their language and the check verifies the structure only. Labels you set yourself are held exactly as before. See [labels follow the reader](/references/configuration/#labels-follow-the-reader).
+
+### Reminder per session
+
+- **Fixed.** The last-reply note was one file per project, so a session could be told off for another session's reply. It is now kept per session in `.agents/local/cache/replies/<session>.json`, with the block cooldown.
+
+## Who is affected
+
+Run `vulcan sync`. A launcher that starts sessions for an agent adds `VULCAN_OWNER_REPLY=off` to their environment; nothing else changes for your own sessions.
