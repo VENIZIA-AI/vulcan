@@ -17,12 +17,15 @@ const useRenderers = (opts: { renderers: unknown[]; regions?: unknown[] }): void
 test('no okf.renderers and no okf.regions: nothing loads', async () => {
   useProjectConfig({ root: FIXTURES, config: {} });
 
-  expect(await loadGeneration()).toEqual({ renderers: [], regions: [] });
+  const result = await loadGeneration();
+
+  expect(result).toEqual({ renderers: [], regions: [] });
 });
 
 test('a built-in id loads with its options', async () => {
   useRenderers({ renderers: [{ id: 'source-map', options: { path: 'reference/map.md' } }] });
-  const [loaded] = (await loadGeneration()).renderers;
+  const generation = await loadGeneration();
+  const [loaded] = generation.renderers;
 
   expect(loaded.renderer.id).toBe('source-map');
   expect(loaded.context.options.path).toBe('reference/map.md');
@@ -30,7 +33,8 @@ test('a built-in id loads with its options', async () => {
 
 test('a bare string is the built-in id alone', async () => {
   useRenderers({ renderers: ['makefile-targets'] });
-  const [loaded] = (await loadGeneration()).renderers;
+  const generation = await loadGeneration();
+  const [loaded] = generation.renderers;
 
   expect(loaded.renderer.id).toBe('makefile-targets');
   expect(loaded.context.options).toEqual({});
@@ -38,7 +42,8 @@ test('a bare string is the built-in id alone', async () => {
 
 test('a project module loads by path, its facts feed render and coverage', async () => {
   useRenderers({ renderers: [{ id: 'providers', module: 'project-module/providers.ts' }] });
-  const [loaded] = (await loadGeneration()).renderers;
+  const generation = await loadGeneration();
+  const [loaded] = generation.renderers;
   const facts = loaded.renderer.collect({ context: loaded.context });
 
   expect([loaded.renderer.render?.({ context: loaded.context, facts })].flat()[0]?.path).toBe(
@@ -107,7 +112,8 @@ test('a region whose renderer has no region output stops', async () => {
 
 test('binding-keys without options.source stops when it collects', async () => {
   useRenderers({ renderers: ['binding-keys'] });
-  const [loaded] = (await loadGeneration()).renderers;
+  const generation = await loadGeneration();
+  const [loaded] = generation.renderers;
 
   expect(() => loaded.renderer.collect({ context: loaded.context })).toThrow(
     'okf: renderer binding-keys needs options.source (the file that declares the keys)',
@@ -125,7 +131,8 @@ test('binding-keys reads the configured file', async () => {
       },
     },
   });
-  const [loaded] = (await loadGeneration()).renderers;
+  const generation = await loadGeneration();
+  const [loaded] = generation.renderers;
   const facts = loaded.renderer.collect({ context: loaded.context });
 
   expect(loaded.renderer.coverage?.({ facts })).toEqual({ name: 'binding keys', count: 1 });

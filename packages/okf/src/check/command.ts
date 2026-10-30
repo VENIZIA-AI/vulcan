@@ -30,7 +30,9 @@ export const check = async (opts: { strict: boolean }): Promise<void> => {
     .map((issue) => formatIssue({ issue }));
 
   if (opts.strict) {
-    problems.push(...collectHouseProblems({ files, ...(await loadGeneration()) }));
+    const generation = await loadGeneration();
+
+    problems.push(...collectHouseProblems({ files, ...generation }));
   }
 
   if (warnings.length) {
