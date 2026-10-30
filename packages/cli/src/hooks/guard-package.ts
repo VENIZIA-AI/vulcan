@@ -21,6 +21,7 @@ interface IRecordedPreset {
   spec: string;
   side: string;
   lib: boolean;
+  shared: boolean;
 }
 
 interface IProjectView {
@@ -100,10 +101,10 @@ const readProject = (opts: { start: string }): IProjectView | undefined => {
       return [];
     }
 
-    const { spec, side, lib } = entry.value;
+    const { spec, side, lib, shared } = entry.value;
 
     return typeof spec === 'string' && typeof side === 'string'
-      ? [{ spec, side, lib: typeof lib === 'string' }]
+      ? [{ spec, side, lib: typeof lib === 'string', shared: typeof shared === 'string' }]
       : [];
   });
 
@@ -175,9 +176,14 @@ export const inspectPackageWrite = (opts: {
   const folderFlag =
     folders.length > 1 ? ` ${isLib ? '--dir' : `--${key}-dir`} ${created.folder}` : '';
   const commands = isLib
-    ? project.presets
-        .filter((preset) => preset.lib)
-        .map((preset) => `${ADD} --preset ${preset.spec} --lib ${created.name}${folderFlag}`)
+    ? [
+        ...project.presets
+          .filter((preset) => preset.lib)
+          .map((preset) => `${ADD} --preset ${preset.spec} --lib ${created.name}${folderFlag}`),
+        ...project.presets
+          .filter((preset) => preset.shared)
+          .map((preset) => `${ADD} --preset ${preset.spec} --shared ${created.name}${folderFlag}`),
+      ]
     : project.presets
         .filter((preset) => preset.side === key)
         .map((preset) => appCommand({ preset, name: created.name, folderFlag }));
@@ -193,7 +199,7 @@ export const inspectPackageWrite = (opts: {
     kind: PackageVerdictKinds.WARN,
     message:
       project.presets.length === 0
-        ? `${created.folder}/${created.name} looks like a new ${what} and this project recorded no preset: ask the user which preset to use (\`vulcan add --preset <name|file:path> --app <name>\`, --lib <name> for a shared package); ${NO_HAND_WRITING}`
+        ? `${created.folder}/${created.name} looks like a new ${what} and this project recorded no preset: ask the user which preset to use (\`vulcan add --preset <name|file:path> --app <name>\`, --lib <name> for a library other apps import, --shared <name> for a side-neutral package); ${NO_HAND_WRITING}`
         : `${created.folder}/${created.name} looks like a new ${what} but no recorded preset makes a ${what}: ask the user how it should be made; ${NO_HAND_WRITING}`,
   };
 };

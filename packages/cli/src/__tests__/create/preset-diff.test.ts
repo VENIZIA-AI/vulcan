@@ -200,9 +200,9 @@ describe('vulcan preset diff', () => {
     expect(unknown.stderr).toContain("no app 'nope'");
     expect(unknown.stderr).toContain('core-api');
     expect(missing.code).toBe(1);
-    expect(missing.stderr).toContain('usage: vulcan preset diff <app>');
+    expect(missing.stderr).toContain('usage: vulcan preset diff <package>');
     expect(wrong.code).toBe(1);
-    expect(wrong.stderr).toContain('usage: vulcan preset diff <app>');
+    expect(wrong.stderr).toContain('usage: vulcan preset diff <package>');
     expect(bare.code).toBe(1);
     expect(bare.stderr).toContain('run it at the root of a monorepo');
     expect(notPreset.code).toBe(1);
@@ -356,6 +356,463 @@ describe('vulcan preset diff', () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("unknown argument '--apply'");
+  });
+});
+
+/** The monorepo of a library or shared package: its own copy of the preset with app, lib and shared kinds. */
+const WITH_SHARED_PATH = join(FIXTURES, 'preset-with-shared');
+const WITH_LIB_PATH = join(FIXTURES, 'preset-with-lib');
+const CONFIG = '.configs/vulcan.config.mts';
+
+interface ILibraryMonorepo {
+  root: string;
+  preset: string;
+  libFiles: string;
+  sharedFiles: string;
+}
+
+const addTo = (opts: { root: string; preset: string; args: string[] }) =>
+  runCli({
+    args: ['add', '--preset', `file:${opts.preset}`, ...opts.args],
+    cwd: opts.root,
+    env: ENV,
+  });
+
+/** A monorepo with the app `core-api`, the library `billing` (add --lib) and the shared package `common` (add --shared). */
+const libraryMonorepo = (): ILibraryMonorepo => {
+  const copy = copyWithFields({ fixture: WITH_SHARED_PATH, fields: {} });
+  const parent = createProject({ files: {} });
+  const init = runCli({
+    args: [
+      'init',
+      '--preset',
+      `file:${copy}`,
+      '--project',
+      'p',
+      '--backend-dir',
+      'services',
+      '--app',
+      'core-api',
+      '--shared-dir',
+      'libs',
+    ],
+    cwd: parent,
+    env: ENV,
+  });
+
+  expect(init.code, init.stderr).toBe(0);
+
+  const root = join(parent, 'p');
+  const lib = addTo({ root, preset: copy, args: ['--lib', 'billing'] });
+  const shared = addTo({ root, preset: copy, args: ['--shared', 'common'] });
+
+  expect(lib.code, lib.stderr).toBe(0);
+  expect(shared.code, shared.stderr).toBe(0);
+
+  return {
+    root,
+    preset: copy,
+    libFiles: join(copy, 'vulcan-preset', 'lib-files'),
+    sharedFiles: join(copy, 'vulcan-preset', 'shared-files'),
+  };
+};
+
+const diffPackage = (opts: { root: string; name: string; args?: string[] }) =>
+  runCli({ args: ['preset', 'diff', opts.name, ...(opts.args ?? [])], cwd: opts.root, env: ENV });
+
+/** Replace the recorded presets in the config block: each record as the config holds it. */
+const recordPresets = (opts: { root: string; records: Record<string, unknown>[] }): void => {
+  const config = join(opts.root, CONFIG);
+  const list = JSON.stringify(opts.records, null, 2).replaceAll('\n', '\n  ');
+
+  writeFileSync(
+    config,
+    readFileSync(config, 'utf8').replace(/"presets": \[[\s\S]*?\n {2}\],/, `"presets": ${list},`),
+  );
+};
+
+const record = (opts: {
+  spec: string;
+  lib?: string;
+  shared?: string;
+}): Record<string, unknown> => ({ side: 'backend', summary: 's', ...opts });
+
+describe('vulcan preset diff on a library or a shared package', () => {
+  test('a library made by add --lib is the same as the lib kind of its preset, even with --check, and the output says package', () => {
+    const { root } = libraryMonorepo();
+    const result = diffPackage({ root, name: 'billing', args: ['--check'] });
+
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.stdout).toContain('libs/billing against @fixture/withshared@3.0.0');
+    expect(result.stdout).toContain('same     README.md');
+    expect(result.stdout).toContain('same     src/index.ts');
+    expect(result.stdout).toMatch(/\d+ files: \d+ same, 0 differ, 0 missing in the package\n/);
+  });
+
+  test('an edited library differs, a new preset file is missing, --check exits 1, --full prints the diff', () => {
+    const { root, libFiles } = libraryMonorepo();
+
+    writeFileSync(join(root, 'libs/billing/README.md'), '# mine\n');
+    writeFileSync(join(libFiles, 'extra.txt'), 'extra {{lib}}\n');
+
+    const result = diffPackage({ root, name: 'billing' });
+    const checked = diffPackage({ root, name: 'billing', args: ['--check'] });
+    const full = diffPackage({ root, name: 'billing', args: ['--full'] });
+
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.stdout).toContain('differs  README.md  (+1 -1)');
+    expect(result.stdout).toContain('missing  extra.txt');
+    expect(result.stdout).toContain('same     src/index.ts');
+    expect(checked.code).toBe(1);
+    expect(checked.stdout).toBe(result.stdout);
+    expect(full.stdout).toContain('--- libs/billing/README.md (the package)');
+    expect(full.stdout).not.toContain('(the app)');
+    expect(full.stdout).toContain('+++ README.md (the preset)');
+    expect(full.stdout).toContain('+# billing');
+    expect(full.stdout).toContain('1 differ, 1 missing in the package');
+  });
+
+  test('a folder where the preset has a file is reported as the package having a folder', () => {
+    const { root, libFiles } = libraryMonorepo();
+
+    writeFileSync(join(libFiles, 'gzip.conf'), 'gzip on\n');
+    mkdirSync(join(root, 'libs/billing/gzip.conf'));
+
+    const result = diffPackage({ root, name: 'billing' });
+
+    expect(result.stdout).toContain('differs  gzip.conf  (the package has a folder here)');
+    expect(result.stdout).not.toContain('(the app has a folder here)');
+  });
+
+  test('a shared package is set against the shared kind with the shared token, and --check follows the files', () => {
+    const { root, sharedFiles, libFiles } = libraryMonorepo();
+    const fresh = diffPackage({ root, name: 'common', args: ['--check'] });
+
+    expect(fresh.code, fresh.stderr).toBe(0);
+    expect(fresh.stdout).toContain('libs/common against @fixture/withshared@3.0.0');
+    expect(fresh.stdout).toContain('same     README.md');
+
+    // A change of the lib kind does not touch a shared package, and one of the shared kind does.
+    writeFileSync(join(libFiles, 'README.md'), '# lib changed {{package}}\n');
+    expect(diffPackage({ root, name: 'common', args: ['--check'] }).code).toBe(0);
+    writeFileSync(join(sharedFiles, 'src/index.ts'), "export const shared = '{{shared}}';\n");
+
+    const changed = diffPackage({ root, name: 'common', args: ['--check'] });
+
+    expect(changed.code).toBe(1);
+    expect(changed.stdout).toContain('differs  src/index.ts  (+0 -2)');
+    expect(diffPackage({ root, name: 'billing', args: ['--check'] }).code).toBe(1);
+  });
+
+  test('the tokens of the kind: project from the config, else the root package, else the dir; package from the config', () => {
+    const { root, libFiles, sharedFiles } = libraryMonorepo();
+    const token = "export const t = '{{project}} {{package}} {{lib}}';\n";
+    const sharedToken = "export const t = '{{project}} {{package}} {{shared}}';\n";
+
+    writeFileSync(join(libFiles, 'src/token.ts'), token);
+    writeFileSync(join(sharedFiles, 'src/token.ts'), sharedToken);
+    writeFileSync(
+      join(root, 'libs/billing/src/token.ts'),
+      "export const t = 'p billing billing';\n",
+    );
+    writeFileSync(join(root, 'libs/common/src/token.ts'), "export const t = 'p common common';\n");
+
+    const named = diffPackage({ root, name: 'billing' });
+
+    expect(named.stdout).toContain('same     src/token.ts');
+    expect(diffPackage({ root, name: 'common' }).stdout).toContain('same     src/token.ts');
+
+    // No name in the config: the root package name.
+    const config = join(root, CONFIG);
+    const source = readFileSync(config, 'utf8');
+
+    writeFileSync(config, source.replace("name: 'p',", ''));
+
+    const manifest = join(root, 'package.json');
+    const rootJson = JSON.parse(readFileSync(manifest, 'utf8'));
+
+    writeFileSync(manifest, JSON.stringify({ ...rootJson, name: 'rootname' }));
+    expect(diffPackage({ root, name: 'billing' }).stdout).toContain('differs  src/token.ts');
+    writeFileSync(
+      join(root, 'libs/billing/src/token.ts'),
+      "export const t = 'rootname billing billing';\n",
+    );
+    expect(diffPackage({ root, name: 'billing' }).stdout).toContain('same     src/token.ts');
+
+    // No name anywhere: the dir of the package.
+    delete rootJson.name;
+    writeFileSync(manifest, JSON.stringify(rootJson));
+    writeFileSync(
+      join(root, 'libs/common/src/token.ts'),
+      "export const t = 'common common common';\n",
+    );
+    expect(diffPackage({ root, name: 'common' }).stdout).toContain('same     src/token.ts');
+  });
+
+  test('the package is found by its path too, and the package name token is the npm name of a scoped one', () => {
+    const { root, preset } = libraryMonorepo();
+    const scoped = addTo({
+      root,
+      preset,
+      args: ['--shared', 'tools', '--scope', '@acme'],
+    });
+
+    expect(scoped.code, scoped.stderr).toBe(0);
+    expect(readFileSync(join(root, 'libs/tools/README.md'), 'utf8')).toBe(
+      '# @acme/tools (shared)\n',
+    );
+
+    const byPath = diffPackage({ root, name: 'libs/tools', args: ['--check'] });
+
+    expect(byPath.code, byPath.stderr).toBe(0);
+    expect(byPath.stdout).toContain('same     README.md');
+  });
+
+  test('a package.json among the preset files is not compared', () => {
+    const { root, libFiles, sharedFiles } = libraryMonorepo();
+
+    writeFileSync(join(libFiles, 'package.json'), '{ "name": "preset-wins" }\n');
+    writeFileSync(join(sharedFiles, 'package.json'), '{ "name": "preset-wins" }\n');
+
+    for (const name of ['billing', 'common']) {
+      const result = diffPackage({ root, name, args: ['--check'] });
+
+      expect(result.code, result.stderr).toBe(0);
+      expect(result.stdout).not.toContain('package.json');
+      expect(result.stdout).toContain('0 differ, 0 missing');
+    }
+  });
+
+  test('in a project that has libraries too, an app is still compared with the app files and says app', () => {
+    const { root } = libraryMonorepo();
+    const app = diffPackage({ root, name: 'core-api', args: ['--check'] });
+
+    expect(app.code, app.stderr).toBe(0);
+    expect(app.stdout).toContain('services/core-api against @fixture/withshared@3.0.0');
+    expect(app.stdout).toContain('same     .env.example');
+    expect(app.stdout).toMatch(/0 differ, 0 missing in the app\n/);
+    expect(app.stdout).not.toContain('the package');
+  });
+
+  test('--api and --no-api stop for a library and a shared package: they have no proxy target', () => {
+    const { root } = libraryMonorepo();
+
+    for (const name of ['billing', 'common']) {
+      const api = diffPackage({ root, name, args: ['--api', 'core-api'] });
+      const noApi = diffPackage({ root, name, args: ['--no-api'] });
+
+      expect(api.code).toBe(1);
+      expect(api.stderr).toContain('no proxy target');
+      expect(api.stderr).toContain('--api');
+      expect(api.stdout).toBe('');
+      expect(noApi.code).toBe(1);
+      expect(noApi.stderr).toContain('no proxy target');
+      expect(noApi.stderr).toContain('--no-api');
+    }
+  });
+
+  test('a name that is no package lists the apps and the libraries', () => {
+    const { root } = libraryMonorepo();
+    const result = diffPackage({ root, name: 'nope' });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("no app 'nope'");
+    expect(result.stderr).toContain('apps: core-api');
+    expect(result.stderr).toContain('libraries: billing, common');
+  });
+
+  test('the usage line names a package', () => {
+    const { root } = libraryMonorepo();
+    const result = runCli({ args: ['preset', 'diff'], cwd: root, env: ENV });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('usage: vulcan preset diff <package>');
+  });
+
+  describe('which preset: the recorded one that ships the kind of the package', () => {
+    /** A second preset package that makes libraries but no shared packages. */
+    const libOnly = `file:${WITH_LIB_PATH}`;
+
+    test('no recorded preset: stops, says so, asks for --preset, and --preset then works', () => {
+      const { root, preset } = libraryMonorepo();
+
+      recordPresets({ root, records: [] });
+
+      for (const name of ['billing', 'common']) {
+        const result = diffPackage({ root, name });
+
+        expect(result.code).toBe(1);
+        expect(result.stderr).toContain('the config records no preset');
+        expect(result.stderr).toContain('--preset');
+      }
+
+      const named = diffPackage({ root, name: 'common', args: ['--preset', `file:${preset}`] });
+
+      expect(named.code, named.stderr).toBe(0);
+      expect(named.stdout).toContain('0 differ, 0 missing');
+    });
+
+    test('one recorded preset with the kind: it is the one; a record without the kind is not', () => {
+      const { root, preset } = libraryMonorepo();
+
+      recordPresets({
+        root,
+        records: [record({ spec: `file:${preset}`, lib: 'l', shared: 's' })],
+      });
+      expect(diffPackage({ root, name: 'billing', args: ['--check'] }).code).toBe(0);
+      expect(diffPackage({ root, name: 'common', args: ['--check'] }).code).toBe(0);
+
+      // The record ships the lib kind only: a shared package finds no preset.
+      recordPresets({ root, records: [record({ spec: `file:${preset}`, lib: 'l' })] });
+      expect(diffPackage({ root, name: 'billing', args: ['--check'] }).code).toBe(0);
+
+      const noShared = diffPackage({ root, name: 'common' });
+
+      expect(noShared.code).toBe(1);
+      expect(noShared.stderr).toContain('no recorded preset ships the shared kind');
+      expect(noShared.stderr).toContain(`file:${preset}`);
+
+      // The record ships the shared kind only: a library finds no preset.
+      recordPresets({ root, records: [record({ spec: `file:${preset}`, shared: 's' })] });
+      expect(diffPackage({ root, name: 'common', args: ['--check'] }).code).toBe(0);
+
+      const noLib = diffPackage({ root, name: 'billing' });
+
+      expect(noLib.code).toBe(1);
+      expect(noLib.stderr).toContain('no recorded preset ships the lib kind');
+    });
+
+    test('two recorded presets: one ships the kind and it is the one, two ship it and --preset is needed', () => {
+      const { root, preset } = libraryMonorepo();
+
+      recordPresets({
+        root,
+        records: [
+          record({ spec: `file:${preset}`, lib: 'l', shared: 's' }),
+          record({ spec: libOnly, lib: 'l' }),
+        ],
+      });
+
+      // Only the first ships the shared kind.
+      const shared = diffPackage({ root, name: 'common', args: ['--check'] });
+
+      expect(shared.code, shared.stderr).toBe(0);
+      expect(shared.stdout).toContain('@fixture/withshared@3.0.0');
+
+      // Both ship the lib kind.
+      const lib = diffPackage({ root, name: 'billing' });
+
+      expect(lib.code).toBe(1);
+      expect(lib.stderr).toContain('more than one recorded preset ships the lib kind');
+      expect(lib.stderr).toContain(`file:${preset}`);
+      expect(lib.stderr).toContain(libOnly);
+      expect(lib.stderr).toContain('--preset');
+    });
+
+    test('two records of one package under two specs are one preset', () => {
+      const { root, preset } = libraryMonorepo();
+
+      recordPresets({
+        root,
+        records: [
+          record({ spec: `file:${preset}`, lib: 'l', shared: 's' }),
+          record({ spec: `file:${preset}/`, lib: 'l', shared: 's' }),
+        ],
+      });
+
+      const result = diffPackage({ root, name: 'billing', args: ['--check'] });
+
+      expect(result.code, result.stderr).toBe(0);
+    });
+
+    test('--preset naming a preset without the kind says so, and never falls back to the other kind', () => {
+      const { root } = libraryMonorepo();
+      const sharedOnly = copyWithFields({ fixture: WITH_SHARED_PATH, fields: {} });
+      const manifestFile = join(sharedOnly, 'package.json');
+      const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'));
+
+      delete manifest.vulcan.presets.lib;
+      writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
+
+      // A shared package against a preset that has a lib kind only.
+      const sharedAgainstLib = diffPackage({
+        root,
+        name: 'common',
+        args: ['--preset', libOnly],
+      });
+
+      expect(sharedAgainstLib.code).toBe(1);
+      expect(sharedAgainstLib.stderr).toContain('@fixture/withlib has no shared kind');
+      expect(sharedAgainstLib.stdout).toBe('');
+
+      // A library against a preset that has a shared kind only.
+      const libAgainstShared = diffPackage({
+        root,
+        name: 'billing',
+        args: ['--preset', `file:${sharedOnly}`],
+      });
+
+      expect(libAgainstShared.code).toBe(1);
+      expect(libAgainstShared.stderr).toContain('@fixture/withshared has no lib kind');
+      expect(libAgainstShared.stdout).toBe('');
+    });
+  });
+
+  describe('an installed preset', () => {
+    const installAtRoot = (opts: { root: string; preset: string }): void => {
+      mkdirSync(join(opts.root, 'node_modules/@fixture'), { recursive: true });
+      cpSync(opts.preset, join(opts.root, 'node_modules/@fixture/withshared'), {
+        recursive: true,
+      });
+    };
+
+    test('an npm record is read from node_modules, for a library and for a shared package', () => {
+      const { root, preset } = libraryMonorepo();
+
+      recordPresets({
+        root,
+        records: [record({ spec: '@fixture/withshared@^3.0.0', lib: 'l', shared: 's' })],
+      });
+
+      const notInstalled = diffPackage({ root, name: 'billing' });
+
+      expect(notInstalled.code).toBe(1);
+      expect(notInstalled.stderr).toContain('run bun install');
+
+      installAtRoot({ root, preset });
+
+      for (const name of ['billing', 'common']) {
+        const result = diffPackage({ root, name, args: ['--check'] });
+
+        expect(result.code, result.stderr).toBe(0);
+        expect(result.stdout).toContain('(installed in node_modules)');
+        expect(result.stdout).toContain('@fixture/withshared@3.0.0');
+      }
+    });
+
+    test('a bare --preset name reads the installed copy, and the folder of the package is tried first', () => {
+      const { root, preset } = libraryMonorepo();
+
+      installAtRoot({ root, preset });
+
+      const args = ['--preset', '@fixture/withshared', '--check'];
+      const fromRoot = diffPackage({ root, name: 'common', args });
+
+      expect(fromRoot.code, fromRoot.stderr).toBe(0);
+      expect(fromRoot.stdout).toContain('(installed in node_modules)');
+
+      // A copy inside the package wins over the root one: here it makes the package differ.
+      const inPackage = join(root, 'libs/common/node_modules/@fixture/withshared');
+
+      mkdirSync(join(inPackage, '..'), { recursive: true });
+      cpSync(preset, inPackage, { recursive: true });
+      writeFileSync(join(inPackage, 'vulcan-preset/shared-files/README.md'), '# other\n');
+
+      const first = diffPackage({ root, name: 'common', args });
+
+      expect(first.code).toBe(1);
+      expect(first.stdout).toContain('differs  README.md');
+    });
   });
 });
 

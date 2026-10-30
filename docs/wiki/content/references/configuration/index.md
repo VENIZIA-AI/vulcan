@@ -206,6 +206,16 @@ export default {
 
 `vulcan init --preset` and `vulcan add --preset` record the preset each app came from, so an agent asked for a new app can find the exact command. Each entry is `{ spec, side, summary }`: `spec` is what you gave `--preset` (`ignis`, `@acme/kit@1.2.0`, or a `file:` path made relative to the project), `side` is `backend` or `frontend`, and `summary` is the preset's one sentence. A preset is recorded once however many apps it made.
 
+| Key | Type | Required | Meaning |
+|---|---|---|---|
+| `spec` | `string` | yes | What you gave `--preset` |
+| `side` | `backend` or `frontend` | yes | The side of the preset's app kind |
+| `summary` | `string` | yes | The app kind's one sentence |
+| `lib` | `string` | no | The summary of the preset's lib kind, present when the preset can make a library |
+| `shared` | `string` | no | The summary of the preset's shared kind, present when the preset can make a shared package. The shared kind has no side of its own: `side` stays the app kind's |
+
+A record without `lib` or `shared` is read as before.
+
 The entries live in the `vulcan:apps` block that `init` and `add` rewrite, and the config reads them with `presets: apps.presets`. A config written before presets were recorded does not have that line; `add` inserts it after `packages: apps.packages,` the first time it runs. `vulcan sync` renders `layout` and `presets` into `.agents/vulcan.manifest.json`, which is what atlas reads. A project whose apps were not made from a preset records none.
 
 ```ts
@@ -228,6 +238,12 @@ The `packages` array defines monorepo packages in release order. Manifest render
 | `path` | `string` | `packages/<dir>` | Package location relative to the repository root |
 | `aliases` | `string[]` | `[]` | Extra names accepted as the `<dir>` of a release tag |
 | `retired` | `boolean` | `false` | Marks a package as retired to keep historical releases readable |
+| `kind` | `app` or `lib` | unset | `lib` for a package `vulcan add --lib` or `--shared` made, so `doctor` does not ask it to live in a backend or frontend folder. Unset for an app or a plain package |
+| `presetKind` | `lib` or `shared` | unset | Which preset kind made a package whose `kind` is `lib`. `vulcan add --shared` writes `shared`; `--lib` writes nothing, and an unset value means `lib`. `vulcan preset diff` reads it |
+
+`vulcan add` writes `kind` and `presetKind`; you do not set them by hand. The schema is strict. A VULCAN that predates `presetKind` and the `shared` summary cannot read a config that holds them. Upgrade the project's VULCAN before you record a shared package. Remove both keys if you go back.
+
+`vulcan sync` copies `presetKind` into the manifest, so atlas reads it too.
 
 The schema requires strict uniqueness across all packages:
 

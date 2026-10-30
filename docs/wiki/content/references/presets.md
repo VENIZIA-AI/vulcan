@@ -78,7 +78,7 @@ When the preset has `imports`, the app's `package.json` carries it after `privat
 
 ## A library kind
 
-A preset can also make shared packages (libraries) of the same framework. Add a `lib` path next to `app` under `presets`; the file it names is a second, smaller preset. A package with no `presets.lib` makes apps only.
+A preset can also make libraries of the same framework: packages other apps import. Add a `lib` path next to `app` under `presets`; the file it names is a second, smaller preset. A package with no `presets.lib` makes no libraries.
 
 ```json
 {
@@ -133,6 +133,29 @@ The library files take the tokens `{{project}}`, `{{lib}}` (the folder name, `bi
 A library lands in the `--dir` folder, else the one `shared` folder of `layout`, else the one folder the existing libraries share; with none of those, or with several `shared` folders, `add` asks for `--dir`.
 Its name takes `--scope`, else the scope the packages already in that folder agree on, else the project's own scope, else none.
 See [`vulcan add`](/references/commands/add#add-a-library).
+
+## A shared kind
+
+A preset can make a third kind: a side-neutral package that apps of either side import. The `lib` kind makes a library of one framework; the `shared` kind makes a package that depends on no framework. Add a `shared` path next to `app` and `lib`:
+
+```json
+{
+  "vulcan": {
+    "presets": {
+      "app": "./dist/presets/app/preset.json",
+      "lib": "./dist/presets/lib/preset.json",
+      "shared": "./dist/presets/shared/preset.json"
+    }
+  }
+}
+```
+
+The `shared` file has the same keys as a lib preset file ([the table above](#a-library-kind)), read by the same schema, and its `files` folder is copied the same way. `app` stays required: a package that has only `presets.shared` is refused, as a lib-only package is. A package with no `presets.shared` makes no shared packages, and a VULCAN that predates the kind ignores the key.
+
+The shared files take the tokens `{{project}}`, `{{shared}}` (the folder name, `common`) and `{{package}}` (the npm name, `@acme/common`). The token `{{lib}}` is not replaced in a shared package, and `{{shared}}` is not replaced in a library.
+
+`vulcan add --shared` generates `package.json` and places the package by the rules of `--lib`, in the same `shared` folder of `layout`; the folder never depends on the kind. The preset's package is not added as a dependency, so a project with only frontend apps can run `vulcan add --preset <name> --shared common` and needs no app of that preset.
+The config records the preset with a `shared` summary and the package with `presetKind: "shared"` ([Configuration](/references/configuration/#presets)). See [`vulcan add`](/references/commands/add#add-a-shared-package).
 
 ## Tokens in files
 

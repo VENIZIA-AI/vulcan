@@ -1,5 +1,6 @@
 import type { ILayout } from '../../common/layout-folder.ts';
 import type { TConstValue } from '../../common/index.ts';
+import type { TLibraryKind } from '../../config/common/index.ts';
 import type { AppSides, AppsBlockProblems } from './constants.ts';
 
 export type TAppSide = TConstValue<typeof AppSides>;
@@ -78,6 +79,8 @@ export interface ILocatedPreset {
   preset: IPreset;
   /** The lib preset file (`vulcan.presets.lib`), absolute and inside the package; absent when the preset makes apps only. */
   libFile?: string;
+  /** The shared preset file (`vulcan.presets.shared`), absolute and inside the package; absent when the preset has no shared kind. */
+  sharedFile?: string;
   /** The preset package's root directory. */
   packageRoot: string;
   packageName: string;
@@ -102,12 +105,14 @@ export interface IRecordedPreset {
   summary: string;
   /** The summary of the preset's lib kind; present when the preset can make a library. */
   lib?: string;
+  /** The summary of the preset's shared kind; present when the preset can make a shared package. */
+  shared?: string;
 }
 
 /** What `init` and `add` own in the config: the layout, the package list, the presets and the atlas sources. */
 export interface IAppsBlock {
   layout: ILayout;
-  packages: { dir: string; name: string; path: string; kind?: 'lib' }[];
+  packages: { dir: string; name: string; path: string; kind?: 'lib'; presetKind?: TLibraryKind }[];
   /** Absent in a block written before presets were recorded. */
   presets?: IRecordedPreset[];
   sources: { name: string; repo: string; ref: string }[];

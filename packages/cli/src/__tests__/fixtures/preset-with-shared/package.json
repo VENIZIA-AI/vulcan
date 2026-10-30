@@ -1,0 +1,11 @@
+{
+  "name": "@fixture/withshared",
+  "version": "3.0.0",
+  "vulcan": {
+    "presets": {
+      "app": "./vulcan-preset/preset.json",
+      "lib": "./vulcan-preset/lib.json",
+      "shared": "./vulcan-preset/shared.json"
+    }
+  }
+}

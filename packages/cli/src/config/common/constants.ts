@@ -1,9 +1,21 @@
-/** What a package of the project is: an app, or a shared package (a lib) a preset made. */
+/** What a package of the project is: an app, or a library other apps import. */
 export class PackageKinds {
   static readonly APP = 'app';
   static readonly LIB = 'lib';
 
   static readonly SCHEME_SET = new Set<string>([this.APP, this.LIB]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
+/** Which preset kind made a library: `lib` (may use the project's framework) or `shared` (depends on no framework). */
+export class LibraryKinds {
+  static readonly LIB = 'lib';
+  static readonly SHARED = 'shared';
+
+  static readonly SCHEME_SET = new Set<string>([this.LIB, this.SHARED]);
 
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);

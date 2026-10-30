@@ -126,7 +126,7 @@ For every file and message, see the [init reference](/references/commands/init#c
 
 ### Add more apps
 
-Run `vulcan add` at the monorepo root. `--app` adds another backend, or a frontend that proxies `/api` to a backend; `--lib` adds a shared package:
+Run `vulcan add` at the monorepo root. `--app` adds another backend, or a frontend that proxies `/api` to a backend; `--lib` adds a library other apps import:
 
 ```bash
 bun x --no-install vulcan add --preset ignis --app api2

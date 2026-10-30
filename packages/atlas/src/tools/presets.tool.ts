@@ -1,4 +1,6 @@
+import { LibraryKinds, PackageKinds } from '@/common/constants';
 import type { IAtlasPreset, IAtlasProject } from '@/common/project-config';
+import type { TLibraryKind } from '@/common/types';
 import type { IToolHandler } from '@/protocol/common';
 import { dirname } from 'node:path';
 import { z } from 'zod';
@@ -9,10 +11,12 @@ import {
   PresetsInputSchema,
   ToolTriggers,
 } from './common';
+import type { IOfficialPreset } from './common';
 
 const DESCRIPTION =
   'Lists the presets this project can create from, the folder each one lands in and the exact ' +
-  '`vulcan add` command for the `kind` you ask (app by default, lib for a shared package): the ' +
+  '`vulcan add` command for the `kind` you ask (app by default, lib for a library other apps import, shared ' +
+  'for a side-neutral package other apps import): the ' +
   'presets this project recorded first, then the official ones it has not used yet, marked ' +
   '`inProject: false`. When no preset fits the kind it says so plainly: then ask the user, never ' +
   'hand-write the package.';
@@ -56,7 +60,7 @@ const libFoldersOf = (opts: { project: IAtlasProject | undefined }): string[] =>
   const folders = [
     ...new Set(
       (opts.project?.packages ?? [])
-        .filter((entry) => entry.kind === 'lib' && !entry.retired)
+        .filter((entry) => entry.kind === PackageKinds.LIB && !entry.retired)
         .map((entry) => dirname(entry.path)),
     ),
   ];
@@ -99,6 +103,8 @@ const libEntry = (opts: {
   summary: string;
   name: string;
   inProject: boolean;
+  /** The flag of the command is the kind's name. */
+  kind: TLibraryKind;
 }): IPresetEntry => {
   const folders = libFoldersOf({ project: opts.project });
 
@@ -107,10 +113,91 @@ const libEntry = (opts: {
     summary: opts.summary,
     folder: folders.length === 1 ? (folders[0] ?? null) : null,
     ...(folders.length > 1 ? { folders } : {}),
-    command: `${ADD} --preset ${opts.spec} --lib ${opts.name}${folderFlagOf({ flag: '--dir', folders })}`,
+    command: `${ADD} --preset ${opts.spec} --${opts.kind} ${opts.name}${folderFlagOf({ flag: '--dir', folders })}`,
     inProject: opts.inProject,
   };
 };
+
+/**
+ * The entries of one library kind: the recorded presets that ship it, then the official ones that ship it
+ * and that the project has not recorded for it.
+ */
+const libraryEntries = (opts: {
+  kind: TLibraryKind;
+  project: IAtlasProject | undefined;
+  recorded: IAtlasPreset[];
+  official: IOfficialPreset[];
+  name: string;
+}): IPresetEntry[] => {
+  const { kind, project, recorded, name } = opts;
+
+  return [
+    ...recorded.flatMap((preset) => {
+      const summary = preset[kind];
+
+      return summary === undefined
+        ? []
+        : [libEntry({ project, spec: preset.spec, summary, name, inProject: true, kind })];
+    }),
+    ...opts.official.flatMap((official) => {
+      const summary = official[kind];
+      const isRecorded = recorded.some(
+        (preset) =>
+          officialIdOf({ spec: preset.spec }) === official.id && preset[kind] !== undefined,
+      );
+
+      return summary === undefined || isRecorded
+        ? []
+        : [libEntry({ project, spec: official.id, summary, name, inProject: false, kind })];
+    }),
+  ];
+};
+
+/** The entries for apps: the recorded presets of the side asked, then the official ones of it the project has not used. */
+const appEntries = (opts: {
+  project: IAtlasProject | undefined;
+  recorded: IAtlasPreset[];
+  official: IOfficialPreset[];
+  side: IAtlasPreset['side'] | undefined;
+  name: string;
+}): IPresetEntry[] => {
+  const { project, recorded, name } = opts;
+  const fits = (side: IAtlasPreset['side']): boolean =>
+    opts.side === undefined || side === opts.side;
+
+  return [
+    ...recorded
+      .filter((preset) => fits(preset.side))
+      .map((preset) =>
+        appEntry({
+          project,
+          spec: preset.spec,
+          side: preset.side,
+          summary: preset.summary,
+          name,
+          inProject: true,
+        }),
+      ),
+    ...opts.official
+      .filter(
+        (official) =>
+          fits(official.side) &&
+          !recorded.some((preset) => officialIdOf({ spec: preset.spec }) === official.id),
+      )
+      .map((official) =>
+        appEntry({
+          project,
+          spec: official.id,
+          side: official.side,
+          summary: official.summary,
+          name,
+          inProject: false,
+        }),
+      ),
+  ];
+};
+
+const LIBRARY_KINDS: TLibraryKind[] = [LibraryKinds.LIB, LibraryKinds.SHARED];
 
 /**
  * The presets of this project for the kind asked, from the manifest `vulcan sync` renders: nothing is
@@ -122,6 +209,8 @@ const libEntry = (opts: {
 export const buildPresetsTool = (opts: {
   project: IAtlasProject | undefined;
   projects?: string;
+  /** The official presets offered after the recorded ones; the published list by default. */
+  official?: IOfficialPreset[];
 }): IToolHandler => ({
   definition: {
     name: 'presets',
@@ -130,79 +219,24 @@ export const buildPresetsTool = (opts: {
   },
   call: async ({ args }) => {
     const input = parseInput({ schema: PresetsInputSchema, args });
-    const kind = input.kind ?? 'app';
+    const kind = input.kind ?? PackageKinds.APP;
     const name = input.name ?? '<name>';
-    const { project } = opts;
+    const { project, official = OFFICIAL_PRESETS } = opts;
+    const libraryKind = LIBRARY_KINDS.find((candidate) => candidate === kind);
 
-    if (kind !== 'app' && kind !== 'lib') {
+    if (kind !== PackageKinds.APP && libraryKind === undefined) {
       return {
         kind,
         presets: [],
-        note: `no preset makes a ${kind} (vulcan add makes apps and libs): ask the user how it should be made; ${NO_HAND_WRITING}, and do not use an app or lib preset for it`,
+        note: `no preset makes a ${kind} (vulcan add makes apps, libs and shared packages): ask the user how it should be made; ${NO_HAND_WRITING}, and do not use an app, lib or shared preset for it`,
       };
     }
 
     const recorded = project?.presets ?? [];
-    const fits = (side: IAtlasPreset['side']): boolean =>
-      input.side === undefined || side === input.side;
     const entries: IPresetEntry[] =
-      kind === 'app'
-        ? [
-            ...recorded
-              .filter((preset) => fits(preset.side))
-              .map((preset) =>
-                appEntry({
-                  project,
-                  spec: preset.spec,
-                  side: preset.side,
-                  summary: preset.summary,
-                  name,
-                  inProject: true,
-                }),
-              ),
-            ...OFFICIAL_PRESETS.filter(
-              (official) =>
-                fits(official.side) &&
-                !recorded.some((preset) => officialIdOf({ spec: preset.spec }) === official.id),
-            ).map((official) =>
-              appEntry({
-                project,
-                spec: official.id,
-                side: official.side,
-                summary: official.summary,
-                name,
-                inProject: false,
-              }),
-            ),
-          ]
-        : [
-            ...recorded
-              .filter((preset) => preset.lib !== undefined)
-              .map((preset) =>
-                libEntry({
-                  project,
-                  spec: preset.spec,
-                  summary: preset.lib ?? preset.summary,
-                  name,
-                  inProject: true,
-                }),
-              ),
-            ...OFFICIAL_PRESETS.filter(
-              (official) =>
-                !recorded.some(
-                  (preset) =>
-                    officialIdOf({ spec: preset.spec }) === official.id && preset.lib !== undefined,
-                ),
-            ).map((official) =>
-              libEntry({
-                project,
-                spec: official.id,
-                summary: official.lib,
-                name,
-                inProject: false,
-              }),
-            ),
-          ];
+      libraryKind === undefined
+        ? appEntries({ project, recorded, official, side: input.side, name })
+        : libraryEntries({ kind: libraryKind, project, recorded, official, name });
 
     if (entries.length === 0) {
       return {
@@ -222,7 +256,7 @@ export const buildPresetsTool = (opts: {
       note:
         recorded.length === 0
           ? 'this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use'
-          : `no recorded preset makes a ${kind === 'lib' ? 'lib' : (input.side ?? 'app')}: the entries are the official ones, marked inProject false; ask the user which to use, and ${NO_HAND_WRITING}`,
+          : `no recorded preset makes a ${kind === PackageKinds.APP ? (input.side ?? PackageKinds.APP) : kind}: the entries are the official ones, marked inProject false; ask the user which to use, and ${NO_HAND_WRITING}`,
     };
   },
 });

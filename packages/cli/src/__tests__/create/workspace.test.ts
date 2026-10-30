@@ -305,6 +305,50 @@ describe('workspace planners', () => {
     });
   });
 
+  test('a block with a shared summary on a preset and a presetKind on a package reads back as written', () => {
+    const withShared: IAppsBlock = {
+      ...BLOCK,
+      packages: [
+        ...BLOCK.packages,
+        { dir: 'money', name: '@p/money', path: 'libs/money', kind: 'lib', presetKind: 'shared' },
+        {
+          dir: 'feature',
+          name: '@p/feature',
+          path: 'libs/feature',
+          kind: 'lib',
+          presetKind: 'lib',
+        },
+      ],
+      presets: [
+        { spec: 'ignis', side: 'backend', summary: 'An API.', lib: 'A lib.', shared: 'Types.' },
+      ],
+    };
+
+    expect(parseAppsBlock({ source: renderAppsBlock({ block: withShared }) })).toEqual({
+      ok: true,
+      block: withShared,
+    });
+  });
+
+  test('a package with a presetKind that is neither lib nor shared makes the block invalid', () => {
+    const bad = renderAppsBlock({ block: BLOCK }).replace(
+      '"path": "services/core-api"',
+      '"path": "services/core-api", "presetKind": "app"',
+    );
+
+    expect(bad).toContain('"presetKind": "app"');
+    expect(parseAppsBlock({ source: bad })).toEqual({ ok: false, reason: 'invalid' });
+  });
+
+  test('a preset whose shared is not a string makes the block invalid', () => {
+    const bad = renderAppsBlock({ block: BLOCK }).replace(
+      '"sources"',
+      '"presets": [{ "spec": "ignis", "side": "backend", "summary": "s", "shared": 1 }],\n  "sources"',
+    );
+
+    expect(parseAppsBlock({ source: bad })).toEqual({ ok: false, reason: 'invalid' });
+  });
+
   test('a presets entry that is not { spec, side, summary } makes the block invalid', () => {
     const bad = renderAppsBlock({ block: BLOCK }).replace(
       '"sources"',
@@ -439,7 +483,7 @@ describe('workspace planners', () => {
     expect(frontend).not.toContain('controller routes');
   });
 
-  test('the lib concept points at the lookups of a shared package', () => {
+  test('the lib concept points at the lookups of a library', () => {
     const lib = renderLibConcept({
       name: 'money',
       path: 'libs/money',
@@ -448,7 +492,7 @@ describe('workspace planners', () => {
     });
 
     expect(lib).toContain('a summary, not a spec');
-    expect(lib).toContain('`search` "shared package exports"');
+    expect(lib).toContain('`search` "library exports"');
     expect(lib).toContain('`symbol`');
   });
 

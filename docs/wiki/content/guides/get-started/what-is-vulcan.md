@@ -33,7 +33,7 @@ bun x --no-install vulcan doctor
 | [atlas](/guides/core-concepts/atlas) | An MCP server with 6 tools that searches your docs, changelogs and symbols, and those of other projects | `vulcan x atlas mcp` |
 | [doctor](/references/commands/doctor) | Checks that the repository follows the contract | `vulcan doctor` |
 
-Also in the box: `vulcan add` makes an app or a shared library from a framework preset, `vulcan preset diff` shows where an app drifted from its preset, `vulcan clean` removes what agents left under `.agents/local/`, and `vulcan visualize` makes a small HTML page from a JSON spec ([commands](/references/commands/)).
+Also in the box: `vulcan add` makes an app or a library other apps import from a framework preset, `vulcan preset diff` shows where an app drifted from its preset, `vulcan clean` removes what agents left under `.agents/local/`, and `vulcan visualize` makes a small HTML page from a JSON spec ([commands](/references/commands/)).
 
 ## How mature it is
 

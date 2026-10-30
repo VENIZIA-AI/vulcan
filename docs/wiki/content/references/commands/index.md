@@ -18,16 +18,18 @@ Usage: bun x vulcan <command>
        [--shared-dir <path>] [--scope <@scope>]
                                   Create a monorepo with its first app, from a framework preset
                                   (a name missing from the flags is asked in a terminal)
-  add --preset <name|file:path> (--app <name> | --lib <name>) [--dir <folder>] [--scope <@scope>]
-      [--backend-dir|--frontend-dir <path>] [--api <app> | --no-api]
-                                  Add an app or a shared library to the monorepo (a frontend says which
-                                  backend to proxy to; --dir is for a library; --scope names the package
-                                  @scope/<name>, for an app or a library; a terminal asks for the kind
+  add --preset <name|file:path> (--app <name> | --lib <name> | --shared <name>) [--dir <folder>]
+      [--scope <@scope>] [--backend-dir|--frontend-dir <path>] [--api <app> | --no-api]
+                                  Add an app, a library other apps import (--lib) or a side-neutral package
+                                  other apps import (--shared) to the monorepo (a frontend says which
+                                  backend to proxy to; --dir is for a library or a shared package;
+                                  --scope names the package @scope/<name>; a terminal asks for the kind
                                   and every name the flags leave out)
-  preset diff <app> [--preset <name|file:path>] [--api <app> | --no-api] [--full] [--check]
-                                  Read-only: set each file the app's preset makes now against the file
-                                  the app has (same, differs, missing in the app); --full prints the
-                                  unified diffs, --check exits 1 when anything differs or is missing
+  preset diff <package> [--preset <name|file:path>] [--api <app> | --no-api] [--full] [--check]
+                                  Read-only: set each file the preset makes now (for an app, a library or
+                                  a shared package) against the file the package has (same, differs,
+                                  missing in the app); --full prints the unified diffs, --check exits 1
+                                  when anything differs or is missing
   sync [--agents <list>|list] [--dry-run] [--prune]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
                                   stored in .agents/vulcan.local.json; --agents list shows the table);
@@ -53,7 +55,7 @@ Usage: bun x vulcan <command>
   help · version
 ```
 
-The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a shared package (with `--dir`); `--scope` names the package for either; see [vulcan add](/references/commands/add).
+The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a library other apps import (with `--dir`); `--scope` names the package for either; see [vulcan add](/references/commands/add).
 
 If you pass an unknown command, `vulcan` prints `vulcan: unknown command 'foo' - run 'bun x vulcan help'` and exits with code 1.
 The following table lists each command, its purpose, its exit codes, and its reference page:
@@ -61,8 +63,8 @@ The following table lists each command, its purpose, its exit codes, and its ref
 | Command | What it does | Exit codes | Page |
 |---|---|---|---|
 | `init` | Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app | `0` on success; `1` on invalid configuration format, a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan init](/references/commands/init) |
-| `add` | Add an app, or a shared library with `--lib`, from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
-| `preset` | `preset diff <app>`: read-only report of each file the app's preset makes now against the file the app has | `0` after a report (with `--check`, `1` when anything differs or is missing); `1` on a refusal or an unknown argument | [vulcan preset diff](/references/commands/preset) |
+| `add` | Add an app, or a library other apps import with `--lib`, from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
+| `preset` | `preset diff <package>`: read-only report of each file the preset of an app, a library or a shared package makes now against the file the package has | `0` after a report (with `--check`, `1` when anything differs or is missing); `1` on a refusal or an unknown argument | [vulcan preset diff](/references/commands/preset) |
 | `sync` | Write agent adapter files and manifest; prune stale hooks and dead skill links with `--prune` | `0` on success; `1` on invalid configuration, broken settings, or unknown argument | [vulcan sync](/references/commands/sync) |
 | `agents` | Show, add, remove or re-choose the coding agents chosen on this machine, and write or take back their adapters | `0` on success or when nothing needed changing; `1` on an unknown agent or subcommand, a missing list, `setup` without a terminal, or invalid configuration | [vulcan agents](/references/commands/agents) |
 | `visualize` | Make one small static HTML page from a JSON spec, in `.agents/local/prototypes/`; `--schema` prints the spec's JSON Schema | `0` on success; `1` when the spec is missing or not renderable, nothing is written, or `.agents/local/` is missing | [vulcan visualize](/references/commands/visualize) |

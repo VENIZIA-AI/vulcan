@@ -7,6 +7,8 @@ export interface IOfficialPreset {
   side: IAtlasPreset['side'];
   summary: string;
   lib: string;
+  /** The summary of the preset's shared kind; absent when the preset's package ships none. */
+  shared?: string;
 }
 
 /**
@@ -18,13 +20,13 @@ export const OFFICIAL_PRESETS: IOfficialPreset[] = [
     id: 'ignis',
     side: 'backend',
     summary: 'IGNIS: a backend app on Bun (official; not yet in this project)',
-    lib: 'IGNIS: a shared library (official; not yet in this project)',
+    lib: 'IGNIS: a library other apps import (official; not yet in this project)',
   },
   {
     id: 'ardor',
     side: 'frontend',
     summary: 'ARDOR: a frontend app on Vite and React (official; not yet in this project)',
-    lib: 'ARDOR: a shared feature package (official; not yet in this project)',
+    lib: 'ARDOR: a feature package other apps import (official; not yet in this project)',
   },
 ];
 

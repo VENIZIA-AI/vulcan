@@ -268,6 +268,85 @@ describe('layout and presets in the manifest', () => {
   });
 });
 
+describe('shared summaries in the manifest', () => {
+  test('a recorded preset carries its shared summary, and one without it carries none', () => {
+    const root = createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
+    const withShared = {
+      spec: 'ignis',
+      side: 'backend',
+      summary: 'An API.',
+      lib: 'A lib.',
+      shared: 'Side-neutral types.',
+    };
+    const without = { spec: 'ardor', side: 'frontend', summary: 'An admin.' };
+    const manifest = JSON.parse(
+      render({ root, config: { ...CONFIG, presets: [withShared, without] } }),
+    );
+
+    expect(manifest.presets[0]).toEqual(withShared);
+    expect(manifest.presets[1]).toEqual(without);
+    expect(manifest.presets[1]).not.toHaveProperty('shared');
+  });
+});
+
+describe('the preset kind of a package in the manifest', () => {
+  const root = (): string =>
+    createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
+
+  test('a package made from the shared kind carries presetKind after its kind', () => {
+    const text = render({
+      root: root(),
+      config: {
+        ...CONFIG,
+        packages: [
+          {
+            dir: 'common',
+            name: '@x/common',
+            path: 'libs/common',
+            kind: 'lib',
+            presetKind: 'shared',
+          },
+        ],
+      },
+    });
+    const [entry] = JSON.parse(text).packages;
+
+    expect(entry).toEqual({
+      name: '@x/common',
+      dir: 'common',
+      path: 'libs/common',
+      aliases: [],
+      retired: false,
+      kind: 'lib',
+      presetKind: 'shared',
+    });
+    expect(Object.keys(entry).slice(-2)).toEqual(['kind', 'presetKind']);
+  });
+
+  test('a package without it renders no presetKind at all, so a project that never used it keeps its manifest', () => {
+    const text = render({
+      root: root(),
+      config: {
+        ...CONFIG,
+        packages: [
+          { dir: 'money', name: '@x/money', path: 'libs/money', kind: 'lib' },
+          { dir: 'kernel', name: '@x/kernel' },
+        ],
+      },
+    });
+
+    expect(text).not.toContain('presetKind');
+    expect(JSON.parse(text).packages[0]).toEqual({
+      name: '@x/money',
+      dir: 'money',
+      path: 'libs/money',
+      aliases: [],
+      retired: false,
+      kind: 'lib',
+    });
+  });
+});
+
 describe('the manifest in sync, doctor and vulcan x', () => {
   const PROJECT = {
     '.configs/vulcan.config.ts': `export default ${JSON.stringify(CONFIG)};\n`,

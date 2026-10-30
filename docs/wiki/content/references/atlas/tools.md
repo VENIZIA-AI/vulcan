@@ -282,15 +282,15 @@ to must be a YYYY-MM-DD date when no package is given; got '0.2.0-16'
 
 `presets` answers "how do I create a new app or package here" from the manifest `vulcan sync` renders: which preset makes it, which folder it lands in, and the exact `vulcan add` command. An agent asked to create something calls it before it writes a file.
 
-The answer lists the presets this project recorded first (`inProject: true`), then the official presets it has not used yet (`inProject: false`): `ignis` (a backend app, a shared library) and `ardor` (a frontend app, a shared feature package). A project that only ever made a backend therefore still learns that an ARDOR frontend exists, with its command.
+The answer lists the presets this project recorded first (`inProject: true`), then the official presets it has not used yet (`inProject: false`): `ignis` (a backend app, a library other apps import) and `ardor` (a frontend app, a feature package other apps import). A shared kind (a side-neutral package) is listed for an official preset only after that preset publishes one. A project that only ever made a backend therefore still learns that an ARDOR frontend exists, with its command.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `kind` | String | `app` | What is created: `app`, or `lib` for a shared package. Any other word is a kind no preset makes |
+| `kind` | String | `app` | What is created: `app`, `lib` for a library other apps import, or `shared` for a side-neutral package other apps import. Any other word is a kind no preset makes |
 | `name` | String | `<name>` | The new name (lowercase letters, digits and `-`), put into the command |
 | `side` | `backend` or `frontend` | Both | Narrows the apps list to one side |
 
-For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `command` and `inProject`; for `kind: "lib"`, `preset`, `summary`, `folder`, `command` and `inProject`. A side or kind whose layout lists several folders has `folder: null`, a `folders` list, and a command with a folder placeholder (`--frontend-dir <auroras/apps|auroras/guests>`): the agent picks one. A side or kind with no folder in the manifest has `folder: null` and the command carries `--backend-dir <folder>`, `--frontend-dir <folder>` or `--dir <folder>`: the tool never invents a folder. A frontend's command ends with `--api <backend app> | --no-api`.
+For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `command` and `inProject`; for `kind: "lib"` and `kind: "shared"`, `preset`, `summary`, `folder`, `command` and `inProject`. With `kind: "shared"` the entries are the recorded presets that have a shared kind, and the command ends in `--shared <name>`. A side or kind whose layout lists several folders has `folder: null`, a `folders` list, and a command with a folder placeholder (`--frontend-dir <auroras/apps|auroras/guests>`): the agent picks one. A side or kind with no folder in the manifest has `folder: null` and the command carries `--backend-dir <folder>`, `--frontend-dir <folder>` or `--dir <folder>`: the tool never invents a folder. A frontend's command ends with `--api <backend app> | --no-api`.
 
 ```json
 {
@@ -316,13 +316,14 @@ For `kind: "app"` each entry carries `preset`, `side`, `summary`, `folder`, `com
 }
 ```
 
-A recorded preset of the same package (`ignis`, `@venizia/ignis`, `ignis@0.3.5`) replaces the official entry, so a preset is listed once. When no entry is in the project, a `note` says so. When nothing fits the kind, `presets` is empty and a `note` says what to do instead. The tool never offers an app preset for a library, or a command that does not exist:
+A recorded preset of the same package (`ignis`, `@venizia/ignis`, `ignis@0.3.5`) replaces the official entry, so a preset is listed once. When no entry is in the project, a `note` says so. When nothing fits the kind, `presets` is empty and a `note` says what to do instead. The tool never offers an app preset for a library or a shared package, or a command that does not exist:
 
 | Case | `note` |
 |---|---|
-| A kind other than `app` or `lib` | `no preset makes a <kind> (vulcan add makes apps and libs): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app or lib preset for it` |
+| A kind other than `app`, `lib` or `shared` | `no preset makes a <kind> (vulcan add makes apps, libs and shared packages): ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app, lib or shared preset for it` |
 | The project recorded no preset | `this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use` |
-| No recorded preset makes the kind or side | `no recorded preset makes a lib: the entries are the official ones, marked inProject false; ask the user which to use, and do not hand-write package.json, tsconfig or scripts` |
+| No recorded preset makes the kind or side | `no recorded preset makes a <lib, shared or side>: the entries are the official ones, marked inProject false; ask the user which to use, and do not hand-write package.json, tsconfig or scripts` |
+| No preset at all makes the kind (a `shared` ask while no recorded preset has a shared kind and no official one has published it) | `no preset makes a shared: ask the user how it should be made; do not hand-write package.json, tsconfig or scripts, and do not use an app preset for it` |
 
 ## Errors
 

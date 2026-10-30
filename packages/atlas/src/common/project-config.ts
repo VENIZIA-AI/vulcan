@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
-import { PackageKinds, SourcePins } from './constants';
-import type { TAppSide, TPackageKind, TSourcePin } from './types';
+import { LibraryKinds, PackageKinds, SourcePins } from './constants';
+import type { TAppSide, TLibraryKind, TPackageKind, TSourcePin } from './types';
 
 /** The project manifest (Project Contract v1, C1) - what atlas reads, and nothing else. */
 export const MANIFEST_FILE = '.agents/vulcan.manifest.json';
@@ -24,8 +24,10 @@ export interface IAtlasPackage {
   path: string;
   aliases: string[];
   retired: boolean;
-  /** `lib` for a shared package a preset's lib kind made; absent for an app or a plain package. */
+  /** `lib` for a library a preset made; absent for an app or a plain package. */
   kind?: TPackageKind;
+  /** Which preset kind made a library; absent means `lib`. */
+  presetKind?: TLibraryKind;
 }
 
 /** A preset an app of the project came from, as `vulcan add --preset` takes it back. */
@@ -35,6 +37,8 @@ export interface IAtlasPreset {
   summary: string;
   /** The summary of the preset's lib kind, when it makes libraries. */
   lib?: string;
+  /** The summary of the preset's shared kind, when it makes side-neutral packages. */
+  shared?: string;
 }
 
 export interface IAtlasProject {
@@ -43,7 +47,7 @@ export interface IAtlasProject {
   name: string;
   /** Release order; retired ones included, so their old changelogs and tags stay readable. */
   packages: IAtlasPackage[];
-  /** The folders `vulcan add` puts apps and shared packages in, each a folder or a list of folders; absent in an older manifest. */
+  /** The folders `vulcan add` puts apps and packages in, each a folder or a list of folders; absent in an older manifest. */
   layout?: {
     backend?: string | string[];
     frontend?: string | string[];
@@ -110,6 +114,9 @@ const packagesOf = (opts: { value: unknown; label: string }): IAtlasPackage[] =>
         ...(entry.kind === PackageKinds.LIB || entry.kind === PackageKinds.APP
           ? { kind: entry.kind }
           : {}),
+        ...(entry.presetKind === LibraryKinds.LIB || entry.presetKind === LibraryKinds.SHARED
+          ? { presetKind: entry.presetKind }
+          : {}),
       },
     ];
   });
@@ -151,12 +158,21 @@ const presetsOf = (opts: { value: unknown }): Pick<IAtlasProject, 'presets'> => 
     const spec = stringOf({ value: entry.spec });
     const summary = stringOf({ value: entry.summary });
     const lib = stringOf({ value: entry.lib });
+    const shared = stringOf({ value: entry.shared });
 
     return spec === undefined ||
       summary === undefined ||
       (entry.side !== 'backend' && entry.side !== 'frontend')
       ? []
-      : [{ spec, side: entry.side, summary, ...(lib === undefined ? {} : { lib }) }];
+      : [
+          {
+            spec,
+            side: entry.side,
+            summary,
+            ...(lib === undefined ? {} : { lib }),
+            ...(shared === undefined ? {} : { shared }),
+          },
+        ];
   });
 
   return presets.length === 0 ? {} : { presets };

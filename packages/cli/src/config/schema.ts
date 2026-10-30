@@ -2,7 +2,13 @@ import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import { layoutFolderProblem, layoutOverlapProblems } from '../common/layout-folder.ts';
 import { OWNER_SCHEMA } from '../owner/schema.ts';
-import { CodingAgents, ConfigConstants, HookEvents, PackageKinds } from './common/index.ts';
+import {
+  CodingAgents,
+  ConfigConstants,
+  HookEvents,
+  LibraryKinds,
+  PackageKinds,
+} from './common/index.ts';
 
 const CODING_AGENT = z.string().refine((value) => CodingAgents.isValid(value), {
   message: `one of: ${[...CodingAgents.SCHEME_SET].join(', ')}`,
@@ -98,8 +104,10 @@ const PROJECT_PACKAGE = z.strictObject({
   path: z.string().optional(),
   aliases: z.array(z.string()).default([]),
   retired: z.boolean().default(false),
-  /** A shared package a preset's lib kind made lives anywhere a workspace glob covers; absent means an app or a plain package. */
+  /** A library a preset made lives anywhere a workspace glob covers; absent means an app or a plain package. */
   kind: z.enum([PackageKinds.APP, PackageKinds.LIB]).optional(),
+  /** Which preset kind made a library; absent means the `lib` kind. */
+  presetKind: z.enum([LibraryKinds.LIB, LibraryKinds.SHARED]).optional(),
 });
 
 /** A path as a key: no leading `./`, no trailing slash. */
@@ -218,6 +226,8 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         summary: z.string(),
         /** The summary of the preset's lib kind, when it ships one. */
         lib: z.string().optional(),
+        /** The summary of the preset's shared kind, when it ships one. */
+        shared: z.string().optional(),
       }),
     )
     .optional(),

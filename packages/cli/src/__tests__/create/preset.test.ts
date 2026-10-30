@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { readLibPreset, recordedPresetOf } from '../../create/lib-preset.ts';
 import { copyPresetFiles, locatePreset, parsePresetSpec } from '../../create/preset.ts';
 import type { ILocatedPreset } from '../../create/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -17,6 +18,7 @@ afterAll(removeProjects);
 
 const FIXTURE = join(import.meta.dir, '..', 'fixtures', 'preset-backend');
 const FRONTEND_FIXTURE = join(import.meta.dir, '..', 'fixtures', 'preset-frontend');
+const SHARED_FIXTURE = join(import.meta.dir, '..', 'fixtures', 'preset-with-shared');
 
 const PRESET_JSON = JSON.stringify({
   presetVersion: 1,
@@ -216,6 +218,176 @@ describe('locatePreset', () => {
     const result = locatePreset({ spec: { packageName: '@acme/kit', range: 'latest' }, root });
 
     expect(!result.ok && result.error).toContain('side');
+  });
+});
+
+describe('locatePreset shared kind', () => {
+  const sharedPackageJson = (opts: { shared?: string; lib?: string }): string =>
+    JSON.stringify({
+      name: '@acme/kit',
+      version: '1.0.0',
+      vulcan: {
+        presets: {
+          app: './preset.json',
+          ...(opts.lib === undefined ? {} : { lib: opts.lib }),
+          ...(opts.shared === undefined ? {} : { shared: opts.shared }),
+        },
+      },
+    });
+  const KIND_JSON = (opts: { summary: string }): string =>
+    JSON.stringify({ presetVersion: 1, summary: opts.summary, files: './kind-files' });
+  const sourceOf = (opts: { files: Record<string, string> }): string =>
+    createProject({
+      files: {
+        'preset.json': PRESET_JSON,
+        'files/.keep': '',
+        'kind-files/.keep': '',
+        ...opts.files,
+      },
+    });
+  const locateSource = (opts: { source: string }): ILocatedPreset => {
+    const result = locatePreset({ spec: { range: `file:${opts.source}` }, root: '/unused' });
+
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+
+    return result.located;
+  };
+
+  test('a package that declares presets.shared is accepted and carries sharedFile', () => {
+    const located = locateFixture({ path: SHARED_FIXTURE });
+
+    expect(located.sharedFile).toBe(join(SHARED_FIXTURE, 'vulcan-preset', 'shared.json'));
+    expect(located.libFile).toBe(join(SHARED_FIXTURE, 'vulcan-preset', 'lib.json'));
+  });
+
+  test('a package that declares presets.shared without presets.lib carries sharedFile only', () => {
+    const located = locateSource({
+      source: sourceOf({
+        files: {
+          'package.json': sharedPackageJson({ shared: './shared.json' }),
+          'shared.json': KIND_JSON({ summary: 'Only shared.' }),
+        },
+      }),
+    });
+
+    expect(located.sharedFile).toBeDefined();
+    expect(located.libFile).toBeUndefined();
+  });
+
+  test('a package without the key has no sharedFile', () => {
+    const located = locateFixture({ path: FIXTURE });
+
+    expect(located.sharedFile).toBeUndefined();
+    expect('sharedFile' in located).toBe(false);
+  });
+
+  test('a presets.shared path outside the package is refused, naming the key', () => {
+    const source = sourceOf({
+      files: { 'package.json': sharedPackageJson({ shared: '../shared.json' }) },
+    });
+    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('vulcan.presets.shared');
+    expect(!result.ok && result.error).toContain('points outside the package');
+  });
+
+  test('readLibPreset reads the shared file of a valid shared kind', () => {
+    const located = locateFixture({ path: SHARED_FIXTURE });
+    const result = readLibPreset({ located, kind: 'shared' });
+
+    expect(result.ok && result.lib.summary).toBe('A fixture side-neutral package.');
+  });
+
+  test('readLibPreset on a package with no shared kind refuses, naming the kind', () => {
+    const located = locateFixture({ path: FIXTURE });
+    const result = readLibPreset({ located, kind: 'shared' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('shared');
+  });
+
+  test('readLibPreset refuses a shared file that fails the schema, naming the package and the kind', () => {
+    const located = locateSource({
+      source: sourceOf({
+        files: {
+          'package.json': sharedPackageJson({ shared: './shared.json' }),
+          'shared.json': JSON.stringify({ presetVersion: 1, files: './kind-files' }),
+        },
+      }),
+    });
+    const result = readLibPreset({ located, kind: 'shared' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('@acme/kit');
+    expect(!result.ok && result.error).toContain('shared preset');
+    expect(!result.ok && result.error).toContain('summary');
+  });
+
+  test('a shared file with a newer presetVersion is refused, naming the kind', () => {
+    const located = locateSource({
+      source: sourceOf({
+        files: {
+          'package.json': sharedPackageJson({ shared: './shared.json' }),
+          'shared.json': JSON.stringify({ presetVersion: 99, summary: 'x', files: './kind-files' }),
+        },
+      }),
+    });
+    const result = readLibPreset({ located, kind: 'shared' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('the shared preset has preset version 99');
+  });
+
+  test('a lib file that fails the schema is still reported as a lib error, not a shared one', () => {
+    const located = locateSource({
+      source: sourceOf({
+        files: {
+          'package.json': sharedPackageJson({ lib: './lib.json' }),
+          'lib.json': JSON.stringify({ presetVersion: 1, files: './kind-files' }),
+        },
+      }),
+    });
+    const result = readLibPreset({ located });
+
+    expect(!result.ok && result.error).toContain('lib preset');
+  });
+
+  test('recordedPresetOf carries shared when the shared file is valid', () => {
+    const recorded = recordedPresetOf({
+      spec: 'file:x',
+      located: locateFixture({ path: SHARED_FIXTURE }),
+    });
+
+    expect(recorded.shared).toBe('A fixture side-neutral package.');
+    expect(recorded.lib).toBe('A fixture library.');
+  });
+
+  test('recordedPresetOf leaves shared out when the shared file is invalid, keeping lib', () => {
+    const located = locateSource({
+      source: sourceOf({
+        files: {
+          'package.json': sharedPackageJson({ lib: './lib.json', shared: './shared.json' }),
+          'lib.json': KIND_JSON({ summary: 'A good lib.' }),
+          'shared.json': JSON.stringify({ presetVersion: 1, files: './kind-files' }),
+        },
+      }),
+    });
+    const recorded = recordedPresetOf({ spec: 'file:x', located });
+
+    expect(recorded.lib).toBe('A good lib.');
+    expect('shared' in recorded).toBe(false);
+  });
+
+  test('recordedPresetOf leaves shared out when the preset has no shared kind', () => {
+    const recorded = recordedPresetOf({
+      spec: 'file:x',
+      located: locateFixture({ path: FIXTURE }),
+    });
+
+    expect('shared' in recorded).toBe(false);
   });
 });
 
