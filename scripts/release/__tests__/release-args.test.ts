@@ -11,9 +11,33 @@ describe('parseReleaseArgs', () => {
     expect(parseReleaseArgs({ args: [] })).toEqual({
       bump: 'prerelease',
       issue: undefined,
+      branch: 'develop',
       isDryRun: false,
       isConfirmed: false,
     });
+  });
+
+  test('a bump that gives a stable runs from main, any other from develop, and none follows --branch', () => {
+    for (const [bump, branch] of [
+      ['prerelease', 'develop'],
+      ['prepatch', 'develop'],
+      ['preminor', 'develop'],
+      ['premajor', 'develop'],
+      ['patch', 'main'],
+      ['minor', 'main'],
+      ['major', 'main'],
+      ['none', 'develop'],
+    ] as const) {
+      expect(parseReleaseArgs({ args: ['--bump', bump] }).branch, bump).toBe(branch);
+    }
+
+    expect(parseReleaseArgs({ args: ['--bump', 'none', '--branch', 'main'] }).branch).toBe('main');
+  });
+
+  test('a branch other than develop or main throws', () => {
+    expect(() => parseReleaseArgs({ args: ['--branch', 'feat/x'] })).toThrow(
+      "--branch 'feat/x' is not one of: develop, main",
+    );
   });
 
   test('every flag and its value are read', () => {
@@ -24,6 +48,7 @@ describe('parseReleaseArgs', () => {
     expect(parsed).toEqual({
       bump: 'none',
       issue: '12',
+      branch: 'develop',
       isDryRun: true,
       isConfirmed: true,
     });
@@ -57,11 +82,12 @@ describe('parseReleaseArgs', () => {
 });
 
 describe('buildDispatchCommand', () => {
-  test('dispatches package-release.yml on the default branch (develop) with the bump and the issue', () => {
+  test('dispatches package-release.yml on an explicit ref, develop, with the bump and the issue', () => {
     const command = buildDispatchCommand({
       args: {
         bump: 'prerelease',
         issue: '12',
+        branch: 'develop',
         isDryRun: false,
         isConfirmed: true,
       },
@@ -72,6 +98,8 @@ describe('buildDispatchCommand', () => {
       'workflow',
       'run',
       'package-release.yml',
+      '--ref',
+      'develop',
       '-f',
       'bump=prerelease',
       '-f',
@@ -84,6 +112,7 @@ describe('buildDispatchCommand', () => {
       args: {
         bump: 'none',
         issue: undefined,
+        branch: 'develop',
         isDryRun: false,
         isConfirmed: false,
       },
@@ -94,7 +123,35 @@ describe('buildDispatchCommand', () => {
   });
 });
 
+describe('buildDispatchCommand: a stable', () => {
+  test('is dispatched on main', () => {
+    const command = buildDispatchCommand({
+      args: { bump: 'patch', issue: undefined, branch: 'main', isDryRun: false, isConfirmed: true },
+    });
+
+    expect(command.slice(4, 7)).toEqual(['--ref', 'main', '-f']);
+  });
+});
+
 describe('findReleaseBlockers', () => {
+  test('a stable is judged against main, and says so', () => {
+    expect(
+      findReleaseBlockers({ branch: 'main', dirtyPaths: 0, ahead: 0, behind: 0, target: 'main' }),
+    ).toEqual([]);
+    expect(
+      findReleaseBlockers({
+        branch: 'develop',
+        dirtyPaths: 0,
+        ahead: 0,
+        behind: 1,
+        target: 'main',
+      }),
+    ).toEqual([
+      "On 'develop', not 'main'. The workflow releases from 'main'.",
+      '1 commit(s) behind origin/main. Pull first, or you will read stale versions.',
+    ]);
+  });
+
   test('on develop, clean, level with origin: nothing blocks', () => {
     expect(findReleaseBlockers({ branch: 'develop', dirtyPaths: 0, ahead: 0, behind: 0 })).toEqual(
       [],

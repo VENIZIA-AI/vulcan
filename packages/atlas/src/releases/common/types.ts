@@ -7,6 +7,8 @@ export interface IReleaseRecord {
   sha: string;
   /** Release commits before this one in first-parent history (a commit position in tables before 0.2.0-0); absent in older tables. */
   order?: number;
+  /** The tag the release was read from, set only when a legacy template read it; a current tag is rebuilt from `tagPattern`. */
+  tag?: string;
 }
 
 /**

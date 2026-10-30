@@ -377,10 +377,27 @@ The keys `releaseCommit`, `typescriptFrom` and `legacyTagPrefixes` were removed 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` or `<package>` |
+| `legacyTagPatterns` | `string[]` | `undefined` | Tag templates of an earlier layout that still name releases, read after `tagPattern` (see [legacyTagPatterns](#legacytagpatterns)) |
 | `sources` | `Array<object>` | `[]` | External repositories to query through atlas |
 | `ignoreTags` | `string[]` | `undefined` | Glob patterns of git tags ignored by checks |
 | `index.keys` | `string[]` | `[]` | The public keys a prebuilt atlas index of this repository may be signed with; each is the base64 of 32 bytes, as `vulcan x atlas index keygen` prints it |
 | `prebuilt` | `boolean` | `true` | `false`: atlas never downloads a prebuilt index for a source this project reads |
+
+### legacyTagPatterns
+
+After you rename your release tags, `legacyTagPatterns` keeps the old tags readable as releases. List the templates of the earlier layout.
+
+Atlas and the changelog check read a tag through `tagPattern` first. A tag that template reads is never read again by a legacy one.
+
+A legacy template reads only a tag whose version starts with a digit. Without that rule, `v<version>` would read `vulcan-v0.4.8` as the version `ulcan-v0.4.8`.
+
+A release read through a legacy template keeps the name of its tag, so a pin to it names the old tag.
+
+```ts
+atlas: { tagPattern: 'vulcan-v<version>', legacyTagPatterns: ['v<version>'] },
+```
+
+Unlike `ignoreTags`, a tag a legacy template reads counts as a release. The key is written to the manifest as `release.legacyTagPatterns`, and only when it lists something, so `schemaVersion` stays 1; an atlas that does not know it reads the new tags only. The `[tags]` doctor check reads `tagPattern` only.
 
 ### index and prebuilt
 

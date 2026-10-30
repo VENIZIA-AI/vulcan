@@ -239,3 +239,72 @@ describe('the tool-owned allowlist', () => {
     expect(bash({ command: 'mktemp -d' }).length).toBe(1);
   });
 });
+
+describe('the agent tool scratchpad', () => {
+  const SCRATCHPAD =
+    '/tmp/claude-1000/-home-user-project/0b1c2d3e-aaaa-bbbb-cccc-1234567890ab/scratchpad';
+  const hitsOf = (opts: { command?: string; tool?: string; path?: string }) =>
+    inspectOutside({
+      input: {
+        tool: opts.tool ?? 'Bash',
+        filePath: opts.path,
+        command: opts.command,
+        cwd: PROJECT,
+      },
+      projectRoot: PROJECT,
+      home: HOME,
+      env: ENV,
+    });
+
+  test('a redirect after cd into the scratchpad is flagged as the scratchpad', () => {
+    const hits = hitsOf({ command: `cd ${SCRATCHPAD} && gh api repos/x/y/contents/z > out.ts` });
+
+    expect(hits.length).toBe(1);
+    expect(hits[0]?.isAgentToolScratchpad).toBe(true);
+  });
+
+  test('a file tool writing into the scratchpad is flagged', () => {
+    const hits = hitsOf({ tool: 'Write', path: `${SCRATCHPAD}/notes.md` });
+
+    expect(hits.map((hit) => hit.isAgentToolScratchpad)).toEqual([true]);
+  });
+
+  test('the folder itself, not only what is below it, is the scratchpad', () => {
+    expect(
+      hitsOf({ command: `mkdir ${SCRATCHPAD}` }).map((hit) => hit.isAgentToolScratchpad),
+    ).toEqual([true]);
+  });
+
+  test.each([
+    'mkdir /tmp/other-work',
+    'touch /tmp/claude-notes/a',
+    'mkdir /var/tmp/claude-1000/x',
+    'touch /tmp/claude-1000/-home-user-project/0b1c2d3e/tasks/out',
+  ])('%s is outside the project but not the scratchpad, so it is only asked about', (command) => {
+    const hits = hitsOf({ command });
+
+    expect(hits.length).toBe(1);
+    expect(hits[0]?.isAgentToolScratchpad).toBe(false);
+  });
+
+  test('a guard.toolOwnedPaths entry for the folder keeps allowing it (the owner chose it)', () => {
+    const hits = inspectOutside({
+      input: {
+        tool: 'Write',
+        filePath: `${SCRATCHPAD}/notes.md`,
+        command: undefined,
+        cwd: PROJECT,
+      },
+      projectRoot: PROJECT,
+      toolOwnedPaths: ['/tmp/claude-*/**'],
+      home: HOME,
+      env: ENV,
+    });
+
+    expect(hits).toEqual([]);
+  });
+
+  test('a path inside the project is not flagged', () => {
+    expect(hitsOf({ command: 'mkdir -p .agents/local/tmp/x' })).toEqual([]);
+  });
+});

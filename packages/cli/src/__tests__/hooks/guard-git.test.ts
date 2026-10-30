@@ -450,3 +450,61 @@ describe('a blanket stage is counted file by file on a real repository', () => {
     expect(asks({ root, command: 'git add -A' })).toEqual([]);
   });
 });
+
+describe('inspectGit and gh pr create', () => {
+  test.each([
+    'gh pr create',
+    'gh pr create --title "x" --body "y"',
+    'gh pr create --head feat/x --project "Venizia Forge"',
+    'gh pr create --title "--base in a title" --body-file body.md',
+    'cd /p && gh pr create --fill',
+    'gh pr new --fill',
+    'gh -R org/repo pr create --title t',
+    'gh --repo org/repo pr create --fill',
+    'gh pr -R org/repo create --fill',
+    'gh pr create --title "-Bug fix" --body x',
+    'gh pr create --web',
+  ])('asks when it names no base: %s', (command) => {
+    expect(decisions({ command })).toEqual(['ask']);
+  });
+
+  test.each([
+    'gh pr create --base develop --title x --body y',
+    'gh pr create --base=develop --fill',
+    'gh pr create -B develop --fill',
+    'gh pr create --title x --base main --head sync/vulcan-v0.4.9-1',
+    'gh -R org/repo pr create --base develop --fill',
+    'gh --repo=org/repo pr new -Bdevelop',
+    'gh pr create --title "a base" --base develop',
+    'gh pr create --help',
+    'gh pr view 12',
+    'gh pr list --base develop',
+    'echo gh pr create',
+  ])('passes: %s', (command) => {
+    expect(decisions({ command })).toEqual([]);
+  });
+
+  test('the hit cites a rule and names the flag to pass', () => {
+    const [hit] = inspectGit({ command: 'gh pr create', cwd: '/p', run: runner({}) });
+
+    expect(hit.rule).toBe('V-W-06');
+    expect(hit.message).toContain('--base');
+  });
+});
+
+describe('inspectGit and gh options before the group', () => {
+  test('gh -R <repo> pr merge --delete-branch is judged like gh pr merge --delete-branch', () => {
+    expect(
+      decisions({
+        command: 'gh -R org/repo pr merge 12 --merge --delete-branch',
+        run: runner({ head: 'develop' }),
+      }),
+    ).toEqual(['deny']);
+    expect(
+      decisions({
+        command: 'gh --repo org/repo pr merge 12 --merge --delete-branch',
+        run: runner({ head: 'feature/x' }),
+      }),
+    ).toEqual([]);
+  });
+});

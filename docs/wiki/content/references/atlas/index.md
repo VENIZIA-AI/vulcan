@@ -100,6 +100,7 @@ atlas reads the following fields from `.agents/vulcan.manifest.json`. The file i
 | `name` | String | Folder name | Project name reported in results; server names itself `<name>-atlas` |
 | `packages` | Array | `[]` | Package entries in release order; only `dir` is required (defaults: name = `dir`, path = `packages/<dir>`, aliases `[]`, retired `false`); an invalid npm name is an error |
 | `release.tagPattern` | String | `<dir>-v<version>` | Template pattern for release tags; written from `atlas.tagPattern` in configuration |
+| `release.legacyTagPatterns` | Array | None | Templates of an earlier tag layout, read after `release.tagPattern`; written from `atlas.legacyTagPatterns` in configuration. A tag they read is a release and keeps its name |
 | `release.ignoreTags` | Array | `[]` | Glob patterns of tags that atlas ignores |
 | `sources` | Array | `[]` | External sources; entries missing `name` or `repo` are dropped; `ref` defaults to `develop`; git URLs are accepted |
 | `knowledge.bundle` | String | `.agents/knowledge` | Path to the knowledge bundle directory |

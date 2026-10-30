@@ -2,7 +2,8 @@
  * PreToolUse hook on Bash: parses the command (quotes, `&&`, `;`, `git -C`, heredocs) and catches the git
  * and gh actions that lose history or a protected branch - deleting, renaming or force-pushing develop
  * or main, `gh pr merge --delete-branch` on a pull request whose head is one of them (deny), and
- * `reset --hard`, other force-pushes and `branch -D` of an unmerged branch (ask).
+ * `reset --hard`, other force-pushes, `branch -D` of an unmerged branch and `gh pr create` with no `--base`
+ * (ask: the pull request would land on the default branch).
  *
  * It guards against drift, it is not the last line of defence, and a guard that blocks every command when
  * its install is broken costs more than it protects. So input it cannot read passes, and so does a missing

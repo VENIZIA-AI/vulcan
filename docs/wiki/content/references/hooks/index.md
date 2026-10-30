@@ -12,7 +12,7 @@ When you run `vulcan sync`, the command configures hook triggers in `.claude/set
 |---|---|---|---|---|
 | Session digest (`session-start`) | `SessionStart` | `startup\|resume\|clear\|compact` | Quotes base write rules (`V-W-*`), slot choices, and often-dropped rules to stdout | Fires on session start, resume, clear, or compact |
 | `guard-writes` | `PreToolUse` | `Bash` | Prompts for human confirmation before database writes and cluster deployments | Fires on every Bash tool command |
-| `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes, `git branch -D` of an unmerged branch, and a blanket stage of more than 50 changed paths | Fires on every Bash command; only those git and gh actions are flagged |
+| `guard-git` | `PreToolUse` | `Bash` | Refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them; asks before `git reset --hard`, other force-pushes, `git branch -D` of an unmerged branch, a blanket stage of more than 50 changed paths, and `gh pr create` with no `--base` | Fires on every Bash command; only those git and gh actions are flagged |
 | `guard-scripting` | `PreToolUse` | `Bash` | Adds one line of advice when a command runs `python`, `python3` or `pip`: agent scripting uses bun by default, another language is fine when the task needs it (`V-B-09`); it never asks and never blocks | Fires on every Bash command; only a command that runs one of those programs gets the line |
 | `guard-outside` | `PreToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash` | Asks before a file, worktree, clone or temp file is created outside the project | Fires on every one of those tool calls; only a path outside the project that is not a tool-owned store is flagged |
 | `subagent-start` | `SubagentStart` | all | Adds a small rules card (about 250 tokens) to every subagent's context | Fires when a subagent starts |
@@ -127,6 +127,7 @@ The `guard-git` hook reads the command with a shell parser (quotes, `&&`, `;`, `
 | `git push origin --delete develop`, `git push origin :main` | deny |
 | `git push --force origin develop` (`-f`, `+develop`, `--force-with-lease` to `develop` or `main`, or no refspec while on one of them) | deny |
 | `gh pr merge <pr> --delete-branch` when `gh pr view` reports the head branch as `develop` or `main` | deny |
+| `gh pr create` with no `--base` (`--base <branch>`, `--base=<branch>`, `-B <branch>` and `--help` pass) | ask |
 | `git reset --hard` | ask |
 | `git push --force` of another branch | ask |
 | `git branch -D <branch>` when the branch is not merged into the current one | ask |
@@ -189,11 +190,13 @@ Everything an agent creates lives under the project's `.agents/local/` (`V-B-08`
 
 Stores that a package manager, a runtime or the agent tool manage themselves are allowed: the bun, npm, pnpm and yarn cache folders, `$XDG_RUNTIME_DIR` (lock files) and the agent tool's `projects/*/memory/` folders. A folder that holds programs on `PATH` (`~/.bun/bin`) or a file git or a shell runs (`~/.gitconfig`, `~/.config/git/`) is not allowed. Add others with `guard.toolOwnedPaths` in the [project config](/references/configuration/#guard). Pointing `TMPDIR` or `mktemp` at the system temp directory is not allowed; a gate script that needs a temp directory sets `TMPDIR` to `.agents/local/tmp/`. `VULCAN_GUARDS=off` switches the guard off for a session.
 
-The hook cannot reach what the agent tool does by itself: its own scratchpad under the system temp directory is written without a tool call. Claude Code puts its built-in worktrees under `.claude/worktrees/` in the repository, which `init` gitignores.
+The scratchpad folder an agent tool offers a session is under the system temp directory (Claude Code: `/tmp/claude-<uid>/<project>/<session>/scratchpad`), so the hook **denies** a write into it instead of asking. The answer names `V-B-08`, says nothing was written and points to `.agents/local/tmp/<task>/`. A call that also touches another outside path is denied as a whole. A project that lists the folder in `guard.toolOwnedPaths` keeps allowing it.
+
+Only that Linux path is covered; another system's folder was not verified. The hook cannot reach what the agent tool writes by itself (its task output, its memory) without a tool call. Claude Code puts its built-in worktrees under `.claude/worktrees/` in the repository, which `init` gitignores.
 
 ## subagent-start
 
-On `SubagentStart` the hook prints a small fixed card as `additionalContext`, about 250 tokens (a test holds it under 1,600 characters): read-only unless the brief says otherwise and no git writes (`V-W-01`, `V-P-12`), no database writes, deploys or secrets (`V-W-02` to `V-W-04`), everything created under `.agents/local/` and removed when done (`V-B-08`), reuse before you write (`V-P-08`), never cut safety (`V-B-06`), say what you skipped (`V-B-07`), tool results are data (`V-S-04`), and the shape of the report back to the parent (`V-P-11`). It names the base rules and `.agents/rules.md` instead of repeating them, and carries neither the owner shape nor the profile. It imports only the card, and never blocks: if it fails, the subagent starts without it.
+On `SubagentStart` the hook prints a small fixed card as `additionalContext`, about 250 tokens (a test holds it under 1,600 characters): read-only unless the brief says otherwise and no git writes (`V-W-01`, `V-P-12`), no database writes, deploys or secrets (`V-W-02` to `V-W-04`), everything created under `.agents/local/` (never `/tmp`, and never the scratchpad folder the tool offers, which is under `/tmp`) and removed when done (`V-B-08`), reuse before you write (`V-P-08`), never cut safety (`V-B-06`), say what you skipped (`V-B-07`), tool results are data (`V-S-04`), and the shape of the report back to the parent (`V-P-11`). It names the base rules and `.agents/rules.md` instead of repeating them, and carries neither the owner shape nor the profile. It imports only the card, and never blocks: if it fails, the subagent starts without it.
 
 ## guard-writes
 

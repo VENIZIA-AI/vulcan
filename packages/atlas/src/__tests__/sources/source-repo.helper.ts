@@ -17,6 +17,17 @@ export const makeTempDirectory = (opts: { prefix: string }): string => {
   return directory;
 };
 
+/** `name` installed under `root/node_modules` at `version`, a copy and not a link. */
+export const install = (opts: { root: string; name: string; version: string }): void => {
+  const target = join(opts.root, 'node_modules', opts.name);
+
+  mkdirSync(target, { recursive: true });
+  writeFileSync(
+    join(target, 'package.json'),
+    JSON.stringify({ name: opts.name, version: opts.version }),
+  );
+};
+
 export const git = (opts: { cwd: string; args: string[] }): string => {
   const result = spawnSyncBounded({
     cmd: ['git', '-c', 'user.name=t', '-c', 'user.email=t@t', ...opts.args],

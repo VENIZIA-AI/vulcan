@@ -6,6 +6,8 @@
  *   bun scripts/release/release.ts --dry-run           # print the plan and every blocker, dispatch nothing
  *   bun scripts/release/release.ts --bump none --yes   # publish the version already in package.json
  *   bun scripts/release/release.ts --issue 12          # prefix the release commit with [#12]
+ *   bun scripts/release/release.ts --bump patch        # a stable: dispatched on main, waits for the approval
+ *   bun scripts/release/release.ts --bump none --branch main   # heal a stable run (develop when --branch is absent)
  */
 import {
   buildDispatchCommand,
@@ -83,13 +85,7 @@ if (args === undefined) {
 capture({ command: ['git', 'fetch', 'origin', '--quiet'] });
 
 const counts = capture({
-  command: [
-    'git',
-    'rev-list',
-    '--left-right',
-    '--count',
-    `HEAD...origin/${ReleaseConstants.BRANCH}`,
-  ],
+  command: ['git', 'rev-list', '--left-right', '--count', `HEAD...origin/${args.branch}`],
 }).stdout.split(/\s+/);
 const blockers = findReleaseBlockers({
   branch: capture({ command: ['git', 'rev-parse', '--abbrev-ref', 'HEAD'] }).stdout,
@@ -98,6 +94,7 @@ const blockers = findReleaseBlockers({
     .filter(Boolean).length,
   ahead: Number(counts[0] ?? 0),
   behind: Number(counts[1] ?? 0),
+  target: args.branch,
 });
 
 const manifests = await Promise.all(
@@ -151,11 +148,11 @@ if (watched.exitCode !== 0) {
   console.error(`release: run ${runId} failed - see gh run view ${runId} --log-failed`);
 }
 
-// The released version is what the run committed to develop, not what this checkout held before.
+// The released version is what the run committed to its branch, not what this checkout held before.
 capture({ command: ['git', 'fetch', 'origin', '--quiet'] });
 
 const released = capture({
-  command: ['git', 'show', `origin/${ReleaseConstants.BRANCH}:packages/cli/package.json`],
+  command: ['git', 'show', `origin/${args.branch}:packages/cli/package.json`],
 }).stdout;
 const releasedVersion: string = released.length > 0 ? JSON.parse(released).version : trainVersion;
 const names: string[] = manifests.map((manifest) => manifest.name);

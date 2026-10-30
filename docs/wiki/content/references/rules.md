@@ -90,7 +90,7 @@ Build rules require test-driven workflows, command output verification, zero war
 | `V-B-05` | Give every app, backend and frontend, the same seven scripts: `server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean`. The work lives in `.configs/builders/` or in `devz` (`devz lint`, `devz lint --fix`, `devz clean`), never in the `package.json` string. An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`; every other config lives in `.configs/{lints,formatters,builders}/`. No `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod`. A library package keeps Makefile targets `build`, `typecheck`, `lint`, `lint-fix`, `test`, `clean`. | SOFT - `vulcan doctor` notes (info only) |
 | `V-B-06` | Saving code never removes validation, error handling, security checks or data safety. | SOFT |
 | `V-B-07` | Say what you skipped or did not check; mark a deliberate shortcut `// SHORTCUT: <what>, <why>, <revisit when>`. | SOFT - build-a-feature step 8 summary, session-start digest |
-| `V-B-08` | Create nothing outside the project: scratch, temporary files, logs, worktrees, clones and subagent output live under the gitignored `.agents/local/`, and you remove each when its lifetime ends (table below); the done report says what was removed or kept. | SOFT |
+| `V-B-08` | Create nothing outside the project: scratch, temporary files, logs, worktrees, clones and subagent output live under the gitignored `.agents/local/`, and you remove each when its lifetime ends (table below); the done report says what was removed or kept. The scratchpad folder an agent tool offers is a system temp directory, so it is not allowed either (`guard-outside` denies a write there). | SOFT |
 | `V-B-09` | Agent scripting uses bun by default (`bun -e`, `bun file.ts`, `Bun.file()`); Python or another language is allowed when the task needs it (an existing project script, a tool only that language has), said in one line. | SOFT - the `guard-scripting` hook reminds, never blocks |
 
 ### Where agent files live, and when they go
@@ -107,7 +107,7 @@ Build rules require test-driven workflows, command output verification, zero war
 | `reports/` | long reports a message points to (V-P-11) | the user deletes them |
 | `prototypes/` | static HTML pages a skill writes | the user deletes them |
 
-[`vulcan clean`](/references/commands/clean) lists and removes what has outlived its use. The agent tool's own internal files (for example its scratchpad) are outside what VULCAN controls.
+[`vulcan clean`](/references/commands/clean) lists and removes what has outlived its use. What the agent tool writes for itself (its task output, its memory) is outside what VULCAN controls. The scratchpad folder it offers is not: it is a system temp directory.
 
 ## Code and writing (C)
 

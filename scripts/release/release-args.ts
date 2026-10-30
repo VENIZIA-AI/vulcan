@@ -23,11 +23,31 @@ export class ReleaseBumps {
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);
   }
+
+  /**
+   * The branch a bump runs from: a bump that gives a stable (`patch`, `minor`, `major`) runs from main, a bump
+   * that gives a prerelease from develop. `none` publishes what is there, so it follows `--branch` and is
+   * develop without it.
+   */
+  static branchOf(opts: { bump: string }): string {
+    return [this.PATCH, this.MINOR, this.MAJOR].includes(opts.bump)
+      ? ReleaseConstants.STABLE_BRANCH
+      : ReleaseConstants.BRANCH;
+  }
 }
+
+/** What a release is by its version: a version with a prerelease part is a prerelease, anything else a stable. */
+export class ReleaseKinds {
+  static readonly PRERELEASE = 'prerelease';
+  static readonly STABLE = 'stable';
+}
+
+export type TReleaseKind = typeof ReleaseKinds.PRERELEASE | typeof ReleaseKinds.STABLE;
 
 export class ReleaseConstants {
   static readonly WORKFLOW = 'package-release.yml';
   static readonly BRANCH = 'develop';
+  static readonly STABLE_BRANCH = 'main';
   /** How long after the publish a tarball may stay unserved (IGNIS saw about 8 minutes; npm has taken 16). */
   static readonly TARBALL_WAIT_MS = 20 * 60 * 1000;
   static readonly TARBALL_POLL_MS = 10 * 1000;
@@ -36,14 +56,16 @@ export class ReleaseConstants {
 export interface IReleaseArgs {
   bump: string;
   issue: string | undefined;
+  /** The branch the run is dispatched on and the checkout is compared with. */
+  branch: string;
   isDryRun: boolean;
   isConfirmed: boolean;
 }
 
-const VALUE_FLAGS = new Set(['--bump', '--issue']);
+const VALUE_FLAGS = new Set(['--bump', '--issue', '--branch']);
 const BOOLEAN_FLAGS = new Set(['--dry-run', '--yes']);
 
-/** Reads `[--bump <mode>] [--issue <n>] [--dry-run] [--yes]`; throws on anything else. */
+/** Reads `[--bump <mode>] [--issue <n>] [--branch <develop|main>] [--dry-run] [--yes]`; throws on anything else. */
 export const parseReleaseArgs = (opts: { args: string[] }): IReleaseArgs => {
   const values = new Map<string, string>();
   const booleans = new Set<string>();
@@ -82,23 +104,34 @@ export const parseReleaseArgs = (opts: { args: string[] }): IReleaseArgs => {
     throw new Error(`--issue needs an issue number, got: ${issue}`);
   }
 
+  const branches = [ReleaseConstants.BRANCH, ReleaseConstants.STABLE_BRANCH];
+  const branch = values.get('--branch') ?? ReleaseBumps.branchOf({ bump });
+
+  if (!branches.includes(branch)) {
+    throw new Error(`--branch '${branch}' is not one of: ${branches.join(', ')}`);
+  }
+
   return {
     bump,
     issue,
+    branch,
     isDryRun: booleans.has('--dry-run'),
     isConfirmed: booleans.has('--yes'),
   };
 };
 
 /**
- * The `gh` command that dispatches one release of the whole okf/atlas/cli train. No `--ref`: it runs on
- * the default branch, develop, as in IGNIS; an issue is sent only when there is one.
+ * The `gh` command that dispatches one release of the whole okf/atlas/cli train. The ref is always named,
+ * never left to the repository's default branch: develop for a prerelease, main for a stable. An issue is sent
+ * only when there is one.
  */
 export const buildDispatchCommand = (opts: { args: IReleaseArgs }): string[] => [
   'gh',
   'workflow',
   'run',
   ReleaseConstants.WORKFLOW,
+  '--ref',
+  opts.args.branch,
   '-f',
   `bump=${opts.args.bump}`,
   ...(opts.args.issue === undefined ? [] : ['-f', `issue=${opts.args.issue}`]),
@@ -106,15 +139,18 @@ export const buildDispatchCommand = (opts: { args: IReleaseArgs }): string[] => 
 
 /**
  * Why the release would publish something other than the tree the operator is looking at: the
- * workflow builds origin/develop, so a dirty, unpushed or stale checkout is not what ships.
+ * workflow builds origin/<target> (develop, or main for a stable), so a dirty, unpushed or stale checkout is
+ * not what ships.
  */
 export const findReleaseBlockers = (opts: {
   branch: string;
   dirtyPaths: number;
   ahead: number;
   behind: number;
+  /** The branch the run is dispatched on; develop when absent. */
+  target?: string;
 }): string[] => {
-  const branch = ReleaseConstants.BRANCH;
+  const branch = opts.target ?? ReleaseConstants.BRANCH;
   const blockers: string[] = [];
 
   if (opts.branch !== branch) {

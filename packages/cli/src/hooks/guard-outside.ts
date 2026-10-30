@@ -103,7 +103,7 @@ const allowPatterns = (opts: { patterns: string[]; home: string; env: TEnvironme
     return [concrete, /[*?[]/.test(concrete) ? concrete : `${concrete}/**`];
   });
 
-const isAllowed = (opts: { path: string; patterns: string[] }): boolean =>
+const matchesAny = (opts: { path: string; patterns: string[] }): boolean =>
   opts.patterns.some((pattern) => new Bun.Glob(pattern).match(opts.path));
 
 interface ITarget {
@@ -409,6 +409,7 @@ export const inspectOutside = (opts: {
           path: '(the command line)',
           message:
             'this command line is larger, or nests deeper, than the guard reads, so it could not be checked',
+          isAgentToolScratchpad: false,
         },
       ]
     : [];
@@ -422,8 +423,15 @@ export const inspectOutside = (opts: {
 
     const path = realOf({ path: resolve(target.base, expanded) });
 
-    if (!isInside({ path, root }) && !isAllowed({ path, patterns })) {
-      hits.push({ path, message: target.message });
+    if (!isInside({ path, root }) && !matchesAny({ path, patterns })) {
+      hits.push({
+        path,
+        message: target.message,
+        isAgentToolScratchpad: matchesAny({
+          path,
+          patterns: HookConstants.AGENT_TOOL_SCRATCHPAD_PATTERNS,
+        }),
+      });
     }
   }
 

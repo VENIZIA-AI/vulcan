@@ -2,7 +2,6 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { readOkfProject } from '../project/index.ts';
-import type { IOkfProject } from '../project/index.ts';
 
 const DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---/;
@@ -21,9 +20,9 @@ const frontmatterOf = (opts: { text: string }): TRecord => {
   return isRecord(parsed) ? parsed.value : {};
 };
 
-/** The tag a release override names, by the project's template; a `<date>` part matches any date. */
-const tagPatternOf = (opts: { project: IOkfProject; dir: string; version: string }): RegExp => {
-  const escaped = opts.project.tagPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** The tag a release override names, by one template of the project; a `<date>` part matches any date. */
+const tagPatternOf = (opts: { template: string; dir: string; version: string }): RegExp => {
+  const escaped = opts.template.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   return new RegExp(
     `^${escaped
@@ -110,9 +109,11 @@ export const collectChangelogProblems = (): string[] => {
 
     tags ??= tagsOf({ root: project.root });
 
-    const pattern = tagPatternOf({ project, dir, version: override[2] });
+    const patterns = [project.tagPattern, ...project.legacyTagPatterns].map((template) =>
+      tagPatternOf({ template, dir, version: override[2] }),
+    );
 
-    if (!tags.some((tag) => pattern.test(tag))) {
+    if (!tags.some((tag) => patterns.some((pattern) => pattern.test(tag)))) {
       const expected = project.tagPattern
         .replace(/<(?:dir|package)>/g, dir)
         .replace(/<version>/g, override[2])

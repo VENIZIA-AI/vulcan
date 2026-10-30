@@ -275,6 +275,12 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       typescriptFrom: removedAtlasKey({ key: 'typescriptFrom' }),
       legacyTagPrefixes: removedAtlasKey({ key: 'legacyTagPrefixes' }),
       tagPattern: RELEASE_TEMPLATE.default('<dir>-v<version>'),
+      /**
+       * Templates of an earlier tag layout that are still releases: atlas and the changelog check read a tag
+       * through `tagPattern` first and then through each of these, so a rename of the tags keeps the old
+       * releases. Unlike `ignoreTags`, a tag matched here counts as a release.
+       */
+      legacyTagPatterns: z.array(RELEASE_TEMPLATE).optional(),
       sources: z
         .array(
           z.strictObject({

@@ -38,6 +38,20 @@ bun x --no-install vulcan x okf check
   into an empty folder (with IGNIS beside it as a real checkout, not a symlink), then install, build,
   lint and test there. A file git ignores is missing in CI even when every local gate is green.
 
+## Branches and pull requests
+
+`main` is the default branch and holds what was released. `develop` is the branch the team works on. A stable is cut from `main`; see [Releasing](/process/releasing.md).
+
+| You want to | Do |
+|---|---|
+| Open a feature or a fix | `gh pr create --base develop`, with `Refs #N` in the body |
+| Bring a gated prerelease to `main` | `bun scripts/release/sync-pr.ts open --tag <tag>`, then the owner merges it |
+| Close an issue | Merge the Sync pull request into the default branch: its body lists one `Closes #N` for each `[#N]` commit it brings |
+
+- **Name the base every time.** A pull request with no `--base` targets the default branch. The `guard-git` hook asks before `gh pr create` without one.
+- **A feature pull request does not close its issue.** GitHub closes an issue only when a pull request reaches the default branch, which is `main`. `Closes #N` in a pull request into `develop` does nothing, so a feature says `Refs #N`.
+- **Clones.** A clone checks out `main` first. Run `git switch develop` before you branch for a feature, and branch from `origin/develop`.
+
 ## What the base text is held to
 
 `packages/cli/src/__tests__/base-consistency.test.ts` runs with `make test`: every `V-*` id cited anywhere under `packages/cli/base/` is defined once in `base/rules.md` (a bullet there that opens with an id lists one VULCAN deliberately does not carry), every skill's frontmatter parses with a name equal to its folder, and the size budgets hold (rules under 4000 words, a shared reference under 250 lines, a skill under 24 KB). Cite a rule that does not exist and the build fails.
