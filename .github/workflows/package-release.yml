@@ -514,7 +514,8 @@ jobs:
       # GITHUB RELEASE
       # -------------------------------------------------------------------------
       # One Release on the tag of the run: a stable is marked Latest with the changelog entries since the previous
-      # stable, a prerelease is marked Pre-release and never Latest. A tag that has a Release is skipped, so a
+      # stable (or a line saying there is no change for users, when there is none), a prerelease is marked
+      # Pre-release and never Latest. A tag that has a Release is skipped, so a
       # dispatch with bump none makes a missing one. A failure is reported in the run summary and never fails or
       # undoes a publish. The script refuses the tag of the atlas index, whose release is not a publish's.
       - name: Create the GitHub Release
