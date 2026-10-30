@@ -65,10 +65,15 @@ const realOf = (opts: { path: string; depth?: number }): string => {
   try {
     base = realpathSync(existing);
   } catch {
-    // A dangling link: its target is where a write through it lands.
-    const target = depth < 8 ? readlinkSync(existing) : existing;
+    // A dangling link: its target is where a write through it lands; a chain this long is a loop.
+    if (depth >= 8) {
+      return join(existing, ...rest);
+    }
 
-    base = realOf({ path: resolve(dirname(existing), target), depth: depth + 1 });
+    base = realOf({
+      path: resolve(dirname(existing), readlinkSync(existing)),
+      depth: depth + 1,
+    });
   }
 
   return join(base, ...rest);
@@ -115,6 +120,8 @@ interface ITarget {
   message: string;
   /** The directory a relative `word` is taken from: the hook's, moved by `cd` and `git -C`. */
   base: string;
+  /** What `$PWD` is in `word`: the shell's folder, moved by `cd` but not by `git -C`; undefined when it is not known. */
+  pwd?: string;
 }
 
 const positional = (opts: { args: string[] }): string[] =>
@@ -369,7 +376,9 @@ export const inspectOutside = (opts: {
     home,
     env,
   });
-  const start = opts.input.cwd ?? opts.projectRoot;
+  const start = resolve(opts.input.cwd ?? opts.projectRoot);
+  // `$PWD` is the call's folder only when the host said which one it is; otherwise the hook's own `PWD` stays the fallback.
+  const startPwd = opts.input.cwd === undefined ? undefined : start;
   const tmp = commandTmpdirOf({ env, projectRoot: opts.projectRoot });
   const targets: ITarget[] = [];
 
@@ -377,6 +386,7 @@ export const inspectOutside = (opts: {
     targets.push({
       word: opts.input.filePath,
       base: start,
+      pwd: startPwd,
       message: `${opts.input.tool} writes ${opts.input.filePath}`,
     });
   }
@@ -385,6 +395,7 @@ export const inspectOutside = (opts: {
 
   if (opts.input.command !== undefined) {
     let base = start;
+    let pwd = startPwd;
 
     const parsed = parseShellChecked({ command: opts.input.command });
 
@@ -398,13 +409,15 @@ export const inspectOutside = (opts: {
         const expanded =
           destination === undefined
             ? undefined
-            : expandPath({ word: destination, home, env, cwd: base });
+            : expandPath({ word: destination, home, env, cwd: pwd });
 
         base = expanded === undefined ? base : resolve(base, expanded);
+        // A `cd` the guard cannot work out leaves the shell's folder unknown.
+        pwd = expanded === undefined ? undefined : base;
         continue;
       }
 
-      targets.push(...targetsOf({ command, base, tmp }));
+      targets.push(...targetsOf({ command, base, tmp }).map((target) => ({ ...target, pwd })));
     }
   }
 
@@ -421,7 +434,7 @@ export const inspectOutside = (opts: {
     : [];
 
   for (const target of targets) {
-    const expanded = expandPath({ word: target.word, home, env, cwd: target.base });
+    const expanded = expandPath({ word: target.word, home, env, cwd: target.pwd });
 
     if (expanded === undefined) {
       continue;
