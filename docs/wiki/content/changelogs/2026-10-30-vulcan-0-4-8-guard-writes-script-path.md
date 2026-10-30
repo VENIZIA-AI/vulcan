@@ -15,6 +15,8 @@ packages: ['@venizia/vulcan']
 ## What changed
 
 - **Links are followed.** `bun link/../tools/cli.ts plan`, where `link` points to a folder elsewhere, runs another file. The hook now matches and reads that file, so a listed `tools/cli.ts` does not cover it and the normal script check runs.
+- **Both spellings are read.** `bun run x.ts` folds `..` as text and `bun x.ts` does not, so the hook reads both files and checks both bodies. A listed entry covers the word only when both are the listed script.
+- **A folder or a pipe named like a script is not opened.** Only a regular file is read.
 - **A `cd` earlier in the line.** After `cd`, `pushd` or `popd`, a relative script word is not covered by any entry (path string or `readOnly` object), because the hook does not follow the new folder. An absolute path still matches, and a `cd` after the call changes nothing.
 - **Everything else is as before.** A plain `bun tools/cli.ts plan` from the project folder stays quiet for a listed script, and a script that is not tracked or not equal to `HEAD` still asks.
 

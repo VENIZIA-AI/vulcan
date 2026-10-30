@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { inspectCommand, listedScriptOf, trustOf, TrustStates } from '../../hooks/index.ts';
@@ -742,6 +743,26 @@ describe('a listed script is the file the shell runs', () => {
         }),
       ).toEqual([]);
     });
+  });
+
+  test('bun run folds .. as text, so the file in the repo is read as well as the one behind the link', () => {
+    const { root } = setup();
+
+    writeFileSync(join(root, 'evil.ts'), BODY);
+
+    for (const command of ['bun run link/../evil.ts', 'bun link/../evil.ts']) {
+      expect(inspectCommand({ command, cwd: root }).length, command).toBeGreaterThan(0);
+    }
+  });
+
+  test('a folder or a pipe named like a script is not read', () => {
+    const { root } = setup();
+
+    mkdirSync(join(root, 'dir.ts'));
+    spawnSync('mkfifo', [join(root, 'fifo.ts')], { timeout: 5000 });
+
+    expect(inspectCommand({ command: 'bun dir.ts', cwd: root })).toEqual([]);
+    expect(inspectCommand({ command: 'bun fifo.ts', cwd: root })).toEqual([]);
   });
 
   test('listedScriptOf follows the link: the script behind it is not the listed one', () => {
