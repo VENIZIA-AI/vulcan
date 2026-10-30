@@ -378,7 +378,9 @@ const runAdd = async (opts: {
     return fail({ message: '--preset needs a value (a package name, or file:<path>)' });
   }
 
-  const presetValue = flagged ?? (await askPreset({ cwd }))?.trim();
+  const askingPreset = flagged === undefined ? askPreset({ cwd }) : undefined;
+  const typedPreset = await askingPreset;
+  const presetValue = flagged ?? typedPreset?.trim();
 
   if (presetValue === undefined || presetValue === '') {
     return fail({ message: '--preset needs a value (a package name, or file:<path>)' });
@@ -465,7 +467,8 @@ const runAdd = async (opts: {
 
   if (flaggedKind === undefined) {
     const offered = kindsOffered({ located: located.located });
-    const chosen = offered.length === 1 ? PackageKinds.APP : await askKind({ offered });
+    const askingKind = offered.length === 1 ? PackageKinds.APP : askKind({ offered });
+    const chosen = await askingKind;
 
     if (chosen === undefined) {
       return fail({ message: SAY_WHAT });
@@ -475,15 +478,17 @@ const runAdd = async (opts: {
   }
 
   if (kind !== PackageKinds.APP) {
-    const name =
-      readFlag({ args: opts.args, flag: ADD_KINDS[kind].flag }) ??
-      (
-        await askInTerminal({
-          question: 'Name of this library',
-          validate: (value) =>
-            value.trim() === '' ? undefined : nameProblem({ name: value.trim() }),
-        })
-      )?.trim();
+    const flaggedName = readFlag({ args: opts.args, flag: ADD_KINDS[kind].flag });
+    const askingName =
+      flaggedName === undefined
+        ? askInTerminal({
+            question: 'Name of this library',
+            validate: (value) =>
+              value.trim() === '' ? undefined : nameProblem({ name: value.trim() }),
+          })
+        : undefined;
+    const typedName = await askingName;
+    const name = flaggedName ?? typedName?.trim();
 
     if (name === undefined || name === '') {
       return fail({ message: `${ADD_KINDS[kind].flag} needs a name` });
@@ -574,7 +579,8 @@ const runAdd = async (opts: {
   const isNewFolder = !listed.includes(folder);
 
   // Optional, asked only where menus are drawn; a plain terminal and a script give --scope.
-  const scope = flaggedScope.scope ?? (menusAvailable() ? await askScope() : undefined);
+  const askingScope = flaggedScope.scope ?? (menusAvailable() ? askScope() : undefined);
+  const scope = await askingScope;
 
   if (scope === null) {
     return fail({ message: ABORTED });

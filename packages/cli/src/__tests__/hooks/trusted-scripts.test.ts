@@ -343,7 +343,8 @@ describe('the guard-writes hook with trusted scripts', () => {
     const stdout = await new Response(child.stdout).text();
     const stderr = await new Response(child.stderr).text();
 
-    return { code: await child.exited, stdout: stdout.trim(), stderr };
+    const result = await child.exited;
+    return { code: result, stdout: stdout.trim(), stderr };
   };
 
   const project = (opts: { config: string }): string =>

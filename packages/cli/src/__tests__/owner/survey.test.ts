@@ -199,6 +199,7 @@ describe('runSurvey', () => {
 
     answers[position] = null;
 
-    expect(await runSurvey({ io: ioWith(answers).io, systemLanguage: 'en' })).toBeNull();
+    const result = await runSurvey({ io: ioWith(answers).io, systemLanguage: 'en' });
+    expect(result).toBeNull();
   });
 });

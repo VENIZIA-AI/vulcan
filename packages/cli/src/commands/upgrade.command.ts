@@ -73,7 +73,9 @@ export const readDistTags = async (opts: { cwd: string }): Promise<IDistTags | u
     new Response(child.stderr).text(),
   ]);
 
-  if ((await child.exited) !== ExitCodes.OK) {
+  const exitCode = await child.exited;
+
+  if (exitCode !== ExitCodes.OK) {
     process.stderr.write(errorText.endsWith('\n') ? errorText : `${errorText}\n`);
 
     return undefined;

@@ -46,14 +46,18 @@ const createSyncedProject = (opts: { files: Record<string, string> }): string =>
   return root;
 };
 
-const findChecks = async (opts: { root: string }): Promise<string[]> =>
-  (await runDoctorChecks({ root: opts.root })).map((violation) => violation.check);
+const findChecks = async (opts: { root: string }): Promise<string[]> => {
+  const violations = await runDoctorChecks({ root: opts.root });
+
+  return violations.map((violation) => violation.check);
+};
 
 describe('doctor', () => {
   test('a conformant, synced project has no violations and exits 0', async () => {
     const root = createSyncedProject({ files: CONFORMANT });
 
-    expect(await runDoctorChecks({ root })).toEqual([]);
+    const result2 = await runDoctorChecks({ root });
+    expect(result2).toEqual([]);
     const result = runCli({ args: ['doctor'], cwd: root });
 
     expect(result.code).toBe(0);
@@ -73,7 +77,8 @@ describe('doctor', () => {
       files: { ...CONFORMANT, '.configs/vulcan.config.js': 'export default {};\n' },
     });
 
-    expect(await findChecks({ root })).toEqual([DoctorChecks.CONFIG]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.CONFIG]);
   });
 
   test('a missing AGENTS.md, rules file or knowledge bundle', async () => {
@@ -81,9 +86,8 @@ describe('doctor', () => {
       Object.entries(CONFORMANT).filter(([path]) => path !== 'AGENTS.md'),
     );
 
-    expect(await findChecks({ root: createSyncedProject({ files: withoutAgents }) })).toContain(
-      DoctorChecks.LAYOUT,
-    );
+    const result = await findChecks({ root: createSyncedProject({ files: withoutAgents }) });
+    expect(result).toContain(DoctorChecks.LAYOUT);
   });
 
   test('a project rule in the base namespace V-', async () => {
@@ -91,7 +95,8 @@ describe('doctor', () => {
       files: { ...CONFORMANT, '.agents/rules.md': '| V-W-09 | mine | SOFT |\n' },
     });
 
-    expect(await findChecks({ root })).toEqual([DoctorChecks.RULE_IDS]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.RULE_IDS]);
   });
 
   test('Extends V-Z-99: the base carries no such rule', () => {
@@ -137,7 +142,8 @@ describe('doctor', () => {
     ].join('\n');
     const root = createSyncedProject({ files: { ...CONFORMANT, '.agents/rules.md': markdown } });
 
-    expect(await findChecks({ root })).toEqual([]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([]);
   });
 
   test("bare W/S/P/B/C IDs are the project's own: they never collide with the base", async () => {
@@ -148,7 +154,8 @@ describe('doctor', () => {
       files: { ...CONFORMANT, '.agents/rules.md': `${rows.join('\n')}\n` },
     });
 
-    expect(await findChecks({ root })).toEqual([]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([]);
   });
 
   test('a config still keyed by the old bare slot ID names the new one', () => {
@@ -169,7 +176,8 @@ describe('doctor', () => {
       files: { ...CONFORMANT, '.configs/vulcan.config.ts': 'export default {};\n' },
     });
 
-    expect(await findChecks({ root })).toContain(DoctorChecks.RULE_SLOTS);
+    const result = await findChecks({ root });
+    expect(result).toContain(DoctorChecks.RULE_SLOTS);
   });
 
   test('an unknown slot option', async () => {
@@ -180,7 +188,8 @@ describe('doctor', () => {
       },
     });
 
-    expect(await findChecks({ root })).toContain(DoctorChecks.RULE_SLOTS);
+    const result = await findChecks({ root });
+    expect(result).toContain(DoctorChecks.RULE_SLOTS);
   });
 
   test('a choice for an ID that is not a slot', async () => {
@@ -192,7 +201,8 @@ describe('doctor', () => {
       },
     });
 
-    expect(await findChecks({ root })).toEqual([DoctorChecks.RULE_SLOTS]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.RULE_SLOTS]);
   });
 
   test('a project skill shadowing a shipped skill', async () => {
@@ -203,13 +213,15 @@ describe('doctor', () => {
       },
     });
 
-    expect(await findChecks({ root })).toContain(DoctorChecks.SKILLS);
+    const result = await findChecks({ root });
+    expect(result).toContain(DoctorChecks.SKILLS);
   });
 
   test('a Makefile without the include', async () => {
     const root = createSyncedProject({ files: { ...CONFORMANT, Makefile: 'build:\n\t@echo\n' } });
 
-    expect(await findChecks({ root })).toEqual([DoctorChecks.MAKE]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.MAKE]);
   });
 
   test('a Makefile redefining a shipped target', async () => {
@@ -217,7 +229,8 @@ describe('doctor', () => {
       files: { ...CONFORMANT, Makefile: `${MAKE_INCLUDE}okf-check:\n\t@echo mine\n` },
     });
 
-    expect(await findChecks({ root })).toEqual([DoctorChecks.MAKE]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.MAKE]);
   });
 
   test('a shipped target redefined in an included make/*.mk is found, and named by its file', () => {
@@ -242,7 +255,8 @@ describe('doctor', () => {
       files: { ...CONFORMANT, Makefile: `${MAKE_INCLUDE}include make/*.mk\n` },
     });
 
-    expect(await findChecks({ root })).toEqual([]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([]);
   });
 
   test('a config hook that runs a shipped hook', async () => {
@@ -254,7 +268,8 @@ describe('doctor', () => {
       },
     });
 
-    expect(await findChecks({ root })).toEqual([DoctorChecks.HOOKS]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.HOOKS]);
   });
 
   test('never synced: one adapters violation, and the missing manifest', async () => {
@@ -266,14 +281,16 @@ describe('doctor', () => {
   test('a hand-written CLAUDE.md', async () => {
     const root = createSyncedProject({ files: { ...CONFORMANT, 'CLAUDE.md': '# mine\n' } });
 
-    expect(await findChecks({ root })).toEqual([DoctorChecks.ADAPTERS]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.ADAPTERS]);
   });
 
   test('an invalid .claude/settings.json', async () => {
     const root = createSyncedProject({ files: CONFORMANT });
 
     writeFileSync(join(root, '.claude', 'settings.json'), '{ nope');
-    expect(await findChecks({ root })).toEqual([DoctorChecks.ADAPTERS]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.ADAPTERS]);
   });
 
   test('no @venizia/dev-configs devDependency', async () => {
@@ -281,7 +298,8 @@ describe('doctor', () => {
       files: { ...CONFORMANT, 'package.json': '{ "name": "demo" }' },
     });
 
-    expect(await findChecks({ root })).toEqual([DoctorChecks.STYLE]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.STYLE]);
   });
 
   test('a lint config that does not build on the shared one', async () => {
@@ -292,7 +310,8 @@ describe('doctor', () => {
       },
     });
 
-    expect(await findChecks({ root })).toEqual([DoctorChecks.STYLE]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.STYLE]);
   });
 
   test('a lint config left directly in .configs/ is told where it belongs', async () => {
@@ -320,7 +339,8 @@ describe('doctor', () => {
       },
     });
 
-    expect(await findChecks({ root })).toEqual([DoctorChecks.STYLE]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.STYLE]);
   });
 
   test('a package lint config is checked too', async () => {
@@ -331,7 +351,8 @@ describe('doctor', () => {
       },
     });
 
-    expect(await findChecks({ root })).toEqual([DoctorChecks.STYLE]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.STYLE]);
   });
 
   // D9: the style package comes from the package whose .configs/ holds the lint config (BANA's shape).
@@ -353,7 +374,8 @@ describe('doctor', () => {
       },
     });
 
-    expect(await findChecks({ root })).toEqual([]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([]);
   });
 
   test('a package lint config whose package and root both lack the style package fails', async () => {
@@ -366,7 +388,8 @@ describe('doctor', () => {
       },
     });
 
-    expect(await findChecks({ root })).toEqual([DoctorChecks.STYLE]);
+    const result = await findChecks({ root });
+    expect(result).toEqual([DoctorChecks.STYLE]);
   });
 
   test("a configured package outside packages/ is an owner too (BANA's umbras/kit)", async () => {
@@ -402,9 +425,8 @@ describe('doctor', () => {
 describe('doctor on a clean checkout', () => {
   test('adapters that were never written are one line with the fix, not one stale line per file', async () => {
     const root = createProject({ files: CONFORMANT });
-    const adapters = (await runDoctorChecks({ root })).filter(
-      (violation) => violation.check === DoctorChecks.ADAPTERS,
-    );
+    const result = await runDoctorChecks({ root });
+    const adapters = result.filter((violation) => violation.check === DoctorChecks.ADAPTERS);
 
     expect(adapters).toHaveLength(1);
     expect(adapters[0]?.message).toBe(
@@ -417,9 +439,8 @@ describe('doctor on a clean checkout', () => {
     const root = createSyncedProject({ files: CONFORMANT });
 
     writeFileSync(join(root, '.claude/settings.json'), '{ "permissions": { "allow": ["x"] } }\n');
-    const adapters = (await runDoctorChecks({ root })).filter(
-      (violation) => violation.check === DoctorChecks.ADAPTERS,
-    );
+    const result = await runDoctorChecks({ root });
+    const adapters = result.filter((violation) => violation.check === DoctorChecks.ADAPTERS);
 
     expect(adapters.map((violation) => violation.file)).toContain('.claude/settings.json');
     expect(adapters.every((violation) => !violation.message.includes('not synced yet'))).toBe(true);
@@ -450,11 +471,13 @@ describe('doctor: the scaffold is filled in', () => {
       },
     });
 
-    expect(await runDoctorChecks({ root })).toEqual([]);
+    const result = await runDoctorChecks({ root });
+    expect(result).toEqual([]);
   });
 
   test('a single-package project needs no packages', async () => {
-    expect(await runDoctorChecks({ root: createSyncedProject({ files: CONFORMANT }) })).toEqual([]);
+    const result = await runDoctorChecks({ root: createSyncedProject({ files: CONFORMANT }) });
+    expect(result).toEqual([]);
   });
 
   test('a knowledge index that still carries the scaffold marker fails', async () => {
@@ -506,9 +529,11 @@ describe('doctor: apps', () => {
     });
     const uncovered = createSyncedProject({ files: files({ workspaces: '["services/*"]' }) });
 
-    expect(await runDoctorChecks({ root: covered })).toEqual([]);
+    const result = await runDoctorChecks({ root: covered });
+    expect(result).toEqual([]);
+    const result2 = await runDoctorChecks({ root: uncovered });
     expect(
-      (await runDoctorChecks({ root: uncovered }))
+      result2
         .filter((violation) => violation.check === DoctorChecks.APPS)
         .map((violation) => violation.message),
     ).toContain(
@@ -527,7 +552,8 @@ describe('doctor: apps', () => {
         },
       });
 
-      expect(await runDoctorChecks({ root })).toEqual([]);
+      const result = await runDoctorChecks({ root });
+      expect(result).toEqual([]);
     }
   });
 
@@ -541,9 +567,8 @@ describe('doctor: apps', () => {
           "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' } };\n",
       },
     });
-    const apps = (await runDoctorChecks({ root })).filter(
-      (violation) => violation.check === DoctorChecks.APPS,
-    );
+    const result = await runDoctorChecks({ root });
+    const apps = result.filter((violation) => violation.check === DoctorChecks.APPS);
 
     expect(apps.map((violation) => violation.message)).toContain(
       "layout.backend 'services' is not in package.json workspaces - add 'services/*'",
@@ -551,9 +576,8 @@ describe('doctor: apps', () => {
   });
 
   test('a project without a layout is not checked', async () => {
-    expect(await findChecks({ root: createSyncedProject({ files: CONFORMANT }) })).not.toContain(
-      DoctorChecks.APPS,
-    );
+    const result = await findChecks({ root: createSyncedProject({ files: CONFORMANT }) });
+    expect(result).not.toContain(DoctorChecks.APPS);
   });
 });
 
@@ -593,7 +617,8 @@ describe('doctor: app scripts (info only)', () => {
       },
     });
 
-    expect(await runDoctorNotes({ root })).toEqual([]);
+    const result = await runDoctorNotes({ root });
+    expect(result).toEqual([]);
   });
 
   test('one line per app names the missing standard scripts and the legacy ones it carries', async () => {
@@ -646,7 +671,9 @@ describe('doctor: app scripts (info only)', () => {
       },
     });
 
-    expect((await runDoctorNotes({ root }))[0]?.message).toBe(
+    const notes = await runDoctorNotes({ root });
+
+    expect(notes[0]?.message).toBe(
       'app api: legacy dev, start, build, rebuild, preview, server:prod (use the standard names)',
     );
   });
@@ -661,8 +688,10 @@ describe('doctor: app scripts (info only)', () => {
       },
     });
 
-    expect(await runDoctorNotes({ root })).toEqual([]);
-    expect(await runDoctorNotes({ root: createSyncedProject({ files: CONFORMANT }) })).toEqual([]);
+    const result = await runDoctorNotes({ root });
+    expect(result).toEqual([]);
+    const result2 = await runDoctorNotes({ root: createSyncedProject({ files: CONFORMANT }) });
+    expect(result2).toEqual([]);
   });
 
   test('notes never fail: runDoctorChecks stays clean and the doctor command exits 0, printing them as info', async () => {
@@ -674,7 +703,8 @@ describe('doctor: app scripts (info only)', () => {
     });
     const result = runCli({ args: ['doctor'], cwd: root });
 
-    expect(await runDoctorChecks({ root })).toEqual([]);
+    const result2 = await runDoctorChecks({ root });
+    expect(result2).toEqual([]);
     expect(result.code).toBe(0);
     expect(result.stderr).toContain(
       '  info [scripts] services/api/package.json: app api: missing server:dev, compile, typecheck, lint, lint:fix, test, clean; legacy dev (use the standard names)\n',
@@ -688,9 +718,8 @@ describe('doctor: agents', () => {
     const root = createSyncedProject({
       files: { ...CONFORMANT, '.agents/vulcan.local.json': '{ nope' },
     });
-    const agents = (await runDoctorChecks({ root })).filter(
-      (violation) => violation.check === DoctorChecks.AGENTS,
-    );
+    const result = await runDoctorChecks({ root });
+    const agents = result.filter((violation) => violation.check === DoctorChecks.AGENTS);
 
     expect(agents).toEqual([
       {
@@ -709,9 +738,8 @@ describe('doctor: agents', () => {
 
     runCli({ args: ['sync'], cwd: root });
 
-    expect((await runDoctorChecks({ root })).map((violation) => violation.check)).not.toContain(
-      DoctorChecks.ADAPTERS,
-    );
+    const result = await runDoctorChecks({ root });
+    expect(result.map((violation) => violation.check)).not.toContain(DoctorChecks.ADAPTERS);
   });
 });
 
@@ -725,8 +753,11 @@ describe('parseMakeTargets', () => {
 });
 
 describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
-  const dockerignoreWarnings = async (opts: { root: string }) =>
-    (await runDoctorWarnings(opts)).filter((item) => item.check === DoctorChecks.DOCKERIGNORE);
+  const dockerignoreWarnings = async (opts: { root: string }) => {
+    const warnings = await runDoctorWarnings(opts);
+
+    return warnings.filter((item) => item.check === DoctorChecks.DOCKERIGNORE);
+  };
   const PACKAGES = "[{ dir: 'api', name: 'api', path: 'services/api' }]";
   const SAFE = '**/node_modules\n**/.env\n**/.env.*\n!**/.env.example\n';
   const project = (opts: { files: Record<string, string> }): string =>
@@ -758,22 +789,23 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
   test('no root .dockerignore: one warning, and never an info note', async () => {
     const root = project({ files: {} });
 
-    expect(await dockerignoreWarnings({ root })).toEqual([
+    const result = await dockerignoreWarnings({ root });
+    expect(result).toEqual([
       {
         check: DoctorChecks.DOCKERIGNORE,
         file: '.dockerignore',
         message: `app api has a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist, .git and every .env file (secrets) - create it, then ${ADD}`,
       },
     ]);
-    expect((await runDoctorNotes({ root })).map((note) => note.check)).not.toContain(
-      DoctorChecks.DOCKERIGNORE,
-    );
+    const result2 = await runDoctorNotes({ root });
+    expect(result2.map((note) => note.check)).not.toContain(DoctorChecks.DOCKERIGNORE);
   });
 
   test('a .dockerignore without the .env lines: one warning naming the three lines', async () => {
     const root = project({ files: { '.dockerignore': '**/node_modules\n**/dist\n' } });
 
-    expect(await dockerignoreWarnings({ root })).toEqual([
+    const result = await dockerignoreWarnings({ root });
+    expect(result).toEqual([
       {
         check: DoctorChecks.DOCKERIGNORE,
         file: '.dockerignore',
@@ -785,34 +817,39 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
   test('only .env excluded, not .env.*, still warns', async () => {
     const root = project({ files: { '.dockerignore': '**/.env\n' } });
 
-    expect((await dockerignoreWarnings({ root })).length).toBe(1);
+    const result = await dockerignoreWarnings({ root });
+    expect(result.length).toBe(1);
   });
 
   test('the lines doctor asks for, and the usual spellings of them, are accepted', async () => {
     for (const text of [SAFE, '.env\n.env.*\n', '.env*\n!.env.example\n', '**/.env*\n']) {
       const root = project({ files: { '.dockerignore': text } });
 
-      expect(await dockerignoreWarnings({ root }), text).toEqual([]);
+      const result = await dockerignoreWarnings({ root });
+      expect(result, text).toEqual([]);
     }
   });
 
   test('the .dockerignore that init writes passes the check', async () => {
     const root = project({ files: { '.dockerignore': renderDockerignore() } });
 
-    expect(await dockerignoreWarnings({ root })).toEqual([]);
+    const result = await dockerignoreWarnings({ root });
+    expect(result).toEqual([]);
   });
 
   test('a later negation that brings .env back is a warning again', async () => {
     const root = project({ files: { '.dockerignore': '**/.env\n**/.env.*\n!**/.env*\n' } });
 
-    expect((await dockerignoreWarnings({ root })).length).toBe(1);
+    const result = await dockerignoreWarnings({ root });
+    expect(result.length).toBe(1);
   });
 
   test('no Dockerfile: silent', async () => {
     const root = project({ files: {} });
 
     rmSync(join(root, 'services/api/.configs/builders/Dockerfile'));
-    expect(await dockerignoreWarnings({ root })).toEqual([]);
+    const result = await dockerignoreWarnings({ root });
+    expect(result).toEqual([]);
   });
 
   test('two apps with a Dockerfile give one warning naming both', async () => {
@@ -841,8 +878,11 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
 });
 
 describe('doctor: bun fmt (warnings)', () => {
-  const formatWarnings = async (opts: { root: string }) =>
-    (await runDoctorWarnings(opts)).filter((item) => item.check === DoctorChecks.FORMAT);
+  const formatWarnings = async (opts: { root: string }) => {
+    const warnings = await runDoctorWarnings(opts);
+
+    return warnings.filter((item) => item.check === DoctorChecks.FORMAT);
+  };
   const PACKAGES = "[{ dir: 'api', name: 'api', path: 'services/api' }]";
   const project = (opts: { files: Record<string, string | null> }): string =>
     createSyncedProject({
@@ -863,13 +903,15 @@ describe('doctor: bun fmt (warnings)', () => {
     'without it bun fmt uses its default style when oxfmt is not a dependency, and the output changes';
 
   test('the bunfig.toml that init writes passes', async () => {
-    expect(await formatWarnings({ root: project({ files: {} }) })).toEqual([]);
+    const result = await formatWarnings({ root: project({ files: {} }) });
+    expect(result).toEqual([]);
   });
 
   test('no bunfig.toml: one warning', async () => {
     const root = project({ files: { 'bunfig.toml': null } });
 
-    expect(await formatWarnings({ root })).toEqual([
+    const result = await formatWarnings({ root });
+    expect(result).toEqual([
       {
         check: DoctorChecks.FORMAT,
         file: 'bunfig.toml',
@@ -881,7 +923,8 @@ describe('doctor: bun fmt (warnings)', () => {
   test('a bunfig.toml without [fmt]: one warning', async () => {
     const root = project({ files: { 'bunfig.toml': 'telemetry = false\n' } });
 
-    expect(await formatWarnings({ root })).toEqual([
+    const result = await formatWarnings({ root });
+    expect(result).toEqual([
       {
         check: DoctorChecks.FORMAT,
         file: 'bunfig.toml',
@@ -898,12 +941,14 @@ describe('doctor: bun fmt (warnings)', () => {
     ]) {
       const root = project({ files: { 'bunfig.toml': text } });
 
-      expect(await formatWarnings({ root }), text).toEqual([]);
+      const result = await formatWarnings({ root });
+      expect(result, text).toEqual([]);
     }
 
     const root = project({ files: { 'bunfig.toml': '# [fmt] is not set here\nfmt = 1\n' } });
 
-    expect((await formatWarnings({ root })).length).toBe(1);
+    const result2 = await formatWarnings({ root });
+    expect(result2.length).toBe(1);
   });
 
   test('a fmt script in the root package.json: one warning', async () => {
@@ -918,7 +963,8 @@ describe('doctor: bun fmt (warnings)', () => {
       },
     });
 
-    expect(await formatWarnings({ root })).toEqual([
+    const result = await formatWarnings({ root });
+    expect(result).toEqual([
       {
         check: DoctorChecks.FORMAT,
         file: 'package.json',
@@ -948,7 +994,8 @@ describe('doctor: bun fmt (warnings)', () => {
       files: { 'services/api/.configs/formatters/oxfmt.config.mts': 'export default {};\n' },
     });
 
-    expect(await formatWarnings({ root })).toEqual([
+    const result = await formatWarnings({ root });
+    expect(result).toEqual([
       {
         check: DoctorChecks.FORMAT,
         file: 'services/api/.configs/formatters/oxfmt.config.mts',
@@ -965,7 +1012,8 @@ describe('doctor: bun fmt (warnings)', () => {
     const message =
       'bun fmt loads it and it overrides the [fmt] section of bunfig.toml - delete it, or move its settings to [fmt]';
 
-    expect(await formatWarnings({ root })).toEqual([
+    const result = await formatWarnings({ root });
+    expect(result).toEqual([
       { check: DoctorChecks.FORMAT, file: '.oxfmtrc.json', message },
       { check: DoctorChecks.FORMAT, file: 'services/api/oxfmt.config.ts', message },
     ]);
@@ -976,7 +1024,8 @@ describe('doctor: bun fmt (warnings)', () => {
       files: { 'services/api/bunfig.toml': renderBunfig() },
     });
 
-    expect(await formatWarnings({ root })).toEqual([
+    const result = await formatWarnings({ root });
+    expect(result).toEqual([
       {
         check: DoctorChecks.FORMAT,
         file: 'services/api/bunfig.toml',
@@ -989,7 +1038,8 @@ describe('doctor: bun fmt (warnings)', () => {
   test("a bunfig.toml in an app folder without [fmt] is not the check's business", async () => {
     const root = project({ files: { 'services/api/bunfig.toml': '[install]\nexact = true\n' } });
 
-    expect(await formatWarnings({ root })).toEqual([]);
+    const result = await formatWarnings({ root });
+    expect(result).toEqual([]);
   });
 
   test('a bunfig.toml [fmt] section without the oxfmt flavor: one warning', async () => {
@@ -997,7 +1047,8 @@ describe('doctor: bun fmt (warnings)', () => {
       files: { 'bunfig.toml': '[fmt]\nprintWidth = 100\n' },
     });
 
-    expect(await formatWarnings({ root })).toEqual([
+    const result = await formatWarnings({ root });
+    expect(result).toEqual([
       {
         check: DoctorChecks.FORMAT,
         file: 'bunfig.toml',
@@ -1027,8 +1078,11 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
         },
       },
     });
-  const mcpWarnings = async (opts: { root: string }) =>
-    (await runDoctorWarnings(opts)).filter((item) => item.check === DoctorChecks.MCP);
+  const mcpWarnings = async (opts: { root: string }) => {
+    const warnings = await runDoctorWarnings(opts);
+
+    return warnings.filter((item) => item.check === DoctorChecks.MCP);
+  };
   // sync writes the canonical file; a test then replaces it, as a hand edit or a tracked file would.
   const project = (opts: { mcp?: string; agents?: string[] }) => {
     const root = createSyncedProject({ files: CONFORMANT });
@@ -1048,7 +1102,8 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
   };
 
   test('the canonical entry sync wrote and the enabled server: no warning', async () => {
-    expect(await mcpWarnings({ root: project({}) })).toEqual([]);
+    const result = await mcpWarnings({ root: project({}) });
+    expect(result).toEqual([]);
   });
 
   test('no .mcp.json: the adapters check says not synced yet, the mcp check stays quiet', async () => {
@@ -1056,12 +1111,10 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
 
     rmSync(join(root, '.mcp.json'));
 
-    expect(await mcpWarnings({ root })).toEqual([]);
-    expect(
-      (await runDoctorChecks({ root })).some(
-        (violation) => violation.check === DoctorChecks.ADAPTERS,
-      ),
-    ).toBe(true);
+    const result = await mcpWarnings({ root });
+    expect(result).toEqual([]);
+    const result2 = await runDoctorChecks({ root });
+    expect(result2.some((violation) => violation.check === DoctorChecks.ADAPTERS)).toBe(true);
   });
 
   test('a file that is not JSON', async () => {
@@ -1095,7 +1148,8 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
   test('a machine whose agents do not read .mcp.json is not asked about it', async () => {
     const root = project({ agents: ['cursor'], mcp: MCP({ root: '../ignis' }) });
 
-    expect((await mcpWarnings({ root })).map((item) => item.file)).not.toContain('.mcp.json');
+    const result = await mcpWarnings({ root });
+    expect(result.map((item) => item.file)).not.toContain('.mcp.json');
   });
 
   test('the managed Claude settings that do not enable atlas', async () => {
@@ -1106,7 +1160,8 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
       JSON.stringify({ enabledMcpjsonServers: ['ignis-knowledge'] }),
     );
 
-    expect(await mcpWarnings({ root })).toEqual([
+    const result = await mcpWarnings({ root });
+    expect(result).toEqual([
       {
         check: DoctorChecks.MCP,
         file: '.claude/settings.json',
@@ -1120,7 +1175,8 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
     const root = project({ mcp: MCP({}) });
 
     rmSync(join(root, '.claude/settings.json'), { force: true });
-    expect(await mcpWarnings({ root })).toEqual([]);
+    const result = await mcpWarnings({ root });
+    expect(result).toEqual([]);
   });
 
   test('doctor prints them as warnings and stays green', () => {
@@ -1146,19 +1202,15 @@ describe('the report shape note', () => {
         '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
       },
     });
-    const notes = (await runDoctorNotes({ root })).filter((note) =>
-      note.file.endsWith('violations.jsonl'),
-    );
+    const result = await runDoctorNotes({ root });
+    const notes = result.filter((note) => note.file.endsWith('violations.jsonl'));
 
     expect(notes).toHaveLength(1);
     expect(notes[0]?.message).toBe(
       '2 replies were flagged on 2 days (emoji 2, blocked-missing 1); the retro skill turns a pattern into a check',
     );
-    expect(
-      (await runDoctorNotes({ root: quiet })).filter((note) =>
-        note.file.endsWith('violations.jsonl'),
-      ),
-    ).toEqual([]);
+    const result2 = await runDoctorNotes({ root: quiet });
+    expect(result2.filter((note) => note.file.endsWith('violations.jsonl'))).toEqual([]);
   });
 
   test('a note says when VULCAN_OWNER_REPLY=off is set in the shell that runs doctor', async () => {
@@ -1167,17 +1219,20 @@ describe('the report shape note', () => {
         '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
       },
     });
-    const notesOf = async (env: Record<string, string>): Promise<string[]> =>
-      (await runDoctorNotes({ root, env }))
-        .filter((note) => note.file === 'VULCAN_OWNER_REPLY')
-        .map((note) => note.message);
+    const notesOf = async (env: Record<string, string>): Promise<string[]> => {
+      const notes = await runDoctorNotes({ root, env });
+
+      return notes.filter((note) => note.file === 'VULCAN_OWNER_REPLY').map((note) => note.message);
+    };
 
     const set = await notesOf({ VULCAN_OWNER_REPLY: 'off' });
 
     expect(set).toHaveLength(1);
     expect(set[0]).toContain('not held to the owner reply shape');
-    expect(await notesOf({ VULCAN_OWNER_REPLY: 'OFF' })).toEqual([]);
-    expect(await notesOf({})).toEqual([]);
+    const result = await notesOf({ VULCAN_OWNER_REPLY: 'OFF' });
+    expect(result).toEqual([]);
+    const result2 = await notesOf({});
+    expect(result2).toEqual([]);
   });
 
   test('a warning says when a Claude Code settings file of the project sets the switch in env', async () => {
@@ -1194,12 +1249,17 @@ describe('the report shape note', () => {
         '.claude/settings.json': JSON.stringify({ env: { VULCAN_OWNER_REPLY: 'on' } }),
       },
     });
-    const warningsOf = async (root: string): Promise<string[]> =>
-      (await runDoctorWarnings({ root }))
+    const warningsOf = async (root: string): Promise<string[]> => {
+      const warnings = await runDoctorWarnings({ root });
+
+      return warnings
         .filter((warning) => warning.message.includes('VULCAN_OWNER_REPLY'))
         .map((warning) => warning.file);
+    };
 
-    expect(await warningsOf(flagged)).toEqual(['.claude/settings.local.json']);
-    expect(await warningsOf(harmless)).toEqual([]);
+    const result = await warningsOf(flagged);
+    expect(result).toEqual(['.claude/settings.local.json']);
+    const result2 = await warningsOf(harmless);
+    expect(result2).toEqual([]);
   });
 });

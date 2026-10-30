@@ -180,7 +180,8 @@ describe('vulcan init --preset with folder paths', () => {
     const root = monorepo({ backendDir: 'auroras/apps', shared: 'auroras/kits' });
 
     expect(existsSync(join(root, 'auroras/apps/core-api/package.json'))).toBe(true);
-    expect(await layoutOf({ root })).toEqual({ backend: 'auroras/apps', shared: 'auroras/kits' });
+    const result = await layoutOf({ root });
+    expect(result).toEqual({ backend: 'auroras/apps', shared: 'auroras/kits' });
     expect(readFileSync(join(root, 'package.json'), 'utf8')).toContain('auroras/apps/*');
   });
 
@@ -214,7 +215,9 @@ describe('vulcan add with several folders per side', () => {
 
     expect(result.code, result.stderr).toBe(0);
     expect(existsSync(join(root, 'umbras-2/services/worker/package.json'))).toBe(true);
-    expect((await layoutOf({ root }))?.backend).toEqual(['umbras', 'umbras-2/services']);
+    const layout = await layoutOf({ root });
+
+    expect(layout?.backend).toEqual(['umbras', 'umbras-2/services']);
     expect(readFileSync(join(root, 'package.json'), 'utf8')).toContain('umbras-2/services/*');
   });
 
@@ -249,7 +252,9 @@ describe('vulcan add with several folders per side', () => {
     expect(listed.code, listed.stderr).toBe(0);
     expect(first.code, first.stderr).toBe(0);
     // A folder that is listed already changes nothing in the layout.
-    expect((await layoutOf({ root }))?.backend).toEqual(['umbras', 'umbras-2']);
+    const layout = await layoutOf({ root });
+
+    expect(layout?.backend).toEqual(['umbras', 'umbras-2']);
     expect(existsSync(join(root, 'umbras/queue/package.json'))).toBe(true);
   });
 
@@ -308,7 +313,9 @@ describe('vulcan add with several folders per side', () => {
     }
 
     expect(existsSync(join(root, 'worker'))).toBe(false);
-    expect((await layoutOf({ root }))?.backend).toBe('umbras');
+    const layout = await layoutOf({ root });
+
+    expect(layout?.backend).toBe('umbras');
   });
 
   test('a frontend finds its backend in any folder of the backend list', async () => {
@@ -340,7 +347,9 @@ describe('vulcan add with several folders per side', () => {
     expect(readFileSync(join(root, 'auroras/apps/web/vite.config.ts'), 'utf8')).toContain(
       'localhost:',
     );
-    expect((await layoutOf({ root }))?.frontend).toBe('auroras/apps');
+    const layout = await layoutOf({ root });
+
+    expect(layout?.frontend).toBe('auroras/apps');
   });
 });
 
@@ -376,7 +385,9 @@ describe('vulcan add --lib with several shared folders', () => {
     });
 
     expect(second.code, second.stderr).toBe(0);
-    expect((await layoutOf({ root: repo }))?.shared).toEqual(['kits/a', 'kits/b']);
+    const layout = await layoutOf({ root: repo });
+
+    expect(layout?.shared).toEqual(['kits/a', 'kits/b']);
 
     const missing = runCli({
       args: ['add', '--preset', `file:${lib}`, '--lib', 'tax'],
@@ -394,7 +405,9 @@ describe('vulcan add --lib with several shared folders', () => {
     });
 
     expect(listed.code, listed.stderr).toBe(0);
-    expect((await layoutOf({ root: repo }))?.shared).toEqual(['kits/a', 'kits/b']);
+    const listedLayout = await layoutOf({ root: repo });
+
+    expect(listedLayout?.shared).toEqual(['kits/a', 'kits/b']);
   });
 });
 
@@ -445,7 +458,9 @@ describe('vulcan add --lib says why a folder it used was not recorded', () => {
     expect(result.stderr).toContain(`note: '${dir}' is not added to layout.shared`);
     expect(result.stderr).toContain(why);
     expect(result.stderr).toContain('guard-package does not cover it');
-    expect((await layoutOf({ root }))?.shared).toBe('kits');
+    const layout = await layoutOf({ root });
+
+    expect(layout?.shared).toBe('kits');
   });
 
   test('a listed folder and a valid new one print no note', async () => {
@@ -457,7 +472,9 @@ describe('vulcan add --lib says why a folder it used was not recorded', () => {
     expect(listed.stderr).not.toContain('note:');
     expect(added.code, added.stderr).toBe(0);
     expect(added.stderr).not.toContain('note:');
-    expect((await layoutOf({ root }))?.shared).toEqual(['kits', 'kits2/b']);
+    const layout = await layoutOf({ root });
+
+    expect(layout?.shared).toEqual(['kits', 'kits2/b']);
   });
 });
 
@@ -500,14 +517,18 @@ const groupedProject = (opts: { other?: string[]; extraPackage?: string } = {}):
   return createProject({ files });
 };
 
-const appsViolations = async (opts: { root: string }): Promise<string[]> =>
-  (await runDoctorChecks({ root: opts.root }))
+const appsViolations = async (opts: { root: string }): Promise<string[]> => {
+  const checks = await runDoctorChecks({ root: opts.root });
+
+  return checks
     .filter((violation) => violation.check === DoctorChecks.APPS)
     .map((violation) => violation.message);
+};
 
 describe('doctor on a grouped monorepo', () => {
   test('every folder of every list is a workspace, and packages under other are allowed', async () => {
-    expect(await appsViolations({ root: groupedProject() })).toEqual([]);
+    const result = await appsViolations({ root: groupedProject() });
+    expect(result).toEqual([]);
   });
 
   test('without the other folders every package outside a side is reported, as on 0.4.3', async () => {
@@ -572,7 +593,8 @@ describe('doctor and workspace globs', () => {
   });
 
   test('a package that is an other folder itself (a docs site at docs) is allowed', async () => {
-    expect(await appsViolations({ root: groupedProject({ extraPackage: 'docs' }) })).toEqual([]);
+    const result = await appsViolations({ root: groupedProject({ extraPackage: 'docs' }) });
+    expect(result).toEqual([]);
   });
 
   test('a glob that matches a package in the folder covers it, as auroras/*/* covers auroras/apps', async () => {
@@ -587,7 +609,8 @@ describe('doctor and workspace globs', () => {
       }),
     );
 
-    expect(await appsViolations({ root })).toEqual([]);
+    const result = await appsViolations({ root });
+    expect(result).toEqual([]);
   });
 });
 

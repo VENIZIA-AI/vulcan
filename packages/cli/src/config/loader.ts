@@ -40,7 +40,9 @@ export const loadConfig = async (opts: { root: string }): Promise<TLoadResult> =
   let loaded: { default?: unknown };
 
   try {
-    loaded = await import(pathToFileURL(file).href);
+    const imported = await import(pathToFileURL(file).href);
+
+    loaded = imported;
   } catch (error) {
     return { ok: false, file, error: `${shown}: failed to load - ${describeError({ error })}` };
   }

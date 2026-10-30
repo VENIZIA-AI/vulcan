@@ -33,17 +33,19 @@ const projectWithTags = (opts: { tags: string[] }): string => {
   return root;
 };
 
-const tagViolations = async (opts: { root: string }) =>
-  (await runDoctorChecks({ root: opts.root })).filter(
-    (violation) => violation.check === DoctorChecks.TAGS,
-  );
+const tagViolations = async (opts: { root: string }) => {
+  const checks = await runDoctorChecks({ root: opts.root });
+
+  return checks.filter((violation) => violation.check === DoctorChecks.TAGS);
+};
 
 test('every tag the pattern reads names a declared package - by directory, alias or retired', async () => {
   const root = projectWithTags({
     tags: ['core-server-v1.0.0', 'core-v0.1.0', 'old-v0.0.1', 'legacy/0.0.1-0', 'not-a-release'],
   });
 
-  expect(await tagViolations({ root })).toEqual([]);
+  const result = await tagViolations({ root });
+  expect(result).toEqual([]);
 });
 
 test('a tag naming no declared package is a violation (positive control)', async () => {

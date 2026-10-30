@@ -114,7 +114,8 @@ describe('buildSessionDigest', () => {
     test('a project whose atlas server is not configured gets no block', async () => {
       const root = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
 
-      expect(await buildSessionDigest({ projectRoot: root })).not.toContain('## Atlas');
+      const result = await buildSessionDigest({ projectRoot: root });
+      expect(result).not.toContain('## Atlas');
     });
 
     test('a project with a server but no sources names only itself', async () => {
@@ -246,9 +247,8 @@ describe('the owner cards in the digest', () => {
     expect(digest).not.toContain('## How to answer the owner');
     expect(digest).not.toContain('## Working with this person');
     expect(digest).toContain('| V-W-02 |');
-    expect(await buildSessionDigest({ projectRoot: root, env: {} })).toContain(
-      '## How to answer the owner',
-    );
+    const result = await buildSessionDigest({ projectRoot: root, env: {} });
+    expect(result).toContain('## How to answer the owner');
   });
 
   test('a subagent gets the small card, with neither the owner shape nor the profile', () => {
@@ -308,6 +308,7 @@ describe('the owner cards in the digest', () => {
       files: { '.configs/vulcan.config.ts': CONFIG, '.agents/local/profile.json': '{ nope' },
     });
 
-    expect(await buildSessionDigest({ projectRoot: root })).toContain('VULCAN rules');
+    const result = await buildSessionDigest({ projectRoot: root });
+    expect(result).toContain('VULCAN rules');
   });
 });

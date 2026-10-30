@@ -6,8 +6,11 @@ import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 afterAll(removeProjects);
 
 const CONFIG = "export default { name: 'acme', rules: { 'V-W-01': 'read-only' } };\n";
-const profileWarnings = async (opts: { root: string }) =>
-  (await runDoctorWarnings({ root: opts.root })).filter((entry) => entry.check === 'profile');
+const profileWarnings = async (opts: { root: string }) => {
+  const warnings = await runDoctorWarnings({ root: opts.root });
+
+  return warnings.filter((entry) => entry.check === 'profile');
+};
 
 describe('doctor and the personal profile', () => {
   test('no profile, or a good one, is quiet', async () => {
@@ -20,8 +23,10 @@ describe('doctor and the personal profile', () => {
       },
     });
 
-    expect(await profileWarnings({ root: none })).toEqual([]);
-    expect(await profileWarnings({ root: good })).toEqual([]);
+    const result = await profileWarnings({ root: none });
+    expect(result).toEqual([]);
+    const result2 = await profileWarnings({ root: good });
+    expect(result2).toEqual([]);
   });
 
   test('a profile git would pick up is flagged with the fix', async () => {
@@ -63,7 +68,8 @@ describe('doctor and the personal profile', () => {
       expect(spawnSyncBounded({ cmd: ['git', ...args], cwd: root }).exitCode).toBe(0);
     }
 
-    const messages = (await profileWarnings({ root })).map((warning) => warning.message);
+    const result = await profileWarnings({ root });
+    const messages = result.map((warning) => warning.message);
 
     expect(
       messages.some((message) => message.includes('git rm --cached .agents/local/profile.json')),

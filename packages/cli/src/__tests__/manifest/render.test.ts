@@ -378,9 +378,8 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     expect(JSON.parse(readFileSync(join(root, ManifestConstants.FILE), 'utf8')).atlas).toEqual({
       index: { keys: [key] },
     });
-    expect((await runDoctorChecks({ root })).map((violation) => violation.check)).not.toContain(
-      DoctorChecks.MANIFEST,
-    );
+    const result = await runDoctorChecks({ root });
+    expect(result.map((violation) => violation.check)).not.toContain(DoctorChecks.MANIFEST);
   });
 
   test('doctor fails a manifest the config moved past', async () => {
@@ -414,9 +413,8 @@ describe('the manifest in sync, doctor and vulcan x', () => {
 
     expect($generated).toBeDefined();
     expect(JSON.parse(readFileSync(path, 'utf8')).$generated).toBeUndefined();
-    expect((await runDoctorChecks({ root })).map((violation) => violation.check)).not.toContain(
-      DoctorChecks.MANIFEST,
-    );
+    const result = await runDoctorChecks({ root });
+    expect(result.map((violation) => violation.check)).not.toContain(DoctorChecks.MANIFEST);
   });
 
   test('a sync after the old shape writes the key back', () => {

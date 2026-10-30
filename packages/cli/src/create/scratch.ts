@@ -56,7 +56,9 @@ export const withScratch = async <TResult>(opts: {
   const scratch = mkdtempSync(join(parent, 'preset-'));
 
   try {
-    return await opts.run(scratch);
+    const outcome = await opts.run(scratch);
+
+    return outcome;
   } finally {
     rmSync(scratch, { recursive: true, force: true });
     removeIfEmpty({ directory: parent });

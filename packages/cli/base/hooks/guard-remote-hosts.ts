@@ -17,7 +17,9 @@ try {
   const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
   const manifestFile = Bun.file(`${root}/.agents/vulcan.manifest.json`);
 
-  if (!(await manifestFile.exists())) {
+  const manifestExists = await manifestFile.exists();
+
+  if (!manifestExists) {
     throw new Error('.agents/vulcan.manifest.json is missing - run vulcan sync');
   }
 
@@ -30,10 +32,14 @@ try {
 
   const localFile = typeof remoteHosts.localFile === 'string' ? remoteHosts.localFile : undefined;
   const local = localFile === undefined ? undefined : Bun.file(`${root}/${localFile}`);
-  const personal = local !== undefined && (await local.exists()) ? await local.text() : '';
+  const localExists = await local?.exists();
+  const readingPersonal = localExists === true ? local?.text() : undefined;
+  const personalText = await readingPersonal;
+  const personal = personalText ?? '';
   const trusted: string[] = Array.isArray(remoteHosts.trusted) ? remoteHosts.trusted : [];
   const readOnly: string[] = Array.isArray(remoteHosts.readOnly) ? remoteHosts.readOnly : [];
-  const hookCommand = parseHookCommand({ text: await Bun.stdin.text() });
+  const stdin = await Bun.stdin.text();
+  const hookCommand = parseHookCommand({ text: stdin });
   const hits = hookCommand
     ? inspectRemoteCommand({
         command: hookCommand.command,

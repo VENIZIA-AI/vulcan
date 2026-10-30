@@ -17,7 +17,8 @@ describe('guardAgainstPipedLines', () => {
 
       process.stdin.emit('data', Buffer.from('my-product\n'));
 
-      expect(await pending.catch((error: unknown) => error)).toBeInstanceOf(PipedInputRefusal);
+      const result = await pending.catch((error: unknown) => error);
+      expect(result).toBeInstanceOf(PipedInputRefusal);
       expect(String(stderr.mock.calls[0]?.[0])).toContain('reads key presses, not lines');
     } finally {
       stderr.mockRestore();
@@ -33,7 +34,8 @@ describe('guardAgainstPipedLines', () => {
     try {
       const flow = async (): Promise<string> => {
         try {
-          return await guardAgainstPipedLines(never);
+          const result = await guardAgainstPipedLines(never);
+          return result;
         } finally {
           cleaned.push('scratch removed');
         }
@@ -41,7 +43,8 @@ describe('guardAgainstPipedLines', () => {
       const pending = flow();
 
       process.stdin.emit('data', Buffer.from('\n'));
-      expect(await pending.catch((error: unknown) => error)).toBeInstanceOf(PipedInputRefusal);
+      const result = await pending.catch((error: unknown) => error);
+      expect(result).toBeInstanceOf(PipedInputRefusal);
       expect(cleaned).toEqual(['scratch removed']);
     } finally {
       stderr.mockRestore();
@@ -54,7 +57,8 @@ describe('guardAgainstPipedLines', () => {
 
     process.stdin.emit('data', Buffer.from('\r'));
 
-    expect(await pending).toBe('picked');
+    const result = await pending;
+    expect(result).toBe('picked');
   });
 
   test('the listener is removed when the menu ends', async () => {

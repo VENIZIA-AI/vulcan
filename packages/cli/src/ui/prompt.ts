@@ -90,5 +90,7 @@ export const promptConfirm = async (opts: {
 export const promptPlan = async (opts: { title: string; lines: string[] }): Promise<boolean> => {
   note(opts.lines.join('\n'), opts.title);
 
-  return (await promptConfirm({ message: 'Write these files?' })) === true;
+  const confirmed = await promptConfirm({ message: 'Write these files?' });
+
+  return confirmed === true;
 };

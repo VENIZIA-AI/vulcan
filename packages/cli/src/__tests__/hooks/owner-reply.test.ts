@@ -68,9 +68,8 @@ describe('buildStopOutput', () => {
   test('advise logs the faults and never blocks', async () => {
     const root = project('advise');
 
-    expect(
-      await buildStopOutput({ projectRoot: root, input: reply({ text: BAD }) }),
-    ).toBeUndefined();
+    const result = await buildStopOutput({ projectRoot: root, input: reply({ text: BAD }) });
+    expect(result).toBeUndefined();
     expect(logOf(root)).toContain('minimap-missing');
     expect(logOf(root)).not.toContain('long reply');
   });
@@ -88,7 +87,8 @@ describe('buildStopOutput', () => {
     const root = project('block');
     const input = reply({ text: BAD, isRetry: true });
 
-    expect(await buildStopOutput({ projectRoot: root, input })).toBeUndefined();
+    const result = await buildStopOutput({ projectRoot: root, input });
+    expect(result).toBeUndefined();
   });
 
   test('a second block right after the first is refused even when the client sends no retry flag', async () => {
@@ -97,17 +97,23 @@ describe('buildStopOutput', () => {
 
     delete event['stop_hook_active'];
 
-    expect((await buildStopOutput({ projectRoot: root, input: event }))?.decision).toBe('block');
-    expect(await buildStopOutput({ projectRoot: root, input: event })).toBeUndefined();
+    const first = await buildStopOutput({ projectRoot: root, input: event });
+
+    expect(first?.decision).toBe('block');
+
+    const result = await buildStopOutput({ projectRoot: root, input: event });
+    expect(result).toBeUndefined();
   });
 
   test('a short reply clears the last-reply note', async () => {
     const root = project('advise', ', shortReplyWords: 20');
 
     await buildStopOutput({ projectRoot: root, input: reply({ text: BAD }) });
-    expect(await buildPromptContract({ projectRoot: root })).toContain('broke it');
+    const result = await buildPromptContract({ projectRoot: root });
+    expect(result).toContain('broke it');
     await buildStopOutput({ projectRoot: root, input: reply({ text: 'Done.' }) });
-    expect(await buildPromptContract({ projectRoot: root })).not.toContain('broke it');
+    const result2 = await buildPromptContract({ projectRoot: root });
+    expect(result2).not.toContain('broke it');
   });
 
   test('a log that cannot be written never costs the block decision', async () => {
@@ -116,26 +122,25 @@ describe('buildStopOutput', () => {
     mkdirSync(join(root, '.agents/local/violations.jsonl'));
     mkdirSync(join(root, '.agents/local/last-reply.json'));
 
-    expect(
-      (await buildStopOutput({ projectRoot: root, input: reply({ text: BAD }) }))?.decision,
-    ).toBe('block');
+    const output = await buildStopOutput({ projectRoot: root, input: reply({ text: BAD }) });
+
+    expect(output?.decision).toBe('block');
   });
 
   test('a reply in the shape passes; off checks nothing; unreadable input passes', async () => {
     const block = project('block');
     const off = project('off');
 
-    expect(
-      await buildStopOutput({ projectRoot: block, input: reply({ text: GOOD }) }),
-    ).toBeUndefined();
+    const result = await buildStopOutput({ projectRoot: block, input: reply({ text: GOOD }) });
+    expect(result).toBeUndefined();
     expect(logOf(block)).toBe('');
-    expect(
-      await buildStopOutput({ projectRoot: off, input: reply({ text: BAD }) }),
-    ).toBeUndefined();
+    const result2 = await buildStopOutput({ projectRoot: off, input: reply({ text: BAD }) });
+    expect(result2).toBeUndefined();
     expect(logOf(off)).toBe('');
 
     for (const input of [null, 'text', {}, reply({ text: 3 })]) {
-      expect(await buildStopOutput({ projectRoot: block, input })).toBeUndefined();
+      const result3 = await buildStopOutput({ projectRoot: block, input });
+      expect(result3).toBeUndefined();
     }
   });
 
@@ -143,12 +148,14 @@ describe('buildStopOutput', () => {
     const exempt = project('block');
     const strict = project('block', ', shortReplyWords: 0');
 
-    expect(
-      await buildStopOutput({ projectRoot: exempt, input: reply({ text: 'Done.' }) }),
-    ).toBeUndefined();
-    expect(
-      (await buildStopOutput({ projectRoot: strict, input: reply({ text: 'Done.' }) }))?.decision,
-    ).toBe('block');
+    const result = await buildStopOutput({ projectRoot: exempt, input: reply({ text: 'Done.' }) });
+    expect(result).toBeUndefined();
+    const strictOutput = await buildStopOutput({
+      projectRoot: strict,
+      input: reply({ text: 'Done.' }),
+    });
+
+    expect(strictOutput?.decision).toBe('block');
   });
 
   test('style faults alone are logged and never block', async () => {
@@ -172,15 +179,12 @@ describe('two sessions in one project', () => {
     await buildStopOutput({ projectRoot: root, input: reply({ text: BAD, session: 'lane-a' }) });
     await buildStopOutput({ projectRoot: root, input: reply({ text: GOOD, session: 'lane-b' }) });
 
-    expect(await buildPromptContract({ projectRoot: root, session: 'lane-a' })).toContain(
-      'Your last reply broke it',
-    );
-    expect(await buildPromptContract({ projectRoot: root, session: 'lane-b' })).toBe(
-      'Owner reply contract: follow the report shape from the session rules.',
-    );
-    expect(await buildPromptContract({ projectRoot: root, session: 'lane-c' })).not.toContain(
-      'broke it',
-    );
+    const result = await buildPromptContract({ projectRoot: root, session: 'lane-a' });
+    expect(result).toContain('Your last reply broke it');
+    const result2 = await buildPromptContract({ projectRoot: root, session: 'lane-b' });
+    expect(result2).toBe('Owner reply contract: follow the report shape from the session rules.');
+    const result3 = await buildPromptContract({ projectRoot: root, session: 'lane-c' });
+    expect(result3).not.toContain('broke it');
   });
 
   test('the other order: the clean session stopping last does not hide the faulty one', async () => {
@@ -189,9 +193,8 @@ describe('two sessions in one project', () => {
     await buildStopOutput({ projectRoot: root, input: reply({ text: GOOD, session: 'lane-b' }) });
     await buildStopOutput({ projectRoot: root, input: reply({ text: BAD, session: 'lane-a' }) });
 
-    expect(await buildPromptContract({ projectRoot: root, session: 'lane-b' })).not.toContain(
-      'broke it',
-    );
+    const result = await buildPromptContract({ projectRoot: root, session: 'lane-b' });
+    expect(result).not.toContain('broke it');
   });
 
   test("one session's block does not stop a block in another, and each keeps its own cooldown", async () => {
@@ -204,14 +207,18 @@ describe('two sessions in one project', () => {
       return input;
     };
 
-    expect((await buildStopOutput({ projectRoot: root, input: event('lane-a') }))?.decision).toBe(
-      'block',
-    );
-    expect((await buildStopOutput({ projectRoot: root, input: event('lane-b') }))?.decision).toBe(
-      'block',
-    );
-    expect(await buildStopOutput({ projectRoot: root, input: event('lane-a') })).toBeUndefined();
-    expect(await buildStopOutput({ projectRoot: root, input: event('lane-b') })).toBeUndefined();
+    const outputA = await buildStopOutput({ projectRoot: root, input: event('lane-a') });
+
+    expect(outputA?.decision).toBe('block');
+
+    const outputB = await buildStopOutput({ projectRoot: root, input: event('lane-b') });
+
+    expect(outputB?.decision).toBe('block');
+
+    const result = await buildStopOutput({ projectRoot: root, input: event('lane-a') });
+    expect(result).toBeUndefined();
+    const result2 = await buildStopOutput({ projectRoot: root, input: event('lane-b') });
+    expect(result2).toBeUndefined();
   });
 
   test('a session id never leaves the note folder', async () => {
@@ -231,9 +238,8 @@ describe('buildPromptContract', () => {
   test("is one line while the shape is held, names the last reply's faults, and is empty when off", async () => {
     const root = project('advise');
 
-    expect(await buildPromptContract({ projectRoot: root })).toBe(
-      'Owner reply contract: follow the report shape from the session rules.',
-    );
+    const result = await buildPromptContract({ projectRoot: root });
+    expect(result).toBe('Owner reply contract: follow the report shape from the session rules.');
 
     await buildStopOutput({ projectRoot: root, input: reply({ text: BAD }) });
 
@@ -241,7 +247,8 @@ describe('buildPromptContract', () => {
 
     expect(line.split('\n')).toHaveLength(1);
     expect(line).toContain('Your last reply broke it');
-    expect(await buildPromptContract({ projectRoot: project('off') })).toBe('');
+    const result2 = await buildPromptContract({ projectRoot: project('off') });
+    expect(result2).toBe('');
   });
 });
 
@@ -333,12 +340,10 @@ describe('the hook files', () => {
       const output = await buildStopOutput({ projectRoot: root, input: reply({ text: BAD }), env });
 
       expect(output?.['decision']).toBe('block');
-      expect(await buildPromptContract({ projectRoot: root, env })).toContain(
-        'Owner reply contract',
-      );
-      expect(await buildSessionDigest({ projectRoot: root, env })).toContain(
-        '## How to answer the owner',
-      );
+      const result = await buildPromptContract({ projectRoot: root, env });
+      expect(result).toContain('Owner reply contract');
+      const result2 = await buildSessionDigest({ projectRoot: root, env });
+      expect(result2).toContain('## How to answer the owner');
       rmSync(join(root, '.agents/local/cache'), { recursive: true, force: true });
     }
   });
@@ -357,10 +362,11 @@ describe('the hook files', () => {
     expect(logOf(root)).toBe('');
     expect(existsSync(join(root, '.agents/local/cache/replies'))).toBe(false);
     // The owner's session in the same project is still held to the shape.
-    expect(
-      (
-        await buildStopOutput({ projectRoot: root, input: reply({ text: BAD, session: 'owner' }) })
-      )?.['decision'],
-    ).toBe('block');
+    const ownerOutput = await buildStopOutput({
+      projectRoot: root,
+      input: reply({ text: BAD, session: 'owner' }),
+    });
+
+    expect(ownerOutput?.['decision']).toBe('block');
   });
 });

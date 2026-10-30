@@ -641,9 +641,8 @@ describe('vulcan add --preset', () => {
     expect(sourceNames.toSorted()).toEqual(['extra', 'fixture']);
     expect(loaded.config.layout).toEqual({ backend: 'services', shared: 'libs' });
 
-    const apps = (await runDoctorChecks({ root })).filter(
-      (violation) => violation.check === DoctorChecks.APPS,
-    );
+    const result2 = await runDoctorChecks({ root });
+    const apps = result2.filter((violation) => violation.check === DoctorChecks.APPS);
 
     expect(apps).toEqual([]);
   });

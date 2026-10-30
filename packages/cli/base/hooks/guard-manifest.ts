@@ -14,7 +14,8 @@ export {};
 try {
   const { buildManifestDecision, inspectManifestWrite, parseManifestHookInput } =
     await import('../../src/hooks/guard-manifest.ts');
-  const input = parseManifestHookInput({ text: await Bun.stdin.text() });
+  const stdin = await Bun.stdin.text();
+  const input = parseManifestHookInput({ text: stdin });
 
   if (input && inspectManifestWrite({ input })) {
     console.log(JSON.stringify(buildManifestDecision()));

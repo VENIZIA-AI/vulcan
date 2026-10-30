@@ -15,7 +15,9 @@ export const runDoctorCommand = async (opts: ICommandContext): Promise<number> =
     process.stderr.write(`  warning [${warning.check}] ${warning.file}: ${warning.message}\n`);
   }
 
-  for (const note of await runDoctorNotes({ root: opts.cwd })) {
+  const doctorNotes = await runDoctorNotes({ root: opts.cwd });
+
+  for (const note of doctorNotes) {
     process.stderr.write(`  info [${note.check}] ${note.file}: ${note.message}\n`);
   }
 

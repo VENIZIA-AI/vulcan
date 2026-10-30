@@ -85,16 +85,14 @@ const folderOf = async (opts: {
   if (chosen === undefined) {
     if (opts.interactive) {
       // The folders the project's libraries already live in are picked; a new one is typed.
-      const answer =
-        (
-          await askInTerminal({
-            question: 'Folder',
-            previous: fallback,
-            choices: [
-              ...new Set([...shared, ...(fallback === undefined ? [] : [fallback]), ...libFolders]),
-            ],
-          })
-        )?.trim() ?? '';
+      const typedFolder = await askInTerminal({
+        question: 'Folder',
+        previous: fallback,
+        choices: [
+          ...new Set([...shared, ...(fallback === undefined ? [] : [fallback]), ...libFolders]),
+        ],
+      });
+      const answer = typedFolder?.trim() ?? '';
 
       chosen = answer === '' ? fallback : answer;
     } else {

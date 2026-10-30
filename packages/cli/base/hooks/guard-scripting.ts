@@ -20,7 +20,8 @@ try {
   const { buildScriptingAdvice, inspectScripting } =
     await import('../../src/hooks/guard-scripting.ts');
   const { parseHookCommand } = await import('../../src/hooks/guard-writes.ts');
-  const hookCommand = parseHookCommand({ text: await Bun.stdin.text() });
+  const stdin = await Bun.stdin.text();
+  const hookCommand = parseHookCommand({ text: stdin });
 
   if (hookCommand && inspectScripting({ command: hookCommand.command }).length > 0) {
     console.log(JSON.stringify(buildScriptingAdvice()));

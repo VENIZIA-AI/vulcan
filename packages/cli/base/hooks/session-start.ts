@@ -7,7 +7,9 @@ import { buildSessionDigest, exportProjectTmp } from '../../src/hooks/index.ts';
 
 const projectRoot = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 
-process.stdout.write(await buildSessionDigest({ projectRoot }));
+const digest = await buildSessionDigest({ projectRoot });
+
+process.stdout.write(digest);
 
 // Claude Code gives this hook a file it sources before each Bash command: the project's temp folder goes in it.
 try {
