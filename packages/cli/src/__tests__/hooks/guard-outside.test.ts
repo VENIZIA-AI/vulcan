@@ -195,6 +195,47 @@ describe('inspectOutside passes', () => {
   });
 });
 
+describe('$PWD is the folder the command runs in', () => {
+  const DEEP = join(PROJECT, 'a', 'b');
+
+  mkdirSync(DEEP, { recursive: true });
+
+  test.each([
+    { command: 'export TMPDIR=$PWD/x', name: '$PWD and a folder' },
+    { command: 'export TMPDIR=${PWD}/x', name: '${PWD} and a folder' },
+    { command: 'export TMPDIR=$PWD/../x', name: 'one step up that stays in the project' },
+    { command: 'export TMPDIR=$PWD/../../.agents/local/tmp', name: 'two steps up, still inside' },
+  ])('$name passes from a subfolder', ({ command }) => {
+    expect(bash({ command, cwd: DEEP })).toEqual([]);
+  });
+
+  test.each([
+    {
+      command: 'export TMPDIR=$PWD/../../../x',
+      cwd: DEEP,
+      name: 'three steps up from a/b, one past the project',
+    },
+    { command: 'export TMPDIR=${PWD}/../../../../x', cwd: DEEP, name: 'four steps up from a/b' },
+    { command: 'cd a && export TMPDIR=$PWD/../../x', cwd: PROJECT, name: '$PWD after a cd' },
+  ])('$name asks, once', ({ command, cwd }) => {
+    expect(bash({ command, cwd })).toEqual(['TMPDIR points outside the project']);
+  });
+
+  test('the PWD of the hook process does not decide the path', () => {
+    expect(bash({ command: 'export TMPDIR=$PWD/x', cwd: DEEP, env: { ...ENV, PWD: '/' } })).toEqual(
+      [],
+    );
+    expect(
+      bash({ command: 'export TMPDIR=$PWD/../../../x', cwd: DEEP, env: { ...ENV, PWD: PROJECT } }),
+    ).toEqual(['TMPDIR points outside the project']);
+  });
+
+  test('another variable or a command substitution is still not worked out, and passes as before', () => {
+    expect(bash({ command: 'export TMPDIR=$NOPE/x', cwd: DEEP })).toEqual([]);
+    expect(bash({ command: 'export TMPDIR=$(pwd)/../../../x', cwd: DEEP })).toEqual([]);
+  });
+});
+
 describe('the tool-owned allowlist', () => {
   test.each([
     `touch ${join(HOME, '.bun/install/cache/x')}`,

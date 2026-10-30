@@ -11,11 +11,15 @@ const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
 type TEnvironment = Record<string, string | undefined>;
 
-/** `~` and `$NAME` / `${NAME}` expanded; `undefined` when a variable is unset or the word is not a plain path. */
+/**
+ * `~` and `$NAME` / `${NAME}` expanded; `undefined` when a variable is unset or the word is not a plain path.
+ * `$PWD` is the folder the command runs in (`cwd`), not the `PWD` of this hook's own process.
+ */
 const expandPath = (opts: {
   word: string;
   home: string;
   env: TEnvironment;
+  cwd?: string;
 }): string | undefined => {
   if (opts.word === '' || /[`*?[]/.test(opts.word) || opts.word.includes('$(')) {
     return undefined;
@@ -25,7 +29,7 @@ const expandPath = (opts: {
   const home = opts.word === '~' || opts.word.startsWith('~/') ? opts.home : undefined;
   const withHome = home === undefined ? opts.word : `${home}${opts.word.slice(1)}`;
   const expanded = withHome.replace(/\$\{?(\w+)\}?/g, (_, name: string) => {
-    const value = opts.env[name];
+    const value = name === 'PWD' && opts.cwd !== undefined ? opts.cwd : opts.env[name];
 
     if (value === undefined || value === '') {
       unresolved = true;
@@ -392,7 +396,9 @@ export const inspectOutside = (opts: {
       if (basenameOf({ word: program.name }) === 'cd') {
         const [destination] = positional({ args: program.args });
         const expanded =
-          destination === undefined ? undefined : expandPath({ word: destination, home, env });
+          destination === undefined
+            ? undefined
+            : expandPath({ word: destination, home, env, cwd: base });
 
         base = expanded === undefined ? base : resolve(base, expanded);
         continue;
@@ -415,7 +421,7 @@ export const inspectOutside = (opts: {
     : [];
 
   for (const target of targets) {
-    const expanded = expandPath({ word: target.word, home, env });
+    const expanded = expandPath({ word: target.word, home, env, cwd: target.base });
 
     if (expanded === undefined) {
       continue;
