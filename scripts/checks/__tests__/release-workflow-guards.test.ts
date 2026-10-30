@@ -774,20 +774,6 @@ describe('the release workflow keeps the guard of the GitHub Release (C31)', () 
       }),
     ).toContain('C31');
   });
-
-  test('a plan job that does not ask for the changelog check is noticed', () => {
-    expect(
-      mutated({
-        change: (workflow) => {
-          stepsOf({ workflow, name: 'plan' }).forEach((step) => {
-            if (typeof step['run'] === 'string') {
-              step['run'] = step['run'].replace('--release-notes', '');
-            }
-          });
-        },
-      }),
-    ).toContain('C31');
-  });
 });
 
 describe('the release workflow keeps the check of its run title (C33)', () => {

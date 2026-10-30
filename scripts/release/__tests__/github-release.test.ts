@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { TGh } from '../github-release.ts';
-import { GithubRelease } from '../github-release.ts';
+import { GithubRelease, GithubReleaseConstants } from '../github-release.ts';
 import { MergeBackConstants, ReleaseMergeBack } from '../merge-back.ts';
 
 const roots: string[] = [];
@@ -237,17 +237,6 @@ describe('GithubRelease.stableNotes', () => {
   });
 });
 
-describe('GithubRelease.check: a stable ships with its changelog', () => {
-  test('passes when an entry was added since the previous stable, and stops when none was', () => {
-    const root = fixture();
-
-    expect(GithubRelease.check({ cwd: root, version: '0.4.8', to: 'vulcan-v0.4.8' })).toEqual([]);
-    expect(GithubRelease.check({ cwd: root, version: '0.4.9', to: 'vulcan-v0.4.8' })).toHaveLength(
-      1,
-    );
-  });
-});
-
 describe('GithubRelease.create', () => {
   test('a stable that is the newest is marked Latest, titled with its version, with the entries and the packages as notes', () => {
     const stub = stubGh({});
@@ -361,7 +350,7 @@ describe('GithubRelease.create', () => {
     expect(broken.state).toBe('failed');
   });
 
-  test('a stable with no entry in its range makes nothing; a backfill falls back to the commits', () => {
+  test('a stable with no entry in its range says there is no change for users; a backfill falls back to the commits', () => {
     const root = fixture();
 
     commit({ root, message: '[#12] chore(x): a change with no entry' });
@@ -371,9 +360,10 @@ describe('GithubRelease.create', () => {
     const backfill = stubGh({});
 
     expect(make({ root, tag: 'vulcan-v0.4.9', kind: 'stable', version: '0.4.9', stub }).state).toBe(
-      'failed',
+      'created',
     );
-    expect(stub.created()).toEqual([]);
+    expect(stub.notes()).toContain(GithubReleaseConstants.NO_USER_CHANGES);
+    expect(stub.notes()).not.toContain('a change with no entry');
     expect(
       make({
         root,
@@ -387,7 +377,7 @@ describe('GithubRelease.create', () => {
     expect(backfill.notes()).toContain('[#12] chore(x): a change with no entry');
   });
 
-  test('a backfill whose range holds no commit of its own makes nothing', () => {
+  test('a backfill whose range holds no commit of its own says there is no change for users', () => {
     const root = fixture();
 
     tag({ root, name: 'vulcan-v0.4.9' });
@@ -403,8 +393,8 @@ describe('GithubRelease.create', () => {
         stub,
         withSubjectFallback: true,
       }).state,
-    ).toBe('failed');
-    expect(stub.created()).toEqual([]);
+    ).toBe('created');
+    expect(stub.notes()).toContain(GithubReleaseConstants.NO_USER_CHANGES);
   });
 
   test('a backfill of a prerelease is refused: a backfill makes the Release of a stable only', () => {
@@ -495,17 +485,11 @@ describe('GithubRelease.main', () => {
     expect(readFileSync(crashed, 'utf8')).toContain('GitHub Release');
   });
 
-  test('check exits 1 for a stable with no entry, and a missing flag or unknown command exits 2', () => {
+  test('a missing flag or an unknown command (the retired check among them) exits 2', () => {
     const root = fixture();
     const stub = stubGh({});
 
-    expect(
-      run({ args: ['check', '--version', '0.4.9', '--to', 'vulcan-v0.4.8'], root, stub }),
-    ).toBe(1);
-    expect(
-      run({ args: ['check', '--version', '0.4.8', '--to', 'vulcan-v0.4.8'], root, stub }),
-    ).toBe(0);
-    expect(run({ args: ['check'], root, stub })).toBe(2);
+    expect(run({ args: ['check', '--version', '0.4.9'], root, stub })).toBe(2);
     expect(run({ args: ['create', '--tag', 'x'], root, stub })).toBe(2);
     expect(run({ args: ['publish'], root, stub })).toBe(2);
   });

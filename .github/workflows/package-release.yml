@@ -116,7 +116,7 @@ jobs:
         env:
           RELEASE_ISSUE: ${{ inputs.issue }}
           RELEASE_LABEL: ${{ inputs.label }}
-        run: bun scripts/release/plan.ts --bump "$BUMP" --ref "$GITHUB_REF" --issue "$RELEASE_ISSUE" --label "$RELEASE_LABEL" --train packages --merge-trial --release-notes
+        run: bun scripts/release/plan.ts --bump "$BUMP" --ref "$GITHUB_REF" --issue "$RELEASE_ISSUE" --label "$RELEASE_LABEL" --train packages --merge-trial
 
   # Build, lint, the unit tests and VULCAN's own contract, on the dispatched commit, in a job that holds no
   # secret and cannot write: the publish job below needs it, so a failing gate publishes nothing.
