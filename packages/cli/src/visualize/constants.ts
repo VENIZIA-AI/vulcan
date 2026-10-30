@@ -243,5 +243,19 @@ export const DEFAULT_CHROME = {
   tableView: 'Table view',
   value: 'Value',
   uses: 'Uses',
+  /** The theme switch says what a click does. */
+  themeToLight: 'Switch to the light theme',
+  themeToDark: 'Switch to the dark theme',
+  /** The label of the in-page links in the top bar. */
+  navLabel: 'On this page',
+  sequence: 'Sequence',
+  lifecycle: 'Lifecycle',
+  tree: 'Structure',
+  sources: 'Sources',
+  terms: 'Words in this page',
+  /** The words that tell an added arrow from a removed one: never colour alone. */
+  onlyHere: 'only here',
+  addedEdge: 'added',
+  removedEdge: 'removed',
 };
 export type TChrome = typeof DEFAULT_CHROME;
