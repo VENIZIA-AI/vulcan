@@ -29,4 +29,4 @@ packages: ['@venizia/vulcan']
 
 ## Who is affected
 
-Run `vulcan sync`. A launcher that starts sessions for an agent adds `VULCAN_OWNER_REPLY=off` to their environment; nothing else changes for your own sessions.
+Run `vulcan sync`. A launcher that starts sessions for an agent adds `VULCAN_OWNER_REPLY=off` to their environment; the label and per-session fixes need no setting.

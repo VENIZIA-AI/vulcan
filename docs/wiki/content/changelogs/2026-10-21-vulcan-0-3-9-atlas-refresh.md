@@ -17,6 +17,7 @@ packages: ['@venizia/vulcan-atlas']
 - **The server looks again, in the background.** At most every five minutes, triggered by a tool call and never making it wait, it asks each remote source for its ref again and refreshes the project's release table. A moved ref swaps the source's index, release table and symbols.
 - **A failure keeps what was served.** An offline machine or a down remote stays on its cache.
 - **`VULCAN_ATLAS_REFRESH_SECONDS`** sets the interval (default `300`); `0` turns it off.
+- **The text a client received at the start** is not updated: the `instructions` still name the commit each source was at then; `version` is the current answer.
 
 ## Who is affected
 

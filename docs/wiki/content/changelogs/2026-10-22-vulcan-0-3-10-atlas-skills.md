@@ -17,6 +17,7 @@ packages: ['@venizia/vulcan-atlas', '@venizia/vulcan']
 - **Skill routing in the instructions.** The lines sit in the text MCP clients inject as system instructions, not in `AGENTS.md`, which stays routing only.
 - **Generated, never written by hand.** Read from disk each time a client connects: the shipped skills of the installed `@venizia/vulcan` and your own in `.agents/skills`. A skill added, renamed or deleted shows on the next connect.
 - **`vulcan doctor` warns** about a skill whose description has no "Use when" part. The shipped `docs-writing` skill now has one.
+- **`docs-writing` opens with a rule**: "Be extremely concise. Sacrifice grammar for the sake of concision."
 
 ## Who is affected
 

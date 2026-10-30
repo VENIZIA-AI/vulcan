@@ -17,6 +17,7 @@ packages: ['@venizia/vulcan']
 - **`make wiki-links-check`** reads every `.md` file under `docs/wiki/content` and `.agents/knowledge`. A GitHub link into your repository, a backticked path under `packages/`, `examples/`, `scripts/`, `docs/` or `.agents/`, and a concept's `resource:` must each be tracked by git; a gitignored file does not count. Set `WIKI_REPO` (`owner/name`) in your Makefile before the `vulcan.mk` include, or the gate refuses to run.
 - **`make wiki-anchors-check`** reads the built site (run `make docs` first) and fails on a link to a heading, or to a page, that does not exist. It judges headings by the ids VitePress emitted.
 - **Flags.** `WIKI_LINKS_FLAGS` takes `--dirs`, `--skip-prose` and `--skip`; `WIKI_ANCHORS_FLAGS` takes `--content` and `--dist`.
+- **Not checked.** The gates in a project that installs the package from npm; the pack smokes install the tarball but do not run the gates.
 
 ## Who is affected
 

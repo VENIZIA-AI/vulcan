@@ -18,7 +18,7 @@ packages: ['@venizia/vulcan', '@venizia/vulcan-atlas']
 - **`vulcan add` asks which kind.** With neither `--app` nor `--lib` a terminal asks `What do you want to create? (app, lib)`. Without a terminal it stops before downloading anything and prints both commands.
 - **atlas has a sixth tool, `presets`.** It lists the presets of the project for an app or a library, the folder and the exact command ([atlas tools](/references/atlas/tools#presets)). The atlas guidance in `AGENTS.md` tells the agent to ask it before creating an app or package.
 - **A Claude Code hook, `guard-package`.** A `Write` of a new `package.json` in a backend, frontend or shared folder is denied with the `vulcan add` command when a preset makes that kind ([Hooks](/references/hooks/#guard-package)).
-- **Docker support for presets.** `{{appPath}}` gives a preset file the app's folder from the project root, and `vulcan init` writes a root `.dockerignore` ([Presets](/references/presets#a-dockerfile-in-a-preset)).
+- **Docker support for presets.** `{{appPath}}` gives a preset file the app's folder from the project root, and `vulcan init` writes a root `.dockerignore` (a plain `init` reports `kept` for one that exists and never overwrites it) ([Presets](/references/presets#a-dockerfile-in-a-preset)).
 
 ## Who is affected
 

@@ -20,11 +20,13 @@ packages: ['@venizia/vulcan', '@venizia/vulcan-atlas']
 - **The atlas guidance is also in `AGENTS.md`.** A generated Atlas block names the corpora and the four triggers (`symbol`, `search` then `get`, `version` or `changes`, `presets` before creating an app or package).
 - **Skills reach every agent.** The shipped skills and every skill you write in `.agents/skills` are read by the agents that use that folder; for Claude Code `sync` links them into `.claude/skills`.
 - **Your adapter files stay out of git** without touching `.gitignore`, and Claude Code does not ask to approve the atlas server.
+- **Claude Code only.** The guard hooks, the session-start digest and `claude.settings` stay Claude Code only.
 
 ## Who is affected
 
 - **A project that does nothing.** `sync` produces the same Claude files as before, plus the stored choice and the Atlas block in `AGENTS.md`.
 - **A developer on another agent.** Run `vulcan sync` in a terminal (or `vulcan sync --agents omp`), then follow the `note` lines: Codex and Pi load project files only after you trust the project.
+- **A project that sets `agents` in `.configs/vulcan.config.*`.** It stays valid as the suggestion for machines that have not chosen; `init` no longer writes it.
 - **CI.** `vulcan sync` and `vulcan doctor` behave as before.
 
 ## Breaking changes

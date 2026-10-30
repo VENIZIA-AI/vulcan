@@ -16,6 +16,7 @@ packages: ['@venizia/vulcan']
 
 - **`$PWD` and `${PWD}` come from the call.** Before, the hook took them from its own environment: when `PWD` was unset the path passed unchecked, and when it named another folder the path was judged from the wrong place.
 - **After a `cd`, `$PWD` is the new folder.** `cd a && export TMPDIR=$PWD/../../x` is judged from `a`. `git -C` does not move `$PWD`.
+- **No working directory from the host.** `$PWD` is then the hook's own `PWD`, as before.
 - **A loop of symlinks** no longer recurses without end when the working folder is one.
 - **Nothing else changes.** Another variable, a command substitution or a glob is still not worked out and passes.
 
