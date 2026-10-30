@@ -43,9 +43,12 @@ const STABLE_ONLY = "${{ needs.plan.outputs.kind == 'stable' }}";
 const STABLE_CONDITION = "needs.plan.outputs.kind == 'stable'";
 const EXACT_VERSION = /^\d+\.\d+\.\d+$/;
 const FULL_SHA = /@[0-9a-f]{40}$/;
-/** A read of the `label` input in an expression: `inputs.label`, `inputs['label']`, or the whole inputs object. */
+/**
+ * A read of the `label` input in an expression: `inputs.label`, `inputs['label']`, or the whole inputs or event
+ * object. Expression names and functions are not case sensitive.
+ */
 const LABEL_READER =
-  /\binputs\s*(?:\.\s*label\b|\[\s*(?:'|\\")label\b)|toJSON\(\s*(?:github\.event\.)?inputs\s*\)/g;
+  /\binputs\s*(?:\.\s*label\b|\[\s*(?:'|\\")label\b)|toJSON\(\s*(?:github(?:\.event(?:\.inputs)?)?|inputs)\s*\)/gi;
 const NPM_TOKEN_NAMES = ['NPM_ACCESS_TOKEN', 'NPM_CONFIG_TOKEN', 'NODE_AUTH_TOKEN'];
 const ATLAS_KEY = 'secrets.ATLAS_INDEX_KEY';
 const MINIMUM_NPM = [11, 21, 0];

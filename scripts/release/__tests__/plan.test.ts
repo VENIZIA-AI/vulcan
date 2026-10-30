@@ -220,6 +220,13 @@ describe('ReleasePlan.plan: what the later jobs may carry', () => {
     expect(plan({ issue: '12\nCo-Authored-By: x' }).problems[0]).toContain('must be a number');
     expect(plan({ issue: 'abc' }).plan).toBeUndefined();
   });
+
+  test('a refused issue is quoted, so a line it carries cannot start with a log command', () => {
+    const [problem] = plan({ issue: '1\n::error::x' }).problems;
+
+    expect(problem).toBe('the issue must be a number, not "1\\n::error::x"');
+    expect(problem).not.toContain('\n');
+  });
 });
 
 describe('ReleasePlan.main', () => {

@@ -173,7 +173,8 @@ export class ReleasePlan {
     }
 
     if (opts.issue !== undefined && opts.issue !== '' && !/^\d+$/.test(opts.issue)) {
-      problems.push(`the issue must be a number, not '${opts.issue}'`);
+      // Quoted: the job log reads a line that starts with `::` as a command, and the issue is typed by a person.
+      problems.push(`the issue must be a number, not ${ReleasePlan.quoted({ text: opts.issue })}`);
     }
 
     if (!ReleasePlan.isVersion({ value: opts.currentVersion })) {

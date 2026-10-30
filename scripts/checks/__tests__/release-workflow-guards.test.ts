@@ -859,6 +859,11 @@ describe('the release workflow keeps the check of its run title (C33)', () => {
       "${{ inputs['label'] }}",
       '${{ github.event.inputs.label }}',
       '${{ toJSON(inputs) }}',
+      '${{ toJSON(github.event) }}',
+      '${{ toJSON(github) }}',
+      '${{ INPUTS.LABEL }}',
+      '${{ inputs.Label }}',
+      '${{ toJson(inputs) }}',
     ]) {
       for (const name of ['plan', 'test', 'publish']) {
         expect(
