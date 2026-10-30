@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join, relative } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
 import { projectTmpOf } from '../hooks/project-tmp.ts';
 import { SyncStatuses } from './common/index.ts';
@@ -46,3 +46,38 @@ export const planClaudeLaunch = (opts: { root: string }): ISyncAction[] => {
     },
   ];
 };
+
+export class ClaudeLaunch {
+  /** The one line that starts Claude Code in this project; the docs and the warning print this string. */
+  static readonly COMMAND = `claude --settings ${CLAUDE_LAUNCH_FILE}`;
+
+  /**
+   * What to tell the owner when a Claude Code session runs without the launch file: `CLAUDE_CODE_TMPDIR` is unset
+   * or points outside the project, so Claude Code's own scratchpad and task output land outside it and writes
+   * there need approval. Undefined for any other agent, for a project without the file, and for a session
+   * that already uses a folder inside the project.
+   */
+  static missWarning(opts: {
+    root: string;
+    env: Record<string, string | undefined>;
+  }): string | undefined {
+    if (
+      opts.env.CLAUDE_PROJECT_DIR === undefined ||
+      !existsSync(join(opts.root, CLAUDE_LAUNCH_FILE))
+    ) {
+      return undefined;
+    }
+
+    const folder = opts.env.CLAUDE_CODE_TMPDIR;
+    const fromRoot =
+      folder === undefined || folder === '' ? undefined : relative(opts.root, folder);
+
+    if (fromRoot !== undefined && !isAbsolute(fromRoot) && !fromRoot.startsWith('..')) {
+      return undefined;
+    }
+
+    return `Claude Code was started without the project's launch file: CLAUDE_CODE_TMPDIR is ${
+      fromRoot === undefined ? 'not set' : `${folder}, outside the project`
+    }, so its scratchpad and task output are written outside the project and the owner will be asked to approve each write there. Say so in your first reply. To fix it, quit and start Claude Code with: ${ClaudeLaunch.COMMAND}`;
+  }
+}
