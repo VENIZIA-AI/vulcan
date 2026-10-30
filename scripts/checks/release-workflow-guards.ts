@@ -30,7 +30,9 @@
  *   C32  a job that installs npm globally sets up Node first: the runner's own prefix is not writable, so a global
  *        install without a setup-node step fails with EACCES (it failed the first prerelease in the plan job)
  *   C33  the run title is the dispatcher's label, and the plan job passes it to plan.ts, which refuses one that is not
- *        what it computed (the title cannot name a version, a package set or a commit the run does not release)
+ *        what it computed (the title cannot name a version, a package set or a commit the run does not release);
+ *        the label is read nowhere else than the run name and the env of that step, and the plan job has no
+ *        continue-on-error
  *   D6   every action is pinned by a full commit SHA (a local action is not an action to pin)
  */
 import { PublishCondition } from './publish-condition.ts';
@@ -41,6 +43,12 @@ const STABLE_ONLY = "${{ needs.plan.outputs.kind == 'stable' }}";
 const STABLE_CONDITION = "needs.plan.outputs.kind == 'stable'";
 const EXACT_VERSION = /^\d+\.\d+\.\d+$/;
 const FULL_SHA = /@[0-9a-f]{40}$/;
+/**
+ * A read of the `label` input in an expression: `inputs.label`, `inputs['label']`, or the whole inputs or event
+ * object. Expression names and functions are not case sensitive.
+ */
+const LABEL_READER =
+  /\binputs\s*(?:\.\s*label\b|\[\s*(?:'|\\")label\b)|toJSON\(\s*(?:github(?:\.event(?:\.inputs)?)?|inputs)\s*\)/gi;
 const NPM_TOKEN_NAMES = ['NPM_ACCESS_TOKEN', 'NPM_CONFIG_TOKEN', 'NODE_AUTH_TOKEN'];
 const ATLAS_KEY = 'secrets.ATLAS_INDEX_KEY';
 const MINIMUM_NPM = [11, 21, 0];
@@ -339,6 +347,23 @@ export const checkReleaseWorkflowGuards = (opts: {
   ) {
     violations.push(
       'C33: the plan job must pass the label input to plan.ts (--label "$RELEASE_LABEL", from inputs.label in the step env) and the train (--train packages, without which plan.ts skips the label check), so the run title is checked',
+    );
+  }
+
+  // The label is read in two places and nowhere else: the run name, and the env of the plan step. Another reader (a
+  // step that echoes it, a script that takes it as text) would act on a value nobody has checked.
+  const labelReaders = JSON.stringify({ ...workflow, 'run-name': '' }).match(LABEL_READER);
+
+  if (labelReaders !== null && labelReaders.length > 1) {
+    violations.push(
+      `C33: inputs.label is read ${labelReaders.length} times outside the run name; only the env of the plan step may read it`,
+    );
+  }
+
+  // A plan step that may fail without failing the job would let a refused label through.
+  if (JSON.stringify(plan).includes('"continue-on-error"')) {
+    violations.push(
+      'C33: the plan job must not set continue-on-error (a plan step that may fail would let a refused label through)',
     );
   }
 

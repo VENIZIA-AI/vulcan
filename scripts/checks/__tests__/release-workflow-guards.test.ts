@@ -853,6 +853,70 @@ describe('the release workflow keeps the check of its run title (C33)', () => {
     }
   });
 
+  test('another reader of the label input is noticed (C33)', () => {
+    for (const expression of [
+      '${{ inputs.label }}',
+      "${{ inputs['label'] }}",
+      '${{ github.event.inputs.label }}',
+      '${{ toJSON(inputs) }}',
+      '${{ toJSON(github.event) }}',
+      '${{ toJSON(github) }}',
+      '${{ INPUTS.LABEL }}',
+      '${{ inputs.Label }}',
+      '${{ toJson(inputs) }}',
+    ]) {
+      for (const name of ['plan', 'test', 'publish']) {
+        expect(
+          mutated({
+            change: (workflow) => {
+              addStep({
+                workflow,
+                name,
+                step: { name: 'Echo the title', run: `echo "${expression}"` },
+              });
+            },
+          }),
+          `${name}: ${expression}`,
+        ).toContain('C33');
+      }
+    }
+  });
+
+  test('a plan job that may fail without failing is noticed (C33)', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          job({ workflow, name: 'plan' })['continue-on-error'] = true;
+        },
+      }),
+    ).toContain('C33');
+    expect(
+      mutated({
+        change: (workflow) => {
+          const step = stepsOf({ workflow, name: 'plan' }).find(
+            (entry) => typeof entry['run'] === 'string' && entry['run'].includes('plan.ts'),
+          );
+
+          if (step === undefined) {
+            throw new Error('[test] no plan step');
+          }
+
+          step['continue-on-error'] = true;
+        },
+      }),
+    ).toContain('C33');
+  });
+
+  test('a continue-on-error in another job is not a plan job finding (C33)', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          job({ workflow, name: 'publish' })['continue-on-error'] = true;
+        },
+      }).filter((line) => line === 'C33'),
+    ).toEqual([]);
+  });
+
   test('a plan job without --train, which switches off the label check, is noticed (C33)', () => {
     expect(
       mutated({

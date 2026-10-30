@@ -220,6 +220,13 @@ describe('ReleasePlan.plan: what the later jobs may carry', () => {
     expect(plan({ issue: '12\nCo-Authored-By: x' }).problems[0]).toContain('must be a number');
     expect(plan({ issue: 'abc' }).plan).toBeUndefined();
   });
+
+  test('a refused issue is quoted, so a line it carries cannot start with a log command', () => {
+    const [problem] = plan({ issue: '1\n::error::x' }).problems;
+
+    expect(problem).toBe('the issue must be a number, not "1\\n::error::x"');
+    expect(problem).not.toContain('\n');
+  });
 });
 
 describe('ReleasePlan.main', () => {
@@ -429,6 +436,59 @@ describe('ReleasePlan: the run title the dispatcher sends', () => {
     expect(
       ReleasePlan.labelProblems({ label: '0.4.9 stable · atlas,okf,vulcan', expected })[0],
     ).toContain('is not what the plan computes');
+  });
+
+  test('quoted writes control, zero-width and bidirectional characters as escapes', () => {
+    const text = `a${String.fromCodePoint(0x202e)}b${String.fromCodePoint(0x200b)}c${String.fromCodePoint(0xe0041)}\n"d"`;
+
+    expect(ReleasePlan.quoted({ text })).toBe('"a\\u202eb\\u200bc\\u{e0041}\\n\\"d\\""');
+    expect(ReleasePlan.quoted({ text: '0.4.8 stable · atlas,okf,vulcan' })).toBe(
+      '"0.4.8 stable · atlas,okf,vulcan"',
+    );
+  });
+
+  test('a refused label is quoted with its hidden characters written out', () => {
+    const [problem] = ReleasePlan.labelProblems({
+      label: `::error::x${String.fromCodePoint(0x202e)}`,
+      expected: '0.4.8 stable',
+    });
+
+    expect(problem).toContain('"::error::x\\u202e"');
+    expect(problem).not.toContain(String.fromCodePoint(0x202e));
+  });
+
+  test('only a workflow that declares the label input can be sent one', () => {
+    const declared =
+      'name: Release\non:\n  workflow_dispatch:\n    inputs:\n      label:\n        type: string\n\njobs:\n  plan:\n    name: Plan\n';
+    const before =
+      'name: NPM Release\non:\n  workflow_dispatch:\n    inputs:\n      issue:\n        type: string\n\njobs:\n  plan:\n    name: Plan\n';
+
+    expect(ReleasePlan.declaresLabel({ workflow: declared })).toBe(true);
+    expect(ReleasePlan.declaresLabel({ workflow: before })).toBe(false);
+    // A `label:` further down, in a job or a step, is not an input.
+    expect(
+      ReleasePlan.declaresLabel({
+        workflow: `${before}    steps:\n      - name: x\n        with:\n          label: y\n`,
+      }),
+    ).toBe(false);
+    expect(
+      ReleasePlan.declaresLabel({
+        workflow: 'on:\n  push:\n    inputs:\n      label:\n        type: string\n',
+      }),
+    ).toBe(false);
+    expect(ReleasePlan.declaresLabel({ workflow: '' })).toBe(false);
+    expect(ReleasePlan.declaresLabel({ workflow: 'on: [unclosed' })).toBe(false);
+  });
+
+  test('the real workflow declares the label input', () => {
+    expect(
+      ReleasePlan.declaresLabel({
+        workflow: readFileSync(
+          join(import.meta.dir, '..', '..', '..', '.github', 'workflows', 'package-release.yml'),
+          'utf8',
+        ),
+      }),
+    ).toBe(true);
   });
 
   describe('main', () => {

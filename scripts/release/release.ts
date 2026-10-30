@@ -104,8 +104,24 @@ const manifests = await Promise.all(
 );
 const trainVersion: string = manifests[2].version;
 // The run title the workflow shows: the plan job works the same string out and refuses a different one. A machine
-// without npm, or a checkout that cannot be read, sends none and the run is titled by its bump.
+// without npm, or a checkout that cannot be read, sends none and the run is titled by its bump. Only a workflow
+// that declares the `label` input can be sent one: GitHub refuses a dispatch with an input the ref does not have,
+// as on a main that predates the next Sync.
+const declaresLabel = ReleasePlan.declaresLabel({
+  workflow: capture({
+    command: [
+      'git',
+      'show',
+      `origin/${args.branch}:.github/workflows/${ReleaseConstants.WORKFLOW}`,
+    ],
+    isQuiet: true,
+  }).stdout,
+});
 const label = ((): string | undefined => {
+  if (!declaresLabel) {
+    return undefined;
+  }
+
   try {
     const version = ReleasePlan.targetOf({
       bump: args.bump,
@@ -128,6 +144,12 @@ const command = buildDispatchCommand({ args, label });
 
 console.log(`release: the train is at ${trainVersion}; bump '${args.bump}'`);
 console.log(`release: ${command.join(' ')}`);
+
+if (!declaresLabel) {
+  console.log(
+    `release: the workflow on origin/${args.branch} declares no label input (a main before the next Sync, or a file that cannot be read): no label is sent and the run is titled by its inputs`,
+  );
+}
 
 // Reported rather than refused on a dry run: it publishes nothing, and it is most useful while the
 // tree is still dirty.

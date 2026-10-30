@@ -173,7 +173,8 @@ export class ReleasePlan {
     }
 
     if (opts.issue !== undefined && opts.issue !== '' && !/^\d+$/.test(opts.issue)) {
-      problems.push(`the issue must be a number, not '${opts.issue}'`);
+      // Quoted: the job log reads a line that starts with `::` as a command, and the issue is typed by a person.
+      problems.push(`the issue must be a number, not ${ReleasePlan.quoted({ text: opts.issue })}`);
     }
 
     if (!ReleasePlan.isVersion({ value: opts.currentVersion })) {
@@ -256,12 +257,50 @@ export class ReleasePlan {
     return [`${opts.version} ${opts.kind}`, names, ...issue, ...sha].join(' · ');
   }
 
+  /**
+   * Text a person typed, quoted for the job log: a JSON string, with the characters that change how a line reads
+   * (control, zero-width and bidirectional ones) written as `\uXXXX` too, so the log shows what was sent.
+   */
+  static quoted(opts: { text: string }): string {
+    return JSON.stringify(opts.text).replace(/[\p{C}\p{Zl}\p{Zp}]/gu, (char) => {
+      const code = char.codePointAt(0) ?? 0;
+
+      return code > 0xffff
+        ? `\\u{${code.toString(16)}}`
+        : `\\u${code.toString(16).padStart(4, '0')}`;
+    });
+  }
+
+  /**
+   * Whether a workflow file declares the `label` input. GitHub refuses a dispatch that sends an input the workflow
+   * on the ref does not declare, so a branch that has not received the input yet (main, until the next Sync) is
+   * dispatched without a label and its run is titled by its own inputs. A file that cannot be read declares none.
+   */
+  static declaresLabel(opts: { workflow: string }): boolean {
+    try {
+      let node: unknown = Bun.YAML.parse(opts.workflow);
+
+      for (const key of ['on', 'workflow_dispatch', 'inputs', 'label']) {
+        if (typeof node !== 'object' || node === null || Array.isArray(node) || !(key in node)) {
+          return false;
+        }
+
+        node = Reflect.get(node, key);
+      }
+
+      return typeof node === 'object' && node !== null;
+    } catch {
+      return false;
+    }
+  }
+
   /** Why a label is not the one this plan gives; empty when it is, or when there is none. */
   static labelProblems(opts: { label: string | undefined; expected: string }): string[] {
     return opts.label === undefined || opts.label === '' || opts.label === opts.expected
       ? []
       : [
-          `the label ${JSON.stringify(opts.label)} is not what the plan computes: ${JSON.stringify(opts.expected)}`,
+          // Quoted: the job log reads a line that starts with `::` as a command.
+          `the label ${ReleasePlan.quoted({ text: opts.label })} is not what the plan computes: ${ReleasePlan.quoted({ text: opts.expected })}`,
         ];
   }
 
