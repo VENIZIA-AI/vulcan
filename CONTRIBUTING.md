@@ -80,7 +80,9 @@ the code cannot show. `make lint-all` checks what a linter can.
 - [ ] Tests written first; `make test` passes
 - [ ] `make lint-all` and `make catalog-check` pass
 - [ ] `vulcan doctor` and `vulcan x okf check` pass on VULCAN itself
-- [ ] A changelog entry, when a project has to act
+- [ ] A changelog entry, only when the change affects users of the published packages (a feature, a changed
+      behaviour, a fix a user could hit, a security fix, a removal); none for CI, release tooling, refactors,
+      tests or internal docs
 
 ## Help
 

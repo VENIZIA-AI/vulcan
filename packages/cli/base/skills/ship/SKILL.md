@@ -28,7 +28,7 @@ It rises with the lane (see `plan-a-change`). A small edit (lane S) ends as `rep
 
 - Every claim of the card is closed with an evidence stub (the probe and its result).
 - The docs slice is done and the docs gates are green (`docs-update` skill).
-- A changelog entry exists when the change is worth releasing.
+- A changelog entry exists when the change affects users of the published packages (a feature, a changed behaviour, a fix a user could hit, a security fix, a removal). A change that is only internal (tooling, CI, refactors, tests, internal docs) has none.
 - The checks are quoted with their results, from this session: build, lint, tests, the project's own gates.
 - **Open** (the card's open decisions) is empty, or each item is named for the owner.
 - The class sweep is done: the same defect was looked for elsewhere, not only where it was found.

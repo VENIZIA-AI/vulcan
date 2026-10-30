@@ -34,7 +34,7 @@ Copy it into your reply and tick it off, in order:
 - [ ] 2. Code read - the changed source, not a diff summary, not dist/, not another doc
 - [ ] 3. Page picked - the page that owns the topic; a new one only when none does, wired in
 - [ ] 4. Page written and self-reviewed with the docs-writing skill
-- [ ] 5. Changelog entry written (release-worthy changes only)
+- [ ] 5. Changelog entry written (only when the change affects users of the published packages)
 - [ ] 6. Gates green (loop until they are)
 - [ ] 7. Reported; nothing committed
 ```
@@ -78,16 +78,22 @@ Every code sample uses the names and signatures from step 2.
 
 ## 5. Changelog
 
-Only for a release-worthy change: a feature, a fix a user notices, a breaking change.
+Only for a change that affects the users of the published packages and what they can use: a new feature,
+command, option or config key; changed behaviour or a breaking change (with its upgrade step); a bug fix a user
+could hit; a security fix; a deprecation or a removal. Internal work gets no entry: release tooling, CI and
+workflows, guards and gates, a refactor with no behaviour change, tests, agent rules and skills for the repo's
+own sessions, internal docs and knowledge pages, repo hygiene. A change that is only internal skips this step
+and says so.
 
 1. **The file.** `<knowledge.changelogs>/YYYY-MM-DD-<slug>.md`, from the directory's `template.md`.
    No template: copy the shape of the newest entry. Keep only the sections that apply. When an
    entry for the coming release already exists, add a bullet to it instead of opening a second.
 2. **The `packages:` list** (Project Contract v1, C3). The frontmatter lists the npm names, from
-   `packages[].name`, of every package the entry covers: `packages: ['@scope/core']`. An entry about
-   no package, such as repository tooling, carries `packages: []`. Never leave the list out -
+   `packages[].name`, of every package the entry covers: `packages: ['@scope/core']`. An entry that covers
+   no package is internal work, and internal work has no entry. Never leave the list out -
    `okf check --strict` fails the entry.
-3. **The content.** What changed, who is affected, how to migrate. It is not a commit log.
+3. **The content.** Short, and in the user's terms: what changed and the benefit, who is affected, how to
+   migrate. It is not a commit log, and it does not say how the change was built.
 4. **The index.** When the directory's `index.md` lists entries, add a row in its order.
 
 ## 6. Gates - validate, fix, repeat
