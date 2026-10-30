@@ -780,15 +780,14 @@ export const resolveSources = async (opts: {
   const cacheBase = cacheBaseOf(opts);
 
   for (const source of opts.sources) {
-    remote.push(
-      await resolveAtInstalled({
-        source,
-        cwd: opts.cwd,
-        cacheBase,
-        force: opts.force ?? false,
-        prebuilt: opts.prebuilt,
-      }),
-    );
+    const result = await resolveAtInstalled({
+      source,
+      cwd: opts.cwd,
+      cacheBase,
+      force: opts.force ?? false,
+      prebuilt: opts.prebuilt,
+    });
+    remote.push(result);
   }
 
   return [...resolveSelf(opts), ...remote];
@@ -811,15 +810,14 @@ export const resolveServableSources = async (opts: {
 
   for (const source of opts.sources) {
     try {
-      remote.push(
-        await resolveAtInstalled({
-          source,
-          cwd: opts.cwd,
-          cacheBase,
-          force: false,
-          prebuilt: opts.prebuilt,
-        }),
-      );
+      const result = await resolveAtInstalled({
+        source,
+        cwd: opts.cwd,
+        cacheBase,
+        force: false,
+        prebuilt: opts.prebuilt,
+      });
+      remote.push(result);
     } catch (error) {
       unavailable.push({ source, reason: error instanceof Error ? error.message : String(error) });
     }

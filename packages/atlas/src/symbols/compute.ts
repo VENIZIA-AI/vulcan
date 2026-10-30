@@ -144,7 +144,8 @@ export const symbolsOfPublished = async (opts: {
   try {
     const tarball = join(work, 'package.tgz');
 
-    writeFileSync(tarball, new Uint8Array(await response.arrayBuffer()));
+    const result = await response.arrayBuffer();
+    writeFileSync(tarball, new Uint8Array(result));
 
     const unpacked = spawnSync('tar', ['-xzf', tarball, '-C', work], { encoding: 'utf8' });
 

@@ -143,12 +143,13 @@ describe('a server lists the skills the project has, read when a client connects
 
     return root;
   };
-  const initialize = async (opts: { transport: ReturnType<typeof buildServer> }) =>
-    JSON.parse(
-      (await opts.transport.handleLine({
-        line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
-      })) ?? 'null',
-    ).result.instructions as string;
+  const initialize = async (opts: { transport: ReturnType<typeof buildServer> }) => {
+    const line = await opts.transport.handleLine({
+      line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+    });
+
+    return JSON.parse(line ?? 'null').result.instructions as string;
+  };
 
   test('shipped and project-owned, one line each', async () => {
     const root = project();
@@ -166,14 +167,17 @@ describe('a server lists the skills the project has, read when a client connects
     const root = project();
     const transport = buildServer({ root, version: '0.0.0' });
 
-    expect(await initialize({ transport })).not.toContain('acme-new');
+    const result = await initialize({ transport });
+    expect(result).not.toContain('acme-new');
 
     own({ root, name: 'acme-new', description: 'New. Use when the user wants new.' });
 
-    expect(await initialize({ transport })).toContain('- `acme-new`: the user wants new');
+    const result2 = await initialize({ transport });
+    expect(result2).toContain('- `acme-new`: the user wants new');
 
     rmSync(join(root, '.agents/skills/acme-new'), { recursive: true });
 
-    expect(await initialize({ transport })).not.toContain('acme-new');
+    const result3 = await initialize({ transport });
+    expect(result3).not.toContain('acme-new');
   });
 });

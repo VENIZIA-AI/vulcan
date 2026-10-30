@@ -132,15 +132,14 @@ describe('a source with keys is served from its prebuilt index (C10, C17)', () =
     putOnRelease({ pair: source.pair });
 
     const resolved = await resolve({ cacheDir: newCache() });
-    const initialized = JSON.parse(
-      (await buildSourcesServer({
-        sources: [resolved],
-        cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
-        version: '0.0.0',
-      }).handleLine({
-        line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
-      })) ?? 'null',
-    );
+    const result2 = await buildSourcesServer({
+      sources: [resolved],
+      cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
+      version: '0.0.0',
+    }).handleLine({
+      line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+    });
+    const initialized = JSON.parse(result2 ?? 'null');
 
     expect(initialized.result.instructions).toContain('index: prebuilt, built by atlas 9.9.9');
   });
@@ -174,16 +173,15 @@ describe("the answers equal a local build's (C11)", () => {
     name: string;
     args?: Record<string, unknown>;
   }) => {
-    const reply = JSON.parse(
-      (await opts.transport.handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'tools/call',
-          params: { name: opts.name, arguments: opts.args ?? {} },
-        }),
-      })) ?? 'null',
-    );
+    const result2 = await opts.transport.handleLine({
+      line: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: opts.name, arguments: opts.args ?? {} },
+      }),
+    });
+    const reply = JSON.parse(result2 ?? 'null');
 
     return String(reply.result.content[0].text);
   };
@@ -197,9 +195,11 @@ describe("the answers equal a local build's (C11)", () => {
     const cwd = makeTempDirectory({ prefix: 'atlas-consumer-' });
     const served = (opts: { resolved: IResolvedSource }) =>
       buildSourcesServer({ sources: [opts.resolved], cwd, version: '0.0.0' });
-    const downloaded = served({ resolved: await resolve({ cwd, cacheDir: newCache() }) });
+    const result = await resolve({ cwd, cacheDir: newCache() });
+    const downloaded = served({ resolved: result });
+    const result2 = await resolve({ cwd, cacheDir: newCache(), prebuilt: false });
     const built = served({
-      resolved: await resolve({ cwd, cacheDir: newCache(), prebuilt: false }),
+      resolved: result2,
     });
     const search = await call({
       transport: downloaded,
@@ -218,9 +218,10 @@ describe("the answers equal a local build's (C11)", () => {
     ];
 
     for (const [name, args] of questions) {
-      expect(await call({ transport: downloaded, name, args })).toBe(
-        await call({ transport: built, name, args }),
-      );
+      const downloadedAnswer = await call({ transport: downloaded, name, args });
+      const builtAnswer = await call({ transport: built, name, args });
+
+      expect(downloadedAnswer).toBe(builtAnswer);
     }
   });
 });
@@ -272,12 +273,11 @@ describe('a pair built from part of the history does not supply the release tabl
 });
 
 describe('every failure ends in a local build, with one line saying why (C12, C13, C20)', () => {
-  const builtHere = async (opts: { cwd?: string }) =>
-    rowsOf({
-      bytes: readFileSync(
-        (await resolve({ cwd: opts.cwd, cacheDir: newCache(), prebuilt: false })).indexFile ?? '',
-      ),
-    });
+  const builtHere = async (opts: { cwd?: string }) => {
+    const resolved = await resolve({ cwd: opts.cwd, cacheDir: newCache(), prebuilt: false });
+
+    return rowsOf({ bytes: readFileSync(resolved.indexFile ?? '') });
+  };
 
   test('a signature from an unlisted key', async () => {
     const source = makePrebuiltSource();
@@ -303,7 +303,10 @@ describe('every failure ends in a local build, with one line saying why (C12, C1
     expect(resolved.prebuiltBy).toBeUndefined();
     expect(lines).toHaveLength(1);
     expect(lines[0]).toContain('reason: signature');
-    expect(rowsOf({ bytes: readFileSync(resolved.indexFile ?? '') })).toEqual(await builtHere({}));
+
+    const builtRows = await builtHere({});
+
+    expect(rowsOf({ bytes: readFileSync(resolved.indexFile ?? '') })).toEqual(builtRows);
   });
 
   test('a storage host that is down', async () => {
@@ -324,7 +327,10 @@ describe('every failure ends in a local build, with one line saying why (C12, C1
     expect(resolved.prebuiltBy).toBeUndefined();
     expect(lines).toHaveLength(1);
     expect(lines[0]).toContain('reason: unreachable');
-    expect(rowsOf({ bytes: readFileSync(resolved.indexFile ?? '') })).toEqual(await builtHere({}));
+
+    const builtRows = await builtHere({});
+
+    expect(rowsOf({ bytes: readFileSync(resolved.indexFile ?? '') })).toEqual(builtRows);
   });
 
   test('a commit with no pair on the release', async () => {

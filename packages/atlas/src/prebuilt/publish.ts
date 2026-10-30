@@ -348,7 +348,8 @@ const ensureRelease = async (opts: {
     return made;
   }
 
-  const raced = created.status === 422 ? await read() : undefined;
+  const pending = created.status === 422 ? read() : undefined;
+  const raced = await pending;
 
   if (raced === undefined) {
     throw new Error(
@@ -482,8 +483,9 @@ export const publishIndex = async (opts: {
     for (const asset of listed.filter(
       (entry) => entry.name === names.gz || entry.name === names.envelope,
     )) {
+      const result = await call({ method: 'DELETE', url: `${base}/releases/assets/${asset.id}` });
       expectOk({
-        reply: await call({ method: 'DELETE', url: `${base}/releases/assets/${asset.id}` }),
+        reply: result,
         what: `delete ${asset.name}`,
       });
       deleted.push(asset.name);
@@ -508,28 +510,31 @@ export const publishIndex = async (opts: {
     ];
 
     for (const [name, file] of files) {
+      const result2 = await call({
+        method: 'POST',
+        url: `${uploadBase.origin}${uploadBase.pathname}?name=${encodeURIComponent(name)}`,
+        body: readFileSync(file),
+        contentType: 'application/octet-stream',
+      });
       expectOk({
-        reply: await call({
-          method: 'POST',
-          url: `${uploadBase.origin}${uploadBase.pathname}?name=${encodeURIComponent(name)}`,
-          body: readFileSync(file),
-          contentType: 'application/octet-stream',
-        }),
+        reply: result2,
         what: `upload ${name}`,
       });
       uploaded.push(name);
     }
 
+    const result3 = await listAssets({ call, base, releaseId: release.id });
     const decision = decidePrune({
-      assets: await listAssets({ call, base, releaseId: release.id }),
+      assets: result3,
       tagShas: tagCommitsOf({ root: opts.root }),
       protect: built.sha,
       now: (opts.now ?? Date.now)(),
     });
 
     for (const asset of decision.remove) {
+      const result4 = await call({ method: 'DELETE', url: `${base}/releases/assets/${asset.id}` });
       expectOk({
-        reply: await call({ method: 'DELETE', url: `${base}/releases/assets/${asset.id}` }),
+        reply: result4,
         what: `prune ${asset.name}`,
       });
       deleted.push(asset.name);

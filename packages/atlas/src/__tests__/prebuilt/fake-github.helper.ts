@@ -128,9 +128,11 @@ export const startFakeGithub = (opts: { owner: string; repo: string }): IFakeGit
         }
 
         options.release = true;
-        releasesCreated.push(recordOf({ value: await request.json() }));
+        const result = await request.json();
+        releasesCreated.push(recordOf({ value: result }));
 
-        return new Response(await release().text(), { status: 201 });
+        const result2 = await release().text();
+        return new Response(result2, { status: 201 });
       }
 
       if (url.pathname === `${base}/releases/${RELEASE_ID}/assets` && request.method === 'GET') {
@@ -156,7 +158,8 @@ export const startFakeGithub = (opts: { owner: string; repo: string }): IFakeGit
       if (url.pathname === `${base}/releases/${RELEASE_ID}/assets` && request.method === 'POST') {
         const name = url.searchParams.get('name') ?? '';
 
-        assets.set(name, new Uint8Array(await request.arrayBuffer()));
+        const result3 = await request.arrayBuffer();
+        assets.set(name, new Uint8Array(result3));
         createdAt.set(name, new Date().toISOString());
 
         return Response.json({ id: idOf(name), name }, { status: 201 });

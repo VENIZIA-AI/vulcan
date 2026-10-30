@@ -156,15 +156,12 @@ describe('the symbols cache', () => {
     expect(() =>
       cachedSymbols({ cacheBase: cacheDir, name: '@x/kit', version: '1.0.0/../../escape' }),
     ).toThrow("atlas: '1.0.0/../../escape' is not a version");
-    expect(
-      String(
-        await symbolsOfPublished({
-          cacheBase: cacheDir,
-          name: '@x/kit',
-          version: '1.0.0/../x',
-        }).catch((error: unknown) => error),
-      ),
-    ).toContain("atlas: '1.0.0/../x' is not a version");
+    const result = await symbolsOfPublished({
+      cacheBase: cacheDir,
+      name: '@x/kit',
+      version: '1.0.0/../x',
+    }).catch((error: unknown) => error);
+    expect(String(result)).toContain("atlas: '1.0.0/../x' is not a version");
   });
 });
 

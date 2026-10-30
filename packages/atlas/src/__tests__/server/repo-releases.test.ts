@@ -42,16 +42,15 @@ test('repo mode answers changes from git: tags and declared changelogs, no relea
   git(['tag', 'core-v1.1.0']);
 
   const transport = buildServer({ root: ROOT, version: '0.0.0' });
-  const reply = JSON.parse(
-    (await transport.handleLine({
-      line: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name: 'changes', arguments: { package: 'core', from: '1.0.0', to: '1.1.0' } },
-      }),
-    })) ?? 'null',
-  );
+  const result2 = await transport.handleLine({
+    line: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'changes', arguments: { package: 'core', from: '1.0.0', to: '1.1.0' } },
+    }),
+  });
+  const reply = JSON.parse(result2 ?? 'null');
   const payload = JSON.parse(reply.result?.content?.[0]?.text ?? '{}');
 
   expect(reply.error).toBeUndefined();
@@ -78,17 +77,20 @@ test('repo mode with no tag the pattern reads says so on version and changes', a
     execFileSync('git', ['init', '-q', '-b', 'develop'], { cwd: root, stdio: 'ignore' });
 
     const transport = buildServer({ root, version: '0.0.0' });
-    const call = async (opts: { name: string; arguments: object }) =>
-      JSON.parse(
-        (await transport.handleLine({
-          line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: opts }),
-        })) ?? 'null',
-      );
+    const call = async (opts: { name: string; arguments: object }) => {
+      const line = await transport.handleLine({
+        line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: opts }),
+      });
 
-    expect((await call({ name: 'version', arguments: {} })).error.message).toBe(
+      return JSON.parse(line ?? 'null');
+    };
+
+    const result = await call({ name: 'version', arguments: {} });
+    expect(result.error.message).toBe(
       "no releases: no tag matches v<version> in this ref's history",
     );
-    expect((await call({ name: 'changes', arguments: {} })).error.message).toBe(
+    const result2 = await call({ name: 'changes', arguments: {} });
+    expect(result2.error.message).toBe(
       "no releases: no tag matches v<version> in this ref's history",
     );
   } finally {
@@ -129,16 +131,15 @@ const changesErrorOf = async (opts: { changelogs?: string }): Promise<string> =>
     run(['tag', 'core-v1.0.0']);
 
     const transport = buildServer({ root, version: '0.0.0' });
-    const reply = JSON.parse(
-      (await transport.handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'tools/call',
-          params: { name: 'changes', arguments: {} },
-        }),
-      })) ?? 'null',
-    );
+    const result = await transport.handleLine({
+      line: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'changes', arguments: {} },
+      }),
+    });
+    const reply = JSON.parse(result ?? 'null');
 
     return reply.error?.message ?? '';
   } finally {
@@ -147,14 +148,16 @@ const changesErrorOf = async (opts: { changelogs?: string }): Promise<string> =>
 };
 
 test('changes with no changelog directory declared names the field and the expected layout', async () => {
-  expect(await changesErrorOf({})).toBe(
+  const result = await changesErrorOf({});
+  expect(result).toBe(
     'no dated changelog entries: the manifest declares no changelog directory - set knowledge.changelogs; ' +
       'atlas reads files named YYYY-MM-DD-<slug>.md from it, each with `packages: [<npm name>, ...]` frontmatter',
   );
 });
 
 test('changes with an empty changelog directory names that directory and the expected layout', async () => {
-  expect(await changesErrorOf({ changelogs: 'docs/changes' })).toBe(
+  const result = await changesErrorOf({ changelogs: 'docs/changes' });
+  expect(result).toBe(
     'no dated changelog entries in docs/changes - ' +
       'atlas reads files named YYYY-MM-DD-<slug>.md from it, each with `packages: [<npm name>, ...]` frontmatter',
   );

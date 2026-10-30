@@ -168,11 +168,14 @@ describe('resolveSources', () => {
     expect(offline.sha).toBe(first.sha);
 
     // The server says so to every client, on initialize.
-    const initialized = JSON.parse(
-      (await buildSourcesServer({ sources: [offline], cwd, version: '0.0.0' }).handleLine({
-        line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
-      })) ?? 'null',
-    );
+    const result2 = await buildSourcesServer({
+      sources: [offline],
+      cwd,
+      version: '0.0.0',
+    }).handleLine({
+      line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+    });
+    const initialized = JSON.parse(result2 ?? 'null');
 
     expect(initialized.result.instructions).toContain('OFFLINE: the remote was unreachable');
   });
@@ -234,11 +237,14 @@ describe('resolveSources', () => {
     expect(offline.oldFormat).toBe(true);
     expect(readFileSync(formatFile, 'utf8')).toBe('0\n');
 
-    const initialized = JSON.parse(
-      (await buildSourcesServer({ sources: [offline], cwd, version: '0.0.0' }).handleLine({
-        line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
-      })) ?? 'null',
-    );
+    const result2 = await buildSourcesServer({
+      sources: [offline],
+      cwd,
+      version: '0.0.0',
+    }).handleLine({
+      line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+    });
+    const initialized = JSON.parse(result2 ?? 'null');
 
     expect(initialized.result.instructions).toContain('built by another atlas format');
   });

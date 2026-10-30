@@ -64,17 +64,18 @@ const project = (): string => {
   return root;
 };
 
-const callSymbol = async (opts: { root: string; name: string }) =>
-  JSON.parse(
-    (await buildServer({ root: opts.root, version: '0.0.0' }).handleLine({
-      line: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name: 'symbol', arguments: { name: opts.name } },
-      }),
-    })) ?? 'null',
-  );
+const callSymbol = async (opts: { root: string; name: string }) => {
+  const line = await buildServer({ root: opts.root, version: '0.0.0' }).handleLine({
+    line: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'symbol', arguments: { name: opts.name } },
+    }),
+  });
+
+  return JSON.parse(line ?? 'null');
+};
 
 test('symbol answers from each of two packages whose directories are both called core', async () => {
   const root = project();

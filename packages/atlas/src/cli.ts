@@ -237,18 +237,18 @@ const main = async (): Promise<void> => {
   readCacheDirArgument({ argv });
 
   if (subcommand === AtlasCommands.PULL) {
-    process.exit(await pull());
+    const result = await pull();
+    process.exit(result);
   }
 
   if (subcommand === AtlasCommands.INDEX) {
-    process.exit(
-      await runIndexCommand({
-        argv,
-        version:
-          readPackageVersion({ directory: findPackageDirectory({ startDirectory: __dirname }) }) ??
-          FALLBACK_VERSION,
-      }),
-    );
+    const result2 = await runIndexCommand({
+      argv,
+      version:
+        readPackageVersion({ directory: findPackageDirectory({ startDirectory: __dirname }) }) ??
+        FALLBACK_VERSION,
+    });
+    process.exit(result2);
   }
 
   if (subcommand === AtlasCommands.TOOLS) {
@@ -257,7 +257,8 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  await (await readServer()).run();
+  const result3 = await readServer();
+  await result3.run();
 };
 
 main().catch((error: unknown) => {

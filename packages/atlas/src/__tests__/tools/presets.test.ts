@@ -53,16 +53,15 @@ const ask = async (opts: {
     official: opts.official,
   });
   const transport = new Transport({ tools: [tool], serverName: 'shop-atlas', serverVersion: '0' });
-  const reply = JSON.parse(
-    (await transport.handleLine({
-      line: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name: 'presets', arguments: opts.args ?? {} },
-      }),
-    })) ?? 'null',
-  );
+  const result2 = await transport.handleLine({
+    line: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'presets', arguments: opts.args ?? {} },
+    }),
+  });
+  const reply = JSON.parse(result2 ?? 'null');
 
   return reply.error === undefined ? JSON.parse(reply.result.content[0].text) : reply.error;
 };

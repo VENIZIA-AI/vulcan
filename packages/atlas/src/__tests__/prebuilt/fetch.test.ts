@@ -82,7 +82,8 @@ describe('fetchPrebuilt: a verified pair is used (C10)', () => {
     }
 
     serve(fixture);
-    expect((await fetchFixture()).hit).toBe(true);
+    const result = await fetchFixture();
+    expect(result.hit).toBe(true);
     expect(
       fake.requests.filter((request) => request.path.includes('/assets?')).length,
     ).toBeGreaterThan(1);
@@ -92,16 +93,16 @@ describe('fetchPrebuilt: a verified pair is used (C10)', () => {
 describe('fetchPrebuilt: what the payload says must match what the reader holds (C12)', () => {
   test('a signature from a key that is not listed is a miss', async () => {
     serve(fixture);
-    expect(missOf({ result: await fetchFixture({ keys: [generateKeyPair().publicKey] }) })).toBe(
-      'signature',
-    );
+    const result2 = await fetchFixture({ keys: [generateKeyPair().publicKey] });
+    expect(missOf({ result: result2 })).toBe('signature');
   });
 
   test("a pair built for another commit, put under this commit's names, is a miss", async () => {
     const other = 'b'.repeat(40);
 
     serve({ ...fixture, sha: other });
-    expect(missOf({ result: await fetchFixture({ sha: other }) })).toBe('sha');
+    const result2 = await fetchFixture({ sha: other });
+    expect(missOf({ result: result2 })).toBe('sha');
   });
 
   test('a pair built for another repository is a miss', async () => {
@@ -114,7 +115,8 @@ describe('fetchPrebuilt: what the payload says must match what the reader holds 
         },
       }),
     });
-    expect(missOf({ result: await fetchFixture() })).toBe('repo');
+    const result2 = await fetchFixture();
+    expect(missOf({ result: result2 })).toBe('repo');
   });
 
   test('a pair of another format is a miss', async () => {
@@ -127,7 +129,8 @@ describe('fetchPrebuilt: what the payload says must match what the reader holds 
         },
       }),
     });
-    expect(missOf({ result: await fetchFixture() })).toBe('format');
+    const result2 = await fetchFixture();
+    expect(missOf({ result: result2 })).toBe('format');
   });
 
   test('a gz that is not the one the payload digests is a miss', async () => {
@@ -135,7 +138,8 @@ describe('fetchPrebuilt: what the payload says must match what the reader holds 
 
     changed[changed.length - 12] ^= 0x01;
     serve({ envelope: fixture.envelope, gz: changed });
-    expect(missOf({ result: await fetchFixture() })).toBe('digest');
+    const result2 = await fetchFixture();
+    expect(missOf({ result: result2 })).toBe('digest');
   });
 });
 
@@ -149,18 +153,21 @@ describe('fetchPrebuilt: what is missing, slow, too large or the wrong size is a
     expect(noEnvelope.hit ? '' : noEnvelope.detail).toContain('.atlas.json');
     fake.assets.clear();
     fake.assets.set(`${fixture.sha}.atlas.json`, Buffer.from(fixture.envelope));
-    expect(await fetchFixture()).toMatchObject({ hit: false, reason: 'no-pair' });
+    const result = await fetchFixture();
+    expect(result).toMatchObject({ hit: false, reason: 'no-pair' });
   });
 
   test('no release at all is a miss', async () => {
     fake.options.release = false;
-    expect(missOf({ result: await fetchFixture() })).toBe('no-release');
+    const result2 = await fetchFixture();
+    expect(missOf({ result: result2 })).toBe('no-release');
   });
 
   test('a request that fails is a miss', async () => {
     serve(fixture);
     fake.options.assetStatus = 500;
-    expect(missOf({ result: await fetchFixture() })).toBe('unreachable');
+    const result2 = await fetchFixture();
+    expect(missOf({ result: result2 })).toBe('unreachable');
   });
 
   test('a request that outlives its bound is a miss', async () => {
@@ -176,10 +183,10 @@ describe('fetchPrebuilt: what is missing, slow, too large or the wrong size is a
 
   test('a gz over its cap is a miss, and a payload that announces too large an index is a miss', async () => {
     serve(fixture);
-    expect(missOf({ result: await fetchFixture({ limits: { gzBytes: 100 } }) })).toBe('too-large');
-    expect(missOf({ result: await fetchFixture({ limits: { indexBytes: 100 } }) })).toBe(
-      'too-large',
-    );
+    const result2 = await fetchFixture({ limits: { gzBytes: 100 } });
+    expect(missOf({ result: result2 })).toBe('too-large');
+    const result3 = await fetchFixture({ limits: { indexBytes: 100 } });
+    expect(missOf({ result: result3 })).toBe('too-large');
   });
 
   test('an index that decompresses to more or to less than the payload says is a miss', async () => {
@@ -194,7 +201,8 @@ describe('fetchPrebuilt: what is missing, slow, too large or the wrong size is a
         },
       }),
     });
-    expect(missOf({ result: await fetchFixture() })).toBe('size');
+    const result2 = await fetchFixture();
+    expect(missOf({ result: result2 })).toBe('size');
     serve({
       ...withIndex({
         pair: fixture,
@@ -204,7 +212,8 @@ describe('fetchPrebuilt: what is missing, slow, too large or the wrong size is a
         },
       }),
     });
-    expect(missOf({ result: await fetchFixture() })).toBe('size');
+    const result3 = await fetchFixture();
+    expect(missOf({ result: result3 })).toBe('size');
   });
 });
 
@@ -216,7 +225,8 @@ describe('fetchPrebuilt: a pair that verifies but cannot be opened is not promot
         index: new TextEncoder().encode('this is not an sqlite file '.repeat(200)),
       }),
     );
-    expect(missOf({ result: await fetchFixture() })).toBe('unreadable');
+    const result2 = await fetchFixture();
+    expect(missOf({ result: result2 })).toBe('unreadable');
   });
 
   test('a database with no chunks table is a miss', async () => {
@@ -225,7 +235,8 @@ describe('fetchPrebuilt: a pair that verifies but cannot be opened is not promot
     database.run('CREATE TABLE other (x TEXT)');
     serve(withIndex({ pair: fixture, index: database.serialize() }));
     database.close();
-    expect(missOf({ result: await fetchFixture() })).toBe('unreadable');
+    const result2 = await fetchFixture();
+    expect(missOf({ result: result2 })).toBe('unreadable');
   });
 });
 
@@ -246,7 +257,8 @@ describe('the token goes to the API host and nowhere else (C16)', () => {
   test('an asset URL on another host is a miss, and that host is never asked', async () => {
     serve(fixture);
     fake.options.foreignAssetUrls = true;
-    expect(missOf({ result: await fetchFixture() })).toBe('foreign-url');
+    const result2 = await fetchFixture();
+    expect(missOf({ result: result2 })).toBe('foreign-url');
     expect(fake.requests.filter((request) => request.server === 'storage')).toEqual([]);
   });
 });

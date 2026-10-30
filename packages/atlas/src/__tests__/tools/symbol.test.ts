@@ -104,7 +104,8 @@ describe('symbol tool', () => {
   });
 
   test('a name in two packages answers with every match', async () => {
-    const payload = payloadOf(await callSymbol({ symbols, args: { name: 'respond' } }));
+    const result = await callSymbol({ symbols, args: { name: 'respond' } });
+    const payload = payloadOf(result);
 
     expect(payload.matches).toHaveLength(2);
     expect(payload.matches.map((match: ISymbolRecord) => match.package).sort()).toEqual([
@@ -114,9 +115,8 @@ describe('symbol tool', () => {
   });
 
   test('a package filter narrows an ambiguous name back to one record', async () => {
-    const payload = payloadOf(
-      await callSymbol({ symbols, args: { name: 'respond', package: 'kernel' } }),
-    );
+    const result = await callSymbol({ symbols, args: { name: 'respond', package: 'kernel' } });
+    const payload = payloadOf(result);
 
     expect(payload.matches).toBeUndefined();
     expect(payload.package).toBe('@venizia/ignis-kernel');
