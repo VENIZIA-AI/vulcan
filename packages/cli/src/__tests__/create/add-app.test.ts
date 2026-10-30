@@ -249,6 +249,51 @@ describe('vulcan add --preset', () => {
     expect(readFileSync(manifestPath, 'utf8')).toBe(before);
   });
 
+  test('add accepts the catalog init wrote from a preset built on a prerelease of its own peer', () => {
+    const preset = copyWithFields({
+      fixture: BACKEND_PATH,
+      fields: { dependencies: { x: '0.4.6-0' }, peers: { x: '^0.4.0' } },
+    });
+    const root = monorepo({ backend: `file:${preset}` });
+
+    expect(catalogOf({ manifest: readManifest({ root }) }).x).toBe('0.4.6-0');
+
+    const result = runCli({
+      args: ['add', '--preset', `file:${preset}`, '--app', 'second-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(0);
+    expect(existsSync(join(root, 'services/second-api'))).toBe(true);
+  });
+
+  test('add still refuses a prerelease pin that is not the version the preset lists', () => {
+    const preset = copyWithFields({
+      fixture: BACKEND_PATH,
+      fields: { dependencies: { x: '0.4.6-0' }, peers: { x: '^0.4.0' } },
+    });
+    const root = monorepo({ backend: `file:${preset}` });
+    const manifest = readManifest({ root });
+
+    if (typeof manifest.workspaces !== 'object' || Array.isArray(manifest.workspaces)) {
+      throw new Error('the init manifest keeps its catalog under workspaces');
+    }
+
+    manifest.workspaces.catalog = { ...manifest.workspaces.catalog, x: '0.4.6-1' };
+    writeManifest({ root, manifest });
+
+    const result = runCli({
+      args: ['add', '--preset', `file:${preset}`, '--app', 'second-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('the monorepo pins x 0.4.6-1, a prerelease');
+    expect(existsSync(join(root, 'services/second-api'))).toBe(false);
+  });
+
   test('outside a monorepo with a layout, add is refused', () => {
     const root = createProject({ files: { 'package.json': '{ "name": "x" }' } });
     const result = runCli({

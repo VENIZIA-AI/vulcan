@@ -422,6 +422,7 @@ const runAdd = async (opts: { cwd: string; args: string[]; scratch: string }): P
   const peerProblem = checkPeers({
     catalog: readCatalog({ manifest }),
     peers: preset.peers,
+    presetVersions: preset,
   });
 
   if (peerProblem !== undefined) {
