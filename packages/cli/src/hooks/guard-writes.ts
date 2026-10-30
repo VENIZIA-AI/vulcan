@@ -1,12 +1,13 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { isAbsolute, join } from 'node:path';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { isAbsolute, resolve } from 'node:path';
 import { HookConstants } from './common/index.ts';
 import { TrustStates } from './common/index.ts';
 import type { IHookCommand, IReadOnlyScript, IWriteCheck, IWriteHit } from './common/index.ts';
 import { commandTextsOf } from './command-view.ts';
 import { forHost } from './decision.ts';
 import type { IProjectCommandCheck } from './project-guards.ts';
-import { listedScriptOf, ReadOnlyScripts, trustOf } from './trusted-scripts.ts';
+import { basenameOf, parseShell, programOf } from './shell.ts';
+import { listedScriptOf, ReadOnlyScripts, ScriptPaths, trustOf } from './trusted-scripts.ts';
 
 const MUTATING_VERB = '(?:POST|PUT|PATCH|DELETE)';
 
@@ -72,11 +73,19 @@ const SCRIPT_CHECKS: IWriteCheck[] = [
 const extractScriptTargets = (opts: { command: string }): string[] =>
   [...opts.command.matchAll(/\bbun\s+(?:run\s+)?(\S+\.ts)\b/g)].map((match) => match[1]);
 
-const readScript = (opts: { target: string; cwd: string }): string | undefined => {
-  const path = isAbsolute(opts.target) ? opts.target : join(opts.cwd, opts.target);
+/**
+ * The files a script word can mean. `bun x.ts` opens the path as the OS does, following a link before a `..`;
+ * `bun run x.ts` folds the `..` as text first. Both are read, so neither spelling hides the other.
+ */
+const scriptPathsOf = (opts: { target: string; cwd: string }): string[] => [
+  ...new Set([ScriptPaths.targetPath(opts), resolve(opts.cwd, opts.target)]),
+];
 
-  return existsSync(path) ? readFileSync(path, 'utf8') : undefined;
-};
+/** The text of a regular file; a folder, a pipe and a missing path read as nothing, so nothing is opened that can block. */
+const readScript = (opts: { path: string }): string | undefined =>
+  existsSync(opts.path) && statSync(opts.path).isFile()
+    ? readFileSync(opts.path, 'utf8')
+    : undefined;
 
 /**
  * Every reason `command` looks like a write the base rules reserve for a human (V-W-02, V-W-03).
@@ -115,38 +124,58 @@ export const inspectCommand = (opts: {
   const entries = opts.trust?.readOnlyScripts ?? [];
   // A subcommand counts only when the shell's own words give the same scripts in the same order as the text
   // does; any other line (a script named in an argument, a pipe into a runner) is read as a whole.
-  const invocations =
-    entries.length === 0 ? [] : ReadOnlyScripts.extractInvocations({ command: opts.command });
+  const invocations = ReadOnlyScripts.extractInvocations({ command: opts.command });
   const isPaired =
     invocations.length === targets.length &&
     invocations.every((invocation, index) => invocation.script === targets[index]);
+  const hasMoving = texts.some((text) =>
+    parseShell({ command: text }).some((command) =>
+      ReadOnlyScripts.MOVING_COMMANDS.has(basenameOf({ word: programOf({ command }).name })),
+    ),
+  );
 
   for (const [index, target] of targets.entries()) {
-    const source = readScript({ target, cwd: opts.cwd });
+    const sources = scriptPathsOf({ target, cwd: opts.cwd })
+      .map((path) => readScript({ path }))
+      .filter((text): text is string => text !== undefined);
 
-    if (source === undefined) {
+    if (sources.length === 0) {
       continue;
     }
 
     const subcommand = isPaired ? invocations[index]?.subcommand : undefined;
+    // After a `cd` the hook does not know the folder a relative script word is from, so no entry covers it.
+    const isFromUnknownFolder =
+      !isAbsolute(target) && (isPaired ? invocations[index]?.moved === true : hasMoving);
+    // An entry covers the word only when both spellings of it (see `scriptPathsOf`) name that same entry.
+    const covered = (lookup: (spelling: { target: string }) => string | undefined) => {
+      const asWritten = lookup({ target });
+
+      return asWritten === lookup({ target: resolve(opts.cwd, target) }) ? asWritten : undefined;
+    };
+    const trusted = opts.trust;
     const listed =
-      opts.trust === undefined
+      trusted === undefined || isFromUnknownFolder
         ? undefined
-        : (listedScriptOf({
-            target,
-            cwd: opts.cwd,
-            root: opts.trust.root,
-            scripts: opts.trust.scripts,
-          }) ??
+        : (covered((spelling) =>
+            listedScriptOf({
+              target: spelling.target,
+              cwd: opts.cwd,
+              root: trusted.root,
+              scripts: trusted.scripts,
+            }),
+          ) ??
           (subcommand === undefined
             ? undefined
-            : ReadOnlyScripts.find({
-                target,
-                subcommand,
-                cwd: opts.cwd,
-                root: opts.trust.root,
-                entries,
-              })));
+            : covered((spelling) =>
+                ReadOnlyScripts.find({
+                  target: spelling.target,
+                  subcommand,
+                  cwd: opts.cwd,
+                  root: trusted.root,
+                  entries,
+                }),
+              )));
     const trust =
       listed === undefined || opts.trust === undefined
         ? undefined
@@ -156,7 +185,9 @@ export const inspectCommand = (opts: {
       continue;
     }
 
-    for (const check of SCRIPT_CHECKS.filter((scriptCheck) => scriptCheck.pattern.test(source))) {
+    for (const check of SCRIPT_CHECKS.filter((scriptCheck) =>
+      sources.some((text) => scriptCheck.pattern.test(text)),
+    )) {
       hits.push({
         rule: check.rule,
         message: `${target} looks like it is ${check.what}${trust === undefined ? '' : ` (listed in guard.writes.trustedScripts, but not trusted: ${trust.reason})`}`,

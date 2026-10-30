@@ -122,16 +122,39 @@ export const trustOf = (opts: { root: string; script: string }): IScriptTrust =>
   return { state: TrustStates.TRUSTED, reason: 'tracked, and identical to the last commit' };
 };
 
-/** The listed script `target` names, if any: both resolved to absolute paths, an exact match. */
+export class ScriptPaths {
+  /**
+   * The script word as the shell opens it: joined to the working folder without folding `..`, so a link
+   * before a `..` is followed the way the shell follows it.
+   */
+  static targetPath(opts: { target: string; cwd: string }): string {
+    return isAbsolute(opts.target) ? opts.target : `${opts.cwd}${sep}${opts.target}`;
+  }
+
+  /** The file `path` is on disk, links followed by the OS; the path folded as written when nothing is there. */
+  static physicalOf(opts: { path: string }): string {
+    try {
+      return realpathSync.native(opts.path);
+    } catch {
+      return resolve(opts.path);
+    }
+  }
+}
+
+/** The listed script `target` names, if any: both resolved to the file on disk, an exact match. */
 export const listedScriptOf = (opts: {
   target: string;
   cwd: string;
   root: string;
   scripts: string[];
 }): string | undefined => {
-  const path = isAbsolute(opts.target) ? resolve(opts.target) : resolve(opts.cwd, opts.target);
+  const path = ScriptPaths.physicalOf({
+    path: ScriptPaths.targetPath({ target: opts.target, cwd: opts.cwd }),
+  });
 
-  return opts.scripts.find((script) => resolve(opts.root, script) === path);
+  return opts.scripts.find(
+    (script) => ScriptPaths.physicalOf({ path: resolve(opts.root, script) }) === path,
+  );
 };
 
 export class ReadOnlyScripts {
@@ -141,18 +164,28 @@ export class ReadOnlyScripts {
    * ends the command and is never part of one.
    */
   static extractInvocations(opts: { command: string }): IScriptInvocation[] {
+    let moved = false;
+
     return parseShell({ command: opts.command }).flatMap((command) => {
       const { name, args } = programOf({ command });
+      const program = basenameOf({ word: name });
 
-      if (basenameOf({ word: name }) !== 'bun') {
+      if (ReadOnlyScripts.MOVING_COMMANDS.has(program)) {
+        moved = true;
+      }
+
+      if (program !== 'bun') {
         return [];
       }
 
       const [script, subcommand] = args[0] === 'run' ? args.slice(1) : args;
 
-      return script !== undefined && script.endsWith('.ts') ? [{ script, subcommand }] : [];
+      return script !== undefined && script.endsWith('.ts') ? [{ script, subcommand, moved }] : [];
     });
   }
+
+  /** Commands that change the folder the next commands of the line run in, which the hook does not follow. */
+  static readonly MOVING_COMMANDS = new Set(['cd', 'pushd', 'popd']);
 
   /**
    * The listed script a call to `target` with `subcommand` is read-only for: both resolved to absolute

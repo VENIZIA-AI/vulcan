@@ -21,6 +21,8 @@ export interface IReadOnlyScript {
 export interface IScriptInvocation {
   script: string;
   subcommand: string | undefined;
+  /** A `cd`, `pushd` or `popd` came before it in the line, so a relative script word is not from the hook's folder. */
+  moved: boolean;
 }
 
 export interface IWriteCheck {
