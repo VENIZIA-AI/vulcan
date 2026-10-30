@@ -1,12 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { isAbsolute, join } from 'node:path';
+import { isAbsolute } from 'node:path';
 import { HookConstants } from './common/index.ts';
 import { TrustStates } from './common/index.ts';
 import type { IHookCommand, IReadOnlyScript, IWriteCheck, IWriteHit } from './common/index.ts';
 import { commandTextsOf } from './command-view.ts';
 import { forHost } from './decision.ts';
 import type { IProjectCommandCheck } from './project-guards.ts';
-import { listedScriptOf, ReadOnlyScripts, trustOf } from './trusted-scripts.ts';
+import { basenameOf, parseShell, programOf } from './shell.ts';
+import { listedScriptOf, ReadOnlyScripts, ScriptPaths, trustOf } from './trusted-scripts.ts';
 
 const MUTATING_VERB = '(?:POST|PUT|PATCH|DELETE)';
 
@@ -73,7 +74,7 @@ const extractScriptTargets = (opts: { command: string }): string[] =>
   [...opts.command.matchAll(/\bbun\s+(?:run\s+)?(\S+\.ts)\b/g)].map((match) => match[1]);
 
 const readScript = (opts: { target: string; cwd: string }): string | undefined => {
-  const path = isAbsolute(opts.target) ? opts.target : join(opts.cwd, opts.target);
+  const path = ScriptPaths.targetPath({ target: opts.target, cwd: opts.cwd });
 
   return existsSync(path) ? readFileSync(path, 'utf8') : undefined;
 };
@@ -115,11 +116,15 @@ export const inspectCommand = (opts: {
   const entries = opts.trust?.readOnlyScripts ?? [];
   // A subcommand counts only when the shell's own words give the same scripts in the same order as the text
   // does; any other line (a script named in an argument, a pipe into a runner) is read as a whole.
-  const invocations =
-    entries.length === 0 ? [] : ReadOnlyScripts.extractInvocations({ command: opts.command });
+  const invocations = ReadOnlyScripts.extractInvocations({ command: opts.command });
   const isPaired =
     invocations.length === targets.length &&
     invocations.every((invocation, index) => invocation.script === targets[index]);
+  const hasMoving = texts.some((text) =>
+    parseShell({ command: text }).some((command) =>
+      ReadOnlyScripts.MOVING_COMMANDS.has(basenameOf({ word: programOf({ command }).name })),
+    ),
+  );
 
   for (const [index, target] of targets.entries()) {
     const source = readScript({ target, cwd: opts.cwd });
@@ -129,8 +134,11 @@ export const inspectCommand = (opts: {
     }
 
     const subcommand = isPaired ? invocations[index]?.subcommand : undefined;
+    // After a `cd` the hook does not know the folder a relative script word is from, so no entry covers it.
+    const isFromUnknownFolder =
+      !isAbsolute(target) && (isPaired ? invocations[index]?.moved === true : hasMoving);
     const listed =
-      opts.trust === undefined
+      opts.trust === undefined || isFromUnknownFolder
         ? undefined
         : (listedScriptOf({
             target,

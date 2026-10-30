@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { inspectCommand, listedScriptOf, trustOf, TrustStates } from '../../hooks/index.ts';
 import { git, initRepo } from '../git-repo.helper.ts';
@@ -655,6 +655,105 @@ describe('inspectCommand with read-only subcommands', () => {
         inspectCommand({ command: `bun ${RELEASE_PATH} plan`, cwd: root, trust }).length,
       ).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('a listed script is the file the shell runs', () => {
+  const PATH = 'tools/cli.ts';
+
+  /** A repo whose `tools/cli.ts` is tracked, and another folder with its own `tools/cli.ts` behind a link. */
+  const setup = () => {
+    const root = repoWith({ files: { [PATH]: BODY } });
+    const other = createProject({ files: { [PATH]: BODY } });
+
+    mkdirSync(join(other, 'sub'));
+    symlinkSync(join(other, 'sub'), join(root, 'link'));
+
+    return { root, other };
+  };
+
+  const TRUSTS = [
+    {
+      name: 'a path entry',
+      trust: (root: string) => ({ root, scripts: [PATH] }),
+    },
+    {
+      name: 'a readOnly entry',
+      trust: (root: string) => ({
+        root,
+        scripts: [],
+        readOnlyScripts: [{ script: PATH, readOnly: ['plan'] }],
+      }),
+    },
+  ];
+
+  describe.each(TRUSTS)('with $name', ({ trust }) => {
+    test('the plain call is quiet: the control', () => {
+      const { root } = setup();
+
+      expect(
+        inspectCommand({ command: `bun ${PATH} plan`, cwd: root, trust: trust(root) }),
+      ).toEqual([]);
+    });
+
+    test('a link before a .. runs another file, so the call is read like any script', () => {
+      const { root } = setup();
+
+      expect(
+        inspectCommand({ command: `bun link/../${PATH} plan`, cwd: root, trust: trust(root) })
+          .length,
+      ).toBeGreaterThan(0);
+    });
+
+    test('a cd before a relative script word means the folder is unknown', () => {
+      const { root, other } = setup();
+
+      expect(
+        inspectCommand({
+          command: `cd ${other} && bun ${PATH} plan`,
+          cwd: root,
+          trust: trust(root),
+        }).length,
+      ).toBeGreaterThan(0);
+      expect(
+        inspectCommand({
+          command: `pushd ${other}; bun ${PATH} plan`,
+          cwd: root,
+          trust: trust(root),
+        }).length,
+      ).toBeGreaterThan(0);
+    });
+
+    test('a cd after the call, or an absolute script word after a cd, stays quiet', () => {
+      const { root, other } = setup();
+
+      expect(
+        inspectCommand({
+          command: `bun ${PATH} plan && cd ${other}`,
+          cwd: root,
+          trust: trust(root),
+        }),
+      ).toEqual([]);
+      expect(
+        inspectCommand({
+          command: `cd ${other} && bun ${join(root, PATH)} plan`,
+          cwd: root,
+          trust: trust(root),
+        }),
+      ).toEqual([]);
+    });
+  });
+
+  test('listedScriptOf follows the link: the script behind it is not the listed one', () => {
+    const { root, other } = setup();
+
+    expect(listedScriptOf({ target: `link/../${PATH}`, cwd: root, root, scripts: [PATH] })).toBe(
+      undefined,
+    );
+    expect(listedScriptOf({ target: join(other, PATH), cwd: root, root, scripts: [PATH] })).toBe(
+      undefined,
+    );
+    expect(listedScriptOf({ target: PATH, cwd: root, root, scripts: [PATH] })).toBe(PATH);
   });
 });
 
