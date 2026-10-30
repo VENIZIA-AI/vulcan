@@ -260,7 +260,9 @@ export class ReleasePlan {
   static labelProblems(opts: { label: string | undefined; expected: string }): string[] {
     return opts.label === undefined || opts.label === '' || opts.label === opts.expected
       ? []
-      : [`the label '${opts.label}' is not what the plan computes: '${opts.expected}'`];
+      : [
+          `the label ${JSON.stringify(opts.label)} is not what the plan computes: ${JSON.stringify(opts.expected)}`,
+        ];
   }
 
   /** One train has one version: why the packages do not all carry `version`; empty when they do. */
@@ -316,6 +318,14 @@ export class ReleasePlan {
       ReleaseMergeBack.flagValue({ args, flag: '--package' }) ??
       ReleasePlanConstants.DEFAULT_PACKAGE;
     const trainFolder = ReleaseMergeBack.flagValue({ args, flag: '--train' });
+
+    // A `--train` with no folder (the next word is a flag, as when a label is `--train`) would skip the train and
+    // the label checks, which only run with a train: refuse it instead.
+    if (args.includes('--train') && trainFolder === undefined) {
+      console.error('plan: --train needs a folder');
+
+      return 2;
+    }
 
     if (bump === undefined || ref === undefined) {
       console.error('plan: --bump <mode> and --ref <refs/heads/...> are required');

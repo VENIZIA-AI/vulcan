@@ -321,11 +321,10 @@ export const checkReleaseWorkflowGuards = (opts: {
   // whole commit for a dispatch by hand.
   if (
     typeof runName !== 'string' ||
-    !runName.includes('inputs.label') ||
-    !runName.includes('github.sha')
+    !/\$\{\{\s*inputs\.label\s*\|\|[\s\S]*github\.sha[\s\S]*\}\}\s*$/.test(runName)
   ) {
     violations.push(
-      'C17: the run name must carry inputs.label (which ends in the short commit) and, for a dispatch by hand, github.sha',
+      'C17: the run name must be one expression, ${{ inputs.label || ... github.sha ... }}: the label (which ends in the short commit) and, for a dispatch by hand, the whole commit',
     );
   }
 
@@ -334,11 +333,12 @@ export const checkReleaseWorkflowGuards = (opts: {
       (step) =>
         step.run.includes(PLAN_SCRIPT) &&
         step.run.includes('--label "$RELEASE_LABEL"') &&
+        step.run.includes('--train packages') &&
         step.text.includes('"RELEASE_LABEL":"${{ inputs.label }}"'),
     )
   ) {
     violations.push(
-      'C33: the plan job must pass the label input to plan.ts (--label "$RELEASE_LABEL", from inputs.label in the step env), so the run title is checked',
+      'C33: the plan job must pass the label input to plan.ts (--label "$RELEASE_LABEL", from inputs.label in the step env) and the train (--train packages, without which plan.ts skips the label check), so the run title is checked',
     );
   }
 

@@ -483,6 +483,20 @@ describe('ReleasePlan: the run title the dispatcher sends', () => {
     test('a label that starts with -- is read as given and refused, not skipped as a missing value', () => {
       expect(run({ label: '--merge-trial' })).toBe(1);
     });
+
+    test('a label that is --train cannot make plan skip the train and the label checks', () => {
+      expect(run({ label: '--train' })).toBe(2);
+    });
+
+    test('the refusal quotes the label, so a newline or a :: line cannot forge a log line', () => {
+      const [problem] = ReleasePlan.labelProblems({
+        label: 'x\n::add-mask::y',
+        expected: '0.4.8 stable',
+      });
+
+      expect(problem).toContain('"x\\n::add-mask::y"');
+      expect(problem).not.toContain('\n');
+    });
   });
 });
 

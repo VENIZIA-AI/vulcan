@@ -836,6 +836,36 @@ describe('the release workflow keeps the check of its run title (C33)', () => {
       }),
     ).toContain('C17');
   });
+
+  test('a run name that only mentions the label and the commit as text is noticed (C17)', () => {
+    for (const runName of [
+      'Release · ${{ inputs.bump }} · literal inputs.label github.sha',
+      '${{ inputs.label }} github.sha',
+    ]) {
+      expect(
+        mutated({
+          change: (workflow) => {
+            workflow['run-name'] = runName;
+          },
+        }),
+        runName,
+      ).toContain('C17');
+    }
+  });
+
+  test('a plan job without --train, which switches off the label check, is noticed (C33)', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          stepsOf({ workflow, name: 'plan' }).forEach((step) => {
+            if (typeof step['run'] === 'string') {
+              step['run'] = step['run'].replace(' --train packages', '');
+            }
+          });
+        },
+      }),
+    ).toContain('C33');
+  });
 });
 
 describe('the release workflow keeps the guard of the global npm install (C32)', () => {
