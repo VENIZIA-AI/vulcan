@@ -18,6 +18,7 @@ packages: ['@venizia/vulcan']
 - **Only an unchanged, committed script is trusted.** If it is modified, untracked, not committed, a symlink, or git cannot answer, the normal check runs and the ask says why.
 - **The command line is still checked.** `curl -X POST`, `kubectl apply`, a migration and `psql` ask as before.
 - **`vulcan doctor` reports each listed script,** and warns about a path that never takes effect.
+- **Not a sandbox.** The imports of a script are not read, trusted or not. Anything that must never run belongs in `permissions.deny`, the read-only slot of V-W-01 or branch protection.
 
 ```ts
 export default {

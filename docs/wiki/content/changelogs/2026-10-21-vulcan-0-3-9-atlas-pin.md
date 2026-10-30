@@ -24,3 +24,4 @@ packages: ['@venizia/vulcan-atlas', '@venizia/vulcan']
 
 - **Every project that reads another project through `atlas.sources`.** After you upgrade VULCAN, `search` and `get` answer with the docs of the installed version. Docs of features you have not installed are no longer returned. To keep the old behaviour and the newest docs whatever is installed, set `pin: 'ref'` on that source.
 - **Sources linked locally** (workspace or `file:`): unchanged, served at `ref`.
+- **Two installed packages of one source that differ:** the later release decides, because one source has one snapshot of its docs; an older package's docs may then describe a later state of that package.

@@ -14,9 +14,9 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
-- **Paths and lists.** `layout.backend`, `layout.frontend` and `layout.shared` accept a folder path or a list; a plain string stays valid. A folder is 1 to 4 segments of lowercase letters, digits and `-`, with no `..`, slash at either end, backslash or `node_modules`; none is inside another.
-- **`layout.other`** lists folders the layout does not manage (docs, third-party code, tests). `doctor` allows packages there, `add` never targets them and they are not guarded. Before, `layout: { backend: 'umbras' }` made `doctor` report every package outside `umbras`.
-- **`add` and `init --preset`.** `--backend-dir` and `--frontend-dir` take a path, listed or new (new is added to the list). Without a terminal the flag is required when several folders are listed. `add --lib --dir` adds a valid unlisted folder to `layout.shared`.
+- **Paths and lists.** `layout.backend`, `layout.frontend` and `layout.shared` accept a folder path or a list; a plain string stays valid. A folder is 1 to 4 segments of lowercase letters, digits and `-`, with no `..`, slash at either end, backslash or `node_modules`; none is inside another. A folder that is another key's, or nested in a listed one, is refused.
+- **`layout.other`** lists folders the layout does not manage (docs, third-party code, tests). `doctor` allows packages there, `add` never targets them and they are not guarded; a package under no listed folder is still reported. Before, `layout: { backend: 'umbras' }` made `doctor` report every package outside `umbras`.
+- **`add` and `init --preset`.** `--backend-dir` and `--frontend-dir` take a path, listed or new (new is added to the list). Without a terminal the flag is required when several folders are listed. `add --lib --dir` adds a valid unlisted folder to `layout.shared`; an invalid or nesting `--dir` is still accepted as before and is not recorded.
 - **Also.** `guard-package`, atlas `presets` and `preset diff` understand the folders, and a workspace glob such as `auroras/*/*` counts as covering `auroras/apps`.
 
 ## Who is affected

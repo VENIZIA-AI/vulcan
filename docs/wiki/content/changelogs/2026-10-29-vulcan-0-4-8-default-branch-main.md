@@ -10,7 +10,7 @@ packages: ['@venizia/vulcan']
 
 <Badge type="tip" text="Enhancement" /> <Badge type="warning" text="Behavior Change" />
 
-**In one line.** An agent that opens a pull request without naming its base branch is now asked first, so a pull request never lands on the wrong branch by default.
+**In one line.** An agent that opens a pull request without naming its base branch is now asked first, so the agent states the base branch instead of taking the default.
 
 ## What changed
 

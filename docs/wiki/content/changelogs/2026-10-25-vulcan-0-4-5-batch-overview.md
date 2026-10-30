@@ -30,13 +30,15 @@ A variable (`X=git; $X push`) is still not read. The guards stop accidental and 
 ### The guards ask less about data, and ask when they crash
 
 - **Less noise.** `guard-writes` and `guard-remote-hosts` no longer ask about a heredoc written to a file (`cat > docs/deploy.md <<EOF ... kubectl apply ... EOF`) or the arguments of `rg`, `grep` and other read-only tools. A heredoc fed to a program that runs it (`bash <<EOF`, `ssh host <<EOF`) still asks. The `/tmp` ask now names `.agents/local/tmp/<task>/`.
-- **Ask instead of pass.** If the `guard-git` or `guard-outside` hook crashes, is killed or runs past 30 seconds, it asks instead of letting the call through. On a broken install every `git` or `gh` command asks until you run `bun install`, or set `VULCAN_GUARDS=off` for the session.
+- **Ask instead of pass.** If the `guard-git` or `guard-outside` hook crashes, is killed or runs past 30 seconds, it asks instead of letting the call through. On a broken install every `git` or `gh` command and every `guard-outside` call asks until you run `bun install`, or set `VULCAN_GUARDS=off` for the session. A missing `node_modules/@venizia/vulcan` or `bun` still passes, with a note on stderr.
 
 ### The guards run in more agents
 
 - **Antigravity**, **omp** and **pi** get a guard file from `vulcan sync`. In Antigravity, `agy --dangerously-skip-permissions` approves an `ask`; a `deny` still holds.
 - **Codex** gets a hook in `.codex/hooks.json`; **Cursor** and **Copilot** read the Claude hooks in `.claude/settings.json`.
+- Codex and Cursor cannot ask on a tool call, so an `ask` is printed as a `deny` there.
 - Codex, Cursor and Copilot follow their documentation and unit tests, not a real run: NOT VERIFIED.
+- Pi was driven through its SDK with a scripted provider, not a real model. The `ask` dialog was not seen in a real terminal in omp, pi or Antigravity. Windows was not tried.
 
 ## Who is affected
 

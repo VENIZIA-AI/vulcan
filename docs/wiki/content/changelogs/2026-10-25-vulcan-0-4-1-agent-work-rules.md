@@ -15,8 +15,9 @@ packages: ['@venizia/vulcan']
 ## What changed
 
 - **Nine new base rules.** `V-W-06` approval classes A to D; `V-P-08` reuse before you write; `V-P-09` work card and done report; `V-P-10` ask once with a recommendation; `V-P-11` reports lead with the answer; `V-P-12` delegate by kind; `V-B-06` small never cuts safety; `V-B-07` say what you skipped; `V-B-08` leave no trace. The default `digest.oftenDropped` list adds `V-P-08` and `V-B-07`.
-- **Agent files stay inside the project.** Scratch, worktrees, clones and logs go under the gitignored `.agents/local/`. `vulcan sync` creates its folders and adds it to `.gitignore`; `vulcan doctor` warns (never fails) when it is missing or a worktree lives outside the project.
-- **Seven new skills.** `plan-a-change` (a card you approve first), `fix-a-bug` (reproduce, then a regression test), `review-a-change`, `report-back`, `ship`, `retro` and `research` (read-only, fetched content treated as data). `build-a-feature` now hands off to them.
+- **Agent files stay inside the project.** Scratch, worktrees, clones and logs go under the gitignored `.agents/local/`. `vulcan sync` creates its folders and adds it to `.gitignore` (when it has one); `vulcan doctor` warns (never fails) when it is missing or not gitignored (run `sync`) or a worktree lives outside the project.
+- **Seven new skills.** `plan-a-change` (a card you approve first), `fix-a-bug` (reproduce, then a regression test), `review-a-change`, `report-back`, `ship`, `retro` and `research` (read-only, fetched content treated as data). `build-a-feature` now hands off to them, marks shortcuts with `// SHORTCUT: <what>, <why>, <revisit when>` and ends with a "Skipped / not checked / shortcuts" line.
+- **Shared references.** Five files under `node_modules/@venizia/vulcan/base/references/`: `design-pass.md`, `testing.md`, `evidence.md`, `delegation-brief.md`, `phase-boundaries.md`; `V-P-12` points at the delegation brief. `docs-writing` gains `references/agent-documents.md`.
 - **`vulcan profile`** asks ten short questions and saves `.agents/local/profile.json`; `show` prints it, `reset` deletes it. `vulcan init` offers it once.
 
 ## Who is affected

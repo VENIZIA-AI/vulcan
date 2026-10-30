@@ -29,4 +29,4 @@ packages: ['@venizia/vulcan']
 - **Every project that syncs VULCAN.** Update `@venizia/vulcan` and run `vulcan sync` to refresh the links and the delegation reference. Restart running sessions: a session keeps the skill descriptions it loaded at the start.
 - **Projects that write their own skills.** No action needed. The same shape works: when, what it produces, what to skip.
 
-The descriptions were tested on Sonnet and Haiku only, not on other models or in agents other than Claude Code.
+The descriptions were tested on Sonnet and Haiku only, not on other models or in agents other than Claude Code. A real session's listing was not checked: Claude Code spends about 1% of the context window on skill descriptions and drops those of the least used skills first, whatever their wording. Adding the VULCAN folder to the session (`--add-dir`) shows all twelve.

@@ -15,9 +15,10 @@ packages: ['@venizia/vulcan']
 ## What changed
 
 - **A top-level `owner` key** in `.configs/vulcan.config.*`: `language`, and `report` with `shape`, `minimapColumns`, `status`, `labels`, `headlineMaxSentences`, `absolutePaths` and `enforce` (default `advise`). Defaults are neutral and English.
-- **`.agents/local/profile.json`** (gitignored, per developer): reply language and labels, address, tone and detail. It changes style only; `enforce` is the stricter of project and profile. [`vulcan profile`](/references/commands/profile) writes it; `vulcan doctor` warns when it is unreadable or tracked by git.
-- **A reply check.** A `stop` hook checks each reply (headline, minimap, Blocked line, decisions, order, emoji, relative paths) and logs fault classes, never text, to `.agents/local/violations.jsonl`; a `prompt-submit` hook names last reply's faults. Under `enforce: block` a structural fault sends the reply back once. `owner.report.shortReplyWords` (default 20) exempts short replies.
+- **`.agents/local/profile.json`** (gitignored, per developer): reply language and labels, address, tone and detail. It changes style and defaults only; the project's shape and status set, and every base rule, stay as they are; `enforce` is the stricter of project and profile. [`vulcan profile`](/references/commands/profile) writes it; `vulcan doctor` warns when it is unreadable or tracked by git.
+- **A reply check.** A `stop` hook checks each reply (headline, minimap, Blocked line, decisions, order, emoji, relative paths) and logs fault classes, never text, to `.agents/local/violations.jsonl`; a `prompt-submit` hook names last reply's faults. Under `enforce: block` a structural fault sends the reply back once. `owner.report.shortReplyWords` (default 20) exempts short replies; `0` holds every reply to the shape, and a profile may only lower it.
 - **Claim checks.** A reply that says something is published, released or live with no `npm view`, `gh`, `git ls-remote` or `curl` in the turn, or says checks pass after a failed gate, is logged. A `post-tool` hook flags when the model seems stuck. None of these block.
+- **English only ships.** A language with no label set in the profile gets English labels. The session digest leaves "How to answer the owner" out when `report.enforce` is `off`, and subagents get neither the project's card nor the profile's.
 - **Smaller subagent card**: about 250 tokens instead of the 1,500-token digest.
 
 ## Who is affected

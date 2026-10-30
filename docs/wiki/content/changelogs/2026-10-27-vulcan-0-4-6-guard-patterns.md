@@ -24,3 +24,6 @@ packages: ['@venizia/vulcan']
 
 - **Every project.** The new rule wording arrives on the next `vulcan sync`. Nothing else changes unless you list something.
 - **A project with its own deploy, migrate or release commands.** List them ([the hooks reference](/references/hooks/#your-own-commands) has the example), run `vulcan sync` and commit the manifest.
+- **A project that only uses Claude Code** can add a second layer through Claude Code's own permission rules in the same config (`claude.settings.permissions.ask`). Spell the migrate pattern `Bash(bun run migrate*)`: `Bash(bun run migrate:*)` does not match `bun run migrate:up`.
+
+This is a guard against drift, not a sandbox: a command that builds its name at run time is not seen, and the guards ask rather than deny.
