@@ -123,9 +123,9 @@ export const parseReleaseArgs = (opts: { args: string[] }): IReleaseArgs => {
 /**
  * The `gh` command that dispatches one release of the whole okf/atlas/cli train. The ref is always named,
  * never left to the repository's default branch: develop for a prerelease, main for a stable. An issue is sent
- * only when there is one.
+ * only when there is one, and so is the run title `label` (the plan job refuses one that is not its own).
  */
-export const buildDispatchCommand = (opts: { args: IReleaseArgs }): string[] => [
+export const buildDispatchCommand = (opts: { args: IReleaseArgs; label?: string }): string[] => [
   'gh',
   'workflow',
   'run',
@@ -135,6 +135,7 @@ export const buildDispatchCommand = (opts: { args: IReleaseArgs }): string[] => 
   '-f',
   `bump=${opts.args.bump}`,
   ...(opts.args.issue === undefined ? [] : ['-f', `issue=${opts.args.issue}`]),
+  ...(opts.label === undefined || opts.label === '' ? [] : ['-f', `label=${opts.label}`]),
 ];
 
 /**

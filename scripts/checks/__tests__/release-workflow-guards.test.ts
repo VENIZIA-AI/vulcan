@@ -790,6 +790,54 @@ describe('the release workflow keeps the guard of the GitHub Release (C31)', () 
   });
 });
 
+describe('the release workflow keeps the check of its run title (C33)', () => {
+  test('the real workflow passes', () => {
+    expect(mutated({ change: () => undefined }).filter((line) => line.startsWith('C33'))).toEqual(
+      [],
+    );
+  });
+
+  test('a plan job that does not pass the label to plan.ts is noticed', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          stepsOf({ workflow, name: 'plan' }).forEach((step) => {
+            if (typeof step['run'] === 'string') {
+              step['run'] = step['run'].replace(' --label "$RELEASE_LABEL"', '');
+            }
+          });
+        },
+      }),
+    ).toContain('C33');
+  });
+
+  test('a plan job whose label is not the input is noticed', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          stepsOf({ workflow, name: 'plan' }).forEach((step) => {
+            const env = step['env'];
+
+            if (typeof env === 'object' && env !== null && 'RELEASE_LABEL' in env) {
+              (env as Record<string, string>)['RELEASE_LABEL'] = 'a fixed title';
+            }
+          });
+        },
+      }),
+    ).toContain('C33');
+  });
+
+  test('a run name that does not carry the label is noticed (C17)', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          workflow['run-name'] = 'Release · ${{ inputs.bump }} · ${{ github.sha }}';
+        },
+      }),
+    ).toContain('C17');
+  });
+});
+
 describe('the release workflow keeps the guard of the global npm install (C32)', () => {
   const NODE_STEP = 'Setup Node.js';
 

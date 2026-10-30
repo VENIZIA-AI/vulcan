@@ -1,8 +1,8 @@
 /**
  * The `plan` job of package-release.yml: what a dispatch would release, decided before anything is built.
  *
- *   bun scripts/release/plan.ts --bump <mode> --ref <refs/heads/...> [--issue <n>] [--package <package.json>]
- *     [--train <packages folder>] [--merge-trial] [--release-notes]
+ *   bun scripts/release/plan.ts --bump <mode> --ref <refs/heads/...> [--issue <n>] [--label <run title>]
+ *     [--package <package.json>] [--train <packages folder>] [--merge-trial] [--release-notes]
  *
  * It resolves the target version of the bump, says whether that version is a prerelease or a stable (a
  * prerelease needs no approval, a stable needs one), and refuses a branch and version that do not belong
@@ -15,6 +15,9 @@
  *
  * With `--release-notes`, a stable with no changelog entry since the previous stable is refused: its GitHub
  * Release would have no notes (github-release.ts).
+ *
+ * With `--label` (the run title the dispatcher sent) and `--train`, a label that is not `<version> <kind> ·
+ * <package names> · #<issue> · <short sha>` as this job computes it is refused; an empty label is a dispatch by hand.
  *
  * With `--merge-trial`, a stable also tries the merge of main back into develop (merge-back.ts) and refuses
  * when it would stop; `develop_sha` is the head of develop that trial read.
@@ -223,6 +226,43 @@ export class ReleasePlan {
       });
   }
 
+  /** The short name of a train entry: `@venizia/vulcan-okf@0.4.8` is `okf`, `@venizia/vulcan@0.4.8` is `vulcan`. */
+  static shortNameOf(opts: { entry: string }): string {
+    const name = opts.entry.slice(0, opts.entry.lastIndexOf('@'));
+
+    return name.replace(/^@[^/]+\//, '').replace(/^vulcan-/, '') || 'vulcan';
+  }
+
+  /**
+   * The run title the dispatcher sends and this job checks: `0.4.8 stable · atlas,okf,vulcan · #581 · 285d5bd`.
+   * The workflow cannot work these out when it names the run, so the dispatcher says them, and `plan` refuses
+   * a title that is not what it computed: the title cannot name a version, a package or a commit the run does
+   * not release.
+   */
+  static labelOf(opts: {
+    version: string;
+    kind: TReleaseKind;
+    train: string[];
+    issue?: string;
+    sha?: string;
+  }): string {
+    const names = opts.train
+      .map((entry) => ReleasePlan.shortNameOf({ entry }))
+      .sort()
+      .join(',');
+    const issue = opts.issue === undefined || opts.issue === '' ? [] : [`#${opts.issue}`];
+    const sha = opts.sha === undefined || opts.sha === '' ? [] : [opts.sha.slice(0, 7)];
+
+    return [`${opts.version} ${opts.kind}`, names, ...issue, ...sha].join(' · ');
+  }
+
+  /** Why a label is not the one this plan gives; empty when it is, or when there is none. */
+  static labelProblems(opts: { label: string | undefined; expected: string }): string[] {
+    return opts.label === undefined || opts.label === '' || opts.label === opts.expected
+      ? []
+      : [`the label '${opts.label}' is not what the plan computes: '${opts.expected}'`];
+  }
+
   /** One train has one version: why the packages do not all carry `version`; empty when they do. */
   static trainProblems(opts: { train: string[]; version: string }): string[] {
     const apart = opts.train.filter((entry) => !entry.endsWith(`@${opts.version}`));
@@ -269,6 +309,9 @@ export class ReleasePlan {
     // commit message, so a value that is not a number must be refused here, not skipped as a missing value.
     const issueIndex = args.indexOf('--issue');
     const issue = issueIndex === -1 ? undefined : (args[issueIndex + 1] ?? '');
+    // The label is read as given too, for the same reason: the run title shows whatever was dispatched.
+    const labelIndex = args.indexOf('--label');
+    const label = labelIndex === -1 ? undefined : (args[labelIndex + 1] ?? '');
     const packagePath =
       ReleaseMergeBack.flagValue({ args, flag: '--package' }) ??
       ReleasePlanConstants.DEFAULT_PACKAGE;
@@ -309,6 +352,22 @@ export class ReleasePlan {
 
     if (result.plan !== undefined && train !== undefined) {
       result.problems.push(...ReleasePlan.trainProblems({ train, version: currentVersion }));
+    }
+
+    // The run title the dispatcher chose (an optional `label`, empty for a dispatch by hand) must be the plan's own.
+    if (result.plan !== undefined && train !== undefined) {
+      result.problems.push(
+        ...ReleasePlan.labelProblems({
+          label,
+          expected: ReleasePlan.labelOf({
+            version: result.plan.version,
+            kind: result.plan.kind,
+            train,
+            issue,
+            sha: opts.env['GITHUB_SHA'],
+          }),
+        }),
+      );
     }
 
     if (

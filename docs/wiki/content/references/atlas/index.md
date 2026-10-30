@@ -230,7 +230,7 @@ A push made with the Actions token (for example the release commit and tag a rel
 Two ways to make it:
 
 - **A step of the same job.** Give the action a `ref` after the push: `with: { ref: <the tag> }`.
-- **A manual run.** Add a `workflow_dispatch` trigger with a `ref` input and hand that input to the action as its `ref`; start it on the default branch or `develop`, because GitHub runs a manual run with the workflow file of the ref it starts on: `gh workflow run atlas-index.yml --ref develop -f ref=v0.4.6`.
+- **A manual run.** Add a `workflow_dispatch` trigger with a `ref` input and hand that input to the action as its `ref`; start it on the default branch or `develop`, because GitHub runs a manual run with the workflow file of the ref it starts on: `gh workflow run <workflow>.yml --ref develop -f ref=v0.4.6` (in VULCAN the job is picked too: `gh workflow run deploy-docs.yml --ref develop -f job=atlas-index -f ref=v0.4.6`).
 
 The action then publishes the pair of that tag or branch instead of HEAD (`vulcan x atlas index publish --ref <name>`, which the action runs). Only a manual run may give a `ref`. The name must be the plain name of a tag or a branch of the checkout: a commit hash, `HEAD`, a `refs/` path, an option or a revision expression such as `develop~1` is refused before git is asked anything, and so is a name whose commit is on neither the default branch nor `develop`. The `ref` is never checked out as the workflow's checkout; the pair is built in a scratch worktree of its commit, after the check.
 

@@ -1,5 +1,5 @@
 /**
- * Dispatches the NPM Release workflow for the okf/atlas/cli train, waits for it, and proves what it
+ * Dispatches the Release workflow for the okf/atlas/cli train, waits for it, and proves what it
  * published - the IGNIS release flow, for a train that releases in one run.
  *
  *   bun scripts/release/release.ts                     # prerelease, asks first
@@ -9,6 +9,8 @@
  *   bun scripts/release/release.ts --bump patch        # a stable: dispatched on main, waits for the approval
  *   bun scripts/release/release.ts --bump none --branch main   # heal a stable run (develop when --branch is absent)
  */
+import { tmpdir } from 'node:os';
+import { ReleasePlan } from './plan.ts';
 import {
   buildDispatchCommand,
   findPublishedVersions,
@@ -101,7 +103,28 @@ const manifests = await Promise.all(
   PACKAGE_DIRECTORIES.map((directory) => Bun.file(`packages/${directory}/package.json`).json()),
 );
 const trainVersion: string = manifests[2].version;
-const command = buildDispatchCommand({ args });
+// The run title the workflow shows: the plan job works the same string out and refuses a different one. A machine
+// without npm, or a checkout that cannot be read, sends none and the run is titled by its bump.
+const label = ((): string | undefined => {
+  try {
+    const version = ReleasePlan.targetOf({
+      bump: args.bump,
+      currentVersion: trainVersion,
+      scratchRoot: tmpdir(),
+    });
+
+    return ReleasePlan.labelOf({
+      version,
+      kind: ReleasePlan.kindOf({ version }),
+      train: ReleasePlan.readTrain({ directory: 'packages' }),
+      issue: args.issue,
+      sha: capture({ command: ['git', 'rev-parse', `origin/${args.branch}`] }).stdout,
+    });
+  } catch {
+    return undefined;
+  }
+})();
+const command = buildDispatchCommand({ args, label });
 
 console.log(`release: the train is at ${trainVersion}; bump '${args.bump}'`);
 console.log(`release: ${command.join(' ')}`);

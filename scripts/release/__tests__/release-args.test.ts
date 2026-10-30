@@ -107,6 +107,23 @@ describe('buildDispatchCommand', () => {
     ]);
   });
 
+  test('a label is sent as the label input, and an empty or absent one is not', () => {
+    const args = {
+      bump: 'patch',
+      issue: '581',
+      branch: 'main',
+      isDryRun: false,
+      isConfirmed: true,
+    };
+    const label = '0.4.8 stable · atlas,okf,vulcan · #581 · 285d5bd';
+
+    expect(buildDispatchCommand({ args, label }).slice(-2)).toEqual(['-f', `label=${label}`]);
+    expect(
+      buildDispatchCommand({ args, label: '' }).some((part) => part.startsWith('label=')),
+    ).toBe(false);
+    expect(buildDispatchCommand({ args }).some((part) => part.startsWith('label='))).toBe(false);
+  });
+
   test('no issue sends no issue input', () => {
     const command = buildDispatchCommand({
       args: {

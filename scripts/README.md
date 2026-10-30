@@ -18,7 +18,7 @@ Root tooling of the VULCAN monorepo, grouped by purpose. Each group keeps its te
 | `evals/` | `skill-evals-core.ts` | Prompts, grading and reports for `skill-evals.ts` | `skill-evals.ts` |
 | `wiki-shared/` | `manifest.ts` | Writes (or with `--check` verifies) `SHARED.json`, the hashes of the shared wiki theme folder | by hand after editing `docs/wiki/site/.vitepress/theme/shared/` |
 | `wiki-shared/` | `copy.ts` | Copies that folder byte for byte into another wiki checkout (`--dry-run` lists first) | run in the IGNIS or ARDOR checkout: `bun ../vulcan/scripts/wiki-shared/copy.ts .` |
-| `wiki-shared/` | `check.ts` | Compares the shared folder of the three wikis, local or `--remote`, and names the files that drifted | `wiki-shared.yml` (weekly and on dispatch) |
+| `wiki-shared/` | `check.ts` | Compares the shared folder of the three wikis, local or `--remote`, and names the files that drifted | the `wiki-shared` job of `deploy-docs.yml` (weekly and on dispatch) |
 
 The tests in `checks/__tests__/` are gates run by `make test-scripts`: `package-layout`,
 `library-targets`, `source-tracked`, `test-tmp-hygiene` and `no-framework-dependency` pin the shape
