@@ -14,7 +14,7 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
-- **A new entry shape.** `trustedScripts` takes a path string, as before, or an object with `script` and `readOnly`. The `script` follows the rules of a path string. `readOnly` is a list of one or more non-empty words; an empty list is refused.
+- **A new entry shape.** `trustedScripts` takes a path string, as before, or an object with `script` and `readOnly`. The `script` follows the rules of a path string. `readOnly` is a list of one or more plain words (letters, digits and `_ . : -`); an empty list, a space, a glob or a shell character is refused.
 - **A call is judged by its subcommand.** `guard-writes` skips the body check of the script when the first argument after it is one of the `readOnly` words. The word is one argument of the shell command, matched exactly.
 - **Everything else is checked as before.** No argument, a flag first, an unlisted word and a call the hook cannot read as separate commands all get the body check. `plan; bun script.ts run` asks for the `run` call only.
 - **The same trust condition.** The script must be tracked and equal to `HEAD`. An edited script asks even for a listed subcommand, and the ask says why.

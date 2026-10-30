@@ -1,6 +1,6 @@
 import { Glob } from 'bun';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
 import { LayoutKeys, layoutFoldersOf } from '../common/layout-folder.ts';
@@ -1206,16 +1206,35 @@ export const checkTrustedScripts = (opts: ICheckContext): IViolation[] =>
  * text of the file, so it cannot tell a subcommand the script handles another way from a typo.
  */
 export class ReadOnlySubcommandChecks {
+  static readonly MAX_SOURCE_BYTES = 1_000_000;
+
+  static sourceOf(opts: { path: string }): string | undefined {
+    try {
+      const stat = lstatSync(opts.path);
+
+      return stat.isFile() && stat.size <= ReadOnlySubcommandChecks.MAX_SOURCE_BYTES
+        ? readFileSync(opts.path, 'utf8')
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   static check(opts: ICheckContext): IViolation[] {
     return opts.config.guard.writes.trustedScripts.flatMap((entry) => {
       const { script, readOnly } = trustedScriptOf({ entry });
       const path = join(opts.root, script);
 
-      if (readOnly === undefined || !existsSync(path)) {
+      if (readOnly === undefined) {
         return [];
       }
 
-      const source = readFileSync(path, 'utf8');
+      // Only a plain, small file inside the repo is read: a link, a folder or a device is skipped, never followed.
+      const source = ReadOnlySubcommandChecks.sourceOf({ path });
+
+      if (source === undefined) {
+        return [];
+      }
 
       return readOnly
         .filter((word) => !QUOTES.some((quote) => source.includes(`${quote}${word}${quote}`)))

@@ -326,6 +326,11 @@ Limits, stated plainly:
 
 - The trust is committed and unchanged, not reviewed. A commit that edits the script and the config list is what your team reviews in a pull request.
 - The imports of a script are not read, trusted or not.
+- Only the first word is judged. Flags and words after it are trusted with it, and so is anything the call prints, even if it is piped into a shell.
+- A `readOnly` word is one plain word: letters, digits and `_ . : -`. A space, a glob or a shell character is refused by the schema.
+- A script listed as a path string and as an object is trusted whole: the string wins.
+- The hook matches the script by its path as written, resolved from the hook's folder, and does not follow links or a `cd` earlier in the line. This holds for a path entry too.
+- A removed entry keeps its trust until `vulcan sync` rewrites the manifest and you commit it. `vulcan doctor` flags the difference.
 - This is not a sandbox: see [what the guards are, and are not](#what-the-guards-are-and-are-not). Anything that must never run belongs in `permissions.deny`, the read-only slot of `V-W-01` or branch protection.
 
 ## stop and prompt-submit

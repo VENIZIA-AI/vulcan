@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DoctorChecks, runDoctorNotes, runDoctorWarnings } from '../../doctor/index.ts';
 import { git, initRepo } from '../git-repo.helper.ts';
@@ -174,6 +174,38 @@ describe('doctor: read-only subcommands of a trusted script', () => {
 
     expect(warnings).toHaveLength(1);
     expect(warnings[0].message).toContain('does not exist');
+    expect(notes.some((note) => note.message.includes('quoted string'))).toBe(false);
+  });
+
+  test('a folder named like the script does not stop doctor and adds no note about subcommands', async () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.ts': `export default { guard: { writes: { trustedScripts: [{ script: 'tools/release.ts', readOnly: ['plan'] }] } } };\n`,
+      },
+    });
+
+    mkdirSync(join(root, 'tools', 'release.ts'), { recursive: true });
+    initRepo({ cwd: root });
+
+    const notes = guardsOf({ items: await runDoctorNotes({ root }) });
+
+    expect(notes.some((note) => note.message.includes('quoted string'))).toBe(false);
+  });
+
+  test('a link is not followed to read a file outside the repo', async () => {
+    const outside = createProject({ files: { 'target.ts': RELEASE } });
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.ts': `export default { guard: { writes: { trustedScripts: [{ script: 'tools/release.ts', readOnly: ['nope'] }] } } };\n`,
+      },
+    });
+
+    mkdirSync(join(root, 'tools'));
+    symlinkSync(join(outside, 'target.ts'), join(root, 'tools', 'release.ts'));
+    initRepo({ cwd: root });
+
+    const notes = guardsOf({ items: await runDoctorNotes({ root }) });
+
     expect(notes.some((note) => note.message.includes('quoted string'))).toBe(false);
   });
 

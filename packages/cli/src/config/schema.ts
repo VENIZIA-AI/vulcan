@@ -76,9 +76,16 @@ const TRUSTED_SCRIPT_PATH = z.string().superRefine((value, context) => {
  * A trusted script, whole or by subcommand: a path trusts the whole file; an object trusts only the calls
  * whose first argument after the script is one of `readOnly` (one word each, matched exactly).
  */
+const READ_ONLY_WORD = z
+  .string()
+  .regex(
+    /^[A-Za-z0-9_.:-]+$/,
+    'one plain word: letters, digits and _ . : - only, no spaces or globs',
+  );
+
 const TRUSTED_SCRIPT = z.union([
   TRUSTED_SCRIPT_PATH,
-  z.strictObject({ script: TRUSTED_SCRIPT_PATH, readOnly: z.array(z.string().min(1)).min(1) }),
+  z.strictObject({ script: TRUSTED_SCRIPT_PATH, readOnly: z.array(READ_ONLY_WORD).min(1) }),
 ]);
 
 /** One folder, or a list of them: a side whose apps are grouped keeps each group's folder. */
