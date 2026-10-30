@@ -212,7 +212,9 @@ const runCreate = async (opts: {
   }
 
   // A new project has no config to list presets from: the official ones, or one typed.
-  const presetValue = flagged ?? (await askPresetSpec({ recorded: [] }))?.trim();
+  const askingSpec = flagged === undefined ? askPresetSpec({ recorded: [] }) : undefined;
+  const typedSpec = await askingSpec;
+  const presetValue = flagged ?? typedSpec?.trim();
 
   if (presetValue === undefined || presetValue === '') {
     return fail({ message: '--preset needs a value (a package name, or file:<path>)' });
@@ -341,7 +343,8 @@ const runCreate = async (opts: {
   }
 
   // Optional, asked only where menus are drawn; a plain terminal and a script give --scope.
-  const scope = flaggedScope.scope ?? (menusAvailable() ? await askScope() : undefined);
+  const askingScope = flaggedScope.scope ?? (menusAvailable() ? askScope() : undefined);
+  const scope = await askingScope;
 
   if (scope === null) {
     return fail({ message: ABORTED });

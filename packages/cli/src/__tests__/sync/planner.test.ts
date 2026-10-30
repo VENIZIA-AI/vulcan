@@ -416,7 +416,8 @@ describe('skills', () => {
     // What a newer VULCAN linked before the project went back to this one.
     symlinkSync(join(installed, 'base', 'skills', 'gone-skill'), link);
 
-    const flagged = (await runDoctorChecks({ root })).map((violation) => violation.file);
+    const result2 = await runDoctorChecks({ root });
+    const flagged = result2.map((violation) => violation.file);
 
     expect(flagged).toContain('.claude/skills/gone-skill');
 

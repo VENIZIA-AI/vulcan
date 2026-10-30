@@ -18,7 +18,8 @@ try {
   let session = '';
 
   try {
-    const event: unknown = JSON.parse(await Bun.stdin.text());
+    const stdin = await Bun.stdin.text();
+    const event: unknown = JSON.parse(stdin);
 
     if (
       typeof event === 'object' &&

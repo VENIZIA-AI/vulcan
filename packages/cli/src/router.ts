@@ -153,7 +153,9 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
   }
 
   try {
-    return await handler({ args, cwd: opts.cwd });
+    const exitCode = await handler({ args, cwd: opts.cwd });
+
+    return exitCode;
   } catch (error) {
     // The refusal is already printed; every `finally` between the menu and here has run.
     if (error instanceof PipedInputRefusal) {

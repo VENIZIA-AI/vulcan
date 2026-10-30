@@ -20,7 +20,8 @@ try {
   const { buildGuardDecision, inspectCommand, parseHookCommand } =
     await import('../../src/hooks/guard-writes.ts');
   const { readGuardPolicy } = await import('../../src/hooks/project-guards.ts');
-  const hookCommand = parseHookCommand({ text: await Bun.stdin.text() });
+  const stdin = await Bun.stdin.text();
+  const hookCommand = parseHookCommand({ text: stdin });
   const cwd = hookCommand?.cwd ?? process.cwd();
   let scripts: string[] = [];
 

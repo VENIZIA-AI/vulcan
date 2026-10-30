@@ -47,7 +47,8 @@ describe('loadConfig', () => {
   test('no config: the error names the directory', async () => {
     const root = createProject({ files: {} });
 
-    expect(await loadConfig({ root })).toEqual({
+    const result = await loadConfig({ root });
+    expect(result).toEqual({
       ok: false,
       error: `no .configs/vulcan.config.* found in ${root}`,
     });
@@ -102,7 +103,8 @@ describe('loadConfig', () => {
       files: { '.configs/vulcan.config.ts': "export default { agents: ['notepad'] };\n" },
     });
 
-    expect((await loadConfig({ root })).ok).toBe(false);
+    const result = await loadConfig({ root });
+    expect(result.ok).toBe(false);
   });
 
   test('a config that throws on import is reported with its file', async () => {
@@ -135,6 +137,7 @@ describe('loadConfig', () => {
       files: { '.configs/vulcan.config.ts': 'export default () => ({});\n' },
     });
 
-    expect((await loadConfig({ root })).ok).toBe(false);
+    const result = await loadConfig({ root });
+    expect(result.ok).toBe(false);
   });
 });

@@ -93,18 +93,21 @@ describe('resolveNames', () => {
       { key: 'backend', flag: '--backend-dir', question: 'Backend folder', previous: 'services' },
     ];
 
-    expect(
-      await resolveNames({ fields, args: [], interactive: true, ask: scripted(['']) }),
-    ).toEqual({
+    const result = await resolveNames({ fields, args: [], interactive: true, ask: scripted(['']) });
+    expect(result).toEqual({
       ok: true,
       names: { backend: 'services' },
     });
   });
 
   test('closing the prompt (null) aborts', async () => {
-    expect(
-      await resolveNames({ fields: FIELDS, args: [], interactive: true, ask: scripted([null]) }),
-    ).toEqual({ ok: false, error: 'aborted' });
+    const result = await resolveNames({
+      fields: FIELDS,
+      args: [],
+      interactive: true,
+      ask: scripted([null]),
+    });
+    expect(result).toEqual({ ok: false, error: 'aborted' });
   });
 
   test('an answer may arrive later: menus resolve after the user has picked', async () => {

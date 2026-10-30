@@ -27,7 +27,8 @@ const runHook = async (opts: {
   });
   const stdout = await new Response(child.stdout).text();
 
-  return { code: await child.exited, stdout: stdout.trim() };
+  const result = await child.exited;
+  return { code: result, stdout: stdout.trim() };
 };
 
 const bash = (opts: { command: string; cwd: string }): string =>
@@ -60,21 +61,24 @@ describe('the guard-git hook', () => {
   });
 
   test('is silent for a plain command, for input it cannot read, and with the kill switch on', async () => {
-    expect(
-      await runHook({ hook: 'guard-git', root, stdin: bash({ command: 'git status', cwd: root }) }),
-    ).toEqual({ code: 0, stdout: '' });
-    expect(await runHook({ hook: 'guard-git', root, stdin: 'not json' })).toEqual({
+    const result = await runHook({
+      hook: 'guard-git',
+      root,
+      stdin: bash({ command: 'git status', cwd: root }),
+    });
+    expect(result).toEqual({ code: 0, stdout: '' });
+    const result2 = await runHook({ hook: 'guard-git', root, stdin: 'not json' });
+    expect(result2).toEqual({
       code: 0,
       stdout: '',
     });
-    expect(
-      await runHook({
-        hook: 'guard-git',
-        root,
-        env: { VULCAN_GUARDS: 'off' },
-        stdin: bash({ command: 'git push -f origin main', cwd: root }),
-      }),
-    ).toEqual({ code: 0, stdout: '' });
+    const result3 = await runHook({
+      hook: 'guard-git',
+      root,
+      env: { VULCAN_GUARDS: 'off' },
+      stdin: bash({ command: 'git push -f origin main', cwd: root }),
+    });
+    expect(result3).toEqual({ code: 0, stdout: '' });
   });
 });
 
@@ -121,22 +125,23 @@ describe('the guard-scripting hook', () => {
     'pipx --version',
     'bun add pip-tools',
   ])('is silent for %s: a mention is not a run', async (command) => {
-    expect(await adviceFor(command)).toEqual({ code: 0, stdout: '' });
+    const result = await adviceFor(command);
+    expect(result).toEqual({ code: 0, stdout: '' });
   });
 
   test('is silent for input it cannot read, and with the kill switch on', async () => {
-    expect(await runHook({ hook: 'guard-scripting', root, stdin: 'not json' })).toEqual({
+    const result = await runHook({ hook: 'guard-scripting', root, stdin: 'not json' });
+    expect(result).toEqual({
       code: 0,
       stdout: '',
     });
-    expect(
-      await runHook({
-        hook: 'guard-scripting',
-        root,
-        env: { VULCAN_GUARDS: 'off' },
-        stdin: bash({ command: 'python3 x.py', cwd: root }),
-      }),
-    ).toEqual({ code: 0, stdout: '' });
+    const result2 = await runHook({
+      hook: 'guard-scripting',
+      root,
+      env: { VULCAN_GUARDS: 'off' },
+      stdin: bash({ command: 'python3 x.py', cwd: root }),
+    });
+    expect(result2).toEqual({ code: 0, stdout: '' });
   });
 });
 
@@ -202,25 +207,24 @@ describe('the guard-outside hook', () => {
   });
 
   test('is silent inside the project, for input it cannot read, and with the kill switch on', async () => {
-    expect(
-      await runHook({
-        hook: 'guard-outside',
-        root,
-        stdin: bash({ command: 'mkdir -p .agents/local/tmp/x', cwd: root }),
-      }),
-    ).toEqual({ code: 0, stdout: '' });
-    expect(await runHook({ hook: 'guard-outside', root, stdin: 'not json' })).toEqual({
+    const result = await runHook({
+      hook: 'guard-outside',
+      root,
+      stdin: bash({ command: 'mkdir -p .agents/local/tmp/x', cwd: root }),
+    });
+    expect(result).toEqual({ code: 0, stdout: '' });
+    const result2 = await runHook({ hook: 'guard-outside', root, stdin: 'not json' });
+    expect(result2).toEqual({
       code: 0,
       stdout: '',
     });
-    expect(
-      await runHook({
-        hook: 'guard-outside',
-        root,
-        env: { VULCAN_GUARDS: 'off' },
-        stdin: bash({ command: 'mkdir /var/tmp/x', cwd: root }),
-      }),
-    ).toEqual({ code: 0, stdout: '' });
+    const result3 = await runHook({
+      hook: 'guard-outside',
+      root,
+      env: { VULCAN_GUARDS: 'off' },
+      stdin: bash({ command: 'mkdir /var/tmp/x', cwd: root }),
+    });
+    expect(result3).toEqual({ code: 0, stdout: '' });
   });
 });
 
@@ -269,7 +273,8 @@ describe('the kill switch does not depend on the install being healthy', () => {
         const stderr = await new Response(child.stderr).text();
         const stdout = await new Response(child.stdout).text();
 
-        return { code: await child.exited, stderr, stdout };
+        const result = await child.exited;
+        return { code: result, stderr, stdout };
       };
       const failing = await run({});
       const off = await run({ VULCAN_GUARDS: 'off' });

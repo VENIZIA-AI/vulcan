@@ -178,11 +178,8 @@ describe('vulcan sync --prune', () => {
     expect(doctor.stderr).not.toContain('TypeError');
     expect(prune.stderr).not.toContain('TypeError');
     expect(prune.code).toBe(0);
-    expect(
-      (await runDoctorChecks({ root })).filter(
-        (violation) => violation.check === DoctorChecks.PRUNE,
-      ),
-    ).toEqual([]);
+    const result = await runDoctorChecks({ root });
+    expect(result.filter((violation) => violation.check === DoctorChecks.PRUNE)).toEqual([]);
   });
 
   test('a symlinked .claude/skills is never walked: dead links outside the project stay', () => {
@@ -218,10 +215,7 @@ describe('vulcan sync --prune', () => {
 
     runCli({ args: ['sync', '--prune'], cwd: root });
 
-    expect(
-      (await runDoctorChecks({ root })).filter(
-        (violation) => violation.check === DoctorChecks.PRUNE,
-      ),
-    ).toEqual([]);
+    const result = await runDoctorChecks({ root });
+    expect(result.filter((violation) => violation.check === DoctorChecks.PRUNE)).toEqual([]);
   });
 });

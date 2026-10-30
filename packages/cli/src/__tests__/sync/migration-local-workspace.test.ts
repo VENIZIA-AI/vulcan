@@ -77,7 +77,8 @@ describe('upgrading a project from the layout before .agents/local/', () => {
     git({ cwd: root, args: ['worktree', 'add', '-q', outside, '-b', 'topic'] });
     runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
 
-    const warnings = (await runDoctorWarnings({ root })).filter((entry) => entry.check === 'local');
+    const result = await runDoctorWarnings({ root });
+    const warnings = result.filter((entry) => entry.check === 'local');
 
     expect(warnings).toHaveLength(1);
     expect(warnings[0]?.message).toContain(`git worktree move '${outside}'`);

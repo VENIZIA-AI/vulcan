@@ -107,13 +107,15 @@ describe('the Atlas block in AGENTS.md', () => {
 
     sync({ root });
 
-    expect((await runDoctorNotes({ root })).map((note) => note.file)).not.toContain('AGENTS.md');
+    const result = await runDoctorNotes({ root });
+    expect(result.map((note) => note.file)).not.toContain('AGENTS.md');
     expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain('Atlas block');
   });
 
   test('doctor notes a missing block whether or not a .mcp.json exists', async () => {
     const root = project({ mcp: false });
 
-    expect((await runDoctorNotes({ root })).map((note) => note.file)).toContain('AGENTS.md');
+    const result = await runDoctorNotes({ root });
+    expect(result.map((note) => note.file)).toContain('AGENTS.md');
   });
 });

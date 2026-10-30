@@ -169,69 +169,78 @@ export const runSurvey = async (opts: {
     existing?.address.you ?? '',
     optionalLabelProblem,
   );
-  const self =
+  // Each question is asked only when the one before it was answered.
+  const askingSelf =
     you === null
       ? null
-      : await optional(
+      : optional(
           'How should I refer to myself? (leave empty for neutral)',
           existing?.address.self ?? '',
           optionalLabelProblem,
         );
-  const formality =
+  const self = await askingSelf;
+  const askingFormality =
     self === null
       ? null
-      : await io.select({
+      : io.select({
           message: 'How formal should I be?',
           choices: choicesOf({ set: OwnerFormalities.SCHEME_SET }),
           initial: existing?.address.formality ?? OwnerFormalities.NEUTRAL,
         });
-  const tone =
+  const formality = await askingFormality;
+  const askingTone =
     formality === null
       ? null
-      : await io.select({
+      : io.select({
           message: 'Tone',
           choices: choicesOf({ set: OwnerTones.SCHEME_SET }),
           initial: existing?.tone ?? OwnerTones.NEUTRAL,
         });
-  const reportDetail =
+  const tone = await askingTone;
+  const askingReportDetail =
     tone === null
       ? null
-      : await io.select({
+      : io.select({
           message: 'Reports: headline only, or headline plus tables?',
           choices: choicesOf({ set: OwnerDetails.SCHEME_SET }),
           initial: existing?.reportDetail ?? OwnerDetails.TABLES,
         });
-  const ask =
+  const reportDetail = await askingReportDetail;
+  const askingAsk =
     reportDetail === null
       ? null
-      : await io.confirm({
+      : io.confirm({
           message:
             'For a choice that can be undone, ask you first? (no: state a default and continue)',
           initial: existing?.habits.askBeforeReversible ?? false,
         });
-  const commits =
+  const ask = await askingAsk;
+  const askingCommits =
     ask === null
       ? null
-      : await io.confirm({
+      : io.confirm({
           message: 'Propose commits when a piece of work is done?',
           initial: existing?.habits.proposeCommits ?? false,
         });
-  const about =
+  const commits = await askingCommits;
+  const askingAbout =
     commits === null
       ? null
-      : await optional(
+      : optional(
           'Anything about how you like to work, or to be worked with? (your own words, optional)',
           existing?.about ?? '',
           aboutProblem,
         );
-  const codeTaste =
+  const about = await askingAbout;
+  const askingCodeTaste =
     about === null
       ? null
-      : await optional(
+      : optional(
           'Taste in code that no formatter or lint rule already enforces? (optional)',
           existing?.codeTaste ?? '',
           codeTasteProblem,
         );
+  const codeTaste = await askingCodeTaste;
 
   if (
     [you, self, formality, tone, reportDetail, ask, commits, about, codeTaste].some(

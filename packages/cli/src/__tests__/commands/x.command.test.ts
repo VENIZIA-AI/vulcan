@@ -148,7 +148,8 @@ describe('buildToolEnvironment', () => {
   test('no config: the tool runs without one', async () => {
     const root = createProject({ files: {} });
 
-    expect(await buildToolEnvironment({ root })).toEqual({ ok: true, env: {} });
+    const result = await buildToolEnvironment({ root });
+    expect(result).toEqual({ ok: true, env: {} });
   });
 
   test('an invalid config stops vulcan x before the tool runs', () => {

@@ -178,9 +178,11 @@ describe('the claims at Stop', () => {
     await buildPromptContract({ projectRoot: root });
     buildPostToolOutput({ projectRoot: root, input: bash('bun test', true) });
 
-    expect(
-      await buildStopOutput({ projectRoot: root, input: stopEvent('All tests pass.') }),
-    ).toBeUndefined();
+    const result = await buildStopOutput({
+      projectRoot: root,
+      input: stopEvent('All tests pass.'),
+    });
+    expect(result).toBeUndefined();
     expect(classesLogged(root)).toContain('contradicted-completion');
   });
 

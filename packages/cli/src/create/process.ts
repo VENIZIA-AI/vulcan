@@ -73,11 +73,13 @@ export const runGitInit = async (opts: { cwd: string }): Promise<number> => {
   let code: number = ExitCodes.FAILURE;
 
   try {
-    code = await runCommand({
+    const exitCode = await runCommand({
       cwd: opts.cwd,
       command: [git, 'init', '-q', '-b', 'develop'],
       label: 'git init',
     });
+
+    code = exitCode;
   } catch {
     // Bun.spawn throws when the executable is not there; the message below says what to do.
   }

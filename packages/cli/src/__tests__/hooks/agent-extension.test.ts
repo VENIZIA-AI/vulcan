@@ -85,7 +85,8 @@ describe('the omp and pi extension runs the real guards', () => {
 
     expect(push?.block).toBe(true);
     expect(push?.reason).toContain("force-pushing to 'main'");
-    expect(await handle(bash('git status'), contextOf({ cwd: root }))).toBeUndefined();
+    const result = await handle(bash('git status'), contextOf({ cwd: root }));
+    expect(result).toBeUndefined();
   });
 
   test('every guard of the Claude settings is reached: a deploy, a manifest write, a hand-made package', async () => {
@@ -133,12 +134,14 @@ describe('the omp and pi extension runs the real guards', () => {
 
     mkdirSync(sub, { recursive: true });
 
-    expect(
-      await handle({ toolName: 'read', input: { path: '/etc/passwd' } }, contextOf({ cwd: root })),
-    ).toBeUndefined();
-    expect((await handle(bash('git push -f origin main'), contextOf({ cwd: sub })))?.block).toBe(
-      true,
+    const result = await handle(
+      { toolName: 'read', input: { path: '/etc/passwd' } },
+      contextOf({ cwd: root }),
     );
+    expect(result).toBeUndefined();
+    const pushed = await handle(bash('git push -f origin main'), contextOf({ cwd: sub }));
+
+    expect(pushed?.block).toBe(true);
   });
 
   test('VULCAN_GUARDS=off passes everything, as it does in Claude Code', async () => {
@@ -149,9 +152,8 @@ describe('the omp and pi extension runs the real guards', () => {
     process.env.VULCAN_GUARDS = 'off';
 
     try {
-      expect(
-        await handle(bash('git push -f origin main'), contextOf({ cwd: root })),
-      ).toBeUndefined();
+      const result = await handle(bash('git push -f origin main'), contextOf({ cwd: root }));
+      expect(result).toBeUndefined();
     } finally {
       if (before === undefined) {
         delete process.env.VULCAN_GUARDS;
@@ -196,24 +198,28 @@ describe('a guard that cannot answer follows the policy of the Claude wrappers',
       recursive: true,
     });
 
-    expect((await handle(bash('ls'), contextOf({ cwd: root })))?.reason).toContain(
-      'run bun install',
+    const listed = await handle(bash('ls'), contextOf({ cwd: root }));
+
+    expect(listed?.reason).toContain('run bun install');
+
+    const result = await handle(bash('bun install'), contextOf({ cwd: root }));
+    expect(result).toBeUndefined();
+    const result2 = await handle(bash('bun install --frozen-lockfile'), contextOf({ cwd: root }));
+    expect(result2).toBeUndefined();
+    const chained = await handle(bash('bun install && ls'), contextOf({ cwd: root }));
+
+    expect(chained?.block).toBe(true);
+
+    const written = await handle(
+      { toolName: 'write', input: { path: join(root, 'a.txt'), content: '' } },
+      contextOf({ cwd: root }),
     );
-    expect(await handle(bash('bun install'), contextOf({ cwd: root }))).toBeUndefined();
-    expect(
-      await handle(bash('bun install --frozen-lockfile'), contextOf({ cwd: root })),
-    ).toBeUndefined();
-    expect((await handle(bash('bun install && ls'), contextOf({ cwd: root })))?.block).toBe(true);
-    expect(
-      (
-        await handle(
-          { toolName: 'write', input: { path: join(root, 'a.txt'), content: '' } },
-          contextOf({ cwd: root }),
-        )
-      )?.block,
-    ).toBe(true);
-    expect(
-      await handle({ toolName: 'read', input: { path: 'a.txt' } }, contextOf({ cwd: root })),
-    ).toBeUndefined();
+
+    expect(written?.block).toBe(true);
+    const result3 = await handle(
+      { toolName: 'read', input: { path: 'a.txt' } },
+      contextOf({ cwd: root }),
+    );
+    expect(result3).toBeUndefined();
   });
 });

@@ -29,7 +29,8 @@ const parseJson = (opts: { text: string }): unknown => {
   }
 };
 
-const parsed = parseJson({ text: await Bun.stdin.text() });
+const stdin = await Bun.stdin.text();
+const parsed = parseJson({ text: stdin });
 const toolInput = isRecord(parsed) ? parsed['tool_input'] : undefined;
 const tool = isRecord(parsed) ? textOf(parsed['tool_name']) : undefined;
 const command = isRecord(toolInput) ? textOf(toolInput['command']) : undefined;

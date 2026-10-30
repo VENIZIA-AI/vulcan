@@ -115,7 +115,8 @@ describe('doctor [skills]', () => {
         '.agents/skills/group/inner/SKILL.md': SKILL({}),
       },
     });
-    const messages = (await runDoctorChecks({ root }))
+    const result = await runDoctorChecks({ root });
+    const messages = result
       .filter((violation) => violation.check === DoctorChecks.SKILLS)
       .map((violation) => `${violation.file}: ${violation.message}`);
 
@@ -147,7 +148,8 @@ describe('doctor [skills] - a project skill named like a shipped one', () => {
         '.agents/skills/knowledge-sync/SKILL.md': SKILL({ name: 'knowledge-sync' }),
       },
     });
-    const messages = (await runDoctorChecks({ root }))
+    const result = await runDoctorChecks({ root });
+    const messages = result
       .filter((violation) => violation.check === DoctorChecks.SKILLS)
       .map((violation) => violation.message);
 

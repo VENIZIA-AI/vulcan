@@ -48,7 +48,9 @@ export const runInitCommand = async (opts: ICommandContext): Promise<number> => 
     const args = ['add', '-d', '--exact', ...result.install];
 
     process.stderr.write(`installing ${result.install.join(' ')}\n`);
-    installCode = await runBun({ cwd: opts.cwd, args, label: `bun ${args.join(' ')}` });
+    const installExit = await runBun({ cwd: opts.cwd, args, label: `bun ${args.join(' ')}` });
+
+    installCode = installExit;
 
     if (installCode !== ExitCodes.OK) {
       process.stderr.write(`vulcan init: 'bun ${args.join(' ')}' failed - run it yourself\n`);

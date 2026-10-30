@@ -41,7 +41,9 @@ export const guardAgainstPipedLines = async <TResult>(
   process.stdin.on('data', refuse);
 
   try {
-    return await Promise.race([run(), refused]);
+    const outcome = await Promise.race([run(), refused]);
+
+    return outcome;
   } finally {
     process.stdin.off('data', refuse);
   }
