@@ -67,7 +67,7 @@ describe('vulcan router', () => {
     expect(existsSync(join(cwd, 'CLAUDE.md'))).toBe(false);
   });
 
-  test('the help line of add lists every flag add takes, app and library alike', () => {
+  test('the help line of add lists every flag add takes, for each of its three kinds', () => {
     const help = runCli({ args: ['help'], cwd: tmpdir() }).stdout;
     const start = help.indexOf('  add --preset');
     const block = help.slice(start, help.indexOf('  sync ', start));
@@ -76,6 +76,7 @@ describe('vulcan router', () => {
       CreateFlags.PRESET,
       CreateFlags.APP,
       CreateFlags.LIB,
+      CreateFlags.SHARED,
       CreateFlags.DIR,
       CreateFlags.SCOPE,
       CreateFlags.BACKEND_DIR,
@@ -86,8 +87,8 @@ describe('vulcan router', () => {
       expect(block, flag).toContain(flag);
     }
 
-    expect(block).toContain('(--app <name> | --lib <name>)');
-    expect(block).toContain('[--dir <folder>] [--scope <@scope>]');
+    expect(block).toContain('(--app <name> | --lib <name> | --shared <name>)');
+    expect(block).toMatch(/\[--dir <folder>\]\s+\[--scope <@scope>\]/);
   });
 
   test('an argument a command does not take exits 1 naming it, and runs nothing', () => {
