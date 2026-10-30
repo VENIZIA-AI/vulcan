@@ -14,14 +14,11 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
-- **`guard-git`** reads the command with a shell parser, not substrings. It refuses deleting or force-pushing `develop` or `main` and `gh pr merge --delete-branch` on a pull request whose head is one of them; it asks before `git reset --hard`, other force-pushes and `git branch -D` of an unmerged branch.
-- **`guard-outside`** asks when a file, worktree, clone or temp file would be created outside the project (`V-B-08`). Stores a package manager, runtime or the agent tool manage themselves are allowed; `guard.toolOwnedPaths` in the project config adds more. `TMPDIR` or `mktemp` pointed at the system temp directory is not allowed; a gate script that needs a temp directory sets `TMPDIR` to `.agents/local/tmp/`.
-- **`subagent-start`** adds a compact rules digest to every subagent's context.
+- **`guard-git`** refuses deleting or force-pushing `develop` or `main`, and `gh pr merge --delete-branch` on a pull request whose head is one of them. It asks before `git reset --hard`, other force-pushes and `git branch -D` of an unmerged branch.
+- **`guard-outside`** asks before a file, worktree, clone or temp file is created outside the project. Stores a package manager, runtime or agent tool manage themselves are allowed; `guard.toolOwnedPaths` in the project config adds more.
+- **`subagent-start`** gives every subagent a compact rules digest.
 - **`VULCAN_GUARDS=off`** switches both guards off for a session.
 
-## Upgrading
+## Who is affected
 
-Run `vulcan sync`; the three hooks are registered in `.claude/settings.json` by it. Nothing else is needed. A project that already writes outside its folder on purpose lists those stores in `guard.toolOwnedPaths`, or answers the prompt.
-
-- **Cannot be reached by a hook:** the agent tool's own scratchpad under the system temp directory is written without a tool call.
-- **Heuristic:** `guard-outside` reads common write forms; a path it cannot work out passes. It is a guard against drift, not a sandbox.
+Run `vulcan sync`; it registers the hooks in `.claude/settings.json`. A project that writes outside its folder on purpose lists those stores in `guard.toolOwnedPaths`, or answers the prompt. The guards are a guard against drift, not a sandbox.

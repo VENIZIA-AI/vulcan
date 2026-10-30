@@ -2,7 +2,7 @@
  * The `plan` job of package-release.yml: what a dispatch would release, decided before anything is built.
  *
  *   bun scripts/release/plan.ts --bump <mode> --ref <refs/heads/...> [--issue <n>] [--label <run title>]
- *     [--package <package.json>] [--train <packages folder>] [--merge-trial] [--release-notes]
+ *     [--package <package.json>] [--train <packages folder>] [--merge-trial]
  *
  * It resolves the target version of the bump, says whether that version is a prerelease or a stable (a
  * prerelease needs no approval, a stable needs one), and refuses a branch and version that do not belong
@@ -12,9 +12,6 @@
  *
  * With `--train`, every package under the folder must carry the version of `--package` (one train, one
  * version), and the summary lists them; a mismatch is refused here rather than after the approval.
- *
- * With `--release-notes`, a stable with no changelog entry since the previous stable is refused: its GitHub
- * Release would have no notes (github-release.ts).
  *
  * With `--label` (the run title the dispatcher sent) and `--train`, a label that is not `<version> <kind> ·
  * <package names> · #<issue> · <short sha>` as this job computes it is refused; an empty label is a dispatch by hand.
@@ -33,7 +30,6 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { GithubRelease } from './github-release.ts';
 import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
 import { ReleaseBumps, ReleaseKinds } from './release-args.ts';
 import type { TReleaseKind } from './release-args.ts';
@@ -415,20 +411,6 @@ export class ReleasePlan {
             issue,
             sha: opts.env['GITHUB_SHA'],
           }),
-        }),
-      );
-    }
-
-    if (
-      result.plan?.kind === ReleaseKinds.STABLE &&
-      args.includes('--release-notes') &&
-      result.problems.length === 0
-    ) {
-      result.problems.push(
-        ...GithubRelease.check({
-          cwd: opts.cwd ?? process.cwd(),
-          version: result.plan.version,
-          to: opts.env['GITHUB_SHA'] ?? 'HEAD',
         }),
       );
     }

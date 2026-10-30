@@ -10,15 +10,13 @@ packages: ['@venizia/vulcan-atlas', '@venizia/vulcan']
 
 <Badge type="info" text="Improvement" />
 
-**In one line.** The atlas server's `instructions` gain a third paragraph: one line per skill, name plus its "Use when" trigger, and one sentence - load the matching skill before you answer, a workflow question included.
+**In one line.** The atlas server's `instructions` now list one line per skill, its name plus its "Use when" trigger, so an agent loads the matching skill before it answers.
 
 ## What changed
 
-- **Skill routing in the instructions.** A weaker model (GLM 5.3 Flash) answered a "how would you implement a feature" question in 1 of 6 runs without loading `build-a-feature`. Skill routing now sits in the text MCP clients inject as system instructions, not in `AGENTS.md`, which stays routing only.
-- **Generated, never written by hand.** Read from disk each time a client connects: the shipped skills of the installed `@venizia/vulcan` and your own in `.agents/skills`, the set `sync` links. A skill added, renamed or deleted shows on the next connect.
-- **Short.** Triggers are cut at about 110 characters; the whole text stays under 2 KB, skill lines before the status lines a client may cut first.
-- **`vulcan doctor` warns** about a skill whose description has no "Use when" part. `docs-writing` was the one shipped skill without one; it has it now.
-- **`docs-writing` opens with a rule**: "Be extremely concise. Sacrifice grammar for the sake of concision."
+- **Skill routing in the instructions.** The lines sit in the text MCP clients inject as system instructions, not in `AGENTS.md`, which stays routing only.
+- **Generated, never written by hand.** Read from disk each time a client connects: the shipped skills of the installed `@venizia/vulcan` and your own in `.agents/skills`. A skill added, renamed or deleted shows on the next connect.
+- **`vulcan doctor` warns** about a skill whose description has no "Use when" part. The shipped `docs-writing` skill now has one.
 
 ## Who is affected
 

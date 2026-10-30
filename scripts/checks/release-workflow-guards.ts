@@ -25,8 +25,7 @@
  *        and a worktree of develop, so the checkout stays on the release commit
  *   C29  nothing force-pushes, moves or deletes a tag, or deletes a branch
  *   C30  the plan job tries the merge back of a stable (--merge-trial) and hands develop's head on
- *   C31  the publish job makes the GitHub Release after the tag and cannot fail the run for it; the plan job asks
- *        for the changelog check of a stable (--release-notes)
+ *   C31  the publish job makes the GitHub Release after the tag and cannot fail the run for it
  *   C32  a job that installs npm globally sets up Node first: the runner's own prefix is not writable, so a global
  *        install without a setup-node step fails with EACCES (it failed the first prerelease in the plan job)
  *   C33  the run title is the dispatcher's label, and the plan job passes it to plan.ts, which refuses one that is not
@@ -419,11 +418,10 @@ export const checkReleaseWorkflowGuards = (opts: {
     !githubRelease.run.includes('scripts/release/github-release.ts create --tag "$TAG_NAME"') ||
     !githubRelease.text.includes('"GH_TOKEN":"${{ github.token }}"') ||
     position({ name: RELEASE_STEP }) < position({ name: TAG_STEP }) ||
-    position({ name: TAG_STEP }) < 0 ||
-    !stepsOf({ job: plan }).some((step) => step.run.includes('--release-notes'))
+    position({ name: TAG_STEP }) < 0
   ) {
     violations.push(
-      `C31: '${RELEASE_STEP}' must come after '${TAG_STEP}', continue on error, use the job's github.token and run github-release.ts create on the tag; the plan job must pass --release-notes`,
+      `C31: '${RELEASE_STEP}' must come after '${TAG_STEP}', continue on error, use the job's github.token and run github-release.ts create on the tag`,
     );
   }
 

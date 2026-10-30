@@ -129,7 +129,7 @@ Done when every check passed in this session and the behaviour is shown.
 
 When **Docs impact** is not `none`, run the `docs-update` skill now, after the checks of step 6 and
 before review: it refreshes the page that owns the
-topic, writes the changelog entry when the change is release-worthy, and runs the docs gates. Then each
+topic, writes the changelog entry when the change affects users of the published packages, and runs the docs gates. Then each
 fact about the project that changed - a new concept, a decision, a gotcha - goes into the knowledge
 bundle in the same change. The reviewer sees the docs in the diff.
 

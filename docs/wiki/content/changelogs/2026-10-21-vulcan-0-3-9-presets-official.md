@@ -14,9 +14,9 @@ packages: ['@venizia/vulcan-atlas']
 
 ## What changed
 
-- **Recorded first, then official.** Each entry now carries `inProject`: `true` for a preset the project recorded, `false` for an official one it has not used (`ignis` and `ardor`, as app and as library), with the exact `vulcan add` command, ardor's `--api <app> | --no-api` included.
+- **Recorded first, then official.** Each entry carries `inProject`: `true` for a preset the project recorded, `false` for an official one it has not used (`ignis` and `ardor`, as app and as library), with the exact `vulcan add` command.
 - **No duplicates.** A recorded `ignis`, `@venizia/ignis` or `ignis@0.3.5` replaces the official entry.
-- **Notes say what the list is.** A project that recorded nothing, or no preset for the side or kind asked, gets a note that the entries are the official ones.
+- **Notes say what the list is.** A project that recorded nothing gets a note that the entries are the official ones.
 
 ## Who is affected
 

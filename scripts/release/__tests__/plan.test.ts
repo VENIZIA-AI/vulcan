@@ -651,7 +651,7 @@ describe('ReleasePlan.main: --merge-trial', () => {
   });
 });
 
-describe('ReleasePlan.main: --release-notes', () => {
+describe('ReleasePlan.main: a stable and the changelog', () => {
   const stable = (opts: { root: string }): number =>
     ReleasePlan.main({
       args: [
@@ -661,13 +661,12 @@ describe('ReleasePlan.main: --release-notes', () => {
         MAIN_REF,
         '--package',
         join(opts.root, 'packages', 'cli', 'package.json'),
-        '--release-notes',
       ],
       env: { RUNNER_TEMP: scratch() },
       cwd: opts.root,
     });
 
-  test('a stable with no changelog entry is refused, and one with an entry is planned', () => {
+  test('a stable with no changelog entry is planned, and so is one with an entry: the changelog records only what affects users', () => {
     const root = scratch();
 
     git({ cwd: root, args: ['init', '-q', '-b', 'main'] });
@@ -689,7 +688,7 @@ describe('ReleasePlan.main: --release-notes', () => {
     git({ cwd: root, args: ['add', '-A'] });
     git({ cwd: root, args: ['commit', '-q', '-m', 'sync'] });
 
-    expect(stable({ root })).toBe(1);
+    expect(stable({ root })).toBe(0);
 
     writeFileSync(
       join(root, 'docs', 'changelogs', '2026-10-30-a.md'),

@@ -1,6 +1,6 @@
 ---
 title: "VULCAN 0.4.1: vulcan visualize Makes One Small Static Page, and the visualize-work Skill"
-description: A new command renders a JSON spec into one small, self-contained HTML page in .agents/local/prototypes/, and a new skill teaches an agent when and how to use it.
+description: A new command renders a JSON spec into one small, self-contained HTML page in .agents/local/prototypes/, and a new skill teaches an agent when to use it.
 packages: ['@venizia/vulcan']
 ---
 
@@ -14,11 +14,11 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
-- **`vulcan visualize <spec.json> [--out <name>]`** renders one HTML page into `.agents/local/prototypes/` (gitignored). Pages are small (typically 10 to 40 KB, refused over 100 KB), load nothing from the network and are never published. `--schema` prints the spec's JSON Schema.
-- **Safe by construction**: every text is escaped, links must be https, and the page carries a policy that allows only its own style and script. The write is atomic, so a failed spec never replaces the last good page.
-- **Honest checks**: the command prints which checks ran and says a browser check at 390 and 1280 px was not run.
-- **`visualize-work`** is a new shipped skill: when a page is worth making, the rules that make it worth opening (the takeaway as the title, a verb on every arrow, evidence labelled `verified`, `inferred` or `guess`), the render step and the browser check. Its words follow the reply language of the owner's profile.
+- **`vulcan visualize <spec.json> [--out <name>]`** renders one HTML page into `.agents/local/prototypes/` (gitignored). Pages are small (refused over 100 KB), load nothing from the network and are never published. `--schema` prints the spec's JSON Schema.
+- **Safe by construction.** Text is escaped, links must be https, and a failed spec never replaces the last good page.
+- **Honest checks.** The command says which checks ran, and that a browser check at 390 and 1280 px was not run.
+- **`visualize-work`** is a new skill: when a page is worth making and how to make it worth opening. Its words follow your profile's reply language.
 
-## Upgrading
+## Who is affected
 
-Run `vulcan sync`; the skill is linked and the folder is already ignored. Nothing else is needed.
+No action needed. Run `vulcan sync` to link the skill.

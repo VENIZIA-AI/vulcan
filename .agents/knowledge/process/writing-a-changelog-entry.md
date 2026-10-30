@@ -10,6 +10,7 @@ tags: [process, changelog, docs]
 <!-- okf:generated:contents start -->
 **Contents**
 
+- [What goes in the changelog](#what-goes-in-the-changelog)
 - [What every entry needs](#what-every-entry-needs)
 - [Optional frontmatter](#optional-frontmatter)
 - [Template](#template)
@@ -19,12 +20,29 @@ An entry is a file in `docs/wiki/content/changelogs/` named `YYYY-MM-DD-<slug>.m
 (`/changelogs/`) is built from the entries themselves: add the file and it appears, grouped by year, with
 no table to edit. Copy the template below.
 
+## What goes in the changelog
+
+The changelog records only what affects the users of the published packages and what they can use. Each entry
+is short and states the user's benefit.
+
+| Write an entry when the change | Write none when the change is |
+|---|---|
+| adds a feature, a command, an option or a config key | release tooling, CI, workflows, guards and gates |
+| changes behaviour, or breaks something (with the upgrade step) | a refactor or a code sweep with no behaviour change |
+| fixes a bug a user could hit | tests, agent rules and skills for this repository's own sessions |
+| fixes a security problem | internal docs and knowledge pages, repo hygiene |
+| deprecates or removes something | |
+
+A pull request that holds only internal work gets no entry, and a stable release with no entry is fine: its
+GitHub Release says there is no change for users. When several changes of one release say one thing, write one
+entry, not one per change.
+
 ## What every entry needs
 
 | Part | Where | Rule |
 |---|---|---|
 | **Badge** | one `<Badge>` line under the first heading | Keep the ones that apply: New Feature, Enhancement, Bug Fix, Security, Behavior Change, Breaking Change. The first types the entry on the index and in the filters. |
-| **`packages:`** | frontmatter | The npm names whose code changed, from `packages[].name`; `[]` for repository tooling. `okf check --strict` fails an entry without the list. |
+| **`packages:`** | frontmatter | The npm names whose code changed, from `packages[].name`. An entry that covers no package is internal work and is not written. `okf check --strict` fails an entry without the list. |
 | **Upgrade note for a breaking change** | the `## Breaking changes` section | Who is affected, then Before and After code or numbered steps. Delete the section when nothing breaks. |
 | **Who is affected** | `## Who is affected` | Each audience, and whether it must act ("No action needed" where true). |
 
@@ -46,7 +64,7 @@ The title and the description (one plain sentence) are the entry's card on the i
 ---
 title: [Short, plain title - what a user would search for]
 description: [One sentence, plain - what changed and why it matters]
-# Mandatory: the npm names whose code changed in this release; [] for repository tooling.
+# Mandatory: the npm names whose code changed in this release.
 packages: ['@venizia/vulcan']
 ---
 
@@ -95,17 +113,10 @@ packages: ['@venizia/vulcan']
 1. [Step one]
 2. [Step two]
 
-## Details
-
-<!-- Optional - the "why/how". Keep it tight: bullets, a short code example, a small table. No wall-of-text paragraphs. -->
-
-- [Why/how point 1]
-- [Why/how point 2]
-
-| File | Package |
-|------|---------|
-| `src/path/to/file.ts` | core |
 ````
+
+No `## Details` section: how the change was built, which files moved and how it was tested are not a user's
+concern. A caveat the user needs (a feature not yet run in a real agent, say) is one line under `What changed`.
 
 The entry's own first heading (`# Changelog - date`), its title heading and its badge line are replaced on
 the page by a title block built from the same fields; write them as the template shows so the page and the
