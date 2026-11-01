@@ -29,69 +29,68 @@ const newest = (opts: { versions: (string | undefined)[] }): string | undefined 
     undefined,
   );
 
-/**
- * The version `next` must move to, or `undefined` when it need not. A version this run just published
- * counts on its tag at once: the registry can serve the old tags for minutes after a publish.
- */
-export const planNextTag = (opts: {
-  tags: IDistTags;
-  published?: IPublished;
-}): string | undefined => {
-  const { tags, published } = opts;
-  const latest = newest({
-    versions: [tags.latest, published?.tag === 'latest' ? published.version : undefined],
-  });
-  const next = newest({
-    versions: [tags.next, published?.tag === 'next' ? published.version : undefined],
-  });
+export class ReleaseNextTag {
+  /**
+   * The version `next` must move to, or `undefined` when it need not. A version this run just published
+   * counts on its tag at once: the registry can serve the old tags for minutes after a publish.
+   */
+  static planNextTag(opts: { tags: IDistTags; published?: IPublished }): string | undefined {
+    const { tags, published } = opts;
+    const latest = newest({
+      versions: [tags.latest, published?.tag === 'latest' ? published.version : undefined],
+    });
+    const next = newest({
+      versions: [tags.next, published?.tag === 'next' ? published.version : undefined],
+    });
 
-  if (latest === undefined) {
-    return undefined;
+    if (latest === undefined) {
+      return undefined;
+    }
+
+    return next === undefined || Bun.semver.order(next, latest) < 0 ? latest : undefined;
   }
 
-  return next === undefined || Bun.semver.order(next, latest) < 0 ? latest : undefined;
-};
+  /** Never throws: a tag that cannot be moved is reported as a warning, and the release goes on. */
+  static healNextTags(opts: {
+    packages: string[];
+    published?: IPublished;
+    read: (opts: { name: string }) => IDistTags;
+    move: (opts: { name: string; version: string }) => void;
+    log: (line: string) => void;
+  }): IHealResult {
+    const result: IHealResult = { moved: [], failed: [] };
+
+    for (const name of opts.packages) {
+      try {
+        const tags = opts.read({ name });
+        const version = ReleaseNextTag.planNextTag({ tags, published: opts.published });
+
+        if (version === undefined) {
+          opts.log(
+            `next-tag: ${name} next ${tags.next ?? 'unset'} is at or above latest - unchanged`,
+          );
+          continue;
+        }
+
+        opts.move({ name, version });
+        result.moved.push(name);
+        opts.log(
+          `::warning::next-tag: ${name} next was ${tags.next ?? 'unset'}, below latest ${version} - moved to ${version}`,
+        );
+      } catch (error) {
+        result.failed.push(name);
+        opts.log(
+          `::warning::next-tag: ${name} next was NOT checked or moved - ${messageOf({ error })}`,
+        );
+      }
+    }
+
+    return result;
+  }
+}
 
 const messageOf = (opts: { error: unknown }): string =>
   opts.error instanceof Error ? opts.error.message : String(opts.error);
-
-/** Never throws: a tag that cannot be moved is reported as a warning, and the release goes on. */
-export const healNextTags = (opts: {
-  packages: string[];
-  published?: IPublished;
-  read: (opts: { name: string }) => IDistTags;
-  move: (opts: { name: string; version: string }) => void;
-  log: (line: string) => void;
-}): IHealResult => {
-  const result: IHealResult = { moved: [], failed: [] };
-
-  for (const name of opts.packages) {
-    try {
-      const tags = opts.read({ name });
-      const version = planNextTag({ tags, published: opts.published });
-
-      if (version === undefined) {
-        opts.log(
-          `next-tag: ${name} next ${tags.next ?? 'unset'} is at or above latest - unchanged`,
-        );
-        continue;
-      }
-
-      opts.move({ name, version });
-      result.moved.push(name);
-      opts.log(
-        `::warning::next-tag: ${name} next was ${tags.next ?? 'unset'}, below latest ${version} - moved to ${version}`,
-      );
-    } catch (error) {
-      result.failed.push(name);
-      opts.log(
-        `::warning::next-tag: ${name} next was NOT checked or moved - ${messageOf({ error })}`,
-      );
-    }
-  }
-
-  return result;
-};
 
 const NPM_ATTEMPTS = 3;
 
@@ -118,7 +117,7 @@ const main = (): void => {
   const flagValues = new Set([version, tag].filter((value) => value !== undefined));
   const packages = args.filter((arg) => !arg.startsWith('--') && !flagValues.has(arg));
 
-  const result = healNextTags({
+  const result = ReleaseNextTag.healNextTags({
     packages,
     published: version === undefined || tag === undefined ? undefined : { version, tag },
     read: ({ name }) =>

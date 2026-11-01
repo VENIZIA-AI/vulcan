@@ -27,21 +27,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
-import {
-  buildBaselinePrompt,
-  buildGraderCommand,
-  buildGraderPrompt,
-  buildPlan,
-  buildRunPrompt,
-  parseEvalsFile,
-  parseSkillEvalArgs,
-  parseVerdict,
-  readClaudeResponse,
-  renderReport,
-  SkillEvalConstants,
-  toCommandLine,
-  toSeconds,
-} from './skill-evals-core.ts';
+import { SkillEvalConstants, SkillEvals } from './skill-evals-core.ts';
 import type {
   ISkillEval,
   ISkillEvalArgs,
@@ -83,7 +69,7 @@ const fail = (opts: { message: string }): never => {
 
 const readArgs = (): ISkillEvalArgs => {
   try {
-    return parseSkillEvalArgs({ args: process.argv.slice(2) });
+    return SkillEvals.parseSkillEvalArgs({ args: process.argv.slice(2) });
   } catch (error) {
     return fail({ message: error instanceof Error ? error.message : String(error) });
   }
@@ -208,7 +194,7 @@ const findRunFailure = (opts: {
     return `claude exited ${opts.call.exitCode}`;
   }
 
-  const response = readClaudeResponse({ stdout: opts.call.stdout });
+  const response = SkillEvals.readClaudeResponse({ stdout: opts.call.stdout });
 
   if (response.isError) {
     return `claude reported an error: ${(response.result ?? opts.call.stdout).slice(0, 120)}`;
@@ -250,11 +236,11 @@ const runOne = (opts: {
       command: run.command,
       cwd: copy,
       prompt: run.isBaseline
-        ? buildBaselinePrompt({
+        ? SkillEvals.buildBaselinePrompt({
             evaluation: run.evaluation,
             outputsDirectory: run.outputsDirectory,
           })
-        : buildRunPrompt({
+        : SkillEvals.buildRunPrompt({
             skill: opts.args.skill,
             skillContent: opts.skillContent,
             evaluation: run.evaluation,
@@ -289,7 +275,7 @@ const runOne = (opts: {
     )}\n`,
   );
   console.log(
-    `skill-evals: ran ${toRunLabel({ run })} ${toSeconds({ durationMs: call.durationMs })}${failure === undefined ? '' : ` - ${failure}`}`,
+    `skill-evals: ran ${toRunLabel({ run })} ${SkillEvals.toSeconds({ durationMs: call.durationMs })}${failure === undefined ? '' : ` - ${failure}`}`,
   );
 
   return { run, call, outputFiles, failure };
@@ -306,9 +292,12 @@ const gradeOne = (opts: {
   }
 
   const call = callClaude({
-    command: buildGraderCommand({ grader: opts.args.grader, maxBudgetUsd: opts.args.maxBudgetUsd }),
+    command: SkillEvals.buildGraderCommand({
+      grader: opts.args.grader,
+      maxBudgetUsd: opts.args.maxBudgetUsd,
+    }),
     cwd: run.runDirectory,
-    prompt: buildGraderPrompt({
+    prompt: SkillEvals.buildGraderPrompt({
       evaluation: run.evaluation,
       outputs: opts.finished.outputFiles.map((name) => ({
         name,
@@ -320,7 +309,7 @@ const gradeOne = (opts: {
 
   writeFileSync(join(run.runDirectory, 'grader-response.json'), call.stdout);
 
-  const costUsd = readClaudeResponse({ stdout: call.stdout }).costUsd;
+  const costUsd = SkillEvals.readClaudeResponse({ stdout: call.stdout }).costUsd;
 
   if (call.isTimedOut) {
     return {
@@ -340,7 +329,7 @@ const gradeOne = (opts: {
     };
   }
 
-  return { verdict: parseVerdict({ stdout: call.stdout }), costUsd };
+  return { verdict: SkillEvals.parseVerdict({ stdout: call.stdout }), costUsd };
 };
 
 const addCosts = (opts: { costs: (number | undefined)[] }): number | undefined => {
@@ -364,7 +353,7 @@ const readEvaluations = (opts: { skill: string; skillDirectory: string }): ISkil
   }
 
   try {
-    return parseEvalsFile({
+    return SkillEvals.parseEvalsFile({
       text: readFileSync(join(REPOSITORY_ROOT, evalsFile), 'utf8'),
       skill: opts.skill,
     });
@@ -391,7 +380,7 @@ const out = resolve(
       `skill-evals-${new Date().toISOString().replace(/[:.]/g, '-')}`,
     ),
 );
-const plan = buildPlan({
+const plan = SkillEvals.buildPlan({
   skill: args.skill,
   evaluations,
   models: args.models,
@@ -424,11 +413,11 @@ if (args.isDryRun) {
 
   for (const run of plan) {
     console.log(`skill-evals: run ${toRunLabel({ run })} -> ${run.runDirectory}`);
-    console.log(`skill-evals:   ${toCommandLine({ command: run.command })}`);
+    console.log(`skill-evals:   ${SkillEvals.toCommandLine({ command: run.command })}`);
   }
 
   console.log(
-    `skill-evals: grade ${toCommandLine({ command: buildGraderCommand({ grader: args.grader, maxBudgetUsd: args.maxBudgetUsd }) })}`,
+    `skill-evals: grade ${SkillEvals.toCommandLine({ command: SkillEvals.buildGraderCommand({ grader: args.grader, maxBudgetUsd: args.maxBudgetUsd }) })}`,
   );
   console.log(`skill-evals: report ${reportFile}`);
 
@@ -463,7 +452,7 @@ const gradedResults = finishedRuns.map((finished) => {
     `${JSON.stringify(graded.verdict, null, 2)}\n`,
   );
   console.log(
-    `skill-evals: ${toRunLabel({ run })} ${graded.verdict.pass ? 'pass' : 'FAIL'} ${toSeconds({ durationMs: call.durationMs })} - ${graded.verdict.reasons[0] ?? '-'}`,
+    `skill-evals: ${toRunLabel({ run })} ${graded.verdict.pass ? 'pass' : 'FAIL'} ${SkillEvals.toSeconds({ durationMs: call.durationMs })} - ${graded.verdict.reasons[0] ?? '-'}`,
   );
 
   const result: ISkillEvalResult = {
@@ -471,7 +460,7 @@ const gradedResults = finishedRuns.map((finished) => {
     model: run.model,
     durationMs: call.durationMs,
     costUsd: addCosts({
-      costs: [readClaudeResponse({ stdout: call.stdout }).costUsd, graded.costUsd],
+      costs: [SkillEvals.readClaudeResponse({ stdout: call.stdout }).costUsd, graded.costUsd],
     }),
     verdict: graded.verdict,
   };
@@ -486,7 +475,7 @@ const passed = results.filter((result) => result.verdict.pass).length;
 
 writeFileSync(
   reportFile,
-  renderReport({
+  SkillEvals.renderReport({
     skill: args.skill,
     grader: args.grader,
     results,

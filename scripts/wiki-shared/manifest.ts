@@ -44,13 +44,94 @@ const listSharedFiles = (opts: { dir: string }): string[] => {
     .sort();
 };
 
-export const fingerprintOf = (opts: { files: Record<string, string> }): string =>
-  sha256({
-    data: Object.keys(opts.files)
-      .sort()
-      .map((path) => `${path} ${opts.files[path]}\n`)
-      .join(''),
-  });
+export class SharedManifest {
+  static fingerprintOf(opts: { files: Record<string, string> }): string {
+    return sha256({
+      data: Object.keys(opts.files)
+        .sort()
+        .map((path) => `${path} ${opts.files[path]}\n`)
+        .join(''),
+    });
+  }
+
+  static buildManifest(opts: { root: string }): TManifest {
+    const files = hashSharedFiles({ root: opts.root });
+
+    return { fingerprint: SharedManifest.fingerprintOf({ files }), files };
+  }
+
+  static renderManifest(opts: { manifest: TManifest }): string {
+    return `${JSON.stringify(opts.manifest, null, 2)}\n`;
+  }
+
+  /**
+   * A manifest from untrusted JSON (a file of another checkout, a download), or null when it is not
+   * one: every hash is 64 hex digits and every path stays inside the folder.
+   */
+  static parseManifest(opts: { text: string }): TManifest | null {
+    let value: unknown;
+
+    try {
+      value = JSON.parse(opts.text);
+    } catch {
+      return null;
+    }
+
+    const { fingerprint, files } = (value ?? {}) as Partial<TManifest>;
+
+    if (typeof fingerprint !== 'string' || !HASH.test(fingerprint)) {
+      return null;
+    }
+
+    if (typeof files !== 'object' || files === null) {
+      return null;
+    }
+
+    for (const [path, hash] of Object.entries(files)) {
+      if (path.startsWith('/') || path.split('/').includes('..') || !HASH.test(String(hash))) {
+        return null;
+      }
+    }
+
+    return { fingerprint, files };
+  }
+
+  static readManifest(opts: { root: string }): TManifest | null {
+    const file = join(opts.root, SHARED_DIR, MANIFEST_FILE);
+
+    return existsSync(file)
+      ? SharedManifest.parseManifest({ text: readFileSync(file, 'utf8') })
+      : null;
+  }
+
+  static diffFiles(opts: {
+    expected: Record<string, string>;
+    actual: Record<string, string>;
+  }): TDrift {
+    const paths = [...new Set([...Object.keys(opts.expected), ...Object.keys(opts.actual)])].sort();
+
+    return {
+      changed: paths.filter(
+        (path) =>
+          path in opts.expected && path in opts.actual && opts.expected[path] !== opts.actual[path],
+      ),
+      missing: paths.filter((path) => path in opts.expected && !(path in opts.actual)),
+      extra: paths.filter((path) => !(path in opts.expected) && path in opts.actual),
+    };
+  }
+
+  static isInStep(opts: { drift: TDrift }): boolean {
+    return opts.drift.changed.length + opts.drift.missing.length + opts.drift.extra.length === 0;
+  }
+
+  static describeDrift(opts: { drift: TDrift }): string {
+    return [
+      ...opts.drift.changed.map((path) => `changed ${path}`),
+      ...opts.drift.missing.map((path) => `missing ${path}`),
+      ...opts.drift.extra.map((path) => `extra ${path}`),
+    ].join('; ');
+  }
+}
 
 /** The files of a checkout's shared folder, hashed from disk (never read from its manifest). */
 const hashSharedFiles = (opts: { root: string }): Record<string, string> => {
@@ -61,79 +142,6 @@ const hashSharedFiles = (opts: { root: string }): Record<string, string> => {
   );
 };
 
-export const buildManifest = (opts: { root: string }): TManifest => {
-  const files = hashSharedFiles({ root: opts.root });
-
-  return { fingerprint: fingerprintOf({ files }), files };
-};
-
-export const renderManifest = (opts: { manifest: TManifest }): string =>
-  `${JSON.stringify(opts.manifest, null, 2)}\n`;
-
-/**
- * A manifest from untrusted JSON (a file of another checkout, a download), or null when it is not
- * one: every hash is 64 hex digits and every path stays inside the folder.
- */
-export const parseManifest = (opts: { text: string }): TManifest | null => {
-  let value: unknown;
-
-  try {
-    value = JSON.parse(opts.text);
-  } catch {
-    return null;
-  }
-
-  const { fingerprint, files } = (value ?? {}) as Partial<TManifest>;
-
-  if (typeof fingerprint !== 'string' || !HASH.test(fingerprint)) {
-    return null;
-  }
-
-  if (typeof files !== 'object' || files === null) {
-    return null;
-  }
-
-  for (const [path, hash] of Object.entries(files)) {
-    if (path.startsWith('/') || path.split('/').includes('..') || !HASH.test(String(hash))) {
-      return null;
-    }
-  }
-
-  return { fingerprint, files };
-};
-
-export const readManifest = (opts: { root: string }): TManifest | null => {
-  const file = join(opts.root, SHARED_DIR, MANIFEST_FILE);
-
-  return existsSync(file) ? parseManifest({ text: readFileSync(file, 'utf8') }) : null;
-};
-
-export const diffFiles = (opts: {
-  expected: Record<string, string>;
-  actual: Record<string, string>;
-}): TDrift => {
-  const paths = [...new Set([...Object.keys(opts.expected), ...Object.keys(opts.actual)])].sort();
-
-  return {
-    changed: paths.filter(
-      (path) =>
-        path in opts.expected && path in opts.actual && opts.expected[path] !== opts.actual[path],
-    ),
-    missing: paths.filter((path) => path in opts.expected && !(path in opts.actual)),
-    extra: paths.filter((path) => !(path in opts.expected) && path in opts.actual),
-  };
-};
-
-export const isInStep = (opts: { drift: TDrift }): boolean =>
-  opts.drift.changed.length + opts.drift.missing.length + opts.drift.extra.length === 0;
-
-export const describeDrift = (opts: { drift: TDrift }): string =>
-  [
-    ...opts.drift.changed.map((path) => `changed ${path}`),
-    ...opts.drift.missing.map((path) => `missing ${path}`),
-    ...opts.drift.extra.map((path) => `extra ${path}`),
-  ].join('; ');
-
 const argvRoot = (opts: { argv: string[] }): string => {
   const index = opts.argv.indexOf('--root');
 
@@ -142,7 +150,9 @@ const argvRoot = (opts: { argv: string[] }): string => {
 
 if (import.meta.main) {
   const root = argvRoot({ argv: process.argv });
-  const rendered = renderManifest({ manifest: buildManifest({ root }) });
+  const rendered = SharedManifest.renderManifest({
+    manifest: SharedManifest.buildManifest({ root }),
+  });
   const file = join(root, SHARED_DIR, MANIFEST_FILE);
 
   if (process.argv.includes('--check')) {

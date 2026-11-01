@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { headStatusOf, waitForTarballs } from '../release-wait.ts';
+import { ReleaseWait } from '../release-wait.ts';
 
 const TARGETS = [
   { name: '@v/okf', version: '1.0.0' },
@@ -20,7 +20,7 @@ const clock = () => {
   };
 };
 
-describe('waitForTarballs waits until every tarball of the train is served', () => {
+describe('ReleaseWait.waitForTarballs waits until every tarball of the train is served', () => {
   test('a tarball that answers 404 twice and then 200 is waited for, and the wait is reported', async () => {
     const time = clock();
     const answers = new Map<string, number[]>([
@@ -29,7 +29,7 @@ describe('waitForTarballs waits until every tarball of the train is served', () 
       ['u/cli', [200]],
     ]);
     const waits: string[] = [];
-    const result = await waitForTarballs({
+    const result = await ReleaseWait.waitForTarballs({
       targets: TARGETS,
       urlOf: (target) => `u/${target.name.split('/')[1]}`,
       statusOf: async (url) => {
@@ -53,7 +53,7 @@ describe('waitForTarballs waits until every tarball of the train is served', () 
   test('a version the registry does not show yet (no tarball URL) is waited for like a 404', async () => {
     const time = clock();
     let calls = 0;
-    const result = await waitForTarballs({
+    const result = await ReleaseWait.waitForTarballs({
       targets: [TARGETS[0]],
       urlOf: () => (++calls < 3 ? undefined : 'u/okf'),
       statusOf: async () => 200,
@@ -69,7 +69,7 @@ describe('waitForTarballs waits until every tarball of the train is served', () 
 
   test('a tarball that is never served is reported as missing when the time is up, with the others ready', async () => {
     const time = clock();
-    const result = await waitForTarballs({
+    const result = await ReleaseWait.waitForTarballs({
       targets: TARGETS,
       urlOf: (target) => `u/${target.name}`,
       statusOf: async (url) => (url.endsWith('atlas') ? 404 : 200),
@@ -87,7 +87,7 @@ describe('waitForTarballs waits until every tarball of the train is served', () 
 
   test('any status but 200 is not served: a 302, a 403 and a network failure keep the wait going', async () => {
     const time = clock();
-    const result = await waitForTarballs({
+    const result = await ReleaseWait.waitForTarballs({
       targets: [TARGETS[0]],
       urlOf: () => 'u/okf',
       statusOf: async () => 302,
@@ -102,7 +102,7 @@ describe('waitForTarballs waits until every tarball of the train is served', () 
 
   test('nothing to wait for is done at once', async () => {
     const time = clock();
-    const result = await waitForTarballs({
+    const result = await ReleaseWait.waitForTarballs({
       targets: [],
       urlOf: () => undefined,
       statusOf: async () => 0,
@@ -117,7 +117,7 @@ describe('waitForTarballs waits until every tarball of the train is served', () 
   });
 });
 
-describe('headStatusOf asks a real server', () => {
+describe('ReleaseWait.headStatusOf asks a real server', () => {
   let server: ReturnType<typeof Bun.serve> | undefined;
 
   afterEach(() => {
@@ -134,11 +134,11 @@ describe('headStatusOf asks a real server', () => {
 
     const url = `http://127.0.0.1:${server.port}/pkg.tgz`;
 
-    expect(await headStatusOf({ url })).toBe(404);
-    expect(await headStatusOf({ url })).toBe(404);
-    expect(await headStatusOf({ url })).toBe(200);
+    expect(await ReleaseWait.headStatusOf({ url })).toBe(404);
+    expect(await ReleaseWait.headStatusOf({ url })).toBe(404);
+    expect(await ReleaseWait.headStatusOf({ url })).toBe(200);
 
     server.stop(true);
-    expect(await headStatusOf({ url })).toBe(0);
+    expect(await ReleaseWait.headStatusOf({ url })).toBe(0);
   });
 });
