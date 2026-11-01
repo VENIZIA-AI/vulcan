@@ -1,4 +1,4 @@
-import { askWithPrompt } from '../create/names.ts';
+import { ProjectNames } from '../create/names.ts';
 import { TerminalCapability, TerminalPrompt } from '../ui/index.ts';
 import type { IAgentQuestion, TAgentResolution } from './common/index.ts';
 import { AgentConstants } from './common/index.ts';
@@ -64,7 +64,7 @@ export class AgentsPrompt {
   private static askAgentsInTerminal(question: IAgentQuestion): string | null {
     process.stdout.write(`${AgentsPrompt.renderQuestion(question)}\n`);
 
-    return askWithPrompt({ question: 'Agents' });
+    return ProjectNames.askWithPrompt({ question: 'Agents' });
   }
 
   /**

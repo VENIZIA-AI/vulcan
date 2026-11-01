@@ -3,8 +3,8 @@ import { rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DoctorChecks, DoctorRunner, Makefile } from '../../doctor/index.ts';
 import { LocalChoice } from '../../agents/index.ts';
-import { renderBunfig } from '../../create/bunfig.ts';
-import { renderDockerignore } from '../../create/dockerignore.ts';
+import { Bunfig } from '../../create/bunfig.ts';
+import { Dockerignore } from '../../create/dockerignore.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -28,7 +28,7 @@ const CONFORMANT: Record<string, string> = {
   Makefile: `${MAKE_INCLUDE}\nbuild:\n\t@echo build\n`,
   '.mcp.json':
     '{ "mcpServers": { "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] } } }\n',
-  'bunfig.toml': renderBunfig(),
+  'bunfig.toml': Bunfig.render(),
   ...LINT_CONFIGS,
 };
 
@@ -832,7 +832,7 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
   });
 
   test('the .dockerignore that init writes passes the check', async () => {
-    const root = project({ files: { '.dockerignore': renderDockerignore() } });
+    const root = project({ files: { '.dockerignore': Dockerignore.render() } });
 
     const result = await dockerignoreWarnings({ root });
     expect(result).toEqual([]);
@@ -1022,7 +1022,7 @@ describe('doctor: bun fmt (warnings)', () => {
 
   test('a [fmt] copy in an app folder: one warning, the root is the one decider', async () => {
     const root = project({
-      files: { 'services/api/bunfig.toml': renderBunfig() },
+      files: { 'services/api/bunfig.toml': Bunfig.render() },
     });
 
     const result = await formatWarnings({ root });

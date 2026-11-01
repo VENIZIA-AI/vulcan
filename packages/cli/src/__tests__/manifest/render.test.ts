@@ -6,7 +6,7 @@ import { buildToolEnvironment } from '../../commands/x.command.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
-import { renderBunfig } from '../../create/bunfig.ts';
+import { Bunfig } from '../../create/bunfig.ts';
 import { checkFiles } from '../format.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -31,7 +31,7 @@ const render = (opts: { root: string; config: object }): string =>
 
 describe('renderManifest', () => {
   test('the text is already formatted for bun fmt: short arrays on one line, so lint stays green', () => {
-    const root = createProject({ files: { 'bunfig.toml': renderBunfig() } });
+    const root = createProject({ files: { 'bunfig.toml': Bunfig.render() } });
     const text = render({ root, config: CONFIG });
 
     writeFileSync(join(root, 'vulcan.manifest.json'), text);

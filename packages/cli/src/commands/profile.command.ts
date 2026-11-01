@@ -2,7 +2,7 @@ import { existsSync, lstatSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
-import { askWithPrompt } from '../create/names.ts';
+import { ProjectNames } from '../create/names.ts';
 import { OwnerConstants, OwnerProfile, OwnerSurvey } from '../owner/index.ts';
 import type { ISurveyIo } from '../owner/index.ts';
 import { TerminalCapability, TerminalPrompt } from '../ui/index.ts';
@@ -24,7 +24,7 @@ const menuIo: ISurveyIo = {
 /** The same questions as plain lines, for a pipe, a log or `TERM=dumb`: an empty line takes the default, the end of the input cancels. */
 const lineIo: ISurveyIo = {
   text: async (opts) => {
-    const answer = askWithPrompt({
+    const answer = ProjectNames.askWithPrompt({
       question: opts.message,
       ...(opts.defaultValue === '' ? {} : { previous: opts.defaultValue }),
     });
@@ -45,7 +45,7 @@ const lineIo: ISurveyIo = {
     return value;
   },
   select: async (opts) => {
-    const answer = askWithPrompt({
+    const answer = ProjectNames.askWithPrompt({
       question: `${opts.message} [${opts.choices.map((choice) => choice.value).join('/')}]`,
       previous: opts.initial,
     });
@@ -65,7 +65,7 @@ const lineIo: ISurveyIo = {
     return lineIo.select(opts);
   },
   confirm: async (opts) => {
-    const answer = askWithPrompt({
+    const answer = ProjectNames.askWithPrompt({
       question: `${opts.message} [y/n]`,
       previous: opts.initial ? 'y' : 'n',
     });

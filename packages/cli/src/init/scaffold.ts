@@ -5,8 +5,8 @@ import { BASE_DIRECTORY, JsonValue, ProjectLayout } from '../common/index.ts';
 import { ConfigConstants, ConfigLoader } from '../config/index.ts';
 import type { TConfigExtension } from '../config/index.ts';
 import { InitConstants, InitStatuses } from './common/index.ts';
-import { renderBunfig } from '../create/bunfig.ts';
-import { renderDockerignore } from '../create/dockerignore.ts';
+import { Bunfig } from '../create/bunfig.ts';
+import { Dockerignore } from '../create/dockerignore.ts';
 import type { IInitEntry, IScaffoldFile } from './common/index.ts';
 
 /** The atlas entry of the root `.mcp.json`, as `sync` writes it and `doctor` shows it. */
@@ -174,8 +174,8 @@ export class ProjectScaffold {
       );
     }
 
-    entries.push(writeIfAbsent({ root, path: '.dockerignore', content: renderDockerignore() }));
-    entries.push(writeIfAbsent({ root, path: 'bunfig.toml', content: renderBunfig() }));
+    entries.push(writeIfAbsent({ root, path: '.dockerignore', content: Dockerignore.render() }));
+    entries.push(writeIfAbsent({ root, path: 'bunfig.toml', content: Bunfig.render() }));
 
     const makefile = join(root, 'Makefile');
 

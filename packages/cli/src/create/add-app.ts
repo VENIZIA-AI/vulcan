@@ -8,45 +8,27 @@ import type { IOfficialPreset } from '@venizia/vulcan-atlas';
 import { ConfigLoader, LibraryKinds, PackageKinds, ProjectPackages } from '../config/index.ts';
 import type { IProjectPackage, TLibraryKind, TResolvedConfig } from '../config/index.ts';
 import { ProjectScaffold } from '../init/index.ts';
-import { addLibrary } from './add-lib.ts';
-import { runAppChecks } from './checks.ts';
+import { LibraryScaffold } from './add-lib.ts';
+import { AppChecks } from './checks.ts';
 import { AddFailure, AppSides, AppsBlockProblems, CreateFlags } from './common/index.ts';
 import type { IAppsBlock, ILocatedPreset, IPresetSpec, TAppSide } from './common/index.ts';
-import { writeFile } from './files.ts';
-import { recordedPresetOf } from './lib-preset.ts';
-import { renderManifestJson } from './manifest-json.ts';
+import { ProjectFile } from './files.ts';
+import { LibPreset } from './lib-preset.ts';
+import { ManifestJson } from './manifest-json.ts';
 import { TerminalCapability, TerminalPrompt } from '../ui/index.ts';
-import { askPresetSpec } from './preset-menu.ts';
-import { ABORTED, confirmWrite, planLines } from './plan.ts';
+import { PresetMenu } from './preset-menu.ts';
+import { ABORTED, WritePlan } from './plan.ts';
+import { askInTerminal, ProjectNames, SIDE_FIELDS } from './names.ts';
+import { NextStep } from './next.ts';
+import { Preset } from './preset.ts';
+import { SubProcess } from './process.ts';
+import { PresetScratch } from './scratch.ts';
 import {
-  askInTerminal,
-  askScope,
-  askWithPrompt,
-  nameProblem,
-  readFlag,
-  readScope,
-  resolveNames,
-  SIDE_FIELDS,
-} from './names.ts';
-import { readExistingApps, renderNext } from './next.ts';
-import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
-import { isInstallSkipped, runBun } from './process.ts';
-import { installNpmPreset, withScratch } from './scratch.ts';
-import {
-  addAppBullet,
-  checkPeers,
-  filePresetWarning,
-  parseAppsBlock,
-  pickPort,
-  planRootManifest,
-  presetSpecOf,
-  readCatalog,
-  readPort,
-  recordPreset,
-  renderAppConcept,
-  renderAppManifest,
-  renderKnowledgeIndex,
-  replaceAppsBlock,
+  AppsBlock,
+  PortRegistry,
+  PresetRecord,
+  WorkspaceDocs,
+  WorkspaceManifest,
 } from './workspace.ts';
 
 type TRootManifest = Record<string, unknown>;
@@ -80,7 +62,7 @@ const sideNamedBy = (opts: { args: string[] }): TAppSide | undefined => {
 const missingFlag = (opts: { args: string[]; layout: ILayout }): string | undefined => {
   const side = sideNamedBy({ args: opts.args });
 
-  if (readFlag({ args: opts.args, flag: CreateFlags.APP }) === undefined) {
+  if (ProjectNames.readFlag({ args: opts.args, flag: CreateFlags.APP }) === undefined) {
     const kind = side === undefined ? '' : `${side} `;
 
     return `missing ${CreateFlags.APP} (Name of this ${kind}app) - names are never chosen for you`;
@@ -95,7 +77,10 @@ const missingFlag = (opts: { args: string[]; layout: ILayout }): string | undefi
   const listed = LayoutFolder.layoutFoldersOf({ value: opts.layout[side] });
 
   // One listed folder is the answer; none, or several, is for the flag to say.
-  if (readFlag({ args: opts.args, flag: folder.flag }) === undefined && listed.length !== 1) {
+  if (
+    ProjectNames.readFlag({ args: opts.args, flag: folder.flag }) === undefined &&
+    listed.length !== 1
+  ) {
     return `missing ${folder.flag} (${folder.question}${listed.length > 1 ? `; ${LayoutFolder.listedNote({ folders: listed })}` : ''}) - names are never chosen for you`;
   }
 
@@ -194,7 +179,7 @@ const askKind = async (opts: { offered: TAddKind[] }): Promise<TAddKind | undefi
   }
 
   for (;;) {
-    const answer = askWithPrompt({
+    const answer = ProjectNames.askWithPrompt({
       question: `What do you want to create? (${opts.offered.join(', ')})`,
     });
 
@@ -242,551 +227,580 @@ const literal = (opts: {
   ),
 ];
 
-/** A frontend's proxy target: the chosen backend app's port, or nothing when it has no backend. */
-export const resolveApiUrl = async (opts: {
-  root: string;
-  args: string[];
-  interactive: boolean;
-  backendFolders: string[];
-  packages: IProjectPackage[];
-}): Promise<{ ok: true; apiUrl: string } | { ok: false; error: string }> => {
-  if (opts.args.includes(CreateFlags.NO_API)) {
-    return { ok: true, apiUrl: '' };
-  }
-
-  let chosen = readFlag({ args: opts.args, flag: CreateFlags.API });
-
-  if (chosen === undefined) {
-    if (!opts.interactive) {
-      return { ok: false, error: MISSING_API };
-    }
-
-    if (TerminalCapability.menusAvailable()) {
-      const backends = opts.packages.filter((entry) =>
-        opts.backendFolders.some((folder) => entry.path.startsWith(`${folder}/`)),
-      );
-
-      // Nothing to pick from: a frontend of a project without a backend has nothing to proxy to.
-      if (backends.length === 0) {
-        return { ok: true, apiUrl: '' };
-      }
-
-      const picked = await TerminalPrompt.promptSelect({
-        message: 'Backend app to proxy /api to',
-        choices: [
-          ...backends.map((entry) => ({ value: entry.dir, label: entry.dir, hint: entry.path })),
-          { value: NO_BACKEND, label: 'none', hint: 'no proxy' },
-        ],
-      });
-
-      if (picked === null) {
-        return { ok: false, error: 'aborted' };
-      }
-
-      chosen = picked === NO_BACKEND ? '' : picked;
-    } else {
-      chosen =
-        askWithPrompt({ question: 'Backend app to proxy /api to (empty for none)' })?.trim() ?? '';
-    }
-
-    if (chosen === '') {
-      return { ok: true, apiUrl: '' };
-    }
-  }
-
-  const backend = opts.packages.find(
-    (entry) =>
-      entry.dir === chosen &&
-      opts.backendFolders.some((folder) => entry.path.startsWith(`${folder}/`)),
-  );
-
-  if (backend === undefined) {
-    return {
-      ok: false,
-      error: `${CreateFlags.API} '${chosen}' is not a backend app of this monorepo`,
-    };
-  }
-
-  const envFile = join(opts.root, backend.path, '.env.example');
-  const port = existsSync(envFile)
-    ? readPort({ envExample: readFileSync(envFile, 'utf8') })
-    : undefined;
-
-  if (port === undefined) {
-    return {
-      ok: false,
-      error: `no *PORT=<number> line in ${backend.path}/.env.example to proxy to`,
-    };
-  }
-
-  return { ok: true, apiUrl: `http://localhost:${port}` };
-};
-
 const usedPorts = (opts: { root: string; packages: IProjectPackage[] }): number[] =>
-  readExistingApps({ root: opts.root, paths: opts.packages.map((entry) => entry.path) }).map(
-    (app) => app.port,
-  );
-
-export const locate = async (opts: {
-  cwd: string;
-  scratch: string;
-  spec: IPresetSpec;
-}): Promise<{ ok: true; located: ILocatedPreset } | { ok: false; error: string }> => {
-  if (opts.spec.packageName === undefined) {
-    return locatePreset({ spec: opts.spec, root: opts.cwd });
-  }
-
-  if (isInstallSkipped()) {
-    return { ok: false, error: 'an npm preset needs an install - use file: in tests' };
-  }
-
-  const installed = await installNpmPreset({ scratch: opts.scratch, spec: opts.spec });
-
-  return installed === ExitCodes.OK
-    ? locatePreset({ spec: opts.spec, root: opts.scratch })
-    : { ok: false, error: `could not install ${opts.spec.packageName}@${opts.spec.range}` };
-};
+  NextStep.readExistingApps({
+    root: opts.root,
+    paths: opts.packages.map((entry) => entry.path),
+  }).map((app) => app.port);
 
 /** A terminal picks one of the presets the project recorded or an official one, or types another; null when cancelled. */
 const askPreset = async (opts: { cwd: string }): Promise<string | null> => {
   const loaded = await ConfigLoader.load({ root: opts.cwd });
 
-  return askPresetSpec({ recorded: loaded.ok ? (loaded.config.presets ?? []) : [] });
+  return PresetMenu.askSpec({ recorded: loaded.ok ? (loaded.config.presets ?? []) : [] });
 };
 
-const runAdd = async (opts: {
-  cwd: string;
-  args: string[];
-  scratch: string;
-  official?: IOfficialPreset[];
-}): Promise<number> => {
-  const { cwd } = opts;
-  const flagged = readFlag({ args: opts.args, flag: CreateFlags.PRESET });
+export class AppScaffold {
+  private static async runAdd(opts: {
+    cwd: string;
+    args: string[];
+    scratch: string;
+    official?: IOfficialPreset[];
+  }): Promise<number> {
+    const { cwd } = opts;
+    const flagged = ProjectNames.readFlag({ args: opts.args, flag: CreateFlags.PRESET });
 
-  if (flagged === undefined && !TerminalCapability.menusAvailable()) {
-    return AddFailure.fail({ message: '--preset needs a value (a package name, or file:<path>)' });
-  }
+    if (flagged === undefined && !TerminalCapability.menusAvailable()) {
+      return AddFailure.fail({
+        message: '--preset needs a value (a package name, or file:<path>)',
+      });
+    }
 
-  const askingPreset = flagged === undefined ? askPreset({ cwd }) : undefined;
-  const typedPreset = await askingPreset;
-  const presetValue = flagged ?? typedPreset?.trim();
+    const askingPreset = flagged === undefined ? askPreset({ cwd }) : undefined;
+    const typedPreset = await askingPreset;
+    const presetValue = flagged ?? typedPreset?.trim();
 
-  if (presetValue === undefined || presetValue === '') {
-    return AddFailure.fail({ message: '--preset needs a value (a package name, or file:<path>)' });
-  }
+    if (presetValue === undefined || presetValue === '') {
+      return AddFailure.fail({
+        message: '--preset needs a value (a package name, or file:<path>)',
+      });
+    }
 
-  const loaded = await ConfigLoader.load({ root: cwd });
+    const loaded = await ConfigLoader.load({ root: cwd });
 
-  if (!loaded.ok) {
-    return AddFailure.fail({ message: loaded.file === undefined ? ROOT_HINT : loaded.error });
-  }
+    if (!loaded.ok) {
+      return AddFailure.fail({ message: loaded.file === undefined ? ROOT_HINT : loaded.error });
+    }
 
-  const config: TResolvedConfig = loaded.config;
-  const configPath = relative(cwd, loaded.file);
-  const manifestPath = join(cwd, 'package.json');
-  const manifest = readRootManifest({ path: manifestPath });
+    const config: TResolvedConfig = loaded.config;
+    const configPath = relative(cwd, loaded.file);
+    const manifestPath = join(cwd, 'package.json');
+    const manifest = readRootManifest({ path: manifestPath });
 
-  if (config.layout === undefined || manifest === undefined) {
-    return AddFailure.fail({ message: ROOT_HINT });
-  }
+    if (config.layout === undefined || manifest === undefined) {
+      return AddFailure.fail({ message: ROOT_HINT });
+    }
 
-  const interactive = process.stdin.isTTY === true;
-  const flaggedKinds = ADD_KIND_ORDER.filter((candidate) =>
-    opts.args.includes(ADD_KINDS[candidate].flag),
-  );
+    const interactive = process.stdin.isTTY === true;
+    const flaggedKinds = ADD_KIND_ORDER.filter((candidate) =>
+      opts.args.includes(ADD_KINDS[candidate].flag),
+    );
 
-  if (flaggedKinds.length > 1) {
-    return AddFailure.fail({
-      message: `${CreateFlags.APP}, ${CreateFlags.LIB} and ${CreateFlags.SHARED} cannot be used together`,
-    });
-  }
+    if (flaggedKinds.length > 1) {
+      return AddFailure.fail({
+        message: `${CreateFlags.APP}, ${CreateFlags.LIB} and ${CreateFlags.SHARED} cannot be used together`,
+      });
+    }
 
-  const [flaggedKind] = flaggedKinds;
-  const flagsLibrary = flaggedKind !== undefined && flaggedKind !== PackageKinds.APP;
-  const flaggedScope = readScope({ args: opts.args });
+    const [flaggedKind] = flaggedKinds;
+    const flagsLibrary = flaggedKind !== undefined && flaggedKind !== PackageKinds.APP;
+    const flaggedScope = ProjectNames.readScope({ args: opts.args });
 
-  if (!flaggedScope.ok) {
-    return AddFailure.fail({ message: flaggedScope.error });
-  }
+    if (!flaggedScope.ok) {
+      return AddFailure.fail({ message: flaggedScope.error });
+    }
 
-  if (
-    flagsLibrary &&
-    readFlag({ args: opts.args, flag: ADD_KINDS[flaggedKind].flag }) === undefined
-  ) {
-    return AddFailure.fail({ message: `${ADD_KINDS[flaggedKind].flag} needs a name` });
-  }
+    if (
+      flagsLibrary &&
+      ProjectNames.readFlag({ args: opts.args, flag: ADD_KINDS[flaggedKind].flag }) === undefined
+    ) {
+      return AddFailure.fail({ message: `${ADD_KINDS[flaggedKind].flag} needs a name` });
+    }
 
-  // Never a default kind: without a terminal to ask, nothing is fetched or written until the flag says which.
-  if (!interactive && flaggedKind === undefined) {
-    return AddFailure.fail({
-      message: `${SAY_WHAT}\n  ${kindCommands({ presetValue }).join('\n  ')}`,
-    });
-  }
+    // Never a default kind: without a terminal to ask, nothing is fetched or written until the flag says which.
+    if (!interactive && flaggedKind === undefined) {
+      return AddFailure.fail({
+        message: `${SAY_WHAT}\n  ${kindCommands({ presetValue }).join('\n  ')}`,
+      });
+    }
 
-  const early =
-    interactive || flagsLibrary
-      ? undefined
-      : missingFlag({ args: opts.args, layout: config.layout });
+    const early =
+      interactive || flagsLibrary
+        ? undefined
+        : missingFlag({ args: opts.args, layout: config.layout });
 
-  if (early !== undefined) {
-    return AddFailure.fail({ message: early });
-  }
+    if (early !== undefined) {
+      return AddFailure.fail({ message: early });
+    }
 
-  const spec = parsePresetSpec({ value: presetValue, cwd });
-  const located = await locate({ cwd, scratch: opts.scratch, spec });
+    const spec = Preset.parseSpec({ value: presetValue, cwd });
+    const located = await AppScaffold.locate({ cwd, scratch: opts.scratch, spec });
 
-  if (!located.ok) {
-    return AddFailure.fail({ message: located.error });
-  }
+    if (!located.ok) {
+      return AddFailure.fail({ message: located.error });
+    }
 
-  const { preset, packageName, packageVersion } = located.located;
-  const recordedSpec = presetSpecOf({ value: presetValue, root: cwd, cwd });
-  let kind: TAddKind = flaggedKind ?? PackageKinds.APP;
+    const { preset, packageName, packageVersion } = located.located;
+    const recordedSpec = PresetRecord.presetSpecOf({ value: presetValue, root: cwd, cwd });
+    let kind: TAddKind = flaggedKind ?? PackageKinds.APP;
 
-  if (flaggedKind === LibraryKinds.SHARED && located.located.sharedFile === undefined) {
-    return AddFailure.fail({
-      message: noSharedKindMessage({
+    if (flaggedKind === LibraryKinds.SHARED && located.located.sharedFile === undefined) {
+      return AddFailure.fail({
+        message: noSharedKindMessage({
+          located: located.located,
+          recorded: config.presets,
+          name:
+            ProjectNames.readFlag({ args: opts.args, flag: ADD_KINDS[flaggedKind].flag }) ??
+            '<name>',
+          official: opts.official,
+        }),
+      });
+    }
+
+    if (flaggedKind === undefined) {
+      const offered = kindsOffered({ located: located.located });
+      const askingKind = offered.length === 1 ? PackageKinds.APP : askKind({ offered });
+      const chosen = await askingKind;
+
+      if (chosen === undefined) {
+        return AddFailure.fail({ message: SAY_WHAT });
+      }
+
+      kind = chosen;
+    }
+
+    if (kind !== PackageKinds.APP) {
+      const flaggedName = ProjectNames.readFlag({ args: opts.args, flag: ADD_KINDS[kind].flag });
+      const askingName =
+        flaggedName === undefined
+          ? askInTerminal({
+              question: 'Name of this library',
+              validate: (value) =>
+                value.trim() === '' ? undefined : ProjectNames.nameProblem({ name: value.trim() }),
+            })
+          : undefined;
+      const typedName = await askingName;
+      const name = flaggedName ?? typedName?.trim();
+
+      if (name === undefined || name === '') {
+        return AddFailure.fail({ message: `${ADD_KINDS[kind].flag} needs a name` });
+      }
+
+      return LibraryScaffold.add({
+        cwd,
+        args: opts.args,
+        interactive,
+        presetValue,
+        spec,
         located: located.located,
-        recorded: config.presets,
-        name: readFlag({ args: opts.args, flag: ADD_KINDS[flaggedKind].flag }) ?? '<name>',
-        official: opts.official,
+        config,
+        configFile: loaded.file,
+        configPath,
+        manifest,
+        packages: ProjectPackages.resolve({ config }),
+        libName: name,
+        kind,
+        recorded: ({ block }) =>
+          PresetRecord.record({
+            block,
+            preset: LibPreset.recordedOf({ spec: recordedSpec, located: located.located }),
+          }),
+      });
+    }
+
+    // Before any question: a catalog the preset cannot live in is no reason to ask for names.
+    const peerProblem = WorkspaceManifest.checkPeers({
+      catalog: WorkspaceManifest.readCatalog({ manifest }),
+      peers: preset.peers,
+      presetVersions: preset,
+    });
+
+    if (peerProblem !== undefined) {
+      return AddFailure.fail({ message: peerProblem });
+    }
+
+    const side = preset.side;
+    const listed = LayoutFolder.layoutFoldersOf({ value: config.layout[side] });
+    const [only] = listed;
+    const names = await ProjectNames.resolve({
+      fields: [
+        // One listed folder is the answer and a menu does not ask; several are picked from; a new one is a flag.
+        {
+          ...SIDE_FIELDS[side],
+          previous: listed.length === 1 ? only : undefined,
+          choices: listed.length > 1 ? listed : undefined,
+          fixed: TerminalCapability.menusAvailable() && listed.length === 1,
+        },
+        { key: 'app', flag: CreateFlags.APP, question: `Name of this ${side} app` },
+      ],
+      args: opts.args,
+      interactive,
+      ask: askInTerminal,
+    });
+
+    if (!names.ok) {
+      return AddFailure.fail({ message: names.error });
+    }
+
+    const { folder, app } = names.names;
+
+    const otherSide = Object.entries(config.layout).find(
+      ([key, value]) => key !== side && LayoutFolder.layoutFoldersOf({ value }).includes(folder),
+    );
+
+    // One folder holds one kind of code: a folder another key already owns would mix them.
+    if (otherSide !== undefined) {
+      return AddFailure.fail({
+        message:
+          otherSide[0] === LayoutKeys.OTHER
+            ? `the ${side} folder '${folder}' is listed under layout.other in ${configPath}: folders the layout leaves alone are not app targets`
+            : `the ${side} folder '${folder}' is the ${otherSide[0]} folder in ${configPath}; each kind of code needs its own folder`,
+      });
+    }
+
+    const grown = LayoutFolder.withLayoutFolder({ value: config.layout[side], folder });
+    const overlaps = LayoutFolder.layoutOverlapProblems({
+      layout: { ...config.layout, [side]: grown },
+    });
+
+    // A folder inside another (or around one) would give a package path two owners.
+    if (overlaps.length > 0) {
+      return AddFailure.fail({
+        message: `the ${side} folder '${folder}' does not fit the layout of ${configPath}: ${overlaps.join('; ')}`,
+      });
+    }
+
+    const isNewFolder = !listed.includes(folder);
+
+    // Optional, asked only where menus are drawn; a plain terminal and a script give --scope.
+    const askingScope =
+      flaggedScope.scope ??
+      (TerminalCapability.menusAvailable() ? ProjectNames.askScope() : undefined);
+    const scope = await askingScope;
+
+    if (scope === null) {
+      return AddFailure.fail({ message: ABORTED });
+    }
+
+    const packageOfApp = scope === undefined ? app : `${scope}/${app}`;
+    const packages = ProjectPackages.resolve({ config });
+
+    if (
+      existsSync(join(cwd, folder, app)) ||
+      packages.some((entry) => entry.dir === app || entry.name === packageOfApp)
+    ) {
+      return AddFailure.fail({ message: `${folder}/${app} already exists` });
+    }
+
+    const devPort = PortRegistry.pick({
+      preferred: preset.devPort,
+      used: usedPorts({ root: cwd, packages }),
+    });
+    let apiUrl = '';
+
+    if (side === AppSides.FRONTEND) {
+      const api = await AppScaffold.resolveApiUrl({
+        root: cwd,
+        args: opts.args,
+        interactive,
+        backendFolders: LayoutFolder.layoutFoldersOf({ value: config.layout.backend }),
+        packages,
+      });
+
+      if (!api.ok) {
+        return AddFailure.fail({ message: api.error });
+      }
+
+      apiUrl = api.apiUrl;
+    }
+
+    const source = readFileSync(loaded.file, 'utf8');
+    const entry = { dir: app, name: packageOfApp, path: `${folder}/${app}` };
+    const knownSources = new Set(config.atlas.sources.map((known) => known.name));
+    const newSources = preset.atlas.filter((candidate) => !knownSources.has(candidate.name));
+    const parsed = AppsBlock.parse({ source });
+
+    // The user's config is theirs: with the block gone or no longer JSON it is never rewritten, only described.
+    if (!parsed.ok) {
+      return AddFailure.fail({
+        message: [
+          parsed.reason === AppsBlockProblems.MISSING
+            ? `the vulcan:apps block is gone from ${configPath} - add by hand:`
+            : `the vulcan:apps block in ${configPath} is not the JSON vulcan wrote - add by hand:`,
+          ...literal({ side, folders: grown, app: entry, sources: newSources }),
+        ].join('\n'),
+      });
+    }
+
+    // Extend what the markers hold: the resolved config also carries what the user added outside them.
+    const extended: IAppsBlock = {
+      layout: {
+        ...parsed.block.layout,
+        [side]: LayoutFolder.withLayoutFolder({ value: parsed.block.layout[side], folder }),
+      },
+      packages: [...parsed.block.packages, entry],
+      ...(parsed.block.presets === undefined ? {} : { presets: parsed.block.presets }),
+      sources: [
+        ...parsed.block.sources,
+        ...newSources.filter(
+          (candidate) => !parsed.block.sources.some((existing) => existing.name === candidate.name),
+        ),
+      ],
+    };
+    const block = PresetRecord.record({
+      block: extended,
+      preset: LibPreset.recordedOf({ spec: recordedSpec, located: located.located }),
+    });
+    const replaced = AppsBlock.replace({ source, block });
+    // A config written before presets were recorded does not read them yet: the line that does goes in.
+    const nextConfig =
+      replaced === undefined || replaced.includes('apps.presets')
+        ? replaced
+        : replaced.replace(
+            '  packages: apps.packages,\n',
+            '  packages: apps.packages,\n  presets: apps.presets,\n',
+          );
+
+    if (nextConfig === undefined) {
+      return AddFailure.fail({ message: ROOT_HINT });
+    }
+
+    const project = config.name ?? (typeof manifest.name === 'string' ? manifest.name : app);
+
+    const warning = WorkspaceDocs.filePresetWarning({ spec, packageName });
+
+    if (warning !== undefined) {
+      process.stderr.write(`${warning}\n`);
+    }
+
+    const rows: [string, string][] = [['app', `${folder}/${app}`]];
+
+    if (isNewFolder) {
+      rows.push([
+        'layout',
+        `adds '${folder}' to layout.${side} (now ${LayoutFolder.describe({ folders: LayoutFolder.layoutFoldersOf({ value: grown }) })})`,
+      ]);
+    }
+
+    if (scope !== undefined) {
+      rows.push(['package', packageOfApp]);
+    }
+
+    rows.push(
+      ['side', side],
+      ['preset', `${packageName} ${packageVersion}`],
+      ['port', String(devPort)],
+    );
+
+    if (side === AppSides.FRONTEND) {
+      rows.push(['proxy', apiUrl === '' ? '(none)' : apiUrl]);
+    }
+
+    const confirmed = await WritePlan.confirm({
+      title: `Add ${app}`,
+      lines: WritePlan.planLines({ rows }),
+    });
+
+    if (!confirmed) {
+      return AddFailure.fail({ message: ABORTED });
+    }
+
+    Preset.copyFiles({
+      located: located.located,
+      target: join(cwd, folder, app),
+      tokens: { project, app, appPath: `${folder}/${app}`, devPort: String(devPort), apiUrl },
+    });
+    ProjectFile.write({
+      root: cwd,
+      path: `${folder}/${app}/package.json`,
+      content: WorkspaceManifest.renderApp({
+        app,
+        name: packageOfApp,
+        preset,
+        presetPackage: { name: packageName, version: packageVersion },
       }),
     });
+
+    const nextManifest = WorkspaceManifest.planRoot({
+      manifest,
+      globs: ProjectScaffold.readWorkspaceGlobs({ root: cwd }),
+      folder,
+      additions: {
+        ...preset.dependencies,
+        ...preset.devDependencies,
+        [packageName]: spec.packageName === undefined ? spec.range : packageVersion,
+      },
+    });
+
+    ProjectFile.write({
+      root: cwd,
+      path: 'package.json',
+      content: ManifestJson.render({ value: nextManifest }),
+    });
+    ProjectFile.write({ root: cwd, path: configPath, content: nextConfig });
+    ProjectFile.write({
+      root: cwd,
+      path: `${KNOWLEDGE_DIRECTORY}/packages/${app}.md`,
+      content: WorkspaceDocs.renderAppConcept({
+        app: { name: app, side, folder },
+        summary: preset.summary,
+        presetPackage: packageName,
+      }),
+    });
+    const indexPath = join(cwd, KNOWLEDGE_DIRECTORY, 'index.md');
+
+    ProjectFile.write({
+      root: cwd,
+      path: `${KNOWLEDGE_DIRECTORY}/index.md`,
+      content: existsSync(indexPath)
+        ? AppsBlock.addBullet({
+            source: readFileSync(indexPath, 'utf8'),
+            app: { name: app, summary: preset.summary },
+          })
+        : WorkspaceDocs.renderKnowledgeIndex({
+            project,
+            apps: [{ name: app, summary: preset.summary }],
+          }),
+    });
+
+    for (const step of [
+      () => SubProcess.runBun({ cwd, args: ['install'], label: 'bun install' }),
+      // The installed CLI syncs, so the project is wired to the version it pins.
+      () =>
+        SubProcess.runBun({
+          cwd,
+          args: [join(cwd, 'node_modules', '.bin', 'vulcan'), 'sync'],
+          label: 'vulcan sync',
+        }),
+      () =>
+        AppChecks.run({ root: cwd, appDirectory: join(cwd, folder, app), checks: preset.checks }),
+    ]) {
+      const code = await step();
+
+      if (code !== ExitCodes.OK) {
+        return code;
+      }
+    }
+
+    // Every app `make dev` serves: those that were here, then the new one at the port it was given.
+    process.stderr.write(
+      NextStep.render({
+        done: `Done. ${folder}/${app} is added.`,
+        command: 'make dev',
+        apps: [
+          ...NextStep.readExistingApps({
+            root: cwd,
+            paths: packages.map((existing) => existing.path),
+          }),
+          { port: devPort, urls: preset.urls },
+        ],
+      }),
+    );
+
+    return ExitCodes.OK;
   }
 
-  if (flaggedKind === undefined) {
-    const offered = kindsOffered({ located: located.located });
-    const askingKind = offered.length === 1 ? PackageKinds.APP : askKind({ offered });
-    const chosen = await askingKind;
+  /** A frontend's proxy target: the chosen backend app's port, or nothing when it has no backend. */
+  static async resolveApiUrl(opts: {
+    root: string;
+    args: string[];
+    interactive: boolean;
+    backendFolders: string[];
+    packages: IProjectPackage[];
+  }): Promise<{ ok: true; apiUrl: string } | { ok: false; error: string }> {
+    if (opts.args.includes(CreateFlags.NO_API)) {
+      return { ok: true, apiUrl: '' };
+    }
+
+    let chosen = ProjectNames.readFlag({ args: opts.args, flag: CreateFlags.API });
 
     if (chosen === undefined) {
-      return AddFailure.fail({ message: SAY_WHAT });
-    }
+      if (!opts.interactive) {
+        return { ok: false, error: MISSING_API };
+      }
 
-    kind = chosen;
-  }
-
-  if (kind !== PackageKinds.APP) {
-    const flaggedName = readFlag({ args: opts.args, flag: ADD_KINDS[kind].flag });
-    const askingName =
-      flaggedName === undefined
-        ? askInTerminal({
-            question: 'Name of this library',
-            validate: (value) =>
-              value.trim() === '' ? undefined : nameProblem({ name: value.trim() }),
-          })
-        : undefined;
-    const typedName = await askingName;
-    const name = flaggedName ?? typedName?.trim();
-
-    if (name === undefined || name === '') {
-      return AddFailure.fail({ message: `${ADD_KINDS[kind].flag} needs a name` });
-    }
-
-    return addLibrary({
-      cwd,
-      args: opts.args,
-      interactive,
-      presetValue,
-      spec,
-      located: located.located,
-      config,
-      configFile: loaded.file,
-      configPath,
-      manifest,
-      packages: ProjectPackages.resolve({ config }),
-      libName: name,
-      kind,
-      recorded: ({ block }) =>
-        recordPreset({
-          block,
-          preset: recordedPresetOf({ spec: recordedSpec, located: located.located }),
-        }),
-    });
-  }
-
-  // Before any question: a catalog the preset cannot live in is no reason to ask for names.
-  const peerProblem = checkPeers({
-    catalog: readCatalog({ manifest }),
-    peers: preset.peers,
-    presetVersions: preset,
-  });
-
-  if (peerProblem !== undefined) {
-    return AddFailure.fail({ message: peerProblem });
-  }
-
-  const side = preset.side;
-  const listed = LayoutFolder.layoutFoldersOf({ value: config.layout[side] });
-  const [only] = listed;
-  const names = await resolveNames({
-    fields: [
-      // One listed folder is the answer and a menu does not ask; several are picked from; a new one is a flag.
-      {
-        ...SIDE_FIELDS[side],
-        previous: listed.length === 1 ? only : undefined,
-        choices: listed.length > 1 ? listed : undefined,
-        fixed: TerminalCapability.menusAvailable() && listed.length === 1,
-      },
-      { key: 'app', flag: CreateFlags.APP, question: `Name of this ${side} app` },
-    ],
-    args: opts.args,
-    interactive,
-    ask: askInTerminal,
-  });
-
-  if (!names.ok) {
-    return AddFailure.fail({ message: names.error });
-  }
-
-  const { folder, app } = names.names;
-
-  const otherSide = Object.entries(config.layout).find(
-    ([key, value]) => key !== side && LayoutFolder.layoutFoldersOf({ value }).includes(folder),
-  );
-
-  // One folder holds one kind of code: a folder another key already owns would mix them.
-  if (otherSide !== undefined) {
-    return AddFailure.fail({
-      message:
-        otherSide[0] === LayoutKeys.OTHER
-          ? `the ${side} folder '${folder}' is listed under layout.other in ${configPath}: folders the layout leaves alone are not app targets`
-          : `the ${side} folder '${folder}' is the ${otherSide[0]} folder in ${configPath}; each kind of code needs its own folder`,
-    });
-  }
-
-  const grown = LayoutFolder.withLayoutFolder({ value: config.layout[side], folder });
-  const overlaps = LayoutFolder.layoutOverlapProblems({
-    layout: { ...config.layout, [side]: grown },
-  });
-
-  // A folder inside another (or around one) would give a package path two owners.
-  if (overlaps.length > 0) {
-    return AddFailure.fail({
-      message: `the ${side} folder '${folder}' does not fit the layout of ${configPath}: ${overlaps.join('; ')}`,
-    });
-  }
-
-  const isNewFolder = !listed.includes(folder);
-
-  // Optional, asked only where menus are drawn; a plain terminal and a script give --scope.
-  const askingScope =
-    flaggedScope.scope ?? (TerminalCapability.menusAvailable() ? askScope() : undefined);
-  const scope = await askingScope;
-
-  if (scope === null) {
-    return AddFailure.fail({ message: ABORTED });
-  }
-
-  const packageOfApp = scope === undefined ? app : `${scope}/${app}`;
-  const packages = ProjectPackages.resolve({ config });
-
-  if (
-    existsSync(join(cwd, folder, app)) ||
-    packages.some((entry) => entry.dir === app || entry.name === packageOfApp)
-  ) {
-    return AddFailure.fail({ message: `${folder}/${app} already exists` });
-  }
-
-  const devPort = pickPort({ preferred: preset.devPort, used: usedPorts({ root: cwd, packages }) });
-  let apiUrl = '';
-
-  if (side === AppSides.FRONTEND) {
-    const api = await resolveApiUrl({
-      root: cwd,
-      args: opts.args,
-      interactive,
-      backendFolders: LayoutFolder.layoutFoldersOf({ value: config.layout.backend }),
-      packages,
-    });
-
-    if (!api.ok) {
-      return AddFailure.fail({ message: api.error });
-    }
-
-    apiUrl = api.apiUrl;
-  }
-
-  const source = readFileSync(loaded.file, 'utf8');
-  const entry = { dir: app, name: packageOfApp, path: `${folder}/${app}` };
-  const knownSources = new Set(config.atlas.sources.map((known) => known.name));
-  const newSources = preset.atlas.filter((candidate) => !knownSources.has(candidate.name));
-  const parsed = parseAppsBlock({ source });
-
-  // The user's config is theirs: with the block gone or no longer JSON it is never rewritten, only described.
-  if (!parsed.ok) {
-    return AddFailure.fail({
-      message: [
-        parsed.reason === AppsBlockProblems.MISSING
-          ? `the vulcan:apps block is gone from ${configPath} - add by hand:`
-          : `the vulcan:apps block in ${configPath} is not the JSON vulcan wrote - add by hand:`,
-        ...literal({ side, folders: grown, app: entry, sources: newSources }),
-      ].join('\n'),
-    });
-  }
-
-  // Extend what the markers hold: the resolved config also carries what the user added outside them.
-  const extended: IAppsBlock = {
-    layout: {
-      ...parsed.block.layout,
-      [side]: LayoutFolder.withLayoutFolder({ value: parsed.block.layout[side], folder }),
-    },
-    packages: [...parsed.block.packages, entry],
-    ...(parsed.block.presets === undefined ? {} : { presets: parsed.block.presets }),
-    sources: [
-      ...parsed.block.sources,
-      ...newSources.filter(
-        (candidate) => !parsed.block.sources.some((existing) => existing.name === candidate.name),
-      ),
-    ],
-  };
-  const block = recordPreset({
-    block: extended,
-    preset: recordedPresetOf({ spec: recordedSpec, located: located.located }),
-  });
-  const replaced = replaceAppsBlock({ source, block });
-  // A config written before presets were recorded does not read them yet: the line that does goes in.
-  const nextConfig =
-    replaced === undefined || replaced.includes('apps.presets')
-      ? replaced
-      : replaced.replace(
-          '  packages: apps.packages,\n',
-          '  packages: apps.packages,\n  presets: apps.presets,\n',
+      if (TerminalCapability.menusAvailable()) {
+        const backends = opts.packages.filter((entry) =>
+          opts.backendFolders.some((folder) => entry.path.startsWith(`${folder}/`)),
         );
 
-  if (nextConfig === undefined) {
-    return AddFailure.fail({ message: ROOT_HINT });
-  }
+        // Nothing to pick from: a frontend of a project without a backend has nothing to proxy to.
+        if (backends.length === 0) {
+          return { ok: true, apiUrl: '' };
+        }
 
-  const project = config.name ?? (typeof manifest.name === 'string' ? manifest.name : app);
+        const picked = await TerminalPrompt.promptSelect({
+          message: 'Backend app to proxy /api to',
+          choices: [
+            ...backends.map((entry) => ({ value: entry.dir, label: entry.dir, hint: entry.path })),
+            { value: NO_BACKEND, label: 'none', hint: 'no proxy' },
+          ],
+        });
 
-  const warning = filePresetWarning({ spec, packageName });
+        if (picked === null) {
+          return { ok: false, error: 'aborted' };
+        }
 
-  if (warning !== undefined) {
-    process.stderr.write(`${warning}\n`);
-  }
+        chosen = picked === NO_BACKEND ? '' : picked;
+      } else {
+        chosen =
+          ProjectNames.askWithPrompt({
+            question: 'Backend app to proxy /api to (empty for none)',
+          })?.trim() ?? '';
+      }
 
-  const rows: [string, string][] = [['app', `${folder}/${app}`]];
-
-  if (isNewFolder) {
-    rows.push([
-      'layout',
-      `adds '${folder}' to layout.${side} (now ${LayoutFolder.describe({ folders: LayoutFolder.layoutFoldersOf({ value: grown }) })})`,
-    ]);
-  }
-
-  if (scope !== undefined) {
-    rows.push(['package', packageOfApp]);
-  }
-
-  rows.push(
-    ['side', side],
-    ['preset', `${packageName} ${packageVersion}`],
-    ['port', String(devPort)],
-  );
-
-  if (side === AppSides.FRONTEND) {
-    rows.push(['proxy', apiUrl === '' ? '(none)' : apiUrl]);
-  }
-
-  const confirmed = await confirmWrite({ title: `Add ${app}`, lines: planLines({ rows }) });
-
-  if (!confirmed) {
-    return AddFailure.fail({ message: ABORTED });
-  }
-
-  copyPresetFiles({
-    located: located.located,
-    target: join(cwd, folder, app),
-    tokens: { project, app, appPath: `${folder}/${app}`, devPort: String(devPort), apiUrl },
-  });
-  writeFile({
-    root: cwd,
-    path: `${folder}/${app}/package.json`,
-    content: renderAppManifest({
-      app,
-      name: packageOfApp,
-      preset,
-      presetPackage: { name: packageName, version: packageVersion },
-    }),
-  });
-
-  const nextManifest = planRootManifest({
-    manifest,
-    globs: ProjectScaffold.readWorkspaceGlobs({ root: cwd }),
-    folder,
-    additions: {
-      ...preset.dependencies,
-      ...preset.devDependencies,
-      [packageName]: spec.packageName === undefined ? spec.range : packageVersion,
-    },
-  });
-
-  writeFile({
-    root: cwd,
-    path: 'package.json',
-    content: renderManifestJson({ value: nextManifest }),
-  });
-  writeFile({ root: cwd, path: configPath, content: nextConfig });
-  writeFile({
-    root: cwd,
-    path: `${KNOWLEDGE_DIRECTORY}/packages/${app}.md`,
-    content: renderAppConcept({
-      app: { name: app, side, folder },
-      summary: preset.summary,
-      presetPackage: packageName,
-    }),
-  });
-  const indexPath = join(cwd, KNOWLEDGE_DIRECTORY, 'index.md');
-
-  writeFile({
-    root: cwd,
-    path: `${KNOWLEDGE_DIRECTORY}/index.md`,
-    content: existsSync(indexPath)
-      ? addAppBullet({
-          source: readFileSync(indexPath, 'utf8'),
-          app: { name: app, summary: preset.summary },
-        })
-      : renderKnowledgeIndex({ project, apps: [{ name: app, summary: preset.summary }] }),
-  });
-
-  for (const step of [
-    () => runBun({ cwd, args: ['install'], label: 'bun install' }),
-    // The installed CLI syncs, so the project is wired to the version it pins.
-    () =>
-      runBun({
-        cwd,
-        args: [join(cwd, 'node_modules', '.bin', 'vulcan'), 'sync'],
-        label: 'vulcan sync',
-      }),
-    () => runAppChecks({ root: cwd, appDirectory: join(cwd, folder, app), checks: preset.checks }),
-  ]) {
-    const code = await step();
-
-    if (code !== ExitCodes.OK) {
-      return code;
+      if (chosen === '') {
+        return { ok: true, apiUrl: '' };
+      }
     }
+
+    const backend = opts.packages.find(
+      (entry) =>
+        entry.dir === chosen &&
+        opts.backendFolders.some((folder) => entry.path.startsWith(`${folder}/`)),
+    );
+
+    if (backend === undefined) {
+      return {
+        ok: false,
+        error: `${CreateFlags.API} '${chosen}' is not a backend app of this monorepo`,
+      };
+    }
+
+    const envFile = join(opts.root, backend.path, '.env.example');
+    const port = existsSync(envFile)
+      ? PortRegistry.read({ envExample: readFileSync(envFile, 'utf8') })
+      : undefined;
+
+    if (port === undefined) {
+      return {
+        ok: false,
+        error: `no *PORT=<number> line in ${backend.path}/.env.example to proxy to`,
+      };
+    }
+
+    return { ok: true, apiUrl: `http://localhost:${port}` };
   }
 
-  // Every app `make dev` serves: those that were here, then the new one at the port it was given.
-  process.stderr.write(
-    renderNext({
-      done: `Done. ${folder}/${app} is added.`,
-      command: 'make dev',
-      apps: [
-        ...readExistingApps({ root: cwd, paths: packages.map((existing) => existing.path) }),
-        { port: devPort, urls: preset.urls },
-      ],
-    }),
-  );
+  static async locate(opts: {
+    cwd: string;
+    scratch: string;
+    spec: IPresetSpec;
+  }): Promise<{ ok: true; located: ILocatedPreset } | { ok: false; error: string }> {
+    if (opts.spec.packageName === undefined) {
+      return Preset.locate({ spec: opts.spec, root: opts.cwd });
+    }
 
-  return ExitCodes.OK;
-};
+    if (SubProcess.isInstallSkipped()) {
+      return { ok: false, error: 'an npm preset needs an install - use file: in tests' };
+    }
 
-export const addApp = async (opts: {
-  cwd: string;
-  args: string[];
-  /** The official presets a refusal names; the published list by default. */
-  official?: IOfficialPreset[];
-}): Promise<number> =>
-  withScratch({ root: opts.cwd, run: (scratch) => runAdd({ ...opts, scratch }) });
+    const installed = await PresetScratch.installNpm({ scratch: opts.scratch, spec: opts.spec });
+
+    return installed === ExitCodes.OK
+      ? Preset.locate({ spec: opts.spec, root: opts.scratch })
+      : { ok: false, error: `could not install ${opts.spec.packageName}@${opts.spec.range}` };
+  }
+
+  static async add(opts: {
+    cwd: string;
+    args: string[];
+    /** The official presets a refusal names; the published list by default. */
+    official?: IOfficialPreset[];
+  }): Promise<number> {
+    return PresetScratch.withScratch({
+      root: opts.cwd,
+      run: (scratch) => AppScaffold.runAdd({ ...opts, scratch }),
+    });
+  }
+}

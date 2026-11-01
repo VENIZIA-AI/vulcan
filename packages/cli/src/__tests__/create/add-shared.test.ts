@@ -2,8 +2,8 @@ import type { IOfficialPreset } from '@venizia/vulcan-atlas';
 import { afterAll, describe, expect, spyOn, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { addApp } from '../../create/add-app.ts';
-import { parseAppsBlock } from '../../create/workspace.ts';
+import { AppScaffold } from '../../create/add-app.ts';
+import { AppsBlock } from '../../create/workspace.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -43,7 +43,7 @@ const add = (opts: { root: string; preset?: string; args: string[] }) =>
   });
 
 const blockOf = (opts: { root: string }) => {
-  const parsed = parseAppsBlock({
+  const parsed = AppsBlock.parse({
     source: readFileSync(join(opts.root, '.configs/vulcan.config.mts'), 'utf8'),
   });
 
@@ -187,7 +187,7 @@ describe('vulcan add --shared names the official presets that have a shared kind
     );
 
     try {
-      const code = await addApp({
+      const code = await AppScaffold.add({
         cwd: opts.root,
         args: ['--preset', WITH_LIB, '--shared', 'x'],
         official: opts.official,

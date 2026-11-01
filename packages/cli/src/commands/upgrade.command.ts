@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { ExitCodes, JsonValue, PACKAGE_NAME, UpgradeFlags } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { CreateConstants } from '../create/common/index.ts';
-import { bunExecutable, isInstallSkipped, runBun } from '../create/process.ts';
+import { SubProcess } from '../create/process.ts';
 
 /** `latest` is the stable channel: never a prerelease. */
 const DEFAULT_TARGET = 'latest';
@@ -63,11 +63,14 @@ const readDistTags = async (opts: { cwd: string }): Promise<IDistTags | undefine
     return parseDistTags({ text: injected });
   }
 
-  const child = Bun.spawn([bunExecutable(), 'pm', 'view', PACKAGE_NAME, 'dist-tags', '--json'], {
-    cwd: opts.cwd,
-    stdout: 'pipe',
-    stderr: 'pipe',
-  });
+  const child = Bun.spawn(
+    [SubProcess.bunExecutable(), 'pm', 'view', PACKAGE_NAME, 'dist-tags', '--json'],
+    {
+      cwd: opts.cwd,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+  );
   const [text, errorText] = await Promise.all([
     new Response(child.stdout).text(),
     new Response(child.stderr).text(),
@@ -191,13 +194,13 @@ export const runUpgradeCommand = async (opts: ICommandContext): Promise<number> 
   }
 
   const args = buildUpgradeArgs({ target });
-  const code = await runBun({ cwd: opts.cwd, args, label: `bun ${args.join(' ')}` });
+  const code = await SubProcess.runBun({ cwd: opts.cwd, args, label: `bun ${args.join(' ')}` });
 
   if (code !== ExitCodes.OK) {
     return code;
   }
 
-  if (isInstallSkipped()) {
+  if (SubProcess.isInstallSkipped()) {
     process.stderr.write('  skipped  vulcan sync (VULCAN_NO_INSTALL)\n');
 
     return ExitCodes.OK;

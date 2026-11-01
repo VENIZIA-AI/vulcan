@@ -114,28 +114,26 @@ const hunksOf = (opts: { edits: IEdit[]; context: number }): string[] => {
   return hunks;
 };
 
-/**
- * What differs between the file an app has and the file its preset makes: the counts and the unified
- * diff (`-` is the app's line, `+` the preset's). Two texts that hold the same lines but differ in line
- * endings or in the final newline have no hunks and 0 and 0.
- */
-export const diffLines = (opts: {
-  current: string;
-  preset: string;
-  context?: number;
-}): ILineDiff => {
-  const current = linesOf({ text: opts.current });
-  const preset = linesOf({ text: opts.preset });
+export class LineDiff {
+  /**
+   * What differs between the file an app has and the file its preset makes: the counts and the unified
+   * diff (`-` is the app's line, `+` the preset's). Two texts that hold the same lines but differ in line
+   * endings or in the final newline have no hunks and 0 and 0.
+   */
+  static diff(opts: { current: string; preset: string; context?: number }): ILineDiff {
+    const current = linesOf({ text: opts.current });
+    const preset = linesOf({ text: opts.preset });
 
-  if ((current.length + 1) * (preset.length + 1) > MAX_TABLE_CELLS) {
-    return { added: 0, removed: 0, hunks: undefined };
+    if ((current.length + 1) * (preset.length + 1) > MAX_TABLE_CELLS) {
+      return { added: 0, removed: 0, hunks: undefined };
+    }
+
+    const edits = editsOf({ current, preset });
+
+    return {
+      added: edits.filter((edit) => edit.kind === DiffEditKinds.ADD).length,
+      removed: edits.filter((edit) => edit.kind === DiffEditKinds.REMOVE).length,
+      hunks: hunksOf({ edits, context: opts.context ?? DEFAULT_CONTEXT_LINES }),
+    };
   }
-
-  const edits = editsOf({ current, preset });
-
-  return {
-    added: edits.filter((edit) => edit.kind === DiffEditKinds.ADD).length,
-    removed: edits.filter((edit) => edit.kind === DiffEditKinds.REMOVE).length,
-    hunks: hunksOf({ edits, context: opts.context ?? DEFAULT_CONTEXT_LINES }),
-  };
-};
+}
