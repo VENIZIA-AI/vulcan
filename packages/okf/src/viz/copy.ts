@@ -39,15 +39,17 @@ const mergeLocale = (opts: { base: IVizCopy; value: unknown }): IVizCopy => {
   };
 };
 
-/** The explorer's copy per locale: the project's `okf.viz.copy` over a default built from the brand. */
-export const resolveVizCopy = (opts: {
-  brand: string;
-  copy?: Record<string, unknown>;
-}): Record<TLocale, IVizCopy> => {
-  const base = defaultCopy({ brand: opts.brand });
+export class VizCopy {
+  /** The explorer's copy per locale: the project's `okf.viz.copy` over a default built from the brand. */
+  static resolve(opts: {
+    brand: string;
+    copy?: Record<string, unknown>;
+  }): Record<TLocale, IVizCopy> {
+    const base = defaultCopy({ brand: opts.brand });
 
-  return {
-    [Locales.EN]: mergeLocale({ base: base[Locales.EN], value: opts.copy?.[Locales.EN] }),
-    [Locales.VI]: mergeLocale({ base: base[Locales.VI], value: opts.copy?.[Locales.VI] }),
-  };
-};
+    return {
+      [Locales.EN]: mergeLocale({ base: base[Locales.EN], value: opts.copy?.[Locales.EN] }),
+      [Locales.VI]: mergeLocale({ base: base[Locales.VI], value: opts.copy?.[Locales.VI] }),
+    };
+  }
+}

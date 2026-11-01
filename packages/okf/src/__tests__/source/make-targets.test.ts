@@ -2,7 +2,7 @@ import { afterAll, afterEach, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { collectMakefileTargets } from '../../source/collectors.ts';
+import { SourceCollector } from '../../source/collectors.ts';
 import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
 
 const roots: string[] = [];
@@ -32,7 +32,7 @@ const makeProject = (opts: { files: Record<string, string> }): string => {
 };
 
 const descriptionOf = (opts: { name: string }): string | undefined =>
-  collectMakefileTargets().find((target) => target.name === opts.name)?.description;
+  SourceCollector.collectMakefileTargets().find((target) => target.name === opts.name)?.description;
 
 test("an included module's targets carry their ## descriptions", () => {
   makeProject({
@@ -65,7 +65,7 @@ test('a Makefile make cannot read stops the collector, never a truncated page', 
     files: { Makefile: 'build:\n\t@true\n\nifeq (\n', 'shipped/vulcan.mk': '' },
   });
 
-  expect(() => collectMakefileTargets()).toThrow('okf: make failed');
+  expect(() => SourceCollector.collectMakefileTargets()).toThrow('okf: make failed');
 });
 
 test('make missing from PATH is said plainly', () => {
@@ -76,7 +76,7 @@ test('make missing from PATH is said plainly', () => {
   process.env.PATH = '/nonexistent';
 
   try {
-    expect(() => collectMakefileTargets()).toThrow('okf: make is not on PATH');
+    expect(() => SourceCollector.collectMakefileTargets()).toThrow('okf: make is not on PATH');
   } finally {
     process.env.PATH = path;
   }
@@ -87,7 +87,7 @@ test("make's warnings are not failures", () => {
     files: { Makefile: 'build:\n\t@true\n\nbuild:\n\t@false\n' },
   });
 
-  expect(collectMakefileTargets().map((target) => target.name)).toContain('build');
+  expect(SourceCollector.collectMakefileTargets().map((target) => target.name)).toContain('build');
 });
 
 test('a ## inside an inline recipe is the recipe, never the description', () => {

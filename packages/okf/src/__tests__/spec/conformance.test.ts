@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { checkBundle } from '../../spec/conformance.ts';
+import { BundleConformance } from '../../spec/conformance.ts';
 import { IssueSeverities } from '../../spec/common/index.ts';
 
 const issuesOf = (opts: { files: Record<string, string> }) =>
-  checkBundle({ files: Object.entries(opts.files).map(([path, text]) => ({ path, text })) });
+  BundleConformance.check({
+    files: Object.entries(opts.files).map(([path, text]) => ({ path, text })),
+  });
 
 const errorsOf = (opts: { files: Record<string, string> }) =>
   issuesOf(opts).filter((issue) => issue.severity === IssueSeverities.ERROR);

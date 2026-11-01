@@ -1,11 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { replaceRegion } from './regions.ts';
-import { writeContents } from './contents-files.ts';
-import { renderPages } from './pages.ts';
-import { loadGeneration } from './registry.ts';
+import { ManagedRegion } from './regions.ts';
+import { ContentsFiles } from './contents-files.ts';
+import { GeneratedPages } from './pages.ts';
+import { GenerationRegistry } from './registry.ts';
 import { BUILT_IN_RENDERERS } from './renderers.ts';
-import { repoRelative } from '../source/index.ts';
+import { SourceScanner } from '../source/index.ts';
 
 /** The file as it is on disk, or undefined when it does not exist yet. */
 const currentOf = (opts: { path: string }): string | undefined =>
@@ -18,43 +18,45 @@ const currentOf = (opts: { path: string }): string | undefined =>
  * changed is written and named, so a run with nothing to do says so in one line.
  */
 export const gen = async (): Promise<void> => {
-  const { renderers, regions } = await loadGeneration();
+  const { renderers, regions } = await GenerationRegistry.load();
   const regionWrites = regions.flatMap((region) => {
     const current = currentOf({ path: region.file });
 
     if (current === undefined) {
       console.warn(
-        `gen: skipped region '${region.id}' - ${repoRelative({ path: region.file })} does not exist yet`,
+        `gen: skipped region '${region.id}' - ${SourceScanner.repoRelative({ path: region.file })} does not exist yet`,
       );
 
       return [];
     }
 
-    const text = replaceRegion({
+    const text = ManagedRegion.replace({
       text: current,
       id: region.id,
-      file: repoRelative({ path: region.file }),
+      file: SourceScanner.repoRelative({ path: region.file }),
       body: region.render(),
     });
 
     return text === current ? [] : [{ region, text }];
   });
-  const rendered = renderPages({ renderers });
+  const rendered = GeneratedPages.render({ renderers });
   const pages = rendered.filter((page) => currentOf({ path: page.path }) !== page.content);
 
   for (const { region, text } of regionWrites) {
     writeFileSync(region.file, text);
-    console.log(`gen: wrote region '${region.id}' (${repoRelative({ path: region.file })})`);
+    console.log(
+      `gen: wrote region '${region.id}' (${SourceScanner.repoRelative({ path: region.file })})`,
+    );
   }
 
   for (const page of pages) {
     mkdirSync(dirname(page.path), { recursive: true });
     writeFileSync(page.path, page.content);
-    console.log(`gen: wrote ${repoRelative({ path: page.path })}`);
+    console.log(`gen: wrote ${SourceScanner.repoRelative({ path: page.path })}`);
   }
 
   // Every project's long agent-read files carry a contents list, whatever it renders.
-  const contents = writeContents({ skip: new Set(rendered.map((page) => page.path)) });
+  const contents = ContentsFiles.write({ skip: new Set(rendered.map((page) => page.path)) });
 
   for (const file of contents) {
     console.log(`gen: wrote the contents list of ${file}`);

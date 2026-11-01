@@ -1,8 +1,8 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { readOkfProject } from '../project/index.ts';
-import { walkFiles } from '../source/index.ts';
-import { withContents } from './contents.ts';
+import { OkfProject } from '../project/index.ts';
+import { SourceScanner } from '../source/index.ts';
+import { ContentsList } from './contents.ts';
 
 /** The frontmatter block, LF or CRLF. */
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
@@ -16,8 +16,8 @@ const LOG_FILE = 'log.md';
 
 /** The files agents read: the bundle's own Markdown, then `okf.contents.files` (AGENTS.md, rules.md); `skip` holds the pages a renderer owns. */
 const contentsTargets = (opts: { skip: Set<string> }): string[] => {
-  const project = readOkfProject();
-  const bundle = walkFiles({ dir: project.bundle }).filter(
+  const project = OkfProject.read();
+  const bundle = SourceScanner.walkFiles({ dir: project.bundle }).filter(
     (file) =>
       file.endsWith('.md') &&
       !opts.skip.has(file) &&
@@ -28,32 +28,36 @@ const contentsTargets = (opts: { skip: Set<string> }): string[] => {
   return [...bundle.sort(), ...project.contentsFiles.filter((file) => existsSync(file))];
 };
 
-const shown = (opts: { file: string }): string => relative(readOkfProject().root, opts.file);
+const shown = (opts: { file: string }): string => relative(OkfProject.read().root, opts.file);
 
-/** Every agent-read file whose contents list is missing or stale - `check --strict` fails on them. */
-export const collectContentsProblems = (opts: { skip: Set<string> }): string[] =>
-  contentsTargets(opts)
-    .filter((file) => {
+export class ContentsFiles {
+  /** Every agent-read file whose contents list is missing or stale - `check --strict` fails on them. */
+  static collectProblems(opts: { skip: Set<string> }): string[] {
+    return contentsTargets(opts)
+      .filter((file) => {
+        const text = readFileSync(file, 'utf8');
+
+        return ContentsList.withContents({ text }) !== text;
+      })
+      .map(
+        (file) =>
+          `contents: ${shown({ file })} has no fresh contents list - run \`vulcan x okf gen\``,
+      );
+  }
+
+  /** Writes every contents list `gen` owes; the files written, from the root. */
+  static write(opts: { skip: Set<string> }): string[] {
+    return contentsTargets(opts).flatMap((file) => {
       const text = readFileSync(file, 'utf8');
+      const next = ContentsList.withContents({ text });
 
-      return withContents({ text }) !== text;
-    })
-    .map(
-      (file) =>
-        `contents: ${shown({ file })} has no fresh contents list - run \`vulcan x okf gen\``,
-    );
+      if (next === text) {
+        return [];
+      }
 
-/** Writes every contents list `gen` owes; the files written, from the root. */
-export const writeContents = (opts: { skip: Set<string> }): string[] =>
-  contentsTargets(opts).flatMap((file) => {
-    const text = readFileSync(file, 'utf8');
-    const next = withContents({ text });
+      writeFileSync(file, next);
 
-    if (next === text) {
-      return [];
-    }
-
-    writeFileSync(file, next);
-
-    return [shown({ file })];
-  });
+      return [shown({ file })];
+    });
+  }
+}

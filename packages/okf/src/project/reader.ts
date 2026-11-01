@@ -136,76 +136,78 @@ const parsedOf = (opts: { text: string }): unknown => {
 /** The last handoff read and what it gave: okf reads its project once per process. */
 let cached: { text: string; root: string; project: IOkfProject } | undefined;
 
-/**
- * okf's view of the project, from what `vulcan x` hands it. The cli validated the config already;
- * this only reads it, with the schema's defaults for anything absent, and resolves every path.
- */
-export const readOkfProject = (): IOkfProject => {
-  const text = process.env[OkfProjectConstants.CONFIG_ENV];
-  const root = process.env[OkfProjectConstants.ROOT_ENV];
+export class OkfProject {
+  /**
+   * okf's view of the project, from what `vulcan x` hands it. The cli validated the config already;
+   * this only reads it, with the schema's defaults for anything absent, and resolves every path.
+   */
+  static read(): IOkfProject {
+    const text = process.env[OkfProjectConstants.CONFIG_ENV];
+    const root = process.env[OkfProjectConstants.ROOT_ENV];
 
-  if (text === undefined || root === undefined) {
-    throw new Error('okf: no project config - run through `vulcan x okf`');
-  }
+    if (text === undefined || root === undefined) {
+      throw new Error('okf: no project config - run through `vulcan x okf`');
+    }
 
-  if (cached?.text === text && cached.root === root) {
-    return cached.project;
-  }
+    if (cached?.text === text && cached.root === root) {
+      return cached.project;
+    }
 
-  const config = recordOf({ value: parsedOf({ text }) });
-  const knowledge = recordOf({ value: config.knowledge });
-  const okf = recordOf({ value: config.okf });
-  const sections = recordOf({ value: okf.sections });
-  const viz = recordOf({ value: okf.viz });
-  const bundle = resolve(
-    root,
-    stringOf({ value: knowledge.bundle, fallback: OkfProjectConstants.DEFAULT_BUNDLE }),
-  );
-  const outputs = stringsOf({ value: viz.outputs });
-  const changelogs = knowledge.changelogs;
-  const atlas = recordOf({ value: config.atlas });
-  const copy = RecordValue.isRecord({ value: viz.copy })
-    ? recordOf({ value: viz.copy })
-    : undefined;
-
-  const project: IOkfProject = {
-    root,
-    bundle,
-    ...(typeof changelogs === 'string' ? { changelogs: resolve(root, changelogs) } : {}),
-    tagPattern: stringOf({
-      value: atlas.tagPattern,
-      fallback: OkfProjectConstants.DEFAULT_TAG_PATTERN,
-    }),
-    legacyTagPatterns: stringsOf({ value: atlas.legacyTagPatterns }),
-    contentsFiles: contentsFilesOf({
-      patterns: Array.isArray(recordOf({ value: okf.contents }).files)
-        ? stringsOf({ value: recordOf({ value: okf.contents }).files })
-        : OkfProjectConstants.DEFAULT_CONTENTS_FILES,
+    const config = recordOf({ value: parsedOf({ text }) });
+    const knowledge = recordOf({ value: config.knowledge });
+    const okf = recordOf({ value: config.okf });
+    const sections = recordOf({ value: okf.sections });
+    const viz = recordOf({ value: okf.viz });
+    const bundle = resolve(
       root,
-    }),
-    packages: packagesOf({ value: config.packages, root }),
-    renderers: renderersOf({ value: okf.renderers }),
-    regions: regionsOf({ value: okf.regions, bundle }),
-    sections: {
-      order: stringsOf({ value: sections.order }),
-      labels: Object.fromEntries(
-        Object.entries(recordOf({ value: sections.labels })).filter(
-          (entry): entry is [string, string] => typeof entry[1] === 'string',
+      stringOf({ value: knowledge.bundle, fallback: OkfProjectConstants.DEFAULT_BUNDLE }),
+    );
+    const outputs = stringsOf({ value: viz.outputs });
+    const changelogs = knowledge.changelogs;
+    const atlas = recordOf({ value: config.atlas });
+    const copy = RecordValue.isRecord({ value: viz.copy })
+      ? recordOf({ value: viz.copy })
+      : undefined;
+
+    const project: IOkfProject = {
+      root,
+      bundle,
+      ...(typeof changelogs === 'string' ? { changelogs: resolve(root, changelogs) } : {}),
+      tagPattern: stringOf({
+        value: atlas.tagPattern,
+        fallback: OkfProjectConstants.DEFAULT_TAG_PATTERN,
+      }),
+      legacyTagPatterns: stringsOf({ value: atlas.legacyTagPatterns }),
+      contentsFiles: contentsFilesOf({
+        patterns: Array.isArray(recordOf({ value: okf.contents }).files)
+          ? stringsOf({ value: recordOf({ value: okf.contents }).files })
+          : OkfProjectConstants.DEFAULT_CONTENTS_FILES,
+        root,
+      }),
+      packages: packagesOf({ value: config.packages, root }),
+      renderers: renderersOf({ value: okf.renderers }),
+      regions: regionsOf({ value: okf.regions, bundle }),
+      sections: {
+        order: stringsOf({ value: sections.order }),
+        labels: Object.fromEntries(
+          Object.entries(recordOf({ value: sections.labels })).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string',
+          ),
         ),
-      ),
-    },
-    coverage: coverageOf({ value: okf.coverage }),
-    denylist: new Set(stringsOf({ value: okf.denylist })),
-    viz: {
-      outputs: (outputs.length > 0 ? outputs : [OkfProjectConstants.DEFAULT_VIZ_OUTPUT]).map(
-        (output) => resolve(root, output),
-      ),
-      brand: stringOf({ value: viz.brand, fallback: brandOf({ root }) }),
-      ...(copy === undefined ? {} : { copy }),
-    },
-  };
+      },
+      coverage: coverageOf({ value: okf.coverage }),
+      denylist: new Set(stringsOf({ value: okf.denylist })),
+      viz: {
+        outputs: (outputs.length > 0 ? outputs : [OkfProjectConstants.DEFAULT_VIZ_OUTPUT]).map(
+          (output) => resolve(root, output),
+        ),
+        brand: stringOf({ value: viz.brand, fallback: brandOf({ root }) }),
+        ...(copy === undefined ? {} : { copy }),
+      },
+    };
 
-  cached = { text, root, project };
+    cached = { text, root, project };
 
-  return project;
-};
+    return project;
+  }
+}

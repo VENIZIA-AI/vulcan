@@ -5,7 +5,7 @@ import { VizConstants } from '../common/index.ts';
 import type { IVizData } from '../common/index.ts';
 import { KnowledgeExplorer } from './explorer.ts';
 import type { IExplorerElements } from './explorer.ts';
-import { resolveLocale } from './strings.ts';
+import { VizStrings } from './strings.ts';
 
 const ELEMENT_IDS = [
   'side',
@@ -67,5 +67,5 @@ const elements = collectElements();
 const data = readData();
 
 if (elements && data) {
-  new KnowledgeExplorer({ data, elements, locale: resolveLocale() }).start();
+  new KnowledgeExplorer({ data, elements, locale: VizStrings.resolveLocale() }).start();
 }

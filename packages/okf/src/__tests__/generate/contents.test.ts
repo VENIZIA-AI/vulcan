@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CONTENTS_MIN_LINES, withContents } from '../../generate/contents.ts';
+import { CONTENTS_MIN_LINES, ContentsList } from '../../generate/contents.ts';
 
 const filler = (opts: { lines: number }): string =>
   Array.from({ length: opts.lines }, (_unused, index) => `Line ${index + 1}.`).join('\n');
@@ -29,7 +29,7 @@ ${filler({ lines: 60 })}
 
 describe('withContents', () => {
   test('a file over the limit gains a contents list of its ## headings, under the title', () => {
-    const result = withContents({ text: LONG });
+    const result = ContentsList.withContents({ text: LONG });
     const lines = result.split('\n');
     const start = lines.indexOf('<!-- okf:generated:contents start -->');
 
@@ -47,16 +47,21 @@ describe('withContents', () => {
   });
 
   test('gen is a fixed point: a second pass changes nothing', () => {
-    const once = withContents({ text: LONG });
+    const once = ContentsList.withContents({ text: LONG });
 
-    expect(withContents({ text: once })).toBe(once);
+    expect(ContentsList.withContents({ text: once })).toBe(once);
   });
 
   test('a stale list is rewritten from the headings the file has now', () => {
-    const renamed = withContents({ text: LONG }).replace('## How it boots', '## How it starts');
+    const renamed = ContentsList.withContents({ text: LONG }).replace(
+      '## How it boots',
+      '## How it starts',
+    );
 
-    expect(withContents({ text: renamed })).toContain('- [How it starts](#how-it-starts)');
-    expect(withContents({ text: renamed })).not.toContain('#how-it-boots');
+    expect(ContentsList.withContents({ text: renamed })).toContain(
+      '- [How it starts](#how-it-starts)',
+    );
+    expect(ContentsList.withContents({ text: renamed })).not.toContain('#how-it-boots');
   });
 
   test('a short file gets no list, and loses one it no longer needs', () => {
@@ -66,13 +71,13 @@ describe('withContents', () => {
       '# Short\n\n<!-- okf:generated:contents start -->\n**Contents**\n\n- [One](#one)\n<!-- okf:generated:contents end -->\n',
     );
 
-    expect(withContents({ text: short })).toBe(short);
-    expect(withContents({ text: stale })).toBe(short);
+    expect(ContentsList.withContents({ text: short })).toBe(short);
+    expect(ContentsList.withContents({ text: stale })).toBe(short);
   });
 
   test('a file without frontmatter (AGENTS.md, rules.md) gets it under its title', () => {
     const agents = `# AGENTS.md\n\nRouting.\n\n## Must read\n\n${filler({ lines: 110 })}\n`;
-    const result = withContents({ text: agents }).split('\n');
+    const result = ContentsList.withContents({ text: agents }).split('\n');
 
     expect(result[0]).toBe('# AGENTS.md');
     expect(result[2]).toBe('<!-- okf:generated:contents start -->');
@@ -94,27 +99,27 @@ describe('withContents', () => {
     const prose =
       '# Contents\n\nBetween `<!-- okf:generated:contents start -->` and the end marker `<!-- okf:generated:contents end -->` okf owns the text.\n';
 
-    expect(withContents({ text: fenced })).toBe(fenced);
-    expect(withContents({ text: prose })).toBe(prose);
+    expect(ContentsList.withContents({ text: fenced })).toBe(fenced);
+    expect(ContentsList.withContents({ text: prose })).toBe(prose);
   });
 
   test('a CRLF file keeps its frontmatter first and its CRLF endings', () => {
     const crlf = LONG.replace(/\n/g, '\r\n');
-    const result = withContents({ text: crlf });
+    const result = ContentsList.withContents({ text: crlf });
 
     expect(result.startsWith('---\r\ntype: Concept')).toBe(true);
     expect(result).toContain('<!-- okf:generated:contents start -->\r\n');
     expect(result.replace(/\r\n/g, '').includes('\n')).toBe(false);
-    expect(withContents({ text: result })).toBe(result);
+    expect(ContentsList.withContents({ text: result })).toBe(result);
   });
 });
 
 /** The contents list `withContents` writes for a long file with these `##` headings. */
 const listOf = (opts: { headings: string[] }): string[] => {
   const body = opts.headings.map((heading) => `## ${heading}\n\nText.\n`).join('\n');
-  const lines = withContents({ text: `# Title\n\n${body}\n${filler({ lines: 110 })}\n` }).split(
-    '\n',
-  );
+  const lines = ContentsList.withContents({
+    text: `# Title\n\n${body}\n${filler({ lines: 110 })}\n`,
+  }).split('\n');
 
   return lines.slice(
     lines.indexOf('**Contents**') + 2,
@@ -178,8 +183,10 @@ describe('the 100-line threshold', () => {
 
   test('exactly 100 lines (wc -l) gets no list, 101 does', () => {
     expect(ofLines({ lines: 100 }).match(/\n/g)?.length).toBe(100);
-    expect(withContents({ text: ofLines({ lines: 100 }) })).not.toContain('**Contents**');
-    expect(withContents({ text: ofLines({ lines: 101 }) })).toContain('**Contents**');
+    expect(ContentsList.withContents({ text: ofLines({ lines: 100 }) })).not.toContain(
+      '**Contents**',
+    );
+    expect(ContentsList.withContents({ text: ofLines({ lines: 101 }) })).toContain('**Contents**');
   });
 });
 
@@ -208,7 +215,7 @@ describe('code fences', () => {
       '',
     ].join('\n');
 
-    expect(withContents({ text })).toContain(
+    expect(ContentsList.withContents({ text })).toContain(
       '**Contents**\n\n- [Real](#real)\n- [Also real](#also-real)\n<!--',
     );
   });
