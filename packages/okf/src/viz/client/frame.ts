@@ -7,7 +7,7 @@ export class ParentFrame {
       return parentDocument === document ? undefined : parentDocument;
     } catch (error) {
       console.debug(
-        '[readParentDocument] parent frame is cross-origin - using this page only',
+        '[ParentFrame.readDocument] parent frame is cross-origin - using this page only',
         error,
       );
 

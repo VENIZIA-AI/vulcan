@@ -150,7 +150,7 @@ describe("the project's patterns see the request of gh api, gh secret and gh var
     expect(hitsOf({ command, extra: GH })).toEqual([]);
   });
 
-  test('commandTextsOf keeps the whole request of gh api, gh secret and gh variable, and only the name of the others', () => {
+  test('CommandView.commandTextsOf keeps the whole request of gh api, gh secret and gh variable, and only the name of the others', () => {
     expect(CommandView.commandTextsOf({ command: 'gh secret set X', withMessages: true })).toEqual([
       'gh secret set X',
     ]);
@@ -232,7 +232,7 @@ describe('guard-git asks for the push targets the project lists', () => {
   });
 });
 
-describe('matchesBranch', () => {
+describe('ProjectGuards.matchesBranch', () => {
   test.each([
     ['develop', ['develop'], true],
     ['develop', ['main'], false],
@@ -254,7 +254,7 @@ const manifestWith = (opts: { guard: unknown }): string =>
     },
   });
 
-describe('readGuardPolicy', () => {
+describe('ProjectGuards.readPolicy', () => {
   test('reads the commands and the push targets from the manifest, and compiles the patterns', () => {
     const root = manifestWith({
       guard: undefined,
@@ -403,7 +403,7 @@ describe('the hooks read the manifest', () => {
   });
 });
 
-describe('readGuardPolicy and the read-only scripts', () => {
+describe('ProjectGuards.readPolicy and the read-only scripts', () => {
   const ENTRY = { script: 'tools/release.ts', readOnly: ['plan', 'registry'] };
 
   test('reads the entries of guard.writes.readOnlyScripts', () => {

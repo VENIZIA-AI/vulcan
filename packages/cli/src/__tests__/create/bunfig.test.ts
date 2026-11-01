@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Bunfig } from '../../create/bunfig.ts';
 
-describe('renderBunfig', () => {
+describe('Bunfig.render', () => {
   test('is a comment line, telemetry = false and the [fmt] section bun fmt reads, the oxfmt flavor included', () => {
     expect(Bunfig.render()).toBe(
       [

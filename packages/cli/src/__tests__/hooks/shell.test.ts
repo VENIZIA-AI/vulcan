@@ -4,7 +4,7 @@ import { ShellBudget, ShellParser } from '../../hooks/index.ts';
 const wordsOf = (command: string): string[][] =>
   ShellParser.parse({ command }).map((simple) => simple.words);
 
-describe('parseShell', () => {
+describe('ShellParser.parse', () => {
   test('splits on ;, &&, ||, | and newlines', () => {
     expect(wordsOf('a 1 && b 2; c | d\ne')).toEqual([['a', '1'], ['b', '2'], ['c'], ['d'], ['e']]);
   });
@@ -139,7 +139,7 @@ describe('parseShell', () => {
     expect(ShellParser.programOf({ command: simple! }).name).toBe('git');
   });
 
-  test('programOf skips wrappers and flags before the program', () => {
+  test('ShellParser.programOf skips wrappers and flags before the program', () => {
     const [command] = ShellParser.parse({ command: 'sudo -n env git status' });
 
     expect(ShellParser.programOf({ command: command! })).toEqual({
@@ -302,7 +302,7 @@ describe('parseShell', () => {
     expect(firstWords('echo "$\'x\'"')).toEqual(['echo', "$'x'"]);
   });
 
-  test('splitEnvString splits by env rules', () => {
+  test('ShellParser.splitEnvString splits by env rules', () => {
     expect(ShellParser.splitEnvString({ value: 'a b  c' })).toEqual(['a', 'b', 'c']);
     expect(ShellParser.splitEnvString({ value: 'a \'b c\' "d e"' })).toEqual(['a', 'b c', 'd e']);
     expect(ShellParser.splitEnvString({ value: 'a\\_b' })).toEqual(['a', 'b']);

@@ -360,7 +360,7 @@ export class AppsBlock {
         : { ok: false, reason: AppsBlockProblems.INVALID };
     } catch (error) {
       console.error(
-        `[parseAppsBlock] the vulcan:apps block is not JSON | ${error instanceof Error ? error.message : String(error)}`,
+        `[AppsBlock.parse] the vulcan:apps block is not JSON | ${error instanceof Error ? error.message : String(error)}`,
       );
 
       return { ok: false, reason: AppsBlockProblems.INVALID };

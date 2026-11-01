@@ -27,7 +27,7 @@ export class CorpusFrontmatter {
       parsed = Bun.YAML.parse(match[1]);
     } catch (error) {
       throw new Error(
-        `[parseFrontmatter] invalid YAML frontmatter | file: ${path} | ${TextValue.messageOf({ error })}`,
+        `[CorpusFrontmatter.parse] invalid YAML frontmatter | file: ${path} | ${TextValue.messageOf({ error })}`,
         { cause: error },
       );
     }

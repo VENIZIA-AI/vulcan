@@ -41,7 +41,7 @@ const TABLE: IReleaseTable = {
   changelogs: [],
 };
 
-describe('decidePin across a tag rename', () => {
+describe('PinPolicy.decide across a tag rename', () => {
   test('an installed release of the old layout pins the tag it was read from, not one rebuilt from the template', () => {
     const root = installed({ version: '0.4.7' });
     const decision = PinPolicy.decide({ roots: [root], project: project({ root }), table: TABLE });

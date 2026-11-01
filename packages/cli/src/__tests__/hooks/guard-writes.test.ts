@@ -47,7 +47,7 @@ const CASES: { name: string; command: string; cwd?: string; flagged: boolean }[]
   },
 ];
 
-describe('inspectCommand', () => {
+describe('WriteGuard.inspectCommand', () => {
   for (const testCase of CASES) {
     test(`${testCase.flagged ? 'flags' : 'passes'}: ${testCase.name}`, () => {
       const hits = WriteGuard.inspectCommand({

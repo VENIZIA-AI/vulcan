@@ -10,7 +10,7 @@ afterAll(removeProjects);
 
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'session-start.ts');
 
-describe('projectTmpOf', () => {
+describe('ProjectTmp.projectOf', () => {
   test('is the tmp folder of the local layout every other command reads', () => {
     expect(HookConstants.PROJECT_TMP).toBe(`${ProjectLayout.LOCAL_DIRECTORY}/tmp`);
     expect(ProjectLayout.LOCAL_LAYOUT.map((entry) => entry.name)).toContain('tmp');
@@ -21,7 +21,7 @@ describe('projectTmpOf', () => {
   });
 });
 
-describe('exportProjectTmp', () => {
+describe('ProjectTmp.exportProjectTmp', () => {
   const envFileOf = (): string => join(createProject({ files: {} }), 'env-file.sh');
 
   test('appends one export of TMPDIR to the file the harness sources, and makes the folder', () => {

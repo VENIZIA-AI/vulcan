@@ -17,7 +17,7 @@ afterAll(() => {
 
 const ROOT = '/work/project';
 
-describe('readAtlasProject', () => {
+describe('ProjectConfig.readAtlasProject', () => {
   test('reads the packages, compiles the release commit, resolves the paths', () => {
     useAtlasProject({
       root: ROOT,
@@ -195,7 +195,7 @@ describe('the prebuilt index in a manifest', () => {
   });
 });
 
-describe('directoryOf', () => {
+describe('PackageMap.directoryOf', () => {
   const packages = [
     { dir: 'core-server', name: '@venizia/ignis', aliases: ['core'], retired: false },
     { dir: 'helpers', name: '@venizia/ignis-helpers', aliases: [], retired: false },

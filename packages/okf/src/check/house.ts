@@ -29,7 +29,7 @@ const sameContent = (opts: { left: string; right: string }): boolean => {
 export class HouseCheck {
   /**
    * Repo docs rules, enforced on prose (see check step 3). To write a forbidden literal - as the
-   * concept defining these rules must - put it in a code span; `stripCode` removes those first.
+   * concept defining these rules must - put it in a code span; `MarkdownText.stripCode` removes those first.
    */
   static styleRules(opts: { brand: string }): { pattern: RegExp; message: string }[] {
     const spelling = SourceCollector.brandSpelling({ brand: opts.brand });

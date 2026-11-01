@@ -48,7 +48,7 @@ const ioWith = (
   };
 };
 
-describe('systemLanguageOf', () => {
+describe('OwnerSurvey.systemLanguageOf', () => {
   test.each([
     [{ LANG: 'fr_FR.UTF-8' }, 'fr'],
     [{ LC_ALL: 'pt_BR.UTF-8', LANG: 'en_US.UTF-8' }, 'pt'],
@@ -61,7 +61,7 @@ describe('systemLanguageOf', () => {
   });
 });
 
-describe('runSurvey', () => {
+describe('OwnerSurvey.run', () => {
   test('every answer skipped gives the neutral profile in the machine language', async () => {
     const { io } = ioWith([]);
     const profile = await OwnerSurvey.run({ io, systemLanguage: 'en' });

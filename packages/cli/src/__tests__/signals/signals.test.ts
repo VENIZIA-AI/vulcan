@@ -180,7 +180,7 @@ describe('loopOf', () => {
   });
 });
 
-describe('checkClaims', () => {
+describe('ReplyClaims.check', () => {
   const state = (change: Partial<ISignalState> = {}): ISignalState => ({
     turnAt: 100,
     events: [],

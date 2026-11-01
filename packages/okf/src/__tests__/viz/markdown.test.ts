@@ -2,19 +2,19 @@ import { describe, expect, test } from 'bun:test';
 import { HtmlText } from '../../viz/client/html.ts';
 import { Markdown } from '../../viz/client/markdown.ts';
 
-describe('escapeHtml', () => {
+describe('HtmlText.escape', () => {
   test('escapes the three characters that open markup', () => {
     expect(HtmlText.escape({ text: '<a href="x">&</a>' })).toBe(
       '&lt;a href="x"&gt;&amp;&lt;/a&gt;',
     );
   });
 
-  test('escapeAttribute also escapes the double quote', () => {
+  test('HtmlText.escapeAttribute also escapes the double quote', () => {
     expect(HtmlText.escapeAttribute({ text: 'a"b' })).toBe('a&quot;b');
   });
 });
 
-describe('renderMarkdown', () => {
+describe('Markdown.render', () => {
   test('a paragraph is escaped, never interpreted', () => {
     expect(Markdown.render({ source: 'a <b>bold</b> claim' })).toBe(
       '<p>a &lt;b&gt;bold&lt;/b&gt; claim</p>',

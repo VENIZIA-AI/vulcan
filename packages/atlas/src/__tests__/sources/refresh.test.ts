@@ -290,7 +290,7 @@ describe('Refresher', () => {
   });
 });
 
-describe('refreshIntervalMs', () => {
+describe('Refresher.configuredIntervalMs', () => {
   test('five minutes by default; VULCAN_ATLAS_REFRESH_SECONDS sets it; 0 turns it off', () => {
     expect(Refresher.configuredIntervalMs()).toBe(300_000);
 

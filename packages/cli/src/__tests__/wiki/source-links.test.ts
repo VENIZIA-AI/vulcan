@@ -66,7 +66,7 @@ afterAll(() => {
   }
 });
 
-describe('checkSourceLinks', () => {
+describe('SourceLinkCheck.check', () => {
   let root = '';
 
   beforeAll(() => {

@@ -54,7 +54,7 @@ test('--nightly falls back to the one tag that exists, and fails when there is n
   expect(result2).toBeUndefined();
 });
 
-test('pickNightly compares prereleases by semver, not by text', () => {
+test('UpgradeTarget.pickNightly compares prereleases by semver, not by text', () => {
   expect(UpgradeTarget.pickNightly({ latest: '0.2.0', next: '0.2.1-10' })).toBe('0.2.1-10');
   expect(UpgradeTarget.pickNightly({ latest: '0.2.0', next: '0.2.1-9' })).toBe('0.2.1-9');
   expect(UpgradeTarget.pickNightly({ latest: '0.10.0', next: '0.9.0-1' })).toBe('0.10.0');

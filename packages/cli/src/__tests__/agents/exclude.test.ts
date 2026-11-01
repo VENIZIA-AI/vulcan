@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { AgentExclude, EXCLUDE_BLOCK_END, EXCLUDE_BLOCK_START } from '../../agents/index.ts';
 
-describe('excludePathsOf', () => {
+describe('AgentExclude.excludePathsOf', () => {
   const SKILLS = ['build-a-feature', 'docs-update', 'docs-writing', 'knowledge-sync'];
 
   test('always lists the local choice file', () => {
@@ -92,7 +92,7 @@ describe('excludePathsOf', () => {
   });
 });
 
-describe('renderExcludeBlock', () => {
+describe('AgentExclude.renderBlock', () => {
   test('one comment line per agent, then its anchored paths, between the markers', () => {
     const block = AgentExclude.renderBlock({
       groups: [
@@ -119,7 +119,7 @@ describe('renderExcludeBlock', () => {
   });
 });
 
-describe('mergeExcludeBlock', () => {
+describe('AgentExclude.mergeBlock', () => {
   const block = AgentExclude.renderBlock({
     groups: [{ title: 'cursor', paths: ['/.cursor/mcp.json'] }],
   });

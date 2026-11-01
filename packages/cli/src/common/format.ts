@@ -15,7 +15,7 @@ export class BunFormatter {
 
     if (result.exitCode !== 0) {
       console.error(
-        `[formatWithBun] bun fmt exited ${result.exitCode}, ${opts.file} is left as rendered | ${result.stderr.toString().trim()}`,
+        `[BunFormatter.format] bun fmt exited ${result.exitCode}, ${opts.file} is left as rendered | ${result.stderr.toString().trim()}`,
       );
 
       return opts.text;

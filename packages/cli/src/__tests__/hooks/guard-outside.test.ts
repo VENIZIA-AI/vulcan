@@ -65,7 +65,7 @@ describe('mktemp where the temp folder is inside the project', () => {
   });
 });
 
-describe('inspectOutside on a line it cannot read in full', () => {
+describe('OutsideGuard.inspect on a line it cannot read in full', () => {
   test('asks, never allows', () => {
     const wide = Array.from({ length: 2100 }, () => 'ls').join('; ');
 
@@ -77,7 +77,7 @@ describe('inspectOutside on a line it cannot read in full', () => {
   });
 });
 
-describe('inspectOutside flags', () => {
+describe('OutsideGuard.inspect flags', () => {
   test.each([
     'mkdir /tmp/scratch',
     'touch ~/notes.txt',
@@ -116,7 +116,7 @@ describe('inspectOutside flags', () => {
   });
 });
 
-describe('inspectOutside flags what a review found', () => {
+describe('OutsideGuard.inspect flags what a review found', () => {
   test.each([
     'curl -sLo /etc/x https://example.test/u',
     'wget -qO /etc/x https://example.test/u',
@@ -156,7 +156,7 @@ describe('inspectOutside flags what a review found', () => {
   });
 });
 
-describe('inspectOutside passes', () => {
+describe('OutsideGuard.inspect passes', () => {
   test.each([
     'mkdir -p .agents/local/tmp/a',
     'echo hi > out.txt',

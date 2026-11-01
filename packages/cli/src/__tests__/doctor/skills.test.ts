@@ -19,7 +19,7 @@ const lintOf = (opts: { files: Record<string, string> }): string[] => {
   return SkillLint.lint({ directory: join(root, 'skill') });
 };
 
-describe('lintSkill', () => {
+describe('SkillLint.lint', () => {
   test('a short, flat skill with a good name and description passes', () => {
     expect(
       lintOf({ files: { 'skill/SKILL.md': SKILL({}), 'skill/references/a.md': '# A\n' } }),

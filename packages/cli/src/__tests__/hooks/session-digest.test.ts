@@ -12,7 +12,7 @@ isolateOwnerReplySwitch();
 
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'session-start.ts');
 
-describe('buildSessionDigest', () => {
+describe('SessionDigest.build', () => {
   test('the base W rules, the slot choice and the project extensions', async () => {
     const root = createProject({
       files: {

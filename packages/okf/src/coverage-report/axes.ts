@@ -14,7 +14,7 @@ const resourceKeyOf = (opts: { value: string }): string =>
   opts.value.replace(/^\.\//, '').replace(/\/+$/, '');
 
 export class CoverageAxes {
-  /** The `resource` of every concept, as keys for `isItemCovered`; reserved files (index, log) cover nothing. */
+  /** The `resource` of every concept, as keys for `CoverageAxes.isItemCovered`; reserved files (index, log) cover nothing. */
   static resourceKeysOf(opts: {
     concepts: { resource: string; reserved: boolean }[];
   }): Set<string> {

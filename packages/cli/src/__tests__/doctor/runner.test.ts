@@ -744,7 +744,7 @@ describe('doctor: agents', () => {
   });
 });
 
-describe('parseMakeTargets', () => {
+describe('Makefile.parseMakeTargets', () => {
   test('reads rule targets; skips recipes, variables, .PHONY and pattern rules', () => {
     const makefile =
       'A := 1\nB ?= 2\n.PHONY: x\nbuild: dep\n\t@echo\nokf-check:\n\techo\n$(T): %-x:\n';

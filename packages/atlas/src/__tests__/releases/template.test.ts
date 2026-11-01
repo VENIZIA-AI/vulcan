@@ -4,7 +4,7 @@ import { describe, expect, test } from 'bun:test';
 const groupsOf = (opts: { template: string; subject: string }) =>
   ReleaseTemplate.compile({ template: opts.template }).exec(opts.subject)?.groups;
 
-describe('compileReleaseTemplate', () => {
+describe('ReleaseTemplate.compile', () => {
   const IGNIS_FORM = '[#<issue>] chore(<dir>): release v<version>';
 
   test('the IGNIS form reads the directory and the version, the mode tolerated', () => {

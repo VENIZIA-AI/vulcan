@@ -42,7 +42,7 @@ afterEach(() => {
 
 const consumer = (): string => makeTempDirectory({ prefix: 'atlas-consumer-' });
 
-describe('resolveSources', () => {
+describe('SourceResolver.resolve', () => {
   test('a first start pulls the manifest and its declared paths only, and builds the index', async () => {
     const source = makeSourceRepository();
     const [resolved] = await SourceResolver.resolve({
@@ -336,7 +336,7 @@ describe('resolveSources', () => {
   });
 });
 
-describe('cacheRootOf', () => {
+describe('SourceCache.cacheRootOf', () => {
   const keyOf = (repo: string): string =>
     relative(join(cacheDir, 'atlas/v1'), SourceCache.cacheRootOf({ repo, cacheBase: cacheDir }));
 

@@ -48,7 +48,7 @@ const makePackageDirectory = (opts: { withSnapshot: boolean }): string => {
   return packageDirectory;
 };
 
-describe('readCacheDirArgument', () => {
+describe('ModeArguments.readCacheDir', () => {
   test('both spellings give the value, and an absent flag gives none', () => {
     expect(ModeArguments.readCacheDir({ argv: ['mcp', '--cache-dir', '/data/atlas'] })).toBe(
       '/data/atlas',
@@ -70,7 +70,7 @@ describe('readCacheDirArgument', () => {
   });
 });
 
-describe('readRootArgument (M11)', () => {
+describe('ModeArguments.readRoot (M11)', () => {
   test('--root=<dir> is the same as --root <dir>; an empty value or a following flag is a usage error', () => {
     expect(ModeArguments.readRoot({ argv: ['--root=/srv/ignis'] })).toEqual({
       value: '/srv/ignis',
@@ -98,7 +98,7 @@ describe('readRootArgument (M11)', () => {
   });
 });
 
-describe('findPackageDirectory', () => {
+describe('ModeArguments.findPackageDirectory', () => {
   test('finds the package directory from both a source-style and a dist-style start directory', () => {
     const packageDirectory = makePackageDirectory({ withSnapshot: false });
     const sourceStyleStart = join(packageDirectory, 'src');
@@ -128,7 +128,7 @@ describe('findPackageDirectory', () => {
   });
 });
 
-describe('readPackageVersion (I6)', () => {
+describe('ModeArguments.readPackageVersion (I6)', () => {
   test('reads the version field from the located package.json', () => {
     const packageDirectory = makeTempDirectory({ prefix: 'atlas-modes-version-' });
 
@@ -155,7 +155,7 @@ describe('readPackageVersion (I6)', () => {
   });
 });
 
-describe('hasAtlasProject - a project is a manifest, never a layout', () => {
+describe('ProjectConfig.hasAtlasProject - a project is a manifest, never a layout', () => {
   const previous = { manifest: process.env.VULCAN_MANIFEST, root: process.env.VULCAN_PROJECT_ROOT };
 
   afterEach(() => {

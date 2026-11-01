@@ -162,7 +162,7 @@ describe('the profile', () => {
   });
 });
 
-describe('resolveOwnerView', () => {
+describe('OwnerView.resolve', () => {
   const owner = OWNER_SCHEMA.parse(undefined);
 
   test('with no profile it is the project block and no personal settings', () => {

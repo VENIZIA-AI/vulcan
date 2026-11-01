@@ -15,7 +15,7 @@ const PATCH = [
   '*** End Patch',
 ].join('\n');
 
-describe('patchedFilesOf', () => {
+describe('CodexPatch.patchedFilesOf', () => {
   test('reads every header, made absolute against the cwd, an add being a write and the rest edits', () => {
     expect(CodexPatch.patchedFilesOf({ patch: PATCH, cwd: '/work' })).toEqual([
       { path: '/work/docs/new.md', tool: PatchedTools.WRITE },

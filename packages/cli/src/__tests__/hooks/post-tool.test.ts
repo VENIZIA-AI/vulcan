@@ -69,7 +69,7 @@ const project = (extra = ''): string => {
 const bash = (command: string, isFailure = false) =>
   toolEvent({ tool: 'Bash', input: { command }, isFailure });
 
-describe('buildPostToolOutput', () => {
+describe('PostToolOutput.build', () => {
   test('says nothing for ordinary calls and for input it cannot read', () => {
     const root = project();
 

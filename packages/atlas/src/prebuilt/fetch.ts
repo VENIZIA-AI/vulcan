@@ -240,7 +240,7 @@ export class PrebuiltFetch {
     try {
       const apiBase = apiBaseOf();
       const base = `${apiBase.origin}/repos/${opts.github.owner}/${opts.github.repo}`;
-      const names = PairNames.pairNamesOf({ sha: opts.sha });
+      const names = PairNames.of({ sha: opts.sha });
       const release = await get({
         url: `${base}/releases/tags/${PrebuiltConstants.RELEASE_TAG}`,
         accept: JSON_ACCEPT,

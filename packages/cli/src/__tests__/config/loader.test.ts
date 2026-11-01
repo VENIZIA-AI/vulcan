@@ -6,7 +6,7 @@ afterAll(removeProjects);
 
 const PLAIN_CONFIG = "export default { agents: ['claude'], rules: { 'V-W-01': 'read-only' } };\n";
 
-describe('findConfigFiles', () => {
+describe('ConfigLoader.findFiles', () => {
   test('finds nothing in an empty directory', () => {
     expect(ConfigLoader.findFiles({ root: createProject({ files: {} }) })).toEqual([]);
   });
@@ -26,7 +26,7 @@ describe('findConfigFiles', () => {
   });
 });
 
-describe('loadConfig', () => {
+describe('ConfigLoader.load', () => {
   for (const extension of ['ts', 'mts', 'mjs', 'js']) {
     test(`loads a .${extension} config and applies the defaults`, async () => {
       const root = createProject({

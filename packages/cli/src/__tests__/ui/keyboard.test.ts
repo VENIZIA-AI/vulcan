@@ -7,7 +7,7 @@ afterEach(() => {
   process.stdin.removeAllListeners('data');
 });
 
-describe('guardAgainstPipedLines', () => {
+describe('MenuInput.guardAgainstPipedLines', () => {
   test('a line feed while the menu is open rejects with the typed refusal, and prints the way out', async () => {
     const stderr = spyOn(process.stderr, 'write').mockImplementation(() => true);
     const stdout = spyOn(process.stdout, 'write').mockImplementation(() => true);

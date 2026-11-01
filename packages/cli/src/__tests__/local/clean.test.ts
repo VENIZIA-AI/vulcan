@@ -86,7 +86,7 @@ const worktree = (opts: { root: string; name: string; commit?: boolean }): void 
 const names = (opts: { entries: { scope: string; name: string }[] }): string[] =>
   opts.entries.map((entry) => `${entry.scope}/${entry.name}`).sort();
 
-describe('scanLocal', () => {
+describe('LocalScan.scan', () => {
   test('lists children with size and age, marks tmp older than a day stale, skips .gitkeep', () => {
     const root = repository();
 
@@ -245,7 +245,7 @@ describe('a link can never move clean out of the project', () => {
   });
 });
 
-describe('parseWorktreeList', () => {
+describe('LocalScan.parseWorktreeList', () => {
   test('reads NUL separated records, a path with a line break whole', () => {
     const output =
       [
@@ -276,7 +276,7 @@ describe('parseWorktreeList', () => {
   });
 });
 
-describe('planClean and runClean', () => {
+describe('LocalClean.plan and runClean', () => {
   test('--all takes tmp, worktrees, clones and cache, never reports, prototypes or the profile; they must be named', () => {
     const root = repository();
 

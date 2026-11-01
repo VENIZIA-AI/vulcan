@@ -165,7 +165,7 @@ export class IndexPair {
         history: !shallow,
         releases: ReleaseCompute.compute({ project }),
       };
-      const names = PairNames.pairNamesOf({ sha });
+      const names = PairNames.of({ sha });
 
       mkdirSync(out, { recursive: true });
       writeFileSync(join(out, names.gz), gz);

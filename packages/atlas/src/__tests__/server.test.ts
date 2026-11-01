@@ -49,7 +49,7 @@ const listToolNames = async (opts: {
   return (reply.result?.tools ?? []).map((tool) => tool.name);
 };
 
-describe('buildServer', () => {
+describe('ServerFactory.build', () => {
   test('repo mode exposes exactly the search, get, symbol, version, changes and presets tools', async () => {
     const transport = ServerFactory.build({
       root: REPOSITORY_ROOT,

@@ -518,7 +518,7 @@ describe('idempotence and output', () => {
   });
 });
 
-describe('planSync with the resolved agents', () => {
+describe('SyncPlanner.plan with the resolved agents', () => {
   test('without claude no Claude file is planned, with claude the adapters come too', async () => {
     const { SyncPlanner } = await import('../../sync/index.ts');
     const { ConfigLoader } = await import('../../config/index.ts');

@@ -62,7 +62,7 @@ export class ModeArguments {
 
     if (!found) {
       throw new Error(
-        `[findPackageDirectory] no ${PACKAGE_NAME} package.json found | started at: ${opts.startDirectory}`,
+        `[ModeArguments.findPackageDirectory] no ${PACKAGE_NAME} package.json found | started at: ${opts.startDirectory}`,
       );
     }
 

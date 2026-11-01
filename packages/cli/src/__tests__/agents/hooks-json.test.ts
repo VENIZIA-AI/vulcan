@@ -3,7 +3,7 @@ import { GUARD_HOOK_NAME, GuardHook } from '../../agents/index.ts';
 
 const parse = (text: string): Record<string, unknown> => JSON.parse(text);
 
-describe('mergeGuardHook', () => {
+describe('GuardHook.merge', () => {
   test('creates the file with one PreToolUse hook on the tools the guards cover', () => {
     const merged = GuardHook.merge({ text: undefined });
 
@@ -68,7 +68,7 @@ describe('mergeGuardHook', () => {
   });
 });
 
-describe('removeGuardHook', () => {
+describe('GuardHook.remove', () => {
   test('takes its entry out and keeps the others', () => {
     const text = JSON.stringify({ 'my-linter': {}, [GUARD_HOOK_NAME]: {} });
     const removed = GuardHook.remove({ text });

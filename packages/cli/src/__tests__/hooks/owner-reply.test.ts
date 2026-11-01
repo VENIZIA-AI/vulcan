@@ -64,7 +64,7 @@ const logOf = (root: string): string => {
   return existsSync(file) ? readFileSync(file, 'utf8') : '';
 };
 
-describe('buildStopOutput', () => {
+describe('OwnerReply.buildStopOutput', () => {
   test('advise logs the faults and never blocks', async () => {
     const root = project('advise');
 
@@ -264,7 +264,7 @@ describe('two sessions in one project', () => {
   });
 });
 
-describe('buildPromptContract', () => {
+describe('OwnerReply.buildPromptContract', () => {
   test("is one line while the shape is held, names the last reply's faults, and is empty when off", async () => {
     const root = project('advise');
 

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { ConceptLoader, MarkdownText } from '../lib.ts';
 
-describe('extractLinks (OKF v0.2 §6.1)', () => {
+describe('MarkdownText.extractLinks (OKF v0.2 §6.1)', () => {
   test('a bundle-absolute link, with or without an anchor', () => {
     expect(
       MarkdownText.extractLinks({ text: '[a](/x/a.md) [b](/x/b.md#usage)', id: '/y/c' }),
@@ -36,7 +36,7 @@ describe('extractLinks (OKF v0.2 §6.1)', () => {
   });
 });
 
-describe('parseFrontmatter', () => {
+describe('ConceptLoader.parseFrontmatter', () => {
   test('CRLF files parse like LF', () => {
     expect(
       ConceptLoader.parseFrontmatter({ text: '---\r\ntype: T\r\n---\r\nbody', file: 'a.md' }),

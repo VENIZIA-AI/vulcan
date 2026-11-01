@@ -29,7 +29,7 @@ const shipped = (opts: { root: string; name: string; description: string }): voi
 const own = (opts: { root: string; name: string; description: string }): void =>
   write({ root: opts.root, path: `.agents/skills/${opts.name}/SKILL.md`, text: skill(opts) });
 
-describe('triggerOf', () => {
+describe('SkillCatalog.triggerOf', () => {
   test('is the "Use when" sentence of the description, without its period', () => {
     expect(
       SkillCatalog.triggerOf({
@@ -56,7 +56,7 @@ describe('triggerOf', () => {
   });
 });
 
-describe('skillCatalogOf', () => {
+describe('SkillCatalog.catalogOf', () => {
   test('lists the shipped skills of the installed vulcan and the project own, sorted by name', () => {
     const root = makeTempDirectory({ prefix: 'atlas-skills-' });
 

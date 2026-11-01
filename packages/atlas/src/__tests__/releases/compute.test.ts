@@ -56,7 +56,7 @@ const projectAt = (opts: { root: string; release?: object }) =>
 const changelog = (opts: { title: string; extra?: string }): string =>
   `---\ntitle: ${opts.title}\npackages: ['@a/kernel']\n${opts.extra ?? ''}---\n\nA change.\n`;
 
-describe('computeReleases (D1)', () => {
+describe('ReleaseCompute.compute (D1)', () => {
   // develop: init, kernel 1.0.0, changelog a, merge of a branch tagged web 0.1.0, kernel 1.1.0,
   // a's rename, a backfill pointing at kernel 1.0.0; tags no package matches, or ignored.
   const { root, git, write } = scratch();
@@ -208,7 +208,7 @@ describe('computeReleases (D1)', () => {
   });
 });
 
-describe('computeReleases on the edges of a repository', () => {
+describe('ReleaseCompute.compute on the edges of a repository', () => {
   test('a repository with no commit yet has no history: the empty table', () => {
     const empty = scratch();
 
@@ -282,7 +282,7 @@ describe('computeReleases on the edges of a repository', () => {
   });
 });
 
-describe('computeReleases with a legacy tag template', () => {
+describe('ReleaseCompute.compute with a legacy tag template', () => {
   const RELEASE = { tagPattern: 'vulcan-v<version>', legacyTagPatterns: ['v<version>'] };
 
   /** v0.4.7 is the old layout; vulcan-v0.4.8 the new one; atlas-index is a tag no template reads. */

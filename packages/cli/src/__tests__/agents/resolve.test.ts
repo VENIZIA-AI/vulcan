@@ -35,7 +35,7 @@ const resolve = (opts: {
   return { result, asked, root };
 };
 
-describe('resolveAgents: the order', () => {
+describe('AgentSelection.resolve: the order', () => {
   test('a flag wins over everything and is written to the local file', () => {
     const { result } = resolve({
       flag: 'omp,pi',
@@ -114,7 +114,7 @@ describe('resolveAgents: the order', () => {
   });
 });
 
-describe('resolveAgents: nothing known', () => {
+describe('AgentSelection.resolve: nothing known', () => {
   test('without a terminal it keeps today: claude, one hint line, no local file written', () => {
     const { result, asked } = resolve({ interactive: false });
 
@@ -198,7 +198,7 @@ describe('resolveAgents: nothing known', () => {
   });
 });
 
-describe('resolveAgents: refusals', () => {
+describe('AgentSelection.resolve: refusals', () => {
   test('an unknown id in the flag, the answer or the config is refused, naming it and the choices', () => {
     const flag = resolve({ flag: 'claude,vim' }).result;
     const answer = resolve({ interactive: true, answer: 'vim' }).result;
@@ -230,7 +230,7 @@ describe('resolveAgents: refusals', () => {
   });
 });
 
-describe('resolveAgents: what Enter (an empty answer) does when asked again', () => {
+describe('AgentSelection.resolve: what Enter (an empty answer) does when asked again', () => {
   const STORED = { [LOCAL_AGENTS_FILE]: LocalChoice.render({ agents: ['claude', 'omp'] }) };
   const DETECTED = ['claude', 'omp', 'codex', 'copilot-vscode'];
 

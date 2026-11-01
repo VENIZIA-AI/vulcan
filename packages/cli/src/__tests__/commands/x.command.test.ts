@@ -122,7 +122,7 @@ describe('vulcan x', () => {
   );
 });
 
-describe('buildToolEnvironment', () => {
+describe('ToolRunner.buildEnvironment', () => {
   test('a valid config reaches the tool resolved, with the project root', async () => {
     const root = createProject({
       files: {

@@ -211,7 +211,7 @@ const MANIFEST_FILE = 'package.json';
 
 /**
  * The recorded preset a library or shared package is set against: the one recorded preset (a package counted
- * once, as `detectPreset` does) whose record ships the package's kind. A package made by the shared kind
+ * once, as `PresetDiff.detect` does) whose record ships the package's kind. A package made by the shared kind
  * never takes a lib kind and the reverse, so nothing falls back to the other kind.
  */
 const detectLibraryPreset = (opts: {

@@ -71,7 +71,7 @@ describe('the Claude Code launch file', () => {
   });
 });
 
-describe('planLocalWorkspace', () => {
+describe('LocalPlan.planWorkspace', () => {
   test('gitignores .agents/local/ and creates its subdirectories', () => {
     const root = createProject({ files: { '.gitignore': 'node_modules/\n' } });
 
