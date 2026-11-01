@@ -32,21 +32,53 @@ export const chip = (opts: {
 }): string =>
   `<span class="chip c-${NodeStates.toneOf(opts.state)}">${stateIcon({ state: opts.state, size: opts.size ?? 16 })}<span>${escaped(opts.label ?? stateWord(opts))}</span></span>`;
 
+/** A part of the page: its title, then its body, each part a slide of its own. */
 export const section = (opts: {
   id: string;
   title: string;
   body: string;
   extra?: string;
 }): string =>
-  `<section class="sec${opts.extra === undefined ? '' : ` ${opts.extra}`}" id="${opts.id}" data-slide><h2 class="lab">${escaped(opts.title)}</h2>${opts.body}</section>`;
+  `<section class="part${opts.extra === undefined ? '' : ` ${opts.extra}`}" id="${opts.id}" data-slide><div class="wrap"><h2 class="sh">${escaped(opts.title)}</h2>${opts.body}</div></section>`;
 
-/** A drawing in its frame; below the width where its text would pass 12 px the list takes its place. */
+/** The in-page links of the top bar: the parts that exist, in the order of the page. */
+export const sectionLinks = (opts: {
+  spec: TVisualizeSpec;
+  chrome: TChrome;
+}): { id: string; title: string }[] => {
+  const { spec, chrome } = opts;
+  const parts: [boolean, string, string][] = [
+    [spec.flow !== undefined, 'flow', chrome.flow],
+    [spec.minimap !== undefined, 'minimap', chrome.minimap],
+    [spec.strip !== undefined, 'next', chrome.next],
+    [spec.architecture !== undefined, 'architecture', chrome.architecture],
+    [spec.sequence !== undefined, 'sequence', chrome.sequence],
+    [spec.lifecycle !== undefined, 'lifecycle', chrome.lifecycle],
+    [spec.tree !== undefined, 'tree', chrome.tree],
+    [spec.comparison !== undefined, 'comparison', chrome.comparison],
+    [spec.ideaMap !== undefined, 'idea-map', chrome.ideaMap],
+    [spec.explainer !== undefined, 'explainer', chrome.explainer],
+    [spec.timeline !== undefined, 'timeline', chrome.timeline],
+    [spec.findings !== undefined, 'findings', chrome.findings],
+    [spec.beforeAfter !== undefined, 'before-after', `${chrome.before} / ${chrome.after}`],
+    [spec.decisionRecord !== undefined, 'decision-record', chrome.decisionRecord],
+    [spec.decisions !== undefined, 'decisions', chrome.decisions],
+    [spec.evidence !== undefined, 'evidence', chrome.evidence],
+    [spec.risks !== undefined, 'risks', chrome.risks],
+    [spec.log !== undefined, 'log', chrome.log],
+    [spec.links !== undefined, 'links', chrome.links],
+  ];
+
+  return parts.filter(([exists]) => exists).map(([, id, title]) => ({ id, title }));
+};
+
+/** A drawing in a dark window; below the width where its text would pass 12 px the list takes its place. */
 export const figure = (opts: { ctx: ISectionContext; drawing: IDrawing }): string => {
   const width = Math.round(opts.drawing.width);
 
   opts.ctx.fits.add(width);
 
-  return `<div class="fig f${width}">${opts.drawing.svg}</div>${opts.drawing.fallback}`;
+  return `<div class="win"><div class="fig f${width}">${opts.drawing.svg}</div>${opts.drawing.fallback}</div>`;
 };
 
 /** JSON for a `<script type="application/json">`: nothing in it can close the tag or start a comment. */
@@ -58,6 +90,14 @@ export const jsonForScript = (opts: { value: unknown }): string =>
     .replaceAll(' ', '\\u2028')
     .replaceAll(' ', '\\u2029');
 
+/** One variant of an arrow as a short line, drawn with the same rules as the arrows of the figure. */
+const variantSwatch = (opts: { variant: string }): string =>
+  `<svg class="lg" viewBox="0 0 44 12" aria-hidden="true"><g class="edge ${escaped(opts.variant)}"><path d="M0 6H44"/></g></svg>`;
+
+/**
+ * The flow lives in the hero: the figure on the slab, its phone list, the legend, then the steps to press and the
+ * line that says what is picked. Without script the steps are a plain list with their text.
+ */
 export const flowSection = (opts: { ctx: ISectionContext }): string => {
   const { flow } = opts.ctx.spec;
   const { chrome } = opts.ctx;
@@ -73,29 +113,38 @@ export const flowSection = (opts: { ctx: ISectionContext }): string => {
     ...new Set(flow.nodes.flatMap((node) => (node.state === undefined ? [] : [node.state]))),
   ];
   const steps = flow.steps;
-  const controls = [
+  const legend = [
+    ...states.map((state) => `<li>${chip({ chrome, state })}</li>`),
+    ...(kinds.length > 1 ? kinds.map((kind) => `<li>${escaped(kind)}</li>`) : []),
+    ...(variants.length > 1
+      ? variants.map(
+          (variant) => `<li>${variantSwatch({ variant })}<span>${escaped(variant)}</span></li>`,
+        )
+      : []),
+  ];
+  const play =
     flow.edges.length > 0
-      ? `<button id="play" type="button" aria-pressed="false" data-play="${escaped(chrome.play)}" data-pause="${escaped(chrome.pause)}">${escaped(chrome.play)}</button>`
-      : '',
+      ? `<button class="btn" id="play" type="button" aria-pressed="false" data-play="${escaped(chrome.play)}" data-pause="${escaped(chrome.pause)}">${escaped(chrome.play)}</button>`
+      : '';
+  const all =
     steps.length > 0
-      ? `<button id="prev" type="button">${escaped(chrome.previous)}</button><button id="next" type="button">${escaped(chrome.following)}</button><button id="all" type="button">${escaped(chrome.allSteps)}</button>`
-      : '',
-  ].join('');
+      ? `<button class="btn" id="all" type="button" hidden>${escaped(chrome.allSteps)}</button>`
+      : '';
 
   opts.ctx.fits.add(width);
 
-  // The figure, its phone list, then the controls: a sibling order the page CSS relies on to swap the figure for the list.
-  return section({
-    id: 'flow',
-    title: chrome.flow,
-    body: `<div class="fig f${width}">${renderFigure({ flow })}</div>${renderPathList({ flow })}<div class="bar">${controls}</div><p id="detail" aria-live="polite">${escaped(chrome.detailHint)}</p>${
-      steps.length > 0 ? `<p id="stepnote" aria-live="polite"></p>` : ''
-    }<div class="legend">${states.map((state) => chip({ chrome, state })).join('')}${kinds.map((kind) => `<span>${escaped(kind)}</span>`).join('')}${variants.map((variant) => `<span>${escaped(variant)}</span>`).join('')}</div>${
-      steps.length > 0
-        ? `<ol class="steps-note">${steps.map((step) => `<li><b>${escaped(step.title)}</b> - ${escaped(step.note)}</li>`).join('')}</ol><script type="application/json" id="steps">${jsonForScript({ value: steps })}</script>`
-        : ''
-    }`,
-  });
+  // The figure, its phone list, the legend, then the steps: a sibling order the page CSS relies on to swap the figure for the list.
+  return `<figure class="figure" id="flow"><p class="lab">${escaped(chrome.flow)}</p><div class="fig f${width}">${renderFigure({ flow })}</div>${renderPathList({ flow })}${
+    legend.length === 0 ? '' : `<ul class="legend">${legend.join('')}</ul>`
+  }${
+    steps.length > 0
+      ? `<ol class="steps">${steps.map((step, index) => `<li><button type="button" aria-pressed="false"><b>${escaped(step.title)}</b><span>${index + 1} / ${steps.length}</span></button><p class="explain">${escaped(step.note)}</p></li>`).join('')}</ol>`
+      : ''
+  }<div class="say js-only"><p id="say" aria-live="polite">${escaped(chrome.detailHint)}</p><div class="ctl">${play}${all}</div></div>${
+    steps.length > 0
+      ? `<script type="application/json" id="steps">${jsonForScript({ value: steps })}</script>`
+      : ''
+  }</figure>`;
 };
 
 export const architectureSection = (opts: { ctx: ISectionContext }): string => {
@@ -135,14 +184,14 @@ export const comparisonSection = (opts: { ctx: ISectionContext }): string => {
   const cards = comparison.options
     .map(
       (option, index) =>
-        `<article class="opt${option.recommended === true ? ' rec' : ''}">${option.recommended === true ? `<span class="tag">${escaped(chrome.recommended)}</span>` : ''}<h3>${escaped(option.name)}</h3>${option.line === undefined ? '' : `<p class="ln">${escaped(option.line)}</p>`}<p class="tot">${totals[index]}<small> ${escaped(chrome.outOf)} ${max}</small></p><div class="crit">${comparison.criteria.map((criterion, i) => `<div><span>${escaped(criterion)}</span>${dots({ score: option.scores[i] ?? 0 })}</div>`).join('')}</div><ul class="pc">${(option.pros ?? []).map((pro) => `<li class="p">${iconSvg({ name: 'plus', size: 16 })}<span><span class="vh">${escaped(chrome.pros)}: </span>${escaped(pro)}</span></li>`).join('')}${(option.cons ?? []).map((con) => `<li class="c">${iconSvg({ name: 'minus', size: 16 })}<span><span class="vh">${escaped(chrome.cons)}: </span>${escaped(con)}</span></li>`).join('')}</ul></article>`,
+        `<article class="opt${option.recommended === true ? ' rec' : ''}">${option.recommended === true ? `<span class="tag">${escaped(chrome.recommended)}</span>` : ''}<p class="tot">${totals[index]}<small> ${escaped(chrome.outOf)} ${max}</small></p><h3>${escaped(option.name)}</h3>${option.line === undefined ? '' : `<p class="ln">${escaped(option.line)}</p>`}<div class="crit">${comparison.criteria.map((criterion, i) => `<div><span>${escaped(criterion)}</span>${dots({ score: option.scores[i] ?? 0 })}</div>`).join('')}</div><ul class="pc">${(option.pros ?? []).map((pro) => `<li class="p">${iconSvg({ name: 'plus', size: 16 })}<span><span class="vh">${escaped(chrome.pros)}: </span>${escaped(pro)}</span></li>`).join('')}${(option.cons ?? []).map((con) => `<li class="c">${iconSvg({ name: 'minus', size: 16 })}<span><span class="vh">${escaped(chrome.cons)}: </span>${escaped(con)}</span></li>`).join('')}</ul></article>`,
     )
     .join('');
 
   return section({
     id: 'comparison',
     title: chrome.comparison,
-    body: `<div class="card chart"><p class="lab">${escaped(chrome.total)}, ${escaped(chrome.outOf)} ${max}</p>${renderTotals({ names: comparison.options.map((option) => option.name), totals, best, max, chrome })}</div><div class="opts n${comparison.options.length}">${cards}</div>${comparison.note === undefined ? '' : `<p class="note">${iconSvg({ name: 'info', size: 16 })} ${escaped(comparison.note)}</p>`}`,
+    body: `<div class="ranks"><p class="lab">${escaped(chrome.total)}, ${escaped(chrome.outOf)} ${max}</p>${renderTotals({ names: comparison.options.map((option) => option.name), totals, best, max, chrome })}</div><div class="opts n${comparison.options.length}">${cards}</div>${comparison.note === undefined ? '' : `<p class="note">${iconSvg({ name: 'info', size: 16 })} ${escaped(comparison.note)}</p>`}`,
   });
 };
 
@@ -168,7 +217,7 @@ export const explainerSection = (opts: { ctx: ISectionContext }): string => {
   return section({
     id: 'explainer',
     title: opts.ctx.chrome.explainer,
-    body: `<ol class="steps">${explainer.steps
+    body: `<ol class="ex">${explainer.steps
       .map(
         (step, index) =>
           `<li class="estep"><span class="no">${index + 1}</span><div class="sb"><h3>${escaped(step.title)}</h3><p>${escaped(step.text)}</p></div>${step.diagram === undefined ? '' : `<div class="dg">${figure({ ctx: opts.ctx, drawing: renderDiagram({ diagram: step.diagram }) })}</div>`}</li>`,
@@ -197,6 +246,7 @@ export const timelineSection = (opts: { ctx: ISectionContext }): string => {
   });
 };
 
+/** Big numbers as fields: a tint and an icon for a state, plain for a number that is only a number. */
 export const tilesHtml = (opts: {
   tiles: { value: string; label: string; state?: string }[];
   chrome: TChrome;
@@ -236,10 +286,10 @@ export const beforeAfterSection = (opts: { ctx: ISectionContext }): string => {
     items: { text: string; change?: string }[];
     kind: TChangeKind;
   }): string =>
-    `<section><h3>${escaped(given.title)}</h3><ul>${given.items
+    `<section class="ba"><h3>${escaped(given.title)}</h3><ul>${given.items
       .map((item) =>
         item.change === given.kind
-          ? `<li class="${given.kind === ChangeKinds.ADDED ? 'add' : 'del'}">${iconSvg({ name: given.kind === ChangeKinds.ADDED ? 'plus' : 'minus', size: 16 })}<span><span class="vh">${escaped(given.kind === ChangeKinds.ADDED ? chrome.added : chrome.removed)}: </span>${escaped(item.text)}</span></li>`
+          ? `<li class="${given.kind === ChangeKinds.ADDED ? 'add' : 'del'}">${iconSvg({ name: given.kind === ChangeKinds.ADDED ? 'plus' : 'minus', size: 16 })}<span><b class="wd">${escaped(given.kind === ChangeKinds.ADDED ? chrome.added : chrome.removed)}</b><span class="tx">${escaped(item.text)}</span></span></li>`
           : `<li class="same">${iconSvg({ name: 'minus', size: 16 })}<span>${escaped(item.text)}</span></li>`,
       )
       .join('')}</ul></section>`;
@@ -262,14 +312,14 @@ export const decisionRecordSection = (opts: { ctx: ISectionContext }): string =>
   return section({
     id: 'decision-record',
     title: chrome.decisionRecord,
-    body: `<div class="dr"><p class="lab">${escaped(chrome.context)}</p><p class="ctx">${escaped(decisionRecord.context)}</p><p class="lab">${escaped(chrome.optionsConsidered)}</p><div class="opts n${decisionRecord.options.length}">${decisionRecord.options
+    body: `<div class="dr"><div><p class="lab">${escaped(chrome.context)}</p><p class="ctx">${escaped(decisionRecord.context)}</p></div><div><p class="lab">${escaped(chrome.optionsConsidered)}</p><div class="opts n${decisionRecord.options.length}">${decisionRecord.options
       .map(
         (option) =>
           `<article class="opt${option.chosen === true ? ' rec' : ''}">${option.chosen === true ? `<span class="tag">${escaped(chrome.chosen)}</span>` : ''}<h3>${escaped(option.name)}</h3><p class="ln">${escaped(option.summary)}</p></article>`,
       )
       .join(
         '',
-      )}</div><blockquote class="pull">${iconSvg({ name: 'quote', size: 36 })}<p class="lab">${escaped(chrome.decision)}</p><p class="big">${escaped(decisionRecord.decision)}</p></blockquote><p class="lab">${escaped(chrome.consequences)}</p><ul class="cons">${decisionRecord.consequences.map((consequence) => `<li>${iconSvg({ name: 'check', size: 18 })}<span>${escaped(consequence)}</span></li>`).join('')}</ul></div>`,
+      )}</div></div><blockquote class="pull">${iconSvg({ name: 'quote', size: 36 })}<p class="lab">${escaped(chrome.decision)}</p><p class="big">${escaped(decisionRecord.decision)}</p></blockquote><div><p class="lab">${escaped(chrome.consequences)}</p><ul class="cons">${decisionRecord.consequences.map((consequence) => `<li>${iconSvg({ name: 'check', size: 18 })}<span>${escaped(consequence)}</span></li>`).join('')}</ul></div></div>`,
   });
 };
 
@@ -284,10 +334,10 @@ export const decisionsSection = (opts: { ctx: ISectionContext }): string => {
   return section({
     id: 'decisions',
     title: chrome.decisions,
-    body: `<ol class="dec">${decisions
+    body: `<ol class="qs">${decisions
       .map(
         (item) =>
-          `<li><p class="q">${escaped(item.question)}</p><div class="rec"><span class="lab">${escaped(chrome.recommended)}</span><p>${escaped(item.recommended)}</p></div><p class="chg"><span class="lab">${escaped(chrome.changesClaim)}</span>${escaped(item.changes)}</p></li>`,
+          `<li class="q"><div><h3>${escaped(item.question)}</h3><p class="chg"><span class="lab">${escaped(chrome.changesClaim)}</span>${escaped(item.changes)}</p></div><div class="rec"><b>${escaped(chrome.recommended)}</b><strong>${escaped(item.recommended)}</strong></div></li>`,
       )
       .join('')}</ol>`,
   });
@@ -310,12 +360,12 @@ export const evidenceSection = (opts: { ctx: ISectionContext }): string => {
   return section({
     id: 'evidence',
     title: chrome.evidence,
-    body: `<ul class="evs">${evidence
+    body: `<ul class="ledger">${evidence
       .map((row) => {
         const word =
           chrome.evidenceLabels[row.label as keyof TChrome['evidenceLabels']] ?? row.label;
 
-        return `<li class="ev"><span class="badge ev-${escaped(row.label)}">${iconSvg({ name: row.label, size: 15 })}${escaped(word)}</span><b>${escaped(row.claim)}</b><span class="pr">${escaped(row.probe)}</span><span class="rs">${escaped(row.result)}</span></li>`;
+        return `<li class="ev"><span class="badge ev-${escaped(row.label)}">${iconSvg({ name: row.label, size: 16 })}${escaped(word)}</span><span class="cl"><b>${escaped(row.claim)}</b><span class="pr">${escaped(row.probe)}</span></span><span class="rs">${escaped(row.result)}</span></li>`;
       })
       .join('')}</ul>`,
   });
@@ -363,7 +413,7 @@ export const linksSection = (opts: { ctx: ISectionContext }): string => {
     : section({
         id: 'links',
         title: opts.ctx.chrome.links,
-        body: `<ul class="links">${links.map((link) => `<li><a href="${escaped(link.href)}" rel="noopener noreferrer">${escaped(link.label)}</a></li>`).join('')}</ul>`,
+        body: `<ul class="links">${links.map((link) => `<li><a href="${escaped(link.href)}" rel="noopener noreferrer"><span>${escaped(link.label)}</span>${iconSvg({ name: 'arrow', size: 18 })}</a></li>`).join('')}</ul>`,
       });
 };
 

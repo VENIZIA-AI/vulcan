@@ -102,8 +102,11 @@ export const renderFigure = (opts: { flow: NonNullable<TVisualizeSpec['flow']> }
 
       const route = routeOf({ from: centreOf(from), to: centreOf(to) });
       const name = `${edge.from}>${edge.to}`;
+      // What the owner starts is drawn in the hot colour; a failure keeps its own red.
+      const hot = from.state === 'waiting' && edge.variant !== 'error';
+      const head = edge.variant === 'error' ? 'e' : hot ? 'h' : 'a';
 
-      return `<g class="edge ${escaped(edge.variant ?? 'main')}" data-edge="${escaped(name)}"><title>${escaped(edge.label)}</title><path d="${route.path}" marker-end="url(#${edge.variant === 'error' ? 'e' : 'a'})"/><text x="${route.label.x}" y="${route.label.y}" text-anchor="middle">${escaped(edge.label)}</text></g>`;
+      return `<g class="edge ${escaped(edge.variant ?? 'main')}${hot ? ' hot' : ''}" data-edge="${escaped(name)}"><title>${escaped(edge.label)}</title><path d="${route.path}" marker-end="url(#${head})"/><text x="${route.label.x}" y="${route.label.y}" text-anchor="middle">${escaped(edge.label)}</text></g>`;
     })
     .join('');
   const nodes = flow.nodes
@@ -111,19 +114,20 @@ export const renderFigure = (opts: { flow: NonNullable<TVisualizeSpec['flow']> }
       const centre = centreOf(node);
       const lines = node.sublabel === undefined ? 1 : 2;
       const tone = node.state === undefined ? '' : ` c-${NodeStates.toneOf(node.state)}`;
+      const gate = node.state === 'waiting';
       const left = centre.x - BOX_WIDTH / 2;
       const anchor = node.state === undefined ? 'middle' : 'start';
-      const textX = node.state === undefined ? centre.x : left + 40;
+      const textX = node.state === undefined ? centre.x : left + (node.state === 'waiting' ? 48 : 40);
       const mark =
         node.state === undefined
           ? ''
-          : `<g class="st" transform="translate(${left + 12} ${centre.y - 10})">${iconSvg({ name: NodeStates.iconOf(node.state), size: 20 }).replace('<svg', '<svg x="0" y="0"')}</g>`;
+          : `${gate ? `<circle class="halo" cx="${left + 22}" cy="${centre.y}" r="20"/><circle class="core" cx="${left + 22}" cy="${centre.y}" r="13"/>` : ''}<g class="st" transform="translate(${left + 12} ${centre.y - 10})">${iconSvg({ name: NodeStates.iconOf(node.state), size: 20 }).replace('<svg', '<svg x="0" y="0"')}</g>`;
 
-      return `<g class="node ${escaped(node.kind ?? 'step')}${tone}" tabindex="0" role="img" aria-label="${escaped(node.label)}${node.sublabel === undefined ? '' : `, ${escaped(node.sublabel)}`}" data-node="${escaped(node.id)}" data-detail="${escaped(node.detail ?? node.sublabel ?? node.label)}"><title>${escaped(node.label)}</title><rect x="${left}" y="${centre.y - BOX_HEIGHT / 2}" width="${BOX_WIDTH}" height="${BOX_HEIGHT}" rx="4"/>${mark}<text x="${textX}" y="${centre.y + (lines === 1 ? 5 : -4)}" text-anchor="${anchor}" class="t">${escaped(node.label)}</text>${node.sublabel === undefined ? '' : `<text x="${textX}" y="${centre.y + 17}" text-anchor="${anchor}" class="s">${escaped(node.sublabel)}</text>`}</g>`;
+      return `<g class="node ${escaped(node.kind ?? 'step')}${tone}${gate ? ' gate' : ''}" tabindex="0" role="img" aria-label="${escaped(node.label)}${node.sublabel === undefined ? '' : `, ${escaped(node.sublabel)}`}" data-node="${escaped(node.id)}" data-detail="${escaped(node.detail ?? node.sublabel ?? node.label)}"><title>${escaped(node.label)}</title><rect x="${left}" y="${centre.y - BOX_HEIGHT / 2}" width="${BOX_WIDTH}" height="${BOX_HEIGHT}" rx="4"/>${mark}<text x="${textX}" y="${centre.y + (lines === 1 ? 5 : -4)}" text-anchor="${anchor}" class="t">${escaped(node.label)}</text>${node.sublabel === undefined ? '' : `<text x="${textX}" y="${centre.y + 17}" text-anchor="${anchor}" class="s">${escaped(node.sublabel)}</text>`}</g>`;
     })
     .join('');
 
-  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="group" aria-label="flow"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="bad" d="M0 0L10 5L0 10z"/></marker></defs>${edges}${nodes}</svg>`;
+  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="group" aria-label="flow"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="13" markerHeight="13" markerUnits="userSpaceOnUse" orient="auto"><path class="ah" d="M0 0L10 5L0 10z"/></marker><marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="13" markerHeight="13" markerUnits="userSpaceOnUse" orient="auto"><path class="bad" d="M0 0L10 5L0 10z"/></marker><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="15" markerHeight="15" markerUnits="userSpaceOnUse" orient="auto"><path class="hot" d="M0 0L10 5L0 10z"/></marker></defs>${edges}${nodes}</svg>`;
 };
 
 /**

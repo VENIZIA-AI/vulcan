@@ -9,7 +9,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { PAGE_CSS, PAGE_JS } from '../../visualize/assets.ts';
+import { HEAD_JS, PAGE_JS, pageCss } from '../../visualize/assets.ts';
+import { ProjectTheme } from '../../visualize/theme.ts';
 import {
   pageNameOf,
   renderSpecText,
@@ -23,6 +24,17 @@ import { runCli } from '../run.helper.ts';
 import { fullSpec } from './spec.fixture.ts';
 
 afterAll(removeProjects);
+
+/** The page's own sheet for the neutral theme: the tokens first, then the rules. */
+const PAGE_CSS = ((): string => {
+  const resolved = ProjectTheme.resolve({});
+
+  if (!resolved.ok) {
+    throw new Error(resolved.problems.join('; '));
+  }
+
+  return pageCss({ tokens: ProjectTheme.tokensCss({ theme: resolved.theme }) });
+})();
 
 const render = (spec: Record<string, unknown>) => renderSpecText({ text: JSON.stringify(spec) });
 const rendered = (spec: Record<string, unknown>): string => {
@@ -268,7 +280,9 @@ describe('the page is safe by construction', () => {
     expect(style.startsWith(PAGE_CSS)).toBe(true);
     expect(policy).toContain(hash(style).replaceAll("'", '&#39;'));
     expect(policy).toContain(hash(PAGE_JS).replaceAll("'", '&#39;'));
+    expect(policy).toContain(hash(HEAD_JS).replaceAll("'", '&#39;'));
     expect(html).toContain(`<script>${PAGE_JS}</script>`);
+    expect(html).toContain(`<script>${HEAD_JS}</script>`);
     expect(policy).not.toContain('unsafe');
   });
 
@@ -307,7 +321,9 @@ describe('the page is safe by construction', () => {
     expect(PAGE_CSS).toContain('prefers-reduced-motion:reduce');
     expect(PAGE_CSS).toContain('@media print');
     expect(PAGE_CSS).toContain('prefers-color-scheme:dark');
-    expect(rendered(fullSpec())).toContain('<ol class="steps-note">');
+    // Without script the steps are a plain list and every step shows its note.
+    expect(rendered(fullSpec())).toContain('<ol class="steps">');
+    expect(rendered(fullSpec())).toContain('<p class="explain">');
   });
 });
 
@@ -326,7 +342,8 @@ describe('a step note cannot close the page script block', () => {
       /<script type="application\/json" id="steps">(.*?)<\/script>/s.exec(html)?.[1] ?? '';
 
     expect(JSON.parse(block)[0].note).toBe(note);
-    expect(html.match(/<script/g)?.length).toBe(2);
+    // The head script, the steps data and the page script: no more.
+    expect(html.match(/<script/g)?.length).toBe(3);
   });
 });
 
@@ -375,11 +392,12 @@ describe('the page reads the answer first', () => {
     const html = rendered(fullSpec());
     const at = (part: string): number => html.indexOf(part);
 
-    expect(at('data-hero')).toBeLessThan(at('class="tiles"'));
+    // The flow lives in the hero slab, under the verdict; the tiles, the minimap and the owner's two cards follow it.
+    expect(at('data-hero')).toBeLessThan(at('id="flow"'));
+    expect(at('id="flow"')).toBeLessThan(at('class="tiles"'));
     expect(at('class="tiles"')).toBeLessThan(at('id="minimap"'));
     expect(at('id="minimap"')).toBeLessThan(at('class="two"'));
-    expect(at('class="two"')).toBeLessThan(at('id="flow"'));
-    expect(at('id="flow"')).toBeLessThan(at('id="decisions"'));
+    expect(at('class="two"')).toBeLessThan(at('id="decisions"'));
     expect(at('id="decisions"')).toBeLessThan(at('id="evidence"'));
     expect(html).toContain('What you need to do');
     expect(html).toContain('<a class="jump" href="#decisions">Decisions needed (');
@@ -388,10 +406,10 @@ describe('the page reads the answer first', () => {
   test('the banner carries the state as an icon, a colour and a word', () => {
     const html = rendered(fullSpec());
 
-    expect(html).toMatch(/<header class="banner c-ok"/);
+    expect(html).toMatch(/<div class="banner slab c-ok"/);
     expect(html).toContain('class="word">On track<');
     expect(rendered({ ...fullSpec(), status: { state: 'blocked' } })).toMatch(
-      /<header class="banner c-bad"/,
+      /<div class="banner slab c-bad"/,
     );
     expect(
       rendered({ ...fullSpec(), status: { state: 'warn', label: 'Waiting for you' } }),
@@ -473,7 +491,7 @@ describe('the size', () => {
   test('a page that uses every section stays far under the cap, and says its size', () => {
     const result = render(fullSpec());
 
-    expect(result.ok && result.page.bytes).toBeLessThan(40 * 1024);
+    expect(result.ok && result.page.bytes).toBeLessThan(60 * 1024);
     expect(result.ok && result.page.checks.some((check) => check.startsWith('size '))).toBe(true);
     expect(result.ok && result.page.warnings).toEqual([]);
   });

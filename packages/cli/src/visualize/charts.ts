@@ -128,10 +128,19 @@ const lineChart = (opts: { chart: Extract<TChart, { type: 'line' }> }): string =
 
 const SLOTS = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)'];
 
+/** The page colour of a state tone: what waits for the owner is the project's accent, the rest are fixed. */
+const TONE_COLOURS: Record<string, string> = {
+  ok: 'var(--ok)',
+  warn: 'var(--accent)',
+  bad: 'var(--bad)',
+  info: 'var(--info)',
+  mut: 'var(--muted)',
+};
+
 const donutColour = (opts: { index: number; state?: string }): string =>
   opts.state === undefined
     ? (SLOTS[opts.index] ?? 'var(--s5)')
-    : `var(--${NodeStates.toneOf(opts.state)})`;
+    : (TONE_COLOURS[NodeStates.toneOf(opts.state)] ?? 'var(--muted)');
 
 const donutChart = (opts: { chart: Extract<TChart, { type: 'donut' }> }): string => {
   const { parts } = opts.chart;
@@ -226,7 +235,7 @@ export const renderTotals = (opts: {
       const width = Math.max(2, Math.round((total / opts.max) * plot));
       const isBest = index === opts.best;
 
-      return `<g><title>${escaped(name)}: ${total} ${escaped(opts.chrome.outOf)} ${opts.max}</title><text x="0" y="${y + 19}" class="ct${isBest ? ' strong' : ''}">${escaped(shorten({ value: name, max: 18 }))}</text><rect x="120" y="${y + 5}" width="${plot}" height="20" rx="4" class="ctrack"/><path d="${barPath({ x: 120, y: y + 5, width, height: 20 })}" fill="${isBest ? 'var(--acc)' : 'var(--mut)'}" opacity="${isBest ? 1 : 0.6}"/><text x="${120 + width + 6}" y="${y + 20}" class="cv">${total}</text></g>`;
+      return `<g><title>${escaped(name)}: ${total} ${escaped(opts.chrome.outOf)} ${opts.max}</title><text x="0" y="${y + 19}" class="ct${isBest ? ' strong' : ''}">${escaped(shorten({ value: name, max: 18 }))}</text><rect x="120" y="${y + 5}" width="${plot}" height="20" rx="4" class="ctrack"/><path d="${barPath({ x: 120, y: y + 5, width, height: 20 })}" fill="${isBest ? 'var(--accent)' : 'var(--muted)'}" opacity="${isBest ? 1 : 0.6}"/><text x="${120 + width + 6}" y="${y + 20}" class="cv">${total}</text></g>`;
     })
     .join('')}</svg>`;
 };
