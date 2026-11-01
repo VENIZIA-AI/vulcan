@@ -54,7 +54,7 @@ help:
 	@$(HELP_ROW) "skill-evals SKILL=<name>" "Run a skill's evals across MODELS=haiku,sonnet,opus in PROJECT, grade, report."
 	@echo ""
 	@echo "Shipped VULCAN targets (node_modules/@venizia/vulcan/base/make/vulcan.mk):"
-	@$(HELP_ROW) "vulcan-sync / agent-setup" "Write CLAUDE.md, .claude/settings.json and the skill links."
+	@$(HELP_ROW) "vulcan-sync" "Write CLAUDE.md, .claude/settings.json and the skill links."
 	@$(HELP_ROW) "vulcan-doctor" "Check this repository follows VULCAN; exit 1 on any violation."
 	@$(HELP_ROW) "okf-check" "Gate: OKF v0.2 conformance of .agents/knowledge; warnings never fail."
 	@$(HELP_ROW) "okf-check-strict" "okf-check plus the house rules: links, style, coverage, freshness."

@@ -7,7 +7,7 @@ VULCAN_BASE ?= node_modules/@venizia/vulcan/base
 # The GitHub repository the wiki links point into, owner/name; the link gate checks only links into it.
 WIKI_REPO ?=
 
-.PHONY: vulcan-sync vulcan-doctor agent-setup okf-check okf-check-strict okf-gen okf-coverage okf-viz \
+.PHONY: vulcan-sync vulcan-doctor okf-check okf-check-strict okf-gen okf-coverage okf-viz \
         surface-gen surface-check atlas-symbols atlas-releases changelogs-migrate \
         knowledge-symbols-check wiki-links-check wiki-anchors-check
 
@@ -16,9 +16,6 @@ vulcan-sync: ## Write the agent adapters, settings, skill links and manifest fro
 
 vulcan-doctor: ## Check the project against the VULCAN contract
 	@$(VULCAN) doctor
-
-# The older name for the same job, kept for muscle memory.
-agent-setup: vulcan-sync ## The older name for vulcan-sync
 
 # OKF v0.2 conformance only; okf-check-strict adds the house rules (links, style, coverage, freshness).
 okf-check: ## Check the knowledge bundle against OKF v0.2

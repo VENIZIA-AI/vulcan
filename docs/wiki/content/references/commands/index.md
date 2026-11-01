@@ -195,7 +195,6 @@ The following table lists the targets provided by `vulcan.mk`:
 |---|---|
 | `vulcan-sync` | Write the agent adapters, settings, skill links and manifest from the config |
 | `vulcan-doctor` | Check the project against the VULCAN contract |
-| `agent-setup` | The older name for vulcan-sync |
 | `okf-check` | Check the knowledge bundle against OKF v0.2 |
 | `okf-check-strict` | okf-check plus the house rules: links, style, coverage, freshness |
 | `okf-gen` | Regenerate the generated pages and regions of the knowledge bundle |

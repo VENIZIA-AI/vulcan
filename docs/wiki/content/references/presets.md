@@ -29,7 +29,7 @@ The second is that `preset.json`, with the files it copies next to it:
   "devPort": 3000,
   "dependencies": { "hono": "^4.13.13" },
   "devDependencies": { "@types/bun": "^1.4.1", "@venizia/dev-configs": "^0.3.4", "typescript": "^6.0.3" },
-  "scripts": { "server:dev": "bun run src/index.ts", "typecheck": "tsc --noEmit", "test": "bun test" },
+  "scripts": { "server:dev": "bun run src/index.ts", "typecheck": "bun check", "test": "bun test" },
   "checks": ["typecheck", "test"],
   "urls": ["/api/hello"],
   "imports": { "#src/*": "./src/*.js" },
@@ -51,6 +51,8 @@ dist/presets/
 ```
 
 The folder is yours to name; the official presets build into `dist/presets/{app,lib}`, and the examples here do the same.
+
+The `typecheck` script is `bun check` (Bun 1.4.4 or later): it reports the same errors as `tsc --noEmit`, including decorator metadata, in a fraction of the time (83 s down to 3.2 s on a real app). Two differences matter in a script: a failing run exits with code 1, not 2, so test for `!= 0`; and above 50 errors it groups identical ones unless you pass `--all`, which you want when you count errors. If the package has a script named `check`, `bun check` runs that script instead; pass `--no-script` to run the type checker. Keep `tsc` where it emits (build output, declaration files); `bun check -b` is documented to follow project references like `tsc -b`, but it was not measured here, so keep `tsc -b` for a build that depends on them.
 
 The app must pass `vulcan doctor`, which `init` runs last. Its `style` check wants `@venizia/dev-configs` declared and a lint config that imports it, so the example ships `.configs/lints/oxlint.config.mts` (`import { defineConfig } from 'oxlint'; import { oxlintConfigs } from '@venizia/dev-configs/linters'; export default defineConfig(oxlintConfigs);`) and lists `@venizia/dev-configs` in `devDependencies`. A preset without them ends `init` with `[style] package.json: add @venizia/dev-configs as a devDependency - here, or at the root`.
 
@@ -102,7 +104,7 @@ The keys before 0.3.10, `vulcan.preset` and `vulcan.lib`, are not read and have 
   "dependencies": { "zod": "^4.0.0" },
   "devDependencies": { "typescript": "^6.0.3" },
   "peerDependencies": { "@acme/core": "^1.0.0" },
-  "scripts": { "typecheck": "tsc --noEmit", "lint": "eslint .", "test": "bun test" },
+  "scripts": { "typecheck": "bun check", "lint": "eslint .", "test": "bun test" },
   "checks": ["typecheck"],
   "imports": { "#src/*": "./src/*.js" },
   "exports": { ".": "./src/index.ts" },

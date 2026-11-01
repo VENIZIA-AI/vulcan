@@ -136,10 +136,9 @@ export default defineConfig({
           'Rules, hooks, a knowledge bundle and a search server for your coding agent, from one config file and one pinned devDependency.',
       },
     ],
-    ['meta', { property: 'og:image', content: '/og-image.png' }],
     ['meta', { property: 'og:url', content: 'https://vulcan.venizia.ai/' }],
     // Twitter / X card
-    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:card', content: 'summary' }],
     [
       'meta',
       {
@@ -155,7 +154,6 @@ export default defineConfig({
           'Rules, hooks, a knowledge bundle and a search server for your coding agent, from one config file and one pinned devDependency.',
       },
     ],
-    ['meta', { name: 'twitter:image', content: '/og-image.png' }],
   ],
   lastUpdated: true,
   themeConfig: {

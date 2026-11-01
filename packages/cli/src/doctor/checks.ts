@@ -273,7 +273,7 @@ export const checkAdapters = (opts: ICheckContext): IViolation[] => {
           createViolation({
             check: DoctorChecks.ADAPTERS,
             file: relative(opts.root, absent[0].path),
-            message: `not synced yet - run '${ProjectLayout.VULCAN_COMMAND} sync' (make agent-setup) first`,
+            message: `not synced yet - run '${ProjectLayout.VULCAN_COMMAND} sync' (make vulcan-sync) first`,
           }),
         ];
 

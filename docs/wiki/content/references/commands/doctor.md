@@ -174,7 +174,7 @@ Missing, modified, or out-of-sync agent adapter files trigger this check.
 
 ```text
 $ bun x --no-install vulcan doctor
-  [adapters] CLAUDE.md: not synced yet - run 'bun x --no-install vulcan sync' (make agent-setup) first
+  [adapters] CLAUDE.md: not synced yet - run 'bun x --no-install vulcan sync' (make vulcan-sync) first
 vulcan doctor: 1 violation(s)
 ```
 
