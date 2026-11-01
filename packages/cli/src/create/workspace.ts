@@ -1,4 +1,5 @@
 import { relative, resolve } from 'node:path';
+import { RecordValue } from '../common/record.ts';
 import { coversFolder } from '../init/index.ts';
 import { LibraryKinds, PackageKinds } from '../config/index.ts';
 import type { TLibraryKind } from '../config/index.ts';
@@ -41,11 +42,8 @@ export const mergeCatalog = (opts: {
   additions: Record<string, string>;
 }): Record<string, string> => ({ ...opts.additions, ...opts.catalog });
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
 const toStringRecord = (opts: { value: unknown }): Record<string, string> =>
-  isRecord(opts.value)
+  RecordValue.isRecord(opts.value)
     ? Object.fromEntries(
         Object.entries(opts.value).filter(
           (entry): entry is [string, string] => typeof entry[1] === 'string',
@@ -57,7 +55,7 @@ const toStringRecord = (opts: { value: unknown }): Record<string, string> =>
 export const readCatalog = (opts: {
   manifest: Record<string, unknown>;
 }): Record<string, string> => ({
-  ...(isRecord(opts.manifest.workspaces)
+  ...(RecordValue.isRecord(opts.manifest.workspaces)
     ? toStringRecord({ value: opts.manifest.workspaces.catalog })
     : {}),
   ...toStringRecord({ value: opts.manifest.catalog }),
@@ -83,14 +81,14 @@ export const planRootManifest = (opts: {
   const fresh = Object.fromEntries(
     Object.entries(opts.additions).filter(([name]) => existing[name] === undefined),
   );
-  const isTopLevel = isRecord(manifest.catalog) || Array.isArray(workspaces);
+  const isTopLevel = RecordValue.isRecord(manifest.catalog) || Array.isArray(workspaces);
 
   if (isTopLevel) {
     return {
       ...manifest,
       workspaces: Array.isArray(workspaces)
         ? globs
-        : { ...(isRecord(workspaces) ? workspaces : {}), packages: globs },
+        : { ...(RecordValue.isRecord(workspaces) ? workspaces : {}), packages: globs },
       catalog: mergeCatalog({
         catalog: toStringRecord({ value: manifest.catalog }),
         additions: fresh,
@@ -98,7 +96,7 @@ export const planRootManifest = (opts: {
     };
   }
 
-  const inside = isRecord(workspaces) ? workspaces : {};
+  const inside = RecordValue.isRecord(workspaces) ? workspaces : {};
 
   return {
     ...manifest,
@@ -357,21 +355,21 @@ export const replaceAppsBlock = (opts: {
 const hasStrings = (opts: { value: unknown; keys: string[] }): boolean => {
   const { value } = opts;
 
-  return isRecord(value) && opts.keys.every((key) => typeof value[key] === 'string');
+  return RecordValue.isRecord(value) && opts.keys.every((key) => typeof value[key] === 'string');
 };
 
 const isRecordedPreset = (value: unknown): boolean =>
   hasStrings({ value, keys: ['spec', 'side', 'summary'] }) &&
-  isRecord(value) &&
+  RecordValue.isRecord(value) &&
   (value.side === 'backend' || value.side === 'frontend') &&
   (value.lib === undefined || typeof value.lib === 'string') &&
   (value.shared === undefined || typeof value.shared === 'string');
 
 const isAppsBlock = (value: unknown): value is IAppsBlock =>
-  isRecord(value) &&
+  RecordValue.isRecord(value) &&
   (value.presets === undefined ||
     (Array.isArray(value.presets) && value.presets.every((entry) => isRecordedPreset(entry)))) &&
-  isRecord(value.layout) &&
+  RecordValue.isRecord(value.layout) &&
   Object.values(value.layout).every(
     (folders) =>
       typeof folders === 'string' ||
@@ -381,7 +379,7 @@ const isAppsBlock = (value: unknown): value is IAppsBlock =>
   value.packages.every(
     (entry) =>
       hasStrings({ value: entry, keys: ['dir', 'name', 'path'] }) &&
-      isRecord(entry) &&
+      RecordValue.isRecord(entry) &&
       (entry.presetKind === undefined ||
         (typeof entry.presetKind === 'string' && LibraryKinds.isValid(entry.presetKind))),
   ) &&

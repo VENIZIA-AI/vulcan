@@ -1,6 +1,5 @@
 import {
   existsSync,
-  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -17,7 +16,7 @@ import type { TResolvedConfig } from '../config/index.ts';
 import { ManifestConstants, renderManifest } from '../manifest/index.ts';
 import { readSlots } from '../rules/index.ts';
 import { planAgentFiles } from './agent-files.ts';
-import { SyncConstants, SyncStatuses } from './common/index.ts';
+import { SyncConstants, SyncLinks, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
 import {
   buildProjectHookSettings,
@@ -29,15 +28,12 @@ import {
 
 const NO_CHANGE = (): void => {};
 
-const isSymlink = (opts: { path: string }): boolean =>
-  lstatSync(opts.path, { throwIfNoEntry: false })?.isSymbolicLink() ?? false;
-
 /** `CLAUDE.md` holds only `@AGENTS.md`: an old symlink or bun init's template is replaced, a hand-written file is left alone. */
 const planClaudeImport = (opts: { root: string }): ISyncAction => {
   const path = join(opts.root, SyncConstants.CLAUDE_TOOL_FILE);
   const write = (): void => writeFileSync(path, `${SyncConstants.CLAUDE_IMPORT_LINE}\n`);
 
-  if (isSymlink({ path })) {
+  if (SyncLinks.isSymlink({ path })) {
     return {
       path,
       status: SyncStatuses.REPLACED,
@@ -194,7 +190,7 @@ const planSkillLinks = (opts: {
   const target = join(opts.root, opts.directory);
 
   // A symlinked skills directory points outside the project: writing links through it would land them there.
-  if (isSymlink({ path: target })) {
+  if (SyncLinks.isSymlink({ path: target })) {
     return [
       {
         path: target,
@@ -234,7 +230,7 @@ const planSkillLinks = (opts: {
       symlinkSync(resolve(source), path);
     };
 
-    if (isSymlink({ path })) {
+    if (SyncLinks.isSymlink({ path })) {
       return readlinkSync(path) === resolve(source)
         ? { path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE }
         : {
@@ -266,7 +262,7 @@ const planSkillLinks = (opts: {
   const stale = (existsSync(target) ? readdirSync(target) : [])
     .filter((name) => !linked.has(name))
     .map((name) => join(target, name))
-    .filter((path) => isSymlink({ path }) && !existsSync(path))
+    .filter((path) => SyncLinks.isSymlink({ path }) && !existsSync(path))
     .map((path) => ({ path, destination: readlinkSync(path) }))
     .filter(
       ({ destination }) =>
@@ -303,8 +299,6 @@ export const planManifest = (opts: { root: string; config: TResolvedConfig }): I
     : { path, status: SyncStatuses.REPLACED, apply: write };
 };
 
-const CLAUDE_SKILLS = join(SyncConstants.CLAUDE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY);
-
 /** The skills folders of the chosen agents, each once, in table order: agents that read one folder share its links. */
 const skillDirectoriesOf = (opts: { agents: string[] }): string[] => [
   ...new Set(
@@ -325,7 +319,11 @@ export const planSync = (opts: {
     ? [planClaudeImport({ root: opts.root }), planSettings(opts)]
     : []),
   ...skillDirectoriesOf({ agents: opts.agents }).flatMap((directory) =>
-    planSkillLinks({ root: opts.root, directory, withProject: directory === CLAUDE_SKILLS }),
+    planSkillLinks({
+      root: opts.root,
+      directory,
+      withProject: directory === SyncConstants.CLAUDE_SKILLS,
+    }),
   ),
   ...planAgentFiles({ root: opts.root, agents: opts.agents }),
   planManifest(opts),

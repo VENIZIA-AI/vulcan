@@ -3,3 +3,5 @@ export * from './paths.ts';
 export * from './types.ts';
 export * from './json.ts';
 export * from './format.ts';
+export * from './record.ts';
+export * from './text.ts';

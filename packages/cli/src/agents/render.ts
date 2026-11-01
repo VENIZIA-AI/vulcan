@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import { RecordValue } from '../common/record.ts';
 import { RemoveOutcomes } from './common/index.ts';
 
 export const CODEX_BLOCK_START = '# vulcan:atlas:start';
@@ -33,9 +34,6 @@ export const canonicalAtlasEntry = (): { command: string; args: string[] } => ({
   args: ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'],
 });
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
 /**
  * Whether an `atlas` entry is the one sync writes, for whatever place: `bun <root>/node_modules/.bin/vulcan
  * x atlas mcp --root <root>` (plus `type: stdio` for VS Code) with the two paths agreeing, or the relative
@@ -45,7 +43,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isOwnEntry = (opts: { entry: unknown }): boolean => {
   const { entry } = opts;
 
-  if (!isRecord(entry) || entry.command !== 'bun' || !Array.isArray(entry.args)) {
+  if (!RecordValue.isRecord(entry) || entry.command !== 'bun' || !Array.isArray(entry.args)) {
     return false;
   }
 
@@ -88,7 +86,7 @@ export const mergeMcpServers = (opts: {
       return { ok: false, reason: 'not valid JSON' };
     }
 
-    if (!isRecord(parsed)) {
+    if (!RecordValue.isRecord(parsed)) {
       return { ok: false, reason: 'not a JSON object' };
     }
 
@@ -97,7 +95,7 @@ export const mergeMcpServers = (opts: {
 
   const servers = document[opts.key] ?? {};
 
-  if (!isRecord(servers)) {
+  if (!RecordValue.isRecord(servers)) {
     return { ok: false, reason: `${opts.key} is not an object` };
   }
 
@@ -190,13 +188,13 @@ export const removeMcpEntry = (opts: { text: string; key: string }): TRemoveResu
     return { ok: false, reason: 'not valid JSON - left untouched' };
   }
 
-  if (!isRecord(document)) {
+  if (!RecordValue.isRecord(document)) {
     return { ok: false, reason: 'not a JSON object - left untouched' };
   }
 
   const servers = document[opts.key];
 
-  if (!isRecord(servers) || !Object.hasOwn(servers, SERVER_NAME)) {
+  if (!RecordValue.isRecord(servers) || !Object.hasOwn(servers, SERVER_NAME)) {
     return { ok: true, outcome: RemoveOutcomes.ABSENT };
   }
 

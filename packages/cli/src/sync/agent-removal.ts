@@ -1,6 +1,5 @@
 import {
   existsSync,
-  lstatSync,
   readdirSync,
   readFileSync,
   readlinkSync,
@@ -24,17 +23,13 @@ import {
 import type { TAgentEntry } from '../agents/index.ts';
 import { isTracked } from './agent-files.ts';
 import { BASE_DIRECTORY, stableBaseDirectoryOf } from '../common/index.ts';
-import { SyncConstants, SyncStatuses } from './common/index.ts';
+import { SyncConstants, SyncLinks, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
 import { isSettingsObject, removeManagedSettings } from './settings.ts';
 
 const NO_CHANGE = (): void => {};
-const CLAUDE_SKILLS = join(SyncConstants.CLAUDE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY);
 /** Parents sync may delete once empty: its own agent folders, never `.agents` or the project. */
 const OWN_FOLDERS = new Set(['.cursor', '.codex', '.pi', '.omp', '.vscode', '.claude']);
-
-const isSymlink = (opts: { path: string }): boolean =>
-  lstatSync(opts.path, { throwIfNoEntry: false })?.isSymbolicLink() ?? false;
 
 const removeIfEmpty = (opts: { path: string }): void => {
   try {
@@ -58,7 +53,7 @@ const readJsonObject = (opts: { path: string }): TSettings | undefined => {
 
 /** A skill link sync made: a symlink into the shipped skills, stable or in the package, or into `.agents/skills`. */
 const isSkillLink = (opts: { root: string; path: string }): boolean => {
-  if (!isSymlink({ path: opts.path })) {
+  if (!SyncLinks.isSymlink({ path: opts.path })) {
     return false;
   }
 
@@ -299,7 +294,7 @@ const planMcpRemoval = (opts: { root: string; entry: TAgentEntry }): ISyncAction
 const planSkillLinkRemoval = (opts: { root: string; directory: string }): ISyncAction[] => {
   const target = join(opts.root, opts.directory);
 
-  if (!existsSync(target) || isSymlink({ path: target })) {
+  if (!existsSync(target) || SyncLinks.isSymlink({ path: target })) {
     return [];
   }
 
@@ -356,7 +351,9 @@ const planClaudeRemoval = (opts: { root: string }): ISyncAction[] => {
     actions.push(removeFile({ path: managedPath }));
   }
 
-  actions.push(...planSkillLinkRemoval({ root: opts.root, directory: CLAUDE_SKILLS }));
+  actions.push(
+    ...planSkillLinkRemoval({ root: opts.root, directory: SyncConstants.CLAUDE_SKILLS }),
+  );
 
   return actions;
 };
@@ -397,7 +394,7 @@ export const planAgentRemoval = (opts: {
     }
 
     if (
-      entry.skills.dir !== CLAUDE_SKILLS &&
+      entry.skills.dir !== SyncConstants.CLAUDE_SKILLS &&
       !kept.has(entry.skills.dir) &&
       !cleaned.has(entry.skills.dir)
     ) {

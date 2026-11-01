@@ -1,10 +1,6 @@
+import { RecordValue } from '../common/record.ts';
 import { Locales } from './common/index.ts';
 import type { IVizCopy, TLocale } from './common/index.ts';
-
-type TRecord = Record<string, unknown>;
-
-const isRecord = (opts: { value: unknown }): opts is { value: TRecord } =>
-  typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
 
 /** The copy a project gets when its config gives none: plain, built from the brand. */
 const defaultCopy = (opts: { brand: string }): Record<TLocale, IVizCopy> => ({
@@ -24,7 +20,7 @@ const defaultCopy = (opts: { brand: string }): Record<TLocale, IVizCopy> => ({
 const mergeLocale = (opts: { base: IVizCopy; value: unknown }): IVizCopy => {
   const given = { value: opts.value };
 
-  if (!isRecord(given)) {
+  if (!RecordValue.isRecord(given)) {
     return opts.base;
   }
 
@@ -33,7 +29,7 @@ const mergeLocale = (opts: { base: IVizCopy; value: unknown }): IVizCopy => {
   return {
     heading: typeof given.value.heading === 'string' ? given.value.heading : opts.base.heading,
     tagline: typeof given.value.tagline === 'string' ? given.value.tagline : opts.base.tagline,
-    sectionDescriptions: isRecord(descriptions)
+    sectionDescriptions: RecordValue.isRecord(descriptions)
       ? Object.fromEntries(
           Object.entries(descriptions.value).filter(
             (entry): entry is [string, string] => typeof entry[1] === 'string',

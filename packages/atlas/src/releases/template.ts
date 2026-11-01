@@ -1,9 +1,8 @@
+import { TextValue } from '@/common/text';
+
 /** `[#<issue>] ` at the front of a template: optional on a commit, and a commit may carry several. */
 const LEADING_ISSUE = '[#<issue>] ';
 const PLACEHOLDER_PATTERN = /<(dir|package|version|issue|date)>/;
-
-const escapeLiteral = (opts: { text: string }): string =>
-  opts.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * A release template as the pattern that reads a commit subject: named groups
@@ -21,7 +20,7 @@ export const compileReleaseTemplate = (opts: { template: string }): RegExp => {
     .split(PLACEHOLDER_PATTERN)
     .map((part, index) => {
       if (index % 2 === 0) {
-        return escapeLiteral({ text: part });
+        return TextValue.escapeLiteral({ text: part });
       }
 
       const group = part === 'package' ? 'dir' : part;

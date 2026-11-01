@@ -1,3 +1,5 @@
+import { RecordValue } from '../common/record.ts';
+
 const FRONTMATTER = /^---\n([\s\S]*?)\n---(?:\n|$)([\s\S]*)$/;
 
 export type TYamlMapping = Record<string, unknown>;
@@ -13,9 +15,6 @@ export const splitFrontmatter = (opts: {
 
   return match ? { yaml: match[1], body: match[2] } : { yaml: undefined, body: text };
 };
-
-const isMapping = (opts: { value: unknown }): opts is { value: TYamlMapping } =>
-  typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
 
 /** A frontmatter block must be a YAML mapping; an empty block is an empty mapping. */
 export const parseYamlMapping = (opts: { yaml: string }): TParsedYaml => {
@@ -33,7 +32,7 @@ export const parseYamlMapping = (opts: { yaml: string }): TParsedYaml => {
 
   const holder = { value };
 
-  return isMapping(holder)
+  return RecordValue.isRecord(holder)
     ? { ok: true, data: holder.value }
     : { ok: false, reason: 'not a YAML mapping' };
 };

@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { formatWithBun } from '@/common/format';
 import type { IAtlasProject } from '@/common/project-config';
+import { TextValue } from '@/common/text';
 import { parseFrontmatter } from '@/corpus/frontmatter';
 import { symbolsOfRepository } from '@/symbols/compute';
 import type { ISymbolRecord } from '@/symbols/common';
@@ -18,14 +19,6 @@ interface ISymbolsLock {
   symbols: Record<string, string>;
 }
 
-const byText = (left: string, right: string): number => {
-  if (left === right) {
-    return 0;
-  }
-
-  return left < right ? -1 : 1;
-};
-
 /** The lock's path inside the knowledge bundle. */
 const symbolsLockOf = (opts: { project: IAtlasProject }): string =>
   join(opts.project.knowledge.bundle, SYMBOLS_LOCK_NAME);
@@ -38,7 +31,9 @@ export const readDeclaredSymbols = (opts: { project: IAtlasProject }): IDeclared
     return [];
   }
 
-  const paths = [...new Bun.Glob('**/*.md').scanSync({ cwd: bundle })].sort(byText);
+  const paths = [...new Bun.Glob('**/*.md').scanSync({ cwd: bundle })].sort((left, right) =>
+    TextValue.compare({ left, right }),
+  );
 
   return paths.flatMap((path) => {
     const { data } = parseFrontmatter({
@@ -96,7 +91,9 @@ export const resolveDeclaredSymbol = (opts: {
   }
 
   const hash = new Bun.CryptoHasher('sha256')
-    .update([...new Set(signatures)].sort(byText).join('\n'))
+    .update(
+      [...new Set(signatures)].sort((left, right) => TextValue.compare({ left, right })).join('\n'),
+    )
     .digest('hex');
 
   return { hash: hash.slice(0, HASH_LENGTH) };
@@ -156,7 +153,9 @@ export const stampConcepts = (opts: { project: IAtlasProject }): IStampReport =>
 
   const lock: ISymbolsLock = {
     schemaVersion: LOCK_SCHEMA_VERSION,
-    symbols: Object.fromEntries([...hashes].sort(([left], [right]) => byText(left, right))),
+    symbols: Object.fromEntries(
+      [...hashes].sort(([left], [right]) => TextValue.compare({ left, right })),
+    ),
   };
 
   writeFileSync(

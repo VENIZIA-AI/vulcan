@@ -1,11 +1,8 @@
+import { RecordValue } from '@/common/record';
+import { TextValue } from '@/common/text';
+
 /** A leading `---` block; a page saved with CRLF line endings carries the same block. */
 export const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n)?/;
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
 
 /**
  * Splits YAML frontmatter from the body. No leading `---` block means no frontmatter - the whole
@@ -29,10 +26,10 @@ export const parseFrontmatter = (opts: {
     parsed = Bun.YAML.parse(match[1]);
   } catch (error) {
     throw new Error(
-      `[parseFrontmatter] invalid YAML frontmatter | file: ${path} | ${messageOf(error)}`,
+      `[parseFrontmatter] invalid YAML frontmatter | file: ${path} | ${TextValue.messageOf({ error })}`,
       { cause: error },
     );
   }
 
-  return { data: isRecord(parsed) ? parsed : {}, body: text.slice(match[0].length) };
+  return { data: RecordValue.orEmpty({ value: parsed }), body: text.slice(match[0].length) };
 };

@@ -6,6 +6,7 @@ import { AtlasTimeouts } from '@/common/constants';
 import { directoryOf } from '@/common/package-map';
 import { isWithinDirectory } from '@/common/paths';
 import type { IAtlasProject } from '@/common/project-config';
+import { TextValue } from '@/common/text';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
 import { compileReleaseTemplate } from './template';
 
@@ -19,14 +20,6 @@ const DATE_PREFIX_PATTERN = /^(\d{4}-\d{2}-\d{2})-/;
 const BADGE_TEXT_PATTERN = /<Badge[^>]*\stext="([^"]*)"/;
 /** `'<npm name>@<version>'` - a scoped name has its own `@`, so the version is after the last one. */
 const RELEASE_OVERRIDE_PATTERN = /^(.+)@([^@]+)$/;
-
-const byText = (left: string, right: string): number => {
-  if (left === right) {
-    return 0;
-  }
-
-  return left < right ? -1 : 1;
-};
 
 const git = (opts: { root: string; args: string[] }): string => {
   const result = spawnSync('git', opts.args, {
@@ -261,7 +254,7 @@ export const computeReleases = (opts: { project: IAtlasProject }): IReleaseTable
   const live = project.packages
     .filter((entry) => !entry.retired)
     .map((entry) => entry.dir)
-    .sort(byText);
+    .sort((left, right) => TextValue.compare({ left, right }));
   const packageMap = project.packages.map((entry) => ({
     dir: entry.dir,
     name: entry.name,
@@ -283,7 +276,11 @@ export const computeReleases = (opts: { project: IAtlasProject }): IReleaseTable
 
   const releases: Record<string, IReleaseRecord[]> = {};
 
-  for (const dir of [...new Set(positioned.map((entry) => entry.dir))].sort(byText)) {
+  const dirs = [...new Set(positioned.map((entry) => entry.dir))].sort((left, right) =>
+    TextValue.compare({ left, right }),
+  );
+
+  for (const dir of dirs) {
     releases[dir] = positioned
       .filter((entry) => entry.dir === dir)
       .map((entry) => ({ ...entry.record, order: countOf(entry.record.order ?? 0) }))
@@ -305,7 +302,7 @@ export const computeReleases = (opts: { project: IAtlasProject }): IReleaseTable
     const files = readdirSync(directory)
       .filter((file) => DATE_PREFIX_PATTERN.test(file))
       .filter((file) => isWithinDirectory({ path: join(directory, file), directory: project.root }))
-      .sort(byText)
+      .sort((left, right) => TextValue.compare({ left, right }))
       .reverse();
 
     for (const file of files) {

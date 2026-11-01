@@ -17,7 +17,7 @@ import type { IProjectPackage, TLibraryKind, TResolvedConfig } from '../config/i
 import { readWorkspaceGlobs } from '../init/index.ts';
 import { addLibrary } from './add-lib.ts';
 import { runAppChecks } from './checks.ts';
-import { AppSides, AppsBlockProblems, CreateFlags } from './common/index.ts';
+import { AddFailure, AppSides, AppsBlockProblems, CreateFlags } from './common/index.ts';
 import type { IAppsBlock, ILocatedPreset, IPresetSpec, TAppSide } from './common/index.ts';
 import { writeFile } from './files.ts';
 import { recordedPresetOf } from './lib-preset.ts';
@@ -63,12 +63,6 @@ const ROOT_HINT =
   'run it at the root of a monorepo vulcan init created (no layout in .configs/vulcan.config.*)';
 
 const MISSING_API = `missing ${CreateFlags.API} <app> or ${CreateFlags.NO_API}`;
-
-const fail = (opts: { message: string }): number => {
-  process.stderr.write(`vulcan add: ${opts.message}\n`);
-
-  return ExitCodes.FAILURE;
-};
 
 /** The side the flags give away: a frontend flag, or only the backend folder; undefined when they do not say. */
 const sideNamedBy = (opts: { args: string[] }): TAppSide | undefined => {
@@ -375,7 +369,7 @@ const runAdd = async (opts: {
   const flagged = readFlag({ args: opts.args, flag: CreateFlags.PRESET });
 
   if (flagged === undefined && !menusAvailable()) {
-    return fail({ message: '--preset needs a value (a package name, or file:<path>)' });
+    return AddFailure.fail({ message: '--preset needs a value (a package name, or file:<path>)' });
   }
 
   const askingPreset = flagged === undefined ? askPreset({ cwd }) : undefined;
@@ -383,13 +377,13 @@ const runAdd = async (opts: {
   const presetValue = flagged ?? typedPreset?.trim();
 
   if (presetValue === undefined || presetValue === '') {
-    return fail({ message: '--preset needs a value (a package name, or file:<path>)' });
+    return AddFailure.fail({ message: '--preset needs a value (a package name, or file:<path>)' });
   }
 
   const loaded = await loadConfig({ root: cwd });
 
   if (!loaded.ok) {
-    return fail({ message: loaded.file === undefined ? ROOT_HINT : loaded.error });
+    return AddFailure.fail({ message: loaded.file === undefined ? ROOT_HINT : loaded.error });
   }
 
   const config: TResolvedConfig = loaded.config;
@@ -398,7 +392,7 @@ const runAdd = async (opts: {
   const manifest = readRootManifest({ path: manifestPath });
 
   if (config.layout === undefined || manifest === undefined) {
-    return fail({ message: ROOT_HINT });
+    return AddFailure.fail({ message: ROOT_HINT });
   }
 
   const interactive = process.stdin.isTTY === true;
@@ -407,7 +401,7 @@ const runAdd = async (opts: {
   );
 
   if (flaggedKinds.length > 1) {
-    return fail({
+    return AddFailure.fail({
       message: `${CreateFlags.APP}, ${CreateFlags.LIB} and ${CreateFlags.SHARED} cannot be used together`,
     });
   }
@@ -417,19 +411,19 @@ const runAdd = async (opts: {
   const flaggedScope = readScope({ args: opts.args });
 
   if (!flaggedScope.ok) {
-    return fail({ message: flaggedScope.error });
+    return AddFailure.fail({ message: flaggedScope.error });
   }
 
   if (
     flagsLibrary &&
     readFlag({ args: opts.args, flag: ADD_KINDS[flaggedKind].flag }) === undefined
   ) {
-    return fail({ message: `${ADD_KINDS[flaggedKind].flag} needs a name` });
+    return AddFailure.fail({ message: `${ADD_KINDS[flaggedKind].flag} needs a name` });
   }
 
   // Never a default kind: without a terminal to ask, nothing is fetched or written until the flag says which.
   if (!interactive && flaggedKind === undefined) {
-    return fail({
+    return AddFailure.fail({
       message: `${SAY_WHAT}\n  ${kindCommands({ presetValue }).join('\n  ')}`,
     });
   }
@@ -440,14 +434,14 @@ const runAdd = async (opts: {
       : missingFlag({ args: opts.args, layout: config.layout });
 
   if (early !== undefined) {
-    return fail({ message: early });
+    return AddFailure.fail({ message: early });
   }
 
   const spec = parsePresetSpec({ value: presetValue, cwd });
   const located = await locate({ cwd, scratch: opts.scratch, spec });
 
   if (!located.ok) {
-    return fail({ message: located.error });
+    return AddFailure.fail({ message: located.error });
   }
 
   const { preset, packageName, packageVersion } = located.located;
@@ -455,7 +449,7 @@ const runAdd = async (opts: {
   let kind: TAddKind = flaggedKind ?? PackageKinds.APP;
 
   if (flaggedKind === LibraryKinds.SHARED && located.located.sharedFile === undefined) {
-    return fail({
+    return AddFailure.fail({
       message: noSharedKindMessage({
         located: located.located,
         recorded: config.presets,
@@ -471,7 +465,7 @@ const runAdd = async (opts: {
     const chosen = await askingKind;
 
     if (chosen === undefined) {
-      return fail({ message: SAY_WHAT });
+      return AddFailure.fail({ message: SAY_WHAT });
     }
 
     kind = chosen;
@@ -491,7 +485,7 @@ const runAdd = async (opts: {
     const name = flaggedName ?? typedName?.trim();
 
     if (name === undefined || name === '') {
-      return fail({ message: `${ADD_KINDS[kind].flag} needs a name` });
+      return AddFailure.fail({ message: `${ADD_KINDS[kind].flag} needs a name` });
     }
 
     return addLibrary({
@@ -524,7 +518,7 @@ const runAdd = async (opts: {
   });
 
   if (peerProblem !== undefined) {
-    return fail({ message: peerProblem });
+    return AddFailure.fail({ message: peerProblem });
   }
 
   const side = preset.side;
@@ -547,7 +541,7 @@ const runAdd = async (opts: {
   });
 
   if (!names.ok) {
-    return fail({ message: names.error });
+    return AddFailure.fail({ message: names.error });
   }
 
   const { folder, app } = names.names;
@@ -558,7 +552,7 @@ const runAdd = async (opts: {
 
   // One folder holds one kind of code: a folder another key already owns would mix them.
   if (otherSide !== undefined) {
-    return fail({
+    return AddFailure.fail({
       message:
         otherSide[0] === LayoutKeys.OTHER
           ? `the ${side} folder '${folder}' is listed under layout.other in ${configPath}: folders the layout leaves alone are not app targets`
@@ -571,7 +565,7 @@ const runAdd = async (opts: {
 
   // A folder inside another (or around one) would give a package path two owners.
   if (overlaps.length > 0) {
-    return fail({
+    return AddFailure.fail({
       message: `the ${side} folder '${folder}' does not fit the layout of ${configPath}: ${overlaps.join('; ')}`,
     });
   }
@@ -583,7 +577,7 @@ const runAdd = async (opts: {
   const scope = await askingScope;
 
   if (scope === null) {
-    return fail({ message: ABORTED });
+    return AddFailure.fail({ message: ABORTED });
   }
 
   const packageOfApp = scope === undefined ? app : `${scope}/${app}`;
@@ -593,7 +587,7 @@ const runAdd = async (opts: {
     existsSync(join(cwd, folder, app)) ||
     packages.some((entry) => entry.dir === app || entry.name === packageOfApp)
   ) {
-    return fail({ message: `${folder}/${app} already exists` });
+    return AddFailure.fail({ message: `${folder}/${app} already exists` });
   }
 
   const devPort = pickPort({ preferred: preset.devPort, used: usedPorts({ root: cwd, packages }) });
@@ -609,7 +603,7 @@ const runAdd = async (opts: {
     });
 
     if (!api.ok) {
-      return fail({ message: api.error });
+      return AddFailure.fail({ message: api.error });
     }
 
     apiUrl = api.apiUrl;
@@ -623,7 +617,7 @@ const runAdd = async (opts: {
 
   // The user's config is theirs: with the block gone or no longer JSON it is never rewritten, only described.
   if (!parsed.ok) {
-    return fail({
+    return AddFailure.fail({
       message: [
         parsed.reason === AppsBlockProblems.MISSING
           ? `the vulcan:apps block is gone from ${configPath} - add by hand:`
@@ -663,7 +657,7 @@ const runAdd = async (opts: {
         );
 
   if (nextConfig === undefined) {
-    return fail({ message: ROOT_HINT });
+    return AddFailure.fail({ message: ROOT_HINT });
   }
 
   const project = config.name ?? (typeof manifest.name === 'string' ? manifest.name : app);
@@ -700,7 +694,7 @@ const runAdd = async (opts: {
   const confirmed = await confirmWrite({ title: `Add ${app}`, lines: planLines({ rows }) });
 
   if (!confirmed) {
-    return fail({ message: ABORTED });
+    return AddFailure.fail({ message: ABORTED });
   }
 
   copyPresetFiles({

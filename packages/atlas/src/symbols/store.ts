@@ -1,6 +1,7 @@
 import { BaseHelper } from '@/common/helper';
 import { packageOfQuery } from '@/common/package-map';
 import type { IPackageMapEntry } from '@/common/package-map';
+import { TextValue } from '@/common/text';
 import type { ISymbolRecord } from './common';
 
 const DEFAULT_SUGGESTION_LIMIT = 5;
@@ -43,14 +44,6 @@ const distanceWithin = (opts: { left: string; right: string; max: number }): num
 
 /** Keeps the first occurrence of every value, in order - the buckets below overlap by design. */
 const dedupe = (values: string[]): string[] => [...new Set(values)];
-
-const byName = (left: string, right: string): number => {
-  if (left === right) {
-    return 0;
-  }
-
-  return left < right ? -1 : 1;
-};
 
 /**
  * The generated symbol table in memory: exact lookup by name, and a suggestion list for a name
@@ -173,15 +166,23 @@ export class SymbolStore extends BaseHelper {
     const wanted = opts.name.toLowerCase();
     const lowerNames = [...this.namesByLowerCase.keys()];
 
-    const prefixed = lowerNames.filter((name) => name.startsWith(wanted)).sort(byName);
-    const contained = lowerNames.filter((name) => name.includes(wanted)).sort(byName);
+    const prefixed = lowerNames
+      .filter((name) => name.startsWith(wanted))
+      .sort((left, right) => TextValue.compare({ left, right }));
+    const contained = lowerNames
+      .filter((name) => name.includes(wanted))
+      .sort((left, right) => TextValue.compare({ left, right }));
     const near = lowerNames
       .map((name) => ({
         name,
         distance: distanceWithin({ left: wanted, right: name, max: MAX_SUGGESTION_DISTANCE }),
       }))
       .filter((entry) => entry.distance <= MAX_SUGGESTION_DISTANCE)
-      .sort((left, right) => left.distance - right.distance || byName(left.name, right.name))
+      .sort(
+        (left, right) =>
+          left.distance - right.distance ||
+          TextValue.compare({ left: left.name, right: right.name }),
+      )
       .map((entry) => entry.name);
 
     const ordered = dedupe([...prefixed, ...contained, ...near]).flatMap(

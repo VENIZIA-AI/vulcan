@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { RecordValue } from '../common/record.ts';
 import { readOkfProject } from '../project/index.ts';
 
 const DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
@@ -10,14 +11,11 @@ const RELEASE_OVERRIDE = /^(.+)@([^@]+)$/;
 
 type TRecord = Record<string, unknown>;
 
-const isRecord = (opts: { value: unknown }): opts is { value: TRecord } =>
-  typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
-
 const frontmatterOf = (opts: { text: string }): TRecord => {
   const block = FRONTMATTER.exec(opts.text)?.[1];
   const parsed = { value: block === undefined ? undefined : Bun.YAML.parse(block) };
 
-  return isRecord(parsed) ? parsed.value : {};
+  return RecordValue.isRecord(parsed) ? parsed.value : {};
 };
 
 /** The tag a release override names, by one template of the project; a `<date>` part matches any date. */

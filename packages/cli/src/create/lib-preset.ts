@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { z } from 'zod';
 import { LibraryKinds } from '../config/index.ts';
 import type { TLibraryKind } from '../config/index.ts';
-import { CreateConstants } from './common/index.ts';
+import { CreateConstants, PresetPath } from './common/index.ts';
 import type { ILocatedPreset, IRecordedPreset } from './common/index.ts';
 
 /** `package.json` fields a lib preset may pass through; anything else it generates itself or does not support. */
@@ -82,12 +82,6 @@ export type TLibPreset = Omit<z.infer<typeof LIB_SCHEMA>, 'files'> & {
 
 type TLibPresetResult = { ok: true; lib: TLibPreset } | { ok: false; error: string };
 
-const escapes = (opts: { root: string; path: string }): boolean => {
-  const relativePath = relative(opts.root, opts.path);
-
-  return isAbsolute(relativePath) || relativePath === '..' || relativePath.startsWith(`..${sep}`);
-};
-
 /**
  * The lib preset of a located preset package, validated; with `kind: 'shared'` it reads the shared kind,
  * which has the same schema. The app side is never touched by an error here.
@@ -137,7 +131,7 @@ export const readLibPreset = (opts: {
 
   const files = resolve(dirname(file), parsed.data.files);
 
-  if (escapes({ root: located.packageRoot, path: files }) || !existsSync(files)) {
+  if (PresetPath.escapes({ root: located.packageRoot, path: files }) || !existsSync(files)) {
     return {
       ok: false,
       error: `${shown}: ${kind} preset: files ${parsed.data.files} is missing or points outside the package`,

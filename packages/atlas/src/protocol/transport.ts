@@ -1,5 +1,6 @@
 import { AtlasConstants, ProtocolVersions } from '@/common';
 import { BaseHelper } from '@/common/helper';
+import { TextValue } from '@/common/text';
 import { RpcError, RpcErrorCodes } from './common';
 import type { IRpcRequest, IRpcResponse, IToolDefinition, IToolHandler } from './common';
 
@@ -24,9 +25,6 @@ const readRequest = (parsed: unknown): IRpcRequest => {
     params: isRecord(parsed.params) ? parsed.params : undefined,
   };
 };
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
 
 /**
  * Newline-delimited JSON-RPC 2.0 over stdio (the MCP stdio transport). `handleLine` is pure
@@ -76,9 +74,15 @@ export class Transport extends BaseHelper {
     try {
       parsed = JSON.parse(trimmed);
     } catch (error) {
-      this.logger.for('handleLine').error(`dropped malformed JSON-RPC line: ${messageOf(error)}`);
+      this.logger
+        .for('handleLine')
+        .error(`dropped malformed JSON-RPC line: ${TextValue.messageOf({ error })}`);
 
-      return this.errorReply({ id: null, code: RpcErrorCodes.PARSE, message: messageOf(error) });
+      return this.errorReply({
+        id: null,
+        code: RpcErrorCodes.PARSE,
+        message: TextValue.messageOf({ error }),
+      });
     }
 
     return this.route(readRequest(parsed));
@@ -204,7 +208,7 @@ export class Transport extends BaseHelper {
       return this.errorReply({
         id: request.id,
         code: RpcErrorCodes.INTERNAL,
-        message: messageOf(error),
+        message: TextValue.messageOf({ error }),
       });
     }
   }

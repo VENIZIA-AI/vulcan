@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { TextValue } from '../common/text.ts';
 import { WikiDefaults } from './constants.ts';
 
 /**
@@ -15,12 +16,9 @@ const SOURCE_EXTENSIONS = ['ts', 'tsx', 'md', 'json', 'mjs', 'js', 'yaml', 'yml'
 const RESOURCE_LINE_PATTERN = /^resource:\s*(.+)$/;
 const LINE_SUFFIX_PATTERN = /(:\d+|#L\d+)$/;
 
-const escapeRegExp = (opts: { text: string }): string =>
-  opts.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 // `{}` and `*` mark a template or a glob and `<>` a placeholder, never one real file.
 const BACKTICK_PATTERN = new RegExp(
-  `\`((?:${SOURCE_ROOTS.map((root) => escapeRegExp({ text: root })).join('|')})[^\`{}*<>]+?\\.(?:${SOURCE_EXTENSIONS.join('|')})(?::\\d+|#L\\d+)?)\``,
+  `\`((?:${SOURCE_ROOTS.map((root) => TextValue.escapeLiteral({ text: root })).join('|')})[^\`{}*<>]+?\\.(?:${SOURCE_EXTENSIONS.join('|')})(?::\\d+|#L\\d+)?)\``,
   'g',
 );
 
@@ -77,7 +75,7 @@ const walkMarkdown = (opts: { directory: string }): string[] => {
 
 const extractPaths = (opts: { text: string; repo: string; skipProse: boolean }): string[] => {
   const github = new RegExp(
-    `${escapeRegExp({ text: opts.repo })}/(?:blob|tree)/main/([^\\s)\\]"'\`<>]+)`,
+    `${TextValue.escapeLiteral({ text: opts.repo })}/(?:blob|tree)/main/([^\\s)\\]"'\`<>]+)`,
     'g',
   );
   const found = [...opts.text.matchAll(github)].map((match) =>

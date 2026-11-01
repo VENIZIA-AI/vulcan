@@ -13,7 +13,7 @@ import { LibraryKinds, PackageKinds } from '../config/index.ts';
 import type { IProjectPackage, TLibraryKind, TResolvedConfig } from '../config/index.ts';
 import { readWorkspaceGlobs } from '../init/index.ts';
 import { runAppChecks } from './checks.ts';
-import { AppsBlockProblems, CreateConstants, CreateFlags } from './common/index.ts';
+import { AddFailure, AppsBlockProblems, CreateConstants, CreateFlags } from './common/index.ts';
 import type { IAppsBlock, ILocatedPreset, IPresetSpec } from './common/index.ts';
 import { writeFile } from './files.ts';
 import { readLibPreset } from './lib-preset.ts';
@@ -36,12 +36,6 @@ import {
 
 const KNOWLEDGE_DIRECTORY = '.agents/knowledge';
 const DIRECTORY_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-
-const fail = (opts: { message: string }): number => {
-  process.stderr.write(`vulcan add: ${opts.message}\n`);
-
-  return ExitCodes.FAILURE;
-};
 
 /** A folder from the root, written with slashes, never climbing out or absolute. */
 const isProjectFolder = (opts: { folder: string }): boolean =>
@@ -169,7 +163,7 @@ export const addLibrary = async (opts: {
   const kind = opts.kind ?? LibraryKinds.LIB;
 
   if (!CreateConstants.NAME_PATTERN.test(libName)) {
-    return fail({
+    return AddFailure.fail({
       message: `'${libName}' is not a name - lowercase letters, digits and -, starting with a letter or digit`,
     });
   }
@@ -177,7 +171,7 @@ export const addLibrary = async (opts: {
   const read = readLibPreset({ located, kind });
 
   if (!read.ok) {
-    return fail({ message: read.error });
+    return AddFailure.fail({ message: read.error });
   }
 
   const lib: TLibPreset = read.lib;
@@ -190,7 +184,7 @@ export const addLibrary = async (opts: {
   });
 
   if (!placed.ok) {
-    return fail({ message: placed.error });
+    return AddFailure.fail({ message: placed.error });
   }
 
   const { folder } = placed;
@@ -203,7 +197,7 @@ export const addLibrary = async (opts: {
   });
 
   if (!named.ok) {
-    return fail({ message: named.error });
+    return AddFailure.fail({ message: named.error });
   }
 
   const path = `${folder}/${libName}`;
@@ -212,14 +206,14 @@ export const addLibrary = async (opts: {
     existsSync(join(cwd, path)) ||
     opts.packages.some((entry) => entry.dir === libName || entry.name === named.name)
   ) {
-    return fail({ message: `${path} already exists` });
+    return AddFailure.fail({ message: `${path} already exists` });
   }
 
   const source = readFileSync(opts.configFile, 'utf8');
   const parsed = parseAppsBlock({ source });
 
   if (!parsed.ok) {
-    return fail({
+    return AddFailure.fail({
       message:
         parsed.reason === AppsBlockProblems.MISSING
           ? `the vulcan:apps block is gone from ${opts.configPath} - add the package by hand: { dir: '${libName}', name: '${named.name}', path: '${path}', kind: 'lib' }`
@@ -262,7 +256,9 @@ export const addLibrary = async (opts: {
         );
 
   if (nextConfig === undefined) {
-    return fail({ message: `the vulcan:apps block of ${opts.configPath} cannot be rewritten` });
+    return AddFailure.fail({
+      message: `the vulcan:apps block of ${opts.configPath} cannot be rewritten`,
+    });
   }
 
   const project =
@@ -299,7 +295,7 @@ export const addLibrary = async (opts: {
   const confirmed = await confirmWrite({ title: `Add ${libName}`, lines: planLines({ rows }) });
 
   if (!confirmed) {
-    return fail({ message: ABORTED });
+    return AddFailure.fail({ message: ABORTED });
   }
 
   const written = copyPresetFiles({

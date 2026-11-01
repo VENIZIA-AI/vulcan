@@ -1,6 +1,6 @@
 import { AtlasModes } from '@/common';
 import type { TAtlasMode } from '@/common';
-import { Chunker, CorpusLoader } from '@/corpus';
+import { Chunker, CorpusExclusion, CorpusLoader } from '@/corpus';
 import type { ICorpusRoot } from '@/corpus';
 import { ChunkStore } from '@/search/store';
 import { BaseHelper } from '@/common/helper';
@@ -13,12 +13,6 @@ interface ICorpusFingerprint {
   newestMtimeMs: number;
   totalBytes: number;
 }
-
-/** Mirrors `CorpusLoader`'s own exclude semantics: an excluded relative path, or anything under it, is never counted. */
-const isExcluded = (opts: { relativePath: string; exclude: string[] }): boolean =>
-  opts.exclude.some(
-    (prefix) => opts.relativePath === prefix || opts.relativePath.startsWith(`${prefix}/`),
-  );
 
 /** One glob walk per root; `statSync` runs only for files already known to belong to the corpus. */
 const fingerprintOf = (opts: { roots: ICorpusRoot[] }): ICorpusFingerprint => {
@@ -33,7 +27,7 @@ const fingerprintOf = (opts: { roots: ICorpusRoot[] }): ICorpusFingerprint => {
     const relativePaths = new Bun.Glob('**/*.md').scanSync({ cwd: root.directory });
 
     for (const relativePath of relativePaths) {
-      if (isExcluded({ relativePath, exclude })) {
+      if (CorpusExclusion.isExcluded({ relativePath, exclude })) {
         continue;
       }
 

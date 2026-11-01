@@ -1,24 +1,18 @@
 import { directoryOf } from '@/common/package-map';
 import type { IAtlasPackage } from '@/common/project-config';
+import { RecordValue } from '@/common/record';
+import { TextValue } from '@/common/text';
 import { FRONTMATTER_PATTERN } from '@/corpus/frontmatter';
 
 const TABLE_ROW_PATTERN = /^\s*\|(.*)\|\s*$/;
 const TABLE_SEPARATOR_PATTERN = /^\s*\|[\s|:-]+\|\s*$/;
-
-const byText = (left: string, right: string): number => {
-  if (left === right) {
-    return 0;
-  }
-
-  return left < right ? -1 : 1;
-};
 
 export const resolveAll = (opts: { values: string[]; packages: IAtlasPackage[] }): string[] => {
   const resolved = opts.values
     .map((value) => directoryOf({ value, packages: opts.packages }))
     .filter((name): name is string => name !== undefined);
 
-  return [...new Set(resolved)].sort(byText);
+  return [...new Set(resolved)].sort((left, right) => TextValue.compare({ left, right }));
 };
 
 const cellsOf = (line: string): string[] => {
@@ -65,9 +59,6 @@ const packageColumnValuesOf = (opts: { body: string }): string[] => {
   return values;
 };
 
-const escapeLiteral = (opts: { text: string }): string =>
-  opts.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 /**
  * Every npm-name mention anywhere in the body, as the names themselves: each package's name, and
  * each alias spelled as a npm name (an old or a misspelled one a changelog used). Longest first, and
@@ -84,7 +75,7 @@ const bodyMentionsOf = (opts: { body: string; packages: IAtlasPackage[] }): stri
   }
 
   const pattern = new RegExp(
-    `(?:${names.map((name) => escapeLiteral({ text: name })).join('|')})(?![a-z0-9-])`,
+    `(?:${names.map((name) => TextValue.escapeLiteral({ text: name })).join('|')})(?![a-z0-9-])`,
     'g',
   );
 
@@ -97,9 +88,6 @@ const PACKAGE_PATH_PATTERN = /packages\/([a-z0-9-]+)/g;
 const bodyPathsOf = (opts: { body: string }): string[] =>
   [...opts.body.matchAll(PACKAGE_PATH_PATTERN)].map((match) => match[1]);
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
 export const splitFrontmatter = (text: string): { data: Record<string, unknown>; body: string } => {
   const matched = text.match(FRONTMATTER_PATTERN);
 
@@ -109,7 +97,7 @@ export const splitFrontmatter = (text: string): { data: Record<string, unknown>;
 
   const parsed: unknown = Bun.YAML.parse(matched[1]);
 
-  return { data: isRecord(parsed) ? parsed : {}, body: text.slice(matched[0].length) };
+  return { data: RecordValue.orEmpty({ value: parsed }), body: text.slice(matched[0].length) };
 };
 
 /**
