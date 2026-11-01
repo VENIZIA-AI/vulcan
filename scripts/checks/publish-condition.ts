@@ -1,6 +1,6 @@
 import { runInNewContext } from 'node:vm';
 
-export interface IPublishCase {
+interface IPublishCase {
   name: string;
   kind: string;
   approve: string;

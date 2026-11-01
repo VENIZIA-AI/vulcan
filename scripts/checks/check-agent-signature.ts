@@ -15,7 +15,7 @@ const AGENT =
 const TRAILER = /^\s*(co-authored-by|signed-off-by)\s*:\s*(.*)$/i;
 const GENERATED = /^\s*(?:\p{Extended_Pictographic}\s*)?generated\s+(?:with|by)\b(.*)$/iu;
 
-export interface ISignature {
+interface ISignature {
   line: number;
   text: string;
 }

@@ -1,5 +1,4 @@
 import { toAtlasProject } from '@/common/project-config';
-import { resolve } from 'node:path';
 import type { IAtlasPackage, IAtlasProject } from '@/common/project-config';
 
 /**
@@ -55,12 +54,3 @@ export const IGNIS_MANIFEST = {
 /** IGNIS as atlas sees it, rooted at a checkout. */
 export const ignisProjectAt = (opts: { root: string }): IAtlasProject =>
   toAtlasProject({ root: opts.root, manifest: IGNIS_MANIFEST });
-
-/**
- * The environment `vulcan x` gives atlas inside IGNIS: its manifest, for its checkout. IGNIS commits
- * its own manifest when it adopts the contract; until then the tests hand this one over.
- */
-export const ignisManifestEnvironment = (opts: { root: string }): Record<string, string> => ({
-  VULCAN_MANIFEST: JSON.stringify(IGNIS_MANIFEST),
-  VULCAN_PROJECT_ROOT: resolve(opts.root),
-});

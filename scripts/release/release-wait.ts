@@ -4,12 +4,12 @@
  * reported done only when every tarball of the train answers 200.
  */
 
-export interface ITarballTarget {
+interface ITarballTarget {
   name: string;
   version: string;
 }
 
-export interface ITarballWait {
+interface ITarballWait {
   ready: ITarballTarget[];
   missing: ITarballTarget[];
 }

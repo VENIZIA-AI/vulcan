@@ -32,7 +32,7 @@ const parseTag = (opts: { tags: unknown; key: keyof IDistTags }): string | undef
 };
 
 /** The `latest` and `next` tags of a registry answer, or undefined when it is not an object of versions. */
-export const parseDistTags = (opts: { text: string }): IDistTags | undefined => {
+const parseDistTags = (opts: { text: string }): IDistTags | undefined => {
   let parsed: unknown;
 
   try {
@@ -56,7 +56,7 @@ export const parseDistTags = (opts: { text: string }): IDistTags | undefined => 
  * auth settings. `VULCAN_DIST_TAGS` replaces it so tests run offline. Undefined when the read fails,
  * after printing why bun failed.
  */
-export const readDistTags = async (opts: { cwd: string }): Promise<IDistTags | undefined> => {
+const readDistTags = async (opts: { cwd: string }): Promise<IDistTags | undefined> => {
   const injected = process.env[UpgradeFlags.DIST_TAGS_ENV];
 
   if (injected !== undefined) {

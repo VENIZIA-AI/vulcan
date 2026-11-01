@@ -10,7 +10,7 @@ const START_PREFIX = '# vulcan:start';
 const START_PATTERN = /^# vulcan:start(?: \((.*)\))? - written/;
 const CLAUDE_SKILLS_DIRECTORY = '.claude/skills';
 
-export interface IExcludeGroup {
+interface IExcludeGroup {
   title: string;
   /** Root-relative and anchored with a leading slash; a folder ends with one. */
   paths: string[];

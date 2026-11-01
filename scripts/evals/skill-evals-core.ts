@@ -46,7 +46,7 @@ export interface IVerdict {
   isMalformed: boolean;
 }
 
-export interface IClaudeResponse {
+interface IClaudeResponse {
   result: string | undefined;
   isError: boolean;
   costUsd: number | undefined;

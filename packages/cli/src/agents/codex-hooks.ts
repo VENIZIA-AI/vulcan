@@ -75,7 +75,7 @@ const parseFile = (opts: { text: string | undefined }): IParsedFile | { reason: 
   }
 };
 
-export type TCodexHooksMerge =
+type TCodexHooksMerge =
   | { ok: true; changed: boolean; text: string }
   | { ok: false; reason: string };
 
@@ -102,7 +102,7 @@ export const mergeCodexHooks = (opts: { text: string | undefined }): TCodexHooks
   };
 };
 
-export type TCodexHooksRemoval =
+type TCodexHooksRemoval =
   | { ok: true; outcome: typeof RemoveOutcomes.ABSENT }
   | { ok: true; outcome: typeof RemoveOutcomes.REMOVED; text: string | undefined }
   | { ok: false; reason: string };

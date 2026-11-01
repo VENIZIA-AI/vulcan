@@ -26,7 +26,7 @@ const LINT_CONFIG_FILES: IScaffoldFile[] = [
   { path: '.configs/lints/eslint.config.mjs', template: 'eslint.config.mjs' },
 ];
 
-export interface IScaffoldResult {
+interface IScaffoldResult {
   entries: IInitEntry[];
   /** Packages to `bun add -d`, empty when everything is declared. */
   install: string[];
@@ -103,7 +103,7 @@ export const coversFolder = (opts: { globs: string[]; folder: string }): boolean
   });
 
 /** The `package.json` name, or the directory name when there is none. */
-export const resolveProjectName = (opts: { root: string }): string => {
+const resolveProjectName = (opts: { root: string }): string => {
   const name = readManifest(opts)?.name;
 
   return typeof name === 'string' && name !== '' ? name : basename(opts.root);

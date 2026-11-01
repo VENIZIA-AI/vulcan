@@ -16,7 +16,7 @@ import { GithubRelease, GithubReleaseConstants } from './github-release.ts';
 import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
 import { ReleaseConstants } from './release-args.ts';
 
-export interface ISyncCheck {
+interface ISyncCheck {
   /** The commit the tag points at. */
   commit: string;
   /** The version in `packages/cli/package.json` at that commit. */

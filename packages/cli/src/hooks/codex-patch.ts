@@ -13,9 +13,9 @@ export class PatchedTools {
   }
 }
 
-export type TPatchedTool = TConstValue<typeof PatchedTools>;
+type TPatchedTool = TConstValue<typeof PatchedTools>;
 
-export interface IPatchedFile {
+interface IPatchedFile {
   path: string;
   tool: TPatchedTool;
 }

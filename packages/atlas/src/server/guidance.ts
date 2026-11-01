@@ -2,7 +2,7 @@ import type { IResolvedSource, IUnavailableSource } from '@/sources/common';
 
 const TRIGGER_MAX = 110;
 
-export interface ISkillLine {
+interface ISkillLine {
   name: string;
   trigger: string;
 }

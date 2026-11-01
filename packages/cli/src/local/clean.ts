@@ -4,7 +4,7 @@ import { LocalConstants } from './constants.ts';
 import { isInsideLocal, scanLocal } from './scan.ts';
 import type { ILocalEntry } from './scan.ts';
 
-export interface ICleanPlan {
+interface ICleanPlan {
   /** What the chosen scopes would remove. */
   remove: ILocalEntry[];
   /** In a chosen scope but not removable (an unmerged worktree, a worktree git could not read). */

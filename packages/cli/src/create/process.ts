@@ -11,7 +11,7 @@ export const bunExecutable = (): string => process.env[CreateConstants.BUN_ENV] 
  * Any command, under the same skip rule as `runBun`; a skipped one counts as done. A quiet command
  * prints nothing while it runs: its output is kept and written only when it fails.
  */
-export const runCommand = async (opts: {
+const runCommand = async (opts: {
   cwd: string;
   command: string[];
   label: string;

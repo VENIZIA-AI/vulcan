@@ -3,7 +3,7 @@ import type { GuardDecisions, PackageVerdictKinds, TrustStates } from './constan
 
 export type TGuardDecision = TConstValue<typeof GuardDecisions>;
 export type TPackageVerdictKind = TConstValue<typeof PackageVerdictKinds>;
-export type TTrustState = TConstValue<typeof TrustStates>;
+type TTrustState = TConstValue<typeof TrustStates>;
 
 /** Whether a listed trusted script may skip the script checks, and if not, why - in words an ask can show. */
 export interface IScriptTrust {

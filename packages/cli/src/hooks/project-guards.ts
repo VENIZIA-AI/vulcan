@@ -10,7 +10,7 @@ export interface IProjectCommandCheck {
 }
 
 /** What the project adds to the guards: the manifest's `guard` block, compiled. */
-export interface IGuardPolicy {
+interface IGuardPolicy {
   commands: IProjectCommandCheck[];
   askPush: string[];
   /** `guard.writes.readOnlyScripts`; absent when the manifest lists none. */
@@ -18,7 +18,7 @@ export interface IGuardPolicy {
 }
 
 /** Spelt out: the blocking hooks import nothing that reads the package (a test holds it equal to the manifest's name). */
-export const GUARD_MANIFEST_FILE = '.agents/vulcan.manifest.json';
+const GUARD_MANIFEST_FILE = '.agents/vulcan.manifest.json';
 
 const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
   typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);

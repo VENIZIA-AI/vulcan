@@ -4,7 +4,7 @@ import { promptSelect, promptText } from '../ui/index.ts';
 const ANOTHER_PRESET = ':another-preset';
 
 /** A preset a project recorded: what `--preset` takes back, the side it builds, what it is. */
-export interface IKnownPreset {
+interface IKnownPreset {
   spec: string;
   side: string;
   summary: string;

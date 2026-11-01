@@ -11,7 +11,7 @@ const NODE_MODULES = 'node_modules';
 const ADD = 'bun x --no-install vulcan add';
 const NO_HAND_WRITING = 'do not hand-write package.json, tsconfig or scripts';
 
-export interface IPackageVerdict {
+interface IPackageVerdict {
   /** `deny` only when a real `vulcan add` command exists for the folder; otherwise `warn`. */
   kind: TPackageVerdictKind;
   message: string;

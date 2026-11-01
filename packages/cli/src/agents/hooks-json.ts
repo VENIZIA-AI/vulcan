@@ -60,9 +60,7 @@ const parseHooks = (opts: { text: string | undefined }): TParsedHooks => {
   }
 };
 
-export type THooksMerge =
-  | { ok: true; changed: boolean; text: string }
-  | { ok: false; reason: string };
+type THooksMerge = { ok: true; changed: boolean; text: string } | { ok: false; reason: string };
 
 /** The hooks file with VULCAN's entry in it, every other hook as the user wrote it. */
 export const mergeGuardHook = (opts: { text: string | undefined }): THooksMerge => {
@@ -82,7 +80,7 @@ export const mergeGuardHook = (opts: { text: string | undefined }): THooksMerge 
   };
 };
 
-export type THooksRemoval =
+type THooksRemoval =
   | { ok: true; outcome: typeof RemoveOutcomes.ABSENT }
   | { ok: true; outcome: typeof RemoveOutcomes.REMOVED; text: string | undefined }
   | { ok: false; reason: string };

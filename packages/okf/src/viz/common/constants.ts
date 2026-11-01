@@ -19,7 +19,6 @@ export class VizViews {
 export class VizConstants {
   static readonly DATA_ELEMENT_ID = 'okf-data';
   static readonly HOME_TARGET = '@home';
-  static readonly OUTPUT_FILE = 'viz.html';
   static readonly HOME_CARD_ITEMS = 4;
   static readonly SEARCH_RESULT_LIMIT = 40;
 }

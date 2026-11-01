@@ -86,7 +86,7 @@ export const figure = (opts: { ctx: ISectionContext; drawing: IDrawing }): strin
 };
 
 /** JSON for a `<script type="application/json">`: nothing in it can close the tag or start a comment. */
-export const jsonForScript = (opts: { value: unknown }): string =>
+const jsonForScript = (opts: { value: unknown }): string =>
   JSON.stringify(opts.value)
     .replaceAll('<', '\\u003c')
     .replaceAll('>', '\\u003e')

@@ -9,7 +9,7 @@ import type { TAnchorProblem } from './constants.ts';
  * here), so a reimplemented slugifier reports working links as broken. Reading the emitted `id="..."`
  * removes the guess; the check needs a build.
  */
-export interface IBrokenAnchor {
+interface IBrokenAnchor {
   file: string;
   line: number;
   target: string;

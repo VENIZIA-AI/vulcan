@@ -13,7 +13,7 @@ import { optionTakesNextWord, programOf, splitHeredocs } from './shell.ts';
 // cannot read (a substitution, a jump through a command, an unknown client) asks.
 // -----------------------------------------------------------------------------
 
-export interface IRemoteHostsPolicy {
+interface IRemoteHostsPolicy {
   /** Hosts any command may reach. */
   trusted: string[];
   /** Hosts that only the strict read-only forms may reach. */

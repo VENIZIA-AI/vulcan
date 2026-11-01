@@ -12,7 +12,7 @@ import type { IConceptProblem, IDeclaredSymbol, IStampReport } from './common';
 const LOCK_SCHEMA_VERSION = 2;
 const HASH_LENGTH = 8;
 
-export interface ISymbolsLock {
+interface ISymbolsLock {
   schemaVersion: number;
   /** `<npm name>#<Symbol>` to its signature hash. */
   symbols: Record<string, string>;
@@ -27,7 +27,7 @@ const byText = (left: string, right: string): number => {
 };
 
 /** The lock's path inside the knowledge bundle. */
-export const symbolsLockOf = (opts: { project: IAtlasProject }): string =>
+const symbolsLockOf = (opts: { project: IAtlasProject }): string =>
   join(opts.project.knowledge.bundle, SYMBOLS_LOCK_NAME);
 
 /** Every `symbols:` entry of every concept in the bundle, in path order; a concept without one has none. */

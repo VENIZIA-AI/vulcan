@@ -5,11 +5,11 @@ import { collectCoverageAxes, isItemCovered, resourceKeysOf } from './axes.ts';
 
 // --- coverage ---
 
-export const percent = (opts: { value: number; total: number }): number => {
+const percent = (opts: { value: number; total: number }): number => {
   return opts.total ? Math.round((opts.value / opts.total) * 100) : 100;
 };
 
-export const pad = (opts: { value: string; width: number }): string => {
+const pad = (opts: { value: string; width: number }): string => {
   return (opts.value + ' '.repeat(opts.width)).slice(0, opts.width);
 };
 

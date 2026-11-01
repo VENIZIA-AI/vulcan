@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { readPort } from './workspace.ts';
 
 /** One app of the monorepo as `make dev` serves it: its port, and the paths worth opening. */
-export interface INextApp {
+interface INextApp {
   port: number;
   urls: string[];
 }

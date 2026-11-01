@@ -25,13 +25,13 @@ export type TManifest = {
   files: Record<string, string>;
 };
 
-export type TDrift = { changed: string[]; missing: string[]; extra: string[] };
+type TDrift = { changed: string[]; missing: string[]; extra: string[] };
 
 const sha256 = (opts: { data: string | Uint8Array }): string =>
   createHash('sha256').update(opts.data).digest('hex');
 
 /** Every file under the shared folder except the manifest, as sorted `/` paths relative to it. */
-export const listSharedFiles = (opts: { dir: string }): string[] => {
+const listSharedFiles = (opts: { dir: string }): string[] => {
   const walk = (relative: string): string[] =>
     readdirSync(join(opts.dir, relative), { withFileTypes: true }).flatMap((entry) => {
       const path = relative === '' ? entry.name : `${relative}/${entry.name}`;
@@ -53,7 +53,7 @@ export const fingerprintOf = (opts: { files: Record<string, string> }): string =
   });
 
 /** The files of a checkout's shared folder, hashed from disk (never read from its manifest). */
-export const hashSharedFiles = (opts: { root: string }): Record<string, string> => {
+const hashSharedFiles = (opts: { root: string }): Record<string, string> => {
   const dir = join(opts.root, SHARED_DIR);
 
   return Object.fromEntries(

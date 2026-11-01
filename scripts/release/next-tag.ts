@@ -10,12 +10,12 @@ export interface IDistTags {
   next?: string;
 }
 
-export interface IPublished {
+interface IPublished {
   version: string;
   tag: string;
 }
 
-export interface IHealResult {
+interface IHealResult {
   moved: string[];
   failed: string[];
 }

@@ -24,12 +24,12 @@ import {
 } from './manifest.ts';
 
 const CANONICAL = resolve(import.meta.dir, '..', '..');
-export const REMOTES: Record<string, string> = {
+const REMOTES: Record<string, string> = {
   ignis: 'https://raw.githubusercontent.com/VENIZIA-AI/ignis/develop',
   ardor: 'https://raw.githubusercontent.com/VENIZIA-AI/ardor/develop',
 };
 
-export type TVerdict = { name: string; state: 'in-step' | 'drifted' | 'missing'; detail: string };
+type TVerdict = { name: string; state: 'in-step' | 'drifted' | 'missing'; detail: string };
 
 /** One wiki against the canonical manifest. `theirs` is null when it has no shared folder yet. */
 export const compare = (opts: {

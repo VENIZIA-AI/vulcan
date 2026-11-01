@@ -100,7 +100,7 @@ const lineIo: ISurveyIo = {
 };
 
 /** Runs the form and saves the profile; the exit code of the command. */
-export const fillInProfile = async (opts: { root: string }): Promise<number> => {
+const fillInProfile = async (opts: { root: string }): Promise<number> => {
   const current = readProfile({ root: opts.root });
 
   if (!current.ok) {

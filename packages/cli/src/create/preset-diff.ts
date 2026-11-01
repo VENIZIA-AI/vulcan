@@ -108,7 +108,7 @@ export const detectPreset = (opts: {
   };
 };
 
-export interface IPresetFileReport {
+interface IPresetFileReport {
   path: string;
   status: TConstValue<typeof PresetDiffStatuses>;
   diff?: ILineDiff;

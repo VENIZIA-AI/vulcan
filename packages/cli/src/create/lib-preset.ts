@@ -80,7 +80,7 @@ export type TLibPreset = Omit<z.infer<typeof LIB_SCHEMA>, 'files'> & {
   files: string;
 };
 
-export type TLibPresetResult = { ok: true; lib: TLibPreset } | { ok: false; error: string };
+type TLibPresetResult = { ok: true; lib: TLibPreset } | { ok: false; error: string };
 
 const escapes = (opts: { root: string; path: string }): boolean => {
   const relativePath = relative(opts.root, opts.path);

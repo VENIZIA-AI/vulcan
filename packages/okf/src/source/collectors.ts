@@ -194,7 +194,7 @@ export const sanitizeProse = (opts: { text: string; brand: string }): string => 
 };
 
 /** First sentence only - manifest descriptions run to paragraph length and would wreck the table. */
-export const firstSentence = (opts: { text: string }): string => {
+const firstSentence = (opts: { text: string }): string => {
   const match = opts.text.match(/^(.*?[.!?])(\s|$)/);
 
   return (match ? match[1] : opts.text).trim();

@@ -21,7 +21,7 @@ export interface IRenderContext {
   project?: IThemeInput;
 }
 
-export interface IRendered {
+interface IRendered {
   html: string;
   bytes: number;
   /** What was checked and passed, for the report: nothing is silent. */
@@ -29,7 +29,7 @@ export interface IRendered {
   warnings: string[];
 }
 
-export type TRenderResult = { ok: true; page: IRendered } | { ok: false; problems: string[] };
+type TRenderResult = { ok: true; page: IRendered } | { ok: false; problems: string[] };
 
 /** The checks the renderer runs on its own; a browser check is the caller's. */
 const CHECKS = [

@@ -8,7 +8,7 @@ import { loadGeneration } from '../generate/index.ts';
 import { collectHouseProblems } from './house.ts';
 import { repoRelative, walkFiles } from '../source/index.ts';
 
-export const readBundleFiles = (): IBundleFile[] =>
+const readBundleFiles = (): IBundleFile[] =>
   walkFiles({ dir: readOkfProject().bundle })
     .filter((file) => file.endsWith('.md'))
     .map((file) => ({
@@ -16,7 +16,7 @@ export const readBundleFiles = (): IBundleFile[] =>
       text: readFileSync(file, 'utf8'),
     }));
 
-export const formatIssue = (opts: { issue: IConformanceIssue }): string =>
+const formatIssue = (opts: { issue: IConformanceIssue }): string =>
   `${repoRelative({ path: join(readOkfProject().bundle, opts.issue.file) })}: ${opts.issue.rule} ${opts.issue.message}`;
 
 /** The house rules on top of OKF conformance: links resolve, docs style, structural coverage, freshness. */

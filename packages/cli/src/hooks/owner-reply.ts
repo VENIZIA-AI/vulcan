@@ -33,7 +33,7 @@ const FIXES: Record<string, string> = {
 };
 
 /** The owner's view of the project in `projectRoot`; a project whose config cannot load gets the defaults. */
-export const loadOwnerView = async (opts: { projectRoot: string }): Promise<IOwnerView> => {
+const loadOwnerView = async (opts: { projectRoot: string }): Promise<IOwnerView> => {
   const loaded = await loadConfig({ root: opts.projectRoot });
   const profile = readProfile({ root: opts.projectRoot });
 

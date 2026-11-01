@@ -34,19 +34,19 @@ import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
 import { ReleaseBumps, ReleaseKinds } from './release-args.ts';
 import type { TReleaseKind } from './release-args.ts';
 
-export class ReleaseNpmTags {
+class ReleaseNpmTags {
   static readonly NEXT = 'next';
   static readonly LATEST = 'latest';
 }
 
-export interface IReleasePlan {
+interface IReleasePlan {
   version: string;
   kind: TReleaseKind;
   /** The dist-tag the publish goes under: `next` for a prerelease, `latest` for a stable. */
   npmTag: typeof ReleaseNpmTags.NEXT | typeof ReleaseNpmTags.LATEST;
 }
 
-export interface IReleasePlanResult {
+interface IReleasePlanResult {
   plan: IReleasePlan | undefined;
   problems: string[];
 }

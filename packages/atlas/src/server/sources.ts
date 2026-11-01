@@ -235,7 +235,7 @@ const repositoryTarget = (opts: { entry: TLiveEntry; source: IResolvedSource }):
   };
 };
 
-export interface IRefreshOptions {
+interface IRefreshOptions {
   /** How often a running server looks again; the first look comes this long after the start. */
   intervalMs: number;
   /** How a remote source is asked again - the resolver, unless a test supplies another. */
