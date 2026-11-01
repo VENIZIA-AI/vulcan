@@ -76,43 +76,45 @@ const readAnchors = (opts: { dist: string }): Map<string, Set<string>> => {
   return anchorsByRoute;
 };
 
-/** Checks every `](page#fragment)` link of the markdown under `content` against the ids built in `dist`. */
-export const checkAnchors = (opts: {
-  content: string;
-  dist: string;
-}): { checked: number; broken: IBrokenAnchor[] } => {
-  const { content } = opts;
-  const anchorsByRoute = readAnchors({ dist: opts.dist });
-  const broken: IBrokenAnchor[] = [];
-  let checked = 0;
+export class AnchorCheck {
+  /** Checks every `](page#fragment)` link of the markdown under `content` against the ids built in `dist`. */
+  static check(opts: { content: string; dist: string }): {
+    checked: number;
+    broken: IBrokenAnchor[];
+  } {
+    const { content } = opts;
+    const anchorsByRoute = readAnchors({ dist: opts.dist });
+    const broken: IBrokenAnchor[] = [];
+    let checked = 0;
 
-  for (const file of walk({ directory: content, extension: '.md' })) {
-    // Fenced code carries example links that are not ours to resolve.
-    const body = readFileSync(file, 'utf8').replace(/```[\s\S]*?```/g, (match) =>
-      match.replace(/[^\n]/g, ' '),
-    );
+    for (const file of walk({ directory: content, extension: '.md' })) {
+      // Fenced code carries example links that are not ours to resolve.
+      const body = readFileSync(file, 'utf8').replace(/```[\s\S]*?```/g, (match) =>
+        match.replace(/[^\n]/g, ' '),
+      );
 
-    for (const [index, text] of body.split('\n').entries()) {
-      for (const match of text.matchAll(/\]\(([^)\s]*?)#([\w.-]+)\)/g)) {
-        const [, page = '', anchor = ''] = match;
+      for (const [index, text] of body.split('\n').entries()) {
+        for (const match of text.matchAll(/\]\(([^)\s]*?)#([\w.-]+)\)/g)) {
+          const [, page = '', anchor = ''] = match;
 
-        if (page.startsWith('http')) {
-          continue;
-        }
+          if (page.startsWith('http')) {
+            continue;
+          }
 
-        checked += 1;
+          checked += 1;
 
-        const ids = anchorsByRoute.get(resolveRoute({ file, target: page, content }));
-        const target = `${page}#${anchor}`;
+          const ids = anchorsByRoute.get(resolveRoute({ file, target: page, content }));
+          const target = `${page}#${anchor}`;
 
-        if (ids === undefined) {
-          broken.push({ file, line: index + 1, target, reason: AnchorProblems.MISSING_PAGE });
-        } else if (!ids.has(anchor)) {
-          broken.push({ file, line: index + 1, target, reason: AnchorProblems.DEAD_ANCHOR });
+          if (ids === undefined) {
+            broken.push({ file, line: index + 1, target, reason: AnchorProblems.MISSING_PAGE });
+          } else if (!ids.has(anchor)) {
+            broken.push({ file, line: index + 1, target, reason: AnchorProblems.DEAD_ANCHOR });
+          }
         }
       }
     }
-  }
 
-  return { checked, broken };
-};
+    return { checked, broken };
+  }
+}

@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { generateKeyPairSync } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildToolEnvironment } from '../../commands/x.command.ts';
+import { ToolRunner } from '../../commands/x.command.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
@@ -462,7 +462,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
 
   test('vulcan x hands the tool the manifest, rendered fresh', async () => {
     const root = createProject({ files: PROJECT });
-    const environment = await buildToolEnvironment({ root });
+    const environment = await ToolRunner.buildEnvironment({ root });
 
     expect(environment.ok).toBe(true);
 

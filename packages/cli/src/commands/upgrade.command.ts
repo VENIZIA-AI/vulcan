@@ -13,13 +13,6 @@ interface IDistTags {
   next?: string;
 }
 
-export const buildUpgradeArgs = (opts: { target?: string }): string[] => [
-  'add',
-  '--dev',
-  '--exact',
-  `${PACKAGE_NAME}@${opts.target ?? DEFAULT_TARGET}`,
-];
-
 /** A tag that is present must be a plain version; anything else cannot be compared or installed. */
 const parseTag = (opts: { tags: unknown; key: keyof IDistTags }): string | undefined | null => {
   const value = JsonValue.readProperty({ value: opts.tags, key: opts.key });
@@ -87,17 +80,6 @@ const readDistTags = async (opts: { cwd: string }): Promise<IDistTags | undefine
   return parseDistTags({ text });
 };
 
-/** The higher of the two tags by semver, so a stale `next` never pulls a project below the stable release. */
-export const pickNightly = (opts: IDistTags): string | undefined => {
-  const { latest, next } = opts;
-
-  if (latest === undefined || next === undefined) {
-    return latest ?? next;
-  }
-
-  return Bun.semver.order(next, latest) === 1 ? next : latest;
-};
-
 /** The version of the `@venizia/vulcan` the project has installed, undefined when none is readable. */
 const readInstalledVersion = (opts: { cwd: string }): string | undefined => {
   const file = join(opts.cwd, 'node_modules', PACKAGE_NAME, 'package.json');
@@ -118,64 +100,81 @@ const readInstalledVersion = (opts: { cwd: string }): string | undefined => {
   }
 };
 
-/**
- * What to install: an explicit version or tag wins over the channel; `--nightly` is the newest of the
- * `latest` and `next` tags; otherwise `latest`. Undefined, after saying why on stderr, when `--nightly`
- * cannot be resolved.
- */
-export const resolveUpgradeTarget = async (opts: ICommandContext): Promise<string | undefined> => {
-  const explicit = opts.args.find((arg) => !arg.startsWith('-'));
-
-  if (explicit !== undefined) {
-    return explicit;
+export class UpgradeTarget {
+  static buildArgs(opts: { target?: string }): string[] {
+    return ['add', '--dev', '--exact', `${PACKAGE_NAME}@${opts.target ?? DEFAULT_TARGET}`];
   }
 
-  if (!opts.args.includes(UpgradeFlags.NIGHTLY)) {
-    const installed = readInstalledVersion({ cwd: opts.cwd });
+  /** The higher of the two tags by semver, so a stale `next` never pulls a project below the stable release. */
+  static pickNightly(opts: IDistTags): string | undefined {
+    const { latest, next } = opts;
 
-    if (installed !== undefined && CreateConstants.PRERELEASE_PATTERN.test(installed)) {
+    if (latest === undefined || next === undefined) {
+      return latest ?? next;
+    }
+
+    return Bun.semver.order(next, latest) === 1 ? next : latest;
+  }
+
+  /**
+   * What to install: an explicit version or tag wins over the channel; `--nightly` is the newest of the
+   * `latest` and `next` tags; otherwise `latest`. Undefined, after saying why on stderr, when `--nightly`
+   * cannot be resolved.
+   */
+  static async resolve(opts: ICommandContext): Promise<string | undefined> {
+    const explicit = opts.args.find((arg) => !arg.startsWith('-'));
+
+    if (explicit !== undefined) {
+      return explicit;
+    }
+
+    if (!opts.args.includes(UpgradeFlags.NIGHTLY)) {
+      const installed = readInstalledVersion({ cwd: opts.cwd });
+
+      if (installed !== undefined && CreateConstants.PRERELEASE_PATTERN.test(installed)) {
+        process.stderr.write(
+          `vulcan upgrade: ${installed} is installed, a prerelease; ${UpgradeFlags.STABLE} installs the latest stable release and ${UpgradeFlags.NIGHTLY} keeps the prerelease line\n`,
+        );
+      }
+
+      return DEFAULT_TARGET;
+    }
+
+    const tags = await readDistTags({ cwd: opts.cwd });
+    const target = tags === undefined ? undefined : UpgradeTarget.pickNightly(tags);
+
+    if (target === undefined) {
       process.stderr.write(
-        `vulcan upgrade: ${installed} is installed, a prerelease; ${UpgradeFlags.STABLE} installs the latest stable release and ${UpgradeFlags.NIGHTLY} keeps the prerelease line\n`,
+        `vulcan upgrade: ${UpgradeFlags.NIGHTLY} could not read the dist-tags of ${PACKAGE_NAME} - pass a version instead\n`,
       );
     }
 
-    return DEFAULT_TARGET;
+    return target;
   }
 
-  const tags = await readDistTags({ cwd: opts.cwd });
-  const target = tags === undefined ? undefined : pickNightly(tags);
+  /**
+   * Runs `sync` from the CLI the install just wrote, as a child: this process still holds the old
+   * version's code and base, so an in-process sync would write the old adapters.
+   */
+  static async runInstalledSync(opts: { cwd: string }): Promise<number> {
+    const bin = join(opts.cwd, 'node_modules', '.bin', 'vulcan');
 
-  if (target === undefined) {
-    process.stderr.write(
-      `vulcan upgrade: ${UpgradeFlags.NIGHTLY} could not read the dist-tags of ${PACKAGE_NAME} - pass a version instead\n`,
-    );
+    if (!existsSync(bin)) {
+      process.stderr.write(
+        `vulcan upgrade: no installed vulcan at ${bin} - the install did not complete\n`,
+      );
+
+      return ExitCodes.FAILURE;
+    }
+
+    const child = Bun.spawn([process.execPath, bin, 'sync'], {
+      cwd: opts.cwd,
+      stdio: ['inherit', 'inherit', 'inherit'],
+    });
+
+    return child.exited;
   }
-
-  return target;
-};
-
-/**
- * Runs `sync` from the CLI the install just wrote, as a child: this process still holds the old
- * version's code and base, so an in-process sync would write the old adapters.
- */
-export const runInstalledSync = async (opts: { cwd: string }): Promise<number> => {
-  const bin = join(opts.cwd, 'node_modules', '.bin', 'vulcan');
-
-  if (!existsSync(bin)) {
-    process.stderr.write(
-      `vulcan upgrade: no installed vulcan at ${bin} - the install did not complete\n`,
-    );
-
-    return ExitCodes.FAILURE;
-  }
-
-  const child = Bun.spawn([process.execPath, bin, 'sync'], {
-    cwd: opts.cwd,
-    stdio: ['inherit', 'inherit', 'inherit'],
-  });
-
-  return child.exited;
-};
+}
 
 /** Installs the target version, then syncs with it, so the adapters always match the installed base. */
 export const runUpgradeCommand = async (opts: ICommandContext): Promise<number> => {
@@ -187,13 +186,13 @@ export const runUpgradeCommand = async (opts: ICommandContext): Promise<number> 
     return ExitCodes.FAILURE;
   }
 
-  const target = await resolveUpgradeTarget(opts);
+  const target = await UpgradeTarget.resolve(opts);
 
   if (target === undefined) {
     return ExitCodes.FAILURE;
   }
 
-  const args = buildUpgradeArgs({ target });
+  const args = UpgradeTarget.buildArgs({ target });
   const code = await SubProcess.runBun({ cwd: opts.cwd, args, label: `bun ${args.join(' ')}` });
 
   if (code !== ExitCodes.OK) {
@@ -206,5 +205,5 @@ export const runUpgradeCommand = async (opts: ICommandContext): Promise<number> 
     return ExitCodes.OK;
   }
 
-  return runInstalledSync({ cwd: opts.cwd });
+  return UpgradeTarget.runInstalledSync({ cwd: opts.cwd });
 };

@@ -1,10 +1,10 @@
-import { stateIcon } from './charts.ts';
+import { SpecCharts } from './charts.ts';
 import type { TChrome } from './constants.ts';
-import { escapeText } from './layout.ts';
+import { FigureLayout } from './layout.ts';
 import { LifecycleKinds, MessageKinds } from './kinds-schema.ts';
 import type { ITreeNode, TLifecycle, TSequence, TTree } from './kinds-schema.ts';
 import type { INewKindsSpec } from './kinds-validate.ts';
-import { chip, section, stateWord } from './sections.ts';
+import { SpecSections } from './sections.ts';
 
 /** What a section of the new kinds needs: its slice of the spec, the page's words, and the figure widths to register. */
 export interface INewKindsContext {
@@ -35,7 +35,7 @@ const KIND_WORDS = {
   countItems: 'items',
 } as const;
 
-const escaped = (value: string): string => escapeText({ value });
+const escaped = (value: string): string => FigureLayout.escapeText({ value });
 
 const wordOf = (opts: { chrome: TChrome; key: keyof typeof KIND_WORDS }): string => {
   const given: Record<string, unknown> = opts.chrome;
@@ -568,7 +568,9 @@ const renderTree = (opts: { tree: TTree; chrome: TChrome }): IKindDrawing => {
 
   const sized = rows.map((row) => {
     const word =
-      row.node.state === undefined ? undefined : stateWord({ chrome, state: row.node.state });
+      row.node.state === undefined
+        ? undefined
+        : SpecSections.stateWord({ chrome, state: row.node.state });
     const hasSub = row.node.sublabel !== undefined;
     const icon = row.node.state === undefined ? 0 : 26;
     const wordWidth = word === undefined ? 0 : Math.ceil(word.length * 7.4) + 20;
@@ -613,11 +615,12 @@ const renderTree = (opts: { tree: TTree; chrome: TChrome }): IKindDrawing => {
       const textX = row.x + 14 + row.icon;
       const state = row.node.state;
 
-      return `<g class="knode${state === undefined ? '' : ` kn-${state.replaceAll(' ', '-')}`}"><rect class="kbox" x="${row.x}" y="${row.y}" width="${row.boxWidth}" height="${row.boxHeight}" rx="4"/>${state === undefined ? '' : `<g class="kic" transform="translate(${row.x + 12} ${centre - 8})">${stateIcon({ state, size: 16 }).replace('<svg', '<svg x="0" y="0"')}</g>`}<text class="kt" x="${textX}" y="${row.hasSub ? row.y + 21 : centre + 5}">${escaped(row.node.label)}</text>${row.word === undefined ? '' : `<text class="kw" x="${row.x + row.boxWidth - 12}" y="${row.hasSub ? row.y + 21 : centre + 4}" text-anchor="end">${escaped(row.word)}</text>`}${row.node.sublabel === undefined ? '' : `<text class="ks" x="${textX}" y="${row.y + 39}">${escaped(row.node.sublabel)}</text>`}</g>`;
+      return `<g class="knode${state === undefined ? '' : ` kn-${state.replaceAll(' ', '-')}`}"><rect class="kbox" x="${row.x}" y="${row.y}" width="${row.boxWidth}" height="${row.boxHeight}" rx="4"/>${state === undefined ? '' : `<g class="kic" transform="translate(${row.x + 12} ${centre - 8})">${SpecCharts.stateIcon({ state, size: 16 }).replace('<svg', '<svg x="0" y="0"')}</g>`}<text class="kt" x="${textX}" y="${row.hasSub ? row.y + 21 : centre + 5}">${escaped(row.node.label)}</text>${row.word === undefined ? '' : `<text class="kw" x="${row.x + row.boxWidth - 12}" y="${row.hasSub ? row.y + 21 : centre + 4}" text-anchor="end">${escaped(row.word)}</text>`}${row.node.sublabel === undefined ? '' : `<text class="ks" x="${textX}" y="${row.y + 39}">${escaped(row.node.sublabel)}</text>`}</g>`;
     })
     .join('');
   const outline = (node: ITreeNode): string => {
-    const state = node.state === undefined ? '' : ` ${chip({ chrome, state: node.state })}`;
+    const state =
+      node.state === undefined ? '' : ` ${SpecSections.chip({ chrome, state: node.state })}`;
     const inner =
       node.children === undefined || node.children.length === 0
         ? ''
@@ -650,44 +653,46 @@ const frame = (opts: { ctx: INewKindsContext; drawing: IKindDrawing }): string =
   return `<figure class="kfig"><div class="fig f${width}">${opts.drawing.svg}</div>${opts.drawing.list}<figcaption>${escaped(opts.drawing.caption)}</figcaption></figure>`;
 };
 
-export const sequenceSection = (opts: { ctx: INewKindsContext }): string => {
-  const { sequence } = opts.ctx.spec;
+export class KindsRender {
+  static sequenceSection(opts: { ctx: INewKindsContext }): string {
+    const { sequence } = opts.ctx.spec;
 
-  return sequence === undefined
-    ? ''
-    : section({
-        id: 'sequence',
-        title: opts.ctx.chrome.sequence,
-        body: frame({
-          ctx: opts.ctx,
-          drawing: renderSequence({ sequence, chrome: opts.ctx.chrome }),
-        }),
-      });
-};
+    return sequence === undefined
+      ? ''
+      : SpecSections.section({
+          id: 'sequence',
+          title: opts.ctx.chrome.sequence,
+          body: frame({
+            ctx: opts.ctx,
+            drawing: renderSequence({ sequence, chrome: opts.ctx.chrome }),
+          }),
+        });
+  }
 
-export const lifecycleSection = (opts: { ctx: INewKindsContext }): string => {
-  const { lifecycle } = opts.ctx.spec;
+  static lifecycleSection(opts: { ctx: INewKindsContext }): string {
+    const { lifecycle } = opts.ctx.spec;
 
-  return lifecycle === undefined
-    ? ''
-    : section({
-        id: 'lifecycle',
-        title: opts.ctx.chrome.lifecycle,
-        body: frame({
-          ctx: opts.ctx,
-          drawing: renderLifecycle({ lifecycle, chrome: opts.ctx.chrome }),
-        }),
-      });
-};
+    return lifecycle === undefined
+      ? ''
+      : SpecSections.section({
+          id: 'lifecycle',
+          title: opts.ctx.chrome.lifecycle,
+          body: frame({
+            ctx: opts.ctx,
+            drawing: renderLifecycle({ lifecycle, chrome: opts.ctx.chrome }),
+          }),
+        });
+  }
 
-export const treeSection = (opts: { ctx: INewKindsContext }): string => {
-  const { tree } = opts.ctx.spec;
+  static treeSection(opts: { ctx: INewKindsContext }): string {
+    const { tree } = opts.ctx.spec;
 
-  return tree === undefined
-    ? ''
-    : section({
-        id: 'tree',
-        title: opts.ctx.chrome.tree,
-        body: frame({ ctx: opts.ctx, drawing: renderTree({ tree, chrome: opts.ctx.chrome }) }),
-      });
-};
+    return tree === undefined
+      ? ''
+      : SpecSections.section({
+          id: 'tree',
+          title: opts.ctx.chrome.tree,
+          body: frame({ ctx: opts.ctx, drawing: renderTree({ tree, chrome: opts.ctx.chrome }) }),
+        });
+  }
+}

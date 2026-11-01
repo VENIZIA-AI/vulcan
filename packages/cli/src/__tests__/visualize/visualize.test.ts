@@ -9,16 +9,9 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { HEAD_JS, PAGE_JS, pageCss } from '../../visualize/assets.ts';
+import { Assets, HEAD_JS, PAGE_JS } from '../../visualize/assets.ts';
 import { ProjectTheme } from '../../visualize/theme.ts';
-import {
-  pageNameOf,
-  renderSpecText,
-  specSchemaText,
-  VISUALIZE_SCHEMA,
-  VisualizeLimits,
-  writePage,
-} from '../../visualize/index.ts';
+import { SpecPage, VISUALIZE_SCHEMA, VisualizeLimits } from '../../visualize/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 import { fullSpec } from './spec.fixture.ts';
@@ -33,10 +26,11 @@ const PAGE_CSS = ((): string => {
     throw new Error(resolved.problems.join('; '));
   }
 
-  return pageCss({ tokens: ProjectTheme.tokensCss({ theme: resolved.theme }) });
+  return Assets.pageCss({ tokens: ProjectTheme.tokensCss({ theme: resolved.theme }) });
 })();
 
-const render = (spec: Record<string, unknown>) => renderSpecText({ text: JSON.stringify(spec) });
+const render = (spec: Record<string, unknown>) =>
+  SpecPage.renderText({ text: JSON.stringify(spec) });
 const rendered = (spec: Record<string, unknown>): string => {
   const result = render(spec);
 
@@ -113,7 +107,7 @@ describe('the spec', () => {
   });
 
   test('text that is not JSON is refused with the parse error', () => {
-    const result = renderSpecText({ text: '{ nope' });
+    const result = SpecPage.renderText({ text: '{ nope' });
 
     expect(result.ok).toBe(false);
     expect(!result.ok && result.problems[0]).toContain('not valid JSON');
@@ -223,7 +217,7 @@ describe('the spec', () => {
   });
 
   test('the printed schema accepts the worked spec and names the closed sets and https', () => {
-    const schema = JSON.parse(specSchemaText());
+    const schema = JSON.parse(SpecPage.specSchemaText());
     const required: string[] = schema.properties.flow.required;
 
     expect(schema.required).not.toContain('language');
@@ -234,7 +228,7 @@ describe('the spec', () => {
   });
 
   test('the JSON Schema can be printed and names the title', () => {
-    const schema = JSON.parse(specSchemaText());
+    const schema = JSON.parse(SpecPage.specSchemaText());
 
     expect(schema.properties.title.type).toBe('string');
     expect(schema.additionalProperties).toBe(false);
@@ -538,7 +532,7 @@ describe('writePage', () => {
 
   test('writes inside .agents/local/prototypes/ and leaves no partial file', () => {
     const root = project();
-    const result = writePage({ root, name: 'status', html: '<p>a</p>' });
+    const result = SpecPage.write({ root, name: 'status', html: '<p>a</p>' });
 
     expect(result.ok && result.path).toBe(join(root, '.agents/local/prototypes/status.html'));
     expect(readFileSync(join(root, '.agents/local/prototypes/status.html'), 'utf8')).toBe(
@@ -550,8 +544,8 @@ describe('writePage', () => {
   test('a second write replaces the first whole', () => {
     const root = project();
 
-    writePage({ root, name: 'status', html: 'one' });
-    writePage({ root, name: 'status', html: 'two' });
+    SpecPage.write({ root, name: 'status', html: 'one' });
+    SpecPage.write({ root, name: 'status', html: 'two' });
 
     expect(readFileSync(join(root, '.agents/local/prototypes/status.html'), 'utf8')).toBe('two');
   });
@@ -568,7 +562,7 @@ describe('writePage', () => {
     symlinkSync(outside, join(prototypes, '.agents/local/prototypes'));
 
     for (const root of [none, linked, prototypes]) {
-      expect(writePage({ root, name: 'x', html: 'x' }).ok).toBe(false);
+      expect(SpecPage.write({ root, name: 'x', html: 'x' }).ok).toBe(false);
     }
 
     expect(readdirSync(outside)).toEqual([]);
@@ -584,19 +578,19 @@ describe('writePage', () => {
       join(outside, 'victim.txt'),
       join(root, '.agents/local/prototypes/x.html.1.partial'),
     );
-    expect(writePage({ root, name: 'x', html: 'new' }).ok).toBe(true);
+    expect(SpecPage.write({ root, name: 'x', html: 'new' }).ok).toBe(true);
     expect(readFileSync(join(outside, 'victim.txt'), 'utf8')).toBe('keep');
 
     symlinkSync(join(outside, 'missing'), join(dangling, '.agents/local/prototypes'));
-    expect(writePage({ root: dangling, name: 'x', html: 'new' }).ok).toBe(false);
+    expect(SpecPage.write({ root: dangling, name: 'x', html: 'new' }).ok).toBe(false);
   });
 
   test('page names become safe file names', () => {
-    expect(pageNameOf({ name: 'My Status.json' })).toBe('my-status');
-    expect(pageNameOf({ name: '../../etc/passwd' })).toBe('passwd');
-    expect(pageNameOf({ name: '...' })).toBeUndefined();
-    expect(pageNameOf({ name: 'a'.repeat(200) })?.length).toBe(64);
-    expect(pageNameOf({ name: `${'a'.repeat(63)}-b` })).toBe('a'.repeat(63));
+    expect(SpecPage.pageNameOf({ name: 'My Status.json' })).toBe('my-status');
+    expect(SpecPage.pageNameOf({ name: '../../etc/passwd' })).toBe('passwd');
+    expect(SpecPage.pageNameOf({ name: '...' })).toBeUndefined();
+    expect(SpecPage.pageNameOf({ name: 'a'.repeat(200) })?.length).toBe(64);
+    expect(SpecPage.pageNameOf({ name: `${'a'.repeat(63)}-b` })).toBe('a'.repeat(63));
   });
 });
 

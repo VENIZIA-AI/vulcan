@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { renderSpecText, specSchemaText, VisualizeLimits } from '../../visualize/index.ts';
+import { SpecPage, VisualizeLimits } from '../../visualize/index.ts';
 import { fullSpec } from './spec.fixture.ts';
 
-const render = (spec: Record<string, unknown>) => renderSpecText({ text: JSON.stringify(spec) });
+const render = (spec: Record<string, unknown>) =>
+  SpecPage.renderText({ text: JSON.stringify(spec) });
 const rendered = (spec: Record<string, unknown>): string => {
   const result = render(spec);
 
@@ -415,7 +416,7 @@ describe('the page with sources and terms', () => {
   });
 
   test('the printed schema names the source and the terms', () => {
-    const schema = specSchemaText();
+    const schema = SpecPage.specSchemaText();
 
     for (const key of [
       '"source"',

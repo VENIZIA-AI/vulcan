@@ -333,12 +333,15 @@ const BASE_CSS = [
   `.fig{overflow:visible;display:block!important}.path,.path-detail{display:none!important}.steps{display:block}.js .steps .explain{display:block}[data-slide]{display:block!important;break-inside:avoid}.banner{break-after:page}.fig.playing .edge path{animation:none}.focus .node:not(.on),.focus .edge:not(.on){opacity:1}}`,
 ].join('\n');
 
-/**
- * The page's stylesheet: the project tokens, the fixed state colours, then the shell and every kind. Light and dark by
- * variables, no image, no font file, the final state in print and under reduced motion.
- */
-export const pageCss = (opts: { tokens: string }): string =>
-  `${opts.tokens}\n${STATE_CSS}\n${BASE_CSS}`;
+export class Assets {
+  /**
+   * The page's stylesheet: the project tokens, the fixed state colours, then the shell and every kind. Light and dark by
+   * variables, no image, no font file, the final state in print and under reduced motion.
+   */
+  static pageCss(opts: { tokens: string }): string {
+    return `${opts.tokens}\n${STATE_CSS}\n${BASE_CSS}`;
+  }
+}
 
 /** The first script of the page, run before the stylesheet is used: marks the page as scripted and applies the saved theme, so there is no flash. */
 export const HEAD_JS = `(()=>{const r=document.documentElement;r.classList.add('js');try{const s=localStorage.getItem('vz-theme');if(s==='dark'||s==='light')r.setAttribute('data-theme',s)}catch(e){}})();`;

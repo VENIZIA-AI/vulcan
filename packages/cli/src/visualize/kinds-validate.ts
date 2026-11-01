@@ -172,13 +172,15 @@ const checkTree = (opts: { tree: TTree }): string[] => {
   return problems;
 };
 
-/** What a schema cannot say about the sequence, the lifecycle and the tree: ids, ends of arrows, reach, limits. */
-export const checkNewKinds = (opts: { spec: INewKindsSpec }): string[] => {
-  const { sequence, lifecycle, tree } = opts.spec;
+export class KindsValidate {
+  /** What a schema cannot say about the sequence, the lifecycle and the tree: ids, ends of arrows, reach, limits. */
+  static checkNew(opts: { spec: INewKindsSpec }): string[] {
+    const { sequence, lifecycle, tree } = opts.spec;
 
-  return [
-    ...(sequence === undefined ? [] : checkSequence({ sequence })),
-    ...(lifecycle === undefined ? [] : checkLifecycle({ lifecycle })),
-    ...(tree === undefined ? [] : checkTree({ tree })),
-  ];
-};
+    return [
+      ...(sequence === undefined ? [] : checkSequence({ sequence })),
+      ...(lifecycle === undefined ? [] : checkLifecycle({ lifecycle })),
+      ...(tree === undefined ? [] : checkTree({ tree })),
+    ];
+  }
+}

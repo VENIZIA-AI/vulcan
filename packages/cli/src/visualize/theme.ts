@@ -107,12 +107,14 @@ const luminance = (hex: string): number => {
   return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
 };
 
-export const contrastOf = (opts: { foreground: string; background: string }): number => {
-  const a = luminance(opts.foreground);
-  const b = luminance(opts.background);
+export class Theme {
+  static contrastOf(opts: { foreground: string; background: string }): number {
+    const a = luminance(opts.foreground);
+    const b = luminance(opts.background);
 
-  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-};
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  }
+}
 
 const hueOf = (hex: string): number => {
   const { r, g, b } = parse(hex);
@@ -209,7 +211,7 @@ export class ProjectTheme {
       ['the page', lightGrounds.bg],
       ['a soft panel', lightGrounds.bgSoft],
     ] as const) {
-      const mark = contrastOf({ foreground: given.accent, background: ground });
+      const mark = Theme.contrastOf({ foreground: given.accent, background: ground });
 
       if (mark < MARK_RATIO) {
         problems.push(
@@ -223,7 +225,7 @@ export class ProjectTheme {
       ['a soft panel', lightGrounds.bgSoft],
       ['an accent tint', accentSoft],
     ] as const) {
-      const text = contrastOf({ foreground: accentText, background: ground });
+      const text = Theme.contrastOf({ foreground: accentText, background: ground });
 
       if (text < TEXT_RATIO) {
         const which = given.accentText === undefined ? 'accent' : 'accentText';
@@ -250,7 +252,7 @@ export class ProjectTheme {
     const darkNeeds = [darkGrounds.bg, darkGrounds.bgSoft, ...slabs];
     const darkPasses = (color: string): boolean =>
       darkNeeds.every(
-        (ground) => contrastOf({ foreground: color, background: ground }) >= TEXT_RATIO,
+        (ground) => Theme.contrastOf({ foreground: color, background: ground }) >= TEXT_RATIO,
       );
     let dark = given.accentDark;
 
@@ -275,7 +277,7 @@ export class ProjectTheme {
       }
     } else {
       for (const ground of darkNeeds) {
-        const value = contrastOf({ foreground: dark, background: ground });
+        const value = Theme.contrastOf({ foreground: dark, background: ground });
 
         if (value < TEXT_RATIO) {
           problems.push(
@@ -360,7 +362,7 @@ export class ProjectTheme {
     const candidates = ['#ffffff', '#0e0e0f'];
 
     return candidates.find(
-      (ink) => contrastOf({ foreground: ink, background: opts.fill }) >= TEXT_RATIO,
+      (ink) => Theme.contrastOf({ foreground: ink, background: opts.fill }) >= TEXT_RATIO,
     );
   }
 

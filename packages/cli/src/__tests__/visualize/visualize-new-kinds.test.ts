@@ -2,11 +2,11 @@ import { describe, expect, test } from 'bun:test';
 import { DEFAULT_CHROME } from '../../visualize/constants.ts';
 import { FIGURE_FIT } from '../../visualize/layout.ts';
 import { NEW_KINDS_CSS } from '../../visualize/kinds-css.ts';
-import { lifecycleSection, sequenceSection, treeSection } from '../../visualize/kinds-render.ts';
+import { KindsRender } from '../../visualize/kinds-render.ts';
 import type { INewKindsContext } from '../../visualize/kinds-render.ts';
 import { LIFECYCLE_SCHEMA, SEQUENCE_SCHEMA, TREE_SCHEMA } from '../../visualize/kinds-schema.ts';
 import type { ITreeNode } from '../../visualize/kinds-schema.ts';
-import { checkNewKinds } from '../../visualize/kinds-validate.ts';
+import { KindsValidate } from '../../visualize/kinds-validate.ts';
 import type { INewKindsSpec } from '../../visualize/kinds-validate.ts';
 
 const sequenceFixture = () => ({
@@ -79,9 +79,9 @@ const sections = (opts: { spec?: INewKindsSpec; chrome?: INewKindsContext['chrom
 
   return {
     ctx,
-    sequence: sequenceSection({ ctx }),
-    lifecycle: lifecycleSection({ ctx }),
-    tree: treeSection({ ctx }),
+    sequence: KindsRender.sequenceSection({ ctx }),
+    lifecycle: KindsRender.lifecycleSection({ ctx }),
+    tree: KindsRender.treeSection({ ctx }),
   };
 };
 
@@ -244,8 +244,8 @@ describe('the schemas', () => {
 
 describe('the checks', () => {
   test('a good page has no problems', () => {
-    expect(checkNewKinds({ spec: specOf() })).toEqual([]);
-    expect(checkNewKinds({ spec: {} })).toEqual([]);
+    expect(KindsValidate.checkNew({ spec: specOf() })).toEqual([]);
+    expect(KindsValidate.checkNew({ spec: {} })).toEqual([]);
   });
 
   test('a sequence names an id used twice, an arrow to nowhere and a message to oneself', () => {
@@ -261,7 +261,7 @@ describe('the checks', () => {
         { from: 'ghost', to: 'a', label: 'reply' },
       ],
     });
-    const problems = checkNewKinds({ spec: { sequence } });
+    const problems = KindsValidate.checkNew({ spec: { sequence } });
 
     expect(problems.some((line) => line.includes("id 'a' is used twice"))).toBe(true);
     expect(
@@ -275,7 +275,7 @@ describe('the checks', () => {
     const fixture = lifecycleFixture();
     const lifecycle = LIFECYCLE_SCHEMA.parse(change(fixture) ?? fixture);
 
-    return checkNewKinds({ spec: { lifecycle } });
+    return KindsValidate.checkNew({ spec: { lifecycle } });
   };
 
   test('a lifecycle needs exactly one start', () => {
@@ -357,7 +357,9 @@ describe('the checks', () => {
       },
     });
 
-    expect(checkNewKinds({ spec: { tree: twice } })).toEqual(["tree: id 'b' is used twice"]);
+    expect(KindsValidate.checkNew({ spec: { tree: twice } })).toEqual([
+      "tree: id 'b' is used twice",
+    ]);
 
     const wide: ITreeNode = {
       id: 'root',
@@ -371,10 +373,10 @@ describe('the checks', () => {
         })),
       })),
     };
-    const many = checkNewKinds({ spec: { tree: { root: wide } } });
+    const many = KindsValidate.checkNew({ spec: { tree: { root: wide } } });
 
     expect(many).toEqual(['tree: 26 nodes, at most 25 - split it into two trees']);
-    expect(checkNewKinds({ spec: { tree: { root: tree({ depth: 4 }) } } })).toEqual([
+    expect(KindsValidate.checkNew({ spec: { tree: { root: tree({ depth: 4 }) } } })).toEqual([
       'tree: 5 levels below the root, at most 4',
     ]);
   });
@@ -513,7 +515,7 @@ describe('the figures', () => {
     const lifecycle = LIFECYCLE_SCHEMA.parse({ states, transitions });
     const svg = figureOf(sections({ spec: { lifecycle } }).lifecycle);
 
-    expect(checkNewKinds({ spec: { lifecycle } })).toEqual([]);
+    expect(KindsValidate.checkNew({ spec: { lifecycle } })).toEqual([]);
     expect(svg.match(/class="kstate /g)).toHaveLength(10);
     // 13 transitions and the line into the start state.
     expect(svg.match(/class="kline"/g)).toHaveLength(14);
@@ -700,9 +702,9 @@ describe('a phone, escaping and no script', () => {
     };
     const ctx = contextOf({ spec });
 
-    sequenceSection({ ctx });
-    lifecycleSection({ ctx });
-    treeSection({ ctx });
+    KindsRender.sequenceSection({ ctx });
+    KindsRender.lifecycleSection({ ctx });
+    KindsRender.treeSection({ ctx });
 
     for (const width of ctx.fits) {
       expect(Math.ceil(width * FIGURE_FIT) + 66).toBeGreaterThan(390);

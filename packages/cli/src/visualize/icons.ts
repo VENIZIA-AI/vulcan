@@ -23,9 +23,11 @@ const PATHS: Record<string, string> = {
   moon: '<path d="M20.2 14.6A8.4 8.4 0 0 1 9.4 3.8 8.4 8.4 0 1 0 20.2 14.6Z"/>',
 };
 
-/** An icon; `className` is added after `ic` for a page rule that targets one icon (the theme switch's sun and moon). */
-export const iconSvg = (opts: { name: string; size?: number; className?: string }): string => {
-  const size = opts.size ?? 20;
+export class IconSet {
+  /** An icon; `className` is added after `ic` for a page rule that targets one icon (the theme switch's sun and moon). */
+  static iconSvg(opts: { name: string; size?: number; className?: string }): string {
+    const size = opts.size ?? 20;
 
-  return `<svg class="ic${opts.className === undefined ? '' : ` ${opts.className}`}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[opts.name] ?? ''}</svg>`;
-};
+    return `<svg class="ic${opts.className === undefined ? '' : ` ${opts.className}`}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[opts.name] ?? ''}</svg>`;
+  }
+}

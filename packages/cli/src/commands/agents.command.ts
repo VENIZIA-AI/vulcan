@@ -3,7 +3,7 @@ import { AgentConstants, AgentDetection, AgentSelection, AgentTable } from '../a
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { ConfigLoader } from '../config/index.ts';
-import { printAgentTable, runSyncFlow } from './sync.command.ts';
+import { SyncFlow } from './sync.command.ts';
 
 const SUBCOMMANDS = ['list', 'add', 'remove', 'setup'];
 const DRY_RUN_FLAG = '--dry-run';
@@ -62,7 +62,7 @@ const runList = async (opts: { root: string }): Promise<number> => {
     `chosen on this machine: ${current.chosen ? current.agents.join(', ') || AgentConstants.NONE : '(nothing yet)'}\n`,
   );
   process.stdout.write(`detected: ${found.length === 0 ? '(none)' : found.join(', ')}\n\n`);
-  printAgentTable();
+  SyncFlow.printAgentTable();
 
   return ExitCodes.OK;
 };
@@ -89,7 +89,7 @@ export const runAgentsCommand = async (opts: ICommandContext): Promise<number> =
       });
     }
 
-    return runSyncFlow({ cwd: opts.cwd, args: [AgentConstants.FLAG, ...dryRun] });
+    return SyncFlow.run({ cwd: opts.cwd, args: [AgentConstants.FLAG, ...dryRun] });
   }
 
   if (value === undefined) {
@@ -136,7 +136,7 @@ export const runAgentsCommand = async (opts: ICommandContext): Promise<number> =
       : current.agents.includes(id) && !touched.includes(id),
   );
 
-  return runSyncFlow({
+  return SyncFlow.run({
     cwd: opts.cwd,
     args: [
       AgentConstants.FLAG,

@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { PageGate } from '../../visualize/gate.ts';
-import { renderSpecText } from '../../visualize/index.ts';
+import { SpecPage } from '../../visualize/index.ts';
 import { fullSpec } from './spec.fixture.ts';
 
 const page = (): string => {
-  const result = renderSpecText({ text: JSON.stringify(fullSpec()) });
+  const result = SpecPage.renderText({ text: JSON.stringify(fullSpec()) });
 
   if (!result.ok) {
     throw new Error(result.problems.join('; '));
@@ -45,7 +45,7 @@ describe('the output gate', () => {
   });
 
   test('text that looks like markup or an address is only text', () => {
-    const result = renderSpecText({
+    const result = SpecPage.renderText({
       text: JSON.stringify({
         ...fullSpec(),
         title: 'See https://example.com and <img src=x> and style="a"',
