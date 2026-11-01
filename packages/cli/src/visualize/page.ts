@@ -8,6 +8,7 @@ import { COMPARE_CSS } from './compare-css.ts';
 import { CompareView } from './compare-render.ts';
 import { NEW_KINDS_CSS } from './kinds-css.ts';
 import { KindsRender } from './kinds-render.ts';
+import { GridSpans } from './grid-span.ts';
 import { Labels } from './labels.ts';
 import { FIGURE_FIT, FigureLayout } from './layout.ts';
 import type { TVisualizeSpec } from './schema.ts';
@@ -176,7 +177,12 @@ export class PageShell {
     const { spec } = opts;
     const language = opts.language ?? spec.language ?? 'en';
     const chrome = Labels.chromeOf({ spec, language });
-    const ctx: ISectionContext = { spec, chrome, fits: new Set<number>() };
+    const ctx: ISectionContext = {
+      spec,
+      chrome,
+      fits: new Set<number>(),
+      spans: new Set<number>(),
+    };
     const { state, tone, word } = stateOf({ spec, chrome });
     const sources = SourceRefs.entries({ spec, chrome });
     const tiles =
@@ -220,7 +226,7 @@ export class PageShell {
           }),
       SpecSections.links({ ctx }),
     ].join('');
-    const css = `${Assets.pageCss({ tokens: ProjectTheme.tokensCss({ theme: opts.theme ?? NEUTRAL }) })}\n${NEW_KINDS_CSS}\n${COMPARE_CSS}\n${figureFitCss({ widths: ctx.fits })}`;
+    const css = `${Assets.pageCss({ tokens: ProjectTheme.tokensCss({ theme: opts.theme ?? NEUTRAL }) })}\n${NEW_KINDS_CSS}\n${COMPARE_CSS}\n${GridSpans.css({ spans: ctx.spans })}\n${figureFitCss({ widths: ctx.fits })}`;
     const policy = `default-src 'none'; style-src ${sha256({ text: css })}; script-src ${sha256({ text: HEAD_JS })} ${sha256({ text: PAGE_JS })}; base-uri 'none'; form-action 'none'`;
     const links = SpecSections.sectionLinks({ spec, chrome })
       .map((link) => `<a href="#${link.id}">${escaped(link.title)}</a>`)

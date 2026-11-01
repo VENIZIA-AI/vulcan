@@ -1,6 +1,7 @@
 import { NodeStates } from './constants.ts';
 import type { TChrome } from './constants.ts';
 import { SpecCharts } from './charts.ts';
+import { GridSpans } from './grid-span.ts';
 import { IconSet } from './icons.ts';
 import { FigureLayout } from './layout.ts';
 import type { TVisualizeSpec } from './schema.ts';
@@ -222,13 +223,17 @@ export class SpecDiagrams {
   }
 
   /** The idea map: the centre between two columns of branches, each branch a cluster of ideas. */
-  static renderIdeaMap(opts: { map: NonNullable<TVisualizeSpec['ideaMap']> }): string {
-    const { map } = opts;
+  static renderIdeaMap(opts: {
+    map: NonNullable<TVisualizeSpec['ideaMap']>;
+    spans: Set<number>;
+  }): string {
+    const { map, spans } = opts;
+    // Branches alternate left and right, a pair to a row; each takes three rows of the grid (title, chips, note) from it,
+    // so the title and the chips of two branches in one row sit at the same height, and the centre spans every row.
+    const rows = Math.ceil(map.branches.length / 2) * 3;
     const cluster = (branch: (typeof map.branches)[number], index: number): string =>
       `<li class="branch" data-s="${(index % 5) + 1}"><h3><i class="sw" data-s="${(index % 5) + 1}"></i>${escaped(branch.label)}</h3><ul class="chips">${branch.items.map((item) => `<li>${escaped(item)}</li>`).join('')}</ul>${branch.note === undefined ? '' : `<p class="mut">${escaped(branch.note)}</p>`}</li>`;
-    const left = map.branches.filter((_, index) => index % 2 === 0);
-    const right = map.branches.filter((_, index) => index % 2 === 1);
 
-    return `<div class="idea"><ul class="side l">${left.map((branch, i) => cluster(branch, i * 2)).join('')}</ul><div class="centre win">${IconSet.iconSvg({ name: 'star', size: 22 })}<b>${escaped(map.center)}</b></div><ul class="side r">${right.map((branch, i) => cluster(branch, i * 2 + 1)).join('')}</ul></div>`;
+    return `<div class="idea"><div class="centre win ${GridSpans.classOf({ count: rows, spans })}">${IconSet.iconSvg({ name: 'star', size: 22 })}<b>${escaped(map.center)}</b></div><ul class="bs" role="list">${map.branches.map((branch, index) => cluster(branch, index)).join('')}</ul></div>`;
   }
 }

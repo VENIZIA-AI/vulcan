@@ -23,8 +23,9 @@ export const COMPARE_CSS = `.edge.added path{stroke:var(--ink);stroke-width:4.5}
 .srcs .src{color:var(--ink);font-size:14px}
 .srcs .by{color:var(--body);font-size:15.5px}
 .terms{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:2px;margin:0;border-radius:var(--radius);overflow:hidden}
-.terms div{display:grid;gap:10px;align-content:start;padding:26px 26px 30px;background:var(--bg-soft)}
-.terms dt{color:var(--ink);font-size:19px;font-weight:650;letter-spacing:-.02em}
+.terms div{display:grid;align-content:start;padding:26px 26px 30px;background:var(--bg-soft)}
+@supports (grid-template-rows:subgrid){.terms div{grid-template-rows:subgrid;grid-row-end:span 2}}
+.terms dt{color:var(--ink);font-size:19px;font-weight:650;letter-spacing:-.02em;margin-bottom:10px}
 .terms dd{margin:0;max-width:52ch;color:var(--body);font-size:16px}
 @media (max-width:700px){.srcs li{grid-template-columns:minmax(0,1fr)}.terms div{padding:22px 22px 26px}}
 `;

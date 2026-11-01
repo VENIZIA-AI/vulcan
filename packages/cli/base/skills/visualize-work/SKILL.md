@@ -111,6 +111,15 @@ sun and moon switch in the top bar flips them), the page is complete with the sc
 hover or focus on a box shows its detail, Next steps through the lit boxes, the **Present** button (or
 `?present=1`) walks the sections as slides with the arrow keys and Escape leaves, and the console is clean.
 
+**Cards in a row line up.** Where cards stand side by side (the options of a comparison, tiles, the stepper,
+the branches of an idea map, charts, terms), the same part of every card sits at the same height as in its
+neighbours: the big score, the title, each criterion row, each pro and con, the notes. A badge on one card, a
+label that wraps or a longer list must not push a part of that card lower than its neighbours. The generator
+keeps a slot for every part and shares the rows between the cards of a row (CSS grid with `subgrid`), so a page
+that misaligns is a generator defect: say so, do not hide it by padding the text. In the generator, a new kind
+with repeated cards follows the same rule and is added to the alignment test
+(`visualize-alignment.test.ts`), which measures the offsets in a real browser.
+
 If you could not open it, say "not browser-checked". Never describe a page as checked when only the
 command ran.
 
