@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../../common/index.ts';
-import { DoctorChecks, lintSkill, runDoctorChecks } from '../../doctor/index.ts';
+import { DoctorChecks, DoctorRunner, SkillLint } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -16,7 +16,7 @@ const SKILL = (opts: { name?: string; description?: string; body?: string }): st
 const lintOf = (opts: { files: Record<string, string> }): string[] => {
   const root = createProject({ files: opts.files });
 
-  return lintSkill({ directory: join(root, 'skill') });
+  return SkillLint.lint({ directory: join(root, 'skill') });
 };
 
 describe('lintSkill', () => {
@@ -115,7 +115,7 @@ describe('doctor [skills]', () => {
         '.agents/skills/group/inner/SKILL.md': SKILL({}),
       },
     });
-    const result = await runDoctorChecks({ root });
+    const result = await DoctorRunner.runChecks({ root });
     const messages = result
       .filter((violation) => violation.check === DoctorChecks.SKILLS)
       .map((violation) => `${violation.file}: ${violation.message}`);
@@ -132,7 +132,7 @@ describe('doctor [skills]', () => {
     expect(shipped.length).toBeGreaterThan(1);
     expect(
       shipped.flatMap((name) =>
-        lintSkill({ directory: join(BASE_DIRECTORY, 'skills', name) }).map(
+        SkillLint.lint({ directory: join(BASE_DIRECTORY, 'skills', name) }).map(
           (problem) => `${name}: ${problem}`,
         ),
       ),
@@ -148,7 +148,7 @@ describe('doctor [skills] - a project skill named like a shipped one', () => {
         '.agents/skills/knowledge-sync/SKILL.md': SKILL({ name: 'knowledge-sync' }),
       },
     });
-    const result = await runDoctorChecks({ root });
+    const result = await DoctorRunner.runChecks({ root });
     const messages = result
       .filter((violation) => violation.check === DoctorChecks.SKILLS)
       .map((violation) => violation.message);

@@ -3,7 +3,7 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
 import { renderBunfig } from '../../create/bunfig.ts';
-import { runDoctorWarnings } from '../../doctor/index.ts';
+import { DoctorRunner } from '../../doctor/index.ts';
 import { CLAUDE_LAUNCH_FILE, renderClaudeLaunch } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
@@ -35,7 +35,7 @@ const project = (opts: { description: string }) => {
 
 describe('doctor warns about a skill with no "Use when" part', () => {
   test('a warning on the skill file, saying atlas cannot tell when to load it', async () => {
-    const warnings = await runDoctorWarnings({
+    const warnings = await DoctorRunner.runWarnings({
       root: project({ description: 'Does an odd thing.' }),
     });
 
@@ -50,7 +50,7 @@ describe('doctor warns about a skill with no "Use when" part', () => {
   });
 
   test('a skill with one is not named', async () => {
-    const warnings = await runDoctorWarnings({
+    const warnings = await DoctorRunner.runWarnings({
       root: project({ description: 'Does an odd thing. Use when the user asks for odd things.' }),
     });
 

@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { runDoctorNotes } from '../../doctor/index.ts';
+import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -11,7 +11,7 @@ const project = (opts: { config: object }): string =>
 
 describe('doctor shows the patterns the project lists', () => {
   test('one note per command and one for the push targets, with the rule and the pattern', async () => {
-    const notes = await runDoctorNotes({
+    const notes = await DoctorRunner.runNotes({
       root: project({
         config: {
           guard: {
@@ -37,7 +37,7 @@ describe('doctor shows the patterns the project lists', () => {
   });
 
   test('says nothing when the project lists none', async () => {
-    const notes = await runDoctorNotes({ root: project({ config: {} }) });
+    const notes = await DoctorRunner.runNotes({ root: project({ config: {} }) });
 
     expect(notes.filter((note) => note.check === 'guards')).toEqual([]);
   });

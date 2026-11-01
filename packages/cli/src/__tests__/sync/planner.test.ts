@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { runDoctorChecks } from '../../doctor/index.ts';
+import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -416,7 +416,7 @@ describe('skills', () => {
     // What a newer VULCAN linked before the project went back to this one.
     symlinkSync(join(installed, 'base', 'skills', 'gone-skill'), link);
 
-    const result2 = await runDoctorChecks({ root });
+    const result2 = await DoctorRunner.runChecks({ root });
     const flagged = result2.map((violation) => violation.file);
 
     expect(flagged).toContain('.claude/skills/gone-skill');

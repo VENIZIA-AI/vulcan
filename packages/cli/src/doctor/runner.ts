@@ -1,136 +1,106 @@
 import { relative } from 'node:path';
 import { ConfigLoader } from '../config/index.ts';
-import {
-  checkAdapters,
-  checkAgents,
-  checkAppScripts,
-  checkAtlasBlock,
-  checkSkillTriggers,
-  checkDockerignore,
-  checkFormat,
-  checkMcpAtlas,
-  checkApps,
-  checkManifest,
-  checkLocalSize,
-  checkProfile,
-  checkOwnerReplySettings,
-  checkOwnerReplySwitch,
-  checkReplyShape,
-  checkPrune,
-  checkStaleLocal,
-  ReadOnlySubcommandChecks,
-  checkStaleTrustedScripts,
-  checkTrustedScripts,
-  checkHooks,
-  checkLayout,
-  checkGuardPatterns,
-  checkLocalWorkspace,
-  checkMake,
-  checkOutsideWorktrees,
-  checkRuleIds,
-  checkRuleSlots,
-  checkScaffold,
-  checkSkills,
-  checkStyle,
-} from './checks.ts';
-import { checkSkillLint } from './skills.ts';
-import { checkTags } from './tags.ts';
+import { ProjectContract, ReadOnlySubcommandChecks } from './checks.ts';
+import { SkillLint } from './skills.ts';
+import { TagCheck } from './tags.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { IViolation } from './common/index.ts';
 
-/** Every violation of the VULCAN contract in the project at `root`; empty means conformant. */
-export const runDoctorChecks = async (opts: { root: string }): Promise<IViolation[]> => {
-  const loaded = await ConfigLoader.load({ root: opts.root });
+export class DoctorRunner {
+  /** Every violation of the VULCAN contract in the project at `root`; empty means conformant. */
+  static async runChecks(opts: { root: string }): Promise<IViolation[]> {
+    const loaded = await ConfigLoader.load({ root: opts.root });
 
-  if (!loaded.ok) {
+    if (!loaded.ok) {
+      return [
+        {
+          check: DoctorChecks.CONFIG,
+          file: loaded.file === undefined ? '.configs/' : relative(opts.root, loaded.file),
+          message: loaded.error,
+        },
+      ];
+    }
+
+    const context = {
+      root: opts.root,
+      config: loaded.config,
+      configFile: relative(opts.root, loaded.file),
+    };
+
     return [
-      {
-        check: DoctorChecks.CONFIG,
-        file: loaded.file === undefined ? '.configs/' : relative(opts.root, loaded.file),
-        message: loaded.error,
-      },
+      ...ProjectContract.checkLayout(context),
+      ...ProjectContract.checkRuleIds(context),
+      ...ProjectContract.checkRuleSlots(context),
+      ...ProjectContract.checkSkills(context),
+      ...ProjectContract.checkMake(context),
+      ...ProjectContract.checkHooks(context),
+      ...ProjectContract.checkAdapters(context),
+      ...ProjectContract.checkAgents(context),
+      ...ProjectContract.checkPrune(context),
+      ...ProjectContract.checkManifest(context),
+      ...TagCheck.check(context),
+      ...SkillLint.check(context),
+      ...ProjectContract.checkStyle(context),
+      ...ProjectContract.checkScaffold(context),
+      ...ProjectContract.checkApps(context),
     ];
   }
 
-  const context = {
-    root: opts.root,
-    config: loaded.config,
-    configFile: relative(opts.root, loaded.file),
-  };
+  /** Notes that never fail the doctor: what a project could change, one line each. */
+  static async runNotes(opts: {
+    root: string;
+    /** The environment of the shell running doctor; defaults to the process environment. */
+    env?: Record<string, string | undefined>;
+  }): Promise<IViolation[]> {
+    const loaded = await ConfigLoader.load({ root: opts.root });
 
-  return [
-    ...checkLayout(context),
-    ...checkRuleIds(context),
-    ...checkRuleSlots(context),
-    ...checkSkills(context),
-    ...checkMake(context),
-    ...checkHooks(context),
-    ...checkAdapters(context),
-    ...checkAgents(context),
-    ...checkPrune(context),
-    ...checkManifest(context),
-    ...checkTags(context),
-    ...checkSkillLint(context),
-    ...checkStyle(context),
-    ...checkScaffold(context),
-    ...checkApps(context),
-  ];
-};
+    if (!loaded.ok) {
+      return [];
+    }
 
-/** Notes that never fail the doctor: what a project could change, one line each. */
-export const runDoctorNotes = async (opts: {
-  root: string;
-  /** The environment of the shell running doctor; defaults to the process environment. */
-  env?: Record<string, string | undefined>;
-}): Promise<IViolation[]> => {
-  const loaded = await ConfigLoader.load({ root: opts.root });
+    const context = {
+      root: opts.root,
+      config: loaded.config,
+      configFile: relative(opts.root, loaded.file),
+    };
 
-  if (!loaded.ok) {
-    return [];
+    return [
+      ...ProjectContract.checkAppScripts(context),
+      ...ProjectContract.checkAtlasBlock(context),
+      ...ProjectContract.checkLocalSize(context),
+      ...ProjectContract.checkGuardPatterns(context),
+      ...ProjectContract.checkReplyShape(context),
+      ...ProjectContract.checkOwnerReplySwitch({ env: opts.env ?? process.env }),
+      ...ProjectContract.checkTrustedScripts(context),
+      ...ReadOnlySubcommandChecks.check(context),
+    ];
   }
 
-  const context = {
-    root: opts.root,
-    config: loaded.config,
-    configFile: relative(opts.root, loaded.file),
-  };
+  /** Warnings: louder than a note, still never a failure - a security gap a project made earlier may carry. */
+  static async runWarnings(opts: { root: string }): Promise<IViolation[]> {
+    const loaded = await ConfigLoader.load({ root: opts.root });
 
-  return [
-    ...checkAppScripts(context),
-    ...checkAtlasBlock(context),
-    ...checkLocalSize(context),
-    ...checkGuardPatterns(context),
-    ...checkReplyShape(context),
-    ...checkOwnerReplySwitch({ env: opts.env ?? process.env }),
-    ...checkTrustedScripts(context),
-    ...ReadOnlySubcommandChecks.check(context),
-  ];
-};
+    if (!loaded.ok) {
+      return [];
+    }
 
-/** Warnings: louder than a note, still never a failure - a security gap a project made earlier may carry. */
-export const runDoctorWarnings = async (opts: { root: string }): Promise<IViolation[]> => {
-  const loaded = await ConfigLoader.load({ root: opts.root });
+    const context = {
+      root: opts.root,
+      config: loaded.config,
+      configFile: relative(opts.root, loaded.file),
+    };
 
-  if (!loaded.ok) {
-    return [];
+    return [
+      ...ProjectContract.checkMcpAtlas(context),
+      ...ProjectContract.checkDockerignore(context),
+      ...ProjectContract.checkSkillTriggers(context),
+      ...ProjectContract.checkFormat(context),
+      ...ProjectContract.checkLocalWorkspace(context),
+      ...ProjectContract.checkOutsideWorktrees(context),
+      ...ProjectContract.checkProfile(context),
+      ...ProjectContract.checkOwnerReplySettings(context),
+      ...ProjectContract.checkStaleLocal(context),
+      ...ProjectContract.checkStaleTrustedScripts(context),
+    ];
   }
-
-  const context = {
-    root: opts.root,
-    config: loaded.config,
-    configFile: relative(opts.root, loaded.file),
-  };
-
-  return [
-    ...checkMcpAtlas(context),
-    ...checkDockerignore(context),
-    ...checkSkillTriggers(context),
-    ...checkFormat(context),
-    ...checkLocalWorkspace(context),
-    ...checkOutsideWorktrees(context),
-    ...checkProfile(context),
-    ...checkOwnerReplySettings(context),
-    ...checkStaleLocal(context),
-    ...checkStaleTrustedScripts(context),
-  ];
-};
+}

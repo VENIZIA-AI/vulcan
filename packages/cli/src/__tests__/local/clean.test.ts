@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { runDoctorNotes, runDoctorWarnings } from '../../doctor/index.ts';
+import { DoctorRunner } from '../../doctor/index.ts';
 import { LocalClean, LocalScan } from '../../local/index.ts';
 import { CLAUDE_LAUNCH_FILE, renderClaudeLaunch } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -239,8 +239,8 @@ describe('a link can never move clean out of the project', () => {
     expect(
       LocalScan.scan({ root }).filter((entry) => ['tmp', 'clones'].includes(entry.scope)),
     ).toEqual([]);
-    expect(() => runDoctorWarnings({ root })).not.toThrow();
-    const result = await runDoctorNotes({ root });
+    expect(() => DoctorRunner.runWarnings({ root })).not.toThrow();
+    const result = await DoctorRunner.runNotes({ root });
     expect(result.filter((entry) => entry.file === '.agents/local')).toEqual([]);
   });
 });
@@ -456,7 +456,7 @@ describe('doctor and what an agent left behind', () => {
     );
     worktree({ root, name: 'done' });
 
-    const result = await runDoctorWarnings({ root });
+    const result = await DoctorRunner.runWarnings({ root });
     const warnings = result.filter((entry) => entry.file.startsWith('.agents/local/'));
 
     expect(warnings.map((entry) => entry.file).sort()).toEqual([
@@ -477,7 +477,7 @@ describe('doctor and what an agent left behind', () => {
     file({ root, path: 'tmp/fresh/a.txt' });
     worktree({ root, name: 'busy', commit: true });
 
-    const result = await runDoctorWarnings({ root });
+    const result = await DoctorRunner.runWarnings({ root });
     expect(result.filter((entry) => entry.file.startsWith('.agents/local/'))).toEqual([]);
   });
 
@@ -487,12 +487,12 @@ describe('doctor and what an agent left behind', () => {
     file({ root, path: 'cache/big', text: '' });
     truncateSync(join(root, '.agents/local/cache/big'), 60 * 1024 * 1024);
 
-    const notes = await runDoctorNotes({ root });
+    const notes = await DoctorRunner.runNotes({ root });
     const [note] = notes.filter((entry) => entry.file === '.agents/local');
 
     expect(note?.message).toContain('holds 60.0 MB');
     expect(note?.message).toContain('cache 60.0 MB');
-    const result = await runDoctorNotes({ root: repository() });
+    const result = await DoctorRunner.runNotes({ root: repository() });
     expect(result.filter((entry) => entry.file === '.agents/local')).toEqual([]);
   });
 });

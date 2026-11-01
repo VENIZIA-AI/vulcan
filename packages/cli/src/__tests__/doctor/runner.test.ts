@@ -1,13 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  DoctorChecks,
-  parseMakeTargets,
-  runDoctorChecks,
-  runDoctorNotes,
-  runDoctorWarnings,
-} from '../../doctor/index.ts';
+import { DoctorChecks, DoctorRunner, Makefile } from '../../doctor/index.ts';
 import { renderLocalChoice } from '../../agents/index.ts';
 import { renderBunfig } from '../../create/bunfig.ts';
 import { renderDockerignore } from '../../create/dockerignore.ts';
@@ -47,7 +41,7 @@ const createSyncedProject = (opts: { files: Record<string, string> }): string =>
 };
 
 const findChecks = async (opts: { root: string }): Promise<string[]> => {
-  const violations = await runDoctorChecks({ root: opts.root });
+  const violations = await DoctorRunner.runChecks({ root: opts.root });
 
   return violations.map((violation) => violation.check);
 };
@@ -56,7 +50,7 @@ describe('doctor', () => {
   test('a conformant, synced project has no violations and exits 0', async () => {
     const root = createSyncedProject({ files: CONFORMANT });
 
-    const result2 = await runDoctorChecks({ root });
+    const result2 = await DoctorRunner.runChecks({ root });
     expect(result2).toEqual([]);
     const result = runCli({ args: ['doctor'], cwd: root });
 
@@ -123,7 +117,7 @@ describe('doctor', () => {
           '| **C-03** | **Extends V-C-03.** mine | SOFT |\n| V-W-05 | x | SOFT |\n',
       },
     });
-    const violations = await runDoctorChecks({ root });
+    const violations = await DoctorRunner.runChecks({ root });
 
     expect(violations.map((violation) => violation.message)).toEqual([
       'V-C-03 is retired in the base - drop the reference',
@@ -322,7 +316,7 @@ describe('doctor', () => {
           "import { defineConfig } from 'oxlint';\nimport { oxlintConfigs } from '@venizia/dev-configs/linters';\n\nexport default defineConfig(oxlintConfigs);\n",
       },
     });
-    const violations = await runDoctorChecks({ root });
+    const violations = await DoctorRunner.runChecks({ root });
     const legacy = violations.filter(
       (violation) => violation.file === '.configs/oxlint.config.mts',
     );
@@ -402,7 +396,7 @@ describe('doctor', () => {
         'umbras/kit/.configs/lints/oxlint.config.mts': 'export default {};\n',
       },
     });
-    const violations = await runDoctorChecks({ root });
+    const violations = await DoctorRunner.runChecks({ root });
 
     expect(violations.map((violation) => [violation.check, violation.file])).toEqual([
       [DoctorChecks.STYLE, 'umbras/kit/.configs/lints/oxlint.config.mts'],
@@ -425,7 +419,7 @@ describe('doctor', () => {
 describe('doctor on a clean checkout', () => {
   test('adapters that were never written are one line with the fix, not one stale line per file', async () => {
     const root = createProject({ files: CONFORMANT });
-    const result = await runDoctorChecks({ root });
+    const result = await DoctorRunner.runChecks({ root });
     const adapters = result.filter((violation) => violation.check === DoctorChecks.ADAPTERS);
 
     expect(adapters).toHaveLength(1);
@@ -439,7 +433,7 @@ describe('doctor on a clean checkout', () => {
     const root = createSyncedProject({ files: CONFORMANT });
 
     writeFileSync(join(root, '.claude/settings.json'), '{ "permissions": { "allow": ["x"] } }\n');
-    const result = await runDoctorChecks({ root });
+    const result = await DoctorRunner.runChecks({ root });
     const adapters = result.filter((violation) => violation.check === DoctorChecks.ADAPTERS);
 
     expect(adapters.map((violation) => violation.file)).toContain('.claude/settings.json');
@@ -455,7 +449,7 @@ describe('doctor: the scaffold is filled in', () => {
     const root = createSyncedProject({
       files: { ...CONFORMANT, 'package.json': WORKSPACES_PACKAGE },
     });
-    const violations = await runDoctorChecks({ root });
+    const violations = await DoctorRunner.runChecks({ root });
 
     expect(violations.map((violation) => violation.check)).toEqual([DoctorChecks.SCAFFOLD]);
     expect(violations[0]?.message).toContain('packages');
@@ -471,12 +465,14 @@ describe('doctor: the scaffold is filled in', () => {
       },
     });
 
-    const result = await runDoctorChecks({ root });
+    const result = await DoctorRunner.runChecks({ root });
     expect(result).toEqual([]);
   });
 
   test('a single-package project needs no packages', async () => {
-    const result = await runDoctorChecks({ root: createSyncedProject({ files: CONFORMANT }) });
+    const result = await DoctorRunner.runChecks({
+      root: createSyncedProject({ files: CONFORMANT }),
+    });
     expect(result).toEqual([]);
   });
 
@@ -488,7 +484,7 @@ describe('doctor: the scaffold is filled in', () => {
           '# k\n\n<!-- vulcan:scaffold - describe the project, then delete this line -->\n',
       },
     });
-    const violations = await runDoctorChecks({ root });
+    const violations = await DoctorRunner.runChecks({ root });
 
     expect(violations.map((violation) => violation.check)).toEqual([DoctorChecks.SCAFFOLD]);
     expect(violations[0]?.file).toBe('.agents/knowledge/index.md');
@@ -506,7 +502,7 @@ describe('doctor: apps', () => {
           "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services', frontend: 'web' }, packages: [{ dir: 'core-api', name: 'core-api', path: 'apps/core-api' }] };\n",
       },
     });
-    const violations = await runDoctorChecks({ root });
+    const violations = await DoctorRunner.runChecks({ root });
     const apps = violations
       .filter((violation) => violation.check === DoctorChecks.APPS)
       .map((violation) => violation.message);
@@ -529,9 +525,9 @@ describe('doctor: apps', () => {
     });
     const uncovered = createSyncedProject({ files: files({ workspaces: '["services/*"]' }) });
 
-    const result = await runDoctorChecks({ root: covered });
+    const result = await DoctorRunner.runChecks({ root: covered });
     expect(result).toEqual([]);
-    const result2 = await runDoctorChecks({ root: uncovered });
+    const result2 = await DoctorRunner.runChecks({ root: uncovered });
     expect(
       result2
         .filter((violation) => violation.check === DoctorChecks.APPS)
@@ -552,7 +548,7 @@ describe('doctor: apps', () => {
         },
       });
 
-      const result = await runDoctorChecks({ root });
+      const result = await DoctorRunner.runChecks({ root });
       expect(result).toEqual([]);
     }
   });
@@ -567,7 +563,7 @@ describe('doctor: apps', () => {
           "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' } };\n",
       },
     });
-    const result = await runDoctorChecks({ root });
+    const result = await DoctorRunner.runChecks({ root });
     const apps = result.filter((violation) => violation.check === DoctorChecks.APPS);
 
     expect(apps.map((violation) => violation.message)).toContain(
@@ -617,7 +613,7 @@ describe('doctor: app scripts (info only)', () => {
       },
     });
 
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     expect(result).toEqual([]);
   });
 
@@ -640,7 +636,7 @@ describe('doctor: app scripts (info only)', () => {
         }),
       },
     });
-    const notes = await runDoctorNotes({ root });
+    const notes = await DoctorRunner.runNotes({ root });
 
     expect(notes).toHaveLength(2);
     expect(notes[0]).toEqual({
@@ -671,7 +667,7 @@ describe('doctor: app scripts (info only)', () => {
       },
     });
 
-    const notes = await runDoctorNotes({ root });
+    const notes = await DoctorRunner.runNotes({ root });
 
     expect(notes[0]?.message).toBe(
       'app api: legacy dev, start, build, rebuild, preview, server:prod (use the standard names)',
@@ -688,9 +684,11 @@ describe('doctor: app scripts (info only)', () => {
       },
     });
 
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     expect(result).toEqual([]);
-    const result2 = await runDoctorNotes({ root: createSyncedProject({ files: CONFORMANT }) });
+    const result2 = await DoctorRunner.runNotes({
+      root: createSyncedProject({ files: CONFORMANT }),
+    });
     expect(result2).toEqual([]);
   });
 
@@ -703,7 +701,7 @@ describe('doctor: app scripts (info only)', () => {
     });
     const result = runCli({ args: ['doctor'], cwd: root });
 
-    const result2 = await runDoctorChecks({ root });
+    const result2 = await DoctorRunner.runChecks({ root });
     expect(result2).toEqual([]);
     expect(result.code).toBe(0);
     expect(result.stderr).toContain(
@@ -718,7 +716,7 @@ describe('doctor: agents', () => {
     const root = createSyncedProject({
       files: { ...CONFORMANT, '.agents/vulcan.local.json': '{ nope' },
     });
-    const result = await runDoctorChecks({ root });
+    const result = await DoctorRunner.runChecks({ root });
     const agents = result.filter((violation) => violation.check === DoctorChecks.AGENTS);
 
     expect(agents).toEqual([
@@ -738,7 +736,7 @@ describe('doctor: agents', () => {
 
     runCli({ args: ['sync'], cwd: root });
 
-    const result = await runDoctorChecks({ root });
+    const result = await DoctorRunner.runChecks({ root });
     expect(result.map((violation) => violation.check)).not.toContain(DoctorChecks.ADAPTERS);
   });
 });
@@ -748,13 +746,13 @@ describe('parseMakeTargets', () => {
     const makefile =
       'A := 1\nB ?= 2\n.PHONY: x\nbuild: dep\n\t@echo\nokf-check:\n\techo\n$(T): %-x:\n';
 
-    expect(parseMakeTargets({ makefile })).toEqual(['build', 'okf-check']);
+    expect(Makefile.parseMakeTargets({ makefile })).toEqual(['build', 'okf-check']);
   });
 });
 
 describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
   const dockerignoreWarnings = async (opts: { root: string }) => {
-    const warnings = await runDoctorWarnings(opts);
+    const warnings = await DoctorRunner.runWarnings(opts);
 
     return warnings.filter((item) => item.check === DoctorChecks.DOCKERIGNORE);
   };
@@ -797,7 +795,7 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
         message: `app api has a Dockerfile and the root has no .dockerignore: the build context would carry node_modules, dist, .git and every .env file (secrets) - create it, then ${ADD}`,
       },
     ]);
-    const result2 = await runDoctorNotes({ root });
+    const result2 = await DoctorRunner.runNotes({ root });
     expect(result2.map((note) => note.check)).not.toContain(DoctorChecks.DOCKERIGNORE);
   });
 
@@ -879,7 +877,7 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
 
 describe('doctor: bun fmt (warnings)', () => {
   const formatWarnings = async (opts: { root: string }) => {
-    const warnings = await runDoctorWarnings(opts);
+    const warnings = await DoctorRunner.runWarnings(opts);
 
     return warnings.filter((item) => item.check === DoctorChecks.FORMAT);
   };
@@ -1079,7 +1077,7 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
       },
     });
   const mcpWarnings = async (opts: { root: string }) => {
-    const warnings = await runDoctorWarnings(opts);
+    const warnings = await DoctorRunner.runWarnings(opts);
 
     return warnings.filter((item) => item.check === DoctorChecks.MCP);
   };
@@ -1113,7 +1111,7 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
 
     const result = await mcpWarnings({ root });
     expect(result).toEqual([]);
-    const result2 = await runDoctorChecks({ root });
+    const result2 = await DoctorRunner.runChecks({ root });
     expect(result2.some((violation) => violation.check === DoctorChecks.ADAPTERS)).toBe(true);
   });
 
@@ -1202,14 +1200,14 @@ describe('the report shape note', () => {
         '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
       },
     });
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     const notes = result.filter((note) => note.file.endsWith('violations.jsonl'));
 
     expect(notes).toHaveLength(1);
     expect(notes[0]?.message).toBe(
       '2 replies were flagged on 2 days (emoji 2, blocked-missing 1); the retro skill turns a pattern into a check',
     );
-    const result2 = await runDoctorNotes({ root: quiet });
+    const result2 = await DoctorRunner.runNotes({ root: quiet });
     expect(result2.filter((note) => note.file.endsWith('violations.jsonl'))).toEqual([]);
   });
 
@@ -1220,7 +1218,7 @@ describe('the report shape note', () => {
       },
     });
     const notesOf = async (env: Record<string, string>): Promise<string[]> => {
-      const notes = await runDoctorNotes({ root, env });
+      const notes = await DoctorRunner.runNotes({ root, env });
 
       return notes.filter((note) => note.file === 'VULCAN_OWNER_REPLY').map((note) => note.message);
     };
@@ -1250,7 +1248,7 @@ describe('the report shape note', () => {
       },
     });
     const warningsOf = async (root: string): Promise<string[]> => {
-      const warnings = await runDoctorWarnings({ root });
+      const warnings = await DoctorRunner.runWarnings({ root });
 
       return warnings
         .filter((warning) => warning.message.includes('VULCAN_OWNER_REPLY'))

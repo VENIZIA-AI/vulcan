@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../common/index.ts';
-import { lintSkill } from '../doctor/index.ts';
+import { SkillLint } from '../doctor/index.ts';
 import { SkillCatalog } from '@venizia/vulcan-atlas';
 import { SkillFrontmatter } from '../skills/index.ts';
 import { VisualizeLimits } from '../visualize/index.ts';
@@ -22,7 +22,7 @@ describe('the shipped skill docs-update', () => {
 
   test('ships, and passes the skill lint', () => {
     expect(existsSync(join(directory, 'SKILL.md'))).toBe(true);
-    expect(lintSkill({ directory })).toEqual([]);
+    expect(SkillLint.lint({ directory })).toEqual([]);
   });
 
   test('names no project in any file, its evals included - they run against any project', () => {
@@ -103,7 +103,7 @@ describe('the shipped agent-work skills', () => {
     readFileSync(join(SKILLS_DIRECTORY, name, file), 'utf8');
 
   test.each(NAMES)('%s ships, passes the skill lint and is named like its folder', (name) => {
-    expect(lintSkill({ directory: join(SKILLS_DIRECTORY, name) })).toEqual([]);
+    expect(SkillLint.lint({ directory: join(SKILLS_DIRECTORY, name) })).toEqual([]);
     expect(SkillFrontmatter.frontmatterOf({ text: read(name) }).data.name).toBe(name);
   });
 
@@ -218,7 +218,7 @@ describe('the shipped skill visualize-work', () => {
   const skill = (): string => readFileSync(join(directory, 'SKILL.md'), 'utf8');
 
   test('ships with its spec reference and evals, and lints clean', () => {
-    expect(lintSkill({ directory })).toEqual([]);
+    expect(SkillLint.lint({ directory })).toEqual([]);
     expect(existsSync(join(directory, 'references', 'spec.md'))).toBe(true);
     expect(existsSync(join(directory, 'evals', 'evals.json'))).toBe(true);
   });
@@ -286,7 +286,7 @@ describe('every shipped skill and the shared references', () => {
   });
 
   test.each(ALL)('%s lints clean', (name) => {
-    expect(lintSkill({ directory: join(SKILLS_DIRECTORY, name) })).toEqual([]);
+    expect(SkillLint.lint({ directory: join(SKILLS_DIRECTORY, name) })).toEqual([]);
   });
 
   const references = readdirSync(REFERENCES_DIRECTORY);

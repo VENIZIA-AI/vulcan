@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { runDoctorNotes } from '../../doctor/index.ts';
+import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -98,7 +98,7 @@ describe('the Atlas block in AGENTS.md', () => {
 
   test('doctor notes (info, never a failure) a missing block and then a current one', async () => {
     const root = project();
-    const before = await runDoctorNotes({ root });
+    const before = await DoctorRunner.runNotes({ root });
 
     expect(before.map((note) => note.file)).toContain('AGENTS.md');
     expect(before.find((note) => note.file === 'AGENTS.md')?.message).toBe(
@@ -107,7 +107,7 @@ describe('the Atlas block in AGENTS.md', () => {
 
     sync({ root });
 
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     expect(result.map((note) => note.file)).not.toContain('AGENTS.md');
     expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain('Atlas block');
   });
@@ -115,7 +115,7 @@ describe('the Atlas block in AGENTS.md', () => {
   test('doctor notes a missing block whether or not a .mcp.json exists', async () => {
     const root = project({ mcp: false });
 
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     expect(result.map((note) => note.file)).toContain('AGENTS.md');
   });
 });

@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DoctorChecks, runDoctorNotes, runDoctorWarnings } from '../../doctor/index.ts';
+import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { git, initRepo } from '../git-repo.helper.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -35,19 +35,19 @@ const guardsOf = (opts: { items: { check: string; file?: string; message: string
 describe('doctor: trusted scripts', () => {
   test('a clean trusted script is listed as a note and is not a warning', async () => {
     const root = project({ scripts: ['tools/cli.ts'], committed: ['tools/cli.ts'] });
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     const notes = guardsOf({ items: result });
 
     expect(notes).toHaveLength(1);
     expect(notes[0].file).toBe('tools/cli.ts');
     expect(notes[0].message).toContain('does not read this script');
-    const result2 = await runDoctorWarnings({ root });
+    const result2 = await DoctorRunner.runWarnings({ root });
     expect(guardsOf({ items: result2 })).toEqual([]);
   });
 
   test('a missing path warns', async () => {
     const root = project({ scripts: ['tools/typo.ts'] });
-    const result = await runDoctorWarnings({ root });
+    const result = await DoctorRunner.runWarnings({ root });
     const warnings = guardsOf({ items: result });
 
     expect(warnings).toHaveLength(1);
@@ -61,7 +61,7 @@ describe('doctor: trusted scripts', () => {
     mkdirSync(join(root, 'tools'));
     writeFileSync(join(root, 'tools', 'cli.ts'), BODY);
 
-    const result = await runDoctorWarnings({ root });
+    const result = await DoctorRunner.runWarnings({ root });
     const warnings = guardsOf({ items: result });
 
     expect(warnings).toHaveLength(1);
@@ -75,7 +75,7 @@ describe('doctor: trusted scripts', () => {
     writeFileSync(join(root, 'tools', 'cli.ts'), BODY);
     git({ cwd: root, args: ['add', 'tools/cli.ts'] });
 
-    const result = await runDoctorWarnings({ root });
+    const result = await DoctorRunner.runWarnings({ root });
     const warnings = guardsOf({ items: result });
 
     expect(warnings).toHaveLength(1);
@@ -87,22 +87,22 @@ describe('doctor: trusted scripts', () => {
 
     writeFileSync(join(root, 'tools', 'cli.ts'), `${BODY}// edited\n`);
 
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     const notes = guardsOf({ items: result });
 
     expect(notes).toHaveLength(1);
     expect(notes[0].message).toContain('reads it like any script now');
     expect(notes[0].message).toContain('modified trusted script');
-    const result2 = await runDoctorWarnings({ root });
+    const result2 = await DoctorRunner.runWarnings({ root });
     expect(guardsOf({ items: result2 })).toEqual([]);
   });
 
   test('an empty list adds nothing', async () => {
     const root = project({ scripts: [] });
 
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     expect(guardsOf({ items: result })).toEqual([]);
-    const result2 = await runDoctorWarnings({ root });
+    const result2 = await DoctorRunner.runWarnings({ root });
     expect(guardsOf({ items: result2 })).toEqual([]);
   });
 
@@ -112,9 +112,9 @@ describe('doctor: trusted scripts', () => {
       committed: ['a.ts'],
     });
 
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     expect(guardsOf({ items: result })).toHaveLength(2);
-    const result2 = await runDoctorWarnings({ root });
+    const result2 = await DoctorRunner.runWarnings({ root });
     expect(guardsOf({ items: result2 })).toHaveLength(1);
   });
 });
@@ -145,20 +145,20 @@ describe('doctor: read-only subcommands of a trusted script', () => {
 
   test('a subcommand the script holds as a quoted string adds no note about it', async () => {
     const root = entryProject({ readOnly: ['plan', 'registry'] });
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     const notes = guardsOf({ items: result });
 
     expect(notes).toHaveLength(1);
     expect(notes[0].file).toBe('tools/release.ts');
     expect(notes[0].message).toContain('plan, registry');
     expect(notes[0].message).toContain('does not read this script');
-    const result2 = await runDoctorWarnings({ root });
+    const result2 = await DoctorRunner.runWarnings({ root });
     expect(guardsOf({ items: result2 })).toEqual([]);
   });
 
   test('a subcommand the script does not know is a note that says it checks the text, never a warning', async () => {
     const root = entryProject({ readOnly: ['plan', 'regsitry', 'ru'] });
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     const notes = guardsOf({ items: result });
     const unknown = notes.filter((note) => note.message.includes('quoted string'));
 
@@ -169,13 +169,13 @@ describe('doctor: read-only subcommands of a trusted script', () => {
     expect(unknown[0].message).toContain('text of the file');
     expect(unknown[0].message).toContain('not what the script does');
     expect(unknown.some((note) => note.message.includes("'plan'"))).toBe(false);
-    const result2 = await runDoctorWarnings({ root });
+    const result2 = await DoctorRunner.runWarnings({ root });
     expect(guardsOf({ items: result2 })).toEqual([]);
   });
 
   test('a word inside another word is not a subcommand the script knows', async () => {
     const root = entryProject({ readOnly: ['pla', 'ma'] });
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     const unknown = guardsOf({ items: result }).filter((note) =>
       note.message.includes('quoted string'),
     );
@@ -185,9 +185,9 @@ describe('doctor: read-only subcommands of a trusted script', () => {
 
   test('a missing script warns once and adds no note about its subcommands', async () => {
     const root = entryProject({ readOnly: ['plan'], committed: false });
-    const result = await runDoctorWarnings({ root });
+    const result = await DoctorRunner.runWarnings({ root });
     const warnings = guardsOf({ items: result });
-    const result2 = await runDoctorNotes({ root });
+    const result2 = await DoctorRunner.runNotes({ root });
     const notes = guardsOf({ items: result2 });
 
     expect(warnings).toHaveLength(1);
@@ -205,7 +205,7 @@ describe('doctor: read-only subcommands of a trusted script', () => {
     mkdirSync(join(root, 'tools', 'release.ts'), { recursive: true });
     initRepo({ cwd: root });
 
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     const notes = guardsOf({ items: result });
 
     expect(notes.some((note) => note.message.includes('quoted string'))).toBe(false);
@@ -223,7 +223,7 @@ describe('doctor: read-only subcommands of a trusted script', () => {
     symlinkSync(join(outside, 'target.ts'), join(root, 'tools', 'release.ts'));
     initRepo({ cwd: root });
 
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     const notes = guardsOf({ items: result });
 
     expect(notes.some((note) => note.message.includes('quoted string'))).toBe(false);
@@ -234,12 +234,12 @@ describe('doctor: read-only subcommands of a trusted script', () => {
 
     writeFileSync(join(root, 'tools', 'release.ts'), `${RELEASE}// edited\n`);
 
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     const notes = guardsOf({ items: result });
 
     expect(notes).toHaveLength(1);
     expect(notes[0].message).toContain('reads it like any script now');
-    const result2 = await runDoctorWarnings({ root });
+    const result2 = await DoctorRunner.runWarnings({ root });
     expect(guardsOf({ items: result2 })).toEqual([]);
   });
 
@@ -251,7 +251,7 @@ describe('doctor: read-only subcommands of a trusted script', () => {
 
     initRepo({ cwd: root });
 
-    const result = await runDoctorNotes({ root });
+    const result = await DoctorRunner.runNotes({ root });
     const notes = guardsOf({ items: result });
 
     expect(notes.map((note) => note.file)).toEqual(['a.ts', 'tools/release.ts']);

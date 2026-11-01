@@ -33,48 +33,50 @@ const tagPatternOf = (opts: { template: string }): RegExp =>
       .join('')}$`,
   );
 
-/**
- * Project Contract v1, C4: every tag `atlas.tagPattern` reads names a declared package - by
- * directory or alias, retired ones included - because atlas computes releases from the tags. A tag
- * of an old layout is ignored through `atlas.ignoreTags`. A repo-level pattern (no `<dir>`) has
- * nothing to check; a directory that is not a git repository has no tags.
- */
-export const checkTags = (opts: ICheckContext): IViolation[] => {
-  const template = opts.config.atlas.tagPattern;
+export class TagCheck {
+  /**
+   * Project Contract v1, C4: every tag `atlas.tagPattern` reads names a declared package - by
+   * directory or alias, retired ones included - because atlas computes releases from the tags. A tag
+   * of an old layout is ignored through `atlas.ignoreTags`. A repo-level pattern (no `<dir>`) has
+   * nothing to check; a directory that is not a git repository has no tags.
+   */
+  static check(opts: ICheckContext): IViolation[] {
+    const template = opts.config.atlas.tagPattern;
 
-  if (!/<(?:dir|package)>/.test(template)) {
-    return [];
+    if (!/<(?:dir|package)>/.test(template)) {
+      return [];
+    }
+
+    const listed = spawnSync('git', ['tag', '--list'], { cwd: opts.root, encoding: 'utf8' });
+
+    if (listed.status !== 0) {
+      return [];
+    }
+
+    const pattern = tagPatternOf({ template });
+    const ignored = (opts.config.atlas.ignoreTags ?? []).map((glob) => new Bun.Glob(glob));
+    const names = new Set(
+      ProjectPackages.resolve({ config: opts.config }).flatMap((entry) => [
+        entry.dir,
+        ...entry.aliases,
+      ]),
+    );
+
+    return listed.stdout
+      .split('\n')
+      .filter((tag) => tag.length > 0 && !ignored.some((glob) => glob.match(tag)))
+      .flatMap((tag) => {
+        const dir = pattern.exec(tag)?.groups?.dir;
+
+        return dir === undefined || names.has(dir)
+          ? []
+          : [
+              {
+                check: DoctorChecks.TAGS,
+                file: 'git tags',
+                message: `tag ${tag} reads as a release of '${dir}', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (atlas.ignoreTags)`,
+              },
+            ];
+      });
   }
-
-  const listed = spawnSync('git', ['tag', '--list'], { cwd: opts.root, encoding: 'utf8' });
-
-  if (listed.status !== 0) {
-    return [];
-  }
-
-  const pattern = tagPatternOf({ template });
-  const ignored = (opts.config.atlas.ignoreTags ?? []).map((glob) => new Bun.Glob(glob));
-  const names = new Set(
-    ProjectPackages.resolve({ config: opts.config }).flatMap((entry) => [
-      entry.dir,
-      ...entry.aliases,
-    ]),
-  );
-
-  return listed.stdout
-    .split('\n')
-    .filter((tag) => tag.length > 0 && !ignored.some((glob) => glob.match(tag)))
-    .flatMap((tag) => {
-      const dir = pattern.exec(tag)?.groups?.dir;
-
-      return dir === undefined || names.has(dir)
-        ? []
-        : [
-            {
-              check: DoctorChecks.TAGS,
-              file: 'git tags',
-              message: `tag ${tag} reads as a release of '${dir}', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (atlas.ignoreTags)`,
-            },
-          ];
-    });
-};
+}
