@@ -9,19 +9,13 @@ import { ProjectPackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules, RuleConstants, RuleParser, RuleSlots } from '../rules/index.ts';
 import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
+import { AgentScopes, AgentSelection, AgentTable, LocalChoice } from '../agents/index.ts';
 import {
-  AgentScopes,
-  readAgentTable,
-  readLocalChoice,
-  resolveAgentsQuietly,
-} from '../agents/index.ts';
-import {
-  isTracked,
-  mergedAtlasBlock,
-  planLocalWorkspace,
-  planManifest,
-  planPrune,
-  planSync,
+  AgentFiles,
+  AtlasBlockPlan,
+  LocalPlan,
+  PrunePlan,
+  SyncPlanner,
   SyncStatuses,
 } from '../sync/index.ts';
 import { LocalConstants, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
@@ -387,10 +381,10 @@ export class ProjectContract {
   }
 
   static checkAdapters(opts: ICheckContext): IViolation[] {
-    const pending = planSync({
+    const pending = SyncPlanner.plan({
       root: opts.root,
       config: opts.config,
-      agents: resolveAgentsQuietly({ root: opts.root, configAgents: opts.config.agents }),
+      agents: AgentSelection.resolveQuietly({ root: opts.root, configAgents: opts.config.agents }),
     })
       .filter((action) => action.status !== SyncStatuses.UNCHANGED)
       .filter((action) => action.path !== join(opts.root, ManifestConstants.FILE));
@@ -426,7 +420,7 @@ export class ProjectContract {
 
   /** What `sync --prune` would remove: an old VULCAN or plugin-era hook command, a dead skill link. */
   static checkPrune(opts: ICheckContext): IViolation[] {
-    return planPrune({ root: opts.root }).map((action) =>
+    return PrunePlan.plan({ root: opts.root }).map((action) =>
       createViolation({
         check: DoctorChecks.PRUNE,
         file: relative(opts.root, action.path),
@@ -440,7 +434,7 @@ export class ProjectContract {
    * A file written before the `$generated` note existed is current; a hand-edited one is not.
    */
   static checkManifest(opts: ICheckContext): IViolation[] {
-    const action = planManifest({ root: opts.root, config: opts.config });
+    const action = SyncPlanner.planManifest({ root: opts.root, config: opts.config });
 
     if (
       action.status === SyncStatuses.UNCHANGED ||
@@ -722,7 +716,7 @@ export class ProjectContract {
 
   /** The developer's stored agents must parse and name known agents; a broken file would otherwise hide as a default. */
   static checkAgents(opts: ICheckContext): IViolation[] {
-    const stored = readLocalChoice({ root: opts.root });
+    const stored = LocalChoice.read({ root: opts.root });
 
     return stored.ok
       ? []
@@ -745,15 +739,18 @@ export class ProjectContract {
   static checkMcpAtlas(opts: ICheckContext): IViolation[] {
     const warnings: IViolation[] = [];
     const file = join(opts.root, MCP_FILE);
-    const chosen = resolveAgentsQuietly({ root: opts.root, configAgents: opts.config.agents });
-    const readsMcpFile = readAgentTable().some(
+    const chosen = AgentSelection.resolveQuietly({
+      root: opts.root,
+      configAgents: opts.config.agents,
+    });
+    const readsMcpFile = AgentTable.read().some(
       (entry) => chosen.includes(entry.id) && entry.mcp.scope === AgentScopes.SHARED,
     );
 
     // The root `.mcp.json` is a per-machine file of the agents that read it; a missing one is the
     // `adapters` check's (not synced yet), so only an existing file is looked at.
     if (readsMcpFile && existsSync(file)) {
-      if (isTracked({ root: opts.root, path: MCP_FILE })) {
+      if (AgentFiles.isTracked({ root: opts.root, path: MCP_FILE })) {
         warnings.push(
           mcpWarning({
             file: MCP_FILE,
@@ -983,7 +980,7 @@ export class ProjectContract {
   }
 
   static checkAtlasBlock(opts: ICheckContext): IViolation[] {
-    const merged = mergedAtlasBlock({ root: opts.root, config: opts.config });
+    const merged = AtlasBlockPlan.merged({ root: opts.root, config: opts.config });
 
     return merged === undefined || !merged.changed
       ? []
@@ -1011,7 +1008,7 @@ export class ProjectContract {
 
   /** `.agents/local/` exists with its subdirectories and is gitignored: `sync` does both, so an upgraded project that has not synced yet is told here. */
   static checkLocalWorkspace(opts: ICheckContext): IViolation[] {
-    return planLocalWorkspace({ root: opts.root })
+    return LocalPlan.planWorkspace({ root: opts.root })
       .filter((action) => action.status !== SyncStatuses.UNCHANGED)
       .map((action) =>
         createViolation({
@@ -1094,7 +1091,7 @@ export class ProjectContract {
 
     if (
       existsSync(join(opts.root, OwnerConstants.PROFILE_FILE)) &&
-      isTracked({ root: opts.root, path: OwnerConstants.PROFILE_FILE })
+      AgentFiles.isTracked({ root: opts.root, path: OwnerConstants.PROFILE_FILE })
     ) {
       violations.push(
         createViolation({

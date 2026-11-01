@@ -80,55 +80,57 @@ type TCodexHooksMerge =
   | { ok: true; changed: boolean; text: string }
   | { ok: false; reason: string };
 
-/** The hooks file with VULCAN's PreToolUse entry in it, every other entry as the user wrote it. */
-export const mergeCodexHooks = (opts: { text: string | undefined }): TCodexHooksMerge => {
-  const parsed = parseFile({ text: opts.text });
+export class CodexHooks {
+  /** The hooks file with VULCAN's PreToolUse entry in it, every other entry as the user wrote it. */
+  static merge(opts: { text: string | undefined }): TCodexHooksMerge {
+    const parsed = parseFile({ text: opts.text });
 
-  if ('reason' in parsed) {
-    return { ok: false, reason: parsed.reason };
+    if ('reason' in parsed) {
+      return { ok: false, reason: parsed.reason };
+    }
+
+    const entry = guardEntry();
+    const index = parsed.entries.findIndex((item) => isGuardEntry(item));
+    const changed = index === -1 || JSON.stringify(parsed.entries[index]) !== JSON.stringify(entry);
+    const entries =
+      index === -1
+        ? [...parsed.entries, entry]
+        : parsed.entries.map((item, at) => (at === index ? entry : item));
+
+    return {
+      ok: true,
+      changed,
+      text: `${JSON.stringify({ ...parsed.file, hooks: { ...parsed.hooks, PreToolUse: entries } }, null, 2)}\n`,
+    };
   }
 
-  const entry = guardEntry();
-  const index = parsed.entries.findIndex((item) => isGuardEntry(item));
-  const changed = index === -1 || JSON.stringify(parsed.entries[index]) !== JSON.stringify(entry);
-  const entries =
-    index === -1
-      ? [...parsed.entries, entry]
-      : parsed.entries.map((item, at) => (at === index ? entry : item));
+  /** The hooks file without VULCAN's entry; `text` is undefined when nothing else was in it. */
+  static remove(opts: { text: string }): TCodexHooksRemoval {
+    const parsed = parseFile({ text: opts.text });
 
-  return {
-    ok: true,
-    changed,
-    text: `${JSON.stringify({ ...parsed.file, hooks: { ...parsed.hooks, PreToolUse: entries } }, null, 2)}\n`,
-  };
-};
+    if ('reason' in parsed) {
+      return { ok: false, reason: parsed.reason };
+    }
+
+    if (!parsed.entries.some((item) => isGuardEntry(item))) {
+      return { ok: true, outcome: RemoveOutcomes.ABSENT };
+    }
+
+    const kept = parsed.entries.filter((item) => !isGuardEntry(item));
+    const { PreToolUse: _removed, ...otherEvents } = parsed.hooks;
+    const hooks = kept.length > 0 ? { ...otherEvents, PreToolUse: kept } : otherEvents;
+    const { hooks: _hooks, ...otherKeys } = parsed.file;
+    const file = Object.keys(hooks).length > 0 ? { ...otherKeys, hooks } : otherKeys;
+
+    return {
+      ok: true,
+      outcome: RemoveOutcomes.REMOVED,
+      text: Object.keys(file).length === 0 ? undefined : `${JSON.stringify(file, null, 2)}\n`,
+    };
+  }
+}
 
 type TCodexHooksRemoval =
   | { ok: true; outcome: typeof RemoveOutcomes.ABSENT }
   | { ok: true; outcome: typeof RemoveOutcomes.REMOVED; text: string | undefined }
   | { ok: false; reason: string };
-
-/** The hooks file without VULCAN's entry; `text` is undefined when nothing else was in it. */
-export const removeCodexHooks = (opts: { text: string }): TCodexHooksRemoval => {
-  const parsed = parseFile({ text: opts.text });
-
-  if ('reason' in parsed) {
-    return { ok: false, reason: parsed.reason };
-  }
-
-  if (!parsed.entries.some((item) => isGuardEntry(item))) {
-    return { ok: true, outcome: RemoveOutcomes.ABSENT };
-  }
-
-  const kept = parsed.entries.filter((item) => !isGuardEntry(item));
-  const { PreToolUse: _removed, ...otherEvents } = parsed.hooks;
-  const hooks = kept.length > 0 ? { ...otherEvents, PreToolUse: kept } : otherEvents;
-  const { hooks: _hooks, ...otherKeys } = parsed.file;
-  const file = Object.keys(hooks).length > 0 ? { ...otherKeys, hooks } : otherKeys;
-
-  return {
-    ok: true,
-    outcome: RemoveOutcomes.REMOVED,
-    text: Object.keys(file).length === 0 ? undefined : `${JSON.stringify(file, null, 2)}\n`,
-  };
-};

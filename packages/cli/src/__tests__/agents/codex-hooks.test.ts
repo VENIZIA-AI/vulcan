@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mergeCodexHooks, removeCodexHooks } from '../../agents/index.ts';
+import { CodexHooks } from '../../agents/index.ts';
 
 const parse = (text: string): Record<string, unknown> => JSON.parse(text);
 
@@ -11,7 +11,7 @@ interface IFile {
 
 describe('mergeCodexHooks', () => {
   test('creates hooks.PreToolUse with one entry on the shell and the patch tool', () => {
-    const merged = mergeCodexHooks({ text: undefined });
+    const merged = CodexHooks.merge({ text: undefined });
 
     if (!merged.ok) {
       throw new Error(merged.reason);
@@ -29,7 +29,7 @@ describe('mergeCodexHooks', () => {
 
   test('keeps the hooks and the other events of the user, and is idempotent', () => {
     const mine = { hooks: { PreToolUse: [MINE], Stop: [{ hooks: [] }] }, other: 1 };
-    const first = mergeCodexHooks({ text: JSON.stringify(mine) });
+    const first = CodexHooks.merge({ text: JSON.stringify(mine) });
 
     if (!first.ok) {
       throw new Error(first.reason);
@@ -42,7 +42,7 @@ describe('mergeCodexHooks', () => {
     expect(file.hooks.Stop).toHaveLength(1);
     expect(file.other).toBe(1);
 
-    const second = mergeCodexHooks({ text: first.text });
+    const second = CodexHooks.merge({ text: first.text });
 
     expect(second.ok && second.changed).toBe(false);
   });
@@ -56,7 +56,7 @@ describe('mergeCodexHooks', () => {
         ],
       },
     };
-    const merged = mergeCodexHooks({ text: JSON.stringify(old) });
+    const merged = CodexHooks.merge({ text: JSON.stringify(old) });
 
     if (!merged.ok) {
       throw new Error(merged.reason);
@@ -71,20 +71,20 @@ describe('mergeCodexHooks', () => {
 
   test('a file that is not what Codex reads is left, with the reason', () => {
     for (const text of ['{ nope', '[]', '{"hooks":[]}', '{"hooks":{"PreToolUse":{}}}']) {
-      expect(mergeCodexHooks({ text }).ok, text).toBe(false);
+      expect(CodexHooks.merge({ text }).ok, text).toBe(false);
     }
   });
 });
 
 describe('removeCodexHooks', () => {
   test('takes only its entry out and keeps the rest', () => {
-    const merged = mergeCodexHooks({ text: JSON.stringify({ hooks: { PreToolUse: [MINE] } }) });
+    const merged = CodexHooks.merge({ text: JSON.stringify({ hooks: { PreToolUse: [MINE] } }) });
 
     if (!merged.ok) {
       throw new Error(merged.reason);
     }
 
-    const removed = removeCodexHooks({ text: merged.text });
+    const removed = CodexHooks.remove({ text: merged.text });
 
     expect(
       removed.ok && removed.outcome === 'removed' ? parse(removed.text ?? '{}') : undefined,
@@ -92,21 +92,21 @@ describe('removeCodexHooks', () => {
   });
 
   test('says no text is left when nothing else was in the file, and is absent when it was not there', () => {
-    const merged = mergeCodexHooks({ text: undefined });
+    const merged = CodexHooks.merge({ text: undefined });
 
     if (!merged.ok) {
       throw new Error(merged.reason);
     }
 
-    expect(removeCodexHooks({ text: merged.text })).toEqual({
+    expect(CodexHooks.remove({ text: merged.text })).toEqual({
       ok: true,
       outcome: 'removed',
       text: undefined,
     });
-    expect(removeCodexHooks({ text: JSON.stringify({ hooks: { PreToolUse: [MINE] } }) })).toEqual({
+    expect(CodexHooks.remove({ text: JSON.stringify({ hooks: { PreToolUse: [MINE] } }) })).toEqual({
       ok: true,
       outcome: 'absent',
     });
-    expect(removeCodexHooks({ text: 'nope' }).ok).toBe(false);
+    expect(CodexHooks.remove({ text: 'nope' }).ok).toBe(false);
   });
 });

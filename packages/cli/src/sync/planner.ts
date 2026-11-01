@@ -9,22 +9,16 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
-import { readAgentTable } from '../agents/index.ts';
+import { AgentTable } from '../agents/index.ts';
 import { BASE_DIRECTORY, BaseDirectory } from '../common/index.ts';
 import { CodingAgents } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
 import { RuleSlots } from '../rules/index.ts';
-import { planAgentFiles } from './agent-files.ts';
+import { AgentFiles } from './agent-files.ts';
 import { SyncConstants, SyncLinks, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
-import {
-  buildProjectHookSettings,
-  isSettingsObject,
-  keepKeyOrder,
-  mergeSettings,
-  removeManagedSettings,
-} from './settings.ts';
+import { isSettingsObject, ProjectSettings } from './settings.ts';
 
 const NO_CHANGE = (): void => {};
 
@@ -96,12 +90,12 @@ const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
     const settings = choice === undefined ? undefined : slot.options[choice]?.settings;
 
     if (settings !== undefined) {
-      overlay = mergeSettings({ base: overlay, overlay: settings });
+      overlay = ProjectSettings.merge({ base: overlay, overlay: settings });
     }
   }
 
   if (opts.config.remoteHosts !== undefined) {
-    overlay = mergeSettings({
+    overlay = ProjectSettings.merge({
       base: overlay,
       overlay: JSON.parse(
         readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.REMOTE_HOSTS_FILE), 'utf8'),
@@ -109,12 +103,12 @@ const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
     });
   }
 
-  overlay = mergeSettings({
+  overlay = ProjectSettings.merge({
     base: overlay,
-    overlay: buildProjectHookSettings({ hooks: opts.config.hooks }),
+    overlay: ProjectSettings.buildHook({ hooks: opts.config.hooks }),
   });
 
-  return mergeSettings({ base: overlay, overlay: opts.config.claude.settings });
+  return ProjectSettings.merge({ base: overlay, overlay: opts.config.claude.settings });
 };
 
 /** The previous overlay is taken back before the new one merges in, so removed choices really disappear. */
@@ -135,12 +129,12 @@ const planSettings = (opts: { root: string; config: TResolvedConfig }): ISyncAct
 
   const previous = readSettingsFile({ path: managedPath }) ?? {};
   const overlay = buildManagedOverlay({ config: opts.config });
-  const merged = mergeSettings({
-    base: removeManagedSettings({ settings: current, managed: previous }),
+  const merged = ProjectSettings.merge({
+    base: ProjectSettings.removeManaged({ settings: current, managed: previous }),
     overlay,
   });
 
-  const wanted = keepKeyOrder({ settings: merged, reference: current });
+  const wanted = ProjectSettings.keepKeyOrder({ settings: merged, reference: current });
 
   const text = `${JSON.stringify(wanted, null, 2)}\n`;
   const managedText = `${JSON.stringify(overlay, null, 2)}\n`;
@@ -281,50 +275,54 @@ const planSkillLinks = (opts: {
   return [...links, ...shadowing, ...stale];
 };
 
-/** The committed project manifest (Project Contract v1, C1), rendered from the config. */
-export const planManifest = (opts: { root: string; config: TResolvedConfig }): ISyncAction => {
-  const path = join(opts.root, ManifestConstants.FILE);
-  const text = ProjectManifest.render(opts);
-  const write = (): void => {
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, text);
-  };
-
-  if (!existsSync(path)) {
-    return { path, status: SyncStatuses.CREATED, apply: write };
-  }
-
-  return readFileSync(path, 'utf8') === text
-    ? { path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE }
-    : { path, status: SyncStatuses.REPLACED, apply: write };
-};
-
 /** The skills folders of the chosen agents, each once, in table order: agents that read one folder share its links. */
 const skillDirectoriesOf = (opts: { agents: string[] }): string[] => [
   ...new Set(
-    readAgentTable()
+    AgentTable.read()
       .filter((entry) => opts.agents.includes(entry.id))
       .map((entry) => entry.skills.dir),
   ),
 ];
 
-/** Every adapter the project's agents need, and the manifest every project carries - planned, not written. */
-export const planSync = (opts: {
-  root: string;
-  config: TResolvedConfig;
-  /** The agents this machine chose (`resolveAgents`); only Claude has adapters until the renderers land. */
-  agents: string[];
-}): ISyncAction[] => [
-  ...(opts.agents.includes(CodingAgents.CLAUDE)
-    ? [planClaudeImport({ root: opts.root }), planSettings(opts)]
-    : []),
-  ...skillDirectoriesOf({ agents: opts.agents }).flatMap((directory) =>
-    planSkillLinks({
-      root: opts.root,
-      directory,
-      withProject: directory === SyncConstants.CLAUDE_SKILLS,
-    }),
-  ),
-  ...planAgentFiles({ root: opts.root, agents: opts.agents }),
-  planManifest(opts),
-];
+export class SyncPlanner {
+  /** The committed project manifest (Project Contract v1, C1), rendered from the config. */
+  static planManifest(opts: { root: string; config: TResolvedConfig }): ISyncAction {
+    const path = join(opts.root, ManifestConstants.FILE);
+    const text = ProjectManifest.render(opts);
+    const write = (): void => {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, text);
+    };
+
+    if (!existsSync(path)) {
+      return { path, status: SyncStatuses.CREATED, apply: write };
+    }
+
+    return readFileSync(path, 'utf8') === text
+      ? { path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE }
+      : { path, status: SyncStatuses.REPLACED, apply: write };
+  }
+
+  /** Every adapter the project's agents need, and the manifest every project carries - planned, not written. */
+  static plan(opts: {
+    root: string;
+    config: TResolvedConfig;
+    /** The agents this machine chose (`resolveAgents`); only Claude has adapters until the renderers land. */
+    agents: string[];
+  }): ISyncAction[] {
+    return [
+      ...(opts.agents.includes(CodingAgents.CLAUDE)
+        ? [planClaudeImport({ root: opts.root }), planSettings(opts)]
+        : []),
+      ...skillDirectoriesOf({ agents: opts.agents }).flatMap((directory) =>
+        planSkillLinks({
+          root: opts.root,
+          directory,
+          withProject: directory === SyncConstants.CLAUDE_SKILLS,
+        }),
+      ),
+      ...AgentFiles.plan({ root: opts.root, agents: opts.agents }),
+      SyncPlanner.planManifest(opts),
+    ];
+  }
+}

@@ -35,38 +35,40 @@ const readSyncedHashes = (opts: { root: string }): Record<string, unknown> => {
   }
 };
 
-/** V3: each base rule added, changed or removed since the committed manifest's last sync. */
-export const diffBaseRules = (opts: { root: string }): IBaseRuleChange[] => {
-  const synced = readSyncedHashes(opts);
+export class BaseRulesDiff {
+  /** V3: each base rule added, changed or removed since the committed manifest's last sync. */
+  static diff(opts: { root: string }): IBaseRuleChange[] {
+    const synced = readSyncedHashes(opts);
 
-  if (Object.keys(synced).length === 0) {
-    return [];
-  }
-
-  const installed = ProjectManifest.buildBaseRuleHashes();
-  const rows = BaseRules.read();
-  const retired = new Set(BaseRules.readRetiredIds());
-  const changes: IBaseRuleChange[] = [];
-
-  for (const [id, hash] of Object.entries(installed)) {
-    if (synced[id] === hash) {
-      continue;
+    if (Object.keys(synced).length === 0) {
+      return [];
     }
 
-    changes.push({
-      id,
-      change: synced[id] === undefined ? BaseRuleChanges.ADDED : BaseRuleChanges.CHANGED,
-      text: toRuleText({ row: rows[id] }),
-    });
-  }
+    const installed = ProjectManifest.buildBaseRuleHashes();
+    const rows = BaseRules.read();
+    const retired = new Set(BaseRules.readRetiredIds());
+    const changes: IBaseRuleChange[] = [];
 
-  for (const id of Object.keys(synced).filter((syncedId) => installed[syncedId] === undefined)) {
-    changes.push({
-      id,
-      change: BaseRuleChanges.REMOVED,
-      text: retired.has(id) ? '(retired)' : '',
-    });
-  }
+    for (const [id, hash] of Object.entries(installed)) {
+      if (synced[id] === hash) {
+        continue;
+      }
 
-  return changes;
-};
+      changes.push({
+        id,
+        change: synced[id] === undefined ? BaseRuleChanges.ADDED : BaseRuleChanges.CHANGED,
+        text: toRuleText({ row: rows[id] }),
+      });
+    }
+
+    for (const id of Object.keys(synced).filter((syncedId) => installed[syncedId] === undefined)) {
+      changes.push({
+        id,
+        change: BaseRuleChanges.REMOVED,
+        text: retired.has(id) ? '(retired)' : '',
+      });
+    }
+
+    return changes;
+  }
+}

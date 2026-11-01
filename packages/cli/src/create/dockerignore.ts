@@ -1,5 +1,5 @@
-import { excludePathsOf, readAgentTable } from '../agents/index.ts';
-import { shippedSkillNames } from '../sync/exclude.ts';
+import { AgentExclude, AgentTable } from '../agents/index.ts';
+import { ExcludePlan } from '../sync/exclude.ts';
 
 /** What no image needs: dependencies, build output, git history and the agents' own folders. */
 const BASE_PATTERNS = [
@@ -29,9 +29,9 @@ const SECRET_COMMENT =
  * never depends on which agents a developer chose.
  */
 export const renderDockerignore = (): string => {
-  const agentPaths = excludePathsOf({
-    agents: readAgentTable().map((entry) => entry.id),
-    skillNames: shippedSkillNames(),
+  const agentPaths = AgentExclude.excludePathsOf({
+    agents: AgentTable.read().map((entry) => entry.id),
+    skillNames: ExcludePlan.shippedSkillNames(),
   })
     .flatMap((group) => group.paths)
     .map((path) => path.replace(/^\//, '').replace(/\/$/, ''));

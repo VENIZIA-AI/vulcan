@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
 import { renderBunfig } from '../../create/bunfig.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
-import { CLAUDE_LAUNCH_FILE, renderClaudeLaunch } from '../../sync/index.ts';
+import { CLAUDE_LAUNCH_FILE, LaunchSettings } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -28,7 +28,7 @@ const project = (opts: { description: string }) => {
   });
 
   // What sync leaves in the local folder: the launch file names this very checkout.
-  writeFileSync(join(root, CLAUDE_LAUNCH_FILE), renderClaudeLaunch({ root }));
+  writeFileSync(join(root, CLAUDE_LAUNCH_FILE), LaunchSettings.renderClaude({ root }));
 
   return root;
 };

@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { GUARD_HOOK_NAME, mergeGuardHook } from '../../agents/index.ts';
+import { GUARD_HOOK_NAME, GuardHook } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
@@ -134,7 +134,7 @@ describe('the Antigravity hook command runs the real guards', () => {
 describe('the hook command wrapper in .agents/hooks.json', () => {
   /** The command sync writes, as Antigravity runs it: a shell command, with the folder of the hooks file as cwd. */
   const commandOf = (): string => {
-    const merged = mergeGuardHook({ text: undefined });
+    const merged = GuardHook.merge({ text: undefined });
 
     if (!merged.ok) {
       throw new Error(merged.reason);

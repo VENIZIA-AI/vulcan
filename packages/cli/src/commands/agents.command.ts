@@ -1,11 +1,5 @@
 import { homedir } from 'node:os';
-import {
-  AgentConstants,
-  agentIds,
-  detectAgents,
-  parseAgentList,
-  resolveAgents,
-} from '../agents/index.ts';
+import { AgentConstants, AgentDetection, AgentSelection, AgentTable } from '../agents/index.ts';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { ConfigLoader } from '../config/index.ts';
@@ -21,7 +15,7 @@ const fail = (opts: { message: string }): number => {
 };
 
 const detected = (opts: { root: string }): string[] =>
-  detectAgents({
+  AgentDetection.detect({
     root: opts.root,
     home: process.env.HOME ?? homedir(),
     path: process.env.PATH ?? '',
@@ -37,7 +31,7 @@ const currentAgents = async (opts: {
     return { ok: false, error: loaded.error };
   }
 
-  const resolved = resolveAgents({
+  const resolved = AgentSelection.resolve({
     root: opts.root,
     flag: undefined,
     configAgents: loaded.config.agents,
@@ -104,7 +98,7 @@ export const runAgentsCommand = async (opts: ICommandContext): Promise<number> =
     });
   }
 
-  const parsed = parseAgentList({ value });
+  const parsed = AgentSelection.parseList({ value });
 
   if (!parsed.ok) {
     return fail({ message: parsed.error.replace(/^vulcan sync: /, '') });
@@ -120,7 +114,7 @@ export const runAgentsCommand = async (opts: ICommandContext): Promise<number> =
     return fail({ message: current.error });
   }
 
-  const known = agentIds();
+  const known = AgentTable.agentIds();
   const already = parsed.agents.filter((id) => current.agents.includes(id));
   const absent = parsed.agents.filter((id) => !current.agents.includes(id));
   const touched = subcommand === 'add' ? absent : already;

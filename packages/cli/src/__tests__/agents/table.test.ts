@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { AGENT_ENTRY_SCHEMA, readAgentTable } from '../../agents/index.ts';
+import { AGENT_ENTRY_SCHEMA, AgentTable } from '../../agents/index.ts';
 import { CodingAgents } from '../../config/index.ts';
 
 const SEVEN_AGENTS = [
@@ -26,7 +26,7 @@ const VALID_ENTRY = {
 };
 
 describe('the shipped agent table', () => {
-  const table = readAgentTable();
+  const table = AgentTable.read();
 
   test('holds exactly the seven agents Phat named, Copilot being two products', () => {
     expect(table.map((entry) => entry.id)).toEqual(SEVEN_AGENTS);

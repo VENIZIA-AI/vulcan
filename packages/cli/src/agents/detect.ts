@@ -1,7 +1,7 @@
 import { Glob } from 'bun';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { readAgentTable } from './table.ts';
+import { AgentTable } from './table.ts';
 
 const HOME_PREFIX = '~/';
 
@@ -18,19 +18,22 @@ const hasHomeEntry = (opts: { home: string; pattern: string }): boolean => {
   );
 };
 
-/**
- * The agents this machine seems to have, in table order: a binary on PATH, a folder in the home, a
- * folder in the project. It only pre-selects; the developer confirms.
- */
-export const detectAgents = (opts: { root: string; home: string; path: string }): string[] =>
-  readAgentTable()
-    .filter((entry) => {
-      const { binaries, homeDirs, projectDirs } = entry.detect;
+export class AgentDetection {
+  /**
+   * The agents this machine seems to have, in table order: a binary on PATH, a folder in the home, a
+   * folder in the project. It only pre-selects; the developer confirms.
+   */
+  static detect(opts: { root: string; home: string; path: string }): string[] {
+    return AgentTable.read()
+      .filter((entry) => {
+        const { binaries, homeDirs, projectDirs } = entry.detect;
 
-      return (
-        binaries.some((name) => Bun.which(name, { PATH: opts.path, cwd: opts.root }) !== null) ||
-        homeDirs.some((pattern) => hasHomeEntry({ home: opts.home, pattern })) ||
-        projectDirs.some((directory) => existsSync(join(opts.root, directory)))
-      );
-    })
-    .map((entry) => entry.id);
+        return (
+          binaries.some((name) => Bun.which(name, { PATH: opts.path, cwd: opts.root }) !== null) ||
+          homeDirs.some((pattern) => hasHomeEntry({ home: opts.home, pattern })) ||
+          projectDirs.some((directory) => existsSync(join(opts.root, directory)))
+        );
+      })
+      .map((entry) => entry.id);
+  }
+}
