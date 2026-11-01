@@ -23,6 +23,13 @@
   --font-sans: 'Inter Display', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 
+  /* The arrows of the Venizia docs frame, as masks (they take the colour of the element, `currentColor`):
+     the 10 x 10 north-east arrow of a button and of the venizia.ai link (the Figma Icon, a stem and a head,
+     1.2 px round strokes), and the 36 x 36 right and left arrows of the previous and next cards (1.5 px). */
+  --arrow-ne: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%2710%27 viewBox=%270 0 10 10%27 fill=%27none%27%3E%3Cpath d=%27M2.0843 7.9176L7.9176 2.0843M2.0843 2.0843H7.9176V7.9176%27 stroke=%27black%27 stroke-width=%271.2%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E");
+  --arrow-right: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2736%27 height=%2736%27 viewBox=%270 0 36 36%27 fill=%27none%27%3E%3Cpath d=%27M12 17H24M19 22L24 17L19 12%27 stroke=%27black%27 stroke-width=%271.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E");
+  --arrow-left: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2736%27 height=%2736%27 viewBox=%270 0 36 36%27 fill=%27none%27%3E%3Cpath d=%27M24 17H12M17 22L12 17L17 12%27 stroke=%27black%27 stroke-width=%271.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E");
+
   /* The space scale of venizia.ai, in px: 4 8 12 16 20 24 32 40 48 64 80 120. */
   --space-1: 4px;
   --space-2: 8px;

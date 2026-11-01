@@ -1,7 +1,6 @@
 import { defineConfig, type DefaultTheme } from 'vitepress';
 import { writeChangelogFeed } from './theme/shared/changelog-loader.ts';
 import { venziaCodeTheme } from './theme/shared/code-theme.ts';
-import { VENIZIA_LOGO_SVG } from './theme/shared/venizia-logo.ts';
 
 // The sidebars mirror IGNIS: Guides and References each have an index landing page.
 const guidesSidebar: DefaultTheme.SidebarItem[] = [
@@ -172,11 +171,8 @@ export default defineConfig({
       level: [2, 3],
       label: 'On this page',
     },
-    socialLinks: [
-      { icon: 'github', link: 'https://github.com/VENIZIA-AI/vulcan' },
-      // The Venizia wordmark, right after the GitHub icon; theme/shared/header.css sizes it.
-      { icon: { svg: VENIZIA_LOGO_SVG }, link: 'https://venizia.ai', ariaLabel: 'Venizia' },
-    ],
+    // The Venizia wordmark and the venizia.ai link are in the top bar (theme/shared/SiteBrand.vue, VeniziaLink.vue).
+    socialLinks: [{ icon: 'github', link: 'https://github.com/VENIZIA-AI/vulcan' }],
     editLink: {
       pattern: 'https://github.com/VENIZIA-AI/vulcan/edit/develop/docs/wiki/content/:path',
       text: 'Edit this page on GitHub',

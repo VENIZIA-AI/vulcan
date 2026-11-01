@@ -44,20 +44,21 @@
   padding: 0 !important;
 }
 
-/* ---- buttons: 4px radius, uppercase 14px, an arrow in the corner ------------------------ */
+/* ---- buttons, after the Venizia frame (Figma Button 125 x 40): 4px radius, uppercase 14px/500, 20px left text
+   inset and 28px right, the 10px north-east arrow 6px from the right edge and 5px from the top ------ */
 .vh .btn {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 48px;
-  padding: 0 28px 0 22px;
+  height: 40px;
+  padding: 0 27px 0 19px;
   border: 1px solid var(--stroke-strong);
   border-radius: var(--radius);
   background: transparent;
   color: var(--text-title);
   font: 500 14px/1 var(--font-sans);
-  letter-spacing: -0.005em;
+  letter-spacing: -0.015em;
   text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
@@ -69,13 +70,13 @@
 .vh .btn::after {
   content: '';
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 7px;
-  height: 7px;
-  border-top: 1.5px solid currentColor;
-  border-right: 1.5px solid currentColor;
-  opacity: 0.8;
+  top: 4px;
+  right: 5px;
+  width: 10px;
+  height: 10px;
+  background: currentColor;
+  -webkit-mask: var(--arrow-ne) center / 100% 100% no-repeat;
+  mask: var(--arrow-ne) center / 100% 100% no-repeat;
   transition: transform 0.25s var(--ease-link);
 }
 .vh .btn:hover::after {
@@ -863,8 +864,17 @@
   .vh .stat:last-child {
     border-bottom: 0;
   }
+  /* a finger needs a taller target: 48px as on venizia.ai, with its 12px arrow */
   .vh .btn {
     flex: 1 1 100%;
+    height: 48px;
+    padding: 0 31px 0 23px;
+  }
+  .vh .btn::after {
+    top: 5px;
+    right: 6px;
+    width: 12px;
+    height: 12px;
   }
   .vh .status td:first-child {
     white-space: normal;
