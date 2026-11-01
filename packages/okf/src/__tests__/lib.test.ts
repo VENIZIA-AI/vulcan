@@ -36,7 +36,7 @@ describe('MarkdownText.extractLinks (OKF v0.2 §6.1)', () => {
   });
 });
 
-describe('parseFrontmatter', () => {
+describe('ConceptLoader.parseFrontmatter', () => {
   test('CRLF files parse like LF', () => {
     expect(
       ConceptLoader.parseFrontmatter({ text: '---\r\ntype: T\r\n---\r\nbody', file: 'a.md' }),

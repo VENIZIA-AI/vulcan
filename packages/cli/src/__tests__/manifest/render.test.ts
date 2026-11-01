@@ -29,7 +29,7 @@ const CONFIG = {
 const render = (opts: { root: string; config: object }): string =>
   ProjectManifest.render({ root: opts.root, config: VULCAN_CONFIG_SCHEMA.parse(opts.config) });
 
-describe('renderManifest', () => {
+describe('ProjectManifest.render', () => {
   test('the text is already formatted for bun fmt: short arrays on one line, so lint stays green', () => {
     const root = createProject({ files: { 'bunfig.toml': Bunfig.render() } });
     const text = render({ root, config: CONFIG });

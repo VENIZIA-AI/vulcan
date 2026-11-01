@@ -204,7 +204,7 @@ describe('workspace planners', () => {
     });
   });
 
-  test('AppsBlock.parse reads back the block renderAppsBlock wrote, around any user lines', () => {
+  test('AppsBlock.parse reads back the block AppsBlock.render wrote, around any user lines', () => {
     const source = `import x from 'y';\n${AppsBlock.render({ block: BLOCK })}\nexport default { packages: [...apps.packages, { dir: 'w' }] };\n`;
 
     expect(AppsBlock.parse({ source })).toEqual({ ok: true, block: BLOCK });
@@ -401,7 +401,7 @@ describe('workspace planners', () => {
     ).toBe('file:../other/kit');
   });
 
-  test('config block round-trips through replaceAppsBlock', () => {
+  test('config block round-trips through AppsBlock.replace', () => {
     const source = WorkspaceDocs.renderVulcanConfig({ project: 'my-product', block: BLOCK });
 
     expect(source).toContain("name: 'my-product'");

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { CorpusFrontmatter } from '@/corpus/frontmatter';
 
-describe('parseFrontmatter', () => {
+describe('CorpusFrontmatter.parse', () => {
   test('a page saved with CRLF line endings keeps its frontmatter', () => {
     const text = '---\r\ntitle: Kernel\r\ntype: Concept\r\n---\r\n\r\nThe kernel boots.\r\n';
     const { data, body } = CorpusFrontmatter.parse({ text, path: 'kernel.md' });

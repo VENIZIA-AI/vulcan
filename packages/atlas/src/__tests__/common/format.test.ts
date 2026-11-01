@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { BunFormatter } from '@/common/format';
 
-describe('formatWithBun', () => {
+describe('BunFormatter.format', () => {
   test('lays JSON out the way bun fmt does: short arrays of scalars on one line', () => {
     const text = `${JSON.stringify({ aliases: ['k', 'j'], empty: [] }, null, 2)}\n`;
 
