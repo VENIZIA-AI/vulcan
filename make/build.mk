@@ -41,7 +41,8 @@ $(PACKAGES):
 # The wiki site has its own package and lockfile, so the npm packages never install VitePress.
 docs:
 	@echo "docs: VitePress site from docs/wiki/content"
-	@cd docs/wiki && bun install --frozen-lockfile && bun run docs:build
+	@cd docs/wiki && bun install --frozen-lockfile
+	@bun scripts/wiki-shared/build.ts
 
 # ----------------------------------------------------------------------------
 # FORCE UPDATE TARGETS (fetch latest from NPM registry)
