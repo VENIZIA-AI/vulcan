@@ -3,6 +3,17 @@ title: What is VULCAN
 description: VULCAN is the rules and workflow centre for coding agents in a repository - what it offers today, how mature each part is, and what it does not do.
 ---
 
+<script setup>
+import { COUNTS } from '../../../site/.vitepress/theme/home-content'
+
+const glance = [
+  { title: `${COUNTS.rules} base rules`, text: 'In five groups, read by the agent at session start.' },
+  { title: `${COUNTS.skills} skills`, text: 'Workflows an agent loads when the task matches.' },
+  { title: `${COUNTS.agents} coding agents`, text: 'Each developer chooses theirs on their own machine.' },
+  { title: `${COUNTS.tools} atlas tools`, text: 'An MCP server that searches your docs, changelogs and symbols.' },
+]
+</script>
+
 # What is VULCAN
 
 Coding agents start every session with no memory of your rules and facts, and every project rebuilds that setup alone. VULCAN is the rules and workflow centre for the coding agents in your repository: one pinned devDependency and one config file give every project the same rules, guards, skills, project knowledge and search. It is not a tooling OS: it does not build, deploy or run your code, and it does not replace your tools.
@@ -19,6 +30,8 @@ bun x --no-install vulcan doctor
 > [!NOTE]
 > VULCAN needs Bun 1.4.4 or newer and is built for [VENIZIA](https://venizia.ai) projects.
 > It sets up seven coding agents: Claude Code, omp, Codex, Cursor, Copilot (CLI and in VS Code), Antigravity and Pi. Each developer chooses theirs on their own machine ([Coding agents](/references/agents)).
+
+<AtAGlance :items="glance" />
 
 ## What you get today
 
