@@ -17,7 +17,7 @@ interface IGuardPolicy {
   readOnlyScripts?: IReadOnlyScript[];
 }
 
-/** Spelt out: the blocking hooks import nothing that reads the package (a test holds it equal to the manifest's name). */
+/** Spelt out: the blocking hooks import nothing that reads the package. */
 const GUARD_MANIFEST_FILE = '.agents/vulcan.manifest.json';
 
 const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>

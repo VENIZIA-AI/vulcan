@@ -78,9 +78,6 @@ export class HookConstants {
     '/tmp/claude-[0-9]*/*/*/scratchpad',
     '/tmp/claude-[0-9]*/*/*/scratchpad/**',
   ];
-  /** Set to `off` to switch the guards off for a session; the hooks then pass every call. */
-  static readonly KILL_SWITCH_ENV = 'VULCAN_GUARDS';
-  static readonly KILL_SWITCH_OFF = 'off';
   /**
    * Tool-owned stores an agent may write into: package manager caches, the runtime dir for locks, the
    * agent tool's memory. Never a directory on PATH (`~/.bun/bin`) or a file git or a shell runs (`~/.gitconfig`).
