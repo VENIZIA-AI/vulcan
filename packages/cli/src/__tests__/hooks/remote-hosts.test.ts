@@ -413,7 +413,32 @@ describe('docker over ssh: a trusted host in the parsed form passes', () => {
   });
 });
 
-describe('the program tables are the shell parser own', () => {
+describe('the program tables of the shell parser', () => {
+  // The tables are shared by two guards: a name that leaves one silently stops being read by the other, and the loops
+  // below follow the table, so the names are pinned here as well.
+  test('the wrappers and the shells are exactly these names', () => {
+    expect([...ShellPrograms.WRAPPER_NAMES].sort()).toEqual(
+      [
+        'command',
+        'doas',
+        'env',
+        'exec',
+        'ionice',
+        'nice',
+        'nohup',
+        'setsid',
+        'sshpass',
+        'stdbuf',
+        'sudo',
+        'time',
+        'timeout',
+        'watch',
+        'xargs',
+      ].sort(),
+    );
+    expect([...ShellPrograms.SHELL_NAMES].sort()).toEqual(['bash', 'dash', 'sh', 'zsh']);
+  });
+
   test.each(ShellPrograms.WRAPPER_NAMES)(
     'the wrapper %s is read past to the ssh it runs',
     (name) => {

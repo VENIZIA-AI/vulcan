@@ -152,9 +152,9 @@ const wrapperPositionals = (opts: { wrapper: string }): number =>
 /** The program names `remote-hosts.ts` reads too: one table here, so the two parsers cannot drift apart. */
 export class ShellPrograms {
   /** Every wrapper whose options the parser knows, `command` and `sshpass` included; a reader drops what it handles apart. */
-  static readonly WRAPPER_NAMES: string[] = Object.keys(WRAPPER_OPTIONS);
+  static readonly WRAPPER_NAMES: readonly string[] = Object.keys(WRAPPER_OPTIONS);
   /** The shells whose heredoc body is read as commands; `remote-hosts.ts` adds the ones it only follows. */
-  static readonly SHELL_NAMES: string[] = ['bash', 'sh', 'zsh', 'dash'];
+  static readonly SHELL_NAMES: readonly string[] = ['bash', 'sh', 'zsh', 'dash'];
 }
 
 const SHELLS = new Set(ShellPrograms.SHELL_NAMES);
