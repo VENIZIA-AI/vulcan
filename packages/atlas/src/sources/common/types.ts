@@ -19,7 +19,7 @@ export interface IAtlasSource {
 }
 
 /** Which ref a source's corpus is at, and why: the server's instructions say so. */
-export interface ISourcePin {
+interface ISourcePin {
   /** The ref the corpus was read at: a release tag when pinned, else the configured ref. */
   ref: string;
   pinned: boolean;

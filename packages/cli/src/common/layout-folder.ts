@@ -5,7 +5,7 @@
  */
 
 /** A folder, or a list of folders, as the layout holds it; a string stays valid. */
-export type TLayoutValue = string | string[];
+type TLayoutValue = string | string[];
 
 export interface ILayout {
   backend?: TLayoutValue;
@@ -15,7 +15,7 @@ export interface ILayout {
   other?: TLayoutValue;
 }
 
-export class LayoutFolderLimits {
+class LayoutFolderLimits {
   /** `auroras/apps` is two segments. */
   static readonly MAX_SEGMENTS = 4;
   /** One segment: the pattern a layout folder had before it could have several. */

@@ -1,8 +1,7 @@
 # scripts/
 
 Root tooling of the VULCAN monorepo, grouped by purpose. Each group keeps its tests in its own
-`__tests__/`; `scripts/__tests__/spawn.helper.ts` is the one test helper they share.
-`scripts/tsconfig.json` type-checks all of it (`make lint-scripts`).
+`__tests__/`. `scripts/tsconfig.json` type-checks all of it (`make lint-scripts`).
 
 | Group | Script | What it does | Called by |
 |---|---|---|---|

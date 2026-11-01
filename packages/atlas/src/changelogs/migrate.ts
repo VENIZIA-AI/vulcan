@@ -6,7 +6,7 @@ import { resolveChangelogPackages, splitFrontmatter } from './resolve';
 const DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
 const FRONTMATTER_BLOCK = /^---\r?\n([\s\S]*?)\r?\n---/;
 
-export interface IMigrateReport {
+interface IMigrateReport {
   /** Entries given a `packages:` list (written, or would be on a dry run). */
   written: string[];
   /** Entries nothing resolved for: a human declares their packages. */

@@ -28,7 +28,7 @@ interface IRegistered {
 }
 
 /** The newest modification time under `path`, itself included: a folder's own time moves only when its direct children do. */
-export const newestModifiedAt = (opts: { path: string }): number => {
+const newestModifiedAt = (opts: { path: string }): number => {
   let stat;
 
   try {
@@ -48,7 +48,7 @@ export const newestModifiedAt = (opts: { path: string }): number => {
 };
 
 /** The bytes under `path`, symlinks counted as themselves and never followed. */
-export const sizeOf = (opts: { path: string }): number => {
+const sizeOf = (opts: { path: string }): number => {
   let stat;
 
   try {

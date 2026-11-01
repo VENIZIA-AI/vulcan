@@ -6,7 +6,7 @@ import type { IGitHit, IGitRunner } from './common/index.ts';
 import { matchesBranch } from './project-guards.ts';
 
 /** `git` and `gh` read-only queries the guard makes; `undefined` when the tool is missing, slow or fails. */
-export const runQuery: IGitRunner = (opts) => {
+const runQuery: IGitRunner = (opts) => {
   const result = spawnSync(opts.program, opts.args, {
     cwd: opts.cwd,
     encoding: 'utf8',

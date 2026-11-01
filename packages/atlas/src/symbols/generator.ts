@@ -24,13 +24,13 @@ import { dirname, relative, resolve } from 'node:path';
 import type TypeScript from 'typescript';
 import { PublicSurface } from '@/surface';
 
-export const SYMBOLS_OUTPUT = resolve(PROJECT_ROOT, '.agents/knowledge/reference/symbols.json');
+const SYMBOLS_OUTPUT = resolve(PROJECT_ROOT, '.agents/knowledge/reference/symbols.json');
 
 const SIGNATURE_MAX_CHARS = 300;
 const SHAPE_LENGTH = 12;
 
 /** One exported symbol, located in the source it was written in - never in the `dist` it was read from. */
-export interface ISymbolRecord {
+interface ISymbolRecord {
   name: string;
   package: string;
   subpath: string;
@@ -43,7 +43,7 @@ export interface ISymbolRecord {
   external?: boolean;
 }
 
-export interface ISymbolTable {
+interface ISymbolTable {
   generatedFrom: string;
   packages: string[];
   symbols: ISymbolRecord[];

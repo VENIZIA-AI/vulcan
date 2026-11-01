@@ -2,7 +2,7 @@ import { confirm, isCancel, multiselect, note, select, text } from '@clack/promp
 import { guardAgainstPipedLines } from './keyboard.ts';
 
 /** One line of a menu: what it is called, and a short note beside it. */
-export interface IChoice {
+interface IChoice {
   value: string;
   label: string;
   hint?: string;

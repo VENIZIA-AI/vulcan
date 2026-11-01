@@ -6,9 +6,7 @@ export const CODEX_BLOCK_END = '# vulcan:atlas:end';
 const CODEX_TABLE = '[mcp_servers.atlas]';
 const SERVER_NAME = 'atlas';
 
-export type TMergeResult =
-  | { ok: true; changed: boolean; text: string }
-  | { ok: false; reason: string };
+type TMergeResult = { ok: true; changed: boolean; text: string } | { ok: false; reason: string };
 
 /**
  * The atlas server as a per-machine file starts it: the project's own `vulcan` by absolute path with
@@ -174,7 +172,7 @@ export const mergeCodexToml = (opts: { text: string | undefined; root: string })
   };
 };
 
-export type TRemoveResult =
+type TRemoveResult =
   | { ok: true; outcome: typeof RemoveOutcomes.ABSENT }
   | { ok: true; outcome: typeof RemoveOutcomes.REMOVED; text: string | undefined }
   | { ok: false; reason: string };

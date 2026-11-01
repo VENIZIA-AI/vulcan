@@ -5,9 +5,7 @@ import { OwnerConstants } from './constants.ts';
 import { PROFILE_SCHEMA } from './schema.ts';
 import type { TProfile } from './schema.ts';
 
-export type TProfileRead =
-  | { ok: true; profile: TProfile | undefined }
-  | { ok: false; error: string };
+type TProfileRead = { ok: true; profile: TProfile | undefined } | { ok: false; error: string };
 
 /** A symlink at the profile's place, or at `.agents/local`, would read or write a file outside the project. */
 export const linkedAt = (opts: { root: string }): string | undefined =>

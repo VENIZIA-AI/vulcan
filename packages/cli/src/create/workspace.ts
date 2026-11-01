@@ -388,9 +388,7 @@ const isAppsBlock = (value: unknown): value is IAppsBlock =>
   Array.isArray(value.sources) &&
   value.sources.every((entry) => hasStrings({ value: entry, keys: ['name', 'repo', 'ref'] }));
 
-export type TAppsBlockResult =
-  | { ok: true; block: IAppsBlock }
-  | { ok: false; reason: TAppsBlockProblem };
+type TAppsBlockResult = { ok: true; block: IAppsBlock } | { ok: false; reason: TAppsBlockProblem };
 
 const APPS_DECLARATION = 'const apps = ';
 

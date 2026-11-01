@@ -1,7 +1,7 @@
 import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { TGuardDecision } from './common/index.ts';
 
-export interface IDecisionOutput {
+interface IDecisionOutput {
   hookSpecificOutput: {
     hookEventName: string;
     permissionDecision: string;
@@ -51,7 +51,3 @@ export const buildToolDecision = (opts: { decision: TGuardDecision; reason: stri
       },
     },
   });
-
-/** Whether the session switched the guards off (`VULCAN_GUARDS=off`): every call then passes. */
-export const guardsAreOff = (opts: { env?: Record<string, string | undefined> } = {}): boolean =>
-  (opts.env ?? process.env)[HookConstants.KILL_SWITCH_ENV] === HookConstants.KILL_SWITCH_OFF;

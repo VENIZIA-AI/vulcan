@@ -9,7 +9,7 @@ const PACKAGE_NAME = '@venizia/vulcan-atlas';
 export class ModeUsageError extends Error {}
 
 /** `--root`'s value from `argv`, and whether the caller passed it explicitly (cwd is the fallback). */
-export interface IRootArgument {
+interface IRootArgument {
   value: string;
   explicit: boolean;
 }

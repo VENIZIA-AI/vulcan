@@ -146,7 +146,7 @@ export const optionTakesNextWord = (opts: { wrapper: string; word: string }): bo
 };
 
 /** The plain words a wrapper takes before its command (`timeout 5 cmd`). */
-export const wrapperPositionals = (opts: { wrapper: string }): number =>
+const wrapperPositionals = (opts: { wrapper: string }): number =>
   WRAPPER_OPTIONS[opts.wrapper]?.positionals ?? 0;
 const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash']);
 const MAX_DEPTH = 4;
@@ -706,7 +706,7 @@ const programBefore = (opts: { prefix: string }): string => {
   });
 };
 
-export interface IHeredoc {
+interface IHeredoc {
   body: string;
   /** The body was left in the text because a shell reads it as commands (`bash <<EOF`). */
   isInline: boolean;
@@ -1017,7 +1017,7 @@ const parseWithBudget = (opts: {
   ];
 };
 
-export interface IParsedShell {
+interface IParsedShell {
   commands: ISimpleCommand[];
   /** Part of the line was not read: it is larger, or nests deeper, than the parser's budget. */
   isOverBudget: boolean;

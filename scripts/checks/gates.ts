@@ -15,7 +15,7 @@ const TAIL_LINES = 40;
 const ROOT = resolve(import.meta.dir, '..', '..');
 const CI_FILE = join(ROOT, '.github', 'workflows', 'ci.yml');
 
-export interface IGateCommand {
+interface IGateCommand {
   step: string;
   targets: string[];
 }

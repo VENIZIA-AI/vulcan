@@ -28,13 +28,13 @@ export const renderAgentsQuestion = (question: IAgentQuestion): string => {
   ].join('\n');
 };
 
-export const askAgentsInTerminal = (question: IAgentQuestion): string | null => {
+const askAgentsInTerminal = (question: IAgentQuestion): string | null => {
   process.stdout.write(`${renderAgentsQuestion(question)}\n`);
 
   return askWithPrompt({ question: 'Agents' });
 };
 
-export type TResolveAgentsInput = Omit<Parameters<typeof resolveAgents>[0], 'ask'>;
+type TResolveAgentsInput = Omit<Parameters<typeof resolveAgents>[0], 'ask'>;
 
 const hintOf = (opts: { id: string; question: IAgentQuestion }): string | undefined => {
   const notes = [

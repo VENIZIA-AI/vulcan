@@ -78,7 +78,7 @@ export const nameProblem = (opts: { name: string }): string | undefined =>
     : `'${opts.name}' is not a name: lowercase letters, digits and '-', starting with a letter or digit`;
 
 /** Why a value is not valid for a field: a folder path for a path field, a name for the rest. Undefined when it is valid. */
-export const fieldProblem = (opts: { field: INameField; value: string }): string | undefined =>
+const fieldProblem = (opts: { field: INameField; value: string }): string | undefined =>
   opts.field.isPath === true
     ? layoutFolderProblem({ folder: opts.value })
     : nameProblem({ name: opts.value });

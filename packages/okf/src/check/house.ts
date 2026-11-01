@@ -37,7 +37,7 @@ export const styleRules = (opts: { brand: string }): { pattern: RegExp; message:
 // --- freshness ---
 
 /** Compare generated content ignoring trailing whitespace, so an editor's final newline is not "stale". */
-export const sameContent = (opts: { left: string; right: string }): boolean => {
+const sameContent = (opts: { left: string; right: string }): boolean => {
   const normalize = (value: string) =>
     value
       .split('\n')

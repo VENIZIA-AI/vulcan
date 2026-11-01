@@ -11,7 +11,7 @@ export const markers = (opts: { id: string }): { start: string; end: string } =>
  * Locate a managed region, rejecting malformed or duplicated markers rather than corrupting the file.
  * `file` is the host file as the person sees it, named in every error.
  */
-export const locateRegion = (opts: {
+const locateRegion = (opts: {
   text: string;
   id: string;
   file: string;

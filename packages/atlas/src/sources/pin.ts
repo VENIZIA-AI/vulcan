@@ -5,7 +5,7 @@ import type { IReleaseRecord, IReleaseTable } from '@/releases/common';
 import { compileReleaseTemplate } from '@/releases/template';
 import { installedDirectoriesOf } from './installed';
 
-export type TPinDecision =
+type TPinDecision =
   | { pinned: true; tag: string; basis: string }
   | { pinned: false; reason: string };
 

@@ -2,7 +2,7 @@ import { statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { readOkfProject } from '../project/index.ts';
 
-export interface ICoverageAxis {
+interface ICoverageAxis {
   name: string;
   items: string[];
   /** Each item's directory from the project root. */

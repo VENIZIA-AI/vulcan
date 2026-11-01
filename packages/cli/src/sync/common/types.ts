@@ -1,7 +1,7 @@
 import type { TConstValue } from '../../common/index.ts';
 import type { BaseRuleChanges, SyncStatuses } from './constants.ts';
 
-export type TSyncStatus = TConstValue<typeof SyncStatuses>;
+type TSyncStatus = TConstValue<typeof SyncStatuses>;
 
 export type TSettings = Record<string, unknown>;
 
@@ -13,7 +13,7 @@ export interface ISyncAction {
   apply: () => void;
 }
 
-export type TBaseRuleChange = TConstValue<typeof BaseRuleChanges>;
+type TBaseRuleChange = TConstValue<typeof BaseRuleChanges>;
 
 /** One base rule that moved since the last sync; `text` is its new text, or `(retired)` when the base retired it. */
 export interface IBaseRuleChange {

@@ -78,7 +78,7 @@ const toHookEntry = (opts: {
 };
 
 /** Every hook command in one event's entries; anything that is not an entry or a command is skipped. */
-export const extractEntryCommands = (opts: { entries: unknown }): string[] =>
+const extractEntryCommands = (opts: { entries: unknown }): string[] =>
   Array.isArray(opts.entries)
     ? opts.entries.flatMap((entry) =>
         (toHookEntry({ entry })?.hooks ?? []).flatMap((hook) => toHookCommand({ hook }) ?? []),

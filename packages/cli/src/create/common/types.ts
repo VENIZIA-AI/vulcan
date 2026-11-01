@@ -42,7 +42,7 @@ export type TNamesResult =
   | { ok: true; names: Record<string, string> }
   | { ok: false; error: string };
 
-export interface IPresetAtlasSource {
+interface IPresetAtlasSource {
   name: string;
   repo: string;
   ref: string;

@@ -40,7 +40,7 @@ export class ShapeClasses {
   }
 }
 
-export interface IShapeResult {
+interface IShapeResult {
   /** False for an empty reply or a short one the view exempts. */
   isChecked: boolean;
   classes: string[];

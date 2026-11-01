@@ -5,7 +5,7 @@ import { basenameOf, parseShell, programOf } from './shell.ts';
 const SCRIPTING_PROGRAM = /^(?:python\d*(?:\.\d+)?|pip\d*(?:\.\d+)?)$/;
 
 /** One line, worded like the rule: a preference, never a ban. */
-export const SCRIPTING_ADVICE =
+const SCRIPTING_ADVICE =
   'V-B-09: agent scripting uses bun by default (bun -e, bun file.ts, Bun.file()). Python or another language is fine when the task needs it (an existing project script, a tool only that language has); say so in one line when you use it.';
 
 /** `command -v python3` asks whether a program exists; it does not run it. */

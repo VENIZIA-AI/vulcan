@@ -39,8 +39,6 @@ import type { ISectionContext } from './sections.ts';
 
 const escaped = (value: string): string => escapeText({ value });
 
-export { chromeOf };
-
 /** The mark of the top bar: a diamond in the hot colour. */
 const MARK =
   '<svg class="mark" viewBox="0 0 14 18" aria-hidden="true"><path d="M7 0 14 9 7 18 0 9Z"/></svg>';
@@ -64,7 +62,7 @@ const BANNER_STATE: Record<string, string> = {
  * and the rule that swaps the figure for its list below the viewport width at which it would shrink under FIGURE_FIT
  * of its natural size (text under 12 px). The 66 is the page and frame padding.
  */
-export const figureFitCss = (opts: { widths: Set<number> }): string =>
+const figureFitCss = (opts: { widths: Set<number> }): string =>
   [...opts.widths]
     .sort((a, b) => a - b)
     .map((width) => {

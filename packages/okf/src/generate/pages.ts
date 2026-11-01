@@ -3,7 +3,7 @@ import type { IRenderedFile } from './define.ts';
 import type { ILoadedRenderer } from './registry.ts';
 
 /** One page a renderer owns, rendered in memory: `path` is absolute, inside the bundle. */
-export interface IRenderedPage {
+interface IRenderedPage {
   id: string;
   path: string;
   content: string;

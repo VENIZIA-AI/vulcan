@@ -33,14 +33,14 @@ export class GithubReleaseConstants {
     'github-release: create --tag <tag> --version <v> --kind stable|prerelease | backfill --tag <tag> [--yes]';
 }
 
-export interface IGithubReleaseManifest {
+interface IGithubReleaseManifest {
   templates: string[];
   changelogs: string;
   /** The npm names of the packages, in release order: the last is the one users install. */
   packages: string[];
 }
 
-export interface IGhResult {
+interface IGhResult {
   status: number;
   stdout: string;
   stderr: string;
@@ -48,9 +48,9 @@ export interface IGhResult {
 
 export type TGh = (opts: { args: string[] }) => IGhResult;
 
-export type TGithubReleaseState = 'created' | 'exists' | 'planned' | 'refused' | 'failed';
+type TGithubReleaseState = 'created' | 'exists' | 'planned' | 'refused' | 'failed';
 
-export interface IGithubReleaseOutcome {
+interface IGithubReleaseOutcome {
   state: TGithubReleaseState;
   message: string;
 }

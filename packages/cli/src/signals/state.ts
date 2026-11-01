@@ -16,7 +16,7 @@ import { localRootOf } from '../local/scan.ts';
 import { EntryKinds, SignalConstants } from './constants.ts';
 
 /** One line of the log. Only the fields of its kind are set. */
-export interface ISignalEntry {
+interface ISignalEntry {
   kind: string;
   /** The session and the agent inside it ('' for the main agent) the line belongs to. */
   session: string;
@@ -53,9 +53,6 @@ export interface ISignalState {
   /** When each advisory was last given, by name. */
   notedAt: Record<string, number>;
 }
-
-export const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
-  typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
 
 const recordOf = (opts: { value: unknown }): Record<string, unknown> =>
   typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value)

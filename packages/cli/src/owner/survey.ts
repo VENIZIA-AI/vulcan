@@ -3,7 +3,7 @@ import { OWNER_LABEL_SET, PROFILE_SCHEMA } from './schema.ts';
 import { isEnglishLanguage } from './view.ts';
 import type { TOwnerLabelSet, TProfile } from './schema.ts';
 
-export interface ISurveyChoice {
+interface ISurveyChoice {
   value: string;
   label: string;
 }
@@ -49,7 +49,7 @@ const codeTasteProblem = (value: string): string | undefined =>
   value.length > 1000 ? 'at most 1000 characters' : undefined;
 
 /** A single dash clears an optional value that an earlier run set: an empty answer keeps it. */
-export const CLEAR_ANSWER = '-';
+const CLEAR_ANSWER = '-';
 
 const languageProblem = (value: string): string | undefined =>
   OwnerConstants.LANGUAGE_PATTERN.test(value) ? undefined : 'a language code such as en or pt-BR';

@@ -5,7 +5,7 @@ import { ConfigConstants, ConfigExtensions } from './common/index.ts';
 import { VULCAN_CONFIG_SCHEMA } from './schema.ts';
 import type { TResolvedConfig } from './schema.ts';
 
-export type TLoadResult =
+type TLoadResult =
   | { ok: true; file: string; config: TResolvedConfig }
   | { ok: false; file?: string; error: string };
 
