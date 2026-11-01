@@ -1,3 +1,4 @@
+import { checkNewKinds } from './kinds-validate.ts';
 import type { TVisualizeSpec } from './schema.ts';
 
 interface ICell {
@@ -217,4 +218,5 @@ const checkKinds = (opts: { spec: TVisualizeSpec }): string[] => {
 export const checkSpec = (opts: { spec: TVisualizeSpec }): string[] => [
   ...(opts.spec.flow === undefined ? [] : checkFlow({ flow: opts.spec.flow })),
   ...checkKinds({ spec: opts.spec }),
+  ...checkNewKinds({ spec: opts.spec }),
 ];

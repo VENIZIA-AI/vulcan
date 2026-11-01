@@ -11,6 +11,7 @@ import {
   VisualizeLimits,
 } from './constants.ts';
 import type { TChangeKind } from './constants.ts';
+import { LIFECYCLE_SCHEMA, SEQUENCE_SCHEMA, TREE_SCHEMA } from './kinds-schema.ts';
 
 /** One line of plain text: no markup is interpreted anywhere, it is all escaped. */
 const text = (max: number) =>
@@ -392,6 +393,9 @@ export const VISUALIZE_SCHEMA = z.strictObject({
   explainer: EXPLAINER.optional(),
   timeline: TIMELINE.optional(),
   findings: FINDINGS.optional(),
+  sequence: SEQUENCE_SCHEMA.optional(),
+  lifecycle: LIFECYCLE_SCHEMA.optional(),
+  tree: TREE_SCHEMA.optional(),
   decisionRecord: DECISION_RECORD.optional(),
   beforeAfter: z
     .strictObject({ before: SIDE(ChangeKinds.REMOVED), after: SIDE(ChangeKinds.ADDED) })
