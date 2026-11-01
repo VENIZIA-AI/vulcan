@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { inspectRemoteCommand, matchesHost, parseTrustedList } from '../../hooks/remote-hosts.ts';
+import { ShellPrograms } from '../../hooks/shell.ts';
 
 const POLICY = {
   trusted: ['lab1', '*.lab.example.com', '10.0.0.5', '$LAB_HOST'],
@@ -409,5 +410,29 @@ describe('docker over ssh: a trusted host in the parsed form passes', () => {
 
   test('a local socket reaches no remote host', () => {
     expect(asks('docker -H unix:///var/run/docker.sock ps')).toBe(false);
+  });
+});
+
+describe('the program tables are the shell parser own', () => {
+  test.each(ShellPrograms.WRAPPER_NAMES)(
+    'the wrapper %s is read past to the ssh it runs',
+    (name) => {
+      const spellings = [
+        `${name} ssh evil.com`,
+        `${name} 5 ssh evil.com`,
+        `${name} -p x ssh evil.com`,
+      ];
+
+      expect(spellings.some((command) => asks(command))).toBe(true);
+    },
+  );
+
+  test.each(ShellPrograms.SHELL_NAMES)('the shell %s is read into its -c command', (name) => {
+    expect(asks(`${name} -c 'ssh evil.com'`)).toBe(true);
+  });
+
+  test('ksh and ash are followed as shells although the heredoc reader does not know them', () => {
+    expect(asks("ksh -c 'ssh evil.com'")).toBe(true);
+    expect(asks("ash -c 'ssh evil.com'")).toBe(true);
   });
 });

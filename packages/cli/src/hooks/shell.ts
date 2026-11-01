@@ -148,7 +148,16 @@ export const optionTakesNextWord = (opts: { wrapper: string; word: string }): bo
 /** The plain words a wrapper takes before its command (`timeout 5 cmd`). */
 const wrapperPositionals = (opts: { wrapper: string }): number =>
   WRAPPER_OPTIONS[opts.wrapper]?.positionals ?? 0;
-const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash']);
+
+/** The program names `remote-hosts.ts` reads too: one table here, so the two parsers cannot drift apart. */
+export class ShellPrograms {
+  /** Every wrapper whose options the parser knows, `command` and `sshpass` included; a reader drops what it handles apart. */
+  static readonly WRAPPER_NAMES: string[] = Object.keys(WRAPPER_OPTIONS);
+  /** The shells whose heredoc body is read as commands; `remote-hosts.ts` adds the ones it only follows. */
+  static readonly SHELL_NAMES: string[] = ['bash', 'sh', 'zsh', 'dash'];
+}
+
+const SHELLS = new Set(ShellPrograms.SHELL_NAMES);
 const MAX_DEPTH = 4;
 
 /** What the parser reads of one command line at most: a guard that reads more would be slow, and a slow guard is skipped. */
