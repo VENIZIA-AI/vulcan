@@ -11,7 +11,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
-import { readProperty } from '../common/index.ts';
+import { JsonValue } from '../common/index.ts';
 import { AppSides, CreateConstants, PresetPath } from './common/index.ts';
 import type { ILocatedPreset, IPresetSpec, TAppSide, TPresetResult } from './common/index.ts';
 
@@ -149,7 +149,7 @@ export const locatePreset = (opts: { spec: IPresetSpec; root: string }): TPreset
   const shown = `${packageName}@${packageVersion}`;
   const vulcan = manifest[CreateConstants.PRESET_FIELD];
   const oldKeys = ['preset', 'lib'].filter(
-    (key) => readProperty({ value: vulcan, key }) !== undefined,
+    (key) => JsonValue.readProperty({ value: vulcan, key }) !== undefined,
   );
 
   // No fallback to the keys before `presets`: say what the contract is now.
@@ -160,10 +160,10 @@ export const locatePreset = (opts: { spec: IPresetSpec; root: string }): TPreset
     };
   }
 
-  const presets = readProperty({ value: vulcan, key: 'presets' });
-  const field = readProperty({ value: presets, key: 'app' });
-  const libField = readProperty({ value: presets, key: 'lib' });
-  const sharedField = readProperty({ value: presets, key: 'shared' });
+  const presets = JsonValue.readProperty({ value: vulcan, key: 'presets' });
+  const field = JsonValue.readProperty({ value: presets, key: 'app' });
+  const libField = JsonValue.readProperty({ value: presets, key: 'lib' });
+  const sharedField = JsonValue.readProperty({ value: presets, key: 'shared' });
 
   if (typeof field !== 'string') {
     return {

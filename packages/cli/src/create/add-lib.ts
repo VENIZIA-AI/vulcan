@@ -1,14 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
-import {
-  describeFolders,
-  layoutFolderProblem,
-  layoutFoldersOf,
-  layoutOverlapProblems,
-  listedFoldersNote,
-  withLayoutFolder,
-} from '../common/layout-folder.ts';
+import { LayoutFolder } from '../common/layout-folder.ts';
 import { LibraryKinds, PackageKinds } from '../config/index.ts';
 import type { IProjectPackage, TLibraryKind, TResolvedConfig } from '../config/index.ts';
 import { readWorkspaceGlobs } from '../init/index.ts';
@@ -66,7 +59,7 @@ const folderOf = async (opts: {
         .map((entry) => dirname(entry.path)),
     ),
   ];
-  const shared = layoutFoldersOf({ value: opts.config.layout?.shared });
+  const shared = LayoutFolder.layoutFoldersOf({ value: opts.config.layout?.shared });
   // One shared folder is the answer; with none the one folder the libraries share is; several are for `--dir` or a menu.
   const fallback =
     shared.length === 1
@@ -97,7 +90,7 @@ const folderOf = async (opts: {
   if (chosen === undefined) {
     return {
       ok: false,
-      error: `where should ${opts.lib} go? pass ${CreateFlags.DIR} <folder>${shared.length > 1 ? ` (${listedFoldersNote({ folders: shared })})` : ''}`,
+      error: `where should ${opts.lib} go? pass ${CreateFlags.DIR} <folder>${shared.length > 1 ? ` (${LayoutFolder.listedNote({ folders: shared })})` : ''}`,
     };
   }
 
@@ -222,13 +215,15 @@ export const addLibrary = async (opts: {
   }
 
   const sharedBefore = parsed.block.layout.shared;
-  const grown = withLayoutFolder({ value: sharedBefore, folder });
+  const grown = LayoutFolder.withLayoutFolder({ value: sharedBefore, folder });
   // A valid folder the layout does not list yet is added to layout.shared, unless it would nest with another folder.
-  const isListed = layoutFoldersOf({ value: sharedBefore }).includes(folder);
+  const isListed = LayoutFolder.layoutFoldersOf({ value: sharedBefore }).includes(folder);
   const notRecorded = isListed
     ? undefined
-    : (layoutFolderProblem({ folder }) ??
-      layoutOverlapProblems({ layout: { ...parsed.block.layout, shared: grown } }).join('; '));
+    : (LayoutFolder.layoutFolderProblem({ folder }) ??
+      LayoutFolder.layoutOverlapProblems({
+        layout: { ...parsed.block.layout, shared: grown },
+      }).join('; '));
   const isNewFolder = !isListed && notRecorded === '';
   const block = opts.recorded({
     block: {
@@ -283,7 +278,7 @@ export const addLibrary = async (opts: {
   if (isNewFolder) {
     rows.push([
       'layout',
-      `adds '${folder}' to layout.shared (now ${describeFolders({ folders: layoutFoldersOf({ value: grown }) })})`,
+      `adds '${folder}' to layout.shared (now ${LayoutFolder.describe({ folders: LayoutFolder.layoutFoldersOf({ value: grown }) })})`,
     ]);
   }
 

@@ -3,22 +3,16 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout, RecordValue } from '../common/index.ts';
-import { LayoutKeys, layoutFoldersOf } from '../common/layout-folder.ts';
+import { LayoutKeys, LayoutFolder } from '../common/layout-folder.ts';
 import {
   coversFolder,
   declaresWorkspaces,
   MCP_SERVER_HINT,
   readWorkspaceGlobs,
 } from '../init/index.ts';
-import { resolvePackages } from '../config/index.ts';
+import { ProjectPackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
-import {
-  parseBaseReferences,
-  readBaseRules,
-  readRetiredRuleIds,
-  readSlots,
-  RuleConstants,
-} from '../rules/index.ts';
+import { BaseRules, RuleConstants, RuleParser, RuleSlots } from '../rules/index.ts';
 import {
   isManifestCurrent,
   ManifestConstants,
@@ -99,10 +93,10 @@ export const checkLayout = (opts: ICheckContext): IViolation[] =>
  * rules points at a base rule - one the base does not carry, or has retired, dangles.
  */
 export const checkRuleIds = (opts: ICheckContext): IViolation[] => {
-  const base = readBaseRules();
-  const retired = new Set(readRetiredRuleIds());
+  const base = BaseRules.read();
+  const retired = new Set(BaseRules.readRetiredIds());
 
-  return parseBaseReferences({
+  return RuleParser.parseBaseReferences({
     markdown: readText({ file: join(opts.root, '.agents', 'rules.md') }),
   })
     .filter((id) => base[id] === undefined)
@@ -118,7 +112,7 @@ export const checkRuleIds = (opts: ICheckContext): IViolation[] => {
 };
 
 export const checkRuleSlots = (opts: ICheckContext): IViolation[] => {
-  const slots = readSlots();
+  const slots = RuleSlots.read();
   const violations: IViolation[] = [];
 
   for (const [id, slot] of Object.entries(slots)) {
@@ -362,7 +356,7 @@ export const checkStyle = (opts: ICheckContext): IViolation[] => {
       ...listDirectories({ directory: join(opts.root, 'packages') }).map((name) =>
         join('packages', name),
       ),
-      ...resolvePackages({ config: opts.config }).map(
+      ...ProjectPackages.resolve({ config: opts.config }).map(
         (entry) => relative(opts.root, join(opts.root, entry.path)) || '.',
       ),
     ]),
@@ -451,7 +445,7 @@ export const checkScaffold = (opts: ICheckContext): IViolation[] => {
 
   if (
     declaresWorkspaces({ root: opts.root }) &&
-    resolvePackages({ config: opts.config }).length === 0
+    ProjectPackages.resolve({ config: opts.config }).length === 0
   ) {
     violations.push(
       createViolation({
@@ -488,7 +482,7 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
 
   const globs = readWorkspaceGlobs({ root: opts.root });
   const folders = LayoutKeys.ALL.flatMap((key) =>
-    layoutFoldersOf({ value: layout[key] }).map((folder) => ({ side: key, folder })),
+    LayoutFolder.layoutFoldersOf({ value: layout[key] }).map((folder) => ({ side: key, folder })),
   );
   // A folder under `other` is deliberately not managed: it need not be a workspace, only a package in it is allowed.
   const violations = folders
@@ -506,7 +500,9 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
     .filter(({ side }) => side === LayoutKeys.OTHER)
     .map(({ folder }) => folder);
 
-  for (const entry of resolvePackages({ config: opts.config }).filter((item) => !item.retired)) {
+  for (const entry of ProjectPackages.resolve({ config: opts.config }).filter(
+    (item) => !item.retired,
+  )) {
     if (entry.kind === 'lib') {
       const parent = dirname(entry.path);
 
@@ -573,12 +569,14 @@ export const checkAppScripts = (opts: ICheckContext): IViolation[] => {
   }
 
   const appFolders = [
-    ...layoutFoldersOf({ value: layout.backend }),
-    ...layoutFoldersOf({ value: layout.frontend }),
+    ...LayoutFolder.layoutFoldersOf({ value: layout.backend }),
+    ...LayoutFolder.layoutFoldersOf({ value: layout.frontend }),
   ];
   const notes: IViolation[] = [];
 
-  for (const entry of resolvePackages({ config: opts.config }).filter((item) => !item.retired)) {
+  for (const entry of ProjectPackages.resolve({ config: opts.config }).filter(
+    (item) => !item.retired,
+  )) {
     if (!appFolders.some((folder) => entry.path.startsWith(`${folder}/`))) {
       continue;
     }
@@ -812,7 +810,7 @@ export const checkDockerignore = (opts: ICheckContext): IViolation[] => {
     return [];
   }
 
-  const apps = resolvePackages({ config: opts.config })
+  const apps = ProjectPackages.resolve({ config: opts.config })
     .filter((entry) => !entry.retired && existsSync(join(opts.root, entry.path, DOCKERFILE)))
     .map((entry) => entry.dir);
 
@@ -848,7 +846,7 @@ const formatOwners = (opts: ICheckContext): string[] => [
     ...listDirectories({ directory: join(opts.root, 'packages') }).map((name) =>
       join('packages', name),
     ),
-    ...resolvePackages({ config: opts.config })
+    ...ProjectPackages.resolve({ config: opts.config })
       .filter((entry) => !entry.retired)
       .map((entry) => relative(opts.root, join(opts.root, entry.path)) || '.'),
   ]),

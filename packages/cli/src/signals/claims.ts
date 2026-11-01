@@ -38,34 +38,36 @@ const asserts = (opts: { text: string; words: string[] }): boolean =>
     (sentence) => !isDenied({ sentence }) && opts.words.some((word) => hasWord({ sentence, word })),
   );
 
-/**
- * What the reply claims against what the turn's calls show. A claim that something is published, released
- * or live needs a public-state probe in the turn; a claim that the checks pass is contradicted while a gate
- * of the turn still failed on its latest run. Phrases match whole words in a sentence that does not deny,
- * ask or quote; English plus any the project adds. Logged, never blocked: a match is a hint, not proof.
- */
-export const checkClaims = (opts: {
-  text: string;
-  state: ISignalState;
-  publicWords?: string[];
-  doneWords?: string[];
-}): string[] => {
-  const classes: string[] = [];
-  const { state } = opts;
+export class ReplyClaims {
+  /**
+   * What the reply claims against what the turn's calls show. A claim that something is published, released
+   * or live needs a public-state probe in the turn; a claim that the checks pass is contradicted while a gate
+   * of the turn still failed on its latest run. Phrases match whole words in a sentence that does not deny,
+   * ask or quote; English plus any the project adds. Logged, never blocked: a match is a hint, not proof.
+   */
+  static check(opts: {
+    text: string;
+    state: ISignalState;
+    publicWords?: string[];
+    doneWords?: string[];
+  }): string[] {
+    const classes: string[] = [];
+    const { state } = opts;
 
-  if (
-    asserts({ text: opts.text, words: [...ClaimWords.PUBLIC, ...(opts.publicWords ?? [])] }) &&
-    state.probeAt < state.turnAt
-  ) {
-    classes.push(ClaimClasses.PUBLIC_CLAIM_NO_PROBE);
+    if (
+      asserts({ text: opts.text, words: [...ClaimWords.PUBLIC, ...(opts.publicWords ?? [])] }) &&
+      state.probeAt < state.turnAt
+    ) {
+      classes.push(ClaimClasses.PUBLIC_CLAIM_NO_PROBE);
+    }
+
+    if (
+      asserts({ text: opts.text, words: [...ClaimWords.DONE, ...(opts.doneWords ?? [])] }) &&
+      state.failedGates.length > 0
+    ) {
+      classes.push(ClaimClasses.CONTRADICTED_COMPLETION);
+    }
+
+    return classes;
   }
-
-  if (
-    asserts({ text: opts.text, words: [...ClaimWords.DONE, ...(opts.doneWords ?? [])] }) &&
-    state.failedGates.length > 0
-  ) {
-    classes.push(ClaimClasses.CONTRADICTED_COMPLETION);
-  }
-
-  return classes;
-};
+}

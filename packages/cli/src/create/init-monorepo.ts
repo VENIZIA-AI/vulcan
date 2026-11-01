@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ExitCodes, ProjectLayout, VULCAN_VERSION } from '../common/index.ts';
-import { layoutOverlapProblems } from '../common/layout-folder.ts';
+import { LayoutFolder } from '../common/layout-folder.ts';
 import { renderTemplate } from '../init/index.ts';
 import { runAppChecks } from './checks.ts';
 import { AppSides, CreateFlags } from './common/index.ts';
@@ -16,7 +16,7 @@ import { writeFile } from './files.ts';
 import { recordedPresetOf } from './lib-preset.ts';
 import { renderBunfig } from './bunfig.ts';
 import { renderDockerignore } from './dockerignore.ts';
-import { menusAvailable } from '../ui/index.ts';
+import { TerminalCapability } from '../ui/index.ts';
 import { askPresetSpec } from './preset-menu.ts';
 import { ABORTED, confirmWrite, planLines } from './plan.ts';
 import {
@@ -207,7 +207,7 @@ const runCreate = async (opts: {
 }): Promise<number> => {
   const flagged = readFlag({ args: opts.args, flag: CreateFlags.PRESET });
 
-  if (flagged === undefined && !menusAvailable()) {
+  if (flagged === undefined && !TerminalCapability.menusAvailable()) {
     return fail({ message: '--preset needs a value (a package name, or file:<path>)' });
   }
 
@@ -327,7 +327,7 @@ const runCreate = async (opts: {
     return fail({ message: clash });
   }
 
-  const overlaps = layoutOverlapProblems({
+  const overlaps = LayoutFolder.layoutOverlapProblems({
     layout: {
       [side]: folder,
       ...(shared === '' ? {} : { shared }),
@@ -343,7 +343,8 @@ const runCreate = async (opts: {
   }
 
   // Optional, asked only where menus are drawn; a plain terminal and a script give --scope.
-  const askingScope = flaggedScope.scope ?? (menusAvailable() ? askScope() : undefined);
+  const askingScope =
+    flaggedScope.scope ?? (TerminalCapability.menusAvailable() ? askScope() : undefined);
   const scope = await askingScope;
 
   if (scope === null) {

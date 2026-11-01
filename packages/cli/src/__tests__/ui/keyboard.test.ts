@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, spyOn, test } from 'bun:test';
-import { guardAgainstPipedLines, PipedInputRefusal } from '../../ui/keyboard.ts';
+import { MenuInput, PipedInputRefusal } from '../../ui/keyboard.ts';
 
 const never = (): Promise<string> => new Promise(() => {});
 
@@ -13,7 +13,7 @@ describe('guardAgainstPipedLines', () => {
     const stdout = spyOn(process.stdout, 'write').mockImplementation(() => true);
 
     try {
-      const pending = guardAgainstPipedLines(never);
+      const pending = MenuInput.guardAgainstPipedLines(never);
 
       process.stdin.emit('data', Buffer.from('my-product\n'));
 
@@ -34,7 +34,7 @@ describe('guardAgainstPipedLines', () => {
     try {
       const flow = async (): Promise<string> => {
         try {
-          const result = await guardAgainstPipedLines(never);
+          const result = await MenuInput.guardAgainstPipedLines(never);
           return result;
         } finally {
           cleaned.push('scratch removed');
@@ -53,7 +53,7 @@ describe('guardAgainstPipedLines', () => {
   });
 
   test('key presses without a line feed pass, and the answer comes back', async () => {
-    const pending = guardAgainstPipedLines(async () => 'picked');
+    const pending = MenuInput.guardAgainstPipedLines(async () => 'picked');
 
     process.stdin.emit('data', Buffer.from('\r'));
 
@@ -64,7 +64,7 @@ describe('guardAgainstPipedLines', () => {
   test('the listener is removed when the menu ends', async () => {
     const before = process.stdin.listenerCount('data');
 
-    await guardAgainstPipedLines(async () => 'done');
+    await MenuInput.guardAgainstPipedLines(async () => 'done');
 
     expect(process.stdin.listenerCount('data')).toBe(before);
   });

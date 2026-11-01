@@ -1,4 +1,4 @@
-import { menusAvailable, promptPlan } from '../ui/index.ts';
+import { TerminalCapability, TerminalPrompt } from '../ui/index.ts';
 
 /** `label  value` lines with the values in one column. */
 export const planLines = (opts: { rows: [label: string, value: string][] }): string[] => {
@@ -12,6 +12,6 @@ export const planLines = (opts: { rows: [label: string, value: string][] }): str
  * Without one nothing is asked: flags and pipes keep writing as they always did.
  */
 export const confirmWrite = async (opts: { title: string; lines: string[] }): Promise<boolean> =>
-  menusAvailable() ? promptPlan(opts) : true;
+  TerminalCapability.menusAvailable() ? TerminalPrompt.promptPlan(opts) : true;
 
 export const ABORTED = 'aborted: nothing was written';

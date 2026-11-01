@@ -1,5 +1,5 @@
 import { askWithPrompt } from '../create/names.ts';
-import { menusAvailable, promptMultiselect } from '../ui/index.ts';
+import { TerminalCapability, TerminalPrompt } from '../ui/index.ts';
 import type { IAgentQuestion, TAgentResolution } from './common/index.ts';
 import { AgentConstants } from './common/index.ts';
 import { resolveAgents } from './resolve.ts';
@@ -66,7 +66,7 @@ const resolveAgentsWithMenu = async (opts: TResolveAgentsInput): Promise<TAgentR
     return first;
   }
 
-  const picked = await promptMultiselect({
+  const picked = await TerminalPrompt.promptMultiselect({
     message: 'Which coding agents do you use in this project?',
     choices: readAgentTable().map((entry) => ({
       value: entry.id,
@@ -90,6 +90,6 @@ const resolveAgentsWithMenu = async (opts: TResolveAgentsInput): Promise<TAgentR
 
 /** Menus in a terminal that can draw them, the plain question everywhere else. */
 export const resolveAgentsInTerminal = (opts: TResolveAgentsInput): Promise<TAgentResolution> =>
-  menusAvailable()
+  TerminalCapability.menusAvailable()
     ? resolveAgentsWithMenu(opts)
     : Promise.resolve(resolveAgents({ ...opts, ask: askAgentsInTerminal }));

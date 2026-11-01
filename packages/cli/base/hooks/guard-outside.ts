@@ -34,8 +34,8 @@ try {
     let toolOwnedPaths: string[] = [];
 
     try {
-      const { loadConfig } = await import('../../src/config/index.ts');
-      const loaded = await loadConfig({ root: projectRoot });
+      const { ConfigLoader } = await import('../../src/config/index.ts');
+      const loaded = await ConfigLoader.load({ root: projectRoot });
 
       toolOwnedPaths = loaded.ok ? loaded.config.guard.toolOwnedPaths : [];
     } catch (error) {

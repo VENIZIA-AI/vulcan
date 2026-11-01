@@ -10,11 +10,11 @@ import {
 } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { readAgentTable } from '../agents/index.ts';
-import { BASE_DIRECTORY, stableBaseDirectoryOf } from '../common/index.ts';
+import { BASE_DIRECTORY, BaseDirectory } from '../common/index.ts';
 import { CodingAgents } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { ManifestConstants, renderManifest } from '../manifest/index.ts';
-import { readSlots } from '../rules/index.ts';
+import { RuleSlots } from '../rules/index.ts';
 import { planAgentFiles } from './agent-files.ts';
 import { SyncConstants, SyncLinks, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
@@ -91,7 +91,7 @@ const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
     readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.SETTINGS_FILE), 'utf8'),
   );
 
-  for (const [id, slot] of Object.entries(readSlots())) {
+  for (const [id, slot] of Object.entries(RuleSlots.read())) {
     const choice = opts.config.rules[id];
     const settings = choice === undefined ? undefined : slot.options[choice]?.settings;
 
@@ -201,7 +201,7 @@ const planSkillLinks = (opts: {
     ];
   }
 
-  const stableSkills = join(stableBaseDirectoryOf(opts), SyncConstants.SKILLS_DIRECTORY);
+  const stableSkills = join(BaseDirectory.stableOf(opts), SyncConstants.SKILLS_DIRECTORY);
   const shipped = findSkillDirectories({
     directory: join(BASE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY),
   }).map((source) => join(stableSkills, basename(source)));

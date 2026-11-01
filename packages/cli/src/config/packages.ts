@@ -15,14 +15,17 @@ export interface IProjectPackage {
   presetKind?: TLibraryKind;
 }
 
-/** The project's packages in release order. */
-export const resolvePackages = (opts: { config: TResolvedConfig }): IProjectPackage[] =>
-  opts.config.packages.map((entry) => ({
-    dir: entry.dir,
-    name: entry.name,
-    path: entry.path ?? `${DEFAULT_PACKAGES_DIRECTORY}/${entry.dir}`,
-    aliases: entry.aliases,
-    retired: entry.retired,
-    ...(entry.kind === undefined ? {} : { kind: entry.kind }),
-    ...(entry.presetKind === undefined ? {} : { presetKind: entry.presetKind }),
-  }));
+export class ProjectPackages {
+  /** The project's packages in release order. */
+  static resolve(opts: { config: TResolvedConfig }): IProjectPackage[] {
+    return opts.config.packages.map((entry) => ({
+      dir: entry.dir,
+      name: entry.name,
+      path: entry.path ?? `${DEFAULT_PACKAGES_DIRECTORY}/${entry.dir}`,
+      aliases: entry.aliases,
+      retired: entry.retired,
+      ...(entry.kind === undefined ? {} : { kind: entry.kind }),
+      ...(entry.presetKind === undefined ? {} : { presetKind: entry.presetKind }),
+    }));
+  }
+}

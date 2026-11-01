@@ -8,7 +8,7 @@ import {
 } from '../agents/index.ts';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
-import { loadConfig } from '../config/index.ts';
+import { ConfigLoader } from '../config/index.ts';
 import { printAgentTable, runSyncFlow } from './sync.command.ts';
 
 const SUBCOMMANDS = ['list', 'add', 'remove', 'setup'];
@@ -31,7 +31,7 @@ const detected = (opts: { root: string }): string[] =>
 const currentAgents = async (opts: {
   root: string;
 }): Promise<{ ok: true; agents: string[]; chosen: boolean } | { ok: false; error: string }> => {
-  const loaded = await loadConfig({ root: opts.root });
+  const loaded = await ConfigLoader.load({ root: opts.root });
 
   if (!loaded.ok) {
     return { ok: false, error: loaded.error };

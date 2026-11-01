@@ -9,7 +9,7 @@ import {
   readAgentTable,
   resolveAgentsInTerminal,
 } from '../agents/index.ts';
-import { loadConfig } from '../config/index.ts';
+import { ConfigLoader } from '../config/index.ts';
 import {
   agentNotes,
   diffBaseRules,
@@ -74,7 +74,7 @@ export const runSyncFlow = async (
     return ExitCodes.OK;
   }
 
-  const loaded = await loadConfig({ root: opts.cwd });
+  const loaded = await ConfigLoader.load({ root: opts.cwd });
 
   if (!loaded.ok) {
     process.stderr.write(`vulcan sync: ${loaded.error}\n`);

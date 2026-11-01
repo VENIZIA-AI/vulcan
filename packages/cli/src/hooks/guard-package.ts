@@ -3,7 +3,7 @@ import { basename, dirname, isAbsolute, join, normalize, relative, sep } from 'n
 import { GuardDecisions, HookConstants, PackageVerdictKinds } from './common/index.ts';
 import type { IManifestHookInput, TPackageVerdictKind } from './common/index.ts';
 import { forHost } from './decision.ts';
-import { LayoutKeys, validLayoutFolders } from '../common/layout-folder.ts';
+import { LayoutFolder, LayoutKeys } from '../common/layout-folder.ts';
 
 const MANIFEST_FILE = '.agents/vulcan.manifest.json';
 const PACKAGE_FILE = 'package.json';
@@ -85,7 +85,7 @@ const readProject = (opts: { start: string }): IProjectView | undefined => {
   // The manifest is read through the same validator as the config: a folder that is not one is dropped.
   if (isRecord(layoutHolder)) {
     for (const key of LayoutKeys.MANAGED) {
-      const folders = validLayoutFolders({ value: layoutHolder.value[key] });
+      const folders = LayoutFolder.valid({ value: layoutHolder.value[key] });
 
       if (folders.length > 0) {
         layout[key] = folders;

@@ -25,13 +25,6 @@ const programsOf = (opts: { command: string }): { name: string; args: string[] }
   }
 };
 
-/** The tool input as a short stable key: the same call twice has the same key. */
-export const callKeyOf = (opts: { tool: string; input: unknown }): string =>
-  `${opts.tool}:${createHash('sha1')
-    .update(JSON.stringify(opts.input ?? null))
-    .digest('hex')
-    .slice(0, SignalConstants.EVENT_KEY_LENGTH)}`;
-
 const isProbeProgram = (opts: { name: string; args: string[] }): boolean => {
   const { name, args } = opts;
 
@@ -63,10 +56,6 @@ const isProbeProgram = (opts: { name: string; args: string[] }): boolean => {
 
   return false;
 };
-
-/** A command that asks public state: the registry, the forge, a remote, an outside URL; not a write. */
-export const isPublicProbe = (opts: { command: string }): boolean =>
-  programsOf({ command: opts.command }).some((program) => isProbeProgram(program));
 
 const isGateProgram = (opts: { name: string; args: string[] }): boolean => {
   const { name, args } = opts;
@@ -106,27 +95,41 @@ const isGateProgram = (opts: { name: string; args: string[] }): boolean => {
   return GATE_TOOLS.has(name);
 };
 
-/** The gates a command line runs (tests, lint, build, the project's own gates), each as a short name. */
-export const gatesOf = (opts: { command: string }): string[] =>
-  programsOf({ command: opts.command })
-    .filter((program) => isGateProgram(program))
-    .map((program) =>
-      [program.name, ...program.args].join(' ').slice(0, SignalConstants.GATE_KEY_LENGTH),
-    );
-
-/** What an edited file is for the nudge: a skill (with its name), a rules file, or neither. */
-export const watchedFileOf = (opts: {
-  path: string;
-}): { kind: string; name: string } | undefined => {
-  if (SCRATCH.test(opts.path)) {
-    return undefined;
+export class SignalClassifier {
+  /** The tool input as a short stable key: the same call twice has the same key. */
+  static callKeyOf(opts: { tool: string; input: unknown }): string {
+    return `${opts.tool}:${createHash('sha1')
+      .update(JSON.stringify(opts.input ?? null))
+      .digest('hex')
+      .slice(0, SignalConstants.EVENT_KEY_LENGTH)}`;
   }
 
-  const skill = SKILL_FILE.exec(opts.path)?.[1];
-
-  if (skill !== undefined) {
-    return { kind: WatchedKinds.SKILL, name: skill };
+  /** A command that asks public state: the registry, the forge, a remote, an outside URL; not a write. */
+  static isPublicProbe(opts: { command: string }): boolean {
+    return programsOf({ command: opts.command }).some((program) => isProbeProgram(program));
   }
 
-  return RULES_FILE.test(opts.path) ? { kind: WatchedKinds.RULES, name: opts.path } : undefined;
-};
+  /** The gates a command line runs (tests, lint, build, the project's own gates), each as a short name. */
+  static gatesOf(opts: { command: string }): string[] {
+    return programsOf({ command: opts.command })
+      .filter((program) => isGateProgram(program))
+      .map((program) =>
+        [program.name, ...program.args].join(' ').slice(0, SignalConstants.GATE_KEY_LENGTH),
+      );
+  }
+
+  /** What an edited file is for the nudge: a skill (with its name), a rules file, or neither. */
+  static watchedFileOf(opts: { path: string }): { kind: string; name: string } | undefined {
+    if (SCRATCH.test(opts.path)) {
+      return undefined;
+    }
+
+    const skill = SKILL_FILE.exec(opts.path)?.[1];
+
+    if (skill !== undefined) {
+      return { kind: WatchedKinds.SKILL, name: skill };
+    }
+
+    return RULES_FILE.test(opts.path) ? { kind: WatchedKinds.RULES, name: opts.path } : undefined;
+  }
+}

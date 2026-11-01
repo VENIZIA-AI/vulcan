@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../common/index.ts';
 import { lintSkill } from '../doctor/index.ts';
 import { SkillCatalog } from '@venizia/vulcan-atlas';
-import { frontmatterOf } from '../skills/index.ts';
+import { SkillFrontmatter } from '../skills/index.ts';
 import { VisualizeLimits } from '../visualize/index.ts';
 
 const SKILLS_DIRECTORY = join(BASE_DIRECTORY, 'skills');
@@ -64,7 +64,7 @@ describe('the shipped skill build-a-feature', () => {
 test('every shipped skill says when to use it, in a "Use when" sentence', () => {
   const names = readdirSync(SKILLS_DIRECTORY);
   const without = names.filter((name) => {
-    const { description } = frontmatterOf({
+    const { description } = SkillFrontmatter.frontmatterOf({
       text: readFileSync(join(SKILLS_DIRECTORY, name, 'SKILL.md'), 'utf8'),
     }).data;
 
@@ -104,7 +104,7 @@ describe('the shipped agent-work skills', () => {
 
   test.each(NAMES)('%s ships, passes the skill lint and is named like its folder', (name) => {
     expect(lintSkill({ directory: join(SKILLS_DIRECTORY, name) })).toEqual([]);
-    expect(frontmatterOf({ text: read(name) }).data.name).toBe(name);
+    expect(SkillFrontmatter.frontmatterOf({ text: read(name) }).data.name).toBe(name);
   });
 
   // A description is context every turn pays for: a trigger, under 700 characters (the routing eval found the

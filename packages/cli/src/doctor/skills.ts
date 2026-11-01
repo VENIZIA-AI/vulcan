@@ -3,7 +3,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import type { ICheckContext } from './checks.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { IViolation } from './common/index.ts';
-import { frontmatterOf } from '../skills/index.ts';
+import { SkillFrontmatter } from '../skills/index.ts';
 
 /**
  * Anthropic's skill-authoring rules (platform.claude.com, Agent Skills best practices), as checks:
@@ -44,7 +44,7 @@ export const lintSkill = (opts: { directory: string }): string[] => {
 
   const problems: string[] = [];
   const text = readFileSync(skillFile, 'utf8');
-  const frontmatter = frontmatterOf({ text });
+  const frontmatter = SkillFrontmatter.frontmatterOf({ text });
   const { name, description } = frontmatter.data;
 
   // One file a project cannot parse is a finding about that file - the other checks still run.

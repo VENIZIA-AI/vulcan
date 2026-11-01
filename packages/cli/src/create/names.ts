@@ -1,7 +1,7 @@
 import { readSync } from 'node:fs';
 
-import { layoutFolderProblem, listedFoldersNote } from '../common/layout-folder.ts';
-import { menusAvailable, promptSelect, promptText } from '../ui/index.ts';
+import { LayoutFolder } from '../common/layout-folder.ts';
+import { TerminalCapability, TerminalPrompt } from '../ui/index.ts';
 import { AppSides, CreateConstants, CreateFlags } from './common/index.ts';
 import type {
   IAskOptions,
@@ -36,7 +36,7 @@ export const SCOPE_PATTERN = /^@[a-z0-9][a-z0-9-]*$/;
  * where menus are drawn; a plain terminal and a script give `--scope`. `null` is a cancel.
  */
 export const askScope = async (): Promise<string | undefined | null> => {
-  const answer = await promptText({
+  const answer = await TerminalPrompt.promptText({
     message: 'Package scope (optional, like @acme; empty for none)',
     validate: (value) =>
       value.trim() === '' || SCOPE_PATTERN.test(value.trim())
@@ -80,7 +80,7 @@ export const nameProblem = (opts: { name: string }): string | undefined =>
 /** Why a value is not valid for a field: a folder path for a path field, a name for the rest. Undefined when it is valid. */
 const fieldProblem = (opts: { field: INameField; value: string }): string | undefined =>
   opts.field.isPath === true
-    ? layoutFolderProblem({ folder: opts.value })
+    ? LayoutFolder.layoutFolderProblem({ folder: opts.value })
     : nameProblem({ name: opts.value });
 
 const NEWLINE = 0x0a;
@@ -167,7 +167,7 @@ const NEW_FOLDER = ':new-folder';
 /** A menu, not a line: existing folders are picked, a new name is typed with its default shown. */
 const askWithMenus: TAsk = async (opts) => {
   if (opts.choices !== undefined && opts.choices.length > 0) {
-    const picked = await promptSelect({
+    const picked = await TerminalPrompt.promptSelect({
       message: opts.question,
       choices: [
         ...opts.choices.map((value) => ({ value, label: value })),
@@ -181,7 +181,7 @@ const askWithMenus: TAsk = async (opts) => {
     }
   }
 
-  return promptText({
+  return TerminalPrompt.promptText({
     message: opts.question,
     defaultValue: opts.previous,
     validate: opts.validate,
@@ -190,7 +190,7 @@ const askWithMenus: TAsk = async (opts) => {
 
 /** Menus in a terminal that can draw them, the plain question everywhere else. */
 export const askInTerminal: TAsk = (opts) =>
-  menusAvailable() ? askWithMenus(opts) : askWithPrompt(opts);
+  TerminalCapability.menusAvailable() ? askWithMenus(opts) : askWithPrompt(opts);
 
 const askUntilValid = async (opts: { field: INameField; ask: TAsk }): Promise<string | null> => {
   const { field } = opts;
@@ -274,7 +274,7 @@ export const resolveNames = async (opts: {
 
       const listed =
         field.choices !== undefined && field.choices.length > 1
-          ? `; ${listedFoldersNote({ folders: field.choices })}`
+          ? `; ${LayoutFolder.listedNote({ folders: field.choices })}`
           : '';
 
       return {

@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadConfig, resolvePackages } from '../../config/index.ts';
+import { ConfigLoader, ProjectPackages } from '../../config/index.ts';
 import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
 import { checkManifests } from '../format.helper.ts';
 import { copyWithFields, copyWithUrls } from '../preset.helper.ts';
@@ -628,13 +628,13 @@ describe('vulcan add --preset', () => {
 
     expect(outsideBlock({ source: after })).toBe(outsideBlock({ source: edited }));
 
-    const loaded = await loadConfig({ root });
+    const loaded = await ConfigLoader.load({ root });
 
     if (!loaded.ok) {
       throw new Error(loaded.error);
     }
 
-    const dirs = resolvePackages({ config: loaded.config }).map((entry) => entry.dir);
+    const dirs = ProjectPackages.resolve({ config: loaded.config }).map((entry) => entry.dir);
     const sourceNames = loaded.config.atlas.sources.map((source) => source.name);
 
     expect(dirs.toSorted()).toEqual(['billing', 'core-api', 'worker']);

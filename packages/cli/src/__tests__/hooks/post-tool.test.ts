@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildPostToolOutput } from '../../hooks/post-tool.ts';
 import { buildPromptContract, buildStopOutput } from '../../hooks/index.ts';
-import { readSignals } from '../../signals/index.ts';
+import { SignalState } from '../../signals/index.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
@@ -215,7 +215,7 @@ const background = (): Record<string, unknown> => {
 };
 
 describe('which gates failed', () => {
-  const failedGatesOf = (root: string) => readSignals({ root, session: '' }).failedGates;
+  const failedGatesOf = (root: string) => SignalState.read({ root, session: '' }).failedGates;
 
   test('a result with a non-zero exit code is a failure; a background command has no result yet', () => {
     const root = project();
