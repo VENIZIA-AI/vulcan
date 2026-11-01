@@ -1,7 +1,5 @@
+import { RecordValue } from '../common/record.ts';
 import { RemoveOutcomes } from './common/index.ts';
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** The key of VULCAN's entry in Antigravity's hooks file: the file maps a hook name to its events. */
 export const GUARD_HOOK_NAME = 'vulcan-guards';
@@ -49,7 +47,7 @@ const parseHooks = (opts: { text: string | undefined }): TParsedHooks => {
   try {
     const parsed: unknown = JSON.parse(opts.text);
 
-    return isRecord(parsed)
+    return RecordValue.isRecord(parsed)
       ? { ok: true, hooks: parsed }
       : { ok: false, reason: 'the hooks file is not a JSON object' };
   } catch (error) {

@@ -1,11 +1,9 @@
 import { spawnSync } from 'node:child_process';
+import { TextValue } from '../common/text.ts';
 import { resolvePackages } from '../config/index.ts';
 import type { ICheckContext } from './checks.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { IViolation } from './common/index.ts';
-
-const escapeLiteral = (opts: { text: string }): string =>
-  opts.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** The tag pattern as a regular expression that captures `<dir>` (or `<package>`). */
 const tagPatternOf = (opts: { template: string }): RegExp =>
@@ -28,7 +26,7 @@ const tagPatternOf = (opts: { template: string }): RegExp =>
           }
 
           default: {
-            return escapeLiteral({ text: part });
+            return TextValue.escapeLiteral({ text: part });
           }
         }
       })

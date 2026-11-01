@@ -19,8 +19,6 @@ interface IBareWord {
   isPrefix: boolean;
 }
 
-const isStopword = (word: string): boolean => Stopwords.isValid(word.toLowerCase());
-
 const quoteWord = (word: IBareWord): string =>
   word.isPrefix ? `${quoteTerm(word.raw)}*` : quoteTerm(word.raw);
 
@@ -59,7 +57,7 @@ const termsOf = (opts: { query: string }): { terms: string[]; corpus?: TCorpus }
     bareWords.push({ raw: isPrefix ? word.slice(0, -1) : word, isPrefix });
   }
 
-  const contentWords = bareWords.filter((word) => !isStopword(word.raw));
+  const contentWords = bareWords.filter((word) => !Stopwords.isStopword({ word: word.raw }));
   const selectedWords = contentWords.length > 0 ? contentWords : bareWords;
 
   return { terms: [...phraseTerms, ...selectedWords.map(quoteWord)], corpus };

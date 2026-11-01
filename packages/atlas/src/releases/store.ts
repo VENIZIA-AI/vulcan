@@ -1,15 +1,8 @@
 import { BaseHelper } from '@/common/helper';
 import { packageOfDirectory, packageOfQuery } from '@/common/package-map';
 import type { IPackageMapEntry } from '@/common/package-map';
+import { TextValue } from '@/common/text';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
-
-const byText = (left: string, right: string): number => {
-  if (left === right) {
-    return 0;
-  }
-
-  return left < right ? -1 : 1;
-};
 
 /**
  * The generated release table in memory: which versions of a package exist, when each shipped, and
@@ -46,8 +39,10 @@ export class ReleaseStore extends BaseHelper {
     // Newest first, so every window answers in that order without re-sorting.
     this.changelogs = [...(opts.table.changelogs ?? [])]
       .map((entry) => ({ ...entry, packages: entry.packages.map(nameOf) }))
-      .sort((left, right) => byText(right.date, left.date));
-    this.live = [...(opts.table.livePackages ?? [])].map(nameOf).sort(byText);
+      .sort((left, right) => TextValue.compare({ left: right.date, right: left.date }));
+    this.live = [...(opts.table.livePackages ?? [])]
+      .map(nameOf)
+      .sort((left, right) => TextValue.compare({ left, right }));
   }
 
   /** Whether no table was loaded at all - distinct from a table that simply does not carry a package. */
@@ -57,14 +52,14 @@ export class ReleaseStore extends BaseHelper {
 
   /** Every package the release table knows, sorted. */
   packages(): string[] {
-    return [...this.releases.keys()].sort(byText);
+    return [...this.releases.keys()].sort((left, right) => TextValue.compare({ left, right }));
   }
 
   /** Every package released or declared in the package list, sorted. */
   declaredPackages(): string[] {
     return [
       ...new Set([...this.releases.keys(), ...this.packageMap.map((entry) => entry.name)]),
-    ].sort(byText);
+    ].sort((left, right) => TextValue.compare({ left, right }));
   }
 
   /** Every date a changelog entry carries, newest first, each date once. */

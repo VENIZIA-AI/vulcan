@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+import { recordOf, stringOf } from '@/prebuilt/wire';
 import { LibraryKinds, PackageKinds, SourcePins } from './constants';
 import type { TAppSide, TLibraryKind, TPackageKind, TSourcePin } from './types';
 
@@ -72,16 +73,6 @@ export interface IAtlasProject {
   /** `false` when the manifest turns the prebuilt-index download off for this project's sources; absent otherwise. */
   prebuilt?: false;
 }
-
-type TRecord = Record<string, unknown>;
-
-const recordOf = (opts: { value: unknown }): TRecord =>
-  typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value)
-    ? Object.fromEntries(Object.entries(opts.value))
-    : {};
-
-const stringOf = (opts: { value: unknown }): string | undefined =>
-  typeof opts.value === 'string' ? opts.value : undefined;
 
 /** Whether `name` is an npm package name - what a symbols cache file and a registry URL are built from. */
 export const isNpmPackageName = (opts: { name: string }): boolean =>

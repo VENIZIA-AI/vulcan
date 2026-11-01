@@ -1,3 +1,4 @@
+import { RecordValue } from '../common/record.ts';
 import {
   ConceptStatuses,
   IssueSeverities,
@@ -41,9 +42,6 @@ const isTimestamp = (opts: { value: unknown }): boolean =>
   typeof opts.value === 'string' &&
   ISO_DATETIME_WITH_OFFSET.test(opts.value) &&
   !Number.isNaN(Date.parse(opts.value));
-
-const isMapping = (opts: { value: unknown }): opts is { value: TYamlMapping } =>
-  typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
 
 const toList = (opts: { value: unknown }): unknown[] => {
   if (Array.isArray(opts.value)) {
@@ -105,7 +103,7 @@ const checkTrustFields = (opts: { file: string; data: TYamlMapping }): IConforma
     const holder = { value: source };
 
     if (
-      !isMapping(holder) ||
+      !RecordValue.isRecord(holder) ||
       typeof holder.value.resource !== 'string' ||
       holder.value.resource === ''
     ) {
@@ -132,7 +130,7 @@ const checkTrustFields = (opts: { file: string; data: TYamlMapping }): IConforma
 
   const generated = { value: data.generated };
 
-  if (isMapping(generated)) {
+  if (RecordValue.isRecord(generated)) {
     issues.push(...checkActor({ file, field: 'generated.by', value: generated.value.by }));
     issues.push(...checkTimestamp({ file, field: 'generated.at', value: generated.value.at }));
   }
@@ -140,7 +138,7 @@ const checkTrustFields = (opts: { file: string; data: TYamlMapping }): IConforma
   toList({ value: data.verified }).forEach((event, index) => {
     const holder = { value: event };
 
-    if (isMapping(holder)) {
+    if (RecordValue.isRecord(holder)) {
       issues.push(...checkActor({ file, field: `verified[${index}].by`, value: holder.value.by }));
       issues.push(
         ...checkTimestamp({ file, field: `verified[${index}].at`, value: holder.value.at }),

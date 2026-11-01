@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { RecordValue } from '../common/record.ts';
 import { OkfProjectConstants } from './common/index.ts';
 import type {
   IOkfPackage,
@@ -10,10 +11,8 @@ import type {
 
 type TRecord = Record<string, unknown>;
 
-const isRecord = (opts: { value: unknown }): opts is { value: TRecord } =>
-  typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
-
-const recordOf = (opts: { value: unknown }): TRecord => (isRecord(opts) ? opts.value : {});
+const recordOf = (opts: { value: unknown }): TRecord =>
+  RecordValue.isRecord(opts) ? opts.value : {};
 
 const stringOf = (opts: { value: unknown; fallback: string }): string =>
   typeof opts.value === 'string' ? opts.value : opts.fallback;
@@ -165,7 +164,9 @@ export const readOkfProject = (): IOkfProject => {
   const outputs = stringsOf({ value: viz.outputs });
   const changelogs = knowledge.changelogs;
   const atlas = recordOf({ value: config.atlas });
-  const copy = isRecord({ value: viz.copy }) ? recordOf({ value: viz.copy }) : undefined;
+  const copy = RecordValue.isRecord({ value: viz.copy })
+    ? recordOf({ value: viz.copy })
+    : undefined;
 
   const project: IOkfProject = {
     root,

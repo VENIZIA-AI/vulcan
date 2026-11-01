@@ -9,10 +9,10 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import { readProperty } from '../common/index.ts';
-import { AppSides, CreateConstants } from './common/index.ts';
+import { AppSides, CreateConstants, PresetPath } from './common/index.ts';
 import type { ILocatedPreset, IPresetSpec, TAppSide, TPresetResult } from './common/index.ts';
 
 const PRESET_SCHEMA = z
@@ -61,23 +61,17 @@ const UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 const EXECUTABLE_BITS = 0o111;
 const PERMISSION_BITS = 0o777;
 
-const escapes = (opts: { root: string; path: string }): boolean => {
-  const relativePath = relative(opts.root, opts.path);
-
-  return isAbsolute(relativePath) || relativePath === '..' || relativePath.startsWith(`..${sep}`);
-};
-
 /** A path a preset names must stay inside its own package, with symlinks resolved. */
 const resolveInside = (opts: { root: string; from: string; path: string }): string | undefined => {
   const resolved = resolve(opts.from, opts.path);
 
-  if (escapes({ root: opts.root, path: resolved })) {
+  if (PresetPath.escapes({ root: opts.root, path: resolved })) {
     return undefined;
   }
 
   if (
     existsSync(resolved) &&
-    escapes({ root: realpathSync(opts.root), path: realpathSync(resolved) })
+    PresetPath.escapes({ root: realpathSync(opts.root), path: realpathSync(resolved) })
   ) {
     return undefined;
   }

@@ -15,6 +15,7 @@ import { runReleasesCommand } from './releases/generator';
 import { buildSourcesServer, refreshIntervalMs } from './server/index';
 import type { Transport } from './protocol/index';
 import { hasAtlasProject, readAtlasProject } from './common/project-config';
+import { TextValue } from './common/text';
 import { runIndexCommand } from './prebuilt/index';
 import { resolveServableSources, resolveSources } from './sources/index';
 import type { IAtlasSource } from './sources/index';
@@ -22,9 +23,6 @@ import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
 
 const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help`;
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
 
 const usageError = (message: string): never => {
   console.error(`${AtlasConstants.SERVER_NAME}: ${message}\n${USAGE}`);
@@ -87,7 +85,7 @@ if (subcommand === AtlasCommands.CHANGELOGS) {
   try {
     process.exit(runChangelogsCommand({ command: argv[1], argv }));
   } catch (error) {
-    console.error(`${AtlasConstants.SERVER_NAME}: ${messageOf(error)}`);
+    console.error(`${AtlasConstants.SERVER_NAME}: ${TextValue.messageOf({ error })}`);
     process.exit(1);
   }
 }
@@ -96,7 +94,7 @@ if (subcommand === AtlasCommands.CONCEPTS) {
   try {
     process.exit(runConceptsCommand({ command: argv[1] }));
   } catch (error) {
-    console.error(`${AtlasConstants.SERVER_NAME}: ${messageOf(error)}`);
+    console.error(`${AtlasConstants.SERVER_NAME}: ${TextValue.messageOf({ error })}`);
     process.exit(1);
   }
 }
@@ -266,6 +264,6 @@ main().catch((error: unknown) => {
     usageError(error.message);
   }
 
-  console.error(`${AtlasConstants.SERVER_NAME}: ${messageOf(error)}`);
+  console.error(`${AtlasConstants.SERVER_NAME}: ${TextValue.messageOf({ error })}`);
   process.exit(1);
 });

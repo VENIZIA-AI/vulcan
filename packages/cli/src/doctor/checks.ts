@@ -2,7 +2,7 @@ import { Glob } from 'bun';
 import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, relative, sep } from 'node:path';
-import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
+import { BASE_DIRECTORY, ProjectLayout, RecordValue } from '../common/index.ts';
 import { LayoutKeys, layoutFoldersOf } from '../common/layout-folder.ts';
 import {
   coversFolder,
@@ -644,9 +644,6 @@ const readJsonObject = (opts: { file: string }): Record<string, unknown> | undef
   }
 };
 
-const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
-  typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
-
 /** Whether git lists the file as untracked and not ignored: what a clean-tree check, such as a release, refuses on. */
 const isUntrackedAndVisible = (opts: { root: string; path: string }): boolean => {
   const listed = spawnSync('git', ['status', '--porcelain', '--', opts.path], {
@@ -708,17 +705,17 @@ export const checkMcpAtlas = (opts: ICheckContext): IViolation[] => {
       );
     } else {
       const holder = { value: parsed['mcpServers'] };
-      const servers = isRecord(holder) ? holder.value : {};
+      const servers = RecordValue.isRecord(holder.value) ? holder.value : {};
       const entry = { value: servers[ATLAS_SERVER] };
-      const args = isRecord(entry) ? entry.value['args'] : undefined;
+      const args = RecordValue.isRecord(entry.value) ? entry.value['args'] : undefined;
       const isCanonical =
-        isRecord(entry) &&
+        RecordValue.isRecord(entry.value) &&
         entry.value['command'] === 'bun' &&
         Array.isArray(args) &&
         args.length === CANONICAL_ATLAS_ARGS.length &&
         args.every((arg, index) => arg === CANONICAL_ATLAS_ARGS[index]);
 
-      if (!isRecord(entry)) {
+      if (!RecordValue.isRecord(entry.value)) {
         warnings.push(
           mcpWarning({
             file: MCP_FILE,

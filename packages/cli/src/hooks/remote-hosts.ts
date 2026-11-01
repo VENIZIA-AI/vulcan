@@ -2,7 +2,7 @@ import { HookConstants } from './common/index.ts';
 import type { IWriteHit } from './common/index.ts';
 import { isDataOnly } from './command-view.ts';
 import { forHost } from './decision.ts';
-import { optionTakesNextWord, programOf, splitHeredocs } from './shell.ts';
+import { optionTakesNextWord, programOf, ShellPrograms, splitHeredocs } from './shell.ts';
 
 // -----------------------------------------------------------------------------
 // The remote-host guard: a Bash command that reaches a host the project has not listed asks first.
@@ -241,25 +241,10 @@ const SHELL_KEYWORDS = new Set([
 
 const HTTP_CLIENTS = new Set(['curl', 'wget', 'http', 'https', 'httpie', 'xh', 'xhs']);
 
-/** Programs that run the rest of their line; the options each takes a value for are in `hooks/shell.ts`. */
-const WRAPPERS = new Set([
-  'sudo',
-  'doas',
-  'env',
-  'time',
-  'nohup',
-  'nice',
-  'ionice',
-  'exec',
-  'stdbuf',
-  'timeout',
-  'setsid',
-  'xargs',
-  'watch',
-  'sshpass',
-]);
+/** Programs that run the rest of their line: the names and the options each takes a value for are in `hooks/shell.ts`; `command` is handled apart below. */
+const WRAPPERS = new Set(ShellPrograms.WRAPPER_NAMES.filter((name) => name !== 'command'));
 
-const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh', 'ash']);
+const SHELLS = new Set([...ShellPrograms.SHELL_NAMES, 'ksh', 'ash']);
 
 /** Look a command up or describe it; running none of the words that follow. */
 const LOOKUPS = new Set(['man', 'which', 'type', 'whereis', 'apropos', 'whatis', 'echo', 'printf']);

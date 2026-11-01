@@ -1,3 +1,5 @@
+import { join } from 'node:path';
+
 export class SyncStatuses {
   static readonly CREATED = 'created';
   static readonly REPLACED = 'replaced';
@@ -31,6 +33,8 @@ export class SyncConstants {
   /** What sync applied last time, so a later sync can take back what the project no longer asks for. */
   static readonly MANAGED_FILE = 'vulcan-managed.json';
   static readonly SKILLS_DIRECTORY = 'skills';
+  /** The Claude skills folder, relative to the project root. */
+  static readonly CLAUDE_SKILLS = join(this.CLAUDE_DIRECTORY, this.SKILLS_DIRECTORY);
   static readonly SKILL_FILE = 'SKILL.md';
   /** The settings key of hook entries: sync takes a managed hook back by its command, not its whole entry. */
   static readonly HOOKS_KEY = 'hooks';

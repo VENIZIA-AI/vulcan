@@ -49,4 +49,9 @@ export class Stopwords {
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);
   }
+
+  /** Whether `word` is a stopword in any letter case. */
+  static isStopword(opts: { word: string }): boolean {
+    return this.isValid(opts.word.toLowerCase());
+  }
 }

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { inspectRemoteCommand, matchesHost, parseTrustedList } from '../../hooks/remote-hosts.ts';
+import { ShellPrograms } from '../../hooks/shell.ts';
 
 const POLICY = {
   trusted: ['lab1', '*.lab.example.com', '10.0.0.5', '$LAB_HOST'],
@@ -409,5 +410,54 @@ describe('docker over ssh: a trusted host in the parsed form passes', () => {
 
   test('a local socket reaches no remote host', () => {
     expect(asks('docker -H unix:///var/run/docker.sock ps')).toBe(false);
+  });
+});
+
+describe('the program tables of the shell parser', () => {
+  // The tables are shared by two guards: a name that leaves one silently stops being read by the other, and the loops
+  // below follow the table, so the names are pinned here as well.
+  test('the wrappers and the shells are exactly these names', () => {
+    expect([...ShellPrograms.WRAPPER_NAMES].sort()).toEqual(
+      [
+        'command',
+        'doas',
+        'env',
+        'exec',
+        'ionice',
+        'nice',
+        'nohup',
+        'setsid',
+        'sshpass',
+        'stdbuf',
+        'sudo',
+        'time',
+        'timeout',
+        'watch',
+        'xargs',
+      ].sort(),
+    );
+    expect([...ShellPrograms.SHELL_NAMES].sort()).toEqual(['bash', 'dash', 'sh', 'zsh']);
+  });
+
+  test.each(ShellPrograms.WRAPPER_NAMES)(
+    'the wrapper %s is read past to the ssh it runs',
+    (name) => {
+      const spellings = [
+        `${name} ssh evil.com`,
+        `${name} 5 ssh evil.com`,
+        `${name} -p x ssh evil.com`,
+      ];
+
+      expect(spellings.some((command) => asks(command))).toBe(true);
+    },
+  );
+
+  test.each(ShellPrograms.SHELL_NAMES)('the shell %s is read into its -c command', (name) => {
+    expect(asks(`${name} -c 'ssh evil.com'`)).toBe(true);
+  });
+
+  test('ksh and ash are followed as shells although the heredoc reader does not know them', () => {
+    expect(asks("ksh -c 'ssh evil.com'")).toBe(true);
+    expect(asks("ash -c 'ssh evil.com'")).toBe(true);
   });
 });
