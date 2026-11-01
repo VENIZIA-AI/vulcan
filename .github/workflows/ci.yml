@@ -2,18 +2,24 @@ name: Checks
 # The title of a pull request run is the pull request's title; any other run is titled by its branch.
 run-name: '${{ github.event.pull_request.title || github.ref_name }}'
 
-# Manual only, as in IGNIS. The release workflow runs every gate below before it publishes, so a
-# run on every pull request and every push to develop would pay for the same gates twice.
-# Nothing enforces this workflow as a required status check, so running it on demand blocks nothing.
+# Every pull request into develop or main runs every gate below, so a defect shows on the pull request and
+# not in the release run that would stop on it. There is no push trigger on purpose: a push to develop (the
+# release bot's commits included) would pay for the same gates again, and the pull request already ran them.
+# A newer push to a pull request cancels its older run. The workflow can still be dispatched by hand.
+# Because nothing runs on a push, a pull request that was green is not run again when another one merges
+# first; the release workflow runs the gates once more before it publishes.
+# Nothing makes this a required status check; that is a repository setting, and it needs both jobs below.
 on:
+  pull_request:
+    branches: [develop, main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: false
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true

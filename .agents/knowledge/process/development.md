@@ -15,6 +15,8 @@ make gates ARGS="--keep-going"    # run them all and report every failure
 make gates ARGS="--list"          # print the list, run nothing
 ```
 
+CI runs the same list on every pull request into `develop` or `main` (`pull_request`, no `push` trigger, so a push to develop does not run it a second time; a newer push to the pull request cancels the older run) and by hand (`workflow_dispatch`). The check is not required to merge unless the repository ruleset says so.
+
 A test fails when `ci.yml` has a make line the reader misses, or when CI loses one of the checks it has always held. Do not pipe a gate through `tail` or `grep` to read it: the exit status of the pipe is not make's. The checks one by one:
 
 ```bash
