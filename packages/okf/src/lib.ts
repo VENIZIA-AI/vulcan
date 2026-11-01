@@ -8,8 +8,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, posix, relative } from 'node:path';
 
 import { PRUNE_DIRS, RESERVED_FILES } from './config.ts';
-import { readOkfProject } from './project/index.ts';
-import { parseYamlMapping, splitFrontmatter } from './spec/frontmatter.ts';
+import { OkfProject } from './project/index.ts';
+import { OkfFrontmatter } from './spec/frontmatter.ts';
 
 export type Concept = {
   id: string; // bundle-relative, leading slash, no extension - e.g. "/packages/core-server"
@@ -52,21 +52,8 @@ const walkMarkdown = (opts: { dir: string }): string[] => {
   return out;
 };
 
-/**
- * Strip fenced and inline code before scanning for links.
- *
- * A markdown link inside a code fence is an example, not a real edge: leaving it in
- * made `check` report broken links for illustrative snippets and made viz draw edges
- * that do not exist. Fences are replaced (not deleted) so nothing outside them shifts.
- */
-export const stripCode = (opts: { text: string }): string => {
-  return opts.text
-    .replace(/```[\s\S]*?```/g, (block) => block.replace(/[^\n]/g, ' '))
-    .replace(/~~~[\s\S]*?~~~/g, (block) => block.replace(/[^\n]/g, ' '))
-    .replace(/`[^`\n]*`/g, (span) => ' '.repeat(span.length));
-};
-
 const MARKDOWN_LINK = /\]\(([^)\s]+)\)/g;
+
 const URL_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
 /** A link target as a concept id: bundle-absolute or relative to `fromId` (OKF v0.2 §6.1), anchor dropped. */
@@ -84,37 +71,30 @@ const resolveLinkTarget = (opts: { target: string; fromId: string }): string | u
     : posix.normalize(posix.join(posix.dirname(opts.fromId), id));
 };
 
-export const extractLinks = (opts: { text: string; id: string }): string[] => {
-  const prose = stripCode({ text: opts.text });
-  const targets = [...prose.matchAll(MARKDOWN_LINK)]
-    .map((match) => resolveLinkTarget({ target: match[1], fromId: opts.id }))
-    .filter((target): target is string => target !== undefined);
-
-  return [...new Set(targets)];
-};
-
-/** Split OKF frontmatter from the body. Throws on unparseable YAML; `spec/` reports it as an issue instead. */
-export const parseFrontmatter = (opts: {
-  text: string;
-  file: string;
-}): {
-  data: Record<string, unknown>;
-  body: string;
-} => {
-  const { yaml, body } = splitFrontmatter({ text: opts.text });
-
-  if (yaml === undefined) {
-    return { data: {}, body };
+export class MarkdownText {
+  /**
+   * Strip fenced and inline code before scanning for links.
+   *
+   * A markdown link inside a code fence is an example, not a real edge: leaving it in
+   * made `check` report broken links for illustrative snippets and made viz draw edges
+   * that do not exist. Fences are replaced (not deleted) so nothing outside them shifts.
+   */
+  static stripCode(opts: { text: string }): string {
+    return opts.text
+      .replace(/```[\s\S]*?```/g, (block) => block.replace(/[^\n]/g, ' '))
+      .replace(/~~~[\s\S]*?~~~/g, (block) => block.replace(/[^\n]/g, ' '))
+      .replace(/`[^`\n]*`/g, (span) => ' '.repeat(span.length));
   }
 
-  const parsed = parseYamlMapping({ yaml });
+  static extractLinks(opts: { text: string; id: string }): string[] {
+    const prose = MarkdownText.stripCode({ text: opts.text });
+    const targets = [...prose.matchAll(MARKDOWN_LINK)]
+      .map((match) => resolveLinkTarget({ target: match[1], fromId: opts.id }))
+      .filter((target): target is string => target !== undefined);
 
-  if (!parsed.ok) {
-    throw new Error(`invalid YAML frontmatter in ${opts.file} - ${parsed.reason}`);
+    return [...new Set(targets)];
   }
-
-  return { data: parsed.data, body };
-};
+}
 
 const asString = (opts: { value: unknown; fallback: string }): string => {
   return typeof opts.value === 'string' ? opts.value : opts.fallback;
@@ -137,44 +117,66 @@ const asTags = (opts: { value: unknown }): string[] => {
   return [];
 };
 
-export const loadConcepts = (): Concept[] => {
-  const { bundle } = readOkfProject();
+export class ConceptLoader {
+  /** Split OKF frontmatter from the body. Throws on unparseable YAML; `spec/` reports it as an issue instead. */
+  static parseFrontmatter(opts: { text: string; file: string }): {
+    data: Record<string, unknown>;
+    body: string;
+  } {
+    const { yaml, body } = OkfFrontmatter.split({ text: opts.text });
 
-  return walkMarkdown({ dir: bundle }).map((file) => {
-    const raw = readFileSync(file, 'utf8');
-    const base = file.split('/').pop() ?? '';
-    const reserved = RESERVED_FILES.has(base);
+    if (yaml === undefined) {
+      return { data: {}, body };
+    }
 
-    const { data, body } = parseFrontmatter({ text: raw, file });
-    const id = '/' + relative(bundle, file).replace(/\.md$/, '');
+    const parsed = OkfFrontmatter.parseMapping({ yaml });
 
-    return {
-      id,
-      file,
-      type: asString({ value: data.type, fallback: reserved ? '' : 'Unknown' }),
-      title: asString({ value: data.title, fallback: base.replace(/\.md$/, '') }),
-      description: asString({ value: data.description, fallback: '' }),
-      resource: asString({ value: data.resource, fallback: '' }),
-      tags: asTags({ value: data.tags }),
-      body: body.trim(),
-      raw,
-      links: extractLinks({ text: raw, id }),
-      reserved,
-    };
-  });
-};
+    if (!parsed.ok) {
+      throw new Error(`invalid YAML frontmatter in ${opts.file} - ${parsed.reason}`);
+    }
 
-/**
- * `loadConcepts()`, printing `okf: <message>` to stderr and exiting 1 on a bad frontmatter instead
- * of an unhandled exception. `check()` handles the same failure itself (it reports every problem
- * together rather than stopping at the first); every other command that reads the whole bundle
- * calls this instead of `loadConcepts()` directly.
- */
-export const loadConceptsOrExit = (): Concept[] => {
-  try {
-    return loadConcepts();
-  } catch (error) {
-    console.error(`okf: ${(error as Error).message}`);
-    process.exit(1);
+    return { data: parsed.data, body };
   }
-};
+
+  static load(): Concept[] {
+    const { bundle } = OkfProject.read();
+
+    return walkMarkdown({ dir: bundle }).map((file) => {
+      const raw = readFileSync(file, 'utf8');
+      const base = file.split('/').pop() ?? '';
+      const reserved = RESERVED_FILES.has(base);
+
+      const { data, body } = ConceptLoader.parseFrontmatter({ text: raw, file });
+      const id = '/' + relative(bundle, file).replace(/\.md$/, '');
+
+      return {
+        id,
+        file,
+        type: asString({ value: data.type, fallback: reserved ? '' : 'Unknown' }),
+        title: asString({ value: data.title, fallback: base.replace(/\.md$/, '') }),
+        description: asString({ value: data.description, fallback: '' }),
+        resource: asString({ value: data.resource, fallback: '' }),
+        tags: asTags({ value: data.tags }),
+        body: body.trim(),
+        raw,
+        links: MarkdownText.extractLinks({ text: raw, id }),
+        reserved,
+      };
+    });
+  }
+
+  /**
+   * `loadConcepts()`, printing `okf: <message>` to stderr and exiting 1 on a bad frontmatter instead
+   * of an unhandled exception. `check()` handles the same failure itself (it reports every problem
+   * together rather than stopping at the first); every other command that reads the whole bundle
+   * calls this instead of `loadConcepts()` directly.
+   */
+  static loadOrExit(): Concept[] {
+    try {
+      return ConceptLoader.load();
+    } catch (error) {
+      console.error(`okf: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
+}

@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { loadGeneration } from '../../generate/registry.ts';
-import { listPackages } from '../../source/index.ts';
+import { GenerationRegistry } from '../../generate/registry.ts';
+import { SourceScanner } from '../../source/index.ts';
 import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
 
 afterEach(clearProjectConfig);
@@ -27,7 +27,7 @@ const useApp = (opts: { okf?: object }): void => {
 test('the configured live packages, by directory name, wherever they live', () => {
   useApp({});
 
-  expect(listPackages()).toEqual([
+  expect(SourceScanner.listPackages()).toEqual([
     { dir: 'kit', path: join(APP, 'umbras/kit') },
     { dir: 'web', path: join(APP, 'apps/web') },
   ]);
@@ -36,7 +36,11 @@ test('the configured live packages, by directory name, wherever they live', () =
 test('no configured packages: every directory under packages/', () => {
   useProjectConfig({ root: join(import.meta.dir, '..', 'fixtures', 'sources'), config: {} });
 
-  expect(listPackages().map((entry) => entry.dir)).toEqual(['admin', 'kernel', 'react']);
+  expect(SourceScanner.listPackages().map((entry) => entry.dir)).toEqual([
+    'admin',
+    'kernel',
+    'react',
+  ]);
 });
 
 test('the packages table and the source map read each package where it lives', async () => {
@@ -46,7 +50,7 @@ test('the packages table and the source map read each package where it lives', a
       regions: [{ id: 'packages-table', file: 'overview/layout.md', renderer: 'packages-table' }],
     },
   });
-  const { renderers, regions } = await loadGeneration();
+  const { renderers, regions } = await GenerationRegistry.load();
   const [sourceMap] = renderers;
   const map = [
     sourceMap.renderer.render?.({

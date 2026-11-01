@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { createRenderContext } from '../../generate/define.ts';
+import { RenderContext } from '../../generate/define.ts';
 import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
 
 afterEach(clearProjectConfig);
@@ -10,7 +10,7 @@ const ROOT = join(import.meta.dir, '..', 'fixtures', 'sources');
 const contextOf = () => {
   useProjectConfig({ root: ROOT, config: {} });
 
-  return createRenderContext({ options: {} });
+  return RenderContext.create({ options: {} });
 };
 
 test('exportedClasses groups by the configured dir, recursive, abstract included, no .d.ts', () => {

@@ -18,7 +18,7 @@ import {
   renderVulcanConfig,
   replaceAppsBlock,
 } from '../../create/workspace.ts';
-import { parseYamlMapping, splitFrontmatter } from '@venizia/vulcan-okf';
+import { OkfFrontmatter } from '@venizia/vulcan-okf';
 import { renderBunfig } from '../../create/bunfig.ts';
 import { renderLibManifest } from '../../create/workspace.ts';
 import { checkManifests } from '../format.helper.ts';
@@ -503,8 +503,8 @@ describe('workspace planners', () => {
       summary,
       presetPackage: '@venizia/widget',
     });
-    const { yaml } = splitFrontmatter({ text: concept });
-    const parsed = parseYamlMapping({ yaml: yaml ?? '' });
+    const { yaml } = OkfFrontmatter.split({ text: concept });
+    const parsed = OkfFrontmatter.parseMapping({ yaml: yaml ?? '' });
 
     expect(parsed.ok).toBe(true);
     expect(parsed.ok && parsed.data.description).toBe(summary);

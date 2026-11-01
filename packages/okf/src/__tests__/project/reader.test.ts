@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { readOkfProject } from '../../project/index.ts';
+import { OkfProject } from '../../project/index.ts';
 import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
 
 afterEach(clearProjectConfig);
@@ -20,7 +20,7 @@ test('paths come back absolute, regions under the bundle, outputs under the root
       },
     },
   });
-  const project = readOkfProject();
+  const project = OkfProject.read();
 
   expect(project.root).toBe(ROOT);
   expect(project.bundle).toBe(join(ROOT, '.agents/knowledge'));
@@ -37,7 +37,7 @@ test('paths come back absolute, regions under the bundle, outputs under the root
 
 test('missing sections take the schema defaults: nothing selected, the default viz output', () => {
   useProjectConfig({ root: ROOT, config: {} });
-  const project = readOkfProject();
+  const project = OkfProject.read();
 
   expect(project.renderers).toEqual([]);
   expect(project.regions).toEqual([]);
@@ -49,22 +49,22 @@ test('missing sections take the schema defaults: nothing selected, the default v
 test('the brand defaults to the root package name without scope and -workspace, upper-cased', () => {
   useProjectConfig({ root: join(import.meta.dir, '..', 'fixtures', 'branded'), config: {} });
 
-  expect(readOkfProject().viz.brand).toBe('ACME');
+  expect(OkfProject.read().viz.brand).toBe('ACME');
 });
 
 test('outside vulcan x it stops with what to do', () => {
-  expect(() => readOkfProject()).toThrow('okf: no project config - run through `vulcan x okf`');
+  expect(() => OkfProject.read()).toThrow('okf: no project config - run through `vulcan x okf`');
 });
 
 test('one read per process: the same handoff gives back the same project', () => {
   useProjectConfig({ root: ROOT, config: {} });
-  const first = readOkfProject();
+  const first = OkfProject.read();
 
-  expect(readOkfProject()).toBe(first);
+  expect(OkfProject.read()).toBe(first);
 
   useProjectConfig({ root: '/another/project', config: {} });
 
-  expect(readOkfProject().root).toBe('/another/project');
+  expect(OkfProject.read().root).toBe('/another/project');
 });
 
 test('a VULCAN_CONFIG that is empty or not JSON stops with what to do', () => {
@@ -72,12 +72,12 @@ test('a VULCAN_CONFIG that is empty or not JSON stops with what to do', () => {
     process.env.VULCAN_CONFIG = text;
     process.env.VULCAN_PROJECT_ROOT = ROOT;
 
-    expect(() => readOkfProject()).toThrow(
+    expect(() => OkfProject.read()).toThrow(
       'okf: VULCAN_CONFIG is not valid JSON - run okf through `vulcan x`',
     );
   }
 });
 
 test('without a config it never suggests a file okf does not read', () => {
-  expect(() => readOkfProject()).not.toThrow('.configs/vulcan.config.ts');
+  expect(() => OkfProject.read()).not.toThrow('.configs/vulcan.config.ts');
 });

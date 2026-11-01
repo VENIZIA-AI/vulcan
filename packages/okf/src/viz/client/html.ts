@@ -1,5 +1,9 @@
-export const escapeHtml = (opts: { text: string }): string =>
-  opts.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+export class HtmlText {
+  static escape(opts: { text: string }): string {
+    return opts.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
 
-export const escapeAttribute = (opts: { text: string }): string =>
-  escapeHtml({ text: opts.text }).replace(/"/g, '&quot;');
+  static escapeAttribute(opts: { text: string }): string {
+    return HtmlText.escape({ text: opts.text }).replace(/"/g, '&quot;');
+  }
+}

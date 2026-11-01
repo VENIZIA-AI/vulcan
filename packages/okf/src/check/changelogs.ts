@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { RecordValue } from '../common/record.ts';
-import { readOkfProject } from '../project/index.ts';
+import { OkfProject } from '../project/index.ts';
 
 const DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---/;
@@ -39,89 +39,91 @@ const tagsOf = (opts: { root: string }): string[] => {
     : [];
 };
 
-/**
- * Project Contract v1, C3: every dated changelog entry declares the packages it covers by npm name -
- * atlas reads that list and never the prose. An optional `release: '<npm name>@<version>'` places an
- * entry git would place wrong (a backfill); it must name a tag that exists.
- */
-export const collectChangelogProblems = (): string[] => {
-  const project = readOkfProject();
-  const directory = project.changelogs;
+export class ChangelogCheck {
+  /**
+   * Project Contract v1, C3: every dated changelog entry declares the packages it covers by npm name -
+   * atlas reads that list and never the prose. An optional `release: '<npm name>@<version>'` places an
+   * entry git would place wrong (a backfill); it must name a tag that exists.
+   */
+  static collectProblems(): string[] {
+    const project = OkfProject.read();
+    const directory = project.changelogs;
 
-  if (directory === undefined || !existsSync(directory)) {
-    return [];
-  }
-
-  const names = new Map(project.packages.map((entry) => [entry.name, entry.dir]));
-  const problems: string[] = [];
-  let tags: string[] | undefined;
-
-  for (const file of readdirSync(directory)
-    .filter((name) => DATED_ENTRY.test(name))
-    .sort()) {
-    const path = relative(project.root, join(directory, file));
-    let frontmatter: TRecord;
-
-    // One broken entry is one problem; the rest of the directory is still checked.
-    try {
-      frontmatter = frontmatterOf({ text: readFileSync(join(directory, file), 'utf8') });
-    } catch (error) {
-      problems.push(
-        `changelog: ${path}: the frontmatter is not valid YAML (${error instanceof Error ? error.message : String(error)})`,
-      );
-      continue;
+    if (directory === undefined || !existsSync(directory)) {
+      return [];
     }
 
-    // `packages: []` is a decision - an entry about no package, such as repository tooling. Only a
-    // missing list is undecided.
-    if (!Array.isArray(frontmatter.packages)) {
-      problems.push(
-        `changelog: ${path} declares no packages - add \`packages: [<npm name>, ...]\` (\`vulcan x atlas changelogs migrate\` fills it)`,
-      );
-      continue;
-    }
+    const names = new Map(project.packages.map((entry) => [entry.name, entry.dir]));
+    const problems: string[] = [];
+    let tags: string[] | undefined;
 
-    const declared: unknown[] = frontmatter.packages;
+    for (const file of readdirSync(directory)
+      .filter((name) => DATED_ENTRY.test(name))
+      .sort()) {
+      const path = relative(project.root, join(directory, file));
+      let frontmatter: TRecord;
 
-    for (const name of declared) {
-      if (typeof name !== 'string' || !names.has(name)) {
+      // One broken entry is one problem; the rest of the directory is still checked.
+      try {
+        frontmatter = frontmatterOf({ text: readFileSync(join(directory, file), 'utf8') });
+      } catch (error) {
         problems.push(
-          `changelog: ${path} names '${String(name)}', not a declared package's npm name`,
+          `changelog: ${path}: the frontmatter is not valid YAML (${error instanceof Error ? error.message : String(error)})`,
+        );
+        continue;
+      }
+
+      // `packages: []` is a decision - an entry about no package, such as repository tooling. Only a
+      // missing list is undecided.
+      if (!Array.isArray(frontmatter.packages)) {
+        problems.push(
+          `changelog: ${path} declares no packages - add \`packages: [<npm name>, ...]\` (\`vulcan x atlas changelogs migrate\` fills it)`,
+        );
+        continue;
+      }
+
+      const declared: unknown[] = frontmatter.packages;
+
+      for (const name of declared) {
+        if (typeof name !== 'string' || !names.has(name)) {
+          problems.push(
+            `changelog: ${path} names '${String(name)}', not a declared package's npm name`,
+          );
+        }
+      }
+
+      if (typeof frontmatter.release !== 'string') {
+        continue;
+      }
+
+      const override = RELEASE_OVERRIDE.exec(frontmatter.release);
+      const dir = override === null ? undefined : names.get(override[1]);
+
+      if (override === null || dir === undefined) {
+        problems.push(
+          `changelog: ${path}: release '${frontmatter.release}' is not '<declared npm name>@<version>'`,
+        );
+        continue;
+      }
+
+      tags ??= tagsOf({ root: project.root });
+
+      const patterns = [project.tagPattern, ...project.legacyTagPatterns].map((template) =>
+        tagPatternOf({ template, dir, version: override[2] }),
+      );
+
+      if (!tags.some((tag) => patterns.some((pattern) => pattern.test(tag)))) {
+        const expected = project.tagPattern
+          .replace(/<(?:dir|package)>/g, dir)
+          .replace(/<version>/g, override[2])
+          .replace(/<date>/g, 'YYYY-MM-DD');
+
+        problems.push(
+          `changelog: ${path}: release '${frontmatter.release}' names no tag (${expected})`,
         );
       }
     }
 
-    if (typeof frontmatter.release !== 'string') {
-      continue;
-    }
-
-    const override = RELEASE_OVERRIDE.exec(frontmatter.release);
-    const dir = override === null ? undefined : names.get(override[1]);
-
-    if (override === null || dir === undefined) {
-      problems.push(
-        `changelog: ${path}: release '${frontmatter.release}' is not '<declared npm name>@<version>'`,
-      );
-      continue;
-    }
-
-    tags ??= tagsOf({ root: project.root });
-
-    const patterns = [project.tagPattern, ...project.legacyTagPatterns].map((template) =>
-      tagPatternOf({ template, dir, version: override[2] }),
-    );
-
-    if (!tags.some((tag) => patterns.some((pattern) => pattern.test(tag)))) {
-      const expected = project.tagPattern
-        .replace(/<(?:dir|package)>/g, dir)
-        .replace(/<version>/g, override[2])
-        .replace(/<date>/g, 'YYYY-MM-DD');
-
-      problems.push(
-        `changelog: ${path}: release '${frontmatter.release}' names no tag (${expected})`,
-      );
-    }
+    return problems;
   }
-
-  return problems;
-};
+}

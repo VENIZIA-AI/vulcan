@@ -7,7 +7,7 @@ import {
   SpecConstants,
 } from './common/index.ts';
 import type { IBundleFile, IConformanceIssue, TIssueSeverity } from './common/index.ts';
-import { parseYamlMapping, splitFrontmatter } from './frontmatter.ts';
+import { OkfFrontmatter } from './frontmatter.ts';
 import type { TYamlMapping } from './frontmatter.ts';
 
 const ISO_DATE = /^(\d{4}-\d{2}-\d{2})\b/;
@@ -152,7 +152,7 @@ const checkTrustFields = (opts: { file: string; data: TYamlMapping }): IConforma
 /** §11.1 and §11.2: parseable frontmatter with a non-empty top-level `type`. */
 const checkConcept = (opts: { file: IBundleFile }): IConformanceIssue[] => {
   const { path, text } = opts.file;
-  const { yaml } = splitFrontmatter({ text });
+  const { yaml } = OkfFrontmatter.split({ text });
 
   if (yaml === undefined) {
     return [
@@ -165,7 +165,7 @@ const checkConcept = (opts: { file: IBundleFile }): IConformanceIssue[] => {
     ];
   }
 
-  const parsed = parseYamlMapping({ yaml });
+  const parsed = OkfFrontmatter.parseMapping({ yaml });
 
   if (!parsed.ok) {
     return [
@@ -197,7 +197,7 @@ const checkConcept = (opts: { file: IBundleFile }): IConformanceIssue[] => {
 /** §8 and §12: no frontmatter, except `okf_version` alone in the bundle-root index. */
 const checkIndex = (opts: { file: IBundleFile }): IConformanceIssue[] => {
   const { path, text } = opts.file;
-  const { yaml } = splitFrontmatter({ text });
+  const { yaml } = OkfFrontmatter.split({ text });
 
   if (yaml === undefined) {
     return [];
@@ -214,7 +214,7 @@ const checkIndex = (opts: { file: IBundleFile }): IConformanceIssue[] => {
     ];
   }
 
-  const parsed = parseYamlMapping({ yaml });
+  const parsed = OkfFrontmatter.parseMapping({ yaml });
 
   if (!parsed.ok) {
     return [
@@ -301,20 +301,23 @@ const checkLog = (opts: { file: IBundleFile }): IConformanceIssue[] => {
   return issues;
 };
 
-/** OKF v0.2 conformance (§11) plus soft guidance. Never throws: every finding is an issue. */
-export const checkBundle = (opts: { files: IBundleFile[] }): IConformanceIssue[] =>
-  opts.files.flatMap((file) => {
-    switch (getBaseName({ path: file.path })) {
-      case ReservedFiles.INDEX: {
-        return checkIndex({ file });
-      }
+export class BundleConformance {
+  /** OKF v0.2 conformance (§11) plus soft guidance. Never throws: every finding is an issue. */
+  static check(opts: { files: IBundleFile[] }): IConformanceIssue[] {
+    return opts.files.flatMap((file) => {
+      switch (getBaseName({ path: file.path })) {
+        case ReservedFiles.INDEX: {
+          return checkIndex({ file });
+        }
 
-      case ReservedFiles.LOG: {
-        return checkLog({ file });
-      }
+        case ReservedFiles.LOG: {
+          return checkLog({ file });
+        }
 
-      default: {
-        return checkConcept({ file });
+        default: {
+          return checkConcept({ file });
+        }
       }
-    }
-  });
+    });
+  }
+}
