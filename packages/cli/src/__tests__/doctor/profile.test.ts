@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { runDoctorWarnings } from '../../doctor/index.ts';
+import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
@@ -7,7 +7,7 @@ afterAll(removeProjects);
 
 const CONFIG = "export default { name: 'acme', rules: { 'V-W-01': 'read-only' } };\n";
 const profileWarnings = async (opts: { root: string }) => {
-  const warnings = await runDoctorWarnings({ root: opts.root });
+  const warnings = await DoctorRunner.runWarnings({ root: opts.root });
 
   return warnings.filter((entry) => entry.check === 'profile');
 };

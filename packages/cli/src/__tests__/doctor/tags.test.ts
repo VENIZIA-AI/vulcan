@@ -1,6 +1,6 @@
 import { afterAll, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
-import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
+import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -34,7 +34,7 @@ const projectWithTags = (opts: { tags: string[] }): string => {
 };
 
 const tagViolations = async (opts: { root: string }) => {
-  const checks = await runDoctorChecks({ root: opts.root });
+  const checks = await DoctorRunner.runChecks({ root: opts.root });
 
   return checks.filter((violation) => violation.check === DoctorChecks.TAGS);
 };

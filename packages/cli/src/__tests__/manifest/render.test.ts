@@ -4,7 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildToolEnvironment } from '../../commands/x.command.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
-import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
+import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
 import { renderBunfig } from '../../create/bunfig.ts';
 import { checkFiles } from '../format.helper.ts';
@@ -387,7 +387,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     expect(JSON.parse(readFileSync(join(root, ManifestConstants.FILE), 'utf8')).atlas).toEqual({
       index: { keys: [key] },
     });
-    const result = await runDoctorChecks({ root });
+    const result = await DoctorRunner.runChecks({ root });
     expect(result.map((violation) => violation.check)).not.toContain(DoctorChecks.MANIFEST);
   });
 
@@ -396,7 +396,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
 
     runCli({ args: ['sync'], cwd: root });
 
-    const fresh = await runDoctorChecks({ root });
+    const fresh = await DoctorRunner.runChecks({ root });
 
     // Positive control: the same check, after the config changes under the committed manifest - in
     // a new process, as doctor runs: this one has the first config module cached.
@@ -422,7 +422,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
 
     expect($generated).toBeDefined();
     expect(JSON.parse(readFileSync(path, 'utf8')).$generated).toBeUndefined();
-    const result = await runDoctorChecks({ root });
+    const result = await DoctorRunner.runChecks({ root });
     expect(result.map((violation) => violation.check)).not.toContain(DoctorChecks.MANIFEST);
   });
 

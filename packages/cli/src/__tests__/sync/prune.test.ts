@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
+import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -178,7 +178,7 @@ describe('vulcan sync --prune', () => {
     expect(doctor.stderr).not.toContain('TypeError');
     expect(prune.stderr).not.toContain('TypeError');
     expect(prune.code).toBe(0);
-    const result = await runDoctorChecks({ root });
+    const result = await DoctorRunner.runChecks({ root });
     expect(result.filter((violation) => violation.check === DoctorChecks.PRUNE)).toEqual([]);
   });
 
@@ -201,7 +201,7 @@ describe('vulcan sync --prune', () => {
 
   test('doctor reports what --prune would remove, and is clean after it', async () => {
     const root = projectWithLeftovers();
-    const before = await runDoctorChecks({ root });
+    const before = await DoctorRunner.runChecks({ root });
 
     expect(
       before
@@ -215,7 +215,7 @@ describe('vulcan sync --prune', () => {
 
     runCli({ args: ['sync', '--prune'], cwd: root });
 
-    const result = await runDoctorChecks({ root });
+    const result = await DoctorRunner.runChecks({ root });
     expect(result.filter((violation) => violation.check === DoctorChecks.PRUNE)).toEqual([]);
   });
 });

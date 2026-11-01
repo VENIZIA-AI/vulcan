@@ -3,7 +3,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
-import { checkLocalWorkspace } from '../../doctor/checks.ts';
+import { ProjectContract } from '../../doctor/checks.ts';
 import { planLocalWorkspace } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
@@ -57,11 +57,13 @@ describe('the Claude Code launch file', () => {
     const root = createProject({ files: { '.gitignore': '.agents/local/\n' } });
 
     apply({ root });
-    expect(checkLocalWorkspace({ root, config: CONFIG, configFile: '' })).toEqual([]);
+    expect(ProjectContract.checkLocalWorkspace({ root, config: CONFIG, configFile: '' })).toEqual(
+      [],
+    );
 
     rmSync(join(root, LAUNCH));
 
-    const missing = checkLocalWorkspace({ root, config: CONFIG, configFile: '' });
+    const missing = ProjectContract.checkLocalWorkspace({ root, config: CONFIG, configFile: '' });
 
     expect(missing.length).toBe(1);
     expect(missing[0].message).toContain('vulcan sync');

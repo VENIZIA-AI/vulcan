@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { LayoutFolder } from '../../common/layout-folder.ts';
 import { ConfigLoader } from '../../config/index.ts';
-import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
+import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -512,7 +512,7 @@ const groupedProject = (opts: { other?: string[]; extraPackage?: string } = {}):
 };
 
 const appsViolations = async (opts: { root: string }): Promise<string[]> => {
-  const checks = await runDoctorChecks({ root: opts.root });
+  const checks = await DoctorRunner.runChecks({ root: opts.root });
 
   return checks
     .filter((violation) => violation.check === DoctorChecks.APPS)

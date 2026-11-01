@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { runDoctorWarnings } from '../../doctor/index.ts';
+import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
@@ -54,13 +54,13 @@ describe('upgrading a project from the layout before .agents/local/', () => {
 
   test('doctor warns before the sync and is quiet after it', async () => {
     const root = createProject({ files: PRE_UPGRADE });
-    const before = await runDoctorWarnings({ root });
+    const before = await DoctorRunner.runWarnings({ root });
 
     expect(before.some((entry) => entry.check === 'local')).toBe(true);
 
     runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
 
-    const after = await runDoctorWarnings({ root });
+    const after = await DoctorRunner.runWarnings({ root });
 
     expect(after.filter((entry) => entry.check === 'local')).toEqual([]);
   });
@@ -77,7 +77,7 @@ describe('upgrading a project from the layout before .agents/local/', () => {
     git({ cwd: root, args: ['worktree', 'add', '-q', outside, '-b', 'topic'] });
     runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
 
-    const result = await runDoctorWarnings({ root });
+    const result = await DoctorRunner.runWarnings({ root });
     const warnings = result.filter((entry) => entry.check === 'local');
 
     expect(warnings).toHaveLength(1);

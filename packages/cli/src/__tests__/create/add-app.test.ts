@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigLoader, ProjectPackages } from '../../config/index.ts';
-import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
+import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { checkManifests } from '../format.helper.ts';
 import { copyWithFields, copyWithUrls } from '../preset.helper.ts';
 import { createProject, packFolder, removeProjects } from '../project.helper.ts';
@@ -641,7 +641,7 @@ describe('vulcan add --preset', () => {
     expect(sourceNames.toSorted()).toEqual(['extra', 'fixture']);
     expect(loaded.config.layout).toEqual({ backend: 'services', shared: 'libs' });
 
-    const result2 = await runDoctorChecks({ root });
+    const result2 = await DoctorRunner.runChecks({ root });
     const apps = result2.filter((violation) => violation.check === DoctorChecks.APPS);
 
     expect(apps).toEqual([]);

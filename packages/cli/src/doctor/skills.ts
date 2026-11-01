@@ -34,120 +34,122 @@ const filesOf = (opts: { directory: string }): string[] =>
 const lineCountOf = (opts: { text: string }): number =>
   opts.text.replace(/\n$/, '').split('\n').length;
 
-/** Every rule one skill directory breaks, each a message naming the file. */
-export const lintSkill = (opts: { directory: string }): string[] => {
-  const skillFile = join(opts.directory, 'SKILL.md');
+export class SkillLint {
+  /** Every rule one skill directory breaks, each a message naming the file. */
+  static lint(opts: { directory: string }): string[] {
+    const skillFile = join(opts.directory, 'SKILL.md');
 
-  if (!existsSync(skillFile)) {
-    return ['SKILL.md is missing'];
-  }
+    if (!existsSync(skillFile)) {
+      return ['SKILL.md is missing'];
+    }
 
-  const problems: string[] = [];
-  const text = readFileSync(skillFile, 'utf8');
-  const frontmatter = SkillFrontmatter.frontmatterOf({ text });
-  const { name, description } = frontmatter.data;
+    const problems: string[] = [];
+    const text = readFileSync(skillFile, 'utf8');
+    const frontmatter = SkillFrontmatter.frontmatterOf({ text });
+    const { name, description } = frontmatter.data;
 
-  // One file a project cannot parse is a finding about that file - the other checks still run.
-  if (frontmatter.error !== undefined) {
-    problems.push(`SKILL.md: ${frontmatter.error}`);
-  } else if (typeof name !== 'string' || !NAME_PATTERN.test(name) || RESERVED_NAME.test(name)) {
-    problems.push(
-      `SKILL.md: name '${String(name)}' - at most 64 characters of a-z, 0-9 and hyphens, never 'claude' or 'anthropic'`,
-    );
-  }
-
-  if (
-    frontmatter.error === undefined &&
-    (typeof description !== 'string' ||
-      description.trim().length === 0 ||
-      description.length > MAX_DESCRIPTION ||
-      XML_TAG.test(description))
-  ) {
-    problems.push('SKILL.md: the description must be 1-1024 characters with no XML tags');
-  }
-
-  const body = text.slice(FRONTMATTER.exec(text)?.[0].length ?? 0);
-  const bodyLines = lineCountOf({ text: body });
-
-  if (bodyLines >= MAX_BODY_LINES) {
-    problems.push(
-      `SKILL.md: the body is ${bodyLines} lines - keep it under ${MAX_BODY_LINES}, move detail into reference files`,
-    );
-  }
-
-  const files = filesOf({ directory: opts.directory }).sort();
-  const shown = (path: string): string => relative(opts.directory, path);
-
-  for (const file of files.filter((path) => path.endsWith('.md'))) {
-    const content = readFileSync(file, 'utf8');
-    const count = lineCountOf({ text: content });
-    const opening = content.split('\n').slice(0, CONTENTS_WITHIN_LINES);
-
-    if (count > CONTENTS_AFTER_LINES && !opening.some((line) => CONTENTS_MARK.test(line))) {
+    // One file a project cannot parse is a finding about that file - the other checks still run.
+    if (frontmatter.error !== undefined) {
+      problems.push(`SKILL.md: ${frontmatter.error}`);
+    } else if (typeof name !== 'string' || !NAME_PATTERN.test(name) || RESERVED_NAME.test(name)) {
       problems.push(
-        `${shown(file)}: ${count} lines and no contents list in its first ${CONTENTS_WITHIN_LINES} lines - an agent may read only the first lines`,
+        `SKILL.md: name '${String(name)}' - at most 64 characters of a-z, 0-9 and hyphens, never 'claude' or 'anthropic'`,
       );
     }
 
-    if (file === skillFile) {
-      continue;
+    if (
+      frontmatter.error === undefined &&
+      (typeof description !== 'string' ||
+        description.trim().length === 0 ||
+        description.length > MAX_DESCRIPTION ||
+        XML_TAG.test(description))
+    ) {
+      problems.push('SKILL.md: the description must be 1-1024 characters with no XML tags');
     }
 
-    for (const match of content.matchAll(MARKDOWN_LINK)) {
-      const target = resolve(dirname(file), match[1]);
+    const body = text.slice(FRONTMATTER.exec(text)?.[0].length ?? 0);
+    const bodyLines = lineCountOf({ text: body });
 
-      if (target !== skillFile && target.startsWith(`${opts.directory}/`) && existsSync(target)) {
+    if (bodyLines >= MAX_BODY_LINES) {
+      problems.push(
+        `SKILL.md: the body is ${bodyLines} lines - keep it under ${MAX_BODY_LINES}, move detail into reference files`,
+      );
+    }
+
+    const files = filesOf({ directory: opts.directory }).sort();
+    const shown = (path: string): string => relative(opts.directory, path);
+
+    for (const file of files.filter((path) => path.endsWith('.md'))) {
+      const content = readFileSync(file, 'utf8');
+      const count = lineCountOf({ text: content });
+      const opening = content.split('\n').slice(0, CONTENTS_WITHIN_LINES);
+
+      if (count > CONTENTS_AFTER_LINES && !opening.some((line) => CONTENTS_MARK.test(line))) {
         problems.push(
-          `${shown(file)} links ${shown(target)} - link every reference from SKILL.md, one level deep`,
+          `${shown(file)}: ${count} lines and no contents list in its first ${CONTENTS_WITHIN_LINES} lines - an agent may read only the first lines`,
         );
+      }
+
+      if (file === skillFile) {
+        continue;
+      }
+
+      for (const match of content.matchAll(MARKDOWN_LINK)) {
+        const target = resolve(dirname(file), match[1]);
+
+        if (target !== skillFile && target.startsWith(`${opts.directory}/`) && existsSync(target)) {
+          problems.push(
+            `${shown(file)} links ${shown(target)} - link every reference from SKILL.md, one level deep`,
+          );
+        }
       }
     }
+
+    if (files.some((path) => SCRIPT.test(path)) && !REQUIREMENTS.test(text)) {
+      problems.push(
+        'SKILL.md: the skill runs scripts and has no ## Requirements section - name what they need',
+      );
+    }
+
+    return problems;
   }
 
-  if (files.some((path) => SCRIPT.test(path)) && !REQUIREMENTS.test(text)) {
-    problems.push(
-      'SKILL.md: the skill runs scripts and has no ## Requirements section - name what they need',
-    );
+  /** The project's own skills, linted; a nested one is reported - sync links flat skills only. */
+  static check(opts: ICheckContext): IViolation[] {
+    const skills = join(opts.root, '.agents', 'skills');
+
+    if (!existsSync(skills)) {
+      return [];
+    }
+
+    return readdirSync(skills)
+      .filter((name) => statSync(join(skills, name)).isDirectory())
+      .sort()
+      .flatMap((name) => {
+        const directory = join(skills, name);
+        const file = `.agents/skills/${name}`;
+
+        if (!existsSync(join(directory, 'SKILL.md'))) {
+          const inner = readdirSync(directory).find((child) =>
+            existsSync(join(directory, child, 'SKILL.md')),
+          );
+
+          return inner === undefined
+            ? []
+            : [
+                {
+                  check: DoctorChecks.SKILLS,
+                  file,
+                  message: `skills are flat - sync links .agents/skills/<name> only; move ${name}/${inner} up to .agents/skills/${inner}`,
+                },
+              ];
+        }
+
+        return SkillLint.lint({ directory }).map((message) => ({
+          check: DoctorChecks.SKILLS,
+          file,
+          message,
+        }));
+      });
   }
-
-  return problems;
-};
-
-/** The project's own skills, linted; a nested one is reported - sync links flat skills only. */
-export const checkSkillLint = (opts: ICheckContext): IViolation[] => {
-  const skills = join(opts.root, '.agents', 'skills');
-
-  if (!existsSync(skills)) {
-    return [];
-  }
-
-  return readdirSync(skills)
-    .filter((name) => statSync(join(skills, name)).isDirectory())
-    .sort()
-    .flatMap((name) => {
-      const directory = join(skills, name);
-      const file = `.agents/skills/${name}`;
-
-      if (!existsSync(join(directory, 'SKILL.md'))) {
-        const inner = readdirSync(directory).find((child) =>
-          existsSync(join(directory, child, 'SKILL.md')),
-        );
-
-        return inner === undefined
-          ? []
-          : [
-              {
-                check: DoctorChecks.SKILLS,
-                file,
-                message: `skills are flat - sync links .agents/skills/<name> only; move ${name}/${inner} up to .agents/skills/${inner}`,
-              },
-            ];
-      }
-
-      return lintSkill({ directory }).map((message) => ({
-        check: DoctorChecks.SKILLS,
-        file,
-        message,
-      }));
-    });
-};
+}
