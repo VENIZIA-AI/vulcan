@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { TextValue } from '../common/text.ts';
-import { resolvePackages } from '../config/index.ts';
+import { ProjectPackages } from '../config/index.ts';
 import type { ICheckContext } from './checks.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { IViolation } from './common/index.ts';
@@ -55,7 +55,10 @@ export const checkTags = (opts: ICheckContext): IViolation[] => {
   const pattern = tagPatternOf({ template });
   const ignored = (opts.config.atlas.ignoreTags ?? []).map((glob) => new Bun.Glob(glob));
   const names = new Set(
-    resolvePackages({ config: opts.config }).flatMap((entry) => [entry.dir, ...entry.aliases]),
+    ProjectPackages.resolve({ config: opts.config }).flatMap((entry) => [
+      entry.dir,
+      ...entry.aliases,
+    ]),
   );
 
   return listed.stdout

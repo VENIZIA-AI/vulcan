@@ -14,7 +14,7 @@ import {
   writeProfile,
 } from '../owner/index.ts';
 import type { ISurveyIo } from '../owner/index.ts';
-import { menusAvailable, promptConfirm, promptSelect, promptText } from '../ui/index.ts';
+import { TerminalCapability, TerminalPrompt } from '../ui/index.ts';
 
 const YES_FLAG = '--yes';
 
@@ -22,12 +22,12 @@ const YES_FLAG = '--yes';
 const menuIo: ISurveyIo = {
   // An empty entry takes the default, so only what was typed is checked.
   text: (opts) =>
-    promptText({
+    TerminalPrompt.promptText({
       ...opts,
       validate: (value) => (value === '' ? undefined : opts.validate?.(value)),
     }),
-  select: (opts) => promptSelect(opts),
-  confirm: (opts) => promptConfirm(opts),
+  select: (opts) => TerminalPrompt.promptSelect(opts),
+  confirm: (opts) => TerminalPrompt.promptConfirm(opts),
 };
 
 /** The same questions as plain lines, for a pipe, a log or `TERM=dumb`: an empty line takes the default, the end of the input cancels. */
@@ -121,7 +121,7 @@ const fillInProfile = async (opts: { root: string }): Promise<number> => {
   }
 
   const profile = await runSurvey({
-    io: menusAvailable() ? menuIo : lineIo,
+    io: TerminalCapability.menusAvailable() ? menuIo : lineIo,
     existing: current.profile,
     systemLanguage: systemLanguageOf({ env: process.env }),
   });
@@ -156,7 +156,7 @@ export const offerProfile = async (opts: { root: string }): Promise<void> => {
     return;
   }
 
-  if (!menusAvailable()) {
+  if (!TerminalCapability.menusAvailable()) {
     process.stderr.write(
       "tell VULCAN how you like to work (language, how to address you, tone): run 'bun x --no-install vulcan profile'\n",
     );
@@ -164,7 +164,7 @@ export const offerProfile = async (opts: { root: string }): Promise<void> => {
     return;
   }
 
-  const now = await promptConfirm({
+  const now = await TerminalPrompt.promptConfirm({
     message:
       "Tell VULCAN how you like to work (language, how to address you, tone)? Every question can be skipped; 'vulcan profile' does it later.",
     initial: true,

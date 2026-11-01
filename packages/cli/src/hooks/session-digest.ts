@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
-import { ConfigConstants, loadConfig } from '../config/index.ts';
+import { ConfigConstants, ConfigLoader } from '../config/index.ts';
 import {
   isOwnerReplyOff,
   OWNER_SCHEMA,
@@ -10,7 +10,7 @@ import {
   renderProfileCard,
   resolveOwnerView,
 } from '../owner/index.ts';
-import { extractRuleRows, parseRuleIds, readSlots, RuleConstants } from '../rules/index.ts';
+import { RuleConstants, RuleParser, RuleSlots } from '../rules/index.ts';
 import { ClaudeLaunch } from '../sync/claude-launch.ts';
 import { projectTmpOf } from './project-tmp.ts';
 
@@ -26,7 +26,7 @@ const TABLE_HEADER = ['| ID | Rule | Enforced by |', '|----|------|-------------
 /** Each listed ID's row, plain or bold (`| **W-00** |`), quoted from its rule file so it cannot drift. */
 const selectRows = (opts: { rows: string[]; ids: string[] }): string[] =>
   opts.ids
-    .map((id) => opts.rows.find((row) => parseRuleIds({ markdown: row })[0] === id))
+    .map((id) => opts.rows.find((row) => RuleParser.parseIds({ markdown: row })[0] === id))
     .filter((row): row is string => row !== undefined);
 
 const readText = (opts: { file: string }): string =>
@@ -57,21 +57,23 @@ export const buildSessionDigest = async (opts: {
   /** The environment of the session; `VULCAN_OWNER_REPLY=off` leaves out the owner's shape and profile cards. */
   env?: Record<string, string | undefined>;
 }): Promise<string> => {
-  const baseRows = extractRuleRows({
+  const baseRows = RuleParser.extractRows({
     markdown: readText({ file: join(BASE_DIRECTORY, 'rules.md') }),
   });
   const projectText = readText({ file: join(opts.projectRoot, '.agents', 'rules.md') });
   const projectRows = projectText
     .split('\n')
-    .filter((line) => extractRuleRows({ markdown: line }).length > 0 || ID_LIST_ROW.test(line));
+    .filter(
+      (line) => RuleParser.extractRows({ markdown: line }).length > 0 || ID_LIST_ROW.test(line),
+    );
   const minimap = MINIMAP.exec(projectText)?.[1].trim();
-  const loaded = await loadConfig({ root: opts.projectRoot });
+  const loaded = await ConfigLoader.load({ root: opts.projectRoot });
   const choices = loaded.ok ? loaded.config.rules : {};
   const oftenDropped = loaded.ok
     ? loaded.config.digest.oftenDropped
     : ConfigConstants.DEFAULT_OFTEN_DROPPED;
 
-  const slotRows = Object.entries(readSlots()).map(([id, slot]) => {
+  const slotRows = Object.entries(RuleSlots.read()).map(([id, slot]) => {
     const choice = choices[id];
 
     if (choice === undefined) {

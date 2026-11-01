@@ -2,9 +2,9 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { TConstValue } from '../common/index.ts';
 import { ExitCodes } from '../common/index.ts';
-import { layoutFoldersOf } from '../common/layout-folder.ts';
+import { LayoutFolder } from '../common/layout-folder.ts';
 import type { ILayout } from '../common/layout-folder.ts';
-import { LibraryKinds, loadConfig, PackageKinds, resolvePackages } from '../config/index.ts';
+import { ConfigLoader, LibraryKinds, PackageKinds, ProjectPackages } from '../config/index.ts';
 import type { IProjectPackage, TLibraryKind } from '../config/index.ts';
 import { locate, resolveApiUrl } from './add-app.ts';
 import { AppSides, CreateConstants, CreateFlags, PresetDiffStatuses } from './common/index.ts';
@@ -44,11 +44,11 @@ const sideOf = (opts: { layout: ILayout; path: string }): TAppSide | undefined =
   const isIn = (side: { folders: string[] }): boolean =>
     side.folders.some((folder) => opts.path.startsWith(`${folder}/`));
 
-  if (isIn({ folders: layoutFoldersOf({ value: opts.layout.backend }) })) {
+  if (isIn({ folders: LayoutFolder.layoutFoldersOf({ value: opts.layout.backend }) })) {
     return AppSides.BACKEND;
   }
 
-  return isIn({ folders: layoutFoldersOf({ value: opts.layout.frontend }) })
+  return isIn({ folders: LayoutFolder.layoutFoldersOf({ value: opts.layout.frontend }) })
     ? AppSides.FRONTEND
     : undefined;
 };
@@ -452,7 +452,7 @@ export const runPresetDiff = async (opts: { cwd: string; args: string[] }): Prom
     return fail({ message: !presetFlag.ok ? presetFlag.error : apiFlag.ok ? '' : apiFlag.error });
   }
 
-  const loaded = await loadConfig({ root: cwd });
+  const loaded = await ConfigLoader.load({ root: cwd });
 
   if (!loaded.ok) {
     return fail({
@@ -464,7 +464,7 @@ export const runPresetDiff = async (opts: { cwd: string; args: string[] }): Prom
   }
 
   const { config } = loaded;
-  const packages = resolvePackages({ config });
+  const packages = ProjectPackages.resolve({ config });
   const app = packages.find((entry) => entry.dir === packageName || entry.path === packageName);
 
   if (app === undefined) {
@@ -543,7 +543,7 @@ export const runPresetDiff = async (opts: { cwd: string; args: string[] }): Prom
         root: cwd,
         args,
         interactive: false,
-        backendFolders: layoutFoldersOf({ value: config.layout?.backend }),
+        backendFolders: LayoutFolder.layoutFoldersOf({ value: config.layout?.backend }),
         packages,
       });
 

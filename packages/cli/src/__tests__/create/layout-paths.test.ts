@@ -1,13 +1,8 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  layoutFolderProblem,
-  layoutOverlapProblems,
-  validLayoutFolders,
-  withLayoutFolder,
-} from '../../common/layout-folder.ts';
-import { loadConfig } from '../../config/index.ts';
+import { LayoutFolder } from '../../common/layout-folder.ts';
+import { ConfigLoader } from '../../config/index.ts';
 import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -23,7 +18,7 @@ describe('layoutFolderProblem', () => {
   test.each(['services', 'auroras/apps', 'a/b/c/d', 'web-2/app1', '0/1'])(
     '%s is a folder',
     (folder) => {
-      expect(layoutFolderProblem({ folder })).toBeUndefined();
+      expect(LayoutFolder.layoutFolderProblem({ folder })).toBeUndefined();
     },
   );
 
@@ -44,47 +39,61 @@ describe('layoutFolderProblem', () => {
     ['node_modules', 'node_modules'],
     ['a/b/c/d/e', 'more than 4'],
   ])('%s is not (%s)', (folder, why) => {
-    expect(layoutFolderProblem({ folder })).toContain(why);
+    expect(LayoutFolder.layoutFolderProblem({ folder })).toContain(why);
   });
 
   test('something that is not a string is not a folder', () => {
-    expect(layoutFolderProblem({ folder: 7 })).toBeDefined();
-    expect(layoutFolderProblem({ folder: null })).toBeDefined();
+    expect(LayoutFolder.layoutFolderProblem({ folder: 7 })).toBeDefined();
+    expect(LayoutFolder.layoutFolderProblem({ folder: null })).toBeDefined();
   });
 });
 
 describe('the layout as a whole', () => {
   test('a folder under two keys, or listed twice, is a problem', () => {
     expect(
-      layoutOverlapProblems({ layout: { backend: 'a', frontend: ['b', 'a'] } }).join(' '),
+      LayoutFolder.layoutOverlapProblems({ layout: { backend: 'a', frontend: ['b', 'a'] } }).join(
+        ' ',
+      ),
     ).toContain("layout.frontend names 'a' again (also layout.backend)");
-    expect(layoutOverlapProblems({ layout: { frontend: ['b', 'b'] } })).toHaveLength(1);
+    expect(LayoutFolder.layoutOverlapProblems({ layout: { frontend: ['b', 'b'] } })).toHaveLength(
+      1,
+    );
   });
 
   test('a folder inside another, in either order and across keys, is a problem', () => {
     expect(
-      layoutOverlapProblems({ layout: { backend: 'auroras', frontend: 'auroras/apps' } }),
+      LayoutFolder.layoutOverlapProblems({
+        layout: { backend: 'auroras', frontend: 'auroras/apps' },
+      }),
     ).toHaveLength(1);
     expect(
-      layoutOverlapProblems({ layout: { frontend: ['auroras/apps', 'auroras'] } }),
+      LayoutFolder.layoutOverlapProblems({ layout: { frontend: ['auroras/apps', 'auroras'] } }),
     ).toHaveLength(1);
-    expect(layoutOverlapProblems({ layout: { shared: 'a/b', other: 'a/b/c' } })).toHaveLength(1);
+    expect(
+      LayoutFolder.layoutOverlapProblems({ layout: { shared: 'a/b', other: 'a/b/c' } }),
+    ).toHaveLength(1);
     // A shared prefix is not nesting.
     expect(
-      layoutOverlapProblems({ layout: { backend: 'auroras/apps', frontend: 'auroras/apps2' } }),
+      LayoutFolder.layoutOverlapProblems({
+        layout: { backend: 'auroras/apps', frontend: 'auroras/apps2' },
+      }),
     ).toEqual([]);
   });
 
   test('a string grows into a list, a listed folder changes nothing, none makes a string', () => {
-    expect(withLayoutFolder({ value: undefined, folder: 'a' })).toBe('a');
-    expect(withLayoutFolder({ value: 'a', folder: 'a' })).toBe('a');
-    expect(withLayoutFolder({ value: 'a', folder: 'b' })).toEqual(['a', 'b']);
-    expect(withLayoutFolder({ value: ['a', 'b'], folder: 'b' })).toEqual(['a', 'b']);
-    expect(withLayoutFolder({ value: ['a', 'b'], folder: 'c' })).toEqual(['a', 'b', 'c']);
+    expect(LayoutFolder.withLayoutFolder({ value: undefined, folder: 'a' })).toBe('a');
+    expect(LayoutFolder.withLayoutFolder({ value: 'a', folder: 'a' })).toBe('a');
+    expect(LayoutFolder.withLayoutFolder({ value: 'a', folder: 'b' })).toEqual(['a', 'b']);
+    expect(LayoutFolder.withLayoutFolder({ value: ['a', 'b'], folder: 'b' })).toEqual(['a', 'b']);
+    expect(LayoutFolder.withLayoutFolder({ value: ['a', 'b'], folder: 'c' })).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
   });
 
   test('only the valid folders of a layout value are kept', () => {
-    expect(validLayoutFolders({ value: ['a', 7, '../x', 'b/c'] })).toEqual(['a', 'b/c']);
+    expect(LayoutFolder.valid({ value: ['a', 7, '../x', 'b/c'] })).toEqual(['a', 'b/c']);
   });
 });
 
@@ -95,7 +104,7 @@ const configOf = async (opts: { layout: string }) => {
     },
   });
 
-  return loadConfig({ root });
+  return ConfigLoader.load({ root });
 };
 
 describe('the config schema', () => {
@@ -155,7 +164,7 @@ const monorepo = (opts: { backendDir?: string; shared?: string } = {}): string =
 };
 
 const layoutOf = async (opts: { root: string }) => {
-  const loaded = await loadConfig({ root: opts.root });
+  const loaded = await ConfigLoader.load({ root: opts.root });
 
   return loaded.ok ? loaded.config.layout : undefined;
 };

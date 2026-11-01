@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { findConfigFiles, loadConfig } from '../../config/index.ts';
+import { ConfigLoader } from '../../config/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -8,7 +8,7 @@ const PLAIN_CONFIG = "export default { agents: ['claude'], rules: { 'V-W-01': 'r
 
 describe('findConfigFiles', () => {
   test('finds nothing in an empty directory', () => {
-    expect(findConfigFiles({ root: createProject({ files: {} }) })).toEqual([]);
+    expect(ConfigLoader.findFiles({ root: createProject({ files: {} }) })).toEqual([]);
   });
 
   test('lists every candidate in lookup order ts, mts, mjs, js', () => {
@@ -19,7 +19,7 @@ describe('findConfigFiles', () => {
       },
     });
 
-    expect(findConfigFiles({ root }).map((file) => file.split('/').pop())).toEqual([
+    expect(ConfigLoader.findFiles({ root }).map((file) => file.split('/').pop())).toEqual([
       'vulcan.config.ts',
       'vulcan.config.js',
     ]);
@@ -32,7 +32,7 @@ describe('loadConfig', () => {
       const root = createProject({
         files: { [`.configs/vulcan.config.${extension}`]: PLAIN_CONFIG },
       });
-      const result = await loadConfig({ root });
+      const result = await ConfigLoader.load({ root });
 
       expect(result.ok).toBe(true);
 
@@ -47,7 +47,7 @@ describe('loadConfig', () => {
   test('no config: the error names the directory', async () => {
     const root = createProject({ files: {} });
 
-    const result = await loadConfig({ root });
+    const result = await ConfigLoader.load({ root });
     expect(result).toEqual({
       ok: false,
       error: `no .configs/vulcan.config.* found in ${root}`,
@@ -61,7 +61,7 @@ describe('loadConfig', () => {
         '.configs/vulcan.config.mjs': PLAIN_CONFIG,
       },
     });
-    const result = await loadConfig({ root });
+    const result = await ConfigLoader.load({ root });
 
     expect(result.ok).toBe(false);
 
@@ -75,7 +75,7 @@ describe('loadConfig', () => {
     const root = createProject({
       files: { '.configs/vulcan.config.ts': 'export default { agentz: [] };\n' },
     });
-    const result = await loadConfig({ root });
+    const result = await ConfigLoader.load({ root });
 
     expect(result.ok).toBe(false);
 
@@ -89,7 +89,7 @@ describe('loadConfig', () => {
     const root = createProject({
       files: { '.configs/vulcan.config.ts': "export default { agents: 'claude' };\n" },
     });
-    const result = await loadConfig({ root });
+    const result = await ConfigLoader.load({ root });
 
     expect(result.ok).toBe(false);
 
@@ -103,7 +103,7 @@ describe('loadConfig', () => {
       files: { '.configs/vulcan.config.ts': "export default { agents: ['notepad'] };\n" },
     });
 
-    const result = await loadConfig({ root });
+    const result = await ConfigLoader.load({ root });
     expect(result.ok).toBe(false);
   });
 
@@ -111,7 +111,7 @@ describe('loadConfig', () => {
     const root = createProject({
       files: { '.configs/vulcan.config.ts': "throw new Error('boom');\n" },
     });
-    const result = await loadConfig({ root });
+    const result = await ConfigLoader.load({ root });
 
     expect(result.ok).toBe(false);
 
@@ -123,7 +123,7 @@ describe('loadConfig', () => {
 
   test('a missing default export is reported', async () => {
     const root = createProject({ files: { '.configs/vulcan.config.ts': 'export const x = 1;\n' } });
-    const result = await loadConfig({ root });
+    const result = await ConfigLoader.load({ root });
 
     expect(result.ok).toBe(false);
 
@@ -137,7 +137,7 @@ describe('loadConfig', () => {
       files: { '.configs/vulcan.config.ts': 'export default () => ({});\n' },
     });
 
-    const result = await loadConfig({ root });
+    const result = await ConfigLoader.load({ root });
     expect(result.ok).toBe(false);
   });
 });

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildBaseRuleHashes, ManifestConstants } from '../manifest/index.ts';
-import { readBaseRules, readRetiredRuleIds } from '../rules/index.ts';
+import { BaseRules } from '../rules/index.ts';
 import { BaseRuleChanges } from './common/index.ts';
 import type { IBaseRuleChange } from './common/index.ts';
 
@@ -44,8 +44,8 @@ export const diffBaseRules = (opts: { root: string }): IBaseRuleChange[] => {
   }
 
   const installed = buildBaseRuleHashes();
-  const rows = readBaseRules();
-  const retired = new Set(readRetiredRuleIds());
+  const rows = BaseRules.read();
+  const retired = new Set(BaseRules.readRetiredIds());
   const changes: IBaseRuleChange[] = [];
 
   for (const [id, hash] of Object.entries(installed)) {

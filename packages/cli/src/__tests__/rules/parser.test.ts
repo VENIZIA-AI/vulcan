@@ -2,31 +2,25 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../../common/index.ts';
-import {
-  extractRuleRows,
-  parseBaseReferences,
-  parseRetiredRuleIds,
-  parseRuleIds,
-  readBaseRules,
-  readRetiredRuleIds,
-  readSlots,
-} from '../../rules/index.ts';
+import { BaseRules, RuleParser, RuleSlots } from '../../rules/index.ts';
 
 describe('parseRuleIds', () => {
   test('reads plain and bold ID cells in table order and skips the header', () => {
     const markdown = '| ID | Rule |\n|---|---|\n| W-01 | a |\n| **P-09** | b |\n| text | c |\n';
 
-    expect(parseRuleIds({ markdown })).toEqual(['W-01', 'P-09']);
+    expect(RuleParser.parseIds({ markdown })).toEqual(['W-01', 'P-09']);
   });
 
   test('reads namespaced base IDs next to bare project IDs', () => {
     const markdown = '| V-W-01 | a |\n| **V-C-04** | b |\n| W-06 | c |\n';
 
-    expect(parseRuleIds({ markdown })).toEqual(['V-W-01', 'V-C-04', 'W-06']);
+    expect(RuleParser.parseIds({ markdown })).toEqual(['V-W-01', 'V-C-04', 'W-06']);
   });
 
   test('the shipped base: W5 S7 P12 B9 + the C group, 50 rules, every ID unique', () => {
-    const ids = parseRuleIds({ markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8') });
+    const ids = RuleParser.parseIds({
+      markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
+    });
 
     expect(ids).toHaveLength(50);
     expect(ids.every((id) => id.startsWith('V-'))).toBe(true);
@@ -37,7 +31,7 @@ describe('parseRuleIds', () => {
 
   test('retired IDs are gone from the tables and named as retired, never reused', () => {
     const markdown = readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8');
-    const ids = parseRuleIds({ markdown });
+    const ids = RuleParser.parseIds({ markdown });
 
     for (const retired of ['V-W-05', 'V-C-03', 'V-C-05']) {
       expect(ids).not.toContain(retired);
@@ -46,7 +40,7 @@ describe('parseRuleIds', () => {
   });
 
   test('V-C-02: one options object first, at most 5 parameters, enforced by the house lint', () => {
-    const rows = extractRuleRows({
+    const rows = RuleParser.extractRows({
       markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
     });
     const row = rows.find((line) => line.includes('| V-C-02 |')) ?? '';
@@ -58,7 +52,7 @@ describe('parseRuleIds', () => {
   });
 
   test('V-C-18 binds no stack; V-P-02 is design the surface first', () => {
-    const rows = extractRuleRows({
+    const rows = RuleParser.extractRows({
       markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
     });
     const rowOf = (opts: { id: string }): string =>
@@ -81,7 +75,7 @@ describe('parseBaseReferences', () => {
       '| **V-C-04** | quoted | SOFT |',
     ].join('\n');
 
-    expect(parseBaseReferences({ markdown })).toEqual([
+    expect(RuleParser.parseBaseReferences({ markdown })).toEqual([
       'V-W-01',
       'V-S-01',
       'V-S-07',
@@ -97,20 +91,20 @@ describe('parseBaseReferences', () => {
     const markdown =
       'Extends V-Z-99 in prose.\n| ID | Rule |\n|---|---|\n| W-06 | like V-Z-98 | V-Z-97 |\n';
 
-    expect(parseBaseReferences({ markdown })).toEqual([]);
+    expect(RuleParser.parseBaseReferences({ markdown })).toEqual([]);
   });
 });
 
 describe('readBaseRules', () => {
   test('every base rule ID maps to its row', () => {
-    const rules = readBaseRules();
+    const rules = BaseRules.read();
 
     expect(Object.keys(rules)).toHaveLength(50);
     expect(rules['V-W-02']).toStartWith('| V-W-02 | Never write to a database.');
   });
 
   test('the agent-work rules are present, each with its own key phrase', () => {
-    const rules = readBaseRules();
+    const rules = BaseRules.read();
     const phrases: Record<string, string> = {
       'V-W-06': 'Approval has a card',
       'V-P-08': 'does it need to exist at all?',
@@ -131,11 +125,11 @@ describe('readBaseRules', () => {
   });
 
   test('V-C-11 says small is not golfed', () => {
-    expect(readBaseRules()['V-C-11'] ?? '').toContain('not golfed');
+    expect(BaseRules.read()['V-C-11'] ?? '').toContain('not golfed');
   });
 
   test('V-B-05 states the seven app scripts, the legacy names and where the logic lives', () => {
-    const row = readBaseRules()['V-B-05'] ?? '';
+    const row = BaseRules.read()['V-B-05'] ?? '';
 
     for (const name of [
       'server:dev',
@@ -163,7 +157,7 @@ describe('readBaseRules', () => {
   });
 
   test('V-B-05 also says what an app root holds and where every other config lives', () => {
-    const row = readBaseRules()['V-B-05'] ?? '';
+    const row = BaseRules.read()['V-B-05'] ?? '';
 
     expect(row).toContain(
       'An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`',
@@ -175,19 +169,19 @@ describe('readBaseRules', () => {
 
 describe('readRetiredRuleIds', () => {
   test('the base lists V-W-05, V-C-03 and V-C-05 as retired', () => {
-    expect(readRetiredRuleIds()).toEqual(['V-W-05', 'V-C-03', 'V-C-05']);
+    expect(BaseRules.readRetiredIds()).toEqual(['V-W-05', 'V-C-03', 'V-C-05']);
   });
 
   test('reads one ID per "- `V-X-NN` - why" bullet, nothing else', () => {
     const markdown = '- `V-W-05` - gone\n- `V-C-03` - moved\n- see `V-C-04`\n| V-W-01 | live |\n';
 
-    expect(parseRetiredRuleIds({ markdown })).toEqual(['V-W-05', 'V-C-03']);
+    expect(RuleParser.parseRetiredIds({ markdown })).toEqual(['V-W-05', 'V-C-03']);
   });
 });
 
 describe('readSlots', () => {
   test('V-W-01 offers on-user-word and read-only; only read-only carries settings', () => {
-    const slots = readSlots();
+    const slots = RuleSlots.read();
 
     expect(Object.keys(slots)).toEqual(['V-W-01']);
     expect(Object.keys(slots['V-W-01'].options).sort()).toEqual(['on-user-word', 'read-only']);
@@ -198,7 +192,7 @@ describe('readSlots', () => {
 
 test('every rule ID cited inside the base rules exists in the base, with its V- prefix', () => {
   const markdown = readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8');
-  const ids = new Set(parseRuleIds({ markdown }));
+  const ids = new Set(RuleParser.parseIds({ markdown }));
   // Inline code holds examples of a project's bare IDs (`W-06`), never citations.
   const prose = markdown.replace(/`[^`]*`/g, '');
   const cited = [...prose.matchAll(/(?<![A-Z]-)\b(?:V-)?[WSPBC]-\d{2}\b/g)].map(

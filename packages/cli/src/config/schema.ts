@@ -1,6 +1,6 @@
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
-import { layoutFolderProblem, layoutOverlapProblems } from '../common/layout-folder.ts';
+import { LayoutFolder } from '../common/layout-folder.ts';
 import { OWNER_SCHEMA } from '../owner/schema.ts';
 import {
   CodingAgents,
@@ -54,7 +54,7 @@ const PUSH_TARGET = z
 
 /** A layout folder: 1 to 4 plain segments, never climbing, never absolute (the validator `guard-package` shares). */
 const LAYOUT_FOLDER = z.string().superRefine((value, context) => {
-  const problem = layoutFolderProblem({ folder: value });
+  const problem = LayoutFolder.layoutFolderProblem({ folder: value });
 
   if (problem !== undefined) {
     context.addIssue({ code: 'custom', message: problem });
@@ -212,7 +212,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       other: LAYOUT_VALUE.optional(),
     })
     .superRefine((layout, context) => {
-      for (const problem of layoutOverlapProblems({ layout })) {
+      for (const problem of LayoutFolder.layoutOverlapProblems({ layout })) {
         context.addIssue({ code: 'custom', message: problem });
       }
     })

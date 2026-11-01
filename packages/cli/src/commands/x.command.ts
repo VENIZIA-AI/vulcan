@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ExitCodes, PACKAGE_ROOT, ProjectLayout, VulcanTools } from '../common/index.ts';
-import { findConfigFiles, loadConfig, resolvePackages } from '../config/index.ts';
+import { ConfigLoader, ProjectPackages } from '../config/index.ts';
 import { ManifestConstants, renderManifest } from '../manifest/index.ts';
 import type { ICommandContext, IToolPackage } from '../common/index.ts';
 
@@ -49,17 +49,17 @@ export const resolveToolBin = (opts: { name: string }): string | undefined => {
 export const buildToolEnvironment = async (opts: {
   root: string;
 }): Promise<{ ok: true; env: Record<string, string> } | { ok: false; error: string }> => {
-  if (findConfigFiles({ root: opts.root }).length === 0) {
+  if (ConfigLoader.findFiles({ root: opts.root }).length === 0) {
     return { ok: true, env: {} };
   }
 
-  const loaded = await loadConfig({ root: opts.root });
+  const loaded = await ConfigLoader.load({ root: opts.root });
 
   if (!loaded.ok) {
     return { ok: false, error: loaded.error };
   }
 
-  const config = { ...loaded.config, packages: resolvePackages({ config: loaded.config }) };
+  const config = { ...loaded.config, packages: ProjectPackages.resolve({ config: loaded.config }) };
 
   return {
     ok: true,

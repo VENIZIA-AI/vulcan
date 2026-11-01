@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { resolvePackages, VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { ProjectPackages, VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 
 describe('VULCAN_CONFIG_SCHEMA', () => {
   test('packages carry dir, name, aliases and retired, defaulted', () => {
@@ -161,7 +161,7 @@ describe('package kind', () => {
         { dir: 'feature', name: '@nx/feature', path: 'libs/feature', kind: 'lib' },
       ],
     });
-    const packages = resolvePackages({ config });
+    const packages = ProjectPackages.resolve({ config });
 
     expect(packages[0]).toMatchObject({ presetKind: 'shared' });
     expect(packages[1]).not.toHaveProperty('presetKind');
@@ -179,7 +179,7 @@ describe('package kind', () => {
       ],
     });
 
-    expect(resolvePackages({ config })[0]).toMatchObject({
+    expect(ProjectPackages.resolve({ config })[0]).toMatchObject({
       kind: 'lib',
       path: 'auroras/features/merchant',
     });
@@ -269,7 +269,7 @@ describe('resolvePackages', () => {
   });
 
   test('without packages the list is empty', () => {
-    expect(resolvePackages({ config: VULCAN_CONFIG_SCHEMA.parse({}) })).toEqual([]);
+    expect(ProjectPackages.resolve({ config: VULCAN_CONFIG_SCHEMA.parse({}) })).toEqual([]);
   });
 });
 
@@ -296,7 +296,7 @@ describe('packages are keyed uniquely', () => {
       ],
     });
 
-    expect(resolvePackages({ config }).map((entry) => entry.path)).toEqual([
+    expect(ProjectPackages.resolve({ config }).map((entry) => entry.path)).toEqual([
       'umbras/core',
       'auroras/kits/core',
     ]);

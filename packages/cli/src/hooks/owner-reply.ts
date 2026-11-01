@@ -1,4 +1,4 @@
-import { loadConfig } from '../config/index.ts';
+import { ConfigLoader } from '../config/index.ts';
 import {
   checkOwnerShape,
   OWNER_SCHEMA,
@@ -13,7 +13,7 @@ import {
   ShapeClasses,
 } from '../owner/index.ts';
 import type { IOwnerView } from '../owner/index.ts';
-import { checkClaims, readSignals, startTurn } from '../signals/index.ts';
+import { ReplyClaims, SignalState } from '../signals/index.ts';
 
 /** What to do about each class, in the words of the block message. */
 const FIXES: Record<string, string> = {
@@ -34,7 +34,7 @@ const FIXES: Record<string, string> = {
 
 /** The owner's view of the project in `projectRoot`; a project whose config cannot load gets the defaults. */
 const loadOwnerView = async (opts: { projectRoot: string }): Promise<IOwnerView> => {
-  const loaded = await loadConfig({ root: opts.projectRoot });
+  const loaded = await ConfigLoader.load({ root: opts.projectRoot });
   const profile = readProfile({ root: opts.projectRoot });
 
   return resolveOwnerView({
@@ -77,9 +77,9 @@ export const buildStopOutput = async (opts: {
 
   const result = checkOwnerShape({ text, view });
   // A claim is checked on every reply, a short one too: "Published." is the shortest wrong one.
-  const claims = checkClaims({
+  const claims = ReplyClaims.check({
     text,
-    state: readSignals({ root: opts.projectRoot, session }),
+    state: SignalState.read({ root: opts.projectRoot, session }),
     publicWords: view.claimWords.public,
     doneWords: view.claimWords.done,
   });
@@ -136,7 +136,7 @@ export const buildPromptContract = async (opts: {
 }): Promise<string> => {
   // A new turn begins with this prompt: the notes of the last one are forgotten, whatever is enforced.
   try {
-    startTurn({ root: opts.projectRoot, session: opts.session ?? '' });
+    SignalState.startTurn({ root: opts.projectRoot, session: opts.session ?? '' });
   } catch {
     // The notes are advisory.
   }

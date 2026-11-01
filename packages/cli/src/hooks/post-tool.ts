@@ -1,13 +1,9 @@
 import {
-  appendSignal,
-  callKeyOf,
   EntryKinds,
-  gatesOf,
-  isPublicProbe,
-  loopOf,
-  readSignals,
+  SignalClassifier,
   SignalConstants,
-  watchedFileOf,
+  SignalLoop,
+  SignalState,
   WatchedKinds,
 } from '../signals/index.ts';
 import type { ISignalState } from '../signals/index.ts';
@@ -66,10 +62,10 @@ export const buildPostToolOutput = (opts: {
   // A command sent to the background has not finished: its result is not known here.
   const isBackground = toolInput['run_in_background'] === true;
   const path = stringOf({ value: toolInput['file_path'] });
-  const gates = tool === 'Bash' && !isBackground ? gatesOf({ command }) : [];
+  const gates = tool === 'Bash' && !isBackground ? SignalClassifier.gatesOf({ command }) : [];
 
   try {
-    appendSignal({
+    SignalState.append({
       root: opts.projectRoot,
       entry: {
         kind: EntryKinds.CALL,
@@ -77,9 +73,9 @@ export const buildPostToolOutput = (opts: {
         agent,
         at: now,
         tool,
-        key: callKeyOf({ tool, input: toolInput }),
+        key: SignalClassifier.callKeyOf({ tool, input: toolInput }),
         isOk,
-        isProbe: tool === 'Bash' && isOk && isPublicProbe({ command }),
+        isProbe: tool === 'Bash' && isOk && SignalClassifier.isPublicProbe({ command }),
         gates,
         isEdit: FILE_TOOLS.has(tool) && isOk,
       },
@@ -88,7 +84,7 @@ export const buildPostToolOutput = (opts: {
     // The notes are advisory: a failed write costs a hint, never the call.
   }
 
-  const state: ISignalState = readSignals({ root: opts.projectRoot, session, agent });
+  const state: ISignalState = SignalState.read({ root: opts.projectRoot, session, agent });
   const lines: string[] = [];
   const say = (name: string, line: string): void => {
     const last = state.notedAt[name];
@@ -100,14 +96,17 @@ export const buildPostToolOutput = (opts: {
     lines.push(line);
 
     try {
-      appendSignal({ root: opts.projectRoot, entry: { kind: EntryKinds.NOTE, at: now, name } });
+      SignalState.append({
+        root: opts.projectRoot,
+        entry: { kind: EntryKinds.NOTE, at: now, name },
+      });
     } catch {
       // Without the note the advisory may repeat; nothing worse.
     }
   };
 
   if (FILE_TOOLS.has(tool) && isOk) {
-    const watched = watchedFileOf({ path });
+    const watched = SignalClassifier.watchedFileOf({ path });
 
     if (watched?.kind === WatchedKinds.SKILL) {
       say(
@@ -122,7 +121,7 @@ export const buildPostToolOutput = (opts: {
     }
   }
 
-  const loop = loopOf({ events: state.events });
+  const loop = SignalLoop.loopOf({ events: state.events });
 
   if (loop !== undefined) {
     say(

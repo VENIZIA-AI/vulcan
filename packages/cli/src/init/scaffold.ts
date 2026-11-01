@@ -1,8 +1,8 @@
 import { Glob } from 'bun';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative } from 'node:path';
-import { BASE_DIRECTORY, ProjectLayout, readProperty } from '../common/index.ts';
-import { ConfigConstants, findConfigFiles } from '../config/index.ts';
+import { BASE_DIRECTORY, JsonValue, ProjectLayout } from '../common/index.ts';
+import { ConfigConstants, ConfigLoader } from '../config/index.ts';
 import type { TConfigExtension } from '../config/index.ts';
 import { InitConstants, InitStatuses } from './common/index.ts';
 import { renderBunfig } from '../create/bunfig.ts';
@@ -76,7 +76,7 @@ export const readWorkspaceGlobs = (opts: { root: string }): string[] => {
     return workspaces.map(String);
   }
 
-  const packages = readProperty({ value: workspaces, key: 'packages' });
+  const packages = JsonValue.readProperty({ value: workspaces, key: 'packages' });
 
   return Array.isArray(packages) ? packages.map(String) : [];
 };
@@ -153,7 +153,7 @@ export const scaffoldProject = (opts: {
     });
   }
 
-  const configs = findConfigFiles({ root });
+  const configs = ConfigLoader.findFiles({ root });
 
   if (configs.length === 0) {
     const configFile = `${ConfigConstants.BASENAME}.${opts.extension}`;

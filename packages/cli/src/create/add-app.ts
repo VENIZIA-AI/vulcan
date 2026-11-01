@@ -1,18 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
-import {
-  describeFolders,
-  LayoutKeys,
-  layoutFoldersOf,
-  layoutOverlapProblems,
-  listedFoldersNote,
-  withLayoutFolder,
-} from '../common/layout-folder.ts';
+import { LayoutFolder, LayoutKeys } from '../common/layout-folder.ts';
 import type { ILayout } from '../common/layout-folder.ts';
 import { OFFICIAL_PRESETS, OfficialPresets } from '@venizia/vulcan-atlas';
 import type { IOfficialPreset } from '@venizia/vulcan-atlas';
-import { LibraryKinds, loadConfig, PackageKinds, resolvePackages } from '../config/index.ts';
+import { ConfigLoader, LibraryKinds, PackageKinds, ProjectPackages } from '../config/index.ts';
 import type { IProjectPackage, TLibraryKind, TResolvedConfig } from '../config/index.ts';
 import { readWorkspaceGlobs } from '../init/index.ts';
 import { addLibrary } from './add-lib.ts';
@@ -22,7 +15,7 @@ import type { IAppsBlock, ILocatedPreset, IPresetSpec, TAppSide } from './common
 import { writeFile } from './files.ts';
 import { recordedPresetOf } from './lib-preset.ts';
 import { renderManifestJson } from './manifest-json.ts';
-import { menusAvailable, promptSelect } from '../ui/index.ts';
+import { TerminalCapability, TerminalPrompt } from '../ui/index.ts';
 import { askPresetSpec } from './preset-menu.ts';
 import { ABORTED, confirmWrite, planLines } from './plan.ts';
 import {
@@ -99,11 +92,11 @@ const missingFlag = (opts: { args: string[]; layout: ILayout }): string | undefi
 
   const folder = SIDE_FIELDS[side];
 
-  const listed = layoutFoldersOf({ value: opts.layout[side] });
+  const listed = LayoutFolder.layoutFoldersOf({ value: opts.layout[side] });
 
   // One listed folder is the answer; none, or several, is for the flag to say.
   if (readFlag({ args: opts.args, flag: folder.flag }) === undefined && listed.length !== 1) {
-    return `missing ${folder.flag} (${folder.question}${listed.length > 1 ? `; ${listedFoldersNote({ folders: listed })}` : ''}) - names are never chosen for you`;
+    return `missing ${folder.flag} (${folder.question}${listed.length > 1 ? `; ${LayoutFolder.listedNote({ folders: listed })}` : ''}) - names are never chosen for you`;
   }
 
   const hasApi = opts.args.includes(CreateFlags.API) || opts.args.includes(CreateFlags.NO_API);
@@ -187,8 +180,8 @@ const noSharedKindMessage = (opts: {
 
 /** The terminal asks which kind, listing only what the preset offers; end of input stops the command. */
 const askKind = async (opts: { offered: TAddKind[] }): Promise<TAddKind | undefined> => {
-  if (menusAvailable()) {
-    const picked = await promptSelect({
+  if (TerminalCapability.menusAvailable()) {
+    const picked = await TerminalPrompt.promptSelect({
       message: 'What do you want to create?',
       choices: opts.offered.map((kind) => ({
         value: kind,
@@ -268,7 +261,7 @@ export const resolveApiUrl = async (opts: {
       return { ok: false, error: MISSING_API };
     }
 
-    if (menusAvailable()) {
+    if (TerminalCapability.menusAvailable()) {
       const backends = opts.packages.filter((entry) =>
         opts.backendFolders.some((folder) => entry.path.startsWith(`${folder}/`)),
       );
@@ -278,7 +271,7 @@ export const resolveApiUrl = async (opts: {
         return { ok: true, apiUrl: '' };
       }
 
-      const picked = await promptSelect({
+      const picked = await TerminalPrompt.promptSelect({
         message: 'Backend app to proxy /api to',
         choices: [
           ...backends.map((entry) => ({ value: entry.dir, label: entry.dir, hint: entry.path })),
@@ -356,7 +349,7 @@ export const locate = async (opts: {
 
 /** A terminal picks one of the presets the project recorded or an official one, or types another; null when cancelled. */
 const askPreset = async (opts: { cwd: string }): Promise<string | null> => {
-  const loaded = await loadConfig({ root: opts.cwd });
+  const loaded = await ConfigLoader.load({ root: opts.cwd });
 
   return askPresetSpec({ recorded: loaded.ok ? (loaded.config.presets ?? []) : [] });
 };
@@ -370,7 +363,7 @@ const runAdd = async (opts: {
   const { cwd } = opts;
   const flagged = readFlag({ args: opts.args, flag: CreateFlags.PRESET });
 
-  if (flagged === undefined && !menusAvailable()) {
+  if (flagged === undefined && !TerminalCapability.menusAvailable()) {
     return AddFailure.fail({ message: '--preset needs a value (a package name, or file:<path>)' });
   }
 
@@ -382,7 +375,7 @@ const runAdd = async (opts: {
     return AddFailure.fail({ message: '--preset needs a value (a package name, or file:<path>)' });
   }
 
-  const loaded = await loadConfig({ root: cwd });
+  const loaded = await ConfigLoader.load({ root: cwd });
 
   if (!loaded.ok) {
     return AddFailure.fail({ message: loaded.file === undefined ? ROOT_HINT : loaded.error });
@@ -501,7 +494,7 @@ const runAdd = async (opts: {
       configFile: loaded.file,
       configPath,
       manifest,
-      packages: resolvePackages({ config }),
+      packages: ProjectPackages.resolve({ config }),
       libName: name,
       kind,
       recorded: ({ block }) =>
@@ -524,7 +517,7 @@ const runAdd = async (opts: {
   }
 
   const side = preset.side;
-  const listed = layoutFoldersOf({ value: config.layout[side] });
+  const listed = LayoutFolder.layoutFoldersOf({ value: config.layout[side] });
   const [only] = listed;
   const names = await resolveNames({
     fields: [
@@ -533,7 +526,7 @@ const runAdd = async (opts: {
         ...SIDE_FIELDS[side],
         previous: listed.length === 1 ? only : undefined,
         choices: listed.length > 1 ? listed : undefined,
-        fixed: menusAvailable() && listed.length === 1,
+        fixed: TerminalCapability.menusAvailable() && listed.length === 1,
       },
       { key: 'app', flag: CreateFlags.APP, question: `Name of this ${side} app` },
     ],
@@ -549,7 +542,7 @@ const runAdd = async (opts: {
   const { folder, app } = names.names;
 
   const otherSide = Object.entries(config.layout).find(
-    ([key, value]) => key !== side && layoutFoldersOf({ value }).includes(folder),
+    ([key, value]) => key !== side && LayoutFolder.layoutFoldersOf({ value }).includes(folder),
   );
 
   // One folder holds one kind of code: a folder another key already owns would mix them.
@@ -562,8 +555,10 @@ const runAdd = async (opts: {
     });
   }
 
-  const grown = withLayoutFolder({ value: config.layout[side], folder });
-  const overlaps = layoutOverlapProblems({ layout: { ...config.layout, [side]: grown } });
+  const grown = LayoutFolder.withLayoutFolder({ value: config.layout[side], folder });
+  const overlaps = LayoutFolder.layoutOverlapProblems({
+    layout: { ...config.layout, [side]: grown },
+  });
 
   // A folder inside another (or around one) would give a package path two owners.
   if (overlaps.length > 0) {
@@ -575,7 +570,8 @@ const runAdd = async (opts: {
   const isNewFolder = !listed.includes(folder);
 
   // Optional, asked only where menus are drawn; a plain terminal and a script give --scope.
-  const askingScope = flaggedScope.scope ?? (menusAvailable() ? askScope() : undefined);
+  const askingScope =
+    flaggedScope.scope ?? (TerminalCapability.menusAvailable() ? askScope() : undefined);
   const scope = await askingScope;
 
   if (scope === null) {
@@ -583,7 +579,7 @@ const runAdd = async (opts: {
   }
 
   const packageOfApp = scope === undefined ? app : `${scope}/${app}`;
-  const packages = resolvePackages({ config });
+  const packages = ProjectPackages.resolve({ config });
 
   if (
     existsSync(join(cwd, folder, app)) ||
@@ -600,7 +596,7 @@ const runAdd = async (opts: {
       root: cwd,
       args: opts.args,
       interactive,
-      backendFolders: layoutFoldersOf({ value: config.layout.backend }),
+      backendFolders: LayoutFolder.layoutFoldersOf({ value: config.layout.backend }),
       packages,
     });
 
@@ -633,7 +629,7 @@ const runAdd = async (opts: {
   const extended: IAppsBlock = {
     layout: {
       ...parsed.block.layout,
-      [side]: withLayoutFolder({ value: parsed.block.layout[side], folder }),
+      [side]: LayoutFolder.withLayoutFolder({ value: parsed.block.layout[side], folder }),
     },
     packages: [...parsed.block.packages, entry],
     ...(parsed.block.presets === undefined ? {} : { presets: parsed.block.presets }),
@@ -675,7 +671,7 @@ const runAdd = async (opts: {
   if (isNewFolder) {
     rows.push([
       'layout',
-      `adds '${folder}' to layout.${side} (now ${describeFolders({ folders: layoutFoldersOf({ value: grown }) })})`,
+      `adds '${folder}' to layout.${side} (now ${LayoutFolder.describe({ folders: LayoutFolder.layoutFoldersOf({ value: grown }) })})`,
     ]);
   }
 

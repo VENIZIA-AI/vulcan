@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { formatWithBun } from '../common/index.ts';
-import { resolvePackages } from '../config/index.ts';
+import { BunFormatter } from '../common/index.ts';
+import { ProjectPackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
-import { readBaseRules } from '../rules/index.ts';
+import { BaseRules } from '../rules/index.ts';
 
 export class ManifestConstants {
   /** Committed; what atlas reads from a project - local or fetched - and nothing else. */
@@ -39,7 +39,7 @@ export const projectNameOf = (opts: { root: string; config: TResolvedConfig }): 
 /** Each base rule's ID with a hash of its row: a sync after an upgrade can say which rules changed. */
 export const buildBaseRuleHashes = (): Record<string, string> =>
   Object.fromEntries(
-    Object.entries(readBaseRules()).map(([id, row]) => {
+    Object.entries(BaseRules.read()).map(([id, row]) => {
       const hash = new Bun.CryptoHasher('sha256').update(row.trim()).digest('hex');
 
       return [id, hash.slice(0, HASH_LENGTH)];
@@ -98,7 +98,7 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
     [ManifestConstants.GENERATED_KEY]: ManifestConstants.GENERATED_NOTE,
     schemaVersion: ManifestConstants.SCHEMA_VERSION,
     name: projectNameOf(opts),
-    packages: resolvePackages({ config }).map((entry) => ({
+    packages: ProjectPackages.resolve({ config }).map((entry) => ({
       name: entry.name,
       dir: entry.dir,
       path: entry.path,
@@ -137,7 +137,7 @@ export const renderManifest = (opts: { root: string; config: TResolvedConfig }):
     ...(config.theme === undefined ? {} : { theme: config.theme }),
   };
 
-  return formatWithBun({
+  return BunFormatter.format({
     text: `${JSON.stringify(manifest, null, 2)}\n`,
     file: ManifestConstants.FILE,
   });

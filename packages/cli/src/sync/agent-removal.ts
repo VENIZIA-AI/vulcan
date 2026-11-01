@@ -22,7 +22,7 @@ import {
 } from '../agents/index.ts';
 import type { TAgentEntry } from '../agents/index.ts';
 import { isTracked } from './agent-files.ts';
-import { BASE_DIRECTORY, stableBaseDirectoryOf } from '../common/index.ts';
+import { BASE_DIRECTORY, BaseDirectory } from '../common/index.ts';
 import { SyncConstants, SyncLinks, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
 import { isSettingsObject, removeManagedSettings } from './settings.ts';
@@ -59,7 +59,7 @@ const isSkillLink = (opts: { root: string; path: string }): boolean => {
 
   const target = readlinkSync(opts.path);
   const shipped = [
-    join(stableBaseDirectoryOf(opts), SyncConstants.SKILLS_DIRECTORY),
+    join(BaseDirectory.stableOf(opts), SyncConstants.SKILLS_DIRECTORY),
     join(BASE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY),
     join(opts.root, '.agents', SyncConstants.SKILLS_DIRECTORY),
   ];

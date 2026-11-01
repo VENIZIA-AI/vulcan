@@ -29,8 +29,8 @@ try {
   // own, and may fail alone.
   if (hookCommand && /\.ts\b/.test(hookCommand.command)) {
     try {
-      const { loadConfig } = await import('../../src/config/index.ts');
-      const loaded = await loadConfig({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd });
+      const { ConfigLoader } = await import('../../src/config/index.ts');
+      const loaded = await ConfigLoader.load({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd });
 
       // The objects are the read-only entries: the manifest carries them, so only the paths count here.
       scripts = loaded.ok

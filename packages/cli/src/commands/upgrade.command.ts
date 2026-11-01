@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ExitCodes, PACKAGE_NAME, readProperty, UpgradeFlags } from '../common/index.ts';
+import { ExitCodes, JsonValue, PACKAGE_NAME, UpgradeFlags } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { CreateConstants } from '../create/common/index.ts';
 import { bunExecutable, isInstallSkipped, runBun } from '../create/process.ts';
@@ -22,7 +22,7 @@ export const buildUpgradeArgs = (opts: { target?: string }): string[] => [
 
 /** A tag that is present must be a plain version; anything else cannot be compared or installed. */
 const parseTag = (opts: { tags: unknown; key: keyof IDistTags }): string | undefined | null => {
-  const value = readProperty({ value: opts.tags, key: opts.key });
+  const value = JsonValue.readProperty({ value: opts.tags, key: opts.key });
 
   if (value === undefined) {
     return undefined;
@@ -104,7 +104,10 @@ const readInstalledVersion = (opts: { cwd: string }): string | undefined => {
   }
 
   try {
-    const version = readProperty({ value: JSON.parse(readFileSync(file, 'utf8')), key: 'version' });
+    const version = JsonValue.readProperty({
+      value: JSON.parse(readFileSync(file, 'utf8')),
+      key: 'version',
+    });
 
     return typeof version === 'string' ? version : undefined;
   } catch {

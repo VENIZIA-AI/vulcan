@@ -1,5 +1,5 @@
 import { relative } from 'node:path';
-import { loadConfig } from '../config/index.ts';
+import { ConfigLoader } from '../config/index.ts';
 import {
   checkAdapters,
   checkAgents,
@@ -40,7 +40,7 @@ import type { IViolation } from './common/index.ts';
 
 /** Every violation of the VULCAN contract in the project at `root`; empty means conformant. */
 export const runDoctorChecks = async (opts: { root: string }): Promise<IViolation[]> => {
-  const loaded = await loadConfig({ root: opts.root });
+  const loaded = await ConfigLoader.load({ root: opts.root });
 
   if (!loaded.ok) {
     return [
@@ -83,7 +83,7 @@ export const runDoctorNotes = async (opts: {
   /** The environment of the shell running doctor; defaults to the process environment. */
   env?: Record<string, string | undefined>;
 }): Promise<IViolation[]> => {
-  const loaded = await loadConfig({ root: opts.root });
+  const loaded = await ConfigLoader.load({ root: opts.root });
 
   if (!loaded.ok) {
     return [];
@@ -109,7 +109,7 @@ export const runDoctorNotes = async (opts: {
 
 /** Warnings: louder than a note, still never a failure - a security gap a project made earlier may carry. */
 export const runDoctorWarnings = async (opts: { root: string }): Promise<IViolation[]> => {
-  const loaded = await loadConfig({ root: opts.root });
+  const loaded = await ConfigLoader.load({ root: opts.root });
 
   if (!loaded.ok) {
     return [];

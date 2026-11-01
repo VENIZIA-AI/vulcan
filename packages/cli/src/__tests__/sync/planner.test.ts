@@ -521,9 +521,9 @@ describe('idempotence and output', () => {
 describe('planSync with the resolved agents', () => {
   test('without claude no Claude file is planned, with claude the adapters come too', async () => {
     const { planSync } = await import('../../sync/index.ts');
-    const { loadConfig } = await import('../../config/index.ts');
+    const { ConfigLoader } = await import('../../config/index.ts');
     const root = createProject({ files: READ_ONLY_PROJECT });
-    const loaded = await loadConfig({ root });
+    const loaded = await ConfigLoader.load({ root });
 
     if (!loaded.ok) {
       throw new Error(loaded.error);
