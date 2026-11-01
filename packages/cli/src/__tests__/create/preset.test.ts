@@ -565,7 +565,7 @@ describe('locatePreset containment', () => {
         'package.json': PACKAGE_JSON,
         'preset.json': JSON.stringify({
           ...JSON.parse(PRESET_JSON),
-          scripts: { typecheck: 'tsc --noEmit' },
+          scripts: { typecheck: 'bun check' },
           checks: ['typecheck', '--cwd=/'],
         }),
       },
@@ -582,7 +582,7 @@ describe('locatePreset containment', () => {
         'package.json': PACKAGE_JSON,
         'preset.json': JSON.stringify({
           ...JSON.parse(PRESET_JSON),
-          scripts: { typecheck: 'tsc --noEmit' },
+          scripts: { typecheck: 'bun check' },
           checks: ['typecheck'],
         }),
       },

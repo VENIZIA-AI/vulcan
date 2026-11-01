@@ -430,7 +430,7 @@ describe('doctor on a clean checkout', () => {
 
     expect(adapters).toHaveLength(1);
     expect(adapters[0]?.message).toBe(
-      "not synced yet - run 'bun x --no-install vulcan sync' (make agent-setup) first",
+      "not synced yet - run 'bun x --no-install vulcan sync' (make vulcan-sync) first",
     );
     expect(adapters[0]?.message).not.toContain('stale');
   });

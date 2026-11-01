@@ -201,6 +201,5 @@ jobs:
         with:
           bun-version: latest
 
-      # --allow-missing until IGNIS and ARDOR have adopted the folder; remove it when they have.
       - name: Compare with IGNIS and ARDOR
-        run: bun scripts/wiki-shared/check.ts --remote --allow-missing
+        run: bun scripts/wiki-shared/check.ts --remote

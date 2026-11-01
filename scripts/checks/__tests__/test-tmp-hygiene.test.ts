@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import {
   findRepositoryRoot,
   REPO_TMP_DIRECTORY,
+  SPAWN_TIMEOUT_MS,
   spawnSyncBounded,
 } from '@venizia/dev-configs/testing';
 
@@ -77,26 +78,37 @@ const TARGETS = [
 // with a bare `bun test` has no TMPDIR from make, and a killed run once left a folder per run in /tmp.
 describe('a test run keeps its temp folders out of the system temp', () => {
   for (const target of TARGETS) {
-    test(`${target.pkg}: ${target.file}`, () => {
-      const system = makeFakeSystemTemp();
-      const leaksBefore = new Set(systemTempLeaks());
+    // Each runs a whole test file in a child. With bun's default 5 s test limit these failed on a loaded machine
+    // (the log showed the test at 5.0 s and the child's exit code null). The limit is now the spawn helper's bound on
+    // a stalled child plus a margin, so the helper's own error, which names the command, is the one that is seen.
+    test(
+      `${target.pkg}: ${target.file}`,
+      () => {
+        const system = makeFakeSystemTemp();
+        const leaksBefore = new Set(systemTempLeaks());
 
-      runBare({ ...target, tmpdir: system });
+        runBare({ ...target, tmpdir: system });
 
-      expect(readdirSync(system)).toEqual([]);
-      expect(systemTempLeaks().filter((name) => !leaksBefore.has(name))).toEqual([]);
-    });
+        expect(readdirSync(system)).toEqual([]);
+        expect(systemTempLeaks().filter((name) => !leaksBefore.has(name))).toEqual([]);
+      },
+      SPAWN_TIMEOUT_MS + 10_000,
+    );
   }
 });
 
 describe('a test run leaves no temp folder behind', () => {
   for (const target of TARGETS) {
-    test(`${target.pkg}: ${target.file}`, () => {
-      const scratch = makePrivateTestTemp();
+    test(
+      `${target.pkg}: ${target.file}`,
+      () => {
+        const scratch = makePrivateTestTemp();
 
-      runBare({ ...target, tmpdir: scratch });
+        runBare({ ...target, tmpdir: scratch });
 
-      expect(readdirSync(scratch)).toEqual([]);
-    });
+        expect(readdirSync(scratch)).toEqual([]);
+      },
+      SPAWN_TIMEOUT_MS + 10_000,
+    );
   }
 });

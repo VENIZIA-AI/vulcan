@@ -4,7 +4,6 @@
  *
  *   bun scripts/wiki-shared/check.ts ../ignis ../ardor     local checkouts, hashed from disk
  *   bun scripts/wiki-shared/check.ts --remote              the SHARED.json each repo publishes on develop
- *   --allow-missing                                        a wiki that has no shared folder yet is not a failure
  *
  * `--remote` is what the scheduled workflow runs. It reads a public file as data: the JSON is
  * validated before it is trusted, and only its hashes are compared.
@@ -70,7 +69,6 @@ const remoteManifest = async (opts: { base: string }): Promise<TManifest | null>
 };
 
 if (import.meta.main) {
-  const allowMissing = process.argv.includes('--allow-missing');
   const remote = process.argv.includes('--remote');
   const paths = process.argv.slice(2).filter((argument) => !argument.startsWith('--'));
   const canonical = readManifest({ root: CANONICAL }) ?? buildManifest({ root: CANONICAL });
@@ -98,7 +96,7 @@ if (import.meta.main) {
 
   for (const verdict of verdicts) {
     console.log(`check: ${verdict.name}: ${verdict.state}: ${verdict.detail}`);
-    failed ||= verdict.state === 'drifted' || (verdict.state === 'missing' && !allowMissing);
+    failed ||= verdict.state !== 'in-step';
   }
 
   process.exit(failed ? 1 : 0);
