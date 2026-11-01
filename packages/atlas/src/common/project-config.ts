@@ -302,7 +302,3 @@ export const livePackageDirs = (opts: { project: IAtlasProject }): string[] => {
 /** Where a package lives, from the root: the manifest's `path` (an application keeps them outside packages/). */
 export const packagePathOf = (opts: { project?: IAtlasProject; dir: string }): string =>
   opts.project?.packages.find((entry) => entry.dir === opts.dir)?.path ?? `packages/${opts.dir}`;
-
-/** Every package the project has released, retired ones included. */
-export const knownPackageDirs = (opts: { project: IAtlasProject }): string[] =>
-  opts.project.packages.map((entry) => entry.dir);

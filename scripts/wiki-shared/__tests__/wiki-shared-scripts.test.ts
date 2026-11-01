@@ -132,6 +132,25 @@ describe('compare', () => {
   });
 
   test('a wiki without a shared folder is missing', () => {
-    expect(compare({ name: 'x', canonical, theirs: null }).state).toBe('missing');
+    const verdict = compare({ name: 'x', canonical, theirs: null });
+
+    expect(verdict.state).toBe('missing');
+    expect(verdict.detail).toBe('no shared folder yet');
+  });
+
+  test('a 404 is still no shared folder yet', () => {
+    const failure = { status: 404, url: 'https://example.test/SHARED.json' };
+    const verdict = compare({ name: 'x', canonical, theirs: null, failure });
+
+    expect(verdict.state).toBe('missing');
+    expect(verdict.detail).toBe('no shared folder yet');
+  });
+
+  test('another status is named in the detail, and the verdict still fails the check', () => {
+    const failure = { status: 429, url: 'https://example.test/SHARED.json' };
+    const verdict = compare({ name: 'x', canonical, theirs: null, failure });
+
+    expect(verdict.state).toBe('missing');
+    expect(verdict.detail).toBe('HTTP 429 from https://example.test/SHARED.json');
   });
 });

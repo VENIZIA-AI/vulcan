@@ -1,26 +1,9 @@
 import { readAtlasProject } from '@/common/project-config';
-import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { describe, expect, spyOn, test } from 'bun:test';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { AtlasSymbols } from '@/symbols/generator';
+import { AtlasSymbols, runSymbolsCommand } from '@/symbols/generator';
 import { IGNIS_IS_BUILT, IGNIS_ROOT } from '../ignis-root.helper';
-
-const tmpDirs: string[] = [];
-
-const makeTmpDir = (): string => {
-  const dir = mkdtempSync(join(tmpdir(), 'vulcan-atlas-symbols-'));
-
-  tmpDirs.push(dir);
-
-  return dir;
-};
-
-afterAll(() => {
-  for (const dir of tmpDirs) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
 
 describe('AtlasSymbols.sourcePathOf', () => {
   test('maps a dist/cjs declaration back to its source file', () => {
@@ -68,15 +51,13 @@ describe('AtlasSymbols.collapseSignature', () => {
   });
 });
 
-// Reading every package's .d.ts takes tens of seconds; the drift case below renders one small
-// package instead, so only the freshness test pays for the whole surface.
+// Reading every package's .d.ts takes tens of seconds, so only this test pays for the whole surface.
 const WHOLE_SURFACE_TIMEOUT_MS = 300_000;
-const ONE_PACKAGE_TIMEOUT_MS = 60_000;
 
 // No committed table to compare with since 0.2.0 (symbols are read when asked): this pins the
-// renderer and the drift check over IGNIS's real build instead.
+// renderer over IGNIS's real build instead.
 describe.skipIf(!IGNIS_IS_BUILT || !existsSync(join(IGNIS_ROOT, '.agents/vulcan.manifest.json')))(
-  'AtlasSymbols.check',
+  'AtlasSymbols.render',
   () => {
     test(
       "renders IGNIS's live packages, each mapped to its npm name",
@@ -95,24 +76,18 @@ describe.skipIf(!IGNIS_IS_BUILT || !existsSync(join(IGNIS_ROOT, '.agents/vulcan.
       },
       WHOLE_SURFACE_TIMEOUT_MS,
     );
-
-    test(
-      'reads stale once a symbol is dropped from the table',
-      () => {
-        const packages = ['inversion'];
-        const outputPath = join(makeTmpDir(), 'symbols.json');
-
-        writeFileSync(outputPath, AtlasSymbols.render({ repoRoot: IGNIS_ROOT, packages }));
-        expect(AtlasSymbols.check({ repoRoot: IGNIS_ROOT, packages, outputPath })).toBe(true);
-
-        const table = JSON.parse(readFileSync(outputPath, 'utf8'));
-
-        table.symbols = table.symbols.slice(1);
-        writeFileSync(outputPath, `${JSON.stringify(table, null, 2)}\n`);
-
-        expect(AtlasSymbols.check({ repoRoot: IGNIS_ROOT, packages, outputPath })).toBe(false);
-      },
-      ONE_PACKAGE_TIMEOUT_MS,
-    );
   },
 );
+
+describe('runSymbolsCommand', () => {
+  test('any subcommand prints the usage and exits 2', () => {
+    const error = spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      expect(runSymbolsCommand({ command: 'gen' })).toBe(2);
+      expect(error).toHaveBeenCalledWith('usage: vulcan x atlas symbols');
+    } finally {
+      error.mockRestore();
+    }
+  });
+});

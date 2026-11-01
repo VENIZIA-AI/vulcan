@@ -130,16 +130,6 @@ export const layoutOverlapProblems = (opts: { layout: ILayout }): string[] => {
   return problems;
 };
 
-/** Every problem of a layout, one line each: the folders that are not one, then the overlaps. */
-export const layoutProblems = (opts: { layout: ILayout }): string[] => [
-  ...entriesOf({ layout: opts.layout }).flatMap((entry) => {
-    const problem = layoutFolderProblem({ folder: entry.folder });
-
-    return problem === undefined ? [] : [`layout.${entry.key}: ${problem}`];
-  }),
-  ...layoutOverlapProblems({ layout: opts.layout }),
-];
-
 /** The layout value with `folder` in it: unchanged when it is there already, a string that grows into a list otherwise. */
 export const withLayoutFolder = (opts: {
   value: TLayoutValue | undefined;
@@ -153,14 +143,6 @@ export const withLayoutFolder = (opts: {
 
   return folders.length === 0 ? opts.folder : [...folders, opts.folder];
 };
-
-/** The layout key whose folder is exactly `folder`, or undefined. Only valid folders count. */
-export const layoutKeyOfFolder = (opts: { layout: ILayout; folder: string }): string | undefined =>
-  LayoutKeys.ALL.find((key) =>
-    layoutFoldersOf({ value: opts.layout[key] }).some(
-      (folder) => folder === opts.folder && layoutFolderProblem({ folder }) === undefined,
-    ),
-  );
 
 /** The valid folders of a layout value; a manifest is read through this, never trusted. */
 export const validLayoutFolders = (opts: { value: unknown }): string[] =>

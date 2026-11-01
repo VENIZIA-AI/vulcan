@@ -24,8 +24,6 @@ import { dirname, relative, resolve } from 'node:path';
 import type TypeScript from 'typescript';
 import { PublicSurface } from '@/surface';
 
-const SYMBOLS_OUTPUT = resolve(PROJECT_ROOT, '.agents/knowledge/reference/symbols.json');
-
 const SIGNATURE_MAX_CHARS = 300;
 const SHAPE_LENGTH = 12;
 
@@ -225,16 +223,6 @@ export class AtlasSymbols {
         }),
       )
       .sort(AtlasSymbols.compare);
-  }
-
-  static check(
-    opts: { repoRoot?: string; packages?: string[]; outputPath?: string } = {},
-  ): boolean {
-    const outputPath = opts.outputPath ?? SYMBOLS_OUTPUT;
-    const expected = AtlasSymbols.render({ repoRoot: opts.repoRoot, packages: opts.packages });
-    const actual = existsSync(outputPath) ? readFileSync(outputPath, 'utf8') : '';
-
-    return expected.trim() === actual.trim();
   }
 
   /** `packages/x/dist/cjs/y.d.ts` (or `dist/esm`, or a flat `dist`) as `packages/x/src/y.ts`; `undefined` when the path has no `dist` segment at all. */
@@ -505,10 +493,8 @@ export class AtlasSymbols {
 
 /** A debug view: atlas reads declarations when asked (D2); no project commits a symbol table. */
 export const runSymbolsCommand = (opts: { command?: string }): number => {
-  if (opts.command === 'gen' || opts.command === 'check') {
-    console.error(
-      `vulcan x atlas symbols ${opts.command}: gone in 0.2.0-0 - atlas reads the installed or built .d.ts when asked; delete .agents/knowledge/reference/symbols.json, and \`vulcan x atlas symbols\` prints what it reads`,
-    );
+  if (opts.command !== undefined) {
+    console.error('usage: vulcan x atlas symbols');
 
     return 2;
   }
