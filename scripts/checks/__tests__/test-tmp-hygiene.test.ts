@@ -78,8 +78,9 @@ const TARGETS = [
 // with a bare `bun test` has no TMPDIR from make, and a killed run once left a folder per run in /tmp.
 describe('a test run keeps its temp folders out of the system temp', () => {
   for (const target of TARGETS) {
-    // Each runs a whole test file in a child: bun's own 5 s test limit is too short for a loaded machine, so the
-    // limit is the one the spawn helper puts on a stalled child.
+    // Each runs a whole test file in a child. With bun's default 5 s test limit these failed on a loaded machine
+    // (the log showed the test at 5.0 s and the child's exit code null). The limit is now the spawn helper's bound on
+    // a stalled child plus a margin, so the helper's own error, which names the command, is the one that is seen.
     test(
       `${target.pkg}: ${target.file}`,
       () => {
@@ -91,7 +92,7 @@ describe('a test run keeps its temp folders out of the system temp', () => {
         expect(readdirSync(system)).toEqual([]);
         expect(systemTempLeaks().filter((name) => !leaksBefore.has(name))).toEqual([]);
       },
-      SPAWN_TIMEOUT_MS,
+      SPAWN_TIMEOUT_MS + 10_000,
     );
   }
 });
@@ -107,7 +108,7 @@ describe('a test run leaves no temp folder behind', () => {
 
         expect(readdirSync(scratch)).toEqual([]);
       },
-      SPAWN_TIMEOUT_MS,
+      SPAWN_TIMEOUT_MS + 10_000,
     );
   }
 });
