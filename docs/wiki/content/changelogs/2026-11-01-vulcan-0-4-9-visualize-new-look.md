@@ -8,7 +8,7 @@ packages: ['@venizia/vulcan', '@venizia/vulcan-atlas', '@venizia/vulcan-okf']
 
 ## VULCAN X.Y.Z: a new vulcan visualize, and a few names change in okf, atlas and the Makefile
 
-<Badge type="tip" text="Enhancement" /> <Badge type="warning" text="Breaking Change" />
+<Badge type="tip" text="Enhancement" /> <Badge type="info" text="Bug Fix" /> <Badge type="warning" text="Breaking Change" />
 
 **In one line.** `vulcan visualize` pages now look like this wiki, wear your project's colour, come in your profile language and can draw four more kinds; and one make target and six functions you may call are renamed or removed (below, under Breaking changes).
 
@@ -19,6 +19,7 @@ packages: ['@venizia/vulcan', '@venizia/vulcan-atlas', '@venizia/vulcan-okf']
 - **Your language.** The page takes the reply language of your profile. The page words are bundled in English and Vietnamese; for another language a spec's `chrome` still replaces any word.
 - **Four new kinds.** `sequence` (who calls whom, in order), `lifecycle` (states and what moves between them), `tree` (what is inside what) and `compare` (one figure for two ways of doing the same thing; an edge only in one way is marked by line style and a word, and a compare with no differing edge is refused).
 - **Sources and terms.** A flow box, a flow step or a compare box can carry a `source` (`repo`, a 40-character `commit`, `path`, `lines`), shown as `repo@commit:path:lines` and listed once; a short commit is refused. A `terms` list explains words the reader may not know, and warns when one never appears in the page.
+- **Cards in a row line up.** In a comparison, the recommended card's badge no longer pushes its big score lower than the others, and the titles, descriptions, criterion rows, pros and cons of every card sit at the same height even when a label wraps. The same holds for the tiles, the stepper, the idea map, the charts and the terms; on a phone, where cards stack, nothing is reserved.
 - **Larger pages.** The warning is now at 80 KB and the refusal at 150 KB (it was 60 and 100).
 
 ## Who is affected

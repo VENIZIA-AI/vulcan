@@ -3,6 +3,7 @@ import { ChangeKinds, MinimapStates, NodeStates } from './constants.ts';
 import type { TChangeKind, TChrome } from './constants.ts';
 import { SpecDiagrams } from './diagrams.ts';
 import type { IDrawing } from './diagrams.ts';
+import { GridSpans } from './grid-span.ts';
 import { IconSet } from './icons.ts';
 import { FigureLayout } from './layout.ts';
 import type { TVisualizeSpec } from './schema.ts';
@@ -13,6 +14,8 @@ export interface ISectionContext {
   spec: TVisualizeSpec;
   chrome: TChrome;
   fits: Set<number>;
+  /** The row spans the page uses (see `GridSpans`). */
+  spans: Set<number>;
 }
 
 const escaped = (value: string): string => FigureLayout.escapeText({ value });
@@ -197,10 +200,21 @@ export class SpecSections {
     const marked = comparison.options.findIndex((option) => option.recommended === true);
     const best = marked === -1 ? totals.indexOf(Math.max(...totals)) : marked;
     const max = comparison.criteria.length * 5;
+    const { spans } = opts.ctx;
+    // Every card spans the same rows of the grid: the badge slot (only when some option is recommended), the total, the
+    // title, the line (only when some option has one), each criterion, then the most pros and the most cons of any option.
+    const hasBadge = comparison.options.some((option) => option.recommended === true);
+    const hasLine = comparison.options.some((option) => option.line !== undefined);
+    const mostPros = Math.max(0, ...comparison.options.map((option) => (option.pros ?? []).length));
+    const mostCons = Math.max(0, ...comparison.options.map((option) => (option.cons ?? []).length));
+    const rows =
+      (hasBadge ? 1 : 0) + 2 + (hasLine ? 1 : 0) + comparison.criteria.length + mostPros + mostCons;
+    const proRow = (row: { icon: string; word: string; text: string; kind: string }): string =>
+      `<li class="${row.kind}">${IconSet.iconSvg({ name: row.icon, size: 16 })}<span><span class="vh">${escaped(row.word)}: </span>${escaped(row.text)}</span></li>`;
     const cards = comparison.options
       .map(
         (option, index) =>
-          `<article class="opt${option.recommended === true ? ' rec' : ''}">${option.recommended === true ? `<span class="tag">${escaped(chrome.recommended)}</span>` : ''}<p class="tot">${totals[index]}<small> ${escaped(chrome.outOf)} ${max}</small></p><h3>${escaped(option.name)}</h3>${option.line === undefined ? '' : `<p class="ln">${escaped(option.line)}</p>`}<div class="crit">${comparison.criteria.map((criterion, i) => `<div><span>${escaped(criterion)}</span>${dots({ score: option.scores[i] ?? 0 })}</div>`).join('')}</div><ul class="pc">${(option.pros ?? []).map((pro) => `<li class="p">${IconSet.iconSvg({ name: 'plus', size: 16 })}<span><span class="vh">${escaped(chrome.pros)}: </span>${escaped(pro)}</span></li>`).join('')}${(option.cons ?? []).map((con) => `<li class="c">${IconSet.iconSvg({ name: 'minus', size: 16 })}<span><span class="vh">${escaped(chrome.cons)}: </span>${escaped(con)}</span></li>`).join('')}</ul></article>`,
+          `<article class="opt${option.recommended === true ? ' rec' : ''} ${GridSpans.classOf({ count: rows, spans })}">${hasBadge ? `<span class="tag-slot">${option.recommended === true ? `<span class="tag">${escaped(chrome.recommended)}</span>` : ''}</span>` : ''}<p class="tot">${totals[index]}<small> ${escaped(chrome.outOf)} ${max}</small></p><h3>${escaped(option.name)}</h3>${hasLine ? `<p class="ln">${option.line === undefined ? '' : escaped(option.line)}</p>` : ''}<div class="crit ${GridSpans.classOf({ count: comparison.criteria.length, spans })}">${comparison.criteria.map((criterion, i) => `<div><span>${escaped(criterion)}</span>${dots({ score: option.scores[i] ?? 0 })}</div>`).join('')}</div>${mostPros === 0 ? '' : `<ul class="pc proslist ${GridSpans.classOf({ count: mostPros, spans })}">${(option.pros ?? []).map((pro) => proRow({ icon: 'plus', word: chrome.pros, text: pro, kind: 'p' })).join('')}</ul>`}${mostCons === 0 ? '' : `<ul class="pc conslist ${GridSpans.classOf({ count: mostCons, spans })}">${(option.cons ?? []).map((con) => proRow({ icon: 'minus', word: chrome.cons, text: con, kind: 'c' })).join('')}</ul>`}</article>`,
       )
       .join('');
 
@@ -219,7 +233,7 @@ export class SpecSections {
       : SpecSections.section({
           id: 'idea-map',
           title: opts.ctx.chrome.ideaMap,
-          body: SpecDiagrams.renderIdeaMap({ map: ideaMap }),
+          body: SpecDiagrams.renderIdeaMap({ map: ideaMap, spans: opts.ctx.spans }),
         });
   }
 
@@ -326,13 +340,17 @@ export class SpecSections {
       return '';
     }
 
+    // Every option spans the same rows: the badge slot (when one is chosen), the title and the summary.
+    const hasChosen = decisionRecord.options.some((option) => option.chosen === true);
+    const recordRows = (hasChosen ? 1 : 0) + 2;
+
     return SpecSections.section({
       id: 'decision-record',
       title: chrome.decisionRecord,
       body: `<div class="dr"><div><p class="lab">${escaped(chrome.context)}</p><p class="ctx">${escaped(decisionRecord.context)}</p></div><div><p class="lab">${escaped(chrome.optionsConsidered)}</p><div class="opts n${decisionRecord.options.length}">${decisionRecord.options
         .map(
           (option) =>
-            `<article class="opt${option.chosen === true ? ' rec' : ''}">${option.chosen === true ? `<span class="tag">${escaped(chrome.chosen)}</span>` : ''}<h3>${escaped(option.name)}</h3><p class="ln">${escaped(option.summary)}</p></article>`,
+            `<article class="opt${option.chosen === true ? ' rec' : ''} ${GridSpans.classOf({ count: recordRows, spans: opts.ctx.spans })}">${hasChosen ? `<span class="tag-slot">${option.chosen === true ? `<span class="tag">${escaped(chrome.chosen)}</span>` : ''}</span>` : ''}<h3>${escaped(option.name)}</h3><p class="ln">${escaped(option.summary)}</p></article>`,
         )
         .join(
           '',

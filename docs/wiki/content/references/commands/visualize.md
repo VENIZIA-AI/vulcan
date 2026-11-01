@@ -35,6 +35,8 @@ A page is the sections its spec has, in a fixed order: the banner, the tiles, th
 
 Every state carries an icon and a word, never colour alone: the status, each minimap row (done, in progress, waiting, not started, blocked, dropped) and each evidence tag (verified, inferred, guess). Light and dark follow the system, with a sun and moon switch in the top bar; the choice is remembered in the browser of the reader. A sticky dark top bar carries the title, the state, links to the sections on the page and the date.
 
+Cards in a row share their rows: the score, the title, each criterion and each pro of one comparison card, the tiles, the stepper, the idea-map branches, the charts and the terms sit at the same height in every card of a row, whatever wraps or is missing (CSS grid with `subgrid`; one column on a phone). A test measures the offsets in headless Chrome.
+
 The page fits a phone without sideways scrolling. A figure is drawn whole while its text stays at 12 px or more; on a narrower screen it gives way to a list, and tables become one block per row with the column names beside the values.
 
 **Present** (or `?present=1` on the address) turns the sections into slides: the arrow keys, Space, Page Up and Page Down step, Home and End jump, Escape leaves, and the buttons at the foot do the same on a phone. Print gives every section one after another, with the figure and without the phone list. With no script, print or reduced motion, the final state shows.
