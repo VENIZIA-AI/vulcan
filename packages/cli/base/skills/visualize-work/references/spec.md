@@ -8,15 +8,19 @@ never markup. `bun x --no-install vulcan visualize --schema` prints the full JSO
 ## The kinds
 
 A page is the sections its spec has, in a fixed order: the banner (title, verdict, state), the tiles, the minimap,
-what you need to do and what blocks it, then the flow, the architecture, the comparison, the idea map, the
-explainer, the timeline, the findings, the before and after, the decision record, the decisions, the evidence,
-the risks, the log and the links. Pick the sections the question needs and leave the rest out:
+what you need to do and what blocks it, then the flow (drawn in the top slab, under the verdict, when there is
+one), the architecture, the compare view, the sequence, the lifecycle, the tree, the comparison, the idea map, the explainer, the timeline, the findings, the before and after, the decision record, the decisions, the evidence,
+the risks, the log, the words of the page (`terms`), the sources and the links. Pick the sections the question needs and leave the rest out:
 
 | The page is | Use |
 |---|---|
 | A status or a handoff for the owner | `strip`, `actions`, `minimap`, `decisions`, `evidence`, `risks`, `log` |
 | How something moves | `flow` (boxes on a grid, labelled arrows, numbered steps) |
 | How a system is built | `architecture` (layers of boxes with links) |
+| What differs between two ways of doing it | `compare` (one figure: edges in both, only in A, only in B) |
+| Who calls whom, in what order | `sequence` (lanes for the participants, one arrow per message) |
+| The states of a thing | `lifecycle` (states, with a start and ends, and what moves it between them) |
+| What is inside what | `tree` (a root with children, up to four levels) |
 | Options compared, with a pick | `comparison` (scores per criterion, pros and cons, a recommended option) |
 | A brainstorm | `ideaMap` (a centre and clusters of ideas) |
 | An idea explained | `explainer` (numbered steps, a small diagram for each) |
@@ -34,7 +38,8 @@ Space, Home, End and Escape, one section per slide; print gives one section afte
 |---|---|
 | `schemaVersion` | `1` |
 | `title` | The takeaway, at most 120 characters |
-| `language` | A language code (`en`, `pt-BR`); default `en` |
+| `language` | A language code (`en`, `pt-BR`); default: the reply language of the owner's profile, else `en`. The page's own words are bundled for `en` and `vi` (a regional code such as `vi-VN` picks `vi`); any other language takes its words from `chrome` |
+| `accent`, `accentDark`, `accentText` | Optional six-digit hex colours that override the project's page colour (the `theme` config key, written into the manifest by `vulcan sync`; without one, a neutral slate). Give them only for a page about another project. A colour that fails the contrast checks (text 4.5:1, marks 3:1) is refused, never swapped; with no `accentDark` it is derived by mixing toward white |
 | `status` | `{ state: ok \| warn \| blocked \| info, label? }`; the banner's colour, icon and word |
 | `asOf`, `scope` | An ISO date, and a sentence on what the page covers |
 | `verdict`, `caption` | One sentence the reader can stop at; one line under it |
@@ -63,6 +68,12 @@ minimap words, or `info`) adds a colour, an icon and a word, so the figure can s
 | `ideaMap` | `center`, and 2 to 8 `branches` of `{ label, items (1 to 6), note? }` |
 | `explainer` | 1 to 8 `steps` of `{ title, text, diagram? }`; a diagram is `{ type: "row", nodes, arrows? }` (2 to 5 boxes, one arrow label fewer than boxes) or `{ type: "layers", layers }` |
 | `architecture` | `layers` (up to 5) of `{ label, boxes }`, a box `{ id, label, sub?, state? }`, and `links` of `{ from, to, label? }` between box ids |
+| `compare` | `a` and `b` (the names of the two ways, 24 characters each), `nodes` (2 to 25 of `{ id, label, sublabel?, row, col, kind?, state?, source? }`, shared by both ways), `edges` (1 to 40 of `{ from, to, label, in? }`, `in` one of `both` (default), `a`, `b`), optional `caption`. An edge only in B is drawn heavy and solid with `+`, an edge only in A dotted with `-`, and the legend says the words; at least one edge has to differ, or the spec is refused |
+| `terms` | 1 to 12 of `{ term (40 characters), meaning (200) }`, shown as "Words in this page"; a term that never appears in the rest of the page text is a warning |
+| `source` | On a flow node, a flow step or a compare node: `{ repo, commit, path, lines? }`. `repo` is `owner/name`, `commit` is exactly 40 lowercase hex characters, `path` is relative with no `..`, `lines` is `12` or `12-30`. Shown as `repo@commit:path:lines`, and a "Sources" part lists each source once with what points at it |
+| `sequence` | `participants` (2 to 6 of `{ id, label, sublabel? }`), `messages` (1 to 20 of `{ from, to, label, kind?, note? }`, `kind` one of `call`, `reply`, `async`, in the order they happen), optional `caption` |
+| `lifecycle` | `states` (2 to 10 of `{ id, label, sublabel?, kind? }`, `kind` one of `start`, `normal`, `end`; one start, at least one end), `transitions` (up to 20 of `{ from, to, label }`, the label is the trigger), optional `caption` |
+| `tree` | `root`, a node `{ id, label, sublabel?, state?, children? }` nested up to four levels below the root, at most 25 nodes in all; optional `caption` |
 | `timeline` | 2 to 20 `items` of `{ date, title, text?, state? }` |
 | `findings` | `numbers` (`{ value, label, state? }`), `charts`, `callouts` (`{ text, state? }`) |
 | `decisionRecord` | `context`, 2 to 5 `options` of `{ name, summary, chosen? }`, the `decision`, `consequences` |
@@ -76,7 +87,7 @@ only way to tell parts apart: the legend names them and the values are printed.
 
 At most 25 boxes, 40 arrows, 12 steps, 5 decisions and 30 rows per table; grid cells 0 to 9; labels 60
 characters (an arrow label 20), sentences 300, a box detail 600; 6 tiles, 4 charts, 12 points per chart.
-The page is refused over 100 KB and warned over 60 KB; a typical page is 20 to 40 KB, most of it the page's own style.
+The page is refused over 150 KB and warned over 80 KB; a typical page is 30 to 60 KB, most of it the page's own style.
 
 ## Two worked specs
 

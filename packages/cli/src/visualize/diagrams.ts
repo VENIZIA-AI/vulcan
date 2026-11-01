@@ -220,5 +220,5 @@ export const renderIdeaMap = (opts: { map: NonNullable<TVisualizeSpec['ideaMap']
   const left = map.branches.filter((_, index) => index % 2 === 0);
   const right = map.branches.filter((_, index) => index % 2 === 1);
 
-  return `<div class="idea"><ul class="side l">${left.map((branch, i) => cluster(branch, i * 2)).join('')}</ul><div class="centre">${iconSvg({ name: 'star', size: 22 })}<b>${escaped(map.center)}</b></div><ul class="side r">${right.map((branch, i) => cluster(branch, i * 2 + 1)).join('')}</ul></div>`;
+  return `<div class="idea"><ul class="side l">${left.map((branch, i) => cluster(branch, i * 2)).join('')}</ul><div class="centre win">${iconSvg({ name: 'star', size: 22 })}<b>${escaped(map.center)}</b></div><ul class="side r">${right.map((branch, i) => cluster(branch, i * 2 + 1)).join('')}</ul></div>`;
 };

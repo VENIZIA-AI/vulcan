@@ -5,9 +5,21 @@ import { z } from 'zod';
 import { ProjectLayout } from '../common/index.ts';
 import { localRootOf } from '../local/index.ts';
 import { VisualizeLimits } from './constants.ts';
+import { PageGate } from './gate.ts';
 import { renderPage } from './page.ts';
 import { VISUALIZE_SCHEMA } from './schema.ts';
+import { PageTerms } from './sources.ts';
+import { ProjectTheme } from './theme.ts';
+import type { IThemeInput } from './theme.ts';
 import { checkSpec } from './validate.ts';
+
+/** What the page takes from the project it is made in: the owner's language and the project's colour. */
+export interface IRenderContext {
+  /** The language a spec without `language` gets: the owner's profile language. */
+  language?: string;
+  /** The project's `theme` from the manifest. */
+  project?: IThemeInput;
+}
 
 export interface IRendered {
   html: string;
@@ -28,7 +40,7 @@ const CHECKS = [
 ];
 
 /** Spec text to a page: parse, validate, cross-check, render, size gate. Nothing is written here. */
-export const renderSpecText = (opts: { text: string }): TRenderResult => {
+export const renderSpecText = (opts: { text: string; context?: IRenderContext }): TRenderResult => {
   let payload: unknown;
 
   try {
@@ -59,8 +71,31 @@ export const renderSpecText = (opts: { text: string }): TRenderResult => {
     return { ok: false, problems };
   }
 
-  const html = renderPage({ spec: parsed.data });
+  const { accent, accentDark, accentText } = parsed.data;
+  const themed = ProjectTheme.resolve({
+    spec:
+      accent === undefined
+        ? undefined
+        : {
+            accent,
+            ...(accentDark === undefined ? {} : { accentDark }),
+            ...(accentText === undefined ? {} : { accentText }),
+          },
+    project: opts.context?.project,
+  });
+
+  if (!themed.ok) {
+    return { ok: false, problems: themed.problems.map((problem) => `colour: ${problem}`) };
+  }
+
+  const language = parsed.data.language ?? opts.context?.language ?? 'en';
+  const html = renderPage({ spec: parsed.data, language, theme: themed.theme });
   const bytes = Buffer.byteLength(html, 'utf8');
+  const gate = PageGate.problems({ html });
+
+  if (gate.length > 0) {
+    return { ok: false, problems: gate.map((problem) => `output gate: ${problem}`) };
+  }
 
   if (bytes > VisualizeLimits.FAIL_BYTES) {
     return {
@@ -78,14 +113,20 @@ export const renderSpecText = (opts: { text: string }): TRenderResult => {
       bytes,
       checks: [
         ...CHECKS,
+        PageGate.CHECK,
+        `colour from the ${themed.theme.source === 'spec' ? "spec's accent" : themed.theme.source === 'project' ? "project's theme" : 'neutral default'}: every text, mark and fill pair checked`,
+        ...themed.theme.notes,
         `size ${(bytes / 1024).toFixed(1)} KB, within ${VisualizeLimits.FAIL_BYTES / 1024} KB`,
       ],
-      warnings:
-        bytes > VisualizeLimits.WARN_BYTES
+      warnings: [
+        ...themed.theme.warnings,
+        ...PageTerms.warnings({ html, terms: parsed.data.terms }),
+        ...(bytes > VisualizeLimits.WARN_BYTES
           ? [
               `the page is ${Math.round(bytes / 1024)} KB, past the ${VisualizeLimits.WARN_BYTES / 1024} KB a page should stay under: consider two pages`,
             ]
-          : [],
+          : []),
+      ],
     },
   };
 };

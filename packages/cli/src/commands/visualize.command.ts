@@ -2,7 +2,14 @@ import { readFileSync, statSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
-import { pageNameOf, renderSpecText, specSchemaText, writePage } from '../visualize/index.ts';
+import { readProfile } from '../owner/profile.ts';
+import {
+  pageNameOf,
+  ProjectTheme,
+  renderSpecText,
+  specSchemaText,
+  writePage,
+} from '../visualize/index.ts';
 
 const SCHEMA_FLAG = '--schema';
 const OUT_FLAG = '--out';
@@ -75,7 +82,17 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
     return ExitCodes.FAILURE;
   }
 
-  const rendered = renderSpecText({ text });
+  // The page takes the project's colour from the manifest of the folder it runs in (no config is loaded, nothing
+  // is requested) and its words from the owner's profile; a spec's own `accent` and `language` win.
+  const manifest = ProjectTheme.readManifestTheme({ root: opts.cwd });
+  const profile = readProfile({ root: opts.cwd });
+  const rendered = renderSpecText({
+    text,
+    context: {
+      language: profile.ok ? profile.profile?.language : undefined,
+      project: manifest.theme,
+    },
+  });
 
   if (!rendered.ok) {
     process.stderr.write(
@@ -94,6 +111,10 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
   }
 
   process.stdout.write(`${written.path}\n`);
+
+  if (manifest.warning !== undefined) {
+    process.stderr.write(`warning: ${manifest.warning}\n`);
+  }
 
   for (const warning of rendered.page.warnings) {
     process.stderr.write(`warning: ${warning}\n`);
