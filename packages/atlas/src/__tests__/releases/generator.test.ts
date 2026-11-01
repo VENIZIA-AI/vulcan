@@ -329,12 +329,23 @@ describe('resolveChangelogPackages - a declared list (C3)', () => {
 });
 
 describe('runReleasesCommand', () => {
-  test('any subcommand prints the usage and exits 2', () => {
+  test('a subcommand word prints the usage naming it and exits 2; a flag is ignored', () => {
     const error = spyOn(console, 'error').mockImplementation(() => {});
 
     try {
       expect(runReleasesCommand({ command: 'gen' })).toBe(2);
-      expect(error).toHaveBeenCalledWith('usage: vulcan x atlas releases');
+      expect(error).toHaveBeenCalledWith(
+        "usage: vulcan x atlas releases (no subcommand: 'gen' is not one)",
+      );
+      error.mockClear();
+      // A flag gets past the argument check: whatever happens next (here, no manifest in a test) is not the usage.
+      try {
+        runReleasesCommand({ command: '--root' });
+      } catch {
+        // The real command reads the project; only the usage line matters here.
+      }
+
+      expect(error).not.toHaveBeenCalled();
     } finally {
       error.mockRestore();
     }

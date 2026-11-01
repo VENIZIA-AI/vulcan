@@ -80,12 +80,23 @@ describe.skipIf(!IGNIS_IS_BUILT || !existsSync(join(IGNIS_ROOT, '.agents/vulcan.
 );
 
 describe('runSymbolsCommand', () => {
-  test('any subcommand prints the usage and exits 2', () => {
+  test('a subcommand word prints the usage naming it and exits 2; a flag is ignored', () => {
     const error = spyOn(console, 'error').mockImplementation(() => {});
 
     try {
       expect(runSymbolsCommand({ command: 'gen' })).toBe(2);
-      expect(error).toHaveBeenCalledWith('usage: vulcan x atlas symbols');
+      expect(error).toHaveBeenCalledWith(
+        "usage: vulcan x atlas symbols (no subcommand: 'gen' is not one)",
+      );
+      error.mockClear();
+      // A flag gets past the argument check: whatever happens next is not the usage.
+      try {
+        runSymbolsCommand({ command: '--help' });
+      } catch {
+        // The real command reads the project; only the usage line matters here.
+      }
+
+      expect(error).not.toHaveBeenCalled();
     } finally {
       error.mockRestore();
     }

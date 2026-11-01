@@ -493,8 +493,9 @@ export class AtlasSymbols {
 
 /** A debug view: atlas reads declarations when asked (D2); no project commits a symbol table. */
 export const runSymbolsCommand = (opts: { command?: string }): number => {
-  if (opts.command !== undefined) {
-    console.error('usage: vulcan x atlas symbols');
+  // A flag is ignored, as it always was; a word is a subcommand that does not exist.
+  if (opts.command !== undefined && !opts.command.startsWith('-')) {
+    console.error(`usage: vulcan x atlas symbols (no subcommand: '${opts.command}' is not one)`);
 
     return 2;
   }
