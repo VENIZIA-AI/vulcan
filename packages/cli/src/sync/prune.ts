@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../common/index.ts';
 import { SyncConstants, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
-import { extractHookCommands, isSettingsObject, removeHookCommands } from './settings.ts';
+import { isSettingsObject, ProjectSettings } from './settings.ts';
 
 /**
  * The exact hook commands released VULCAN versions shipped (0.1.0-x, then 0.2.0-0). Only these are
@@ -70,7 +70,7 @@ const removeHookCommand = (opts: { path: string; command: string }): void => {
       continue;
     }
 
-    const kept = removeHookCommands({ entries, commands: new Set([opts.command]) });
+    const kept = ProjectSettings.removeHookCommands({ entries, commands: new Set([opts.command]) });
 
     if (kept.length > 0) {
       hooks.value[event] = kept;
@@ -90,49 +90,53 @@ const isDeadLink = (opts: { path: string }): boolean => {
   }
 };
 
-/**
- * `sync --prune`: what sync can prove is stale and did not write itself - old VULCAN and plugin-era
- * hook commands, and skill links whose target is gone. What sync wrote last time it takes back on
- * every run; a developer's own hooks and any real directory are never touched.
- */
-export const planPrune = (opts: { root: string }): ISyncAction[] => {
-  const directory = join(opts.root, SyncConstants.CLAUDE_DIRECTORY);
-  const settingsPath = join(directory, SyncConstants.SETTINGS_FILE);
-  const managed = new Set(
-    extractHookCommands({
-      settings: readJson({ path: join(directory, SyncConstants.MANAGED_FILE) }),
-    }),
-  );
-  const shipped = new Set(
-    extractHookCommands({
-      settings: readJson({ path: join(BASE_DIRECTORY, 'claude', SyncConstants.SETTINGS_FILE) }),
-    }),
-  );
-  const staleCommands = [
-    ...new Set(extractHookCommands({ settings: readJson({ path: settingsPath }) })),
-  ].filter(
-    (command) => !managed.has(command) && isStaleCommand({ root: opts.root, command, shipped }),
-  );
-  const skills = join(directory, SyncConstants.SKILLS_DIRECTORY);
-  // lstat, not stat: a symlinked skills directory leads out of the project and is never walked.
-  const deadLinks = lstatSync(skills, { throwIfNoEntry: false })?.isDirectory()
-    ? readdirSync(skills)
-        .map((name) => join(skills, name))
-        .filter((path) => isDeadLink({ path }))
-    : [];
+export class PrunePlan {
+  /**
+   * `sync --prune`: what sync can prove is stale and did not write itself - old VULCAN and plugin-era
+   * hook commands, and skill links whose target is gone. What sync wrote last time it takes back on
+   * every run; a developer's own hooks and any real directory are never touched.
+   */
+  static plan(opts: { root: string }): ISyncAction[] {
+    const directory = join(opts.root, SyncConstants.CLAUDE_DIRECTORY);
+    const settingsPath = join(directory, SyncConstants.SETTINGS_FILE);
+    const managed = new Set(
+      ProjectSettings.extractHookCommands({
+        settings: readJson({ path: join(directory, SyncConstants.MANAGED_FILE) }),
+      }),
+    );
+    const shipped = new Set(
+      ProjectSettings.extractHookCommands({
+        settings: readJson({ path: join(BASE_DIRECTORY, 'claude', SyncConstants.SETTINGS_FILE) }),
+      }),
+    );
+    const staleCommands = [
+      ...new Set(
+        ProjectSettings.extractHookCommands({ settings: readJson({ path: settingsPath }) }),
+      ),
+    ].filter(
+      (command) => !managed.has(command) && isStaleCommand({ root: opts.root, command, shipped }),
+    );
+    const skills = join(directory, SyncConstants.SKILLS_DIRECTORY);
+    // lstat, not stat: a symlinked skills directory leads out of the project and is never walked.
+    const deadLinks = lstatSync(skills, { throwIfNoEntry: false })?.isDirectory()
+      ? readdirSync(skills)
+          .map((name) => join(skills, name))
+          .filter((path) => isDeadLink({ path }))
+      : [];
 
-  return [
-    ...staleCommands.map((command): ISyncAction => ({
-      path: settingsPath,
-      status: SyncStatuses.REMOVED,
-      note: `stale hook: ${command}`,
-      apply: () => removeHookCommand({ path: settingsPath, command }),
-    })),
-    ...deadLinks.map((path): ISyncAction => ({
-      path,
-      status: SyncStatuses.REMOVED,
-      note: 'dead link',
-      apply: () => rmSync(path),
-    })),
-  ];
-};
+    return [
+      ...staleCommands.map((command): ISyncAction => ({
+        path: settingsPath,
+        status: SyncStatuses.REMOVED,
+        note: `stale hook: ${command}`,
+        apply: () => removeHookCommand({ path: settingsPath, command }),
+      })),
+      ...deadLinks.map((path): ISyncAction => ({
+        path,
+        status: SyncStatuses.REMOVED,
+        note: 'dead link',
+        apply: () => rmSync(path),
+      })),
+    ];
+  }
+}

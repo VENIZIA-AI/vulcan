@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { AgentConstants, readAgentTable } from '../../agents/index.ts';
+import { AgentConstants, AgentTable } from '../../agents/index.ts';
 import { BASE_DIRECTORY } from '../../common/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -24,7 +24,7 @@ const sync = (opts: { root: string; agents: string }) =>
 
 describe('the guard extension of an agent that takes one', () => {
   test('the table gives omp and pi an extension, Antigravity and Codex a hooks file and nobody else a guard', () => {
-    const guarded = readAgentTable()
+    const guarded = AgentTable.read()
       .filter((entry) => entry.guards !== null)
       .map((entry) => [entry.id, entry.guards?.kind, entry.guards?.path]);
 

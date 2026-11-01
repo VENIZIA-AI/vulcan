@@ -520,7 +520,7 @@ describe('idempotence and output', () => {
 
 describe('planSync with the resolved agents', () => {
   test('without claude no Claude file is planned, with claude the adapters come too', async () => {
-    const { planSync } = await import('../../sync/index.ts');
+    const { SyncPlanner } = await import('../../sync/index.ts');
     const { ConfigLoader } = await import('../../config/index.ts');
     const root = createProject({ files: READ_ONLY_PROJECT });
     const loaded = await ConfigLoader.load({ root });
@@ -529,8 +529,8 @@ describe('planSync with the resolved agents', () => {
       throw new Error(loaded.error);
     }
 
-    const without = planSync({ root, config: loaded.config, agents: ['omp'] });
-    const withClaude = planSync({ root, config: loaded.config, agents: ['claude', 'omp'] });
+    const without = SyncPlanner.plan({ root, config: loaded.config, agents: ['omp'] });
+    const withClaude = SyncPlanner.plan({ root, config: loaded.config, agents: ['claude', 'omp'] });
 
     expect(without.map((action) => action.path)).toEqual([
       join(root, '.agents/skills/build-a-feature'),

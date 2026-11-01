@@ -12,7 +12,7 @@ import {
 import { join } from 'node:path';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { LocalClean, LocalScan } from '../../local/index.ts';
-import { CLAUDE_LAUNCH_FILE, renderClaudeLaunch } from '../../sync/index.ts';
+import { CLAUDE_LAUNCH_FILE, LaunchSettings } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -44,7 +44,7 @@ const repository = (): string => {
   }
 
   // What sync leaves in the local folder, so the local-workspace check has nothing to say.
-  writeFileSync(join(root, CLAUDE_LAUNCH_FILE), renderClaudeLaunch({ root }));
+  writeFileSync(join(root, CLAUDE_LAUNCH_FILE), LaunchSettings.renderClaude({ root }));
 
   git({ cwd: root, args: ['init', '-q', '-b', 'develop'] });
   git({ cwd: root, args: ['config', 'user.email', 'a@example.com'] });

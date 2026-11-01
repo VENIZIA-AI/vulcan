@@ -1,14 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import {
-  canonicalAtlasEntry,
-  removeCodexBlock,
-  removeMcpEntry,
-  CODEX_BLOCK_END,
-  CODEX_BLOCK_START,
-  atlasServerEntry,
-  mergeCodexToml,
-  mergeMcpServers,
-} from '../../agents/index.ts';
+import { McpConfig, CODEX_BLOCK_END, CODEX_BLOCK_START } from '../../agents/index.ts';
 
 const ROOT = '/work/demo';
 const ENTRY = {
@@ -18,13 +9,13 @@ const ENTRY = {
 
 describe('atlasServerEntry', () => {
   test("calls the project's own vulcan by absolute path, so the starting directory does not matter", () => {
-    expect(atlasServerEntry({ root: ROOT })).toEqual(ENTRY);
+    expect(McpConfig.atlasServerEntry({ root: ROOT })).toEqual(ENTRY);
   });
 });
 
 describe('mergeMcpServers (mcpServers)', () => {
   const merge = (opts: { text: string | undefined }) =>
-    mergeMcpServers({ text: opts.text, key: 'mcpServers', entry: ENTRY });
+    McpConfig.mergeServers({ text: opts.text, key: 'mcpServers', entry: ENTRY });
 
   test('no file yet: a new one holding only the atlas entry', () => {
     const result = merge({ text: undefined });
@@ -64,7 +55,7 @@ describe('mergeMcpServers (mcpServers)', () => {
   });
 
   test('an atlas entry this sync wrote for another place is rewritten for this one', () => {
-    const moved = atlasServerEntry({ root: '/old/place/demo' });
+    const moved = McpConfig.atlasServerEntry({ root: '/old/place/demo' });
     const before = `${JSON.stringify({ keep: 1, mcpServers: { zed: { command: 'z' }, atlas: moved } }, null, 2)}\n`;
     const result = merge({ text: before });
 
@@ -118,12 +109,16 @@ describe('mergeMcpServers (mcpServers)', () => {
   });
 
   test('the relative entry of the root .mcp.json is ours: left as it is, never rewritten', () => {
-    const before = `${JSON.stringify({ mcpServers: { atlas: canonicalAtlasEntry() } }, null, 2)}\n`;
+    const before = `${JSON.stringify({ mcpServers: { atlas: McpConfig.canonicalAtlasEntry() } }, null, 2)}\n`;
 
     expect(
-      mergeMcpServers({ text: before, key: 'mcpServers', entry: canonicalAtlasEntry() }),
+      McpConfig.mergeServers({
+        text: before,
+        key: 'mcpServers',
+        entry: McpConfig.canonicalAtlasEntry(),
+      }),
     ).toEqual({ ok: true, changed: false, text: before });
-    expect(removeMcpEntry({ text: before, key: 'mcpServers' })).toEqual({
+    expect(McpConfig.removeEntry({ text: before, key: 'mcpServers' })).toEqual({
       ok: true,
       outcome: 'removed',
       text: undefined,
@@ -151,7 +146,7 @@ describe('mergeMcpServers (mcpServers)', () => {
 
 describe('mergeMcpServers (servers, for VS Code)', () => {
   test('uses the servers key and a stdio type', () => {
-    const result = mergeMcpServers({
+    const result = McpConfig.mergeServers({
       text: undefined,
       key: 'servers',
       entry: { type: 'stdio', ...ENTRY },
@@ -164,8 +159,8 @@ describe('mergeMcpServers (servers, for VS Code)', () => {
 
   test('a VS Code entry written for another place is rewritten, keeping its type', () => {
     const entry = { type: 'stdio', ...ENTRY };
-    const old = { type: 'stdio', ...atlasServerEntry({ root: '/old/demo' }) };
-    const result = mergeMcpServers({
+    const old = { type: 'stdio', ...McpConfig.atlasServerEntry({ root: '/old/demo' }) };
+    const result = McpConfig.mergeServers({
       text: JSON.stringify({ servers: { atlas: old } }),
       key: 'servers',
       entry,
@@ -177,7 +172,7 @@ describe('mergeMcpServers (servers, for VS Code)', () => {
 
   test('keeps the inputs list VS Code files carry', () => {
     const before = JSON.stringify({ inputs: [{ id: 'k' }], servers: {} });
-    const result = mergeMcpServers({
+    const result = McpConfig.mergeServers({
       text: before,
       key: 'servers',
       entry: { type: 'stdio', ...ENTRY },
@@ -204,7 +199,7 @@ describe('mergeCodexToml', () => {
   });
 
   test('no file yet: only the block', () => {
-    expect(mergeCodexToml({ text: undefined, root: ROOT })).toEqual({
+    expect(McpConfig.mergeCodexToml({ text: undefined, root: ROOT })).toEqual({
       ok: true,
       changed: true,
       text: block(),
@@ -213,13 +208,13 @@ describe('mergeCodexToml', () => {
 
   test('other settings stay and the block is appended after a blank line', () => {
     const before = 'model = "gpt"\n\n[mcp_servers.other]\ncommand = "x"\n';
-    const result = mergeCodexToml({ text: before, root: ROOT });
+    const result = McpConfig.mergeCodexToml({ text: before, root: ROOT });
 
     expect(result).toEqual({ ok: true, changed: true, text: `${before}\n${block()}` });
   });
 
   test('the same block again changes nothing', () => {
-    expect(mergeCodexToml({ text: block(), root: ROOT })).toEqual({
+    expect(McpConfig.mergeCodexToml({ text: block(), root: ROOT })).toEqual({
       ok: true,
       changed: false,
       text: block(),
@@ -229,7 +224,7 @@ describe('mergeCodexToml', () => {
   test('a block written for another root is replaced between its markers, the rest untouched', () => {
     const old = block().replaceAll(ROOT, '/old/place');
     const before = `model = "gpt"\n\n${old}\n[tail]\nx = 1\n`;
-    const result = mergeCodexToml({ text: before, root: ROOT });
+    const result = McpConfig.mergeCodexToml({ text: before, root: ROOT });
 
     expect(result).toEqual({
       ok: true,
@@ -241,7 +236,7 @@ describe('mergeCodexToml', () => {
   test('an atlas table the user wrote outside the markers is left alone and reported', () => {
     const before = '[mcp_servers.atlas]\ncommand = "mine"\n';
 
-    expect(mergeCodexToml({ text: before, root: ROOT })).toEqual({
+    expect(McpConfig.mergeCodexToml({ text: before, root: ROOT })).toEqual({
       ok: false,
       reason: 'a [mcp_servers.atlas] table is already there outside the vulcan markers',
     });
@@ -250,7 +245,7 @@ describe('mergeCodexToml', () => {
 
 describe('removeMcpEntry', () => {
   const remove = (opts: { document: unknown; key?: string }) =>
-    removeMcpEntry({ text: JSON.stringify(opts.document), key: opts.key ?? 'mcpServers' });
+    McpConfig.removeEntry({ text: JSON.stringify(opts.document), key: opts.key ?? 'mcpServers' });
 
   test('a file that held only the atlas entry is deleted', () => {
     expect(remove({ document: { mcpServers: { atlas: ENTRY } } })).toEqual({
@@ -286,7 +281,7 @@ describe('removeMcpEntry', () => {
       reason: 'the atlas entry is not the one sync wrote - left alone',
     });
     expect(remove({ document: { mcpServers: {} } })).toEqual({ ok: true, outcome: 'absent' });
-    expect(removeMcpEntry({ text: '{ nope', key: 'mcpServers' })).toEqual({
+    expect(McpConfig.removeEntry({ text: '{ nope', key: 'mcpServers' })).toEqual({
       ok: false,
       reason: 'not valid JSON - left untouched',
     });
@@ -303,22 +298,24 @@ describe('removeCodexBlock', () => {
   ].join('\n');
 
   test('only the block: nothing is left', () => {
-    expect(removeCodexBlock({ text: block })).toEqual({ changed: true, text: undefined });
+    expect(McpConfig.removeCodexBlock({ text: block })).toEqual({ changed: true, text: undefined });
   });
 
   test('the rest of the file stays', () => {
-    expect(removeCodexBlock({ text: `model = "gpt"\n\n${block}` })).toEqual({
+    expect(McpConfig.removeCodexBlock({ text: `model = "gpt"\n\n${block}` })).toEqual({
       changed: true,
       text: 'model = "gpt"\n',
     });
-    expect(removeCodexBlock({ text: `model = "gpt"\n\n${block}\n[tail]\nx = 1\n` })).toEqual({
+    expect(
+      McpConfig.removeCodexBlock({ text: `model = "gpt"\n\n${block}\n[tail]\nx = 1\n` }),
+    ).toEqual({
       changed: true,
       text: 'model = "gpt"\n\n[tail]\nx = 1\n',
     });
   });
 
   test('no block: unchanged', () => {
-    expect(removeCodexBlock({ text: 'model = "gpt"\n' })).toEqual({
+    expect(McpConfig.removeCodexBlock({ text: 'model = "gpt"\n' })).toEqual({
       changed: false,
       text: 'model = "gpt"\n',
     });

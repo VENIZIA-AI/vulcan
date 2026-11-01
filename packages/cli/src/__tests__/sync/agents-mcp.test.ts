@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { atlasServerEntry } from '../../agents/index.ts';
+import { McpConfig } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -62,7 +62,7 @@ describe('vulcan sync writes the atlas entry where each agent reads it', () => {
     test(`${agent}: ${path} under ${key}`, () => {
       const root = createProject({ files: PROJECT });
       const result = sync({ root, agents: agent });
-      const entry = atlasServerEntry({ root });
+      const entry = McpConfig.atlasServerEntry({ root });
       const expected = key === 'servers' ? { type: 'stdio', ...entry } : entry;
 
       expect(result.code).toBe(0);

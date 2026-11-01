@@ -1,12 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import {
-  ATLAS_BLOCK_END,
-  ATLAS_BLOCK_START,
-  mergeAtlasBlock,
-  renderAtlasBlock,
-} from '../../agents/index.ts';
+import { ATLAS_BLOCK_END, ATLAS_BLOCK_START, AtlasBlock } from '../../agents/index.ts';
 
-const BLOCK = renderAtlasBlock({ project: 'acme', sources: ['ignis', 'ardor'] });
+const BLOCK = AtlasBlock.render({ project: 'acme', sources: ['ignis', 'ardor'] });
 const ROUTING = [
   '# AGENTS.md',
   '',
@@ -48,7 +43,9 @@ describe('renderAtlasBlock', () => {
   });
 
   test('a project with no sources names only itself', () => {
-    expect(renderAtlasBlock({ project: 'solo', sources: [] })).toContain('solo (this repository).');
+    expect(AtlasBlock.render({ project: 'solo', sources: [] })).toContain(
+      'solo (this repository).',
+    );
   });
 
   test('is short: a heading and five lines of text between the markers', () => {
@@ -62,7 +59,7 @@ describe('renderAtlasBlock', () => {
 
 describe('mergeAtlasBlock', () => {
   test('inserts the block before the section after "Must read first"', () => {
-    const merged = mergeAtlasBlock({ text: ROUTING, block: BLOCK });
+    const merged = AtlasBlock.merge({ text: ROUTING, block: BLOCK });
 
     expect(merged.changed).toBe(true);
     expect(merged.text.indexOf('## Must read first')).toBeLessThan(
@@ -74,25 +71,25 @@ describe('mergeAtlasBlock', () => {
 
   test('without a "Must read first" section the block is appended', () => {
     const text = '# AGENTS.md\n\nhand written\n';
-    const merged = mergeAtlasBlock({ text, block: BLOCK });
+    const merged = AtlasBlock.merge({ text, block: BLOCK });
 
     expect(merged.text).toBe(`${text}\n${BLOCK}`);
   });
 
   test('an empty file gets just the block', () => {
-    expect(mergeAtlasBlock({ text: '', block: BLOCK })).toEqual({ changed: true, text: BLOCK });
+    expect(AtlasBlock.merge({ text: '', block: BLOCK })).toEqual({ changed: true, text: BLOCK });
   });
 
   test('the same block again changes nothing', () => {
-    const once = mergeAtlasBlock({ text: ROUTING, block: BLOCK }).text;
+    const once = AtlasBlock.merge({ text: ROUTING, block: BLOCK }).text;
 
-    expect(mergeAtlasBlock({ text: once, block: BLOCK })).toEqual({ changed: false, text: once });
+    expect(AtlasBlock.merge({ text: once, block: BLOCK })).toEqual({ changed: false, text: once });
   });
 
   test('a block for other corpora is rewritten between its markers, the hand-written text untouched', () => {
-    const once = mergeAtlasBlock({ text: ROUTING, block: BLOCK }).text;
-    const other = renderAtlasBlock({ project: 'acme', sources: ['ignis'] });
-    const merged = mergeAtlasBlock({ text: once, block: other });
+    const once = AtlasBlock.merge({ text: ROUTING, block: BLOCK }).text;
+    const other = AtlasBlock.render({ project: 'acme', sources: ['ignis'] });
+    const merged = AtlasBlock.merge({ text: once, block: other });
 
     expect(merged.changed).toBe(true);
     expect(merged.text).toContain('acme (this repository), ignis.');
@@ -102,8 +99,8 @@ describe('mergeAtlasBlock', () => {
 
   test('hand-written text around the block is kept byte for byte', () => {
     const text = `intro\n\n${BLOCK}\ntail line\n`;
-    const other = renderAtlasBlock({ project: 'acme', sources: [] });
-    const merged = mergeAtlasBlock({ text, block: other });
+    const other = AtlasBlock.render({ project: 'acme', sources: [] });
+    const merged = AtlasBlock.merge({ text, block: other });
 
     expect(merged.text).toBe(`intro\n\n${other}\ntail line\n`);
   });

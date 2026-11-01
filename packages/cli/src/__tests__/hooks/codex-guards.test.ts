@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { mergeCodexHooks } from '../../agents/index.ts';
+import { CodexHooks } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
@@ -143,7 +143,7 @@ describe('the Codex hook command runs the real guards', () => {
 describe('the hook command wrapper in .codex/hooks.json', () => {
   /** The command sync writes, as Codex runs it: a shell command from the project, with no git above it. */
   const commandOf = (): string => {
-    const merged = mergeCodexHooks({ text: undefined });
+    const merged = CodexHooks.merge({ text: undefined });
 
     if (!merged.ok) {
       throw new Error(merged.reason);

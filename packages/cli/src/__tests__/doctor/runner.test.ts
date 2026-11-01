@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DoctorChecks, DoctorRunner, Makefile } from '../../doctor/index.ts';
-import { renderLocalChoice } from '../../agents/index.ts';
+import { LocalChoice } from '../../agents/index.ts';
 import { renderBunfig } from '../../create/bunfig.ts';
 import { renderDockerignore } from '../../create/dockerignore.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
@@ -731,7 +731,10 @@ describe('doctor: agents', () => {
 
   test('a stored choice that leaves Claude out means no Claude adapters are checked', async () => {
     const root = createProject({
-      files: { ...CONFORMANT, '.agents/vulcan.local.json': renderLocalChoice({ agents: ['omp'] }) },
+      files: {
+        ...CONFORMANT,
+        '.agents/vulcan.local.json': LocalChoice.render({ agents: ['omp'] }),
+      },
     });
 
     runCli({ args: ['sync'], cwd: root });
@@ -1088,7 +1091,7 @@ describe('doctor: the atlas server is registered the canonical way (warnings)', 
     if (opts.agents !== undefined) {
       writeFileSync(
         join(root, '.agents/vulcan.local.json'),
-        renderLocalChoice({ agents: opts.agents }),
+        LocalChoice.render({ agents: opts.agents }),
       );
     }
 

@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
-import { diffBaseRules } from '../../sync/index.ts';
+import { BaseRulesDiff } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -44,7 +44,7 @@ describe('the base diff', () => {
   test('a first sync, with no manifest yet, prints no diff', () => {
     const root = createProject({ files: PROJECT });
 
-    expect(diffBaseRules({ root })).toEqual([]);
+    expect(BaseRulesDiff.diff({ root })).toEqual([]);
     expect(runSync({ root }).stderr).not.toMatch(DIFF_LINE);
   });
 

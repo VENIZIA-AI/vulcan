@@ -4,24 +4,22 @@ import type { ICommandContext } from '../common/index.ts';
 import { homedir } from 'node:os';
 import {
   AgentConstants,
-  detectAgents,
-  readLocalChoice,
-  readAgentTable,
-  resolveAgentsInTerminal,
+  AgentDetection,
+  LocalChoice,
+  AgentTable,
+  AgentsPrompt,
 } from '../agents/index.ts';
 import { ConfigLoader } from '../config/index.ts';
 import {
-  agentNotes,
-  diffBaseRules,
-  planAgentRemoval,
-  planAtlasBlock,
-  planExclude,
-  planLocalChoice,
-  planLocalIgnore,
-  planLocalWorkspace,
-  planPrune,
-  planSync,
+  AgentFiles,
+  AgentRemoval,
+  AtlasBlockPlan,
+  BaseRulesDiff,
+  ExcludePlan,
+  LocalPlan,
+  PrunePlan,
   SyncConstants,
+  SyncPlanner,
   SyncStatuses,
 } from '../sync/index.ts';
 
@@ -51,7 +49,7 @@ const readAgentsFlag = (opts: { args: string[] }): string | undefined => {
 };
 
 export const printAgentTable = (): void => {
-  for (const entry of readAgentTable()) {
+  for (const entry of AgentTable.read()) {
     process.stdout.write(
       `${entry.id.padEnd(15)} ${entry.name.padEnd(20)} MCP ${entry.mcp.path.padEnd(26)} skills ${entry.skills.dir}\n`,
     );
@@ -82,12 +80,12 @@ export const runSyncFlow = async (
     return ExitCodes.FAILURE;
   }
 
-  const resolved = await resolveAgentsInTerminal({
+  const resolved = await AgentsPrompt.resolveInTerminal({
     root: opts.cwd,
     flag,
     configAgents: loaded.config.agents,
     interactive: process.stdin.isTTY === true,
-    detected: detectAgents({
+    detected: AgentDetection.detect({
       root: opts.cwd,
       home: process.env.HOME ?? homedir(),
       path: process.env.PATH ?? '',
@@ -100,7 +98,7 @@ export const runSyncFlow = async (
     return ExitCodes.FAILURE;
   }
 
-  const previous = readLocalChoice({ root: opts.cwd });
+  const previous = LocalChoice.read({ root: opts.cwd });
   const dropped =
     resolved.source === 'flag' || resolved.source === 'asked'
       ? (previous.ok ? (previous.agents ?? []) : []).filter((id) => !resolved.agents.includes(id))
@@ -110,26 +108,26 @@ export const runSyncFlow = async (
   );
   const dryRun = opts.args.includes(DRY_RUN_FLAG);
   // Planned before anything is written: prune reads the managed record of the previous sync.
-  const pruned = opts.args.includes(PRUNE_FLAG) ? planPrune({ root: opts.cwd }) : [];
+  const pruned = opts.args.includes(PRUNE_FLAG) ? PrunePlan.plan({ root: opts.cwd }) : [];
   // The stored choice is listed whether it was just written or only read; a machine that has not chosen stores nothing.
   const stored =
     resolved.writeLocal || resolved.source === 'local'
       ? [
-          planLocalChoice({ root: opts.cwd, agents: resolved.agents }),
-          ...(resolved.writeLocal ? planLocalIgnore({ root: opts.cwd }) : []),
+          LocalPlan.planChoice({ root: opts.cwd, agents: resolved.agents }),
+          ...(resolved.writeLocal ? LocalPlan.planIgnore({ root: opts.cwd }) : []),
         ]
       : [];
   const actions = [
-    ...planAgentRemoval({ root: opts.cwd, removed, remaining: resolved.agents }),
-    ...planSync({ root: opts.cwd, config: loaded.config, agents: resolved.agents }),
-    ...planAtlasBlock({ root: opts.cwd, config: loaded.config }),
+    ...AgentRemoval.plan({ root: opts.cwd, removed, remaining: resolved.agents }),
+    ...SyncPlanner.plan({ root: opts.cwd, config: loaded.config, agents: resolved.agents }),
+    ...AtlasBlockPlan.plan({ root: opts.cwd, config: loaded.config }),
     ...stored,
-    ...planLocalWorkspace({ root: opts.cwd }),
-    ...planExclude({ root: opts.cwd, agents: resolved.agents }),
+    ...LocalPlan.planWorkspace({ root: opts.cwd }),
+    ...ExcludePlan.plan({ root: opts.cwd, agents: resolved.agents }),
     ...pruned,
   ];
   // Read before the manifest action rewrites the hashes it compares against.
-  const changes = diffBaseRules({ root: opts.cwd });
+  const changes = BaseRulesDiff.diff({ root: opts.cwd });
   const width = dryRun ? DRY_RUN_LABEL_WIDTH : LABEL_WIDTH;
 
   for (const action of actions) {
@@ -147,7 +145,7 @@ export const runSyncFlow = async (
     process.stderr.write(`  ${change.padEnd(width)} ${[id, text].filter(Boolean).join(' ')}\n`);
   }
 
-  for (const { agent, note } of agentNotes({ agents: resolved.agents })) {
+  for (const { agent, note } of AgentFiles.agentNotes({ agents: resolved.agents })) {
     process.stderr.write(`  ${'note'.padEnd(width)} ${agent}: ${note}\n`);
   }
 
