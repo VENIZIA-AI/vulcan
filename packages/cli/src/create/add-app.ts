@@ -10,7 +10,7 @@ import {
   withLayoutFolder,
 } from '../common/layout-folder.ts';
 import type { ILayout } from '../common/layout-folder.ts';
-import { OFFICIAL_PRESETS, officialIdOf } from '@venizia/vulcan-atlas';
+import { OFFICIAL_PRESETS, OfficialPresets } from '@venizia/vulcan-atlas';
 import type { IOfficialPreset } from '@venizia/vulcan-atlas';
 import { LibraryKinds, loadConfig, PackageKinds, resolvePackages } from '../config/index.ts';
 import type { IProjectPackage, TLibraryKind, TResolvedConfig } from '../config/index.ts';
@@ -169,7 +169,9 @@ const noSharedKindMessage = (opts: {
     ...official
       .filter((preset) => preset.shared !== undefined)
       .map((preset) => preset.id)
-      .filter((id) => !recorded.some((preset) => officialIdOf({ spec: preset.spec }) === id)),
+      .filter(
+        (id) => !recorded.some((preset) => OfficialPresets.idOf({ spec: preset.spec }) === id),
+      ),
   ];
   const commands = known.map(
     (spec) =>

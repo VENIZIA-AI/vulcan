@@ -2,9 +2,9 @@ import { afterAll, afterEach, beforeEach, describe, expect, spyOn, test } from '
 import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
-import { generateKeyPair } from '@/prebuilt';
-import { buildSourcesServer } from '@/server/index';
-import { resolveSources } from '@/sources';
+import { PrebuiltKeys } from '@/prebuilt';
+import { SourcesServer } from '@/server/index';
+import { SourceResolver } from '@/sources';
 import type { IResolvedSource } from '@/sources';
 import {
   git,
@@ -69,7 +69,7 @@ const resolve = async (opts: {
   prebuilt?: boolean;
   force?: boolean;
 }) => {
-  const [resolved] = await resolveSources({
+  const [resolved] = await SourceResolver.resolve({
     cwd: opts.cwd ?? makeTempDirectory({ prefix: 'atlas-consumer-' }),
     cacheDir: opts.cacheDir,
     sources: [SOURCE],
@@ -132,7 +132,7 @@ describe('a source with keys is served from its prebuilt index (C10, C17)', () =
     putOnRelease({ pair: source.pair });
 
     const resolved = await resolve({ cacheDir: newCache() });
-    const result2 = await buildSourcesServer({
+    const result2 = await SourcesServer.build({
       sources: [resolved],
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
       version: '0.0.0',
@@ -169,7 +169,7 @@ describe('a source with keys is served from its prebuilt index (C10, C17)', () =
 
 describe("the answers equal a local build's (C11)", () => {
   const call = async (opts: {
-    transport: ReturnType<typeof buildSourcesServer>;
+    transport: ReturnType<typeof SourcesServer.build>;
     name: string;
     args?: Record<string, unknown>;
   }) => {
@@ -194,7 +194,7 @@ describe("the answers equal a local build's (C11)", () => {
 
     const cwd = makeTempDirectory({ prefix: 'atlas-consumer-' });
     const served = (opts: { resolved: IResolvedSource }) =>
-      buildSourcesServer({ sources: [opts.resolved], cwd, version: '0.0.0' });
+      SourcesServer.build({ sources: [opts.resolved], cwd, version: '0.0.0' });
     const result = await resolve({ cwd, cacheDir: newCache() });
     const downloaded = served({ resolved: result });
     const result2 = await resolve({ cwd, cacheDir: newCache(), prebuilt: false });
@@ -288,7 +288,7 @@ describe('every failure ends in a local build, with one line saying why (C12, C1
       pair: {
         ...source.pair,
         envelope: resigned({
-          pair: { ...source.pair, keys: generateKeyPair() },
+          pair: { ...source.pair, keys: PrebuiltKeys.generatePair() },
           edit: () => undefined,
         }),
       },

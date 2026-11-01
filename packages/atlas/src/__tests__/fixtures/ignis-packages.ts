@@ -1,4 +1,4 @@
-import { toAtlasProject } from '@/common/project-config';
+import { ProjectConfig } from '@/common/project-config';
 import type { IAtlasPackage, IAtlasProject } from '@/common/project-config';
 
 /**
@@ -53,4 +53,4 @@ export const IGNIS_MANIFEST = {
 
 /** IGNIS as atlas sees it, rooted at a checkout. */
 export const ignisProjectAt = (opts: { root: string }): IAtlasProject =>
-  toAtlasProject({ root: opts.root, manifest: IGNIS_MANIFEST });
+  ProjectConfig.toAtlasProject({ root: opts.root, manifest: IGNIS_MANIFEST });

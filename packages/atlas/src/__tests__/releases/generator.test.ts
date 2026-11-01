@@ -1,10 +1,10 @@
 import { describe, expect, spyOn, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { resolveChangelogPackages } from '@/changelogs';
-import { kindOfChangelog, titleOfChangelog } from '@/releases/compute';
+import { Resolve } from '@/changelogs';
+import { ReleaseCompute } from '@/releases/compute';
 import { AtlasReleases, runReleasesCommand } from '@/releases/generator';
-import { toAtlasProject } from '@/common/project-config';
+import { ProjectConfig } from '@/common/project-config';
 import { IGNIS_PACKAGES } from '../fixtures/ignis-packages';
 import {
   ignisCommittedFileOf,
@@ -24,7 +24,7 @@ describe('resolveChangelogPackages - what migrate writes', () => {
       body: '| Symbol | Change | Package |\n|---|---|---|\n| `x` | New | helpers |\n',
     });
 
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
+    expect(Resolve.resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
       'boot',
       'kernel',
     ]);
@@ -42,7 +42,7 @@ describe('resolveChangelogPackages - what migrate writes', () => {
       ].join('\n'),
     });
 
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
+    expect(Resolve.resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
       'core-server',
       'kernel',
     ]);
@@ -59,7 +59,7 @@ describe('resolveChangelogPackages - what migrate writes', () => {
       ].join('\n'),
     });
 
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
+    expect(Resolve.resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
       'core-server',
       'core-worker',
     ]);
@@ -76,7 +76,7 @@ describe('resolveChangelogPackages - what migrate writes', () => {
       ].join('\n'),
     });
 
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([]);
+    expect(Resolve.resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([]);
   });
 
   test('a table wins over a body mention - the first rule that hits is the answer', () => {
@@ -91,7 +91,9 @@ describe('resolveChangelogPackages - what migrate writes', () => {
       ].join('\n'),
     });
 
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual(['kernel']);
+    expect(Resolve.resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
+      'kernel',
+    ]);
   });
 
   test('body mentions map @venizia/ignis to core-server and the worker to core-worker', () => {
@@ -100,7 +102,7 @@ describe('resolveChangelogPackages - what migrate writes', () => {
       body: 'Both `@venizia/ignis` and `@venizia/ignis-worker` changed, plus `@venizia/ignis-helpers/core`.',
     });
 
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
+    expect(Resolve.resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
       'core-server',
       'core-worker',
       'helpers',
@@ -113,7 +115,7 @@ describe('resolveChangelogPackages - what migrate writes', () => {
       body: 'Prose with no package name and no details table.',
     });
 
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([]);
+    expect(Resolve.resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([]);
   });
 });
 
@@ -121,11 +123,11 @@ describe('kindOfChangelog', () => {
   test('reads the first badge text', () => {
     const text = '# Changelog\n\n<Badge type="tip" text="New Feature" />\n';
 
-    expect(kindOfChangelog({ text })).toBe('New Feature');
+    expect(ReleaseCompute.kindOfChangelog({ text })).toBe('New Feature');
   });
 
   test('a file with no badge has no kind', () => {
-    expect(kindOfChangelog({ text: '# Changelog\n\nProse.\n' })).toBeNull();
+    expect(ReleaseCompute.kindOfChangelog({ text: '# Changelog\n\nProse.\n' })).toBeNull();
   });
 });
 
@@ -133,13 +135,15 @@ describe('titleOfChangelog', () => {
   test('reads the frontmatter title', () => {
     const text = withFrontmatter({ frontmatter: 'title: A Real Title', body: '# Changelog' });
 
-    expect(titleOfChangelog({ text, file: '2026-01-01-thing.md' })).toBe('A Real Title');
+    expect(ReleaseCompute.titleOfChangelog({ text, file: '2026-01-01-thing.md' })).toBe(
+      'A Real Title',
+    );
   });
 
   test('falls back to the file stem rather than an empty title', () => {
-    expect(titleOfChangelog({ text: '# Changelog\n', file: '2026-01-01-thing.md' })).toBe(
-      '2026-01-01-thing',
-    );
+    expect(
+      ReleaseCompute.titleOfChangelog({ text: '# Changelog\n', file: '2026-01-01-thing.md' }),
+    ).toBe('2026-01-01-thing');
   });
 });
 
@@ -162,7 +166,7 @@ const EXPLAINED_CHANGES: Record<string, string[]> = {
   'changelog:2026-03-31-typescript-6-and-toolchain': ['dev-configs', 'inversion'],
 };
 
-const IGNIS_PROJECT = toAtlasProject({
+const IGNIS_PROJECT = ProjectConfig.toAtlasProject({
   root: IGNIS_ROOT,
   manifest: {
     schemaVersion: 1,
@@ -268,7 +272,7 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
           readFileSync(join(IGNIS_ROOT, path), 'utf8');
 
         expect(
-          resolveChangelogPackages({ text: changelog, packages: IGNIS_PACKAGES }),
+          Resolve.resolveChangelogPackages({ text: changelog, packages: IGNIS_PACKAGES }),
           entry.id,
         ).toEqual(EXPLAINED_CHANGES[entry.id] ?? entry.packages);
       }
@@ -283,7 +287,9 @@ describe('AtlasReleases with project packages', () => {
       body: 'The `@venizia/ignis-docs-mcp` server answers search.',
     });
 
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual(['docs-mcp']);
+    expect(Resolve.resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
+      'docs-mcp',
+    ]);
   });
 
   test('an alias spelled as a npm name counts as a mention of its package', () => {
@@ -301,7 +307,7 @@ describe('AtlasReleases with project packages', () => {
       },
     ];
 
-    expect(resolveChangelogPackages({ text, packages })).toEqual(['core-worker']);
+    expect(Resolve.resolveChangelogPackages({ text, packages })).toEqual(['core-worker']);
   });
 
   test('a mention of a longer name is not a mention of its prefix', () => {
@@ -310,7 +316,7 @@ describe('AtlasReleases with project packages', () => {
       body: 'Uses `@venizia/ignis-unlisted` only.',
     });
 
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([]);
+    expect(Resolve.resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([]);
   });
 });
 
@@ -321,7 +327,7 @@ describe('resolveChangelogPackages - a declared list (C3)', () => {
       body: 'Body.',
     });
 
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
+    expect(Resolve.resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
       'core-server',
       'docs-mcp',
     ]);

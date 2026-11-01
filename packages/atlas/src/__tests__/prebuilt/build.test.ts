@@ -3,9 +3,9 @@ import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'no
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { AtlasConstants } from '@/common';
-import { buildIndexPair, generateKeyPair, verifyPair } from '@/prebuilt';
-import { lsRemote } from '@/sources/git';
-import { resolveSources } from '@/sources';
+import { Envelope, IndexPair, PrebuiltKeys } from '@/prebuilt';
+import { GitRepository } from '@/sources/git';
+import { SourceResolver } from '@/sources';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { payloadOf, rowsOf } from './pair.helper';
 import {
@@ -26,7 +26,7 @@ afterAll(() => {
 
 const PACKAGE_ROOT = join(__dirname, '..', '..', '..');
 
-const pair = generateKeyPair();
+const pair = PrebuiltKeys.generatePair();
 
 /** A checkout of the source repository, with a place to write the pair inside it. */
 const checkout = (): { work: string; out: string; bare: string; url: string } => {
@@ -42,7 +42,7 @@ describe('atlas index: build and sign the index of HEAD (C5)', () => {
   test('a checkout with history gives a pair for HEAD that verifies and says what it holds', () => {
     const { work, out, url } = checkout();
     const sha = git({ cwd: work, args: ['rev-parse', 'HEAD'] });
-    const built = buildIndexPair({
+    const built = IndexPair.build({
       root: work,
       out,
       repo: 'Acme/Src',
@@ -54,7 +54,7 @@ describe('atlas index: build and sign the index of HEAD (C5)', () => {
     expect(files({ out }).sort()).toEqual([`${sha}.atlas.gz`, `${sha}.atlas.json`]);
 
     const gz = readFileSync(join(out, `${sha}.atlas.gz`));
-    const checked = verifyPair({
+    const checked = Envelope.verifyPair({
       envelope: readFileSync(join(out, `${sha}.atlas.json`), 'utf8'),
       gz,
       keys: [pair.publicKey],
@@ -76,7 +76,7 @@ describe('atlas index: build and sign the index of HEAD (C5)', () => {
     });
     expect(checked.payload.releases.releases.kernel?.[0]?.version).toBe('1.0.0');
     // The fingerprint a reader computes from the remote's tags is the one signed here.
-    expect(checked.payload.tags).toBe(lsRemote({ url, ref: 'develop' }).tags ?? '');
+    expect(checked.payload.tags).toBe(GitRepository.lsRemote({ url, ref: 'develop' }).tags ?? '');
   });
 
   test('a shallow clone gives a pair as well', () => {
@@ -88,7 +88,7 @@ describe('atlas index: build and sign the index of HEAD (C5)', () => {
       args: ['clone', '-q', '--depth', '1', `file://${bare}`, shallow],
     });
 
-    const built = buildIndexPair({
+    const built = IndexPair.build({
       root: shallow,
       out: join(shallow, '.agents/local/tmp/pair'),
       repo: 'acme/src',
@@ -109,7 +109,7 @@ describe('atlas index: build and sign the index of HEAD (C5)', () => {
 
     git({ cwd: empty, args: ['init', '-q', '-b', 'develop'] });
     expect(() =>
-      buildIndexPair({
+      IndexPair.build({
         root: empty,
         out: join(empty, 'pair'),
         repo: 'a/b',
@@ -118,10 +118,10 @@ describe('atlas index: build and sign the index of HEAD (C5)', () => {
       }),
     ).toThrow('no commit');
     expect(() =>
-      buildIndexPair({ root: work, out, repo: 'a/b', privateKey: undefined, atlasVersion: '1' }),
+      IndexPair.build({ root: work, out, repo: 'a/b', privateKey: undefined, atlasVersion: '1' }),
     ).toThrow('ATLAS_INDEX_KEY');
     expect(() =>
-      buildIndexPair({
+      IndexPair.build({
         root: work,
         out: join(makeTempDirectory({ prefix: 'atlas-outside-' }), 'pair'),
         repo: 'a/b',
@@ -135,7 +135,7 @@ describe('atlas index: build and sign the index of HEAD (C5)', () => {
   test('the worktree it builds from is gone afterwards', () => {
     const { work, out } = checkout();
 
-    buildIndexPair({
+    IndexPair.build({
       root: work,
       out,
       repo: 'acme/src',
@@ -201,7 +201,7 @@ describe('atlas index: only the tracked files of the commit go in (C6)', () => {
       text: '---\ntype: Concept\ntitle: Ignored\ndescription: Ignored.\n---\n\nThe ignored secret phrase.\n',
     });
 
-    const built = buildIndexPair({
+    const built = IndexPair.build({
       root: work,
       out,
       repo: 'acme/src',
@@ -225,7 +225,7 @@ describe('atlas index: only the tracked files of the commit go in (C6)', () => {
       '---\ntype: Concept\ntitle: Kernel\ndescription: The kernel.\n---\n\nAn edit that was never committed.\n',
     );
 
-    const built = buildIndexPair({
+    const built = IndexPair.build({
       root: work,
       out,
       repo: 'acme/src',
@@ -244,7 +244,7 @@ describe('atlas index: only the tracked files of the commit go in (C6)', () => {
 describe('atlas index equals what pull builds (C7)', () => {
   test('the same commit gives the same rows, in the same order', async () => {
     const { work, out, url } = checkout();
-    const built = buildIndexPair({
+    const built = IndexPair.build({
       root: work,
       out,
       repo: 'acme/src',
@@ -255,7 +255,7 @@ describe('atlas index equals what pull builds (C7)', () => {
     process.env.VULCAN_NPM_REGISTRY = NO_REGISTRY;
 
     const cacheDir = makeTempDirectory({ prefix: 'atlas-cache-' });
-    const [pulled] = await resolveSources({
+    const [pulled] = await SourceResolver.resolve({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
       cacheDir,
       sources: [{ name: 'src', repo: url, ref: 'develop' }],

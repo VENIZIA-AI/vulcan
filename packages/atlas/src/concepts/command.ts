@@ -1,9 +1,9 @@
-import { readAtlasProject } from '@/common/project-config';
+import { ProjectConfig } from '@/common/project-config';
 import type { TConstValue } from '@/common/types';
-import { checkConcepts } from './check';
+import { ConceptCheck } from './check';
 import { ConceptProblems } from './common';
 import type { IConceptProblem } from './common';
-import { stampConcepts } from './stamp';
+import { ConceptStamp } from './stamp';
 
 const USAGE = 'usage: vulcan x atlas concepts stamp|check';
 const STAMP_HINT = 'review the concept, then `vulcan x atlas concepts stamp`';
@@ -27,7 +27,7 @@ const printProblems = (opts: { problems: IConceptProblem[]; hint: string }): voi
 export const runConceptsCommand = (opts: { command?: string }): number => {
   switch (opts.command) {
     case 'stamp': {
-      const report = stampConcepts({ project: readAtlasProject() });
+      const report = ConceptStamp.stamp({ project: ProjectConfig.readAtlasProject() });
 
       if (report.missing.length > 0) {
         printProblems({ problems: report.missing, hint: 'fix the concept, then stamp again' });
@@ -41,7 +41,7 @@ export const runConceptsCommand = (opts: { command?: string }): number => {
       return 0;
     }
     case 'check': {
-      const report = checkConcepts({ project: readAtlasProject() });
+      const report = ConceptCheck.check({ project: ProjectConfig.readAtlasProject() });
 
       printProblems({ problems: report.problems, hint: STAMP_HINT });
       console.log(

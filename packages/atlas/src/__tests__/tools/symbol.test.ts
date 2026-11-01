@@ -5,7 +5,7 @@ import { Transport } from '@/protocol';
 import { ChunkStore } from '@/search/store';
 import { SymbolStore } from '@/symbols';
 import type { ISymbolRecord } from '@/symbols';
-import { buildSymbolTool } from '@/tools/symbol.tool';
+import { SymbolTool } from '@/tools/symbol.tool';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 
@@ -55,7 +55,7 @@ const callSymbol = async (opts: {
   result?: { content: { type: string; text: string }[] };
 }> => {
   const transport = new Transport({
-    tools: [buildSymbolTool({ store: buildChunkStore(), symbols: opts.symbols })],
+    tools: [SymbolTool.build({ store: buildChunkStore(), symbols: opts.symbols })],
     serverName: 'atlas-test',
     serverVersion: '0.0.0',
   });

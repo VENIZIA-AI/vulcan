@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdirSync, renameSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { cacheRootOf, resolveSources } from '@/sources';
+import { SourceCache, SourceResolver } from '@/sources';
 import {
   makeSourceRepository,
   makeTempDirectory,
@@ -38,7 +38,7 @@ test(
   async () => {
     const source = makeSourceRepository();
     const cwd = makeTempDirectory({ prefix: 'atlas-consumer-' });
-    const [cached] = await resolveSources({
+    const [cached] = await SourceResolver.resolve({
       cwd,
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
@@ -47,16 +47,16 @@ test(
     const repo = `http://127.0.0.1:${silent.port}/acme/source.git`;
 
     // The same cache, under the silent host's name: the remote is all that changed.
-    mkdirSync(dirname(cacheRootOf({ repo, cacheBase: cacheDir })), { recursive: true });
+    mkdirSync(dirname(SourceCache.cacheRootOf({ repo, cacheBase: cacheDir })), { recursive: true });
     renameSync(
-      cacheRootOf({ repo: source.url, cacheBase: cacheDir }),
-      cacheRootOf({ repo, cacheBase: cacheDir }),
+      SourceCache.cacheRootOf({ repo: source.url, cacheBase: cacheDir }),
+      SourceCache.cacheRootOf({ repo, cacheBase: cacheDir }),
     );
 
     const started = Date.now();
 
     try {
-      const [offline] = await resolveSources({
+      const [offline] = await SourceResolver.resolve({
         cwd,
         cacheDir,
         sources: [{ name: 'src', repo, ref: 'develop' }],

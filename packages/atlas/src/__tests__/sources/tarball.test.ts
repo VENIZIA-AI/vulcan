@@ -2,8 +2,8 @@ import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:tes
 import { execFileSync } from 'node:child_process';
 import { existsSync, rmSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildSourcesServer } from '@/server/index';
-import { resolveSources } from '@/sources';
+import { SourcesServer } from '@/server/index';
+import { SourceResolver } from '@/sources';
 import {
   commitAll,
   git,
@@ -119,7 +119,7 @@ describe('a source without git on the machine', () => {
     withoutGit();
 
     try {
-      const [resolved] = await resolveSources({
+      const [resolved] = await SourceResolver.resolve({
         cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
         cacheDir,
         sources: [{ name: 'src', repo: 'acme/src', ref: 'develop' }],
@@ -133,7 +133,7 @@ describe('a source without git on the machine', () => {
       expect(existsSync(join(resolved.root, '.configs'))).toBe(false);
       expect(resolved.history).toBe(false);
 
-      const result2 = await buildSourcesServer({
+      const result2 = await SourcesServer.build({
         sources: [resolved],
         cwd: resolved.root,
         version: '0.0.0',
@@ -146,7 +146,7 @@ describe('a source without git on the machine', () => {
       expect(github.seen.some((request) => request.path.includes('/api'))).toBe(false);
 
       // D1: no history without git - the tools say so, and the dated entries still answer by date.
-      const server = buildSourcesServer({
+      const server = SourcesServer.build({
         sources: [resolved],
         cwd: resolved.root,
         version: '0.0.0',
@@ -181,7 +181,7 @@ describe('a source without git on the machine', () => {
     withoutGit();
 
     try {
-      await resolveSources({
+      await SourceResolver.resolve({
         cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
         cacheDir,
         sources: [{ name: 'src', repo: 'acme/src', ref: 'develop' }],
@@ -198,7 +198,7 @@ describe('a source without git on the machine', () => {
       expect(github.seen.length).toBeGreaterThan(1);
       expect(github.seen.every((request) => carries(request.authorization))).toBe(true);
 
-      const failure = await resolveSources({
+      const failure = await SourceResolver.resolve({
         cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
         cacheDir,
         sources: [{ name: 'missing', repo: 'acme/missing', ref: 'develop' }],
@@ -231,7 +231,7 @@ describe('a source without git on the machine', () => {
     withoutGit();
 
     try {
-      const [resolved] = await resolveSources({
+      const [resolved] = await SourceResolver.resolve({
         cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
         cacheDir,
         sources: [{ name: 'src', repo: 'acme/src', ref: 'develop' }],
@@ -260,7 +260,7 @@ describe('a source without git on the machine', () => {
       const started = Date.now();
 
       try {
-        const failure = await resolveSources({
+        const failure = await SourceResolver.resolve({
           cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
           cacheDir,
           sources: [{ name: 'src', repo: 'acme/src', ref: 'develop' }],

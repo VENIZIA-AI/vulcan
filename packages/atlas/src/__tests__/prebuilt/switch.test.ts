@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { cacheRootOf } from '@/sources';
+import { SourceCache } from '@/sources';
 import {
   makeTempDirectory,
   NO_REGISTRY,
@@ -85,7 +85,7 @@ const pull = async (opts: { root: string; cache: string; bare: string; flags?: s
 
 /** Whether the pulled set was installed from a downloaded pair. */
 const usedPair = (opts: { cache: string }): boolean => {
-  const root = cacheRootOf({ repo: 'acme/src', cacheBase: opts.cache });
+  const root = SourceCache.cacheRootOf({ repo: 'acme/src', cacheBase: opts.cache });
   const sets = readdirSync(root).filter((name) => name.endsWith('.atlas'));
 
   return sets.some((set) => existsSync(join(root, set, 'prebuilt')));

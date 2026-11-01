@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildServer } from '@/server';
-import { skillCatalogOf, triggerOf } from '@/skills';
+import { ServerFactory } from '@/server';
+import { SkillCatalog } from '@/skills';
 import { makeTempDirectory, TEMP_DIRECTORIES } from '../sources/source-repo.helper';
 
 afterAll(() => {
@@ -32,7 +32,7 @@ const own = (opts: { root: string; name: string; description: string }): void =>
 describe('triggerOf', () => {
   test('is the "Use when" sentence of the description, without its period', () => {
     expect(
-      triggerOf({
+      SkillCatalog.triggerOf({
         description:
           'Builds a feature. Use when the user asks to build, add or implement something, or which workflow you follow. Load it first.',
       }),
@@ -43,16 +43,16 @@ describe('triggerOf', () => {
   });
 
   test('a description with no "Use when" falls back to its first sentence and says so', () => {
-    expect(triggerOf({ description: 'Writes the docs. It is careful.' })).toEqual({
+    expect(SkillCatalog.triggerOf({ description: 'Writes the docs. It is careful.' })).toEqual({
       text: 'Writes the docs',
       hasUseWhen: false,
     });
   });
 
   test('a "Use when" at the end with no period still ends cleanly', () => {
-    expect(triggerOf({ description: 'Does a thing. Use when the user says go' }).text).toBe(
-      'the user says go',
-    );
+    expect(
+      SkillCatalog.triggerOf({ description: 'Does a thing. Use when the user says go' }).text,
+    ).toBe('the user says go');
   });
 });
 
@@ -64,7 +64,7 @@ describe('skillCatalogOf', () => {
     shipped({ root, name: 'build-a-feature', description: 'Builds. Use when the user builds.' });
     own({ root, name: 'acme-release', description: 'Ships. Use when the user ships.' });
 
-    expect(skillCatalogOf({ root }).map((entry) => [entry.name, entry.source])).toEqual([
+    expect(SkillCatalog.catalogOf({ root }).map((entry) => [entry.name, entry.source])).toEqual([
       ['acme-release', 'project'],
       ['build-a-feature', 'shipped'],
       ['docs-update', 'shipped'],
@@ -77,24 +77,30 @@ describe('skillCatalogOf', () => {
     shipped({ root, name: 'docs-update', description: 'Docs. Use when the user asks for docs.' });
     own({ root, name: 'docs-update', description: 'Mine. Use when the user says mine.' });
 
-    expect(skillCatalogOf({ root })).toHaveLength(1);
-    expect(skillCatalogOf({ root })[0]?.source).toBe('shipped');
+    expect(SkillCatalog.catalogOf({ root })).toHaveLength(1);
+    expect(SkillCatalog.catalogOf({ root })[0]?.source).toBe('shipped');
   });
 
   test('an add, a rename and a delete show on the next call, with no hand edit', () => {
     const root = makeTempDirectory({ prefix: 'atlas-skills-' });
 
     own({ root, name: 'acme-a', description: 'A. Use when the user wants a.' });
-    expect(skillCatalogOf({ root }).map((entry) => entry.name)).toEqual(['acme-a']);
+    expect(SkillCatalog.catalogOf({ root }).map((entry) => entry.name)).toEqual(['acme-a']);
 
     own({ root, name: 'acme-b', description: 'B. Use when the user wants b.' });
-    expect(skillCatalogOf({ root }).map((entry) => entry.name)).toEqual(['acme-a', 'acme-b']);
+    expect(SkillCatalog.catalogOf({ root }).map((entry) => entry.name)).toEqual([
+      'acme-a',
+      'acme-b',
+    ]);
 
     renameSync(join(root, '.agents/skills/acme-a'), join(root, '.agents/skills/acme-c'));
-    expect(skillCatalogOf({ root }).map((entry) => entry.name)).toEqual(['acme-b', 'acme-c']);
+    expect(SkillCatalog.catalogOf({ root }).map((entry) => entry.name)).toEqual([
+      'acme-b',
+      'acme-c',
+    ]);
 
     rmSync(join(root, '.agents/skills/acme-b'), { recursive: true });
-    expect(skillCatalogOf({ root }).map((entry) => entry.name)).toEqual(['acme-c']);
+    expect(SkillCatalog.catalogOf({ root }).map((entry) => entry.name)).toEqual(['acme-c']);
   });
 
   test('a folder with no SKILL.md is not a skill, and no vulcan installed is no shipped skill', () => {
@@ -102,7 +108,7 @@ describe('skillCatalogOf', () => {
 
     mkdirSync(join(root, '.agents/skills/empty'), { recursive: true });
 
-    expect(skillCatalogOf({ root })).toEqual([]);
+    expect(SkillCatalog.catalogOf({ root })).toEqual([]);
   });
 
   test('a SKILL.md whose frontmatter does not parse is listed with an empty description, never a crash', () => {
@@ -114,7 +120,7 @@ describe('skillCatalogOf', () => {
       text: '---\nname: acme-broken\ndescription: Broken: yes: really\n---\n',
     });
 
-    expect(skillCatalogOf({ root })).toEqual([
+    expect(SkillCatalog.catalogOf({ root })).toEqual([
       { name: 'acme-broken', source: 'project', description: '' },
     ]);
   });
@@ -143,7 +149,7 @@ describe('a server lists the skills the project has, read when a client connects
 
     return root;
   };
-  const initialize = async (opts: { transport: ReturnType<typeof buildServer> }) => {
+  const initialize = async (opts: { transport: ReturnType<typeof ServerFactory.build> }) => {
     const line = await opts.transport.handleLine({
       line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
     });
@@ -157,7 +163,7 @@ describe('a server lists the skills the project has, read when a client connects
     shipped({ root, name: 'build-a-feature', description: 'Builds. Use when the user builds.' });
     own({ root, name: 'acme-release', description: 'Ships. Use when the user ships.' });
 
-    const text = await initialize({ transport: buildServer({ root, version: '0.0.0' }) });
+    const text = await initialize({ transport: ServerFactory.build({ root, version: '0.0.0' }) });
 
     expect(text).toContain('- `acme-release`: the user ships');
     expect(text).toContain('- `build-a-feature`: the user builds');
@@ -165,7 +171,7 @@ describe('a server lists the skills the project has, read when a client connects
 
   test('a skill added after the start is in the next initialize: nothing is edited by hand', async () => {
     const root = project();
-    const transport = buildServer({ root, version: '0.0.0' });
+    const transport = ServerFactory.build({ root, version: '0.0.0' });
 
     const result = await initialize({ transport });
     expect(result).not.toContain('acme-new');

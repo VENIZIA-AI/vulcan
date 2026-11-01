@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { runKeygen, signEnvelope, verifyPair } from '@/prebuilt';
+import { Envelope, IndexKeygen } from '@/prebuilt';
 import type { IIndexPayload } from '@/prebuilt';
 import { gzipSync } from 'node:zlib';
 import { git, makeTempDirectory, TEMP_DIRECTORIES } from '../sources/source-repo.helper';
@@ -28,7 +28,7 @@ describe('atlas index keygen (C9)', () => {
   test('the private key lands under .agents/local with mode 0600, and only the public key is printed', () => {
     const root = repository({ ignoresLocal: true });
     const printed: string[] = [];
-    const result = runKeygen({ root, print: (line) => printed.push(line) });
+    const result = IndexKeygen.run({ root, print: (line) => printed.push(line) });
     const file = join(root, '.agents/local/atlas-index.key');
 
     expect(result.file).toBe(file);
@@ -56,8 +56,8 @@ describe('atlas index keygen (C9)', () => {
     };
 
     expect(
-      verifyPair({
-        envelope: signEnvelope({ payload, privateKey }),
+      Envelope.verifyPair({
+        envelope: Envelope.sign({ payload, privateKey }),
         gz,
         keys: [result.publicKey],
       }).ok,
@@ -67,25 +67,25 @@ describe('atlas index keygen (C9)', () => {
   test('it refuses while .agents/local is not gitignored, and writes nothing', () => {
     const root = repository({ ignoresLocal: false });
 
-    expect(() => runKeygen({ root, print: () => undefined })).toThrow('gitignore');
+    expect(() => IndexKeygen.run({ root, print: () => undefined })).toThrow('gitignore');
     expect(existsSync(join(root, '.agents/local/atlas-index.key'))).toBe(false);
   });
 
   test('it refuses outside a git repository', () => {
     const root = makeTempDirectory({ prefix: 'atlas-keygen-nogit-' });
 
-    expect(() => runKeygen({ root, print: () => undefined })).toThrow('gitignore');
+    expect(() => IndexKeygen.run({ root, print: () => undefined })).toThrow('gitignore');
     expect(existsSync(join(root, '.agents/local/atlas-index.key'))).toBe(false);
   });
 
   test('it never overwrites a key that is already there', () => {
     const root = repository({ ignoresLocal: true });
 
-    runKeygen({ root, print: () => undefined });
+    IndexKeygen.run({ root, print: () => undefined });
 
     const before = readFileSync(join(root, '.agents/local/atlas-index.key'), 'utf8');
 
-    expect(() => runKeygen({ root, print: () => undefined })).toThrow('already');
+    expect(() => IndexKeygen.run({ root, print: () => undefined })).toThrow('already');
     expect(readFileSync(join(root, '.agents/local/atlas-index.key'), 'utf8')).toBe(before);
   });
 });

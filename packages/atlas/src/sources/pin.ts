@@ -2,8 +2,8 @@ import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IReleaseRecord, IReleaseTable } from '@/releases/common';
-import { compileReleaseTemplate } from '@/releases/template';
-import { installedDirectoriesOf } from './installed';
+import { ReleaseTemplate } from '@/releases/template';
+import { InstalledPackages } from './installed';
 
 type TPinDecision =
   | { pinned: true; tag: string; basis: string }
@@ -42,88 +42,96 @@ const tagOf = (opts: { template: string; dir: string; version: string }): string
 
   // A placeholder left over (`<issue>`, `<date>`), or a name the template does not read back as this release.
   return /<[a-z]+>/.test(tag) ||
-    compileReleaseTemplate({ template: opts.template }).exec(tag)?.groups?.version !== opts.version
+    ReleaseTemplate.compile({ template: opts.template }).exec(tag)?.groups?.version !== opts.version
     ? undefined
     : tag;
 };
 
-/**
- * What the corpus of a source should be read at: the release tag of the newest installed package of
- * the source. "Newest" is by release order in the source's history, so the docs describe the latest
- * state of anything the project runs. Nothing is pinned when no package is installed, an installed one
- * is a link, or its version has no recorded release; the reason says which.
- */
-export const decidePin = (opts: {
-  /** The directories whose node_modules may hold the packages: the root and each workspace app. */
-  roots: string[];
-  project: IAtlasProject;
-  table: IReleaseTable;
-}): TPinDecision => {
-  const found: IInstalled[] = [];
-  const problems: string[] = [];
+export class PinPolicy {
+  /**
+   * What the corpus of a source should be read at: the release tag of the newest installed package of
+   * the source. "Newest" is by release order in the source's history, so the docs describe the latest
+   * state of anything the project runs. Nothing is pinned when no package is installed, an installed one
+   * is a link, or its version has no recorded release; the reason says which.
+   */
+  static decide(opts: {
+    /** The directories whose node_modules may hold the packages: the root and each workspace app. */
+    roots: string[];
+    project: IAtlasProject;
+    table: IReleaseTable;
+  }): TPinDecision {
+    const found: IInstalled[] = [];
+    const problems: string[] = [];
 
-  for (const entry of opts.project.packages.filter((item) => !item.retired)) {
-    for (const directory of installedDirectoriesOf({ roots: opts.roots, name: entry.name })) {
-      if (isLinked({ directory })) {
-        problems.push(`${entry.name} is linked (a file: or workspace package), not a release`);
-        continue;
-      }
+    for (const entry of opts.project.packages.filter((item) => !item.retired)) {
+      for (const directory of InstalledPackages.installedDirectoriesOf({
+        roots: opts.roots,
+        name: entry.name,
+      })) {
+        if (isLinked({ directory })) {
+          problems.push(`${entry.name} is linked (a file: or workspace package), not a release`);
+          continue;
+        }
 
-      const version = versionAt({ directory });
-      const record = opts.table.releases[entry.dir]?.find((release) => release.version === version);
+        const version = versionAt({ directory });
+        const record = opts.table.releases[entry.dir]?.find(
+          (release) => release.version === version,
+        );
 
-      if (version === undefined || record === undefined) {
-        problems.push(`no release of ${entry.name} ${version ?? '(no version)'} is recorded`);
-        continue;
-      }
+        if (version === undefined || record === undefined) {
+          problems.push(`no release of ${entry.name} ${version ?? '(no version)'} is recorded`);
+          continue;
+        }
 
-      // The same version under two apps is one fact.
-      if (!found.some((item) => item.name === entry.name && item.version === version)) {
-        found.push({ name: entry.name, dir: entry.dir, version, record });
+        // The same version under two apps is one fact.
+        if (!found.some((item) => item.name === entry.name && item.version === version)) {
+          found.push({ name: entry.name, dir: entry.dir, version, record });
+        }
       }
     }
-  }
 
-  if (found.length === 0) {
+    if (found.length === 0) {
+      return {
+        pinned: false,
+        reason:
+          problems.length === 0 ? 'none of its packages is installed here' : problems.join('; '),
+      };
+    }
+
+    // Release order in the first-parent history; a table older than 0.2.0-0 has none, and the date stands in.
+    const newest = found.reduce((best, item) =>
+      (item.record.order ?? -1) > (best.record.order ?? -1) ||
+      ((item.record.order ?? -1) === (best.record.order ?? -1) &&
+        item.record.date > best.record.date)
+        ? item
+        : best,
+    );
+    // A release read through a legacy template carries its tag; any other is named by the current template.
+    const tag =
+      newest.record.tag ??
+      tagOf({
+        template: opts.project.tagPattern,
+        dir: newest.dir,
+        version: newest.version,
+      });
+
+    if (tag === undefined) {
+      return {
+        pinned: false,
+        reason: `tagPattern ${opts.project.tagPattern} cannot name the tag of ${newest.name} ${newest.version}`,
+      };
+    }
+
+    const others = found.filter((item) => item !== newest);
+
     return {
-      pinned: false,
-      reason:
-        problems.length === 0 ? 'none of its packages is installed here' : problems.join('; '),
+      pinned: true,
+      tag,
+      basis: `installed ${newest.name} ${newest.version}${
+        others.length === 0
+          ? ''
+          : ` (the newest of ${found.map((item) => `${item.name} ${item.version}`).join(', ')})`
+      }`,
     };
   }
-
-  // Release order in the first-parent history; a table older than 0.2.0-0 has none, and the date stands in.
-  const newest = found.reduce((best, item) =>
-    (item.record.order ?? -1) > (best.record.order ?? -1) ||
-    ((item.record.order ?? -1) === (best.record.order ?? -1) && item.record.date > best.record.date)
-      ? item
-      : best,
-  );
-  // A release read through a legacy template carries its tag; any other is named by the current template.
-  const tag =
-    newest.record.tag ??
-    tagOf({
-      template: opts.project.tagPattern,
-      dir: newest.dir,
-      version: newest.version,
-    });
-
-  if (tag === undefined) {
-    return {
-      pinned: false,
-      reason: `tagPattern ${opts.project.tagPattern} cannot name the tag of ${newest.name} ${newest.version}`,
-    };
-  }
-
-  const others = found.filter((item) => item !== newest);
-
-  return {
-    pinned: true,
-    tag,
-    basis: `installed ${newest.name} ${newest.version}${
-      others.length === 0
-        ? ''
-        : ` (the newest of ${found.map((item) => `${item.name} ${item.version}`).join(', ')})`
-    }`,
-  };
-};
+}

@@ -6,9 +6,9 @@ import { dirname } from 'node:path';
 import { z } from 'zod';
 import {
   OFFICIAL_PRESETS,
-  officialIdOf,
-  parseInput,
+  OfficialPresets,
   PresetsInputSchema,
+  ToolInput,
   ToolTriggers,
 } from './common';
 import type { IOfficialPreset } from './common';
@@ -143,7 +143,7 @@ const libraryEntries = (opts: {
       const summary = official[kind];
       const isRecorded = recorded.some(
         (preset) =>
-          officialIdOf({ spec: preset.spec }) === official.id && preset[kind] !== undefined,
+          OfficialPresets.idOf({ spec: preset.spec }) === official.id && preset[kind] !== undefined,
       );
 
       return summary === undefined || isRecorded
@@ -182,7 +182,7 @@ const appEntries = (opts: {
       .filter(
         (official) =>
           fits(official.side) &&
-          !recorded.some((preset) => officialIdOf({ spec: preset.spec }) === official.id),
+          !recorded.some((preset) => OfficialPresets.idOf({ spec: preset.spec }) === official.id),
       )
       .map((official) =>
         appEntry({
@@ -199,64 +199,68 @@ const appEntries = (opts: {
 
 const LIBRARY_KINDS: TLibraryKind[] = [LibraryKinds.LIB, LibraryKinds.SHARED];
 
-/**
- * The presets of this project for the kind asked, from the manifest `vulcan sync` renders: nothing is
- * read from `node_modules`. The recorded presets come first; the official ones the project has not
- * used follow, marked `inProject: false`, so an agent never concludes that no frontend preset exists
- * because the project has none yet. A kind no preset makes is said plainly, never filled with an app
- * preset or an invented command.
- */
-export const buildPresetsTool = (opts: {
-  project: IAtlasProject | undefined;
-  projects?: string;
-  /** The official presets offered after the recorded ones; the published list by default. */
-  official?: IOfficialPreset[];
-}): IToolHandler => ({
-  definition: {
-    name: 'presets',
-    description: `${ToolTriggers.presets({ projects: opts.projects ?? opts.project?.name })} ${DESCRIPTION}`,
-    inputSchema: INPUT_JSON_SCHEMA,
-  },
-  call: async ({ args }) => {
-    const input = parseInput({ schema: PresetsInputSchema, args });
-    const kind = input.kind ?? PackageKinds.APP;
-    const name = input.name ?? '<name>';
-    const { project, official = OFFICIAL_PRESETS } = opts;
-    const libraryKind = LIBRARY_KINDS.find((candidate) => candidate === kind);
-
-    if (kind !== PackageKinds.APP && libraryKind === undefined) {
-      return {
-        kind,
-        presets: [],
-        note: `no preset makes a ${kind} (vulcan add makes apps, libs and shared packages): ask the user how it should be made; ${NO_HAND_WRITING}, and do not use an app, lib or shared preset for it`,
-      };
-    }
-
-    const recorded = project?.presets ?? [];
-    const entries: IPresetEntry[] =
-      libraryKind === undefined
-        ? appEntries({ project, recorded, official, side: input.side, name })
-        : libraryEntries({ kind: libraryKind, project, recorded, official, name });
-
-    if (entries.length === 0) {
-      return {
-        kind,
-        presets: [],
-        note: `no preset makes a ${kind}: ask the user how it should be made; ${NO_HAND_WRITING}, and do not use an app preset for it`,
-      };
-    }
-
-    if (entries.some((entry) => entry.inProject)) {
-      return { kind, presets: entries };
-    }
-
+export class PresetsTool {
+  /**
+   * The presets of this project for the kind asked, from the manifest `vulcan sync` renders: nothing is
+   * read from `node_modules`. The recorded presets come first; the official ones the project has not
+   * used follow, marked `inProject: false`, so an agent never concludes that no frontend preset exists
+   * because the project has none yet. A kind no preset makes is said plainly, never filled with an app
+   * preset or an invented command.
+   */
+  static build(opts: {
+    project: IAtlasProject | undefined;
+    projects?: string;
+    /** The official presets offered after the recorded ones; the published list by default. */
+    official?: IOfficialPreset[];
+  }): IToolHandler {
     return {
-      kind,
-      presets: entries,
-      note:
-        recorded.length === 0
-          ? 'this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use'
-          : `no recorded preset makes a ${kind === PackageKinds.APP ? (input.side ?? PackageKinds.APP) : kind}: the entries are the official ones, marked inProject false; ask the user which to use, and ${NO_HAND_WRITING}`,
+      definition: {
+        name: 'presets',
+        description: `${ToolTriggers.presets({ projects: opts.projects ?? opts.project?.name })} ${DESCRIPTION}`,
+        inputSchema: INPUT_JSON_SCHEMA,
+      },
+      call: async ({ args }) => {
+        const input = ToolInput.parse({ schema: PresetsInputSchema, args });
+        const kind = input.kind ?? PackageKinds.APP;
+        const name = input.name ?? '<name>';
+        const { project, official = OFFICIAL_PRESETS } = opts;
+        const libraryKind = LIBRARY_KINDS.find((candidate) => candidate === kind);
+
+        if (kind !== PackageKinds.APP && libraryKind === undefined) {
+          return {
+            kind,
+            presets: [],
+            note: `no preset makes a ${kind} (vulcan add makes apps, libs and shared packages): ask the user how it should be made; ${NO_HAND_WRITING}, and do not use an app, lib or shared preset for it`,
+          };
+        }
+
+        const recorded = project?.presets ?? [];
+        const entries: IPresetEntry[] =
+          libraryKind === undefined
+            ? appEntries({ project, recorded, official, side: input.side, name })
+            : libraryEntries({ kind: libraryKind, project, recorded, official, name });
+
+        if (entries.length === 0) {
+          return {
+            kind,
+            presets: [],
+            note: `no preset makes a ${kind}: ask the user how it should be made; ${NO_HAND_WRITING}, and do not use an app preset for it`,
+          };
+        }
+
+        if (entries.some((entry) => entry.inProject)) {
+          return { kind, presets: entries };
+        }
+
+        return {
+          kind,
+          presets: entries,
+          note:
+            recorded.length === 0
+              ? 'this project recorded no preset: the entries are the official ones, marked inProject false; ask the user which to use'
+              : `no recorded preset makes a ${kind === PackageKinds.APP ? (input.side ?? PackageKinds.APP) : kind}: the entries are the official ones, marked inProject false; ask the user which to use, and ${NO_HAND_WRITING}`,
+        };
+      },
     };
-  },
-});
+  }
+}

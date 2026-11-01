@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildSourcesServer } from '@/server/index';
-import { resolveSources } from '@/sources';
+import { SourcesServer } from '@/server/index';
+import { SourceResolver } from '@/sources';
 import type { IAtlasSource } from '@/sources';
 import {
   commitAll,
@@ -123,8 +123,8 @@ const workspaceConsumerWith = (opts: { installed: Record<string, string> }): str
 };
 
 const serve = async (opts: { cwd: string; source: IAtlasSource; refreshMs?: number }) => {
-  const sources = await resolveSources({ cwd: opts.cwd, cacheDir, sources: [opts.source] });
-  const transport = buildSourcesServer({
+  const sources = await SourceResolver.resolve({ cwd: opts.cwd, cacheDir, sources: [opts.source] });
+  const transport = SourcesServer.build({
     sources,
     cwd: opts.cwd,
     version: '0.0.0',
@@ -135,7 +135,7 @@ const serve = async (opts: { cwd: string; source: IAtlasSource; refreshMs?: numb
 };
 
 const call = async (opts: {
-  transport: ReturnType<typeof buildSourcesServer>;
+  transport: ReturnType<typeof SourcesServer.build>;
   name: string;
   args?: Record<string, unknown>;
 }) => {
@@ -152,7 +152,7 @@ const call = async (opts: {
   return JSON.parse(reply.result.content[0].text);
 };
 
-const instructionsOf = async (opts: { transport: ReturnType<typeof buildSourcesServer> }) => {
+const instructionsOf = async (opts: { transport: ReturnType<typeof SourcesServer.build> }) => {
   const line = await opts.transport.handleLine({
     line: JSON.stringify({
       jsonrpc: '2.0',
@@ -169,7 +169,7 @@ const instructionsOf = async (opts: { transport: ReturnType<typeof buildSourcesS
   return JSON.parse(line ?? 'null').result.instructions as string;
 };
 
-const forgeHits = async (opts: { transport: ReturnType<typeof buildSourcesServer> }) => {
+const forgeHits = async (opts: { transport: ReturnType<typeof SourcesServer.build> }) => {
   const answer = await call({
     transport: opts.transport,
     name: 'search',

@@ -2,8 +2,8 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { checkConcepts, ConceptProblems, stampConcepts, SYMBOLS_LOCK_NAME } from '@/concepts';
-import { readAtlasProject } from '@/common/project-config';
+import { ConceptCheck, ConceptProblems, ConceptStamp, SYMBOLS_LOCK_NAME } from '@/concepts';
+import { ProjectConfig } from '@/common/project-config';
 import { isFormatted } from '../format.helper';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
@@ -71,7 +71,7 @@ const CONCEPTS = { 'index.md': PLAIN, 'kit/greeting.md': GREETING, 'kit/basket.m
 describe('concepts stamp and check (V4)', () => {
   test('stamp writes the lock: each declared symbol with its signature hash', () => {
     const { root } = makeProject({ concepts: CONCEPTS, declarations: DECLARATIONS });
-    const report = stampConcepts({ project: readAtlasProject({ root }) });
+    const report = ConceptStamp.stamp({ project: ProjectConfig.readAtlasProject({ root }) });
     const lock = JSON.parse(readFileSync(join(root, LOCK), 'utf8'));
 
     expect(report.missing).toEqual([]);
@@ -83,7 +83,7 @@ describe('concepts stamp and check (V4)', () => {
   test('the lock is already formatted for bun fmt, so a committed copy stays lint-green', () => {
     const { root } = makeProject({ concepts: CONCEPTS, declarations: DECLARATIONS });
 
-    stampConcepts({ project: readAtlasProject({ root }) });
+    ConceptStamp.stamp({ project: ProjectConfig.readAtlasProject({ root }) });
 
     const result = isFormatted({
       file: SYMBOLS_LOCK_NAME,
@@ -96,9 +96,9 @@ describe('concepts stamp and check (V4)', () => {
   test('check passes against a fresh stamp', () => {
     const { root } = makeProject({ concepts: CONCEPTS, declarations: DECLARATIONS });
 
-    stampConcepts({ project: readAtlasProject({ root }) });
+    ConceptStamp.stamp({ project: ProjectConfig.readAtlasProject({ root }) });
 
-    const report = checkConcepts({ project: readAtlasProject({ root }) });
+    const report = ConceptCheck.check({ project: ProjectConfig.readAtlasProject({ root }) });
 
     expect(report.problems).toEqual([]);
     expect(report.checked).toBe(2);
@@ -107,10 +107,12 @@ describe('concepts stamp and check (V4)', () => {
   test('a removed symbol fails, naming the concept to review', () => {
     const { root, write } = makeProject({ concepts: CONCEPTS, declarations: DECLARATIONS });
 
-    stampConcepts({ project: readAtlasProject({ root }) });
+    ConceptStamp.stamp({ project: ProjectConfig.readAtlasProject({ root }) });
     write('packages/kit/dist/index.d.ts', 'export declare class Basket {\n}\n');
 
-    expect(checkConcepts({ project: readAtlasProject({ root }) }).problems).toEqual([
+    expect(
+      ConceptCheck.check({ project: ProjectConfig.readAtlasProject({ root }) }).problems,
+    ).toEqual([
       {
         concept: '.agents/knowledge/kit/greeting.md',
         symbol: '@shop/kit#greet',
@@ -122,13 +124,15 @@ describe('concepts stamp and check (V4)', () => {
   test('a changed signature fails', () => {
     const { root, write } = makeProject({ concepts: CONCEPTS, declarations: DECLARATIONS });
 
-    stampConcepts({ project: readAtlasProject({ root }) });
+    ConceptStamp.stamp({ project: ProjectConfig.readAtlasProject({ root }) });
     write(
       'packages/kit/dist/index.d.ts',
       DECLARATIONS.replace('(name: string)', '(name: string, loud: boolean)'),
     );
 
-    expect(checkConcepts({ project: readAtlasProject({ root }) }).problems).toEqual([
+    expect(
+      ConceptCheck.check({ project: ProjectConfig.readAtlasProject({ root }) }).problems,
+    ).toEqual([
       {
         concept: '.agents/knowledge/kit/greeting.md',
         symbol: '@shop/kit#greet',
@@ -155,10 +159,10 @@ describe('concepts stamp and check (V4)', () => {
     const problemsAfter = (change: (declarations: string) => string) => {
       const { root, write } = makeProject({ concepts, declarations: MEMBERS });
 
-      stampConcepts({ project: readAtlasProject({ root }) });
+      ConceptStamp.stamp({ project: ProjectConfig.readAtlasProject({ root }) });
       write('packages/kit/dist/index.d.ts', change(MEMBERS));
 
-      return checkConcepts({ project: readAtlasProject({ root }) }).problems.map(
+      return ConceptCheck.check({ project: ProjectConfig.readAtlasProject({ root }) }).problems.map(
         (problem) => `${problem.symbol} ${problem.problem}`,
       );
     };
@@ -202,10 +206,12 @@ describe('concepts stamp and check (V4)', () => {
         declarations: long('string'),
       });
 
-      stampConcepts({ project: readAtlasProject({ root }) });
+      ConceptStamp.stamp({ project: ProjectConfig.readAtlasProject({ root }) });
       write('packages/kit/dist/index.d.ts', long('number'));
 
-      expect(checkConcepts({ project: readAtlasProject({ root }) }).problems).toHaveLength(1);
+      expect(
+        ConceptCheck.check({ project: ProjectConfig.readAtlasProject({ root }) }).problems,
+      ).toHaveLength(1);
     });
   });
 
@@ -214,7 +220,9 @@ describe('concepts stamp and check (V4)', () => {
 
     write(LOCK, JSON.stringify({ schemaVersion: 1, symbols: { '@shop/kit#greet': 'deadbeef' } }));
 
-    expect(() => checkConcepts({ project: readAtlasProject({ root }) })).toThrow('concepts stamp');
+    expect(() => ConceptCheck.check({ project: ProjectConfig.readAtlasProject({ root }) })).toThrow(
+      'concepts stamp',
+    );
   });
 
   test('a declared symbol the lock lacks fails until stamped', () => {
@@ -223,10 +231,12 @@ describe('concepts stamp and check (V4)', () => {
       declarations: DECLARATIONS,
     });
 
-    stampConcepts({ project: readAtlasProject({ root }) });
+    ConceptStamp.stamp({ project: ProjectConfig.readAtlasProject({ root }) });
     write('.agents/knowledge/kit/basket.md', BASKET);
 
-    expect(checkConcepts({ project: readAtlasProject({ root }) }).problems).toEqual([
+    expect(
+      ConceptCheck.check({ project: ProjectConfig.readAtlasProject({ root }) }).problems,
+    ).toEqual([
       {
         concept: '.agents/knowledge/kit/basket.md',
         symbol: '@shop/kit#Basket',
@@ -237,7 +247,7 @@ describe('concepts stamp and check (V4)', () => {
 
   test('a concept without symbols: is ignored - no build, no lock needed', () => {
     const { root } = makeProject({ concepts: { 'index.md': PLAIN } });
-    const report = checkConcepts({ project: readAtlasProject({ root }) });
+    const report = ConceptCheck.check({ project: ProjectConfig.readAtlasProject({ root }) });
 
     expect(report).toEqual({ checked: 0, problems: [] });
     expect(existsSync(join(root, LOCK))).toBe(false);
@@ -248,7 +258,7 @@ describe('concepts stamp and check (V4)', () => {
       concepts: { 'kit/greeting.md': GREETING.replace('#greet', '#farewell') },
       declarations: DECLARATIONS,
     });
-    const report = stampConcepts({ project: readAtlasProject({ root }) });
+    const report = ConceptStamp.stamp({ project: ProjectConfig.readAtlasProject({ root }) });
 
     expect(report.missing).toEqual([
       {

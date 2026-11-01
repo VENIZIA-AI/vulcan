@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, readdirSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { cacheBaseOf, cacheRootOf, DEFAULT_CACHE_DIRECTORY, resolveSources } from '@/sources';
+import { DEFAULT_CACHE_DIRECTORY, SourceCache, SourceResolver } from '@/sources';
 import {
   makeSourceRepository,
   makeTempDirectory,
@@ -49,18 +49,20 @@ afterEach(() => {
 describe('cacheBaseOf', () => {
   test('defaults to .agents/local/cache under the working directory', () => {
     expect(DEFAULT_CACHE_DIRECTORY).toBe('.agents/local/cache');
-    expect(cacheBaseOf({ cwd: '/work/app' })).toBe('/work/app/.agents/local/cache');
+    expect(SourceCache.cacheBaseOf({ cwd: '/work/app' })).toBe('/work/app/.agents/local/cache');
   });
 
   test('a relative cache directory is taken from the working directory, an absolute one as given', () => {
-    expect(cacheBaseOf({ cwd: '/work/app', cacheDir: 'build/atlas' })).toBe(
+    expect(SourceCache.cacheBaseOf({ cwd: '/work/app', cacheDir: 'build/atlas' })).toBe(
       '/work/app/build/atlas',
     );
-    expect(cacheBaseOf({ cwd: '/work/app', cacheDir: '/data/atlas' })).toBe('/data/atlas');
+    expect(SourceCache.cacheBaseOf({ cwd: '/work/app', cacheDir: '/data/atlas' })).toBe(
+      '/data/atlas',
+    );
   });
 
   test('a repository root sits under atlas/v1 of the base', () => {
-    const root = cacheRootOf({ repo: 'VENIZIA-AI/ignis', cacheBase: '/b' });
+    const root = SourceCache.cacheRootOf({ repo: 'VENIZIA-AI/ignis', cacheBase: '/b' });
 
     expect(root).toBe(resolve('/b', 'atlas/v1/github.com/VENIZIA-AI/ignis'));
   });
@@ -70,7 +72,7 @@ describe('atlas writes nothing outside the project', () => {
   test('a pull lands in the working directory, and a home and config folder stay empty', async () => {
     const source = makeSourceRepository();
     const cwd = makeTempDirectory({ prefix: 'atlas-consumer-' });
-    const [resolved] = await resolveSources({
+    const [resolved] = await SourceResolver.resolve({
       cwd,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
@@ -85,7 +87,7 @@ describe('atlas writes nothing outside the project', () => {
     const cwd = makeTempDirectory({ prefix: 'atlas-consumer-' });
     const cacheDir = makeTempDirectory({ prefix: 'atlas-chosen-cache-' });
 
-    await resolveSources({
+    await SourceResolver.resolve({
       cwd,
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],

@@ -3,8 +3,8 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { toAtlasProject } from '@/common/project-config';
-import { computeReleases } from '@/releases';
+import { ProjectConfig } from '@/common/project-config';
+import { ReleaseCompute } from '@/releases';
 
 const roots: string[] = [];
 
@@ -43,7 +43,7 @@ const PACKAGES = [
 ];
 
 const projectAt = (opts: { root: string; release?: object }) =>
-  toAtlasProject({
+  ProjectConfig.toAtlasProject({
     root: opts.root,
     manifest: {
       schemaVersion: 1,
@@ -85,7 +85,7 @@ describe('computeReleases (D1)', () => {
   git(['tag', 'old/0.0.1-0']);
   git(['tag', 'ghost-v1.0.0']);
 
-  const table = computeReleases({ project: projectAt({ root }) });
+  const table = ReleaseCompute.compute({ project: projectAt({ root }) });
   const orderOf = (opts: { dir: string; version: string }): number =>
     table.releases[opts.dir]?.find((record) => record.version === opts.version)?.order ?? -1;
   const entryOrder = (opts: { file: string }): number =>
@@ -125,8 +125,8 @@ describe('computeReleases (D1)', () => {
     renamed.git(['commit', '-q', '--allow-empty', '-m', 'new']);
     renamed.git(['tag', 'core-server-v0.2.0']);
 
-    const renamedTable = computeReleases({
-      project: toAtlasProject({
+    const renamedTable = ReleaseCompute.compute({
+      project: ProjectConfig.toAtlasProject({
         root: renamed.root,
         manifest: {
           schemaVersion: 1,
@@ -149,8 +149,8 @@ describe('computeReleases (D1)', () => {
     grouped.git(['commit', '-q', '--allow-empty', '-m', 'two']);
     grouped.git(['tag', 'packages/core/0.0.1-0']);
 
-    const groupedTable = computeReleases({
-      project: toAtlasProject({
+    const groupedTable = ReleaseCompute.compute({
+      project: ProjectConfig.toAtlasProject({
         root: grouped.root,
         manifest: {
           schemaVersion: 1,
@@ -188,7 +188,7 @@ describe('computeReleases (D1)', () => {
       'release',
     ]);
 
-    const mergedTable = computeReleases({ project: projectAt({ root: merged.root }) });
+    const mergedTable = ReleaseCompute.compute({ project: projectAt({ root: merged.root }) });
 
     expect(mergedTable.releases.kernel?.map((record) => record.version)).toEqual(['1.0.0']);
   });
@@ -199,7 +199,7 @@ describe('computeReleases (D1)', () => {
     repo.git(['commit', '-q', '--allow-empty', '-m', 'release']);
     repo.git(['tag', '2026-01-05_v1.0.0']);
 
-    const repoTable = computeReleases({
+    const repoTable = ReleaseCompute.compute({
       project: projectAt({ root: repo.root, release: { tagPattern: '<date>_v<version>' } }),
     });
 
@@ -212,7 +212,7 @@ describe('computeReleases on the edges of a repository', () => {
   test('a repository with no commit yet has no history: the empty table', () => {
     const empty = scratch();
 
-    expect(computeReleases({ project: projectAt({ root: empty.root }) })).toEqual({
+    expect(ReleaseCompute.compute({ project: projectAt({ root: empty.root }) })).toEqual({
       livePackages: ['kernel', 'web'],
       releases: {},
       changelogs: [],
@@ -232,7 +232,7 @@ describe('computeReleases on the edges of a repository', () => {
     writeFileSync(join(root, 'changes/2026-01-02-faster.md'), changelog({ title: 'Faster' }));
     writeFileSync(join(root, 'changes/notes.md'), changelog({ title: 'Undated' }));
 
-    const table = computeReleases({ project: projectAt({ root }) });
+    const table = ReleaseCompute.compute({ project: projectAt({ root }) });
 
     expect(table.releases).toEqual({});
     expect(table.changelogs).toEqual([
@@ -257,7 +257,7 @@ describe('computeReleases on the edges of a repository', () => {
     prose.git(['add', '-A']);
     prose.git(['commit', '-q', '-m', 'docs: prose']);
 
-    const table = computeReleases({ project: projectAt({ root: prose.root }) });
+    const table = ReleaseCompute.compute({ project: projectAt({ root: prose.root }) });
 
     expect(
       table.changelogs.map((entry) => ({ title: entry.title, packages: entry.packages })),
@@ -274,7 +274,7 @@ describe('computeReleases on the edges of a repository', () => {
     crlf.git(['add', '-A']);
     crlf.git(['commit', '-q', '-m', 'docs: crlf']);
 
-    const crlfTable = computeReleases({ project: projectAt({ root: crlf.root }) });
+    const crlfTable = ReleaseCompute.compute({ project: projectAt({ root: crlf.root }) });
 
     expect(
       crlfTable.changelogs.map((entry) => ({ title: entry.title, packages: entry.packages })),
@@ -300,7 +300,9 @@ describe('computeReleases with a legacy tag template', () => {
 
   test('both layouts are releases, in release order, and only the legacy one carries its tag', () => {
     const repo = renamedRepository();
-    const table = computeReleases({ project: projectAt({ root: repo.root, release: RELEASE }) });
+    const table = ReleaseCompute.compute({
+      project: projectAt({ root: repo.root, release: RELEASE }),
+    });
     const kernel = table.releases.kernel ?? [];
 
     expect(kernel.map((record) => record.version).sort()).toEqual(['0.4.7', '0.4.8']);
@@ -311,7 +313,9 @@ describe('computeReleases with a legacy tag template', () => {
 
   test('a tag the current template reads is never read by the legacy one: vulcan-v0.4.8 is 0.4.8, not ulcan-v0.4.8', () => {
     const repo = renamedRepository();
-    const table = computeReleases({ project: projectAt({ root: repo.root, release: RELEASE }) });
+    const table = ReleaseCompute.compute({
+      project: projectAt({ root: repo.root, release: RELEASE }),
+    });
     const versions = (table.releases.kernel ?? []).map((record) => record.version);
 
     expect(versions).not.toContain('ulcan-v0.4.8');
@@ -323,14 +327,16 @@ describe('computeReleases with a legacy tag template', () => {
 
     repo.git(['tag', 'vision']);
 
-    const table = computeReleases({ project: projectAt({ root: repo.root, release: RELEASE }) });
+    const table = ReleaseCompute.compute({
+      project: projectAt({ root: repo.root, release: RELEASE }),
+    });
 
     expect((table.releases.kernel ?? []).map((record) => record.version)).not.toContain('ision');
   });
 
   test('without the legacy template the old tag is not a release: that is what the key keeps', () => {
     const repo = renamedRepository();
-    const table = computeReleases({
+    const table = ReleaseCompute.compute({
       project: projectAt({ root: repo.root, release: { tagPattern: 'vulcan-v<version>' } }),
     });
 

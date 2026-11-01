@@ -1,4 +1,4 @@
-import { buildServer } from '@/server';
+import { ServerFactory } from '@/server';
 import { afterAll, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -65,7 +65,7 @@ const project = (): string => {
 };
 
 const callSymbol = async (opts: { root: string; name: string }) => {
-  const line = await buildServer({ root: opts.root, version: '0.0.0' }).handleLine({
+  const line = await ServerFactory.build({ root: opts.root, version: '0.0.0' }).handleLine({
     line: JSON.stringify({
       jsonrpc: '2.0',
       id: 1,

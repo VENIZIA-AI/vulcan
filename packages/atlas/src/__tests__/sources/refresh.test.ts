@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { rmSync } from 'node:fs';
-import { readAtlasProject } from '@/common/project-config';
-import { buildSourcesServer, Refresher, refreshIntervalMs } from '@/server/index';
-import { resolveSources } from '@/sources';
+import { ProjectConfig } from '@/common/project-config';
+import { Refresher, SourcesServer } from '@/server/index';
+import { SourceResolver } from '@/sources';
 import type { IResolvedSource } from '@/sources';
 import {
   commitAll,
@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 const call = async (opts: {
-  transport: ReturnType<typeof buildSourcesServer>;
+  transport: ReturnType<typeof SourcesServer.build>;
   name: string;
   args?: Record<string, unknown>;
 }) => {
@@ -68,7 +68,7 @@ const eventually = async (opts: { read: () => Promise<unknown>; expected: unknow
   return last;
 };
 
-const newestOf = async (opts: { transport: ReturnType<typeof buildSourcesServer> }) => {
+const newestOf = async (opts: { transport: ReturnType<typeof SourcesServer.build> }) => {
   const answer = await call({ transport: opts.transport, name: 'version' });
 
   return answer.snapshot['@x/kernel'];
@@ -77,12 +77,12 @@ const newestOf = async (opts: { transport: ReturnType<typeof buildSourcesServer>
 describe('a remote source keeps up with its ref while the server runs', () => {
   test('a release tag pushed after the start shows up after the interval, with no restart', async () => {
     const source = makeSourceRepository();
-    const sources = await resolveSources({
+    const sources = await SourceResolver.resolve({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
-    const transport = buildSourcesServer({
+    const transport = SourcesServer.build({
       sources,
       cwd: sources[0].root,
       version: '0.0.0',
@@ -104,12 +104,12 @@ describe('a remote source keeps up with its ref while the server runs', () => {
 
   test('a new commit on the ref swaps the corpus: a search finds the new page', async () => {
     const source = makeSourceRepository();
-    const sources = await resolveSources({
+    const sources = await SourceResolver.resolve({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
-    const transport = buildSourcesServer({
+    const transport = SourcesServer.build({
       sources,
       cwd: sources[0].root,
       version: '0.0.0',
@@ -139,13 +139,13 @@ describe('a remote source keeps up with its ref while the server runs', () => {
 
   test('inside the interval nothing is looked up again', async () => {
     const source = makeSourceRepository();
-    const sources = await resolveSources({
+    const sources = await SourceResolver.resolve({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
     let lookups = 0;
-    const transport = buildSourcesServer({
+    const transport = SourcesServer.build({
       sources,
       cwd: sources[0].root,
       version: '0.0.0',
@@ -168,12 +168,12 @@ describe('a remote source keeps up with its ref while the server runs', () => {
 
   test('a source that cannot be reached keeps serving what it has', async () => {
     const source = makeSourceRepository();
-    const sources = await resolveSources({
+    const sources = await SourceResolver.resolve({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
-    const transport = buildSourcesServer({
+    const transport = SourcesServer.build({
       sources,
       cwd: sources[0].root,
       version: '0.0.0',
@@ -200,9 +200,9 @@ describe('the project itself keeps up with its own tags', () => {
       name: 'src',
       root: source.work,
       mode: 'repository',
-      project: readAtlasProject({ root: source.work }),
+      project: ProjectConfig.readAtlasProject({ root: source.work }),
     };
-    const transport = buildSourcesServer({
+    const transport = SourcesServer.build({
       sources: [project],
       cwd: source.work,
       version: '0.0.0',
@@ -292,15 +292,15 @@ describe('Refresher', () => {
 
 describe('refreshIntervalMs', () => {
   test('five minutes by default; VULCAN_ATLAS_REFRESH_SECONDS sets it; 0 turns it off', () => {
-    expect(refreshIntervalMs()).toBe(300_000);
+    expect(Refresher.configuredIntervalMs()).toBe(300_000);
 
     process.env.VULCAN_ATLAS_REFRESH_SECONDS = '30';
-    expect(refreshIntervalMs()).toBe(30_000);
+    expect(Refresher.configuredIntervalMs()).toBe(30_000);
 
     process.env.VULCAN_ATLAS_REFRESH_SECONDS = '0';
-    expect(refreshIntervalMs()).toBeUndefined();
+    expect(Refresher.configuredIntervalMs()).toBeUndefined();
 
     process.env.VULCAN_ATLAS_REFRESH_SECONDS = 'soon';
-    expect(refreshIntervalMs()).toBe(300_000);
+    expect(Refresher.configuredIntervalMs()).toBe(300_000);
   });
 });

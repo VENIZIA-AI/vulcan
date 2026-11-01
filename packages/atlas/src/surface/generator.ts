@@ -7,14 +7,9 @@
  */
 import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
-import { readPackageDirectory } from '@/common/package-entries';
-import { regenerateHintOf } from '@/common/regenerate-hint';
-import {
-  hasAtlasProject,
-  livePackageDirs,
-  packagePathOf,
-  readAtlasProject,
-} from '@/common/project-config';
+import { PackageEntries } from '@/common/package-entries';
+import { RegenerateHint } from '@/common/regenerate-hint';
+import { ProjectConfig } from '@/common/project-config';
 import { PROJECT_ROOT } from '@/common/project';
 import type { IPackageEntries } from '@/common/types';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -31,12 +26,14 @@ interface IEntrySurface {
 
 export class PublicSurface {
   static render(opts: { repoRoot?: string; packages?: string[] } = {}): string {
-    const project = hasAtlasProject() ? readAtlasProject() : undefined;
+    const project = ProjectConfig.hasAtlasProject() ? ProjectConfig.readAtlasProject() : undefined;
     const repoRoot = opts.repoRoot ?? project?.root ?? PROJECT_ROOT;
-    const packages = opts.packages ?? livePackageDirs({ project: project ?? readAtlasProject() });
+    const packages =
+      opts.packages ??
+      ProjectConfig.livePackageDirs({ project: project ?? ProjectConfig.readAtlasProject() });
     const read = packages.map((dir) =>
-      readPackageDirectory({
-        directory: resolve(repoRoot, packagePathOf({ project, dir })),
+      PackageEntries.readDirectory({
+        directory: resolve(repoRoot, ProjectConfig.packagePathOf({ project, dir })),
         name: dir,
       }),
     );
@@ -183,7 +180,7 @@ export const runSurfaceCommand = (opts: { command?: string }): number => {
 
       console.error(
         'stale .agents/knowledge/reference/public-surface.md - the public surface changed; ' +
-          `${regenerateHintOf({ command: 'surface' })} only if the change is intended`,
+          `${RegenerateHint.regenerateHintOf({ command: 'surface' })} only if the change is intended`,
       );
 
       return 1;

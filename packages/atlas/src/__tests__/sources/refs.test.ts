@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { rmSync } from 'node:fs';
-import { resolveSources } from '@/sources';
+import { SourceResolver } from '@/sources';
 import {
   commitAll,
   git,
@@ -57,7 +57,7 @@ describe('a source ref', () => {
     pushCommit({ work: source.work, name: 'second' });
 
     const cwd = consumer();
-    const [byFull] = await resolveSources({
+    const [byFull] = await SourceResolver.resolve({
       cwd,
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: first }],
@@ -66,7 +66,7 @@ describe('a source ref', () => {
     expect(byFull.sha).toBe(first);
     expect(byFull.mode).toBe('fresh');
 
-    const [byShort] = await resolveSources({
+    const [byShort] = await SourceResolver.resolve({
       cwd,
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: first.slice(0, 7) }],
@@ -79,7 +79,7 @@ describe('a source ref', () => {
   test('a short SHA on a cold cache is expanded once the clone is fetched', async () => {
     const source = makeSourceRepository();
     const sha = git({ cwd: source.work, args: ['rev-parse', 'HEAD'] });
-    const [resolved] = await resolveSources({
+    const [resolved] = await SourceResolver.resolve({
       cwd: consumer(),
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: sha.slice(0, 10) }],
@@ -93,14 +93,14 @@ describe('a source ref', () => {
     const source = makeSourceRepository();
     const cwd = consumer();
 
-    await resolveSources({
+    await SourceResolver.resolve({
       cwd,
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
 
     const failure = await failureOf(
-      resolveSources({
+      SourceResolver.resolve({
         cwd,
         cacheDir,
         sources: [{ name: 'src', repo: source.url, ref: 'no-such-branch' }],
@@ -118,7 +118,7 @@ describe('a source ref', () => {
     git({ cwd: source.work, args: ['push', '-q', 'origin', 'feature/release'] });
 
     const failure = await failureOf(
-      resolveSources({
+      SourceResolver.resolve({
         cwd: consumer(),
         cacheDir,
         sources: [{ name: 'src', repo: source.url, ref: 'release' }],

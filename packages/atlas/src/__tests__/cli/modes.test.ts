@@ -1,11 +1,5 @@
-import {
-  findPackageDirectory,
-  ModeUsageError,
-  readPackageVersion,
-  readCacheDirArgument,
-  readRootArgument,
-} from '@/cli/index';
-import { hasAtlasProject, MANIFEST_FILE } from '@/common/project-config';
+import { ModeArguments, ModeUsageError } from '@/cli/index';
+import { MANIFEST_FILE, ProjectConfig } from '@/common/project-config';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -56,21 +50,21 @@ const makePackageDirectory = (opts: { withSnapshot: boolean }): string => {
 
 describe('readCacheDirArgument', () => {
   test('both spellings give the value, and an absent flag gives none', () => {
-    expect(readCacheDirArgument({ argv: ['mcp', '--cache-dir', '/data/atlas'] })).toBe(
+    expect(ModeArguments.readCacheDir({ argv: ['mcp', '--cache-dir', '/data/atlas'] })).toBe(
       '/data/atlas',
     );
-    expect(readCacheDirArgument({ argv: ['--cache-dir=build/atlas'] })).toBe('build/atlas');
-    expect(readCacheDirArgument({ argv: ['mcp'] })).toBeUndefined();
+    expect(ModeArguments.readCacheDir({ argv: ['--cache-dir=build/atlas'] })).toBe('build/atlas');
+    expect(ModeArguments.readCacheDir({ argv: ['mcp'] })).toBeUndefined();
   });
 
   test('an empty value, a following flag or no value is a usage error', () => {
-    expect(() => readCacheDirArgument({ argv: ['--cache-dir='] })).toThrow(
+    expect(() => ModeArguments.readCacheDir({ argv: ['--cache-dir='] })).toThrow(
       '--cache-dir requires a value',
     );
-    expect(() => readCacheDirArgument({ argv: ['--cache-dir', '--verbose'] })).toThrow(
+    expect(() => ModeArguments.readCacheDir({ argv: ['--cache-dir', '--verbose'] })).toThrow(
       '--cache-dir requires a value',
     );
-    expect(() => readCacheDirArgument({ argv: ['mcp', '--cache-dir'] })).toThrow(
+    expect(() => ModeArguments.readCacheDir({ argv: ['mcp', '--cache-dir'] })).toThrow(
       '--cache-dir requires a value',
     );
   });
@@ -78,29 +72,29 @@ describe('readCacheDirArgument', () => {
 
 describe('readRootArgument (M11)', () => {
   test('--root=<dir> is the same as --root <dir>; an empty value or a following flag is a usage error', () => {
-    expect(readRootArgument({ argv: ['--root=/srv/ignis'] })).toEqual({
+    expect(ModeArguments.readRoot({ argv: ['--root=/srv/ignis'] })).toEqual({
       value: '/srv/ignis',
       explicit: true,
     });
-    expect(() => readRootArgument({ argv: ['--root='] })).toThrow('--root requires a value');
-    expect(() => readRootArgument({ argv: ['--root', '--verbose'] })).toThrow(
+    expect(() => ModeArguments.readRoot({ argv: ['--root='] })).toThrow('--root requires a value');
+    expect(() => ModeArguments.readRoot({ argv: ['--root', '--verbose'] })).toThrow(
       '--root requires a value',
     );
   });
 
   test('no --root flag reads cwd and is not explicit', () => {
-    expect(readRootArgument({ argv: [] })).toEqual({ value: process.cwd(), explicit: false });
+    expect(ModeArguments.readRoot({ argv: [] })).toEqual({ value: process.cwd(), explicit: false });
   });
 
   test('--root <dir> reads the given directory and is explicit', () => {
-    expect(readRootArgument({ argv: ['--root', '/some/dir'] })).toEqual({
+    expect(ModeArguments.readRoot({ argv: ['--root', '/some/dir'] })).toEqual({
       value: '/some/dir',
       explicit: true,
     });
   });
 
   test('--root with no value throws ModeUsageError instead of silently falling back to cwd', () => {
-    expect(() => readRootArgument({ argv: ['--root'] })).toThrow(ModeUsageError);
+    expect(() => ModeArguments.readRoot({ argv: ['--root'] })).toThrow(ModeUsageError);
   });
 });
 
@@ -113,18 +107,24 @@ describe('findPackageDirectory', () => {
     mkdirSync(sourceStyleStart, { recursive: true });
     mkdirSync(distStyleStart, { recursive: true });
 
-    expect(findPackageDirectory({ startDirectory: sourceStyleStart })).toBe(packageDirectory);
-    expect(findPackageDirectory({ startDirectory: distStyleStart })).toBe(packageDirectory);
+    expect(ModeArguments.findPackageDirectory({ startDirectory: sourceStyleStart })).toBe(
+      packageDirectory,
+    );
+    expect(ModeArguments.findPackageDirectory({ startDirectory: distStyleStart })).toBe(
+      packageDirectory,
+    );
   });
 
   test('finds the real packages/atlas directory from this test file location', () => {
-    expect(findPackageDirectory({ startDirectory: __dirname })).toBe(join(__dirname, '../../..'));
+    expect(ModeArguments.findPackageDirectory({ startDirectory: __dirname })).toBe(
+      join(__dirname, '../../..'),
+    );
   });
 
   test('throws when no ancestor package.json names this package', () => {
     const orphan = makeTempDirectory({ prefix: 'atlas-modes-orphan-' });
 
-    expect(() => findPackageDirectory({ startDirectory: orphan })).toThrow();
+    expect(() => ModeArguments.findPackageDirectory({ startDirectory: orphan })).toThrow();
   });
 });
 
@@ -137,19 +137,21 @@ describe('readPackageVersion (I6)', () => {
       JSON.stringify({ name: '@venizia/vulcan-atlas', version: '9.9.9-test' }),
     );
 
-    expect(readPackageVersion({ directory: packageDirectory })).toBe('9.9.9-test');
+    expect(ModeArguments.readPackageVersion({ directory: packageDirectory })).toBe('9.9.9-test');
   });
 
   test('is undefined when the directory has no package.json', () => {
     const empty = makeTempDirectory({ prefix: 'atlas-modes-no-manifest-' });
 
-    expect(readPackageVersion({ directory: empty })).toBeUndefined();
+    expect(ModeArguments.readPackageVersion({ directory: empty })).toBeUndefined();
   });
 
   test('reads the real packages/atlas version from this test file location', () => {
-    const packageDirectory = findPackageDirectory({ startDirectory: __dirname });
+    const packageDirectory = ModeArguments.findPackageDirectory({ startDirectory: __dirname });
 
-    expect(readPackageVersion({ directory: packageDirectory })).toMatch(/^\d+\.\d+\.\d+/);
+    expect(ModeArguments.readPackageVersion({ directory: packageDirectory })).toMatch(
+      /^\d+\.\d+\.\d+/,
+    );
   });
 });
 
@@ -175,11 +177,11 @@ describe('hasAtlasProject - a project is a manifest, never a layout', () => {
     mkdirSync(join(root, 'docs/wiki/content/changelogs'), { recursive: true });
     mkdirSync(join(root, '.agents/knowledge'), { recursive: true });
 
-    expect(hasAtlasProject({ root })).toBe(false);
+    expect(ProjectConfig.hasAtlasProject({ root })).toBe(false);
   });
 
   test('a directory with a manifest is a project, whatever its layout', () => {
-    expect(hasAtlasProject({ root: makeRepositoryRoot() })).toBe(true);
+    expect(ProjectConfig.hasAtlasProject({ root: makeRepositoryRoot() })).toBe(true);
   });
 
   test('the manifest vulcan x hands over counts for the root it named, and no other', () => {
@@ -189,7 +191,7 @@ describe('hasAtlasProject - a project is a manifest, never a layout', () => {
     process.env.VULCAN_MANIFEST = JSON.stringify({ schemaVersion: 1 });
     process.env.VULCAN_PROJECT_ROOT = named;
 
-    expect(hasAtlasProject({ root: named })).toBe(true);
-    expect(hasAtlasProject({ root: other })).toBe(false);
+    expect(ProjectConfig.hasAtlasProject({ root: named })).toBe(true);
+    expect(ProjectConfig.hasAtlasProject({ root: other })).toBe(false);
   });
 });

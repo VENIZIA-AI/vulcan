@@ -1,10 +1,10 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { formatWithBun } from '@/common/format';
+import { BunFormatter } from '@/common/format';
 import type { IAtlasProject } from '@/common/project-config';
 import { TextValue } from '@/common/text';
-import { parseFrontmatter } from '@/corpus/frontmatter';
-import { symbolsOfRepository } from '@/symbols/compute';
+import { CorpusFrontmatter } from '@/corpus/frontmatter';
+import { SymbolCompute } from '@/symbols/compute';
 import type { ISymbolRecord } from '@/symbols/common';
 import { ConceptProblems, SYMBOLS_LOCK_NAME } from './common';
 import type { IConceptProblem, IDeclaredSymbol, IStampReport } from './common';
@@ -23,30 +23,6 @@ interface ISymbolsLock {
 const symbolsLockOf = (opts: { project: IAtlasProject }): string =>
   join(opts.project.knowledge.bundle, SYMBOLS_LOCK_NAME);
 
-/** Every `symbols:` entry of every concept in the bundle, in path order; a concept without one has none. */
-export const readDeclaredSymbols = (opts: { project: IAtlasProject }): IDeclaredSymbol[] => {
-  const { bundle } = opts.project.knowledge;
-
-  if (!existsSync(bundle)) {
-    return [];
-  }
-
-  const paths = [...new Bun.Glob('**/*.md').scanSync({ cwd: bundle })].sort((left, right) =>
-    TextValue.compare({ left, right }),
-  );
-
-  return paths.flatMap((path) => {
-    const { data } = parseFrontmatter({
-      text: readFileSync(join(bundle, path), 'utf8'),
-      path,
-    });
-    const declared: unknown[] = Array.isArray(data.symbols) ? data.symbols : [];
-    const concept = relative(opts.project.root, join(bundle, path));
-
-    return declared.map((symbol) => ({ concept, symbol: String(symbol) }));
-  });
-};
-
 /** The package and the symbol of `<npm name>#<Symbol>`, when it names a package the manifest declares. */
 const splitDeclaration = (opts: {
   symbol: string;
@@ -63,105 +39,137 @@ const splitDeclaration = (opts: {
     : undefined;
 };
 
-/**
- * The signature hash of one declaration among the built records, or why it has none. A symbol
- * exported from several subpaths hashes every signature it has.
- */
-export const resolveDeclaredSymbol = (opts: {
-  symbol: string;
-  project: IAtlasProject;
-  records: ISymbolRecord[];
-}):
-  | { hash: string }
-  | { problem: typeof ConceptProblems.MISSING | typeof ConceptProblems.MALFORMED } => {
-  const declaration = splitDeclaration(opts);
+export class ConceptStamp {
+  /** Every `symbols:` entry of every concept in the bundle, in path order; a concept without one has none. */
+  static readDeclaredSymbols(opts: { project: IAtlasProject }): IDeclaredSymbol[] {
+    const { bundle } = opts.project.knowledge;
 
-  if (declaration === undefined) {
-    return { problem: ConceptProblems.MALFORMED };
-  }
-
-  const signatures = opts.records
-    .filter(
-      (record) => record.package === declaration.packageName && record.name === declaration.name,
-    )
-    .map((record) => `${record.signature}\n${record.shape ?? ''}`);
-
-  if (signatures.length === 0) {
-    return { problem: ConceptProblems.MISSING };
-  }
-
-  const hash = new Bun.CryptoHasher('sha256')
-    .update(
-      [...new Set(signatures)].sort((left, right) => TextValue.compare({ left, right })).join('\n'),
-    )
-    .digest('hex');
-
-  return { hash: hash.slice(0, HASH_LENGTH) };
-};
-
-/** The committed lock, or `undefined` before the first stamp. */
-export const readSymbolsLock = (opts: { project: IAtlasProject }): ISymbolsLock | undefined => {
-  const file = symbolsLockOf(opts);
-
-  if (!existsSync(file)) {
-    return undefined;
-  }
-
-  const lock: ISymbolsLock = JSON.parse(readFileSync(file, 'utf8'));
-
-  if (lock.schemaVersion < LOCK_SCHEMA_VERSION) {
-    throw new Error(
-      `atlas: ${SYMBOLS_LOCK_NAME} is schemaVersion ${String(lock.schemaVersion)}, which hashed one signature line; run \`vulcan x atlas concepts stamp\` to lock the whole declaration (schemaVersion ${LOCK_SCHEMA_VERSION})`,
-    );
-  }
-
-  if (lock.schemaVersion !== LOCK_SCHEMA_VERSION) {
-    throw new Error(
-      `atlas: ${SYMBOLS_LOCK_NAME} is schemaVersion ${String(lock.schemaVersion)}; @venizia/vulcan-atlas reads ${LOCK_SCHEMA_VERSION} - upgrade @venizia/vulcan`,
-    );
-  }
-
-  return lock;
-};
-
-/**
- * Project Contract v1, V4: writes the lock - each symbol a concept declares, with its signature
- * hash read from the built `.d.ts`. A declaration that resolves to nothing stops it, unwritten.
- */
-export const stampConcepts = (opts: { project: IAtlasProject }): IStampReport => {
-  const { project } = opts;
-  const declared = readDeclaredSymbols({ project });
-  const records = declared.length === 0 ? [] : symbolsOfRepository({ project });
-  const hashes = new Map<string, string>();
-  const missing: IConceptProblem[] = [];
-  const lockFile = relative(project.root, symbolsLockOf({ project }));
-
-  for (const entry of declared) {
-    const resolved = resolveDeclaredSymbol({ symbol: entry.symbol, project, records });
-
-    if ('problem' in resolved) {
-      missing.push({ ...entry, problem: resolved.problem });
-      continue;
+    if (!existsSync(bundle)) {
+      return [];
     }
 
-    hashes.set(entry.symbol, resolved.hash);
+    const paths = [...new Bun.Glob('**/*.md').scanSync({ cwd: bundle })].sort((left, right) =>
+      TextValue.compare({ left, right }),
+    );
+
+    return paths.flatMap((path) => {
+      const { data } = CorpusFrontmatter.parse({
+        text: readFileSync(join(bundle, path), 'utf8'),
+        path,
+      });
+      const declared: unknown[] = Array.isArray(data.symbols) ? data.symbols : [];
+      const concept = relative(opts.project.root, join(bundle, path));
+
+      return declared.map((symbol) => ({ concept, symbol: String(symbol) }));
+    });
   }
 
-  if (missing.length > 0) {
-    return { lockFile, stamped: 0, missing };
+  /**
+   * The signature hash of one declaration among the built records, or why it has none. A symbol
+   * exported from several subpaths hashes every signature it has.
+   */
+  static resolveDeclaredSymbol(opts: {
+    symbol: string;
+    project: IAtlasProject;
+    records: ISymbolRecord[];
+  }):
+    | { hash: string }
+    | { problem: typeof ConceptProblems.MISSING | typeof ConceptProblems.MALFORMED } {
+    const declaration = splitDeclaration(opts);
+
+    if (declaration === undefined) {
+      return { problem: ConceptProblems.MALFORMED };
+    }
+
+    const signatures = opts.records
+      .filter(
+        (record) => record.package === declaration.packageName && record.name === declaration.name,
+      )
+      .map((record) => `${record.signature}\n${record.shape ?? ''}`);
+
+    if (signatures.length === 0) {
+      return { problem: ConceptProblems.MISSING };
+    }
+
+    const hash = new Bun.CryptoHasher('sha256')
+      .update(
+        [...new Set(signatures)]
+          .sort((left, right) => TextValue.compare({ left, right }))
+          .join('\n'),
+      )
+      .digest('hex');
+
+    return { hash: hash.slice(0, HASH_LENGTH) };
   }
 
-  const lock: ISymbolsLock = {
-    schemaVersion: LOCK_SCHEMA_VERSION,
-    symbols: Object.fromEntries(
-      [...hashes].sort(([left], [right]) => TextValue.compare({ left, right })),
-    ),
-  };
+  /** The committed lock, or `undefined` before the first stamp. */
+  static readSymbolsLock(opts: { project: IAtlasProject }): ISymbolsLock | undefined {
+    const file = symbolsLockOf(opts);
 
-  writeFileSync(
-    symbolsLockOf({ project }),
-    formatWithBun({ text: `${JSON.stringify(lock, null, 2)}\n`, file: SYMBOLS_LOCK_NAME }),
-  );
+    if (!existsSync(file)) {
+      return undefined;
+    }
 
-  return { lockFile, stamped: hashes.size, missing };
-};
+    const lock: ISymbolsLock = JSON.parse(readFileSync(file, 'utf8'));
+
+    if (lock.schemaVersion < LOCK_SCHEMA_VERSION) {
+      throw new Error(
+        `atlas: ${SYMBOLS_LOCK_NAME} is schemaVersion ${String(lock.schemaVersion)}, which hashed one signature line; run \`vulcan x atlas concepts stamp\` to lock the whole declaration (schemaVersion ${LOCK_SCHEMA_VERSION})`,
+      );
+    }
+
+    if (lock.schemaVersion !== LOCK_SCHEMA_VERSION) {
+      throw new Error(
+        `atlas: ${SYMBOLS_LOCK_NAME} is schemaVersion ${String(lock.schemaVersion)}; @venizia/vulcan-atlas reads ${LOCK_SCHEMA_VERSION} - upgrade @venizia/vulcan`,
+      );
+    }
+
+    return lock;
+  }
+
+  /**
+   * Project Contract v1, V4: writes the lock - each symbol a concept declares, with its signature
+   * hash read from the built `.d.ts`. A declaration that resolves to nothing stops it, unwritten.
+   */
+  static stamp(opts: { project: IAtlasProject }): IStampReport {
+    const { project } = opts;
+    const declared = ConceptStamp.readDeclaredSymbols({ project });
+    const records = declared.length === 0 ? [] : SymbolCompute.symbolsOfRepository({ project });
+    const hashes = new Map<string, string>();
+    const missing: IConceptProblem[] = [];
+    const lockFile = relative(project.root, symbolsLockOf({ project }));
+
+    for (const entry of declared) {
+      const resolved = ConceptStamp.resolveDeclaredSymbol({
+        symbol: entry.symbol,
+        project,
+        records,
+      });
+
+      if ('problem' in resolved) {
+        missing.push({ ...entry, problem: resolved.problem });
+        continue;
+      }
+
+      hashes.set(entry.symbol, resolved.hash);
+    }
+
+    if (missing.length > 0) {
+      return { lockFile, stamped: 0, missing };
+    }
+
+    const lock: ISymbolsLock = {
+      schemaVersion: LOCK_SCHEMA_VERSION,
+      symbols: Object.fromEntries(
+        [...hashes].sort(([left], [right]) => TextValue.compare({ left, right })),
+      ),
+    };
+
+    writeFileSync(
+      symbolsLockOf({ project }),
+      BunFormatter.format({ text: `${JSON.stringify(lock, null, 2)}\n`, file: SYMBOLS_LOCK_NAME }),
+    );
+
+    return { lockFile, stamped: hashes.size, missing };
+  }
+}

@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseSourceArgument, readSourceArguments } from '@/cli/sources';
+import { SourceArguments } from '@/cli/sources';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import {
   git,
@@ -22,17 +22,17 @@ const PACKAGE_ROOT = join(__dirname, '..', '..', '..');
 
 describe('--source', () => {
   test('owner/repo@ref, owner/repo (develop) and a git URL@ref', () => {
-    expect(parseSourceArgument({ value: 'VENIZIA-AI/ignis@main' })).toEqual({
+    expect(SourceArguments.parse({ value: 'VENIZIA-AI/ignis@main' })).toEqual({
       name: 'ignis',
       repo: 'VENIZIA-AI/ignis',
       ref: 'main',
     });
-    expect(parseSourceArgument({ value: 'VENIZIA-AI/ardor' })).toEqual({
+    expect(SourceArguments.parse({ value: 'VENIZIA-AI/ardor' })).toEqual({
       name: 'ardor',
       repo: 'VENIZIA-AI/ardor',
       ref: 'develop',
     });
-    expect(parseSourceArgument({ value: 'file:///tmp/x/src.git@develop' })).toEqual({
+    expect(SourceArguments.parse({ value: 'file:///tmp/x/src.git@develop' })).toEqual({
       name: 'src',
       repo: 'file:///tmp/x/src.git',
       ref: 'develop',
@@ -41,7 +41,7 @@ describe('--source', () => {
 
   test('--source repeats, in both spellings', () => {
     expect(
-      readSourceArguments({ argv: ['mcp', '--source', 'a/one', '--source=b/two@main'] }).map(
+      SourceArguments.read({ argv: ['mcp', '--source', 'a/one', '--source=b/two@main'] }).map(
         (source) => source.name,
       ),
     ).toEqual(['one', 'two']);

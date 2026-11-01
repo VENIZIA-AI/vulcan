@@ -2,7 +2,7 @@ import { IGNIS_PACKAGE_MAP } from '../fixtures/ignis-packages';
 import { Transport } from '@/protocol';
 import { ReleaseStore } from '@/releases';
 import type { IReleaseTable } from '@/releases';
-import { buildVersionTool } from '@/tools/version.tool';
+import { VersionTool } from '@/tools/version.tool';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -61,7 +61,7 @@ const callVersion = async (opts: {
   result?: { content: { type: string; text: string }[] };
 }> => {
   const transport = new Transport({
-    tools: [buildVersionTool({ releases: opts.releases })],
+    tools: [VersionTool.build({ releases: opts.releases })],
     serverName: 'atlas-test',
     serverVersion: '0.0.0',
   });

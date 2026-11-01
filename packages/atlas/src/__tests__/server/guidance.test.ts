@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { buildServer } from '@/server';
-import { instructionsOf, projectsOf } from '@/server/guidance';
+import { ServerFactory } from '@/server';
+import { ServerGuidance } from '@/server/guidance';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IResolvedSource } from '@/sources/common';
 
@@ -46,9 +46,11 @@ describe('projectsOf', () => {
     const ignis = remoteOf({ name: 'ignis', packages: ['@venizia/ignis'] });
     const ardor = remoteOf({ name: 'ardor', packages: ['@venizia/ardor'] });
 
-    expect(projectsOf({ sources: [acme] })).toBe('acme');
-    expect(projectsOf({ sources: [acme, ignis] })).toBe('acme and ignis');
-    expect(projectsOf({ sources: [acme, ignis, ardor] })).toBe('acme, ignis and ardor');
+    expect(ServerGuidance.projectsOf({ sources: [acme] })).toBe('acme');
+    expect(ServerGuidance.projectsOf({ sources: [acme, ignis] })).toBe('acme and ignis');
+    expect(ServerGuidance.projectsOf({ sources: [acme, ignis, ardor] })).toBe(
+      'acme, ignis and ardor',
+    );
   });
 });
 
@@ -58,7 +60,9 @@ describe('instructionsOf', () => {
   const leadOf = (opts: { text: string }): string => opts.text.split('\n\n')[0] ?? '';
 
   test('a repository alone still gets instructions: the corpus, the rule and the three triggers in one lead', () => {
-    const lead = leadOf({ text: instructionsOf({ sources: [acme], unavailable: [] }) });
+    const lead = leadOf({
+      text: ServerGuidance.instructionsOf({ sources: [acme], unavailable: [] }),
+    });
 
     expect(lead).toContain('Atlas holds the real code and docs of acme (this repository).');
     expect(lead).toContain('Do not answer facts about acme from memory when atlas can answer them');
@@ -69,7 +73,9 @@ describe('instructionsOf', () => {
   });
 
   test('every source is a corpus, and the package scopes name what counts as its code', () => {
-    const lead = leadOf({ text: instructionsOf({ sources: [acme, ignis], unavailable: [] }) });
+    const lead = leadOf({
+      text: ServerGuidance.instructionsOf({ sources: [acme, ignis], unavailable: [] }),
+    });
 
     expect(lead).toContain(
       'Atlas holds the real code and docs of acme (this repository) and ignis.',
@@ -78,7 +84,7 @@ describe('instructionsOf', () => {
   });
 
   test('how each source was reached is still said, after the lead', () => {
-    const text = instructionsOf({ sources: [acme, ignis], unavailable: [] });
+    const text = ServerGuidance.instructionsOf({ sources: [acme, ignis], unavailable: [] });
 
     expect(text).toContain('\n\nAtlas serves 2 source(s); every hit names its source.\n');
     expect(text).toContain('- acme: this repository, live');
@@ -86,7 +92,7 @@ describe('instructionsOf', () => {
   });
 
   test('a source that could not be served is named with its reason, and is not a corpus', () => {
-    const text = instructionsOf({
+    const text = ServerGuidance.instructionsOf({
       sources: [acme],
       unavailable: [
         {
@@ -110,7 +116,9 @@ describe('instructionsOf', () => {
       remoteOf({ name: 'bellows', packages: ['@bellows/air', '@bellows/fan'] }),
       remoteOf({ name: 'tongs', packages: ['@tongs/grip'] }),
     ];
-    const lead = leadOf({ text: instructionsOf({ sources: four, unavailable: [] }) });
+    const lead = leadOf({
+      text: ServerGuidance.instructionsOf({ sources: four, unavailable: [] }),
+    });
 
     expect(lead.length).toBeLessThanOrEqual(512);
     expect(lead).toContain('`symbol`');
@@ -123,14 +131,16 @@ describe('instructionsOf', () => {
     const many = ['forge', 'anvil', 'bellows', 'tongs', 'quench', 'temper'].map((name) =>
       remoteOf({ name, packages: [`@${name}/pkg`] }),
     );
-    const lead = leadOf({ text: instructionsOf({ sources: many, unavailable: [] }) });
+    const lead = leadOf({
+      text: ServerGuidance.instructionsOf({ sources: many, unavailable: [] }),
+    });
 
     expect(lead.length).toBeLessThanOrEqual(512);
     expect(lead).toContain('and 2 more');
   });
 
   test('the whole text stays under 2048 bytes, status lines included', () => {
-    const text = instructionsOf({ sources: [acme, ignis], unavailable: [] });
+    const text = ServerGuidance.instructionsOf({ sources: [acme, ignis], unavailable: [] });
 
     expect(Buffer.byteLength(text, 'utf8')).toBeLessThan(2048);
   });
@@ -142,7 +152,7 @@ describe('instructionsOf', () => {
       remoteOf({ name: 'bellows', packages: ['@bellows/air'] }),
       remoteOf({ name: 'tongs', packages: ['@tongs/grip'] }),
     ];
-    const text = instructionsOf({
+    const text = ServerGuidance.instructionsOf({
       sources: four,
       unavailable: [
         {
@@ -156,7 +166,7 @@ describe('instructionsOf', () => {
   });
 
   test('a second paragraph says a how-to-build question must search first, and a plan must call before it says check atlas', () => {
-    const text = instructionsOf({ sources: [acme, ignis], unavailable: [] });
+    const text = ServerGuidance.instructionsOf({ sources: [acme, ignis], unavailable: [] });
     const second = text.split('\n\n')[1] ?? '';
 
     expect(second).toBe(
@@ -165,7 +175,7 @@ describe('instructionsOf', () => {
   });
 
   test('the lead keeps to 512 characters: the second paragraph is not part of it', () => {
-    const text = instructionsOf({ sources: [acme, ignis], unavailable: [] });
+    const text = ServerGuidance.instructionsOf({ sources: [acme, ignis], unavailable: [] });
 
     expect(leadOf({ text }).length).toBeLessThanOrEqual(512);
     expect(leadOf({ text })).not.toContain('files you happen to open');
@@ -184,7 +194,7 @@ describe('skills in the instructions', () => {
   ];
 
   test('one line per skill, name and trigger, after the second paragraph and before the status lines', () => {
-    const text = instructionsOf({ sources: [acme], unavailable: [], skills });
+    const text = ServerGuidance.instructionsOf({ sources: [acme], unavailable: [], skills });
     const paragraphs = text.split('\n\n');
 
     expect(paragraphs[2]).toBe(
@@ -198,7 +208,7 @@ describe('skills in the instructions', () => {
   });
 
   test('a long trigger is cut at a comma or a word, never mid-word, at 110 characters', () => {
-    const text = instructionsOf({ sources: [acme], unavailable: [], skills });
+    const text = ServerGuidance.instructionsOf({ sources: [acme], unavailable: [], skills });
     const line = text.split('\n').find((row) => row.startsWith('- `build-a-feature`')) ?? '';
 
     expect(line.length).toBeLessThanOrEqual('- `build-a-feature`: '.length + 110);
@@ -206,10 +216,12 @@ describe('skills in the instructions', () => {
   });
 
   test('no skills, no section', () => {
-    expect(instructionsOf({ sources: [acme], unavailable: [] })).not.toContain('Skills:');
-    expect(instructionsOf({ sources: [acme], unavailable: [], skills: [] })).not.toContain(
+    expect(ServerGuidance.instructionsOf({ sources: [acme], unavailable: [] })).not.toContain(
       'Skills:',
     );
+    expect(
+      ServerGuidance.instructionsOf({ sources: [acme], unavailable: [], skills: [] }),
+    ).not.toContain('Skills:');
   });
 
   test('four corpora, one unreachable, and four skills still fit 2048 bytes', () => {
@@ -232,7 +244,7 @@ describe('skills in the instructions', () => {
           'the user asks to sync knowledge, refresh the knowledge bundle, audit concepts against code',
       },
     ];
-    const text = instructionsOf({
+    const text = ServerGuidance.instructionsOf({
       sources: four,
       unavailable: [
         {
@@ -249,7 +261,7 @@ describe('skills in the instructions', () => {
 
 describe('a server built from a project', () => {
   const call = async (opts: { method: string }) => {
-    const transport = buildServer({ root: ACME, version: '0.0.0' });
+    const transport = ServerFactory.build({ root: ACME, version: '0.0.0' });
 
     const result = await transport.handleLine({
       line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: opts.method, params: {} }),

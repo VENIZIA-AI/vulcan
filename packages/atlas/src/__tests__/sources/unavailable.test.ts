@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildSourcesServer } from '@/server/index';
-import { resolveServableSources } from '@/sources';
+import { SourcesServer } from '@/server/index';
+import { SourceResolver } from '@/sources';
 import {
   commitAll,
   git,
@@ -66,7 +66,7 @@ const makeUnadoptedSource = (): string => {
 
 test('a source that cannot be served is reported; the project and the other sources are still served', async () => {
   const cwd = makeConsumer();
-  const { resolved, unavailable } = await resolveServableSources({
+  const { resolved, unavailable } = await SourceResolver.resolveServable({
     cwd,
     cacheDir,
     sources: [
@@ -79,7 +79,7 @@ test('a source that cannot be served is reported; the project and the other sour
   expect(unavailable.map((entry) => entry.source.name)).toEqual(['unadopted', 'gone']);
   expect(unavailable[0].reason).toContain('.agents/vulcan.manifest.json');
 
-  const server = buildSourcesServer({ sources: resolved, unavailable, cwd, version: '0.0.0' });
+  const server = SourcesServer.build({ sources: resolved, unavailable, cwd, version: '0.0.0' });
   const call = async (opts: { method: string; params: object }) => {
     const line = await server.handleLine({
       line: JSON.stringify({ jsonrpc: '2.0', id: 1, ...opts }),
@@ -103,12 +103,12 @@ test('a source that cannot be served is reported; the project and the other sour
 test('a project served with a reachable source keeps its own name', async () => {
   const cwd = makeConsumer();
   const source = makeSourceRepository();
-  const { resolved } = await resolveServableSources({
+  const { resolved } = await SourceResolver.resolveServable({
     cwd,
     cacheDir,
     sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
   });
-  const server = buildSourcesServer({ sources: resolved, cwd, version: '0.0.0' });
+  const server = SourcesServer.build({ sources: resolved, cwd, version: '0.0.0' });
   const result2 = await server.handleLine({
     line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
   });

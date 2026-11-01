@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { packageAcrossSources } from '@/common/package-map';
+import { PackageMap } from '@/common/package-map';
 import { RpcError, RpcErrorCodes } from '@/protocol/common';
 
 const SOURCES = [
@@ -12,14 +12,16 @@ const SOURCES = [
 
 describe('packageAcrossSources (C2)', () => {
   test('a npm name is unambiguous across sources', () => {
-    expect(packageAcrossSources({ value: '@venizia/ardor-kernel', sources: SOURCES })).toEqual({
+    expect(
+      PackageMap.packageAcrossSources({ value: '@venizia/ardor-kernel', sources: SOURCES }),
+    ).toEqual({
       source: 'ardor',
       name: '@venizia/ardor-kernel',
     });
   });
 
   test('a name one source alone knows resolves to it', () => {
-    expect(packageAcrossSources({ value: 'k', sources: SOURCES })).toEqual({
+    expect(PackageMap.packageAcrossSources({ value: 'k', sources: SOURCES })).toEqual({
       source: 'ardor',
       name: '@venizia/ardor-kernel',
     });
@@ -28,7 +30,7 @@ describe('packageAcrossSources (C2)', () => {
   test('a directory two sources share is an invalid-params error naming both npm names', () => {
     const failure = (() => {
       try {
-        return packageAcrossSources({ value: 'kernel', sources: SOURCES });
+        return PackageMap.packageAcrossSources({ value: 'kernel', sources: SOURCES });
       } catch (error) {
         return error;
       }
@@ -43,6 +45,6 @@ describe('packageAcrossSources (C2)', () => {
   });
 
   test('a name no source knows is undefined', () => {
-    expect(packageAcrossSources({ value: 'nope', sources: SOURCES })).toBeUndefined();
+    expect(PackageMap.packageAcrossSources({ value: 'nope', sources: SOURCES })).toBeUndefined();
   });
 });

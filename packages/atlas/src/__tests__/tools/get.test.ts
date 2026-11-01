@@ -4,7 +4,7 @@ import type { IChunk } from '@/corpus';
 import { Transport } from '@/protocol';
 import { Authorities } from '@/search/common';
 import { ChunkStore } from '@/search/store';
-import { buildGetTool } from '@/tools/get.tool';
+import { GetTool } from '@/tools/get.tool';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 
@@ -41,7 +41,7 @@ const callGet = async (opts: {
   result?: { content: { type: string; text: string }[] };
 }> => {
   const transport = new Transport({
-    tools: [buildGetTool({ store: opts.store })],
+    tools: [GetTool.build({ store: opts.store })],
     serverName: 'atlas-test',
     serverVersion: '0.0.0',
   });
