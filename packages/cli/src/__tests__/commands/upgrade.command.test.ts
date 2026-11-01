@@ -1,12 +1,7 @@
 import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { chmodSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  buildUpgradeArgs,
-  pickNightly,
-  resolveUpgradeTarget,
-  runInstalledSync,
-} from '../../commands/upgrade.command.ts';
+import { UpgradeTarget } from '../../commands/upgrade.command.ts';
 import { UpgradeFlags } from '../../common/index.ts';
 import { createFakeCommand } from '../fake-command.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -23,47 +18,52 @@ const withDistTags = (opts: { latest?: string; next?: string }): void => {
 };
 
 test('defaults to the latest dist-tag, pinned exactly, as a devDependency', () => {
-  expect(buildUpgradeArgs({})).toEqual(['add', '--dev', '--exact', '@venizia/vulcan@latest']);
+  expect(UpgradeTarget.buildArgs({})).toEqual([
+    'add',
+    '--dev',
+    '--exact',
+    '@venizia/vulcan@latest',
+  ]);
 });
 
 test('no argument and --stable both resolve to latest without reading the registry', async () => {
-  const result = await resolveUpgradeTarget({ args: [], cwd: '/nowhere' });
+  const result = await UpgradeTarget.resolve({ args: [], cwd: '/nowhere' });
   expect(result).toBe('latest');
-  const result2 = await resolveUpgradeTarget({ args: ['--stable'], cwd: '/nowhere' });
+  const result2 = await UpgradeTarget.resolve({ args: ['--stable'], cwd: '/nowhere' });
   expect(result2).toBe('latest');
 });
 
 test('--nightly installs next when it is ahead of latest', async () => {
   withDistTags({ latest: '0.2.0', next: '0.3.0-1' });
-  const result = await resolveUpgradeTarget({ args: ['--nightly'], cwd: '/nowhere' });
+  const result = await UpgradeTarget.resolve({ args: ['--nightly'], cwd: '/nowhere' });
   expect(result).toBe('0.3.0-1');
 });
 
 test('--nightly never goes below the stable release', async () => {
   withDistTags({ latest: '0.2.0', next: '0.2.0-9' });
-  const result = await resolveUpgradeTarget({ args: ['--nightly'], cwd: '/nowhere' });
+  const result = await UpgradeTarget.resolve({ args: ['--nightly'], cwd: '/nowhere' });
   expect(result).toBe('0.2.0');
 });
 
 test('--nightly falls back to the one tag that exists, and fails when there is none', async () => {
   withDistTags({ next: '0.3.0-1' });
-  const result = await resolveUpgradeTarget({ args: ['--nightly'], cwd: '/nowhere' });
+  const result = await UpgradeTarget.resolve({ args: ['--nightly'], cwd: '/nowhere' });
   expect(result).toBe('0.3.0-1');
   withDistTags({});
-  const result2 = await resolveUpgradeTarget({ args: ['--nightly'], cwd: '/nowhere' });
+  const result2 = await UpgradeTarget.resolve({ args: ['--nightly'], cwd: '/nowhere' });
   expect(result2).toBeUndefined();
 });
 
 test('pickNightly compares prereleases by semver, not by text', () => {
-  expect(pickNightly({ latest: '0.2.0', next: '0.2.1-10' })).toBe('0.2.1-10');
-  expect(pickNightly({ latest: '0.2.0', next: '0.2.1-9' })).toBe('0.2.1-9');
-  expect(pickNightly({ latest: '0.10.0', next: '0.9.0-1' })).toBe('0.10.0');
+  expect(UpgradeTarget.pickNightly({ latest: '0.2.0', next: '0.2.1-10' })).toBe('0.2.1-10');
+  expect(UpgradeTarget.pickNightly({ latest: '0.2.0', next: '0.2.1-9' })).toBe('0.2.1-9');
+  expect(UpgradeTarget.pickNightly({ latest: '0.10.0', next: '0.9.0-1' })).toBe('0.10.0');
 });
 
 test('an explicit version or tag wins over the mode, and never reads the registry', async () => {
-  const result = await resolveUpgradeTarget({ args: ['--nightly', '0.2.0'], cwd: '/nowhere' });
+  const result = await UpgradeTarget.resolve({ args: ['--nightly', '0.2.0'], cwd: '/nowhere' });
   expect(result).toBe('0.2.0');
-  const result2 = await resolveUpgradeTarget({ args: ['next', '--stable'], cwd: '/nowhere' });
+  const result2 = await UpgradeTarget.resolve({ args: ['next', '--stable'], cwd: '/nowhere' });
   expect(result2).toBe('next');
 });
 
@@ -181,7 +181,7 @@ describe('an installed prerelease on the stable channel', () => {
 });
 
 test('takes an explicit version or tag', () => {
-  expect(buildUpgradeArgs({ target: '0.2.0' })).toEqual([
+  expect(UpgradeTarget.buildArgs({ target: '0.2.0' })).toEqual([
     'add',
     '--dev',
     '--exact',
@@ -198,7 +198,7 @@ test('after the install, sync runs from the NEWLY installed CLI, not the one alr
   });
 
   chmodSync(join(root, 'node_modules', '.bin', 'vulcan'), 0o755);
-  const result = await runInstalledSync({ cwd: root });
+  const result = await UpgradeTarget.runInstalledSync({ cwd: root });
   expect(result).toBe(0);
   expect(readFileSync(join(root, 'sync-ran.txt'), 'utf8')).toBe('sync');
 });
@@ -206,7 +206,7 @@ test('after the install, sync runs from the NEWLY installed CLI, not the one alr
 test('no installed CLI after the install: exit 1, never a fallback to the old code', async () => {
   const root = createProject({ files: {} });
 
-  const result = await runInstalledSync({ cwd: root });
+  const result = await UpgradeTarget.runInstalledSync({ cwd: root });
   expect(result).toBe(1);
   expect(existsSync(join(root, '.claude'))).toBe(false);
 });

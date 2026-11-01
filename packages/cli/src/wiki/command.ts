@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs';
 import { ExitCodes } from '../common/index.ts';
-import { checkAnchors } from './anchors.ts';
+import { AnchorCheck } from './anchors.ts';
 import { WikiDefaults, WikiFlags } from './constants.ts';
-import { checkSourceLinks } from './source-links.ts';
+import { SourceLinkCheck } from './source-links.ts';
 
 /** The value after `--flag`, or the fallback; `undefined` when the flag has no value after it. */
 const valueOf = (opts: { args: string[]; flag: string; fallback?: string }): string | undefined => {
@@ -56,7 +56,7 @@ export const runSourceLinksCommand = (opts: { args: string[]; root: string }): n
     return ExitCodes.FAILURE;
   }
 
-  const { checked, missing } = checkSourceLinks({
+  const { checked, missing } = SourceLinkCheck.check({
     root: opts.root,
     repo,
     directories: listOf({ value: directories }),
@@ -98,7 +98,7 @@ export const runAnchorsCommand = (opts: { args: string[]; root: string }): numbe
     return ExitCodes.FAILURE;
   }
 
-  const { checked, broken } = checkAnchors({ content, dist });
+  const { checked, broken } = AnchorCheck.check({ content, dist });
 
   for (const entry of broken) {
     console.log(`${entry.file}:${entry.line} ${entry.reason}: ${entry.target}`);

@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { renderSpecText, specSchemaText } from '../../visualize/index.ts';
+import { SpecPage } from '../../visualize/index.ts';
 import { fullSpec } from './spec.fixture.ts';
 
-const render = (spec: Record<string, unknown>) => renderSpecText({ text: JSON.stringify(spec) });
+const render = (spec: Record<string, unknown>) =>
+  SpecPage.renderText({ text: JSON.stringify(spec) });
 const rendered = (spec: Record<string, unknown>): string => {
   const result = render(spec);
 
@@ -295,7 +296,7 @@ describe('the compare view', () => {
   });
 
   test('the printed schema names the compare view', () => {
-    const schema = specSchemaText();
+    const schema = SpecPage.specSchemaText();
 
     for (const key of ['compare', 'nodes', 'edges', 'caption', '"in"', '"a"', '"b"']) {
       expect(schema, key).toContain(key);

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { DEFAULT_CHROME } from '../../visualize/constants.ts';
-import { BUNDLED_LANGUAGES, chromeOf } from '../../visualize/labels.ts';
+import { BUNDLED_LANGUAGES, Labels } from '../../visualize/labels.ts';
 import { VI_CHROME } from '../../visualize/labels-vi.ts';
 import { VISUALIZE_SCHEMA } from '../../visualize/schema.ts';
 import type { TVisualizeSpec } from '../../visualize/schema.ts';
@@ -33,13 +33,13 @@ const SAME_IN_BOTH = new Set<string>([]);
 describe('the bundled words: which set a language gets (C4)', () => {
   test('en, en-GB and a language with no bundled set get the English words', () => {
     for (const language of ['en', 'en-GB', 'EN', 'fr', 'fr-FR', 'xx', '', undefined]) {
-      expect(chromeOf({ spec: specWith(), language })).toEqual(DEFAULT_CHROME);
+      expect(Labels.chromeOf({ spec: specWith(), language })).toEqual(DEFAULT_CHROME);
     }
   });
 
   test('vi, vi-VN, VI and vi_VN get the Vietnamese words', () => {
     for (const language of ['vi', 'vi-VN', 'VI', 'Vi-vn', 'vi_VN', ' vi ']) {
-      expect(chromeOf({ spec: specWith(), language })).toEqual(VI_CHROME);
+      expect(Labels.chromeOf({ spec: specWith(), language })).toEqual(VI_CHROME);
     }
   });
 
@@ -50,27 +50,30 @@ describe('the bundled words: which set a language gets (C4)', () => {
   });
 
   test('a key of the prototype is not a language', () => {
-    expect(chromeOf({ spec: specWith(), language: 'constructor' })).toEqual(DEFAULT_CHROME);
-    expect(chromeOf({ spec: specWith(), language: 'toString' })).toEqual(DEFAULT_CHROME);
+    expect(Labels.chromeOf({ spec: specWith(), language: 'constructor' })).toEqual(DEFAULT_CHROME);
+    expect(Labels.chromeOf({ spec: specWith(), language: 'toString' })).toEqual(DEFAULT_CHROME);
   });
 });
 
 describe('the spec overrides sit on top of the bundled words', () => {
   test('an override replaces one Vietnamese word and keeps the others', () => {
-    const chrome = chromeOf({ spec: specWith({ status: 'Tình trạng' }), language: 'vi' });
+    const chrome = Labels.chromeOf({ spec: specWith({ status: 'Tình trạng' }), language: 'vi' });
 
     expect(chrome.status).toBe('Tình trạng');
     expect(chrome.scope).toBe(VI_CHROME.scope);
   });
 
   test('an override of a nested word keeps its siblings, in Vietnamese and in English', () => {
-    const vi = chromeOf({ spec: specWith({ statusStates: { ok: 'Tốt' } }), language: 'vi' });
-    const en = chromeOf({ spec: specWith({ statusStates: { ok: 'Fine' } }), language: 'en' });
+    const vi = Labels.chromeOf({ spec: specWith({ statusStates: { ok: 'Tốt' } }), language: 'vi' });
+    const en = Labels.chromeOf({
+      spec: specWith({ statusStates: { ok: 'Fine' } }),
+      language: 'en',
+    });
 
     expect(vi.statusStates).toEqual({ ...VI_CHROME.statusStates, ok: 'Tốt' });
     expect(en.statusStates).toEqual({ ...DEFAULT_CHROME.statusStates, ok: 'Fine' });
 
-    const minimap = chromeOf({
+    const minimap = Labels.chromeOf({
       spec: specWith({ minimapStates: { done: 'hoàn tất' }, evidenceLabels: { guess: 'ước' } }),
       language: 'vi',
     });
@@ -80,8 +83,8 @@ describe('the spec overrides sit on top of the bundled words', () => {
   });
 
   test('the spec language does not matter to chromeOf: the caller passes the resolved one', () => {
-    expect(chromeOf({ spec: specWith({ status: 'X' }) }).status).toBe('X');
-    expect(chromeOf({ spec: specWith() }).status).toBe(DEFAULT_CHROME.status);
+    expect(Labels.chromeOf({ spec: specWith({ status: 'X' }) }).status).toBe('X');
+    expect(Labels.chromeOf({ spec: specWith() }).status).toBe(DEFAULT_CHROME.status);
   });
 });
 

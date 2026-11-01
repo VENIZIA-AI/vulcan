@@ -3,13 +3,7 @@ import { basename, resolve } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { OwnerProfile } from '../owner/profile.ts';
-import {
-  pageNameOf,
-  ProjectTheme,
-  renderSpecText,
-  specSchemaText,
-  writePage,
-} from '../visualize/index.ts';
+import { ProjectTheme, SpecPage } from '../visualize/index.ts';
 
 const SCHEMA_FLAG = '--schema';
 const OUT_FLAG = '--out';
@@ -34,7 +28,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
   }
 
   if (opts.args.includes(SCHEMA_FLAG)) {
-    process.stdout.write(specSchemaText());
+    process.stdout.write(SpecPage.specSchemaText());
 
     return ExitCodes.OK;
   }
@@ -60,7 +54,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
   }
 
   const source = out ?? basename(specFile);
-  const name = pageNameOf({ name: source });
+  const name = SpecPage.pageNameOf({ name: source });
 
   if (name === undefined) {
     process.stderr.write(
@@ -86,7 +80,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
   // is requested) and its words from the owner's profile; a spec's own `accent` and `language` win.
   const manifest = ProjectTheme.readManifestTheme({ root: opts.cwd });
   const profile = OwnerProfile.read({ root: opts.cwd });
-  const rendered = renderSpecText({
+  const rendered = SpecPage.renderText({
     text,
     context: {
       language: profile.ok ? profile.profile?.language : undefined,
@@ -102,7 +96,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
     return ExitCodes.FAILURE;
   }
 
-  const written = writePage({ root: opts.cwd, name, html: rendered.page.html });
+  const written = SpecPage.write({ root: opts.cwd, name, html: rendered.page.html });
 
   if (!written.ok) {
     process.stderr.write(`vulcan visualize: ${written.error}\n`);

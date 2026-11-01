@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { PAGE_JS } from '../../visualize/assets.ts';
-import { renderSpecText, specSchemaText, VisualizeLimits } from '../../visualize/index.ts';
+import { SpecPage, VisualizeLimits } from '../../visualize/index.ts';
 import { fullSpec } from './spec.fixture.ts';
 
-const render = (spec: Record<string, unknown>) => renderSpecText({ text: JSON.stringify(spec) });
+const render = (spec: Record<string, unknown>) =>
+  SpecPage.renderText({ text: JSON.stringify(spec) });
 const rendered = (spec: Record<string, unknown>): string => {
   const result = render(spec);
 
@@ -456,7 +457,7 @@ describe('words, schema and size', () => {
   });
 
   test('the printed schema names the new kinds and their limits', () => {
-    const schema = specSchemaText();
+    const schema = SpecPage.specSchemaText();
 
     for (const key of [
       'comparison',

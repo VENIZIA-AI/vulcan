@@ -1,5 +1,5 @@
 import { CompareChecks } from './compare-validate.ts';
-import { checkNewKinds } from './kinds-validate.ts';
+import { KindsValidate } from './kinds-validate.ts';
 import type { TVisualizeSpec } from './schema.ts';
 import { SourceRefs } from './sources.ts';
 
@@ -216,11 +216,15 @@ const checkKinds = (opts: { spec: TVisualizeSpec }): string[] => {
   return problems;
 };
 
-/** What a schema cannot say, for every kind on the page. */
-export const checkSpec = (opts: { spec: TVisualizeSpec }): string[] => [
-  ...(opts.spec.flow === undefined ? [] : checkFlow({ flow: opts.spec.flow })),
-  ...checkKinds({ spec: opts.spec }),
-  ...checkNewKinds({ spec: opts.spec }),
-  ...CompareChecks.check({ spec: opts.spec }),
-  ...SourceRefs.check({ spec: opts.spec }),
-];
+export class SpecValidation {
+  /** What a schema cannot say, for every kind on the page. */
+  static check(opts: { spec: TVisualizeSpec }): string[] {
+    return [
+      ...(opts.spec.flow === undefined ? [] : checkFlow({ flow: opts.spec.flow })),
+      ...checkKinds({ spec: opts.spec }),
+      ...KindsValidate.checkNew({ spec: opts.spec }),
+      ...CompareChecks.check({ spec: opts.spec }),
+      ...SourceRefs.check({ spec: opts.spec }),
+    ];
+  }
+}

@@ -23,7 +23,7 @@ import { askInTerminal, ProjectNames, SIDE_FIELDS } from './names.ts';
 import { Preset } from './preset.ts';
 import { NextStep } from './next.ts';
 import { SubProcess } from './process.ts';
-import { offerProfile } from '../commands/profile.command.ts';
+import { ProfilePrompt } from '../commands/profile.command.ts';
 import { PresetScratch } from './scratch.ts';
 import { WorkspaceDocs, WorkspaceManifest, PresetRecord } from './workspace.ts';
 
@@ -399,7 +399,7 @@ const runCreate = async (opts: {
       apps: [{ port: located.preset.devPort, urls: located.preset.urls }],
     }),
   );
-  await offerProfile({ root });
+  await ProfilePrompt.offer({ root });
 
   return ExitCodes.OK;
 };

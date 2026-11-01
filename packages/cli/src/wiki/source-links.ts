@@ -126,59 +126,61 @@ const extractResource = (opts: { lines: string[] }): { line: number; path: strin
   return undefined;
 };
 
-/**
- * Walks the `.md` files under `directories` (paths relative to `root`) and reports every source path
- * that git does not track. `skipFiles` are generated pages that are never held to the gate.
- */
-export const checkSourceLinks = (opts: {
-  root: string;
-  repo: string;
-  directories: string[];
-  skipProseUnder: string[];
-  skipFiles: string[];
-}): { checked: number; missing: IMissingSourceLink[] } => {
-  const { root, repo, skipFiles, skipProseUnder } = opts;
-  const tracked = loadTracked({ root });
-  const exists = (path: string): boolean =>
-    tracked.files.has(path) || tracked.directories.has(path);
-  const missing: IMissingSourceLink[] = [];
-  let checked = 0;
+export class SourceLinkCheck {
+  /**
+   * Walks the `.md` files under `directories` (paths relative to `root`) and reports every source path
+   * that git does not track. `skipFiles` are generated pages that are never held to the gate.
+   */
+  static check(opts: {
+    root: string;
+    repo: string;
+    directories: string[];
+    skipProseUnder: string[];
+    skipFiles: string[];
+  }): { checked: number; missing: IMissingSourceLink[] } {
+    const { root, repo, skipFiles, skipProseUnder } = opts;
+    const tracked = loadTracked({ root });
+    const exists = (path: string): boolean =>
+      tracked.files.has(path) || tracked.directories.has(path);
+    const missing: IMissingSourceLink[] = [];
+    let checked = 0;
 
-  for (const directory of opts.directories) {
-    for (const file of walkMarkdown({ directory: resolve(root, directory) })) {
-      const path = relative(root, file);
+    for (const directory of opts.directories) {
+      for (const file of walkMarkdown({ directory: resolve(root, directory) })) {
+        const path = relative(root, file);
 
-      if (skipFiles.some((skip) => isUnder({ path, directory: skip }))) {
-        continue;
-      }
-
-      const skipProse = skipProseUnder.some((skip) => isUnder({ path, directory: skip }));
-      const lines = readFileSync(file, 'utf8').split('\n');
-      const resource = isUnder({ path, directory: WikiDefaults.KNOWLEDGE_DIRECTORY })
-        ? extractResource({ lines })
-        : undefined;
-
-      if (resource !== undefined) {
-        checked += 1;
-
-        if (!exists(resource.path)) {
-          missing.push({ file: path, line: resource.line, path: resource.path });
+        if (skipFiles.some((skip) => isUnder({ path, directory: skip }))) {
+          continue;
         }
-      }
 
-      for (const [index, text] of lines.entries()) {
-        for (const found of extractPaths({ text, repo, skipProse })) {
+        const skipProse = skipProseUnder.some((skip) => isUnder({ path, directory: skip }));
+        const lines = readFileSync(file, 'utf8').split('\n');
+        const resource = isUnder({ path, directory: WikiDefaults.KNOWLEDGE_DIRECTORY })
+          ? extractResource({ lines })
+          : undefined;
+
+        if (resource !== undefined) {
           checked += 1;
 
-          if (!exists(found)) {
-            missing.push({ file: path, line: index + 1, path: found });
+          if (!exists(resource.path)) {
+            missing.push({ file: path, line: resource.line, path: resource.path });
+          }
+        }
+
+        for (const [index, text] of lines.entries()) {
+          for (const found of extractPaths({ text, repo, skipProse })) {
+            checked += 1;
+
+            if (!exists(found)) {
+              missing.push({ file: path, line: index + 1, path: found });
+            }
           }
         }
       }
     }
+
+    missing.sort((left, right) => left.file.localeCompare(right.file) || left.line - right.line);
+
+    return { checked, missing };
   }
-
-  missing.sort((left, right) => left.file.localeCompare(right.file) || left.line - right.line);
-
-  return { checked, missing };
-};
+}

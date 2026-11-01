@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { AnchorProblems, checkAnchors } from '../../wiki/index.ts';
+import { AnchorCheck, AnchorProblems } from '../../wiki/index.ts';
 
 const roots: string[] = [];
 
@@ -73,7 +73,7 @@ afterAll(() => {
 });
 
 describe('checkAnchors', () => {
-  const { checked, broken } = checkAnchors(fixture());
+  const { checked, broken } = AnchorCheck.check(fixture());
   const targets = broken.map((entry) => entry.target);
 
   test('counts every resolvable link and skips external and fenced ones', () => {

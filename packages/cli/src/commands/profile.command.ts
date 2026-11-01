@@ -138,33 +138,35 @@ const fillInProfile = async (opts: { root: string }): Promise<number> => {
   return ExitCodes.OK;
 };
 
-/**
- * After `init`: in a terminal that can draw menus, a project with no profile is offered the form once;
- * anywhere else (a pipe, CI) it only says how to run it. A profile that already exists is left alone.
- */
-export const offerProfile = async (opts: { root: string }): Promise<void> => {
-  if (existsSync(join(opts.root, OwnerConstants.PROFILE_FILE))) {
-    return;
+export class ProfilePrompt {
+  /**
+   * After `init`: in a terminal that can draw menus, a project with no profile is offered the form once;
+   * anywhere else (a pipe, CI) it only says how to run it. A profile that already exists is left alone.
+   */
+  static async offer(opts: { root: string }): Promise<void> {
+    if (existsSync(join(opts.root, OwnerConstants.PROFILE_FILE))) {
+      return;
+    }
+
+    if (!TerminalCapability.menusAvailable()) {
+      process.stderr.write(
+        "tell VULCAN how you like to work (language, how to address you, tone): run 'bun x --no-install vulcan profile'\n",
+      );
+
+      return;
+    }
+
+    const now = await TerminalPrompt.promptConfirm({
+      message:
+        "Tell VULCAN how you like to work (language, how to address you, tone)? Every question can be skipped; 'vulcan profile' does it later.",
+      initial: true,
+    });
+
+    if (now === true) {
+      await fillInProfile({ root: opts.root });
+    }
   }
-
-  if (!TerminalCapability.menusAvailable()) {
-    process.stderr.write(
-      "tell VULCAN how you like to work (language, how to address you, tone): run 'bun x --no-install vulcan profile'\n",
-    );
-
-    return;
-  }
-
-  const now = await TerminalPrompt.promptConfirm({
-    message:
-      "Tell VULCAN how you like to work (language, how to address you, tone)? Every question can be skipped; 'vulcan profile' does it later.",
-    initial: true,
-  });
-
-  if (now === true) {
-    await fillInProfile({ root: opts.root });
-  }
-};
+}
 
 /**
  * `vulcan profile`: the form (also `edit`), `show` prints the file, `reset` removes it. The file is

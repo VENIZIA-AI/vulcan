@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { contrastOf, ProjectTheme } from '../../visualize/theme.ts';
+import { ProjectTheme, Theme } from '../../visualize/theme.ts';
 
 const roots: string[] = [];
 
@@ -55,10 +55,10 @@ describe('the project colour: which colour a page takes (C10)', () => {
     const theme = palettes(ProjectTheme.DEFAULT);
 
     expect(
-      contrastOf({ foreground: theme.light.accent, background: theme.light.bg }),
+      Theme.contrastOf({ foreground: theme.light.accent, background: theme.light.bg }),
     ).toBeGreaterThan(7);
     expect(
-      contrastOf({ foreground: theme.dark.accent, background: theme.dark.bg }),
+      Theme.contrastOf({ foreground: theme.dark.accent, background: theme.dark.bg }),
     ).toBeGreaterThan(7);
     expect(ProjectTheme.tokensCss({ theme }).toLowerCase()).not.toMatch(
       /98681a|e0b366|8a5a20|dead6a/,
@@ -121,44 +121,44 @@ describe('the contrast checks: marks, text and fills (C11)', () => {
       ] as const) {
         for (const ground of [palette.bg, palette.bgSoft, palette.accentSoft]) {
           expect(
-            contrastOf({ foreground: palette.ink, background: ground }),
+            Theme.contrastOf({ foreground: palette.ink, background: ground }),
             `${name} ink ${ground}`,
           ).toBeGreaterThanOrEqual(4.5);
           expect(
-            contrastOf({ foreground: palette.body, background: ground }),
+            Theme.contrastOf({ foreground: palette.body, background: ground }),
             `${name} body ${ground}`,
           ).toBeGreaterThanOrEqual(4.5);
           expect(
-            contrastOf({ foreground: palette.muted, background: ground }),
+            Theme.contrastOf({ foreground: palette.muted, background: ground }),
             `${name} muted ${ground}`,
           ).toBeGreaterThanOrEqual(4.5);
           expect(
-            contrastOf({ foreground: palette.accent, background: ground }),
+            Theme.contrastOf({ foreground: palette.accent, background: ground }),
             `${name} accent ${ground}`,
           ).toBeGreaterThanOrEqual(4.5);
         }
 
         expect(
-          contrastOf({ foreground: palette.accentInk, background: palette.accent }),
+          Theme.contrastOf({ foreground: palette.accentInk, background: palette.accent }),
         ).toBeGreaterThanOrEqual(3);
 
         for (const slab of [palette.slab, palette.slab2, palette.slab3]) {
           expect(
-            contrastOf({ foreground: palette.slabInk, background: slab }),
+            Theme.contrastOf({ foreground: palette.slabInk, background: slab }),
           ).toBeGreaterThanOrEqual(4.5);
           expect(
-            contrastOf({ foreground: palette.slabBody, background: slab }),
+            Theme.contrastOf({ foreground: palette.slabBody, background: slab }),
           ).toBeGreaterThanOrEqual(4.5);
           expect(
-            contrastOf({ foreground: palette.slabMuted, background: slab }),
+            Theme.contrastOf({ foreground: palette.slabMuted, background: slab }),
           ).toBeGreaterThanOrEqual(4.5);
-          expect(contrastOf({ foreground: palette.hot, background: slab })).toBeGreaterThanOrEqual(
-            4.5,
-          );
+          expect(
+            Theme.contrastOf({ foreground: palette.hot, background: slab }),
+          ).toBeGreaterThanOrEqual(4.5);
         }
 
         expect(
-          contrastOf({ foreground: palette.hotInk, background: palette.hot }),
+          Theme.contrastOf({ foreground: palette.hotInk, background: palette.hot }),
         ).toBeGreaterThanOrEqual(4.5);
       }
     }
@@ -177,7 +177,7 @@ describe('the dark value (C12)', () => {
     expect(theme.dark.accent).not.toBe('#0277bd');
     expect(theme.notes.join(' ')).toContain(`accentDark ${theme.dark.accent} derived from #0277bd`);
     expect(
-      contrastOf({ foreground: theme.dark.accent, background: theme.dark.bg }),
+      Theme.contrastOf({ foreground: theme.dark.accent, background: theme.dark.bg }),
     ).toBeGreaterThanOrEqual(4.5);
   });
 
@@ -186,7 +186,7 @@ describe('the dark value (C12)', () => {
 
     for (const ground of [theme.dark.bg, theme.dark.bgSoft, theme.dark.slab, theme.dark.slab3]) {
       expect(
-        contrastOf({ foreground: theme.dark.accent, background: ground }),
+        Theme.contrastOf({ foreground: theme.dark.accent, background: ground }),
       ).toBeGreaterThanOrEqual(4.5);
     }
   });

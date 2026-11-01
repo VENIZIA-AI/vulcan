@@ -2,12 +2,12 @@ import { EdgeSides } from './compare-schema.ts';
 import type { TCompare } from './compare-schema.ts';
 import type { TChrome } from './constants.ts';
 import type { IDrawing } from './diagrams.ts';
-import { escapeText, figureWidth, renderFigure } from './layout.ts';
-import { figure, section } from './sections.ts';
+import { FigureLayout } from './layout.ts';
+import { SpecSections } from './sections.ts';
 import type { ISectionContext } from './sections.ts';
 import { SourceRefs } from './sources.ts';
 
-const escaped = (value: string): string => escapeText({ value });
+const escaped = (value: string): string => FigureLayout.escapeText({ value });
 
 /** The two sides of an arrow that is not in both. */
 const ADDED = 'added';
@@ -57,7 +57,7 @@ export class CompareView {
   /** The figure: the flow's own grid drawing with the added and removed arrows as their own classes. */
   private static svgOf(opts: { compare: TCompare; chrome: TChrome }): string {
     const { compare, chrome } = opts;
-    const svg = renderFigure({
+    const svg = FigureLayout.render({
       flow: {
         nodes: compare.nodes,
         edges: compare.edges.map((edge) => ({
@@ -165,7 +165,9 @@ export class CompareView {
 
     return {
       svg: CompareView.svgOf(opts),
-      width: figureWidth({ cols: Math.max(...compare.nodes.map((node) => node.col)) + 1 }),
+      width: FigureLayout.figureWidth({
+        cols: Math.max(...compare.nodes.map((node) => node.col)) + 1,
+      }),
       fallback: `<ul class="legend cmp-key">${key}</ul>${CompareView.listOf(opts)}`,
     };
   }
@@ -185,10 +187,10 @@ export class CompareView {
       compare.caption ??
       `${CompareView.wordOf({ compare, chrome, side: EdgeSides.B })} (${count(EdgeSides.B)}), ${CompareView.wordOf({ compare, chrome, side: EdgeSides.A })} (${count(EdgeSides.A)})`;
 
-    return section({
+    return SpecSections.section({
       id: 'compare',
       title: chrome.compareView,
-      body: `<figure class="kfig">${figure({ ctx: opts.ctx, drawing: CompareView.drawing({ compare, chrome }) })}<figcaption>${escaped(caption)}</figcaption></figure>`,
+      body: `<figure class="kfig">${SpecSections.figure({ ctx: opts.ctx, drawing: CompareView.drawing({ compare, chrome }) })}<figcaption>${escaped(caption)}</figcaption></figure>`,
     });
   }
 }

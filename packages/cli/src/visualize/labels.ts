@@ -27,23 +27,27 @@ const bundledOf = (opts: { language?: string }): TChrome => {
     : DEFAULT_CHROME;
 };
 
-/** The strings of the page: the bundled words of the page's language, with whatever the spec replaces. */
-export const chromeOf = (opts: { spec: TVisualizeSpec; language?: string }): TChrome => {
-  const given = opts.spec.chrome ?? {};
-  const base = bundledOf({ language: opts.language });
-  const merged: Record<string, unknown> = { ...base };
+export class Labels {
+  /** The strings of the page: the bundled words of the page's language, with whatever the spec replaces. */
+  static chromeOf(opts: { spec: TVisualizeSpec; language?: string }): TChrome {
+    const given = opts.spec.chrome ?? {};
+    const base = bundledOf({ language: opts.language });
+    const merged: Record<string, unknown> = { ...base };
 
-  for (const [key, value] of Object.entries(given)) {
-    if (typeof value === 'string') {
-      merged[key] = value;
+    for (const [key, value] of Object.entries(given)) {
+      if (typeof value === 'string') {
+        merged[key] = value;
+      }
     }
-  }
 
-  return {
-    ...base,
-    ...Object.fromEntries(Object.entries(merged).filter(([, value]) => typeof value === 'string')),
-    statusStates: { ...base.statusStates, ...definedOnly({ value: given.statusStates }) },
-    minimapStates: { ...base.minimapStates, ...definedOnly({ value: given.minimapStates }) },
-    evidenceLabels: { ...base.evidenceLabels, ...definedOnly({ value: given.evidenceLabels }) },
-  };
-};
+    return {
+      ...base,
+      ...Object.fromEntries(
+        Object.entries(merged).filter(([, value]) => typeof value === 'string'),
+      ),
+      statusStates: { ...base.statusStates, ...definedOnly({ value: given.statusStates }) },
+      minimapStates: { ...base.minimapStates, ...definedOnly({ value: given.minimapStates }) },
+      evidenceLabels: { ...base.evidenceLabels, ...definedOnly({ value: given.evidenceLabels }) },
+    };
+  }
+}

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { TChrome } from './constants.ts';
-import { escapeText } from './layout.ts';
+import { FigureLayout } from './layout.ts';
 import type { TVisualizeSpec } from './schema.ts';
 
 /** One line of plain text: no markup is interpreted anywhere, it is all escaped. */
@@ -59,7 +59,7 @@ interface ISourceUse {
   source: TSource;
 }
 
-const escaped = (value: string): string => escapeText({ value });
+const escaped = (value: string): string => FigureLayout.escapeText({ value });
 
 const REPO = /^[A-Za-z0-9][A-Za-z0-9._-]*(\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/;
 const COMMIT = /^[0-9a-f]{40}$/;
