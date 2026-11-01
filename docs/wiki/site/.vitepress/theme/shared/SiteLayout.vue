@@ -19,11 +19,13 @@ import type { THomeContent, TSiteInfo } from './home-types';
 import SiteBrand from './SiteBrand.vue';
 import SiteFooter from './SiteFooter.vue';
 import { provideThemeSwitch } from './toggle-appearance';
+import { useBarState } from './useBarState';
 import VeniziaLink from './VeniziaLink.vue';
 
 const props = defineProps<{ site: TSiteInfo; home?: THomeContent | null }>();
 
 provideThemeSwitch();
+useBarState();
 
 const { Layout } = DefaultTheme;
 const { page } = useData();

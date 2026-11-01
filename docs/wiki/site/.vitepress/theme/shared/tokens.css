@@ -59,7 +59,6 @@
   --text-title: #000000;
   --text-body: #4b4b4b;
   --text-muted: #6b6b6b; /* venizia.ai uses #9a9a9a, 2.8:1; this is 5.3:1 */
-  --dot: #00000026;
   /* The code and terminal windows are dark in both themes, as the Venizia footer is. */
   --win-bg: #1b1b1b;
   --win-bar: #1e1e24;
@@ -85,7 +84,6 @@
   --text-title: #ffffff;
   --text-body: #ffffffb3;
   --text-muted: #ffffff8c;
-  --dot: #ffffff1f;
   --win-bg: #0e0e10;
   --win-bar: #1e1e24;
   --venizia-wordmark: #ffffff;
@@ -96,14 +94,9 @@
 }
 
 /*
- * The dither dots and the glow are gradients, which cannot be transitioned; they are made of these two
- * colours, so registering them as colours lets the fallback cross-fade of theme-switch.css animate them.
+ * The glow is a gradient, which cannot be transitioned; it is made of this colour, so registering it as a
+ * colour lets the fallback cross-fade of theme-switch.css animate it.
  */
-@property --dot {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: transparent;
-}
 @property --glow {
   syntax: '<color>';
   inherits: true;

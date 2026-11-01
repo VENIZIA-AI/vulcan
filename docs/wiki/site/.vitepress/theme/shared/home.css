@@ -116,17 +116,9 @@
   overflow: hidden;
   padding-block: clamp(48px, 8vw, 104px) clamp(48px, 7vw, 88px);
 }
-.vh .hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(circle at 1px 1px, var(--dot) 1px, transparent 0);
-  background-size: 18px 18px;
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 78%);
-  mask-image: linear-gradient(to bottom, #000 0%, transparent 78%);
-  pointer-events: none;
-}
-/* the dust canvas (useDust.ts): behind the hero's content, in the product's accent; the still dots above show until it is ready */
+/* the dust canvas (useDust.ts): behind the hero's content, in the product's accent. The page starts on a plain
+   background; the canvas is invisible until the composable has drawn its first frame (`data-ready`), then
+   fades in. Without script it never shows, and the page is complete on the plain background. */
 .vh .dust {
   position: absolute;
   inset: 0;
@@ -134,10 +126,12 @@
   width: 100%;
   height: 100%;
   color: var(--accent);
+  opacity: 0;
+  transition: opacity 0.9s ease-out;
   pointer-events: none;
 }
-.vh .hero:has(.dust[data-ready])::before {
-  opacity: 0;
+.vh .dust[data-ready] {
+  opacity: 1;
 }
 .vh .hero::after {
   content: '';

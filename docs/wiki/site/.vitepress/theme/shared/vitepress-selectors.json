@@ -2,6 +2,16 @@
   "vitepress": "1.6.4",
   "selectors": [
     {
+      "selector": ".VPNav",
+      "file": "components/VPNav.vue",
+      "needle": ".VPNav {"
+    },
+    {
+      "selector": ".VPDoc .aside",
+      "file": "components/VPDoc.vue",
+      "needle": ".aside {"
+    },
+    {
       "selector": ".VPNavBarTitle",
       "file": "components/VPNavBarTitle.vue",
       "needle": ".title {"

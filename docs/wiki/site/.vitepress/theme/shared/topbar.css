@@ -13,15 +13,56 @@
  * The wordmark keeps its own colours: --venizia-wordmark (tokens.css) for the letters, #0A6BFF for the arc.
  */
 
-/* ---- the height: the frame's 119 px from 960 px up, 64 px below ----------------------------------- */
+/* ---- the height: the frame's 119 px at the top of a page from 960 px up, 64 px once it is scrolled, 64 px
+   below 960 px ---------------------------------------------------------------------------------------
+   --vp-nav-height is the bar's full height and stays put: the default theme pads the page by it, so the
+   text never moves when the bar slims. --header-h is the bar's height now, animated; the bar and the pieces
+   that hang from it (the sidebar, the outline, the local menu) read it in place of --vp-nav-height. */
+@property --header-h {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 64px;
+}
+
 :root {
   --header-h: 64px;
-  --vp-nav-height: var(--header-h);
+  --vp-nav-height: 64px;
 }
 
 @media (min-width: 960px) {
   :root {
     --header-h: 119px;
+    --vp-nav-height: 119px;
+    transition: --header-h 0.35s var(--ease-out);
+  }
+
+  :root.bar-slim {
+    --header-h: 64px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    transition: none;
+  }
+}
+
+.VPNavBar,
+.VPSidebar,
+.VPDoc .aside,
+.VPLocalNav {
+  --vp-nav-height: var(--header-h);
+}
+
+/* below 960 px the bar is pinned from the first paint, and the local menu (Menu, On this page) sticks under it */
+@media (max-width: 959px) {
+  html .VPNav.VPNav {
+    position: sticky;
+    top: 0;
+  }
+
+  html .VPLocalNav.VPLocalNav {
+    top: var(--vp-nav-height);
   }
 }
 
@@ -80,12 +121,18 @@
 
 .site-brand .brand-rule {
   width: 1px;
-  height: 20px;
+  /* as tall as the wordmark, whose ink is 23.75 px high (the frame draws it 20 px, shorter than the logo) */
+  height: 24px;
   margin: 0 12px;
   background: var(--stroke-strong);
 }
 
 .site-brand .brand-name {
+  position: relative;
+  /* the optical centre: the name has no descender, so its ink is the cap height, which sits about 0.75 px above
+     the centre of a 21 px line box; the browser puts text on whole pixels, so this is a one pixel step down
+     that lands the ink on the centre of the wordmark and the divider (checked at both bar heights) */
+  top: 0.75px;
   color: var(--text-title);
   font: 400 16px/21px var(--font-sans);
   letter-spacing: -0.015em;
