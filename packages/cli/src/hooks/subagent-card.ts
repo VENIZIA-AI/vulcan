@@ -23,10 +23,14 @@ export const SUBAGENT_CARD = [
   '',
 ].join('\n');
 
-/** The SubagentStart answer: the card as the subagent's added context. */
-export const buildSubagentStartOutput = () => ({
-  hookSpecificOutput: {
-    hookEventName: HookConstants.SUBAGENT_START,
-    additionalContext: SUBAGENT_CARD,
-  },
-});
+export class SubagentCard {
+  /** The SubagentStart answer: the card as the subagent's added context. */
+  static buildStartOutput() {
+    return {
+      hookSpecificOutput: {
+        hookEventName: HookConstants.SUBAGENT_START,
+        additionalContext: SUBAGENT_CARD,
+      },
+    };
+  }
+}

@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildSessionDigest } from '../../hooks/index.ts';
+import { SessionDigest } from '../../hooks/index.ts';
 import { ClaudeLaunch, CLAUDE_LAUNCH_FILE } from '../../sync/claude-launch.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -84,7 +84,7 @@ describe('ClaudeLaunch.missWarning', () => {
 describe('the session digest and the launch file', () => {
   test('the warning leads the digest when the session was started without the launch file', async () => {
     const root = withLaunchFile();
-    const digest = await buildSessionDigest({
+    const digest = await SessionDigest.build({
       projectRoot: root,
       env: { CLAUDE_PROJECT_DIR: root },
     });
@@ -96,7 +96,7 @@ describe('the session digest and the launch file', () => {
 
   test('a session that uses the project folder gets no warning section', async () => {
     const root = withLaunchFile();
-    const digest = await buildSessionDigest({
+    const digest = await SessionDigest.build({
       projectRoot: root,
       env: { CLAUDE_PROJECT_DIR: root, CLAUDE_CODE_TMPDIR: join(root, '.agents/local/tmp') },
     });

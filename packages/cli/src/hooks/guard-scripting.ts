@@ -1,5 +1,5 @@
 import { HookConstants } from './common/index.ts';
-import { basenameOf, parseShell, programOf } from './shell.ts';
+import { ShellParser } from './shell.ts';
 
 /** `python`, `python3`, `python3.12`, `pip`, `pip3`: the program a command runs, not a word it mentions. */
 const SCRIPTING_PROGRAM = /^(?:python\d*(?:\.\d+)?|pip\d*(?:\.\d+)?)$/;
@@ -15,17 +15,22 @@ const isExistenceProbe = (opts: { words: string[] }): boolean => {
   return at !== -1 && ['-v', '-V'].includes(opts.words[at + 1] ?? '');
 };
 
-/** The scripting programs a command runs, in order: a mention in an argument, a message, a heredoc or an existence probe is not one. */
-export const inspectScripting = (opts: { command: string }): string[] =>
-  parseShell({ command: opts.command })
-    .filter((command) => !isExistenceProbe({ words: command.words }))
-    .map((command) => basenameOf({ word: programOf({ command }).name }))
-    .filter((name) => SCRIPTING_PROGRAM.test(name));
+export class ScriptingGuard {
+  /** The scripting programs a command runs, in order: a mention in an argument, a message, a heredoc or an existence probe is not one. */
+  static inspect(opts: { command: string }): string[] {
+    return ShellParser.parse({ command: opts.command })
+      .filter((command) => !isExistenceProbe({ words: command.words }))
+      .map((command) => ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name }))
+      .filter((name) => SCRIPTING_PROGRAM.test(name));
+  }
 
-/** The PreToolUse answer that adds the advice to the model's context and lets the call through. */
-export const buildScriptingAdvice = () => ({
-  hookSpecificOutput: {
-    hookEventName: HookConstants.PRE_TOOL_USE,
-    additionalContext: SCRIPTING_ADVICE,
-  },
-});
+  /** The PreToolUse answer that adds the advice to the model's context and lets the call through. */
+  static buildAdvice() {
+    return {
+      hookSpecificOutput: {
+        hookEventName: HookConstants.PRE_TOOL_USE,
+        additionalContext: SCRIPTING_ADVICE,
+      },
+    };
+  }
+}

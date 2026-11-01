@@ -8,9 +8,9 @@
 export {};
 
 try {
-  const { buildSubagentStartOutput } = await import('../../src/hooks/subagent-card.ts');
+  const { SubagentCard } = await import('../../src/hooks/subagent-card.ts');
 
-  console.log(JSON.stringify(buildSubagentStartOutput()));
+  console.log(JSON.stringify(SubagentCard.buildStartOutput()));
 } catch (error) {
   console.error(
     `vulcan: the subagent-start hook could not build the card (${error instanceof Error ? error.message : String(error)}) - the subagent starts without it`,

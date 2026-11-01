@@ -17,11 +17,10 @@
 export {};
 
 try {
-  const { buildGuardDecision, inspectCommand, parseHookCommand } =
-    await import('../../src/hooks/guard-writes.ts');
-  const { readGuardPolicy } = await import('../../src/hooks/project-guards.ts');
+  const { WriteGuard } = await import('../../src/hooks/guard-writes.ts');
+  const { ProjectGuards } = await import('../../src/hooks/project-guards.ts');
   const stdin = await Bun.stdin.text();
-  const hookCommand = parseHookCommand({ text: stdin });
+  const hookCommand = WriteGuard.parseHookCommand({ text: stdin });
   const cwd = hookCommand?.cwd ?? process.cwd();
   let scripts: string[] = [];
 
@@ -46,9 +45,9 @@ try {
   }
 
   const root = process.env.CLAUDE_PROJECT_DIR ?? cwd;
-  const policy = readGuardPolicy({ root });
+  const policy = ProjectGuards.readPolicy({ root });
   const hits = hookCommand
-    ? inspectCommand({
+    ? WriteGuard.inspectCommand({
         command: hookCommand.command,
         cwd,
         trust: { root, scripts, readOnlyScripts: policy.readOnlyScripts },
@@ -57,7 +56,7 @@ try {
     : [];
 
   if (hits.length > 0) {
-    console.log(JSON.stringify(buildGuardDecision({ hits })));
+    console.log(JSON.stringify(WriteGuard.buildDecision({ hits })));
   }
 } catch (error) {
   console.error(

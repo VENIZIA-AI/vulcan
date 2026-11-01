@@ -14,9 +14,9 @@ if (process.env.VULCAN_GUARDS === 'off') {
 }
 
 try {
-  const { buildPostToolOutput } = await import('../../src/hooks/post-tool.ts');
+  const { PostToolOutput } = await import('../../src/hooks/post-tool.ts');
   const stdin = await Bun.stdin.text();
-  const output = buildPostToolOutput({
+  const output = PostToolOutput.build({
     projectRoot: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
     input: JSON.parse(stdin),
   });

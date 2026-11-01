@@ -1,10 +1,10 @@
 import { lstatSync, readlinkSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
-import { basenameOf, parseShellChecked, programOf } from './shell.ts';
+import { ShellParser } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 import { HookConstants } from './common/index.ts';
-import { projectTmpOf } from './project-tmp.ts';
+import { ProjectTmp } from './project-tmp.ts';
 import type { IManifestHookInput, IOutsideHit } from './common/index.ts';
 
 const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
@@ -251,8 +251,8 @@ const gitTargets = (opts: { rest: string[]; base: string; dir: string | undefine
 
 /** The words a simple command would create or write, with a name for what writes them. */
 const targetsOf = (opts: { command: ISimpleCommand; base: string; tmp: string }): ITarget[] => {
-  const program = programOf({ command: opts.command });
-  const name = basenameOf({ word: program.name });
+  const program = ShellParser.programOf({ command: opts.command });
+  const name = ShellParser.basenameOf({ word: program.name });
   const { args } = program;
   const { base } = opts;
   const targets: ITarget[] = opts.command.redirects.map((word) => ({
@@ -351,108 +351,110 @@ const commandTmpdirOf = (opts: { env: TEnvironment; projectRoot: string }): stri
 
   return opts.env.CLAUDE_PROJECT_DIR === undefined
     ? tmpdir()
-    : projectTmpOf({ root: opts.projectRoot });
+    : ProjectTmp.projectOf({ root: opts.projectRoot });
 };
 
-/**
- * Every file, worktree, clone or temp file `input` would create outside the project. Files a package
- * manager, a runtime or the agent tool manage themselves are allowed (`toolOwnedPaths`, extending the
- * defaults); pointing `TMPDIR` or `mktemp` at the system temp directory is not. It reads common
- * forms - redirects, mkdir, cp, mv, tee, curl -o, git clone, git worktree add, mktemp, `cd` - and is a
- * guard against drift, not a sandbox: a path it cannot work out (an unset variable, a glob) passes.
- */
-export const inspectOutside = (opts: {
-  input: IManifestHookInput;
-  projectRoot: string;
-  toolOwnedPaths?: string[];
-  home?: string;
-  env?: TEnvironment;
-}): IOutsideHit[] => {
-  const env = opts.env ?? process.env;
-  const home = opts.home ?? env.HOME ?? '';
-  const root = realOf({ path: resolve(opts.projectRoot) });
-  const patterns = allowPatterns({
-    patterns: [...HookConstants.TOOL_OWNED_PATHS, ...(opts.toolOwnedPaths ?? [])],
-    home,
-    env,
-  });
-  const start = resolve(opts.input.cwd ?? opts.projectRoot);
-  // `$PWD` is the call's folder only when the host said which one it is; otherwise the hook's own `PWD` stays the fallback.
-  const startPwd = opts.input.cwd === undefined ? undefined : start;
-  const tmp = commandTmpdirOf({ env, projectRoot: opts.projectRoot });
-  const targets: ITarget[] = [];
-
-  if (FILE_TOOLS.has(opts.input.tool) && opts.input.filePath !== undefined) {
-    targets.push({
-      word: opts.input.filePath,
-      base: start,
-      pwd: startPwd,
-      message: `${opts.input.tool} writes ${opts.input.filePath}`,
+export class OutsideGuard {
+  /**
+   * Every file, worktree, clone or temp file `input` would create outside the project. Files a package
+   * manager, a runtime or the agent tool manage themselves are allowed (`toolOwnedPaths`, extending the
+   * defaults); pointing `TMPDIR` or `mktemp` at the system temp directory is not. It reads common
+   * forms - redirects, mkdir, cp, mv, tee, curl -o, git clone, git worktree add, mktemp, `cd` - and is a
+   * guard against drift, not a sandbox: a path it cannot work out (an unset variable, a glob) passes.
+   */
+  static inspect(opts: {
+    input: IManifestHookInput;
+    projectRoot: string;
+    toolOwnedPaths?: string[];
+    home?: string;
+    env?: TEnvironment;
+  }): IOutsideHit[] {
+    const env = opts.env ?? process.env;
+    const home = opts.home ?? env.HOME ?? '';
+    const root = realOf({ path: resolve(opts.projectRoot) });
+    const patterns = allowPatterns({
+      patterns: [...HookConstants.TOOL_OWNED_PATHS, ...(opts.toolOwnedPaths ?? [])],
+      home,
+      env,
     });
-  }
+    const start = resolve(opts.input.cwd ?? opts.projectRoot);
+    // `$PWD` is the call's folder only when the host said which one it is; otherwise the hook's own `PWD` stays the fallback.
+    const startPwd = opts.input.cwd === undefined ? undefined : start;
+    const tmp = commandTmpdirOf({ env, projectRoot: opts.projectRoot });
+    const targets: ITarget[] = [];
 
-  let isUnread = false;
+    if (FILE_TOOLS.has(opts.input.tool) && opts.input.filePath !== undefined) {
+      targets.push({
+        word: opts.input.filePath,
+        base: start,
+        pwd: startPwd,
+        message: `${opts.input.tool} writes ${opts.input.filePath}`,
+      });
+    }
 
-  if (opts.input.command !== undefined) {
-    let base = start;
-    let pwd = startPwd;
+    let isUnread = false;
 
-    const parsed = parseShellChecked({ command: opts.input.command });
+    if (opts.input.command !== undefined) {
+      let base = start;
+      let pwd = startPwd;
 
-    isUnread = parsed.isOverBudget;
+      const parsed = ShellParser.parseChecked({ command: opts.input.command });
 
-    for (const command of parsed.commands) {
-      const program = programOf({ command });
+      isUnread = parsed.isOverBudget;
 
-      if (basenameOf({ word: program.name }) === 'cd') {
-        const [destination] = positional({ args: program.args });
-        const expanded =
-          destination === undefined
-            ? undefined
-            : expandPath({ word: destination, home, env, cwd: pwd });
+      for (const command of parsed.commands) {
+        const program = ShellParser.programOf({ command });
 
-        base = expanded === undefined ? base : resolve(base, expanded);
-        // A `cd` the guard cannot work out leaves the shell's folder unknown.
-        pwd = expanded === undefined ? undefined : base;
+        if (ShellParser.basenameOf({ word: program.name }) === 'cd') {
+          const [destination] = positional({ args: program.args });
+          const expanded =
+            destination === undefined
+              ? undefined
+              : expandPath({ word: destination, home, env, cwd: pwd });
+
+          base = expanded === undefined ? base : resolve(base, expanded);
+          // A `cd` the guard cannot work out leaves the shell's folder unknown.
+          pwd = expanded === undefined ? undefined : base;
+          continue;
+        }
+
+        targets.push(...targetsOf({ command, base, tmp }).map((target) => ({ ...target, pwd })));
+      }
+    }
+
+    // Part of the line was not read: never an allow.
+    const hits: IOutsideHit[] = isUnread
+      ? [
+          {
+            path: '(the command line)',
+            message:
+              'this command line is larger, or nests deeper, than the guard reads, so it could not be checked',
+            isAgentToolScratchpad: false,
+          },
+        ]
+      : [];
+
+    for (const target of targets) {
+      const expanded = expandPath({ word: target.word, home, env, cwd: target.pwd });
+
+      if (expanded === undefined) {
         continue;
       }
 
-      targets.push(...targetsOf({ command, base, tmp }).map((target) => ({ ...target, pwd })));
-    }
-  }
+      const path = realOf({ path: resolve(target.base, expanded) });
 
-  // Part of the line was not read: never an allow.
-  const hits: IOutsideHit[] = isUnread
-    ? [
-        {
-          path: '(the command line)',
-          message:
-            'this command line is larger, or nests deeper, than the guard reads, so it could not be checked',
-          isAgentToolScratchpad: false,
-        },
-      ]
-    : [];
-
-  for (const target of targets) {
-    const expanded = expandPath({ word: target.word, home, env, cwd: target.pwd });
-
-    if (expanded === undefined) {
-      continue;
-    }
-
-    const path = realOf({ path: resolve(target.base, expanded) });
-
-    if (!isInside({ path, root }) && !matchesAny({ path, patterns })) {
-      hits.push({
-        path,
-        message: target.message,
-        isAgentToolScratchpad: matchesAny({
+      if (!isInside({ path, root }) && !matchesAny({ path, patterns })) {
+        hits.push({
           path,
-          patterns: HookConstants.AGENT_TOOL_SCRATCHPAD_PATTERNS,
-        }),
-      });
+          message: target.message,
+          isAgentToolScratchpad: matchesAny({
+            path,
+            patterns: HookConstants.AGENT_TOOL_SCRATCHPAD_PATTERNS,
+          }),
+        });
+      }
     }
-  }
 
-  return hits;
-};
+    return hits;
+  }
+}

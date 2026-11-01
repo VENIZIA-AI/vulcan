@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { HookConstants, inspectGit, parseShellChecked, ShellBudget } from '../../hooks/index.ts';
+import { GitGuard, HookConstants, ShellBudget, ShellParser } from '../../hooks/index.ts';
 import type { IGitRunner } from '../../hooks/index.ts';
 
 /**
@@ -51,7 +51,7 @@ const counting = (): { run: IGitRunner; calls: () => number } => {
 };
 
 const decisions = (opts: { command: string; run?: IGitRunner }): string[] =>
-  inspectGit({ command: opts.command, cwd: '/p', run: opts.run ?? counting().run }).map(
+  GitGuard.inspect({ command: opts.command, cwd: '/p', run: opts.run ?? counting().run }).map(
     (hit) => hit.decision,
   );
 
@@ -84,8 +84,11 @@ describe('a line the guard cannot read in full asks, and the guard does not cras
     const over = `echo ${'a'.repeat(ShellBudget.MAX_CHARS)}`;
     const at = `echo ${'a'.repeat(ShellBudget.MAX_CHARS - 5)}`;
 
-    expect(parseShellChecked({ command: over })).toEqual({ commands: [], isOverBudget: true });
-    expect(parseShellChecked({ command: at }).isOverBudget).toBe(false);
+    expect(ShellParser.parseChecked({ command: over })).toEqual({
+      commands: [],
+      isOverBudget: true,
+    });
+    expect(ShellParser.parseChecked({ command: at }).isOverBudget).toBe(false);
     expect(decisions({ command: over })).toEqual(['ask']);
   });
 

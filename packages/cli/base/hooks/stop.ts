@@ -17,9 +17,9 @@ if (process.env.VULCAN_GUARDS === 'off') {
 }
 
 try {
-  const { buildStopOutput } = await import('../../src/hooks/owner-reply.ts');
+  const { OwnerReply } = await import('../../src/hooks/owner-reply.ts');
   const stdin = await Bun.stdin.text();
-  const output = await buildStopOutput({
+  const output = await OwnerReply.buildStopOutput({
     projectRoot: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
     input: JSON.parse(stdin),
   });

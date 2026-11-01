@@ -1,9 +1,9 @@
 import { spawnSync } from 'node:child_process';
-import { basenameOf, parseShellChecked, programOf } from './shell.ts';
+import { ShellParser } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { IGitHit, IGitRunner } from './common/index.ts';
-import { matchesBranch } from './project-guards.ts';
+import { ProjectGuards } from './project-guards.ts';
 
 /** `git` and `gh` read-only queries the guard makes; `undefined` when the tool is missing, slow or fails. */
 const runQuery: IGitRunner = (opts) => {
@@ -104,7 +104,7 @@ const inspectPush = (opts: {
     for (const name of targets) {
       const branch = name.replace(/^\+/, '').replace(/^refs\/heads\//, '');
 
-      if (matchesBranch({ name: branch, patterns: opts.askPush })) {
+      if (ProjectGuards.matchesBranch({ name: branch, patterns: opts.askPush })) {
         hits.push({
           decision: GuardDecisions.ASK,
           rule: 'V-W-06',
@@ -387,8 +387,8 @@ const inspectOne = (opts: {
   run: IGitRunner;
   askPush: string[];
 }): IGitHit[] => {
-  const program = programOf({ command: opts.command });
-  const name = basenameOf({ word: program.name });
+  const program = ShellParser.programOf({ command: opts.command });
+  const name = ShellParser.basenameOf({ word: program.name });
 
   if (name === 'gh') {
     return [
@@ -441,53 +441,55 @@ const inspectOne = (opts: {
   return [];
 };
 
-/** Every reason `command` is a git or gh action that loses history or a protected branch. */
-export const inspectGit = (opts: {
-  command: string;
-  cwd: string | undefined;
-  run?: IGitRunner;
-  /** Branches (names, `*` allowed) a plain `git push` asks about: `guard.git.askPush`. */
-  askPush?: string[];
-}): IGitHit[] => {
-  const parsed = parseShellChecked({ command: opts.command });
-  const run = opts.run ?? runQuery;
-  let queries = 0;
-  let isCapped = false;
+export class GitGuard {
+  /** Every reason `command` is a git or gh action that loses history or a protected branch. */
+  static inspect(opts: {
+    command: string;
+    cwd: string | undefined;
+    run?: IGitRunner;
+    /** Branches (names, `*` allowed) a plain `git push` asks about: `guard.git.askPush`. */
+    askPush?: string[];
+  }): IGitHit[] {
+    const parsed = ShellParser.parseChecked({ command: opts.command });
+    const run = opts.run ?? runQuery;
+    let queries = 0;
+    let isCapped = false;
 
-  // Every query is a process and can take seconds: a line may make a few, and asks past them.
-  const limited: IGitRunner = (call) => {
-    queries += 1;
+    // Every query is a process and can take seconds: a line may make a few, and asks past them.
+    const limited: IGitRunner = (call) => {
+      queries += 1;
 
-    if (queries > HookConstants.MAX_QUERIES) {
-      isCapped = true;
+      if (queries > HookConstants.MAX_QUERIES) {
+        isCapped = true;
 
-      return undefined;
+        return undefined;
+      }
+
+      return run(call);
+    };
+    const hits = parsed.commands.flatMap((command) =>
+      inspectOne({ command, cwd: opts.cwd, run: limited, askPush: opts.askPush ?? [] }),
+    );
+
+    // Part of the line was not read: never an allow.
+    if (parsed.isOverBudget) {
+      hits.push({
+        decision: GuardDecisions.ASK,
+        rule: 'V-W-06',
+        message:
+          'this command line is larger, or nests deeper, than the guard reads, so it could not be checked',
+      });
     }
 
-    return run(call);
-  };
-  const hits = parsed.commands.flatMap((command) =>
-    inspectOne({ command, cwd: opts.cwd, run: limited, askPush: opts.askPush ?? [] }),
-  );
+    if (isCapped) {
+      hits.push({
+        decision: GuardDecisions.ASK,
+        rule: 'V-W-06',
+        message:
+          'this command line needs more git or gh queries than the guard runs, so part of it could not be checked',
+      });
+    }
 
-  // Part of the line was not read: never an allow.
-  if (parsed.isOverBudget) {
-    hits.push({
-      decision: GuardDecisions.ASK,
-      rule: 'V-W-06',
-      message:
-        'this command line is larger, or nests deeper, than the guard reads, so it could not be checked',
-    });
+    return hits;
   }
-
-  if (isCapped) {
-    hits.push({
-      decision: GuardDecisions.ASK,
-      rule: 'V-W-06',
-      message:
-        'this command line needs more git or gh queries than the guard runs, so part of it could not be checked',
-    });
-  }
-
-  return hits;
-};
+}

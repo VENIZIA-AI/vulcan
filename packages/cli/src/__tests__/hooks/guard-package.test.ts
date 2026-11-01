@@ -2,11 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import {
-  buildPackageDecision,
-  inspectPackageWrite,
-  parseManifestHookInput,
-} from '../../hooks/index.ts';
+import { ManifestGuard, PackageGuard } from '../../hooks/index.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-package.ts');
@@ -57,7 +53,7 @@ const project = (opts: { manifest?: unknown; files?: string[] } = {}): string =>
 };
 
 const write = (opts: { root: string; path: string; tool?: string }) =>
-  inspectPackageWrite({
+  PackageGuard.inspectWrite({
     input: {
       tool: opts.tool ?? 'Write',
       filePath: join(opts.root, opts.path),
@@ -204,7 +200,7 @@ describe('inspectPackageWrite - a real command exists', () => {
 
   test('a relative file path resolves against the cwd', () => {
     const root = project();
-    const verdict = inspectPackageWrite({
+    const verdict = PackageGuard.inspectWrite({
       input: {
         tool: 'Write',
         filePath: 'services/api3/package.json',
@@ -384,15 +380,15 @@ describe('inspectPackageWrite - no real command: warn, never block', () => {
 describe('parse and decision', () => {
   test('the wire form reads as before', () => {
     expect(
-      parseManifestHookInput({
+      ManifestGuard.parseHookInput({
         text: '{"tool_name":"Write","tool_input":{"file_path":"a/package.json"},"cwd":"/x"}',
       }),
     ).toEqual({ tool: 'Write', filePath: 'a/package.json', command: undefined, cwd: '/x' });
   });
 
   test('a deny carries the reason; a warn carries context and no decision', () => {
-    const deny = buildPackageDecision({ verdict: { kind: 'deny', message: 'use add' } });
-    const warn = buildPackageDecision({ verdict: { kind: 'warn', message: 'ask the user' } });
+    const deny = PackageGuard.buildDecision({ verdict: { kind: 'deny', message: 'use add' } });
+    const warn = PackageGuard.buildDecision({ verdict: { kind: 'warn', message: 'ask the user' } });
 
     const denied: Record<string, unknown> = deny.hookSpecificOutput;
     const warned: Record<string, unknown> = warn.hookSpecificOutput;
