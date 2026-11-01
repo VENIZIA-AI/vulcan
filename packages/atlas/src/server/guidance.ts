@@ -41,10 +41,6 @@ const joinNames = (opts: { names: string[] }): string =>
     ? opts.names.join('')
     : `${opts.names.slice(0, -1).join(', ')} and ${opts.names[opts.names.length - 1]}`;
 
-/** The projects atlas holds, in the order the config lists them. */
-export const projectsOf = (opts: { sources: IResolvedSource[] }): string =>
-  joinNames({ names: opts.sources.map((source) => source.name) });
-
 /** `@venizia/*`, `@acme/*`: the npm scopes of the packages these projects publish; a bare name stands for itself. */
 const packageScopesOf = (opts: { sources: IResolvedSource[] }): string => {
   const scopes = new Set<string>();
@@ -101,6 +97,7 @@ const statusOf = (opts: { sources: IResolvedSource[]; unavailable: IUnavailableS
 };
 
 const CORPORA_MAX = 4;
+
 const SCOPES_MAX = 3;
 
 /** The corpora as the lead names them: at most four, the rest counted, so the lead keeps to 512 characters. */
@@ -128,26 +125,33 @@ const scopesPhrase = (opts: { sources: IResolvedSource[] }): string => {
   return `their packages (${scopes.slice(0, SCOPES_MAX).join(', ')}${scopes.length > SCOPES_MAX ? ', ...' : ''})`;
 };
 
-/**
- * What the agent reads when atlas connects. The lead paragraph alone carries the corpora, the rule
- * and the triggers in at most 512 characters, because a client may keep only that much; the second
- * paragraph says when a how-to-build question must search first; the status lines after it say how
- * each source was reached.
- */
-export const instructionsOf = (opts: {
-  sources: IResolvedSource[];
-  unavailable: IUnavailableSource[];
-  skills?: ISkillLine[];
-}): string => {
-  const projects = projectsOf({ sources: opts.sources });
+export class ServerGuidance {
+  /** The projects atlas holds, in the order the config lists them. */
+  static projectsOf(opts: { sources: IResolvedSource[] }): string {
+    return joinNames({ names: opts.sources.map((source) => source.name) });
+  }
 
-  return [
-    `Atlas holds the real code and docs of ${corporaPhrase(opts)}. Do not answer facts about ${projects} from memory when atlas can answer them: call \`symbol\` for each export before you write code that imports ${scopesPhrase(opts)}, \`search\` then \`get\` when the user asks how something works or which convention applies, \`version\` or \`changes\` for a release or an upgrade, \`presets\` before you create an app or package.`,
-    '',
-    `Before you answer how to build something in ${projects} (a feature, a controller, a service, a repository, a datasource) or how a convention is organised, call \`search\` and read the hits with \`get\`; do not answer from the files you happen to open. A plan never says "check atlas" for a step you have not done: call it first.`,
-    '',
-    ...skillsParagraph({ skills: opts.skills ?? [] }),
-    `Atlas serves ${opts.sources.length} source(s); every hit names its source.`,
-    ...statusOf(opts),
-  ].join('\n');
-};
+  /**
+   * What the agent reads when atlas connects. The lead paragraph alone carries the corpora, the rule
+   * and the triggers in at most 512 characters, because a client may keep only that much; the second
+   * paragraph says when a how-to-build question must search first; the status lines after it say how
+   * each source was reached.
+   */
+  static instructionsOf(opts: {
+    sources: IResolvedSource[];
+    unavailable: IUnavailableSource[];
+    skills?: ISkillLine[];
+  }): string {
+    const projects = ServerGuidance.projectsOf({ sources: opts.sources });
+
+    return [
+      `Atlas holds the real code and docs of ${corporaPhrase(opts)}. Do not answer facts about ${projects} from memory when atlas can answer them: call \`symbol\` for each export before you write code that imports ${scopesPhrase(opts)}, \`search\` then \`get\` when the user asks how something works or which convention applies, \`version\` or \`changes\` for a release or an upgrade, \`presets\` before you create an app or package.`,
+      '',
+      `Before you answer how to build something in ${projects} (a feature, a controller, a service, a repository, a datasource) or how a convention is organised, call \`search\` and read the hits with \`get\`; do not answer from the files you happen to open. A plan never says "check atlas" for a step you have not done: call it first.`,
+      '',
+      ...skillsParagraph({ skills: opts.skills ?? [] }),
+      `Atlas serves ${opts.sources.length} source(s); every hit names its source.`,
+      ...statusOf(opts),
+    ].join('\n');
+  }
+}

@@ -1,4 +1,4 @@
-import { readAtlasProject } from '@/common/project-config';
+import { ProjectConfig } from '@/common/project-config';
 import { describe, expect, spyOn, test } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -62,7 +62,7 @@ describe.skipIf(!IGNIS_IS_BUILT || !existsSync(join(IGNIS_ROOT, '.agents/vulcan.
     test(
       "renders IGNIS's live packages, each mapped to its npm name",
       () => {
-        const packages = readAtlasProject({ root: IGNIS_ROOT })
+        const packages = ProjectConfig.readAtlasProject({ root: IGNIS_ROOT })
           .packages.filter((entry) => !entry.retired)
           .map((entry) => entry.dir);
         const { packageMap, symbols } = JSON.parse(

@@ -1,17 +1,10 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MANIFEST_FILE, toAtlasProject } from '@/common/project-config';
-import {
-  decidePrune,
-  fetchPrebuilt,
-  generateKeyPair,
-  publishGuard,
-  publishIndex,
-  verifyPair,
-} from '@/prebuilt';
+import { MANIFEST_FILE, ProjectConfig } from '@/common/project-config';
+import { Envelope, IndexPublish, PrebuiltFetch, PrebuiltKeys } from '@/prebuilt';
 import type { IAssetInfo } from '@/prebuilt';
-import { computeReleases } from '@/releases/compute';
+import { ReleaseCompute } from '@/releases/compute';
 import {
   git,
   makeSourceRepository,
@@ -47,7 +40,12 @@ describe('the guard: only a push to a protected ref publishes (C24)', () => {
     ...changes,
   });
   const guard = (opts: { env: Record<string, string | undefined>; onBranch?: () => boolean }) =>
-    publishGuard({ root: '.', env: opts.env, keyEnv: 'ATLAS_INDEX_KEY', onBranch: opts.onBranch });
+    IndexPublish.publishGuard({
+      root: '.',
+      env: opts.env,
+      keyEnv: 'ATLAS_INDEX_KEY',
+      onBranch: opts.onBranch,
+    });
 
   test.each([
     [
@@ -133,7 +131,7 @@ describe('what pruning removes (C22)', () => {
       pair({ n: index + 1, minute: index + 10 }),
     ).flat();
     const tags = [pair({ n: 50, minute: 1 }), pair({ n: 51, minute: 2 })].flat();
-    const result = decidePrune({
+    const result = IndexPublish.decidePrune({
       assets: [...heads, ...tags],
       tagShas: new Set([SHA({ n: 50 }), SHA({ n: 51 })]),
       protect: SHA({ n: 6 }),
@@ -153,7 +151,7 @@ describe('what pruning removes (C22)', () => {
       ...pair({ n: 2, minute: 2 }),
       ...pair({ n: 3, minute: 3 }),
     ];
-    const result = decidePrune({
+    const result = IndexPublish.decidePrune({
       assets,
       tagShas: new Set([SHA({ n: 1 })]),
       protect: SHA({ n: 3 }),
@@ -171,7 +169,7 @@ describe('what pruning removes (C22)', () => {
     const tags = Array.from({ length: 8 }, (_, index) =>
       pair({ n: index + 1, minute: index + 1 }),
     ).flat();
-    const result = decidePrune({
+    const result = IndexPublish.decidePrune({
       assets: tags,
       tagShas: new Set(Array.from({ length: 8 }, (_, index) => SHA({ n: index + 1 }))),
       protect: SHA({ n: 1 }),
@@ -200,7 +198,7 @@ describe('what pruning removes (C22)', () => {
       ...asset({ n: 8, kind: 'gz', minute: 0 }),
       createdAt: new Date(NOW - 3_600_000).toISOString(),
     };
-    const result = decidePrune({
+    const result = IndexPublish.decidePrune({
       assets: [stray, orphanOld, orphanNew],
       tagShas: new Set(),
       protect: SHA({ n: 99 }),
@@ -214,7 +212,7 @@ describe('what pruning removes (C22)', () => {
     const heads = Array.from({ length: 25 }, (_, index) =>
       pair({ n: index + 1, minute: index + 1 }),
     ).flat();
-    const result = decidePrune({
+    const result = IndexPublish.decidePrune({
       assets: heads,
       tagShas: new Set(),
       protect: SHA({ n: 25 }),
@@ -231,7 +229,7 @@ describe('publishing a pair (C21, C23)', () => {
   let work: string;
   let bare: string;
   let env: Record<string, string | undefined>;
-  const keys = generateKeyPair();
+  const keys = PrebuiltKeys.generatePair();
   const event = join(makeTempDirectory({ prefix: 'atlas-event-' }), 'event.json');
 
   writeFileSync(event, '{"repository":{"default_branch":"main"}}');
@@ -261,7 +259,7 @@ describe('publishing a pair (C21, C23)', () => {
   });
 
   const publish = () =>
-    publishIndex({ root: work, env, keyEnv: 'ATLAS_INDEX_KEY', atlasVersion: '9.9.9' });
+    IndexPublish.publish({ root: work, env, keyEnv: 'ATLAS_INDEX_KEY', atlasVersion: '9.9.9' });
 
   test('the release is made once, as a pre-release that is not latest, and the pair is on it', async () => {
     const result = await publish();
@@ -286,7 +284,7 @@ describe('publishing a pair (C21, C23)', () => {
     await publish();
 
     const sha = env.GITHUB_SHA ?? '';
-    const checked = verifyPair({
+    const checked = Envelope.verifyPair({
       envelope: Buffer.from(fake.assets.get(`${sha}.atlas.json`) ?? '').toString('utf8'),
       gz: fake.assets.get(`${sha}.atlas.gz`) ?? new Uint8Array(),
       keys: [keys.publicKey],
@@ -296,7 +294,7 @@ describe('publishing a pair (C21, C23)', () => {
 
     process.env.VULCAN_GITHUB_API_URL = fake.apiUrl;
 
-    const read = await fetchPrebuilt({
+    const read = await PrebuiltFetch.fetch({
       github: { owner: 'acme', repo: 'src' },
       sha,
       keys: [keys.publicKey],
@@ -396,7 +394,7 @@ describe('publishing a pair (C21, C23)', () => {
       cwd: makeTempDirectory({ prefix: 'atlas-shallow-cwd-' }),
       args: ['clone', '-q', '--depth', '1', `file://${bare}`, shallow],
     });
-    const failure = await publishIndex({
+    const failure = await IndexPublish.publish({
       root: shallow,
       env,
       keyEnv: 'ATLAS_INDEX_KEY',
@@ -420,13 +418,13 @@ describe('publishing a pair (C21, C23)', () => {
 describe('the release tag is not a release (C25)', () => {
   test('a tag named atlas-index leaves the release table as it was', () => {
     const { work } = makeSourceRepository();
-    const project = toAtlasProject({
+    const project = ProjectConfig.toAtlasProject({
       root: work,
       manifest: JSON.parse(readFileSync(join(work, MANIFEST_FILE), 'utf8')),
     });
-    const before = JSON.stringify(computeReleases({ project }));
+    const before = JSON.stringify(ReleaseCompute.compute({ project }));
 
     git({ cwd: work, args: ['tag', 'atlas-index'] });
-    expect(JSON.stringify(computeReleases({ project }))).toBe(before);
+    expect(JSON.stringify(ReleaseCompute.compute({ project }))).toBe(before);
   });
 });

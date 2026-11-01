@@ -1,4 +1,4 @@
-import { buildServer } from '@/server';
+import { ServerFactory } from '@/server';
 import { join } from 'node:path';
 import { expect, test } from 'bun:test';
 
@@ -7,7 +7,7 @@ import { expect, test } from 'bun:test';
 const ACME = join(__dirname, '..', 'fixtures', 'acme');
 
 const call = async (opts: {
-  transport: ReturnType<typeof buildServer>;
+  transport: ReturnType<typeof ServerFactory.build>;
   method: string;
   params?: object;
 }): Promise<{ result?: Record<string, unknown>; error?: { message: string } }> => {
@@ -19,7 +19,7 @@ const call = async (opts: {
 };
 
 const searchText = async (opts: {
-  transport: ReturnType<typeof buildServer>;
+  transport: ReturnType<typeof ServerFactory.build>;
   query: string;
 }): Promise<string> => {
   const reply = await call({
@@ -33,7 +33,7 @@ const searchText = async (opts: {
 };
 
 test('repo mode serves a project from its manifest: its own name, its bundle and changelogs', async () => {
-  const transport = buildServer({ root: ACME, version: '0.0.0' });
+  const transport = ServerFactory.build({ root: ACME, version: '0.0.0' });
   const initialized = await call({ transport, method: 'initialize', params: {} });
 
   expect(JSON.stringify(initialized.result)).toContain('acme-atlas');

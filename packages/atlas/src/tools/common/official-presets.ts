@@ -32,6 +32,9 @@ export const OFFICIAL_PRESETS: IOfficialPreset[] = [
 
 const OFFICIAL_SCOPE = '@venizia/';
 
-/** `ignis` from `ignis`, `@venizia/ignis` or `ignis@0.3.5`: the name an official preset goes by. */
-export const officialIdOf = (opts: { spec: string }): string =>
-  opts.spec.replace(OFFICIAL_SCOPE, '').replace(/@.*$/, '');
+export class OfficialPresets {
+  /** `ignis` from `ignis`, `@venizia/ignis` or `ignis@0.3.5`: the name an official preset goes by. */
+  static idOf(opts: { spec: string }): string {
+    return opts.spec.replace(OFFICIAL_SCOPE, '').replace(/@.*$/, '');
+  }
+}

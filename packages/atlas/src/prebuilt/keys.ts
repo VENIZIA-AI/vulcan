@@ -9,38 +9,41 @@ export interface IIndexKeyPair {
   publicKey: string;
 }
 
-export const generateKeyPair = (): IIndexKeyPair => {
-  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
-  const spki = publicKey.export({ format: 'der', type: 'spki' });
+export class PrebuiltKeys {
+  static generatePair(): IIndexKeyPair {
+    const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+    const spki = publicKey.export({ format: 'der', type: 'spki' });
 
-  return {
-    privateKey: privateKey.export({ format: 'der', type: 'pkcs8' }).toString('base64'),
-    publicKey: spki.subarray(spki.length - PrebuiltConstants.PUBLIC_KEY_BYTES).toString('base64'),
-  };
-};
-
-/** A listed public key as a key object; `undefined` when the text is not 32 base64 bytes. */
-export const publicKeyOf = (opts: { base64: string }): KeyObject | undefined => {
-  const raw = Buffer.from(opts.base64, 'base64');
-
-  if (raw.length !== PrebuiltConstants.PUBLIC_KEY_BYTES) {
-    return undefined;
+    return {
+      privateKey: privateKey.export({ format: 'der', type: 'pkcs8' }).toString('base64'),
+      publicKey: spki.subarray(spki.length - PrebuiltConstants.PUBLIC_KEY_BYTES).toString('base64'),
+    };
   }
 
-  try {
-    return createPublicKey({
-      key: Buffer.concat([PrebuiltConstants.SPKI_PREFIX, raw]),
+  /** A listed public key as a key object; `undefined` when the text is not 32 base64 bytes. */
+  static publicKeyOf(opts: { base64: string }): KeyObject | undefined {
+    const raw = Buffer.from(opts.base64, 'base64');
+
+    if (raw.length !== PrebuiltConstants.PUBLIC_KEY_BYTES) {
+      return undefined;
+    }
+
+    try {
+      return createPublicKey({
+        key: Buffer.concat([PrebuiltConstants.SPKI_PREFIX, raw]),
+        format: 'der',
+        type: 'spki',
+      });
+    } catch {
+      return undefined;
+    }
+  }
+
+  static privateKeyOf(opts: { base64: string }): KeyObject {
+    return createPrivateKey({
+      key: Buffer.from(opts.base64.trim(), 'base64'),
       format: 'der',
-      type: 'spki',
+      type: 'pkcs8',
     });
-  } catch {
-    return undefined;
   }
-};
-
-export const privateKeyOf = (opts: { base64: string }): KeyObject =>
-  createPrivateKey({
-    key: Buffer.from(opts.base64.trim(), 'base64'),
-    format: 'der',
-    type: 'pkcs8',
-  });
+}

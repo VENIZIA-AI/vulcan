@@ -1,4 +1,4 @@
-import { OFFICIAL_PRESETS, officialIdOf } from '@venizia/vulcan-atlas';
+import { OFFICIAL_PRESETS, OfficialPresets } from '@venizia/vulcan-atlas';
 import { promptSelect, promptText } from '../ui/index.ts';
 
 const ANOTHER_PRESET = ':another-preset';
@@ -16,7 +16,7 @@ interface IKnownPreset {
  * or `file:` path. null when the user cancelled.
  */
 export const askPresetSpec = async (opts: { recorded: IKnownPreset[] }): Promise<string | null> => {
-  const used = new Set(opts.recorded.map((entry) => officialIdOf({ spec: entry.spec })));
+  const used = new Set(opts.recorded.map((entry) => OfficialPresets.idOf({ spec: entry.spec })));
   const picked = await promptSelect({
     message: 'Which preset?',
     choices: [

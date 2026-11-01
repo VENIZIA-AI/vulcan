@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { toAtlasProject } from '@/common/project-config';
+import { ProjectConfig } from '@/common/project-config';
 import type { IAtlasProject } from '@/common/project-config';
 import { Transport } from '@/protocol';
-import { buildPresetsTool } from '@/tools';
+import { PresetsTool } from '@/tools';
 import type { IOfficialPreset } from '@/tools/common';
 
 const MANIFEST = {
@@ -41,14 +41,14 @@ const SHARED_MANIFEST = {
 };
 
 const projectOf = (opts: { manifest?: unknown } = {}): IAtlasProject =>
-  toAtlasProject({ root: '/work/shop', manifest: opts.manifest ?? MANIFEST });
+  ProjectConfig.toAtlasProject({ root: '/work/shop', manifest: opts.manifest ?? MANIFEST });
 
 const ask = async (opts: {
   project?: IAtlasProject;
   args?: Record<string, unknown>;
   official?: IOfficialPreset[];
 }) => {
-  const tool = buildPresetsTool({
+  const tool = PresetsTool.build({
     project: 'project' in opts ? opts.project : projectOf(),
     official: opts.official,
   });
@@ -591,7 +591,7 @@ describe('presets (nothing fits)', () => {
 
 describe('the tool description', () => {
   test('opens with when to call it', () => {
-    const { description } = buildPresetsTool({ project: projectOf() }).definition;
+    const { description } = PresetsTool.build({ project: projectOf() }).definition;
 
     expect(description).toStartWith(
       'When you are asked to create a new app or package in shop, ask here which preset and which exact command to use before you write any file.',
@@ -599,7 +599,7 @@ describe('the tool description', () => {
   });
 
   test('without a project it still says what it does', () => {
-    expect(buildPresetsTool({ project: undefined }).definition.description).toContain(
+    expect(PresetsTool.build({ project: undefined }).definition.description).toContain(
       'When you are asked to create a new app or package',
     );
   });

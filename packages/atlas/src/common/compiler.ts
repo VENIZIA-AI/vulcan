@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import type TypeScript from 'typescript';
 import { StderrLogger } from './logger';
 import { PROJECT_ROOT } from './project';
-import { hasAtlasProject, readAtlasProject } from './project-config';
+import { ProjectConfig } from './project-config';
 
 /** TypeScript 7's main export is its version and nothing else: a compiler is what carries the API atlas calls. */
 const hasCompilerApi = (candidate: unknown): candidate is typeof TypeScript =>
@@ -53,7 +53,11 @@ export class TypeScriptCompiler {
   static get(): typeof TypeScript {
     const compiler =
       this.compiler ??
-      this.load({ from: hasAtlasProject() ? readAtlasProject().typescriptFrom : PROJECT_ROOT });
+      this.load({
+        from: ProjectConfig.hasAtlasProject()
+          ? ProjectConfig.readAtlasProject().typescriptFrom
+          : PROJECT_ROOT,
+      });
 
     this.compiler = compiler;
 

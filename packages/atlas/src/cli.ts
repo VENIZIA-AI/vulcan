@@ -1,23 +1,15 @@
 #!/usr/bin/env bun
 import { AtlasCommands, AtlasConstants } from './common';
-import {
-  findPackageDirectory,
-  isBareInteractiveRun,
-  ModeUsageError,
-  readCacheDirArgument,
-  readPackageVersion,
-  readRootArgument,
-  readSourceArguments,
-} from './cli/index';
+import { InteractiveRun, ModeArguments, ModeUsageError, SourceArguments } from './cli/index';
 import { runChangelogsCommand } from './changelogs/command';
 import { runConceptsCommand } from './concepts/command';
 import { runReleasesCommand } from './releases/generator';
-import { buildSourcesServer, refreshIntervalMs } from './server/index';
+import { Refresher, SourcesServer } from './server/index';
 import type { Transport } from './protocol/index';
-import { hasAtlasProject, readAtlasProject } from './common/project-config';
+import { ProjectConfig } from './common/project-config';
 import { TextValue } from './common/text';
 import { runIndexCommand } from './prebuilt/index';
-import { resolveServableSources, resolveSources } from './sources/index';
+import { SourceResolver } from './sources/index';
 import type { IAtlasSource } from './sources/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
@@ -34,7 +26,7 @@ const HELP_FLAGS = new Set(['--help', '-h']);
 const readSubcommand = (opts: { argv: string[] }): string => {
   const [first] = opts.argv;
 
-  if (isBareInteractiveRun({ argv: opts.argv, isTty: process.stdin.isTTY === true })) {
+  if (InteractiveRun.isBare({ argv: opts.argv, isTty: process.stdin.isTTY === true })) {
     return AtlasCommands.HELP;
   }
 
@@ -62,7 +54,8 @@ const argv = process.argv.slice(2);
 const prebuiltAllowed = (opts: { root: string }): boolean =>
   !argv.includes('--no-prebuilt') &&
   !(
-    hasAtlasProject({ root: opts.root }) && readAtlasProject({ root: opts.root }).prebuilt === false
+    ProjectConfig.hasAtlasProject({ root: opts.root }) &&
+    ProjectConfig.readAtlasProject({ root: opts.root }).prebuilt === false
   );
 const subcommand = readSubcommand({ argv });
 
@@ -108,10 +101,10 @@ const sourcesToServe = (opts: {
   root: string;
   argv: string[];
 }): { project: boolean; sources: IAtlasSource[] } => {
-  const project = hasAtlasProject({ root: opts.root });
-  const declared = project ? readAtlasProject({ root: opts.root }).sources : [];
+  const project = ProjectConfig.hasAtlasProject({ root: opts.root });
+  const declared = project ? ProjectConfig.readAtlasProject({ root: opts.root }).sources : [];
 
-  return { project, sources: [...declared, ...readSourceArguments({ argv: opts.argv })] };
+  return { project, sources: [...declared, ...SourceArguments.read({ argv: opts.argv })] };
 };
 
 /** The server for the sources `root` serves; `undefined` when there is nothing to serve at all. */
@@ -125,9 +118,9 @@ const buildServer = async (opts: {
     return undefined;
   }
 
-  const cacheDir = readCacheDirArgument({ argv });
+  const cacheDir = ModeArguments.readCacheDir({ argv });
   const prebuilt = prebuiltAllowed({ root: opts.root });
-  const { resolved, unavailable } = await resolveServableSources({
+  const { resolved, unavailable } = await SourceResolver.resolveServable({
     cwd: opts.root,
     sources,
     cacheDir,
@@ -144,9 +137,9 @@ const buildServer = async (opts: {
     usageError('nothing to serve - every source is unavailable (above)');
   }
 
-  const intervalMs = refreshIntervalMs();
+  const intervalMs = Refresher.configuredIntervalMs();
 
-  return buildSourcesServer({
+  return SourcesServer.build({
     sources: resolved,
     unavailable,
     cwd: opts.root,
@@ -159,7 +152,7 @@ const buildServer = async (opts: {
 
 /** `pull [--source <name>]`: every source fetched again, or the one named; repo mode needs no pull. */
 const pull = async (): Promise<number> => {
-  const root = readRootArgument({ argv }).value;
+  const root = ModeArguments.readRoot({ argv }).value;
   const flag = argv.indexOf('--source');
   const wanted = flag === -1 || argv[flag + 1]?.includes('/') ? undefined : argv[flag + 1];
   // A name picks a source; it is never a source of its own.
@@ -176,10 +169,10 @@ const pull = async (): Promise<number> => {
     );
   }
 
-  const pulled = await resolveSources({
+  const pulled = await SourceResolver.resolve({
     cwd: root,
     sources: named,
-    cacheDir: readCacheDirArgument({ argv }),
+    cacheDir: ModeArguments.readCacheDir({ argv }),
     force: true,
     prebuilt: prebuiltAllowed({ root }),
   });
@@ -199,7 +192,7 @@ const readServer = async (): Promise<Transport> => {
   let root: string;
 
   try {
-    root = readRootArgument({ argv }).value;
+    root = ModeArguments.readRoot({ argv }).value;
   } catch (error) {
     if (error instanceof ModeUsageError) {
       usageError(error.message);
@@ -209,8 +202,9 @@ const readServer = async (): Promise<Transport> => {
   }
 
   const version =
-    readPackageVersion({ directory: findPackageDirectory({ startDirectory: __dirname }) }) ??
-    FALLBACK_VERSION;
+    ModeArguments.readPackageVersion({
+      directory: ModeArguments.findPackageDirectory({ startDirectory: __dirname }),
+    }) ?? FALLBACK_VERSION;
 
   const server = await buildServer({ root, version });
 
@@ -232,7 +226,7 @@ const listTools = async (): Promise<void> => {
 
 const main = async (): Promise<void> => {
   // A flag with no value is the same usage error whether or not there is anything to serve.
-  readCacheDirArgument({ argv });
+  ModeArguments.readCacheDir({ argv });
 
   if (subcommand === AtlasCommands.PULL) {
     const result = await pull();
@@ -243,8 +237,9 @@ const main = async (): Promise<void> => {
     const result2 = await runIndexCommand({
       argv,
       version:
-        readPackageVersion({ directory: findPackageDirectory({ startDirectory: __dirname }) }) ??
-        FALLBACK_VERSION,
+        ModeArguments.readPackageVersion({
+          directory: ModeArguments.findPackageDirectory({ startDirectory: __dirname }),
+        }) ?? FALLBACK_VERSION,
     });
     process.exit(result2);
   }

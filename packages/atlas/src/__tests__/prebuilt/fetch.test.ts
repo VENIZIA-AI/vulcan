@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } fr
 import { Database } from 'bun:sqlite';
 import { rmSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
-import { attemptPrebuilt, fetchPrebuilt, generateKeyPair } from '@/prebuilt';
+import { PrebuiltAttempt, PrebuiltFetch, PrebuiltKeys } from '@/prebuilt';
 import type { IPrebuiltHit, IPrebuiltMiss } from '@/prebuilt';
 import { TEMP_DIRECTORIES } from '../sources/source-repo.helper';
 import { startFakeGithub } from './fake-github.helper';
@@ -48,10 +48,10 @@ const fetchFixture = (
   opts: {
     keys?: string[];
     sha?: string;
-    limits?: Parameters<typeof fetchPrebuilt>[0]['limits'];
+    limits?: Parameters<typeof PrebuiltFetch.fetch>[0]['limits'];
   } = {},
 ) =>
-  fetchPrebuilt({
+  PrebuiltFetch.fetch({
     github: GITHUB,
     sha: opts.sha ?? fixture.sha,
     keys: opts.keys ?? [fixture.keys.publicKey],
@@ -93,7 +93,7 @@ describe('fetchPrebuilt: a verified pair is used (C10)', () => {
 describe('fetchPrebuilt: what the payload says must match what the reader holds (C12)', () => {
   test('a signature from a key that is not listed is a miss', async () => {
     serve(fixture);
-    const result2 = await fetchFixture({ keys: [generateKeyPair().publicKey] });
+    const result2 = await fetchFixture({ keys: [PrebuiltKeys.generatePair().publicKey] });
     expect(missOf({ result: result2 })).toBe('signature');
   });
 
@@ -277,7 +277,7 @@ describe('attemptPrebuilt asks the network only when it may (C15)', () => {
     serve(fixture);
     process.env.GITHUB_TOKEN = TOKEN;
 
-    const result = await attemptPrebuilt({
+    const result = await PrebuiltAttempt.attempt({
       enabled: input.enabled,
       source: { ...source, repo: input.repo },
       sha: fixture.sha,

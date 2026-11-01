@@ -2,26 +2,6 @@ import { StderrLogger } from '@/common/logger';
 
 const DEFAULT_INTERVAL_MS = 300_000;
 
-/**
- * How often a running server looks again at what it serves: `VULCAN_ATLAS_REFRESH_SECONDS`, five
- * minutes by default, and `undefined` (never) for `0`. An unreadable value is the default.
- */
-export const refreshIntervalMs = (): number | undefined => {
-  const raw = process.env.VULCAN_ATLAS_REFRESH_SECONDS;
-
-  if (raw === undefined || raw.trim() === '') {
-    return DEFAULT_INTERVAL_MS;
-  }
-
-  const seconds = Number(raw);
-
-  if (!Number.isFinite(seconds) || seconds < 0) {
-    return DEFAULT_INTERVAL_MS;
-  }
-
-  return seconds === 0 ? undefined : Math.round(seconds * 1000);
-};
-
 export interface IRefreshTarget {
   /** Looks again at one source and replaces its stores when something changed; a throw keeps the old ones. */
   refresh: () => Promise<void>;
@@ -74,5 +54,25 @@ export class Refresher {
         );
       }
     }
+  }
+
+  /**
+   * How often a running server looks again at what it serves: `VULCAN_ATLAS_REFRESH_SECONDS`, five
+   * minutes by default, and `undefined` (never) for `0`. An unreadable value is the default.
+   */
+  static configuredIntervalMs(): number | undefined {
+    const raw = process.env.VULCAN_ATLAS_REFRESH_SECONDS;
+
+    if (raw === undefined || raw.trim() === '') {
+      return DEFAULT_INTERVAL_MS;
+    }
+
+    const seconds = Number(raw);
+
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      return DEFAULT_INTERVAL_MS;
+    }
+
+    return seconds === 0 ? undefined : Math.round(seconds * 1000);
   }
 }

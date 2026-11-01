@@ -1,13 +1,13 @@
 import { ignisProjectAt } from '../fixtures/ignis-packages';
 import { IGNIS_PACKAGE_MAP } from '../fixtures/ignis-packages';
 import { AtlasConstants } from '@/common';
-import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
+import { Chunker, CorpusLoader, RepositoryRoots } from '@/corpus';
 import { Transport } from '@/protocol';
 import { ReleaseStore } from '@/releases';
 import type { IReleaseTable } from '@/releases';
 import { ChunkStore } from '@/search/store';
-import { buildChangesTool } from '@/tools/changes.tool';
-import { buildGetTool } from '@/tools/get.tool';
+import { ChangesTool } from '@/tools/changes.tool';
+import { GetTool } from '@/tools/get.tool';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
@@ -68,7 +68,7 @@ const callChanges = async (opts: {
   result?: { content: { type: string; text: string }[] };
 }> => {
   const transport = new Transport({
-    tools: [buildChangesTool({ releases: opts.releases })],
+    tools: [ChangesTool.build({ releases: opts.releases })],
     serverName: 'atlas-test',
     serverVersion: '0.0.0',
   });
@@ -333,7 +333,7 @@ describe.skipIf(!hasRepositoryRoots)('the P3 acceptance gate, over the real rele
       IGNIS_RELEASES === undefined ? { releases: {}, changelogs: [] } : JSON.parse(IGNIS_RELEASES),
   });
   const documents = CorpusLoader.getInstance().load({
-    roots: resolveRepositoryRoots({ project: ignisProjectAt({ root: REPOSITORY_ROOT }) }),
+    roots: RepositoryRoots.resolve({ project: ignisProjectAt({ root: REPOSITORY_ROOT }) }),
   });
   const chunker = Chunker.getInstance();
   const store = new ChunkStore();
@@ -341,7 +341,7 @@ describe.skipIf(!hasRepositoryRoots)('the P3 acceptance gate, over the real rele
   store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
 
   const getTransport = new Transport({
-    tools: [buildGetTool({ store })],
+    tools: [GetTool.build({ store })],
     serverName: 'atlas-test',
     serverVersion: '0.0.0',
   });

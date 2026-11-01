@@ -73,51 +73,53 @@ const tryAcquire = (opts: { lock: string; token: string }): boolean => {
   return true;
 };
 
-/**
- * Runs `run` holding the source's pull lock, so starts racing on one cold cache take turns: the first
- * pulls, the rest find its SHA complete. A lock a dead pull left behind is taken over; a live one is
- * waited for, within a bound.
- */
-export const withPullLock = async <TResult>(opts: {
-  cacheRoot: string;
-  label: string;
-  run: () => Promise<TResult>;
-}): Promise<TResult> => {
-  const lock = join(opts.cacheRoot, LOCK);
-  const token = randomUUID();
-  const deadline = Date.now() + WAIT_MS;
-  const logger = StderrLogger.get('withPullLock');
-  let waited = false;
+export class PullLock {
+  /**
+   * Runs `run` holding the source's pull lock, so starts racing on one cold cache take turns: the first
+   * pulls, the rest find its SHA complete. A lock a dead pull left behind is taken over; a live one is
+   * waited for, within a bound.
+   */
+  static async withPullLock<TResult>(opts: {
+    cacheRoot: string;
+    label: string;
+    run: () => Promise<TResult>;
+  }): Promise<TResult> {
+    const lock = join(opts.cacheRoot, LOCK);
+    const token = randomUUID();
+    const deadline = Date.now() + WAIT_MS;
+    const logger = StderrLogger.get('withPullLock');
+    let waited = false;
 
-  mkdirSync(opts.cacheRoot, { recursive: true });
+    mkdirSync(opts.cacheRoot, { recursive: true });
 
-  while (!tryAcquire({ lock, token })) {
-    if (isStale({ lock })) {
-      logger.warn(`took over a lock a dead pull left | lock: ${lock}`);
-      rmSync(lock, { recursive: true, force: true });
-      continue;
+    while (!tryAcquire({ lock, token })) {
+      if (isStale({ lock })) {
+        logger.warn(`took over a lock a dead pull left | lock: ${lock}`);
+        rmSync(lock, { recursive: true, force: true });
+        continue;
+      }
+
+      if (Date.now() > deadline) {
+        throw new Error(
+          `atlas: ${opts.label} - another pull has held ${lock} for over ${WAIT_MS / 60_000} minutes`,
+        );
+      }
+
+      if (!waited) {
+        logger.info(`waiting for another pull of the same source | lock: ${lock}`);
+        waited = true;
+      }
+
+      await Bun.sleep(POLL_MS);
     }
 
-    if (Date.now() > deadline) {
-      throw new Error(
-        `atlas: ${opts.label} - another pull has held ${lock} for over ${WAIT_MS / 60_000} minutes`,
-      );
+    try {
+      const result = await opts.run();
+      return result;
+    } finally {
+      if (ownerOf({ lock })?.token === token) {
+        rmSync(lock, { recursive: true, force: true });
+      }
     }
-
-    if (!waited) {
-      logger.info(`waiting for another pull of the same source | lock: ${lock}`);
-      waited = true;
-    }
-
-    await Bun.sleep(POLL_MS);
   }
-
-  try {
-    const result = await opts.run();
-    return result;
-  } finally {
-    if (ownerOf({ lock })?.token === token) {
-      rmSync(lock, { recursive: true, force: true });
-    }
-  }
-};
+}

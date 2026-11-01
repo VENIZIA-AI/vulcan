@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { toAtlasProject } from '@/common/project-config';
+import { ProjectConfig } from '@/common/project-config';
 import { AtlasReleases } from '@/releases/generator';
 import { isFormatted } from '../format.helper';
 
@@ -25,7 +25,7 @@ const changelog = (opts: { file: string }): void => {
   );
 };
 
-const PROJECT = toAtlasProject({
+const PROJECT = ProjectConfig.toAtlasProject({
   root: ROOT,
   manifest: {
     schemaVersion: 1,

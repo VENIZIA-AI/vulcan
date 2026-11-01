@@ -55,19 +55,21 @@ const messageOf = (opts: { issue: z.core.$ZodIssue }): string => {
   return path.length > 0 ? `${path}: ${reason}` : reason;
 };
 
-/** Parses `args` against `schema`; a failure throws `RpcError -32602` naming the first bad field. */
-export const parseInput = <TSchema extends z.ZodType>(opts: {
-  schema: TSchema;
-  args: unknown;
-}): z.infer<TSchema> => {
-  const result = opts.schema.safeParse(opts.args);
+export class ToolInput {
+  /** Parses `args` against `schema`; a failure throws `RpcError -32602` naming the first bad field. */
+  static parse<TSchema extends z.ZodType>(opts: {
+    schema: TSchema;
+    args: unknown;
+  }): z.infer<TSchema> {
+    const result = opts.schema.safeParse(opts.args);
 
-  if (!result.success) {
-    throw new RpcError({
-      code: RpcErrorCodes.INVALID_PARAMS,
-      message: messageOf({ issue: result.error.issues[0] }),
-    });
+    if (!result.success) {
+      throw new RpcError({
+        code: RpcErrorCodes.INVALID_PARAMS,
+        message: messageOf({ issue: result.error.issues[0] }),
+      });
+    }
+
+    return result.data;
   }
-
-  return result.data;
-};
+}

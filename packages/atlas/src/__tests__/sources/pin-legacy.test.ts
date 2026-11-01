@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { rmSync } from 'node:fs';
-import { toAtlasProject } from '@/common/project-config';
+import { ProjectConfig } from '@/common/project-config';
 import type { IReleaseTable } from '@/releases/common';
-import { decidePin } from '@/sources/pin';
+import { PinPolicy } from '@/sources/pin';
 import { install, makeTempDirectory, TEMP_DIRECTORIES } from './source-repo.helper';
 
 afterAll(() => {
@@ -21,7 +21,7 @@ const installed = (opts: { version: string }): string => {
 };
 
 const project = (opts: { root: string }) =>
-  toAtlasProject({
+  ProjectConfig.toAtlasProject({
     root: opts.root,
     manifest: {
       schemaVersion: 1,
@@ -44,14 +44,14 @@ const TABLE: IReleaseTable = {
 describe('decidePin across a tag rename', () => {
   test('an installed release of the old layout pins the tag it was read from, not one rebuilt from the template', () => {
     const root = installed({ version: '0.4.7' });
-    const decision = decidePin({ roots: [root], project: project({ root }), table: TABLE });
+    const decision = PinPolicy.decide({ roots: [root], project: project({ root }), table: TABLE });
 
     expect(decision).toMatchObject({ pinned: true, tag: 'v0.4.7' });
   });
 
   test('an installed release of the new layout pins the tag the current template names', () => {
     const root = installed({ version: '0.4.8' });
-    const decision = decidePin({ roots: [root], project: project({ root }), table: TABLE });
+    const decision = PinPolicy.decide({ roots: [root], project: project({ root }), table: TABLE });
 
     expect(decision).toMatchObject({ pinned: true, tag: 'vulcan-v0.4.8' });
   });

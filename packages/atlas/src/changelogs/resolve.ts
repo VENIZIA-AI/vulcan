@@ -1,4 +1,4 @@
-import { directoryOf } from '@/common/package-map';
+import { PackageMap } from '@/common/package-map';
 import type { IAtlasPackage } from '@/common/project-config';
 import { RecordValue } from '@/common/record';
 import { TextValue } from '@/common/text';
@@ -6,14 +6,6 @@ import { FRONTMATTER_PATTERN } from '@/corpus/frontmatter';
 
 const TABLE_ROW_PATTERN = /^\s*\|(.*)\|\s*$/;
 const TABLE_SEPARATOR_PATTERN = /^\s*\|[\s|:-]+\|\s*$/;
-
-export const resolveAll = (opts: { values: string[]; packages: IAtlasPackage[] }): string[] => {
-  const resolved = opts.values
-    .map((value) => directoryOf({ value, packages: opts.packages }))
-    .filter((name): name is string => name !== undefined);
-
-  return [...new Set(resolved)].sort((left, right) => TextValue.compare({ left, right }));
-};
 
 const cellsOf = (line: string): string[] => {
   const matched = line.match(TABLE_ROW_PATTERN);
@@ -88,53 +80,60 @@ const PACKAGE_PATH_PATTERN = /packages\/([a-z0-9-]+)/g;
 const bodyPathsOf = (opts: { body: string }): string[] =>
   [...opts.body.matchAll(PACKAGE_PATH_PATTERN)].map((match) => match[1]);
 
-export const splitFrontmatter = (text: string): { data: Record<string, unknown>; body: string } => {
-  const matched = text.match(FRONTMATTER_PATTERN);
+export class Resolve {
+  static resolveAll(opts: { values: string[]; packages: IAtlasPackage[] }): string[] {
+    const resolved = opts.values
+      .map((value) => PackageMap.directoryOf({ value, packages: opts.packages }))
+      .filter((name): name is string => name !== undefined);
 
-  if (!matched) {
-    return { data: {}, body: text };
+    return [...new Set(resolved)].sort((left, right) => TextValue.compare({ left, right }));
   }
 
-  const parsed: unknown = Bun.YAML.parse(matched[1]);
+  static splitFrontmatter(text: string): { data: Record<string, unknown>; body: string } {
+    const matched = text.match(FRONTMATTER_PATTERN);
 
-  return { data: RecordValue.orEmpty({ value: parsed }), body: text.slice(matched[0].length) };
-};
+    if (!matched) {
+      return { data: {}, body: text };
+    }
 
-/**
- * The packages one changelog file names, by the first rule that hits: a `packages:` frontmatter
- * list, a Details table's `Package` column, npm-name mentions, then `packages/<dir>` paths. Only the
- * configured packages count, retired ones included; a file none of the four answer for resolves to
- * none - it never guesses. `changelogs migrate` writes what this finds, once, for a human to review;
- * nothing else reads prose (Project Contract v1, C3).
- */
-export const resolveChangelogPackages = (opts: {
-  text: string;
-  packages: IAtlasPackage[];
-}): string[] => {
-  const { data, body } = splitFrontmatter(opts.text);
-  const { packages } = opts;
+    const parsed: unknown = Bun.YAML.parse(matched[1]);
 
-  const listed: unknown[] = Array.isArray(data.packages) ? data.packages : [];
-  const declared = resolveAll({
-    values: listed.filter((item): item is string => typeof item === 'string'),
-    packages,
-  });
-
-  if (declared.length > 0) {
-    return declared;
+    return { data: RecordValue.orEmpty({ value: parsed }), body: text.slice(matched[0].length) };
   }
 
-  const tabled = resolveAll({ values: packageColumnValuesOf({ body }), packages });
+  /**
+   * The packages one changelog file names, by the first rule that hits: a `packages:` frontmatter
+   * list, a Details table's `Package` column, npm-name mentions, then `packages/<dir>` paths. Only the
+   * configured packages count, retired ones included; a file none of the four answer for resolves to
+   * none - it never guesses. `changelogs migrate` writes what this finds, once, for a human to review;
+   * nothing else reads prose (Project Contract v1, C3).
+   */
+  static resolveChangelogPackages(opts: { text: string; packages: IAtlasPackage[] }): string[] {
+    const { data, body } = Resolve.splitFrontmatter(opts.text);
+    const { packages } = opts;
 
-  if (tabled.length > 0) {
-    return tabled;
+    const listed: unknown[] = Array.isArray(data.packages) ? data.packages : [];
+    const declared = Resolve.resolveAll({
+      values: listed.filter((item): item is string => typeof item === 'string'),
+      packages,
+    });
+
+    if (declared.length > 0) {
+      return declared;
+    }
+
+    const tabled = Resolve.resolveAll({ values: packageColumnValuesOf({ body }), packages });
+
+    if (tabled.length > 0) {
+      return tabled;
+    }
+
+    const mentioned = Resolve.resolveAll({ values: bodyMentionsOf({ body, packages }), packages });
+
+    if (mentioned.length > 0) {
+      return mentioned;
+    }
+
+    return Resolve.resolveAll({ values: bodyPathsOf({ body }), packages });
   }
-
-  const mentioned = resolveAll({ values: bodyMentionsOf({ body, packages }), packages });
-
-  if (mentioned.length > 0) {
-    return mentioned;
-  }
-
-  return resolveAll({ values: bodyPathsOf({ body }), packages });
-};
+}

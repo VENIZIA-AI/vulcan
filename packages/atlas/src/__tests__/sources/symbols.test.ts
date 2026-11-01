@@ -2,8 +2,8 @@ import { afterAll, afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { buildSourcesServer } from '@/server/index';
-import { resolveSources } from '@/sources';
+import { SourcesServer } from '@/server/index';
+import { SourceResolver } from '@/sources';
 import {
   makeSourceRepository,
   makeTempDirectory,
@@ -64,14 +64,14 @@ const serveKernel = () => {
 const symbolOf = async (opts: {
   cwd: string;
   name: string;
-  sources: Parameters<typeof resolveSources>[0]['sources'];
+  sources: Parameters<typeof SourceResolver.resolve>[0]['sources'];
 }) => {
-  const resolved = await resolveSources({ cwd: opts.cwd, cacheDir, sources: opts.sources });
+  const resolved = await SourceResolver.resolve({ cwd: opts.cwd, cacheDir, sources: opts.sources });
 
   // A start from cache asks npm again in the background; the answer waits for it here.
   await Promise.all(resolved.map((source) => source.symbolsPending ?? Promise.resolve()));
 
-  const result = await buildSourcesServer({
+  const result = await SourcesServer.build({
     sources: resolved,
     cwd: opts.cwd,
     version: '0.0.0',
@@ -137,7 +137,7 @@ test('npm down at the pull: the failure is logged, and the next start fetches th
   process.env.VULCAN_NPM_REGISTRY = NO_REGISTRY;
 
   try {
-    await resolveSources({ cwd, cacheDir, sources });
+    await SourceResolver.resolve({ cwd, cacheDir, sources });
 
     // Must run before `mockRestore()`: restoring a spy also clears its recorded calls.
     expect(errorSpy.mock.calls.map((call) => call.join(' ')).join('\n')).toContain(
@@ -170,7 +170,7 @@ test('a registry that stalls never holds up a start from cache', async () => {
   process.env.VULCAN_NPM_REGISTRY = NO_REGISTRY;
 
   try {
-    await resolveSources({ cwd, cacheDir, sources });
+    await SourceResolver.resolve({ cwd, cacheDir, sources });
 
     // Accepts and never answers.
     const stalled = Bun.serve({ port: 0, fetch: () => new Promise<Response>(() => undefined) });
@@ -178,7 +178,7 @@ test('a registry that stalls never holds up a start from cache', async () => {
     process.env.VULCAN_NPM_REGISTRY = `http://localhost:${stalled.port}`;
 
     const startedAt = performance.now();
-    const [resolved] = await resolveSources({ cwd, cacheDir, sources });
+    const [resolved] = await SourceResolver.resolve({ cwd, cacheDir, sources });
 
     expect(performance.now() - startedAt).toBeLessThan(5_000);
     expect(resolved.symbolsPending).toBeDefined();

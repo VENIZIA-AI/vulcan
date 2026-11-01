@@ -1,5 +1,5 @@
-import { readAtlasProject } from '@/common/project-config';
-import { migrateChangelogs } from './migrate';
+import { ProjectConfig } from '@/common/project-config';
+import { Migrate } from './migrate';
 
 const DRY_RUN_FLAG = '--dry-run';
 
@@ -12,7 +12,7 @@ export const runChangelogsCommand = (opts: { command?: string; argv: string[] })
   }
 
   const write = !opts.argv.includes(DRY_RUN_FLAG);
-  const report = migrateChangelogs({ project: readAtlasProject(), write });
+  const report = Migrate.migrateChangelogs({ project: ProjectConfig.readAtlasProject(), write });
   const verb = write ? 'wrote' : 'would write';
 
   for (const file of report.written) {

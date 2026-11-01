@@ -1,5 +1,5 @@
 import type { IChunk } from '@/corpus';
-import { packageAcrossSources } from '@/common/package-map';
+import { PackageMap } from '@/common/package-map';
 import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IChangelogRecord, IReleaseRecord, ReleaseStore } from '@/releases';
 import type { IHit } from '@/search/common';
@@ -201,7 +201,7 @@ export class SourceReleases {
       return this.sources[0];
     }
 
-    const owner = packageAcrossSources({
+    const owner = PackageMap.packageAcrossSources({
       value: opts.package,
       sources: this.sources.map((source) => ({
         source: source.name,

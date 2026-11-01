@@ -1,8 +1,8 @@
-import { compileReleaseTemplate } from '@/releases';
+import { ReleaseTemplate } from '@/releases';
 import { describe, expect, test } from 'bun:test';
 
 const groupsOf = (opts: { template: string; subject: string }) =>
-  compileReleaseTemplate({ template: opts.template }).exec(opts.subject)?.groups;
+  ReleaseTemplate.compile({ template: opts.template }).exec(opts.subject)?.groups;
 
 describe('compileReleaseTemplate', () => {
   const IGNIS_FORM = '[#<issue>] chore(<dir>): release v<version>';

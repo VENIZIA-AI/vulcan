@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
-import { declarationEntriesOf } from '@/common/package-entries';
+import { PackageEntries } from '@/common/package-entries';
 
 test('only export entries whose types are declaration files are read; css, json and js targets are skipped', () => {
-  const entries = declarationEntriesOf({
+  const entries = PackageEntries.declarationEntriesOf({
     exports: {
       '.': { types: './dist/index.d.ts', import: './dist/index.js' },
       './esm': { types: './dist/esm.d.mts' },

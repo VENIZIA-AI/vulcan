@@ -1,9 +1,9 @@
 import { BaseHelper } from '@/common/helper';
-import { isWithinDirectory } from '@/common/paths';
+import { DirectoryPath } from '@/common/paths';
 import { TextValue } from '@/common/text';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseFrontmatter } from './frontmatter';
+import { CorpusFrontmatter } from './frontmatter';
 import { CorpusExclusion } from './common';
 import type { ICorpusRoot, IDocument, ISkippedDocument } from './common';
 
@@ -45,7 +45,7 @@ export class CorpusLoader extends BaseHelper {
   private isOutside(opts: { path: string; within?: string }): boolean {
     if (
       opts.within === undefined ||
-      isWithinDirectory({ path: opts.path, directory: opts.within })
+      DirectoryPath.isWithin({ path: opts.path, directory: opts.within })
     ) {
       return false;
     }
@@ -93,7 +93,7 @@ export class CorpusLoader extends BaseHelper {
     const text = readFileSync(join(root.directory, relativePath), 'utf8');
 
     try {
-      const { data, body } = parseFrontmatter({ text, path: relativePath });
+      const { data, body } = CorpusFrontmatter.parse({ text, path: relativePath });
 
       return {
         corpus: root.corpus,

@@ -1,5 +1,5 @@
 import { BaseHelper } from '@/common/helper';
-import { packageOfQuery } from '@/common/package-map';
+import { PackageMap } from '@/common/package-map';
 import type { IPackageMapEntry } from '@/common/package-map';
 import { TextValue } from '@/common/text';
 import type { ISymbolRecord } from './common';
@@ -151,10 +151,10 @@ export class SymbolStore extends BaseHelper {
     }
 
     const packageMap = this.packageMap;
-    const wanted = packageOfQuery({ value: opts.package, packageMap });
+    const wanted = PackageMap.packageOfQuery({ value: opts.package, packageMap });
 
     return found.filter(
-      (record) => packageOfQuery({ value: record.package, packageMap }) === wanted,
+      (record) => PackageMap.packageOfQuery({ value: record.package, packageMap }) === wanted,
     );
   }
 

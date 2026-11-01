@@ -1,5 +1,5 @@
 import { BaseHelper } from '@/common/helper';
-import { packageOfDirectory, packageOfQuery } from '@/common/package-map';
+import { PackageMap } from '@/common/package-map';
 import type { IPackageMapEntry } from '@/common/package-map';
 import { TextValue } from '@/common/text';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
@@ -30,7 +30,7 @@ export class ReleaseStore extends BaseHelper {
 
     // The table is keyed by directory; the store by npm name, the identity every answer carries.
     const nameOf = (dir: string): string =>
-      packageOfDirectory({ dir, packageMap: this.packageMap });
+      PackageMap.packageOfDirectory({ dir, packageMap: this.packageMap });
 
     for (const [dir, records] of tableReleasesEntries) {
       this.releases.set(nameOf(dir), records);
@@ -74,7 +74,7 @@ export class ReleaseStore extends BaseHelper {
 
   /** A package a tool was asked about, as its npm name - what the store is keyed by. */
   packageOf(opts: { package: string }): string {
-    return packageOfQuery({ value: opts.package, packageMap: this.packageMap });
+    return PackageMap.packageOfQuery({ value: opts.package, packageMap: this.packageMap });
   }
 
   /** Whether the package is declared in the project's package list or has a release - released or not. */

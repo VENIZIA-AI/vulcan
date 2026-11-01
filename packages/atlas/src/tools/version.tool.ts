@@ -4,8 +4,8 @@ import type { IReleaseIndex } from '@/releases';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
-import { installRootsOf } from '@/sources/installed';
-import { parseInput, ToolTriggers, VersionInputSchema } from './common';
+import { InstalledPackages } from '@/sources/installed';
+import { ToolInput, ToolTriggers, VersionInputSchema } from './common';
 
 const DESCRIPTION =
   'Compare the @venizia/* packages installed in a directory against the newest versions this ' +
@@ -224,69 +224,75 @@ const behindOf = (opts: {
   return rows;
 };
 
-export const buildVersionTool = (opts: {
-  releases: IReleaseIndex;
-  projects?: string;
-}): IToolHandler => ({
-  definition: {
-    name: 'version',
-    description: `${ToolTriggers.version({ projects: opts.projects })} ${DESCRIPTION}`,
-    inputSchema: INPUT_JSON_SCHEMA,
-  },
-  call: async ({ args }) => {
-    const input = parseInput({ schema: VersionInputSchema, args });
+export class VersionTool {
+  static build(opts: { releases: IReleaseIndex; projects?: string }): IToolHandler {
+    return {
+      definition: {
+        name: 'version',
+        description: `${ToolTriggers.version({ projects: opts.projects })} ${DESCRIPTION}`,
+        inputSchema: INPUT_JSON_SCHEMA,
+      },
+      call: async ({ args }) => {
+        const input = ToolInput.parse({ schema: VersionInputSchema, args });
 
-    // Dated entries without a release (no git history) still give no version to compare.
-    if (opts.releases.packages().length === 0) {
-      throw new RpcError({
-        code: RpcErrorCodes.INVALID_PARAMS,
-        message: opts.releases.emptyReason,
-      });
-    }
-
-    const cwd = input.cwd ?? process.cwd();
-    const manifest = readManifest({ file: join(cwd, 'package.json') });
-
-    const installed: Record<string, string | null> = {};
-    const declared = declaredOf({ manifest });
-
-    for (const { name, spec, isDirect } of declared) {
-      const version = installedVersionOf({ cwd, name, spec, isDirect, declared });
-
-      // A pin of a transitive dependency that nothing installed is not something this project has.
-      if (version !== null || isDirect) {
-        installed[name] = version;
-      }
-    }
-
-    // A monorepo declares its framework in its apps and installs it beside them, not at the root.
-    for (const root of installRootsOf({ cwd }).filter((candidate) => candidate !== cwd)) {
-      const appDeclared = declaredOf({
-        manifest: readManifest({ file: join(root, 'package.json') }),
-      });
-
-      for (const { name, spec, isDirect } of appDeclared) {
-        if (installed[name] !== undefined && installed[name] !== null) {
-          continue;
+        // Dated entries without a release (no git history) still give no version to compare.
+        if (opts.releases.packages().length === 0) {
+          throw new RpcError({
+            code: RpcErrorCodes.INVALID_PARAMS,
+            message: opts.releases.emptyReason,
+          });
         }
 
-        const version =
-          installedVersionOf({ cwd: root, name, spec, isDirect, declared: appDeclared }) ??
-          installedVersionOf({ cwd, name, spec, isDirect, declared });
+        const cwd = input.cwd ?? process.cwd();
+        const manifest = readManifest({ file: join(cwd, 'package.json') });
 
-        if (version !== null) {
-          installed[name] = version;
+        const installed: Record<string, string | null> = {};
+        const declared = declaredOf({ manifest });
+
+        for (const { name, spec, isDirect } of declared) {
+          const version = installedVersionOf({ cwd, name, spec, isDirect, declared });
+
+          // A pin of a transitive dependency that nothing installed is not something this project has.
+          if (version !== null || isDirect) {
+            installed[name] = version;
+          }
         }
-      }
-    }
 
-    const snapshot = snapshotOf({ releases: opts.releases, live: opts.releases.livePackages() });
-    const response: IVersionResponse = {
-      installed,
-      snapshot,
-      behind: behindOf({ releases: opts.releases, installed, snapshot }),
+        // A monorepo declares its framework in its apps and installs it beside them, not at the root.
+        for (const root of InstalledPackages.installRootsOf({ cwd }).filter(
+          (candidate) => candidate !== cwd,
+        )) {
+          const appDeclared = declaredOf({
+            manifest: readManifest({ file: join(root, 'package.json') }),
+          });
+
+          for (const { name, spec, isDirect } of appDeclared) {
+            if (installed[name] !== undefined && installed[name] !== null) {
+              continue;
+            }
+
+            const version =
+              installedVersionOf({ cwd: root, name, spec, isDirect, declared: appDeclared }) ??
+              installedVersionOf({ cwd, name, spec, isDirect, declared });
+
+            if (version !== null) {
+              installed[name] = version;
+            }
+          }
+        }
+
+        const snapshot = snapshotOf({
+          releases: opts.releases,
+          live: opts.releases.livePackages(),
+        });
+        const response: IVersionResponse = {
+          installed,
+          snapshot,
+          behind: behindOf({ releases: opts.releases, installed, snapshot }),
+        };
+
+        return response;
+      },
     };
-
-    return response;
-  },
-});
+  }
+}

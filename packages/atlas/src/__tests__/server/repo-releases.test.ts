@@ -1,4 +1,4 @@
-import { buildServer } from '@/server';
+import { ServerFactory } from '@/server';
 import { afterAll, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -41,7 +41,7 @@ test('repo mode answers changes from git: tags and declared changelogs, no relea
   git(['commit', '-q', '-m', 'docs: faster']);
   git(['tag', 'core-v1.1.0']);
 
-  const transport = buildServer({ root: ROOT, version: '0.0.0' });
+  const transport = ServerFactory.build({ root: ROOT, version: '0.0.0' });
   const result2 = await transport.handleLine({
     line: JSON.stringify({
       jsonrpc: '2.0',
@@ -76,7 +76,7 @@ test('repo mode with no tag the pattern reads says so on version and changes', a
     );
     execFileSync('git', ['init', '-q', '-b', 'develop'], { cwd: root, stdio: 'ignore' });
 
-    const transport = buildServer({ root, version: '0.0.0' });
+    const transport = ServerFactory.build({ root, version: '0.0.0' });
     const call = async (opts: { name: string; arguments: object }) => {
       const line = await transport.handleLine({
         line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: opts }),
@@ -130,7 +130,7 @@ const changesErrorOf = async (opts: { changelogs?: string }): Promise<string> =>
     run(['commit', '-q', '-m', 'init']);
     run(['tag', 'core-v1.0.0']);
 
-    const transport = buildServer({ root, version: '0.0.0' });
+    const transport = ServerFactory.build({ root, version: '0.0.0' });
     const result = await transport.handleLine({
       line: JSON.stringify({
         jsonrpc: '2.0',

@@ -1,4 +1,4 @@
-import { recordOf } from '@/prebuilt/wire';
+import { WireValue } from '@/common/wire';
 
 /** One request the fake saw: which of its two servers, the method, the path and whether it carried a credential. */
 export interface IFakeRequest {
@@ -129,7 +129,7 @@ export const startFakeGithub = (opts: { owner: string; repo: string }): IFakeGit
 
         options.release = true;
         const result = await request.json();
-        releasesCreated.push(recordOf({ value: result }));
+        releasesCreated.push(WireValue.recordOf({ value: result }));
 
         const result2 = await release().text();
         return new Response(result2, { status: 201 });

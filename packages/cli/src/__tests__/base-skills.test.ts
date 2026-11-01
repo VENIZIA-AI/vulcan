@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../common/index.ts';
 import { lintSkill } from '../doctor/index.ts';
-import { triggerOf } from '@venizia/vulcan-atlas';
+import { SkillCatalog } from '@venizia/vulcan-atlas';
 import { frontmatterOf } from '../skills/index.ts';
 import { VisualizeLimits } from '../visualize/index.ts';
 
@@ -68,8 +68,9 @@ test('every shipped skill says when to use it, in a "Use when" sentence', () => 
       text: readFileSync(join(SKILLS_DIRECTORY, name, 'SKILL.md'), 'utf8'),
     }).data;
 
-    return !triggerOf({ description: typeof description === 'string' ? description : '' })
-      .hasUseWhen;
+    return !SkillCatalog.triggerOf({
+      description: typeof description === 'string' ? description : '',
+    }).hasUseWhen;
   });
 
   expect(names.length).toBeGreaterThan(0);
@@ -113,7 +114,7 @@ describe('the shipped agent-work skills', () => {
 
     expect(description.length).toBeLessThanOrEqual(700);
     expect(description).toContain('Use when');
-    expect(triggerOf({ description }).text.length).toBeGreaterThan(0);
+    expect(SkillCatalog.triggerOf({ description }).text.length).toBeGreaterThan(0);
   });
 
   test.each(NAMES)('%s has evals with a prompt, an expected output and no project name', (name) => {

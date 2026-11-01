@@ -3,12 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import {
-  cachedSymbols,
-  symbolsCacheDirectory,
-  symbolsOfInstalled,
-  symbolsOfPublished,
-} from '@/symbols';
+import { SymbolCompute } from '@/symbols';
 import { restoreVariable } from '../env.helper';
 
 const roots: string[] = [];
@@ -61,7 +56,7 @@ describe('symbolsOfInstalled (D2)', () => {
 
     write({ root: join(consumer, 'node_modules/@x/kit'), files: KIT });
 
-    const symbols = symbolsOfInstalled({
+    const symbols = SymbolCompute.symbolsOfInstalled({
       cacheBase: cacheDir,
       directory: join(consumer, 'node_modules/@x/kit'),
     });
@@ -95,7 +90,7 @@ describe('symbolsOfInstalled (D2)', () => {
     });
 
     try {
-      const symbols = symbolsOfInstalled({ cacheBase: cacheDir, directory });
+      const symbols = SymbolCompute.symbolsOfInstalled({ cacheBase: cacheDir, directory });
       const warnings = warnSpy.mock.calls.map((call) => String(call[0]));
 
       expect(symbols.map((symbol) => symbol.name).sort()).toEqual(['Kit', 'greet']);
@@ -112,14 +107,16 @@ describe('symbolsOfInstalled (D2)', () => {
     const directory = join(consumer, 'node_modules/@x/kit');
 
     write({ root: directory, files: KIT });
-    symbolsOfInstalled({ cacheBase: cacheDir, directory });
+    SymbolCompute.symbolsOfInstalled({ cacheBase: cacheDir, directory });
     rmSync(join(directory, 'dist'), { recursive: true });
 
     expect(
-      existsSync(join(symbolsCacheDirectory({ cacheBase: cacheDir }), '@x+kit@1.2.0.json')),
+      existsSync(
+        join(SymbolCompute.symbolsCacheDirectory({ cacheBase: cacheDir }), '@x+kit@1.2.0.json'),
+      ),
     ).toBe(true);
     expect(
-      symbolsOfInstalled({ cacheBase: cacheDir, directory })
+      SymbolCompute.symbolsOfInstalled({ cacheBase: cacheDir, directory })
         .map((symbol) => symbol.name)
         .sort(),
     ).toEqual(['Kit', 'greet']);
@@ -138,25 +135,30 @@ describe('the symbols cache', () => {
           'package.json': JSON.stringify({ ...JSON.parse(KIT['package.json']), name }),
         },
       });
-      symbolsOfInstalled({ cacheBase: cacheDir, directory: join(consumer, 'node_modules', name) });
+      SymbolCompute.symbolsOfInstalled({
+        cacheBase: cacheDir,
+        directory: join(consumer, 'node_modules', name),
+      });
     }
 
     expect(
-      cachedSymbols({ cacheBase: cacheDir, name: '@a/b__c', version: '1.2.0' })?.[0]?.package,
+      SymbolCompute.cached({ cacheBase: cacheDir, name: '@a/b__c', version: '1.2.0' })?.[0]
+        ?.package,
     ).toBe('@a/b__c');
     expect(
-      cachedSymbols({ cacheBase: cacheDir, name: '@a__b/c', version: '1.2.0' })?.[0]?.package,
+      SymbolCompute.cached({ cacheBase: cacheDir, name: '@a__b/c', version: '1.2.0' })?.[0]
+        ?.package,
     ).toBe('@a__b/c');
   });
 
   test('a name or a version that could leave the cache directory is refused', async () => {
     expect(() =>
-      cachedSymbols({ cacheBase: cacheDir, name: '../../escape', version: '1.0.0' }),
+      SymbolCompute.cached({ cacheBase: cacheDir, name: '../../escape', version: '1.0.0' }),
     ).toThrow("atlas: '../../escape' is not an npm package name");
     expect(() =>
-      cachedSymbols({ cacheBase: cacheDir, name: '@x/kit', version: '1.0.0/../../escape' }),
+      SymbolCompute.cached({ cacheBase: cacheDir, name: '@x/kit', version: '1.0.0/../../escape' }),
     ).toThrow("atlas: '1.0.0/../../escape' is not a version");
-    const result = await symbolsOfPublished({
+    const result = await SymbolCompute.symbolsOfPublished({
       cacheBase: cacheDir,
       name: '@x/kit',
       version: '1.0.0/../x',
@@ -187,12 +189,12 @@ describe('symbolsOfPublished (D2)', () => {
     process.env.VULCAN_NPM_REGISTRY = `http://localhost:${registry.port}`;
 
     try {
-      const first = await symbolsOfPublished({
+      const first = await SymbolCompute.symbolsOfPublished({
         cacheBase: cacheDir,
         name: '@x/kit',
         version: '1.2.0',
       });
-      const second = await symbolsOfPublished({
+      const second = await SymbolCompute.symbolsOfPublished({
         cacheBase: cacheDir,
         name: '@x/kit',
         version: '1.2.0',
@@ -215,7 +217,7 @@ describe('symbolsOfPublished (D2)', () => {
     process.env.VULCAN_NPM_REGISTRY = `http://localhost:${registry.port}`;
 
     try {
-      const failure = await symbolsOfPublished({
+      const failure = await SymbolCompute.symbolsOfPublished({
         cacheBase: cacheDir,
         name: '@x/kit',
         version: '9.9.9',

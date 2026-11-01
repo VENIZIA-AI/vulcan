@@ -51,7 +51,7 @@ import {
   violationLogBytes,
   ViolationConstants,
 } from '../owner/index.ts';
-import { skillCatalogOf, triggerOf } from '@venizia/vulcan-atlas';
+import { SkillCatalog } from '@venizia/vulcan-atlas';
 import { trustOf, TrustStates } from '../hooks/index.ts';
 import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
@@ -971,8 +971,8 @@ export const checkAtlasBlock = (opts: ICheckContext): IViolation[] => {
 
 /** A skill with no "Use when" part gives the atlas server's instructions nothing to say when to load it: a warning, never a failure. */
 export const checkSkillTriggers = (opts: ICheckContext): IViolation[] =>
-  skillCatalogOf({ root: opts.root })
-    .filter((entry) => !triggerOf({ description: entry.description }).hasUseWhen)
+  SkillCatalog.catalogOf({ root: opts.root })
+    .filter((entry) => !SkillCatalog.triggerOf({ description: entry.description }).hasUseWhen)
     .map((entry) =>
       createViolation({
         check: DoctorChecks.SKILLS,
