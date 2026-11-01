@@ -247,6 +247,23 @@ describe('computeReleases on the edges of a repository', () => {
     ]);
   });
 
+  test('prose is never read: a changelog with a package table but no packages list declares none (C3)', () => {
+    const prose = scratch();
+
+    prose.write(
+      'changes/2026-01-01-prose.md',
+      '---\ntitle: Prose\n---\n\n| Package | Change |\n|---|---|\n| @a/web | a change |\n',
+    );
+    prose.git(['add', '-A']);
+    prose.git(['commit', '-q', '-m', 'docs: prose']);
+
+    const table = computeReleases({ project: projectAt({ root: prose.root }) });
+
+    expect(
+      table.changelogs.map((entry) => ({ title: entry.title, packages: entry.packages })),
+    ).toEqual([{ title: 'Prose', packages: [] }]);
+  });
+
   test('a CRLF changelog still declares its packages', () => {
     const crlf = scratch();
 

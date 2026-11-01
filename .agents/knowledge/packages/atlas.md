@@ -8,7 +8,7 @@ tags: [packages, atlas, mcp]
 # atlas - `@venizia/vulcan-atlas`
 
 Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vulcan x atlas pull`,
-`vulcan x atlas <surface|symbols|releases> <gen|check>`, or `vulcan x atlas concepts <stamp|check>`.
+`vulcan x atlas surface <gen|check>`, `vulcan x atlas <symbols|releases>` (print what they read, no subcommand), or `vulcan x atlas concepts <stamp|check>`.
 `vulcan x atlas tools` lists the tools and `--help` prints the usage, both without an MCP client.
 
 - **What it serves**: the project it runs in, read live from its manifest

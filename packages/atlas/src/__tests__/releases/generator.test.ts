@@ -1,8 +1,9 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, spyOn, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { resolveChangelogPackages } from '@/changelogs';
-import { AtlasReleases } from '@/releases/generator';
+import { kindOfChangelog, titleOfChangelog } from '@/releases/compute';
+import { AtlasReleases, runReleasesCommand } from '@/releases/generator';
 import { toAtlasProject } from '@/common/project-config';
 import { IGNIS_PACKAGES } from '../fixtures/ignis-packages';
 import {
@@ -116,27 +117,27 @@ describe('resolveChangelogPackages - what migrate writes', () => {
   });
 });
 
-describe('AtlasReleases.kindOf', () => {
+describe('kindOfChangelog', () => {
   test('reads the first badge text', () => {
     const text = '# Changelog\n\n<Badge type="tip" text="New Feature" />\n';
 
-    expect(AtlasReleases.kindOf({ text })).toBe('New Feature');
+    expect(kindOfChangelog({ text })).toBe('New Feature');
   });
 
   test('a file with no badge has no kind', () => {
-    expect(AtlasReleases.kindOf({ text: '# Changelog\n\nProse.\n' })).toBeNull();
+    expect(kindOfChangelog({ text: '# Changelog\n\nProse.\n' })).toBeNull();
   });
 });
 
-describe('AtlasReleases.titleOf', () => {
+describe('titleOfChangelog', () => {
   test('reads the frontmatter title', () => {
     const text = withFrontmatter({ frontmatter: 'title: A Real Title', body: '# Changelog' });
 
-    expect(AtlasReleases.titleOf({ text, file: '2026-01-01-thing.md' })).toBe('A Real Title');
+    expect(titleOfChangelog({ text, file: '2026-01-01-thing.md' })).toBe('A Real Title');
   });
 
   test('falls back to the file stem rather than an empty title', () => {
-    expect(AtlasReleases.titleOf({ text: '# Changelog\n', file: '2026-01-01-thing.md' })).toBe(
+    expect(titleOfChangelog({ text: '# Changelog\n', file: '2026-01-01-thing.md' })).toBe(
       '2026-01-01-thing',
     );
   });
@@ -313,25 +314,40 @@ describe('AtlasReleases with project packages', () => {
   });
 });
 
-describe('AtlasReleases.packagesOf reads the declared list only (C3)', () => {
-  test('prose names no package any more - a Package column without a declared list is none', () => {
-    const text = withFrontmatter({
-      frontmatter: 'title: A change',
-      body: '| Package | Change |\n|---|---|\n| kernel | faster |',
-    });
-
-    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([]);
-  });
-
+describe('resolveChangelogPackages - a declared list (C3)', () => {
   test('a declared list of npm names resolves to the packages it names', () => {
     const text = withFrontmatter({
       frontmatter: "title: A change\npackages: ['@venizia/ignis', '@venizia/ignis-docs-mcp']",
       body: 'Body.',
     });
 
-    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([
+    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
       'core-server',
       'docs-mcp',
     ]);
+  });
+});
+
+describe('runReleasesCommand', () => {
+  test('a subcommand word prints the usage naming it and exits 2; a flag is ignored', () => {
+    const error = spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      expect(runReleasesCommand({ command: 'gen' })).toBe(2);
+      expect(error).toHaveBeenCalledWith(
+        "usage: vulcan x atlas releases (no subcommand: 'gen' is not one)",
+      );
+      error.mockClear();
+      // A flag gets past the argument check: whatever happens next (here, no manifest in a test) is not the usage.
+      try {
+        runReleasesCommand({ command: '--root' });
+      } catch {
+        // The real command reads the project; only the usage line matters here.
+      }
+
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
   });
 });

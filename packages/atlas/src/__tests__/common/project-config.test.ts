@@ -2,7 +2,7 @@ import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { knownPackageDirs, livePackageDirs, readAtlasProject } from '@/common/project-config';
+import { livePackageDirs, readAtlasProject } from '@/common/project-config';
 import { directoryOf } from '@/common/package-map';
 import { clearAtlasProject, useAtlasProject } from '../project.helper';
 
@@ -131,7 +131,7 @@ describe('readAtlasProject', () => {
 });
 
 describe('live and known packages', () => {
-  test('a retired package keeps its changelog entries but is not walked by surface', () => {
+  test('a retired package is not walked by surface', () => {
     useAtlasProject({
       root: ROOT,
       manifest: {
@@ -144,7 +144,6 @@ describe('live and known packages', () => {
     const project = readAtlasProject();
 
     expect(livePackageDirs({ project })).toEqual(['kernel']);
-    expect(knownPackageDirs({ project })).toEqual(['kernel', 'docs-mcp']);
   });
 
   test('no live package: surface and symbols have nothing to walk and say what to add', () => {

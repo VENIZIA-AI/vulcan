@@ -3,9 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   layoutFolderProblem,
-  layoutKeyOfFolder,
   layoutOverlapProblems,
-  layoutProblems,
   validLayoutFolders,
   withLayoutFolder,
 } from '../../common/layout-folder.ts';
@@ -77,13 +75,6 @@ describe('the layout as a whole', () => {
     ).toEqual([]);
   });
 
-  test('layoutProblems adds the folders that are not folders, and skips them in the overlaps', () => {
-    const problems = layoutProblems({ layout: { backend: ['../x', 'a'], frontend: 'a' } });
-
-    expect(problems.some((problem) => problem.startsWith('layout.backend: '))).toBe(true);
-    expect(problems.some((problem) => problem.includes("names 'a' again"))).toBe(true);
-  });
-
   test('a string grows into a list, a listed folder changes nothing, none makes a string', () => {
     expect(withLayoutFolder({ value: undefined, folder: 'a' })).toBe('a');
     expect(withLayoutFolder({ value: 'a', folder: 'a' })).toBe('a');
@@ -92,13 +83,7 @@ describe('the layout as a whole', () => {
     expect(withLayoutFolder({ value: ['a', 'b'], folder: 'c' })).toEqual(['a', 'b', 'c']);
   });
 
-  test('the key of a folder is the exact folder, and only a valid one counts', () => {
-    const layout = { backend: 'umbras', frontend: ['auroras/apps', '../bad'], other: 'docs' };
-
-    expect(layoutKeyOfFolder({ layout, folder: 'auroras/apps' })).toBe('frontend');
-    expect(layoutKeyOfFolder({ layout, folder: 'docs' })).toBe('other');
-    expect(layoutKeyOfFolder({ layout, folder: 'auroras' })).toBeUndefined();
-    expect(layoutKeyOfFolder({ layout, folder: '../bad' })).toBeUndefined();
+  test('only the valid folders of a layout value are kept', () => {
     expect(validLayoutFolders({ value: ['a', 7, '../x', 'b/c'] })).toEqual(['a', 'b/c']);
   });
 });

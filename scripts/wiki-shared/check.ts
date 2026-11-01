@@ -30,14 +30,27 @@ const REMOTES: Record<string, string> = {
 
 type TVerdict = { name: string; state: 'in-step' | 'drifted' | 'missing'; detail: string };
 
-/** One wiki against the canonical manifest. `theirs` is null when it has no shared folder yet. */
+/** A fetch that answered with a status that is not ok: what the verdict says when it is not a 404. */
+type TFetchFailure = { status: number; url: string };
+
+/**
+ * One wiki against the canonical manifest. `theirs` is null when it could not be read: with no
+ * shared folder yet (a 404, or a checkout without the folder), or, when `failure` says so, because
+ * the fetch answered with another status (a rate limit, a server error), which the detail names.
+ */
 export const compare = (opts: {
   name: string;
   canonical: TManifest;
   theirs: TManifest | null;
+  failure?: TFetchFailure;
 }): TVerdict => {
   if (opts.theirs === null) {
-    return { name: opts.name, state: 'missing', detail: 'no shared folder yet' };
+    const detail =
+      opts.failure !== undefined && opts.failure.status !== 404
+        ? `HTTP ${opts.failure.status} from ${opts.failure.url}`
+        : 'no shared folder yet';
+
+    return { name: opts.name, state: 'missing', detail };
   }
 
   const drift = diffFiles({ expected: opts.canonical.files, actual: opts.theirs.files });
@@ -62,10 +75,17 @@ export const compare = (opts: {
 const localManifest = (opts: { path: string }): TManifest | null =>
   existsSync(join(opts.path, SHARED_DIR)) ? buildManifest({ root: opts.path }) : null;
 
-const remoteManifest = async (opts: { base: string }): Promise<TManifest | null> => {
-  const response = await fetch(`${opts.base}/${SHARED_DIR}/${MANIFEST_FILE}`);
+const remoteManifest = async (opts: {
+  base: string;
+}): Promise<{ manifest: TManifest | null; failure?: TFetchFailure }> => {
+  const url = `${opts.base}/${SHARED_DIR}/${MANIFEST_FILE}`;
+  const response = await fetch(url);
 
-  return response.ok ? parseManifest({ text: await response.text() }) : null;
+  if (!response.ok) {
+    return { manifest: null, failure: { status: response.status, url } };
+  }
+
+  return { manifest: parseManifest({ text: await response.text() }) };
 };
 
 if (import.meta.main) {
@@ -88,7 +108,9 @@ if (import.meta.main) {
 
   if (remote) {
     for (const [name, base] of Object.entries(REMOTES)) {
-      verdicts.push(compare({ name, canonical, theirs: await remoteManifest({ base }) }));
+      const { manifest, failure } = await remoteManifest({ base });
+
+      verdicts.push(compare({ name, canonical, theirs: manifest, failure }));
     }
   }
 
