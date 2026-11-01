@@ -10,17 +10,7 @@
  */
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import {
-  buildManifest,
-  describeDrift,
-  diffFiles,
-  isInStep,
-  parseManifest,
-  readManifest,
-  SHARED_DIR,
-  MANIFEST_FILE,
-  type TManifest,
-} from './manifest.ts';
+import { SharedManifest, SHARED_DIR, MANIFEST_FILE, type TManifest } from './manifest.ts';
 
 const CANONICAL = resolve(import.meta.dir, '..', '..');
 const REMOTES: Record<string, string> = {
@@ -33,47 +23,55 @@ type TVerdict = { name: string; state: 'in-step' | 'drifted' | 'missing'; detail
 /** A fetch that answered with a status that is not ok: what the verdict says when it is not a 404. */
 type TFetchFailure = { status: number; url: string };
 
-/**
- * One wiki against the canonical manifest. `theirs` is null when it could not be read: with no
- * shared folder yet (a 404, or a checkout without the folder), or, when `failure` says so, because
- * the fetch answered with another status (a rate limit, a server error), which the detail names.
- */
-export const compare = (opts: {
-  name: string;
-  canonical: TManifest;
-  theirs: TManifest | null;
-  failure?: TFetchFailure;
-}): TVerdict => {
-  if (opts.theirs === null) {
-    const detail =
-      opts.failure !== undefined && opts.failure.status !== 404
-        ? `HTTP ${opts.failure.status} from ${opts.failure.url}`
-        : 'no shared folder yet';
+export class SharedCheck {
+  /**
+   * One wiki against the canonical manifest. `theirs` is null when it could not be read: with no
+   * shared folder yet (a 404, or a checkout without the folder), or, when `failure` says so, because
+   * the fetch answered with another status (a rate limit, a server error), which the detail names.
+   */
+  static compare(opts: {
+    name: string;
+    canonical: TManifest;
+    theirs: TManifest | null;
+    failure?: TFetchFailure;
+  }): TVerdict {
+    if (opts.theirs === null) {
+      const detail =
+        opts.failure !== undefined && opts.failure.status !== 404
+          ? `HTTP ${opts.failure.status} from ${opts.failure.url}`
+          : 'no shared folder yet';
 
-    return { name: opts.name, state: 'missing', detail };
-  }
+      return { name: opts.name, state: 'missing', detail };
+    }
 
-  const drift = diffFiles({ expected: opts.canonical.files, actual: opts.theirs.files });
+    const drift = SharedManifest.diffFiles({
+      expected: opts.canonical.files,
+      actual: opts.theirs.files,
+    });
 
-  if (isInStep({ drift }) && opts.theirs.fingerprint === opts.canonical.fingerprint) {
+    if (
+      SharedManifest.isInStep({ drift }) &&
+      opts.theirs.fingerprint === opts.canonical.fingerprint
+    ) {
+      return {
+        name: opts.name,
+        state: 'in-step',
+        detail: `fingerprint ${opts.canonical.fingerprint.slice(0, 12)}`,
+      };
+    }
+
     return {
       name: opts.name,
-      state: 'in-step',
-      detail: `fingerprint ${opts.canonical.fingerprint.slice(0, 12)}`,
+      state: 'drifted',
+      detail: SharedManifest.isInStep({ drift })
+        ? 'the fingerprint differs from its own files'
+        : SharedManifest.describeDrift({ drift }),
     };
   }
-
-  return {
-    name: opts.name,
-    state: 'drifted',
-    detail: isInStep({ drift })
-      ? 'the fingerprint differs from its own files'
-      : describeDrift({ drift }),
-  };
-};
+}
 
 const localManifest = (opts: { path: string }): TManifest | null =>
-  existsSync(join(opts.path, SHARED_DIR)) ? buildManifest({ root: opts.path }) : null;
+  existsSync(join(opts.path, SHARED_DIR)) ? SharedManifest.build({ root: opts.path }) : null;
 
 const remoteManifest = async (opts: {
   base: string;
@@ -85,13 +83,14 @@ const remoteManifest = async (opts: {
     return { manifest: null, failure: { status: response.status, url } };
   }
 
-  return { manifest: parseManifest({ text: await response.text() }) };
+  return { manifest: SharedManifest.parse({ text: await response.text() }) };
 };
 
 if (import.meta.main) {
   const remote = process.argv.includes('--remote');
   const paths = process.argv.slice(2).filter((argument) => !argument.startsWith('--'));
-  const canonical = readManifest({ root: CANONICAL }) ?? buildManifest({ root: CANONICAL });
+  const canonical =
+    SharedManifest.read({ root: CANONICAL }) ?? SharedManifest.build({ root: CANONICAL });
 
   if (!remote && paths.length === 0) {
     console.error('check: name the checkouts to compare (../ignis ../ardor) or pass --remote');
@@ -102,7 +101,11 @@ if (import.meta.main) {
 
   for (const path of paths) {
     verdicts.push(
-      compare({ name: path, canonical, theirs: localManifest({ path: resolve(path) }) }),
+      SharedCheck.compare({
+        name: path,
+        canonical,
+        theirs: localManifest({ path: resolve(path) }),
+      }),
     );
   }
 
@@ -110,7 +113,7 @@ if (import.meta.main) {
     for (const [name, base] of Object.entries(REMOTES)) {
       const { manifest, failure } = await remoteManifest({ base });
 
-      verdicts.push(compare({ name, canonical, theirs: manifest, failure }));
+      verdicts.push(SharedCheck.compare({ name, canonical, theirs: manifest, failure }));
     }
   }
 

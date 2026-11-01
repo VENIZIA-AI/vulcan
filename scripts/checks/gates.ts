@@ -28,70 +28,72 @@ export interface IGateResult extends IGateCommand {
 const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
   typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
 
-/** The `make` commands of every job of the workflow, in the order of the file, one per line, the targets as separate words. */
-export const commandsOf = (opts: { text: string }): IGateCommand[] => {
-  const workflow = { value: Bun.YAML.parse(opts.text) };
-  const jobs = { value: isRecord(workflow) ? workflow.value['jobs'] : undefined };
+export class Gates {
+  /** The `make` commands of every job of the workflow, in the order of the file, one per line, the targets as separate words. */
+  static commandsOf(opts: { text: string }): IGateCommand[] {
+    const workflow = { value: Bun.YAML.parse(opts.text) };
+    const jobs = { value: isRecord(workflow) ? workflow.value['jobs'] : undefined };
 
-  if (!isRecord(jobs)) {
-    return [];
-  }
-
-  return Object.values(jobs.value).flatMap((job) => {
-    const holder = { value: job };
-    const steps = isRecord(holder) ? holder.value['steps'] : undefined;
-
-    return Array.isArray(steps)
-      ? steps.flatMap((step): IGateCommand[] => {
-          const entry = { value: step };
-          const run = isRecord(entry) ? entry.value['run'] : undefined;
-          const name = isRecord(entry) ? entry.value['name'] : undefined;
-
-          return typeof run === 'string'
-            ? run
-                .split('\n')
-                .map((line) => line.trim())
-                .filter((line) => line.startsWith('make '))
-                .map((line) => ({
-                  step: typeof name === 'string' ? name : line,
-                  targets: line.slice('make '.length).trim().split(/\s+/),
-                }))
-            : [];
-        })
-      : [];
-  });
-};
-
-/** Runs the commands in order; stops at the first failure unless `keepGoing`. A make that cannot start is a failure. */
-export const runGates = (opts: {
-  commands: IGateCommand[];
-  run: (command: IGateCommand) => { code: number; tail: string };
-  keepGoing: boolean;
-  onResult?: (result: IGateResult) => void;
-}): IGateResult[] => {
-  const results: IGateResult[] = [];
-
-  for (const command of opts.commands) {
-    let outcome: { code: number; tail: string };
-
-    try {
-      outcome = opts.run(command);
-    } catch (error) {
-      outcome = { code: 127, tail: error instanceof Error ? error.message : String(error) };
+    if (!isRecord(jobs)) {
+      return [];
     }
 
-    const result = { ...command, ...outcome };
+    return Object.values(jobs.value).flatMap((job) => {
+      const holder = { value: job };
+      const steps = isRecord(holder) ? holder.value['steps'] : undefined;
 
-    results.push(result);
-    opts.onResult?.(result);
+      return Array.isArray(steps)
+        ? steps.flatMap((step): IGateCommand[] => {
+            const entry = { value: step };
+            const run = isRecord(entry) ? entry.value['run'] : undefined;
+            const name = isRecord(entry) ? entry.value['name'] : undefined;
 
-    if (result.code !== 0 && !opts.keepGoing) {
-      break;
-    }
+            return typeof run === 'string'
+              ? run
+                  .split('\n')
+                  .map((line) => line.trim())
+                  .filter((line) => line.startsWith('make '))
+                  .map((line) => ({
+                    step: typeof name === 'string' ? name : line,
+                    targets: line.slice('make '.length).trim().split(/\s+/),
+                  }))
+              : [];
+          })
+        : [];
+    });
   }
 
-  return results;
-};
+  /** Runs the commands in order; stops at the first failure unless `keepGoing`. A make that cannot start is a failure. */
+  static run(opts: {
+    commands: IGateCommand[];
+    run: (command: IGateCommand) => { code: number; tail: string };
+    keepGoing: boolean;
+    onResult?: (result: IGateResult) => void;
+  }): IGateResult[] {
+    const results: IGateResult[] = [];
+
+    for (const command of opts.commands) {
+      let outcome: { code: number; tail: string };
+
+      try {
+        outcome = opts.run(command);
+      } catch (error) {
+        outcome = { code: 127, tail: error instanceof Error ? error.message : String(error) };
+      }
+
+      const result = { ...command, ...outcome };
+
+      results.push(result);
+      opts.onResult?.(result);
+
+      if (result.code !== 0 && !opts.keepGoing) {
+        break;
+      }
+    }
+
+    return results;
+  }
+}
 
 const runMake = (command: IGateCommand): { code: number; tail: string } => {
   const scratch = process.env.TMPDIR ?? join(ROOT, '.agents', 'local', 'tmp');
@@ -111,7 +113,7 @@ const runMake = (command: IGateCommand): { code: number; tail: string } => {
 
 const main = (): number => {
   const args = process.argv.slice(2);
-  const commands = commandsOf({ text: readFileSync(CI_FILE, 'utf8') });
+  const commands = Gates.commandsOf({ text: readFileSync(CI_FILE, 'utf8') });
 
   if (args.includes('--list')) {
     for (const command of commands) {
@@ -121,7 +123,7 @@ const main = (): number => {
     return 0;
   }
 
-  const results = runGates({
+  const results = Gates.run({
     commands,
     keepGoing: args.includes('--keep-going'),
     run: runMake,

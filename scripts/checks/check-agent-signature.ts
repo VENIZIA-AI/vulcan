@@ -20,21 +20,24 @@ interface ISignature {
   text: string;
 }
 
-/** The lines of `message` that sign it as an agent; git's own `#` comment lines are not part of a message. */
-export const signaturesOf = (opts: { message: string }): ISignature[] =>
-  opts.message.split('\n').flatMap((text, index) => {
-    if (text.startsWith('#')) {
-      return [];
-    }
+export class AgentSignature {
+  /** The lines of `message` that sign it as an agent; git's own `#` comment lines are not part of a message. */
+  static signaturesOf(opts: { message: string }): ISignature[] {
+    return opts.message.split('\n').flatMap((text, index) => {
+      if (text.startsWith('#')) {
+        return [];
+      }
 
-    const trailer = TRAILER.exec(text);
-    const generated = GENERATED.exec(text);
-    const isSigned =
-      (trailer !== null && AGENT.test(trailer[2])) ||
-      (generated !== null && (AGENT.test(generated[1]) || /^\s*\[/.test(generated[1])));
+      const trailer = TRAILER.exec(text);
+      const generated = GENERATED.exec(text);
+      const isSigned =
+        (trailer !== null && AGENT.test(trailer[2])) ||
+        (generated !== null && (AGENT.test(generated[1]) || /^\s*\[/.test(generated[1])));
 
-    return isSigned ? [{ line: index + 1, text: text.trim() }] : [];
-  });
+      return isSigned ? [{ line: index + 1, text: text.trim() }] : [];
+    });
+  }
+}
 
 const describe = (opts: { label: string; found: ISignature[] }): string[] =>
   opts.found.map(
@@ -71,17 +74,19 @@ const main = (): number => {
       problems.push(
         ...describe({
           label: `commit ${commit.id},`,
-          found: signaturesOf({ message: commit.message }),
+          found: AgentSignature.signaturesOf({ message: commit.message }),
         }),
       );
     }
   } else if (args[0] === '--text' && args[1] !== undefined) {
-    problems.push(...describe({ label: 'message,', found: signaturesOf({ message: args[1] }) }));
+    problems.push(
+      ...describe({ label: 'message,', found: AgentSignature.signaturesOf({ message: args[1] }) }),
+    );
   } else if (args[0] !== undefined && !args[0].startsWith('--')) {
     problems.push(
       ...describe({
         label: 'commit message,',
-        found: signaturesOf({ message: readFileSync(args[0], 'utf8') }),
+        found: AgentSignature.signaturesOf({ message: readFileSync(args[0], 'utf8') }),
       }),
     );
   } else {

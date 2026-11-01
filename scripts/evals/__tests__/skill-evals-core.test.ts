@@ -1,18 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import {
-  buildBaselinePrompt,
-  buildGraderCommand,
-  buildGraderPrompt,
-  buildPlan,
-  buildRunCommand,
-  buildRunPrompt,
-  parseEvalsFile,
-  parseSkillEvalArgs,
-  parseVerdict,
-  readClaudeResponse,
-  renderReport,
-  toCommandLine,
-} from '../skill-evals-core.ts';
+import { SkillEvals } from '../skill-evals-core.ts';
 
 const EVALUATION = {
   id: '0',
@@ -21,9 +8,9 @@ const EVALUATION = {
   files: ['docs/page.md'],
 };
 
-describe('parseSkillEvalArgs', () => {
+describe('SkillEvals.parseArgs', () => {
   test('defaults: three models, opus grades, 900 s, no project or out, runs for real', () => {
-    expect(parseSkillEvalArgs({ args: ['--skill', 'docs-writing'] })).toEqual({
+    expect(SkillEvals.parseArgs({ args: ['--skill', 'docs-writing'] })).toEqual({
       skill: 'docs-writing',
       models: ['haiku', 'sonnet', 'opus'],
       grader: 'opus',
@@ -37,28 +24,34 @@ describe('parseSkillEvalArgs', () => {
   });
 
   test('--baseline is a boolean flag', () => {
-    expect(parseSkillEvalArgs({ args: ['--skill', 'x', '--baseline'] }).isBaseline).toBe(true);
+    expect(SkillEvals.parseArgs({ args: ['--skill', 'x', '--baseline'] }).isBaseline).toBe(true);
   });
 
   test('--max-budget-usd caps every claude call, and takes a positive amount only', () => {
     expect(
-      parseSkillEvalArgs({ args: ['--skill', 'docs-writing', '--max-budget-usd', '2.5'] })
-        .maxBudgetUsd,
+      SkillEvals.parseArgs({
+        args: ['--skill', 'docs-writing', '--max-budget-usd', '2.5'],
+      }).maxBudgetUsd,
     ).toBe('2.5');
     expect(() =>
-      parseSkillEvalArgs({ args: ['--skill', 'docs-writing', '--max-budget-usd', 'lots'] }),
+      SkillEvals.parseArgs({
+        args: ['--skill', 'docs-writing', '--max-budget-usd', 'lots'],
+      }),
     ).toThrow('--max-budget-usd needs a dollar amount above 0, got: lots');
     expect(
-      buildRunCommand({ model: 'haiku', outputsDirectory: '/o', maxBudgetUsd: '2.5' }).slice(-2),
+      SkillEvals.buildRunCommand({
+        model: 'haiku',
+        outputsDirectory: '/o',
+        maxBudgetUsd: '2.5',
+      }).slice(-2),
     ).toEqual(['--max-budget-usd', '2.5']);
-    expect(buildGraderCommand({ grader: 'opus', maxBudgetUsd: '2.5' }).slice(-2)).toEqual([
-      '--max-budget-usd',
-      '2.5',
-    ]);
+    expect(
+      SkillEvals.buildGraderCommand({ grader: 'opus', maxBudgetUsd: '2.5' }).slice(-2),
+    ).toEqual(['--max-budget-usd', '2.5']);
   });
 
   test('every flag and its value are read', () => {
-    const parsed = parseSkillEvalArgs({
+    const parsed = SkillEvals.parseArgs({
       args: [
         '--skill',
         'docs-writing',
@@ -92,39 +85,39 @@ describe('parseSkillEvalArgs', () => {
   });
 
   test('no --skill throws', () => {
-    expect(() => parseSkillEvalArgs({ args: [] })).toThrow('--skill <name> is required');
+    expect(() => SkillEvals.parseArgs({ args: [] })).toThrow('--skill <name> is required');
   });
 
   test('a skill name that is not a plain directory name throws', () => {
-    expect(() => parseSkillEvalArgs({ args: ['--skill', '../rules'] })).toThrow(
+    expect(() => SkillEvals.parseArgs({ args: ['--skill', '../rules'] })).toThrow(
       "--skill '../rules' is not a skill name",
     );
   });
 
   test('a model name that cannot be a directory throws', () => {
-    expect(() => parseSkillEvalArgs({ args: ['--skill', 'x', '--models', 'haiku,a/b'] })).toThrow(
+    expect(() => SkillEvals.parseArgs({ args: ['--skill', 'x', '--models', 'haiku,a/b'] })).toThrow(
       "--models 'a/b' is not a model name",
     );
   });
 
   test('a timeout that is not a positive whole number throws', () => {
-    expect(() => parseSkillEvalArgs({ args: ['--skill', 'x', '--timeout', '0'] })).toThrow(
+    expect(() => SkillEvals.parseArgs({ args: ['--skill', 'x', '--timeout', '0'] })).toThrow(
       '--timeout needs whole seconds above 0, got: 0',
     );
   });
 
   test('a flag without its value throws', () => {
-    expect(() => parseSkillEvalArgs({ args: ['--skill'] })).toThrow('--skill needs a value');
+    expect(() => SkillEvals.parseArgs({ args: ['--skill'] })).toThrow('--skill needs a value');
   });
 
   test('an unknown argument throws instead of being ignored', () => {
-    expect(() => parseSkillEvalArgs({ args: ['--skill', 'x', '--dryrun'] })).toThrow(
+    expect(() => SkillEvals.parseArgs({ args: ['--skill', 'x', '--dryrun'] })).toThrow(
       "unknown argument '--dryrun'",
     );
   });
 });
 
-describe('parseEvalsFile', () => {
+describe('SkillEvals.parseFile', () => {
   test('reads skill-creator evals.json, ids as strings, files default to none', () => {
     const text = JSON.stringify({
       skill_name: 'docs-writing',
@@ -134,20 +127,20 @@ describe('parseEvalsFile', () => {
       ],
     });
 
-    expect(parseEvalsFile({ text, skill: 'docs-writing' })).toEqual([
+    expect(SkillEvals.parseFile({ text, skill: 'docs-writing' })).toEqual([
       { id: '0', prompt: 'p0', expectedOutput: 'e0', files: ['a.md'] },
       { id: 'short', prompt: 'p1', expectedOutput: 'e1', files: [] },
     ]);
   });
 
   test('not JSON throws', () => {
-    expect(() => parseEvalsFile({ text: '{', skill: 'x' })).toThrow('is not JSON');
+    expect(() => SkillEvals.parseFile({ text: '{', skill: 'x' })).toThrow('is not JSON');
   });
 
   test('an eval without a prompt or expected_output throws, naming its index', () => {
     const text = JSON.stringify({ skill_name: 'x', evals: [{ id: 0, prompt: 'p' }] });
 
-    expect(() => parseEvalsFile({ text, skill: 'x' })).toThrow(
+    expect(() => SkillEvals.parseFile({ text, skill: 'x' })).toThrow(
       'evals[0] needs id, prompt and expected_output',
     );
   });
@@ -158,13 +151,13 @@ describe('parseEvalsFile', () => {
       evals: [{ id: '../up', prompt: 'p', expected_output: 'e' }],
     });
 
-    expect(() => parseEvalsFile({ text, skill: 'x' })).toThrow("evals[0] id '../up'");
+    expect(() => SkillEvals.parseFile({ text, skill: 'x' })).toThrow("evals[0] id '../up'");
   });
 
   test('a skill_name for another skill throws', () => {
     const text = JSON.stringify({ skill_name: 'other', evals: [] });
 
-    expect(() => parseEvalsFile({ text, skill: 'x' })).toThrow(
+    expect(() => SkillEvals.parseFile({ text, skill: 'x' })).toThrow(
       "skill_name is 'other', expected 'x'",
     );
   });
@@ -172,13 +165,13 @@ describe('parseEvalsFile', () => {
   test('no evals throws', () => {
     const text = JSON.stringify({ skill_name: 'x', evals: [] });
 
-    expect(() => parseEvalsFile({ text, skill: 'x' })).toThrow('has no evals');
+    expect(() => SkillEvals.parseFile({ text, skill: 'x' })).toThrow('has no evals');
   });
 });
 
-describe('buildPlan', () => {
+describe('SkillEvals.buildPlan', () => {
   test('one run per eval x model, each in <out>/<skill>/<eval-id>/<model>/', () => {
-    const plan = buildPlan({
+    const plan = SkillEvals.buildPlan({
       skill: 'docs-writing',
       evaluations: [EVALUATION, { ...EVALUATION, id: '1' }],
       models: ['haiku', 'opus'],
@@ -193,7 +186,7 @@ describe('buildPlan', () => {
     ]);
     expect(plan[0].outputsDirectory).toBe('/tmp/out/docs-writing/0/haiku/outputs');
     expect(plan[0].command).toEqual(
-      buildRunCommand({
+      SkillEvals.buildRunCommand({
         model: 'haiku',
         outputsDirectory: '/tmp/out/docs-writing/0/haiku/outputs',
       }),
@@ -201,9 +194,9 @@ describe('buildPlan', () => {
   });
 });
 
-describe('buildPlan with a baseline', () => {
+describe('SkillEvals.buildPlan with a baseline', () => {
   test('each skill run is followed by its baseline run in <model>/baseline/', () => {
-    const plan = buildPlan({
+    const plan = SkillEvals.buildPlan({
       skill: 'docs-writing',
       evaluations: [EVALUATION],
       models: ['haiku'],
@@ -219,9 +212,9 @@ describe('buildPlan with a baseline', () => {
   });
 });
 
-describe('buildRunCommand / buildGraderCommand', () => {
+describe('SkillEvals.buildRunCommand / SkillEvals.buildGraderCommand', () => {
   test('the run: print mode, JSON, edits accepted, nothing prompts, the outputs directory allowed', () => {
-    expect(buildRunCommand({ model: 'haiku', outputsDirectory: '/o' })).toEqual([
+    expect(SkillEvals.buildRunCommand({ model: 'haiku', outputsDirectory: '/o' })).toEqual([
       'claude',
       '-p',
       '--model',
@@ -239,7 +232,7 @@ describe('buildRunCommand / buildGraderCommand', () => {
   });
 
   test('the grader: no tools, a JSON schema for the verdict', () => {
-    const command = buildGraderCommand({ grader: 'opus' });
+    const command = SkillEvals.buildGraderCommand({ grader: 'opus' });
 
     expect(command.slice(0, 6)).toEqual([
       'claude',
@@ -256,16 +249,16 @@ describe('buildRunCommand / buildGraderCommand', () => {
     ]);
   });
 
-  test('toCommandLine quotes what a shell would split or drop', () => {
-    expect(toCommandLine({ command: ['claude', '--tools', '', '--add-dir', '/a b'] })).toBe(
-      "claude --tools '' --add-dir '/a b'",
-    );
+  test('SkillEvals.toCommandLine quotes what a shell would split or drop', () => {
+    expect(
+      SkillEvals.toCommandLine({ command: ['claude', '--tools', '', '--add-dir', '/a b'] }),
+    ).toBe("claude --tools '' --add-dir '/a b'");
   });
 });
 
-describe('buildRunPrompt / buildGraderPrompt', () => {
+describe('SkillEvals.buildRunPrompt / SkillEvals.buildGraderPrompt', () => {
   test('the run prompt carries the skill, where it is installed, the task and the output directory', () => {
-    const prompt = buildRunPrompt({
+    const prompt = SkillEvals.buildRunPrompt({
       skill: 'docs-writing',
       skillContent: '# Docs writing\nShort sentences.',
       evaluation: EVALUATION,
@@ -282,7 +275,10 @@ describe('buildRunPrompt / buildGraderPrompt', () => {
   });
 
   test('the baseline prompt has the task and output rules and no skill', () => {
-    const prompt = buildBaselinePrompt({ evaluation: EVALUATION, outputsDirectory: '/o' });
+    const prompt = SkillEvals.buildBaselinePrompt({
+      evaluation: EVALUATION,
+      outputsDirectory: '/o',
+    });
 
     expect(prompt).not.toContain('skill');
     expect(prompt).toContain(EVALUATION.prompt);
@@ -291,7 +287,7 @@ describe('buildRunPrompt / buildGraderPrompt', () => {
   });
 
   test('the grader prompt carries the task, the expected output and every output file', () => {
-    const prompt = buildGraderPrompt({
+    const prompt = SkillEvals.buildGraderPrompt({
       evaluation: EVALUATION,
       outputs: [{ name: 'page.md', content: '# Page' }],
     });
@@ -303,7 +299,7 @@ describe('buildRunPrompt / buildGraderPrompt', () => {
   });
 });
 
-describe('readClaudeResponse', () => {
+describe('SkillEvals.readClaudeResponse', () => {
   test('reads result, is_error, total_cost_usd and structured_output', () => {
     const stdout = JSON.stringify({
       type: 'result',
@@ -313,7 +309,7 @@ describe('readClaudeResponse', () => {
       structured_output: { pass: true, reasons: [] },
     });
 
-    expect(readClaudeResponse({ stdout })).toEqual({
+    expect(SkillEvals.readClaudeResponse({ stdout })).toEqual({
       result: 'done',
       isError: false,
       costUsd: 0.25,
@@ -322,7 +318,7 @@ describe('readClaudeResponse', () => {
   });
 
   test('stdout that is not JSON is an error response, not a throw', () => {
-    expect(readClaudeResponse({ stdout: 'oops' })).toEqual({
+    expect(SkillEvals.readClaudeResponse({ stdout: 'oops' })).toEqual({
       result: undefined,
       isError: true,
       costUsd: undefined,
@@ -331,20 +327,22 @@ describe('readClaudeResponse', () => {
   });
 });
 
-describe('parseVerdict', () => {
+describe('SkillEvals.parseVerdict', () => {
   const respond = (fields: object): string =>
     JSON.stringify({ type: 'result', is_error: false, ...fields });
 
   test('structured_output wins when it is a verdict', () => {
     expect(
-      parseVerdict({ stdout: respond({ structured_output: { pass: true, reasons: ['tight'] } }) }),
+      SkillEvals.parseVerdict({
+        stdout: respond({ structured_output: { pass: true, reasons: ['tight'] } }),
+      }),
     ).toEqual({ pass: true, reasons: ['tight'], isMalformed: false });
   });
 
   test('a verdict in the result text, fenced or bare, is read', () => {
     const fenced = respond({ result: '```json\n{"pass": false, "reasons": ["too long"]}\n```' });
 
-    expect(parseVerdict({ stdout: fenced })).toEqual({
+    expect(SkillEvals.parseVerdict({ stdout: fenced })).toEqual({
       pass: false,
       reasons: ['too long'],
       isMalformed: false,
@@ -352,7 +350,7 @@ describe('parseVerdict', () => {
   });
 
   test('prose instead of a verdict is a recorded failure, never a throw', () => {
-    const verdict = parseVerdict({ stdout: respond({ result: 'It passes, mostly.' }) });
+    const verdict = SkillEvals.parseVerdict({ stdout: respond({ result: 'It passes, mostly.' }) });
 
     expect(verdict.pass).toBe(false);
     expect(verdict.isMalformed).toBe(true);
@@ -360,7 +358,7 @@ describe('parseVerdict', () => {
   });
 
   test('a verdict with the wrong shape is malformed', () => {
-    const verdict = parseVerdict({
+    const verdict = SkillEvals.parseVerdict({
       stdout: respond({ result: '{"pass": "yes", "reasons": "ok"}' }),
     });
 
@@ -372,11 +370,11 @@ describe('parseVerdict', () => {
   });
 
   test('stdout that is not a claude response at all is malformed', () => {
-    expect(parseVerdict({ stdout: '' }).isMalformed).toBe(true);
+    expect(SkillEvals.parseVerdict({ stdout: '' }).isMalformed).toBe(true);
   });
 });
 
-describe('renderReport with a baseline', () => {
+describe('SkillEvals.renderReport with a baseline', () => {
   const result = (opts: { model: string; pass: boolean; reason: string }) => ({
     evalId: '0',
     model: opts.model,
@@ -386,7 +384,7 @@ describe('renderReport with a baseline', () => {
   });
 
   test('one row per eval x model with both arms, and a line per model', () => {
-    const report = renderReport({
+    const report = SkillEvals.renderReport({
       skill: 'docs-writing',
       grader: 'opus',
       results: [
@@ -409,9 +407,9 @@ describe('renderReport with a baseline', () => {
   });
 });
 
-describe('renderReport', () => {
+describe('SkillEvals.renderReport', () => {
   test('one row per eval x model, the first reason, and the totals', () => {
-    const report = renderReport({
+    const report = SkillEvals.renderReport({
       skill: 'docs-writing',
       grader: 'opus',
       results: [

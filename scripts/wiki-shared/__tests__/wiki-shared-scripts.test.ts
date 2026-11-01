@@ -2,17 +2,9 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { applyCopy, planCopy } from '../copy.ts';
-import { compare } from '../check.ts';
-import {
-  buildManifest,
-  fingerprintOf,
-  MANIFEST_FILE,
-  parseManifest,
-  readManifest,
-  renderManifest,
-  SHARED_DIR,
-} from '../manifest.ts';
+import { SharedCopy } from '../copy.ts';
+import { SharedCheck } from '../check.ts';
+import { MANIFEST_FILE, SHARED_DIR, SharedManifest } from '../manifest.ts';
 
 const roots: string[] = [];
 
@@ -38,7 +30,7 @@ const createWiki = (opts: { files: Record<string, string>; manifest?: boolean })
   if (opts.manifest !== false) {
     writeFileSync(
       join(root, SHARED_DIR, MANIFEST_FILE),
-      renderManifest({ manifest: buildManifest({ root }) }),
+      SharedManifest.render({ manifest: SharedManifest.build({ root }) }),
     );
   }
 
@@ -48,16 +40,16 @@ const createWiki = (opts: { files: Record<string, string>; manifest?: boolean })
 describe('the manifest', () => {
   test('lists every file with its hash, and the manifest itself is left out', () => {
     const root = createWiki({ files: { 'a.css': 'a', 'fonts/b.woff2': 'b' } });
-    const manifest = buildManifest({ root });
+    const manifest = SharedManifest.build({ root });
 
     expect(Object.keys(manifest.files)).toEqual(['a.css', 'fonts/b.woff2']);
-    expect(manifest.fingerprint).toBe(fingerprintOf({ files: manifest.files }));
-    expect(readManifest({ root })).toEqual(manifest);
+    expect(manifest.fingerprint).toBe(SharedManifest.fingerprintOf({ files: manifest.files }));
+    expect(SharedManifest.read({ root })).toEqual(manifest);
   });
 
   test('one changed byte changes the fingerprint', () => {
-    const one = buildManifest({ root: createWiki({ files: { 'a.css': 'a' } }) });
-    const two = buildManifest({ root: createWiki({ files: { 'a.css': 'b' } }) });
+    const one = SharedManifest.build({ root: createWiki({ files: { 'a.css': 'a' } }) });
+    const two = SharedManifest.build({ root: createWiki({ files: { 'a.css': 'b' } }) });
 
     expect(one.fingerprint).not.toBe(two.fingerprint);
   });
@@ -65,20 +57,30 @@ describe('the manifest', () => {
   test('untrusted JSON that is not a manifest is refused', () => {
     const hash = 'a'.repeat(64);
 
-    expect(parseManifest({ text: 'not json' })).toBeNull();
-    expect(parseManifest({ text: '{}' })).toBeNull();
-    expect(parseManifest({ text: JSON.stringify({ fingerprint: 'x', files: {} }) })).toBeNull();
+    expect(SharedManifest.parse({ text: 'not json' })).toBeNull();
+    expect(SharedManifest.parse({ text: '{}' })).toBeNull();
     expect(
-      parseManifest({ text: JSON.stringify({ fingerprint: hash, files: { '../x': hash } }) }),
+      SharedManifest.parse({ text: JSON.stringify({ fingerprint: 'x', files: {} }) }),
     ).toBeNull();
     expect(
-      parseManifest({ text: JSON.stringify({ fingerprint: hash, files: { '/x': hash } }) }),
+      SharedManifest.parse({
+        text: JSON.stringify({ fingerprint: hash, files: { '../x': hash } }),
+      }),
     ).toBeNull();
     expect(
-      parseManifest({ text: JSON.stringify({ fingerprint: hash, files: { 'x.css': 'zz' } }) }),
+      SharedManifest.parse({
+        text: JSON.stringify({ fingerprint: hash, files: { '/x': hash } }),
+      }),
     ).toBeNull();
     expect(
-      parseManifest({ text: JSON.stringify({ fingerprint: hash, files: { 'x.css': hash } }) }),
+      SharedManifest.parse({
+        text: JSON.stringify({ fingerprint: hash, files: { 'x.css': 'zz' } }),
+      }),
+    ).toBeNull();
+    expect(
+      SharedManifest.parse({
+        text: JSON.stringify({ fingerprint: hash, files: { 'x.css': hash } }),
+      }),
     ).not.toBeNull();
   });
 });
@@ -88,51 +90,51 @@ describe('copy', () => {
     const source = createWiki({ files: { 'a.css': 'a', 'b.css': 'new' } });
     const target = createWiki({ files: { 'b.css': 'old', 'gone.css': 'x' } });
 
-    expect(planCopy({ source, target }).map((action) => `${action.kind} ${action.path}`)).toEqual([
-      'new a.css',
-      'changed b.css',
-      'removed gone.css',
-    ]);
+    expect(
+      SharedCopy.plan({ source, target }).map((action) => `${action.kind} ${action.path}`),
+    ).toEqual(['new a.css', 'changed b.css', 'removed gone.css']);
 
-    applyCopy({ source, target });
+    SharedCopy.apply({ source, target });
 
     expect(readFileSync(join(target, SHARED_DIR, 'b.css'), 'utf8')).toBe('new');
-    expect(buildManifest({ root: target })).toEqual(buildManifest({ root: source }));
+    expect(SharedManifest.build({ root: target })).toEqual(SharedManifest.build({ root: source }));
     expect(readFileSync(join(target, SHARED_DIR, MANIFEST_FILE), 'utf8')).toBe(
       readFileSync(join(source, SHARED_DIR, MANIFEST_FILE), 'utf8'),
     );
-    expect(planCopy({ source, target })).toEqual([]);
+    expect(SharedCopy.plan({ source, target })).toEqual([]);
   });
 
   test('a dry run writes nothing', () => {
     const source = createWiki({ files: { 'a.css': 'a' } });
     const target = createWiki({ files: {} });
 
-    planCopy({ source, target });
+    SharedCopy.plan({ source, target });
 
-    expect(buildManifest({ root: target }).files).toEqual({});
+    expect(SharedManifest.build({ root: target }).files).toEqual({});
   });
 });
 
-describe('compare', () => {
-  const canonical = buildManifest({ root: createWiki({ files: { 'a.css': 'a', 'b.css': 'b' } }) });
+describe('SharedCheck.compare', () => {
+  const canonical = SharedManifest.build({
+    root: createWiki({ files: { 'a.css': 'a', 'b.css': 'b' } }),
+  });
 
   test('a copy that is identical is in step', () => {
-    expect(compare({ name: 'x', canonical, theirs: canonical }).state).toBe('in-step');
+    expect(SharedCheck.compare({ name: 'x', canonical, theirs: canonical }).state).toBe('in-step');
   });
 
   test('a copy with a changed, a missing and an extra file is drifted and names them', () => {
-    const theirs = buildManifest({
+    const theirs = SharedManifest.build({
       root: createWiki({ files: { 'a.css': 'changed', 'c.css': 'c' } }),
     });
-    const verdict = compare({ name: 'x', canonical, theirs });
+    const verdict = SharedCheck.compare({ name: 'x', canonical, theirs });
 
     expect(verdict.state).toBe('drifted');
     expect(verdict.detail).toBe('changed a.css; missing b.css; extra c.css');
   });
 
   test('a wiki without a shared folder is missing', () => {
-    const verdict = compare({ name: 'x', canonical, theirs: null });
+    const verdict = SharedCheck.compare({ name: 'x', canonical, theirs: null });
 
     expect(verdict.state).toBe('missing');
     expect(verdict.detail).toBe('no shared folder yet');
@@ -140,7 +142,7 @@ describe('compare', () => {
 
   test('a 404 is still no shared folder yet', () => {
     const failure = { status: 404, url: 'https://example.test/SHARED.json' };
-    const verdict = compare({ name: 'x', canonical, theirs: null, failure });
+    const verdict = SharedCheck.compare({ name: 'x', canonical, theirs: null, failure });
 
     expect(verdict.state).toBe('missing');
     expect(verdict.detail).toBe('no shared folder yet');
@@ -148,7 +150,7 @@ describe('compare', () => {
 
   test('another status is named in the detail, and the verdict still fails the check', () => {
     const failure = { status: 429, url: 'https://example.test/SHARED.json' };
-    const verdict = compare({ name: 'x', canonical, theirs: null, failure });
+    const verdict = SharedCheck.compare({ name: 'x', canonical, theirs: null, failure });
 
     expect(verdict.state).toBe('missing');
     expect(verdict.detail).toBe('HTTP 429 from https://example.test/SHARED.json');
