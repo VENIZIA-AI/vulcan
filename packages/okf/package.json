@@ -50,8 +50,7 @@
     "@venizia/dev-configs": "catalog:",
     "eslint": "catalog:",
     "oxlint": "catalog:",
-    "oxlint-tsgolint": "catalog:",
-    "typescript": "catalog:"
+    "oxlint-tsgolint": "catalog:"
   },
   "engines": {
     "bun": ">=1.4.4"

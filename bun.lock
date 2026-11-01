@@ -47,7 +47,6 @@
         "eslint": "catalog:",
         "oxlint": "catalog:",
         "oxlint-tsgolint": "catalog:",
-        "typescript": "catalog:",
       },
     },
     "packages/okf": {
@@ -67,7 +66,6 @@
         "eslint": "catalog:",
         "oxlint": "catalog:",
         "oxlint-tsgolint": "catalog:",
-        "typescript": "catalog:",
       },
     },
   },
