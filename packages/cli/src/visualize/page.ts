@@ -4,11 +4,14 @@ import { NodeStates } from './constants.ts';
 import type { TChrome } from './constants.ts';
 import { iconSvg } from './icons.ts';
 import { stateIcon } from './charts.ts';
+import { COMPARE_CSS } from './compare-css.ts';
+import { CompareView } from './compare-render.ts';
 import { NEW_KINDS_CSS } from './kinds-css.ts';
 import { lifecycleSection, sequenceSection, treeSection } from './kinds-render.ts';
 import { chromeOf } from './labels.ts';
 import { escapeText, FIGURE_FIT } from './layout.ts';
 import type { TVisualizeSpec } from './schema.ts';
+import { PageTerms, SourceRefs } from './sources.ts';
 import { ProjectTheme } from './theme.ts';
 import type { IResolvedTheme } from './theme.ts';
 import {
@@ -26,6 +29,7 @@ import {
   linksSection,
   logSection,
   risksSection,
+  section,
   sectionLinks,
   stateWord,
   tilesHtml,
@@ -195,6 +199,7 @@ export const renderPage = (opts: {
   const chrome = chromeOf({ spec, language });
   const ctx: ISectionContext = { spec, chrome, fits: new Set<number>() };
   const { state, tone, word } = stateOf({ spec, chrome });
+  const sources = SourceRefs.entries({ spec, chrome });
   const tiles =
     spec.tiles ?? (spec.minimap === undefined ? undefined : countTiles({ spec, chrome }));
   const body = [
@@ -205,6 +210,7 @@ export const renderPage = (opts: {
     stepperHtml({ spec, chrome }),
     ownerHtml({ spec, chrome }),
     architectureSection({ ctx }),
+    CompareView.section({ ctx }),
     sequenceSection({ ctx }),
     lifecycleSection({ ctx }),
     treeSection({ ctx }),
@@ -219,9 +225,23 @@ export const renderPage = (opts: {
     evidenceSection({ ctx }),
     risksSection({ ctx }),
     logSection({ ctx }),
+    spec.terms === undefined
+      ? ''
+      : section({
+          id: 'terms',
+          title: chrome.terms,
+          body: PageTerms.listHtml({ terms: spec.terms }),
+        }),
+    sources.length === 0
+      ? ''
+      : section({
+          id: 'sources',
+          title: chrome.sources,
+          body: SourceRefs.listHtml({ entries: sources }),
+        }),
     linksSection({ ctx }),
   ].join('');
-  const css = `${pageCss({ tokens: ProjectTheme.tokensCss({ theme: opts.theme ?? NEUTRAL }) })}\n${NEW_KINDS_CSS}\n${figureFitCss({ widths: ctx.fits })}`;
+  const css = `${pageCss({ tokens: ProjectTheme.tokensCss({ theme: opts.theme ?? NEUTRAL }) })}\n${NEW_KINDS_CSS}\n${COMPARE_CSS}\n${figureFitCss({ widths: ctx.fits })}`;
   const policy = `default-src 'none'; style-src ${sha256({ text: css })}; script-src ${sha256({ text: HEAD_JS })} ${sha256({ text: PAGE_JS })}; base-uri 'none'; form-action 'none'`;
   const links = sectionLinks({ spec, chrome })
     .map((link) => `<a href="#${link.id}">${escaped(link.title)}</a>`)

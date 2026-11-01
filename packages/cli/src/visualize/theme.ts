@@ -174,7 +174,7 @@ export class ProjectTheme {
 
     for (const [key, value] of Object.entries(given)) {
       if (value !== undefined && !HEX.test(value)) {
-        problems.push(`theme ${key} '${value}' is not a six-digit hex colour like #8a5a20`);
+        problems.push(`theme ${key} '${value}' is not a six-digit hex colour like #3f5266`);
       }
     }
 

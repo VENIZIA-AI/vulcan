@@ -90,6 +90,8 @@ export const VI_CHROME: TChrome = {
   sequence: 'Trình tự',
   lifecycle: 'Vòng đời',
   tree: 'Cấu trúc',
+  compareView: 'Điểm khác nhau',
+  inBoth: 'ở cả hai',
   sources: 'Nguồn',
   terms: 'Các từ trong trang',
   onlyHere: 'chỉ ở đây',

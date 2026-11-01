@@ -1,5 +1,7 @@
+import { CompareChecks } from './compare-validate.ts';
 import { checkNewKinds } from './kinds-validate.ts';
 import type { TVisualizeSpec } from './schema.ts';
+import { SourceRefs } from './sources.ts';
 
 interface ICell {
   row: number;
@@ -219,4 +221,6 @@ export const checkSpec = (opts: { spec: TVisualizeSpec }): string[] => [
   ...(opts.spec.flow === undefined ? [] : checkFlow({ flow: opts.spec.flow })),
   ...checkKinds({ spec: opts.spec }),
   ...checkNewKinds({ spec: opts.spec }),
+  ...CompareChecks.check({ spec: opts.spec }),
+  ...SourceRefs.check({ spec: opts.spec }),
 ];

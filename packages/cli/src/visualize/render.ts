@@ -7,6 +7,7 @@ import { localRootOf } from '../local/index.ts';
 import { VisualizeLimits } from './constants.ts';
 import { renderPage } from './page.ts';
 import { VISUALIZE_SCHEMA } from './schema.ts';
+import { PageTerms } from './sources.ts';
 import { ProjectTheme } from './theme.ts';
 import type { IThemeInput } from './theme.ts';
 import { checkSpec } from './validate.ts';
@@ -115,6 +116,7 @@ export const renderSpecText = (opts: {
       ],
       warnings: [
         ...themed.theme.warnings,
+        ...PageTerms.warnings({ html, terms: parsed.data.terms }),
         ...(bytes > VisualizeLimits.WARN_BYTES
           ? [
               `the page is ${Math.round(bytes / 1024)} KB, past the ${VisualizeLimits.WARN_BYTES / 1024} KB a page should stay under: consider two pages`,

@@ -251,6 +251,8 @@ export const DEFAULT_CHROME = {
   sequence: 'Sequence',
   lifecycle: 'Lifecycle',
   tree: 'Structure',
+  compareView: 'What differs',
+  inBoth: 'in both',
   sources: 'Sources',
   terms: 'Words in this page',
   /** The words that tell an added arrow from a removed one: never colour alone. */

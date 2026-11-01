@@ -6,6 +6,7 @@ import type { IDrawing } from './diagrams.ts';
 import { iconSvg } from './icons.ts';
 import { columnsOf, escapeText, figureWidth, renderFigure, renderPathList } from './layout.ts';
 import type { TVisualizeSpec } from './schema.ts';
+import { SourceRefs } from './sources.ts';
 
 /** What every section needs: the spec, the page's words, and the widths of the figures that must give way to a list on a phone. */
 export interface ISectionContext {
@@ -52,6 +53,7 @@ export const sectionLinks = (opts: {
     [spec.minimap !== undefined, 'minimap', chrome.minimap],
     [spec.strip !== undefined, 'next', chrome.next],
     [spec.architecture !== undefined, 'architecture', chrome.architecture],
+    [spec.compare !== undefined, 'compare', chrome.compareView],
     [spec.sequence !== undefined, 'sequence', chrome.sequence],
     [spec.lifecycle !== undefined, 'lifecycle', chrome.lifecycle],
     [spec.tree !== undefined, 'tree', chrome.tree],
@@ -66,6 +68,8 @@ export const sectionLinks = (opts: {
     [spec.evidence !== undefined, 'evidence', chrome.evidence],
     [spec.risks !== undefined, 'risks', chrome.risks],
     [spec.log !== undefined, 'log', chrome.log],
+    [spec.terms !== undefined, 'terms', chrome.terms],
+    [SourceRefs.entries({ spec, chrome }).length > 0, 'sources', chrome.sources],
     [spec.links !== undefined, 'links', chrome.links],
   ];
 
@@ -133,16 +137,43 @@ export const flowSection = (opts: { ctx: ISectionContext }): string => {
 
   opts.ctx.fits.add(width);
 
+  // A box that has a source says it in its detail line: on hover, and in the phone list.
+  const shown = {
+    ...flow,
+    nodes: flow.nodes.map((node) =>
+      node.source === undefined
+        ? node
+        : {
+            ...node,
+            detail: SourceRefs.withSource({
+              text: node.detail ?? node.sublabel,
+              source: node.source,
+            }),
+          },
+    ),
+  };
+  // The script reads the step's note whole: its source goes after it there, and in the markup it is its own element.
+  const stepsJson = steps.map((step) =>
+    step.source === undefined
+      ? step
+      : {
+          title: step.title,
+          note: SourceRefs.withSource({ text: step.note, source: step.source }),
+          nodes: step.nodes,
+          edges: step.edges,
+        },
+  );
+
   // The figure, its phone list, the legend, then the steps: a sibling order the page CSS relies on to swap the figure for the list.
-  return `<figure class="figure" id="flow"><p class="lab">${escaped(chrome.flow)}</p><div class="fig f${width}">${renderFigure({ flow })}</div>${renderPathList({ flow })}${
+  return `<figure class="figure" id="flow"><p class="lab">${escaped(chrome.flow)}</p><div class="fig f${width}">${renderFigure({ flow: shown })}</div>${renderPathList({ flow: shown })}${
     legend.length === 0 ? '' : `<ul class="legend">${legend.join('')}</ul>`
   }${
     steps.length > 0
-      ? `<ol class="steps">${steps.map((step, index) => `<li><button type="button" aria-pressed="false"><b>${escaped(step.title)}</b><span>${index + 1} / ${steps.length}</span></button><p class="explain">${escaped(step.note)}</p></li>`).join('')}</ol>`
+      ? `<ol class="steps">${steps.map((step, index) => `<li><button type="button" aria-pressed="false"><b>${escaped(step.title)}</b><span>${index + 1} / ${steps.length}</span></button><p class="explain">${escaped(step.note)}${step.source === undefined ? '' : ` ${SourceRefs.html({ source: step.source })}`}</p></li>`).join('')}</ol>`
       : ''
   }<div class="say js-only"><p id="say" aria-live="polite">${escaped(chrome.detailHint)}</p><div class="ctl">${play}${all}</div></div>${
     steps.length > 0
-      ? `<script type="application/json" id="steps">${jsonForScript({ value: steps })}</script>`
+      ? `<script type="application/json" id="steps">${jsonForScript({ value: stepsJson })}</script>`
       : ''
   }</figure>`;
 };
