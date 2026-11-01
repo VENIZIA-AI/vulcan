@@ -11,9 +11,8 @@
 export {};
 
 try {
-  const { buildRemoteDecision, inspectRemoteCommand, parseTrustedList } =
-    await import('../../src/hooks/remote-hosts.ts');
-  const { parseHookCommand } = await import('../../src/hooks/guard-writes.ts');
+  const { RemoteHosts } = await import('../../src/hooks/remote-hosts.ts');
+  const { WriteGuard } = await import('../../src/hooks/guard-writes.ts');
   const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
   const manifestFile = Bun.file(`${root}/.agents/vulcan.manifest.json`);
 
@@ -39,12 +38,12 @@ try {
   const trusted: string[] = Array.isArray(remoteHosts.trusted) ? remoteHosts.trusted : [];
   const readOnly: string[] = Array.isArray(remoteHosts.readOnly) ? remoteHosts.readOnly : [];
   const stdin = await Bun.stdin.text();
-  const hookCommand = parseHookCommand({ text: stdin });
+  const hookCommand = WriteGuard.parseHookCommand({ text: stdin });
   const hits = hookCommand
-    ? inspectRemoteCommand({
+    ? RemoteHosts.inspectCommand({
         command: hookCommand.command,
         policy: {
-          trusted: [...trusted, ...parseTrustedList({ text: personal })],
+          trusted: [...trusted, ...RemoteHosts.parseTrustedList({ text: personal })],
           readOnly,
           ...(localFile === undefined ? {} : { localFile }),
         },
@@ -52,7 +51,7 @@ try {
     : [{ rule: 'remote-hosts', message: 'the hook input could not be read' }];
 
   if (hits.length > 0) {
-    console.log(JSON.stringify(buildRemoteDecision({ hits })));
+    console.log(JSON.stringify(RemoteHosts.buildDecision({ hits })));
   }
 } catch (error) {
   console.error(

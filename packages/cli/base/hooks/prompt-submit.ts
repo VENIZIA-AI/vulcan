@@ -14,7 +14,7 @@ if (process.env.VULCAN_GUARDS === 'off') {
 }
 
 try {
-  const { buildPromptContract } = await import('../../src/hooks/owner-reply.ts');
+  const { OwnerReply } = await import('../../src/hooks/owner-reply.ts');
   let session = '';
 
   try {
@@ -33,7 +33,7 @@ try {
     // No readable event: the turn is noted for no session, and nothing is echoed.
   }
 
-  const line = await buildPromptContract({
+  const line = await OwnerReply.buildPromptContract({
     projectRoot: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
     session,
   });

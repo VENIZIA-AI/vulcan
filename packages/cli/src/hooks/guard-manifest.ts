@@ -1,7 +1,7 @@
 import { isAbsolute, join, normalize } from 'node:path';
 import { GuardDecisions, HookConstants } from './common/index.ts';
 import type { IManifestHookInput } from './common/index.ts';
-import { forHost } from './decision.ts';
+import { HookDecision } from './decision.ts';
 
 /** The shell tool under the names the hosts give it: Cursor's `Shell`, and a lower-case `bash`. */
 const SHELL_NAMES = new Set(['Shell', 'shell', 'bash']);
@@ -41,66 +41,69 @@ const toolOf = (opts: { value: unknown }): string | undefined => {
   return name !== undefined && SHELL_NAMES.has(name) ? BASH_TOOL : name;
 };
 
-/** The tool call from the hook's JSON; `undefined` when it is not what Claude Code sends. */
-export const parseManifestHookInput = (opts: { text: string }): IManifestHookInput | undefined => {
-  let payload: unknown;
+export class ManifestGuard {
+  /** The tool call from the hook's JSON; `undefined` when it is not what Claude Code sends. */
+  static parseHookInput(opts: { text: string }): IManifestHookInput | undefined {
+    let payload: unknown;
 
-  try {
-    payload = JSON.parse(opts.text);
-  } catch (error) {
-    console.error(
-      `[parseManifestHookInput] unreadable hook input - letting the call through | ${error instanceof Error ? error.message : String(error)}`,
-    );
+    try {
+      payload = JSON.parse(opts.text);
+    } catch (error) {
+      console.error(
+        `[parseManifestHookInput] unreadable hook input - letting the call through | ${error instanceof Error ? error.message : String(error)}`,
+      );
 
-    return undefined;
+      return undefined;
+    }
+
+    const holder = { value: payload };
+
+    if (!isRecord(holder)) {
+      return undefined;
+    }
+
+    // The wire names are snake_case; they stay behind string-literal access here, at the boundary (V-C-14).
+    const toolInput = { value: holder.value['tool_input'] };
+    const input = isRecord(toolInput) ? toolInput.value : {};
+    const tool = toolOf({ value: holder.value['tool_name'] });
+
+    return tool === undefined
+      ? undefined
+      : {
+          tool,
+          filePath:
+            toText({ value: input['file_path'] }) ?? toText({ value: input['notebook_path'] }),
+          command: toText({ value: input['command'] }),
+          cwd: toText({ value: holder.value['cwd'] }),
+        };
   }
 
-  const holder = { value: payload };
+  /** Whether this tool call writes `.agents/vulcan.manifest.json` - which only `vulcan sync` may do. */
+  static inspectWrite(opts: { input: IManifestHookInput }): boolean {
+    const { tool, filePath, command, cwd } = opts.input;
 
-  if (!isRecord(holder)) {
-    return undefined;
+    if (tool === BASH_TOOL) {
+      return command !== undefined && WRITE_PATTERNS.some((pattern) => pattern.test(command));
+    }
+
+    if (filePath === undefined) {
+      return false;
+    }
+
+    const absolute = isAbsolute(filePath) ? filePath : join(cwd ?? process.cwd(), filePath);
+
+    return normalize(absolute).endsWith(MANIFEST_SUFFIX);
   }
 
-  // The wire names are snake_case; they stay behind string-literal access here, at the boundary (V-C-14).
-  const toolInput = { value: holder.value['tool_input'] };
-  const input = isRecord(toolInput) ? toolInput.value : {};
-  const tool = toolOf({ value: holder.value['tool_name'] });
-
-  return tool === undefined
-    ? undefined
-    : {
-        tool,
-        filePath:
-          toText({ value: input['file_path'] }) ?? toText({ value: input['notebook_path'] }),
-        command: toText({ value: input['command'] }),
-        cwd: toText({ value: holder.value['cwd'] }),
-      };
-};
-
-/** Whether this tool call writes `.agents/vulcan.manifest.json` - which only `vulcan sync` may do. */
-export const inspectManifestWrite = (opts: { input: IManifestHookInput }): boolean => {
-  const { tool, filePath, command, cwd } = opts.input;
-
-  if (tool === BASH_TOOL) {
-    return command !== undefined && WRITE_PATTERNS.some((pattern) => pattern.test(command));
-  }
-
-  if (filePath === undefined) {
-    return false;
-  }
-
-  const absolute = isAbsolute(filePath) ? filePath : join(cwd ?? process.cwd(), filePath);
-
-  return normalize(absolute).endsWith(MANIFEST_SUFFIX);
-};
-
-export const buildManifestDecision = () =>
-  forHost({
-    output: {
-      hookSpecificOutput: {
-        hookEventName: HookConstants.PRE_TOOL_USE,
-        permissionDecision: GuardDecisions.DENY,
-        permissionDecisionReason: MANIFEST_BLOCK_MESSAGE,
+  static buildDecision() {
+    return HookDecision.forHost({
+      output: {
+        hookSpecificOutput: {
+          hookEventName: HookConstants.PRE_TOOL_USE,
+          permissionDecision: GuardDecisions.DENY,
+          permissionDecisionReason: MANIFEST_BLOCK_MESSAGE,
+        },
       },
-    },
-  });
+    });
+  }
+}

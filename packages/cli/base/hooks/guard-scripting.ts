@@ -17,14 +17,13 @@ if (process.env.VULCAN_GUARDS === 'off') {
 }
 
 try {
-  const { buildScriptingAdvice, inspectScripting } =
-    await import('../../src/hooks/guard-scripting.ts');
-  const { parseHookCommand } = await import('../../src/hooks/guard-writes.ts');
+  const { ScriptingGuard } = await import('../../src/hooks/guard-scripting.ts');
+  const { WriteGuard } = await import('../../src/hooks/guard-writes.ts');
   const stdin = await Bun.stdin.text();
-  const hookCommand = parseHookCommand({ text: stdin });
+  const hookCommand = WriteGuard.parseHookCommand({ text: stdin });
 
-  if (hookCommand && inspectScripting({ command: hookCommand.command }).length > 0) {
-    console.log(JSON.stringify(buildScriptingAdvice()));
+  if (hookCommand && ScriptingGuard.inspect({ command: hookCommand.command }).length > 0) {
+    console.log(JSON.stringify(ScriptingGuard.buildAdvice()));
   }
 } catch (error) {
   console.error(

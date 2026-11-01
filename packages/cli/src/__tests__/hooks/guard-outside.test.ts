@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, symlinkSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { inspectOutside } from '../../hooks/index.ts';
+import { OutsideGuard } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -16,7 +16,7 @@ const bash = (opts: {
   toolOwnedPaths?: string[];
   env?: Record<string, string | undefined>;
 }): string[] =>
-  inspectOutside({
+  OutsideGuard.inspect({
     input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: opts.cwd ?? PROJECT },
     projectRoot: PROJECT,
     toolOwnedPaths: opts.toolOwnedPaths,
@@ -25,7 +25,7 @@ const bash = (opts: {
   }).map((hit) => hit.message);
 
 const file = (opts: { tool: string; path: string }): string[] =>
-  inspectOutside({
+  OutsideGuard.inspect({
     input: { tool: opts.tool, filePath: opts.path, command: undefined, cwd: PROJECT },
     projectRoot: PROJECT,
     home: HOME,
@@ -240,7 +240,7 @@ describe('$PWD is the folder the command runs in', () => {
 
   test('without a cwd in the payload the PWD of the hook is still the fallback', () => {
     const inspect = (opts: { pwd: string }) =>
-      inspectOutside({
+      OutsideGuard.inspect({
         input: { tool: 'Bash', filePath: undefined, command: 'touch $PWD/x', cwd: undefined },
         projectRoot: PROJECT,
         home: HOME,
@@ -319,7 +319,7 @@ describe('the agent tool scratchpad', () => {
   const SCRATCHPAD =
     '/tmp/claude-1000/-home-user-project/0b1c2d3e-aaaa-bbbb-cccc-1234567890ab/scratchpad';
   const hitsOf = (opts: { command?: string; tool?: string; path?: string }) =>
-    inspectOutside({
+    OutsideGuard.inspect({
       input: {
         tool: opts.tool ?? 'Bash',
         filePath: opts.path,
@@ -363,7 +363,7 @@ describe('the agent tool scratchpad', () => {
   });
 
   test('a guard.toolOwnedPaths entry for the folder keeps allowing it (the owner chose it)', () => {
-    const hits = inspectOutside({
+    const hits = OutsideGuard.inspect({
       input: {
         tool: 'Write',
         filePath: `${SCRATCHPAD}/notes.md`,

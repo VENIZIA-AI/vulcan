@@ -12,13 +12,12 @@
 export {};
 
 try {
-  const { buildManifestDecision, inspectManifestWrite, parseManifestHookInput } =
-    await import('../../src/hooks/guard-manifest.ts');
+  const { ManifestGuard } = await import('../../src/hooks/guard-manifest.ts');
   const stdin = await Bun.stdin.text();
-  const input = parseManifestHookInput({ text: stdin });
+  const input = ManifestGuard.parseHookInput({ text: stdin });
 
-  if (input && inspectManifestWrite({ input })) {
-    console.log(JSON.stringify(buildManifestDecision()));
+  if (input && ManifestGuard.inspectWrite({ input })) {
+    console.log(JSON.stringify(ManifestGuard.buildDecision()));
   }
 } catch (error) {
   console.error(

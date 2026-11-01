@@ -25,17 +25,17 @@ const text = await Bun.stdin.text();
 
 try {
   const { GuardDecisions } = await import('../../src/hooks/common/index.ts');
-  const { buildToolDecision } = await import('../../src/hooks/decision.ts');
-  const { inspectGit } = await import('../../src/hooks/guard-git.ts');
-  const { parseHookCommand } = await import('../../src/hooks/guard-writes.ts');
-  const { readGuardPolicy } = await import('../../src/hooks/project-guards.ts');
-  const hookCommand = parseHookCommand({ text });
+  const { HookDecision } = await import('../../src/hooks/decision.ts');
+  const { GitGuard } = await import('../../src/hooks/guard-git.ts');
+  const { WriteGuard } = await import('../../src/hooks/guard-writes.ts');
+  const { ProjectGuards } = await import('../../src/hooks/project-guards.ts');
+  const hookCommand = WriteGuard.parseHookCommand({ text });
   const cwd = hookCommand?.cwd ?? process.cwd();
   const hits = hookCommand
-    ? inspectGit({
+    ? GitGuard.inspect({
         command: hookCommand.command,
         cwd,
-        askPush: readGuardPolicy({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd }).askPush,
+        askPush: ProjectGuards.readPolicy({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd }).askPush,
       })
     : [];
 
@@ -44,7 +44,7 @@ try {
 
     console.log(
       JSON.stringify(
-        buildToolDecision({
+        HookDecision.buildTool({
           decision: denied ? GuardDecisions.DENY : GuardDecisions.ASK,
           reason: [
             denied

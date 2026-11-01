@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { patchedFilesOf, PatchedTools } from '../../hooks/index.ts';
+import { CodexPatch, PatchedTools } from '../../hooks/index.ts';
 
 const PATCH = [
   '*** Begin Patch',
@@ -17,7 +17,7 @@ const PATCH = [
 
 describe('patchedFilesOf', () => {
   test('reads every header, made absolute against the cwd, an add being a write and the rest edits', () => {
-    expect(patchedFilesOf({ patch: PATCH, cwd: '/work' })).toEqual([
+    expect(CodexPatch.patchedFilesOf({ patch: PATCH, cwd: '/work' })).toEqual([
       { path: '/work/docs/new.md', tool: PatchedTools.WRITE },
       { path: '/work/src/a.ts', tool: PatchedTools.EDIT },
       { path: '/etc/gone.txt', tool: PatchedTools.EDIT },
@@ -27,8 +27,8 @@ describe('patchedFilesOf', () => {
   });
 
   test('a text with no header, an empty text and a body line that looks like one are not files', () => {
-    expect(patchedFilesOf({ patch: 'git status', cwd: '/work' })).toEqual([]);
-    expect(patchedFilesOf({ patch: '', cwd: '/work' })).toEqual([]);
-    expect(patchedFilesOf({ patch: '+*** Add File: x', cwd: '/work' })).toEqual([]);
+    expect(CodexPatch.patchedFilesOf({ patch: 'git status', cwd: '/work' })).toEqual([]);
+    expect(CodexPatch.patchedFilesOf({ patch: '', cwd: '/work' })).toEqual([]);
+    expect(CodexPatch.patchedFilesOf({ patch: '+*** Add File: x', cwd: '/work' })).toEqual([]);
   });
 });

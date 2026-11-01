@@ -1,13 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  buildGuardDecision,
-  buildManifestDecision,
-  buildPackageDecision,
-  buildRemoteDecision,
-  buildToolDecision,
-  forHost,
-  inspectManifestWrite,
-  parseManifestHookInput,
+  HookDecision,
+  ManifestGuard,
+  PackageGuard,
+  RemoteHosts,
+  WriteGuard,
 } from '../../hooks/index.ts';
 
 const ASK = {
@@ -20,7 +17,7 @@ const ASK = {
 
 describe('forHost', () => {
   test('writes the decision and the reason at the top level too, for Copilot, and leaves hookSpecificOutput as it is', () => {
-    const output = forHost({ output: ASK, env: {} });
+    const output = HookDecision.forHost({ output: ASK, env: {} });
 
     expect(output.hookSpecificOutput).toEqual(ASK.hookSpecificOutput);
     expect(output.permissionDecision).toBe('ask');
@@ -28,8 +25,8 @@ describe('forHost', () => {
   });
 
   test('where Cursor says it runs the hook, an ask is a deny that says why; a deny stays a deny', () => {
-    const asked = forHost({ output: ASK, env: { CURSOR_PROJECT_DIR: '/p' } });
-    const denied = forHost({
+    const asked = HookDecision.forHost({ output: ASK, env: { CURSOR_PROJECT_DIR: '/p' } });
+    const denied = HookDecision.forHost({
       output: {
         hookSpecificOutput: { ...ASK.hookSpecificOutput, permissionDecision: 'deny' },
       },
@@ -44,11 +41,11 @@ describe('forHost', () => {
 
   test('every builder of a PreToolUse decision goes through it', () => {
     const outputs = [
-      buildToolDecision({ decision: 'ask', reason: ['x'] }),
-      buildGuardDecision({ hits: [{ rule: 'V-W-03', message: 'deploy' }] }),
-      buildManifestDecision(),
-      buildPackageDecision({ verdict: { kind: 'deny', message: 'use add' } }),
-      buildRemoteDecision({ hits: [{ rule: 'remote-hosts', message: 'ssh evil' }] }),
+      HookDecision.buildTool({ decision: 'ask', reason: ['x'] }),
+      WriteGuard.buildDecision({ hits: [{ rule: 'V-W-03', message: 'deploy' }] }),
+      ManifestGuard.buildDecision(),
+      PackageGuard.buildDecision({ verdict: { kind: 'deny', message: 'use add' } }),
+      RemoteHosts.buildDecision({ hits: [{ rule: 'remote-hosts', message: 'ssh evil' }] }),
     ];
 
     for (const output of outputs) {
@@ -71,15 +68,15 @@ describe('the shell tool of another host is read as Bash', () => {
   test.each(['Bash', 'Shell', 'shell', 'bash'])(
     '%s: a redirect onto the manifest is caught',
     (tool) => {
-      const input = parseManifestHookInput({ text: eventOf(tool) });
+      const input = ManifestGuard.parseHookInput({ text: eventOf(tool) });
 
       expect(input?.tool).toBe('Bash');
-      expect(input !== undefined && inspectManifestWrite({ input })).toBe(true);
+      expect(input !== undefined && ManifestGuard.inspectWrite({ input })).toBe(true);
     },
   );
 
   test('Write and Edit keep their names', () => {
-    expect(parseManifestHookInput({ text: eventOf('Write') })?.tool).toBe('Write');
-    expect(parseManifestHookInput({ text: eventOf('Edit') })?.tool).toBe('Edit');
+    expect(ManifestGuard.parseHookInput({ text: eventOf('Write') })?.tool).toBe('Write');
+    expect(ManifestGuard.parseHookInput({ text: eventOf('Edit') })?.tool).toBe('Edit');
   });
 });

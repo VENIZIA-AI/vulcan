@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { inspectGit } from '../../hooks/index.ts';
+import { GitGuard } from '../../hooks/index.ts';
 import type { IGitRunner } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
@@ -28,7 +28,7 @@ const runner =
     return undefined;
   };
 const decisions = (opts: { command: string; run?: IGitRunner }): string[] =>
-  inspectGit({
+  GitGuard.inspect({
     command: opts.command,
     cwd: '/p',
     run: opts.run ?? runner({ current: 'topic' }),
@@ -214,7 +214,7 @@ describe('inspectGit passes', () => {
   });
 
   test('every hit cites a rule', () => {
-    const hits = inspectGit({ command: 'git reset --hard', cwd: '/p', run: runner({}) });
+    const hits = GitGuard.inspect({ command: 'git reset --hard', cwd: '/p', run: runner({}) });
 
     expect(hits.every((hit) => /^V-[WP]-\d{2}$/.test(hit.rule))).toBe(true);
   });
@@ -247,7 +247,7 @@ describe('inspectGit against a real repository', () => {
     git({ cwd: root, args: ['branch', 'merged'] });
 
     const askFor = (name: string): string[] =>
-      inspectGit({ command: `git branch -D ${name}`, cwd: root }).map((hit) => hit.decision);
+      GitGuard.inspect({ command: `git branch -D ${name}`, cwd: root }).map((hit) => hit.decision);
 
     expect(askFor('unmerged')).toEqual(['ask']);
     expect(askFor('merged')).toEqual([]);
@@ -278,7 +278,7 @@ describe('inspectGit asks before a blanket stage that is large', () => {
   };
   const answer = (opts: { command: string; tracked: number; untracked?: number }) => {
     const fake = status({ tracked: opts.tracked, untracked: opts.untracked ?? 0 });
-    const hits = inspectGit({ command: opts.command, cwd: '/p', run: fake.run });
+    const hits = GitGuard.inspect({ command: opts.command, cwd: '/p', run: fake.run });
 
     return { hits, calls: fake.calls };
   };
@@ -337,7 +337,7 @@ describe('inspectGit asks before a blanket stage that is large', () => {
   test('a status that cannot be read lets the command pass', () => {
     const run: IGitRunner = () => undefined;
 
-    expect(inspectGit({ command: 'git add -A', cwd: '/p', run })).toEqual([]);
+    expect(GitGuard.inspect({ command: 'git add -A', cwd: '/p', run })).toEqual([]);
   });
 
   test('inside a compound command: asked once for the add, not for the commit without -a', () => {
@@ -385,7 +385,7 @@ describe('a blanket stage is counted file by file on a real repository', () => {
     }
   };
   const asks = (opts: { root: string; command: string }): string[] =>
-    inspectGit({ command: opts.command, cwd: opts.root }).map((hit) => hit.decision);
+    GitGuard.inspect({ command: opts.command, cwd: opts.root }).map((hit) => hit.decision);
 
   test('60 new files in ONE new folder: git add -A and git add . ask', () => {
     const root = repository();
@@ -485,7 +485,7 @@ describe('inspectGit and gh pr create', () => {
   });
 
   test('the hit cites a rule and names the flag to pass', () => {
-    const [hit] = inspectGit({ command: 'gh pr create', cwd: '/p', run: runner({}) });
+    const [hit] = GitGuard.inspect({ command: 'gh pr create', cwd: '/p', run: runner({}) });
 
     expect(hit.rule).toBe('V-W-06');
     expect(hit.message).toContain('--base');

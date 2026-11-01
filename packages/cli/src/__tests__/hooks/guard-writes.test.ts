@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { inspectCommand } from '../../hooks/index.ts';
+import { WriteGuard } from '../../hooks/index.ts';
 import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
 const FIXTURES = join(import.meta.dir, '..', 'fixtures', 'guard-writes');
@@ -50,14 +50,17 @@ const CASES: { name: string; command: string; cwd?: string; flagged: boolean }[]
 describe('inspectCommand', () => {
   for (const testCase of CASES) {
     test(`${testCase.flagged ? 'flags' : 'passes'}: ${testCase.name}`, () => {
-      const hits = inspectCommand({ command: testCase.command, cwd: testCase.cwd ?? FIXTURES });
+      const hits = WriteGuard.inspectCommand({
+        command: testCase.command,
+        cwd: testCase.cwd ?? FIXTURES,
+      });
 
       expect(hits.length > 0).toBe(testCase.flagged);
     });
   }
 
   test('every hit cites a base rule', () => {
-    const hits = inspectCommand({
+    const hits = WriteGuard.inspectCommand({
       command: 'kubectl apply -f m.yaml && curl -X DELETE https://x.dev/a',
       cwd: FIXTURES,
     });

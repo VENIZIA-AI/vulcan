@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
-import { projectTmpOf } from '../hooks/project-tmp.ts';
+import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { SyncStatuses } from './common/index.ts';
 import type { ISyncAction } from './common/index.ts';
 
@@ -17,7 +17,7 @@ export class LaunchSettings {
    * to one checkout of one developer.
    */
   static renderClaude(opts: { root: string }): string {
-    const folder = projectTmpOf({ root: opts.root });
+    const folder = ProjectTmp.projectOf({ root: opts.root });
 
     return `${JSON.stringify({ env: { TMPDIR: folder, CLAUDE_CODE_TMPDIR: folder } }, null, 2)}\n`;
   }

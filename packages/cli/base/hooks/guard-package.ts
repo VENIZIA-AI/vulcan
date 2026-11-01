@@ -13,15 +13,14 @@
 export {};
 
 try {
-  const { buildPackageDecision, inspectPackageWrite } =
-    await import('../../src/hooks/guard-package.ts');
-  const { parseManifestHookInput } = await import('../../src/hooks/guard-manifest.ts');
+  const { PackageGuard } = await import('../../src/hooks/guard-package.ts');
+  const { ManifestGuard } = await import('../../src/hooks/guard-manifest.ts');
   const stdin = await Bun.stdin.text();
-  const input = parseManifestHookInput({ text: stdin });
-  const verdict = input && inspectPackageWrite({ input });
+  const input = ManifestGuard.parseHookInput({ text: stdin });
+  const verdict = input && PackageGuard.inspectWrite({ input });
 
   if (verdict) {
-    console.log(JSON.stringify(buildPackageDecision({ verdict })));
+    console.log(JSON.stringify(PackageGuard.buildDecision({ verdict })));
   }
 } catch (error) {
   console.error(

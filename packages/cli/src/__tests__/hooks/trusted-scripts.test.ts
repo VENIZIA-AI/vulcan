@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { inspectCommand, listedScriptOf, trustOf, TrustStates } from '../../hooks/index.ts';
+import { ScriptTrust, TrustStates, WriteGuard } from '../../hooks/index.ts';
 import { git, initRepo } from '../git-repo.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
@@ -22,13 +22,13 @@ const repoWith = (opts: { files: Record<string, string> }): string => {
   return root;
 };
 
-const stateOf = (opts: { root: string; script: string }): string => trustOf(opts).state;
+const stateOf = (opts: { root: string; script: string }): string => ScriptTrust.trustOf(opts).state;
 
 describe('trustOf', () => {
   test('a tracked script identical to HEAD is trusted', () => {
     const root = repoWith({ files: { 'tools/cli.ts': BODY } });
 
-    expect(trustOf({ root, script: 'tools/cli.ts' }).state).toBe(TrustStates.TRUSTED);
+    expect(ScriptTrust.trustOf({ root, script: 'tools/cli.ts' }).state).toBe(TrustStates.TRUSTED);
   });
 
   test('an edit in the working tree is modified', () => {
@@ -37,7 +37,9 @@ describe('trustOf', () => {
     writeFileSync(join(root, 'cli.ts'), EDITED);
 
     expect(stateOf({ root, script: 'cli.ts' })).toBe(TrustStates.MODIFIED);
-    expect(trustOf({ root, script: 'cli.ts' }).reason).toContain('modified trusted script');
+    expect(ScriptTrust.trustOf({ root, script: 'cli.ts' }).reason).toContain(
+      'modified trusted script',
+    );
   });
 
   test('a staged edit whose working tree was restored is modified', () => {
@@ -76,7 +78,7 @@ describe('trustOf', () => {
     writeFileSync(join(root, 'new.ts'), BODY);
 
     expect(stateOf({ root, script: 'new.ts' })).toBe(TrustStates.UNTRACKED);
-    expect(trustOf({ root, script: 'new.ts' }).reason).toContain('not tracked');
+    expect(ScriptTrust.trustOf({ root, script: 'new.ts' }).reason).toContain('not tracked');
   });
 
   test('a file added but not committed is uncommitted', () => {
@@ -175,51 +177,53 @@ describe('listedScriptOf', () => {
   const scripts = ['tools/cli.ts', 'x.ts'];
 
   test('a relative target from the root matches', () => {
-    expect(listedScriptOf({ target: 'tools/cli.ts', cwd: root, root, scripts })).toBe(
+    expect(ScriptTrust.listedOf({ target: 'tools/cli.ts', cwd: root, root, scripts })).toBe(
       'tools/cli.ts',
     );
   });
 
   test('an absolute target matches', () => {
-    expect(listedScriptOf({ target: '/proj/tools/cli.ts', cwd: '/elsewhere', root, scripts })).toBe(
-      'tools/cli.ts',
-    );
+    expect(
+      ScriptTrust.listedOf({ target: '/proj/tools/cli.ts', cwd: '/elsewhere', root, scripts }),
+    ).toBe('tools/cli.ts');
   });
 
   test('a ./ target matches', () => {
-    expect(listedScriptOf({ target: './x.ts', cwd: root, root, scripts })).toBe('x.ts');
+    expect(ScriptTrust.listedOf({ target: './x.ts', cwd: root, root, scripts })).toBe('x.ts');
   });
 
   test('a target run from a subfolder resolves against that cwd', () => {
-    expect(listedScriptOf({ target: '../tools/cli.ts', cwd: '/proj/sub', root, scripts })).toBe(
-      'tools/cli.ts',
-    );
+    expect(
+      ScriptTrust.listedOf({ target: '../tools/cli.ts', cwd: '/proj/sub', root, scripts }),
+    ).toBe('tools/cli.ts');
   });
 
   test('the same name in another folder is not the listed script', () => {
-    expect(listedScriptOf({ target: 'tools/cli.ts', cwd: '/proj/sub', root, scripts })).toBe(
+    expect(ScriptTrust.listedOf({ target: 'tools/cli.ts', cwd: '/proj/sub', root, scripts })).toBe(
       undefined,
     );
   });
 
   test('no prefix, suffix or glob matching', () => {
-    expect(listedScriptOf({ target: 'tools/cli.ts.bak', cwd: root, root, scripts })).toBe(
+    expect(ScriptTrust.listedOf({ target: 'tools/cli.ts.bak', cwd: root, root, scripts })).toBe(
       undefined,
     );
-    expect(listedScriptOf({ target: 'tools/cli.tsx', cwd: root, root, scripts })).toBe(undefined);
-    expect(listedScriptOf({ target: 'old/tools/cli.ts', cwd: root, root, scripts })).toBe(
+    expect(ScriptTrust.listedOf({ target: 'tools/cli.tsx', cwd: root, root, scripts })).toBe(
+      undefined,
+    );
+    expect(ScriptTrust.listedOf({ target: 'old/tools/cli.ts', cwd: root, root, scripts })).toBe(
       undefined,
     );
     expect(
-      listedScriptOf({ target: 'tools/cli.ts', cwd: root, root, scripts: ['tools/*.ts'] }),
+      ScriptTrust.listedOf({ target: 'tools/cli.ts', cwd: root, root, scripts: ['tools/*.ts'] }),
     ).toBe(undefined);
-    expect(listedScriptOf({ target: 'tools/cli.ts', cwd: root, root, scripts: ['tools'] })).toBe(
-      undefined,
-    );
+    expect(
+      ScriptTrust.listedOf({ target: 'tools/cli.ts', cwd: root, root, scripts: ['tools'] }),
+    ).toBe(undefined);
   });
 
   test('an empty list matches nothing', () => {
-    expect(listedScriptOf({ target: 'x.ts', cwd: root, root, scripts: [] })).toBe(undefined);
+    expect(ScriptTrust.listedOf({ target: 'x.ts', cwd: root, root, scripts: [] })).toBe(undefined);
   });
 });
 
@@ -233,13 +237,15 @@ describe('inspectCommand with trust', () => {
   test('a listed, clean script is quiet', () => {
     const { root, trust } = trusted({ script: 'cli.ts' });
 
-    expect(inspectCommand({ command: 'bun cli.ts', cwd: root, trust })).toEqual([]);
+    expect(WriteGuard.inspectCommand({ command: 'bun cli.ts', cwd: root, trust })).toEqual([]);
   });
 
   test('the same body without trust is flagged', () => {
     const { root } = trusted({ script: 'cli.ts' });
 
-    expect(inspectCommand({ command: 'bun cli.ts', cwd: root }).length).toBeGreaterThan(0);
+    expect(WriteGuard.inspectCommand({ command: 'bun cli.ts', cwd: root }).length).toBeGreaterThan(
+      0,
+    );
   });
 
   test('the fixture shape of a mutating helper is flagged by default and quiet when listed', () => {
@@ -248,9 +254,11 @@ describe('inspectCommand with trust', () => {
     initRepo({ cwd: root });
     writeFileSync(join(root, 'mutating-script.ts'), BODY);
 
-    expect(inspectCommand({ command: `bun ${MUTATING}`, cwd: root }).length).toBeGreaterThan(0);
     expect(
-      inspectCommand({
+      WriteGuard.inspectCommand({ command: `bun ${MUTATING}`, cwd: root }).length,
+    ).toBeGreaterThan(0);
+    expect(
+      WriteGuard.inspectCommand({
         command: 'bun mutating-script.ts',
         cwd: root,
         trust: { root, scripts: ['mutating-script.ts'] },
@@ -262,7 +270,7 @@ describe('inspectCommand with trust', () => {
     const { root, trust } = trusted({ script: 'tools/cli.ts', files: { 'sub/keep.txt': 'x' } });
 
     expect(
-      inspectCommand({ command: 'bun ../tools/cli.ts', cwd: join(root, 'sub'), trust }),
+      WriteGuard.inspectCommand({ command: 'bun ../tools/cli.ts', cwd: join(root, 'sub'), trust }),
     ).toEqual([]);
   });
 
@@ -271,7 +279,7 @@ describe('inspectCommand with trust', () => {
 
     writeFileSync(join(root, 'cli.ts'), EDITED);
 
-    const hits = inspectCommand({ command: 'bun cli.ts', cwd: root, trust });
+    const hits = WriteGuard.inspectCommand({ command: 'bun cli.ts', cwd: root, trust });
 
     expect(hits.length).toBeGreaterThan(0);
     expect(hits.map((hit) => hit.message).join('\n')).toContain('modified trusted script');
@@ -279,7 +287,7 @@ describe('inspectCommand with trust', () => {
 
   test('an unlisted script asks', () => {
     const { root } = trusted({ script: 'cli.ts' });
-    const hits = inspectCommand({
+    const hits = WriteGuard.inspectCommand({
       command: 'bun cli.ts',
       cwd: root,
       trust: { root, scripts: ['other.ts'] },
@@ -294,7 +302,7 @@ describe('inspectCommand with trust', () => {
 
     writeFileSync(join(root, 'new.ts'), BODY);
 
-    const hits = inspectCommand({
+    const hits = WriteGuard.inspectCommand({
       command: 'bun new.ts',
       cwd: root,
       trust: { root, scripts: ['new.ts'] },
@@ -306,7 +314,7 @@ describe('inspectCommand with trust', () => {
 
   test('the command checks still apply next to a trusted script', () => {
     const { root, trust } = trusted({ script: 'cli.ts' });
-    const hits = inspectCommand({
+    const hits = WriteGuard.inspectCommand({
       command: 'bun cli.ts && curl -X POST https://x.dev/a',
       cwd: root,
       trust,
@@ -318,7 +326,11 @@ describe('inspectCommand with trust', () => {
 
   test('a listed script does not exempt a different script in the same command', () => {
     const { root, trust } = trusted({ script: 'cli.ts', files: { 'other.ts': BODY } });
-    const hits = inspectCommand({ command: 'bun cli.ts && bun other.ts', cwd: root, trust });
+    const hits = WriteGuard.inspectCommand({
+      command: 'bun cli.ts && bun other.ts',
+      cwd: root,
+      trust,
+    });
 
     expect(hits.length).toBeGreaterThan(0);
     expect(hits.every((hit) => hit.message.startsWith('other.ts'))).toBe(true);
@@ -431,7 +443,7 @@ describe('inspectCommand with read-only subcommands', () => {
     const { root } = release();
 
     expect(
-      inspectCommand({ command: `bun ${RELEASE_PATH} plan`, cwd: root }).length,
+      WriteGuard.inspectCommand({ command: `bun ${RELEASE_PATH} plan`, cwd: root }).length,
     ).toBeGreaterThan(0);
   });
 
@@ -446,24 +458,36 @@ describe('inspectCommand with read-only subcommands', () => {
   ])('a listed subcommand is quiet: %s', (command) => {
     const { root, trust } = release();
 
-    expect(inspectCommand({ command, cwd: root, trust })).toEqual([]);
+    expect(WriteGuard.inspectCommand({ command, cwd: root, trust })).toEqual([]);
   });
 
   test('an absolute path and a call from a subfolder are quiet too', () => {
     const { root, trust } = release({ files: { 'sub/keep.txt': 'x' } });
 
     expect(
-      inspectCommand({ command: `bun ${join(root, RELEASE_PATH)} plan`, cwd: '/', trust }),
+      WriteGuard.inspectCommand({
+        command: `bun ${join(root, RELEASE_PATH)} plan`,
+        cwd: '/',
+        trust,
+      }),
     ).toEqual([]);
     expect(
-      inspectCommand({ command: 'bun ../tools/release.ts plan', cwd: join(root, 'sub'), trust }),
+      WriteGuard.inspectCommand({
+        command: 'bun ../tools/release.ts plan',
+        cwd: join(root, 'sub'),
+        trust,
+      }),
     ).toEqual([]);
   });
 
   test('the run subcommand of the same script still asks, as it does with no entry', () => {
     const { root, trust } = release();
-    const withEntry = inspectCommand({ command: `bun ${RELEASE_PATH} run`, cwd: root, trust });
-    const without = inspectCommand({ command: `bun ${RELEASE_PATH} run`, cwd: root });
+    const withEntry = WriteGuard.inspectCommand({
+      command: `bun ${RELEASE_PATH} run`,
+      cwd: root,
+      trust,
+    });
+    const without = WriteGuard.inspectCommand({ command: `bun ${RELEASE_PATH} run`, cwd: root });
 
     expect(withEntry.length).toBeGreaterThan(0);
     expect(withEntry).toEqual(without);
@@ -485,7 +509,7 @@ describe('inspectCommand with read-only subcommands', () => {
   ])('asks for %s', (_name, command) => {
     const { root, trust } = release();
 
-    expect(inspectCommand({ command, cwd: root, trust }).length).toBeGreaterThan(0);
+    expect(WriteGuard.inspectCommand({ command, cwd: root, trust }).length).toBeGreaterThan(0);
   });
 
   test.each([
@@ -498,8 +522,8 @@ describe('inspectCommand with read-only subcommands', () => {
     ['a newline', `bun ${RELEASE_PATH} plan\nbun ${RELEASE_PATH} run`],
   ])('a compound command with %s judges each command on its own', (_name, command) => {
     const { root, trust } = release();
-    const hits = inspectCommand({ command, cwd: root, trust });
-    const runOnly = inspectCommand({ command: `bun ${RELEASE_PATH} run`, cwd: root });
+    const hits = WriteGuard.inspectCommand({ command, cwd: root, trust });
+    const runOnly = WriteGuard.inspectCommand({ command: `bun ${RELEASE_PATH} run`, cwd: root });
 
     expect(hits).toEqual(runOnly);
   });
@@ -508,7 +532,7 @@ describe('inspectCommand with read-only subcommands', () => {
     const { root, trust } = release();
 
     expect(
-      inspectCommand({
+      WriteGuard.inspectCommand({
         command: `bun ${RELEASE_PATH} plan && bun ${RELEASE_PATH} registry a.json`,
         cwd: root,
         trust,
@@ -520,14 +544,14 @@ describe('inspectCommand with read-only subcommands', () => {
     const { root, trust } = release();
 
     expect(
-      inspectCommand({
+      WriteGuard.inspectCommand({
         command: `bun ${RELEASE_PATH} plan "bun ${RELEASE_PATH} run"`,
         cwd: root,
         trust,
       }).length,
     ).toBeGreaterThan(0);
     expect(
-      inspectCommand({
+      WriteGuard.inspectCommand({
         command: `bun ${RELEASE_PATH} plan; bun ${RELEASE_PATH} "plan x"`,
         cwd: root,
         trust,
@@ -539,7 +563,7 @@ describe('inspectCommand with read-only subcommands', () => {
     const { root, trust } = release();
 
     expect(
-      inspectCommand({
+      WriteGuard.inspectCommand({
         command: `echo x | bun ${RELEASE_PATH} plan; bun ${RELEASE_PATH} run`,
         cwd: root,
         trust,
@@ -549,7 +573,7 @@ describe('inspectCommand with read-only subcommands', () => {
 
   test('the command line is still checked next to a listed subcommand', () => {
     const { root, trust } = release();
-    const hits = inspectCommand({
+    const hits = WriteGuard.inspectCommand({
       command: `bun ${RELEASE_PATH} plan && curl -X POST https://x.dev/a`,
       cwd: root,
       trust,
@@ -565,7 +589,11 @@ describe('inspectCommand with read-only subcommands', () => {
 
     writeFileSync(join(root, RELEASE_PATH), `${RELEASE}// edited\n`);
 
-    const hits = inspectCommand({ command: `bun ${RELEASE_PATH} plan`, cwd: root, trust });
+    const hits = WriteGuard.inspectCommand({
+      command: `bun ${RELEASE_PATH} plan`,
+      cwd: root,
+      trust,
+    });
     const text = hits.map((hit) => hit.message).join('\n');
 
     expect(hits.length).toBeGreaterThan(0);
@@ -578,7 +606,7 @@ describe('inspectCommand with read-only subcommands', () => {
 
     writeFileSync(join(root, 'tools', 'new.ts'), RELEASE);
 
-    const untracked = inspectCommand({
+    const untracked = WriteGuard.inspectCommand({
       command: 'bun tools/new.ts plan',
       cwd: root,
       trust: {
@@ -592,7 +620,7 @@ describe('inspectCommand with read-only subcommands', () => {
 
     git({ cwd: root, args: ['add', 'tools/new.ts'] });
 
-    const staged = inspectCommand({
+    const staged = WriteGuard.inspectCommand({
       command: 'bun tools/new.ts plan',
       cwd: root,
       trust: {
@@ -609,7 +637,7 @@ describe('inspectCommand with read-only subcommands', () => {
     const { root, trust } = release({ files: { 'tools/other.ts': RELEASE } });
 
     expect(
-      inspectCommand({ command: 'bun tools/other.ts plan', cwd: root, trust }).length,
+      WriteGuard.inspectCommand({ command: 'bun tools/other.ts plan', cwd: root, trust }).length,
     ).toBeGreaterThan(0);
   });
 
@@ -622,7 +650,7 @@ describe('inspectCommand with read-only subcommands', () => {
     };
 
     expect(
-      inspectCommand({ command: `bun ${RELEASE_PATH} plan`, cwd: root, trust }).length,
+      WriteGuard.inspectCommand({ command: `bun ${RELEASE_PATH} plan`, cwd: root, trust }).length,
     ).toBeGreaterThan(0);
   });
 
@@ -635,7 +663,7 @@ describe('inspectCommand with read-only subcommands', () => {
       `bun ${RELEASE_PATH} run`,
       `bun ${RELEASE_PATH}`,
     ]) {
-      expect(inspectCommand({ command, cwd: root, trust })).toEqual([]);
+      expect(WriteGuard.inspectCommand({ command, cwd: root, trust })).toEqual([]);
     }
   });
 
@@ -643,7 +671,9 @@ describe('inspectCommand with read-only subcommands', () => {
     const { root } = release();
     const trust = { root, scripts: [RELEASE_PATH], readOnlyScripts: READ_ONLY };
 
-    expect(inspectCommand({ command: `bun ${RELEASE_PATH} run`, cwd: root, trust })).toEqual([]);
+    expect(
+      WriteGuard.inspectCommand({ command: `bun ${RELEASE_PATH} run`, cwd: root, trust }),
+    ).toEqual([]);
   });
 
   test('no readOnly entries and an empty list change nothing', () => {
@@ -654,7 +684,7 @@ describe('inspectCommand with read-only subcommands', () => {
       { root, scripts: [], readOnlyScripts: [] },
     ]) {
       expect(
-        inspectCommand({ command: `bun ${RELEASE_PATH} plan`, cwd: root, trust }).length,
+        WriteGuard.inspectCommand({ command: `bun ${RELEASE_PATH} plan`, cwd: root, trust }).length,
       ).toBeGreaterThan(0);
     }
   });
@@ -694,7 +724,7 @@ describe('a listed script is the file the shell runs', () => {
       const { root } = setup();
 
       expect(
-        inspectCommand({ command: `bun ${PATH} plan`, cwd: root, trust: trust(root) }),
+        WriteGuard.inspectCommand({ command: `bun ${PATH} plan`, cwd: root, trust: trust(root) }),
       ).toEqual([]);
     });
 
@@ -702,8 +732,11 @@ describe('a listed script is the file the shell runs', () => {
       const { root } = setup();
 
       expect(
-        inspectCommand({ command: `bun link/../${PATH} plan`, cwd: root, trust: trust(root) })
-          .length,
+        WriteGuard.inspectCommand({
+          command: `bun link/../${PATH} plan`,
+          cwd: root,
+          trust: trust(root),
+        }).length,
       ).toBeGreaterThan(0);
     });
 
@@ -711,14 +744,14 @@ describe('a listed script is the file the shell runs', () => {
       const { root, other } = setup();
 
       expect(
-        inspectCommand({
+        WriteGuard.inspectCommand({
           command: `cd ${other} && bun ${PATH} plan`,
           cwd: root,
           trust: trust(root),
         }).length,
       ).toBeGreaterThan(0);
       expect(
-        inspectCommand({
+        WriteGuard.inspectCommand({
           command: `pushd ${other}; bun ${PATH} plan`,
           cwd: root,
           trust: trust(root),
@@ -730,14 +763,14 @@ describe('a listed script is the file the shell runs', () => {
       const { root, other } = setup();
 
       expect(
-        inspectCommand({
+        WriteGuard.inspectCommand({
           command: `bun ${PATH} plan && cd ${other}`,
           cwd: root,
           trust: trust(root),
         }),
       ).toEqual([]);
       expect(
-        inspectCommand({
+        WriteGuard.inspectCommand({
           command: `cd ${other} && bun ${join(root, PATH)} plan`,
           cwd: root,
           trust: trust(root),
@@ -752,7 +785,7 @@ describe('a listed script is the file the shell runs', () => {
     writeFileSync(join(root, 'evil.ts'), BODY);
 
     for (const command of ['bun run link/../evil.ts', 'bun link/../evil.ts']) {
-      expect(inspectCommand({ command, cwd: root }).length, command).toBeGreaterThan(0);
+      expect(WriteGuard.inspectCommand({ command, cwd: root }).length, command).toBeGreaterThan(0);
     }
   });
 
@@ -762,20 +795,20 @@ describe('a listed script is the file the shell runs', () => {
     mkdirSync(join(root, 'dir.ts'));
     spawnSync('mkfifo', [join(root, 'fifo.ts')], { timeout: 5000 });
 
-    expect(inspectCommand({ command: 'bun dir.ts', cwd: root })).toEqual([]);
-    expect(inspectCommand({ command: 'bun fifo.ts', cwd: root })).toEqual([]);
+    expect(WriteGuard.inspectCommand({ command: 'bun dir.ts', cwd: root })).toEqual([]);
+    expect(WriteGuard.inspectCommand({ command: 'bun fifo.ts', cwd: root })).toEqual([]);
   });
 
   test('listedScriptOf follows the link: the script behind it is not the listed one', () => {
     const { root, other } = setup();
 
-    expect(listedScriptOf({ target: `link/../${PATH}`, cwd: root, root, scripts: [PATH] })).toBe(
-      undefined,
-    );
-    expect(listedScriptOf({ target: join(other, PATH), cwd: root, root, scripts: [PATH] })).toBe(
-      undefined,
-    );
-    expect(listedScriptOf({ target: PATH, cwd: root, root, scripts: [PATH] })).toBe(PATH);
+    expect(
+      ScriptTrust.listedOf({ target: `link/../${PATH}`, cwd: root, root, scripts: [PATH] }),
+    ).toBe(undefined);
+    expect(
+      ScriptTrust.listedOf({ target: join(other, PATH), cwd: root, root, scripts: [PATH] }),
+    ).toBe(undefined);
+    expect(ScriptTrust.listedOf({ target: PATH, cwd: root, root, scripts: [PATH] })).toBe(PATH);
   });
 });
 

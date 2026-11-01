@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { parseShell, programOf } from '../hooks/shell.ts';
+import { ShellParser } from '../hooks/shell.ts';
 import { SignalConstants, WatchedKinds } from './constants.ts';
 
 const LOCAL_URL = /^https?:\/\/(?:localhost|127\.|0\.0\.0\.0|\[::1\])/;
@@ -15,8 +15,8 @@ const SCRATCH = /(?:^|\/)\.agents\/local\//;
 /** The simple commands of a line as program and arguments; a line that cannot be parsed has none. */
 const programsOf = (opts: { command: string }): { name: string; args: string[] }[] => {
   try {
-    return parseShell({ command: opts.command }).map((simple) => {
-      const { name, args } = programOf({ command: simple });
+    return ShellParser.parse({ command: opts.command }).map((simple) => {
+      const { name, args } = ShellParser.programOf({ command: simple });
 
       return { name, args };
     });

@@ -28,7 +28,7 @@ import {
   ViolationConstants,
 } from '../owner/index.ts';
 import { SkillCatalog } from '@venizia/vulcan-atlas';
-import { trustOf, TrustStates } from '../hooks/index.ts';
+import { ScriptTrust, TrustStates } from '../hooks/index.ts';
 import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
 import { Makefile } from './makefile.ts';
@@ -1192,7 +1192,7 @@ export class ProjectContract {
   static checkTrustedScripts(opts: ICheckContext): IViolation[] {
     return opts.config.guard.writes.trustedScripts.map((entry) => {
       const { script, readOnly } = trustedScriptOf({ entry });
-      const trust = trustOf({ root: opts.root, script });
+      const trust = ScriptTrust.trustOf({ root: opts.root, script });
       const scope = readOnly === undefined ? 'mutating calls' : `the calls ${readOnly.join(', ')}`;
 
       return createViolation({
@@ -1211,7 +1211,7 @@ export class ProjectContract {
   static checkStaleTrustedScripts(opts: ICheckContext): IViolation[] {
     return opts.config.guard.writes.trustedScripts.flatMap((entry) => {
       const { script } = trustedScriptOf({ entry });
-      const trust = trustOf({ root: opts.root, script });
+      const trust = ScriptTrust.trustOf({ root: opts.root, script });
 
       return STALE_TRUST_STATES.has(trust.state)
         ? [

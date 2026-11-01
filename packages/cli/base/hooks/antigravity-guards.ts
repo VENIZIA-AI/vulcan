@@ -53,10 +53,10 @@ const workspaces =
 if (tool === undefined || !isRecord(args)) {
   answer({ decision: 'allow' });
 } else {
-  const { verdictOf } = await import('../extensions/vulcan-guards.ts');
+  const { GuardVerdict } = await import('../extensions/vulcan-guards.ts');
   const command = textOf(args.CommandLine);
   const path = textOf(args.TargetFile);
-  const verdict = verdictOf({
+  const verdict = GuardVerdict.verdictOf({
     toolName: tool,
     input: Object.fromEntries([
       ['command', command],

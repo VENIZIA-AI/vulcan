@@ -1,11 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  buildSessionDigest,
-  SUBAGENT_CARD,
-  SUBAGENT_CARD_MAX_CHARACTERS,
-} from '../../hooks/index.ts';
+import { SessionDigest, SUBAGENT_CARD, SUBAGENT_CARD_MAX_CHARACTERS } from '../../hooks/index.ts';
 import { BASE_DIRECTORY } from '../../common/index.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -25,7 +21,7 @@ describe('buildSessionDigest', () => {
           '| ID | Rule | Enforced by |\n|---|---|---|\n| W-06 | stay home | SOFT |\n',
       },
     });
-    const digest = await buildSessionDigest({ projectRoot: root });
+    const digest = await SessionDigest.build({ projectRoot: root });
 
     expect(digest).toContain('| V-W-02 |');
     expect(digest).toContain('| V-W-01 | this project: `read-only`');
@@ -54,7 +50,7 @@ describe('buildSessionDigest', () => {
         '.agents/rules.md': BANA_RULES,
       },
     });
-    const digest = await buildSessionDigest({ projectRoot: root });
+    const digest = await SessionDigest.build({ projectRoot: root });
     const dropped = digest.slice(digest.indexOf('## The rules sessions drop most'));
 
     expect(dropped).toContain('| **W-00** | Never sign a commit as an agent. |');
@@ -69,7 +65,7 @@ describe('buildSessionDigest', () => {
         '.agents/rules.md': BANA_RULES,
       },
     });
-    const digest = await buildSessionDigest({ projectRoot: root });
+    const digest = await SessionDigest.build({ projectRoot: root });
 
     expect(digest).toContain(
       '| V-W-02, V-W-03 | Ask before psql writes or a deploy, even on develop. | HARD |',
@@ -100,7 +96,7 @@ describe('buildSessionDigest', () => {
       const root = createProject({
         files: { '.mcp.json': ATLAS_MCP, '.configs/vulcan.config.ts': CONFIG },
       });
-      const digest = await buildSessionDigest({ projectRoot: root });
+      const digest = await SessionDigest.build({ projectRoot: root });
       const block = digest.slice(digest.indexOf('## Atlas'), digest.indexOf('## Write boundaries'));
 
       expect(block).toContain('acme (this repository), ignis, ardor');
@@ -114,7 +110,7 @@ describe('buildSessionDigest', () => {
     test('a project whose atlas server is not configured gets no block', async () => {
       const root = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
 
-      const result = await buildSessionDigest({ projectRoot: root });
+      const result = await SessionDigest.build({ projectRoot: root });
       expect(result).not.toContain('## Atlas');
     });
 
@@ -126,7 +122,7 @@ describe('buildSessionDigest', () => {
             "export default { name: 'solo', rules: { 'V-W-01': 'on-user-word' } };\n",
         },
       });
-      const digest = await buildSessionDigest({ projectRoot: root });
+      const digest = await SessionDigest.build({ projectRoot: root });
 
       expect(digest).toContain('solo (this repository)');
     });
@@ -135,7 +131,7 @@ describe('buildSessionDigest', () => {
       const root = createProject({
         files: { '.mcp.json': ATLAS_MCP, '.configs/vulcan.config.ts': CONFIG },
       });
-      const digest = await buildSessionDigest({ projectRoot: root });
+      const digest = await SessionDigest.build({ projectRoot: root });
       const dropped = digest.slice(digest.indexOf('## The rules sessions drop most'));
 
       expect(dropped).toContain('| V-P-07 |');
@@ -146,7 +142,7 @@ describe('buildSessionDigest', () => {
       const root = createProject({
         files: { '.mcp.json': ATLAS_MCP, '.configs/vulcan.config.ts': CONFIG },
       });
-      const digest = await buildSessionDigest({ projectRoot: root });
+      const digest = await SessionDigest.build({ projectRoot: root });
       const dropped = digest.slice(digest.indexOf('## The rules sessions drop most'));
 
       for (const id of [
@@ -167,7 +163,7 @@ describe('buildSessionDigest', () => {
   });
 
   test('a project without a config still gets the digest, and sees the slot is not chosen', async () => {
-    const digest = await buildSessionDigest({ projectRoot: createProject({ files: {} }) });
+    const digest = await SessionDigest.build({ projectRoot: createProject({ files: {} }) });
 
     expect(digest).toContain('not chosen');
   });
@@ -192,7 +188,7 @@ test('the session-start hook prints the digest for CLAUDE_PROJECT_DIR', () => {
 describe('the temporary-files line of the digest', () => {
   test('names the project folder and says which agents have TMPDIR set for them', async () => {
     const root = createProject({ files: {} });
-    const digest = await buildSessionDigest({ projectRoot: root });
+    const digest = await SessionDigest.build({ projectRoot: root });
 
     expect(digest).toContain('## Temporary files');
     expect(digest).toContain(join(root, '.agents/local/tmp'));
@@ -206,7 +202,7 @@ describe('the owner cards in the digest', () => {
 
   test('every session gets the English shape card, with no profile card', async () => {
     const root = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
-    const digest = await buildSessionDigest({ projectRoot: root });
+    const digest = await SessionDigest.build({ projectRoot: root });
 
     expect(digest).toContain('## How to answer the owner');
     expect(digest).toContain('`Blocked:`');
@@ -225,7 +221,7 @@ describe('the owner cards in the digest', () => {
         }),
       },
     });
-    const digest = await buildSessionDigest({ projectRoot: root });
+    const digest = await SessionDigest.build({ projectRoot: root });
 
     expect(digest).toContain('## Working with this person');
     expect(digest).toContain('Address them as "Sam"');
@@ -239,7 +235,7 @@ describe('the owner cards in the digest', () => {
         '.agents/local/profile.json': JSON.stringify({ schemaVersion: 1, address: { you: 'Sam' } }),
       },
     });
-    const digest = await buildSessionDigest({
+    const digest = await SessionDigest.build({
       projectRoot: root,
       env: { VULCAN_OWNER_REPLY: 'off' },
     });
@@ -247,7 +243,7 @@ describe('the owner cards in the digest', () => {
     expect(digest).not.toContain('## How to answer the owner');
     expect(digest).not.toContain('## Working with this person');
     expect(digest).toContain('| V-W-02 |');
-    const result = await buildSessionDigest({ projectRoot: root, env: {} });
+    const result = await SessionDigest.build({ projectRoot: root, env: {} });
     expect(result).toContain('## How to answer the owner');
   });
 
@@ -266,7 +262,7 @@ describe('the owner cards in the digest', () => {
     const rules = readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8');
     const row = rules.split('\n').find((line) => line.startsWith('| V-B-08 |')) ?? '';
     const root = createProject({ files: { 'package.json': '{}' } });
-    const digest = await buildSessionDigest({ projectRoot: root });
+    const digest = await SessionDigest.build({ projectRoot: root });
 
     expect(SUBAGENT_CARD).toContain('scratchpad');
     expect(row).toContain('scratchpad');
@@ -295,7 +291,7 @@ describe('the owner cards in the digest', () => {
           '.agents/local/profile.json': JSON.stringify({ schemaVersion: 1, language }),
         },
       });
-      const digest = await buildSessionDigest({ projectRoot: root });
+      const digest = await SessionDigest.build({ projectRoot: root });
 
       expect(digest).toContain('VULCAN rules');
       expect(digest).toContain('## How to answer the owner');
@@ -308,7 +304,7 @@ describe('the owner cards in the digest', () => {
       files: { '.configs/vulcan.config.ts': CONFIG, '.agents/local/profile.json': '{ nope' },
     });
 
-    const result = await buildSessionDigest({ projectRoot: root });
+    const result = await SessionDigest.build({ projectRoot: root });
     expect(result).toContain('VULCAN rules');
   });
 });
