@@ -104,7 +104,7 @@ describe('CorpusLoader', () => {
     expect(loader.skipped).toHaveLength(1);
     expect(loader.skipped[0].corpus).toBe(Corpora.WIKI);
     expect(loader.skipped[0].path).toBe('broken.md');
-    expect(loader.skipped[0].error).toContain('[parseFrontmatter] invalid YAML frontmatter');
+    expect(loader.skipped[0].error).toContain('[CorpusFrontmatter.parse] invalid YAML frontmatter');
     expect(loader.skipped[0].error).toContain('broken.md');
   });
 

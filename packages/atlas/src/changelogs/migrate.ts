@@ -32,7 +32,7 @@ export class Migrate {
    * mentions, `packages/<dir>` paths). A declared list is never overwritten; what resolves to nothing
    * is reported for a human. `write: false` reports without writing.
    */
-  static migrateChangelogs(opts: { project: IAtlasProject; write: boolean }): IMigrateReport {
+  static changelogs(opts: { project: IAtlasProject; write: boolean }): IMigrateReport {
     const { project } = opts;
     const directory = project.knowledge.changelogs;
     const report: IMigrateReport = { written: [], unresolved: [], declared: 0 };

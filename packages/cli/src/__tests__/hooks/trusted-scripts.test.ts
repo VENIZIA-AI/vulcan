@@ -172,7 +172,7 @@ describe('trustOf with the project in a subfolder of the repository', () => {
   });
 });
 
-describe('listedScriptOf', () => {
+describe('ScriptTrust.listedOf', () => {
   const root = '/proj';
   const scripts = ['tools/cli.ts', 'x.ts'];
 
@@ -227,7 +227,7 @@ describe('listedScriptOf', () => {
   });
 });
 
-describe('inspectCommand with trust', () => {
+describe('WriteGuard.inspectCommand with trust', () => {
   const trusted = (opts: { script: string; files?: Record<string, string> }) => {
     const root = repoWith({ files: { [opts.script]: BODY, ...opts.files } });
 
@@ -432,7 +432,7 @@ const RELEASE = [
 const RELEASE_PATH = 'tools/release.ts';
 const READ_ONLY = [{ script: RELEASE_PATH, readOnly: ['plan', 'registry'] }];
 
-describe('inspectCommand with read-only subcommands', () => {
+describe('WriteGuard.inspectCommand with read-only subcommands', () => {
   const release = (opts: { files?: Record<string, string> } = {}) => {
     const root = repoWith({ files: { [RELEASE_PATH]: RELEASE, ...opts.files } });
 
@@ -799,7 +799,7 @@ describe('a listed script is the file the shell runs', () => {
     expect(WriteGuard.inspectCommand({ command: 'bun fifo.ts', cwd: root })).toEqual([]);
   });
 
-  test('listedScriptOf follows the link: the script behind it is not the listed one', () => {
+  test('ScriptTrust.listedOf follows the link: the script behind it is not the listed one', () => {
     const { root, other } = setup();
 
     expect(

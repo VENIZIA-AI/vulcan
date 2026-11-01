@@ -412,7 +412,7 @@ $ same, with the input {"tool_name":"Bash","tool_input":{"command":"bun install"
 
 The parse-failure behavior differs per hook.
 On unparseable input, `guard-writes` prints a log line to stderr, lets the command through, and exits with code 0.
-The log begins with `[parseHookCommand] unreadable hook input - letting the command through`.
+The log begins with `[WriteGuard.parseHookCommand] unreadable hook input - letting the command through`.
 In contrast, `guard-remote-hosts` asks with "the hook input could not be read".
 
 ## Your own hooks

@@ -28,7 +28,7 @@ const world = (opts: { binaries?: string[]; homeDirs?: string[]; projectDirs?: s
   return { root, home, path: bin };
 };
 
-describe('detectAgents', () => {
+describe('AgentDetection.detect', () => {
   test('nothing installed, nothing detected', () => {
     expect(AgentDetection.detect(world({}))).toEqual([]);
   });

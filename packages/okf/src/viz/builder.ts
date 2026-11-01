@@ -111,7 +111,7 @@ export class VizBuilder {
       const reasons = result.logs.map((log) => String(log)).join('\n');
 
       console.error(
-        `[bundleVizClient] failed to bundle ${relative(OkfProject.read().root, CLIENT_ENTRY)}\n${reasons}`,
+        `[VizBuilder.bundleClient] failed to bundle ${relative(OkfProject.read().root, CLIENT_ENTRY)}\n${reasons}`,
       );
       process.exit(1);
     }

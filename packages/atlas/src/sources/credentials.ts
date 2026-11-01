@@ -6,7 +6,7 @@ export class GithubCredentials {
    * prints. Git, when present, uses the machine's own credentials instead. A token never appears in a
    * message or a log - only in a request header.
    */
-  static githubTokenOf(): string | undefined {
+  static tokenOf(): string | undefined {
     if (process.env.GITHUB_TOKEN) {
       return process.env.GITHUB_TOKEN;
     }

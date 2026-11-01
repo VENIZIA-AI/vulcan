@@ -12,7 +12,7 @@ export const runChangelogsCommand = (opts: { command?: string; argv: string[] })
   }
 
   const write = !opts.argv.includes(DRY_RUN_FLAG);
-  const report = Migrate.migrateChangelogs({ project: ProjectConfig.readAtlasProject(), write });
+  const report = Migrate.changelogs({ project: ProjectConfig.readAtlasProject(), write });
   const verb = write ? 'wrote' : 'would write';
 
   for (const file of report.written) {

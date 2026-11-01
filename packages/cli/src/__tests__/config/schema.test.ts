@@ -154,7 +154,7 @@ describe('package kind', () => {
     });
   });
 
-  test('resolvePackages carries presetKind only when it is set', () => {
+  test('ProjectPackages.resolve carries presetKind only when it is set', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({
       packages: [
         { dir: 'money', name: '@nx/money', path: 'libs/money', kind: 'lib', presetKind: 'shared' },
@@ -167,7 +167,7 @@ describe('package kind', () => {
     expect(packages[1]).not.toHaveProperty('presetKind');
   });
 
-  test('resolvePackages carries the kind', () => {
+  test('ProjectPackages.resolve carries the kind', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({
       packages: [
         {
@@ -245,7 +245,7 @@ describe('layout', () => {
   });
 });
 
-describe('resolvePackages', () => {
+describe('ProjectPackages.resolve', () => {
   test('atlas.packages was removed: the error names the top-level packages that replaces it', () => {
     const result = VULCAN_CONFIG_SCHEMA.safeParse({ atlas: { packages: { b: '@x/b' } } });
     const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);

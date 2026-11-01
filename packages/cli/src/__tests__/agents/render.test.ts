@@ -7,13 +7,13 @@ const ENTRY = {
   args: [`${ROOT}/node_modules/.bin/vulcan`, 'x', 'atlas', 'mcp', '--root', ROOT],
 };
 
-describe('atlasServerEntry', () => {
+describe('McpConfig.atlasServerEntry', () => {
   test("calls the project's own vulcan by absolute path, so the starting directory does not matter", () => {
     expect(McpConfig.atlasServerEntry({ root: ROOT })).toEqual(ENTRY);
   });
 });
 
-describe('mergeMcpServers (mcpServers)', () => {
+describe('McpConfig.mergeServers (mcpServers)', () => {
   const merge = (opts: { text: string | undefined }) =>
     McpConfig.mergeServers({ text: opts.text, key: 'mcpServers', entry: ENTRY });
 
@@ -144,7 +144,7 @@ describe('mergeMcpServers (mcpServers)', () => {
   });
 });
 
-describe('mergeMcpServers (servers, for VS Code)', () => {
+describe('McpConfig.mergeServers (servers, for VS Code)', () => {
   test('uses the servers key and a stdio type', () => {
     const result = McpConfig.mergeServers({
       text: undefined,
@@ -182,7 +182,7 @@ describe('mergeMcpServers (servers, for VS Code)', () => {
   });
 });
 
-describe('mergeCodexToml', () => {
+describe('McpConfig.mergeCodexToml', () => {
   const block = (): string =>
     [
       CODEX_BLOCK_START,
@@ -243,7 +243,7 @@ describe('mergeCodexToml', () => {
   });
 });
 
-describe('removeMcpEntry', () => {
+describe('McpConfig.removeEntry', () => {
   const remove = (opts: { document: unknown; key?: string }) =>
     McpConfig.removeEntry({ text: JSON.stringify(opts.document), key: opts.key ?? 'mcpServers' });
 
@@ -288,7 +288,7 @@ describe('removeMcpEntry', () => {
   });
 });
 
-describe('removeCodexBlock', () => {
+describe('McpConfig.removeCodexBlock', () => {
   const block = [
     CODEX_BLOCK_START,
     '[mcp_servers.atlas]',

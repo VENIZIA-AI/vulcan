@@ -1,16 +1,16 @@
 ---
-title: "VULCAN X.Y.Z: vulcan visualize Pages Get a New Look, Your Project's Colour and Four New Kinds"
-description: The pages of vulcan visualize take the look of this wiki, use the colour of your project (the new theme key), follow your profile language and add the sequence, lifecycle, tree and compare kinds, with sources and terms.
-packages: ['@venizia/vulcan']
+title: "VULCAN X.Y.Z: A New vulcan visualize, and Three Packages' Functions Move into Classes"
+description: vulcan visualize pages take the look of this wiki, use your project's colour and add four kinds; the agent-setup make target is gone and a few okf and atlas functions are now class methods.
+packages: ['@venizia/vulcan', '@venizia/vulcan-atlas', '@venizia/vulcan-okf']
 ---
 
 # Changelog - 2026-11-01
 
-## VULCAN X.Y.Z: vulcan visualize pages get a new look, your project's colour and four new kinds
+## VULCAN X.Y.Z: a new vulcan visualize, and three packages' functions move into classes
 
-<Badge type="tip" text="Enhancement" />
+<Badge type="warning" text="Breaking" />
 
-**In one line.** `vulcan visualize` pages now look like this wiki, wear your project's colour, come in your profile language, and can draw a sequence, a lifecycle, a tree and the difference between two ways of doing a thing.
+**In one line.** `vulcan visualize` pages now look like this wiki, wear your project's colour, come in your profile language and can draw four more kinds; and three small things you may call are renamed (below, under Breaking).
 
 ## What changed
 
@@ -21,6 +21,14 @@ packages: ['@venizia/vulcan']
 - **Sources and terms.** A flow box, a flow step or a compare box can carry a `source` (`repo`, a 40-character `commit`, `path`, `lines`), shown as `repo@commit:path:lines` and listed once; a short commit is refused. A `terms` list explains words the reader may not know, and warns when one never appears in the page.
 - **Larger pages.** The warning is now at 80 KB and the refusal at 150 KB (it was 60 and 100).
 
+## Breaking
+
+Nothing is kept as a deprecated alias: the old names are gone in this release.
+
+- **The `agent-setup` make target.** The shipped `base/make/vulcan.mk` no longer defines it (it only forwarded to `vulcan-sync`), and `vulcan doctor` now tells a fresh clone to run `make vulcan-sync`. If a script, a CI step or a README calls `make agent-setup`, replace it with `make vulcan-sync`, or with `bun x --no-install vulcan sync`.
+- **`@venizia/vulcan-okf`**: `checkBundle` is `BundleConformance.check({ files })`, `splitFrontmatter` is `OkfFrontmatter.split({ text })` and `parseYamlMapping` is `OkfFrontmatter.parseMapping({ yaml })`. Same options and results; change the import and the call. `defineRenderer` and the renderer types are unchanged.
+- **`@venizia/vulcan-atlas`**: `officialIdOf` is `OfficialPresets.idOf({ spec })`, `triggerOf` is `SkillCatalog.triggerOf({ description })` and `skillCatalogOf` is `SkillCatalog.catalogOf({ root })`. Same options and results; change the import and the call. The atlas MCP tools and `OFFICIAL_PRESETS` are unchanged.
+
 ## Who is affected
 
-Anyone who runs `vulcan visualize`. Existing specs keep working and render in the new look. A project that wants its own colour adds `theme: { accent: '#...' }` to its config and runs `vulcan sync`; see the [`theme` option](/references/configuration/#theme).
+Anyone who runs `vulcan visualize`: existing specs keep working and render in the new look; a project that wants its own colour adds `theme: { accent: '#...' }` to its config and runs `vulcan sync` (see the [`theme` option](/references/configuration/#theme)). The Breaking items affect only code that calls `make agent-setup` or imports the six functions named above; the `vulcan` command line is otherwise unchanged.

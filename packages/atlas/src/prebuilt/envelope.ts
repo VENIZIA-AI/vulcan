@@ -20,7 +20,7 @@ export interface IIndexPayload {
   bytes: number;
   /** sha256 of the gz, hex. */
   digest: string;
-  /** The fingerprint of the repository's tags when it was built (what `lsRemote` computes). */
+  /** The fingerprint of the repository's tags when it was built (what `GitRepository.lsRemote` computes). */
   tags: string;
   history: boolean;
   releases: IReleaseTable;
@@ -69,7 +69,7 @@ export class Envelope {
   /**
    * An envelope is usable only when a listed key verifies the signature over the payload bytes and the
    * payload has the shape of one. What it says about the commit, the repository and the format is the
-   * reader's to compare, and the gz it names is checked by `verifyPair`.
+   * reader's to compare, and the gz it names is checked by `Envelope.verifyPair`.
    */
   static verify(opts: { envelope: string; keys: string[] }): TPairCheck {
     let text: unknown;

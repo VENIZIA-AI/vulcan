@@ -27,7 +27,7 @@ ${filler({ lines: 60 })}
 ${filler({ lines: 60 })}
 `;
 
-describe('withContents', () => {
+describe('ContentsList.withContents', () => {
   test('a file over the limit gains a contents list of its ## headings, under the title', () => {
     const result = ContentsList.withContents({ text: LONG });
     const lines = result.split('\n');

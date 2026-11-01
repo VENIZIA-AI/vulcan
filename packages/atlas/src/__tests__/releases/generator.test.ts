@@ -17,7 +17,7 @@ import {
 const withFrontmatter = (opts: { frontmatter: string; body: string }): string =>
   `---\n${opts.frontmatter}\n---\n\n${opts.body}\n`;
 
-describe('resolveChangelogPackages - what migrate writes', () => {
+describe('Resolve.resolveChangelogPackages - what migrate writes', () => {
   test('a packages frontmatter list wins over everything else in the file', () => {
     const text = withFrontmatter({
       frontmatter: 'title: A change\npackages:\n  - kernel\n  - boot',
@@ -119,7 +119,7 @@ describe('resolveChangelogPackages - what migrate writes', () => {
   });
 });
 
-describe('kindOfChangelog', () => {
+describe('ReleaseCompute.kindOfChangelog', () => {
   test('reads the first badge text', () => {
     const text = '# Changelog\n\n<Badge type="tip" text="New Feature" />\n';
 
@@ -131,7 +131,7 @@ describe('kindOfChangelog', () => {
   });
 });
 
-describe('titleOfChangelog', () => {
+describe('ReleaseCompute.titleOfChangelog', () => {
   test('reads the frontmatter title', () => {
     const text = withFrontmatter({ frontmatter: 'title: A Real Title', body: '# Changelog' });
 
@@ -320,7 +320,7 @@ describe('AtlasReleases with project packages', () => {
   });
 });
 
-describe('resolveChangelogPackages - a declared list (C3)', () => {
+describe('Resolve.resolveChangelogPackages - a declared list (C3)', () => {
   test('a declared list of npm names resolves to the packages it names', () => {
     const text = withFrontmatter({
       frontmatter: "title: A change\npackages: ['@venizia/ignis', '@venizia/ignis-docs-mcp']",

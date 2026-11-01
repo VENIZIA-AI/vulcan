@@ -34,7 +34,7 @@ const decisions = (opts: { command: string; run?: IGitRunner }): string[] =>
     run: opts.run ?? runner({ current: 'topic' }),
   }).map((hit) => hit.decision);
 
-describe('inspectGit denies', () => {
+describe('GitGuard.inspect denies', () => {
   test.each([
     'git branch -D develop',
     'git branch -d main',
@@ -124,7 +124,7 @@ describe('inspectGit denies', () => {
   });
 });
 
-describe('inspectGit asks', () => {
+describe('GitGuard.inspect asks', () => {
   test('git push --mirror', () => {
     expect(decisions({ command: 'git push --mirror origin' })).toEqual(['ask']);
   });
@@ -144,7 +144,7 @@ describe('inspectGit asks', () => {
   });
 });
 
-describe('inspectGit passes', () => {
+describe('GitGuard.inspect passes', () => {
   test('a heredoc commit message that mentions a force-push is data, not a command', () => {
     const message = [
       "git commit -m \"$(cat <<'EOF'",
@@ -220,7 +220,7 @@ describe('inspectGit passes', () => {
   });
 });
 
-describe('inspectGit against a real repository', () => {
+describe('GitGuard.inspect against a real repository', () => {
   const git = (opts: { cwd: string; args: string[] }): void => {
     expect(Bun.spawnSync(['git', ...opts.args], { cwd: opts.cwd }).exitCode).toBe(0);
   };
@@ -257,7 +257,7 @@ describe('inspectGit against a real repository', () => {
 // A formatter run followed by `git add -A` once committed 152 files nobody meant to stage. A blanket stage asks only when it
 // would stage a lot (the threshold is HookConstants.BLANKET_STAGE_PATHS): on this repository's develop, 2.2% of commits
 // touch more than 50 files, and the median is 7, so a small pull request is never asked about.
-describe('inspectGit asks before a blanket stage that is large', () => {
+describe('GitGuard.inspect asks before a blanket stage that is large', () => {
   /** A fake `git status --porcelain` of `tracked` modified paths and `untracked` new ones; counts the queries made. */
   const status = (opts: { tracked: number; untracked: number }) => {
     const calls: string[] = [];
@@ -451,7 +451,7 @@ describe('a blanket stage is counted file by file on a real repository', () => {
   });
 });
 
-describe('inspectGit and gh pr create', () => {
+describe('GitGuard.inspect and gh pr create', () => {
   test.each([
     'gh pr create',
     'gh pr create --title "x" --body "y"',
@@ -492,7 +492,7 @@ describe('inspectGit and gh pr create', () => {
   });
 });
 
-describe('inspectGit and gh options before the group', () => {
+describe('GitGuard.inspect and gh options before the group', () => {
   test('gh -R <repo> pr merge --delete-branch is judged like gh pr merge --delete-branch', () => {
     expect(
       decisions({

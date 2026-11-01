@@ -28,7 +28,7 @@ const DATA: IVizData = {
   },
 };
 
-describe('assembleVizHtml', () => {
+describe('VizBuilder.assembleHtml', () => {
   test('fills every token and leaves none behind', () => {
     const html = VizBuilder.assembleHtml({
       template: TEMPLATE,
@@ -80,7 +80,7 @@ describe('assembleVizHtml', () => {
   });
 });
 
-describe('bundleVizClient', () => {
+describe('VizBuilder.bundleClient', () => {
   test('bundles the browser client, Cytoscape and fcose into one import-free script', async () => {
     const script = await VizBuilder.bundleClient();
 

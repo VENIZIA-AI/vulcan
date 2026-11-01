@@ -32,7 +32,7 @@ const git = (opts: { root: string; args: string[] }): string => {
 
   if (result.status !== 0) {
     throw new Error(
-      `[computeReleases] git ${opts.args[0]} exited ${result.status}\n${result.stderr ?? ''}`,
+      `[ReleaseCompute.compute] git ${opts.args[0]} exited ${result.status}\n${result.stderr ?? ''}`,
     );
   }
 

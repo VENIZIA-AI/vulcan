@@ -165,7 +165,7 @@ export class ProjectManifest {
       return strip(opts.committed) === strip(opts.rendered);
     } catch (error) {
       console.error(
-        `[isManifestCurrent] unreadable manifest | ${error instanceof Error ? error.message : String(error)}`,
+        `[ProjectManifest.isCurrent] unreadable manifest | ${error instanceof Error ? error.message : String(error)}`,
       );
 
       return false;

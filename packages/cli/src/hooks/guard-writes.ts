@@ -212,7 +212,7 @@ export class WriteGuard {
       payload = JSON.parse(opts.text);
     } catch (error) {
       console.error(
-        `[parseHookCommand] unreadable hook input - letting the command through | ${error instanceof Error ? error.message : String(error)}`,
+        `[WriteGuard.parseHookCommand] unreadable hook input - letting the command through | ${error instanceof Error ? error.message : String(error)}`,
       );
 
       return undefined;

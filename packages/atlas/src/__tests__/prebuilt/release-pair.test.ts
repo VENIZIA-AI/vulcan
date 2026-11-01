@@ -192,7 +192,7 @@ const repository = () => {
 };
 
 describe('what git says about a ref', () => {
-  test('refCommitOf takes a tag or a branch name and nothing else', () => {
+  test('IndexPublish.refCommitOf takes a tag or a branch name and nothing else', () => {
     const { work, first, head, side } = repository();
 
     expect(IndexPublish.refCommitOf({ root: work, ref: 'v1' })).toBe(first);
@@ -203,7 +203,7 @@ describe('what git says about a ref', () => {
     expect(IndexPublish.refCommitOf({ root: work, ref: 'nope' })).toBeUndefined();
   });
 
-  test('isOnBranch: an ancestor of develop is on it, a side commit is not, and the local branch counts when origin is not fetched', () => {
+  test('IndexPublish.isOnBranch: an ancestor of develop is on it, a side commit is not, and the local branch counts when origin is not fetched', () => {
     const { work, first, head, side } = repository();
 
     expect(IndexPublish.isOnBranch({ root: work, sha: first, branch: 'develop' })).toBe(true);
@@ -219,7 +219,7 @@ describe('what git says about a ref', () => {
 describe('building the pair of a commit other than HEAD', () => {
   const keys = PrebuiltKeys.generatePair();
 
-  test('buildIndexPair with a commit names the pair by that commit and indexes that commit, not HEAD', () => {
+  test('IndexPair.build with a commit names the pair by that commit and indexes that commit, not HEAD', () => {
     const { work, first, head } = repository();
     const out = join(work, '.agents/local/tmp/pair');
     const built = IndexPair.build({

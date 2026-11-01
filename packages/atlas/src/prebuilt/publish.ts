@@ -459,7 +459,7 @@ export class IndexPublish {
         commit,
       });
       const release = await ensureRelease({ call, base, sha: built.sha });
-      const names = PairNames.pairNamesOf({ sha: built.sha });
+      const names = PairNames.of({ sha: built.sha });
       const listed = await listAssets({ call, base, releaseId: release.id });
       const deleted: string[] = [];
 

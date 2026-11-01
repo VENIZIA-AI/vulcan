@@ -46,7 +46,7 @@ export class MissReasons {
 }
 
 export class PairNames {
-  static pairNamesOf(opts: { sha: string }): { gz: string; envelope: string } {
+  static of(opts: { sha: string }): { gz: string; envelope: string } {
     return {
       gz: `${opts.sha}${PrebuiltConstants.INDEX_SUFFIX}`,
       envelope: `${opts.sha}${PrebuiltConstants.ENVELOPE_SUFFIX}`,

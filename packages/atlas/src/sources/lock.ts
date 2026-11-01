@@ -26,7 +26,7 @@ const ownerOf = (opts: { lock: string }): ILockOwner | undefined => {
     return JSON.parse(readFileSync(file, 'utf8'));
   } catch (error) {
     // Read while its holder was writing it: the age decides.
-    StderrLogger.get('withPullLock').debug('an owner file mid-write | error: %s', error);
+    StderrLogger.get('PullLock.with').debug('an owner file mid-write | error: %s', error);
 
     return undefined;
   }
@@ -79,7 +79,7 @@ export class PullLock {
    * pulls, the rest find its SHA complete. A lock a dead pull left behind is taken over; a live one is
    * waited for, within a bound.
    */
-  static async withPullLock<TResult>(opts: {
+  static async with<TResult>(opts: {
     cacheRoot: string;
     label: string;
     run: () => Promise<TResult>;
@@ -87,7 +87,7 @@ export class PullLock {
     const lock = join(opts.cacheRoot, LOCK);
     const token = randomUUID();
     const deadline = Date.now() + WAIT_MS;
-    const logger = StderrLogger.get('withPullLock');
+    const logger = StderrLogger.get('PullLock.with');
     let waited = false;
 
     mkdirSync(opts.cacheRoot, { recursive: true });

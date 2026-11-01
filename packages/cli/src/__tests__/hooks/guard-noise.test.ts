@@ -72,7 +72,7 @@ describe('a heredoc body', () => {
   });
 });
 
-describe('commandTextsOf and isDataOnly', () => {
+describe('CommandView.commandTextsOf and isDataOnly', () => {
   test('a search or a print is its bare name; a command that runs something keeps its words', () => {
     expect(
       CommandView.commandTextsOf({ command: 'rg -n "kubectl apply" docs/', withMessages: true }),

@@ -307,7 +307,7 @@ export class SyncPlanner {
   static plan(opts: {
     root: string;
     config: TResolvedConfig;
-    /** The agents this machine chose (`resolveAgents`); only Claude has adapters until the renderers land. */
+    /** The agents this machine chose (`AgentSelection.resolve`); only Claude has adapters until the renderers land. */
     agents: string[];
   }): ISyncAction[] {
     return [

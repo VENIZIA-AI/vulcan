@@ -19,7 +19,7 @@ const ROUTING = [
   '',
 ].join('\n');
 
-describe('renderAtlasBlock', () => {
+describe('AtlasBlock.render', () => {
   test('is marked as generated, names the corpora and the three triggers and cites V-P-07', () => {
     expect(BLOCK.startsWith(`${ATLAS_BLOCK_START}`)).toBe(true);
     expect(BLOCK.trimEnd().endsWith(ATLAS_BLOCK_END)).toBe(true);
@@ -57,7 +57,7 @@ describe('renderAtlasBlock', () => {
   });
 });
 
-describe('mergeAtlasBlock', () => {
+describe('AtlasBlock.merge', () => {
   test('inserts the block before the section after "Must read first"', () => {
     const merged = AtlasBlock.merge({ text: ROUTING, block: BLOCK });
 

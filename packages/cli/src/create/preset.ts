@@ -130,7 +130,7 @@ export class Preset {
       return JSON.parse(readFileSync(opts.file, 'utf8'));
     } catch (error) {
       console.error(
-        `[readJson] ${opts.file} | ${error instanceof Error ? error.message : String(error)}`,
+        `[Preset.readJson] ${opts.file} | ${error instanceof Error ? error.message : String(error)}`,
       );
 
       return undefined;
@@ -263,7 +263,7 @@ export class Preset {
 
   /**
    * Every file the preset makes, as the app would get it: the dotfile names, the tokens replaced, symlinks
-   * skipped. Nothing is written: `copyPresetFiles` writes what this returns, and `preset diff` compares it.
+   * skipped. Nothing is written: `Preset.copyFiles` writes what this returns, and `preset diff` compares it.
    */
   static renderFiles(opts: {
     located: ILocatedPreset;

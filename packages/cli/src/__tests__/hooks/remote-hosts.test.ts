@@ -26,7 +26,7 @@ describe('a nest of env -S is read fast and asks', () => {
   });
 });
 
-describe('matchesHost: exact, or a pattern whose only wildcard is *', () => {
+describe('RemoteHosts.matches: exact, or a pattern whose only wildcard is *', () => {
   test('an exact name matches itself only, case-insensitively', () => {
     expect(RemoteHosts.matches({ host: 'LAB1', entries: ['lab1'] })).toBe(true);
     expect(RemoteHosts.matches({ host: 'lab10', entries: ['lab1'] })).toBe(false);
@@ -63,7 +63,7 @@ describe('matchesHost: exact, or a pattern whose only wildcard is *', () => {
   });
 });
 
-describe('parseTrustedList: one host per line, # comments', () => {
+describe('RemoteHosts.parseTrustedList: one host per line, # comments', () => {
   test('blank lines and comments are skipped, entries trimmed', () => {
     expect(RemoteHosts.parseTrustedList({ text: '# lab\n lab2 \n\n*.lan  # mine\n' })).toEqual([
       'lab2',

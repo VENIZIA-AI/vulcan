@@ -10,7 +10,7 @@ const SOURCES = [
   },
 ];
 
-describe('packageAcrossSources (C2)', () => {
+describe('PackageMap.packageAcrossSources (C2)', () => {
   test('a npm name is unambiguous across sources', () => {
     expect(
       PackageMap.packageAcrossSources({ value: '@venizia/ardor-kernel', sources: SOURCES }),

@@ -46,7 +46,7 @@ const GOOD = [
 const classesOf = (text: string, change: Record<string, unknown> = {}): string[] =>
   OwnerShape.check({ text, view: view(change) }).classes;
 
-describe('checkOwnerShape', () => {
+describe('OwnerShape.check', () => {
   test('a reply in the shape has no fault', () => {
     expect(OwnerShape.check({ text: GOOD, view: view() })).toEqual({
       isChecked: true,
@@ -424,7 +424,7 @@ describe('the violation log', () => {
   });
 });
 
-describe('checkOwnerShape does not reject a correct reply', () => {
+describe('OwnerShape.check does not reject a correct reply', () => {
   const clean = (text: string, change: Record<string, unknown> = {}): void =>
     expect(classesOf(text, change)).toEqual([]);
 

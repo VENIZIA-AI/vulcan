@@ -27,7 +27,7 @@ beforeEach(() => {
 
 afterEach(clearProjectConfig);
 
-describe('buildVizData', () => {
+describe('VizBuilder.buildData', () => {
   test('counts each undirected link once per end, skipping self, dangling and duplicate links', () => {
     const data = VizBuilder.buildData({
       concepts: [

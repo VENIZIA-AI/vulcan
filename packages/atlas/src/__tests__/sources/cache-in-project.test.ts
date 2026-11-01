@@ -46,7 +46,7 @@ afterEach(() => {
   delete process.env.VULCAN_NPM_REGISTRY;
 });
 
-describe('cacheBaseOf', () => {
+describe('SourceCache.cacheBaseOf', () => {
   test('defaults to .agents/local/cache under the working directory', () => {
     expect(DEFAULT_CACHE_DIRECTORY).toBe('.agents/local/cache');
     expect(SourceCache.cacheBaseOf({ cwd: '/work/app' })).toBe('/work/app/.agents/local/cache');

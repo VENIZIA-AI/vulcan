@@ -38,7 +38,7 @@ const locateFixture = (opts: { path: string }): ILocatedPreset => {
   return result.located;
 };
 
-describe('parsePresetSpec', () => {
+describe('Preset.parseSpec', () => {
   test('a bare name resolves to its package in the framework scope, on latest', () => {
     expect(Preset.parseSpec({ value: 'widget', cwd: '/x' })).toEqual({
       packageName: '@venizia/widget',
@@ -74,7 +74,7 @@ describe('parsePresetSpec', () => {
   });
 });
 
-describe('locatePreset', () => {
+describe('Preset.locate', () => {
   test('a file: preset is read from its folder', () => {
     const result = Preset.locate({ spec: { range: `file:${FIXTURE}` }, root: '/unused' });
 
@@ -221,7 +221,7 @@ describe('locatePreset', () => {
   });
 });
 
-describe('locatePreset shared kind', () => {
+describe('Preset.locate shared kind', () => {
   const sharedPackageJson = (opts: { shared?: string; lib?: string }): string =>
     JSON.stringify({
       name: '@acme/kit',
@@ -294,14 +294,14 @@ describe('locatePreset shared kind', () => {
     expect(!result.ok && result.error).toContain('points outside the package');
   });
 
-  test('readLibPreset reads the shared file of a valid shared kind', () => {
+  test('LibPreset.read reads the shared file of a valid shared kind', () => {
     const located = locateFixture({ path: SHARED_FIXTURE });
     const result = LibPreset.read({ located, kind: 'shared' });
 
     expect(result.ok && result.lib.summary).toBe('A fixture side-neutral package.');
   });
 
-  test('readLibPreset on a package with no shared kind refuses, naming the kind', () => {
+  test('LibPreset.read on a package with no shared kind refuses, naming the kind', () => {
     const located = locateFixture({ path: FIXTURE });
     const result = LibPreset.read({ located, kind: 'shared' });
 
@@ -309,7 +309,7 @@ describe('locatePreset shared kind', () => {
     expect(!result.ok && result.error).toContain('shared');
   });
 
-  test('readLibPreset refuses a shared file that fails the schema, naming the package and the kind', () => {
+  test('LibPreset.read refuses a shared file that fails the schema, naming the package and the kind', () => {
     const located = locateSource({
       source: sourceOf({
         files: {
@@ -355,7 +355,7 @@ describe('locatePreset shared kind', () => {
     expect(!result.ok && result.error).toContain('lib preset');
   });
 
-  test('recordedPresetOf carries shared when the shared file is valid', () => {
+  test('LibPreset.recordedOf carries shared when the shared file is valid', () => {
     const recorded = LibPreset.recordedOf({
       spec: 'file:x',
       located: locateFixture({ path: SHARED_FIXTURE }),
@@ -365,7 +365,7 @@ describe('locatePreset shared kind', () => {
     expect(recorded.lib).toBe('A fixture library.');
   });
 
-  test('recordedPresetOf leaves shared out when the shared file is invalid, keeping lib', () => {
+  test('LibPreset.recordedOf leaves shared out when the shared file is invalid, keeping lib', () => {
     const located = locateSource({
       source: sourceOf({
         files: {
@@ -381,7 +381,7 @@ describe('locatePreset shared kind', () => {
     expect('shared' in recorded).toBe(false);
   });
 
-  test('recordedPresetOf leaves shared out when the preset has no shared kind', () => {
+  test('LibPreset.recordedOf leaves shared out when the preset has no shared kind', () => {
     const recorded = LibPreset.recordedOf({
       spec: 'file:x',
       located: locateFixture({ path: FIXTURE }),
@@ -391,7 +391,7 @@ describe('locatePreset shared kind', () => {
   });
 });
 
-describe('locatePreset urls', () => {
+describe('Preset.locate urls', () => {
   const withUrls = (opts: { urls?: unknown }): string =>
     createProject({
       files: {
@@ -433,7 +433,7 @@ describe('locatePreset urls', () => {
   });
 });
 
-describe('locatePreset imports', () => {
+describe('Preset.locate imports', () => {
   const withImports = (opts: { imports?: unknown }): string =>
     createProject({
       files: {
@@ -487,7 +487,7 @@ describe('locatePreset imports', () => {
   });
 });
 
-describe('locatePreset containment', () => {
+describe('Preset.locate containment', () => {
   const PACKAGE_JSON =
     '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./preset.json" } } }';
 
@@ -592,7 +592,7 @@ describe('locatePreset containment', () => {
   });
 });
 
-describe('copyPresetFiles', () => {
+describe('Preset.copyFiles', () => {
   test('tokens are substituted, _ files renamed, a real dotfile kept', () => {
     const target = createProject({ files: {} });
     const written = Preset.copyFiles({

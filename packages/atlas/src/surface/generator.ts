@@ -180,7 +180,7 @@ export const runSurfaceCommand = (opts: { command?: string }): number => {
 
       console.error(
         'stale .agents/knowledge/reference/public-surface.md - the public surface changed; ' +
-          `${RegenerateHint.regenerateHintOf({ command: 'surface' })} only if the change is intended`,
+          `${RegenerateHint.of({ command: 'surface' })} only if the change is intended`,
       );
 
       return 1;

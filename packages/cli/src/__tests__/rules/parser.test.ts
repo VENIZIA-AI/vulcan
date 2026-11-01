@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../../common/index.ts';
 import { BaseRules, RuleParser, RuleSlots } from '../../rules/index.ts';
 
-describe('parseRuleIds', () => {
+describe('RuleParser.parseIds', () => {
   test('reads plain and bold ID cells in table order and skips the header', () => {
     const markdown = '| ID | Rule |\n|---|---|\n| W-01 | a |\n| **P-09** | b |\n| text | c |\n';
 
@@ -65,7 +65,7 @@ describe('parseRuleIds', () => {
   });
 });
 
-describe('parseBaseReferences', () => {
+describe('RuleParser.parseBaseReferences', () => {
   test('reads Extends lists in rule rows and every V- ID in a first cell, once each, in order', () => {
     const markdown = [
       '| **W-00** | **Extends V-W-01 (slot).** mine | SOFT |',
@@ -95,7 +95,7 @@ describe('parseBaseReferences', () => {
   });
 });
 
-describe('readBaseRules', () => {
+describe('BaseRules.read', () => {
   test('every base rule ID maps to its row', () => {
     const rules = BaseRules.read();
 
@@ -167,7 +167,7 @@ describe('readBaseRules', () => {
   });
 });
 
-describe('readRetiredRuleIds', () => {
+describe('BaseRules.readRetiredIds', () => {
   test('the base lists V-W-05, V-C-03 and V-C-05 as retired', () => {
     expect(BaseRules.readRetiredIds()).toEqual(['V-W-05', 'V-C-03', 'V-C-05']);
   });
@@ -179,7 +179,7 @@ describe('readRetiredRuleIds', () => {
   });
 });
 
-describe('readSlots', () => {
+describe('RuleSlots.read', () => {
   test('V-W-01 offers on-user-word and read-only; only read-only carries settings', () => {
     const slots = RuleSlots.read();
 

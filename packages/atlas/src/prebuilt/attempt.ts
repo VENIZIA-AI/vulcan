@@ -27,7 +27,7 @@ export class PrebuiltAttempt {
       github,
       sha: opts.sha,
       keys: opts.keys,
-      token: GithubCredentials.githubTokenOf(),
+      token: GithubCredentials.tokenOf(),
     });
 
     if (result.hit) {

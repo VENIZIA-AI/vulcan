@@ -46,10 +46,10 @@ const projectAt = (opts: { root: string }) =>
     manifest: { schemaVersion: 1, packages: PACKAGES, knowledge: { changelogs: 'changes' } },
   });
 
-describe('migrateChangelogs (C3)', () => {
+describe('Migrate.changelogs (C3)', () => {
   test('writes the resolved npm names into each entry that declares none', () => {
     const { root, read } = projectWith();
-    const report = Migrate.migrateChangelogs({ project: projectAt({ root }), write: true });
+    const report = Migrate.changelogs({ project: projectAt({ root }), write: true });
 
     expect(report.written).toEqual(['changes/2026-01-01-mention.md', 'changes/2026-01-04-bare.md']);
     expect(read('2026-01-01-mention.md')).toBe(
@@ -62,7 +62,7 @@ describe('migrateChangelogs (C3)', () => {
 
   test('never overwrites a declared list, and lists what resolved to nothing', () => {
     const { root, read } = projectWith();
-    const report = Migrate.migrateChangelogs({ project: projectAt({ root }), write: true });
+    const report = Migrate.changelogs({ project: projectAt({ root }), write: true });
 
     expect(read('2026-01-02-declared.md')).toBe(ENTRIES['2026-01-02-declared.md']);
     expect(read('2026-01-03-nothing.md')).toBe(ENTRIES['2026-01-03-nothing.md']);
@@ -72,14 +72,14 @@ describe('migrateChangelogs (C3)', () => {
 
   test('a dry run reports the same and writes nothing', () => {
     const { root, read } = projectWith();
-    const report = Migrate.migrateChangelogs({ project: projectAt({ root }), write: false });
+    const report = Migrate.changelogs({ project: projectAt({ root }), write: false });
 
     expect(report.written).toEqual(['changes/2026-01-01-mention.md', 'changes/2026-01-04-bare.md']);
     expect(read('2026-01-01-mention.md')).toBe(ENTRIES['2026-01-01-mention.md']);
   });
 });
 
-describe('migrateChangelogs on CRLF entries', () => {
+describe('Migrate.changelogs on CRLF entries', () => {
   test('a declared list is read, never given a second frontmatter; a new line keeps CRLF', () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-migrate-crlf-'));
     const declared =
@@ -91,7 +91,7 @@ describe('migrateChangelogs on CRLF entries', () => {
     writeFileSync(join(root, 'changes', '2026-01-01-declared.md'), declared);
     writeFileSync(join(root, 'changes', '2026-01-02-mention.md'), mention);
 
-    const report = Migrate.migrateChangelogs({ project: projectAt({ root }), write: true });
+    const report = Migrate.changelogs({ project: projectAt({ root }), write: true });
 
     expect(report.declared).toBe(1);
     expect(report.written).toEqual(['changes/2026-01-02-mention.md']);

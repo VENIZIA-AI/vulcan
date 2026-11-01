@@ -62,7 +62,7 @@ const write = (opts: { root: string; path: string; tool?: string }) =>
     },
   });
 
-describe('inspectPackageWrite - a real command exists', () => {
+describe('PackageGuard.inspectWrite - a real command exists', () => {
   test('a new package.json in the backend folder is denied with the exact add command', () => {
     const root = project();
     const verdict = write({ root, path: 'services/api3/package.json' });
@@ -213,7 +213,7 @@ describe('inspectPackageWrite - a real command exists', () => {
   });
 });
 
-describe('inspectPackageWrite - a layout with several folders per side', () => {
+describe('PackageGuard.inspectWrite - a layout with several folders per side', () => {
   const GROUPED = {
     ...MANIFEST,
     layout: {
@@ -281,7 +281,7 @@ describe('inspectPackageWrite - a layout with several folders per side', () => {
   });
 });
 
-describe('inspectPackageWrite - silent', () => {
+describe('PackageGuard.inspectWrite - silent', () => {
   test('a package.json that already exists is left alone', () => {
     const root = project({ files: ['services/api/package.json'] });
 
@@ -342,7 +342,7 @@ describe('inspectPackageWrite - silent', () => {
   });
 });
 
-describe('inspectPackageWrite - no real command: warn, never block', () => {
+describe('PackageGuard.inspectWrite - no real command: warn, never block', () => {
   test('a layout folder whose side no recorded preset makes', () => {
     const root = project({
       manifest: {

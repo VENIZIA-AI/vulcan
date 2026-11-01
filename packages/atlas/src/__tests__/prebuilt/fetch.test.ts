@@ -62,7 +62,7 @@ const fetchFixture = (
 const missOf = (opts: { result: IPrebuiltHit | IPrebuiltMiss }): string =>
   opts.result.hit ? 'hit' : opts.result.reason;
 
-describe('fetchPrebuilt: a verified pair is used (C10)', () => {
+describe('PrebuiltFetch.fetch: a verified pair is used (C10)', () => {
   test('the index in the pair comes back, and it is the one that was built', async () => {
     serve(fixture);
 
@@ -90,7 +90,7 @@ describe('fetchPrebuilt: a verified pair is used (C10)', () => {
   });
 });
 
-describe('fetchPrebuilt: what the payload says must match what the reader holds (C12)', () => {
+describe('PrebuiltFetch.fetch: what the payload says must match what the reader holds (C12)', () => {
   test('a signature from a key that is not listed is a miss', async () => {
     serve(fixture);
     const result2 = await fetchFixture({ keys: [PrebuiltKeys.generatePair().publicKey] });
@@ -143,7 +143,7 @@ describe('fetchPrebuilt: what the payload says must match what the reader holds 
   });
 });
 
-describe('fetchPrebuilt: what is missing, slow, too large or the wrong size is a miss (C13)', () => {
+describe('PrebuiltFetch.fetch: what is missing, slow, too large or the wrong size is a miss (C13)', () => {
   test('no envelope, and no gz, are misses that name the file', async () => {
     fake.assets.set(`${fixture.sha}.atlas.gz`, fixture.gz);
 
@@ -217,7 +217,7 @@ describe('fetchPrebuilt: what is missing, slow, too large or the wrong size is a
   });
 });
 
-describe('fetchPrebuilt: a pair that verifies but cannot be opened is not promoted (C14)', () => {
+describe('PrebuiltFetch.fetch: a pair that verifies but cannot be opened is not promoted (C14)', () => {
   test('bytes that are not a database are a miss', async () => {
     serve(
       withIndex({
@@ -263,7 +263,7 @@ describe('the token goes to the API host and nowhere else (C16)', () => {
   });
 });
 
-describe('attemptPrebuilt asks the network only when it may (C15)', () => {
+describe('PrebuiltAttempt.attempt asks the network only when it may (C15)', () => {
   const source = { name: 'src', repo: 'acme/src', ref: 'develop' };
 
   test.each([

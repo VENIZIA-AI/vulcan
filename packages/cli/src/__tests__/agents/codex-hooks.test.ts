@@ -9,7 +9,7 @@ interface IFile {
   hooks: { PreToolUse: { matcher: string; hooks: { command: string; timeout?: number }[] }[] };
 }
 
-describe('mergeCodexHooks', () => {
+describe('CodexHooks.merge', () => {
   test('creates hooks.PreToolUse with one entry on the shell and the patch tool', () => {
     const merged = CodexHooks.merge({ text: undefined });
 
@@ -76,7 +76,7 @@ describe('mergeCodexHooks', () => {
   });
 });
 
-describe('removeCodexHooks', () => {
+describe('CodexHooks.remove', () => {
   test('takes only its entry out and keeps the rest', () => {
     const merged = CodexHooks.merge({ text: JSON.stringify({ hooks: { PreToolUse: [MINE] } }) });
 

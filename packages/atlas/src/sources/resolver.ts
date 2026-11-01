@@ -415,7 +415,7 @@ const refreshReleases = async (opts: {
   }
 
   try {
-    await PullLock.withPullLock({
+    await PullLock.with({
       cacheRoot: opts.cacheRoot,
       label: describe(opts),
       run: () => {
@@ -535,7 +535,7 @@ const lookUpRef = async (opts: {
     return { reachable: true, sha: known };
   }
 
-  return PullLock.withPullLock({
+  return PullLock.with({
     cacheRoot: opts.cacheRoot,
     label: describe(opts),
     run: () => {
@@ -571,7 +571,7 @@ const resolveRemote = async (opts: {
     );
   }
 
-  const token = byGit ? undefined : GithubCredentials.githubTokenOf();
+  const token = byGit ? undefined : GithubCredentials.tokenOf();
   const remote = await lookUpRef({ source: opts.source, cacheRoot, byGit, github, token });
 
   if (!remote.reachable) {
@@ -626,7 +626,7 @@ const resolveRemote = async (opts: {
     return { ...served, symbolsPending };
   }
 
-  return PullLock.withPullLock({
+  return PullLock.with({
     cacheRoot,
     label: describe(opts),
     run: async () => {

@@ -80,7 +80,10 @@ export class GitRepository {
         timeout: AtlasTimeouts.REF_LOOKUP_MS,
       });
     } catch (error) {
-      StderrLogger.get('lsRemote').warn('the remote could not be asked | error: %s', error);
+      StderrLogger.get('GitRepository.lsRemote').warn(
+        'the remote could not be asked | error: %s',
+        error,
+      );
 
       return { reachable: false };
     }
@@ -138,7 +141,7 @@ export class GitRepository {
     const exists = GitRepository.hasClone(opts);
 
     if (!exists && existsSync(opts.gitDir)) {
-      StderrLogger.get('updateClone').warn(
+      StderrLogger.get('GitRepository.updateClone').warn(
         `not a git repository, cloning again | directory: ${opts.gitDir}`,
       );
       rmSync(opts.gitDir, { recursive: true, force: true });

@@ -521,7 +521,7 @@ describe('the size', () => {
   });
 });
 
-describe('writePage', () => {
+describe('SpecPage.write', () => {
   const project = (): string => {
     const root = createProject({ files: { '.gitignore': '.agents/local/\n' } });
 

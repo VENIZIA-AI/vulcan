@@ -14,7 +14,7 @@ const BACKEND = `file:${join(FIXTURES, 'preset-backend')}`;
 const FRONTEND = `file:${join(FIXTURES, 'preset-frontend')}`;
 const ENV = { VULCAN_NO_INSTALL: '1' };
 
-describe('layoutFolderProblem', () => {
+describe('LayoutFolder.layoutFolderProblem', () => {
   test.each(['services', 'auroras/apps', 'a/b/c/d', 'web-2/app1', '0/1'])(
     '%s is a folder',
     (folder) => {

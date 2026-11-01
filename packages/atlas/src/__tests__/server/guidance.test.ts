@@ -40,7 +40,7 @@ const remoteOf = (opts: { name: string; packages: string[] }): IResolvedSource =
   project: projectOf(opts),
 });
 
-describe('projectsOf', () => {
+describe('ServerGuidance.projectsOf', () => {
   test('one project is its name; two are joined with "and"; three with commas and "and"', () => {
     const acme = repositoryOf({ name: 'acme', packages: ['@acme/core'] });
     const ignis = remoteOf({ name: 'ignis', packages: ['@venizia/ignis'] });
@@ -54,7 +54,7 @@ describe('projectsOf', () => {
   });
 });
 
-describe('instructionsOf', () => {
+describe('ServerGuidance.instructionsOf', () => {
   const acme = repositoryOf({ name: 'acme', packages: ['@acme/core', '@acme/web'] });
   const ignis = remoteOf({ name: 'ignis', packages: ['@venizia/ignis', '@venizia/ignis-boot'] });
   const leadOf = (opts: { text: string }): string => opts.text.split('\n\n')[0] ?? '';

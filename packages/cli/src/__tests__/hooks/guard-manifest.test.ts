@@ -61,7 +61,7 @@ const COMMAND_CASES: { name: string; command: string; blocked: boolean }[] = [
   { name: 'redirect elsewhere', command: 'echo x > notes.txt', blocked: false },
 ];
 
-describe('inspectManifestWrite', () => {
+describe('ManifestGuard.inspectWrite', () => {
   for (const item of TOOL_CASES) {
     test(`${item.name}: ${item.blocked ? 'blocked' : 'allowed'}`, () => {
       expect(
@@ -83,7 +83,7 @@ describe('inspectManifestWrite', () => {
   }
 });
 
-describe('parseManifestHookInput', () => {
+describe('ManifestGuard.parseHookInput', () => {
   test('reads the tool, the file path and the command from the wire form', () => {
     expect(
       ManifestGuard.parseHookInput({

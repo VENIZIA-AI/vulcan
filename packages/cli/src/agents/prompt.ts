@@ -20,7 +20,7 @@ const hintOf = (opts: { id: string; question: IAgentQuestion }): string | undefi
 /**
  * The checkbox menu: what this machine chose before is ticked, else what was detected. The first
  * pass of the resolution only learns whether it has to ask; the answer then goes back in as a list,
- * so the order in which sources are tried stays in `resolveAgents`.
+ * so the order in which sources are tried stays in `AgentSelection.resolve`.
  */
 const resolveAgentsWithMenu = async (opts: TResolveAgentsInput): Promise<TAgentResolution> => {
   const questions: IAgentQuestion[] = [];

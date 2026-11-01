@@ -50,7 +50,7 @@ afterAll(() => {
   }
 });
 
-describe('symbolsOfInstalled (D2)', () => {
+describe('SymbolCompute.symbolsOfInstalled (D2)', () => {
   test("reads the installed package's own declarations - the version the consumer runs", () => {
     const consumer = temp({ prefix: 'atlas-consumer-' });
 
@@ -167,7 +167,7 @@ describe('the symbols cache', () => {
   });
 });
 
-describe('symbolsOfPublished (D2)', () => {
+describe('SymbolCompute.symbolsOfPublished (D2)', () => {
   test('not installed: the npm tarball of that version, unpacked once and cached', async () => {
     const packed = temp({ prefix: 'atlas-tarball-' });
 

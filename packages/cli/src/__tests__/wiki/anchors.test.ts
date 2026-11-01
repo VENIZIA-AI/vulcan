@@ -72,7 +72,7 @@ afterAll(() => {
   }
 });
 
-describe('checkAnchors', () => {
+describe('AnchorCheck.check', () => {
   const { checked, broken } = AnchorCheck.check(fixture());
   const targets = broken.map((entry) => entry.target);
 

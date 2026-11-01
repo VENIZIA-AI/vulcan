@@ -816,7 +816,7 @@ describe('vulcan preset diff on a library or a shared package', () => {
   });
 });
 
-describe('detectPreset', () => {
+describe('PresetDiff.detect', () => {
   const recorded = (opts: { spec: string; side: TAppSide }): IRecordedPreset => ({
     ...opts,
     summary: 's',
@@ -866,7 +866,7 @@ describe('detectPreset', () => {
   });
 });
 
-describe('comparePresetFiles', () => {
+describe('PresetDiff.compareFiles', () => {
   test('same, differs and missing, in path order, reading only', () => {
     const app = createProject({ files: { 'a.txt': 'one\n', 'c.txt': 'old\n' } });
     const reports = PresetDiff.compareFiles({
@@ -886,7 +886,7 @@ describe('comparePresetFiles', () => {
   });
 });
 
-describe('diffLines', () => {
+describe('LineDiff.diff', () => {
   const lines = (...text: string[]): string => `${text.join('\n')}\n`;
 
   test('identical text has no change; one added and one removed line are counted', () => {

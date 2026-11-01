@@ -22,7 +22,7 @@ const scripted = (answers: (string | null)[]): TAsk => {
   return () => queue.shift() ?? null;
 };
 
-describe('resolveNames', () => {
+describe('ProjectNames.resolve', () => {
   test('flags fill every name without asking', async () => {
     const result = await ProjectNames.resolve({
       fields: FIELDS,
@@ -202,7 +202,7 @@ describe('resolveNames', () => {
   });
 });
 
-describe('readLine', () => {
+describe('ProjectNames.readLine', () => {
   const withInput = (opts: { content: string; run: (descriptor: number) => void }): void => {
     const folder = mkdtempSync(join(tmpdir(), 'vulcan-readline-'));
     const file = join(folder, 'input');
