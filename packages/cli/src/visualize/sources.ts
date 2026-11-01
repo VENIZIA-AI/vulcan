@@ -61,7 +61,7 @@ interface ISourceUse {
 
 const escaped = (value: string): string => escapeText({ value });
 
-const REPO = /^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/;
+const REPO = /^[A-Za-z0-9][A-Za-z0-9._-]*(\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/;
 const COMMIT = /^[0-9a-f]{40}$/;
 const LINES = /^([1-9]\d{0,6})(?:-([1-9]\d{0,6}))?$/;
 
@@ -111,6 +111,13 @@ export class SourceRefs {
 
     if (source.path.includes('..')) {
       problems.push(`${place}: path '${source.path}' contains '..'`);
+    }
+
+    // A path is a path in the repository, not an address, a home folder or an escaped path.
+    if (/^~|:\/\/|%|[․‥…．]/.test(source.path)) {
+      problems.push(
+        `${place}: path '${source.path}' is not a plain path inside the repository (no address, no ~, no % escapes)`,
+      );
     }
 
     if (source.lines !== undefined) {

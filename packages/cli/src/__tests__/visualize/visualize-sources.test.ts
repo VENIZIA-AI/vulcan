@@ -143,6 +143,25 @@ describe('sources', () => {
     expect(problems(withNodeSource(source({ path: 'a/b.c.ts' })))).toBe('');
   });
 
+  test('a path that is an address, a home folder or an escaped path is refused, and so is a repo that is not a name', () => {
+    for (const path of [
+      'file:///etc/passwd',
+      'https://evil.example/x',
+      '~/.ssh/id_rsa',
+      '%2e%2e/x',
+    ]) {
+      expect(problems(withNodeSource(source({ path }))), path).toContain(
+        'is not a plain path inside the repository',
+      );
+    }
+
+    for (const repo of ['..', '../..', '-x', '.git', 'a/.hidden']) {
+      expect(problems(withNodeSource(source({ repo }))), repo).not.toBe('');
+    }
+
+    expect(problems(withNodeSource(source({ repo: 'VENIZIA-AI/vulcan' })))).toBe('');
+  });
+
   test('lines must be 12 or 12-30, the start not after the end', () => {
     for (const lines of ['12-', '-5', '30-12', '0', 'a', '1-2-3', '12 - 30', '1,2']) {
       expect(problems(withNodeSource(source({ lines }))), lines).toMatch(

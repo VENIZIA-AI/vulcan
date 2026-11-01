@@ -71,7 +71,11 @@ export class CompareView {
         steps: [],
       },
     });
-    let named = svg.replace('aria-label="flow"', `aria-label="${escaped(chrome.compareView)}"`);
+    // A function as the replacement: a string would read `$&`, `$'` and `` $` `` in the spec's text as patterns.
+    let named = svg.replace(
+      'aria-label="flow"',
+      () => `aria-label="${escaped(chrome.compareView)}"`,
+    );
 
     // A changed arrow says its words when it is hovered or read by a screen reader, with the verb after them.
     for (const edge of compare.edges) {
@@ -83,7 +87,7 @@ export class CompareView {
 
         named = named.replace(
           `data-edge="${name}"><title>${escaped(CompareView.signedLabel({ edge }))}</title>`,
-          `data-edge="${name}"><title>${word}</title>`,
+          () => `data-edge="${name}"><title>${word}</title>`,
         );
       }
     }

@@ -304,3 +304,34 @@ describe('the compare view', () => {
     expect(schema).toContain('(both|a|b)');
   });
 });
+
+describe('replacement patterns in the text of a spec', () => {
+  // String.prototype.replace reads `$&`, `$'` and a backtick pattern in a replacement string; the text of a spec is
+  // escaped, but `$`, a backtick and `=` are not markup, so the page must not read them as patterns either.
+  const hostile = ['$`', "$'", '$&', '$`$`$`$`$`$`$`$`$`$`', '$` id=slide-next mask=url(x) '];
+
+  test('a label, a side name or a replaced word with a pattern stays text', () => {
+    const control = rendered(withCompare());
+    const sections = (html: string): number => html.match(/<section /g)?.length ?? 0;
+
+    for (const text of hostile) {
+      const html = rendered({
+        ...withCompare((compare) => ({
+          ...compare,
+          a: text.slice(0, 24),
+          b: text.slice(0, 24),
+          edges: compare.edges.map((edge) => ({ ...edge, label: text.slice(0, 20) })),
+        })),
+        chrome: { onlyHere: text, compareView: text },
+      });
+
+      expect(sections(html), text).toBe(sections(control));
+      expect(html.match(/id="slide-next"/g)?.length, text).toBe(1);
+      // The words may appear as text; no tag may carry them as an attribute.
+      // (Inside a quoted attribute value it is still text, so the values are taken out first.)
+      expect(html.replace(/="[^"]*"/g, '=""'), text).not.toMatch(/<[^>]*\smask=/);
+      expect(html.includes('</main>'), text).toBe(true);
+      expect(html.length, text).toBeLessThan(control.length + 20000);
+    }
+  });
+});

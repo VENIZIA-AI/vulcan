@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { contrastOf, ProjectTheme } from '../../visualize/theme.ts';
@@ -245,6 +245,23 @@ describe('the manifest theme is read from the folder the command runs in (C14)',
       ProjectTheme.readManifestTheme({ root: projectWith(JSON.stringify({ schemaVersion: 2 })) }),
     ).toEqual({});
     expect(ProjectTheme.readManifestTheme({ root: projectWith(undefined) })).toEqual({});
+  });
+
+  test('a manifest that is a symlink, or sits in a symlinked folder, is not read', () => {
+    const real = projectWith(JSON.stringify({ theme: { accent: '#8a5a20' } }));
+    const linkedFile = projectWith(undefined);
+    const linkedFolder = projectWith(undefined);
+
+    mkdirSync(join(linkedFile, '.agents'), { recursive: true });
+    symlinkSync(
+      join(real, '.agents', 'vulcan.manifest.json'),
+      join(linkedFile, '.agents', 'vulcan.manifest.json'),
+    );
+    symlinkSync(join(real, '.agents'), join(linkedFolder, '.agents'));
+
+    expect(ProjectTheme.readManifestTheme({ root: real }).theme?.accent).toBe('#8a5a20');
+    expect(ProjectTheme.readManifestTheme({ root: linkedFile })).toEqual({});
+    expect(ProjectTheme.readManifestTheme({ root: linkedFolder })).toEqual({});
   });
 
   test('a broken manifest or a bad theme falls back to the neutral colour with a warning, and nothing is thrown', () => {

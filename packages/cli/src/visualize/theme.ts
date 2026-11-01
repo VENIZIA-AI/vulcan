@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { lstatSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** What a project (or one spec) says about its colour: the colour it is known by, and two optional helpers. */
@@ -159,6 +159,9 @@ const GROUNDS = {
 export class ProjectTheme {
   /** The colour of a page whose project says nothing: a slate ink. */
   static readonly DEFAULT: IThemeInput = { accent: '#3f5266', accentDark: '#9fb4cc' };
+
+  /** The manifest is read only up to this size: a real one is a few KB. */
+  static readonly MAX_MANIFEST_BYTES = 1024 * 1024;
 
   /** Whether `value` is a six-digit hex colour. */
   static isHex(value: unknown): value is string {
@@ -406,7 +409,21 @@ export class ProjectTheme {
     let text: string;
 
     try {
-      text = readFileSync(join(opts.root, '.agents', 'vulcan.manifest.json'), 'utf8');
+      const directory = join(opts.root, '.agents');
+      const file = join(directory, 'vulcan.manifest.json');
+      const folder = lstatSync(directory);
+      const entry = lstatSync(file);
+
+      // A symlink (the folder or the file), a device or a huge file is not read: the manifest is a small file inside the project.
+      if (
+        !folder.isDirectory() ||
+        !entry.isFile() ||
+        entry.size > ProjectTheme.MAX_MANIFEST_BYTES
+      ) {
+        return {};
+      }
+
+      text = readFileSync(file, 'utf8');
     } catch {
       return {};
     }

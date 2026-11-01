@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { ProjectLayout } from '../common/index.ts';
 import { localRootOf } from '../local/index.ts';
 import { VisualizeLimits } from './constants.ts';
+import { PageGate } from './gate.ts';
 import { renderPage } from './page.ts';
 import { VISUALIZE_SCHEMA } from './schema.ts';
 import { PageTerms } from './sources.ts';
@@ -90,6 +91,11 @@ export const renderSpecText = (opts: { text: string; context?: IRenderContext })
   const language = parsed.data.language ?? opts.context?.language ?? 'en';
   const html = renderPage({ spec: parsed.data, language, theme: themed.theme });
   const bytes = Buffer.byteLength(html, 'utf8');
+  const gate = PageGate.problems({ html });
+
+  if (gate.length > 0) {
+    return { ok: false, problems: gate.map((problem) => `output gate: ${problem}`) };
+  }
 
   if (bytes > VisualizeLimits.FAIL_BYTES) {
     return {
@@ -107,6 +113,7 @@ export const renderSpecText = (opts: { text: string; context?: IRenderContext })
       bytes,
       checks: [
         ...CHECKS,
+        PageGate.CHECK,
         `colour from the ${themed.theme.source === 'spec' ? "spec's accent" : themed.theme.source === 'project' ? "project's theme" : 'neutral default'}: every text, mark and fill pair checked`,
         ...themed.theme.notes,
         `size ${(bytes / 1024).toFixed(1)} KB, within ${VisualizeLimits.FAIL_BYTES / 1024} KB`,
