@@ -74,10 +74,10 @@ export interface IAtlasProject {
   prebuilt?: false;
 }
 
-/** A fetched manifest is data from elsewhere: a name that is not an npm name never reaches a path. */
 const isNpmName = (opts: { name: string }): boolean =>
   opts.name.length <= NPM_NAME_MAX_LENGTH && NPM_NAME_PATTERN.test(opts.name);
 
+/** A fetched manifest is data from elsewhere: a name that is not an npm name never reaches a path. */
 const packagesOf = (opts: { value: unknown; label: string }): IAtlasPackage[] =>
   (Array.isArray(opts.value) ? opts.value : []).flatMap((item) => {
     const entry = WireValue.recordOf({ value: item });

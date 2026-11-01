@@ -6,7 +6,7 @@ import { SourcesServer } from './server/index';
 export class ServerFactory {
   /**
    * The MCP transport for one project, in repo mode: its manifest's knowledge, live. A project that
-   * also reads other sources goes through `buildSourcesServer`, which this is the one-source case of.
+   * also reads other sources goes through `SourcesServer.build`, which this is the one-source case of.
    */
   static build(opts: { root: string; version: string }): Transport {
     const project = ProjectConfig.readAtlasProject({ root: opts.root });
