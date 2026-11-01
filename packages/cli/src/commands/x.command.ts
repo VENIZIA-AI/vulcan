@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ExitCodes, PACKAGE_ROOT, ProjectLayout, VulcanTools } from '../common/index.ts';
 import { ConfigLoader, ProjectPackages } from '../config/index.ts';
-import { ManifestConstants, renderManifest } from '../manifest/index.ts';
+import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
 import type { ICommandContext, IToolPackage } from '../common/index.ts';
 
 const TOOL_PACKAGES: Record<string, IToolPackage> = {
@@ -67,7 +67,7 @@ export const buildToolEnvironment = async (opts: {
       [ProjectLayout.CONFIG_ENV]: JSON.stringify(config),
       [ProjectLayout.ROOT_ENV]: opts.root,
       // Atlas reads the manifest only; rendered fresh, so a run never sees a stale committed one.
-      [ManifestConstants.ENV]: renderManifest({ root: opts.root, config: loaded.config }),
+      [ManifestConstants.ENV]: ProjectManifest.render({ root: opts.root, config: loaded.config }),
     },
   };
 };

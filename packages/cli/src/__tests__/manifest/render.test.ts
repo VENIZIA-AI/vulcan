@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { buildToolEnvironment } from '../../commands/x.command.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
-import { isManifestCurrent, ManifestConstants, renderManifest } from '../../manifest/index.ts';
+import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
 import { renderBunfig } from '../../create/bunfig.ts';
 import { checkFiles } from '../format.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -27,7 +27,7 @@ const CONFIG = {
 };
 
 const render = (opts: { root: string; config: object }): string =>
-  renderManifest({ root: opts.root, config: VULCAN_CONFIG_SCHEMA.parse(opts.config) });
+  ProjectManifest.render({ root: opts.root, config: VULCAN_CONFIG_SCHEMA.parse(opts.config) });
 
 describe('renderManifest', () => {
   test('the text is already formatted for bun fmt: short arrays on one line, so lint stays green', () => {
@@ -225,8 +225,8 @@ describe('the prebuilt index in the manifest (C27)', () => {
       config: { ...CONFIG, atlas: { ...CONFIG.atlas, index: { keys: [newPublicKey()] } } },
     });
 
-    expect(isManifestCurrent({ committed: before, rendered: after })).toBe(false);
-    expect(isManifestCurrent({ committed: after, rendered: after })).toBe(true);
+    expect(ProjectManifest.isCurrent({ committed: before, rendered: after })).toBe(false);
+    expect(ProjectManifest.isCurrent({ committed: after, rendered: after })).toBe(true);
   });
 });
 

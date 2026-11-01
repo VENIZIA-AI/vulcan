@@ -12,7 +12,7 @@ import {
 } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { dirname, join } from 'node:path';
-import { localRootOf } from '../local/scan.ts';
+import { LocalScan } from '../local/scan.ts';
 import { EntryKinds, SignalConstants } from './constants.ts';
 
 /** One line of the log. Only the fields of its kind are set. */
@@ -67,7 +67,7 @@ const stringOf = (opts: { value: unknown }): string =>
 
 /** The log of a trusted `.agents/local/`; neither the cache folder nor the file may be a link, or not a plain file. */
 const logFileOf = (opts: { root: string; create: boolean }): string | undefined => {
-  const local = localRootOf({ root: opts.root });
+  const local = LocalScan.localRootOf({ root: opts.root });
 
   if (local === undefined) {
     return undefined;

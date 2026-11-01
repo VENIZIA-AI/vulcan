@@ -1,6 +1,6 @@
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
-import { CleanScopes, formatAge, formatBytes, planClean, runClean } from '../local/index.ts';
+import { CleanScopes, LocalClean, LocalFormat } from '../local/index.ts';
 import type { ILocalEntry } from '../local/index.ts';
 
 const YES_FLAG = '--yes';
@@ -10,7 +10,7 @@ const lineOf = (opts: { entry: ILocalEntry }): string => {
   const { entry } = opts;
   const note = entry.note === '' ? (entry.state === 'stale' ? 'stale' : '') : entry.note;
 
-  return `  ${entry.scope}/${entry.name}  ${formatBytes({ bytes: entry.bytes })}  ${formatAge({ ageMs: entry.ageMs })}${note === '' ? '' : `  ${note}`}`;
+  return `  ${entry.scope}/${entry.name}  ${LocalFormat.formatBytes({ bytes: entry.bytes })}  ${LocalFormat.formatAge({ ageMs: entry.ageMs })}${note === '' ? '' : `  ${note}`}`;
 };
 
 /**
@@ -27,7 +27,7 @@ export const runCleanCommand = async (opts: ICommandContext): Promise<number> =>
       ? named
       : [CleanScopes.TMP];
   const yes = opts.args.includes(YES_FLAG);
-  const plan = planClean({ root: opts.cwd, scopes });
+  const plan = LocalClean.plan({ root: opts.cwd, scopes });
   const total = plan.remove.reduce((sum, entry) => sum + entry.bytes, 0);
 
   if (plan.remove.length === 0 && plan.keep.length === 0) {
@@ -50,13 +50,13 @@ export const runCleanCommand = async (opts: ICommandContext): Promise<number> =>
 
   if (!yes) {
     process.stderr.write(
-      `would remove ${plan.remove.length} item(s), ${formatBytes({ bytes: total })}\n`,
+      `would remove ${plan.remove.length} item(s), ${LocalFormat.formatBytes({ bytes: total })}\n`,
     );
 
     return ExitCodes.OK;
   }
 
-  const result = runClean({ root: opts.cwd, plan });
+  const result = LocalClean.run({ root: opts.cwd, plan });
 
   for (const failure of result.failed) {
     process.stderr.write(
@@ -65,7 +65,7 @@ export const runCleanCommand = async (opts: ICommandContext): Promise<number> =>
   }
 
   process.stderr.write(
-    `removed ${result.removed.length} item(s), ${formatBytes({ bytes: result.removed.reduce((sum, entry) => sum + entry.bytes, 0) })}\n`,
+    `removed ${result.removed.length} item(s), ${LocalFormat.formatBytes({ bytes: result.removed.reduce((sum, entry) => sum + entry.bytes, 0) })}\n`,
   );
 
   return result.failed.length === 0 ? ExitCodes.OK : ExitCodes.FAILURE;

@@ -13,7 +13,7 @@ import { readAgentTable } from '../agents/index.ts';
 import { BASE_DIRECTORY, BaseDirectory } from '../common/index.ts';
 import { CodingAgents } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
-import { ManifestConstants, renderManifest } from '../manifest/index.ts';
+import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
 import { RuleSlots } from '../rules/index.ts';
 import { planAgentFiles } from './agent-files.ts';
 import { SyncConstants, SyncLinks, SyncStatuses } from './common/index.ts';
@@ -284,7 +284,7 @@ const planSkillLinks = (opts: {
 /** The committed project manifest (Project Contract v1, C1), rendered from the config. */
 export const planManifest = (opts: { root: string; config: TResolvedConfig }): ISyncAction => {
   const path = join(opts.root, ManifestConstants.FILE);
-  const text = renderManifest(opts);
+  const text = ProjectManifest.render(opts);
   const write = (): void => {
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, text);

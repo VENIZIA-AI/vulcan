@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildBaseRuleHashes, ManifestConstants } from '../../manifest/index.ts';
+import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
 import { diffBaseRules } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -59,7 +59,7 @@ describe('the base diff', () => {
     expect(result.stderr).toContain('  changed   V-W-02 Never write to a database.');
     expect(result.stderr).toContain('  removed   V-W-05 (retired)');
     expect(result.stderr.match(new RegExp(DIFF_LINE.source, 'gm'))).toHaveLength(3);
-    expect(readBaseHashes({ root })).toEqual(buildBaseRuleHashes());
+    expect(readBaseHashes({ root })).toEqual(ProjectManifest.buildBaseRuleHashes());
   });
 
   test('a second sync prints no diff', () => {

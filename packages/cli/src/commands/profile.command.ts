@@ -3,16 +3,7 @@ import { join } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { askWithPrompt } from '../create/names.ts';
-import {
-  linkedAt,
-  OwnerConstants,
-  profileIsIgnored,
-  readProfile,
-  renderProfile,
-  runSurvey,
-  systemLanguageOf,
-  writeProfile,
-} from '../owner/index.ts';
+import { OwnerConstants, OwnerProfile, OwnerSurvey } from '../owner/index.ts';
 import type { ISurveyIo } from '../owner/index.ts';
 import { TerminalCapability, TerminalPrompt } from '../ui/index.ts';
 
@@ -101,7 +92,7 @@ const lineIo: ISurveyIo = {
 
 /** Runs the form and saves the profile; the exit code of the command. */
 const fillInProfile = async (opts: { root: string }): Promise<number> => {
-  const current = readProfile({ root: opts.root });
+  const current = OwnerProfile.read({ root: opts.root });
 
   if (!current.ok) {
     process.stderr.write(
@@ -112,7 +103,7 @@ const fillInProfile = async (opts: { root: string }): Promise<number> => {
   }
 
   // Before the questions, not after: an answer that cannot be saved is an answer typed for nothing.
-  if (!profileIsIgnored({ root: opts.root })) {
+  if (!OwnerProfile.profileIsIgnored({ root: opts.root })) {
     process.stderr.write(
       'vulcan profile: .gitignore does not list .agents/local/ - run vulcan sync (or add the line) first; a personal file must not be committable\n',
     );
@@ -120,10 +111,10 @@ const fillInProfile = async (opts: { root: string }): Promise<number> => {
     return ExitCodes.FAILURE;
   }
 
-  const profile = await runSurvey({
+  const profile = await OwnerSurvey.run({
     io: TerminalCapability.menusAvailable() ? menuIo : lineIo,
     existing: current.profile,
-    systemLanguage: systemLanguageOf({ env: process.env }),
+    systemLanguage: OwnerSurvey.systemLanguageOf({ env: process.env }),
   });
 
   if (profile === null) {
@@ -132,7 +123,7 @@ const fillInProfile = async (opts: { root: string }): Promise<number> => {
     return ExitCodes.FAILURE;
   }
 
-  const saved = writeProfile({ root: opts.root, profile });
+  const saved = OwnerProfile.write({ root: opts.root, profile });
 
   if (!saved.ok) {
     process.stderr.write(`vulcan profile: ${saved.error}\n`);
@@ -197,7 +188,7 @@ export const runProfileCommand = async (opts: ICommandContext): Promise<number> 
   const file = join(opts.cwd, OwnerConstants.PROFILE_FILE);
 
   if (sub === 'show') {
-    const read = readProfile({ root: opts.cwd });
+    const read = OwnerProfile.read({ root: opts.cwd });
 
     if (!read.ok) {
       process.stderr.write(`vulcan profile: ${read.error}\n`);
@@ -211,14 +202,14 @@ export const runProfileCommand = async (opts: ICommandContext): Promise<number> 
       return ExitCodes.OK;
     }
 
-    process.stdout.write(renderProfile({ profile: read.profile }));
+    process.stdout.write(OwnerProfile.render({ profile: read.profile }));
 
     return ExitCodes.OK;
   }
 
   // The same refusal as read and write: a link at the file's place or at `.agents/local` must never
   // turn a reset into a delete outside the project.
-  if (linkedAt({ root: opts.cwd }) !== undefined) {
+  if (OwnerProfile.linkedAt({ root: opts.cwd }) !== undefined) {
     process.stderr.write(
       `vulcan profile: ${OwnerConstants.PROFILE_FILE} (or .agents/local) is a symlink - remove the link yourself; nothing was deleted\n`,
     );

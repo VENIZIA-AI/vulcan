@@ -4,7 +4,7 @@ import { ExitCodes } from '../common/index.ts';
 import { LayoutFolder } from '../common/layout-folder.ts';
 import { LibraryKinds, PackageKinds } from '../config/index.ts';
 import type { IProjectPackage, TLibraryKind, TResolvedConfig } from '../config/index.ts';
-import { readWorkspaceGlobs } from '../init/index.ts';
+import { ProjectScaffold } from '../init/index.ts';
 import { runAppChecks } from './checks.ts';
 import { AddFailure, AppsBlockProblems, CreateConstants, CreateFlags } from './common/index.ts';
 import type { IAppsBlock, ILocatedPreset, IPresetSpec } from './common/index.ts';
@@ -316,7 +316,7 @@ export const addLibrary = async (opts: {
 
   const nextManifest = planRootManifest({
     manifest: opts.manifest,
-    globs: readWorkspaceGlobs({ root: cwd }),
+    globs: ProjectScaffold.readWorkspaceGlobs({ root: cwd }),
     folder,
     additions: { ...lib.dependencies, ...lib.devDependencies, ...lib.peerDependencies },
   });

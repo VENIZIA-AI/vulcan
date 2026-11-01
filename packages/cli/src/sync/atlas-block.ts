@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { mergeAtlasBlock, renderAtlasBlock } from '../agents/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
-import { projectNameOf } from '../manifest/index.ts';
+import { ProjectManifest } from '../manifest/index.ts';
 import { SyncStatuses } from './common/index.ts';
 import type { ISyncAction } from './common/index.ts';
 
@@ -24,7 +24,7 @@ export const mergedAtlasBlock = (opts: {
   }
 
   const block = renderAtlasBlock({
-    project: projectNameOf(opts),
+    project: ProjectManifest.projectNameOf(opts),
     sources: opts.config.atlas.sources.map((source) => source.name),
   });
 
