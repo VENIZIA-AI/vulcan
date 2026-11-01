@@ -7,22 +7,15 @@ description: Learn how to adopt VULCAN, set the rules and guards your coding age
 
 VULCAN is the rules and workflow centre for the coding agents in your repository. These guides walk you through adopting it and show what each part does today. Follow the setup path to install it, then read the core concepts you need.
 
+<WhereToStart :items="[
+  { title: 'What is VULCAN', text: 'See what VULCAN offers today, how mature each part is, and what it does not do.', href: '/guides/get-started/what-is-vulcan' },
+  { title: 'Adopt VULCAN', text: 'Add VULCAN to an existing repository and verify the setup.', href: '/guides/get-started/adopt-vulcan' },
+  { title: 'Your first day', text: 'Practice starting agent sessions, testing guards, and querying atlas.', href: '/guides/get-started/first-day' },
+]" />
+
+## Core concepts
+
 <div class="guide-cards">
-
-<a href="/guides/get-started/what-is-vulcan" class="guide-card">
-<h3>What is VULCAN</h3>
-<p>See what VULCAN offers today, how mature each part is, and what it does not do.</p>
-</a>
-
-<a href="/guides/get-started/adopt-vulcan" class="guide-card highlight">
-<h3>Adopt VULCAN</h3>
-<p>Add VULCAN to an existing repository and verify the setup.</p>
-</a>
-
-<a href="/guides/get-started/first-day" class="guide-card">
-<h3>Your first day</h3>
-<p>Practice starting agent sessions, testing guards, and querying atlas.</p>
-</a>
 
 <a href="/guides/core-concepts/the-project-layer" class="guide-card">
 <h3>The project layer</h3>
