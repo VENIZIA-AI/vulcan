@@ -3,6 +3,8 @@ import type { VulcanConfig } from '@venizia/vulcan';
 export default {
   agents: ['claude'],
   rules: { 'V-W-01': 'on-user-word' },
+  // The colour of this project's pages (vulcan visualize); the generator has no colour of its own but a neutral slate.
+  theme: { accent: '#8a5a20', accentDark: '#dead6a' },
   knowledge: {
     bundle: '.agents/knowledge',
     wiki: 'docs/wiki/content',

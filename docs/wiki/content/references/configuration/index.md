@@ -59,7 +59,7 @@ vulcan doctor: 1 violation(s)
 
 The command exits with code 1.
 
-The table below lists all 12 top-level configuration keys:
+The table below lists the top-level configuration keys:
 
 | Key | Type | Default | What it controls |
 |---|---|---|---|
@@ -78,6 +78,7 @@ The table below lists all 12 top-level configuration keys:
 | `digest` | `object` | `{ oftenDropped: [...] }` | Rules printed at session startup |
 | `guard` | `object` | `{ toolOwnedPaths: [], writes: { trustedScripts: [], commands: [] }, git: { askPush: [] } }` | Tool-owned stores the outside-the-project guard allows, the project's own scripts the write guard does not read, and the commands and push targets the guards ask about beyond their own list |
 | `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
+| `theme` | `object` | `undefined` | The colour the project's `vulcan visualize` pages use |
 
 ## name
 
@@ -585,6 +586,26 @@ export default {
   digest: {
     oftenDropped: ['V-B-03', 'V-P-06', 'V-W-04'],
   },
+} satisfies VulcanConfig;
+```
+
+## theme
+
+The colour the project is known by. [`vulcan visualize`](/references/commands/visualize) takes the accent of its pages from here; a spec's own `accent` wins, and a project with no `theme` gets a neutral slate. `vulcan sync` copies the key into `.agents/vulcan.manifest.json`, which is where the generator reads it.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `accent` | `string` | none | A six-digit hex colour, such as `#8a5a20`, for marks and fills; required when `theme` is set |
+| `accentDark` | `string` | derived | The same colour on the dark ground; when absent, `accent` is mixed toward white (up to 60%) until it passes the contrast check |
+| `accentText` | `string` | `accent` | A darker colour for text, when `accent` is too light to read as text on the page |
+
+Text needs a 4.5:1 contrast and marks 3:1 on both the light and the dark ground. A colour that fails is refused with the ratio it reached, never swapped for another; a colour close to the fixed `blocked` red or `done` green gets a warning, because those state colours do not change.
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  theme: { accent: '#8a5a20', accentDark: '#dead6a' },
 } satisfies VulcanConfig;
 ```
 
