@@ -2,97 +2,85 @@ import { describe, expect, test } from 'bun:test';
 import { ReleaseNextTag } from '../next-tag.ts';
 import type { IDistTags } from '../next-tag.ts';
 
-describe('ReleaseNextTag.planNextTag', () => {
+describe('ReleaseNextTag.plan', () => {
   test('next below latest is moved to latest', () => {
-    expect(ReleaseNextTag.planNextTag({ tags: { latest: '0.3.1', next: '0.2.0-9' } })).toBe(
-      '0.3.1',
-    );
+    expect(ReleaseNextTag.plan({ tags: { latest: '0.3.1', next: '0.2.0-9' } })).toBe('0.3.1');
   });
 
   test('a prerelease sorts below the release of the same x.y.z', () => {
-    expect(ReleaseNextTag.planNextTag({ tags: { latest: '0.3.1', next: '0.3.1-0' } })).toBe(
-      '0.3.1',
-    );
+    expect(ReleaseNextTag.plan({ tags: { latest: '0.3.1', next: '0.3.1-0' } })).toBe('0.3.1');
   });
 
   test('equal is fine', () => {
-    expect(
-      ReleaseNextTag.planNextTag({ tags: { latest: '0.3.1', next: '0.3.1' } }),
-    ).toBeUndefined();
+    expect(ReleaseNextTag.plan({ tags: { latest: '0.3.1', next: '0.3.1' } })).toBeUndefined();
   });
 
   test('next above latest is left alone', () => {
-    expect(
-      ReleaseNextTag.planNextTag({ tags: { latest: '0.3.1', next: '0.4.0-0' } }),
-    ).toBeUndefined();
+    expect(ReleaseNextTag.plan({ tags: { latest: '0.3.1', next: '0.4.0-0' } })).toBeUndefined();
   });
 
   test('versions compare as numbers, not text', () => {
-    expect(
-      ReleaseNextTag.planNextTag({ tags: { latest: '0.9.0', next: '0.10.0-1' } }),
-    ).toBeUndefined();
-    expect(ReleaseNextTag.planNextTag({ tags: { latest: '0.10.0', next: '0.9.0' } })).toBe(
-      '0.10.0',
-    );
+    expect(ReleaseNextTag.plan({ tags: { latest: '0.9.0', next: '0.10.0-1' } })).toBeUndefined();
+    expect(ReleaseNextTag.plan({ tags: { latest: '0.10.0', next: '0.9.0' } })).toBe('0.10.0');
   });
 
   test('a missing next is set to latest', () => {
-    expect(ReleaseNextTag.planNextTag({ tags: { latest: '0.3.1' } })).toBe('0.3.1');
+    expect(ReleaseNextTag.plan({ tags: { latest: '0.3.1' } })).toBe('0.3.1');
   });
 
   test('a missing latest changes nothing', () => {
-    expect(ReleaseNextTag.planNextTag({ tags: { next: '0.2.0-9' } })).toBeUndefined();
-    expect(ReleaseNextTag.planNextTag({ tags: {} })).toBeUndefined();
+    expect(ReleaseNextTag.plan({ tags: { next: '0.2.0-9' } })).toBeUndefined();
+    expect(ReleaseNextTag.plan({ tags: {} })).toBeUndefined();
   });
 
   test('a stable version just published counts as latest before the registry shows it', () => {
     const tags: IDistTags = { latest: '0.3.0', next: '0.3.0' };
 
-    expect(
-      ReleaseNextTag.planNextTag({ tags, published: { version: '0.3.1', tag: 'latest' } }),
-    ).toBe('0.3.1');
+    expect(ReleaseNextTag.plan({ tags, published: { version: '0.3.1', tag: 'latest' } })).toBe(
+      '0.3.1',
+    );
   });
 
   test('a stable that is below next leaves next alone: 0.4.9 stable, next at 0.4.10-0', () => {
     const tags: IDistTags = { latest: '0.4.8', next: '0.4.10-0' };
 
     expect(
-      ReleaseNextTag.planNextTag({ tags, published: { version: '0.4.9', tag: 'latest' } }),
+      ReleaseNextTag.plan({ tags, published: { version: '0.4.9', tag: 'latest' } }),
     ).toBeUndefined();
   });
 
   test('a stable above next moves next to it: 0.4.9 stable, next at 0.4.9-3', () => {
     const tags: IDistTags = { latest: '0.4.8', next: '0.4.9-3' };
 
-    expect(
-      ReleaseNextTag.planNextTag({ tags, published: { version: '0.4.9', tag: 'latest' } }),
-    ).toBe('0.4.9');
+    expect(ReleaseNextTag.plan({ tags, published: { version: '0.4.9', tag: 'latest' } })).toBe(
+      '0.4.9',
+    );
   });
 
   test('a prerelease just published to next counts as next before the registry shows it', () => {
     const tags: IDistTags = { latest: '0.3.1', next: '0.2.0-9' };
 
     expect(
-      ReleaseNextTag.planNextTag({ tags, published: { version: '0.4.0-0', tag: 'next' } }),
+      ReleaseNextTag.plan({ tags, published: { version: '0.4.0-0', tag: 'next' } }),
     ).toBeUndefined();
   });
 
   test('a published version on another tag changes nothing about the plan', () => {
     const tags: IDistTags = { latest: '0.3.1', next: '0.2.0-9' };
 
-    expect(
-      ReleaseNextTag.planNextTag({ tags, published: { version: '0.4.0-0', tag: 'beta' } }),
-    ).toBe('0.3.1');
+    expect(ReleaseNextTag.plan({ tags, published: { version: '0.4.0-0', tag: 'beta' } })).toBe(
+      '0.3.1',
+    );
   });
 });
 
-describe('ReleaseNextTag.healNextTags', () => {
+describe('ReleaseNextTag.heal', () => {
   const names = ['@venizia/vulcan-okf', '@venizia/vulcan-atlas', '@venizia/vulcan'];
 
   test('every package below latest gets next moved, and each move is reported', () => {
     const moves: string[] = [];
     const lines: string[] = [];
-    const result = ReleaseNextTag.healNextTags({
+    const result = ReleaseNextTag.heal({
       packages: names,
       read: () => ({ latest: '0.3.1', next: '0.2.0-9' }),
       move: (opts) => {
@@ -108,7 +96,7 @@ describe('ReleaseNextTag.healNextTags', () => {
 
   test('a package already at or above latest is not touched', () => {
     const moves: string[] = [];
-    const result = ReleaseNextTag.healNextTags({
+    const result = ReleaseNextTag.heal({
       packages: names,
       read: () => ({ latest: '0.3.1', next: '0.3.1' }),
       move: (opts) => {
@@ -123,7 +111,7 @@ describe('ReleaseNextTag.healNextTags', () => {
 
   test('a failed move is reported loudly and does not stop the others', () => {
     const lines: string[] = [];
-    const result = ReleaseNextTag.healNextTags({
+    const result = ReleaseNextTag.heal({
       packages: names,
       read: () => ({ latest: '0.3.1' }),
       move: (opts) => {
@@ -143,7 +131,7 @@ describe('ReleaseNextTag.healNextTags', () => {
 
   test('a registry read that fails is reported and skipped', () => {
     const lines: string[] = [];
-    const result = ReleaseNextTag.healNextTags({
+    const result = ReleaseNextTag.heal({
       packages: ['@venizia/vulcan'],
       read: () => {
         throw new Error('offline');

@@ -71,9 +71,7 @@ export class SharedCheck {
 }
 
 const localManifest = (opts: { path: string }): TManifest | null =>
-  existsSync(join(opts.path, SHARED_DIR))
-    ? SharedManifest.buildManifest({ root: opts.path })
-    : null;
+  existsSync(join(opts.path, SHARED_DIR)) ? SharedManifest.build({ root: opts.path }) : null;
 
 const remoteManifest = async (opts: {
   base: string;
@@ -85,15 +83,14 @@ const remoteManifest = async (opts: {
     return { manifest: null, failure: { status: response.status, url } };
   }
 
-  return { manifest: SharedManifest.parseManifest({ text: await response.text() }) };
+  return { manifest: SharedManifest.parse({ text: await response.text() }) };
 };
 
 if (import.meta.main) {
   const remote = process.argv.includes('--remote');
   const paths = process.argv.slice(2).filter((argument) => !argument.startsWith('--'));
   const canonical =
-    SharedManifest.readManifest({ root: CANONICAL }) ??
-    SharedManifest.buildManifest({ root: CANONICAL });
+    SharedManifest.read({ root: CANONICAL }) ?? SharedManifest.build({ root: CANONICAL });
 
   if (!remote && paths.length === 0) {
     console.error('check: name the checkouts to compare (../ignis ../ardor) or pass --remote');

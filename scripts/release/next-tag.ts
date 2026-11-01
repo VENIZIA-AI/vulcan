@@ -34,7 +34,7 @@ export class ReleaseNextTag {
    * The version `next` must move to, or `undefined` when it need not. A version this run just published
    * counts on its tag at once: the registry can serve the old tags for minutes after a publish.
    */
-  static planNextTag(opts: { tags: IDistTags; published?: IPublished }): string | undefined {
+  static plan(opts: { tags: IDistTags; published?: IPublished }): string | undefined {
     const { tags, published } = opts;
     const latest = newest({
       versions: [tags.latest, published?.tag === 'latest' ? published.version : undefined],
@@ -51,7 +51,7 @@ export class ReleaseNextTag {
   }
 
   /** Never throws: a tag that cannot be moved is reported as a warning, and the release goes on. */
-  static healNextTags(opts: {
+  static heal(opts: {
     packages: string[];
     published?: IPublished;
     read: (opts: { name: string }) => IDistTags;
@@ -63,7 +63,7 @@ export class ReleaseNextTag {
     for (const name of opts.packages) {
       try {
         const tags = opts.read({ name });
-        const version = ReleaseNextTag.planNextTag({ tags, published: opts.published });
+        const version = ReleaseNextTag.plan({ tags, published: opts.published });
 
         if (version === undefined) {
           opts.log(
@@ -117,7 +117,7 @@ const main = (): void => {
   const flagValues = new Set([version, tag].filter((value) => value !== undefined));
   const packages = args.filter((arg) => !arg.startsWith('--') && !flagValues.has(arg));
 
-  const result = ReleaseNextTag.healNextTags({
+  const result = ReleaseNextTag.heal({
     packages,
     published: version === undefined || tag === undefined ? undefined : { version, tag },
     read: ({ name }) =>

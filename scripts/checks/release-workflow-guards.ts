@@ -145,7 +145,7 @@ const stepsOf = (opts: { job: Record<string, unknown> }): IStep[] => {
 
 export class ReleaseWorkflowGuards {
   /** The violations of the guards, each `<code>: <what is wrong>`; empty when the workflow keeps them all. */
-  static checkReleaseWorkflowGuards(opts: { workflow: Record<string, unknown> }): string[] {
+  static check(opts: { workflow: Record<string, unknown> }): string[] {
     const violations: string[] = [];
     const { workflow } = opts;
     const jobs = recordAt({ value: workflow, key: 'jobs' });

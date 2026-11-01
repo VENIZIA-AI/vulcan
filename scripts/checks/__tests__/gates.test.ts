@@ -75,7 +75,7 @@ describe("CI's own workflow is what make gates runs (drift)", () => {
   });
 });
 
-describe("Gates.runGates runs them one after another and reports make's own status", () => {
+describe("Gates.run runs them one after another and reports make's own status", () => {
   const commands = [
     { step: 'a', targets: ['one'] },
     { step: 'b', targets: ['two'] },
@@ -95,7 +95,7 @@ describe("Gates.runGates runs them one after another and reports make's own stat
     };
 
   test('all pass: every command ran, in order, and none failed', () => {
-    const results = Gates.runGates({ commands, run: fake({}), keepGoing: false });
+    const results = Gates.run({ commands, run: fake({}), keepGoing: false });
 
     expect(results.map((result: IGateResult) => [result.step, result.code])).toEqual([
       ['a', 0],
@@ -105,7 +105,7 @@ describe("Gates.runGates runs them one after another and reports make's own stat
   });
 
   test('the first failure stops the run, with the exit status make gave and its last output', () => {
-    const results = Gates.runGates({ commands, run: fake({ failing: 'two' }), keepGoing: false });
+    const results = Gates.run({ commands, run: fake({ failing: 'two' }), keepGoing: false });
 
     expect(results.map((result: IGateResult) => [result.step, result.code])).toEqual([
       ['a', 0],
@@ -115,13 +115,13 @@ describe("Gates.runGates runs them one after another and reports make's own stat
   });
 
   test('keep going runs the rest and still reports the failure', () => {
-    const results = Gates.runGates({ commands, run: fake({ failing: 'two' }), keepGoing: true });
+    const results = Gates.run({ commands, run: fake({ failing: 'two' }), keepGoing: true });
 
     expect(results.map((result: IGateResult) => result.code)).toEqual([0, 2, 0]);
   });
 
   test('a make that cannot start is a failure, not a pass', () => {
-    const results = Gates.runGates({ commands, run: fake({ throwing: 'one' }), keepGoing: false });
+    const results = Gates.run({ commands, run: fake({ throwing: 'one' }), keepGoing: false });
 
     expect(results).toHaveLength(1);
     expect(results[0].code).not.toBe(0);

@@ -64,7 +64,7 @@ export class Gates {
   }
 
   /** Runs the commands in order; stops at the first failure unless `keepGoing`. A make that cannot start is a failure. */
-  static runGates(opts: {
+  static run(opts: {
     commands: IGateCommand[];
     run: (command: IGateCommand) => { code: number; tail: string };
     keepGoing: boolean;
@@ -123,7 +123,7 @@ const main = (): number => {
     return 0;
   }
 
-  const results = Gates.runGates({
+  const results = Gates.run({
     commands,
     keepGoing: args.includes('--keep-going'),
     run: runMake,

@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { ReleaseRequest } from '../release-args.ts';
 
-describe('ReleaseRequest.parseReleaseArgs', () => {
+describe('ReleaseRequest.parseArgs', () => {
   test('defaults: prerelease, no issue, asks before dispatching', () => {
-    expect(ReleaseRequest.parseReleaseArgs({ args: [] })).toEqual({
+    expect(ReleaseRequest.parseArgs({ args: [] })).toEqual({
       bump: 'prerelease',
       issue: undefined,
       branch: 'develop',
@@ -23,22 +23,22 @@ describe('ReleaseRequest.parseReleaseArgs', () => {
       ['major', 'main'],
       ['none', 'develop'],
     ] as const) {
-      expect(ReleaseRequest.parseReleaseArgs({ args: ['--bump', bump] }).branch, bump).toBe(branch);
+      expect(ReleaseRequest.parseArgs({ args: ['--bump', bump] }).branch, bump).toBe(branch);
     }
 
-    expect(
-      ReleaseRequest.parseReleaseArgs({ args: ['--bump', 'none', '--branch', 'main'] }).branch,
-    ).toBe('main');
+    expect(ReleaseRequest.parseArgs({ args: ['--bump', 'none', '--branch', 'main'] }).branch).toBe(
+      'main',
+    );
   });
 
   test('a branch other than develop or main throws', () => {
-    expect(() => ReleaseRequest.parseReleaseArgs({ args: ['--branch', 'feat/x'] })).toThrow(
+    expect(() => ReleaseRequest.parseArgs({ args: ['--branch', 'feat/x'] })).toThrow(
       "--branch 'feat/x' is not one of: develop, main",
     );
   });
 
   test('every flag and its value are read', () => {
-    const parsed = ReleaseRequest.parseReleaseArgs({
+    const parsed = ReleaseRequest.parseArgs({
       args: ['--bump', 'none', '--issue', '12', '--dry-run', '--yes'],
     });
 
@@ -52,31 +52,29 @@ describe('ReleaseRequest.parseReleaseArgs', () => {
   });
 
   test('a bump the workflow does not offer throws, naming the options', () => {
-    expect(() => ReleaseRequest.parseReleaseArgs({ args: ['--bump', 'huge'] })).toThrow(
+    expect(() => ReleaseRequest.parseArgs({ args: ['--bump', 'huge'] })).toThrow(
       "--bump 'huge' is not one of: prerelease, prepatch, preminor, premajor, patch, minor, major, none",
     );
   });
 
   test('an --issue that is not a number throws', () => {
-    expect(() => ReleaseRequest.parseReleaseArgs({ args: ['--issue', 'abc'] })).toThrow(
+    expect(() => ReleaseRequest.parseArgs({ args: ['--issue', 'abc'] })).toThrow(
       '--issue needs an issue number, got: abc',
     );
   });
 
   test('a flag without its value throws', () => {
-    expect(() => ReleaseRequest.parseReleaseArgs({ args: ['--bump'] })).toThrow(
-      '--bump needs a value',
-    );
+    expect(() => ReleaseRequest.parseArgs({ args: ['--bump'] })).toThrow('--bump needs a value');
   });
 
   test('an unknown argument throws instead of being ignored', () => {
-    expect(() => ReleaseRequest.parseReleaseArgs({ args: ['--dryrun'] })).toThrow(
+    expect(() => ReleaseRequest.parseArgs({ args: ['--dryrun'] })).toThrow(
       "unknown argument '--dryrun'",
     );
   });
 
   test('--ignis-ref is gone: the release ships code only, it packages no IGNIS content', () => {
-    expect(() => ReleaseRequest.parseReleaseArgs({ args: ['--ignis-ref', 'main'] })).toThrow(
+    expect(() => ReleaseRequest.parseArgs({ args: ['--ignis-ref', 'main'] })).toThrow(
       "unknown argument '--ignis-ref'",
     );
   });
@@ -158,10 +156,10 @@ describe('ReleaseRequest.buildDispatchCommand: a stable', () => {
   });
 });
 
-describe('ReleaseRequest.findReleaseBlockers', () => {
+describe('ReleaseRequest.findBlockers', () => {
   test('a stable is judged against main, and says so', () => {
     expect(
-      ReleaseRequest.findReleaseBlockers({
+      ReleaseRequest.findBlockers({
         branch: 'main',
         dirtyPaths: 0,
         ahead: 0,
@@ -170,7 +168,7 @@ describe('ReleaseRequest.findReleaseBlockers', () => {
       }),
     ).toEqual([]);
     expect(
-      ReleaseRequest.findReleaseBlockers({
+      ReleaseRequest.findBlockers({
         branch: 'develop',
         dirtyPaths: 0,
         ahead: 0,
@@ -185,13 +183,13 @@ describe('ReleaseRequest.findReleaseBlockers', () => {
 
   test('on develop, clean, level with origin: nothing blocks', () => {
     expect(
-      ReleaseRequest.findReleaseBlockers({ branch: 'develop', dirtyPaths: 0, ahead: 0, behind: 0 }),
+      ReleaseRequest.findBlockers({ branch: 'develop', dirtyPaths: 0, ahead: 0, behind: 0 }),
     ).toEqual([]);
   });
 
   test('every way the release would not match the tree is named', () => {
     expect(
-      ReleaseRequest.findReleaseBlockers({ branch: 'main', dirtyPaths: 3, ahead: 2, behind: 1 }),
+      ReleaseRequest.findBlockers({ branch: 'main', dirtyPaths: 3, ahead: 2, behind: 1 }),
     ).toEqual([
       "On 'main', not 'develop'. The workflow releases from 'develop'.",
       'Working tree is not clean - 3 path(s). The workflow builds from the remote, so uncommitted work would NOT be released.',

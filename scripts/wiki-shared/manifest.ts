@@ -54,13 +54,13 @@ export class SharedManifest {
     });
   }
 
-  static buildManifest(opts: { root: string }): TManifest {
+  static build(opts: { root: string }): TManifest {
     const files = hashSharedFiles({ root: opts.root });
 
     return { fingerprint: SharedManifest.fingerprintOf({ files }), files };
   }
 
-  static renderManifest(opts: { manifest: TManifest }): string {
+  static render(opts: { manifest: TManifest }): string {
     return `${JSON.stringify(opts.manifest, null, 2)}\n`;
   }
 
@@ -68,7 +68,7 @@ export class SharedManifest {
    * A manifest from untrusted JSON (a file of another checkout, a download), or null when it is not
    * one: every hash is 64 hex digits and every path stays inside the folder.
    */
-  static parseManifest(opts: { text: string }): TManifest | null {
+  static parse(opts: { text: string }): TManifest | null {
     let value: unknown;
 
     try {
@@ -96,12 +96,10 @@ export class SharedManifest {
     return { fingerprint, files };
   }
 
-  static readManifest(opts: { root: string }): TManifest | null {
+  static read(opts: { root: string }): TManifest | null {
     const file = join(opts.root, SHARED_DIR, MANIFEST_FILE);
 
-    return existsSync(file)
-      ? SharedManifest.parseManifest({ text: readFileSync(file, 'utf8') })
-      : null;
+    return existsSync(file) ? SharedManifest.parse({ text: readFileSync(file, 'utf8') }) : null;
   }
 
   static diffFiles(opts: {
@@ -150,8 +148,8 @@ const argvRoot = (opts: { argv: string[] }): string => {
 
 if (import.meta.main) {
   const root = argvRoot({ argv: process.argv });
-  const rendered = SharedManifest.renderManifest({
-    manifest: SharedManifest.buildManifest({ root }),
+  const rendered = SharedManifest.render({
+    manifest: SharedManifest.build({ root }),
   });
   const file = join(root, SHARED_DIR, MANIFEST_FILE);
 

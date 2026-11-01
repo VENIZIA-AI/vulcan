@@ -67,7 +67,7 @@ const BOOLEAN_FLAGS = new Set(['--dry-run', '--yes']);
 
 export class ReleaseRequest {
   /** Reads `[--bump <mode>] [--issue <n>] [--branch <develop|main>] [--dry-run] [--yes]`; throws on anything else. */
-  static parseReleaseArgs(opts: { args: string[] }): IReleaseArgs {
+  static parseArgs(opts: { args: string[] }): IReleaseArgs {
     const values = new Map<string, string>();
     const booleans = new Set<string>();
 
@@ -146,7 +146,7 @@ export class ReleaseRequest {
    * workflow builds origin/<target> (develop, or main for a stable), so a dirty, unpushed or stale checkout is
    * not what ships.
    */
-  static findReleaseBlockers(opts: {
+  static findBlockers(opts: {
     branch: string;
     dirtyPaths: number;
     ahead: number;

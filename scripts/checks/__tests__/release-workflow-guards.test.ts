@@ -32,7 +32,7 @@ const mutated = (opts: { change: (workflow: Record<string, unknown>) => void }):
 
   opts.change(copy);
 
-  return ReleaseWorkflowGuards.checkReleaseWorkflowGuards({ workflow: copy }).map((violation) =>
+  return ReleaseWorkflowGuards.check({ workflow: copy }).map((violation) =>
     violation.slice(0, violation.indexOf(':')),
   );
 };
@@ -81,7 +81,7 @@ const addStep = (opts: {
 
 describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, C20, C25, C26, D6)', () => {
   test('the real workflow breaks none of them', () => {
-    expect(ReleaseWorkflowGuards.checkReleaseWorkflowGuards({ workflow: load() })).toEqual([]);
+    expect(ReleaseWorkflowGuards.check({ workflow: load() })).toEqual([]);
   });
 
   test('C1: a plan job that does not run the planning script, or that names an environment or a condition, is noticed', () => {
@@ -539,9 +539,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, C20
         },
       }),
     ).toContain('D6');
-    expect(ReleaseWorkflowGuards.checkReleaseWorkflowGuards({ workflow: load() })).not.toContain(
-      'D6',
-    );
+    expect(ReleaseWorkflowGuards.check({ workflow: load() })).not.toContain('D6');
   });
 });
 

@@ -19,7 +19,7 @@ const PACKAGE_DIRECTORIES = ['okf', 'atlas', 'cli'];
 
 const readArgs = (): IReleaseArgs | undefined => {
   try {
-    return ReleaseRequest.parseReleaseArgs({ args: process.argv.slice(2) });
+    return ReleaseRequest.parseArgs({ args: process.argv.slice(2) });
   } catch (error) {
     console.error(`release: ${error instanceof Error ? error.message : String(error)}`);
     return undefined;
@@ -83,7 +83,7 @@ capture({ command: ['git', 'fetch', 'origin', '--quiet'] });
 const counts = capture({
   command: ['git', 'rev-list', '--left-right', '--count', `HEAD...origin/${args.branch}`],
 }).stdout.split(/\s+/);
-const blockers = ReleaseRequest.findReleaseBlockers({
+const blockers = ReleaseRequest.findBlockers({
   branch: capture({ command: ['git', 'rev-parse', '--abbrev-ref', 'HEAD'] }).stdout,
   dirtyPaths: capture({ command: ['git', 'status', '--porcelain'] })
     .stdout.split('\n')

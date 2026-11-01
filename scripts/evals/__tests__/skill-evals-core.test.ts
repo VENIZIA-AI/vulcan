@@ -8,9 +8,9 @@ const EVALUATION = {
   files: ['docs/page.md'],
 };
 
-describe('SkillEvals.parseSkillEvalArgs', () => {
+describe('SkillEvals.parseArgs', () => {
   test('defaults: three models, opus grades, 900 s, no project or out, runs for real', () => {
-    expect(SkillEvals.parseSkillEvalArgs({ args: ['--skill', 'docs-writing'] })).toEqual({
+    expect(SkillEvals.parseArgs({ args: ['--skill', 'docs-writing'] })).toEqual({
       skill: 'docs-writing',
       models: ['haiku', 'sonnet', 'opus'],
       grader: 'opus',
@@ -24,19 +24,17 @@ describe('SkillEvals.parseSkillEvalArgs', () => {
   });
 
   test('--baseline is a boolean flag', () => {
-    expect(SkillEvals.parseSkillEvalArgs({ args: ['--skill', 'x', '--baseline'] }).isBaseline).toBe(
-      true,
-    );
+    expect(SkillEvals.parseArgs({ args: ['--skill', 'x', '--baseline'] }).isBaseline).toBe(true);
   });
 
   test('--max-budget-usd caps every claude call, and takes a positive amount only', () => {
     expect(
-      SkillEvals.parseSkillEvalArgs({
+      SkillEvals.parseArgs({
         args: ['--skill', 'docs-writing', '--max-budget-usd', '2.5'],
       }).maxBudgetUsd,
     ).toBe('2.5');
     expect(() =>
-      SkillEvals.parseSkillEvalArgs({
+      SkillEvals.parseArgs({
         args: ['--skill', 'docs-writing', '--max-budget-usd', 'lots'],
       }),
     ).toThrow('--max-budget-usd needs a dollar amount above 0, got: lots');
@@ -53,7 +51,7 @@ describe('SkillEvals.parseSkillEvalArgs', () => {
   });
 
   test('every flag and its value are read', () => {
-    const parsed = SkillEvals.parseSkillEvalArgs({
+    const parsed = SkillEvals.parseArgs({
       args: [
         '--skill',
         'docs-writing',
@@ -87,41 +85,39 @@ describe('SkillEvals.parseSkillEvalArgs', () => {
   });
 
   test('no --skill throws', () => {
-    expect(() => SkillEvals.parseSkillEvalArgs({ args: [] })).toThrow('--skill <name> is required');
+    expect(() => SkillEvals.parseArgs({ args: [] })).toThrow('--skill <name> is required');
   });
 
   test('a skill name that is not a plain directory name throws', () => {
-    expect(() => SkillEvals.parseSkillEvalArgs({ args: ['--skill', '../rules'] })).toThrow(
+    expect(() => SkillEvals.parseArgs({ args: ['--skill', '../rules'] })).toThrow(
       "--skill '../rules' is not a skill name",
     );
   });
 
   test('a model name that cannot be a directory throws', () => {
-    expect(() =>
-      SkillEvals.parseSkillEvalArgs({ args: ['--skill', 'x', '--models', 'haiku,a/b'] }),
-    ).toThrow("--models 'a/b' is not a model name");
-  });
-
-  test('a timeout that is not a positive whole number throws', () => {
-    expect(() =>
-      SkillEvals.parseSkillEvalArgs({ args: ['--skill', 'x', '--timeout', '0'] }),
-    ).toThrow('--timeout needs whole seconds above 0, got: 0');
-  });
-
-  test('a flag without its value throws', () => {
-    expect(() => SkillEvals.parseSkillEvalArgs({ args: ['--skill'] })).toThrow(
-      '--skill needs a value',
+    expect(() => SkillEvals.parseArgs({ args: ['--skill', 'x', '--models', 'haiku,a/b'] })).toThrow(
+      "--models 'a/b' is not a model name",
     );
   });
 
+  test('a timeout that is not a positive whole number throws', () => {
+    expect(() => SkillEvals.parseArgs({ args: ['--skill', 'x', '--timeout', '0'] })).toThrow(
+      '--timeout needs whole seconds above 0, got: 0',
+    );
+  });
+
+  test('a flag without its value throws', () => {
+    expect(() => SkillEvals.parseArgs({ args: ['--skill'] })).toThrow('--skill needs a value');
+  });
+
   test('an unknown argument throws instead of being ignored', () => {
-    expect(() => SkillEvals.parseSkillEvalArgs({ args: ['--skill', 'x', '--dryrun'] })).toThrow(
+    expect(() => SkillEvals.parseArgs({ args: ['--skill', 'x', '--dryrun'] })).toThrow(
       "unknown argument '--dryrun'",
     );
   });
 });
 
-describe('SkillEvals.parseEvalsFile', () => {
+describe('SkillEvals.parseFile', () => {
   test('reads skill-creator evals.json, ids as strings, files default to none', () => {
     const text = JSON.stringify({
       skill_name: 'docs-writing',
@@ -131,20 +127,20 @@ describe('SkillEvals.parseEvalsFile', () => {
       ],
     });
 
-    expect(SkillEvals.parseEvalsFile({ text, skill: 'docs-writing' })).toEqual([
+    expect(SkillEvals.parseFile({ text, skill: 'docs-writing' })).toEqual([
       { id: '0', prompt: 'p0', expectedOutput: 'e0', files: ['a.md'] },
       { id: 'short', prompt: 'p1', expectedOutput: 'e1', files: [] },
     ]);
   });
 
   test('not JSON throws', () => {
-    expect(() => SkillEvals.parseEvalsFile({ text: '{', skill: 'x' })).toThrow('is not JSON');
+    expect(() => SkillEvals.parseFile({ text: '{', skill: 'x' })).toThrow('is not JSON');
   });
 
   test('an eval without a prompt or expected_output throws, naming its index', () => {
     const text = JSON.stringify({ skill_name: 'x', evals: [{ id: 0, prompt: 'p' }] });
 
-    expect(() => SkillEvals.parseEvalsFile({ text, skill: 'x' })).toThrow(
+    expect(() => SkillEvals.parseFile({ text, skill: 'x' })).toThrow(
       'evals[0] needs id, prompt and expected_output',
     );
   });
@@ -155,13 +151,13 @@ describe('SkillEvals.parseEvalsFile', () => {
       evals: [{ id: '../up', prompt: 'p', expected_output: 'e' }],
     });
 
-    expect(() => SkillEvals.parseEvalsFile({ text, skill: 'x' })).toThrow("evals[0] id '../up'");
+    expect(() => SkillEvals.parseFile({ text, skill: 'x' })).toThrow("evals[0] id '../up'");
   });
 
   test('a skill_name for another skill throws', () => {
     const text = JSON.stringify({ skill_name: 'other', evals: [] });
 
-    expect(() => SkillEvals.parseEvalsFile({ text, skill: 'x' })).toThrow(
+    expect(() => SkillEvals.parseFile({ text, skill: 'x' })).toThrow(
       "skill_name is 'other', expected 'x'",
     );
   });
@@ -169,7 +165,7 @@ describe('SkillEvals.parseEvalsFile', () => {
   test('no evals throws', () => {
     const text = JSON.stringify({ skill_name: 'x', evals: [] });
 
-    expect(() => SkillEvals.parseEvalsFile({ text, skill: 'x' })).toThrow('has no evals');
+    expect(() => SkillEvals.parseFile({ text, skill: 'x' })).toThrow('has no evals');
   });
 });
 

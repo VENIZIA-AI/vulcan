@@ -17,12 +17,10 @@ type TAction = { kind: 'new' | 'changed' | 'removed'; path: string };
 
 export class SharedCopy {
   /** What copying would do to `target`, and the canonical manifest it would leave there. */
-  static planCopy(opts: { source: string; target: string }): TAction[] {
-    const manifest = SharedManifest.buildManifest({ root: opts.source });
+  static plan(opts: { source: string; target: string }): TAction[] {
+    const manifest = SharedManifest.build({ root: opts.source });
     const targetDir = join(opts.target, SHARED_DIR);
-    const have = existsSync(targetDir)
-      ? SharedManifest.buildManifest({ root: opts.target }).files
-      : {};
+    const have = existsSync(targetDir) ? SharedManifest.build({ root: opts.target }).files : {};
     const actions: TAction[] = [];
 
     for (const [path, hash] of Object.entries(manifest.files)) {
@@ -39,7 +37,7 @@ export class SharedCopy {
       }
     }
 
-    const theirs = SharedManifest.readManifest({ root: opts.target });
+    const theirs = SharedManifest.read({ root: opts.target });
 
     if (theirs?.fingerprint !== manifest.fingerprint && actions.length === 0) {
       actions.push({ kind: 'changed', path: MANIFEST_FILE });
@@ -48,8 +46,8 @@ export class SharedCopy {
     return actions;
   }
 
-  static applyCopy(opts: { source: string; target: string }): TAction[] {
-    const actions = SharedCopy.planCopy(opts);
+  static apply(opts: { source: string; target: string }): TAction[] {
+    const actions = SharedCopy.plan(opts);
     const sourceDir = join(opts.source, SHARED_DIR);
     const targetDir = join(opts.target, SHARED_DIR);
 
@@ -70,9 +68,9 @@ export class SharedCopy {
 
     mkdirSync(targetDir, { recursive: true });
 
-    const manifest = SharedManifest.buildManifest({ root: opts.source });
+    const manifest = SharedManifest.build({ root: opts.source });
 
-    writeFileSync(join(targetDir, MANIFEST_FILE), SharedManifest.renderManifest({ manifest }));
+    writeFileSync(join(targetDir, MANIFEST_FILE), SharedManifest.render({ manifest }));
 
     return actions;
   }
@@ -90,8 +88,8 @@ if (import.meta.main) {
   }
 
   // The canonical manifest must describe the canonical files, or the copy would spread a stale one.
-  const committed = SharedManifest.readManifest({ root: CANONICAL });
-  const actual = SharedManifest.buildManifest({ root: CANONICAL });
+  const committed = SharedManifest.read({ root: CANONICAL });
+  const actual = SharedManifest.build({ root: CANONICAL });
 
   if (
     committed === null ||
@@ -119,8 +117,8 @@ if (import.meta.main) {
     }
 
     const actions = dryRun
-      ? SharedCopy.planCopy({ source: CANONICAL, target })
-      : SharedCopy.applyCopy({ source: CANONICAL, target });
+      ? SharedCopy.plan({ source: CANONICAL, target })
+      : SharedCopy.apply({ source: CANONICAL, target });
 
     for (const action of actions) {
       console.log(`${dryRun ? 'would be ' : ''}${action.kind}: ${action.path}`);

@@ -86,7 +86,7 @@ const VERDICT_SCHEMA = {
 
 export class SkillEvals {
   /** Reads `--skill <name> [--models a,b] [--grader m] [--project d] [--out d] [--timeout s] [--max-budget-usd n] [--dry-run] [--baseline]`. */
-  static parseSkillEvalArgs(opts: { args: string[] }): ISkillEvalArgs {
+  static parseArgs(opts: { args: string[] }): ISkillEvalArgs {
     const values = new Map<string, string>();
     const booleans = new Set<string>();
 
@@ -170,7 +170,7 @@ export class SkillEvals {
   }
 
   /** A skill's `evals/evals.json`, in skill-creator's shape: `{ skill_name, evals: [{ id, prompt, expected_output, files }] }`. */
-  static parseEvalsFile(opts: { text: string; skill: string }): ISkillEval[] {
+  static parseFile(opts: { text: string; skill: string }): ISkillEval[] {
     let parsed: unknown;
 
     try {

@@ -69,7 +69,7 @@ const fail = (opts: { message: string }): never => {
 
 const readArgs = (): ISkillEvalArgs => {
   try {
-    return SkillEvals.parseSkillEvalArgs({ args: process.argv.slice(2) });
+    return SkillEvals.parseArgs({ args: process.argv.slice(2) });
   } catch (error) {
     return fail({ message: error instanceof Error ? error.message : String(error) });
   }
@@ -353,7 +353,7 @@ const readEvaluations = (opts: { skill: string; skillDirectory: string }): ISkil
   }
 
   try {
-    return SkillEvals.parseEvalsFile({
+    return SkillEvals.parseFile({
       text: readFileSync(join(REPOSITORY_ROOT, evalsFile), 'utf8'),
       skill: opts.skill,
     });
