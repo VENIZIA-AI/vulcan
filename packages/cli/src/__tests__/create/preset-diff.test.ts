@@ -10,8 +10,8 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import type { IRecordedPreset, TAppSide } from '../../create/common/index.ts';
-import { diffLines } from '../../create/diff.ts';
-import { comparePresetFiles, detectPreset } from '../../create/preset-diff.ts';
+import { LineDiff } from '../../create/diff.ts';
+import { PresetDiff } from '../../create/preset-diff.ts';
 import { copyWithFields } from '../preset.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -830,7 +830,7 @@ describe('detectPreset', () => {
       writeFileSync(join(root, name, 'package.json'), JSON.stringify({ name: `@x/${name}` }));
     }
 
-    const result = detectPreset({
+    const result = PresetDiff.detect({
       root,
       recorded: [
         recorded({ spec: 'file:a', side: 'backend' }),
@@ -848,7 +848,7 @@ describe('detectPreset', () => {
     const root = createProject({ files: {} });
 
     expect(
-      detectPreset({
+      PresetDiff.detect({
         root,
         recorded: [recorded({ spec: '@x/api', side: 'backend' })],
         dependencies: ['@x/api'],
@@ -856,7 +856,7 @@ describe('detectPreset', () => {
       }).ok,
     ).toBe(false);
     expect(
-      detectPreset({
+      PresetDiff.detect({
         root,
         recorded: [recorded({ spec: '@x/api@1.0.0', side: 'backend' })],
         dependencies: ['@x/api'],
@@ -869,7 +869,7 @@ describe('detectPreset', () => {
 describe('comparePresetFiles', () => {
   test('same, differs and missing, in path order, reading only', () => {
     const app = createProject({ files: { 'a.txt': 'one\n', 'c.txt': 'old\n' } });
-    const reports = comparePresetFiles({
+    const reports = PresetDiff.compareFiles({
       appDirectory: app,
       rendered: [
         { path: 'c.txt', content: Buffer.from('new\n'), mode: 0o644 },
@@ -890,13 +890,13 @@ describe('diffLines', () => {
   const lines = (...text: string[]): string => `${text.join('\n')}\n`;
 
   test('identical text has no change; one added and one removed line are counted', () => {
-    expect(diffLines({ current: lines('a', 'b'), preset: lines('a', 'b') })).toEqual({
+    expect(LineDiff.diff({ current: lines('a', 'b'), preset: lines('a', 'b') })).toEqual({
       added: 0,
       removed: 0,
       hunks: [],
     });
     expect(
-      diffLines({ current: lines('a', 'b', 'c'), preset: lines('a', 'x', 'c') }),
+      LineDiff.diff({ current: lines('a', 'b', 'c'), preset: lines('a', 'x', 'c') }),
     ).toMatchObject({
       added: 1,
       removed: 1,
@@ -906,7 +906,7 @@ describe('diffLines', () => {
   test('a hunk has the header, three lines of context, and - for the app and + for the preset', () => {
     const current = lines('1', '2', '3', '4', '5', '6', '7', '8', '9', '10');
     const preset = lines('1', '2', '3', '4', '5', 'five and a half', '6', '7', '8', '9', '10');
-    const result = diffLines({ current, preset });
+    const result = LineDiff.diff({ current, preset });
 
     expect(result.hunks).toEqual(['@@ -3,6 +3,7 @@\n 3\n 4\n 5\n+five and a half\n 6\n 7\n 8']);
   });
@@ -916,24 +916,28 @@ describe('diffLines', () => {
     const far = base.map((line, index) => (index === 2 || index === 25 ? `${line}!` : line));
     const near = base.map((line, index) => (index === 10 || index === 13 ? `${line}!` : line));
 
-    expect(diffLines({ current: lines(...base), preset: lines(...far) }).hunks).toHaveLength(2);
-    expect(diffLines({ current: lines(...base), preset: lines(...near) }).hunks).toHaveLength(1);
+    expect(LineDiff.diff({ current: lines(...base), preset: lines(...far) }).hunks).toHaveLength(2);
+    expect(LineDiff.diff({ current: lines(...base), preset: lines(...near) }).hunks).toHaveLength(
+      1,
+    );
   });
 
   test('an empty side starts one line earlier, as GNU diff writes it', () => {
-    expect(diffLines({ current: '', preset: lines('a', 'b') }).hunks).toEqual([
+    expect(LineDiff.diff({ current: '', preset: lines('a', 'b') }).hunks).toEqual([
       '@@ -0,0 +1,2 @@\n+a\n+b',
     ]);
-    expect(diffLines({ current: lines('a'), preset: '' }).hunks).toEqual(['@@ -1,1 +0,0 @@\n-a']);
+    expect(LineDiff.diff({ current: lines('a'), preset: '' }).hunks).toEqual([
+      '@@ -1,1 +0,0 @@\n-a',
+    ]);
   });
 
   test('only the last newline or the line endings differing is no hunk and 0 and 0', () => {
-    expect(diffLines({ current: 'a\nb', preset: 'a\nb\n' })).toEqual({
+    expect(LineDiff.diff({ current: 'a\nb', preset: 'a\nb\n' })).toEqual({
       added: 0,
       removed: 0,
       hunks: [],
     });
-    expect(diffLines({ current: 'a\r\nb\r\n', preset: 'a\nb\n' })).toEqual({
+    expect(LineDiff.diff({ current: 'a\r\nb\r\n', preset: 'a\nb\n' })).toEqual({
       added: 0,
       removed: 0,
       hunks: [],
@@ -944,6 +948,6 @@ describe('diffLines', () => {
     const big = lines(...Array.from({ length: 2100 }, (_, index) => `a${index}`));
     const other = lines(...Array.from({ length: 2100 }, (_, index) => `b${index}`));
 
-    expect(diffLines({ current: big, preset: other }).hunks).toBeUndefined();
+    expect(LineDiff.diff({ current: big, preset: other }).hunks).toBeUndefined();
   });
 });

@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { ExitCodes, ProjectLayout, VULCAN_VERSION } from '../common/index.ts';
 import { LayoutFolder } from '../common/layout-folder.ts';
 import { ProjectScaffold } from '../init/index.ts';
-import { runAppChecks } from './checks.ts';
+import { AppChecks } from './checks.ts';
 import { AppSides, CreateFlags } from './common/index.ts';
 import type {
   IAppsBlock,
@@ -12,36 +12,20 @@ import type {
   IPresetSpec,
   TAppSide,
 } from './common/index.ts';
-import { writeFile } from './files.ts';
-import { recordedPresetOf } from './lib-preset.ts';
-import { renderBunfig } from './bunfig.ts';
-import { renderDockerignore } from './dockerignore.ts';
+import { ProjectFile } from './files.ts';
+import { LibPreset } from './lib-preset.ts';
+import { Bunfig } from './bunfig.ts';
+import { Dockerignore } from './dockerignore.ts';
 import { TerminalCapability } from '../ui/index.ts';
-import { askPresetSpec } from './preset-menu.ts';
-import { ABORTED, confirmWrite, planLines } from './plan.ts';
-import {
-  askInTerminal,
-  askScope,
-  findFolderClash,
-  readFlag,
-  readScope,
-  resolveNames,
-  SIDE_FIELDS,
-} from './names.ts';
-import { copyPresetFiles, locatePreset, parsePresetSpec } from './preset.ts';
-import { renderNext } from './next.ts';
-import { isInstallSkipped, runBun, runGitInit } from './process.ts';
+import { PresetMenu } from './preset-menu.ts';
+import { ABORTED, WritePlan } from './plan.ts';
+import { askInTerminal, ProjectNames, SIDE_FIELDS } from './names.ts';
+import { Preset } from './preset.ts';
+import { NextStep } from './next.ts';
+import { SubProcess } from './process.ts';
 import { offerProfile } from '../commands/profile.command.ts';
-import { installNpmPreset, withScratch } from './scratch.ts';
-import {
-  filePresetWarning,
-  renderAppConcept,
-  renderAppManifest,
-  renderKnowledgeIndex,
-  renderRootManifest,
-  presetSpecOf,
-  renderVulcanConfig,
-} from './workspace.ts';
+import { PresetScratch } from './scratch.ts';
+import { WorkspaceDocs, WorkspaceManifest, PresetRecord } from './workspace.ts';
 
 /** The VULCAN layer files; the knowledge index is rendered from the apps, not copied. */
 const LAYER_FILES = [
@@ -105,32 +89,32 @@ const writeMonorepo = (opts: {
     [packageName]: spec.packageName === undefined ? spec.range : packageVersion,
   };
 
-  writeFile({
+  ProjectFile.write({
     root,
     path: 'package.json',
-    content: renderRootManifest({
+    content: WorkspaceManifest.renderRoot({
       project,
       workspaces: [`${folder}/*`, ...(shared === '' ? [] : [`${shared}/*`])],
       catalog,
       vulcanVersion: VULCAN_VERSION,
     }),
   });
-  writeFile({
+  ProjectFile.write({
     root,
     path: '.gitignore',
     content: `${[...BASE_IGNORES, ...ProjectLayout.GITIGNORE_ENTRIES].join('\n')}\n`,
   });
-  writeFile({ root, path: 'README.md', content: `# ${project}\n` });
-  writeFile({ root, path: '.dockerignore', content: renderDockerignore() });
-  writeFile({ root, path: 'bunfig.toml', content: renderBunfig() });
+  ProjectFile.write({ root, path: 'README.md', content: `# ${project}\n` });
+  ProjectFile.write({ root, path: '.dockerignore', content: Dockerignore.render() });
+  ProjectFile.write({ root, path: 'bunfig.toml', content: Bunfig.render() });
 
   if (shared !== '') {
-    writeFile({ root, path: `${shared}/.gitkeep`, content: '' });
+    ProjectFile.write({ root, path: `${shared}/.gitkeep`, content: '' });
   }
 
   // The first app: nothing uses a port yet, and a frontend has no backend to proxy to.
   const appDirectory = join(root, folder, app);
-  const written = copyPresetFiles({
+  const written = Preset.copyFiles({
     located,
     target: appDirectory,
     tokens: {
@@ -146,10 +130,10 @@ const writeMonorepo = (opts: {
     process.stderr.write(`  created  ${folder}/${app}/${path}\n`);
   }
 
-  writeFile({
+  ProjectFile.write({
     root,
     path: `${folder}/${app}/package.json`,
-    content: renderAppManifest({
+    content: WorkspaceManifest.renderApp({
       app,
       name: packageOfApp,
       preset,
@@ -160,7 +144,7 @@ const writeMonorepo = (opts: {
   for (const file of LAYER_FILES) {
     const content = ProjectScaffold.renderTemplate({ template: file.template, name: project });
 
-    writeFile({
+    ProjectFile.write({
       root,
       path: file.path,
       content: file.path === 'Makefile' ? `${content}${DEV_TARGET}` : content,
@@ -171,28 +155,31 @@ const writeMonorepo = (opts: {
     layout: { [side]: folder, ...(shared === '' ? {} : { shared }) },
     packages: [{ dir: app, name: packageOfApp, path: `${folder}/${app}` }],
     presets: [
-      recordedPresetOf({
-        spec: presetSpecOf({ value: presetValue, root, cwd: dirname(root) }),
+      LibPreset.recordedOf({
+        spec: PresetRecord.presetSpecOf({ value: presetValue, root, cwd: dirname(root) }),
         located,
       }),
     ],
     sources: preset.atlas,
   };
 
-  writeFile({
+  ProjectFile.write({
     root,
     path: '.configs/vulcan.config.mts',
-    content: renderVulcanConfig({ project, block }),
+    content: WorkspaceDocs.renderVulcanConfig({ project, block }),
   });
-  writeFile({
+  ProjectFile.write({
     root,
     path: '.agents/knowledge/index.md',
-    content: renderKnowledgeIndex({ project, apps: [{ name: app, summary: preset.summary }] }),
+    content: WorkspaceDocs.renderKnowledgeIndex({
+      project,
+      apps: [{ name: app, summary: preset.summary }],
+    }),
   });
-  writeFile({
+  ProjectFile.write({
     root,
     path: `.agents/knowledge/packages/${app}.md`,
-    content: renderAppConcept({
+    content: WorkspaceDocs.renderAppConcept({
       app: { name: app, side, folder },
       summary: preset.summary,
       presetPackage: packageName,
@@ -205,14 +192,14 @@ const runCreate = async (opts: {
   args: string[];
   scratch: string;
 }): Promise<number> => {
-  const flagged = readFlag({ args: opts.args, flag: CreateFlags.PRESET });
+  const flagged = ProjectNames.readFlag({ args: opts.args, flag: CreateFlags.PRESET });
 
   if (flagged === undefined && !TerminalCapability.menusAvailable()) {
     return fail({ message: '--preset needs a value (a package name, or file:<path>)' });
   }
 
   // A new project has no config to list presets from: the official ones, or one typed.
-  const askingSpec = flagged === undefined ? askPresetSpec({ recorded: [] }) : undefined;
+  const askingSpec = flagged === undefined ? PresetMenu.askSpec({ recorded: [] }) : undefined;
   const typedSpec = await askingSpec;
   const presetValue = flagged ?? typedSpec?.trim();
 
@@ -220,15 +207,15 @@ const runCreate = async (opts: {
     return fail({ message: '--preset needs a value (a package name, or file:<path>)' });
   }
 
-  const flaggedScope = readScope({ args: opts.args });
+  const flaggedScope = ProjectNames.readScope({ args: opts.args });
 
   if (!flaggedScope.ok) {
     return fail({ message: flaggedScope.error });
   }
 
-  const spec = parsePresetSpec({ value: presetValue, cwd: opts.cwd });
+  const spec = Preset.parseSpec({ value: presetValue, cwd: opts.cwd });
   const interactive = process.stdin.isTTY === true;
-  const first = await resolveNames({
+  const first = await ProjectNames.resolve({
     fields: [
       { key: 'project', flag: CreateFlags.PROJECT, question: 'Project name (the monorepo folder)' },
     ],
@@ -253,7 +240,7 @@ const runCreate = async (opts: {
 
   const isNpm = spec.packageName !== undefined;
 
-  if (isNpm && isInstallSkipped()) {
+  if (isNpm && SubProcess.isInstallSkipped()) {
     return fail({ message: 'an npm preset needs an install - use file: in tests' });
   }
 
@@ -262,7 +249,7 @@ const runCreate = async (opts: {
   if (isNpm) {
     // Without a terminal nothing is asked, so a missing flag is refused before the network is used.
     if (!interactive) {
-      const early = await resolveNames({
+      const early = await ProjectNames.resolve({
         fields: appFields({}),
         args: opts.args,
         interactive,
@@ -275,13 +262,13 @@ const runCreate = async (opts: {
     }
 
     // The side is known only once the package is read, so the preset is fetched before the rest is asked.
-    const installed = await installNpmPreset({ scratch: opts.scratch, spec });
+    const installed = await PresetScratch.installNpm({ scratch: opts.scratch, spec });
 
     if (installed !== ExitCodes.OK) {
       return installed;
     }
 
-    const result = locatePreset({ spec, root: opts.scratch });
+    const result = Preset.locate({ spec, root: opts.scratch });
 
     if (!result.ok) {
       return fail({ message: result.error });
@@ -289,7 +276,7 @@ const runCreate = async (opts: {
 
     located = result.located;
   } else {
-    const result = locatePreset({ spec, root });
+    const result = Preset.locate({ spec, root });
 
     if (!result.ok) {
       return fail({ message: result.error });
@@ -298,7 +285,7 @@ const runCreate = async (opts: {
     located = result.located;
   }
 
-  const rest = await resolveNames({
+  const rest = await ProjectNames.resolve({
     fields: appFields({ side: located.preset.side }),
     args: opts.args,
     interactive,
@@ -314,8 +301,8 @@ const runCreate = async (opts: {
   // The flag of the side this preset does not build still counts when given: it names a folder too.
   const otherFlag =
     SIDE_FIELDS[side === AppSides.BACKEND ? AppSides.FRONTEND : AppSides.BACKEND].flag;
-  const otherFolder = readFlag({ args: opts.args, flag: otherFlag });
-  const clash = findFolderClash({
+  const otherFolder = ProjectNames.readFlag({ args: opts.args, flag: otherFlag });
+  const clash = ProjectNames.findFolderClash({
     folders: [
       { flag: SIDE_FIELDS[side].flag, value: folder },
       ...(otherFolder === undefined ? [] : [{ flag: otherFlag, value: otherFolder }]),
@@ -344,14 +331,15 @@ const runCreate = async (opts: {
 
   // Optional, asked only where menus are drawn; a plain terminal and a script give --scope.
   const askingScope =
-    flaggedScope.scope ?? (TerminalCapability.menusAvailable() ? askScope() : undefined);
+    flaggedScope.scope ??
+    (TerminalCapability.menusAvailable() ? ProjectNames.askScope() : undefined);
   const scope = await askingScope;
 
   if (scope === null) {
     return fail({ message: ABORTED });
   }
 
-  const warning = filePresetWarning({
+  const warning = WorkspaceDocs.filePresetWarning({
     spec,
     packageName: located.packageName,
   });
@@ -360,9 +348,9 @@ const runCreate = async (opts: {
     process.stderr.write(`${warning}\n`);
   }
 
-  const confirmed = await confirmWrite({
+  const confirmed = await WritePlan.confirm({
     title: `Create ${project}`,
-    lines: planLines({
+    lines: WritePlan.planLines({
       rows: [
         ['project', project],
         ['preset', `${located.packageName} ${located.packageVersion}`],
@@ -380,17 +368,17 @@ const runCreate = async (opts: {
   writeMonorepo({ root, project, spec, presetValue, located, folder, app, scope, shared });
 
   for (const step of [
-    () => runBun({ cwd: root, args: ['install'], label: 'bun install' }),
-    () => runGitInit({ cwd: root }),
+    () => SubProcess.runBun({ cwd: root, args: ['install'], label: 'bun install' }),
+    () => SubProcess.runGitInit({ cwd: root }),
     // The installed CLI syncs, so the project is wired to the version it pins.
     () =>
-      runBun({
+      SubProcess.runBun({
         cwd: root,
         args: [join(root, 'node_modules', '.bin', 'vulcan'), 'sync'],
         label: 'vulcan sync',
       }),
     () =>
-      runAppChecks({
+      AppChecks.run({
         root,
         appDirectory: join(root, folder, app),
         checks: located.preset.checks,
@@ -405,7 +393,7 @@ const runCreate = async (opts: {
 
   // The preset's own port: nothing else is in this project yet, so it is the one the app listens on.
   process.stderr.write(
-    renderNext({
+    NextStep.render({
       done: 'Done.',
       command: `cd ${project} && make dev`,
       apps: [{ port: located.preset.devPort, urls: located.preset.urls }],
@@ -416,5 +404,11 @@ const runCreate = async (opts: {
   return ExitCodes.OK;
 };
 
-export const createMonorepo = async (opts: { cwd: string; args: string[] }): Promise<number> =>
-  withScratch({ root: opts.cwd, run: (scratch) => runCreate({ ...opts, scratch }) });
+export class Monorepo {
+  static async create(opts: { cwd: string; args: string[] }): Promise<number> {
+    return PresetScratch.withScratch({
+      root: opts.cwd,
+      run: (scratch) => runCreate({ ...opts, scratch }),
+    });
+  }
+}

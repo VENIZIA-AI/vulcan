@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { closeSync, mkdtempSync, openSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readLine, resolveNames } from '../../create/names.ts';
+import { ProjectNames } from '../../create/names.ts';
 import type { INameField, TAsk } from '../../create/index.ts';
 
 const FIELDS: INameField[] = [
@@ -24,7 +24,7 @@ const scripted = (answers: (string | null)[]): TAsk => {
 
 describe('resolveNames', () => {
   test('flags fill every name without asking', async () => {
-    const result = await resolveNames({
+    const result = await ProjectNames.resolve({
       fields: FIELDS,
       args: ['--project', 'my-product', '--backend-dir', 'services', '--shared-dir', 'libs'],
       interactive: false,
@@ -38,7 +38,7 @@ describe('resolveNames', () => {
   });
 
   test('without a TTY a missing flag is an error naming it', async () => {
-    const result = await resolveNames({
+    const result = await ProjectNames.resolve({
       fields: FIELDS,
       args: ['--project', 'my-product'],
       interactive: false,
@@ -53,7 +53,7 @@ describe('resolveNames', () => {
   });
 
   test('without a TTY an optional name may be absent', async () => {
-    const result = await resolveNames({
+    const result = await ProjectNames.resolve({
       fields: FIELDS,
       args: ['--project', 'p', '--backend-dir', 'b'],
       interactive: false,
@@ -64,7 +64,7 @@ describe('resolveNames', () => {
   });
 
   test('in a TTY an invalid answer is asked again, an empty required answer too', async () => {
-    const result = await resolveNames({
+    const result = await ProjectNames.resolve({
       fields: FIELDS,
       args: [],
       interactive: true,
@@ -78,7 +78,7 @@ describe('resolveNames', () => {
   });
 
   test('an invalid flag value is an error', async () => {
-    const result = await resolveNames({
+    const result = await ProjectNames.resolve({
       fields: FIELDS,
       args: ['--project', '-x', '--backend-dir', 'b'],
       interactive: false,
@@ -93,7 +93,12 @@ describe('resolveNames', () => {
       { key: 'backend', flag: '--backend-dir', question: 'Backend folder', previous: 'services' },
     ];
 
-    const result = await resolveNames({ fields, args: [], interactive: true, ask: scripted(['']) });
+    const result = await ProjectNames.resolve({
+      fields,
+      args: [],
+      interactive: true,
+      ask: scripted(['']),
+    });
     expect(result).toEqual({
       ok: true,
       names: { backend: 'services' },
@@ -101,7 +106,7 @@ describe('resolveNames', () => {
   });
 
   test('closing the prompt (null) aborts', async () => {
-    const result = await resolveNames({
+    const result = await ProjectNames.resolve({
       fields: FIELDS,
       args: [],
       interactive: true,
@@ -111,7 +116,7 @@ describe('resolveNames', () => {
   });
 
   test('an answer may arrive later: menus resolve after the user has picked', async () => {
-    const result = await resolveNames({
+    const result = await ProjectNames.resolve({
       fields: [{ key: 'project', flag: '--project', question: 'Project name' }],
       args: [],
       interactive: true,
@@ -124,7 +129,7 @@ describe('resolveNames', () => {
   test('the folders a field offers reach the question, with the earlier choice', async () => {
     const seen: { question: string; previous?: string; choices?: string[] }[] = [];
 
-    await resolveNames({
+    await ProjectNames.resolve({
       fields: [
         {
           key: 'folder',
@@ -154,7 +159,7 @@ describe('resolveNames', () => {
 
   test('a fixed name takes its earlier value without a question, in a terminal too', async () => {
     const asked: string[] = [];
-    const result = await resolveNames({
+    const result = await ProjectNames.resolve({
       fields: [
         {
           key: 'backend',
@@ -178,7 +183,7 @@ describe('resolveNames', () => {
   });
 
   test('a fixed name is still replaced by its flag', async () => {
-    const result = await resolveNames({
+    const result = await ProjectNames.resolve({
       fields: [
         {
           key: 'backend',
@@ -215,34 +220,43 @@ describe('readLine', () => {
   };
 
   test('a bare newline is the empty string, not an abort', () => {
-    withInput({ content: '\n', run: (descriptor) => expect(readLine({ descriptor })).toBe('') });
+    withInput({
+      content: '\n',
+      run: (descriptor) => expect(ProjectNames.readLine({ descriptor })).toBe(''),
+    });
   });
 
   test('a text line is returned without its newline', () => {
     withInput({
       content: 'services\n',
-      run: (descriptor) => expect(readLine({ descriptor })).toBe('services'),
+      run: (descriptor) => expect(ProjectNames.readLine({ descriptor })).toBe('services'),
     });
   });
 
   test('a trailing carriage return is stripped', () => {
     withInput({
       content: 'services\r\n',
-      run: (descriptor) => expect(readLine({ descriptor })).toBe('services'),
+      run: (descriptor) => expect(ProjectNames.readLine({ descriptor })).toBe('services'),
     });
-    withInput({ content: '\r\n', run: (descriptor) => expect(readLine({ descriptor })).toBe('') });
+    withInput({
+      content: '\r\n',
+      run: (descriptor) => expect(ProjectNames.readLine({ descriptor })).toBe(''),
+    });
   });
 
   test('end of input with nothing read is null, the abort', () => {
-    withInput({ content: '', run: (descriptor) => expect(readLine({ descriptor })).toBeNull() });
+    withInput({
+      content: '',
+      run: (descriptor) => expect(ProjectNames.readLine({ descriptor })).toBeNull(),
+    });
   });
 
   test('a line then end of input: the line, then null', () => {
     withInput({
       content: 'libs\n',
       run: (descriptor) => {
-        expect(readLine({ descriptor })).toBe('libs');
-        expect(readLine({ descriptor })).toBeNull();
+        expect(ProjectNames.readLine({ descriptor })).toBe('libs');
+        expect(ProjectNames.readLine({ descriptor })).toBeNull();
       },
     });
   });
@@ -251,10 +265,10 @@ describe('readLine', () => {
     withInput({
       content: 'a\n\nb\n',
       run: (descriptor) => {
-        expect(readLine({ descriptor })).toBe('a');
-        expect(readLine({ descriptor })).toBe('');
-        expect(readLine({ descriptor })).toBe('b');
-        expect(readLine({ descriptor })).toBeNull();
+        expect(ProjectNames.readLine({ descriptor })).toBe('a');
+        expect(ProjectNames.readLine({ descriptor })).toBe('');
+        expect(ProjectNames.readLine({ descriptor })).toBe('b');
+        expect(ProjectNames.readLine({ descriptor })).toBeNull();
       },
     });
   });
@@ -263,8 +277,8 @@ describe('readLine', () => {
     withInput({
       content: 'tail',
       run: (descriptor) => {
-        expect(readLine({ descriptor })).toBe('tail');
-        expect(readLine({ descriptor })).toBeNull();
+        expect(ProjectNames.readLine({ descriptor })).toBe('tail');
+        expect(ProjectNames.readLine({ descriptor })).toBeNull();
       },
     });
   });
@@ -272,7 +286,7 @@ describe('readLine', () => {
   test('multi-byte characters survive the byte-wise read', () => {
     withInput({
       content: 'caf\u00e9\n',
-      run: (descriptor) => expect(readLine({ descriptor })).toBe('caf\u00e9'),
+      run: (descriptor) => expect(ProjectNames.readLine({ descriptor })).toBe('caf\u00e9'),
     });
   });
 
@@ -304,7 +318,7 @@ describe('readLine', () => {
       let pauses = 0;
 
       expect(
-        readLine({
+        ProjectNames.readLine({
           descriptor: 0,
           read: flaky({ failures: 3, content: 'libs\n' }),
           pause: () => {
@@ -320,7 +334,7 @@ describe('readLine', () => {
         throw Object.assign(new Error('bad descriptor'), { code: 'EBADF' });
       };
 
-      expect(() => readLine({ descriptor: 0, read: broken, pause: () => {} })).toThrow(
+      expect(() => ProjectNames.readLine({ descriptor: 0, read: broken, pause: () => {} })).toThrow(
         'bad descriptor',
       );
     });

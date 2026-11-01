@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
-import { renderBunfig } from '../../create/bunfig.ts';
+import { Bunfig } from '../../create/bunfig.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { CLAUDE_LAUNCH_FILE, LaunchSettings } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -15,7 +15,7 @@ const skill = (opts: { name: string; description: string }): string =>
 const project = (opts: { description: string }) => {
   const root = createProject({
     files: {
-      'bunfig.toml': renderBunfig(),
+      'bunfig.toml': Bunfig.render(),
       ...Object.fromEntries(
         ProjectLayout.LOCAL_LAYOUT.map((entry) => [`.agents/local/${entry.name}/.gitkeep`, '']),
       ),

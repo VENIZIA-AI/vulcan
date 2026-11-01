@@ -82,78 +82,74 @@ export type TLibPreset = Omit<z.infer<typeof LIB_SCHEMA>, 'files'> & {
 
 type TLibPresetResult = { ok: true; lib: TLibPreset } | { ok: false; error: string };
 
-/**
- * The lib preset of a located preset package, validated; with `kind: 'shared'` it reads the shared kind,
- * which has the same schema. The app side is never touched by an error here.
- */
-export const readLibPreset = (opts: {
-  located: ILocatedPreset;
-  kind?: TLibraryKind;
-}): TLibPresetResult => {
-  const { located } = opts;
-  const kind = opts.kind ?? LibraryKinds.LIB;
-  const shown = `${located.packageName}@${located.packageVersion}`;
-  const file = kind === LibraryKinds.SHARED ? located.sharedFile : located.libFile;
+export class LibPreset {
+  /**
+   * The lib preset of a located preset package, validated; with `kind: 'shared'` it reads the shared kind,
+   * which has the same schema. The app side is never touched by an error here.
+   */
+  static read(opts: { located: ILocatedPreset; kind?: TLibraryKind }): TLibPresetResult {
+    const { located } = opts;
+    const kind = opts.kind ?? LibraryKinds.LIB;
+    const shown = `${located.packageName}@${located.packageVersion}`;
+    const file = kind === LibraryKinds.SHARED ? located.sharedFile : located.libFile;
 
-  if (file === undefined) {
-    return { ok: false, error: `preset ${located.packageName} has no ${kind} kind` };
+    if (file === undefined) {
+      return { ok: false, error: `preset ${located.packageName} has no ${kind} kind` };
+    }
+
+    let raw: unknown;
+
+    try {
+      raw = JSON.parse(readFileSync(file, 'utf8'));
+    } catch {
+      return { ok: false, error: `${shown}: ${file} is missing or not JSON` };
+    }
+
+    if (
+      typeof raw !== 'object' ||
+      raw === null ||
+      !('presetVersion' in raw) ||
+      raw.presetVersion !== CreateConstants.PRESET_VERSION
+    ) {
+      return {
+        ok: false,
+        error: `${shown}: the ${kind} preset has preset version ${String(typeof raw === 'object' && raw !== null && 'presetVersion' in raw ? raw.presetVersion : undefined)}; this VULCAN reads version ${CreateConstants.PRESET_VERSION} - upgrade @venizia/vulcan`,
+      };
+    }
+
+    const parsed = LIB_SCHEMA.safeParse(raw);
+
+    if (!parsed.success) {
+      const issues = parsed.error.issues
+        .map((issue) => `${issue.path.join('.')} ${issue.message}`)
+        .join('; ');
+
+      return { ok: false, error: `${shown}: ${kind} preset: ${issues}` };
+    }
+
+    const files = resolve(dirname(file), parsed.data.files);
+
+    if (PresetPath.escapes({ root: located.packageRoot, path: files }) || !existsSync(files)) {
+      return {
+        ok: false,
+        error: `${shown}: ${kind} preset: files ${parsed.data.files} is missing or points outside the package`,
+      };
+    }
+
+    return { ok: true, lib: { ...parsed.data, files } };
   }
 
-  let raw: unknown;
+  /** What the preset records of itself: its side and summary, and the lib summary when it makes libraries. */
+  static recordedOf(opts: { spec: string; located: ILocatedPreset }): IRecordedPreset {
+    const lib = LibPreset.read({ located: opts.located });
+    const shared = LibPreset.read({ located: opts.located, kind: LibraryKinds.SHARED });
 
-  try {
-    raw = JSON.parse(readFileSync(file, 'utf8'));
-  } catch {
-    return { ok: false, error: `${shown}: ${file} is missing or not JSON` };
-  }
-
-  if (
-    typeof raw !== 'object' ||
-    raw === null ||
-    !('presetVersion' in raw) ||
-    raw.presetVersion !== CreateConstants.PRESET_VERSION
-  ) {
     return {
-      ok: false,
-      error: `${shown}: the ${kind} preset has preset version ${String(typeof raw === 'object' && raw !== null && 'presetVersion' in raw ? raw.presetVersion : undefined)}; this VULCAN reads version ${CreateConstants.PRESET_VERSION} - upgrade @venizia/vulcan`,
+      spec: opts.spec,
+      side: opts.located.preset.side,
+      summary: opts.located.preset.summary,
+      ...(lib.ok ? { lib: lib.lib.summary } : {}),
+      ...(shared.ok ? { shared: shared.lib.summary } : {}),
     };
   }
-
-  const parsed = LIB_SCHEMA.safeParse(raw);
-
-  if (!parsed.success) {
-    const issues = parsed.error.issues
-      .map((issue) => `${issue.path.join('.')} ${issue.message}`)
-      .join('; ');
-
-    return { ok: false, error: `${shown}: ${kind} preset: ${issues}` };
-  }
-
-  const files = resolve(dirname(file), parsed.data.files);
-
-  if (PresetPath.escapes({ root: located.packageRoot, path: files }) || !existsSync(files)) {
-    return {
-      ok: false,
-      error: `${shown}: ${kind} preset: files ${parsed.data.files} is missing or points outside the package`,
-    };
-  }
-
-  return { ok: true, lib: { ...parsed.data, files } };
-};
-
-/** What the preset records of itself: its side and summary, and the lib summary when it makes libraries. */
-export const recordedPresetOf = (opts: {
-  spec: string;
-  located: ILocatedPreset;
-}): IRecordedPreset => {
-  const lib = readLibPreset({ located: opts.located });
-  const shared = readLibPreset({ located: opts.located, kind: LibraryKinds.SHARED });
-
-  return {
-    spec: opts.spec,
-    side: opts.located.preset.side,
-    summary: opts.located.preset.summary,
-    ...(lib.ok ? { lib: lib.lib.summary } : {}),
-    ...(shared.ok ? { shared: shared.lib.summary } : {}),
-  };
-};
+}

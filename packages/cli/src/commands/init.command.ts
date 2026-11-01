@@ -4,14 +4,14 @@ import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { ConfigExtensions } from '../config/index.ts';
 import { CreateFlags } from '../create/common/index.ts';
-import { createMonorepo } from '../create/init-monorepo.ts';
-import { runBun } from '../create/process.ts';
+import { Monorepo } from '../create/init-monorepo.ts';
+import { SubProcess } from '../create/process.ts';
 import { InitConstants, ProjectScaffold } from '../init/index.ts';
 import { offerProfile } from './profile.command.ts';
 
 export const runInitCommand = async (opts: ICommandContext): Promise<number> => {
   if (opts.args.includes(CreateFlags.PRESET)) {
-    return createMonorepo({ cwd: opts.cwd, args: opts.args });
+    return Monorepo.create({ cwd: opts.cwd, args: opts.args });
   }
 
   const flagIndex = opts.args.indexOf(InitConstants.CONFIG_FLAG);
@@ -48,7 +48,11 @@ export const runInitCommand = async (opts: ICommandContext): Promise<number> => 
     const args = ['add', '-d', '--exact', ...result.install];
 
     process.stderr.write(`installing ${result.install.join(' ')}\n`);
-    const installExit = await runBun({ cwd: opts.cwd, args, label: `bun ${args.join(' ')}` });
+    const installExit = await SubProcess.runBun({
+      cwd: opts.cwd,
+      args,
+      label: `bun ${args.join(' ')}`,
+    });
 
     installCode = installExit;
 
