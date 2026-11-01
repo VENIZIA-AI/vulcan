@@ -23,4 +23,4 @@ packages: ['@venizia/vulcan']
 
 ## Who is affected
 
-Anyone who runs `vulcan visualize`. Existing specs keep working and render in the new look. A project that wants its own colour adds `theme: { accent: '#...' }` to its config and runs `vulcan sync`; see the [`theme` option](/references/configuration#theme).
+Anyone who runs `vulcan visualize`. Existing specs keep working and render in the new look. A project that wants its own colour adds `theme: { accent: '#...' }` to its config and runs `vulcan sync`; see the [`theme` option](/references/configuration/#theme).

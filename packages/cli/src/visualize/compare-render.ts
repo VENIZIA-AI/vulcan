@@ -122,9 +122,7 @@ export class CompareView {
     ];
     const lists = groups
       .map((group) => {
-        const edges = compare.edges.filter(
-          (edge) => CompareView.sideOf({ edge }) === group.side,
-        );
+        const edges = compare.edges.filter((edge) => CompareView.sideOf({ edge }) === group.side);
 
         return edges.length === 0
           ? ''

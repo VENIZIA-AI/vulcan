@@ -2,17 +2,9 @@ import { describe, expect, test } from 'bun:test';
 import { DEFAULT_CHROME } from '../../visualize/constants.ts';
 import { FIGURE_FIT } from '../../visualize/layout.ts';
 import { NEW_KINDS_CSS } from '../../visualize/kinds-css.ts';
-import {
-  lifecycleSection,
-  sequenceSection,
-  treeSection,
-} from '../../visualize/kinds-render.ts';
+import { lifecycleSection, sequenceSection, treeSection } from '../../visualize/kinds-render.ts';
 import type { INewKindsContext } from '../../visualize/kinds-render.ts';
-import {
-  LIFECYCLE_SCHEMA,
-  SEQUENCE_SCHEMA,
-  TREE_SCHEMA,
-} from '../../visualize/kinds-schema.ts';
+import { LIFECYCLE_SCHEMA, SEQUENCE_SCHEMA, TREE_SCHEMA } from '../../visualize/kinds-schema.ts';
 import type { ITreeNode } from '../../visualize/kinds-schema.ts';
 import { checkNewKinds } from '../../visualize/kinds-validate.ts';
 import type { INewKindsSpec } from '../../visualize/kinds-validate.ts';
@@ -99,7 +91,8 @@ const textOf = (html: string): string =>
     .replace(/<title>[\s\S]*?<\/title>/g, ' ')
     .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ');
-const figureOf = (html: string): string => /<div class="fig f\d+">([\s\S]*?)<\/div>/.exec(html)?.[1] ?? '';
+const figureOf = (html: string): string =>
+  /<div class="fig f\d+">([\s\S]*?)<\/div>/.exec(html)?.[1] ?? '';
 const listOf = (html: string): string =>
   /(<(?:div|ul) class="path kl[\s\S]*?)<figcaption>/.exec(html)?.[1] ?? '';
 
@@ -165,8 +158,12 @@ describe('the schemas', () => {
       Array.from({ length: count }, () => ({ from: 'p0', to: 'p1', label: 'ask' }));
 
     expect(parses(SEQUENCE_SCHEMA, { ...sequence, participants: party(1) })).toBe(false);
-    expect(parses(SEQUENCE_SCHEMA, { ...sequence, participants: party(2), messages: talk(1) })).toBe(true);
-    expect(parses(SEQUENCE_SCHEMA, { ...sequence, participants: party(6), messages: talk(20) })).toBe(true);
+    expect(
+      parses(SEQUENCE_SCHEMA, { ...sequence, participants: party(2), messages: talk(1) }),
+    ).toBe(true);
+    expect(
+      parses(SEQUENCE_SCHEMA, { ...sequence, participants: party(6), messages: talk(20) }),
+    ).toBe(true);
     expect(parses(SEQUENCE_SCHEMA, { ...sequence, participants: party(7) })).toBe(false);
     expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: talk(21) })).toBe(false);
     expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: [] })).toBe(false);
@@ -176,8 +173,12 @@ describe('the schemas', () => {
     const sequence = sequenceFixture();
     const message = (label: string) => ({ from: 'owner', to: 'cli', label });
 
-    expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: [message('x'.repeat(20))] })).toBe(true);
-    expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: [message('x'.repeat(21))] })).toBe(false);
+    expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: [message('x'.repeat(20))] })).toBe(
+      true,
+    );
+    expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: [message('x'.repeat(21))] })).toBe(
+      false,
+    );
     expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: [message('two\nlines')] })).toBe(false);
     expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: [message('   ')] })).toBe(false);
     expect(parses(SEQUENCE_SCHEMA, { ...sequence, messages: [message('a‮b')] })).toBe(false);
@@ -208,9 +209,7 @@ describe('the schemas', () => {
         states: [{ id: 'a', label: 'A', kind: 'middle' }, lifecycle.states[1]],
       }),
     ).toBe(false);
-    expect(
-      parses(TREE_SCHEMA, { root: { id: 'r', label: 'R', state: 'sleeping' } }),
-    ).toBe(false);
+    expect(parses(TREE_SCHEMA, { root: { id: 'r', label: 'R', state: 'sleeping' } })).toBe(false);
   });
 
   test('a lifecycle takes 2 to 10 states and up to 20 transitions', () => {
@@ -265,7 +264,9 @@ describe('the checks', () => {
     const problems = checkNewKinds({ spec: { sequence } });
 
     expect(problems.some((line) => line.includes("id 'a' is used twice"))).toBe(true);
-    expect(problems.some((line) => line.includes("names 'ghost', which is not a participant"))).toBe(true);
+    expect(
+      problems.some((line) => line.includes("names 'ghost', which is not a participant")),
+    ).toBe(true);
     expect(problems.some((line) => line.includes('to itself'))).toBe(true);
     expect(problems.filter((line) => line.includes('ghost'))).toHaveLength(2);
   });
@@ -285,7 +286,14 @@ describe('the checks', () => {
       spec.states[0] = { id: 'draft', label: 'Draft' };
     });
 
-    expect(two.some((line) => line.includes('2 states are of kind') && line.includes("'draft'") && line.includes("'review'"))).toBe(true);
+    expect(
+      two.some(
+        (line) =>
+          line.includes('2 states are of kind') &&
+          line.includes("'draft'") &&
+          line.includes("'review'"),
+      ),
+    ).toBe(true);
     expect(none.some((line) => line.includes("no state of kind 'start'"))).toBe(true);
   });
 
@@ -307,7 +315,9 @@ describe('the checks', () => {
       spec.states.push({ id: 'island', label: 'Island' });
     });
 
-    expect(problems).toEqual(["lifecycle.states: 'island' cannot be reached from the start 'draft'"]);
+    expect(problems).toEqual([
+      "lifecycle.states: 'island' cannot be reached from the start 'draft'",
+    ]);
   });
 
   test('a state that is only reached backward is still unreachable', () => {
@@ -328,14 +338,23 @@ describe('the checks', () => {
     });
 
     expect(problems.some((line) => line.includes("id 'review' is used twice"))).toBe(true);
-    expect(problems.some((line) => line.includes("names 'nowhere', which is not a state"))).toBe(true);
+    expect(problems.some((line) => line.includes("names 'nowhere', which is not a state"))).toBe(
+      true,
+    );
     expect(problems.some((line) => line.includes("'review>review' loops to itself"))).toBe(true);
     expect(problems.some((line) => line.includes("'draft>review' is listed twice"))).toBe(true);
   });
 
   test('a tree names an id used twice, too many nodes and too many levels', () => {
     const twice = TREE_SCHEMA.parse({
-      root: { id: 'a', label: 'A', children: [{ id: 'b', label: 'B' }, { id: 'b', label: 'B2' }] },
+      root: {
+        id: 'a',
+        label: 'A',
+        children: [
+          { id: 'b', label: 'B' },
+          { id: 'b', label: 'B2' },
+        ],
+      },
     });
 
     expect(checkNewKinds({ spec: { tree: twice } })).toEqual(["tree: id 'b' is used twice"]);
@@ -346,7 +365,10 @@ describe('the checks', () => {
       children: Array.from({ length: 5 }, (_, index) => ({
         id: `m${index}`,
         label: `m${index}`,
-        children: Array.from({ length: 4 }, (__, leaf) => ({ id: `l${index}-${leaf}`, label: 'l' })),
+        children: Array.from({ length: 4 }, (_leaf, leaf) => ({
+          id: `l${index}-${leaf}`,
+          label: 'l',
+        })),
       })),
     };
     const many = checkNewKinds({ spec: { tree: { root: wide } } });
@@ -397,7 +419,9 @@ describe('the figures', () => {
   test('the caption is the owner sentence, else the page counts the parts', () => {
     const html = sections();
 
-    expect(html.sequence).toContain('<figcaption>One run, from the command to the written page.</figcaption>');
+    expect(html.sequence).toContain(
+      '<figcaption>One run, from the command to the written page.</figcaption>',
+    );
     expect(html.lifecycle).toContain('<figcaption>5 states, 5 transitions</figcaption>');
     expect(html.tree).toContain('<figcaption>The repository: 5 items</figcaption>');
   });
@@ -413,7 +437,13 @@ describe('the figures', () => {
     const html = sections();
     const svg = figureOf(html.sequence);
 
-    for (const verb of ['run with a spec', 'read the spec', 'the text', 'write the page', 'the path']) {
+    for (const verb of [
+      'run with a spec',
+      'read the spec',
+      'the text',
+      'write the page',
+      'the path',
+    ]) {
       expect(svg).toContain(verb);
     }
 
@@ -470,7 +500,11 @@ describe('the figures', () => {
       kind: index === 0 ? 'start' : index === 9 ? 'end' : 'normal',
     }));
     const transitions = [
-      ...Array.from({ length: 9 }, (_, index) => ({ from: `s${index}`, to: `s${index + 1}`, label: `go ${index}` })),
+      ...Array.from({ length: 9 }, (_, index) => ({
+        from: `s${index}`,
+        to: `s${index + 1}`,
+        label: `go ${index}`,
+      })),
       { from: 's2', to: 's7', label: 'skip across' },
       { from: 's8', to: 's1', label: 'back up' },
       { from: 's3', to: 's1', label: 'loop back' },
@@ -495,7 +529,9 @@ describe('the figures', () => {
   test('two arrows between the same neighbours run on two lines', () => {
     const lifecycle = LIFECYCLE_SCHEMA.parse(lifecycleFixture());
     const svg = figureOf(sections({ spec: { lifecycle } }).lifecycle);
-    const horizontals = [...svg.matchAll(/class="kline" d="M(\d+) (\d+)H(\d+)"/g)].map((match) => match[2]);
+    const horizontals = [...svg.matchAll(/class="kline" d="M(\d+) (\d+)H(\d+)"/g)].map(
+      (match) => match[2],
+    );
 
     // draft>review and review>draft sit at two different heights.
     expect(new Set(horizontals.slice(0, 2)).size).toBe(2);
@@ -519,7 +555,15 @@ describe('the figures', () => {
     expect(list.match(/<ul class="kt-in">/g)).toHaveLength(2);
     expect(list.match(/<li>/g)).toHaveLength(5);
 
-    for (const word of ['The repository', 'one root', 'packages', 'cli', 'the command line', 'okf', 'docs']) {
+    for (const word of [
+      'The repository',
+      'one root',
+      'packages',
+      'cli',
+      'the command line',
+      'okf',
+      'docs',
+    ]) {
       expect(figureOf(html)).toContain(word);
       expect(textOf(list)).toContain(word);
     }
@@ -528,8 +572,32 @@ describe('the figures', () => {
   test('for every kind the list carries the text of the figure', () => {
     const html = sections();
     const labels: Record<(typeof kinds)[number], string[]> = {
-      sequence: ['Owner', 'Generator', 'Project folder', 'runs the command', 'ignored folder', 'run with a spec', 'read the spec', 'strict JSON', 'the text', 'write the page', 'the path'],
-      lifecycle: ['Draft', 'on a branch', 'In review', 'Approved', 'Merged', 'Closed', 'open the PR', 'approve', 'request changes', 'owner merges', 'close'],
+      sequence: [
+        'Owner',
+        'Generator',
+        'Project folder',
+        'runs the command',
+        'ignored folder',
+        'run with a spec',
+        'read the spec',
+        'strict JSON',
+        'the text',
+        'write the page',
+        'the path',
+      ],
+      lifecycle: [
+        'Draft',
+        'on a branch',
+        'In review',
+        'Approved',
+        'Merged',
+        'Closed',
+        'open the PR',
+        'approve',
+        'request changes',
+        'owner merges',
+        'close',
+      ],
       tree: ['The repository', 'packages', 'cli', 'okf', 'docs'],
     };
 
@@ -573,7 +641,12 @@ describe('the figures', () => {
   });
 
   test('the page words can replace the words of the figures', () => {
-    const custom = { ...DEFAULT_CHROME, kindReply: 'phan hoi', stateStart: 'bat dau', countStates: 'trang thai' };
+    const custom = {
+      ...DEFAULT_CHROME,
+      kindReply: 'phan hoi',
+      stateStart: 'bat dau',
+      countStates: 'trang thai',
+    };
     const html = sections({ chrome: custom });
 
     expect(textOf(listOf(html.sequence))).toContain('phan hoi');
@@ -601,7 +674,9 @@ describe('a phone, escaping and no script', () => {
 
       expect(html.ctx.fits.has(width)).toBe(true);
       expect(Math.ceil(width * FIGURE_FIT) + 66).toBeGreaterThan(390);
-      expect(html[kind].indexOf('<div class="fig')).toBeLessThan(html[kind].indexOf('class="path kl'));
+      expect(html[kind].indexOf('<div class="fig')).toBeLessThan(
+        html[kind].indexOf('class="path kl'),
+      );
     }
   });
 
@@ -694,7 +769,9 @@ describe('a phone, escaping and no script', () => {
         // Attribute values dropped first: escaped text may say `onerror=` inside a value, a tag may not carry one.
         expect(svg.replace(/"[^"]*"/g, '""')).not.toMatch(/<[^>]*\son[a-z]+=/);
         // No tag carries an address; the hostile text may say anything, but only as escaped text.
-        expect(html[kind].replace(/"[^"]*"/g, '""')).not.toMatch(/<[^>]*\s(?:href|src|xlink:href|srcset)=/);
+        expect(html[kind].replace(/"[^"]*"/g, '""')).not.toMatch(
+          /<[^>]*\s(?:href|src|xlink:href|srcset)=/,
+        );
         expect(figureOf(html[kind])).not.toContain('<use');
 
         if (spec === plain) {
@@ -706,7 +783,8 @@ describe('a phone, escaping and no script', () => {
 
   test('with scripts removed the text is complete, in reading order', () => {
     const html = sections();
-    const withoutScripts = (value: string): string => value.replace(/<script[\s\S]*?<\/script>/g, '');
+    const withoutScripts = (value: string): string =>
+      value.replace(/<script[\s\S]*?<\/script>/g, '');
 
     for (const kind of ['sequence', 'lifecycle', 'tree'] as const) {
       expect(withoutScripts(html[kind])).toBe(html[kind]);
@@ -784,12 +862,39 @@ describe('the stylesheet', () => {
   test('it styles every class the figures use', () => {
     const all = sections();
     // Only the figure, its list and its caption: the section frame around them is the page's.
-    const html = [all.sequence, all.lifecycle, all.tree].map((part) => part.slice(part.indexOf('<figure'))).join('');
+    const html = [all.sequence, all.lifecycle, all.tree]
+      .map((part) => part.slice(part.indexOf('<figure')))
+      .join('');
     const classes = new Set(
       [...html.matchAll(/class="([^"]+)"/g)].flatMap((match) => (match[1] ?? '').split(/\s+/)),
     );
     // Classes the page stylesheet owns (the swap rule, the frame, the verb chip, the chip) or that only carry meaning.
-    const owned = new Set(['fig', 'sec', 'lab', 'path', 'verb', 'chip', 'mut', 'ic', 'kk-normal', 'kmsg', 'klink', 'klegend', 'knode', 'kstate', 'kst', 'k-call', 'k-reply', 'k-async', 'kmsgs', 'ksq', 'klc', 'ktr', 'kl', 'kv-call']);
+    const owned = new Set([
+      'fig',
+      'sec',
+      'lab',
+      'path',
+      'verb',
+      'chip',
+      'mut',
+      'ic',
+      'kk-normal',
+      'kmsg',
+      'klink',
+      'klegend',
+      'knode',
+      'kstate',
+      'kst',
+      'k-call',
+      'k-reply',
+      'k-async',
+      'kmsgs',
+      'ksq',
+      'klc',
+      'ktr',
+      'kl',
+      'kv-call',
+    ]);
 
     for (const name of classes) {
       if (owned.has(name) || /^c-|^f\d+$|^kn-|^kk-/.test(name)) {

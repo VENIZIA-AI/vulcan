@@ -78,24 +78,23 @@ describe('sources', () => {
     );
     expect(html).toContain(`The ignore line is checked first. VENIZIA-AI/vulcan@${OTHER}:packages`);
     // The compare box, in its phone list.
-    expect(html).toContain(
-      `<li><b>One</b><code class="src">${shown}</code></li>`,
-    );
+    expect(html).toContain(`<li><b>One</b><code class="src">${shown}</code></li>`);
     // A source with one line, and a box with no detail of its own, use the sublabel or nothing.
     expect(html).toContain(':docs/check.md:7');
   });
 
   test('the sources part lists each distinct source once, in order of appearance, with what points at it', () => {
     const html = rendered(withSources());
-    const part = html.slice(html.indexOf('id="sources"'), html.indexOf('</section>', html.indexOf('id="sources"')));
+    const part = html.slice(
+      html.indexOf('id="sources"'),
+      html.indexOf('</section>', html.indexOf('id="sources"')),
+    );
     const items = part.match(/<li><code class="src">/g) ?? [];
 
     expect(part).toContain('<h2 class="sh">Sources</h2>');
     expect(items).toHaveLength(3);
     // The shared source is one row, pointed at by a box of the flow and a box of the compare view.
-    expect(part).toContain(
-      '<span class="by">How it flows: The form, What differs: One</span>',
-    );
+    expect(part).toContain('<span class="by">How it flows: The form, What differs: One</span>');
     expect(part.indexOf('render.ts:12-30')).toBeLessThan(part.indexOf('docs/check.md:7'));
     expect(part.indexOf('docs/check.md:7')).toBeLessThan(part.indexOf(`@${OTHER}`));
     expect(part).toContain('<span class="by">How it flows: Ignore check</span>');
@@ -128,8 +127,17 @@ describe('sources', () => {
   });
 
   test('a path that is absolute or has .. is refused', () => {
-    for (const path of ['/etc/passwd', '\\windows\\x', 'C:/x/y.ts', '../x.ts', 'a/../b.ts', 'a/..']) {
-      expect(problems(withNodeSource(source({ path }))), path).toMatch(/is absolute|contains '\.\.'/);
+    for (const path of [
+      '/etc/passwd',
+      '\\windows\\x',
+      'C:/x/y.ts',
+      '../x.ts',
+      'a/../b.ts',
+      'a/..',
+    ]) {
+      expect(problems(withNodeSource(source({ path }))), path).toMatch(
+        /is absolute|contains '\.\.'/,
+      );
     }
 
     expect(problems(withNodeSource(source({ path: 'a/b.c.ts' })))).toBe('');
@@ -211,7 +219,11 @@ describe('terms', () => {
 
   test('a term that never appears gives a warning, not a refusal', () => {
     const result = render(
-      withTerms([...terms, { term: 'Quorum', meaning: 'Never used.' }, { term: 'only here', meaning: 'x' }]),
+      withTerms([
+        ...terms,
+        { term: 'Quorum', meaning: 'Never used.' },
+        { term: 'only here', meaning: 'x' },
+      ]),
     );
 
     expect(result.ok).toBe(true);
@@ -228,7 +240,9 @@ describe('terms', () => {
     // The word is in its own meaning, which is no use to a reader.
     const result = render(withTerms([{ term: 'zzz', meaning: 'zzz is a word' }]));
 
-    expect(result.ok && result.page.warnings).toEqual(["terms: 'zzz' never appears in the page text"]);
+    expect(result.ok && result.page.warnings).toEqual([
+      "terms: 'zzz' never appears in the page text",
+    ]);
   });
 
   test('a term in a flow label, a source line or the chrome counts', () => {
@@ -252,7 +266,9 @@ describe('terms', () => {
     expect(problems(withTerms([{ term: 'x'.repeat(40), meaning: 'm' }]))).not.toContain('terms');
     expect(problems(withTerms([{ term: 'x'.repeat(41), meaning: 'm' }]))).toContain('terms.0.term');
     expect(problems(withTerms([{ term: 't', meaning: 'x'.repeat(200) }]))).not.toContain('terms');
-    expect(problems(withTerms([{ term: 't', meaning: 'x'.repeat(201) }]))).toContain('terms.0.meaning');
+    expect(problems(withTerms([{ term: 't', meaning: 'x'.repeat(201) }]))).toContain(
+      'terms.0.meaning',
+    );
     expect(problems(withTerms([{ term: 't', meaning: 'a\nb' }]))).toContain('terms.0.meaning');
     expect(
       problems(
@@ -266,7 +282,9 @@ describe('terms', () => {
   });
 
   test('every term and meaning is escaped, never markup', () => {
-    const html = rendered(withTerms([{ term: '<em>Digest</em>', meaning: '<script>alert(1)</script>' }]));
+    const html = rendered(
+      withTerms([{ term: '<em>Digest</em>', meaning: '<script>alert(1)</script>' }]),
+    );
 
     expect(html).not.toContain('<em>');
     expect(html).not.toContain('<script>alert(1)</script>');
@@ -284,17 +302,30 @@ describe('the page with sources and terms', () => {
     expect(at('terms')).toBeLessThan(at('sources'));
     expect(at('sources')).toBeLessThan(at('links'));
 
-    const nav = html.slice(html.indexOf('<span class="links">'), html.indexOf('</span>', html.indexOf('<span class="links">')));
-    const order = ['#flow', '#compare', '#before-after', '#log', '#terms', '#sources', '#links'].map((id) =>
-      nav.indexOf(`href="${id}"`),
+    const nav = html.slice(
+      html.indexOf('<span class="links">'),
+      html.indexOf('</span>', html.indexOf('<span class="links">')),
     );
+    const order = [
+      '#flow',
+      '#compare',
+      '#before-after',
+      '#log',
+      '#terms',
+      '#sources',
+      '#links',
+    ].map((id) => nav.indexOf(`href="${id}"`));
 
     expect(order.every((index) => index >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
   test('a Vietnamese page says the Vietnamese words, and the spec may replace them', () => {
-    const vi = rendered({ ...withSources(), language: 'vi', terms: [{ term: 'digest', meaning: 'Tóm tắt.' }] });
+    const vi = rendered({
+      ...withSources(),
+      language: 'vi',
+      terms: [{ term: 'digest', meaning: 'Tóm tắt.' }],
+    });
 
     expect(vi).toContain('<h2 class="sh">Nguồn</h2>');
     expect(vi).toContain('<h2 class="sh">Các từ trong trang</h2>');
@@ -367,7 +398,15 @@ describe('the page with sources and terms', () => {
   test('the printed schema names the source and the terms', () => {
     const schema = specSchemaText();
 
-    for (const key of ['"source"', '"terms"', '"repo"', '"commit"', '"lines"', '"term"', '"meaning"']) {
+    for (const key of [
+      '"source"',
+      '"terms"',
+      '"repo"',
+      '"commit"',
+      '"lines"',
+      '"term"',
+      '"meaning"',
+    ]) {
       expect(schema, key).toContain(key);
     }
 

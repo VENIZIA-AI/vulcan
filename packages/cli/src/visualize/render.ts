@@ -39,10 +39,7 @@ const CHECKS = [
 ];
 
 /** Spec text to a page: parse, validate, cross-check, render, size gate. Nothing is written here. */
-export const renderSpecText = (opts: {
-  text: string;
-  context?: IRenderContext;
-}): TRenderResult => {
+export const renderSpecText = (opts: { text: string; context?: IRenderContext }): TRenderResult => {
   let payload: unknown;
 
   try {

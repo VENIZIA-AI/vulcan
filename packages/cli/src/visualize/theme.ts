@@ -76,7 +76,13 @@ const parse = (hex: string): IRgb => ({
 });
 
 const toHex = (rgb: IRgb): string =>
-  `#${[rgb.r, rgb.g, rgb.b].map((value) => Math.round(Math.max(0, Math.min(255, value))).toString(16).padStart(2, '0')).join('')}`;
+  `#${[rgb.r, rgb.g, rgb.b]
+    .map((value) =>
+      Math.round(Math.max(0, Math.min(255, value)))
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
 
 /** `amount` of `toward` mixed into `base`. */
 const mix = (opts: { base: string; toward: string; amount: number }): string => {
@@ -196,7 +202,10 @@ export class ProjectTheme {
     });
 
     // Light theme: the accent as a mark, then as text on every ground text sits on.
-    for (const [name, ground] of [['the page', lightGrounds.bg], ['a soft panel', lightGrounds.bgSoft]] as const) {
+    for (const [name, ground] of [
+      ['the page', lightGrounds.bg],
+      ['a soft panel', lightGrounds.bgSoft],
+    ] as const) {
       const mark = contrastOf({ foreground: given.accent, background: ground });
 
       if (mark < MARK_RATIO) {
@@ -229,10 +238,17 @@ export class ProjectTheme {
       bg: GROUNDS.dark.bg,
       bgSoft: tint(GROUNDS.dark.bgSoft, given.accent),
     };
-    const slabs = [GROUNDS.slab.slab, GROUNDS.slab.slab2, GROUNDS.slab.slab3, GROUNDS.slabDark.slab];
+    const slabs = [
+      GROUNDS.slab.slab,
+      GROUNDS.slab.slab2,
+      GROUNDS.slab.slab3,
+      GROUNDS.slabDark.slab,
+    ];
     const darkNeeds = [darkGrounds.bg, darkGrounds.bgSoft, ...slabs];
     const darkPasses = (color: string): boolean =>
-      darkNeeds.every((ground) => contrastOf({ foreground: color, background: ground }) >= TEXT_RATIO);
+      darkNeeds.every(
+        (ground) => contrastOf({ foreground: color, background: ground }) >= TEXT_RATIO,
+      );
     let dark = given.accentDark;
 
     if (dark === undefined) {
@@ -250,7 +266,9 @@ export class ProjectTheme {
           `accent ${given.accent} cannot be made readable on the dark grounds by mixing up to ${Math.round(MAX_MIX * 100)}% white - give an accentDark`,
         );
       } else if (dark !== given.accent) {
-        notes.push(`accentDark ${dark} derived from ${given.accent} (mixed toward white until it passes ${TEXT_RATIO}:1)`);
+        notes.push(
+          `accentDark ${dark} derived from ${given.accent} (mixed toward white until it passes ${TEXT_RATIO}:1)`,
+        );
       }
     } else {
       for (const ground of darkNeeds) {
@@ -272,7 +290,9 @@ export class ProjectTheme {
     const hotInk = ProjectTheme.inkOn({ fill: dark });
 
     if (accentInk === undefined) {
-      problems.push(`no black or white text reads at ${TEXT_RATIO}:1 on an accent fill ${given.accent}`);
+      problems.push(
+        `no black or white text reads at ${TEXT_RATIO}:1 on an accent fill ${given.accent}`,
+      );
     }
 
     if (hotInk === undefined) {
@@ -396,11 +416,15 @@ export class ProjectTheme {
     try {
       manifest = JSON.parse(text);
     } catch {
-      return { warning: '.agents/vulcan.manifest.json is not valid JSON, so the neutral colour is used' };
+      return {
+        warning: '.agents/vulcan.manifest.json is not valid JSON, so the neutral colour is used',
+      };
     }
 
     const theme: unknown =
-      typeof manifest === 'object' && manifest !== null ? Reflect.get(manifest, 'theme') : undefined;
+      typeof manifest === 'object' && manifest !== null
+        ? Reflect.get(manifest, 'theme')
+        : undefined;
 
     if (theme === undefined) {
       return {};
@@ -415,7 +439,9 @@ export class ProjectTheme {
     const accentText: unknown = Reflect.get(theme, 'accentText');
 
     if (!ProjectTheme.isHex(accent)) {
-      return { warning: 'the manifest theme has no six-digit hex accent, so the neutral colour is used' };
+      return {
+        warning: 'the manifest theme has no six-digit hex accent, so the neutral colour is used',
+      };
     }
 
     return {

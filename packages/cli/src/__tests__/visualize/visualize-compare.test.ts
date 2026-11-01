@@ -255,7 +255,10 @@ describe('the compare view', () => {
 
   test('the page stays static: no inline style, no script in the figure, no network', () => {
     const html = rendered(withCompare());
-    const figure = html.slice(html.indexOf('id="compare"'), html.indexOf('</section>', html.indexOf('id="compare"')));
+    const figure = html.slice(
+      html.indexOf('id="compare"'),
+      html.indexOf('</section>', html.indexOf('id="compare"')),
+    );
 
     expect(html).not.toMatch(/ style="/);
     expect(figure).not.toContain('<script');
@@ -286,9 +289,9 @@ describe('the compare view', () => {
     expect(rendered(withCompare())).toContain(
       '<figcaption>+ only here Manual (1), - only here Machine (1)</figcaption>',
     );
-    expect(rendered(withCompare((compare) => ({ ...compare, caption: 'Two arrows differ.' })))).toContain(
-      '<figcaption>Two arrows differ.</figcaption>',
-    );
+    expect(
+      rendered(withCompare((compare) => ({ ...compare, caption: 'Two arrows differ.' }))),
+    ).toContain('<figcaption>Two arrows differ.</figcaption>');
   });
 
   test('the printed schema names the compare view', () => {

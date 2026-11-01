@@ -117,7 +117,8 @@ export const renderFigure = (opts: { flow: NonNullable<TVisualizeSpec['flow']> }
       const gate = node.state === 'waiting';
       const left = centre.x - BOX_WIDTH / 2;
       const anchor = node.state === undefined ? 'middle' : 'start';
-      const textX = node.state === undefined ? centre.x : left + (node.state === 'waiting' ? 48 : 40);
+      const textX =
+        node.state === undefined ? centre.x : left + (node.state === 'waiting' ? 48 : 40);
       const mark =
         node.state === undefined
           ? ''

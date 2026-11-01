@@ -54,9 +54,15 @@ describe('the project colour: which colour a page takes (C10)', () => {
   test('the neutral default is a slate ink that passes on every ground, and no bronze remains in it', () => {
     const theme = palettes(ProjectTheme.DEFAULT);
 
-    expect(contrastOf({ foreground: theme.light.accent, background: theme.light.bg })).toBeGreaterThan(7);
-    expect(contrastOf({ foreground: theme.dark.accent, background: theme.dark.bg })).toBeGreaterThan(7);
-    expect(ProjectTheme.tokensCss({ theme }).toLowerCase()).not.toMatch(/98681a|e0b366|8a5a20|dead6a/);
+    expect(
+      contrastOf({ foreground: theme.light.accent, background: theme.light.bg }),
+    ).toBeGreaterThan(7);
+    expect(
+      contrastOf({ foreground: theme.dark.accent, background: theme.dark.bg }),
+    ).toBeGreaterThan(7);
+    expect(ProjectTheme.tokensCss({ theme }).toLowerCase()).not.toMatch(
+      /98681a|e0b366|8a5a20|dead6a/,
+    );
   });
 
   test('a colour that is not six hex digits is refused and named', () => {
@@ -69,9 +75,13 @@ describe('the project colour: which colour a page takes (C10)', () => {
 
 describe('the contrast checks: marks, text and fills (C11)', () => {
   test('the three repo colours pass: VULCAN as given, ARDOR with its deeper text colour', () => {
-    expect(ProjectTheme.resolve({ spec: { accent: '#8a5a20', accentDark: '#dead6a' } }).ok).toBe(true);
+    expect(ProjectTheme.resolve({ spec: { accent: '#8a5a20', accentDark: '#dead6a' } }).ok).toBe(
+      true,
+    );
     expect(
-      ProjectTheme.resolve({ spec: { accent: '#0277bd', accentDark: '#38bdf8', accentText: '#01579b' } }).ok,
+      ProjectTheme.resolve({
+        spec: { accent: '#0277bd', accentDark: '#38bdf8', accentText: '#01579b' },
+      }).ok,
     ).toBe(true);
   });
 
@@ -79,7 +89,9 @@ describe('the contrast checks: marks, text and fills (C11)', () => {
     const refused = ProjectTheme.resolve({ spec: { accent: '#af5f5f', accentDark: '#c98a8a' } });
 
     expect(refused.ok).toBe(false);
-    expect(!refused.ok && refused.problems.join('\n')).toMatch(/accent #af5f5f as text on .*:1; text needs 4\.5:1 - give a darker accentText/);
+    expect(!refused.ok && refused.problems.join('\n')).toMatch(
+      /accent #af5f5f as text on .*:1; text needs 4\.5:1 - give a darker accentText/,
+    );
 
     const accepted = ProjectTheme.resolve({
       spec: { accent: '#af5f5f', accentDark: '#c98a8a', accentText: '#8f3f3f' },
@@ -103,24 +115,51 @@ describe('the contrast checks: marks, text and fills (C11)', () => {
     ]) {
       const theme = palettes(input);
 
-      for (const [name, palette] of [['light', theme.light], ['dark', theme.dark]] as const) {
+      for (const [name, palette] of [
+        ['light', theme.light],
+        ['dark', theme.dark],
+      ] as const) {
         for (const ground of [palette.bg, palette.bgSoft, palette.accentSoft]) {
-          expect(contrastOf({ foreground: palette.ink, background: ground }), `${name} ink ${ground}`).toBeGreaterThanOrEqual(4.5);
-          expect(contrastOf({ foreground: palette.body, background: ground }), `${name} body ${ground}`).toBeGreaterThanOrEqual(4.5);
-          expect(contrastOf({ foreground: palette.muted, background: ground }), `${name} muted ${ground}`).toBeGreaterThanOrEqual(4.5);
-          expect(contrastOf({ foreground: palette.accent, background: ground }), `${name} accent ${ground}`).toBeGreaterThanOrEqual(4.5);
+          expect(
+            contrastOf({ foreground: palette.ink, background: ground }),
+            `${name} ink ${ground}`,
+          ).toBeGreaterThanOrEqual(4.5);
+          expect(
+            contrastOf({ foreground: palette.body, background: ground }),
+            `${name} body ${ground}`,
+          ).toBeGreaterThanOrEqual(4.5);
+          expect(
+            contrastOf({ foreground: palette.muted, background: ground }),
+            `${name} muted ${ground}`,
+          ).toBeGreaterThanOrEqual(4.5);
+          expect(
+            contrastOf({ foreground: palette.accent, background: ground }),
+            `${name} accent ${ground}`,
+          ).toBeGreaterThanOrEqual(4.5);
         }
 
-        expect(contrastOf({ foreground: palette.accentInk, background: palette.accent })).toBeGreaterThanOrEqual(3);
+        expect(
+          contrastOf({ foreground: palette.accentInk, background: palette.accent }),
+        ).toBeGreaterThanOrEqual(3);
 
         for (const slab of [palette.slab, palette.slab2, palette.slab3]) {
-          expect(contrastOf({ foreground: palette.slabInk, background: slab })).toBeGreaterThanOrEqual(4.5);
-          expect(contrastOf({ foreground: palette.slabBody, background: slab })).toBeGreaterThanOrEqual(4.5);
-          expect(contrastOf({ foreground: palette.slabMuted, background: slab })).toBeGreaterThanOrEqual(4.5);
-          expect(contrastOf({ foreground: palette.hot, background: slab })).toBeGreaterThanOrEqual(4.5);
+          expect(
+            contrastOf({ foreground: palette.slabInk, background: slab }),
+          ).toBeGreaterThanOrEqual(4.5);
+          expect(
+            contrastOf({ foreground: palette.slabBody, background: slab }),
+          ).toBeGreaterThanOrEqual(4.5);
+          expect(
+            contrastOf({ foreground: palette.slabMuted, background: slab }),
+          ).toBeGreaterThanOrEqual(4.5);
+          expect(contrastOf({ foreground: palette.hot, background: slab })).toBeGreaterThanOrEqual(
+            4.5,
+          );
         }
 
-        expect(contrastOf({ foreground: palette.hotInk, background: palette.hot })).toBeGreaterThanOrEqual(4.5);
+        expect(
+          contrastOf({ foreground: palette.hotInk, background: palette.hot }),
+        ).toBeGreaterThanOrEqual(4.5);
       }
     }
   });
@@ -137,14 +176,18 @@ describe('the dark value (C12)', () => {
 
     expect(theme.dark.accent).not.toBe('#0277bd');
     expect(theme.notes.join(' ')).toContain(`accentDark ${theme.dark.accent} derived from #0277bd`);
-    expect(contrastOf({ foreground: theme.dark.accent, background: theme.dark.bg })).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrastOf({ foreground: theme.dark.accent, background: theme.dark.bg }),
+    ).toBeGreaterThanOrEqual(4.5);
   });
 
   test('a very dark accent still gets a dark value that reads on every dark ground and on the slab', () => {
     const theme = palettes({ accent: '#10243a' });
 
     for (const ground of [theme.dark.bg, theme.dark.bgSoft, theme.dark.slab, theme.dark.slab3]) {
-      expect(contrastOf({ foreground: theme.dark.accent, background: ground })).toBeGreaterThanOrEqual(4.5);
+      expect(
+        contrastOf({ foreground: theme.dark.accent, background: ground }),
+      ).toBeGreaterThanOrEqual(4.5);
     }
   });
 
@@ -170,14 +213,17 @@ describe('state colours are separate from the accent (C13)', () => {
 
 describe('the token blocks', () => {
   test('light on :root, the system dark setting unless the page is set to light, then an explicit dark, with the same tokens in each', () => {
-    const css = ProjectTheme.tokensCss({ theme: palettes({ accent: '#8a5a20', accentDark: '#dead6a' }) });
+    const css = ProjectTheme.tokensCss({
+      theme: palettes({ accent: '#8a5a20', accentDark: '#dead6a' }),
+    });
     const [light, system, explicit] = css.split('\n');
 
     expect(light).toStartWith(':root{');
     expect(system).toContain('@media (prefers-color-scheme:dark){:root:not([data-theme=light])');
     expect(explicit).toStartWith(':root[data-theme=dark]{');
 
-    const names = (block: string): string[] => [...block.matchAll(/--[a-z0-9-]+(?=:)/g)].map((match) => match[0]);
+    const names = (block: string): string[] =>
+      [...block.matchAll(/--[a-z0-9-]+(?=:)/g)].map((match) => match[0]);
 
     expect(names(system).sort()).toEqual(names(light).sort());
     expect(names(explicit).sort()).toEqual(names(light).sort());
@@ -188,18 +234,31 @@ describe('the token blocks', () => {
 
 describe('the manifest theme is read from the folder the command runs in (C14)', () => {
   test('a manifest with a theme gives it; a missing file or no theme gives nothing', () => {
-    const withTheme = projectWith(JSON.stringify({ schemaVersion: 2, theme: { accent: '#8a5a20', accentDark: '#dead6a' } }));
+    const withTheme = projectWith(
+      JSON.stringify({ schemaVersion: 2, theme: { accent: '#8a5a20', accentDark: '#dead6a' } }),
+    );
 
     expect(ProjectTheme.readManifestTheme({ root: withTheme })).toEqual({
       theme: { accent: '#8a5a20', accentDark: '#dead6a' },
     });
-    expect(ProjectTheme.readManifestTheme({ root: projectWith(JSON.stringify({ schemaVersion: 2 })) })).toEqual({});
+    expect(
+      ProjectTheme.readManifestTheme({ root: projectWith(JSON.stringify({ schemaVersion: 2 })) }),
+    ).toEqual({});
     expect(ProjectTheme.readManifestTheme({ root: projectWith(undefined) })).toEqual({});
   });
 
   test('a broken manifest or a bad theme falls back to the neutral colour with a warning, and nothing is thrown', () => {
-    expect(ProjectTheme.readManifestTheme({ root: projectWith('{ not json') }).warning).toContain('not valid JSON');
-    expect(ProjectTheme.readManifestTheme({ root: projectWith(JSON.stringify({ theme: 'red' })) }).warning).toContain('not an object');
-    expect(ProjectTheme.readManifestTheme({ root: projectWith(JSON.stringify({ theme: { accent: 'red' } })) }).warning).toContain('hex accent');
+    expect(ProjectTheme.readManifestTheme({ root: projectWith('{ not json') }).warning).toContain(
+      'not valid JSON',
+    );
+    expect(
+      ProjectTheme.readManifestTheme({ root: projectWith(JSON.stringify({ theme: 'red' })) })
+        .warning,
+    ).toContain('not an object');
+    expect(
+      ProjectTheme.readManifestTheme({
+        root: projectWith(JSON.stringify({ theme: { accent: 'red' } })),
+      }).warning,
+    ).toContain('hex accent');
   });
 });

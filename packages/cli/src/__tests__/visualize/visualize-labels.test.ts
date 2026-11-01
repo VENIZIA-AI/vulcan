@@ -135,9 +135,7 @@ describe('the Vietnamese words: complete and clean (S5)', () => {
   });
 
   test('the Vietnamese words have diacritics where Vietnamese has them', () => {
-    const marked = [...vietnamese.values()].filter((value) =>
-      /[À-ỹ]/.test(String(value)),
-    );
+    const marked = [...vietnamese.values()].filter((value) => /[À-ỹ]/.test(String(value)));
 
     expect(marked.length).toBeGreaterThan(english.length / 2);
   });

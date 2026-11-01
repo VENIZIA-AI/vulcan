@@ -365,7 +365,8 @@ const renderLifecycle = (opts: { lifecycle: TLifecycle; chrome: TChrome }): IKin
       route.level = used.gap;
       used.gap += 1;
     } else {
-      route.gutter = rows === 1 ? (b.col > a.col ? 'top' : 'bottom') : a.row === 0 ? 'top' : 'bottom';
+      route.gutter =
+        rows === 1 ? (b.col > a.col ? 'top' : 'bottom') : a.row === 0 ? 'top' : 'bottom';
       route.level = used[route.gutter];
       used[route.gutter] += 1;
     }
@@ -399,8 +400,8 @@ const renderLifecycle = (opts: { lifecycle: TLifecycle; chrome: TChrome }): IKin
     }
   }
 
-  const take = (opts: { id: string; side: TSide }): number => {
-    const key = `${opts.id}:${opts.side}`;
+  const take = (port: { id: string; side: TSide }): number => {
+    const key = `${port.id}:${port.side}`;
     const index = ports.get(key) ?? 0;
 
     ports.set(key, index + 1);
@@ -408,77 +409,84 @@ const renderLifecycle = (opts: { lifecycle: TLifecycle; chrome: TChrome }): IKin
     return portOffset({ index });
   };
   const drawn = routes.map((route): { line: string; text: string } => {
-      const a = places.get(route.from);
-      const b = places.get(route.to);
+    const a = places.get(route.from);
+    const b = places.get(route.to);
 
-      if (a === undefined || b === undefined) {
-        return { line: '', text: '' };
-      }
+    if (a === undefined || b === undefined) {
+      return { line: '', text: '' };
+    }
 
-      const double = (pairs.get([route.from, route.to].sort().join('>')) ?? 0) > 1;
-      const labelHalo = 'ke kh';
+    const double = (pairs.get([route.from, route.to].sort().join('>')) ?? 0) > 1;
+    const labelHalo = 'ke kh';
 
-      if (route.shape === 'h') {
-        const right = b.col > a.col;
-        const offset = double ? (right ? -9 : 9) : 0;
-        const y = rowTop(a.row) + boxHeight / 2 + offset;
-        const x1 = right ? colX(a.col) + BOX_WIDTH : colX(a.col);
-        const x2 = right ? colX(b.col) : colX(b.col) + BOX_WIDTH;
-        const sign = right ? 1 : -1;
-        const label = wrapLines({ text: route.label, chars: Math.floor((GAP - 16) / 6.6) });
-        const above = !double || right;
-        const labelY = above ? y - 7 - (label.length - 1) * 14 : y + 17;
-
-        return {
-          line: `<path class="kline" d="M${x1} ${y}H${x2}"/>${head({ x: x2, y, dx: sign, dy: 0 })}`,
-          text: textLines({ cls: labelHalo, x: (x1 + x2) / 2, y: labelY, lines: label, step: 14, anchor: 'middle' }),
-        };
-      }
-
-      if (route.shape === 'v') {
-        const down = b.row > a.row;
-        const offset = double ? (down ? -9 : 9) : 0;
-        const x = colX(a.col) + BOX_WIDTH / 2 + offset;
-        const y1 = down ? rowTop(a.row) + boxHeight : rowTop(a.row);
-        const y2 = down ? rowTop(b.row) : rowTop(b.row) + boxHeight;
-        const left = double && down;
-
-        return {
-          line: `<path class="kline" d="M${x} ${y1}V${y2}"/>${head({ x, y: y2, dx: 0, dy: down ? 1 : -1 })}`,
-          text: `<text class="${labelHalo}" x="${left ? x - 8 : x + 8}" y="${(y1 + y2) / 2 + 4}" text-anchor="${left ? 'end' : 'start'}">${escaped(route.label)}</text>`,
-        };
-      }
-
-      if (route.shape === 'cross') {
-        const aSide: TSide = a.row === 0 ? 'bottom' : 'top';
-        const bSide: TSide = b.row === 0 ? 'bottom' : 'top';
-        const x1 = colX(a.col) + BOX_WIDTH / 2 + take({ id: a.state.id, side: aSide });
-        const x2 = colX(b.col) + BOX_WIDTH / 2 + take({ id: b.state.id, side: bSide });
-        const down = b.row > a.row;
-        const y1 = aSide === 'bottom' ? rowTop(a.row) + boxHeight : rowTop(a.row);
-        const y2 = bSide === 'bottom' ? rowTop(b.row) + boxHeight : rowTop(b.row);
-        const level = rowTop(0) + boxHeight + 28 + (route.level ?? 0) * LEVEL;
-
-        return {
-          line: `<path class="kline" d="M${x1} ${y1}V${level}H${x2}V${y2}"/>${head({ x: x2, y: y2, dx: 0, dy: down ? 1 : -1 })}`,
-          text: `<text class="${labelHalo}" x="${(x1 + x2) / 2}" y="${level - 6}" text-anchor="middle">${escaped(route.label)}</text>`,
-        };
-      }
-
-      // An arc over the top of a row, or under the bottom of it.
-      const side: TSide = route.gutter === 'top' ? 'top' : 'bottom';
-      const x1 = colX(a.col) + BOX_WIDTH / 2 + take({ id: a.state.id, side });
-      const x2 = colX(b.col) + BOX_WIDTH / 2 + take({ id: b.state.id, side });
-      const edge = side === 'top' ? rowTop(a.row) : rowTop(a.row) + boxHeight;
-      const level =
-        side === 'top'
-          ? rowTop(0) - 24 - (route.level ?? 0) * LEVEL
-          : rowTop(rows - 1) + boxHeight + 24 + (route.level ?? 0) * LEVEL;
+    if (route.shape === 'h') {
+      const right = b.col > a.col;
+      const offset = double ? (right ? -9 : 9) : 0;
+      const y = rowTop(a.row) + boxHeight / 2 + offset;
+      const x1 = right ? colX(a.col) + BOX_WIDTH : colX(a.col);
+      const x2 = right ? colX(b.col) : colX(b.col) + BOX_WIDTH;
+      const sign = right ? 1 : -1;
+      const label = wrapLines({ text: route.label, chars: Math.floor((GAP - 16) / 6.6) });
+      const above = !double || right;
+      const labelY = above ? y - 7 - (label.length - 1) * 14 : y + 17;
 
       return {
-        line: `<path class="kline" d="M${x1} ${edge}V${level}H${x2}V${edge}"/>${head({ x: x2, y: edge, dx: 0, dy: side === 'top' ? 1 : -1 })}`,
+        line: `<path class="kline" d="M${x1} ${y}H${x2}"/>${head({ x: x2, y, dx: sign, dy: 0 })}`,
+        text: textLines({
+          cls: labelHalo,
+          x: (x1 + x2) / 2,
+          y: labelY,
+          lines: label,
+          step: 14,
+          anchor: 'middle',
+        }),
+      };
+    }
+
+    if (route.shape === 'v') {
+      const down = b.row > a.row;
+      const offset = double ? (down ? -9 : 9) : 0;
+      const x = colX(a.col) + BOX_WIDTH / 2 + offset;
+      const y1 = down ? rowTop(a.row) + boxHeight : rowTop(a.row);
+      const y2 = down ? rowTop(b.row) : rowTop(b.row) + boxHeight;
+      const left = double && down;
+
+      return {
+        line: `<path class="kline" d="M${x} ${y1}V${y2}"/>${head({ x, y: y2, dx: 0, dy: down ? 1 : -1 })}`,
+        text: `<text class="${labelHalo}" x="${left ? x - 8 : x + 8}" y="${(y1 + y2) / 2 + 4}" text-anchor="${left ? 'end' : 'start'}">${escaped(route.label)}</text>`,
+      };
+    }
+
+    if (route.shape === 'cross') {
+      const aSide: TSide = a.row === 0 ? 'bottom' : 'top';
+      const bSide: TSide = b.row === 0 ? 'bottom' : 'top';
+      const x1 = colX(a.col) + BOX_WIDTH / 2 + take({ id: a.state.id, side: aSide });
+      const x2 = colX(b.col) + BOX_WIDTH / 2 + take({ id: b.state.id, side: bSide });
+      const down = b.row > a.row;
+      const y1 = aSide === 'bottom' ? rowTop(a.row) + boxHeight : rowTop(a.row);
+      const y2 = bSide === 'bottom' ? rowTop(b.row) + boxHeight : rowTop(b.row);
+      const level = rowTop(0) + boxHeight + 28 + (route.level ?? 0) * LEVEL;
+
+      return {
+        line: `<path class="kline" d="M${x1} ${y1}V${level}H${x2}V${y2}"/>${head({ x: x2, y: y2, dx: 0, dy: down ? 1 : -1 })}`,
         text: `<text class="${labelHalo}" x="${(x1 + x2) / 2}" y="${level - 6}" text-anchor="middle">${escaped(route.label)}</text>`,
       };
+    }
+
+    // An arc over the top of a row, or under the bottom of it.
+    const side: TSide = route.gutter === 'top' ? 'top' : 'bottom';
+    const x1 = colX(a.col) + BOX_WIDTH / 2 + take({ id: a.state.id, side });
+    const x2 = colX(b.col) + BOX_WIDTH / 2 + take({ id: b.state.id, side });
+    const edge = side === 'top' ? rowTop(a.row) : rowTop(a.row) + boxHeight;
+    const level =
+      side === 'top'
+        ? rowTop(0) - 24 - (route.level ?? 0) * LEVEL
+        : rowTop(rows - 1) + boxHeight + 24 + (route.level ?? 0) * LEVEL;
+
+    return {
+      line: `<path class="kline" d="M${x1} ${edge}V${level}H${x2}V${edge}"/>${head({ x: x2, y: edge, dx: 0, dy: side === 'top' ? 1 : -1 })}`,
+      text: `<text class="${labelHalo}" x="${(x1 + x2) / 2}" y="${level - 6}" text-anchor="middle">${escaped(route.label)}</text>`,
+    };
   });
   const lines = drawn.map((item) => item.line).join('');
   const labels = drawn.map((item) => item.text).join('');
@@ -559,7 +567,8 @@ const renderTree = (opts: { tree: TTree; chrome: TChrome }): IKindDrawing => {
   walk(tree.root, 0, undefined);
 
   const sized = rows.map((row) => {
-    const word = row.node.state === undefined ? undefined : stateWord({ chrome, state: row.node.state });
+    const word =
+      row.node.state === undefined ? undefined : stateWord({ chrome, state: row.node.state });
     const hasSub = row.node.sublabel !== undefined;
     const icon = row.node.state === undefined ? 0 : 26;
     const wordWidth = word === undefined ? 0 : Math.ceil(word.length * 7.4) + 20;
@@ -579,7 +588,10 @@ const renderTree = (opts: { tree: TTree; chrome: TChrome }): IKindDrawing => {
 
     return placement;
   });
-  const width = Math.max(MIN_WIDTH, Math.max(...placed.map((row) => row.x + row.boxWidth)) + MARGIN);
+  const width = Math.max(
+    MIN_WIDTH,
+    Math.max(...placed.map((row) => row.x + row.boxWidth)) + MARGIN,
+  );
   const height = cursor - ROW_GAP + TREE_TOP;
   const guides = placed
     .map((row, index) => {
@@ -620,8 +632,7 @@ const renderTree = (opts: { tree: TTree; chrome: TChrome }): IKindDrawing => {
     width,
     list: `<ul class="path kl ktr">${outline(tree.root)}</ul>`,
     caption:
-      tree.caption ??
-      `${tree.root.label}: ${rows.length} ${wordOf({ chrome, key: 'countItems' })}`,
+      tree.caption ?? `${tree.root.label}: ${rows.length} ${wordOf({ chrome, key: 'countItems' })}`,
     label,
   };
 };
