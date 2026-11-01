@@ -156,9 +156,9 @@ export class VisualizeLimits {
   static readonly MAX_SERIES = 3;
   static readonly MAX_PARTS = 5;
   static readonly MAX_LIST = 6;
-  /** Typical pages are 20-40 KB; a page past `FAIL_BYTES` is refused: two pages, not one dense one. */
-  static readonly WARN_BYTES = 60 * 1024;
-  static readonly FAIL_BYTES = 100 * 1024;
+  /** Typical pages are 30-60 KB; a page past `FAIL_BYTES` is refused: two pages, not one dense one. */
+  static readonly WARN_BYTES = 80 * 1024;
+  static readonly FAIL_BYTES = 150 * 1024;
   static readonly OUTPUT_DIRECTORY = 'prototypes';
 }
 
@@ -257,5 +257,15 @@ export const DEFAULT_CHROME = {
   onlyHere: 'only here',
   addedEdge: 'added',
   removedEdge: 'removed',
+  /** The words of the sequence, lifecycle and tree figures: a message kind, a state kind, and the counts in their captions. */
+  kindCall: 'call',
+  kindReply: 'reply',
+  kindAsync: 'async',
+  stateStart: 'start',
+  stateEnd: 'end',
+  countMessages: 'messages',
+  countStates: 'states',
+  countTransitions: 'transitions',
+  countItems: 'items',
 };
 export type TChrome = typeof DEFAULT_CHROME;
