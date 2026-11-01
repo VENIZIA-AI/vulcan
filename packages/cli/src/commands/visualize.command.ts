@@ -2,7 +2,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
-import { readProfile } from '../owner/profile.ts';
+import { OwnerProfile } from '../owner/profile.ts';
 import {
   pageNameOf,
   ProjectTheme,
@@ -85,7 +85,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
   // The page takes the project's colour from the manifest of the folder it runs in (no config is loaded, nothing
   // is requested) and its words from the owner's profile; a spec's own `accent` and `language` win.
   const manifest = ProjectTheme.readManifestTheme({ root: opts.cwd });
-  const profile = readProfile({ root: opts.cwd });
+  const profile = OwnerProfile.read({ root: opts.cwd });
   const rendered = renderSpecText({
     text,
     context: {

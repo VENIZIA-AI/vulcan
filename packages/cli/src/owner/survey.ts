@@ -1,6 +1,6 @@
 import { OwnerConstants, OwnerDetails, OwnerFormalities, OwnerTones } from './constants.ts';
 import { OWNER_LABEL_SET, PROFILE_SCHEMA } from './schema.ts';
-import { isEnglishLanguage } from './view.ts';
+import { OwnerView } from './view.ts';
 import type { TOwnerLabelSet, TProfile } from './schema.ts';
 
 interface ISurveyChoice {
@@ -25,14 +25,6 @@ export interface ISurveyIo {
   }) => Promise<string | null>;
   confirm: (opts: { message: string; initial: boolean }) => Promise<boolean | null>;
 }
-
-/** The language of the machine as a code (`vi` from `vi_VN.UTF-8`), or English. */
-export const systemLanguageOf = (opts: { env: Record<string, string | undefined> }): string => {
-  const raw = opts.env.LC_ALL ?? opts.env.LC_MESSAGES ?? opts.env.LANG ?? '';
-  const code = /^([a-z]{2,3})(?:[_.@-]|$)/.exec(raw)?.[1];
-
-  return code ?? OwnerConstants.DEFAULT_LANGUAGE;
-};
 
 const labelProblem = (value: string): string | undefined =>
   OwnerConstants.LABEL_PATTERN.test(value)
@@ -122,178 +114,188 @@ const askLabels = async (opts: { io: ISurveyIo }): Promise<TOwnerLabelSet | null
   });
 };
 
-/**
- * The questions, in order, each with a default taken on an empty answer and each skippable: the
- * reply language, how to address the person, tone, report detail, working habits, a free line in their
- * words and code taste, and - for a language that is not English - whether to type the words for the report or let the agent write them. Nothing is
- * inferred from the answers. `existing` supplies the defaults when the form is run again. Returns the
- * profile, or `null` when the user cancelled.
- */
-export const runSurvey = async (opts: {
-  io: ISurveyIo;
-  existing?: TProfile;
-  systemLanguage: string;
-}): Promise<TProfile | null> => {
-  const { io, existing } = opts;
-  const text = async (
-    message: string,
-    defaultValue: string,
-    validate?: (value: string) => string | undefined,
-  ) => io.text({ message, defaultValue, validate });
-  /** An optional free value: a single dash clears what an earlier run set. */
-  const optional = async (
-    message: string,
-    defaultValue: string,
-    validate?: (value: string) => string | undefined,
-  ) => {
-    const answer = await io.text({
-      message: defaultValue === '' ? message : `${message} (${CLEAR_ANSWER} clears it)`,
-      defaultValue,
-      validate: (value) => (value === CLEAR_ANSWER ? undefined : validate?.(value)),
-    });
+export class OwnerSurvey {
+  /** The language of the machine as a code (`vi` from `vi_VN.UTF-8`), or English. */
+  static systemLanguageOf(opts: { env: Record<string, string | undefined> }): string {
+    const raw = opts.env.LC_ALL ?? opts.env.LC_MESSAGES ?? opts.env.LANG ?? '';
+    const code = /^([a-z]{2,3})(?:[_.@-]|$)/.exec(raw)?.[1];
 
-    return answer === CLEAR_ANSWER ? '' : answer;
-  };
-  const language = await text(
-    'Reply language (a code such as en, fr, pt-BR)',
-    existing?.language ?? opts.systemLanguage,
-    languageProblem,
-  );
-
-  if (language === null) {
-    return null;
+    return code ?? OwnerConstants.DEFAULT_LANGUAGE;
   }
 
-  const you = await optional(
-    'How should I address you? (a name, a pronoun, an honorific, or leave empty for none)',
-    existing?.address.you ?? '',
-    optionalLabelProblem,
-  );
-  // Each question is asked only when the one before it was answered.
-  const askingSelf =
-    you === null
-      ? null
-      : optional(
-          'How should I refer to myself? (leave empty for neutral)',
-          existing?.address.self ?? '',
-          optionalLabelProblem,
-        );
-  const self = await askingSelf;
-  const askingFormality =
-    self === null
-      ? null
-      : io.select({
-          message: 'How formal should I be?',
-          choices: choicesOf({ set: OwnerFormalities.SCHEME_SET }),
-          initial: existing?.address.formality ?? OwnerFormalities.NEUTRAL,
-        });
-  const formality = await askingFormality;
-  const askingTone =
-    formality === null
-      ? null
-      : io.select({
-          message: 'Tone',
-          choices: choicesOf({ set: OwnerTones.SCHEME_SET }),
-          initial: existing?.tone ?? OwnerTones.NEUTRAL,
-        });
-  const tone = await askingTone;
-  const askingReportDetail =
-    tone === null
-      ? null
-      : io.select({
-          message: 'Reports: headline only, or headline plus tables?',
-          choices: choicesOf({ set: OwnerDetails.SCHEME_SET }),
-          initial: existing?.reportDetail ?? OwnerDetails.TABLES,
-        });
-  const reportDetail = await askingReportDetail;
-  const askingAsk =
-    reportDetail === null
-      ? null
-      : io.confirm({
-          message:
-            'For a choice that can be undone, ask you first? (no: state a default and continue)',
-          initial: existing?.habits.askBeforeReversible ?? false,
-        });
-  const ask = await askingAsk;
-  const askingCommits =
-    ask === null
-      ? null
-      : io.confirm({
-          message: 'Propose commits when a piece of work is done?',
-          initial: existing?.habits.proposeCommits ?? false,
-        });
-  const commits = await askingCommits;
-  const askingAbout =
-    commits === null
-      ? null
-      : optional(
-          'Anything about how you like to work, or to be worked with? (your own words, optional)',
-          existing?.about ?? '',
-          aboutProblem,
-        );
-  const about = await askingAbout;
-  const askingCodeTaste =
-    about === null
-      ? null
-      : optional(
-          'Taste in code that no formatter or lint rule already enforces? (optional)',
-          existing?.codeTaste ?? '',
-          codeTasteProblem,
-        );
-  const codeTaste = await askingCodeTaste;
+  /**
+   * The questions, in order, each with a default taken on an empty answer and each skippable: the
+   * reply language, how to address the person, tone, report detail, working habits, a free line in their
+   * words and code taste, and - for a language that is not English - whether to type the words for the report or let the agent write them. Nothing is
+   * inferred from the answers. `existing` supplies the defaults when the form is run again. Returns the
+   * profile, or `null` when the user cancelled.
+   */
+  static async run(opts: {
+    io: ISurveyIo;
+    existing?: TProfile;
+    systemLanguage: string;
+  }): Promise<TProfile | null> {
+    const { io, existing } = opts;
+    const text = async (
+      message: string,
+      defaultValue: string,
+      validate?: (value: string) => string | undefined,
+    ) => io.text({ message, defaultValue, validate });
+    /** An optional free value: a single dash clears what an earlier run set. */
+    const optional = async (
+      message: string,
+      defaultValue: string,
+      validate?: (value: string) => string | undefined,
+    ) => {
+      const answer = await io.text({
+        message: defaultValue === '' ? message : `${message} (${CLEAR_ANSWER} clears it)`,
+        defaultValue,
+        validate: (value) => (value === CLEAR_ANSWER ? undefined : validate?.(value)),
+      });
 
-  if (
-    [you, self, formality, tone, reportDetail, ask, commits, about, codeTaste].some(
-      (answer) => answer === null,
-    )
-  ) {
-    return null;
-  }
+      return answer === CLEAR_ANSWER ? '' : answer;
+    };
+    const language = await text(
+      'Reply language (a code such as en, fr, pt-BR)',
+      existing?.language ?? opts.systemLanguage,
+      languageProblem,
+    );
 
-  const labels: Record<string, TOwnerLabelSet> = { ...existing?.labels };
-
-  if (!isEnglishLanguage({ language }) && !(language in labels)) {
-    const typed = await io.select({
-      message: `Words for reports in ${language}: no set ships. Let the agent write them in ${language} (only the structure is checked), or type them now?`,
-      choices: [
-        { value: 'keep', label: `let the agent write them in ${language}` },
-        { value: 'type', label: 'type them now' },
-      ],
-      initial: 'keep',
-    });
-
-    if (typed === null) {
+    if (language === null) {
       return null;
     }
 
-    if (typed === 'type') {
-      const set = await askLabels({ io });
+    const you = await optional(
+      'How should I address you? (a name, a pronoun, an honorific, or leave empty for none)',
+      existing?.address.you ?? '',
+      optionalLabelProblem,
+    );
+    // Each question is asked only when the one before it was answered.
+    const askingSelf =
+      you === null
+        ? null
+        : optional(
+            'How should I refer to myself? (leave empty for neutral)',
+            existing?.address.self ?? '',
+            optionalLabelProblem,
+          );
+    const self = await askingSelf;
+    const askingFormality =
+      self === null
+        ? null
+        : io.select({
+            message: 'How formal should I be?',
+            choices: choicesOf({ set: OwnerFormalities.SCHEME_SET }),
+            initial: existing?.address.formality ?? OwnerFormalities.NEUTRAL,
+          });
+    const formality = await askingFormality;
+    const askingTone =
+      formality === null
+        ? null
+        : io.select({
+            message: 'Tone',
+            choices: choicesOf({ set: OwnerTones.SCHEME_SET }),
+            initial: existing?.tone ?? OwnerTones.NEUTRAL,
+          });
+    const tone = await askingTone;
+    const askingReportDetail =
+      tone === null
+        ? null
+        : io.select({
+            message: 'Reports: headline only, or headline plus tables?',
+            choices: choicesOf({ set: OwnerDetails.SCHEME_SET }),
+            initial: existing?.reportDetail ?? OwnerDetails.TABLES,
+          });
+    const reportDetail = await askingReportDetail;
+    const askingAsk =
+      reportDetail === null
+        ? null
+        : io.confirm({
+            message:
+              'For a choice that can be undone, ask you first? (no: state a default and continue)',
+            initial: existing?.habits.askBeforeReversible ?? false,
+          });
+    const ask = await askingAsk;
+    const askingCommits =
+      ask === null
+        ? null
+        : io.confirm({
+            message: 'Propose commits when a piece of work is done?',
+            initial: existing?.habits.proposeCommits ?? false,
+          });
+    const commits = await askingCommits;
+    const askingAbout =
+      commits === null
+        ? null
+        : optional(
+            'Anything about how you like to work, or to be worked with? (your own words, optional)',
+            existing?.about ?? '',
+            aboutProblem,
+          );
+    const about = await askingAbout;
+    const askingCodeTaste =
+      about === null
+        ? null
+        : optional(
+            'Taste in code that no formatter or lint rule already enforces? (optional)',
+            existing?.codeTaste ?? '',
+            codeTasteProblem,
+          );
+    const codeTaste = await askingCodeTaste;
 
-      if (set === null) {
+    if (
+      [you, self, formality, tone, reportDetail, ask, commits, about, codeTaste].some(
+        (answer) => answer === null,
+      )
+    ) {
+      return null;
+    }
+
+    const labels: Record<string, TOwnerLabelSet> = { ...existing?.labels };
+
+    if (!OwnerView.isEnglishLanguage({ language }) && !(language in labels)) {
+      const typed = await io.select({
+        message: `Words for reports in ${language}: no set ships. Let the agent write them in ${language} (only the structure is checked), or type them now?`,
+        choices: [
+          { value: 'keep', label: `let the agent write them in ${language}` },
+          { value: 'type', label: 'type them now' },
+        ],
+        initial: 'keep',
+      });
+
+      if (typed === null) {
         return null;
       }
 
-      labels[language] = set;
-    }
-  }
+      if (typed === 'type') {
+        const set = await askLabels({ io });
 
-  return PROFILE_SCHEMA.parse({
-    schemaVersion: OwnerConstants.PROFILE_SCHEMA_VERSION,
-    language,
-    address: {
-      ...(you === '' || you === null ? {} : { you }),
-      ...(self === '' || self === null ? {} : { self }),
-      formality,
-    },
-    tone,
-    reportDetail,
-    habits: { askBeforeReversible: ask, proposeCommits: commits },
-    ...(about === '' || about === null ? {} : { about }),
-    ...(codeTaste === '' || codeTaste === null ? {} : { codeTaste }),
-    ...(existing?.enforce === undefined ? {} : { enforce: existing.enforce }),
-    ...(existing?.shortReplyWords === undefined
-      ? {}
-      : { shortReplyWords: existing.shortReplyWords }),
-    labels,
-  });
-};
+        if (set === null) {
+          return null;
+        }
+
+        labels[language] = set;
+      }
+    }
+
+    return PROFILE_SCHEMA.parse({
+      schemaVersion: OwnerConstants.PROFILE_SCHEMA_VERSION,
+      language,
+      address: {
+        ...(you === '' || you === null ? {} : { you }),
+        ...(self === '' || self === null ? {} : { self }),
+        formality,
+      },
+      tone,
+      reportDetail,
+      habits: { askBeforeReversible: ask, proposeCommits: commits },
+      ...(about === '' || about === null ? {} : { about }),
+      ...(codeTaste === '' || codeTaste === null ? {} : { codeTaste }),
+      ...(existing?.enforce === undefined ? {} : { enforce: existing.enforce }),
+      ...(existing?.shortReplyWords === undefined
+        ? {}
+        : { shortReplyWords: existing.shortReplyWords }),
+      labels,
+    });
+  }
+}

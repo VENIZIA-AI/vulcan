@@ -6,7 +6,7 @@ import { ConfigExtensions } from '../config/index.ts';
 import { CreateFlags } from '../create/common/index.ts';
 import { createMonorepo } from '../create/init-monorepo.ts';
 import { runBun } from '../create/process.ts';
-import { InitConstants, scaffoldProject } from '../init/index.ts';
+import { InitConstants, ProjectScaffold } from '../init/index.ts';
 import { offerProfile } from './profile.command.ts';
 
 export const runInitCommand = async (opts: ICommandContext): Promise<number> => {
@@ -35,7 +35,7 @@ export const runInitCommand = async (opts: ICommandContext): Promise<number> => 
     return ExitCodes.FAILURE;
   }
 
-  const result = scaffoldProject({ root: opts.cwd, extension });
+  const result = ProjectScaffold.scaffold({ root: opts.cwd, extension });
 
   for (const entry of result.entries) {
     process.stderr.write(`  ${entry.status.padEnd(8)} ${entry.subject}\n`);

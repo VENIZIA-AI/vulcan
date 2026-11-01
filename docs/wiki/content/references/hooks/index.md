@@ -335,7 +335,7 @@ Limits, stated plainly:
 
 ## stop and prompt-submit
 
-The two hooks hold the [report shape](/references/configuration/#owner) the session digest prints. `stop` runs `checkOwnerShape` on the last reply: a headline that is a sentence within the cap, the minimap table with the configured header and statuses, the Blocked line, the decisions list ending in the recommendation or exactly the none string, the order of the sections, and, as style faults, emoji, an all-caps phrase and a relative path where full paths are asked for. A reply under `report.shortReplyWords` is exempt; `0` checks every reply.
+The two hooks hold the [report shape](/references/configuration/#owner) the session digest prints. `stop` runs `OwnerShape.check` on the last reply: a headline that is a sentence within the cap, the minimap table with the configured header and statuses, the Blocked line, the decisions list ending in the recommendation or exactly the none string, the order of the sections, and, as style faults, emoji, an all-caps phrase and a relative path where full paths are asked for. A reply under `report.shortReplyWords` is exempt; `0` checks every reply.
 
 | `enforce` | What happens to a reply that breaks the shape |
 |---|---|

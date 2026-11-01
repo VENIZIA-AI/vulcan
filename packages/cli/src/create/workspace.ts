@@ -1,6 +1,6 @@
 import { relative, resolve } from 'node:path';
 import { RecordValue } from '../common/record.ts';
-import { coversFolder } from '../init/index.ts';
+import { ProjectScaffold } from '../init/index.ts';
 import { LibraryKinds, PackageKinds } from '../config/index.ts';
 import type { TLibraryKind } from '../config/index.ts';
 import { AppsBlockProblems, CreateConstants } from './common/index.ts';
@@ -74,7 +74,7 @@ export const planRootManifest = (opts: {
 }): Record<string, unknown> => {
   const { manifest, folder } = opts;
   const { workspaces } = manifest;
-  const globs = coversFolder({ globs: opts.globs, folder })
+  const globs = ProjectScaffold.coversFolder({ globs: opts.globs, folder })
     ? opts.globs
     : [...opts.globs, `${folder}/*`];
   const existing = readCatalog({ manifest });

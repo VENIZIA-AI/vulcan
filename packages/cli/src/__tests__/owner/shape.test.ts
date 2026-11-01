@@ -10,21 +10,19 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import {
-  checkOwnerShape,
   OWNER_SCHEMA,
+  OwnerShape,
+  OwnerView,
   PROFILE_SCHEMA,
-  readLastClasses,
-  readViolationCounts,
-  recordReply,
-  resolveOwnerView,
   ShapeClasses,
+  ViolationLog,
 } from '../../owner/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
 
 const view = (change: Record<string, unknown> = {}) =>
-  resolveOwnerView({
+  OwnerView.resolve({
     owner: OWNER_SCHEMA.parse({ report: { shortReplyWords: 0, ...change } }),
   });
 
@@ -46,11 +44,14 @@ const GOOD = [
 ].join('\n');
 
 const classesOf = (text: string, change: Record<string, unknown> = {}): string[] =>
-  checkOwnerShape({ text, view: view(change) }).classes;
+  OwnerShape.check({ text, view: view(change) }).classes;
 
 describe('checkOwnerShape', () => {
   test('a reply in the shape has no fault', () => {
-    expect(checkOwnerShape({ text: GOOD, view: view() })).toEqual({ isChecked: true, classes: [] });
+    expect(OwnerShape.check({ text: GOOD, view: view() })).toEqual({
+      isChecked: true,
+      classes: [],
+    });
   });
 
   test('"Nothing needed yet." alone under the decisions heading is the none string', () => {
@@ -256,14 +257,14 @@ describe('checkOwnerShape', () => {
   });
 
   test('a short reply is exempt by default and checked when the owner sets 0', () => {
-    const defaults = resolveOwnerView({ owner: OWNER_SCHEMA.parse(undefined) });
+    const defaults = OwnerView.resolve({ owner: OWNER_SCHEMA.parse(undefined) });
 
-    expect(checkOwnerShape({ text: 'Done.', view: defaults })).toEqual({
+    expect(OwnerShape.check({ text: 'Done.', view: defaults })).toEqual({
       isChecked: false,
       classes: [],
     });
-    expect(checkOwnerShape({ text: 'Done.', view: view() }).isChecked).toBe(true);
-    expect(checkOwnerShape({ text: '   ', view: view() }).isChecked).toBe(false);
+    expect(OwnerShape.check({ text: 'Done.', view: view() }).isChecked).toBe(true);
+    expect(OwnerShape.check({ text: '   ', view: view() }).isChecked).toBe(false);
   });
 
   test('the stricter short-reply setting wins: a profile may lower the project, never raise it', () => {
@@ -278,8 +279,8 @@ describe('checkOwnerShape', () => {
       shortReplyWords,
     });
 
-    expect(resolveOwnerView({ owner, profile: profile(0) }).shortReplyWords).toBe(0);
-    expect(resolveOwnerView({ owner, profile: profile(80) }).shortReplyWords).toBe(20);
+    expect(OwnerView.resolve({ owner, profile: profile(0) }).shortReplyWords).toBe(0);
+    expect(OwnerView.resolve({ owner, profile: profile(80) }).shortReplyWords).toBe(20);
   });
 });
 
@@ -295,29 +296,41 @@ describe('the violation log', () => {
   test('records the classes and the date, never the reply, and the last reply for the next prompt', () => {
     const root = project();
 
-    recordReply({
+    ViolationLog.recordReply({
       root,
       classes: [ShapeClasses.BLOCKED_MISSING],
       now: new Date('2026-10-25T10:00:00Z'),
     });
-    recordReply({ root, classes: [], now: new Date('2026-10-25T10:01:00Z') });
+    ViolationLog.recordReply({ root, classes: [], now: new Date('2026-10-25T10:01:00Z') });
 
     const log = readFileSync(join(root, '.agents/local/violations.jsonl'), 'utf8');
 
     expect(log.trim().split('\n')).toEqual(['{"date":"2026-10-25","classes":["blocked-missing"]}']);
-    expect(readLastClasses({ root, now: new Date('2026-10-25T10:02:00Z').getTime() })).toEqual([]);
-    recordReply({ root, classes: [ShapeClasses.EMOJI], now: new Date('2026-10-25T10:03:00Z') });
-    expect(readLastClasses({ root, now: new Date('2026-10-25T10:04:00Z').getTime() })).toEqual([
-      'emoji',
-    ]);
+    expect(
+      ViolationLog.readLastClasses({ root, now: new Date('2026-10-25T10:02:00Z').getTime() }),
+    ).toEqual([]);
+    ViolationLog.recordReply({
+      root,
+      classes: [ShapeClasses.EMOJI],
+      now: new Date('2026-10-25T10:03:00Z'),
+    });
+    expect(
+      ViolationLog.readLastClasses({ root, now: new Date('2026-10-25T10:04:00Z').getTime() }),
+    ).toEqual(['emoji']);
   });
 
   test('a last reply older than 30 minutes is ignored', () => {
     const root = project();
 
-    recordReply({ root, classes: [ShapeClasses.EMOJI], now: new Date('2026-10-25T10:00:00Z') });
+    ViolationLog.recordReply({
+      root,
+      classes: [ShapeClasses.EMOJI],
+      now: new Date('2026-10-25T10:00:00Z'),
+    });
 
-    expect(readLastClasses({ root, now: new Date('2026-10-25T10:31:00Z').getTime() })).toEqual([]);
+    expect(
+      ViolationLog.readLastClasses({ root, now: new Date('2026-10-25T10:31:00Z').getTime() }),
+    ).toEqual([]);
   });
 
   test('the notes are one file per session, bounded by age and by count, and the old one-file note goes', () => {
@@ -327,19 +340,19 @@ describe('the violation log', () => {
 
     writeFileSync(legacy, '{"at":1,"classes":["emoji"]}\n');
 
-    recordReply({ root, classes: ['emoji'], session: 'old' });
+    ViolationLog.recordReply({ root, classes: ['emoji'], session: 'old' });
 
     const stale = new Date(Date.now() - 31 * 60 * 1000);
 
     utimesSync(join(notes, readdirSync(notes)[0] ?? ''), stale, stale);
-    recordReply({ root, classes: [], session: 'new' });
+    ViolationLog.recordReply({ root, classes: [], session: 'new' });
 
     expect(existsSync(legacy)).toBe(false);
     expect(readdirSync(notes)).toHaveLength(1);
     expect(readdirSync(notes)[0]).toMatch(/^new-[0-9a-f]{8}\.json$/);
 
     for (let index = 0; index < 40; index += 1) {
-      recordReply({ root, classes: [], session: `many-${index}` });
+      ViolationLog.recordReply({ root, classes: [], session: `many-${index}` });
     }
 
     expect(readdirSync(notes).length).toBeLessThanOrEqual(32);
@@ -350,19 +363,19 @@ describe('the violation log', () => {
     const root = project();
     const long = 'x'.repeat(80);
 
-    recordReply({ root, classes: ['emoji'], session: 'a/b' });
-    recordReply({ root, classes: [], session: 'a_b' });
-    recordReply({ root, classes: ['shouting'], session: `${long}1` });
-    recordReply({ root, classes: [], session: `${long}2` });
-    recordReply({ root, classes: ['emoji'], session: 'default' });
-    recordReply({ root, classes: [] });
+    ViolationLog.recordReply({ root, classes: ['emoji'], session: 'a/b' });
+    ViolationLog.recordReply({ root, classes: [], session: 'a_b' });
+    ViolationLog.recordReply({ root, classes: ['shouting'], session: `${long}1` });
+    ViolationLog.recordReply({ root, classes: [], session: `${long}2` });
+    ViolationLog.recordReply({ root, classes: ['emoji'], session: 'default' });
+    ViolationLog.recordReply({ root, classes: [] });
 
-    expect(readLastClasses({ root, session: 'a/b' })).toEqual(['emoji']);
-    expect(readLastClasses({ root, session: 'a_b' })).toEqual([]);
-    expect(readLastClasses({ root, session: `${long}1` })).toEqual(['shouting']);
-    expect(readLastClasses({ root, session: `${long}2` })).toEqual([]);
-    expect(readLastClasses({ root, session: 'default' })).toEqual(['emoji']);
-    expect(readLastClasses({ root })).toEqual([]);
+    expect(ViolationLog.readLastClasses({ root, session: 'a/b' })).toEqual(['emoji']);
+    expect(ViolationLog.readLastClasses({ root, session: 'a_b' })).toEqual([]);
+    expect(ViolationLog.readLastClasses({ root, session: `${long}1` })).toEqual(['shouting']);
+    expect(ViolationLog.readLastClasses({ root, session: `${long}2` })).toEqual([]);
+    expect(ViolationLog.readLastClasses({ root, session: 'default' })).toEqual(['emoji']);
+    expect(ViolationLog.readLastClasses({ root })).toEqual([]);
   });
 
   test('a symlinked note folder is never written through', () => {
@@ -371,10 +384,10 @@ describe('the violation log', () => {
 
     mkdirSync(join(root, '.agents/local/cache'));
     symlinkSync(outside, join(root, '.agents/local/cache/replies'));
-    recordReply({ root, classes: ['emoji'], session: 'a' });
+    ViolationLog.recordReply({ root, classes: ['emoji'], session: 'a' });
 
     expect(readdirSync(outside)).toEqual(['victim.txt']);
-    expect(readLastClasses({ root, session: 'a' })).toEqual([]);
+    expect(ViolationLog.readLastClasses({ root, session: 'a' })).toEqual([]);
   });
 
   test('counts by class across the log, skipping damaged lines and unknown classes', () => {
@@ -389,7 +402,7 @@ describe('the violation log', () => {
       ].join('\n'),
     );
 
-    const counts = readViolationCounts({ root });
+    const counts = ViolationLog.readCounts({ root });
 
     expect(counts.replies).toBe(2);
     expect(counts.days).toBe(2);
@@ -402,11 +415,11 @@ describe('the violation log', () => {
     const linked = project();
     const outside = createProject({ files: { 'victim.txt': 'keep' } });
 
-    recordReply({ root: none, classes: ['emoji'] });
+    ViolationLog.recordReply({ root: none, classes: ['emoji'] });
     expect(existsSync(join(none, '.agents/local/violations.jsonl'))).toBe(false);
 
     symlinkSync(join(outside, 'victim.txt'), join(linked, '.agents/local/violations.jsonl'));
-    recordReply({ root: linked, classes: ['emoji'] });
+    ViolationLog.recordReply({ root: linked, classes: ['emoji'] });
     expect(readFileSync(join(outside, 'victim.txt'), 'utf8')).toBe('keep');
   });
 });
@@ -442,7 +455,7 @@ describe('checkOwnerShape does not reject a correct reply', () => {
   });
 
   test('a person who asked for headline-only reports is held to the headline and the style', () => {
-    const profileView = resolveOwnerView({
+    const profileView = OwnerView.resolve({
       owner: OWNER_SCHEMA.parse({ report: { shortReplyWords: 0 } }),
       profile: {
         schemaVersion: 1,
@@ -455,8 +468,10 @@ describe('checkOwnerShape does not reject a correct reply', () => {
     });
 
     expect(
-      checkOwnerShape({ text: 'The build passes and the pull request is open.', view: profileView })
-        .classes,
+      OwnerShape.check({
+        text: 'The build passes and the pull request is open.',
+        view: profileView,
+      }).classes,
     ).toEqual([]);
   });
 
@@ -550,7 +565,7 @@ const DIACRITICS_FOR_FREE = {
 
 describe('the free label mode: a language with no label set, only the structure is checked', () => {
   const freeView = (opts: { language: string; change?: Record<string, unknown> }) =>
-    resolveOwnerView({
+    OwnerView.resolve({
       owner: OWNER_SCHEMA.parse({ report: { shortReplyWords: 0, ...opts.change } }),
       profile: PROFILE_SCHEMA.parse({ schemaVersion: 1, language: opts.language }),
     });
@@ -570,7 +585,7 @@ describe('the free label mode: a language with no label set, only the structure 
     '',
     '1. Kunfandi? Mi proponas jes.',
   ].join('\n');
-  const classesIn = (text: string) => checkOwnerShape({ text, view: free }).classes;
+  const classesIn = (text: string) => OwnerShape.check({ text, view: free }).classes;
 
   test('the view is free for a language that is not English and has no set', () => {
     expect(free.labelMode).toBe('free');
@@ -589,9 +604,9 @@ describe('the free label mode: a language with no label set, only the structure 
     const profile = PROFILE_SCHEMA.parse({ schemaVersion: 1, language: 'eo' });
 
     // The project's labels belong to its own language, English here: they do not reach an eo reader.
-    expect(resolveOwnerView({ owner: owner('en'), profile }).labelMode).toBe('free');
-    expect(resolveOwnerView({ owner: owner('eo'), profile }).labelMode).toBe('exact');
-    expect(resolveOwnerView({ owner: owner('eo') }).labelMode).toBe('exact');
+    expect(OwnerView.resolve({ owner: owner('en'), profile }).labelMode).toBe('free');
+    expect(OwnerView.resolve({ owner: owner('eo'), profile }).labelMode).toBe('exact');
+    expect(OwnerView.resolve({ owner: owner('eo') }).labelMode).toBe('exact');
   });
 
   test('a missing table, blocker line or decisions section is still a fault', () => {

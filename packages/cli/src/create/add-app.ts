@@ -7,7 +7,7 @@ import { OFFICIAL_PRESETS, OfficialPresets } from '@venizia/vulcan-atlas';
 import type { IOfficialPreset } from '@venizia/vulcan-atlas';
 import { ConfigLoader, LibraryKinds, PackageKinds, ProjectPackages } from '../config/index.ts';
 import type { IProjectPackage, TLibraryKind, TResolvedConfig } from '../config/index.ts';
-import { readWorkspaceGlobs } from '../init/index.ts';
+import { ProjectScaffold } from '../init/index.ts';
 import { addLibrary } from './add-lib.ts';
 import { runAppChecks } from './checks.ts';
 import { AddFailure, AppSides, AppsBlockProblems, CreateFlags } from './common/index.ts';
@@ -713,7 +713,7 @@ const runAdd = async (opts: {
 
   const nextManifest = planRootManifest({
     manifest,
-    globs: readWorkspaceGlobs({ root: cwd }),
+    globs: ProjectScaffold.readWorkspaceGlobs({ root: cwd }),
     folder,
     additions: {
       ...preset.dependencies,

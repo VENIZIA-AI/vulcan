@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { localRootOf } from '../local/scan.ts';
+import { LocalScan } from '../local/scan.ts';
 import { ClaimClasses } from '../signals/constants.ts';
 import { ShapeClasses } from './shape.ts';
 
@@ -37,7 +37,7 @@ export class ViolationConstants {
 
 /** `.agents/local/<file>` of a trusted project, or `undefined`; a symlinked file is never followed. */
 const fileOf = (opts: { root: string; name: string }): string | undefined => {
-  const local = localRootOf({ root: opts.root });
+  const local = LocalScan.localRootOf({ root: opts.root });
 
   if (local === undefined) {
     return undefined;
@@ -76,7 +76,7 @@ const noteName = (opts: { session?: string }): string => {
  * a directory. Created only when `opts.create` is set.
  */
 const notesDirectoryOf = (opts: { root: string; create: boolean }): string | undefined => {
-  const local = localRootOf({ root: opts.root });
+  const local = LocalScan.localRootOf({ root: opts.root });
 
   if (local === undefined) {
     return undefined;
@@ -154,7 +154,7 @@ const readNote = (opts: { root: string; session?: string }): Record<string, unkn
  */
 const pruneNotes = (opts: { root: string; now: number }): void => {
   const directory = notesDirectoryOf({ root: opts.root, create: false });
-  const local = localRootOf({ root: opts.root });
+  const local = LocalScan.localRootOf({ root: opts.root });
 
   if (local !== undefined) {
     const legacy = join(local, ViolationConstants.LEGACY_LAST_FILE);
@@ -196,155 +196,151 @@ const isOversized = (opts: { path: string }): boolean => {
   }
 };
 
-/** Records one checked reply: the log when it broke the shape, and always the session's last-reply note. */
-export const recordReply = (opts: {
-  root: string;
-  classes: string[];
-  session?: string;
-  now?: Date;
-}): void => {
-  const now = opts.now ?? new Date();
-  const log = fileOf({ root: opts.root, name: ViolationConstants.LOG_FILE });
+export class ViolationLog {
+  /** Records one checked reply: the log when it broke the shape, and always the session's last-reply note. */
+  static recordReply(opts: {
+    root: string;
+    classes: string[];
+    session?: string;
+    now?: Date;
+  }): void {
+    const now = opts.now ?? new Date();
+    const log = fileOf({ root: opts.root, name: ViolationConstants.LOG_FILE });
 
-  if (log !== undefined && opts.classes.length > 0 && !isOversized({ path: log })) {
-    appendFileSync(
-      log,
-      `${JSON.stringify({ date: now.toISOString().slice(0, 10), classes: opts.classes })}\n`,
-      { mode: 0o600 },
-    );
+    if (log !== undefined && opts.classes.length > 0 && !isOversized({ path: log })) {
+      appendFileSync(
+        log,
+        `${JSON.stringify({ date: now.toISOString().slice(0, 10), classes: opts.classes })}\n`,
+        { mode: 0o600 },
+      );
+    }
+
+    const last = noteFileOf({ root: opts.root, session: opts.session, create: true });
+
+    if (last !== undefined) {
+      const { blockedAt } = readNote({ root: opts.root, session: opts.session });
+
+      writeFileSync(
+        last,
+        `${JSON.stringify({ at: now.getTime(), classes: opts.classes, ...(typeof blockedAt === 'number' ? { blockedAt } : {}) })}\n`,
+        { mode: 0o600 },
+      );
+      pruneNotes({ root: opts.root, now: Date.now() });
+    }
   }
 
-  const last = noteFileOf({ root: opts.root, session: opts.session, create: true });
+  /** Notes that a reply of this session was just sent back, so a second one is never sent back right after it. */
+  static markBlocked(opts: { root: string; session?: string; now?: Date }): void {
+    const last = noteFileOf({ root: opts.root, session: opts.session, create: true });
 
-  if (last !== undefined) {
+    if (last !== undefined) {
+      writeFileSync(
+        last,
+        `${JSON.stringify({ ...readNote({ root: opts.root, session: opts.session }), blockedAt: (opts.now ?? new Date()).getTime() })}\n`,
+        { mode: 0o600 },
+      );
+    }
+  }
+
+  static wasBlockedRecently(opts: { root: string; session?: string; now?: number }): boolean {
     const { blockedAt } = readNote({ root: opts.root, session: opts.session });
 
-    writeFileSync(
-      last,
-      `${JSON.stringify({ at: now.getTime(), classes: opts.classes, ...(typeof blockedAt === 'number' ? { blockedAt } : {}) })}\n`,
-      { mode: 0o600 },
-    );
-    pruneNotes({ root: opts.root, now: Date.now() });
-  }
-};
-
-/** Notes that a reply of this session was just sent back, so a second one is never sent back right after it. */
-export const markBlocked = (opts: { root: string; session?: string; now?: Date }): void => {
-  const last = noteFileOf({ root: opts.root, session: opts.session, create: true });
-
-  if (last !== undefined) {
-    writeFileSync(
-      last,
-      `${JSON.stringify({ ...readNote({ root: opts.root, session: opts.session }), blockedAt: (opts.now ?? new Date()).getTime() })}\n`,
-      { mode: 0o600 },
+    return (
+      typeof blockedAt === 'number' &&
+      (opts.now ?? Date.now()) - blockedAt <= ViolationConstants.BLOCK_COOLDOWN_MS
     );
   }
-};
 
-export const wasBlockedRecently = (opts: {
-  root: string;
-  session?: string;
-  now?: number;
-}): boolean => {
-  const { blockedAt } = readNote({ root: opts.root, session: opts.session });
+  /** The size of the violation log in bytes, 0 when there is none or it is not ours to read. */
+  static violationBytes(opts: { root: string }): number {
+    const log = fileOf({ root: opts.root, name: ViolationConstants.LOG_FILE });
 
-  return (
-    typeof blockedAt === 'number' &&
-    (opts.now ?? Date.now()) - blockedAt <= ViolationConstants.BLOCK_COOLDOWN_MS
-  );
-};
-
-/** The size of the violation log in bytes, 0 when there is none or it is not ours to read. */
-export const violationLogBytes = (opts: { root: string }): number => {
-  const log = fileOf({ root: opts.root, name: ViolationConstants.LOG_FILE });
-
-  return log === undefined ? 0 : (lstatSync(log, { throwIfNoEntry: false })?.size ?? 0);
-};
-
-/** The classes the previous reply of this session broke, or none when there is no note or it is stale. */
-export const readLastClasses = (opts: {
-  root: string;
-  session?: string;
-  now?: number;
-}): string[] => {
-  const last = noteFileOf({ root: opts.root, session: opts.session, create: false });
-
-  if (last === undefined) {
-    return [];
+    return log === undefined ? 0 : (lstatSync(log, { throwIfNoEntry: false })?.size ?? 0);
   }
 
-  try {
-    const note: unknown = JSON.parse(readFileSync(last, 'utf8'));
+  /** The classes the previous reply of this session broke, or none when there is no note or it is stale. */
+  static readLastClasses(opts: { root: string; session?: string; now?: number }): string[] {
+    const last = noteFileOf({ root: opts.root, session: opts.session, create: false });
 
-    if (typeof note !== 'object' || note === null || !('at' in note) || !('classes' in note)) {
+    if (last === undefined) {
       return [];
     }
 
-    const { at, classes } = note;
-
-    if (
-      typeof at !== 'number' ||
-      (opts.now ?? Date.now()) - at > ViolationConstants.LAST_MAX_AGE_MS ||
-      !Array.isArray(classes)
-    ) {
-      return [];
-    }
-
-    return classes.filter(
-      (value): value is string => typeof value === 'string' && isKnownClass(value),
-    );
-  } catch {
-    return [];
-  }
-};
-
-/** Violations by class across the log, and the number of days it covers; empty when there is no log. */
-export const readViolationCounts = (opts: {
-  root: string;
-}): { byClass: Map<string, number>; replies: number; days: number } => {
-  const byClass = new Map<string, number>();
-  const days = new Set<string>();
-  let replies = 0;
-  const log = fileOf({ root: opts.root, name: ViolationConstants.LOG_FILE });
-
-  if (log === undefined) {
-    return { byClass, replies, days: 0 };
-  }
-
-  let text = '';
-
-  try {
-    text = readFileSync(log, 'utf8');
-  } catch {
-    return { byClass, replies, days: 0 };
-  }
-
-  for (const line of text.split('\n')) {
     try {
-      const entry: unknown = JSON.parse(line);
+      const note: unknown = JSON.parse(readFileSync(last, 'utf8'));
+
+      if (typeof note !== 'object' || note === null || !('at' in note) || !('classes' in note)) {
+        return [];
+      }
+
+      const { at, classes } = note;
 
       if (
-        typeof entry === 'object' &&
-        entry !== null &&
-        'classes' in entry &&
-        Array.isArray(entry.classes)
+        typeof at !== 'number' ||
+        (opts.now ?? Date.now()) - at > ViolationConstants.LAST_MAX_AGE_MS ||
+        !Array.isArray(classes)
       ) {
-        replies += 1;
-
-        if ('date' in entry && typeof entry.date === 'string') {
-          days.add(entry.date);
-        }
-
-        for (const value of entry.classes) {
-          if (typeof value === 'string' && isKnownClass(value)) {
-            byClass.set(value, (byClass.get(value) ?? 0) + 1);
-          }
-        }
+        return [];
       }
+
+      return classes.filter(
+        (value): value is string => typeof value === 'string' && isKnownClass(value),
+      );
     } catch {
-      // A damaged line is skipped: the log is advisory.
+      return [];
     }
   }
 
-  return { byClass, replies, days: days.size };
-};
+  /** Violations by class across the log, and the number of days it covers; empty when there is no log. */
+  static readCounts(opts: { root: string }): {
+    byClass: Map<string, number>;
+    replies: number;
+    days: number;
+  } {
+    const byClass = new Map<string, number>();
+    const days = new Set<string>();
+    let replies = 0;
+    const log = fileOf({ root: opts.root, name: ViolationConstants.LOG_FILE });
+
+    if (log === undefined) {
+      return { byClass, replies, days: 0 };
+    }
+
+    let text = '';
+
+    try {
+      text = readFileSync(log, 'utf8');
+    } catch {
+      return { byClass, replies, days: 0 };
+    }
+
+    for (const line of text.split('\n')) {
+      try {
+        const entry: unknown = JSON.parse(line);
+
+        if (
+          typeof entry === 'object' &&
+          entry !== null &&
+          'classes' in entry &&
+          Array.isArray(entry.classes)
+        ) {
+          replies += 1;
+
+          if ('date' in entry && typeof entry.date === 'string') {
+            days.add(entry.date);
+          }
+
+          for (const value of entry.classes) {
+            if (typeof value === 'string' && isKnownClass(value)) {
+              byClass.set(value, (byClass.get(value) ?? 0) + 1);
+            }
+          }
+        }
+      } catch {
+        // A damaged line is skipped: the log is advisory.
+      }
+    }
+
+    return { byClass, replies, days: days.size };
+  }
+}

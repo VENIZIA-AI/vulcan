@@ -67,29 +67,6 @@ const sizeOf = (opts: { path: string }): number => {
   );
 };
 
-/**
- * The real path of the project's `.agents/local/`, or `undefined` when there is none or it cannot be
- * trusted: `.agents` or `.agents/local` is a symlink, or the folder resolves outside the project. Every
- * scan and every removal starts here, so a link can never move them out of the project.
- */
-export const localRootOf = (opts: { root: string }): string | undefined => {
-  const agents = join(opts.root, '.agents');
-  const local = join(opts.root, ProjectLayout.LOCAL_DIRECTORY);
-
-  try {
-    if (lstatSync(agents).isSymbolicLink() || lstatSync(local).isSymbolicLink()) {
-      return undefined;
-    }
-
-    const real = realpathSync(local);
-    const realRoot = realpathSync(opts.root);
-
-    return real.startsWith(`${realRoot}${sep}`) && lstatSync(real).isDirectory() ? real : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
 const git = (opts: { cwd: string; args: string[] }): string | undefined => {
   const result = spawnSync('git', opts.args, {
     cwd: opts.cwd,
@@ -99,43 +76,6 @@ const git = (opts: { cwd: string; args: string[] }): string | undefined => {
 
   return result.status === 0 ? result.stdout : undefined;
 };
-
-/**
- * The output of `git worktree list --porcelain -z`: records end with an extra NUL and fields are NUL
- * separated, so a path with a line break or odd characters is read whole.
- */
-export const parseWorktreeList = (opts: { output: string }): Map<string, IRegistered> => {
-  const map = new Map<string, IRegistered>();
-
-  for (const record of opts.output.split('\0\0')) {
-    const fields = record.split('\0').filter((field) => field !== '');
-    const path = fields.find((field) => field.startsWith('worktree '))?.slice('worktree '.length);
-    const branch = fields
-      .find((field) => field.startsWith('branch refs/heads/'))
-      ?.slice('branch refs/heads/'.length);
-    const head = fields.find((field) => /^HEAD [0-9a-f]{7,64}$/.test(field))?.slice('HEAD '.length);
-
-    if (path !== undefined) {
-      map.set(existsSync(path) ? realpathSync(path) : path, { branch, head });
-    }
-  }
-
-  return map;
-};
-
-/** The registered worktrees of the repository at `root`; `undefined` when git cannot list them. */
-const registeredWorktrees = (opts: { root: string }): Map<string, IRegistered> | undefined => {
-  const listed = git({ cwd: opts.root, args: ['worktree', 'list', '--porcelain', '-z'] });
-
-  return listed === undefined ? undefined : parseWorktreeList({ output: listed });
-};
-
-interface IVerdict {
-  state: string;
-  removable: boolean;
-  registered: boolean;
-  note: string;
-}
 
 const classifyBranch = (opts: {
   root: string;
@@ -262,107 +202,173 @@ const isRealDirectory = (opts: { path: string }): boolean => {
   }
 };
 
-/** Every entry of `.agents/local/`, with size, age and what may be removed. Nothing is followed outside it. */
-export const scanLocal = (opts: { root: string; now?: number }): ILocalEntry[] => {
-  const local = localRootOf({ root: opts.root });
-  const now = opts.now ?? Date.now();
+export class LocalScan {
+  /** The registered worktrees of the repository at `root`; `undefined` when git cannot list them. */
+  private static registeredWorktrees(opts: { root: string }): Map<string, IRegistered> | undefined {
+    const listed = git({ cwd: opts.root, args: ['worktree', 'list', '--porcelain', '-z'] });
 
-  if (local === undefined) {
-    return [];
+    return listed === undefined ? undefined : LocalScan.parseWorktreeList({ output: listed });
   }
 
-  const registered = registeredWorktrees({ root: opts.root });
-  const entries: ILocalEntry[] = [];
+  /**
+   * The real path of the project's `.agents/local/`, or `undefined` when there is none or it cannot be
+   * trusted: `.agents` or `.agents/local` is a symlink, or the folder resolves outside the project. Every
+   * scan and every removal starts here, so a link can never move them out of the project.
+   */
+  static localRootOf(opts: { root: string }): string | undefined {
+    const agents = join(opts.root, '.agents');
+    const local = join(opts.root, ProjectLayout.LOCAL_DIRECTORY);
 
-  for (const layout of ProjectLayout.LOCAL_LAYOUT) {
-    const directory = join(local, layout.name);
+    try {
+      if (lstatSync(agents).isSymbolicLink() || lstatSync(local).isSymbolicLink()) {
+        return undefined;
+      }
 
-    if (!isRealDirectory({ path: directory })) {
-      continue;
+      const real = realpathSync(local);
+      const realRoot = realpathSync(opts.root);
+
+      return real.startsWith(`${realRoot}${sep}`) && lstatSync(real).isDirectory()
+        ? real
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * The output of `git worktree list --porcelain -z`: records end with an extra NUL and fields are NUL
+   * separated, so a path with a line break or odd characters is read whole.
+   */
+  static parseWorktreeList(opts: { output: string }): Map<string, IRegistered> {
+    const map = new Map<string, IRegistered>();
+
+    for (const record of opts.output.split('\0\0')) {
+      const fields = record.split('\0').filter((field) => field !== '');
+      const path = fields.find((field) => field.startsWith('worktree '))?.slice('worktree '.length);
+      const branch = fields
+        .find((field) => field.startsWith('branch refs/heads/'))
+        ?.slice('branch refs/heads/'.length);
+      const head = fields
+        .find((field) => /^HEAD [0-9a-f]{7,64}$/.test(field))
+        ?.slice('HEAD '.length);
+
+      if (path !== undefined) {
+        map.set(existsSync(path) ? realpathSync(path) : path, { branch, head });
+      }
     }
 
-    for (const name of readdirSync(directory)) {
-      if (name === '.gitkeep') {
+    return map;
+  }
+
+  /** Every entry of `.agents/local/`, with size, age and what may be removed. Nothing is followed outside it. */
+  static scan(opts: { root: string; now?: number }): ILocalEntry[] {
+    const local = LocalScan.localRootOf({ root: opts.root });
+    const now = opts.now ?? Date.now();
+
+    if (local === undefined) {
+      return [];
+    }
+
+    const registered = LocalScan.registeredWorktrees({ root: opts.root });
+    const entries: ILocalEntry[] = [];
+
+    for (const layout of ProjectLayout.LOCAL_LAYOUT) {
+      const directory = join(local, layout.name);
+
+      if (!isRealDirectory({ path: directory })) {
         continue;
       }
 
-      const path = join(directory, name);
-      const stat = lstatSync(path);
-      const ageMs = now - newestModifiedAt({ path });
-      const staleAfter =
-        'staleAfterDays' in layout ? layout.staleAfterDays * LocalConstants.DAY_MS : undefined;
-      let state: string = LocalStates.OK;
-      let removable = true;
-      let isRegistered = false;
-      let note = '';
+      for (const name of readdirSync(directory)) {
+        if (name === '.gitkeep') {
+          continue;
+        }
 
-      if (layout.name === CleanScopes.WORKTREES) {
-        const verdict = classifyWorktree({
-          root: opts.root,
-          real: stat.isSymbolicLink() ? resolve(path) : realpathSync(path),
-          registered,
+        const path = join(directory, name);
+        const stat = lstatSync(path);
+        const ageMs = now - newestModifiedAt({ path });
+        const staleAfter =
+          'staleAfterDays' in layout ? layout.staleAfterDays * LocalConstants.DAY_MS : undefined;
+        let state: string = LocalStates.OK;
+        let removable = true;
+        let isRegistered = false;
+        let note = '';
+
+        if (layout.name === CleanScopes.WORKTREES) {
+          const verdict = classifyWorktree({
+            root: opts.root,
+            real: stat.isSymbolicLink() ? resolve(path) : realpathSync(path),
+            registered,
+          });
+
+          ({ state, removable, registered: isRegistered, note } = verdict);
+        } else if (staleAfter !== undefined && ageMs > staleAfter) {
+          state = LocalStates.STALE;
+        }
+
+        entries.push({
+          scope: layout.name,
+          name,
+          path,
+          bytes: sizeOf({ path }),
+          ageMs,
+          state,
+          removable,
+          isSymlink: stat.isSymbolicLink(),
+          registered: isRegistered,
+          note,
         });
-
-        ({ state, removable, registered: isRegistered, note } = verdict);
-      } else if (staleAfter !== undefined && ageMs > staleAfter) {
-        state = LocalStates.STALE;
       }
+    }
+
+    const profile = join(local, 'profile.json');
+
+    if (existsSync(profile)) {
+      const stat = lstatSync(profile);
 
       entries.push({
-        scope: layout.name,
-        name,
-        path,
-        bytes: sizeOf({ path }),
-        ageMs,
-        state,
-        removable,
+        scope: CleanScopes.PROFILE,
+        name: 'profile.json',
+        path: profile,
+        bytes: stat.size,
+        ageMs: now - stat.mtimeMs,
+        state: LocalStates.OK,
+        removable: true,
         isSymlink: stat.isSymbolicLink(),
-        registered: isRegistered,
-        note,
+        registered: false,
+        note: '',
       });
     }
+
+    return entries;
   }
 
-  const profile = join(local, 'profile.json');
+  /**
+   * Whether `path` sits under the project's trusted `.agents/local/` once its parent is resolved; a final
+   * symlink is not followed. A symlinked `.agents` or `.agents/local` makes it false for everything.
+   */
+  static isInside(opts: { root: string; path: string }): boolean {
+    const local = LocalScan.localRootOf({ root: opts.root });
 
-  if (existsSync(profile)) {
-    const stat = lstatSync(profile);
+    if (local === undefined) {
+      return false;
+    }
 
-    entries.push({
-      scope: CleanScopes.PROFILE,
-      name: 'profile.json',
-      path: profile,
-      bytes: stat.size,
-      ageMs: now - stat.mtimeMs,
-      state: LocalStates.OK,
-      removable: true,
-      isSymlink: stat.isSymbolicLink(),
-      registered: false,
-      note: '',
-    });
+    const parent = resolve(opts.path, '..');
+
+    if (!existsSync(parent)) {
+      return false;
+    }
+
+    const target = join(realpathSync(parent), resolve(opts.path).split(sep).at(-1) ?? '');
+
+    return target.startsWith(`${local}${sep}`);
   }
+}
 
-  return entries;
-};
-
-/**
- * Whether `path` sits under the project's trusted `.agents/local/` once its parent is resolved; a final
- * symlink is not followed. A symlinked `.agents` or `.agents/local` makes it false for everything.
- */
-export const isInsideLocal = (opts: { root: string; path: string }): boolean => {
-  const local = localRootOf({ root: opts.root });
-
-  if (local === undefined) {
-    return false;
-  }
-
-  const parent = resolve(opts.path, '..');
-
-  if (!existsSync(parent)) {
-    return false;
-  }
-
-  const target = join(realpathSync(parent), resolve(opts.path).split(sep).at(-1) ?? '');
-
-  return target.startsWith(`${local}${sep}`);
-};
+interface IVerdict {
+  state: string;
+  removable: boolean;
+  registered: boolean;
+  note: string;
+}

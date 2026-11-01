@@ -403,92 +403,94 @@ const styleProblems = (opts: { lines: string[]; view: IOwnerView }): string[] =>
   return classes;
 };
 
-/**
- * Checks one reply to the owner against the resolved shape: a headline that is a sentence within the
- * cap, the minimap table with the configured header and only the configured statuses, the Blocked line,
- * the decisions list with the recommendation in each item or exactly the none string, and the order. Each
- * section is looked for after the one before it, so a headline that begins with a label is still a
- * headline. Pure and deterministic; what it cannot see (whether a point has a plain meaning, whether the
- * answer is right) is for an eval or the owner. A reply under `shortReplyWords` is exempt, and a person
- * who asked for headline-only reports is held to the headline and the style only. In the `free` label mode
- * (a language that is not English with no label set) no word is expected: the table, a labelled blocker
- * line and a decisions heading with a numbered list or one line are looked for, and the status words and
- * the recommendation are not checked.
- */
-export const checkOwnerShape = (opts: { text: string; view: IOwnerView }): IShapeResult => {
-  const { text, view } = opts;
+export class OwnerShape {
+  /**
+   * Checks one reply to the owner against the resolved shape: a headline that is a sentence within the
+   * cap, the minimap table with the configured header and only the configured statuses, the Blocked line,
+   * the decisions list with the recommendation in each item or exactly the none string, and the order. Each
+   * section is looked for after the one before it, so a headline that begins with a label is still a
+   * headline. Pure and deterministic; what it cannot see (whether a point has a plain meaning, whether the
+   * answer is right) is for an eval or the owner. A reply under `shortReplyWords` is exempt, and a person
+   * who asked for headline-only reports is held to the headline and the style only. In the `free` label mode
+   * (a language that is not English with no label set) no word is expected: the table, a labelled blocker
+   * line and a decisions heading with a numbered list or one line are looked for, and the status words and
+   * the recommendation are not checked.
+   */
+  static check(opts: { text: string; view: IOwnerView }): IShapeResult {
+    const { text, view } = opts;
 
-  if (text.trim() === '' || text.trim().split(/\s+/).length < view.shortReplyWords) {
-    return { isChecked: false, classes: [] };
-  }
-
-  const lines = proseLinesOf({ text });
-  const classes: string[] = [];
-  const isHeadlineOnly = view.reportDetail === OwnerDetails.HEADLINE;
-  let cursor = 0;
-  let isOutOfOrder = false;
-
-  for (const section of view.shape) {
-    if (section === OwnerSections.HEADLINE) {
-      const found = headlineOf({ lines, view });
-
-      classes.push(...found.problems);
-      cursor = found.end;
-
-      continue;
+    if (text.trim() === '' || text.trim().split(/\s+/).length < view.shortReplyWords) {
+      return { isChecked: false, classes: [] };
     }
 
-    if (isHeadlineOnly) {
-      continue;
-    }
+    const lines = proseLinesOf({ text });
+    const classes: string[] = [];
+    const isHeadlineOnly = view.reportDetail === OwnerDetails.HEADLINE;
+    let cursor = 0;
+    let isOutOfOrder = false;
 
-    const isFree = view.labelMode === OwnerLabelModes.FREE;
-    const run = (from: number): IFound => {
-      if (section === OwnerSections.MINIMAP) {
-        return isFree ? freeMinimapFrom({ lines, from }) : minimapFrom({ lines, view, from });
+    for (const section of view.shape) {
+      if (section === OwnerSections.HEADLINE) {
+        const found = headlineOf({ lines, view });
+
+        classes.push(...found.problems);
+        cursor = found.end;
+
+        continue;
       }
 
-      if (section === OwnerSections.BLOCKED) {
-        if (isFree) {
-          return freeBlockedFrom({ lines, from });
+      if (isHeadlineOnly) {
+        continue;
+      }
+
+      const isFree = view.labelMode === OwnerLabelModes.FREE;
+      const run = (from: number): IFound => {
+        if (section === OwnerSections.MINIMAP) {
+          return isFree ? freeMinimapFrom({ lines, from }) : minimapFrom({ lines, view, from });
         }
 
-        const at = findLabelFrom({ lines, label: view.labels.labels.blocked, from });
+        if (section === OwnerSections.BLOCKED) {
+          if (isFree) {
+            return freeBlockedFrom({ lines, from });
+          }
 
-        return { at, problems: at === -1 ? [ShapeClasses.BLOCKED_MISSING] : [] };
+          const at = findLabelFrom({ lines, label: view.labels.labels.blocked, from });
+
+          return { at, problems: at === -1 ? [ShapeClasses.BLOCKED_MISSING] : [] };
+        }
+
+        if (section === OwnerSections.DECISIONS) {
+          return isFree ? freeDecisionsFrom({ lines, from }) : decisionsFrom({ lines, view, from });
+        }
+
+        return { at: -1, problems: [] };
+      };
+      const after = run(cursor);
+
+      if (after.at !== -1 || section === OwnerSections.DETAIL) {
+        classes.push(...after.problems);
+        cursor = after.at === -1 ? cursor : after.at + 1;
+
+        continue;
       }
 
-      if (section === OwnerSections.DECISIONS) {
-        return isFree ? freeDecisionsFrom({ lines, from }) : decisionsFrom({ lines, view, from });
+      // Not after the section before it: present earlier means out of order, nowhere means missing.
+      const anywhere = run(0);
+
+      if (anywhere.at === -1) {
+        classes.push(...anywhere.problems);
+      } else {
+        isOutOfOrder = true;
+        classes.push(...anywhere.problems);
       }
-
-      return { at: -1, problems: [] };
-    };
-    const after = run(cursor);
-
-    if (after.at !== -1 || section === OwnerSections.DETAIL) {
-      classes.push(...after.problems);
-      cursor = after.at === -1 ? cursor : after.at + 1;
-
-      continue;
     }
 
-    // Not after the section before it: present earlier means out of order, nowhere means missing.
-    const anywhere = run(0);
-
-    if (anywhere.at === -1) {
-      classes.push(...anywhere.problems);
-    } else {
-      isOutOfOrder = true;
-      classes.push(...anywhere.problems);
+    if (isOutOfOrder) {
+      classes.push(ShapeClasses.SECTION_ORDER);
     }
+
+    classes.push(...styleProblems({ lines, view }));
+
+    return { isChecked: true, classes: [...new Set(classes)] };
   }
-
-  if (isOutOfOrder) {
-    classes.push(ShapeClasses.SECTION_ORDER);
-  }
-
-  classes.push(...styleProblems({ lines, view }));
-
-  return { isChecked: true, classes: [...new Set(classes)] };
-};
+}

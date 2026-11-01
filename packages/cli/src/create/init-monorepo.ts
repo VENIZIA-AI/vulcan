@@ -2,7 +2,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ExitCodes, ProjectLayout, VULCAN_VERSION } from '../common/index.ts';
 import { LayoutFolder } from '../common/layout-folder.ts';
-import { renderTemplate } from '../init/index.ts';
+import { ProjectScaffold } from '../init/index.ts';
 import { runAppChecks } from './checks.ts';
 import { AppSides, CreateFlags } from './common/index.ts';
 import type {
@@ -158,7 +158,7 @@ const writeMonorepo = (opts: {
   });
 
   for (const file of LAYER_FILES) {
-    const content = renderTemplate({ template: file.template, name: project });
+    const content = ProjectScaffold.renderTemplate({ template: file.template, name: project });
 
     writeFile({
       root,

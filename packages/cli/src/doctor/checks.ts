@@ -4,21 +4,11 @@ import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from '
 import { basename, dirname, join, relative, sep } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout, RecordValue } from '../common/index.ts';
 import { LayoutKeys, LayoutFolder } from '../common/layout-folder.ts';
-import {
-  coversFolder,
-  declaresWorkspaces,
-  MCP_SERVER_HINT,
-  readWorkspaceGlobs,
-} from '../init/index.ts';
+import { MCP_SERVER_HINT, ProjectScaffold } from '../init/index.ts';
 import { ProjectPackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules, RuleConstants, RuleParser, RuleSlots } from '../rules/index.ts';
-import {
-  isManifestCurrent,
-  ManifestConstants,
-  projectNameOf,
-  renderManifest,
-} from '../manifest/index.ts';
+import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
 import {
   AgentScopes,
   readAgentTable,
@@ -34,15 +24,13 @@ import {
   planSync,
   SyncStatuses,
 } from '../sync/index.ts';
-import { formatAge, formatBytes, LocalConstants, LocalStates, scanLocal } from '../local/index.ts';
+import { LocalConstants, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
 import {
-  isOwnerReplyOff,
+  ReplySwitch,
   OwnerConstants,
   OwnerReplySwitch,
-  profileIsIgnored,
-  readProfile,
-  readViolationCounts,
-  violationLogBytes,
+  OwnerProfile,
+  ViolationLog,
   ViolationConstants,
 } from '../owner/index.ts';
 import { SkillCatalog } from '@venizia/vulcan-atlas';
@@ -168,7 +156,7 @@ export const checkSkills = (opts: ICheckContext): IViolation[] => {
       createViolation({
         check: DoctorChecks.SKILLS,
         file: `.agents/skills/${name}`,
-        message: `'${name}' is a shipped skill - rename the project skill, for example to '${projectNameOf({ root: opts.root, config: opts.config })}-${name}'`,
+        message: `'${name}' is a shipped skill - rename the project skill, for example to '${ProjectManifest.projectNameOf({ root: opts.root, config: opts.config })}-${name}'`,
       }),
     );
 };
@@ -306,9 +294,9 @@ export const checkManifest = (opts: ICheckContext): IViolation[] => {
   if (
     action.status === SyncStatuses.UNCHANGED ||
     (action.status === SyncStatuses.REPLACED &&
-      isManifestCurrent({
+      ProjectManifest.isCurrent({
         committed: readFileSync(join(opts.root, ManifestConstants.FILE), 'utf8'),
-        rendered: renderManifest({ root: opts.root, config: opts.config }),
+        rendered: ProjectManifest.render({ root: opts.root, config: opts.config }),
       }))
   ) {
     return [];
@@ -444,7 +432,7 @@ export const checkScaffold = (opts: ICheckContext): IViolation[] => {
   const violations: IViolation[] = [];
 
   if (
-    declaresWorkspaces({ root: opts.root }) &&
+    ProjectScaffold.declaresWorkspaces({ root: opts.root }) &&
     ProjectPackages.resolve({ config: opts.config }).length === 0
   ) {
     violations.push(
@@ -480,13 +468,16 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
     return [];
   }
 
-  const globs = readWorkspaceGlobs({ root: opts.root });
+  const globs = ProjectScaffold.readWorkspaceGlobs({ root: opts.root });
   const folders = LayoutKeys.ALL.flatMap((key) =>
     LayoutFolder.layoutFoldersOf({ value: layout[key] }).map((folder) => ({ side: key, folder })),
   );
   // A folder under `other` is deliberately not managed: it need not be a workspace, only a package in it is allowed.
   const violations = folders
-    .filter(({ side, folder }) => side !== LayoutKeys.OTHER && !coversFolder({ globs, folder }))
+    .filter(
+      ({ side, folder }) =>
+        side !== LayoutKeys.OTHER && !ProjectScaffold.coversFolder({ globs, folder }),
+    )
     .map(({ side, folder }) =>
       createViolation({
         check: DoctorChecks.APPS,
@@ -507,7 +498,7 @@ export const checkApps = (opts: ICheckContext): IViolation[] => {
       const parent = dirname(entry.path);
 
       // A library lives where the project keeps libraries; it only has to be a workspace.
-      if (!coversFolder({ globs, folder: parent })) {
+      if (!ProjectScaffold.coversFolder({ globs, folder: parent })) {
         violations.push(
           createViolation({
             check: DoctorChecks.APPS,
@@ -1034,7 +1025,7 @@ export const checkOutsideWorktrees = (opts: ICheckContext): IViolation[] => {
 
 /** The personal profile: a file that cannot be read is named, and one git tracks is a personal file about to be shared. */
 export const checkProfile = (opts: ICheckContext): IViolation[] => {
-  const read = readProfile({ root: opts.root });
+  const read = OwnerProfile.read({ root: opts.root });
   const violations: IViolation[] = [];
 
   if (!read.ok) {
@@ -1049,7 +1040,7 @@ export const checkProfile = (opts: ICheckContext): IViolation[] => {
 
   if (
     existsSync(join(opts.root, OwnerConstants.PROFILE_FILE)) &&
-    !profileIsIgnored({ root: opts.root })
+    !OwnerProfile.profileIsIgnored({ root: opts.root })
   ) {
     violations.push(
       createViolation({
@@ -1080,7 +1071,7 @@ export const checkProfile = (opts: ICheckContext): IViolation[] => {
 
 /** What an agent left under `.agents/local/` that has outlived its use, one line each with the command that clears it. */
 export const checkStaleLocal = (opts: ICheckContext): IViolation[] =>
-  scanLocal({ root: opts.root })
+  LocalScan.scan({ root: opts.root })
     .filter((entry) =>
       [LocalStates.STALE, LocalStates.MERGED, LocalStates.GONE, LocalStates.ORPHAN].includes(
         entry.state,
@@ -1090,13 +1081,13 @@ export const checkStaleLocal = (opts: ICheckContext): IViolation[] =>
       createViolation({
         check: DoctorChecks.LOCAL,
         file: `${ProjectLayout.LOCAL_DIRECTORY}/${entry.scope}/${entry.name}`,
-        message: `${entry.state === LocalStates.STALE ? `left ${formatAge({ ageMs: entry.ageMs })} ago` : entry.note} (${formatBytes({ bytes: entry.bytes })}) - run: vulcan clean --${entry.scope} --yes`,
+        message: `${entry.state === LocalStates.STALE ? `left ${LocalFormat.formatAge({ ageMs: entry.ageMs })} ago` : entry.note} (${LocalFormat.formatBytes({ bytes: entry.bytes })}) - run: vulcan clean --${entry.scope} --yes`,
       }),
     );
 
 /** How often replies to the owner were flagged (the report shape, or a claim the turn did not back), from the log the Stop hook keeps; a note, never a failure. */
 export const checkReplyShape = (opts: ICheckContext): IViolation[] => {
-  const { byClass, replies, days } = readViolationCounts({ root: opts.root });
+  const { byClass, replies, days } = ViolationLog.readCounts({ root: opts.root });
 
   if (replies === 0) {
     return [];
@@ -1106,7 +1097,8 @@ export const checkReplyShape = (opts: ICheckContext): IViolation[] => {
     .sort((first, second) => second[1] - first[1])
     .map(([name, count]) => `${name} ${count}`);
 
-  const isFull = violationLogBytes({ root: opts.root }) > ViolationConstants.LOG_MAX_BYTES;
+  const isFull =
+    ViolationLog.violationBytes({ root: opts.root }) > ViolationConstants.LOG_MAX_BYTES;
 
   return [
     ...(isFull
@@ -1114,7 +1106,7 @@ export const checkReplyShape = (opts: ICheckContext): IViolation[] => {
           createViolation({
             check: DoctorChecks.LOCAL,
             file: `${ProjectLayout.LOCAL_DIRECTORY}/${ViolationConstants.LOG_FILE}`,
-            message: `the log is full (${formatBytes({ bytes: ViolationConstants.LOG_MAX_BYTES })}) and no longer grows; keep or delete it, and a new one starts`,
+            message: `the log is full (${LocalFormat.formatBytes({ bytes: ViolationConstants.LOG_MAX_BYTES })}) and no longer grows; keep or delete it, and a new one starts`,
           }),
         ]
       : []),
@@ -1130,7 +1122,7 @@ export const checkReplyShape = (opts: ICheckContext): IViolation[] => {
 export const checkOwnerReplySwitch = (opts: {
   env: Record<string, string | undefined>;
 }): IViolation[] =>
-  isOwnerReplyOff({ env: opts.env })
+  ReplySwitch.isOwnerOff({ env: opts.env })
     ? [
         createViolation({
           check: DoctorChecks.LOCAL,
@@ -1290,7 +1282,7 @@ export const checkGuardPatterns = (opts: ICheckContext): IViolation[] => {
 };
 
 export const checkLocalSize = (opts: ICheckContext): IViolation[] => {
-  const entries = scanLocal({ root: opts.root });
+  const entries = LocalScan.scan({ root: opts.root });
   const total = entries.reduce((sum, entry) => sum + entry.bytes, 0);
 
   if (total < LocalConstants.NOTE_BYTES) {
@@ -1305,13 +1297,13 @@ export const checkLocalSize = (opts: ICheckContext): IViolation[] => {
 
   const parts = [...byScope.entries()]
     .sort((first, second) => second[1] - first[1])
-    .map(([scope, bytes]) => `${scope} ${formatBytes({ bytes })}`);
+    .map(([scope, bytes]) => `${scope} ${LocalFormat.formatBytes({ bytes })}`);
 
   return [
     createViolation({
       check: DoctorChecks.LOCAL,
       file: ProjectLayout.LOCAL_DIRECTORY,
-      message: `holds ${formatBytes({ bytes: total })} (${parts.join(', ')}); vulcan clean lists what an agent left and --yes removes it`,
+      message: `holds ${LocalFormat.formatBytes({ bytes: total })} (${parts.join(', ')}); vulcan clean lists what an agent left and --yes removes it`,
     }),
   ];
 };

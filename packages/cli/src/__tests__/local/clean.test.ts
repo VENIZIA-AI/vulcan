@@ -11,14 +11,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { runDoctorNotes, runDoctorWarnings } from '../../doctor/index.ts';
-import {
-  isInsideLocal,
-  localRootOf,
-  parseWorktreeList,
-  planClean,
-  runClean,
-  scanLocal,
-} from '../../local/index.ts';
+import { LocalClean, LocalScan } from '../../local/index.ts';
 import { CLAUDE_LAUNCH_FILE, renderClaudeLaunch } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -112,7 +105,7 @@ describe('scanLocal', () => {
       new Date(Date.now() - 20 * DAY),
     );
 
-    const entries = scanLocal({ root });
+    const entries = LocalScan.scan({ root });
     const state = Object.fromEntries(
       entries.map((entry) => [`${entry.scope}/${entry.name}`, entry.state]),
     );
@@ -131,7 +124,7 @@ describe('scanLocal', () => {
     mkdirSync(join(root, '.agents/local/worktrees/orphan-one'));
 
     const state = Object.fromEntries(
-      scanLocal({ root })
+      LocalScan.scan({ root })
         .filter((entry) => entry.scope === 'worktrees')
         .map((entry) => [entry.name, [entry.state, entry.removable]]),
     );
@@ -154,7 +147,7 @@ describe('scanLocal', () => {
     writeFileSync(join(root, '.agents/local/worktrees/merged-untracked/new.txt'), 'new');
 
     const state = Object.fromEntries(
-      scanLocal({ root }).map((entry) => [entry.name, [entry.state, entry.removable]]),
+      LocalScan.scan({ root }).map((entry) => [entry.name, [entry.state, entry.removable]]),
     );
 
     expect(state).toEqual({
@@ -163,7 +156,7 @@ describe('scanLocal', () => {
       'merged-untracked': ['dirty', false],
     });
 
-    const result = runClean({ root, plan: planClean({ root, scopes: ['worktrees'] }) });
+    const result = LocalClean.run({ root, plan: LocalClean.plan({ root, scopes: ['worktrees'] }) });
 
     expect(names({ entries: result.removed })).toEqual(['worktrees/merged-clean']);
     expect(readFileSync(join(root, '.agents/local/worktrees/merged-dirty/a.txt'), 'utf8')).toBe(
@@ -181,7 +174,7 @@ describe('scanLocal', () => {
       new Date(Date.now() - 5 * DAY),
     );
 
-    const [entry] = scanLocal({ root }).filter((item) => item.name === 'long-task');
+    const [entry] = LocalScan.scan({ root }).filter((item) => item.name === 'long-task');
 
     expect(entry?.state).toBe('ok');
   });
@@ -193,7 +186,7 @@ describe('scanLocal', () => {
     mkdirSync(join(root, '.agents'), { recursive: true });
     symlinkSync(outside, join(root, '.agents/local'));
 
-    expect(scanLocal({ root })).toEqual([]);
+    expect(LocalScan.scan({ root })).toEqual([]);
   });
 });
 
@@ -204,9 +197,9 @@ describe('a link can never move clean out of the project', () => {
 
     symlinkSync(outside, join(root, '.agents'));
 
-    expect(localRootOf({ root })).toBeUndefined();
-    expect(scanLocal({ root })).toEqual([]);
-    expect(isInsideLocal({ root, path: join(root, '.agents/local/tmp/x') })).toBe(false);
+    expect(LocalScan.localRootOf({ root })).toBeUndefined();
+    expect(LocalScan.scan({ root })).toEqual([]);
+    expect(LocalScan.isInside({ root, path: join(root, '.agents/local/tmp/x') })).toBe(false);
 
     const entry = {
       scope: 'tmp',
@@ -220,7 +213,7 @@ describe('a link can never move clean out of the project', () => {
       registered: false,
       note: '',
     };
-    const result = runClean({ root, plan: { remove: [entry], keep: [] } });
+    const result = LocalClean.run({ root, plan: { remove: [entry], keep: [] } });
 
     expect(result.removed).toEqual([]);
     expect(readFileSync(join(outside, 'local/tmp/x/keep.txt'), 'utf8')).toBe('precious');
@@ -229,8 +222,8 @@ describe('a link can never move clean out of the project', () => {
   test('.agents/local resolves inside the project to be trusted, and only then', () => {
     const root = repository();
 
-    expect(localRootOf({ root })?.endsWith('/.agents/local')).toBe(true);
-    expect(localRootOf({ root: createProject({ files: {} }) })).toBeUndefined();
+    expect(LocalScan.localRootOf({ root })?.endsWith('/.agents/local')).toBe(true);
+    expect(LocalScan.localRootOf({ root: createProject({ files: {} }) })).toBeUndefined();
   });
 
   test('a scope folder that is a file, or a link, is skipped without throwing, in clean and in doctor', async () => {
@@ -242,10 +235,10 @@ describe('a link can never move clean out of the project', () => {
     rmSync(join(root, '.agents/local/clones'), { recursive: true });
     symlinkSync(outside, join(root, '.agents/local/clones'));
 
-    expect(() => scanLocal({ root })).not.toThrow();
-    expect(scanLocal({ root }).filter((entry) => ['tmp', 'clones'].includes(entry.scope))).toEqual(
-      [],
-    );
+    expect(() => LocalScan.scan({ root })).not.toThrow();
+    expect(
+      LocalScan.scan({ root }).filter((entry) => ['tmp', 'clones'].includes(entry.scope)),
+    ).toEqual([]);
     expect(() => runDoctorWarnings({ root })).not.toThrow();
     const result = await runDoctorNotes({ root });
     expect(result.filter((entry) => entry.file === '.agents/local')).toEqual([]);
@@ -272,7 +265,7 @@ describe('parseWorktreeList', () => {
           'detached',
         ].join('\0'),
       ].join('\0\0') + '\0\0';
-    const map = parseWorktreeList({ output });
+    const map = LocalScan.parseWorktreeList({ output });
 
     expect(map.get('/repo/.agents/local/worktrees/odd\nname')?.branch).toBe('odd');
     expect(map.get('/repo/.agents/local/worktrees/loose')).toEqual({
@@ -298,11 +291,11 @@ describe('planClean and runClean', () => {
       file({ root, path });
     }
 
-    const all = planClean({ root, scopes: ['tmp', 'worktrees', 'clones', 'cache'] });
+    const all = LocalClean.plan({ root, scopes: ['tmp', 'worktrees', 'clones', 'cache'] });
 
     expect(names({ entries: all.remove })).toEqual(['cache/k', 'clones/c', 'tmp/a']);
 
-    const named = planClean({ root, scopes: ['reports', 'prototypes', 'profile'] });
+    const named = LocalClean.plan({ root, scopes: ['reports', 'prototypes', 'profile'] });
 
     expect(names({ entries: named.remove })).toEqual([
       'profile/profile.json',
@@ -320,11 +313,11 @@ describe('planClean and runClean', () => {
     git({ cwd: root, args: ['update-ref', '-d', 'refs/heads/gone-one'] });
     mkdirSync(join(root, '.agents/local/worktrees/orphan-one'));
 
-    const plan = planClean({ root, scopes: ['worktrees'] });
+    const plan = LocalClean.plan({ root, scopes: ['worktrees'] });
 
     expect(names({ entries: plan.keep })).toEqual(['worktrees/unmerged-one']);
 
-    const result = runClean({ root, plan });
+    const result = LocalClean.run({ root, plan });
 
     expect(result.failed).toEqual([]);
     expect(names({ entries: result.removed })).toEqual([
@@ -348,8 +341,8 @@ describe('planClean and runClean', () => {
 
     symlinkSync(outside, join(root, '.agents/local/tmp/link'));
 
-    const plan = planClean({ root, scopes: ['tmp'] });
-    const result = runClean({ root, plan });
+    const plan = LocalClean.plan({ root, scopes: ['tmp'] });
+    const result = LocalClean.run({ root, plan });
 
     expect(result.removed).toHaveLength(1);
     expect(existsSync(join(root, '.agents/local/tmp/link'))).toBe(false);
@@ -360,9 +353,9 @@ describe('planClean and runClean', () => {
     const root = repository();
     const outside = createProject({ files: { 'keep.txt': 'precious' } });
 
-    expect(isInsideLocal({ root, path: join(outside, 'keep.txt') })).toBe(false);
-    expect(isInsideLocal({ root, path: join(root, 'package.json') })).toBe(false);
-    expect(isInsideLocal({ root, path: join(root, '.agents/local/tmp/a') })).toBe(true);
+    expect(LocalScan.isInside({ root, path: join(outside, 'keep.txt') })).toBe(false);
+    expect(LocalScan.isInside({ root, path: join(root, 'package.json') })).toBe(false);
+    expect(LocalScan.isInside({ root, path: join(root, '.agents/local/tmp/a') })).toBe(true);
 
     const entry = {
       scope: 'tmp',
@@ -376,7 +369,7 @@ describe('planClean and runClean', () => {
       registered: false,
       note: '',
     };
-    const result = runClean({ root, plan: { remove: [entry], keep: [] } });
+    const result = LocalClean.run({ root, plan: { remove: [entry], keep: [] } });
 
     expect(result.removed).toEqual([]);
     expect(result.failed[0]?.error).toContain('not inside .agents/local');

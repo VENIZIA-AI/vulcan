@@ -1,13 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
-import { isManifestCurrent, renderManifest } from '../../manifest/index.ts';
+import { ProjectManifest } from '../../manifest/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
 
 const root = createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
 const render = (config: object): string =>
-  renderManifest({ root, config: VULCAN_CONFIG_SCHEMA.parse(config) });
+  ProjectManifest.render({ root, config: VULCAN_CONFIG_SCHEMA.parse(config) });
 
 const GUARD = {
   writes: {
@@ -78,9 +78,9 @@ describe('the guard block of the manifest', () => {
   });
 
   test('a manifest rendered before a pattern was added is stale against the config', () => {
-    expect(isManifestCurrent({ committed: render({}), rendered: render({ guard: GUARD }) })).toBe(
-      false,
-    );
+    expect(
+      ProjectManifest.isCurrent({ committed: render({}), rendered: render({ guard: GUARD }) }),
+    ).toBe(false);
   });
 });
 
@@ -112,7 +112,7 @@ describe('the guard block and the read-only scripts', () => {
 
   test('a manifest rendered before an entry was added is stale against the config', () => {
     expect(
-      isManifestCurrent({
+      ProjectManifest.isCurrent({
         committed: render({}),
         rendered: render({ guard: { writes: { trustedScripts: [ENTRY] } } }),
       }),

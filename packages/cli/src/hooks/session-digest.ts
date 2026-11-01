@@ -2,14 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout } from '../common/index.ts';
 import { ConfigConstants, ConfigLoader } from '../config/index.ts';
-import {
-  isOwnerReplyOff,
-  OWNER_SCHEMA,
-  readProfile,
-  renderOwnerShapeCard,
-  renderProfileCard,
-  resolveOwnerView,
-} from '../owner/index.ts';
+import { OWNER_SCHEMA, OwnerCard, OwnerProfile, OwnerView, ReplySwitch } from '../owner/index.ts';
 import { RuleConstants, RuleParser, RuleSlots } from '../rules/index.ts';
 import { ClaudeLaunch } from '../sync/claude-launch.ts';
 import { projectTmpOf } from './project-tmp.ts';
@@ -115,16 +108,16 @@ export const buildSessionDigest = async (opts: {
     ...slotRows,
   ];
 
-  const profile = readProfile({ root: opts.projectRoot });
-  const view = resolveOwnerView({
+  const profile = OwnerProfile.read({ root: opts.projectRoot });
+  const view = OwnerView.resolve({
     owner: loaded.ok ? loaded.config.owner : OWNER_SCHEMA.parse(undefined),
     profile: profile.ok ? profile.profile : undefined,
   });
-  const profileCard = renderProfileCard({ view });
+  const profileCard = OwnerCard.renderProfile({ view });
 
   // A session whose reader is an agent: the owner's shape and the person's profile are not its business.
-  if (!isOwnerReplyOff({ env: opts.env ?? process.env })) {
-    lines.push('', ...renderOwnerShapeCard({ view }));
+  if (!ReplySwitch.isOwnerOff({ env: opts.env ?? process.env })) {
+    lines.push('', ...OwnerCard.renderShape({ view }));
 
     if (profileCard.length > 0) {
       lines.push('', ...profileCard);

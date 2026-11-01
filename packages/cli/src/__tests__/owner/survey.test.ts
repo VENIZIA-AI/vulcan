@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { PROFILE_SCHEMA, runSurvey, systemLanguageOf } from '../../owner/index.ts';
+import { OwnerSurvey, PROFILE_SCHEMA } from '../../owner/index.ts';
 import type { ISurveyIo } from '../../owner/index.ts';
 
 /** A form io fed from a queue of answers; `undefined` takes the default, `null` cancels. */
@@ -57,14 +57,14 @@ describe('systemLanguageOf', () => {
     [{}, 'en'],
     [{ LANG: 'de' }, 'de'],
   ])('%j gives %s', (env, expected) => {
-    expect(systemLanguageOf({ env })).toBe(expected);
+    expect(OwnerSurvey.systemLanguageOf({ env })).toBe(expected);
   });
 });
 
 describe('runSurvey', () => {
   test('every answer skipped gives the neutral profile in the machine language', async () => {
     const { io } = ioWith([]);
-    const profile = await runSurvey({ io, systemLanguage: 'en' });
+    const profile = await OwnerSurvey.run({ io, systemLanguage: 'en' });
 
     expect(profile).toEqual(
       PROFILE_SCHEMA.parse({
@@ -92,7 +92,7 @@ describe('runSurvey', () => {
       'Short answers, please.',
       'Early returns.',
     ]);
-    const profile = await runSurvey({ io, systemLanguage: 'en' });
+    const profile = await OwnerSurvey.run({ io, systemLanguage: 'en' });
 
     expect(profile?.address).toEqual({ you: 'Sam', self: 'I', formality: 'informal' });
     expect(profile?.tone).toBe('friendly');
@@ -134,7 +134,7 @@ describe('runSurvey', () => {
       'Rien a decider.',
       'Je recommande **{x}**.',
     ]);
-    const profile = await runSurvey({ io, systemLanguage: 'en' });
+    const profile = await OwnerSurvey.run({ io, systemLanguage: 'en' });
 
     expect(asked.some((message) => message.includes('no set ships'))).toBe(true);
     expect(profile?.language).toBe('fr');
@@ -144,7 +144,7 @@ describe('runSurvey', () => {
   });
 
   test('letting the agent write the words stores no label set; a set already stored is not asked for again', async () => {
-    const keep = await runSurvey({
+    const keep = await OwnerSurvey.run({
       io: ioWith(['fr', ...Array.from({ length: 9 }, () => undefined)]).io,
       systemLanguage: 'en',
     });
@@ -169,7 +169,7 @@ describe('runSurvey', () => {
       },
     });
     const { io, asked } = ioWith([]);
-    const again = await runSurvey({ io, existing, systemLanguage: 'en' });
+    const again = await OwnerSurvey.run({ io, existing, systemLanguage: 'en' });
 
     expect(again?.labels.fr?.labels.blocked).toBe('x');
     expect(asked.some((message) => message.includes('no set ships'))).toBe(false);
@@ -184,7 +184,7 @@ describe('runSurvey', () => {
       about: 'Be brief.',
       enforce: 'block',
     });
-    const again = await runSurvey({ io: ioWith([]).io, existing, systemLanguage: 'fr' });
+    const again = await OwnerSurvey.run({ io: ioWith([]).io, existing, systemLanguage: 'fr' });
 
     expect(again?.address.you).toBe('Alex');
     expect(again?.address.formality).toBe('formal');
@@ -199,7 +199,7 @@ describe('runSurvey', () => {
 
     answers[position] = null;
 
-    const result = await runSurvey({ io: ioWith(answers).io, systemLanguage: 'en' });
+    const result = await OwnerSurvey.run({ io: ioWith(answers).io, systemLanguage: 'en' });
     expect(result).toBeNull();
   });
 });

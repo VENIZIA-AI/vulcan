@@ -3,7 +3,7 @@ import { lstatSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs
 import { basename, join } from 'node:path';
 import { z } from 'zod';
 import { ProjectLayout } from '../common/index.ts';
-import { localRootOf } from '../local/index.ts';
+import { LocalScan } from '../local/index.ts';
 import { VisualizeLimits } from './constants.ts';
 import { PageGate } from './gate.ts';
 import { renderPage } from './page.ts';
@@ -156,7 +156,7 @@ export const writePage = (opts: {
   name: string;
   html: string;
 }): { ok: true; path: string } | { ok: false; error: string } => {
-  const local = localRootOf({ root: opts.root });
+  const local = LocalScan.localRootOf({ root: opts.root });
 
   if (local === undefined) {
     return {

@@ -66,55 +66,60 @@ const SECTION_TEXT = (opts: { section: string; view: IOwnerView }): string => {
   }
 };
 
-/** The shape every answer to the owner follows, from the resolved view; empty when enforcement is off. */
-export const renderOwnerShapeCard = (opts: { view: IOwnerView }): string[] => {
-  if (opts.view.enforce === OwnerEnforcement.OFF) {
-    return [];
+export class OwnerCard {
+  /** The shape every answer to the owner follows, from the resolved view; empty when enforcement is off. */
+  static renderShape(opts: { view: IOwnerView }): string[] {
+    if (opts.view.enforce === OwnerEnforcement.OFF) {
+      return [];
+    }
+
+    const { view } = opts;
+
+    return [
+      '## How to answer the owner',
+      '',
+      `Every reply, in this order: ${view.shape.map((section) => SECTION_TEXT({ section, view })).join('; ')}.`,
+      ...(view.absolutePaths
+        ? ['Name a file the owner should open by its full absolute path.']
+        : []),
+      ...(view.labelMode === OwnerLabelModes.FREE
+        ? [
+            `No label has a fixed word here: write the table header, the status words, the blocked label, the decisions heading and the recommendation in ${view.language}, in the form of address the profile gives.`,
+          ]
+        : []),
+      `Language: ${view.language}. Identifiers stay in backticks. Say what is unverified and what you got wrong, plainly.`,
+    ];
   }
 
-  const { view } = opts;
+  /** What the person told VULCAN about working with them; empty when there is no profile. */
+  static renderProfile(opts: { view: IOwnerView }): string[] {
+    const { view } = opts;
 
-  return [
-    '## How to answer the owner',
-    '',
-    `Every reply, in this order: ${view.shape.map((section) => SECTION_TEXT({ section, view })).join('; ')}.`,
-    ...(view.absolutePaths ? ['Name a file the owner should open by its full absolute path.'] : []),
-    ...(view.labelMode === OwnerLabelModes.FREE
-      ? [
-          `No label has a fixed word here: write the table header, the status words, the blocked label, the decisions heading and the recommendation in ${view.language}, in the form of address the profile gives.`,
-        ]
-      : []),
-    `Language: ${view.language}. Identifiers stay in backticks. Say what is unverified and what you got wrong, plainly.`,
-  ];
-};
+    if (view.address === undefined) {
+      return [];
+    }
 
-/** What the person told VULCAN about working with them; empty when there is no profile. */
-export const renderProfileCard = (opts: { view: IOwnerView }): string[] => {
-  const { view } = opts;
+    const about =
+      view.about === undefined ? '' : ` In their words: "${plain({ text: view.about })}"`;
 
-  if (view.address === undefined) {
-    return [];
+    return [
+      '## Working with this person',
+      '',
+      [
+        `Reply in ${view.language}.`,
+        view.address.you === undefined ? '' : `Address them as "${view.address.you}".`,
+        view.address.self === undefined ? '' : `Refer to yourself as "${view.address.self}".`,
+        `Formality: ${view.address.formality}. Tone: ${view.tone}. Reports: ${view.reportDetail === 'headline' ? 'headline only' : 'headline plus tables'}.`,
+        view.habits?.askBeforeReversible === true
+          ? 'Ask before a reversible choice.'
+          : 'For a reversible choice state a default and continue.',
+        view.habits?.proposeCommits === true ? 'Propose commits.' : '',
+        view.codeTaste === undefined
+          ? ''
+          : `Their code taste, in their words: "${plain({ text: view.codeTaste })}".`,
+      ]
+        .filter((part) => part !== '')
+        .join(' ') + about,
+    ];
   }
-
-  const about = view.about === undefined ? '' : ` In their words: "${plain({ text: view.about })}"`;
-
-  return [
-    '## Working with this person',
-    '',
-    [
-      `Reply in ${view.language}.`,
-      view.address.you === undefined ? '' : `Address them as "${view.address.you}".`,
-      view.address.self === undefined ? '' : `Refer to yourself as "${view.address.self}".`,
-      `Formality: ${view.address.formality}. Tone: ${view.tone}. Reports: ${view.reportDetail === 'headline' ? 'headline only' : 'headline plus tables'}.`,
-      view.habits?.askBeforeReversible === true
-        ? 'Ask before a reversible choice.'
-        : 'For a reversible choice state a default and continue.',
-      view.habits?.proposeCommits === true ? 'Propose commits.' : '',
-      view.codeTaste === undefined
-        ? ''
-        : `Their code taste, in their words: "${plain({ text: view.codeTaste })}".`,
-    ]
-      .filter((part) => part !== '')
-      .join(' ') + about,
-  ];
-};
+}
