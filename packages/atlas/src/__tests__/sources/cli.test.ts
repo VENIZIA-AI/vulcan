@@ -87,7 +87,7 @@ describe('vulcan-atlas over git sources', () => {
     expect(result.stdout.toString()).toBe('');
   });
 
-  test('mcp --source serves it from an empty directory: initialize names it, every hit names it', () => {
+  test('mcp --source serves it from an empty directory: initialize names it as indexing, then every hit and the next initialize name it', () => {
     const source = makeSourceRepository();
     const requests = [
       { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } },
@@ -97,6 +97,7 @@ describe('vulcan-atlas over git sources', () => {
         method: 'tools/call',
         params: { name: 'search', arguments: { query: 'kernel boots' } },
       },
+      { jsonrpc: '2.0', id: 3, method: 'initialize', params: { protocolVersion: '2025-06-18' } },
     ];
     const result = run({
       args: ['mcp', '--source', `${source.url}@develop`],
@@ -111,7 +112,9 @@ describe('vulcan-atlas over git sources', () => {
     const sha = git({ cwd: source.work, args: ['rev-parse', 'HEAD'] }).slice(0, 8);
 
     expect(result.stderr).not.toContain('Error');
-    expect(replies[0].result.instructions).toContain(`- source: ${source.url}@develop at ${sha}`);
+    // The first answer comes before the source is indexed; a call waits for it; later ones describe it.
+    expect(replies[0].result.instructions).toContain(`- source: INDEXING (${source.url}@develop)`);
+    expect(replies[2].result.instructions).toContain(`- source: ${source.url}@develop at ${sha}`);
     expect(JSON.parse(replies[1].result.content[0].text).hits[0].source).toBe('source');
   });
 

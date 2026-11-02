@@ -3,7 +3,8 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { relative } from 'node:path';
 import { AtlasConstants, AtlasModes } from '@/common';
 import { RepositoryRoots } from '@/corpus';
-import { Transport } from '@/protocol';
+import { RpcError, Transport } from '@/protocol';
+import type { IToolHandler } from '@/protocol/common';
 import { ReleaseCompute, ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
 import { InstalledPackages } from '@/sources/installed';
@@ -16,6 +17,8 @@ import { ChangesTool, GetTool, PresetsTool, SearchTool, SymbolTool, VersionTool 
 import { SkillCatalog } from '@/skills';
 import { FreshnessGuard } from './freshness';
 import { ServerGuidance } from './guidance';
+import { SourceBoot } from './boot';
+import { SourceNotice } from './notice';
 import { Refresher } from './refresh';
 import type { IRefreshTarget } from './refresh';
 
@@ -250,7 +253,14 @@ export class SourcesServer {
     version: string;
     /** Keeps a long-running server current; absent, the sources stay as the start resolved them. */
     refresh?: IRefreshOptions;
+    /**
+     * Remote sources still to be fetched and indexed. The server answers at once; each source joins
+     * as it is ready, and a call waits a bounded time for the ones missing and says which it left out.
+     */
+    boot?: SourceBoot;
   }): Transport {
+    const { boot } = opts;
+    const served = [...opts.sources];
     const stores = opts.sources.map((source) =>
       liveEntry({ initial: storesOf({ source, cwd: opts.cwd }) }),
     );
@@ -261,14 +271,18 @@ export class SourcesServer {
     // Read when a client connects: a skill added, renamed or deleted since the start shows at once.
     const instructions = (): string =>
       ServerGuidance.instructionsOf({
-        sources: opts.sources,
-        unavailable: opts.unavailable ?? [],
+        sources: served,
+        unavailable: [...(opts.unavailable ?? []), ...(boot?.unavailable() ?? [])],
+        indexing: boot?.indexing() ?? [],
         skills: SkillCatalog.catalogOf({ root: opts.cwd }).map((entry) => ({
           name: entry.name,
           trigger: SkillCatalog.triggerOf({ description: entry.description }).text,
         })),
       });
-    const projects = ServerGuidance.projectsOf({ sources: opts.sources });
+    const projects = ServerGuidance.projectsOf({
+      sources: opts.sources,
+      indexing: boot?.declared ?? [],
+    });
     const resolve =
       opts.refresh?.resolve ??
       ((source: IAtlasSource) =>
@@ -278,12 +292,12 @@ export class SourcesServer {
           cacheDir: opts.cacheDir,
           prebuilt: opts.prebuilt,
         }));
+    const makeTarget = (opts2: { entry: TLiveEntry; source: IResolvedSource }) =>
+      opts2.source.mode === 'repository'
+        ? repositoryTarget(opts2)
+        : remoteTarget({ entry: opts2.entry, served: opts2.source, cwd: opts.cwd, resolve });
     const targets = opts.sources.flatMap((source, index): IRefreshTarget[] => {
-      const entry = stores[index];
-      const target =
-        source.mode === 'repository'
-          ? repositoryTarget({ entry, source })
-          : remoteTarget({ entry, served: source, cwd: opts.cwd, resolve });
+      const target = makeTarget({ entry: stores[index], source });
 
       return target === undefined ? [] : [target];
     });
@@ -296,13 +310,62 @@ export class SourcesServer {
             now: opts.refresh.now,
           });
 
-    return new Transport({
+    const order = (name: string): number =>
+      boot?.declared.findIndex((source) => source.name === name) ?? -1;
+
+    boot?.listen({
+      onReady: ({ resolved }) => {
+        const entry = liveEntry({ initial: storesOf({ source: resolved, cwd: opts.cwd }) });
+        const target = makeTarget({ entry, source: resolved });
+
+        // The config's order, whichever source finishes first: the composites read these arrays on every call.
+        stores.push(entry);
+        stores.sort((left, right) => order(left.name) - order(right.name));
+        served.push(resolved);
+        served.sort((left, right) => order(left.name) - order(right.name));
+
+        if (target !== undefined) {
+          targets.push(target);
+        }
+      },
+    });
+
+    // A call waits a bounded time for sources still indexing, then answers from the ready ones and says which it left out.
+    const guarded = (handler: IToolHandler): IToolHandler =>
+      boot === undefined
+        ? handler
+        : {
+            definition: handler.definition,
+            call: async (input) => {
+              await boot.waitFor({ ms: SourceBoot.callWaitMs() });
+
+              const left = SourceNotice.of({
+                boot,
+                answeredFrom: served.map((entry) => entry.name),
+              });
+
+              try {
+                const result = await handler.call(input);
+
+                return SourceNotice.attach({ result, notice: left });
+              } catch (error) {
+                throw left !== undefined && error instanceof RpcError
+                  ? new RpcError({
+                      code: error.code,
+                      message: `${error.message} (${left.message})`,
+                    })
+                  : error;
+              }
+            },
+          };
+
+    const transport = new Transport({
       tools: [
-        SearchTool.build({ store: chunks, symbols, projects }),
-        GetTool.build({ store: chunks }),
-        SymbolTool.build({ store: chunks, symbols, projects }),
-        VersionTool.build({ releases, projects }),
-        ChangesTool.build({ releases, projects }),
+        guarded(SearchTool.build({ store: chunks, symbols, projects })),
+        guarded(GetTool.build({ store: chunks })),
+        guarded(SymbolTool.build({ store: chunks, symbols, projects })),
+        guarded(VersionTool.build({ releases, projects })),
+        guarded(ChangesTool.build({ releases, projects })),
         PresetsTool.build({ project: project?.project, projects }),
       ],
       // A project names its server whatever sources ride with it: a name that moved with the network
@@ -312,5 +375,9 @@ export class SourcesServer {
       instructions,
       onCall: () => refresher?.poke(),
     });
+
+    boot?.start();
+
+    return transport;
   }
 }
