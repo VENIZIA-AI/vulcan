@@ -30,7 +30,7 @@ release: '@venizia/vulcan@0.4.7'
 
 - **Every project that syncs VULCAN.** Update `@venizia/vulcan` (and `@venizia/vulcan-atlas` and `@venizia/vulcan-okf` if you pin them), run `vulcan sync` and restart your agent sessions, which keep the hooks and skill text they loaded at the start. Nothing has to be configured.
 - **A project that wants the guard on GitHub writes.** Add a `guard.writes.commands` entry, run `vulcan sync` and commit the manifest.
-- **A repository that publishes its own atlas index from a job that pushes a tag with the Actions token.** Optional: add the `ref` input to the action step after the push, or start the atlas-index workflow by hand with a `ref` input. Nothing is required of a project that does not publish its own index.
+- **A repository that publishes its own atlas index from a job that pushes a tag with the Actions token.** Optional: add the `ref` input to the action step after the push, or start your workflow that runs the action by hand with a `ref` input (in this repository that is the `atlas-index` job of `deploy-docs.yml`). Nothing is required of a project that does not publish its own index.
 
 ## Guard-outside refuses the agent tool's scratchpad folder
 

@@ -1,40 +1,25 @@
 ---
-title: A pull request needs a base, release scripts can have read-only subcommands, renamed tags stay readable, and presets can make shared packages
-description: guard-git asks before a pull request without a base, guard-writes lets listed read-only subcommands run, vulcan add works for a second app of a prerelease preset, atlas.legacyTagPatterns keeps renamed tags readable, and a preset can make a shared package.
+title: Release scripts can have read-only subcommands, vulcan add works for a prerelease preset, and presets can make shared packages
+description: guard-writes lets listed read-only subcommands run, vulcan add works for a second app of a prerelease preset, and a preset can make a shared package.
 packages: ['@venizia/vulcan', '@venizia/vulcan-atlas', '@venizia/vulcan-okf']
-release: '@venizia/vulcan@0.4.8-0'
+release: '@venizia/vulcan@0.4.9-0'
 ---
 
 # Changelog - 2026-10-29
 
-## A pull request needs a base, release scripts can have read-only subcommands, renamed tags stay readable, and presets can make shared packages
+## Release scripts can have read-only subcommands, vulcan add works for a prerelease preset, and presets can make shared packages
 
-<Badge type="tip" text="Enhancement" /> <Badge type="warning" text="Behavior Change" /> <Badge type="info" text="Bug Fix" />
+<Badge type="tip" text="Enhancement" /> <Badge type="info" text="Bug Fix" />
 
-**In one line.** guard-git and guard-writes ask less often and more precisely, vulcan add works for a prerelease preset, a project that renames its tags keeps its earlier releases, and a preset can make a side-neutral shared package.
+**In one line.** A release script can have subcommands that run without an ask, a second `vulcan add` works for a preset built on prerelease versions, and a preset can make a side-neutral shared package.
 
-## Guard-git asks before a pull request without a base
-
-<Badge type="tip" text="Enhancement" /> <Badge type="warning" text="Behavior Change" />
-
-**In one line.** An agent that opens a pull request without naming its base branch is now asked first, so the agent states the base branch instead of taking the default.
-
-### What changed
-
-- **A guard.** `guard-git` asks before `gh pr create` that names no `--base`. `--base <branch>`, `--base=<branch>`, `-B <branch>` and `--help` pass.
-- **The rules say to pass it.** The `ship` skill now tells an agent to open a pull request with `gh pr create --base <branch>`, the branch coming from the project's rules.
-
-### Who is affected
-
-- **Anyone who opens pull requests with an agent.** The agent asks first when it leaves the base out. Pass `--base` to avoid the question.
+These changes were merged on 2026-10-29 and first shipped in 0.4.9-0. VULCAN 0.4.8 does not have them.
 
 ## Guard-writes lets a release script's read-only subcommands run
 
 <Badge type="tip" text="Enhancement" />
 
 **In one line.** An entry of `guard.writes.trustedScripts` can be `{ script, readOnly: ['plan', 'registry'] }`, so those subcommands run without an ask while `run` still asks.
-
-This part first shipped in 0.4.9-0.
 
 ### What changed
 
@@ -54,8 +39,6 @@ This part first shipped in 0.4.9-0.
 
 **In one line.** `vulcan add` no longer fails the `peers` check when the catalog pins exactly the version the preset lists for that package.
 
-This part first shipped in 0.4.9-0.
-
 ### What changed
 
 - **The bug.** `init` writes the catalog from the preset's own versions. A caret range never matches a prerelease, so `0.4.6-0` failed `^0.4.0` at the second `add`.
@@ -66,31 +49,11 @@ This part first shipped in 0.4.9-0.
 - **Authors of a preset built on prerelease versions.** A second `add --preset` into the same monorepo now works; the `range || exact` form still works and is no longer needed.
 - **Everyone else.** No change.
 
-## Tag names and atlas.legacyTagPatterns for renamed tags
-
-<Badge type="tip" text="Enhancement" />
-
-**In one line.** From the next release VULCAN's tag is `vulcan-v<version>`, and a project that renames its tags can list the old template in `atlas.legacyTagPatterns` so its earlier releases stay releases.
-
-### What changed
-
-- **A new key.** `atlas.legacyTagPatterns` lists templates of an earlier tag layout. atlas reads a tag through `tagPattern` first and then through each legacy template; `vulcan sync` writes the list to the manifest as `release.legacyTagPatterns`, only when it lists something.
-- **A tag is read once.** A tag the current template reads is never read by a legacy one, and a legacy template reads only a tag whose version starts with a digit.
-- **The pin follows the tag.** A release read through a legacy template keeps the name of its tag, so a source pinned to an older release names a tag that exists.
-- **Changelog entries.** A `release:` override in a changelog entry resolves under the current or a legacy template.
-
-### Who is affected
-
-- **Every project that syncs VULCAN.** No action needed; the key is optional. A project that renames its own tags can use it.
-- **Older atlas.** An atlas that does not know the key reads the new tags only and ignores the old ones.
-
 ## A preset can make a shared package, and preset diff reads libraries
 
 <Badge type="tip" text="Enhancement" />
 
 **In one line.** `vulcan add --preset <name> --shared <name>` makes a side-neutral package from a preset that has a `shared` kind, and `vulcan preset diff <package>` now works on a library or a shared package.
-
-This part first shipped in 0.4.9-0.
 
 ### What changed
 
