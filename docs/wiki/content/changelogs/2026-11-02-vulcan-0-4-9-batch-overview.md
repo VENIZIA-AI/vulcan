@@ -23,11 +23,12 @@ release: '@venizia/vulcan@0.4.9-0'
 - atlas (the MCP server `vulcan x atlas mcp`) answers `initialize` at once on a cold start and indexes sources in the background; tool calls wait up to 20 seconds for a source still being indexed and then answer with a `notServed` field.
 - The `make agent-setup` target is removed (use `make vulcan-sync`). Six functions in okf and atlas became class methods.
 - The skills that `vulcan sync` copies into your project changed: docs-update, build-a-feature, docs-writing, ship, plan-a-change, visualize-work. After a sync your agents write changelog entries only for changes that affect the users of a published package, with a plain title (no product name, no version number), and shorter.
+- The base coding rule `V-C-08` is worded differently. It said every const class of enumerable strings carries `SCHEME_SET` and `isValid`; it now says a class carries them when something validates against it, and a class nothing validates against needs neither. `vulcan sync` copies the rule into your project, so your agents will stop adding unused `isValid` methods to every const class. Nothing in your code has to change.
 - `bun check` now counts as a gate run in the session signals.
 
 ## Who is affected
 
-- Every project that syncs VULCAN: the synced skills change, and a project that keeps its own changelog sees its agents write entries differently (see the skills bullet above).
+- Every project that syncs VULCAN: the synced skills and the `V-C-08` rule change, and a project that keeps its own changelog sees its agents write entries differently (see the skills bullet above).
 - Projects that call `make agent-setup`, or import the six renamed functions.
 - Projects that use the new config keys: older VULCAN (0.4.8) refuses a config that has `theme`, an object entry in `trustedScripts`, or `presetKind` (the config schema is strict).
 - Projects that use atlas as an MCP server.
