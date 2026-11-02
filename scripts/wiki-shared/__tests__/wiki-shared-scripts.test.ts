@@ -163,7 +163,7 @@ describe('BuildCheck', () => {
   const home = `${bar}<section class="vh hero"><canvas class="dust"></canvas><a class="btn btn--primary" href="/a"></a><a class="btn btn--ghost" href="/b"></a></section><footer class="vh site-footer"><canvas class="dust"></canvas><a class="btn" href="/c"></a></footer>`;
   // as the build minifies it: the mask is in the ::after of the button, the arrow is also used elsewhere
   const css =
-    '--arrow-ne:url("data:image/svg+xml,x");.vh .btn{position:relative;height:40px}.vh .btn:after{-webkit-mask:var(--arrow-ne) center/100% 100% no-repeat;mask:var(--arrow-ne)}.venizia-link .arrow{mask:var(--arrow-ne)}';
+    '--arrow-ne:url("data:image/svg+xml,x");.vh .btn{position:relative;height:40px}.vh .btn:after{-webkit-mask:var(--arrow-ne) center/100% 100% no-repeat;mask:var(--arrow-ne)}.venizia-link .arrow{mask:var(--arrow-ne)}html body{min-width:0}@media (max-width: 399px){.site-brand .brand-rule,.site-brand .brand-name{display:none}}';
 
   // one line per pattern, so each pattern must be the one that catches its line
   test.each([
@@ -264,7 +264,12 @@ describe('BuildCheck', () => {
         css: `${css}.x{background:radial-gradient(circle at 0.5px 0.5px,#fff 1px,transparent 0)}`,
       }),
     ).toHaveLength(1);
-    expect(BuildCheck.scanStyles({ css: '' })).toHaveLength(3);
+    // the body keeps the default theme's 320 px minimum, or the brand name stays at narrow widths
+    expect(BuildCheck.scanStyles({ css: css.replace('html body{min-width:0}', '') })).toHaveLength(
+      1,
+    );
+    expect(BuildCheck.scanStyles({ css: css.replace('399px', '599px') })).toHaveLength(1);
+    expect(BuildCheck.scanStyles({ css: '' })).toHaveLength(5);
   });
 
   test('a built site is checked as a whole', () => {
@@ -282,14 +287,14 @@ describe('BuildCheck', () => {
     expect(BuildCheck.check({ dist, log: 'ReferenceError: x' })).toHaveLength(6);
     expect(BuildCheck.check({ dist: join(dist, 'missing'), log: '' })).toHaveLength(1);
 
-    // no style sheet at all is three problems, not a pass
+    // no style sheet at all is five problems, not a pass
     rmSync(join(dist, 'assets'), { recursive: true });
     writeFileSync(join(dist, 'index.html'), home);
-    expect(BuildCheck.check({ dist, log: '' })).toHaveLength(3);
+    expect(BuildCheck.check({ dist, log: '' })).toHaveLength(5);
 
     // a site with no inner page to look at is not sound either: it must not be skipped silently
     rmSync(join(dist, 'references'), { recursive: true });
-    expect(BuildCheck.check({ dist, log: '' })).toHaveLength(4);
+    expect(BuildCheck.check({ dist, log: '' })).toHaveLength(6);
   });
 
   test('--check --log scans the log of an earlier build; a missing log file is a failure', () => {
