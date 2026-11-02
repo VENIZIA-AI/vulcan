@@ -10,7 +10,6 @@ export class DoctorChecks {
   static readonly STYLE = 'style';
   static readonly MANIFEST = 'manifest';
   static readonly TAGS = 'tags';
-  static readonly PRUNE = 'prune';
   static readonly SCAFFOLD = 'scaffold';
   static readonly APPS = 'apps';
   static readonly SCRIPTS = 'scripts';
@@ -49,9 +48,6 @@ export class DoctorConstants {
   /** The oxfmt config names `bun fmt` finds by itself, in a package folder or above it; they override `[fmt]`. */
   static readonly OXFMT_AUTOLOADED_FILES = ['.oxfmtrc.json', '.oxfmtrc.jsonc', 'oxfmt.config.ts'];
   static readonly LINT_CONFIG_FILE = /^(oxlint|eslint)\.config\.(mts|ts|mjs|js|cjs)$/;
-  /** Where each tool's config lives under `.configs/`; a file left directly in `.configs/` is told where it belongs. */
-  static readonly LINT_CONFIG_FOLDERS: Record<string, string> = {
-    oxlint: 'lints',
-    eslint: 'lints',
-  };
+  /** Where the lint configs live under `.configs/`. */
+  static readonly LINT_CONFIG_FOLDER = 'lints';
 }

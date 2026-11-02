@@ -192,7 +192,6 @@ describe('SourceResolver.resolve', () => {
     expect(readFileSync(join(artifacts, 'format'), 'utf8')).toBe(
       `${AtlasConstants.INDEX_FORMAT}\n`,
     );
-    expect(resolved.oldFormat).toBeUndefined();
   });
 
   test.each([
@@ -216,37 +215,37 @@ describe('SourceResolver.resolve', () => {
     expect(second.mode).toBe('fresh');
     expect(second.sha).toBe(first.sha);
     expect(readFileSync(formatFile, 'utf8')).toBe(`${AtlasConstants.INDEX_FORMAT}\n`);
-    expect(second.oldFormat).toBeUndefined();
   });
 
-  test('offline, the newest cache is served whatever its format, and says so (C3)', async () => {
+  test.each([
+    ['of another format', '0\n'],
+    ['without a format file', undefined],
+  ])('offline, a cached set %s is not served (C3)', async (_label, stamp) => {
     const source = makeSourceRepository();
     const cwd = consumer();
     const sources = [{ name: 'src', repo: source.url, ref: 'develop' }];
     const [first] = await SourceResolver.resolve({ cwd, cacheDir, sources });
     const formatFile = join(dirname(first.indexFile ?? ''), 'format');
 
-    writeFileSync(formatFile, '0\n');
+    if (stamp === undefined) {
+      rmSync(formatFile);
+    } else {
+      writeFileSync(formatFile, stamp);
+    }
+
     renameSync(source.bare, `${source.bare}.away`);
 
-    const [offline] = await SourceResolver.resolve({ cwd, cacheDir, sources });
+    const failure = await SourceResolver.resolve({ cwd, cacheDir, sources }).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    const servable = await SourceResolver.resolveServable({ cwd, cacheDir, sources });
 
     renameSync(`${source.bare}.away`, source.bare);
-    expect(offline.mode).toBe('offline-cache');
-    expect(offline.sha).toBe(first.sha);
-    expect(offline.oldFormat).toBe(true);
-    expect(readFileSync(formatFile, 'utf8')).toBe('0\n');
-
-    const result2 = await SourcesServer.build({
-      sources: [offline],
-      cwd,
-      version: '0.0.0',
-    }).handleLine({
-      line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
-    });
-    const initialized = JSON.parse(result2 ?? 'null');
-
-    expect(initialized.result.instructions).toContain('built by another atlas format');
+    expect(String(failure)).toContain('is unreachable and has no cache');
+    expect(servable.resolved).toEqual([]);
+    expect(servable.unavailable.map((entry) => entry.source.name)).toEqual(['src']);
+    expect(servable.unavailable[0]?.reason).toContain('is unreachable and has no cache');
   });
 
   test('offline, each ref falls back to the newest SHA pulled for that ref', async () => {

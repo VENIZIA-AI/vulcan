@@ -10,7 +10,7 @@ afterAll(removeProjects);
 
 const CLI = join(import.meta.dir, '..', '..', 'cli.ts');
 const PROJECT = {
-  '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'AGENTS.md': '# x\n',
 };
 const LOCAL = '.agents/vulcan.local.json';
@@ -107,12 +107,12 @@ describe('vulcan agents add', () => {
     expect(stored({ root })).toEqual(['omp']);
   });
 
-  test('on a machine that chose nothing yet, add starts from what sync would use', () => {
+  test('on a machine that chose nothing yet, add starts from nothing, whatever files the project has', () => {
     const root = createProject({ files: { ...PROJECT, 'CLAUDE.md': '@AGENTS.md\n' } });
 
     agents({ root, args: ['add', 'omp'] });
 
-    expect(stored({ root })).toEqual(['claude', 'omp']);
+    expect(stored({ root })).toEqual(['omp']);
   });
 
   test('--dry-run writes nothing', () => {

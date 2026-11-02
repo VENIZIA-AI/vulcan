@@ -49,7 +49,7 @@ const GOOD = [
 const project = (enforce: string, extra = ''): string => {
   const root = createProject({
     files: {
-      '.configs/vulcan.config.ts': `export default { owner: { report: { enforce: '${enforce}'${extra} } } };\n`,
+      '.configs/vulcan.config.mts': `export default { owner: { report: { enforce: '${enforce}'${extra} } } };\n`,
     },
   });
 
@@ -126,7 +126,6 @@ describe('OwnerReply.buildStopOutput', () => {
     const root = project('block');
 
     mkdirSync(join(root, '.agents/local/violations.jsonl'));
-    mkdirSync(join(root, '.agents/local/last-reply.json'));
 
     const output = await OwnerReply.buildStopOutput({
       projectRoot: root,

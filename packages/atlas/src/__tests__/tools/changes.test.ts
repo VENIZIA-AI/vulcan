@@ -32,15 +32,16 @@ const entry = (opts: {
 });
 
 const TABLE: IReleaseTable = {
+  livePackages: ['kernel', 'helpers'],
   packageMap: IGNIS_PACKAGE_MAP,
   releases: {
     kernel: [
-      { version: '0.2.0-16', date: '2026-09-05', sha: 'fda2d717' },
-      { version: '0.2.0-15', date: '2026-09-05', sha: 'd1b3c139' },
-      { version: '0.2.0-14', date: '2026-09-04', sha: '5922b420' },
-      { version: '0.2.0-13', date: '2026-08-31', sha: '370fd0a2' },
+      { version: '0.2.0-16', date: '2026-09-05', sha: 'fda2d717', order: 4 },
+      { version: '0.2.0-15', date: '2026-09-05', sha: 'd1b3c139', order: 3 },
+      { version: '0.2.0-14', date: '2026-09-04', sha: '5922b420', order: 2 },
+      { version: '0.2.0-13', date: '2026-08-31', sha: '370fd0a2', order: 0 },
     ],
-    helpers: [{ version: '0.2.0-12', date: '2026-09-04', sha: 'aaaaaaaa' }],
+    helpers: [{ version: '0.2.0-12', date: '2026-09-04', sha: 'aaaaaaaa', order: 1 }],
   },
   changelogs: [
     entry({ date: '2026-09-05', slug: 'list-response', packages: ['kernel'], kind: 'New Feature' }),
@@ -220,11 +221,14 @@ describe('changes tool', () => {
   test('the known-value list is capped at ten', async () => {
     const crowded = new ReleaseStore({
       table: {
+        livePackages: [],
+        packageMap: [],
         releases: {
           kernel: Array.from({ length: 25 }, (_unused, index) => ({
             version: `0.2.0-${25 - index}`,
             date: '2026-09-05',
             sha: 'aaaaaaaa',
+            order: index,
           })),
         },
         changelogs: [],
@@ -261,6 +265,8 @@ describe('changes tool', () => {
   test('a long window is trimmed to the newest entries and says it was', async () => {
     const crowded = new ReleaseStore({
       table: {
+        livePackages: [],
+        packageMap: [],
         releases: TABLE.releases,
         changelogs: Array.from({ length: 30 }, (_unused, index) =>
           entry({
@@ -290,7 +296,7 @@ describe('changes tool', () => {
   test('a source with no releases and no entries says why instead of guessing', async () => {
     const reply = await callChanges({
       releases: new ReleaseStore({
-        table: { releases: {}, changelogs: [] },
+        table: { livePackages: [], packageMap: [], releases: {}, changelogs: [] },
         emptyReason: 'no releases: no tag matches <dir>-v<version>',
       }),
       args: {},
@@ -303,6 +309,7 @@ describe('changes tool', () => {
   test('with dated entries and no release, dates still answer and versions say why they cannot', async () => {
     const dated = new ReleaseStore({
       table: {
+        livePackages: [],
         packageMap: IGNIS_PACKAGE_MAP,
         releases: {},
         changelogs: [entry({ date: '2026-09-05', slug: 'list-response', packages: ['kernel'] })],
@@ -329,8 +336,13 @@ const hasRepositoryRoots =
 
 describe.skipIf(!hasRepositoryRoots)('the P3 acceptance gate, over the real release table', () => {
   const realReleases = new ReleaseStore({
-    table:
-      IGNIS_RELEASES === undefined ? { releases: {}, changelogs: [] } : JSON.parse(IGNIS_RELEASES),
+    table: {
+      livePackages: [],
+      packageMap: [],
+      ...(IGNIS_RELEASES === undefined
+        ? { releases: {}, changelogs: [] }
+        : JSON.parse(IGNIS_RELEASES)),
+    },
   });
   const documents = CorpusLoader.getInstance().load({
     roots: RepositoryRoots.resolve({ project: ignisProjectAt({ root: REPOSITORY_ROOT }) }),

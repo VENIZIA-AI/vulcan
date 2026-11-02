@@ -152,18 +152,6 @@ export class Preset {
     const packageVersion = String(manifest.version);
     const shown = `${packageName}@${packageVersion}`;
     const vulcan = manifest[CreateConstants.PRESET_FIELD];
-    const oldKeys = ['preset', 'lib'].filter(
-      (key) => JsonValue.readProperty({ value: vulcan, key }) !== undefined,
-    );
-
-    // No fallback to the keys before `presets`: say what the contract is now.
-    if (oldKeys.length > 0) {
-      return {
-        ok: false,
-        error: `${shown} uses the old keys "vulcan": { ${oldKeys.map((key) => `"${key}"`).join(', ')} }; the contract is now "vulcan": { "presets": { "app": "./path/preset.json", "lib": "./path/lib.json" } }`,
-      };
-    }
-
     const presets = JsonValue.readProperty({ value: vulcan, key: 'presets' });
     const field = JsonValue.readProperty({ value: presets, key: 'app' });
     const libField = JsonValue.readProperty({ value: presets, key: 'lib' });

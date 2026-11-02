@@ -218,15 +218,14 @@ describe('the prebuilt index in the manifest (C27)', () => {
     expect(result.success ? '' : result.error.message).toContain('atlas index keygen');
   });
 
-  test('a manifest rendered before the keys were listed is stale against the config', () => {
+  test('a manifest rendered before the keys were listed differs from the one the config renders', () => {
     const before = render({ root, config: CONFIG });
     const after = render({
       root,
       config: { ...CONFIG, atlas: { ...CONFIG.atlas, index: { keys: [newPublicKey()] } } },
     });
 
-    expect(ProjectManifest.isCurrent({ committed: before, rendered: after })).toBe(false);
-    expect(ProjectManifest.isCurrent({ committed: after, rendered: after })).toBe(true);
+    expect(before).not.toBe(after);
   });
 });
 
@@ -358,7 +357,7 @@ describe('the preset kind of a package in the manifest', () => {
 
 describe('the manifest in sync, doctor and vulcan x', () => {
   const PROJECT = {
-    '.configs/vulcan.config.ts': `export default ${JSON.stringify(CONFIG)};\n`,
+    '.configs/vulcan.config.mts': `export default ${JSON.stringify(CONFIG)};\n`,
     'AGENTS.md': '# x\n',
   };
 
@@ -377,7 +376,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     const key = newPublicKey();
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': `export default ${JSON.stringify({ ...CONFIG, atlas: { ...CONFIG.atlas, index: { keys: [key] } } })};\n`,
+        '.configs/vulcan.config.mts': `export default ${JSON.stringify({ ...CONFIG, atlas: { ...CONFIG.atlas, index: { keys: [key] } } })};\n`,
         'AGENTS.md': '# x\n',
       },
     });
@@ -400,7 +399,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
 
     // Positive control: the same check, after the config changes under the committed manifest - in
     // a new process, as doctor runs: this one has the first config module cached.
-    writeFileSync(join(root, '.configs/vulcan.config.ts'), "export default { name: 'moved' };\n");
+    writeFileSync(join(root, '.configs/vulcan.config.mts'), "export default { name: 'moved' };\n");
 
     const stale = runCli({ args: ['doctor'], cwd: root });
 
@@ -410,7 +409,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     expect(stale.stderr).toContain('stale against the config');
   });
 
-  test('a manifest written before $generated existed is still current', async () => {
+  test('a manifest without $generated is not current: doctor flags it as stale', async () => {
     const root = createProject({ files: PROJECT });
 
     runCli({ args: ['sync'], cwd: root });
@@ -423,10 +422,10 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     expect($generated).toBeDefined();
     expect(JSON.parse(readFileSync(path, 'utf8')).$generated).toBeUndefined();
     const result = await DoctorRunner.runChecks({ root });
-    expect(result.map((violation) => violation.check)).not.toContain(DoctorChecks.MANIFEST);
+    expect(result.map((violation) => violation.check)).toContain(DoctorChecks.MANIFEST);
   });
 
-  test('a sync after the old shape writes the key back', () => {
+  test('a sync after a manifest lost its $generated key writes the key back', () => {
     const root = createProject({ files: PROJECT });
 
     runCli({ args: ['sync'], cwd: root });
@@ -468,7 +467,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
 
     if (environment.ok) {
       expect(environment.env.VULCAN_MANIFEST).toBe(render({ root, config: CONFIG }));
-      expect(readFileSync(join(root, '.configs/vulcan.config.ts'), 'utf8')).toContain('@x/kernel');
+      expect(readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8')).toContain('@x/kernel');
     }
   });
 });

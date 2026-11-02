@@ -64,8 +64,6 @@ help:
 	@$(HELP_ROW) "okf-gen / okf-coverage / okf-viz" "Generate, report and visualize the bundle."
 	@$(HELP_ROW) "surface-gen / surface-check" "Write the public API surface from the built .d.ts, or fail when it drifted."
 	@$(HELP_ROW) "atlas-symbols / atlas-releases" "Print the symbols atlas reads from the .d.ts, or the releases it computes from the tags."
-	@$(HELP_ROW) "changelogs-migrate" "Write the packages: list into changelog entries that declare none."
-	@$(HELP_ROW) "knowledge-symbols-check" "Fail when a symbol a concept names is gone or its signature changed."
 	@$(HELP_ROW) "wiki-links-check / wiki-anchors-check" "Fail when the wiki names a source path git does not track (WIKI_REPO), or links a #fragment the build lacks."
 	@echo ""
 	@echo "Development (use bun run directly):"

@@ -233,14 +233,7 @@ export class LibraryScaffold {
         ],
       },
     });
-    const replaced = AppsBlock.replace({ source, block });
-    const nextConfig =
-      replaced === undefined || replaced.includes('apps.presets')
-        ? replaced
-        : replaced.replace(
-            '  packages: apps.packages,\n',
-            '  packages: apps.packages,\n  presets: apps.presets,\n',
-          );
+    const nextConfig = AppsBlock.replace({ source, block });
 
     if (nextConfig === undefined) {
       return AddFailure.fail({

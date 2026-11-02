@@ -14,7 +14,7 @@ const FILE = '.agents/local/profile.json';
 const project = (): string =>
   createProject({
     files: {
-      '.configs/vulcan.config.ts': CONFIG,
+      '.configs/vulcan.config.mts': CONFIG,
       '.gitignore': '.agents/local/\n',
       'package.json': '{}',
     },

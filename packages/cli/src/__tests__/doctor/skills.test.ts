@@ -110,7 +110,7 @@ describe('doctor [skills]', () => {
   test('lints every project skill, and a nested skill is reported - sync links flat skills only', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': 'export default {};\n',
+        '.configs/vulcan.config.mts': 'export default {};\n',
         '.agents/skills/checking-links/SKILL.md': SKILL({ name: 'Bad Name' }),
         '.agents/skills/group/inner/SKILL.md': SKILL({}),
       },
@@ -144,7 +144,7 @@ describe('doctor [skills] - a project skill named like a shipped one', () => {
   test('fails, and suggests a rename the project owns', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': "export default { name: 'shop' };\n",
+        '.configs/vulcan.config.mts': "export default { name: 'shop' };\n",
         '.agents/skills/knowledge-sync/SKILL.md': SKILL({ name: 'knowledge-sync' }),
       },
     });

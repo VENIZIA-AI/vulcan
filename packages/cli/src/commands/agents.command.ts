@@ -21,7 +21,7 @@ const detected = (opts: { root: string }): string[] =>
     path: process.env.PATH ?? '',
   });
 
-/** What this machine uses now: the stored choice, the migration or the config's suggestion; nothing when it never chose. */
+/** What this machine uses now: the stored choice or the config's suggestion; nothing when it never chose. */
 const currentAgents = async (opts: {
   root: string;
 }): Promise<{ ok: true; agents: string[]; chosen: boolean } | { ok: false; error: string }> => {

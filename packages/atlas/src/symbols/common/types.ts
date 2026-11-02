@@ -17,7 +17,7 @@ export interface ISymbolRecord {
   signature: string;
   /**
    * A digest of the whole declaration - members, parameters, no comments, no layout - read from the
-   * built `.d.ts`. The concept lock hashes it, because `signature` is one capped line. Never served.
+   * built `.d.ts`. Never served.
    */
   shape?: string;
 }
@@ -37,8 +37,8 @@ export interface ISymbolTable {
   generatedFrom: string;
   packages: string[];
   symbols: ISymbolRecord[];
-  /** Every package's directory, npm name and other names; absent in a table generated before 0.2.0-0. */
-  packageMap?: IPackageMapEntry[];
+  /** Every package's directory, npm name and other names. */
+  packageMap: IPackageMapEntry[];
 }
 
 /** What the tools read from symbol tables - one source's store, or several served as one. */

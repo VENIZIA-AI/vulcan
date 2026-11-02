@@ -133,13 +133,9 @@ Code and writing rules define TypeScript standards, parameter limits, naming pat
 | `V-C-19` | Options that serve one concern live in one named sub-object (`{ limit: { default, max } }`), not as prefixed siblings (`defaultLimit`, `maxLimit`); a shared prefix or suffix across sibling names marks a scattered group. New code; an existing shape changes when touched. | SOFT |
 | `V-C-18` | Derive compile-time types from schemas or functions rather than duplicating definitions. | SOFT |
 
-## Retired rules
+## Identifiers are never reused
 
-Retired identifiers are never reused:
-
-- `V-W-05` - the task-manager loop
-- `V-C-03` - `@inject` on container-built classes, moved to the project whose stack it binds
-- `V-C-05` - `getError` / `ApplicationError`, moved to the project whose stack it binds, with the hard stack once in `V-C-18`
+An identifier the base drops is never given to another rule.
 
 ## Slots
 
@@ -236,8 +232,6 @@ $ bun x --no-install vulcan doctor
 vulcan doctor: 1 violation(s)
 ```
 
-For retired base rules, `vulcan doctor` reports `<id> is retired in the base - drop the reference`.
-
 ## How agents see the rules
 
 Agents receive base rules and project rules through session digests and manifest verification.
@@ -294,7 +288,7 @@ export default {
 
 The committed manifest `.agents/vulcan.manifest.json` tracks eight-character SHA-256 hashes for each base rule.
 When you run [vulcan sync](/references/commands/sync), VULCAN compares installed base rules against the manifest hashes.
-If an upstream update adds, changes, or retires a base rule, `vulcan sync` reports the change.
+If an upstream update adds, changes, or removes a base rule, `vulcan sync` reports the change.
 Recording hashes in the committed manifest ensures rule updates are visible in code reviews.
 
 ## See also

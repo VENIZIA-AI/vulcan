@@ -414,19 +414,22 @@ describe('vulcan add --preset', () => {
     expect(manifest.layout).toMatchObject({ backend: 'services', frontend: 'web' });
   });
 
-  test('a config written before presets were recorded gets the line that reads them', () => {
+  test('a block without the presets list is refused and the config is left as it was', () => {
     const root = monorepo();
-    const file = join(root, '.configs/vulcan.config.mts');
+    const configPath = join(root, '.configs/vulcan.config.mts');
+    const edited = readFileSync(configPath, 'utf8').replace('"presets"', '"others"');
 
-    writeFileSync(file, readFileSync(file, 'utf8').replace('  presets: apps.presets,\n', ''));
-    runCli({ args: ['add', '--preset', BACKEND, '--app', 'second-api'], cwd: root, env: ENV });
+    writeFileSync(configPath, edited);
+    const result = runCli({
+      args: ['add', '--preset', BACKEND, '--app', 'second-api'],
+      cwd: root,
+      env: ENV,
+    });
 
-    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
-
-    expect(readFileSync(file, 'utf8')).toContain('presets: apps.presets,');
-    expect(
-      JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8')).presets,
-    ).toHaveLength(1);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('is not the JSON vulcan wrote - add by hand:');
+    expect(readFileSync(configPath, 'utf8')).toBe(edited);
+    expect(existsSync(join(root, 'services/second-api'))).toBe(false);
   });
 
   test('a new app on a taken port prints the port it was given', () => {

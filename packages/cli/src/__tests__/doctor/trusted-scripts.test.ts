@@ -16,7 +16,7 @@ const configOf = (opts: { scripts: string[] }): string =>
 
 /** A committed project whose config lists `scripts`; `committed` are tracked, the rest is made after the commit. */
 const project = (opts: { scripts: string[]; committed?: string[] }): string => {
-  const files: Record<string, string> = { '.configs/vulcan.config.ts': configOf(opts) };
+  const files: Record<string, string> = { '.configs/vulcan.config.mts': configOf(opts) };
 
   for (const script of opts.committed ?? []) {
     files[script] = BODY;
@@ -133,7 +133,7 @@ describe('doctor: read-only subcommands of a trusted script', () => {
     const config = `export default { guard: { writes: { trustedScripts: [${JSON.stringify({ script: 'tools/release.ts', readOnly: opts.readOnly })}] } } };\n`;
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': config,
+        '.configs/vulcan.config.mts': config,
         ...(opts.committed === false ? {} : { 'tools/release.ts': RELEASE }),
       },
     });
@@ -198,7 +198,7 @@ describe('doctor: read-only subcommands of a trusted script', () => {
   test('a folder named like the script does not stop doctor and adds no note about subcommands', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': `export default { guard: { writes: { trustedScripts: [{ script: 'tools/release.ts', readOnly: ['plan'] }] } } };\n`,
+        '.configs/vulcan.config.mts': `export default { guard: { writes: { trustedScripts: [{ script: 'tools/release.ts', readOnly: ['plan'] }] } } };\n`,
       },
     });
 
@@ -215,7 +215,7 @@ describe('doctor: read-only subcommands of a trusted script', () => {
     const outside = createProject({ files: { 'target.ts': RELEASE } });
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': `export default { guard: { writes: { trustedScripts: [{ script: 'tools/release.ts', readOnly: ['nope'] }] } } };\n`,
+        '.configs/vulcan.config.mts': `export default { guard: { writes: { trustedScripts: [{ script: 'tools/release.ts', readOnly: ['nope'] }] } } };\n`,
       },
     });
 
@@ -246,7 +246,7 @@ describe('doctor: read-only subcommands of a trusted script', () => {
   test('a path string and an object in one list each give their line', async () => {
     const config = `export default { guard: { writes: { trustedScripts: ['a.ts', { script: 'tools/release.ts', readOnly: ['plan'] }] } } };\n`;
     const root = createProject({
-      files: { '.configs/vulcan.config.ts': config, 'a.ts': BODY, 'tools/release.ts': RELEASE },
+      files: { '.configs/vulcan.config.mts': config, 'a.ts': BODY, 'tools/release.ts': RELEASE },
     });
 
     initRepo({ cwd: root });

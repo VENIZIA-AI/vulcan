@@ -2,28 +2,15 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
-import { ConfigExtensions } from '../config/index.ts';
 import { CreateFlags } from '../create/common/index.ts';
 import { Monorepo } from '../create/init-monorepo.ts';
 import { SubProcess } from '../create/process.ts';
-import { InitConstants, ProjectScaffold } from '../init/index.ts';
+import { ProjectScaffold } from '../init/index.ts';
 import { ProfilePrompt } from './profile.command.ts';
 
 export const runInitCommand = async (opts: ICommandContext): Promise<number> => {
   if (opts.args.includes(CreateFlags.PRESET)) {
     return Monorepo.create({ cwd: opts.cwd, args: opts.args });
-  }
-
-  const flagIndex = opts.args.indexOf(InitConstants.CONFIG_FLAG);
-  const requested = flagIndex === -1 ? ConfigExtensions.MTS : (opts.args[flagIndex + 1] ?? '');
-  const extension = ConfigExtensions.LOOKUP_ORDER.find((value) => value === requested);
-
-  if (extension === undefined) {
-    process.stderr.write(
-      `vulcan init: ${InitConstants.CONFIG_FLAG} takes one of ${ConfigExtensions.LOOKUP_ORDER.join(', ')}\n`,
-    );
-
-    return ExitCodes.FAILURE;
   }
 
   // Without it `bun add` walks up to a parent project and installs there.
@@ -35,7 +22,7 @@ export const runInitCommand = async (opts: ICommandContext): Promise<number> => 
     return ExitCodes.FAILURE;
   }
 
-  const result = ProjectScaffold.scaffold({ root: opts.cwd, extension });
+  const result = ProjectScaffold.scaffold({ root: opts.cwd });
 
   for (const entry of result.entries) {
     process.stderr.write(`  ${entry.status.padEnd(8)} ${entry.subject}\n`);

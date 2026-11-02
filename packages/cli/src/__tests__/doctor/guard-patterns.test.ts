@@ -6,7 +6,7 @@ afterAll(removeProjects);
 
 const project = (opts: { config: object }): string =>
   createProject({
-    files: { '.configs/vulcan.config.ts': `export default ${JSON.stringify(opts.config)};\n` },
+    files: { '.configs/vulcan.config.mts': `export default ${JSON.stringify(opts.config)};\n` },
   });
 
 describe('doctor shows the patterns the project lists', () => {

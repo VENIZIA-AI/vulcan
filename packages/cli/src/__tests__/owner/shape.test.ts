@@ -333,12 +333,9 @@ describe('the violation log', () => {
     ).toEqual([]);
   });
 
-  test('the notes are one file per session, bounded by age and by count, and the old one-file note goes', () => {
+  test('the notes are one file per session, bounded by age and by count', () => {
     const root = project();
     const notes = join(root, '.agents/local/cache/replies');
-    const legacy = join(root, '.agents/local/last-reply.json');
-
-    writeFileSync(legacy, '{"at":1,"classes":["emoji"]}\n');
 
     ViolationLog.recordReply({ root, classes: ['emoji'], session: 'old' });
 
@@ -347,7 +344,6 @@ describe('the violation log', () => {
     utimesSync(join(notes, readdirSync(notes)[0] ?? ''), stale, stale);
     ViolationLog.recordReply({ root, classes: [], session: 'new' });
 
-    expect(existsSync(legacy)).toBe(false);
     expect(readdirSync(notes)).toHaveLength(1);
     expect(readdirSync(notes)[0]).toMatch(/^new-[0-9a-f]{8}\.json$/);
 

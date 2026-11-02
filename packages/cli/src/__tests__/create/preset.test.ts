@@ -136,7 +136,7 @@ describe('Preset.locate', () => {
     });
   });
 
-  test('the old keys vulcan.preset and vulcan.lib are refused with the new shape named, no fallback', () => {
+  test('a package that declares vulcan.preset and vulcan.lib instead of vulcan.presets ships no preset', () => {
     const source = createProject({
       files: {
         'package.json':
@@ -144,27 +144,12 @@ describe('Preset.locate', () => {
         'preset.json': PRESET_JSON,
       },
     });
-    const result = Preset.locate({ spec: { range: `file:${source}` }, root: '/unused' });
 
-    expect(result).toEqual({
+    expect(Preset.locate({ spec: { range: `file:${source}` }, root: '/unused' })).toEqual({
       ok: false,
       error:
-        '@acme/kit@1.0.0 uses the old keys "vulcan": { "preset", "lib" }; the contract is now "vulcan": { "presets": { "app": "./path/preset.json", "lib": "./path/lib.json" } }',
+        '@acme/kit@1.0.0 ships no VULCAN preset (no "vulcan": { "presets": { "app" } } in its package.json)',
     });
-  });
-
-  test('only the old vulcan.preset key is refused the same way', () => {
-    const source = createProject({
-      files: {
-        'package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
-        'preset.json': PRESET_JSON,
-      },
-    });
-    const result = Preset.locate({ spec: { range: `file:${source}` }, root: '/unused' });
-
-    expect(!result.ok && result.error).toContain('uses the old keys "vulcan": { "preset" }');
-    expect(!result.ok && result.error).toContain('"presets": { "app"');
   });
 
   test('vulcan.presets.lib without vulcan.presets.app is refused: a lib-only package is not supported', () => {

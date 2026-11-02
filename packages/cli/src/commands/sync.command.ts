@@ -17,14 +17,12 @@ import {
   BaseRulesDiff,
   ExcludePlan,
   LocalPlan,
-  PrunePlan,
   SyncConstants,
   SyncPlanner,
   SyncStatuses,
 } from '../sync/index.ts';
 
 const DRY_RUN_FLAG = '--dry-run';
-const PRUNE_FLAG = '--prune';
 const LABEL_WIDTH = 9;
 
 /** Under --dry-run nothing is written, so a write is labelled as what it would do. */
@@ -106,8 +104,6 @@ export class SyncFlow {
       (id) => !resolved.agents.includes(id),
     );
     const dryRun = opts.args.includes(DRY_RUN_FLAG);
-    // Planned before anything is written: prune reads the managed record of the previous sync.
-    const pruned = opts.args.includes(PRUNE_FLAG) ? PrunePlan.plan({ root: opts.cwd }) : [];
     // The stored choice is listed whether it was just written or only read; a machine that has not chosen stores nothing.
     const stored =
       resolved.writeLocal || resolved.source === 'local'
@@ -123,7 +119,6 @@ export class SyncFlow {
       ...stored,
       ...LocalPlan.planWorkspace({ root: opts.cwd }),
       ...ExcludePlan.plan({ root: opts.cwd, agents: resolved.agents }),
-      ...pruned,
     ];
     // Read before the manifest action rewrites the hashes it compares against.
     const changes = BaseRulesDiff.diff({ root: opts.cwd });

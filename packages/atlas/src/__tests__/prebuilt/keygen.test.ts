@@ -52,7 +52,7 @@ describe('atlas index keygen (C9)', () => {
       digest: new Bun.CryptoHasher('sha256').update(gz).digest('hex'),
       tags: '',
       history: true,
-      releases: { releases: {}, changelogs: [] },
+      releases: { livePackages: [], packageMap: [], releases: {}, changelogs: [] },
     };
 
     expect(

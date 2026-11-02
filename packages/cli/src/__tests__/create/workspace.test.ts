@@ -10,6 +10,7 @@ import { OkfFrontmatter } from '@venizia/vulcan-okf';
 import { Bunfig } from '../../create/bunfig.ts';
 import { checkManifests } from '../format.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
+import { AppsBlockProblems } from '../../create/common/index.ts';
 import type { IAppsBlock, IPreset } from '../../create/index.ts';
 
 const PRESET: IPreset = {
@@ -30,6 +31,7 @@ const PRESET: IPreset = {
 const BLOCK: IAppsBlock = {
   layout: { backend: 'services', shared: 'libs' },
   packages: [{ dir: 'core-api', name: 'core-api', path: 'services/core-api' }],
+  presets: [],
   sources: [{ name: 'widget', repo: 'example/widget', ref: 'develop' }],
 };
 
@@ -295,7 +297,7 @@ describe('workspace planners', () => {
     );
   });
 
-  test('a block records the presets its apps came from, and reads back with or without them', () => {
+  test('a block records the presets its apps came from and reads back as written; one without the presets list is not a block', () => {
     const withPresets: IAppsBlock = {
       ...BLOCK,
       presets: [{ spec: 'ignis', side: 'backend', summary: 'An IGNIS API.' }],
@@ -309,6 +311,11 @@ describe('workspace planners', () => {
       ok: true,
       block: BLOCK,
     });
+    expect(
+      AppsBlock.parse({
+        source: AppsBlock.render({ block: BLOCK }).replace('"presets"', '"others"'),
+      }),
+    ).toEqual({ ok: false, reason: AppsBlockProblems.INVALID });
   });
 
   test('a block with a shared summary on a preset and a presetKind on a package reads back as written', () => {

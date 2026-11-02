@@ -57,7 +57,7 @@ const stopEvent = (text: string): Record<string, unknown> => {
 const project = (extra = ''): string => {
   const root = createProject({
     files: {
-      '.configs/vulcan.config.ts': `export default { owner: { report: { enforce: 'advise', shortReplyWords: 0${extra} } } };\n`,
+      '.configs/vulcan.config.mts': `export default { owner: { report: { enforce: 'advise', shortReplyWords: 0${extra} } } };\n`,
     },
   });
 
@@ -169,7 +169,7 @@ describe('the claims at Stop', () => {
   test('"all tests pass" after a failed test run this turn is contradicted, never blocks, and a short reply is checked too', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { owner: { report: { enforce: 'block', shortReplyWords: 20 } } };\n",
       },
     });

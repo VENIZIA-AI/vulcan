@@ -96,15 +96,6 @@ export class ProjectSettings {
     return merged;
   }
 
-  /** Every hook command of a settings file, across its events. */
-  static extractHookCommands(opts: { settings: TSettings | undefined }): string[] {
-    const hooks = { value: opts.settings?.[SyncConstants.HOOKS_KEY] };
-
-    return isSettingsObject(hooks)
-      ? Object.values(hooks.value).flatMap((entries) => extractEntryCommands({ entries }))
-      : [];
-  }
-
   /**
    * `entries` without the hooks whose command is in `commands`: an entry's other hooks and keys stay,
    * an entry left with no hooks goes, and anything that is not an entry is kept as it is.

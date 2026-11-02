@@ -110,7 +110,7 @@ const prebuiltByOf = (opts: { artifacts: string }): { prebuiltBy?: string } => {
   return existsSync(file) ? { prebuiltBy: readFileSync(file, 'utf8').trim() } : {};
 };
 
-/** The set's `format` file names this atlas's `INDEX_FORMAT`; one without the file is older. */
+/** The set's `format` file names this atlas's `INDEX_FORMAT`; a set without the file, or with another number, is not current. */
 const isCurrentFormat = (opts: { cacheRoot: string; sha: string }): boolean => {
   const file = join(SourceCache.artifactsOf(opts), FORMAT);
 
@@ -144,18 +144,17 @@ const servedFrom = (opts: {
     indexFile: join(artifacts, INDEX),
     releasesFile: join(artifacts, RELEASES),
     history: existsSync(join(artifacts, HISTORY)),
-    ...(isCurrentFormat({ cacheRoot: opts.cacheRoot, sha: opts.sha }) ? {} : { oldFormat: true }),
     ...prebuiltByOf({ artifacts }),
     cacheBase: opts.cacheBase,
   };
 };
 
-/** A pull finished for this SHA, at whatever format: what an offline start can still serve. */
+/** A pull finished for this SHA, at whatever format: what the cache keeps and prunes. */
 const isComplete = (opts: { cacheRoot: string; sha: string }): boolean =>
   existsSync(join(SourceCache.artifactsOf(opts), COMPLETE)) &&
   existsSync(SourceCache.checkoutOf(opts));
 
-/** A complete set built at this atlas's format: what an online start serves without pulling. */
+/** A complete set built at this atlas's format: the only kind a start serves, online without pulling, offline from the cache. */
 const isCurrentSet = (opts: { cacheRoot: string; sha: string }): boolean =>
   isComplete(opts) && isCurrentFormat(opts);
 
@@ -184,7 +183,7 @@ const lastServedFor = (opts: { cacheRoot: string; ref: string }): string | undef
   const sha = existsSync(file) ? readFileSync(file, 'utf8').trim() : '';
 
   return GitRepository.isCommitSha({ ref: sha, isFull: true }) &&
-    isComplete({ cacheRoot: opts.cacheRoot, sha })
+    isCurrentSet({ cacheRoot: opts.cacheRoot, sha })
     ? sha
     : undefined;
 };

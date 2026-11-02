@@ -22,7 +22,7 @@ const buildTransport = () =>
 const parse = (line: string | null) => JSON.parse(line ?? 'null');
 
 describe('Transport', () => {
-  test('initialize answers with the negotiated version and the server info', async () => {
+  test('initialize answers with the supported version and the server info', async () => {
     const result2 = await buildTransport().handleLine({
       line: JSON.stringify({
         jsonrpc: '2.0',
@@ -38,7 +38,7 @@ describe('Transport', () => {
     expect(reply.result.protocolVersion).toBe('2025-06-18');
   });
 
-  test('initialize echoes an older supported version instead of negotiating up to the newest (M21)', async () => {
+  test('initialize answers the one supported version when the client asks for an older one (M21)', async () => {
     const result2 = await buildTransport().handleLine({
       line: JSON.stringify({
         jsonrpc: '2.0',
@@ -49,10 +49,10 @@ describe('Transport', () => {
     });
     const reply = parse(result2);
 
-    expect(reply.result.protocolVersion).toBe('2024-11-05');
+    expect(reply.result.protocolVersion).toBe('2025-06-18');
   });
 
-  test('initialize answers with the newest supported version when the client requests an unsupported one (M21)', async () => {
+  test('initialize answers the supported version when the client requests an unknown one (M21)', async () => {
     const result2 = await buildTransport().handleLine({
       line: JSON.stringify({
         jsonrpc: '2.0',

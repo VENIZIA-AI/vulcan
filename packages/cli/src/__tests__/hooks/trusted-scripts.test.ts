@@ -147,7 +147,7 @@ describe('trustOf with the project in a subfolder of the repository', () => {
   const subProject = (): { parent: string; root: string } => {
     const parent = createProject({
       files: {
-        'app/.configs/vulcan.config.ts': 'export default {};\n',
+        'app/.configs/vulcan.config.mts': 'export default {};\n',
         'app/tools/cli.ts': BODY,
       },
     });
@@ -338,7 +338,7 @@ describe('WriteGuard.inspectCommand with trust', () => {
 });
 
 describe('the guard-writes hook with trusted scripts', () => {
-  const CONFIG_PATH = '.configs/vulcan.config.ts';
+  const CONFIG_PATH = '.configs/vulcan.config.mts';
   const CONFIG = "export default { guard: { writes: { trustedScripts: ['tools/cli.ts'] } } };\n";
 
   const runHook = async (opts: { root: string; command: string }) => {
@@ -917,7 +917,7 @@ describe('the guard-writes hook with read-only subcommands', () => {
     const root = repoWith({
       files: {
         [RELEASE_PATH]: RELEASE,
-        '.configs/vulcan.config.ts': `export default { guard: { writes: { trustedScripts: ['${RELEASE_PATH}'] } } };\n`,
+        '.configs/vulcan.config.mts': `export default { guard: { writes: { trustedScripts: ['${RELEASE_PATH}'] } } };\n`,
       },
     });
 
@@ -928,7 +928,7 @@ describe('the guard-writes hook with read-only subcommands', () => {
     const root = repoWith({
       files: {
         [RELEASE_PATH]: RELEASE,
-        '.configs/vulcan.config.ts': `export default { guard: { writes: { trustedScripts: [{ script: '${RELEASE_PATH}', readOnly: ['plan'] }] } } };\n`,
+        '.configs/vulcan.config.mts': `export default { guard: { writes: { trustedScripts: [{ script: '${RELEASE_PATH}', readOnly: ['plan'] }] } } };\n`,
       },
     });
     const result = runHook({ root, command: `bun ${RELEASE_PATH} plan` });

@@ -1,17 +1,7 @@
-/** MCP protocol versions this server negotiates `initialize` against, newest first. */
-export class ProtocolVersions {
-  static readonly NEWEST = '2025-06-18';
-  static readonly V2025_03_26 = '2025-03-26';
-  static readonly V2024_11_05 = '2024-11-05';
-  static readonly SCHEME_SET = new Set<string>([this.NEWEST, this.V2025_03_26, this.V2024_11_05]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
-}
-
 export class AtlasConstants {
   static readonly SERVER_NAME = 'vulcan-atlas';
-  static readonly PROTOCOL_VERSION = ProtocolVersions.NEWEST;
+  /** The one MCP protocol version this server speaks; `initialize` answers it whatever the client asked. */
+  static readonly PROTOCOL_VERSION = '2025-06-18';
   static readonly SEARCH_BUDGET_CHARS = 2000;
   static readonly GET_BUDGET_CHARS = 8000;
   static readonly SNIPPET_MAX_CHARS = 300;
@@ -54,8 +44,6 @@ export class AtlasCommands {
   static readonly SURFACE = 'surface';
   static readonly SYMBOLS = 'symbols';
   static readonly RELEASES = 'releases';
-  static readonly CHANGELOGS = 'changelogs';
-  static readonly CONCEPTS = 'concepts';
   static readonly PULL = 'pull';
   static readonly INDEX = 'index';
   static readonly TOOLS = 'tools';
@@ -65,8 +53,6 @@ export class AtlasCommands {
     this.SURFACE,
     this.SYMBOLS,
     this.RELEASES,
-    this.CHANGELOGS,
-    this.CONCEPTS,
     this.PULL,
     this.INDEX,
     this.TOOLS,

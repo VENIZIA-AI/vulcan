@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ConfigConstants, ConfigExtensions } from './common/index.ts';
+import { ConfigConstants } from './common/index.ts';
 import { VULCAN_CONFIG_SCHEMA } from './schema.ts';
 import type { TResolvedConfig } from './schema.ts';
 
@@ -13,30 +13,29 @@ const describeError = (opts: { error: unknown }): string =>
   opts.error instanceof Error ? opts.error.message : String(opts.error);
 
 export class ConfigLoader {
-  /** Every `.configs/vulcan.config.<ext>` present, in lookup order. */
-  static findFiles(opts: { root: string }): string[] {
-    return ConfigExtensions.LOOKUP_ORDER.map((extension) =>
-      join(opts.root, ConfigConstants.DIRECTORY, `${ConfigConstants.BASENAME}.${extension}`),
-    ).filter((file) => existsSync(file));
+  /** `.configs/vulcan.config.mts` when the project has one. */
+  static findFile(opts: { root: string }): string | undefined {
+    const file = join(opts.root, ConfigConstants.DIRECTORY, ConfigConstants.FILE);
+
+    return existsSync(file) ? file : undefined;
   }
 
   static async load(opts: { root: string }): Promise<TLoadResult> {
-    const files = ConfigLoader.findFiles({ root: opts.root });
+    const file = ConfigLoader.findFile({ root: opts.root });
 
-    if (files.length === 0) {
+    if (file === undefined) {
+      const other = ['ts', 'mjs', 'js']
+        .map((extension) => `vulcan.config.${extension}`)
+        .find((name) => existsSync(join(opts.root, ConfigConstants.DIRECTORY, name)));
+      const hint =
+        other === undefined ? '' : ` (${other} is not read: rename it to ${ConfigConstants.FILE})`;
+
       return {
         ok: false,
-        error: `no ${ConfigConstants.DIRECTORY}/${ConfigConstants.BASENAME}.* found in ${opts.root}`,
+        error: `no ${ConfigConstants.DIRECTORY}/${ConfigConstants.FILE} found in ${opts.root}${hint}`,
       };
     }
 
-    if (files.length > 1) {
-      const names = files.map((file) => relative(opts.root, file)).join(', ');
-
-      return { ok: false, error: `more than one config - keep exactly one of: ${names}` };
-    }
-
-    const [file] = files;
     const shown = relative(opts.root, file);
 
     let loaded: { default?: unknown };

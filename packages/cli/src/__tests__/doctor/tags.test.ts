@@ -14,8 +14,8 @@ const CONFIG = `export default {
 };
 `;
 
-const projectWithTags = (opts: { tags: string[] }): string => {
-  const root = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
+const projectWithTags = (opts: { tags: string[]; config?: string }): string => {
+  const root = createProject({ files: { '.configs/vulcan.config.mts': opts.config ?? CONFIG } });
   const git = (args: string[]): void => {
     execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
       cwd: root,
@@ -55,4 +55,15 @@ test('a tag naming no declared package is a violation (positive control)', async
   expect(violations.map((violation) => violation.message)).toEqual([
     "tag ghost-v1.0.0 reads as a release of 'ghost', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (atlas.ignoreTags)",
   ]);
+});
+
+test('<package> is no placeholder: a template written with it names no directory, so no tag is checked', async () => {
+  const root = projectWithTags({
+    tags: ['ghost-v1.0.0'],
+    config: CONFIG.replace('<dir>-v<version>', '<package>-v<version>'),
+  });
+
+  const result = await tagViolations({ root });
+
+  expect(result).toEqual([]);
 });

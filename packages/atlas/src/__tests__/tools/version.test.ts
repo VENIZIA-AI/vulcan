@@ -9,13 +9,14 @@ import { dirname, join } from 'node:path';
 import { afterAll, describe, expect, test } from 'bun:test';
 
 const TABLE: IReleaseTable = {
+  livePackages: ['kernel', 'helpers'],
   packageMap: IGNIS_PACKAGE_MAP,
   releases: {
     kernel: [
-      { version: '0.2.0-21', date: '2026-09-06', sha: 'aa0644f5' },
-      { version: '0.2.0-11', date: '2026-08-20', sha: 'bbbbbbbb' },
+      { version: '0.2.0-21', date: '2026-09-06', sha: 'aa0644f5', order: 2 },
+      { version: '0.2.0-11', date: '2026-08-20', sha: 'bbbbbbbb', order: 0 },
     ],
-    helpers: [{ version: '0.2.0-15', date: '2026-09-06', sha: 'da8e45c2' }],
+    helpers: [{ version: '0.2.0-15', date: '2026-09-06', sha: 'da8e45c2', order: 1 }],
   },
   changelogs: [],
 };
@@ -372,7 +373,7 @@ describe('version tool', () => {
   test('a source with no releases says why instead of guessing', async () => {
     const reply = await callVersion({
       releases: new ReleaseStore({
-        table: { releases: {}, changelogs: [] },
+        table: { livePackages: [], packageMap: [], releases: {}, changelogs: [] },
         emptyReason: 'no releases: no tag matches <dir>-v<version>',
       }),
       args: {},
@@ -386,6 +387,8 @@ describe('version tool', () => {
     const reply = await callVersion({
       releases: new ReleaseStore({
         table: {
+          livePackages: [],
+          packageMap: [],
           releases: {},
           changelogs: [
             {

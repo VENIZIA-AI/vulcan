@@ -151,23 +151,15 @@ const checkPackagesUnique = (
 };
 
 /**
- * A release template: `<dir>` (synonym `<package>`) is the package DIRECTORY - the `packages` key,
+ * A release template: `<dir>` is the package DIRECTORY - the `packages` key,
  * never the npm name (`packages/core-server` published as `@acme/server` tags `core-server-v1.2.0`); `<version>` is the
  * version; `<issue>` an issue number. Every other character is literal. When matching a commit, a
  * leading `[#<issue>] ` is optional and a trailing ` [<mode>]` is tolerated. A release train that
  * tags once leaves `<dir>` out (`v<version>`).
  */
 const RELEASE_TEMPLATE = z.string().refine((value) => value.includes('<version>'), {
-  message: 'a template with <version> (and <dir> or <package> for per-package releases)',
+  message: 'a template with <version> (and <dir> for per-package releases)',
 });
-
-/** A key the config once accepted and no tool ever read: still named, so the error says it is gone rather than "unrecognized". */
-const removedAtlasKey = (opts: { key: string }) =>
-  z
-    .never({
-      error: `atlas.${opts.key} was removed - no tool reads it; delete it from the config`,
-    })
-    .optional();
 
 /** A renderer by id: a built-in, or a project module (`module`); a bare string is the id alone. */
 const OKF_RENDERER = z.union([
@@ -290,16 +282,6 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     }),
   atlas: z
     .strictObject({
-      /** Removed in 0.2.0-8; present only so the error can name `packages`. */
-      packages: z
-        .never({
-          error:
-            'atlas.packages was removed - move the list to the top-level packages: [{ dir, name }] (release order; dir is the old key, name the old value)',
-        })
-        .optional(),
-      releaseCommit: removedAtlasKey({ key: 'releaseCommit' }),
-      typescriptFrom: removedAtlasKey({ key: 'typescriptFrom' }),
-      legacyTagPrefixes: removedAtlasKey({ key: 'legacyTagPrefixes' }),
       tagPattern: RELEASE_TEMPLATE.default('<dir>-v<version>'),
       /**
        * Templates of an earlier tag layout that are still releases: atlas and the changelog check read a tag

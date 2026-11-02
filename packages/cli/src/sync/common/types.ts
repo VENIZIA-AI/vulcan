@@ -15,7 +15,7 @@ export interface ISyncAction {
 
 type TBaseRuleChange = TConstValue<typeof BaseRuleChanges>;
 
-/** One base rule that moved since the last sync; `text` is its new text, or `(retired)` when the base retired it. */
+/** One base rule that moved since the last sync; `text` is its new text, empty for a removed rule. */
 export interface IBaseRuleChange {
   id: string;
   change: TBaseRuleChange;

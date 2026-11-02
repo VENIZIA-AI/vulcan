@@ -20,7 +20,6 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
   [VulcanCommands.INIT]: {
     flags: [CreateFlags.NO_API],
     values: [
-      '--config',
       CreateFlags.PRESET,
       CreateFlags.PROJECT,
       CreateFlags.BACKEND_DIR,
@@ -53,7 +52,7 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
     positionals: 2,
   },
   [VulcanCommands.SYNC]: {
-    flags: ['--dry-run', '--prune'],
+    flags: ['--dry-run'],
     values: [AgentConstants.FLAG],
     positionals: 0,
   },

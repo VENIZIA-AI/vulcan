@@ -113,7 +113,6 @@ export interface IRecordedPreset {
 export interface IAppsBlock {
   layout: ILayout;
   packages: { dir: string; name: string; path: string; kind?: 'lib'; presetKind?: TLibraryKind }[];
-  /** Absent in a block written before presets were recorded. */
-  presets?: IRecordedPreset[];
+  presets: IRecordedPreset[];
   sources: { name: string; repo: string; ref: string }[];
 }

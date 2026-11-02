@@ -140,7 +140,7 @@ describe('SymbolStore, deferred (D2)', () => {
 
   test('an empty store says why, in the words its owner gave', () => {
     const store = new SymbolStore({
-      load: () => ({ symbols: [] }),
+      load: () => ({ symbols: [], packageMap: [] }),
       emptyReason: 'no symbols - build the packages first',
     });
 

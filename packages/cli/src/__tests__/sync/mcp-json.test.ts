@@ -7,7 +7,7 @@ import { runCli } from '../run.helper.ts';
 afterAll(removeProjects);
 
 const PROJECT = {
-  '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'AGENTS.md': '# x\n',
 };
 const CANONICAL = {
@@ -151,16 +151,14 @@ describe('a project that tracks .mcp.json today (the migration)', () => {
     expect(exclude({ root })).not.toContain('/.mcp.json');
   });
 
-  test('doctor says what to do: git rm --cached, and let sync manage it', () => {
+  test('doctor has nothing to say about a tracked .mcp.json', () => {
     const root = tracked({ text: `${JSON.stringify({ mcpServers: { atlas: CANONICAL } })}\n` });
 
     sync({ root, agents: 'omp' });
 
     const result = runCli({ args: ['doctor'], cwd: root });
 
-    expect(result.stderr).toContain(
-      'warning [mcp] .mcp.json: tracked by git; VULCAN now writes it per machine. Run `git rm --cached .mcp.json` and let sync manage it.',
-    );
+    expect(result.stderr).not.toContain('[mcp]');
   });
 
   test('after git rm --cached sync adopts the canonical entry: excluded, then taken back on remove', () => {

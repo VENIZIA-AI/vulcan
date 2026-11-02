@@ -19,8 +19,6 @@ const isKnownClass = (value: string): boolean =>
 export class ViolationConstants {
   /** One line per checked reply that broke the shape: the date and the classes, never the reply. */
   static readonly LOG_FILE = 'violations.jsonl';
-  /** The one-file-per-project note of 0.4.2 and before; removed when a session note is written. */
-  static readonly LEGACY_LAST_FILE = 'last-reply.json';
   /** One note per session under the cache: its last checked reply's classes, for that session's next reminder. */
   static readonly NOTES_DIRECTORY = 'cache/replies';
   /** The note name of an event that carries no session id. */
@@ -148,21 +146,9 @@ const readNote = (opts: { root: string; session?: string }): Record<string, unkn
   }
 };
 
-/**
- * Removes the notes older than the reminder window, the oldest beyond the cap, and the one-file note
- * of 0.4.2 and before, so the folder never grows. A note that cannot be removed is left.
- */
+/** Removes the notes older than the reminder window and the oldest beyond the cap, so the folder never grows. A note that cannot be removed is left. */
 const pruneNotes = (opts: { root: string; now: number }): void => {
   const directory = notesDirectoryOf({ root: opts.root, create: false });
-  const local = LocalScan.localRootOf({ root: opts.root });
-
-  if (local !== undefined) {
-    const legacy = join(local, ViolationConstants.LEGACY_LAST_FILE);
-
-    if (lstatSync(legacy, { throwIfNoEntry: false })?.isFile() === true) {
-      rmSync(legacy, { force: true });
-    }
-  }
 
   if (directory === undefined) {
     return;

@@ -345,10 +345,11 @@ All server logs and diagnostic messages go to standard error.
 Every reply is JSON text in `result.content[0].text`; errors are JSON-RPC errors with code `-32602`.
 
 Clients begin communication by sending an `initialize` request.
+atlas speaks MCP protocol version `2025-06-18` only: the `initialize` reply carries it whatever version the client asks for, and the client decides whether it can use it.
 In repository mode, the `initialize` reply names the server `<project>-atlas`:
 
 ```json
-{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"demo-app-atlas","version":"0.2.0"}}}
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{}},"serverInfo":{"name":"demo-app-atlas","version":"0.2.0"}}}
 ```
 
 An agent discovers available tools by sending a `tools/list` request.

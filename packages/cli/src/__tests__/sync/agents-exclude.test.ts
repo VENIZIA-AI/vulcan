@@ -7,7 +7,7 @@ import { runCli } from '../run.helper.ts';
 afterAll(removeProjects);
 
 const PROJECT = {
-  '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'AGENTS.md': '# x\n',
 };
 
@@ -137,7 +137,7 @@ describe('the chosen agents go to .git/info/exclude', () => {
     const root = join(top, 'apps', 'demo');
 
     mkdirSync(join(root, '.configs'), { recursive: true });
-    writeFileSync(join(root, '.configs/vulcan.config.ts'), PROJECT['.configs/vulcan.config.ts']);
+    writeFileSync(join(root, '.configs/vulcan.config.mts'), PROJECT['.configs/vulcan.config.mts']);
     writeFileSync(join(root, 'AGENTS.md'), '# x\n');
 
     sync({ root, agents: 'cursor' });
@@ -153,8 +153,8 @@ describe('a project inside another git repository', () => {
 
     mkdirSync(join(directory, '.configs'), { recursive: true });
     writeFileSync(
-      join(directory, '.configs/vulcan.config.ts'),
-      PROJECT['.configs/vulcan.config.ts'],
+      join(directory, '.configs/vulcan.config.mts'),
+      PROJECT['.configs/vulcan.config.mts'],
     );
     writeFileSync(join(directory, 'AGENTS.md'), '# x\n');
 

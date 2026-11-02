@@ -7,17 +7,10 @@ import { LayoutKeys, LayoutFolder } from '../common/layout-folder.ts';
 import { MCP_SERVER_HINT, ProjectScaffold } from '../init/index.ts';
 import { ProjectPackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
-import { BaseRules, RuleConstants, RuleParser, RuleSlots } from '../rules/index.ts';
+import { BaseRules, RuleParser, RuleSlots } from '../rules/index.ts';
 import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
 import { AgentScopes, AgentSelection, AgentTable, LocalChoice } from '../agents/index.ts';
-import {
-  AgentFiles,
-  AtlasBlockPlan,
-  LocalPlan,
-  PrunePlan,
-  SyncPlanner,
-  SyncStatuses,
-} from '../sync/index.ts';
+import { AgentFiles, AtlasBlockPlan, LocalPlan, SyncPlanner, SyncStatuses } from '../sync/index.ts';
 import { LocalConstants, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
 import {
   ReplySwitch,
@@ -242,11 +235,10 @@ export class ProjectContract {
 
   /**
    * The base owns the `V-` namespace: a project defines its rules with bare IDs, and a `V-` ID in its
-   * rules points at a base rule - one the base does not carry, or has retired, dangles.
+   * rules points at a base rule - one the base does not carry dangles.
    */
   static checkRuleIds(opts: ICheckContext): IViolation[] {
     const base = BaseRules.read();
-    const retired = new Set(BaseRules.readRetiredIds());
 
     return RuleParser.parseBaseReferences({
       markdown: readText({ file: join(opts.root, '.agents', 'rules.md') }),
@@ -256,9 +248,7 @@ export class ProjectContract {
         createViolation({
           check: DoctorChecks.RULE_IDS,
           file: '.agents/rules.md',
-          message: retired.has(id)
-            ? `${id} is retired in the base - drop the reference`
-            : `${id} is not a base rule - give the extension a bare ID`,
+          message: `${id} is not a base rule - give the extension a bare ID`,
         }),
       );
   }
@@ -296,16 +286,11 @@ export class ProjectContract {
     for (const id of Object.keys(opts.config.rules).filter(
       (ruleId) => slots[ruleId] === undefined,
     )) {
-      const namespaced = `${RuleConstants.BASE_NAMESPACE}${id}`;
-
       violations.push(
         createViolation({
           check: DoctorChecks.RULE_SLOTS,
           file: opts.configFile,
-          message:
-            slots[namespaced] === undefined
-              ? `${id} is not a slot - only ${Object.keys(slots).join(', ')} take a choice`
-              : `'${id}' is not a slot - the base rule is now '${namespaced}'`,
+          message: `${id} is not a slot - only ${Object.keys(slots).join(', ')} take a choice`,
         }),
       );
     }
@@ -416,32 +401,14 @@ export class ProjectContract {
     ];
   }
 
-  /** What `sync --prune` would remove: an old VULCAN or plugin-era hook command, a dead skill link. */
-  static checkPrune(opts: ICheckContext): IViolation[] {
-    return PrunePlan.plan({ root: opts.root }).map((action) =>
-      createViolation({
-        check: DoctorChecks.PRUNE,
-        file: relative(opts.root, action.path),
-        message: `${action.note ?? 'stale'} - run '${ProjectLayout.VULCAN_COMMAND} sync --prune'`,
-      }),
-    );
-  }
-
   /**
    * C1: the committed manifest is what the config renders - atlas reads the file, never the config.
-   * A file written before the `$generated` note existed is current; a hand-edited one is not.
+   * A hand-edited one, or one without the `$generated` note, is not.
    */
   static checkManifest(opts: ICheckContext): IViolation[] {
     const action = SyncPlanner.planManifest({ root: opts.root, config: opts.config });
 
-    if (
-      action.status === SyncStatuses.UNCHANGED ||
-      (action.status === SyncStatuses.REPLACED &&
-        ProjectManifest.isCurrent({
-          committed: readFileSync(join(opts.root, ManifestConstants.FILE), 'utf8'),
-          rendered: ProjectManifest.render({ root: opts.root, config: opts.config }),
-        }))
-    ) {
+    if (action.status === SyncStatuses.UNCHANGED) {
       return [];
     }
 
@@ -482,27 +449,17 @@ export class ProjectContract {
 
     for (const owner of owners) {
       const configs = join(owner, '.configs');
-      const found = ['.', ...new Set(Object.values(DoctorConstants.LINT_CONFIG_FOLDERS))].flatMap(
-        (folder) => {
-          const directory = join(configs, folder);
+      const directory = join(configs, DoctorConstants.LINT_CONFIG_FOLDER);
+      const found = existsSync(join(opts.root, directory))
+        ? readdirSync(join(opts.root, directory))
+            .filter((file) => DoctorConstants.LINT_CONFIG_FILE.test(file))
+            .map((file) => join(directory, file))
+        : [];
 
-          return existsSync(join(opts.root, directory))
-            ? readdirSync(join(opts.root, directory))
-                .filter((file) => DoctorConstants.LINT_CONFIG_FILE.test(file))
-                .map((file) => ({
-                  file: join(directory, file),
-                  name: file,
-                  legacy: folder === '.',
-                }))
-            : [];
-        },
-      );
-      const names = found.map((item) => item.file);
-
-      lintConfigs += names.length;
+      lintConfigs += found.length;
 
       if (
-        names.length > 0 &&
+        found.length > 0 &&
         !isRootDeclared &&
         !hasStylePackage({ directory: join(opts.root, owner) })
       ) {
@@ -515,21 +472,7 @@ export class ProjectContract {
         );
       }
 
-      for (const item of found) {
-        const { file } = item;
-
-        if (item.legacy) {
-          const tool = item.name.split('.')[0];
-
-          violations.push(
-            createViolation({
-              check: DoctorChecks.STYLE,
-              file,
-              message: `move it to .configs/${DoctorConstants.LINT_CONFIG_FOLDERS[tool]}/${item.name}`,
-            }),
-          );
-        }
-
+      for (const file of found) {
         if (!readText({ file: join(opts.root, file) }).includes(ProjectLayout.STYLE_PACKAGE)) {
           violations.push(
             createViolation({
@@ -732,7 +675,7 @@ export class ProjectContract {
    * file `sync` writes for the agents that read it) holds an `atlas` entry that runs the project's own
    * atlas (`--root .`), and the managed Claude settings enable `atlas` by that name. A server under
    * another name, or one that serves another folder, is never enabled automatically or serves the wrong
-   * knowledge. A `.mcp.json` git still tracks is told how to hand over to `sync`; one that is untracked and not ignored is told how to hide it. Warnings, not violations.
+   * knowledge. One that is untracked and not ignored is told how to hide it. Warnings, not violations.
    */
   static checkMcpAtlas(opts: ICheckContext): IViolation[] {
     const warnings: IViolation[] = [];
@@ -748,15 +691,7 @@ export class ProjectContract {
     // The root `.mcp.json` is a per-machine file of the agents that read it; a missing one is the
     // `adapters` check's (not synced yet), so only an existing file is looked at.
     if (readsMcpFile && existsSync(file)) {
-      if (AgentFiles.isTracked({ root: opts.root, path: MCP_FILE })) {
-        warnings.push(
-          mcpWarning({
-            file: MCP_FILE,
-            message:
-              'tracked by git; VULCAN now writes it per machine. Run `git rm --cached .mcp.json` and let sync manage it.',
-          }),
-        );
-      } else if (isUntrackedAndVisible({ root: opts.root, path: MCP_FILE })) {
+      if (isUntrackedAndVisible({ root: opts.root, path: MCP_FILE })) {
         warnings.push(
           mcpWarning({
             file: MCP_FILE,
