@@ -302,6 +302,24 @@ describe('packages are keyed uniquely', () => {
     ).toContain("packages: dir 'core' is used twice - dir is a unique key, not the directory name");
   });
 
+  test.each(['JSONStream', '@Acme/kernel', '@acme/Kernel', '@acme/ker nel', '@acme/', ''])(
+    "the package name '%s' is refused with a message that says why",
+    (name) => {
+      expect(messageOf([{ dir: 'kernel', name }])).toContain(
+        `package name '${name}' is not an npm package name: npm names are lower case`,
+      );
+    },
+  );
+
+  test.each(['kernel', '@acme/kernel', '@acme/my-kernel.v2', 'a_b~c'])(
+    "the package name '%s' is accepted",
+    (name) => {
+      expect(VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ dir: 'kernel', name }] }).success).toBe(
+        true,
+      );
+    },
+  );
+
   test('a repeated npm name is an error', () => {
     expect(
       messageOf([

@@ -223,7 +223,7 @@ The `packages` array defines monorepo packages in release order. Manifest render
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `dir` | `string` | none | Unique package key matching `/^[a-z0-9][a-z0-9.-]*$/` |
-| `name` | `string` | none | The npm package name |
+| `name` | `string` | none | The npm package name: lower case (a to z, digits, `. _ ~ -`), with an optional `@scope/`, at most 214 characters; a name with a capital letter is refused |
 | `path` | `string` | `packages/<dir>` | Package location relative to the repository root |
 | `aliases` | `string[]` | `[]` | Extra names accepted as the `<dir>` of a release tag |
 | `retired` | `boolean` | `false` | Marks a package as retired to keep historical releases readable |

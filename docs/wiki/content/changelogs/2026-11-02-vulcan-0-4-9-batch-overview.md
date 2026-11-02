@@ -25,6 +25,7 @@ release: '@venizia/vulcan@0.4.9-0'
 - The skills that `vulcan sync` copies into your project changed: docs-update, build-a-feature, docs-writing, ship, plan-a-change, visualize-work. After a sync your agents write changelog entries only for changes that affect the users of a published package, with a plain title (no product name, no version number), and shorter.
 - The base coding rule `V-C-08` is worded differently. It said every const class of enumerable strings carries `SCHEME_SET` and `isValid`; it now says a class carries them when something validates against it, and a class nothing validates against needs neither. `vulcan sync` copies the rule into your project, so your agents will stop adding unused `isValid` methods to every const class. Nothing in your code has to change.
 - `bun check` now counts as a gate run in the session signals.
+- Repairs for files, caches and config spellings that only much older versions wrote are removed: `vulcan sync --prune`, the `.ts`, `.mjs` and `.js` config names, `vulcan init --config`, the `<package>` tag placeholder, `changelogs migrate`, `concepts stamp|check` and more. The [entry on removed repairs](/changelogs/2026-11-02-old-install-repairs-removed) lists each one, what you see and what to do. The config now also refuses a package name with capital letters.
 
 ## Who is affected
 
@@ -42,7 +43,8 @@ release: '@venizia/vulcan@0.4.9-0'
 5. Only now add the new config keys you want: `theme: { accent: '#rrggbb' }` (optional `accentDark`, `accentText`), a `trustedScripts` entry `{ script: 'path', readOnly: ['plan'] }` (words of letters, digits and `_ . : -`), and `presetKind: 'lib' | 'shared'` on a package entry. Run `vulcan sync` again after each. `readOnly` takes effect only after the re-sync.
 6. Restart your agent sessions so the atlas MCP server restarts; nothing has to be configured. To tune it: `VULCAN_ATLAS_CALL_WAIT_SECONDS` (20) is how long a tool call waits for a source still being indexed, `VULCAN_ATLAS_INDEX_JOBS` (default: the number of cores, fewer when memory is short) is how many sources are indexed at once, `VULCAN_ATLAS_INDEX_TIMEOUT_SECONDS` (600) stops a source that takes too long.
 7. If a script calls `vulcan x atlas releases gen|check` or `symbols gen|check`: they now print a usage error naming the word. Call `vulcan x atlas releases` or `symbols` without a subcommand.
-8. Run `vulcan doctor`.
+8. Read the [entry on removed repairs](/changelogs/2026-11-02-old-install-repairs-removed) and check that your project holds none of what it lists: a config that is not `.configs/vulcan.config.mts`, a `<package>` in a tag template, a package name with capital letters, calls to `vulcan sync --prune`, `make changelogs-migrate` or `make knowledge-symbols-check`.
+9. Run `vulcan doctor`.
 
 ## If something goes wrong
 

@@ -97,9 +97,22 @@ const TRUSTED_SCRIPT = z.union([
 /** One folder, or a list of them: a side whose apps are grouped keeps each group's folder. */
 const LAYOUT_VALUE = z.union([LAYOUT_FOLDER, z.array(LAYOUT_FOLDER).min(1)]);
 
+/** An npm package name, lower case: the pattern and the length atlas applies to every package name of the manifest. */
+const NPM_NAME_PATTERN = /^(?:@[a-z0-9~-][a-z0-9._~-]*\/)?[a-z0-9~-][a-z0-9._~-]*$/;
+const NPM_NAME_MAX_LENGTH = 214;
+
+const NPM_PACKAGE_NAME = z.string().superRefine((value, context) => {
+  if (value.length > NPM_NAME_MAX_LENGTH || !NPM_NAME_PATTERN.test(value)) {
+    context.addIssue({
+      code: 'custom',
+      message: `package name '${value}' is not an npm package name: npm names are lower case (a to z, digits, . _ ~ -) with an optional @scope/, at most ${NPM_NAME_MAX_LENGTH} characters, and atlas refuses the manifest otherwise`,
+    });
+  }
+});
+
 const PROJECT_PACKAGE = z.strictObject({
   dir: z.string().regex(/^[a-z0-9][a-z0-9.-]*$/),
-  name: z.string(),
+  name: NPM_PACKAGE_NAME,
   /** Where the package lives, from the root; default `packages/<dir>`. */
   path: z.string().optional(),
   aliases: z.array(z.string()).default([]),
