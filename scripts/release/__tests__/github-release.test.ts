@@ -217,6 +217,27 @@ describe('GithubRelease.stableNotes', () => {
     );
   });
 
+  test('a heading with no prefix is left as written, in a plain entry and in a merged one', () => {
+    const plain = '## A plain sentence for the title\n\nBody.';
+    const merged = [
+      '## Changes of the day',
+      '',
+      '## guard patterns keep a lower case first letter',
+      '',
+      '### What changed',
+      '',
+      '- Body.',
+    ].join('\n');
+
+    expect(GithubRelease.stripEntry({ text: plain })).toBe(plain);
+    expect(GithubRelease.stripEntry({ text: merged })).toBe(merged);
+    expect(
+      GithubRelease.stripEntry({
+        text: `---\ntitle: T\n---\n\n# Changelog - 2026-10-27\n\n${plain}`,
+      }),
+    ).toBe(plain);
+  });
+
   test('is empty when no entry was added in the range', () => {
     expect(notesOf({ root: fixture(), from: 'vulcan-v0.4.8-1', to: 'vulcan-v0.4.8' })).toBe('');
   });

@@ -84,7 +84,7 @@ Every publish makes one GitHub Release on its tag (`scripts/release/github-relea
 
 | Kind | Marked | Title | Notes |
 |---|---|---|---|
-| Stable | Latest, when no higher stable tag exists | `VULCAN <version>` | The changelog entries added since the previous stable tag, without front matter, date heading or the `VULCAN X.Y.Z:` prefix of their headings, then the three packages with their npm links |
+| Stable | Latest, when no higher stable tag exists | `VULCAN <version>` | The changelog entries added since the previous stable tag, without front matter or date heading, and without the `VULCAN <version>:` prefix an older entry heading carries (a heading with no prefix is left as written), then the three packages with their npm links |
 | Prerelease | Pre-release, never Latest | `VULCAN <version>` | The install line with `@next`, the `[#N]` commit subjects since the previous tag (at most 30, with a line that counts the rest), then the packages |
 
 - **A stable needs no changelog entry.** The changelog records only what affects users of the packages, so a stable made of internal work has none: its Release says "No change for users of the packages in this release." The previous stable is read through `tagPattern` and `legacyTagPatterns`, so the first stable after the rename looks back to `v0.4.7`.

@@ -41,6 +41,7 @@ entry, not one per change.
 
 | Part | Where | Rule |
 |---|---|---|
+| **Title** | frontmatter `title:` and the heading under `# Changelog - date` | A plain sentence that names what changed, in sentence or title case. No product name, no version and no placeholder: not `VULCAN 0.4.8: ...`, never a literal `X.Y.Z`. The heading repeats the title. `make changelog-check` fails on a literal `X.Y.Z`. |
 | **Badge** | one `<Badge>` line under the first heading | Keep the ones that apply: New Feature, Enhancement, Bug Fix, Security, Behavior Change, Breaking Change. The first types the entry on the index and in the filters. |
 | **`packages:`** | frontmatter | The npm names whose code changed, from `packages[].name`. An entry that covers no package is internal work and is not written. `okf check --strict` fails an entry without the list. |
 | **Upgrade note for a breaking change** | the `## Breaking changes` section | Who is affected, then Before and After code or numbered steps. Delete the section when nothing breaks. |
@@ -55,14 +56,14 @@ The title and the description (one plain sentence) are the entry's card on the i
 |---|---|
 | `summary:` | The card text on the index and the feed; defaults to `description:`. |
 | `type: release` | Marks a release overview (the batch page with the upgrade checklist) as its own type. A file name with `batch-overview`, or a title ending "(Overview)", does the same. |
-| `release: '<npm name>@<version>'` | Places an entry git would place wrongly (a backfill); it must name a tag that exists. The index shows this version; without it the first x.y.z of the title is shown. |
+| `release: '<npm name>@<version>'` | Places an entry git would place wrongly (a backfill); it must name a tag that exists. The index shows this version; a title carries none, so without it the entry shows no version. |
 | `badges: [...]` | Overrides the `<Badge>` line when the types are wanted without the markup. |
 
 ## Template
 
 ````markdown
 ---
-title: [Short, plain title - what a user would search for]
+title: [A plain sentence - what changed, what a user would search for. No product name, no version]
 description: [One sentence, plain - what changed and why it matters]
 # Mandatory: the npm names whose code changed in this release.
 packages: ['@venizia/vulcan']
@@ -70,7 +71,7 @@ packages: ['@venizia/vulcan']
 
 # Changelog - YYYY-MM-DD
 
-## [Main Title/Focus Area]
+## [The same title as above]
 
 <!-- Keep only the badges that apply -->
 <Badge type="tip" text="New Feature" /> <Badge type="tip" text="Enhancement" /> <Badge type="info" text="Bug Fix" /> <Badge type="danger" text="Security" /> <Badge type="warning" text="Breaking Change" />

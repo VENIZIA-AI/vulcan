@@ -92,9 +92,11 @@ and says so.
    `packages[].name`, of every package the entry covers: `packages: ['@scope/core']`. An entry that covers
    no package is internal work, and internal work has no entry. Never leave the list out -
    `okf check --strict` fails the entry.
-3. **The content.** Short, and in the user's terms: what changed and the benefit, who is affected, how to
+3. **The title.** A plain sentence that names what changed, with no product name, no version and no
+   placeholder (never a literal `X.Y.Z`); the entry's heading repeats it.
+4. **The content.** Short, and in the user's terms: what changed and the benefit, who is affected, how to
    migrate. It is not a commit log, and it does not say how the change was built.
-4. **The index.** When the directory's `index.md` lists entries, add a row in its order.
+5. **The index.** When the directory's `index.md` lists entries, add a row in its order.
 
 ## 6. Gates - validate, fix, repeat
 

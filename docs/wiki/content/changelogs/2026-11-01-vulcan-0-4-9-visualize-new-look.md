@@ -1,12 +1,12 @@
 ---
-title: "VULCAN X.Y.Z: A New vulcan visualize, and a Few Names Change in okf, atlas and the Makefile"
+title: A new vulcan visualize, and a few names change in okf, atlas and the Makefile
 description: vulcan visualize pages take the look of this wiki, use your project's colour and add four kinds; the agent-setup make target is gone and a few okf and atlas functions are now class methods.
 packages: ['@venizia/vulcan', '@venizia/vulcan-atlas', '@venizia/vulcan-okf']
 ---
 
 # Changelog - 2026-11-01
 
-## VULCAN X.Y.Z: a new vulcan visualize, and a few names change in okf, atlas and the Makefile
+## A new vulcan visualize, and a few names change in okf, atlas and the Makefile
 
 <Badge type="tip" text="Enhancement" /> <Badge type="info" text="Bug Fix" /> <Badge type="warning" text="Breaking Change" />
 
