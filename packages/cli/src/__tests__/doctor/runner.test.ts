@@ -66,6 +66,20 @@ describe('doctor', () => {
     expect(result.stderr).not.toContain('    at ');
   });
 
+  test('a package name with a capital letter: a config violation that names it, exit 1', () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.mts':
+          "export default { packages: [{ dir: 'kernel', name: '@Acme/Kernel' }] };\n",
+      },
+    });
+    const result = runCli({ args: ['doctor'], cwd: root });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("package name '@Acme/Kernel' is not an npm package name");
+    expect(result.stderr).not.toContain('    at ');
+  });
+
   test('a missing AGENTS.md, rules file or knowledge bundle', async () => {
     const withoutAgents = Object.fromEntries(
       Object.entries(CONFORMANT).filter(([path]) => path !== 'AGENTS.md'),
