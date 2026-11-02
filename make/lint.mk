@@ -6,13 +6,13 @@ LINT_PKG_TARGETS := $(addprefix lint-,$(PACKAGES))
 FIX_PKG_TARGETS := $(addprefix lint-fix-,$(PACKAGES))
 TYPECHECK_PKG_TARGETS := $(addprefix typecheck-,$(PACKAGES))
 
-.PHONY: lint lint-fix lint-all lint-packages lint-scripts lint-wiki lint-files project-names-check agent-signature-check lint-fix-packages lint-fix-wiki fmt-files \
+.PHONY: lint lint-fix lint-all lint-packages lint-scripts lint-wiki lint-files project-names-check changelog-check agent-signature-check lint-fix-packages lint-fix-wiki fmt-files \
         typecheck typecheck-packages $(LINT_PKG_TARGETS) $(FIX_PKG_TARGETS) $(TYPECHECK_PKG_TARGETS)
 
 lint: lint-packages
 	@echo "lint: done"
 
-lint-all: lint-packages lint-wiki lint-scripts lint-files project-names-check
+lint-all: lint-packages lint-wiki lint-scripts lint-files project-names-check changelog-check
 	@echo "lint: all packages done"
 
 lint-packages: $(LINT_PKG_TARGETS)
@@ -71,6 +71,11 @@ lint-files:
 project-names-check:
 	@echo "lint: no project names in packages/*/src"
 	@bun scripts/checks/check-project-names.ts
+
+# A changelog entry never carries the template placeholder X.Y.Z (a title is a plain sentence).
+changelog-check:
+	@echo "lint: no X.Y.Z placeholder in the changelogs"
+	@bun scripts/checks/check-changelog-placeholder.ts
 
 # W-00: no commit of the branch signs itself as an agent. RANGE is the branch, `origin/develop..HEAD` by default; a clone
 # also gets the check at commit time from `make setup-hooks` (the commit-msg hook).

@@ -21,7 +21,7 @@ export class GithubReleaseConstants {
   static readonly DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
   static readonly FRONT_MATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
   static readonly DATE_HEADING = /^# Changelog - \d{4}-\d{2}-\d{2}\s*$/m;
-  /** `## VULCAN X.Y.Z: title` or `## VULCAN 0.2.0-0: title`: the product and version prefix of an entry's heading. */
+  /** `## VULCAN X.Y.Z: title` or `## VULCAN 0.2.0-0: title`: the product and version prefix an older entry's heading carries; a heading with no prefix does not match and is left as written. */
   static readonly VERSION_HEADING = /^(##\s+)VULCAN\s+(?:X\.Y\.Z|\d[^:\n]*):\s*(\S)/m;
   static readonly ISSUE_SUBJECT = /^\[#\d+\]/;
   /** The unspaced run of `[#N]` tokens a subject opens with: `[#42][#44] ...` serves two issues. */
@@ -206,7 +206,7 @@ export class GithubRelease {
 
   /**
    * An entry as a Release shows it: no front matter, no date heading, and its heading without the
-   * `VULCAN X.Y.Z:` prefix (the Release is titled with the version already).
+   * `VULCAN <version>:` prefix an older entry carries (the Release is titled with the version already).
    */
   static stripEntry(opts: { text: string }): string {
     return opts.text
