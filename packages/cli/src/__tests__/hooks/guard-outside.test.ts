@@ -156,6 +156,58 @@ describe('OutsideGuard.inspect flags what a review found', () => {
   });
 });
 
+describe('a cd lasts to the end of the subshell it sits in', () => {
+  test.each([
+    '(cd /etc; ls); touch out',
+    '(cd /etc && ls) && echo 1 > out',
+    'x=$(cd /etc; pwd); touch out',
+    'echo $(cd /etc; pwd) > out',
+    'echo $(cd /etc) $(touch out)',
+    `sh -c 'cd /etc; ls'; touch out`,
+    '(cd /etc; (cd /tmp; ls); ls); touch out',
+    'case x in a) touch out;; esac',
+  ])('%s writes in the folder the line started in', (command) => {
+    expect(bash({ command })).toEqual([]);
+  });
+
+  const pathsOf = (command: string): string[] =>
+    OutsideGuard.inspect({
+      input: { tool: 'Bash', filePath: undefined, command, cwd: PROJECT },
+      projectRoot: PROJECT,
+      home: HOME,
+      env: ENV,
+    }).map((hit) => hit.path);
+
+  test.each([
+    ['(cd /etc; touch x)', ['/etc/x']],
+    ['(cd /etc; touch x); touch out', ['/etc/x']],
+    ['cd /etc && (ls); touch x', ['/etc/x']],
+    ['cd /etc && (cd /tmp; ls); touch x', ['/etc/x']],
+    ['(cd /etc; echo $(touch x))', ['/etc/x']],
+    ['(cd /etc; echo $(touch x)); touch out', ['/etc/x']],
+    ['(cd /etc; sh -c "touch x"); touch out', ['/etc/x']],
+    ['(cd /etc; echo $(touch x)); cd /usr; touch y', ['/etc/x', '/usr/y']],
+    ['(cd /etc; (cd /usr; echo $(touch x)); echo $(touch y))', ['/usr/x', '/etc/y']],
+    ['(cd /etc; echo $(touch x)); (cd /usr; echo $(touch y))', ['/etc/x', '/usr/y']],
+  ])('%s still writes in the folder the cd chose', (command, expected) => {
+    expect(pathsOf(command).sort()).toEqual(expected.sort());
+  });
+
+  // eval runs in the shell that reads it: its cd lasts there, and ends with a subshell around it
+  test.each([
+    ["eval 'cd /etc'; eval 'touch x'", ['/etc/x']],
+    ['eval "cd /etc" && eval "touch out"', ['/etc/out']],
+    ["(eval 'cd /etc'; eval 'touch x')", ['/etc/x']],
+    ["(eval 'cd /etc'); eval 'touch x'", []],
+  ])('%s', (command, expected) => {
+    expect(pathsOf(command)).toEqual(expected);
+  });
+
+  test('a line with more open subshells than the guard reads is asked about, not read in part', () => {
+    expect(bash({ command: `${'('.repeat(150)}touch out` }).length).toBeGreaterThan(0);
+  });
+});
+
 describe('OutsideGuard.inspect passes', () => {
   test.each([
     'mkdir -p .agents/local/tmp/a',

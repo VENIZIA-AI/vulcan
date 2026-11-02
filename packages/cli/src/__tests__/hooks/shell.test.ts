@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { ShellBudget, ShellParser } from '../../hooks/index.ts';
+import type { ISimpleCommand } from '../../hooks/index.ts';
 
 const wordsOf = (command: string): string[][] =>
   ShellParser.parse({ command }).map((simple) => simple.words);
@@ -402,6 +403,25 @@ describe('ShellParser.parse', () => {
         (c) => ShellParser.programOf({ command: c }).name,
       ),
     ).toContain('git');
+  });
+
+  test('scopeOf names the subshells a command sits in, outermost first', () => {
+    const [outer, inner, after, plain, substituted] = ShellParser.parse({
+      command: '(cd a; (ls); pwd); echo $(date)',
+    });
+    const scopeOf = (command: ISimpleCommand | undefined): readonly number[] =>
+      command === undefined ? [] : ShellParser.scopeOf({ command });
+
+    expect(scopeOf(outer)).toHaveLength(1);
+    expect(scopeOf(inner)).toHaveLength(2);
+    expect(scopeOf(inner)[0]).toBe(scopeOf(outer)[0]);
+    expect(scopeOf(after)).toEqual(scopeOf(outer));
+    expect(scopeOf(plain)).toEqual([]);
+    expect(scopeOf(substituted)).toHaveLength(1);
+    expect(ShellParser.parse({ command: 'a; b' }).map((command) => scopeOf(command))).toEqual([
+      [],
+      [],
+    ]);
   });
 
   test('an empty line and unbalanced quotes do not throw', () => {
