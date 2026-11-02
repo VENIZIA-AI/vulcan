@@ -337,7 +337,13 @@ export class SourcesServer {
         : {
             definition: handler.definition,
             call: async (input) => {
-              await boot.waitFor({ ms: SourceBoot.callWaitMs() });
+              const named = (input.args as { source?: unknown } | undefined)?.source;
+
+              // A call that names a source waits for that one only; any other waits for all of them.
+              await boot.waitFor({
+                ms: SourceBoot.callWaitMs(),
+                ...(typeof named === 'string' ? { source: named } : {}),
+              });
 
               const left = SourceNotice.of({
                 boot,

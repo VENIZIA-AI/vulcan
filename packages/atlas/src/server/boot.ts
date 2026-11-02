@@ -5,6 +5,23 @@ import { StderrLogger } from '@/common/logger';
 import type { IAtlasSource, IResolvedSource, IUnavailableSource } from '@/sources/common';
 
 /** What one index build holds at its peak (460 MB measured on the largest source of a real project, rounded up); the builds at once are capped by free memory over it. */
+const SIGNAL_EXIT_CODES = { SIGTERM: 143, SIGINT: 130, SIGHUP: 129 } as const;
+const children = new Set<{ kill: () => void }>();
+let exitHooked = false;
+
+/** One `exit` handler for every child ever started: a server that ends takes its children with it. */
+const killChildrenOnExit = (): void => {
+  if (exitHooked) {
+    return;
+  }
+
+  exitHooked = true;
+  process.once('exit', () => {
+    for (const child of children) {
+      child.kill();
+    }
+  });
+};
 const BUILD_MEMORY_BYTES = 640 * 1024 ** 2;
 const DEFAULT_CALL_WAIT_MS = 20_000;
 const DEFAULT_BUILD_TIMEOUT_MS = 600_000;
@@ -33,6 +50,7 @@ export class SourceBoot {
   private readonly running = new Map<string, IAtlasSource>();
   private readonly failed: IUnavailableSource[] = [];
   private readonly done: Promise<void>;
+  private readonly settledBy = new Map<string, { promise: Promise<void>; finish: () => void }>();
   private finish!: () => void;
   private handlers: {
     onReady?: (opts: { resolved: IResolvedSource }) => void;
@@ -45,6 +63,16 @@ export class SourceBoot {
     this.options = opts;
     this.waiting = [...opts.sources];
     this.remaining = opts.sources.length;
+
+    for (const source of opts.sources) {
+      let finish!: () => void;
+      const promise = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+
+      this.settledBy.set(source.name, { promise, finish });
+    }
+
     this.done = new Promise((resolve) => {
       this.finish = resolve;
     });
@@ -117,14 +145,20 @@ export class SourceBoot {
       ],
       { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' },
     );
-    const timer = setTimeout(() => child.kill(), opts.timeoutMs);
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, opts.timeoutMs);
 
-    // A server that ends takes its children with it.
-    process.once('exit', () => child.kill());
+    children.add(child);
+    killChildrenOnExit();
+    child.exited.then(() => children.delete(child)).catch(() => undefined);
     const tail: string[] = [];
+    const errors = new TextDecoder();
     const relay = (async () => {
       for await (const chunk of child.stderr) {
-        const text = new TextDecoder().decode(chunk);
+        const text = errors.decode(chunk, { stream: true });
 
         process.stderr.write(text);
         tail.push(...text.split('\n').filter((line) => line.trim() !== ''));
@@ -132,9 +166,10 @@ export class SourceBoot {
     })();
     let line: string | undefined;
     let buffer = '';
+    const output = new TextDecoder();
 
     for await (const chunk of child.stdout) {
-      buffer += new TextDecoder().decode(chunk);
+      buffer += output.decode(chunk, { stream: true });
 
       const newline = buffer.indexOf('\n');
 
@@ -165,7 +200,7 @@ export class SourceBoot {
     await relay;
 
     throw new Error(
-      child.signalCode !== null
+      timedOut
         ? `indexing ${opts.source.name} took longer than ${Math.round(opts.timeoutMs / 1000)} s and was stopped`
         : (tail.at(-1) ?? `indexing ${opts.source.name} exited with code ${code}`).replace(
             /^vulcan-atlas: /,
@@ -196,8 +231,8 @@ export class SourceBoot {
     this.started = true;
 
     // A server stopped by a signal takes its children with it: the 'exit' handlers kill them.
-    for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP'] as const) {
-      process.once(signal, () => process.exit(128));
+    for (const [signal, code] of Object.entries(SIGNAL_EXIT_CODES)) {
+      process.once(signal, () => process.exit(code));
     }
 
     const workers = Math.min(
@@ -227,16 +262,24 @@ export class SourceBoot {
     return this.done;
   }
 
-  /** Resolves when every source is settled or `ms` has passed, whichever is first. */
-  async waitFor(opts: { ms: number }): Promise<void> {
-    if (this.remaining === 0) {
+  /**
+   * Resolves when the source named is ready or failed (every source when none is named), or when `ms`
+   * has passed, whichever is first. A name that is not a declared source does not wait.
+   */
+  async waitFor(opts: { ms: number; source?: string }): Promise<void> {
+    const target =
+      opts.source === undefined
+        ? this.done
+        : (this.settledBy.get(opts.source)?.promise ?? this.done);
+
+    if (opts.source === undefined ? this.remaining === 0 : !this.settledBy.has(opts.source)) {
       return;
     }
 
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     await Promise.race([
-      this.done,
+      target,
       new Promise<void>((resolve) => {
         timer = setTimeout(resolve, opts.ms);
       }),
@@ -269,6 +312,7 @@ export class SourceBoot {
         this.handlers.onFailed?.({ unavailable });
       }
 
+      this.settledBy.get(source.name)?.finish();
       this.remaining -= 1;
 
       if (this.remaining === 0) {

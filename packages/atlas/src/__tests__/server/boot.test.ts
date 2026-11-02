@@ -125,6 +125,36 @@ describe('SourceBoot', () => {
     expect(boot.indexing()).toEqual([]);
   });
 
+  test('waitFor with a source name returns when that source is done, not the others', async () => {
+    const fast = gate<IResolvedSource>();
+    const slow = gate<IResolvedSource>();
+    const boot = new SourceBoot({
+      sources: declared(['fast', 'slow']),
+      concurrency: 2,
+      indexer: ({ source }) => (source.name === 'fast' ? fast.promise : slow.promise),
+    });
+
+    boot.listen({ onReady: () => undefined });
+    boot.start();
+    fast.release({ name: 'fast' } as IResolvedSource);
+
+    const started = performance.now();
+
+    await boot.waitFor({ ms: 5_000, source: 'fast' });
+
+    expect(performance.now() - started).toBeLessThan(1_000);
+    expect(boot.indexing().map((source) => source.name)).toEqual(['slow']);
+
+    // A name that is not declared does not wait at all.
+    const unknown = performance.now();
+
+    await boot.waitFor({ ms: 5_000, source: 'nobody' });
+
+    expect(performance.now() - unknown).toBeLessThan(1_000);
+    slow.release({ name: 'slow' } as IResolvedSource);
+    await boot.settled;
+  });
+
   test('the cap is the core count held back by free memory, and an override wins', () => {
     expect(SourceBoot.concurrencyOf()).toBeGreaterThanOrEqual(1);
 

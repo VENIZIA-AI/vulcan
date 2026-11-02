@@ -133,8 +133,9 @@ const buildServer = async (opts: {
     opts.root,
     ...(cacheDir === undefined ? [] : [`--cache-dir=${cacheDir}`]),
     ...(prebuilt ? [] : ['--no-prebuilt']),
+    // The `--source` arguments the parent read, in both spellings, so the child sees the same sources.
     ...argv.flatMap((arg, index) =>
-      arg === '--source' && argv[index + 1]?.includes('/') ? [arg, argv[index + 1]] : [],
+      arg === '--source' ? [arg, argv[index + 1] ?? ''] : arg.startsWith('--source=') ? [arg] : [],
     ),
   ];
   const boot = new SourceBoot({
@@ -281,6 +282,9 @@ const listTools = async (): Promise<void> => {
   for (const tool of server.listTools()) {
     console.log(`${tool.name.padEnd(8)} ${tool.description.split('. ')[0]}`);
   }
+
+  // Leave at once: a child may still be filling its caches.
+  process.exit(0);
 };
 
 const main = async (): Promise<void> => {
@@ -309,9 +313,36 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  const { server } = await readServer();
+  const { server, boot } = await readServer();
+
+  // With no project of its own, a server whose every source failed has nothing to serve: say so and stop, as before.
+  if (
+    boot.declared.length > 0 &&
+    !ProjectConfig.hasAtlasProject({ root: ModeArguments.readRoot({ argv }).value })
+  ) {
+    boot.settled
+      .then(() => {
+        if (boot.unavailable().length === boot.declared.length) {
+          for (const { source, reason } of boot.unavailable()) {
+            console.error(
+              `${AtlasConstants.SERVER_NAME}: source '${source.name}' is not served - ${reason}`,
+            );
+          }
+
+          console.error(
+            `${AtlasConstants.SERVER_NAME}: nothing to serve - every source is unavailable (above)`,
+          );
+          process.exit(2);
+        }
+      })
+      .catch(() => undefined);
+  }
+
   await server.run();
-  // The client closed the input: leave, and take the indexing children along.
+  // The client closed the input: let the last reply reach the pipe, then leave and take the indexing children along.
+  await new Promise<void>((done) => {
+    process.stdout.write('', () => done());
+  });
   process.exit(0);
 };
 
