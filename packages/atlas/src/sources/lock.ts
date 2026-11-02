@@ -43,7 +43,20 @@ const isAlive = (opts: { pid: number }): boolean => {
   }
 };
 
-/** A lock whose holder died: its process is gone, or it is older than any pull runs. */
+/** How long ago the lock was made, or undefined when it is gone: its holder may remove it at any moment, so no check comes first. */
+const ageOf = (opts: { lock: string }): number | undefined => {
+  try {
+    return Date.now() - statSync(opts.lock).mtimeMs;
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+      return undefined;
+    }
+
+    throw error;
+  }
+};
+
+/** A lock whose holder died: its process is gone, or it is older than any pull runs. A lock that is gone is not stale: take it. */
 const isStale = (opts: { lock: string }): boolean => {
   const owner = ownerOf(opts);
 
@@ -51,7 +64,9 @@ const isStale = (opts: { lock: string }): boolean => {
     return true;
   }
 
-  return existsSync(opts.lock) && Date.now() - statSync(opts.lock).mtimeMs > STALE_AFTER_MS;
+  const age = ageOf(opts);
+
+  return age !== undefined && age > STALE_AFTER_MS;
 };
 
 /** Takes the lock - an exclusive `mkdir` - or says it is held. */
@@ -74,6 +89,16 @@ const tryAcquire = (opts: { lock: string; token: string }): boolean => {
 };
 
 export class PullLock {
+  /** How long ago the lock was made; undefined when it is gone. */
+  static ageOf(opts: { lock: string }): number | undefined {
+    return ageOf(opts);
+  }
+
+  /** Whether the lock's holder is dead or it is older than any pull runs; false for a lock that is held or no longer there. */
+  static isStale(opts: { lock: string }): boolean {
+    return isStale(opts);
+  }
+
   /**
    * Runs `run` holding the source's pull lock, so starts racing on one cold cache take turns: the first
    * pulls, the rest find its SHA complete. A lock a dead pull left behind is taken over; a live one is
