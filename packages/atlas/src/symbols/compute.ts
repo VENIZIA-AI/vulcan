@@ -69,11 +69,6 @@ const writeCache = (opts: {
 const DECLARATIONS = new Bun.Glob('**/*.d.{ts,mts,cts}');
 
 export class SymbolCompute {
-  /** `<cacheBase>/atlas/v1/symbols` - a published version never changes, so it never expires. */
-  static symbolsCacheDirectory(opts: { cacheBase: string }): string {
-    return symbolsDirectoryOf(opts);
-  }
-
   /** The cached symbols of `name@version`, or `undefined` when no pull or install has read them yet. */
   static cached(opts: {
     name: string;

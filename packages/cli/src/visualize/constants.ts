@@ -4,12 +4,6 @@ import type { TConstValue } from '../common/index.ts';
 export class ChangeKinds {
   static readonly ADDED = 'added';
   static readonly REMOVED = 'removed';
-
-  static readonly SCHEME_SET = new Set<string>([this.ADDED, this.REMOVED]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export type TChangeKind = TConstValue<typeof ChangeKinds>;
@@ -20,9 +14,6 @@ export class StatusStates {
   static readonly BLOCKED = 'blocked';
   static readonly INFO = 'info';
   static readonly SCHEME_SET = new Set<string>([this.OK, this.WARN, this.BLOCKED, this.INFO]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** Where a task stands on the minimap: a shape and a word each, never colour alone. */
@@ -41,9 +32,6 @@ export class MinimapStates {
     this.BLOCKED,
     this.DROPPED,
   ]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 
   /** The class and chrome key of a state: the words have spaces, the keys do not. */
   static keyOf(value: string): string {
@@ -54,9 +42,6 @@ export class MinimapStates {
 /** The state of a box, a milestone or a chart part: a minimap state, or plain information. Never told by colour alone. */
 export class NodeStates {
   static readonly SCHEME_SET = new Set<string>([...MinimapStates.SCHEME_SET, 'info']);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 
   /** The colour family of a state: green, blue, amber, red, or neutral. */
   static toneOf(value: string): string {
@@ -93,9 +78,6 @@ export class EdgeVariants {
     this.FANOUT,
     this.ERROR,
   ]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export class NodeKinds {
@@ -111,9 +93,6 @@ export class NodeKinds {
     this.ACTOR,
     this.EXTERNAL,
   ]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** What a claim in the evidence table rests on. An analogy is never shown as a fact. */
@@ -122,9 +101,6 @@ export class EvidenceLabels {
   static readonly INFERRED = 'inferred';
   static readonly GUESS = 'guess';
   static readonly SCHEME_SET = new Set<string>([this.VERIFIED, this.INFERRED, this.GUESS]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export class VisualizeLimits {

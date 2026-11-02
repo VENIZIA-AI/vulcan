@@ -2,22 +2,12 @@
 export class GuardDecisions {
   static readonly ASK = 'ask';
   static readonly DENY = 'deny';
-  static readonly SCHEME_SET = new Set<string>([this.ASK, this.DENY]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** What the package guard says about a hand-made package: refuse where a `vulcan add` command exists, else warn. */
 export class PackageVerdictKinds {
   static readonly DENY = GuardDecisions.DENY;
   static readonly WARN = 'warn';
-
-  static readonly SCHEME_SET = new Set<string>([this.DENY, this.WARN]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** What git says about a script a project trusts: only `TRUSTED` skips the script checks of guard-writes. */
@@ -29,20 +19,6 @@ export class TrustStates {
   static readonly MODIFIED = 'modified';
   static readonly SYMLINK = 'symlink';
   static readonly UNKNOWN = 'unknown';
-
-  static readonly SCHEME_SET = new Set<string>([
-    this.TRUSTED,
-    this.MISSING,
-    this.UNTRACKED,
-    this.UNCOMMITTED,
-    this.MODIFIED,
-    this.SYMLINK,
-    this.UNKNOWN,
-  ]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export class HookConstants {

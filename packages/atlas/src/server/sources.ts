@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { relative } from 'node:path';
-import { AtlasConstants, AtlasModes } from '@/common';
+import { AtlasConstants } from '@/common';
 import { RepositoryRoots } from '@/corpus';
 import { RpcError, Transport } from '@/protocol';
 import type { IToolHandler } from '@/protocol/common';
@@ -88,7 +88,6 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
 
   if (source.mode === 'repository') {
     const guard = new FreshnessGuard({
-      mode: AtlasModes.REPOSITORY,
       roots: RepositoryRoots.resolve({ project: source.project }),
     });
 

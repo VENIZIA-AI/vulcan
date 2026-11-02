@@ -254,13 +254,13 @@ describe('Refresher', () => {
     expect(runs).toBe(1);
 
     release();
-    await refresher.idle();
+    await Bun.sleep(0);
     now = 1500;
     refresher.poke();
     expect(runs).toBe(1);
     now = 2100;
     refresher.poke();
-    await refresher.idle();
+    await Bun.sleep(0);
     expect(runs).toBe(2);
   });
 
@@ -284,7 +284,7 @@ describe('Refresher', () => {
     });
 
     refresher.poke();
-    await refresher.idle();
+    await Bun.sleep(0);
 
     expect(ran).toBe(true);
   });

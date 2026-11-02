@@ -2,9 +2,9 @@ import { AgentConstants, AgentScopes } from './common/index.ts';
 import { LOCAL_AGENTS_FILE } from './local.ts';
 import { AgentTable } from './table.ts';
 
-export const EXCLUDE_BLOCK_START =
+const EXCLUDE_BLOCK_START =
   '# vulcan:start - written by vulcan sync for the agents you chose; do not edit';
-export const EXCLUDE_BLOCK_END = '# vulcan:end';
+const EXCLUDE_BLOCK_END = '# vulcan:end';
 const START_PREFIX = '# vulcan:start';
 /** A block's start line: the project it belongs to sits in brackets after the marker, none for the git top level. */
 const START_PATTERN = /^# vulcan:start(?: \((.*)\))? - written/;

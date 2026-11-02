@@ -2,8 +2,8 @@ import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { RemoveOutcomes } from './common/index.ts';
 
-export const CODEX_BLOCK_START = '# vulcan:atlas:start';
-export const CODEX_BLOCK_END = '# vulcan:atlas:end';
+const CODEX_BLOCK_START = '# vulcan:atlas:start';
+const CODEX_BLOCK_END = '# vulcan:atlas:end';
 const CODEX_TABLE = '[mcp_servers.atlas]';
 const SERVER_NAME = 'atlas';
 

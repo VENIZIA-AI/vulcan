@@ -107,11 +107,6 @@ build first.
 It depends on no IGNIS package - VULCAN's tools must not pin a project to one framework's release.
 It is a development tool, not part of an application's runtime.
 
-## History
-
-Moved from IGNIS (`@venizia/ignis-atlas` 0.1.2-5) into VULCAN as `@venizia/vulcan-atlas`.
-Background: [Atlas on the IGNIS wiki](https://ignis.venizia.ai/extensions/atlas).
-
 MIT licensed - see [LICENSE.md](LICENSE.md).
 
 ---

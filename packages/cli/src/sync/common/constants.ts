@@ -7,16 +7,6 @@ export class SyncStatuses {
   static readonly SKIPPED = 'skipped';
   /** Taken out by `sync --prune`. */
   static readonly REMOVED = 'removed';
-  static readonly SCHEME_SET = new Set<string>([
-    this.CREATED,
-    this.REPLACED,
-    this.UNCHANGED,
-    this.SKIPPED,
-    this.REMOVED,
-  ]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export class SyncConstants {
@@ -49,8 +39,4 @@ export class BaseRuleChanges {
   static readonly ADDED = 'added';
   static readonly CHANGED = 'changed';
   static readonly REMOVED = 'removed';
-  static readonly SCHEME_SET = new Set<string>([this.ADDED, this.CHANGED, this.REMOVED]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }

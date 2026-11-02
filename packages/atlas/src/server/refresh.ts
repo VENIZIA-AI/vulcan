@@ -38,11 +38,6 @@ export class Refresher {
     });
   }
 
-  /** Resolves once the refresh in progress, if any, has finished. */
-  async idle(): Promise<void> {
-    await this.running;
-  }
-
   private async run(): Promise<void> {
     for (const target of this.targets) {
       try {

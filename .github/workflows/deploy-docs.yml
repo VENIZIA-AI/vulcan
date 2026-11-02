@@ -1,20 +1,19 @@
 name: Docs
 run-name: 'Docs · ${{ github.ref_name }}'
 
-# Everything this repository publishes besides the packages, as jobs of one workflow, each with the trigger it had
-# when it was a workflow of its own:
+# Everything this repository publishes besides the packages, as jobs of one workflow, each on its own trigger:
 #
 #   docs         a push to develop that touches docs/wiki/ builds the wiki and deploys it to GitHub Pages
 #   atlas-index  a push to main, develop or a tag publishes the signed atlas index of that commit
 #   wiki-shared  the weekly run compares the shared wiki theme with IGNIS and ARDOR
 #
-# A manual run picks one job with `job` (default `docs`, which is what the old deploy workflow did):
+# A manual run picks one job with `job` (default `docs`):
 #
 #   gh workflow run deploy-docs.yml --ref develop
 #   gh workflow run deploy-docs.yml --ref develop -f job=atlas-index -f ref=vulcan-v0.4.8
 #   gh workflow run deploy-docs.yml --ref develop -f job=wiki-shared
 #
-# The file keeps its name: the github-pages environment and the release docs name it.
+# The file is called deploy-docs.yml because the github-pages environment and the release docs name it.
 on:
   push:
     branches:

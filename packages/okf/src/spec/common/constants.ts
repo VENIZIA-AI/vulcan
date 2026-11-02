@@ -1,12 +1,7 @@
-/** OKF spec versions this tooling knows, newest last. */
+/** The OKF spec version this tooling reads and writes; a bundle that declares another is read best-effort. */
 export class OkfVersions {
-  static readonly V0_1 = '0.1';
   static readonly V0_2 = '0.2';
   static readonly LATEST = this.V0_2;
-  static readonly SCHEME_SET = new Set<string>([this.V0_1, this.V0_2]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** §5.4 - an absent status means stable. */

@@ -7,10 +7,6 @@ export class MessageKinds {
   static readonly REPLY = 'reply';
   static readonly ASYNC = 'async';
   static readonly SCHEME_SET = new Set<string>([this.CALL, this.REPLY, this.ASYNC]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** What a state is in a lifecycle: where it begins, a state in between, or where it ends. */
@@ -19,10 +15,6 @@ export class LifecycleKinds {
   static readonly NORMAL = 'normal';
   static readonly END = 'end';
   static readonly SCHEME_SET = new Set<string>([this.START, this.NORMAL, this.END]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** The limits of the three kinds; the shared ones come from `VisualizeLimits`. */

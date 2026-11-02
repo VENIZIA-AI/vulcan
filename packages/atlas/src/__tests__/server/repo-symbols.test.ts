@@ -1,4 +1,4 @@
-import { ServerFactory } from '@/server';
+import { buildRepositoryServer } from '../server.helper';
 import { afterAll, expect, spyOn, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -48,7 +48,7 @@ const project = (opts: { built: boolean; exports?: Record<string, { types: strin
 };
 
 const callSymbol = async (opts: { root: string; name: string }) => {
-  const line = await ServerFactory.build({ root: opts.root, version: '0.0.0' }).handleLine({
+  const line = await buildRepositoryServer({ root: opts.root, version: '0.0.0' }).handleLine({
     line: JSON.stringify({
       jsonrpc: '2.0',
       id: 1,
@@ -127,7 +127,7 @@ test('an unbuilt project says to build first', async () => {
 
 test('built after the first question, the next one finds the symbol - the store loads again', async () => {
   const root = project({ built: false });
-  const server = ServerFactory.build({ root, version: '0.0.0' });
+  const server = buildRepositoryServer({ root, version: '0.0.0' });
   const ask = async () => {
     const line = await server.handleLine({
       line: JSON.stringify({
@@ -158,7 +158,7 @@ test('built after the first question, the next one finds the symbol - the store 
 
 test('a rebuild that changes a signature is seen without a restart - the store follows the .d.ts (D2)', async () => {
   const root = project({ built: true });
-  const server = ServerFactory.build({ root, version: '0.0.0' });
+  const server = buildRepositoryServer({ root, version: '0.0.0' });
   const ask = async () => {
     const line = await server.handleLine({
       line: JSON.stringify({

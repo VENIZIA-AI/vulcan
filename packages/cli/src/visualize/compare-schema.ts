@@ -8,10 +8,6 @@ export class EdgeSides {
   static readonly A = 'a';
   static readonly B = 'b';
   static readonly SCHEME_SET = new Set<string>([this.BOTH, this.A, this.B]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** The limits of the compare view; the shared ones come from `VisualizeLimits`. */

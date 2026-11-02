@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ServerFactory } from '@/server';
+import { buildRepositoryServer } from '../server.helper';
 import { SkillCatalog } from '@/skills';
 import { makeTempDirectory, TEMP_DIRECTORIES } from '../sources/source-repo.helper';
 
@@ -149,7 +149,7 @@ describe('a server lists the skills the project has, read when a client connects
 
     return root;
   };
-  const initialize = async (opts: { transport: ReturnType<typeof ServerFactory.build> }) => {
+  const initialize = async (opts: { transport: ReturnType<typeof buildRepositoryServer> }) => {
     const line = await opts.transport.handleLine({
       line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
     });
@@ -163,7 +163,7 @@ describe('a server lists the skills the project has, read when a client connects
     shipped({ root, name: 'build-a-feature', description: 'Builds. Use when the user builds.' });
     own({ root, name: 'acme-release', description: 'Ships. Use when the user ships.' });
 
-    const text = await initialize({ transport: ServerFactory.build({ root, version: '0.0.0' }) });
+    const text = await initialize({ transport: buildRepositoryServer({ root, version: '0.0.0' }) });
 
     expect(text).toContain('- `acme-release`: the user ships');
     expect(text).toContain('- `build-a-feature`: the user builds');
@@ -171,7 +171,7 @@ describe('a server lists the skills the project has, read when a client connects
 
   test('a skill added after the start is in the next initialize: nothing is edited by hand', async () => {
     const root = project();
-    const transport = ServerFactory.build({ root, version: '0.0.0' });
+    const transport = buildRepositoryServer({ root, version: '0.0.0' });
 
     const result = await initialize({ transport });
     expect(result).not.toContain('acme-new');

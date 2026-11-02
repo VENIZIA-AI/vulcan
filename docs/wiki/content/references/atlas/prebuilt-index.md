@@ -60,5 +60,5 @@ The index holds the repository's own documentation text. It is published only to
 ## What was and was not checked
 
 - verified: a classic token with the `repo` scope reads a private repository's release and downloads its asset through the API, and gets 404 without the token; the asset is a redirect to another host, and Bun's `fetch` drops `Authorization` on a redirect to another origin.
-- verified: an atlas of the previous release (0.4.5) reads a manifest that carries the block and serves the project as before.
+- verified: an atlas release from before the block reads a manifest that carries it and serves the project unchanged.
 - NOT verified: a fine-grained token; the download over a real network (the phase measurements ran against a local fake); a repository other than the ones tested; the release listing at several hundred assets.

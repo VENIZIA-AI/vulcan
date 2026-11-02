@@ -1,6 +1,5 @@
 import type {
   AppSides,
-  AtlasModes,
   Corpora,
   LibraryKinds,
   LogLevels,
@@ -12,7 +11,6 @@ import type {
 /** The values of a const class's static fields: `TConstValue<typeof Colors>` is `'red' | 'blue'`. */
 export type TConstValue<TClass> = Extract<TClass[keyof TClass], string | number> & {};
 
-export type TAtlasMode = TConstValue<typeof AtlasModes>;
 export type TCorpus = TConstValue<typeof Corpora>;
 export type TLogLevel = TConstValue<typeof LogLevels>;
 export type TSkillSource = TConstValue<typeof SkillSources>;

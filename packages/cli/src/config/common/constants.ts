@@ -2,12 +2,6 @@
 export class PackageKinds {
   static readonly APP = 'app';
   static readonly LIB = 'lib';
-
-  static readonly SCHEME_SET = new Set<string>([this.APP, this.LIB]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** Which preset kind made a library: `lib` (may use the project's framework) or `shared` (depends on no framework). */
@@ -30,12 +24,6 @@ export class ConfigExtensions {
   static readonly JS = 'js';
 
   static readonly LOOKUP_ORDER = [this.TS, this.MTS, this.MJS, this.JS] as const;
-
-  static readonly SCHEME_SET = new Set<string>(this.LOOKUP_ORDER);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** The agents `vulcan sync` writes adapters for. */

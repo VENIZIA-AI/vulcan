@@ -35,5 +35,4 @@ tags: [overview, decisions]
 
 - okf's renderers and coverage rows, and atlas's package lists, are IGNIS-specific; project config
   for them is a draft spec waiting for God.
-- The W/S/P/B base rules are interim until IGNIS, ARDOR and BANA are reconciled.
 - Multi-agent support (agy, omp, codex, gemini, cursor, copilot) is designed up to its first section.

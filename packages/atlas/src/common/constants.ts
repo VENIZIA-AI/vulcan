@@ -38,14 +38,6 @@ export class AtlasTimeouts {
   static readonly LOCAL_GIT_MS = 30_000;
 }
 
-export class AtlasModes {
-  static readonly REPOSITORY = 'repo';
-  static readonly SCHEME_SET = new Set<string>([this.REPOSITORY]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
-}
-
 export class Corpora {
   static readonly WIKI = 'wiki';
   static readonly CHANGELOG = 'changelog';
