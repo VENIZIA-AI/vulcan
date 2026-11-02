@@ -24,9 +24,15 @@ export class ConfigLoader {
     const file = ConfigLoader.findFile({ root: opts.root });
 
     if (file === undefined) {
+      const other = ['ts', 'mjs', 'js']
+        .map((extension) => `vulcan.config.${extension}`)
+        .find((name) => existsSync(join(opts.root, ConfigConstants.DIRECTORY, name)));
+      const hint =
+        other === undefined ? '' : ` (${other} is not read: rename it to ${ConfigConstants.FILE})`;
+
       return {
         ok: false,
-        error: `no ${ConfigConstants.DIRECTORY}/${ConfigConstants.FILE} found in ${opts.root}`,
+        error: `no ${ConfigConstants.DIRECTORY}/${ConfigConstants.FILE} found in ${opts.root}${hint}`,
       };
     }
 

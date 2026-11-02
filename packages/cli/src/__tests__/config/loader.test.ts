@@ -41,16 +41,21 @@ describe('ConfigLoader.load', () => {
     }
   });
 
-  test('a .ts config is not read: the error names the one file a project has', async () => {
-    const root = createProject({ files: { '.configs/vulcan.config.ts': PLAIN_CONFIG } });
+  test.each(['ts', 'mjs', 'js'])(
+    'a .%s config is not read: the error says to rename it',
+    async (extension) => {
+      const root = createProject({
+        files: { [`.configs/vulcan.config.${extension}`]: PLAIN_CONFIG },
+      });
 
-    const result = await ConfigLoader.load({ root });
+      const result = await ConfigLoader.load({ root });
 
-    expect(result).toEqual({
-      ok: false,
-      error: `no .configs/vulcan.config.mts found in ${root}`,
-    });
-  });
+      expect(result).toEqual({
+        ok: false,
+        error: `no .configs/vulcan.config.mts found in ${root} (vulcan.config.${extension} is not read: rename it to vulcan.config.mts)`,
+      });
+    },
+  );
 
   test('no config: the error names the directory', async () => {
     const root = createProject({ files: {} });

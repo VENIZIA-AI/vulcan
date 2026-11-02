@@ -33,7 +33,11 @@ const isReleaseTable = (value: unknown): value is IReleaseTable =>
   typeof value.releases === 'object' &&
   value.releases !== null &&
   'changelogs' in value &&
-  Array.isArray(value.changelogs);
+  Array.isArray(value.changelogs) &&
+  'livePackages' in value &&
+  Array.isArray(value.livePackages) &&
+  'packageMap' in value &&
+  Array.isArray(value.packageMap);
 
 const PayloadSchema = z
   .object({
