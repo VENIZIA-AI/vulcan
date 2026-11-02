@@ -18,31 +18,12 @@ export class AgentSources {
   static readonly MIGRATION = 'migration';
   static readonly ASKED = 'asked';
   static readonly DEFAULT = 'default';
-
-  static readonly SCHEME_SET = new Set<string>([
-    this.FLAG,
-    this.LOCAL,
-    this.CONFIG,
-    this.MIGRATION,
-    this.ASKED,
-    this.DEFAULT,
-  ]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** What taking an entry out of an agent's file found: it was not there, or it was and is gone. */
 export class RemoveOutcomes {
   static readonly ABSENT = 'absent';
   static readonly REMOVED = 'removed';
-
-  static readonly SCHEME_SET = new Set<string>([this.ABSENT, this.REMOVED]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** How a guard reaches an agent that has no Claude-style hook commands: a file the agent loads. */

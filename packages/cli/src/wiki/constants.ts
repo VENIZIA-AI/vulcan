@@ -4,10 +4,6 @@ import type { TConstValue } from '../common/index.ts';
 export class AnchorProblems {
   static readonly MISSING_PAGE = 'missing page';
   static readonly DEAD_ANCHOR = 'dead anchor';
-  static readonly SCHEME_SET = new Set<string>([this.MISSING_PAGE, this.DEAD_ANCHOR]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export type TAnchorProblem = TConstValue<typeof AnchorProblems>;

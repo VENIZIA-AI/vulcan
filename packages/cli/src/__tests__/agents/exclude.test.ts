@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { AgentExclude, EXCLUDE_BLOCK_END, EXCLUDE_BLOCK_START } from '../../agents/index.ts';
+import { AgentExclude } from '../../agents/index.ts';
+
+const EXCLUDE_BLOCK_START =
+  '# vulcan:start - written by vulcan sync for the agents you chose; do not edit';
+const EXCLUDE_BLOCK_END = '# vulcan:end';
 
 describe('AgentExclude.excludePathsOf', () => {
   const SKILLS = ['build-a-feature', 'docs-update', 'docs-writing', 'knowledge-sync'];
@@ -112,10 +116,6 @@ describe('AgentExclude.renderBlock', () => {
         '',
       ].join('\n'),
     );
-    expect(EXCLUDE_BLOCK_START).toBe(
-      '# vulcan:start - written by vulcan sync for the agents you chose; do not edit',
-    );
-    expect(EXCLUDE_BLOCK_END).toBe('# vulcan:end');
   });
 });
 

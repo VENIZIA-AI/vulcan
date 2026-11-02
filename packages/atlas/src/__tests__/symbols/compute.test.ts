@@ -110,11 +110,7 @@ describe('SymbolCompute.symbolsOfInstalled (D2)', () => {
     SymbolCompute.symbolsOfInstalled({ cacheBase: cacheDir, directory });
     rmSync(join(directory, 'dist'), { recursive: true });
 
-    expect(
-      existsSync(
-        join(SymbolCompute.symbolsCacheDirectory({ cacheBase: cacheDir }), '@x+kit@1.2.0.json'),
-      ),
-    ).toBe(true);
+    expect(existsSync(join(cacheDir, 'atlas', 'v1', 'symbols', '@x+kit@1.2.0.json'))).toBe(true);
     expect(
       SymbolCompute.symbolsOfInstalled({ cacheBase: cacheDir, directory })
         .map((symbol) => symbol.name)

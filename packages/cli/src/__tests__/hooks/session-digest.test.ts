@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { SessionDigest, SUBAGENT_CARD, SUBAGENT_CARD_MAX_CHARACTERS } from '../../hooks/index.ts';
+import { SessionDigest, SubagentCard } from '../../hooks/index.ts';
 import { BASE_DIRECTORY } from '../../common/index.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -9,6 +9,9 @@ import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 isolateOwnerReplySwitch();
+
+const SUBAGENT_CARD = SubagentCard.buildStartOutput().hookSpecificOutput.additionalContext;
+const SUBAGENT_CARD_MAX_CHARACTERS = 1600;
 
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'session-start.ts');
 
@@ -255,7 +258,6 @@ describe('the owner cards in the digest', () => {
   // Paid once per subagent: ten subagents multiply it by ten. Growing it is a decision, not a drift.
   test('the subagent card stays within its size budget, about 400 tokens', () => {
     expect(SUBAGENT_CARD.length).toBeLessThanOrEqual(SUBAGENT_CARD_MAX_CHARACTERS);
-    expect(SUBAGENT_CARD_MAX_CHARACTERS).toBeLessThanOrEqual(1600);
   });
 
   test('the card, the rule and the digest all say the scratchpad an agent tool offers is a temp folder to avoid', async () => {

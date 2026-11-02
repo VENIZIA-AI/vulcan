@@ -12,24 +12,6 @@ export class VulcanCommands {
   static readonly X = 'x';
   static readonly HELP = 'help';
   static readonly VERSION = 'version';
-  static readonly SCHEME_SET = new Set<string>([
-    this.INIT,
-    this.ADD,
-    this.SYNC,
-    this.AGENTS,
-    this.DOCTOR,
-    this.UPGRADE,
-    this.CLEAN,
-    this.PROFILE,
-    this.PRESET,
-    this.VISUALIZE,
-    this.X,
-    this.HELP,
-    this.VERSION,
-  ]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** The release channels `vulcan upgrade` picks between; the channel is a flag, never stored in the config. */
@@ -38,10 +20,6 @@ export class UpgradeFlags {
   static readonly NIGHTLY = '--nightly';
   /** Tests only: a JSON object of dist-tags that stands in for the registry read. */
   static readonly DIST_TAGS_ENV = 'VULCAN_DIST_TAGS';
-  static readonly SCHEME_SET = new Set<string>([this.STABLE, this.NIGHTLY]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export class ExitCodes {

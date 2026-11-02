@@ -254,7 +254,7 @@ Fetching preset @venizia/ignis@latest ...
   created  .agents/knowledge/index.md
   created  .agents/knowledge/packages/core-api.md
 bun install v1.4.3 (c6da4a4d3)
-+ @venizia/vulcan@0.3.7
++ @venizia/vulcan@0.4.8
 236 packages installed [69.23s]
 Which coding agents do you use in this project? (comma-separated; Enter accepts the detected list: claude, omp)
   detected: claude, omp

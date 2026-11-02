@@ -18,7 +18,7 @@ export interface ILayout {
 class LayoutFolderLimits {
   /** `auroras/apps` is two segments. */
   static readonly MAX_SEGMENTS = 4;
-  /** One segment: the pattern a layout folder had before it could have several. */
+  /** One segment of a layout folder: lower case letters, digits and hyphens, starting with a letter or digit. */
   static readonly SEGMENT_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
   static readonly FORBIDDEN_SEGMENTS = new Set(['node_modules']);
 }
@@ -32,10 +32,6 @@ export class LayoutKeys {
   /** The keys `add` can target and `guard-package` guards. */
   static readonly MANAGED = [this.BACKEND, this.FRONTEND, this.SHARED] as const;
   static readonly ALL = [...this.MANAGED, this.OTHER] as const;
-  static readonly SCHEME_SET = new Set<string>(this.ALL);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** Whether `inner` is `outer` or sits below it. */

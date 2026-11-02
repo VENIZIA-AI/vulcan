@@ -21,33 +21,6 @@ export class DoctorChecks {
   static readonly LOCAL = 'local';
   static readonly PROFILE = 'profile';
   static readonly GUARDS = 'guards';
-  static readonly SCHEME_SET = new Set<string>([
-    this.CONFIG,
-    this.LAYOUT,
-    this.RULE_IDS,
-    this.RULE_SLOTS,
-    this.SKILLS,
-    this.MAKE,
-    this.HOOKS,
-    this.ADAPTERS,
-    this.STYLE,
-    this.MANIFEST,
-    this.TAGS,
-    this.PRUNE,
-    this.SCAFFOLD,
-    this.APPS,
-    this.SCRIPTS,
-    this.AGENTS,
-    this.DOCKERIGNORE,
-    this.MCP,
-    this.FORMAT,
-    this.LOCAL,
-    this.PROFILE,
-    this.GUARDS,
-  ]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** The `package.json` scripts every app carries, and the names the standard retired. */

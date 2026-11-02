@@ -9,7 +9,6 @@ export const PRUNE_DIRS = new Set([
   'node_modules',
   'dist',
   '.git',
-  '.turbo',
   'coverage',
   '.cache',
   '.vitepress',

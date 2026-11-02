@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { ServerFactory } from '@/server';
+import { buildRepositoryServer } from '../server.helper';
 import { ServerGuidance } from '@/server/guidance';
 import type { IAtlasProject } from '@/common/project-config';
 import type { IResolvedSource } from '@/sources/common';
@@ -261,7 +261,7 @@ describe('skills in the instructions', () => {
 
 describe('a server built from a project', () => {
   const call = async (opts: { method: string }) => {
-    const transport = ServerFactory.build({ root: ACME, version: '0.0.0' });
+    const transport = buildRepositoryServer({ root: ACME, version: '0.0.0' });
 
     const result = await transport.handleLine({
       line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: opts.method, params: {} }),

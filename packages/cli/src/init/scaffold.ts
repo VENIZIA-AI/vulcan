@@ -149,7 +149,7 @@ export class ProjectScaffold {
     if (isWorkspaces) {
       entries.push({
         status: InitStatuses.SKIPPED,
-        subject: `.configs/{lints,formatters}: a workspaces project keeps them per app (apps/<name>/.configs/lints/, apps/<name>/.configs/formatters/); the templates are in node_modules/@venizia/vulcan/base/templates/`,
+        subject: `.configs/lints: a workspaces project keeps them per app (apps/<name>/.configs/lints/); the templates are in node_modules/@venizia/vulcan/base/templates/`,
       });
     }
 

@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { McpConfig, CODEX_BLOCK_END, CODEX_BLOCK_START } from '../../agents/index.ts';
+import { McpConfig } from '../../agents/index.ts';
+
+const CODEX_BLOCK_START = '# vulcan:atlas:start';
+const CODEX_BLOCK_END = '# vulcan:atlas:end';
 
 const ROOT = '/work/demo';
 const ENTRY = {
@@ -192,11 +195,6 @@ describe('McpConfig.mergeCodexToml', () => {
       CODEX_BLOCK_END,
       '',
     ].join('\n');
-
-  test('markers are the documented comment lines', () => {
-    expect(CODEX_BLOCK_START).toBe('# vulcan:atlas:start');
-    expect(CODEX_BLOCK_END).toBe('# vulcan:atlas:end');
-  });
 
   test('no file yet: only the block', () => {
     expect(McpConfig.mergeCodexToml({ text: undefined, root: ROOT })).toEqual({

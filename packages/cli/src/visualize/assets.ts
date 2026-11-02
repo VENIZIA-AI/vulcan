@@ -19,7 +19,7 @@ export interface IStatePalette {
  * Fixed state colours and the five chart series. `warn` is the amber of an inferred claim; a task that waits for the
  * owner is the project's hot accent instead, so what needs the owner is one colour on the page.
  */
-export const STATE_PALETTE: { light: IStatePalette; dark: IStatePalette } = {
+const STATE_PALETTE: { light: IStatePalette; dark: IStatePalette } = {
   light: {
     ok: '#157a3a',
     okBg: '#e4f3e8',

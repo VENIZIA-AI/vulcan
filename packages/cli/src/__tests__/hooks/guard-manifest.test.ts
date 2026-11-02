@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MANIFEST_BLOCK_MESSAGE, ManifestGuard } from '../../hooks/index.ts';
+import { ManifestGuard } from '../../hooks/index.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-manifest.ts');
@@ -111,8 +111,7 @@ describe('the decision', () => {
     const decision = ManifestGuard.buildDecision();
 
     expect(decision.hookSpecificOutput.permissionDecision).toBe('deny');
-    expect(decision.hookSpecificOutput.permissionDecisionReason).toBe(MANIFEST_BLOCK_MESSAGE);
-    expect(MANIFEST_BLOCK_MESSAGE).toBe(
+    expect(decision.hookSpecificOutput.permissionDecisionReason).toBe(
       'vulcan.manifest.json is generated - edit .configs/vulcan.config.* and run `vulcan sync`',
     );
   });

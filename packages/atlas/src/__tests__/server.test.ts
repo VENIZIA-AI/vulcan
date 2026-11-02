@@ -1,5 +1,5 @@
 import { RpcError } from '@/protocol/common';
-import { ServerFactory } from '@/server';
+import { buildRepositoryServer } from './server.helper';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -39,7 +39,7 @@ const parseReply = (
 } => JSON.parse(line ?? 'null');
 
 const listToolNames = async (opts: {
-  transport: ReturnType<typeof ServerFactory.build>;
+  transport: ReturnType<typeof buildRepositoryServer>;
 }): Promise<string[]> => {
   const result2 = await opts.transport.handleLine({
     line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
@@ -49,9 +49,9 @@ const listToolNames = async (opts: {
   return (reply.result?.tools ?? []).map((tool) => tool.name);
 };
 
-describe('ServerFactory.build', () => {
+describe('SourcesServer.build for one repository source', () => {
   test('repo mode exposes exactly the search, get, symbol, version, changes and presets tools', async () => {
-    const transport = ServerFactory.build({
+    const transport = buildRepositoryServer({
       root: REPOSITORY_ROOT,
       version: TEST_VERSION,
     });
@@ -61,7 +61,7 @@ describe('ServerFactory.build', () => {
   });
 
   test('serverInfo.version is whatever version buildServer was given, not a hardcoded string (I6)', async () => {
-    const transport = ServerFactory.build({
+    const transport = buildRepositoryServer({
       root: REPOSITORY_ROOT,
       version: TEST_VERSION,
     });
@@ -81,7 +81,7 @@ describe('ServerFactory.build', () => {
       let caught: unknown;
 
       try {
-        ServerFactory.build({ root, version: TEST_VERSION });
+        buildRepositoryServer({ root, version: TEST_VERSION });
       } catch (error) {
         caught = error;
       }

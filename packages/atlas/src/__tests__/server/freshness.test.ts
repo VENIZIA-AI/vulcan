@@ -1,5 +1,5 @@
 import { ignisProjectAt } from '../fixtures/ignis-packages';
-import { AtlasModes, Corpora } from '@/common';
+import { Corpora } from '@/common';
 import { CorpusLoader, RepositoryRoots } from '@/corpus';
 import type { ICorpusRoot } from '@/corpus';
 import { FreshnessGuard } from '@/server/index';
@@ -52,9 +52,9 @@ afterEach(() => {
 });
 
 describe('FreshnessGuard', () => {
-  test('repo mode rebuilds the store when a fixture file changes between two calls', () => {
+  test('rebuilds the store when a fixture file changes between two calls', () => {
     const roots = makeWikiRoot();
-    const guard = new FreshnessGuard({ mode: AtlasModes.REPOSITORY, roots });
+    const guard = new FreshnessGuard({ roots });
 
     const before = guard.getStore().search({ query: FRESHNESS_MARKER, limit: 5, offset: 0 });
 
@@ -76,7 +76,7 @@ describe('FreshnessGuard', () => {
 
   test('a same-count swap that preserves mtime is still seen, via the byte-size change', () => {
     const roots = makeWikiRoot();
-    const guard = new FreshnessGuard({ mode: AtlasModes.REPOSITORY, roots });
+    const guard = new FreshnessGuard({ roots });
 
     const before = guard.getStore().search({ query: FRESHNESS_MARKER, limit: 5, offset: 0 });
 
@@ -97,7 +97,7 @@ describe('FreshnessGuard', () => {
 
   test('an unchanged corpus rebuilds nothing', () => {
     const roots = makeWikiRoot();
-    const guard = new FreshnessGuard({ mode: AtlasModes.REPOSITORY, roots });
+    const guard = new FreshnessGuard({ roots });
 
     const loadSpy = spyOn(CorpusLoader.getInstance(), 'load');
 
@@ -116,7 +116,7 @@ describe('FreshnessGuard', () => {
     'the fingerprint walk over the real repo roots stays under 100ms',
     () => {
       const roots = RepositoryRoots.resolve({ project: ignisProjectAt({ root: REPOSITORY_ROOT }) });
-      const guard = new FreshnessGuard({ mode: AtlasModes.REPOSITORY, roots });
+      const guard = new FreshnessGuard({ roots });
 
       const startedAt = performance.now();
       const fingerprint = guard.fingerprint();
@@ -152,7 +152,7 @@ describe('FreshnessGuard', () => {
     });
 
     try {
-      const guard = new FreshnessGuard({ mode: AtlasModes.REPOSITORY, roots });
+      const guard = new FreshnessGuard({ roots });
       const { hits } = guard.getStore().search({ query: FRESHNESS_MARKER, limit: 5, offset: 0 });
 
       expect(hits.length).toBeGreaterThan(0);
@@ -165,7 +165,6 @@ describe('FreshnessGuard', () => {
     const roots = makeWikiRoot();
     const changelogs = join(roots[0].directory, '..', 'changelogs');
     const guard = new FreshnessGuard({
-      mode: AtlasModes.REPOSITORY,
       roots: [...roots, { corpus: Corpora.CHANGELOG, directory: changelogs }],
     });
 

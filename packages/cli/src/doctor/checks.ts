@@ -123,7 +123,6 @@ const readScriptNames = (opts: { file: string }): string[] | undefined => {
   }
 };
 
-/** Info only: the Atlas block of AGENTS.md is missing or no longer matches the config. */
 const CANONICAL_ATLAS_ARGS = ['x', '--no-install', 'vulcan', 'x', 'atlas', 'mcp', '--root', '.'];
 
 const MCP_FILE = '.mcp.json';
@@ -211,7 +210,6 @@ const formatOwners = (opts: ICheckContext): string[] => [
   ]),
 ];
 
-/** The size of `.agents/local/` once it is large: where the space went, and the command that gives it back. */
 /** The states of a listed script worth a warning: a typo or a script nobody committed. A modified one is normal work, so it is only a note. */
 const STALE_TRUST_STATES = new Set<string>([
   TrustStates.MISSING,
@@ -979,6 +977,7 @@ export class ProjectContract {
     return warnings;
   }
 
+  /** Info only: the Atlas block of AGENTS.md is missing or no longer matches the config. */
   static checkAtlasBlock(opts: ICheckContext): IViolation[] {
     const merged = AtlasBlockPlan.merged({ root: opts.root, config: opts.config });
 
@@ -1253,6 +1252,7 @@ export class ProjectContract {
     ];
   }
 
+  /** The size of `.agents/local/` once it is large: where the space went, and the command that gives it back. */
   static checkLocalSize(opts: ICheckContext): IViolation[] {
     const entries = LocalScan.scan({ root: opts.root });
     const total = entries.reduce((sum, entry) => sum + entry.bytes, 0);

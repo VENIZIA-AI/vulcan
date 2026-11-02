@@ -9,7 +9,7 @@ Use `vulcan` to scaffold a project or create a monorepo from a preset, write the
 Run `bun x --no-install vulcan` or pass `--help` to inspect available commands:
 
 ```text
-vulcan 0.4.3 - one setup, one workflow for every project
+vulcan 0.4.8 - one setup, one workflow for every project
 
 Usage: bun x vulcan <command>
 
@@ -95,7 +95,7 @@ Spawning a child process ensures the newly installed version generates adapters 
 | `bun x --no-install vulcan upgrade <version\|tag>` | The version or tag you name | Wins over `--stable` and `--nightly` |
 
 `--nightly` reads the dist-tags of `@venizia/vulcan` with `bun pm view`, so it uses the registry your project is configured for.
-If `latest` is `0.3.7` and `next` is `0.3.7`, `--nightly` installs `0.3.7`. If `next` is `0.4.0-1`, it installs `0.4.0-1`.
+If `latest` is `0.4.8` and `next` is `0.4.8`, `--nightly` installs `0.4.8`. If `next` is `0.4.9-2`, it installs `0.4.9-2`.
 Passing `--stable` and `--nightly` together exits `1`.
 
 If the dist-tags cannot be used, `--nightly` prints `vulcan upgrade: --nightly could not read the dist-tags of @venizia/vulcan - pass a version instead` and exits `1`.
@@ -105,13 +105,13 @@ When the installed `@venizia/vulcan` is a prerelease and you run `upgrade` or `u
 
 ### Example run
 
-The following run pins `@venizia/vulcan` to version `0.3.7`, the version already installed, so `sync` changes nothing:
+The following run pins `@venizia/vulcan` to version `0.4.8`, the version already installed, so `sync` changes nothing:
 
 ```text
-$ bun x --no-install vulcan upgrade 0.3.7
+$ bun x --no-install vulcan upgrade 0.4.8
 bun add v1.4.3 (c6da4a4d3)
 
-installed @venizia/vulcan@0.3.7 with binaries:
+installed @venizia/vulcan@0.4.8 with binaries:
  - vulcan
 
 [6.00ms] done

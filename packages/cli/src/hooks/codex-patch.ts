@@ -5,12 +5,6 @@ import type { TConstValue } from '../common/index.ts';
 export class PatchedTools {
   static readonly WRITE = 'write';
   static readonly EDIT = 'edit';
-
-  static readonly SCHEME_SET = new Set<string>([this.WRITE, this.EDIT]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 type TPatchedTool = TConstValue<typeof PatchedTools>;

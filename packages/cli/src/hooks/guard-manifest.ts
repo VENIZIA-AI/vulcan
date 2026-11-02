@@ -6,7 +6,7 @@ import { HookDecision } from './decision.ts';
 /** The shell tool under the names the hosts give it: Cursor's `Shell`, and a lower-case `bash`. */
 const SHELL_NAMES = new Set(['Shell', 'shell', 'bash']);
 
-export const MANIFEST_BLOCK_MESSAGE =
+const MANIFEST_BLOCK_MESSAGE =
   'vulcan.manifest.json is generated - edit .configs/vulcan.config.* and run `vulcan sync`';
 
 const MANIFEST_SUFFIX = '/.agents/vulcan.manifest.json';
