@@ -62,8 +62,10 @@ const isGateProgram = (opts: { name: string; args: string[] }): boolean => {
   const first = args.find((arg) => !arg.startsWith('-')) ?? '';
 
   if (name === 'bun') {
+    // `check` is Bun's own type-check (Bun >= 1.4.4), two words like `test`; `tsc` stays in GATE_TOOLS for other projects.
     return (
       first === 'test' ||
+      first === 'check' ||
       (first === 'run' && GATE_SCRIPTS.has(args[args.indexOf('run') + 1] ?? '')) ||
       (first === 'x' && args.includes('vulcan') && args.includes('doctor'))
     );
