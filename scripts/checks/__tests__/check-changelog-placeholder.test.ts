@@ -61,6 +61,17 @@ test('red control: a title, a heading or a body line with X.Y.Z fails, naming th
   expect(result.stderr).toContain('docs/wiki/content/changelogs/2026-10-28-b.md:5');
 });
 
+test('a root with no changelog folder fails with a message, not a pass', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vulcan-changelog-'));
+
+  roots.push(root);
+
+  const result = run({ root });
+
+  expect(result.code).not.toBe(0);
+  expect(result.stderr).toContain('docs/wiki/content/changelogs not found');
+});
+
 test('a real version, a plain title and the index page pass', () => {
   const root = plant({
     files: {

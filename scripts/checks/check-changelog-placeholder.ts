@@ -7,7 +7,7 @@
  *
  *   bun scripts/checks/check-changelog-placeholder.ts [--root <repository root>]
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const CHANGELOGS = join('docs', 'wiki', 'content', 'changelogs');
@@ -18,6 +18,10 @@ export class ChangelogPlaceholder {
   /** Every line of a dated entry under `root` that holds the placeholder, as `file:line: text`. */
   static scan(opts: { root: string }): string[] {
     const directory = join(opts.root, CHANGELOGS);
+
+    if (!existsSync(directory)) {
+      throw new Error(`changelog-placeholder: ${CHANGELOGS} not found under ${opts.root}`);
+    }
 
     return readdirSync(directory)
       .filter((file) => DATED_ENTRY.test(file))
