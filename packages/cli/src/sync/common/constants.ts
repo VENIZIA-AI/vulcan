@@ -5,16 +5,12 @@ export class SyncStatuses {
   static readonly REPLACED = 'replaced';
   static readonly UNCHANGED = 'unchanged';
   static readonly SKIPPED = 'skipped';
-  /** Taken out by `sync --prune`. */
   static readonly REMOVED = 'removed';
 }
 
 export class SyncConstants {
   static readonly CLAUDE_IMPORT_LINE = '@AGENTS.md';
   static readonly CLAUDE_TOOL_FILE = 'CLAUDE.md';
-
-  /** The first line of the CLAUDE.md `bun init` writes: Bun's tips, never the project's own words. */
-  static readonly BUN_INIT_CLAUDE_MARKER = 'Default to using Bun instead of Node.js.';
 
   static readonly CLAUDE_DIRECTORY = '.claude';
   static readonly SETTINGS_FILE = 'settings.json';

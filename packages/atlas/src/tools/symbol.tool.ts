@@ -36,7 +36,7 @@ interface IUnknownSymbolResponse {
 }
 
 const matchOf = (opts: { record: ISymbolRecord; docs: string[] }): ISymbolMatch => {
-  // `shape` is for the concept lock, not for a client.
+  // `shape` is a digest for the table, not for a client.
   return { ...opts.record, shape: undefined, docs: opts.docs };
 };
 

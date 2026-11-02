@@ -95,8 +95,6 @@ A preset can also make libraries of the same framework: packages other apps impo
 
 Both paths are any JSON file inside the package; they need not be named `preset.json`. A package that has `presets.lib` must keep its `presets.app` too: a lib-only package is not supported.
 
-The keys before 0.3.10, `vulcan.preset` and `vulcan.lib`, are not read and have no fallback: a package that still has them is refused with `uses the old keys "vulcan": { "preset", "lib" }; the contract is now "vulcan": { "presets": { "app": ..., "lib": ... } }`. Move the two paths under `presets`.
-
 ```json
 {
   "presetVersion": 1,

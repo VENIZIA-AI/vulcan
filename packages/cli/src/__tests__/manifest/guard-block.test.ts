@@ -77,10 +77,8 @@ describe('the guard block of the manifest', () => {
     expect(keys.indexOf('guard')).toBeLessThan(keys.indexOf('remoteHosts'));
   });
 
-  test('a manifest rendered before a pattern was added is stale against the config', () => {
-    expect(
-      ProjectManifest.isCurrent({ committed: render({}), rendered: render({ guard: GUARD }) }),
-    ).toBe(false);
+  test('a manifest rendered before a pattern was added differs from the one the config renders', () => {
+    expect(render({})).not.toBe(render({ guard: GUARD }));
   });
 });
 
@@ -110,12 +108,7 @@ describe('the guard block and the read-only scripts', () => {
     );
   });
 
-  test('a manifest rendered before an entry was added is stale against the config', () => {
-    expect(
-      ProjectManifest.isCurrent({
-        committed: render({}),
-        rendered: render({ guard: { writes: { trustedScripts: [ENTRY] } } }),
-      }),
-    ).toBe(false);
+  test('a manifest rendered before an entry was added differs from the one the config renders', () => {
+    expect(render({})).not.toBe(render({ guard: { writes: { trustedScripts: [ENTRY] } } }));
   });
 });

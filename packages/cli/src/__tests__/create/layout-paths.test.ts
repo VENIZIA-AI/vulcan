@@ -100,7 +100,7 @@ describe('the layout as a whole', () => {
 const configOf = async (opts: { layout: string }) => {
   const root = createProject({
     files: {
-      '.configs/vulcan.config.ts': `export default { layout: ${opts.layout} };\n`,
+      '.configs/vulcan.config.mts': `export default { layout: ${opts.layout} };\n`,
     },
   });
 
@@ -494,7 +494,7 @@ const groupedProject = (opts: { other?: string[]; extraPackage?: string } = {}):
     .join(', ');
   const other = JSON.stringify(opts.other ?? ['auroras/tools', 'docs', 'qc', 'third-parties']);
   const files: Record<string, string> = {
-    '.configs/vulcan.config.ts': `export default { layout: { backend: 'umbras', frontend: ['auroras/apps', 'auroras/guests', 'auroras/public'], shared: 'auroras/kits', other: ${other} }, packages: [${entries}] };\n`,
+    '.configs/vulcan.config.mts': `export default { layout: { backend: 'umbras', frontend: ['auroras/apps', 'auroras/guests', 'auroras/public'], shared: 'auroras/kits', other: ${other} }, packages: [${entries}] };\n`,
     'package.json': JSON.stringify({
       name: 'grouped',
       private: true,

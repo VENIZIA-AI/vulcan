@@ -25,7 +25,7 @@ const AGENTS_MD = '# AGENTS.md\n\n## Must read first\n\n| a | b |\n\n## Commands
 const project = (opts: { mcp?: boolean; agents?: string } = {}) =>
   createProject({
     files: {
-      '.configs/vulcan.config.ts': CONFIG,
+      '.configs/vulcan.config.mts': CONFIG,
       'AGENTS.md': AGENTS_MD,
       ...(opts.mcp === false ? {} : { '.mcp.json': MCP }),
     },
@@ -75,7 +75,7 @@ describe('the Atlas block in AGENTS.md', () => {
 
     sync({ root });
     writeFileSync(
-      join(root, '.configs/vulcan.config.ts'),
+      join(root, '.configs/vulcan.config.mts'),
       CONFIG.replace("[{ name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' }]", '[]'),
     );
 

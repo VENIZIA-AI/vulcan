@@ -146,7 +146,7 @@ describe('the guard-scripting hook', () => {
 });
 
 describe('the guard-outside hook', () => {
-  const root = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
+  const root = createProject({ files: { '.configs/vulcan.config.mts': CONFIG } });
 
   test('asks, naming the path and V-B-08, for a write outside the project', async () => {
     const result = await runHook({
@@ -230,7 +230,7 @@ describe('the guard-outside hook', () => {
 
 describe('the subagent-start hook', () => {
   const root = createProject({
-    files: { '.configs/vulcan.config.ts': CONFIG, '.agents/rules.md': '# r\n' },
+    files: { '.configs/vulcan.config.mts': CONFIG, '.agents/rules.md': '# r\n' },
   });
 
   test('adds the small subagent card as context: the gates, not the digest or the project table', async () => {

@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
 import { AtlasCommands, AtlasConstants } from './common';
 import { InteractiveRun, ModeArguments, ModeUsageError, SourceArguments } from './cli/index';
-import { runChangelogsCommand } from './changelogs/command';
-import { runConceptsCommand } from './concepts/command';
 import { runReleasesCommand } from './releases/generator';
 import { Refresher, SourceBoot, SourcesServer } from './server/index';
 import type { Transport } from './protocol/index';
@@ -14,7 +12,7 @@ import type { IAtlasSource } from './sources/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
 
-const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help`;
+const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|symbols|releases> | help`;
 
 const usageError = (message: string): never => {
   console.error(`${AtlasConstants.SERVER_NAME}: ${message}\n${USAGE}`);
@@ -37,8 +35,18 @@ const readSubcommand = (opts: { argv: string[] }): string => {
   return first === undefined || first.startsWith('--') ? AtlasCommands.MCP : first;
 };
 
-// package.json has no version yet only in a manifest hand-edited before its first publish.
-const FALLBACK_VERSION = '0.0.0';
+/** The version atlas reports: its own package.json's. A package.json without one is an invalid manifest. */
+const packageVersion = (): string => {
+  const version = ModeArguments.readPackageVersion({
+    directory: ModeArguments.findPackageDirectory({ startDirectory: __dirname }),
+  });
+
+  if (version === undefined) {
+    throw new Error('its package.json declares no version');
+  }
+
+  return version;
+};
 
 const GENERATOR_BY_COMMAND: Record<string, (opts: { command?: string }) => number> = {
   [AtlasCommands.SURFACE]: runSurfaceCommand,
@@ -72,24 +80,6 @@ const generator = GENERATOR_BY_COMMAND[subcommand];
 
 if (generator) {
   process.exit(generator({ command: argv[1] }));
-}
-
-if (subcommand === AtlasCommands.CHANGELOGS) {
-  try {
-    process.exit(runChangelogsCommand({ command: argv[1], argv }));
-  } catch (error) {
-    console.error(`${AtlasConstants.SERVER_NAME}: ${TextValue.messageOf({ error })}`);
-    process.exit(1);
-  }
-}
-
-if (subcommand === AtlasCommands.CONCEPTS) {
-  try {
-    process.exit(runConceptsCommand({ command: argv[1] }));
-  } catch (error) {
-    console.error(`${AtlasConstants.SERVER_NAME}: ${TextValue.messageOf({ error })}`);
-    process.exit(1);
-  }
 }
 
 /**
@@ -244,12 +234,7 @@ const readServer = async (): Promise<{ server: Transport; boot: SourceBoot }> =>
     throw error;
   }
 
-  const version =
-    ModeArguments.readPackageVersion({
-      directory: ModeArguments.findPackageDirectory({ startDirectory: __dirname }),
-    }) ?? FALLBACK_VERSION;
-
-  const built = await buildServer({ root, version });
+  const built = await buildServer({ root, version: packageVersion() });
 
   if (built === undefined) {
     return usageError(NOTHING_TO_SERVE({ root }));
@@ -299,10 +284,7 @@ const main = async (): Promise<void> => {
   if (subcommand === AtlasCommands.INDEX) {
     const result2 = await runIndexCommand({
       argv,
-      version:
-        ModeArguments.readPackageVersion({
-          directory: ModeArguments.findPackageDirectory({ startDirectory: __dirname }),
-        }) ?? FALLBACK_VERSION,
+      version: packageVersion(),
     });
     process.exit(result2);
   }

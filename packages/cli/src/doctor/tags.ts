@@ -5,15 +5,14 @@ import type { ICheckContext } from './checks.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { IViolation } from './common/index.ts';
 
-/** The tag pattern as a regular expression that captures `<dir>` (or `<package>`). */
+/** The tag pattern as a regular expression that captures `<dir>`. */
 const tagPatternOf = (opts: { template: string }): RegExp =>
   new RegExp(
     `^${opts.template
-      .split(/(<(?:dir|package|version|date)>)/)
+      .split(/(<(?:dir|version|date)>)/)
       .map((part) => {
         switch (part) {
-          case '<dir>':
-          case '<package>': {
+          case '<dir>': {
             return '(?<dir>[a-z0-9][a-z0-9.-]*)';
           }
 
@@ -43,7 +42,7 @@ export class TagCheck {
   static check(opts: ICheckContext): IViolation[] {
     const template = opts.config.atlas.tagPattern;
 
-    if (!/<(?:dir|package)>/.test(template)) {
+    if (!template.includes('<dir>')) {
       return [];
     }
 

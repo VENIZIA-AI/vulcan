@@ -16,8 +16,4 @@ export class BaseRules {
       }),
     );
   }
-
-  static readRetiredIds(): string[] {
-    return RuleParser.parseRetiredIds({ markdown: readBaseMarkdown() });
-  }
 }

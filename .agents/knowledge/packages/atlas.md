@@ -8,7 +8,7 @@ tags: [packages, atlas, mcp]
 # atlas - `@venizia/vulcan-atlas`
 
 Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vulcan x atlas pull`,
-`vulcan x atlas surface <gen|check>`, `vulcan x atlas <symbols|releases>` (print what they read, no subcommand), or `vulcan x atlas concepts <stamp|check>`.
+`vulcan x atlas surface <gen|check>`, `vulcan x atlas <symbols|releases>` (print what they read, no subcommand).
 `vulcan x atlas tools` lists the tools and `--help` prints the usage, both without an MCP client.
 
 - **What it serves**: the project it runs in, read live from its manifest
@@ -28,7 +28,7 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
   with no new pull. Starts racing on one cold cache take
   turns under a lock (`<cache>/pull.lock`); a SHA's artifacts appear whole or not at all. Every set
   carries a `format` file with `AtlasConstants.INDEX_FORMAT`: an online start rebuilds a set of another
-  format, an offline start serves it with a notice (`IResolvedSource.oldFormat`). Raise the constant with
+  format or with no `format` file, and an offline start does not serve it (the source is unavailable). Raise the constant with
   any change to the chunker output, the table or the stored authority; `index-format.test.ts` fails
   until its locked digest moves with it. Symlinks
   check out as plain files, and a corpus root or file whose real path leaves the checkout is skipped.
@@ -76,10 +76,5 @@ Run as `vulcan x atlas mcp [--root <dir>] [--source <owner/repo>@<ref>]...`, `vu
   backtick fence's info string holds no backtick, and a fence closes only on the same character, at
   least as long, with nothing after it. An unclosed fence warns once, naming the path and the file
   line it opened on.
-- **Concepts that name code**: a concept may declare `symbols: ['<npm name>#<Symbol>']` in its
-  frontmatter. `concepts stamp` writes each one's declaration hash (members and parameters, not comments or layout) into the bundle's
-  `.symbols.lock.json`; `concepts check` (`make knowledge-symbols-check`, after build) fails when a
-  symbol is gone or its declaration changed (a member, a parameter) - review the concept, then stamp
-  again. A lock from an older atlas asks for a new stamp.
 - **A remote source is served at what the project runs.** `resolveAtInstalled` (sources/resolver.ts) resolves the configured ref first, then `PinPolicy.decide` (sources/pin.ts) reads `node_modules/<name>/package.json` for the source's live packages and picks the release tag of the newest installed one by release order; the corpus (index, wiki, knowledge, changelogs) is pulled at that tag (`corpusOnly`: no npm symbol fetch, no release refresh), while the release table and history stay the ref's, so `version` and `changes` still see newer releases. Nothing installed, a link outside any node_modules, a version with no recorded release, or an unfetchable tag serves the ref, and `IResolvedSource.pin.reason` (shown in the instructions' status line) says why. `atlas.sources[].pin: 'ref'` opts out. The background refresh resolves with the cwd, so a changed install swaps the corpus.
 - **The instructions list the project's skills.** `SkillCatalog.catalogOf` (skills/catalog.ts) reads the shipped skills of the installed vulcan (`node_modules/@venizia/vulcan/base/skills`) and `.agents/skills` (a shadowing name left out, sorted) with each description's "Use when" sentence (`SkillCatalog.triggerOf`); `ServerGuidance.instructionsOf` adds one line per skill (trigger cut at 110 characters) after the how-to-build paragraph and before the status lines, because a client may cut after 2 KB. The Transport takes `instructions` as a function, called at every `initialize`, so an added, renamed or deleted skill shows on the next connect. Doctor warns about a skill with no "Use when" (cli `ProjectContract.checkSkillTriggers`, reading the same catalog from atlas's index).

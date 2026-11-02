@@ -50,7 +50,7 @@ describe('vulcan router', () => {
   });
 
   test('--help after a command prints the help and runs nothing', () => {
-    const cwd = createProject({ files: { '.configs/vulcan.config.ts': 'export default {};\n' } });
+    const cwd = createProject({ files: { '.configs/vulcan.config.mts': 'export default {};\n' } });
 
     for (const args of [
       ['sync', '--help'],
@@ -92,10 +92,11 @@ describe('vulcan router', () => {
   });
 
   test('an argument a command does not take exits 1 naming it, and runs nothing', () => {
-    const cwd = createProject({ files: { '.configs/vulcan.config.ts': 'export default {};\n' } });
+    const cwd = createProject({ files: { '.configs/vulcan.config.mts': 'export default {};\n' } });
 
     for (const args of [
       ['sync', '--dryrun'],
+      ['sync', '--prune'],
       ['doctor', 'now'],
       ['init', '--force'],
       ['upgrade', 'a', 'b'],

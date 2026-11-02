@@ -19,7 +19,7 @@ describe('SessionDigest.build', () => {
   test('the base W rules, the slot choice and the project extensions', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+        '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
         '.agents/rules.md':
           '| ID | Rule | Enforced by |\n|---|---|---|\n| W-06 | stay home | SOFT |\n',
       },
@@ -48,7 +48,7 @@ describe('SessionDigest.build', () => {
   test("the often-dropped list comes from the config, and may name the project's own bold rows", async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { rules: { 'V-W-01': 'read-only' }, digest: { oftenDropped: ['W-00', 'V-P-05'] } };\n",
         '.agents/rules.md': BANA_RULES,
       },
@@ -64,7 +64,7 @@ describe('SessionDigest.build', () => {
   test("a project's rows that list base IDs are its rules too, and its marked minimap block is printed", async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+        '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
         '.agents/rules.md': BANA_RULES,
       },
     });
@@ -97,7 +97,7 @@ describe('SessionDigest.build', () => {
 
     test('lists the corpora from the config and the one-line rule', async () => {
       const root = createProject({
-        files: { '.mcp.json': ATLAS_MCP, '.configs/vulcan.config.ts': CONFIG },
+        files: { '.mcp.json': ATLAS_MCP, '.configs/vulcan.config.mts': CONFIG },
       });
       const digest = await SessionDigest.build({ projectRoot: root });
       const block = digest.slice(digest.indexOf('## Atlas'), digest.indexOf('## Write boundaries'));
@@ -111,7 +111,7 @@ describe('SessionDigest.build', () => {
     });
 
     test('a project whose atlas server is not configured gets no block', async () => {
-      const root = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
+      const root = createProject({ files: { '.configs/vulcan.config.mts': CONFIG } });
 
       const result = await SessionDigest.build({ projectRoot: root });
       expect(result).not.toContain('## Atlas');
@@ -121,7 +121,7 @@ describe('SessionDigest.build', () => {
       const root = createProject({
         files: {
           '.mcp.json': ATLAS_MCP,
-          '.configs/vulcan.config.ts':
+          '.configs/vulcan.config.mts':
             "export default { name: 'solo', rules: { 'V-W-01': 'on-user-word' } };\n",
         },
       });
@@ -132,7 +132,7 @@ describe('SessionDigest.build', () => {
 
     test('V-P-07 is among the rules sessions drop most', async () => {
       const root = createProject({
-        files: { '.mcp.json': ATLAS_MCP, '.configs/vulcan.config.ts': CONFIG },
+        files: { '.mcp.json': ATLAS_MCP, '.configs/vulcan.config.mts': CONFIG },
       });
       const digest = await SessionDigest.build({ projectRoot: root });
       const dropped = digest.slice(digest.indexOf('## The rules sessions drop most'));
@@ -143,7 +143,7 @@ describe('SessionDigest.build', () => {
 
     test('the default often-dropped list keeps the original eight rules and adds reuse and the skipped line', async () => {
       const root = createProject({
-        files: { '.mcp.json': ATLAS_MCP, '.configs/vulcan.config.ts': CONFIG },
+        files: { '.mcp.json': ATLAS_MCP, '.configs/vulcan.config.mts': CONFIG },
       });
       const digest = await SessionDigest.build({ projectRoot: root });
       const dropped = digest.slice(digest.indexOf('## The rules sessions drop most'));
@@ -175,7 +175,7 @@ describe('SessionDigest.build', () => {
 test('the session-start hook prints the digest for CLAUDE_PROJECT_DIR', () => {
   const root = createProject({
     files: {
-      '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'on-user-word' } };\n",
+      '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'on-user-word' } };\n",
     },
   });
   const child = spawnSyncBounded({
@@ -204,7 +204,7 @@ describe('the owner cards in the digest', () => {
   const CONFIG = "export default { rules: { 'V-W-01': 'on-user-word' } };\n";
 
   test('every session gets the English shape card, with no profile card', async () => {
-    const root = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
+    const root = createProject({ files: { '.configs/vulcan.config.mts': CONFIG } });
     const digest = await SessionDigest.build({ projectRoot: root });
 
     expect(digest).toContain('## How to answer the owner');
@@ -215,7 +215,7 @@ describe('the owner cards in the digest', () => {
   test('a profile adds its card; a project that sets enforce off drops the shape card', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { rules: { 'V-W-01': 'on-user-word' }, owner: { report: { enforce: 'off' } } };\n",
         '.agents/local/profile.json': JSON.stringify({
           schemaVersion: 1,
@@ -234,7 +234,7 @@ describe('the owner cards in the digest', () => {
   test('VULCAN_OWNER_REPLY=off leaves out the shape card and the profile card, and keeps the rules', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': CONFIG,
+        '.configs/vulcan.config.mts': CONFIG,
         '.agents/local/profile.json': JSON.stringify({ schemaVersion: 1, address: { you: 'Sam' } }),
       },
     });
@@ -289,7 +289,7 @@ describe('the owner cards in the digest', () => {
     for (const language of ['constructor', '__proto__', 'toString']) {
       const root = createProject({
         files: {
-          '.configs/vulcan.config.ts': CONFIG,
+          '.configs/vulcan.config.mts': CONFIG,
           '.agents/local/profile.json': JSON.stringify({ schemaVersion: 1, language }),
         },
       });
@@ -303,7 +303,7 @@ describe('the owner cards in the digest', () => {
 
   test('an unreadable profile is ignored by the digest, not fatal', async () => {
     const root = createProject({
-      files: { '.configs/vulcan.config.ts': CONFIG, '.agents/local/profile.json': '{ nope' },
+      files: { '.configs/vulcan.config.mts': CONFIG, '.agents/local/profile.json': '{ nope' },
     });
 
     const result = await SessionDigest.build({ projectRoot: root });

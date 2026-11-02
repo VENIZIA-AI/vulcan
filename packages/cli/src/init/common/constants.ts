@@ -8,5 +8,4 @@ export class InitStatuses {
 
 export class InitConstants {
   static readonly NAME_TOKEN = '{{name}}';
-  static readonly CONFIG_FLAG = '--config';
 }

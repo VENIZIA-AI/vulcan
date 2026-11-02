@@ -50,7 +50,7 @@ export class ToolRunner {
   static async buildEnvironment(opts: {
     root: string;
   }): Promise<{ ok: true; env: Record<string, string> } | { ok: false; error: string }> {
-    if (ConfigLoader.findFiles({ root: opts.root }).length === 0) {
+    if (ConfigLoader.findFile({ root: opts.root }) === undefined) {
       return { ok: true, env: {} };
     }
 

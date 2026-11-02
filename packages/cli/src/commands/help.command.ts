@@ -4,7 +4,7 @@ const HELP = `vulcan ${VULCAN_VERSION} - one setup, one workflow for every proje
 
 Usage: bun x vulcan <command>
 
-  init [--config ts|mts|mjs|js]   Scaffold the project layer (never overwrites)
+  init                            Scaffold the project layer (never overwrites)
   init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <path>]
        [--shared-dir <path>] [--scope <@scope>]
                                   Create a monorepo with its first app, from a framework preset
@@ -21,10 +21,9 @@ Usage: bun x vulcan <command>
                                   a shared package) against the file the package has (same, differs,
                                   missing); --full prints the unified diffs, --check exits 1 when
                                   anything differs or is missing
-  sync [--agents <list>|list] [--dry-run] [--prune]
+  sync [--agents <list>|list] [--dry-run]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
-                                  stored in .agents/vulcan.local.json; --agents list shows the table);
-                                  --prune also removes stale hooks and dead skill links
+                                  stored in .agents/vulcan.local.json; --agents list shows the table)
   agents [list|add <ids>|remove <ids>|setup] [--dry-run]
                                   See, add, remove or re-choose the coding agents you use on this machine
   doctor                          Check the project follows VULCAN; exit 1 on any violation

@@ -19,7 +19,7 @@ afterAll(removeProjects);
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 
 const READ_ONLY_PROJECT = {
-  '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'AGENTS.md': '# x\n',
 };
 
@@ -37,20 +37,13 @@ describe('CLAUDE.md', () => {
     expect(readFileSync(join(root, 'CLAUDE.md'), 'utf8')).toBe('@AGENTS.md\n');
   });
 
-  test('a symlink to AGENTS.md: replaced', () => {
-    const root = createProject({ files: READ_ONLY_PROJECT });
-
-    symlinkSync('AGENTS.md', join(root, 'CLAUDE.md'));
-    expect(runSync({ root }).stderr).toContain('replaced');
-    expect(readFileSync(join(root, 'CLAUDE.md'), 'utf8')).toBe('@AGENTS.md\n');
-  });
-
-  test('a symlink to some other file: still an old adapter, replaced', () => {
+  test('a symlink to some other file is read as that file: not the import line, so left alone', () => {
     const root = createProject({ files: { ...READ_ONLY_PROJECT, 'README.md': 'hi\n' } });
 
     symlinkSync('README.md', join(root, 'CLAUDE.md'));
-    runSync({ root });
-    expect(lstatSync(join(root, 'CLAUDE.md')).isSymbolicLink()).toBe(false);
+    expect(runSync({ root }).stderr).toContain('skipped');
+    expect(lstatSync(join(root, 'CLAUDE.md')).isSymbolicLink()).toBe(true);
+    expect(readFileSync(join(root, 'README.md'), 'utf8')).toBe('hi\n');
   });
 
   test('a hand-written CLAUDE.md is never touched', () => {
@@ -60,18 +53,13 @@ describe('CLAUDE.md', () => {
     expect(readFileSync(join(root, 'CLAUDE.md'), 'utf8')).toBe('# mine\n');
   });
 
-  test('a CLAUDE.md written by bun init is replaced by the import line', () => {
-    const root = createProject({
-      files: {
-        ...READ_ONLY_PROJECT,
-        'CLAUDE.md':
-          '\nDefault to using Bun instead of Node.js.\n\n- Use `bun <file>` instead of `node <file>` or `ts-node <file>`\n',
-      },
-    });
-    const result = runSync({ root });
+  test('a CLAUDE.md written by bun init is a hand-written file: kept', () => {
+    const template =
+      '\nDefault to using Bun instead of Node.js.\n\n- Use `bun <file>` instead of `node <file>` or `ts-node <file>`\n';
+    const root = createProject({ files: { ...READ_ONLY_PROJECT, 'CLAUDE.md': template } });
 
-    expect(readFileSync(join(root, 'CLAUDE.md'), 'utf8')).toBe('@AGENTS.md\n');
-    expect(result.stderr).toContain("bun init's template");
+    expect(runSync({ root }).stderr).toContain('skipped');
+    expect(readFileSync(join(root, 'CLAUDE.md'), 'utf8')).toBe(template);
   });
 });
 
@@ -157,7 +145,7 @@ describe('.claude/settings.json', () => {
     const root = createProject({
       files: {
         ...READ_ONLY_PROJECT,
-        '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'on-user-word' } };\n",
+        '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'on-user-word' } };\n",
       },
     });
 
@@ -169,7 +157,7 @@ describe('.claude/settings.json', () => {
     const root = createProject({
       files: {
         ...READ_ONLY_PROJECT,
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { rules: { 'V-W-01': 'read-only' }, hooks: [{ event: 'Stop', command: 'echo bye' }, { event: 'PreToolUse', matcher: 'Edit', command: 'echo edit' }] };\n",
       },
     });
@@ -188,7 +176,7 @@ describe('.claude/settings.json', () => {
 
     runSync({ root });
     writeFileSync(
-      join(root, '.configs/vulcan.config.ts'),
+      join(root, '.configs/vulcan.config.mts'),
       "export default { rules: { 'V-W-01': 'on-user-word' } };\n",
     );
     expect(runSync({ root }).stderr).toContain('replaced');
@@ -199,14 +187,14 @@ describe('.claude/settings.json', () => {
     const root = createProject({
       files: {
         ...READ_ONLY_PROJECT,
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { rules: { 'V-W-01': 'read-only' }, hooks: [{ event: 'Stop', command: 'echo bye' }] };\n",
       },
     });
 
     runSync({ root });
     writeFileSync(
-      join(root, '.configs/vulcan.config.ts'),
+      join(root, '.configs/vulcan.config.mts'),
       "export default { rules: { 'V-W-01': 'read-only' } };\n",
     );
     runSync({ root });
@@ -219,7 +207,7 @@ describe('.claude/settings.json', () => {
       files: {
         ...READ_ONLY_PROJECT,
         '.claude/settings.json': '{ "model": "opus", "permissions": { "allow": ["Bash(ls)"] } }',
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { rules: { 'V-W-01': 'read-only' }, claude: { settings: { env: { CI: '1' }, permissions: { allow: ['Bash(make test)'] } } } };\n",
       },
     });
@@ -231,7 +219,7 @@ describe('.claude/settings.json', () => {
     expect(shared.permissions.allow).toEqual(['Bash(ls)', 'Bash(make test)']);
 
     writeFileSync(
-      join(root, '.configs/vulcan.config.ts'),
+      join(root, '.configs/vulcan.config.mts'),
       "export default { rules: { 'V-W-01': 'read-only' } };\n",
     );
     runSync({ root });
@@ -374,7 +362,7 @@ describe('skills', () => {
     );
   });
 
-  test('a dead link left by an older install is replaced by the stable one', () => {
+  test('a dead link to a path that is gone is replaced by the stable one', () => {
     const root = createProject({ files: READ_ONLY_PROJECT });
     const installed = join(root, 'node_modules', '@venizia', 'vulcan');
     const link = join(root, '.claude', 'skills', 'knowledge-sync');
@@ -513,7 +501,7 @@ describe('idempotence and output', () => {
     const result = runSync({ root: createProject({ files: {} }) });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('no .configs/vulcan.config.* found');
+    expect(result.stderr).toContain('no .configs/vulcan.config.mts found');
     expect(result.stderr).not.toContain('    at ');
   });
 });

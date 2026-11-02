@@ -10,7 +10,7 @@ const hasScript = Bun.which('script') !== null;
 const ENV = { VULCAN_NO_INSTALL: '1', TERM: 'xterm-256color' };
 const LF = '\n';
 const PROJECT = {
-  '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'AGENTS.md': '# x\n',
 };
 const BACKEND = `file:${join(import.meta.dir, '..', 'fixtures', 'preset-backend')}`;

@@ -46,7 +46,6 @@ export class BaseRulesDiff {
 
     const installed = ProjectManifest.buildBaseRuleHashes();
     const rows = BaseRules.read();
-    const retired = new Set(BaseRules.readRetiredIds());
     const changes: IBaseRuleChange[] = [];
 
     for (const [id, hash] of Object.entries(installed)) {
@@ -65,7 +64,7 @@ export class BaseRulesDiff {
       changes.push({
         id,
         change: BaseRuleChanges.REMOVED,
-        text: retired.has(id) ? '(retired)' : '',
+        text: '',
       });
     }
 

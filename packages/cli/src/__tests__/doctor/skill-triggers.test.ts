@@ -19,7 +19,7 @@ const project = (opts: { description: string }) => {
       ...Object.fromEntries(
         ProjectLayout.LOCAL_LAYOUT.map((entry) => [`.agents/local/${entry.name}/.gitkeep`, '']),
       ),
-      '.configs/vulcan.config.ts': CONFIG,
+      '.configs/vulcan.config.mts': CONFIG,
       '.agents/skills/acme-odd/SKILL.md': skill({
         name: 'acme-odd',
         description: opts.description,

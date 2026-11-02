@@ -9,8 +9,6 @@ const EXTENDS_LIST = new RegExp(
   'g',
 );
 
-const RETIRED_ITEM = new RegExp(`^- \`(${RuleConstants.BASE_ID_SOURCE})\` - `);
-
 export class RuleParser {
   /** Rule IDs in table order, from rows whose first cell is `W-01`, `V-W-01` or either in bold. */
   static parseIds(opts: { markdown: string }): string[] {
@@ -44,13 +42,5 @@ export class RuleParser {
     }
 
     return [...references];
-  }
-
-  /** The IDs the base retired, one `` - `V-X-NN` - why `` bullet each; they are never reused. */
-  static parseRetiredIds(opts: { markdown: string }): string[] {
-    return opts.markdown
-      .split('\n')
-      .map((line) => RETIRED_ITEM.exec(line)?.[1])
-      .filter((id): id is string => id !== undefined);
   }
 }

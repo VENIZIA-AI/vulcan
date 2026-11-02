@@ -35,10 +35,7 @@ const versionAt = (opts: { directory: string }): string | undefined => {
 
 /** The tag a release of `dir` at `version` carries, from the project's `tagPattern`; undefined when the template cannot name one. */
 const tagOf = (opts: { template: string; dir: string; version: string }): string | undefined => {
-  const tag = opts.template
-    .replaceAll('<dir>', opts.dir)
-    .replaceAll('<package>', opts.dir)
-    .replaceAll('<version>', opts.version);
+  const tag = opts.template.replaceAll('<dir>', opts.dir).replaceAll('<version>', opts.version);
 
   // A placeholder left over (`<issue>`, `<date>`), or a name the template does not read back as this release.
   return /<[a-z]+>/.test(tag) ||
@@ -98,11 +95,10 @@ export class PinPolicy {
       };
     }
 
-    // Release order in the first-parent history; a table older than 0.2.0-0 has none, and the date stands in.
+    // Release order in the first-parent history; two releases of one order are told apart by date.
     const newest = found.reduce((best, item) =>
-      (item.record.order ?? -1) > (best.record.order ?? -1) ||
-      ((item.record.order ?? -1) === (best.record.order ?? -1) &&
-        item.record.date > best.record.date)
+      item.record.order > best.record.order ||
+      (item.record.order === best.record.order && item.record.date > best.record.date)
         ? item
         : best,
     );

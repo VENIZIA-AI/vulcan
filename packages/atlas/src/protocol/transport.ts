@@ -1,4 +1,4 @@
-import { AtlasConstants, ProtocolVersions } from '@/common';
+import { AtlasConstants } from '@/common';
 import { BaseHelper } from '@/common/helper';
 import { TextValue } from '@/common/text';
 import { RpcError, RpcErrorCodes } from './common';
@@ -127,16 +127,10 @@ export class Transport extends BaseHelper {
   private async route(request: IRpcRequest): Promise<string | null> {
     switch (request.method) {
       case 'initialize': {
-        const requested = readString(request.params?.protocolVersion);
-        const protocolVersion =
-          requested && ProtocolVersions.isValid(requested)
-            ? requested
-            : AtlasConstants.PROTOCOL_VERSION;
-
         return this.reply({
           id: request.id,
           result: {
-            protocolVersion,
+            protocolVersion: AtlasConstants.PROTOCOL_VERSION,
             capabilities: { tools: {} },
             serverInfo: { name: this.serverName, version: this.serverVersion },
             ...(this.instructions === undefined

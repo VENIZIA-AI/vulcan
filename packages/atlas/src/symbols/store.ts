@@ -56,7 +56,7 @@ export class SymbolStore extends BaseHelper {
   private packageMap: IPackageMapEntry[];
   /** Every load error already logged: an unbuilt package fails each reload the same way. */
   private readonly loggedErrors = new Set<string>();
-  private readonly loader?: () => { symbols: ISymbolRecord[]; packageMap?: IPackageMapEntry[] };
+  private readonly loader?: () => { symbols: ISymbolRecord[]; packageMap: IPackageMapEntry[] };
   /** What the loaded symbols were read from; when it moves, they are read again. */
   private readonly fingerprint?: () => string;
   private loadedFingerprint?: string;
@@ -71,7 +71,7 @@ export class SymbolStore extends BaseHelper {
   constructor(opts: {
     symbols?: ISymbolRecord[];
     packageMap?: IPackageMapEntry[];
-    load?: () => { symbols: ISymbolRecord[]; packageMap?: IPackageMapEntry[] };
+    load?: () => { symbols: ISymbolRecord[]; packageMap: IPackageMapEntry[] };
     /** Read before each question; a new value loads again (D2: repo mode follows the dist). */
     fingerprint?: () => string;
     emptyReason?: string;
@@ -103,7 +103,7 @@ export class SymbolStore extends BaseHelper {
 
       this.byExactName.clear();
       this.namesByLowerCase.clear();
-      this.packageMap = loaded.packageMap ?? this.packageMap;
+      this.packageMap = loaded.packageMap;
       this.index({ symbols: loaded.symbols });
       this.loadedFingerprint = fingerprint;
     } catch (error) {

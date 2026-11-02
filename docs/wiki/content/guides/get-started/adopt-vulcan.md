@@ -221,7 +221,7 @@ $ bun x --no-install vulcan sync
 ```
 
 The starter config suggests `claude` (`agents: ['claude']`), so `sync` takes that, in a terminal or not, and stores it in `.agents/vulcan.local.json` without asking. A project made with `init --preset` has no suggestion, so its first `sync` asks ([Start a new project](#start-a-new-project)). Change the choice later with [`vulcan agents`](/references/commands/agents).
-If `bun init` created your project, its `CLAUDE.md` holds only Bun's tips, so `sync` replaces it with `@AGENTS.md`. A `CLAUDE.md` you wrote yourself is left alone.
+A `CLAUDE.md` that already exists, one `bun init` wrote included, is left alone and reported as `skipped`; delete it to let `sync` write `@AGENTS.md`.
 `init` already added `CLAUDE.md`, `CLAUDE.*.md`, `.claude/`, `.agents/plans`, `.agents/vulcan.local.json` and `.agents/local/` to `.gitignore`, and `sync` lists the files it wrote for your agents in `.git/info/exclude`.
 These adapter files stay local on each machine.
 Commit `.agents/vulcan.manifest.json` and the Atlas block `sync` wrote into `AGENTS.md` to version control.

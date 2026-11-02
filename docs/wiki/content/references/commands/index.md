@@ -13,7 +13,7 @@ vulcan 0.4.8 - one setup, one workflow for every project
 
 Usage: bun x vulcan <command>
 
-  init [--config ts|mts|mjs|js]   Scaffold the project layer (never overwrites)
+  init                            Scaffold the project layer (never overwrites)
   init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <path>]
        [--shared-dir <path>] [--scope <@scope>]
                                   Create a monorepo with its first app, from a framework preset
@@ -30,10 +30,9 @@ Usage: bun x vulcan <command>
                                   a shared package) against the file the package has (same, differs,
                                   missing in the app); --full prints the unified diffs, --check exits 1
                                   when anything differs or is missing
-  sync [--agents <list>|list] [--dry-run] [--prune]
+  sync [--agents <list>|list] [--dry-run]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
-                                  stored in .agents/vulcan.local.json; --agents list shows the table);
-                                  --prune also removes stale hooks and dead skill links
+                                  stored in .agents/vulcan.local.json; --agents list shows the table)
   agents [list|add <ids>|remove <ids>|setup] [--dry-run]
                                   See, add, remove or re-choose the coding agents you use on this machine
   doctor                          Check the project follows VULCAN; exit 1 on any violation
@@ -62,10 +61,10 @@ The following table lists each command, its purpose, its exit codes, and its ref
 
 | Command | What it does | Exit codes | Page |
 |---|---|---|---|
-| `init` | Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app | `0` on success; `1` on invalid configuration format, a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan init](/references/commands/init) |
+| `init` | Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan init](/references/commands/init) |
 | `add` | Add an app, or a library other apps import with `--lib`, from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
 | `preset` | `preset diff <package>`: read-only report of each file the preset of an app, a library or a shared package makes now against the file the package has | `0` after a report (with `--check`, `1` when anything differs or is missing); `1` on a refusal or an unknown argument | [vulcan preset diff](/references/commands/preset) |
-| `sync` | Write agent adapter files and manifest; prune stale hooks and dead skill links with `--prune` | `0` on success; `1` on invalid configuration, broken settings, or unknown argument | [vulcan sync](/references/commands/sync) |
+| `sync` | Write agent adapter files and manifest | `0` on success; `1` on invalid configuration, broken settings, or unknown argument | [vulcan sync](/references/commands/sync) |
 | `agents` | Show, add, remove or re-choose the coding agents chosen on this machine, and write or take back their adapters | `0` on success or when nothing needed changing; `1` on an unknown agent or subcommand, a missing list, `setup` without a terminal, or invalid configuration | [vulcan agents](/references/commands/agents) |
 | `visualize` | Make one small static HTML page from a JSON spec, in `.agents/local/prototypes/`; `--schema` prints the spec's JSON Schema | `0` on success; `1` when the spec is missing or not renderable, nothing is written, or `.agents/local/` is missing | [vulcan visualize](/references/commands/visualize) |
 | `profile` | Tell VULCAN how you like to work (language, how to address you, tone, habits); `show` prints it, `reset` deletes it | `0` on success; `1` when cancelled, unreadable, not gitignored or on an unknown argument | [vulcan profile](/references/commands/profile) |
@@ -204,8 +203,6 @@ The following table lists the targets provided by `vulcan.mk`:
 | `surface-check` | Fail when the public API surface differs from the committed one |
 | `atlas-symbols` | Print the symbols atlas reads from the built or installed .d.ts |
 | `atlas-releases` | Print the release table atlas computes from the tags |
-| `changelogs-migrate` | Write the packages: list into changelog entries that declare none |
-| `knowledge-symbols-check` | Fail when a symbol a concept names is gone or its signature changed |
 | `wiki-links-check` | Fail when the wiki or the knowledge bundle names a source path git does not track |
 | `wiki-anchors-check` | Fail when a wiki `#fragment` link has no matching heading; needs a build |
 

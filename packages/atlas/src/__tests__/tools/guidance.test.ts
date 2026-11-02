@@ -8,7 +8,9 @@ import { SymbolStore } from '@/symbols';
 // None of the builders runs a tool here, so the stores are empty.
 const chunks = new ChunkStore();
 const symbols = new SymbolStore({ symbols: [] });
-const releases = new ReleaseStore({ table: { packageMap: [], releases: {}, changelogs: [] } });
+const releases = new ReleaseStore({
+  table: { livePackages: [], packageMap: [], releases: {}, changelogs: [] },
+});
 const PROJECTS = 'acme and ignis';
 
 const descriptionsOf = (opts: { projects?: string }): Record<string, string> => ({

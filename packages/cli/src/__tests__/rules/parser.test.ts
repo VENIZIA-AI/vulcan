@@ -29,13 +29,13 @@ describe('RuleParser.parseIds', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  test('retired IDs are gone from the tables and named as retired, never reused', () => {
-    const markdown = readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8');
-    const ids = RuleParser.parseIds({ markdown });
+  test('the IDs the base dropped are no rows of the tables', () => {
+    const ids = RuleParser.parseIds({
+      markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
+    });
 
     for (const retired of ['V-W-05', 'V-C-03', 'V-C-05']) {
       expect(ids).not.toContain(retired);
-      expect(markdown).toContain(`${retired}`);
     }
   });
 
@@ -164,18 +164,6 @@ describe('BaseRules.read', () => {
     );
     expect(row).not.toContain('components.json');
     expect(row).toContain('`.configs/{lints,formatters,builders}/`');
-  });
-});
-
-describe('BaseRules.readRetiredIds', () => {
-  test('the base lists V-W-05, V-C-03 and V-C-05 as retired', () => {
-    expect(BaseRules.readRetiredIds()).toEqual(['V-W-05', 'V-C-03', 'V-C-05']);
-  });
-
-  test('reads one ID per "- `V-X-NN` - why" bullet, nothing else', () => {
-    const markdown = '- `V-W-05` - gone\n- `V-C-03` - moved\n- see `V-C-04`\n| V-W-01 | live |\n';
-
-    expect(RuleParser.parseRetiredIds({ markdown })).toEqual(['V-W-05', 'V-C-03']);
   });
 });
 

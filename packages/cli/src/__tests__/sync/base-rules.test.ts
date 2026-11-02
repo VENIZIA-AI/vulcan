@@ -9,7 +9,7 @@ import { runCli } from '../run.helper.ts';
 afterAll(removeProjects);
 
 const PROJECT = {
-  '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'AGENTS.md': '# x\n',
 };
 const DIFF_LINE = /^ {2}(?:added|changed|removed) +V-/m;
@@ -20,7 +20,7 @@ const runSync = (opts: { root: string; args?: string[] }) =>
 const readBaseHashes = (opts: { root: string }): Record<string, string> =>
   JSON.parse(readFileSync(join(opts.root, ManifestConstants.FILE), 'utf8')).rules.base;
 
-/** A project synced against an older base: V-C-02 is new, V-W-02 reworded, V-W-05 since retired. */
+/** A project synced against an older base: V-C-02 is new, V-W-02 reworded, V-W-99 no longer in the base. */
 const createUpgradedProject = (): string => {
   const root = createProject({ files: PROJECT });
 
@@ -33,7 +33,7 @@ const createUpgradedProject = (): string => {
   manifest.rules.base = {
     ...Object.fromEntries(base),
     'V-W-02': '00000000',
-    'V-W-05': 'ffffffff',
+    'V-W-99': 'ffffffff',
   };
   writeFileSync(file, `${JSON.stringify(manifest, null, 2)}\n`);
 
@@ -57,7 +57,7 @@ describe('the base diff', () => {
       '  added     V-C-02 **One options object first, at most 5 parameters.**',
     );
     expect(result.stderr).toContain('  changed   V-W-02 Never write to a database.');
-    expect(result.stderr).toContain('  removed   V-W-05 (retired)');
+    expect(result.stderr).toContain('  removed   V-W-99\n');
     expect(result.stderr.match(new RegExp(DIFF_LINE.source, 'gm'))).toHaveLength(3);
     expect(readBaseHashes({ root })).toEqual(ProjectManifest.buildBaseRuleHashes());
   });

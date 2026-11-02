@@ -172,7 +172,7 @@ House style rules run over every markdown file in the bundle, index and log incl
    When a changelog entry declares no packages:
 
    ```text
-   changelog: <path> declares no packages - add `packages: [<npm name>, ...]` (`vulcan x atlas changelogs migrate` fills it)
+   changelog: <path> declares no packages - add `packages: [<npm name>, ...]` to its frontmatter (`packages: []` for an entry about no package)
    ```
 
 ## gen

@@ -2,12 +2,12 @@ import { TextValue } from '@/common/text';
 
 /** `[#<issue>] ` at the front of a template: optional on a commit, and a commit may carry several. */
 const LEADING_ISSUE = '[#<issue>] ';
-const PLACEHOLDER_PATTERN = /<(dir|package|version|issue|date)>/;
+const PLACEHOLDER_PATTERN = /<(dir|version|issue|date)>/;
 
 export class ReleaseTemplate {
   /**
    * A release template as the pattern that reads a commit subject: named groups
-   * `dir` (`<dir>` or its synonym `<package>`; it may hold slashes, `apps/core`), `version` and `issue`. Every other character is literal;
+   * `dir` (it may hold slashes, `apps/core`), `version` and `issue`. Every other character is literal;
    * a trailing ` [<mode>]` is tolerated. A template with no `<dir>` is a release train's: its commit
    * releases every live package.
    */
@@ -24,22 +24,21 @@ export class ReleaseTemplate {
           return TextValue.escapeLiteral({ text: part });
         }
 
-        const group = part === 'package' ? 'dir' : part;
         const pattern =
           {
             dir: '[a-z0-9][a-z0-9./-]*',
             version: '\\S+',
             issue: '\\d+',
             date: '\\d{4}-\\d{2}-\\d{2}',
-          }[group] ?? '';
+          }[part] ?? '';
 
-        if (named.has(group)) {
-          return `\\k<${group}>`;
+        if (named.has(part)) {
+          return `\\k<${part}>`;
         }
 
-        named.add(group);
+        named.add(part);
 
-        return `(?<${group}>${pattern})`;
+        return `(?<${part}>${pattern})`;
       })
       .join('');
 

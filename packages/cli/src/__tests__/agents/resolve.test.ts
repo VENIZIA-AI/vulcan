@@ -1,6 +1,4 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { AgentSelection, LOCAL_AGENTS_FILE, LocalChoice, NO_TTY_HINT } from '../../agents/index.ts';
 import { AgentsPrompt } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -64,7 +62,7 @@ describe('AgentSelection.resolve: the order', () => {
     });
   });
 
-  test('the local file wins over migration and config, and is not rewritten', () => {
+  test('the local file wins over config, and is not rewritten', () => {
     const { result } = resolve({
       files: {
         [LOCAL_AGENTS_FILE]: LocalChoice.render({ agents: ['omp'] }),
@@ -76,32 +74,19 @@ describe('AgentSelection.resolve: the order', () => {
     expect(result).toMatchObject({ ok: true, agents: ['omp'], source: 'local', writeLocal: false });
   });
 
-  test('a project with CLAUDE.md is treated as claude, and the choice is stored', () => {
-    expect(resolve({ files: { 'CLAUDE.md': '@AGENTS.md\n' } }).result).toMatchObject({
+  test('a project with CLAUDE.md or .claude and no choice is not assumed to use claude: it asks, or takes the default with the hint', () => {
+    const files = { 'CLAUDE.md': '@AGENTS.md\n', '.claude/settings.json': '{}' };
+    const asking = resolve({ files, interactive: true, detected: ['omp'], answer: 'omp' });
+
+    expect(asking.asked).toEqual([{ detected: ['omp'], stored: undefined }]);
+    expect(asking.result).toMatchObject({ ok: true, agents: ['omp'], source: 'asked' });
+    expect(resolve({ files, interactive: false }).result).toMatchObject({
       ok: true,
       agents: ['claude'],
-      source: 'migration',
-      writeLocal: true,
-      hint: undefined,
+      source: 'default',
+      writeLocal: false,
+      hint: NO_TTY_HINT,
     });
-  });
-
-  test('a .claude folder alone is the same signal', () => {
-    const root = createProject({ files: {} });
-
-    mkdirSync(join(root, '.claude'));
-    writeFileSync(join(root, '.claude', 'settings.json'), '{}');
-
-    expect(
-      AgentSelection.resolve({
-        root,
-        flag: undefined,
-        configAgents: undefined,
-        interactive: false,
-        detected: [],
-        ask: () => '',
-      }),
-    ).toMatchObject({ ok: true, agents: ['claude'], source: 'migration' });
   });
 
   test('the committed config agents are the suggested default when the machine has no choice', () => {

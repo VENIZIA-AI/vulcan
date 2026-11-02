@@ -5,8 +5,8 @@ export interface IReleaseRecord {
   version: string;
   date: string;
   sha: string;
-  /** Release commits before this one in first-parent history (a commit position in tables before 0.2.0-0); absent in older tables. */
-  order?: number;
+  /** Release commits before this one in first-parent history. */
+  order: number;
   /** The tag the release was read from, set only when a legacy template read it; a current tag is rebuilt from `tagPattern`. */
   tag?: string;
 }
@@ -24,18 +24,18 @@ export interface IChangelogRecord {
   title: string;
   packages: string[];
   kind: string | null;
-  /** Release commits before the commit that added the file, all of them while it is uncommitted (a commit position before 0.2.0-0); absent in older tables. */
+  /** Release commits before the commit that added the file, all of them while it is uncommitted; absent when the project has no git history. */
   order?: number;
 }
 
 /** The generated `releases.json` payload, whole. Release lists are newest first, per package. */
 export interface IReleaseTable {
   /** The package directories that exist today; `releases` also holds retired ones, whose history stays readable. */
-  livePackages?: string[];
+  livePackages: string[];
   releases: Record<string, IReleaseRecord[]>;
   changelogs: IChangelogRecord[];
-  /** Every package's directory, npm name and other names; absent in a table generated before 0.2.0-0. */
-  packageMap?: IPackageMapEntry[];
+  /** Every package's directory, npm name and other names. */
+  packageMap: IPackageMapEntry[];
 }
 
 /** What the tools read from release tables - one source's store, or several served as one. */

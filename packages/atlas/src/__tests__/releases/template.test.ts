@@ -36,13 +36,11 @@ describe('ReleaseTemplate.compile', () => {
     });
   });
 
-  test('<package> is a synonym of <dir>', () => {
-    expect(
-      groupsOf({
-        template: 'release(<package>) <version>',
-        subject: 'release(kernel) 1.2.3',
-      }),
-    ).toMatchObject({ dir: 'kernel', version: '1.2.3' });
+  test('<package> is no placeholder: it reads as literal text and names no directory', () => {
+    const template = 'release(<package>) <version>';
+
+    expect(groupsOf({ template, subject: 'release(kernel) 1.2.3' })).toBeUndefined();
+    expect(groupsOf({ template, subject: 'release(<package>) 1.2.3' })?.dir).toBeUndefined();
   });
 
   test('a train template has no directory: the commit releases every live package', () => {

@@ -104,14 +104,13 @@ describe('ProjectConfig.readAtlasProject', () => {
     );
   });
 
-  test('scoped, unscoped and legacy upper-case npm names all read', () => {
+  test('scoped and unscoped lower-case npm names read', () => {
     useAtlasProject({
       root: ROOT,
       manifest: {
         packages: [
           { name: '@venizia/ignis-kernel', dir: 'kernel' },
           { name: 'left-pad.js', dir: 'pad' },
-          { name: 'JSONStream', dir: 'stream' },
         ],
       },
     });
@@ -119,9 +118,22 @@ describe('ProjectConfig.readAtlasProject', () => {
     expect(ProjectConfig.readAtlasProject().packages.map((entry) => entry.name)).toEqual([
       '@venizia/ignis-kernel',
       'left-pad.js',
-      'JSONStream',
     ]);
   });
+
+  test.each(['JSONStream', '@Venizia/kernel'])(
+    'an upper-case npm name (%s) stops the read like any name that is not one',
+    (name) => {
+      useAtlasProject({
+        root: ROOT,
+        manifest: { name: 'acme', packages: [{ name, dir: 'kernel' }] },
+      });
+
+      expect(() => ProjectConfig.readAtlasProject()).toThrow(
+        `atlas: project 'acme' - package name '${name}' is not an npm package name`,
+      );
+    },
+  );
 
   test('a manifest from a newer VULCAN fails loudly, naming the upgrade', () => {
     useAtlasProject({ root: ROOT, manifest: { schemaVersion: 2 } });

@@ -10,7 +10,7 @@ afterAll(removeProjects);
 
 const CLI = join(import.meta.dir, '..', '..', 'cli.ts');
 const PROJECT = {
-  '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'AGENTS.md': '# x\n',
 };
 const LOCAL = '.agents/vulcan.local.json';
@@ -127,19 +127,19 @@ describe('vulcan sync with nothing chosen', () => {
     expect(result.stderr.split(NO_TTY_HINT)).toHaveLength(2);
   });
 
-  test('a project that already has Claude files is migrated: stored as claude, no hint', () => {
+  test('a project that already has Claude files is not assumed to use claude: the hint, nothing stored', () => {
     const root = createProject({ files: { ...PROJECT, 'CLAUDE.md': '@AGENTS.md\n' } });
     const result = runCli({ args: ['sync'], cwd: root });
 
-    expect(localAgents({ root })).toEqual(['claude']);
-    expect(result.stderr).not.toContain('no agents chosen');
+    expect(existsSync(join(root, LOCAL))).toBe(false);
+    expect(result.stderr).toContain(NO_TTY_HINT);
   });
 
   test('a committed config that lists agents is the suggested default', () => {
     const root = createProject({
       files: {
         ...PROJECT,
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { agents: ['claude', 'cursor'], rules: { 'V-W-01': 'read-only' } };\n",
       },
     });

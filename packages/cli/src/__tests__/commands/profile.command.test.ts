@@ -36,7 +36,7 @@ const profile = (opts: {
 const project = (): string =>
   createProject({
     files: {
-      '.configs/vulcan.config.ts': CONFIG,
+      '.configs/vulcan.config.mts': CONFIG,
       '.gitignore': '.agents/local/\n',
       'package.json': '{}',
     },
@@ -108,7 +108,7 @@ describe('vulcan profile', () => {
 
   test('without a .gitignore that lists .agents/local/ it refuses to save', () => {
     const root = createProject({
-      files: { '.configs/vulcan.config.ts': CONFIG, 'package.json': '{}' },
+      files: { '.configs/vulcan.config.mts': CONFIG, 'package.json': '{}' },
     });
     const result = profile({ root, lines: ANSWERS });
 
@@ -226,7 +226,7 @@ describe('vulcan profile', () => {
 
   test('without the ignore line it refuses before asking anything, so no answer is typed for nothing', () => {
     const root = createProject({
-      files: { '.configs/vulcan.config.ts': CONFIG, 'package.json': '{}' },
+      files: { '.configs/vulcan.config.mts': CONFIG, 'package.json': '{}' },
     });
     const result = profile({ root, lines: ANSWERS });
 

@@ -529,7 +529,7 @@ export class AppScaffold {
         [side]: LayoutFolder.withLayoutFolder({ value: parsed.block.layout[side], folder }),
       },
       packages: [...parsed.block.packages, entry],
-      ...(parsed.block.presets === undefined ? {} : { presets: parsed.block.presets }),
+      presets: parsed.block.presets,
       sources: [
         ...parsed.block.sources,
         ...newSources.filter(
@@ -541,15 +541,7 @@ export class AppScaffold {
       block: extended,
       preset: LibPreset.recordedOf({ spec: recordedSpec, located: located.located }),
     });
-    const replaced = AppsBlock.replace({ source, block });
-    // A config written before presets were recorded does not read them yet: the line that does goes in.
-    const nextConfig =
-      replaced === undefined || replaced.includes('apps.presets')
-        ? replaced
-        : replaced.replace(
-            '  packages: apps.packages,\n',
-            '  packages: apps.packages,\n  presets: apps.presets,\n',
-          );
+    const nextConfig = AppsBlock.replace({ source, block });
 
     if (nextConfig === undefined) {
       return AddFailure.fail({ message: ROOT_HINT });

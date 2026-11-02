@@ -22,22 +22,10 @@ import { isSettingsObject, ProjectSettings } from './settings.ts';
 
 const NO_CHANGE = (): void => {};
 
-/** `CLAUDE.md` holds only `@AGENTS.md`: an old symlink or bun init's template is replaced, a hand-written file is left alone. */
+/** `CLAUDE.md` holds only `@AGENTS.md`: sync writes it when absent and leaves any other file alone. */
 const planClaudeImport = (opts: { root: string }): ISyncAction => {
   const path = join(opts.root, SyncConstants.CLAUDE_TOOL_FILE);
   const write = (): void => writeFileSync(path, `${SyncConstants.CLAUDE_IMPORT_LINE}\n`);
-
-  if (SyncLinks.isSymlink({ path })) {
-    return {
-      path,
-      status: SyncStatuses.REPLACED,
-      note: 'old symlink',
-      apply: () => {
-        rmSync(path);
-        write();
-      },
-    };
-  }
 
   if (!existsSync(path)) {
     return { path, status: SyncStatuses.CREATED, apply: write };
@@ -47,10 +35,6 @@ const planClaudeImport = (opts: { root: string }): ISyncAction => {
 
   if (content.trim() === SyncConstants.CLAUDE_IMPORT_LINE) {
     return { path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE };
-  }
-
-  if (content.trimStart().startsWith(SyncConstants.BUN_INIT_CLAUDE_MARKER)) {
-    return { path, status: SyncStatuses.REPLACED, note: "bun init's template", apply: write };
   }
 
   return {

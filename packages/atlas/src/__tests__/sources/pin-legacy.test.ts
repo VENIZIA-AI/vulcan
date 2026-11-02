@@ -32,6 +32,8 @@ const project = (opts: { root: string }) =>
 
 /** 0.4.7 was read through the legacy template (it carries its tag); 0.4.8 through the current one. */
 const TABLE: IReleaseTable = {
+  livePackages: ['kernel'],
+  packageMap: [],
   releases: {
     kernel: [
       { version: '0.4.8', date: '2026-10-30', sha: 'bbbbbbb', order: 1 },

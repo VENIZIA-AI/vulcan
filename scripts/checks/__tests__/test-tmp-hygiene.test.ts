@@ -69,7 +69,7 @@ const TARGETS = [
   { pkg: 'atlas', file: 'src/__tests__/server/skills.test.ts' },
   { pkg: 'okf', file: 'src/__tests__/walk.test.ts' },
   // createProject, hermeticEnv and a spawned hook.
-  { pkg: 'cli', file: 'src/__tests__/sync/prune.test.ts' },
+  { pkg: 'cli', file: 'src/__tests__/sync/planner.test.ts' },
   { pkg: 'cli', file: 'src/__tests__/local/clean.test.ts' },
   { pkg: 'cli', file: 'src/__tests__/hooks/trusted-scripts.test.ts' },
 ];

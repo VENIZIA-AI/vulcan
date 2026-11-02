@@ -140,6 +140,17 @@ describe('ModeArguments.readPackageVersion (I6)', () => {
     expect(ModeArguments.readPackageVersion({ directory: packageDirectory })).toBe('9.9.9-test');
   });
 
+  test('is undefined when the package.json declares no version', () => {
+    const packageDirectory = makeTempDirectory({ prefix: 'atlas-modes-no-version-' });
+
+    writeFileSync(
+      join(packageDirectory, 'package.json'),
+      JSON.stringify({ name: '@venizia/vulcan-atlas' }),
+    );
+
+    expect(ModeArguments.readPackageVersion({ directory: packageDirectory })).toBeUndefined();
+  });
+
   test('is undefined when the directory has no package.json', () => {
     const empty = makeTempDirectory({ prefix: 'atlas-modes-no-manifest-' });
 

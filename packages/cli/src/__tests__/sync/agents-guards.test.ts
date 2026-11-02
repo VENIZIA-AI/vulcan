@@ -9,7 +9,7 @@ import { runCli } from '../run.helper.ts';
 afterAll(removeProjects);
 
 const PROJECT = {
-  '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'AGENTS.md': '# x\n',
 };
 const TEMPLATE = readFileSync(

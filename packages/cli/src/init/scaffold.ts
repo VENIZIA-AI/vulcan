@@ -3,7 +3,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative } from 'node:path';
 import { BASE_DIRECTORY, JsonValue, ProjectLayout } from '../common/index.ts';
 import { ConfigConstants, ConfigLoader } from '../config/index.ts';
-import type { TConfigExtension } from '../config/index.ts';
 import { InitConstants, InitStatuses } from './common/index.ts';
 import { Bunfig } from '../create/bunfig.ts';
 import { Dockerignore } from '../create/dockerignore.ts';
@@ -13,7 +12,7 @@ import type { IInitEntry, IScaffoldFile } from './common/index.ts';
 export const MCP_SERVER_HINT =
   '"atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }';
 
-/** The files every project gets, apart from the config, whose format the user picks. */
+/** The files every project gets, apart from the config. */
 const SCAFFOLD_FILES: IScaffoldFile[] = [
   { path: 'AGENTS.md', template: 'AGENTS.md' },
   { path: '.agents/rules.md', template: 'rules.md' },
@@ -132,7 +131,7 @@ export class ProjectScaffold {
   }
 
   /** Scaffolds the project layer at `root`. Never overwrites: an existing file is kept and a needed edit becomes a hint; only `.gitignore` is appended to, line by line. */
-  static scaffold(opts: { root: string; extension: TConfigExtension }): IScaffoldResult {
+  static scaffold(opts: { root: string }): IScaffoldResult {
     const { root } = opts;
     const name = resolveProjectName({ root });
     const isWorkspaces = ProjectScaffold.declaresWorkspaces({ root });
@@ -153,25 +152,18 @@ export class ProjectScaffold {
       });
     }
 
-    const configs = ConfigLoader.findFiles({ root });
+    const config = ConfigLoader.findFile({ root });
 
-    if (configs.length === 0) {
-      const configFile = `${ConfigConstants.BASENAME}.${opts.extension}`;
-
+    if (config === undefined) {
       entries.push(
         writeIfAbsent({
           root,
-          path: join(ConfigConstants.DIRECTORY, configFile),
-          content: ProjectScaffold.renderTemplate({ template: configFile, name }),
+          path: join(ConfigConstants.DIRECTORY, ConfigConstants.FILE),
+          content: ProjectScaffold.renderTemplate({ template: ConfigConstants.FILE, name }),
         }),
       );
     } else {
-      entries.push(
-        ...configs.map((file): IInitEntry => ({
-          status: InitStatuses.KEPT,
-          subject: relative(root, file),
-        })),
-      );
+      entries.push({ status: InitStatuses.KEPT, subject: relative(root, config) });
     }
 
     entries.push(writeIfAbsent({ root, path: '.dockerignore', content: Dockerignore.render() }));

@@ -29,7 +29,7 @@ const remoteHook = (opts: { root: string }): string | undefined =>
 /** A synced project with the package linked into node_modules, as `bun install` leaves it. */
 const makeProject = (opts: { config: string; files?: Record<string, string> }): string => {
   const root = createProject({
-    files: { 'AGENTS.md': '# x\n', '.configs/vulcan.config.ts': opts.config, ...opts.files },
+    files: { 'AGENTS.md': '# x\n', '.configs/vulcan.config.mts': opts.config, ...opts.files },
   });
   const installed = join(root, 'node_modules', '@venizia', 'vulcan');
 
@@ -84,7 +84,7 @@ describe('sync registers the guard only for a project that sets remoteHosts', ()
   test('removing the key and syncing again takes the hook back', () => {
     const root = makeProject({ config: CONFIG(REMOTE_HOSTS) });
 
-    writeFileSync(join(root, '.configs/vulcan.config.ts'), CONFIG(''));
+    writeFileSync(join(root, '.configs/vulcan.config.mts'), CONFIG(''));
     runCli({ args: ['sync'], cwd: root });
     expect(remoteHook({ root })).toBeUndefined();
   });

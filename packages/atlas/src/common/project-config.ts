@@ -11,8 +11,8 @@ const ROOT_ENV = 'VULCAN_PROJECT_ROOT';
 /** The manifest versions this atlas reads (V2); outside it, it says which VULCAN to upgrade to. */
 const MANIFEST_SCHEMA_VERSION = 1;
 
-/** An npm package name, the legacy upper case included: every character is safe in a path and a URL. */
-const NPM_NAME_PATTERN = /^(?:@[A-Za-z0-9~-][\w.~-]*\/)?[A-Za-z0-9~-][\w.~-]*$/;
+/** An npm package name, lower case: every character is safe in a path and a URL. */
+const NPM_NAME_PATTERN = /^(?:@[a-z0-9~-][a-z0-9._~-]*\/)?[a-z0-9~-][a-z0-9._~-]*$/;
 const NPM_NAME_MAX_LENGTH = 214;
 
 const DEFAULT_TAG_PATTERN = '<dir>-v<version>';

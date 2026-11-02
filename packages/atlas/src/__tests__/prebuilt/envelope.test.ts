@@ -17,6 +17,8 @@ const payloadFor = (opts: { gz: Uint8Array }): IIndexPayload => ({
   tags: '0123456789abcdef',
   history: true,
   releases: {
+    livePackages: ['kernel'],
+    packageMap: [],
     releases: { kernel: [{ version: '1.0.0', date: '2026-01-01', sha: 'c'.repeat(40), order: 1 }] },
     changelogs: [],
   },

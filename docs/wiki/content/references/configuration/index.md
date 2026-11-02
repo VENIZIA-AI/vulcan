@@ -5,30 +5,18 @@ description: Inspect schema keys, default values, validation rules, and effects 
 
 # Configuration
 
-VULCAN stores project settings in `.configs/vulcan.config.*`. The configuration loader accepts exactly one of four files:
-
-- `.configs/vulcan.config.mts` (the file `vulcan init` writes)
-- `.configs/vulcan.config.ts`
-- `.configs/vulcan.config.mjs`
-- `.configs/vulcan.config.js`
-
-If multiple configuration files exist, the loader halts with an error:
-
-```text
-more than one config - keep exactly one of: <files>
-```
+VULCAN stores project settings in `.configs/vulcan.config.mts`, the file `vulcan init` writes. The loader reads no other file name: a `.ts`, `.mjs` or `.js` config is not found.
 
 The table below lists all loader errors:
 
 | Failure | Error message |
 |---|---|
-| No file found | `no .configs/vulcan.config.* found in <root>` |
-| Multiple files found | `more than one config - keep exactly one of: <files>` |
+| No file found | `no .configs/vulcan.config.mts found in <root>` |
 | Import throws | `<file>: failed to load - <error>` |
 | Missing default export | `<file>: no default export - write 'export default { ... }'` |
 | Invalid schema | `<file>: invalid config` |
 
-Each configuration file must provide a default export. Type the configuration using `satisfies VulcanConfig` or the `defineConfig` helper:
+The configuration file must provide a default export. Type the configuration using `satisfies VulcanConfig` or the `defineConfig` helper:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -217,7 +205,7 @@ export default {
 
 A record without `lib` or `shared` is read as before.
 
-The entries live in the `vulcan:apps` block that `init` and `add` rewrite, and the config reads them with `presets: apps.presets`. A config written before presets were recorded does not have that line; `add` inserts it after `packages: apps.packages,` the first time it runs. `vulcan sync` renders `layout` and `presets` into `.agents/vulcan.manifest.json`, which is what atlas reads. A project whose apps were not made from a preset records none.
+The entries live in the `vulcan:apps` block that `init` and `add` rewrite, and the config reads them with `presets: apps.presets`. `add` refuses a block that does not hold the `presets` list, because it is not the JSON `vulcan` wrote. `vulcan sync` renders `layout` and `presets` into `.agents/vulcan.manifest.json`, which is what atlas reads. A project whose apps were not made from a preset records none.
 
 ```ts
 export default {
@@ -389,11 +377,9 @@ To configure custom generators and view built-in renderer options, see the [rend
 
 The `atlas` object configures release tags and external repository sources. `vulcan sync` writes `release: { tagPattern, ignoreTags }` and `sources` to `.agents/vulcan.manifest.json`. Atlas reads `sources` from the manifest to clone and query knowledge across external repositories.
 
-The keys `releaseCommit`, `typescriptFrom` and `legacyTagPrefixes` were removed because no tool read them. A config that still sets one fails with an error naming the key.
-
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` or `<package>` |
+| `tagPattern` | `string` | `'<dir>-v<version>'` | Tag template containing `<version>` and optional `<dir>` |
 | `legacyTagPatterns` | `string[]` | `undefined` | Tag templates of an earlier layout that still name releases, read after `tagPattern` (see [legacyTagPatterns](#legacytagpatterns)) |
 | `sources` | `Array<object>` | `[]` | External repositories to query through atlas |
 | `ignoreTags` | `string[]` | `undefined` | Glob patterns of git tags ignored by checks |
@@ -425,7 +411,7 @@ See [the prebuilt index](/references/atlas/prebuilt-index).
 
 ### tagPattern and the tags check
 
-The `tagPattern` template must contain `<version>`. The `<dir>` (or `<package>`) placeholder is optional. A release train that tags once leaves it out (`v<version>`). `vulcan doctor` skips the `[tags]` check when there is no `<dir>`.
+The `tagPattern` template must contain `<version>`. The `<dir>` placeholder is optional. A release train that tags once leaves it out (`v<version>`). `vulcan doctor` skips the `[tags]` check when there is no `<dir>`.
 
 The `[tags]` doctor check does not require every tag to match `tagPattern`. It parses tags using the template. It reports any tag that names a package no `packages` entry declares by `dir` or alias. Glob patterns in `ignoreTags` skip tags:
 
@@ -461,16 +447,6 @@ export default {
   },
 } satisfies VulcanConfig;
 ```
-
-### Removed key: atlas.packages
-
-The `atlas.packages` key was removed in version 0.2.0-8. The schema rejects this key with an explicit error:
-
-```text
-atlas.packages was removed - move the list to the top-level packages: [{ dir, name }] (release order; dir is the old key, name the old value)
-```
-
-To resolve this error, move the package array to the top-level `packages` key.
 
 To configure external repositories, see the [atlas sources reference](/references/atlas/sources).
 

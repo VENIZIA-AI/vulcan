@@ -22,7 +22,7 @@ export class ReleaseStore extends BaseHelper {
   constructor(opts: { table: IReleaseTable; emptyReason?: string; noEntriesReason?: string }) {
     super({ scope: ReleaseStore.name });
 
-    this.packageMap = opts.table.packageMap ?? [];
+    this.packageMap = opts.table.packageMap;
     this.emptyReason = opts.emptyReason ?? 'no releases';
     this.noEntriesReason = opts.noEntriesReason ?? 'no dated changelog entries';
 
@@ -40,7 +40,7 @@ export class ReleaseStore extends BaseHelper {
     this.changelogs = [...(opts.table.changelogs ?? [])]
       .map((entry) => ({ ...entry, packages: entry.packages.map(nameOf) }))
       .sort((left, right) => TextValue.compare({ left: right.date, right: left.date }));
-    this.live = [...(opts.table.livePackages ?? [])]
+    this.live = [...opts.table.livePackages]
       .map(nameOf)
       .sort((left, right) => TextValue.compare({ left, right }));
   }
@@ -84,9 +84,9 @@ export class ReleaseStore extends BaseHelper {
     return this.releases.has(name) || this.packageMap.some((entry) => entry.name === name);
   }
 
-  /** The packages that exist today; a table generated before this list existed answers with every package it knows. */
+  /** The packages that exist today. */
   livePackages(): string[] {
-    return this.live.length > 0 ? this.live : this.packages();
+    return this.live;
   }
 
   /** Every known version of one package, newest first; an unknown package has none. */

@@ -24,7 +24,7 @@ const tagPatternOf = (opts: { template: string; dir: string; version: string }):
 
   return new RegExp(
     `^${escaped
-      .replace(/<(?:dir|package)>/g, opts.dir)
+      .replace(/<dir>/g, opts.dir)
       .replace(/<version>/g, opts.version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
       .replace(/<date>/g, '\\d{4}-\\d{2}-\\d{2}')}$`,
   );
@@ -77,7 +77,7 @@ export class ChangelogCheck {
       // missing list is undecided.
       if (!Array.isArray(frontmatter.packages)) {
         problems.push(
-          `changelog: ${path} declares no packages - add \`packages: [<npm name>, ...]\` (\`vulcan x atlas changelogs migrate\` fills it)`,
+          `changelog: ${path} declares no packages - add \`packages: [<npm name>, ...]\` to its frontmatter (\`packages: []\` for an entry about no package)`,
         );
         continue;
       }
@@ -114,7 +114,7 @@ export class ChangelogCheck {
 
       if (!tags.some((tag) => patterns.some((pattern) => pattern.test(tag)))) {
         const expected = project.tagPattern
-          .replace(/<(?:dir|package)>/g, dir)
+          .replace(/<dir>/g, dir)
           .replace(/<version>/g, override[2])
           .replace(/<date>/g, 'YYYY-MM-DD');
 

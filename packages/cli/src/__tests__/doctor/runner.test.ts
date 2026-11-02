@@ -20,7 +20,7 @@ const LINT_CONFIGS = {
     "import { namingConventionConfigs } from '@venizia/dev-configs/linters';\n\nexport default namingConventionConfigs;\n",
 };
 const CONFORMANT: Record<string, string> = {
-  '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'package.json': '{ "name": "demo", "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
   'AGENTS.md': '# x\n',
   '.agents/rules.md': '| ID | Rule | Enforced by |\n|---|---|---|\n| W-06 | stay | SOFT |\n',
@@ -62,17 +62,8 @@ describe('doctor', () => {
     const result = runCli({ args: ['doctor'], cwd: createProject({ files: {} }) });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('no .configs/vulcan.config.* found');
+    expect(result.stderr).toContain('no .configs/vulcan.config.mts found');
     expect(result.stderr).not.toContain('    at ');
-  });
-
-  test('two config files', async () => {
-    const root = createProject({
-      files: { ...CONFORMANT, '.configs/vulcan.config.js': 'export default {};\n' },
-    });
-
-    const result = await findChecks({ root });
-    expect(result).toEqual([DoctorChecks.CONFIG]);
   });
 
   test('a missing AGENTS.md, rules file or knowledge bundle', async () => {
@@ -109,7 +100,7 @@ describe('doctor', () => {
     expect(result.stderr).not.toContain('V-W-04');
   });
 
-  test('a retired base ID, extended or in a first cell', async () => {
+  test('a V- ID the base does not carry, extended or in a first cell', async () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
@@ -120,8 +111,8 @@ describe('doctor', () => {
     const violations = await DoctorRunner.runChecks({ root });
 
     expect(violations.map((violation) => violation.message)).toEqual([
-      'V-C-03 is retired in the base - drop the reference',
-      'V-W-05 is retired in the base - drop the reference',
+      'V-C-03 is not a base rule - give the extension a bare ID',
+      'V-W-05 is not a base rule - give the extension a bare ID',
     ]);
   });
 
@@ -152,22 +143,22 @@ describe('doctor', () => {
     expect(result).toEqual([]);
   });
 
-  test('a config still keyed by the old bare slot ID names the new one', () => {
+  test('a config keyed by a bare slot ID is no slot choice: only the V- slot IDs take one', () => {
     const root = createProject({
       files: {
         ...CONFORMANT,
-        '.configs/vulcan.config.ts': "export default { rules: { 'W-01': 'read-only' } };\n",
+        '.configs/vulcan.config.mts': "export default { rules: { 'W-01': 'read-only' } };\n",
       },
     });
 
     expect(runCli({ args: ['doctor'], cwd: root }).stderr).toContain(
-      "'W-01' is not a slot - the base rule is now 'V-W-01'",
+      'W-01 is not a slot - only V-W-01 take a choice',
     );
   });
 
   test('a missing slot choice', async () => {
     const root = createSyncedProject({
-      files: { ...CONFORMANT, '.configs/vulcan.config.ts': 'export default {};\n' },
+      files: { ...CONFORMANT, '.configs/vulcan.config.mts': 'export default {};\n' },
     });
 
     const result = await findChecks({ root });
@@ -178,7 +169,7 @@ describe('doctor', () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
-        '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'sometimes' } };\n",
+        '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'sometimes' } };\n",
       },
     });
 
@@ -190,7 +181,7 @@ describe('doctor', () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { rules: { 'V-W-01': 'read-only', 'V-P-02': 'x' } };\n",
       },
     });
@@ -257,7 +248,7 @@ describe('doctor', () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { rules: { 'V-W-01': 'read-only' }, hooks: [{ event: 'Stop', command: 'bun node_modules/@venizia/vulcan/base/hooks/guard-writes.ts' }] };\n",
       },
     });
@@ -308,7 +299,7 @@ describe('doctor', () => {
     expect(result).toEqual([DoctorChecks.STYLE]);
   });
 
-  test('a lint config left directly in .configs/ is told where it belongs', async () => {
+  test('a lint config left directly in .configs/ is not read by the style check', async () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
@@ -317,12 +308,10 @@ describe('doctor', () => {
       },
     });
     const violations = await DoctorRunner.runChecks({ root });
-    const legacy = violations.filter(
-      (violation) => violation.file === '.configs/oxlint.config.mts',
-    );
 
-    expect(legacy.map((violation) => violation.check)).toEqual([DoctorChecks.STYLE]);
-    expect(legacy[0].message).toBe('move it to .configs/lints/oxlint.config.mts');
+    expect(
+      violations.filter((violation) => violation.file === '.configs/oxlint.config.mts'),
+    ).toEqual([]);
   });
 
   test('a lint config under lints/ is where the style check looks', async () => {
@@ -390,7 +379,7 @@ describe('doctor', () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { rules: { 'V-W-01': 'read-only' }, packages: [{ dir: 'kit', name: '@demo/kit', path: 'umbras/kit' }] };\n",
         'umbras/kit/package.json': '{ "name": "@demo/kit" }',
         'umbras/kit/.configs/lints/oxlint.config.mts': 'export default {};\n',
@@ -460,7 +449,7 @@ describe('doctor: the scaffold is filled in', () => {
       files: {
         ...CONFORMANT,
         'package.json': WORKSPACES_PACKAGE,
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { rules: { 'V-W-01': 'read-only' }, packages: [{ dir: 'api', name: '@demo/api', path: 'apps/api' }] };\n",
       },
     });
@@ -498,7 +487,7 @@ describe('doctor: apps', () => {
         ...CONFORMANT,
         'package.json':
           '{ "name": "demo", "workspaces": ["services/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services', frontend: 'web' }, packages: [{ dir: 'core-api', name: 'core-api', path: 'apps/core-api' }] };\n",
       },
     });
@@ -517,7 +506,7 @@ describe('doctor: apps', () => {
     const files = (opts: { workspaces: string }) => ({
       ...CONFORMANT,
       'package.json': `{ "name": "demo", "workspaces": ${opts.workspaces}, "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }`,
-      '.configs/vulcan.config.ts':
+      '.configs/vulcan.config.mts':
         "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'merchant', name: '@nx/merchant', path: 'auroras/features/merchant', kind: 'lib' }] };\n",
     });
     const covered = createSyncedProject({
@@ -543,7 +532,7 @@ describe('doctor: apps', () => {
         files: {
           ...CONFORMANT,
           'package.json': `{ "name": "demo", "workspaces": ${JSON.stringify(globs)}, "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }`,
-          '.configs/vulcan.config.ts':
+          '.configs/vulcan.config.mts':
             "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'core-api', name: 'core-api', path: 'services/core-api' }] };\n",
         },
       });
@@ -559,7 +548,7 @@ describe('doctor: apps', () => {
         ...CONFORMANT,
         'package.json':
           '{ "name": "demo", "workspaces": ["./other/**"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' } };\n",
       },
     });
@@ -595,7 +584,7 @@ describe('doctor: app scripts (info only)', () => {
         ...CONFORMANT,
         'package.json':
           '{ "name": "demo", "workspaces": ["services/*", "web/*", "libs/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
-        '.configs/vulcan.config.ts': CONFIG({ packages: opts.packages }),
+        '.configs/vulcan.config.mts': CONFIG({ packages: opts.packages }),
         ...opts.files,
       },
     });
@@ -767,7 +756,7 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
         ...CONFORMANT,
         'package.json':
           '{ "name": "demo", "workspaces": ["services/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
-        '.configs/vulcan.config.ts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: ${PACKAGES} };\n`,
+        '.configs/vulcan.config.mts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: ${PACKAGES} };\n`,
         'services/api/package.json': JSON.stringify({
           name: 'api',
           scripts: {
@@ -856,7 +845,7 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
   test('two apps with a Dockerfile give one warning naming both', async () => {
     const root = project({
       files: {
-        '.configs/vulcan.config.ts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'api', name: 'api', path: 'services/api' }, { dir: 'jobs', name: 'jobs', path: 'services/jobs' }] };\n`,
+        '.configs/vulcan.config.mts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'api', name: 'api', path: 'services/api' }, { dir: 'jobs', name: 'jobs', path: 'services/jobs' }] };\n`,
         'services/jobs/.configs/builders/Dockerfile': 'FROM x\n',
         'services/jobs/package.json': JSON.stringify({ name: 'jobs', scripts: {} }),
         '.dockerignore': '**/node_modules\n',
@@ -892,7 +881,7 @@ describe('doctor: bun fmt (warnings)', () => {
           ...CONFORMANT,
           'package.json':
             '{ "name": "demo", "workspaces": ["services/*"], "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }',
-          '.configs/vulcan.config.ts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: ${PACKAGES} };\n`,
+          '.configs/vulcan.config.mts': `export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: ${PACKAGES} };\n`,
           'services/api/package.json': JSON.stringify({ name: 'api', scripts: { lint: 'x' } }),
           ...opts.files,
         }).filter((entry): entry is [string, string] => entry[1] !== null),
@@ -1193,14 +1182,14 @@ describe('the report shape note', () => {
   test('counts the replies that broke the shape from the log, and says nothing without one', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+        '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
         '.agents/local/violations.jsonl':
           '{"date":"2026-10-24","classes":["emoji","blocked-missing"]}\n{"date":"2026-10-25","classes":["emoji"]}\n',
       },
     });
     const quiet = createProject({
       files: {
-        '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+        '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
       },
     });
     const result = await DoctorRunner.runNotes({ root });
@@ -1217,7 +1206,7 @@ describe('the report shape note', () => {
   test('a note says when VULCAN_OWNER_REPLY=off is set in the shell that runs doctor', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+        '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
       },
     });
     const notesOf = async (env: Record<string, string>): Promise<string[]> => {
@@ -1240,13 +1229,13 @@ describe('the report shape note', () => {
     const config = "export default { rules: { 'V-W-01': 'read-only' } };\n";
     const flagged = createProject({
       files: {
-        '.configs/vulcan.config.ts': config,
+        '.configs/vulcan.config.mts': config,
         '.claude/settings.local.json': JSON.stringify({ env: { VULCAN_OWNER_REPLY: 'off' } }),
       },
     });
     const harmless = createProject({
       files: {
-        '.configs/vulcan.config.ts': config,
+        '.configs/vulcan.config.mts': config,
         '.claude/settings.json': JSON.stringify({ env: { VULCAN_OWNER_REPLY: 'on' } }),
       },
     });

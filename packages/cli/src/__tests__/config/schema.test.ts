@@ -246,26 +246,17 @@ describe('layout', () => {
 });
 
 describe('ProjectPackages.resolve', () => {
-  test('atlas.packages was removed: the error names the top-level packages that replaces it', () => {
-    const result = VULCAN_CONFIG_SCHEMA.safeParse({ atlas: { packages: { b: '@x/b' } } });
-    const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
-
-    expect(result.success).toBe(false);
-    expect(messages.join('; ')).toContain('atlas.packages was removed');
-    expect(messages.join('; ')).toContain('packages: [{ dir');
-  });
-
   test.each([
+    ['packages', { b: '@x/b' }],
     ['releaseCommit', '[#<issue>] chore(<dir>): release v<version>'],
     ['typescriptFrom', '.'],
     ['legacyTagPrefixes', ['old-']],
-  ])('atlas.%s was removed: the error names the key and says no tool reads it', (key, value) => {
+  ])('atlas.%s is no key any more: the strict schema names it as unrecognized', (key, value) => {
     const result = VULCAN_CONFIG_SCHEMA.safeParse({ atlas: { [key]: value } });
     const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
 
     expect(result.success).toBe(false);
-    expect(messages.join('; ')).toContain(`atlas.${key} was removed`);
-    expect(messages.join('; ')).toContain('no tool reads it');
+    expect(messages.join('; ')).toContain(`Unrecognized key: "${key}"`);
   });
 
   test('without packages the list is empty', () => {

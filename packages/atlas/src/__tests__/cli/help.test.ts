@@ -62,6 +62,20 @@ describe('help', () => {
   });
 });
 
+describe('an unknown subcommand', () => {
+  test.each(['changelogs', 'concepts'])(
+    '%s is a usage error: exit 2, the usage on stderr',
+    (word) => {
+      const result = run({ args: [word, 'migrate'], cwd: makeTempDirectory() });
+
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain(`unknown subcommand: ${word}`);
+      expect(result.stderr).not.toContain('changelogs migrate');
+      expect(result.stderr).not.toContain('concepts stamp');
+    },
+  );
+});
+
 describe('tools', () => {
   test('lists every tool the server offers, one line each, without an MCP client', () => {
     const result = run({ args: ['tools', '--root', makeProject()], cwd: makeTempDirectory() });

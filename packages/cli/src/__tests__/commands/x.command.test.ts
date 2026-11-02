@@ -67,7 +67,7 @@ describe('vulcan x', () => {
       // atlas ships code only: it serves a project, so the test makes one.
       const root = createProject({
         files: {
-          '.configs/vulcan.config.ts': 'export default {};\n',
+          '.configs/vulcan.config.mts': 'export default {};\n',
           '.agents/knowledge/index.md': '# Probe\n',
         },
       });
@@ -126,7 +126,7 @@ describe('ToolRunner.buildEnvironment', () => {
   test('a valid config reaches the tool resolved, with the project root', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { packages: [{ dir: 'kernel', name: '@a/kernel' }] };\n",
       },
     });
@@ -154,7 +154,7 @@ describe('ToolRunner.buildEnvironment', () => {
 
   test('an invalid config stops vulcan x before the tool runs', () => {
     const root = createProject({
-      files: { '.configs/vulcan.config.ts': 'export default { nope: 1 };\n' },
+      files: { '.configs/vulcan.config.mts': 'export default { nope: 1 };\n' },
     });
     const result = runCli({ args: ['x', 'okf', 'check'], cwd: root });
 

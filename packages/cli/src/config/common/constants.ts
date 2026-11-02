@@ -16,16 +16,6 @@ export class LibraryKinds {
   }
 }
 
-/** Config file extensions, in lookup order. */
-export class ConfigExtensions {
-  static readonly TS = 'ts';
-  static readonly MTS = 'mts';
-  static readonly MJS = 'mjs';
-  static readonly JS = 'js';
-
-  static readonly LOOKUP_ORDER = [this.TS, this.MTS, this.MJS, this.JS] as const;
-}
-
 /** The agents `vulcan sync` writes adapters for. */
 export class CodingAgents {
   static readonly CLAUDE = 'claude';
@@ -70,7 +60,8 @@ export class HookEvents {
 
 export class ConfigConstants {
   static readonly DIRECTORY = '.configs';
-  static readonly BASENAME = 'vulcan.config';
+  /** The one config file name, under `.configs/`. */
+  static readonly FILE = 'vulcan.config.mts';
   static readonly DEFAULT_KNOWLEDGE_BUNDLE = '.agents/knowledge';
   static readonly RULE_ID_PATTERN = /^(?:[A-Z]+-)?[A-Z]-\d{2}$/;
   /** The rules a session drops most, printed at every session start unless the project lists its own. */

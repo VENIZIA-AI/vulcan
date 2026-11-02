@@ -76,11 +76,11 @@ test('every dated entry declaring known npm names, retired ones included, passes
   expect(ChangelogCheck.collectProblems()).toEqual([]);
 });
 
-test('an entry without packages fails, pointing at migrate (positive control)', () => {
+test('an entry without packages fails, saying what to add (positive control)', () => {
   project({ entries: { '2026-01-01-a.md': entry({ frontmatter: 'kind: fix' }) } });
 
   expect(ChangelogCheck.collectProblems()).toEqual([
-    'changelog: changes/2026-01-01-a.md declares no packages - add `packages: [<npm name>, ...]` (`vulcan x atlas changelogs migrate` fills it)',
+    'changelog: changes/2026-01-01-a.md declares no packages - add `packages: [<npm name>, ...]` to its frontmatter (`packages: []` for an entry about no package)',
   ]);
 });
 

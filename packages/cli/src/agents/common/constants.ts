@@ -10,12 +10,11 @@ export class AgentScopes {
   }
 }
 
-/** Why an agent's list was chosen: a flag, the local file, the config, a migration, the question, or the default. */
+/** Why an agent's list was chosen: a flag, the local file, the config, the question, or the default. */
 export class AgentSources {
   static readonly FLAG = 'flag';
   static readonly LOCAL = 'local';
   static readonly CONFIG = 'config';
-  static readonly MIGRATION = 'migration';
   static readonly ASKED = 'asked';
   static readonly DEFAULT = 'default';
 }

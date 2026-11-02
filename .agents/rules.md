@@ -121,7 +121,7 @@ Blocked: <what blocks, or "nothing">
 
 ## C - Code and writing
 
-The code and writing rules are the shared VULCAN base, `V-C-01` … `V-C-19` (`V-C-03` and `V-C-05` retired), in
+The code and writing rules are the shared VULCAN base, `V-C-01` … `V-C-19`, in
 `packages/cli/base/rules.md` - IGNIS's own C rules, moved upstream verbatim, and `V-C-19` added since. Cite them as `V-C-xx`. The bare `C-19` below is this repository's own rule (ISO dates) and is not `V-C-19`.
 
 | ID | Rule |

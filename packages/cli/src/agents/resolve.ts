@@ -1,11 +1,7 @@
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { AgentConstants, AgentSources } from './common/index.ts';
 import type { TAgentResolution, TAskAgents } from './common/index.ts';
 import { LocalChoice } from './local.ts';
 import { AgentTable } from './table.ts';
-
-const PROJECT_FILES = ['CLAUDE.md', '.claude'];
 
 export const NO_TTY_HINT = `vulcan sync: no agents chosen on this machine - wrote the Claude files as before; to choose, run: vulcan sync ${AgentConstants.FLAG} ${AgentConstants.EXAMPLE_LIST} (or ${AgentConstants.NONE})`;
 
@@ -54,8 +50,7 @@ export class AgentSelection {
 
   /**
    * Which agents this machine uses, in order: the flag, the stored choice, the committed config's
-   * suggestion, a project that already has Claude files, then ask (terminal) or keep today's Claude
-   * default (no terminal, with a hint and nothing stored).
+   * suggestion, then ask (terminal) or the Claude default (no terminal, with a hint and nothing stored).
    */
   static resolve(opts: {
     root: string;
@@ -122,16 +117,6 @@ export class AgentSelection {
         ok: true,
         agents: AgentTable.agentIds().filter((id) => opts.configAgents?.includes(id)),
         source: AgentSources.CONFIG,
-        writeLocal: true,
-        hint: undefined,
-      };
-    }
-
-    if (PROJECT_FILES.some((file) => existsSync(join(opts.root, file)))) {
-      return {
-        ok: true,
-        agents: ['claude'],
-        source: AgentSources.MIGRATION,
         writeLocal: true,
         hint: undefined,
       };

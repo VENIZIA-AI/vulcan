@@ -33,7 +33,7 @@ const git = (opts: { cwd: string; args: string[] }): string => {
 const repository = (): string => {
   const root = createProject({
     files: {
-      '.configs/vulcan.config.ts': CONFIG,
+      '.configs/vulcan.config.mts': CONFIG,
       '.gitignore': '.agents/local/\n',
       'package.json': '{}',
     },

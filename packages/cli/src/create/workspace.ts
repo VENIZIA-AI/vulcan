@@ -277,8 +277,8 @@ const isRecordedPreset = (value: unknown): boolean =>
 
 const isAppsBlock = (value: unknown): value is IAppsBlock =>
   RecordValue.isRecord(value) &&
-  (value.presets === undefined ||
-    (Array.isArray(value.presets) && value.presets.every((entry) => isRecordedPreset(entry)))) &&
+  Array.isArray(value.presets) &&
+  value.presets.every((entry) => isRecordedPreset(entry)) &&
   RecordValue.isRecord(value.layout) &&
   Object.values(value.layout).every(
     (folders) =>
@@ -511,12 +511,12 @@ export class PresetRecord {
 
   /** The block with this preset recorded: once per spec, its side and summary refreshed. */
   static record(opts: { block: IAppsBlock; preset: IRecordedPreset }): IAppsBlock {
-    const others = (opts.block.presets ?? []).filter((item) => item.spec !== opts.preset.spec);
-    const index = (opts.block.presets ?? []).findIndex((item) => item.spec === opts.preset.spec);
+    const others = opts.block.presets.filter((item) => item.spec !== opts.preset.spec);
+    const index = opts.block.presets.findIndex((item) => item.spec === opts.preset.spec);
     const presets =
       index === -1
         ? [...others, opts.preset]
-        : (opts.block.presets ?? []).map((item, at) => (at === index ? opts.preset : item));
+        : opts.block.presets.map((item, at) => (at === index ? opts.preset : item));
 
     return { ...opts.block, presets };
   }
