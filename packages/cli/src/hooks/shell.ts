@@ -268,25 +268,12 @@ const readWord = (opts: { text: string; from: number }): IWordRead => {
   let value = '';
   let index = opts.from;
   let quote: string | undefined;
-  // Depth of `${ ... }`: inside it a `)`, a space or a `;` belongs to the word.
-  let braces = 0;
 
   while (index < text.length) {
     const char = text[index];
 
-    if (quote === undefined && braces === 0 && WORD_END.has(char)) {
+    if (quote === undefined && WORD_END.has(char)) {
       break;
-    }
-
-    if (quote !== "'" && char === '$' && text[index + 1] === '{') {
-      braces += 1;
-      value += '${';
-      index += 2;
-      continue;
-    }
-
-    if (quote === undefined && braces > 0 && char === '}') {
-      braces -= 1;
     }
 
     // Inside double quotes a backslash escapes only a few characters; before any other it is itself.
@@ -472,24 +459,22 @@ const heredocOf = (opts: {
   return undefined;
 };
 
+/** Appends every item; a spread into `push` overflows the stack at a few hundred thousand items. */
+const pushAll = (opts: { target: string[]; items: string[] }): void => {
+  for (const item of opts.items) {
+    opts.target.push(item);
+  }
+};
+
 /** What the parser reads of one command line at most: a guard that reads more would be slow, and a slow guard is skipped. */
 export class ShellBudget {
   static readonly MAX_COMMANDS = 2000;
   static readonly MAX_WORDS = 20_000;
   /** The characters of a line and of every text nested in it, together: a line over it is not read at all. */
   static readonly MAX_CHARS = 100_000;
-  /** Subshells open at once: deeper than this a line is not read, since every command records the subshells it sits in. */
-  static readonly MAX_SUBSHELLS = 100;
 }
 
 export class ShellParser {
-  /** The subshells (`( ... )`, `$( ... )`, a `sh -c` text) a parsed command sits in, outermost first; a command of the line itself has none. */
-  private static readonly scopes = new WeakMap<ISimpleCommand, readonly number[]>();
-
-  static scopeOf(opts: { command: ISimpleCommand }): readonly number[] {
-    return ShellParser.scopes.get(opts.command) ?? [];
-  }
-
   /** The program of the last simple command of `prefix`: what a heredoc that starts after it is fed to. */
   private static programBefore(opts: { prefix: string }): string {
     const { prefix } = opts;
@@ -596,14 +581,8 @@ export class ShellParser {
     command: string;
     depth: number;
     budget: IBudget;
-    /** The subshells this text runs in, outermost first: empty for the line itself. */
-    scope?: readonly number[];
   }): ISimpleCommand[] {
     const { depth, budget } = opts;
-    const baseDepth = opts.scope?.length ?? 0;
-    const open: number[] = [...(opts.scope ?? [])];
-    // One frozen copy of `open` serves every command until a parenthesis changes it.
-    let snapshot: readonly number[] | undefined;
 
     // The characters of every text read count together, nested texts too: a line over the cap is not read.
     budget.chars += opts.command.length;
@@ -618,7 +597,7 @@ export class ShellParser {
     const { text } = heredocSplit;
     let heredocIndex = 0;
     const commands: ISimpleCommand[] = [];
-    const nestedTexts: INestedText[] = [];
+    const nestedTexts: string[] = [];
     let current: ISimpleCommand = { words: [], redirects: [], assignments: [] };
     let index = 0;
 
@@ -628,30 +607,10 @@ export class ShellParser {
         current.redirects.length > 0 ||
         current.assignments.length > 0
       ) {
-        if (open.length > 0) {
-          snapshot ??= [...open];
-          ShellParser.scopes.set(current, snapshot);
-        }
-
         commands.push(current);
       }
 
       current = { words: [], redirects: [], assignments: [] };
-    };
-
-    // A text a command carries runs in a subshell of its own, inside the subshells that command sits in.
-    // `eval` runs in the shell that reads it, so its text shares that shell's folder and has no scope of its own.
-    const nest = (items: string[], scope: readonly number[], isSubshell = true): void => {
-      for (const item of items) {
-        if (isSubshell) {
-          budget.scopes += 1;
-        }
-
-        nestedTexts.push({
-          text: item,
-          scope: isSubshell ? [...scope, budget.scopes] : scope,
-        });
-      }
     };
 
     while (index < text.length) {
@@ -668,32 +627,8 @@ export class ShellParser {
         continue;
       }
 
-      // `#` at the start of a word begins a comment: nothing in it is a command or a parenthesis.
-      if (char === '#') {
-        const newline = text.indexOf('\n', index);
-
-        index = newline === -1 ? text.length : newline;
-        continue;
-      }
-
       if (char === ';' || char === '\n' || char === '|' || char === '(' || char === ')') {
         finish();
-
-        if (char === '(') {
-          budget.scopes += 1;
-          open.push(budget.scopes);
-          snapshot = undefined;
-
-          if (open.length > ShellBudget.MAX_SUBSHELLS) {
-            budget.isOver = true;
-
-            return commands;
-          }
-        } else if (char === ')' && open.length > baseDepth) {
-          open.pop();
-          snapshot = undefined;
-        }
-
         index += 1;
         continue;
       }
@@ -727,7 +662,7 @@ export class ShellParser {
           current.redirects.push(target.value);
         }
 
-        nest(target.nested, open);
+        pushAll({ target: nestedTexts, items: target.nested });
         index = Math.max(target.next, cursor + 1);
         continue;
       }
@@ -762,17 +697,7 @@ export class ShellParser {
         continue;
       }
 
-      nest(word.nested, open);
-
-      // The `)` that ends a `case` pattern cannot be told from the one that closes a subshell, so a `case` or an
-      // `esac` inside a subshell leaves the line unread, and the guard asks.
-      if (
-        current.words.length === 0 &&
-        open.length > baseDepth &&
-        (word.value === 'case' || word.value === 'esac')
-      ) {
-        budget.isOver = true;
-      }
+      pushAll({ target: nestedTexts, items: word.nested });
 
       if (current.words.length === 0 && isAssignment({ word: word.value })) {
         current.assignments.push(word.value);
@@ -823,12 +748,6 @@ export class ShellParser {
             return [...commands, ...synthesized];
           }
 
-          const scope = ShellParser.scopes.get(command);
-
-          if (scope !== undefined) {
-            ShellParser.scopes.set(split, scope);
-          }
-
           synthesized.push(split);
           queue.push({ command: split, level: level + 1 });
         }
@@ -836,23 +755,14 @@ export class ShellParser {
         budget.isOver = true;
       }
 
-      nest(
-        ShellParser.nestedScripts({ command, program }),
-        ShellParser.scopeOf({ command }),
-        ShellParser.basenameOf({ word: program.name }) !== 'eval',
-      );
+      pushAll({ target: nestedTexts, items: ShellParser.nestedScripts({ command, program }) });
     }
 
     return [
       ...commands,
       ...synthesized,
       ...nestedTexts.flatMap((nested) =>
-        ShellParser.parseWithBudget({
-          command: nested.text,
-          depth: depth + 1,
-          budget,
-          scope: nested.scope,
-        }),
+        ShellParser.parseWithBudget({ command: nested, depth: depth + 1, budget }),
       ),
     ];
   }
@@ -1130,7 +1040,7 @@ export class ShellParser {
   }
 
   static parseChecked(opts: { command: string }): IParsedShell {
-    const budget: IBudget = { commands: 0, words: 0, chars: 0, scopes: 0, isOver: false };
+    const budget: IBudget = { commands: 0, words: 0, chars: 0, isOver: false };
     const commands = ShellParser.parseGuarded({ command: opts.command, depth: 0, budget });
 
     return { commands, isOverBudget: budget.isOver };
@@ -1140,7 +1050,7 @@ export class ShellParser {
     return ShellParser.parseGuarded({
       command: opts.command,
       depth: opts.depth ?? 0,
-      budget: { commands: 0, words: 0, chars: 0, scopes: 0, isOver: false },
+      budget: { commands: 0, words: 0, chars: 0, isOver: false },
     });
   }
 }
@@ -1149,16 +1059,8 @@ interface IBudget {
   commands: number;
   words: number;
   chars: number;
-  /** The subshell ids handed out so far, across every text read. */
-  scopes: number;
   /** Something was not read: the budget ran out, or a command nests deeper than the depth limit. */
   isOver: boolean;
-}
-
-/** A command line a command carries as text, and the subshells it runs in. */
-interface INestedText {
-  text: string;
-  scope: readonly number[];
 }
 
 interface IHeredoc {

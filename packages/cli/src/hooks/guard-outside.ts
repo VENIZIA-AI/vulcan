@@ -402,33 +402,7 @@ export class OutsideGuard {
 
       isUnread = parsed.isOverBudget;
 
-      // A `cd` lasts to the end of the subshell it sits in: leaving one puts the folder back as it was on entering.
-      const frames: { id: number; base: string; pwd: string | undefined }[] = [];
-      const ended = new Map<number, { base: string; pwd: string | undefined }>();
-
       for (const command of parsed.commands) {
-        const scope = ShellParser.scopeOf({ command });
-
-        while (frames.length > 0 && frames[frames.length - 1]?.id !== scope[frames.length - 1]) {
-          const frame = frames.pop();
-
-          if (frame !== undefined) {
-            ended.set(frame.id, { base, pwd });
-            base = frame.base;
-            pwd = frame.pwd;
-          }
-        }
-
-        for (const id of scope.slice(frames.length)) {
-          frames.push({ id, base, pwd });
-
-          // A text nested in a subshell that has ended starts where that subshell stopped.
-          const resumed = ended.get(id);
-
-          base = resumed?.base ?? base;
-          pwd = resumed === undefined ? pwd : resumed.pwd;
-        }
-
         const program = ShellParser.programOf({ command });
 
         if (ShellParser.basenameOf({ word: program.name }) === 'cd') {
