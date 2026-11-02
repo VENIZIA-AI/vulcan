@@ -34,6 +34,8 @@ release: '@venizia/vulcan@0.4.8-0'
 
 **In one line.** An entry of `guard.writes.trustedScripts` can be `{ script, readOnly: ['plan', 'registry'] }`, so those subcommands run without an ask while `run` still asks.
 
+This part first shipped in 0.4.9-0.
+
 ### What changed
 
 - **A new entry shape.** `trustedScripts` takes a path string, as before, or an object with `script` and `readOnly`. `readOnly` is a list of one or more plain words (letters, digits and `_ . : -`); an empty list, a space, a glob or a shell character is refused.
@@ -51,6 +53,8 @@ release: '@venizia/vulcan@0.4.8-0'
 <Badge type="info" text="Bug Fix" />
 
 **In one line.** `vulcan add` no longer fails the `peers` check when the catalog pins exactly the version the preset lists for that package.
+
+This part first shipped in 0.4.9-0.
 
 ### What changed
 
@@ -85,6 +89,8 @@ release: '@venizia/vulcan@0.4.8-0'
 <Badge type="tip" text="Enhancement" />
 
 **In one line.** `vulcan add --preset <name> --shared <name>` makes a side-neutral package from a preset that has a `shared` kind, and `vulcan preset diff <package>` now works on a library or a shared package.
+
+This part first shipped in 0.4.9-0.
 
 ### What changed
 

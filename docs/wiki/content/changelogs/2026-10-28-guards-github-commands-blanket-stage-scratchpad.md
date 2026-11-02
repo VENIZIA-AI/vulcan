@@ -38,6 +38,8 @@ release: '@venizia/vulcan@0.4.7'
 
 **In one line.** An agent that writes into the scratchpad folder its tool offers is now refused with the place to use instead, so you no longer get a prompt to approve each command it runs there.
 
+This part first shipped in 0.4.8-0.
+
 ### What changed
 
 - **A refusal, not an ask.** Claude Code offers a scratchpad folder (`/tmp/claude-<uid>/<project>/<session>/scratchpad`), which is under `/tmp` and breaks `V-B-08`. `guard-outside` now denies a Bash redirect, a file tool write or a command that creates a file there. The answer names `V-B-08`, says nothing was written and points to `.agents/local/tmp/<task>/`. Other paths outside the project still ask.
