@@ -62,6 +62,9 @@ describe('the gates a command runs', () => {
   test.each([
     'bun test',
     'bun test src/a.test.ts',
+    'bun check',
+    'bun check --no-pretty',
+    'cd app && bun check | tail -5',
     'bun run lint',
     'bun run build',
     'bun run typecheck',
@@ -88,6 +91,8 @@ describe('the gates a command runs', () => {
     'cat tsc.log',
     'echo make lint',
     'bun run dev',
+    'bun checkout',
+    'echo bun check',
     'make help',
   ])('%s is not', (command) => {
     expect(SignalClassifier.gatesOf({ command })).toEqual([]);
