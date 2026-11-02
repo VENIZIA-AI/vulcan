@@ -1,4 +1,4 @@
-import type { IResolvedSource, IUnavailableSource } from '@/sources/common';
+import type { IAtlasSource, IResolvedSource, IUnavailableSource } from '@/sources/common';
 
 const TRIGGER_MAX = 110;
 
@@ -57,7 +57,11 @@ const packageScopesOf = (opts: { sources: IResolvedSource[] }): string => {
 };
 
 /** How each source was reached and which could not be served: a client sees it on initialize. */
-const statusOf = (opts: { sources: IResolvedSource[]; unavailable: IUnavailableSource[] }) => {
+const statusOf = (opts: {
+  sources: IResolvedSource[];
+  unavailable: IUnavailableSource[];
+  indexing?: IAtlasSource[];
+}) => {
   const lines = opts.sources.map((source) => {
     if (source.mode === 'repository') {
       return `- ${source.name}: this repository, live`;
@@ -93,7 +97,12 @@ const statusOf = (opts: { sources: IResolvedSource[]; unavailable: IUnavailableS
       `- ${source.name}: UNAVAILABLE (${source.repo}@${source.ref}) - ${reason}; nothing from it is served`,
   );
 
-  return [...lines, ...missing];
+  const waiting = (opts.indexing ?? []).map(
+    (source) =>
+      `- ${source.name}: INDEXING (${source.repo}@${source.ref}) - not searchable yet; every answer says which sources it left out`,
+  );
+
+  return [...lines, ...waiting, ...missing];
 };
 
 const CORPORA_MAX = 4;
@@ -127,8 +136,10 @@ const scopesPhrase = (opts: { sources: IResolvedSource[] }): string => {
 
 export class ServerGuidance {
   /** The projects atlas holds, in the order the config lists them. */
-  static projectsOf(opts: { sources: IResolvedSource[] }): string {
-    return joinNames({ names: opts.sources.map((source) => source.name) });
+  static projectsOf(opts: { sources: IResolvedSource[]; indexing?: IAtlasSource[] }): string {
+    return joinNames({
+      names: [...opts.sources, ...(opts.indexing ?? [])].map((source) => source.name),
+    });
   }
 
   /**
@@ -140,9 +151,11 @@ export class ServerGuidance {
   static instructionsOf(opts: {
     sources: IResolvedSource[];
     unavailable: IUnavailableSource[];
+    /** Sources declared but still being indexed: named as such, so a client that reads this once knows to look at the answers. */
+    indexing?: IAtlasSource[];
     skills?: ISkillLine[];
   }): string {
-    const projects = ServerGuidance.projectsOf({ sources: opts.sources });
+    const projects = ServerGuidance.projectsOf(opts);
 
     return [
       `Atlas holds the real code and docs of ${corporaPhrase(opts)}. Do not answer facts about ${projects} from memory when atlas can answer them: call \`symbol\` for each export before you write code that imports ${scopesPhrase(opts)}, \`search\` then \`get\` when the user asks how something works or which convention applies, \`version\` or \`changes\` for a release or an upgrade, \`presets\` before you create an app or package.`,
@@ -150,7 +163,7 @@ export class ServerGuidance {
       `Before you answer how to build something in ${projects} (a feature, a controller, a service, a repository, a datasource) or how a convention is organised, call \`search\` and read the hits with \`get\`; do not answer from the files you happen to open. A plan never says "check atlas" for a step you have not done: call it first.`,
       '',
       ...skillsParagraph({ skills: opts.skills ?? [] }),
-      `Atlas serves ${opts.sources.length} source(s); every hit names its source.`,
+      `Atlas serves ${opts.sources.length + (opts.indexing?.length ?? 0)} source(s); every hit names its source.`,
       ...statusOf(opts),
     ].join('\n');
   }

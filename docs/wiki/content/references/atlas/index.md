@@ -42,6 +42,15 @@ To register atlas with an MCP client, add the `atlas` server entry to `.mcp.json
 }
 ```
 
+### A cold start answers at once
+
+The server answers `initialize` and `tools/list` as soon as it starts, in well under a second, whether or not any source is cached. The project itself is read first. Each remote source is fetched and indexed in the background, in a child process of its own, so the first start with an empty cache (a source takes 10 to 25 seconds to index) does not run into an MCP client's startup timeout (Claude Code gives a server 30 seconds, `MCP_TIMEOUT`).
+
+- **A source joins as it is ready.** At most as many are built at once as there are cores, fewer when free memory is short (about 640 MB each).
+- **A call waits, then says what it left out.** A `search`, `get`, `symbol`, `version` or `changes` call waits up to 20 seconds for the sources still being indexed, then answers from the ones that are ready. The answer carries `notServed`: the sources still indexing, the ones that failed with the reason, and what the answer covers. A source that failed never stops the others or the server; an error from a call names it too. `presets` needs no source and never waits.
+- **`instructions` is a snapshot.** It lists a source that is still being indexed as `INDEXING`, but a client reads it once, so rely on `notServed` in the answers.
+- **Settings.** `VULCAN_ATLAS_CALL_WAIT_SECONDS` (default `20`), `VULCAN_ATLAS_INDEX_JOBS` (builds at once) and `VULCAN_ATLAS_INDEX_TIMEOUT_SECONDS` (default `600`; a source that takes longer is stopped and reported as failed).
+
 ### Options
 
 | Option | Type | Default | Meaning |
@@ -156,7 +165,7 @@ For tool arguments and reply schemas, see the [atlas tools reference](/reference
 To fetch external sources, run `vulcan x atlas pull`.
 Inside a project, it fetches sources declared in the manifest plus any `--source` arguments.
 Sources come only from the manifest and `--source`; no user-level file is read.
-To fetch a single named source, pass `--source <name>`.
+To fetch a single named source, pass `--source <name>`. `--warm` fetches and indexes only what the cache lacks (`pull` otherwise builds again); the server runs `pull --warm --json --only <name>` in a child process for each source it indexes in the background.
 `pull` prints a line for each remote source (`pull: <name> <8-character sha> (<mode>)`).
 Repository-mode sources print nothing because atlas reads project files directly.
 For source caching and configuration details, see the [atlas sources reference](/references/atlas/sources).

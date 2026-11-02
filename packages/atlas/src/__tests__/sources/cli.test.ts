@@ -87,7 +87,7 @@ describe('vulcan-atlas over git sources', () => {
     expect(result.stdout.toString()).toBe('');
   });
 
-  test('mcp --source serves it from an empty directory: initialize names it, every hit names it', () => {
+  test('mcp --source serves it from an empty directory: initialize names it as indexing, every hit names it', () => {
     const source = makeSourceRepository();
     const requests = [
       { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } },
@@ -107,12 +107,38 @@ describe('vulcan-atlas over git sources', () => {
     const replies = result.stdout
       .split('\n')
       .filter((line) => line.trim().length > 0)
-      .map((line) => JSON.parse(line));
-    const sha = git({ cwd: source.work, args: ['rev-parse', 'HEAD'] }).slice(0, 8);
+      .map((line) => JSON.parse(line))
+      // Replies may come in any order: a call that waits for the source does not hold back the ones after it.
+      .sort((left, right) => left.id - right.id);
 
     expect(result.stderr).not.toContain('Error');
-    expect(replies[0].result.instructions).toContain(`- source: ${source.url}@develop at ${sha}`);
+    // The first answer comes before the source is indexed; a call waits for it (the status lines after it are covered in boot.test.ts).
+    expect(replies[0].result.instructions).toContain(`- source: INDEXING (${source.url}@develop)`);
     expect(JSON.parse(replies[1].result.content[0].text).hits[0].source).toBe('source');
+  });
+
+  test('mcp --source=<repo>@<ref> (the joined spelling) reaches the indexing child too', () => {
+    const source = makeSourceRepository();
+    const requests = [
+      {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'search', arguments: { query: 'kernel boots' } },
+      },
+    ];
+    const result = run({
+      args: ['mcp', `--source=${source.url}@develop`],
+      cwd: makeTempDirectory({ prefix: 'atlas-empty-' }),
+      cache: makeTempDirectory({ prefix: 'atlas-cache-' }),
+      input: `${requests.map((request) => JSON.stringify(request)).join('\n')}\n`,
+    });
+    const replies = result.stdout
+      .split('\n')
+      .filter((line) => line.trim().length > 0)
+      .map((line) => JSON.parse(line));
+
+    expect(JSON.parse(replies[0].result.content[0].text).hits[0].source).toBe('source');
   });
 
   test('pull fetches again and says what it got', () => {

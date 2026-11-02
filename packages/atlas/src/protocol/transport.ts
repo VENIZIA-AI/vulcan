@@ -91,6 +91,8 @@ export class Transport extends BaseHelper {
   /** Reads stdin line by line and writes each non-null reply to stdout; every diagnostic goes to stderr. */
   async run(): Promise<void> {
     let buffer = '';
+    // A request that waits (a call for a source still being indexed) must not hold back the ones after it: replies may come in any order.
+    const answering = new Set<Promise<void>>();
 
     process.stdin.setEncoding('utf8');
 
@@ -107,13 +109,19 @@ export class Transport extends BaseHelper {
         buffer = buffer.slice(newline + 1);
         newline = buffer.indexOf('\n');
 
-        const reply = await this.handleLine({ line });
+        const answer = this.handleLine({ line })
+          .then((reply) => {
+            if (reply !== null) {
+              process.stdout.write(`${reply}\n`);
+            }
+          })
+          .finally(() => answering.delete(answer));
 
-        if (reply !== null) {
-          process.stdout.write(`${reply}\n`);
-        }
+        answering.add(answer);
       }
     }
+
+    await Promise.all(answering);
   }
 
   private async route(request: IRpcRequest): Promise<string | null> {

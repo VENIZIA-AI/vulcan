@@ -4,7 +4,7 @@ import { InteractiveRun, ModeArguments, ModeUsageError, SourceArguments } from '
 import { runChangelogsCommand } from './changelogs/command';
 import { runConceptsCommand } from './concepts/command';
 import { runReleasesCommand } from './releases/generator';
-import { Refresher, SourcesServer } from './server/index';
+import { Refresher, SourceBoot, SourcesServer } from './server/index';
 import type { Transport } from './protocol/index';
 import { ProjectConfig } from './common/project-config';
 import { TextValue } from './common/text';
@@ -14,7 +14,7 @@ import type { IAtlasSource } from './sources/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
 
-const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help`;
+const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|symbols|releases> | changelogs migrate [--dry-run] | concepts stamp|check | help`;
 
 const usageError = (message: string): never => {
   console.error(`${AtlasConstants.SERVER_NAME}: ${message}\n${USAGE}`);
@@ -111,7 +111,7 @@ const sourcesToServe = (opts: {
 const buildServer = async (opts: {
   root: string;
   version: string;
-}): Promise<Transport | undefined> => {
+}): Promise<{ server: Transport; boot: SourceBoot } | undefined> => {
   const { project, sources } = sourcesToServe({ root: opts.root, argv });
 
   if (!project && sources.length === 0) {
@@ -120,46 +120,73 @@ const buildServer = async (opts: {
 
   const cacheDir = ModeArguments.readCacheDir({ argv });
   const prebuilt = prebuiltAllowed({ root: opts.root });
-  const { resolved, unavailable } = await SourceResolver.resolveServable({
+  // The project itself is read at once; the remote sources are fetched and indexed in child processes
+  // while the server already answers, so a cold cache never holds up `initialize`.
+  const { resolved } = await SourceResolver.resolveServable({
     cwd: opts.root,
-    sources,
+    sources: [],
     cacheDir,
     prebuilt,
   });
-
-  for (const { source, reason } of unavailable) {
-    console.error(
-      `${AtlasConstants.SERVER_NAME}: source '${source.name}' is not served - ${reason}`,
-    );
-  }
-
-  if (resolved.length === 0) {
-    usageError('nothing to serve - every source is unavailable (above)');
-  }
-
+  const forwarded = [
+    '--root',
+    opts.root,
+    ...(cacheDir === undefined ? [] : [`--cache-dir=${cacheDir}`]),
+    ...(prebuilt ? [] : ['--no-prebuilt']),
+    // The `--source` arguments the parent read, in both spellings, so the child sees the same sources.
+    ...argv.flatMap((arg, index) =>
+      arg === '--source' ? [arg, argv[index + 1] ?? ''] : arg.startsWith('--source=') ? [arg] : [],
+    ),
+  ];
+  const boot = new SourceBoot({
+    sources,
+    indexer: ({ source }) =>
+      SourceBoot.indexInChild({
+        source,
+        args: forwarded,
+        timeoutMs: SourceBoot.buildTimeoutMs(),
+      }),
+  });
   const intervalMs = Refresher.configuredIntervalMs();
 
-  return SourcesServer.build({
+  const server = SourcesServer.build({
     sources: resolved,
-    unavailable,
     cwd: opts.root,
     cacheDir,
     prebuilt,
     version: opts.version,
+    boot,
     ...(intervalMs === undefined ? {} : { refresh: { intervalMs } }),
   });
+
+  return { server, boot };
 };
 
-/** `pull [--source <name>]`: every source fetched again, or the one named; repo mode needs no pull. */
+/**
+ * `pull [--source <name>]`: every source fetched again, or the one named; repo mode needs no pull.
+ * `--warm` fetches and indexes only what the cache lacks. `--only <name>` names the source apart from
+ * `--source`, and `--json` prints the one resolved source as a JSON line: the way the server asks a child
+ * process to index a source while it already answers (the build is synchronous work).
+ */
 const pull = async (): Promise<number> => {
   const root = ModeArguments.readRoot({ argv }).value;
   const flag = argv.indexOf('--source');
-  const wanted = flag === -1 || argv[flag + 1]?.includes('/') ? undefined : argv[flag + 1];
+  const only = argv.indexOf('--only');
+  const wanted =
+    only !== -1
+      ? argv[only + 1]
+      : flag === -1 || argv[flag + 1]?.includes('/')
+        ? undefined
+        : argv[flag + 1];
   // A name picks a source; it is never a source of its own.
   const { sources } = sourcesToServe({
     root,
     argv:
-      wanted === undefined ? argv : argv.filter((_, index) => index !== flag && index !== flag + 1),
+      only !== -1
+        ? argv
+        : wanted === undefined
+          ? argv
+          : argv.filter((_, index) => index !== flag && index !== flag + 1),
   });
   const named = sources.filter((source) => wanted === undefined || source.name === wanted);
 
@@ -173,9 +200,25 @@ const pull = async (): Promise<number> => {
     cwd: root,
     sources: named,
     cacheDir: ModeArguments.readCacheDir({ argv }),
-    force: true,
+    force: !argv.includes('--warm'),
     prebuilt: prebuiltAllowed({ root }),
   });
+
+  if (argv.includes('--json')) {
+    const [remote] = pulled.filter((entry) => entry.mode !== 'repository');
+    // The promise of a symbol fetch still running is not data; the child keeps running to finish it.
+    const { symbolsPending: _pending, ...plain } = remote ?? {};
+
+    await new Promise<void>((done) => {
+      process.stdout.write(
+        `${JSON.stringify({ source: remote === undefined ? null : plain })}\n`,
+        () => done(),
+      );
+    });
+    await remote?.symbolsPending;
+
+    return 0;
+  }
 
   for (const source of pulled.filter((entry) => entry.mode !== 'repository')) {
     console.log(`pull: ${source.name} ${(source.sha ?? '').slice(0, 8)} (${source.mode})`);
@@ -188,7 +231,7 @@ const NOTHING_TO_SERVE = (opts: { root: string }): string =>
   `nothing to serve at ${opts.root} - run in a project (\`vulcan sync\` writes .agents/vulcan.manifest.json), or pass --source <owner/repo>@<ref>`;
 
 /** The server the arguments ask for; a usage error names what is missing. */
-const readServer = async (): Promise<Transport> => {
+const readServer = async (): Promise<{ server: Transport; boot: SourceBoot }> => {
   let root: string;
 
   try {
@@ -206,22 +249,42 @@ const readServer = async (): Promise<Transport> => {
       directory: ModeArguments.findPackageDirectory({ startDirectory: __dirname }),
     }) ?? FALLBACK_VERSION;
 
-  const server = await buildServer({ root, version });
+  const built = await buildServer({ root, version });
 
-  if (server === undefined) {
+  if (built === undefined) {
     return usageError(NOTHING_TO_SERVE({ root }));
   }
 
-  return server;
+  return built;
 };
 
 /** `tools`: what `tools/list` answers, one line per tool - the way to check a setup without an MCP client. */
 const listTools = async (): Promise<void> => {
-  const server = await readServer();
+  const { server, boot } = await readServer();
+
+  // The listing needs no source, but a setup check should say when none can be served.
+  await boot.settled;
+
+  if (
+    boot.declared.length > 0 &&
+    boot.unavailable().length === boot.declared.length &&
+    !ProjectConfig.hasAtlasProject({ root: ModeArguments.readRoot({ argv }).value })
+  ) {
+    for (const { source, reason } of boot.unavailable()) {
+      console.error(
+        `${AtlasConstants.SERVER_NAME}: source '${source.name}' is not served - ${reason}`,
+      );
+    }
+
+    usageError('nothing to serve - every source is unavailable (above)');
+  }
 
   for (const tool of server.listTools()) {
     console.log(`${tool.name.padEnd(8)} ${tool.description.split('. ')[0]}`);
   }
+
+  // Leave at once: a child may still be filling its caches.
+  process.exit(0);
 };
 
 const main = async (): Promise<void> => {
@@ -250,8 +313,37 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  const result3 = await readServer();
-  await result3.run();
+  const { server, boot } = await readServer();
+
+  // With no project of its own, a server whose every source failed has nothing to serve: say so and stop, as before.
+  if (
+    boot.declared.length > 0 &&
+    !ProjectConfig.hasAtlasProject({ root: ModeArguments.readRoot({ argv }).value })
+  ) {
+    boot.settled
+      .then(() => {
+        if (boot.unavailable().length === boot.declared.length) {
+          for (const { source, reason } of boot.unavailable()) {
+            console.error(
+              `${AtlasConstants.SERVER_NAME}: source '${source.name}' is not served - ${reason}`,
+            );
+          }
+
+          console.error(
+            `${AtlasConstants.SERVER_NAME}: nothing to serve - every source is unavailable (above)`,
+          );
+          process.exit(2);
+        }
+      })
+      .catch(() => undefined);
+  }
+
+  await server.run();
+  // The client closed the input: let the last reply reach the pipe, then leave and take the indexing children along.
+  await new Promise<void>((done) => {
+    process.stdout.write('', () => done());
+  });
+  process.exit(0);
 };
 
 main().catch((error: unknown) => {
