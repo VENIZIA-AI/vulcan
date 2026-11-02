@@ -268,12 +268,25 @@ const readWord = (opts: { text: string; from: number }): IWordRead => {
   let value = '';
   let index = opts.from;
   let quote: string | undefined;
+  // Depth of `${ ... }`: inside it a `)`, a space or a `;` belongs to the word.
+  let braces = 0;
 
   while (index < text.length) {
     const char = text[index];
 
-    if (quote === undefined && WORD_END.has(char)) {
+    if (quote === undefined && braces === 0 && WORD_END.has(char)) {
       break;
+    }
+
+    if (quote !== "'" && char === '$' && text[index + 1] === '{') {
+      braces += 1;
+      value += '${';
+      index += 2;
+      continue;
+    }
+
+    if (quote === undefined && braces > 0 && char === '}') {
+      braces -= 1;
     }
 
     // Inside double quotes a backslash escapes only a few characters; before any other it is itself.
@@ -655,6 +668,14 @@ export class ShellParser {
         continue;
       }
 
+      // `#` at the start of a word begins a comment: nothing in it is a command or a parenthesis.
+      if (char === '#') {
+        const newline = text.indexOf('\n', index);
+
+        index = newline === -1 ? text.length : newline;
+        continue;
+      }
+
       if (char === ';' || char === '\n' || char === '|' || char === '(' || char === ')') {
         finish();
 
@@ -742,6 +763,16 @@ export class ShellParser {
       }
 
       nest(word.nested, open);
+
+      // The `)` that ends a `case` pattern cannot be told from the one that closes a subshell, so a `case` or an
+      // `esac` inside a subshell leaves the line unread, and the guard asks.
+      if (
+        current.words.length === 0 &&
+        open.length > baseDepth &&
+        (word.value === 'case' || word.value === 'esac')
+      ) {
+        budget.isOver = true;
+      }
 
       if (current.words.length === 0 && isAssignment({ word: word.value })) {
         current.assignments.push(word.value);

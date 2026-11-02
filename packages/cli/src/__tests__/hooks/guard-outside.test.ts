@@ -203,6 +203,28 @@ describe('a cd lasts to the end of the subshell it sits in', () => {
     expect(pathsOf(command)).toEqual(expected);
   });
 
+  // a `)` that is not the end of the subshell must not end it: the cd still holds for what follows
+  test.each([
+    ['a # comment', '(cd /etc; echo # )\ntouch x)'],
+    ['a ${...} word', '(cd /etc; echo ${a:-)}; touch x)'],
+    ['a ${...} word with a command in it', '(cd /etc; echo ${a:-$(touch x)})'],
+  ])('a ) inside %s does not end the subshell', (_name, command) => {
+    expect(pathsOf(command)).toEqual(['/etc/x']);
+  });
+
+  // the `)` of a case pattern cannot be told from the one that closes a subshell: the guard asks
+  test.each([
+    '(cd /etc; case x in a) true;; esac; touch x)',
+    '(cd /etc; echo $(case a in a) true;; esac); touch x)',
+  ])('%s is asked about, not read in part', (command) => {
+    expect(bash({ command }).length).toBeGreaterThan(0);
+  });
+
+  test('a case outside any subshell is read as before', () => {
+    expect(pathsOf('case x in a) touch out;; esac')).toEqual([]);
+    expect(pathsOf('cd /etc; case x in a) touch x;; esac')).toEqual(['/etc/x']);
+  });
+
   test('a line with more open subshells than the guard reads is asked about, not read in part', () => {
     expect(bash({ command: `${'('.repeat(150)}touch out` }).length).toBeGreaterThan(0);
   });

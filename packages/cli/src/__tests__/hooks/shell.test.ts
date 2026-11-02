@@ -424,6 +424,28 @@ describe('ShellParser.parse', () => {
     ]);
   });
 
+  test('a comment is not read as commands or parentheses', () => {
+    expect(wordsOf('ls # git push -f origin main')).toEqual([['ls']]);
+    expect(wordsOf('echo a#b')).toEqual([['echo', 'a#b']]);
+    expect(wordsOf('echo ${#a}')).toEqual([['echo', '${#a}']]);
+    expect(wordsOf('ls # )\npwd')).toEqual([['ls'], ['pwd']]);
+  });
+
+  test('a ${...} is one word, whatever it holds', () => {
+    expect(wordsOf('echo ${a:-)} ; ls')).toEqual([['echo', '${a:-)}'], ['ls']]);
+    expect(wordsOf('echo ${a:-b c}')).toEqual([['echo', '${a:-b c}']]);
+  });
+
+  test('a case or esac inside a subshell leaves the line unread', () => {
+    expect(ShellParser.parseChecked({ command: '(case x in a) true;; esac)' }).isOverBudget).toBe(
+      true,
+    );
+    expect(ShellParser.parseChecked({ command: 'case x in a) true;; esac' }).isOverBudget).toBe(
+      false,
+    );
+    expect(ShellParser.parseChecked({ command: '(echo case)' }).isOverBudget).toBe(false);
+  });
+
   test('an empty line and unbalanced quotes do not throw', () => {
     expect(ShellParser.parse({ command: '' })).toEqual([]);
     expect(() => ShellParser.parse({ command: `echo "unterminated` })).not.toThrow();
