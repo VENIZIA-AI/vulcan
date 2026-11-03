@@ -4,7 +4,7 @@ import type { IDocument } from '@/corpus';
 import { Transport } from '@/protocol';
 import { ChunkStore } from '@/search/store';
 import { SymbolStore } from '@/symbols';
-import { buildSearchTool } from '@/tools/search.tool';
+import { SearchTool } from '@/tools/search.tool';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 
@@ -36,7 +36,7 @@ const callSearch = async (opts: {
   result?: { content: { type: string; text: string }[] };
 }> => {
   const transport = new Transport({
-    tools: [buildSearchTool({ store: opts.store })],
+    tools: [SearchTool.build({ store: opts.store })],
     serverName: 'atlas-test',
     serverVersion: '0.0.0',
   });
@@ -174,7 +174,7 @@ describe('search tool: the symbol field', () => {
 
   const callWithSymbols = async (query: string) => {
     const transport = new Transport({
-      tools: [buildSearchTool({ store: buildFixtureStore(), symbols })],
+      tools: [SearchTool.build({ store: buildFixtureStore(), symbols })],
       serverName: 'atlas-test',
       serverVersion: '0.0.0',
     });

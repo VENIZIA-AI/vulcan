@@ -1,3 +1,4 @@
+import { RecordValue } from '../common/record.ts';
 import {
   ConceptStatuses,
   IssueSeverities,
@@ -6,7 +7,7 @@ import {
   SpecConstants,
 } from './common/index.ts';
 import type { IBundleFile, IConformanceIssue, TIssueSeverity } from './common/index.ts';
-import { parseYamlMapping, splitFrontmatter } from './frontmatter.ts';
+import { OkfFrontmatter } from './frontmatter.ts';
 import type { TYamlMapping } from './frontmatter.ts';
 
 const ISO_DATE = /^(\d{4}-\d{2}-\d{2})\b/;
@@ -41,9 +42,6 @@ const isTimestamp = (opts: { value: unknown }): boolean =>
   typeof opts.value === 'string' &&
   ISO_DATETIME_WITH_OFFSET.test(opts.value) &&
   !Number.isNaN(Date.parse(opts.value));
-
-const isMapping = (opts: { value: unknown }): opts is { value: TYamlMapping } =>
-  typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
 
 const toList = (opts: { value: unknown }): unknown[] => {
   if (Array.isArray(opts.value)) {
@@ -105,7 +103,7 @@ const checkTrustFields = (opts: { file: string; data: TYamlMapping }): IConforma
     const holder = { value: source };
 
     if (
-      !isMapping(holder) ||
+      !RecordValue.isRecord(holder) ||
       typeof holder.value.resource !== 'string' ||
       holder.value.resource === ''
     ) {
@@ -132,7 +130,7 @@ const checkTrustFields = (opts: { file: string; data: TYamlMapping }): IConforma
 
   const generated = { value: data.generated };
 
-  if (isMapping(generated)) {
+  if (RecordValue.isRecord(generated)) {
     issues.push(...checkActor({ file, field: 'generated.by', value: generated.value.by }));
     issues.push(...checkTimestamp({ file, field: 'generated.at', value: generated.value.at }));
   }
@@ -140,7 +138,7 @@ const checkTrustFields = (opts: { file: string; data: TYamlMapping }): IConforma
   toList({ value: data.verified }).forEach((event, index) => {
     const holder = { value: event };
 
-    if (isMapping(holder)) {
+    if (RecordValue.isRecord(holder)) {
       issues.push(...checkActor({ file, field: `verified[${index}].by`, value: holder.value.by }));
       issues.push(
         ...checkTimestamp({ file, field: `verified[${index}].at`, value: holder.value.at }),
@@ -154,7 +152,7 @@ const checkTrustFields = (opts: { file: string; data: TYamlMapping }): IConforma
 /** §11.1 and §11.2: parseable frontmatter with a non-empty top-level `type`. */
 const checkConcept = (opts: { file: IBundleFile }): IConformanceIssue[] => {
   const { path, text } = opts.file;
-  const { yaml } = splitFrontmatter({ text });
+  const { yaml } = OkfFrontmatter.split({ text });
 
   if (yaml === undefined) {
     return [
@@ -167,7 +165,7 @@ const checkConcept = (opts: { file: IBundleFile }): IConformanceIssue[] => {
     ];
   }
 
-  const parsed = parseYamlMapping({ yaml });
+  const parsed = OkfFrontmatter.parseMapping({ yaml });
 
   if (!parsed.ok) {
     return [
@@ -199,7 +197,7 @@ const checkConcept = (opts: { file: IBundleFile }): IConformanceIssue[] => {
 /** §8 and §12: no frontmatter, except `okf_version` alone in the bundle-root index. */
 const checkIndex = (opts: { file: IBundleFile }): IConformanceIssue[] => {
   const { path, text } = opts.file;
-  const { yaml } = splitFrontmatter({ text });
+  const { yaml } = OkfFrontmatter.split({ text });
 
   if (yaml === undefined) {
     return [];
@@ -216,7 +214,7 @@ const checkIndex = (opts: { file: IBundleFile }): IConformanceIssue[] => {
     ];
   }
 
-  const parsed = parseYamlMapping({ yaml });
+  const parsed = OkfFrontmatter.parseMapping({ yaml });
 
   if (!parsed.ok) {
     return [
@@ -303,20 +301,23 @@ const checkLog = (opts: { file: IBundleFile }): IConformanceIssue[] => {
   return issues;
 };
 
-/** OKF v0.2 conformance (§11) plus soft guidance. Never throws: every finding is an issue. */
-export const checkBundle = (opts: { files: IBundleFile[] }): IConformanceIssue[] =>
-  opts.files.flatMap((file) => {
-    switch (getBaseName({ path: file.path })) {
-      case ReservedFiles.INDEX: {
-        return checkIndex({ file });
-      }
+export class BundleConformance {
+  /** OKF v0.2 conformance (§11) plus soft guidance. Never throws: every finding is an issue. */
+  static check(opts: { files: IBundleFile[] }): IConformanceIssue[] {
+    return opts.files.flatMap((file) => {
+      switch (getBaseName({ path: file.path })) {
+        case ReservedFiles.INDEX: {
+          return checkIndex({ file });
+        }
 
-      case ReservedFiles.LOG: {
-        return checkLog({ file });
-      }
+        case ReservedFiles.LOG: {
+          return checkLog({ file });
+        }
 
-      default: {
-        return checkConcept({ file });
+        default: {
+          return checkConcept({ file });
+        }
       }
-    }
-  });
+    });
+  }
+}

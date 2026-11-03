@@ -1,16 +1,9 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  layoutFolderProblem,
-  layoutKeyOfFolder,
-  layoutOverlapProblems,
-  layoutProblems,
-  validLayoutFolders,
-  withLayoutFolder,
-} from '../../common/layout-folder.ts';
-import { loadConfig } from '../../config/index.ts';
-import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
+import { LayoutFolder } from '../../common/layout-folder.ts';
+import { ConfigLoader } from '../../config/index.ts';
+import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -21,11 +14,11 @@ const BACKEND = `file:${join(FIXTURES, 'preset-backend')}`;
 const FRONTEND = `file:${join(FIXTURES, 'preset-frontend')}`;
 const ENV = { VULCAN_NO_INSTALL: '1' };
 
-describe('layoutFolderProblem', () => {
+describe('LayoutFolder.layoutFolderProblem', () => {
   test.each(['services', 'auroras/apps', 'a/b/c/d', 'web-2/app1', '0/1'])(
     '%s is a folder',
     (folder) => {
-      expect(layoutFolderProblem({ folder })).toBeUndefined();
+      expect(LayoutFolder.layoutFolderProblem({ folder })).toBeUndefined();
     },
   );
 
@@ -46,71 +39,72 @@ describe('layoutFolderProblem', () => {
     ['node_modules', 'node_modules'],
     ['a/b/c/d/e', 'more than 4'],
   ])('%s is not (%s)', (folder, why) => {
-    expect(layoutFolderProblem({ folder })).toContain(why);
+    expect(LayoutFolder.layoutFolderProblem({ folder })).toContain(why);
   });
 
   test('something that is not a string is not a folder', () => {
-    expect(layoutFolderProblem({ folder: 7 })).toBeDefined();
-    expect(layoutFolderProblem({ folder: null })).toBeDefined();
+    expect(LayoutFolder.layoutFolderProblem({ folder: 7 })).toBeDefined();
+    expect(LayoutFolder.layoutFolderProblem({ folder: null })).toBeDefined();
   });
 });
 
 describe('the layout as a whole', () => {
   test('a folder under two keys, or listed twice, is a problem', () => {
     expect(
-      layoutOverlapProblems({ layout: { backend: 'a', frontend: ['b', 'a'] } }).join(' '),
+      LayoutFolder.layoutOverlapProblems({ layout: { backend: 'a', frontend: ['b', 'a'] } }).join(
+        ' ',
+      ),
     ).toContain("layout.frontend names 'a' again (also layout.backend)");
-    expect(layoutOverlapProblems({ layout: { frontend: ['b', 'b'] } })).toHaveLength(1);
+    expect(LayoutFolder.layoutOverlapProblems({ layout: { frontend: ['b', 'b'] } })).toHaveLength(
+      1,
+    );
   });
 
   test('a folder inside another, in either order and across keys, is a problem', () => {
     expect(
-      layoutOverlapProblems({ layout: { backend: 'auroras', frontend: 'auroras/apps' } }),
+      LayoutFolder.layoutOverlapProblems({
+        layout: { backend: 'auroras', frontend: 'auroras/apps' },
+      }),
     ).toHaveLength(1);
     expect(
-      layoutOverlapProblems({ layout: { frontend: ['auroras/apps', 'auroras'] } }),
+      LayoutFolder.layoutOverlapProblems({ layout: { frontend: ['auroras/apps', 'auroras'] } }),
     ).toHaveLength(1);
-    expect(layoutOverlapProblems({ layout: { shared: 'a/b', other: 'a/b/c' } })).toHaveLength(1);
+    expect(
+      LayoutFolder.layoutOverlapProblems({ layout: { shared: 'a/b', other: 'a/b/c' } }),
+    ).toHaveLength(1);
     // A shared prefix is not nesting.
     expect(
-      layoutOverlapProblems({ layout: { backend: 'auroras/apps', frontend: 'auroras/apps2' } }),
+      LayoutFolder.layoutOverlapProblems({
+        layout: { backend: 'auroras/apps', frontend: 'auroras/apps2' },
+      }),
     ).toEqual([]);
   });
 
-  test('layoutProblems adds the folders that are not folders, and skips them in the overlaps', () => {
-    const problems = layoutProblems({ layout: { backend: ['../x', 'a'], frontend: 'a' } });
-
-    expect(problems.some((problem) => problem.startsWith('layout.backend: '))).toBe(true);
-    expect(problems.some((problem) => problem.includes("names 'a' again"))).toBe(true);
-  });
-
   test('a string grows into a list, a listed folder changes nothing, none makes a string', () => {
-    expect(withLayoutFolder({ value: undefined, folder: 'a' })).toBe('a');
-    expect(withLayoutFolder({ value: 'a', folder: 'a' })).toBe('a');
-    expect(withLayoutFolder({ value: 'a', folder: 'b' })).toEqual(['a', 'b']);
-    expect(withLayoutFolder({ value: ['a', 'b'], folder: 'b' })).toEqual(['a', 'b']);
-    expect(withLayoutFolder({ value: ['a', 'b'], folder: 'c' })).toEqual(['a', 'b', 'c']);
+    expect(LayoutFolder.withLayoutFolder({ value: undefined, folder: 'a' })).toBe('a');
+    expect(LayoutFolder.withLayoutFolder({ value: 'a', folder: 'a' })).toBe('a');
+    expect(LayoutFolder.withLayoutFolder({ value: 'a', folder: 'b' })).toEqual(['a', 'b']);
+    expect(LayoutFolder.withLayoutFolder({ value: ['a', 'b'], folder: 'b' })).toEqual(['a', 'b']);
+    expect(LayoutFolder.withLayoutFolder({ value: ['a', 'b'], folder: 'c' })).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
   });
 
-  test('the key of a folder is the exact folder, and only a valid one counts', () => {
-    const layout = { backend: 'umbras', frontend: ['auroras/apps', '../bad'], other: 'docs' };
-
-    expect(layoutKeyOfFolder({ layout, folder: 'auroras/apps' })).toBe('frontend');
-    expect(layoutKeyOfFolder({ layout, folder: 'docs' })).toBe('other');
-    expect(layoutKeyOfFolder({ layout, folder: 'auroras' })).toBeUndefined();
-    expect(layoutKeyOfFolder({ layout, folder: '../bad' })).toBeUndefined();
-    expect(validLayoutFolders({ value: ['a', 7, '../x', 'b/c'] })).toEqual(['a', 'b/c']);
+  test('only the valid folders of a layout value are kept', () => {
+    expect(LayoutFolder.valid({ value: ['a', 7, '../x', 'b/c'] })).toEqual(['a', 'b/c']);
   });
 });
 
 const configOf = async (opts: { layout: string }) => {
   const root = createProject({
     files: {
-      '.configs/vulcan.config.ts': `export default { layout: ${opts.layout} };\n`,
+      '.configs/vulcan.config.mts': `export default { layout: ${opts.layout} };\n`,
     },
   });
 
-  return loadConfig({ root });
+  return ConfigLoader.load({ root });
 };
 
 describe('the config schema', () => {
@@ -170,7 +164,7 @@ const monorepo = (opts: { backendDir?: string; shared?: string } = {}): string =
 };
 
 const layoutOf = async (opts: { root: string }) => {
-  const loaded = await loadConfig({ root: opts.root });
+  const loaded = await ConfigLoader.load({ root: opts.root });
 
   return loaded.ok ? loaded.config.layout : undefined;
 };
@@ -180,7 +174,8 @@ describe('vulcan init --preset with folder paths', () => {
     const root = monorepo({ backendDir: 'auroras/apps', shared: 'auroras/kits' });
 
     expect(existsSync(join(root, 'auroras/apps/core-api/package.json'))).toBe(true);
-    expect(await layoutOf({ root })).toEqual({ backend: 'auroras/apps', shared: 'auroras/kits' });
+    const result = await layoutOf({ root });
+    expect(result).toEqual({ backend: 'auroras/apps', shared: 'auroras/kits' });
     expect(readFileSync(join(root, 'package.json'), 'utf8')).toContain('auroras/apps/*');
   });
 
@@ -214,7 +209,9 @@ describe('vulcan add with several folders per side', () => {
 
     expect(result.code, result.stderr).toBe(0);
     expect(existsSync(join(root, 'umbras-2/services/worker/package.json'))).toBe(true);
-    expect((await layoutOf({ root }))?.backend).toEqual(['umbras', 'umbras-2/services']);
+    const layout = await layoutOf({ root });
+
+    expect(layout?.backend).toEqual(['umbras', 'umbras-2/services']);
     expect(readFileSync(join(root, 'package.json'), 'utf8')).toContain('umbras-2/services/*');
   });
 
@@ -249,7 +246,9 @@ describe('vulcan add with several folders per side', () => {
     expect(listed.code, listed.stderr).toBe(0);
     expect(first.code, first.stderr).toBe(0);
     // A folder that is listed already changes nothing in the layout.
-    expect((await layoutOf({ root }))?.backend).toEqual(['umbras', 'umbras-2']);
+    const layout = await layoutOf({ root });
+
+    expect(layout?.backend).toEqual(['umbras', 'umbras-2']);
     expect(existsSync(join(root, 'umbras/queue/package.json'))).toBe(true);
   });
 
@@ -308,7 +307,9 @@ describe('vulcan add with several folders per side', () => {
     }
 
     expect(existsSync(join(root, 'worker'))).toBe(false);
-    expect((await layoutOf({ root }))?.backend).toBe('umbras');
+    const layout = await layoutOf({ root });
+
+    expect(layout?.backend).toBe('umbras');
   });
 
   test('a frontend finds its backend in any folder of the backend list', async () => {
@@ -340,7 +341,9 @@ describe('vulcan add with several folders per side', () => {
     expect(readFileSync(join(root, 'auroras/apps/web/vite.config.ts'), 'utf8')).toContain(
       'localhost:',
     );
-    expect((await layoutOf({ root }))?.frontend).toBe('auroras/apps');
+    const layout = await layoutOf({ root });
+
+    expect(layout?.frontend).toBe('auroras/apps');
   });
 });
 
@@ -376,7 +379,9 @@ describe('vulcan add --lib with several shared folders', () => {
     });
 
     expect(second.code, second.stderr).toBe(0);
-    expect((await layoutOf({ root: repo }))?.shared).toEqual(['kits/a', 'kits/b']);
+    const layout = await layoutOf({ root: repo });
+
+    expect(layout?.shared).toEqual(['kits/a', 'kits/b']);
 
     const missing = runCli({
       args: ['add', '--preset', `file:${lib}`, '--lib', 'tax'],
@@ -394,7 +399,9 @@ describe('vulcan add --lib with several shared folders', () => {
     });
 
     expect(listed.code, listed.stderr).toBe(0);
-    expect((await layoutOf({ root: repo }))?.shared).toEqual(['kits/a', 'kits/b']);
+    const listedLayout = await layoutOf({ root: repo });
+
+    expect(listedLayout?.shared).toEqual(['kits/a', 'kits/b']);
   });
 });
 
@@ -445,7 +452,9 @@ describe('vulcan add --lib says why a folder it used was not recorded', () => {
     expect(result.stderr).toContain(`note: '${dir}' is not added to layout.shared`);
     expect(result.stderr).toContain(why);
     expect(result.stderr).toContain('guard-package does not cover it');
-    expect((await layoutOf({ root }))?.shared).toBe('kits');
+    const layout = await layoutOf({ root });
+
+    expect(layout?.shared).toBe('kits');
   });
 
   test('a listed folder and a valid new one print no note', async () => {
@@ -457,7 +466,9 @@ describe('vulcan add --lib says why a folder it used was not recorded', () => {
     expect(listed.stderr).not.toContain('note:');
     expect(added.code, added.stderr).toBe(0);
     expect(added.stderr).not.toContain('note:');
-    expect((await layoutOf({ root }))?.shared).toEqual(['kits', 'kits2/b']);
+    const layout = await layoutOf({ root });
+
+    expect(layout?.shared).toEqual(['kits', 'kits2/b']);
   });
 });
 
@@ -483,7 +494,7 @@ const groupedProject = (opts: { other?: string[]; extraPackage?: string } = {}):
     .join(', ');
   const other = JSON.stringify(opts.other ?? ['auroras/tools', 'docs', 'qc', 'third-parties']);
   const files: Record<string, string> = {
-    '.configs/vulcan.config.ts': `export default { layout: { backend: 'umbras', frontend: ['auroras/apps', 'auroras/guests', 'auroras/public'], shared: 'auroras/kits', other: ${other} }, packages: [${entries}] };\n`,
+    '.configs/vulcan.config.mts': `export default { layout: { backend: 'umbras', frontend: ['auroras/apps', 'auroras/guests', 'auroras/public'], shared: 'auroras/kits', other: ${other} }, packages: [${entries}] };\n`,
     'package.json': JSON.stringify({
       name: 'grouped',
       private: true,
@@ -500,14 +511,18 @@ const groupedProject = (opts: { other?: string[]; extraPackage?: string } = {}):
   return createProject({ files });
 };
 
-const appsViolations = async (opts: { root: string }): Promise<string[]> =>
-  (await runDoctorChecks({ root: opts.root }))
+const appsViolations = async (opts: { root: string }): Promise<string[]> => {
+  const checks = await DoctorRunner.runChecks({ root: opts.root });
+
+  return checks
     .filter((violation) => violation.check === DoctorChecks.APPS)
     .map((violation) => violation.message);
+};
 
 describe('doctor on a grouped monorepo', () => {
   test('every folder of every list is a workspace, and packages under other are allowed', async () => {
-    expect(await appsViolations({ root: groupedProject() })).toEqual([]);
+    const result = await appsViolations({ root: groupedProject() });
+    expect(result).toEqual([]);
   });
 
   test('without the other folders every package outside a side is reported, as on 0.4.3', async () => {
@@ -572,7 +587,8 @@ describe('doctor and workspace globs', () => {
   });
 
   test('a package that is an other folder itself (a docs site at docs) is allowed', async () => {
-    expect(await appsViolations({ root: groupedProject({ extraPackage: 'docs' }) })).toEqual([]);
+    const result = await appsViolations({ root: groupedProject({ extraPackage: 'docs' }) });
+    expect(result).toEqual([]);
   });
 
   test('a glob that matches a package in the folder covers it, as auroras/*/* covers auroras/apps', async () => {
@@ -587,7 +603,8 @@ describe('doctor and workspace globs', () => {
       }),
     );
 
-    expect(await appsViolations({ root })).toEqual([]);
+    const result = await appsViolations({ root });
+    expect(result).toEqual([]);
   });
 });
 

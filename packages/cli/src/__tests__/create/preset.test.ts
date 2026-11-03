@@ -9,7 +9,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { copyPresetFiles, locatePreset, parsePresetSpec } from '../../create/preset.ts';
+import { LibPreset } from '../../create/lib-preset.ts';
+import { Preset } from '../../create/preset.ts';
 import type { ILocatedPreset } from '../../create/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
@@ -17,6 +18,7 @@ afterAll(removeProjects);
 
 const FIXTURE = join(import.meta.dir, '..', 'fixtures', 'preset-backend');
 const FRONTEND_FIXTURE = join(import.meta.dir, '..', 'fixtures', 'preset-frontend');
+const SHARED_FIXTURE = join(import.meta.dir, '..', 'fixtures', 'preset-with-shared');
 
 const PRESET_JSON = JSON.stringify({
   presetVersion: 1,
@@ -27,7 +29,7 @@ const PRESET_JSON = JSON.stringify({
 });
 
 const locateFixture = (opts: { path: string }): ILocatedPreset => {
-  const result = locatePreset({ spec: { range: `file:${opts.path}` }, root: '/unused' });
+  const result = Preset.locate({ spec: { range: `file:${opts.path}` }, root: '/unused' });
 
   if (!result.ok) {
     throw new Error(result.error);
@@ -36,45 +38,45 @@ const locateFixture = (opts: { path: string }): ILocatedPreset => {
   return result.located;
 };
 
-describe('parsePresetSpec', () => {
+describe('Preset.parseSpec', () => {
   test('a bare name resolves to its package in the framework scope, on latest', () => {
-    expect(parsePresetSpec({ value: 'widget', cwd: '/x' })).toEqual({
+    expect(Preset.parseSpec({ value: 'widget', cwd: '/x' })).toEqual({
       packageName: '@venizia/widget',
       range: 'latest',
     });
   });
 
   test('a bare name with a version keeps it', () => {
-    expect(parsePresetSpec({ value: 'widget@0.1.5', cwd: '/x' })).toEqual({
+    expect(Preset.parseSpec({ value: 'widget@0.1.5', cwd: '/x' })).toEqual({
       packageName: '@venizia/widget',
       range: '0.1.5',
     });
   });
 
   test('a scoped name with a version', () => {
-    expect(parsePresetSpec({ value: '@acme/kit@2', cwd: '/x' })).toEqual({
+    expect(Preset.parseSpec({ value: '@acme/kit@2', cwd: '/x' })).toEqual({
       packageName: '@acme/kit',
       range: '2',
     });
   });
 
   test('a scoped name without a version is on latest', () => {
-    expect(parsePresetSpec({ value: '@acme/kit', cwd: '/x' })).toEqual({
+    expect(Preset.parseSpec({ value: '@acme/kit', cwd: '/x' })).toEqual({
       packageName: '@acme/kit',
       range: 'latest',
     });
   });
 
   test('a file: path becomes absolute', () => {
-    expect(parsePresetSpec({ value: 'file:./kit', cwd: '/work' })).toEqual({
+    expect(Preset.parseSpec({ value: 'file:./kit', cwd: '/work' })).toEqual({
       range: 'file:/work/kit',
     });
   });
 });
 
-describe('locatePreset', () => {
+describe('Preset.locate', () => {
   test('a file: preset is read from its folder', () => {
-    const result = locatePreset({ spec: { range: `file:${FIXTURE}` }, root: '/unused' });
+    const result = Preset.locate({ spec: { range: `file:${FIXTURE}` }, root: '/unused' });
 
     expect(result.ok && result.located.packageName).toBe('@fixture/backend');
     expect(result.ok && result.located.packageVersion).toBe('1.2.3');
@@ -97,7 +99,7 @@ describe('locatePreset', () => {
         'node_modules/@acme/kit/p.json': PRESET_JSON,
       },
     });
-    const result = locatePreset({ spec: { packageName: '@acme/kit', range: 'latest' }, root });
+    const result = Preset.locate({ spec: { packageName: '@acme/kit', range: 'latest' }, root });
 
     expect(result.ok && result.located.packageName).toBe('@acme/kit');
     expect(result.ok && result.located.preset.files).toBe(
@@ -113,7 +115,7 @@ describe('locatePreset', () => {
         'node_modules/@acme/kit/p.json': '{ "presetVersion": 2 }',
       },
     });
-    const result = locatePreset({ spec: { packageName: '@acme/kit', range: 'latest' }, root });
+    const result = Preset.locate({ spec: { packageName: '@acme/kit', range: 'latest' }, root });
 
     expect(result).toEqual({
       ok: false,
@@ -127,14 +129,14 @@ describe('locatePreset', () => {
       files: { 'node_modules/left-pad/package.json': '{ "name": "left-pad", "version": "1.0.0" }' },
     });
 
-    expect(locatePreset({ spec: { packageName: 'left-pad', range: 'latest' }, root })).toEqual({
+    expect(Preset.locate({ spec: { packageName: 'left-pad', range: 'latest' }, root })).toEqual({
       ok: false,
       error:
         'left-pad@1.0.0 ships no VULCAN preset (no "vulcan": { "presets": { "app" } } in its package.json)',
     });
   });
 
-  test('the old keys vulcan.preset and vulcan.lib are refused with the new shape named, no fallback', () => {
+  test('a package that declares vulcan.preset and vulcan.lib instead of vulcan.presets ships no preset', () => {
     const source = createProject({
       files: {
         'package.json':
@@ -142,27 +144,12 @@ describe('locatePreset', () => {
         'preset.json': PRESET_JSON,
       },
     });
-    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
 
-    expect(result).toEqual({
+    expect(Preset.locate({ spec: { range: `file:${source}` }, root: '/unused' })).toEqual({
       ok: false,
       error:
-        '@acme/kit@1.0.0 uses the old keys "vulcan": { "preset", "lib" }; the contract is now "vulcan": { "presets": { "app": "./path/preset.json", "lib": "./path/lib.json" } }',
+        '@acme/kit@1.0.0 ships no VULCAN preset (no "vulcan": { "presets": { "app" } } in its package.json)',
     });
-  });
-
-  test('only the old vulcan.preset key is refused the same way', () => {
-    const source = createProject({
-      files: {
-        'package.json':
-          '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "preset": "./preset.json" } }',
-        'preset.json': PRESET_JSON,
-      },
-    });
-    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
-
-    expect(!result.ok && result.error).toContain('uses the old keys "vulcan": { "preset" }');
-    expect(!result.ok && result.error).toContain('"presets": { "app"');
   });
 
   test('vulcan.presets.lib without vulcan.presets.app is refused: a lib-only package is not supported', () => {
@@ -172,7 +159,7 @@ describe('locatePreset', () => {
           '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "lib": "./lib.json" } } }',
       },
     });
-    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+    const result = Preset.locate({ spec: { range: `file:${source}` }, root: '/unused' });
 
     expect(!result.ok && result.error).toContain('vulcan.presets.lib needs vulcan.presets.app');
   });
@@ -185,7 +172,7 @@ describe('locatePreset', () => {
         'preset.json': PRESET_JSON,
       },
     });
-    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+    const result = Preset.locate({ spec: { range: `file:${source}` }, root: '/unused' });
 
     expect(!result.ok && result.error).toContain('vulcan.presets.lib');
     expect(!result.ok && result.error).toContain('points outside the package');
@@ -193,7 +180,7 @@ describe('locatePreset', () => {
 
   test('a missing package is refused', () => {
     const root = createProject({ files: {} });
-    const result = locatePreset({ spec: { packageName: '@acme/none', range: 'latest' }, root });
+    const result = Preset.locate({ spec: { packageName: '@acme/none', range: 'latest' }, root });
 
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error).toContain('no package at');
@@ -213,13 +200,183 @@ describe('locatePreset', () => {
         }),
       },
     });
-    const result = locatePreset({ spec: { packageName: '@acme/kit', range: 'latest' }, root });
+    const result = Preset.locate({ spec: { packageName: '@acme/kit', range: 'latest' }, root });
 
     expect(!result.ok && result.error).toContain('side');
   });
 });
 
-describe('locatePreset urls', () => {
+describe('Preset.locate shared kind', () => {
+  const sharedPackageJson = (opts: { shared?: string; lib?: string }): string =>
+    JSON.stringify({
+      name: '@acme/kit',
+      version: '1.0.0',
+      vulcan: {
+        presets: {
+          app: './preset.json',
+          ...(opts.lib === undefined ? {} : { lib: opts.lib }),
+          ...(opts.shared === undefined ? {} : { shared: opts.shared }),
+        },
+      },
+    });
+  const KIND_JSON = (opts: { summary: string }): string =>
+    JSON.stringify({ presetVersion: 1, summary: opts.summary, files: './kind-files' });
+  const sourceOf = (opts: { files: Record<string, string> }): string =>
+    createProject({
+      files: {
+        'preset.json': PRESET_JSON,
+        'files/.keep': '',
+        'kind-files/.keep': '',
+        ...opts.files,
+      },
+    });
+  const locateSource = (opts: { source: string }): ILocatedPreset => {
+    const result = Preset.locate({ spec: { range: `file:${opts.source}` }, root: '/unused' });
+
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+
+    return result.located;
+  };
+
+  test('a package that declares presets.shared is accepted and carries sharedFile', () => {
+    const located = locateFixture({ path: SHARED_FIXTURE });
+
+    expect(located.sharedFile).toBe(join(SHARED_FIXTURE, 'vulcan-preset', 'shared.json'));
+    expect(located.libFile).toBe(join(SHARED_FIXTURE, 'vulcan-preset', 'lib.json'));
+  });
+
+  test('a package that declares presets.shared without presets.lib carries sharedFile only', () => {
+    const located = locateSource({
+      source: sourceOf({
+        files: {
+          'package.json': sharedPackageJson({ shared: './shared.json' }),
+          'shared.json': KIND_JSON({ summary: 'Only shared.' }),
+        },
+      }),
+    });
+
+    expect(located.sharedFile).toBeDefined();
+    expect(located.libFile).toBeUndefined();
+  });
+
+  test('a package without the key has no sharedFile', () => {
+    const located = locateFixture({ path: FIXTURE });
+
+    expect(located.sharedFile).toBeUndefined();
+    expect('sharedFile' in located).toBe(false);
+  });
+
+  test('a presets.shared path outside the package is refused, naming the key', () => {
+    const source = sourceOf({
+      files: { 'package.json': sharedPackageJson({ shared: '../shared.json' }) },
+    });
+    const result = Preset.locate({ spec: { range: `file:${source}` }, root: '/unused' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('vulcan.presets.shared');
+    expect(!result.ok && result.error).toContain('points outside the package');
+  });
+
+  test('LibPreset.read reads the shared file of a valid shared kind', () => {
+    const located = locateFixture({ path: SHARED_FIXTURE });
+    const result = LibPreset.read({ located, kind: 'shared' });
+
+    expect(result.ok && result.lib.summary).toBe('A fixture side-neutral package.');
+  });
+
+  test('LibPreset.read on a package with no shared kind refuses, naming the kind', () => {
+    const located = locateFixture({ path: FIXTURE });
+    const result = LibPreset.read({ located, kind: 'shared' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('shared');
+  });
+
+  test('LibPreset.read refuses a shared file that fails the schema, naming the package and the kind', () => {
+    const located = locateSource({
+      source: sourceOf({
+        files: {
+          'package.json': sharedPackageJson({ shared: './shared.json' }),
+          'shared.json': JSON.stringify({ presetVersion: 1, files: './kind-files' }),
+        },
+      }),
+    });
+    const result = LibPreset.read({ located, kind: 'shared' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('@acme/kit');
+    expect(!result.ok && result.error).toContain('shared preset');
+    expect(!result.ok && result.error).toContain('summary');
+  });
+
+  test('a shared file with a newer presetVersion is refused, naming the kind', () => {
+    const located = locateSource({
+      source: sourceOf({
+        files: {
+          'package.json': sharedPackageJson({ shared: './shared.json' }),
+          'shared.json': JSON.stringify({ presetVersion: 99, summary: 'x', files: './kind-files' }),
+        },
+      }),
+    });
+    const result = LibPreset.read({ located, kind: 'shared' });
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('the shared preset has preset version 99');
+  });
+
+  test('a lib file that fails the schema is still reported as a lib error, not a shared one', () => {
+    const located = locateSource({
+      source: sourceOf({
+        files: {
+          'package.json': sharedPackageJson({ lib: './lib.json' }),
+          'lib.json': JSON.stringify({ presetVersion: 1, files: './kind-files' }),
+        },
+      }),
+    });
+    const result = LibPreset.read({ located });
+
+    expect(!result.ok && result.error).toContain('lib preset');
+  });
+
+  test('LibPreset.recordedOf carries shared when the shared file is valid', () => {
+    const recorded = LibPreset.recordedOf({
+      spec: 'file:x',
+      located: locateFixture({ path: SHARED_FIXTURE }),
+    });
+
+    expect(recorded.shared).toBe('A fixture side-neutral package.');
+    expect(recorded.lib).toBe('A fixture library.');
+  });
+
+  test('LibPreset.recordedOf leaves shared out when the shared file is invalid, keeping lib', () => {
+    const located = locateSource({
+      source: sourceOf({
+        files: {
+          'package.json': sharedPackageJson({ lib: './lib.json', shared: './shared.json' }),
+          'lib.json': KIND_JSON({ summary: 'A good lib.' }),
+          'shared.json': JSON.stringify({ presetVersion: 1, files: './kind-files' }),
+        },
+      }),
+    });
+    const recorded = LibPreset.recordedOf({ spec: 'file:x', located });
+
+    expect(recorded.lib).toBe('A good lib.');
+    expect('shared' in recorded).toBe(false);
+  });
+
+  test('LibPreset.recordedOf leaves shared out when the preset has no shared kind', () => {
+    const recorded = LibPreset.recordedOf({
+      spec: 'file:x',
+      located: locateFixture({ path: FIXTURE }),
+    });
+
+    expect('shared' in recorded).toBe(false);
+  });
+});
+
+describe('Preset.locate urls', () => {
   const withUrls = (opts: { urls?: unknown }): string =>
     createProject({
       files: {
@@ -252,7 +409,7 @@ describe('locatePreset urls', () => {
   });
 
   test('a url that is not a path is refused with the field named', () => {
-    const result = locatePreset({
+    const result = Preset.locate({
       spec: { range: `file:${withUrls({ urls: ['api/hello'] })}` },
       root: '/unused',
     });
@@ -261,7 +418,7 @@ describe('locatePreset urls', () => {
   });
 });
 
-describe('locatePreset imports', () => {
+describe('Preset.locate imports', () => {
   const withImports = (opts: { imports?: unknown }): string =>
     createProject({
       files: {
@@ -293,7 +450,7 @@ describe('locatePreset imports', () => {
   });
 
   test('a key without # is refused, naming the key', () => {
-    const result = locatePreset({
+    const result = Preset.locate({
       spec: {
         range: `file:${withImports({ imports: { '#ok/*': './a/*.js', 'src/*': './src/*.js' } })}`,
       },
@@ -306,7 +463,7 @@ describe('locatePreset imports', () => {
   });
 
   test('a value that is not a string is refused', () => {
-    const result = locatePreset({
+    const result = Preset.locate({
       spec: { range: `file:${withImports({ imports: { '#src/*': 3 } })}` },
       root: '/unused',
     });
@@ -315,7 +472,7 @@ describe('locatePreset imports', () => {
   });
 });
 
-describe('locatePreset containment', () => {
+describe('Preset.locate containment', () => {
   const PACKAGE_JSON =
     '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "./preset.json" } } }';
 
@@ -326,7 +483,7 @@ describe('locatePreset containment', () => {
         'preset.json': PRESET_JSON.replace('./files', '../../secret'),
       },
     });
-    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+    const result = Preset.locate({ spec: { range: `file:${source}` }, root: '/unused' });
 
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error).toContain('files');
@@ -340,7 +497,7 @@ describe('locatePreset containment', () => {
         'preset.json': PRESET_JSON.replace('./files', '/etc'),
       },
     });
-    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+    const result = Preset.locate({ spec: { range: `file:${source}` }, root: '/unused' });
 
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error).toContain('files');
@@ -354,7 +511,7 @@ describe('locatePreset containment', () => {
         'package.json': `{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "${outside}/preset.json" } } }`,
       },
     });
-    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+    const result = Preset.locate({ spec: { range: `file:${source}` }, root: '/unused' });
 
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error).toContain('vulcan.presets.app');
@@ -367,7 +524,7 @@ describe('locatePreset containment', () => {
           '{ "name": "@acme/kit", "version": "1.0.0", "vulcan": { "presets": { "app": "../preset.json" } } }',
       },
     });
-    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+    const result = Preset.locate({ spec: { range: `file:${source}` }, root: '/unused' });
 
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error).toContain('vulcan.presets.app');
@@ -381,7 +538,7 @@ describe('locatePreset containment', () => {
 
     symlinkSync(outside, join(source, 'files'));
 
-    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+    const result = Preset.locate({ spec: { range: `file:${source}` }, root: '/unused' });
 
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error).toContain('files');
@@ -393,12 +550,12 @@ describe('locatePreset containment', () => {
         'package.json': PACKAGE_JSON,
         'preset.json': JSON.stringify({
           ...JSON.parse(PRESET_JSON),
-          scripts: { typecheck: 'tsc --noEmit' },
+          scripts: { typecheck: 'bun check' },
           checks: ['typecheck', '--cwd=/'],
         }),
       },
     });
-    const result = locatePreset({ spec: { range: `file:${source}` }, root: '/unused' });
+    const result = Preset.locate({ spec: { range: `file:${source}` }, root: '/unused' });
 
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error).toContain('--cwd=/');
@@ -410,7 +567,7 @@ describe('locatePreset containment', () => {
         'package.json': PACKAGE_JSON,
         'preset.json': JSON.stringify({
           ...JSON.parse(PRESET_JSON),
-          scripts: { typecheck: 'tsc --noEmit' },
+          scripts: { typecheck: 'bun check' },
           checks: ['typecheck'],
         }),
       },
@@ -420,10 +577,10 @@ describe('locatePreset containment', () => {
   });
 });
 
-describe('copyPresetFiles', () => {
+describe('Preset.copyFiles', () => {
   test('tokens are substituted, _ files renamed, a real dotfile kept', () => {
     const target = createProject({ files: {} });
-    const written = copyPresetFiles({
+    const written = Preset.copyFiles({
       located: locateFixture({ path: FIXTURE }),
       target,
       tokens: {
@@ -462,7 +619,7 @@ describe('copyPresetFiles', () => {
       },
     });
     const target = createProject({ files: {} });
-    const written = copyPresetFiles({
+    const written = Preset.copyFiles({
       located: locateFixture({ path: source }),
       target,
       tokens: { devPort: '3002' },
@@ -484,7 +641,7 @@ describe('copyPresetFiles', () => {
       },
     });
     const target = createProject({ files: {} });
-    const written = copyPresetFiles({
+    const written = Preset.copyFiles({
       located: locateFixture({ path: source }),
       target,
       tokens: {},
@@ -504,7 +661,7 @@ describe('copyPresetFiles', () => {
     });
     const target = createProject({ files: {} });
 
-    copyPresetFiles({ located: locateFixture({ path: source }), target, tokens: { app: 'core' } });
+    Preset.copyFiles({ located: locateFixture({ path: source }), target, tokens: { app: 'core' } });
 
     expect(readFileSync(join(target, 'note.txt'), 'utf8')).toBe('core {{unknown}}');
   });
@@ -526,7 +683,7 @@ describe('copyPresetFiles', () => {
       },
     });
     const target = createProject({ files: {} });
-    const written = copyPresetFiles({
+    const written = Preset.copyFiles({
       located: locateFixture({ path: source }),
       target,
       tokens: {},
@@ -562,7 +719,7 @@ describe('copyPresetFiles', () => {
 
     const target = createProject({ files: {} });
 
-    copyPresetFiles({
+    Preset.copyFiles({
       located: locateFixture({ path: source }),
       target,
       tokens: { app: 'core' },
@@ -587,7 +744,7 @@ describe('copyPresetFiles', () => {
 
     const target = createProject({ files: {} });
 
-    copyPresetFiles({ located: locateFixture({ path: source }), target, tokens: { app: 'core' } });
+    Preset.copyFiles({ located: locateFixture({ path: source }), target, tokens: { app: 'core' } });
 
     expect(statSync(join(target, 'run.sh')).mode & 0o111).toBe(0o111);
     expect(readFileSync(join(target, 'run.sh'), 'utf8')).toContain('echo core');
@@ -609,7 +766,7 @@ describe('copyPresetFiles', () => {
     symlinkSync(secret, join(source, 'files/leak-dir'));
 
     const target = createProject({ files: {} });
-    const written = copyPresetFiles({
+    const written = Preset.copyFiles({
       located: locateFixture({ path: source }),
       target,
       tokens: {},

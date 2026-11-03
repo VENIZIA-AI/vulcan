@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { resolvePackages, VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
+import { ProjectPackages, VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 
 describe('VULCAN_CONFIG_SCHEMA', () => {
   test('packages carry dir, name, aliases and retired, defaulted', () => {
@@ -17,6 +17,21 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
       'omp',
     ]);
     expect(VULCAN_CONFIG_SCHEMA.safeParse({ agents: ['vim'] }).success).toBe(false);
+  });
+
+  test('theme is the colour the project is known by: left unset, hex only, strict', () => {
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).theme).toBeUndefined();
+    expect(
+      VULCAN_CONFIG_SCHEMA.parse({
+        theme: { accent: '#0277bd', accentDark: '#38bdf8', accentText: '#01579b' },
+      }).theme,
+    ).toEqual({ accent: '#0277bd', accentDark: '#38bdf8', accentText: '#01579b' });
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: 'blue' } }).success).toBe(false);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: '#fff' } }).success).toBe(false);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: {} }).success).toBe(false);
+    expect(
+      VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: '#0277bd', brand: '#000000' } }).success,
+    ).toBe(false);
   });
 
   test('okf defaults to nothing selected - no renderer runs unless listed', () => {
@@ -102,7 +117,57 @@ describe('package kind', () => {
     );
   });
 
-  test('resolvePackages carries the kind', () => {
+  test('a package may say which preset kind made it: lib or shared; nothing else', () => {
+    const base = {
+      dir: 'money',
+      name: '@nx/money',
+      path: 'libs/money',
+      kind: 'lib',
+    } as const;
+
+    expect(
+      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, presetKind: 'lib' }] }).packages[0]
+        ?.presetKind,
+    ).toBe('lib');
+    expect(
+      VULCAN_CONFIG_SCHEMA.parse({ packages: [{ ...base, presetKind: 'shared' }] }).packages[0]
+        ?.presetKind,
+    ).toBe('shared');
+    expect(
+      VULCAN_CONFIG_SCHEMA.parse({ packages: [base] }).packages[0]?.presetKind,
+    ).toBeUndefined();
+    expect(
+      VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ ...base, presetKind: 'app' }] }).success,
+    ).toBe(false);
+    expect(
+      VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ ...base, presetKind: '' }] }).success,
+    ).toBe(false);
+  });
+
+  test('an entry without presetKind parses to exactly what it did before', () => {
+    const entry = { dir: 'money', name: '@nx/money', path: 'libs/money', kind: 'lib' } as const;
+
+    expect(VULCAN_CONFIG_SCHEMA.parse({ packages: [entry] }).packages[0]).toEqual({
+      ...entry,
+      aliases: [],
+      retired: false,
+    });
+  });
+
+  test('ProjectPackages.resolve carries presetKind only when it is set', () => {
+    const config = VULCAN_CONFIG_SCHEMA.parse({
+      packages: [
+        { dir: 'money', name: '@nx/money', path: 'libs/money', kind: 'lib', presetKind: 'shared' },
+        { dir: 'feature', name: '@nx/feature', path: 'libs/feature', kind: 'lib' },
+      ],
+    });
+    const packages = ProjectPackages.resolve({ config });
+
+    expect(packages[0]).toMatchObject({ presetKind: 'shared' });
+    expect(packages[1]).not.toHaveProperty('presetKind');
+  });
+
+  test('ProjectPackages.resolve carries the kind', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({
       packages: [
         {
@@ -114,7 +179,7 @@ describe('package kind', () => {
       ],
     });
 
-    expect(resolvePackages({ config })[0]).toMatchObject({
+    expect(ProjectPackages.resolve({ config })[0]).toMatchObject({
       kind: 'lib',
       path: 'auroras/features/merchant',
     });
@@ -131,6 +196,28 @@ describe('presets', () => {
     } as const;
 
     expect(VULCAN_CONFIG_SCHEMA.parse({ presets: [preset] }).presets).toEqual([preset]);
+  });
+
+  test('a recorded preset may say it also makes shared packages', () => {
+    const preset = {
+      spec: 'ardor',
+      side: 'frontend',
+      summary: 'An admin.',
+      lib: 'A feature library.',
+      shared: 'A side-neutral package.',
+    } as const;
+    const sharedOnly = {
+      spec: 'ignis',
+      side: 'backend',
+      summary: 'An API.',
+      shared: 'Types.',
+    } as const;
+
+    expect(VULCAN_CONFIG_SCHEMA.parse({ presets: [preset] }).presets).toEqual([preset]);
+    expect(VULCAN_CONFIG_SCHEMA.parse({ presets: [sharedOnly] }).presets).toEqual([sharedOnly]);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ presets: [{ ...preset, shared: 1 }] }).success).toBe(
+      false,
+    );
   });
 
   test('a recorded preset is { spec, side, summary }, side being backend or frontend', () => {
@@ -158,31 +245,22 @@ describe('layout', () => {
   });
 });
 
-describe('resolvePackages', () => {
-  test('atlas.packages was removed: the error names the top-level packages that replaces it', () => {
-    const result = VULCAN_CONFIG_SCHEMA.safeParse({ atlas: { packages: { b: '@x/b' } } });
-    const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
-
-    expect(result.success).toBe(false);
-    expect(messages.join('; ')).toContain('atlas.packages was removed');
-    expect(messages.join('; ')).toContain('packages: [{ dir');
-  });
-
+describe('ProjectPackages.resolve', () => {
   test.each([
+    ['packages', { b: '@x/b' }],
     ['releaseCommit', '[#<issue>] chore(<dir>): release v<version>'],
     ['typescriptFrom', '.'],
     ['legacyTagPrefixes', ['old-']],
-  ])('atlas.%s was removed: the error names the key and says no tool reads it', (key, value) => {
+  ])('atlas.%s is no key any more: the strict schema names it as unrecognized', (key, value) => {
     const result = VULCAN_CONFIG_SCHEMA.safeParse({ atlas: { [key]: value } });
     const messages = result.success ? [] : result.error.issues.map((issue) => issue.message);
 
     expect(result.success).toBe(false);
-    expect(messages.join('; ')).toContain(`atlas.${key} was removed`);
-    expect(messages.join('; ')).toContain('no tool reads it');
+    expect(messages.join('; ')).toContain(`Unrecognized key: "${key}"`);
   });
 
   test('without packages the list is empty', () => {
-    expect(resolvePackages({ config: VULCAN_CONFIG_SCHEMA.parse({}) })).toEqual([]);
+    expect(ProjectPackages.resolve({ config: VULCAN_CONFIG_SCHEMA.parse({}) })).toEqual([]);
   });
 });
 
@@ -209,7 +287,7 @@ describe('packages are keyed uniquely', () => {
       ],
     });
 
-    expect(resolvePackages({ config }).map((entry) => entry.path)).toEqual([
+    expect(ProjectPackages.resolve({ config }).map((entry) => entry.path)).toEqual([
       'umbras/core',
       'auroras/kits/core',
     ]);
@@ -223,6 +301,24 @@ describe('packages are keyed uniquely', () => {
       ]),
     ).toContain("packages: dir 'core' is used twice - dir is a unique key, not the directory name");
   });
+
+  test.each(['JSONStream', '@Acme/kernel', '@acme/Kernel', '@acme/ker nel', '@acme/', ''])(
+    "the package name '%s' is refused with a message that says why",
+    (name) => {
+      expect(messageOf([{ dir: 'kernel', name }])).toContain(
+        `package name '${name}' is not an npm package name: npm names are lower case`,
+      );
+    },
+  );
+
+  test.each(['kernel', '@acme/kernel', '@acme/my-kernel.v2', 'a_b~c'])(
+    "the package name '%s' is accepted",
+    (name) => {
+      expect(VULCAN_CONFIG_SCHEMA.safeParse({ packages: [{ dir: 'kernel', name }] }).success).toBe(
+        true,
+      );
+    },
+  );
 
   test('a repeated npm name is an error', () => {
     expect(

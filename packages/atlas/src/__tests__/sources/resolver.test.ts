@@ -10,8 +10,8 @@ import {
 } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { AtlasConstants } from '@/common';
-import { buildSourcesServer } from '@/server/index';
-import { cacheRootOf, resolveSources } from '@/sources';
+import { SourcesServer } from '@/server/index';
+import { SourceCache, SourceResolver } from '@/sources';
 import {
   commitAll,
   git,
@@ -42,10 +42,10 @@ afterEach(() => {
 
 const consumer = (): string => makeTempDirectory({ prefix: 'atlas-consumer-' });
 
-describe('resolveSources', () => {
+describe('SourceResolver.resolve', () => {
   test('a first start pulls the manifest and its declared paths only, and builds the index', async () => {
     const source = makeSourceRepository();
-    const [resolved] = await resolveSources({
+    const [resolved] = await SourceResolver.resolve({
       cwd: consumer(),
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
@@ -63,7 +63,7 @@ describe('resolveSources', () => {
 
   test('its releases are computed at the pull, so an offline start still has them', async () => {
     const source = makeSourceRepository();
-    const [resolved] = await resolveSources({
+    const [resolved] = await SourceResolver.resolve({
       cwd: consumer(),
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
@@ -83,7 +83,7 @@ describe('resolveSources', () => {
     const cwd = consumer();
     const sources = [{ name: 'src', repo: source.url, ref: 'develop' }];
 
-    await resolveSources({ cwd, cacheDir, sources });
+    await SourceResolver.resolve({ cwd, cacheDir, sources });
 
     // Positive control: the remote keeps its refs but loses every object - ls-remote still names the
     // SHA, and a clone or a fetch cannot run.
@@ -91,7 +91,7 @@ describe('resolveSources', () => {
     mkdirSync(join(source.bare, 'objects/info'), { recursive: true });
     mkdirSync(join(source.bare, 'objects/pack'), { recursive: true });
 
-    const [again] = await resolveSources({ cwd, cacheDir, sources });
+    const [again] = await SourceResolver.resolve({ cwd, cacheDir, sources });
 
     rmSync(join(source.bare, 'objects'), { recursive: true });
     renameSync(join(source.bare, 'objects.gone'), join(source.bare, 'objects'));
@@ -102,7 +102,7 @@ describe('resolveSources', () => {
     const source = makeSourceRepository();
     const cwd = consumer();
     const sources = [{ name: 'src', repo: source.url, ref: 'develop' }];
-    const [first] = await resolveSources({ cwd, cacheDir, sources });
+    const [first] = await SourceResolver.resolve({ cwd, cacheDir, sources });
 
     writeSourceFile({
       work: source.work,
@@ -112,7 +112,7 @@ describe('resolveSources', () => {
     commitAll({ work: source.work, message: 'docs: second' });
     git({ cwd: source.work, args: ['push', '-q', 'origin', 'develop'] });
 
-    const [second] = await resolveSources({ cwd, cacheDir, sources });
+    const [second] = await SourceResolver.resolve({ cwd, cacheDir, sources });
 
     expect(second.mode).toBe('fresh');
     expect(second.sha).not.toBe(first.sha);
@@ -123,13 +123,13 @@ describe('resolveSources', () => {
     const source = makeSourceRepository();
     const cwd = consumer();
     const sources = [{ name: 'src', repo: source.url, ref: 'develop' }];
-    const [first] = await resolveSources({ cwd, cacheDir, sources });
+    const [first] = await SourceResolver.resolve({ cwd, cacheDir, sources });
     const indexed = statSync(first.indexFile ?? '').mtimeMs;
 
     git({ cwd: source.work, args: ['tag', 'kernel-v1.1.0'] });
     git({ cwd: source.work, args: ['push', '-q', 'origin', '--tags'] });
 
-    const [second] = await resolveSources({ cwd, cacheDir, sources });
+    const [second] = await SourceResolver.resolve({ cwd, cacheDir, sources });
     const releases = JSON.parse(readFileSync(second.releasesFile ?? '', 'utf8'));
 
     expect(second.mode).toBe('cache');
@@ -146,9 +146,9 @@ describe('resolveSources', () => {
     const cwd = consumer();
     const sources = [{ name: 'src', repo: source.url, ref: 'develop' }];
 
-    await resolveSources({ cwd, cacheDir, sources });
+    await SourceResolver.resolve({ cwd, cacheDir, sources });
 
-    const [forced] = await resolveSources({ cwd, cacheDir, sources, force: true });
+    const [forced] = await SourceResolver.resolve({ cwd, cacheDir, sources, force: true });
 
     expect(forced.mode).toBe('fresh');
   });
@@ -157,29 +157,32 @@ describe('resolveSources', () => {
     const source = makeSourceRepository();
     const cwd = consumer();
     const sources = [{ name: 'src', repo: source.url, ref: 'develop' }];
-    const [first] = await resolveSources({ cwd, cacheDir, sources });
+    const [first] = await SourceResolver.resolve({ cwd, cacheDir, sources });
 
     renameSync(source.bare, `${source.bare}.away`);
 
-    const [offline] = await resolveSources({ cwd, cacheDir, sources });
+    const [offline] = await SourceResolver.resolve({ cwd, cacheDir, sources });
 
     renameSync(`${source.bare}.away`, source.bare);
     expect(offline.mode).toBe('offline-cache');
     expect(offline.sha).toBe(first.sha);
 
     // The server says so to every client, on initialize.
-    const initialized = JSON.parse(
-      (await buildSourcesServer({ sources: [offline], cwd, version: '0.0.0' }).handleLine({
-        line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
-      })) ?? 'null',
-    );
+    const result2 = await SourcesServer.build({
+      sources: [offline],
+      cwd,
+      version: '0.0.0',
+    }).handleLine({
+      line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+    });
+    const initialized = JSON.parse(result2 ?? 'null');
 
     expect(initialized.result.instructions).toContain('OFFLINE: the remote was unreachable');
   });
 
   test('a pull stamps the format its index was built at (C1)', async () => {
     const source = makeSourceRepository();
-    const [resolved] = await resolveSources({
+    const [resolved] = await SourceResolver.resolve({
       cwd: consumer(),
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
@@ -189,7 +192,6 @@ describe('resolveSources', () => {
     expect(readFileSync(join(artifacts, 'format'), 'utf8')).toBe(
       `${AtlasConstants.INDEX_FORMAT}\n`,
     );
-    expect(resolved.oldFormat).toBeUndefined();
   });
 
   test.each([
@@ -199,7 +201,7 @@ describe('resolveSources', () => {
     const source = makeSourceRepository();
     const cwd = consumer();
     const sources = [{ name: 'src', repo: source.url, ref: 'develop' }];
-    const [first] = await resolveSources({ cwd, cacheDir, sources });
+    const [first] = await SourceResolver.resolve({ cwd, cacheDir, sources });
     const formatFile = join(dirname(first.indexFile ?? ''), 'format');
 
     if (stamp === undefined) {
@@ -208,39 +210,42 @@ describe('resolveSources', () => {
       writeFileSync(formatFile, stamp);
     }
 
-    const [second] = await resolveSources({ cwd, cacheDir, sources });
+    const [second] = await SourceResolver.resolve({ cwd, cacheDir, sources });
 
     expect(second.mode).toBe('fresh');
     expect(second.sha).toBe(first.sha);
     expect(readFileSync(formatFile, 'utf8')).toBe(`${AtlasConstants.INDEX_FORMAT}\n`);
-    expect(second.oldFormat).toBeUndefined();
   });
 
-  test('offline, the newest cache is served whatever its format, and says so (C3)', async () => {
+  test.each([
+    ['of another format', '0\n'],
+    ['without a format file', undefined],
+  ])('offline, a cached set %s is not served (C3)', async (_label, stamp) => {
     const source = makeSourceRepository();
     const cwd = consumer();
     const sources = [{ name: 'src', repo: source.url, ref: 'develop' }];
-    const [first] = await resolveSources({ cwd, cacheDir, sources });
+    const [first] = await SourceResolver.resolve({ cwd, cacheDir, sources });
     const formatFile = join(dirname(first.indexFile ?? ''), 'format');
 
-    writeFileSync(formatFile, '0\n');
+    if (stamp === undefined) {
+      rmSync(formatFile);
+    } else {
+      writeFileSync(formatFile, stamp);
+    }
+
     renameSync(source.bare, `${source.bare}.away`);
 
-    const [offline] = await resolveSources({ cwd, cacheDir, sources });
+    const failure = await SourceResolver.resolve({ cwd, cacheDir, sources }).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    const servable = await SourceResolver.resolveServable({ cwd, cacheDir, sources });
 
     renameSync(`${source.bare}.away`, source.bare);
-    expect(offline.mode).toBe('offline-cache');
-    expect(offline.sha).toBe(first.sha);
-    expect(offline.oldFormat).toBe(true);
-    expect(readFileSync(formatFile, 'utf8')).toBe('0\n');
-
-    const initialized = JSON.parse(
-      (await buildSourcesServer({ sources: [offline], cwd, version: '0.0.0' }).handleLine({
-        line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
-      })) ?? 'null',
-    );
-
-    expect(initialized.result.instructions).toContain('built by another atlas format');
+    expect(String(failure)).toContain('is unreachable and has no cache');
+    expect(servable.resolved).toEqual([]);
+    expect(servable.unavailable.map((entry) => entry.source.name)).toEqual(['src']);
+    expect(servable.unavailable[0]?.reason).toContain('is unreachable and has no cache');
   });
 
   test('offline, each ref falls back to the newest SHA pulled for that ref', async () => {
@@ -258,13 +263,13 @@ describe('resolveSources', () => {
 
     const develop = [{ name: 'src', repo: source.url, ref: 'develop' }];
     const main = [{ name: 'src', repo: source.url, ref: 'main' }];
-    const [onDevelop] = await resolveSources({ cwd, cacheDir, sources: develop });
-    const [onMain] = await resolveSources({ cwd, cacheDir, sources: main });
+    const [onDevelop] = await SourceResolver.resolve({ cwd, cacheDir, sources: develop });
+    const [onMain] = await SourceResolver.resolve({ cwd, cacheDir, sources: main });
 
     renameSync(source.bare, `${source.bare}.away`);
 
-    const [offlineDevelop] = await resolveSources({ cwd, cacheDir, sources: develop });
-    const [offlineMain] = await resolveSources({ cwd, cacheDir, sources: main });
+    const [offlineDevelop] = await SourceResolver.resolve({ cwd, cacheDir, sources: develop });
+    const [offlineMain] = await SourceResolver.resolve({ cwd, cacheDir, sources: main });
 
     renameSync(`${source.bare}.away`, source.bare);
     expect(onMain.sha).not.toBe(onDevelop.sha);
@@ -274,7 +279,7 @@ describe('resolveSources', () => {
   });
 
   test('unreachable with no cache stops, naming the source', async () => {
-    const failure = await resolveSources({
+    const failure = await SourceResolver.resolve({
       cwd: consumer(),
       cacheDir,
       sources: [{ name: 'gone', repo: 'file:///nowhere/at/all.git', ref: 'develop' }],
@@ -299,7 +304,7 @@ describe('resolveSources', () => {
     commitAll({ work: source.work, message: 'chore: a bad name' });
     git({ cwd: source.work, args: ['push', '-q', 'origin', 'develop'] });
 
-    const failure = await resolveSources({
+    const failure = await SourceResolver.resolve({
       cwd: consumer(),
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
@@ -322,7 +327,7 @@ describe('resolveSources', () => {
       text: '{ "schemaVersion": 1, "name": "self" }\n',
     });
 
-    const resolved = await resolveSources({ cwd, cacheDir, sources: [] });
+    const resolved = await SourceResolver.resolve({ cwd, cacheDir, sources: [] });
 
     expect(
       resolved.map((entry) => ({ mode: entry.mode, root: entry.root, name: entry.name })),
@@ -330,9 +335,9 @@ describe('resolveSources', () => {
   });
 });
 
-describe('cacheRootOf', () => {
+describe('SourceCache.cacheRootOf', () => {
   const keyOf = (repo: string): string =>
-    relative(join(cacheDir, 'atlas/v1'), cacheRootOf({ repo, cacheBase: cacheDir }));
+    relative(join(cacheDir, 'atlas/v1'), SourceCache.cacheRootOf({ repo, cacheBase: cacheDir }));
 
   test('a GitHub source keeps its readable host/owner/repo', () => {
     expect(keyOf('VENIZIA-AI/ignis')).toBe('github.com/VENIZIA-AI/ignis');

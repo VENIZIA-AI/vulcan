@@ -75,10 +75,12 @@ const run = async (opts: { hook: string; payload: string }) => {
       killSignal: 'SIGKILL',
     },
   );
-  const stdout = (await new Response(child.stdout).text()).trim();
+  const result = await new Response(child.stdout).text();
+  const stdout = result.trim();
   const stderr = await new Response(child.stderr).text();
 
-  return { code: await child.exited, stdout, stderr };
+  const result2 = await child.exited;
+  return { code: result2, stdout, stderr };
 };
 const bash = (command: string): string =>
   `{"tool_name":"Bash","tool_input":{"command":${JSON.stringify(command)}},"cwd":${JSON.stringify(root)}}`;
@@ -132,7 +134,8 @@ describe('the blocking hooks do not depend on config, rules, the digest or zod',
   });
 
   test('guard-package passes a Write that is not a new package.json', async () => {
-    expect(await run({ hook: 'guard-package', payload: write(join(root, 'a.txt')) })).toEqual({
+    const result = await run({ hook: 'guard-package', payload: write(join(root, 'a.txt')) });
+    expect(result).toEqual({
       code: 0,
       stdout: '',
       stderr: '',

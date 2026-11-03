@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { inspectCommand } from '../../hooks/index.ts';
+import { WriteGuard } from '../../hooks/index.ts';
 import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
 const FIXTURES = join(import.meta.dir, '..', 'fixtures', 'guard-writes');
@@ -47,17 +47,20 @@ const CASES: { name: string; command: string; cwd?: string; flagged: boolean }[]
   },
 ];
 
-describe('inspectCommand', () => {
+describe('WriteGuard.inspectCommand', () => {
   for (const testCase of CASES) {
     test(`${testCase.flagged ? 'flags' : 'passes'}: ${testCase.name}`, () => {
-      const hits = inspectCommand({ command: testCase.command, cwd: testCase.cwd ?? FIXTURES });
+      const hits = WriteGuard.inspectCommand({
+        command: testCase.command,
+        cwd: testCase.cwd ?? FIXTURES,
+      });
 
       expect(hits.length > 0).toBe(testCase.flagged);
     });
   }
 
   test('every hit cites a base rule', () => {
-    const hits = inspectCommand({
+    const hits = WriteGuard.inspectCommand({
       command: 'kubectl apply -f m.yaml && curl -X DELETE https://x.dev/a',
       cwd: FIXTURES,
     });
@@ -77,7 +80,8 @@ describe('the guard-writes hook', () => {
     });
     const stdout = await new Response(child.stdout).text();
 
-    return { code: await child.exited, stdout: stdout.trim() };
+    const result = await child.exited;
+    return { code: result, stdout: stdout.trim() };
   };
 
   test('asks the human, naming the rule, for a write', async () => {
@@ -100,6 +104,7 @@ describe('the guard-writes hook', () => {
   });
 
   test('stays silent, and never blocks, on input it cannot read', async () => {
-    expect(await runHook({ stdin: 'not json' })).toEqual({ code: 0, stdout: '' });
+    const result = await runHook({ stdin: 'not json' });
+    expect(result).toEqual({ code: 0, stdout: '' });
   });
 });

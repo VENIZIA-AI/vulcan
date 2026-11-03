@@ -4,12 +4,12 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { AtlasConstants } from '@/common/constants';
-import { MANIFEST_FILE, toAtlasProject } from '@/common/project-config';
-import { computeReleases } from '@/releases/compute';
-import { git, tagsFingerprintOf } from '@/sources/git';
-import { indexBytesOf } from '@/sources/index-build';
-import { PrebuiltConstants, pairNamesOf } from './constants';
-import { signEnvelope } from './envelope';
+import { MANIFEST_FILE, ProjectConfig } from '@/common/project-config';
+import { ReleaseCompute } from '@/releases/compute';
+import { GitRepository } from '@/sources/git';
+import { IndexBuild } from '@/sources/index-build';
+import { PrebuiltConstants, PairNames } from './constants';
+import { Envelope } from './envelope';
 import type { IIndexPayload } from './envelope';
 
 export interface IBuiltPair {
@@ -26,7 +26,10 @@ const commitOf = (opts: { root: string; commit?: string }): string => {
   const named = opts.commit ?? 'HEAD';
 
   try {
-    return git({ cwd: opts.root, args: ['rev-parse', '--verify', `${named}^{commit}`] }).trim();
+    return GitRepository.run({
+      cwd: opts.root,
+      args: ['rev-parse', '--verify', `${named}^{commit}`],
+    }).trim();
   } catch {
     throw new Error(
       opts.commit === undefined
@@ -57,7 +60,7 @@ const repositoryOf = (opts: { root: string; repo?: string }): string => {
 
 /** The tags fingerprint a reader computes from `git ls-remote`, from this repository's own tags. */
 const localTagsFingerprint = (opts: { root: string }): string => {
-  const listed = git({
+  const listed = GitRepository.run({
     cwd: opts.root,
     args: ['for-each-ref', 'refs/tags', '--format=%(refname)%09%(objectname)%09%(*objectname)'],
   });
@@ -73,7 +76,7 @@ const localTagsFingerprint = (opts: { root: string }): string => {
     }
   }
 
-  return tagsFingerprintOf({ refs });
+  return GitRepository.tagsFingerprintOf({ refs });
 };
 
 const isInside = (opts: { path: string; directory: string }): boolean => {
@@ -82,96 +85,99 @@ const isInside = (opts: { path: string; directory: string }): boolean => {
   return from !== '' && !from.startsWith('..') && !isAbsolute(from);
 };
 
-/**
- * The pair for HEAD: the index of the commit's tracked files, gzipped, and an envelope that signs it.
- * The index is built in a scratch worktree of the commit - never the working tree - so an untracked,
- * an ignored or an edited file cannot reach a published index, and the build is the one a pull makes.
- */
-export const buildIndexPair = (opts: {
-  root: string;
-  out: string;
-  repo?: string;
-  privateKey: string | undefined;
-  atlasVersion: string;
-  /** Publishing needs the whole history: a shallow checkout is refused instead of building a release table from part of it. */
-  requireFullHistory?: boolean;
-  /** The commit to index instead of HEAD (a full hash the caller resolved). */
-  commit?: string;
-}): IBuiltPair => {
-  const root = resolve(opts.root);
-  const out = resolve(root, opts.out);
+export class IndexPair {
+  /**
+   * The pair for HEAD: the index of the commit's tracked files, gzipped, and an envelope that signs it.
+   * The index is built in a scratch worktree of the commit - never the working tree - so an untracked,
+   * an ignored or an edited file cannot reach a published index, and the build is the one a pull makes.
+   */
+  static build(opts: {
+    root: string;
+    out: string;
+    repo?: string;
+    privateKey: string | undefined;
+    atlasVersion: string;
+    /** Publishing needs the whole history: a shallow checkout is refused instead of building a release table from part of it. */
+    requireFullHistory?: boolean;
+    /** The commit to index instead of HEAD (a full hash the caller resolved). */
+    commit?: string;
+  }): IBuiltPair {
+    const root = resolve(opts.root);
+    const out = resolve(root, opts.out);
 
-  if (opts.privateKey === undefined || opts.privateKey.trim().length === 0) {
-    throw new Error(
-      `atlas index: no signing key - set ${PrebuiltConstants.KEY_ENV} to the private key \`atlas index keygen\` wrote`,
-    );
-  }
-
-  if (!isInside({ path: out, directory: root })) {
-    throw new Error('atlas index: --out must be a folder inside the project');
-  }
-
-  const sha = commitOf({ root, commit: opts.commit });
-  const shallow =
-    git({ cwd: root, args: ['rev-parse', '--is-shallow-repository'] }).trim() === 'true';
-
-  if (shallow && opts.requireFullHistory === true) {
-    throw new Error(
-      'atlas index: the checkout is shallow, so its release table would come from part of the history - fetch it whole (actions/checkout: fetch-depth: 0)',
-    );
-  }
-
-  const repo = repositoryOf({ root, repo: opts.repo });
-  const scratch = join(
-    root,
-    PrebuiltConstants.SCRATCH_DIRECTORY,
-    `atlas-index-${sha.slice(0, 8)}-${process.pid}`,
-  );
-
-  mkdirSync(join(root, PrebuiltConstants.SCRATCH_DIRECTORY), { recursive: true });
-  git({ cwd: root, args: ['worktree', 'add', '--detach', scratch, sha] });
-
-  try {
-    const manifestFile = join(scratch, MANIFEST_FILE);
-
-    if (!existsSync(manifestFile)) {
+    if (opts.privateKey === undefined || opts.privateKey.trim().length === 0) {
       throw new Error(
-        `atlas index: ${sha.slice(0, 8)} has no ${MANIFEST_FILE} - run \`vulcan sync\` and commit it`,
+        `atlas index: no signing key - set ${PrebuiltConstants.KEY_ENV} to the private key \`atlas index keygen\` wrote`,
       );
     }
 
-    const project = toAtlasProject({
-      root: scratch,
-      manifest: JSON.parse(readFileSync(manifestFile, 'utf8')),
-      source: 'this repository',
-    });
-    const index = Buffer.from(indexBytesOf({ project }));
-    const gz = gzipSync(index, { level: 9 });
-    const payload: IIndexPayload = {
-      format: AtlasConstants.INDEX_FORMAT,
-      sha,
-      repo,
-      atlas: opts.atlasVersion,
-      builtAt: new Date().toISOString(),
-      bytes: index.length,
-      digest: createHash('sha256').update(gz).digest('hex'),
-      tags: localTagsFingerprint({ root }),
-      // A shallow checkout has part of the history: the release table below says so and a reader computes its own.
-      history: !shallow,
-      releases: computeReleases({ project }),
-    };
-    const names = pairNamesOf({ sha });
+    if (!isInside({ path: out, directory: root })) {
+      throw new Error('atlas index: --out must be a folder inside the project');
+    }
 
-    mkdirSync(out, { recursive: true });
-    writeFileSync(join(out, names.gz), gz);
-    writeFileSync(
-      join(out, names.envelope),
-      signEnvelope({ payload, privateKey: opts.privateKey }),
+    const sha = commitOf({ root, commit: opts.commit });
+    const shallow =
+      GitRepository.run({ cwd: root, args: ['rev-parse', '--is-shallow-repository'] }).trim() ===
+      'true';
+
+    if (shallow && opts.requireFullHistory === true) {
+      throw new Error(
+        'atlas index: the checkout is shallow, so its release table would come from part of the history - fetch it whole (actions/checkout: fetch-depth: 0)',
+      );
+    }
+
+    const repo = repositoryOf({ root, repo: opts.repo });
+    const scratch = join(
+      root,
+      PrebuiltConstants.SCRATCH_DIRECTORY,
+      `atlas-index-${sha.slice(0, 8)}-${process.pid}`,
     );
 
-    return { sha, gz: join(out, names.gz), envelope: join(out, names.envelope) };
-  } finally {
-    rmSync(scratch, { recursive: true, force: true });
-    spawnSync('git', ['worktree', 'prune'], { cwd: root });
+    mkdirSync(join(root, PrebuiltConstants.SCRATCH_DIRECTORY), { recursive: true });
+    GitRepository.run({ cwd: root, args: ['worktree', 'add', '--detach', scratch, sha] });
+
+    try {
+      const manifestFile = join(scratch, MANIFEST_FILE);
+
+      if (!existsSync(manifestFile)) {
+        throw new Error(
+          `atlas index: ${sha.slice(0, 8)} has no ${MANIFEST_FILE} - run \`vulcan sync\` and commit it`,
+        );
+      }
+
+      const project = ProjectConfig.toAtlasProject({
+        root: scratch,
+        manifest: JSON.parse(readFileSync(manifestFile, 'utf8')),
+        source: 'this repository',
+      });
+      const index = Buffer.from(IndexBuild.indexBytesOf({ project }));
+      const gz = gzipSync(index, { level: 9 });
+      const payload: IIndexPayload = {
+        format: AtlasConstants.INDEX_FORMAT,
+        sha,
+        repo,
+        atlas: opts.atlasVersion,
+        builtAt: new Date().toISOString(),
+        bytes: index.length,
+        digest: createHash('sha256').update(gz).digest('hex'),
+        tags: localTagsFingerprint({ root }),
+        // A shallow checkout has part of the history: the release table below says so and a reader computes its own.
+        history: !shallow,
+        releases: ReleaseCompute.compute({ project }),
+      };
+      const names = PairNames.of({ sha });
+
+      mkdirSync(out, { recursive: true });
+      writeFileSync(join(out, names.gz), gz);
+      writeFileSync(
+        join(out, names.envelope),
+        Envelope.sign({ payload, privateKey: opts.privateKey }),
+      );
+
+      return { sha, gz: join(out, names.gz), envelope: join(out, names.envelope) };
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+      spawnSync('git', ['worktree', 'prune'], { cwd: root });
+    }
   }
-};
+}

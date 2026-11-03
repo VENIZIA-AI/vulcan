@@ -19,10 +19,15 @@ const PATHS: Record<string, string> = {
   quote: '<path d="M9 7H5v6h4l-2 4M19 7h-4v6h4l-2 4"/>',
   star: '<path d="M12 3l2.7 5.8 6.3.7-4.7 4.3 1.3 6.2L12 17l-5.6 3 1.3-6.2L3 9.5l6.3-.7z"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
+  sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/>',
+  moon: '<path d="M20.2 14.6A8.4 8.4 0 0 1 9.4 3.8 8.4 8.4 0 1 0 20.2 14.6Z"/>',
 };
 
-export const iconSvg = (opts: { name: string; size?: number }): string => {
-  const size = opts.size ?? 20;
+export class IconSet {
+  /** An icon; `className` is added after `ic` for a page rule that targets one icon (the theme switch's sun and moon). */
+  static iconSvg(opts: { name: string; size?: number; className?: string }): string {
+    const size = opts.size ?? 20;
 
-  return `<svg class="ic" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[opts.name] ?? ''}</svg>`;
-};
+    return `<svg class="ic${opts.className === undefined ? '' : ` ${opts.className}`}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[opts.name] ?? ''}</svg>`;
+  }
+}

@@ -9,7 +9,7 @@ afterAll(removeProjects);
 
 const hasScript = Bun.which('script') !== null;
 const PROJECT = {
-  '.configs/vulcan.config.ts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
+  '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
   'AGENTS.md': '# x\n',
 };
 const LOCAL = '.agents/vulcan.local.json';

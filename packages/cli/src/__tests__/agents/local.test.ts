@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { LOCAL_AGENTS_FILE, readLocalChoice, renderLocalChoice } from '../../agents/index.ts';
+import { LOCAL_AGENTS_FILE, LocalChoice } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -12,16 +12,16 @@ describe('the local choice file', () => {
   });
 
   test('renders a generated note, the schema version and the agents', () => {
-    expect(JSON.parse(renderLocalChoice({ agents: ['claude', 'omp'] }))).toEqual({
+    expect(JSON.parse(LocalChoice.render({ agents: ['claude', 'omp'] }))).toEqual({
       $generated: 'by vulcan sync - your agents on this machine; not committed',
       schemaVersion: 1,
       agents: ['claude', 'omp'],
     });
-    expect(renderLocalChoice({ agents: [] }).endsWith('\n')).toBe(true);
+    expect(LocalChoice.render({ agents: [] }).endsWith('\n')).toBe(true);
   });
 
   test('absent reads as no choice', () => {
-    expect(readLocalChoice({ root: createProject({ files: {} }) })).toEqual({
+    expect(LocalChoice.read({ root: createProject({ files: {} }) })).toEqual({
       ok: true,
       agents: undefined,
     });
@@ -35,9 +35,9 @@ describe('the local choice file', () => {
     for (const agents of [['claude'], ['omp', 'pi'], []]) {
       const file = join(root, LOCAL_AGENTS_FILE);
 
-      writeFileSync(file, renderLocalChoice({ agents }));
+      writeFileSync(file, LocalChoice.render({ agents }));
       expect(existsSync(file)).toBe(true);
-      expect(readLocalChoice({ root })).toEqual({ ok: true, agents });
+      expect(LocalChoice.read({ root })).toEqual({ ok: true, agents });
     }
   });
 
@@ -49,12 +49,12 @@ describe('the local choice file', () => {
       },
     });
 
-    expect(readLocalChoice({ root: broken })).toEqual({
+    expect(LocalChoice.read({ root: broken })).toEqual({
       ok: false,
       error: `${LOCAL_AGENTS_FILE} is not valid JSON - delete it and run: vulcan sync --agents <list>`,
     });
 
-    const result = readLocalChoice({ root: unknown });
+    const result = LocalChoice.read({ root: unknown });
 
     expect(!result.ok && result.error).toContain("unknown agent 'vim'");
     expect(readFileSync(join(unknown, LOCAL_AGENTS_FILE), 'utf8')).toContain('vim');

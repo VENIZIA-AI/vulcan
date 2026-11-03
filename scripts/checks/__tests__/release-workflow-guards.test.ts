@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { checkReleaseWorkflowGuards } from '../release-workflow-guards.ts';
+import { ReleaseWorkflowGuards } from '../release-workflow-guards.ts';
 
 const WORKFLOW = join(
   import.meta.dir,
@@ -32,7 +32,7 @@ const mutated = (opts: { change: (workflow: Record<string, unknown>) => void }):
 
   opts.change(copy);
 
-  return checkReleaseWorkflowGuards({ workflow: copy }).map((violation) =>
+  return ReleaseWorkflowGuards.check({ workflow: copy }).map((violation) =>
     violation.slice(0, violation.indexOf(':')),
   );
 };
@@ -81,7 +81,7 @@ const addStep = (opts: {
 
 describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, C20, C25, C26, D6)', () => {
   test('the real workflow breaks none of them', () => {
-    expect(checkReleaseWorkflowGuards({ workflow: load() })).toEqual([]);
+    expect(ReleaseWorkflowGuards.check({ workflow: load() })).toEqual([]);
   });
 
   test('C1: a plan job that does not run the planning script, or that names an environment or a condition, is noticed', () => {
@@ -539,7 +539,7 @@ describe('the release workflow keeps its guards (C1 to C3, C5, C6, C16, C17, C20
         },
       }),
     ).toContain('D6');
-    expect(checkReleaseWorkflowGuards({ workflow: load() })).not.toContain('D6');
+    expect(ReleaseWorkflowGuards.check({ workflow: load() })).not.toContain('D6');
   });
 });
 
@@ -774,19 +774,147 @@ describe('the release workflow keeps the guard of the GitHub Release (C31)', () 
       }),
     ).toContain('C31');
   });
+});
 
-  test('a plan job that does not ask for the changelog check is noticed', () => {
+describe('the release workflow keeps the check of its run title (C33)', () => {
+  test('the real workflow passes', () => {
+    expect(mutated({ change: () => undefined }).filter((line) => line.startsWith('C33'))).toEqual(
+      [],
+    );
+  });
+
+  test('a plan job that does not pass the label to plan.ts is noticed', () => {
     expect(
       mutated({
         change: (workflow) => {
           stepsOf({ workflow, name: 'plan' }).forEach((step) => {
             if (typeof step['run'] === 'string') {
-              step['run'] = step['run'].replace('--release-notes', '');
+              step['run'] = step['run'].replace(' --label "$RELEASE_LABEL"', '');
             }
           });
         },
       }),
-    ).toContain('C31');
+    ).toContain('C33');
+  });
+
+  test('a plan job whose label is not the input is noticed', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          stepsOf({ workflow, name: 'plan' }).forEach((step) => {
+            const env = step['env'];
+
+            if (typeof env === 'object' && env !== null && 'RELEASE_LABEL' in env) {
+              (env as Record<string, string>)['RELEASE_LABEL'] = 'a fixed title';
+            }
+          });
+        },
+      }),
+    ).toContain('C33');
+  });
+
+  test('a run name that does not carry the label is noticed (C17)', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          workflow['run-name'] = 'Release · ${{ inputs.bump }} · ${{ github.sha }}';
+        },
+      }),
+    ).toContain('C17');
+  });
+
+  test('a run name that only mentions the label and the commit as text is noticed (C17)', () => {
+    for (const runName of [
+      'Release · ${{ inputs.bump }} · literal inputs.label github.sha',
+      '${{ inputs.label }} github.sha',
+    ]) {
+      expect(
+        mutated({
+          change: (workflow) => {
+            workflow['run-name'] = runName;
+          },
+        }),
+        runName,
+      ).toContain('C17');
+    }
+  });
+
+  test('another reader of the label input is noticed (C33)', () => {
+    for (const expression of [
+      '${{ inputs.label }}',
+      "${{ inputs['label'] }}",
+      '${{ github.event.inputs.label }}',
+      '${{ toJSON(inputs) }}',
+      '${{ toJSON(github.event) }}',
+      '${{ toJSON(github) }}',
+      '${{ INPUTS.LABEL }}',
+      '${{ inputs.Label }}',
+      '${{ toJson(inputs) }}',
+    ]) {
+      for (const name of ['plan', 'test', 'publish']) {
+        expect(
+          mutated({
+            change: (workflow) => {
+              addStep({
+                workflow,
+                name,
+                step: { name: 'Echo the title', run: `echo "${expression}"` },
+              });
+            },
+          }),
+          `${name}: ${expression}`,
+        ).toContain('C33');
+      }
+    }
+  });
+
+  test('a plan job that may fail without failing is noticed (C33)', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          job({ workflow, name: 'plan' })['continue-on-error'] = true;
+        },
+      }),
+    ).toContain('C33');
+    expect(
+      mutated({
+        change: (workflow) => {
+          const step = stepsOf({ workflow, name: 'plan' }).find(
+            (entry) => typeof entry['run'] === 'string' && entry['run'].includes('plan.ts'),
+          );
+
+          if (step === undefined) {
+            throw new Error('[test] no plan step');
+          }
+
+          step['continue-on-error'] = true;
+        },
+      }),
+    ).toContain('C33');
+  });
+
+  test('a continue-on-error in another job is not a plan job finding (C33)', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          job({ workflow, name: 'publish' })['continue-on-error'] = true;
+        },
+      }).filter((line) => line === 'C33'),
+    ).toEqual([]);
+  });
+
+  test('a plan job without --train, which switches off the label check, is noticed (C33)', () => {
+    expect(
+      mutated({
+        change: (workflow) => {
+          stepsOf({ workflow, name: 'plan' }).forEach((step) => {
+            if (typeof step['run'] === 'string') {
+              step['run'] = step['run'].replace(' --train packages', '');
+            }
+          });
+        },
+      }),
+    ).toContain('C33');
   });
 });
 

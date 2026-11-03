@@ -2,11 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import {
-  buildPackageDecision,
-  inspectPackageWrite,
-  parseManifestHookInput,
-} from '../../hooks/index.ts';
+import { ManifestGuard, PackageGuard } from '../../hooks/index.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-package.ts');
@@ -57,7 +53,7 @@ const project = (opts: { manifest?: unknown; files?: string[] } = {}): string =>
 };
 
 const write = (opts: { root: string; path: string; tool?: string }) =>
-  inspectPackageWrite({
+  PackageGuard.inspectWrite({
     input: {
       tool: opts.tool ?? 'Write',
       filePath: join(opts.root, opts.path),
@@ -66,7 +62,7 @@ const write = (opts: { root: string; path: string; tool?: string }) =>
     },
   });
 
-describe('inspectPackageWrite - a real command exists', () => {
+describe('PackageGuard.inspectWrite - a real command exists', () => {
   test('a new package.json in the backend folder is denied with the exact add command', () => {
     const root = project();
     const verdict = write({ root, path: 'services/api3/package.json' });
@@ -95,6 +91,105 @@ describe('inspectPackageWrite - a real command exists', () => {
     expect(verdict?.message).not.toContain('--app billing');
   });
 
+  test('a new package.json in the shared folder offers the lib command of each lib preset and the shared command of each shared preset', () => {
+    const root = project({
+      manifest: {
+        ...MANIFEST,
+        presets: [
+          { spec: 'ignis', side: 'backend', summary: 'An API.', lib: 'A library.' },
+          { spec: 'file:../kit', side: 'frontend', summary: 'A kit.', shared: 'Shared.' },
+          {
+            spec: 'file:../both',
+            side: 'backend',
+            summary: 'Both.',
+            lib: 'A lib.',
+            shared: 'A shared.',
+          },
+          { spec: 'file:../neither', side: 'backend', summary: 'Neither.' },
+        ],
+      },
+    });
+    const verdict = write({ root, path: 'libs/billing/package.json' });
+    const message = verdict?.message ?? '';
+
+    expect(verdict?.kind).toBe('deny');
+    expect(message).toContain('bun x --no-install vulcan add --preset ignis --lib billing');
+    expect(message).toContain('bun x --no-install vulcan add --preset file:../both --lib billing');
+    expect(message).toContain(
+      'bun x --no-install vulcan add --preset file:../kit --shared billing',
+    );
+    expect(message).toContain(
+      'bun x --no-install vulcan add --preset file:../both --shared billing',
+    );
+    expect(message).not.toContain('--preset ignis --shared');
+    expect(message).not.toContain('--preset file:../kit --lib');
+    expect(message).not.toContain('file:../neither');
+    expect(message).not.toContain('--app billing');
+  });
+
+  test('a preset with only a shared kind makes the shared folder a deny, with no lib command', () => {
+    const root = project({
+      manifest: {
+        ...MANIFEST,
+        presets: [{ spec: 'file:../kit', side: 'frontend', summary: 'A kit.', shared: 'Shared.' }],
+      },
+    });
+    const verdict = write({ root, path: 'libs/billing/package.json' });
+
+    expect(verdict?.kind).toBe('deny');
+    expect(verdict?.message).toContain('--preset file:../kit --shared billing');
+    expect(verdict?.message).not.toContain('--lib billing');
+  });
+
+  test('a shared folder in a list names the folder in both the lib and the shared command', () => {
+    const root = project({
+      manifest: {
+        ...MANIFEST,
+        layout: { ...MANIFEST.layout, shared: ['libs/a', 'libs/b'] },
+        presets: [{ spec: 'ignis', side: 'backend', summary: 'An API.', lib: 'L', shared: 'S' }],
+      },
+    });
+    const verdict = write({ root, path: 'libs/b/billing/package.json' });
+
+    expect(verdict?.message).toContain('--preset ignis --lib billing --dir libs/b');
+    expect(verdict?.message).toContain('--preset ignis --shared billing --dir libs/b');
+  });
+
+  test('a new package.json in a side folder never offers the shared command', () => {
+    const root = project({
+      manifest: {
+        ...MANIFEST,
+        presets: [
+          { spec: 'ignis', side: 'backend', summary: 'An API.', lib: 'L', shared: 'S' },
+          { spec: 'file:../acme-web', side: 'frontend', summary: 'An admin.', shared: 'S' },
+        ],
+      },
+    });
+    const backend = write({ root, path: 'services/api3/package.json' });
+    const frontend = write({ root, path: 'web/admin2/package.json' });
+
+    expect(backend?.kind).toBe('deny');
+    expect(backend?.message).toContain('--preset ignis --app api3');
+    expect(backend?.message).not.toContain('--shared');
+    expect(backend?.message).not.toContain('--lib');
+    expect(frontend?.kind).toBe('deny');
+    expect(frontend?.message).toContain('--preset file:../acme-web --app admin2');
+    expect(frontend?.message).not.toContain('--shared');
+  });
+
+  test('a recorded preset whose shared is not a string offers no shared command', () => {
+    const root = project({
+      manifest: {
+        ...MANIFEST,
+        presets: [{ spec: 'ignis', side: 'backend', summary: 'An API.', lib: 'L', shared: 5 }],
+      },
+    });
+    const verdict = write({ root, path: 'libs/billing/package.json' });
+
+    expect(verdict?.message).toContain('--lib billing');
+    expect(verdict?.message).not.toContain('--shared');
+  });
+
   test('a nested layout folder counts', () => {
     const root = project({
       manifest: { ...MANIFEST, layout: { shared: 'auroras/features' } },
@@ -105,7 +200,7 @@ describe('inspectPackageWrite - a real command exists', () => {
 
   test('a relative file path resolves against the cwd', () => {
     const root = project();
-    const verdict = inspectPackageWrite({
+    const verdict = PackageGuard.inspectWrite({
       input: {
         tool: 'Write',
         filePath: 'services/api3/package.json',
@@ -118,7 +213,7 @@ describe('inspectPackageWrite - a real command exists', () => {
   });
 });
 
-describe('inspectPackageWrite - a layout with several folders per side', () => {
+describe('PackageGuard.inspectWrite - a layout with several folders per side', () => {
   const GROUPED = {
     ...MANIFEST,
     layout: {
@@ -186,7 +281,7 @@ describe('inspectPackageWrite - a layout with several folders per side', () => {
   });
 });
 
-describe('inspectPackageWrite - silent', () => {
+describe('PackageGuard.inspectWrite - silent', () => {
   test('a package.json that already exists is left alone', () => {
     const root = project({ files: ['services/api/package.json'] });
 
@@ -247,7 +342,7 @@ describe('inspectPackageWrite - silent', () => {
   });
 });
 
-describe('inspectPackageWrite - no real command: warn, never block', () => {
+describe('PackageGuard.inspectWrite - no real command: warn, never block', () => {
   test('a layout folder whose side no recorded preset makes', () => {
     const root = project({
       manifest: {
@@ -285,15 +380,15 @@ describe('inspectPackageWrite - no real command: warn, never block', () => {
 describe('parse and decision', () => {
   test('the wire form reads as before', () => {
     expect(
-      parseManifestHookInput({
+      ManifestGuard.parseHookInput({
         text: '{"tool_name":"Write","tool_input":{"file_path":"a/package.json"},"cwd":"/x"}',
       }),
     ).toEqual({ tool: 'Write', filePath: 'a/package.json', command: undefined, cwd: '/x' });
   });
 
   test('a deny carries the reason; a warn carries context and no decision', () => {
-    const deny = buildPackageDecision({ verdict: { kind: 'deny', message: 'use add' } });
-    const warn = buildPackageDecision({ verdict: { kind: 'warn', message: 'ask the user' } });
+    const deny = PackageGuard.buildDecision({ verdict: { kind: 'deny', message: 'use add' } });
+    const warn = PackageGuard.buildDecision({ verdict: { kind: 'warn', message: 'ask the user' } });
 
     const denied: Record<string, unknown> = deny.hookSpecificOutput;
     const warned: Record<string, unknown> = warn.hookSpecificOutput;

@@ -2,19 +2,10 @@ import { existsSync, lstatSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
-import { askWithPrompt } from '../create/names.ts';
-import {
-  linkedAt,
-  OwnerConstants,
-  profileIsIgnored,
-  readProfile,
-  renderProfile,
-  runSurvey,
-  systemLanguageOf,
-  writeProfile,
-} from '../owner/index.ts';
+import { ProjectNames } from '../create/names.ts';
+import { OwnerConstants, OwnerProfile, OwnerSurvey } from '../owner/index.ts';
 import type { ISurveyIo } from '../owner/index.ts';
-import { menusAvailable, promptConfirm, promptSelect, promptText } from '../ui/index.ts';
+import { TerminalCapability, TerminalPrompt } from '../ui/index.ts';
 
 const YES_FLAG = '--yes';
 
@@ -22,18 +13,18 @@ const YES_FLAG = '--yes';
 const menuIo: ISurveyIo = {
   // An empty entry takes the default, so only what was typed is checked.
   text: (opts) =>
-    promptText({
+    TerminalPrompt.promptText({
       ...opts,
       validate: (value) => (value === '' ? undefined : opts.validate?.(value)),
     }),
-  select: (opts) => promptSelect(opts),
-  confirm: (opts) => promptConfirm(opts),
+  select: (opts) => TerminalPrompt.promptSelect(opts),
+  confirm: (opts) => TerminalPrompt.promptConfirm(opts),
 };
 
 /** The same questions as plain lines, for a pipe, a log or `TERM=dumb`: an empty line takes the default, the end of the input cancels. */
 const lineIo: ISurveyIo = {
   text: async (opts) => {
-    const answer = askWithPrompt({
+    const answer = ProjectNames.askWithPrompt({
       question: opts.message,
       ...(opts.defaultValue === '' ? {} : { previous: opts.defaultValue }),
     });
@@ -54,7 +45,7 @@ const lineIo: ISurveyIo = {
     return value;
   },
   select: async (opts) => {
-    const answer = askWithPrompt({
+    const answer = ProjectNames.askWithPrompt({
       question: `${opts.message} [${opts.choices.map((choice) => choice.value).join('/')}]`,
       previous: opts.initial,
     });
@@ -74,7 +65,7 @@ const lineIo: ISurveyIo = {
     return lineIo.select(opts);
   },
   confirm: async (opts) => {
-    const answer = askWithPrompt({
+    const answer = ProjectNames.askWithPrompt({
       question: `${opts.message} [y/n]`,
       previous: opts.initial ? 'y' : 'n',
     });
@@ -100,8 +91,8 @@ const lineIo: ISurveyIo = {
 };
 
 /** Runs the form and saves the profile; the exit code of the command. */
-export const fillInProfile = async (opts: { root: string }): Promise<number> => {
-  const current = readProfile({ root: opts.root });
+const fillInProfile = async (opts: { root: string }): Promise<number> => {
+  const current = OwnerProfile.read({ root: opts.root });
 
   if (!current.ok) {
     process.stderr.write(
@@ -112,7 +103,7 @@ export const fillInProfile = async (opts: { root: string }): Promise<number> => 
   }
 
   // Before the questions, not after: an answer that cannot be saved is an answer typed for nothing.
-  if (!profileIsIgnored({ root: opts.root })) {
+  if (!OwnerProfile.profileIsIgnored({ root: opts.root })) {
     process.stderr.write(
       'vulcan profile: .gitignore does not list .agents/local/ - run vulcan sync (or add the line) first; a personal file must not be committable\n',
     );
@@ -120,10 +111,10 @@ export const fillInProfile = async (opts: { root: string }): Promise<number> => 
     return ExitCodes.FAILURE;
   }
 
-  const profile = await runSurvey({
-    io: menusAvailable() ? menuIo : lineIo,
+  const profile = await OwnerSurvey.run({
+    io: TerminalCapability.menusAvailable() ? menuIo : lineIo,
     existing: current.profile,
-    systemLanguage: systemLanguageOf({ env: process.env }),
+    systemLanguage: OwnerSurvey.systemLanguageOf({ env: process.env }),
   });
 
   if (profile === null) {
@@ -132,7 +123,7 @@ export const fillInProfile = async (opts: { root: string }): Promise<number> => 
     return ExitCodes.FAILURE;
   }
 
-  const saved = writeProfile({ root: opts.root, profile });
+  const saved = OwnerProfile.write({ root: opts.root, profile });
 
   if (!saved.ok) {
     process.stderr.write(`vulcan profile: ${saved.error}\n`);
@@ -147,33 +138,35 @@ export const fillInProfile = async (opts: { root: string }): Promise<number> => 
   return ExitCodes.OK;
 };
 
-/**
- * After `init`: in a terminal that can draw menus, a project with no profile is offered the form once;
- * anywhere else (a pipe, CI) it only says how to run it. A profile that already exists is left alone.
- */
-export const offerProfile = async (opts: { root: string }): Promise<void> => {
-  if (existsSync(join(opts.root, OwnerConstants.PROFILE_FILE))) {
-    return;
+export class ProfilePrompt {
+  /**
+   * After `init`: in a terminal that can draw menus, a project with no profile is offered the form once;
+   * anywhere else (a pipe, CI) it only says how to run it. A profile that already exists is left alone.
+   */
+  static async offer(opts: { root: string }): Promise<void> {
+    if (existsSync(join(opts.root, OwnerConstants.PROFILE_FILE))) {
+      return;
+    }
+
+    if (!TerminalCapability.menusAvailable()) {
+      process.stderr.write(
+        "tell VULCAN how you like to work (language, how to address you, tone): run 'bun x --no-install vulcan profile'\n",
+      );
+
+      return;
+    }
+
+    const now = await TerminalPrompt.promptConfirm({
+      message:
+        "Tell VULCAN how you like to work (language, how to address you, tone)? Every question can be skipped; 'vulcan profile' does it later.",
+      initial: true,
+    });
+
+    if (now === true) {
+      await fillInProfile({ root: opts.root });
+    }
   }
-
-  if (!menusAvailable()) {
-    process.stderr.write(
-      "tell VULCAN how you like to work (language, how to address you, tone): run 'bun x --no-install vulcan profile'\n",
-    );
-
-    return;
-  }
-
-  const now = await promptConfirm({
-    message:
-      "Tell VULCAN how you like to work (language, how to address you, tone)? Every question can be skipped; 'vulcan profile' does it later.",
-    initial: true,
-  });
-
-  if (now === true) {
-    await fillInProfile({ root: opts.root });
-  }
-};
+}
 
 /**
  * `vulcan profile`: the form (also `edit`), `show` prints the file, `reset` removes it. The file is
@@ -197,7 +190,7 @@ export const runProfileCommand = async (opts: ICommandContext): Promise<number> 
   const file = join(opts.cwd, OwnerConstants.PROFILE_FILE);
 
   if (sub === 'show') {
-    const read = readProfile({ root: opts.cwd });
+    const read = OwnerProfile.read({ root: opts.cwd });
 
     if (!read.ok) {
       process.stderr.write(`vulcan profile: ${read.error}\n`);
@@ -211,14 +204,14 @@ export const runProfileCommand = async (opts: ICommandContext): Promise<number> 
       return ExitCodes.OK;
     }
 
-    process.stdout.write(renderProfile({ profile: read.profile }));
+    process.stdout.write(OwnerProfile.render({ profile: read.profile }));
 
     return ExitCodes.OK;
   }
 
   // The same refusal as read and write: a link at the file's place or at `.agents/local` must never
   // turn a reset into a delete outside the project.
-  if (linkedAt({ root: opts.cwd }) !== undefined) {
+  if (OwnerProfile.linkedAt({ root: opts.cwd }) !== undefined) {
     process.stderr.write(
       `vulcan profile: ${OwnerConstants.PROFILE_FILE} (or .agents/local) is a symlink - remove the link yourself; nothing was deleted\n`,
     );

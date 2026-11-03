@@ -1,8 +1,20 @@
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
-import { layoutFolderProblem, layoutOverlapProblems } from '../common/layout-folder.ts';
+import { LayoutFolder } from '../common/layout-folder.ts';
 import { OWNER_SCHEMA } from '../owner/schema.ts';
-import { CodingAgents, ConfigConstants, HookEvents, PackageKinds } from './common/index.ts';
+import { AgentSignaturePolicies } from '../commit/common/index.ts';
+import type { TAgentSignaturePolicy } from '../commit/common/index.ts';
+import { SubjectShape } from '../commit/subject.ts';
+import { BoardShapes } from '../board/common/constants.ts';
+import { EventRetention } from '../events/retention.ts';
+import { EventSettings } from '../events/settings.ts';
+import {
+  CodingAgents,
+  ConfigConstants,
+  HookEvents,
+  LibraryKinds,
+  PackageKinds,
+} from './common/index.ts';
 
 const CODING_AGENT = z.string().refine((value) => CodingAgents.isValid(value), {
   message: `one of: ${[...CodingAgents.SCHEME_SET].join(', ')}`,
@@ -48,7 +60,7 @@ const PUSH_TARGET = z
 
 /** A layout folder: 1 to 4 plain segments, never climbing, never absolute (the validator `guard-package` shares). */
 const LAYOUT_FOLDER = z.string().superRefine((value, context) => {
-  const problem = layoutFolderProblem({ folder: value });
+  const problem = LayoutFolder.layoutFolderProblem({ folder: value });
 
   if (problem !== undefined) {
     context.addIssue({ code: 'custom', message: problem });
@@ -56,7 +68,7 @@ const LAYOUT_FOLDER = z.string().superRefine((value, context) => {
 });
 
 /** A script `guard-writes` may trust: a repo-relative `.ts` path - no glob, no `~`, never climbing out of the repo. */
-const TRUSTED_SCRIPT = z.string().superRefine((value, context) => {
+const TRUSTED_SCRIPT_PATH = z.string().superRefine((value, context) => {
   const problem = /[*?[\]{}!]/.test(value)
     ? 'no globs: list each script by its exact path'
     : isAbsolute(value) || value.startsWith('~')
@@ -72,18 +84,54 @@ const TRUSTED_SCRIPT = z.string().superRefine((value, context) => {
   }
 });
 
+/**
+ * A trusted script, whole or by subcommand: a path trusts the whole file; an object trusts only the calls
+ * whose first argument after the script is one of `readOnly` (one word each, matched exactly).
+ */
+const READ_ONLY_WORD = z
+  .string()
+  .regex(
+    /^[A-Za-z0-9_.:-]+$/,
+    'one plain word: letters, digits and _ . : - only, no spaces or globs',
+  );
+
+const TRUSTED_SCRIPT = z.union([
+  TRUSTED_SCRIPT_PATH,
+  z.strictObject({ script: TRUSTED_SCRIPT_PATH, readOnly: z.array(READ_ONLY_WORD).min(1) }),
+]);
+
 /** One folder, or a list of them: a side whose apps are grouped keeps each group's folder. */
 const LAYOUT_VALUE = z.union([LAYOUT_FOLDER, z.array(LAYOUT_FOLDER).min(1)]);
 
+/** An npm package name, lower case: the pattern and the length atlas applies to every package name of the manifest. */
+const NPM_NAME_PATTERN = /^(?:@[a-z0-9~-][a-z0-9._~-]*\/)?[a-z0-9~-][a-z0-9._~-]*$/;
+const NPM_NAME_MAX_LENGTH = 214;
+
+const NPM_PACKAGE_NAME = z.string().superRefine((value, context) => {
+  if (value.length > NPM_NAME_MAX_LENGTH || !NPM_NAME_PATTERN.test(value)) {
+    context.addIssue({
+      code: 'custom',
+      message: `package name '${value}' is not an npm package name: npm names are lower case (a to z, digits, . _ ~ -) with an optional @scope/, at most ${NPM_NAME_MAX_LENGTH} characters, and atlas refuses the manifest otherwise`,
+    });
+  }
+});
+
+/** A name that holds a letter or a digit: an entry of only punctuation or spaces would match everything. */
+const AGENT_NAME = z
+  .string()
+  .regex(/[\p{L}\p{N}]/u, { message: 'a name with at least one letter or digit' });
+
 const PROJECT_PACKAGE = z.strictObject({
   dir: z.string().regex(/^[a-z0-9][a-z0-9.-]*$/),
-  name: z.string(),
+  name: NPM_PACKAGE_NAME,
   /** Where the package lives, from the root; default `packages/<dir>`. */
   path: z.string().optional(),
   aliases: z.array(z.string()).default([]),
   retired: z.boolean().default(false),
-  /** A shared package a preset's lib kind made lives anywhere a workspace glob covers; absent means an app or a plain package. */
+  /** A library a preset made lives anywhere a workspace glob covers; absent means an app or a plain package. */
   kind: z.enum([PackageKinds.APP, PackageKinds.LIB]).optional(),
+  /** Which preset kind made a library; absent means the `lib` kind. */
+  presetKind: z.enum([LibraryKinds.LIB, LibraryKinds.SHARED]).optional(),
 });
 
 /** A path as a key: no leading `./`, no trailing slash. */
@@ -127,23 +175,15 @@ const checkPackagesUnique = (
 };
 
 /**
- * A release template: `<dir>` (synonym `<package>`) is the package DIRECTORY - the `packages` key,
+ * A release template: `<dir>` is the package DIRECTORY - the `packages` key,
  * never the npm name (`packages/core-server` published as `@acme/server` tags `core-server-v1.2.0`); `<version>` is the
  * version; `<issue>` an issue number. Every other character is literal. When matching a commit, a
  * leading `[#<issue>] ` is optional and a trailing ` [<mode>]` is tolerated. A release train that
  * tags once leaves `<dir>` out (`v<version>`).
  */
 const RELEASE_TEMPLATE = z.string().refine((value) => value.includes('<version>'), {
-  message: 'a template with <version> (and <dir> or <package> for per-package releases)',
+  message: 'a template with <version> (and <dir> for per-package releases)',
 });
-
-/** A key the config once accepted and no tool ever read: still named, so the error says it is gone rather than "unrecognized". */
-const removedAtlasKey = (opts: { key: string }) =>
-  z
-    .never({
-      error: `atlas.${opts.key} was removed - no tool reads it; delete it from the config`,
-    })
-    .optional();
 
 /** A renderer by id: a built-in, or a project module (`module`); a bare string is the id alone. */
 const OKF_RENDERER = z.union([
@@ -188,7 +228,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       other: LAYOUT_VALUE.optional(),
     })
     .superRefine((layout, context) => {
-      for (const problem of layoutOverlapProblems({ layout })) {
+      for (const problem of LayoutFolder.layoutOverlapProblems({ layout })) {
         context.addIssue({ code: 'custom', message: problem });
       }
     })
@@ -202,6 +242,8 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         summary: z.string(),
         /** The summary of the preset's lib kind, when it ships one. */
         lib: z.string().optional(),
+        /** The summary of the preset's shared kind, when it ships one. */
+        shared: z.string().optional(),
       }),
     )
     .optional(),
@@ -264,16 +306,6 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     }),
   atlas: z
     .strictObject({
-      /** Removed in 0.2.0-8; present only so the error can name `packages`. */
-      packages: z
-        .never({
-          error:
-            'atlas.packages was removed - move the list to the top-level packages: [{ dir, name }] (release order; dir is the old key, name the old value)',
-        })
-        .optional(),
-      releaseCommit: removedAtlasKey({ key: 'releaseCommit' }),
-      typescriptFrom: removedAtlasKey({ key: 'typescriptFrom' }),
-      legacyTagPrefixes: removedAtlasKey({ key: 'legacyTagPrefixes' }),
       tagPattern: RELEASE_TEMPLATE.default('<dir>-v<version>'),
       /**
        * Templates of an earlier tag layout that are still releases: atlas and the changelog check read a tag
@@ -320,6 +352,59 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       localFile: z.string().default('.agents/hooks/trusted-hosts.local'),
     })
     .optional(),
+  /**
+   * The colour the project is known by: `vulcan visualize` takes the accent of its pages from here (the spec's own
+   * `accent` wins). `accent` is the colour for marks and fills; `accentDark` is the same on dark grounds (derived
+   * when absent); `accentText` is a darker accent for text, when `accent` is too light to be read as text.
+   * `vulcan sync` copies it to the manifest, where the generator reads it.
+   */
+  theme: z
+    .strictObject({
+      accent: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #8a5a20'),
+      accentDark: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #dead6a')
+        .optional(),
+      accentText: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #01579b')
+        .optional(),
+    })
+    .optional(),
+  /**
+   * What `vulcan board` calls things. `owner` is who an ask waits on (default: `git config user.name`),
+   * `title` the name on the page (default: the project name and "Board"), `logo` a path inside the project to an
+   * SVG put on the page (default: none), `agents` an agent name to a face (`bun`, `flame`, `ember`, `rock`,
+   * `banana`; any other agent has `bun`). Written to the manifest only when something is set.
+   */
+  board: z
+    .strictObject({
+      owner: z.string().min(1).optional(),
+      title: z.string().min(1).optional(),
+      logo: z
+        .string()
+        .min(1)
+        .refine(
+          (value) =>
+            value.toLowerCase().endsWith('.svg') &&
+            !value.startsWith('/') &&
+            !value.split('/').includes('..'),
+          {
+            message:
+              'a path inside the project to an .svg file, with no leading / and no .. segment',
+          },
+        )
+        .optional(),
+      agents: z
+        .record(
+          z.string().min(1),
+          z.custom<string>((value) => typeof value === 'string' && BoardShapes.isValid(value), {
+            message: `one of ${[...BoardShapes.SCHEME_SET].join(', ')}`,
+          }),
+        )
+        .default({}),
+    })
+    .default({ agents: {} }),
   /** Team-shared Claude settings (permissions, env, enabledPlugins...), merged by sync over personal keys. */
   claude: z
     .strictObject({ settings: z.record(z.string(), z.unknown()).default({}) })
@@ -344,7 +429,9 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    * runtime dir for locks, git config, the agent tool's memory) with stores a tool in this project
    * manages itself: absolute globs, `~` and `$NAME` allowed. `writes.trustedScripts` lists the project's own
    * CLIs (repo-relative `.ts` paths, no globs) whose body guard-writes does not read for mutating calls
-   * while git tracks them and they equal HEAD; the command line is still checked. `writes.commands` adds the
+   * while git tracks them and they equal HEAD; the command line is still checked. An entry may instead be
+   * `{ script, readOnly: ['plan'] }`: only a call whose first argument after the script is listed skips the
+   * read, and `vulcan sync` writes those entries to the manifest. `writes.commands` adds the
    * project's own deploy and migrate commands to what guard-writes asks about (a pattern, matched inside
    * compound commands too), and `git.askPush` lists the branches a plain `git push` asks about; `vulcan sync`
    * writes both to the manifest, where the hooks read them.
@@ -365,6 +452,122 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       writes: { trustedScripts: [], commands: [] },
       git: { askPush: [] },
     }),
+  /**
+   * What `vulcan commit-check` looks for in a commit message, and what `vulcan sync` installs the
+   * `commit-msg` hook for, nested by scope. Every check is off until the project turns it on:
+   * `message.agent.signature: 'deny'` rejects a trailer or a "generated with" line that names an agent
+   * (rule W-00 of a project that has one); `message.agent.names` adds names to the shipped list and
+   * `message.agent.allow` lists names never flagged; `message.subject` is the project's own one-line
+   * shape. Written to the manifest only when a check is on.
+   */
+  commit: z
+    .strictObject({
+      message: z
+        .strictObject({
+          agent: z
+            .strictObject({
+              signature: z
+                .custom<TAgentSignaturePolicy>(
+                  (value) => typeof value === 'string' && AgentSignaturePolicies.isValid(value),
+                  { message: `one of ${[...AgentSignaturePolicies.SCHEME_SET].join(', ')}` },
+                )
+                .default(AgentSignaturePolicies.ALLOW),
+              names: z.array(AGENT_NAME).default([]),
+              allow: z.array(AGENT_NAME).default([]),
+            })
+            .default({ signature: AgentSignaturePolicies.ALLOW, names: [], allow: [] }),
+          subject: z
+            .strictObject({
+              pattern: z
+                .string()
+                .min(1)
+                .superRefine((value, context) => {
+                  const error = SubjectShape.patternError({ pattern: value });
+
+                  if (error !== undefined) {
+                    context.addIssue({ code: 'custom', message: error });
+                  }
+                }),
+              hint: z.string().min(1).optional(),
+            })
+            .optional(),
+        })
+        .default({ agent: { signature: AgentSignaturePolicies.ALLOW, names: [], allow: [] } }),
+    })
+    .default({
+      message: { agent: { signature: AgentSignaturePolicies.ALLOW, names: [], allow: [] } },
+    }),
+  /**
+   * What `vulcan ci affected` treats as touching every package. `affected.global` adds root-relative globs
+   * to the shipped list (lockfiles, `bunfig.toml`, root `tsconfig*.json`, `.configs/`, the workflow files);
+   * a project cannot remove a shipped one. Written to the manifest only when it is not empty.
+   */
+  ci: z
+    .strictObject({
+      affected: z
+        .strictObject({
+          global: z
+            .array(
+              z
+                .string()
+                .min(1)
+                .refine((glob) => !glob.startsWith('/') && !glob.split('/').includes('..'), {
+                  message:
+                    'a glob relative to the project root, with no leading / and no .. segment',
+                }),
+            )
+            .default([]),
+        })
+        .default({ global: [] }),
+    })
+    .default({ affected: { global: [] } }),
+  /**
+   * The agent event log: one JSON line per thing an agent did (a session started, a message sent, an
+   * owner is needed), summaries only, in `.agents/local/events/<day>.jsonl`. `log: true` makes
+   * `vulcan sync` install the Claude Code hooks that write it; `vulcan event add` writes it for any
+   * other agent whatever this says. `dir` is an absolute folder that takes the log instead of the
+   * project's own, so one coordinator can read the events of sessions in different repositories.
+   * Off by default; written to the manifest only when `log` is true or `dir` is set.
+   */
+  events: z
+    .strictObject({
+      log: z.boolean().default(false),
+      dir: z
+        .string()
+        .min(1)
+        .superRefine((value, context) => {
+          const error = EventSettings.dirError({ dir: value });
+
+          if (error !== undefined) {
+            context.addIssue({ code: 'custom', message: `dir must be ${error}` });
+          }
+        })
+        .optional(),
+      /**
+       * How much of the log is kept, as whole day files removed oldest first (today's never): `maxSize` for the
+       * folder (`50MB`, `200MB`, `1GB`), `maxFiles` for the day files, `maxAgeDays` for their age. The defaults,
+       * when `log` is on, are 50MB, 30 files and 30 days.
+       */
+      maxSize: z
+        .string()
+        .refine((value) => EventRetention.parseSize({ text: value }) !== undefined, {
+          message: 'a size such as 50MB, 200MB or 1GB',
+        })
+        .optional(),
+      maxFiles: z.number().int().min(1).optional(),
+      maxAgeDays: z.number().int().min(1).optional(),
+    })
+    .default({ log: false }),
+  /**
+   * What `vulcan` keeps tidy in `.agents/local/` by itself. `autoClean` (default true) lets the session-start hook, at
+   * most once a day, remove the safe part: stale `tmp/`, browser leftovers older than an hour, event files past their
+   * limits, and release candidates whose version is tagged. It never removes a worktree or a clone.
+   */
+  local: z
+    .strictObject({
+      autoClean: z.boolean().default(true),
+    })
+    .default({ autoClean: true }),
 });
 
 export type VulcanConfig = z.input<typeof VULCAN_CONFIG_SCHEMA>;

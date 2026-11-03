@@ -3,18 +3,19 @@ import type { IReleaseTable } from '@/releases';
 import { describe, expect, test } from 'bun:test';
 
 const TABLE: IReleaseTable = {
+  livePackages: ['kernel', 'helpers'],
   packageMap: [
     { dir: 'kernel', name: '@venizia/ignis-kernel', aliases: [] },
     { dir: 'helpers', name: '@venizia/ignis-helpers', aliases: [] },
   ],
   releases: {
     kernel: [
-      { version: '0.2.0-16', date: '2026-09-05', sha: 'fda2d717' },
-      { version: '0.2.0-15', date: '2026-09-05', sha: 'd1b3c139' },
-      { version: '0.2.0-14', date: '2026-09-04', sha: '5922b420' },
-      { version: '0.2.0-13', date: '2026-08-31', sha: '370fd0a2' },
+      { version: '0.2.0-16', date: '2026-09-05', sha: 'fda2d717', order: 4 },
+      { version: '0.2.0-15', date: '2026-09-05', sha: 'd1b3c139', order: 3 },
+      { version: '0.2.0-14', date: '2026-09-04', sha: '5922b420', order: 2 },
+      { version: '0.2.0-13', date: '2026-08-31', sha: '370fd0a2', order: 0 },
     ],
-    helpers: [{ version: '0.2.0-12', date: '2026-09-04', sha: 'aaaaaaaa' }],
+    helpers: [{ version: '0.2.0-12', date: '2026-09-04', sha: 'aaaaaaaa', order: 1 }],
   },
   changelogs: [
     {
@@ -150,8 +151,8 @@ describe('ReleaseStore package names from the table', () => {
     expect(mapped.packageOf({ package: 'acme-nothing' })).toBe('acme-nothing');
   });
 
-  test('a table without a package map answers bare directory names only', () => {
-    const bare = new ReleaseStore({ table: { ...TABLE, packageMap: undefined } });
+  test('a table with an empty package map answers bare directory names only', () => {
+    const bare = new ReleaseStore({ table: { ...TABLE, packageMap: [] } });
 
     expect(bare.versionsOf({ package: 'kernel' })).toHaveLength(4);
     expect(bare.versionsOf({ package: '@acme/kernel' })).toEqual([]);

@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadConfig, resolvePackages } from '../../config/index.ts';
-import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
+import { ConfigLoader, ProjectPackages } from '../../config/index.ts';
+import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { checkManifests } from '../format.helper.ts';
 import { copyWithFields, copyWithUrls } from '../preset.helper.ts';
 import { createProject, packFolder, removeProjects } from '../project.helper.ts';
@@ -249,6 +249,51 @@ describe('vulcan add --preset', () => {
     expect(readFileSync(manifestPath, 'utf8')).toBe(before);
   });
 
+  test('add accepts the catalog init wrote from a preset built on a prerelease of its own peer', () => {
+    const preset = copyWithFields({
+      fixture: BACKEND_PATH,
+      fields: { dependencies: { x: '0.4.6-0' }, peers: { x: '^0.4.0' } },
+    });
+    const root = monorepo({ backend: `file:${preset}` });
+
+    expect(catalogOf({ manifest: readManifest({ root }) }).x).toBe('0.4.6-0');
+
+    const result = runCli({
+      args: ['add', '--preset', `file:${preset}`, '--app', 'second-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(0);
+    expect(existsSync(join(root, 'services/second-api'))).toBe(true);
+  });
+
+  test('add still refuses a prerelease pin that is not the version the preset lists', () => {
+    const preset = copyWithFields({
+      fixture: BACKEND_PATH,
+      fields: { dependencies: { x: '0.4.6-0' }, peers: { x: '^0.4.0' } },
+    });
+    const root = monorepo({ backend: `file:${preset}` });
+    const manifest = readManifest({ root });
+
+    if (typeof manifest.workspaces !== 'object' || Array.isArray(manifest.workspaces)) {
+      throw new Error('the init manifest keeps its catalog under workspaces');
+    }
+
+    manifest.workspaces.catalog = { ...manifest.workspaces.catalog, x: '0.4.6-1' };
+    writeManifest({ root, manifest });
+
+    const result = runCli({
+      args: ['add', '--preset', `file:${preset}`, '--app', 'second-api'],
+      cwd: root,
+      env: ENV,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('the monorepo pins x 0.4.6-1, a prerelease');
+    expect(existsSync(join(root, 'services/second-api'))).toBe(false);
+  });
+
   test('outside a monorepo with a layout, add is refused', () => {
     const root = createProject({ files: { 'package.json': '{ "name": "x" }' } });
     const result = runCli({
@@ -369,19 +414,22 @@ describe('vulcan add --preset', () => {
     expect(manifest.layout).toMatchObject({ backend: 'services', frontend: 'web' });
   });
 
-  test('a config written before presets were recorded gets the line that reads them', () => {
+  test('a block without the presets list is refused and the config is left as it was', () => {
     const root = monorepo();
-    const file = join(root, '.configs/vulcan.config.mts');
+    const configPath = join(root, '.configs/vulcan.config.mts');
+    const edited = readFileSync(configPath, 'utf8').replace('"presets"', '"others"');
 
-    writeFileSync(file, readFileSync(file, 'utf8').replace('  presets: apps.presets,\n', ''));
-    runCli({ args: ['add', '--preset', BACKEND, '--app', 'second-api'], cwd: root, env: ENV });
+    writeFileSync(configPath, edited);
+    const result = runCli({
+      args: ['add', '--preset', BACKEND, '--app', 'second-api'],
+      cwd: root,
+      env: ENV,
+    });
 
-    runCli({ args: ['sync', '--agents', 'none'], cwd: root });
-
-    expect(readFileSync(file, 'utf8')).toContain('presets: apps.presets,');
-    expect(
-      JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8')).presets,
-    ).toHaveLength(1);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('is not the JSON vulcan wrote - add by hand:');
+    expect(readFileSync(configPath, 'utf8')).toBe(edited);
+    expect(existsSync(join(root, 'services/second-api'))).toBe(false);
   });
 
   test('a new app on a taken port prints the port it was given', () => {
@@ -583,22 +631,21 @@ describe('vulcan add --preset', () => {
 
     expect(outsideBlock({ source: after })).toBe(outsideBlock({ source: edited }));
 
-    const loaded = await loadConfig({ root });
+    const loaded = await ConfigLoader.load({ root });
 
     if (!loaded.ok) {
       throw new Error(loaded.error);
     }
 
-    const dirs = resolvePackages({ config: loaded.config }).map((entry) => entry.dir);
+    const dirs = ProjectPackages.resolve({ config: loaded.config }).map((entry) => entry.dir);
     const sourceNames = loaded.config.atlas.sources.map((source) => source.name);
 
     expect(dirs.toSorted()).toEqual(['billing', 'core-api', 'worker']);
     expect(sourceNames.toSorted()).toEqual(['extra', 'fixture']);
     expect(loaded.config.layout).toEqual({ backend: 'services', shared: 'libs' });
 
-    const apps = (await runDoctorChecks({ root })).filter(
-      (violation) => violation.check === DoctorChecks.APPS,
-    );
+    const result2 = await DoctorRunner.runChecks({ root });
+    const apps = result2.filter((violation) => violation.check === DoctorChecks.APPS);
 
     expect(apps).toEqual([]);
   });

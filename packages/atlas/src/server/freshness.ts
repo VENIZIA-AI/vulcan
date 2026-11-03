@@ -1,6 +1,4 @@
-import { AtlasModes } from '@/common';
-import type { TAtlasMode } from '@/common';
-import { Chunker, CorpusLoader } from '@/corpus';
+import { Chunker, CorpusExclusion, CorpusLoader } from '@/corpus';
 import type { ICorpusRoot } from '@/corpus';
 import { ChunkStore } from '@/search/store';
 import { BaseHelper } from '@/common/helper';
@@ -13,12 +11,6 @@ interface ICorpusFingerprint {
   newestMtimeMs: number;
   totalBytes: number;
 }
-
-/** Mirrors `CorpusLoader`'s own exclude semantics: an excluded relative path, or anything under it, is never counted. */
-const isExcluded = (opts: { relativePath: string; exclude: string[] }): boolean =>
-  opts.exclude.some(
-    (prefix) => opts.relativePath === prefix || opts.relativePath.startsWith(`${prefix}/`),
-  );
 
 /** One glob walk per root; `statSync` runs only for files already known to belong to the corpus. */
 const fingerprintOf = (opts: { roots: ICorpusRoot[] }): ICorpusFingerprint => {
@@ -33,7 +25,7 @@ const fingerprintOf = (opts: { roots: ICorpusRoot[] }): ICorpusFingerprint => {
     const relativePaths = new Bun.Glob('**/*.md').scanSync({ cwd: root.directory });
 
     for (const relativePath of relativePaths) {
-      if (isExcluded({ relativePath, exclude })) {
+      if (CorpusExclusion.isExcluded({ relativePath, exclude })) {
         continue;
       }
 
@@ -69,17 +61,15 @@ const buildStore = (opts: { roots: ICorpusRoot[] }): ChunkStore => {
  * when the fingerprint moved.
  */
 export class FreshnessGuard extends BaseHelper {
-  private readonly mode: TAtlasMode;
   private readonly roots: ICorpusRoot[];
   private store: ChunkStore;
-  private lastFingerprint?: ICorpusFingerprint;
+  private lastFingerprint: ICorpusFingerprint;
 
-  constructor(opts: { mode: TAtlasMode; roots: ICorpusRoot[] }) {
+  constructor(opts: { roots: ICorpusRoot[] }) {
     super({ scope: FreshnessGuard.name });
 
-    this.mode = opts.mode;
     this.roots = opts.roots;
-    this.lastFingerprint = this.watches() ? this.fingerprint() : undefined;
+    this.lastFingerprint = this.fingerprint();
     this.store = buildStore({ roots: this.roots });
   }
 
@@ -88,15 +78,11 @@ export class FreshnessGuard extends BaseHelper {
     return fingerprintOf({ roots: this.roots });
   }
 
-  /** The current store; in repo mode, rebuilds first when the fingerprint has moved since the last call. */
+  /** The current store; rebuilds first when the fingerprint has moved since the last call. */
   getStore(): ChunkStore {
-    if (!this.watches()) {
-      return this.store;
-    }
-
     const next = this.fingerprint();
 
-    if (this.lastFingerprint && sameFingerprint({ left: this.lastFingerprint, right: next })) {
+    if (sameFingerprint({ left: this.lastFingerprint, right: next })) {
       return this.store;
     }
 
@@ -112,9 +98,5 @@ export class FreshnessGuard extends BaseHelper {
       .info(`rebuilt the index | ms: ${(performance.now() - startedAt).toFixed(1)}`);
 
     return this.store;
-  }
-
-  private watches(): boolean {
-    return this.mode === AtlasModes.REPOSITORY;
   }
 }

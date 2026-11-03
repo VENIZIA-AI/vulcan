@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readAgentTable } from '../../agents/index.ts';
+import { AgentTable } from '../../agents/index.ts';
 
 const PAGE = join(
   import.meta.dir,
@@ -18,7 +18,7 @@ const rowOf = (opts: { id: string }): string =>
 
 // The page is written by hand but checked against the table, so it cannot drift from what sync does.
 describe('references/agents.md follows base/agents.json', () => {
-  for (const entry of readAgentTable()) {
+  for (const entry of AgentTable.read()) {
     test(`${entry.id}: its row names the MCP file, the scope and the skills folder`, () => {
       const row = rowOf({ id: entry.id });
 
@@ -32,7 +32,7 @@ describe('references/agents.md follows base/agents.json', () => {
   }
 
   test('the guards column names the file sync writes for omp and pi and nothing for the rest', () => {
-    for (const entry of readAgentTable()) {
+    for (const entry of AgentTable.read()) {
       const row = rowOf({ id: entry.id });
 
       if (entry.guards === null) {
@@ -53,7 +53,7 @@ describe('references/agents.md follows base/agents.json', () => {
   });
 
   test('every note of the table is on the page', () => {
-    for (const note of readAgentTable().flatMap((entry) => entry.notes)) {
+    for (const note of AgentTable.read().flatMap((entry) => entry.notes)) {
       expect(page).toContain(note);
     }
   });
@@ -65,6 +65,6 @@ describe('references/agents.md follows base/agents.json', () => {
       .filter((line) => /^\| `[a-z-]+` \|/.test(line))
       .map((line) => /^\| `([a-z-]+)` \|/.exec(line)?.[1]);
 
-    expect(listed).toEqual(readAgentTable().map((entry) => entry.id));
+    expect(listed).toEqual(AgentTable.read().map((entry) => entry.id));
   });
 });

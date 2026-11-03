@@ -1,8 +1,11 @@
 import { AgentConstants } from './agents/index.ts';
-import { COMMAND_HANDLERS } from './commands/index.ts';
-import { runHelpCommand } from './commands/help.command.ts';
+import { COMMAND_LOADERS } from './commands/index.ts';
+import { BoardFlags } from './board/common/index.ts';
+import { CiFlags } from './ci/common/index.ts';
+import { CommitCheckFlags } from './commit/common/index.ts';
 import { ExitCodes, UpgradeFlags, VulcanCommands } from './common/index.ts';
 import { CreateFlags } from './create/common/index.ts';
+import { EventFlags } from './events/common/index.ts';
 import { PipedInputRefusal } from './ui/keyboard.ts';
 
 const HELP_ALIASES = new Set(['--help', '-h']);
@@ -10,6 +13,8 @@ const VERSION_ALIASES = new Set(['--version', '-v']);
 
 interface IAcceptedArgs {
   flags: string[];
+  /** The exit code for an argument the command does not take; `1` when absent. */
+  unknownExit?: number;
   /** Flags that take the next argument as their value. */
   values: string[];
   positionals: number;
@@ -20,7 +25,6 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
   [VulcanCommands.INIT]: {
     flags: [CreateFlags.NO_API],
     values: [
-      '--config',
       CreateFlags.PRESET,
       CreateFlags.PROJECT,
       CreateFlags.BACKEND_DIR,
@@ -41,6 +45,7 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
       CreateFlags.APP,
       CreateFlags.API,
       CreateFlags.LIB,
+      CreateFlags.SHARED,
       CreateFlags.DIR,
       CreateFlags.SCOPE,
     ],
@@ -52,7 +57,7 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
     positionals: 2,
   },
   [VulcanCommands.SYNC]: {
-    flags: ['--dry-run', '--prune'],
+    flags: ['--dry-run'],
     values: [AgentConstants.FLAG],
     positionals: 0,
   },
@@ -66,11 +71,46 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
       '--reports',
       '--prototypes',
       '--profile',
+      '--events',
+      '--release-candidates',
       '--all',
       '--yes',
     ],
     values: [],
     positionals: 0,
+  },
+  [VulcanCommands.COMMIT_CHECK]: {
+    flags: [],
+    unknownExit: ExitCodes.USAGE,
+    values: [CommitCheckFlags.RANGE, CommitCheckFlags.TEXT],
+    positionals: 2,
+  },
+  [VulcanCommands.BOARD]: {
+    flags: [BoardFlags.OPEN, BoardFlags.NO_GITHUB],
+    unknownExit: ExitCodes.USAGE,
+    values: [BoardFlags.OUT, BoardFlags.SINCE, BoardFlags.DIR, BoardFlags.REPO],
+    positionals: 0,
+  },
+  [VulcanCommands.CI]: {
+    flags: [CiFlags.JSON, CiFlags.NAMES],
+    unknownExit: ExitCodes.USAGE,
+    values: [CiFlags.BASE, CiFlags.HEAD, CiFlags.CHECK],
+    positionals: 2,
+  },
+  [VulcanCommands.EVENT]: {
+    flags: [EventFlags.JSON],
+    unknownExit: ExitCodes.USAGE,
+    values: [
+      EventFlags.KIND,
+      EventFlags.SUMMARY,
+      EventFlags.FLOW,
+      EventFlags.REF,
+      EventFlags.STATUS,
+      EventFlags.ACTOR,
+      EventFlags.DIR,
+      EventFlags.SINCE,
+    ],
+    positionals: 1,
   },
   [VulcanCommands.DOCTOR]: { flags: [], values: [], positionals: 0 },
   [VulcanCommands.PROFILE]: { flags: ['--yes'], values: [], positionals: 1 },
@@ -117,12 +157,18 @@ const findUnknownArg = (opts: { args: string[]; accepted: IAcceptedArgs }): stri
   return undefined;
 };
 
+const runHelp = async (opts: { cwd: string }): Promise<number> => {
+  const help = await COMMAND_LOADERS[VulcanCommands.HELP]();
+
+  return help({ args: [], cwd: opts.cwd });
+};
+
 export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<number> => {
   const [first, ...args] = opts.argv;
   const name = resolveCommandName({ first });
-  const handler = COMMAND_HANDLERS[name];
+  const load = COMMAND_LOADERS[name];
 
-  if (handler === undefined) {
+  if (load === undefined) {
     process.stderr.write(`vulcan: unknown command '${name}' - run 'bun x vulcan help'\n`);
 
     return ExitCodes.FAILURE;
@@ -130,14 +176,14 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
 
   // `x` hands its arguments to the tool, so only a help flag in the tool's place is vulcan's.
   if (name === VulcanCommands.X && HELP_ALIASES.has(args[0] ?? '')) {
-    return runHelpCommand();
+    return runHelp({ cwd: opts.cwd });
   }
 
   const accepted = ACCEPTED_ARGS[name];
 
   if (accepted !== undefined) {
     if (args.some((arg) => HELP_ALIASES.has(arg))) {
-      return runHelpCommand();
+      return runHelp({ cwd: opts.cwd });
     }
 
     const unknown = findUnknownArg({ args, accepted });
@@ -147,12 +193,16 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
         `vulcan ${name}: unknown argument '${unknown}' - run 'bun x vulcan help'\n`,
       );
 
-      return ExitCodes.FAILURE;
+      return accepted.unknownExit ?? ExitCodes.FAILURE;
     }
   }
 
+  const handler = await load();
+
   try {
-    return await handler({ args, cwd: opts.cwd });
+    const exitCode = await handler({ args, cwd: opts.cwd });
+
+    return exitCode;
   } catch (error) {
     // The refusal is already printed; every `finally` between the menu and here has run.
     if (error instanceof PipedInputRefusal) {

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { parseShell, programOf } from '../hooks/shell.ts';
+import { ShellParser } from '../hooks/shell.ts';
 import { SignalConstants, WatchedKinds } from './constants.ts';
 
 const LOCAL_URL = /^https?:\/\/(?:localhost|127\.|0\.0\.0\.0|\[::1\])/;
@@ -15,8 +15,8 @@ const SCRATCH = /(?:^|\/)\.agents\/local\//;
 /** The simple commands of a line as program and arguments; a line that cannot be parsed has none. */
 const programsOf = (opts: { command: string }): { name: string; args: string[] }[] => {
   try {
-    return parseShell({ command: opts.command }).map((simple) => {
-      const { name, args } = programOf({ command: simple });
+    return ShellParser.parse({ command: opts.command }).map((simple) => {
+      const { name, args } = ShellParser.programOf({ command: simple });
 
       return { name, args };
     });
@@ -24,13 +24,6 @@ const programsOf = (opts: { command: string }): { name: string; args: string[] }
     return [];
   }
 };
-
-/** The tool input as a short stable key: the same call twice has the same key. */
-export const callKeyOf = (opts: { tool: string; input: unknown }): string =>
-  `${opts.tool}:${createHash('sha1')
-    .update(JSON.stringify(opts.input ?? null))
-    .digest('hex')
-    .slice(0, SignalConstants.EVENT_KEY_LENGTH)}`;
 
 const isProbeProgram = (opts: { name: string; args: string[] }): boolean => {
   const { name, args } = opts;
@@ -64,17 +57,15 @@ const isProbeProgram = (opts: { name: string; args: string[] }): boolean => {
   return false;
 };
 
-/** A command that asks public state: the registry, the forge, a remote, an outside URL; not a write. */
-export const isPublicProbe = (opts: { command: string }): boolean =>
-  programsOf({ command: opts.command }).some((program) => isProbeProgram(program));
-
 const isGateProgram = (opts: { name: string; args: string[] }): boolean => {
   const { name, args } = opts;
   const first = args.find((arg) => !arg.startsWith('-')) ?? '';
 
   if (name === 'bun') {
+    // `check` is Bun's own type-check (Bun >= 1.4.4), two words like `test`; `tsc` stays in GATE_TOOLS for other projects.
     return (
       first === 'test' ||
+      first === 'check' ||
       (first === 'run' && GATE_SCRIPTS.has(args[args.indexOf('run') + 1] ?? '')) ||
       (first === 'x' && args.includes('vulcan') && args.includes('doctor'))
     );
@@ -106,27 +97,41 @@ const isGateProgram = (opts: { name: string; args: string[] }): boolean => {
   return GATE_TOOLS.has(name);
 };
 
-/** The gates a command line runs (tests, lint, build, the project's own gates), each as a short name. */
-export const gatesOf = (opts: { command: string }): string[] =>
-  programsOf({ command: opts.command })
-    .filter((program) => isGateProgram(program))
-    .map((program) =>
-      [program.name, ...program.args].join(' ').slice(0, SignalConstants.GATE_KEY_LENGTH),
-    );
-
-/** What an edited file is for the nudge: a skill (with its name), a rules file, or neither. */
-export const watchedFileOf = (opts: {
-  path: string;
-}): { kind: string; name: string } | undefined => {
-  if (SCRATCH.test(opts.path)) {
-    return undefined;
+export class SignalClassifier {
+  /** The tool input as a short stable key: the same call twice has the same key. */
+  static callKeyOf(opts: { tool: string; input: unknown }): string {
+    return `${opts.tool}:${createHash('sha1')
+      .update(JSON.stringify(opts.input ?? null))
+      .digest('hex')
+      .slice(0, SignalConstants.EVENT_KEY_LENGTH)}`;
   }
 
-  const skill = SKILL_FILE.exec(opts.path)?.[1];
-
-  if (skill !== undefined) {
-    return { kind: WatchedKinds.SKILL, name: skill };
+  /** A command that asks public state: the registry, the forge, a remote, an outside URL; not a write. */
+  static isPublicProbe(opts: { command: string }): boolean {
+    return programsOf({ command: opts.command }).some((program) => isProbeProgram(program));
   }
 
-  return RULES_FILE.test(opts.path) ? { kind: WatchedKinds.RULES, name: opts.path } : undefined;
-};
+  /** The gates a command line runs (tests, lint, build, the project's own gates), each as a short name. */
+  static gatesOf(opts: { command: string }): string[] {
+    return programsOf({ command: opts.command })
+      .filter((program) => isGateProgram(program))
+      .map((program) =>
+        [program.name, ...program.args].join(' ').slice(0, SignalConstants.GATE_KEY_LENGTH),
+      );
+  }
+
+  /** What an edited file is for the nudge: a skill (with its name), a rules file, or neither. */
+  static watchedFileOf(opts: { path: string }): { kind: string; name: string } | undefined {
+    if (SCRATCH.test(opts.path)) {
+      return undefined;
+    }
+
+    const skill = SKILL_FILE.exec(opts.path)?.[1];
+
+    if (skill !== undefined) {
+      return { kind: WatchedKinds.SKILL, name: skill };
+    }
+
+    return RULES_FILE.test(opts.path) ? { kind: WatchedKinds.RULES, name: opts.path } : undefined;
+  }
+}

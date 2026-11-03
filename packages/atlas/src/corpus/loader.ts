@@ -1,17 +1,11 @@
 import { BaseHelper } from '@/common/helper';
-import { isWithinDirectory } from '@/common/paths';
+import { DirectoryPath } from '@/common/paths';
+import { TextValue } from '@/common/text';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseFrontmatter } from './frontmatter';
+import { CorpusFrontmatter } from './frontmatter';
+import { CorpusExclusion } from './common';
 import type { ICorpusRoot, IDocument, ISkippedDocument } from './common';
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
-
-const isExcluded = (opts: { relativePath: string; exclude: string[] }): boolean =>
-  opts.exclude.some(
-    (prefix) => opts.relativePath === prefix || opts.relativePath.startsWith(`${prefix}/`),
-  );
 
 const H1_PATTERN = /^#\s+(.+?)\s*$/m;
 
@@ -51,7 +45,7 @@ export class CorpusLoader extends BaseHelper {
   private isOutside(opts: { path: string; within?: string }): boolean {
     if (
       opts.within === undefined ||
-      isWithinDirectory({ path: opts.path, directory: opts.within })
+      DirectoryPath.isWithin({ path: opts.path, directory: opts.within })
     ) {
       return false;
     }
@@ -75,7 +69,7 @@ export class CorpusLoader extends BaseHelper {
 
     const exclude = root.exclude ?? [];
     const relativePaths = [...new Bun.Glob('**/*.md').scanSync({ cwd: root.directory })]
-      .filter((relativePath) => !isExcluded({ relativePath, exclude }))
+      .filter((relativePath) => !CorpusExclusion.isExcluded({ relativePath, exclude }))
       .filter(
         (relativePath) => !this.isOutside({ path: join(root.directory, relativePath), within }),
       )
@@ -99,7 +93,7 @@ export class CorpusLoader extends BaseHelper {
     const text = readFileSync(join(root.directory, relativePath), 'utf8');
 
     try {
-      const { data, body } = parseFrontmatter({ text, path: relativePath });
+      const { data, body } = CorpusFrontmatter.parse({ text, path: relativePath });
 
       return {
         corpus: root.corpus,
@@ -111,7 +105,7 @@ export class CorpusLoader extends BaseHelper {
         bodyLine: text.slice(0, text.length - body.length).split('\n').length,
       };
     } catch (error) {
-      const message = messageOf(error);
+      const message = TextValue.messageOf({ error });
 
       this.skipped.push({ corpus: root.corpus, path: relativePath, error: message });
       this.logger

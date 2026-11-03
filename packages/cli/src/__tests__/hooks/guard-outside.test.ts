@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, symlinkSync } from 'node:fs';
-import { join } from 'node:path';
-import { inspectOutside } from '../../hooks/index.ts';
+import { join, relative } from 'node:path';
+import { OutsideGuard } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -16,7 +16,7 @@ const bash = (opts: {
   toolOwnedPaths?: string[];
   env?: Record<string, string | undefined>;
 }): string[] =>
-  inspectOutside({
+  OutsideGuard.inspect({
     input: { tool: 'Bash', filePath: undefined, command: opts.command, cwd: opts.cwd ?? PROJECT },
     projectRoot: PROJECT,
     toolOwnedPaths: opts.toolOwnedPaths,
@@ -25,7 +25,7 @@ const bash = (opts: {
   }).map((hit) => hit.message);
 
 const file = (opts: { tool: string; path: string }): string[] =>
-  inspectOutside({
+  OutsideGuard.inspect({
     input: { tool: opts.tool, filePath: opts.path, command: undefined, cwd: PROJECT },
     projectRoot: PROJECT,
     home: HOME,
@@ -65,7 +65,7 @@ describe('mktemp where the temp folder is inside the project', () => {
   });
 });
 
-describe('inspectOutside on a line it cannot read in full', () => {
+describe('OutsideGuard.inspect on a line it cannot read in full', () => {
   test('asks, never allows', () => {
     const wide = Array.from({ length: 2100 }, () => 'ls').join('; ');
 
@@ -77,7 +77,7 @@ describe('inspectOutside on a line it cannot read in full', () => {
   });
 });
 
-describe('inspectOutside flags', () => {
+describe('OutsideGuard.inspect flags', () => {
   test.each([
     'mkdir /tmp/scratch',
     'touch ~/notes.txt',
@@ -116,7 +116,7 @@ describe('inspectOutside flags', () => {
   });
 });
 
-describe('inspectOutside flags what a review found', () => {
+describe('OutsideGuard.inspect flags what a review found', () => {
   test.each([
     'curl -sLo /etc/x https://example.test/u',
     'wget -qO /etc/x https://example.test/u',
@@ -156,7 +156,7 @@ describe('inspectOutside flags what a review found', () => {
   });
 });
 
-describe('inspectOutside passes', () => {
+describe('OutsideGuard.inspect passes', () => {
   test.each([
     'mkdir -p .agents/local/tmp/a',
     'echo hi > out.txt',
@@ -192,6 +192,81 @@ describe('inspectOutside passes', () => {
     mkdirSync(join(PROJECT, 'sub'), { recursive: true });
 
     expect(bash({ command: 'touch a.txt', cwd: join(PROJECT, 'sub') })).toEqual([]);
+  });
+});
+
+describe('$PWD is the folder the command runs in', () => {
+  const DEEP = join(PROJECT, 'a', 'b');
+
+  mkdirSync(DEEP, { recursive: true });
+
+  test.each([
+    { command: 'export TMPDIR=$PWD/x', name: '$PWD and a folder' },
+    { command: 'export TMPDIR=${PWD}/x', name: '${PWD} and a folder' },
+    { command: 'export TMPDIR=$PWD/../x', name: 'one step up that stays in the project' },
+    { command: 'export TMPDIR=$PWD/../../.agents/local/tmp', name: 'two steps up, still inside' },
+  ])('$name passes from a subfolder', ({ command }) => {
+    expect(bash({ command, cwd: DEEP })).toEqual([]);
+  });
+
+  test.each([
+    {
+      command: 'export TMPDIR=$PWD/../../../x',
+      cwd: DEEP,
+      name: 'three steps up from a/b, one past the project',
+    },
+    { command: 'export TMPDIR=${PWD}/../../../../x', cwd: DEEP, name: 'four steps up from a/b' },
+    { command: 'cd a && export TMPDIR=$PWD/../../x', cwd: PROJECT, name: '$PWD after a cd' },
+  ])('$name asks, once', ({ command, cwd }) => {
+    expect(bash({ command, cwd })).toEqual(['TMPDIR points outside the project']);
+  });
+
+  test('the PWD of the hook process does not decide the path', () => {
+    expect(bash({ command: 'export TMPDIR=$PWD/x', cwd: DEEP, env: { ...ENV, PWD: '/' } })).toEqual(
+      [],
+    );
+    expect(
+      bash({ command: 'export TMPDIR=$PWD/../../../x', cwd: DEEP, env: { ...ENV, PWD: PROJECT } }),
+    ).toEqual(['TMPDIR points outside the project']);
+  });
+
+  test('git -C moves the folder of a relative word, not $PWD', () => {
+    const env = { ...ENV, PWD: PROJECT };
+
+    expect(bash({ command: 'git -C a clone https://x/y $PWD/../x', env }).length).toBe(1);
+    expect(bash({ command: 'git -C a worktree add $PWD/../x', env }).length).toBe(1);
+    expect(bash({ command: 'git -C a clone https://x/y $PWD/x', env })).toEqual([]);
+  });
+
+  test('without a cwd in the payload the PWD of the hook is still the fallback', () => {
+    const inspect = (opts: { pwd: string }) =>
+      OutsideGuard.inspect({
+        input: { tool: 'Bash', filePath: undefined, command: 'touch $PWD/x', cwd: undefined },
+        projectRoot: PROJECT,
+        home: HOME,
+        env: { ...ENV, PWD: opts.pwd },
+      });
+
+    expect(inspect({ pwd: '/var/tmp' }).length).toBe(1);
+    expect(inspect({ pwd: PROJECT })).toEqual([]);
+  });
+
+  test('a cwd given relative is resolved once, not twice', () => {
+    expect(bash({ command: 'export TMPDIR=$PWD/x', cwd: relative(process.cwd(), DEEP) })).toEqual(
+      [],
+    );
+  });
+
+  test('a loop of links in the working folder is not followed for ever', () => {
+    symlinkSync(join(PROJECT, 'loop2'), join(PROJECT, 'loop1'));
+    symlinkSync(join(PROJECT, 'loop1'), join(PROJECT, 'loop2'));
+
+    expect(() => bash({ command: 'touch $PWD/x', cwd: join(PROJECT, 'loop1') })).not.toThrow();
+  });
+
+  test('another variable or a command substitution is still not worked out, and passes as before', () => {
+    expect(bash({ command: 'export TMPDIR=$NOPE/x', cwd: DEEP })).toEqual([]);
+    expect(bash({ command: 'export TMPDIR=$(pwd)/../../../x', cwd: DEEP })).toEqual([]);
   });
 });
 
@@ -244,7 +319,7 @@ describe('the agent tool scratchpad', () => {
   const SCRATCHPAD =
     '/tmp/claude-1000/-home-user-project/0b1c2d3e-aaaa-bbbb-cccc-1234567890ab/scratchpad';
   const hitsOf = (opts: { command?: string; tool?: string; path?: string }) =>
-    inspectOutside({
+    OutsideGuard.inspect({
       input: {
         tool: opts.tool ?? 'Bash',
         filePath: opts.path,
@@ -288,7 +363,7 @@ describe('the agent tool scratchpad', () => {
   });
 
   test('a guard.toolOwnedPaths entry for the folder keeps allowing it (the owner chose it)', () => {
-    const hits = inspectOutside({
+    const hits = OutsideGuard.inspect({
       input: {
         tool: 'Write',
         filePath: `${SCRATCHPAD}/notes.md`,

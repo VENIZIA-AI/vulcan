@@ -74,8 +74,6 @@ vulcan-atlas tools [--root <dir>]
 vulcan-atlas pull [--source <name>]
 vulcan-atlas surface gen|check
 vulcan-atlas symbols | releases
-vulcan-atlas changelogs migrate [--dry-run]
-vulcan-atlas concepts stamp|check
 vulcan-atlas help
 ```
 
@@ -89,8 +87,6 @@ serves MCP, so run by hand it waits for a client on stdin.
 | `pull` | Fetches every source, or one, now |
 | `surface gen\|check` | Writes or checks `reference/public-surface.md` from the built `.d.ts`; `check` exits `1` when it is stale |
 | `symbols`, `releases` | Print what the `symbol`, `version` and `changes` tools read - nothing to commit |
-| `changelogs migrate` | Writes the `packages:` list into every changelog entry that declares none |
-| `concepts stamp\|check` | Locks the whole declaration of each symbol a concept names in `symbols:` - members, parameters, no comments or layout; `check` exits `1` when one is gone or changed. A lock from an older atlas asks for a new `stamp` |
 
 | Exit code | Meaning |
 |---|---|
@@ -106,11 +102,6 @@ build first.
 
 It depends on no IGNIS package - VULCAN's tools must not pin a project to one framework's release.
 It is a development tool, not part of an application's runtime.
-
-## History
-
-Moved from IGNIS (`@venizia/ignis-atlas` 0.1.2-5) into VULCAN as `@venizia/vulcan-atlas`.
-Background: [Atlas on the IGNIS wiki](https://ignis.venizia.ai/extensions/atlas).
 
 MIT licensed - see [LICENSE.md](LICENSE.md).
 

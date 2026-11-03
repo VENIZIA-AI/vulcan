@@ -5,6 +5,8 @@
  * checked beside the fixed list, inside compound commands too.
  * A script the project lists in `guard.writes.trustedScripts` is not read for writes while git says it
  * is tracked and unchanged; a config that cannot be read leaves the list empty, so every script is read.
+ * An entry of `guard.writes.readOnlyScripts` in the manifest (the object form of `trustedScripts`, written by
+ * `vulcan sync`) skips that read for the calls whose first argument after the script is one of its words.
  *
  * It fails closed: Claude Code blocks a PreToolUse call only on exit 2, so a hook that throws - a
  * partial install, say, where its own modules are missing - would let every command through. The
@@ -15,10 +17,10 @@
 export {};
 
 try {
-  const { buildGuardDecision, inspectCommand, parseHookCommand } =
-    await import('../../src/hooks/guard-writes.ts');
-  const { readGuardPolicy } = await import('../../src/hooks/project-guards.ts');
-  const hookCommand = parseHookCommand({ text: await Bun.stdin.text() });
+  const { WriteGuard } = await import('../../src/hooks/guard-writes.ts');
+  const { ProjectGuards } = await import('../../src/hooks/project-guards.ts');
+  const stdin = await Bun.stdin.text();
+  const hookCommand = WriteGuard.parseHookCommand({ text: stdin });
   const cwd = hookCommand?.cwd ?? process.cwd();
   let scripts: string[] = [];
 
@@ -26,10 +28,15 @@ try {
   // own, and may fail alone.
   if (hookCommand && /\.ts\b/.test(hookCommand.command)) {
     try {
-      const { loadConfig } = await import('../../src/config/index.ts');
-      const loaded = await loadConfig({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd });
+      const { ConfigLoader } = await import('../../src/config/index.ts');
+      const loaded = await ConfigLoader.load({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd });
 
-      scripts = loaded.ok ? loaded.config.guard.writes.trustedScripts : [];
+      // The objects are the read-only entries: the manifest carries them, so only the paths count here.
+      scripts = loaded.ok
+        ? loaded.config.guard.writes.trustedScripts.filter(
+            (entry): entry is string => typeof entry === 'string',
+          )
+        : [];
     } catch (error) {
       console.error(
         `vulcan: the guard-writes hook could not read the project config (${error instanceof Error ? error.message : String(error)}) - every script is read`,
@@ -37,17 +44,19 @@ try {
     }
   }
 
+  const root = process.env.CLAUDE_PROJECT_DIR ?? cwd;
+  const policy = ProjectGuards.readPolicy({ root });
   const hits = hookCommand
-    ? inspectCommand({
+    ? WriteGuard.inspectCommand({
         command: hookCommand.command,
         cwd,
-        trust: { root: process.env.CLAUDE_PROJECT_DIR ?? cwd, scripts },
-        extra: readGuardPolicy({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd }).commands,
+        trust: { root, scripts, readOnlyScripts: policy.readOnlyScripts },
+        extra: policy.commands,
       })
     : [];
 
   if (hits.length > 0) {
-    console.log(JSON.stringify(buildGuardDecision({ hits })));
+    console.log(JSON.stringify(WriteGuard.buildDecision({ hits })));
   }
 } catch (error) {
   console.error(

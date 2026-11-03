@@ -1,33 +1,38 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { runDoctorWarnings } from '../../doctor/index.ts';
+import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
 const CONFIG = "export default { name: 'acme', rules: { 'V-W-01': 'read-only' } };\n";
-const profileWarnings = async (opts: { root: string }) =>
-  (await runDoctorWarnings({ root: opts.root })).filter((entry) => entry.check === 'profile');
+const profileWarnings = async (opts: { root: string }) => {
+  const warnings = await DoctorRunner.runWarnings({ root: opts.root });
+
+  return warnings.filter((entry) => entry.check === 'profile');
+};
 
 describe('doctor and the personal profile', () => {
   test('no profile, or a good one, is quiet', async () => {
-    const none = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
+    const none = createProject({ files: { '.configs/vulcan.config.mts': CONFIG } });
     const good = createProject({
       files: {
-        '.configs/vulcan.config.ts': CONFIG,
+        '.configs/vulcan.config.mts': CONFIG,
         '.gitignore': '.agents/local/\n',
         '.agents/local/profile.json': JSON.stringify({ schemaVersion: 1 }),
       },
     });
 
-    expect(await profileWarnings({ root: none })).toEqual([]);
-    expect(await profileWarnings({ root: good })).toEqual([]);
+    const result = await profileWarnings({ root: none });
+    expect(result).toEqual([]);
+    const result2 = await profileWarnings({ root: good });
+    expect(result2).toEqual([]);
   });
 
   test('a profile git would pick up is flagged with the fix', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': CONFIG,
+        '.configs/vulcan.config.mts': CONFIG,
         '.gitignore': 'node_modules/\n',
         '.agents/local/profile.json': JSON.stringify({ schemaVersion: 1 }),
       },
@@ -39,7 +44,7 @@ describe('doctor and the personal profile', () => {
 
   test('a profile that cannot be read is named with the way out', async () => {
     const root = createProject({
-      files: { '.configs/vulcan.config.ts': CONFIG, '.agents/local/profile.json': '{ nope' },
+      files: { '.configs/vulcan.config.mts': CONFIG, '.agents/local/profile.json': '{ nope' },
     });
     const [warning] = await profileWarnings({ root });
 
@@ -50,7 +55,7 @@ describe('doctor and the personal profile', () => {
   test('a profile git tracks is flagged with the command that untracks it', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': CONFIG,
+        '.configs/vulcan.config.mts': CONFIG,
         '.gitignore': '.agents/local/\n',
         '.agents/local/profile.json': JSON.stringify({ schemaVersion: 1 }),
       },
@@ -63,7 +68,8 @@ describe('doctor and the personal profile', () => {
       expect(spawnSyncBounded({ cmd: ['git', ...args], cwd: root }).exitCode).toBe(0);
     }
 
-    const messages = (await profileWarnings({ root })).map((warning) => warning.message);
+    const result = await profileWarnings({ root });
+    const messages = result.map((warning) => warning.message);
 
     expect(
       messages.some((message) => message.includes('git rm --cached .agents/local/profile.json')),

@@ -1,13 +1,7 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, spyOn, test } from 'bun:test';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
-import {
-  commandTextsOf,
-  inspectCommand,
-  inspectGit,
-  matchesBranch,
-  readGuardPolicy,
-} from '../../hooks/index.ts';
+import { CommandView, GitGuard, ProjectGuards, WriteGuard } from '../../hooks/index.ts';
 import type { IGitRunner, IProjectCommandCheck } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
@@ -30,7 +24,7 @@ const DEPLOY: IProjectCommandCheck = {
 const PROJECT = [MIGRATE, DEPLOY];
 
 const hitsOf = (opts: { command: string; extra?: IProjectCommandCheck[] }): string[] =>
-  inspectCommand({ command: opts.command, cwd: '/p', extra: opts.extra }).map(
+  WriteGuard.inspectCommand({ command: opts.command, cwd: '/p', extra: opts.extra }).map(
     (hit) => `${hit.rule}: ${hit.message}`,
   );
 
@@ -101,7 +95,7 @@ const runner =
     [call.program, ...call.args].join(' ').includes('rev-parse') ? opts.current : undefined;
 
 const gitHits = (opts: { command: string; askPush?: string[]; current?: string }) =>
-  inspectGit({
+  GitGuard.inspect({
     command: opts.command,
     cwd: '/p',
     run: runner({ current: opts.current ?? 'topic' }),
@@ -156,20 +150,28 @@ describe("the project's patterns see the request of gh api, gh secret and gh var
     expect(hitsOf({ command, extra: GH })).toEqual([]);
   });
 
-  test('commandTextsOf keeps the whole request of gh api, gh secret and gh variable, and only the name of the others', () => {
-    expect(commandTextsOf({ command: 'gh secret set X', withMessages: true })).toEqual([
+  test('CommandView.commandTextsOf keeps the whole request of gh api, gh secret and gh variable, and only the name of the others', () => {
+    expect(CommandView.commandTextsOf({ command: 'gh secret set X', withMessages: true })).toEqual([
       'gh secret set X',
     ]);
     expect(
-      commandTextsOf({ command: 'gh api -X PUT repos/o/r/rulesets', withMessages: true }),
+      CommandView.commandTextsOf({
+        command: 'gh api -X PUT repos/o/r/rulesets',
+        withMessages: true,
+      }),
     ).toEqual(['gh api -X PUT repos/o/r/rulesets']);
-    expect(commandTextsOf({ command: 'gh -R o/r variable set X', withMessages: true })).toEqual([
-      'gh -R o/r variable set X',
-    ]);
     expect(
-      commandTextsOf({ command: 'gh pr create --body "gh secret set"', withMessages: true }),
+      CommandView.commandTextsOf({ command: 'gh -R o/r variable set X', withMessages: true }),
+    ).toEqual(['gh -R o/r variable set X']);
+    expect(
+      CommandView.commandTextsOf({
+        command: 'gh pr create --body "gh secret set"',
+        withMessages: true,
+      }),
     ).toEqual(['gh']);
-    expect(commandTextsOf({ command: 'gh issue list', withMessages: true })).toEqual(['gh']);
+    expect(CommandView.commandTextsOf({ command: 'gh issue list', withMessages: true })).toEqual([
+      'gh',
+    ]);
   });
 });
 
@@ -230,7 +232,7 @@ describe('guard-git asks for the push targets the project lists', () => {
   });
 });
 
-describe('matchesBranch', () => {
+describe('ProjectGuards.matchesBranch', () => {
   test.each([
     ['develop', ['develop'], true],
     ['develop', ['main'], false],
@@ -241,7 +243,7 @@ describe('matchesBranch', () => {
     ['a.b', ['a.b'], true],
     ['axb', ['a.b'], false],
   ])('%s against %j is %s', (name, patterns, expected) => {
-    expect(matchesBranch({ name, patterns })).toBe(expected);
+    expect(ProjectGuards.matchesBranch({ name, patterns })).toBe(expected);
   });
 });
 
@@ -252,7 +254,7 @@ const manifestWith = (opts: { guard: unknown }): string =>
     },
   });
 
-describe('readGuardPolicy', () => {
+describe('ProjectGuards.readPolicy', () => {
   test('reads the commands and the push targets from the manifest, and compiles the patterns', () => {
     const root = manifestWith({
       guard: undefined,
@@ -268,9 +270,9 @@ describe('readGuardPolicy', () => {
       },
     });
 
-    expect(readGuardPolicy({ root })).toEqual({ commands: [], askPush: [] });
+    expect(ProjectGuards.readPolicy({ root })).toEqual({ commands: [], askPush: [] });
 
-    const policy = readGuardPolicy({ root: full });
+    const policy = ProjectGuards.readPolicy({ root: full });
 
     expect(policy.askPush).toEqual(['develop']);
     expect(policy.commands).toHaveLength(1);
@@ -279,12 +281,12 @@ describe('readGuardPolicy', () => {
   });
 
   test('a project without a manifest, or with one that is not JSON, has no extra patterns', () => {
-    expect(readGuardPolicy({ root: createProject({ files: {} }) })).toEqual({
+    expect(ProjectGuards.readPolicy({ root: createProject({ files: {} }) })).toEqual({
       commands: [],
       askPush: [],
     });
     expect(
-      readGuardPolicy({
+      ProjectGuards.readPolicy({
         root: createProject({ files: { '.agents/vulcan.manifest.json': '{ nope' } }),
       }),
     ).toEqual({ commands: [], askPush: [] });
@@ -304,7 +306,7 @@ describe('readGuardPolicy', () => {
         git: { askPush: ['develop', 7, ''] },
       },
     });
-    const policy = readGuardPolicy({ root });
+    const policy = ProjectGuards.readPolicy({ root });
 
     expect(policy.commands.map((check) => check.what)).toEqual(['good']);
     expect(policy.askPush).toEqual(['develop']);
@@ -398,5 +400,62 @@ describe('the hooks read the manifest', () => {
     expect(result.code).toBe(0);
     expect(result.stderr).toContain('ignoring');
     expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+  });
+});
+
+describe('ProjectGuards.readPolicy and the read-only scripts', () => {
+  const ENTRY = { script: 'tools/release.ts', readOnly: ['plan', 'registry'] };
+
+  test('reads the entries of guard.writes.readOnlyScripts', () => {
+    const root = manifestWith({ guard: { writes: { readOnlyScripts: [ENTRY] } } });
+
+    expect(ProjectGuards.readPolicy({ root }).readOnlyScripts).toEqual([ENTRY]);
+  });
+
+  test('a manifest that lists none has no readOnlyScripts key, so the empty policy keeps its shape', () => {
+    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: { writes: {} } }) })).toEqual({
+      commands: [],
+      askPush: [],
+    });
+    expect(
+      ProjectGuards.readPolicy({
+        root: manifestWith({ guard: { writes: { readOnlyScripts: [] } } }),
+      }),
+    ).not.toHaveProperty('readOnlyScripts');
+  });
+
+  test('an entry that is not usable is skipped and said once each, and the others stay', () => {
+    const spy = spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      const root = manifestWith({
+        guard: {
+          writes: {
+            readOnlyScripts: [
+              { script: 'a.ts' },
+              { script: 'a.ts', readOnly: 'plan' },
+              { script: 'a.ts', readOnly: ['plan', 7] },
+              { script: 'a.ts', readOnly: [''] },
+              { script: '', readOnly: ['plan'] },
+              'a.ts',
+              null,
+              ENTRY,
+            ],
+          },
+        },
+      });
+
+      expect(ProjectGuards.readPolicy({ root }).readOnlyScripts).toEqual([ENTRY]);
+      expect(spy).toHaveBeenCalledTimes(7);
+      expect(String(spy.mock.calls[0][0])).toContain('guard.writes.readOnlyScripts');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test('a list that is not a list is ignored', () => {
+    const root = manifestWith({ guard: { writes: { readOnlyScripts: 'plan' } } });
+
+    expect(ProjectGuards.readPolicy({ root })).toEqual({ commands: [], askPush: [] });
   });
 });

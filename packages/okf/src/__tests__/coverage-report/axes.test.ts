@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { collectCoverageAxes } from '../../coverage-report/axes.ts';
+import { CoverageAxes } from '../../coverage-report/axes.ts';
 import { coverage } from '../../coverage-report/command.ts';
 import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
 
@@ -14,7 +14,7 @@ test('an axis lists the directories its path matches, minus the denylist, in nam
     config: { okf: { coverage: [{ name: 'packages', path: 'packages/*' }], denylist: ['react'] } },
   });
 
-  expect(collectCoverageAxes()).toEqual({
+  expect(CoverageAxes.collect()).toEqual({
     axes: [
       {
         name: 'packages',
@@ -29,7 +29,7 @@ test('an axis lists the directories its path matches, minus the denylist, in nam
 test('no okf.coverage: no axis', () => {
   useProjectConfig({ root: ROOT, config: {} });
 
-  expect(collectCoverageAxes()).toEqual({ axes: [], problems: [] });
+  expect(CoverageAxes.collect()).toEqual({ axes: [], problems: [] });
 });
 
 test('an axis whose path matches nothing is a problem naming it, and the other axes still count', () => {
@@ -45,7 +45,7 @@ test('an axis whose path matches nothing is a problem naming it, and the other a
     },
   });
 
-  expect(collectCoverageAxes()).toEqual({
+  expect(CoverageAxes.collect()).toEqual({
     axes: [
       {
         name: 'packages',
@@ -74,7 +74,7 @@ test('an axis exclude drops the directories its globs match, by path from the ro
     },
   });
 
-  const { axes } = collectCoverageAxes();
+  const { axes } = CoverageAxes.collect();
 
   expect(axes[0]?.items).toEqual(['admin', 'kernel']);
   expect(axes[0]?.paths).toEqual({ admin: 'packages/admin', kernel: 'packages/kernel' });
@@ -90,7 +90,7 @@ test('an exclude glob matches like the path glob: braces and stars', () => {
     },
   });
 
-  expect(collectCoverageAxes().axes[0]?.items).toEqual(['kernel']);
+  expect(CoverageAxes.collect().axes[0]?.items).toEqual(['kernel']);
 });
 
 test('a denylist on one axis leaves the other axes alone', () => {
@@ -106,7 +106,7 @@ test('a denylist on one axis leaves the other axes alone', () => {
     },
   });
 
-  const { axes } = collectCoverageAxes();
+  const { axes } = CoverageAxes.collect();
 
   expect(axes.map((axis) => [axis.name, axis.items])).toEqual([
     ['filtered', ['admin', 'kernel']],
@@ -122,7 +122,7 @@ test('the global denylist still applies to every axis', () => {
     },
   });
 
-  expect(collectCoverageAxes().axes[0]?.items).toEqual(['admin', 'react']);
+  expect(CoverageAxes.collect().axes[0]?.items).toEqual(['admin', 'react']);
 });
 
 test('an axis whose exclude removes every directory is a problem, not a silent pass', () => {
@@ -133,7 +133,7 @@ test('an axis whose exclude removes every directory is a problem, not a silent p
     },
   });
 
-  expect(collectCoverageAxes()).toEqual({
+  expect(CoverageAxes.collect()).toEqual({
     axes: [],
     problems: [
       "coverage: axis 'packages' (packages/*) has no directory left after exclude/denylist",

@@ -1,11 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import {
-  buildChangesTool,
-  buildGetTool,
-  buildSearchTool,
-  buildSymbolTool,
-  buildVersionTool,
-} from '@/tools';
+import { ChangesTool, GetTool, SearchTool, SymbolTool, VersionTool } from '@/tools';
 import { ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
 import { SymbolStore } from '@/symbols';
@@ -14,17 +8,19 @@ import { SymbolStore } from '@/symbols';
 // None of the builders runs a tool here, so the stores are empty.
 const chunks = new ChunkStore();
 const symbols = new SymbolStore({ symbols: [] });
-const releases = new ReleaseStore({ table: { packageMap: [], releases: {}, changelogs: [] } });
+const releases = new ReleaseStore({
+  table: { livePackages: [], packageMap: [], releases: {}, changelogs: [] },
+});
 const PROJECTS = 'acme and ignis';
 
 const descriptionsOf = (opts: { projects?: string }): Record<string, string> => ({
-  symbol: buildSymbolTool({ store: chunks, symbols, projects: opts.projects }).definition
+  symbol: SymbolTool.build({ store: chunks, symbols, projects: opts.projects }).definition
     .description,
-  search: buildSearchTool({ store: chunks, symbols, projects: opts.projects }).definition
+  search: SearchTool.build({ store: chunks, symbols, projects: opts.projects }).definition
     .description,
-  get: buildGetTool({ store: chunks }).definition.description,
-  version: buildVersionTool({ releases, projects: opts.projects }).definition.description,
-  changes: buildChangesTool({ releases, projects: opts.projects }).definition.description,
+  get: GetTool.build({ store: chunks }).definition.description,
+  version: VersionTool.build({ releases, projects: opts.projects }).definition.description,
+  changes: ChangesTool.build({ releases, projects: opts.projects }).definition.description,
 });
 
 describe('tool descriptions open with when to call the tool', () => {

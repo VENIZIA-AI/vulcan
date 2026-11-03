@@ -1,84 +1,20 @@
 import { AgentConstants, AgentScopes } from './common/index.ts';
 import { LOCAL_AGENTS_FILE } from './local.ts';
-import { readAgentTable } from './table.ts';
+import { AgentTable } from './table.ts';
 
-export const EXCLUDE_BLOCK_START =
+const EXCLUDE_BLOCK_START =
   '# vulcan:start - written by vulcan sync for the agents you chose; do not edit';
-export const EXCLUDE_BLOCK_END = '# vulcan:end';
+const EXCLUDE_BLOCK_END = '# vulcan:end';
 const START_PREFIX = '# vulcan:start';
 /** A block's start line: the project it belongs to sits in brackets after the marker, none for the git top level. */
 const START_PATTERN = /^# vulcan:start(?: \((.*)\))? - written/;
 const CLAUDE_SKILLS_DIRECTORY = '.claude/skills';
 
-export interface IExcludeGroup {
+interface IExcludeGroup {
   title: string;
   /** Root-relative and anchored with a leading slash; a folder ends with one. */
   paths: string[];
 }
-
-/**
- * What sync creates for the chosen agents and so keeps out of `git status` on this machine: the
- * shim and folder of Claude, each agent's own MCP file, the shipped-skill links of the folders the
- * agents read (once per folder), and the local choice file.
- */
-export const excludePathsOf = (opts: {
-  agents: string[];
-  skillNames: string[];
-}): IExcludeGroup[] => {
-  const listedSkills = new Set<string>();
-  let listedShared = false;
-  const groups: IExcludeGroup[] = [];
-
-  for (const entry of readAgentTable().filter((item) => opts.agents.includes(item.id))) {
-    const paths: string[] = [];
-
-    if (entry.instructions.shim !== null) {
-      paths.push(`/${entry.instructions.shim.path}`);
-    }
-
-    if (entry.id === AgentConstants.DEFAULT_AGENT) {
-      paths.push('/.claude/');
-    }
-
-    if (entry.mcp.scope === AgentScopes.PROJECT) {
-      paths.push(`/${entry.mcp.path}`);
-    } else if (!listedShared) {
-      // The root `.mcp.json` several agents read is listed once, under the first of them.
-      listedShared = true;
-      paths.push(`/${AgentConstants.SHARED_MCP_FILE}`);
-    }
-
-    if (entry.guards !== null) {
-      paths.push(`/${entry.guards.path}`);
-    }
-
-    if (entry.skills.dir !== CLAUDE_SKILLS_DIRECTORY && !listedSkills.has(entry.skills.dir)) {
-      listedSkills.add(entry.skills.dir);
-      paths.push(...opts.skillNames.map((name) => `/${entry.skills.dir}/${name}`));
-    }
-
-    if (paths.length > 0) {
-      groups.push({ title: entry.id, paths });
-    }
-  }
-
-  return [...groups, { title: 'local', paths: [`/${LOCAL_AGENTS_FILE}`] }];
-};
-
-/**
- * One block per project: a project below the git top level (an app in a monorepo, a scratch app
- * inside a repo) names its path from the top level in the start line, so syncing it never touches
- * the block of the top level or of another project. The top level keeps the plain start line.
- */
-export const renderExcludeBlock = (opts: { groups: IExcludeGroup[]; prefix?: string }): string =>
-  [
-    opts.prefix === undefined || opts.prefix === ''
-      ? EXCLUDE_BLOCK_START
-      : EXCLUDE_BLOCK_START.replace(START_PREFIX, `${START_PREFIX} (${opts.prefix})`),
-    ...opts.groups.flatMap((group) => [`# ${group.title}`, ...group.paths]),
-    EXCLUDE_BLOCK_END,
-    '',
-  ].join('\n');
 
 const blockKeyOf = (line: string): string | undefined => {
   const match = START_PATTERN.exec(line);
@@ -86,40 +22,103 @@ const blockKeyOf = (line: string): string | undefined => {
   return match === null ? undefined : (match[1] ?? '');
 };
 
-/**
- * The block of `opts.prefix` replaces itself between its markers; the user's own lines in the
- * file, and the blocks of other projects, are never touched.
- */
-export const mergeExcludeBlock = (opts: {
-  text: string | undefined;
-  block: string;
-  prefix?: string;
-}): { changed: boolean; text: string } => {
-  if (opts.text === undefined || opts.text === '') {
-    return { changed: true, text: opts.block };
+export class AgentExclude {
+  /**
+   * What sync creates for the chosen agents and so keeps out of `git status` on this machine: the
+   * shim and folder of Claude, each agent's own MCP file, the shipped-skill links of the folders the
+   * agents read (once per folder), and the local choice file.
+   */
+  static excludePathsOf(opts: { agents: string[]; skillNames: string[] }): IExcludeGroup[] {
+    const listedSkills = new Set<string>();
+    let listedShared = false;
+    const groups: IExcludeGroup[] = [];
+
+    for (const entry of AgentTable.read().filter((item) => opts.agents.includes(item.id))) {
+      const paths: string[] = [];
+
+      if (entry.instructions.shim !== null) {
+        paths.push(`/${entry.instructions.shim.path}`);
+      }
+
+      if (entry.id === AgentConstants.DEFAULT_AGENT) {
+        paths.push('/.claude/');
+      }
+
+      if (entry.mcp.scope === AgentScopes.PROJECT) {
+        paths.push(`/${entry.mcp.path}`);
+      } else if (!listedShared) {
+        // The root `.mcp.json` several agents read is listed once, under the first of them.
+        listedShared = true;
+        paths.push(`/${AgentConstants.SHARED_MCP_FILE}`);
+      }
+
+      if (entry.guards !== null) {
+        paths.push(`/${entry.guards.path}`);
+      }
+
+      if (entry.skills.dir !== CLAUDE_SKILLS_DIRECTORY && !listedSkills.has(entry.skills.dir)) {
+        listedSkills.add(entry.skills.dir);
+        paths.push(...opts.skillNames.map((name) => `/${entry.skills.dir}/${name}`));
+      }
+
+      if (paths.length > 0) {
+        groups.push({ title: entry.id, paths });
+      }
+    }
+
+    return [...groups, { title: 'local', paths: [`/${LOCAL_AGENTS_FILE}`] }];
   }
 
-  const lines = opts.text.split('\n');
-  const start = lines.findIndex((line) => blockKeyOf(line) === (opts.prefix ?? ''));
-  const stop = lines.findIndex(
-    (line, index) =>
-      index > start && (line.trimEnd() === EXCLUDE_BLOCK_END || blockKeyOf(line) !== undefined),
-  );
-
-  // A block with no end marker before the next block starts is left alone: replacing it would
-  // swallow the next project's block.
-  if (start !== -1 && stop !== -1 && lines[stop]?.trimEnd() === EXCLUDE_BLOCK_END) {
-    const text = [
-      ...lines.slice(0, start),
-      ...opts.block.trimEnd().split('\n'),
-      ...lines.slice(stop + 1),
+  /**
+   * One block per project: a project below the git top level (an app in a monorepo, a scratch app
+   * inside a repo) names its path from the top level in the start line, so syncing it never touches
+   * the block of the top level or of another project. The top level keeps the plain start line.
+   */
+  static renderBlock(opts: { groups: IExcludeGroup[]; prefix?: string }): string {
+    return [
+      opts.prefix === undefined || opts.prefix === ''
+        ? EXCLUDE_BLOCK_START
+        : EXCLUDE_BLOCK_START.replace(START_PREFIX, `${START_PREFIX} (${opts.prefix})`),
+      ...opts.groups.flatMap((group) => [`# ${group.title}`, ...group.paths]),
+      EXCLUDE_BLOCK_END,
+      '',
     ].join('\n');
-
-    return { changed: text !== opts.text, text };
   }
 
-  return {
-    changed: true,
-    text: `${opts.text}${opts.text.endsWith('\n') ? '' : '\n'}\n${opts.block}`,
-  };
-};
+  /**
+   * The block of `opts.prefix` replaces itself between its markers; the user's own lines in the
+   * file, and the blocks of other projects, are never touched.
+   */
+  static mergeBlock(opts: { text: string | undefined; block: string; prefix?: string }): {
+    changed: boolean;
+    text: string;
+  } {
+    if (opts.text === undefined || opts.text === '') {
+      return { changed: true, text: opts.block };
+    }
+
+    const lines = opts.text.split('\n');
+    const start = lines.findIndex((line) => blockKeyOf(line) === (opts.prefix ?? ''));
+    const stop = lines.findIndex(
+      (line, index) =>
+        index > start && (line.trimEnd() === EXCLUDE_BLOCK_END || blockKeyOf(line) !== undefined),
+    );
+
+    // A block with no end marker before the next block starts is left alone: replacing it would
+    // swallow the next project's block.
+    if (start !== -1 && stop !== -1 && lines[stop]?.trimEnd() === EXCLUDE_BLOCK_END) {
+      const text = [
+        ...lines.slice(0, start),
+        ...opts.block.trimEnd().split('\n'),
+        ...lines.slice(stop + 1),
+      ].join('\n');
+
+      return { changed: text !== opts.text, text };
+    }
+
+    return {
+      changed: true,
+      text: `${opts.text}${opts.text.endsWith('\n') ? '' : '\n'}\n${opts.block}`,
+    };
+  }
+}

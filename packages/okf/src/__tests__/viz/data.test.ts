@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import type { Concept } from '../../lib.ts';
-import { buildVizData } from '../../viz/builder.ts';
+import { VizBuilder } from '../../viz/builder.ts';
 import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
 
 const makeConcept = (opts: { id: string; links?: string[]; reserved?: boolean }): Concept => ({
@@ -27,9 +27,9 @@ beforeEach(() => {
 
 afterEach(clearProjectConfig);
 
-describe('buildVizData', () => {
+describe('VizBuilder.buildData', () => {
   test('counts each undirected link once per end, skipping self, dangling and duplicate links', () => {
-    const data = buildVizData({
+    const data = VizBuilder.buildData({
       concepts: [
         makeConcept({
           id: '/packages/a',
@@ -47,7 +47,7 @@ describe('buildVizData', () => {
   });
 
   test('reserved files (index.md, log.md) are not nodes', () => {
-    const data = buildVizData({
+    const data = VizBuilder.buildData({
       concepts: [makeConcept({ id: '/index', reserved: true }), makeConcept({ id: '/packages/a' })],
     });
 
@@ -55,7 +55,7 @@ describe('buildVizData', () => {
   });
 
   test('sections follow the configured order, unknown sections after them in name order', () => {
-    const data = buildVizData({
+    const data = VizBuilder.buildData({
       concepts: [
         makeConcept({ id: '/zeta/x' }),
         makeConcept({ id: '/packages/a' }),
@@ -74,8 +74,8 @@ describe('buildVizData', () => {
   });
 
   test('a node carries its resource, so the reader can show its source', () => {
-    expect(buildVizData({ concepts: [makeConcept({ id: '/packages/a' })] }).nodes[0].resource).toBe(
-      'src/packages/a.ts',
-    );
+    expect(
+      VizBuilder.buildData({ concepts: [makeConcept({ id: '/packages/a' })] }).nodes[0].resource,
+    ).toBe('src/packages/a.ts');
   });
 });

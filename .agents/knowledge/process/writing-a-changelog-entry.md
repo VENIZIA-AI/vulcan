@@ -10,6 +10,7 @@ tags: [process, changelog, docs]
 <!-- okf:generated:contents start -->
 **Contents**
 
+- [What goes in the changelog](#what-goes-in-the-changelog)
 - [What every entry needs](#what-every-entry-needs)
 - [Optional frontmatter](#optional-frontmatter)
 - [Template](#template)
@@ -19,12 +20,30 @@ An entry is a file in `docs/wiki/content/changelogs/` named `YYYY-MM-DD-<slug>.m
 (`/changelogs/`) is built from the entries themselves: add the file and it appears, grouped by year, with
 no table to edit. Copy the template below.
 
+## What goes in the changelog
+
+The changelog records only what affects the users of the published packages and what they can use. Each entry
+is short and states the user's benefit.
+
+| Write an entry when the change | Write none when the change is |
+|---|---|
+| adds a feature, a command, an option or a config key | release tooling, CI, workflows, guards and gates |
+| changes behaviour, or breaks something (with the upgrade step) | a refactor or a code sweep with no behaviour change |
+| fixes a bug a user could hit | tests, agent rules and skills for this repository's own sessions |
+| fixes a security problem | internal docs and knowledge pages, repo hygiene |
+| deprecates or removes something | |
+
+A pull request that holds only internal work gets no entry, and a stable release with no entry is fine: its
+GitHub Release says there is no change for users. When several changes of one release say one thing, write one
+entry, not one per change.
+
 ## What every entry needs
 
 | Part | Where | Rule |
 |---|---|---|
+| **Title** | frontmatter `title:` and the heading under `# Changelog - date` | A plain sentence that names what changed, in sentence or title case. No product name, no version and no placeholder: not `VULCAN 0.4.8: ...`, never a literal `X.Y.Z`. The heading repeats the title. `make changelog-check` fails on a literal `X.Y.Z`. |
 | **Badge** | one `<Badge>` line under the first heading | Keep the ones that apply: New Feature, Enhancement, Bug Fix, Security, Behavior Change, Breaking Change. The first types the entry on the index and in the filters. |
-| **`packages:`** | frontmatter | The npm names whose code changed, from `packages[].name`; `[]` for repository tooling. `okf check --strict` fails an entry without the list. |
+| **`packages:`** | frontmatter | The npm names whose code changed, from `packages[].name`. An entry that covers no package is internal work and is not written. `okf check --strict` fails an entry without the list. |
 | **Upgrade note for a breaking change** | the `## Breaking changes` section | Who is affected, then Before and After code or numbered steps. Delete the section when nothing breaks. |
 | **Who is affected** | `## Who is affected` | Each audience, and whether it must act ("No action needed" where true). |
 
@@ -37,22 +56,22 @@ The title and the description (one plain sentence) are the entry's card on the i
 |---|---|
 | `summary:` | The card text on the index and the feed; defaults to `description:`. |
 | `type: release` | Marks a release overview (the batch page with the upgrade checklist) as its own type. A file name with `batch-overview`, or a title ending "(Overview)", does the same. |
-| `release: '<npm name>@<version>'` | Places an entry git would place wrongly (a backfill); it must name a tag that exists. The index shows this version; without it the first x.y.z of the title is shown. |
+| `release: '<npm name>@<version>'` | Places an entry git would place wrongly (a backfill); it must name a tag that exists. The index shows this version; a title carries none, so without it the entry shows no version. |
 | `badges: [...]` | Overrides the `<Badge>` line when the types are wanted without the markup. |
 
 ## Template
 
 ````markdown
 ---
-title: [Short, plain title - what a user would search for]
+title: [A plain sentence - what changed, what a user would search for. No product name, no version]
 description: [One sentence, plain - what changed and why it matters]
-# Mandatory: the npm names whose code changed in this release; [] for repository tooling.
+# Mandatory: the npm names whose code changed in this release.
 packages: ['@venizia/vulcan']
 ---
 
 # Changelog - YYYY-MM-DD
 
-## [Main Title/Focus Area]
+## [The same title as above]
 
 <!-- Keep only the badges that apply -->
 <Badge type="tip" text="New Feature" /> <Badge type="tip" text="Enhancement" /> <Badge type="info" text="Bug Fix" /> <Badge type="danger" text="Security" /> <Badge type="warning" text="Breaking Change" />
@@ -95,17 +114,10 @@ packages: ['@venizia/vulcan']
 1. [Step one]
 2. [Step two]
 
-## Details
-
-<!-- Optional - the "why/how". Keep it tight: bullets, a short code example, a small table. No wall-of-text paragraphs. -->
-
-- [Why/how point 1]
-- [Why/how point 2]
-
-| File | Package |
-|------|---------|
-| `src/path/to/file.ts` | core |
 ````
+
+No `## Details` section: how the change was built, which files moved and how it was tested are not a user's
+concern. A caveat the user needs (a feature not yet run in a real agent, say) is one line under `What changed`.
 
 The entry's own first heading (`# Changelog - date`), its title heading and its badge line are replaced on
 the page by a title block built from the same fields; write them as the template shows so the page and the

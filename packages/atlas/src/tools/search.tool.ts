@@ -5,7 +5,7 @@ import type { IHit } from '@/search/common';
 import type { IChunkIndex } from '@/search/common';
 import type { ISymbolBrief, ISymbolIndex } from '@/symbols';
 import { z } from 'zod';
-import { parseInput, SearchInputSchema, ToolTriggers } from './common';
+import { SearchInputSchema, ToolInput, ToolTriggers } from './common';
 
 const DESCRIPTION =
   'Search the wiki, changelogs and knowledge bundle for chunks matching a keyword query, ranked ' +
@@ -110,33 +110,37 @@ const withinBudget = (opts: {
   return response;
 };
 
-export const buildSearchTool = (opts: {
-  store: IChunkIndex;
-  symbols?: ISymbolIndex;
-  /** The projects the server serves, named in the description. */
-  projects?: string;
-}): IToolHandler => ({
-  definition: {
-    name: 'search',
-    description: `${ToolTriggers.search({ projects: opts.projects })} ${DESCRIPTION}`,
-    inputSchema: INPUT_JSON_SCHEMA,
-  },
-  call: async ({ args }) => {
-    const input = parseInput({ schema: SearchInputSchema, args });
-    const offset = input.offset ?? 0;
-    const result = opts.store.search({
-      query: input.query,
-      corpus: corpusFilterOf({ corpus: input.corpus }),
-      source: input.source,
-      limit: input.limit ?? AtlasConstants.SEARCH_DEFAULT_LIMIT,
-      offset,
-    });
+export class SearchTool {
+  static build(opts: {
+    store: IChunkIndex;
+    symbols?: ISymbolIndex;
+    /** The projects the server serves, named in the description. */
+    projects?: string;
+  }): IToolHandler {
+    return {
+      definition: {
+        name: 'search',
+        description: `${ToolTriggers.search({ projects: opts.projects })} ${DESCRIPTION}`,
+        inputSchema: INPUT_JSON_SCHEMA,
+      },
+      call: async ({ args }) => {
+        const input = ToolInput.parse({ schema: SearchInputSchema, args });
+        const offset = input.offset ?? 0;
+        const result = opts.store.search({
+          query: input.query,
+          corpus: corpusFilterOf({ corpus: input.corpus }),
+          source: input.source,
+          limit: input.limit ?? AtlasConstants.SEARCH_DEFAULT_LIMIT,
+          offset,
+        });
 
-    return withinBudget({
-      total: result.total,
-      hits: result.hits,
-      offset,
-      symbol: symbolBriefOf({ symbols: opts.symbols, query: input.query }),
-    });
-  },
-});
+        return withinBudget({
+          total: result.total,
+          hits: result.hits,
+          offset,
+          symbol: symbolBriefOf({ symbols: opts.symbols, query: input.query }),
+        });
+      },
+    };
+  }
+}

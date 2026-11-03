@@ -24,18 +24,18 @@ const text = await Bun.stdin.text();
 
 try {
   const { GuardDecisions } = await import('../../src/hooks/common/index.ts');
-  const { buildToolDecision } = await import('../../src/hooks/decision.ts');
-  const { inspectOutside } = await import('../../src/hooks/guard-outside.ts');
-  const { parseManifestHookInput } = await import('../../src/hooks/guard-manifest.ts');
-  const input = parseManifestHookInput({ text });
+  const { HookDecision } = await import('../../src/hooks/decision.ts');
+  const { OutsideGuard } = await import('../../src/hooks/guard-outside.ts');
+  const { ManifestGuard } = await import('../../src/hooks/guard-manifest.ts');
+  const input = ManifestGuard.parseHookInput({ text });
 
   if (input) {
     const projectRoot = process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd();
     let toolOwnedPaths: string[] = [];
 
     try {
-      const { loadConfig } = await import('../../src/config/index.ts');
-      const loaded = await loadConfig({ root: projectRoot });
+      const { ConfigLoader } = await import('../../src/config/index.ts');
+      const loaded = await ConfigLoader.load({ root: projectRoot });
 
       toolOwnedPaths = loaded.ok ? loaded.config.guard.toolOwnedPaths : [];
     } catch (error) {
@@ -44,7 +44,7 @@ try {
       );
     }
 
-    const hits = inspectOutside({ input, projectRoot, toolOwnedPaths });
+    const hits = OutsideGuard.inspect({ input, projectRoot, toolOwnedPaths });
 
     if (hits.length > 0) {
       const isScratchpad = hits.some((hit) => hit.isAgentToolScratchpad);
@@ -54,7 +54,7 @@ try {
 
       console.log(
         JSON.stringify(
-          buildToolDecision({
+          HookDecision.buildTool({
             decision: isScratchpad ? GuardDecisions.DENY : GuardDecisions.ASK,
             reason: isScratchpad
               ? [

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readOkfProject } from '../project/index.ts';
-import { listDirs, sourceFiles } from '../source/index.ts';
+import { OkfProject } from '../project/index.ts';
+import { SourceScanner } from '../source/index.ts';
 
 /** Reading the project's source - every `dir` is relative to the project root. */
 export interface IRenderSource {
@@ -64,7 +64,7 @@ const namesPerDir = (opts: {
     .map((dir) => {
       const names = new Set<string>();
 
-      for (const file of sourceFiles({ dir: join(opts.root, dir) })) {
+      for (const file of SourceScanner.sourceFiles({ dir: join(opts.root, dir) })) {
         for (const match of readFileSync(file, 'utf8').matchAll(pattern)) {
           if (match[1] !== undefined) {
             names.add(match[1]);
@@ -96,24 +96,26 @@ const page: IRenderPage = {
     `> Generated from source - do not edit; run \`make okf-gen\`.${opts.seeAlso === '' ? '' : ` ${opts.seeAlso}`}\n\n`,
 };
 
-export const createRenderContext = (opts: { options: Record<string, unknown> }): IRenderContext => {
-  const { root, bundle } = readOkfProject();
+export class RenderContext {
+  static create(opts: { options: Record<string, unknown> }): IRenderContext {
+    const { root, bundle } = OkfProject.read();
 
-  return {
-    root,
-    bundle,
-    options: opts.options,
-    source: {
-      listDirs: ({ dir }) => listDirs({ dir: join(root, dir) }),
-      sourceFiles: ({ dir }) => sourceFiles({ dir: join(root, dir) }),
-      exportedClasses: ({ dirs, suffix }) =>
-        namesPerDir({
-          root,
-          dirs,
-          pattern: new RegExp(`export\\s+(?:abstract\\s+)?class\\s+(\\w+${suffix})\\b`),
-        }).map((entry) => ({ dir: entry.dir, classes: entry.names })),
-      exportedNames: ({ dirs, pattern }) => namesPerDir({ root, dirs, pattern }),
-    },
-    page,
-  };
-};
+    return {
+      root,
+      bundle,
+      options: opts.options,
+      source: {
+        listDirs: ({ dir }) => SourceScanner.listDirs({ dir: join(root, dir) }),
+        sourceFiles: ({ dir }) => SourceScanner.sourceFiles({ dir: join(root, dir) }),
+        exportedClasses: ({ dirs, suffix }) =>
+          namesPerDir({
+            root,
+            dirs,
+            pattern: new RegExp(`export\\s+(?:abstract\\s+)?class\\s+(\\w+${suffix})\\b`),
+          }).map((entry) => ({ dir: entry.dir, classes: entry.names })),
+        exportedNames: ({ dirs, pattern }) => namesPerDir({ root, dirs, pattern }),
+      },
+      page,
+    };
+  }
+}

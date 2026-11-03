@@ -1,18 +1,11 @@
 import type { IChunk } from '@/corpus';
-import { packageAcrossSources } from '@/common/package-map';
+import { PackageMap } from '@/common/package-map';
 import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IChangelogRecord, IReleaseRecord, ReleaseStore } from '@/releases';
 import type { IHit } from '@/search/common';
 import type { ChunkStore } from '@/search/store';
 import type { ISymbolRecord, SymbolStore } from '@/symbols';
-
-const byText = (left: string, right: string): number => {
-  if (left === right) {
-    return 0;
-  }
-
-  return left < right ? -1 : 1;
-};
+import { TextValue } from '@/common/text';
 
 /** `undefined` when exactly one candidate holds it; an error naming them when several do. */
 const onlyOne = <T>(opts: { id: string; found: { source: string; value: T }[] }): T | undefined => {
@@ -138,24 +131,26 @@ export class SourceReleases {
   }
 
   packages(): string[] {
-    return [...new Set(this.sources.flatMap((source) => source.releases.packages()))].sort(byText);
+    return [...new Set(this.sources.flatMap((source) => source.releases.packages()))].sort(
+      (left, right) => TextValue.compare({ left, right }),
+    );
   }
 
   declaredPackages(): string[] {
     return [...new Set(this.sources.flatMap((source) => source.releases.declaredPackages()))].sort(
-      byText,
+      (left, right) => TextValue.compare({ left, right }),
     );
   }
 
   livePackages(): string[] {
     return [...new Set(this.sources.flatMap((source) => source.releases.livePackages()))].sort(
-      byText,
+      (left, right) => TextValue.compare({ left, right }),
     );
   }
 
   entryDates(): string[] {
     return [...new Set(this.sources.flatMap((source) => source.releases.entryDates()))]
-      .sort(byText)
+      .sort((left, right) => TextValue.compare({ left, right }))
       .reverse();
   }
 
@@ -206,7 +201,7 @@ export class SourceReleases {
       return this.sources[0];
     }
 
-    const owner = packageAcrossSources({
+    const owner = PackageMap.packageAcrossSources({
       value: opts.package,
       sources: this.sources.map((source) => ({
         source: source.name,
@@ -233,7 +228,7 @@ export class SourceReleases {
       .flatMap((source) =>
         opts.read(source.releases).map((entry) => ({ ...entry, source: source.name })),
       )
-      .sort((left, right) => byText(right.date, left.date));
+      .sort((left, right) => TextValue.compare({ left: right.date, right: left.date }));
   }
 }
 

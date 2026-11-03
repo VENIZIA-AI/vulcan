@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { BASE_DIRECTORY } from '../../common/index.ts';
-import { DoctorChecks, lintSkill, runDoctorChecks } from '../../doctor/index.ts';
+import { DoctorChecks, DoctorRunner, SkillLint } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -16,10 +16,10 @@ const SKILL = (opts: { name?: string; description?: string; body?: string }): st
 const lintOf = (opts: { files: Record<string, string> }): string[] => {
   const root = createProject({ files: opts.files });
 
-  return lintSkill({ directory: join(root, 'skill') });
+  return SkillLint.lint({ directory: join(root, 'skill') });
 };
 
-describe('lintSkill', () => {
+describe('SkillLint.lint', () => {
   test('a short, flat skill with a good name and description passes', () => {
     expect(
       lintOf({ files: { 'skill/SKILL.md': SKILL({}), 'skill/references/a.md': '# A\n' } }),
@@ -110,12 +110,13 @@ describe('doctor [skills]', () => {
   test('lints every project skill, and a nested skill is reported - sync links flat skills only', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': 'export default {};\n',
+        '.configs/vulcan.config.mts': 'export default {};\n',
         '.agents/skills/checking-links/SKILL.md': SKILL({ name: 'Bad Name' }),
         '.agents/skills/group/inner/SKILL.md': SKILL({}),
       },
     });
-    const messages = (await runDoctorChecks({ root }))
+    const result = await DoctorRunner.runChecks({ root });
+    const messages = result
       .filter((violation) => violation.check === DoctorChecks.SKILLS)
       .map((violation) => `${violation.file}: ${violation.message}`);
 
@@ -131,7 +132,7 @@ describe('doctor [skills]', () => {
     expect(shipped.length).toBeGreaterThan(1);
     expect(
       shipped.flatMap((name) =>
-        lintSkill({ directory: join(BASE_DIRECTORY, 'skills', name) }).map(
+        SkillLint.lint({ directory: join(BASE_DIRECTORY, 'skills', name) }).map(
           (problem) => `${name}: ${problem}`,
         ),
       ),
@@ -143,11 +144,12 @@ describe('doctor [skills] - a project skill named like a shipped one', () => {
   test('fails, and suggests a rename the project owns', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': "export default { name: 'shop' };\n",
+        '.configs/vulcan.config.mts': "export default { name: 'shop' };\n",
         '.agents/skills/knowledge-sync/SKILL.md': SKILL({ name: 'knowledge-sync' }),
       },
     });
-    const messages = (await runDoctorChecks({ root }))
+    const result = await DoctorRunner.runChecks({ root });
+    const messages = result
       .filter((violation) => violation.check === DoctorChecks.SKILLS)
       .map((violation) => violation.message);
 

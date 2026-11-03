@@ -119,8 +119,4 @@ export class OwnerReplySwitch {
 export class OwnerLabelModes {
   static readonly EXACT = 'exact';
   static readonly FREE = 'free';
-  static readonly SCHEME_SET = new Set<string>([this.EXACT, this.FREE]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }

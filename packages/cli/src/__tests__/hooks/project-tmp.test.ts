@@ -3,25 +3,25 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { ProjectLayout } from '../../common/index.ts';
-import { exportProjectTmp, HookConstants, projectTmpOf } from '../../hooks/index.ts';
+import { HookConstants, ProjectTmp } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
 
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'session-start.ts');
 
-describe('projectTmpOf', () => {
+describe('ProjectTmp.projectOf', () => {
   test('is the tmp folder of the local layout every other command reads', () => {
     expect(HookConstants.PROJECT_TMP).toBe(`${ProjectLayout.LOCAL_DIRECTORY}/tmp`);
     expect(ProjectLayout.LOCAL_LAYOUT.map((entry) => entry.name)).toContain('tmp');
   });
 
   test('is .agents/local/tmp of the project, absolute', () => {
-    expect(projectTmpOf({ root: '/work/acme' })).toBe('/work/acme/.agents/local/tmp');
+    expect(ProjectTmp.projectOf({ root: '/work/acme' })).toBe('/work/acme/.agents/local/tmp');
   });
 });
 
-describe('exportProjectTmp', () => {
+describe('ProjectTmp.exportProjectTmp', () => {
   const envFileOf = (): string => join(createProject({ files: {} }), 'env-file.sh');
 
   test('appends one export of TMPDIR to the file the harness sources, and makes the folder', () => {
@@ -30,7 +30,7 @@ describe('exportProjectTmp', () => {
 
     writeFileSync(envFile, 'export KEEP=1\n');
 
-    expect(exportProjectTmp({ root, envFile })).toBe(true);
+    expect(ProjectTmp.exportProjectTmp({ root, envFile })).toBe(true);
     expect(readFileSync(envFile, 'utf8')).toBe(
       `export KEEP=1\nexport TMPDIR='${join(root, '.agents/local/tmp')}'\n`,
     );
@@ -40,8 +40,8 @@ describe('exportProjectTmp', () => {
   test('does nothing without a file: another agent, or a run outside Claude Code', () => {
     const root = createProject({ files: {} });
 
-    expect(exportProjectTmp({ root, envFile: undefined })).toBe(false);
-    expect(exportProjectTmp({ root, envFile: '' })).toBe(false);
+    expect(ProjectTmp.exportProjectTmp({ root, envFile: undefined })).toBe(false);
+    expect(ProjectTmp.exportProjectTmp({ root, envFile: '' })).toBe(false);
     expect(existsSync(join(root, '.agents/local/tmp'))).toBe(false);
   });
 
@@ -51,7 +51,7 @@ describe('exportProjectTmp', () => {
     const envFile = envFileOf();
 
     mkdirSync(root, { recursive: true });
-    expect(exportProjectTmp({ root, envFile })).toBe(true);
+    expect(ProjectTmp.exportProjectTmp({ root, envFile })).toBe(true);
 
     const shell = spawnSyncBounded({
       cmd: ['sh', '-c', `. '${envFile}'; printf '%s' "$TMPDIR"`],
@@ -67,7 +67,7 @@ describe('exportProjectTmp', () => {
     const envFile = envFileOf();
 
     mkdirSync(root, { recursive: true });
-    expect(exportProjectTmp({ root, envFile })).toBe(false);
+    expect(ProjectTmp.exportProjectTmp({ root, envFile })).toBe(false);
     expect(existsSync(envFile)).toBe(false);
   });
 
@@ -75,7 +75,7 @@ describe('exportProjectTmp', () => {
     const root = createProject({ files: {} });
     const envFile = join(root, 'env-file.sh');
 
-    exportProjectTmp({ root, envFile });
+    ProjectTmp.exportProjectTmp({ root, envFile });
 
     const shell = spawnSyncBounded({
       cmd: [
@@ -98,7 +98,12 @@ describe('the session-start hook', () => {
     const envFile = join(root, 'env-file.sh');
     const child = spawnSyncBounded({
       cmd: [process.execPath, HOOK],
-      env: { ...process.env, CLAUDE_PROJECT_DIR: root, CLAUDE_ENV_FILE: envFile },
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: root,
+        CLAUDE_ENV_FILE: envFile,
+        VULCAN_AUTO_CLEAN: 'off',
+      },
       stdout: 'pipe',
     });
 

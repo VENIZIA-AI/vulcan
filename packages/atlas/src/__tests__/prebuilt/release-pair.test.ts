@@ -1,14 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  buildIndexPair,
-  generateKeyPair,
-  isOnBranch,
-  publishGuard,
-  publishIndex,
-  refCommitOf,
-} from '@/prebuilt';
+import { IndexPair, IndexPublish, PrebuiltKeys } from '@/prebuilt';
 import {
   commitAll,
   git,
@@ -55,7 +48,7 @@ describe('a manual run with a ref: only a tag or a branch whose commit is on dev
   }) => {
     const looked: string[] = [];
     const checked: string[] = [];
-    const result = publishGuard({
+    const result = IndexPublish.publishGuard({
       root: '.',
       env: opts.env,
       keyEnv: 'ATLAS_INDEX_KEY',
@@ -86,7 +79,7 @@ describe('a manual run with a ref: only a tag or a branch whose commit is on dev
   );
 
   test('the default branch itself is allowed: a commit on main, with main the default', () => {
-    const result = publishGuard({
+    const result = IndexPublish.publishGuard({
       root: '.',
       env: dispatch(),
       keyEnv: 'ATLAS_INDEX_KEY',
@@ -154,8 +147,13 @@ describe('a manual run with a ref: only a tag or a branch whose commit is on dev
   });
 
   test('an empty ref means no ref: the dispatched ref decides, as for a push', () => {
-    const none = publishGuard({ root: '.', env: dispatch(), keyEnv: 'ATLAS_INDEX_KEY', ref: '' });
-    const feature = publishGuard({
+    const none = IndexPublish.publishGuard({
+      root: '.',
+      env: dispatch(),
+      keyEnv: 'ATLAS_INDEX_KEY',
+      ref: '',
+    });
+    const feature = IndexPublish.publishGuard({
       root: '.',
       env: dispatch({ GITHUB_REF: 'refs/heads/feat/x' }),
       keyEnv: 'ATLAS_INDEX_KEY',
@@ -194,37 +192,37 @@ const repository = () => {
 };
 
 describe('what git says about a ref', () => {
-  test('refCommitOf takes a tag or a branch name and nothing else', () => {
+  test('IndexPublish.refCommitOf takes a tag or a branch name and nothing else', () => {
     const { work, first, head, side } = repository();
 
-    expect(refCommitOf({ root: work, ref: 'v1' })).toBe(first);
-    expect(refCommitOf({ root: work, ref: 'develop' })).toBe(head);
-    expect(refCommitOf({ root: work, ref: 'side' })).toBe(side);
-    expect(refCommitOf({ root: work, ref: first })).toBeUndefined();
-    expect(refCommitOf({ root: work, ref: 'HEAD' })).toBeUndefined();
-    expect(refCommitOf({ root: work, ref: 'nope' })).toBeUndefined();
+    expect(IndexPublish.refCommitOf({ root: work, ref: 'v1' })).toBe(first);
+    expect(IndexPublish.refCommitOf({ root: work, ref: 'develop' })).toBe(head);
+    expect(IndexPublish.refCommitOf({ root: work, ref: 'side' })).toBe(side);
+    expect(IndexPublish.refCommitOf({ root: work, ref: first })).toBeUndefined();
+    expect(IndexPublish.refCommitOf({ root: work, ref: 'HEAD' })).toBeUndefined();
+    expect(IndexPublish.refCommitOf({ root: work, ref: 'nope' })).toBeUndefined();
   });
 
-  test('isOnBranch: an ancestor of develop is on it, a side commit is not, and the local branch counts when origin is not fetched', () => {
+  test('IndexPublish.isOnBranch: an ancestor of develop is on it, a side commit is not, and the local branch counts when origin is not fetched', () => {
     const { work, first, head, side } = repository();
 
-    expect(isOnBranch({ root: work, sha: first, branch: 'develop' })).toBe(true);
-    expect(isOnBranch({ root: work, sha: head, branch: 'develop' })).toBe(true);
-    expect(isOnBranch({ root: work, sha: side, branch: 'develop' })).toBe(false);
+    expect(IndexPublish.isOnBranch({ root: work, sha: first, branch: 'develop' })).toBe(true);
+    expect(IndexPublish.isOnBranch({ root: work, sha: head, branch: 'develop' })).toBe(true);
+    expect(IndexPublish.isOnBranch({ root: work, sha: side, branch: 'develop' })).toBe(false);
 
     git({ cwd: work, args: ['update-ref', '-d', 'refs/remotes/origin/develop'] });
-    expect(isOnBranch({ root: work, sha: first, branch: 'develop' })).toBe(true);
-    expect(isOnBranch({ root: work, sha: side, branch: 'develop' })).toBe(false);
+    expect(IndexPublish.isOnBranch({ root: work, sha: first, branch: 'develop' })).toBe(true);
+    expect(IndexPublish.isOnBranch({ root: work, sha: side, branch: 'develop' })).toBe(false);
   });
 });
 
 describe('building the pair of a commit other than HEAD', () => {
-  const keys = generateKeyPair();
+  const keys = PrebuiltKeys.generatePair();
 
-  test('buildIndexPair with a commit names the pair by that commit and indexes that commit, not HEAD', () => {
+  test('IndexPair.build with a commit names the pair by that commit and indexes that commit, not HEAD', () => {
     const { work, first, head } = repository();
     const out = join(work, '.agents/local/tmp/pair');
-    const built = buildIndexPair({
+    const built = IndexPair.build({
       root: work,
       out,
       repo: 'acme/src',
@@ -243,7 +241,7 @@ describe('building the pair of a commit other than HEAD', () => {
     const out = join(work, '.agents/local/tmp/pair');
 
     expect(() =>
-      buildIndexPair({
+      IndexPair.build({
         root: work,
         out,
         repo: 'acme/src',
@@ -258,7 +256,7 @@ describe('building the pair of a commit other than HEAD', () => {
 
 describe('publishing the pair of a tag by hand (a manual run with a ref)', () => {
   let fake: IFakeGithub;
-  const keys = generateKeyPair();
+  const keys = PrebuiltKeys.generatePair();
 
   beforeEach(() => {
     fake = startFakeGithub({ owner: 'acme', repo: 'src' });
@@ -279,7 +277,7 @@ describe('publishing the pair of a tag by hand (a manual run with a ref)', () =>
 
   test('the pair is named by the tag commit, not by HEAD, and the release is made at that commit', async () => {
     const { work, first, head } = repository();
-    const result = await publishIndex({
+    const result = await IndexPublish.publish({
       root: work,
       env: env(),
       keyEnv: 'ATLAS_INDEX_KEY',
@@ -299,7 +297,7 @@ describe('publishing the pair of a tag by hand (a manual run with a ref)', () =>
 
   test('a ref on no allowed branch is refused before the commit is checked out or anything is asked of GitHub', async () => {
     const { work } = repository();
-    const result = await publishIndex({
+    const result = await IndexPublish.publish({
       root: work,
       env: env(),
       keyEnv: 'ATLAS_INDEX_KEY',
@@ -319,7 +317,7 @@ describe('publishing the pair of a tag by hand (a manual run with a ref)', () =>
     'the ref %s is refused with nothing asked of GitHub',
     async (ref) => {
       const { work } = repository();
-      const result = await publishIndex({
+      const result = await IndexPublish.publish({
         root: work,
         env: env(),
         keyEnv: 'ATLAS_INDEX_KEY',
@@ -334,7 +332,7 @@ describe('publishing the pair of a tag by hand (a manual run with a ref)', () =>
 
   test('the same ref given to a push is refused', async () => {
     const { work } = repository();
-    const result = await publishIndex({
+    const result = await IndexPublish.publish({
       root: work,
       env: env({ GITHUB_EVENT_NAME: 'push' }),
       keyEnv: 'ATLAS_INDEX_KEY',
@@ -348,7 +346,7 @@ describe('publishing the pair of a tag by hand (a manual run with a ref)', () =>
 
   test('with no ref a manual run publishes HEAD of the dispatched ref, like a push', async () => {
     const { work, head } = repository();
-    const result = await publishIndex({
+    const result = await IndexPublish.publish({
       root: work,
       env: env(),
       keyEnv: 'ATLAS_INDEX_KEY',

@@ -1,15 +1,9 @@
 import { homedir } from 'node:os';
-import {
-  AgentConstants,
-  agentIds,
-  detectAgents,
-  parseAgentList,
-  resolveAgents,
-} from '../agents/index.ts';
+import { AgentConstants, AgentDetection, AgentSelection, AgentTable } from '../agents/index.ts';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
-import { loadConfig } from '../config/index.ts';
-import { printAgentTable, runSyncFlow } from './sync.command.ts';
+import { ConfigLoader } from '../config/index.ts';
+import { SyncFlow } from './sync.command.ts';
 
 const SUBCOMMANDS = ['list', 'add', 'remove', 'setup'];
 const DRY_RUN_FLAG = '--dry-run';
@@ -21,23 +15,23 @@ const fail = (opts: { message: string }): number => {
 };
 
 const detected = (opts: { root: string }): string[] =>
-  detectAgents({
+  AgentDetection.detect({
     root: opts.root,
     home: process.env.HOME ?? homedir(),
     path: process.env.PATH ?? '',
   });
 
-/** What this machine uses now: the stored choice, the migration or the config's suggestion; nothing when it never chose. */
+/** What this machine uses now: the stored choice or the config's suggestion; nothing when it never chose. */
 const currentAgents = async (opts: {
   root: string;
 }): Promise<{ ok: true; agents: string[]; chosen: boolean } | { ok: false; error: string }> => {
-  const loaded = await loadConfig({ root: opts.root });
+  const loaded = await ConfigLoader.load({ root: opts.root });
 
   if (!loaded.ok) {
     return { ok: false, error: loaded.error };
   }
 
-  const resolved = resolveAgents({
+  const resolved = AgentSelection.resolve({
     root: opts.root,
     flag: undefined,
     configAgents: loaded.config.agents,
@@ -68,7 +62,7 @@ const runList = async (opts: { root: string }): Promise<number> => {
     `chosen on this machine: ${current.chosen ? current.agents.join(', ') || AgentConstants.NONE : '(nothing yet)'}\n`,
   );
   process.stdout.write(`detected: ${found.length === 0 ? '(none)' : found.join(', ')}\n\n`);
-  printAgentTable();
+  SyncFlow.printAgentTable();
 
   return ExitCodes.OK;
 };
@@ -95,7 +89,7 @@ export const runAgentsCommand = async (opts: ICommandContext): Promise<number> =
       });
     }
 
-    return runSyncFlow({ cwd: opts.cwd, args: [AgentConstants.FLAG, ...dryRun] });
+    return SyncFlow.run({ cwd: opts.cwd, args: [AgentConstants.FLAG, ...dryRun] });
   }
 
   if (value === undefined) {
@@ -104,7 +98,7 @@ export const runAgentsCommand = async (opts: ICommandContext): Promise<number> =
     });
   }
 
-  const parsed = parseAgentList({ value });
+  const parsed = AgentSelection.parseList({ value });
 
   if (!parsed.ok) {
     return fail({ message: parsed.error.replace(/^vulcan sync: /, '') });
@@ -120,7 +114,7 @@ export const runAgentsCommand = async (opts: ICommandContext): Promise<number> =
     return fail({ message: current.error });
   }
 
-  const known = agentIds();
+  const known = AgentTable.agentIds();
   const already = parsed.agents.filter((id) => current.agents.includes(id));
   const absent = parsed.agents.filter((id) => !current.agents.includes(id));
   const touched = subcommand === 'add' ? absent : already;
@@ -142,7 +136,7 @@ export const runAgentsCommand = async (opts: ICommandContext): Promise<number> =
       : current.agents.includes(id) && !touched.includes(id),
   );
 
-  return runSyncFlow({
+  return SyncFlow.run({
     cwd: opts.cwd,
     args: [
       AgentConstants.FLAG,

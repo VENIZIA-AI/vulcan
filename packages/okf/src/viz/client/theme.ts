@@ -1,6 +1,6 @@
 import { ThemeModes } from '../common/index.ts';
 import type { TThemeMode } from '../common/index.ts';
-import { readParentDocument } from './frame.ts';
+import { ParentFrame } from './frame.ts';
 
 type TPalette = Record<string, string>;
 
@@ -67,7 +67,7 @@ export class VizTheme {
 
     matchMedia(DARK_QUERY).addEventListener('change', reapply);
 
-    const parentDocument = readParentDocument();
+    const parentDocument = ParentFrame.readDocument();
 
     if (parentDocument) {
       new MutationObserver(reapply).observe(parentDocument.documentElement, {
@@ -84,7 +84,7 @@ export class VizTheme {
   }
 
   private static readWikiPalette(): TPalette | undefined {
-    const parentDocument = readParentDocument();
+    const parentDocument = ParentFrame.readDocument();
 
     if (!parentDocument) {
       return undefined;

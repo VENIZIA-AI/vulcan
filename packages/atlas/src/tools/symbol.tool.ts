@@ -4,7 +4,7 @@ import type { IToolHandler } from '@/protocol/common';
 import type { IChunkIndex } from '@/search/common';
 import type { ISymbolIndex, ISymbolRecord } from '@/symbols';
 import { z } from 'zod';
-import { parseInput, SymbolInputSchema, ToolTriggers } from './common';
+import { SymbolInputSchema, ToolInput, ToolTriggers } from './common';
 
 const DESCRIPTION =
   'Locate one exported symbol by name: which package and import specifier it comes from, its ' +
@@ -36,7 +36,7 @@ interface IUnknownSymbolResponse {
 }
 
 const matchOf = (opts: { record: ISymbolRecord; docs: string[] }): ISymbolMatch => {
-  // `shape` is for the concept lock, not for a client.
+  // `shape` is a digest for the table, not for a client.
   return { ...opts.record, shape: undefined, docs: opts.docs };
 };
 
@@ -87,39 +87,43 @@ const unknownSymbolOf = (opts: {
   closest: opts.symbols.suggest({ name: opts.name, limit: SUGGESTIONS_MAX }),
 });
 
-export const buildSymbolTool = (opts: {
-  store: IChunkIndex;
-  symbols: ISymbolIndex;
-  /** The projects the server serves, named in the description. */
-  projects?: string;
-}): IToolHandler => ({
-  definition: {
-    name: 'symbol',
-    description: `${ToolTriggers.symbol({ projects: opts.projects })} ${DESCRIPTION}`,
-    inputSchema: INPUT_JSON_SCHEMA,
-  },
-  call: async ({ args }) => {
-    const input = parseInput({ schema: SymbolInputSchema, args });
+export class SymbolTool {
+  static build(opts: {
+    store: IChunkIndex;
+    symbols: ISymbolIndex;
+    /** The projects the server serves, named in the description. */
+    projects?: string;
+  }): IToolHandler {
+    return {
+      definition: {
+        name: 'symbol',
+        description: `${ToolTriggers.symbol({ projects: opts.projects })} ${DESCRIPTION}`,
+        inputSchema: INPUT_JSON_SCHEMA,
+      },
+      call: async ({ args }) => {
+        const input = ToolInput.parse({ schema: SymbolInputSchema, args });
 
-    if (opts.symbols.isEmpty()) {
-      throw new RpcError({
-        code: RpcErrorCodes.INVALID_PARAMS,
-        message: opts.symbols.emptyReason,
-      });
-    }
+        if (opts.symbols.isEmpty()) {
+          throw new RpcError({
+            code: RpcErrorCodes.INVALID_PARAMS,
+            message: opts.symbols.emptyReason,
+          });
+        }
 
-    const records = opts.symbols.lookup({ name: input.name, package: input.package });
+        const records = opts.symbols.lookup({ name: input.name, package: input.package });
 
-    if (records.length === 0) {
-      return unknownSymbolOf({ name: input.name, symbols: opts.symbols });
-    }
+        if (records.length === 0) {
+          return unknownSymbolOf({ name: input.name, symbols: opts.symbols });
+        }
 
-    const documented = opts.store.search({
-      query: input.name,
-      limit: DOCS_MAX,
-      offset: 0,
-    });
+        const documented = opts.store.search({
+          query: input.name,
+          limit: DOCS_MAX,
+          offset: 0,
+        });
 
-    return withinBudget({ records, docs: documented.hits.map((hit) => hit.id) });
-  },
-});
+        return withinBudget({ records, docs: documented.hits.map((hit) => hit.id) });
+      },
+    };
+  }
+}

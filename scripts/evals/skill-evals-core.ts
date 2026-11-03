@@ -46,7 +46,7 @@ export interface IVerdict {
   isMalformed: boolean;
 }
 
-export interface IClaudeResponse {
+interface IClaudeResponse {
   result: string | undefined;
   isError: boolean;
   costUsd: number | undefined;
@@ -84,138 +84,366 @@ const VERDICT_SCHEMA = {
   required: ['pass', 'reasons'],
 };
 
-/** Reads `--skill <name> [--models a,b] [--grader m] [--project d] [--out d] [--timeout s] [--max-budget-usd n] [--dry-run] [--baseline]`. */
-export const parseSkillEvalArgs = (opts: { args: string[] }): ISkillEvalArgs => {
-  const values = new Map<string, string>();
-  const booleans = new Set<string>();
+export class SkillEvals {
+  /** Reads `--skill <name> [--models a,b] [--grader m] [--project d] [--out d] [--timeout s] [--max-budget-usd n] [--dry-run] [--baseline]`. */
+  static parseArgs(opts: { args: string[] }): ISkillEvalArgs {
+    const values = new Map<string, string>();
+    const booleans = new Set<string>();
 
-  for (let index = 0; index < opts.args.length; index++) {
-    const arg = opts.args[index];
+    for (let index = 0; index < opts.args.length; index++) {
+      const arg = opts.args[index];
 
-    if (BOOLEAN_FLAGS.has(arg)) {
-      booleans.add(arg);
-      continue;
+      if (BOOLEAN_FLAGS.has(arg)) {
+        booleans.add(arg);
+        continue;
+      }
+
+      if (!VALUE_FLAGS.has(arg)) {
+        throw new Error(`unknown argument '${arg}'`);
+      }
+
+      const value = opts.args[index + 1];
+
+      if (value === undefined || value.startsWith('--')) {
+        throw new Error(`${arg} needs a value`);
+      }
+
+      values.set(arg, value);
+      index++;
     }
 
-    if (!VALUE_FLAGS.has(arg)) {
-      throw new Error(`unknown argument '${arg}'`);
+    const skill = values.get('--skill');
+
+    if (skill === undefined) {
+      throw new Error('--skill <name> is required');
     }
 
-    const value = opts.args[index + 1];
-
-    if (value === undefined || value.startsWith('--')) {
-      throw new Error(`${arg} needs a value`);
+    if (!PATH_SEGMENT.test(skill)) {
+      throw new Error(`--skill '${skill}' is not a skill name`);
     }
 
-    values.set(arg, value);
-    index++;
-  }
+    const models = (values.get('--models')?.split(',') ?? SkillEvalConstants.MODELS)
+      .map((model) => model.trim())
+      .filter((model) => model.length > 0);
+    const grader = values.get('--grader') ?? SkillEvalConstants.GRADER;
 
-  const skill = values.get('--skill');
-
-  if (skill === undefined) {
-    throw new Error('--skill <name> is required');
-  }
-
-  if (!PATH_SEGMENT.test(skill)) {
-    throw new Error(`--skill '${skill}' is not a skill name`);
-  }
-
-  const models = (values.get('--models')?.split(',') ?? SkillEvalConstants.MODELS)
-    .map((model) => model.trim())
-    .filter((model) => model.length > 0);
-  const grader = values.get('--grader') ?? SkillEvalConstants.GRADER;
-
-  for (const model of models) {
-    if (!PATH_SEGMENT.test(model)) {
-      throw new Error(`--models '${model}' is not a model name`);
+    for (const model of models) {
+      if (!PATH_SEGMENT.test(model)) {
+        throw new Error(`--models '${model}' is not a model name`);
+      }
     }
+
+    if (!PATH_SEGMENT.test(grader)) {
+      throw new Error(`--grader '${grader}' is not a model name`);
+    }
+
+    if (models.length === 0) {
+      throw new Error('--models needs at least one model');
+    }
+
+    const timeout = values.get('--timeout') ?? String(SkillEvalConstants.TIMEOUT_SECONDS);
+
+    if (!/^\d+$/.test(timeout) || Number(timeout) === 0) {
+      throw new Error(`--timeout needs whole seconds above 0, got: ${timeout}`);
+    }
+
+    const maxBudgetUsd = values.get('--max-budget-usd');
+
+    if (
+      maxBudgetUsd !== undefined &&
+      !(/^\d+(\.\d+)?$/.test(maxBudgetUsd) && Number(maxBudgetUsd) > 0)
+    ) {
+      throw new Error(`--max-budget-usd needs a dollar amount above 0, got: ${maxBudgetUsd}`);
+    }
+
+    return {
+      skill,
+      models,
+      grader,
+      project: values.get('--project'),
+      out: values.get('--out'),
+      timeoutSeconds: Number(timeout),
+      maxBudgetUsd,
+      isDryRun: booleans.has('--dry-run'),
+      isBaseline: booleans.has('--baseline'),
+    };
   }
 
-  if (!PATH_SEGMENT.test(grader)) {
-    throw new Error(`--grader '${grader}' is not a model name`);
+  /** A skill's `evals/evals.json`, in skill-creator's shape: `{ skill_name, evals: [{ id, prompt, expected_output, files }] }`. */
+  static parseFile(opts: { text: string; skill: string }): ISkillEval[] {
+    let parsed: unknown;
+
+    try {
+      parsed = JSON.parse(opts.text);
+    } catch (error) {
+      throw new Error(`is not JSON (${error instanceof Error ? error.message : String(error)})`);
+    }
+
+    if (!isRecord(parsed) || !Array.isArray(parsed.evals)) {
+      throw new Error('needs { skill_name, evals: [...] }');
+    }
+
+    if (parsed.skill_name !== opts.skill) {
+      throw new Error(`skill_name is '${String(parsed.skill_name)}', expected '${opts.skill}'`);
+    }
+
+    if (parsed.evals.length === 0) {
+      throw new Error('has no evals');
+    }
+
+    return parsed.evals.map((entry: unknown, index: number): ISkillEval => {
+      if (
+        !isRecord(entry) ||
+        (typeof entry.id !== 'number' && typeof entry.id !== 'string') ||
+        typeof entry.prompt !== 'string' ||
+        typeof entry.expected_output !== 'string'
+      ) {
+        throw new Error(`evals[${index}] needs id, prompt and expected_output`);
+      }
+
+      const id = String(entry.id);
+
+      if (!PATH_SEGMENT.test(id)) {
+        throw new Error(`evals[${index}] id '${id}' must be letters, digits, '.', '_' or '-'`);
+      }
+
+      const files = Array.isArray(entry.files)
+        ? entry.files.filter((file): file is string => typeof file === 'string')
+        : [];
+
+      return { id, prompt: entry.prompt, expectedOutput: entry.expected_output, files };
+    });
   }
 
-  if (models.length === 0) {
-    throw new Error('--models needs at least one model');
+  static buildRunCommand(opts: {
+    model: string;
+    outputsDirectory: string;
+    maxBudgetUsd?: string;
+  }): string[] {
+    return [
+      'claude',
+      '-p',
+      '--model',
+      opts.model,
+      '--output-format',
+      'json',
+      '--permission-mode',
+      'acceptEdits',
+      '--permission-prompts',
+      'none',
+      '--no-session-persistence',
+      '--add-dir',
+      opts.outputsDirectory,
+      ...budgetFlags(opts),
+    ];
   }
 
-  const timeout = values.get('--timeout') ?? String(SkillEvalConstants.TIMEOUT_SECONDS);
-
-  if (!/^\d+$/.test(timeout) || Number(timeout) === 0) {
-    throw new Error(`--timeout needs whole seconds above 0, got: ${timeout}`);
+  /** The grader reads everything from its prompt, so it gets no tools at all. */
+  static buildGraderCommand(opts: { grader: string; maxBudgetUsd?: string }): string[] {
+    return [
+      'claude',
+      '-p',
+      '--model',
+      opts.grader,
+      '--output-format',
+      'json',
+      '--tools',
+      '',
+      '--json-schema',
+      JSON.stringify(VERDICT_SCHEMA),
+      '--permission-prompts',
+      'none',
+      '--no-session-persistence',
+      ...budgetFlags(opts),
+    ];
   }
 
-  const maxBudgetUsd = values.get('--max-budget-usd');
+  static buildPlan(opts: {
+    skill: string;
+    evaluations: ISkillEval[];
+    models: string[];
+    out: string;
+    maxBudgetUsd?: string;
+    /** Adds a baseline run after each skill run, in `<model>/baseline/`. */
+    isBaseline?: boolean;
+  }): ISkillEvalRun[] {
+    return opts.evaluations.flatMap((evaluation) =>
+      opts.models.flatMap((model) => {
+        const arms = opts.isBaseline === true ? [false, true] : [false];
 
-  if (
-    maxBudgetUsd !== undefined &&
-    !(/^\d+(\.\d+)?$/.test(maxBudgetUsd) && Number(maxBudgetUsd) > 0)
-  ) {
-    throw new Error(`--max-budget-usd needs a dollar amount above 0, got: ${maxBudgetUsd}`);
+        return arms.map((isBaseline): ISkillEvalRun => {
+          const skillDirectory = join(opts.out, opts.skill, evaluation.id, model);
+          const runDirectory = isBaseline
+            ? join(skillDirectory, SkillEvalConstants.BASELINE_DIRECTORY)
+            : skillDirectory;
+          const outputsDirectory = join(runDirectory, SkillEvalConstants.OUTPUTS_DIRECTORY);
+
+          return {
+            evaluation,
+            model,
+            runDirectory,
+            outputsDirectory,
+            command: SkillEvals.buildRunCommand({
+              model,
+              outputsDirectory,
+              maxBudgetUsd: opts.maxBudgetUsd,
+            }),
+            isBaseline,
+          };
+        });
+      }),
+    );
   }
 
-  return {
-    skill,
-    models,
-    grader,
-    project: values.get('--project'),
-    out: values.get('--out'),
-    timeoutSeconds: Number(timeout),
-    maxBudgetUsd,
-    isDryRun: booleans.has('--dry-run'),
-    isBaseline: booleans.has('--baseline'),
-  };
-};
+  /** A command as a shell line, for the plan: an empty or spaced argument is quoted. */
+  static toCommandLine(opts: { command: string[] }): string {
+    return opts.command
+      .map((part) =>
+        /^[A-Za-z0-9_./:=,@-]+$/.test(part) ? part : `'${part.replaceAll("'", "'\\''")}'`,
+      )
+      .join(' ');
+  }
+
+  static buildRunPrompt(opts: {
+    skill: string;
+    skillContent: string;
+    evaluation: ISkillEval;
+    outputsDirectory: string;
+  }): string {
+    return [
+      `<skill name="${opts.skill}">`,
+      opts.skillContent.trim(),
+      '</skill>',
+      '',
+      `Use the ${opts.skill} skill above for this task. Its files, references included, are installed at .claude/skills/${opts.skill}/.`,
+      '',
+      ...buildTaskLines(opts),
+    ].join('\n');
+  }
+
+  /** The baseline prompt: the same task and output rules, with no mention of the skill. */
+  static buildBaselinePrompt(opts: { evaluation: ISkillEval; outputsDirectory: string }): string {
+    return buildTaskLines(opts).join('\n');
+  }
+
+  static buildGraderPrompt(opts: {
+    evaluation: ISkillEval;
+    outputs: { name: string; content: string }[];
+  }): string {
+    return [
+      'You grade one run of a skill eval. Judge only whether the output meets the expected output.',
+      '',
+      'The task the model was given:',
+      opts.evaluation.prompt,
+      '',
+      'The expected output:',
+      opts.evaluation.expectedOutput,
+      '',
+      'The files the model wrote:',
+      ...opts.outputs.map(
+        (output) => `<file name="${output.name}">\n${output.content.trimEnd()}\n</file>`,
+      ),
+      '',
+      'Reply with only a JSON object, {"pass": boolean, "reasons": string[]}, most important reason first.',
+    ].join('\n');
+  }
+
+  /** The fields of `claude -p --output-format json` this runner reads; anything unreadable is an error. */
+  static readClaudeResponse(opts: { stdout: string }): IClaudeResponse {
+    let parsed: unknown;
+
+    try {
+      parsed = JSON.parse(opts.stdout);
+    } catch {
+      return { result: undefined, isError: true, costUsd: undefined, structuredOutput: undefined };
+    }
+
+    if (!isRecord(parsed)) {
+      return { result: undefined, isError: true, costUsd: undefined, structuredOutput: undefined };
+    }
+
+    return {
+      result: typeof parsed.result === 'string' ? parsed.result : undefined,
+      isError: parsed.is_error === true,
+      costUsd: typeof parsed.total_cost_usd === 'number' ? parsed.total_cost_usd : undefined,
+      structuredOutput: parsed.structured_output,
+    };
+  }
+
+  /** The grader's verdict. Never throws: output that is not a verdict is a failed run, recorded. */
+  static parseVerdict(opts: { stdout: string }): IVerdict {
+    const response = SkillEvals.readClaudeResponse({ stdout: opts.stdout });
+    const structured = toVerdict({ value: response.structuredOutput });
+
+    if (structured !== undefined) {
+      return structured;
+    }
+
+    if (response.result === undefined) {
+      return toMalformed({ why: 'no result in the claude response' });
+    }
+
+    const text = response.result
+      .trim()
+      .replace(/^```(?:json)?\s*/, '')
+      .replace(/\s*```$/, '');
+    let value: unknown;
+
+    try {
+      value = JSON.parse(text);
+    } catch {
+      return toMalformed({ why: `not JSON: ${text.slice(0, 80)}` });
+    }
+
+    return (
+      toVerdict({ value }) ?? toMalformed({ why: 'needs {"pass": boolean, "reasons": string[]}' })
+    );
+  }
+
+  static toSeconds(opts: { durationMs: number }): string {
+    return `${(opts.durationMs / 1000).toFixed(1)}s`;
+  }
+
+  /** `baselineResults` present: the comparison report; absent: the skill-only report, unchanged. */
+  static renderReport(opts: {
+    skill: string;
+    grader: string;
+    results: ISkillEvalResult[];
+    baselineResults?: ISkillEvalResult[];
+  }): string {
+    if (opts.baselineResults !== undefined) {
+      return renderComparisonReport({ ...opts, baselineResults: opts.baselineResults });
+    }
+
+    const passed = countPassed({ results: opts.results });
+    const cost = toCostText({ results: opts.results });
+    const rows = opts.results.map((result) => {
+      const cells = [
+        result.evalId,
+        result.model,
+        result.verdict.pass ? 'pass' : 'FAIL',
+        SkillEvals.toSeconds({ durationMs: result.durationMs }),
+        toCell({ text: result.verdict.reasons[0] ?? '-' }),
+      ];
+
+      return `| ${cells.join(' | ')} |`;
+    });
+
+    return [
+      `# Skill evals - ${opts.skill}`,
+      '',
+      '| Eval | Model | Result | Duration | First reason |',
+      '|---|---|---|---|---|',
+      ...rows,
+      '',
+      `**Passed ${passed} of ${opts.results.length}.** Graded by ${opts.grader}.${cost}`,
+      '',
+    ].join('\n');
+  }
+}
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
-
-/** A skill's `evals/evals.json`, in skill-creator's shape: `{ skill_name, evals: [{ id, prompt, expected_output, files }] }`. */
-export const parseEvalsFile = (opts: { text: string; skill: string }): ISkillEval[] => {
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(opts.text);
-  } catch (error) {
-    throw new Error(`is not JSON (${error instanceof Error ? error.message : String(error)})`);
-  }
-
-  if (!isRecord(parsed) || !Array.isArray(parsed.evals)) {
-    throw new Error('needs { skill_name, evals: [...] }');
-  }
-
-  if (parsed.skill_name !== opts.skill) {
-    throw new Error(`skill_name is '${String(parsed.skill_name)}', expected '${opts.skill}'`);
-  }
-
-  if (parsed.evals.length === 0) {
-    throw new Error('has no evals');
-  }
-
-  return parsed.evals.map((entry: unknown, index: number): ISkillEval => {
-    if (
-      !isRecord(entry) ||
-      (typeof entry.id !== 'number' && typeof entry.id !== 'string') ||
-      typeof entry.prompt !== 'string' ||
-      typeof entry.expected_output !== 'string'
-    ) {
-      throw new Error(`evals[${index}] needs id, prompt and expected_output`);
-    }
-
-    const id = String(entry.id);
-
-    if (!PATH_SEGMENT.test(id)) {
-      throw new Error(`evals[${index}] id '${id}' must be letters, digits, '.', '_' or '-'`);
-    }
-
-    const files = Array.isArray(entry.files)
-      ? entry.files.filter((file): file is string => typeof file === 'string')
-      : [];
-
-    return { id, prompt: entry.prompt, expectedOutput: entry.expected_output, files };
-  });
-};
 
 /**
  * The run: print mode, JSON out, file edits accepted, and anything that would still prompt is denied
@@ -224,85 +452,6 @@ export const parseEvalsFile = (opts: { text: string; skill: string }): ISkillEva
  */
 const budgetFlags = (opts: { maxBudgetUsd?: string }): string[] =>
   opts.maxBudgetUsd === undefined ? [] : ['--max-budget-usd', opts.maxBudgetUsd];
-
-export const buildRunCommand = (opts: {
-  model: string;
-  outputsDirectory: string;
-  maxBudgetUsd?: string;
-}): string[] => [
-  'claude',
-  '-p',
-  '--model',
-  opts.model,
-  '--output-format',
-  'json',
-  '--permission-mode',
-  'acceptEdits',
-  '--permission-prompts',
-  'none',
-  '--no-session-persistence',
-  '--add-dir',
-  opts.outputsDirectory,
-  ...budgetFlags(opts),
-];
-
-/** The grader reads everything from its prompt, so it gets no tools at all. */
-export const buildGraderCommand = (opts: { grader: string; maxBudgetUsd?: string }): string[] => [
-  'claude',
-  '-p',
-  '--model',
-  opts.grader,
-  '--output-format',
-  'json',
-  '--tools',
-  '',
-  '--json-schema',
-  JSON.stringify(VERDICT_SCHEMA),
-  '--permission-prompts',
-  'none',
-  '--no-session-persistence',
-  ...budgetFlags(opts),
-];
-
-export const buildPlan = (opts: {
-  skill: string;
-  evaluations: ISkillEval[];
-  models: string[];
-  out: string;
-  maxBudgetUsd?: string;
-  /** Adds a baseline run after each skill run, in `<model>/baseline/`. */
-  isBaseline?: boolean;
-}): ISkillEvalRun[] =>
-  opts.evaluations.flatMap((evaluation) =>
-    opts.models.flatMap((model) => {
-      const arms = opts.isBaseline === true ? [false, true] : [false];
-
-      return arms.map((isBaseline): ISkillEvalRun => {
-        const skillDirectory = join(opts.out, opts.skill, evaluation.id, model);
-        const runDirectory = isBaseline
-          ? join(skillDirectory, SkillEvalConstants.BASELINE_DIRECTORY)
-          : skillDirectory;
-        const outputsDirectory = join(runDirectory, SkillEvalConstants.OUTPUTS_DIRECTORY);
-
-        return {
-          evaluation,
-          model,
-          runDirectory,
-          outputsDirectory,
-          command: buildRunCommand({ model, outputsDirectory, maxBudgetUsd: opts.maxBudgetUsd }),
-          isBaseline,
-        };
-      });
-    }),
-  );
-
-/** A command as a shell line, for the plan: an empty or spaced argument is quoted. */
-export const toCommandLine = (opts: { command: string[] }): string =>
-  opts.command
-    .map((part) =>
-      /^[A-Za-z0-9_./:=,@-]+$/.test(part) ? part : `'${part.replaceAll("'", "'\\''")}'`,
-    )
-    .join(' ');
 
 /**
  * The skill reaches the model twice: SKILL.md inline, so every model surely has it, and the whole
@@ -316,71 +465,6 @@ const buildTaskLines = (opts: { evaluation: ISkillEval; outputsDirectory: string
   `Output directory: ${opts.outputsDirectory}`,
   'The output path is that directory: write every file you produce there, named after its input file. Never edit the project files.',
 ];
-
-export const buildRunPrompt = (opts: {
-  skill: string;
-  skillContent: string;
-  evaluation: ISkillEval;
-  outputsDirectory: string;
-}): string =>
-  [
-    `<skill name="${opts.skill}">`,
-    opts.skillContent.trim(),
-    '</skill>',
-    '',
-    `Use the ${opts.skill} skill above for this task. Its files, references included, are installed at .claude/skills/${opts.skill}/.`,
-    '',
-    ...buildTaskLines(opts),
-  ].join('\n');
-
-/** The baseline prompt: the same task and output rules, with no mention of the skill. */
-export const buildBaselinePrompt = (opts: {
-  evaluation: ISkillEval;
-  outputsDirectory: string;
-}): string => buildTaskLines(opts).join('\n');
-
-export const buildGraderPrompt = (opts: {
-  evaluation: ISkillEval;
-  outputs: { name: string; content: string }[];
-}): string =>
-  [
-    'You grade one run of a skill eval. Judge only whether the output meets the expected output.',
-    '',
-    'The task the model was given:',
-    opts.evaluation.prompt,
-    '',
-    'The expected output:',
-    opts.evaluation.expectedOutput,
-    '',
-    'The files the model wrote:',
-    ...opts.outputs.map(
-      (output) => `<file name="${output.name}">\n${output.content.trimEnd()}\n</file>`,
-    ),
-    '',
-    'Reply with only a JSON object, {"pass": boolean, "reasons": string[]}, most important reason first.',
-  ].join('\n');
-
-/** The fields of `claude -p --output-format json` this runner reads; anything unreadable is an error. */
-export const readClaudeResponse = (opts: { stdout: string }): IClaudeResponse => {
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(opts.stdout);
-  } catch {
-    return { result: undefined, isError: true, costUsd: undefined, structuredOutput: undefined };
-  }
-
-  if (!isRecord(parsed)) {
-    return { result: undefined, isError: true, costUsd: undefined, structuredOutput: undefined };
-  }
-
-  return {
-    result: typeof parsed.result === 'string' ? parsed.result : undefined,
-    isError: parsed.is_error === true,
-    costUsd: typeof parsed.total_cost_usd === 'number' ? parsed.total_cost_usd : undefined,
-    structuredOutput: parsed.structured_output,
-  };
-};
 
 const toMalformed = (opts: { why: string }): IVerdict => ({
   pass: false,
@@ -402,39 +486,6 @@ const toVerdict = (opts: { value: unknown }): IVerdict | undefined => {
 
   return { pass: value.pass, reasons: value.reasons, isMalformed: false };
 };
-
-/** The grader's verdict. Never throws: output that is not a verdict is a failed run, recorded. */
-export const parseVerdict = (opts: { stdout: string }): IVerdict => {
-  const response = readClaudeResponse({ stdout: opts.stdout });
-  const structured = toVerdict({ value: response.structuredOutput });
-
-  if (structured !== undefined) {
-    return structured;
-  }
-
-  if (response.result === undefined) {
-    return toMalformed({ why: 'no result in the claude response' });
-  }
-
-  const text = response.result
-    .trim()
-    .replace(/^```(?:json)?\s*/, '')
-    .replace(/\s*```$/, '');
-  let value: unknown;
-
-  try {
-    value = JSON.parse(text);
-  } catch {
-    return toMalformed({ why: `not JSON: ${text.slice(0, 80)}` });
-  }
-
-  return (
-    toVerdict({ value }) ?? toMalformed({ why: 'needs {"pass": boolean, "reasons": string[]}' })
-  );
-};
-
-export const toSeconds = (opts: { durationMs: number }): string =>
-  `${(opts.durationMs / 1000).toFixed(1)}s`;
 
 const toCell = (opts: { text: string }): string =>
   opts.text.replaceAll('|', '\\|').replaceAll('\n', ' ');
@@ -479,7 +530,7 @@ const renderComparisonReport = (opts: {
       result.model,
       toResultWord({ result }),
       toResultWord({ result: baseline }),
-      toSeconds({ durationMs: result.durationMs }),
+      SkillEvals.toSeconds({ durationMs: result.durationMs }),
       toCell({ text: result.verdict.reasons[0] ?? '-' }),
       toCell({ text: baseline?.verdict.reasons[0] ?? '-' }),
     ];
@@ -505,43 +556,6 @@ const renderComparisonReport = (opts: {
     ...modelLines,
     '',
     `**Skill passed ${countPassed({ results: opts.results })} of ${opts.results.length}.** Baseline (no skill) passed ${countPassed({ results: opts.baselineResults })} of ${opts.baselineResults.length}. Graded by ${opts.grader}.${cost}`,
-    '',
-  ].join('\n');
-};
-
-/** `baselineResults` present: the comparison report; absent: the skill-only report, unchanged. */
-export const renderReport = (opts: {
-  skill: string;
-  grader: string;
-  results: ISkillEvalResult[];
-  baselineResults?: ISkillEvalResult[];
-}): string => {
-  if (opts.baselineResults !== undefined) {
-    return renderComparisonReport({ ...opts, baselineResults: opts.baselineResults });
-  }
-
-  const passed = countPassed({ results: opts.results });
-  const cost = toCostText({ results: opts.results });
-  const rows = opts.results.map((result) => {
-    const cells = [
-      result.evalId,
-      result.model,
-      result.verdict.pass ? 'pass' : 'FAIL',
-      toSeconds({ durationMs: result.durationMs }),
-      toCell({ text: result.verdict.reasons[0] ?? '-' }),
-    ];
-
-    return `| ${cells.join(' | ')} |`;
-  });
-
-  return [
-    `# Skill evals - ${opts.skill}`,
-    '',
-    '| Eval | Model | Result | Duration | First reason |',
-    '|---|---|---|---|---|',
-    ...rows,
-    '',
-    `**Passed ${passed} of ${opts.results.length}.** Graded by ${opts.grader}.${cost}`,
     '',
   ].join('\n');
 };

@@ -1,5 +1,6 @@
-import { AtlasConstants, ProtocolVersions } from '@/common';
+import { AtlasConstants } from '@/common';
 import { BaseHelper } from '@/common/helper';
+import { TextValue } from '@/common/text';
 import { RpcError, RpcErrorCodes } from './common';
 import type { IRpcRequest, IRpcResponse, IToolDefinition, IToolHandler } from './common';
 
@@ -24,9 +25,6 @@ const readRequest = (parsed: unknown): IRpcRequest => {
     params: isRecord(parsed.params) ? parsed.params : undefined,
   };
 };
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
 
 /**
  * Newline-delimited JSON-RPC 2.0 over stdio (the MCP stdio transport). `handleLine` is pure
@@ -76,9 +74,15 @@ export class Transport extends BaseHelper {
     try {
       parsed = JSON.parse(trimmed);
     } catch (error) {
-      this.logger.for('handleLine').error(`dropped malformed JSON-RPC line: ${messageOf(error)}`);
+      this.logger
+        .for('handleLine')
+        .error(`dropped malformed JSON-RPC line: ${TextValue.messageOf({ error })}`);
 
-      return this.errorReply({ id: null, code: RpcErrorCodes.PARSE, message: messageOf(error) });
+      return this.errorReply({
+        id: null,
+        code: RpcErrorCodes.PARSE,
+        message: TextValue.messageOf({ error }),
+      });
     }
 
     return this.route(readRequest(parsed));
@@ -87,6 +91,8 @@ export class Transport extends BaseHelper {
   /** Reads stdin line by line and writes each non-null reply to stdout; every diagnostic goes to stderr. */
   async run(): Promise<void> {
     let buffer = '';
+    // A request that waits (a call for a source still being indexed) must not hold back the ones after it: replies may come in any order.
+    const answering = new Set<Promise<void>>();
 
     process.stdin.setEncoding('utf8');
 
@@ -103,28 +109,28 @@ export class Transport extends BaseHelper {
         buffer = buffer.slice(newline + 1);
         newline = buffer.indexOf('\n');
 
-        const reply = await this.handleLine({ line });
+        const answer = this.handleLine({ line })
+          .then((reply) => {
+            if (reply !== null) {
+              process.stdout.write(`${reply}\n`);
+            }
+          })
+          .finally(() => answering.delete(answer));
 
-        if (reply !== null) {
-          process.stdout.write(`${reply}\n`);
-        }
+        answering.add(answer);
       }
     }
+
+    await Promise.all(answering);
   }
 
   private async route(request: IRpcRequest): Promise<string | null> {
     switch (request.method) {
       case 'initialize': {
-        const requested = readString(request.params?.protocolVersion);
-        const protocolVersion =
-          requested && ProtocolVersions.isValid(requested)
-            ? requested
-            : AtlasConstants.PROTOCOL_VERSION;
-
         return this.reply({
           id: request.id,
           result: {
-            protocolVersion,
+            protocolVersion: AtlasConstants.PROTOCOL_VERSION,
             capabilities: { tools: {} },
             serverInfo: { name: this.serverName, version: this.serverVersion },
             ...(this.instructions === undefined
@@ -204,7 +210,7 @@ export class Transport extends BaseHelper {
       return this.errorReply({
         id: request.id,
         code: RpcErrorCodes.INTERNAL,
-        message: messageOf(error),
+        message: TextValue.messageOf({ error }),
       });
     }
   }

@@ -2,20 +2,21 @@ import { IGNIS_PACKAGE_MAP } from '../fixtures/ignis-packages';
 import { Transport } from '@/protocol';
 import { ReleaseStore } from '@/releases';
 import type { IReleaseTable } from '@/releases';
-import { buildVersionTool } from '@/tools/version.tool';
+import { VersionTool } from '@/tools/version.tool';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterAll, describe, expect, test } from 'bun:test';
 
 const TABLE: IReleaseTable = {
+  livePackages: ['kernel', 'helpers'],
   packageMap: IGNIS_PACKAGE_MAP,
   releases: {
     kernel: [
-      { version: '0.2.0-21', date: '2026-09-06', sha: 'aa0644f5' },
-      { version: '0.2.0-11', date: '2026-08-20', sha: 'bbbbbbbb' },
+      { version: '0.2.0-21', date: '2026-09-06', sha: 'aa0644f5', order: 2 },
+      { version: '0.2.0-11', date: '2026-08-20', sha: 'bbbbbbbb', order: 0 },
     ],
-    helpers: [{ version: '0.2.0-15', date: '2026-09-06', sha: 'da8e45c2' }],
+    helpers: [{ version: '0.2.0-15', date: '2026-09-06', sha: 'da8e45c2', order: 1 }],
   },
   changelogs: [],
 };
@@ -61,7 +62,7 @@ const callVersion = async (opts: {
   result?: { content: { type: string; text: string }[] };
 }> => {
   const transport = new Transport({
-    tools: [buildVersionTool({ releases: opts.releases })],
+    tools: [VersionTool.build({ releases: opts.releases })],
     serverName: 'atlas-test',
     serverVersion: '0.0.0',
   });
@@ -93,7 +94,8 @@ describe('version tool', () => {
       value: { name: '@venizia/ignis-kernel', version: '0.2.0-11' },
     });
 
-    const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
+    const result = await callVersion({ releases, args: { cwd } });
+    const payload = payloadOf(result);
 
     expect(payload.installed['@venizia/ignis-kernel']).toBe('0.2.0-11');
   });
@@ -124,7 +126,8 @@ describe('version tool', () => {
       value: { name: '@venizia/ignis-kernel', version: '0.2.0-11' },
     });
 
-    const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
+    const result = await callVersion({ releases, args: { cwd } });
+    const payload = payloadOf(result);
 
     expect(payload.installed['@venizia/ignis-kernel']).toBe('0.2.0-11');
     expect(payload.behind).toEqual([
@@ -137,7 +140,8 @@ describe('version tool', () => {
 
     writeJson({ file: join(cwd, 'package.json'), value: { name: 'consumer' } });
 
-    const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
+    const result = await callVersion({ releases, args: { cwd } });
+    const payload = payloadOf(result);
 
     expect(payload.snapshot).toEqual({
       '@venizia/ignis-helpers': '0.2.0-15',
@@ -157,7 +161,8 @@ describe('version tool', () => {
       value: { name: '@venizia/ignis-kernel', version: '0.2.0-11' },
     });
 
-    const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
+    const result = await callVersion({ releases, args: { cwd } });
+    const payload = payloadOf(result);
 
     expect(payload.behind).toEqual([
       { package: '@venizia/ignis-kernel', installed: '0.2.0-11', newest: '0.2.0-21' },
@@ -176,7 +181,8 @@ describe('version tool', () => {
       value: { name: '@venizia/ignis-kernel', version: '0.2.0-21' },
     });
 
-    const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
+    const result = await callVersion({ releases, args: { cwd } });
+    const payload = payloadOf(result);
 
     expect(payload.behind).toEqual([]);
   });
@@ -189,7 +195,8 @@ describe('version tool', () => {
       value: { name: 'consumer', dependencies: { '@venizia/ignis-kernel': '^0.2.0-11' } },
     });
 
-    const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
+    const result = await callVersion({ releases, args: { cwd } });
+    const payload = payloadOf(result);
 
     expect(payload.installed['@venizia/ignis-kernel']).toBeNull();
     expect(payload.behind).toEqual([]);
@@ -203,7 +210,8 @@ describe('version tool', () => {
       value: { name: 'consumer', dependencies: { '@venizia/ignis-kernel': '0.2.0-11' } },
     });
 
-    const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
+    const result = await callVersion({ releases, args: { cwd } });
+    const payload = payloadOf(result);
 
     expect(payload.installed['@venizia/ignis-kernel']).toBe('0.2.0-11');
     expect(payload.behind).toEqual([
@@ -242,7 +250,8 @@ describe('version tool', () => {
     mkdirSync(join(cwd, 'node_modules/@venizia'), { recursive: true });
     symlinkSync(join(store, 'vulcan'), join(cwd, 'node_modules/@venizia/vulcan'));
 
-    const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
+    const result = await callVersion({ releases, args: { cwd } });
+    const payload = payloadOf(result);
 
     expect(payload.installed).toEqual({
       '@venizia/vulcan': '0.2.0-0',
@@ -275,7 +284,8 @@ describe('version tool', () => {
       value: { name: '@venizia/vulcan-okf', version: '0.2.0-1' },
     });
 
-    const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
+    const result = await callVersion({ releases, args: { cwd } });
+    const payload = payloadOf(result);
 
     expect(payload.installed['@venizia/vulcan-okf']).toBe('0.2.0-1');
   });
@@ -311,7 +321,8 @@ describe('version tool', () => {
     });
     symlinkSync(join(store, 'vulcan'), join(cwd, 'node_modules/@venizia/vulcan'));
 
-    const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
+    const result = await callVersion({ releases, args: { cwd } });
+    const payload = payloadOf(result);
 
     expect(payload.installed['@venizia/vulcan-okf']).toBe('0.2.0-1');
   });
@@ -328,7 +339,8 @@ describe('version tool', () => {
       },
     });
 
-    const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
+    const result = await callVersion({ releases, args: { cwd } });
+    const payload = payloadOf(result);
 
     expect(payload.installed).toEqual({ '@venizia/ignis-kernel': null });
   });
@@ -341,7 +353,8 @@ describe('version tool', () => {
       value: { name: 'consumer', dependencies: { hono: '^4.13.7' } },
     });
 
-    const payload = payloadOf(await callVersion({ releases, args: { cwd } }));
+    const result = await callVersion({ releases, args: { cwd } });
+    const payload = payloadOf(result);
 
     expect(payload.installed).toEqual({});
   });
@@ -360,7 +373,7 @@ describe('version tool', () => {
   test('a source with no releases says why instead of guessing', async () => {
     const reply = await callVersion({
       releases: new ReleaseStore({
-        table: { releases: {}, changelogs: [] },
+        table: { livePackages: [], packageMap: [], releases: {}, changelogs: [] },
         emptyReason: 'no releases: no tag matches <dir>-v<version>',
       }),
       args: {},
@@ -374,6 +387,8 @@ describe('version tool', () => {
     const reply = await callVersion({
       releases: new ReleaseStore({
         table: {
+          livePackages: [],
+          packageMap: [],
           releases: {},
           changelogs: [
             {

@@ -1,13 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import {
-  LOCAL_AGENTS_FILE,
-  NO_TTY_HINT,
-  renderLocalChoice,
-  resolveAgents,
-} from '../../agents/index.ts';
-import { renderAgentsQuestion } from '../../agents/index.ts';
+import { AgentSelection, LOCAL_AGENTS_FILE, LocalChoice, NO_TTY_HINT } from '../../agents/index.ts';
+import { AgentsPrompt } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -24,7 +17,7 @@ const resolve = (opts: {
 }) => {
   const root = createProject({ files: opts.files ?? {} });
   const asked: { detected: string[]; stored: string[] | undefined }[] = [];
-  const result = resolveAgents({
+  const result = AgentSelection.resolve({
     root,
     flag: opts.flag,
     configAgents: opts.configAgents,
@@ -40,12 +33,12 @@ const resolve = (opts: {
   return { result, asked, root };
 };
 
-describe('resolveAgents: the order', () => {
+describe('AgentSelection.resolve: the order', () => {
   test('a flag wins over everything and is written to the local file', () => {
     const { result } = resolve({
       flag: 'omp,pi',
       files: {
-        [LOCAL_AGENTS_FILE]: renderLocalChoice({ agents: ['claude'] }),
+        [LOCAL_AGENTS_FILE]: LocalChoice.render({ agents: ['claude'] }),
         'CLAUDE.md': '@AGENTS.md\n',
       },
       configAgents: ['cursor'],
@@ -69,10 +62,10 @@ describe('resolveAgents: the order', () => {
     });
   });
 
-  test('the local file wins over migration and config, and is not rewritten', () => {
+  test('the local file wins over config, and is not rewritten', () => {
     const { result } = resolve({
       files: {
-        [LOCAL_AGENTS_FILE]: renderLocalChoice({ agents: ['omp'] }),
+        [LOCAL_AGENTS_FILE]: LocalChoice.render({ agents: ['omp'] }),
         'CLAUDE.md': '@AGENTS.md\n',
       },
       configAgents: ['cursor'],
@@ -81,32 +74,19 @@ describe('resolveAgents: the order', () => {
     expect(result).toMatchObject({ ok: true, agents: ['omp'], source: 'local', writeLocal: false });
   });
 
-  test('a project with CLAUDE.md is treated as claude, and the choice is stored', () => {
-    expect(resolve({ files: { 'CLAUDE.md': '@AGENTS.md\n' } }).result).toMatchObject({
+  test('a project with CLAUDE.md or .claude and no choice is not assumed to use claude: it asks, or takes the default with the hint', () => {
+    const files = { 'CLAUDE.md': '@AGENTS.md\n', '.claude/settings.json': '{}' };
+    const asking = resolve({ files, interactive: true, detected: ['omp'], answer: 'omp' });
+
+    expect(asking.asked).toEqual([{ detected: ['omp'], stored: undefined }]);
+    expect(asking.result).toMatchObject({ ok: true, agents: ['omp'], source: 'asked' });
+    expect(resolve({ files, interactive: false }).result).toMatchObject({
       ok: true,
       agents: ['claude'],
-      source: 'migration',
-      writeLocal: true,
-      hint: undefined,
+      source: 'default',
+      writeLocal: false,
+      hint: NO_TTY_HINT,
     });
-  });
-
-  test('a .claude folder alone is the same signal', () => {
-    const root = createProject({ files: {} });
-
-    mkdirSync(join(root, '.claude'));
-    writeFileSync(join(root, '.claude', 'settings.json'), '{}');
-
-    expect(
-      resolveAgents({
-        root,
-        flag: undefined,
-        configAgents: undefined,
-        interactive: false,
-        detected: [],
-        ask: () => '',
-      }),
-    ).toMatchObject({ ok: true, agents: ['claude'], source: 'migration' });
   });
 
   test('the committed config agents are the suggested default when the machine has no choice', () => {
@@ -119,7 +99,7 @@ describe('resolveAgents: the order', () => {
   });
 });
 
-describe('resolveAgents: nothing known', () => {
+describe('AgentSelection.resolve: nothing known', () => {
   test('without a terminal it keeps today: claude, one hint line, no local file written', () => {
     const { result, asked } = resolve({ interactive: false });
 
@@ -182,7 +162,7 @@ describe('resolveAgents: nothing known', () => {
       flag: '',
       interactive: true,
       detected: ['claude'],
-      files: { [LOCAL_AGENTS_FILE]: renderLocalChoice({ agents: ['omp'] }) },
+      files: { [LOCAL_AGENTS_FILE]: LocalChoice.render({ agents: ['omp'] }) },
       answer: 'omp,codex',
     });
 
@@ -203,7 +183,7 @@ describe('resolveAgents: nothing known', () => {
   });
 });
 
-describe('resolveAgents: refusals', () => {
+describe('AgentSelection.resolve: refusals', () => {
   test('an unknown id in the flag, the answer or the config is refused, naming it and the choices', () => {
     const flag = resolve({ flag: 'claude,vim' }).result;
     const answer = resolve({ interactive: true, answer: 'vim' }).result;
@@ -235,8 +215,8 @@ describe('resolveAgents: refusals', () => {
   });
 });
 
-describe('resolveAgents: what Enter (an empty answer) does when asked again', () => {
-  const STORED = { [LOCAL_AGENTS_FILE]: renderLocalChoice({ agents: ['claude', 'omp'] }) };
+describe('AgentSelection.resolve: what Enter (an empty answer) does when asked again', () => {
+  const STORED = { [LOCAL_AGENTS_FILE]: LocalChoice.render({ agents: ['claude', 'omp'] }) };
   const DETECTED = ['claude', 'omp', 'codex', 'copilot-vscode'];
 
   test('a stored choice is kept, not replaced by what was detected', () => {
@@ -258,7 +238,7 @@ describe('resolveAgents: what Enter (an empty answer) does when asked again', ()
 
   test('a stored empty choice (none) is kept too', () => {
     const { result } = resolve({
-      files: { [LOCAL_AGENTS_FILE]: renderLocalChoice({ agents: [] }) },
+      files: { [LOCAL_AGENTS_FILE]: LocalChoice.render({ agents: [] }) },
       flag: '',
       interactive: true,
       answer: '',
@@ -301,7 +281,10 @@ describe('resolveAgents: what Enter (an empty answer) does when asked again', ()
 
 describe('the agents question says what Enter does', () => {
   test('with a stored choice: Enter keeps it, and it is shown', () => {
-    const text = renderAgentsQuestion({ detected: ['claude', 'codex'], stored: ['claude', 'omp'] });
+    const text = AgentsPrompt.renderQuestion({
+      detected: ['claude', 'codex'],
+      stored: ['claude', 'omp'],
+    });
 
     expect(text).toContain('Enter keeps your earlier choice: claude, omp');
     expect(text).toContain('  chosen before: claude, omp');
@@ -309,20 +292,20 @@ describe('the agents question says what Enter does', () => {
   });
 
   test('a stored empty choice reads none', () => {
-    expect(renderAgentsQuestion({ detected: ['claude'], stored: [] })).toContain(
+    expect(AgentsPrompt.renderQuestion({ detected: ['claude'], stored: [] })).toContain(
       'Enter keeps your earlier choice: none',
     );
   });
 
   test('with nothing stored: Enter takes the detected list', () => {
-    const text = renderAgentsQuestion({ detected: ['claude', 'codex'], stored: undefined });
+    const text = AgentsPrompt.renderQuestion({ detected: ['claude', 'codex'], stored: undefined });
 
     expect(text).toContain('Enter accepts the detected list: claude, codex');
     expect(text).not.toContain('chosen before');
   });
 
   test('with nothing stored and nothing detected, Enter gives none', () => {
-    expect(renderAgentsQuestion({ detected: [], stored: undefined })).toContain(
+    expect(AgentsPrompt.renderQuestion({ detected: [], stored: undefined })).toContain(
       'Enter accepts the detected list: none',
     );
   });

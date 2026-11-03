@@ -32,10 +32,9 @@ interface IStepResult {
 }
 
 const PACKAGES_DIRECTORY = resolve(import.meta.dir, '..', '..', 'packages');
-const STYLE_PACKAGE_VERSION = '0.3.1-0';
 const MINIMUM_ATLAS_TOOLS = 6;
 
-/** The workspace catalog: the sandbox type-checks with the same typescript and Bun types. */
+/** The workspace catalog: the sandbox installs the same typescript, Bun types and dev-configs. */
 const CATALOG: Record<string, string> = JSON.parse(
   readFileSync(resolve(PACKAGES_DIRECTORY, '..', 'package.json'), 'utf8'),
 ).workspaces.catalog;
@@ -563,7 +562,7 @@ try {
         private: true,
         devDependencies: {
           '@venizia/vulcan': `file:${cli}`,
-          '@venizia/dev-configs': STYLE_PACKAGE_VERSION,
+          '@venizia/dev-configs': CATALOG['@venizia/dev-configs'],
           typescript: CATALOG.typescript,
           '@types/bun': CATALOG['@types/bun'],
         },

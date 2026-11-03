@@ -12,11 +12,11 @@ import {
 } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { dirname, join } from 'node:path';
-import { localRootOf } from '../local/scan.ts';
+import { LocalScan } from '../local/scan.ts';
 import { EntryKinds, SignalConstants } from './constants.ts';
 
 /** One line of the log. Only the fields of its kind are set. */
-export interface ISignalEntry {
+interface ISignalEntry {
   kind: string;
   /** The session and the agent inside it ('' for the main agent) the line belongs to. */
   session: string;
@@ -54,9 +54,6 @@ export interface ISignalState {
   notedAt: Record<string, number>;
 }
 
-export const isRecord = (opts: { value: unknown }): opts is { value: Record<string, unknown> } =>
-  typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value);
-
 const recordOf = (opts: { value: unknown }): Record<string, unknown> =>
   typeof opts.value === 'object' && opts.value !== null && !Array.isArray(opts.value)
     ? Object.fromEntries(Object.entries(opts.value))
@@ -70,7 +67,7 @@ const stringOf = (opts: { value: unknown }): string =>
 
 /** The log of a trusted `.agents/local/`; neither the cache folder nor the file may be a link, or not a plain file. */
 const logFileOf = (opts: { root: string; create: boolean }): string | undefined => {
-  const local = localRootOf({ root: opts.root });
+  const local = LocalScan.localRootOf({ root: opts.root });
 
   if (local === undefined) {
     return undefined;
@@ -172,105 +169,103 @@ const EMPTY_STATE = (): ISignalState => ({
   notedAt: {},
 });
 
-/** The current turn of `session`: its last prompt, then the calls since. `agent` narrows the events only. */
-export const readSignals = (opts: {
-  root: string;
-  session: string;
-  agent?: string;
-}): ISignalState => {
-  const file = logFileOf({ root: opts.root, create: false });
+export class SignalState {
+  /** The current turn of `session`: its last prompt, then the calls since. `agent` narrows the events only. */
+  static read(opts: { root: string; session: string; agent?: string }): ISignalState {
+    const file = logFileOf({ root: opts.root, create: false });
 
-  if (file === undefined) {
-    return EMPTY_STATE();
-  }
-
-  const entries = readEntries({ file });
-  const state = EMPTY_STATE();
-  const gates = new Map<string, boolean>();
-  const mine = entries.filter(
-    (entry) => entry.kind === EntryKinds.NOTE || entry.session === opts.session,
-  );
-  const turnIndex = mine.findLastIndex((entry) => entry.kind === EntryKinds.TURN);
-
-  for (const entry of mine) {
-    if (entry.kind === EntryKinds.NOTE) {
-      state.notedAt[entry.name] = Math.max(state.notedAt[entry.name] ?? 0, entry.at);
-    }
-  }
-
-  state.turnAt = turnIndex === -1 ? 0 : (mine[turnIndex]?.at ?? 0);
-
-  for (const entry of mine.slice(turnIndex + 1)) {
-    if (entry.kind !== EntryKinds.CALL) {
-      continue;
+    if (file === undefined) {
+      return EMPTY_STATE();
     }
 
-    if (opts.agent === undefined || entry.agent === opts.agent) {
-      state.events.push({ tool: entry.tool, key: entry.key, isOk: entry.isOk, at: entry.at });
-    }
-
-    if (entry.isProbe) {
-      state.probeAt = Math.max(state.probeAt, entry.at);
-    }
-
-    if (entry.isEdit) {
-      state.editAt = Math.max(state.editAt, entry.at);
-    }
-
-    for (const gate of entry.gates) {
-      gates.set(gate, entry.isOk);
-    }
-  }
-
-  state.events = state.events.slice(-SignalConstants.MAX_EVENTS);
-  state.failedGates = [...gates.entries()].filter(([, isOk]) => !isOk).map(([gate]) => gate);
-
-  return state;
-};
-
-/** Adds one line; appending a short line is atomic, so parallel hook processes lose nothing. */
-export const appendSignal = (opts: {
-  root: string;
-  entry: Partial<ISignalEntry> & { kind: string; at: number };
-}): void => {
-  const file = logFileOf({ root: opts.root, create: true });
-
-  if (file === undefined) {
-    return;
-  }
-
-  appendFileSync(file, `${JSON.stringify(opts.entry)}\n`, { mode: 0o600 });
-};
-
-/** A new turn for `session`: a marker line; a log grown past its size is first cut to what still matters. */
-export const startTurn = (opts: { root: string; session: string; now?: number }): void => {
-  const file = logFileOf({ root: opts.root, create: true });
-
-  if (file === undefined) {
-    return;
-  }
-
-  const now = opts.now ?? Date.now();
-
-  if ((lstatSync(file, { throwIfNoEntry: false })?.size ?? 0) > SignalConstants.COMPACT_BYTES) {
-    const kept = readEntries({ file }).filter(
-      (entry) => entry.kind === EntryKinds.NOTE || now - entry.at < SignalConstants.DEBOUNCE_MS,
+    const entries = readEntries({ file });
+    const state = EMPTY_STATE();
+    const gates = new Map<string, boolean>();
+    const mine = entries.filter(
+      (entry) => entry.kind === EntryKinds.NOTE || entry.session === opts.session,
     );
-    const partial = `${file}.${randomBytes(6).toString('hex')}.partial`;
+    const turnIndex = mine.findLastIndex((entry) => entry.kind === EntryKinds.TURN);
 
-    try {
-      writeFileSync(partial, kept.map((entry) => `${JSON.stringify(entry)}\n`).join(''), {
-        mode: 0o600,
-        flag: 'wx',
-      });
-      renameSync(partial, file);
-    } finally {
-      rmSync(partial, { force: true });
+    for (const entry of mine) {
+      if (entry.kind === EntryKinds.NOTE) {
+        state.notedAt[entry.name] = Math.max(state.notedAt[entry.name] ?? 0, entry.at);
+      }
     }
+
+    state.turnAt = turnIndex === -1 ? 0 : (mine[turnIndex]?.at ?? 0);
+
+    for (const entry of mine.slice(turnIndex + 1)) {
+      if (entry.kind !== EntryKinds.CALL) {
+        continue;
+      }
+
+      if (opts.agent === undefined || entry.agent === opts.agent) {
+        state.events.push({ tool: entry.tool, key: entry.key, isOk: entry.isOk, at: entry.at });
+      }
+
+      if (entry.isProbe) {
+        state.probeAt = Math.max(state.probeAt, entry.at);
+      }
+
+      if (entry.isEdit) {
+        state.editAt = Math.max(state.editAt, entry.at);
+      }
+
+      for (const gate of entry.gates) {
+        gates.set(gate, entry.isOk);
+      }
+    }
+
+    state.events = state.events.slice(-SignalConstants.MAX_EVENTS);
+    state.failedGates = [...gates.entries()].filter(([, isOk]) => !isOk).map(([gate]) => gate);
+
+    return state;
   }
 
-  appendSignal({
-    root: opts.root,
-    entry: { kind: EntryKinds.TURN, session: opts.session, at: now },
-  });
-};
+  /** Adds one line; appending a short line is atomic, so parallel hook processes lose nothing. */
+  static append(opts: {
+    root: string;
+    entry: Partial<ISignalEntry> & { kind: string; at: number };
+  }): void {
+    const file = logFileOf({ root: opts.root, create: true });
+
+    if (file === undefined) {
+      return;
+    }
+
+    appendFileSync(file, `${JSON.stringify(opts.entry)}\n`, { mode: 0o600 });
+  }
+
+  /** A new turn for `session`: a marker line; a log grown past its size is first cut to what still matters. */
+  static startTurn(opts: { root: string; session: string; now?: number }): void {
+    const file = logFileOf({ root: opts.root, create: true });
+
+    if (file === undefined) {
+      return;
+    }
+
+    const now = opts.now ?? Date.now();
+
+    if ((lstatSync(file, { throwIfNoEntry: false })?.size ?? 0) > SignalConstants.COMPACT_BYTES) {
+      const kept = readEntries({ file }).filter(
+        (entry) => entry.kind === EntryKinds.NOTE || now - entry.at < SignalConstants.DEBOUNCE_MS,
+      );
+      const partial = `${file}.${randomBytes(6).toString('hex')}.partial`;
+
+      try {
+        writeFileSync(partial, kept.map((entry) => `${JSON.stringify(entry)}\n`).join(''), {
+          mode: 0o600,
+          flag: 'wx',
+        });
+        renameSync(partial, file);
+      } finally {
+        rmSync(partial, { force: true });
+      }
+    }
+
+    SignalState.append({
+      root: opts.root,
+      entry: { kind: EntryKinds.TURN, session: opts.session, at: now },
+    });
+  }
+}

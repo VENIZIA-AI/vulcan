@@ -3,8 +3,8 @@ import type cytoscapeFcose from 'cytoscape-fcose';
 
 import { VizConstants, VizViews } from '../common/index.ts';
 import type { IVizCopy, IVizData, IVizNode, TLocale, TVizView } from '../common/index.ts';
-import { escapeAttribute, escapeHtml } from './html.ts';
-import { renderMarkdown } from './markdown.ts';
+import { HtmlText } from './html.ts';
+import { Markdown } from './markdown.ts';
 import { UI_STRINGS } from './strings.ts';
 import type { IUiStrings } from './strings.ts';
 import { VizTheme } from './theme.ts';
@@ -145,7 +145,7 @@ export class KnowledgeExplorer {
       header.className = 'gh';
       header.innerHTML =
         `<span class="gbar" style="background:${color}"></span>` +
-        `<span class="gname">${escapeHtml({ text: section.label })}</span><span class="gn">${section.count}</span>`;
+        `<span class="gname">${HtmlText.escape({ text: section.label })}</span><span class="gn">${section.count}</span>`;
       header.addEventListener('click', () => group.classList.toggle('col'));
 
       const items = document.createElement('div');
@@ -160,7 +160,7 @@ export class KnowledgeExplorer {
         item.dataset.query =
           `${node.title} ${node.description} ${node.tags.join(' ')} ${node.body}`.toLowerCase();
         item.style.setProperty('--accent', color);
-        item.innerHTML = `<span class="d"></span>${escapeHtml({ text: node.title })}`;
+        item.innerHTML = `<span class="d"></span>${HtmlText.escape({ text: node.title })}`;
         item.addEventListener('click', () => this.openConcept({ id: node.id }));
         items.append(item);
       }
@@ -210,14 +210,14 @@ export class KnowledgeExplorer {
           .slice(0, VizConstants.HOME_CARD_ITEMS)
           .map(
             (node) =>
-              `<a data-go="${escapeAttribute({ text: node.id })}">${escapeHtml({ text: node.title })}</a>`,
+              `<a data-go="${HtmlText.escapeAttribute({ text: node.id })}">${HtmlText.escape({ text: node.title })}</a>`,
           )
           .join('');
 
         return (
-          `<div class="card" style="--accent:${this.getSectionColor({ key: section.key })}" data-sec="${escapeAttribute({ text: section.key })}">` +
-          `<div class="ch"><span class="ck">${escapeHtml({ text: section.label })}</span><span class="cn">${section.count}</span></div>` +
-          `<div class="cd">${escapeHtml({ text: this.copy.sectionDescriptions[section.key] ?? '' })}</div>` +
+          `<div class="card" style="--accent:${this.getSectionColor({ key: section.key })}" data-sec="${HtmlText.escapeAttribute({ text: section.key })}">` +
+          `<div class="ch"><span class="ck">${HtmlText.escape({ text: section.label })}</span><span class="cn">${section.count}</span></div>` +
+          `<div class="cd">${HtmlText.escape({ text: this.copy.sectionDescriptions[section.key] ?? '' })}</div>` +
           `<div class="cl">${links}</div>` +
           (hidden > 0
             ? `<div class="more">${this.strings.formatMore({ count: hidden })}</div>`
@@ -230,9 +230,9 @@ export class KnowledgeExplorer {
     const { nodes, sections } = this.opts.data;
 
     this.opts.elements.reader.innerHTML =
-      `<div class="hero"><div class="eyebrow">${escapeHtml({ text: this.strings.start })}</div>` +
-      `<h1>${escapeHtml({ text: this.copy.heading })}</h1>` +
-      `<p>${escapeHtml({ text: this.copy.tagline })} ${nodes.length} ${this.strings.concepts} · ${sections.length} ${this.strings.areas}.</p></div>` +
+      `<div class="hero"><div class="eyebrow">${HtmlText.escape({ text: this.strings.start })}</div>` +
+      `<h1>${HtmlText.escape({ text: this.copy.heading })}</h1>` +
+      `<p>${HtmlText.escape({ text: this.copy.tagline })} ${nodes.length} ${this.strings.concepts} · ${sections.length} ${this.strings.areas}.</p></div>` +
       `<div class="grid">${cards}</div>`;
     this.scrollToTop();
   }
@@ -258,26 +258,26 @@ export class KnowledgeExplorer {
     const chips = related
       .map(
         (neighbour) =>
-          `<span class="chip" data-go="${escapeAttribute({ text: neighbour.id })}">` +
-          `<span class="d" style="background:${this.getSectionColor({ key: neighbour.group })}"></span>${escapeHtml({ text: neighbour.title })}</span>`,
+          `<span class="chip" data-go="${HtmlText.escapeAttribute({ text: neighbour.id })}">` +
+          `<span class="d" style="background:${this.getSectionColor({ key: neighbour.group })}"></span>${HtmlText.escape({ text: neighbour.title })}</span>`,
       )
       .join('');
 
     this.opts.elements.reader.innerHTML =
-      `<div class="crumb"><a data-go="${VizConstants.HOME_TARGET}">${escapeHtml({ text: this.strings.start })}</a> / ` +
-      `<a data-sec="${escapeAttribute({ text: node.group })}">${escapeHtml({ text: label })}</a> / ${escapeHtml({ text: node.title })}</div>` +
+      `<div class="crumb"><a data-go="${VizConstants.HOME_TARGET}">${HtmlText.escape({ text: this.strings.start })}</a> / ` +
+      `<a data-sec="${HtmlText.escapeAttribute({ text: node.group })}">${HtmlText.escape({ text: label })}</a> / ${HtmlText.escape({ text: node.title })}</div>` +
       `<div class="doc" style="--accent:${accent}">` +
-      `<span class="badge" style="background:${accent}">${escapeHtml({ text: node.type })}</span>` +
-      `<h1>${escapeHtml({ text: node.title })}</h1><p class="lead">${escapeHtml({ text: node.description })}</p>` +
+      `<span class="badge" style="background:${accent}">${HtmlText.escape({ text: node.type })}</span>` +
+      `<h1>${HtmlText.escape({ text: node.title })}</h1><p class="lead">${HtmlText.escape({ text: node.description })}</p>` +
       (node.tags.length
-        ? `<div class="tags">#${node.tags.map((tag) => escapeHtml({ text: tag })).join('  #')}</div>`
+        ? `<div class="tags">#${node.tags.map((tag) => HtmlText.escape({ text: tag })).join('  #')}</div>`
         : '') +
       (node.resource
-        ? `<div class="src">${escapeHtml({ text: this.strings.source })}: ${escapeHtml({ text: node.resource })}</div>`
+        ? `<div class="src">${HtmlText.escape({ text: this.strings.source })}: ${HtmlText.escape({ text: node.resource })}</div>`
         : '') +
-      `<div class="body">${renderMarkdown({ source: node.body })}</div>` +
+      `<div class="body">${Markdown.render({ source: node.body })}</div>` +
       (related.length
-        ? `<div class="related"><div class="rh">${escapeHtml({ text: this.strings.related })}</div><div class="chips">${chips}</div></div>`
+        ? `<div class="related"><div class="rh">${HtmlText.escape({ text: this.strings.related })}</div><div class="chips">${chips}</div></div>`
         : '') +
       '</div>';
 
@@ -345,13 +345,13 @@ export class KnowledgeExplorer {
       : this.strings.none;
 
     reader.innerHTML =
-      `<div class="results"><div class="rcount">${escapeHtml({ text: count })}</div>` +
+      `<div class="results"><div class="rcount">${HtmlText.escape({ text: count })}</div>` +
       hits
         .map(
           ({ node }) =>
-            `<div class="res" style="--accent:${this.getSectionColor({ key: node.group })}" data-go="${escapeAttribute({ text: node.id })}">` +
-            `<span class="rt">${escapeHtml({ text: node.title })}</span><span class="rk">${escapeHtml({ text: node.type })}</span>` +
-            `<div class="rd">${escapeHtml({ text: node.description })}</div></div>`,
+            `<div class="res" style="--accent:${this.getSectionColor({ key: node.group })}" data-go="${HtmlText.escapeAttribute({ text: node.id })}">` +
+            `<span class="rt">${HtmlText.escape({ text: node.title })}</span><span class="rk">${HtmlText.escape({ text: node.type })}</span>` +
+            `<div class="rd">${HtmlText.escape({ text: node.description })}</div></div>`,
         )
         .join('') +
       '</div>';

@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { collectHouseProblems } from '../../check/house.ts';
+import { HouseCheck } from '../../check/house.ts';
 import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
 
 afterEach(clearProjectConfig);
@@ -12,7 +12,7 @@ test('an axis that matches nothing is one problem among the others, never an abo
   });
 
   expect(
-    collectHouseProblems({
+    HouseCheck.collectProblems({
       files: [{ path: 'overview/x.md', text: 'a — b' }],
       renderers: [],
       regions: [],

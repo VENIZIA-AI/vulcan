@@ -3,13 +3,25 @@ import { lstatSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs
 import { basename, join } from 'node:path';
 import { z } from 'zod';
 import { ProjectLayout } from '../common/index.ts';
-import { localRootOf } from '../local/index.ts';
+import { LocalScan } from '../local/index.ts';
 import { VisualizeLimits } from './constants.ts';
-import { renderPage } from './page.ts';
+import { PageGate } from './gate.ts';
+import { PageShell } from './page.ts';
 import { VISUALIZE_SCHEMA } from './schema.ts';
-import { checkSpec } from './validate.ts';
+import { PageTerms } from './sources.ts';
+import { ProjectTheme } from './theme.ts';
+import type { IThemeInput } from './theme.ts';
+import { SpecValidation } from './validate.ts';
 
-export interface IRendered {
+/** What the page takes from the project it is made in: the owner's language and the project's colour. */
+export interface IRenderContext {
+  /** The language a spec without `language` gets: the owner's profile language. */
+  language?: string;
+  /** The project's `theme` from the manifest. */
+  project?: IThemeInput;
+}
+
+interface IRendered {
   html: string;
   bytes: number;
   /** What was checked and passed, for the report: nothing is silent. */
@@ -17,7 +29,7 @@ export interface IRendered {
   warnings: string[];
 }
 
-export type TRenderResult = { ok: true; page: IRendered } | { ok: false; problems: string[] };
+type TRenderResult = { ok: true; page: IRendered } | { ok: false; problems: string[] };
 
 /** The checks the renderer runs on its own; a browser check is the caller's. */
 const CHECKS = [
@@ -27,135 +39,167 @@ const CHECKS = [
   "no network, no font, no image, a policy that allows only the page's own style and script",
 ];
 
-/** Spec text to a page: parse, validate, cross-check, render, size gate. Nothing is written here. */
-export const renderSpecText = (opts: { text: string }): TRenderResult => {
-  let payload: unknown;
-
-  try {
-    payload = JSON.parse(opts.text);
-  } catch (error) {
-    return {
-      ok: false,
-      problems: [
-        `the spec is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
-      ],
-    };
-  }
-
-  const parsed = VISUALIZE_SCHEMA.safeParse(payload);
-
-  if (!parsed.success) {
-    return {
-      ok: false,
-      problems: parsed.error.issues.map(
-        (issue) => `${issue.path.join('.') || 'spec'}: ${issue.message}`,
-      ),
-    };
-  }
-
-  const problems = checkSpec({ spec: parsed.data });
-
-  if (problems.length > 0) {
-    return { ok: false, problems };
-  }
-
-  const html = renderPage({ spec: parsed.data });
-  const bytes = Buffer.byteLength(html, 'utf8');
-
-  if (bytes > VisualizeLimits.FAIL_BYTES) {
-    return {
-      ok: false,
-      problems: [
-        `the page is ${Math.round(bytes / 1024)} KB; the limit is ${VisualizeLimits.FAIL_BYTES / 1024} KB - a handoff that does not fit is two pages, not one dense page`,
-      ],
-    };
-  }
-
-  return {
-    ok: true,
-    page: {
-      html,
-      bytes,
-      checks: [
-        ...CHECKS,
-        `size ${(bytes / 1024).toFixed(1)} KB, within ${VisualizeLimits.FAIL_BYTES / 1024} KB`,
-      ],
-      warnings:
-        bytes > VisualizeLimits.WARN_BYTES
-          ? [
-              `the page is ${Math.round(bytes / 1024)} KB, past the ${VisualizeLimits.WARN_BYTES / 1024} KB a page should stay under: consider two pages`,
-            ]
-          : [],
-    },
-  };
-};
-
-/** The spec's JSON Schema, for an agent that wants to check a spec before it runs the renderer. */
-export const specSchemaText = (): string =>
-  `${JSON.stringify(z.toJSONSchema(VISUALIZE_SCHEMA, { io: 'input' }), null, 2)}\n`;
-
-/** A page name as a file name: lowercase letters, digits and dashes. */
-export const pageNameOf = (opts: { name: string }): string | undefined => {
-  const base = basename(opts.name).replace(/\.[^.]*$/, '');
-  const cleaned = base
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, '-')
-    .slice(0, 64)
-    .replace(/^-+|-+$/g, '');
-
-  return cleaned === '' ? undefined : cleaned;
-};
-
-/**
- * Writes the page to `.agents/local/prototypes/<name>.html` of the project: beside its place and moved in
- * last, so a failed render never replaces the last good page. Only a trusted `.agents/local/` is used.
- */
-export const writePage = (opts: {
-  root: string;
-  name: string;
-  html: string;
-}): { ok: true; path: string } | { ok: false; error: string } => {
-  const local = localRootOf({ root: opts.root });
-
-  if (local === undefined) {
-    return {
-      ok: false,
-      error: `no .agents/local/ in ${opts.root} (or it is a symlink, or resolves outside the project) - run vulcan sync first`,
-    };
-  }
-
-  const directory = join(local, VisualizeLimits.OUTPUT_DIRECTORY);
-
-  const refusal = (error: string) => ({ ok: false as const, error });
-  const place = `${ProjectLayout.LOCAL_DIRECTORY}/${VisualizeLimits.OUTPUT_DIRECTORY}`;
-
-  try {
-    const kind = lstatSync(directory, { throwIfNoEntry: false });
-
-    if (kind?.isSymbolicLink()) {
-      return refusal(`${place} is a symlink - refusing to write through it`);
-    }
-
-    if (kind === undefined) {
-      mkdirSync(directory, { recursive: true });
-    } else if (!kind.isDirectory()) {
-      return refusal(`${place} is not a folder`);
-    }
-
-    const path = join(directory, `${opts.name}.html`);
-    const partial = `${path}.${randomBytes(6).toString('hex')}.partial`;
+export class SpecPage {
+  /** Spec text to a page: parse, validate, cross-check, render, size gate. Nothing is written here. */
+  static renderText(opts: { text: string; context?: IRenderContext }): TRenderResult {
+    let payload: unknown;
 
     try {
-      writeFileSync(partial, opts.html, { flag: 'wx' });
-      renameSync(partial, path);
-    } finally {
-      rmSync(partial, { force: true });
+      payload = JSON.parse(opts.text);
+    } catch (error) {
+      return {
+        ok: false,
+        problems: [
+          `the spec is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+        ],
+      };
     }
 
-    return { ok: true, path };
-  } catch (error) {
-    return refusal(
-      `could not write the page: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    const parsed = VISUALIZE_SCHEMA.safeParse(payload);
+
+    if (!parsed.success) {
+      return {
+        ok: false,
+        problems: parsed.error.issues.map(
+          (issue) => `${issue.path.join('.') || 'spec'}: ${issue.message}`,
+        ),
+      };
+    }
+
+    const problems = SpecValidation.check({ spec: parsed.data });
+
+    if (problems.length > 0) {
+      return { ok: false, problems };
+    }
+
+    const { accent, accentDark, accentText } = parsed.data;
+    const themed = ProjectTheme.resolve({
+      spec:
+        accent === undefined
+          ? undefined
+          : {
+              accent,
+              ...(accentDark === undefined ? {} : { accentDark }),
+              ...(accentText === undefined ? {} : { accentText }),
+            },
+      project: opts.context?.project,
+    });
+
+    if (!themed.ok) {
+      return { ok: false, problems: themed.problems.map((problem) => `colour: ${problem}`) };
+    }
+
+    const language = parsed.data.language ?? opts.context?.language ?? 'en';
+    const html = PageShell.render({ spec: parsed.data, language, theme: themed.theme });
+    const bytes = Buffer.byteLength(html, 'utf8');
+    const gate = PageGate.problems({ html });
+
+    if (gate.length > 0) {
+      return { ok: false, problems: gate.map((problem) => `output gate: ${problem}`) };
+    }
+
+    if (bytes > VisualizeLimits.FAIL_BYTES) {
+      return {
+        ok: false,
+        problems: [
+          `the page is ${Math.round(bytes / 1024)} KB; the limit is ${VisualizeLimits.FAIL_BYTES / 1024} KB - a handoff that does not fit is two pages, not one dense page`,
+        ],
+      };
+    }
+
+    return {
+      ok: true,
+      page: {
+        html,
+        bytes,
+        checks: [
+          ...CHECKS,
+          PageGate.CHECK,
+          `colour from the ${themed.theme.source === 'spec' ? "spec's accent" : themed.theme.source === 'project' ? "project's theme" : 'neutral default'}: every text, mark and fill pair checked`,
+          ...themed.theme.notes,
+          `size ${(bytes / 1024).toFixed(1)} KB, within ${VisualizeLimits.FAIL_BYTES / 1024} KB`,
+        ],
+        warnings: [
+          ...themed.theme.warnings,
+          ...PageTerms.warnings({ html, terms: parsed.data.terms }),
+          ...(bytes > VisualizeLimits.WARN_BYTES
+            ? [
+                `the page is ${Math.round(bytes / 1024)} KB, past the ${VisualizeLimits.WARN_BYTES / 1024} KB a page should stay under: consider two pages`,
+              ]
+            : []),
+        ],
+      },
+    };
   }
-};
+
+  /** The spec's JSON Schema, for an agent that wants to check a spec before it runs the renderer. */
+  static specSchemaText(): string {
+    return `${JSON.stringify(z.toJSONSchema(VISUALIZE_SCHEMA, { io: 'input' }), null, 2)}\n`;
+  }
+
+  /** A page name as a file name: lowercase letters, digits and dashes. */
+  static pageNameOf(opts: { name: string }): string | undefined {
+    const base = basename(opts.name).replace(/\.[^.]*$/, '');
+    const cleaned = base
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .slice(0, 64)
+      .replace(/^-+|-+$/g, '');
+
+    return cleaned === '' ? undefined : cleaned;
+  }
+
+  /**
+   * Writes the page to `.agents/local/prototypes/<name>.html` of the project: beside its place and moved in
+   * last, so a failed render never replaces the last good page. Only a trusted `.agents/local/` is used.
+   */
+  static write(opts: {
+    root: string;
+    name: string;
+    html: string;
+  }): { ok: true; path: string } | { ok: false; error: string } {
+    const local = LocalScan.localRootOf({ root: opts.root });
+
+    if (local === undefined) {
+      return {
+        ok: false,
+        error: `no .agents/local/ in ${opts.root} (or it is a symlink, or resolves outside the project) - run vulcan sync first`,
+      };
+    }
+
+    const directory = join(local, VisualizeLimits.OUTPUT_DIRECTORY);
+
+    const refusal = (error: string) => ({ ok: false as const, error });
+    const place = `${ProjectLayout.LOCAL_DIRECTORY}/${VisualizeLimits.OUTPUT_DIRECTORY}`;
+
+    try {
+      const kind = lstatSync(directory, { throwIfNoEntry: false });
+
+      if (kind?.isSymbolicLink()) {
+        return refusal(`${place} is a symlink - refusing to write through it`);
+      }
+
+      if (kind === undefined) {
+        mkdirSync(directory, { recursive: true });
+      } else if (!kind.isDirectory()) {
+        return refusal(`${place} is not a folder`);
+      }
+
+      const path = join(directory, `${opts.name}.html`);
+      const partial = `${path}.${randomBytes(6).toString('hex')}.partial`;
+
+      try {
+        writeFileSync(partial, opts.html, { flag: 'wx' });
+        renameSync(partial, path);
+      } finally {
+        rmSync(partial, { force: true });
+      }
+
+      return { ok: true, path };
+    } catch (error) {
+      return refusal(
+        `could not write the page: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+}

@@ -186,7 +186,7 @@ It reads the command with the shell parser of `guard-git`, so only a program tha
 
 ## guard-outside
 
-Everything an agent creates lives under the project's `.agents/local/` (`V-B-08`); scratch goes in `.agents/local/tmp/<task>/`, never in `/tmp` or the home folder, and the ask names that place. The `guard-outside` hook asks when a tool call would create something outside the project root. It reads redirects (`>`, `>>`, `2>`, `&>`), `mkdir`, `touch`, `cp`, `mv`, `install`, `ln`, `rsync`, `tee`, `dd of=`, `curl -o`, `wget -O`/`-P`, `git clone`, `git worktree add` and `mktemp`, and the `Write`, `Edit`, `MultiEdit` and `NotebookEdit` tools. A relative path is taken from the hook's working directory; a symlink that leaves the project counts as outside. It follows `cd` and `git -C`, and reads `sh -c`, `eval`, `xargs` and `sudo`/`env` wrappers. It is a guard against drift, not a sandbox: a path it cannot work out (an unset variable, a glob, a command substitution) passes.
+Everything an agent creates lives under the project's `.agents/local/` (`V-B-08`); scratch goes in `.agents/local/tmp/<task>/`, never in `/tmp` or the home folder, and the ask names that place. The `guard-outside` hook asks when a tool call would create something outside the project root. It reads redirects (`>`, `>>`, `2>`, `&>`), `mkdir`, `touch`, `cp`, `mv`, `install`, `ln`, `rsync`, `tee`, `dd of=`, `curl -o`, `wget -O`/`-P`, `git clone`, `git worktree add` and `mktemp`, and the `Write`, `Edit`, `MultiEdit` and `NotebookEdit` tools. A relative path is taken from the call's working directory, and `$PWD` or `${PWD}` in a path is that same folder (after a `cd`, the new one), so `$PWD/../x` is judged by where it lands. `git -C` moves a relative path but not `$PWD`, and when the host sends no working directory `$PWD` is the hook's own. A `..` after a symlink in the working directory is folded as text, not followed. A symlink that leaves the project counts as outside. It follows `cd` and `git -C`, and reads `sh -c`, `eval`, `xargs` and `sudo`/`env` wrappers. It is a guard against drift, not a sandbox: a path it cannot work out (an unset variable, a glob, a command substitution) passes.
 
 Stores that a package manager, a runtime or the agent tool manage themselves are allowed: the bun, npm, pnpm and yarn cache folders, `$XDG_RUNTIME_DIR` (lock files) and the agent tool's `projects/*/memory/` folders. A folder that holds programs on `PATH` (`~/.bun/bin`) or a file git or a shell runs (`~/.gitconfig`, `~/.config/git/`) is not allowed. Add others with `guard.toolOwnedPaths` in the [project config](/references/configuration/#guard). Pointing `TMPDIR` or `mktemp` at the system temp directory is not allowed; a gate script that needs a temp directory sets `TMPDIR` to `.agents/local/tmp/`. `VULCAN_GUARDS=off` switches the guard off for a session.
 
@@ -291,15 +291,51 @@ The ask reads `<script> looks like it is ... (listed in guard.writes.trustedScri
 
 `vulcan doctor` prints one info line per listed script with its state, and warns when a listed path does not exist, is untracked, is not committed yet, is a symlink or git cannot say.
 
+#### Read-only subcommands
+
+A release script often has a read-only subcommand and a publishing one in the same file. List the read-only ones, and `guard-writes` skips the body check for those calls only:
+
+```ts
+export default {
+  guard: {
+    writes: {
+      trustedScripts: [
+        { script: 'scripts/release/release-run.ts', readOnly: ['plan', 'registry'] },
+      ],
+    },
+  },
+} satisfies VulcanConfig;
+```
+
+Run `vulcan sync` after you add an entry. The hook reads the object entries from the manifest, under `guard.writes.readOnlyScripts`, with no config loader.
+
+| Command | Result |
+|---|---|
+| `bun scripts/release/release-run.ts plan` | quiet: `plan` is listed |
+| `bun scripts/release/release-run.ts registry package.json` | quiet: the first argument is `registry` |
+| `bun scripts/release/release-run.ts run` | asks as before: `run` is not listed |
+| `bun scripts/release/release-run.ts` or `... --dry-run plan` | asks: no argument, or a flag first |
+| `bun scripts/release/release-run.ts plan; bun scripts/release/release-run.ts run` | asks for the `run` call only: each command is judged on its own |
+| `bun scripts/release/release-run.ts plan && curl -X POST https://example.com` | asks: the command line is still checked |
+
+The word is one argument of the command, matched exactly. A call the hook cannot read as separate commands, for example one that names the script again inside an argument, is checked as a whole. The script must be tracked and equal to `HEAD`, the same condition as a path entry. An edited script asks even for a listed subcommand.
+
+`vulcan doctor` adds an info line for each listed word the script does not hold as a quoted string. This checks the text of the file, not what the script does, so it can miss a subcommand the script parses another way. It is a note, never a failure.
+
 Limits, stated plainly:
 
 - The trust is committed and unchanged, not reviewed. A commit that edits the script and the config list is what your team reviews in a pull request.
 - The imports of a script are not read, trusted or not.
+- Only the first word is judged. Flags and words after it are trusted with it, and so is anything the call prints, even if it is piped into a shell.
+- A `readOnly` word is one plain word: letters, digits and `_ . : -`. A space, a glob or a shell character is refused by the schema.
+- A script listed as a path string and as an object is trusted whole: the string wins.
+- The hook matches the script by the file the shell opens: the script word is joined to the call's folder and links are followed the way the OS follows them, so `link/../tools/cli.ts` is the file behind `link`, not the listed one. `bun run x.ts` folds `..` as text before it opens the file and `bun x.ts` does not, so the hook reads both files and an entry covers the word only when both are the listed script. After a `cd`, `pushd` or `popd` earlier in the line, a relative script word is not covered by any entry, because the hook does not follow the new folder; an absolute path still is, and the script is still read from the hook's folder only. `builtin cd`, `env -C`, `sudo -D` and a `cd` inside a loop, function or `eval` are not seen as a move. This holds for a path entry too.
+- A removed entry keeps its trust until `vulcan sync` rewrites the manifest and you commit it. `vulcan doctor` flags the difference.
 - This is not a sandbox: see [what the guards are, and are not](#what-the-guards-are-and-are-not). Anything that must never run belongs in `permissions.deny`, the read-only slot of `V-W-01` or branch protection.
 
 ## stop and prompt-submit
 
-The two hooks hold the [report shape](/references/configuration/#owner) the session digest prints. `stop` runs `checkOwnerShape` on the last reply: a headline that is a sentence within the cap, the minimap table with the configured header and statuses, the Blocked line, the decisions list ending in the recommendation or exactly the none string, the order of the sections, and, as style faults, emoji, an all-caps phrase and a relative path where full paths are asked for. A reply under `report.shortReplyWords` is exempt; `0` checks every reply.
+The two hooks hold the [report shape](/references/configuration/#owner) the session digest prints. `stop` runs `OwnerShape.check` on the last reply: a headline that is a sentence within the cap, the minimap table with the configured header and statuses, the Blocked line, the decisions list ending in the recommendation or exactly the none string, the order of the sections, and, as style faults, emoji, an all-caps phrase and a relative path where full paths are asked for. A reply under `report.shortReplyWords` is exempt; `0` checks every reply.
 
 | `enforce` | What happens to a reply that breaks the shape |
 |---|---|
@@ -315,7 +351,7 @@ The log is `.agents/local/violations.jsonl` (gitignored, inside the project): on
 
 ## post-tool and the claims at Stop
 
-`post-tool` appends one line per call to `.agents/local/cache/signals.jsonl` (gitignored, kept per session, cut down at a new prompt once it grows): the call, whether a public-state probe ran (`npm view`, `gh` reads, `git ls-remote`, `curl` of an outside URL; not a `gh pr create`, a POST or a localhost URL), and which gate commands ran (tests, lint, build, typecheck, `vulcan doctor`, found by parsing the command, so a commit message that mentions `tsc` is not one) with whether each passed. A result with a non-zero exit code is a failure; a command sent to the background has no result yet and counts as none. It never blocks. It tells the model:
+`post-tool` appends one line per call to `.agents/local/cache/signals.jsonl` (gitignored, kept per session, cut down at a new prompt once it grows): the call, whether a public-state probe ran (`npm view`, `gh` reads, `git ls-remote`, `curl` of an outside URL; not a `gh pr create`, a POST or a localhost URL), and which gate commands ran (tests, lint, build, typecheck, `bun check`, `vulcan doctor`, found by parsing the command, so a commit message that mentions `tsc` is not one) with whether each passed. A result with a non-zero exit code is a failure; a command sent to the background has no result yet and counts as none. It never blocks. It tells the model:
 
 - **Loop check**: the same call three times in a row within a minute (polling further apart is not a loop), two calls alternating for three rounds, or one call failing three times with the same input in the last six. Each agent's loop is its own; said once in five minutes.
 - **After an edit of a skill or a rules file**: run the skill's evals, or keep to the admission bar for a rule.
@@ -335,9 +371,9 @@ Several kinds of hook run in every session of every project, so each kind has a 
 
 `subagent-start` never blocks. `VULCAN_GUARDS=off` switches the guards, the shape hooks and `post-tool` off and is read before any module loads.
 
-**Where the project root comes from.** Claude Code sets `CLAUDE_PROJECT_DIR`, and every wrapper builds its path from `${CLAUDE_PROJECT_DIR:-$PWD}`, so a host that reads `.claude/settings.json` without setting the variable (Cursor and Copilot document that they read it) still finds the install when its hooks run from the project root. A set variable always wins, and a missing install still exits 2 for a safety hook. Up to 0.4.4 an unset variable made `guard-writes`, `guard-manifest`, `guard-package`, `session-start`, `subagent-start` and `guard-remote-hosts` exit 2, which a host that treats a non-zero exit as a refusal would apply to every call.
+**Where the project root comes from.** Claude Code sets `CLAUDE_PROJECT_DIR`, and every wrapper builds its path from `${CLAUDE_PROJECT_DIR:-$PWD}`, so a host that reads `.claude/settings.json` without setting the variable (Cursor and Copilot document that they read it) still finds the install when its hooks run from the project root. A set variable always wins, and a missing install still exits 2 for a safety hook. Without the fallback, an unset variable would point the wrapper at `/node_modules/...`, a missing install, and `guard-writes`, `guard-manifest`, `guard-package`, `session-start`, `subagent-start` and `guard-remote-hosts` would exit 2, which a host that treats a non-zero exit as a refusal would apply to every call.
 
-**Why the deny-class guards ask.** A guard that refuses must not be switched off by the same input that breaks it: a line that overflowed the stack or ran for minutes used to crash `guard-git`, and the wrapper let the call through. The wrapper of `guard-git` and `guard-outside` runs the hook under `timeout 30` (where `timeout` exists; macOS has none, and a hook that hangs there is bounded by Claude Code's own limit) and, when the hook ends with a non-zero status, prints an `ask` decision and exits 0. A hook that fails inside its own `try` (an internal error, a module that does not load) asks the same way, with the error in the reason. The cost is noise on a broken install: `guard-git` asks about each `git` or `gh` command and `guard-outside` about each call until you run `bun install` or set `VULCAN_GUARDS=off`. A missing package or `bun` is not that case and still passes, so the first `bun install` of a fresh clone is never blocked.
+**Why the deny-class guards ask.** A guard that refuses must not be switched off by the same input that breaks it: a line that overflows the stack or runs for minutes can crash `guard-git`, and a wrapper that let the call through would switch the guard off. The wrapper of `guard-git` and `guard-outside` runs the hook under `timeout 30` (where `timeout` exists; macOS has none, and a hook that hangs there is bounded by Claude Code's own limit) and, when the hook ends with a non-zero status, prints an `ask` decision and exits 0. A hook that fails inside its own `try` (an internal error, a module that does not load) asks the same way, with the error in the reason. The cost is noise on a broken install: `guard-git` asks about each `git` or `gh` command and `guard-outside` about each call until you run `bun install` or set `VULCAN_GUARDS=off`. A missing package or `bun` is not that case and still passes, so the first `bun install` of a fresh clone is never blocked.
 
 The safety hooks import only the modules they need, not the config loader, the rules reader or `zod`, so a defect in those cannot stop every tool call. The release pipeline's pack smoke runs every hook of the generated settings from the installed tarball (a benign call each, with every copy of `zod` made unresolvable, and with `src/hooks/common/constants.ts` removed) and refuses to publish if one fails.
 
@@ -376,7 +412,7 @@ $ same, with the input {"tool_name":"Bash","tool_input":{"command":"bun install"
 
 The parse-failure behavior differs per hook.
 On unparseable input, `guard-writes` prints a log line to stderr, lets the command through, and exits with code 0.
-The log begins with `[parseHookCommand] unreadable hook input - letting the command through`.
+The log begins with `[WriteGuard.parseHookCommand] unreadable hook input - letting the command through`.
 In contrast, `guard-remote-hosts` asks with "the hook input could not be read".
 
 ## Your own hooks

@@ -3,7 +3,7 @@ import type TypeScript from 'typescript';
 import { TypeScriptCompiler } from './compiler';
 
 /** An entry's module symbol and the checker that resolves it. */
-export interface IDeclarationModule {
+interface IDeclarationModule {
   checker: TypeScript.TypeChecker;
   moduleSymbol: TypeScript.Symbol;
 }

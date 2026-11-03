@@ -1,5 +1,5 @@
 /** One choice of a slot rule; `settings` merge into `.claude/settings.json` when it is chosen. */
-export interface ISlotOption {
+interface ISlotOption {
   text: string;
   settings?: Record<string, unknown>;
 }

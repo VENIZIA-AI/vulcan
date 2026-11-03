@@ -29,4 +29,6 @@ const child = Bun.spawn([process.execPath, join(import.meta.dir, 'run.ts'), comm
   stdio: ['inherit', 'inherit', 'inherit'],
 });
 
-process.exit(await child.exited);
+const exitCode = await child.exited;
+
+process.exit(exitCode);

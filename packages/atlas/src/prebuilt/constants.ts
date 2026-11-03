@@ -45,10 +45,14 @@ export class MissReasons {
   static readonly FOREIGN_URL = 'foreign-url';
 }
 
-export const pairNamesOf = (opts: { sha: string }): { gz: string; envelope: string } => ({
-  gz: `${opts.sha}${PrebuiltConstants.INDEX_SUFFIX}`,
-  envelope: `${opts.sha}${PrebuiltConstants.ENVELOPE_SUFFIX}`,
-});
+export class PairNames {
+  static of(opts: { sha: string }): { gz: string; envelope: string } {
+    return {
+      gz: `${opts.sha}${PrebuiltConstants.INDEX_SUFFIX}`,
+      envelope: `${opts.sha}${PrebuiltConstants.ENVELOPE_SUFFIX}`,
+    };
+  }
+}
 
 /** How a repository publishes its pairs, and how many it keeps. */
 export class PublishConstants {

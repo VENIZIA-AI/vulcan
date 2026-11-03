@@ -1,19 +1,18 @@
 import { Glob } from 'bun';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative } from 'node:path';
-import { BASE_DIRECTORY, ProjectLayout, readProperty } from '../common/index.ts';
-import { ConfigConstants, findConfigFiles } from '../config/index.ts';
-import type { TConfigExtension } from '../config/index.ts';
+import { BASE_DIRECTORY, JsonValue, ProjectLayout } from '../common/index.ts';
+import { ConfigConstants, ConfigLoader } from '../config/index.ts';
 import { InitConstants, InitStatuses } from './common/index.ts';
-import { renderBunfig } from '../create/bunfig.ts';
-import { renderDockerignore } from '../create/dockerignore.ts';
+import { Bunfig } from '../create/bunfig.ts';
+import { Dockerignore } from '../create/dockerignore.ts';
 import type { IInitEntry, IScaffoldFile } from './common/index.ts';
 
 /** The atlas entry of the root `.mcp.json`, as `sync` writes it and `doctor` shows it. */
 export const MCP_SERVER_HINT =
   '"atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }';
 
-/** The files every project gets, apart from the config, whose format the user picks. */
+/** The files every project gets, apart from the config. */
 const SCAFFOLD_FILES: IScaffoldFile[] = [
   { path: 'AGENTS.md', template: 'AGENTS.md' },
   { path: '.agents/rules.md', template: 'rules.md' },
@@ -26,7 +25,7 @@ const LINT_CONFIG_FILES: IScaffoldFile[] = [
   { path: '.configs/lints/eslint.config.mjs', template: 'eslint.config.mjs' },
 ];
 
-export interface IScaffoldResult {
+interface IScaffoldResult {
   entries: IInitEntry[];
   /** Packages to `bun add -d`, empty when everything is declared. */
   install: string[];
@@ -61,59 +60,12 @@ const readManifest = (opts: { root: string }): IPackageManifest | undefined => {
   }
 };
 
-/** Whether the root `package.json` declares workspaces: the array form or `{ packages: [...] }`. */
-export const declaresWorkspaces = (opts: { root: string }): boolean => {
-  const workspaces = readManifest(opts)?.workspaces;
-
-  return Array.isArray(workspaces) || (typeof workspaces === 'object' && workspaces !== null);
-};
-
-/** The root workspace globs, from either form; empty when there are none. */
-export const readWorkspaceGlobs = (opts: { root: string }): string[] => {
-  const workspaces = readManifest(opts)?.workspaces;
-
-  if (Array.isArray(workspaces)) {
-    return workspaces.map(String);
-  }
-
-  const packages = readProperty({ value: workspaces, key: 'packages' });
-
-  return Array.isArray(packages) ? packages.map(String) : [];
-};
-
-/**
- * Whether a workspace glob list covers the packages directly under `folder`: `folder/*` or
- * `folder/**`, with or without a leading `./`, or any glob that matches a package there
- * (`auroras/*\/*` covers `auroras/apps`).
- */
-export const coversFolder = (opts: { globs: string[]; folder: string }): boolean =>
-  opts.globs.some((glob) => {
-    const plain = glob.replace(/^\.\//, '');
-
-    // A negation (`!umbras/legacy`) excludes packages; it never covers a folder.
-    if (plain.startsWith('!')) {
-      return false;
-    }
-
-    return (
-      plain === `${opts.folder}/*` ||
-      plain === `${opts.folder}/**` ||
-      new Glob(plain).match(`${opts.folder}/package-probe`)
-    );
-  });
-
 /** The `package.json` name, or the directory name when there is none. */
-export const resolveProjectName = (opts: { root: string }): string => {
+const resolveProjectName = (opts: { root: string }): string => {
   const name = readManifest(opts)?.name;
 
   return typeof name === 'string' && name !== '' ? name : basename(opts.root);
 };
-
-export const renderTemplate = (opts: { template: string; name: string }): string =>
-  readFileSync(join(BASE_DIRECTORY, 'templates', opts.template), 'utf8').replaceAll(
-    InitConstants.NAME_TOKEN,
-    opts.name,
-  );
 
 const writeIfAbsent = (opts: { root: string; path: string; content: string }): IInitEntry => {
   const target = join(opts.root, opts.path);
@@ -128,100 +80,143 @@ const writeIfAbsent = (opts: { root: string; path: string; content: string }): I
   return { status: InitStatuses.CREATED, subject: opts.path };
 };
 
-/** Scaffolds the project layer at `root`. Never overwrites: an existing file is kept and a needed edit becomes a hint; only `.gitignore` is appended to, line by line. */
-export const scaffoldProject = (opts: {
-  root: string;
-  extension: TConfigExtension;
-}): IScaffoldResult => {
-  const { root } = opts;
-  const name = resolveProjectName({ root });
-  const isWorkspaces = declaresWorkspaces({ root });
-  const entries: IInitEntry[] = (
-    isWorkspaces ? SCAFFOLD_FILES : [...SCAFFOLD_FILES, ...LINT_CONFIG_FILES]
-  ).map((file) =>
-    writeIfAbsent({
-      root,
-      path: file.path,
-      content: renderTemplate({ template: file.template, name }),
-    }),
-  );
+export class ProjectScaffold {
+  /** Whether the root `package.json` declares workspaces: the array form or `{ packages: [...] }`. */
+  static declaresWorkspaces(opts: { root: string }): boolean {
+    const workspaces = readManifest(opts)?.workspaces;
 
-  if (isWorkspaces) {
-    entries.push({
-      status: InitStatuses.SKIPPED,
-      subject: `.configs/{lints,formatters}: a workspaces project keeps them per app (apps/<name>/.configs/lints/, apps/<name>/.configs/formatters/); the templates are in node_modules/@venizia/vulcan/base/templates/`,
+    return Array.isArray(workspaces) || (typeof workspaces === 'object' && workspaces !== null);
+  }
+
+  /** The root workspace globs, from either form; empty when there are none. */
+  static readWorkspaceGlobs(opts: { root: string }): string[] {
+    const workspaces = readManifest(opts)?.workspaces;
+
+    if (Array.isArray(workspaces)) {
+      return workspaces.map(String);
+    }
+
+    const packages = JsonValue.readProperty({ value: workspaces, key: 'packages' });
+
+    return Array.isArray(packages) ? packages.map(String) : [];
+  }
+
+  /**
+   * Whether a workspace glob list covers the packages directly under `folder`: `folder/*` or
+   * `folder/**`, with or without a leading `./`, or any glob that matches a package there
+   * (`auroras/*\/*` covers `auroras/apps`).
+   */
+  static coversFolder(opts: { globs: string[]; folder: string }): boolean {
+    return opts.globs.some((glob) => {
+      const plain = glob.replace(/^\.\//, '');
+
+      // A negation (`!umbras/legacy`) excludes packages; it never covers a folder.
+      if (plain.startsWith('!')) {
+        return false;
+      }
+
+      return (
+        plain === `${opts.folder}/*` ||
+        plain === `${opts.folder}/**` ||
+        new Glob(plain).match(`${opts.folder}/package-probe`)
+      );
     });
   }
 
-  const configs = findConfigFiles({ root });
+  static renderTemplate(opts: { template: string; name: string }): string {
+    return readFileSync(join(BASE_DIRECTORY, 'templates', opts.template), 'utf8').replaceAll(
+      InitConstants.NAME_TOKEN,
+      opts.name,
+    );
+  }
 
-  if (configs.length === 0) {
-    const configFile = `${ConfigConstants.BASENAME}.${opts.extension}`;
-
-    entries.push(
+  /** Scaffolds the project layer at `root`. Never overwrites: an existing file is kept and a needed edit becomes a hint; only `.gitignore` is appended to, line by line. */
+  static scaffold(opts: { root: string }): IScaffoldResult {
+    const { root } = opts;
+    const name = resolveProjectName({ root });
+    const isWorkspaces = ProjectScaffold.declaresWorkspaces({ root });
+    const entries: IInitEntry[] = (
+      isWorkspaces ? SCAFFOLD_FILES : [...SCAFFOLD_FILES, ...LINT_CONFIG_FILES]
+    ).map((file) =>
       writeIfAbsent({
         root,
-        path: join(ConfigConstants.DIRECTORY, configFile),
-        content: renderTemplate({ template: configFile, name }),
+        path: file.path,
+        content: ProjectScaffold.renderTemplate({ template: file.template, name }),
       }),
     );
-  } else {
-    entries.push(
-      ...configs.map((file): IInitEntry => ({
-        status: InitStatuses.KEPT,
-        subject: relative(root, file),
-      })),
+
+    if (isWorkspaces) {
+      entries.push({
+        status: InitStatuses.SKIPPED,
+        subject: `.configs/lints: a workspaces project keeps them per app (apps/<name>/.configs/lints/); the templates are in node_modules/@venizia/vulcan/base/templates/`,
+      });
+    }
+
+    const config = ConfigLoader.findFile({ root });
+
+    if (config === undefined) {
+      entries.push(
+        writeIfAbsent({
+          root,
+          path: join(ConfigConstants.DIRECTORY, ConfigConstants.FILE),
+          content: ProjectScaffold.renderTemplate({ template: ConfigConstants.FILE, name }),
+        }),
+      );
+    } else {
+      entries.push({ status: InitStatuses.KEPT, subject: relative(root, config) });
+    }
+
+    entries.push(writeIfAbsent({ root, path: '.dockerignore', content: Dockerignore.render() }));
+    entries.push(writeIfAbsent({ root, path: 'bunfig.toml', content: Bunfig.render() }));
+
+    const makefile = join(root, 'Makefile');
+
+    if (!existsSync(makefile)) {
+      entries.push(
+        writeIfAbsent({
+          root,
+          path: 'Makefile',
+          content: ProjectScaffold.renderTemplate({ template: 'Makefile', name }),
+        }),
+      );
+    } else if (!readFileSync(makefile, 'utf8').includes(ProjectLayout.MAKE_INCLUDE_LINE)) {
+      entries.push({
+        status: InitStatuses.ADD,
+        subject: `Makefile: ${ProjectLayout.MAKE_INCLUDE_LINE}`,
+      });
+    }
+
+    const gitignore = join(root, '.gitignore');
+    const existing = existsSync(gitignore) ? readFileSync(gitignore, 'utf8') : '';
+    const lines = existing.split('\n');
+    const missingIgnores = ProjectLayout.GITIGNORE_ENTRIES.filter(
+      (entry) => !lines.includes(entry),
     );
+
+    if (missingIgnores.length > 0) {
+      const separator = existing === '' || existing.endsWith('\n') ? '' : '\n';
+
+      writeFileSync(gitignore, `${existing}${separator}${missingIgnores.join('\n')}\n`);
+      entries.push({
+        status: InitStatuses.UPDATED,
+        subject: `.gitignore: + ${missingIgnores.join(' ')}`,
+      });
+    }
+
+    const manifest = readManifest({ root });
+    const declared = { ...manifest?.dependencies, ...manifest?.devDependencies };
+    const needed = isWorkspaces
+      ? [ProjectLayout.STYLE_PACKAGE]
+      : [...ProjectLayout.LINT_TOOLS, ProjectLayout.STYLE_PACKAGE];
+    const install = needed.filter((packageName) => !(packageName in declared));
+    const todo = [
+      `describe the project in ${ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE}/index.md, then delete the ${ProjectLayout.SCAFFOLD_MARKER} line`,
+      ...entries
+        .filter((entry) => entry.status === InitStatuses.ADD)
+        .map((entry) => `add ${entry.subject}`),
+      `${ProjectLayout.VULCAN_COMMAND} sync && ${ProjectLayout.VULCAN_COMMAND} doctor`,
+    ];
+
+    return { entries, install, todo };
   }
-
-  entries.push(writeIfAbsent({ root, path: '.dockerignore', content: renderDockerignore() }));
-  entries.push(writeIfAbsent({ root, path: 'bunfig.toml', content: renderBunfig() }));
-
-  const makefile = join(root, 'Makefile');
-
-  if (!existsSync(makefile)) {
-    entries.push(
-      writeIfAbsent({
-        root,
-        path: 'Makefile',
-        content: renderTemplate({ template: 'Makefile', name }),
-      }),
-    );
-  } else if (!readFileSync(makefile, 'utf8').includes(ProjectLayout.MAKE_INCLUDE_LINE)) {
-    entries.push({
-      status: InitStatuses.ADD,
-      subject: `Makefile: ${ProjectLayout.MAKE_INCLUDE_LINE}`,
-    });
-  }
-
-  const gitignore = join(root, '.gitignore');
-  const existing = existsSync(gitignore) ? readFileSync(gitignore, 'utf8') : '';
-  const lines = existing.split('\n');
-  const missingIgnores = ProjectLayout.GITIGNORE_ENTRIES.filter((entry) => !lines.includes(entry));
-
-  if (missingIgnores.length > 0) {
-    const separator = existing === '' || existing.endsWith('\n') ? '' : '\n';
-
-    writeFileSync(gitignore, `${existing}${separator}${missingIgnores.join('\n')}\n`);
-    entries.push({
-      status: InitStatuses.UPDATED,
-      subject: `.gitignore: + ${missingIgnores.join(' ')}`,
-    });
-  }
-
-  const manifest = readManifest({ root });
-  const declared = { ...manifest?.dependencies, ...manifest?.devDependencies };
-  const needed = isWorkspaces
-    ? [ProjectLayout.STYLE_PACKAGE]
-    : [...ProjectLayout.LINT_TOOLS, ProjectLayout.STYLE_PACKAGE];
-  const install = needed.filter((packageName) => !(packageName in declared));
-  const todo = [
-    `describe the project in ${ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE}/index.md, then delete the ${ProjectLayout.SCAFFOLD_MARKER} line`,
-    ...entries
-      .filter((entry) => entry.status === InitStatuses.ADD)
-      .map((entry) => `add ${entry.subject}`),
-    `${ProjectLayout.VULCAN_COMMAND} sync && ${ProjectLayout.VULCAN_COMMAND} doctor`,
-  ];
-
-  return { entries, install, todo };
-};
+}

@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { lstatSync, mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildSourcesServer } from '@/server/index';
-import { cacheRootOf, resolveSources } from '@/sources';
+import { SourcesServer } from '@/server/index';
+import { SourceCache, SourceResolver } from '@/sources';
 import {
   commitAll,
   git,
@@ -35,8 +35,8 @@ const SOURCES_MODULE = join(__dirname, '../../sources/index.ts');
 /** One cold start in its own process - what three MCP clients starting at once amount to. */
 const startInProcess = async (opts: { url: string; cwd: string; cacheDir: string }) => {
   const script = [
-    `const { resolveSources } = require(${JSON.stringify(SOURCES_MODULE)});`,
-    `resolveSources({ cwd: ${JSON.stringify(opts.cwd)}, cacheDir: ${JSON.stringify(opts.cacheDir)}, sources: [{ name: 'src', repo: ${JSON.stringify(opts.url)}, ref: 'develop' }] })`,
+    `const { SourceResolver } = require(${JSON.stringify(SOURCES_MODULE)});`,
+    `SourceResolver.resolve({ cwd: ${JSON.stringify(opts.cwd)}, cacheDir: ${JSON.stringify(opts.cacheDir)}, sources: [{ name: 'src', repo: ${JSON.stringify(opts.url)}, ref: 'develop' }] })`,
     '  .then(([resolved]) => console.log(JSON.stringify({ sha: resolved.sha })))',
     '  .catch(error => { console.error(String(error)); process.exit(1); });',
   ].join('\n');
@@ -59,27 +59,24 @@ const startInProcess = async (opts: { url: string; cwd: string; cacheDir: string
 };
 
 const searchFor = async (opts: {
-  resolved: Awaited<ReturnType<typeof resolveSources>>;
+  resolved: Awaited<ReturnType<typeof SourceResolver.resolve>>;
   query: string;
 }) => {
-  const server = buildSourcesServer({
+  const server = SourcesServer.build({
     sources: opts.resolved,
     cwd: opts.resolved[0].root,
     version: '0.0.0',
   });
 
-  return JSON.stringify(
-    JSON.parse(
-      (await server.handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'tools/call',
-          params: { name: 'search', arguments: { query: opts.query } },
-        }),
-      })) ?? 'null',
-    ),
-  );
+  const result = await server.handleLine({
+    line: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'search', arguments: { query: opts.query } },
+    }),
+  });
+  return JSON.stringify(JSON.parse(result ?? 'null'));
 };
 
 describe('a pull', () => {
@@ -123,12 +120,12 @@ describe('a pull', () => {
         git({ cwd: source.work, args: ['push', '-q', 'origin', 'develop'] });
       }
 
-      const [resolved] = await resolveSources({ cwd, sources, cacheDir });
+      const [resolved] = await SourceResolver.resolve({ cwd, sources, cacheDir });
 
       pulled.push(resolved.sha ?? '');
     }
 
-    const cacheRoot = cacheRootOf({ repo: source.url, cacheBase: cacheDir });
+    const cacheRoot = SourceCache.cacheRootOf({ repo: source.url, cacheBase: cacheDir });
     const entries = readdirSync(cacheRoot);
     const kept = pulled.slice(1).sort();
 
@@ -145,19 +142,19 @@ describe('a pull', () => {
     const source = makeSourceRepository();
     const cwd = makeTempDirectory({ prefix: 'atlas-consumer-' });
     const sources = [{ name: 'src', repo: source.url, ref: 'develop' }];
-    const gitDir = join(cacheRootOf({ repo: source.url, cacheBase: cacheDir }), 'git');
+    const gitDir = join(SourceCache.cacheRootOf({ repo: source.url, cacheBase: cacheDir }), 'git');
 
     mkdirSync(gitDir, { recursive: true });
     writeFileSync(join(gitDir, 'config'), 'half a clone\n');
 
-    const [started] = await resolveSources({ cwd, sources, cacheDir });
+    const [started] = await SourceResolver.resolve({ cwd, sources, cacheDir });
 
     expect(started.mode).toBe('fresh');
 
     rmSync(gitDir, { recursive: true, force: true });
     mkdirSync(gitDir);
 
-    const [pulled] = await resolveSources({ cwd, sources, cacheDir, force: true });
+    const [pulled] = await SourceResolver.resolve({ cwd, sources, cacheDir, force: true });
 
     expect(pulled.mode).toBe('fresh');
     expect(git({ cwd: gitDir, args: ['rev-parse', '--is-bare-repository'] })).toBe('true');
@@ -177,15 +174,17 @@ describe('a pull', () => {
     commitAll({ work: source.work, message: 'chore: a symlinked bundle' });
     git({ cwd: source.work, args: ['push', '-q', 'origin', 'develop'] });
 
-    const resolved = await resolveSources({
+    const resolved = await SourceResolver.resolve({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
       cacheDir,
     });
 
     expect(lstatSync(join(resolved[0].root, '.agents/knowledge')).isSymbolicLink()).toBe(false);
-    expect(await searchFor({ resolved, query: 'zanzibar archipelago' })).not.toContain('Zanzibar');
+    const result = await searchFor({ resolved, query: 'zanzibar archipelago' });
+    expect(result).not.toContain('Zanzibar');
     // Positive control: the changelog beside it is still served.
-    expect(await searchFor({ resolved, query: 'first change' })).toContain('2026-01-01-first');
+    const result2 = await searchFor({ resolved, query: 'first change' });
+    expect(result2).toContain('2026-01-01-first');
   });
 });

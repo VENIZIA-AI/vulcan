@@ -1,34 +1,24 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { relative } from 'node:path';
-import { AtlasConstants, AtlasModes } from '@/common';
-import { resolveRepositoryRoots } from '@/corpus';
-import { Transport } from '@/protocol';
-import { computeReleases, ReleaseStore } from '@/releases';
+import { AtlasConstants } from '@/common';
+import { RepositoryRoots } from '@/corpus';
+import { RpcError, Transport } from '@/protocol';
+import type { IToolHandler } from '@/protocol/common';
+import { ReleaseCompute, ReleaseStore } from '@/releases';
 import { ChunkStore } from '@/search/store';
-import { installedDirectoriesOf, installRootsOf } from '@/sources/installed';
-import { resolveRemoteSource } from '@/sources/resolver';
+import { InstalledPackages } from '@/sources/installed';
+import { SourceResolver } from '@/sources/resolver';
 import { SourceChunks, SourceReleases, SourceSymbols } from '@/sources/serving';
 import type { IAtlasSource, IResolvedSource, IUnavailableSource } from '@/sources/common';
-import {
-  cachedSymbols,
-  declarationsFingerprintOf,
-  SymbolStore,
-  symbolsOfInstalled,
-  symbolsOfRepository,
-} from '@/symbols';
+import { SymbolCompute, SymbolStore } from '@/symbols';
 import type { ISymbolRecord } from '@/symbols';
-import {
-  buildChangesTool,
-  buildGetTool,
-  buildPresetsTool,
-  buildSearchTool,
-  buildSymbolTool,
-  buildVersionTool,
-} from '@/tools';
-import { skillCatalogOf, triggerOf } from '@/skills';
+import { ChangesTool, GetTool, PresetsTool, SearchTool, SymbolTool, VersionTool } from '@/tools';
+import { SkillCatalog } from '@/skills';
 import { FreshnessGuard } from './freshness';
-import { instructionsOf, projectsOf } from './guidance';
+import { ServerGuidance } from './guidance';
+import { SourceBoot } from './boot';
+import { SourceNotice } from './notice';
 import { Refresher } from './refresh';
 import type { IRefreshTarget } from './refresh';
 
@@ -57,20 +47,20 @@ const remoteSymbolsOf = (opts: {
   return opts.source.project.packages
     .filter((entry) => !entry.retired)
     .flatMap((entry) => {
-      const [installed] = installedDirectoriesOf({
-        roots: installRootsOf({ cwd: opts.cwd }),
+      const [installed] = InstalledPackages.installedDirectoriesOf({
+        roots: InstalledPackages.installRootsOf({ cwd: opts.cwd }),
         name: entry.name,
       });
 
       if (installed !== undefined) {
-        return symbolsOfInstalled({ directory: installed, cacheBase });
+        return SymbolCompute.symbolsOfInstalled({ directory: installed, cacheBase });
       }
 
       const version = opts.releases.newestOf({ package: entry.name })?.version;
 
       return version === undefined
         ? []
-        : (cachedSymbols({ name: entry.name, version, cacheBase }) ?? []);
+        : (SymbolCompute.cached({ name: entry.name, version, cacheBase }) ?? []);
     });
 };
 
@@ -98,21 +88,23 @@ const storesOf = (opts: { source: IResolvedSource; cwd: string }) => {
 
   if (source.mode === 'repository') {
     const guard = new FreshnessGuard({
-      mode: AtlasModes.REPOSITORY,
-      roots: resolveRepositoryRoots({ project: source.project }),
+      roots: RepositoryRoots.resolve({ project: source.project }),
     });
 
     return {
       name: source.name,
       chunks: () => guard.getStore(),
       releases: new ReleaseStore({
-        table: computeReleases({ project: source.project }),
+        table: ReleaseCompute.compute({ project: source.project }),
         emptyReason: emptyReleasesReasonOf({ source }),
         noEntriesReason: noEntriesReasonOf({ source }),
       }),
       symbols: new SymbolStore({
-        load: () => ({ symbols: symbolsOfRepository({ project: source.project }), packageMap }),
-        fingerprint: () => declarationsFingerprintOf({ project: source.project }),
+        load: () => ({
+          symbols: SymbolCompute.symbolsOfRepository({ project: source.project }),
+          packageMap,
+        }),
+        fingerprint: () => SymbolCompute.declarationsFingerprintOf({ project: source.project }),
         emptyReason: "no symbols - build the packages first: atlas reads their exports' .d.ts",
       }),
     };
@@ -225,7 +217,7 @@ const repositoryTarget = (opts: { entry: TLiveEntry; source: IResolvedSource }):
 
       opts.entry.replaceReleases(
         new ReleaseStore({
-          table: computeReleases({ project: opts.source.project }),
+          table: ReleaseCompute.compute({ project: opts.source.project }),
           emptyReason: emptyReleasesReasonOf({ source: opts.source }),
           noEntriesReason: noEntriesReasonOf({ source: opts.source }),
         }),
@@ -235,7 +227,7 @@ const repositoryTarget = (opts: { entry: TLiveEntry; source: IResolvedSource }):
   };
 };
 
-export interface IRefreshOptions {
+interface IRefreshOptions {
   /** How often a running server looks again; the first look comes this long after the start. */
   intervalMs: number;
   /** How a remote source is asked again - the resolver, unless a test supplies another. */
@@ -243,82 +235,154 @@ export interface IRefreshOptions {
   now?: () => number;
 }
 
-/**
- * The MCP transport over every resolved source (spec v3 section 3): one store set per source,
- * served as one by the composites - a single repository answers exactly as it always has.
- */
-export const buildSourcesServer = (opts: {
-  sources: IResolvedSource[];
-  /** Sources this start could not serve; `initialize` names each with its reason. */
-  unavailable?: IUnavailableSource[];
-  cwd: string;
-  /** Where atlas keeps what it fetches; absent, `<cwd>/.agents/local/cache`. */
-  cacheDir?: string;
-  /** Whether a refresh may download a prebuilt index (default yes). */
-  prebuilt?: boolean;
-  version: string;
-  /** Keeps a long-running server current; absent, the sources stay as the start resolved them. */
-  refresh?: IRefreshOptions;
-}): Transport => {
-  const stores = opts.sources.map((source) =>
-    liveEntry({ initial: storesOf({ source, cwd: opts.cwd }) }),
-  );
-  const chunks = new SourceChunks({ sources: stores });
-  const releases = new SourceReleases({ sources: stores });
-  const symbols = new SourceSymbols({ sources: stores });
-  const project = opts.sources.find((source) => source.mode === 'repository');
-  // Read when a client connects: a skill added, renamed or deleted since the start shows at once.
-  const instructions = (): string =>
-    instructionsOf({
+export class SourcesServer {
+  /**
+   * The MCP transport over every resolved source (spec v3 section 3): one store set per source,
+   * served as one by the composites - a single repository answers exactly as it always has.
+   */
+  static build(opts: {
+    sources: IResolvedSource[];
+    /** Sources this start could not serve; `initialize` names each with its reason. */
+    unavailable?: IUnavailableSource[];
+    cwd: string;
+    /** Where atlas keeps what it fetches; absent, `<cwd>/.agents/local/cache`. */
+    cacheDir?: string;
+    /** Whether a refresh may download a prebuilt index (default yes). */
+    prebuilt?: boolean;
+    version: string;
+    /** Keeps a long-running server current; absent, the sources stay as the start resolved them. */
+    refresh?: IRefreshOptions;
+    /**
+     * Remote sources still to be fetched and indexed. The server answers at once; each source joins
+     * as it is ready, and a call waits a bounded time for the ones missing and says which it left out.
+     */
+    boot?: SourceBoot;
+  }): Transport {
+    const { boot } = opts;
+    const served = [...opts.sources];
+    const stores = opts.sources.map((source) =>
+      liveEntry({ initial: storesOf({ source, cwd: opts.cwd }) }),
+    );
+    const chunks = new SourceChunks({ sources: stores });
+    const releases = new SourceReleases({ sources: stores });
+    const symbols = new SourceSymbols({ sources: stores });
+    const project = opts.sources.find((source) => source.mode === 'repository');
+    // Read when a client connects: a skill added, renamed or deleted since the start shows at once.
+    const instructions = (): string =>
+      ServerGuidance.instructionsOf({
+        sources: served,
+        unavailable: [...(opts.unavailable ?? []), ...(boot?.unavailable() ?? [])],
+        indexing: boot?.indexing() ?? [],
+        skills: SkillCatalog.catalogOf({ root: opts.cwd }).map((entry) => ({
+          name: entry.name,
+          trigger: SkillCatalog.triggerOf({ description: entry.description }).text,
+        })),
+      });
+    const projects = ServerGuidance.projectsOf({
       sources: opts.sources,
-      unavailable: opts.unavailable ?? [],
-      skills: skillCatalogOf({ root: opts.cwd }).map((entry) => ({
-        name: entry.name,
-        trigger: triggerOf({ description: entry.description }).text,
-      })),
+      indexing: boot?.declared ?? [],
     });
-  const projects = projectsOf({ sources: opts.sources });
-  const resolve =
-    opts.refresh?.resolve ??
-    ((source: IAtlasSource) =>
-      resolveRemoteSource({
-        source,
-        cwd: opts.cwd,
-        cacheDir: opts.cacheDir,
-        prebuilt: opts.prebuilt,
-      }));
-  const targets = opts.sources.flatMap((source, index): IRefreshTarget[] => {
-    const entry = stores[index];
-    const target =
-      source.mode === 'repository'
-        ? repositoryTarget({ entry, source })
-        : remoteTarget({ entry, served: source, cwd: opts.cwd, resolve });
+    const resolve =
+      opts.refresh?.resolve ??
+      ((source: IAtlasSource) =>
+        SourceResolver.resolveRemote({
+          source,
+          cwd: opts.cwd,
+          cacheDir: opts.cacheDir,
+          prebuilt: opts.prebuilt,
+        }));
+    const makeTarget = (opts2: { entry: TLiveEntry; source: IResolvedSource }) =>
+      opts2.source.mode === 'repository'
+        ? repositoryTarget(opts2)
+        : remoteTarget({ entry: opts2.entry, served: opts2.source, cwd: opts.cwd, resolve });
+    const targets = opts.sources.flatMap((source, index): IRefreshTarget[] => {
+      const target = makeTarget({ entry: stores[index], source });
 
-    return target === undefined ? [] : [target];
-  });
-  const refresher =
-    opts.refresh === undefined
-      ? undefined
-      : new Refresher({
-          targets,
-          intervalMs: opts.refresh.intervalMs,
-          now: opts.refresh.now,
-        });
+      return target === undefined ? [] : [target];
+    });
+    const refresher =
+      opts.refresh === undefined
+        ? undefined
+        : new Refresher({
+            targets,
+            intervalMs: opts.refresh.intervalMs,
+            now: opts.refresh.now,
+          });
 
-  return new Transport({
-    tools: [
-      buildSearchTool({ store: chunks, symbols, projects }),
-      buildGetTool({ store: chunks }),
-      buildSymbolTool({ store: chunks, symbols, projects }),
-      buildVersionTool({ releases, projects }),
-      buildChangesTool({ releases, projects }),
-      buildPresetsTool({ project: project?.project, projects }),
-    ],
-    // A project names its server whatever sources ride with it: a name that moved with the network
-    // (a source reachable or not) would break a client configured by name.
-    serverName: project === undefined ? AtlasConstants.SERVER_NAME : `${project.name}-atlas`,
-    serverVersion: opts.version,
-    instructions,
-    onCall: () => refresher?.poke(),
-  });
-};
+    const order = (name: string): number =>
+      boot?.declared.findIndex((source) => source.name === name) ?? -1;
+
+    boot?.listen({
+      onReady: ({ resolved }) => {
+        const entry = liveEntry({ initial: storesOf({ source: resolved, cwd: opts.cwd }) });
+        const target = makeTarget({ entry, source: resolved });
+
+        // The config's order, whichever source finishes first: the composites read these arrays on every call.
+        stores.push(entry);
+        stores.sort((left, right) => order(left.name) - order(right.name));
+        served.push(resolved);
+        served.sort((left, right) => order(left.name) - order(right.name));
+
+        if (target !== undefined) {
+          targets.push(target);
+        }
+      },
+    });
+
+    // A call waits a bounded time for sources still indexing, then answers from the ready ones and says which it left out.
+    const guarded = (handler: IToolHandler): IToolHandler =>
+      boot === undefined
+        ? handler
+        : {
+            definition: handler.definition,
+            call: async (input) => {
+              const named = (input.args as { source?: unknown } | undefined)?.source;
+
+              // A call that names a source waits for that one only; any other waits for all of them.
+              await boot.waitFor({
+                ms: SourceBoot.callWaitMs(),
+                ...(typeof named === 'string' ? { source: named } : {}),
+              });
+
+              const left = SourceNotice.of({
+                boot,
+                answeredFrom: served.map((entry) => entry.name),
+              });
+
+              try {
+                const result = await handler.call(input);
+
+                return SourceNotice.attach({ result, notice: left });
+              } catch (error) {
+                throw left !== undefined && error instanceof RpcError
+                  ? new RpcError({
+                      code: error.code,
+                      message: `${error.message} (${left.message})`,
+                    })
+                  : error;
+              }
+            },
+          };
+
+    const transport = new Transport({
+      tools: [
+        guarded(SearchTool.build({ store: chunks, symbols, projects })),
+        guarded(GetTool.build({ store: chunks })),
+        guarded(SymbolTool.build({ store: chunks, symbols, projects })),
+        guarded(VersionTool.build({ releases, projects })),
+        guarded(ChangesTool.build({ releases, projects })),
+        PresetsTool.build({ project: project?.project, projects }),
+      ],
+      // A project names its server whatever sources ride with it: a name that moved with the network
+      // (a source reachable or not) would break a client configured by name.
+      serverName: project === undefined ? AtlasConstants.SERVER_NAME : `${project.name}-atlas`,
+      serverVersion: opts.version,
+      instructions,
+      onCall: () => refresher?.poke(),
+    });
+
+    boot?.start();
+
+    return transport;
+  }
+}

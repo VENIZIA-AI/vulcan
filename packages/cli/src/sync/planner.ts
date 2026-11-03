@@ -1,6 +1,5 @@
 import {
   existsSync,
-  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -10,44 +9,24 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
-import { readAgentTable } from '../agents/index.ts';
-import { BASE_DIRECTORY, stableBaseDirectoryOf } from '../common/index.ts';
+import { AgentTable } from '../agents/index.ts';
+import { BASE_DIRECTORY, BaseDirectory } from '../common/index.ts';
+import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import { CodingAgents } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
-import { ManifestConstants, renderManifest } from '../manifest/index.ts';
-import { readSlots } from '../rules/index.ts';
-import { planAgentFiles } from './agent-files.ts';
-import { SyncConstants, SyncStatuses } from './common/index.ts';
+import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
+import { RuleSlots } from '../rules/index.ts';
+import { AgentFiles } from './agent-files.ts';
+import { SyncConstants, SyncLinks, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
-import {
-  buildProjectHookSettings,
-  isSettingsObject,
-  keepKeyOrder,
-  mergeSettings,
-  removeManagedSettings,
-} from './settings.ts';
+import { isSettingsObject, ProjectSettings } from './settings.ts';
 
 const NO_CHANGE = (): void => {};
 
-const isSymlink = (opts: { path: string }): boolean =>
-  lstatSync(opts.path, { throwIfNoEntry: false })?.isSymbolicLink() ?? false;
-
-/** `CLAUDE.md` holds only `@AGENTS.md`: an old symlink or bun init's template is replaced, a hand-written file is left alone. */
+/** `CLAUDE.md` holds only `@AGENTS.md`: sync writes it when absent and leaves any other file alone. */
 const planClaudeImport = (opts: { root: string }): ISyncAction => {
   const path = join(opts.root, SyncConstants.CLAUDE_TOOL_FILE);
   const write = (): void => writeFileSync(path, `${SyncConstants.CLAUDE_IMPORT_LINE}\n`);
-
-  if (isSymlink({ path })) {
-    return {
-      path,
-      status: SyncStatuses.REPLACED,
-      note: 'old symlink',
-      apply: () => {
-        rmSync(path);
-        write();
-      },
-    };
-  }
 
   if (!existsSync(path)) {
     return { path, status: SyncStatuses.CREATED, apply: write };
@@ -57,10 +36,6 @@ const planClaudeImport = (opts: { root: string }): ISyncAction => {
 
   if (content.trim() === SyncConstants.CLAUDE_IMPORT_LINE) {
     return { path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE };
-  }
-
-  if (content.trimStart().startsWith(SyncConstants.BUN_INIT_CLAUDE_MARKER)) {
-    return { path, status: SyncStatuses.REPLACED, note: "bun init's template", apply: write };
   }
 
   return {
@@ -89,23 +64,23 @@ const readSettingsFile = (opts: { path: string }): TSettings | undefined => {
   }
 };
 
-/** Shipped settings, the chosen slot options, the project's hooks and `claude.settings` - what sync owns. */
+/** Shipped settings, the chosen slot options, the empty attribution of a project that denies agent signatures, the event log hooks, the project's hooks and `claude.settings` - what sync owns. */
 const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
   let overlay: TSettings = JSON.parse(
     readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.SETTINGS_FILE), 'utf8'),
   );
 
-  for (const [id, slot] of Object.entries(readSlots())) {
+  for (const [id, slot] of Object.entries(RuleSlots.read())) {
     const choice = opts.config.rules[id];
     const settings = choice === undefined ? undefined : slot.options[choice]?.settings;
 
     if (settings !== undefined) {
-      overlay = mergeSettings({ base: overlay, overlay: settings });
+      overlay = ProjectSettings.merge({ base: overlay, overlay: settings });
     }
   }
 
   if (opts.config.remoteHosts !== undefined) {
-    overlay = mergeSettings({
+    overlay = ProjectSettings.merge({
       base: overlay,
       overlay: JSON.parse(
         readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.REMOTE_HOSTS_FILE), 'utf8'),
@@ -113,12 +88,30 @@ const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
     });
   }
 
-  overlay = mergeSettings({
+  if (opts.config.commit.message.agent.signature === AgentSignaturePolicies.DENY) {
+    overlay = ProjectSettings.merge({
+      base: overlay,
+      overlay: JSON.parse(
+        readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.COMMIT_ATTRIBUTION_FILE), 'utf8'),
+      ),
+    });
+  }
+
+  if (opts.config.events.log) {
+    overlay = ProjectSettings.merge({
+      base: overlay,
+      overlay: JSON.parse(
+        readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.EVENTS_FILE), 'utf8'),
+      ),
+    });
+  }
+
+  overlay = ProjectSettings.merge({
     base: overlay,
-    overlay: buildProjectHookSettings({ hooks: opts.config.hooks }),
+    overlay: ProjectSettings.buildHook({ hooks: opts.config.hooks }),
   });
 
-  return mergeSettings({ base: overlay, overlay: opts.config.claude.settings });
+  return ProjectSettings.merge({ base: overlay, overlay: opts.config.claude.settings });
 };
 
 /** The previous overlay is taken back before the new one merges in, so removed choices really disappear. */
@@ -139,12 +132,12 @@ const planSettings = (opts: { root: string; config: TResolvedConfig }): ISyncAct
 
   const previous = readSettingsFile({ path: managedPath }) ?? {};
   const overlay = buildManagedOverlay({ config: opts.config });
-  const merged = mergeSettings({
-    base: removeManagedSettings({ settings: current, managed: previous }),
+  const merged = ProjectSettings.merge({
+    base: ProjectSettings.removeManaged({ settings: current, managed: previous }),
     overlay,
   });
 
-  const wanted = keepKeyOrder({ settings: merged, reference: current });
+  const wanted = ProjectSettings.keepKeyOrder({ settings: merged, reference: current });
 
   const text = `${JSON.stringify(wanted, null, 2)}\n`;
   const managedText = `${JSON.stringify(overlay, null, 2)}\n`;
@@ -194,7 +187,7 @@ const planSkillLinks = (opts: {
   const target = join(opts.root, opts.directory);
 
   // A symlinked skills directory points outside the project: writing links through it would land them there.
-  if (isSymlink({ path: target })) {
+  if (SyncLinks.isSymlink({ path: target })) {
     return [
       {
         path: target,
@@ -205,7 +198,7 @@ const planSkillLinks = (opts: {
     ];
   }
 
-  const stableSkills = join(stableBaseDirectoryOf(opts), SyncConstants.SKILLS_DIRECTORY);
+  const stableSkills = join(BaseDirectory.stableOf(opts), SyncConstants.SKILLS_DIRECTORY);
   const shipped = findSkillDirectories({
     directory: join(BASE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY),
   }).map((source) => join(stableSkills, basename(source)));
@@ -234,7 +227,7 @@ const planSkillLinks = (opts: {
       symlinkSync(resolve(source), path);
     };
 
-    if (isSymlink({ path })) {
+    if (SyncLinks.isSymlink({ path })) {
       return readlinkSync(path) === resolve(source)
         ? { path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE }
         : {
@@ -266,7 +259,7 @@ const planSkillLinks = (opts: {
   const stale = (existsSync(target) ? readdirSync(target) : [])
     .filter((name) => !linked.has(name))
     .map((name) => join(target, name))
-    .filter((path) => isSymlink({ path }) && !existsSync(path))
+    .filter((path) => SyncLinks.isSymlink({ path }) && !existsSync(path))
     .map((path) => ({ path, destination: readlinkSync(path) }))
     .filter(
       ({ destination }) =>
@@ -285,48 +278,54 @@ const planSkillLinks = (opts: {
   return [...links, ...shadowing, ...stale];
 };
 
-/** The committed project manifest (Project Contract v1, C1), rendered from the config. */
-export const planManifest = (opts: { root: string; config: TResolvedConfig }): ISyncAction => {
-  const path = join(opts.root, ManifestConstants.FILE);
-  const text = renderManifest(opts);
-  const write = (): void => {
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, text);
-  };
-
-  if (!existsSync(path)) {
-    return { path, status: SyncStatuses.CREATED, apply: write };
-  }
-
-  return readFileSync(path, 'utf8') === text
-    ? { path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE }
-    : { path, status: SyncStatuses.REPLACED, apply: write };
-};
-
-const CLAUDE_SKILLS = join(SyncConstants.CLAUDE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY);
-
 /** The skills folders of the chosen agents, each once, in table order: agents that read one folder share its links. */
 const skillDirectoriesOf = (opts: { agents: string[] }): string[] => [
   ...new Set(
-    readAgentTable()
+    AgentTable.read()
       .filter((entry) => opts.agents.includes(entry.id))
       .map((entry) => entry.skills.dir),
   ),
 ];
 
-/** Every adapter the project's agents need, and the manifest every project carries - planned, not written. */
-export const planSync = (opts: {
-  root: string;
-  config: TResolvedConfig;
-  /** The agents this machine chose (`resolveAgents`); only Claude has adapters until the renderers land. */
-  agents: string[];
-}): ISyncAction[] => [
-  ...(opts.agents.includes(CodingAgents.CLAUDE)
-    ? [planClaudeImport({ root: opts.root }), planSettings(opts)]
-    : []),
-  ...skillDirectoriesOf({ agents: opts.agents }).flatMap((directory) =>
-    planSkillLinks({ root: opts.root, directory, withProject: directory === CLAUDE_SKILLS }),
-  ),
-  ...planAgentFiles({ root: opts.root, agents: opts.agents }),
-  planManifest(opts),
-];
+export class SyncPlanner {
+  /** The committed project manifest (Project Contract v1, C1), rendered from the config. */
+  static planManifest(opts: { root: string; config: TResolvedConfig }): ISyncAction {
+    const path = join(opts.root, ManifestConstants.FILE);
+    const text = ProjectManifest.render(opts);
+    const write = (): void => {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, text);
+    };
+
+    if (!existsSync(path)) {
+      return { path, status: SyncStatuses.CREATED, apply: write };
+    }
+
+    return readFileSync(path, 'utf8') === text
+      ? { path, status: SyncStatuses.UNCHANGED, apply: NO_CHANGE }
+      : { path, status: SyncStatuses.REPLACED, apply: write };
+  }
+
+  /** Every adapter the project's agents need, and the manifest every project carries - planned, not written. */
+  static plan(opts: {
+    root: string;
+    config: TResolvedConfig;
+    /** The agents this machine chose (`AgentSelection.resolve`); only Claude has adapters until the renderers land. */
+    agents: string[];
+  }): ISyncAction[] {
+    return [
+      ...(opts.agents.includes(CodingAgents.CLAUDE)
+        ? [planClaudeImport({ root: opts.root }), planSettings(opts)]
+        : []),
+      ...skillDirectoriesOf({ agents: opts.agents }).flatMap((directory) =>
+        planSkillLinks({
+          root: opts.root,
+          directory,
+          withProject: directory === SyncConstants.CLAUDE_SKILLS,
+        }),
+      ),
+      ...AgentFiles.plan({ root: opts.root, agents: opts.agents }),
+      SyncPlanner.planManifest(opts),
+    ];
+  }
+}

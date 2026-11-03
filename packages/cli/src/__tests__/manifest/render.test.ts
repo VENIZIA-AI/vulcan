@@ -2,11 +2,11 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { generateKeyPairSync } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildToolEnvironment } from '../../commands/x.command.ts';
+import { ToolRunner } from '../../commands/x.command.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
-import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
-import { isManifestCurrent, ManifestConstants, renderManifest } from '../../manifest/index.ts';
-import { renderBunfig } from '../../create/bunfig.ts';
+import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
+import { ManifestConstants, ProjectManifest } from '../../manifest/index.ts';
+import { Bunfig } from '../../create/bunfig.ts';
 import { checkFiles } from '../format.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -27,11 +27,11 @@ const CONFIG = {
 };
 
 const render = (opts: { root: string; config: object }): string =>
-  renderManifest({ root: opts.root, config: VULCAN_CONFIG_SCHEMA.parse(opts.config) });
+  ProjectManifest.render({ root: opts.root, config: VULCAN_CONFIG_SCHEMA.parse(opts.config) });
 
-describe('renderManifest', () => {
+describe('ProjectManifest.render', () => {
   test('the text is already formatted for bun fmt: short arrays on one line, so lint stays green', () => {
-    const root = createProject({ files: { 'bunfig.toml': renderBunfig() } });
+    const root = createProject({ files: { 'bunfig.toml': Bunfig.render() } });
     const text = render({ root, config: CONFIG });
 
     writeFileSync(join(root, 'vulcan.manifest.json'), text);
@@ -186,6 +186,15 @@ describe('the prebuilt index in the manifest (C27)', () => {
     expect(keys.indexOf('atlas')).toBeLessThan(keys.indexOf('remoteHosts'));
   });
 
+  test('the theme is written to the manifest only when the config sets one, and the schema version stays 1', () => {
+    const theme = { accent: '#0277bd', accentDark: '#38bdf8', accentText: '#01579b' };
+    const manifest = JSON.parse(render({ root, config: { theme } }));
+
+    expect(manifest.theme).toEqual(theme);
+    expect(manifest.schemaVersion).toBe(1);
+    expect(JSON.parse(render({ root, config: CONFIG }))).not.toHaveProperty('theme');
+  });
+
   test('a config that sets neither renders the text it always did', () => {
     const plain = render({ root, config: CONFIG });
 
@@ -209,15 +218,14 @@ describe('the prebuilt index in the manifest (C27)', () => {
     expect(result.success ? '' : result.error.message).toContain('atlas index keygen');
   });
 
-  test('a manifest rendered before the keys were listed is stale against the config', () => {
+  test('a manifest rendered before the keys were listed differs from the one the config renders', () => {
     const before = render({ root, config: CONFIG });
     const after = render({
       root,
       config: { ...CONFIG, atlas: { ...CONFIG.atlas, index: { keys: [newPublicKey()] } } },
     });
 
-    expect(isManifestCurrent({ committed: before, rendered: after })).toBe(false);
-    expect(isManifestCurrent({ committed: after, rendered: after })).toBe(true);
+    expect(before).not.toBe(after);
   });
 });
 
@@ -268,9 +276,88 @@ describe('layout and presets in the manifest', () => {
   });
 });
 
+describe('shared summaries in the manifest', () => {
+  test('a recorded preset carries its shared summary, and one without it carries none', () => {
+    const root = createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
+    const withShared = {
+      spec: 'ignis',
+      side: 'backend',
+      summary: 'An API.',
+      lib: 'A lib.',
+      shared: 'Side-neutral types.',
+    };
+    const without = { spec: 'ardor', side: 'frontend', summary: 'An admin.' };
+    const manifest = JSON.parse(
+      render({ root, config: { ...CONFIG, presets: [withShared, without] } }),
+    );
+
+    expect(manifest.presets[0]).toEqual(withShared);
+    expect(manifest.presets[1]).toEqual(without);
+    expect(manifest.presets[1]).not.toHaveProperty('shared');
+  });
+});
+
+describe('the preset kind of a package in the manifest', () => {
+  const root = (): string =>
+    createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
+
+  test('a package made from the shared kind carries presetKind after its kind', () => {
+    const text = render({
+      root: root(),
+      config: {
+        ...CONFIG,
+        packages: [
+          {
+            dir: 'common',
+            name: '@x/common',
+            path: 'libs/common',
+            kind: 'lib',
+            presetKind: 'shared',
+          },
+        ],
+      },
+    });
+    const [entry] = JSON.parse(text).packages;
+
+    expect(entry).toEqual({
+      name: '@x/common',
+      dir: 'common',
+      path: 'libs/common',
+      aliases: [],
+      retired: false,
+      kind: 'lib',
+      presetKind: 'shared',
+    });
+    expect(Object.keys(entry).slice(-2)).toEqual(['kind', 'presetKind']);
+  });
+
+  test('a package without it renders no presetKind at all, so a project that never used it keeps its manifest', () => {
+    const text = render({
+      root: root(),
+      config: {
+        ...CONFIG,
+        packages: [
+          { dir: 'money', name: '@x/money', path: 'libs/money', kind: 'lib' },
+          { dir: 'kernel', name: '@x/kernel' },
+        ],
+      },
+    });
+
+    expect(text).not.toContain('presetKind');
+    expect(JSON.parse(text).packages[0]).toEqual({
+      name: '@x/money',
+      dir: 'money',
+      path: 'libs/money',
+      aliases: [],
+      retired: false,
+      kind: 'lib',
+    });
+  });
+});
+
 describe('the manifest in sync, doctor and vulcan x', () => {
   const PROJECT = {
-    '.configs/vulcan.config.ts': `export default ${JSON.stringify(CONFIG)};\n`,
+    '.configs/vulcan.config.mts': `export default ${JSON.stringify(CONFIG)};\n`,
     'AGENTS.md': '# x\n',
   };
 
@@ -289,7 +376,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     const key = newPublicKey();
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts': `export default ${JSON.stringify({ ...CONFIG, atlas: { ...CONFIG.atlas, index: { keys: [key] } } })};\n`,
+        '.configs/vulcan.config.mts': `export default ${JSON.stringify({ ...CONFIG, atlas: { ...CONFIG.atlas, index: { keys: [key] } } })};\n`,
         'AGENTS.md': '# x\n',
       },
     });
@@ -299,9 +386,8 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     expect(JSON.parse(readFileSync(join(root, ManifestConstants.FILE), 'utf8')).atlas).toEqual({
       index: { keys: [key] },
     });
-    expect((await runDoctorChecks({ root })).map((violation) => violation.check)).not.toContain(
-      DoctorChecks.MANIFEST,
-    );
+    const result = await DoctorRunner.runChecks({ root });
+    expect(result.map((violation) => violation.check)).not.toContain(DoctorChecks.MANIFEST);
   });
 
   test('doctor fails a manifest the config moved past', async () => {
@@ -309,11 +395,11 @@ describe('the manifest in sync, doctor and vulcan x', () => {
 
     runCli({ args: ['sync'], cwd: root });
 
-    const fresh = await runDoctorChecks({ root });
+    const fresh = await DoctorRunner.runChecks({ root });
 
     // Positive control: the same check, after the config changes under the committed manifest - in
     // a new process, as doctor runs: this one has the first config module cached.
-    writeFileSync(join(root, '.configs/vulcan.config.ts'), "export default { name: 'moved' };\n");
+    writeFileSync(join(root, '.configs/vulcan.config.mts'), "export default { name: 'moved' };\n");
 
     const stale = runCli({ args: ['doctor'], cwd: root });
 
@@ -323,7 +409,7 @@ describe('the manifest in sync, doctor and vulcan x', () => {
     expect(stale.stderr).toContain('stale against the config');
   });
 
-  test('a manifest written before $generated existed is still current', async () => {
+  test('a manifest without $generated is not current: doctor flags it as stale', async () => {
     const root = createProject({ files: PROJECT });
 
     runCli({ args: ['sync'], cwd: root });
@@ -335,12 +421,11 @@ describe('the manifest in sync, doctor and vulcan x', () => {
 
     expect($generated).toBeDefined();
     expect(JSON.parse(readFileSync(path, 'utf8')).$generated).toBeUndefined();
-    expect((await runDoctorChecks({ root })).map((violation) => violation.check)).not.toContain(
-      DoctorChecks.MANIFEST,
-    );
+    const result = await DoctorRunner.runChecks({ root });
+    expect(result.map((violation) => violation.check)).toContain(DoctorChecks.MANIFEST);
   });
 
-  test('a sync after the old shape writes the key back', () => {
+  test('a sync after a manifest lost its $generated key writes the key back', () => {
     const root = createProject({ files: PROJECT });
 
     runCli({ args: ['sync'], cwd: root });
@@ -376,13 +461,13 @@ describe('the manifest in sync, doctor and vulcan x', () => {
 
   test('vulcan x hands the tool the manifest, rendered fresh', async () => {
     const root = createProject({ files: PROJECT });
-    const environment = await buildToolEnvironment({ root });
+    const environment = await ToolRunner.buildEnvironment({ root });
 
     expect(environment.ok).toBe(true);
 
     if (environment.ok) {
       expect(environment.env.VULCAN_MANIFEST).toBe(render({ root, config: CONFIG }));
-      expect(readFileSync(join(root, '.configs/vulcan.config.ts'), 'utf8')).toContain('@x/kernel');
+      expect(readFileSync(join(root, '.configs/vulcan.config.mts'), 'utf8')).toContain('@x/kernel');
     }
   });
 });

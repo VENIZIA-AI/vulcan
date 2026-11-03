@@ -32,6 +32,10 @@ One page answers one question, and the question picks the kind (the table is in 
 |---|---|
 | Where does the round stand, what do I do | status or handoff: `strip`, `actions`, `minimap`, `decisions` |
 | How does it move, how is it built | `flow`, `architecture` |
+| What differs between two ways of doing it | `compare` |
+| Who calls whom, in what order | `sequence` |
+| Which states, and how it moves between them | `lifecycle` |
+| What is inside what | `tree` |
 | Which option, and why | `comparison` |
 | What could we do | `ideaMap` |
 | How does it work | `explainer` |
@@ -40,7 +44,7 @@ One page answers one question, and the question picks the kind (the table is in 
 | What did we decide | `decisionRecord` |
 | What changes | `beforeAfter` |
 
-A page holds at most 25 boxes and 40 arrows, and stays under 100 KB; what does not fit is two pages, not one
+A page holds at most 25 boxes and 40 arrows, and stays under 80 KB; what does not fit is two pages, not one
 dense page. A long explanation is a document (see `docs-writing`), not a page.
 
 Done when you can say the question in one sentence and name the kind.
@@ -70,9 +74,18 @@ The rules that make a page worth opening:
 - **A timeline item has a date and a state**, so a roadmap reads as done, in progress and not started.
 - **Decisions are one to five forks**, each with a recommended default and the claim it changes.
 - **No secrets, no private data** in any field: the page is a file others may open.
-- **The owner's language is a setting**: when the reply language of the profile is not English, set
-  `language` and translate the words you need into `chrome` (every key is optional); never invent a label
-  set the owner did not give. Otherwise leave `chrome` out.
+- **The owner's language is a setting**: the page takes the reply language of the owner's profile (English and
+  Vietnamese words are bundled; `language` in the spec overrides it). For any other language, translate the
+  words you need into `chrome` (every key is optional); never invent a label set the owner did not give.
+- **The colour is the project's, not yours**: leave `accent` out. The page uses the project's `theme` (config key,
+  written into the manifest by `vulcan sync`), else a neutral slate. Give `accent` (and `accentDark`, `accentText`)
+  only when you draw a page about another project from outside it. A colour that fails the contrast checks is
+  refused, never swapped; state colours (done, waiting, blocked) are fixed and always carry an icon and a word.
+- **Say where a claim comes from.** A box or step that states how the code works carries a `source`
+  (`repo`, the full 40-character `commit`, `path`, `lines`) you have read in this session; the page refuses a
+  short commit. Explain the words the reader may not know in `terms`, and use each in the page.
+- **Tiles only when the numbers are the point.** A flow or a comparison opens the page with its figure, not with
+  a row of tiles.
 
 Done when each arrow has a verb and each evidence row has a label you can defend.
 
@@ -84,7 +97,7 @@ bun x --no-install vulcan visualize .agents/local/tmp/<name>.json --out <name>
 
 It validates the spec (shape, limits, unique ids, every arrow and step pointing at a box, one box per cell),
 escapes all text, applies a policy that allows only the page's own style and script, refuses a page over
-100 KB, and writes `.agents/local/prototypes/<name>.html` whole - a failed spec never replaces the last good
+150 KB (it warns over 80 KB), and writes `.agents/local/prototypes/<name>.html` whole - a failed spec never replaces the last good
 page. It prints the path and the checks that ran. Fix every problem it lists and run it again.
 
 Done when it prints the path.
@@ -93,9 +106,19 @@ Done when it prints the path.
 
 The command cannot see the page. Open it in a browser at 390 px and at 1280 px (a browser tool, or ask the
 owner to open it) and check: the page does not scroll sideways (at 390 px a figure gives way to a list),
-no text is smaller than 12 px, nothing overlaps (arrow labels against boxes), the dark theme is readable,
+no text is smaller than 12 px, nothing overlaps (arrow labels against boxes), both themes are readable (the
+sun and moon switch in the top bar flips them), the page is complete with the script off,
 hover or focus on a box shows its detail, Next steps through the lit boxes, the **Present** button (or
 `?present=1`) walks the sections as slides with the arrow keys and Escape leaves, and the console is clean.
+
+**Cards in a row line up.** Where cards stand side by side (the options of a comparison, tiles, the stepper,
+the branches of an idea map, charts, terms), the same part of every card sits at the same height as in its
+neighbours: the big score, the title, each criterion row, each pro and con, the notes. A badge on one card, a
+label that wraps or a longer list must not push a part of that card lower than its neighbours. The generator
+keeps a slot for every part and shares the rows between the cards of a row (CSS grid with `subgrid`), so a page
+that misaligns is a generator defect: say so, do not hide it by padding the text. In the generator, a new kind
+with repeated cards follows the same rule and is added to the alignment test
+(`visualize-alignment.test.ts`), which measures the offsets in a real browser.
 
 If you could not open it, say "not browser-checked". Never describe a page as checked when only the
 command ran.

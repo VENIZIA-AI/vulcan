@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { BASE_DIRECTORY } from '../common/index.ts';
-import { frontmatterOf } from '../skills/index.ts';
+import { SkillFrontmatter } from '../skills/index.ts';
 
 const RULE_ID = /\bV-[A-Z]-\d\d\b/g;
 const TEXT_FILE = /\.(md|json|ts|mk)$/;
@@ -47,7 +47,7 @@ describe('the base text agrees with the base rules', () => {
     const skillsDirectory = join(BASE_DIRECTORY, 'skills');
 
     for (const name of readdirSync(skillsDirectory)) {
-      const { data } = frontmatterOf({
+      const { data } = SkillFrontmatter.frontmatterOf({
         text: readFileSync(join(skillsDirectory, name, 'SKILL.md'), 'utf8'),
       });
 

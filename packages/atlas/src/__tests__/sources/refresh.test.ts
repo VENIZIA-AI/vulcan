@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { rmSync } from 'node:fs';
-import { readAtlasProject } from '@/common/project-config';
-import { buildSourcesServer, Refresher, refreshIntervalMs } from '@/server/index';
-import { resolveSources } from '@/sources';
+import { ProjectConfig } from '@/common/project-config';
+import { Refresher, SourcesServer } from '@/server/index';
+import { SourceResolver } from '@/sources';
 import type { IResolvedSource } from '@/sources';
 import {
   commitAll,
@@ -33,20 +33,19 @@ afterEach(() => {
 });
 
 const call = async (opts: {
-  transport: ReturnType<typeof buildSourcesServer>;
+  transport: ReturnType<typeof SourcesServer.build>;
   name: string;
   args?: Record<string, unknown>;
 }) => {
-  const reply = JSON.parse(
-    (await opts.transport.handleLine({
-      line: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name: opts.name, arguments: opts.args ?? {} },
-      }),
-    })) ?? 'null',
-  );
+  const result2 = await opts.transport.handleLine({
+    line: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: opts.name, arguments: opts.args ?? {} },
+    }),
+  });
+  const reply = JSON.parse(result2 ?? 'null');
 
   return JSON.parse(reply.result.content[0].text);
 };
@@ -56,7 +55,8 @@ const eventually = async (opts: { read: () => Promise<unknown>; expected: unknow
   let last: unknown;
 
   for (let attempt = 0; attempt < 80; attempt += 1) {
-    last = await opts.read();
+    const result = await opts.read();
+    last = result;
 
     if (JSON.stringify(last) === JSON.stringify(opts.expected)) {
       return last;
@@ -68,25 +68,29 @@ const eventually = async (opts: { read: () => Promise<unknown>; expected: unknow
   return last;
 };
 
-const newestOf = async (opts: { transport: ReturnType<typeof buildSourcesServer> }) =>
-  (await call({ transport: opts.transport, name: 'version' })).snapshot['@x/kernel'];
+const newestOf = async (opts: { transport: ReturnType<typeof SourcesServer.build> }) => {
+  const answer = await call({ transport: opts.transport, name: 'version' });
+
+  return answer.snapshot['@x/kernel'];
+};
 
 describe('a remote source keeps up with its ref while the server runs', () => {
   test('a release tag pushed after the start shows up after the interval, with no restart', async () => {
     const source = makeSourceRepository();
-    const sources = await resolveSources({
+    const sources = await SourceResolver.resolve({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
-    const transport = buildSourcesServer({
+    const transport = SourcesServer.build({
       sources,
       cwd: sources[0].root,
       version: '0.0.0',
       refresh: { intervalMs: 20 },
     });
 
-    expect(await newestOf({ transport })).toBe('1.0.0');
+    const result = await newestOf({ transport });
+    expect(result).toBe('1.0.0');
 
     writeSourceFile({ work: source.work, path: 'docs/notes.md', text: 'a release commit\n' });
     commitAll({ work: source.work, message: 'chore(kernel): release v1.1.0' });
@@ -94,28 +98,31 @@ describe('a remote source keeps up with its ref while the server runs', () => {
     git({ cwd: source.work, args: ['push', '-q', 'origin', 'develop', '--tags'] });
     await Bun.sleep(40);
 
-    expect(await eventually({ read: () => newestOf({ transport }), expected: '1.1.0' })).toBe(
-      '1.1.0',
-    );
+    const result2 = await eventually({ read: () => newestOf({ transport }), expected: '1.1.0' });
+    expect(result2).toBe('1.1.0');
   });
 
   test('a new commit on the ref swaps the corpus: a search finds the new page', async () => {
     const source = makeSourceRepository();
-    const sources = await resolveSources({
+    const sources = await SourceResolver.resolve({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
-    const transport = buildSourcesServer({
+    const transport = SourcesServer.build({
       sources,
       cwd: sources[0].root,
       version: '0.0.0',
       refresh: { intervalMs: 20 },
     });
-    const total = async () =>
-      (await call({ transport, name: 'search', args: { query: 'bellows' } })).total;
+    const total = async () => {
+      const answer = await call({ transport, name: 'search', args: { query: 'bellows' } });
 
-    expect(await total()).toBe(0);
+      return answer.total;
+    };
+
+    const result = await total();
+    expect(result).toBe(0);
 
     writeSourceFile({
       work: source.work,
@@ -126,18 +133,19 @@ describe('a remote source keeps up with its ref while the server runs', () => {
     git({ cwd: source.work, args: ['push', '-q', 'origin', 'develop'] });
     await Bun.sleep(40);
 
-    expect(await eventually({ read: total, expected: 1 })).toBe(1);
+    const result2 = await eventually({ read: total, expected: 1 });
+    expect(result2).toBe(1);
   });
 
   test('inside the interval nothing is looked up again', async () => {
     const source = makeSourceRepository();
-    const sources = await resolveSources({
+    const sources = await SourceResolver.resolve({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
     let lookups = 0;
-    const transport = buildSourcesServer({
+    const transport = SourcesServer.build({
       sources,
       cwd: sources[0].root,
       version: '0.0.0',
@@ -160,12 +168,12 @@ describe('a remote source keeps up with its ref while the server runs', () => {
 
   test('a source that cannot be reached keeps serving what it has', async () => {
     const source = makeSourceRepository();
-    const sources = await resolveSources({
+    const sources = await SourceResolver.resolve({
       cwd: makeTempDirectory({ prefix: 'atlas-consumer-' }),
       cacheDir,
       sources: [{ name: 'src', repo: source.url, ref: 'develop' }],
     });
-    const transport = buildSourcesServer({
+    const transport = SourcesServer.build({
       sources,
       cwd: sources[0].root,
       version: '0.0.0',
@@ -180,7 +188,8 @@ describe('a remote source keeps up with its ref while the server runs', () => {
     await newestOf({ transport });
     await Bun.sleep(40);
 
-    expect(await newestOf({ transport })).toBe('1.0.0');
+    const result = await newestOf({ transport });
+    expect(result).toBe('1.0.0');
   });
 });
 
@@ -191,25 +200,25 @@ describe('the project itself keeps up with its own tags', () => {
       name: 'src',
       root: source.work,
       mode: 'repository',
-      project: readAtlasProject({ root: source.work }),
+      project: ProjectConfig.readAtlasProject({ root: source.work }),
     };
-    const transport = buildSourcesServer({
+    const transport = SourcesServer.build({
       sources: [project],
       cwd: source.work,
       version: '0.0.0',
       refresh: { intervalMs: 20 },
     });
 
-    expect(await newestOf({ transport })).toBe('1.0.0');
+    const result = await newestOf({ transport });
+    expect(result).toBe('1.0.0');
 
     writeSourceFile({ work: source.work, path: 'docs/notes.md', text: 'a release commit\n' });
     commitAll({ work: source.work, message: 'chore(kernel): release v1.2.0' });
     git({ cwd: source.work, args: ['tag', 'kernel-v1.2.0'] });
     await Bun.sleep(40);
 
-    expect(await eventually({ read: () => newestOf({ transport }), expected: '1.2.0' })).toBe(
-      '1.2.0',
-    );
+    const result2 = await eventually({ read: () => newestOf({ transport }), expected: '1.2.0' });
+    expect(result2).toBe('1.2.0');
   });
 });
 
@@ -245,13 +254,13 @@ describe('Refresher', () => {
     expect(runs).toBe(1);
 
     release();
-    await refresher.idle();
+    await Bun.sleep(0);
     now = 1500;
     refresher.poke();
     expect(runs).toBe(1);
     now = 2100;
     refresher.poke();
-    await refresher.idle();
+    await Bun.sleep(0);
     expect(runs).toBe(2);
   });
 
@@ -275,23 +284,23 @@ describe('Refresher', () => {
     });
 
     refresher.poke();
-    await refresher.idle();
+    await Bun.sleep(0);
 
     expect(ran).toBe(true);
   });
 });
 
-describe('refreshIntervalMs', () => {
+describe('Refresher.configuredIntervalMs', () => {
   test('five minutes by default; VULCAN_ATLAS_REFRESH_SECONDS sets it; 0 turns it off', () => {
-    expect(refreshIntervalMs()).toBe(300_000);
+    expect(Refresher.configuredIntervalMs()).toBe(300_000);
 
     process.env.VULCAN_ATLAS_REFRESH_SECONDS = '30';
-    expect(refreshIntervalMs()).toBe(30_000);
+    expect(Refresher.configuredIntervalMs()).toBe(30_000);
 
     process.env.VULCAN_ATLAS_REFRESH_SECONDS = '0';
-    expect(refreshIntervalMs()).toBeUndefined();
+    expect(Refresher.configuredIntervalMs()).toBeUndefined();
 
     process.env.VULCAN_ATLAS_REFRESH_SECONDS = 'soon';
-    expect(refreshIntervalMs()).toBe(300_000);
+    expect(Refresher.configuredIntervalMs()).toBe(300_000);
   });
 });

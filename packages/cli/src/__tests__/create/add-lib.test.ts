@@ -140,7 +140,7 @@ describe('vulcan add --lib', () => {
 
     expect(page).toContain('resource: libs/billing');
     expect(page).toContain('tags: [packages, library]');
-    expect(page).toContain('The shared package at `libs/billing`');
+    expect(page).toContain('The library at `libs/billing`');
     expect(readFileSync(join(root, '.agents/knowledge/index.md'), 'utf8')).toContain(
       '[billing](packages/billing.md)',
     );
@@ -314,7 +314,7 @@ describe('refusals', () => {
     const result = addLib({ root: monorepo(), args: ['--lib', 'billing', '--app', 'x'] });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('--app and --lib cannot be used together');
+    expect(result.stderr).toContain('--app, --lib and --shared cannot be used together');
   });
 
   test('a name that is not lowercase letters, digits and -', () => {
@@ -400,13 +400,16 @@ describe('the contract of lib.json', () => {
 });
 
 describe('add asks which kind when neither flag is given', () => {
-  test('without a terminal it refuses, writes nothing and prints both exact commands', () => {
+  test('without a terminal it refuses, writes nothing and prints each exact command', () => {
     const root = monorepo();
     const result = addLib({ root, args: [] });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain(
-      'vulcan add: say what to create - `--app <name>` (a runnable app) or `--lib <name>` (a shared package)',
+      'vulcan add: say what to create - `--app <name>` (a runnable app), `--lib <name>` (a library other apps import) or `--shared <name>` (a side-neutral package other apps import)',
+    );
+    expect(result.stderr).toContain(
+      `bun x --no-install vulcan add --preset ${WITH_LIB} --shared <name>`,
     );
     expect(result.stderr).toContain(
       `bun x --no-install vulcan add --preset ${WITH_LIB} --app <name>`,

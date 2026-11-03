@@ -11,12 +11,6 @@ export class AppSides {
 export class AppsBlockProblems {
   static readonly MISSING = 'missing';
   static readonly INVALID = 'invalid';
-
-  static readonly SCHEME_SET = new Set<string>([this.MISSING, this.INVALID]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export class CreateConstants {
@@ -61,6 +55,7 @@ export class CreateFlags {
   static readonly API = '--api';
   static readonly NO_API = '--no-api';
   static readonly LIB = '--lib';
+  static readonly SHARED = '--shared';
   static readonly DIR = '--dir';
   static readonly SCOPE = '--scope';
   static readonly FULL = '--full';
@@ -72,10 +67,6 @@ export class DiffEditKinds {
   static readonly KEEP = 'keep';
   static readonly ADD = 'add';
   static readonly REMOVE = 'remove';
-  static readonly SCHEME_SET = new Set<string>([this.KEEP, this.ADD, this.REMOVE]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** What `preset diff` says of a file the preset makes, next to the file the app has. */
@@ -83,8 +74,4 @@ export class PresetDiffStatuses {
   static readonly SAME = 'same';
   static readonly DIFFERS = 'differs';
   static readonly MISSING = 'missing';
-  static readonly SCHEME_SET = new Set<string>([this.SAME, this.DIFFERS, this.MISSING]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }

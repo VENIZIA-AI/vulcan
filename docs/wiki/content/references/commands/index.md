@@ -9,32 +9,49 @@ Use `vulcan` to scaffold a project or create a monorepo from a preset, write the
 Run `bun x --no-install vulcan` or pass `--help` to inspect available commands:
 
 ```text
-vulcan 0.4.3 - one setup, one workflow for every project
+vulcan 0.4.8 - one setup, one workflow for every project
 
 Usage: bun x vulcan <command>
 
-  init [--config ts|mts|mjs|js]   Scaffold the project layer (never overwrites)
+  init                            Scaffold the project layer (never overwrites)
   init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <path>]
        [--shared-dir <path>] [--scope <@scope>]
                                   Create a monorepo with its first app, from a framework preset
                                   (a name missing from the flags is asked in a terminal)
-  add --preset <name|file:path> (--app <name> | --lib <name>) [--dir <folder>] [--scope <@scope>]
-      [--backend-dir|--frontend-dir <path>] [--api <app> | --no-api]
-                                  Add an app or a shared library to the monorepo (a frontend says which
-                                  backend to proxy to; --dir is for a library; --scope names the package
-                                  @scope/<name>, for an app or a library; a terminal asks for the kind
+  add --preset <name|file:path> (--app <name> | --lib <name> | --shared <name>) [--dir <folder>]
+      [--scope <@scope>] [--backend-dir|--frontend-dir <path>] [--api <app> | --no-api]
+                                  Add an app, a library other apps import (--lib) or a side-neutral package
+                                  other apps import (--shared) to the monorepo (a frontend says which
+                                  backend to proxy to; --dir is for a library or a shared package;
+                                  --scope names the package @scope/<name>; a terminal asks for the kind
                                   and every name the flags leave out)
-  preset diff <app> [--preset <name|file:path>] [--api <app> | --no-api] [--full] [--check]
-                                  Read-only: set each file the app's preset makes now against the file
-                                  the app has (same, differs, missing in the app); --full prints the
-                                  unified diffs, --check exits 1 when anything differs or is missing
-  sync [--agents <list>|list] [--dry-run] [--prune]
+  preset diff <package> [--preset <name|file:path>] [--api <app> | --no-api] [--full] [--check]
+                                  Read-only: set each file the preset makes now (for an app, a library or
+                                  a shared package) against the file the package has (same, differs,
+                                  missing in the app); --full prints the unified diffs, --check exits 1
+                                  when anything differs or is missing
+  sync [--agents <list>|list] [--dry-run]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
-                                  stored in .agents/vulcan.local.json; --agents list shows the table);
-                                  --prune also removes stale hooks and dead skill links
+                                  stored in .agents/vulcan.local.json; --agents list shows the table)
   agents [list|add <ids>|remove <ids>|setup] [--dry-run]
                                   See, add, remove or re-choose the coding agents you use on this machine
   doctor                          Check the project follows VULCAN; exit 1 on any violation
+  commit-check <message-file> | --range <revs> | --text <message>
+                                  Check a commit message against the commit.message checks of the config (an
+                                  agent in a trailer or a "generated with" line, the project's subject shape);
+                                  sync installs it as the commit-msg hook; exit 1 on a problem, 2 on bad input
+  board [--out <file>] [--open] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
+                                  Fold the event log (and GitHub pull requests, checks and reviews when gh
+                                  can read them) into flows and write one HTML file, by default
+                                  .agents/local/reports/board.html; read-only; exit 2 on bad input
+  ci affected --base <ref> [--head <ref>] [--check <check>] [--json | --names] | template <github|gitlab>
+                                  List the workspace packages a change touches (changed ones and what
+                                  depends on them) with the checks each has; template prints a CI file that
+                                  runs exactly those; exit 2 on bad input
+  event add --kind <k> --summary <text> [--flow F-n] [--ref <r>] | tail [--since <time>] [--json] [--dir <folder>]
+                                  Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
+                                  read it; with events.log on, sync installs the Claude Code hooks that
+                                  write it; exit 2 on bad input
   visualize <spec.json> [--out <name>] | --schema
                                   Make one small static HTML page (a flow, a status, a before and after) from
                                   a JSON spec, in .agents/local/prototypes/; --schema prints the spec's schema
@@ -53,21 +70,25 @@ Usage: bun x vulcan <command>
   help · version
 ```
 
-The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a shared package (with `--dir`); `--scope` names the package for either; see [vulcan add](/references/commands/add).
+The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a library other apps import (with `--dir`); `--scope` names the package for either; see [vulcan add](/references/commands/add).
 
 If you pass an unknown command, `vulcan` prints `vulcan: unknown command 'foo' - run 'bun x vulcan help'` and exits with code 1.
 The following table lists each command, its purpose, its exit codes, and its reference page:
 
 | Command | What it does | Exit codes | Page |
 |---|---|---|---|
-| `init` | Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app | `0` on success; `1` on invalid configuration format, a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan init](/references/commands/init) |
-| `add` | Add an app, or a shared library with `--lib`, from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
-| `preset` | `preset diff <app>`: read-only report of each file the app's preset makes now against the file the app has | `0` after a report (with `--check`, `1` when anything differs or is missing); `1` on a refusal or an unknown argument | [vulcan preset diff](/references/commands/preset) |
-| `sync` | Write agent adapter files and manifest; prune stale hooks and dead skill links with `--prune` | `0` on success; `1` on invalid configuration, broken settings, or unknown argument | [vulcan sync](/references/commands/sync) |
+| `init` | Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan init](/references/commands/init) |
+| `add` | Add an app, or a library other apps import with `--lib`, from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
+| `preset` | `preset diff <package>`: read-only report of each file the preset of an app, a library or a shared package makes now against the file the package has | `0` after a report (with `--check`, `1` when anything differs or is missing); `1` on a refusal or an unknown argument | [vulcan preset diff](/references/commands/preset) |
+| `sync` | Write agent adapter files and manifest | `0` on success; `1` on invalid configuration, broken settings, or unknown argument | [vulcan sync](/references/commands/sync) |
 | `agents` | Show, add, remove or re-choose the coding agents chosen on this machine, and write or take back their adapters | `0` on success or when nothing needed changing; `1` on an unknown agent or subcommand, a missing list, `setup` without a terminal, or invalid configuration | [vulcan agents](/references/commands/agents) |
 | `visualize` | Make one small static HTML page from a JSON spec, in `.agents/local/prototypes/`; `--schema` prints the spec's JSON Schema | `0` on success; `1` when the spec is missing or not renderable, nothing is written, or `.agents/local/` is missing | [vulcan visualize](/references/commands/visualize) |
 | `profile` | Tell VULCAN how you like to work (language, how to address you, tone, habits); `show` prints it, `reset` deletes it | `0` on success; `1` when cancelled, unreadable, not gitignored or on an unknown argument | [vulcan profile](/references/commands/profile) |
 | `clean` | List what an agent left under `.agents/local/` and remove it with `--yes` | `0` on a dry run, a removal or nothing to remove; `1` when an item cannot be removed or on an unknown flag | [vulcan clean](/references/commands/clean) |
+| `commit-check` | Check a commit message for an agent signature and the project's subject shape, as the `commit-msg` hook that `sync` installs does; nothing is checked until `commit.message` turns a check on | `0` when clean or when no check is configured; `1` on a problem; `2` on bad input | [vulcan commit-check](/references/commands/commit-check) |
+| `board` | Fold the event log, and GitHub pull requests when `gh` can read them, into flows and write one read-only HTML page, by default `.agents/local/reports/board.html` | `0` written; `1` the file cannot be written; `2` on bad input | [vulcan board](/references/commands/board) |
+| `ci` | `ci affected` lists the workspace packages a change touches (changed ones and every package that depends on them) with the checks each has; `ci template github\|gitlab` prints a CI file that runs exactly those | `0` with a list (empty too); `2` on bad input | [vulcan ci](/references/commands/ci) |
+| `event` | `event add` writes a line to the agent event log, `event tail` reads it; with `events.log` on, `sync` installs the Claude Code hooks that write it | `0` on success; `1` when the log cannot be written; `2` on bad input | [vulcan event](/references/commands/event) |
 | `doctor` | Check the project against the VULCAN contract and report violations | `0` when conformant; `1` on any contract violation or unknown argument | [vulcan doctor](/references/commands/doctor) |
 | `upgrade` | Bump the pinned `@venizia/vulcan` dependency and run sync | `0` on success; `1` on unknown argument or missing binary; otherwise the exit code of `bun add` or child `vulcan sync` | [upgrade](#upgrade) |
 | `x` | Run a shipped tool (`okf` or `atlas`) at the pinned package version | `0` on tool success; `1` on missing or unknown tool, unresolvable package, or invalid configuration; forwarded exit code from tool | [x](#x) |
@@ -93,7 +114,7 @@ Spawning a child process ensures the newly installed version generates adapters 
 | `bun x --no-install vulcan upgrade <version\|tag>` | The version or tag you name | Wins over `--stable` and `--nightly` |
 
 `--nightly` reads the dist-tags of `@venizia/vulcan` with `bun pm view`, so it uses the registry your project is configured for.
-If `latest` is `0.3.7` and `next` is `0.3.7`, `--nightly` installs `0.3.7`. If `next` is `0.4.0-1`, it installs `0.4.0-1`.
+If `latest` is `0.4.8` and `next` is `0.4.8`, `--nightly` installs `0.4.8`. If `next` is `0.4.9-2`, it installs `0.4.9-2`.
 Passing `--stable` and `--nightly` together exits `1`.
 
 If the dist-tags cannot be used, `--nightly` prints `vulcan upgrade: --nightly could not read the dist-tags of @venizia/vulcan - pass a version instead` and exits `1`.
@@ -103,13 +124,13 @@ When the installed `@venizia/vulcan` is a prerelease and you run `upgrade` or `u
 
 ### Example run
 
-The following run pins `@venizia/vulcan` to version `0.3.7`, the version already installed, so `sync` changes nothing:
+The following run pins `@venizia/vulcan` to version `0.4.8`, the version already installed, so `sync` changes nothing:
 
 ```text
-$ bun x --no-install vulcan upgrade 0.3.7
+$ bun x --no-install vulcan upgrade 0.4.8
 bun add v1.4.3 (c6da4a4d3)
 
-installed @venizia/vulcan@0.3.7 with binaries:
+installed @venizia/vulcan@0.4.8 with binaries:
  - vulcan
 
 [6.00ms] done
@@ -193,7 +214,6 @@ The following table lists the targets provided by `vulcan.mk`:
 |---|---|
 | `vulcan-sync` | Write the agent adapters, settings, skill links and manifest from the config |
 | `vulcan-doctor` | Check the project against the VULCAN contract |
-| `agent-setup` | The older name for vulcan-sync |
 | `okf-check` | Check the knowledge bundle against OKF v0.2 |
 | `okf-check-strict` | okf-check plus the house rules: links, style, coverage, freshness |
 | `okf-gen` | Regenerate the generated pages and regions of the knowledge bundle |
@@ -203,8 +223,6 @@ The following table lists the targets provided by `vulcan.mk`:
 | `surface-check` | Fail when the public API surface differs from the committed one |
 | `atlas-symbols` | Print the symbols atlas reads from the built or installed .d.ts |
 | `atlas-releases` | Print the release table atlas computes from the tags |
-| `changelogs-migrate` | Write the packages: list into changelog entries that declare none |
-| `knowledge-symbols-check` | Fail when a symbol a concept names is gone or its signature changed |
 | `wiki-links-check` | Fail when the wiki or the knowledge bundle names a source path git does not track |
 | `wiki-anchors-check` | Fail when a wiki `#fragment` link has no matching heading; needs a build |
 

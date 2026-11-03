@@ -1,20 +1,15 @@
 # Rules - VULCAN base
 
 <!-- Shipped by @venizia/vulcan. Never edit in a project: add extensions in .agents/rules.md.
-     W, S, P, B are INTERIM until the base-rules work reconciles the rules the projects share.
      C is the shared coding style, shipped to every project; a rule that binds one project's own stack
      lives in that project. -->
 
 Cite by ID. Every rule has "Enforced by". Base IDs carry the `V-` namespace (`V-W-01`, `V-C-04`).
 A project extends this set in its own `.agents/rules.md` with bare IDs (`W-06`, `C-19`), which can
 never collide with a base ID. A `V-` ID there points at a base rule (`Extends V-W-01`); `vulcan doctor`
-fails one the base does not carry or has retired.
+fails one the base does not carry.
 
-Retired IDs are never reused (2026-10-17):
-
-- `V-W-05` - the task-manager loop
-- `V-C-03` - `@inject` on container-built classes, moved to the project whose stack it binds
-- `V-C-05` - `getError` / `ApplicationError`, moved to the project whose stack it binds, with the hard stack once in `V-C-18`
+An ID the base drops is never reused.
 
 ## W - Write boundaries
 
@@ -78,8 +73,8 @@ Retired IDs are never reused (2026-10-17):
 | V-C-04 | **Never abbreviate identifiers:** `ProductRepository` not `ProductRepo`, `ProductDocument` not `ProductDoc`; type parameters too (`TDocument`, not `TDoc`). A project lists its own exceptions in its rules (for example `tz` for a time zone). | SOFT |
 | V-C-06 | **Never a silent catch - log it.** Always braces. Early return. `switch` with `default` over a long if-else chain. Strict TypeScript; no `any` where a type exists. | LINT (braces, floating promises) + SOFT |
 | V-C-07 | **A function name opens with its verb** - `generate` `build` `to` `is` `has` `assert` `extract` `enrich` `get` `resolve`. `is*` returns a boolean and leaves the branch to the caller; `assert*` throws and returns `void`, so the code after it needs none - reach for `assert*` when every caller would throw on `false` anyway. `has*` is the ownership question (`hasBucket`, never `isBucketExists`). That list is for UTILITY functions; service methods lean on a wider set. **Arrow functions, not `function` declarations** (do not churn existing ones). State plus the operations on it live in a class with static members - the `LoggerFactory` shape - never module-level `let` plus exported arrows. | SOFT |
-| V-C-08 | **Enumerable strings are a const class plus `TConstValue`,** never a raw string-literal union. Every such class carries `static readonly SCHEME_SET = new Set([...])` over its values and `static isValid(value: string): boolean` reading it, so a runtime check exists wherever a value crosses a boundary (`IsolationLevels` in connectors is the model; a subclass redeclares `SCHEME_SET` with `...Parent.SCHEME_SET` first). The `T`/`I` prefix follows the declaration keyword: `type` gets `T`, `interface` gets `I`; an interface turned into a type alias is renamed, and no tool catches it - grep both directions. | SOFT |
-| V-C-09 | **Comments state only a constraint the code cannot show** - one to three lines; no history, no dates, no decision notes, no restating the code - the one exception is the `// SHORTCUT:` marker of V-B-07. Most code needs none. | SOFT |
+| V-C-08 | **Enumerable strings are a const class plus `TConstValue`,** never a raw string-literal union. When something validates against such a class, it carries `static readonly SCHEME_SET = new Set([...])` over its values and `static isValid(value: string): boolean` reading it, so a runtime check exists wherever a value crosses a boundary (`IsolationLevels` in connectors is the model; a subclass redeclares `SCHEME_SET` with `...Parent.SCHEME_SET` first); a class nothing validates against needs neither. The `T`/`I` prefix follows the declaration keyword: `type` gets `T`, `interface` gets `I`; an interface turned into a type alias is renamed, and no tool catches it - grep both directions. | SOFT |
+| V-C-09 | **Comments state only a lasting fact the code cannot show** - a constraint, an external contract, a non-obvious invariant; one to three lines; no history, no dates, no decision or review notes, no restating the code. An exported declaration may carry a short JSDoc: one summary line, `@param`/`@returns` without `{type}`. Machine directives stay. The one other exception is the `// SHORTCUT:` marker of V-B-07. Most code needs none; remove a meaningless comment in the lines you touch. | SOFT |
 | V-C-10 | **No explicit cast in new code.** `as X`, `as any`, `as unknown as X` and `as never` assert nothing; they silence the compiler where the type is wrong. Fix the type instead: a generic on the setter, a narrower parameter, a typed helper, `satisfies`. A pre-existing cast is removed when the line is touched, never copied. Generic parameters are full words (`ApplicationType`, `TDocument`), never `App` or `TDoc` (V-C-04). | SOFT |
 | V-C-11 | **SIMPLE FIRST, in code and in prose.** Fewest concepts, plainest words, smallest surface. Complexity must buy correctness, speed or safety the simple version cannot, and the artifact says what it bought. Something a reader cannot follow in one pass is a defect even when it works. Fix the root cause with the smallest change; never layer an abstraction on a misdiagnosed problem. Small means the code holds only what the task needs - not golfed: no clever one-liners to save lines, and no code for a need nobody has yet. | SOFT |
 | V-C-12 | **Consistent, never self-invented.** Before writing anything new - a constant, file, binding key, error shape - find the nearest precedent in this repo and copy its shape. Binding keys are namespaced (`controllers.X`, `services.X`, `repositories.X`, `datasources.X`). Every scope is one folder with nested `common/{types,constants}.ts` and an index barrel (`inversion` is the model). A second style for something that already has one is a defect. | SOFT |

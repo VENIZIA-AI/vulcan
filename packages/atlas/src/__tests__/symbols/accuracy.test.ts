@@ -1,5 +1,5 @@
-import { readAtlasProject } from '@/common/project-config';
-import { symbolsOfRepository } from '@/symbols';
+import { ProjectConfig } from '@/common/project-config';
+import { SymbolCompute } from '@/symbols';
 import type { ISymbolRecord } from '@/symbols';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -78,7 +78,9 @@ const hasManifest = existsSync(MANIFEST);
 describe.skipIf(!hasManifest || !IGNIS_IS_BUILT)('symbol accuracy on a 50-symbol sample', () => {
   const symbols =
     hasManifest && IGNIS_IS_BUILT
-      ? symbolsOfRepository({ project: readAtlasProject({ root: REPOSITORY_ROOT }) })
+      ? SymbolCompute.symbolsOfRepository({
+          project: ProjectConfig.readAtlasProject({ root: REPOSITORY_ROOT }),
+        })
       : [];
   // The aliases are pinned by the whole-table test below; the sample measures the rest.
   const sample = sampleOf({

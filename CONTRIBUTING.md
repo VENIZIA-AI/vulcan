@@ -57,12 +57,12 @@ bun x --no-install vulcan x okf check
 ```
 
 4. Commit with a one-line message, `[#N] type(scope): subject`, and no agent signature (W-00).
-   Open a pull request with `gh pr create --base develop` whose body says `Refs #N`. The Sync pull request lists `Closes #N` and closes the issues when it merges into `main`, the default branch. Releases are separate: a maintainer dispatches
+   Open a pull request with `gh pr create --base develop` whose body says `Refs #N`; CI then runs the same gates on it. The Sync pull request lists `Closes #N` and closes the issues when it merges into `main`, the default branch. Releases are separate: a maintainer dispatches
    `make release` (see [`.agents/knowledge/process/releasing.md`](.agents/knowledge/process/releasing.md)).
 
 ## Code
 
-The code follows the base coding style, `V-C-01` to `V-C-19` (`V-C-03` and `V-C-05` are retired) in
+The code follows the base coding style, `V-C-01` to `V-C-19` in
 [`packages/cli/base/rules.md`](packages/cli/base/rules.md): options objects, full-word names, const
 classes for enumerable strings, scope folders with barrels, no casts, comments only for a constraint
 the code cannot show. `make lint-all` checks what a linter can.
@@ -80,7 +80,9 @@ the code cannot show. `make lint-all` checks what a linter can.
 - [ ] Tests written first; `make test` passes
 - [ ] `make lint-all` and `make catalog-check` pass
 - [ ] `vulcan doctor` and `vulcan x okf check` pass on VULCAN itself
-- [ ] A changelog entry, when a project has to act
+- [ ] A changelog entry, only when the change affects users of the published packages (a feature, a changed
+      behaviour, a fix a user could hit, a security fix, a removal); none for CI, release tooling, refactors,
+      tests or internal docs
 
 ## Help
 

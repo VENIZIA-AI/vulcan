@@ -177,7 +177,7 @@ describe.skipIf(!hasScript)('vulcan add asks with menus in a terminal', () => {
     });
 
     expect(result.code).toBe(0);
-    expect(result.plain).toContain('a shared package');
+    expect(result.plain).toContain('a library other apps import');
     expect(result.plain).toContain('New folder...');
     expect(result.plain).toContain('libs/billing');
     expect(existsSync(join(root, 'libs/billing/package.json'))).toBe(true);

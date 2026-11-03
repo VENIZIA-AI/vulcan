@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ExitCodes, PACKAGE_ROOT, ProjectLayout, VulcanTools } from '../common/index.ts';
-import { findConfigFiles, loadConfig, resolvePackages } from '../config/index.ts';
-import { ManifestConstants, renderManifest } from '../manifest/index.ts';
+import { ConfigLoader, ProjectPackages } from '../config/index.ts';
+import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
 import type { ICommandContext, IToolPackage } from '../common/index.ts';
 
 const TOOL_PACKAGES: Record<string, IToolPackage> = {
@@ -16,61 +16,66 @@ interface IPackageManifest {
 
 const listTools = (): string => [...VulcanTools.SCHEME_SET].join(', ');
 
-/** The tool's bin inside its installed package, resolved from @venizia/vulcan; `undefined` when not installed. */
-export const resolveToolBin = (opts: { name: string }): string | undefined => {
-  const tool = TOOL_PACKAGES[opts.name];
+export class ToolRunner {
+  /** The tool's bin inside its installed package, resolved from @venizia/vulcan; `undefined` when not installed. */
+  static resolveBin(opts: { name: string }): string | undefined {
+    const tool = TOOL_PACKAGES[opts.name];
 
-  if (tool === undefined) {
-    return undefined;
+    if (tool === undefined) {
+      return undefined;
+    }
+
+    let manifestPath: string;
+
+    try {
+      manifestPath = Bun.resolveSync(`${tool.packageName}/package.json`, PACKAGE_ROOT);
+    } catch (error) {
+      process.stderr.write(
+        `vulcan x: ${tool.packageName} is not resolvable - ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+
+      return undefined;
+    }
+
+    const manifest: IPackageManifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    const bin = typeof manifest.bin === 'string' ? manifest.bin : manifest.bin?.[tool.binName];
+
+    return bin === undefined ? undefined : join(dirname(manifestPath), bin);
   }
 
-  let manifestPath: string;
+  /**
+   * The environment a tool runs with: the project's resolved config, validated once here, when the
+   * project has one. No config is fine (atlas serves sources without one); an invalid one is an error.
+   */
+  static async buildEnvironment(opts: {
+    root: string;
+  }): Promise<{ ok: true; env: Record<string, string> } | { ok: false; error: string }> {
+    if (ConfigLoader.findFile({ root: opts.root }) === undefined) {
+      return { ok: true, env: {} };
+    }
 
-  try {
-    manifestPath = Bun.resolveSync(`${tool.packageName}/package.json`, PACKAGE_ROOT);
-  } catch (error) {
-    process.stderr.write(
-      `vulcan x: ${tool.packageName} is not resolvable - ${error instanceof Error ? error.message : String(error)}\n`,
-    );
+    const loaded = await ConfigLoader.load({ root: opts.root });
 
-    return undefined;
+    if (!loaded.ok) {
+      return { ok: false, error: loaded.error };
+    }
+
+    const config = {
+      ...loaded.config,
+      packages: ProjectPackages.resolve({ config: loaded.config }),
+    };
+
+    return {
+      ok: true,
+      env: {
+        [ProjectLayout.CONFIG_ENV]: JSON.stringify(config),
+        [ProjectLayout.ROOT_ENV]: opts.root,
+        // Atlas reads the manifest only; rendered fresh, so a run never sees a stale committed one.
+        [ManifestConstants.ENV]: ProjectManifest.render({ root: opts.root, config: loaded.config }),
+      },
+    };
   }
-
-  const manifest: IPackageManifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-  const bin = typeof manifest.bin === 'string' ? manifest.bin : manifest.bin?.[tool.binName];
-
-  return bin === undefined ? undefined : join(dirname(manifestPath), bin);
-};
-
-/**
- * The environment a tool runs with: the project's resolved config, validated once here, when the
- * project has one. No config is fine (atlas serves sources without one); an invalid one is an error.
- */
-export const buildToolEnvironment = async (opts: {
-  root: string;
-}): Promise<{ ok: true; env: Record<string, string> } | { ok: false; error: string }> => {
-  if (findConfigFiles({ root: opts.root }).length === 0) {
-    return { ok: true, env: {} };
-  }
-
-  const loaded = await loadConfig({ root: opts.root });
-
-  if (!loaded.ok) {
-    return { ok: false, error: loaded.error };
-  }
-
-  const config = { ...loaded.config, packages: resolvePackages({ config: loaded.config }) };
-
-  return {
-    ok: true,
-    env: {
-      [ProjectLayout.CONFIG_ENV]: JSON.stringify(config),
-      [ProjectLayout.ROOT_ENV]: opts.root,
-      // Atlas reads the manifest only; rendered fresh, so a run never sees a stale committed one.
-      [ManifestConstants.ENV]: renderManifest({ root: opts.root, config: loaded.config }),
-    },
-  };
-};
+}
 
 /** Runs the tool as a child on the inherited stdio: vulcan writes nothing to stdout, so MCP stays clean. */
 export const runXCommand = async (opts: ICommandContext): Promise<number> => {
@@ -84,7 +89,7 @@ export const runXCommand = async (opts: ICommandContext): Promise<number> => {
     return ExitCodes.FAILURE;
   }
 
-  const bin = resolveToolBin({ name });
+  const bin = ToolRunner.resolveBin({ name });
 
   if (bin === undefined) {
     process.stderr.write(
@@ -94,7 +99,7 @@ export const runXCommand = async (opts: ICommandContext): Promise<number> => {
     return ExitCodes.FAILURE;
   }
 
-  const environment = await buildToolEnvironment({ root: opts.cwd });
+  const environment = await ToolRunner.buildEnvironment({ root: opts.cwd });
 
   if (!environment.ok) {
     process.stderr.write(`vulcan x: ${environment.error}\n`);

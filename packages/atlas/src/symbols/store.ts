@@ -1,6 +1,7 @@
 import { BaseHelper } from '@/common/helper';
-import { packageOfQuery } from '@/common/package-map';
+import { PackageMap } from '@/common/package-map';
 import type { IPackageMapEntry } from '@/common/package-map';
+import { TextValue } from '@/common/text';
 import type { ISymbolRecord } from './common';
 
 const DEFAULT_SUGGESTION_LIMIT = 5;
@@ -44,14 +45,6 @@ const distanceWithin = (opts: { left: string; right: string; max: number }): num
 /** Keeps the first occurrence of every value, in order - the buckets below overlap by design. */
 const dedupe = (values: string[]): string[] => [...new Set(values)];
 
-const byName = (left: string, right: string): number => {
-  if (left === right) {
-    return 0;
-  }
-
-  return left < right ? -1 : 1;
-};
-
 /**
  * The generated symbol table in memory: exact lookup by name, and a suggestion list for a name
  * that is not in it. One instance per server; a loaded table never changes while the process runs.
@@ -63,7 +56,7 @@ export class SymbolStore extends BaseHelper {
   private packageMap: IPackageMapEntry[];
   /** Every load error already logged: an unbuilt package fails each reload the same way. */
   private readonly loggedErrors = new Set<string>();
-  private readonly loader?: () => { symbols: ISymbolRecord[]; packageMap?: IPackageMapEntry[] };
+  private readonly loader?: () => { symbols: ISymbolRecord[]; packageMap: IPackageMapEntry[] };
   /** What the loaded symbols were read from; when it moves, they are read again. */
   private readonly fingerprint?: () => string;
   private loadedFingerprint?: string;
@@ -78,7 +71,7 @@ export class SymbolStore extends BaseHelper {
   constructor(opts: {
     symbols?: ISymbolRecord[];
     packageMap?: IPackageMapEntry[];
-    load?: () => { symbols: ISymbolRecord[]; packageMap?: IPackageMapEntry[] };
+    load?: () => { symbols: ISymbolRecord[]; packageMap: IPackageMapEntry[] };
     /** Read before each question; a new value loads again (D2: repo mode follows the dist). */
     fingerprint?: () => string;
     emptyReason?: string;
@@ -110,7 +103,7 @@ export class SymbolStore extends BaseHelper {
 
       this.byExactName.clear();
       this.namesByLowerCase.clear();
-      this.packageMap = loaded.packageMap ?? this.packageMap;
+      this.packageMap = loaded.packageMap;
       this.index({ symbols: loaded.symbols });
       this.loadedFingerprint = fingerprint;
     } catch (error) {
@@ -158,10 +151,10 @@ export class SymbolStore extends BaseHelper {
     }
 
     const packageMap = this.packageMap;
-    const wanted = packageOfQuery({ value: opts.package, packageMap });
+    const wanted = PackageMap.packageOfQuery({ value: opts.package, packageMap });
 
     return found.filter(
-      (record) => packageOfQuery({ value: record.package, packageMap }) === wanted,
+      (record) => PackageMap.packageOfQuery({ value: record.package, packageMap }) === wanted,
     );
   }
 
@@ -173,15 +166,23 @@ export class SymbolStore extends BaseHelper {
     const wanted = opts.name.toLowerCase();
     const lowerNames = [...this.namesByLowerCase.keys()];
 
-    const prefixed = lowerNames.filter((name) => name.startsWith(wanted)).sort(byName);
-    const contained = lowerNames.filter((name) => name.includes(wanted)).sort(byName);
+    const prefixed = lowerNames
+      .filter((name) => name.startsWith(wanted))
+      .sort((left, right) => TextValue.compare({ left, right }));
+    const contained = lowerNames
+      .filter((name) => name.includes(wanted))
+      .sort((left, right) => TextValue.compare({ left, right }));
     const near = lowerNames
       .map((name) => ({
         name,
         distance: distanceWithin({ left: wanted, right: name, max: MAX_SUGGESTION_DISTANCE }),
       }))
       .filter((entry) => entry.distance <= MAX_SUGGESTION_DISTANCE)
-      .sort((left, right) => left.distance - right.distance || byName(left.name, right.name))
+      .sort(
+        (left, right) =>
+          left.distance - right.distance ||
+          TextValue.compare({ left: left.name, right: right.name }),
+      )
       .map((entry) => entry.name);
 
     const ordered = dedupe([...prefixed, ...contained, ...near]).flatMap(

@@ -5,7 +5,7 @@ import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IToolHandler } from '@/protocol/common';
 import type { IChunkIndex } from '@/search/common';
 import { z } from 'zod';
-import { GetInputSchema, parseInput, ToolTriggers } from './common';
+import { GetInputSchema, ToolInput, ToolTriggers } from './common';
 
 const DESCRIPTION =
   "Read one chunk's body by the id a search hit returned, or a whole document by the same id " +
@@ -139,42 +139,46 @@ const decodeCursor = (opts: { cursor?: string; totalCodePoints: number }): numbe
   return offset;
 };
 
-export const buildGetTool = (opts: { store: IChunkIndex }): IToolHandler => ({
-  definition: {
-    name: 'get',
-    description: `${ToolTriggers.get()} ${DESCRIPTION}`,
-    inputSchema: INPUT_JSON_SCHEMA,
-  },
-  call: async ({ args }) => {
-    const input = parseInput({ schema: GetInputSchema, args });
-    const target: IGetTarget | undefined = input.id.includes('#')
-      ? opts.store.get({ id: input.id, source: input.source })
-      : wholeDocumentOf({ store: opts.store, id: input.id, source: input.source });
+export class GetTool {
+  static build(opts: { store: IChunkIndex }): IToolHandler {
+    return {
+      definition: {
+        name: 'get',
+        description: `${ToolTriggers.get()} ${DESCRIPTION}`,
+        inputSchema: INPUT_JSON_SCHEMA,
+      },
+      call: async ({ args }) => {
+        const input = ToolInput.parse({ schema: GetInputSchema, args });
+        const target: IGetTarget | undefined = input.id.includes('#')
+          ? opts.store.get({ id: input.id, source: input.source })
+          : wholeDocumentOf({ store: opts.store, id: input.id, source: input.source });
 
-    if (!target) {
-      throw new RpcError({
-        code: RpcErrorCodes.INVALID_PARAMS,
-        message: 'unknown id; ids come from search',
-      });
-    }
+        if (!target) {
+          throw new RpcError({
+            code: RpcErrorCodes.INVALID_PARAMS,
+            message: 'unknown id; ids come from search',
+          });
+        }
 
-    const maxChars = input.maxChars ?? AtlasConstants.GET_BUDGET_CHARS;
-    const codePoints = codePointsOf(target.body);
-    const offset = decodeCursor({ cursor: input.cursor, totalCodePoints: codePoints.length });
-    const page = codePoints.slice(offset, offset + maxChars);
-    const nextOffset = offset + page.length;
+        const maxChars = input.maxChars ?? AtlasConstants.GET_BUDGET_CHARS;
+        const codePoints = codePointsOf(target.body);
+        const offset = decodeCursor({ cursor: input.cursor, totalCodePoints: codePoints.length });
+        const page = codePoints.slice(offset, offset + maxChars);
+        const nextOffset = offset + page.length;
 
-    const source = target.source ?? input.source;
-    const response: IGetToolResponse = {
-      ...(source === undefined ? {} : { source }),
-      id: target.id,
-      title: target.title,
-      headingPath: target.headingPath,
-      body: page.join(''),
+        const source = target.source ?? input.source;
+        const response: IGetToolResponse = {
+          ...(source === undefined ? {} : { source }),
+          id: target.id,
+          title: target.title,
+          headingPath: target.headingPath,
+          body: page.join(''),
+        };
+
+        return nextOffset < codePoints.length
+          ? { ...response, next: encodeCursor({ offset: nextOffset }) }
+          : response;
+      },
     };
-
-    return nextOffset < codePoints.length
-      ? { ...response, next: encodeCursor({ offset: nextOffset }) }
-      : response;
-  },
-});
+  }
+}

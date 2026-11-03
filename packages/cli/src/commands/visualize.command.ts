@@ -2,7 +2,8 @@ import { readFileSync, statSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
-import { pageNameOf, renderSpecText, specSchemaText, writePage } from '../visualize/index.ts';
+import { OwnerProfile } from '../owner/profile.ts';
+import { ProjectTheme, SpecPage } from '../visualize/index.ts';
 
 const SCHEMA_FLAG = '--schema';
 const OUT_FLAG = '--out';
@@ -27,7 +28,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
   }
 
   if (opts.args.includes(SCHEMA_FLAG)) {
-    process.stdout.write(specSchemaText());
+    process.stdout.write(SpecPage.specSchemaText());
 
     return ExitCodes.OK;
   }
@@ -53,7 +54,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
   }
 
   const source = out ?? basename(specFile);
-  const name = pageNameOf({ name: source });
+  const name = SpecPage.pageNameOf({ name: source });
 
   if (name === undefined) {
     process.stderr.write(
@@ -75,7 +76,17 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
     return ExitCodes.FAILURE;
   }
 
-  const rendered = renderSpecText({ text });
+  // The page takes the project's colour from the manifest of the folder it runs in (no config is loaded, nothing
+  // is requested) and its words from the owner's profile; a spec's own `accent` and `language` win.
+  const manifest = ProjectTheme.readManifestTheme({ root: opts.cwd });
+  const profile = OwnerProfile.read({ root: opts.cwd });
+  const rendered = SpecPage.renderText({
+    text,
+    context: {
+      language: profile.ok ? profile.profile?.language : undefined,
+      project: manifest.theme,
+    },
+  });
 
   if (!rendered.ok) {
     process.stderr.write(
@@ -85,7 +96,7 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
     return ExitCodes.FAILURE;
   }
 
-  const written = writePage({ root: opts.cwd, name, html: rendered.page.html });
+  const written = SpecPage.write({ root: opts.cwd, name, html: rendered.page.html });
 
   if (!written.ok) {
     process.stderr.write(`vulcan visualize: ${written.error}\n`);
@@ -94,6 +105,10 @@ export const runVisualizeCommand = async (opts: ICommandContext): Promise<number
   }
 
   process.stdout.write(`${written.path}\n`);
+
+  if (manifest.warning !== undefined) {
+    process.stderr.write(`warning: ${manifest.warning}\n`);
+  }
 
   for (const warning of rendered.page.warnings) {
     process.stderr.write(`warning: ${warning}\n`);

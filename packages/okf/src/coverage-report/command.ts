@@ -1,24 +1,24 @@
-import { loadGeneration } from '../generate/index.ts';
-import { loadConceptsOrExit } from '../lib.ts';
-import { packageDirs } from '../source/index.ts';
-import { collectCoverageAxes, isItemCovered, resourceKeysOf } from './axes.ts';
+import { GenerationRegistry } from '../generate/index.ts';
+import { ConceptLoader } from '../lib.ts';
+import { SourceScanner } from '../source/index.ts';
+import { CoverageAxes } from './axes.ts';
 
 // --- coverage ---
 
-export const percent = (opts: { value: number; total: number }): number => {
+const percent = (opts: { value: number; total: number }): number => {
   return opts.total ? Math.round((opts.value / opts.total) * 100) : 100;
 };
 
-export const pad = (opts: { value: string; width: number }): string => {
+const pad = (opts: { value: string; width: number }): string => {
   return (opts.value + ' '.repeat(opts.width)).slice(0, opts.width);
 };
 
 export const coverage = async (): Promise<void> => {
-  const concepts = loadConceptsOrExit().filter((concept) => !concept.reserved);
+  const concepts = ConceptLoader.loadOrExit().filter((concept) => !concept.reserved);
   const ids = new Set(concepts.map((concept) => concept.id));
 
   const hasId = (opts: { id: string }): boolean => ids.has(opts.id);
-  const resources = resourceKeysOf({ concepts });
+  const resources = CoverageAxes.resourceKeysOf({ concepts });
   const lines: string[] = [];
   let structCovered = 0;
   let structTotal = 0;
@@ -45,7 +45,7 @@ export const coverage = async (): Promise<void> => {
     );
   };
 
-  const { axes, problems } = collectCoverageAxes();
+  const { axes, problems } = CoverageAxes.collect();
 
   // The report would count an axis that covers nothing as fully covered.
   if (problems.length > 0) {
@@ -57,7 +57,7 @@ export const coverage = async (): Promise<void> => {
     struct({
       name: axis.name,
       items: axis.items,
-      covered: (item) => isItemCovered({ axis, item, ids, resources }),
+      covered: (item) => CoverageAxes.isItemCovered({ axis, item, ids, resources }),
     });
   }
 
@@ -70,8 +70,10 @@ export const coverage = async (): Promise<void> => {
     );
   };
 
+  const generation = await GenerationRegistry.load();
+
   // One row per configured renderer that reports one, from the same facts its table renders.
-  for (const { renderer, context } of (await loadGeneration()).renderers) {
+  for (const { renderer, context } of generation.renderers) {
     if (renderer.coverage === undefined) {
       continue;
     }
@@ -96,7 +98,7 @@ export const coverage = async (): Promise<void> => {
     types[concept.type] = (types[concept.type] || 0) + 1;
   }
 
-  const playbookTarget = packageDirs().length;
+  const playbookTarget = SourceScanner.packageDirs().length;
 
   lines.push('', 'KNOWLEDGE TYPES  (Diátaxis / arc42)');
   lines.push(

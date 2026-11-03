@@ -3,12 +3,26 @@ import type { GuardDecisions, PackageVerdictKinds, TrustStates } from './constan
 
 export type TGuardDecision = TConstValue<typeof GuardDecisions>;
 export type TPackageVerdictKind = TConstValue<typeof PackageVerdictKinds>;
-export type TTrustState = TConstValue<typeof TrustStates>;
+type TTrustState = TConstValue<typeof TrustStates>;
 
 /** Whether a listed trusted script may skip the script checks, and if not, why - in words an ask can show. */
 export interface IScriptTrust {
   state: TTrustState;
   reason: string;
+}
+
+/** A script the project vouches for on some subcommands only: the first argument after the script is one of `readOnly`. */
+export interface IReadOnlyScript {
+  script: string;
+  readOnly: string[];
+}
+
+/** One `bun x.ts` call as the shell sees it: the script word and the word right after it, if any. */
+export interface IScriptInvocation {
+  script: string;
+  subcommand: string | undefined;
+  /** A `cd`, `pushd` or `popd` came before it in the line, so a relative script word is not from the hook's folder. */
+  moved: boolean;
 }
 
 export interface IWriteCheck {

@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { detectAgents } from '../../agents/index.ts';
+import { AgentDetection } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -28,46 +28,54 @@ const world = (opts: { binaries?: string[]; homeDirs?: string[]; projectDirs?: s
   return { root, home, path: bin };
 };
 
-describe('detectAgents', () => {
+describe('AgentDetection.detect', () => {
   test('nothing installed, nothing detected', () => {
-    expect(detectAgents(world({}))).toEqual([]);
+    expect(AgentDetection.detect(world({}))).toEqual([]);
   });
 
   test('a binary on PATH', () => {
-    expect(detectAgents(world({ binaries: ['omp', 'codex'] }))).toEqual(['omp', 'codex']);
+    expect(AgentDetection.detect(world({ binaries: ['omp', 'codex'] }))).toEqual(['omp', 'codex']);
   });
 
   test('a folder in the home', () => {
-    expect(detectAgents(world({ homeDirs: ['.claude', '.codex'] }))).toEqual(['claude', 'codex']);
+    expect(AgentDetection.detect(world({ homeDirs: ['.claude', '.codex'] }))).toEqual([
+      'claude',
+      'codex',
+    ]);
   });
 
   test('a folder in the project', () => {
-    expect(detectAgents(world({ projectDirs: ['.cursor', '.pi'] }))).toEqual(['cursor', 'pi']);
+    expect(AgentDetection.detect(world({ projectDirs: ['.cursor', '.pi'] }))).toEqual([
+      'cursor',
+      'pi',
+    ]);
   });
 
   test('Antigravity is its binary agy or its CLI folder', () => {
-    expect(detectAgents(world({ binaries: ['agy'] }))).toEqual(['antigravity']);
-    expect(detectAgents(world({ homeDirs: ['.gemini/antigravity-cli'] }))).toEqual(['antigravity']);
-    expect(detectAgents(world({ homeDirs: ['.gemini'] }))).toEqual([]);
+    expect(AgentDetection.detect(world({ binaries: ['agy'] }))).toEqual(['antigravity']);
+    expect(AgentDetection.detect(world({ homeDirs: ['.gemini/antigravity-cli'] }))).toEqual([
+      'antigravity',
+    ]);
+    expect(AgentDetection.detect(world({ homeDirs: ['.gemini'] }))).toEqual([]);
   });
 
   test('~/.copilot alone is not Copilot CLI, the copilot binary is', () => {
-    expect(detectAgents(world({ homeDirs: ['.copilot'] }))).toEqual([]);
-    expect(detectAgents(world({ binaries: ['copilot'] }))).toEqual(['copilot-cli']);
+    expect(AgentDetection.detect(world({ homeDirs: ['.copilot'] }))).toEqual([]);
+    expect(AgentDetection.detect(world({ binaries: ['copilot'] }))).toEqual(['copilot-cli']);
   });
 
   test('Copilot in VS Code is its extension folder, found by pattern', () => {
     expect(
-      detectAgents(world({ homeDirs: ['.vscode/extensions/github.copilot-chat-0.31.0'] })),
+      AgentDetection.detect(world({ homeDirs: ['.vscode/extensions/github.copilot-chat-0.31.0'] })),
     ).toEqual(['copilot-vscode']);
-    expect(detectAgents(world({ homeDirs: ['.vscode/extensions/ms-python.python-1.0'] }))).toEqual(
-      [],
-    );
+    expect(
+      AgentDetection.detect(world({ homeDirs: ['.vscode/extensions/ms-python.python-1.0'] })),
+    ).toEqual([]);
   });
 
   test('the order is the table order, whatever the signals', () => {
     expect(
-      detectAgents(
+      AgentDetection.detect(
         world({ binaries: ['pi', 'agy'], homeDirs: ['.claude'], projectDirs: ['.cursor'] }),
       ),
     ).toEqual(['claude', 'cursor', 'antigravity', 'pi']);

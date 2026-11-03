@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { GUARD_HOOK_NAME, mergeGuardHook, removeGuardHook } from '../../agents/index.ts';
+import { GUARD_HOOK_NAME, GuardHook } from '../../agents/index.ts';
 
 const parse = (text: string): Record<string, unknown> => JSON.parse(text);
 
-describe('mergeGuardHook', () => {
+describe('GuardHook.merge', () => {
   test('creates the file with one PreToolUse hook on the tools the guards cover', () => {
-    const merged = mergeGuardHook({ text: undefined });
+    const merged = GuardHook.merge({ text: undefined });
 
     expect(merged.ok).toBe(true);
 
@@ -33,7 +33,7 @@ describe('mergeGuardHook', () => {
 
   test('keeps the hooks of the user and is idempotent', () => {
     const mine = { 'my-linter': { PostToolUse: [{ matcher: 'run_command', hooks: [] }] } };
-    const first = mergeGuardHook({ text: JSON.stringify(mine) });
+    const first = GuardHook.merge({ text: JSON.stringify(mine) });
 
     if (!first.ok) {
       throw new Error(first.reason);
@@ -43,35 +43,35 @@ describe('mergeGuardHook', () => {
     expect(Object.keys(parse(first.text))).toEqual(['my-linter', GUARD_HOOK_NAME]);
     expect(parse(first.text)['my-linter']).toEqual(mine['my-linter']);
 
-    const second = mergeGuardHook({ text: first.text });
+    const second = GuardHook.merge({ text: first.text });
 
     expect(second.ok && second.changed).toBe(false);
   });
 
   test('replaces an out-of-date entry of its own', () => {
     const old = JSON.stringify({ [GUARD_HOOK_NAME]: { PreToolUse: [] } });
-    const merged = mergeGuardHook({ text: old });
+    const merged = GuardHook.merge({ text: old });
 
     expect(merged.ok && merged.changed).toBe(true);
   });
 
   test('a file that is not a JSON object is left as it is, with the reason', () => {
     for (const text of ['{ not json', '[]', '"text"', '42']) {
-      const merged = mergeGuardHook({ text });
+      const merged = GuardHook.merge({ text });
 
       expect(merged.ok, text).toBe(false);
     }
   });
 
   test('an empty file is treated as no file', () => {
-    expect(mergeGuardHook({ text: '  \n' }).ok).toBe(true);
+    expect(GuardHook.merge({ text: '  \n' }).ok).toBe(true);
   });
 });
 
-describe('removeGuardHook', () => {
+describe('GuardHook.remove', () => {
   test('takes its entry out and keeps the others', () => {
     const text = JSON.stringify({ 'my-linter': {}, [GUARD_HOOK_NAME]: {} });
-    const removed = removeGuardHook({ text });
+    const removed = GuardHook.remove({ text });
 
     expect(
       removed.ok && removed.outcome === 'removed' ? parse(removed.text ?? '{}') : undefined,
@@ -81,16 +81,16 @@ describe('removeGuardHook', () => {
   });
 
   test('says there is no text left when nothing else was in the file', () => {
-    const removed = removeGuardHook({ text: JSON.stringify({ [GUARD_HOOK_NAME]: {} }) });
+    const removed = GuardHook.remove({ text: JSON.stringify({ [GUARD_HOOK_NAME]: {} }) });
 
     expect(removed).toEqual({ ok: true, outcome: 'removed', text: undefined });
   });
 
   test('is absent when the entry is not there, and refuses a file that is not JSON', () => {
-    expect(removeGuardHook({ text: JSON.stringify({ other: {} }) })).toEqual({
+    expect(GuardHook.remove({ text: JSON.stringify({ other: {} }) })).toEqual({
       ok: true,
       outcome: 'absent',
     });
-    expect(removeGuardHook({ text: 'nope' }).ok).toBe(false);
+    expect(GuardHook.remove({ text: 'nope' }).ok).toBe(false);
   });
 });

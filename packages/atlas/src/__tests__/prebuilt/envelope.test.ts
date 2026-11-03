@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { gzipSync } from 'node:zlib';
 import { AtlasConstants } from '@/common';
-import { generateKeyPair, signEnvelope, verifyPair } from '@/prebuilt';
+import { Envelope, PrebuiltKeys } from '@/prebuilt';
 import type { IIndexPayload } from '@/prebuilt';
 
 const INDEX = new TextEncoder().encode('an index, as bytes');
@@ -17,6 +17,8 @@ const payloadFor = (opts: { gz: Uint8Array }): IIndexPayload => ({
   tags: '0123456789abcdef',
   history: true,
   releases: {
+    livePackages: ['kernel'],
+    packageMap: [],
     releases: { kernel: [{ version: '1.0.0', date: '2026-01-01', sha: 'c'.repeat(40), order: 1 }] },
     changelogs: [],
   },
@@ -41,30 +43,35 @@ const flipByte = (opts: { base64: string }): string => {
 };
 
 describe('the signed envelope of a prebuilt index (C8)', () => {
-  const pair = generateKeyPair();
+  const pair = PrebuiltKeys.generatePair();
   const payload = payloadFor({ gz: GZ });
-  const envelope = signEnvelope({ payload, privateKey: pair.privateKey });
+  const envelope = Envelope.sign({ payload, privateKey: pair.privateKey });
 
   test('a pair checks out with the key that signed it, and gives back the payload', () => {
-    const checked = verifyPair({ envelope, gz: GZ, keys: [pair.publicKey] });
+    const checked = Envelope.verifyPair({ envelope, gz: GZ, keys: [pair.publicKey] });
 
     expect(checked).toEqual({ ok: true, payload });
   });
 
   test('any one of several listed keys may be the signer', () => {
-    const other = generateKeyPair();
+    const other = PrebuiltKeys.generatePair();
 
-    expect(verifyPair({ envelope, gz: GZ, keys: [other.publicKey, pair.publicKey] }).ok).toBe(true);
+    expect(
+      Envelope.verifyPair({ envelope, gz: GZ, keys: [other.publicKey, pair.publicKey] }).ok,
+    ).toBe(true);
   });
 
   test('another key does not verify it, and neither does an empty list', () => {
-    const other = generateKeyPair();
+    const other = PrebuiltKeys.generatePair();
 
-    expect(verifyPair({ envelope, gz: GZ, keys: [other.publicKey] })).toEqual({
+    expect(Envelope.verifyPair({ envelope, gz: GZ, keys: [other.publicKey] })).toEqual({
       ok: false,
       reason: 'signature',
     });
-    expect(verifyPair({ envelope, gz: GZ, keys: [] })).toEqual({ ok: false, reason: 'signature' });
+    expect(Envelope.verifyPair({ envelope, gz: GZ, keys: [] })).toEqual({
+      ok: false,
+      reason: 'signature',
+    });
   });
 
   test('a changed byte of the payload breaks the signature', () => {
@@ -75,7 +82,7 @@ describe('the signed envelope of a prebuilt index (C8)', () => {
       },
     });
 
-    expect(verifyPair({ envelope: tampered, gz: GZ, keys: [pair.publicKey] })).toEqual({
+    expect(Envelope.verifyPair({ envelope: tampered, gz: GZ, keys: [pair.publicKey] })).toEqual({
       ok: false,
       reason: 'signature',
     });
@@ -89,7 +96,7 @@ describe('the signed envelope of a prebuilt index (C8)', () => {
       },
     });
 
-    expect(verifyPair({ envelope: tampered, gz: GZ, keys: [pair.publicKey] })).toEqual({
+    expect(Envelope.verifyPair({ envelope: tampered, gz: GZ, keys: [pair.publicKey] })).toEqual({
       ok: false,
       reason: 'signature',
     });
@@ -99,7 +106,7 @@ describe('the signed envelope of a prebuilt index (C8)', () => {
     const changed = Uint8Array.from(GZ);
 
     changed[changed.length - 12] ^= 0x01;
-    expect(verifyPair({ envelope, gz: changed, keys: [pair.publicKey] })).toEqual({
+    expect(Envelope.verifyPair({ envelope, gz: changed, keys: [pair.publicKey] })).toEqual({
       ok: false,
       reason: 'digest',
     });
@@ -110,27 +117,27 @@ describe('the signed envelope of a prebuilt index (C8)', () => {
     ['an envelope with no signature', JSON.stringify({ payload: 'e30=' })],
     ['a signature of the wrong length', JSON.stringify({ payload: 'e30=', signature: 'AAAA' })],
   ])('%s is malformed, never a throw', (_label, text) => {
-    expect(verifyPair({ envelope: text, gz: GZ, keys: [pair.publicKey] })).toEqual({
+    expect(Envelope.verifyPair({ envelope: text, gz: GZ, keys: [pair.publicKey] })).toEqual({
       ok: false,
       reason: 'malformed',
     });
   });
 
   test('a payload that is signed but is not the shape of one is malformed', () => {
-    const bad = signEnvelope({
+    const bad = Envelope.sign({
       payload: { ...payload, sha: 'not-a-sha' },
       privateKey: pair.privateKey,
     });
 
-    expect(verifyPair({ envelope: bad, gz: GZ, keys: [pair.publicKey] })).toEqual({
+    expect(Envelope.verifyPair({ envelope: bad, gz: GZ, keys: [pair.publicKey] })).toEqual({
       ok: false,
       reason: 'malformed',
     });
   });
 
   test('a key list entry that is not a key is skipped, not thrown on', () => {
-    expect(verifyPair({ envelope, gz: GZ, keys: ['@@not base64@@', pair.publicKey] }).ok).toBe(
-      true,
-    );
+    expect(
+      Envelope.verifyPair({ envelope, gz: GZ, keys: ['@@not base64@@', pair.publicKey] }).ok,
+    ).toBe(true);
   });
 });

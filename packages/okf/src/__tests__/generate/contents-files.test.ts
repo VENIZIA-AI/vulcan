@@ -2,7 +2,7 @@ import { afterAll, afterEach, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { collectContentsProblems, writeContents } from '../../generate/contents-files.ts';
+import { ContentsFiles } from '../../generate/contents-files.ts';
 import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
 
 afterEach(clearProjectConfig);
@@ -46,7 +46,7 @@ const project = (): string => {
 test('every long agent-read file without a fresh contents list is a problem (positive control)', () => {
   project();
 
-  expect(collectContentsProblems({ skip: new Set() })).toEqual([
+  expect(ContentsFiles.collectProblems({ skip: new Set() })).toEqual([
     'contents: .agents/knowledge/overview/long.md has no fresh contents list - run `vulcan x okf gen`',
     'contents: AGENTS.md has no fresh contents list - run `vulcan x okf gen`',
   ]);
@@ -55,11 +55,11 @@ test('every long agent-read file without a fresh contents list is a problem (pos
 test('gen writes the lists, then the check passes; a generated reference file is left alone', () => {
   const root = project();
 
-  expect(writeContents({ skip: new Set() })).toEqual([
+  expect(ContentsFiles.write({ skip: new Set() })).toEqual([
     '.agents/knowledge/overview/long.md',
     'AGENTS.md',
   ]);
-  expect(collectContentsProblems({ skip: new Set() })).toEqual([]);
+  expect(ContentsFiles.collectProblems({ skip: new Set() })).toEqual([]);
   expect(readFileSync(join(root, '.agents/knowledge/reference/gen.md'), 'utf8')).toBe(GENERATED);
   expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).toContain(
     '<!-- okf:generated:contents start -->',
@@ -76,11 +76,11 @@ test("another generator's page (atlas surface) and the append-only log.md get no
   writeFileSync(join(root, '.agents/knowledge/reference/public-surface.md'), surface);
   writeFileSync(join(root, '.agents/knowledge/log.md'), log);
 
-  expect(writeContents({ skip: new Set() })).toEqual([
+  expect(ContentsFiles.write({ skip: new Set() })).toEqual([
     '.agents/knowledge/overview/long.md',
     'AGENTS.md',
   ]);
-  expect(collectContentsProblems({ skip: new Set() })).toEqual([]);
+  expect(ContentsFiles.collectProblems({ skip: new Set() })).toEqual([]);
   expect(readFileSync(join(root, '.agents/knowledge/reference/public-surface.md'), 'utf8')).toBe(
     surface,
   );
@@ -97,7 +97,7 @@ test("a CRLF generated page is still its generator's, and a body that quotes gen
   writeFileSync(join(root, '.agents/knowledge/reference/gen.md'), crlfGenerated);
   writeFileSync(join(root, '.agents/knowledge/overview/quoting.md'), quoting);
 
-  const written = writeContents({ skip: new Set() });
+  const written = ContentsFiles.write({ skip: new Set() });
 
   expect(written).toContain('.agents/knowledge/overview/quoting.md');
   expect(written).not.toContain('.agents/knowledge/reference/gen.md');
@@ -122,13 +122,15 @@ test('okf.contents.files takes globs: every match gets a list, a literal still w
   });
 
   expect(
-    collectContentsProblems({ skip: new Set() }).filter((problem) => problem.includes('SKILL.md')),
+    ContentsFiles.collectProblems({ skip: new Set() }).filter((problem) =>
+      problem.includes('SKILL.md'),
+    ),
   ).toEqual([
     'contents: .agents/skills/alpha/SKILL.md has no fresh contents list - run `vulcan x okf gen`',
     'contents: .agents/skills/beta/SKILL.md has no fresh contents list - run `vulcan x okf gen`',
   ]);
-  expect(writeContents({ skip: new Set() })).toContain('.agents/skills/beta/SKILL.md');
-  expect(collectContentsProblems({ skip: new Set() })).toEqual([]);
+  expect(ContentsFiles.write({ skip: new Set() })).toContain('.agents/skills/beta/SKILL.md');
+  expect(ContentsFiles.collectProblems({ skip: new Set() })).toEqual([]);
 });
 
 test('a file named by both a glob and a literal path is listed once', () => {
@@ -140,6 +142,8 @@ test('a file named by both a glob and a literal path is listed once', () => {
   });
 
   expect(
-    collectContentsProblems({ skip: new Set() }).filter((problem) => problem.includes('AGENTS.md')),
+    ContentsFiles.collectProblems({ skip: new Set() }).filter((problem) =>
+      problem.includes('AGENTS.md'),
+    ),
   ).toHaveLength(1);
 });

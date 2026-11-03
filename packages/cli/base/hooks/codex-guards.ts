@@ -29,20 +29,31 @@ const parseJson = (opts: { text: string }): unknown => {
   }
 };
 
-const parsed = parseJson({ text: await Bun.stdin.text() });
+const stdin = await Bun.stdin.text();
+const parsed = parseJson({ text: stdin });
 const toolInput = isRecord(parsed) ? parsed['tool_input'] : undefined;
 const tool = isRecord(parsed) ? textOf(parsed['tool_name']) : undefined;
 const command = isRecord(toolInput) ? textOf(toolInput['command']) : undefined;
 const cwd = (isRecord(parsed) ? textOf(parsed['cwd']) : undefined) ?? process.cwd();
 
 if (command !== undefined && (tool === 'Bash' || tool === 'apply_patch')) {
-  const { verdictOf } = await import('../extensions/vulcan-guards.ts');
-  const { patchedFilesOf } = await import('../../src/hooks/codex-patch.ts');
+  const { GuardVerdict } = await import('../extensions/vulcan-guards.ts');
+  const { CodexPatch } = await import('../../src/hooks/codex-patch.ts');
   const verdicts =
     tool === 'Bash'
-      ? [verdictOf({ toolName: 'bash', input: Object.fromEntries([['command', command]]), cwd })]
-      : patchedFilesOf({ patch: command, cwd }).map((file) =>
-          verdictOf({ toolName: file.tool, input: Object.fromEntries([['path', file.path]]), cwd }),
+      ? [
+          GuardVerdict.verdictOf({
+            toolName: 'bash',
+            input: Object.fromEntries([['command', command]]),
+            cwd,
+          }),
+        ]
+      : CodexPatch.patchedFilesOf({ patch: command, cwd }).map((file) =>
+          GuardVerdict.verdictOf({
+            toolName: file.tool,
+            input: Object.fromEntries([['path', file.path]]),
+            cwd,
+          }),
         );
   const refused = verdicts.find((verdict) => verdict.kind === 'deny');
   const asked = verdicts.filter((verdict) => verdict.kind === 'ask');

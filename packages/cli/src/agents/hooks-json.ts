@@ -1,7 +1,5 @@
+import { RecordValue } from '../common/record.ts';
 import { RemoveOutcomes } from './common/index.ts';
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** The key of VULCAN's entry in Antigravity's hooks file: the file maps a hook name to its events. */
 export const GUARD_HOOK_NAME = 'vulcan-guards';
@@ -49,7 +47,7 @@ const parseHooks = (opts: { text: string | undefined }): TParsedHooks => {
   try {
     const parsed: unknown = JSON.parse(opts.text);
 
-    return isRecord(parsed)
+    return RecordValue.isRecord(parsed)
       ? { ok: true, hooks: parsed }
       : { ok: false, reason: 'the hooks file is not a JSON object' };
   } catch (error) {
@@ -60,52 +58,52 @@ const parseHooks = (opts: { text: string | undefined }): TParsedHooks => {
   }
 };
 
-export type THooksMerge =
-  | { ok: true; changed: boolean; text: string }
-  | { ok: false; reason: string };
+type THooksMerge = { ok: true; changed: boolean; text: string } | { ok: false; reason: string };
 
-/** The hooks file with VULCAN's entry in it, every other hook as the user wrote it. */
-export const mergeGuardHook = (opts: { text: string | undefined }): THooksMerge => {
-  const parsed = parseHooks({ text: opts.text });
+export class GuardHook {
+  /** The hooks file with VULCAN's entry in it, every other hook as the user wrote it. */
+  static merge(opts: { text: string | undefined }): THooksMerge {
+    const parsed = parseHooks({ text: opts.text });
 
-  if (!parsed.ok) {
-    return parsed;
+    if (!parsed.ok) {
+      return parsed;
+    }
+
+    const entry = guardEntry();
+    const changed = JSON.stringify(parsed.hooks[GUARD_HOOK_NAME]) !== JSON.stringify(entry);
+
+    return {
+      ok: true,
+      changed,
+      text: `${JSON.stringify({ ...parsed.hooks, [GUARD_HOOK_NAME]: entry }, null, 2)}\n`,
+    };
   }
 
-  const entry = guardEntry();
-  const changed = JSON.stringify(parsed.hooks[GUARD_HOOK_NAME]) !== JSON.stringify(entry);
+  /** The hooks file without VULCAN's entry; `text` is undefined when nothing else was in it. */
+  static remove(opts: { text: string }): THooksRemoval {
+    const parsed = parseHooks({ text: opts.text });
 
-  return {
-    ok: true,
-    changed,
-    text: `${JSON.stringify({ ...parsed.hooks, [GUARD_HOOK_NAME]: entry }, null, 2)}\n`,
-  };
-};
+    if (!parsed.ok) {
+      return parsed;
+    }
 
-export type THooksRemoval =
+    if (!Object.hasOwn(parsed.hooks, GUARD_HOOK_NAME)) {
+      return { ok: true, outcome: RemoveOutcomes.ABSENT };
+    }
+
+    const others = Object.fromEntries(
+      Object.entries(parsed.hooks).filter(([name]) => name !== GUARD_HOOK_NAME),
+    );
+
+    return {
+      ok: true,
+      outcome: RemoveOutcomes.REMOVED,
+      text: Object.keys(others).length === 0 ? undefined : `${JSON.stringify(others, null, 2)}\n`,
+    };
+  }
+}
+
+type THooksRemoval =
   | { ok: true; outcome: typeof RemoveOutcomes.ABSENT }
   | { ok: true; outcome: typeof RemoveOutcomes.REMOVED; text: string | undefined }
   | { ok: false; reason: string };
-
-/** The hooks file without VULCAN's entry; `text` is undefined when nothing else was in it. */
-export const removeGuardHook = (opts: { text: string }): THooksRemoval => {
-  const parsed = parseHooks({ text: opts.text });
-
-  if (!parsed.ok) {
-    return parsed;
-  }
-
-  if (!Object.hasOwn(parsed.hooks, GUARD_HOOK_NAME)) {
-    return { ok: true, outcome: RemoveOutcomes.ABSENT };
-  }
-
-  const others = Object.fromEntries(
-    Object.entries(parsed.hooks).filter(([name]) => name !== GUARD_HOOK_NAME),
-  );
-
-  return {
-    ok: true,
-    outcome: RemoveOutcomes.REMOVED,
-    text: Object.keys(others).length === 0 ? undefined : `${JSON.stringify(others, null, 2)}\n`,
-  };
-};

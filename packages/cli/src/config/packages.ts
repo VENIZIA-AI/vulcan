@@ -1,4 +1,4 @@
-import type { TPackageKind } from './common/index.ts';
+import type { TLibraryKind, TPackageKind } from './common/index.ts';
 import type { TResolvedConfig } from './schema.ts';
 
 const DEFAULT_PACKAGES_DIRECTORY = 'packages';
@@ -11,15 +11,21 @@ export interface IProjectPackage {
   aliases: string[];
   retired: boolean;
   kind?: TPackageKind;
+  /** Which preset kind made a library; absent means `lib`. */
+  presetKind?: TLibraryKind;
 }
 
-/** The project's packages in release order. */
-export const resolvePackages = (opts: { config: TResolvedConfig }): IProjectPackage[] =>
-  opts.config.packages.map((entry) => ({
-    dir: entry.dir,
-    name: entry.name,
-    path: entry.path ?? `${DEFAULT_PACKAGES_DIRECTORY}/${entry.dir}`,
-    aliases: entry.aliases,
-    retired: entry.retired,
-    ...(entry.kind === undefined ? {} : { kind: entry.kind }),
-  }));
+export class ProjectPackages {
+  /** The project's packages in release order. */
+  static resolve(opts: { config: TResolvedConfig }): IProjectPackage[] {
+    return opts.config.packages.map((entry) => ({
+      dir: entry.dir,
+      name: entry.name,
+      path: entry.path ?? `${DEFAULT_PACKAGES_DIRECTORY}/${entry.dir}`,
+      aliases: entry.aliases,
+      retired: entry.retired,
+      ...(entry.kind === undefined ? {} : { kind: entry.kind }),
+      ...(entry.presetKind === undefined ? {} : { presetKind: entry.presetKind }),
+    }));
+  }
+}

@@ -1,4 +1,4 @@
-import { markers } from './regions.ts';
+import { ManagedRegion } from './regions.ts';
 
 /**
  * An agent may preview a file's first lines only (Anthropic's skill guidance: "include a table of
@@ -141,7 +141,7 @@ const headingsOf = (opts: { text: string }): { text: string; anchor: string }[] 
  * every word of it.
  */
 const withoutContents = (opts: { text: string }): string => {
-  const { start, end } = markers({ id: CONTENTS_ID });
+  const { start, end } = ManagedRegion.markers({ id: CONTENTS_ID });
   const lines = opts.text.split('\n');
   let startLine = -1;
   let endLine = -1;
@@ -177,27 +177,32 @@ const insertionPointOf = (opts: { text: string }): number => {
   return at + (/^\n*/.exec(opts.text.slice(at))?.[0].length ?? 0);
 };
 
-/**
- * The file as `okf gen` writes it: a contents list of its `##` headings near the top when it runs
- * past `CONTENTS_MIN_LINES`, none when it does not. A fixed point - a second pass changes nothing.
- */
-export const withContents = (opts: { text: string }): string => {
-  // A CRLF file is read as LF and written back with its own endings.
-  if (opts.text.includes('\r\n')) {
-    return withContents({ text: opts.text.replace(/\r\n/g, '\n') }).replace(/\n/g, '\r\n');
+export class ContentsList {
+  /**
+   * The file as `okf gen` writes it: a contents list of its `##` headings near the top when it runs
+   * past `CONTENTS_MIN_LINES`, none when it does not. A fixed point - a second pass changes nothing.
+   */
+  static withContents(opts: { text: string }): string {
+    // A CRLF file is read as LF and written back with its own endings.
+    if (opts.text.includes('\r\n')) {
+      return ContentsList.withContents({ text: opts.text.replace(/\r\n/g, '\n') }).replace(
+        /\n/g,
+        '\r\n',
+      );
+    }
+
+    const bare = withoutContents({ text: opts.text });
+    const headings = headingsOf({ text: bare });
+
+    if (lineCountOf({ text: bare }) <= CONTENTS_MIN_LINES || headings.length === 0) {
+      return bare;
+    }
+
+    const { start, end } = ManagedRegion.markers({ id: CONTENTS_ID });
+    const list = headings.map((heading) => `- [${heading.text}](#${heading.anchor})`).join('\n');
+    const block = `${start}\n**Contents**\n\n${list}\n${end}\n\n`;
+    const at = insertionPointOf({ text: bare });
+
+    return bare.slice(0, at) + block + bare.slice(at);
   }
-
-  const bare = withoutContents({ text: opts.text });
-  const headings = headingsOf({ text: bare });
-
-  if (lineCountOf({ text: bare }) <= CONTENTS_MIN_LINES || headings.length === 0) {
-    return bare;
-  }
-
-  const { start, end } = markers({ id: CONTENTS_ID });
-  const list = headings.map((heading) => `- [${heading.text}](#${heading.anchor})`).join('\n');
-  const block = `${start}\n**Contents**\n\n${list}\n${end}\n\n`;
-  const at = insertionPointOf({ text: bare });
-
-  return bare.slice(0, at) + block + bare.slice(at);
-};
+}

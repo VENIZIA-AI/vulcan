@@ -1,6 +1,6 @@
 import { Corpora } from '@/common';
 import type { TCorpus } from '@/common';
-import { Chunker, CorpusLoader, parseFrontmatter } from '@/corpus';
+import { Chunker, CorpusFrontmatter, CorpusLoader } from '@/corpus';
 import type { IDocument } from '@/corpus';
 import { Authorities } from '@/search/common';
 import { ChunkStore } from '@/search';
@@ -18,7 +18,7 @@ const readFixtureDocument = (opts: {
   file: string;
 }): IDocument => {
   const text = readFileSync(join(opts.directory, opts.file), 'utf8');
-  const { data, body } = parseFrontmatter({ text, path: opts.file });
+  const { data, body } = CorpusFrontmatter.parse({ text, path: opts.file });
   const title = typeof data.title === 'string' ? data.title : opts.file;
 
   return { corpus: opts.corpus, path: opts.file, title, frontmatter: data, body };
@@ -332,7 +332,7 @@ describe('Chunker - metadata from frontmatter', () => {
         'this second section is checked against here too, padded a little further so it clears two ' +
         'hundred characters on its own without help from the intro chunk above it in the walk.',
     ].join('\n');
-    const { data, body } = parseFrontmatter({ text, path: 'doc.md' });
+    const { data, body } = CorpusFrontmatter.parse({ text, path: 'doc.md' });
     const document: IDocument = {
       corpus: Corpora.WIKI,
       path: 'doc.md',

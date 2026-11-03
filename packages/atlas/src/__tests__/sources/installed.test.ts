@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { installedDirectoriesOf, installRootsOf } from '@/sources/installed';
+import { InstalledPackages } from '@/sources/installed';
 import {
   install,
   makeTempDirectory,
@@ -19,7 +19,7 @@ describe('where a project installs its packages', () => {
   test('without a manifest the root is the only place', () => {
     const cwd = makeTempDirectory({ prefix: 'atlas-installed-' });
 
-    expect(installRootsOf({ cwd })).toEqual([cwd]);
+    expect(InstalledPackages.installRootsOf({ cwd })).toEqual([cwd]);
   });
 
   test('every package the manifest declares installs beside itself, so its folder counts too', () => {
@@ -42,7 +42,7 @@ describe('where a project installs its packages', () => {
     mkdirSync(join(cwd, 'services/api'), { recursive: true });
     mkdirSync(join(cwd, 'services/gone'), { recursive: true });
 
-    expect(installRootsOf({ cwd })).toEqual([cwd, join(cwd, 'services/api')]);
+    expect(InstalledPackages.installRootsOf({ cwd })).toEqual([cwd, join(cwd, 'services/api')]);
   });
 
   test('the nearest copy comes first, a missing one is not listed', () => {
@@ -53,13 +53,14 @@ describe('where a project installs its packages', () => {
     install({ root: app, name: '@x/kernel', version: '1.1.0' });
     install({ root: app, name: '@x/only-here', version: '2.0.0' });
 
-    expect(installedDirectoriesOf({ roots: [cwd, app], name: '@x/kernel' })).toEqual([
-      join(cwd, 'node_modules/@x/kernel'),
-      join(app, 'node_modules/@x/kernel'),
-    ]);
-    expect(installedDirectoriesOf({ roots: [cwd, app], name: '@x/only-here' })).toEqual([
-      join(app, 'node_modules/@x/only-here'),
-    ]);
-    expect(installedDirectoriesOf({ roots: [cwd, app], name: '@x/absent' })).toEqual([]);
+    expect(
+      InstalledPackages.installedDirectoriesOf({ roots: [cwd, app], name: '@x/kernel' }),
+    ).toEqual([join(cwd, 'node_modules/@x/kernel'), join(app, 'node_modules/@x/kernel')]);
+    expect(
+      InstalledPackages.installedDirectoriesOf({ roots: [cwd, app], name: '@x/only-here' }),
+    ).toEqual([join(app, 'node_modules/@x/only-here')]);
+    expect(
+      InstalledPackages.installedDirectoriesOf({ roots: [cwd, app], name: '@x/absent' }),
+    ).toEqual([]);
   });
 });

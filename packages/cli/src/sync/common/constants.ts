@@ -1,36 +1,29 @@
+import { join } from 'node:path';
+
 export class SyncStatuses {
   static readonly CREATED = 'created';
   static readonly REPLACED = 'replaced';
   static readonly UNCHANGED = 'unchanged';
   static readonly SKIPPED = 'skipped';
-  /** Taken out by `sync --prune`. */
   static readonly REMOVED = 'removed';
-  static readonly SCHEME_SET = new Set<string>([
-    this.CREATED,
-    this.REPLACED,
-    this.UNCHANGED,
-    this.SKIPPED,
-    this.REMOVED,
-  ]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export class SyncConstants {
   static readonly CLAUDE_IMPORT_LINE = '@AGENTS.md';
   static readonly CLAUDE_TOOL_FILE = 'CLAUDE.md';
 
-  /** The first line of the CLAUDE.md `bun init` writes: Bun's tips, never the project's own words. */
-  static readonly BUN_INIT_CLAUDE_MARKER = 'Default to using Bun instead of Node.js.';
-
   static readonly CLAUDE_DIRECTORY = '.claude';
   static readonly SETTINGS_FILE = 'settings.json';
   /** The hook sync adds when the config sets `remoteHosts`; lives next to the shipped settings. */
   static readonly REMOTE_HOSTS_FILE = 'remote-hosts.json';
+  static readonly COMMIT_ATTRIBUTION_FILE = 'commit-attribution.json';
+  /** The hooks sync adds when the config sets `events.log`. */
+  static readonly EVENTS_FILE = 'events.json';
   /** What sync applied last time, so a later sync can take back what the project no longer asks for. */
   static readonly MANAGED_FILE = 'vulcan-managed.json';
   static readonly SKILLS_DIRECTORY = 'skills';
+  /** The Claude skills folder, relative to the project root. */
+  static readonly CLAUDE_SKILLS = join(this.CLAUDE_DIRECTORY, this.SKILLS_DIRECTORY);
   static readonly SKILL_FILE = 'SKILL.md';
   /** The settings key of hook entries: sync takes a managed hook back by its command, not its whole entry. */
   static readonly HOOKS_KEY = 'hooks';
@@ -45,8 +38,4 @@ export class BaseRuleChanges {
   static readonly ADDED = 'added';
   static readonly CHANGED = 'changed';
   static readonly REMOVED = 'removed';
-  static readonly SCHEME_SET = new Set<string>([this.ADDED, this.CHANGED, this.REMOVED]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }

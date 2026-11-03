@@ -11,6 +11,9 @@ import {
   VisualizeLimits,
 } from './constants.ts';
 import type { TChangeKind } from './constants.ts';
+import { COMPARE_SCHEMA } from './compare-schema.ts';
+import { LIFECYCLE_SCHEMA, SEQUENCE_SCHEMA, TREE_SCHEMA } from './kinds-schema.ts';
+import { SOURCE_SCHEMA, TERMS_SCHEMA } from './sources.ts';
 
 /** One line of plain text: no markup is interpreted anywhere, it is all escaped. */
 const text = (max: number) =>
@@ -36,6 +39,7 @@ const HTTPS = z
   .string()
   .max(500)
   .regex(/^https:\/\/[^\s"'<>\p{Cc}]+$/u, 'an https URL');
+const HEX_COLOUR = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #3f5266');
 const rows = <T extends z.ZodType>(item: T) =>
   z.array(item).min(1).max(VisualizeLimits.MAX_ROWS_PER_TABLE);
 
@@ -50,6 +54,8 @@ const NODE = z.strictObject({
   col: GRID,
   kind: choice({ set: NodeKinds.SCHEME_SET }).optional(),
   state: STATE.optional(),
+  /** Where the box comes from: shown as `repo@commit:path:lines` in its detail. */
+  source: SOURCE_SCHEMA.optional(),
 });
 
 const EDGE = z.strictObject({
@@ -69,6 +75,7 @@ const STEP = z.strictObject({
     .array(z.string().regex(/^[a-z][a-z0-9-]*>[a-z][a-z0-9-]*$/))
     .max(VisualizeLimits.MAX_EDGES)
     .default([]),
+  source: SOURCE_SCHEMA.optional(),
 });
 
 const SIDE = (changed: TChangeKind) =>
@@ -325,10 +332,17 @@ export const VISUALIZE_SCHEMA = z.strictObject({
   schemaVersion: z.literal(VisualizeLimits.SCHEMA_VERSION),
   /** The takeaway, not a topic. */
   title: text(VisualizeLimits.MAX_TITLE),
+  /** The page's language; absent, it is the owner's profile language, else English. */
   language: z
     .string()
     .regex(/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/)
-    .default('en'),
+    .optional(),
+  /** The accent of this page; it wins over the project's `theme`. A six-digit hex colour. */
+  accent: HEX_COLOUR.optional(),
+  /** The accent on dark grounds; derived from `accent` when absent. */
+  accentDark: HEX_COLOUR.optional(),
+  /** A darker accent for text, when `accent` is too light to be read as text. */
+  accentText: HEX_COLOUR.optional(),
   status: z.strictObject({
     state: choice({ set: StatusStates.SCHEME_SET }),
     label: text(VisualizeLimits.MAX_LABEL).optional(),
@@ -384,6 +398,12 @@ export const VISUALIZE_SCHEMA = z.strictObject({
   explainer: EXPLAINER.optional(),
   timeline: TIMELINE.optional(),
   findings: FINDINGS.optional(),
+  sequence: SEQUENCE_SCHEMA.optional(),
+  lifecycle: LIFECYCLE_SCHEMA.optional(),
+  tree: TREE_SCHEMA.optional(),
+  compare: COMPARE_SCHEMA.optional(),
+  /** The words of the page a reader may not know; one that never appears in the page is a warning. */
+  terms: TERMS_SCHEMA.optional(),
   decisionRecord: DECISION_RECORD.optional(),
   beforeAfter: z
     .strictObject({ before: SIDE(ChangeKinds.REMOVED), after: SIDE(ChangeKinds.ADDED) })

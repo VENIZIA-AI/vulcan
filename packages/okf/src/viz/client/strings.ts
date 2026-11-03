@@ -1,6 +1,6 @@
 import { Locales } from '../common/index.ts';
 import type { TLocale } from '../common/index.ts';
-import { readParentDocument } from './frame.ts';
+import { ParentFrame } from './frame.ts';
 
 /** The explorer's own interface text; project prose comes from the page data instead. */
 export interface IUiStrings {
@@ -43,15 +43,17 @@ export const UI_STRINGS: Record<TLocale, IUiStrings> = {
   },
 };
 
-/** `?lang=` wins; otherwise a `/vi/` path - the embedding wiki's when framed, this page's alone. */
-export const resolveLocale = (): TLocale => {
-  const requested = new URLSearchParams(location.search).get('lang');
+export class VizStrings {
+  /** `?lang=` wins; otherwise a `/vi/` path - the embedding wiki's when framed, this page's alone. */
+  static resolveLocale(): TLocale {
+    const requested = new URLSearchParams(location.search).get('lang');
 
-  if (requested !== null && Locales.isValid(requested)) {
-    return requested === Locales.VI ? Locales.VI : Locales.EN;
+    if (requested !== null && Locales.isValid(requested)) {
+      return requested === Locales.VI ? Locales.VI : Locales.EN;
+    }
+
+    const pathname = ParentFrame.readDocument()?.location.pathname ?? location.pathname;
+
+    return /\/vi(\/|$)/.test(pathname) ? Locales.VI : Locales.EN;
   }
-
-  const pathname = readParentDocument()?.location.pathname ?? location.pathname;
-
-  return /\/vi(\/|$)/.test(pathname) ? Locales.VI : Locales.EN;
-};
+}

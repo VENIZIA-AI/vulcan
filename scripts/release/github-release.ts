@@ -2,7 +2,6 @@
  * The GitHub Release of a publish: one Release on the tag the run made.
  *
  *   bun scripts/release/github-release.ts create --tag <tag> --version <v> --kind stable|prerelease
- *   bun scripts/release/github-release.ts check --version <v> [--to <commit>]
  *   bun scripts/release/github-release.ts backfill --tag <tag> [--yes]
  *
  * It never creates, edits or moves the `atlas-index` release, and `backfill` writes to GitHub only with `--yes`.
@@ -22,24 +21,26 @@ export class GithubReleaseConstants {
   static readonly DATED_ENTRY = /^\d{4}-\d{2}-\d{2}-.*\.md$/;
   static readonly FRONT_MATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
   static readonly DATE_HEADING = /^# Changelog - \d{4}-\d{2}-\d{2}\s*$/m;
-  /** `## VULCAN X.Y.Z: title` or `## VULCAN 0.2.0-0: title`: the product and version prefix of an entry's heading. */
+  /** `## VULCAN X.Y.Z: title` or `## VULCAN 0.2.0-0: title`: the product and version prefix an older entry's heading carries; a heading with no prefix does not match and is left as written. */
   static readonly VERSION_HEADING = /^(##\s+)VULCAN\s+(?:X\.Y\.Z|\d[^:\n]*):\s*(\S)/m;
   static readonly ISSUE_SUBJECT = /^\[#\d+\]/;
   /** The unspaced run of `[#N]` tokens a subject opens with: `[#42][#44] ...` serves two issues. */
   static readonly ISSUE_TOKENS = /^(?:\[#\d+\])+/;
   static readonly TITLE_PREFIX = 'VULCAN';
+  /** The notes of a stable with no changelog entry: the changelog records what affects users, and nothing did. */
+  static readonly NO_USER_CHANGES = 'No change for users of the packages in this release.';
   static readonly USAGE =
-    'github-release: create --tag <tag> --version <v> --kind stable|prerelease | check --version <v> [--to <commit>] | backfill --tag <tag> [--yes]';
+    'github-release: create --tag <tag> --version <v> --kind stable|prerelease | backfill --tag <tag> [--yes]';
 }
 
-export interface IGithubReleaseManifest {
+interface IGithubReleaseManifest {
   templates: string[];
   changelogs: string;
   /** The npm names of the packages, in release order: the last is the one users install. */
   packages: string[];
 }
 
-export interface IGhResult {
+interface IGhResult {
   status: number;
   stdout: string;
   stderr: string;
@@ -47,9 +48,9 @@ export interface IGhResult {
 
 export type TGh = (opts: { args: string[] }) => IGhResult;
 
-export type TGithubReleaseState = 'created' | 'exists' | 'planned' | 'refused' | 'failed';
+type TGithubReleaseState = 'created' | 'exists' | 'planned' | 'refused' | 'failed';
 
-export interface IGithubReleaseOutcome {
+interface IGithubReleaseOutcome {
   state: TGithubReleaseState;
   message: string;
 }
@@ -205,7 +206,7 @@ export class GithubRelease {
 
   /**
    * An entry as a Release shows it: no front matter, no date heading, and its heading without the
-   * `VULCAN X.Y.Z:` prefix (the Release is titled with the version already).
+   * `VULCAN <version>:` prefix an older entry carries (the Release is titled with the version already).
    */
   static stripEntry(opts: { text: string }): string {
     return opts.text
@@ -305,29 +306,6 @@ export class GithubRelease {
     ].join('\n');
   }
 
-  /** Why a stable cannot be released without a changelog entry; empty when it has one. */
-  static check(opts: { cwd: string; version: string; to: string }): string[] {
-    const manifest = GithubRelease.manifestOf({ cwd: opts.cwd });
-    const from = GithubRelease.previousTag({
-      tags: GithubRelease.tagsOf({ cwd: opts.cwd }),
-      templates: manifest.templates,
-      version: opts.version,
-      stableOnly: true,
-    });
-    const notes = GithubRelease.stableNotes({
-      cwd: opts.cwd,
-      from,
-      to: opts.to,
-      folder: manifest.changelogs,
-    });
-
-    return notes === ''
-      ? [
-          `no changelog entry was added since ${from ?? 'the start of history'}: a stable ships with its changelog`,
-        ]
-      : [];
-  }
-
   /**
    * Makes the Release of `tag`, or says why it did not: a git or filesystem failure is an outcome too.
    * With `dryRun` it stops before `gh` creates anything and returns the notes as the message.
@@ -403,19 +381,17 @@ export class GithubRelease {
         })
       : '';
 
+    // No entry since the previous stable is no fault: the changelog records only what affects users. A backfill of an
+    // old stable that predates the changelog still lists its commits.
     if (stable && notes === '') {
-      if (!opts.withSubjectFallback || subjects.length === 0) {
-        return {
-          state: 'failed',
-          message: `no changelog entry was added since ${from ?? 'the start of history'}, so ${opts.tag} has no notes`,
-        };
-      }
-
-      notes = [
-        'Commits in this release:',
-        '',
-        ...GithubRelease.fencedLines({ lines: GithubRelease.cappedSubjects({ subjects }) }),
-      ].join('\n');
+      notes =
+        opts.withSubjectFallback && subjects.length > 0
+          ? [
+              'Commits in this release:',
+              '',
+              ...GithubRelease.fencedLines({ lines: GithubRelease.cappedSubjects({ subjects }) }),
+            ].join('\n')
+          : GithubReleaseConstants.NO_USER_CHANGES;
     }
 
     const body = GithubRelease.bodyOf({
@@ -512,26 +488,6 @@ export class GithubRelease {
     const summary = opts.env['GITHUB_STEP_SUMMARY'];
 
     try {
-      if (command === 'check') {
-        const version = ReleaseMergeBack.flagValue({ args: opts.args, flag: '--version' });
-
-        if (version === undefined) {
-          console.error(GithubReleaseConstants.USAGE);
-
-          return 2;
-        }
-
-        const problems = GithubRelease.check({
-          cwd,
-          version,
-          to: ReleaseMergeBack.flagValue({ args: opts.args, flag: '--to' }) ?? 'HEAD',
-        });
-
-        problems.forEach((problem) => console.error(`ERROR | ${problem}`));
-
-        return problems.length === 0 ? 0 : 1;
-      }
-
       if (command === 'create' || command === 'backfill') {
         const request = GithubRelease.requestOf({
           args: opts.args,

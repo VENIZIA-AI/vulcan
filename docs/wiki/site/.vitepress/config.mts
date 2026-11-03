@@ -1,7 +1,6 @@
 import { defineConfig, type DefaultTheme } from 'vitepress';
 import { writeChangelogFeed } from './theme/shared/changelog-loader.ts';
 import { venziaCodeTheme } from './theme/shared/code-theme.ts';
-import { VENIZIA_LOGO_SVG } from './theme/shared/venizia-logo.ts';
 
 // The sidebars mirror IGNIS: Guides and References each have an index landing page.
 const guidesSidebar: DefaultTheme.SidebarItem[] = [
@@ -18,6 +17,7 @@ const guidesSidebar: DefaultTheme.SidebarItem[] = [
     text: 'Core Concepts',
     items: [
       { text: 'The project layer', link: '/guides/core-concepts/the-project-layer' },
+      { text: 'The .agents folder', link: '/guides/core-concepts/the-agents-folder' },
       { text: 'Rules and slots', link: '/guides/core-concepts/rules-and-slots' },
       { text: 'Hooks and guards', link: '/guides/core-concepts/hooks-and-guards' },
       { text: 'The owner and the reply shape', link: '/guides/core-concepts/owner-and-replies' },
@@ -49,6 +49,10 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'sync', link: '/references/commands/sync' },
       { text: 'agents', link: '/references/commands/agents' },
       { text: 'doctor', link: '/references/commands/doctor' },
+      { text: 'commit-check', link: '/references/commands/commit-check' },
+      { text: 'ci', link: '/references/commands/ci' },
+      { text: 'event', link: '/references/commands/event' },
+      { text: 'board', link: '/references/commands/board' },
       { text: 'clean', link: '/references/commands/clean' },
       { text: 'preset', link: '/references/commands/preset' },
       { text: 'profile', link: '/references/commands/profile' },
@@ -136,10 +140,9 @@ export default defineConfig({
           'Rules, hooks, a knowledge bundle and a search server for your coding agent, from one config file and one pinned devDependency.',
       },
     ],
-    ['meta', { property: 'og:image', content: '/og-image.png' }],
     ['meta', { property: 'og:url', content: 'https://vulcan.venizia.ai/' }],
     // Twitter / X card
-    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:card', content: 'summary' }],
     [
       'meta',
       {
@@ -155,7 +158,6 @@ export default defineConfig({
           'Rules, hooks, a knowledge bundle and a search server for your coding agent, from one config file and one pinned devDependency.',
       },
     ],
-    ['meta', { name: 'twitter:image', content: '/og-image.png' }],
   ],
   lastUpdated: true,
   themeConfig: {
@@ -174,11 +176,8 @@ export default defineConfig({
       level: [2, 3],
       label: 'On this page',
     },
-    socialLinks: [
-      { icon: 'github', link: 'https://github.com/VENIZIA-AI/vulcan' },
-      // The Venizia wordmark, right after the GitHub icon; theme/shared/header.css sizes it.
-      { icon: { svg: VENIZIA_LOGO_SVG }, link: 'https://venizia.ai', ariaLabel: 'Venizia' },
-    ],
+    // The Venizia wordmark and the venizia.ai link are in the top bar (theme/shared/SiteBrand.vue, VeniziaLink.vue).
+    socialLinks: [{ icon: 'github', link: 'https://github.com/VENIZIA-AI/vulcan' }],
     editLink: {
       pattern: 'https://github.com/VENIZIA-AI/vulcan/edit/develop/docs/wiki/content/:path',
       text: 'Edit this page on GitHub',

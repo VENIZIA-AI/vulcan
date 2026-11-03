@@ -45,30 +45,10 @@ vulcan init: no package.json in ~/work/demo - run 'bun init' first, or use --pre
 
 ## Options
 
-Without `--preset`, `vulcan init` accepts one option:
+Without `--preset`, `vulcan init` takes no option. Any other argument is refused with `vulcan init: unknown argument '<argument>'` and nothing is written.
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `--config` | `ts \| mts \| mjs \| js` | `mts` | File extension and format for the starter configuration file |
-
-The `--config` value determines the format of `.configs/vulcan.config.<ext>`:
-
-- `ts`: writes `.configs/vulcan.config.ts` using TypeScript and `satisfies VulcanConfig`.
-- `mts`: writes `.configs/vulcan.config.mts` using TypeScript and `satisfies VulcanConfig`.
-- `mjs`: writes `.configs/vulcan.config.mjs` using ECMAScript modules and JSDoc typing.
-- `js`: writes `.configs/vulcan.config.js` using ECMAScript modules and JSDoc typing.
-
-The config file is written only when no `.configs/vulcan.config.{ts,mts,mjs,js}` exists.
-Otherwise, `--config` is ignored for the file and nothing is created.
-Each existing config is reported as `kept` under its real name.
-The `--config` value is still validated on every run.
-
-If you pass an invalid value to `--config`, `vulcan init` writes nothing and exits with code 1:
-
-```text
-$ bun x --no-install vulcan init --config yaml
-vulcan init: --config takes one of ts, mts, mjs, js
-```
+The config file is `.configs/vulcan.config.mts`, a TypeScript module that uses `satisfies VulcanConfig`.
+It is written only when it does not exist yet; an existing one is reported as `kept`.
 
 ## Generated files
 
@@ -85,7 +65,7 @@ It fills the `{{name}}` token in `AGENTS.md`, `rules.md`, the knowledge index an
 | `.configs/lints/oxlint.config.mts` | Lint configuration for oxlint extending `@venizia/dev-configs` | Add project linter rule overrides when needed |
 | `.configs/lints/eslint.config.mjs` | Lint configuration for ESLint naming conventions extending `@venizia/dev-configs` | Add project naming convention overrides when needed |
 | `.dockerignore` | Keeps dependencies, build output, `.git` and every agent's local files out of a Docker build context (the same list `init --preset` writes) | Edit it freely; `init` never overwrites it |
-| `.configs/vulcan.config.<ext>` | Main VULCAN configuration file for agents, rule slots and packages | Configure coding agents, rule slots, and workspace packages |
+| `.configs/vulcan.config.mts` | Main VULCAN configuration file for agents, rule slots and packages | Configure coding agents, rule slots, and workspace packages |
 | `bunfig.toml` | Bun's telemetry off (`telemetry = false`), a comment that `bun fmt` also inherits it from a parent folder, so it sits at the root and `[fmt]` applies to every folder below it, and the `[fmt]` section `bun fmt` reads (`printWidth = 100`, `singleQuote = true`, `arrowParens = "always"`, the shared style, and `flavor = "oxfmt"`, which keeps oxfmt's output when oxfmt is not a dependency). It is the only formatter configuration: `init` writes no `.configs/formatters/oxfmt.config.mts`. No release-age gate: a gate of a few days fails a fresh install whose version floors are the latest releases | Edit it freely; `init` never overwrites it, `sync` never touches it |
 | `Makefile` | Root Makefile that includes shared VULCAN make targets from `vulcan.mk` | Add project make targets |
 
@@ -97,7 +77,7 @@ For each file and hint, `vulcan init` prints one line with an eight-column statu
 |---|---|
 | `created` | `vulcan init` wrote the file from a shipped template |
 | `updated` | `vulcan init` appended missing lines to `.gitignore`; the lines already there are kept |
-| `kept` | The file exists on disk and `vulcan init` left it unchanged; each existing config is reported under its real name |
+| `kept` | The file exists on disk and `vulcan init` left it unchanged; an existing config is reported as `kept` |
 | `add` | A required line is missing from a file that `vulcan init` does not edit, printed as a hint |
 | `skipped` | `vulcan init` did not write the three lint configs because `package.json` declares `workspaces` |
 
@@ -135,7 +115,7 @@ The command prints status `skipped` with the reason:
 
 ### The MCP file
 
-`vulcan init` does not write `.mcp.json`. The file is an agent file like the others: `vulcan sync` writes it, on each machine, only when you chose an agent that reads it (Claude Code, omp or Copilot CLI), with the atlas entry, and lists it in your clone's `.git/info/exclude`. A project that already tracks a `.mcp.json` keeps it untouched; `vulcan doctor` says how to hand it over ([sync](/references/commands/sync#the-root-mcp-json)).
+`vulcan init` does not write `.mcp.json`. The file is an agent file like the others: `vulcan sync` writes it, on each machine, only when you chose an agent that reads it (Claude Code, omp or Copilot CLI), with the atlas entry, and lists it in your clone's `.git/info/exclude`. A project that already tracks a `.mcp.json` keeps it untouched ([sync](/references/commands/sync#the-root-mcp-json)).
 
 ### Configuration hints
 
@@ -182,7 +162,7 @@ The test suites use this to run offline.
 `vulcan init` ends with `left to do:`, a numbered list.
 Item 1 is always the knowledge index; the `add` hints follow, then the `sync` and `doctor` command.
 
-To configure your project, edit `.configs/vulcan.config.<ext>`.
+To configure your project, edit `.configs/vulcan.config.mts`.
 The starter file provides baseline settings:
 
 ```ts
@@ -254,7 +234,7 @@ Fetching preset @venizia/ignis@latest ...
   created  .agents/knowledge/index.md
   created  .agents/knowledge/packages/core-api.md
 bun install v1.4.3 (c6da4a4d3)
-+ @venizia/vulcan@0.3.7
++ @venizia/vulcan@0.4.8
 236 packages installed [69.23s]
 Which coding agents do you use in this project? (comma-separated; Enter accepts the detected list: claude, omp)
   detected: claude, omp
@@ -421,7 +401,6 @@ Add more apps later with [`vulcan add`](/references/commands/add).
 | `vulcan init: --project 'Fresh' is not a name: lowercase letters, digits and '-'` | A flag holds an invalid name |
 | `vulcan init: @acme/api@1.0.0 has preset version 2; this VULCAN reads version 1 - upgrade @venizia/vulcan` | The preset is newer than this VULCAN. Upgrade VULCAN |
 | `vulcan init: @acme/none@1.0.0 ships no VULCAN preset (no "vulcan": { "presets": { "app" } } in its package.json)` | The package is not a preset |
-| `vulcan init: @acme/api@1.0.0 uses the old keys "vulcan": { "preset", "lib" }; the contract is now "vulcan": { "presets": { "app": "./path/preset.json", "lib": "./path/lib.json" } }` | The package still has the keys of 0.3.9 and older. There is no fallback: the framework author moves the paths under `presets` |
 | `vulcan init: @acme/api@1.0.0: ./dist/presets/app/preset.json: side one of: backend, frontend; devPort Invalid input: expected number, received undefined` | `preset.json` breaks the format. The author fixes it |
 | `vulcan init: no package at ~/work/nope - was it installed?` | The `file:` path has no `package.json` |
 

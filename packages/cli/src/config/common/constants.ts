@@ -1,25 +1,15 @@
-/** What a package of the project is: an app, or a shared package (a lib) a preset made. */
+/** What a package of the project is: an app, or a library other apps import. */
 export class PackageKinds {
   static readonly APP = 'app';
   static readonly LIB = 'lib';
-
-  static readonly SCHEME_SET = new Set<string>([this.APP, this.LIB]);
-
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
-/** Config file extensions, in lookup order. */
-export class ConfigExtensions {
-  static readonly TS = 'ts';
-  static readonly MTS = 'mts';
-  static readonly MJS = 'mjs';
-  static readonly JS = 'js';
+/** Which preset kind made a library: `lib` (may use the project's framework) or `shared` (depends on no framework). */
+export class LibraryKinds {
+  static readonly LIB = 'lib';
+  static readonly SHARED = 'shared';
 
-  static readonly LOOKUP_ORDER = [this.TS, this.MTS, this.MJS, this.JS] as const;
-
-  static readonly SCHEME_SET = new Set<string>(this.LOOKUP_ORDER);
+  static readonly SCHEME_SET = new Set<string>([this.LIB, this.SHARED]);
 
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);
@@ -70,7 +60,8 @@ export class HookEvents {
 
 export class ConfigConstants {
   static readonly DIRECTORY = '.configs';
-  static readonly BASENAME = 'vulcan.config';
+  /** The one config file name, under `.configs/`. */
+  static readonly FILE = 'vulcan.config.mts';
   static readonly DEFAULT_KNOWLEDGE_BUNDLE = '.agents/knowledge';
   static readonly RULE_ID_PATTERN = /^(?:[A-Z]+-)?[A-Z]-\d{2}$/;
   /** The rules a session drops most, printed at every session start unless the project lists its own. */
@@ -82,6 +73,7 @@ export class ConfigConstants {
     'V-B-04',
     'V-W-04',
     'V-C-02',
+    'V-C-09',
     'V-C-10',
     'V-P-08',
     'V-B-07',

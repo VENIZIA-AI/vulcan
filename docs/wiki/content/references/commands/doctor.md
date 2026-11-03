@@ -25,20 +25,19 @@ vulcan doctor: OK
 ## Checks
 
 If the configuration cannot be loaded, `vulcan doctor` reports only `config`.
-Otherwise, it executes the other 14 checks in sequence, then prints the warnings and the notes.
+Otherwise, it executes the other 13 checks in sequence, then prints the warnings and the notes.
 Doctor runs `skills` twice: shipped-name checks run before `make`, while skill linting runs after `tags`.
 
 | Check | What it verifies | Typical fix |
 |---|---|---|
 | `config` | The configuration file exists and conforms to the VULCAN schema | Correct invalid syntax or remove unrecognized keys in `.configs/vulcan.config.mts` |
 | `layout` | Required files `AGENTS.md`, `.agents/rules.md` and the knowledge bundle root exist | Run `bun x --no-install vulcan init` to create missing files |
-| `rule-ids` | Project rule references in `.agents/rules.md` point to active base rules | Drop references to retired base rules or assign bare IDs to project extensions |
+| `rule-ids` | Project rule references in `.agents/rules.md` point to base rules the base carries | Drop references to rules the base does not carry or assign bare IDs to project extensions |
 | `rule-slots` | Every base rule slot receives a valid choice option in configuration | Provide an allowed choice in `.configs/vulcan.config.mts` under `rules` |
 | `skills` (shipped names) | Project skills avoid names reserved by shipped skills | Rename the colliding skill directory under `.agents/skills/` |
 | `make` | The project `Makefile` includes `vulcan.mk` and avoids shipped target names | Add the `-include` line or rename conflicting project make targets |
 | `hooks` | Project hook configuration registers project commands instead of shipped hooks | Remove shipped hook paths from `hooks` in `.configs/vulcan.config.mts` |
 | `adapters` | Generated tool files, settings and links match configuration | Run `bun x --no-install vulcan sync` |
-| `prune` | Agent settings contain no stale hook commands or dead skill links | Run `bun x --no-install vulcan sync --prune` |
 | `manifest` | Committed `.agents/vulcan.manifest.json` matches project configuration | Run `bun x --no-install vulcan sync` and commit the manifest |
 | `tags` | Git tags matching `atlas.tagPattern` resolve to declared packages | Declare the package, add an alias, or add the tag to `atlas.ignoreTags` |
 | `skills` (skill lint) | Project skills satisfy authoring rules for frontmatter and structure | Fix frontmatter formatting, limits, or missing sections in `SKILL.md` |
@@ -47,10 +46,13 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `apps` | Every `backend`, `frontend` and `shared` folder of `layout` is a workspace, and every package lives in a listed folder (`other` included) | Add `<folder>/*` to `workspaces`, or move the package or fix `layout` |
 | `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
 | `format` (warning) | The root `bunfig.toml` has a `[fmt]` section with `flavor = "oxfmt"`, no `package.json` defines a `fmt` script, and no oxfmt config is left behind | Add the section, rename the script, delete the config or the copy |
-| `mcp` (warning) | `.mcp.json` (when a chosen agent reads it) holds the canonical `atlas` entry, git no longer tracks it, git does not list it as untracked and not ignored (a release refuses on that), and the Claude settings enable `atlas` | Use the entry the warning shows, `git rm --cached .mcp.json`, add `/.mcp.json` to `.gitignore` or run `vulcan sync` at the top level, and run `bun x --no-install vulcan sync` |
+| `commit-hook` (warning) | A commit check is on in `commit.message` and this clone's `commit-msg` hook is missing, out of date, or does not call `vulcan commit-check` | Run `bun x --no-install vulcan sync`; for a hook of yours or a `core.hooksPath` hook, add the line the warning shows |
+| `events-size` (warning) | Today's event file alone is over `events.maxSize` | Raise `maxSize` or write fewer events |
+| `events-dir` (warning) | `events.dir` names a folder outside the project and it does not exist, is not a folder, or cannot be written | Create it, or fix the path |
+| `mcp` (warning) | `.mcp.json` (when a chosen agent reads it) holds the canonical `atlas` entry, git does not list it as untracked and not ignored (a release refuses on that), and the Claude settings enable `atlas` | Use the entry the warning shows, add `/.mcp.json` to `.gitignore` or run `vulcan sync` at the top level, and run `bun x --no-install vulcan sync` |
 | `local` (note) | `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor`: sessions started from it are not held to the owner reply shape | Unset it in a shell the owner works in; a started session gets it on its own command line only |
 | `local` (warning) | `.claude/settings.json` or `.claude/settings.local.json` sets `VULCAN_OWNER_REPLY=off` in `env`: every session of the project skips the owner reply shape | Remove it from `env` |
-| `local` (warning) | `.agents/local/` exists with its subdirectories, is gitignored and holds the Claude Code launch file (`claude.launch.settings.json`, written by `sync` for the project's temp folder), no git worktree of the repository lives outside it, and nothing under it has outlived its use (`tmp/` older than a day, `clones/` older than two weeks, a worktree on a merged or gone branch) | Run `bun x --no-install vulcan sync`; for a worktree outside, run the `git worktree move` command the warning prints; for leftovers, run the `vulcan clean` command it names. An info line prints the size of `.agents/local/` once it passes 50 MB |
+| `local` (warning) | `.agents/local/` exists with its subdirectories, is gitignored and holds the Claude Code launch file (`claude.launch.settings.json`, written by `sync` for the project's temp folder), no git worktree of the repository lives outside it, and nothing under it has outlived its use (`tmp/` older than a day, `clones/` older than two weeks, a worktree on a merged or gone branch, a release candidate whose version is tagged, a browser's `com.google.Chrome.*` folder an hour old), and nothing sits directly under `.agents/local/` that is neither a folder of [the layout](/guides/core-concepts/the-agents-folder), a file VULCAN writes, nor a browser's folder (the warning names it and its size; nothing removes it) | Run `bun x --no-install vulcan sync`; for a worktree outside, run the `git worktree move` command the warning prints; for leftovers, run the `vulcan clean` command it names. An info line prints the size of `.agents/local/` once it passes 50 MB |
 
 ### config
 
@@ -63,10 +65,9 @@ $ bun x --no-install vulcan doctor
 vulcan doctor: 1 violation(s)
 ```
 
-The check also reports missing files, duplicate files, load failures, or missing default exports:
+The check also reports a missing file, load failures, or missing default exports:
 
-- If no configuration exists, it reports `no .configs/vulcan.config.* found in <root>` for file `.configs/`. Run `bun x --no-install vulcan init` to create one.
-- If multiple configuration files exist, it reports `more than one config - keep exactly one of: ...`. Keep only one file.
+- If no configuration exists, it reports `no .configs/vulcan.config.mts found in <root>` for file `.configs/`. Run `bun x --no-install vulcan init` to create one. A config under another extension (`.ts`, `.mjs`, `.js`) is not read.
 - If import fails, it reports `<file>: failed to load - ...`. Fix syntax or runtime errors in the file.
 - If the default export is absent, it reports `<file>: no default export - write 'export default { ... }'`. Export the configuration object as default.
 
@@ -82,15 +83,13 @@ vulcan doctor: 1 violation(s)
 
 ### rule-ids
 
-A rule reference in `.agents/rules.md` using `V-` for an unknown or retired base rule triggers this check.
+A rule reference in `.agents/rules.md` using `V-` for a base rule the base does not carry triggers this check.
 
 ```text
 $ bun x --no-install vulcan doctor
   [rule-ids] .agents/rules.md: V-Z-99 is not a base rule - give the extension a bare ID
 vulcan doctor: 1 violation(s)
 ```
-
-For retired rules, the check reports `<id> is retired in the base - drop the reference`.
 
 ### rule-slots
 
@@ -103,8 +102,7 @@ vulcan doctor: 1 violation(s)
 ```
 
 When a chosen value is invalid, the check reports `<id>: '<choice>' is not an option (<options>)`.
-When using a bare rule key, the check reports `'<id>' is not a slot - the base rule is now '<namespaced>'`.
-For an unrecognized rule key, the check reports `<id> is not a slot - only <slots> take a choice`.
+For a rule key that is not a slot, a bare one such as `W-01` included, the check reports `<id> is not a slot - only <slots> take a choice`.
 
 ### skills
 
@@ -174,25 +172,13 @@ Missing, modified, or out-of-sync agent adapter files trigger this check.
 
 ```text
 $ bun x --no-install vulcan doctor
-  [adapters] CLAUDE.md: not synced yet - run 'bun x --no-install vulcan sync' (make agent-setup) first
+  [adapters] CLAUDE.md: not synced yet - run 'bun x --no-install vulcan sync' (make vulcan-sync) first
 vulcan doctor: 1 violation(s)
 ```
 
 When files are missing, doctor prints `not synced yet` once rather than repeating per file.
 For modified files, the check reports `stale (<status>) - run 'bun x --no-install vulcan sync'`.
 When sync skips a file, it reports the reason or `shadows a shipped skill - rename it ('vulcan doctor' reports it)`.
-
-### prune
-
-Stale hook commands or dead skill links in agent configuration trigger this check.
-
-The following output drops one line that belongs to the `adapters` check:
-
-```text
-$ bun x --no-install vulcan doctor
-  [prune] .claude/settings.json: stale hook: bun .agents/hooks/old.ts - run 'bun x --no-install vulcan sync --prune'
-vulcan doctor: 2 violation(s)
-```
 
 ### manifest
 
@@ -216,7 +202,7 @@ $ bun x --no-install vulcan doctor
 vulcan doctor: 1 violation(s)
 ```
 
-The check is skipped if `atlas.tagPattern` has no `<dir>` or `<package>`.
+The check is skipped if `atlas.tagPattern` has no `<dir>`.
 It is also skipped when the directory is not a git repository.
 To resolve the tag error, declare the package in `.configs/vulcan.config.mts` under `packages`.
 Set `retired: true` if the package is no longer maintained.
@@ -234,7 +220,6 @@ vulcan doctor: 1 violation(s)
 ```
 
 When a lint configuration file does not import the shared package, it reports `build on the shared style: import from @venizia/dev-configs`.
-A lint configuration left directly in `.configs/` is reported with where it belongs, for example `move it to .configs/lints/oxlint.config.mts`.
 When no lint configuration files exist at all, the check reports `add @venizia/dev-configs as a devDependency` without the suffix.
 
 ### scaffold
@@ -291,19 +276,53 @@ Rename the scripts, and keep the work in `.configs/builders/` or behind `devz`, 
 Warnings (the same level as [dockerignore](#dockerignore): exit code `0`, `vulcan doctor: OK with N warning(s)`). Claude Code, omp and Copilot CLI read the root `.mcp.json`, which `vulcan sync` writes on each machine, and Claude enables a project server on its own only under the name the managed settings list. The check looks at the file only when one of those agents is chosen on this machine, and a missing file is the `adapters` check's (not synced yet). It expects:
 
 - `.mcp.json` holds the entry `sync` writes, a server named `atlas` that runs `bun x --no-install vulcan x atlas mcp --root .`;
-- git does not track it: a project that still commits `.mcp.json` gets `tracked by git; VULCAN now writes it per machine. Run `git rm --cached .mcp.json` and let sync manage it.`;
 - git does not list it as untracked and not ignored: a clone where nothing hides it gets `untracked and not ignored, so a clean-tree check (a release) refuses to run. Add `/.mcp.json` to .gitignore, or run `vulcan sync` at the top level of the repository, which lists it in .git/info/exclude.`;
 - `.claude/settings.json` (written by `vulcan sync`, when it exists) lists `atlas` in `enabledMcpjsonServers`.
 
 Anything else is a warning that shows the expected entry: a file that is not JSON, the server under another name (`ignis-atlas`, which Claude does not enable automatically), an `atlas` entry with another root (`--root ../ignis` serves another project's knowledge and only works where the folders sit side by side), or settings that do not enable `atlas`.
 
 ```text
-  warning [mcp] .mcp.json: tracked by git; VULCAN now writes it per machine. Run `git rm --cached .mcp.json` and let sync manage it.
   warning [mcp] .mcp.json: the atlas entry is { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "../ignis"] }, expected "atlas": { "command": "bun", "args": ["x", "--no-install", "vulcan", "x", "atlas", "mcp", "--root", "."] }
   warning [mcp] .claude/settings.json: enabledMcpjsonServers does not include atlas (has: ignis-knowledge): Claude asks before using the server - run vulcan sync
 ```
 
 To serve another project's knowledge too, declare it as an `atlas.sources` entry in `.configs/vulcan.config.mts`; `--root` stays `.`.
+
+### commit-hook
+
+A warning, not a violation: a hook belongs to one clone, and a fresh CI checkout has none. It appears only when `commit.message` turns a check on ([vulcan commit-check](/references/commands/commit-check)), the folder is a git repository, and the clone's `commit-msg` hook is not in order.
+
+```text
+  warning [commit-hook] .git/hooks/commit-msg: the commit-msg hook is not installed, so commit messages are not checked - run 'bun x --no-install vulcan sync' (make vulcan-sync)
+```
+
+| Message | Cause | Fix |
+|---|---|---|
+| `is not installed` | No `commit-msg` hook in the clone | Run `vulcan sync` |
+| `is out of date` | A hook that `sync` wrote from an older template, or one that lost its execute bit | Run `vulcan sync` |
+| `does not run the commit check` | A hook of yours, or the hook in the `core.hooksPath` folder, does not call the command | Add `bun x --no-install vulcan commit-check "$1"` to it |
+
+### events-size
+
+A warning: today's event file is bigger than `events.maxSize` on its own. The retention removes whole old day files and never today's, so nothing else will shrink it; raise `maxSize` or write fewer events. It appears only when the log is on or a limit is set.
+
+```text
+  warning [events-size] .configs/vulcan.config.mts: today's event file in /path/.agents/local/events is 61.2 MB, over events.maxSize (50MB); nothing is truncated and today's file is never removed - raise maxSize or write fewer events
+```
+
+### events-dir
+
+A warning, not a violation: the folder belongs to the machine, and a CI checkout may not have it. It appears only when `events.dir` ([the event log](/references/commands/event#one-folder-for-every-project)) is set to a folder outside the project. The event hooks fail open, so a folder they cannot write loses every line without a message; this warning is where it shows. A `dir` inside the project is made on the first write and is not checked.
+
+```text
+  warning [events-dir] .configs/vulcan.config.mts: events.dir /home/me/work/.agents/local/events does not exist - create it (mkdir -p /home/me/work/.agents/local/events), so the event log hooks cannot write there
+```
+
+| Message | Fix |
+|---|---|
+| `does not exist` | Run the `mkdir -p` it names |
+| `is not a folder` | Point `dir` at a folder |
+| `is not writable by this user` | Fix the folder's permissions or its owner |
 
 ### dockerignore
 
@@ -364,5 +383,8 @@ bun x --no-install vulcan doctor 2>&1
 ## See also
 
 - [vulcan sync](/references/commands/sync)
+- [vulcan clean](/references/commands/clean): takes what the `local` warnings name
+- [The .agents folder](/guides/core-concepts/the-agents-folder)
+- [vulcan event](/references/commands/event): the folder behind the `events-dir` warning
 - [Configuration](/references/configuration/)
 - [Rules](/references/rules)

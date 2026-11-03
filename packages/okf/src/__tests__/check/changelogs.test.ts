@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { collectChangelogProblems } from '../../check/changelogs.ts';
+import { ChangelogCheck } from '../../check/changelogs.ts';
 import { clearProjectConfig, useProjectConfig } from '../project.helper.ts';
 
 afterEach(clearProjectConfig);
@@ -73,21 +73,21 @@ test('every dated entry declaring known npm names, retired ones included, passes
     },
   });
 
-  expect(collectChangelogProblems()).toEqual([]);
+  expect(ChangelogCheck.collectProblems()).toEqual([]);
 });
 
-test('an entry without packages fails, pointing at migrate (positive control)', () => {
+test('an entry without packages fails, saying what to add (positive control)', () => {
   project({ entries: { '2026-01-01-a.md': entry({ frontmatter: 'kind: fix' }) } });
 
-  expect(collectChangelogProblems()).toEqual([
-    'changelog: changes/2026-01-01-a.md declares no packages - add `packages: [<npm name>, ...]` (`vulcan x atlas changelogs migrate` fills it)',
+  expect(ChangelogCheck.collectProblems()).toEqual([
+    'changelog: changes/2026-01-01-a.md declares no packages - add `packages: [<npm name>, ...]` to its frontmatter (`packages: []` for an entry about no package)',
   ]);
 });
 
 test('an explicit empty list is an entry about no package - repository tooling - and passes', () => {
   project({ entries: { '2026-01-01-a.md': entry({ frontmatter: 'packages: []' }) } });
 
-  expect(collectChangelogProblems()).toEqual([]);
+  expect(ChangelogCheck.collectProblems()).toEqual([]);
 });
 
 test('a CRLF entry is read like any other', () => {
@@ -100,13 +100,13 @@ test('a CRLF entry is read like any other', () => {
     },
   });
 
-  expect(collectChangelogProblems()).toEqual([]);
+  expect(ChangelogCheck.collectProblems()).toEqual([]);
 });
 
 test('an unknown name fails, naming it (positive control)', () => {
   project({ entries: { '2026-01-01-a.md': entry({ frontmatter: "packages: ['kernel']" }) } });
 
-  expect(collectChangelogProblems()).toEqual([
+  expect(ChangelogCheck.collectProblems()).toEqual([
     "changelog: changes/2026-01-01-a.md names 'kernel', not a declared package's npm name",
   ]);
 });
@@ -124,7 +124,7 @@ test('a release override must name a tag that exists', () => {
     tags: ['kernel-v1.0.0'],
   });
 
-  expect(collectChangelogProblems()).toEqual([
+  expect(ChangelogCheck.collectProblems()).toEqual([
     "changelog: changes/2026-01-02-b.md: release '@acme/kernel@9.9.9' names no tag (kernel-v9.9.9)",
   ]);
 });
@@ -132,7 +132,7 @@ test('a release override must name a tag that exists', () => {
 test('no changelog directory declared: nothing to check', () => {
   useProjectConfig({ root: tmpdir(), config: { packages: PACKAGES } });
 
-  expect(collectChangelogProblems()).toEqual([]);
+  expect(ChangelogCheck.collectProblems()).toEqual([]);
 });
 
 test('a malformed frontmatter is a problem naming its file, and the other entries are still checked', () => {
@@ -143,7 +143,7 @@ test('a malformed frontmatter is a problem naming its file, and the other entrie
     },
   });
 
-  const problems = collectChangelogProblems();
+  const problems = ChangelogCheck.collectProblems();
 
   expect(problems).toHaveLength(2);
   expect(problems[0]).toStartWith(
@@ -171,7 +171,7 @@ test('a missing dated tag is named with its date spelled out, never a raw <date>
     },
   });
 
-  expect(collectChangelogProblems()).toEqual([
+  expect(ChangelogCheck.collectProblems()).toEqual([
     "changelog: changes/2026-01-01-a.md: release '@acme/kernel@9.9.9' names no tag (kernel-v9.9.9-YYYY-MM-DD)",
   ]);
 });
@@ -193,7 +193,7 @@ test('a release override is satisfied by a tag of a legacy template, and the mes
     atlas: { tagPattern: 'acme-v<version>', legacyTagPatterns: ['v<version>'] },
   });
 
-  expect(collectChangelogProblems()).toEqual([
+  expect(ChangelogCheck.collectProblems()).toEqual([
     "changelog: changes/2026-01-03-c.md: release '@acme/kernel@9.9.9' names no tag (acme-v9.9.9)",
   ]);
 });

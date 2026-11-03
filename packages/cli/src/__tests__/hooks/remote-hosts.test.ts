@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { inspectRemoteCommand, matchesHost, parseTrustedList } from '../../hooks/remote-hosts.ts';
+import { RemoteHosts } from '../../hooks/remote-hosts.ts';
+import { ShellPrograms } from '../../hooks/shell.ts';
 
 const POLICY = {
   trusted: ['lab1', '*.lab.example.com', '10.0.0.5', '$LAB_HOST'],
@@ -7,7 +8,7 @@ const POLICY = {
 };
 
 const asks = (command: string): boolean =>
-  inspectRemoteCommand({ command, policy: POLICY }).length > 0;
+  RemoteHosts.inspectCommand({ command, policy: POLICY }).length > 0;
 
 describe('a nest of env -S is read fast and asks', () => {
   test.each([20, 80, 110, 400])('env then -S env x%i then ssh asks in under a second', (count) => {
@@ -25,40 +26,46 @@ describe('a nest of env -S is read fast and asks', () => {
   });
 });
 
-describe('matchesHost: exact, or a pattern whose only wildcard is *', () => {
+describe('RemoteHosts.matches: exact, or a pattern whose only wildcard is *', () => {
   test('an exact name matches itself only, case-insensitively', () => {
-    expect(matchesHost({ host: 'LAB1', entries: ['lab1'] })).toBe(true);
-    expect(matchesHost({ host: 'lab10', entries: ['lab1'] })).toBe(false);
-    expect(matchesHost({ host: 'xlab1', entries: ['lab1'] })).toBe(false);
-    expect(matchesHost({ host: 'lab1.evil.com', entries: ['lab1'] })).toBe(false);
-    expect(matchesHost({ host: 'evil-lab1', entries: ['lab1'] })).toBe(false);
+    expect(RemoteHosts.matches({ host: 'LAB1', entries: ['lab1'] })).toBe(true);
+    expect(RemoteHosts.matches({ host: 'lab10', entries: ['lab1'] })).toBe(false);
+    expect(RemoteHosts.matches({ host: 'xlab1', entries: ['lab1'] })).toBe(false);
+    expect(RemoteHosts.matches({ host: 'lab1.evil.com', entries: ['lab1'] })).toBe(false);
+    expect(RemoteHosts.matches({ host: 'evil-lab1', entries: ['lab1'] })).toBe(false);
   });
 
   test('a * stays inside host characters: it never spans a user, a path or a port', () => {
-    expect(matchesHost({ host: 'a.lab.example.com', entries: ['*.lab.example.com'] })).toBe(true);
-    expect(matchesHost({ host: 'a.b.lab.example.com', entries: ['*.lab.example.com'] })).toBe(true);
-    expect(matchesHost({ host: 'lab.example.com', entries: ['*.lab.example.com'] })).toBe(false);
+    expect(RemoteHosts.matches({ host: 'a.lab.example.com', entries: ['*.lab.example.com'] })).toBe(
+      true,
+    );
     expect(
-      matchesHost({ host: 'evil.com/x.lab.example.com', entries: ['*.lab.example.com'] }),
-    ).toBe(false);
-    expect(matchesHost({ host: 'x@a.lab.example.com', entries: ['*.lab.example.com'] })).toBe(
+      RemoteHosts.matches({ host: 'a.b.lab.example.com', entries: ['*.lab.example.com'] }),
+    ).toBe(true);
+    expect(RemoteHosts.matches({ host: 'lab.example.com', entries: ['*.lab.example.com'] })).toBe(
       false,
     );
     expect(
-      matchesHost({ host: 'a.lab.example.com.evil.com', entries: ['*.lab.example.com'] }),
+      RemoteHosts.matches({ host: 'evil.com/x.lab.example.com', entries: ['*.lab.example.com'] }),
+    ).toBe(false);
+    expect(
+      RemoteHosts.matches({ host: 'x@a.lab.example.com', entries: ['*.lab.example.com'] }),
+    ).toBe(false);
+    expect(
+      RemoteHosts.matches({ host: 'a.lab.example.com.evil.com', entries: ['*.lab.example.com'] }),
     ).toBe(false);
   });
 
   test('a $VAR entry matches the same unexpanded token, ${VAR} included', () => {
-    expect(matchesHost({ host: '$lab_host', entries: ['$LAB_HOST'] })).toBe(true);
-    expect(matchesHost({ host: '${lab_host}', entries: ['$LAB_HOST'] })).toBe(true);
-    expect(matchesHost({ host: '$other', entries: ['$LAB_HOST'] })).toBe(false);
+    expect(RemoteHosts.matches({ host: '$lab_host', entries: ['$LAB_HOST'] })).toBe(true);
+    expect(RemoteHosts.matches({ host: '${lab_host}', entries: ['$LAB_HOST'] })).toBe(true);
+    expect(RemoteHosts.matches({ host: '$other', entries: ['$LAB_HOST'] })).toBe(false);
   });
 });
 
-describe('parseTrustedList: one host per line, # comments', () => {
+describe('RemoteHosts.parseTrustedList: one host per line, # comments', () => {
   test('blank lines and comments are skipped, entries trimmed', () => {
-    expect(parseTrustedList({ text: '# lab\n lab2 \n\n*.lan  # mine\n' })).toEqual([
+    expect(RemoteHosts.parseTrustedList({ text: '# lab\n lab2 \n\n*.lan  # mine\n' })).toEqual([
       'lab2',
       '*.lan',
     ]);
@@ -235,21 +242,21 @@ describe('readOnly hosts: only the strict read-only forms pass', () => {
 
 describe('the hit names the host and the way to trust it', () => {
   test('an unlisted host is named, with where to list it', () => {
-    const [hit] = inspectRemoteCommand({ command: 'ssh evil.com uptime', policy: POLICY });
+    const [hit] = RemoteHosts.inspectCommand({ command: 'ssh evil.com uptime', policy: POLICY });
 
     expect(hit?.message).toContain("'evil.com'");
     expect(hit?.message).toContain('remoteHosts');
   });
 
   test('a command whose target cannot be read says so', () => {
-    const [hit] = inspectRemoteCommand({ command: 'ssh $(cat h)', policy: POLICY });
+    const [hit] = RemoteHosts.inspectCommand({ command: 'ssh $(cat h)', policy: POLICY });
 
     expect(hit?.message).toContain('cannot be read');
   });
 
   test('no policy hosts at all: every remote command asks', () => {
     expect(
-      inspectRemoteCommand({ command: 'ssh lab1', policy: { trusted: [], readOnly: [] } }),
+      RemoteHosts.inspectCommand({ command: 'ssh lab1', policy: { trusted: [], readOnly: [] } }),
     ).toHaveLength(1);
   });
 });
@@ -266,7 +273,7 @@ describe('kubectl reads against a readOnly context pass, and the prompt says so'
   });
 
   test('the readOnly message names those verbs, so the allowance is no surprise', () => {
-    const [hit] = inspectRemoteCommand({
+    const [hit] = RemoteHosts.inspectCommand({
       command: 'kubectl --context prod1 delete pod x',
       policy: POLICY,
     });
@@ -315,7 +322,7 @@ describe('a command piped or fed into a shell cannot be read', () => {
     'cat script | sh -x',
     'ls | xargs sh',
   ])('%s asks', (command) => {
-    const [hit] = inspectRemoteCommand({ command, policy: POLICY });
+    const [hit] = RemoteHosts.inspectCommand({ command, policy: POLICY });
 
     expect(hit?.message).toContain('cannot be read');
   });
@@ -409,5 +416,54 @@ describe('docker over ssh: a trusted host in the parsed form passes', () => {
 
   test('a local socket reaches no remote host', () => {
     expect(asks('docker -H unix:///var/run/docker.sock ps')).toBe(false);
+  });
+});
+
+describe('the program tables of the shell parser', () => {
+  // The tables are shared by two guards: a name that leaves one silently stops being read by the other, and the loops
+  // below follow the table, so the names are pinned here as well.
+  test('the wrappers and the shells are exactly these names', () => {
+    expect([...ShellPrograms.WRAPPER_NAMES].sort()).toEqual(
+      [
+        'command',
+        'doas',
+        'env',
+        'exec',
+        'ionice',
+        'nice',
+        'nohup',
+        'setsid',
+        'sshpass',
+        'stdbuf',
+        'sudo',
+        'time',
+        'timeout',
+        'watch',
+        'xargs',
+      ].sort(),
+    );
+    expect([...ShellPrograms.SHELL_NAMES].sort()).toEqual(['bash', 'dash', 'sh', 'zsh']);
+  });
+
+  test.each(ShellPrograms.WRAPPER_NAMES)(
+    'the wrapper %s is read past to the ssh it runs',
+    (name) => {
+      const spellings = [
+        `${name} ssh evil.com`,
+        `${name} 5 ssh evil.com`,
+        `${name} -p x ssh evil.com`,
+      ];
+
+      expect(spellings.some((command) => asks(command))).toBe(true);
+    },
+  );
+
+  test.each(ShellPrograms.SHELL_NAMES)('the shell %s is read into its -c command', (name) => {
+    expect(asks(`${name} -c 'ssh evil.com'`)).toBe(true);
+  });
+
+  test('ksh and ash are followed as shells although the heredoc reader does not know them', () => {
+    expect(asks("ksh -c 'ssh evil.com'")).toBe(true);
+    expect(asks("ash -c 'ssh evil.com'")).toBe(true);
   });
 });

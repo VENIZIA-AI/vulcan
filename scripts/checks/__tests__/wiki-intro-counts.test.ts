@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readBaseRules } from '../../../packages/cli/src/rules/index.ts';
+import { BaseRules } from '../../../packages/cli/src/rules/index.ts';
 import { COUNTS, HOME } from '../../../docs/wiki/site/.vitepress/theme/home-content.ts';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
@@ -15,7 +15,7 @@ const counts = () => {
   const agents: { id: string }[] = JSON.parse(readFileSync(join(CLI_BASE, 'agents.json'), 'utf8'));
 
   return {
-    rules: Object.keys(readBaseRules()).length,
+    rules: Object.keys(BaseRules.read()).length,
     skills: readdirSync(join(CLI_BASE, 'skills')).length,
     tools: readdirSync(join(ROOT, 'packages', 'atlas', 'src', 'tools')).filter((file) =>
       file.endsWith('.tool.ts'),

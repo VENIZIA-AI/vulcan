@@ -3,8 +3,8 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
-import { checkLocalWorkspace } from '../../doctor/checks.ts';
-import { planLocalWorkspace } from '../../sync/index.ts';
+import { ProjectContract } from '../../doctor/checks.ts';
+import { LocalPlan } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -12,7 +12,7 @@ afterAll(removeProjects);
 const CONFIG = VULCAN_CONFIG_SCHEMA.parse({});
 
 const apply = (opts: { root: string }): void => {
-  for (const action of planLocalWorkspace(opts)) {
+  for (const action of LocalPlan.planWorkspace(opts)) {
     action.apply();
   }
 };
@@ -44,10 +44,10 @@ describe('the Claude Code launch file', () => {
     const root = createProject({ files: { '.gitignore': 'node_modules/\n' } });
 
     apply({ root });
-    expect(planLocalWorkspace({ root }).map((action) => action.status)).toEqual(['unchanged']);
+    expect(LocalPlan.planWorkspace({ root }).map((action) => action.status)).toEqual(['unchanged']);
 
     writeFileSync(join(root, LAUNCH), JSON.stringify({ env: { TMPDIR: '/elsewhere' } }));
-    expect(planLocalWorkspace({ root }).map((action) => action.status)).toContain('replaced');
+    expect(LocalPlan.planWorkspace({ root }).map((action) => action.status)).toContain('replaced');
 
     apply({ root });
     expect(launchOf({ root }).env.TMPDIR).toBe(join(root, '.agents/local/tmp'));
@@ -57,11 +57,13 @@ describe('the Claude Code launch file', () => {
     const root = createProject({ files: { '.gitignore': '.agents/local/\n' } });
 
     apply({ root });
-    expect(checkLocalWorkspace({ root, config: CONFIG, configFile: '' })).toEqual([]);
+    expect(ProjectContract.checkLocalWorkspace({ root, config: CONFIG, configFile: '' })).toEqual(
+      [],
+    );
 
     rmSync(join(root, LAUNCH));
 
-    const missing = checkLocalWorkspace({ root, config: CONFIG, configFile: '' });
+    const missing = ProjectContract.checkLocalWorkspace({ root, config: CONFIG, configFile: '' });
 
     expect(missing.length).toBe(1);
     expect(missing[0].message).toContain('vulcan sync');
@@ -69,7 +71,7 @@ describe('the Claude Code launch file', () => {
   });
 });
 
-describe('planLocalWorkspace', () => {
+describe('LocalPlan.planWorkspace', () => {
   test('gitignores .agents/local/ and creates its subdirectories', () => {
     const root = createProject({ files: { '.gitignore': 'node_modules/\n' } });
 
@@ -77,8 +79,11 @@ describe('planLocalWorkspace', () => {
 
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe('node_modules/\n.agents/local/\n');
 
-    for (const { name } of ProjectLayout.LOCAL_LAYOUT) {
-      expect(existsSync(join(root, '.agents/local', name))).toBe(true);
+    for (const entry of ProjectLayout.LOCAL_LAYOUT) {
+      // On-demand folders (events, release-candidates) appear when something writes there, not on sync.
+      expect(existsSync(join(root, '.agents/local', entry.name)), entry.name).toBe(
+        !('onDemand' in entry),
+      );
     }
   });
 
@@ -87,7 +92,7 @@ describe('planLocalWorkspace', () => {
 
     apply({ root });
 
-    expect(planLocalWorkspace({ root }).map((action) => action.status)).toEqual(['unchanged']);
+    expect(LocalPlan.planWorkspace({ root }).map((action) => action.status)).toEqual(['unchanged']);
   });
 
   test('a project without a .gitignore keeps none, and still gets the directories', () => {
@@ -104,7 +109,7 @@ describe('planLocalWorkspace', () => {
 
     // The directories and the launch file are made; the .gitignore line is already there and is left alone.
     expect(
-      planLocalWorkspace({ root }).filter((action) => action.path.endsWith('.gitignore')),
+      LocalPlan.planWorkspace({ root }).filter((action) => action.path.endsWith('.gitignore')),
     ).toEqual([]);
   });
 
@@ -120,6 +125,8 @@ describe('planLocalWorkspace', () => {
       cache: 'kept',
       reports: 'kept',
       prototypes: 'kept',
+      events: 'kept',
+      'release-candidates': 'release',
     });
   });
 

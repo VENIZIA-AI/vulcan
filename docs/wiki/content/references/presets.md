@@ -29,7 +29,7 @@ The second is that `preset.json`, with the files it copies next to it:
   "devPort": 3000,
   "dependencies": { "hono": "^4.13.13" },
   "devDependencies": { "@types/bun": "^1.4.1", "@venizia/dev-configs": "^0.3.4", "typescript": "^6.0.3" },
-  "scripts": { "server:dev": "bun run src/index.ts", "typecheck": "tsc --noEmit", "test": "bun test" },
+  "scripts": { "server:dev": "bun run src/index.ts", "typecheck": "bun check", "test": "bun test" },
   "checks": ["typecheck", "test"],
   "urls": ["/api/hello"],
   "imports": { "#src/*": "./src/*.js" },
@@ -52,6 +52,8 @@ dist/presets/
 
 The folder is yours to name; the official presets build into `dist/presets/{app,lib}`, and the examples here do the same.
 
+The `typecheck` script is `bun check` (Bun 1.4.4 or later): it reports the same errors as `tsc --noEmit`, including decorator metadata, in a fraction of the time (83 s down to 3.2 s on a real app). Two differences matter in a script: a failing run exits with code 1, not 2, so test for `!= 0`; and above 50 errors it groups identical ones unless you pass `--all`, which you want when you count errors. If the package has a script named `check`, `bun check` runs that script instead; pass `--no-script` to run the type checker. Keep `tsc` where it emits (build output, declaration files); `bun check -b` is documented to follow project references like `tsc -b`, but it was not measured here, so keep `tsc -b` for a build that depends on them.
+
 The app must pass `vulcan doctor`, which `init` runs last. Its `style` check wants `@venizia/dev-configs` declared and a lint config that imports it, so the example ships `.configs/lints/oxlint.config.mts` (`import { defineConfig } from 'oxlint'; import { oxlintConfigs } from '@venizia/dev-configs/linters'; export default defineConfig(oxlintConfigs);`) and lists `@venizia/dev-configs` in `devDependencies`. A preset without them ends `init` with `[style] package.json: add @venizia/dev-configs as a devDependency - here, or at the root`.
 
 ## preset.json keys
@@ -64,7 +66,7 @@ The app must pass `vulcan doctor`, which `init` runs last. Its `style` check wan
 | `devPort` | positive integer | yes | The default dev port. `add` picks the next free one when another app holds it |
 | `dependencies` | object | no | Package to range. They go in the root `catalog` and in the app as `catalog:` |
 | `devDependencies` | object | no | The same, for development |
-| `peers` | object | no | Package to range that the root `catalog` must already satisfy when `add` runs |
+| `peers` | object | no | Package to range that the root `catalog` must already satisfy when `add` runs. A catalog pin equal to the version this preset lists for that package in `dependencies` or `devDependencies` is accepted without the comparison, a prerelease included |
 | `scripts` | object | no | The `scripts` of the app's `package.json`. Use the standard seven (`server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean`; rule `V-B-05`): the root `dev` script runs `server:dev` in every app, and `vulcan doctor` notes an app that lacks one or carries `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod` |
 | `checks` | array of script names | no | Scripts that `init` and `add` run in the app after install, in order. Each entry must be a key of `scripts`, or the preset is refused |
 | `urls` | array of paths | no | Paths to open on the dev port, each starting with `/` (`/api/hello`). `init` and `add` end with one `open http://localhost:<port><path>` line per path. With none, they print the root. They are recorded in the app's `package.json` under `vulcan.urls`, so a later `add` prints them too |
@@ -78,7 +80,7 @@ When the preset has `imports`, the app's `package.json` carries it after `privat
 
 ## A library kind
 
-A preset can also make shared packages (libraries) of the same framework. Add a `lib` path next to `app` under `presets`; the file it names is a second, smaller preset. A package with no `presets.lib` makes apps only.
+A preset can also make libraries of the same framework: packages other apps import. Add a `lib` path next to `app` under `presets`; the file it names is a second, smaller preset. A package with no `presets.lib` makes no libraries.
 
 ```json
 {
@@ -93,8 +95,6 @@ A preset can also make shared packages (libraries) of the same framework. Add a 
 
 Both paths are any JSON file inside the package; they need not be named `preset.json`. A package that has `presets.lib` must keep its `presets.app` too: a lib-only package is not supported.
 
-The keys before 0.3.10, `vulcan.preset` and `vulcan.lib`, are not read and have no fallback: a package that still has them is refused with `uses the old keys "vulcan": { "preset", "lib" }; the contract is now "vulcan": { "presets": { "app": ..., "lib": ... } }`. Move the two paths under `presets`.
-
 ```json
 {
   "presetVersion": 1,
@@ -102,7 +102,7 @@ The keys before 0.3.10, `vulcan.preset` and `vulcan.lib`, are not read and have 
   "dependencies": { "zod": "^4.0.0" },
   "devDependencies": { "typescript": "^6.0.3" },
   "peerDependencies": { "@acme/core": "^1.0.0" },
-  "scripts": { "typecheck": "tsc --noEmit", "lint": "eslint .", "test": "bun test" },
+  "scripts": { "typecheck": "bun check", "lint": "eslint .", "test": "bun test" },
   "checks": ["typecheck"],
   "imports": { "#src/*": "./src/*.js" },
   "exports": { ".": "./src/index.ts" },
@@ -133,6 +133,29 @@ The library files take the tokens `{{project}}`, `{{lib}}` (the folder name, `bi
 A library lands in the `--dir` folder, else the one `shared` folder of `layout`, else the one folder the existing libraries share; with none of those, or with several `shared` folders, `add` asks for `--dir`.
 Its name takes `--scope`, else the scope the packages already in that folder agree on, else the project's own scope, else none.
 See [`vulcan add`](/references/commands/add#add-a-library).
+
+## A shared kind
+
+A preset can make a third kind: a side-neutral package that apps of either side import. The `lib` kind makes a library of one framework; the `shared` kind makes a package that depends on no framework. Add a `shared` path next to `app` and `lib`:
+
+```json
+{
+  "vulcan": {
+    "presets": {
+      "app": "./dist/presets/app/preset.json",
+      "lib": "./dist/presets/lib/preset.json",
+      "shared": "./dist/presets/shared/preset.json"
+    }
+  }
+}
+```
+
+The `shared` file has the same keys as a lib preset file ([the table above](#a-library-kind)), read by the same schema, and its `files` folder is copied the same way. `app` stays required: a package that has only `presets.shared` is refused, as a lib-only package is. A package with no `presets.shared` makes no shared packages, and a VULCAN that predates the kind ignores the key.
+
+The shared files take the tokens `{{project}}`, `{{shared}}` (the folder name, `common`) and `{{package}}` (the npm name, `@acme/common`). The token `{{lib}}` is not replaced in a shared package, and `{{shared}}` is not replaced in a library.
+
+`vulcan add --shared` generates `package.json` and places the package by the rules of `--lib`, in the same `shared` folder of `layout`; the folder never depends on the kind. The preset's package is not added as a dependency, so a project with only frontend apps can run `vulcan add --preset <name> --shared common` and needs no app of that preset.
+The config records the preset with a `shared` summary and the package with `presetKind: "shared"` ([Configuration](/references/configuration/#presets)). See [`vulcan add`](/references/commands/add#add-a-shared-package).
 
 ## Tokens in files
 

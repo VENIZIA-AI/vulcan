@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { checkSourceLinks } from '../../wiki/index.ts';
+import { SourceLinkCheck } from '../../wiki/index.ts';
 import type { IMissingSourceLink } from '../../wiki/index.ts';
 import { git } from '../git-repo.helper.ts';
 
@@ -66,7 +66,7 @@ afterAll(() => {
   }
 });
 
-describe('checkSourceLinks', () => {
+describe('SourceLinkCheck.check', () => {
   let root = '';
 
   beforeAll(() => {
@@ -74,7 +74,7 @@ describe('checkSourceLinks', () => {
   });
 
   const run = (opts: { repo: string; skipFiles?: string[] }) =>
-    checkSourceLinks({
+    SourceLinkCheck.check({
       root,
       repo: opts.repo,
       directories: ['docs', '.agents/knowledge'],

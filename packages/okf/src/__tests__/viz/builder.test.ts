@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { assembleVizHtml, bundleVizClient } from '../../viz/builder.ts';
+import { VizBuilder } from '../../viz/builder.ts';
 import { VizConstants, VizTemplateTokens } from '../../viz/common/index.ts';
 import type { IVizData } from '../../viz/common/index.ts';
 
@@ -28,9 +28,13 @@ const DATA: IVizData = {
   },
 };
 
-describe('assembleVizHtml', () => {
+describe('VizBuilder.assembleHtml', () => {
   test('fills every token and leaves none behind', () => {
-    const html = assembleVizHtml({ template: TEMPLATE, data: DATA, clientScript: 'boot();' });
+    const html = VizBuilder.assembleHtml({
+      template: TEMPLATE,
+      data: DATA,
+      clientScript: 'boot();',
+    });
 
     expect(html).not.toContain('__OKF_');
     expect(html).toContain('<title>IGNIS</title>');
@@ -38,7 +42,7 @@ describe('assembleVizHtml', () => {
   });
 
   test('a </script> inside the data cannot close the data element, and the JSON still parses', () => {
-    const html = assembleVizHtml({ template: TEMPLATE, data: DATA, clientScript: '' });
+    const html = VizBuilder.assembleHtml({ template: TEMPLATE, data: DATA, clientScript: '' });
 
     expect(html.match(/<\/script>/g)).toHaveLength(2);
     const json = html.slice(
@@ -50,7 +54,7 @@ describe('assembleVizHtml', () => {
   });
 
   test('a </script> inside the client cannot close the client element', () => {
-    const html = assembleVizHtml({
+    const html = VizBuilder.assembleHtml({
       template: TEMPLATE,
       data: DATA,
       clientScript: 'const s = "</script>";',
@@ -62,7 +66,7 @@ describe('assembleVizHtml', () => {
   test('a $ pattern in the data is inserted literally, never as a replacement pattern', () => {
     const data = { ...DATA, brand: "$1 $' $`" };
 
-    expect(assembleVizHtml({ template: TEMPLATE, data, clientScript: '' })).toContain(
+    expect(VizBuilder.assembleHtml({ template: TEMPLATE, data, clientScript: '' })).toContain(
       "<title>$1 $' $`</title>",
     );
   });
@@ -70,15 +74,15 @@ describe('assembleVizHtml', () => {
   test('the brand is HTML-escaped where it lands in markup', () => {
     const data = { ...DATA, brand: 'R&D <x>' };
 
-    expect(assembleVizHtml({ template: TEMPLATE, data, clientScript: '' })).toContain(
+    expect(VizBuilder.assembleHtml({ template: TEMPLATE, data, clientScript: '' })).toContain(
       '<title>R&amp;D &lt;x&gt;</title>',
     );
   });
 });
 
-describe('bundleVizClient', () => {
+describe('VizBuilder.bundleClient', () => {
   test('bundles the browser client, Cytoscape and fcose into one import-free script', async () => {
-    const script = await bundleVizClient();
+    const script = await VizBuilder.bundleClient();
 
     expect(script.length).toBeGreaterThan(100_000);
     expect(script).not.toMatch(/^\s*import\s/m);

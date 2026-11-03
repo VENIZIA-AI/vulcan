@@ -10,7 +10,7 @@
     {
       "id": 1,
       "prompt": "Add a changelog entry for last week's change to the repository's CI and release tooling. It touches no package. Do not commit.",
-      "expected_output": "One dated entry under the manifest's knowledge.changelogs, shaped by the directory's template, carrying packages: [] in its frontmatter, added to the changelog index when one lists entries; okf check --strict passes; nothing committed",
+      "expected_output": "Writes no changelog entry: CI and release tooling is internal work that touches no package and affects no user of the published packages, and the changelog records only what affects users; says so in one line and names what would need an entry (a feature, a changed behaviour, a fix a user could hit, a security fix, a removal); changes no file; nothing committed",
       "files": [".agents/vulcan.manifest.json"]
     },
     {

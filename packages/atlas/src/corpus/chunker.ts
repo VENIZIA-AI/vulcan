@@ -237,11 +237,9 @@ const dedupe = (values: string[]): string[] => {
 /** A whitespace-delimited word that is a URL, not an identifier: `://` anywhere, or a leading `http`. */
 const isUrlShaped = (word: string): boolean => word.includes('://') || word.startsWith('http');
 
-const isStopword = (word: string): boolean => Stopwords.isValid(word.toLowerCase());
-
 /** camelCase/PascalCase (an internal lower-to-upper transition), snake_case or SCREAMING_CASE (an underscore or an all-uppercase acronym), or a dotted path - never a stopword or a plain lowercase word. */
-export const isIdentifierShaped = (token: string): boolean =>
-  !isStopword(token) &&
+const isIdentifierShaped = (token: string): boolean =>
+  !Stopwords.isStopword({ word: token }) &&
   (CASE_TRANSITION_PATTERN.test(token) ||
     token.includes('_') ||
     SCREAMING_PATTERN.test(token) ||

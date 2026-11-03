@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { isBareInteractiveRun } from '@/cli/interactive';
+import { InteractiveRun } from '@/cli/interactive';
 import { MANIFEST_FILE } from '@/common/project-config';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
@@ -62,6 +62,20 @@ describe('help', () => {
   });
 });
 
+describe('an unknown subcommand', () => {
+  test.each(['changelogs', 'concepts'])(
+    '%s is a usage error: exit 2, the usage on stderr',
+    (word) => {
+      const result = run({ args: [word, 'migrate'], cwd: makeTempDirectory() });
+
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain(`unknown subcommand: ${word}`);
+      expect(result.stderr).not.toContain('changelogs migrate');
+      expect(result.stderr).not.toContain('concepts stamp');
+    },
+  );
+});
+
 describe('tools', () => {
   test('lists every tool the server offers, one line each, without an MCP client', () => {
     const result = run({ args: ['tools', '--root', makeProject()], cwd: makeTempDirectory() });
@@ -84,15 +98,15 @@ describe('tools', () => {
 
 describe('a bare run', () => {
   test('at a terminal (stdin is a TTY) it is a help request, not a wait for a client', () => {
-    expect(isBareInteractiveRun({ argv: [], isTty: true })).toBe(true);
+    expect(InteractiveRun.isBare({ argv: [], isTty: true })).toBe(true);
   });
 
   test('from a client (stdin is a pipe) it stays the MCP server', () => {
-    expect(isBareInteractiveRun({ argv: [], isTty: false })).toBe(false);
+    expect(InteractiveRun.isBare({ argv: [], isTty: false })).toBe(false);
   });
 
   test('any argument keeps its meaning, TTY or not', () => {
-    expect(isBareInteractiveRun({ argv: ['--root', '.'], isTty: true })).toBe(false);
-    expect(isBareInteractiveRun({ argv: ['tools'], isTty: true })).toBe(false);
+    expect(InteractiveRun.isBare({ argv: ['--root', '.'], isTty: true })).toBe(false);
+    expect(InteractiveRun.isBare({ argv: ['tools'], isTty: true })).toBe(false);
   });
 });

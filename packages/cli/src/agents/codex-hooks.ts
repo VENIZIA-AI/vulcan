@@ -1,7 +1,5 @@
+import { RecordValue } from '../common/record.ts';
 import { RemoveOutcomes } from './common/index.ts';
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** The script every VULCAN entry runs: it is how an entry of ours is told from a hook of the user's. */
 const GUARD_SCRIPT = 'codex-guards.ts';
@@ -37,11 +35,13 @@ const guardEntry = (): Record<string, unknown> => ({
 });
 
 const isGuardEntry = (entry: unknown): boolean =>
-  isRecord(entry) &&
+  RecordValue.isRecord(entry) &&
   Array.isArray(entry.hooks) &&
   entry.hooks.some(
     (hook) =>
-      isRecord(hook) && typeof hook.command === 'string' && hook.command.includes(GUARD_SCRIPT),
+      RecordValue.isRecord(hook) &&
+      typeof hook.command === 'string' &&
+      hook.command.includes(GUARD_SCRIPT),
   );
 
 interface IParsedFile {
@@ -58,14 +58,15 @@ const parseFile = (opts: { text: string | undefined }): IParsedFile | { reason: 
   try {
     const file: unknown = JSON.parse(opts.text);
 
-    if (!isRecord(file)) {
+    if (!RecordValue.isRecord(file)) {
       return { reason: 'the hooks file is not a JSON object' };
     }
 
     const hooks = file.hooks === undefined ? {} : file.hooks;
-    const entries = isRecord(hooks) && hooks.PreToolUse !== undefined ? hooks.PreToolUse : [];
+    const entries =
+      RecordValue.isRecord(hooks) && hooks.PreToolUse !== undefined ? hooks.PreToolUse : [];
 
-    return isRecord(hooks) && Array.isArray(entries)
+    return RecordValue.isRecord(hooks) && Array.isArray(entries)
       ? { file, hooks, entries }
       : { reason: 'the hooks file has a hooks or PreToolUse value that is not what Codex reads' };
   } catch (error) {
@@ -75,59 +76,61 @@ const parseFile = (opts: { text: string | undefined }): IParsedFile | { reason: 
   }
 };
 
-export type TCodexHooksMerge =
+type TCodexHooksMerge =
   | { ok: true; changed: boolean; text: string }
   | { ok: false; reason: string };
 
-/** The hooks file with VULCAN's PreToolUse entry in it, every other entry as the user wrote it. */
-export const mergeCodexHooks = (opts: { text: string | undefined }): TCodexHooksMerge => {
-  const parsed = parseFile({ text: opts.text });
+export class CodexHooks {
+  /** The hooks file with VULCAN's PreToolUse entry in it, every other entry as the user wrote it. */
+  static merge(opts: { text: string | undefined }): TCodexHooksMerge {
+    const parsed = parseFile({ text: opts.text });
 
-  if ('reason' in parsed) {
-    return { ok: false, reason: parsed.reason };
+    if ('reason' in parsed) {
+      return { ok: false, reason: parsed.reason };
+    }
+
+    const entry = guardEntry();
+    const index = parsed.entries.findIndex((item) => isGuardEntry(item));
+    const changed = index === -1 || JSON.stringify(parsed.entries[index]) !== JSON.stringify(entry);
+    const entries =
+      index === -1
+        ? [...parsed.entries, entry]
+        : parsed.entries.map((item, at) => (at === index ? entry : item));
+
+    return {
+      ok: true,
+      changed,
+      text: `${JSON.stringify({ ...parsed.file, hooks: { ...parsed.hooks, PreToolUse: entries } }, null, 2)}\n`,
+    };
   }
 
-  const entry = guardEntry();
-  const index = parsed.entries.findIndex((item) => isGuardEntry(item));
-  const changed = index === -1 || JSON.stringify(parsed.entries[index]) !== JSON.stringify(entry);
-  const entries =
-    index === -1
-      ? [...parsed.entries, entry]
-      : parsed.entries.map((item, at) => (at === index ? entry : item));
+  /** The hooks file without VULCAN's entry; `text` is undefined when nothing else was in it. */
+  static remove(opts: { text: string }): TCodexHooksRemoval {
+    const parsed = parseFile({ text: opts.text });
 
-  return {
-    ok: true,
-    changed,
-    text: `${JSON.stringify({ ...parsed.file, hooks: { ...parsed.hooks, PreToolUse: entries } }, null, 2)}\n`,
-  };
-};
+    if ('reason' in parsed) {
+      return { ok: false, reason: parsed.reason };
+    }
 
-export type TCodexHooksRemoval =
+    if (!parsed.entries.some((item) => isGuardEntry(item))) {
+      return { ok: true, outcome: RemoveOutcomes.ABSENT };
+    }
+
+    const kept = parsed.entries.filter((item) => !isGuardEntry(item));
+    const { PreToolUse: _removed, ...otherEvents } = parsed.hooks;
+    const hooks = kept.length > 0 ? { ...otherEvents, PreToolUse: kept } : otherEvents;
+    const { hooks: _hooks, ...otherKeys } = parsed.file;
+    const file = Object.keys(hooks).length > 0 ? { ...otherKeys, hooks } : otherKeys;
+
+    return {
+      ok: true,
+      outcome: RemoveOutcomes.REMOVED,
+      text: Object.keys(file).length === 0 ? undefined : `${JSON.stringify(file, null, 2)}\n`,
+    };
+  }
+}
+
+type TCodexHooksRemoval =
   | { ok: true; outcome: typeof RemoveOutcomes.ABSENT }
   | { ok: true; outcome: typeof RemoveOutcomes.REMOVED; text: string | undefined }
   | { ok: false; reason: string };
-
-/** The hooks file without VULCAN's entry; `text` is undefined when nothing else was in it. */
-export const removeCodexHooks = (opts: { text: string }): TCodexHooksRemoval => {
-  const parsed = parseFile({ text: opts.text });
-
-  if ('reason' in parsed) {
-    return { ok: false, reason: parsed.reason };
-  }
-
-  if (!parsed.entries.some((item) => isGuardEntry(item))) {
-    return { ok: true, outcome: RemoveOutcomes.ABSENT };
-  }
-
-  const kept = parsed.entries.filter((item) => !isGuardEntry(item));
-  const { PreToolUse: _removed, ...otherEvents } = parsed.hooks;
-  const hooks = kept.length > 0 ? { ...otherEvents, PreToolUse: kept } : otherEvents;
-  const { hooks: _hooks, ...otherKeys } = parsed.file;
-  const file = Object.keys(hooks).length > 0 ? { ...otherKeys, hooks } : otherKeys;
-
-  return {
-    ok: true,
-    outcome: RemoveOutcomes.REMOVED,
-    text: Object.keys(file).length === 0 ? undefined : `${JSON.stringify(file, null, 2)}\n`,
-  };
-};

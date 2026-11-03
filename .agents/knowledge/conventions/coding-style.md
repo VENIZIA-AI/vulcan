@@ -14,7 +14,7 @@ The rules are `V-C-01..19` in `packages/cli/base/rules.md`; this is how they loo
   dates (C-19).
 - **Options objects everywhere** (`V-C-02`), with options that serve one concern grouped into a named sub-object, not prefixed siblings (`V-C-19`); verb-first arrow functions (`V-C-07`); full-word names
   (`V-C-04`).
-- **Enumerable strings** are const classes with `SCHEME_SET` / `isValid` (`V-C-08`) - see any
+- **Enumerable strings** are const classes, with `SCHEME_SET` / `isValid` where a value is validated (`V-C-08`) - see any
   `common/constants.ts`.
 - **Scopes** are folders with `common/{constants,types,index}.ts` and an `index.ts` barrel
   (`V-C-12`); cross-scope imports go through the barrel. A folder next to a same-named file

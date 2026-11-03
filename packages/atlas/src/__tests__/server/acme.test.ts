@@ -1,4 +1,4 @@
-import { buildServer } from '@/server';
+import { buildRepositoryServer } from '../server.helper';
 import { join } from 'node:path';
 import { expect, test } from 'bun:test';
 
@@ -7,18 +7,19 @@ import { expect, test } from 'bun:test';
 const ACME = join(__dirname, '..', 'fixtures', 'acme');
 
 const call = async (opts: {
-  transport: ReturnType<typeof buildServer>;
+  transport: ReturnType<typeof buildRepositoryServer>;
   method: string;
   params?: object;
-}): Promise<{ result?: Record<string, unknown>; error?: { message: string } }> =>
-  JSON.parse(
-    (await opts.transport.handleLine({
-      line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: opts.method, params: opts.params }),
-    })) ?? 'null',
-  );
+}): Promise<{ result?: Record<string, unknown>; error?: { message: string } }> => {
+  const line = await opts.transport.handleLine({
+    line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: opts.method, params: opts.params }),
+  });
+
+  return JSON.parse(line ?? 'null');
+};
 
 const searchText = async (opts: {
-  transport: ReturnType<typeof buildServer>;
+  transport: ReturnType<typeof buildRepositoryServer>;
   query: string;
 }): Promise<string> => {
   const reply = await call({
@@ -32,13 +33,14 @@ const searchText = async (opts: {
 };
 
 test('repo mode serves a project from its manifest: its own name, its bundle and changelogs', async () => {
-  const transport = buildServer({ root: ACME, version: '0.0.0' });
+  const transport = buildRepositoryServer({ root: ACME, version: '0.0.0' });
   const initialized = await call({ transport, method: 'initialize', params: {} });
 
   expect(JSON.stringify(initialized.result)).toContain('acme-atlas');
-  expect(await searchText({ transport, query: 'flywheel engine' })).toContain(
-    'okf:overview/core.md',
-  );
-  expect(await searchText({ transport, query: 'flywheel spins' })).toContain('changelog:');
-  expect(await searchText({ transport, query: 'flywheel spins' })).not.toContain('wiki:');
+  const result2 = await searchText({ transport, query: 'flywheel engine' });
+  expect(result2).toContain('okf:overview/core.md');
+  const result3 = await searchText({ transport, query: 'flywheel spins' });
+  expect(result3).toContain('changelog:');
+  const result4 = await searchText({ transport, query: 'flywheel spins' });
+  expect(result4).not.toContain('wiki:');
 });

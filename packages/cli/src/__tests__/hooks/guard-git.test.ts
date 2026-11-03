@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { inspectGit } from '../../hooks/index.ts';
+import { GitGuard } from '../../hooks/index.ts';
 import type { IGitRunner } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
@@ -28,13 +28,13 @@ const runner =
     return undefined;
   };
 const decisions = (opts: { command: string; run?: IGitRunner }): string[] =>
-  inspectGit({
+  GitGuard.inspect({
     command: opts.command,
     cwd: '/p',
     run: opts.run ?? runner({ current: 'topic' }),
   }).map((hit) => hit.decision);
 
-describe('inspectGit denies', () => {
+describe('GitGuard.inspect denies', () => {
   test.each([
     'git branch -D develop',
     'git branch -d main',
@@ -124,7 +124,7 @@ describe('inspectGit denies', () => {
   });
 });
 
-describe('inspectGit asks', () => {
+describe('GitGuard.inspect asks', () => {
   test('git push --mirror', () => {
     expect(decisions({ command: 'git push --mirror origin' })).toEqual(['ask']);
   });
@@ -144,7 +144,7 @@ describe('inspectGit asks', () => {
   });
 });
 
-describe('inspectGit passes', () => {
+describe('GitGuard.inspect passes', () => {
   test('a heredoc commit message that mentions a force-push is data, not a command', () => {
     const message = [
       "git commit -m \"$(cat <<'EOF'",
@@ -214,13 +214,13 @@ describe('inspectGit passes', () => {
   });
 
   test('every hit cites a rule', () => {
-    const hits = inspectGit({ command: 'git reset --hard', cwd: '/p', run: runner({}) });
+    const hits = GitGuard.inspect({ command: 'git reset --hard', cwd: '/p', run: runner({}) });
 
     expect(hits.every((hit) => /^V-[WP]-\d{2}$/.test(hit.rule))).toBe(true);
   });
 });
 
-describe('inspectGit against a real repository', () => {
+describe('GitGuard.inspect against a real repository', () => {
   const git = (opts: { cwd: string; args: string[] }): void => {
     expect(Bun.spawnSync(['git', ...opts.args], { cwd: opts.cwd }).exitCode).toBe(0);
   };
@@ -247,7 +247,7 @@ describe('inspectGit against a real repository', () => {
     git({ cwd: root, args: ['branch', 'merged'] });
 
     const askFor = (name: string): string[] =>
-      inspectGit({ command: `git branch -D ${name}`, cwd: root }).map((hit) => hit.decision);
+      GitGuard.inspect({ command: `git branch -D ${name}`, cwd: root }).map((hit) => hit.decision);
 
     expect(askFor('unmerged')).toEqual(['ask']);
     expect(askFor('merged')).toEqual([]);
@@ -257,7 +257,7 @@ describe('inspectGit against a real repository', () => {
 // A formatter run followed by `git add -A` once committed 152 files nobody meant to stage. A blanket stage asks only when it
 // would stage a lot (the threshold is HookConstants.BLANKET_STAGE_PATHS): on this repository's develop, 2.2% of commits
 // touch more than 50 files, and the median is 7, so a small pull request is never asked about.
-describe('inspectGit asks before a blanket stage that is large', () => {
+describe('GitGuard.inspect asks before a blanket stage that is large', () => {
   /** A fake `git status --porcelain` of `tracked` modified paths and `untracked` new ones; counts the queries made. */
   const status = (opts: { tracked: number; untracked: number }) => {
     const calls: string[] = [];
@@ -278,7 +278,7 @@ describe('inspectGit asks before a blanket stage that is large', () => {
   };
   const answer = (opts: { command: string; tracked: number; untracked?: number }) => {
     const fake = status({ tracked: opts.tracked, untracked: opts.untracked ?? 0 });
-    const hits = inspectGit({ command: opts.command, cwd: '/p', run: fake.run });
+    const hits = GitGuard.inspect({ command: opts.command, cwd: '/p', run: fake.run });
 
     return { hits, calls: fake.calls };
   };
@@ -337,7 +337,7 @@ describe('inspectGit asks before a blanket stage that is large', () => {
   test('a status that cannot be read lets the command pass', () => {
     const run: IGitRunner = () => undefined;
 
-    expect(inspectGit({ command: 'git add -A', cwd: '/p', run })).toEqual([]);
+    expect(GitGuard.inspect({ command: 'git add -A', cwd: '/p', run })).toEqual([]);
   });
 
   test('inside a compound command: asked once for the add, not for the commit without -a', () => {
@@ -385,7 +385,7 @@ describe('a blanket stage is counted file by file on a real repository', () => {
     }
   };
   const asks = (opts: { root: string; command: string }): string[] =>
-    inspectGit({ command: opts.command, cwd: opts.root }).map((hit) => hit.decision);
+    GitGuard.inspect({ command: opts.command, cwd: opts.root }).map((hit) => hit.decision);
 
   test('60 new files in ONE new folder: git add -A and git add . ask', () => {
     const root = repository();
@@ -451,7 +451,7 @@ describe('a blanket stage is counted file by file on a real repository', () => {
   });
 });
 
-describe('inspectGit and gh pr create', () => {
+describe('GitGuard.inspect and gh pr create', () => {
   test.each([
     'gh pr create',
     'gh pr create --title "x" --body "y"',
@@ -485,14 +485,14 @@ describe('inspectGit and gh pr create', () => {
   });
 
   test('the hit cites a rule and names the flag to pass', () => {
-    const [hit] = inspectGit({ command: 'gh pr create', cwd: '/p', run: runner({}) });
+    const [hit] = GitGuard.inspect({ command: 'gh pr create', cwd: '/p', run: runner({}) });
 
     expect(hit.rule).toBe('V-W-06');
     expect(hit.message).toContain('--base');
   });
 });
 
-describe('inspectGit and gh options before the group', () => {
+describe('GitGuard.inspect and gh options before the group', () => {
   test('gh -R <repo> pr merge --delete-branch is judged like gh pr merge --delete-branch', () => {
     expect(
       decisions({

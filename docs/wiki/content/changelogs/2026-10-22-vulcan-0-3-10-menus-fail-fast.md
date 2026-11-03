@@ -10,13 +10,13 @@ packages: ['@venizia/vulcan']
 
 <Badge type="info" text="Bug Fix" />
 
-**In one line.** `script -qec 'vulcan add' /dev/null` with answers piped in hung for 40 minutes on a menu in a preset smoke; it now exits with code `1` and says what to do.
+**In one line.** A command run under a pty with answers piped into a menu used to hang; it now exits with code `1` and says what to do.
 
 ## What changed
 
-- **A menu that receives LF stops.** A keyboard in raw mode sends CR for Enter, never LF. LF means piped lines, and a menu takes only key presses. The command restores the terminal and prints `this menu reads key presses, not lines`, then the way out: the flags, or `TERM=dumb` to keep the plain line questions.
-- **Nothing else changes.** Real keys, flags and `TERM=dumb` behave as before; the stop applies only to the menus.
+- **A menu that receives piped lines stops.** A menu takes key presses, not lines. The command restores the terminal and prints `this menu reads key presses, not lines`, then the way out: the flags, or `TERM=dumb` to keep the plain line questions.
+- **Nothing else changes.** Real keys, flags and `TERM=dumb` behave as before.
 
 ## Who is affected
 
-- **Scripts that pipe answers into a command under a pty** (`script`, `expect`) without `TERM=dumb`: they fail with a clear message instead of hanging. Set `TERM=dumb` or pass the flags. See [Interactive prompts](/references/prompts#scripts-pipes-and-a-pty).
+- **Scripts that pipe answers into a command under a pty** (`script`, `expect`) without `TERM=dumb`: they now fail with a clear message instead of hanging. Set `TERM=dumb` or pass the flags. See [Interactive prompts](/references/prompts#scripts-pipes-and-a-pty).

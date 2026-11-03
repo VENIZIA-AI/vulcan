@@ -1,0 +1,13 @@
+{
+  "presetVersion": 1,
+  "summary": "A fixture side-neutral package.",
+  "dependencies": { "zod": "^4.0.0" },
+  "devDependencies": { "typescript": "^6.0.3" },
+  "scripts": { "typecheck": "bun -e 0", "lint": "bun -e 0", "test": "bun -e 0" },
+  "checks": ["typecheck"],
+  "imports": { "#src/*": "./src/*.js" },
+  "exports": { ".": "./src/index.ts" },
+  "packageFields": { "type": "module", "sideEffects": false },
+  "files": "./shared-files",
+  "atlas": []
+}

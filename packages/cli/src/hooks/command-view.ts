@@ -1,4 +1,4 @@
-import { basenameOf, parseShell, programOf, splitHeredocs } from './shell.ts';
+import { ShellParser } from './shell.ts';
 import type { ISimpleCommand } from './shell.ts';
 
 /** Programs that only read or print what they are given: their arguments are text to find or show, never a command to run. */
@@ -65,7 +65,7 @@ const PIPED_INTO_RUNNER =
 
 /** Whether a `gh` command is a request: its subcommand (the first word that is not an option or an option's value) is one of `GH_REQUESTS`. */
 const isGhRequest = (opts: { command: ISimpleCommand }): boolean => {
-  const { args } = programOf({ command: opts.command });
+  const { args } = ShellParser.programOf({ command: opts.command });
   const subcommand = args.find(
     (word, index) =>
       !word.startsWith('-') && !(index > 0 && GH_REPOSITORY_FLAGS.has(args[index - 1] ?? '')),
@@ -74,48 +74,53 @@ const isGhRequest = (opts: { command: ISimpleCommand }): boolean => {
   return subcommand !== undefined && GH_REQUESTS.has(subcommand);
 };
 
-/**
- * Whether the arguments of a command are data. `withMessages` adds `git` and `gh` (their arguments are
- * messages to the write guards, but a `git` remote is a host to the remote-host guard).
- */
-export const isDataOnly = (opts: { command: ISimpleCommand; withMessages: boolean }): boolean => {
-  const name = basenameOf({ word: programOf({ command: opts.command }).name });
+export class CommandView {
+  /** The texts of the simple commands: the words, a bare name for data, a reader's heredoc body appended. */
+  private static textsOf(opts: { command: string; withMessages: boolean }): string[] {
+    return ShellParser.parse({ command: opts.command }).map((command) => {
+      const name = ShellParser.basenameOf({ word: ShellParser.programOf({ command }).name });
 
-  if (name === 'find') {
-    return !opts.command.words.some((word) => FIND_RUNS.has(word));
+      if (CommandView.isDataOnly({ command, withMessages: opts.withMessages })) {
+        return name;
+      }
+
+      const body =
+        command.heredoc !== undefined && HEREDOC_READERS.has(name) ? `\n${command.heredoc}` : '';
+
+      return `${command.words.join(' ')}${body}`;
+    });
   }
 
-  if (name === 'gh' && isGhRequest({ command: opts.command })) {
-    return false;
-  }
+  /**
+   * Whether the arguments of a command are data. `withMessages` adds `git` and `gh` (their arguments are
+   * messages to the write guards, but a `git` remote is a host to the remote-host guard).
+   */
+  static isDataOnly(opts: { command: ISimpleCommand; withMessages: boolean }): boolean {
+    const name = ShellParser.basenameOf({
+      word: ShellParser.programOf({ command: opts.command }).name,
+    });
 
-  return READ_ONLY_PROGRAMS.has(name) || (opts.withMessages && MESSAGE_PROGRAMS.has(name));
-};
-
-/** The texts of the simple commands: the words, a bare name for data, a reader's heredoc body appended. */
-const textsOf = (opts: { command: string; withMessages: boolean }): string[] =>
-  parseShell({ command: opts.command }).map((command) => {
-    const name = basenameOf({ word: programOf({ command }).name });
-
-    if (isDataOnly({ command, withMessages: opts.withMessages })) {
-      return name;
+    if (name === 'find') {
+      return !opts.command.words.some((word) => FIND_RUNS.has(word));
     }
 
-    const body =
-      command.heredoc !== undefined && HEREDOC_READERS.has(name) ? `\n${command.heredoc}` : '';
+    if (name === 'gh' && isGhRequest({ command: opts.command })) {
+      return false;
+    }
 
-    return `${command.words.join(' ')}${body}`;
-  });
+    return READ_ONLY_PROGRAMS.has(name) || (opts.withMessages && MESSAGE_PROGRAMS.has(name));
+  }
 
-/**
- * What a command line runs, one text per simple command, for a guard that matches text: the words of each
- * command with the quotes resolved, nothing but the name for a command whose arguments are data
- * (`rg -n "kubectl apply" docs/`), and the body of a heredoc appended only where its reader runs it
- * (`psql <<EOF`). The body of `cat > f <<EOF` is data and is not here. A line that pipes into a program
- * that runs its input (`echo "kubectl apply -f x" | sh`) stands as one text, because what it prints is code.
- */
-export const commandTextsOf = (opts: { command: string; withMessages: boolean }): string[] => {
-  const { text } = splitHeredocs({ command: opts.command });
+  /**
+   * What a command line runs, one text per simple command, for a guard that matches text: the words of each
+   * command with the quotes resolved, nothing but the name for a command whose arguments are data
+   * (`rg -n "kubectl apply" docs/`), and the body of a heredoc appended only where its reader runs it
+   * (`psql <<EOF`). The body of `cat > f <<EOF` is data and is not here. A line that pipes into a program
+   * that runs its input (`echo "kubectl apply -f x" | sh`) stands as one text, because what it prints is code.
+   */
+  static commandTextsOf(opts: { command: string; withMessages: boolean }): string[] {
+    const { text } = ShellParser.splitHeredocs({ command: opts.command });
 
-  return PIPED_INTO_RUNNER.test(text) ? [text] : textsOf(opts);
-};
+    return PIPED_INTO_RUNNER.test(text) ? [text] : CommandView.textsOf(opts);
+  }
+}

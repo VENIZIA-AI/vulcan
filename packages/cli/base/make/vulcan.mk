@@ -7,18 +7,14 @@ VULCAN_BASE ?= node_modules/@venizia/vulcan/base
 # The GitHub repository the wiki links point into, owner/name; the link gate checks only links into it.
 WIKI_REPO ?=
 
-.PHONY: vulcan-sync vulcan-doctor agent-setup okf-check okf-check-strict okf-gen okf-coverage okf-viz \
-        surface-gen surface-check atlas-symbols atlas-releases changelogs-migrate \
-        knowledge-symbols-check wiki-links-check wiki-anchors-check
+.PHONY: vulcan-sync vulcan-doctor okf-check okf-check-strict okf-gen okf-coverage okf-viz \
+        surface-gen surface-check atlas-symbols atlas-releases wiki-links-check wiki-anchors-check
 
 vulcan-sync: ## Write the agent adapters, settings, skill links and manifest from the config
 	@$(VULCAN) sync
 
 vulcan-doctor: ## Check the project against the VULCAN contract
 	@$(VULCAN) doctor
-
-# The older name for the same job, kept for muscle memory.
-agent-setup: vulcan-sync ## The older name for vulcan-sync
 
 # OKF v0.2 conformance only; okf-check-strict adds the house rules (links, style, coverage, freshness).
 okf-check: ## Check the knowledge bundle against OKF v0.2
@@ -53,15 +49,6 @@ atlas-symbols: ## Print the symbols atlas reads from the built or installed .d.t
 # atlas-releases prints the computed table, to see what version and changes answer from.
 atlas-releases: ## Print the release table atlas computes from the tags
 	@$(VULCAN) x atlas releases
-
-# Writes the packages: list into every changelog entry that declares none - once, then review it.
-changelogs-migrate: ## Write the packages: list into changelog entries that declare none
-	@$(VULCAN) x atlas changelogs migrate
-
-# A concept may name code (`symbols:` in its frontmatter); this fails when a named symbol is gone or its
-# signature changed since `vulcan x atlas concepts stamp`. It reads the built .d.ts - run it after build.
-knowledge-symbols-check: ## Fail when a symbol a concept names is gone or its signature changed
-	@$(VULCAN) x atlas concepts check
 
 # The wiki link gates. Set WIKI_REPO (owner/name) in the project's Makefile before the include. Flags go in
 # WIKI_LINKS_FLAGS (--dirs, --skip-prose, --skip) and WIKI_ANCHORS_FLAGS (--content, --dist).

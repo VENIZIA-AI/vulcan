@@ -14,11 +14,10 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
-- **`--scope <@scope>` for apps.** `init --preset` (the first app) and `add --app` name the package `@scope/<app>`, the way `add --lib --scope` already named a library. The folder (`apps/web`) and the `dir` registered in the config stay bare, so `--api <backend app>` still names an app by its folder.
-- **Never inferred.** An app without `--scope` keeps the bare name, whatever scope the other packages have.
-- **A menu asks, optionally.** Where menus are drawn, `init` and `add --app` ask "Package scope (optional, like @acme; empty for none)" after the app name, and the summary shows the `package` row. A plain terminal and a script do not get the new question; they give the flag.
-- **Checked.** A scope that is not `@lowercase-name` is refused (`--scope 'acme' is not a scope like @acme`) before anything is written, and a package name that already exists is refused.
-- **`--help`** lists `--scope` under `init --preset` and `add`.
+- **`--scope <@scope>` for apps.** `init --preset` (the first app) and `add --app` name the package `@scope/<app>`, the way `add --lib --scope` already named a library. The folder (`apps/web`) and the registered `dir` stay bare, so `--api <backend app>` still names an app by its folder.
+- **Never inferred.** An app without `--scope` keeps the bare name.
+- **A menu asks, optionally.** Where menus are drawn, `init` and `add --app` ask for an optional package scope after the app name. A plain terminal and a script give the flag.
+- **Checked.** A scope that is not `@lowercase-name` is refused before anything is written, and so is a package name that already exists.
 
 ## Who is affected
 

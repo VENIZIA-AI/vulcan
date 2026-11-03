@@ -3,7 +3,7 @@ import { RpcError, RpcErrorCodes } from '@/protocol/common';
 import type { IToolHandler } from '@/protocol/common';
 import type { IChangelogRecord, IReleaseIndex } from '@/releases';
 import { z } from 'zod';
-import { ChangesInputSchema, parseInput, ToolTriggers } from './common';
+import { ChangesInputSchema, ToolInput, ToolTriggers } from './common';
 
 const DESCRIPTION =
   'List the changelog entries between two releases: a package with two of its versions, or no ' +
@@ -224,49 +224,50 @@ const withinBudget = (opts: { window: IWindow; entries: IChangesEntry[] }): ICha
   return response;
 };
 
-export const buildChangesTool = (opts: {
-  releases: IReleaseIndex;
-  projects?: string;
-}): IToolHandler => ({
-  definition: {
-    name: 'changes',
-    description: `${ToolTriggers.changes({ projects: opts.projects })} ${DESCRIPTION}`,
-    inputSchema: INPUT_JSON_SCHEMA,
-  },
-  call: async ({ args }) => {
-    const input = parseInput({ schema: ChangesInputSchema, args });
+export class ChangesTool {
+  static build(opts: { releases: IReleaseIndex; projects?: string }): IToolHandler {
+    return {
+      definition: {
+        name: 'changes',
+        description: `${ToolTriggers.changes({ projects: opts.projects })} ${DESCRIPTION}`,
+        inputSchema: INPUT_JSON_SCHEMA,
+      },
+      call: async ({ args }) => {
+        const input = ToolInput.parse({ schema: ChangesInputSchema, args });
 
-    if (opts.releases.isEmpty()) {
-      throw invalidParams(opts.releases.emptyReason);
-    }
+        if (opts.releases.isEmpty()) {
+          throw invalidParams(opts.releases.emptyReason);
+        }
 
-    const resolved =
-      input.package === undefined
-        ? dateWindowOf({ releases: opts.releases, from: input.from, to: input.to })
-        : packageWindowOf({
-            releases: opts.releases,
-            package: input.package,
-            from: input.from,
-            to: input.to,
-          });
+        const resolved =
+          input.package === undefined
+            ? dateWindowOf({ releases: opts.releases, from: input.from, to: input.to })
+            : packageWindowOf({
+                releases: opts.releases,
+                package: input.package,
+                from: input.from,
+                to: input.to,
+              });
 
-    // Commit order when the table records both bounds: two releases of one day share a date, and
-    // a date window between them is empty however the versions differ.
-    const found =
-      resolved.fromOrder !== undefined && resolved.toOrder !== undefined
-        ? opts.releases.entriesBetweenOrders({
-            package: resolved.package ?? undefined,
-            fromOrder: resolved.fromOrder,
-            toOrder: resolved.toOrder,
-            fromDate: resolved.fromDate,
-            toDate: resolved.toDate,
-          })
-        : opts.releases.entriesBetween({
-            package: resolved.package ?? undefined,
-            fromDate: resolved.fromDate,
-            toDate: resolved.toDate,
-          });
+        // Commit order when the table records both bounds: two releases of one day share a date, and
+        // a date window between them is empty however the versions differ.
+        const found =
+          resolved.fromOrder !== undefined && resolved.toOrder !== undefined
+            ? opts.releases.entriesBetweenOrders({
+                package: resolved.package ?? undefined,
+                fromOrder: resolved.fromOrder,
+                toOrder: resolved.toOrder,
+                fromDate: resolved.fromDate,
+                toDate: resolved.toDate,
+              })
+            : opts.releases.entriesBetween({
+                package: resolved.package ?? undefined,
+                fromDate: resolved.fromDate,
+                toDate: resolved.toDate,
+              });
 
-    return withinBudget({ window: resolved, entries: found.map(entryOf) });
-  },
-});
+        return withinBudget({ window: resolved, entries: found.map(entryOf) });
+      },
+    };
+  }
+}

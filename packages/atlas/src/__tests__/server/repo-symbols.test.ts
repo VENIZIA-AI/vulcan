@@ -1,4 +1,4 @@
-import { buildServer } from '@/server';
+import { buildRepositoryServer } from '../server.helper';
 import { afterAll, expect, spyOn, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -47,17 +47,18 @@ const project = (opts: { built: boolean; exports?: Record<string, { types: strin
   return root;
 };
 
-const callSymbol = async (opts: { root: string; name: string }) =>
-  JSON.parse(
-    (await buildServer({ root: opts.root, version: '0.0.0' }).handleLine({
-      line: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name: 'symbol', arguments: { name: opts.name } },
-      }),
-    })) ?? 'null',
-  );
+const callSymbol = async (opts: { root: string; name: string }) => {
+  const line = await buildRepositoryServer({ root: opts.root, version: '0.0.0' }).handleLine({
+    line: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'symbol', arguments: { name: opts.name } },
+    }),
+  });
+
+  return JSON.parse(line ?? 'null');
+};
 
 test("repo mode answers symbol from the project's built declarations - no symbols.json", async () => {
   const reply = await callSymbol({ root: project({ built: true }), name: 'greet' });
@@ -126,20 +127,22 @@ test('an unbuilt project says to build first', async () => {
 
 test('built after the first question, the next one finds the symbol - the store loads again', async () => {
   const root = project({ built: false });
-  const server = buildServer({ root, version: '0.0.0' });
-  const ask = async () =>
-    JSON.parse(
-      (await server.handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'tools/call',
-          params: { name: 'symbol', arguments: { name: 'greet' } },
-        }),
-      })) ?? 'null',
-    );
+  const server = buildRepositoryServer({ root, version: '0.0.0' });
+  const ask = async () => {
+    const line = await server.handleLine({
+      line: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'symbol', arguments: { name: 'greet' } },
+      }),
+    });
 
-  expect((await ask()).error.message).toContain('no symbols - build the packages first');
+    return JSON.parse(line ?? 'null');
+  };
+
+  const result2 = await ask();
+  expect(result2.error.message).toContain('no symbols - build the packages first');
 
   mkdirSync(join(root, 'umbras/kit/dist'), { recursive: true });
   writeFileSync(
@@ -155,20 +158,22 @@ test('built after the first question, the next one finds the symbol - the store 
 
 test('a rebuild that changes a signature is seen without a restart - the store follows the .d.ts (D2)', async () => {
   const root = project({ built: true });
-  const server = buildServer({ root, version: '0.0.0' });
-  const ask = async () =>
-    JSON.parse(
-      (await server.handleLine({
-        line: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'tools/call',
-          params: { name: 'symbol', arguments: { name: 'greet' } },
-        }),
-      })) ?? 'null',
-    );
+  const server = buildRepositoryServer({ root, version: '0.0.0' });
+  const ask = async () => {
+    const line = await server.handleLine({
+      line: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'symbol', arguments: { name: 'greet' } },
+      }),
+    });
 
-  expect((await ask()).result.content[0].text).toContain('greet(name: string): string');
+    return JSON.parse(line ?? 'null');
+  };
+
+  const result2 = await ask();
+  expect(result2.result.content[0].text).toContain('greet(name: string): string');
 
   const declarations = join(root, 'umbras/kit/dist/index.d.ts');
 

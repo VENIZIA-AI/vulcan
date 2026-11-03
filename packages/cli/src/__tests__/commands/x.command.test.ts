@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildToolEnvironment, resolveToolBin } from '../../commands/x.command.ts';
+import { ToolRunner } from '../../commands/x.command.ts';
 import { VulcanTools } from '../../common/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -14,7 +14,7 @@ const CLI = join(import.meta.dir, '..', '..', 'cli.ts');
 
 describe('vulcan x', () => {
   test('resolves the okf bin from the installed package', () => {
-    expect(resolveToolBin({ name: VulcanTools.OKF })).toMatch(/okf\/src\/cli\.ts$/);
+    expect(ToolRunner.resolveBin({ name: VulcanTools.OKF })).toMatch(/okf\/src\/cli\.ts$/);
   });
 
   test('an unknown tool exits 1 and lists the known tools on stderr', () => {
@@ -59,7 +59,7 @@ describe('vulcan x', () => {
     expect(runCli({ args: ['x', 'okf', 'nope'], cwd: tmpdir() }).stdout).toBe('');
   });
 
-  const atlasBin = resolveToolBin({ name: VulcanTools.ATLAS });
+  const atlasBin = ToolRunner.resolveBin({ name: VulcanTools.ATLAS });
 
   test.skipIf(atlasBin === undefined || !existsSync(atlasBin))(
     'x atlas mcp answers initialize with JSON-RPC only on stdout',
@@ -67,7 +67,7 @@ describe('vulcan x', () => {
       // atlas ships code only: it serves a project, so the test makes one.
       const root = createProject({
         files: {
-          '.configs/vulcan.config.ts': 'export default {};\n',
+          '.configs/vulcan.config.mts': 'export default {};\n',
           '.agents/knowledge/index.md': '# Probe\n',
         },
       });
@@ -122,15 +122,15 @@ describe('vulcan x', () => {
   );
 });
 
-describe('buildToolEnvironment', () => {
+describe('ToolRunner.buildEnvironment', () => {
   test('a valid config reaches the tool resolved, with the project root', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { packages: [{ dir: 'kernel', name: '@a/kernel' }] };\n",
       },
     });
-    const environment = await buildToolEnvironment({ root });
+    const environment = await ToolRunner.buildEnvironment({ root });
 
     expect(environment.ok).toBe(true);
 
@@ -148,12 +148,13 @@ describe('buildToolEnvironment', () => {
   test('no config: the tool runs without one', async () => {
     const root = createProject({ files: {} });
 
-    expect(await buildToolEnvironment({ root })).toEqual({ ok: true, env: {} });
+    const result = await ToolRunner.buildEnvironment({ root });
+    expect(result).toEqual({ ok: true, env: {} });
   });
 
   test('an invalid config stops vulcan x before the tool runs', () => {
     const root = createProject({
-      files: { '.configs/vulcan.config.ts': 'export default { nope: 1 };\n' },
+      files: { '.configs/vulcan.config.mts': 'export default { nope: 1 };\n' },
     });
     const result = runCli({ args: ['x', 'okf', 'check'], cwd: root });
 

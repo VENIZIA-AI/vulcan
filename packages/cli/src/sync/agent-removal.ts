@@ -1,6 +1,5 @@
 import {
   existsSync,
-  lstatSync,
   readdirSync,
   readFileSync,
   readlinkSync,
@@ -14,27 +13,22 @@ import {
   AgentGuardKinds,
   AgentRenderers,
   AgentScopes,
-  readAgentTable,
+  AgentTable,
   RemoveOutcomes,
-  removeCodexBlock,
-  removeCodexHooks,
-  removeGuardHook,
-  removeMcpEntry,
+  McpConfig,
+  CodexHooks,
+  GuardHook,
 } from '../agents/index.ts';
 import type { TAgentEntry } from '../agents/index.ts';
-import { isTracked } from './agent-files.ts';
-import { BASE_DIRECTORY, stableBaseDirectoryOf } from '../common/index.ts';
-import { SyncConstants, SyncStatuses } from './common/index.ts';
+import { AgentFiles } from './agent-files.ts';
+import { BASE_DIRECTORY, BaseDirectory } from '../common/index.ts';
+import { SyncConstants, SyncLinks, SyncStatuses } from './common/index.ts';
 import type { ISyncAction, TSettings } from './common/index.ts';
-import { isSettingsObject, removeManagedSettings } from './settings.ts';
+import { isSettingsObject, ProjectSettings } from './settings.ts';
 
 const NO_CHANGE = (): void => {};
-const CLAUDE_SKILLS = join(SyncConstants.CLAUDE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY);
 /** Parents sync may delete once empty: its own agent folders, never `.agents` or the project. */
 const OWN_FOLDERS = new Set(['.cursor', '.codex', '.pi', '.omp', '.vscode', '.claude']);
-
-const isSymlink = (opts: { path: string }): boolean =>
-  lstatSync(opts.path, { throwIfNoEntry: false })?.isSymbolicLink() ?? false;
 
 const removeIfEmpty = (opts: { path: string }): void => {
   try {
@@ -58,13 +52,13 @@ const readJsonObject = (opts: { path: string }): TSettings | undefined => {
 
 /** A skill link sync made: a symlink into the shipped skills, stable or in the package, or into `.agents/skills`. */
 const isSkillLink = (opts: { root: string; path: string }): boolean => {
-  if (!isSymlink({ path: opts.path })) {
+  if (!SyncLinks.isSymlink({ path: opts.path })) {
     return false;
   }
 
   const target = readlinkSync(opts.path);
   const shipped = [
-    join(stableBaseDirectoryOf(opts), SyncConstants.SKILLS_DIRECTORY),
+    join(BaseDirectory.stableOf(opts), SyncConstants.SKILLS_DIRECTORY),
     join(BASE_DIRECTORY, SyncConstants.SKILLS_DIRECTORY),
     join(opts.root, '.agents', SyncConstants.SKILLS_DIRECTORY),
   ];
@@ -97,7 +91,7 @@ const planSharedMcpRemoval = (opts: { root: string }): ISyncAction[] => {
     return [];
   }
 
-  const removed = removeMcpEntry({ text: readFileSync(path, 'utf8'), key: 'mcpServers' });
+  const removed = McpConfig.removeEntry({ text: readFileSync(path, 'utf8'), key: 'mcpServers' });
 
   if (!removed.ok) {
     return [{ path, status: SyncStatuses.SKIPPED, note: removed.reason, apply: NO_CHANGE }];
@@ -107,7 +101,7 @@ const planSharedMcpRemoval = (opts: { root: string }): ISyncAction[] => {
     return [];
   }
 
-  if (isTracked({ root: opts.root, path: AgentConstants.SHARED_MCP_FILE })) {
+  if (AgentFiles.isTracked({ root: opts.root, path: AgentConstants.SHARED_MCP_FILE })) {
     return [
       {
         path,
@@ -144,8 +138,8 @@ const planGuardHookRemoval = (opts: {
   const text = readFileSync(opts.path, 'utf8');
   const removed =
     opts.kind === AgentGuardKinds.CODEX_HOOKS
-      ? removeCodexHooks({ text })
-      : removeGuardHook({ text });
+      ? CodexHooks.remove({ text })
+      : GuardHook.remove({ text });
   const folder = dirname(opts.path);
   const parent = OWN_FOLDERS.has(basename(folder)) ? folder : undefined;
 
@@ -159,7 +153,7 @@ const planGuardHookRemoval = (opts: {
     return [];
   }
 
-  if (isTracked({ root: opts.root, path: opts.relative })) {
+  if (AgentFiles.isTracked({ root: opts.root, path: opts.relative })) {
     return [
       {
         path: opts.path,
@@ -209,7 +203,7 @@ const planGuardsRemoval = (opts: { root: string; entry: TAgentEntry }): ISyncAct
     return [];
   }
 
-  if (isTracked({ root: opts.root, path: opts.entry.guards.path })) {
+  if (AgentFiles.isTracked({ root: opts.root, path: opts.entry.guards.path })) {
     return [
       { path, status: SyncStatuses.SKIPPED, note: 'tracked by git - left alone', apply: NO_CHANGE },
     ];
@@ -255,7 +249,7 @@ const planMcpRemoval = (opts: { root: string; entry: TAgentEntry }): ISyncAction
   const parent = OWN_FOLDERS.has(folder) ? join(opts.root, folder) : undefined;
 
   if (opts.entry.mcp.renderer === AgentRenderers.CODEX_TOML) {
-    const removed = removeCodexBlock({ text });
+    const removed = McpConfig.removeCodexBlock({ text });
 
     if (!removed.changed) {
       return [];
@@ -274,7 +268,7 @@ const planMcpRemoval = (opts: { root: string; entry: TAgentEntry }): ISyncAction
   }
 
   const key = opts.entry.mcp.renderer === AgentRenderers.SERVERS ? 'servers' : 'mcpServers';
-  const removed = removeMcpEntry({ text, key });
+  const removed = McpConfig.removeEntry({ text, key });
 
   if (!removed.ok) {
     return [{ path, status: SyncStatuses.SKIPPED, note: removed.reason, apply: NO_CHANGE }];
@@ -299,7 +293,7 @@ const planMcpRemoval = (opts: { root: string; entry: TAgentEntry }): ISyncAction
 const planSkillLinkRemoval = (opts: { root: string; directory: string }): ISyncAction[] => {
   const target = join(opts.root, opts.directory);
 
-  if (!existsSync(target) || isSymlink({ path: target })) {
+  if (!existsSync(target) || SyncLinks.isSymlink({ path: target })) {
     return [];
   }
 
@@ -338,7 +332,7 @@ const planClaudeRemoval = (opts: { root: string }): ISyncAction[] => {
   const managed = readJsonObject({ path: managedPath });
 
   if (settings !== undefined && managed !== undefined) {
-    const remaining = removeManagedSettings({ settings, managed });
+    const remaining = ProjectSettings.removeManaged({ settings, managed });
 
     actions.push(
       Object.keys(remaining).length === 0
@@ -356,55 +350,55 @@ const planClaudeRemoval = (opts: { root: string }): ISyncAction[] => {
     actions.push(removeFile({ path: managedPath }));
   }
 
-  actions.push(...planSkillLinkRemoval({ root: opts.root, directory: CLAUDE_SKILLS }));
+  actions.push(
+    ...planSkillLinkRemoval({ root: opts.root, directory: SyncConstants.CLAUDE_SKILLS }),
+  );
 
   return actions;
 };
 
-/**
- * What sync created for the agents that are no longer chosen, taken back: the Claude shim and managed
- * settings, a file sync wrote whole, the atlas key it merged into a file that holds more, the Codex
- * block, and the skill links no remaining agent still reads. A file the user changed so the entry is
- * no longer sync's is left and reported.
- */
-export const planAgentRemoval = (opts: {
-  root: string;
-  removed: string[];
-  remaining: string[];
-}): ISyncAction[] => {
-  const table = readAgentTable();
-  const kept = new Set(
-    table.filter((entry) => opts.remaining.includes(entry.id)).map((entry) => entry.skills.dir),
-  );
-  const cleaned = new Set<string>();
-  const actions: ISyncAction[] = [];
-  const stillReadsShared = table.some(
-    (entry) => opts.remaining.includes(entry.id) && entry.mcp.scope === AgentScopes.SHARED,
-  );
-  let sharedDone = false;
+export class AgentRemoval {
+  /**
+   * What sync created for the agents that are no longer chosen, taken back: the Claude shim and managed
+   * settings, a file sync wrote whole, the atlas key it merged into a file that holds more, the Codex
+   * block, and the skill links no remaining agent still reads. A file the user changed so the entry is
+   * no longer sync's is left and reported.
+   */
+  static plan(opts: { root: string; removed: string[]; remaining: string[] }): ISyncAction[] {
+    const table = AgentTable.read();
+    const kept = new Set(
+      table.filter((entry) => opts.remaining.includes(entry.id)).map((entry) => entry.skills.dir),
+    );
+    const cleaned = new Set<string>();
+    const actions: ISyncAction[] = [];
+    const stillReadsShared = table.some(
+      (entry) => opts.remaining.includes(entry.id) && entry.mcp.scope === AgentScopes.SHARED,
+    );
+    let sharedDone = false;
 
-  for (const entry of table.filter((item) => opts.removed.includes(item.id))) {
-    if (entry.id === AgentConstants.DEFAULT_AGENT) {
-      actions.push(...planClaudeRemoval({ root: opts.root }));
+    for (const entry of table.filter((item) => opts.removed.includes(item.id))) {
+      if (entry.id === AgentConstants.DEFAULT_AGENT) {
+        actions.push(...planClaudeRemoval({ root: opts.root }));
+      }
+
+      actions.push(...planMcpRemoval({ root: opts.root, entry }));
+      actions.push(...planGuardsRemoval({ root: opts.root, entry }));
+
+      if (entry.mcp.scope === AgentScopes.SHARED && !stillReadsShared && !sharedDone) {
+        sharedDone = true;
+        actions.push(...planSharedMcpRemoval({ root: opts.root }));
+      }
+
+      if (
+        entry.skills.dir !== SyncConstants.CLAUDE_SKILLS &&
+        !kept.has(entry.skills.dir) &&
+        !cleaned.has(entry.skills.dir)
+      ) {
+        cleaned.add(entry.skills.dir);
+        actions.push(...planSkillLinkRemoval({ root: opts.root, directory: entry.skills.dir }));
+      }
     }
 
-    actions.push(...planMcpRemoval({ root: opts.root, entry }));
-    actions.push(...planGuardsRemoval({ root: opts.root, entry }));
-
-    if (entry.mcp.scope === AgentScopes.SHARED && !stillReadsShared && !sharedDone) {
-      sharedDone = true;
-      actions.push(...planSharedMcpRemoval({ root: opts.root }));
-    }
-
-    if (
-      entry.skills.dir !== CLAUDE_SKILLS &&
-      !kept.has(entry.skills.dir) &&
-      !cleaned.has(entry.skills.dir)
-    ) {
-      cleaned.add(entry.skills.dir);
-      actions.push(...planSkillLinkRemoval({ root: opts.root, directory: entry.skills.dir }));
-    }
+    return actions;
   }
-
-  return actions;
-};
+}

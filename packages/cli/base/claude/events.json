@@ -1,0 +1,60 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-$PWD}/node_modules/@venizia/vulcan/base/hooks/event.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\"; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-$PWD}/node_modules/@venizia/vulcan/base/hooks/event.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\"; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-$PWD}/node_modules/@venizia/vulcan/base/hooks/event.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\"; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-$PWD}/node_modules/@venizia/vulcan/base/hooks/event.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\"; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "SendMessage",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-$PWD}/node_modules/@venizia/vulcan/base/hooks/event.ts\"; if [ -f \"$f\" ] && command -v bun >/dev/null 2>&1; then bun \"$f\"; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

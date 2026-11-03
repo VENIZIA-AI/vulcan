@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { runDoctorNotes } from '../../doctor/index.ts';
+import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
@@ -25,7 +25,7 @@ const AGENTS_MD = '# AGENTS.md\n\n## Must read first\n\n| a | b |\n\n## Commands
 const project = (opts: { mcp?: boolean; agents?: string } = {}) =>
   createProject({
     files: {
-      '.configs/vulcan.config.ts': CONFIG,
+      '.configs/vulcan.config.mts': CONFIG,
       'AGENTS.md': AGENTS_MD,
       ...(opts.mcp === false ? {} : { '.mcp.json': MCP }),
     },
@@ -75,7 +75,7 @@ describe('the Atlas block in AGENTS.md', () => {
 
     sync({ root });
     writeFileSync(
-      join(root, '.configs/vulcan.config.ts'),
+      join(root, '.configs/vulcan.config.mts'),
       CONFIG.replace("[{ name: 'ignis', repo: 'VENIZIA-AI/ignis', ref: 'develop' }]", '[]'),
     );
 
@@ -98,7 +98,7 @@ describe('the Atlas block in AGENTS.md', () => {
 
   test('doctor notes (info, never a failure) a missing block and then a current one', async () => {
     const root = project();
-    const before = await runDoctorNotes({ root });
+    const before = await DoctorRunner.runNotes({ root });
 
     expect(before.map((note) => note.file)).toContain('AGENTS.md');
     expect(before.find((note) => note.file === 'AGENTS.md')?.message).toBe(
@@ -107,13 +107,15 @@ describe('the Atlas block in AGENTS.md', () => {
 
     sync({ root });
 
-    expect((await runDoctorNotes({ root })).map((note) => note.file)).not.toContain('AGENTS.md');
+    const result = await DoctorRunner.runNotes({ root });
+    expect(result.map((note) => note.file)).not.toContain('AGENTS.md');
     expect(runCli({ args: ['doctor'], cwd: root }).stderr).not.toContain('Atlas block');
   });
 
   test('doctor notes a missing block whether or not a .mcp.json exists', async () => {
     const root = project({ mcp: false });
 
-    expect((await runDoctorNotes({ root })).map((note) => note.file)).toContain('AGENTS.md');
+    const result = await DoctorRunner.runNotes({ root });
+    expect(result.map((note) => note.file)).toContain('AGENTS.md');
   });
 });

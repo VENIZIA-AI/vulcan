@@ -13,6 +13,8 @@ export class LocalStates {
   static readonly ORPHAN = 'orphan';
   /** A worktree on a merged or gone branch that still holds uncommitted or untracked files: never removed. */
   static readonly DIRTY = 'dirty';
+  /** A release candidate whose version has been tagged: the release shipped, so it can go. */
+  static readonly SHIPPED = 'shipped';
   /** git could not say (not a repository, or git is missing): left alone. */
   static readonly UNKNOWN = 'unknown';
 }
@@ -26,7 +28,9 @@ export class CleanScopes {
   static readonly REPORTS = 'reports';
   static readonly PROTOTYPES = 'prototypes';
   static readonly PROFILE = 'profile';
-  /** `--all`: what an agent creates and can recreate. Reports, prototypes and the profile are named, never swept. */
+  static readonly EVENTS = 'events';
+  static readonly RELEASE_CANDIDATES = 'release-candidates';
+  /** `--all`: what an agent creates and can recreate. Reports, prototypes, events, release candidates and the profile are named, never swept. */
   static readonly ALL = [this.TMP, this.WORKTREES, this.CLONES, this.CACHE];
   static readonly SCHEME_SET = new Set<string>([
     this.TMP,
@@ -36,6 +40,8 @@ export class CleanScopes {
     this.REPORTS,
     this.PROTOTYPES,
     this.PROFILE,
+    this.EVENTS,
+    this.RELEASE_CANDIDATES,
   ]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);
@@ -47,4 +53,34 @@ export class LocalConstants {
   /** `doctor` prints the size of `.agents/local/` once it passes this. */
   static readonly NOTE_BYTES = 50 * 1024 * 1024;
   static readonly GIT_TIMEOUT_MS = 10_000;
+  /** Files VULCAN itself writes directly under `.agents/local/`; anything else there that is not a layout folder is unknown. */
+  static readonly KNOWN_FILES = new Set([
+    'profile.json',
+    'claude.launch.settings.json',
+    'violations.jsonl',
+    'auto-clean.json',
+    '.gitkeep',
+  ]);
+  /**
+   * Scratch folders a browser leaves directly under the temp folder it was given (`.agents/local` when it is
+   * the folder that is short enough for Chrome's socket). They are tmp that sits one level too high.
+   */
+  static readonly STRAY_TEMP = [/^\.?com\.google\.Chrome\./, /^\.?org\.chromium\.Chromium\./];
+  /** Ignored folders a build or an install makes again; an ignored file outside these keeps a worktree. Data, not code. */
+  static readonly REBUILDABLE_DIRECTORIES = [
+    'node_modules',
+    'dist',
+    '.turbo',
+    'coverage',
+    '.cache',
+  ];
+  static readonly REBUILDABLE_SUFFIXES = ['.tsbuildinfo'];
+  /** The name of a release candidate: a version, with an optional `v`. Any other name in `release-candidates/` is kept. */
+  static readonly RELEASE_VERSION = /^v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
+  /** How many entries of an ignored directory are looked at before it is reported whole. */
+  static readonly IGNORED_WALK_LIMIT = 20_000;
+  /** How many ignored files a note names before it says "and N more". */
+  static readonly NOTE_FILES = 5;
+  /** A stray folder may belong to a browser that is running; one this old does not. */
+  static readonly STRAY_MIN_AGE_MS = 60 * 60 * 1000;
 }

@@ -2,7 +2,7 @@ import { Database } from 'bun:sqlite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { buildIndexPair, generateKeyPair, signEnvelope } from '@/prebuilt';
+import { Envelope, IndexPair, PrebuiltKeys } from '@/prebuilt';
 import type { IIndexKeyPair, IIndexPayload } from '@/prebuilt';
 import {
   commitAll,
@@ -34,9 +34,9 @@ export const makeFixturePair = (
   opts: { repo?: string; keys?: IIndexKeyPair; work?: string } = {},
 ): IFixturePair => {
   const work = opts.work ?? makeSourceRepository().work;
-  const keys = opts.keys ?? generateKeyPair();
+  const keys = opts.keys ?? PrebuiltKeys.generatePair();
   const out = join(work, '.agents/local/tmp/pair');
-  const built = buildIndexPair({
+  const built = IndexPair.build({
     root: work,
     out,
     repo: opts.repo ?? 'acme/src',
@@ -69,7 +69,7 @@ export const withIndex = (opts: {
 
   opts.edit?.(payload);
 
-  return { gz, envelope: signEnvelope({ payload, privateKey: opts.pair.keys.privateKey }) };
+  return { gz, envelope: Envelope.sign({ payload, privateKey: opts.pair.keys.privateKey }) };
 };
 
 /** The pair's envelope with a change to its payload, signed again by the same key. */
@@ -81,7 +81,7 @@ export const resigned = (opts: {
 
   opts.edit(payload);
 
-  return signEnvelope({ payload, privateKey: opts.pair.keys.privateKey });
+  return Envelope.sign({ payload, privateKey: opts.pair.keys.privateKey });
 };
 
 /** The ten stored columns of every chunk, in the order the table holds them. */
@@ -102,7 +102,7 @@ export const rowsOf = (opts: { bytes: Uint8Array }): unknown[] => {
 /** A source whose manifest lists a key, with the pair CI would have built for that commit on the fake release. */
 export const makePrebuiltSource = () => {
   const source = makeSourceRepository();
-  const keys = generateKeyPair();
+  const keys = PrebuiltKeys.generatePair();
   const manifest = JSON.parse(
     readFileSync(join(source.work, '.agents/vulcan.manifest.json'), 'utf8'),
   );

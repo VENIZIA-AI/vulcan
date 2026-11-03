@@ -13,7 +13,7 @@ export interface IAgentQuestion {
 
 export type TAskAgents = (question: IAgentQuestion) => string | null;
 
-export type TAgentSource = TConstValue<typeof AgentSources>;
+type TAgentSource = TConstValue<typeof AgentSources>;
 
 export type TAgentResolution =
   | {

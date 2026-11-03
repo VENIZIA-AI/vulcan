@@ -13,7 +13,7 @@ tags: [overview, decisions]
 | Delivery is npm packages plus one `vulcan` CLI; a project pins one version | spec D3, D4 |
 | Extend only: a project adds, never edits a shipped piece | spec D2 |
 | Atlas is the single knowledge server; v1 adds concept graph, multi-project, persisted index, frozen contracts | spec D6 |
-| Project config at `.configs/vulcan.config.{ts,mts,mjs,js}` | spec D7 |
+| Project config at `.configs/vulcan.config.mts` | spec D7 |
 | The table generators live in atlas | ruling 2026-10-16 |
 | VULCAN ships a coding style: IGNIS's C-rules (`V-C-01..18`) plus `@venizia/dev-configs` | spec D9 |
 | OKF v0.2 as a spec layer (`okf check`) plus a house layer (`okf check --strict`) | ruling 2026-10-16 |
@@ -35,5 +35,4 @@ tags: [overview, decisions]
 
 - okf's renderers and coverage rows, and atlas's package lists, are IGNIS-specific; project config
   for them is a draft spec waiting for God.
-- The W/S/P/B base rules are interim until IGNIS, ARDOR and BANA are reconciled.
 - Multi-agent support (agy, omp, codex, gemini, cursor, copilot) is designed up to its first section.

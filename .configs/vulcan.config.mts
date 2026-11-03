@@ -3,6 +3,22 @@ import type { VulcanConfig } from '@venizia/vulcan';
 export default {
   agents: ['claude'],
   rules: { 'V-W-01': 'on-user-word' },
+  // W-00: a commit message never signs the commit as an agent. `vulcan sync` installs the commit-msg hook; CI runs the same check.
+  commit: { message: { agent: { signature: 'deny' } } },
+  // The colour of this project's pages (vulcan visualize); the generator has no colour of its own but a neutral slate.
+  theme: { accent: '#8a5a20', accentDark: '#dead6a' },
+  // The names on this repository's board page (vulcan board): the owner who answers asks, the title, the logo, and the faces of the Venizia agents.
+  board: {
+    owner: 'Phát',
+    title: 'VENIZIA Board',
+    logo: '.configs/board-logo.svg',
+    agents: {
+      'pnt-ignis-1': 'flame',
+      'pnt-ardor-1': 'ember',
+      'pnt-vulcan-1': 'rock',
+      'bana-forge': 'banana',
+    },
+  },
   knowledge: {
     bundle: '.agents/knowledge',
     wiki: 'docs/wiki/content',
@@ -19,7 +35,7 @@ export default {
     // `*-v*`, covers all three repositories.
     tagPattern: 'vulcan-v<version>',
     legacyTagPatterns: ['v<version>'],
-    // The public key of this repository's CI, which signs the atlas index it publishes (workflow atlas-index.yml);
+    // The public key of this repository's CI, which signs the atlas index it publishes (the atlas-index job of the workflow deploy-docs.yml);
     // the private key is the Actions secret ATLAS_INDEX_KEY and exists nowhere else.
     index: { keys: ['RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ='] },
   },

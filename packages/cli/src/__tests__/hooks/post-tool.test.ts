@@ -1,9 +1,9 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildPostToolOutput } from '../../hooks/post-tool.ts';
-import { buildPromptContract, buildStopOutput } from '../../hooks/index.ts';
-import { readSignals } from '../../signals/index.ts';
+import { PostToolOutput } from '../../hooks/post-tool.ts';
+import { OwnerReply } from '../../hooks/index.ts';
+import { SignalState } from '../../signals/index.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
@@ -57,7 +57,7 @@ const stopEvent = (text: string): Record<string, unknown> => {
 const project = (extra = ''): string => {
   const root = createProject({
     files: {
-      '.configs/vulcan.config.ts': `export default { owner: { report: { enforce: 'advise', shortReplyWords: 0${extra} } } };\n`,
+      '.configs/vulcan.config.mts': `export default { owner: { report: { enforce: 'advise', shortReplyWords: 0${extra} } } };\n`,
     },
   });
 
@@ -69,21 +69,21 @@ const project = (extra = ''): string => {
 const bash = (command: string, isFailure = false) =>
   toolEvent({ tool: 'Bash', input: { command }, isFailure });
 
-describe('buildPostToolOutput', () => {
+describe('PostToolOutput.build', () => {
   test('says nothing for ordinary calls and for input it cannot read', () => {
     const root = project();
 
-    expect(buildPostToolOutput({ projectRoot: root, input: bash('ls') })).toBeUndefined();
+    expect(PostToolOutput.build({ projectRoot: root, input: bash('ls') })).toBeUndefined();
 
     for (const input of [null, 'x', {}, badTool()]) {
-      expect(buildPostToolOutput({ projectRoot: root, input })).toBeUndefined();
+      expect(PostToolOutput.build({ projectRoot: root, input })).toBeUndefined();
     }
   });
 
   test('says the agent seems stuck on the third identical call, once per debounce window', () => {
     const root = project();
     const run = (now: number) =>
-      buildPostToolOutput({ projectRoot: root, input: bash('bun test'), now });
+      PostToolOutput.build({ projectRoot: root, input: bash('bun test'), now });
 
     expect(run(1000)).toBeUndefined();
     expect(run(2000)).toBeUndefined();
@@ -105,12 +105,12 @@ describe('buildPostToolOutput', () => {
   test('a failure event counts failures: three in five calls is a loop, and the hook name says failure', () => {
     const root = project();
     const fail = (command: string, now: number) =>
-      buildPostToolOutput({ projectRoot: root, input: bash(command, true), now });
+      PostToolOutput.build({ projectRoot: root, input: bash(command, true), now });
 
     fail('make x', 1);
-    buildPostToolOutput({ projectRoot: root, input: bash('ls'), now: 2 });
+    PostToolOutput.build({ projectRoot: root, input: bash('ls'), now: 2 });
     fail('make x', 3);
-    buildPostToolOutput({ projectRoot: root, input: bash('pwd'), now: 4 });
+    PostToolOutput.build({ projectRoot: root, input: bash('pwd'), now: 4 });
 
     const third = fail('make x', 5);
 
@@ -121,7 +121,7 @@ describe('buildPostToolOutput', () => {
   test('changing a skill or a rules file suggests the evals or the admission bar, once', () => {
     const root = project();
     const edit = (path: string) =>
-      buildPostToolOutput({
+      PostToolOutput.build({
         projectRoot: root,
         input: toolEvent({ tool: 'Edit', input: pathInput(path) }),
         now: 1,
@@ -146,8 +146,8 @@ describe('the claims at Stop', () => {
   test('"published" with no probe this turn is logged; after an npm view it is not', async () => {
     const root = project();
 
-    await buildPromptContract({ projectRoot: root });
-    await buildStopOutput({
+    await OwnerReply.buildPromptContract({ projectRoot: root });
+    await OwnerReply.buildStopOutput({
       projectRoot: root,
       input: stopEvent(`${LONG} The package is published.`),
     });
@@ -156,9 +156,9 @@ describe('the claims at Stop', () => {
 
     const probed = project();
 
-    await buildPromptContract({ projectRoot: probed });
-    buildPostToolOutput({ projectRoot: probed, input: bash('npm view @x/y version') });
-    await buildStopOutput({
+    await OwnerReply.buildPromptContract({ projectRoot: probed });
+    PostToolOutput.build({ projectRoot: probed, input: bash('npm view @x/y version') });
+    await OwnerReply.buildStopOutput({
       projectRoot: probed,
       input: stopEvent(`${LONG} The package is published.`),
     });
@@ -169,27 +169,32 @@ describe('the claims at Stop', () => {
   test('"all tests pass" after a failed test run this turn is contradicted, never blocks, and a short reply is checked too', async () => {
     const root = createProject({
       files: {
-        '.configs/vulcan.config.ts':
+        '.configs/vulcan.config.mts':
           "export default { owner: { report: { enforce: 'block', shortReplyWords: 20 } } };\n",
       },
     });
 
     mkdirSync(join(root, '.agents/local'), { recursive: true });
-    await buildPromptContract({ projectRoot: root });
-    buildPostToolOutput({ projectRoot: root, input: bash('bun test', true) });
+    await OwnerReply.buildPromptContract({ projectRoot: root });
+    PostToolOutput.build({ projectRoot: root, input: bash('bun test', true) });
 
-    expect(
-      await buildStopOutput({ projectRoot: root, input: stopEvent('All tests pass.') }),
-    ).toBeUndefined();
+    const result = await OwnerReply.buildStopOutput({
+      projectRoot: root,
+      input: stopEvent('All tests pass.'),
+    });
+    expect(result).toBeUndefined();
     expect(classesLogged(root)).toContain('contradicted-completion');
   });
 
   test('a new prompt forgets the last turn: a probe from before does not back a claim now', async () => {
     const root = project();
 
-    buildPostToolOutput({ projectRoot: root, input: bash('npm view x version'), now: 1 });
-    await buildPromptContract({ projectRoot: root });
-    await buildStopOutput({ projectRoot: root, input: stopEvent(`${LONG} It is live.`) });
+    PostToolOutput.build({ projectRoot: root, input: bash('npm view x version'), now: 1 });
+    await OwnerReply.buildPromptContract({ projectRoot: root });
+    await OwnerReply.buildStopOutput({
+      projectRoot: root,
+      input: stopEvent(`${LONG} It is live.`),
+    });
 
     expect(classesLogged(root)).toContain('public-claim-no-probe');
   });
@@ -197,8 +202,8 @@ describe('the claims at Stop', () => {
   test('a project adds the words of its owner language', async () => {
     const root = project(", claimWords: { public: ['xuat ban'], done: [] }");
 
-    await buildPromptContract({ projectRoot: root });
-    await buildStopOutput({ projectRoot: root, input: stopEvent('Da xuat ban roi.') });
+    await OwnerReply.buildPromptContract({ projectRoot: root });
+    await OwnerReply.buildStopOutput({ projectRoot: root, input: stopEvent('Da xuat ban roi.') });
 
     expect(classesLogged(root)).toContain('public-claim-no-probe');
   });
@@ -213,7 +218,7 @@ const background = (): Record<string, unknown> => {
 };
 
 describe('which gates failed', () => {
-  const failedGatesOf = (root: string) => readSignals({ root, session: '' }).failedGates;
+  const failedGatesOf = (root: string) => SignalState.read({ root, session: '' }).failedGates;
 
   test('a result with a non-zero exit code is a failure; a background command has no result yet', () => {
     const root = project();
@@ -236,8 +241,8 @@ describe('which gates failed', () => {
       return response;
     };
 
-    buildPostToolOutput({ projectRoot: root, input: withResponse('make lint', exit(2)) });
-    buildPostToolOutput({
+    PostToolOutput.build({ projectRoot: root, input: withResponse('make lint', exit(2)) });
+    PostToolOutput.build({
       projectRoot: root,
       input: withResponse('bun test', exit(1), background()),
     });
@@ -248,11 +253,11 @@ describe('which gates failed', () => {
   test('a failed lint is still failed after a passing test run, until lint itself passes', () => {
     const root = project();
 
-    buildPostToolOutput({ projectRoot: root, input: bash('make lint', true) });
-    buildPostToolOutput({ projectRoot: root, input: bash('make test') });
+    PostToolOutput.build({ projectRoot: root, input: bash('make lint', true) });
+    PostToolOutput.build({ projectRoot: root, input: bash('make test') });
     expect(failedGatesOf(root)).toEqual(['make lint']);
 
-    buildPostToolOutput({ projectRoot: root, input: bash('make lint') });
+    PostToolOutput.build({ projectRoot: root, input: bash('make lint') });
     expect(failedGatesOf(root)).toEqual([]);
   });
 });

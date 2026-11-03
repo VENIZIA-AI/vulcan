@@ -7,30 +7,23 @@
  */
 import { TypeScriptCompiler } from '@/common/compiler';
 import { DeclarationProgram } from '@/common/declaration-program';
-import { formatWithBun } from '@/common/format';
+import { BunFormatter } from '@/common/format';
 import { StderrLogger } from '@/common/logger';
-import { readPackageDirectory } from '@/common/package-entries';
+import { PackageEntries } from '@/common/package-entries';
 import type { IPackageMapEntry } from '@/common/package-map';
 import type { IPackageEntries } from '@/common/types';
-import {
-  hasAtlasProject,
-  livePackageDirs,
-  packagePathOf,
-  readAtlasProject,
-} from '@/common/project-config';
+import { ProjectConfig } from '@/common/project-config';
 import { PROJECT_ROOT } from '@/common/project';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import type TypeScript from 'typescript';
 import { PublicSurface } from '@/surface';
 
-export const SYMBOLS_OUTPUT = resolve(PROJECT_ROOT, '.agents/knowledge/reference/symbols.json');
-
 const SIGNATURE_MAX_CHARS = 300;
 const SHAPE_LENGTH = 12;
 
 /** One exported symbol, located in the source it was written in - never in the `dist` it was read from. */
-export interface ISymbolRecord {
+interface ISymbolRecord {
   name: string;
   package: string;
   subpath: string;
@@ -43,7 +36,7 @@ export interface ISymbolRecord {
   external?: boolean;
 }
 
-export interface ISymbolTable {
+interface ISymbolTable {
   generatedFrom: string;
   packages: string[];
   symbols: ISymbolRecord[];
@@ -158,12 +151,14 @@ export class AtlasSymbols {
   private static readonly warnedMissing = new Set<string>();
 
   static render(opts: { repoRoot?: string; packages?: string[] } = {}): string {
-    const project = hasAtlasProject() ? readAtlasProject() : undefined;
+    const project = ProjectConfig.hasAtlasProject() ? ProjectConfig.readAtlasProject() : undefined;
     const repoRoot = opts.repoRoot ?? project?.root ?? PROJECT_ROOT;
-    const packages = opts.packages ?? livePackageDirs({ project: project ?? readAtlasProject() });
+    const packages =
+      opts.packages ??
+      ProjectConfig.livePackageDirs({ project: project ?? ProjectConfig.readAtlasProject() });
     const read = packages.map((dir) =>
-      readPackageDirectory({
-        directory: resolve(repoRoot, packagePathOf({ project, dir })),
+      PackageEntries.readDirectory({
+        directory: resolve(repoRoot, ProjectConfig.packagePathOf({ project, dir })),
         name: dir,
       }),
     );
@@ -179,7 +174,10 @@ export class AtlasSymbols {
       })),
     };
 
-    return formatWithBun({ text: `${JSON.stringify(table, null, 2)}\n`, file: 'symbols.json' });
+    return BunFormatter.format({
+      text: `${JSON.stringify(table, null, 2)}\n`,
+      file: 'symbols.json',
+    });
   }
 
   /**
@@ -225,16 +223,6 @@ export class AtlasSymbols {
         }),
       )
       .sort(AtlasSymbols.compare);
-  }
-
-  static check(
-    opts: { repoRoot?: string; packages?: string[]; outputPath?: string } = {},
-  ): boolean {
-    const outputPath = opts.outputPath ?? SYMBOLS_OUTPUT;
-    const expected = AtlasSymbols.render({ repoRoot: opts.repoRoot, packages: opts.packages });
-    const actual = existsSync(outputPath) ? readFileSync(outputPath, 'utf8') : '';
-
-    return expected.trim() === actual.trim();
   }
 
   /** `packages/x/dist/cjs/y.d.ts` (or `dist/esm`, or a flat `dist`) as `packages/x/src/y.ts`; `undefined` when the path has no `dist` segment at all. */
@@ -505,10 +493,9 @@ export class AtlasSymbols {
 
 /** A debug view: atlas reads declarations when asked (D2); no project commits a symbol table. */
 export const runSymbolsCommand = (opts: { command?: string }): number => {
-  if (opts.command === 'gen' || opts.command === 'check') {
-    console.error(
-      `vulcan x atlas symbols ${opts.command}: gone in 0.2.0-0 - atlas reads the installed or built .d.ts when asked; delete .agents/knowledge/reference/symbols.json, and \`vulcan x atlas symbols\` prints what it reads`,
-    );
+  // A flag is ignored, as it always was; a word is a subcommand that does not exist.
+  if (opts.command !== undefined && !opts.command.startsWith('-')) {
+    console.error(`usage: vulcan x atlas symbols (no subcommand: '${opts.command}' is not one)`);
 
     return 2;
   }

@@ -1,8 +1,8 @@
 /**
  * The `plan` job of package-release.yml: what a dispatch would release, decided before anything is built.
  *
- *   bun scripts/release/plan.ts --bump <mode> --ref <refs/heads/...> [--issue <n>] [--package <package.json>]
- *     [--train <packages folder>] [--merge-trial] [--release-notes]
+ *   bun scripts/release/plan.ts --bump <mode> --ref <refs/heads/...> [--issue <n>] [--label <run title>]
+ *     [--package <package.json>] [--train <packages folder>] [--merge-trial]
  *
  * It resolves the target version of the bump, says whether that version is a prerelease or a stable (a
  * prerelease needs no approval, a stable needs one), and refuses a branch and version that do not belong
@@ -13,8 +13,8 @@
  * With `--train`, every package under the folder must carry the version of `--package` (one train, one
  * version), and the summary lists them; a mismatch is refused here rather than after the approval.
  *
- * With `--release-notes`, a stable with no changelog entry since the previous stable is refused: its GitHub
- * Release would have no notes (github-release.ts).
+ * With `--label` (the run title the dispatcher sent) and `--train`, a label that is not `<version> <kind> ·
+ * <package names> · #<issue> · <short sha>` as this job computes it is refused; an empty label is a dispatch by hand.
  *
  * With `--merge-trial`, a stable also tries the merge of main back into develop (merge-back.ts) and refuses
  * when it would stop; `develop_sha` is the head of develop that trial read.
@@ -30,24 +30,23 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { GithubRelease } from './github-release.ts';
 import { MergeBackConstants, ReleaseMergeBack } from './merge-back.ts';
 import { ReleaseBumps, ReleaseKinds } from './release-args.ts';
 import type { TReleaseKind } from './release-args.ts';
 
-export class ReleaseNpmTags {
+class ReleaseNpmTags {
   static readonly NEXT = 'next';
   static readonly LATEST = 'latest';
 }
 
-export interface IReleasePlan {
+interface IReleasePlan {
   version: string;
   kind: TReleaseKind;
   /** The dist-tag the publish goes under: `next` for a prerelease, `latest` for a stable. */
   npmTag: typeof ReleaseNpmTags.NEXT | typeof ReleaseNpmTags.LATEST;
 }
 
-export interface IReleasePlanResult {
+interface IReleasePlanResult {
   plan: IReleasePlan | undefined;
   problems: string[];
 }
@@ -170,7 +169,8 @@ export class ReleasePlan {
     }
 
     if (opts.issue !== undefined && opts.issue !== '' && !/^\d+$/.test(opts.issue)) {
-      problems.push(`the issue must be a number, not '${opts.issue}'`);
+      // Quoted: the job log reads a line that starts with `::` as a command, and the issue is typed by a person.
+      problems.push(`the issue must be a number, not ${ReleasePlan.quoted({ text: opts.issue })}`);
     }
 
     if (!ReleasePlan.isVersion({ value: opts.currentVersion })) {
@@ -223,6 +223,83 @@ export class ReleasePlan {
       });
   }
 
+  /** The short name of a train entry: `@venizia/vulcan-okf@0.4.8` is `okf`, `@venizia/vulcan@0.4.8` is `vulcan`. */
+  static shortNameOf(opts: { entry: string }): string {
+    const name = opts.entry.slice(0, opts.entry.lastIndexOf('@'));
+
+    return name.replace(/^@[^/]+\//, '').replace(/^vulcan-/, '') || 'vulcan';
+  }
+
+  /**
+   * The run title the dispatcher sends and this job checks: `0.4.8 stable · atlas,okf,vulcan · #581 · 285d5bd`.
+   * The workflow cannot work these out when it names the run, so the dispatcher says them, and `plan` refuses
+   * a title that is not what it computed: the title cannot name a version, a package or a commit the run does
+   * not release.
+   */
+  static labelOf(opts: {
+    version: string;
+    kind: TReleaseKind;
+    train: string[];
+    issue?: string;
+    sha?: string;
+  }): string {
+    const names = opts.train
+      .map((entry) => ReleasePlan.shortNameOf({ entry }))
+      .sort()
+      .join(',');
+    const issue = opts.issue === undefined || opts.issue === '' ? [] : [`#${opts.issue}`];
+    const sha = opts.sha === undefined || opts.sha === '' ? [] : [opts.sha.slice(0, 7)];
+
+    return [`${opts.version} ${opts.kind}`, names, ...issue, ...sha].join(' · ');
+  }
+
+  /**
+   * Text a person typed, quoted for the job log: a JSON string, with the characters that change how a line reads
+   * (control, zero-width and bidirectional ones) written as `\uXXXX` too, so the log shows what was sent.
+   */
+  static quoted(opts: { text: string }): string {
+    return JSON.stringify(opts.text).replace(/[\p{C}\p{Zl}\p{Zp}]/gu, (char) => {
+      const code = char.codePointAt(0) ?? 0;
+
+      return code > 0xffff
+        ? `\\u{${code.toString(16)}}`
+        : `\\u${code.toString(16).padStart(4, '0')}`;
+    });
+  }
+
+  /**
+   * Whether a workflow file declares the `label` input. GitHub refuses a dispatch that sends an input the workflow
+   * on the ref does not declare, so a branch that has not received the input yet (main, until the next Sync) is
+   * dispatched without a label and its run is titled by its own inputs. A file that cannot be read declares none.
+   */
+  static declaresLabel(opts: { workflow: string }): boolean {
+    try {
+      let node: unknown = Bun.YAML.parse(opts.workflow);
+
+      for (const key of ['on', 'workflow_dispatch', 'inputs', 'label']) {
+        if (typeof node !== 'object' || node === null || Array.isArray(node) || !(key in node)) {
+          return false;
+        }
+
+        node = Reflect.get(node, key);
+      }
+
+      return typeof node === 'object' && node !== null;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Why a label is not the one this plan gives; empty when it is, or when there is none. */
+  static labelProblems(opts: { label: string | undefined; expected: string }): string[] {
+    return opts.label === undefined || opts.label === '' || opts.label === opts.expected
+      ? []
+      : [
+          // Quoted: the job log reads a line that starts with `::` as a command.
+          `the label ${ReleasePlan.quoted({ text: opts.label })} is not what the plan computes: ${ReleasePlan.quoted({ text: opts.expected })}`,
+        ];
+  }
+
   /** One train has one version: why the packages do not all carry `version`; empty when they do. */
   static trainProblems(opts: { train: string[]; version: string }): string[] {
     const apart = opts.train.filter((entry) => !entry.endsWith(`@${opts.version}`));
@@ -269,10 +346,21 @@ export class ReleasePlan {
     // commit message, so a value that is not a number must be refused here, not skipped as a missing value.
     const issueIndex = args.indexOf('--issue');
     const issue = issueIndex === -1 ? undefined : (args[issueIndex + 1] ?? '');
+    // The label is read as given too, for the same reason: the run title shows whatever was dispatched.
+    const labelIndex = args.indexOf('--label');
+    const label = labelIndex === -1 ? undefined : (args[labelIndex + 1] ?? '');
     const packagePath =
       ReleaseMergeBack.flagValue({ args, flag: '--package' }) ??
       ReleasePlanConstants.DEFAULT_PACKAGE;
     const trainFolder = ReleaseMergeBack.flagValue({ args, flag: '--train' });
+
+    // A `--train` with no folder (the next word is a flag, as when a label is `--train`) would skip the train and
+    // the label checks, which only run with a train: refuse it instead.
+    if (args.includes('--train') && trainFolder === undefined) {
+      console.error('plan: --train needs a folder');
+
+      return 2;
+    }
 
     if (bump === undefined || ref === undefined) {
       console.error('plan: --bump <mode> and --ref <refs/heads/...> are required');
@@ -311,16 +399,18 @@ export class ReleasePlan {
       result.problems.push(...ReleasePlan.trainProblems({ train, version: currentVersion }));
     }
 
-    if (
-      result.plan?.kind === ReleaseKinds.STABLE &&
-      args.includes('--release-notes') &&
-      result.problems.length === 0
-    ) {
+    // The run title the dispatcher chose (an optional `label`, empty for a dispatch by hand) must be the plan's own.
+    if (result.plan !== undefined && train !== undefined) {
       result.problems.push(
-        ...GithubRelease.check({
-          cwd: opts.cwd ?? process.cwd(),
-          version: result.plan.version,
-          to: opts.env['GITHUB_SHA'] ?? 'HEAD',
+        ...ReleasePlan.labelProblems({
+          label,
+          expected: ReleasePlan.labelOf({
+            version: result.plan.version,
+            kind: result.plan.kind,
+            train,
+            issue,
+            sha: opts.env['GITHUB_SHA'],
+          }),
         }),
       );
     }

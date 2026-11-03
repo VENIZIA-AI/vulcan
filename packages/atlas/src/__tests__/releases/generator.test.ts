@@ -1,167 +1,45 @@
-import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { resolveChangelogPackages } from '@/changelogs';
-import { AtlasReleases } from '@/releases/generator';
-import { toAtlasProject } from '@/common/project-config';
+import { describe, expect, spyOn, test } from 'bun:test';
+import { ReleaseCompute } from '@/releases/compute';
+import { AtlasReleases, runReleasesCommand } from '@/releases/generator';
+import { ProjectConfig } from '@/common/project-config';
 import { IGNIS_PACKAGES } from '../fixtures/ignis-packages';
-import {
-  ignisCommittedFileOf,
-  ignisFileAt,
-  IGNIS_HAS_HISTORY,
-  ignisRevisionWithOf,
-  IGNIS_ROOT,
-} from '../ignis-root.helper';
+import { ignisCommittedFileOf, IGNIS_HAS_HISTORY, IGNIS_ROOT } from '../ignis-root.helper';
 
 const withFrontmatter = (opts: { frontmatter: string; body: string }): string =>
   `---\n${opts.frontmatter}\n---\n\n${opts.body}\n`;
 
-describe('resolveChangelogPackages - what migrate writes', () => {
-  test('a packages frontmatter list wins over everything else in the file', () => {
-    const text = withFrontmatter({
-      frontmatter: 'title: A change\npackages:\n  - kernel\n  - boot',
-      body: '| Symbol | Change | Package |\n|---|---|---|\n| `x` | New | helpers |\n',
-    });
-
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
-      'boot',
-      'kernel',
-    ]);
-  });
-
-  test('a Details table Package column names the packages, de-duplicated and sorted', () => {
-    const text = withFrontmatter({
-      frontmatter: 'title: A change',
-      body: [
-        '| Symbol | Change | Package |',
-        '|---|---|---|',
-        '| `a` | New | kernel |',
-        '| `b` | New | core-server |',
-        '| `c` | New | kernel |',
-      ].join('\n'),
-    });
-
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
-      'core-server',
-      'kernel',
-    ]);
-  });
-
-  test('a Package column cell spelt as a scoped npm name maps back to its directory', () => {
-    const text = withFrontmatter({
-      frontmatter: 'title: A change',
-      body: [
-        '| Symbol | Change | Package |',
-        '|---|---|---|',
-        '| `a` | New | `@venizia/ignis` |',
-        '| `b` | New | `@venizia/ignis-worker` |',
-      ].join('\n'),
-    });
-
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
-      'core-server',
-      'core-worker',
-    ]);
-  });
-
-  test('a Package column cell that names no package at all is dropped, not guessed', () => {
-    const text = withFrontmatter({
-      frontmatter: 'title: A change',
-      body: [
-        '| Symbol | Change | Package |',
-        '|---|---|---|',
-        '| `a` | New | Makefile |',
-        '| `b` | New | `.agents/knowledge/reference` |',
-      ].join('\n'),
-    });
-
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([]);
-  });
-
-  test('a table wins over a body mention - the first rule that hits is the answer', () => {
-    const text = withFrontmatter({
-      frontmatter: 'title: A change',
-      body: [
-        'Import it from `@venizia/ignis-helpers`.',
-        '',
-        '| Symbol | Change | Package |',
-        '|---|---|---|',
-        '| `a` | New | kernel |',
-      ].join('\n'),
-    });
-
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual(['kernel']);
-  });
-
-  test('body mentions map @venizia/ignis to core-server and the worker to core-worker', () => {
-    const text = withFrontmatter({
-      frontmatter: 'title: A change',
-      body: 'Both `@venizia/ignis` and `@venizia/ignis-worker` changed, plus `@venizia/ignis-helpers/core`.',
-    });
-
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([
-      'core-server',
-      'core-worker',
-      'helpers',
-    ]);
-  });
-
-  test('a file that names no package resolves to none', () => {
-    const text = withFrontmatter({
-      frontmatter: 'title: A change',
-      body: 'Prose with no package name and no details table.',
-    });
-
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([]);
-  });
-});
-
-describe('AtlasReleases.kindOf', () => {
+describe('ReleaseCompute.kindOfChangelog', () => {
   test('reads the first badge text', () => {
     const text = '# Changelog\n\n<Badge type="tip" text="New Feature" />\n';
 
-    expect(AtlasReleases.kindOf({ text })).toBe('New Feature');
+    expect(ReleaseCompute.kindOfChangelog({ text })).toBe('New Feature');
   });
 
   test('a file with no badge has no kind', () => {
-    expect(AtlasReleases.kindOf({ text: '# Changelog\n\nProse.\n' })).toBeNull();
+    expect(ReleaseCompute.kindOfChangelog({ text: '# Changelog\n\nProse.\n' })).toBeNull();
   });
 });
 
-describe('AtlasReleases.titleOf', () => {
+describe('ReleaseCompute.titleOfChangelog', () => {
   test('reads the frontmatter title', () => {
     const text = withFrontmatter({ frontmatter: 'title: A Real Title', body: '# Changelog' });
 
-    expect(AtlasReleases.titleOf({ text, file: '2026-01-01-thing.md' })).toBe('A Real Title');
+    expect(ReleaseCompute.titleOfChangelog({ text, file: '2026-01-01-thing.md' })).toBe(
+      'A Real Title',
+    );
   });
 
   test('falls back to the file stem rather than an empty title', () => {
-    expect(AtlasReleases.titleOf({ text: '# Changelog\n', file: '2026-01-01-thing.md' })).toBe(
-      '2026-01-01-thing',
-    );
+    expect(
+      ReleaseCompute.titleOfChangelog({ text: '# Changelog\n', file: '2026-01-01-thing.md' }),
+    ).toBe('2026-01-01-thing');
   });
 });
 
 // The table IGNIS committed until it adopted 0.2.0 - read from history once it is gone.
 const IGNIS_RELEASES = ignisCommittedFileOf({ path: '.agents/knowledge/reference/releases.json' });
 const hasGeneratedTable = IGNIS_RELEASES !== undefined;
-/**
- * Where 0.2.0-0 answers differently from IGNIS's committed table, and why: `@venizia/dev-configs`
- * mentions now count (the old pattern knew `@venizia/ignis...` only), so a dev-configs changelog
- * names dev-configs, and its mentions win over `packages/<dir>` paths (the first rule that hits).
- */
-const EXPLAINED_CHANGES: Record<string, string[]> = {
-  'changelog:2026-10-17-oxlint-lenient-fallback': ['dev-configs'],
-  'changelog:2026-10-17-lint-ignore-and-testing-helpers': ['dev-configs'],
-  'changelog:2026-10-17-dev-configs-house-rules': ['dev-configs'],
-  'changelog:2026-10-16-oxlint-oxfmt-migration': ['dev-configs'],
-  'changelog:2026-10-16-dev-configs-browser-tier': ['dev-configs'],
-  'changelog:2026-10-16-bun-tsconfig-extends': ['dev-configs'],
-  'changelog:2026-07-05-unified-repository-connectors': ['core-server', 'dev-configs', 'helpers'],
-  'changelog:2026-03-31-typescript-6-and-toolchain': ['dev-configs', 'inversion'],
-};
-
-const IGNIS_PROJECT = toAtlasProject({
+const IGNIS_PROJECT = ProjectConfig.toAtlasProject({
   root: IGNIS_ROOT,
   manifest: {
     schemaVersion: 1,
@@ -255,83 +133,29 @@ describe.skipIf(!hasGeneratedTable || !IGNIS_HAS_HISTORY)(
       expect(committedOrder.size).toBeGreaterThan(600);
       expect(misplaced).toEqual([]);
     });
-
-    test('what migrate will write: the committed packages, except the explained changes', () => {
-      // Read as IGNIS had them beside the table - before `migrate` wrote their `packages:` lists.
-      const revision = ignisRevisionWithOf({ path: '.agents/knowledge/reference/releases.json' });
-
-      for (const entry of committed.changelogs) {
-        const path = join('docs/wiki/content/changelogs', entry.file);
-        const changelog =
-          (revision === undefined ? undefined : ignisFileAt({ revision, path })) ??
-          readFileSync(join(IGNIS_ROOT, path), 'utf8');
-
-        expect(
-          resolveChangelogPackages({ text: changelog, packages: IGNIS_PACKAGES }),
-          entry.id,
-        ).toEqual(EXPLAINED_CHANGES[entry.id] ?? entry.packages);
-      }
-    });
   },
 );
 
-describe('AtlasReleases with project packages', () => {
-  test('a retired package keeps its old changelog entries', () => {
-    const text = withFrontmatter({
-      frontmatter: 'title: The docs server',
-      body: 'The `@venizia/ignis-docs-mcp` server answers search.',
-    });
+describe('runReleasesCommand', () => {
+  test('a subcommand word prints the usage naming it and exits 2; a flag is ignored', () => {
+    const error = spyOn(console, 'error').mockImplementation(() => {});
 
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual(['docs-mcp']);
-  });
+    try {
+      expect(runReleasesCommand({ command: 'gen' })).toBe(2);
+      expect(error).toHaveBeenCalledWith(
+        "usage: vulcan x atlas releases (no subcommand: 'gen' is not one)",
+      );
+      error.mockClear();
+      // A flag gets past the argument check: whatever happens next (here, no manifest in a test) is not the usage.
+      try {
+        runReleasesCommand({ command: '--root' });
+      } catch {
+        // The real command reads the project; only the usage line matters here.
+      }
 
-  test('an alias spelled as a npm name counts as a mention of its package', () => {
-    const text = withFrontmatter({
-      frontmatter: 'title: Workers',
-      body: 'Ships `@venizia/ignis-core-worker` builds.',
-    });
-    const packages = [
-      {
-        dir: 'core-worker',
-        name: '@venizia/ignis-worker',
-        path: 'packages/core-worker',
-        aliases: ['@venizia/ignis-core-worker'],
-        retired: false,
-      },
-    ];
-
-    expect(resolveChangelogPackages({ text, packages })).toEqual(['core-worker']);
-  });
-
-  test('a mention of a longer name is not a mention of its prefix', () => {
-    const text = withFrontmatter({
-      frontmatter: 'title: Unknown',
-      body: 'Uses `@venizia/ignis-unlisted` only.',
-    });
-
-    expect(resolveChangelogPackages({ text, packages: IGNIS_PACKAGES })).toEqual([]);
-  });
-});
-
-describe('AtlasReleases.packagesOf reads the declared list only (C3)', () => {
-  test('prose names no package any more - a Package column without a declared list is none', () => {
-    const text = withFrontmatter({
-      frontmatter: 'title: A change',
-      body: '| Package | Change |\n|---|---|\n| kernel | faster |',
-    });
-
-    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([]);
-  });
-
-  test('a declared list of npm names resolves to the packages it names', () => {
-    const text = withFrontmatter({
-      frontmatter: "title: A change\npackages: ['@venizia/ignis', '@venizia/ignis-docs-mcp']",
-      body: 'Body.',
-    });
-
-    expect(AtlasReleases.packagesOf({ text, packages: IGNIS_PACKAGES })).toEqual([
-      'core-server',
-      'docs-mcp',
-    ]);
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
   });
 });

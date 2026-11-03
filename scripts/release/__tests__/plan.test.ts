@@ -220,6 +220,13 @@ describe('ReleasePlan.plan: what the later jobs may carry', () => {
     expect(plan({ issue: '12\nCo-Authored-By: x' }).problems[0]).toContain('must be a number');
     expect(plan({ issue: 'abc' }).plan).toBeUndefined();
   });
+
+  test('a refused issue is quoted, so a line it carries cannot start with a log command', () => {
+    const [problem] = plan({ issue: '1\n::error::x' }).problems;
+
+    expect(problem).toBe('the issue must be a number, not "1\\n::error::x"');
+    expect(problem).not.toContain('\n');
+  });
 });
 
 describe('ReleasePlan.main', () => {
@@ -370,6 +377,189 @@ describe('ReleasePlan: one train, one version', () => {
   });
 });
 
+describe('ReleasePlan: the run title the dispatcher sends', () => {
+  const TRAIN = [
+    '@venizia/vulcan-okf@0.4.8-0',
+    '@venizia/vulcan-atlas@0.4.8-0',
+    '@venizia/vulcan@0.4.8-0',
+  ];
+  const SHA = '285d5bd976bb5a35753096698001472a5f0a17eb';
+
+  test('shortNameOf drops the scope and the vulcan- prefix, and the bare package is vulcan', () => {
+    expect(ReleasePlan.shortNameOf({ entry: '@venizia/vulcan-okf@0.4.8' })).toBe('okf');
+    expect(ReleasePlan.shortNameOf({ entry: '@venizia/vulcan-atlas@0.4.8' })).toBe('atlas');
+    expect(ReleasePlan.shortNameOf({ entry: '@venizia/vulcan@0.4.8' })).toBe('vulcan');
+    expect(ReleasePlan.shortNameOf({ entry: 'plain@1.0.0' })).toBe('plain');
+  });
+
+  test('labelOf is the version and kind, the sorted package names, the issue and the seven-character commit', () => {
+    expect(
+      ReleasePlan.labelOf({
+        version: '0.4.8',
+        kind: 'stable',
+        train: TRAIN,
+        issue: '581',
+        sha: SHA,
+      }),
+    ).toBe('0.4.8 stable · atlas,okf,vulcan · #581 · 285d5bd');
+  });
+
+  test('no issue and no commit leave their parts out', () => {
+    expect(ReleasePlan.labelOf({ version: '0.4.8-0', kind: 'prerelease', train: TRAIN })).toBe(
+      '0.4.8-0 prerelease · atlas,okf,vulcan',
+    );
+    expect(
+      ReleasePlan.labelOf({
+        version: '0.4.8-0',
+        kind: 'prerelease',
+        train: TRAIN,
+        issue: '',
+        sha: '',
+      }),
+    ).toBe('0.4.8-0 prerelease · atlas,okf,vulcan');
+  });
+
+  test('the order of the train does not change the label', () => {
+    const reversed = [...TRAIN].reverse();
+
+    expect(ReleasePlan.labelOf({ version: '1.0.0', kind: 'stable', train: reversed })).toBe(
+      ReleasePlan.labelOf({ version: '1.0.0', kind: 'stable', train: TRAIN }),
+    );
+  });
+
+  test('labelProblems accepts the expected label and an empty or absent one, and refuses any other', () => {
+    const expected = '0.4.8 stable · atlas,okf,vulcan · #581 · 285d5bd';
+
+    expect(ReleasePlan.labelProblems({ label: expected, expected })).toEqual([]);
+    expect(ReleasePlan.labelProblems({ label: '', expected })).toEqual([]);
+    expect(ReleasePlan.labelProblems({ label: undefined, expected })).toEqual([]);
+    expect(
+      ReleasePlan.labelProblems({ label: '0.4.9 stable · atlas,okf,vulcan', expected })[0],
+    ).toContain('is not what the plan computes');
+  });
+
+  test('quoted writes control, zero-width and bidirectional characters as escapes', () => {
+    const text = `a${String.fromCodePoint(0x202e)}b${String.fromCodePoint(0x200b)}c${String.fromCodePoint(0xe0041)}\n"d"`;
+
+    expect(ReleasePlan.quoted({ text })).toBe('"a\\u202eb\\u200bc\\u{e0041}\\n\\"d\\""');
+    expect(ReleasePlan.quoted({ text: '0.4.8 stable · atlas,okf,vulcan' })).toBe(
+      '"0.4.8 stable · atlas,okf,vulcan"',
+    );
+  });
+
+  test('a refused label is quoted with its hidden characters written out', () => {
+    const [problem] = ReleasePlan.labelProblems({
+      label: `::error::x${String.fromCodePoint(0x202e)}`,
+      expected: '0.4.8 stable',
+    });
+
+    expect(problem).toContain('"::error::x\\u202e"');
+    expect(problem).not.toContain(String.fromCodePoint(0x202e));
+  });
+
+  test('only a workflow that declares the label input can be sent one', () => {
+    const declared =
+      'name: Release\non:\n  workflow_dispatch:\n    inputs:\n      label:\n        type: string\n\njobs:\n  plan:\n    name: Plan\n';
+    const before =
+      'name: NPM Release\non:\n  workflow_dispatch:\n    inputs:\n      issue:\n        type: string\n\njobs:\n  plan:\n    name: Plan\n';
+
+    expect(ReleasePlan.declaresLabel({ workflow: declared })).toBe(true);
+    expect(ReleasePlan.declaresLabel({ workflow: before })).toBe(false);
+    // A `label:` further down, in a job or a step, is not an input.
+    expect(
+      ReleasePlan.declaresLabel({
+        workflow: `${before}    steps:\n      - name: x\n        with:\n          label: y\n`,
+      }),
+    ).toBe(false);
+    expect(
+      ReleasePlan.declaresLabel({
+        workflow: 'on:\n  push:\n    inputs:\n      label:\n        type: string\n',
+      }),
+    ).toBe(false);
+    expect(ReleasePlan.declaresLabel({ workflow: '' })).toBe(false);
+    expect(ReleasePlan.declaresLabel({ workflow: 'on: [unclosed' })).toBe(false);
+  });
+
+  test('the real workflow declares the label input', () => {
+    expect(
+      ReleasePlan.declaresLabel({
+        workflow: readFileSync(
+          join(import.meta.dir, '..', '..', '..', '.github', 'workflows', 'package-release.yml'),
+          'utf8',
+        ),
+      }),
+    ).toBe(true);
+  });
+
+  describe('main', () => {
+    const run = (opts: { label?: string; sha?: string }): number => {
+      const root = scratch();
+      const manifest = join(root, 'package.json');
+      const train = join(root, 'train');
+
+      writeFileSync(manifest, `${JSON.stringify({ name: 'x', version: '0.4.7' })}\n`);
+
+      for (const name of ['okf', 'cli']) {
+        mkdirSync(join(train, name), { recursive: true });
+        writeFileSync(
+          join(train, name, 'package.json'),
+          `${JSON.stringify({ name: `@venizia/vulcan${name === 'cli' ? '' : `-${name}`}`, version: '0.4.7' })}\n`,
+        );
+      }
+
+      return ReleasePlan.main({
+        args: [
+          '--bump',
+          'prerelease',
+          '--ref',
+          DEVELOP_REF,
+          '--issue',
+          '12',
+          ...(opts.label === undefined ? [] : ['--label', opts.label]),
+          '--package',
+          manifest,
+          '--train',
+          train,
+        ],
+        env: { RUNNER_TEMP: root, GITHUB_SHA: opts.sha ?? SHA },
+      });
+    };
+
+    test('a label that is the plan own is accepted, as is no label', () => {
+      expect(run({ label: '0.4.8-0 prerelease · okf,vulcan · #12 · 285d5bd' })).toBe(0);
+      expect(run({ label: '' })).toBe(0);
+      expect(run({})).toBe(0);
+    });
+
+    test('a label with another version, package set, issue or commit is refused', () => {
+      expect(run({ label: '0.4.9-0 prerelease · okf,vulcan · #12 · 285d5bd' })).toBe(1);
+      expect(run({ label: '0.4.8-0 prerelease · okf · #12 · 285d5bd' })).toBe(1);
+      expect(run({ label: '0.4.8-0 prerelease · okf,vulcan · #13 · 285d5bd' })).toBe(1);
+      expect(
+        run({ label: '0.4.8-0 prerelease · okf,vulcan · #12 · 285d5bd', sha: 'ffffffff' }),
+      ).toBe(1);
+    });
+
+    test('a label that starts with -- is read as given and refused, not skipped as a missing value', () => {
+      expect(run({ label: '--merge-trial' })).toBe(1);
+    });
+
+    test('a label that is --train cannot make plan skip the train and the label checks', () => {
+      expect(run({ label: '--train' })).toBe(2);
+    });
+
+    test('the refusal quotes the label, so a newline or a :: line cannot forge a log line', () => {
+      const [problem] = ReleasePlan.labelProblems({
+        label: 'x\n::add-mask::y',
+        expected: '0.4.8 stable',
+      });
+
+      expect(problem).toContain('"x\\n::add-mask::y"');
+      expect(problem).not.toContain('\n');
+    });
+  });
+});
+
 describe('ReleasePlan.main: --merge-trial', () => {
   /** A repository where main is at 0.1.0-0 and develop one prerelease ahead, with the refs a clone has. */
   const repository = (): { root: string; mainSha: string; developSha: string } => {
@@ -461,7 +651,7 @@ describe('ReleasePlan.main: --merge-trial', () => {
   });
 });
 
-describe('ReleasePlan.main: --release-notes', () => {
+describe('ReleasePlan.main: a stable and the changelog', () => {
   const stable = (opts: { root: string }): number =>
     ReleasePlan.main({
       args: [
@@ -471,13 +661,12 @@ describe('ReleasePlan.main: --release-notes', () => {
         MAIN_REF,
         '--package',
         join(opts.root, 'packages', 'cli', 'package.json'),
-        '--release-notes',
       ],
       env: { RUNNER_TEMP: scratch() },
       cwd: opts.root,
     });
 
-  test('a stable with no changelog entry is refused, and one with an entry is planned', () => {
+  test('a stable with no changelog entry is planned, and so is one with an entry: the changelog records only what affects users', () => {
     const root = scratch();
 
     git({ cwd: root, args: ['init', '-q', '-b', 'main'] });
@@ -499,7 +688,7 @@ describe('ReleasePlan.main: --release-notes', () => {
     git({ cwd: root, args: ['add', '-A'] });
     git({ cwd: root, args: ['commit', '-q', '-m', 'sync'] });
 
-    expect(stable({ root })).toBe(1);
+    expect(stable({ root })).toBe(0);
 
     writeFileSync(
       join(root, 'docs', 'changelogs', '2026-10-30-a.md'),

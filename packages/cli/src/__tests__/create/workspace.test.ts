@@ -1,28 +1,16 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import {
-  addAppBullet,
-  checkPeers,
-  filePresetWarning,
-  mergeCatalog,
-  parseAppsBlock,
-  pickPort,
-  presetSpecOf,
-  readPort,
-  recordPreset,
-  renderAppConcept,
-  renderLibConcept,
-  renderAppManifest,
-  renderAppsBlock,
-  renderKnowledgeIndex,
-  renderRootManifest,
-  renderVulcanConfig,
-  replaceAppsBlock,
+  AppsBlock,
+  WorkspaceManifest,
+  WorkspaceDocs,
+  PortRegistry,
+  PresetRecord,
 } from '../../create/workspace.ts';
-import { parseYamlMapping, splitFrontmatter } from '@venizia/vulcan-okf';
-import { renderBunfig } from '../../create/bunfig.ts';
-import { renderLibManifest } from '../../create/workspace.ts';
+import { OkfFrontmatter } from '@venizia/vulcan-okf';
+import { Bunfig } from '../../create/bunfig.ts';
 import { checkManifests } from '../format.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
+import { AppsBlockProblems } from '../../create/common/index.ts';
 import type { IAppsBlock, IPreset } from '../../create/index.ts';
 
 const PRESET: IPreset = {
@@ -43,13 +31,14 @@ const PRESET: IPreset = {
 const BLOCK: IAppsBlock = {
   layout: { backend: 'services', shared: 'libs' },
   packages: [{ dir: 'core-api', name: 'core-api', path: 'services/core-api' }],
+  presets: [],
   sources: [{ name: 'widget', repo: 'example/widget', ref: 'develop' }],
 };
 
 describe('workspace planners', () => {
   test('root manifest: private, workspaces, catalog, vulcan pinned exactly', () => {
     const manifest = JSON.parse(
-      renderRootManifest({
+      WorkspaceManifest.renderRoot({
         project: 'my-product',
         workspaces: ['services/*', 'libs/*'],
         catalog: { hono: '^4' },
@@ -66,18 +55,18 @@ describe('workspace planners', () => {
     });
   });
 
-  test('mergeCatalog keeps an existing version', () => {
+  test('WorkspaceManifest.mergeCatalog keeps an existing version', () => {
     expect(
-      mergeCatalog({
+      WorkspaceManifest.mergeCatalog({
         catalog: { '@venizia/widget': '0.2.2' },
         additions: { '@venizia/widget': '0.2.3', react: '^19' },
       }),
     ).toEqual({ '@venizia/widget': '0.2.2', react: '^19' });
   });
 
-  test('checkPeers names both versions when the catalog is outside the range', () => {
+  test('WorkspaceManifest.checkPeers names both versions when the catalog is outside the range', () => {
     expect(
-      checkPeers({
+      WorkspaceManifest.checkPeers({
         catalog: { '@venizia/widget-kernel': '0.2.2' },
         peers: { '@venizia/widget-kernel': '^0.3.0' },
       }),
@@ -85,21 +74,24 @@ describe('workspace planners', () => {
       'the monorepo pins @venizia/widget-kernel 0.2.2, but the preset needs ^0.3.0 - move the catalog first',
     );
     expect(
-      checkPeers({
+      WorkspaceManifest.checkPeers({
         catalog: { '@venizia/widget-kernel': '0.2.2' },
         peers: { '@venizia/widget-kernel': '^0.2.2' },
       }),
     ).toBeUndefined();
   });
 
-  test('checkPeers reads a caret-pinned catalog entry and skips a peer the catalog lacks', () => {
+  test('WorkspaceManifest.checkPeers reads a caret-pinned catalog entry and skips a peer the catalog lacks', () => {
     expect(
-      checkPeers({ catalog: { kit: '^1.4.0' }, peers: { kit: '^1.0.0', other: '^9.0.0' } }),
+      WorkspaceManifest.checkPeers({
+        catalog: { kit: '^1.4.0' },
+        peers: { kit: '^1.0.0', other: '^9.0.0' },
+      }),
     ).toBeUndefined();
   });
 
-  test('checkPeers refuses a prerelease pin that sorts before the release the peer range needs', () => {
-    const message = checkPeers({
+  test('WorkspaceManifest.checkPeers refuses a prerelease pin that sorts before the release the peer range needs', () => {
+    const message = WorkspaceManifest.checkPeers({
       catalog: { '@venizia/widget-kernel': '^0.2.2-5' },
       peers: { '@venizia/widget-kernel': '^0.2.2' },
     });
@@ -109,13 +101,18 @@ describe('workspace planners', () => {
     expect(message).toContain('prerelease');
   });
 
-  test('checkPeers accepts a prerelease pin when the peer range itself names that prerelease line', () => {
-    expect(checkPeers({ catalog: { kit: '0.2.2-5' }, peers: { kit: '^0.2.2-0' } })).toBeUndefined();
+  test('WorkspaceManifest.checkPeers accepts a prerelease pin when the peer range itself names that prerelease line', () => {
+    expect(
+      WorkspaceManifest.checkPeers({ catalog: { kit: '0.2.2-5' }, peers: { kit: '^0.2.2-0' } }),
+    ).toBeUndefined();
   });
 
-  test('checkPeers answers a catalog value that is not a version with a message, never a crash', () => {
+  test('WorkspaceManifest.checkPeers answers a catalog value that is not a version with a message, never a crash', () => {
     for (const pinned of ['workspace:*', 'git+https://example.test/kit.git', '>=1.0.0', 'latest']) {
-      const message = checkPeers({ catalog: { kit: pinned }, peers: { kit: '^1.0.0' } });
+      const message = WorkspaceManifest.checkPeers({
+        catalog: { kit: pinned },
+        peers: { kit: '^1.0.0' },
+      });
 
       expect(message).toContain(`kit ${pinned}`);
       expect(message).toContain('^1.0.0');
@@ -123,53 +120,142 @@ describe('workspace planners', () => {
     }
   });
 
-  test('parseAppsBlock reads back the block renderAppsBlock wrote, around any user lines', () => {
-    const source = `import x from 'y';\n${renderAppsBlock({ block: BLOCK })}\nexport default { packages: [...apps.packages, { dir: 'w' }] };\n`;
+  describe('WorkspaceManifest.checkPeers with the versions the preset lists itself', () => {
+    const own = {
+      dependencies: { kit: '0.4.6-0' },
+      devDependencies: { tool: '0.4.7-1' },
+    };
 
-    expect(parseAppsBlock({ source })).toEqual({ ok: true, block: BLOCK });
+    test('a pin equal to the preset own version in dependencies passes, prerelease or not', () => {
+      expect(
+        WorkspaceManifest.checkPeers({
+          catalog: { kit: '0.4.6-0' },
+          peers: { kit: '^0.4.0' },
+          presetVersions: own,
+        }),
+      ).toBeUndefined();
+      expect(
+        WorkspaceManifest.checkPeers({
+          catalog: { kit: '0.4.6' },
+          peers: { kit: '^0.4.0' },
+          presetVersions: { dependencies: { kit: '0.4.6' }, devDependencies: {} },
+        }),
+      ).toBeUndefined();
+    });
+
+    test('a pin equal to the preset own version in devDependencies passes', () => {
+      expect(
+        WorkspaceManifest.checkPeers({
+          catalog: { tool: '0.4.7-1' },
+          peers: { tool: '^0.4.0' },
+          presetVersions: own,
+        }),
+      ).toBeUndefined();
+    });
+
+    test('a pin that differs from the preset own version is checked as today', () => {
+      const peers = { kit: '^0.4.0' };
+
+      // A prerelease that is not the preset's own.
+      expect(
+        WorkspaceManifest.checkPeers({ catalog: { kit: '0.4.6-1' }, peers, presetVersions: own }),
+      ).toContain('a prerelease');
+      // A release below the range.
+      expect(
+        WorkspaceManifest.checkPeers({ catalog: { kit: '0.3.9' }, peers, presetVersions: own }),
+      ).toBe('the monorepo pins kit 0.3.9, but the preset needs ^0.4.0 - move the catalog first');
+      // Not a version at all.
+      expect(
+        WorkspaceManifest.checkPeers({
+          catalog: { kit: 'workspace:*' },
+          peers,
+          presetVersions: own,
+        }),
+      ).toContain('not a version');
+    });
+
+    test('a caret pin is not equal to the bare version the preset lists, so it is checked as today', () => {
+      const message = WorkspaceManifest.checkPeers({
+        catalog: { kit: '^0.4.6-0' },
+        peers: { kit: '^0.4.0' },
+        presetVersions: own,
+      });
+
+      expect(message).toContain('kit ^0.4.6-0');
+      expect(message).toContain('a prerelease');
+    });
+
+    test('a peer for a package the preset does not list is checked as today', () => {
+      expect(
+        WorkspaceManifest.checkPeers({
+          catalog: { other: '0.4.6-0' },
+          peers: { other: '^0.4.0' },
+          presetVersions: own,
+        }),
+      ).toContain('a prerelease');
+    });
+
+    test('the range || exact form keeps working', () => {
+      expect(
+        WorkspaceManifest.checkPeers({
+          catalog: { kit: '0.4.6-0' },
+          peers: { kit: '^0.4.0 || 0.4.6-0' },
+          presetVersions: { dependencies: {}, devDependencies: {} },
+        }),
+      ).toBeUndefined();
+    });
   });
 
-  test('parseAppsBlock tells a missing block from one that is no longer JSON', () => {
-    expect(parseAppsBlock({ source: 'export default {};\n' })).toEqual({
+  test('AppsBlock.parse reads back the block AppsBlock.render wrote, around any user lines', () => {
+    const source = `import x from 'y';\n${AppsBlock.render({ block: BLOCK })}\nexport default { packages: [...apps.packages, { dir: 'w' }] };\n`;
+
+    expect(AppsBlock.parse({ source })).toEqual({ ok: true, block: BLOCK });
+  });
+
+  test('AppsBlock.parse tells a missing block from one that is no longer JSON', () => {
+    expect(AppsBlock.parse({ source: 'export default {};\n' })).toEqual({
       ok: false,
       reason: 'missing',
     });
 
-    const edited = renderAppsBlock({ block: BLOCK }).replace('"layout"', 'layout');
+    const edited = AppsBlock.render({ block: BLOCK }).replace('"layout"', 'layout');
 
-    expect(parseAppsBlock({ source: edited })).toEqual({ ok: false, reason: 'invalid' });
+    expect(AppsBlock.parse({ source: edited })).toEqual({ ok: false, reason: 'invalid' });
   });
 
-  test('addAppBullet inserts one bullet after the last bullet under Apps and leaves the rest', () => {
+  test('AppsBlock.addBullet inserts one bullet after the last bullet under Apps and leaves the rest', () => {
     const source =
       '# p knowledge\n\nA hand-written paragraph.\n\n## Apps\n\n- [a](packages/a.md) - first\n- [b](packages/b.md) - second\n\n## Notes\n\nMine.\n- [z](z.md) - not an app\n';
-    const next = addAppBullet({ source, app: { name: 'c', summary: 'third' } });
+    const next = AppsBlock.addBullet({ source, app: { name: 'c', summary: 'third' } });
 
     expect(next).toBe(
       '# p knowledge\n\nA hand-written paragraph.\n\n## Apps\n\n- [a](packages/a.md) - first\n- [b](packages/b.md) - second\n- [c](packages/c.md) - third\n\n## Notes\n\nMine.\n- [z](z.md) - not an app\n',
     );
   });
 
-  test('addAppBullet adds an Apps section when the index has none', () => {
-    expect(addAppBullet({ source: '# p\n\nText.\n', app: { name: 'c', summary: 'third' } })).toBe(
-      '# p\n\nText.\n\n## Apps\n\n- [c](packages/c.md) - third\n',
-    );
+  test('AppsBlock.addBullet adds an Apps section when the index has none', () => {
+    expect(
+      AppsBlock.addBullet({ source: '# p\n\nText.\n', app: { name: 'c', summary: 'third' } }),
+    ).toBe('# p\n\nText.\n\n## Apps\n\n- [c](packages/c.md) - third\n');
   });
 
-  test('addAppBullet puts the first bullet under an empty Apps heading', () => {
+  test('AppsBlock.addBullet puts the first bullet under an empty Apps heading', () => {
     expect(
-      addAppBullet({ source: '## Apps\n\n## Notes\n', app: { name: 'c', summary: 'third' } }),
+      AppsBlock.addBullet({
+        source: '## Apps\n\n## Notes\n',
+        app: { name: 'c', summary: 'third' },
+      }),
     ).toBe('## Apps\n\n- [c](packages/c.md) - third\n\n## Notes\n');
   });
 
-  test('addAppBullet does not repeat a bullet the index already has', () => {
+  test('AppsBlock.addBullet does not repeat a bullet the index already has', () => {
     const source = '## Apps\n\n- [c](packages/c.md) - by hand\n';
 
-    expect(addAppBullet({ source, app: { name: 'c', summary: 'third' } })).toBe(source);
+    expect(AppsBlock.addBullet({ source, app: { name: 'c', summary: 'third' } })).toBe(source);
   });
 
-  test('filePresetWarning names the file: entry for a file: preset and stays silent for npm', () => {
-    const warning = filePresetWarning({
+  test('WorkspaceDocs.filePresetWarning names the file: entry for a file: preset and stays silent for npm', () => {
+    const warning = WorkspaceDocs.filePresetWarning({
       spec: { range: 'file:/abs/preset' },
       packageName: '@fixture/backend',
     });
@@ -178,7 +264,7 @@ describe('workspace planners', () => {
     expect(warning).toContain('file:/abs/preset');
     expect(warning).toContain('not portable');
     expect(
-      filePresetWarning({
+      WorkspaceDocs.filePresetWarning({
         spec: { packageName: '@fixture/backend', range: 'latest' },
         packageName: '@fixture/backend',
       }),
@@ -187,7 +273,7 @@ describe('workspace planners', () => {
 
   test('app manifest uses catalog: for every dependency and pins the preset package', () => {
     const manifest = JSON.parse(
-      renderAppManifest({
+      WorkspaceManifest.renderApp({
         app: 'core-api',
         preset: PRESET,
         presetPackage: { name: '@venizia/widget', version: '0.2.2' },
@@ -206,46 +292,95 @@ describe('workspace planners', () => {
   });
 
   test('the config reads the recorded presets from the block', () => {
-    expect(renderVulcanConfig({ project: 'my-product', block: BLOCK })).toContain(
+    expect(WorkspaceDocs.renderVulcanConfig({ project: 'my-product', block: BLOCK })).toContain(
       'presets: apps.presets,',
     );
   });
 
-  test('a block records the presets its apps came from, and reads back with or without them', () => {
+  test('a block records the presets its apps came from and reads back as written; one without the presets list is not a block', () => {
     const withPresets: IAppsBlock = {
       ...BLOCK,
       presets: [{ spec: 'ignis', side: 'backend', summary: 'An IGNIS API.' }],
     };
 
-    expect(parseAppsBlock({ source: renderAppsBlock({ block: withPresets }) })).toEqual({
+    expect(AppsBlock.parse({ source: AppsBlock.render({ block: withPresets }) })).toEqual({
       ok: true,
       block: withPresets,
     });
-    expect(parseAppsBlock({ source: renderAppsBlock({ block: BLOCK }) })).toEqual({
+    expect(AppsBlock.parse({ source: AppsBlock.render({ block: BLOCK }) })).toEqual({
       ok: true,
       block: BLOCK,
     });
+    expect(
+      AppsBlock.parse({
+        source: AppsBlock.render({ block: BLOCK }).replace('"presets"', '"others"'),
+      }),
+    ).toEqual({ ok: false, reason: AppsBlockProblems.INVALID });
+  });
+
+  test('a block with a shared summary on a preset and a presetKind on a package reads back as written', () => {
+    const withShared: IAppsBlock = {
+      ...BLOCK,
+      packages: [
+        ...BLOCK.packages,
+        { dir: 'money', name: '@p/money', path: 'libs/money', kind: 'lib', presetKind: 'shared' },
+        {
+          dir: 'feature',
+          name: '@p/feature',
+          path: 'libs/feature',
+          kind: 'lib',
+          presetKind: 'lib',
+        },
+      ],
+      presets: [
+        { spec: 'ignis', side: 'backend', summary: 'An API.', lib: 'A lib.', shared: 'Types.' },
+      ],
+    };
+
+    expect(AppsBlock.parse({ source: AppsBlock.render({ block: withShared }) })).toEqual({
+      ok: true,
+      block: withShared,
+    });
+  });
+
+  test('a package with a presetKind that is neither lib nor shared makes the block invalid', () => {
+    const bad = AppsBlock.render({ block: BLOCK }).replace(
+      '"path": "services/core-api"',
+      '"path": "services/core-api", "presetKind": "app"',
+    );
+
+    expect(bad).toContain('"presetKind": "app"');
+    expect(AppsBlock.parse({ source: bad })).toEqual({ ok: false, reason: 'invalid' });
+  });
+
+  test('a preset whose shared is not a string makes the block invalid', () => {
+    const bad = AppsBlock.render({ block: BLOCK }).replace(
+      '"sources"',
+      '"presets": [{ "spec": "ignis", "side": "backend", "summary": "s", "shared": 1 }],\n  "sources"',
+    );
+
+    expect(AppsBlock.parse({ source: bad })).toEqual({ ok: false, reason: 'invalid' });
   });
 
   test('a presets entry that is not { spec, side, summary } makes the block invalid', () => {
-    const bad = renderAppsBlock({ block: BLOCK }).replace(
+    const bad = AppsBlock.render({ block: BLOCK }).replace(
       '"sources"',
       '"presets": [{ "spec": 1 }],\n  "sources"',
     );
 
-    expect(parseAppsBlock({ source: bad })).toEqual({ ok: false, reason: 'invalid' });
+    expect(AppsBlock.parse({ source: bad })).toEqual({ ok: false, reason: 'invalid' });
   });
 
-  test('recordPreset adds a preset once and refreshes one that is already there', () => {
-    const once = recordPreset({
+  test('PresetRecord.record adds a preset once and refreshes one that is already there', () => {
+    const once = PresetRecord.record({
       block: BLOCK,
       preset: { spec: 'ignis', side: 'backend', summary: 'old' },
     });
-    const again = recordPreset({
+    const again = PresetRecord.record({
       block: once,
       preset: { spec: 'ignis', side: 'backend', summary: 'new' },
     });
-    const other = recordPreset({
+    const other = PresetRecord.record({
       block: again,
       preset: { spec: 'ardor', side: 'frontend', summary: 'An admin.' },
     });
@@ -255,29 +390,31 @@ describe('workspace planners', () => {
     expect(other.presets?.map((item) => item.spec)).toEqual(['ignis', 'ardor']);
   });
 
-  test('presetSpecOf records a package spec as typed and a file: spec relative to the project', () => {
-    expect(presetSpecOf({ value: 'ignis', root: '/work/p', cwd: '/work/p' })).toBe('ignis');
-    expect(presetSpecOf({ value: '@acme/kit@1.2.0', root: '/work/p', cwd: '/work/p' })).toBe(
-      '@acme/kit@1.2.0',
+  test('PresetRecord.presetSpecOf records a package spec as typed and a file: spec relative to the project', () => {
+    expect(PresetRecord.presetSpecOf({ value: 'ignis', root: '/work/p', cwd: '/work/p' })).toBe(
+      'ignis',
     );
-    expect(presetSpecOf({ value: 'file:../kit', root: '/work/p', cwd: '/work/p' })).toBe(
-      'file:../kit',
-    );
-    expect(presetSpecOf({ value: 'file:./presets/api', root: '/work/p', cwd: '/work/p' })).toBe(
-      'file:presets/api',
-    );
-    expect(presetSpecOf({ value: 'file:/work/other/kit', root: '/work/p', cwd: '/work/p' })).toBe(
-      'file:../other/kit',
-    );
+    expect(
+      PresetRecord.presetSpecOf({ value: '@acme/kit@1.2.0', root: '/work/p', cwd: '/work/p' }),
+    ).toBe('@acme/kit@1.2.0');
+    expect(
+      PresetRecord.presetSpecOf({ value: 'file:../kit', root: '/work/p', cwd: '/work/p' }),
+    ).toBe('file:../kit');
+    expect(
+      PresetRecord.presetSpecOf({ value: 'file:./presets/api', root: '/work/p', cwd: '/work/p' }),
+    ).toBe('file:presets/api');
+    expect(
+      PresetRecord.presetSpecOf({ value: 'file:/work/other/kit', root: '/work/p', cwd: '/work/p' }),
+    ).toBe('file:../other/kit');
   });
 
-  test('config block round-trips through replaceAppsBlock', () => {
-    const source = renderVulcanConfig({ project: 'my-product', block: BLOCK });
+  test('config block round-trips through AppsBlock.replace', () => {
+    const source = WorkspaceDocs.renderVulcanConfig({ project: 'my-product', block: BLOCK });
 
     expect(source).toContain("name: 'my-product'");
     expect(source).toContain('satisfies VulcanConfig');
 
-    const next = replaceAppsBlock({
+    const next = AppsBlock.replace({
       source,
       block: { ...BLOCK, layout: { ...BLOCK.layout, frontend: 'web' } },
     });
@@ -287,36 +424,38 @@ describe('workspace planners', () => {
   });
 
   test('the config init writes leaves the agents to each developer', () => {
-    expect(renderVulcanConfig({ project: 'my-product', block: BLOCK })).not.toContain('agents');
+    expect(WorkspaceDocs.renderVulcanConfig({ project: 'my-product', block: BLOCK })).not.toContain(
+      'agents',
+    );
   });
 
-  test('replaceAppsBlock keeps what the user wrote outside the markers', () => {
-    const source = renderVulcanConfig({ project: 'my-product', block: BLOCK }).replace(
-      '  layout: apps.layout,',
-      "  agents: ['claude', 'codex'],\n  layout: apps.layout,",
-    );
-    const next = replaceAppsBlock({ source, block: { ...BLOCK, packages: [] } });
+  test('AppsBlock.replace keeps what the user wrote outside the markers', () => {
+    const source = WorkspaceDocs.renderVulcanConfig({
+      project: 'my-product',
+      block: BLOCK,
+    }).replace('  layout: apps.layout,', "  agents: ['claude', 'codex'],\n  layout: apps.layout,");
+    const next = AppsBlock.replace({ source, block: { ...BLOCK, packages: [] } });
 
     expect(next).toContain("agents: ['claude', 'codex']");
     expect(next).toContain('"packages": []');
   });
 
-  test('replaceAppsBlock returns undefined when the markers are gone', () => {
-    expect(replaceAppsBlock({ source: 'export default {};\n', block: BLOCK })).toBeUndefined();
+  test('AppsBlock.replace returns undefined when the markers are gone', () => {
+    expect(AppsBlock.replace({ source: 'export default {};\n', block: BLOCK })).toBeUndefined();
   });
 
-  test('replaceAppsBlock returns undefined when the markers are swapped', () => {
-    const source = renderVulcanConfig({ project: 'my-product', block: BLOCK });
+  test('AppsBlock.replace returns undefined when the markers are swapped', () => {
+    const source = WorkspaceDocs.renderVulcanConfig({ project: 'my-product', block: BLOCK });
     const swapped = source
       .replace('// vulcan:apps:end', '// TMP')
       .replace(/\/\/ vulcan:apps:start[^\n]*/, '// vulcan:apps:end')
       .replace('// TMP', '// vulcan:apps:start - moved');
 
-    expect(replaceAppsBlock({ source: swapped, block: BLOCK })).toBeUndefined();
+    expect(AppsBlock.replace({ source: swapped, block: BLOCK })).toBeUndefined();
   });
 
   test('knowledge index links every app and has no scaffold marker', () => {
-    const index = renderKnowledgeIndex({
+    const index = WorkspaceDocs.renderKnowledgeIndex({
       project: 'my-product',
       apps: [{ name: 'core-api', summary: 'A fixture backend.' }],
     });
@@ -327,7 +466,7 @@ describe('workspace planners', () => {
   });
 
   test('the app concept names its folder, side and preset package', () => {
-    const concept = renderAppConcept({
+    const concept = WorkspaceDocs.renderAppConcept({
       app: { name: 'core-api', side: 'backend', folder: 'services' },
       summary: 'A fixture backend.',
       presetPackage: '@venizia/widget',
@@ -341,12 +480,12 @@ describe('workspace planners', () => {
 
   // An agent took a one-line page for a spec; the page says it is not one and names the lookups.
   test('the app concept says it is a summary and points at the atlas lookups of its side', () => {
-    const backend = renderAppConcept({
+    const backend = WorkspaceDocs.renderAppConcept({
       app: { name: 'core-api', side: 'backend', folder: 'services' },
       summary: 'A fixture backend.',
       presetPackage: '@venizia/widget',
     });
-    const frontend = renderAppConcept({
+    const frontend = WorkspaceDocs.renderAppConcept({
       app: { name: 'web', side: 'frontend', folder: 'apps' },
       summary: 'A fixture frontend.',
       presetPackage: '@venizia/widget',
@@ -361,8 +500,8 @@ describe('workspace planners', () => {
     expect(frontend).not.toContain('controller routes');
   });
 
-  test('the lib concept points at the lookups of a shared package', () => {
-    const lib = renderLibConcept({
+  test('the lib concept points at the lookups of a library', () => {
+    const lib = WorkspaceDocs.renderLibConcept({
       name: 'money',
       path: 'libs/money',
       summary: 'A fixture library.',
@@ -370,19 +509,19 @@ describe('workspace planners', () => {
     });
 
     expect(lib).toContain('a summary, not a spec');
-    expect(lib).toContain('`search` "shared package exports"');
+    expect(lib).toContain('`search` "library exports"');
     expect(lib).toContain('`symbol`');
   });
 
   test('a summary with a newline, a colon and quotes still gives frontmatter that parses', () => {
     const summary = 'Line one: a "quoted" part\nline two # not a comment, [brackets] & more';
-    const concept = renderAppConcept({
+    const concept = WorkspaceDocs.renderAppConcept({
       app: { name: 'core-api', side: 'backend', folder: 'services' },
       summary,
       presetPackage: '@venizia/widget',
     });
-    const { yaml } = splitFrontmatter({ text: concept });
-    const parsed = parseYamlMapping({ yaml: yaml ?? '' });
+    const { yaml } = OkfFrontmatter.split({ text: concept });
+    const parsed = OkfFrontmatter.parseMapping({ yaml: yaml ?? '' });
 
     expect(parsed.ok).toBe(true);
     expect(parsed.ok && parsed.data.description).toBe(summary);
@@ -392,7 +531,7 @@ describe('workspace planners', () => {
   });
 
   test('a multi-line summary stays on one line in the knowledge index', () => {
-    const index = renderKnowledgeIndex({
+    const index = WorkspaceDocs.renderKnowledgeIndex({
       project: 'my-product',
       apps: [{ name: 'core-api', summary: 'First line\nsecond line' }],
     });
@@ -401,14 +540,14 @@ describe('workspace planners', () => {
   });
 
   test('ports: the preferred one when free, the next free otherwise; read from .env.example', () => {
-    expect(pickPort({ preferred: 3000, used: [] })).toBe(3000);
-    expect(pickPort({ preferred: 3000, used: [3000, 3001] })).toBe(3002);
-    expect(readPort({ envExample: 'X=1\nAPP_ENV_SERVER_PORT=3001\n' })).toBe(3001);
-    expect(readPort({ envExample: 'X=1\n' })).toBeUndefined();
+    expect(PortRegistry.pick({ preferred: 3000, used: [] })).toBe(3000);
+    expect(PortRegistry.pick({ preferred: 3000, used: [3000, 3001] })).toBe(3002);
+    expect(PortRegistry.read({ envExample: 'X=1\nAPP_ENV_SERVER_PORT=3001\n' })).toBe(3001);
+    expect(PortRegistry.read({ envExample: 'X=1\n' })).toBeUndefined();
   });
 
-  test('renderAppsBlock is valid JSON between the markers', () => {
-    const block = renderAppsBlock({ block: BLOCK });
+  test('AppsBlock.render is valid JSON between the markers', () => {
+    const block = AppsBlock.render({ block: BLOCK });
     const json = block
       .split('\n')
       .slice(2, -1)
@@ -419,8 +558,8 @@ describe('workspace planners', () => {
     expect(JSON.parse(json)).toEqual(BLOCK);
   });
 
-  test('renderAppsBlock tells bun fmt to leave the JSON as written, just above the declaration', () => {
-    const lines = renderAppsBlock({ block: BLOCK }).split('\n');
+  test('AppsBlock.render tells bun fmt to leave the JSON as written, just above the declaration', () => {
+    const lines = AppsBlock.render({ block: BLOCK }).split('\n');
 
     expect(lines[1]).toBe('// prettier-ignore');
     expect(lines[2]).toMatch(/^const apps = /);
@@ -445,11 +584,11 @@ describe('rendered manifests are sorted the way bun fmt wants', () => {
 
   const accepted = (opts: { text: string }): { code: number; output: string } =>
     checkManifests({
-      root: createProject({ files: { 'bunfig.toml': renderBunfig(), 'package.json': opts.text } }),
+      root: createProject({ files: { 'bunfig.toml': Bunfig.render(), 'package.json': opts.text } }),
     });
 
   test('the root manifest', () => {
-    const text = renderRootManifest({
+    const text = WorkspaceManifest.renderRoot({
       project: 'my-product',
       workspaces: ['services/*', 'libs/*'],
       catalog: { zod: '^4', hono: '^4' },
@@ -460,7 +599,7 @@ describe('rendered manifests are sorted the way bun fmt wants', () => {
   });
 
   test('an app manifest', () => {
-    const text = renderAppManifest({
+    const text = WorkspaceManifest.renderApp({
       app: 'core-api',
       preset: { ...PRESET, urls: ['http://localhost:3000'], imports: { '#/*': './src/*' } },
       presetPackage: { name: '@fixture/backend', version: '1.0.0' },
@@ -470,7 +609,7 @@ describe('rendered manifests are sorted the way bun fmt wants', () => {
   });
 
   test('a library manifest, whatever order the lib preset passes its fields in', () => {
-    const text = renderLibManifest(LIB);
+    const text = WorkspaceManifest.renderLib(LIB);
 
     expect(Object.keys(JSON.parse(text))[0]).toBe('name');
     expect(accepted({ text }).code, accepted({ text }).output).toBe(0);

@@ -85,7 +85,7 @@ Read the finished page once, top to bottom, as the reader from Step 1. If any se
 - Never abbreviate identifiers (Repository, not Repo; TDocument, not TDoc) - in prose and in samples (V-C-04).
 - Every code sample must compile against the real source. Verify names and signatures in the source before writing them. Examples import what app code imports; prose names the canonical name and lists aliases.
 - File links point at a file, never at a line number: lines move, files rarely do.
-- Changelogs are user-facing: what changed, who is affected, how to migrate. Not a commit log.
+- Changelogs are user-facing and short: what changed and the benefit, who is affected, how to migrate. Not a commit log, and nothing internal.
 - The project's docs-site rules (its generator's limits, link style) live in `.agents/rules.md` or its own skill.
 - The knowledge bundle (`.agents/knowledge`) follows the same sentence rules. Its readers are agents, but a wall of text fails them too - use short paragraphs and bullets, keep the "constraint the code cannot show" focus.
 

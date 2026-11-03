@@ -24,7 +24,6 @@ The manifest is always written.
 |---|---|---|---|
 | `--agents <list>` | string | the stored choice | The agents to write adapters for, comma-separated, or `none`. Stored in `.agents/vulcan.local.json`. `--agents list` prints the table of agents and writes nothing. In a terminal, `--agents` with no value asks again |
 | `--dry-run` | boolean | false | Print planned changes without writing to disk |
-| `--prune` | boolean | false | Remove stale hook commands and dead skill links |
 
 ## Choosing your agents
 
@@ -44,7 +43,7 @@ Which coding agents do you use in this project? (comma-separated; Enter accepts 
 
 The answer is stored in `.agents/vulcan.local.json`, which is gitignored, and every later `sync` uses it without asking. On the first question an empty answer (Enter) takes the detected list. When you ask again (`vulcan sync --agents` with no value, or `vulcan agents setup`), the question shows `chosen before:` and Enter keeps that choice; to change it, type the new list, or `none`. Without a terminal, give the list: `vulcan sync --agents claude,omp` (`none` writes only `AGENTS.md`-level files).
 
-The order that decides the list is: the `--agents` flag; the stored file; the `agents` list in the project's config, when it has one; a project that already has `CLAUDE.md` or `.claude/` (treated as `claude`); then the question. When nothing is known and there is no terminal, `sync` does what it always did, writes the Claude files, and prints one line saying how to choose; it stores nothing. What each chosen agent gets from `sync`:
+The order that decides the list is: the `--agents` flag; the stored file; the `agents` list in the project's config, when it has one; then the question. When nothing is known and there is no terminal, `sync` writes the Claude files and prints one line saying how to choose; it stores nothing. A project that already has `CLAUDE.md` or `.claude/` gets no special treatment: its first `sync` asks like any other. What each chosen agent gets from `sync`:
 
 | Agent | Atlas MCP entry | Where |
 |---|---|---|
@@ -75,7 +74,7 @@ Claude Code, omp and Copilot CLI read one file, the root `.mcp.json`. It is a pe
 - **It is merged, not replaced.** Your other servers and keys stay, and the `atlas` key goes in after them. An `atlas` entry that is not this one is yours and is left as it is (`vulcan doctor` warns when it serves another root).
 - **It stays out of git on your machine.** `sync` lists `/.mcp.json` once in the `.git/info/exclude` block, however many of the three agents you chose.
 - **`vulcan agents remove` takes it back** when no remaining agent reads it: the `atlas` entry is taken out, and the file goes when nothing else is in it. An entry you changed is left and the line says so.
-- **A tracked file is never touched.** A project that commits `.mcp.json` today keeps it as it is: `sync` neither rewrites it nor lists it in the exclude block, and `vulcan doctor` warns: `tracked by git; VULCAN now writes it per machine. Run `git rm --cached .mcp.json` and let sync manage it.` After `git rm --cached` the file stays on disk. If its `atlas` entry is the one above, `sync` adopts it as its own: it reports `unchanged`, adds it to the exclude block, and `agents remove` can take it back. Any other `atlas` entry stays yours.
+- **A tracked file is never touched.** A project that commits `.mcp.json` today keeps it as it is: `sync` neither rewrites it nor lists it in the exclude block. After `git rm --cached` the file stays on disk. If its `atlas` entry is the one above, `sync` adopts it as its own: it reports `unchanged`, adds it to the exclude block, and `agents remove` can take it back. Any other `atlas` entry stays yours.
 
 ## The Atlas block in AGENTS.md
 
@@ -94,6 +93,21 @@ How to build something here (a feature, a controller, a service, a repository): 
 ```
 
 The corpora come from the config (the project and every `atlas.sources` entry). `sync` inserts the block before the section that follows "Must read first" (or at the end), rewrites only what sits between the markers on later runs, and never touches your text around it. `vulcan doctor` prints an `info` line when the block is missing or out of date; it never fails.
+
+## The event hooks
+
+When `events.log` is `true`, `sync` adds one Claude Code hook for each of `SessionStart`, `Stop`, `SubagentStop`, `Notification` and `PostToolUse` (on the `SendMessage` tool only) to `.claude/settings.json`. They write the [agent event log](/references/commands/event). They sit beside the hooks VULCAN already ships, run with a 5 second limit, and never block the agent. Set `events.log` back to `false` and the next `sync` removes those entries and only those. `events.dir` alone installs nothing.
+
+## The commit-msg hook
+
+When `commit.message` turns a commit check on, `sync` installs a `commit-msg` git hook in your clone, so every commit message is checked, whoever or whatever makes the commit. Nothing is installed for a project that sets no check.
+
+- With no `core.hooksPath`, it writes `.git/hooks/commit-msg`, and a linked worktree shares it.
+- A hook that `sync` did not write is never touched: `sync` prints `skipped` and the line to add, `bun x --no-install vulcan commit-check "$1"`.
+- With `core.hooksPath` set, `sync` writes nothing there and prints the same line for that folder's `commit-msg` hook.
+- When you turn every check off, `sync` removes a hook it wrote.
+
+`--dry-run` lists the action as `would create`, `would replace` or `would remove`. [vulcan commit-check](/references/commands/commit-check#the-hook) has the details; `vulcan doctor` warns when the hook is not in order.
 
 ## Your own skills
 
@@ -182,12 +196,10 @@ $ bun x --no-install vulcan sync
 | `created` | The target file or symbolic link did not exist and was written. |
 | `unchanged` | The target file or symbolic link already matches the planned content. |
 | `replaced` | The target existed with different content or pointed elsewhere, and was rewritten. |
-| `removed` | A stale hook command was taken out of `.claude/settings.json` under `--prune`, or a dead skill link was removed. Plain `sync` removes only a dead link into a shipped skill; `--prune` removes every dead skill link. |
+| `removed` | A dead skill link was removed: a link into a shipped skill this version no longer has, or into a skill of yours that is gone. |
 | `skipped` | The target was left untouched due to a conflict or invalid content. |
 
-An old `CLAUDE.md` symlink is replaced (`replaced (old symlink)`).
-The `CLAUDE.md` that `bun init` writes (it starts with `Default to using Bun instead of Node.js.`) is replaced too (`replaced (bun init's template)`), because those are Bun's tips and not your project's words.
-A target is skipped when `CLAUDE.md` contains any other hand-written content.
+A target is skipped when `CLAUDE.md` exists and is not exactly `@AGENTS.md`: `sync` never replaces a file it did not write (`skipped (hand-written - delete it to let sync write '@AGENTS.md')`).
 It is also skipped when `.claude/settings.json` is not valid JSON.
 A skill link is skipped when `.claude/skills` is a symbolic link or the target is a real directory.
 
@@ -205,8 +217,10 @@ Each later source overrides the earlier sources:
 2. Shipped settings: Base settings from VULCAN register the `SessionStart` hook and the `guard-writes` `PreToolUse` hook, and approve the project's `atlas` server (`enabledMcpjsonServers: ["atlas"]`), so Claude does not ask you to approve `.mcp.json` the first time. A list of your own approved servers is kept and `atlas` is added to it.
 3. Slot choices: Settings defined for chosen slot options in `base/slots.json`, such as git write restrictions for `V-W-01`.
 4. Remote hosts: If configuration defines `remoteHosts`, VULCAN adds the `guard-remote-hosts` `PreToolUse` hook.
-5. Project hooks: Custom hooks declared under `hooks` in `.configs/vulcan.config.mts`, grouped by event.
-6. Claude settings: Team settings declared under `claude.settings` in `.configs/vulcan.config.mts`.
+5. Commit attribution: With `commit.message.agent.signature: 'deny'`, VULCAN sets `attribution` empty so Claude Code adds no signature to commits and pull requests ([the details](/references/commands/commit-check#claude-code-s-own-attribution)).
+6. Event hooks: With `events.log: true`, VULCAN adds the five hooks of the [agent event log](/references/commands/event).
+7. Project hooks: Custom hooks declared under `hooks` in `.configs/vulcan.config.mts`, grouped by event.
+8. Claude settings: Team settings declared under `claude.settings` in `.configs/vulcan.config.mts`.
 
 ### Merge behavior
 
@@ -254,39 +268,6 @@ $ bun x --no-install vulcan sync --dry-run
   would create  .agents/vulcan.local.json
   would replace .git/info/exclude
 ```
-
-## Pruning stale entries
-
-To remove obsolete hooks and dead skill links, pass `--prune`:
-
-```text
-$ bun x --no-install vulcan sync --prune
-  unchanged CLAUDE.md
-  replaced  .claude/settings.json (shipped, slot, project hooks and claude.settings over personal keys)
-  unchanged .claude/skills/build-a-feature
-  unchanged .claude/skills/docs-update
-  unchanged .claude/skills/docs-writing
-  unchanged .claude/skills/fix-a-bug
-  unchanged .claude/skills/knowledge-sync
-  unchanged .claude/skills/plan-a-change
-  unchanged .claude/skills/report-back
-  unchanged .claude/skills/review-a-change
-  unchanged .mcp.json
-  unchanged .agents/vulcan.manifest.json
-  unchanged AGENTS.md
-  unchanged .agents/vulcan.local.json
-  unchanged .git/info/exclude
-  removed   .claude/settings.json (stale hook: bun .agents/hooks/old.ts)
-```
-
-`--prune` removes every dead skill link; a plain `sync` already removes dead links into shipped skills.
-Prune checks for stale hook commands across two patterns.
-It removes an exact old shipped command unless present in current shipped settings.
-It also removes a command that is `bun` or `node` followed by a `.agents/...ts` path whose file is gone.
-An optional `${CLAUDE_PROJECT_DIR}/` prefix is accepted.
-
-A hook you wrote yourself is never pruned.
-Custom commands, scripts outside `.agents/`, and existing script files remain untouched.
 
 ## When to run sync
 
@@ -362,7 +343,7 @@ The `rules.base` section stores one short hash per base rule, so a rule change i
 
 After the actions, `vulcan sync` prints one line per base-rule change.
 Each line is labelled `added`, `changed` or `removed`.
-A retired rule shows `(retired)`.
+A removed rule shows its ID alone.
 
 The manifest also includes optional fields when configured:
 

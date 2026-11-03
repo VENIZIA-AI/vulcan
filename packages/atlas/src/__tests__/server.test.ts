@@ -1,5 +1,5 @@
 import { RpcError } from '@/protocol/common';
-import { buildServer } from '@/server';
+import { buildRepositoryServer } from './server.helper';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -39,44 +39,36 @@ const parseReply = (
 } => JSON.parse(line ?? 'null');
 
 const listToolNames = async (opts: {
-  transport: ReturnType<typeof buildServer>;
+  transport: ReturnType<typeof buildRepositoryServer>;
 }): Promise<string[]> => {
-  const reply = parseReply(
-    await opts.transport.handleLine({
-      line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
-    }),
-  );
+  const result2 = await opts.transport.handleLine({
+    line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+  });
+  const reply = parseReply(result2);
 
   return (reply.result?.tools ?? []).map((tool) => tool.name);
 };
 
-describe('buildServer', () => {
+describe('SourcesServer.build for one repository source', () => {
   test('repo mode exposes exactly the search, get, symbol, version, changes and presets tools', async () => {
-    const transport = buildServer({
+    const transport = buildRepositoryServer({
       root: REPOSITORY_ROOT,
       version: TEST_VERSION,
     });
 
-    expect(await listToolNames({ transport })).toEqual([
-      'search',
-      'get',
-      'symbol',
-      'version',
-      'changes',
-      'presets',
-    ]);
+    const result = await listToolNames({ transport });
+    expect(result).toEqual(['search', 'get', 'symbol', 'version', 'changes', 'presets']);
   });
 
   test('serverInfo.version is whatever version buildServer was given, not a hardcoded string (I6)', async () => {
-    const transport = buildServer({
+    const transport = buildRepositoryServer({
       root: REPOSITORY_ROOT,
       version: TEST_VERSION,
     });
-    const reply = parseReply(
-      await transport.handleLine({
-        line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
-      }),
-    );
+    const result2 = await transport.handleLine({
+      line: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+    });
+    const reply = parseReply(result2);
 
     expect(reply.result?.serverInfo?.version).toBe(TEST_VERSION);
   });
@@ -89,7 +81,7 @@ describe('buildServer', () => {
       let caught: unknown;
 
       try {
-        buildServer({ root, version: TEST_VERSION });
+        buildRepositoryServer({ root, version: TEST_VERSION });
       } catch (error) {
         caught = error;
       }

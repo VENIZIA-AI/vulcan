@@ -1,10 +1,10 @@
-import { compileReleaseTemplate } from '@/releases';
+import { ReleaseTemplate } from '@/releases';
 import { describe, expect, test } from 'bun:test';
 
 const groupsOf = (opts: { template: string; subject: string }) =>
-  compileReleaseTemplate({ template: opts.template }).exec(opts.subject)?.groups;
+  ReleaseTemplate.compile({ template: opts.template }).exec(opts.subject)?.groups;
 
-describe('compileReleaseTemplate', () => {
+describe('ReleaseTemplate.compile', () => {
   const IGNIS_FORM = '[#<issue>] chore(<dir>): release v<version>';
 
   test('the IGNIS form reads the directory and the version, the mode tolerated', () => {
@@ -36,13 +36,11 @@ describe('compileReleaseTemplate', () => {
     });
   });
 
-  test('<package> is a synonym of <dir>', () => {
-    expect(
-      groupsOf({
-        template: 'release(<package>) <version>',
-        subject: 'release(kernel) 1.2.3',
-      }),
-    ).toMatchObject({ dir: 'kernel', version: '1.2.3' });
+  test('<package> is no placeholder: it reads as literal text and names no directory', () => {
+    const template = 'release(<package>) <version>';
+
+    expect(groupsOf({ template, subject: 'release(kernel) 1.2.3' })).toBeUndefined();
+    expect(groupsOf({ template, subject: 'release(<package>) 1.2.3' })?.dir).toBeUndefined();
   });
 
   test('a train template has no directory: the commit releases every live package', () => {

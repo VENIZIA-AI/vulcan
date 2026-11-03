@@ -17,7 +17,7 @@ export interface IRpcRequest {
 }
 
 /** `code` is a plain number: a tool-thrown `RpcError` can carry any code, not only the five reserved ones. */
-export interface IRpcError {
+interface IRpcError {
   code: number;
   message: string;
 }

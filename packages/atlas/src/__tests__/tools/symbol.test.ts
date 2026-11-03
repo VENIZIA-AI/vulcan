@@ -5,7 +5,7 @@ import { Transport } from '@/protocol';
 import { ChunkStore } from '@/search/store';
 import { SymbolStore } from '@/symbols';
 import type { ISymbolRecord } from '@/symbols';
-import { buildSymbolTool } from '@/tools/symbol.tool';
+import { SymbolTool } from '@/tools/symbol.tool';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 
@@ -55,7 +55,7 @@ const callSymbol = async (opts: {
   result?: { content: { type: string; text: string }[] };
 }> => {
   const transport = new Transport({
-    tools: [buildSymbolTool({ store: buildChunkStore(), symbols: opts.symbols })],
+    tools: [SymbolTool.build({ store: buildChunkStore(), symbols: opts.symbols })],
     serverName: 'atlas-test',
     serverVersion: '0.0.0',
   });
@@ -104,7 +104,8 @@ describe('symbol tool', () => {
   });
 
   test('a name in two packages answers with every match', async () => {
-    const payload = payloadOf(await callSymbol({ symbols, args: { name: 'respond' } }));
+    const result = await callSymbol({ symbols, args: { name: 'respond' } });
+    const payload = payloadOf(result);
 
     expect(payload.matches).toHaveLength(2);
     expect(payload.matches.map((match: ISymbolRecord) => match.package).sort()).toEqual([
@@ -114,9 +115,8 @@ describe('symbol tool', () => {
   });
 
   test('a package filter narrows an ambiguous name back to one record', async () => {
-    const payload = payloadOf(
-      await callSymbol({ symbols, args: { name: 'respond', package: 'kernel' } }),
-    );
+    const result = await callSymbol({ symbols, args: { name: 'respond', package: 'kernel' } });
+    const payload = payloadOf(result);
 
     expect(payload.matches).toBeUndefined();
     expect(payload.package).toBe('@venizia/ignis-kernel');

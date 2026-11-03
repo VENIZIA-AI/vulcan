@@ -1,13 +1,10 @@
 import { HookConstants } from './common/index.ts';
 
-/** The most a subagent's start card may be: it is paid for once per subagent, so it carries gates only. */
-export const SUBAGENT_CARD_MAX_CHARACTERS = 1600;
-
 /**
  * What a subagent must keep, and nothing else: the project's own rules are one path away, and the owner
  * shape and the profile are for the agent that talks to the owner. Each line cites its base rule.
  */
-export const SUBAGENT_CARD = [
+const SUBAGENT_CARD = [
   '# VULCAN: rules for a subagent',
   '',
   'You work for a main agent, inside this project. Base rules: `node_modules/@venizia/vulcan/base/rules.md`; this project: `.agents/rules.md`.',
@@ -23,10 +20,14 @@ export const SUBAGENT_CARD = [
   '',
 ].join('\n');
 
-/** The SubagentStart answer: the card as the subagent's added context. */
-export const buildSubagentStartOutput = () => ({
-  hookSpecificOutput: {
-    hookEventName: HookConstants.SUBAGENT_START,
-    additionalContext: SUBAGENT_CARD,
-  },
-});
+export class SubagentCard {
+  /** The SubagentStart answer: the card as the subagent's added context. */
+  static buildStartOutput() {
+    return {
+      hookSpecificOutput: {
+        hookEventName: HookConstants.SUBAGENT_START,
+        additionalContext: SUBAGENT_CARD,
+      },
+    };
+  }
+}

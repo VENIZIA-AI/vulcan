@@ -1,8 +1,8 @@
 import { ignisProjectAt } from '../fixtures/ignis-packages';
-import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
+import { Chunker, CorpusLoader, RepositoryRoots } from '@/corpus';
 import { Transport } from '@/protocol';
 import { ChunkStore } from '@/search';
-import { buildGetTool } from '@/tools/get.tool';
+import { GetTool } from '@/tools/get.tool';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
@@ -41,14 +41,14 @@ describe.skipIf(!hasRepositoryRoots)(
     // The body runs while bun collects tests, skipped or not: read the page only when it exists.
     const ids = hasRepositoryRoots ? idsQuotedOn({ page: EXTENSION_PAGE }) : [];
     const documents = CorpusLoader.getInstance().load({
-      roots: resolveRepositoryRoots({ project: ignisProjectAt({ root: REPOSITORY_ROOT }) }),
+      roots: RepositoryRoots.resolve({ project: ignisProjectAt({ root: REPOSITORY_ROOT }) }),
     });
     const chunker = Chunker.getInstance();
     const store = new ChunkStore();
 
     store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
     const transport = new Transport({
-      tools: [buildGetTool({ store })],
+      tools: [GetTool.build({ store })],
       serverName: 'atlas-test',
       serverVersion: '0.0.0',
     });

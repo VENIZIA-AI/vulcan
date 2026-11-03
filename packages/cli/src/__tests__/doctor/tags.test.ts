@@ -1,6 +1,6 @@
 import { afterAll, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
-import { DoctorChecks, runDoctorChecks } from '../../doctor/index.ts';
+import { DoctorChecks, DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -14,8 +14,8 @@ const CONFIG = `export default {
 };
 `;
 
-const projectWithTags = (opts: { tags: string[] }): string => {
-  const root = createProject({ files: { '.configs/vulcan.config.ts': CONFIG } });
+const projectWithTags = (opts: { tags: string[]; config?: string }): string => {
+  const root = createProject({ files: { '.configs/vulcan.config.mts': opts.config ?? CONFIG } });
   const git = (args: string[]): void => {
     execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
       cwd: root,
@@ -33,17 +33,19 @@ const projectWithTags = (opts: { tags: string[] }): string => {
   return root;
 };
 
-const tagViolations = async (opts: { root: string }) =>
-  (await runDoctorChecks({ root: opts.root })).filter(
-    (violation) => violation.check === DoctorChecks.TAGS,
-  );
+const tagViolations = async (opts: { root: string }) => {
+  const checks = await DoctorRunner.runChecks({ root: opts.root });
+
+  return checks.filter((violation) => violation.check === DoctorChecks.TAGS);
+};
 
 test('every tag the pattern reads names a declared package - by directory, alias or retired', async () => {
   const root = projectWithTags({
     tags: ['core-server-v1.0.0', 'core-v0.1.0', 'old-v0.0.1', 'legacy/0.0.1-0', 'not-a-release'],
   });
 
-  expect(await tagViolations({ root })).toEqual([]);
+  const result = await tagViolations({ root });
+  expect(result).toEqual([]);
 });
 
 test('a tag naming no declared package is a violation (positive control)', async () => {
@@ -53,4 +55,15 @@ test('a tag naming no declared package is a violation (positive control)', async
   expect(violations.map((violation) => violation.message)).toEqual([
     "tag ghost-v1.0.0 reads as a release of 'ghost', which no package declares - declare it (retired: true if it is gone), add it as an alias, or ignore the tag (atlas.ignoreTags)",
   ]);
+});
+
+test('<package> is no placeholder: a template written with it names no directory, so no tag is checked', async () => {
+  const root = projectWithTags({
+    tags: ['ghost-v1.0.0'],
+    config: CONFIG.replace('<dir>-v<version>', '<package>-v<version>'),
+  });
+
+  const result = await tagViolations({ root });
+
+  expect(result).toEqual([]);
 });

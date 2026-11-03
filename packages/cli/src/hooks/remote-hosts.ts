@@ -1,8 +1,8 @@
 import { HookConstants } from './common/index.ts';
 import type { IWriteHit } from './common/index.ts';
-import { isDataOnly } from './command-view.ts';
-import { forHost } from './decision.ts';
-import { optionTakesNextWord, programOf, splitHeredocs } from './shell.ts';
+import { CommandView } from './command-view.ts';
+import { HookDecision } from './decision.ts';
+import { ShellParser, ShellPrograms } from './shell.ts';
 
 // -----------------------------------------------------------------------------
 // The remote-host guard: a Bash command that reaches a host the project has not listed asks first.
@@ -13,7 +13,7 @@ import { optionTakesNextWord, programOf, splitHeredocs } from './shell.ts';
 // cannot read (a substitution, a jump through a command, an unknown client) asks.
 // -----------------------------------------------------------------------------
 
-export interface IRemoteHostsPolicy {
+interface IRemoteHostsPolicy {
   /** Hosts any command may reach. */
   trusted: string[];
   /** Hosts that only the strict read-only forms may reach. */
@@ -54,43 +54,8 @@ const PATTERN_CHARACTERS = /^[a-z0-9._*-]+$/;
 const normalizeVariable = (opts: { host: string }): string =>
   opts.host.replace(/^\$\{(\w+)\}$/, '$$$1');
 
-/** Whether `host` is one of `entries`: whole-name equal, or a `*` pattern. Case-insensitive. */
-export const matchesHost = (opts: { host: string; entries: string[] }): boolean => {
-  const host = normalizeVariable({ host: opts.host.toLowerCase() });
-
-  return opts.entries.some((entry) => {
-    const wanted = normalizeVariable({ host: entry.toLowerCase() });
-
-    if (!wanted.includes(WILDCARD)) {
-      return host === wanted;
-    }
-
-    if (
-      !PATTERN_CHARACTERS.test(wanted) ||
-      wanted.replaceAll(WILDCARD, '').replaceAll('.', '') === ''
-    ) {
-      return false;
-    }
-
-    const pattern = wanted
-      .split(WILDCARD)
-      .map((part) => part.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&'))
-      .join('[a-z0-9._-]*');
-
-    return new RegExp(`^${pattern}$`).test(host);
-  });
-};
-
-/** The personal trusted list: one host per line, `#` starts a comment. */
-export const parseTrustedList = (opts: { text: string }): string[] =>
-  opts.text
-    .split('\n')
-    .map((line) => line.replace(/#.*$/, '').trim())
-    .filter((line) => line !== '');
-
-// --- reading a command ---
-
 const SEPARATORS = new Set([';', '&', '|', '\n', '(', ')']);
+
 const REDIRECTS = new Set(['<', '>']);
 
 /** Shell words, split into the commands they form. Quotes are removed; a `#` word starts a comment. */
@@ -241,25 +206,10 @@ const SHELL_KEYWORDS = new Set([
 
 const HTTP_CLIENTS = new Set(['curl', 'wget', 'http', 'https', 'httpie', 'xh', 'xhs']);
 
-/** Programs that run the rest of their line; the options each takes a value for are in `hooks/shell.ts`. */
-const WRAPPERS = new Set([
-  'sudo',
-  'doas',
-  'env',
-  'time',
-  'nohup',
-  'nice',
-  'ionice',
-  'exec',
-  'stdbuf',
-  'timeout',
-  'setsid',
-  'xargs',
-  'watch',
-  'sshpass',
-]);
+/** Programs that run the rest of their line: the names and the options each takes a value for are in `hooks/shell.ts`; `command` is handled apart below. */
+const WRAPPERS = new Set(ShellPrograms.WRAPPER_NAMES.filter((name) => name !== 'command'));
 
-const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh', 'ash']);
+const SHELLS = new Set([...ShellPrograms.SHELL_NAMES, 'ksh', 'ash']);
 
 /** Look a command up or describe it; running none of the words that follow. */
 const LOOKUPS = new Set(['man', 'which', 'type', 'whereis', 'apropos', 'whatis', 'echo', 'printf']);
@@ -274,8 +224,11 @@ const SSH_ARGUMENT_LETTERS: Record<string, string> = {
 };
 
 const NETWORK_CLIENTS = new Set(['nc', 'ncat', 'netcat', 'telnet']);
+
 const NETWORK_ARGUMENT_LETTERS = 'pswiIOTxXPZ';
+
 const KUBERNETES_CLIENTS = new Set(['kubectl', 'helm', 'k9s', 'oc']);
+
 const KUBERNETES_TARGET_OPTIONS = [
   '--context',
   '--kube-context',
@@ -291,16 +244,19 @@ const UNPARSED_CLIENTS =
 
 const SENSITIVE_ASSIGNMENT =
   /(?:^|[\s;&|(])(?:export\s+)?(?:git_ssh(?:_command)?|rsync_rsh|docker_host|docker_context|kubeconfig)=|core\.sshcommand/i;
+
 const URL_HOST = /(?:ssh|scp|sftp|rsync):\/\/(?:[^@\s/'"]*@)?(\[[^\]]+\]|[^\s/:'"]+)/gi;
+
 const DEVICE_HOST = /\/dev\/(?:tcp|udp)\/([^/\s'"]+)\//gi;
 
 const UNSAFE_OPTION_KEYS = new Set(['proxycommand', 'localcommand', 'knownhostscommand']);
 
-// --- the strict read-only forms ---
-
 const LABEL = '\\w[\\w-]*';
+
 const REMOTE_PATH = '/[\\w./-]*';
+
 const LOCAL_PATH = '(?:\\./)?\\w[\\w-]*(?:[./][\\w-]+)*/?';
+
 const UNIT = '[\\w@][\\w.@-]*';
 
 const READ_ONLY_REMOTE = new RegExp(
@@ -319,14 +275,18 @@ const READ_ONLY_REMOTE = new RegExp(
     `docker logs --tail \\d+ ${UNIT}`,
   ].join('|')})$`,
 );
-const COPY_SOURCE = new RegExp(`^(?:${LABEL}(?:\\.${LABEL})*@)?[^@\\s/:]+:${REMOTE_PATH}$`);
-const COPY_TARGET = new RegExp(`^${LOCAL_PATH}$`);
-const SCP_SAFE_FLAGS = /^-[rpqC]+$/;
-const RSYNC_SAFE_FLAGS = /^-[avzrhPt]+$/;
-const KUBECTL_READ_VERBS = new Set(['get', 'describe', 'logs', 'top']);
-const KUBECTL_SAFE_WORD = /^[\w./=:,@-]+$/;
 
-// --- per-client analysis ---
+const COPY_SOURCE = new RegExp(`^(?:${LABEL}(?:\\.${LABEL})*@)?[^@\\s/:]+:${REMOTE_PATH}$`);
+
+const COPY_TARGET = new RegExp(`^${LOCAL_PATH}$`);
+
+const SCP_SAFE_FLAGS = /^-[rpqC]+$/;
+
+const RSYNC_SAFE_FLAGS = /^-[avzrhPt]+$/;
+
+const KUBECTL_READ_VERBS = new Set(['get', 'describe', 'logs', 'top']);
+
+const KUBECTL_SAFE_WORD = /^[\w./=:,@-]+$/;
 
 const unreadable = (opts: { why: string }): IFinding => ({
   hosts: [],
@@ -334,11 +294,6 @@ const unreadable = (opts: { why: string }): IFinding => ({
   strict: false,
   redirect: false,
 });
-
-interface IOptionEffect {
-  hosts: string[];
-  unreadable?: string;
-}
 
 /** What one ssh-family option means for where the connection goes. */
 const optionEffect = (opts: { letter: string; value: string }): IOptionEffect => {
@@ -722,7 +677,7 @@ const unwrap = (opts: { program: string; words: string[] }): string[] => {
     const word = opts.words[index] ?? '';
 
     if (word.startsWith('-') && word.length > 1) {
-      index += optionTakesNextWord({ wrapper: opts.program, word }) ? 2 : 1;
+      index += ShellParser.optionTakesNextWord({ wrapper: opts.program, word }) ? 2 : 1;
     } else if (
       ENVIRONMENT_ASSIGNMENT.test(word) ||
       (/^\d[\w.]*$/.test(word) && opts.program !== 'sshpass')
@@ -755,7 +710,12 @@ const analyzeWords = (opts: {
   const program = basenameOf({ word: words[0] ?? '' });
 
   // `rg -n "ssh|scp" docs/`: the arguments of a search or a print are data.
-  if (isDataOnly({ command: { words, redirects: [], assignments: [] }, withMessages: false })) {
+  if (
+    CommandView.isDataOnly({
+      command: { words, redirects: [], assignments: [] },
+      withMessages: false,
+    })
+  ) {
     return [];
   }
 
@@ -769,7 +729,7 @@ const analyzeWords = (opts: {
 
   if (program === 'env') {
     // `env -S "ssh host"` carries a whole command line in one word: the command it makes is read as one.
-    const splits = programOf({
+    const splits = ShellParser.programOf({
       command: { words, redirects: [], assignments: [] },
     }).splitCommands;
 
@@ -866,25 +826,25 @@ const analyzeWords = (opts: {
 
 const analyzeCommand = (opts: { command: string; depth: number }): IFinding[] =>
   // A heredoc body that is data (`cat > f <<EOF`) is not a command; one a shell reads stays in the text.
-  tokenize({ command: splitHeredocs({ command: opts.command }).text }).flatMap((segment) => {
-    const findings = analyzeWords({
-      words: segment.words,
-      depth: opts.depth,
-      recurse: analyzeCommand,
-    });
+  tokenize({ command: ShellParser.splitHeredocs({ command: opts.command }).text }).flatMap(
+    (segment) => {
+      const findings = analyzeWords({
+        words: segment.words,
+        depth: opts.depth,
+        recurse: analyzeCommand,
+      });
 
-    return findings.map((finding): IFinding =>
-      segment.substitution && (finding.hosts.length > 0 || finding.unreadable !== undefined)
-        ? {
-            ...finding,
-            unreadable: finding.unreadable ?? 'a substitution runs inside it',
-            redirect: finding.redirect || segment.redirect,
-          }
-        : { ...finding, redirect: finding.redirect || segment.redirect },
-    );
-  });
-
-// --- the decision ---
+      return findings.map((finding): IFinding =>
+        segment.substitution && (finding.hosts.length > 0 || finding.unreadable !== undefined)
+          ? {
+              ...finding,
+              unreadable: finding.unreadable ?? 'a substitution runs inside it',
+              redirect: finding.redirect || segment.redirect,
+            }
+          : { ...finding, redirect: finding.redirect || segment.redirect },
+      );
+    },
+  );
 
 const trustedMessage = (opts: { host: string; policy: IRemoteHostsPolicy }): string =>
   `reaching '${opts.host}', which is not in remoteHosts.trusted (list it there${opts.policy.localFile === undefined ? '' : `, or in ${opts.policy.localFile} for yourself`}); a remoteHosts.readOnly host passes only the strict read-only forms`;
@@ -892,82 +852,130 @@ const trustedMessage = (opts: { host: string; policy: IRemoteHostsPolicy }): str
 const readOnlyMessage = (opts: { host: string }): string =>
   `'${opts.host}' is a remoteHosts.readOnly host: only a strict read-only form passes (uptime, df -h, cat <path>, scp/rsync from it, kubectl get|describe|logs|top), and this command is not one`;
 
-/** Why each host this command reaches may not be reached without asking; empty means nothing to ask. */
-export const inspectRemoteCommand = (opts: {
-  command: string;
-  policy: IRemoteHostsPolicy;
-}): IWriteHit[] => {
-  const { command, policy } = opts;
-  const findings = analyzeCommand({ command, depth: 0 });
-  const hits: IWriteHit[] = [];
-  const asked = new Set<string>();
+export class RemoteHosts {
+  /** Whether `host` is one of `entries`: whole-name equal, or a `*` pattern. Case-insensitive. */
+  static matches(opts: { host: string; entries: string[] }): boolean {
+    const host = normalizeVariable({ host: opts.host.toLowerCase() });
 
-  const ask = (message: string): void => {
-    if (!asked.has(message)) {
-      asked.add(message);
-      hits.push({ rule: 'remote-hosts', message });
-    }
-  };
+    return opts.entries.some((entry) => {
+      const wanted = normalizeVariable({ host: entry.toLowerCase() });
 
-  for (const finding of findings) {
-    if (finding.unreadable !== undefined) {
-      ask(
-        `the target of this command cannot be read (${finding.unreadable}), so any host could be reached`,
-      );
-      continue;
-    }
+      if (!wanted.includes(WILDCARD)) {
+        return host === wanted;
+      }
 
-    for (const host of finding.hosts) {
-      if (matchesHost({ host, entries: policy.trusted })) {
+      if (
+        !PATTERN_CHARACTERS.test(wanted) ||
+        wanted.replaceAll(WILDCARD, '').replaceAll('.', '') === ''
+      ) {
+        return false;
+      }
+
+      const pattern = wanted
+        .split(WILDCARD)
+        .map((part) => part.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&'))
+        .join('[a-z0-9._-]*');
+
+      return new RegExp(`^${pattern}$`).test(host);
+    });
+  }
+
+  /** The personal trusted list: one host per line, `#` starts a comment. */
+  static parseTrustedList(opts: { text: string }): string[] {
+    return opts.text
+      .split('\n')
+      .map((line) => line.replace(/#.*$/, '').trim())
+      .filter((line) => line !== '');
+  }
+
+  /** Why each host this command reaches may not be reached without asking; empty means nothing to ask. */
+  static inspectCommand(opts: { command: string; policy: IRemoteHostsPolicy }): IWriteHit[] {
+    const { command, policy } = opts;
+    const findings = analyzeCommand({ command, depth: 0 });
+    const hits: IWriteHit[] = [];
+    const asked = new Set<string>();
+
+    const ask = (message: string): void => {
+      if (!asked.has(message)) {
+        asked.add(message);
+        hits.push({ rule: 'remote-hosts', message });
+      }
+    };
+
+    for (const finding of findings) {
+      if (finding.unreadable !== undefined) {
+        ask(
+          `the target of this command cannot be read (${finding.unreadable}), so any host could be reached`,
+        );
         continue;
       }
 
-      if (matchesHost({ host, entries: policy.readOnly })) {
-        if (!finding.strict || finding.redirect) {
-          ask(readOnlyMessage({ host }));
+      for (const host of finding.hosts) {
+        if (RemoteHosts.matches({ host, entries: policy.trusted })) {
+          continue;
         }
 
-        continue;
-      }
+        if (RemoteHosts.matches({ host, entries: policy.readOnly })) {
+          if (!finding.strict || finding.redirect) {
+            ask(readOnlyMessage({ host }));
+          }
 
-      if (finding.listedOnly !== true) {
+          continue;
+        }
+
+        if (finding.listedOnly !== true) {
+          ask(trustedMessage({ host, policy }));
+        }
+      }
+    }
+
+    const devices = [...command.matchAll(DEVICE_HOST)].map((match) =>
+      hostOf({ value: match[1] ?? '' }),
+    );
+    const urls = [...command.matchAll(URL_HOST)].map((match) => hostOf({ value: match[1] ?? '' }));
+
+    for (const host of [...devices, ...urls]) {
+      if (!RemoteHosts.matches({ host, entries: policy.trusted })) {
         ask(trustedMessage({ host, policy }));
       }
     }
-  }
 
-  const devices = [...command.matchAll(DEVICE_HOST)].map((match) =>
-    hostOf({ value: match[1] ?? '' }),
-  );
-  const urls = [...command.matchAll(URL_HOST)].map((match) => hostOf({ value: match[1] ?? '' }));
-
-  for (const host of [...devices, ...urls]) {
-    if (!matchesHost({ host, entries: policy.trusted })) {
-      ask(trustedMessage({ host, policy }));
+    if (SENSITIVE_ASSIGNMENT.test(command)) {
+      ask(
+        'the target of this command cannot be read (an environment variable or git option redirects ssh, rsync, docker or kubectl)',
+      );
     }
+
+    return hits;
   }
 
-  if (SENSITIVE_ASSIGNMENT.test(command)) {
-    ask(
-      'the target of this command cannot be read (an environment variable or git option redirects ssh, rsync, docker or kubectl)',
-    );
-  }
-
-  return hits;
-};
-
-export const buildRemoteDecision = (opts: { hits: IWriteHit[] }) =>
-  forHost({
-    output: {
-      hookSpecificOutput: {
-        hookEventName: HookConstants.PRE_TOOL_USE,
-        permissionDecision: HookConstants.GUARD_DECISION,
-        permissionDecisionReason: [
-          'This command may reach a remote host the project has not listed:',
-          ...opts.hits.map((hit) => `  - ${hit.message}`),
-          '',
-          'Read on the host, never edit, restart or copy onto it. Produce the command and hand it over.',
-        ].join('\n'),
+  static buildDecision(opts: { hits: IWriteHit[] }) {
+    return HookDecision.forHost({
+      output: {
+        hookSpecificOutput: {
+          hookEventName: HookConstants.PRE_TOOL_USE,
+          permissionDecision: HookConstants.GUARD_DECISION,
+          permissionDecisionReason: [
+            'This command may reach a remote host the project has not listed:',
+            ...opts.hits.map((hit) => `  - ${hit.message}`),
+            '',
+            'Read on the host, never edit, restart or copy onto it. Produce the command and hand it over.',
+          ].join('\n'),
+        },
       },
-    },
-  });
+    });
+  }
+}
+
+// --- reading a command ---
+
+// --- the strict read-only forms ---
+
+// --- per-client analysis ---
+
+interface IOptionEffect {
+  hosts: string[];
+  unreadable?: string;
+}
+
+// --- the decision ---

@@ -2,12 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { defineRenderer } from './define.ts';
 import type { IRenderContext, IRenderer } from './define.ts';
-import {
-  collectBindingKeys,
-  collectMakefileTargets,
-  collectPackageManifests,
-  collectSourceMap,
-} from '../source/index.ts';
+import { SourceCollector } from '../source/index.ts';
 
 // --- options ---
 
@@ -44,7 +39,7 @@ const seeAlsoOption = (opts: {
 
 const sourceMapRenderer = defineRenderer({
   id: 'source-map',
-  collect: () => collectSourceMap(),
+  collect: () => SourceCollector.collectMap(),
   render: ({ context, facts }) => {
     const total = facts.reduce((sum, entry) => sum + entry.total, 0);
 
@@ -94,7 +89,7 @@ const sourceMapRenderer = defineRenderer({
 
 const makefileTargetsRenderer = defineRenderer({
   id: 'makefile-targets',
-  collect: () => collectMakefileTargets(),
+  collect: () => SourceCollector.collectMakefileTargets(),
   render: ({ context, facts }) => {
     const rows = facts.map((target) => {
       return `| \`make ${target.name}\` | ${target.deps ? `\`${target.deps}\`` : '-'} | ${target.description || '-'} |`;
@@ -141,7 +136,9 @@ const bindingKeysSource = (opts: { context: IRenderContext }): string => {
 const bindingKeysRenderer = defineRenderer({
   id: 'binding-keys',
   collect: ({ context }) =>
-    collectBindingKeys({ file: join(context.root, bindingKeysSource({ context })) }),
+    SourceCollector.collectBindingKeys({
+      file: join(context.root, bindingKeysSource({ context })),
+    }),
   render: ({ context, facts }) => {
     const total = facts.reduce((sum, entry) => sum + entry.keys.length, 0);
 
@@ -188,7 +185,7 @@ const bindingKeysRenderer = defineRenderer({
 /** Region only: one row per package directory, linked to its concept. */
 const packagesTableRenderer = defineRenderer({
   id: 'packages-table',
-  collect: () => collectPackageManifests(),
+  collect: () => SourceCollector.collectPackageManifests(),
   region: ({ facts }) => {
     const rows = facts.map((entry) => {
       return `| [\`${entry.dir}\`](/packages/${entry.dir}.md) | \`${entry.name}\` | ${entry.description || '-'} |`;

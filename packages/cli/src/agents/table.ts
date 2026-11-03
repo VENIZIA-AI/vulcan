@@ -23,13 +23,17 @@ const TABLE_SCHEMA = z.array(AGENT_ENTRY_SCHEMA).superRefine((entries, context) 
 
 let cached: TAgentEntry[] | undefined;
 
-/** The shipped table, in the order the questions and the list show it; a broken table throws. */
-export const readAgentTable = (): TAgentEntry[] => {
-  cached ??= TABLE_SCHEMA.parse(
-    JSON.parse(readFileSync(join(BASE_DIRECTORY, 'agents.json'), 'utf8')),
-  );
+export class AgentTable {
+  /** The shipped table, in the order the questions and the list show it; a broken table throws. */
+  static read(): TAgentEntry[] {
+    cached ??= TABLE_SCHEMA.parse(
+      JSON.parse(readFileSync(join(BASE_DIRECTORY, 'agents.json'), 'utf8')),
+    );
 
-  return cached;
-};
+    return cached;
+  }
 
-export const agentIds = (): string[] => readAgentTable().map((entry) => entry.id);
+  static agentIds(): string[] {
+    return AgentTable.read().map((entry) => entry.id);
+  }
+}

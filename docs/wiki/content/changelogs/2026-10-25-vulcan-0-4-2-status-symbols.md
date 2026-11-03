@@ -1,6 +1,6 @@
 ---
 title: "VULCAN 0.4.2: Symbols in Your Own Status Words Are Not an Emoji Fault"
-description: The report-shape check no longer flags the emoji or symbols an owner put in their own status words and labels, so a correct reply is not logged or reminded about.
+description: The report-shape check no longer flags the emoji or symbols an owner put in their own status words and labels.
 packages: ['@venizia/vulcan']
 ---
 
@@ -14,9 +14,9 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
-- **The `emoji` style check skips the owner's own words.** The status words and labels configured in `owner.report` or in a profile are removed from the reply before the check, so `✅ xong` in the minimap table is the shape, not a fault. An emoji anywhere else in the reply is still logged.
-- **Why it mattered.** In 0.4.1 such a reply was logged with an `emoji` fault and the next prompt carried "remove emoji". Style faults never block, so no reply was held up; it was noise and a wrong reminder.
+- **The `emoji` check skips your own words.** The status words and labels set in `owner.report` or a profile are removed from the reply before the check, so `✅ xong` in the minimap table is the shape, not a fault. An emoji anywhere else is still logged.
+- **Before.** In 0.4.1 such a reply was logged and the next prompt said "remove emoji". Nothing was blocked.
 
-## Upgrading
+## Who is affected
 
-Run `vulcan sync`; nothing else is needed. The log lines already written with an `emoji` class stay in `.agents/local/violations.jsonl` and `vulcan doctor` still counts them; delete the file to start the count again.
+Owners whose status words contain symbols. Run `vulcan sync`. Old `emoji` lines stay in `.agents/local/violations.jsonl` and `vulcan doctor` still counts them; delete the file to reset the count.

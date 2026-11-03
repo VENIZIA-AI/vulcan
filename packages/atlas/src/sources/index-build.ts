@@ -1,25 +1,27 @@
-import { Chunker, CorpusLoader, resolveRepositoryRoots } from '@/corpus';
+import { Chunker, CorpusLoader, RepositoryRoots } from '@/corpus';
 import type { IAtlasProject } from '@/common/project-config';
 import { ChunkStore } from '@/search/store';
 
-/**
- * The search index of a project's declared roots, as bytes: what a pull stores for a commit and what
- * `atlas index` packs. One function builds both, so the two can never differ.
- */
-export const indexBytesOf = (opts: { project: IAtlasProject }): Uint8Array => {
-  const { project } = opts;
-  const store = new ChunkStore();
-  const documents = CorpusLoader.getInstance().load({
-    roots: resolveRepositoryRoots({ project }),
-    within: project.root,
-  });
-  const chunker = Chunker.getInstance();
+export class IndexBuild {
+  /**
+   * The search index of a project's declared roots, as bytes: what a pull stores for a commit and what
+   * `atlas index` packs. One function builds both, so the two can never differ.
+   */
+  static indexBytesOf(opts: { project: IAtlasProject }): Uint8Array {
+    const { project } = opts;
+    const store = new ChunkStore();
+    const documents = CorpusLoader.getInstance().load({
+      roots: RepositoryRoots.resolve({ project }),
+      within: project.root,
+    });
+    const chunker = Chunker.getInstance();
 
-  store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
+    store.add({ chunks: documents.flatMap((document) => chunker.chunk({ document })) });
 
-  const bytes = store.serialize();
+    const bytes = store.serialize();
 
-  store.close();
+    store.close();
 
-  return bytes;
-};
+    return bytes;
+  }
+}

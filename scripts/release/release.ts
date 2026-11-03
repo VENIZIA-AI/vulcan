@@ -1,5 +1,5 @@
 /**
- * Dispatches the NPM Release workflow for the okf/atlas/cli train, waits for it, and proves what it
+ * Dispatches the Release workflow for the okf/atlas/cli train, waits for it, and proves what it
  * published - the IGNIS release flow, for a train that releases in one run.
  *
  *   bun scripts/release/release.ts                     # prerelease, asks first
@@ -9,21 +9,17 @@
  *   bun scripts/release/release.ts --bump patch        # a stable: dispatched on main, waits for the approval
  *   bun scripts/release/release.ts --bump none --branch main   # heal a stable run (develop when --branch is absent)
  */
-import {
-  buildDispatchCommand,
-  findPublishedVersions,
-  findReleaseBlockers,
-  parseReleaseArgs,
-  ReleaseConstants,
-} from './release-args.ts';
+import { tmpdir } from 'node:os';
+import { ReleasePlan } from './plan.ts';
+import { ReleaseConstants, ReleaseRequest } from './release-args.ts';
 import type { IReleaseArgs } from './release-args.ts';
-import { headStatusOf, waitForTarballs } from './release-wait.ts';
+import { ReleaseWait } from './release-wait.ts';
 
 const PACKAGE_DIRECTORIES = ['okf', 'atlas', 'cli'];
 
 const readArgs = (): IReleaseArgs | undefined => {
   try {
-    return parseReleaseArgs({ args: process.argv.slice(2) });
+    return ReleaseRequest.parseArgs({ args: process.argv.slice(2) });
   } catch (error) {
     console.error(`release: ${error instanceof Error ? error.message : String(error)}`);
     return undefined;
@@ -87,7 +83,7 @@ capture({ command: ['git', 'fetch', 'origin', '--quiet'] });
 const counts = capture({
   command: ['git', 'rev-list', '--left-right', '--count', `HEAD...origin/${args.branch}`],
 }).stdout.split(/\s+/);
-const blockers = findReleaseBlockers({
+const blockers = ReleaseRequest.findBlockers({
   branch: capture({ command: ['git', 'rev-parse', '--abbrev-ref', 'HEAD'] }).stdout,
   dirtyPaths: capture({ command: ['git', 'status', '--porcelain'] })
     .stdout.split('\n')
@@ -101,10 +97,53 @@ const manifests = await Promise.all(
   PACKAGE_DIRECTORIES.map((directory) => Bun.file(`packages/${directory}/package.json`).json()),
 );
 const trainVersion: string = manifests[2].version;
-const command = buildDispatchCommand({ args });
+// The run title the workflow shows: the plan job works the same string out and refuses a different one. A machine
+// without npm, or a checkout that cannot be read, sends none and the run is titled by its bump. Only a workflow
+// that declares the `label` input can be sent one: GitHub refuses a dispatch with an input the ref does not have,
+// as on a main that predates the next Sync.
+const declaresLabel = ReleasePlan.declaresLabel({
+  workflow: capture({
+    command: [
+      'git',
+      'show',
+      `origin/${args.branch}:.github/workflows/${ReleaseConstants.WORKFLOW}`,
+    ],
+    isQuiet: true,
+  }).stdout,
+});
+const label = ((): string | undefined => {
+  if (!declaresLabel) {
+    return undefined;
+  }
+
+  try {
+    const version = ReleasePlan.targetOf({
+      bump: args.bump,
+      currentVersion: trainVersion,
+      scratchRoot: tmpdir(),
+    });
+
+    return ReleasePlan.labelOf({
+      version,
+      kind: ReleasePlan.kindOf({ version }),
+      train: ReleasePlan.readTrain({ directory: 'packages' }),
+      issue: args.issue,
+      sha: capture({ command: ['git', 'rev-parse', `origin/${args.branch}`] }).stdout,
+    });
+  } catch {
+    return undefined;
+  }
+})();
+const command = ReleaseRequest.buildDispatchCommand({ args, label });
 
 console.log(`release: the train is at ${trainVersion}; bump '${args.bump}'`);
 console.log(`release: ${command.join(' ')}`);
+
+if (!declaresLabel) {
+  console.log(
+    `release: the workflow on origin/${args.branch} declares no label input (a main before the next Sync, or a file that cannot be read): no label is sent and the run is titled by its inputs`,
+  );
+}
 
 // Reported rather than refused on a dry run: it publishes nothing, and it is most useful while the
 // tree is still dirty.
@@ -156,7 +195,7 @@ const released = capture({
 }).stdout;
 const releasedVersion: string = released.length > 0 ? JSON.parse(released).version : trainVersion;
 const names: string[] = manifests.map((manifest) => manifest.name);
-const published = findPublishedVersions({
+const published = ReleaseRequest.findPublishedVersions({
   log: capture({ command: ['gh', 'run', 'view', runId, '--log'] }).stdout,
   packageNames: names,
 });
@@ -197,7 +236,7 @@ if (watched.exitCode === 0 && isComplete) {
     `release: waiting until every tarball is served (up to ${ReleaseConstants.TARBALL_WAIT_MS / 60_000} minutes)`,
   );
 
-  const served = await waitForTarballs({
+  const served = await ReleaseWait.waitForTarballs({
     targets,
     urlOf: (target) => {
       const url = capture({
@@ -207,7 +246,7 @@ if (watched.exitCode === 0 && isComplete) {
 
       return url.length > 0 ? url : undefined;
     },
-    statusOf: (url) => headStatusOf({ url }),
+    statusOf: (url) => ReleaseWait.headStatusOf({ url }),
     now: Date.now,
     sleep: Bun.sleep,
     timeoutMs: ReleaseConstants.TARBALL_WAIT_MS,

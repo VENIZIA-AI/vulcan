@@ -2,8 +2,8 @@ import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { knownPackageDirs, livePackageDirs, readAtlasProject } from '@/common/project-config';
-import { directoryOf } from '@/common/package-map';
+import { ProjectConfig } from '@/common/project-config';
+import { PackageMap } from '@/common/package-map';
 import { clearAtlasProject, useAtlasProject } from '../project.helper';
 
 const roots: string[] = [];
@@ -17,7 +17,7 @@ afterAll(() => {
 
 const ROOT = '/work/project';
 
-describe('readAtlasProject', () => {
+describe('ProjectConfig.readAtlasProject', () => {
   test('reads the packages, compiles the release commit, resolves the paths', () => {
     useAtlasProject({
       root: ROOT,
@@ -35,7 +35,7 @@ describe('readAtlasProject', () => {
         release: { tagPattern: 'v<version>', ignoreTags: ['old/*'] },
       },
     });
-    const project = readAtlasProject();
+    const project = ProjectConfig.readAtlasProject();
 
     expect(project.root).toBe(ROOT);
     expect(project.packages).toEqual([
@@ -51,7 +51,7 @@ describe('readAtlasProject', () => {
 
   test('absent sections take the defaults: the default release forms, the root for typescript', () => {
     useAtlasProject({ root: ROOT, manifest: {} });
-    const project = readAtlasProject();
+    const project = ProjectConfig.readAtlasProject();
 
     expect(project.tagPattern).toBe('<dir>-v<version>');
     expect(project.ignoreTags).toEqual([]);
@@ -69,7 +69,9 @@ describe('readAtlasProject', () => {
     );
     process.env.VULCAN_PROJECT_ROOT = root;
 
-    expect(readAtlasProject().packages.map((entry) => entry.name)).toEqual(['@a/core']);
+    expect(ProjectConfig.readAtlasProject().packages.map((entry) => entry.name)).toEqual([
+      '@a/core',
+    ]);
   });
 
   test('no manifest: it stops with what to do', () => {
@@ -78,7 +80,7 @@ describe('readAtlasProject', () => {
     roots.push(root);
     process.env.VULCAN_PROJECT_ROOT = root;
 
-    expect(() => readAtlasProject()).toThrow(
+    expect(() => ProjectConfig.readAtlasProject()).toThrow(
       'atlas: no project manifest (.agents/vulcan.manifest.json) - run `vulcan sync`',
     );
   });
@@ -89,7 +91,7 @@ describe('readAtlasProject', () => {
       manifest: { name: 'acme', packages: [{ name: '../../../escape', dir: 'kernel' }] },
     });
 
-    expect(() => readAtlasProject()).toThrow(
+    expect(() => ProjectConfig.readAtlasProject()).toThrow(
       "atlas: project 'acme' - package name '../../../escape' is not an npm package name",
     );
   });
@@ -97,41 +99,53 @@ describe('readAtlasProject', () => {
   test('a package without a name takes its directory, which must be an npm name too', () => {
     useAtlasProject({ root: ROOT, manifest: { name: 'acme', packages: [{ dir: 'a b' }] } });
 
-    expect(() => readAtlasProject()).toThrow(
+    expect(() => ProjectConfig.readAtlasProject()).toThrow(
       "atlas: project 'acme' - package name 'a b' is not an npm package name",
     );
   });
 
-  test('scoped, unscoped and legacy upper-case npm names all read', () => {
+  test('scoped and unscoped lower-case npm names read', () => {
     useAtlasProject({
       root: ROOT,
       manifest: {
         packages: [
           { name: '@venizia/ignis-kernel', dir: 'kernel' },
           { name: 'left-pad.js', dir: 'pad' },
-          { name: 'JSONStream', dir: 'stream' },
         ],
       },
     });
 
-    expect(readAtlasProject().packages.map((entry) => entry.name)).toEqual([
+    expect(ProjectConfig.readAtlasProject().packages.map((entry) => entry.name)).toEqual([
       '@venizia/ignis-kernel',
       'left-pad.js',
-      'JSONStream',
     ]);
   });
+
+  test.each(['JSONStream', '@Venizia/kernel'])(
+    'an upper-case npm name (%s) stops the read like any name that is not one',
+    (name) => {
+      useAtlasProject({
+        root: ROOT,
+        manifest: { name: 'acme', packages: [{ name, dir: 'kernel' }] },
+      });
+
+      expect(() => ProjectConfig.readAtlasProject()).toThrow(
+        `atlas: project 'acme' - package name '${name}' is not an npm package name`,
+      );
+    },
+  );
 
   test('a manifest from a newer VULCAN fails loudly, naming the upgrade', () => {
     useAtlasProject({ root: ROOT, manifest: { schemaVersion: 2 } });
 
-    expect(() => readAtlasProject()).toThrow(
+    expect(() => ProjectConfig.readAtlasProject()).toThrow(
       'atlas: the manifest is schemaVersion 2; @venizia/vulcan-atlas reads 1 - upgrade @venizia/vulcan',
     );
   });
 });
 
 describe('live and known packages', () => {
-  test('a retired package keeps its changelog entries but is not walked by surface', () => {
+  test('a retired package is not walked by surface', () => {
     useAtlasProject({
       root: ROOT,
       manifest: {
@@ -141,18 +155,17 @@ describe('live and known packages', () => {
         ],
       },
     });
-    const project = readAtlasProject();
+    const project = ProjectConfig.readAtlasProject();
 
-    expect(livePackageDirs({ project })).toEqual(['kernel']);
-    expect(knownPackageDirs({ project })).toEqual(['kernel', 'docs-mcp']);
+    expect(ProjectConfig.livePackageDirs({ project })).toEqual(['kernel']);
   });
 
   test('no live package: surface and symbols have nothing to walk and say what to add', () => {
     useAtlasProject({ root: ROOT, manifest: {} });
 
-    expect(() => livePackageDirs({ project: readAtlasProject() })).toThrow(
-      'atlas: add packages to .configs/vulcan.config.*',
-    );
+    expect(() =>
+      ProjectConfig.livePackageDirs({ project: ProjectConfig.readAtlasProject() }),
+    ).toThrow('atlas: add packages to .configs/vulcan.config.*');
   });
 });
 
@@ -171,7 +184,7 @@ describe('the prebuilt index in a manifest', () => {
       manifest: manifest({ index: { keys: [KEY, 7, ''] }, prebuilt: false }),
     });
 
-    const project = readAtlasProject();
+    const project = ProjectConfig.readAtlasProject();
 
     expect(project.indexKeys).toEqual([KEY]);
     expect(project.prebuilt).toBe(false);
@@ -180,7 +193,7 @@ describe('the prebuilt index in a manifest', () => {
   test('a manifest with no atlas block has neither', () => {
     useAtlasProject({ root: ROOT, manifest: manifest() });
 
-    const project = readAtlasProject();
+    const project = ProjectConfig.readAtlasProject();
 
     expect(project.indexKeys).toBeUndefined();
     expect(project.prebuilt).toBeUndefined();
@@ -188,24 +201,24 @@ describe('the prebuilt index in a manifest', () => {
 
   test('prebuilt true, or anything but false, is the default', () => {
     useAtlasProject({ root: ROOT, manifest: manifest({ prebuilt: true }) });
-    expect(readAtlasProject().prebuilt).toBeUndefined();
+    expect(ProjectConfig.readAtlasProject().prebuilt).toBeUndefined();
     useAtlasProject({ root: ROOT, manifest: manifest({ prebuilt: 'no' }) });
-    expect(readAtlasProject().prebuilt).toBeUndefined();
+    expect(ProjectConfig.readAtlasProject().prebuilt).toBeUndefined();
   });
 });
 
-describe('directoryOf', () => {
+describe('PackageMap.directoryOf', () => {
   const packages = [
     { dir: 'core-server', name: '@venizia/ignis', aliases: ['core'], retired: false },
     { dir: 'helpers', name: '@venizia/ignis-helpers', aliases: [], retired: false },
   ];
 
   test('a value resolves by npm name, by name without its scope, by directory, or by alias', () => {
-    expect(directoryOf({ value: '`@venizia/ignis`', packages })).toBe('core-server');
-    expect(directoryOf({ value: 'ignis-helpers', packages })).toBe('helpers');
-    expect(directoryOf({ value: 'core', packages })).toBe('core-server');
-    expect(directoryOf({ value: 'core-server', packages })).toBe('core-server');
-    expect(directoryOf({ value: 'unknown', packages })).toBeUndefined();
+    expect(PackageMap.directoryOf({ value: '`@venizia/ignis`', packages })).toBe('core-server');
+    expect(PackageMap.directoryOf({ value: 'ignis-helpers', packages })).toBe('helpers');
+    expect(PackageMap.directoryOf({ value: 'core', packages })).toBe('core-server');
+    expect(PackageMap.directoryOf({ value: 'core-server', packages })).toBe('core-server');
+    expect(PackageMap.directoryOf({ value: 'unknown', packages })).toBeUndefined();
   });
 });
 
@@ -222,7 +235,10 @@ describe('release.legacyTagPatterns', () => {
       },
     });
 
-    expect(readAtlasProject().legacyTagPatterns).toEqual(['v<version>', 'old-<version>']);
+    expect(ProjectConfig.readAtlasProject().legacyTagPatterns).toEqual([
+      'v<version>',
+      'old-<version>',
+    ]);
   });
 
   test('an older manifest, or an empty list, has none', () => {
@@ -231,13 +247,13 @@ describe('release.legacyTagPatterns', () => {
       manifest: { schemaVersion: 1, release: { tagPattern: 'v<version>' } },
     });
 
-    expect(readAtlasProject().legacyTagPatterns).toBeUndefined();
+    expect(ProjectConfig.readAtlasProject().legacyTagPatterns).toBeUndefined();
 
     useAtlasProject({
       root: ROOT,
       manifest: { schemaVersion: 1, release: { tagPattern: 'v<version>', legacyTagPatterns: [] } },
     });
 
-    expect(readAtlasProject().legacyTagPatterns).toBeUndefined();
+    expect(ProjectConfig.readAtlasProject().legacyTagPatterns).toBeUndefined();
   });
 });

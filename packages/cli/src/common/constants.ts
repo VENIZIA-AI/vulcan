@@ -9,27 +9,13 @@ export class VulcanCommands {
   static readonly PROFILE = 'profile';
   static readonly PRESET = 'preset';
   static readonly VISUALIZE = 'visualize';
+  static readonly COMMIT_CHECK = 'commit-check';
+  static readonly CI = 'ci';
+  static readonly BOARD = 'board';
+  static readonly EVENT = 'event';
   static readonly X = 'x';
   static readonly HELP = 'help';
   static readonly VERSION = 'version';
-  static readonly SCHEME_SET = new Set<string>([
-    this.INIT,
-    this.ADD,
-    this.SYNC,
-    this.AGENTS,
-    this.DOCTOR,
-    this.UPGRADE,
-    this.CLEAN,
-    this.PROFILE,
-    this.PRESET,
-    this.VISUALIZE,
-    this.X,
-    this.HELP,
-    this.VERSION,
-  ]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 /** The release channels `vulcan upgrade` picks between; the channel is a flag, never stored in the config. */
@@ -38,15 +24,13 @@ export class UpgradeFlags {
   static readonly NIGHTLY = '--nightly';
   /** Tests only: a JSON object of dist-tags that stands in for the registry read. */
   static readonly DIST_TAGS_ENV = 'VULCAN_DIST_TAGS';
-  static readonly SCHEME_SET = new Set<string>([this.STABLE, this.NIGHTLY]);
-  static isValid(value: string): boolean {
-    return this.SCHEME_SET.has(value);
-  }
 }
 
 export class ExitCodes {
   static readonly OK = 0;
   static readonly FAILURE = 1;
+  /** A command that cannot run as asked: the arguments, a file or a range it cannot read. */
+  static readonly USAGE = 2;
 }
 
 /** The tools `vulcan x` runs; each is a dependency of @venizia/vulcan at the exact same version. */
@@ -93,6 +77,14 @@ export class ProjectLayout {
     { name: 'cache', lifetime: 'kept', removedWhen: 'the user asks; it rebuilds' },
     { name: 'reports', lifetime: 'kept', removedWhen: 'the user deletes it' },
     { name: 'prototypes', lifetime: 'kept', removedWhen: 'the user deletes it' },
+    // On demand: sync does not create these; the folder appears when something writes there.
+    { name: 'events', lifetime: 'kept', removedWhen: 'the user deletes it', onDemand: true },
+    {
+      name: 'release-candidates',
+      lifetime: 'release',
+      removedWhen: 'the release ships',
+      onDemand: true,
+    },
   ] as const;
   /** What the scaffolded lint configs run; optional peers of dev-configs, so bun never installs them alone. */
   static readonly LINT_TOOLS = ['oxlint', 'oxlint-tsgolint', 'eslint'];

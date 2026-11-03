@@ -1,15 +1,8 @@
 import { BaseHelper } from '@/common/helper';
-import { packageOfDirectory, packageOfQuery } from '@/common/package-map';
+import { PackageMap } from '@/common/package-map';
 import type { IPackageMapEntry } from '@/common/package-map';
+import { TextValue } from '@/common/text';
 import type { IChangelogRecord, IReleaseRecord, IReleaseTable } from './common';
-
-const byText = (left: string, right: string): number => {
-  if (left === right) {
-    return 0;
-  }
-
-  return left < right ? -1 : 1;
-};
 
 /**
  * The generated release table in memory: which versions of a package exist, when each shipped, and
@@ -29,7 +22,7 @@ export class ReleaseStore extends BaseHelper {
   constructor(opts: { table: IReleaseTable; emptyReason?: string; noEntriesReason?: string }) {
     super({ scope: ReleaseStore.name });
 
-    this.packageMap = opts.table.packageMap ?? [];
+    this.packageMap = opts.table.packageMap;
     this.emptyReason = opts.emptyReason ?? 'no releases';
     this.noEntriesReason = opts.noEntriesReason ?? 'no dated changelog entries';
 
@@ -37,7 +30,7 @@ export class ReleaseStore extends BaseHelper {
 
     // The table is keyed by directory; the store by npm name, the identity every answer carries.
     const nameOf = (dir: string): string =>
-      packageOfDirectory({ dir, packageMap: this.packageMap });
+      PackageMap.packageOfDirectory({ dir, packageMap: this.packageMap });
 
     for (const [dir, records] of tableReleasesEntries) {
       this.releases.set(nameOf(dir), records);
@@ -46,8 +39,10 @@ export class ReleaseStore extends BaseHelper {
     // Newest first, so every window answers in that order without re-sorting.
     this.changelogs = [...(opts.table.changelogs ?? [])]
       .map((entry) => ({ ...entry, packages: entry.packages.map(nameOf) }))
-      .sort((left, right) => byText(right.date, left.date));
-    this.live = [...(opts.table.livePackages ?? [])].map(nameOf).sort(byText);
+      .sort((left, right) => TextValue.compare({ left: right.date, right: left.date }));
+    this.live = [...opts.table.livePackages]
+      .map(nameOf)
+      .sort((left, right) => TextValue.compare({ left, right }));
   }
 
   /** Whether no table was loaded at all - distinct from a table that simply does not carry a package. */
@@ -57,14 +52,14 @@ export class ReleaseStore extends BaseHelper {
 
   /** Every package the release table knows, sorted. */
   packages(): string[] {
-    return [...this.releases.keys()].sort(byText);
+    return [...this.releases.keys()].sort((left, right) => TextValue.compare({ left, right }));
   }
 
   /** Every package released or declared in the package list, sorted. */
   declaredPackages(): string[] {
     return [
       ...new Set([...this.releases.keys(), ...this.packageMap.map((entry) => entry.name)]),
-    ].sort(byText);
+    ].sort((left, right) => TextValue.compare({ left, right }));
   }
 
   /** Every date a changelog entry carries, newest first, each date once. */
@@ -79,7 +74,7 @@ export class ReleaseStore extends BaseHelper {
 
   /** A package a tool was asked about, as its npm name - what the store is keyed by. */
   packageOf(opts: { package: string }): string {
-    return packageOfQuery({ value: opts.package, packageMap: this.packageMap });
+    return PackageMap.packageOfQuery({ value: opts.package, packageMap: this.packageMap });
   }
 
   /** Whether the package is declared in the project's package list or has a release - released or not. */
@@ -89,9 +84,9 @@ export class ReleaseStore extends BaseHelper {
     return this.releases.has(name) || this.packageMap.some((entry) => entry.name === name);
   }
 
-  /** The packages that exist today; a table generated before this list existed answers with every package it knows. */
+  /** The packages that exist today. */
   livePackages(): string[] {
-    return this.live.length > 0 ? this.live : this.packages();
+    return this.live;
   }
 
   /** Every known version of one package, newest first; an unknown package has none. */

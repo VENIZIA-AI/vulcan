@@ -1,13 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
-import { isManifestCurrent, renderManifest } from '../../manifest/index.ts';
+import { ProjectManifest } from '../../manifest/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
 
 const root = createProject({ files: { 'package.json': '{ "name": "@x/acme-workspace" }' } });
 const render = (config: object): string =>
-  renderManifest({ root, config: VULCAN_CONFIG_SCHEMA.parse(config) });
+  ProjectManifest.render({ root, config: VULCAN_CONFIG_SCHEMA.parse(config) });
 
 const GUARD = {
   writes: {
@@ -77,9 +77,38 @@ describe('the guard block of the manifest', () => {
     expect(keys.indexOf('guard')).toBeLessThan(keys.indexOf('remoteHosts'));
   });
 
-  test('a manifest rendered before a pattern was added is stale against the config', () => {
-    expect(isManifestCurrent({ committed: render({}), rendered: render({ guard: GUARD }) })).toBe(
-      false,
+  test('a manifest rendered before a pattern was added differs from the one the config renders', () => {
+    expect(render({})).not.toBe(render({ guard: GUARD }));
+  });
+});
+
+describe('the guard block and the read-only scripts', () => {
+  const ENTRY = { script: 'scripts/release/release-run.ts', readOnly: ['plan', 'registry'] };
+
+  test('carries the object entries of trustedScripts as writes.readOnlyScripts, after the commands', () => {
+    const manifest = JSON.parse(
+      render({
+        guard: { writes: { trustedScripts: ['cli.ts', ENTRY], commands: GUARD.writes.commands } },
+      }),
     );
+
+    expect(manifest.guard.writes.readOnlyScripts).toEqual([ENTRY]);
+    expect(Object.keys(manifest.guard.writes)).toEqual(['commands', 'readOnlyScripts']);
+  });
+
+  test('an object entry alone writes only the entry', () => {
+    expect(JSON.parse(render({ guard: { writes: { trustedScripts: [ENTRY] } } })).guard).toEqual({
+      writes: { readOnlyScripts: [ENTRY] },
+    });
+  });
+
+  test('a list of path strings renders the text it always did: the hook reads those from the config', () => {
+    expect(render({ guard: { writes: { trustedScripts: ['cli.ts', 'tools/b.ts'] } } })).toBe(
+      render({}),
+    );
+  });
+
+  test('a manifest rendered before an entry was added differs from the one the config renders', () => {
+    expect(render({})).not.toBe(render({ guard: { writes: { trustedScripts: [ENTRY] } } }));
   });
 });

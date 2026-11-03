@@ -107,20 +107,12 @@ describe('vulcan init', () => {
     expect(readFileSync(join(root, '.dockerignore'), 'utf8')).toBe('mine\n');
   });
 
-  for (const extension of ['ts', 'mjs', 'js']) {
-    test(`--config ${extension} writes that format only`, () => {
-      const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
+  test('the config is always .mts: --config is an unknown argument, and nothing is written', () => {
+    const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
+    const result = runCli({ args: ['init', '--config', 'ts'], cwd: root, env: NO_INSTALL });
 
-      runCli({ args: ['init', '--config', extension], cwd: root, env: NO_INSTALL });
-      expect(existsSync(join(root, `.configs/vulcan.config.${extension}`))).toBe(true);
-      expect(existsSync(join(root, '.configs/vulcan.config.mts'))).toBe(false);
-    });
-  }
-
-  test('an unknown --config value exits 1 and writes nothing', () => {
-    const root = createProject({ files: {} });
-
-    expect(runCli({ args: ['init', '--config', 'yaml'], cwd: root, env: NO_INSTALL }).code).toBe(1);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("vulcan init: unknown argument '--config'");
     expect(existsSync(join(root, 'AGENTS.md'))).toBe(false);
   });
 
@@ -139,11 +131,16 @@ describe('vulcan init', () => {
     expect(result.stderr).toContain('include node_modules/@venizia/vulcan/base/make/vulcan.mk');
   });
 
-  test('an existing config of another format is kept; no second config appears', () => {
-    const root = createProject({ files: { '.configs/vulcan.config.mjs': 'export default {};\n' } });
+  test('a .mjs config is no config: init writes the .mts one beside it', () => {
+    const root = createProject({
+      files: {
+        'package.json': STYLED_PACKAGE,
+        '.configs/vulcan.config.mjs': 'export default {};\n',
+      },
+    });
 
     runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
-    expect(existsSync(join(root, '.configs/vulcan.config.mts'))).toBe(false);
+    expect(existsSync(join(root, '.configs/vulcan.config.mts'))).toBe(true);
   });
 
   test('missing .gitignore entries are written, existing lines kept', () => {

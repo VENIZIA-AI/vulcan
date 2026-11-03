@@ -1,12 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  buildManifestDecision,
-  inspectManifestWrite,
-  MANIFEST_BLOCK_MESSAGE,
-  parseManifestHookInput,
-} from '../../hooks/index.ts';
+import { ManifestGuard } from '../../hooks/index.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 const HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-manifest.ts');
@@ -66,11 +61,11 @@ const COMMAND_CASES: { name: string; command: string; blocked: boolean }[] = [
   { name: 'redirect elsewhere', command: 'echo x > notes.txt', blocked: false },
 ];
 
-describe('inspectManifestWrite', () => {
+describe('ManifestGuard.inspectWrite', () => {
   for (const item of TOOL_CASES) {
     test(`${item.name}: ${item.blocked ? 'blocked' : 'allowed'}`, () => {
       expect(
-        inspectManifestWrite({
+        ManifestGuard.inspectWrite({
           input: { tool: item.tool, filePath: item.path, command: undefined, cwd: ROOT },
         }),
       ).toBe(item.blocked);
@@ -80,7 +75,7 @@ describe('inspectManifestWrite', () => {
   for (const item of COMMAND_CASES) {
     test(`Bash ${item.name}: ${item.blocked ? 'blocked' : 'allowed'}`, () => {
       expect(
-        inspectManifestWrite({
+        ManifestGuard.inspectWrite({
           input: { tool: 'Bash', filePath: undefined, command: item.command, cwd: ROOT },
         }),
       ).toBe(item.blocked);
@@ -88,17 +83,17 @@ describe('inspectManifestWrite', () => {
   }
 });
 
-describe('parseManifestHookInput', () => {
+describe('ManifestGuard.parseHookInput', () => {
   test('reads the tool, the file path and the command from the wire form', () => {
     expect(
-      parseManifestHookInput({
+      ManifestGuard.parseHookInput({
         text: wire({ tool: 'Write', input: `{"file_path":"${MANIFEST}"}`, cwd: ROOT }),
       }),
     ).toEqual({ tool: 'Write', filePath: MANIFEST, command: undefined, cwd: ROOT });
   });
 
   test('a notebook edit carries notebook_path', () => {
-    const input = parseManifestHookInput({
+    const input = ManifestGuard.parseHookInput({
       text: wire({ tool: 'NotebookEdit', input: '{"notebook_path":"a.ipynb"}' }),
     });
 
@@ -106,18 +101,17 @@ describe('parseManifestHookInput', () => {
   });
 
   test('anything that is not a JSON object is not input', () => {
-    expect(parseManifestHookInput({ text: 'not json' })).toBeUndefined();
-    expect(parseManifestHookInput({ text: '[]' })).toBeUndefined();
+    expect(ManifestGuard.parseHookInput({ text: 'not json' })).toBeUndefined();
+    expect(ManifestGuard.parseHookInput({ text: '[]' })).toBeUndefined();
   });
 });
 
 describe('the decision', () => {
   test('denies, with the message that says what to edit instead', () => {
-    const decision = buildManifestDecision();
+    const decision = ManifestGuard.buildDecision();
 
     expect(decision.hookSpecificOutput.permissionDecision).toBe('deny');
-    expect(decision.hookSpecificOutput.permissionDecisionReason).toBe(MANIFEST_BLOCK_MESSAGE);
-    expect(MANIFEST_BLOCK_MESSAGE).toBe(
+    expect(decision.hookSpecificOutput.permissionDecisionReason).toBe(
       'vulcan.manifest.json is generated - edit .configs/vulcan.config.* and run `vulcan sync`',
     );
   });

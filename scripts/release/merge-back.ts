@@ -52,13 +52,13 @@ export class MergeBackConstants {
   ];
 }
 
-export interface IGitResult {
+interface IGitResult {
   status: number;
   stdout: string;
   stderr: string;
 }
 
-export interface IMergeBackResult {
+interface IMergeBackResult {
   /** `package.json` files whose conflict was only the version. */
   resolved: string[];
   lockRegenerated: boolean;

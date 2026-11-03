@@ -2,9 +2,9 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
-import { renderBunfig } from '../../create/bunfig.ts';
-import { runDoctorWarnings } from '../../doctor/index.ts';
-import { CLAUDE_LAUNCH_FILE, renderClaudeLaunch } from '../../sync/index.ts';
+import { Bunfig } from '../../create/bunfig.ts';
+import { DoctorRunner } from '../../doctor/index.ts';
+import { CLAUDE_LAUNCH_FILE, LaunchSettings } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -15,11 +15,11 @@ const skill = (opts: { name: string; description: string }): string =>
 const project = (opts: { description: string }) => {
   const root = createProject({
     files: {
-      'bunfig.toml': renderBunfig(),
+      'bunfig.toml': Bunfig.render(),
       ...Object.fromEntries(
         ProjectLayout.LOCAL_LAYOUT.map((entry) => [`.agents/local/${entry.name}/.gitkeep`, '']),
       ),
-      '.configs/vulcan.config.ts': CONFIG,
+      '.configs/vulcan.config.mts': CONFIG,
       '.agents/skills/acme-odd/SKILL.md': skill({
         name: 'acme-odd',
         description: opts.description,
@@ -28,14 +28,14 @@ const project = (opts: { description: string }) => {
   });
 
   // What sync leaves in the local folder: the launch file names this very checkout.
-  writeFileSync(join(root, CLAUDE_LAUNCH_FILE), renderClaudeLaunch({ root }));
+  writeFileSync(join(root, CLAUDE_LAUNCH_FILE), LaunchSettings.renderClaude({ root }));
 
   return root;
 };
 
 describe('doctor warns about a skill with no "Use when" part', () => {
   test('a warning on the skill file, saying atlas cannot tell when to load it', async () => {
-    const warnings = await runDoctorWarnings({
+    const warnings = await DoctorRunner.runWarnings({
       root: project({ description: 'Does an odd thing.' }),
     });
 
@@ -50,7 +50,7 @@ describe('doctor warns about a skill with no "Use when" part', () => {
   });
 
   test('a skill with one is not named', async () => {
-    const warnings = await runDoctorWarnings({
+    const warnings = await DoctorRunner.runWarnings({
       root: project({ description: 'Does an odd thing. Use when the user asks for odd things.' }),
     });
 
