@@ -64,7 +64,7 @@ export class LocalConstants {
    * Scratch folders a browser leaves directly under the temp folder it was given (`.agents/local` when it is
    * the folder that is short enough for Chrome's socket). They are tmp that sits one level too high.
    */
-  static readonly STRAY_TEMP = [/^com\.google\.Chrome\./, /^org\.chromium\.Chromium\./];
+  static readonly STRAY_TEMP = [/^\.?com\.google\.Chrome\./, /^\.?org\.chromium\.Chromium\./];
   /** A stray folder may belong to a browser that is running; one this old does not. */
   static readonly STRAY_MIN_AGE_MS = 60 * 60 * 1000;
 }

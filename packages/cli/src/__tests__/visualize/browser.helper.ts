@@ -24,7 +24,7 @@ export interface IBrowserRun {
 const SOCKET_PATH_MAX = 107;
 const SOCKET_SUFFIX = join('com.google.Chrome.XXXXXX', 'SingletonSocket');
 /** What a browser leaves in its temp folder when it is killed. */
-const SCRATCH_FOLDER = /^(com\.google\.Chrome|org\.chromium\.Chromium)\./;
+const SCRATCH_FOLDER = /^\.?(com\.google\.Chrome|org\.chromium\.Chromium)\./;
 
 /**
  * A real browser for the tests that need layout: headless Chrome over the DevTools protocol, started once and reused.

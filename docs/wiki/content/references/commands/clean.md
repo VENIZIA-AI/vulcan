@@ -9,7 +9,7 @@ Everything an agent creates while it works lives under the project's gitignored 
 
 | Flag | Scope | What it takes |
 |---|---|---|
-| `--tmp` (the default) | `tmp/` | every item, whatever its age: scratch, temporary files, logs, subagent output. Run it when no task is using them. Also the `com.google.Chrome.*` and `org.chromium.Chromium.*` folders a browser left directly under `.agents/local/`, once they are an hour old (a younger one may belong to a running browser and is kept) |
+| `--tmp` (the default) | `tmp/` | every item, whatever its age: scratch, temporary files, logs, subagent output. Run it when no task is using them. Also the `com.google.Chrome.*` and `org.chromium.Chromium.*` folders (a leading dot too) a browser left directly under `.agents/local/`, once they are an hour old (a younger one may belong to a running browser and is kept) |
 | `--worktrees` | `worktrees/` | a worktree whose branch is merged into the branch checked out at the project root, into `origin/develop` or into the default branch of origin, or no longer exists, and that holds no uncommitted or untracked file; plus a folder git does not list. An unmerged worktree, one on a detached HEAD and one with uncommitted work are kept, and the reason is printed |
 | `--clones` | `clones/` | clones of other repositories |
 | `--cache` | `cache/` | what atlas fetched; it rebuilds |

@@ -590,6 +590,7 @@ describe("the layout: on-demand folders, release candidates, events and a browse
 
     chrome({ root, name: 'com.google.Chrome.old111', hours: 5 });
     chrome({ root, name: 'org.chromium.Chromium.old222', hours: 5 });
+    chrome({ root, name: '.com.google.Chrome.hidden4', hours: 5 });
     chrome({ root, name: 'com.google.Chrome.new333', hours: 0 });
     file({ root, path: 'not-a-browser/x.txt', text: 'x' });
 
@@ -597,6 +598,7 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     const byName = Object.fromEntries(entries.map((entry) => [entry.name, entry]));
 
     expect(Object.keys(byName).sort()).toEqual([
+      '.com.google.Chrome.hidden4',
       'com.google.Chrome.new333',
       'com.google.Chrome.old111',
       'org.chromium.Chromium.old222',
@@ -618,6 +620,7 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     expect(runCli({ args: ['clean', '--yes'], cwd: root }).code).toBe(0);
     expect(existsSync(join(root, '.agents/local/com.google.Chrome.old111'))).toBe(false);
     expect(existsSync(join(root, '.agents/local/org.chromium.Chromium.old222'))).toBe(false);
+    expect(existsSync(join(root, '.agents/local/.com.google.Chrome.hidden4'))).toBe(false);
     expect(existsSync(join(root, '.agents/local/com.google.Chrome.new333'))).toBe(true);
     expect(existsSync(join(root, '.agents/local/not-a-browser/x.txt'))).toBe(true);
   });
