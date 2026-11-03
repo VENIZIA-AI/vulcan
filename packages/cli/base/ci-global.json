@@ -1,0 +1,12 @@
+{
+  "files": [
+    "bun.lock",
+    "bun.lockb",
+    "bunfig.toml",
+    "tsconfig*.json",
+    ".configs/**",
+    ".github/workflows/**",
+    ".gitlab-ci.yml",
+    ".gitlab/**"
+  ]
+}

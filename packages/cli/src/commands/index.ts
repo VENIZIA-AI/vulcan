@@ -6,6 +6,7 @@ export const COMMAND_LOADERS: Record<string, () => Promise<TCommandHandler>> = {
   [VulcanCommands.ADD]: () => import('./add.command.ts').then((module) => module.runAddCommand),
   [VulcanCommands.AGENTS]: () =>
     import('./agents.command.ts').then((module) => module.runAgentsCommand),
+  [VulcanCommands.CI]: () => import('./ci.command.ts').then((module) => module.runCiCommand),
   [VulcanCommands.CLEAN]: () =>
     import('./clean.command.ts').then((module) => module.runCleanCommand),
   [VulcanCommands.COMMIT_CHECK]: () =>

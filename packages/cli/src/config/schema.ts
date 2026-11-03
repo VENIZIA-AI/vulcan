@@ -460,6 +460,30 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     .default({
       message: { agent: { signature: AgentSignaturePolicies.ALLOW, names: [], allow: [] } },
     }),
+  /**
+   * What `vulcan ci affected` treats as touching every package. `affected.global` adds root-relative globs
+   * to the shipped list (lockfiles, `bunfig.toml`, root `tsconfig*.json`, `.configs/`, the workflow files);
+   * a project cannot remove a shipped one. Written to the manifest only when it is not empty.
+   */
+  ci: z
+    .strictObject({
+      affected: z
+        .strictObject({
+          global: z
+            .array(
+              z
+                .string()
+                .min(1)
+                .refine((glob) => !glob.startsWith('/') && !glob.split('/').includes('..'), {
+                  message:
+                    'a glob relative to the project root, with no leading / and no .. segment',
+                }),
+            )
+            .default([]),
+        })
+        .default({ global: [] }),
+    })
+    .default({ affected: { global: [] } }),
 });
 
 export type VulcanConfig = z.input<typeof VULCAN_CONFIG_SCHEMA>;

@@ -1,0 +1,69 @@
+# Runs, for each package a change touches, only the checks that package has.
+# `vulcan ci affected` lists the packages: the ones whose files changed, and every package that depends on them.
+# A change to a lockfile, bunfig.toml, a root tsconfig, .configs/ or a workflow file runs everything.
+name: Checks
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  affected:
+    name: Affected packages
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.affected.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # The base commit must be in the clone; a shallow one has not got it.
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: List the affected packages
+        id: affected
+        env:
+          # A pull request compares with its base; a push compares with the commit before it.
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          matrix=$(bun x --no-install vulcan ci affected --base "$BASE" --json \
+            | jq -c '{include: [.packages[] | .name as $package | .checks | to_entries[] | {package: $package, check: .key}]}')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "$matrix"
+
+  check:
+    name: ${{ matrix.package }} ${{ matrix.check }}
+    needs: affected
+    # A matrix with no entry is an error, so a change that touches no package skips this job.
+    if: ${{ fromJSON(needs.affected.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.affected.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Run the check
+        run: bun run --filter "${{ matrix.package }}" "${{ matrix.check }}"

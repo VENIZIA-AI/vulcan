@@ -31,6 +31,10 @@ Usage: bun x vulcan <command>
                                   Check a commit message against the commit.message checks of the config (an
                                   agent in a trailer or a "generated with" line, the project's subject shape);
                                   sync installs it as the commit-msg hook; exit 1 on a problem, 2 on bad input
+  ci affected --base <ref> [--head <ref>] [--check <check>] [--json | --names] | template <github|gitlab>
+                                  List the workspace packages a change touches (changed ones and what
+                                  depends on them) with the checks each has; template prints a CI file that
+                                  runs exactly those; exit 2 on bad input
   visualize <spec.json> [--out <name>] | --schema
                                   Make one small static HTML page (a flow, a status, a before and after) from
                                   a JSON spec, in .agents/local/prototypes/; --schema prints the spec's schema
