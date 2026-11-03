@@ -121,5 +121,7 @@ The hooks exist for Claude Code only. Any other coding agent reports through `vu
 ## See also
 
 - [Configuration](/references/configuration/#events): the `events` key
+- [The .agents folder](/guides/core-concepts/the-agents-folder): where `events/` sits and when it goes
+- [vulcan clean](/references/commands/clean): `--events` removes the log
 - [vulcan sync](/references/commands/sync#the-event-hooks): when the hooks are written
 - [vulcan doctor](/references/commands/doctor#events-dir): the folder warning

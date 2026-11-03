@@ -193,12 +193,17 @@ const unrebuildableIgnored = (opts: { real: string }): string[] | undefined => {
 
   const budget = { left: LocalConstants.IGNORED_WALK_LIMIT };
 
-  return listed
-    .split('\n')
-    .filter((line) => line.trim() !== '' && !isRebuildable({ path: line }))
-    .flatMap((line) =>
-      line.endsWith('/') ? walkIgnored({ real: opts.real, directory: line, budget }) : [line],
-    );
+  // git can list a file and the directory that holds it both: each path is named once.
+  return [
+    ...new Set(
+      listed
+        .split('\n')
+        .filter((line) => line.trim() !== '' && !isRebuildable({ path: line }))
+        .flatMap((line) =>
+          line.endsWith('/') ? walkIgnored({ real: opts.real, directory: line, budget }) : [line],
+        ),
+    ),
+  ];
 };
 
 /** Where a merged branch may have gone: the checked-out branch of the root, then develop, then the default branch of origin. */
