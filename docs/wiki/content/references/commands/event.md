@@ -1,0 +1,123 @@
+---
+title: vulcan event
+description: Write a line to the agent event log, or read it. With events.log on, vulcan sync installs the Claude Code hooks that write it.
+---
+
+# vulcan event
+
+The agent event log is an append-only record of what the coding agents of a project did: a session started, a message went out, an agent waits for the owner. A board or a coordinator reads it instead of asking each agent. It holds short labels, never message bodies.
+
+```text
+$ bun x --no-install vulcan event add --kind commit --summary "fixed the lock age" --ref 28592dd
+0y4k2m9xa1b2c3d4
+$ bun x --no-install vulcan event tail --since 2026-11-03
+2026-11-03T09:30:12.431Z commit        pnt-vulcan-1 F-12 fixed the lock age
+```
+
+## Turn the hooks on
+
+`vulcan event` always works. Only the Claude Code hooks need a switch. Add the key to `.configs/vulcan.config.mts`, then run `vulcan sync`:
+
+```ts
+export default {
+  events: { log: true },
+};
+```
+
+Without the key nothing is installed and nothing is written by itself. The [config reference](/references/configuration/#events) lists every key.
+
+## The log
+
+One file per local day, one JSON object per line, in `.agents/local/events/<yyyy-mm-dd>.jsonl`. The folder is under `.agents/local/`, which git ignores.
+
+```json
+{"id":"0y4k2m9xa1b2c3d4","ts":"2026-11-03T09:30:12.431Z","flowId":"F-12","actor":"pnt-vulcan-1","kind":"commit","summary":"fixed the lock age","ref":"28592dd","source":"cli"}
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | Sorts by time and does not repeat across sessions |
+| `ts` | ISO 8601, UTC |
+| `flowId` | `F-n`, when the line belongs to a flow; absent otherwise |
+| `actor` | The session that wrote it, as other sessions address it |
+| `kind` | One of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr` |
+| `summary` | One line, at most 200 characters |
+| `ref` | A commit, a PR, or `to:<recipient>` for a message; absent when there is none |
+| `source` | `claude-hook` or `cli` |
+
+Each line is one write, so sessions that write at the same moment do not mix their lines.
+
+### One folder for every project
+
+By default each project keeps its own log. A coordinator that must read the sessions of several repositories sets `events.dir` to one absolute folder, in each of them:
+
+```ts
+export default {
+  events: { log: true, dir: '/home/me/work/.agents/local/events' },
+};
+```
+
+Every hook and every `event add` in those projects then writes there, and `event tail --dir <folder>` reads it from anywhere. `vulcan doctor` warns when a `dir` outside the project does not exist or cannot be written ([events-dir](/references/commands/doctor#events-dir)). The hooks fail open, so without that warning a wrong folder would lose every line without a sound. Only turn this on for a folder you own: every project that names it can write to it.
+
+## vulcan event add
+
+```text
+vulcan event add --kind <kind> --summary <text> [--flow F-n] [--ref <ref>] [--actor <name>] [--dir <folder>]
+```
+
+It prints the id of the line. This is the way in for any coding agent: a hook of Claude Code is only one writer.
+
+| Flag | Meaning |
+|---|---|
+| `--kind` | One of the eight kinds |
+| `--summary` | A short label. It is cut to one line of 200 characters, and anything shaped like a secret is replaced by `[redacted]` |
+| `--flow` | `F-n`. Without it, the flow is read from the branch, when its name has an `F-n` segment such as `feature/F-12-events-log` |
+| `--ref` | A commit, a PR number, a recipient |
+| `--actor` | Who. Without it: `VULCAN_ACTOR` in the environment, else the name Claude Code gave the session, else `claude:` and the start of the session id, else `unknown` |
+| `--dir` | The folder, for this call: `--dir` over `events.dir` over `.agents/local/events` |
+
+Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not `F-n`, an unknown flag, a flag given twice).
+
+## vulcan event tail
+
+```text
+vulcan event tail [--since <time>] [--json] [--dir <folder>]
+```
+
+It prints the events at or after `--since`, oldest first. `--since` takes anything `Date.parse` reads, such as `2026-11-03` or `2026-11-03T09:00:00Z`; the default is the last 24 hours. `--json` prints each line as written. A line that is not an event is skipped, and the count goes to stderr. `--dir` must name a folder that exists (exit `2` otherwise); the default folder may not exist yet, and then there is nothing to print.
+
+## What the Claude Code hooks log
+
+`sync` installs one hook per event. Each runs `base/hooks/event.ts`, reads the payload from stdin and writes at most one line. The payload fields are those of Claude Code 2.1.317.
+
+| Claude Code event | Logged as | Summary | Read from the payload |
+|---|---|---|---|
+| `SessionStart` | `session-start` | the `source` and the `model` | `source`, `model` |
+| `Stop` | `session-stop` | `turn ended`. Not logged while `stop_hook_active` is true | `stop_hook_active` |
+| `SubagentStop` | `subagent-stop` | the `agent_type` and the `agent_id` | `agent_type`, `agent_id` |
+| `Notification` | `needs-owner`, for `permission_prompt`, `idle_prompt` and `elicitation_dialog` | the notification `title`, else its type | `notification_type`, `title` |
+| `PostToolUse` of `SendMessage` | `msg-sent` | the sender's own `summary` label, else the first line of the message cut to 80 characters | `tool_input.to`, `tool_input.summary`, the first line of `tool_input.message` |
+
+A `Stop` fires at the end of every turn, so `session-stop` means "the agent stopped to wait", not "the session closed". `msg-received` has no hook: Claude Code runs none when a message arrives, and VULCAN does not read transcripts to find out. A reader gets it from the sender's `msg-sent`, or an agent writes it with `event add`. `commit` and `pr` are written with `event add` too.
+
+### A flow id
+
+A line carries `flowId` when an `F-n` is found, in this order: `--flow`; `Flow: F-n` in the first line of a sent message; an `F-n` segment in the name of the checked-out branch (`feature/F-12-events-log`). The branch is read from `.git/HEAD` without starting git. For a pull request, put `Flow: F-n` in the body and pass `--flow F-n` to `event add --kind pr`.
+
+### Fast and never in the way
+
+The hook takes about 10 to 25 ms per event on a developer machine (a bare `bun` start is most of it). It loads no config and no schema. It always exits `0` and prints nothing on stdout: a payload it cannot read or a folder it cannot write is a note on stderr and a line that is not logged, and a missing bun or a missing `node_modules/@venizia/vulcan` is silent. `VULCAN_GUARDS=off` switches it off. It also checks the manifest on every event, so a project that turns `log` off stops logging before the next `sync` removes the entries.
+
+## What is never stored
+
+Summaries only. The log never holds a message body, the last reply of an agent (`last_assistant_message`), a notification `message`, a tool command or its output, a file path, or a transcript. Text that is stored passes through a redaction first: GitHub, npm, Slack and AWS tokens, `sk-` keys, `Bearer` values, private-key headers, long hex and base64 runs, `user:password@` in a URL, and the value of any `name=value` whose name contains `key`, `token`, `secret`, `password` or `credential` become `[redacted]`. That is a net for slips, not a promise: a label that a person or an agent writes should not contain a secret in the first place.
+
+## Other agents
+
+The hooks exist for Claude Code only. Any other coding agent reports through `vulcan event add`. Codex and Antigravity get guard hooks from `sync` today, but no event adapter is written for them yet.
+
+## See also
+
+- [Configuration](/references/configuration/#events): the `events` key
+- [vulcan sync](/references/commands/sync#the-event-hooks): when the hooks are written
+- [vulcan doctor](/references/commands/doctor#events-dir): the folder warning

@@ -1,7 +1,16 @@
 import { Glob } from 'bun';
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
-import { basename, dirname, join, relative, sep } from 'node:path';
+import {
+  accessSync,
+  constants,
+  existsSync,
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+} from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout, RecordValue } from '../common/index.ts';
 import { LayoutKeys, LayoutFolder } from '../common/layout-folder.ts';
 import { MCP_SERVER_HINT, ProjectScaffold } from '../init/index.ts';
@@ -716,6 +725,53 @@ export class ProjectContract {
         return [];
       }
     }
+  }
+
+  /**
+   * `events.dir` names a folder outside the project: it must exist and be writable by this user, or the
+   * event hooks lose every line without a word (they fail open). A folder inside the project is made
+   * on the first write and is not checked. A warning: the folder belongs to the machine, not to the repository.
+   */
+  static checkEventsDir(opts: ICheckContext): IViolation[] {
+    const { dir } = opts.config.events;
+
+    if (dir === undefined) {
+      return [];
+    }
+
+    const away = relative(opts.root, dir);
+
+    if (away !== '' && !away.startsWith('..') && !isAbsolute(away)) {
+      return [];
+    }
+
+    const problem = ((): string | undefined => {
+      if (!existsSync(dir)) {
+        return `does not exist - create it (mkdir -p ${dir})`;
+      }
+
+      if (!statSync(dir).isDirectory()) {
+        return 'is not a folder';
+      }
+
+      try {
+        accessSync(dir, constants.W_OK);
+
+        return undefined;
+      } catch {
+        return 'is not writable by this user';
+      }
+    })();
+
+    return problem === undefined
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.EVENTS_DIR,
+            file: opts.configFile,
+            message: `events.dir ${dir} ${problem}, so the event log hooks cannot write there`,
+          }),
+        ];
   }
 
   /**

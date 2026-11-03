@@ -64,7 +64,7 @@ const readSettingsFile = (opts: { path: string }): TSettings | undefined => {
   }
 };
 
-/** Shipped settings, the chosen slot options, the empty attribution of a project that denies agent signatures, the project's hooks and `claude.settings` - what sync owns. */
+/** Shipped settings, the chosen slot options, the empty attribution of a project that denies agent signatures, the event log hooks, the project's hooks and `claude.settings` - what sync owns. */
 const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
   let overlay: TSettings = JSON.parse(
     readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.SETTINGS_FILE), 'utf8'),
@@ -93,6 +93,15 @@ const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
       base: overlay,
       overlay: JSON.parse(
         readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.COMMIT_ATTRIBUTION_FILE), 'utf8'),
+      ),
+    });
+  }
+
+  if (opts.config.events.log) {
+    overlay = ProjectSettings.merge({
+      base: overlay,
+      overlay: JSON.parse(
+        readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.EVENTS_FILE), 'utf8'),
       ),
     });
   }

@@ -31,6 +31,10 @@ Usage: bun x vulcan <command>
                                   Check a commit message against the commit.message checks of the config (an
                                   agent in a trailer or a "generated with" line, the project's subject shape);
                                   sync installs it as the commit-msg hook; exit 1 on a problem, 2 on bad input
+  event add --kind <k> --summary <text> [--flow F-n] [--ref <r>] | tail [--since <time>] [--json] [--dir <folder>]
+                                  Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
+                                  read it; with events.log on, sync installs the Claude Code hooks that
+                                  write it; exit 2 on bad input
   visualize <spec.json> [--out <name>] | --schema
                                   Make one small static HTML page (a flow, a status, a before and after) from
                                   a JSON spec, in .agents/local/prototypes/; --schema prints the spec's schema
