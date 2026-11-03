@@ -46,7 +46,9 @@ const isAlive = (opts: { pid: number }): boolean => {
 /** How long ago the lock was made, or undefined when it is gone: its holder may remove it at any moment, so no check comes first. */
 const ageOf = (opts: { lock: string }): number | undefined => {
   try {
-    return Date.now() - statSync(opts.lock).mtimeMs;
+    // mtimeMs carries sub-millisecond precision while Date.now() is whole milliseconds, so a lock made this
+    // instant can read as slightly in the future.
+    return Math.max(0, Date.now() - statSync(opts.lock).mtimeMs);
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
       return undefined;
