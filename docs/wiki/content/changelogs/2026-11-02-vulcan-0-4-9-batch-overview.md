@@ -3,7 +3,7 @@ title: Upgrade overview - a new visualize, shared presets, an event log, affecte
 description: What to do, in order, when you move a project from 0.4.8 to 0.4.9, and what each change means for you.
 type: release
 packages: ['@venizia/vulcan', '@venizia/vulcan-atlas', '@venizia/vulcan-okf']
-release: '@venizia/vulcan@0.4.9-0'
+release: '@venizia/vulcan@0.4.9'
 ---
 
 # Changelog - 2026-11-02
