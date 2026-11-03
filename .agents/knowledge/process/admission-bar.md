@@ -8,8 +8,8 @@ tags: [process, rules]
 # Admission bar
 
 Every addition to the shipped base (a rule, a skill, a hook, a command) passes these checks.
-A proposal that fails one is not added; if it was worth writing down, it goes in
-`.agents/out-of-scope/` with the reason, so nobody proposes it again unchanged.
+A proposal that fails one is not added; if it was worth writing down, the reason goes in the issue
+or pull request where it was rejected, so nobody proposes it again unchanged.
 
 1. **An observed failure, with a date.** Name what went wrong and when. A rule for a failure nobody
    has seen is speculation.
