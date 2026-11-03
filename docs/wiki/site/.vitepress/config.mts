@@ -17,6 +17,7 @@ const guidesSidebar: DefaultTheme.SidebarItem[] = [
     text: 'Core Concepts',
     items: [
       { text: 'The project layer', link: '/guides/core-concepts/the-project-layer' },
+      { text: 'The .agents folder', link: '/guides/core-concepts/the-agents-folder' },
       { text: 'Rules and slots', link: '/guides/core-concepts/rules-and-slots' },
       { text: 'Hooks and guards', link: '/guides/core-concepts/hooks-and-guards' },
       { text: 'The owner and the reply shape', link: '/guides/core-concepts/owner-and-replies' },

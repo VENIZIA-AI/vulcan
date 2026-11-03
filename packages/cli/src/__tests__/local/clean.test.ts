@@ -10,8 +10,9 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { ProjectLayout } from '../../common/index.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
-import { LocalClean, LocalScan } from '../../local/index.ts';
+import { CleanScopes, LocalClean, LocalConstants, LocalScan } from '../../local/index.ts';
 import { CLAUDE_LAUNCH_FILE, LaunchSettings } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -204,6 +205,7 @@ describe('a link can never move clean out of the project', () => {
     const entry = {
       scope: 'tmp',
       name: 'x',
+      where: 'tmp/x',
       path: join(root, '.agents/local/tmp/x'),
       bytes: 1,
       ageMs: 0,
@@ -360,6 +362,7 @@ describe('LocalClean.plan and runClean', () => {
     const entry = {
       scope: 'tmp',
       name: 'x',
+      where: 'tmp/x',
       path: join(outside, 'keep.txt'),
       bytes: 1,
       ageMs: 0,
@@ -494,5 +497,256 @@ describe('doctor and what an agent left behind', () => {
     expect(note?.message).toContain('cache 60.0 MB');
     const result = await DoctorRunner.runNotes({ root: repository() });
     expect(result.filter((entry) => entry.file === '.agents/local')).toEqual([]);
+  });
+});
+
+describe("the layout: on-demand folders, release candidates, events and a browser's scratch folders", () => {
+  const HOUR = 60 * 60 * 1000;
+  const tagged = (opts: { root: string; version: string }): void => {
+    git({ cwd: opts.root, args: ['tag', `v${opts.version}`] });
+  };
+  const old = (opts: { root: string; path: string; hours: number }): void => {
+    const target = join(opts.root, '.agents/local', opts.path);
+    const then = new Date(Date.now() - opts.hours * HOUR);
+
+    utimesSync(join(target, 'SingletonSocket'), then, then);
+    utimesSync(target, then, then);
+  };
+  const chrome = (opts: { root: string; name: string; hours: number }): void => {
+    file({ root: opts.root, path: `${opts.name}/SingletonSocket`, text: 's' });
+    old({ root: opts.root, path: opts.name, hours: opts.hours });
+  };
+
+  test('events and release-candidates are layout folders that sync does not create', () => {
+    const layoutNames = ProjectLayout.LOCAL_LAYOUT.map((entry) => entry.name);
+
+    expect(layoutNames).toEqual(expect.arrayContaining(['events', 'release-candidates']));
+    expect(
+      ProjectLayout.LOCAL_LAYOUT.filter((entry) => 'onDemand' in entry).map((entry) => entry.name),
+    ).toEqual(['events', 'release-candidates']);
+  });
+
+  test('a release candidate is removable once its version is tagged, kept until then, and never in --all', () => {
+    const root = repository();
+
+    file({ root, path: 'release-candidates/0.4.6/a.txt' });
+    file({ root, path: 'release-candidates/0.4.7/a.txt' });
+    tagged({ root, version: '0.4.6' });
+
+    const entries = LocalScan.scan({ root }).filter(
+      (entry) => entry.scope === 'release-candidates',
+    );
+    const byName = Object.fromEntries(entries.map((entry) => [entry.name, entry]));
+
+    expect(byName['0.4.6']).toMatchObject({ state: 'shipped', removable: true });
+    expect(byName['0.4.7']).toMatchObject({ state: 'ok', removable: false });
+    expect(byName['0.4.7'].note).toContain('not tagged yet');
+    expect(
+      LocalClean.plan({ root, scopes: ['tmp', 'worktrees', 'clones', 'cache'] }).remove,
+    ).toEqual([]);
+
+    const dry = runCli({ args: ['clean', '--release-candidates'], cwd: root });
+
+    expect(dry.stderr).toContain('release-candidates/0.4.6');
+    expect(dry.stderr).toContain('kept release-candidates/0.4.7');
+    expect(existsSync(join(root, '.agents/local/release-candidates/0.4.6'))).toBe(true);
+
+    expect(runCli({ args: ['clean', '--release-candidates', '--yes'], cwd: root }).code).toBe(0);
+    expect(existsSync(join(root, '.agents/local/release-candidates/0.4.6'))).toBe(false);
+    expect(existsSync(join(root, '.agents/local/release-candidates/0.4.7'))).toBe(true);
+  });
+
+  test('a tag without the v counts, and doctor says a shipped candidate can go', async () => {
+    const root = repository();
+
+    file({ root, path: 'release-candidates/1.0.0/a.txt' });
+    git({ cwd: root, args: ['tag', '1.0.0'] });
+
+    const result = await DoctorRunner.runWarnings({ root });
+    const warnings = result.filter((entry) => entry.file.includes('release-candidates'));
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].file).toBe('.agents/local/release-candidates/1.0.0');
+    expect(warnings[0].message).toContain('the release shipped');
+    expect(warnings[0].message).toContain('vulcan clean --release-candidates --yes');
+  });
+
+  test('events are removed only when named, never by --all', () => {
+    const root = repository();
+
+    file({ root, path: 'events/2026-11-03.jsonl', text: '{}\n' });
+
+    expect(
+      LocalClean.plan({ root, scopes: ['tmp', 'worktrees', 'clones', 'cache'] }).remove,
+    ).toEqual([]);
+    expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
+    expect(existsSync(join(root, '.agents/local/events/2026-11-03.jsonl'))).toBe(true);
+    expect(runCli({ args: ['clean', '--events', '--yes'], cwd: root }).code).toBe(0);
+    expect(existsSync(join(root, '.agents/local/events/2026-11-03.jsonl'))).toBe(false);
+  });
+
+  test("a browser's scratch folder under .agents/local: tmp scope, by its own name, old ones only", () => {
+    const root = repository();
+
+    chrome({ root, name: 'com.google.Chrome.old111', hours: 5 });
+    chrome({ root, name: 'org.chromium.Chromium.old222', hours: 5 });
+    chrome({ root, name: 'com.google.Chrome.new333', hours: 0 });
+    file({ root, path: 'not-a-browser/x.txt', text: 'x' });
+
+    const entries = LocalScan.scan({ root }).filter((entry) => entry.scope === 'tmp');
+    const byName = Object.fromEntries(entries.map((entry) => [entry.name, entry]));
+
+    expect(Object.keys(byName).sort()).toEqual([
+      'com.google.Chrome.new333',
+      'com.google.Chrome.old111',
+      'org.chromium.Chromium.old222',
+    ]);
+    expect(byName['com.google.Chrome.old111']).toMatchObject({
+      removable: true,
+      state: 'stale',
+      where: 'com.google.Chrome.old111',
+    });
+    expect(byName['com.google.Chrome.new333']).toMatchObject({ removable: false, state: 'ok' });
+    expect(byName['com.google.Chrome.new333'].note).toContain('may be using it');
+
+    const dry = runCli({ args: ['clean'], cwd: root });
+
+    expect(dry.stderr).toContain('  com.google.Chrome.old111  ');
+    expect(dry.stderr).toContain('kept com.google.Chrome.new333');
+    expect(existsSync(join(root, '.agents/local/com.google.Chrome.old111'))).toBe(true);
+
+    expect(runCli({ args: ['clean', '--yes'], cwd: root }).code).toBe(0);
+    expect(existsSync(join(root, '.agents/local/com.google.Chrome.old111'))).toBe(false);
+    expect(existsSync(join(root, '.agents/local/org.chromium.Chromium.old222'))).toBe(false);
+    expect(existsSync(join(root, '.agents/local/com.google.Chrome.new333'))).toBe(true);
+    expect(existsSync(join(root, '.agents/local/not-a-browser/x.txt'))).toBe(true);
+  });
+
+  test('doctor warns about entries it does not know, by name and size, and never removes them', async () => {
+    const root = repository();
+
+    file({ root, path: 'diag.ts', text: 'x'.repeat(2048) });
+    file({ root, path: 'scope.txt', text: 'x' });
+    file({ root, path: 'audit/report.md', text: 'x' });
+    file({ root, path: 'profile.json', text: '{}' });
+    file({ root, path: 'violations.jsonl', text: '' });
+    chrome({ root, name: 'com.google.Chrome.xyz', hours: 5 });
+
+    expect(LocalScan.unknown({ root }).map((entry) => entry.name)).toEqual([
+      'audit',
+      'diag.ts',
+      'scope.txt',
+    ]);
+
+    const result = await DoctorRunner.runWarnings({ root });
+    const warnings = result.filter((entry) => entry.file.startsWith('.agents/local/'));
+    const unknown = warnings.filter((entry) =>
+      entry.message.startsWith('not an entry VULCAN knows'),
+    );
+
+    expect(unknown.map((entry) => entry.file)).toEqual([
+      '.agents/local/audit',
+      '.agents/local/diag.ts',
+      '.agents/local/scope.txt',
+    ]);
+    expect(unknown.find((entry) => entry.file.endsWith('diag.ts'))?.message).toContain('2.0 KB');
+    expect(unknown[0].message).toContain(
+      'put scratch in tmp/ and what you want to keep in reports/',
+    );
+
+    // The browser folder is expired tmp, not unknown, and the command that takes it is named.
+    const chromeWarning = warnings.find((entry) => entry.file.endsWith('com.google.Chrome.xyz'));
+
+    expect(chromeWarning?.message).toContain('vulcan clean --tmp --yes');
+    expect(existsSync(join(root, '.agents/local/diag.ts'))).toBe(true);
+    expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
+    expect(existsSync(join(root, '.agents/local/diag.ts'))).toBe(true);
+    expect(existsSync(join(root, '.agents/local/audit/report.md'))).toBe(true);
+  });
+
+  test('a repository with only the layout folders has nothing unknown', async () => {
+    const root = repository();
+
+    mkdirSync(join(root, '.agents/local/events'), { recursive: true });
+    mkdirSync(join(root, '.agents/local/release-candidates'), { recursive: true });
+
+    expect(LocalScan.unknown({ root })).toEqual([]);
+  });
+
+  test('a worktree whose branch is merged into origin/develop is removable though the root is on another branch', () => {
+    const root = repository();
+    const remote = createProject({ files: {} });
+
+    git({ cwd: remote, args: ['init', '-q', '--bare', '-b', 'develop'] });
+    git({ cwd: root, args: ['remote', 'add', 'origin', remote] });
+    git({ cwd: root, args: ['push', '-q', 'origin', 'develop'] });
+    git({ cwd: root, args: ['fetch', '-q', 'origin'] });
+    worktree({ root, name: 'shipped', commit: true });
+    git({ cwd: root, args: ['checkout', '-q', '-b', 'elsewhere'] });
+    // The branch lands on origin/develop (as a merged pull request would), the root never merged it.
+    git({ cwd: root, args: ['push', '-q', 'origin', 'shipped:develop'] });
+    git({ cwd: root, args: ['fetch', '-q', 'origin'] });
+
+    const entry = LocalScan.scan({ root }).find((candidate) => candidate.name === 'shipped');
+
+    expect(entry).toMatchObject({ state: 'merged', removable: true });
+    expect(entry?.note).toContain('merged into origin/develop');
+  });
+
+  test('the layout, the clean flags and the docs agree', () => {
+    const REPO = join(import.meta.dir, '..', '..', '..', '..', '..');
+    const page = readFileSync(
+      join(REPO, 'docs/wiki/content/guides/core-concepts/the-agents-folder.md'),
+      'utf8',
+    );
+    const clean = readFileSync(
+      join(REPO, 'docs/wiki/content/references/commands/clean.md'),
+      'utf8',
+    );
+    const concept = readFileSync(
+      join(REPO, '.agents/knowledge/architecture/agents-folder.md'),
+      'utf8',
+    );
+
+    for (const entry of ProjectLayout.LOCAL_LAYOUT) {
+      // The tree, the table of lifetimes and the knowledge concept each name the folder.
+      expect(page, entry.name).toContain(
+        `├── ${entry.name}/`.replace('├', page.includes(`└── ${entry.name}/`) ? '└' : '├'),
+      );
+      expect(page, entry.name).toContain(`| \`${entry.name}/\` |`);
+      expect(concept, entry.name).toContain(entry.name);
+    }
+
+    // Every folder with a scope has a flag the clean page documents, and the router accepts it.
+    for (const scope of CleanScopes.SCHEME_SET) {
+      expect(clean, scope).toContain(`--${scope}`);
+      expect(
+        runCli({ args: ['clean', `--${scope}`], cwd: repository() }).stderr,
+        scope,
+      ).not.toContain('unknown argument');
+    }
+
+    for (const name of LocalConstants.KNOWN_FILES) {
+      if (name !== '.gitkeep') {
+        expect(page, name).toContain(name);
+      }
+    }
+  });
+
+  test('a worktree with uncommitted work or an unmerged branch is still kept', () => {
+    const root = repository();
+
+    worktree({ root, name: 'unmerged', commit: true });
+    worktree({ root, name: 'dirty' });
+    writeFileSync(join(root, '.agents/local/worktrees/dirty/scratch.txt'), 'x');
+
+    const byName = Object.fromEntries(
+      LocalScan.scan({ root })
+        .filter((entry) => entry.scope === 'worktrees')
+        .map((entry) => [entry.name, entry]),
+    );
+
+    expect(byName.unmerged).toMatchObject({ state: 'unmerged', removable: false });
+    expect(byName.dirty).toMatchObject({ state: 'dirty', removable: false });
   });
 });

@@ -79,8 +79,11 @@ describe('LocalPlan.planWorkspace', () => {
 
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe('node_modules/\n.agents/local/\n');
 
-    for (const { name } of ProjectLayout.LOCAL_LAYOUT) {
-      expect(existsSync(join(root, '.agents/local', name))).toBe(true);
+    for (const entry of ProjectLayout.LOCAL_LAYOUT) {
+      // On-demand folders (events, release-candidates) appear when something writes there, not on sync.
+      expect(existsSync(join(root, '.agents/local', entry.name)), entry.name).toBe(
+        !('onDemand' in entry),
+      );
     }
   });
 
@@ -122,6 +125,8 @@ describe('LocalPlan.planWorkspace', () => {
       cache: 'kept',
       reports: 'kept',
       prototypes: 'kept',
+      events: 'kept',
+      'release-candidates': 'release',
     });
   });
 

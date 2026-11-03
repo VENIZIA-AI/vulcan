@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { findRepositoryRoot } from '@venizia/dev-configs/testing';
@@ -12,6 +20,12 @@ export interface IBrowserRun {
   expression: string;
 }
 
+/** Chrome puts a unix socket at `<temp folder>/com.google.Chrome.XXXXXX/SingletonSocket`; a socket path is 107 characters at most. */
+const SOCKET_PATH_MAX = 107;
+const SOCKET_SUFFIX = join('com.google.Chrome.XXXXXX', 'SingletonSocket');
+/** What a browser leaves in its temp folder when it is killed. */
+const SCRATCH_FOLDER = /^(com\.google\.Chrome|org\.chromium\.Chromium)\./;
+
 /**
  * A real browser for the tests that need layout: headless Chrome over the DevTools protocol, started once and reused.
  * `BrowserPage.available()` says whether one can be started here; a test that needs it is skipped when it cannot, and
@@ -21,6 +35,8 @@ export class BrowserPage {
   private static child: ReturnType<typeof Bun.spawn> | undefined;
   private static socket: WebSocket | undefined;
   private static folder: string | undefined;
+  /** The folder the browser was given as its temp folder, and the scratch folders it already held. */
+  private static scratch: { folder: string; before: Set<string> } | undefined;
   private static nextId = 0;
   private static readonly waiting = new Map<number, (value: unknown) => void>();
   private static readonly listeners: ((method: string) => void)[] = [];
@@ -54,13 +70,20 @@ export class BrowserPage {
 
     BrowserPage.folder = folder;
 
-    // Chrome puts a unix socket in its temp folder, and a socket path is 107 characters at most: the child gets a short
-    // folder, in this order - the one named by VULCAN_BROWSER_TMPDIR, the project's own `.agents/local`, the test folder.
+    // The child gets the first of these folders in which Chrome's socket path fits: the one named by
+    // VULCAN_BROWSER_TMPDIR, the project's scratch folder, the project's `.agents/local` (shorter by `tmp/`), the test folder.
+    const local = join(findRepositoryRoot(import.meta.dir), '.agents', 'local');
     const candidates = [
       process.env['VULCAN_BROWSER_TMPDIR'],
-      join(findRepositoryRoot(import.meta.dir), '.agents', 'local'),
+      join(local, 'tmp'),
+      local,
       folder,
-    ].filter((entry): entry is string => entry !== undefined && existsSync(entry));
+    ].filter(
+      (entry): entry is string =>
+        entry !== undefined &&
+        existsSync(entry) &&
+        join(entry, SOCKET_SUFFIX).length <= SOCKET_PATH_MAX,
+    );
 
     for (const short of candidates) {
       const started = await BrowserPage.start({ binary, folder, short });
@@ -70,7 +93,12 @@ export class BrowserPage {
       }
     }
 
-    BrowserPage.close();
+    await BrowserPage.close();
+    console.warn(
+      candidates.length === 0
+        ? `browser tests skipped: no folder is short enough for Chrome's socket (${SOCKET_PATH_MAX} characters at most, \`${SOCKET_SUFFIX}\` included); set VULCAN_BROWSER_TMPDIR to a short folder`
+        : 'browser tests skipped: Chrome did not answer in time',
+    );
 
     return false;
   }
@@ -82,6 +110,7 @@ export class BrowserPage {
   }): Promise<boolean> {
     const { binary, folder, short } = opts;
 
+    BrowserPage.scratch = { folder: short, before: new Set(readdirSync(short)) };
     BrowserPage.child = Bun.spawn(
       [
         binary,
@@ -122,8 +151,7 @@ export class BrowserPage {
       await Bun.sleep(150);
     }
 
-    BrowserPage.child?.kill();
-    BrowserPage.child = undefined;
+    await BrowserPage.stopChild();
     rmSync(join(folder, 'profile'), { recursive: true, force: true });
 
     return false;
@@ -282,11 +310,41 @@ export class BrowserPage {
     return true;
   }
 
-  static close(): void {
-    BrowserPage.socket?.close();
-    BrowserPage.child?.kill();
-    BrowserPage.socket = undefined;
+  /** Ends the browser (a hard kill when it does not leave in 3 seconds) and removes the scratch folders it made. */
+  private static async stopChild(): Promise<void> {
+    const { child, scratch } = BrowserPage;
+
     BrowserPage.child = undefined;
+    BrowserPage.scratch = undefined;
+
+    if (child !== undefined) {
+      child.kill();
+
+      const left = await Promise.race([
+        child.exited.then(() => true),
+        Bun.sleep(3000).then(() => false),
+      ]);
+
+      if (!left) {
+        child.kill('SIGKILL');
+        await child.exited;
+      }
+    }
+
+    // Only what appeared while this browser ran: a folder of another browser on the same machine stays.
+    if (scratch !== undefined && existsSync(scratch.folder)) {
+      for (const name of readdirSync(scratch.folder)) {
+        if (SCRATCH_FOLDER.test(name) && !scratch.before.has(name)) {
+          rmSync(join(scratch.folder, name), { recursive: true, force: true });
+        }
+      }
+    }
+  }
+
+  static async close(): Promise<void> {
+    BrowserPage.socket?.close();
+    BrowserPage.socket = undefined;
+    await BrowserPage.stopChild();
 
     if (BrowserPage.folder !== undefined) {
       rmSync(BrowserPage.folder, { recursive: true, force: true });
