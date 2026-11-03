@@ -120,7 +120,7 @@ A board lists flows by their id (`F-12`) and needs a heading for each. Without h
 $ bun x --no-install vulcan event add --kind flow --flow F-12 --title "Bảng việc cho anh" --why "để anh thấy việc nào chờ anh"
 ```
 
-The newest `flow` line of a flow wins, title and reason together: write a new one when either changes, and a new one without `--why` drops the old reason. A flow with no `flow` line keeps the old heading, and the board marks it "no title yet". The rule for agents is `V-P-13` in the [rules reference](/references/rules#process-p).
+The newest `flow` line of a flow wins, title and reason together: write a new one when either changes, and a new one without `--why` drops the old reason. A flow with no `flow` line keeps the old heading, and the board marks it "no title yet". The rule for agents, which applies only to a project that has `events.log` on, is `V-P-13` in the [rules reference](/references/rules#process-p).
 
 ### A flow id
 

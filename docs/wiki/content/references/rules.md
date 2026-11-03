@@ -76,7 +76,7 @@ Process rules establish reading requirements, design review gates, scope boundar
 | `V-P-10` | Ask all open decisions once, in one numbered round with a recommended answer each; never ask for a fact you can look up; state a default and continue only inside what plans, approval and `V-W-06` already allow. | SOFT |
 | `V-P-11` | Reports lead with the answer, show evidence as a table, and move a long report into a file. The reader decides the form: the owner gets the report shape in their own language (labels and address from the `owner` config and the profile), another agent gets the plain format it asked for. | SOFT |
 | `V-P-12` | Delegate mechanical work to a smaller-model subagent, keep judgment, and put the goal, files, "no git writes", report shape and the rules digest in every brief (template: `delegation-brief.md` in the shipped references). | SOFT - the brief; a subagent-start hook where the tool has one |
-| `V-P-13` | When you start work that belongs to a flow, log a `flow` event once, in the owner's language, with a title the owner reads and a one-line reason (`vulcan event add --kind flow --flow F-n --title ... --why ...`); the newest per flow wins, and a board shows the title as the heading. | SOFT |
+| `V-P-13` | Only in a project with `events.log` on: when you start work that belongs to a flow, log a `flow` event once, in the owner's language, with a title the owner reads and a one-line reason (`vulcan event add --kind flow --flow F-n --title ... --why ...`); the newest per flow wins, and a board shows the title as the heading. | SOFT |
 
 ## Build and quality (B)
 

@@ -19,7 +19,7 @@ packages: ['@venizia/vulcan']
 - **The heading of a flow is its title.** The board shows the title and, in the detail pane, the reason under it. Messages and the other lines stay in the pane as detail. A flow with no `flow` line keeps the heading it had before and is marked "no title yet".
 - **Agent plumbing is hidden by default.** Session starts and stops, subagent stops, and the idle or permission prompts of the harness are no longer lines of a flow, nor of the list, the diagram, the agent graph or the counts. **Show all events** puts them back. A `needs-owner` line with a real question stays visible.
 - **An idle prompt no longer makes a flow wait for you.** It used to count as an ask. Only a question a person or an agent wrote does.
-- **A rule for agents.** `V-P-13` asks an agent to log a `flow` line once, in the owner's language, when it starts work on a flow.
+- **A rule for agents.** `V-P-13` asks an agent to log a `flow` line once, in the owner's language, when it starts work on a flow; it applies only to a project that has `events.log` on.
 
 ## Who is affected
 
