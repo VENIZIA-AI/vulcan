@@ -20,6 +20,7 @@ export class DoctorChecks {
   static readonly LOCAL = 'local';
   static readonly PROFILE = 'profile';
   static readonly GUARDS = 'guards';
+  static readonly COMMIT_HOOK = 'commit-hook';
 }
 
 /** The `package.json` scripts every app carries, and the names the standard retired. */

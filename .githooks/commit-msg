@@ -2,11 +2,12 @@
 
 # ----------------------------------------------------------------------------
 # Commit-msg Hook
-# Rejects a commit message that signs the commit as an agent (W-00)
+# Checks the commit message against commit.message in .configs/vulcan.config.mts: no agent
+# signature (W-00). The check ships in @venizia/vulcan as `vulcan commit-check`.
 # ----------------------------------------------------------------------------
 
 set -e
 
-ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$(git rev-parse --show-toplevel)"
 
-exec bun "$ROOT_DIR/scripts/checks/check-agent-signature.ts" "$1"
+exec bun x --no-install vulcan commit-check "$1"

@@ -1,5 +1,6 @@
 import { AgentConstants } from './agents/index.ts';
 import { COMMAND_HANDLERS } from './commands/index.ts';
+import { CommitCheckFlags } from './commit/common/index.ts';
 import { runHelpCommand } from './commands/help.command.ts';
 import { ExitCodes, UpgradeFlags, VulcanCommands } from './common/index.ts';
 import { CreateFlags } from './create/common/index.ts';
@@ -10,6 +11,8 @@ const VERSION_ALIASES = new Set(['--version', '-v']);
 
 interface IAcceptedArgs {
   flags: string[];
+  /** The exit code for an argument the command does not take; `1` when absent. */
+  unknownExit?: number;
   /** Flags that take the next argument as their value. */
   values: string[];
   positionals: number;
@@ -71,6 +74,12 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
     ],
     values: [],
     positionals: 0,
+  },
+  [VulcanCommands.COMMIT_CHECK]: {
+    flags: [],
+    unknownExit: ExitCodes.USAGE,
+    values: [CommitCheckFlags.RANGE, CommitCheckFlags.TEXT],
+    positionals: 2,
   },
   [VulcanCommands.DOCTOR]: { flags: [], values: [], positionals: 0 },
   [VulcanCommands.PROFILE]: { flags: ['--yes'], values: [], positionals: 1 },
@@ -147,7 +156,7 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
         `vulcan ${name}: unknown argument '${unknown}' - run 'bun x vulcan help'\n`,
       );
 
-      return ExitCodes.FAILURE;
+      return accepted.unknownExit ?? ExitCodes.FAILURE;
     }
   }
 

@@ -681,6 +681,32 @@ export default {
 } satisfies VulcanConfig;
 ```
 
+## commit
+
+The `commit` object configures `vulcan commit-check` and the `commit-msg` hook that `vulcan sync` installs in each clone. Every check is off until you turn it on, so a project that sets nothing gets no hook.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `message.agent.signature` | `'allow' \| 'deny'` | `'allow'` | `'deny'` rejects a `Co-Authored-By` or `Signed-off-by` trailer, or a `Generated with` line, that names an agent, and makes `sync` install the hook. `'allow'` checks and installs nothing |
+| `message.agent.names` | `string[]` | `[]` | Agent names added to the shipped list: a co-author whose name begins with one is flagged, and so is a `Generated with` line that names one. Spaces, case and hyphens do not matter. Used only with `'deny'`; it cannot remove a shipped name |
+| `message.agent.allow` | `string[]` | `[]` | Names never flagged, for a person who shares a name with an agent (`Claude Dupont`). Used only with `'deny'` |
+| `message.subject` | `{ pattern, hint? }` | none | The project's one-line shape: the first line of a message must match `pattern`, a regular expression source (an invalid one is refused when the config loads). `hint` is shown beside a failure. Setting it installs the hook too |
+
+`vulcan sync` writes the block to the manifest only when a check is on, and the command reads it from there. See [vulcan commit-check](/references/commands/commit-check) for what is checked and what the hook does.
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  commit: {
+    message: {
+      agent: { signature: 'deny', names: ['windsurf'], allow: ['Claude Dupont'] },
+      subject: { pattern: '^\\[#\\d+\\] ', hint: '[#N] type(scope): subject' },
+    },
+  },
+} satisfies VulcanConfig;
+```
+
 ## A complete config
 
 The example below shows a complete configuration declaring every key once:

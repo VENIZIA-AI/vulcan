@@ -77,11 +77,12 @@ changelog-check:
 	@echo "lint: no X.Y.Z placeholder in the changelogs"
 	@bun scripts/checks/check-changelog-placeholder.ts
 
-# W-00: no commit of the branch signs itself as an agent. RANGE is the branch, `origin/develop..HEAD` by default; a clone
-# also gets the check at commit time from `make setup-hooks` (the commit-msg hook).
+# W-00: no commit of the branch signs itself as an agent (`commit.message.agent.signature: 'deny'` in the config). RANGE is the
+# branch, `origin/develop..HEAD` by default; a clone also gets the check at commit time from `make setup-hooks` (the commit-msg
+# hook runs the same command).
 agent-signature-check:
 	@echo "lint: no agent signature in the branch commits"
-	@bun scripts/checks/check-agent-signature.ts --range $(or $(RANGE),origin/develop..HEAD)
+	@bun x --no-install vulcan commit-check --range $(or $(RANGE),origin/develop..HEAD)
 
 fmt-files:
 	@bun fmt $(BUN_FMT_FLAGS) $(FMT_GLOB) $(ROOT_FMT_IGNORE)

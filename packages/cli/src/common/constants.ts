@@ -9,6 +9,7 @@ export class VulcanCommands {
   static readonly PROFILE = 'profile';
   static readonly PRESET = 'preset';
   static readonly VISUALIZE = 'visualize';
+  static readonly COMMIT_CHECK = 'commit-check';
   static readonly X = 'x';
   static readonly HELP = 'help';
   static readonly VERSION = 'version';
@@ -25,6 +26,8 @@ export class UpgradeFlags {
 export class ExitCodes {
   static readonly OK = 0;
   static readonly FAILURE = 1;
+  /** A command that cannot run as asked: the arguments, a file or a range it cannot read. */
+  static readonly USAGE = 2;
 }
 
 /** The tools `vulcan x` runs; each is a dependency of @venizia/vulcan at the exact same version. */

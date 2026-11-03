@@ -94,6 +94,17 @@ How to build something here (a feature, a controller, a service, a repository): 
 
 The corpora come from the config (the project and every `atlas.sources` entry). `sync` inserts the block before the section that follows "Must read first" (or at the end), rewrites only what sits between the markers on later runs, and never touches your text around it. `vulcan doctor` prints an `info` line when the block is missing or out of date; it never fails.
 
+## The commit-msg hook
+
+When `commit.message` turns a commit check on, `sync` installs a `commit-msg` git hook in your clone, so every commit message is checked, whoever or whatever makes the commit. Nothing is installed for a project that sets no check.
+
+- With no `core.hooksPath`, it writes `.git/hooks/commit-msg`, and a linked worktree shares it.
+- A hook that `sync` did not write is never touched: `sync` prints `skipped` and the line to add, `bun x --no-install vulcan commit-check "$1"`.
+- With `core.hooksPath` set, `sync` writes nothing there and prints the same line for that folder's `commit-msg` hook.
+- When you turn every check off, `sync` removes a hook it wrote.
+
+`--dry-run` lists the action as `would create`, `would replace` or `would remove`. [vulcan commit-check](/references/commands/commit-check#the-hook) has the details; `vulcan doctor` warns when the hook is not in order.
+
 ## Your own skills
 
 A skill you write in `.agents/skills/<name>/SKILL.md` reaches every agent you chose. The agents other than Claude read that folder themselves. For Claude, `sync` links each of your skills into `.claude/skills/<name>`: one you add shows up on the next `sync`, and when you delete the folder the next `sync` removes its dead link (`removed   .claude/skills/mine (a skill that is gone)`). A real folder of yours in `.claude/skills` is never replaced.

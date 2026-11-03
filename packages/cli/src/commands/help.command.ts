@@ -27,6 +27,10 @@ Usage: bun x vulcan <command>
   agents [list|add <ids>|remove <ids>|setup] [--dry-run]
                                   See, add, remove or re-choose the coding agents you use on this machine
   doctor                          Check the project follows VULCAN; exit 1 on any violation
+  commit-check <message-file> | --range <revs> | --text <message>
+                                  Check a commit message against the commit.message checks of the config (an
+                                  agent in a trailer or a "generated with" line, the project's subject shape);
+                                  sync installs it as the commit-msg hook; exit 1 on a problem, 2 on bad input
   visualize <spec.json> [--out <name>] | --schema
                                   Make one small static HTML page (a flow, a status, a before and after) from
                                   a JSON spec, in .agents/local/prototypes/; --schema prints the spec's schema

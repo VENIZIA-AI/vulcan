@@ -3,6 +3,7 @@ import type { TCommandHandler } from '../common/index.ts';
 import { runAddCommand } from './add.command.ts';
 import { runAgentsCommand } from './agents.command.ts';
 import { runCleanCommand } from './clean.command.ts';
+import { runCommitCheckCommand } from './commit-check.command.ts';
 import { runDoctorCommand } from './doctor.command.ts';
 import { runHelpCommand, runVersionCommand } from './help.command.ts';
 import { runInitCommand } from './init.command.ts';
@@ -18,6 +19,7 @@ export const COMMAND_HANDLERS: Record<string, TCommandHandler> = {
   [VulcanCommands.ADD]: runAddCommand,
   [VulcanCommands.AGENTS]: runAgentsCommand,
   [VulcanCommands.CLEAN]: runCleanCommand,
+  [VulcanCommands.COMMIT_CHECK]: runCommitCheckCommand,
   [VulcanCommands.DOCTOR]: runDoctorCommand,
   [VulcanCommands.HELP]: runHelpCommand,
   [VulcanCommands.INIT]: runInitCommand,
