@@ -2,6 +2,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, readdirSync, realpathSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
+import { EventRetention } from '../events/retention.ts';
+import { EventSettings } from '../events/settings.ts';
 import { CleanScopes, LocalConstants, LocalStates } from './constants.ts';
 
 /** One thing under `.agents/local/`: a child of one of its directories, or the profile file. */
@@ -416,7 +418,7 @@ export class LocalScan {
   }
 
   /** Every entry of `.agents/local/`, with size, age and what may be removed. Nothing is followed outside it. */
-  static scan(opts: { root: string; now?: number }): ILocalEntry[] {
+  static scan(opts: { root: string; now?: number; only?: string[] }): ILocalEntry[] {
     const local = LocalScan.localRootOf({ root: opts.root });
     const now = opts.now ?? Date.now();
 
@@ -424,10 +426,25 @@ export class LocalScan {
       return [];
     }
 
-    const registered = LocalScan.registeredWorktrees({ root: opts.root });
+    // `only` names the folders to look at: the automatic clean asks for two and never starts git for the worktrees.
+    const wants = (name: string): boolean => opts.only === undefined || opts.only.includes(name);
+    const registered = wants(CleanScopes.WORKTREES)
+      ? LocalScan.registeredWorktrees({ root: opts.root })
+      : undefined;
     const entries: ILocalEntry[] = [];
+    const eventPlan = wants(CleanScopes.EVENTS)
+      ? EventRetention.plan({
+          dir: join(local, 'events'),
+          limits: EventRetention.limitsOf({ settings: EventSettings.read({ root: opts.root }) }),
+          now,
+        })
+      : undefined;
 
     for (const layout of ProjectLayout.LOCAL_LAYOUT) {
+      if (!wants(layout.name)) {
+        continue;
+      }
+
       const directory = join(local, layout.name);
 
       if (!isRealDirectory({ path: directory })) {
@@ -457,6 +474,17 @@ export class LocalScan {
           });
 
           ({ state, removable, registered: isRegistered, note } = verdict);
+        } else if (layout.name === CleanScopes.EVENTS) {
+          // Day files are removed by the limits of `events` (age, count, size), never all at once and never today's.
+          const goes = eventPlan?.remove.find((file) => file.name === name);
+
+          ({ removable, note } =
+            goes === undefined
+              ? {
+                  removable: false,
+                  note: 'within the limits of events (maxSize, maxFiles, maxAgeDays)',
+                }
+              : { removable: true, note: goes.reason });
         } else if (layout.name === CleanScopes.RELEASE_CANDIDATES) {
           // A candidate is named by its version: once that version is tagged the release has shipped.
           const isShipped =
@@ -498,7 +526,7 @@ export class LocalScan {
 
     const profile = join(local, 'profile.json');
 
-    if (existsSync(profile)) {
+    if (wants(CleanScopes.PROFILE) && existsSync(profile)) {
       const stat = lstatSync(profile);
 
       entries.push({
@@ -516,7 +544,7 @@ export class LocalScan {
       });
     }
 
-    return [...entries, ...LocalScan.strays({ local, now })];
+    return [...entries, ...(wants(CleanScopes.TMP) ? LocalScan.strays({ local, now }) : [])];
   }
 
   /**

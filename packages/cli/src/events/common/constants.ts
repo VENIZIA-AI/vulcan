@@ -81,7 +81,21 @@ export class ClaudeHookEvents {
   ]);
 }
 
+/** The size units of `events.maxSize`: a number and one of these, such as `50MB`. */
+export class EventSizeUnits {
+  static readonly BYTES: Record<string, number> = {
+    KB: 1024,
+    MB: 1024 * 1024,
+    GB: 1024 * 1024 * 1024,
+  };
+  static readonly PATTERN = /^(\d+(?:\.\d+)?)\s?(KB|MB|GB)$/i;
+}
+
 export class EventConstants {
+  /** What the log keeps when `events.log` is on and the project sets no limit. */
+  static readonly DEFAULT_MAX_SIZE = '50MB';
+  static readonly DEFAULT_MAX_FILES = 30;
+  static readonly DEFAULT_MAX_AGE_DAYS = 30;
   /** Relative to the project root; the default place of the log. */
   static readonly DEFAULT_DIRECTORY = '.agents/local/events';
   static readonly MANIFEST_FILE = '.agents/vulcan.manifest.json';

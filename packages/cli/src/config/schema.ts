@@ -6,6 +6,7 @@ import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import type { TAgentSignaturePolicy } from '../commit/common/index.ts';
 import { SubjectShape } from '../commit/subject.ts';
 import { BoardShapes } from '../board/common/constants.ts';
+import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
 import {
   CodingAgents,
@@ -542,8 +543,31 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
           }
         })
         .optional(),
+      /**
+       * How much of the log is kept, as whole day files removed oldest first (today's never): `maxSize` for the
+       * folder (`50MB`, `200MB`, `1GB`), `maxFiles` for the day files, `maxAgeDays` for their age. The defaults,
+       * when `log` is on, are 50MB, 30 files and 30 days.
+       */
+      maxSize: z
+        .string()
+        .refine((value) => EventRetention.parseSize({ text: value }) !== undefined, {
+          message: 'a size such as 50MB, 200MB or 1GB',
+        })
+        .optional(),
+      maxFiles: z.number().int().min(1).optional(),
+      maxAgeDays: z.number().int().min(1).optional(),
     })
     .default({ log: false }),
+  /**
+   * What `vulcan` keeps tidy in `.agents/local/` by itself. `autoClean` (default true) lets the session-start hook, at
+   * most once a day, remove the safe part: stale `tmp/`, browser leftovers older than an hour, event files past their
+   * limits, and release candidates whose version is tagged. It never removes a worktree or a clone.
+   */
+  local: z
+    .strictObject({
+      autoClean: z.boolean().default(true),
+    })
+    .default({ autoClean: true }),
 });
 
 export type VulcanConfig = z.input<typeof VULCAN_CONFIG_SCHEMA>;

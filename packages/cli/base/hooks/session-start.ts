@@ -19,3 +19,15 @@ try {
     `vulcan: [session-start] could not make TMPDIR the project's temp folder: ${error}`,
   );
 }
+
+// At most once a day, the safe part of .agents/local/ is cleaned by a process of its own: the session does not wait for it.
+try {
+  const { LocalAutoClean } = await import('../../src/local/auto-clean.ts');
+  const note = LocalAutoClean.tick({ root: projectRoot });
+
+  if (note !== undefined) {
+    console.error(note);
+  }
+} catch (error) {
+  console.error(`vulcan: [session-start] the automatic clean was skipped: ${error}`);
+}

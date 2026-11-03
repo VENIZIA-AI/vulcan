@@ -20,6 +20,9 @@ import { BaseRules, RuleParser, RuleSlots } from '../rules/index.ts';
 import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
 import { AgentScopes, AgentSelection, AgentTable, LocalChoice } from '../agents/index.ts';
 import { CommitHook, CommitHookStates } from '../commit/index.ts';
+import { EventConstants } from '../events/common/index.ts';
+import { EventRetention } from '../events/retention.ts';
+import { EventSettings } from '../events/settings.ts';
 import { AgentFiles, AtlasBlockPlan, LocalPlan, SyncPlanner, SyncStatuses } from '../sync/index.ts';
 import { LocalConstants, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
 import {
@@ -772,6 +775,32 @@ export class ProjectContract {
             message: `events.dir ${dir} ${problem}, so the event log hooks cannot write there`,
           }),
         ];
+  }
+
+  /**
+   * Today's file of the event log alone is bigger than `events.maxSize`. The retention never truncates a file and never
+   * removes today's, so nothing else will shrink it: the project raises the limit or writes fewer lines. A warning.
+   */
+  static checkEventsSize(opts: ICheckContext): IViolation[] {
+    const settings = { ...opts.config.events };
+
+    if (!EventRetention.isActive({ settings })) {
+      return [];
+    }
+
+    const dir = EventSettings.dirOf({ root: opts.root, settings });
+    const limits = EventRetention.limitsOf({ settings });
+    const plan = EventRetention.plan({ dir, limits, now: Date.now() });
+
+    return plan.todayOver
+      ? [
+          createViolation({
+            check: DoctorChecks.EVENTS_SIZE,
+            file: opts.configFile,
+            message: `today's event file in ${dir} is ${LocalFormat.formatBytes({ bytes: plan.todayBytes })}, over events.maxSize (${settings.maxSize ?? EventConstants.DEFAULT_MAX_SIZE}); nothing is truncated and today's file is never removed - raise maxSize or write fewer events`,
+          }),
+        ]
+      : [];
   }
 
   /**

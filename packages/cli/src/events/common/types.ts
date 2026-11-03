@@ -20,8 +20,19 @@ export interface IEvent {
 }
 
 /** The manifest's `events` block, as `vulcan sync` writes it. */
+/** How much of the log is kept: whole day files are removed, oldest first, past any of these. */
+export interface IEventLimits {
+  maxBytes: number;
+  maxFiles: number;
+  maxAgeDays: number;
+}
+
 export interface IEventSettings {
   log: boolean;
+  /** The limits the manifest sets; a missing one takes its default when the log is on. */
+  maxSize?: string;
+  maxFiles?: number;
+  maxAgeDays?: number;
   /** An absolute folder; the log goes here instead of `.agents/local/events` of the project. */
   dir?: string;
 }

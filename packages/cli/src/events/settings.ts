@@ -3,6 +3,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { EventConstants } from './common/index.ts';
 import type { IEventSettings } from './common/index.ts';
+import { EventRetention } from './retention.ts';
 
 /** Where the log is and whether the Claude Code hooks write it: the `events` block of the manifest `vulcan sync` wrote. */
 export class EventSettings {
@@ -38,10 +39,21 @@ export class EventSettings {
 
       const { dir } = block;
 
+      const { maxSize, maxFiles, maxAgeDays } = block;
+
       return {
         log: block.log === true,
         ...(typeof dir === 'string' && EventSettings.dirError({ dir }) === undefined
           ? { dir }
+          : {}),
+        ...(typeof maxSize === 'string' && EventRetention.parseSize({ text: maxSize }) !== undefined
+          ? { maxSize }
+          : {}),
+        ...(typeof maxFiles === 'number' && Number.isInteger(maxFiles) && maxFiles >= 1
+          ? { maxFiles }
+          : {}),
+        ...(typeof maxAgeDays === 'number' && Number.isInteger(maxAgeDays) && maxAgeDays >= 1
+          ? { maxAgeDays }
           : {}),
       };
     } catch {
