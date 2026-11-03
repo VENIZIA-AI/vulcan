@@ -16,6 +16,7 @@ export class SyncConstants {
   static readonly SETTINGS_FILE = 'settings.json';
   /** The hook sync adds when the config sets `remoteHosts`; lives next to the shipped settings. */
   static readonly REMOTE_HOSTS_FILE = 'remote-hosts.json';
+  static readonly COMMIT_ATTRIBUTION_FILE = 'commit-attribution.json';
   /** What sync applied last time, so a later sync can take back what the project no longer asks for. */
   static readonly MANAGED_FILE = 'vulcan-managed.json';
   static readonly SKILLS_DIRECTORY = 'skills';

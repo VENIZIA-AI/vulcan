@@ -687,7 +687,7 @@ The `commit` object configures `vulcan commit-check` and the `commit-msg` hook t
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `message.agent.signature` | `'allow' \| 'deny'` | `'allow'` | `'deny'` rejects a `Co-Authored-By` or `Signed-off-by` trailer, or a `Generated with` line, that names an agent, and makes `sync` install the hook. `'allow'` checks and installs nothing |
+| `message.agent.signature` | `'allow' \| 'deny'` | `'allow'` | `'deny'` rejects a `Co-Authored-By` or `Signed-off-by` trailer, or a `Generated with` line, that names an agent, and makes `sync` install the hook and write Claude Code's empty `attribution` into `.claude/settings.json`. `'allow'` checks and installs nothing, and removes what `sync` wrote |
 | `message.agent.names` | `string[]` | `[]` | Agent names added to the shipped list: a co-author whose name begins with one is flagged, and so is a `Generated with` line that names one. Spaces, case and hyphens do not matter. Used only with `'deny'`; it cannot remove a shipped name |
 | `message.agent.allow` | `string[]` | `[]` | Whole co-author names never flagged, for a person who shares a name with an agent (`Claude Dupont`); an agent's address still is. Used only with `'deny'` |
 
