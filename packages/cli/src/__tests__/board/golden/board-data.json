@@ -7,10 +7,7 @@
       "title": "event log: the kinds and the log file",
       "state": "running",
       "holder": "veni-forge",
-      "stages": [
-        3,
-        4
-      ],
+      "stages": [3, 4],
       "cur": 4,
       "lastId": "F-1:2026-11-03T08:12:00.000Z:msg",
       "ciRuns": 0,
@@ -57,9 +54,7 @@
       "title": "pagination cursor design",
       "state": "you",
       "holder": "Phát",
-      "stages": [
-        3
-      ],
+      "stages": [3],
       "cur": 3,
       "lastId": "F-2:2026-11-03T08:25:00.000Z:note",
       "askId": "F-2:2026-11-03T08:25:00.000Z:note",
@@ -94,11 +89,7 @@
       "title": "Approve the retry design",
       "state": "running",
       "holder": "pnt-ardor-1",
-      "stages": [
-        0,
-        1,
-        3
-      ],
+      "stages": [0, 1, 3],
       "cur": 3,
       "lastId": "F-3:2026-11-03T08:40:00.000Z:commit",
       "askId": "F-3:2026-11-03T08:30:00.000Z:note",
@@ -144,11 +135,7 @@
       "title": "ci affected",
       "state": "done",
       "holder": "pnt-vulcan-1",
-      "stages": [
-        3,
-        4,
-        6
-      ],
+      "stages": [3, 4, 6],
       "cur": 6,
       "lastId": "F-4:2026-11-03T09:10:00.000Z:merge",
       "ciRuns": 0,
@@ -198,10 +185,7 @@
       "title": "spike: edge cache",
       "state": "parked",
       "holder": "pnt-ignis-1",
-      "stages": [
-        1,
-        3
-      ],
+      "stages": [1, 3],
       "cur": 1,
       "lastId": "F-5:2026-11-03T09:20:00.000Z:decision",
       "ciRuns": 0,
@@ -236,9 +220,7 @@
       "title": "Unsorted",
       "state": "running",
       "holder": "pnt-vulcan-1",
-      "stages": [
-        3
-      ],
+      "stages": [3],
       "cur": 3,
       "lastId": "Unsorted:2026-11-03T09:25:00.000Z:commit",
       "ciRuns": 0,
@@ -297,8 +279,5 @@
       "checkedAt": "2026-11-03T08:40:00.000Z"
     }
   },
-  "sources": [
-    "event log: 18 line(s) in .agents/local/events",
-    "github: left out (--no-github)"
-  ]
+  "sources": ["event log: 18 line(s) in .agents/local/events", "github: left out (--no-github)"]
 }

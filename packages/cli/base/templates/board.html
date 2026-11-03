@@ -2936,7 +2936,7 @@
         if (m < 1) return t('vừa xong');
         if (m < 60) return m + t(' phút');
         const h = Math.floor(m / 60);
-        if (h < 24) return h + t(' giờ') + (m % 60 ? ' ' + (m % 60) + ' ph' : '');
+        if (h < 24) return h + t(' giờ') + (m % 60 ? ' ' + (m % 60) + t(' phút') : '');
         return Math.floor(h / 24) + t(' ngày');
       };
       const isApprox = (e) => /ước lượng/.test(e.source || '');
@@ -3208,7 +3208,7 @@
                   unreadNow.add(fl.id);
                   if (prevUnread && !prevUnread.has(fl.id)) replay(dot, 'pop');
                 }
-                r.append(dot, el('span', 'code', fl.id));
+                r.append(dot, el('span', 'code', fl.id === 'Unsorted' ? '-' : fl.id));
                 const tt = el('div', 'tt');
                 tt.append(el('div', 't', fl.f.title));
                 const sub = el('div', 'sub');
@@ -3384,7 +3384,7 @@
         back.addEventListener('click', closeDetail);
         top.append(
           back,
-          el('span', 'code', fl.id),
+          el('span', 'code', fl.id === 'Unsorted' ? '-' : fl.id),
           el('span', 'repo', fl.f.repo),
           el('span', 'pill ' + fl.state, t(STATE_TXT[fl.state])),
         );
@@ -3555,7 +3555,10 @@
             c.dataset.id = fl.id;
             c.setAttribute('aria-current', String(selected === fl.id));
             const top = el('div', 'km');
-            top.append(el('span', 'code', fl.id), el('span', 'repo', fl.f.repo));
+            top.append(
+              el('span', 'code', fl.id === 'Unsorted' ? '-' : fl.id),
+              el('span', 'repo', fl.f.repo),
+            );
             if (fl.unread) top.append(el('span', 'unread'));
             const ft = el('div', 'km');
             ft.append(
@@ -3761,16 +3764,14 @@
           b.disabled = true;
           const at = new Date().toISOString();
           try {
-            await db
-              .doc('notes/r-' + Date.parse(at) + '-' + fl.id)
-              .set({
-                id: 'r-' + Date.parse(at) + '-' + fl.id,
-                kind: 'reassign',
-                flowId: fl.id,
-                to,
-                from: fl.holder,
-                at,
-              });
+            await db.doc('notes/r-' + Date.parse(at) + '-' + fl.id).set({
+              id: 'r-' + Date.parse(at) + '-' + fl.id,
+              kind: 'reassign',
+              flowId: fl.id,
+              to,
+              from: fl.holder,
+              at,
+            });
           } catch {}
           await notifyClaude(
             '[board] reassign ' + fl.id + ' to ' + to,

@@ -2,39 +2,9 @@ import { describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BoardPage } from '../../board/page.ts';
-import type { IBoardData } from '../../board/common/index.ts';
-import { BoardFold } from '../../board/fold.ts';
-import { sampleLines } from './log-lines.helper.ts';
+import { sampleData } from './sample-data.helper.ts';
 
 const GOLDEN = join(import.meta.dir, 'golden', 'board-data.json');
-
-/** The data of the sample day, with the ids made from the times so that nothing changes between runs. */
-export const sampleData = (opts: { base?: number } = {}): IBoardData => {
-  const log = BoardFold.fromLog({ events: sampleLines(opts) });
-  const { flows, decisions } = BoardFold.fold({ events: log.events });
-  const idOf = (event: { flowId: string; ts: string; kind: string }): string =>
-    `${event.flowId}:${event.ts}:${event.kind}`;
-
-  return {
-    generatedAt: '2026-11-03T10:00:00.000Z',
-    since: '2026-10-27T10:00:00.000Z',
-    flows: flows.map((flow) => {
-      const events = flow.events.map((event) => ({ ...event, id: idOf(event) }));
-      const ask = flow.events.find((event) => event.needsOwner === true);
-      const last = events.at(-1);
-
-      return {
-        ...flow,
-        events,
-        lastId: last === undefined ? flow.lastId : last.id,
-        ...(ask === undefined ? {} : { askId: idOf(ask) }),
-      };
-    }),
-    decisions,
-    agents: log.agents,
-    sources: ['event log: 18 line(s) in .agents/local/events', 'github: left out (--no-github)'],
-  };
-};
 
 const blockOf = (html: string): string =>
   /<script type="application\/json" id="board-data">(.*?)<\/script>/s.exec(html)?.[1] ?? '';
