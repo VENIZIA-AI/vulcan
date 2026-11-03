@@ -203,6 +203,13 @@ const SWEEP = (lang: string) => `(async () => {
   await wait();
   const cell = document.querySelector('#dock .cell');
   if (cell) { cell.click(); await wait(); sweep('popup'); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); }
+  document.getElementById('bPlumb').click();
+  await wait();
+  document.querySelector('.row').click();
+  await wait();
+  sweep('all events');
+  document.getElementById('bPlumb').click();
+  await wait();
   document.getElementById('bKeys').click();
   await wait();
   sweep('keys');
@@ -238,6 +245,7 @@ describe.skipIf(!hasBrowser)(
             'agents',
             'graph pick',
             'popup',
+            'all events',
             'keys',
           ]);
           expect(result.raw).toEqual([]);

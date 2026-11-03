@@ -39,6 +39,7 @@ export class EventLog {
     flowId?: string;
     ref?: string;
     status?: TEventStatus;
+    why?: string;
     now?: number;
   }): IEvent {
     const now = opts.now ?? Date.now();
@@ -46,6 +47,10 @@ export class EventLog {
       opts.ref === undefined
         ? ''
         : EventText.oneLine({ text: opts.ref, max: EventConstants.REF_MAX });
+    const why =
+      opts.why === undefined
+        ? ''
+        : EventText.oneLine({ text: opts.why, max: EventConstants.SUMMARY_MAX });
 
     return {
       id: EventLog.newId({ now }),
@@ -56,6 +61,7 @@ export class EventLog {
       summary: EventText.oneLine({ text: opts.summary, max: EventConstants.SUMMARY_MAX }),
       ...(opts.status === undefined ? {} : { status: opts.status }),
       ...(ref === '' ? {} : { ref }),
+      ...(why === '' ? {} : { why }),
       source: opts.source,
     };
   }
@@ -130,7 +136,7 @@ export class EventLog {
       return undefined;
     }
 
-    const { id, ts, flowId, actor, kind, summary, status, ref, source } = value;
+    const { id, ts, flowId, actor, kind, summary, status, ref, why, source } = value;
 
     if (
       typeof id !== 'string' ||
@@ -143,7 +149,8 @@ export class EventLog {
       typeof source !== 'string' ||
       (flowId !== undefined && typeof flowId !== 'string') ||
       (status !== undefined && (typeof status !== 'string' || !EventStatuses.isValid(status))) ||
-      (ref !== undefined && typeof ref !== 'string')
+      (ref !== undefined && typeof ref !== 'string') ||
+      (why !== undefined && typeof why !== 'string')
     ) {
       return undefined;
     }
@@ -160,6 +167,7 @@ export class EventLog {
       summary: clean(summary),
       ...(status === undefined ? {} : { status: status as TEventStatus }),
       ...(ref === undefined ? {} : { ref: clean(ref) }),
+      ...(why === undefined ? {} : { why: clean(why) }),
       source: clean(source),
     };
   }

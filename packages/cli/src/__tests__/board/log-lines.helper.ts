@@ -13,6 +13,7 @@ export const line = (opts: {
   flow?: string;
   ref?: string;
   status?: TEventStatus;
+  why?: string;
 }): IEvent =>
   EventLog.build({
     kind: opts.kind,
@@ -22,6 +23,7 @@ export const line = (opts: {
     ...(opts.flow === undefined ? {} : { flowId: opts.flow }),
     ...(opts.ref === undefined ? {} : { ref: opts.ref }),
     ...(opts.status === undefined ? {} : { status: opts.status }),
+    ...(opts.why === undefined ? {} : { why: opts.why }),
     now: (opts.base ?? T0) + opts.minute * 60_000,
   });
 

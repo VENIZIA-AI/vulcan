@@ -75,7 +75,7 @@ const PR_JSON = {
 };
 
 describe('BoardFold.fromLog', () => {
-  test('commit, pr, msg, needs-owner and decision become the lines the page draws; sessions are not lines', () => {
+  test('commit, pr, msg, needs-owner and decision become the lines the page draws; sessions are plumbing lines', () => {
     const { events } = BoardFold.fromLog({ events: sampleLines() });
     const kinds = events.map((event) => `${event.flowId}:${event.kind}`);
 
@@ -572,5 +572,268 @@ describe('BoardGithub.eventsOf', () => {
   test('anything that is not a pull request is ignored', () => {
     expect(BoardGithub.eventsOf({ pr: null, repo: 'a/b' })).toEqual([]);
     expect(BoardGithub.eventsOf({ pr: { title: 'x' }, repo: 'a/b' })).toEqual([]);
+  });
+});
+
+describe('BoardFold.fold: the title of a flow', () => {
+  const flowLine = (opts: { minute: number; title: string; why?: string; flow?: string }) =>
+    line({
+      minute: opts.minute,
+      kind: 'flow',
+      actor: 'pnt-vulcan-1',
+      flow: opts.flow ?? 'F-1',
+      summary: opts.title,
+      ...(opts.why === undefined ? {} : { why: opts.why }),
+    });
+
+  test('a flow line names the flow and says why; the heading is no longer a message label', () => {
+    const lines = [
+      line({
+        minute: 1,
+        kind: 'msg-sent',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-1',
+        summary: 'status',
+        ref: 'to:veni-forge',
+      }),
+      flowLine({
+        minute: 2,
+        title: 'Bảng theo dõi việc cho anh',
+        why: 'để anh thấy việc nào chờ anh',
+      }),
+    ];
+    const flow = flowOf({ id: 'F-1', lines });
+
+    expect(flow).toMatchObject({
+      title: 'Bảng theo dõi việc cho anh',
+      named: true,
+      why: 'để anh thấy việc nào chờ anh',
+    });
+  });
+
+  test('the newest flow line wins, title and reason together; a newer one with no reason drops the old reason', () => {
+    const lines = [
+      flowLine({ minute: 1, title: 'First name', why: 'first reason' }),
+      flowLine({ minute: 2, title: 'Second name', why: 'second reason' }),
+    ];
+
+    expect(flowOf({ id: 'F-1', lines })).toMatchObject({
+      title: 'Second name',
+      why: 'second reason',
+    });
+    expect(
+      flowOf({ id: 'F-1', lines: [...lines, flowLine({ minute: 3, title: 'Third name' })] }),
+    ).toEqual(expect.objectContaining({ title: 'Third name', named: true }));
+    expect(
+      flowOf({ id: 'F-1', lines: [...lines, flowLine({ minute: 3, title: 'Third name' })] }).why,
+    ).toBeUndefined();
+  });
+
+  test("a flow with no flow line keeps today's heading and says it has no name", () => {
+    const flow = flowOf({
+      id: 'F-1',
+      lines: [
+        line({
+          minute: 1,
+          kind: 'commit',
+          actor: 'pnt-vulcan-1',
+          flow: 'F-1',
+          summary: 'the lock',
+          ref: 'abc1234',
+        }),
+      ],
+    });
+
+    expect(flow).toMatchObject({ title: 'the lock', named: false });
+    expect(flow.why).toBeUndefined();
+  });
+
+  test('a flow made only of a flow line is a running flow held by whoever wrote it', () => {
+    expect(
+      flowOf({ id: 'F-1', lines: [flowLine({ minute: 1, title: 'Name', why: 'why' })] }),
+    ).toMatchObject({
+      state: 'running',
+      holder: 'pnt-vulcan-1',
+      title: 'Name',
+    });
+  });
+
+  test('a flow line neither answers an ask nor reopens a merged flow', () => {
+    const asked = [
+      line({
+        minute: 1,
+        kind: 'needs-owner',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-1',
+        summary: 'Which way?',
+      }),
+      flowLine({ minute: 2, title: 'Name' }),
+    ];
+    const merged = [
+      line({
+        minute: 1,
+        kind: 'pr',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-1',
+        summary: 'merged',
+        ref: 'merged:5',
+      }),
+      flowLine({ minute: 2, title: 'Name' }),
+    ];
+
+    expect(flowOf({ id: 'F-1', lines: asked }).state).toBe('you');
+    expect(flowOf({ id: 'F-1', lines: merged }).state).toBe('done');
+  });
+});
+
+describe('BoardFold.fold: agent plumbing', () => {
+  const work = line({
+    minute: 1,
+    kind: 'commit',
+    actor: 'pnt-vulcan-1',
+    flow: 'F-1',
+    summary: 'the lock',
+    ref: 'abc1234',
+  });
+
+  test('session lines, subagent stops and the harness waiting are marked plumbing and kept in the flow', () => {
+    const lines = [
+      work,
+      line({
+        minute: 2,
+        kind: 'session-stop',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-1',
+        summary: 'turn ended',
+      }),
+      line({
+        minute: 3,
+        kind: 'subagent-stop',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-1',
+        summary: 'Explore a1',
+      }),
+      line({
+        minute: 4,
+        kind: 'needs-owner',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-1',
+        summary: 'idle_prompt',
+      }),
+      line({
+        minute: 5,
+        kind: 'needs-owner',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-1',
+        summary: 'permission_prompt',
+      }),
+    ];
+    const flow = flowOf({ id: 'F-1', lines });
+
+    expect(flow.events.filter((event) => event.plumbing === true)).toHaveLength(4);
+    expect(flow.events.filter((event) => event.plumbing !== true)).toHaveLength(1);
+    expect(flow.events.filter((event) => event.needsOwner === true)).toEqual([]);
+  });
+
+  test('the harness waiting never makes a flow wait on the owner, and a person asking still does', () => {
+    const idle = line({
+      minute: 2,
+      kind: 'needs-owner',
+      actor: 'pnt-vulcan-1',
+      flow: 'F-1',
+      summary: 'idle_prompt',
+    });
+    const asked = line({
+      minute: 3,
+      kind: 'needs-owner',
+      actor: 'pnt-vulcan-1',
+      flow: 'F-1',
+      summary: 'Which way?',
+    });
+
+    expect(flowOf({ id: 'F-1', lines: [work, idle] }).state).toBe('running');
+    expect(flowOf({ id: 'F-1', lines: [work, idle] }).askId).toBeUndefined();
+    expect(flowOf({ id: 'F-1', lines: [work, idle, asked] })).toMatchObject({
+      state: 'you',
+      holder: OWNER,
+    });
+    expect(
+      flowOf({ id: 'F-1', lines: [work, idle, asked] }).events.find(
+        (event) => event.summary === 'Which way?',
+      ),
+    ).not.toHaveProperty('plumbing');
+  });
+
+  test('plumbing moves no stage, no last line, no title and does not undo a merge', () => {
+    const merged = line({
+      minute: 2,
+      kind: 'pr',
+      actor: 'pnt-vulcan-1',
+      flow: 'F-1',
+      summary: 'merged',
+      ref: 'merged:5',
+    });
+    const plain = flowOf({ id: 'F-1', lines: [work, merged] });
+    const noisy = flowOf({
+      id: 'F-1',
+      lines: [
+        work,
+        merged,
+        line({
+          minute: 3,
+          kind: 'session-start',
+          actor: 'pnt-vulcan-1',
+          flow: 'F-1',
+          summary: 'resume',
+        }),
+        line({
+          minute: 4,
+          kind: 'needs-owner',
+          actor: 'pnt-vulcan-1',
+          flow: 'F-1',
+          summary: 'idle_prompt',
+        }),
+      ],
+    });
+
+    expect({ ...noisy, events: [] }).toEqual({ ...plain, events: [] });
+    expect(noisy.state).toBe('done');
+  });
+
+  test('a flow with plumbing only is running, with its lines kept for the page to show on request', () => {
+    const flow = flowOf({
+      id: 'Unsorted',
+      lines: [
+        line({ minute: 1, kind: 'session-start', actor: 'pnt-ignis-1', summary: 'startup' }),
+        line({ minute: 2, kind: 'session-stop', actor: 'pnt-ignis-1', summary: 'turn ended' }),
+      ],
+    });
+
+    expect(flow).toMatchObject({
+      state: 'running',
+      named: false,
+      title: 'Unsorted',
+      holder: 'pnt-ignis-1',
+    });
+    expect(flow.events.every((event) => event.plumbing === true)).toBe(true);
+    expect(flow.events).toHaveLength(2);
+    expect(flow.events.find((event) => event.id === flow.lastId)).toBeDefined();
+  });
+
+  test('a harness prompt is not what an agent is doing', () => {
+    const { agents } = fold({
+      lines: [
+        work,
+        line({
+          minute: 2,
+          kind: 'needs-owner',
+          actor: 'pnt-vulcan-1',
+          flow: 'F-1',
+          summary: 'idle_prompt',
+        }),
+      ],
+    });
+
+    expect(agents['pnt-vulcan-1'].current).toBe('the lock');
   });
 });

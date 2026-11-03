@@ -341,3 +341,131 @@ describe('vulcan event tail', () => {
     expect(cli({ root, args: ['tail', '--bogus'] }).code).toBe(2);
   });
 });
+
+describe('vulcan event add --kind flow', () => {
+  const dir = (root: string): string => join(root, '.agents/local/events');
+
+  test('writes a flow line: the title is its summary, the reason is why, in the words given', () => {
+    const root = project();
+    const result = cli({
+      root,
+      args: [
+        'add',
+        '--kind',
+        'flow',
+        '--flow',
+        'F-12',
+        '--title',
+        'Bảng việc cho anh',
+        '--why',
+        'để anh thấy việc chờ anh',
+      ],
+    });
+
+    expect(result.code, result.stderr).toBe(0);
+
+    const event = JSON.parse(lines({ dir: dir(root) })[0]);
+
+    expect(event).toMatchObject({
+      kind: 'flow',
+      flowId: 'F-12',
+      summary: 'Bảng việc cho anh',
+      why: 'để anh thấy việc chờ anh',
+      source: 'cli',
+    });
+    expect(EventLog.parse({ line: lines({ dir: dir(root) })[0] })).toEqual(event);
+  });
+
+  test('the reason is optional, and a flow line needs a title and a flow', () => {
+    const root = project();
+
+    expect(
+      cli({ root, args: ['add', '--kind', 'flow', '--flow', 'F-12', '--title', 'Only a title'] })
+        .code,
+    ).toBe(0);
+    expect(JSON.parse(lines({ dir: dir(root) })[0])).not.toHaveProperty('why');
+
+    for (const args of [
+      ['add', '--kind', 'flow', '--flow', 'F-12'],
+      ['add', '--kind', 'flow', '--flow', 'F-12', '--title', '  '],
+      ['add', '--kind', 'flow', '--title', 'No flow'],
+      ['add', '--kind', 'flow', '--flow', 'F-12', '--summary', 'the old way', '--title', 'Both'],
+      ['add', '--kind', 'flow', '--flow', 'bad', '--title', 'Not a flow id'],
+    ]) {
+      const result = cli({ root, args });
+
+      expect(result.code, args.join(' ')).toBe(2);
+      expect(result.stderr, args.join(' ')).toContain('event:');
+    }
+
+    expect(lines({ dir: dir(root) })).toHaveLength(1);
+  });
+
+  test('--title and --why belong to a flow line only', () => {
+    const root = project();
+
+    for (const extra of [
+      ['--title', 'x'],
+      ['--why', 'x'],
+    ]) {
+      const result = cli({
+        root,
+        args: ['add', '--kind', 'commit', '--summary', 'fixed', ...extra],
+      });
+
+      expect(result.code, extra.join(' ')).toBe(2);
+      expect(result.stderr).toContain('flow line only');
+    }
+
+    expect(existsSync(dir(root))).toBe(false);
+  });
+
+  test('a secret in the title or the reason never reaches the log', () => {
+    const root = project();
+
+    cli({
+      root,
+      args: [
+        'add',
+        '--kind',
+        'flow',
+        '--flow',
+        'F-3',
+        '--title',
+        'token=ghp_abcdefghijklmnopqrstuvwxyz0123',
+        '--why',
+        'Bearer abcdefghijklmnop1234',
+      ],
+    });
+
+    const text = lines({ dir: dir(root) })[0];
+
+    expect(text).not.toContain('ghp_abcdefghijklmnopqrstuvwxyz0123');
+    expect(text).not.toContain('abcdefghijklmnop1234');
+  });
+
+  test('tail shows a flow line with its title', () => {
+    const root = project();
+
+    cli({
+      root,
+      args: [
+        'add',
+        '--kind',
+        'flow',
+        '--flow',
+        'F-12',
+        '--title',
+        'Named flow',
+        '--why',
+        'because',
+      ],
+    });
+
+    const tail = cli({ root, args: ['tail'] });
+
+    expect(tail.stdout).toContain('flow');
+    expect(tail.stdout).toContain('F-12 Named flow');
+    expect(JSON.parse(cli({ root, args: ['tail', '--json'] }).stdout.trim()).why).toBe('because');
+  });
+});

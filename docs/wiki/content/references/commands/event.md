@@ -40,9 +40,10 @@ One file per local day, one JSON object per line, in `.agents/local/events/<yyyy
 | `ts` | ISO 8601, UTC |
 | `flowId` | `F-n`, when the line belongs to a flow; absent otherwise |
 | `actor` | The session that wrote it, as other sessions address it |
-| `kind` | One of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr`, `decision` |
+| `kind` | One of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr`, `decision`, `flow` |
 | `status` | Only on a `decision`: `approve`, `park` or `reject` |
-| `summary` | One line, at most 200 characters |
+| `summary` | One line, at most 200 characters. On a `flow` line it is the flow's title |
+| `why` | Only on a `flow`: one line, at most 200 characters, why the flow exists |
 | `ref` | A commit, a PR, or `to:<recipient>` for a message; absent when there is none. A recipient that is an address keeps its scheme and the last part of its path (`to:uds:3326301.sock`), never the folders |
 | `source` | `claude-hook` or `cli` |
 
@@ -68,23 +69,26 @@ Every hook and every `event add` in those projects then writes there, and `event
 
 ```text
 vulcan event add --kind <kind> --summary <text> [--flow F-n] [--ref <ref>] [--status approve|park|reject] [--actor <name>] [--dir <folder>]
+vulcan event add --kind flow --flow F-n --title <text> [--why <text>] [--actor <name>] [--dir <folder>]
 ```
 
 It prints the id of the line. This is the way in for any coding agent: a hook of Claude Code is only one writer.
 
 | Flag | Meaning |
 |---|---|
-| `--kind` | One of the nine kinds |
-| `--summary` | A short label. It is cut to one line of 200 characters, and anything shaped like a secret is replaced by `[redacted]` |
+| `--kind` | One of the ten kinds |
+| `--summary` | A short label (not on a `flow` line: it takes `--title`). It is cut to one line of 200 characters, and anything shaped like a secret is replaced by `[redacted]` |
 | `--flow` | `F-n`. Without it, the flow is read from the branch, when its name has an `F-n` segment such as `feature/F-12-events-log` |
 | `--ref` | A commit, a PR number, a recipient. On a `pr` line, `merged:12` says pull request 12 was merged |
 | `--status` | `approve`, `park` or `reject`. Required on a `decision`, refused on any other kind. The owner's answer to a flow, written by whoever relays it |
+| `--title` | Only for `--kind flow`, where it is required: the title of the flow, in the language of the owner. Same limits as `--summary` |
+| `--why` | Only for `--kind flow`, optional: one line on why the flow exists. Same limits and the same secret removal |
 | `--actor` | Who. Without it: `VULCAN_ACTOR` in the environment, else the name Claude Code gave the session (when several of its session files hold the session id, the one of a live process, then the newest), else `claude:` and the start of the session id, else `unknown` |
 | `--dir` | The folder, for this call: `--dir` over `events.dir` over `.agents/local/events`. A relative path is relative to where you run the command |
 
 Run from a subfolder, the command uses the project of that folder: the nearest folder above it with `.agents/vulcan.manifest.json` or `.git`. It reads the same `events` block there as at the top.
 
-Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not `F-n`, a `decision` without a `--status` or another kind with one, an unknown flag, a flag given twice).
+Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not `F-n`, a `decision` without a `--status` or another kind with one, a `flow` line without a `--title` or a `--flow`, or with a `--summary`, a `--title` or `--why` on any other kind, an unknown flag, a flag given twice).
 
 ## vulcan event tail
 
@@ -107,6 +111,16 @@ It prints the events at or after `--since`, oldest first. `--since` takes anythi
 | `PostToolUse` of `SendMessage` | `msg-sent` | the sender's own `summary` label, else the fixed text `message sent`. The text of the message is never used | `tool_input.to`, `tool_input.summary`; the first line of `tool_input.message` only to look for `Flow: F-n` |
 
 A `Stop` fires at the end of every turn, so `session-stop` means "the agent stopped to wait", not "the session closed". `msg-received` has no hook: Claude Code runs none when a message arrives, and VULCAN does not read transcripts to find out. A reader gets it from the sender's `msg-sent`, or an agent writes it with `event add`. `commit` and `pr` are written with `event add` too.
+
+### Name a flow
+
+A board lists flows by their id (`F-12`) and needs a heading for each. Without help it takes the first line it found, which is often a message label such as `status`. An agent that starts work on a flow names it once, in the language of the owner:
+
+```text
+$ bun x --no-install vulcan event add --kind flow --flow F-12 --title "Bảng việc cho anh" --why "để anh thấy việc nào chờ anh"
+```
+
+The newest `flow` line of a flow wins, title and reason together: write a new one when either changes, and a new one without `--why` drops the old reason. A flow with no `flow` line keeps the old heading, and the board marks it "no title yet". The rule for agents is `V-P-13` in the [rules reference](/references/rules#process-p).
 
 ### A flow id
 

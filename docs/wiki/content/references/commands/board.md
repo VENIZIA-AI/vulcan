@@ -44,9 +44,11 @@ An event belongs to the flow named by its `flowId` (`F-12`). A line with no flow
 | `commit` | a Code step |
 | `pr` | a PR + CI step (with `--ref merged:12` it is the merge: the flow is Done) |
 | `msg-sent`, `msg-received` | a message, at the stage the flow was at |
-| `needs-owner` | an ask: the flow waits on you |
+| `needs-owner` | an ask: the flow waits on you. Not when the summary is only the name of a prompt the harness waits on (`idle_prompt`, `permission_prompt`, `elicitation_dialog`): that is [agent plumbing](#agent-plumbing) |
+| `flow` | the flow's title and reason (the heading of the flow, a line in its Proposal stage). See [The title of a flow](#the-title-of-a-flow) |
 | `decision` (`approve`, `park`, `reject`) | your answer: it answers the ask and, for `park` and `reject`, parks the flow |
-| `session-start`, `session-stop` | the agent dock only: working, or idle |
+| `session-start`, `session-stop` | the agent dock: working, or idle. Also [agent plumbing](#agent-plumbing) |
+| `subagent-stop` | [agent plumbing](#agent-plumbing) |
 
 From GitHub: each pull request, each finished check (pass or fail), each review (approved, changes requested), and the merge. One call per repository asks for the newest 30 pull requests; the note on stderr says how many of them changed since `--since`.
 
@@ -61,6 +63,14 @@ From GitHub: each pull request, each finished check (pass or fail), each review 
 | **Running** | Anything else |
 
 The **stage** is the one of the last line, from Proposal to Handover; the page shows the stages reached. The **holder** is you while the flow needs you; otherwise the actor of the last piece of work, or the named recipient of a later message (`--ref to:name`). CI runs of one check and review rounds are counted as attempts.
+
+### The title of a flow
+
+The heading of a flow is its title, from the newest `flow` line of that flow (`vulcan event add --kind flow --flow F-12 --title "..." --why "..."`, see [Name a flow](/references/commands/event#name-a-flow)). The reason sits under the heading in the detail pane; messages, commits and the rest are lines of the pane, not headings. A flow with no `flow` line keeps the heading it had before, the words of its pull request or of its first line, followed by "no title yet". The title is written in the language of the owner; the page does not translate it.
+
+### Agent plumbing
+
+Session starts and stops, subagent stops and a prompt the harness waits on are not work. By default the page leaves them out of the flows, the list, the diagram, the agents' graph and the counts, and they never move a flow: an idle prompt does not make a flow wait for you. The button **Show all events** puts them back, as lines of agent activity and, for lines with no flow, as an `Unsorted` flow in the running group; press it again to hide them. The choice is saved in the browser. A `needs-owner` line that someone wrote with a real question stays visible, and still makes the flow wait for you.
 
 ## What the page shows
 

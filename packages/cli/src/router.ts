@@ -106,6 +106,8 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
       EventFlags.FLOW,
       EventFlags.REF,
       EventFlags.STATUS,
+      EventFlags.TITLE,
+      EventFlags.WHY,
       EventFlags.ACTOR,
       EventFlags.DIR,
       EventFlags.SINCE,

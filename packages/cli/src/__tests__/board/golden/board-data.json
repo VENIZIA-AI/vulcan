@@ -7,8 +7,77 @@
   "since": "2026-10-27T10:00:00.000Z",
   "flows": [
     {
+      "id": "Unsorted",
+      "title": "Unsorted",
+      "named": false,
+      "state": "running",
+      "holder": "pnt-vulcan-1",
+      "stages": [3],
+      "cur": 3,
+      "lastId": "Unsorted:2026-11-03T09:30:00.000Z:agent",
+      "ciRuns": 0,
+      "reviewRounds": 0,
+      "events": [
+        {
+          "id": "Unsorted:2026-11-03T08:00:00.000Z:agent",
+          "flowId": "Unsorted",
+          "ts": "2026-11-03T08:00:00.000Z",
+          "actor": "pnt-vulcan-1",
+          "summary": "startup claude-sonnet-5-5",
+          "source": "cli",
+          "kind": "agent",
+          "stage": 0,
+          "plumbing": true
+        },
+        {
+          "id": "Unsorted:2026-11-03T08:01:00.000Z:agent",
+          "flowId": "Unsorted",
+          "ts": "2026-11-03T08:01:00.000Z",
+          "actor": "pnt-ignis-1",
+          "summary": "resume claude-sonnet-5-5",
+          "source": "cli",
+          "kind": "agent",
+          "stage": 0,
+          "plumbing": true
+        },
+        {
+          "id": "Unsorted:2026-11-03T08:02:00.000Z:agent",
+          "flowId": "Unsorted",
+          "ts": "2026-11-03T08:02:00.000Z",
+          "actor": "veni-forge",
+          "summary": "startup claude-opus-5-5",
+          "source": "cli",
+          "kind": "agent",
+          "stage": 0,
+          "plumbing": true
+        },
+        {
+          "id": "Unsorted:2026-11-03T09:25:00.000Z:commit",
+          "flowId": "Unsorted",
+          "ts": "2026-11-03T09:25:00.000Z",
+          "actor": "pnt-vulcan-1",
+          "summary": "fix a typo in the docs",
+          "source": "cli",
+          "kind": "commit",
+          "stage": 3
+        },
+        {
+          "id": "Unsorted:2026-11-03T09:30:00.000Z:agent",
+          "flowId": "Unsorted",
+          "ts": "2026-11-03T09:30:00.000Z",
+          "actor": "pnt-vulcan-1",
+          "summary": "turn ended",
+          "source": "cli",
+          "kind": "agent",
+          "stage": 3,
+          "plumbing": true
+        }
+      ]
+    },
+    {
       "id": "F-1",
       "title": "event log: the kinds and the log file",
+      "named": false,
       "state": "running",
       "holder": "veni-forge",
       "stages": [3, 4],
@@ -56,6 +125,7 @@
     {
       "id": "F-2",
       "title": "pagination cursor design",
+      "named": false,
       "state": "you",
       "holder": "Ana",
       "stages": [3],
@@ -91,6 +161,7 @@
     {
       "id": "F-3",
       "title": "Approve the retry design",
+      "named": false,
       "state": "running",
       "holder": "pnt-ardor-1",
       "stages": [0, 1, 3],
@@ -137,6 +208,7 @@
     {
       "id": "F-4",
       "title": "ci affected",
+      "named": false,
       "state": "done",
       "holder": "pnt-vulcan-1",
       "stages": [3, 4, 6],
@@ -187,6 +259,7 @@
     {
       "id": "F-5",
       "title": "spike: edge cache",
+      "named": false,
       "state": "parked",
       "holder": "pnt-ignis-1",
       "stages": [1, 3],
@@ -216,29 +289,6 @@
           "stage": 1,
           "status": "parked",
           "choice": "park"
-        }
-      ]
-    },
-    {
-      "id": "Unsorted",
-      "title": "Unsorted",
-      "state": "running",
-      "holder": "pnt-vulcan-1",
-      "stages": [3],
-      "cur": 3,
-      "lastId": "Unsorted:2026-11-03T09:25:00.000Z:commit",
-      "ciRuns": 0,
-      "reviewRounds": 0,
-      "events": [
-        {
-          "id": "Unsorted:2026-11-03T09:25:00.000Z:commit",
-          "flowId": "Unsorted",
-          "ts": "2026-11-03T09:25:00.000Z",
-          "actor": "pnt-vulcan-1",
-          "summary": "fix a typo in the docs",
-          "source": "cli",
-          "kind": "commit",
-          "stage": 3
         }
       ]
     }

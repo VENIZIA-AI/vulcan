@@ -72,14 +72,29 @@ export class BoardFold {
     const decisions: Record<string, IBoardDecision> = {};
 
     for (const [id, lines] of byFlow) {
-      const events = BoardFold.prepare({ lines });
+      // Plumbing (a session, a subagent, the harness waiting) is carried along for the page to show on request; it never moves the flow.
+      const quiet = lines.filter((event) => event.plumbing === true);
+      const core = lines.filter((event) => event.plumbing !== true);
+
+      if (core.length === 0) {
+        flows.push(BoardFold.quietFlow({ id, lines: quiet }));
+        continue;
+      }
+
+      const events = BoardFold.prepare({ lines: core });
       const decision = BoardFold.lastDecision({ events });
 
       if (decision !== undefined) {
         decisions[id] = decision;
       }
 
-      flows.push(BoardFold.flowOf({ id, events, owner: opts.owner }));
+      const flow = BoardFold.flowOf({ id, events, owner: opts.owner });
+
+      flows.push(
+        quiet.length === 0
+          ? flow
+          : { ...flow, events: BoardFold.withPlumbing({ events: flow.events, plumbing: quiet }) },
+      );
     }
 
     return { flows, decisions };
@@ -132,7 +147,26 @@ export class BoardFold {
       }
 
       case EventKinds.NEEDS_OWNER: {
-        return { ...base, kind: BoardKinds.NOTE, stage: -1, needsOwner: true };
+        // The harness waiting for a prompt is not a person asking: it is shown only on request and never makes a flow wait.
+        return BoardConstants.HARNESS_ASKS.has(line.summary.trim().toLowerCase())
+          ? { ...base, kind: BoardKinds.NOTE, stage: -1, plumbing: true }
+          : { ...base, kind: BoardKinds.NOTE, stage: -1, needsOwner: true };
+      }
+
+      case EventKinds.FLOW: {
+        return {
+          ...base,
+          kind: BoardKinds.FLOW,
+          stage: BoardStages.REQUEST,
+          isTitle: true,
+          ...(line.why === undefined ? {} : { why: line.why }),
+        };
+      }
+
+      case EventKinds.SESSION_START:
+      case EventKinds.SESSION_STOP:
+      case EventKinds.SUBAGENT_STOP: {
+        return { ...base, kind: BoardKinds.AGENT, stage: -1, plumbing: true };
       }
 
       case EventKinds.DECISION: {
@@ -156,7 +190,11 @@ export class BoardFold {
     const { agents, line } = opts;
     const known = agents[line.actor];
 
-    if (line.kind === EventKinds.SUBAGENT_STOP) {
+    if (
+      line.kind === EventKinds.SUBAGENT_STOP ||
+      (line.kind === EventKinds.NEEDS_OWNER &&
+        BoardConstants.HARNESS_ASKS.has(line.summary.trim().toLowerCase()))
+    ) {
       return;
     }
 
@@ -258,9 +296,14 @@ export class BoardFold {
     );
     const repo = events.find((event) => event.ref?.repo !== undefined)?.ref?.repo;
 
+    // The newest `flow` line names the flow; its reason goes with it, and a newer line without one drops the old reason.
+    const named = [...events].reverse().find((event) => event.isTitle === true);
+
     return {
       id,
-      title: BoardFold.titleOf({ id, events }),
+      title: named?.summary ?? BoardFold.titleOf({ id, events }),
+      named: named !== undefined,
+      ...(named?.why === undefined ? {} : { why: named.why }),
       ...(repo === undefined ? {} : { repo }),
       state,
       holder: BoardFold.holderOf({ events, state, owner: opts.owner }),
@@ -276,6 +319,41 @@ export class BoardFold {
       ).size,
       events,
     };
+  }
+
+  /** A flow whose every line is plumbing: shown only when the page shows all events, and then in the group of running work (a closed group would hide what was just asked for). */
+  private static quietFlow(opts: { id: string; lines: IBoardEvent[] }): IBoardFlow {
+    const events = [...opts.lines]
+      .sort(byTime)
+      .map((event) => ({ ...event, stage: BoardStages.REQUEST }));
+    const last = events[events.length - 1];
+
+    return {
+      id: opts.id,
+      title: opts.id,
+      named: false,
+      state: BoardStates.RUNNING,
+      holder: last.actor,
+      stages: [BoardStages.REQUEST],
+      cur: BoardStages.REQUEST,
+      lastId: last.id,
+      ciRuns: 0,
+      reviewRounds: 0,
+      events,
+    };
+  }
+
+  /** The plumbing lines among the lines of a flow, each at the stage the flow was at when it happened. */
+  private static withPlumbing(opts: {
+    events: IBoardEvent[];
+    plumbing: IBoardEvent[];
+  }): IBoardEvent[] {
+    const placed = opts.plumbing.map((event) => ({
+      ...event,
+      stage: opts.events.findLast((core) => core.ts <= event.ts)?.stage ?? BoardStages.REQUEST,
+    }));
+
+    return [...opts.events, ...placed].sort(byTime);
   }
 
   private static stateOf(opts: {

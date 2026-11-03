@@ -16,6 +16,8 @@ export interface IEvent {
   /** Only a `decision` has one. */
   status?: TEventStatus;
   ref?: string;
+  /** Only a `flow` has one: the one-line reason the flow exists. */
+  why?: string;
   source: string;
 }
 
