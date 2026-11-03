@@ -736,7 +736,13 @@ The `events` object configures the agent event log ([vulcan event](/references/c
 | `log` | `boolean` | `false` | `true` makes `vulcan sync` install the Claude Code hooks that write the log. `vulcan event add` and `tail` work whatever this says |
 | `dir` | `string` | `<project>/.agents/local/events` | An absolute folder that takes the log instead of the project's own, so one coordinator can read the sessions of several repositories. `~` and relative paths are refused. It must be on a local disk (appends are not atomic on NFS). When it is outside the project, `vulcan doctor` warns if the folder is missing or not writable |
 
-`sync` writes the block to the manifest only when `log` is `true` or `dir` is set.
+| `maxSize` | `string` | `'50MB'` | The most the events folder may hold: a number with `KB`, `MB` or `GB` (`'200MB'`, `'1GB'`). Checked in the schema |
+| `maxFiles` | `number` | `30` | The most day files kept |
+| `maxAgeDays` | `number` | `30` | The oldest a day file may be |
+
+The three limits apply when `log` is `true`, or when you set one of them. Past any of them, whole day files are removed, oldest first: first those older than `maxAgeDays`, then the oldest until the count and the size are within `maxFiles` and `maxSize`. Today's file is never removed and never truncated; when it alone is over `maxSize`, `vulcan doctor` warns. A shared `dir` is kept by whichever session starts first (see [the automatic clean](/guides/core-concepts/the-agents-folder#the-automatic-clean)).
+
+`sync` writes the block to the manifest only when `log` is `true`, `dir` or a limit is set.
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
@@ -745,6 +751,16 @@ export default {
   events: { log: true, dir: '/home/me/work/.agents/local/events' },
 } satisfies VulcanConfig;
 ```
+
+## local
+
+The `local` object configures what VULCAN keeps tidy in `.agents/local/` by itself ([The .agents folder](/guides/core-concepts/the-agents-folder#the-automatic-clean)).
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `autoClean` | `boolean` | `true` | At most once a day, the session-start hook starts a clean of the safe part: stale `tmp/`, browser folders older than an hour, event day files past their limits, and release candidates whose version is tagged. It never removes a worktree or a clone. `false` turns it off; `sync` then writes `local: { autoClean: false }` to the manifest |
+
+`VULCAN_AUTO_CLEAN=off` in the environment turns it off for one shell.
 
 ## board
 

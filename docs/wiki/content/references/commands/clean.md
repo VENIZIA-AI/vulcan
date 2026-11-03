@@ -14,7 +14,8 @@ Everything an agent creates while it works lives under the project's gitignored 
 | `--clones` | `clones/` | clones of other repositories |
 | `--cache` | `cache/` | what atlas fetched; it rebuilds |
 | `--all` | the four above | never `reports/`, `prototypes/`, `events/`, `release-candidates/` or the profile |
-| `--reports`, `--prototypes`, `--events`, `--profile` | `reports/`, `prototypes/`, `events/`, `profile.json` | only when named; they are kept until you delete them |
+| `--events` | `events/` | only when named, and only the day files the limits of `events` (`maxAgeDays`, `maxFiles`, `maxSize`) say to remove; today's file and the files within the limits are kept, and the output says so |
+| `--reports`, `--prototypes`, `--profile` | `reports/`, `prototypes/`, `profile.json` | only when named; they are kept until you delete them |
 | `--release-candidates` | `release-candidates/` | only when named, and only a folder named as a version (`1.2.3`, `v1.2.3`, `1.2.3-rc.1`) whose tag exists, with or without the `v` (the folder `1.0.0` goes when the tag `v1.0.0` exists, and the other way round); a candidate not released yet, or a name that is not a version, is kept, and the reason is printed |
 | `--yes` | | removes what the dry run listed |
 
@@ -44,6 +45,10 @@ vulcan clean: nothing to remove in tmp
 ```
 
 `vulcan doctor` warns about an item that has outlived its use (a `tmp/` item older than a day, a clone older than two weeks, a worktree on a merged or gone branch) with the command that clears it, and prints the size of `.agents/local/` once it passes 50 MB.
+
+## The automatic clean
+
+You rarely need this command for the safe part: the session-start hook runs it for `tmp/`, browser leftovers, event files and tagged release candidates, at most once a day ([the automatic clean](/guides/core-concepts/the-agents-folder#the-automatic-clean)). It never removes a worktree or a clone; those need `--worktrees` or `--clones` with `--yes`.
 
 ## See also
 

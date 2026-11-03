@@ -48,6 +48,10 @@ One file per local day, one JSON object per line, in `.agents/local/events/<yyyy
 
 Each line is one write, so sessions that write at the same moment do not mix their lines.
 
+### How much is kept
+
+The log does not grow for ever. When `events.log` is on, or you set a limit, whole day files are removed, oldest first, once any of three limits is passed: `maxAgeDays` (default 30 days), `maxFiles` (default 30 day files) and `maxSize` (default `50MB` for the folder). Today's file is never removed or truncated; if it alone is over `maxSize`, `vulcan doctor` warns ([events-size](/references/commands/doctor#events-size)). The removal happens in the [automatic clean](/guides/core-concepts/the-agents-folder#the-automatic-clean) at session start, and in `vulcan clean --events`, which removes only what the limits say and lists the rest as kept. The keys are in the [config reference](/references/configuration/#events). A shared `dir` is kept by whichever session of any project starts first; that is fine, the limits are the same.
+
 ### One folder for every project
 
 By default each project keeps its own log. A coordinator that must read the sessions of several repositories sets `events.dir` to one absolute folder, in each of them:

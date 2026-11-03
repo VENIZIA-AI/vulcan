@@ -59,13 +59,27 @@ Every folder of `local/` has a lifetime, and one command takes it back. `vulcan 
 
 `--all` takes `tmp/`, `worktrees/`, `clones/` and `cache/`. It never takes `reports/`, `prototypes/`, `events/`, `release-candidates/` or the profile: those are named, or deleted by you. A worktree is removed with `git worktree remove` and only when its branch is merged into the branch checked out at the project root, into `origin/develop` or into the default branch of origin, **and** it is safe to lose: the branch has commits of its own (a new branch has the commit it came from, so git calls it merged; `clean` keeps it and says "no commits of its own yet"), it holds no uncommitted or untracked file, and every file git ignores in it is one a build or an install makes again (`node_modules`, `dist`, `.turbo`, `coverage`, `.cache`, `*.tsbuildinfo`). An ignored `.env`, a local database or a key keeps the worktree, and the output names the file. A folder in `release-candidates/` counts only when its name is a version (`1.2.3`, `v1.2.3`, `1.2.3-rc.1`) and a tag of that name exists, with or without the `v`: the folder `1.0.0` is removed when the tag `v1.0.0` exists, and `v1.0.0` when the tag `1.0.0` exists. Any other name is kept. The [clean reference](/references/commands/clean) has the details.
 
+## The automatic clean
+
+You do not have to run `vulcan clean` for the safe part. At most once a day per project, the session-start hook starts a clean in a process of its own, so the session never waits (the hook only reads a stamp, `auto-clean.json`, and a manifest). It removes four things and nothing else:
+
+| What | When |
+|---|---|
+| `tmp/` entries | older than a day |
+| `com.google.Chrome.*` and `org.chromium.Chromium.*` folders under `.agents/local/` | older than an hour |
+| Event day files | past `maxAgeDays`, `maxFiles` or `maxSize`; never today's |
+| `release-candidates/` folders | whose version is tagged |
+
+It never touches a worktree, a clone, the cache, `reports/`, `prototypes/` or anything it does not know: a wrong guess there loses work, so those stay with `vulcan clean --yes` and the warnings of `vulcan doctor`. When a run removed something, the next session prints one line on stderr, such as `vulcan: cleaned 12.0 MB from .agents/local`. Set `local: { autoClean: false }` in the config to turn it off, or `VULCAN_AUTO_CLEAN=off` for one shell. A shared events folder outside the project is kept by whichever session starts first.
+
 ## What doctor says
 
 `vulcan doctor` never deletes anything. It warns about:
 
 - an entry that has outlived its use (old `tmp/`, a worktree of a merged branch, an old clone, a shipped release candidate), with the command that takes it;
 - an entry directly under `.agents/local/` that is not in the tree above. Put scratch in `tmp/` and what you want to keep in `reports/`; nothing removes the unknown entry;
-- the size of `.agents/local/` once it is large.
+- the size of `.agents/local/` once it is large;
+- today's event file when it alone is over `events.maxSize`.
 
 ## A browser's scratch folders
 
