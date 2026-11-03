@@ -96,7 +96,9 @@ export class BoardGithub {
         events.push(...BoardGithub.eventsOf({ pr, repo }));
       }
 
-      notes.push(`${repo} ${fresh.length} pull request(s)`);
+      notes.push(
+        `${repo} ${fresh.length} pull request(s) since the date (the newest ${BoardConstants.GH_LIMIT} are asked for)`,
+      );
     }
 
     return { events, note: `github: ${notes.join(', ')}` };

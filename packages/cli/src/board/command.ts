@@ -180,8 +180,12 @@ export class BoardCommand {
 
   private static open(opts: { file: string }): void {
     const program =
-      process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'cmd' : 'xdg-open';
-    const args = process.platform === 'win32' ? ['/c', 'start', '', opts.file] : [opts.file];
+      process.platform === 'darwin'
+        ? 'open'
+        : process.platform === 'win32'
+          ? 'explorer.exe'
+          : 'xdg-open';
+    const args = [opts.file];
     const hint = `board: could not open the file; open ${opts.file} yourself\n`;
 
     try {
