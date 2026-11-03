@@ -246,7 +246,7 @@ export class BrowserPage {
 
     const result = await BrowserPage.send({
       method: 'Runtime.evaluate',
-      params: { expression: run.expression, returnByValue: true },
+      params: { expression: run.expression, returnByValue: true, awaitPromise: true },
     });
 
     return result.result.value as TResult;
