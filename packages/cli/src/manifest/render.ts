@@ -70,6 +70,13 @@ const commitBlockOf = (opts: { config: TResolvedConfig }): { commit?: Record<str
   };
 };
 
+/** The manifest's `events` block, which the hooks and `vulcan event` read: only when the log is on or has a folder. */
+const eventsBlockOf = (opts: { config: TResolvedConfig }): { events?: Record<string, unknown> } => {
+  const { log, dir } = opts.config.events;
+
+  return log || dir !== undefined ? { events: { log, ...(dir === undefined ? {} : { dir }) } } : {};
+};
+
 /** The manifest's `atlas` block: only what the config sets (keys listed, the download turned off). */
 const atlasBlockOf = (opts: { config: TResolvedConfig }): { atlas?: Record<string, unknown> } => {
   const keys = opts.config.atlas.index?.keys ?? [];
@@ -164,6 +171,8 @@ export class ProjectManifest {
       // The colour `vulcan visualize` takes for its pages; a project without the key gets the neutral default.
       ...(config.theme === undefined ? {} : { theme: config.theme }),
       ...commitBlockOf({ config }),
+      // Whether the Claude Code hooks write the agent event log, and the folder it goes to.
+      ...eventsBlockOf({ config }),
     };
 
     return BunFormatter.format({

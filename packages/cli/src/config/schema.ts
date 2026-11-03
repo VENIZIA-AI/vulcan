@@ -5,6 +5,7 @@ import { OWNER_SCHEMA } from '../owner/schema.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import type { TAgentSignaturePolicy } from '../commit/common/index.ts';
 import { SubjectShape } from '../commit/subject.ts';
+import { EventSettings } from '../events/settings.ts';
 import {
   CodingAgents,
   ConfigConstants,
@@ -460,6 +461,30 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     .default({
       message: { agent: { signature: AgentSignaturePolicies.ALLOW, names: [], allow: [] } },
     }),
+  /**
+   * The agent event log: one JSON line per thing an agent did (a session started, a message sent, an
+   * owner is needed), summaries only, in `.agents/local/events/<day>.jsonl`. `log: true` makes
+   * `vulcan sync` install the Claude Code hooks that write it; `vulcan event add` writes it for any
+   * other agent whatever this says. `dir` is an absolute folder that takes the log instead of the
+   * project's own, so one coordinator can read the events of sessions in different repositories.
+   * Off by default; written to the manifest only when `log` is true or `dir` is set.
+   */
+  events: z
+    .strictObject({
+      log: z.boolean().default(false),
+      dir: z
+        .string()
+        .min(1)
+        .superRefine((value, context) => {
+          const error = EventSettings.dirError({ dir: value });
+
+          if (error !== undefined) {
+            context.addIssue({ code: 'custom', message: `dir must be ${error}` });
+          }
+        })
+        .optional(),
+    })
+    .default({ log: false }),
 });
 
 export type VulcanConfig = z.input<typeof VULCAN_CONFIG_SCHEMA>;
