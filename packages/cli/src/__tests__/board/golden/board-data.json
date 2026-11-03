@@ -1,4 +1,8 @@
 {
+  "title": "Acme Board",
+  "owner": "Ana",
+  "key": "acme",
+  "shapes": {},
   "generatedAt": "2026-11-03T10:00:00.000Z",
   "since": "2026-10-27T10:00:00.000Z",
   "flows": [
@@ -53,7 +57,7 @@
       "id": "F-2",
       "title": "pagination cursor design",
       "state": "you",
-      "holder": "Phát",
+      "holder": "Ana",
       "stages": [3],
       "cur": 3,
       "lastId": "F-2:2026-11-03T08:25:00.000Z:note",

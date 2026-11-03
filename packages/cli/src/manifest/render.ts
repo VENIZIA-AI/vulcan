@@ -84,6 +84,25 @@ const eventsBlockOf = (opts: { config: TResolvedConfig }): { events?: Record<str
   return log || dir !== undefined ? { events: { log, ...(dir === undefined ? {} : { dir }) } } : {};
 };
 
+/** The manifest's `board` block, which `vulcan board` reads: only what the project sets. */
+const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<string, unknown> } => {
+  const { owner, title, logo, agents } = opts.config.board;
+
+  return owner === undefined &&
+    title === undefined &&
+    logo === undefined &&
+    Object.keys(agents).length === 0
+    ? {}
+    : {
+        board: {
+          ...(owner === undefined ? {} : { owner }),
+          ...(title === undefined ? {} : { title }),
+          ...(logo === undefined ? {} : { logo }),
+          ...(Object.keys(agents).length === 0 ? {} : { agents }),
+        },
+      };
+};
+
 /** The manifest's `atlas` block: only what the config sets (keys listed, the download turned off). */
 const atlasBlockOf = (opts: { config: TResolvedConfig }): { atlas?: Record<string, unknown> } => {
   const keys = opts.config.atlas.index?.keys ?? [];
@@ -180,6 +199,8 @@ export class ProjectManifest {
       ...commitBlockOf({ config }),
       // The files the project adds to the ones that make every package affected; none added, nothing is written.
       ...ciBlockOf({ config }),
+      // The names and the logo `vulcan board` puts on its page; nothing set, nothing is written.
+      ...boardBlockOf({ config }),
       // Whether the Claude Code hooks write the agent event log, and the folder it goes to.
       ...eventsBlockOf({ config }),
     };

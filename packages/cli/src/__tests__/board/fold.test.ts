@@ -4,11 +4,14 @@ import { BoardGithub } from '../../board/github.ts';
 import type { IBoardEvent } from '../../board/common/index.ts';
 import { line, sampleLines } from './log-lines.helper.ts';
 
+/** Who an ask waits on: a name that is nobody's default, to show the fold takes it as an input. */
+const OWNER = 'Ana';
+
 const fold = (opts: { lines?: ReturnType<typeof sampleLines>; extra?: IBoardEvent[] }) => {
   const log = BoardFold.fromLog({ events: opts.lines ?? [] });
 
   return {
-    ...BoardFold.fold({ events: [...log.events, ...(opts.extra ?? [])] }),
+    ...BoardFold.fold({ events: [...log.events, ...(opts.extra ?? [])], owner: OWNER }),
     agents: log.agents,
   };
 };
@@ -131,7 +134,7 @@ describe('BoardFold.fold: state', () => {
   test('an ask nobody answered is Needs you, held by the owner', () => {
     const flow = flowOf({ id: 'F-2', lines: sampleLines() });
 
-    expect(flow).toMatchObject({ state: 'you', holder: 'Phát', title: 'pagination cursor design' });
+    expect(flow).toMatchObject({ state: 'you', holder: 'Ana', title: 'pagination cursor design' });
     expect(flow.askId).toBeDefined();
   });
 
@@ -225,6 +228,145 @@ describe('BoardFold.fold: state', () => {
     ];
 
     expect(flowOf({ id: 'F-8', lines: rejected }).state).toBe('parked');
+  });
+
+  test('a park decision followed by a commit is Running again; a park alone stays Parked', () => {
+    const parked = [
+      line({ minute: 0, kind: 'commit', actor: 'a-1', flow: 'F-8', summary: 'spike', ref: 'x' }),
+      line({
+        minute: 5,
+        kind: 'decision',
+        actor: 'veni-forge',
+        flow: 'F-8',
+        summary: 'later',
+        status: 'park',
+      }),
+    ];
+
+    expect(flowOf({ id: 'F-8', lines: parked }).state).toBe('parked');
+
+    const resumed = [
+      ...parked,
+      line({
+        minute: 9,
+        kind: 'commit',
+        actor: 'a-1',
+        flow: 'F-8',
+        summary: 'picked it up again',
+        ref: 'y',
+      }),
+    ];
+
+    expect(flowOf({ id: 'F-8', lines: resumed }).state).toBe('running');
+    // A message after the park is not work: the flow stays parked.
+    expect(
+      flowOf({
+        id: 'F-8',
+        lines: [
+          ...parked,
+          line({
+            minute: 9,
+            kind: 'msg-sent',
+            actor: 'a-1',
+            flow: 'F-8',
+            summary: 'note',
+            ref: 'to:veni-forge',
+          }),
+        ],
+      }).state,
+    ).toBe('parked');
+  });
+
+  test('a merge is Done whatever follows it that is not work; a commit or a new pull request after it reopens', () => {
+    const merged = [
+      line({ minute: 0, kind: 'commit', actor: 'a-1', flow: 'F-8', summary: 'work', ref: 'x' }),
+      line({
+        minute: 5,
+        kind: 'pr',
+        actor: 'a-1',
+        flow: 'F-8',
+        summary: 'merged it',
+        ref: 'merged:80',
+      }),
+    ];
+    const chatter = [
+      ...merged,
+      line({
+        minute: 9,
+        kind: 'msg-sent',
+        actor: 'a-1',
+        flow: 'F-8',
+        summary: 'thanks',
+        ref: 'to:veni-forge',
+      }),
+      line({
+        minute: 10,
+        kind: 'needs-owner',
+        actor: 'a-1',
+        flow: 'F-9',
+        summary: 'unrelated flow',
+      }),
+    ];
+
+    expect(flowOf({ id: 'F-8', lines: merged }).state).toBe('done');
+    expect(flowOf({ id: 'F-8', lines: chatter }).state).toBe('done');
+    expect(
+      flowOf({
+        id: 'F-8',
+        lines: [
+          ...merged,
+          line({
+            minute: 12,
+            kind: 'commit',
+            actor: 'a-1',
+            flow: 'F-8',
+            summary: 'one more fix',
+            ref: 'z',
+          }),
+        ],
+      }).state,
+    ).toBe('running');
+    expect(
+      flowOf({
+        id: 'F-8',
+        lines: [
+          ...merged,
+          line({
+            minute: 12,
+            kind: 'pr',
+            actor: 'a-1',
+            flow: 'F-8',
+            summary: 'a second PR',
+            ref: '#81',
+          }),
+        ],
+      }).state,
+    ).toBe('running');
+  });
+
+  test('an ask and its decision written in the same moment are ordered as they were logged', () => {
+    const ask = line({
+      minute: 3,
+      kind: 'needs-owner',
+      actor: 'a-1',
+      flow: 'F-7',
+      summary: 'Which way?',
+    });
+    const answer = {
+      ...line({
+        minute: 3,
+        kind: 'decision',
+        actor: 'veni-forge',
+        flow: 'F-7',
+        summary: 'cursor',
+        status: 'approve',
+      }),
+      ts: ask.ts,
+    };
+
+    expect(flowOf({ id: 'F-7', lines: [ask, answer] }).state).toBe('running');
+    // The other way round, the ask is the later line and is still waiting.
+    expect(flowOf({ id: 'F-7', lines: [answer, ask] }).state).toBe('you');
   });
 
   test('a merged pull request is Done', () => {

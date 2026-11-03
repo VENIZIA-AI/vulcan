@@ -62,13 +62,36 @@ export class BoardFlags {
   static readonly NO_GITHUB = '--no-github';
 }
 
+/** The faces the page can draw for an agent. `bun` is the default; the others are chosen by name in `board.agents`. */
+export class BoardShapes {
+  static readonly BUN = 'bun';
+  static readonly FLAME = 'flame';
+  static readonly EMBER = 'ember';
+  static readonly ROCK = 'rock';
+  static readonly BANANA = 'banana';
+
+  static readonly SCHEME_SET = new Set<string>([
+    this.BUN,
+    this.FLAME,
+    this.EMBER,
+    this.ROCK,
+    this.BANANA,
+  ]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
 export class BoardSources {
   static readonly GITHUB = 'github';
 }
 
 export class BoardConstants {
-  /** The one owner the page knows by name: an ask waits on them. */
-  static readonly OWNER = 'Phát';
+  /** Who an ask waits on when neither `board.owner` nor `git config user.name` says. */
+  static readonly DEFAULT_OWNER = 'Owner';
+  static readonly LOGO_MAX_BYTES = 100 * 1024;
+  static readonly MANIFEST_FILE = '.agents/vulcan.manifest.json';
   static readonly CI_ACTOR = 'CI';
   static readonly UNSORTED = 'Unsorted';
   static readonly DEFAULT_OUT = '.agents/local/reports/board.html';

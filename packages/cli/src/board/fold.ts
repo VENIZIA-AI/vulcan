@@ -23,8 +23,8 @@ const TO_PREFIX = 'to:';
 /** Kinds that take the stage the flow is at when they happen: a message belongs to the stage it was sent in. */
 const CARRY_KINDS: string[] = [BoardKinds.MSG, BoardKinds.NOTE];
 
-const byTime = (left: IBoardEvent, right: IBoardEvent): number =>
-  left.ts === right.ts ? left.id.localeCompare(right.id) : left.ts.localeCompare(right.ts);
+/** By time only: lines of one moment keep the order they were given in (the order of the log), which `sort` keeps. */
+const byTime = (left: IBoardEvent, right: IBoardEvent): number => left.ts.localeCompare(right.ts);
 
 /** The rules that turn lines of the event log, and of GitHub, into flows with a state, a stage, a holder and attempts. Pure: no clock, no file, no network. */
 export class BoardFold {
@@ -58,7 +58,7 @@ export class BoardFold {
    * has no later decision and no later progress. It is blocked while its newest CI run or review failed and nothing
    * was committed since. Otherwise it is parked, done or running by its last line.
    */
-  static fold(opts: { events: IBoardEvent[] }): {
+  static fold(opts: { events: IBoardEvent[]; owner: string }): {
     flows: IBoardFlow[];
     decisions: Record<string, IBoardDecision>;
   } {
@@ -79,7 +79,7 @@ export class BoardFold {
         decisions[id] = decision;
       }
 
-      flows.push(BoardFold.flowOf({ id, events, decision }));
+      flows.push(BoardFold.flowOf({ id, events, owner: opts.owner }));
     }
 
     return { flows, decisions };
@@ -231,12 +231,8 @@ export class BoardFold {
     };
   }
 
-  private static flowOf(opts: {
-    id: string;
-    events: IBoardEvent[];
-    decision: IBoardDecision | undefined;
-  }): IBoardFlow {
-    const { id, events, decision } = opts;
+  private static flowOf(opts: { id: string; events: IBoardEvent[]; owner: string }): IBoardFlow {
+    const { id, events } = opts;
     // A CI line after its pull request was closed is noise.
     const closed = new Map<string, string>();
 
@@ -256,7 +252,7 @@ export class BoardFold {
     });
     const last = live.at(-1) ?? events[events.length - 1];
     const ask = [...events].reverse().find((event) => event.needsOwner === true);
-    const state = BoardFold.stateOf({ events, live, last, ask, decision });
+    const state = BoardFold.stateOf({ events, live, last, ask });
     const stages = [...new Set(events.map((event) => event.stage))].sort(
       (left, right) => left - right,
     );
@@ -267,7 +263,7 @@ export class BoardFold {
       title: BoardFold.titleOf({ id, events }),
       ...(repo === undefined ? {} : { repo }),
       state,
-      holder: BoardFold.holderOf({ events, state }),
+      holder: BoardFold.holderOf({ events, state, owner: opts.owner }),
       stages,
       cur: last.stage,
       lastId: last.id,
@@ -287,12 +283,12 @@ export class BoardFold {
     live: IBoardEvent[];
     last: IBoardEvent;
     ask: IBoardEvent | undefined;
-    decision: IBoardDecision | undefined;
   }): TBoardState {
-    const { events, live, last, ask, decision } = opts;
+    const { events, live, last, ask } = opts;
 
+    // Positions in the sorted lines, not times: an ask and its answer written in the same moment keep their order.
     if (ask !== undefined) {
-      const later = events.filter((event) => event.ts > ask.ts);
+      const later = events.slice(events.indexOf(ask) + 1);
       const isAnswered =
         later.some((event) => event.kind === BoardKinds.DECISION) ||
         later.some((event) => BoardConstants.PROGRESS_KINDS.includes(event.kind)) ||
@@ -305,10 +301,26 @@ export class BoardFold {
       }
     }
 
+    // A merge is Done until something reopens it: a commit, a fix or another pull request after it.
+    const merged = events.findLastIndex(
+      (event) => event.kind === BoardKinds.MERGE || event.status === BoardStatuses.DONE,
+    );
+
+    if (merged >= 0 && !events.slice(merged + 1).some((event) => BoardFold.reopens({ event }))) {
+      return BoardStates.DONE;
+    }
+
+    // A park or reject holds until work starts again after it.
+    const parked = events.findLastIndex(
+      (event) =>
+        event.kind === BoardKinds.DECISION &&
+        (event.status === BoardStatuses.PARKED || event.status === BoardStatuses.DROPPED),
+    );
+
     if (
-      decision !== undefined &&
-      decision.choice !== 'approve' &&
-      (ask === undefined || decision.at > ask.ts)
+      parked >= 0 &&
+      events.findLastIndex((event) => event.kind === BoardKinds.DECISION) === parked &&
+      !events.slice(parked + 1).some((event) => BoardConstants.PROGRESS_KINDS.includes(event.kind))
     ) {
       return BoardStates.PARKED;
     }
@@ -323,10 +335,6 @@ export class BoardFold {
         return BoardStates.PARKED;
       }
 
-      case BoardStatuses.DONE: {
-        return BoardStates.DONE;
-      }
-
       case BoardStatuses.FAIL:
       case BoardStatuses.BLOCKED: {
         return BoardStates.BLOCKED;
@@ -336,6 +344,17 @@ export class BoardFold {
         return BoardStates.RUNNING;
       }
     }
+  }
+
+  /** Work that starts again after a merge. */
+  private static reopens(opts: { event: IBoardEvent }): boolean {
+    const { event } = opts;
+
+    return (
+      event.kind === BoardKinds.COMMIT ||
+      event.kind === BoardKinds.FIX ||
+      (event.kind === BoardKinds.PR && event.status !== BoardStatuses.CLOSED)
+    );
   }
 
   /** The newest CI run or review failed and nothing was committed or merged since. */
@@ -358,22 +377,25 @@ export class BoardFold {
     );
   }
 
-  private static holderOf(opts: { events: IBoardEvent[]; state: TBoardState }): string {
+  private static holderOf(opts: {
+    events: IBoardEvent[];
+    state: TBoardState;
+    owner: string;
+  }): string {
     if (opts.state === BoardStates.YOU) {
-      return BoardConstants.OWNER;
+      return opts.owner;
     }
 
     const reversed = [...opts.events].reverse();
     const work = reversed.find(
-      (event) =>
-        BoardConstants.WORK_KINDS.includes(event.kind) && event.actor !== BoardConstants.OWNER,
+      (event) => BoardConstants.WORK_KINDS.includes(event.kind) && event.actor !== opts.owner,
     );
     const named = reversed.find(
       (event) =>
         event.kind === BoardKinds.MSG &&
         event.to !== undefined &&
         !event.to.includes(':') &&
-        event.to !== BoardConstants.OWNER,
+        event.to !== opts.owner,
     );
 
     if (named !== undefined && (work === undefined || named.ts > work.ts)) {

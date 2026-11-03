@@ -66,6 +66,16 @@ export interface IBoardAgent {
 }
 
 export interface IBoardData {
+  /** The name on the page: `board.title`, else `<project name> Board`. */
+  title: string;
+  /** Who an ask waits on: `board.owner`, else `git config user.name`, else `Owner`. */
+  owner: string;
+  /** An SVG as a `data:` URL, from `board.logo`; none by default. */
+  logo?: string;
+  /** What the browser keys its saved choices by: the project name as a slug. */
+  key: string;
+  /** Agent name to face, from `board.agents`; any other agent has the default face. */
+  shapes: Record<string, string>;
   generatedAt: string;
   since: string;
   flows: IBoardFlow[];

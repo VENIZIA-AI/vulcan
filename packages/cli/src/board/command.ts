@@ -9,6 +9,7 @@ import { BoardConstants, BoardFlags, BoardStates } from './common/index.ts';
 import type { IBoardData } from './common/index.ts';
 import { BoardFold } from './fold.ts';
 import { BoardGithub } from './github.ts';
+import { BoardSettings } from './settings.ts';
 import { BoardPage } from './page.ts';
 
 const USAGE = `usage: vulcan board [${BoardFlags.OUT} <file>] [${BoardFlags.OPEN}] [${BoardFlags.SINCE} <date>] [${BoardFlags.DIR} <events folder>] [${BoardFlags.REPO} owner/name]... [${BoardFlags.NO_GITHUB}]`;
@@ -91,9 +92,18 @@ export class BoardCommand {
     const github = opts.args.noGithub
       ? { events: [], note: 'github: left out (--no-github)' }
       : BoardGithub.read({ repos: opts.args.repos, cwd: opts.root, since: opts.since });
-    const { flows, decisions } = BoardFold.fold({ events: [...fromLog.events, ...github.events] });
+    const settings = BoardSettings.read({ root: opts.root });
+    const { flows, decisions } = BoardFold.fold({
+      events: [...fromLog.events, ...github.events],
+      owner: settings.owner,
+    });
 
     return {
+      title: settings.title,
+      owner: settings.owner,
+      ...(settings.logo === undefined ? {} : { logo: settings.logo }),
+      key: settings.key,
+      shapes: settings.shapes,
       generatedAt: new Date().toISOString(),
       since: new Date(opts.since).toISOString(),
       flows: flows.sort(
@@ -106,6 +116,7 @@ export class BoardCommand {
       sources: [
         `event log: ${read.events.length} line(s) in ${opts.dir}${read.skipped > 0 ? `, ${read.skipped} skipped` : ''}`,
         github.note,
+        ...settings.notes,
       ],
     };
   }

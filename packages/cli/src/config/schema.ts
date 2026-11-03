@@ -5,6 +5,7 @@ import { OWNER_SCHEMA } from '../owner/schema.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import type { TAgentSignaturePolicy } from '../commit/common/index.ts';
 import { SubjectShape } from '../commit/subject.ts';
+import { BoardShapes } from '../board/common/constants.ts';
 import { EventSettings } from '../events/settings.ts';
 import {
   CodingAgents,
@@ -369,6 +370,40 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         .optional(),
     })
     .optional(),
+  /**
+   * What `vulcan board` calls things. `owner` is who an ask waits on (default: `git config user.name`),
+   * `title` the name on the page (default: the project name and "Board"), `logo` a path inside the project to an
+   * SVG put on the page (default: none), `agents` an agent name to a face (`bun`, `flame`, `ember`, `rock`,
+   * `banana`; any other agent has `bun`). Written to the manifest only when something is set.
+   */
+  board: z
+    .strictObject({
+      owner: z.string().min(1).optional(),
+      title: z.string().min(1).optional(),
+      logo: z
+        .string()
+        .min(1)
+        .refine(
+          (value) =>
+            value.toLowerCase().endsWith('.svg') &&
+            !value.startsWith('/') &&
+            !value.split('/').includes('..'),
+          {
+            message:
+              'a path inside the project to an .svg file, with no leading / and no .. segment',
+          },
+        )
+        .optional(),
+      agents: z
+        .record(
+          z.string().min(1),
+          z.custom<string>((value) => typeof value === 'string' && BoardShapes.isValid(value), {
+            message: `one of ${[...BoardShapes.SCHEME_SET].join(', ')}`,
+          }),
+        )
+        .default({}),
+    })
+    .default({ agents: {} }),
   /** Team-shared Claude settings (permissions, env, enabledPlugins...), merged by sync over personal keys. */
   claude: z
     .strictObject({ settings: z.record(z.string(), z.unknown()).default({}) })
