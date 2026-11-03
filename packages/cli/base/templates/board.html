@@ -2361,7 +2361,7 @@
       <header class="bar">
         <span class="mark" id="mark"></span><span class="brule" aria-hidden="true"></span>
         <h1 id="boardTitle"></h1>
-        <div class="tabs" role="tablist" aria-label="Màn hình" data-i18n-aria-label="Màn hình">
+        <div class="tabs" role="tablist" aria-label="Screens" data-i18n-aria-label="Màn hình">
           <button
             class="tab"
             role="tab"
@@ -2370,7 +2370,7 @@
             aria-controls="vFlows"
             type="button"
           >
-            <span data-i18n="Luồng">Luồng</span>
+            <span data-i18n="Luồng">Flows</span>
           </button>
           <button
             class="tab"
@@ -2385,10 +2385,10 @@
         </div>
         <span class="spacer"></span>
         <span class="since" id="since"
-          ><span id="sinceTxt"><span data-i18n="Đang tải">Đang tải</span></span></span
+          ><span id="sinceTxt"><span data-i18n="Đang tải">Loading</span></span></span
         >
         <button class="btn" type="button" id="bSeen">
-          <span data-i18n="Đánh dấu đã xem">Đánh dấu đã xem</span>
+          <span data-i18n="Đánh dấu đã xem">Mark as seen</span>
         </button>
         <span class="fresh" id="fresh"></span>
         <button class="btn lang" type="button" id="bLang"></button>
@@ -2396,14 +2396,14 @@
           class="btn sq theme"
           type="button"
           id="bTheme"
-          aria-label="Giao diện: sáng"
+          aria-label="Theme: light"
           data-i18n-aria-label="Giao diện: sáng"
         ></button>
         <button
           class="btn sq"
           type="button"
           id="bKeys"
-          aria-label="Phím tắt"
+          aria-label="Shortcuts"
           data-i18n-aria-label="Phím tắt"
           aria-expanded="false"
         >
@@ -2412,27 +2412,23 @@
       </header>
 
       <main class="view on" id="vFlows" role="tabpanel" aria-labelledby="tFlows">
-        <section
-          class="pane list"
-          aria-label="Danh sách luồng"
-          data-i18n-aria-label="Danh sách luồng"
-        >
+        <section class="pane list" aria-label="Flow list" data-i18n-aria-label="Danh sách luồng">
           <div class="ph">
-            <h2><span data-i18n="Luồng việc">Luồng việc</span></h2>
+            <h2><span data-i18n="Luồng việc">Flows</span></h2>
             <span class="n" id="flowN"></span><span class="spacer"></span>
             <div
               class="seg"
               role="radiogroup"
               id="vmode"
               data-i18n-aria-label="vm.label"
-              aria-label="vm.label"
+              aria-label="View"
             >
               <button type="button" role="radio" data-mode="list">
-                <span data-i18n="vm.list">vm.list</span></button
+                <span data-i18n="vm.list">List</span></button
               ><button type="button" role="radio" data-mode="diagram">
-                <span data-i18n="vm.diagram">vm.diagram</span></button
+                <span data-i18n="vm.diagram">Flow diagram</span></button
               ><button type="button" role="radio" data-mode="board">
-                <span data-i18n="vm.board">vm.board</span>
+                <span data-i18n="vm.board">Board</span>
               </button>
             </div>
           </div>
@@ -2440,8 +2436,7 @@
             <p class="empty">
               <span
                 data-i18n="Đang tải luồng việc. Luồng nào có sự kiện sẽ hiện ở đây, việc cần anh lên trước."
-                >Đang tải luồng việc. Luồng nào có sự kiện sẽ hiện ở đây, việc cần anh lên
-                trước.</span
+                >Loading flows. Flows with events show here, the ones that need you first.</span
               >
             </p>
           </div>
@@ -2453,31 +2448,31 @@
           aria-orientation="vertical"
           tabindex="0"
           data-i18n-aria-label="split"
-          aria-label="split"
+          aria-label="Resize the flow list and the detail"
           aria-valuemin="25"
           aria-valuemax="75"
         ></div>
         <section
           class="pane detail"
           id="detail"
-          aria-label="Chi tiết luồng"
+          aria-label="Flow detail"
           data-i18n-aria-label="Chi tiết luồng"
           data-comment-target
         >
           <div class="pb">
             <div id="dEmpty">
               <div class="dh">
-                <h3><span data-i18n="Hôm nay">Hôm nay</span></h3>
-                <p class="meta" id="sumLine"><span data-i18n="Đang tải">Đang tải</span></p>
+                <h3><span data-i18n="Hôm nay">Today</span></h3>
+                <p class="meta" id="sumLine"><span data-i18n="Đang tải">Loading</span></p>
                 <p class="meta">
                   <span
                     data-i18n="Chọn một luồng ở bên trái để xem từng bước, từng vòng review và tin nhắn. Phím j, k để chuyển, Enter để mở."
-                    >Chọn một luồng ở bên trái để xem từng bước, từng vòng review và tin nhắn. Phím
-                    j, k để chuyển, Enter để mở.</span
+                    >Pick a flow on the left to see each stage, each review round and the messages.
+                    j and k move, Enter opens.</span
                   >
                 </p>
               </div>
-              <h4 class="dlabel"><span data-i18n="Sự kiện mới nhất">Sự kiện mới nhất</span></h4>
+              <h4 class="dlabel"><span data-i18n="Sự kiện mới nhất">Latest events</span></h4>
               <ul class="evs" id="recent" style="padding: 8px 16px 16px"></ul>
             </div>
             <div id="dBody" hidden></div>
@@ -2488,7 +2483,7 @@
       <main class="view" id="vAgents" role="tabpanel" aria-labelledby="tAgents">
         <section class="pane graphp" aria-label="Agent graph">
           <div class="ph">
-            <h2><span data-i18n="gr.title">gr.title</span></h2>
+            <h2><span data-i18n="gr.title">Agent graph</span></h2>
             <span class="n" id="agN"></span><span class="spacer"></span
             ><span class="glegend" id="gLegend"></span>
           </div>
@@ -2498,21 +2493,25 @@
         </section>
         <section class="pane gside" aria-label="Pair">
           <div class="ph">
-            <h2 id="gSideT"><span data-i18n="gr.pick">gr.pick</span></h2>
+            <h2 id="gSideT"><span data-i18n="gr.pick">Pick a link</span></h2>
           </div>
-          <div class="pb" id="gSide"><p class="empty" data-i18n="gr.hint">gr.hint</p></div>
+          <div class="pb" id="gSide">
+            <p class="empty" data-i18n="gr.hint">
+              Click a line between two agents to see what passed between them and the flows it
+              touched. Click an agent for its details.
+            </p>
+          </div>
         </section>
       </main>
 
       <footer
         class="dock"
         id="dock"
-        aria-label="Các agent đang chạy"
+        aria-label="Running agents"
         data-i18n-aria-label="Các agent đang chạy"
       >
         <div class="dock-lbl">
-          <b id="dockN">Agent</b
-          ><span id="dockSum"><span data-i18n="đang tải">đang tải</span></span>
+          <b id="dockN">Agent</b><span id="dockSum"><span data-i18n="đang tải">loading</span></span>
         </div>
       </footer>
     </div>
@@ -2531,21 +2530,21 @@
       id="keys"
       hidden
       role="dialog"
-      aria-label="Phím tắt"
+      aria-label="Shortcuts"
       data-i18n-aria-label="Phím tắt"
     >
-      <h2><span data-i18n="Phím tắt">Phím tắt</span></h2>
+      <h2><span data-i18n="Phím tắt">Shortcuts</span></h2>
       <dl>
         <dt>j / k</dt>
-        <dd><span data-i18n="Luồng sau / trước">Luồng sau / trước</span></dd>
+        <dd><span data-i18n="Luồng sau / trước">Next / previous flow</span></dd>
         <dt>Enter</dt>
-        <dd><span data-i18n="Mở chi tiết">Mở chi tiết</span></dd>
+        <dd><span data-i18n="Mở chi tiết">Open detail</span></dd>
         <dt>e</dt>
-        <dd><span data-i18n="Các bước hoặc mọi sự kiện">Các bước hoặc mọi sự kiện</span></dd>
+        <dd><span data-i18n="Các bước hoặc mọi sự kiện">Stages or all events</span></dd>
         <dt>Esc</dt>
-        <dd><span data-i18n="Đóng">Đóng</span></dd>
+        <dd><span data-i18n="Đóng">Close</span></dd>
         <dt>?</dt>
-        <dd><span data-i18n="Bảng này">Bảng này</span></dd>
+        <dd><span data-i18n="Bảng này">This panel</span></dd>
       </dl>
     </div>
 
