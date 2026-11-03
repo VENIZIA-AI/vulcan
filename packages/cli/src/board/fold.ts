@@ -222,7 +222,11 @@ export class BoardFold {
 
     return {
       choice:
-        choice === EventStatuses.PARK ? 'later' : choice === EventStatuses.REJECT ? 'reject' : 'approve',
+        choice === EventStatuses.PARK
+          ? 'later'
+          : choice === EventStatuses.REJECT
+            ? 'reject'
+            : 'approve',
       at: decided.ts,
     };
   }
@@ -270,7 +274,9 @@ export class BoardFold {
       ...(ask === undefined ? {} : { askId: ask.id }),
       ciRuns: events.filter((event) => event.kind === BoardKinds.CI).length,
       reviewRounds: new Set(
-        events.filter((event) => event.kind === BoardKinds.REVIEW).map((event) => event.attempt ?? 1),
+        events
+          .filter((event) => event.kind === BoardKinds.REVIEW)
+          .map((event) => event.attempt ?? 1),
       ).size,
       events,
     };
@@ -359,7 +365,8 @@ export class BoardFold {
 
     const reversed = [...opts.events].reverse();
     const work = reversed.find(
-      (event) => BoardConstants.WORK_KINDS.includes(event.kind) && event.actor !== BoardConstants.OWNER,
+      (event) =>
+        BoardConstants.WORK_KINDS.includes(event.kind) && event.actor !== BoardConstants.OWNER,
     );
     const named = reversed.find(
       (event) =>

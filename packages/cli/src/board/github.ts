@@ -23,7 +23,8 @@ const FAILED = new Set([
 ]);
 const BODY_FLOW = /\bFlow:\s*(F-\d+)\b/;
 
-const text = (opts: { value: unknown }): string => (typeof opts.value === 'string' ? opts.value : '');
+const text = (opts: { value: unknown }): string =>
+  typeof opts.value === 'string' ? opts.value : '';
 
 /** Pull requests, their checks and their reviews, read through `gh`: an extra for projects on GitHub. */
 export class BoardGithub {
@@ -71,7 +72,9 @@ export class BoardGithub {
       );
 
       if (listed.status !== 0) {
-        notes.push(`${repo} skipped (${(listed.stderr ?? '').trim().split('\n')[0] || 'gh failed'})`);
+        notes.push(
+          `${repo} skipped (${(listed.stderr ?? '').trim().split('\n')[0] || 'gh failed'})`,
+        );
         continue;
       }
 
@@ -160,7 +163,9 @@ export class BoardGithub {
           ts: text({ value: review.submittedAt }),
           kind: BoardKinds.REVIEW,
           stage: BoardStages.REVIEW,
-          actor: RecordValue.isRecord(review.author) ? text({ value: review.author.login }) : 'reviewer',
+          actor: RecordValue.isRecord(review.author)
+            ? text({ value: review.author.login })
+            : 'reviewer',
           status: state === 'CHANGES_REQUESTED' ? BoardStatuses.FAIL : BoardStatuses.PASS,
           summary: state.toLowerCase().replace('_', ' '),
         });
@@ -210,7 +215,9 @@ export class BoardGithub {
     }
 
     const name = text({ value: check.name }) || text({ value: check.context }) || 'check';
-    const outcome = (text({ value: check.conclusion }) || text({ value: check.state })).toUpperCase();
+    const outcome = (
+      text({ value: check.conclusion }) || text({ value: check.state })
+    ).toUpperCase();
     const at = text({ value: check.completedAt }) || text({ value: check.startedAt });
 
     if (at === '' || (!PASSED.has(outcome) && !FAILED.has(outcome))) {

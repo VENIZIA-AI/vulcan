@@ -7,9 +7,16 @@ import { line, sampleLines } from './log-lines.helper.ts';
 const fold = (opts: { lines?: ReturnType<typeof sampleLines>; extra?: IBoardEvent[] }) => {
   const log = BoardFold.fromLog({ events: opts.lines ?? [] });
 
-  return { ...BoardFold.fold({ events: [...log.events, ...(opts.extra ?? [])] }), agents: log.agents };
+  return {
+    ...BoardFold.fold({ events: [...log.events, ...(opts.extra ?? [])] }),
+    agents: log.agents,
+  };
 };
-const flowOf = (opts: { id: string; lines?: ReturnType<typeof sampleLines>; extra?: IBoardEvent[] }) => {
+const flowOf = (opts: {
+  id: string;
+  lines?: ReturnType<typeof sampleLines>;
+  extra?: IBoardEvent[];
+}) => {
   const found = fold(opts).flows.find((flow) => flow.id === opts.id);
 
   if (found === undefined) {
@@ -33,13 +40,34 @@ const PR_JSON = {
   state: 'OPEN',
   url: 'https://github.com/VENIZIA-AI/vulcan/pull/70',
   reviews: [
-    { author: { login: 'reviewer-1' }, state: 'CHANGES_REQUESTED', submittedAt: '2026-11-03T09:30:00Z' },
+    {
+      author: { login: 'reviewer-1' },
+      state: 'CHANGES_REQUESTED',
+      submittedAt: '2026-11-03T09:30:00Z',
+    },
     { author: { login: 'reviewer-1' }, state: 'APPROVED', submittedAt: '2026-11-03T10:30:00Z' },
   ],
   statusCheckRollup: [
-    { name: 'Build, test and lint', status: 'COMPLETED', conclusion: 'FAILURE', completedAt: '2026-11-03T09:10:00Z', detailsUrl: 'https://github.com/VENIZIA-AI/vulcan/actions/runs/1' },
-    { name: 'Source gates', status: 'COMPLETED', conclusion: 'SUCCESS', completedAt: '2026-11-03T09:12:00Z', detailsUrl: 'https://github.com/VENIZIA-AI/vulcan/actions/runs/1' },
-    { name: 'Still running', status: 'IN_PROGRESS', conclusion: '', startedAt: '2026-11-03T09:13:00Z' },
+    {
+      name: 'Build, test and lint',
+      status: 'COMPLETED',
+      conclusion: 'FAILURE',
+      completedAt: '2026-11-03T09:10:00Z',
+      detailsUrl: 'https://github.com/VENIZIA-AI/vulcan/actions/runs/1',
+    },
+    {
+      name: 'Source gates',
+      status: 'COMPLETED',
+      conclusion: 'SUCCESS',
+      completedAt: '2026-11-03T09:12:00Z',
+      detailsUrl: 'https://github.com/VENIZIA-AI/vulcan/actions/runs/1',
+    },
+    {
+      name: 'Still running',
+      status: 'IN_PROGRESS',
+      conclusion: '',
+      startedAt: '2026-11-03T09:13:00Z',
+    },
   ],
 };
 
@@ -55,27 +83,45 @@ describe('BoardFold.fromLog', () => {
     expect(kinds).toContain('F-3:decision');
     expect(kinds).toContain('F-4:merge');
     expect(kinds.some((entry) => entry.includes('session'))).toBe(false);
-    expect(events.find((event) => event.kind === 'pr' && event.flowId === 'F-1')).toMatchObject({ stage: 4, ref: { pr: 662 } });
-    expect(events.find((event) => event.kind === 'merge')).toMatchObject({ stage: 6, status: 'done', ref: { pr: 666 } });
-    expect(events.find((event) => event.needsOwner)).toMatchObject({ flowId: 'F-2', needsOwner: true });
+    expect(events.find((event) => event.kind === 'pr' && event.flowId === 'F-1')).toMatchObject({
+      stage: 4,
+      ref: { pr: 662 },
+    });
+    expect(events.find((event) => event.kind === 'merge')).toMatchObject({
+      stage: 6,
+      status: 'done',
+      ref: { pr: 666 },
+    });
+    expect(events.find((event) => event.needsOwner)).toMatchObject({
+      flowId: 'F-2',
+      needsOwner: true,
+    });
   });
 
   test('the recipient of a message is the to: part of its ref', () => {
     const { events } = BoardFold.fromLog({ events: sampleLines() });
 
-    expect(events.find((event) => event.kind === 'msg')).toMatchObject({ to: 'veni-forge', actor: 'pnt-vulcan-1' });
+    expect(events.find((event) => event.kind === 'msg')).toMatchObject({
+      to: 'veni-forge',
+      actor: 'pnt-vulcan-1',
+    });
   });
 
   test('a line with no flow is in Unsorted', () => {
     const { events } = BoardFold.fromLog({ events: sampleLines() });
 
-    expect(events.find((event) => event.summary === 'fix a typo in the docs')?.flowId).toBe('Unsorted');
+    expect(events.find((event) => event.summary === 'fix a typo in the docs')?.flowId).toBe(
+      'Unsorted',
+    );
   });
 
   test('a session line only moves an agent: start is working, stop is idle, the last work line is what it does', () => {
     const { agents } = BoardFold.fromLog({ events: sampleLines() });
 
-    expect(agents['pnt-vulcan-1']).toMatchObject({ state: 'idle', current: 'fix a typo in the docs' });
+    expect(agents['pnt-vulcan-1']).toMatchObject({
+      state: 'idle',
+      current: 'fix a typo in the docs',
+    });
     expect(agents['pnt-ignis-1']).toMatchObject({ state: 'working', name: 'pnt-ignis-1' });
     expect(agents['veni-forge'].state).toBe('working');
   });
@@ -90,13 +136,30 @@ describe('BoardFold.fold: state', () => {
   });
 
   test('a later decision answers it; the flow runs again', () => {
-    expect(flowOf({ id: 'F-3', lines: sampleLines() })).toMatchObject({ state: 'running', holder: 'pnt-ardor-1', cur: 3 });
+    expect(flowOf({ id: 'F-3', lines: sampleLines() })).toMatchObject({
+      state: 'running',
+      holder: 'pnt-ardor-1',
+      cur: 3,
+    });
   });
 
   test('a decision alone answers it, with no work after it', () => {
     const lines = [
-      line({ minute: 0, kind: 'needs-owner', actor: 'pnt-ignis-1', flow: 'F-7', summary: 'Which way?' }),
-      line({ minute: 5, kind: 'decision', actor: 'veni-forge', flow: 'F-7', summary: 'cursor', status: 'approve' }),
+      line({
+        minute: 0,
+        kind: 'needs-owner',
+        actor: 'pnt-ignis-1',
+        flow: 'F-7',
+        summary: 'Which way?',
+      }),
+      line({
+        minute: 5,
+        kind: 'decision',
+        actor: 'veni-forge',
+        flow: 'F-7',
+        summary: 'cursor',
+        status: 'approve',
+      }),
     ];
 
     expect(flowOf({ id: 'F-7', lines }).state).toBe('running');
@@ -104,8 +167,21 @@ describe('BoardFold.fold: state', () => {
 
   test('a later commit answers it too, when no decision was logged', () => {
     const lines = [
-      line({ minute: 0, kind: 'needs-owner', actor: 'pnt-ignis-1', flow: 'F-7', summary: 'Which way?' }),
-      line({ minute: 5, kind: 'commit', actor: 'pnt-ignis-1', flow: 'F-7', summary: 'went with cursor', ref: 'a1' }),
+      line({
+        minute: 0,
+        kind: 'needs-owner',
+        actor: 'pnt-ignis-1',
+        flow: 'F-7',
+        summary: 'Which way?',
+      }),
+      line({
+        minute: 5,
+        kind: 'commit',
+        actor: 'pnt-ignis-1',
+        flow: 'F-7',
+        summary: 'went with cursor',
+        ref: 'a1',
+      }),
     ];
 
     expect(flowOf({ id: 'F-7', lines }).state).toBe('running');
@@ -113,8 +189,21 @@ describe('BoardFold.fold: state', () => {
 
   test('a message does not answer an ask', () => {
     const lines = [
-      line({ minute: 0, kind: 'needs-owner', actor: 'pnt-ignis-1', flow: 'F-7', summary: 'Which way?' }),
-      line({ minute: 5, kind: 'msg-sent', actor: 'pnt-ignis-1', flow: 'F-7', summary: 'reminder', ref: 'to:veni-forge' }),
+      line({
+        minute: 0,
+        kind: 'needs-owner',
+        actor: 'pnt-ignis-1',
+        flow: 'F-7',
+        summary: 'Which way?',
+      }),
+      line({
+        minute: 5,
+        kind: 'msg-sent',
+        actor: 'pnt-ignis-1',
+        flow: 'F-7',
+        summary: 'reminder',
+        ref: 'to:veni-forge',
+      }),
     ];
 
     expect(flowOf({ id: 'F-7', lines }).state).toBe('you');
@@ -125,7 +214,14 @@ describe('BoardFold.fold: state', () => {
 
     const rejected = [
       line({ minute: 0, kind: 'commit', actor: 'a-1', flow: 'F-8', summary: 'spike', ref: 'x' }),
-      line({ minute: 5, kind: 'decision', actor: 'veni-forge', flow: 'F-8', summary: 'no', status: 'reject' }),
+      line({
+        minute: 5,
+        kind: 'decision',
+        actor: 'veni-forge',
+        flow: 'F-8',
+        summary: 'no',
+        status: 'reject',
+      }),
     ];
 
     expect(flowOf({ id: 'F-8', lines: rejected }).state).toBe('parked');
@@ -141,10 +237,22 @@ describe('BoardFold.fold: state', () => {
       repo: 'VENIZIA-AI/vulcan',
     });
 
-    expect(flowOf({ id: 'F-9', extra: failed })).toMatchObject({ state: 'blocked', holder: 'pnt-vulcan-1' });
+    expect(flowOf({ id: 'F-9', extra: failed })).toMatchObject({
+      state: 'blocked',
+      holder: 'pnt-vulcan-1',
+    });
 
     const fixed = fold({
-      lines: [line({ minute: 600, kind: 'commit', actor: 'pnt-vulcan-1', flow: 'F-9', summary: 'fix the lint', ref: 'f1' })],
+      lines: [
+        line({
+          minute: 600,
+          kind: 'commit',
+          actor: 'pnt-vulcan-1',
+          flow: 'F-9',
+          summary: 'fix the lint',
+          ref: 'f1',
+        }),
+      ],
       extra: failed,
     }).flows.find((flow) => flow.id === 'F-9');
 
@@ -188,8 +296,22 @@ describe('BoardFold.fold: stage, holder, attempts', () => {
     expect(flowOf({ id: 'F-1', lines: sampleLines() }).holder).toBe('veni-forge');
 
     const quiet = [
-      line({ minute: 0, kind: 'commit', actor: 'pnt-vulcan-1', flow: 'F-6', summary: 'work', ref: 'a' }),
-      line({ minute: 3, kind: 'msg-sent', actor: 'pnt-vulcan-1', flow: 'F-6', summary: 'handing over', ref: 'to:uds:3326301.sock' }),
+      line({
+        minute: 0,
+        kind: 'commit',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-6',
+        summary: 'work',
+        ref: 'a',
+      }),
+      line({
+        minute: 3,
+        kind: 'msg-sent',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-6',
+        summary: 'handing over',
+        ref: 'to:uds:3326301.sock',
+      }),
     ];
 
     expect(flowOf({ id: 'F-6', lines: quiet }).holder).toBe('pnt-vulcan-1');
@@ -203,12 +325,17 @@ describe('BoardFold.fold: stage, holder, attempts', () => {
       completedAt: `2026-11-03T09:${String(minute).padStart(2, '0')}:00Z`,
     });
     const events = BoardGithub.eventsOf({
-      pr: { ...PR_JSON, statusCheckRollup: [rerun('FAILURE', 10), rerun('FAILURE', 20), rerun('SUCCESS', 30)] },
+      pr: {
+        ...PR_JSON,
+        statusCheckRollup: [rerun('FAILURE', 10), rerun('FAILURE', 20), rerun('SUCCESS', 30)],
+      },
       repo: 'VENIZIA-AI/vulcan',
     });
     const flow = flowOf({ id: 'F-9', extra: events });
 
-    expect(flow.events.filter((event) => event.kind === 'ci').map((event) => event.attempt)).toEqual([1, 2, 3]);
+    expect(
+      flow.events.filter((event) => event.kind === 'ci').map((event) => event.attempt),
+    ).toEqual([1, 2, 3]);
     expect(flow).toMatchObject({ ciRuns: 3, reviewRounds: 2 });
   });
 });
@@ -244,18 +371,42 @@ describe('BoardGithub.eventsOf', () => {
     expect(new Set(events.map((event) => event.flowId))).toEqual(new Set(['F-9']));
     expect(BoardGithub.flowOf({ body: '', branch: 'fix/F-12-thing' })).toBe('F-12');
     expect(BoardGithub.flowOf({ body: 'Flow: F-3', branch: 'fix/F-12-thing' })).toBe('F-3');
-    expect(BoardGithub.eventsOf({ pr: { ...PR_JSON, body: '', headRefName: 'main' }, repo: 'a/b' })[0].flowId).toBe('Unsorted');
+    expect(
+      BoardGithub.eventsOf({ pr: { ...PR_JSON, body: '', headRefName: 'main' }, repo: 'a/b' })[0]
+        .flowId,
+    ).toBe('Unsorted');
   });
 
   test('opened, each finished check, each review; a check still running is left out', () => {
-    expect(events.map((event) => `${event.kind}:${event.status ?? ''}`)).toEqual(['pr:open', 'ci:fail', 'ci:pass', 'review:fail', 'review:pass']);
-    expect(events[0]).toMatchObject({ summary: '#70 vulcan board', actor: 'pnt-vulcan-1', link: 'https://github.com/VENIZIA-AI/vulcan/pull/70', ref: { repo: 'VENIZIA-AI/vulcan', pr: 70 } });
-    expect(events[1]).toMatchObject({ actor: 'CI', check: 'Build, test and lint', link: 'https://github.com/VENIZIA-AI/vulcan/actions/runs/1' });
+    expect(events.map((event) => `${event.kind}:${event.status ?? ''}`)).toEqual([
+      'pr:open',
+      'ci:fail',
+      'ci:pass',
+      'review:fail',
+      'review:pass',
+    ]);
+    expect(events[0]).toMatchObject({
+      summary: '#70 vulcan board',
+      actor: 'pnt-vulcan-1',
+      link: 'https://github.com/VENIZIA-AI/vulcan/pull/70',
+      ref: { repo: 'VENIZIA-AI/vulcan', pr: 70 },
+    });
+    expect(events[1]).toMatchObject({
+      actor: 'CI',
+      check: 'Build, test and lint',
+      link: 'https://github.com/VENIZIA-AI/vulcan/actions/runs/1',
+    });
   });
 
   test('merged adds a merge line; closed without merge closes the pull request', () => {
-    const merged = BoardGithub.eventsOf({ pr: { ...PR_JSON, state: 'MERGED', mergedAt: '2026-11-03T12:00:00Z' }, repo: 'a/b' });
-    const closed = BoardGithub.eventsOf({ pr: { ...PR_JSON, state: 'CLOSED', closedAt: '2026-11-03T12:00:00Z' }, repo: 'a/b' });
+    const merged = BoardGithub.eventsOf({
+      pr: { ...PR_JSON, state: 'MERGED', mergedAt: '2026-11-03T12:00:00Z' },
+      repo: 'a/b',
+    });
+    const closed = BoardGithub.eventsOf({
+      pr: { ...PR_JSON, state: 'CLOSED', closedAt: '2026-11-03T12:00:00Z' },
+      repo: 'a/b',
+    });
 
     expect(merged.at(-1)).toMatchObject({ kind: 'merge', status: 'done', stage: 6 });
     expect(closed.at(-1)).toMatchObject({ kind: 'pr', status: 'closed' });
@@ -263,7 +414,13 @@ describe('BoardGithub.eventsOf', () => {
 
   test('a CI line after its pull request was closed does not decide the state', () => {
     const closed = BoardGithub.eventsOf({
-      pr: { ...PR_JSON, state: 'CLOSED', closedAt: '2026-11-03T09:05:00Z', reviews: [], statusCheckRollup: [PR_JSON.statusCheckRollup[0]] },
+      pr: {
+        ...PR_JSON,
+        state: 'CLOSED',
+        closedAt: '2026-11-03T09:05:00Z',
+        reviews: [],
+        statusCheckRollup: [PR_JSON.statusCheckRollup[0]],
+      },
       repo: 'a/b',
     });
 

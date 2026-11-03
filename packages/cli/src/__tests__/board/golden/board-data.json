@@ -1,0 +1,304 @@
+{
+  "generatedAt": "2026-11-03T10:00:00.000Z",
+  "since": "2026-10-27T10:00:00.000Z",
+  "flows": [
+    {
+      "id": "F-1",
+      "title": "event log: the kinds and the log file",
+      "state": "running",
+      "holder": "veni-forge",
+      "stages": [
+        3,
+        4
+      ],
+      "cur": 4,
+      "lastId": "F-1:2026-11-03T08:12:00.000Z:msg",
+      "ciRuns": 0,
+      "reviewRounds": 0,
+      "events": [
+        {
+          "id": "F-1:2026-11-03T08:05:00.000Z:commit",
+          "flowId": "F-1",
+          "ts": "2026-11-03T08:05:00.000Z",
+          "actor": "pnt-vulcan-1",
+          "summary": "event log: the kinds and the log file",
+          "source": "cli",
+          "kind": "commit",
+          "stage": 3
+        },
+        {
+          "id": "F-1:2026-11-03T08:09:00.000Z:pr",
+          "flowId": "F-1",
+          "ts": "2026-11-03T08:09:00.000Z",
+          "actor": "pnt-vulcan-1",
+          "summary": "event log PR",
+          "source": "cli",
+          "kind": "pr",
+          "stage": 4,
+          "ref": {
+            "pr": 662
+          }
+        },
+        {
+          "id": "F-1:2026-11-03T08:12:00.000Z:msg",
+          "flowId": "F-1",
+          "ts": "2026-11-03T08:12:00.000Z",
+          "actor": "pnt-vulcan-1",
+          "summary": "PR open, ready for review",
+          "source": "cli",
+          "kind": "msg",
+          "stage": 4,
+          "to": "veni-forge"
+        }
+      ]
+    },
+    {
+      "id": "F-2",
+      "title": "pagination cursor design",
+      "state": "you",
+      "holder": "Phát",
+      "stages": [
+        3
+      ],
+      "cur": 3,
+      "lastId": "F-2:2026-11-03T08:25:00.000Z:note",
+      "askId": "F-2:2026-11-03T08:25:00.000Z:note",
+      "ciRuns": 0,
+      "reviewRounds": 0,
+      "events": [
+        {
+          "id": "F-2:2026-11-03T08:20:00.000Z:commit",
+          "flowId": "F-2",
+          "ts": "2026-11-03T08:20:00.000Z",
+          "actor": "pnt-ignis-1",
+          "summary": "pagination cursor design",
+          "source": "cli",
+          "kind": "commit",
+          "stage": 3
+        },
+        {
+          "id": "F-2:2026-11-03T08:25:00.000Z:note",
+          "flowId": "F-2",
+          "ts": "2026-11-03T08:25:00.000Z",
+          "actor": "pnt-ignis-1",
+          "summary": "Choose cursor or offset pagination",
+          "source": "cli",
+          "kind": "note",
+          "stage": 3,
+          "needsOwner": true
+        }
+      ]
+    },
+    {
+      "id": "F-3",
+      "title": "Approve the retry design",
+      "state": "running",
+      "holder": "pnt-ardor-1",
+      "stages": [
+        0,
+        1,
+        3
+      ],
+      "cur": 3,
+      "lastId": "F-3:2026-11-03T08:40:00.000Z:commit",
+      "askId": "F-3:2026-11-03T08:30:00.000Z:note",
+      "ciRuns": 0,
+      "reviewRounds": 0,
+      "events": [
+        {
+          "id": "F-3:2026-11-03T08:30:00.000Z:note",
+          "flowId": "F-3",
+          "ts": "2026-11-03T08:30:00.000Z",
+          "actor": "pnt-ardor-1",
+          "summary": "Approve the retry design",
+          "source": "cli",
+          "kind": "note",
+          "stage": 0,
+          "needsOwner": true
+        },
+        {
+          "id": "F-3:2026-11-03T08:34:00.000Z:decision",
+          "flowId": "F-3",
+          "ts": "2026-11-03T08:34:00.000Z",
+          "actor": "veni-forge",
+          "summary": "Phat approved the retry design",
+          "source": "cli",
+          "kind": "decision",
+          "stage": 1,
+          "choice": "approve"
+        },
+        {
+          "id": "F-3:2026-11-03T08:40:00.000Z:commit",
+          "flowId": "F-3",
+          "ts": "2026-11-03T08:40:00.000Z",
+          "actor": "pnt-ardor-1",
+          "summary": "retry with backoff",
+          "source": "cli",
+          "kind": "commit",
+          "stage": 3
+        }
+      ]
+    },
+    {
+      "id": "F-4",
+      "title": "ci affected",
+      "state": "done",
+      "holder": "pnt-vulcan-1",
+      "stages": [
+        3,
+        4,
+        6
+      ],
+      "cur": 6,
+      "lastId": "F-4:2026-11-03T09:10:00.000Z:merge",
+      "ciRuns": 0,
+      "reviewRounds": 0,
+      "events": [
+        {
+          "id": "F-4:2026-11-03T08:45:00.000Z:commit",
+          "flowId": "F-4",
+          "ts": "2026-11-03T08:45:00.000Z",
+          "actor": "pnt-vulcan-1",
+          "summary": "ci affected",
+          "source": "cli",
+          "kind": "commit",
+          "stage": 3
+        },
+        {
+          "id": "F-4:2026-11-03T08:50:00.000Z:pr",
+          "flowId": "F-4",
+          "ts": "2026-11-03T08:50:00.000Z",
+          "actor": "pnt-vulcan-1",
+          "summary": "ci affected PR",
+          "source": "cli",
+          "kind": "pr",
+          "stage": 4,
+          "ref": {
+            "pr": 666
+          }
+        },
+        {
+          "id": "F-4:2026-11-03T09:10:00.000Z:merge",
+          "flowId": "F-4",
+          "ts": "2026-11-03T09:10:00.000Z",
+          "actor": "veni-forge",
+          "summary": "merged ci affected",
+          "source": "cli",
+          "kind": "merge",
+          "stage": 6,
+          "status": "done",
+          "ref": {
+            "pr": 666
+          }
+        }
+      ]
+    },
+    {
+      "id": "F-5",
+      "title": "spike: edge cache",
+      "state": "parked",
+      "holder": "pnt-ignis-1",
+      "stages": [
+        1,
+        3
+      ],
+      "cur": 1,
+      "lastId": "F-5:2026-11-03T09:20:00.000Z:decision",
+      "ciRuns": 0,
+      "reviewRounds": 0,
+      "events": [
+        {
+          "id": "F-5:2026-11-03T09:15:00.000Z:commit",
+          "flowId": "F-5",
+          "ts": "2026-11-03T09:15:00.000Z",
+          "actor": "pnt-ignis-1",
+          "summary": "spike: edge cache",
+          "source": "cli",
+          "kind": "commit",
+          "stage": 3
+        },
+        {
+          "id": "F-5:2026-11-03T09:20:00.000Z:decision",
+          "flowId": "F-5",
+          "ts": "2026-11-03T09:20:00.000Z",
+          "actor": "veni-forge",
+          "summary": "Phat parked the edge cache spike",
+          "source": "cli",
+          "kind": "decision",
+          "stage": 1,
+          "status": "parked",
+          "choice": "park"
+        }
+      ]
+    },
+    {
+      "id": "Unsorted",
+      "title": "Unsorted",
+      "state": "running",
+      "holder": "pnt-vulcan-1",
+      "stages": [
+        3
+      ],
+      "cur": 3,
+      "lastId": "Unsorted:2026-11-03T09:25:00.000Z:commit",
+      "ciRuns": 0,
+      "reviewRounds": 0,
+      "events": [
+        {
+          "id": "Unsorted:2026-11-03T09:25:00.000Z:commit",
+          "flowId": "Unsorted",
+          "ts": "2026-11-03T09:25:00.000Z",
+          "actor": "pnt-vulcan-1",
+          "summary": "fix a typo in the docs",
+          "source": "cli",
+          "kind": "commit",
+          "stage": 3
+        }
+      ]
+    }
+  ],
+  "decisions": {
+    "F-3": {
+      "choice": "approve",
+      "at": "2026-11-03T08:34:00.000Z"
+    },
+    "F-5": {
+      "choice": "later",
+      "at": "2026-11-03T09:20:00.000Z"
+    }
+  },
+  "agents": {
+    "pnt-vulcan-1": {
+      "name": "pnt-vulcan-1",
+      "state": "idle",
+      "current": "fix a typo in the docs",
+      "since": "2026-11-03T09:30:00.000Z",
+      "checkedAt": "2026-11-03T09:30:00.000Z"
+    },
+    "pnt-ignis-1": {
+      "name": "pnt-ignis-1",
+      "state": "working",
+      "current": "spike: edge cache",
+      "since": "2026-11-03T08:01:00.000Z",
+      "checkedAt": "2026-11-03T09:15:00.000Z"
+    },
+    "veni-forge": {
+      "name": "veni-forge",
+      "state": "working",
+      "current": "Phat parked the edge cache spike",
+      "since": "2026-11-03T08:02:00.000Z",
+      "checkedAt": "2026-11-03T09:20:00.000Z"
+    },
+    "pnt-ardor-1": {
+      "name": "pnt-ardor-1",
+      "state": "working",
+      "current": "retry with backoff",
+      "since": "2026-11-03T08:30:00.000Z",
+      "checkedAt": "2026-11-03T08:40:00.000Z"
+    }
+  },
+  "sources": [
+    "event log: 18 line(s) in .agents/local/events",
+    "github: left out (--no-github)"
+  ]
+}
