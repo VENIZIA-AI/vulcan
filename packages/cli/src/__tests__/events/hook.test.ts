@@ -69,12 +69,14 @@ describe('EventHook.map', () => {
       ).toEqual({
         kind: 'needs-owner',
         summary: 'Claude needs you',
+        notification: type,
       });
     }
 
     expect(map({ hookEventName: 'Notification', notificationType: 'idle_prompt' })).toEqual({
       kind: 'needs-owner',
       summary: 'idle_prompt',
+      notification: 'idle_prompt',
     });
     expect(
       map({ hookEventName: 'Notification', notificationType: 'auth_success', title: 't' }),
@@ -361,5 +363,58 @@ describe('the hook script', () => {
     // The target is 50 ms on a developer machine; the number is printed so a slow run can be read, not guessed.
     console.log(`event hook median ${times[10].toFixed(1)} ms, p95 ${times[18].toFixed(1)} ms`);
     expect(times[10]).toBeLessThan(500);
+  });
+});
+
+describe('EventHook.run: the notification type is kept, so a title does not hide where the line came from', () => {
+  test('a needs-owner line from the hook carries its notification type; one written by hand carries none', () => {
+    const root = createProject({
+      files: { '.agents/vulcan.manifest.json': JSON.stringify({ events: { log: true } }) },
+    });
+    const written = EventHook.run({
+      root,
+      input: wire({
+        hookEventName: 'Notification',
+        notificationType: 'permission_prompt',
+        title: 'Claude needs your permission to use Bash',
+        sessionId: 's1',
+      }),
+      env: { VULCAN_ACTOR: 'pnt-vulcan-1' },
+    });
+
+    expect(written).toMatchObject({
+      kind: 'needs-owner',
+      summary: 'Claude needs your permission to use Bash',
+      notification: 'permission_prompt',
+      source: 'claude-hook',
+    });
+    expect(
+      EventLog.build({ kind: 'needs-owner', summary: 'Which way?', actor: 'a', source: 'cli' }),
+    ).not.toHaveProperty('notification');
+  });
+
+  test('the field is a short enum: a value that is not a prompt type is not written and is dropped on read', () => {
+    const built = EventLog.build({
+      kind: 'needs-owner',
+      summary: 'x',
+      actor: 'a',
+      source: 'claude-hook',
+      notification: 'rm -rf /',
+    });
+
+    expect(built).not.toHaveProperty('notification');
+    expect(
+      EventLog.parse({
+        line: JSON.stringify({
+          ...EventLog.build({ kind: 'needs-owner', summary: 'x', actor: 'a', source: 'cli' }),
+          notification: 'rm -rf /',
+        }),
+      }),
+    ).not.toHaveProperty('notification');
+    expect(
+      EventLog.parse({ line: JSON.stringify({ ...built, notification: 'idle_prompt' }) })
+        ?.notification,
+    ).toBe('idle_prompt');
+    expect(EventLog.parse({ line: JSON.stringify({ ...built, notification: 7 }) })).toBeUndefined();
   });
 });

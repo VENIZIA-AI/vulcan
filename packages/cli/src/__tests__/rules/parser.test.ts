@@ -17,12 +17,12 @@ describe('RuleParser.parseIds', () => {
     expect(RuleParser.parseIds({ markdown })).toEqual(['V-W-01', 'V-C-04', 'W-06']);
   });
 
-  test('the shipped base: W5 S7 P12 B9 + the C group, 50 rules, every ID unique', () => {
+  test('the shipped base: W5 S7 P13 B9 + the C group, 51 rules, every ID unique', () => {
     const ids = RuleParser.parseIds({
       markdown: readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8'),
     });
 
-    expect(ids).toHaveLength(50);
+    expect(ids).toHaveLength(51);
     expect(ids.every((id) => id.startsWith('V-'))).toBe(true);
     expect(ids).toContain('V-W-01');
     expect(ids.filter((id) => id.startsWith('V-C-'))).toHaveLength(17);
@@ -99,7 +99,7 @@ describe('BaseRules.read', () => {
   test('every base rule ID maps to its row', () => {
     const rules = BaseRules.read();
 
-    expect(Object.keys(rules)).toHaveLength(50);
+    expect(Object.keys(rules)).toHaveLength(51);
     expect(rules['V-W-02']).toStartWith('| V-W-02 | Never write to a database.');
   });
 
@@ -112,6 +112,7 @@ describe('BaseRules.read', () => {
       'V-P-10': 'Ask once, with a recommendation',
       'V-P-11': 'answer first',
       'V-P-12': 'Delegate by kind',
+      'V-P-13': 'Name the flow',
       'V-B-06': 'Small never cuts safety',
       'V-B-07': '// SHORTCUT: <what>, <why>, <revisit when>',
       'V-B-08': 'Leave no trace',

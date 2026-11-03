@@ -25,6 +25,10 @@ export class BoardKinds {
   static readonly RELEASE = 'release';
   static readonly HANDOFF = 'handoff';
   static readonly MSG = 'msg';
+  /** The line that names a flow: its summary is the title. */
+  static readonly FLOW = 'flow';
+  /** What the harness does around the work: a session starting or ending, a subagent stopping, a prompt waiting. */
+  static readonly AGENT = 'agent';
 }
 
 /** The stages of a flow, in the order of the page's strip. */
@@ -101,6 +105,12 @@ export class BoardConstants {
   static readonly DATA_MARKER = '<!--BOARD_DATA-->';
   static readonly GH_TIMEOUT_MS = 15_000;
   static readonly GH_LIMIT = 30;
+  /** A `needs-owner` line whose whole summary is one of these is the harness waiting, not a person asking. */
+  static readonly HARNESS_ASKS = new Set<string>([
+    'idle_prompt',
+    'permission_prompt',
+    'elicitation_dialog',
+  ]);
   /** Kinds that mean someone did work on the flow, for the holder. */
   static readonly WORK_KINDS = [
     BoardKinds.ASSIGN,

@@ -10,6 +10,8 @@ export class EventKinds {
   static readonly PR = 'pr';
   /** The owner's answer to a flow, written by whoever relays it; its `status` says which. */
   static readonly DECISION = 'decision';
+  /** A flow's title and the one-line reason for it, in the owner's language; the newest per flow wins. */
+  static readonly FLOW = 'flow';
 
   static readonly SCHEME_SET = new Set<string>([
     this.SESSION_START,
@@ -21,6 +23,7 @@ export class EventKinds {
     this.COMMIT,
     this.PR,
     this.DECISION,
+    this.FLOW,
   ]);
 
   static isValid(value: string): boolean {
@@ -58,6 +61,8 @@ export class EventFlags {
   static readonly FLOW = '--flow';
   static readonly REF = '--ref';
   static readonly STATUS = '--status';
+  static readonly TITLE = '--title';
+  static readonly WHY = '--why';
   static readonly ACTOR = '--actor';
   static readonly DIR = '--dir';
   static readonly SINCE = '--since';

@@ -55,7 +55,11 @@ export class EventHook {
         const type = text({ value: input.notification_type });
 
         return ClaudeHookEvents.OWNER_NOTIFICATIONS.has(type)
-          ? { kind: EventKinds.NEEDS_OWNER, summary: text({ value: input.title }) || type }
+          ? {
+              kind: EventKinds.NEEDS_OWNER,
+              summary: text({ value: input.title }) || type,
+              notification: type,
+            }
           : undefined;
       }
 
@@ -153,6 +157,7 @@ export class EventHook {
       source: EventSources.CLAUDE_HOOK,
       ...(flowId === undefined ? {} : { flowId }),
       ...(mapped.ref === undefined ? {} : { ref: mapped.ref }),
+      ...(mapped.notification === undefined ? {} : { notification: mapped.notification }),
       ...(opts.now === undefined ? {} : { now: opts.now }),
     });
 

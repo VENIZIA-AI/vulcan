@@ -23,6 +23,12 @@ export interface IBoardEvent {
   /** What a decision decided: `approve`, `park` or `reject`. */
   choice?: string;
   needsOwner?: boolean;
+  /** Agent plumbing: kept in the data, hidden by the page until "show all events". It never moves a flow. */
+  plumbing?: boolean;
+  /** This line names the flow: its summary is the title. */
+  isTitle?: boolean;
+  /** Only a title line has one: why the flow exists. */
+  why?: string;
   /** Which attempt this is: the nth run of one check, the nth review round. */
   attempt?: number;
   /** The check a CI line is about. */
@@ -36,6 +42,10 @@ export interface IBoardEvent {
 export interface IBoardFlow {
   id: string;
   title: string;
+  /** The title came from a `flow` line; a flow without one shows its first line and "no title yet". */
+  named: boolean;
+  /** Why the flow exists, from the newest `flow` line that has one. */
+  why?: string;
   repo?: string;
   state: TBoardState;
   /** Who has it now. */

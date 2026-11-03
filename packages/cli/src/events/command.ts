@@ -17,6 +17,7 @@ import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
 
 const USAGE = `usage: vulcan event add ${EventFlags.KIND} <kind> ${EventFlags.SUMMARY} <text> [${EventFlags.FLOW} F-n] [${EventFlags.REF} <ref>] [${EventFlags.STATUS} <${[...EventStatuses.SCHEME_SET].join('|')}>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
+       vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} ${EventFlags.FLOW} F-n ${EventFlags.TITLE} <text> [${EventFlags.WHY} <text>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
        vulcan event tail [${EventFlags.SINCE} <time>] [${EventFlags.JSON}] [${EventFlags.DIR} <folder>]
 kinds: ${[...EventKinds.SCHEME_SET].join(', ')}`;
 
@@ -83,7 +84,9 @@ export class EventCommand {
   private static add(opts: { cwd: string; values: TFlagValues }): number {
     const { values } = opts;
     const kind = values[EventFlags.KIND];
-    const summary = values[EventFlags.SUMMARY];
+    const isFlow = kind === EventKinds.FLOW;
+    // A flow line is named by its title: the title is its summary, and `--summary` is not a second way to say it.
+    const summary = isFlow ? values[EventFlags.TITLE] : values[EventFlags.SUMMARY];
     const flow = values[EventFlags.FLOW];
 
     if (kind === undefined || !EventKinds.isValid(kind)) {
@@ -95,7 +98,23 @@ export class EventCommand {
     }
 
     if (summary === undefined || summary.trim() === '') {
-      process.stderr.write(`event: ${EventFlags.SUMMARY} needs a short text\n`);
+      process.stderr.write(
+        `event: ${isFlow ? EventFlags.TITLE : EventFlags.SUMMARY} needs a short text\n`,
+      );
+
+      return ExitCodes.USAGE;
+    }
+
+    if (
+      isFlow
+        ? values[EventFlags.SUMMARY] !== undefined
+        : values[EventFlags.TITLE] !== undefined || values[EventFlags.WHY] !== undefined
+    ) {
+      process.stderr.write(
+        isFlow
+          ? `event: a flow line takes ${EventFlags.TITLE} and ${EventFlags.WHY}, not ${EventFlags.SUMMARY}\n`
+          : `event: ${EventFlags.TITLE} and ${EventFlags.WHY} belong to a flow line only\n`,
+      );
 
       return ExitCodes.USAGE;
     }
@@ -124,6 +143,12 @@ export class EventCommand {
     }
 
     const flowId = flow ?? EventFlow.fromBranch({ cwd: opts.cwd });
+
+    if (isFlow && flowId === undefined) {
+      process.stderr.write(`event: a flow line needs ${EventFlags.FLOW} F-n\n`);
+
+      return ExitCodes.USAGE;
+    }
     const actor =
       values[EventFlags.ACTOR] === undefined
         ? EventActor.resolve({
@@ -139,6 +164,7 @@ export class EventCommand {
       ...(flowId === undefined ? {} : { flowId }),
       ...(values[EventFlags.REF] === undefined ? {} : { ref: values[EventFlags.REF] }),
       ...(status === undefined ? {} : { status: status as TEventStatus }),
+      ...(values[EventFlags.WHY] === undefined ? {} : { why: values[EventFlags.WHY] }),
     });
 
     try {

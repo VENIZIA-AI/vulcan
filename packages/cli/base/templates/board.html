@@ -337,6 +337,22 @@
         width: 32px;
         padding: 0;
       }
+      .btn[aria-pressed='true'] {
+        background: var(--soft);
+        border-color: var(--ink);
+      }
+      .untitled {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 400;
+        margin-left: 8px;
+      }
+      .dh .why {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.4;
+      }
 
       .seg {
         display: inline-flex;
@@ -2391,6 +2407,9 @@
           <span data-i18n="Đánh dấu đã xem">Mark as seen</span>
         </button>
         <span class="fresh" id="fresh"></span>
+        <button class="btn" type="button" id="bPlumb" aria-pressed="false">
+          <span data-i18n="pl.all">Show all events</span>
+        </button>
         <button class="btn lang" type="button" id="bLang"></button>
         <button
           class="btn sq theme"
@@ -2719,6 +2738,18 @@
       DICT.vi['gr.events'] = 'sự kiện';
       DICT.en['gr.flows'] = 'Flows';
       DICT.vi['gr.flows'] = 'Luồng';
+      DICT.en['pl.all'] = 'Show all events';
+      DICT.vi['pl.all'] = 'Hiện mọi sự kiện';
+      DICT.en['pl.tip'] =
+        'Sessions starting and stopping, subagents and prompts that only wait are hidden; this shows them';
+      DICT.vi['pl.tip'] =
+        'Phiên bắt đầu và kết thúc, subagent và lời nhắc chỉ để chờ đang được ẩn; nút này hiện chúng';
+      DICT.en['fl.untitled'] = 'no title yet';
+      DICT.vi['fl.untitled'] = 'chưa có tên';
+      DICT.en['k.flow'] = 'flow title';
+      DICT.vi['k.flow'] = 'tên luồng';
+      DICT.en['k.agent'] = 'agent activity';
+      DICT.vi['k.agent'] = 'hoạt động agent';
       DICT.en['vm.label'] = 'View';
       DICT.vi['vm.label'] = 'Cách xem';
       DICT.en['vm.list'] = 'List';
@@ -2800,6 +2831,8 @@
         release: 'phát hành',
         handoff: 'bàn giao',
         msg: 'tin nhắn',
+        flow: 'k.flow',
+        agent: 'k.agent',
       };
       const LS = LS_PREFIX + 'lastSeen';
       const $ = (id) => document.getElementById(id);
@@ -2821,6 +2854,10 @@
           localStorage.setItem(k, v);
         } catch {}
       };
+      // Agent plumbing (sessions, subagents, the harness waiting) is hidden until the owner asks for all events.
+      const PLUMB_LS = LS_PREFIX + 'plumbing';
+      let showPlumbing = lsGet(PLUMB_LS) === '1';
+      const keepEv = (e) => showPlumbing || !e.plumbing;
       const hhmm = (iso) => {
         const d = new Date(iso);
         return isNaN(d)
@@ -2867,6 +2904,8 @@
         merge: 6,
         release: 7,
         handoff: 8,
+        flow: 0,
+        agent: 0,
       };
       const normEv = (e) =>
         typeof e.stage === 'number'
@@ -2920,7 +2959,8 @@
       function fold() {
         const out = [];
         for (const f of DATA.flows) {
-          const evs = f.events.map(normEv).sort(byTs);
+          const evs = f.events.filter(keepEv).map(normEv).sort(byTs);
+          if (!evs.length) continue;
           const last = evs.find((e) => e.id === f.lastId) || evs[evs.length - 1];
           const lastAsk = f.askId ? evs.find((e) => e.id === f.askId) : undefined;
           const att = {};
@@ -2931,7 +2971,12 @@
           const fresh = evs.filter((e) => e.ts > lastSeen);
           out.push({
             id: f.id,
-            f: { title: f.title, repo: f.repo },
+            f: {
+              title: f.title,
+              repo: f.repo,
+              why: f.why,
+              named: f.named === true || f.id === 'Unsorted',
+            },
             evs,
             last,
             state: f.state,
@@ -3068,6 +3113,7 @@
                 const tt = el('div', 'tt');
                 tt.append(el('div', 't', fl.f.title));
                 const sub = el('div', 'sub');
+                if (!fl.f.named) sub.append(el('span', 'untitled', t('fl.untitled')));
                 sub.append(
                   el('span', 'repo', fl.f.repo),
                   el(
@@ -3237,7 +3283,10 @@
           el('span', 'repo', fl.f.repo),
           el('span', 'pill ' + fl.state, t(STATE_TXT[fl.state])),
         );
-        dh.append(top, el('h3', null, fl.f.title));
+        const heading = el('h3', null, fl.f.title);
+        if (!fl.f.named) heading.append(el('span', 'untitled', t('fl.untitled')));
+        dh.append(top, heading);
+        if (fl.f.why) dh.append(el('p', 'why', fl.f.why));
         const meta = el('div', 'meta');
         const m = (k, v) => {
           const s = el('span');
@@ -3395,7 +3444,9 @@
               el('span', 'spacer'),
               el('span', 'pill ' + fl.state, t(STATE_TXT[fl.state])),
             );
-            c.append(top, el('div', 'kt', fl.f.title), ft);
+            const kt = el('div', 'kt', fl.f.title);
+            if (!fl.f.named) kt.append(el('span', 'untitled', t('fl.untitled')));
+            c.append(top, kt, ft);
             c.addEventListener('click', () => select(fl.id, true));
             kl.append(c);
           }
@@ -4504,6 +4555,7 @@
         for (const a of ['aria-label', 'title', 'placeholder'])
           for (const e of document.querySelectorAll('[data-i18n-' + a + ']'))
             e.setAttribute(a, t(e.getAttribute('data-i18n-' + a)));
+        syncPlumb();
         const b = $('bLang');
         b.textContent = lang === 'en' ? 'VI' : 'EN';
         b.setAttribute('aria-label', t('lang.label') + ': ' + t('lang.' + lang));
@@ -4602,6 +4654,12 @@
         if ($('vAgents').classList.contains('on')) renderAgents();
       }).observe($('gWrap'));
       let raf = 0;
+      function loadEvents() {
+        events = DATA.flows
+          .flatMap((f) => f.events)
+          .filter(keepEv)
+          .map(normEv);
+      }
       function schedule() {
         if (raf) return;
         raf = requestAnimationFrame(() => {
@@ -4624,6 +4682,19 @@
       }
       $('tFlows').addEventListener('click', () => showTab('Flows'));
       $('tAgents').addEventListener('click', () => showTab('Agents'));
+      function syncPlumb() {
+        const b = $('bPlumb');
+        b.setAttribute('aria-pressed', String(showPlumbing));
+        b.title = t('pl.tip');
+      }
+      $('bPlumb').addEventListener('click', () => {
+        showPlumbing = !showPlumbing;
+        lsSet(PLUMB_LS, showPlumbing ? '1' : '0');
+        syncPlumb();
+        loadEvents();
+        schedule();
+      });
+      syncPlumb();
       $('bSeen').addEventListener('click', () => {
         lastSeen = new Date().toISOString();
         lsSet(LS, lastSeen);
@@ -4684,7 +4755,7 @@
           img.alt = '';
           $('mark').append(img);
         }
-        events = DATA.flows.flatMap((f) => f.events).map(normEv);
+        loadEvents();
         decisions = DATA.decisions;
         agentsDoc = DATA.agents;
         releases = [];
