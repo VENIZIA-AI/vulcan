@@ -47,6 +47,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `agents` | The stored agents file parses and names only known agents | Delete `.agents/vulcan.local.json` and run `vulcan sync --agents <list>` |
 | `format` (warning) | The root `bunfig.toml` has a `[fmt]` section with `flavor = "oxfmt"`, no `package.json` defines a `fmt` script, and no oxfmt config is left behind | Add the section, rename the script, delete the config or the copy |
 | `commit-hook` (warning) | A commit check is on in `commit.message` and this clone's `commit-msg` hook is missing, out of date, or does not call `vulcan commit-check` | Run `bun x --no-install vulcan sync`; for a hook of yours or a `core.hooksPath` hook, add the line the warning shows |
+| `events-dir` (warning) | `events.dir` names a folder outside the project and it does not exist, is not a folder, or cannot be written | Create it, or fix the path |
 | `mcp` (warning) | `.mcp.json` (when a chosen agent reads it) holds the canonical `atlas` entry, git does not list it as untracked and not ignored (a release refuses on that), and the Claude settings enable `atlas` | Use the entry the warning shows, add `/.mcp.json` to `.gitignore` or run `vulcan sync` at the top level, and run `bun x --no-install vulcan sync` |
 | `local` (note) | `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor`: sessions started from it are not held to the owner reply shape | Unset it in a shell the owner works in; a started session gets it on its own command line only |
 | `local` (warning) | `.claude/settings.json` or `.claude/settings.local.json` sets `VULCAN_OWNER_REPLY=off` in `env`: every session of the project skips the owner reply shape | Remove it from `env` |
@@ -299,6 +300,20 @@ A warning, not a violation: a hook belongs to one clone, and a fresh CI checkout
 | `is not installed` | No `commit-msg` hook in the clone | Run `vulcan sync` |
 | `is out of date` | A hook that `sync` wrote from an older template, or one that lost its execute bit | Run `vulcan sync` |
 | `does not run the commit check` | A hook of yours, or the hook in the `core.hooksPath` folder, does not call the command | Add `bun x --no-install vulcan commit-check "$1"` to it |
+
+### events-dir
+
+A warning, not a violation: the folder belongs to the machine, and a CI checkout may not have it. It appears only when `events.dir` ([the event log](/references/commands/event#one-folder-for-every-project)) is set to a folder outside the project. The event hooks fail open, so a folder they cannot write loses every line without a message; this warning is where it shows. A `dir` inside the project is made on the first write and is not checked.
+
+```text
+  warning [events-dir] .configs/vulcan.config.mts: events.dir /home/me/work/.agents/local/events does not exist - create it (mkdir -p /home/me/work/.agents/local/events), so the event log hooks cannot write there
+```
+
+| Message | Fix |
+|---|---|
+| `does not exist` | Run the `mkdir -p` it names |
+| `is not a folder` | Point `dir` at a folder |
+| `is not writable by this user` | Fix the folder's permissions or its owner |
 
 ### dockerignore
 

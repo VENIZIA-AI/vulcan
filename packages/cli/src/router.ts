@@ -4,6 +4,7 @@ import { CiFlags } from './ci/common/index.ts';
 import { CommitCheckFlags } from './commit/common/index.ts';
 import { ExitCodes, UpgradeFlags, VulcanCommands } from './common/index.ts';
 import { CreateFlags } from './create/common/index.ts';
+import { EventFlags } from './events/common/index.ts';
 import { PipedInputRefusal } from './ui/keyboard.ts';
 
 const HELP_ALIASES = new Set(['--help', '-h']);
@@ -86,6 +87,20 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
     unknownExit: ExitCodes.USAGE,
     values: [CiFlags.BASE, CiFlags.HEAD, CiFlags.CHECK],
     positionals: 2,
+  },
+  [VulcanCommands.EVENT]: {
+    flags: [EventFlags.JSON],
+    unknownExit: ExitCodes.USAGE,
+    values: [
+      EventFlags.KIND,
+      EventFlags.SUMMARY,
+      EventFlags.FLOW,
+      EventFlags.REF,
+      EventFlags.ACTOR,
+      EventFlags.DIR,
+      EventFlags.SINCE,
+    ],
+    positionals: 1,
   },
   [VulcanCommands.DOCTOR]: { flags: [], values: [], positionals: 0 },
   [VulcanCommands.PROFILE]: { flags: ['--yes'], values: [], positionals: 1 },

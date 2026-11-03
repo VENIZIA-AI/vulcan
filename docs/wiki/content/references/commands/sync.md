@@ -94,6 +94,10 @@ How to build something here (a feature, a controller, a service, a repository): 
 
 The corpora come from the config (the project and every `atlas.sources` entry). `sync` inserts the block before the section that follows "Must read first" (or at the end), rewrites only what sits between the markers on later runs, and never touches your text around it. `vulcan doctor` prints an `info` line when the block is missing or out of date; it never fails.
 
+## The event hooks
+
+When `events.log` is `true`, `sync` adds one Claude Code hook for each of `SessionStart`, `Stop`, `SubagentStop`, `Notification` and `PostToolUse` (on the `SendMessage` tool only) to `.claude/settings.json`. They write the [agent event log](/references/commands/event). They sit beside the hooks VULCAN already ships, run with a 5 second limit, and never block the agent. Set `events.log` back to `false` and the next `sync` removes those entries and only those. `events.dir` alone installs nothing.
+
 ## The commit-msg hook
 
 When `commit.message` turns a commit check on, `sync` installs a `commit-msg` git hook in your clone, so every commit message is checked, whoever or whatever makes the commit. Nothing is installed for a project that sets no check.
@@ -214,8 +218,9 @@ Each later source overrides the earlier sources:
 3. Slot choices: Settings defined for chosen slot options in `base/slots.json`, such as git write restrictions for `V-W-01`.
 4. Remote hosts: If configuration defines `remoteHosts`, VULCAN adds the `guard-remote-hosts` `PreToolUse` hook.
 5. Commit attribution: With `commit.message.agent.signature: 'deny'`, VULCAN sets `attribution` empty so Claude Code adds no signature to commits and pull requests ([the details](/references/commands/commit-check#claude-code-s-own-attribution)).
-6. Project hooks: Custom hooks declared under `hooks` in `.configs/vulcan.config.mts`, grouped by event.
-7. Claude settings: Team settings declared under `claude.settings` in `.configs/vulcan.config.mts`.
+6. Event hooks: With `events.log: true`, VULCAN adds the five hooks of the [agent event log](/references/commands/event).
+7. Project hooks: Custom hooks declared under `hooks` in `.configs/vulcan.config.mts`, grouped by event.
+8. Claude settings: Team settings declared under `claude.settings` in `.configs/vulcan.config.mts`.
 
 ### Merge behavior
 

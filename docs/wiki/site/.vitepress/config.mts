@@ -50,6 +50,7 @@ const referencesSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'doctor', link: '/references/commands/doctor' },
       { text: 'commit-check', link: '/references/commands/commit-check' },
       { text: 'ci', link: '/references/commands/ci' },
+      { text: 'event', link: '/references/commands/event' },
       { text: 'clean', link: '/references/commands/clean' },
       { text: 'preset', link: '/references/commands/preset' },
       { text: 'profile', link: '/references/commands/profile' },

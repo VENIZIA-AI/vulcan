@@ -21,6 +21,7 @@ export class DoctorChecks {
   static readonly PROFILE = 'profile';
   static readonly GUARDS = 'guards';
   static readonly COMMIT_HOOK = 'commit-hook';
+  static readonly EVENTS_DIR = 'events-dir';
 }
 
 /** The `package.json` scripts every app carries, and the names the standard retired. */

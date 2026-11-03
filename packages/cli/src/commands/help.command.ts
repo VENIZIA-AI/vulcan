@@ -35,6 +35,10 @@ Usage: bun x vulcan <command>
                                   List the workspace packages a change touches (changed ones and what
                                   depends on them) with the checks each has; template prints a CI file that
                                   runs exactly those; exit 2 on bad input
+  event add --kind <k> --summary <text> [--flow F-n] [--ref <r>] | tail [--since <time>] [--json] [--dir <folder>]
+                                  Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
+                                  read it; with events.log on, sync installs the Claude Code hooks that
+                                  write it; exit 2 on bad input
   visualize <spec.json> [--out <name>] | --schema
                                   Make one small static HTML page (a flow, a status, a before and after) from
                                   a JSON spec, in .agents/local/prototypes/; --schema prints the spec's schema

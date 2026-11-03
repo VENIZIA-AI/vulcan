@@ -92,6 +92,7 @@ export class DoctorRunner {
     return [
       ...ProjectContract.checkMcpAtlas(context),
       ...ProjectContract.checkCommitHook(context),
+      ...ProjectContract.checkEventsDir(context),
       ...ProjectContract.checkDockerignore(context),
       ...ProjectContract.checkSkillTriggers(context),
       ...ProjectContract.checkFormat(context),

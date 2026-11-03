@@ -551,7 +551,7 @@ The SessionStart hook displays these rules under the heading "The rules sessions
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `oftenDropped` | `string[]` | `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-W-04', 'V-C-02', 'V-C-10', 'V-P-08', 'V-B-07', 'V-B-09']` | Rule IDs highlighted at session start |
+| `oftenDropped` | `string[]` | `['V-P-07', 'V-B-03', 'V-P-05', 'V-P-06', 'V-B-04', 'V-W-04', 'V-C-02', 'V-C-09', 'V-C-10', 'V-P-08', 'V-B-07', 'V-B-09']` | Rule IDs highlighted at session start |
 
 Every rule ID in `oftenDropped` must match the rule ID regular expression `/^(?:[A-Z]+-)?[A-Z]-\d{2}$/`.
 
@@ -724,6 +724,25 @@ import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
   ci: { affected: { global: ['Makefile', 'make/**'] } },
+} satisfies VulcanConfig;
+```
+
+## events
+
+The `events` object configures the agent event log ([vulcan event](/references/commands/event)). It is off until you turn it on.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `log` | `boolean` | `false` | `true` makes `vulcan sync` install the Claude Code hooks that write the log. `vulcan event add` and `tail` work whatever this says |
+| `dir` | `string` | `<project>/.agents/local/events` | An absolute folder that takes the log instead of the project's own, so one coordinator can read the sessions of several repositories. `~` and relative paths are refused. It must be on a local disk (appends are not atomic on NFS). When it is outside the project, `vulcan doctor` warns if the folder is missing or not writable |
+
+`sync` writes the block to the manifest only when `log` is `true` or `dir` is set.
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  events: { log: true, dir: '/home/me/work/.agents/local/events' },
 } satisfies VulcanConfig;
 ```
 

@@ -77,6 +77,13 @@ const ciBlockOf = (opts: { config: TResolvedConfig }): { ci?: Record<string, unk
   return global.length === 0 ? {} : { ci: { affected: { global } } };
 };
 
+/** The manifest's `events` block, which the hooks and `vulcan event` read: only when the log is on or has a folder. */
+const eventsBlockOf = (opts: { config: TResolvedConfig }): { events?: Record<string, unknown> } => {
+  const { log, dir } = opts.config.events;
+
+  return log || dir !== undefined ? { events: { log, ...(dir === undefined ? {} : { dir }) } } : {};
+};
+
 /** The manifest's `atlas` block: only what the config sets (keys listed, the download turned off). */
 const atlasBlockOf = (opts: { config: TResolvedConfig }): { atlas?: Record<string, unknown> } => {
   const keys = opts.config.atlas.index?.keys ?? [];
@@ -173,6 +180,8 @@ export class ProjectManifest {
       ...commitBlockOf({ config }),
       // The files the project adds to the ones that make every package affected; none added, nothing is written.
       ...ciBlockOf({ config }),
+      // Whether the Claude Code hooks write the agent event log, and the folder it goes to.
+      ...eventsBlockOf({ config }),
     };
 
     return BunFormatter.format({
