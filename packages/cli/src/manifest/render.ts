@@ -79,10 +79,21 @@ const ciBlockOf = (opts: { config: TResolvedConfig }): { ci?: Record<string, unk
 
 /** The manifest's `events` block, which the hooks and `vulcan event` read: only when the log is on or has a folder. */
 const eventsBlockOf = (opts: { config: TResolvedConfig }): { events?: Record<string, unknown> } => {
-  const { log, dir } = opts.config.events;
+  const { log, dir, maxSize, maxFiles, maxAgeDays } = opts.config.events;
+  const limits = {
+    ...(maxSize === undefined ? {} : { maxSize }),
+    ...(maxFiles === undefined ? {} : { maxFiles }),
+    ...(maxAgeDays === undefined ? {} : { maxAgeDays }),
+  };
 
-  return log || dir !== undefined ? { events: { log, ...(dir === undefined ? {} : { dir }) } } : {};
+  return log || dir !== undefined || Object.keys(limits).length > 0
+    ? { events: { log, ...(dir === undefined ? {} : { dir }), ...limits } }
+    : {};
 };
+
+/** The manifest's `local` block: only when the project turns the automatic clean off, which the hook reads. */
+const localBlockOf = (opts: { config: TResolvedConfig }): { local?: Record<string, unknown> } =>
+  opts.config.local.autoClean ? {} : { local: { autoClean: false } };
 
 /** The manifest's `board` block, which `vulcan board` reads: only what the project sets. */
 const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<string, unknown> } => {
@@ -201,6 +212,8 @@ export class ProjectManifest {
       ...ciBlockOf({ config }),
       // The names and the logo `vulcan board` puts on its page; nothing set, nothing is written.
       ...boardBlockOf({ config }),
+      // The automatic clean of .agents/local is on unless the project turns it off here.
+      ...localBlockOf({ config }),
       // Whether the Claude Code hooks write the agent event log, and the folder it goes to.
       ...eventsBlockOf({ config }),
     };

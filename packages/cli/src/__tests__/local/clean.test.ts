@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
+import { EventLog } from '../../events/log.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { CleanScopes, LocalClean, LocalConstants, LocalScan } from '../../local/index.ts';
 import { CLAUDE_LAUNCH_FILE, LaunchSettings } from '../../sync/index.ts';
@@ -751,18 +752,32 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     });
   });
 
-  test('events are removed only when named, never by --all', () => {
+  test('events are removed only when named, never by --all, and then only what the limits say: not today, not a recent day', () => {
     const root = repository();
+    const day = (ago: number): string => EventLog.dayOf({ time: Date.now() - ago * DAY });
+    const files = [`events/${day(60)}.jsonl`, `events/${day(5)}.jsonl`, `events/${day(0)}.jsonl`];
 
-    file({ root, path: 'events/2026-11-03.jsonl', text: '{}\n' });
+    for (const path of files) {
+      file({ root, path, text: '{}\n' });
+    }
+
+    const exists = (path: string): boolean => existsSync(join(root, '.agents/local', path));
 
     expect(
       LocalClean.plan({ root, scopes: ['tmp', 'worktrees', 'clones', 'cache'] }).remove,
     ).toEqual([]);
     expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
-    expect(existsSync(join(root, '.agents/local/events/2026-11-03.jsonl'))).toBe(true);
+    expect(files.every(exists)).toBe(true);
+
+    const dry = runCli({ args: ['clean', '--events'], cwd: root }).stderr;
+
+    expect(dry).toContain(`events/${day(60)}.jsonl`);
+    expect(dry).toContain('older than 30 days');
+    expect(dry).toContain(`kept events/${day(5)}.jsonl`);
     expect(runCli({ args: ['clean', '--events', '--yes'], cwd: root }).code).toBe(0);
-    expect(existsSync(join(root, '.agents/local/events/2026-11-03.jsonl'))).toBe(false);
+    expect(exists(files[0])).toBe(false);
+    expect(exists(files[1])).toBe(true);
+    expect(exists(files[2])).toBe(true);
   });
 
   test("a browser's scratch folder under .agents/local: tmp scope, by its own name, old ones only", () => {
@@ -931,5 +946,98 @@ describe("the layout: on-demand folders, release candidates, events and a browse
 
     expect(byName.unmerged).toMatchObject({ state: 'unmerged', removable: false });
     expect(byName.dirty).toMatchObject({ state: 'dirty', removable: false });
+  });
+});
+
+describe('vulcan clean --events and the configured log', () => {
+  const day = (ago: number): string => EventLog.dayOf({ time: Date.now() - ago * DAY });
+  const shared = (opts: { manifest?: object; days: number[] }): { root: string; dir: string } => {
+    const dir = createProject({ files: {} });
+    const root = repository();
+
+    writeFileSync(
+      join(root, '.agents/vulcan.manifest.json'),
+      JSON.stringify({ events: { log: true, dir, ...opts.manifest } }),
+    );
+
+    for (const ago of opts.days) {
+      writeFileSync(join(dir, `${day(ago)}.jsonl`), '{}\n');
+    }
+
+    return { root, dir };
+  };
+
+  test('the day files of events.dir are listed by their path and removed by the limits of the project', () => {
+    const { root, dir } = shared({ days: [60, 5, 0] });
+    const dry = runCli({ args: ['clean', '--events'], cwd: root }).stderr;
+
+    expect(dry).toContain(`${dir}/${day(60)}.jsonl`);
+    expect(dry).toContain('older than 30 days');
+    expect(existsSync(join(dir, `${day(60)}.jsonl`))).toBe(true);
+    expect(runCli({ args: ['clean', '--events', '--yes'], cwd: root }).code).toBe(0);
+    expect(existsSync(join(dir, `${day(60)}.jsonl`))).toBe(false);
+    expect(existsSync(join(dir, `${day(5)}.jsonl`))).toBe(true);
+    expect(existsSync(join(dir, `${day(0)}.jsonl`))).toBe(true);
+  });
+
+  test('the limits of the manifest apply: maxFiles 1 keeps only today', () => {
+    const { root, dir } = shared({ manifest: { maxFiles: 1 }, days: [4, 3, 0] });
+
+    runCli({ args: ['clean', '--events', '--yes'], cwd: root });
+
+    expect([4, 3, 0].filter((ago) => existsSync(join(dir, `${day(ago)}.jsonl`)))).toEqual([0]);
+  });
+
+  test('--all never reaches it, and a project folder named events/ is not read when events.dir is set', () => {
+    const { root, dir } = shared({ days: [60] });
+
+    file({ root, path: `events/${day(60)}.jsonl`, text: '{}\n' });
+    runCli({ args: ['clean', '--all', '--yes'], cwd: root });
+
+    expect(existsSync(join(dir, `${day(60)}.jsonl`))).toBe(true);
+
+    runCli({ args: ['clean', '--events', '--yes'], cwd: root });
+
+    expect(existsSync(join(dir, `${day(60)}.jsonl`))).toBe(false);
+    expect(existsSync(join(root, `.agents/local/events/${day(60)}.jsonl`))).toBe(true);
+  });
+
+  test('a plan that names anything but a day file in that folder is refused', () => {
+    const { root, dir } = shared({ days: [0] });
+
+    writeFileSync(join(dir, 'notes.txt'), 'keep');
+    mkdirSync(join(dir, 'sub'));
+    writeFileSync(join(dir, 'sub', `${day(60)}.jsonl`), 'keep');
+
+    const entry = (path: string) => ({
+      scope: 'events',
+      name: 'x',
+      where: path,
+      path,
+      bytes: 1,
+      ageMs: 0,
+      state: 'ok',
+      removable: true,
+      isSymlink: false,
+      registered: false,
+      note: '',
+      outside: true,
+    });
+    const result = LocalClean.run({
+      root,
+      plan: {
+        remove: [
+          entry(join(dir, 'notes.txt')),
+          entry(join(dir, 'sub', `${day(60)}.jsonl`)),
+          entry(join(root, 'package.json')),
+        ],
+        keep: [],
+      },
+    });
+
+    expect(result.removed).toEqual([]);
+    expect(result.failed).toHaveLength(3);
+    expect(readFileSync(join(dir, 'notes.txt'), 'utf8')).toBe('keep');
+    expect(existsSync(join(root, 'package.json'))).toBe(true);
   });
 });

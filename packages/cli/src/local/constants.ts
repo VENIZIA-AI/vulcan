@@ -58,6 +58,7 @@ export class LocalConstants {
     'profile.json',
     'claude.launch.settings.json',
     'violations.jsonl',
+    'auto-clean.json',
     '.gitkeep',
   ]);
   /**
