@@ -1,7 +1,8 @@
 import type { TConstValue } from '../../common/index.ts';
-import type { EventKinds } from './constants.ts';
+import type { EventKinds, EventStatuses } from './constants.ts';
 
 export type TEventKind = TConstValue<typeof EventKinds>;
+export type TEventStatus = TConstValue<typeof EventStatuses>;
 
 /** One line of the log. Field order is the order on disk. */
 export interface IEvent {
@@ -12,6 +13,8 @@ export interface IEvent {
   actor: string;
   kind: TEventKind;
   summary: string;
+  /** Only a `decision` has one. */
+  status?: TEventStatus;
   ref?: string;
   source: string;
 }

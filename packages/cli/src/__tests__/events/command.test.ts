@@ -92,6 +92,51 @@ describe('vulcan event add', () => {
     expect(existsSync(join(root, 'sub/here'))).toBe(true);
   });
 
+  test('a decision carries its status; nothing else may', () => {
+    const root = project();
+    const ok = cli({
+      root,
+      args: [
+        'add',
+        '--kind',
+        'decision',
+        '--status',
+        'approve',
+        '--flow',
+        'F-4',
+        '--summary',
+        'Phat approved the design',
+      ],
+    });
+
+    expect(ok.code, ok.stderr).toBe(0);
+    expect(JSON.parse(lines({ dir: join(root, '.agents/local/events') })[0])).toMatchObject({
+      kind: 'decision',
+      status: 'approve',
+      flowId: 'F-4',
+    });
+
+    for (const status of ['park', 'reject']) {
+      expect(
+        cli({ root, args: ['add', '--kind', 'decision', '--status', status, '--summary', 's'] })
+          .code,
+      ).toBe(0);
+    }
+
+    for (const args of [
+      ['add', '--kind', 'decision', '--summary', 's'],
+      ['add', '--kind', 'decision', '--status', 'maybe', '--summary', 's'],
+      ['add', '--kind', 'commit', '--status', 'approve', '--summary', 's'],
+    ]) {
+      const result = cli({ root, args });
+
+      expect(result.code, args.join(' ')).toBe(2);
+      expect(result.stderr, args.join(' ')).toMatch(/status|decision/);
+    }
+
+    expect(lines({ dir: join(root, '.agents/local/events') })).toHaveLength(3);
+  });
+
   test('works with the log switched off in the manifest', () => {
     const root = project();
 

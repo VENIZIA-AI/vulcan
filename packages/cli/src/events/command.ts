@@ -7,15 +7,16 @@ import {
   EventFlags,
   EventKinds,
   EventSources,
+  EventStatuses,
   EventSubcommands,
 } from './common/index.ts';
-import type { IEvent, TEventKind } from './common/index.ts';
+import type { IEvent, TEventKind, TEventStatus } from './common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
 
-const USAGE = `usage: vulcan event add ${EventFlags.KIND} <kind> ${EventFlags.SUMMARY} <text> [${EventFlags.FLOW} F-n] [${EventFlags.REF} <ref>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
+const USAGE = `usage: vulcan event add ${EventFlags.KIND} <kind> ${EventFlags.SUMMARY} <text> [${EventFlags.FLOW} F-n] [${EventFlags.REF} <ref>] [${EventFlags.STATUS} <${[...EventStatuses.SCHEME_SET].join('|')}>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
        vulcan event tail [${EventFlags.SINCE} <time>] [${EventFlags.JSON}] [${EventFlags.DIR} <folder>]
 kinds: ${[...EventKinds.SCHEME_SET].join(', ')}`;
 
@@ -105,6 +106,23 @@ export class EventCommand {
       return ExitCodes.USAGE;
     }
 
+    const status = values[EventFlags.STATUS];
+
+    // A decision says which way it went; no other line has a status.
+    if (
+      kind === EventKinds.DECISION
+        ? status === undefined || !EventStatuses.isValid(status)
+        : status !== undefined
+    ) {
+      process.stderr.write(
+        kind === EventKinds.DECISION
+          ? `event: a decision needs ${EventFlags.STATUS} <${[...EventStatuses.SCHEME_SET].join('|')}>\n`
+          : `event: ${EventFlags.STATUS} belongs to a decision only\n`,
+      );
+
+      return ExitCodes.USAGE;
+    }
+
     const flowId = flow ?? EventFlow.fromBranch({ cwd: opts.cwd });
     const actor =
       values[EventFlags.ACTOR] === undefined
@@ -120,6 +138,7 @@ export class EventCommand {
       source: EventSources.CLI,
       ...(flowId === undefined ? {} : { flowId }),
       ...(values[EventFlags.REF] === undefined ? {} : { ref: values[EventFlags.REF] }),
+      ...(status === undefined ? {} : { status: status as TEventStatus }),
     });
 
     try {

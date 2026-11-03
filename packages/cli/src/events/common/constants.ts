@@ -8,6 +8,8 @@ export class EventKinds {
   static readonly SUBAGENT_STOP = 'subagent-stop';
   static readonly COMMIT = 'commit';
   static readonly PR = 'pr';
+  /** The owner's answer to a flow, written by whoever relays it; its `status` says which. */
+  static readonly DECISION = 'decision';
 
   static readonly SCHEME_SET = new Set<string>([
     this.SESSION_START,
@@ -18,7 +20,21 @@ export class EventKinds {
     this.SUBAGENT_STOP,
     this.COMMIT,
     this.PR,
+    this.DECISION,
   ]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
+/** What a `decision` line says: the owner approved, parked or rejected the flow. */
+export class EventStatuses {
+  static readonly APPROVE = 'approve';
+  static readonly PARK = 'park';
+  static readonly REJECT = 'reject';
+
+  static readonly SCHEME_SET = new Set<string>([this.APPROVE, this.PARK, this.REJECT]);
 
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);
@@ -41,6 +57,7 @@ export class EventFlags {
   static readonly SUMMARY = '--summary';
   static readonly FLOW = '--flow';
   static readonly REF = '--ref';
+  static readonly STATUS = '--status';
   static readonly ACTOR = '--actor';
   static readonly DIR = '--dir';
   static readonly SINCE = '--since';

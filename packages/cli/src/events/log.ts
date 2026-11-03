@@ -1,8 +1,8 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
-import { EventConstants, EventKinds } from './common/index.ts';
-import type { IEvent, IEventRead, TEventKind } from './common/index.ts';
+import { EventConstants, EventKinds, EventStatuses } from './common/index.ts';
+import type { IEvent, IEventRead, TEventKind, TEventStatus } from './common/index.ts';
 import { EventText } from './text.ts';
 
 const DAY_FILE = /^(\d{4}-\d{2}-\d{2})\.jsonl$/;
@@ -38,6 +38,7 @@ export class EventLog {
     source: string;
     flowId?: string;
     ref?: string;
+    status?: TEventStatus;
     now?: number;
   }): IEvent {
     const now = opts.now ?? Date.now();
@@ -53,6 +54,7 @@ export class EventLog {
       actor: opts.actor,
       kind: opts.kind,
       summary: EventText.oneLine({ text: opts.summary, max: EventConstants.SUMMARY_MAX }),
+      ...(opts.status === undefined ? {} : { status: opts.status }),
       ...(ref === '' ? {} : { ref }),
       source: opts.source,
     };
@@ -128,7 +130,7 @@ export class EventLog {
       return undefined;
     }
 
-    const { id, ts, flowId, actor, kind, summary, ref, source } = value;
+    const { id, ts, flowId, actor, kind, summary, status, ref, source } = value;
 
     if (
       typeof id !== 'string' ||
@@ -140,6 +142,7 @@ export class EventLog {
       typeof summary !== 'string' ||
       typeof source !== 'string' ||
       (flowId !== undefined && typeof flowId !== 'string') ||
+      (status !== undefined && (typeof status !== 'string' || !EventStatuses.isValid(status))) ||
       (ref !== undefined && typeof ref !== 'string')
     ) {
       return undefined;
@@ -155,6 +158,7 @@ export class EventLog {
       actor: clean(actor),
       kind: kind as TEventKind,
       summary: clean(summary),
+      ...(status === undefined ? {} : { status: status as TEventStatus }),
       ...(ref === undefined ? {} : { ref: clean(ref) }),
       source: clean(source),
     };
