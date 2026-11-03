@@ -56,7 +56,7 @@ Every folder of `local/` has a lifetime, and one command takes it back. `vulcan 
 | `events/` | on first write | You delete it | `vulcan clean --events` |
 | `release-candidates/` | on first write | The release ships: each folder is a version, and `doctor` warns when that version is tagged | `vulcan clean --release-candidates`, tagged versions only |
 
-`--all` takes `tmp/`, `worktrees/`, `clones/` and `cache/`. It never takes `reports/`, `prototypes/`, `events/`, `release-candidates/` or the profile: those are named, or deleted by you. A worktree is removed with `git worktree remove` and only when its branch is merged into the branch checked out at the project root, into `origin/develop` or into the default branch of origin, and it holds no uncommitted or untracked file. The [clean reference](/references/commands/clean) has the details.
+`--all` takes `tmp/`, `worktrees/`, `clones/` and `cache/`. It never takes `reports/`, `prototypes/`, `events/`, `release-candidates/` or the profile: those are named, or deleted by you. A worktree is removed with `git worktree remove` and only when its branch is merged into the branch checked out at the project root, into `origin/develop` or into the default branch of origin, **and** it is safe to lose: the branch has commits of its own (a new branch has the commit it came from, so git calls it merged; `clean` keeps it and says "no commits of its own yet"), it holds no uncommitted or untracked file, and every file git ignores in it is one a build or an install makes again (`node_modules`, `dist`, `.turbo`, `coverage`, `.cache`, `*.tsbuildinfo`). An ignored `.env`, a local database or a key keeps the worktree, and the output names the file. A folder in `release-candidates/` counts only when its name is a version (`1.2.3`, `v1.2.3`, `1.2.3-rc.1`) and a tag of that name exists; any other name is kept. The [clean reference](/references/commands/clean) has the details.
 
 ## What doctor says
 
@@ -68,7 +68,7 @@ Every folder of `local/` has a lifetime, and one command takes it back. `vulcan 
 
 ## A browser's scratch folders
 
-Headless Chrome puts a folder `com.google.Chrome.XXXXXX` in the temp folder it is given, and leaves it when it is killed. The temp folder of VULCAN's own browser tests is a folder in the project where Chrome's socket path fits (107 characters at most), and the test removes the folders its browser made. Folders an earlier run left directly under `.agents/local/` are taken by `vulcan clean --tmp` once they are an hour old.
+Headless Chrome puts a folder `com.google.Chrome.XXXXXX` in the temp folder it is given, and leaves it when it is killed. The temp folder of VULCAN's own browser tests is a folder in the project where Chrome's socket path fits (107 characters at most), and the test removes the folders its browser made. The helper gives each run a folder of its own inside it when the path is short enough, and removes it whole at the end, so two runs at once never touch each other's files; when there is no room for that, it removes only the folder its own Chrome made (Chrome names it in a link in the run's own profile), and the small folders Chrome also makes stay. Folders left directly under `.agents/local/` by an earlier run or by another tool, `com.google.Chrome.*` and `org.chromium.Chromium.*`, with or without a leading dot, are taken by `vulcan clean --tmp` once they are an hour old.
 
 ## See also
 

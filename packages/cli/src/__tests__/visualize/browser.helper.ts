@@ -2,13 +2,13 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   readFileSync,
+  readlinkSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join, resolve as resolvePath } from 'node:path';
 import { findRepositoryRoot } from '@venizia/dev-configs/testing';
 
 /** What a measuring run is asked: the page text, the width of the window, and the colour scheme. */
@@ -35,8 +35,9 @@ export class BrowserPage {
   private static child: ReturnType<typeof Bun.spawn> | undefined;
   private static socket: WebSocket | undefined;
   private static folder: string | undefined;
-  /** The folder the browser was given as its temp folder, and the scratch folders it already held. */
-  private static scratch: { folder: string; before: Set<string> } | undefined;
+  /** A temp folder made for this run alone, removed whole at the end. */
+  private static privateTemp: string | undefined;
+  private static profile: { dir: string; short: string } | undefined;
   private static nextId = 0;
   private static readonly waiting = new Map<number, (value: unknown) => void>();
   private static readonly listeners: ((method: string) => void)[] = [];
@@ -85,8 +86,19 @@ export class BrowserPage {
         join(entry, SOCKET_SUFFIX).length <= SOCKET_PATH_MAX,
     );
 
-    for (const short of candidates) {
-      const started = await BrowserPage.start({ binary, folder, short });
+    for (const base of candidates) {
+      // Where the path allows, Chrome gets a folder of this run alone: another run in the same folder is never
+      // touched and everything its Chrome left goes with the folder. Otherwise only the folder its own link names goes.
+      const own = mkdtempSync(join(base, 'vz-'));
+      const isPrivate = join(own, SOCKET_SUFFIX).length <= SOCKET_PATH_MAX;
+
+      if (!isPrivate) {
+        rmSync(own, { recursive: true, force: true });
+      }
+
+      BrowserPage.privateTemp = isPrivate ? own : undefined;
+
+      const started = await BrowserPage.start({ binary, folder, short: isPrivate ? own : base });
 
       if (started) {
         return true;
@@ -110,7 +122,7 @@ export class BrowserPage {
   }): Promise<boolean> {
     const { binary, folder, short } = opts;
 
-    BrowserPage.scratch = { folder: short, before: new Set(readdirSync(short)) };
+    BrowserPage.profile = { dir: join(folder, 'profile'), short };
     BrowserPage.child = Bun.spawn(
       [
         binary,
@@ -310,12 +322,37 @@ export class BrowserPage {
     return true;
   }
 
-  /** Ends the browser (a hard kill when it does not leave in 3 seconds) and removes the scratch folders it made. */
+  /**
+   * The scratch folder Chrome made for this run. Chrome links `<user data dir>/SingletonSocket` to
+   * `<temp folder>/com.google.Chrome.XXXXXX/SingletonSocket`, and the user data dir is this run's own, so the link
+   * names exactly the folder to remove, and a browser of another run in the same temp folder is never touched.
+   * `undefined` when there is no link, or it points anywhere but a scratch folder directly in `short`.
+   */
+  static scratchOf(opts: { profile: string; short: string }): string | undefined {
+    try {
+      const target = readlinkSync(join(opts.profile, 'SingletonSocket'));
+      const folder = dirname(resolvePath(opts.profile, target));
+
+      return dirname(folder) === resolvePath(opts.short) && SCRATCH_FOLDER.test(basename(folder))
+        ? folder
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** Ends the browser (a hard kill when it does not leave in 3 seconds) and removes the scratch folder of this run's Chrome. */
   private static async stopChild(): Promise<void> {
-    const { child, scratch } = BrowserPage;
+    const { child, privateTemp, profile } = BrowserPage;
+    // Read while the browser still runs: it removes its link when it leaves.
+    const scratch =
+      profile === undefined
+        ? undefined
+        : BrowserPage.scratchOf({ profile: profile.dir, short: profile.short });
 
     BrowserPage.child = undefined;
-    BrowserPage.scratch = undefined;
+    BrowserPage.privateTemp = undefined;
+    BrowserPage.profile = undefined;
 
     if (child !== undefined) {
       child.kill();
@@ -331,13 +368,10 @@ export class BrowserPage {
       }
     }
 
-    // Only what appeared while this browser ran: a folder of another browser on the same machine stays.
-    if (scratch !== undefined && existsSync(scratch.folder)) {
-      for (const name of readdirSync(scratch.folder)) {
-        if (SCRATCH_FOLDER.test(name) && !scratch.before.has(name)) {
-          rmSync(join(scratch.folder, name), { recursive: true, force: true });
-        }
-      }
+    if (privateTemp !== undefined) {
+      rmSync(privateTemp, { recursive: true, force: true });
+    } else if (scratch !== undefined) {
+      rmSync(scratch, { recursive: true, force: true });
     }
   }
 

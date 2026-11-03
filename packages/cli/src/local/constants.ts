@@ -65,6 +65,21 @@ export class LocalConstants {
    * the folder that is short enough for Chrome's socket). They are tmp that sits one level too high.
    */
   static readonly STRAY_TEMP = [/^\.?com\.google\.Chrome\./, /^\.?org\.chromium\.Chromium\./];
+  /** Ignored folders a build or an install makes again; an ignored file outside these keeps a worktree. Data, not code. */
+  static readonly REBUILDABLE_DIRECTORIES = [
+    'node_modules',
+    'dist',
+    '.turbo',
+    'coverage',
+    '.cache',
+  ];
+  static readonly REBUILDABLE_SUFFIXES = ['.tsbuildinfo'];
+  /** The name of a release candidate: a version, with an optional `v`. Any other name in `release-candidates/` is kept. */
+  static readonly RELEASE_VERSION = /^v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
+  /** How many entries of an ignored directory are looked at before it is reported whole. */
+  static readonly IGNORED_WALK_LIMIT = 20_000;
+  /** How many ignored files a note names before it says "and N more". */
+  static readonly NOTE_FILES = 5;
   /** A stray folder may belong to a browser that is running; one this old does not. */
   static readonly STRAY_MIN_AGE_MS = 60 * 60 * 1000;
 }

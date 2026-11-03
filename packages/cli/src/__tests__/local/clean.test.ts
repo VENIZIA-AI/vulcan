@@ -69,18 +69,34 @@ const file = (opts: { root: string; path: string; text?: string; ageDays?: numbe
   }
 };
 
-const worktree = (opts: { root: string; name: string; commit?: boolean }): void => {
+/**
+ * A worktree on a new branch. `commit` adds a commit of its own; `merged` also merges the branch into the root's
+ * branch with a merge commit, the way a pull request lands. A branch with no commit of its own is never merged.
+ */
+const worktree = (opts: {
+  root: string;
+  name: string;
+  commit?: boolean;
+  merged?: boolean;
+}): void => {
   git({
     cwd: opts.root,
     args: ['worktree', 'add', '-q', join('.agents/local/worktrees', opts.name), '-b', opts.name],
   });
 
-  if (opts.commit === true) {
+  if (opts.commit === true || opts.merged === true) {
     const inside = join(opts.root, '.agents/local/worktrees', opts.name);
 
-    writeFileSync(join(inside, 'new.txt'), 'new');
+    writeFileSync(join(inside, `${opts.name}.txt`), 'new');
     git({ cwd: inside, args: ['add', '.'] });
     git({ cwd: inside, args: ['commit', '-q', '-m', 'work'] });
+  }
+
+  if (opts.merged === true) {
+    git({
+      cwd: opts.root,
+      args: ['merge', '-q', '--no-ff', '-m', `merge ${opts.name}`, opts.name],
+    });
   }
 };
 
@@ -118,7 +134,7 @@ describe('LocalScan.scan', () => {
   test('classifies worktrees: merged, unmerged, gone, orphan', () => {
     const root = repository();
 
-    worktree({ root, name: 'merged-one' });
+    worktree({ root, name: 'merged-one', merged: true });
     worktree({ root, name: 'unmerged-one', commit: true });
     worktree({ root, name: 'gone-one' });
     git({ cwd: root, args: ['update-ref', '-d', 'refs/heads/gone-one'] });
@@ -141,9 +157,9 @@ describe('LocalScan.scan', () => {
   test('a merged worktree with uncommitted or untracked files is dirty and never removable', () => {
     const root = repository();
 
-    worktree({ root, name: 'merged-clean' });
-    worktree({ root, name: 'merged-dirty' });
-    worktree({ root, name: 'merged-untracked' });
+    worktree({ root, name: 'merged-clean', merged: true });
+    worktree({ root, name: 'merged-dirty', merged: true });
+    worktree({ root, name: 'merged-untracked', merged: true });
     writeFileSync(join(root, '.agents/local/worktrees/merged-dirty/a.txt'), 'edited');
     writeFileSync(join(root, '.agents/local/worktrees/merged-untracked/new.txt'), 'new');
 
@@ -309,7 +325,7 @@ describe('LocalClean.plan and runClean', () => {
   test('removes a merged, a gone and an orphan worktree, keeps an unmerged one, and prunes git', () => {
     const root = repository();
 
-    worktree({ root, name: 'merged-one' });
+    worktree({ root, name: 'merged-one', merged: true });
     worktree({ root, name: 'unmerged-one', commit: true });
     worktree({ root, name: 'gone-one' });
     git({ cwd: root, args: ['update-ref', '-d', 'refs/heads/gone-one'] });
@@ -457,7 +473,7 @@ describe('doctor and what an agent left behind', () => {
       new Date(Date.now() - 3 * DAY),
       new Date(Date.now() - 3 * DAY),
     );
-    worktree({ root, name: 'done' });
+    worktree({ root, name: 'done', merged: true });
 
     const result = await DoctorRunner.runWarnings({ root });
     const warnings = result.filter((entry) => entry.file.startsWith('.agents/local/'));
@@ -569,6 +585,138 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     expect(warnings[0].file).toBe('.agents/local/release-candidates/1.0.0');
     expect(warnings[0].message).toContain('the release shipped');
     expect(warnings[0].message).toContain('vulcan clean --release-candidates --yes');
+  });
+
+  test('only a version can be a release candidate, and only a tag of that exact name ships it', () => {
+    const root = repository();
+
+    git({ cwd: root, args: ['tag', '1.0.0'] });
+    git({ cwd: root, args: ['tag', 'v2.0.0-rc.1'] });
+
+    for (const name of [
+      '1.0.0',
+      '1.0.0~0',
+      '1.0.0^',
+      'v2.0.0-rc.1',
+      'latest',
+      '1.0',
+      'HEAD',
+      'v1.0.0',
+    ]) {
+      file({ root, path: `release-candidates/${name}/a.txt` });
+    }
+
+    const byName = Object.fromEntries(
+      LocalScan.scan({ root })
+        .filter((entry) => entry.scope === 'release-candidates')
+        .map((entry) => [entry.name, entry]),
+    );
+
+    // v1.0.0 has no tag of its own, but 1.0.0 does: either spelling of the version names the same release.
+    expect(
+      Object.entries(byName)
+        .filter(([, entry]) => entry.removable)
+        .map(([name]) => name)
+        .sort(),
+    ).toEqual(['1.0.0', 'v1.0.0', 'v2.0.0-rc.1']);
+
+    for (const name of ['1.0.0~0', '1.0.0^', 'latest', '1.0', 'HEAD']) {
+      expect(byName[name], name).toMatchObject({ state: 'ok', removable: false });
+      expect(byName[name].note, name).toContain('is not a version');
+    }
+
+    runCli({ args: ['clean', '--release-candidates', '--yes'], cwd: root });
+
+    expect(existsSync(join(root, '.agents/local/release-candidates/1.0.0~0/a.txt'))).toBe(true);
+    expect(existsSync(join(root, '.agents/local/release-candidates/HEAD/a.txt'))).toBe(true);
+    expect(existsSync(join(root, '.agents/local/release-candidates/1.0.0'))).toBe(false);
+  });
+
+  test('a new branch with no commit of its own is never merged, and clean keeps its worktree and its .env', () => {
+    const root = repository();
+
+    worktree({ root, name: 'fresh' });
+    writeFileSync(join(root, '.agents/local/worktrees/fresh/.env'), 'SECRET=1');
+
+    const entry = LocalScan.scan({ root }).find((candidate) => candidate.name === 'fresh');
+
+    expect(entry).toMatchObject({ state: 'unmerged', removable: false });
+    expect(entry?.note).toContain('has no commits of its own yet');
+    expect(runCli({ args: ['clean', '--worktrees'], cwd: root }).stderr).toContain(
+      'kept worktrees/fresh',
+    );
+    expect(runCli({ args: ['clean', '--worktrees', '--yes'], cwd: root }).code).toBe(0);
+    expect(readFileSync(join(root, '.agents/local/worktrees/fresh/.env'), 'utf8')).toBe('SECRET=1');
+  });
+
+  test('a merged worktree is kept when it holds an ignored file a build cannot make again, and the note names it', () => {
+    const root = repository();
+
+    writeFileSync(
+      join(root, '.gitignore'),
+      '.agents/local/\n.env\n*.db\nnode_modules/\ndist/\n.turbo/\ncoverage/\n.cache/\n*.tsbuildinfo\n',
+    );
+    git({ cwd: root, args: ['commit', '-q', '-am', 'ignore'] });
+    worktree({ root, name: 'rebuildable', merged: true });
+    worktree({ root, name: 'secret', merged: true });
+    worktree({ root, name: 'many', merged: true });
+    worktree({ root, name: 'gone-secret' });
+
+    const inside = (name: string, path: string, text = 'x'): void => {
+      const target = join(root, '.agents/local/worktrees', name, path);
+
+      mkdirSync(join(target, '..'), { recursive: true });
+      writeFileSync(target, text);
+    };
+
+    for (const name of ['rebuildable', 'secret', 'many']) {
+      inside(name, 'node_modules/dep/index.js');
+      inside(name, 'packages/a/node_modules/x.js');
+      inside(name, 'dist/out.js');
+      inside(name, '.turbo/cache');
+      inside(name, 'coverage/lcov.info');
+      inside(name, '.cache/z');
+      inside(name, 'packages/a/tsconfig.tsbuildinfo');
+    }
+
+    inside('secret', '.env', 'SECRET=1');
+    inside('many', '.env');
+    inside('many', 'a.db');
+    inside('many', 'b.db');
+    inside('many', 'c.db');
+    inside('many', 'd.db');
+    inside('many', 'e.db');
+    inside('gone-secret', '.env', 'SECRET=2');
+    git({ cwd: root, args: ['update-ref', '-d', 'refs/heads/gone-secret'] });
+
+    const byName = Object.fromEntries(
+      LocalScan.scan({ root })
+        .filter((entry) => entry.scope === 'worktrees')
+        .map((entry) => [entry.name, entry]),
+    );
+
+    expect(byName.rebuildable).toMatchObject({ state: 'merged', removable: true });
+    expect(byName.secret).toMatchObject({ state: 'dirty', removable: false });
+    expect(byName.secret.note).toContain('ignored files that are not rebuildable: .env');
+    expect(byName.secret.note).not.toContain('node_modules');
+    expect(byName.many.note).toContain('and 1 more');
+    expect(byName['gone-secret']).toMatchObject({ state: 'dirty', removable: false });
+    expect(byName['gone-secret'].note).toContain('.env');
+
+    const dry = runCli({ args: ['clean', '--worktrees'], cwd: root }).stderr;
+
+    expect(dry).toContain('kept worktrees/secret');
+    expect(dry).toContain('.env');
+
+    runCli({ args: ['clean', '--worktrees', '--yes'], cwd: root });
+
+    expect(existsSync(join(root, '.agents/local/worktrees/rebuildable'))).toBe(false);
+    expect(readFileSync(join(root, '.agents/local/worktrees/secret/.env'), 'utf8')).toBe(
+      'SECRET=1',
+    );
+    expect(readFileSync(join(root, '.agents/local/worktrees/gone-secret/.env'), 'utf8')).toBe(
+      'SECRET=2',
+    );
   });
 
   test('events are removed only when named, never by --all', () => {
@@ -740,7 +888,7 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     const root = repository();
 
     worktree({ root, name: 'unmerged', commit: true });
-    worktree({ root, name: 'dirty' });
+    worktree({ root, name: 'dirty', merged: true });
     writeFileSync(join(root, '.agents/local/worktrees/dirty/scratch.txt'), 'x');
 
     const byName = Object.fromEntries(

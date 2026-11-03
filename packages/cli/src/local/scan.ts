@@ -79,6 +79,128 @@ const git = (opts: { cwd: string; args: string[] }): string | undefined => {
   return result.status === 0 ? result.stdout : undefined;
 };
 
+/** Whether a release version has a tag in the repository: `v<version>` or `<version>`. */
+class ReleaseTags {
+  /** Whether `name` is a version (`LocalConstants.RELEASE_VERSION`); any other name is no candidate and never matched against a tag. */
+  static isVersion(opts: { name: string }): boolean {
+    return LocalConstants.RELEASE_VERSION.test(opts.name);
+  }
+
+  static isTagged(opts: { root: string; version: string }): boolean {
+    const bare = opts.version.replace(/^v/, '');
+
+    return [`v${bare}`, bare].some(
+      (tag) =>
+        git({ cwd: opts.root, args: ['show-ref', '--verify', '--quiet', `refs/tags/${tag}`] }) !==
+        undefined,
+    );
+  }
+}
+
+/** What the history of a branch says about its own work. */
+class BranchHistory {
+  /**
+   * Whether anything was ever committed on the branch: `false` when its reflog holds only its creation (a new
+   * branch has the commit of the branch it came from, which is why `--merged` calls it merged), `undefined`
+   * when there is no reflog to read (the branch is then judged by `--merged` alone).
+   */
+  static hasOwnCommits(opts: { root: string; branch: string }): boolean | undefined {
+    const log = git({
+      cwd: opts.root,
+      args: ['reflog', 'show', '--format=%gs', `refs/heads/${opts.branch}`, '--'],
+    });
+    const entries = (log ?? '').split('\n').filter((line) => line.trim() !== '');
+
+    return entries.length === 0
+      ? undefined
+      : entries.some((line) => !line.startsWith('branch: Created from'));
+  }
+}
+
+/** A directory that is really one: not a link, not a file. */
+const isRealDirectory = (opts: { path: string }): boolean => {
+  try {
+    const stat = lstatSync(opts.path);
+
+    return stat.isDirectory() && !stat.isSymbolicLink();
+  } catch {
+    return false;
+  }
+};
+
+/** Whether a path is something a build or an install makes again, judged by the names in it. */
+const isRebuildable = (opts: { path: string }): boolean => {
+  const parts = opts.path.replace(/\/$/, '').split('/');
+
+  return (
+    parts.some((part) => LocalConstants.REBUILDABLE_DIRECTORIES.includes(part)) ||
+    LocalConstants.REBUILDABLE_SUFFIXES.some((suffix) => (parts.at(-1) ?? '').endsWith(suffix))
+  );
+};
+
+/**
+ * The files under an ignored directory that are not rebuildable. git lists a directory whose every file is ignored
+ * as one entry (`packages/`), so it is walked here, and a rebuildable folder (`node_modules`) is not entered. A
+ * link is a file and is not followed. A directory too large to walk is reported whole.
+ */
+const walkIgnored = (opts: {
+  real: string;
+  directory: string;
+  budget: { left: number };
+}): string[] => {
+  const found: string[] = [];
+  let names: string[];
+
+  try {
+    names = readdirSync(join(opts.real, opts.directory));
+  } catch {
+    return [opts.directory];
+  }
+
+  for (const name of names) {
+    const path = `${opts.directory}${name}`;
+
+    opts.budget.left -= 1;
+
+    if (opts.budget.left < 0) {
+      return [opts.directory];
+    }
+
+    if (isRebuildable({ path })) {
+      continue;
+    }
+
+    if (isRealDirectory({ path: join(opts.real, path) })) {
+      found.push(...walkIgnored({ ...opts, directory: `${path}/` }));
+    } else {
+      found.push(path);
+    }
+  }
+
+  return found;
+};
+
+/** Ignored files a worktree holds that no build or install makes again: `.env`, a local database, a key. */
+const unrebuildableIgnored = (opts: { real: string }): string[] | undefined => {
+  const listed = git({
+    cwd: opts.real,
+    args: ['ls-files', '--others', '--ignored', '--exclude-standard', '--directory'],
+  });
+
+  if (listed === undefined) {
+    return undefined;
+  }
+
+  const budget = { left: LocalConstants.IGNORED_WALK_LIMIT };
+
+  return listed
+    .split('\n')
+    .filter((line) => line.trim() !== '' && !isRebuildable({ path: line }))
+    .flatMap((line) =>
+      line.endsWith('/') ? walkIgnored({ real: opts.real, directory: line, budget }) : [line],
+    );
+};
+
 /** Where a merged branch may have gone: the checked-out branch of the root, then develop, then the default branch of origin. */
 const MERGE_TARGETS = [
   { label: 'the branch checked out at the project root', args: [] as string[] },
@@ -145,6 +267,15 @@ const classifyBranch = (opts: {
       .includes(branch),
   );
 
+  if (target !== undefined && BranchHistory.hasOwnCommits({ root: opts.root, branch }) === false) {
+    return {
+      state: LocalStates.UNMERGED,
+      removable: false,
+      registered: true,
+      note: `branch ${branch} has no commits of its own yet`,
+    };
+  }
+
   if (target !== undefined) {
     return {
       state: LocalStates.MERGED,
@@ -191,39 +322,35 @@ const classifyWorktree = (opts: {
   const untracked = git({ cwd: opts.real, args: ['ls-files', '--others', '--exclude-standard'] });
   const clean = tracked === 0 && untracked !== undefined && untracked.trim() === '';
 
-  return clean
-    ? verdict
-    : {
-        state: LocalStates.DIRTY,
-        removable: false,
-        registered: true,
-        note: `${verdict.note}, but it has uncommitted or untracked files`,
-      };
-};
-
-/** A directory that is really one: not a link, not a file. */
-const isRealDirectory = (opts: { path: string }): boolean => {
-  try {
-    const stat = lstatSync(opts.path);
-
-    return stat.isDirectory() && !stat.isSymbolicLink();
-  } catch {
-    return false;
+  if (!clean) {
+    return {
+      state: LocalStates.DIRTY,
+      removable: false,
+      registered: true,
+      note: `${verdict.note}, but it has uncommitted or untracked files`,
+    };
   }
-};
 
-/** Whether a release version has a tag in the repository: `v<version>` or `<version>`. */
-class ReleaseTags {
-  static isTagged(opts: { root: string; version: string }): boolean {
-    return [`v${opts.version}`, opts.version].some(
-      (tag) =>
-        git({
-          cwd: opts.root,
-          args: ['rev-parse', '--verify', '--quiet', '--end-of-options', `refs/tags/${tag}`],
-        }) !== undefined,
-    );
+  // `git worktree remove --force` deletes ignored files too: a `.env` or a local database would go with it.
+  const ignored = unrebuildableIgnored({ real: opts.real });
+
+  if (ignored === undefined || ignored.length > 0) {
+    const shown = (ignored ?? []).slice(0, LocalConstants.NOTE_FILES).join(', ');
+    const more = Math.max(0, (ignored ?? []).length - LocalConstants.NOTE_FILES);
+
+    return {
+      state: LocalStates.DIRTY,
+      removable: false,
+      registered: true,
+      note:
+        ignored === undefined
+          ? `${verdict.note}, but git could not list its ignored files`
+          : `${verdict.note}, but it holds ignored files that are not rebuildable: ${shown}${more > 0 ? ` and ${more} more` : ''}`,
+    };
   }
-}
+
+  return verdict;
+};
 
 export class LocalScan {
   /** The registered worktrees of the repository at `root`; `undefined` when git cannot list them. */
@@ -327,7 +454,9 @@ export class LocalScan {
           ({ state, removable, registered: isRegistered, note } = verdict);
         } else if (layout.name === CleanScopes.RELEASE_CANDIDATES) {
           // A candidate is named by its version: once that version is tagged the release has shipped.
-          const isShipped = ReleaseTags.isTagged({ root: opts.root, version: name });
+          const isShipped =
+            ReleaseTags.isVersion({ name }) &&
+            ReleaseTags.isTagged({ root: opts.root, version: name });
 
           ({ state, removable, note } = isShipped
             ? {
@@ -338,7 +467,9 @@ export class LocalScan {
             : {
                 state: LocalStates.OK,
                 removable: false,
-                note: `version ${name} is not tagged yet`,
+                note: ReleaseTags.isVersion({ name })
+                  ? `version ${name} is not tagged yet`
+                  : `${name} is not a version (1.2.3, v1.2.3 or 1.2.3-rc.1): kept`,
               });
         } else if (staleAfter !== undefined && ageMs > staleAfter) {
           state = LocalStates.STALE;
