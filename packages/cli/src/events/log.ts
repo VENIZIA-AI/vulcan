@@ -1,7 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
-import { EventConstants, EventKinds, EventStatuses } from './common/index.ts';
+import { ClaudeHookEvents, EventConstants, EventKinds, EventStatuses } from './common/index.ts';
 import type { IEvent, IEventRead, TEventKind, TEventStatus } from './common/index.ts';
 import { EventText } from './text.ts';
 
@@ -40,6 +40,7 @@ export class EventLog {
     ref?: string;
     status?: TEventStatus;
     why?: string;
+    notification?: string;
     now?: number;
   }): IEvent {
     const now = opts.now ?? Date.now();
@@ -62,6 +63,10 @@ export class EventLog {
       ...(opts.status === undefined ? {} : { status: opts.status }),
       ...(ref === '' ? {} : { ref }),
       ...(why === '' ? {} : { why }),
+      ...(opts.notification !== undefined &&
+      ClaudeHookEvents.OWNER_NOTIFICATIONS.has(opts.notification)
+        ? { notification: opts.notification }
+        : {}),
       source: opts.source,
     };
   }
@@ -136,7 +141,7 @@ export class EventLog {
       return undefined;
     }
 
-    const { id, ts, flowId, actor, kind, summary, status, ref, why, source } = value;
+    const { id, ts, flowId, actor, kind, summary, status, ref, why, notification, source } = value;
 
     if (
       typeof id !== 'string' ||
@@ -150,7 +155,8 @@ export class EventLog {
       (flowId !== undefined && typeof flowId !== 'string') ||
       (status !== undefined && (typeof status !== 'string' || !EventStatuses.isValid(status))) ||
       (ref !== undefined && typeof ref !== 'string') ||
-      (why !== undefined && typeof why !== 'string')
+      (why !== undefined && typeof why !== 'string') ||
+      (notification !== undefined && typeof notification !== 'string')
     ) {
       return undefined;
     }
@@ -168,6 +174,10 @@ export class EventLog {
       ...(status === undefined ? {} : { status: status as TEventStatus }),
       ...(ref === undefined ? {} : { ref: clean(ref) }),
       ...(why === undefined ? {} : { why: clean(why) }),
+      // A value that is not one of the types the hook knows is dropped: it is a short enum, not free text.
+      ...(notification === undefined || !ClaudeHookEvents.OWNER_NOTIFICATIONS.has(notification)
+        ? {}
+        : { notification }),
       source: clean(source),
     };
   }

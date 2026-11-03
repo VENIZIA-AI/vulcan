@@ -18,6 +18,8 @@ export interface IEvent {
   ref?: string;
   /** Only a `flow` has one: the one-line reason the flow exists. */
   why?: string;
+  /** Only a `needs-owner` the Claude Code hook wrote has one: the notification type that raised it. */
+  notification?: string;
   source: string;
 }
 
@@ -44,6 +46,8 @@ export interface IHookEvent {
   kind: TEventKind;
   summary: string;
   ref?: string;
+  /** The notification type of a `needs-owner` line. */
+  notification?: string;
   /** Text a flow id may be read from: the first line of a message. */
   flowText?: string;
 }
