@@ -40,6 +40,10 @@ Usage: bun x vulcan <command>
                                   Check a commit message against the commit.message checks of the config (an
                                   agent in a trailer or a "generated with" line, the project's subject shape);
                                   sync installs it as the commit-msg hook; exit 1 on a problem, 2 on bad input
+  ci affected --base <ref> [--head <ref>] [--check <check>] [--json | --names] | template <github|gitlab>
+                                  List the workspace packages a change touches (changed ones and what
+                                  depends on them) with the checks each has; template prints a CI file that
+                                  runs exactly those; exit 2 on bad input
   event add --kind <k> --summary <text> [--flow F-n] [--ref <r>] | tail [--since <time>] [--json] [--dir <folder>]
                                   Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
                                   read it; with events.log on, sync installs the Claude Code hooks that
@@ -78,6 +82,7 @@ The following table lists each command, its purpose, its exit codes, and its ref
 | `profile` | Tell VULCAN how you like to work (language, how to address you, tone, habits); `show` prints it, `reset` deletes it | `0` on success; `1` when cancelled, unreadable, not gitignored or on an unknown argument | [vulcan profile](/references/commands/profile) |
 | `clean` | List what an agent left under `.agents/local/` and remove it with `--yes` | `0` on a dry run, a removal or nothing to remove; `1` when an item cannot be removed or on an unknown flag | [vulcan clean](/references/commands/clean) |
 | `commit-check` | Check a commit message for an agent signature and the project's subject shape, as the `commit-msg` hook that `sync` installs does; nothing is checked until `commit.message` turns a check on | `0` when clean or when no check is configured; `1` on a problem; `2` on bad input | [vulcan commit-check](/references/commands/commit-check) |
+| `ci` | `ci affected` lists the workspace packages a change touches (changed ones and every package that depends on them) with the checks each has; `ci template github\|gitlab` prints a CI file that runs exactly those | `0` with a list (empty too); `2` on bad input | [vulcan ci](/references/commands/ci) |
 | `event` | `event add` writes a line to the agent event log, `event tail` reads it; with `events.log` on, `sync` installs the Claude Code hooks that write it | `0` on success; `1` when the log cannot be written; `2` on bad input | [vulcan event](/references/commands/event) |
 | `doctor` | Check the project against the VULCAN contract and report violations | `0` when conformant; `1` on any contract violation or unknown argument | [vulcan doctor](/references/commands/doctor) |
 | `upgrade` | Bump the pinned `@venizia/vulcan` dependency and run sync | `0` on success; `1` on unknown argument or missing binary; otherwise the exit code of `bun add` or child `vulcan sync` | [upgrade](#upgrade) |

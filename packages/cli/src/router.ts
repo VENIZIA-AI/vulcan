@@ -1,5 +1,6 @@
 import { AgentConstants } from './agents/index.ts';
 import { COMMAND_LOADERS } from './commands/index.ts';
+import { CiFlags } from './ci/common/index.ts';
 import { CommitCheckFlags } from './commit/common/index.ts';
 import { ExitCodes, UpgradeFlags, VulcanCommands } from './common/index.ts';
 import { CreateFlags } from './create/common/index.ts';
@@ -79,6 +80,12 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
     flags: [],
     unknownExit: ExitCodes.USAGE,
     values: [CommitCheckFlags.RANGE, CommitCheckFlags.TEXT],
+    positionals: 2,
+  },
+  [VulcanCommands.CI]: {
+    flags: [CiFlags.JSON, CiFlags.NAMES],
+    unknownExit: ExitCodes.USAGE,
+    values: [CiFlags.BASE, CiFlags.HEAD, CiFlags.CHECK],
     positionals: 2,
   },
   [VulcanCommands.EVENT]: {

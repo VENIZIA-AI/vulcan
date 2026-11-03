@@ -70,6 +70,13 @@ const commitBlockOf = (opts: { config: TResolvedConfig }): { commit?: Record<str
   };
 };
 
+/** The manifest's `ci` block, which `vulcan ci affected` reads: only the globs the project adds. */
+const ciBlockOf = (opts: { config: TResolvedConfig }): { ci?: Record<string, unknown> } => {
+  const { global } = opts.config.ci.affected;
+
+  return global.length === 0 ? {} : { ci: { affected: { global } } };
+};
+
 /** The manifest's `events` block, which the hooks and `vulcan event` read: only when the log is on or has a folder. */
 const eventsBlockOf = (opts: { config: TResolvedConfig }): { events?: Record<string, unknown> } => {
   const { log, dir } = opts.config.events;
@@ -171,6 +178,8 @@ export class ProjectManifest {
       // The colour `vulcan visualize` takes for its pages; a project without the key gets the neutral default.
       ...(config.theme === undefined ? {} : { theme: config.theme }),
       ...commitBlockOf({ config }),
+      // The files the project adds to the ones that make every package affected; none added, nothing is written.
+      ...ciBlockOf({ config }),
       // Whether the Claude Code hooks write the agent event log, and the folder it goes to.
       ...eventsBlockOf({ config }),
     };

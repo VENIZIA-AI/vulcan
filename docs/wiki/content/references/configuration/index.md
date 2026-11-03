@@ -709,6 +709,24 @@ export default {
 } satisfies VulcanConfig;
 ```
 
+## ci
+
+The `ci` object configures `vulcan ci affected` ([vulcan ci](/references/commands/ci)).
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `affected.global` | `string[]` | `[]` | Globs, relative to the project root, of files that make every package affected, added to the shipped list (lockfiles, `bunfig.toml`, root `tsconfig*.json`, `.configs/`, the workflow files). A project cannot remove a shipped one. A leading `/` and a `..` segment are refused |
+
+`vulcan sync` writes the block to the manifest only when `global` is not empty, and the command reads it from there.
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  ci: { affected: { global: ['Makefile', 'make/**'] } },
+} satisfies VulcanConfig;
+```
+
 ## events
 
 The `events` object configures the agent event log ([vulcan event](/references/commands/event)). It is off until you turn it on.
