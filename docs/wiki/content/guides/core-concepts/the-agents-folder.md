@@ -76,3 +76,4 @@ Headless Chrome puts a folder `com.google.Chrome.XXXXXX` in the temp folder it i
 - [vulcan clean](/references/commands/clean): the flags and the safety rules
 - [vulcan doctor](/references/commands/doctor): the warnings
 - [vulcan event](/references/commands/event): the event log in `events/`
+- [vulcan board](/references/commands/board): the page it writes to `reports/board.html`

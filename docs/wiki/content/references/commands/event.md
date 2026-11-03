@@ -40,7 +40,8 @@ One file per local day, one JSON object per line, in `.agents/local/events/<yyyy
 | `ts` | ISO 8601, UTC |
 | `flowId` | `F-n`, when the line belongs to a flow; absent otherwise |
 | `actor` | The session that wrote it, as other sessions address it |
-| `kind` | One of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr` |
+| `kind` | One of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr`, `decision` |
+| `status` | Only on a `decision`: `approve`, `park` or `reject` |
 | `summary` | One line, at most 200 characters |
 | `ref` | A commit, a PR, or `to:<recipient>` for a message; absent when there is none. A recipient that is an address keeps its scheme and the last part of its path (`to:uds:3326301.sock`), never the folders |
 | `source` | `claude-hook` or `cli` |
@@ -62,23 +63,24 @@ Every hook and every `event add` in those projects then writes there, and `event
 ## vulcan event add
 
 ```text
-vulcan event add --kind <kind> --summary <text> [--flow F-n] [--ref <ref>] [--actor <name>] [--dir <folder>]
+vulcan event add --kind <kind> --summary <text> [--flow F-n] [--ref <ref>] [--status approve|park|reject] [--actor <name>] [--dir <folder>]
 ```
 
 It prints the id of the line. This is the way in for any coding agent: a hook of Claude Code is only one writer.
 
 | Flag | Meaning |
 |---|---|
-| `--kind` | One of the eight kinds |
+| `--kind` | One of the nine kinds |
 | `--summary` | A short label. It is cut to one line of 200 characters, and anything shaped like a secret is replaced by `[redacted]` |
 | `--flow` | `F-n`. Without it, the flow is read from the branch, when its name has an `F-n` segment such as `feature/F-12-events-log` |
-| `--ref` | A commit, a PR number, a recipient |
+| `--ref` | A commit, a PR number, a recipient. On a `pr` line, `merged:12` says pull request 12 was merged |
+| `--status` | `approve`, `park` or `reject`. Required on a `decision`, refused on any other kind. The owner's answer to a flow, written by whoever relays it |
 | `--actor` | Who. Without it: `VULCAN_ACTOR` in the environment, else the name Claude Code gave the session (when several of its session files hold the session id, the one of a live process, then the newest), else `claude:` and the start of the session id, else `unknown` |
 | `--dir` | The folder, for this call: `--dir` over `events.dir` over `.agents/local/events`. A relative path is relative to where you run the command |
 
 Run from a subfolder, the command uses the project of that folder: the nearest folder above it with `.agents/vulcan.manifest.json` or `.git`. It reads the same `events` block there as at the top.
 
-Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not `F-n`, an unknown flag, a flag given twice).
+Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not `F-n`, a `decision` without a `--status` or another kind with one, an unknown flag, a flag given twice).
 
 ## vulcan event tail
 
@@ -120,6 +122,7 @@ The hooks exist for Claude Code only. Any other coding agent reports through `vu
 
 ## See also
 
+- [vulcan board](/references/commands/board): one HTML page of the flows in this log
 - [Configuration](/references/configuration/#events): the `events` key
 - [The .agents folder](/guides/core-concepts/the-agents-folder): where `events/` sits and when it goes
 - [vulcan clean](/references/commands/clean): `--events` removes the log

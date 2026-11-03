@@ -18,7 +18,7 @@ afterAll(removeProjects);
 const NOW = Date.parse('2026-11-03T09:30:00.000Z');
 
 describe('EventKinds', () => {
-  test('the eight kinds a board reads, and isValid', () => {
+  test('the nine kinds a board reads, and isValid', () => {
     expect([...EventKinds.SCHEME_SET]).toEqual([
       'session-start',
       'session-stop',
@@ -28,6 +28,7 @@ describe('EventKinds', () => {
       'subagent-stop',
       'commit',
       'pr',
+      'decision',
     ]);
     expect(EventKinds.isValid('commit')).toBe(true);
     expect(EventKinds.isValid('deploy')).toBe(false);
