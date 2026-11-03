@@ -24,6 +24,7 @@ interface ILayout {
   bodyText: string;
   storageKeys: string[];
   logo: string | null;
+  ruleDisplay: string;
   holderOfFirst: string;
 }
 
@@ -71,6 +72,7 @@ const MEASURE = `(() => {
     bodyText: document.body.innerText,
     storageKeys: Object.keys(localStorage),
     logo: (document.querySelector('#mark img') || {}).src || null,
+    ruleDisplay: getComputedStyle(document.querySelector('.brule')).display,
     holderOfFirst: (document.querySelector('#groups .row .holder') || {}).textContent || '',
   });
 })()`;
@@ -142,6 +144,7 @@ describe.skipIf(!hasBrowser)('the board page in a real browser', () => {
         expect(layout.headerText).not.toMatch(NOT_A_DEFAULT);
         expect(layout.storageKeys.every((key) => key.startsWith('board:acme:'))).toBe(true);
         expect(layout.logo).toBeNull();
+        expect(layout.ruleDisplay, 'a rule stands where the logo would be').toBe('none');
 
         // The agents of the log are in the dock.
         expect(layout.agentsListed.sort()).toEqual([
@@ -164,6 +167,7 @@ describe.skipIf(!hasBrowser)('the board page in a real browser', () => {
     const layout = JSON.parse(raw) as ILayout;
 
     expect(layout.logo).toBe(LOGO);
+    expect(layout.ruleDisplay).not.toBe('none');
     expect(layout.errors).toEqual([]);
     expect(layout.scrollWidth).toBeLessThanOrEqual(1441);
   });

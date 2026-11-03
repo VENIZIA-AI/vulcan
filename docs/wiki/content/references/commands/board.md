@@ -28,7 +28,7 @@ vulcan board [--out <file>] [--open] [--since <date>] [--dir <events folder>] [-
 | `--open` | Open the file in your browser when it is written (`xdg-open`, `open` or `start`) |
 | `--since` | Read events and pull requests changed at or after this date, such as `2026-11-03` or `2026-11-03T09:00:00Z`. Default: the last 7 days |
 | `--dir` | The events folder. Default: `events.dir` of the config, else `.agents/local/events` |
-| `--repo` | A GitHub repository, `owner/name`. Repeat it to read several, such as three repositories on one board. Default: the repository of the current folder |
+| `--repo` | A GitHub repository, `owner/name`. Repeat it to read several, such as three repositories on one board. Default: the repository `gh` finds for the project folder (`gh repo view`); when it finds none, GitHub is skipped with a note |
 | `--no-github` | Do not read GitHub |
 
 Exit codes: `0` written; `1` the file cannot be written; `2` bad input (an unknown date, a `--repo` that is not `owner/name`, an unknown or repeated flag).
@@ -48,7 +48,7 @@ An event belongs to the flow named by its `flowId` (`F-12`). A line with no flow
 | `decision` (`approve`, `park`, `reject`) | your answer: it answers the ask and, for `park` and `reject`, parks the flow |
 | `session-start`, `session-stop` | the agent dock only: working, or idle |
 
-From GitHub: each pull request, each finished check (pass or fail), each review (approved, changes requested), and the merge.
+From GitHub: each pull request, each finished check (pass or fail), each review (approved, changes requested), and the merge. One call per repository asks for the newest 30 pull requests; the note on stderr says how many of them changed since `--since`.
 
 ### The state of a flow
 
@@ -64,14 +64,38 @@ The **stage** is the one of the last line, from Proposal to Handover; the page s
 
 ## What the page shows
 
-The list of flows grouped by state, a detail pane with each stage, round and message, the agent dock with each agent's state, and a view of flows as a diagram or a board. It has English and Vietnamese, and a light and a dark theme, and its keys are `j` and `k` to move, `Enter` to open, `e` for all events and `?` for the list. The page is read-only in this version: it sends nothing and saves nothing but your language, theme and last visit in the browser. It holds no network call, so it works offline. The data is inside the file: labels and short titles, never message text.
+The list of flows grouped by state, a detail pane with each stage, round and message, the agent dock with each agent's state, and a view of flows as a diagram or a board. It has English and Vietnamese, and a light and a dark theme, and its keys are `j` and `k` to move, `Enter` to open, `e` for all events and `?` for the list. The page is read-only: it sends nothing and saves nothing but your language, theme and last visit in the browser, under keys that carry the project name. It holds no network call, so it works offline. The data is inside the file: labels and short titles, never message text.
+
+## Names, logo and faces
+
+The page carries nothing of any organisation. Set what it says in `.configs/vulcan.config.mts`, then run `vulcan sync` (the command reads the manifest):
+
+```ts
+export default {
+  board: {
+    owner: 'Ana',
+    title: 'Acme Shop Board',
+    logo: '.configs/board-logo.svg',
+    agents: { 'pnt-api-1': 'flame', 'pnt-web-1': 'ember' },
+  },
+};
+```
+
+| Key | Meaning | Default |
+|---|---|---|
+| `owner` | Who an ask waits on: the flow's holder while it needs you | `git config user.name` of the project, else `Owner` |
+| `title` | The name in the page header and the tab | `<project name> Board` |
+| `logo` | A path inside the project to an `.svg` file, shown next to the title. It is put in an `img`, so it runs no script. Up to 100 KB. Draw it in a colour that reads on a light and on a dark page | none |
+| `agents` | An agent name to a face: `bun`, `flame`, `ember`, `rock` or `banana` | every agent has `bun`; the owner is a person |
+
+Each agent also has a colour, taken from a hash of its name out of a fixed neutral palette. A logo or a name the page cannot use is left out, with a note on stderr.
 
 ## Limits of this version
 
-- The owner is the name `Phát` in the page, and the agent dock lists every actor of the log; a project's own owner name is not a setting yet.
-- Request, design, release and handover stages, parked-by-hand and the releases tab have no source in the log, so they stay empty.
+- Request, design, release and handover stages and the releases tab have no source in the log: the Release tab is not shown, and those stages stay empty.
 - GitHub gives the newest run of each check, so CI attempts that were overwritten are not counted.
 - GitLab is not read.
+- The page is written in English and Vietnamese only.
 
 ## See also
 

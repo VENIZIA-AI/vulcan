@@ -18,7 +18,8 @@ packages: ['@venizia/vulcan']
 - **Flows from the log.** A line belongs to the flow named by its `flowId` (`F-12`); a line with none is in Unsorted. A flow **Needs you** while its last ask has no decision and no progress after it, is **Blocked** while its newest CI run or review failed and nothing was committed since, is **Parked** after a `park` or `reject`, is **Done** when its pull request merged, and is **Running** otherwise. The page shows the stage, the holder and the number of CI and review attempts.
 - **A new event kind, `decision`.** `vulcan event add --kind decision --status approve|park|reject --flow F-12 --summary ...` records the owner's answer. The status is required on a decision and refused on any other kind.
 - **GitHub is a bonus.** With `gh` it adds pull requests, finished checks, reviews and merges, for the current repository or each `--repo owner/name` (repeat it for several). Without `gh`, or with `--no-github`, the board is built from the events alone; GitLab is not read yet.
-- **The page.** The VENIZIA Board look: the list grouped by state, a detail pane, the agent dock, English and Vietnamese, light and dark. It is read-only, holds no network call and carries its data inside the file.
+- **The page.** The list grouped by state, a detail pane, the agent dock, English and Vietnamese, light and dark. It is read-only, holds no network call and carries its data inside the file.
+- **Your names, not ours.** A new `board` key sets the owner (default: `git config user.name`), the title (default: `<project> Board`), an optional SVG logo and a face for each agent. Nothing on the page belongs to any organisation.
 
 ## Who is affected
 

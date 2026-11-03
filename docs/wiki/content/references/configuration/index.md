@@ -746,6 +746,27 @@ export default {
 } satisfies VulcanConfig;
 ```
 
+## board
+
+The `board` object names what [`vulcan board`](/references/commands/board) puts on its page. Nothing is required.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `owner` | `string` | `git config user.name`, else `Owner` | Who an ask waits on |
+| `title` | `string` | `<project name> Board` | The name in the header and the tab |
+| `logo` | `string` | none | A path inside the project to an `.svg` file, with no leading `/` and no `..` segment |
+| `agents` | `Record<string, 'bun' \| 'flame' \| 'ember' \| 'rock' \| 'banana'>` | `{}` | An agent name to a face; any other agent has `bun` |
+
+`vulcan sync` writes the block to the manifest only when something is set, and the command reads it from there.
+
+```ts
+import type { VulcanConfig } from '@venizia/vulcan';
+
+export default {
+  board: { owner: 'Ana', title: 'Acme Shop Board', logo: '.configs/board-logo.svg' },
+} satisfies VulcanConfig;
+```
+
 ## A complete config
 
 The example below shows a complete configuration declaring every key once:

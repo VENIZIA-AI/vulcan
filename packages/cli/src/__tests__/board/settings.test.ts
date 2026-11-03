@@ -163,11 +163,13 @@ describe('BoardSettings.read', () => {
   });
 
   test('a missing file, a file that is not an svg and one over 100 KB are no logo', () => {
-    for (const files of [
+    const cases: Record<string, string>[] = [
       {},
       { 'l.svg': '<html>not a picture</html>' },
       { 'l.svg': `${SVG}${' '.repeat(101 * 1024)}` },
-    ]) {
+    ];
+
+    for (const files of cases) {
       const settings = BoardSettings.read({
         root: project({ manifest: { board: { logo: 'l.svg' } }, files }),
       });
