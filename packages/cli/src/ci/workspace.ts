@@ -39,9 +39,11 @@ export class CiWorkspace {
     }
 
     const include = globs.filter((glob) => !glob.startsWith('!'));
+    // `!apps/old/**` leaves out the folder itself too, which the glob alone does not match.
     const exclude = globs
       .filter((glob) => glob.startsWith('!'))
-      .map((glob) => new Bun.Glob(glob.slice(1)));
+      .flatMap((glob) => [glob.slice(1), glob.slice(1).replace(/\/\*\*$/, '')])
+      .map((pattern) => new Bun.Glob(pattern));
     const dirs = new Set<string>();
 
     for (const glob of include) {

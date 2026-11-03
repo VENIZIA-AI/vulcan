@@ -34,8 +34,6 @@ export class CiChecks {
 export class AffectedReasons {
   /** One of its files changed. */
   static readonly CHANGED = 'changed';
-  /** It uses a `catalog:` entry whose version changed in the root `package.json`. */
-  static readonly CATALOG = 'catalog';
   /** A package it depends on is affected. */
   static readonly DEPENDENT = 'dependent';
   /** A file every package depends on changed, so all are on the list. */
@@ -73,10 +71,6 @@ export class CiConstants {
     'peerDependencies',
     'optionalDependencies',
   ];
-  /** The root keys that hold catalogs, at the top and inside `workspaces`. */
-  static readonly CATALOG_KEYS = ['catalog', 'catalogs'];
-  static readonly DEFAULT_CATALOG = 'default';
-  static readonly CATALOG_PREFIX = 'catalog:';
   static readonly GIT_TIMEOUT_MS = 30_000;
   static readonly GIT_MAX_BUFFER = 256 * 1024 * 1024;
 }

@@ -27,7 +27,7 @@ variables:
     - |
       names=$(bun x --no-install vulcan ci affected --base "$base" --check "$CHECK" --names)
       if [ -z "$names" ]; then echo "no affected package has $CHECK"; exit 0; fi
-      for name in $names; do
+      printf '%s\n' "$names" | while IFS= read -r name; do
         bun run --filter "$name" "$CHECK" || exit 1
       done
 

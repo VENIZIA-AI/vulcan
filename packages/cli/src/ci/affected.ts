@@ -5,12 +5,10 @@ import type {
   IWorkspacePackage,
   TAffectedReason,
   TCiCheck,
-  TRootChange,
 } from './common/index.ts';
 import { CiGit } from './git.ts';
 import { CiGlobal } from './global.ts';
 import { CiGraph } from './graph.ts';
-import { CiRootManifest } from './root.ts';
 import { CiWorkspace } from './workspace.ts';
 
 type TAffectedRun = { ok: true; result: IAffectedResult } | { ok: false; error: string };
@@ -74,21 +72,6 @@ export class CiAffected {
       return changes;
     }
 
-    const rootChange: TRootChange | undefined = changes.files.includes(CiConstants.ROOT_MANIFEST)
-      ? CiRootManifest.compare({
-          before: CiGit.show({
-            root: opts.root,
-            commit: changes.mergeBase,
-            path: CiConstants.ROOT_MANIFEST,
-          }),
-          after: CiGit.show({
-            root: opts.root,
-            commit: head.stdout,
-            path: CiConstants.ROOT_MANIFEST,
-          }),
-        })
-      : undefined;
-
     return {
       ok: true,
       result: CiAffected.build({
@@ -99,7 +82,6 @@ export class CiAffected {
           packages: workspace.packages,
           files: changes.files,
           globs,
-          rootChange,
         }),
       }),
     };
@@ -107,23 +89,17 @@ export class CiAffected {
 
   /**
    * The packages a set of changed files touches. Everything is affected when a file matches `globs` or the
-   * root change says so; otherwise a package is affected when one of its files changed, when it takes a
-   * changed catalog entry, or when a package it depends on is.
+   * otherwise a package is affected when one of its files changed or when a package it depends on is.
    */
-  static select(opts: {
-    packages: IWorkspacePackage[];
-    files: string[];
-    globs: string[];
-    rootChange: TRootChange | undefined;
-  }): { all: boolean; because?: string; reached: Map<string, TAffectedReason> } {
+  static select(opts: { packages: IWorkspacePackage[]; files: string[]; globs: string[] }): {
+    all: boolean;
+    because?: string;
+    reached: Map<string, TAffectedReason>;
+  } {
     const hit = CiGlobal.firstHit({ files: opts.files, globs: opts.globs });
 
     if (hit !== undefined) {
       return { all: true, because: hit, reached: new Map() };
-    }
-
-    if (opts.rootChange?.kind === 'all') {
-      return { all: true, because: opts.rootChange.because, reached: new Map() };
     }
 
     const seeds = new Map<string, TAffectedReason>();
@@ -133,20 +109,6 @@ export class CiAffected {
 
       if (owner !== undefined) {
         seeds.set(owner.name, AffectedReasons.CHANGED);
-      }
-    }
-
-    if (opts.rootChange?.kind === 'catalog') {
-      for (const entry of opts.packages) {
-        const takesChanged = entry.dependencies.some((dependency) =>
-          (opts.rootChange as Extract<TRootChange, { kind: 'catalog' }>).entries.some((changed) =>
-            CiRootManifest.usesEntry({ dependency, entry: changed }),
-          ),
-        );
-
-        if (takesChanged && !seeds.has(entry.name)) {
-          seeds.set(entry.name, AffectedReasons.CATALOG);
-        }
       }
     }
 

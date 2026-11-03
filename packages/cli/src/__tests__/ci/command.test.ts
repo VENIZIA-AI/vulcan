@@ -211,9 +211,7 @@ describe('the templates', () => {
     expect(github.jobs.check.strategy.matrix).toContain('fromJSON(needs.affected.outputs.matrix)');
     expect(github.jobs.check.strategy['fail-fast']).toBe(false);
     expect(github.jobs.check.if).toContain('include[0] != null');
-    expect(github.jobs.check.steps.at(-1).run).toBe(
-      'bun run --filter "${{ matrix.package }}" "${{ matrix.check }}"',
-    );
+    expect(github.jobs.check.steps.at(-1).run).toBe('bun run --filter "$PKG" "$CHECK"');
   });
 
   test('GitLab: rules for merge requests and develop, a full clone, one job per check, each calling the command', () => {
@@ -281,6 +279,25 @@ describe('the templates', () => {
 
     expect(failing.exitCode).toBe(1);
     expect(failing.stdout.toString()).toBe('ran @x/a\n');
+
+    // A name is one line, whatever is in it: no word splitting, no glob.
+    const odd = workspaceRepo({ packages: { a: { name: 'two words *' }, b: { name: '@x/b' } } });
+    const oddBase = git({ cwd: odd, args: ['rev-parse', 'HEAD'] });
+
+    commit({ root: odd, files: { 'packages/a/x.ts': '1', 'packages/b/x.ts': '1' } });
+
+    const oddRun = Bun.spawnSync(
+      [
+        'sh',
+        '-c',
+        script
+          .replace(/bun x --no-install vulcan/g, `${process.execPath} ${cli}`)
+          .replace('bun run --filter "$name" "$CHECK"', 'echo "ran [$name]"'),
+      ],
+      { cwd: odd, env: { ...hermeticEnv(), base: oddBase, CHECK: 'test' } },
+    );
+
+    expect(oddRun.stdout.toString()).toBe('ran [@x/b]\nran [two words *]\n');
 
     // A check no affected package has is a note and exit 0, never a failed job.
     const before = git({ cwd: root, args: ['rev-parse', 'HEAD'] });

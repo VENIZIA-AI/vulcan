@@ -57,6 +57,24 @@ describe('CiWorkspace.read', () => {
     ]);
   });
 
+  test('a ! glob with /** leaves out the folder itself and what is under it; one with /* keeps the folder', () => {
+    const root = createProject({
+      files: {
+        'package.json': json({
+          value: { workspaces: ['apps/**', 'packages/*', '!apps/old/**', '!packages/keep/*'] },
+        }),
+        'apps/old/package.json': json({ value: { name: 'old' } }),
+        'apps/old/inner/package.json': json({ value: { name: 'old-inner' } }),
+        'apps/new/package.json': json({ value: { name: 'new' } }),
+        'packages/keep/package.json': json({ value: { name: 'keep' } }),
+        'packages/keep/sub/package.json': json({ value: { name: 'keep-sub' } }),
+      },
+    });
+    const read = CiWorkspace.read({ root });
+
+    expect(read.ok && read.packages.map((entry) => entry.name)).toEqual(['new', 'keep']);
+  });
+
   test('no package.json, one that is not JSON and one without workspaces are reasons, not crashes', () => {
     expect(CiWorkspace.read({ root: createProject({ files: {} }) })).toMatchObject({ ok: false });
     expect(
@@ -264,6 +282,7 @@ describe('CiAffected.run: global files', () => {
   const FILES = [
     'bun.lock',
     'bun.lockb',
+    'package.json',
     'bunfig.toml',
     'tsconfig.json',
     'tsconfig.base.json',
@@ -278,7 +297,20 @@ describe('CiAffected.run: global files', () => {
       const root = chain();
       const base = git({ cwd: root, args: ['rev-parse', 'HEAD'] });
 
-      commit({ root, files: { [file]: 'x\n' } });
+      // The root package.json must still be a workspace manifest.
+      const text =
+        file === 'package.json'
+          ? json({
+              value: {
+                name: 'root',
+                private: true,
+                workspaces: ['packages/*'],
+                scripts: { dev: 'x' },
+              },
+            })
+          : 'x\n';
+
+      commit({ root, files: { [file]: text } });
 
       const run = CiAffected.run({ root, base, head: 'HEAD' });
 
@@ -328,142 +360,66 @@ describe('CiAffected.run: global files', () => {
 });
 
 describe('CiAffected.run: the root package.json', () => {
-  const root = (extra: Record<string, unknown> = {}) => ({
-    workspaces: {
-      packages: ['packages/*'],
-      catalog: { zod: '^4.0.0', typescript: '^6.0.0' },
-      catalogs: { web: { react: '19.0.0' } },
-    },
-    ...extra,
-  });
   const repo = () =>
     workspaceRepo({
-      root: root(),
+      root: { workspaces: { packages: ['packages/*'], catalog: { zod: '^4.0.0' } } },
       packages: {
         a: { name: '@x/a', dependencies: { zod: 'catalog:' } },
         b: { name: '@x/b', dependencies: { '@x/a': 'workspace:*' } },
-        c: { name: '@x/c', devDependencies: { typescript: 'catalog:default' } },
-        d: { name: '@x/d', dependencies: { react: 'catalog:web' } },
-        e: { name: '@x/e', dependencies: { zod: '^3.0.0' } },
+        c: { name: '@x/c' },
       },
     });
-  const rootChange = (opts: { repo: string; manifest: Record<string, unknown> }): string[] => {
-    const base = git({ cwd: opts.repo, args: ['rev-parse', 'HEAD'] });
 
-    commit({
-      root: opts.repo,
-      files: { 'package.json': json({ value: { name: 'root', private: true, ...opts.manifest } }) },
-    });
+  test('any change to it marks every package: a catalog bump, a script, a dependency, the workspaces globs, formatting', () => {
+    const manifests: Record<string, Record<string, unknown>> = {
+      catalog: { workspaces: { packages: ['packages/*'], catalog: { zod: '^4.1.0' } } },
+      script: {
+        workspaces: { packages: ['packages/*'], catalog: { zod: '^4.0.0' } },
+        scripts: { dev: 'x' },
+      },
+      dependency: {
+        workspaces: { packages: ['packages/*'], catalog: { zod: '^4.0.0' } },
+        devDependencies: { oxlint: '1' },
+      },
+      globs: { workspaces: { packages: ['packages/*', 'apps/*'], catalog: { zod: '^4.0.0' } } },
+      reordered: { workspaces: { catalog: { zod: '^4.0.0' }, packages: ['packages/*'] } },
+    };
 
-    return affectedNames({ root: opts.repo, base });
-  };
+    for (const [name, manifest] of Object.entries(manifests)) {
+      const r = repo();
+      const base = git({ cwd: r, args: ['rev-parse', 'HEAD'] });
 
-  test('only a catalog version changed: the users of that entry and what depends on them', () => {
-    const next = root();
+      commit({
+        root: r,
+        files: { 'package.json': json({ value: { name: 'root', private: true, ...manifest } }) },
+      });
 
-    (next.workspaces as { catalog: Record<string, string> }).catalog.zod = '^4.1.0';
+      const run = CiAffected.run({ root: r, base, head: 'HEAD' });
 
-    expect(rootChange({ repo: repo(), manifest: next })).toEqual([
-      '@x/a:catalog',
-      '@x/b:dependent',
-    ]);
-  });
-
-  test('the default catalog by either spelling, and a named catalog', () => {
-    const typescript = root();
-
-    (typescript.workspaces as { catalog: Record<string, string> }).catalog.typescript = '^6.1.0';
-
-    expect(rootChange({ repo: repo(), manifest: typescript })).toEqual(['@x/c:catalog']);
-
-    const react = root();
-
-    (react.workspaces as { catalogs: Record<string, Record<string, string>> }).catalogs.web.react =
-      '19.1.0';
-
-    expect(rootChange({ repo: repo(), manifest: react })).toEqual(['@x/d:catalog']);
-  });
-
-  test('an entry added or removed counts; a package with its own range is not a user', () => {
-    const added = root();
-
-    (added.workspaces as { catalog: Record<string, string> }).catalog.lodash = '4.0.0';
-
-    expect(rootChange({ repo: repo(), manifest: added })).toEqual([]);
-
-    const removed = root();
-
-    delete (removed.workspaces as { catalog: Record<string, string> }).catalog.zod;
-
-    expect(rootChange({ repo: repo(), manifest: removed })).toEqual([
-      '@x/a:catalog',
-      '@x/b:dependent',
-    ]);
-  });
-
-  test('a catalog at the top of the file, not inside workspaces, is read too', () => {
-    const top = { workspaces: ['packages/*'], catalog: { zod: '^4.0.0' } };
-    const repoTop = workspaceRepo({
-      root: top,
-      packages: { a: { name: '@x/a', dependencies: { zod: 'catalog:' } }, d: { name: '@x/d' } },
-    });
-
-    expect(
-      rootChange({
-        repo: repoTop,
-        manifest: { workspaces: ['packages/*'], catalog: { zod: '^4.2.0' } },
-      }),
-    ).toEqual(['@x/a:catalog']);
-  });
-
-  test('any other change marks every package: a script, a dependency, the workspaces globs, the name', () => {
-    for (const change of [
-      { scripts: { dev: 'x' } },
-      { devDependencies: { oxlint: '1' } },
-      { workspaces: { packages: ['packages/*', 'apps/*'], catalog: root().workspaces.catalog } },
-      { overrides: { a: '1' } },
-    ]) {
-      const names = rootChange({ repo: repo(), manifest: { ...root(), ...change } });
-
-      expect(names, JSON.stringify(change)).toHaveLength(5);
-      expect(names.every((entry) => entry.endsWith(':global'))).toBe(true);
+      expect(run.ok && run.result.all, name).toBe(true);
+      expect(run.ok && run.result.allBecause, name).toBe('package.json');
+      expect(run.ok && run.result.packages.map((entry) => entry.reason), name).toEqual([
+        'global',
+        'global',
+        'global',
+      ]);
     }
   });
 
-  test('a catalog change together with another change is everything', () => {
-    const next = root({ scripts: { dev: 'x' } });
-
-    (next.workspaces as { catalog: Record<string, string> }).catalog.zod = '^4.1.0';
-
-    expect(rootChange({ repo: repo(), manifest: next })).toHaveLength(5);
-  });
-
-  test('key order and spacing do not count as a change', () => {
-    const reordered = {
-      workspaces: {
-        catalogs: root().workspaces.catalogs,
-        catalog: root().workspaces.catalog,
-        packages: ['packages/*'],
-      },
-    };
-
-    expect(rootChange({ repo: repo(), manifest: reordered })).toEqual([]);
-  });
-
-  test('the allBecause of a root change says so', () => {
+  test('a package.json inside a package is that package only', () => {
     const r = repo();
     const base = git({ cwd: r, args: ['rev-parse', 'HEAD'] });
 
     commit({
       root: r,
       files: {
-        'package.json': json({ value: { name: 'renamed', workspaces: root().workspaces } }),
+        'packages/c/package.json': json({
+          value: { name: '@x/c', version: '2.0.0', scripts: ALL_SCRIPTS },
+        }),
       },
     });
 
-    const run = CiAffected.run({ root: r, base, head: 'HEAD' });
-
-    expect(run.ok && run.result.allBecause).toContain('changed outside its catalogs');
+    expect(affectedNames({ root: r, base })).toEqual(['@x/c:changed']);
   });
 });
 

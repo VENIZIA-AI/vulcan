@@ -19,18 +19,6 @@ export interface IDependency {
   spec: string;
 }
 
-/** One catalog entry: `catalog` is `default` for the unnamed catalog. */
-export interface ICatalogEntry {
-  catalog: string;
-  name: string;
-}
-
-/** What a change to the root `package.json` means for the packages. */
-export type TRootChange =
-  | { kind: 'all'; because: string }
-  | { kind: 'catalog'; entries: ICatalogEntry[] }
-  | { kind: 'none' };
-
 export interface IAffectedPackage {
   name: string;
   dir: string;

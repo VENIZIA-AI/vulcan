@@ -24,19 +24,21 @@ jobs:
       matrix: ${{ steps.affected.outputs.matrix }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           # The base commit must be in the clone; a shallow one has not got it.
           fetch-depth: 0
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       - name: Install
         run: bun install --frozen-lockfile
 
       - name: List the affected packages
         id: affected
+        # bash, so that a failing command in the pipe below fails the step.
+        shell: bash
         env:
           # A pull request compares with its base; a push compares with the commit before it.
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -57,13 +59,17 @@ jobs:
       matrix: ${{ fromJSON(needs.affected.outputs.matrix) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       - name: Install
         run: bun install --frozen-lockfile
 
       - name: Run the check
-        run: bun run --filter "${{ matrix.package }}" "${{ matrix.check }}"
+        # The package name comes from a pull request: it reaches the shell as a variable, never as text of the script.
+        env:
+          PKG: ${{ matrix.package }}
+          CHECK: ${{ matrix.check }}
+        run: bun run --filter "$PKG" "$CHECK"

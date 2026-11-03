@@ -2,6 +2,7 @@
   "files": [
     "bun.lock",
     "bun.lockb",
+    "package.json",
     "bunfig.toml",
     "tsconfig*.json",
     ".configs/**",

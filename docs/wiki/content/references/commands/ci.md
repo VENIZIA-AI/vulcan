@@ -31,10 +31,9 @@ It compares the merge base of `--base` and `--head` with `--head`, as `git diff 
 
 ### Which packages are on the list
 
-The workspace packages are the folders the root `package.json` lists in `workspaces` (an array, or an object with `packages`; a `!` glob removes a folder). A package is on the list when:
+The workspace packages are the folders the root `package.json` lists in `workspaces` (an array, or an object with `packages`; a `!` glob removes a folder; `!apps/old/**` removes `apps/old` itself and what is under it). A package is on the list when:
 
 - one of its files changed (`changed`);
-- it takes a `catalog:` entry whose version changed in the root `package.json` (`catalog`);
 - it depends on a package on the list, directly or through others, in `dependencies`, `devDependencies`, `peerDependencies` or `optionalDependencies` (`dependent`). A dependency on a workspace package counts whatever its spec is: `workspace:*`, a version range or `catalog:`. That can add a package; it never drops one.
 
 A file outside every package folder, such as the root `README.md` or `docs/`, touches no package.
@@ -45,13 +44,13 @@ These files are shared by all packages, so a change to one lists all of them (`g
 
 | Path | Why |
 |---|---|
-| `bun.lock`, `bun.lockb` | The dependency versions of every package |
+| `bun.lock`, `bun.lockb`, the root `package.json` | The dependency versions, the catalogs and the workspaces of every package |
 | `bunfig.toml` | The settings of bun for the whole repository |
 | `tsconfig*.json` at the root | The base of the TypeScript configs |
 | `.configs/**` | The shared lint, format and build configs |
 | `.github/workflows/**`, `.gitlab-ci.yml`, `.gitlab/**` | The CI itself |
 
-The root `package.json` is the one file read more closely. If the only difference is inside `workspaces.catalog` or `catalogs` (at the top of the file or inside `workspaces`), only the packages that take a changed entry (`catalog:` for the unnamed catalog, `catalog:name` for a named one) are listed, with their dependents: a bump of one dependency does not rerun every package. Any other change to it (a script, a dependency, the `workspaces` globs, an override) lists every package. A file that is added, removed or not JSON does too.
+Every change to the root `package.json` counts, a catalog bump included: a bump also changes `bun.lock`, and which packages resolve differently after it cannot be told from the two files. A `package.json` inside a package folder is that package's own.
 
 A project adds paths in `.configs/vulcan.config.mts`; it cannot remove a shipped one:
 
@@ -83,9 +82,9 @@ A package has a check when its `package.json` has a script of that name. The fou
 }
 ```
 
-`reason` is `changed`, `catalog`, `dependent` or `global`. When every package is listed, `all` is `true` and `allBecause` names the file or the fact that caused it.
+`reason` is `changed`, `dependent` or `global`. When every package is listed, `all` is `true` and `allBecause` names the file or the fact that caused it.
 
-Exit codes: `0` with a list, an empty one included; `2` for bad input: no `--base`, a ref git does not know, a `--head` that is not checked out, a folder without `workspaces`, an unknown flag.
+Exit codes: `0` with a list, an empty one included; `2` for bad input and for a run that cannot finish: no `--base`, a ref git does not know, a `--head` that is not checked out, a folder without `workspaces`, an unknown flag, git failing.
 
 ### A shallow clone has no base
 
@@ -106,7 +105,7 @@ It prints a CI file that calls `vulcan ci affected`. Save it as `.github/workflo
 
 ### GitHub Actions
 
-An `affected` job writes a matrix of package and check; a `check` job runs one `bun run --filter` per entry. Nothing runs when no package is affected.
+An `affected` job writes a matrix of package and check; a `check` job runs one `bun run --filter` per entry. Nothing runs when no package is affected. The package name comes from the pull request, so the job hands it to the shell as an environment variable and never writes it into the script. The two actions are pinned to a commit, with the version in a comment; update the pins when you update the version.
 
 ```yaml
 # Runs, for each package a change touches, only the checks that package has.
@@ -135,19 +134,21 @@ jobs:
       matrix: ${{ steps.affected.outputs.matrix }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           # The base commit must be in the clone; a shallow one has not got it.
           fetch-depth: 0
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       - name: Install
         run: bun install --frozen-lockfile
 
       - name: List the affected packages
         id: affected
+        # bash, so that a failing command in the pipe below fails the step.
+        shell: bash
         env:
           # A pull request compares with its base; a push compares with the commit before it.
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -168,16 +169,20 @@ jobs:
       matrix: ${{ fromJSON(needs.affected.outputs.matrix) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       - name: Install
         run: bun install --frozen-lockfile
 
       - name: Run the check
-        run: bun run --filter "${{ matrix.package }}" "${{ matrix.check }}"
+        # The package name comes from a pull request: it reaches the shell as a variable, never as text of the script.
+        env:
+          PKG: ${{ matrix.package }}
+          CHECK: ${{ matrix.check }}
+        run: bun run --filter "$PKG" "$CHECK"
 ```
 
 ### GitLab CI
@@ -214,7 +219,7 @@ variables:
     - |
       names=$(bun x --no-install vulcan ci affected --base "$base" --check "$CHECK" --names)
       if [ -z "$names" ]; then echo "no affected package has $CHECK"; exit 0; fi
-      for name in $names; do
+      printf '%s\n' "$names" | while IFS= read -r name; do
         bun run --filter "$name" "$CHECK" || exit 1
       done
 
