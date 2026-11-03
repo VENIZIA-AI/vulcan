@@ -70,3 +70,22 @@ describe('a pattern is checked when the policy is read, not at every commit', ()
     expect(SubjectShape.patternError({ pattern: '^ok$' })).toBeUndefined();
   });
 });
+
+describe('the comment character of the repository', () => {
+  test('a subject that starts with the default comment character is the subject once core.commentChar differs', () => {
+    const subject = { pattern: '^#\\d+ ' };
+    const message = '#12 fix: a thing\n';
+
+    expect(SubjectShape.problemOf({ message, subject })).toBeUndefined();
+    expect(
+      SubjectShape.problemOf({ message, subject, comment: { prefixes: [';'] } }),
+    ).toBeUndefined();
+    expect(
+      SubjectShape.problemOf({
+        message: '#12 fix: a thing\n',
+        subject: { pattern: '^zzz' },
+        comment: { prefixes: [';'] },
+      })?.line,
+    ).toBe(1);
+  });
+});

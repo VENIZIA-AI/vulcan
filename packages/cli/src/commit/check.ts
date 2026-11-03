@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import { AgentSignaturePolicies, CommitCheckFlags } from './common/index.ts';
-import type { ICommitPolicy } from './common/index.ts';
+import type { ICommentStyle, ICommitPolicy } from './common/index.ts';
+import { CommitMessage } from './message.ts';
 import { CommitPolicy } from './policy.ts';
 import { AgentSignature } from './signature.ts';
 import { SubjectShape } from './subject.ts';
@@ -32,6 +33,14 @@ export class CommitCheck {
       return ExitCodes.USAGE;
     }
 
+    const input = CommitCheck.readMessages({ cwd: opts.cwd, source });
+
+    if (!input.ok) {
+      process.stderr.write(`commit-check: ${input.error}\n`);
+
+      return ExitCodes.USAGE;
+    }
+
     const policy = CommitPolicy.read({ root: opts.cwd });
 
     if (policy === undefined) {
@@ -42,16 +51,9 @@ export class CommitCheck {
       return ExitCodes.OK;
     }
 
-    const input = CommitCheck.readMessages({ cwd: opts.cwd, source });
-
-    if (!input.ok) {
-      process.stderr.write(`commit-check: ${input.error}\n`);
-
-      return ExitCodes.USAGE;
-    }
-
+    const comment = CommitMessage.commentStyleOf({ cwd: opts.cwd });
     const problems = input.messages.flatMap((checked) =>
-      CommitCheck.problemsOf({ checked, policy }),
+      CommitCheck.problemsOf({ checked, policy, comment }),
     );
 
     if (problems.length === 0) {
@@ -81,11 +83,15 @@ export class CommitCheck {
       : undefined;
   }
 
-  private static problemsOf(opts: { checked: ICheckedMessage; policy: ICommitPolicy }): string[] {
-    const { checked, policy } = opts;
+  private static problemsOf(opts: {
+    checked: ICheckedMessage;
+    policy: ICommitPolicy;
+    comment: ICommentStyle;
+  }): string[] {
+    const { checked, policy, comment } = opts;
     const signed =
       policy.agentSignature === AgentSignaturePolicies.DENY
-        ? AgentSignature.find({ message: checked.message, agents: policy.agents }).map(
+        ? AgentSignature.find({ message: checked.message, agents: policy.agents, comment }).map(
             (hit) =>
               `  ${checked.label} line ${hit.line}: "${hit.text}" signs the commit as an agent; remove the line`,
           )
@@ -93,7 +99,7 @@ export class CommitCheck {
     const shape =
       policy.subject === undefined
         ? undefined
-        : SubjectShape.problemOf({ message: checked.message, subject: policy.subject });
+        : SubjectShape.problemOf({ message: checked.message, subject: policy.subject, comment });
 
     return shape === undefined
       ? signed

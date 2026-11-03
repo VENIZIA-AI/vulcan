@@ -689,7 +689,9 @@ The `commit` object configures `vulcan commit-check` and the `commit-msg` hook t
 |---|---|---|---|
 | `message.agent.signature` | `'allow' \| 'deny'` | `'allow'` | `'deny'` rejects a `Co-Authored-By` or `Signed-off-by` trailer, or a `Generated with` line, that names an agent, and makes `sync` install the hook. `'allow'` checks and installs nothing |
 | `message.agent.names` | `string[]` | `[]` | Agent names added to the shipped list: a co-author whose name begins with one is flagged, and so is a `Generated with` line that names one. Spaces, case and hyphens do not matter. Used only with `'deny'`; it cannot remove a shipped name |
-| `message.agent.allow` | `string[]` | `[]` | Names never flagged, for a person who shares a name with an agent (`Claude Dupont`). Used only with `'deny'` |
+| `message.agent.allow` | `string[]` | `[]` | Whole co-author names never flagged, for a person who shares a name with an agent (`Claude Dupont`); an agent's address still is. Used only with `'deny'` |
+
+Every entry of `names` and `allow` holds a letter or a digit; the config refuses an entry of punctuation or spaces.
 | `message.subject` | `{ pattern, hint? }` | none | The project's one-line shape: the first line of a message must match `pattern`, a regular expression source (an invalid one is refused when the config loads). `hint` is shown beside a failure. Setting it installs the hook too |
 
 `vulcan sync` writes the block to the manifest only when a check is on, and the command reads it from there. See [vulcan commit-check](/references/commands/commit-check) for what is checked and what the hook does.

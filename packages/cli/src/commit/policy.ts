@@ -87,7 +87,7 @@ export class CommitPolicy {
     }
 
     return Array.isArray(opts.value) &&
-      opts.value.every((name) => typeof name === 'string' && name !== '')
+      opts.value.every((name) => typeof name === 'string' && /[\p{L}\p{N}]/u.test(name))
       ? opts.value
       : undefined;
   }

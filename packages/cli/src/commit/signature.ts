@@ -1,5 +1,4 @@
-import { TextValue } from '../common/index.ts';
-import type { ICommitAgents, ISignatureHit } from './common/index.ts';
+import type { ICommentStyle, ICommitAgents, ISignatureHit } from './common/index.ts';
 import { CommitMessage } from './message.ts';
 
 /** Any `*-by:` trailer: Co-authored-by, Signed-off-by, Co-developed-by, Assisted-by, Reviewed-by. */
@@ -8,29 +7,33 @@ const ADDRESS = /<([^>]+)>/;
 /** `noreply`, `no-reply`, `no_reply`, or GitHub's `<id>+noreply`: the local part of an address no person reads. */
 const NOREPLY_LOCAL = /^(?:\d+\+)?no[-_]?reply$/i;
 const LEADING_PICTOGRAPH = /^\s*(?:\p{Extended_Pictographic}\s*)?/u;
+/** Markup between "Generated with" and the name: `[`, `**`, a backtick, a space. */
+const MARKUP = /^[\s[\]*_`(]+/;
 
 export class AgentSignature {
-  static find(opts: { message: string; agents: ICommitAgents }): ISignatureHit[] {
-    const mention = new RegExp(
-      `(?<![A-Za-z0-9])(?:${opts.agents.mentions.map((text) => TextValue.escapeLiteral({ text })).join('|')})(?![A-Za-z0-9])`,
-      'i',
+  static find(opts: {
+    message: string;
+    agents: ICommitAgents;
+    comment?: ICommentStyle;
+  }): ISignatureHit[] {
+    return CommitMessage.linesOf({ message: opts.message, comment: opts.comment }).flatMap(
+      (raw, index) => {
+        const text = CommitMessage.cleanOf({ text: raw });
+
+        if (CommitMessage.isComment({ line: text, comment: opts.comment })) {
+          return [];
+        }
+
+        const isSigned =
+          AgentSignature.isSigningTrailer({ text, agents: opts.agents }) ||
+          AgentSignature.isGeneratedLine({ text, agents: opts.agents });
+
+        return isSigned ? [{ line: index + 1, text: raw.trim() }] : [];
+      },
     );
-
-    return CommitMessage.linesOf({ message: opts.message }).flatMap((raw, index) => {
-      const text = CommitMessage.cleanOf({ text: raw });
-
-      if (text.startsWith('#')) {
-        return [];
-      }
-
-      const isSigned =
-        AgentSignature.isSigningTrailer({ text, agents: opts.agents }) ||
-        AgentSignature.isGeneratedLine({ text, mention, agents: opts.agents });
-
-      return isSigned ? [{ line: index + 1, text: raw.trim() }] : [];
-    });
   }
 
+  /** A name on the allow list clears a trailer only when it is the whole name and the address is not an agent's. */
   private static isSigningTrailer(opts: { text: string; agents: ICommitAgents }): boolean {
     const value = TRAILER.exec(opts.text)?.[1];
 
@@ -40,21 +43,20 @@ export class AgentSignature {
 
     const address = ADDRESS.exec(value)?.[1] ?? '';
     const display = value.replace(ADDRESS, ' ');
-    const whole = CommitMessage.compactOf({ text: value });
-
-    if (opts.agents.allow.some((name) => whole.includes(CommitMessage.compactOf({ text: name })))) {
-      return false;
-    }
-
+    const isAgentAddress = AgentSignature.isAgentAddress({ address, agents: opts.agents });
     const name = CommitMessage.compactOf({ text: display });
+    const isAllowed =
+      !isAgentAddress &&
+      opts.agents.allow.some((allowed) => CommitMessage.compactOf({ text: allowed }) === name);
 
     return (
-      opts.agents.products.some((product) =>
-        name.startsWith(CommitMessage.compactOf({ text: product })),
-      ) || AgentSignature.isAgentAddress({ address, agents: opts.agents })
+      !isAllowed &&
+      (isAgentAddress ||
+        CommitMessage.beginsWithForm({ text: display, forms: opts.agents.products }))
     );
   }
 
+  /** `noreply` at a vendor's domain, or a local part that names an agent at a domain an agent uses. */
   private static isAgentAddress(opts: { address: string; agents: ICommitAgents }): boolean {
     const at = opts.address.lastIndexOf('@');
 
@@ -63,28 +65,30 @@ export class AgentSignature {
     }
 
     const local = opts.address.slice(0, at);
-    const domain = opts.address.slice(at + 1).toLowerCase();
     const bare = local.replace(/^\d+\+/, '').toLowerCase();
+    const domain = opts.address.slice(at + 1).toLowerCase();
+    const isAt = (domains: string[]): boolean =>
+      domains.some((listed) => domain === listed || domain.endsWith(`.${listed}`));
 
     return (
-      opts.agents.addressNames.some((name) => name.toLowerCase() === bare) ||
-      (NOREPLY_LOCAL.test(local) &&
-        opts.agents.noreplyDomains.some(
-          (listed) => domain === listed || domain.endsWith(`.${listed}`),
-        ))
+      (NOREPLY_LOCAL.test(local) && isAt(opts.agents.noreplyDomains)) ||
+      (opts.agents.addressNames.some((name) => name.toLowerCase() === bare) &&
+        isAt(opts.agents.addressDomains))
     );
   }
 
-  /** Only at the start of a line, and only when it names an agent: "Generated with protoc" is a human's note. */
-  private static isGeneratedLine(opts: {
-    text: string;
-    mention: RegExp;
-    agents: ICommitAgents;
-  }): boolean {
-    const body = opts.text.replace(LEADING_PICTOGRAPH, '');
+  /** At the start of a line, and only when an agent's name comes right after: "Generated by scripts/gen.ts from CLAUDE.md" is a note about a file. */
+  private static isGeneratedLine(opts: { text: string; agents: ICommitAgents }): boolean {
+    const body = opts.text.replace(LEADING_PICTOGRAPH, '').replace(MARKUP, '');
     const lower = body.toLowerCase();
     const phrase = opts.agents.generatedPhrases.find((listed) => lower.startsWith(listed));
 
-    return phrase !== undefined && opts.mention.test(body.slice(phrase.length));
+    return (
+      phrase !== undefined &&
+      CommitMessage.beginsWithForm({
+        text: body.slice(phrase.length).replace(MARKUP, ''),
+        forms: [...opts.agents.products, ...opts.agents.mentions],
+      })
+    );
   }
 }

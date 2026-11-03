@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { git, initRepo } from '../git-repo.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -213,5 +213,116 @@ describe('the arguments', () => {
 
     expect(result.code).toBe(2);
     expect(result.stderr).toContain("unknown argument '--all'");
+  });
+});
+
+describe('input is validated before the not-configured exit', () => {
+  test('an unreadable file, a range git rejects and an option-shaped range exit 2 with no check configured', () => {
+    const bare = projectWith({});
+
+    initRepo({ cwd: bare });
+
+    const target = join(bare, 'written-by-git');
+
+    expect(runCli({ args: ['commit-check', join(bare, 'nope')], cwd: bare }).code).toBe(2);
+    expect(runCli({ args: ['commit-check', '--range', 'nope..HEAD'], cwd: bare }).code).toBe(2);
+    expect(
+      runCli({ args: ['commit-check', '--range', `--output=${target}`], cwd: bare }).code,
+    ).toBe(2);
+    expect(existsSync(target)).toBe(false);
+  });
+});
+
+describe('core.commentChar', () => {
+  const SIGNED_LINE = 'Co-Authored-By: Claude <noreply@anthropic.com>';
+
+  const repoWith = (opts: { commentChar: string }): string => {
+    const root = projectWith({ message: { agent: { signature: 'deny' } } });
+
+    initRepo({ cwd: root });
+    git({ cwd: root, args: ['config', 'core.commentChar', opts.commentChar] });
+
+    return root;
+  };
+
+  test('a line that starts with the configured character is a comment', () => {
+    const root = repoWith({ commentChar: ';' });
+
+    expect(checkFile({ root, message: `fix: a\n\n;${SIGNED_LINE}\n` }).code).toBe(0);
+    expect(checkFile({ root, message: `fix: a\n\n#${SIGNED_LINE}\n` }).code).toBe(0);
+    expect(checkFile({ root, message: `fix: a\n\n${SIGNED_LINE}\n` }).code).toBe(1);
+  });
+
+  test('and so is the scissors line of that character, with everything below it', () => {
+    const root = repoWith({ commentChar: ';' });
+    const message = `fix: a\n\n; ------------------------ >8 ------------------------\n${SIGNED_LINE}\n`;
+
+    expect(checkFile({ root, message }).code).toBe(0);
+  });
+
+  test('auto reads any character git may have chosen', () => {
+    const root = repoWith({ commentChar: 'auto' });
+    const message = `fix: a\n\n@ ------------------------ >8 ------------------------\n${SIGNED_LINE}\n`;
+
+    expect(checkFile({ root, message: `fix: a\n\n@${SIGNED_LINE}\n` }).code).toBe(0);
+    expect(checkFile({ root, message }).code).toBe(0);
+  });
+});
+
+describe('the command does not load atlas', () => {
+  const SRC = join(import.meta.dir, '..', '..');
+  const transpiler = new Bun.Transpiler({ loader: 'ts' });
+
+  /** The packages that `entry` imports, directly or through the files it imports with `import ... from`; a dynamic `import()` is not followed. */
+  const packagesReachedFrom = (opts: { entry: string }): Set<string> => {
+    const seen = new Set<string>();
+    const packages = new Set<string>();
+    const queue = [opts.entry];
+
+    while (queue.length > 0) {
+      const file = queue.pop() ?? '';
+
+      if (seen.has(file)) {
+        continue;
+      }
+
+      seen.add(file);
+
+      for (const found of transpiler.scanImports(readFileSync(file, 'utf8'))) {
+        if (found.kind !== 'import-statement') {
+          continue;
+        }
+
+        if (found.path.startsWith('.')) {
+          queue.push(join(dirname(file), found.path));
+        } else {
+          packages.add(found.path);
+        }
+      }
+    }
+
+    return packages;
+  };
+
+  test('the router and the command reach atlas through no static import', () => {
+    expect(packagesReachedFrom({ entry: join(SRC, 'router.ts') })).not.toContain(
+      '@venizia/vulcan-atlas',
+    );
+    expect(
+      packagesReachedFrom({ entry: join(SRC, 'commands', 'commit-check.command.ts') }),
+    ).not.toContain('@venizia/vulcan-atlas');
+  });
+
+  test('the walk sees an import that is there: the doctor command reaches atlas', () => {
+    expect(packagesReachedFrom({ entry: join(SRC, 'commands', 'doctor.command.ts') })).toContain(
+      '@venizia/vulcan-atlas',
+    );
+  });
+
+  test('help and version run', () => {
+    const root = projectWith({});
+
+    expect(runCli({ args: ['help'], cwd: root }).code).toBe(0);
+    expect(runCli({ args: ['version'], cwd: root }).code).toBe(0);
   });
 });

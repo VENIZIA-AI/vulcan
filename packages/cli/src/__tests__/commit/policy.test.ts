@@ -80,6 +80,16 @@ describe('commit.message in the config', () => {
     expect(unknownValue.success).toBe(false);
     expect(JSON.stringify(unknownValue.error?.issues)).toContain('allow, deny');
 
+    for (const entry of ['-', '  ', '', '...']) {
+      for (const key of ['names', 'allow']) {
+        expect(
+          VULCAN_CONFIG_SCHEMA.safeParse({ commit: { message: { agent: { [key]: [entry] } } } })
+            .success,
+          `${key} ${JSON.stringify(entry)}`,
+        ).toBe(false);
+      }
+    }
+
     const bad = VULCAN_CONFIG_SCHEMA.safeParse({
       commit: { message: { subject: { pattern: '(' } } },
     });
@@ -180,10 +190,14 @@ describe('CommitPolicy.read', () => {
     const badAllow = projectWithManifest({
       manifest: { commit: { message: { agent: { signature: 'deny', allow: [1] } } } },
     });
+    const emptyAllow = projectWithManifest({
+      manifest: { commit: { message: { agent: { signature: 'deny', allow: ['-'] } } } },
+    });
 
     expect(CommitPolicy.read({ root: maybe })).toBeUndefined();
     expect(CommitPolicy.read({ root: noAgent })).toBeUndefined();
     expect(CommitPolicy.read({ root: badAllow })).toBeUndefined();
+    expect(CommitPolicy.read({ root: emptyAllow })).toBeUndefined();
   });
 
   test('a manifest that is not JSON is ignored', () => {

@@ -113,6 +113,11 @@ const NPM_PACKAGE_NAME = z.string().superRefine((value, context) => {
   }
 });
 
+/** A name that holds a letter or a digit: an entry of only punctuation or spaces would match everything. */
+const AGENT_NAME = z
+  .string()
+  .regex(/[\p{L}\p{N}]/u, { message: 'a name with at least one letter or digit' });
+
 const PROJECT_PACKAGE = z.strictObject({
   dir: z.string().regex(/^[a-z0-9][a-z0-9.-]*$/),
   name: NPM_PACKAGE_NAME,
@@ -430,8 +435,8 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
                   { message: `one of ${[...AgentSignaturePolicies.SCHEME_SET].join(', ')}` },
                 )
                 .default(AgentSignaturePolicies.ALLOW),
-              names: z.array(z.string().min(1)).default([]),
-              allow: z.array(z.string().min(1)).default([]),
+              names: z.array(AGENT_NAME).default([]),
+              allow: z.array(AGENT_NAME).default([]),
             })
             .default({ signature: AgentSignaturePolicies.ALLOW, names: [], allow: [] }),
           subject: z

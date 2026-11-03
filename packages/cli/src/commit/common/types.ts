@@ -8,8 +8,9 @@ export interface ICommitAgents {
   products: string[];
   /** Words a "generated with" line names an agent by: "Claude", "Gemini". */
   mentions: string[];
-  /** Local parts of an address that is an agent's: `cursoragent@cursor.com`. */
+  /** Local parts that name an agent: `cursoragent`, on an address at one of `addressDomains`. */
   addressNames: string[];
+  addressDomains: string[];
   noreplyDomains: string[];
   generatedPhrases: string[];
   /** Names the project says are never an agent (a person called Claude). */
@@ -48,4 +49,9 @@ export interface ICommitHookStatus {
   path: string;
   /** What the developer does when sync cannot: the line to add to a hook that is theirs. */
   note?: string;
+}
+
+/** The prefixes git treats as comment lines, and as the start of the scissors line. */
+export interface ICommentStyle {
+  prefixes: string[];
 }

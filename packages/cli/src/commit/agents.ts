@@ -8,6 +8,7 @@ const AGENTS_SCHEMA = z.strictObject({
   products: z.array(z.string().min(1)).min(1),
   mentions: z.array(z.string().min(1)).min(1),
   addressNames: z.array(z.string().min(1)),
+  addressDomains: z.array(z.string().min(1)),
   noreplyDomains: z.array(z.string().min(1)),
   generatedPhrases: z.array(z.string().min(1)).min(1),
 });

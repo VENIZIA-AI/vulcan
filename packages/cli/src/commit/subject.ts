@@ -1,4 +1,4 @@
-import type { ICommitSubject, ISubjectProblem } from './common/index.ts';
+import type { ICommentStyle, ICommitSubject, ISubjectProblem } from './common/index.ts';
 import { CommitMessage } from './message.ts';
 
 const GENERATED_SUBJECT = /^(?:Merge |Revert "|(?:fixup|squash|amend)! )/;
@@ -7,9 +7,13 @@ export class SubjectShape {
   static problemOf(opts: {
     message: string;
     subject: ICommitSubject;
+    comment?: ICommentStyle;
   }): ISubjectProblem | undefined {
-    const lines = CommitMessage.linesOf({ message: opts.message });
-    const index = lines.findIndex((text) => text.trim() !== '' && !text.startsWith('#'));
+    const lines = CommitMessage.linesOf({ message: opts.message, comment: opts.comment });
+    const index = lines.findIndex(
+      (text) =>
+        text.trim() !== '' && !CommitMessage.isComment({ line: text, comment: opts.comment }),
+    );
 
     if (index === -1) {
       return undefined;

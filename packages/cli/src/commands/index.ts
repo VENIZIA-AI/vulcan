@@ -1,33 +1,29 @@
 import { VulcanCommands } from '../common/index.ts';
 import type { TCommandHandler } from '../common/index.ts';
-import { runAddCommand } from './add.command.ts';
-import { runAgentsCommand } from './agents.command.ts';
-import { runCleanCommand } from './clean.command.ts';
-import { runCommitCheckCommand } from './commit-check.command.ts';
-import { runDoctorCommand } from './doctor.command.ts';
-import { runHelpCommand, runVersionCommand } from './help.command.ts';
-import { runInitCommand } from './init.command.ts';
-import { runPresetCommand } from './preset.command.ts';
-import { runProfileCommand } from './profile.command.ts';
-import { runSyncCommand } from './sync.command.ts';
-import { runUpgradeCommand } from './upgrade.command.ts';
-import { runVisualizeCommand } from './visualize.command.ts';
-import { runXCommand } from './x.command.ts';
 
-/** The handler of every implemented command. */
-export const COMMAND_HANDLERS: Record<string, TCommandHandler> = {
-  [VulcanCommands.ADD]: runAddCommand,
-  [VulcanCommands.AGENTS]: runAgentsCommand,
-  [VulcanCommands.CLEAN]: runCleanCommand,
-  [VulcanCommands.COMMIT_CHECK]: runCommitCheckCommand,
-  [VulcanCommands.DOCTOR]: runDoctorCommand,
-  [VulcanCommands.HELP]: runHelpCommand,
-  [VulcanCommands.INIT]: runInitCommand,
-  [VulcanCommands.PRESET]: runPresetCommand,
-  [VulcanCommands.PROFILE]: runProfileCommand,
-  [VulcanCommands.SYNC]: runSyncCommand,
-  [VulcanCommands.UPGRADE]: runUpgradeCommand,
-  [VulcanCommands.VERSION]: runVersionCommand,
-  [VulcanCommands.VISUALIZE]: runVisualizeCommand,
-  [VulcanCommands.X]: runXCommand,
+/** Each command is loaded when it runs: `commit-check` is called by a git hook and must not load the commands that need atlas. */
+export const COMMAND_LOADERS: Record<string, () => Promise<TCommandHandler>> = {
+  [VulcanCommands.ADD]: () => import('./add.command.ts').then((module) => module.runAddCommand),
+  [VulcanCommands.AGENTS]: () =>
+    import('./agents.command.ts').then((module) => module.runAgentsCommand),
+  [VulcanCommands.CLEAN]: () =>
+    import('./clean.command.ts').then((module) => module.runCleanCommand),
+  [VulcanCommands.COMMIT_CHECK]: () =>
+    import('./commit-check.command.ts').then((module) => module.runCommitCheckCommand),
+  [VulcanCommands.DOCTOR]: () =>
+    import('./doctor.command.ts').then((module) => module.runDoctorCommand),
+  [VulcanCommands.HELP]: () => import('./help.command.ts').then((module) => module.runHelpCommand),
+  [VulcanCommands.INIT]: () => import('./init.command.ts').then((module) => module.runInitCommand),
+  [VulcanCommands.PRESET]: () =>
+    import('./preset.command.ts').then((module) => module.runPresetCommand),
+  [VulcanCommands.PROFILE]: () =>
+    import('./profile.command.ts').then((module) => module.runProfileCommand),
+  [VulcanCommands.SYNC]: () => import('./sync.command.ts').then((module) => module.runSyncCommand),
+  [VulcanCommands.UPGRADE]: () =>
+    import('./upgrade.command.ts').then((module) => module.runUpgradeCommand),
+  [VulcanCommands.VERSION]: () =>
+    import('./help.command.ts').then((module) => module.runVersionCommand),
+  [VulcanCommands.VISUALIZE]: () =>
+    import('./visualize.command.ts').then((module) => module.runVisualizeCommand),
+  [VulcanCommands.X]: () => import('./x.command.ts').then((module) => module.runXCommand),
 };
