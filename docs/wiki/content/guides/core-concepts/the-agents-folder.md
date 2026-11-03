@@ -65,12 +65,12 @@ You do not have to run `vulcan clean` for the safe part. At most once a day per 
 
 | What | When |
 |---|---|
-| `tmp/` entries | older than a day |
+| `tmp/` entries | older than a day, unless the folder holds a repository: a `.git` folder or file anywhere inside it (a scratch clone, a `git worktree add` into `tmp/`; a `.git` inside `node_modules` does not count) is somebody's work and stays |
 | `com.google.Chrome.*` and `org.chromium.Chromium.*` folders under `.agents/local/` | older than an hour |
-| Event day files | past `maxAgeDays`, `maxFiles` or `maxSize`; never today's |
+| Event day files | past `maxAgeDays`, `maxFiles` or `maxSize`; never today's or a later day's |
 | `release-candidates/` folders | whose version is tagged |
 
-It never touches a worktree, a clone, the cache, `reports/`, `prototypes/` or anything it does not know: a wrong guess there loses work, so those stay with `vulcan clean --yes` and the warnings of `vulcan doctor`. When a run removed something, the next session prints one line on stderr, such as `vulcan: cleaned 12.0 MB from .agents/local`. Set `local: { autoClean: false }` in the config to turn it off, or `VULCAN_AUTO_CLEAN=off` for one shell. A shared events folder outside the project is kept by whichever session starts first.
+It never removes a worktree or a clone, wherever it sits, and never touches the cache, `reports/`, `prototypes/` or anything it does not know: a wrong guess there loses work, so those stay with `vulcan clean --yes` and the warnings of `vulcan doctor`. When a run removed something, the next session prints one line on stderr, such as `vulcan: cleaned 12.0 MB from .agents/local`. Set `local: { autoClean: false }` in the config to turn it off, or `VULCAN_AUTO_CLEAN=off` for one shell. A shared events folder outside the project is kept by whichever session starts first.
 
 ## What doctor says
 

@@ -1,5 +1,13 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { EventLog } from '../../events/log.ts';
@@ -57,6 +65,18 @@ const put = (opts: { root: string; path: string; text?: string; ago?: number }):
       }
     }
   }
+};
+/** Gives a file and everything under it the time of `ago` milliseconds before NOW, links not followed. */
+const ageTree = (opts: { path: string; ago: number }): void => {
+  const then = new Date(NOW - opts.ago);
+
+  if (lstatSync(opts.path).isDirectory()) {
+    for (const name of readdirSync(opts.path)) {
+      ageTree({ path: join(opts.path, name), ago: opts.ago });
+    }
+  }
+
+  utimesSync(opts.path, then, then);
 };
 const has = (opts: { root: string; path: string }): boolean =>
   existsSync(join(opts.root, '.agents/local', opts.path));
@@ -306,6 +326,65 @@ describe('AutoCleanRun.run: the safe part, and nothing else', () => {
     }
 
     expect(git({ cwd: root, args: ['worktree', 'list'] })).toContain('worktrees/done');
+  });
+
+  test("a folder in tmp that holds a repository is somebody's work: a clone, a worktree, a repository deeper down", () => {
+    const root = project();
+    const old = 3 * DAY;
+
+    // A scratch clone with a commit that was never pushed.
+    put({ root, path: 'tmp/clone/README.md', ago: old });
+    git({ cwd: join(root, '.agents/local/tmp/clone'), args: ['init', '-q', '-b', 'main'] });
+    git({
+      cwd: join(root, '.agents/local/tmp/clone'),
+      args: ['config', 'user.email', 'a@example.com'],
+    });
+    git({ cwd: join(root, '.agents/local/tmp/clone'), args: ['config', 'user.name', 'a'] });
+    git({ cwd: join(root, '.agents/local/tmp/clone'), args: ['add', '.'] });
+    git({
+      cwd: join(root, '.agents/local/tmp/clone'),
+      args: ['commit', '-q', '-m', 'unpushed work'],
+    });
+    // A worktree added straight into tmp: its .git is a file.
+    git({
+      cwd: root,
+      args: ['worktree', 'add', '-q', join(root, '.agents/local/tmp/wt'), '-b', 'wt'],
+    });
+    // A repository two levels down.
+    put({ root, path: 'tmp/outer/inner/file.txt', ago: old });
+    git({ cwd: join(root, '.agents/local/tmp/outer/inner'), args: ['init', '-q'] });
+    // Stale scratch that holds no repository; a .git inside node_modules is a package's, not work.
+    put({ root, path: 'tmp/plain/a.txt', ago: old });
+    put({ root, path: 'tmp/pkg/node_modules/dep/.git/HEAD', ago: old });
+
+    for (const path of ['tmp/clone', 'tmp/wt', 'tmp/outer', 'tmp/plain', 'tmp/pkg']) {
+      ageTree({ path: join(root, '.agents/local', path), ago: old });
+    }
+
+    AutoCleanRun.run({ root, now: NOW });
+
+    expect(has({ root, path: 'tmp/clone/.git' })).toBe(true);
+    expect(
+      git({ cwd: join(root, '.agents/local/tmp/clone'), args: ['log', '--format=%s'] }).trim(),
+    ).toBe('unpushed work');
+    expect(has({ root, path: 'tmp/wt/.git' })).toBe(true);
+    expect(git({ cwd: root, args: ['worktree', 'list'] })).toContain('tmp/wt');
+    expect(has({ root, path: 'tmp/outer/inner/.git' })).toBe(true);
+    expect(has({ root, path: 'tmp/plain' })).toBe(false);
+    expect(has({ root, path: 'tmp/pkg' })).toBe(false);
+  });
+
+  test('a folder too big to look through counts as holding a repository, and one that cannot be read stays', () => {
+    const big = createProject({ files: {} });
+
+    mkdirSync(join(big, 'a'), { recursive: true });
+    writeFileSync(join(big, 'a', 'one'), 'x');
+    writeFileSync(join(big, 'a', 'two'), 'x');
+
+    expect(AutoCleanRun.holdsRepository({ path: big })).toBe(false);
+    expect(AutoCleanRun.holdsRepository({ path: big, budget: { left: 1 } })).toBe(true);
+    expect(AutoCleanRun.holdsRepository({ path: join(big, 'missing') })).toBe(true);
+    expect(AutoCleanRun.holdsRepository({ path: join(big, 'a', 'one') })).toBe(false);
   });
 
   test('the scan the clean uses never looks at worktrees: no git call for them, and none of their entries', () => {

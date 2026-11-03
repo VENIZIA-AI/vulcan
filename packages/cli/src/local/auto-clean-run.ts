@@ -1,3 +1,5 @@
+import { lstatSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
 import { LocalAutoClean } from './auto-clean.ts';
@@ -21,10 +23,12 @@ export class AutoCleanRun {
       now,
       only: [CleanScopes.TMP, CleanScopes.RELEASE_CANDIDATES],
     });
+    // A folder that holds a repository (a clone, a worktree) is somebody's work: only `vulcan clean --yes` takes it, with its checks.
     const remove = scanned.filter(
       (entry) =>
         entry.removable &&
-        (entry.state === LocalStates.STALE || entry.state === LocalStates.SHIPPED),
+        (entry.state === LocalStates.STALE || entry.state === LocalStates.SHIPPED) &&
+        !AutoCleanRun.holdsRepository({ path: entry.path }),
     );
     const ran = LocalClean.run({ root: opts.root, plan: { remove, keep: [] } });
     let files = ran.removed.length;
@@ -55,4 +59,41 @@ export class AutoCleanRun {
 
     return { files, bytes };
   }
+
+  /**
+   * Whether `path`, or anything under it, is a `.git` file or folder (a clone has the folder, a worktree the file). A
+   * link is not followed and `node_modules` is not entered. A tree too big to look through counts as holding one.
+   */
+  static holdsRepository(opts: { path: string; budget?: { left: number } }): boolean {
+    const budget = opts.budget ?? { left: AutoCleanRun.LOOK_LIMIT };
+
+    try {
+      if (!lstatSync(opts.path).isDirectory()) {
+        return false;
+      }
+
+      for (const name of readdirSync(opts.path)) {
+        budget.left -= 1;
+
+        if (budget.left < 0 || name === '.git') {
+          return true;
+        }
+
+        if (
+          name !== 'node_modules' &&
+          AutoCleanRun.holdsRepository({ path: join(opts.path, name), budget })
+        ) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch {
+      // What cannot be read cannot be judged: it stays.
+      return true;
+    }
+  }
+
+  /** How many entries are looked at before a tree counts as holding a repository. */
+  static readonly LOOK_LIMIT = 20_000;
 }

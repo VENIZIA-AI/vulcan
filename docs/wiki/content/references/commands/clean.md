@@ -14,7 +14,7 @@ Everything an agent creates while it works lives under the project's gitignored 
 | `--clones` | `clones/` | clones of other repositories |
 | `--cache` | `cache/` | what atlas fetched; it rebuilds |
 | `--all` | the four above | never `reports/`, `prototypes/`, `events/`, `release-candidates/` or the profile |
-| `--events` | `events/` | only when named, and only the day files the limits of `events` (`maxAgeDays`, `maxFiles`, `maxSize`) say to remove; today's file and the files within the limits are kept, and the output says so |
+| `--events` | the event log | only when named, and only the day files the limits of `events` (`maxAgeDays`, `maxFiles`, `maxSize`) say to remove, in the folder the project's `events.dir` names (else `events/`); today's file, later ones and the files within the limits are kept, and the output says so. A log outside the project is listed by its whole path, and only a `yyyy-mm-dd.jsonl` file directly in that folder is ever removed |
 | `--reports`, `--prototypes`, `--profile` | `reports/`, `prototypes/`, `profile.json` | only when named; they are kept until you delete them |
 | `--release-candidates` | `release-candidates/` | only when named, and only a folder named as a version (`1.2.3`, `v1.2.3`, `1.2.3-rc.1`) whose tag exists, with or without the `v` (the folder `1.0.0` goes when the tag `v1.0.0` exists, and the other way round); a candidate not released yet, or a name that is not a version, is kept, and the reason is printed |
 | `--yes` | | removes what the dry run listed |

@@ -143,6 +143,19 @@ describe('EventRetention.plan: today', () => {
     );
   });
 
+  test('a file of a later day than today (a clock that is ahead, a writer past midnight) is never removed either', () => {
+    const dir = folder({ days: { 0: 10, [-1]: 4000, [-5]: 4000, 3: 10 } });
+    const plan = EventRetention.plan({
+      dir,
+      limits: { maxBytes: 1, maxFiles: 1, maxAgeDays: 1 },
+      now: NOW,
+    });
+
+    expect(plan.remove.map((file) => file.name)).toEqual(names({ ago: [3] }));
+    expect(plan.remove.map((file) => file.name)).not.toContain(`${day(-1)}.jsonl`);
+    expect(plan.remove.map((file) => file.name)).not.toContain(`${day(-5)}.jsonl`);
+  });
+
   test("today's file alone over maxSize is said, and nothing is truncated", () => {
     const dir = folder({ days: { 0: 5000 } });
     const plan = EventRetention.plan({ dir, limits: { ...LIMITS, maxBytes: 1000 }, now: NOW });

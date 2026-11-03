@@ -59,7 +59,7 @@ export class EventRetention {
   /**
    * What goes from the folder `dir`. First every day file older than `maxAgeDays` days; then the oldest files, one by
    * one, until the count is within `maxFiles` and the total within `maxBytes`. Today's file (of the local day of `now`)
-   * is never in the list, even when it alone is over the size, which `todayOver` then says.
+   * and a file of a later day are never in the list, even when today's alone is over the size, which `todayOver` then says.
    */
   static plan(opts: { dir: string; limits: IEventLimits; now: number }): IRetentionPlan {
     const empty: IRetentionPlan = { remove: [], todayOver: false, todayBytes: 0 };
@@ -95,7 +95,7 @@ export class EventRetention {
         (todayStart - new Date(`${file.day}T00:00:00`).getTime()) / EventConstants.DAY_MS,
       );
 
-      if (file.day !== today && ageDays > opts.limits.maxAgeDays) {
+      if (file.day < today && ageDays > opts.limits.maxAgeDays) {
         remove.push({
           name: file.name,
           bytes: file.bytes,
@@ -111,7 +111,8 @@ export class EventRetention {
     let count = keep.length;
 
     for (const file of keep) {
-      if (file.day === today) {
+      // Today's file and any later one (a clock that is ahead, a writer past midnight) are never removed.
+      if (file.day >= today) {
         continue;
       }
 
@@ -136,6 +137,11 @@ export class EventRetention {
       todayOver: todayFile !== undefined && todayFile.bytes > opts.limits.maxBytes,
       todayBytes: todayFile?.bytes ?? 0,
     };
+  }
+
+  /** Whether `name` is a day file of the log: `yyyy-mm-dd.jsonl`. */
+  static isDayFile(opts: { name: string }): boolean {
+    return DAY_FILE.test(opts.name);
   }
 
   /** Removes the files of a plan; returns what went. A file that cannot be removed is left and not counted. */

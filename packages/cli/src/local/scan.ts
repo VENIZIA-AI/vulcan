@@ -21,6 +21,8 @@ export interface ILocalEntry {
   isSymlink: boolean;
   /** A registered git worktree: removed with `git worktree remove`, then pruned. */
   registered: boolean;
+  /** A day file of an event log kept outside the project (`events.dir`): removed only after its folder is checked against the settings. */
+  outside?: boolean;
   note: string;
 }
 
@@ -432,20 +434,25 @@ export class LocalScan {
       ? LocalScan.registeredWorktrees({ root: opts.root })
       : undefined;
     const entries: ILocalEntry[] = [];
+    // The event log is where the project's settings put it (`events.dir`, else `.agents/local/events`), with its limits.
+    const eventSettings = EventSettings.read({ root: opts.root });
+    const eventsDir = EventSettings.dirOf({ root: opts.root, settings: eventSettings });
     const eventPlan = wants(CleanScopes.EVENTS)
       ? EventRetention.plan({
-          dir: join(local, 'events'),
-          limits: EventRetention.limitsOf({ settings: EventSettings.read({ root: opts.root }) }),
+          dir: eventsDir,
+          limits: EventRetention.limitsOf({ settings: eventSettings }),
           now,
         })
       : undefined;
+    const isEventsOutside = !`${eventsDir}${sep}`.startsWith(`${local}${sep}`);
 
     for (const layout of ProjectLayout.LOCAL_LAYOUT) {
       if (!wants(layout.name)) {
         continue;
       }
 
-      const directory = join(local, layout.name);
+      const isEvents = layout.name === CleanScopes.EVENTS;
+      const directory = isEvents ? eventsDir : join(local, layout.name);
 
       if (!isRealDirectory({ path: directory })) {
         continue;
@@ -511,7 +518,8 @@ export class LocalScan {
         entries.push({
           scope: layout.name,
           name,
-          where: `${layout.name}/${name}`,
+          // An event log kept outside the project is named by its whole path.
+          where: isEvents && isEventsOutside ? path : `${layout.name}/${name}`,
           path,
           bytes: sizeOf({ path }),
           ageMs,
@@ -520,6 +528,7 @@ export class LocalScan {
           isSymlink: stat.isSymbolicLink(),
           registered: isRegistered,
           note,
+          ...(isEvents && isEventsOutside ? { outside: true } : {}),
         });
       }
     }
