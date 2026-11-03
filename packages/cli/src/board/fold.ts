@@ -72,12 +72,15 @@ export class BoardFold {
     const decisions: Record<string, IBoardDecision> = {};
 
     for (const [id, lines] of byFlow) {
-      // Plumbing (a session, a subagent, the harness waiting) is carried along for the page to show on request; it never moves the flow.
-      const quiet = lines.filter((event) => event.plumbing === true);
-      const core = lines.filter((event) => event.plumbing !== true);
+      // Plumbing (a session, a subagent, the harness waiting) and the lines that name the flow are carried along as
+      // lines of the flow; they never move it: not its state, stage, holder or last line. A `flow` line only sets the
+      // title and the reason, the newest by time winning.
+      const quiet = lines.filter((event) => event.plumbing === true || event.isTitle === true);
+      const core = lines.filter((event) => event.plumbing !== true && event.isTitle !== true);
+      const named = [...lines].sort(byTime).findLast((event) => event.isTitle === true);
 
       if (core.length === 0) {
-        flows.push(BoardFold.quietFlow({ id, lines: quiet }));
+        flows.push(BoardFold.quietFlow({ id, lines: quiet, named }));
         continue;
       }
 
@@ -90,14 +93,29 @@ export class BoardFold {
 
       const flow = BoardFold.flowOf({ id, events, owner: opts.owner });
 
-      flows.push(
-        quiet.length === 0
-          ? flow
-          : { ...flow, events: BoardFold.withPlumbing({ events: flow.events, plumbing: quiet }) },
-      );
+      flows.push({
+        ...flow,
+        ...BoardFold.headingOf({ named }),
+        ...(quiet.length === 0
+          ? {}
+          : { events: BoardFold.withQuiet({ events: flow.events, quiet }) }),
+      });
     }
 
     return { flows, decisions };
+  }
+
+  /**
+   * A `needs-owner` line the harness raised: the hook recorded the notification type (so a title such as "Claude
+   * needs your permission" is still the harness). A line without the field is judged by its summary alone, the way
+   * lines written before the field existed are: the name of a prompt, in any case.
+   */
+  private static isHarnessAsk(opts: { line: IEvent }): boolean {
+    return (
+      opts.line.kind === EventKinds.NEEDS_OWNER &&
+      (opts.line.notification !== undefined ||
+        BoardConstants.HARNESS_ASKS.has(opts.line.summary.trim().toLowerCase()))
+    );
   }
 
   private static eventOf(opts: { line: IEvent }): IBoardEvent | undefined {
@@ -148,7 +166,7 @@ export class BoardFold {
 
       case EventKinds.NEEDS_OWNER: {
         // The harness waiting for a prompt is not a person asking: it is shown only on request and never makes a flow wait.
-        return BoardConstants.HARNESS_ASKS.has(line.summary.trim().toLowerCase())
+        return BoardFold.isHarnessAsk({ line })
           ? { ...base, kind: BoardKinds.NOTE, stage: -1, plumbing: true }
           : { ...base, kind: BoardKinds.NOTE, stage: -1, needsOwner: true };
       }
@@ -190,11 +208,7 @@ export class BoardFold {
     const { agents, line } = opts;
     const known = agents[line.actor];
 
-    if (
-      line.kind === EventKinds.SUBAGENT_STOP ||
-      (line.kind === EventKinds.NEEDS_OWNER &&
-        BoardConstants.HARNESS_ASKS.has(line.summary.trim().toLowerCase()))
-    ) {
+    if (line.kind === EventKinds.SUBAGENT_STOP || BoardFold.isHarnessAsk({ line })) {
       return;
     }
 
@@ -296,14 +310,10 @@ export class BoardFold {
     );
     const repo = events.find((event) => event.ref?.repo !== undefined)?.ref?.repo;
 
-    // The newest `flow` line names the flow; its reason goes with it, and a newer line without one drops the old reason.
-    const named = [...events].reverse().find((event) => event.isTitle === true);
-
     return {
       id,
-      title: named?.summary ?? BoardFold.titleOf({ id, events }),
-      named: named !== undefined,
-      ...(named?.why === undefined ? {} : { why: named.why }),
+      title: BoardFold.titleOf({ id, events }),
+      named: false,
       ...(repo === undefined ? {} : { repo }),
       state,
       holder: BoardFold.holderOf({ events, state, owner: opts.owner }),
@@ -321,8 +331,32 @@ export class BoardFold {
     };
   }
 
-  /** A flow whose every line is plumbing: shown only when the page shows all events, and then in the group of running work (a closed group would hide what was just asked for). */
-  private static quietFlow(opts: { id: string; lines: IBoardEvent[] }): IBoardFlow {
+  /** The title and reason a `flow` line gives; its reason goes with it, and a newer line without one drops the old reason. */
+  private static headingOf(opts: { named: IBoardEvent | undefined }): {
+    title?: string;
+    named: boolean;
+    why?: string;
+  } {
+    const { named } = opts;
+
+    return named === undefined
+      ? { named: false }
+      : {
+          title: named.summary,
+          named: true,
+          ...(named.why === undefined ? {} : { why: named.why }),
+        };
+  }
+
+  /**
+   * A flow with no line of work: only plumbing and `flow` lines. It is running (a closed group would hide what was just
+   * asked for), held by whoever wrote last; plumbing shows only when the page shows all events, a `flow` line always.
+   */
+  private static quietFlow(opts: {
+    id: string;
+    lines: IBoardEvent[];
+    named: IBoardEvent | undefined;
+  }): IBoardFlow {
     const events = [...opts.lines]
       .sort(byTime)
       .map((event) => ({ ...event, stage: BoardStages.REQUEST }));
@@ -331,7 +365,7 @@ export class BoardFold {
     return {
       id: opts.id,
       title: opts.id,
-      named: false,
+      ...BoardFold.headingOf({ named: opts.named }),
       state: BoardStates.RUNNING,
       holder: last.actor,
       stages: [BoardStages.REQUEST],
@@ -343,12 +377,9 @@ export class BoardFold {
     };
   }
 
-  /** The plumbing lines among the lines of a flow, each at the stage the flow was at when it happened. */
-  private static withPlumbing(opts: {
-    events: IBoardEvent[];
-    plumbing: IBoardEvent[];
-  }): IBoardEvent[] {
-    const placed = opts.plumbing.map((event) => ({
+  /** The quiet lines among the lines of a flow, each at the stage the flow was at when it happened. */
+  private static withQuiet(opts: { events: IBoardEvent[]; quiet: IBoardEvent[] }): IBoardEvent[] {
+    const placed = opts.quiet.map((event) => ({
       ...event,
       stage: opts.events.findLast((core) => core.ts <= event.ts)?.stage ?? BoardStages.REQUEST,
     }));

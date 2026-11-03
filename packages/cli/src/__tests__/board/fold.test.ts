@@ -837,3 +837,150 @@ describe('BoardFold.fold: agent plumbing', () => {
     expect(agents['pnt-vulcan-1'].current).toBe('the lock');
   });
 });
+
+describe('BoardFold.fold: a flow line only names the flow', () => {
+  const flowLine = (minute: number, title: string) =>
+    line({
+      minute,
+      kind: 'flow',
+      actor: 'pnt-vulcan-1',
+      flow: 'F-1',
+      summary: title,
+      why: 'because',
+    });
+
+  test('renaming a merged flow leaves its state, stage, strip, holder and last line as they were', () => {
+    const lines = [
+      line({
+        minute: 1,
+        kind: 'commit',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-1',
+        summary: 'the lock',
+        ref: 'abc1234',
+      }),
+      line({
+        minute: 2,
+        kind: 'pr',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-1',
+        summary: 'merged',
+        ref: 'merged:5',
+      }),
+    ];
+    const before = flowOf({ id: 'F-1', lines });
+    const after = flowOf({ id: 'F-1', lines: [...lines, flowLine(3, 'Renamed')] });
+
+    expect(after).toMatchObject({
+      title: 'Renamed',
+      named: true,
+      why: 'because',
+      state: 'done',
+      cur: 6,
+    });
+    expect({ ...after, title: '', named: false, why: undefined, events: [] }).toEqual({
+      ...before,
+      title: '',
+      named: false,
+      why: undefined,
+      events: [],
+    });
+    expect(after.events.find((event) => event.id === after.lastId)?.kind).toBe('merge');
+    expect(after.events.filter((event) => event.kind === 'flow')).toHaveLength(1);
+  });
+
+  test('a title written first or between lines changes no stage and no last line either', () => {
+    const work = [
+      line({
+        minute: 2,
+        kind: 'commit',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-1',
+        summary: 'the lock',
+        ref: 'abc1234',
+      }),
+      line({
+        minute: 4,
+        kind: 'pr',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-1',
+        summary: 'the pr',
+        ref: '#9',
+      }),
+    ];
+    const plain = flowOf({ id: 'F-1', lines: work });
+    const named = flowOf({
+      id: 'F-1',
+      lines: [flowLine(1, 'Early'), flowLine(3, 'Middle'), ...work],
+    });
+
+    expect(named).toMatchObject({
+      title: 'Middle',
+      cur: plain.cur,
+      stages: plain.stages,
+      lastId: plain.lastId,
+      state: plain.state,
+    });
+  });
+});
+
+describe('BoardFold.fold: a harness ask with a title', () => {
+  const work = line({
+    minute: 1,
+    kind: 'commit',
+    actor: 'pnt-vulcan-1',
+    flow: 'F-1',
+    summary: 'the lock',
+    ref: 'abc1234',
+  });
+
+  test('the notification type from the hook makes it plumbing whatever its title says', () => {
+    const asked = line({
+      minute: 2,
+      kind: 'needs-owner',
+      actor: 'pnt-vulcan-1',
+      flow: 'F-1',
+      summary: 'Claude needs your permission to use Bash',
+      notification: 'permission_prompt',
+      source: 'claude-hook',
+    });
+    const flow = flowOf({ id: 'F-1', lines: [work, asked] });
+
+    expect(flow.state).toBe('running');
+    expect(flow.askId).toBeUndefined();
+    expect(flow.events.find((event) => event.summary.startsWith('Claude needs'))).toMatchObject({
+      plumbing: true,
+    });
+    expect(fold({ lines: [work, asked] }).agents['pnt-vulcan-1'].current).toBe('the lock');
+  });
+
+  test('a line written before the field existed is judged by its summary, in any case and with spaces', () => {
+    for (const summary of ['idle_prompt', ' Permission_Prompt ', 'ELICITATION_DIALOG']) {
+      const old = line({
+        minute: 2,
+        kind: 'needs-owner',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-1',
+        summary,
+        source: 'claude-hook',
+      });
+
+      expect(flowOf({ id: 'F-1', lines: [work, old] }).state, summary).toBe('running');
+    }
+  });
+
+  test('a question someone wrote still makes the flow wait, with or without a title-like text', () => {
+    const asked = line({
+      minute: 2,
+      kind: 'needs-owner',
+      actor: 'pnt-vulcan-1',
+      flow: 'F-1',
+      summary: 'Claude needs your decision on the schema',
+    });
+
+    expect(flowOf({ id: 'F-1', lines: [work, asked] })).toMatchObject({
+      state: 'you',
+      holder: OWNER,
+    });
+  });
+});

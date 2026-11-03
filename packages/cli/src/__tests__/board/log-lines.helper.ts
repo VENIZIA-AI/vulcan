@@ -14,16 +14,19 @@ export const line = (opts: {
   ref?: string;
   status?: TEventStatus;
   why?: string;
+  notification?: string;
+  source?: string;
 }): IEvent =>
   EventLog.build({
     kind: opts.kind,
     summary: opts.summary,
     actor: opts.actor,
-    source: 'cli',
+    source: opts.source ?? 'cli',
     ...(opts.flow === undefined ? {} : { flowId: opts.flow }),
     ...(opts.ref === undefined ? {} : { ref: opts.ref }),
     ...(opts.status === undefined ? {} : { status: opts.status }),
     ...(opts.why === undefined ? {} : { why: opts.why }),
+    ...(opts.notification === undefined ? {} : { notification: opts.notification }),
     now: (opts.base ?? T0) + opts.minute * 60_000,
   });
 
