@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
+import { EventLog } from '../../events/log.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { CleanScopes, LocalClean, LocalConstants, LocalScan } from '../../local/index.ts';
 import { CLAUDE_LAUNCH_FILE, LaunchSettings } from '../../sync/index.ts';
@@ -751,18 +752,32 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     });
   });
 
-  test('events are removed only when named, never by --all', () => {
+  test('events are removed only when named, never by --all, and then only what the limits say: not today, not a recent day', () => {
     const root = repository();
+    const day = (ago: number): string => EventLog.dayOf({ time: Date.now() - ago * DAY });
+    const files = [`events/${day(60)}.jsonl`, `events/${day(5)}.jsonl`, `events/${day(0)}.jsonl`];
 
-    file({ root, path: 'events/2026-11-03.jsonl', text: '{}\n' });
+    for (const path of files) {
+      file({ root, path, text: '{}\n' });
+    }
+
+    const exists = (path: string): boolean => existsSync(join(root, '.agents/local', path));
 
     expect(
       LocalClean.plan({ root, scopes: ['tmp', 'worktrees', 'clones', 'cache'] }).remove,
     ).toEqual([]);
     expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
-    expect(existsSync(join(root, '.agents/local/events/2026-11-03.jsonl'))).toBe(true);
+    expect(files.every(exists)).toBe(true);
+
+    const dry = runCli({ args: ['clean', '--events'], cwd: root }).stderr;
+
+    expect(dry).toContain(`events/${day(60)}.jsonl`);
+    expect(dry).toContain('older than 30 days');
+    expect(dry).toContain(`kept events/${day(5)}.jsonl`);
     expect(runCli({ args: ['clean', '--events', '--yes'], cwd: root }).code).toBe(0);
-    expect(existsSync(join(root, '.agents/local/events/2026-11-03.jsonl'))).toBe(false);
+    expect(exists(files[0])).toBe(false);
+    expect(exists(files[1])).toBe(true);
+    expect(exists(files[2])).toBe(true);
   });
 
   test("a browser's scratch folder under .agents/local: tmp scope, by its own name, old ones only", () => {

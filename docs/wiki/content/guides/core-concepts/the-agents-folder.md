@@ -27,6 +27,7 @@ description: What lives in .agents, which parts git tracks, which parts are loca
     ├── release-candidates/             builds made to test a release (on demand)
     ├── profile.json                    how you like to work (vulcan profile)
     ├── claude.launch.settings.json     the file to start Claude Code with (vulcan sync)
+    ├── auto-clean.json                 when the automatic clean last ran, and what it removed
     └── violations.jsonl                the log of faulty replies (a note in vulcan doctor)
 ```
 

@@ -98,7 +98,12 @@ describe('the session-start hook', () => {
     const envFile = join(root, 'env-file.sh');
     const child = spawnSyncBounded({
       cmd: [process.execPath, HOOK],
-      env: { ...process.env, CLAUDE_PROJECT_DIR: root, CLAUDE_ENV_FILE: envFile },
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: root,
+        CLAUDE_ENV_FILE: envFile,
+        VULCAN_AUTO_CLEAN: 'off',
+      },
       stdout: 'pipe',
     });
 

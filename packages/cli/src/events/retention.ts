@@ -69,7 +69,16 @@ export class EventRetention {
     }
 
     const today = EventLog.dayOf({ time: opts.now });
-    const files = readdirSync(opts.dir)
+    let names: string[];
+
+    try {
+      names = readdirSync(opts.dir);
+    } catch {
+      // Not a folder, or one that cannot be read: nothing to prune, and `doctor` says what is wrong with it.
+      return empty;
+    }
+
+    const files = names
       .flatMap((name) => {
         const day = DAY_FILE.exec(name)?.[1];
 
