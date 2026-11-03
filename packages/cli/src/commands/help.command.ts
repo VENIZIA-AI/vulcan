@@ -31,6 +31,10 @@ Usage: bun x vulcan <command>
                                   Check a commit message against the commit.message checks of the config (an
                                   agent in a trailer or a "generated with" line, the project's subject shape);
                                   sync installs it as the commit-msg hook; exit 1 on a problem, 2 on bad input
+  board [--out <file>] [--open] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
+                                  Fold the event log (and GitHub pull requests, checks and reviews when gh
+                                  can read them) into flows and write one HTML file, by default
+                                  .agents/local/reports/board.html; read-only; exit 2 on bad input
   ci affected --base <ref> [--head <ref>] [--check <check>] [--json | --names] | template <github|gitlab>
                                   List the workspace packages a change touches (changed ones and what
                                   depends on them) with the checks each has; template prints a CI file that

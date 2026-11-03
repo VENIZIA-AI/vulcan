@@ -1,5 +1,6 @@
 import { AgentConstants } from './agents/index.ts';
 import { COMMAND_LOADERS } from './commands/index.ts';
+import { BoardFlags } from './board/common/index.ts';
 import { CiFlags } from './ci/common/index.ts';
 import { CommitCheckFlags } from './commit/common/index.ts';
 import { ExitCodes, UpgradeFlags, VulcanCommands } from './common/index.ts';
@@ -83,6 +84,12 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
     unknownExit: ExitCodes.USAGE,
     values: [CommitCheckFlags.RANGE, CommitCheckFlags.TEXT],
     positionals: 2,
+  },
+  [VulcanCommands.BOARD]: {
+    flags: [BoardFlags.OPEN, BoardFlags.NO_GITHUB],
+    unknownExit: ExitCodes.USAGE,
+    values: [BoardFlags.OUT, BoardFlags.SINCE, BoardFlags.DIR, BoardFlags.REPO],
+    positionals: 0,
   },
   [VulcanCommands.CI]: {
     flags: [CiFlags.JSON, CiFlags.NAMES],
