@@ -248,3 +248,4 @@ compile:
 
 - [Configuration](/references/configuration/#ci): the `ci` key
 - [vulcan sync](/references/commands/sync): writes the manifest the command reads
+- [All commands](/references/commands/): the overview

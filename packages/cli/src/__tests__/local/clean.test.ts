@@ -719,6 +719,38 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     );
   });
 
+  test('a path in the note of a kept worktree is named once, however git lists it', () => {
+    const root = repository();
+
+    writeFileSync(join(root, '.gitignore'), '.agents/local/\n.env\nnode_modules/\n');
+    git({ cwd: root, args: ['commit', '-q', '-am', 'ignore'] });
+    worktree({ root, name: 'deep', merged: true });
+
+    for (const path of ['apps/web/.env', 'apps/web/node_modules/dep/index.js', '.env']) {
+      const target = join(root, '.agents/local/worktrees/deep', path);
+
+      mkdirSync(join(target, '..'), { recursive: true });
+      writeFileSync(target, 'x');
+    }
+
+    const note = LocalScan.scan({ root }).find((entry) => entry.name === 'deep')?.note ?? '';
+    const listed = note.split('not rebuildable: ')[1]?.split(', ') ?? [];
+
+    expect(listed.sort()).toEqual(['.env', 'apps/web/.env']);
+  });
+
+  test('either spelling of the tag ships the folder: 3.0.0 goes when only v3.0.0 exists', () => {
+    const root = repository();
+
+    git({ cwd: root, args: ['tag', 'v3.0.0'] });
+    file({ root, path: 'release-candidates/3.0.0/a.txt' });
+
+    expect(LocalScan.scan({ root }).find((entry) => entry.name === '3.0.0')).toMatchObject({
+      state: 'shipped',
+      removable: true,
+    });
+  });
+
   test('events are removed only when named, never by --all', () => {
     const root = repository();
 

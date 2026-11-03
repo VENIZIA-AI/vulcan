@@ -15,7 +15,7 @@ Everything an agent creates while it works lives under the project's gitignored 
 | `--cache` | `cache/` | what atlas fetched; it rebuilds |
 | `--all` | the four above | never `reports/`, `prototypes/`, `events/`, `release-candidates/` or the profile |
 | `--reports`, `--prototypes`, `--events`, `--profile` | `reports/`, `prototypes/`, `events/`, `profile.json` | only when named; they are kept until you delete them |
-| `--release-candidates` | `release-candidates/` | only when named, and only a folder named as a version (`1.2.3`, `v1.2.3`, `1.2.3-rc.1`) whose tag exists (`v<version>` or `<version>`); a candidate not released yet, or a name that is not a version, is kept, and the reason is printed |
+| `--release-candidates` | `release-candidates/` | only when named, and only a folder named as a version (`1.2.3`, `v1.2.3`, `1.2.3-rc.1`) whose tag exists, with or without the `v` (the folder `1.0.0` goes when the tag `v1.0.0` exists, and the other way round); a candidate not released yet, or a name that is not a version, is kept, and the reason is printed |
 | `--yes` | | removes what the dry run listed |
 
 A worktree is removed with `git worktree remove`, then `git worktree prune`. A symlink under `.agents/local/` is unlinked and never followed; a path that does not resolve to a place inside `.agents/local/` is refused. If `.agents` or `.agents/local` is a symlink, or `.agents/local` resolves outside the project, nothing is scanned or removed. A scope folder that is a file or a link is skipped. An item's age is its newest change anywhere inside it, not its folder's own time. For a worktree on a deleted branch git keeps no commit to compare with, so work that was staged but never committed there cannot be told from the checkout itself.
@@ -44,6 +44,12 @@ vulcan clean: nothing to remove in tmp
 ```
 
 `vulcan doctor` warns about an item that has outlived its use (a `tmp/` item older than a day, a clone older than two weeks, a worktree on a merged or gone branch) with the command that clears it, and prints the size of `.agents/local/` once it passes 50 MB.
+
+## See also
+
+- [The .agents folder](/guides/core-concepts/the-agents-folder): the tree, what is tracked and what expires
+- [vulcan doctor](/references/commands/doctor): the warnings that name what `clean` takes
+- [vulcan event](/references/commands/event): the log in `events/`
 
 ## Exit codes
 

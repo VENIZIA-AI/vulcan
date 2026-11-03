@@ -374,5 +374,8 @@ bun x --no-install vulcan doctor 2>&1
 ## See also
 
 - [vulcan sync](/references/commands/sync)
+- [vulcan clean](/references/commands/clean): takes what the `local` warnings name
+- [The .agents folder](/guides/core-concepts/the-agents-folder)
+- [vulcan event](/references/commands/event): the folder behind the `events-dir` warning
 - [Configuration](/references/configuration/)
 - [Rules](/references/rules)

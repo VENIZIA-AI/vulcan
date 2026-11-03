@@ -1,5 +1,5 @@
 ---
-title: Upgrade overview - a new visualize, shared presets, a quicker atlas start and a few renames
+title: Upgrade overview - a new visualize, shared presets, an event log, affected-package CI and a few renames
 description: What to do, in order, when you move a project from 0.4.8 to 0.4.9, and what each change means for you.
 type: release
 packages: ['@venizia/vulcan', '@venizia/vulcan-atlas', '@venizia/vulcan-okf']
@@ -8,11 +8,11 @@ release: '@venizia/vulcan@0.4.9-0'
 
 # Changelog - 2026-11-02
 
-## Upgrade overview - a new visualize, shared presets, a quicker atlas start and a few renames
+## Upgrade overview - a new visualize, shared presets, an event log, affected-package CI and a few renames
 
 <Badge type="tip" text="New Feature" /> <Badge type="tip" text="Enhancement" /> <Badge type="warning" text="Behavior Change" /> <Badge type="warning" text="Breaking Change" />
 
-**In one line.** Moving from 0.4.8 to 0.4.9 needs ten steps in order; three of them (the `make agent-setup` target, six renamed functions and the new config keys) can break a project that does not take them.
+**In one line.** Moving from 0.4.8 to 0.4.9 needs thirteen steps in order (steps 5 to 8 only when you want the feature); three of them (the `make agent-setup` target, six renamed functions and the new config keys) can break a project that does not take them. The event log and the affected-package CI are new and opt-in; `vulcan doctor` now warns about files kept directly in `.agents/local`.
 
 ## What changed
 
@@ -27,29 +27,39 @@ release: '@venizia/vulcan@0.4.9-0'
 - `bun check` now counts as a gate run in the session signals.
 - A project can reject a commit message that names an agent in a `Co-Authored-By` trailer or a `Generated with` line. `vulcan commit-check` does the check, `vulcan sync` installs it as the `commit-msg` hook of each clone, and Claude Code's own attribution is turned off. It is opt-in: see the [entry on the commit check](/changelogs/2026-11-03-commit-check-agent-signature-hook).
 - A pull that waits for another pull of the same atlas source no longer fails when the other one finishes at the wrong moment ([entry](/changelogs/2026-11-03-atlas-pull-waiting-on-another-pull-no-longer-fails)).
+- **An event log (new, opt-in).** Coding agents can write one short line per event (a session started, a message was sent, an agent waits for you) to `.agents/local/events/<day>.jsonl`, so a board or a coordinator reads it instead of asking each agent. `vulcan event add` writes a line (any agent can), `vulcan event tail` reads them, and `events: { log: true }` makes `vulcan sync` install the Claude Code hooks that write it. The default folder is `.agents/local/events` of the project; an optional `events.dir` takes an absolute folder instead, so one coordinator reads several repositories. Lines hold labels, never message text, and secret-shaped words are replaced. See the [entry](/changelogs/2026-11-03-agent-event-log) and the [command page](/references/commands/event).
+- **Affected-package CI (new, opt-in).** `vulcan ci affected --base <ref>` lists the workspace packages a change touches and every package that depends on them, with the checks each has (`typecheck`, `lint`, `test`, `compile`), so CI runs only those. A change to a lockfile, the root `package.json`, `bunfig.toml`, a root `tsconfig`, `.configs/` or a workflow file lists every package. `vulcan ci template github|gitlab` prints a GitHub Actions or GitLab CI file that uses it. See the [entry](/changelogs/2026-11-03-vulcan-ci-affected) and the [command page](/references/commands/ci).
+- **Rule V-C-09 is stricter and printed at every session start.** A comment holds only a lasting fact the code cannot show; agents write fewer comments and remove meaningless ones in the lines they touch. See the [entry](/changelogs/2026-11-03-rule-v-c-09-lasting-comments).
+- **`.agents/local` is tidier and checked.** Two named folders join the layout, `events/` and `release-candidates/`, and `vulcan sync` creates neither. `vulcan doctor` warns (it never deletes) about each entry directly under `.agents/local` that VULCAN does not know, and about shipped release candidates. `vulcan clean` gains `--events` and `--release-candidates` (named only, never in `--all`), takes the `com.google.Chrome.*` and `org.chromium.Chromium.*` folders a browser leaves behind once they are an hour old, and keeps a worktree whose branch has no commit of its own or that holds an ignored file a build cannot make again, such as a `.env`. See the [entry](/changelogs/2026-11-03-agents-local-standardised) and the page [The .agents folder](/guides/core-concepts/the-agents-folder).
 - Repairs for files, caches and config spellings that only much older versions wrote are removed: `vulcan sync --prune`, the `.ts`, `.mjs` and `.js` config names, `vulcan init --config`, the `<package>` tag placeholder, `changelogs migrate`, `concepts stamp|check`, a few exported names of atlas and okf, and more. The [entry on removed repairs](/changelogs/2026-11-02-old-install-repairs-removed) lists each one, what you see and what to do. The config now also refuses a package name with capital letters.
 
 ## Who is affected
 
 - Every project that syncs VULCAN: the synced skills and the `V-C-08` rule change, and a project that keeps its own changelog sees its agents write entries differently (see the skills bullet above).
 - Projects that call `make agent-setup`, or import the six renamed functions.
-- Projects that use the new config keys: older VULCAN (0.4.8) refuses a config that has `theme`, `commit`, an object entry in `trustedScripts`, or `presetKind` (the config schema is strict).
+- Projects that use the new config keys: older VULCAN (0.4.8) refuses a config that has `theme`, `commit`, `events`, `ci`, an object entry in `trustedScripts`, or `presetKind` (the config schema is strict).
 - Projects that use atlas as an MCP server.
 - Projects that set `commit.message.agent.signature: 'deny'` (opt-in): the hook and the Claude Code setting arrive on the next `vulcan sync` in each clone. A project that sets nothing changes nothing.
+- Projects that set `events: { log: true }` (opt-in): the hooks arrive on the next `vulcan sync` in each clone and start with the next Claude Code session. A project that sets nothing writes no log.
+- Projects that use `vulcan ci affected` or a template (opt-in): only the CI you change.
+- Every project on VULCAN: V-C-09 is a changed rule (`vulcan sync` prints `changed V-C-09`), and `vulcan doctor` may warn about files you keep directly in `.agents/local`.
 
 ## Upgrade steps
 
 1. Run `bun x --no-install vulcan upgrade`. It installs the latest stable `@venizia/vulcan` (add `--nightly` for the newest prerelease, or name a version), and atlas and okf come with it at the same version. `upgrade` then runs `vulcan sync` for you. On a machine with no stored agent choice and a config with no `agents` list, `sync` asks which agents you use; list `agents` in the config to skip the question.
 2. Replace every `make agent-setup` in scripts, CI files and README files with `make vulcan-sync` (or `bun x --no-install vulcan sync`).
 3. If your code imports okf's `checkBundle`, `splitFrontmatter`, `parseYamlMapping` or atlas's `officialIdOf`, `triggerOf`, `skillCatalogOf`, switch to `BundleConformance.check({ files })`, `OkfFrontmatter.split({ text })`, `OkfFrontmatter.parseMapping({ yaml })`, `OfficialPresets.idOf({ spec })`, `SkillCatalog.triggerOf({ description })`, `SkillCatalog.catalogOf({ root })`. Arguments and results are the same.
-4. Review and commit what the sync changed: `.agents/vulcan.manifest.json`, the synced skills and the agent files. The guards and `vulcan visualize` read the manifest, not the config, so run `vulcan sync` again after you change any config key below.
+4. Review and commit what the sync changed: `.agents/vulcan.manifest.json` (it now also records the new hash of `V-C-08` and `V-C-09`), the synced skills and the agent files. A project with its own `digest.oftenDropped` list adds `V-C-09` to it if it wants the session reminder. The guards and `vulcan visualize` read the manifest, not the config, so run `vulcan sync` again after you change any config key below.
 5. Only now add the new config keys you want: `theme: { accent: '#rrggbb' }` (optional `accentDark`, `accentText`), a `trustedScripts` entry `{ script: 'path', readOnly: ['plan'] }` (words of letters, digits and `_ . : -`), and `presetKind: 'lib' | 'shared'` on a package entry. Run `vulcan sync` again after each. `readOnly` takes effect only after the re-sync.
 6. Optional: to reject commit messages that name an agent, add `commit: { message: { agent: { signature: 'deny' } } }` to `.configs/vulcan.config.mts` and run `vulcan sync` in each clone. `sync` installs the `commit-msg` hook (a hook of yours is never overwritten: it prints the line to add) and, when Claude Code is one of your agents, writes `attribution: { commit: '', pr: '', sessionUrl: false }` into `.claude/settings.json`. CI can run `vulcan commit-check --range origin/develop..HEAD`. A project that kept its own script for this can drop it.
-7. Restart your agent sessions so the atlas MCP server restarts; nothing has to be configured. To tune it: `VULCAN_ATLAS_CALL_WAIT_SECONDS` (20) is how long a tool call waits for a source still being indexed, `VULCAN_ATLAS_INDEX_JOBS` (default: the number of cores, fewer when memory is short) is how many sources are indexed at once, `VULCAN_ATLAS_INDEX_TIMEOUT_SECONDS` (600) stops a source that takes too long.
-8. If a script calls `vulcan x atlas releases gen|check` or `symbols gen|check`: they now print a usage error naming the word. Call `vulcan x atlas releases` or `symbols` without a subcommand.
-9. Read the [entry on removed repairs](/changelogs/2026-11-02-old-install-repairs-removed) and check that your project holds none of what it lists: a config that is not `.configs/vulcan.config.mts`, a `<package>` in a tag template, a package name with capital letters, calls to `vulcan sync --prune`, `make changelogs-migrate` or `make knowledge-symbols-check`, and imports of `ProtocolVersions`, `AtlasModes`, `TAtlasMode` or `OkfVersions.isValid`.
-10. Run `vulcan doctor`.
+7. Optional: to keep the agent event log, add `events: { log: true }` to `.configs/vulcan.config.mts` and run `vulcan sync` in each clone, then start a new Claude Code session (hooks load at session start). To collect the lines of several repositories in one place, add an absolute `dir` (`events: { log: true, dir: '/path/to/shared/events' }`): create the folder first, keep it on a local disk, and note that `~` and relative paths are refused. `vulcan doctor` warns when that folder is missing or not writable. Another coding agent writes with `vulcan event add --kind <kind> --summary <text>`; read the log with `vulcan event tail --since <time>`.
+8. Optional: for CI that runs only the affected packages, save `vulcan ci template github` as `.github/workflows/checks.yml`, or merge `vulcan ci template gitlab` into `.gitlab-ci.yml`. The CI must fetch the full git history (the templates do). To count more files as shared, add `ci: { affected: { global: ['Makefile'] } }` to the config and run `vulcan sync`.
+9. Run `vulcan doctor`. If it warns about entries in `.agents/local`, move your own files into `tmp/` (scratch) or `reports/` (to keep), then run `vulcan clean` to see what an agent left behind (a dry run) and `vulcan clean --yes` to remove it. A worktree is kept, and the reason printed, when its branch is not merged, has no commit of its own, or holds an ignored file such as `.env`.
+10. Restart your agent sessions so the atlas MCP server restarts; nothing has to be configured. To tune it: `VULCAN_ATLAS_CALL_WAIT_SECONDS` (20) is how long a tool call waits for a source still being indexed, `VULCAN_ATLAS_INDEX_JOBS` (default: the number of cores, fewer when memory is short) is how many sources are indexed at once, `VULCAN_ATLAS_INDEX_TIMEOUT_SECONDS` (600) stops a source that takes too long.
+11. If a script calls `vulcan x atlas releases gen|check` or `symbols gen|check`: they now print a usage error naming the word. Call `vulcan x atlas releases` or `symbols` without a subcommand.
+12. Read the [entry on removed repairs](/changelogs/2026-11-02-old-install-repairs-removed) and check that your project holds none of what it lists: a config that is not `.configs/vulcan.config.mts`, a `<package>` in a tag template, a package name with capital letters, calls to `vulcan sync --prune`, `make changelogs-migrate` or `make knowledge-symbols-check`, and imports of `ProtocolVersions`, `AtlasModes`, `TAtlasMode` or `OkfVersions.isValid`.
+13. Run `vulcan doctor` once more and commit what is left.
 
 ## If something goes wrong
 
-To go back to 0.4.8, remove `theme`, `commit`, the object entries of `trustedScripts` (use the path string), and `presetKind` and `shared` from `.configs/vulcan.config.*`, then run `vulcan upgrade 0.4.8`.
+To go back to 0.4.8, remove `theme`, `commit`, `events`, `ci`, the object entries of `trustedScripts` (use the path string), and `presetKind` and `shared` from `.configs/vulcan.config.*`, then run `vulcan upgrade 0.4.8`.
