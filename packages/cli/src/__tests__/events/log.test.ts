@@ -70,6 +70,50 @@ describe('EventText', () => {
     );
   });
 
+  test('the shapes of a credential a person pastes: quoted names, Google, GitLab, Stripe, Basic, JWT, spoken', () => {
+    const cases: [string, string][] = [
+      ['config {"token": "abc123"} saved', 'config {token=[redacted]} saved'],
+      ["{'api_key':'abc123'}", '{api_key=[redacted]}'],
+      [`key AIza${'A1b2C3d4E5'.repeat(3)}12345 here`, 'key [redacted] here'],
+      ['pat glpat-abcdefghijklmnopqrst1 x', 'pat [redacted] x'],
+      ['live sk_live_abcdefgh12345678 x', 'live [redacted] x'],
+      ['test sk_test_abcdefgh12345678 x', 'test [redacted] x'],
+      ['restricted rk_live_abcdefgh12345678', 'restricted [redacted]'],
+      ['Authorization: Basic dXNlcjpwYXNzd29yZA== sent', 'Authorization: [redacted] sent'],
+      ['Basic dXNlcjpwYXNzMTIz sent', '[redacted] sent'],
+      [
+        'jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk ok',
+        'jwt [redacted] ok',
+      ],
+      ['the password is hunter2 ok', 'the password is [redacted] ok'],
+      ['Passwords were "p a s s" ok', 'Passwords is [redacted] ok'],
+      ['API key is abc', 'API key is [redacted]'],
+    ];
+
+    for (const [text, expected] of cases) {
+      expect(EventText.oneLine({ text, max: 300 }), text).toBe(expected);
+    }
+  });
+
+  test('ordinary words that look near those shapes are left alone', () => {
+    for (const text of [
+      'Basic installation guide',
+      'Basic usage of the tokenizer',
+      'the token bucket is full',
+      'keyboard shortcuts',
+      'password reset page',
+      'sk_live is the prefix',
+      'eyJ is how a JWT starts',
+    ]) {
+      expect(EventText.oneLine({ text, max: 200 }), text).toBe(text);
+    }
+  });
+
+  test('a control character of either range is a space, an escape sequence included', () => {
+    expect(EventText.oneLine({ text: 'a\u001b[31mred\u009b2Jb', max: 50 })).toBe('a [31mred 2Jb');
+    expect(EventText.stripControl({ text: 'x\u0007y\u007fz\u0085w' })).toBe('x y z w');
+  });
+
   test('plain words, a commit hash, a branch and a path are left alone', () => {
     for (const text of [
       'merged feature/F-12-events-log into develop',
@@ -79,11 +123,6 @@ describe('EventText', () => {
     ]) {
       expect(EventText.oneLine({ text, max: 200 })).toBe(text);
     }
-  });
-
-  test('firstLine skips blank lines', () => {
-    expect(EventText.firstLine({ text: '\n \r\nFlow: F-1\nbody' })).toBe('Flow: F-1');
-    expect(EventText.firstLine({ text: '' })).toBe('');
   });
 });
 
@@ -174,6 +213,23 @@ describe('EventLog', () => {
     });
 
     expect(Object.keys(bare)).toEqual(['id', 'ts', 'actor', 'kind', 'summary', 'source']);
+  });
+
+  test('parse strips control characters from every text field, so tail never prints an escape sequence', () => {
+    const line = JSON.stringify({
+      id: 'i\u001bd',
+      ts: '2026-11-03T09:30:00.000Z',
+      flowId: 'F-1\u001b',
+      actor: 'a\u001b[2Jb',
+      kind: 'commit',
+      summary: 'x\u009by',
+      ref: 'r\u0007',
+      source: 'cli\u001b',
+    });
+    const event = EventLog.parse({ line });
+
+    expect(JSON.stringify(event)).not.toMatch(/\\u00(1b|9b|07)/);
+    expect(event).toMatchObject({ actor: 'a [2Jb', summary: 'x y', ref: 'r ', source: 'cli ' });
   });
 
   test('ids sort by time and do not collide', () => {
@@ -316,6 +372,32 @@ describe('EventSettings', () => {
     expect(EventSettings.dirOf({ root: '/p', dir: 'rel' })).toBe('/p/rel');
   });
 
+  test('rootOf: the nearest folder above with the manifest or .git, itself included', () => {
+    const withManifest = createProject({
+      files: { '.agents/vulcan.manifest.json': '{}', 'a/b/c/x.txt': 'x' },
+    });
+    const gitOnly = createProject({
+      files: { '.git/HEAD': 'ref: refs/heads/x\n', 'a/b/x.txt': 'x' },
+    });
+    const nested = createProject({
+      files: {
+        '.agents/vulcan.manifest.json': '{}',
+        'inner/.git/HEAD': 'x',
+        'inner/deep/x.txt': 'x',
+      },
+    });
+    const both = createProject({
+      files: { '.agents/vulcan.manifest.json': '{}', '.git/HEAD': 'x', 'w/x.txt': 'x' },
+    });
+
+    expect(EventSettings.rootOf({ cwd: join(withManifest, 'a/b/c') })).toBe(withManifest);
+    expect(EventSettings.rootOf({ cwd: withManifest })).toBe(withManifest);
+    expect(EventSettings.rootOf({ cwd: join(gitOnly, 'a/b') })).toBe(gitOnly);
+    expect(EventSettings.rootOf({ cwd: join(both, 'w') })).toBe(both);
+    // A repository inside a project is a project of its own.
+    expect(EventSettings.rootOf({ cwd: join(nested, 'inner/deep') })).toBe(join(nested, 'inner'));
+  });
+
   test('dirError names why a folder is refused', () => {
     expect(EventSettings.dirError({ dir: '/abs/ok' })).toBeUndefined();
     expect(EventSettings.dirError({ dir: '~/events' })).toContain('absolute');
@@ -359,6 +441,34 @@ describe('EventActor', () => {
     expect(
       EventActor.resolve({ sessionId: 'abcdef12-0000', env: { CLAUDE_CONFIG_DIR: config } }),
     ).toBe('pnt-vulcan-1');
+  });
+
+  test('several files for one session: a live process wins, then the newest', () => {
+    const DEAD = 2_147_483_000;
+    const file = (opts: { name: string; pid: number; updatedAt: number }) =>
+      JSON.stringify({ sessionId: 's1', ...opts });
+    const resolve = (files: Record<string, string>) =>
+      EventActor.resolve({ sessionId: 's1', env: { CLAUDE_CONFIG_DIR: sessions({ files }) } });
+
+    expect(
+      resolve({
+        '1.json': file({ name: 'old-live', pid: process.pid, updatedAt: 1 }),
+        '2.json': file({ name: 'new-dead', pid: DEAD, updatedAt: 99 }),
+      }),
+    ).toBe('old-live');
+    expect(
+      resolve({
+        '1.json': file({ name: 'older', pid: DEAD, updatedAt: 5 }),
+        '2.json': file({ name: 'newer', pid: DEAD + 1, updatedAt: 9 }),
+        '3.json': file({ name: 'oldest', pid: DEAD + 2, updatedAt: 1 }),
+      }),
+    ).toBe('newer');
+    expect(
+      resolve({
+        '1.json': file({ name: 'a-live', pid: process.pid, updatedAt: 5 }),
+        '2.json': file({ name: 'b-live', pid: process.pid, updatedAt: 9 }),
+      }),
+    ).toBe('b-live');
   });
 
   test('without a name: claude: and the start of the session id; without a session: unknown', () => {

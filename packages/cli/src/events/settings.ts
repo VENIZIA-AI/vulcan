@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { EventConstants } from './common/index.ts';
 import type { IEventSettings } from './common/index.ts';
@@ -46,6 +46,28 @@ export class EventSettings {
       };
     } catch {
       return { log: false };
+    }
+  }
+
+  /**
+   * The project folder a command run in `cwd` belongs to: the nearest folder above it (itself included) that
+   * holds the manifest or `.git`, else `cwd`. A command run in a subfolder then reads the same `events` block
+   * as one run at the top; a repository inside a project is a project of its own.
+   */
+  static rootOf(opts: { cwd: string }): string {
+    const start = resolve(opts.cwd);
+
+    for (let directory = start; ; directory = dirname(directory)) {
+      if (
+        existsSync(join(directory, EventConstants.MANIFEST_FILE)) ||
+        existsSync(join(directory, '.git'))
+      ) {
+        return directory;
+      }
+
+      if (dirname(directory) === directory) {
+        return start;
+      }
     }
   }
 

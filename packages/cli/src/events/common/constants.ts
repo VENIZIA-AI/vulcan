@@ -70,8 +70,8 @@ export class EventConstants {
   static readonly MANIFEST_FILE = '.agents/vulcan.manifest.json';
   static readonly FILE_SUFFIX = '.jsonl';
   static readonly SUMMARY_MAX = 200;
-  /** A summary taken from the first line of a message, when the sender gave no label. */
-  static readonly FALLBACK_MAX = 80;
+  /** What a sent message is called when its sender gave no label: the text of a message is never used. */
+  static readonly MESSAGE_SENT_LABEL = 'message sent';
   static readonly REF_MAX = 120;
   static readonly ACTOR_MAX = 80;
   static readonly REDACTED = '[redacted]';
@@ -96,6 +96,12 @@ export class EventSecrets {
     /\bnpm_[A-Za-z0-9]{16,}/g,
     /\bsk-[A-Za-z0-9_-]{16,}/g,
     /\bAKIA[0-9A-Z]{16}\b/g,
+    /\bAIza[0-9A-Za-z_-]{35}/g,
+    /\bglpat-[A-Za-z0-9_-]{16,}/g,
+    /\b[sr]k_(?:live|test)_[A-Za-z0-9]{8,}/g,
+    /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/g,
+    // A Basic credential is base64 of user:password: it has a digit, a + or a /, a capital inside it, or ends in =; a plain word after "Basic" has none of these.
+    /\bBasic\s+(?:(?=[A-Za-z0-9+/]*(?:[0-9+/]|[a-z][A-Z]))[A-Za-z0-9+/]{8,}={0,2}|[A-Za-z0-9+/]{8,}={1,2})/g,
     /\bxox[abprs]-[A-Za-z0-9-]{10,}/g,
     /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi,
     /\b[0-9a-fA-F]{64,}\b/g,
@@ -103,7 +109,10 @@ export class EventSecrets {
   ];
   /** `user:password@host` inside a URL. */
   static readonly URL_USERINFO = /(\/\/)[^\s/@:]+:[^\s/@]+@/g;
-  /** `name=value` where the name says it is a secret. */
+  /** `name=value`, `name: value` and `"name": "value"` where the name says it is a secret. */
   static readonly ASSIGNMENT =
-    /\b([A-Za-z0-9_.-]*(?:key|token|secret|password|passwd|pwd|credential)[A-Za-z0-9_.-]*)\s*[:=]\s*("[^"]*"|'[^']*'|\S+)/gi;
+    /["']?\b([A-Za-z0-9_.-]*(?:key|token|secret|password|passwd|pwd|credential)[A-Za-z0-9_.-]*)["']?\s*[:=]\s*("[^"]*"|'[^']*'|\S+)/gi;
+  /** "the password is hunter2". */
+  static readonly SPOKEN =
+    /\b((?:password|passwd|passphrase|secret|token|api[ _-]?key)s?)\s+(?:is|are|was|were)\s+("[^"]*"|'[^']*'|\S+)/gi;
 }

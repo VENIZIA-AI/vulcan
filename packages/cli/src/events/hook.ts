@@ -69,6 +69,25 @@ export class EventHook {
     }
   }
 
+  /**
+   * Who a message went to, without where. A name stays as it is; an address with a path (`uds:/run/user/1000/cc-socks/3326301.sock`)
+   * keeps its scheme and the last part of the path, so no folder of the machine is logged.
+   */
+  private static recipientOf(opts: { to: string }): string {
+    if (!/[\\/]/.test(opts.to)) {
+      return opts.to;
+    }
+
+    const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(opts.to)?.[1];
+    const last =
+      opts.to
+        .split(/[\\/]/)
+        .filter((part) => part !== '')
+        .pop() ?? '';
+
+    return scheme === undefined ? last : `${scheme}:${last}`;
+  }
+
   private static mapSend(opts: { input: Record<string, unknown> }): IHookEvent | undefined {
     const { input } = opts;
     const call = input.tool_input;
@@ -91,14 +110,8 @@ export class EventHook {
 
     return {
       kind: EventKinds.MSG_SENT,
-      summary:
-        label === ''
-          ? EventText.oneLine({
-              text: EventText.firstLine({ text: message }),
-              max: EventConstants.FALLBACK_MAX,
-            })
-          : label,
-      ...(recipient === '' ? {} : { ref: `to:${recipient}` }),
+      summary: label === '' ? EventConstants.MESSAGE_SENT_LABEL : label,
+      ...(recipient === '' ? {} : { ref: `to:${EventHook.recipientOf({ to: recipient })}` }),
       flowText: message,
     };
   }

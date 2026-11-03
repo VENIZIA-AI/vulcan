@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
@@ -57,19 +57,24 @@ export class EventActor {
       return undefined;
     }
 
-    for (const file of files) {
-      const name = EventActor.nameIn({ file: join(directory, file), sessionId: opts.sessionId });
+    const matches = files.flatMap(
+      (file) =>
+        EventActor.candidateIn({ file: join(directory, file), sessionId: opts.sessionId }) ?? [],
+    );
+    // Several files can hold one session id (a resumed session leaves its old file): a live process wins, then the newest.
+    const live = matches.filter((match) => match.alive);
+    const best = [...(live.length > 0 ? live : matches)].sort(
+      (left, right) => right.updatedAt - left.updatedAt,
+    )[0];
 
-      if (name !== undefined) {
-        return name;
-      }
-    }
-
-    return undefined;
+    return best?.name;
   }
 
-  /** The name in one registry file when it is the session's; a file that cannot be read is no match. */
-  private static nameIn(opts: { file: string; sessionId: string }): string | undefined {
+  /** The name, the process and the time of one registry file when it is the session's; a file that cannot be read is no match. */
+  private static candidateIn(opts: {
+    file: string;
+    sessionId: string;
+  }): { name: string; alive: boolean; updatedAt: number }[] | undefined {
     try {
       const entry: unknown = JSON.parse(readFileSync(opts.file, 'utf8'));
 
@@ -79,9 +84,33 @@ export class EventActor {
 
       const name = typeof entry.name === 'string' ? EventActor.clean({ text: entry.name }) : '';
 
-      return name === '' ? undefined : name;
+      if (name === '') {
+        return undefined;
+      }
+
+      return [
+        {
+          name,
+          alive: typeof entry.pid === 'number' && EventActor.isAlive({ pid: entry.pid }),
+          updatedAt:
+            typeof entry.updatedAt === 'number'
+              ? entry.updatedAt
+              : Number(statSync(opts.file).mtimeMs),
+        },
+      ];
     } catch {
       return undefined;
+    }
+  }
+
+  /** Whether a process with this id exists (signal 0 sends nothing); a process of another user exists too. */
+  private static isAlive(opts: { pid: number }): boolean {
+    try {
+      process.kill(opts.pid, 0);
+
+      return true;
+    } catch (error) {
+      return error instanceof Error && 'code' in error && error.code === 'EPERM';
     }
   }
 }

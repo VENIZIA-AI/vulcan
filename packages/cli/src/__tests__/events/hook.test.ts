@@ -102,19 +102,35 @@ describe('EventHook.map', () => {
     });
   });
 
-  test('without a label, the first line of the message, cut and redacted', () => {
+  test('without a label the summary is a fixed text: nothing of the message, its first line included, is stored', () => {
     const mapped = map({
       hookEventName: 'PostToolUse',
       toolName: 'SendMessage',
       toolInput: {
         to: 'x',
-        message: `\nPR is open ghp_abcdefghijklmnopqrstuvwxyz0123456789 ${'w'.repeat(200)}\nsecond line`,
+        message: 'Edit /home/me/secret-project/packages/api/src/auth.ts now\nsecond line',
       },
     });
 
-    expect(mapped?.summary.length).toBeLessThanOrEqual(80);
-    expect(mapped?.summary).toStartWith('PR is open [redacted] www');
-    expect(mapped?.summary).not.toContain('second');
+    expect(mapped?.summary).toBe('message sent');
+    expect(JSON.stringify({ ...mapped, flowText: undefined })).not.toContain('secret-project');
+  });
+
+  test('a recipient that is an address keeps its scheme and the last part, not the folders of the machine', () => {
+    const refOf = (to: string) =>
+      map({
+        hookEventName: 'PostToolUse',
+        toolName: 'SendMessage',
+        toolInput: { to, summary: 's', message: 'm' },
+      })?.ref;
+
+    expect(refOf('veni-forge')).toBe('to:veni-forge');
+    expect(refOf('worker [3fa9c1]')).toBe('to:worker [3fa9c1]');
+    expect(refOf('uds:/run/user/1000/cc-socks/3326301.sock')).toBe('to:uds:3326301.sock');
+    expect(refOf('bridge:/home/me/.cache/bridge/abc/def')).toBe('to:bridge:def');
+    expect(refOf('/home/me/peer.sock')).toBe('to:peer.sock');
+    expect(refOf('uds:C:\\Users\\me\\peer.sock')).toBe('to:uds:peer.sock');
+    expect(refOf('uds:/run/x/')).toBe('to:uds:x');
   });
 
   test('other tools, a failed send and malformed payloads are not logged', () => {
@@ -252,7 +268,10 @@ describe('EventHook.run', () => {
       {
         hookEventName: 'PostToolUse',
         toolName: 'SendMessage',
-        toolInput: { to: 'a', summary: 'label', message: `Flow: F-1\n${secrets[0]}` },
+        toolInput: {
+          to: 'uds:/run/user/1000/secret-dir/peer.sock',
+          message: `Flow: F-1 ${secrets[0]} /home/me/private/file.ts`,
+        },
         toolResponse: { success: true, detail: secrets[4] },
         transcriptPath: secrets[3],
       },
@@ -269,7 +288,7 @@ describe('EventHook.run', () => {
 
     expect(text.trim().split('\n')).toHaveLength(4);
 
-    for (const secret of secrets) {
+    for (const secret of [...secrets, '/home/me/private', 'secret-dir', '/run/user']) {
       expect(text).not.toContain(secret);
     }
   });

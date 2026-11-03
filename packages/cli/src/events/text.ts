@@ -12,25 +12,38 @@ export class EventText {
 
     return text
       .replace(EventSecrets.URL_USERINFO, `$1${EventConstants.REDACTED}@`)
-      .replace(EventSecrets.ASSIGNMENT, `$1=${EventConstants.REDACTED}`);
+      .replace(EventSecrets.ASSIGNMENT, `$1=${EventConstants.REDACTED}`)
+      .replace(EventSecrets.SPOKEN, `$1 is ${EventConstants.REDACTED}`);
+  }
+
+  /** `text` with each run of control characters (C0, DEL and C1) replaced by one space: what a reader prints is never an escape sequence. */
+  static stripControl(opts: { text: string }): string {
+    let stripped = '';
+    let inRun = false;
+
+    for (const character of opts.text) {
+      const code = character.codePointAt(0) ?? 0;
+      const isControl = code <= 0x1f || (code >= 0x7f && code <= 0x9f);
+
+      if (!isControl) {
+        stripped += character;
+      } else if (!inRun) {
+        stripped += ' ';
+      }
+
+      inRun = isControl;
+    }
+
+    return stripped;
   }
 
   /** One line of at most `max` characters: control characters and runs of space become one space, secrets are redacted first. */
   static oneLine(opts: { text: string; max: number }): string {
-    const flat = opts.text
-      // eslint-disable-next-line no-control-regex
-      .replace(/[\u0000-\u001f\u007f]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    const flat = EventText.stripControl({ text: opts.text }).replace(/\s+/g, ' ').trim();
 
     return Array.from(EventText.redact({ text: flat }))
       .slice(0, opts.max)
       .join('')
       .trim();
-  }
-
-  /** The first line of `text` that holds anything, or an empty string. */
-  static firstLine(opts: { text: string }): string {
-    return opts.text.split(/\r\n|\r|\n/).find((line) => line.trim() !== '') ?? '';
   }
 }

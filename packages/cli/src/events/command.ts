@@ -1,4 +1,5 @@
 import { existsSync, statSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
 import {
@@ -70,7 +71,12 @@ export class EventCommand {
 
   /** The folder to use: `--dir`, else the manifest's `events.dir`, else the project's own. */
   private static dirOf(opts: { cwd: string; values: TFlagValues }): string {
-    return EventSettings.dirOf({ root: opts.cwd, dir: opts.values[EventFlags.DIR] });
+    return EventSettings.dirOf({
+      root: EventSettings.rootOf({ cwd: opts.cwd }),
+      ...(opts.values[EventFlags.DIR] === undefined
+        ? {}
+        : { dir: resolve(opts.cwd, opts.values[EventFlags.DIR]) }),
+    });
   }
 
   private static add(opts: { cwd: string; values: TFlagValues }): number {

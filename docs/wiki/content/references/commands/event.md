@@ -42,7 +42,7 @@ One file per local day, one JSON object per line, in `.agents/local/events/<yyyy
 | `actor` | The session that wrote it, as other sessions address it |
 | `kind` | One of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr` |
 | `summary` | One line, at most 200 characters |
-| `ref` | A commit, a PR, or `to:<recipient>` for a message; absent when there is none |
+| `ref` | A commit, a PR, or `to:<recipient>` for a message; absent when there is none. A recipient that is an address keeps its scheme and the last part of its path (`to:uds:3326301.sock`), never the folders |
 | `source` | `claude-hook` or `cli` |
 
 Each line is one write, so sessions that write at the same moment do not mix their lines.
@@ -57,7 +57,7 @@ export default {
 };
 ```
 
-Every hook and every `event add` in those projects then writes there, and `event tail --dir <folder>` reads it from anywhere. `vulcan doctor` warns when a `dir` outside the project does not exist or cannot be written ([events-dir](/references/commands/doctor#events-dir)). The hooks fail open, so without that warning a wrong folder would lose every line without a sound. Only turn this on for a folder you own: every project that names it can write to it.
+Every hook and every `event add` in those projects then writes there, and `event tail --dir <folder>` reads it from anywhere. `vulcan doctor` warns when a `dir` outside the project does not exist or cannot be written ([events-dir](/references/commands/doctor#events-dir)). The hooks fail open, so without that warning a wrong folder would lose every line without a sound. Only turn this on for a folder you own: every project that names it can write to it. The folder must be on a local disk. One line is one append, which is atomic on a local file system but not on NFS or another network file system, where two sessions can interleave their lines. A reader skips and counts a line it cannot read, and prints no control character, so a damaged or hostile line cannot send an escape sequence to your terminal.
 
 ## vulcan event add
 
@@ -73,8 +73,10 @@ It prints the id of the line. This is the way in for any coding agent: a hook of
 | `--summary` | A short label. It is cut to one line of 200 characters, and anything shaped like a secret is replaced by `[redacted]` |
 | `--flow` | `F-n`. Without it, the flow is read from the branch, when its name has an `F-n` segment such as `feature/F-12-events-log` |
 | `--ref` | A commit, a PR number, a recipient |
-| `--actor` | Who. Without it: `VULCAN_ACTOR` in the environment, else the name Claude Code gave the session, else `claude:` and the start of the session id, else `unknown` |
-| `--dir` | The folder, for this call: `--dir` over `events.dir` over `.agents/local/events` |
+| `--actor` | Who. Without it: `VULCAN_ACTOR` in the environment, else the name Claude Code gave the session (when several of its session files hold the session id, the one of a live process, then the newest), else `claude:` and the start of the session id, else `unknown` |
+| `--dir` | The folder, for this call: `--dir` over `events.dir` over `.agents/local/events`. A relative path is relative to where you run the command |
+
+Run from a subfolder, the command uses the project of that folder: the nearest folder above it with `.agents/vulcan.manifest.json` or `.git`. It reads the same `events` block there as at the top.
 
 Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not `F-n`, an unknown flag, a flag given twice).
 
@@ -96,7 +98,7 @@ It prints the events at or after `--since`, oldest first. `--since` takes anythi
 | `Stop` | `session-stop` | `turn ended`. Not logged while `stop_hook_active` is true | `stop_hook_active` |
 | `SubagentStop` | `subagent-stop` | the `agent_type` and the `agent_id` | `agent_type`, `agent_id` |
 | `Notification` | `needs-owner`, for `permission_prompt`, `idle_prompt` and `elicitation_dialog` | the notification `title`, else its type | `notification_type`, `title` |
-| `PostToolUse` of `SendMessage` | `msg-sent` | the sender's own `summary` label, else the first line of the message cut to 80 characters | `tool_input.to`, `tool_input.summary`, the first line of `tool_input.message` |
+| `PostToolUse` of `SendMessage` | `msg-sent` | the sender's own `summary` label, else the fixed text `message sent`. The text of the message is never used | `tool_input.to`, `tool_input.summary`; the first line of `tool_input.message` only to look for `Flow: F-n` |
 
 A `Stop` fires at the end of every turn, so `session-stop` means "the agent stopped to wait", not "the session closed". `msg-received` has no hook: Claude Code runs none when a message arrives, and VULCAN does not read transcripts to find out. A reader gets it from the sender's `msg-sent`, or an agent writes it with `event add`. `commit` and `pr` are written with `event add` too.
 
@@ -110,7 +112,7 @@ The hook takes about 10 to 25 ms per event on a developer machine (a bare `bun` 
 
 ## What is never stored
 
-Summaries only. The log never holds a message body, the last reply of an agent (`last_assistant_message`), a notification `message`, a tool command or its output, a file path, or a transcript. Text that is stored passes through a redaction first: GitHub, npm, Slack and AWS tokens, `sk-` keys, `Bearer` values, private-key headers, long hex and base64 runs, `user:password@` in a URL, and the value of any `name=value` whose name contains `key`, `token`, `secret`, `password` or `credential` become `[redacted]`. That is a net for slips, not a promise: a label that a person or an agent writes should not contain a secret in the first place.
+Summaries only. The log never holds a message body, the last reply of an agent (`last_assistant_message`), a notification `message`, a tool command or its output, a file path, or a transcript. Text that is stored passes through a redaction first: GitHub, GitLab, npm, Slack, AWS and Google API keys, `sk-` and Stripe `sk_live_`/`sk_test_` keys, `Bearer` and `Basic` credentials, JSON web tokens, private-key headers, long hex and base64 runs, `user:password@` in a URL, and the value of any `name=value`, `name: value` or `"name": "value"` whose name contains `key`, `token`, `secret`, `password` or `credential`, or after "the password is", become `[redacted]`. That is a net for slips, not a promise: a label that a person or an agent writes should not contain a secret in the first place.
 
 ## Other agents
 

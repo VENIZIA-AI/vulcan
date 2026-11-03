@@ -145,15 +145,18 @@ export class EventLog {
       return undefined;
     }
 
+    // A reader prints these: whatever a writer put there, no control character reaches a terminal.
+    const clean = (field: string): string => EventText.stripControl({ text: field });
+
     return {
-      id,
-      ts,
-      ...(flowId === undefined ? {} : { flowId }),
-      actor,
+      id: clean(id),
+      ts: clean(ts),
+      ...(flowId === undefined ? {} : { flowId: clean(flowId) }),
+      actor: clean(actor),
       kind: kind as TEventKind,
-      summary,
-      ...(ref === undefined ? {} : { ref }),
-      source,
+      summary: clean(summary),
+      ...(ref === undefined ? {} : { ref: clean(ref) }),
+      source: clean(source),
     };
   }
 }

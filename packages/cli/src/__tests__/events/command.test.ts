@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { EventLog } from '../../events/index.ts';
 import { hermeticEnv } from '../hermetic.helper.ts';
@@ -7,6 +7,10 @@ import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 
 afterAll(removeProjects);
+
+/** A project folder: the manifest marks it, so a command run in it does not walk up into the repository the test run lives in. */
+const project = (opts: { files?: Record<string, string> } = {}): string =>
+  createProject({ files: { '.agents/vulcan.manifest.json': '{}', ...opts.files } });
 
 const cli = (opts: { root: string; args: string[]; env?: Record<string, string> }) =>
   runCli({
@@ -22,7 +26,7 @@ const lines = (opts: { dir: string }) =>
 
 describe('vulcan event add', () => {
   test('writes one line to the project folder and prints its id', () => {
-    const root = createProject({ files: { '.git/HEAD': 'ref: refs/heads/feature/F-7-x\n' } });
+    const root = project({ files: { '.git/HEAD': 'ref: refs/heads/feature/F-7-x\n' } });
     const result = cli({
       root,
       args: ['add', '--kind', 'commit', '--summary', 'fixed the lock', '--ref', 'abc1234'],
@@ -44,8 +48,52 @@ describe('vulcan event add', () => {
     });
   });
 
+  test('run from a subfolder it uses the project of that folder: the same events.dir and the same default folder', () => {
+    const shared = createProject({ files: {} });
+    const configured = createProject({
+      files: {
+        '.agents/vulcan.manifest.json': JSON.stringify({ events: { log: true, dir: shared } }),
+        'packages/api/src/x.ts': 'x',
+      },
+    });
+    const plain = project({
+      files: { '.git/HEAD': 'ref: refs/heads/x\n', 'packages/api/src/x.ts': 'x' },
+    });
+
+    expect(
+      cli({
+        root: join(configured, 'packages/api/src'),
+        args: ['add', '--kind', 'pr', '--summary', 's'],
+      }).code,
+    ).toBe(0);
+    expect(lines({ dir: shared })).toHaveLength(1);
+    expect(existsSync(join(configured, 'packages/api/src/.agents'))).toBe(false);
+    expect(cli({ root: join(configured, 'packages/api'), args: ['tail'] }).stdout).toContain(
+      ' pr ',
+    );
+
+    expect(
+      cli({ root: join(plain, 'packages/api'), args: ['add', '--kind', 'pr', '--summary', 's'] })
+        .code,
+    ).toBe(0);
+    expect(lines({ dir: join(plain, '.agents/local/events') })).toHaveLength(1);
+    expect(existsSync(join(plain, 'packages/api/.agents'))).toBe(false);
+  });
+
+  test('a relative --dir is relative to where the command runs', () => {
+    const root = project({ files: { 'sub/x.txt': 'x' } });
+
+    expect(
+      cli({
+        root: join(root, 'sub'),
+        args: ['add', '--kind', 'pr', '--summary', 's', '--dir', 'here'],
+      }).code,
+    ).toBe(0);
+    expect(existsSync(join(root, 'sub/here'))).toBe(true);
+  });
+
   test('works with the log switched off in the manifest', () => {
-    const root = createProject({ files: { '.agents/vulcan.manifest.json': '{}' } });
+    const root = project();
 
     expect(cli({ root, args: ['add', '--kind', 'pr', '--summary', 'opened'] }).code).toBe(0);
     expect(existsSync(join(root, '.agents/local/events'))).toBe(true);
@@ -78,7 +126,7 @@ describe('vulcan event add', () => {
   });
 
   test('a secret in the summary is redacted and the text is one line', () => {
-    const root = createProject({ files: {} });
+    const root = project();
 
     cli({
       root,
@@ -91,7 +139,7 @@ describe('vulcan event add', () => {
   });
 
   test('bad input exits 2 and writes nothing', () => {
-    const root = createProject({ files: {} });
+    const root = project();
     const bad: string[][] = [
       ['add'],
       ['add', '--kind', 'deploy', '--summary', 's'],
@@ -116,7 +164,7 @@ describe('vulcan event add', () => {
   });
 
   test('a folder it cannot write is exit 1 with the reason', () => {
-    const root = createProject({ files: {} });
+    const root = project();
     const result = cli({
       root,
       args: ['add', '--kind', 'pr', '--summary', 's', '--dir', '/proc/vulcan-no-such/events'],
@@ -130,7 +178,7 @@ describe('vulcan event add', () => {
 describe('vulcan event tail', () => {
   const NOW = Date.now();
   const seed = (): string => {
-    const root = createProject({ files: {} });
+    const root = project();
     const dir = join(root, '.agents/local/events');
 
     for (const [offset, kind, summary] of [
@@ -188,7 +236,7 @@ describe('vulcan event tail', () => {
 
   test('--dir reads any folder; one that is not there is exit 2, the default one that is not there is empty', () => {
     const shared = createProject({ files: {} });
-    const root = createProject({ files: {} });
+    const root = project();
 
     EventLog.append({
       dir: shared,
@@ -216,8 +264,33 @@ describe('vulcan event tail', () => {
     expect(result.stderr).toContain('skipped 1 line(s)');
   });
 
+  test('control characters in a line written by someone else never reach the terminal, in either format', () => {
+    const root = project();
+    const dir = join(root, '.agents/local/events');
+    const event = EventLog.build({ kind: 'commit', summary: 's', actor: 'a', source: 'cli' });
+
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, `${EventLog.dayOf({ time: Date.now() })}.jsonl`),
+      `${JSON.stringify({ ...event, actor: 'evil\u001b]0;pwned\u0007', summary: 'x\u009b2Jy' })}\n`,
+    );
+
+    for (const args of [['tail'], ['tail', '--json']]) {
+      const out = cli({ root, args }).stdout;
+
+      const controls = [...out].filter((character) => {
+        const code = character.codePointAt(0) ?? 0;
+
+        return character !== '\n' && (code <= 0x1f || (code >= 0x7f && code <= 0x9f));
+      });
+
+      expect(controls, args.join(' ')).toEqual([]);
+      expect(out).toContain('evil');
+    }
+  });
+
   test('help lists the command; an unknown flag is exit 2', () => {
-    const root = createProject({ files: {} });
+    const root = project();
 
     expect(runCli({ args: ['help'], cwd: root }).stdout).toContain('event add --kind');
     expect(cli({ root, args: ['tail', '--bogus'] }).code).toBe(2);

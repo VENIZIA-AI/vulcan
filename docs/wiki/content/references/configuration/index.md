@@ -716,7 +716,7 @@ The `events` object configures the agent event log ([vulcan event](/references/c
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `log` | `boolean` | `false` | `true` makes `vulcan sync` install the Claude Code hooks that write the log. `vulcan event add` and `tail` work whatever this says |
-| `dir` | `string` | `<project>/.agents/local/events` | An absolute folder that takes the log instead of the project's own, so one coordinator can read the sessions of several repositories. `~` and relative paths are refused. When it is outside the project, `vulcan doctor` warns if the folder is missing or not writable |
+| `dir` | `string` | `<project>/.agents/local/events` | An absolute folder that takes the log instead of the project's own, so one coordinator can read the sessions of several repositories. `~` and relative paths are refused. It must be on a local disk (appends are not atomic on NFS). When it is outside the project, `vulcan doctor` warns if the folder is missing or not writable |
 
 `sync` writes the block to the manifest only when `log` is `true` or `dir` is set.
 
