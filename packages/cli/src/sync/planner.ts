@@ -11,6 +11,7 @@ import {
 import { basename, dirname, join, resolve } from 'node:path';
 import { AgentTable } from '../agents/index.ts';
 import { BASE_DIRECTORY, BaseDirectory } from '../common/index.ts';
+import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import { CodingAgents } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
@@ -63,7 +64,7 @@ const readSettingsFile = (opts: { path: string }): TSettings | undefined => {
   }
 };
 
-/** Shipped settings, the chosen slot options, the project's hooks and `claude.settings` - what sync owns. */
+/** Shipped settings, the chosen slot options, the empty attribution of a project that denies agent signatures, the project's hooks and `claude.settings` - what sync owns. */
 const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
   let overlay: TSettings = JSON.parse(
     readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.SETTINGS_FILE), 'utf8'),
@@ -83,6 +84,15 @@ const buildManagedOverlay = (opts: { config: TResolvedConfig }): TSettings => {
       base: overlay,
       overlay: JSON.parse(
         readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.REMOTE_HOSTS_FILE), 'utf8'),
+      ),
+    });
+  }
+
+  if (opts.config.commit.message.agent.signature === AgentSignaturePolicies.DENY) {
+    overlay = ProjectSettings.merge({
+      base: overlay,
+      overlay: JSON.parse(
+        readFileSync(join(BASE_DIRECTORY, 'claude', SyncConstants.COMMIT_ATTRIBUTION_FILE), 'utf8'),
       ),
     });
   }

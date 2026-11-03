@@ -25,6 +25,28 @@ export default {
 
 `sync` writes the key to the manifest, which the command reads, and installs the [`commit-msg` hook](#the-hook) in your clone. Every developer gets it on their next `sync`. The [config reference](/references/configuration/#commit) lists every key.
 
+## Claude Code's own attribution
+
+With `agent.signature: 'deny'`, `vulcan sync` also turns off the attribution that Claude Code adds itself, so the signature is not written in the first place. It adds this to the managed `.claude/settings.json`:
+
+```json
+{ "attribution": { "commit": "", "pr": "", "sessionUrl": false } }
+```
+
+An empty `commit` or `pr` hides the attribution text of commits and pull request descriptions, and `sessionUrl: false` leaves out the `Claude-Session` trailer and the session link that web and Remote Control sessions add. The names come from the settings schema of Claude Code 2.1.317. Switching back to `'allow'` and running `sync` removes exactly that key, and only while it still holds what `sync` wrote: a value you changed by hand stays. This applies only when Claude Code is one of the agents you chose on that machine.
+
+| Agent | Setting | VULCAN |
+|---|---|---|
+| Claude Code | `attribution` in `.claude/settings.json` | Written by `sync` |
+| Copilot in VS Code | `git.addAICoAuthor` in VS Code settings, default `off` | Not written: it is a VS Code setting, in a file that allows comments, and it is already off by default |
+| Cursor | `attribution.attributeCommitsToAgent` in `~/.cursor/cli-config.json`, a per-user file | Not written: nothing outside the project is changed, and Cursor's staff report that the local executor ignores it |
+| Copilot CLI | no setting found; a feature request for one (github.com/orgs/community/discussions/203517) says there is none | Not supported |
+| Codex | no setting found in its configuration docs | Not supported |
+| omp, Antigravity | no co-author trailer found in the installed omp 18.13.2 and agy 1.4.7 | Nothing to turn off |
+| Pi | not checked | Not supported |
+
+For every agent the `commit-msg` hook is the check that catches a signature the settings did not prevent.
+
 ## Usage
 
 Give it one message:
