@@ -9,7 +9,6 @@ Root tooling of the VULCAN monorepo, grouped by purpose. Each group keeps its te
 | `release/` | `release-args.ts` | Reads `--bump`, `--issue`, `--dry-run`, `--yes` | `release.ts` |
 | `release/` | `next-tag.ts` | Moves `next` up to `latest` after a publish | `package-release.yml`, step "Keep next at or above latest" |
 | `checks/` | `check-project-names.ts` | No project name (IGNIS, ARDOR, BANA) in `packages/*/src` outside tests | `make project-names-check`, part of `make lint-all` |
-| `checks/` | `check-agent-signature.ts` | W-00: no commit message signs the commit as an agent (a `Co-Authored-By` or `Signed-off-by` trailer, or a "generated with" line, naming an agent or its vendor) | the `commit-msg` git hook (`make setup-hooks`), `make agent-signature-check` (CI) |
 | `build/` | `pack-smoke-atlas.ts` | Packs atlas, installs it alone in an empty project, runs it | `make smoke-atlas` (CI, release workflow) |
 | `build/` | `pack-smoke-cli.ts` | The same for the cli | `make smoke-cli` (CI, release workflow) |
 | `build/` | `force-update.sh` | Raises a package's dependencies to the registry's latest | the `force-update` script of each package, `make update-<pkg>` |
@@ -21,6 +20,6 @@ Root tooling of the VULCAN monorepo, grouped by purpose. Each group keeps its te
 
 The tests in `checks/__tests__/` are gates run by `make test-scripts`: `package-layout`,
 `library-targets`, `source-tracked`, `test-tmp-hygiene` and `no-framework-dependency` pin the shape
-of the repository, and `check-project-names` and `check-agent-signature` test the two scripts above. The dependency catalog check and the test helpers (`spawnSyncBounded`, the temp-folder preload) are `@venizia/dev-configs`'s (`devz check catalog`, `@venizia/dev-configs/testing`), not kept here.
+of the repository, and `check-project-names` tests the script above. The dependency catalog check and the test helpers (`spawnSyncBounded`, the temp-folder preload) are `@venizia/dev-configs`'s (`devz check catalog`, `@venizia/dev-configs/testing`), not kept here.
 `wiki-shared` is the one file kept identical in the three wiki repositories: it fails when the shared theme
 folder differs from its `SHARED.json`, and when a VitePress piece its CSS overrides is gone.

@@ -10,6 +10,7 @@ import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules, RuleParser, RuleSlots } from '../rules/index.ts';
 import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
 import { AgentScopes, AgentSelection, AgentTable, LocalChoice } from '../agents/index.ts';
+import { CommitHook, CommitHookStates } from '../commit/index.ts';
 import { AgentFiles, AtlasBlockPlan, LocalPlan, SyncPlanner, SyncStatuses } from '../sync/index.ts';
 import { LocalConstants, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
 import {
@@ -668,6 +669,53 @@ export class ProjectContract {
             message: stored.error,
           }),
         ];
+  }
+
+  /**
+   * The `commit-msg` hook of this clone, when the project turned a commit check on: a missing or out-of-date
+   * one is fixed by `vulcan sync`; one that is not ours and does not call the check, or one a project with
+   * `core.hooksPath` owns, is told the line to add. Per clone, so a warning and never a violation.
+   */
+  static checkCommitHook(opts: ICheckContext): IViolation[] {
+    const status = CommitHook.stateOf({ root: opts.root, config: opts.config });
+    const file = relative(opts.root, status.path);
+    const fix = `run '${ProjectLayout.VULCAN_COMMAND} sync' (make vulcan-sync)`;
+
+    switch (status.state) {
+      case CommitHookStates.MISSING: {
+        return [
+          createViolation({
+            check: DoctorChecks.COMMIT_HOOK,
+            file,
+            message: `the commit-msg hook is not installed, so commit messages are not checked - ${fix}`,
+          }),
+        ];
+      }
+
+      case CommitHookStates.STALE: {
+        return [
+          createViolation({
+            check: DoctorChecks.COMMIT_HOOK,
+            file,
+            message: `the commit-msg hook is out of date - ${fix}`,
+          }),
+        ];
+      }
+
+      case CommitHookStates.UNWIRED: {
+        return [
+          createViolation({
+            check: DoctorChecks.COMMIT_HOOK,
+            file,
+            message: `the commit-msg hook does not run the commit check - ${status.note ?? fix}`,
+          }),
+        ];
+      }
+
+      default: {
+        return [];
+      }
+    }
   }
 
   /**

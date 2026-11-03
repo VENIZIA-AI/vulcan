@@ -21,6 +21,7 @@ import {
   SyncPlanner,
   SyncStatuses,
 } from '../sync/index.ts';
+import { CommitHookPlan } from '../commit/index.ts';
 
 const DRY_RUN_FLAG = '--dry-run';
 const LABEL_WIDTH = 9;
@@ -119,6 +120,7 @@ export class SyncFlow {
       ...stored,
       ...LocalPlan.planWorkspace({ root: opts.cwd }),
       ...ExcludePlan.plan({ root: opts.cwd, agents: resolved.agents }),
+      ...CommitHookPlan.plan({ root: opts.cwd, config: loaded.config }),
     ];
     // Read before the manifest action rewrites the hashes it compares against.
     const changes = BaseRulesDiff.diff({ root: opts.cwd });

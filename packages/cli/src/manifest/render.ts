@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { BunFormatter } from '../common/index.ts';
+import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import { ProjectPackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules } from '../rules/index.ts';
@@ -45,6 +46,28 @@ const guardBlockOf = (opts: { config: TResolvedConfig }): { guard?: Record<strin
   };
 
   return Object.keys(block).length === 0 ? {} : { guard: block };
+};
+
+const commitBlockOf = (opts: { config: TResolvedConfig }): { commit?: Record<string, unknown> } => {
+  const { agent, subject } = opts.config.commit.message;
+  const isDenied = agent.signature === AgentSignaturePolicies.DENY;
+
+  if (!isDenied && subject === undefined) {
+    return {};
+  }
+
+  return {
+    commit: {
+      message: {
+        agent: {
+          signature: agent.signature,
+          ...(isDenied && agent.names.length > 0 ? { names: agent.names } : {}),
+          ...(isDenied && agent.allow.length > 0 ? { allow: agent.allow } : {}),
+        },
+        ...(subject === undefined ? {} : { subject }),
+      },
+    },
+  };
 };
 
 /** The manifest's `atlas` block: only what the config sets (keys listed, the download turned off). */
@@ -140,6 +163,7 @@ export class ProjectManifest {
       ...(config.remoteHosts === undefined ? {} : { remoteHosts: config.remoteHosts }),
       // The colour `vulcan visualize` takes for its pages; a project without the key gets the neutral default.
       ...(config.theme === undefined ? {} : { theme: config.theme }),
+      ...commitBlockOf({ config }),
     };
 
     return BunFormatter.format({

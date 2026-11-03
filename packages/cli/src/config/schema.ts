@@ -2,6 +2,9 @@ import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import { LayoutFolder } from '../common/layout-folder.ts';
 import { OWNER_SCHEMA } from '../owner/schema.ts';
+import { AgentSignaturePolicies } from '../commit/common/index.ts';
+import type { TAgentSignaturePolicy } from '../commit/common/index.ts';
+import { SubjectShape } from '../commit/subject.ts';
 import {
   CodingAgents,
   ConfigConstants,
@@ -109,6 +112,11 @@ const NPM_PACKAGE_NAME = z.string().superRefine((value, context) => {
     });
   }
 });
+
+/** A name that holds a letter or a digit: an entry of only punctuation or spaces would match everything. */
+const AGENT_NAME = z
+  .string()
+  .regex(/[\p{L}\p{N}]/u, { message: 'a name with at least one letter or digit' });
 
 const PROJECT_PACKAGE = z.strictObject({
   dir: z.string().regex(/^[a-z0-9][a-z0-9.-]*$/),
@@ -406,6 +414,51 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       toolOwnedPaths: [],
       writes: { trustedScripts: [], commands: [] },
       git: { askPush: [] },
+    }),
+  /**
+   * What `vulcan commit-check` looks for in a commit message, and what `vulcan sync` installs the
+   * `commit-msg` hook for, nested by scope. Every check is off until the project turns it on:
+   * `message.agent.signature: 'deny'` rejects a trailer or a "generated with" line that names an agent
+   * (rule W-00 of a project that has one); `message.agent.names` adds names to the shipped list and
+   * `message.agent.allow` lists names never flagged; `message.subject` is the project's own one-line
+   * shape. Written to the manifest only when a check is on.
+   */
+  commit: z
+    .strictObject({
+      message: z
+        .strictObject({
+          agent: z
+            .strictObject({
+              signature: z
+                .custom<TAgentSignaturePolicy>(
+                  (value) => typeof value === 'string' && AgentSignaturePolicies.isValid(value),
+                  { message: `one of ${[...AgentSignaturePolicies.SCHEME_SET].join(', ')}` },
+                )
+                .default(AgentSignaturePolicies.ALLOW),
+              names: z.array(AGENT_NAME).default([]),
+              allow: z.array(AGENT_NAME).default([]),
+            })
+            .default({ signature: AgentSignaturePolicies.ALLOW, names: [], allow: [] }),
+          subject: z
+            .strictObject({
+              pattern: z
+                .string()
+                .min(1)
+                .superRefine((value, context) => {
+                  const error = SubjectShape.patternError({ pattern: value });
+
+                  if (error !== undefined) {
+                    context.addIssue({ code: 'custom', message: error });
+                  }
+                }),
+              hint: z.string().min(1).optional(),
+            })
+            .optional(),
+        })
+        .default({ agent: { signature: AgentSignaturePolicies.ALLOW, names: [], allow: [] } }),
+    })
+    .default({
+      message: { agent: { signature: AgentSignaturePolicies.ALLOW, names: [], allow: [] } },
     }),
 });
 

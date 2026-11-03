@@ -3,6 +3,8 @@ import type { VulcanConfig } from '@venizia/vulcan';
 export default {
   agents: ['claude'],
   rules: { 'V-W-01': 'on-user-word' },
+  // W-00: a commit message never signs the commit as an agent. `vulcan sync` installs the commit-msg hook; CI runs the same check.
+  commit: { message: { agent: { signature: 'deny' } } },
   // The colour of this project's pages (vulcan visualize); the generator has no colour of its own but a neutral slate.
   theme: { accent: '#8a5a20', accentDark: '#dead6a' },
   knowledge: {

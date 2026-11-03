@@ -1,6 +1,6 @@
 import { AgentConstants } from './agents/index.ts';
-import { COMMAND_HANDLERS } from './commands/index.ts';
-import { runHelpCommand } from './commands/help.command.ts';
+import { COMMAND_LOADERS } from './commands/index.ts';
+import { CommitCheckFlags } from './commit/common/index.ts';
 import { ExitCodes, UpgradeFlags, VulcanCommands } from './common/index.ts';
 import { CreateFlags } from './create/common/index.ts';
 import { PipedInputRefusal } from './ui/keyboard.ts';
@@ -10,6 +10,8 @@ const VERSION_ALIASES = new Set(['--version', '-v']);
 
 interface IAcceptedArgs {
   flags: string[];
+  /** The exit code for an argument the command does not take; `1` when absent. */
+  unknownExit?: number;
   /** Flags that take the next argument as their value. */
   values: string[];
   positionals: number;
@@ -72,6 +74,12 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
     values: [],
     positionals: 0,
   },
+  [VulcanCommands.COMMIT_CHECK]: {
+    flags: [],
+    unknownExit: ExitCodes.USAGE,
+    values: [CommitCheckFlags.RANGE, CommitCheckFlags.TEXT],
+    positionals: 2,
+  },
   [VulcanCommands.DOCTOR]: { flags: [], values: [], positionals: 0 },
   [VulcanCommands.PROFILE]: { flags: ['--yes'], values: [], positionals: 1 },
   [VulcanCommands.VISUALIZE]: { flags: ['--schema'], values: ['--out'], positionals: 1 },
@@ -117,12 +125,18 @@ const findUnknownArg = (opts: { args: string[]; accepted: IAcceptedArgs }): stri
   return undefined;
 };
 
+const runHelp = async (opts: { cwd: string }): Promise<number> => {
+  const help = await COMMAND_LOADERS[VulcanCommands.HELP]();
+
+  return help({ args: [], cwd: opts.cwd });
+};
+
 export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<number> => {
   const [first, ...args] = opts.argv;
   const name = resolveCommandName({ first });
-  const handler = COMMAND_HANDLERS[name];
+  const load = COMMAND_LOADERS[name];
 
-  if (handler === undefined) {
+  if (load === undefined) {
     process.stderr.write(`vulcan: unknown command '${name}' - run 'bun x vulcan help'\n`);
 
     return ExitCodes.FAILURE;
@@ -130,14 +144,14 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
 
   // `x` hands its arguments to the tool, so only a help flag in the tool's place is vulcan's.
   if (name === VulcanCommands.X && HELP_ALIASES.has(args[0] ?? '')) {
-    return runHelpCommand();
+    return runHelp({ cwd: opts.cwd });
   }
 
   const accepted = ACCEPTED_ARGS[name];
 
   if (accepted !== undefined) {
     if (args.some((arg) => HELP_ALIASES.has(arg))) {
-      return runHelpCommand();
+      return runHelp({ cwd: opts.cwd });
     }
 
     const unknown = findUnknownArg({ args, accepted });
@@ -147,9 +161,11 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
         `vulcan ${name}: unknown argument '${unknown}' - run 'bun x vulcan help'\n`,
       );
 
-      return ExitCodes.FAILURE;
+      return accepted.unknownExit ?? ExitCodes.FAILURE;
     }
   }
+
+  const handler = await load();
 
   try {
     const exitCode = await handler({ args, cwd: opts.cwd });

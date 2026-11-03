@@ -115,5 +115,12 @@
   "theme": {
     "accent": "#8a5a20",
     "accentDark": "#dead6a"
+  },
+  "commit": {
+    "message": {
+      "agent": {
+        "signature": "deny"
+      }
+    }
   }
 }

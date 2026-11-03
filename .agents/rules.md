@@ -136,7 +136,7 @@ Most of these rules hold because agents read this file. Only these have tooling 
 
 | Rule | Enforced by | Actually blocks? |
 |---|---|---|
-| `W-00` | `.githooks/commit-msg` (after `make setup-hooks`) and the CI step `make agent-signature-check` run `scripts/checks/check-agent-signature.ts` on the commit messages; a pull request body is not checked | A signed commit message is refused; the CI step fails the branch |
+| `W-00` | `.githooks/commit-msg` (after `make setup-hooks`) and the CI step `make agent-signature-check` run `vulcan commit-check` (`commit.message.agent.signature: 'deny'` in `.configs/vulcan.config.mts`) on the commit messages; a pull request body is not checked | A signed commit message is refused; the CI step fails the branch |
 | `W-08` | `guard.writes.commands` in `.configs/vulcan.config.mts` (rendered into the manifest), read by the guard-writes hook; `scripts/checks/__tests__/release-guards-config.test.ts` runs the hook on the commands | Asks, never denies; a command that builds its name at run time is not seen |
 | `B-02` | `.githooks/pre-commit` runs `vulcan doctor` and `make lint-all` (after `make setup-hooks`); the release workflow runs every gate | Lint blocks a commit; the release blocks on every gate |
 | This file's rules | the session-start hook prints them into every Claude session | Reminds, never blocks |

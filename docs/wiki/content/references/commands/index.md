@@ -36,6 +36,10 @@ Usage: bun x vulcan <command>
   agents [list|add <ids>|remove <ids>|setup] [--dry-run]
                                   See, add, remove or re-choose the coding agents you use on this machine
   doctor                          Check the project follows VULCAN; exit 1 on any violation
+  commit-check <message-file> | --range <revs> | --text <message>
+                                  Check a commit message against the commit.message checks of the config (an
+                                  agent in a trailer or a "generated with" line, the project's subject shape);
+                                  sync installs it as the commit-msg hook; exit 1 on a problem, 2 on bad input
   visualize <spec.json> [--out <name>] | --schema
                                   Make one small static HTML page (a flow, a status, a before and after) from
                                   a JSON spec, in .agents/local/prototypes/; --schema prints the spec's schema
@@ -69,6 +73,7 @@ The following table lists each command, its purpose, its exit codes, and its ref
 | `visualize` | Make one small static HTML page from a JSON spec, in `.agents/local/prototypes/`; `--schema` prints the spec's JSON Schema | `0` on success; `1` when the spec is missing or not renderable, nothing is written, or `.agents/local/` is missing | [vulcan visualize](/references/commands/visualize) |
 | `profile` | Tell VULCAN how you like to work (language, how to address you, tone, habits); `show` prints it, `reset` deletes it | `0` on success; `1` when cancelled, unreadable, not gitignored or on an unknown argument | [vulcan profile](/references/commands/profile) |
 | `clean` | List what an agent left under `.agents/local/` and remove it with `--yes` | `0` on a dry run, a removal or nothing to remove; `1` when an item cannot be removed or on an unknown flag | [vulcan clean](/references/commands/clean) |
+| `commit-check` | Check a commit message for an agent signature and the project's subject shape, as the `commit-msg` hook that `sync` installs does; nothing is checked until `commit.message` turns a check on | `0` when clean or when no check is configured; `1` on a problem; `2` on bad input | [vulcan commit-check](/references/commands/commit-check) |
 | `doctor` | Check the project against the VULCAN contract and report violations | `0` when conformant; `1` on any contract violation or unknown argument | [vulcan doctor](/references/commands/doctor) |
 | `upgrade` | Bump the pinned `@venizia/vulcan` dependency and run sync | `0` on success; `1` on unknown argument or missing binary; otherwise the exit code of `bun add` or child `vulcan sync` | [upgrade](#upgrade) |
 | `x` | Run a shipped tool (`okf` or `atlas`) at the pinned package version | `0` on tool success; `1` on missing or unknown tool, unresolvable package, or invalid configuration; forwarded exit code from tool | [x](#x) |
