@@ -8,6 +8,8 @@ import { CleanScopes, LocalConstants, LocalStates } from './constants.ts';
 export interface ILocalEntry {
   scope: string;
   name: string;
+  /** Where it is, relative to `.agents/local/`: `tmp/job-1`, or a bare name for a stray folder. */
+  where: string;
   path: string;
   bytes: number;
   ageMs: number;
@@ -77,6 +79,135 @@ const git = (opts: { cwd: string; args: string[] }): string | undefined => {
   return result.status === 0 ? result.stdout : undefined;
 };
 
+/** Whether a release version has a tag in the repository: `v<version>` or `<version>`. */
+class ReleaseTags {
+  /** Whether `name` is a version (`LocalConstants.RELEASE_VERSION`); any other name is no candidate and never matched against a tag. */
+  static isVersion(opts: { name: string }): boolean {
+    return LocalConstants.RELEASE_VERSION.test(opts.name);
+  }
+
+  static isTagged(opts: { root: string; version: string }): boolean {
+    const bare = opts.version.replace(/^v/, '');
+
+    return [`v${bare}`, bare].some(
+      (tag) =>
+        git({ cwd: opts.root, args: ['show-ref', '--verify', '--quiet', `refs/tags/${tag}`] }) !==
+        undefined,
+    );
+  }
+}
+
+/** What the history of a branch says about its own work. */
+class BranchHistory {
+  /**
+   * Whether anything was ever committed on the branch: `false` when its reflog holds only its creation (a new
+   * branch has the commit of the branch it came from, which is why `--merged` calls it merged), `undefined`
+   * when there is no reflog to read (the branch is then judged by `--merged` alone).
+   */
+  static hasOwnCommits(opts: { root: string; branch: string }): boolean | undefined {
+    const log = git({
+      cwd: opts.root,
+      args: ['reflog', 'show', '--format=%gs', `refs/heads/${opts.branch}`, '--'],
+    });
+    const entries = (log ?? '').split('\n').filter((line) => line.trim() !== '');
+
+    return entries.length === 0
+      ? undefined
+      : entries.some((line) => !line.startsWith('branch: Created from'));
+  }
+}
+
+/** A directory that is really one: not a link, not a file. */
+const isRealDirectory = (opts: { path: string }): boolean => {
+  try {
+    const stat = lstatSync(opts.path);
+
+    return stat.isDirectory() && !stat.isSymbolicLink();
+  } catch {
+    return false;
+  }
+};
+
+/** Whether a path is something a build or an install makes again, judged by the names in it. */
+const isRebuildable = (opts: { path: string }): boolean => {
+  const parts = opts.path.replace(/\/$/, '').split('/');
+
+  return (
+    parts.some((part) => LocalConstants.REBUILDABLE_DIRECTORIES.includes(part)) ||
+    LocalConstants.REBUILDABLE_SUFFIXES.some((suffix) => (parts.at(-1) ?? '').endsWith(suffix))
+  );
+};
+
+/**
+ * The files under an ignored directory that are not rebuildable. git lists a directory whose every file is ignored
+ * as one entry (`packages/`), so it is walked here, and a rebuildable folder (`node_modules`) is not entered. A
+ * link is a file and is not followed. A directory too large to walk is reported whole.
+ */
+const walkIgnored = (opts: {
+  real: string;
+  directory: string;
+  budget: { left: number };
+}): string[] => {
+  const found: string[] = [];
+  let names: string[];
+
+  try {
+    names = readdirSync(join(opts.real, opts.directory));
+  } catch {
+    return [opts.directory];
+  }
+
+  for (const name of names) {
+    const path = `${opts.directory}${name}`;
+
+    opts.budget.left -= 1;
+
+    if (opts.budget.left < 0) {
+      return [opts.directory];
+    }
+
+    if (isRebuildable({ path })) {
+      continue;
+    }
+
+    if (isRealDirectory({ path: join(opts.real, path) })) {
+      found.push(...walkIgnored({ ...opts, directory: `${path}/` }));
+    } else {
+      found.push(path);
+    }
+  }
+
+  return found;
+};
+
+/** Ignored files a worktree holds that no build or install makes again: `.env`, a local database, a key. */
+const unrebuildableIgnored = (opts: { real: string }): string[] | undefined => {
+  const listed = git({
+    cwd: opts.real,
+    args: ['ls-files', '--others', '--ignored', '--exclude-standard', '--directory'],
+  });
+
+  if (listed === undefined) {
+    return undefined;
+  }
+
+  const budget = { left: LocalConstants.IGNORED_WALK_LIMIT };
+
+  return listed
+    .split('\n')
+    .filter((line) => line.trim() !== '' && !isRebuildable({ path: line }))
+    .flatMap((line) =>
+      line.endsWith('/') ? walkIgnored({ real: opts.real, directory: line, budget }) : [line],
+    );
+};
+
+/** Where a merged branch may have gone: the checked-out branch of the root, then develop, then the default branch of origin. */
+const MERGE_TARGETS = [
+  { label: 'the branch checked out at the project root', args: [] as string[] },
+  { label: 'origin/develop', args: ['origin/develop'] },
+  { label: 'the default branch of origin', args: ['origin/HEAD'] },
+];
+
 const classifyBranch = (opts: {
   root: string;
   real: string;
@@ -125,22 +256,32 @@ const classifyBranch = (opts: {
     };
   }
 
-  const merged = git({
-    cwd: opts.root,
-    args: ['branch', '--format=%(refname:short)', '--merged'],
-  });
-
-  if (
-    merged
+  // Merged into the branch checked out at the root, or into develop or the default branch of origin.
+  const target = MERGE_TARGETS.find((candidate) =>
+    git({
+      cwd: opts.root,
+      args: ['branch', '--format=%(refname:short)', '--merged', ...candidate.args],
+    })
       ?.split('\n')
       .map((line) => line.trim())
-      .includes(branch)
-  ) {
+      .includes(branch),
+  );
+
+  if (target !== undefined && BranchHistory.hasOwnCommits({ root: opts.root, branch }) === false) {
+    return {
+      state: LocalStates.UNMERGED,
+      removable: false,
+      registered: true,
+      note: `branch ${branch} has no commits of its own yet`,
+    };
+  }
+
+  if (target !== undefined) {
     return {
       state: LocalStates.MERGED,
       removable: true,
       registered: true,
-      note: `branch ${branch} is merged into the branch checked out at the project root`,
+      note: `branch ${branch} is merged into ${target.label}`,
     };
   }
 
@@ -181,25 +322,34 @@ const classifyWorktree = (opts: {
   const untracked = git({ cwd: opts.real, args: ['ls-files', '--others', '--exclude-standard'] });
   const clean = tracked === 0 && untracked !== undefined && untracked.trim() === '';
 
-  return clean
-    ? verdict
-    : {
-        state: LocalStates.DIRTY,
-        removable: false,
-        registered: true,
-        note: `${verdict.note}, but it has uncommitted or untracked files`,
-      };
-};
-
-/** A directory that is really one: not a link, not a file. */
-const isRealDirectory = (opts: { path: string }): boolean => {
-  try {
-    const stat = lstatSync(opts.path);
-
-    return stat.isDirectory() && !stat.isSymbolicLink();
-  } catch {
-    return false;
+  if (!clean) {
+    return {
+      state: LocalStates.DIRTY,
+      removable: false,
+      registered: true,
+      note: `${verdict.note}, but it has uncommitted or untracked files`,
+    };
   }
+
+  // `git worktree remove --force` deletes ignored files too: a `.env` or a local database would go with it.
+  const ignored = unrebuildableIgnored({ real: opts.real });
+
+  if (ignored === undefined || ignored.length > 0) {
+    const shown = (ignored ?? []).slice(0, LocalConstants.NOTE_FILES).join(', ');
+    const more = Math.max(0, (ignored ?? []).length - LocalConstants.NOTE_FILES);
+
+    return {
+      state: LocalStates.DIRTY,
+      removable: false,
+      registered: true,
+      note:
+        ignored === undefined
+          ? `${verdict.note}, but git could not list its ignored files`
+          : `${verdict.note}, but it holds ignored files that are not rebuildable: ${shown}${more > 0 ? ` and ${more} more` : ''}`,
+    };
+  }
+
+  return verdict;
 };
 
 export class LocalScan {
@@ -302,6 +452,25 @@ export class LocalScan {
           });
 
           ({ state, removable, registered: isRegistered, note } = verdict);
+        } else if (layout.name === CleanScopes.RELEASE_CANDIDATES) {
+          // A candidate is named by its version: once that version is tagged the release has shipped.
+          const isShipped =
+            ReleaseTags.isVersion({ name }) &&
+            ReleaseTags.isTagged({ root: opts.root, version: name });
+
+          ({ state, removable, note } = isShipped
+            ? {
+                state: LocalStates.SHIPPED,
+                removable: true,
+                note: `version ${name} is tagged: the release shipped`,
+              }
+            : {
+                state: LocalStates.OK,
+                removable: false,
+                note: ReleaseTags.isVersion({ name })
+                  ? `version ${name} is not tagged yet`
+                  : `${name} is not a version (1.2.3, v1.2.3 or 1.2.3-rc.1): kept`,
+              });
         } else if (staleAfter !== undefined && ageMs > staleAfter) {
           state = LocalStates.STALE;
         }
@@ -309,6 +478,7 @@ export class LocalScan {
         entries.push({
           scope: layout.name,
           name,
+          where: `${layout.name}/${name}`,
           path,
           bytes: sizeOf({ path }),
           ageMs,
@@ -329,6 +499,7 @@ export class LocalScan {
       entries.push({
         scope: CleanScopes.PROFILE,
         name: 'profile.json',
+        where: 'profile.json',
         path: profile,
         bytes: stat.size,
         ageMs: now - stat.mtimeMs,
@@ -340,7 +511,60 @@ export class LocalScan {
       });
     }
 
-    return entries;
+    return [...entries, ...LocalScan.strays({ local, now })];
+  }
+
+  /**
+   * Scratch folders a browser left directly under `.agents/local/` (its temp folder, when that was the short
+   * one): scope `tmp`, removable once they are old enough not to belong to a browser that is running.
+   */
+  private static strays(opts: { local: string; now: number }): ILocalEntry[] {
+    return readdirSync(opts.local)
+      .filter((name) => LocalConstants.STRAY_TEMP.some((pattern) => pattern.test(name)))
+      .map((name) => {
+        const path = join(opts.local, name);
+        const stat = lstatSync(path);
+        const ageMs = opts.now - newestModifiedAt({ path });
+        const isOld = ageMs > LocalConstants.STRAY_MIN_AGE_MS;
+
+        return {
+          scope: CleanScopes.TMP,
+          name,
+          where: name,
+          path,
+          bytes: sizeOf({ path }),
+          ageMs,
+          state: isOld ? LocalStates.STALE : LocalStates.OK,
+          removable: isOld,
+          isSymlink: stat.isSymbolicLink(),
+          registered: false,
+          note: isOld ? 'a browser left it' : 'younger than an hour: a browser may be using it',
+        };
+      });
+  }
+
+  /**
+   * What sits directly under `.agents/local/` and is neither a folder of the layout, a file VULCAN writes, nor
+   * a browser's scratch folder: nobody removes it, `doctor` names it.
+   */
+  static unknown(opts: { root: string }): { name: string; bytes: number }[] {
+    const local = LocalScan.localRootOf({ root: opts.root });
+
+    if (local === undefined) {
+      return [];
+    }
+
+    const known = new Set<string>(ProjectLayout.LOCAL_LAYOUT.map((entry) => entry.name));
+
+    return readdirSync(local)
+      .filter(
+        (name) =>
+          !known.has(name) &&
+          !LocalConstants.KNOWN_FILES.has(name) &&
+          !LocalConstants.STRAY_TEMP.some((pattern) => pattern.test(name)),
+      )
+      .sort()
+      .map((name) => ({ name, bytes: sizeOf({ path: join(local, name) }) }));
   }
 
   /**

@@ -1144,19 +1144,37 @@ export class ProjectContract {
     return violations;
   }
 
+  /**
+   * Something directly under `.agents/local/` that is not a folder of the layout, a file VULCAN writes, or a
+   * browser's scratch folder. Nothing removes it; the message says where scratch belongs. A warning.
+   */
+  static checkUnknownLocal(opts: ICheckContext): IViolation[] {
+    return LocalScan.unknown({ root: opts.root }).map((entry) =>
+      createViolation({
+        check: DoctorChecks.LOCAL,
+        file: `${ProjectLayout.LOCAL_DIRECTORY}/${entry.name}`,
+        message: `not an entry VULCAN knows (${LocalFormat.formatBytes({ bytes: entry.bytes })}): put scratch in tmp/ and what you want to keep in reports/; nothing removes it`,
+      }),
+    );
+  }
+
   /** What an agent left under `.agents/local/` that has outlived its use, one line each with the command that clears it. */
   static checkStaleLocal(opts: ICheckContext): IViolation[] {
     return LocalScan.scan({ root: opts.root })
       .filter((entry) =>
-        [LocalStates.STALE, LocalStates.MERGED, LocalStates.GONE, LocalStates.ORPHAN].includes(
-          entry.state,
-        ),
+        [
+          LocalStates.STALE,
+          LocalStates.MERGED,
+          LocalStates.GONE,
+          LocalStates.ORPHAN,
+          LocalStates.SHIPPED,
+        ].includes(entry.state),
       )
       .map((entry) =>
         createViolation({
           check: DoctorChecks.LOCAL,
-          file: `${ProjectLayout.LOCAL_DIRECTORY}/${entry.scope}/${entry.name}`,
-          message: `${entry.state === LocalStates.STALE ? `left ${LocalFormat.formatAge({ ageMs: entry.ageMs })} ago` : entry.note} (${LocalFormat.formatBytes({ bytes: entry.bytes })}) - run: vulcan clean --${entry.scope} --yes`,
+          file: `${ProjectLayout.LOCAL_DIRECTORY}/${entry.where}`,
+          message: `${entry.state === LocalStates.STALE && entry.note === '' ? `left ${LocalFormat.formatAge({ ageMs: entry.ageMs })} ago` : entry.note} (${LocalFormat.formatBytes({ bytes: entry.bytes })}) - run: vulcan clean --${entry.scope} --yes`,
         }),
       );
   }

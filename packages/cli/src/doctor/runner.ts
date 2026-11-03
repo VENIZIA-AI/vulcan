@@ -101,6 +101,7 @@ export class DoctorRunner {
       ...ProjectContract.checkProfile(context),
       ...ProjectContract.checkOwnerReplySettings(context),
       ...ProjectContract.checkStaleLocal(context),
+      ...ProjectContract.checkUnknownLocal(context),
       ...ProjectContract.checkStaleTrustedScripts(context),
     ];
   }

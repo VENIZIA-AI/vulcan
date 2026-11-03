@@ -70,6 +70,8 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
       '--reports',
       '--prototypes',
       '--profile',
+      '--events',
+      '--release-candidates',
       '--all',
       '--yes',
     ],

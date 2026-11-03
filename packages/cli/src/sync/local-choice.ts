@@ -68,9 +68,9 @@ export class LocalPlan {
    */
   static planWorkspace(opts: { root: string }): ISyncAction[] {
     const directory = join(opts.root, ProjectLayout.LOCAL_DIRECTORY);
-    const missing = ProjectLayout.LOCAL_LAYOUT.map((entry) => entry.name).filter(
-      (name) => !existsSync(join(directory, name)),
-    );
+    const missing = ProjectLayout.LOCAL_LAYOUT.filter((entry) => !('onDemand' in entry))
+      .map((entry) => entry.name)
+      .filter((name) => !existsSync(join(directory, name)));
 
     return [
       ...planIgnoreLine({ root: opts.root, line: `${ProjectLayout.LOCAL_DIRECTORY}/` }),

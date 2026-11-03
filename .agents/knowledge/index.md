@@ -33,6 +33,7 @@ One release train: the three packages always share a version.
 ## Architecture
 
 - [The project contract](/architecture/project-contract.md) - what a project commits, what sync writes, what doctor checks
+- [The .agents folder](/architecture/agents-folder.md) - what is tracked, what lives in `.agents/local`, how it expires and is cleaned
 
 ## Conventions
 

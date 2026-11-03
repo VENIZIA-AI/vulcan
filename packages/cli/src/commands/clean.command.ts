@@ -10,7 +10,7 @@ const lineOf = (opts: { entry: ILocalEntry }): string => {
   const { entry } = opts;
   const note = entry.note === '' ? (entry.state === 'stale' ? 'stale' : '') : entry.note;
 
-  return `  ${entry.scope}/${entry.name}  ${LocalFormat.formatBytes({ bytes: entry.bytes })}  ${LocalFormat.formatAge({ ageMs: entry.ageMs })}${note === '' ? '' : `  ${note}`}`;
+  return `  ${entry.where}  ${LocalFormat.formatBytes({ bytes: entry.bytes })}  ${LocalFormat.formatAge({ ageMs: entry.ageMs })}${note === '' ? '' : `  ${note}`}`;
 };
 
 /**
@@ -45,7 +45,7 @@ export const runCleanCommand = async (opts: ICommandContext): Promise<number> =>
   }
 
   for (const entry of plan.keep) {
-    process.stderr.write(`  kept ${entry.scope}/${entry.name}  ${entry.note}\n`);
+    process.stderr.write(`  kept ${entry.where}  ${entry.note}\n`);
   }
 
   if (!yes) {
@@ -59,9 +59,7 @@ export const runCleanCommand = async (opts: ICommandContext): Promise<number> =>
   const result = LocalClean.run({ root: opts.cwd, plan });
 
   for (const failure of result.failed) {
-    process.stderr.write(
-      `  failed ${failure.entry.scope}/${failure.entry.name}: ${failure.error}\n`,
-    );
+    process.stderr.write(`  failed ${failure.entry.where}: ${failure.error}\n`);
   }
 
   process.stderr.write(

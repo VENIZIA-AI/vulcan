@@ -76,6 +76,14 @@ export class ProjectLayout {
     { name: 'cache', lifetime: 'kept', removedWhen: 'the user asks; it rebuilds' },
     { name: 'reports', lifetime: 'kept', removedWhen: 'the user deletes it' },
     { name: 'prototypes', lifetime: 'kept', removedWhen: 'the user deletes it' },
+    // On demand: sync does not create these; the folder appears when something writes there.
+    { name: 'events', lifetime: 'kept', removedWhen: 'the user deletes it', onDemand: true },
+    {
+      name: 'release-candidates',
+      lifetime: 'release',
+      removedWhen: 'the release ships',
+      onDemand: true,
+    },
   ] as const;
   /** What the scaffolded lint configs run; optional peers of dev-configs, so bun never installs them alone. */
   static readonly LINT_TOOLS = ['oxlint', 'oxlint-tsgolint', 'eslint'];

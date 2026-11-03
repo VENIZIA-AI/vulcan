@@ -10,8 +10,9 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { ProjectLayout } from '../../common/index.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
-import { LocalClean, LocalScan } from '../../local/index.ts';
+import { CleanScopes, LocalClean, LocalConstants, LocalScan } from '../../local/index.ts';
 import { CLAUDE_LAUNCH_FILE, LaunchSettings } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -68,18 +69,34 @@ const file = (opts: { root: string; path: string; text?: string; ageDays?: numbe
   }
 };
 
-const worktree = (opts: { root: string; name: string; commit?: boolean }): void => {
+/**
+ * A worktree on a new branch. `commit` adds a commit of its own; `merged` also merges the branch into the root's
+ * branch with a merge commit, the way a pull request lands. A branch with no commit of its own is never merged.
+ */
+const worktree = (opts: {
+  root: string;
+  name: string;
+  commit?: boolean;
+  merged?: boolean;
+}): void => {
   git({
     cwd: opts.root,
     args: ['worktree', 'add', '-q', join('.agents/local/worktrees', opts.name), '-b', opts.name],
   });
 
-  if (opts.commit === true) {
+  if (opts.commit === true || opts.merged === true) {
     const inside = join(opts.root, '.agents/local/worktrees', opts.name);
 
-    writeFileSync(join(inside, 'new.txt'), 'new');
+    writeFileSync(join(inside, `${opts.name}.txt`), 'new');
     git({ cwd: inside, args: ['add', '.'] });
     git({ cwd: inside, args: ['commit', '-q', '-m', 'work'] });
+  }
+
+  if (opts.merged === true) {
+    git({
+      cwd: opts.root,
+      args: ['merge', '-q', '--no-ff', '-m', `merge ${opts.name}`, opts.name],
+    });
   }
 };
 
@@ -117,7 +134,7 @@ describe('LocalScan.scan', () => {
   test('classifies worktrees: merged, unmerged, gone, orphan', () => {
     const root = repository();
 
-    worktree({ root, name: 'merged-one' });
+    worktree({ root, name: 'merged-one', merged: true });
     worktree({ root, name: 'unmerged-one', commit: true });
     worktree({ root, name: 'gone-one' });
     git({ cwd: root, args: ['update-ref', '-d', 'refs/heads/gone-one'] });
@@ -140,9 +157,9 @@ describe('LocalScan.scan', () => {
   test('a merged worktree with uncommitted or untracked files is dirty and never removable', () => {
     const root = repository();
 
-    worktree({ root, name: 'merged-clean' });
-    worktree({ root, name: 'merged-dirty' });
-    worktree({ root, name: 'merged-untracked' });
+    worktree({ root, name: 'merged-clean', merged: true });
+    worktree({ root, name: 'merged-dirty', merged: true });
+    worktree({ root, name: 'merged-untracked', merged: true });
     writeFileSync(join(root, '.agents/local/worktrees/merged-dirty/a.txt'), 'edited');
     writeFileSync(join(root, '.agents/local/worktrees/merged-untracked/new.txt'), 'new');
 
@@ -204,6 +221,7 @@ describe('a link can never move clean out of the project', () => {
     const entry = {
       scope: 'tmp',
       name: 'x',
+      where: 'tmp/x',
       path: join(root, '.agents/local/tmp/x'),
       bytes: 1,
       ageMs: 0,
@@ -307,7 +325,7 @@ describe('LocalClean.plan and runClean', () => {
   test('removes a merged, a gone and an orphan worktree, keeps an unmerged one, and prunes git', () => {
     const root = repository();
 
-    worktree({ root, name: 'merged-one' });
+    worktree({ root, name: 'merged-one', merged: true });
     worktree({ root, name: 'unmerged-one', commit: true });
     worktree({ root, name: 'gone-one' });
     git({ cwd: root, args: ['update-ref', '-d', 'refs/heads/gone-one'] });
@@ -360,6 +378,7 @@ describe('LocalClean.plan and runClean', () => {
     const entry = {
       scope: 'tmp',
       name: 'x',
+      where: 'tmp/x',
       path: join(outside, 'keep.txt'),
       bytes: 1,
       ageMs: 0,
@@ -454,7 +473,7 @@ describe('doctor and what an agent left behind', () => {
       new Date(Date.now() - 3 * DAY),
       new Date(Date.now() - 3 * DAY),
     );
-    worktree({ root, name: 'done' });
+    worktree({ root, name: 'done', merged: true });
 
     const result = await DoctorRunner.runWarnings({ root });
     const warnings = result.filter((entry) => entry.file.startsWith('.agents/local/'));
@@ -494,5 +513,391 @@ describe('doctor and what an agent left behind', () => {
     expect(note?.message).toContain('cache 60.0 MB');
     const result = await DoctorRunner.runNotes({ root: repository() });
     expect(result.filter((entry) => entry.file === '.agents/local')).toEqual([]);
+  });
+});
+
+describe("the layout: on-demand folders, release candidates, events and a browser's scratch folders", () => {
+  const HOUR = 60 * 60 * 1000;
+  const tagged = (opts: { root: string; version: string }): void => {
+    git({ cwd: opts.root, args: ['tag', `v${opts.version}`] });
+  };
+  const old = (opts: { root: string; path: string; hours: number }): void => {
+    const target = join(opts.root, '.agents/local', opts.path);
+    const then = new Date(Date.now() - opts.hours * HOUR);
+
+    utimesSync(join(target, 'SingletonSocket'), then, then);
+    utimesSync(target, then, then);
+  };
+  const chrome = (opts: { root: string; name: string; hours: number }): void => {
+    file({ root: opts.root, path: `${opts.name}/SingletonSocket`, text: 's' });
+    old({ root: opts.root, path: opts.name, hours: opts.hours });
+  };
+
+  test('events and release-candidates are layout folders that sync does not create', () => {
+    const layoutNames = ProjectLayout.LOCAL_LAYOUT.map((entry) => entry.name);
+
+    expect(layoutNames).toEqual(expect.arrayContaining(['events', 'release-candidates']));
+    expect(
+      ProjectLayout.LOCAL_LAYOUT.filter((entry) => 'onDemand' in entry).map((entry) => entry.name),
+    ).toEqual(['events', 'release-candidates']);
+  });
+
+  test('a release candidate is removable once its version is tagged, kept until then, and never in --all', () => {
+    const root = repository();
+
+    file({ root, path: 'release-candidates/0.4.6/a.txt' });
+    file({ root, path: 'release-candidates/0.4.7/a.txt' });
+    tagged({ root, version: '0.4.6' });
+
+    const entries = LocalScan.scan({ root }).filter(
+      (entry) => entry.scope === 'release-candidates',
+    );
+    const byName = Object.fromEntries(entries.map((entry) => [entry.name, entry]));
+
+    expect(byName['0.4.6']).toMatchObject({ state: 'shipped', removable: true });
+    expect(byName['0.4.7']).toMatchObject({ state: 'ok', removable: false });
+    expect(byName['0.4.7'].note).toContain('not tagged yet');
+    expect(
+      LocalClean.plan({ root, scopes: ['tmp', 'worktrees', 'clones', 'cache'] }).remove,
+    ).toEqual([]);
+
+    const dry = runCli({ args: ['clean', '--release-candidates'], cwd: root });
+
+    expect(dry.stderr).toContain('release-candidates/0.4.6');
+    expect(dry.stderr).toContain('kept release-candidates/0.4.7');
+    expect(existsSync(join(root, '.agents/local/release-candidates/0.4.6'))).toBe(true);
+
+    expect(runCli({ args: ['clean', '--release-candidates', '--yes'], cwd: root }).code).toBe(0);
+    expect(existsSync(join(root, '.agents/local/release-candidates/0.4.6'))).toBe(false);
+    expect(existsSync(join(root, '.agents/local/release-candidates/0.4.7'))).toBe(true);
+  });
+
+  test('a tag without the v counts, and doctor says a shipped candidate can go', async () => {
+    const root = repository();
+
+    file({ root, path: 'release-candidates/1.0.0/a.txt' });
+    git({ cwd: root, args: ['tag', '1.0.0'] });
+
+    const result = await DoctorRunner.runWarnings({ root });
+    const warnings = result.filter((entry) => entry.file.includes('release-candidates'));
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].file).toBe('.agents/local/release-candidates/1.0.0');
+    expect(warnings[0].message).toContain('the release shipped');
+    expect(warnings[0].message).toContain('vulcan clean --release-candidates --yes');
+  });
+
+  test('only a version can be a release candidate, and only a tag of that exact name ships it', () => {
+    const root = repository();
+
+    git({ cwd: root, args: ['tag', '1.0.0'] });
+    git({ cwd: root, args: ['tag', 'v2.0.0-rc.1'] });
+
+    for (const name of [
+      '1.0.0',
+      '1.0.0~0',
+      '1.0.0^',
+      'v2.0.0-rc.1',
+      'latest',
+      '1.0',
+      'HEAD',
+      'v1.0.0',
+    ]) {
+      file({ root, path: `release-candidates/${name}/a.txt` });
+    }
+
+    const byName = Object.fromEntries(
+      LocalScan.scan({ root })
+        .filter((entry) => entry.scope === 'release-candidates')
+        .map((entry) => [entry.name, entry]),
+    );
+
+    // v1.0.0 has no tag of its own, but 1.0.0 does: either spelling of the version names the same release.
+    expect(
+      Object.entries(byName)
+        .filter(([, entry]) => entry.removable)
+        .map(([name]) => name)
+        .sort(),
+    ).toEqual(['1.0.0', 'v1.0.0', 'v2.0.0-rc.1']);
+
+    for (const name of ['1.0.0~0', '1.0.0^', 'latest', '1.0', 'HEAD']) {
+      expect(byName[name], name).toMatchObject({ state: 'ok', removable: false });
+      expect(byName[name].note, name).toContain('is not a version');
+    }
+
+    runCli({ args: ['clean', '--release-candidates', '--yes'], cwd: root });
+
+    expect(existsSync(join(root, '.agents/local/release-candidates/1.0.0~0/a.txt'))).toBe(true);
+    expect(existsSync(join(root, '.agents/local/release-candidates/HEAD/a.txt'))).toBe(true);
+    expect(existsSync(join(root, '.agents/local/release-candidates/1.0.0'))).toBe(false);
+  });
+
+  test('a new branch with no commit of its own is never merged, and clean keeps its worktree and its .env', () => {
+    const root = repository();
+
+    worktree({ root, name: 'fresh' });
+    writeFileSync(join(root, '.agents/local/worktrees/fresh/.env'), 'SECRET=1');
+
+    const entry = LocalScan.scan({ root }).find((candidate) => candidate.name === 'fresh');
+
+    expect(entry).toMatchObject({ state: 'unmerged', removable: false });
+    expect(entry?.note).toContain('has no commits of its own yet');
+    expect(runCli({ args: ['clean', '--worktrees'], cwd: root }).stderr).toContain(
+      'kept worktrees/fresh',
+    );
+    expect(runCli({ args: ['clean', '--worktrees', '--yes'], cwd: root }).code).toBe(0);
+    expect(readFileSync(join(root, '.agents/local/worktrees/fresh/.env'), 'utf8')).toBe('SECRET=1');
+  });
+
+  test('a merged worktree is kept when it holds an ignored file a build cannot make again, and the note names it', () => {
+    const root = repository();
+
+    writeFileSync(
+      join(root, '.gitignore'),
+      '.agents/local/\n.env\n*.db\nnode_modules/\ndist/\n.turbo/\ncoverage/\n.cache/\n*.tsbuildinfo\n',
+    );
+    git({ cwd: root, args: ['commit', '-q', '-am', 'ignore'] });
+    worktree({ root, name: 'rebuildable', merged: true });
+    worktree({ root, name: 'secret', merged: true });
+    worktree({ root, name: 'many', merged: true });
+    worktree({ root, name: 'gone-secret' });
+
+    const inside = (name: string, path: string, text = 'x'): void => {
+      const target = join(root, '.agents/local/worktrees', name, path);
+
+      mkdirSync(join(target, '..'), { recursive: true });
+      writeFileSync(target, text);
+    };
+
+    for (const name of ['rebuildable', 'secret', 'many']) {
+      inside(name, 'node_modules/dep/index.js');
+      inside(name, 'packages/a/node_modules/x.js');
+      inside(name, 'dist/out.js');
+      inside(name, '.turbo/cache');
+      inside(name, 'coverage/lcov.info');
+      inside(name, '.cache/z');
+      inside(name, 'packages/a/tsconfig.tsbuildinfo');
+    }
+
+    inside('secret', '.env', 'SECRET=1');
+    inside('many', '.env');
+    inside('many', 'a.db');
+    inside('many', 'b.db');
+    inside('many', 'c.db');
+    inside('many', 'd.db');
+    inside('many', 'e.db');
+    inside('gone-secret', '.env', 'SECRET=2');
+    git({ cwd: root, args: ['update-ref', '-d', 'refs/heads/gone-secret'] });
+
+    const byName = Object.fromEntries(
+      LocalScan.scan({ root })
+        .filter((entry) => entry.scope === 'worktrees')
+        .map((entry) => [entry.name, entry]),
+    );
+
+    expect(byName.rebuildable).toMatchObject({ state: 'merged', removable: true });
+    expect(byName.secret).toMatchObject({ state: 'dirty', removable: false });
+    expect(byName.secret.note).toContain('ignored files that are not rebuildable: .env');
+    expect(byName.secret.note).not.toContain('node_modules');
+    expect(byName.many.note).toContain('and 1 more');
+    expect(byName['gone-secret']).toMatchObject({ state: 'dirty', removable: false });
+    expect(byName['gone-secret'].note).toContain('.env');
+
+    const dry = runCli({ args: ['clean', '--worktrees'], cwd: root }).stderr;
+
+    expect(dry).toContain('kept worktrees/secret');
+    expect(dry).toContain('.env');
+
+    runCli({ args: ['clean', '--worktrees', '--yes'], cwd: root });
+
+    expect(existsSync(join(root, '.agents/local/worktrees/rebuildable'))).toBe(false);
+    expect(readFileSync(join(root, '.agents/local/worktrees/secret/.env'), 'utf8')).toBe(
+      'SECRET=1',
+    );
+    expect(readFileSync(join(root, '.agents/local/worktrees/gone-secret/.env'), 'utf8')).toBe(
+      'SECRET=2',
+    );
+  });
+
+  test('events are removed only when named, never by --all', () => {
+    const root = repository();
+
+    file({ root, path: 'events/2026-11-03.jsonl', text: '{}\n' });
+
+    expect(
+      LocalClean.plan({ root, scopes: ['tmp', 'worktrees', 'clones', 'cache'] }).remove,
+    ).toEqual([]);
+    expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
+    expect(existsSync(join(root, '.agents/local/events/2026-11-03.jsonl'))).toBe(true);
+    expect(runCli({ args: ['clean', '--events', '--yes'], cwd: root }).code).toBe(0);
+    expect(existsSync(join(root, '.agents/local/events/2026-11-03.jsonl'))).toBe(false);
+  });
+
+  test("a browser's scratch folder under .agents/local: tmp scope, by its own name, old ones only", () => {
+    const root = repository();
+
+    chrome({ root, name: 'com.google.Chrome.old111', hours: 5 });
+    chrome({ root, name: 'org.chromium.Chromium.old222', hours: 5 });
+    chrome({ root, name: '.com.google.Chrome.hidden4', hours: 5 });
+    chrome({ root, name: 'com.google.Chrome.new333', hours: 0 });
+    file({ root, path: 'not-a-browser/x.txt', text: 'x' });
+
+    const entries = LocalScan.scan({ root }).filter((entry) => entry.scope === 'tmp');
+    const byName = Object.fromEntries(entries.map((entry) => [entry.name, entry]));
+
+    expect(Object.keys(byName).sort()).toEqual([
+      '.com.google.Chrome.hidden4',
+      'com.google.Chrome.new333',
+      'com.google.Chrome.old111',
+      'org.chromium.Chromium.old222',
+    ]);
+    expect(byName['com.google.Chrome.old111']).toMatchObject({
+      removable: true,
+      state: 'stale',
+      where: 'com.google.Chrome.old111',
+    });
+    expect(byName['com.google.Chrome.new333']).toMatchObject({ removable: false, state: 'ok' });
+    expect(byName['com.google.Chrome.new333'].note).toContain('may be using it');
+
+    const dry = runCli({ args: ['clean'], cwd: root });
+
+    expect(dry.stderr).toContain('  com.google.Chrome.old111  ');
+    expect(dry.stderr).toContain('kept com.google.Chrome.new333');
+    expect(existsSync(join(root, '.agents/local/com.google.Chrome.old111'))).toBe(true);
+
+    expect(runCli({ args: ['clean', '--yes'], cwd: root }).code).toBe(0);
+    expect(existsSync(join(root, '.agents/local/com.google.Chrome.old111'))).toBe(false);
+    expect(existsSync(join(root, '.agents/local/org.chromium.Chromium.old222'))).toBe(false);
+    expect(existsSync(join(root, '.agents/local/.com.google.Chrome.hidden4'))).toBe(false);
+    expect(existsSync(join(root, '.agents/local/com.google.Chrome.new333'))).toBe(true);
+    expect(existsSync(join(root, '.agents/local/not-a-browser/x.txt'))).toBe(true);
+  });
+
+  test('doctor warns about entries it does not know, by name and size, and never removes them', async () => {
+    const root = repository();
+
+    file({ root, path: 'diag.ts', text: 'x'.repeat(2048) });
+    file({ root, path: 'scope.txt', text: 'x' });
+    file({ root, path: 'audit/report.md', text: 'x' });
+    file({ root, path: 'profile.json', text: '{}' });
+    file({ root, path: 'violations.jsonl', text: '' });
+    chrome({ root, name: 'com.google.Chrome.xyz', hours: 5 });
+
+    expect(LocalScan.unknown({ root }).map((entry) => entry.name)).toEqual([
+      'audit',
+      'diag.ts',
+      'scope.txt',
+    ]);
+
+    const result = await DoctorRunner.runWarnings({ root });
+    const warnings = result.filter((entry) => entry.file.startsWith('.agents/local/'));
+    const unknown = warnings.filter((entry) =>
+      entry.message.startsWith('not an entry VULCAN knows'),
+    );
+
+    expect(unknown.map((entry) => entry.file)).toEqual([
+      '.agents/local/audit',
+      '.agents/local/diag.ts',
+      '.agents/local/scope.txt',
+    ]);
+    expect(unknown.find((entry) => entry.file.endsWith('diag.ts'))?.message).toContain('2.0 KB');
+    expect(unknown[0].message).toContain(
+      'put scratch in tmp/ and what you want to keep in reports/',
+    );
+
+    // The browser folder is expired tmp, not unknown, and the command that takes it is named.
+    const chromeWarning = warnings.find((entry) => entry.file.endsWith('com.google.Chrome.xyz'));
+
+    expect(chromeWarning?.message).toContain('vulcan clean --tmp --yes');
+    expect(existsSync(join(root, '.agents/local/diag.ts'))).toBe(true);
+    expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
+    expect(existsSync(join(root, '.agents/local/diag.ts'))).toBe(true);
+    expect(existsSync(join(root, '.agents/local/audit/report.md'))).toBe(true);
+  });
+
+  test('a repository with only the layout folders has nothing unknown', async () => {
+    const root = repository();
+
+    mkdirSync(join(root, '.agents/local/events'), { recursive: true });
+    mkdirSync(join(root, '.agents/local/release-candidates'), { recursive: true });
+
+    expect(LocalScan.unknown({ root })).toEqual([]);
+  });
+
+  test('a worktree whose branch is merged into origin/develop is removable though the root is on another branch', () => {
+    const root = repository();
+    const remote = createProject({ files: {} });
+
+    git({ cwd: remote, args: ['init', '-q', '--bare', '-b', 'develop'] });
+    git({ cwd: root, args: ['remote', 'add', 'origin', remote] });
+    git({ cwd: root, args: ['push', '-q', 'origin', 'develop'] });
+    git({ cwd: root, args: ['fetch', '-q', 'origin'] });
+    worktree({ root, name: 'shipped', commit: true });
+    git({ cwd: root, args: ['checkout', '-q', '-b', 'elsewhere'] });
+    // The branch lands on origin/develop (as a merged pull request would), the root never merged it.
+    git({ cwd: root, args: ['push', '-q', 'origin', 'shipped:develop'] });
+    git({ cwd: root, args: ['fetch', '-q', 'origin'] });
+
+    const entry = LocalScan.scan({ root }).find((candidate) => candidate.name === 'shipped');
+
+    expect(entry).toMatchObject({ state: 'merged', removable: true });
+    expect(entry?.note).toContain('merged into origin/develop');
+  });
+
+  test('the layout, the clean flags and the docs agree', () => {
+    const REPO = join(import.meta.dir, '..', '..', '..', '..', '..');
+    const page = readFileSync(
+      join(REPO, 'docs/wiki/content/guides/core-concepts/the-agents-folder.md'),
+      'utf8',
+    );
+    const clean = readFileSync(
+      join(REPO, 'docs/wiki/content/references/commands/clean.md'),
+      'utf8',
+    );
+    const concept = readFileSync(
+      join(REPO, '.agents/knowledge/architecture/agents-folder.md'),
+      'utf8',
+    );
+
+    for (const entry of ProjectLayout.LOCAL_LAYOUT) {
+      // The tree, the table of lifetimes and the knowledge concept each name the folder.
+      expect(page, entry.name).toContain(
+        `├── ${entry.name}/`.replace('├', page.includes(`└── ${entry.name}/`) ? '└' : '├'),
+      );
+      expect(page, entry.name).toContain(`| \`${entry.name}/\` |`);
+      expect(concept, entry.name).toContain(entry.name);
+    }
+
+    // Every folder with a scope has a flag the clean page documents, and the router accepts it.
+    for (const scope of CleanScopes.SCHEME_SET) {
+      expect(clean, scope).toContain(`--${scope}`);
+      expect(
+        runCli({ args: ['clean', `--${scope}`], cwd: repository() }).stderr,
+        scope,
+      ).not.toContain('unknown argument');
+    }
+
+    for (const name of LocalConstants.KNOWN_FILES) {
+      if (name !== '.gitkeep') {
+        expect(page, name).toContain(name);
+      }
+    }
+  });
+
+  test('a worktree with uncommitted work or an unmerged branch is still kept', () => {
+    const root = repository();
+
+    worktree({ root, name: 'unmerged', commit: true });
+    worktree({ root, name: 'dirty', merged: true });
+    writeFileSync(join(root, '.agents/local/worktrees/dirty/scratch.txt'), 'x');
+
+    const byName = Object.fromEntries(
+      LocalScan.scan({ root })
+        .filter((entry) => entry.scope === 'worktrees')
+        .map((entry) => [entry.name, entry]),
+    );
+
+    expect(byName.unmerged).toMatchObject({ state: 'unmerged', removable: false });
+    expect(byName.dirty).toMatchObject({ state: 'dirty', removable: false });
   });
 });
