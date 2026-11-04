@@ -50,7 +50,7 @@ $ echo '{"tool_name":"Bash","tool_input":{"command":"ssh evil.com id"}}' | bun n
 | `localFile` | `string` | `'.agents/hooks/trusted-hosts.local'` | Path to a personal uncommitted list of trusted and read-only hosts |
 
 `localFile` stores personal hosts outside repository version control, so a production host name need not appear in the tracked config.
-Add the file path to `.gitignore`; `vulcan init` does, and it writes `.agents/hooks/trusted-hosts.local.example` to copy from.
+Add the file path to `.gitignore`; `vulcan init` does for the default path (not for a `localFile` you name yourself), and it writes `.agents/hooks/trusted-hosts.local.example` to copy from.
 The hook reads the file when it runs. `vulcan sync` never copies a host from it into `.agents/vulcan.manifest.json`, which is tracked (a test holds this).
 The file lists one host per line: a plain line is a trusted host, and `readonly: <host>` is a read-only host.
 Empty lines are ignored, and `#` characters mark comments.

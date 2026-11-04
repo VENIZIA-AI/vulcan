@@ -190,8 +190,13 @@ export class ProjectScaffold {
     const gitignore = join(root, '.gitignore');
     const existing = existsSync(gitignore) ? readFileSync(gitignore, 'utf8') : '';
     const lines = existing.split('\n');
+    // The last matching line wins in git, so secret lines appended after the user's own `.env` rules would override their negations.
+    const hasEnvRule = lines.some(
+      (line) => /(^|[!/*])\.env/.test(line.trim()) && !line.startsWith('#'),
+    );
     const missingIgnores = ProjectLayout.GITIGNORE_ENTRIES.filter(
-      (entry) => !lines.includes(entry),
+      (entry) =>
+        !lines.includes(entry) && !(hasEnvRule && ProjectLayout.SECRET_PATTERNS.includes(entry)),
     );
 
     if (missingIgnores.length > 0) {
@@ -213,6 +218,11 @@ export class ProjectScaffold {
     const todo = [
       `describe the project in ${ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE}/index.md, then delete the ${ProjectLayout.SCAFFOLD_MARKER} line`,
       `private hosts go in ${ProjectLayout.TRUSTED_HOSTS_FILE} (copy the .example), not in the committed config`,
+      ...(hasEnvRule
+        ? [
+            `.gitignore has .env rules of its own and was left as it is: check that they ignore ${ProjectLayout.SECRET_PATTERNS.join(' ')} the way you want`,
+          ]
+        : []),
       ...entries
         .filter((entry) => entry.status === InitStatuses.ADD)
         .map((entry) => `add ${entry.subject}`),

@@ -185,6 +185,51 @@ describe('vulcan init', () => {
     );
   });
 
+  describe('a .gitignore that already has .env rules', () => {
+    const ignored = (opts: { root: string; name: string }): boolean =>
+      Bun.spawnSync(['git', 'check-ignore', '-q', '--no-index', opts.name], { cwd: opts.root })
+        .exitCode === 0;
+    const initialised = (gitignore: string): { root: string; stderr: string } => {
+      const root = createProject({
+        files: { '.gitignore': gitignore, 'package.json': STYLED_PACKAGE },
+      });
+      const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+
+      Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
+
+      return { root, stderr: result.stderr };
+    };
+
+    test("the user's own negations survive: the secret block is not appended after them", () => {
+      const { root, stderr } = initialised('.env*\n!.env.development\n!.env.test\n');
+      const text = readFileSync(join(root, '.gitignore'), 'utf8');
+
+      expect(text.startsWith('.env*\n!.env.development\n!.env.test\n')).toBe(true);
+      expect(text).not.toContain('**/.env');
+      expect(ignored({ root, name: '.env' })).toBe(true);
+      expect(ignored({ root, name: '.env.local' })).toBe(true);
+      expect(ignored({ root, name: '.env.development' })).toBe(false);
+      expect(ignored({ root, name: '.env.test' })).toBe(false);
+      expect(text).toContain('.agents/local/');
+      expect(stderr).toContain('.gitignore has .env rules of its own and was left as it is');
+    });
+
+    test('a project that keeps .env.example in its own way is not made to ignore it', () => {
+      const { root } = initialised('node_modules/\n!**/.env.example\n');
+
+      expect(ignored({ root, name: '.env.example' })).toBe(false);
+      expect(readFileSync(join(root, '.gitignore'), 'utf8')).not.toContain('**/.env.*');
+    });
+
+    test('a comment that mentions .env is not a rule: the block is written', () => {
+      const { root, stderr } = initialised('# keep .env files out\nnode_modules/\n');
+
+      expect(readFileSync(join(root, '.gitignore'), 'utf8')).toContain('**/.env.*');
+      expect(ignored({ root, name: '.env.local' })).toBe(true);
+      expect(stderr).not.toContain('has .env rules of its own');
+    });
+  });
+
   test('a .gitignore without a final newline gets one before the new lines', () => {
     const root = createProject({
       files: { '.gitignore': 'node_modules/', 'package.json': STYLED_PACKAGE },

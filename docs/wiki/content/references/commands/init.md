@@ -145,7 +145,9 @@ CLAUDE.*.md
 .agents/hooks/trusted-hosts.local
 ```
 
-The three `.env` lines are the list the generated `.dockerignore` carries too, so a `.env.local` or a `.env.production` is neither committed nor copied into an image, and `.env.example` stays. Existing lines are kept in order, and the new lines follow them.
+The three `.env` lines are the list the generated `.dockerignore` carries too, so a `.env.local` or a `.env.production` is neither committed nor copied into an image, and `.env.example` stays. **A `.gitignore` that already has a `.env` rule is left alone on those three lines.** Git applies the last matching line, so lines appended after yours would override a negation such as `!.env.development`. In that case `init` adds the other lines, does not add the three `.env` lines, and says in `left to do:` to check that your rules ignore what you want. A comment that only mentions `.env` is not a rule. Only the default `remoteHosts.localFile` is added to `.gitignore`: when the config names another path, add that path yourself.
+
+Existing lines are kept in order, and the new lines follow them.
 Run on an initialized project, `vulcan init` changes nothing.
 
 ## Dependencies
