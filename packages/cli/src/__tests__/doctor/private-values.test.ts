@@ -1,10 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { PrivateValues } from '../../doctor/private-values.ts';
-import { initRepo } from '../git-repo.helper.ts';
+import { git, initRepo } from '../git-repo.helper.ts';
+import { hermeticEnv } from '../hermetic.helper.ts';
+import { runCli } from '../run.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
 afterAll(removeProjects);
@@ -108,6 +110,22 @@ describe('PrivateValues.scan: what is not read', () => {
     expect(countsOf({ root, file: 'blob.bin' })).toBeUndefined();
   });
 
+  test('a submodule, a link to a folder and a link to a file outside the project are skipped, never followed', () => {
+    const outside = createProject({ files: { 'secret.txt': LEAK, 'inner/x.txt': LEAK } });
+    const root = repository({ 'a.txt': 'fine\n' });
+
+    mkdirSync(join(root, 'sub'), { recursive: true });
+    git({
+      cwd: root,
+      args: ['update-index', '--add', '--cacheinfo', `160000,${'a'.repeat(40)},sub`],
+    });
+    symlinkSync(join(outside, 'inner'), join(root, 'folder-link'));
+    symlinkSync(join(outside, 'secret.txt'), join(root, 'file-link.txt'));
+    git({ cwd: root, args: ['add', 'folder-link', 'file-link.txt'] });
+
+    expect(PrivateValues.scan({ root, acknowledged: [] }).findings).toEqual([]);
+  });
+
   test('a file git does not track is not read, and a folder that is no repository is skipped', () => {
     const root = repository({ '.gitignore': 'local.txt\n' });
 
@@ -121,6 +139,7 @@ describe('PrivateValues.scan: what is not read', () => {
     expect(PrivateValues.scan({ root: plain, acknowledged: [] })).toEqual({
       findings: [],
       acknowledgedFiles: 0,
+      unmatched: [],
     });
   });
 });
@@ -185,7 +204,7 @@ describe('vulcan doctor: the warning', () => {
     expect(warnings[0].message).not.toContain('10.0.0.9');
   });
 
-  test('an acknowledged file is counted in one summary line, and the check is never silent', async () => {
+  test('an acknowledged file is counted in one note, not a warning, and the check is never silent', async () => {
     const root = repository(
       { 'env/dev.env': `${KEY_HEADER}\n`, 'env/two.env': `${KEY_HEADER}\n` },
       {
@@ -194,10 +213,32 @@ describe('vulcan doctor: the warning', () => {
     );
     const result = await DoctorRunner.runWarnings({ root });
     const warnings = result.filter((warning) => warning.check === 'private-values');
+    const result2 = await DoctorRunner.runNotes({ root });
+    const notes = result2.filter((note) => note.check === 'private-values');
 
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0].message).toContain('2 files acknowledged');
-    expect(warnings[0].message).toContain('doctor.privateValues.acknowledged');
+    expect(warnings).toEqual([]);
+    expect(notes).toHaveLength(1);
+    expect(notes[0].message).toContain('2 files acknowledged');
+    expect(notes[0].message).toContain('doctor.privateValues.acknowledged');
+  });
+
+  test('an entry that matches no file with that kind is a warning, so a stale or broad one is seen', async () => {
+    const root = repository(
+      { 'env/dev.env': `${KEY_HEADER}\n` },
+      {
+        config: `export default { rules: { 'V-W-01': 'on-user-word' }, doctor: { privateValues: { acknowledged: [{ path: 'env/*.env', kinds: ['private-key'], reason: 'dev keys' }, { path: 'gone/**', reason: 'old folder' }, { path: 'env/*.env', kinds: ['ipv4'], reason: 'no address here' }] } } };\n`,
+      },
+    );
+    const result = await DoctorRunner.runWarnings({ root });
+    const warnings = result.filter((warning) => warning.check === 'private-values');
+
+    expect(warnings).toHaveLength(2);
+    expect(warnings.some((warning) => warning.message.includes('"gone/**" matches no file'))).toBe(
+      true,
+    );
+    expect(
+      warnings.some((warning) => warning.message.includes('"env/*.env" (ipv4) matches no file')),
+    ).toBe(true);
   });
 
   test('a clean project has no warning of this kind', async () => {
@@ -216,13 +257,17 @@ describe('vulcan doctor: the warning', () => {
     expect(warnings.filter((warning) => warning.check === 'private-values')).toEqual([]);
   });
 
-  test('doctor stays green: the warning is never a failure', async () => {
-    const root = repository({ 'a.txt': `${KEY_HEADER}\n` });
+  test('the warning never changes the exit code: the same project with and without the value ends the same', async () => {
+    const clean = repository({ 'a.txt': 'fine\n' });
+    const leaky = repository({ 'a.txt': `${KEY_HEADER}\n` });
+    const without = runCli({ args: ['doctor'], cwd: clean, env: hermeticEnv() });
+    const withValue = runCli({ args: ['doctor'], cwd: leaky, env: hermeticEnv() });
 
-    mkdirSync(join(root, '.agents'), { recursive: true });
-
-    const result = await DoctorRunner.runWarnings({ root });
-    expect(result.length).toBeGreaterThan(0);
+    expect(withValue.stderr).toContain('warning [private-values] a.txt');
+    expect(without.stderr).not.toContain('[private-values]');
+    expect(withValue.code).toBe(without.code);
+    const result = await DoctorRunner.runChecks({ root: leaky });
+    expect(result.map((item) => item.check)).not.toContain('private-values');
   });
 });
 

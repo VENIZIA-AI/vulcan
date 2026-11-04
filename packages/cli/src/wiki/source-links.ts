@@ -37,11 +37,11 @@ interface ITrackedPaths {
 const loadTracked = (opts: { root: string }): ITrackedPaths => {
   const tracked = GitFiles.tracked({ root: opts.root });
 
-  if (tracked === undefined) {
-    throw new Error(`git ls-files failed in ${opts.root}`);
+  if ('error' in tracked) {
+    throw new Error(`git ls-files failed in ${opts.root}: ${tracked.error}`);
   }
 
-  const files = new Set(tracked);
+  const files = new Set(tracked.files);
   const directories = new Set<string>();
 
   for (const file of files) {

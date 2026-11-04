@@ -68,6 +68,7 @@ export class DoctorRunner {
       ...ProjectContract.checkAtlasBlock(context),
       ...ProjectContract.checkLocalSize(context),
       ...ProjectContract.checkGuardPatterns(context),
+      ...ProjectContract.checkAcknowledgedValues(context),
       ...ProjectContract.checkReplyShape(context),
       ...ProjectContract.checkOwnerReplySwitch({ env: opts.env ?? process.env }),
       ...ProjectContract.checkTrustedScripts(context),

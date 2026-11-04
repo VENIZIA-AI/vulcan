@@ -33,6 +33,18 @@ export class PrivateValueKinds {
   static readonly URL_CREDENTIALS = 'url-credentials';
   static readonly IPV4 = 'ipv4';
   static readonly MACHINE_PATH = 'machine-path';
+
+  static readonly SCHEME_SET = new Set<string>([
+    this.PRIVATE_KEY,
+    this.TOKEN,
+    this.URL_CREDENTIALS,
+    this.IPV4,
+    this.MACHINE_PATH,
+  ]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
 }
 
 export class PrivateValueScan {
@@ -40,7 +52,7 @@ export class PrivateValueScan {
   static readonly IPV4 =
     /(?<![\d.])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\d.])/g;
   /** Loopback, any, broadcast and the three documentation ranges: no machine is named. */
-  static readonly PUBLIC_IPV4 = [
+  static readonly ALLOWED_IPV4 = [
     /^127\./,
     /^0\./,
     /^255\./,

@@ -359,7 +359,7 @@ export default {
 } satisfies VulcanConfig;
 ```
 
-`path` is a glob relative to the repo root, `kinds` limits the entry to some kinds (`private-key`, `token`, `url-credentials`, `ipv4`, `machine-path`) and `reason` is required. A kind that the entry does not name still warns. The summary line reads `2 files acknowledged in doctor.privateValues.acknowledged`. There is no comment that silences a line.
+`path` is a glob relative to the repo root, `kinds` limits the entry to some kinds (`private-key`, `token`, `url-credentials`, `ipv4`, `machine-path`) and `reason` is required. A kind that the entry does not name still warns. The count is a note, not a warning, so a project that acknowledged everything still prints a plain OK: `2 files acknowledged in doctor.privateValues.acknowledged`. An entry that covers no value at all (a folder that is gone, a kind no file holds) is a warning, because a stale or broad entry would quietly cover files added later. There is no comment that silences a line. Only regular files are read: a submodule, a link to a folder and a link to a file are skipped and never followed.
 
 ### format
 

@@ -1,14 +1,12 @@
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import { PrivateValueKinds } from './common/constants.ts';
+import type { TPrivateValueKind } from './common/types.ts';
 
-const KIND = z.enum([
-  PrivateValueKinds.PRIVATE_KEY,
-  PrivateValueKinds.TOKEN,
-  PrivateValueKinds.URL_CREDENTIALS,
-  PrivateValueKinds.IPV4,
-  PrivateValueKinds.MACHINE_PATH,
-]);
+const KIND = z.custom<TPrivateValueKind>(
+  (value) => typeof value === 'string' && PrivateValueKinds.isValid(value),
+  { message: `one of ${[...PrivateValueKinds.SCHEME_SET].join(', ')}` },
+);
 
 /** A decision to keep private values in files: where, which kinds (all when absent), and why. */
 const ACKNOWLEDGEMENT = z.strictObject({
