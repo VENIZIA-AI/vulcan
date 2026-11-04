@@ -173,7 +173,7 @@ interface ISweep {
 }
 
 /**
- * Runs in the page: goes through the list, the diagram, the board, the agent graph, a detail pane, the popup of an agent
+ * Runs in the page: goes through the list, the diagram, the board, a detail pane, the popup of an agent
  * and the keys dialog; after each step it reads every text and every label, and reports what is a dotted key, or a key of
  * the English dictionary shown in English as itself (a Vietnamese key left as it was).
  */
@@ -215,14 +215,6 @@ const SWEEP = (lang: string) => `(async () => {
   document.querySelector('.row').click();
   await wait();
   sweep('detail');
-  document.getElementById('tAgents').click();
-  await wait();
-  await wait();
-  sweep('agents');
-  const node = document.querySelector('#graph .node');
-  if (node) { node.dispatchEvent(new MouseEvent('click', { bubbles: true })); await wait(); sweep('graph pick'); }
-  document.getElementById('tFlows').click();
-  await wait();
   const cell = document.querySelector('#dock .cell');
   if (cell) { cell.click(); await wait(); sweep('popup'); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); }
   document.getElementById('bPlumb').click();
@@ -264,8 +256,6 @@ describe.skipIf(!hasBrowser)(
             'view board',
             'view list',
             'detail',
-            'agents',
-            'graph pick',
             'popup',
             'all events',
             'keys',

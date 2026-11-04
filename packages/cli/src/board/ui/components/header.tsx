@@ -12,8 +12,6 @@ interface IHeaderProps {
   title: string;
   logo?: string;
   sources: string[];
-  tab: 'Flows' | 'Agents';
-  onTab: (tab: 'Flows' | 'Agents') => void;
   lastSeen: string;
   newCount: number;
   onSeen: () => void;
@@ -40,22 +38,6 @@ export const Header = (props: IHeaderProps) => {
       </span>
       <span className="brule" aria-hidden="true" />
       <h1 id="boardTitle">{props.title}</h1>
-      <div className="tabs" role="tablist" aria-label={t('Màn hình')}>
-        {(['Flows', 'Agents'] as const).map((tab) => (
-          <button
-            key={tab}
-            className="tab"
-            role="tab"
-            id={`t${tab}`}
-            aria-selected={props.tab === tab}
-            aria-controls={`v${tab}`}
-            type="button"
-            onClick={() => props.onTab(tab)}
-          >
-            {tab === 'Flows' ? <span>{t('Luồng')}</span> : 'Agent'}
-          </button>
-        ))}
-      </div>
       <span className="spacer" />
       <span className="since" id="since" title={props.sources.join('\n')}>
         <span id="sinceTxt">

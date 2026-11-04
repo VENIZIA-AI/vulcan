@@ -6,7 +6,6 @@ import { Detail } from './components/detail.tsx';
 import { FlowDiagram } from './components/diagram.tsx';
 import { Dock } from './components/dock.tsx';
 import { BoardFace } from './components/face.tsx';
-import { AgentsView } from './components/graph.tsx';
 import { Header, THEMES } from './components/header.tsx';
 import type { TTheme } from './components/header.tsx';
 import { Keys } from './components/keys.tsx';
@@ -58,7 +57,6 @@ export const App = (opts: { data: IBoardData }) => {
     initial: 'list',
     allowed: VIEW_MODES,
   });
-  const [tab, setTab] = useState<'Flows' | 'Agents'>('Flows');
   const [keysOpen, setKeysOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -126,7 +124,6 @@ export const App = (opts: { data: IBoardData }) => {
   };
   const toFlow = (id: string): void => {
     setPop(null);
-    setTab('Flows');
     select(id);
   };
 
@@ -167,7 +164,6 @@ export const App = (opts: { data: IBoardData }) => {
 
       if (event.key === 'j' || event.key === 'k') {
         event.preventDefault();
-        setTab('Flows');
 
         const next =
           event.key === 'j' ? Math.min(cards.length - 1, at + 1) : Math.max(0, at < 0 ? 0 : at - 1);
@@ -195,7 +191,7 @@ export const App = (opts: { data: IBoardData }) => {
     const onPointer = (event: PointerEvent): void => {
       const target = event.target as Element | null;
 
-      if (pop && !target?.closest?.('#pop,.cell,.node')) {
+      if (pop && !target?.closest?.('#pop,.cell')) {
         setPop(null);
       }
     };
@@ -216,8 +212,6 @@ export const App = (opts: { data: IBoardData }) => {
           title={data.title}
           logo={data.logo}
           sources={data.sources}
-          tab={tab}
-          onTab={setTab}
           lastSeen={lastSeen}
           newCount={flows.reduce((sum, view) => sum + view.newCount, 0)}
           onSeen={() => setLastSeen(new Date().toISOString())}
@@ -235,7 +229,7 @@ export const App = (opts: { data: IBoardData }) => {
         />
         <div
           ref={area}
-          className={`view${tab === 'Flows' ? ' on' : ''}`}
+          className="view on"
           id="vFlows"
           role="tabpanel"
           aria-labelledby="tFlows"
@@ -297,24 +291,6 @@ export const App = (opts: { data: IBoardData }) => {
             onClose={() => setDetailOpen(false)}
           />
         </div>
-        <div
-          className={`view${tab === 'Agents' ? ' on' : ''}`}
-          id="vAgents"
-          role="tabpanel"
-          aria-labelledby="tAgents"
-        >
-          <AgentsView
-            rows={rows}
-            views={flows}
-            events={events}
-            owner={data.owner}
-            shapes={data.shapes}
-            popFor={pop?.name ?? null}
-            onNode={openPop}
-            onFlow={toFlow}
-            shown={tab === 'Agents'}
-          />
-        </div>
         <Dock
           rows={rows}
           owner={data.owner}
@@ -334,7 +310,6 @@ export const App = (opts: { data: IBoardData }) => {
           filtered={agent === pop.name}
           onFilter={() => {
             setAgent(agent === pop.name ? null : pop.name);
-            setTab('Flows');
             setPop(null);
           }}
           onFlow={toFlow}
