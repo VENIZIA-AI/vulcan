@@ -16,7 +16,6 @@ export default {
       'pnt-ignis-1': 'flame',
       'pnt-ardor-1': 'ember',
       'pnt-vulcan-1': 'rock',
-      'bana-forge': 'banana',
     },
   },
   knowledge: {
