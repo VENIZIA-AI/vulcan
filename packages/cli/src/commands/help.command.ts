@@ -4,9 +4,10 @@ const HELP = `vulcan ${VULCAN_VERSION} - one setup, one workflow for every proje
 
 Usage: bun x vulcan <command>
 
-  init                            Scaffold the project layer (never overwrites)
+  init [--key <KEY>]              Scaffold the project layer (never overwrites); --key is the project's flow key
+                                  (2 to 8 uppercase letters or digits; a terminal asks, else it is made from the name)
   init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <path>]
-       [--shared-dir <path>] [--scope <@scope>]
+       [--shared-dir <path>] [--scope <@scope>] [--key <KEY>]
                                   Create a monorepo with its first app, from a framework preset
                                   (a name missing from the flags is asked in a terminal)
   add --preset <name|file:path> (--app <name> | --lib <name> | --shared <name>) [--dir <folder>]
@@ -39,7 +40,7 @@ Usage: bun x vulcan <command>
                                   List the workspace packages a change touches (changed ones and what
                                   depends on them) with the checks each has; template prints a CI file that
                                   runs exactly those; exit 2 on bad input
-  event add --kind <k> --summary <text> [--flow F-n] [--ref <r>] [--status approve|park|reject] | add --kind flow --flow F-n --title <text> [--why <text>] [--context <text>] [--next <text>] | tail [--since <time>] [--json] [--dir <folder>]
+  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] | add --kind flow [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] | tail [--since <time>] [--json] [--dir <folder>]
                                   Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
                                   read it; with events.log on, sync installs the Claude Code hooks that
                                   write it; exit 2 on bad input

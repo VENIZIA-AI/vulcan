@@ -52,6 +52,7 @@ The table below lists the top-level configuration keys:
 | Key | Type | Default | What it controls |
 |---|---|---|---|
 | `name` | `string` | root package name | Project identifier in the manifest and atlas results |
+| `project.key` | `string` | none | The key a flow is named by: `VULZ-<key>-<number>`, such as `VULZ-ACME-15`. Uppercase letters and digits, 2 to 8; set once. `vulcan init` writes it (`--key`, a terminal's answer, or one made from the project name). The event log and the board read it from the manifest. `vulcan doctor` warns when the log is on and it is missing |
 | `agents` | `string[]` | unset | Coding agents the project suggests; each developer's choice is stored locally |
 | `rules` | `Record<string, string>` | `{}` | Base rule slot choices |
 | `layout` | `object` | `undefined` | The folders `vulcan init` and `vulcan add` put apps in, as a path or a list of paths per side, and the folders left alone |

@@ -47,7 +47,11 @@ vulcan init: no package.json in ~/work/demo - run 'bun init' first, or use --pre
 
 ## Options
 
-Without `--preset`, `vulcan init` takes no option. Any other argument is refused with `vulcan init: unknown argument '<argument>'` and nothing is written.
+Without `--preset`, `vulcan init` takes one option, `--key`. Any other argument is refused with `vulcan init: unknown argument '<argument>'` and nothing is written.
+
+| Option | What it does |
+|---|---|
+| `--key <KEY>` | The project's flow key, written to the config as `project: { key: 'KEY' }`: 2 to 8 uppercase letters or digits. A flow is named `VULZ-<key>-<number>`, such as `VULZ-ACME-15`. Without it, a terminal asks (the key made from the project name is the default); with no terminal the key is made from the project name (its letters and digits in capitals, the first 8), `init` says which, and a name that makes fewer than 2 is an error that asks for `--key`. An existing config is kept, and the key is not asked |
 
 The config file is `.configs/vulcan.config.mts`, a TypeScript module that uses `satisfies VulcanConfig`.
 It is written only when it does not exist yet; an existing one is reported as `kept`.
@@ -323,6 +327,7 @@ vulcan init: missing --backend-dir (Backend folder (holds every backend app)) - 
 | `--frontend-dir <path>` | The folder that holds frontend apps, a path of 1 to 4 segments. Used when the preset is a frontend |
 | `--app <name>` | The name of the first app |
 | `--shared-dir <path>` | A folder, a path of 1 to 4 segments, for code shared between apps. Optional: leave it out, or answer empty, to skip it |
+| `--key <KEY>` | The project's flow key, as above: asked in a terminal right after the project name (the key made from the name is the default), else made from the name. Written to the new config |
 | `--scope <@scope>` | The npm scope of the first app's package: `--scope @acme` names it `@acme/<app>`. Optional; the folder and the dir registered in the config stay bare. A menu asks for it (empty for none); a plain terminal does not |
 
 A name is lowercase letters, digits and `-`, and starts with a letter or digit.

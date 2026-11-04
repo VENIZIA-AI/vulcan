@@ -9,8 +9,26 @@ import { runCli } from '../run.helper.ts';
 afterAll(removeProjects);
 
 /** A project folder: the manifest marks it, so a command run in it does not walk up into the repository the test run lives in. */
-const project = (opts: { files?: Record<string, string> } = {}): string =>
-  createProject({ files: { '.agents/vulcan.manifest.json': '{}', ...opts.files } });
+/** A line of the log that carries a flow: a flow exists when a line says so, and an id is never made up by hand. */
+const seedLine = (id: string): string =>
+  `${JSON.stringify(EventLog.build({ kind: 'commit', summary: 'seed', actor: 'seed', source: 'cli', flowId: id }))}\n`;
+
+const project = (
+  opts: { files?: Record<string, string>; flows?: string[]; key?: string } = {},
+): string =>
+  createProject({
+    files: {
+      '.agents/vulcan.manifest.json': JSON.stringify(
+        opts.key === undefined ? {} : { project: { key: opts.key } },
+      ),
+      ...(opts.flows === undefined
+        ? {}
+        : {
+            '.agents/local/events/2026-11-01.jsonl': opts.flows.map((id) => seedLine(id)).join(''),
+          }),
+      ...opts.files,
+    },
+  });
 
 const cli = (opts: { root: string; args: string[]; env?: Record<string, string> }) =>
   runCli({
@@ -19,10 +37,11 @@ const cli = (opts: { root: string; args: string[]; env?: Record<string, string> 
     env: { ...hermeticEnv(), VULCAN_ACTOR: 'pnt-vulcan-1', ...opts.env },
   });
 
+/** The lines the command wrote: the ones that seed a flow are not its output. */
 const lines = (opts: { dir: string }) =>
-  readdirSync(opts.dir).flatMap((name) =>
-    readFileSync(join(opts.dir, name), 'utf8').trim().split('\n'),
-  );
+  readdirSync(opts.dir)
+    .flatMap((name) => readFileSync(join(opts.dir, name), 'utf8').trim().split('\n'))
+    .filter((line) => !line.includes('"summary":"seed"'));
 
 describe('vulcan event add', () => {
   test('writes one line to the project folder and prints its id', () => {
@@ -93,7 +112,7 @@ describe('vulcan event add', () => {
   });
 
   test('a decision carries its status; nothing else may', () => {
-    const root = project();
+    const root = project({ flows: ['F-4'] });
     const ok = cli({
       root,
       args: [
@@ -145,7 +164,7 @@ describe('vulcan event add', () => {
   });
 
   test('--flow and --actor win; the manifest dir and --dir move the log', () => {
-    const shared = createProject({ files: {} });
+    const shared = createProject({ files: { '2026-11-01.jsonl': seedLine('F-2') } });
     const other = createProject({ files: {} });
     const root = createProject({
       files: {
@@ -346,7 +365,7 @@ describe('vulcan event add --kind flow', () => {
   const dir = (root: string): string => join(root, '.agents/local/events');
 
   test('writes a flow line: the title is its summary, the reason is why, in the words given', () => {
-    const root = project();
+    const root = project({ flows: ['F-12', 'F-13', 'F-3'] });
     const result = cli({
       root,
       args: [
@@ -377,7 +396,7 @@ describe('vulcan event add --kind flow', () => {
   });
 
   test('context and next are written as given, in the words of the owner, and read back whole', () => {
-    const root = project();
+    const root = project({ flows: ['F-12', 'F-13', 'F-3'] });
     const context =
       'Bảng chỉ hiện tên luồng. Việc này thêm bối cảnh: luồng là gì, đã xong gì, còn gì. Phần fold xong; còn trang và tài liệu.';
     const result = cli({
@@ -406,7 +425,7 @@ describe('vulcan event add --kind flow', () => {
   });
 
   test('context keeps up to 600 characters on one line, next 200; a secret in either is redacted', () => {
-    const root = project();
+    const root = project({ flows: ['F-12', 'F-13', 'F-3'] });
     const long = 'word '.repeat(200);
     const result = cli({
       root,
@@ -453,7 +472,7 @@ describe('vulcan event add --kind flow', () => {
   });
 
   test('the reason is optional, and a flow line needs a title and a flow', () => {
-    const root = project();
+    const root = project({ flows: ['F-12', 'F-13', 'F-3'] });
 
     expect(
       cli({ root, args: ['add', '--kind', 'flow', '--flow', 'F-12', '--title', 'Only a title'] })
@@ -478,7 +497,7 @@ describe('vulcan event add --kind flow', () => {
   });
 
   test('an empty or blank --context or --next is refused like an empty --title, and nothing is written', () => {
-    const root = project();
+    const root = project({ flows: ['F-12', 'F-13', 'F-3'] });
 
     for (const extra of [
       ['--context', ''],
@@ -495,11 +514,11 @@ describe('vulcan event add --kind flow', () => {
       expect(result.stderr).toContain(extra[0]);
     }
 
-    expect(existsSync(dir(root))).toBe(false);
+    expect(lines({ dir: dir(root) })).toEqual([]);
   });
 
   test('--title, --why, --context and --next belong to a flow line only', () => {
-    const root = project();
+    const root = project({ flows: ['F-12', 'F-13', 'F-3'] });
 
     for (const extra of [
       ['--title', 'x'],
@@ -516,11 +535,11 @@ describe('vulcan event add --kind flow', () => {
       expect(result.stderr).toContain('flow line only');
     }
 
-    expect(existsSync(dir(root))).toBe(false);
+    expect(lines({ dir: dir(root) })).toEqual([]);
   });
 
   test('a secret in the title or the reason never reaches the log', () => {
-    const root = project();
+    const root = project({ flows: ['F-12', 'F-13', 'F-3'] });
 
     cli({
       root,
@@ -544,7 +563,7 @@ describe('vulcan event add --kind flow', () => {
   });
 
   test('tail shows a flow line with its title', () => {
-    const root = project();
+    const root = project({ flows: ['F-12', 'F-13', 'F-3'] });
 
     cli({
       root,

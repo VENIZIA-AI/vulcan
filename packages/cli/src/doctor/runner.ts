@@ -96,6 +96,7 @@ export class DoctorRunner {
       ...ProjectContract.checkCommitHook(context),
       ...ProjectContract.checkEventsDir(context),
       ...ProjectContract.checkEventsSize(context),
+      ...ProjectContract.checkProjectKey(context),
       ...ProjectContract.checkDockerignore(context),
       ...ProjectContract.checkSkillTriggers(context),
       ...ProjectContract.checkFormat(context),

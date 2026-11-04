@@ -39,7 +39,7 @@ const initInTerminal = (opts: { answers: string[] }) => {
   const parent = createProject({ files: {} });
   const { code, output } = runInTerminal({
     cwd: parent,
-    args: ['init', '--preset', `file:${BACKEND}`],
+    args: ['init', '--preset', `file:${BACKEND}`, '--key', 'TEST'],
     answers: opts.answers,
     env: { VULCAN_NO_INSTALL: '1' },
   });
@@ -102,7 +102,13 @@ describe.skipIf(!hasScript)('vulcan init --preset <npm package> in a terminal', 
     const parent = createProject({ files: {} });
     const { code, output } = runInTerminal({
       cwd: parent,
-      args: ['init', '--preset', `@fixture/backend@file:${packFolder({ folder: BACKEND })}`],
+      args: [
+        'init',
+        '--preset',
+        `@fixture/backend@file:${packFolder({ folder: BACKEND })}`,
+        '--key',
+        'TEST',
+      ],
       answers: opts.answers,
       env: { VULCAN_BUN: bunForNpmPreset() },
     });
@@ -156,7 +162,7 @@ describe.skipIf(!hasScript)('vulcan init --preset <npm package> in a terminal', 
     const parent = createProject({ files: {} });
     const { code, output } = runInTerminal({
       cwd: parent,
-      args: ['init', '--preset', '@fixture/missing@file:/no/such/folder.tgz'],
+      args: ['init', '--preset', '@fixture/missing@file:/no/such/folder.tgz', '--key', 'TEST'],
       answers: ['my-product'],
       env: { VULCAN_BUN: bunForNpmPreset() },
     });

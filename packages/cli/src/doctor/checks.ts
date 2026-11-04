@@ -15,6 +15,7 @@ import { BASE_DIRECTORY, ProjectLayout, RecordValue } from '../common/index.ts';
 import { LayoutKeys, LayoutFolder } from '../common/layout-folder.ts';
 import { MCP_SERVER_HINT, ProjectScaffold } from '../init/index.ts';
 import { ProjectPackages } from '../config/index.ts';
+import { ProjectKey } from '../events/project-key.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules, RuleParser, RuleSlots } from '../rules/index.ts';
 import { ManifestConstants, ProjectManifest } from '../manifest/index.ts';
@@ -1272,6 +1273,22 @@ export class ProjectContract {
             check: DoctorChecks.LOCAL,
             file: CLAUDE_LAUNCH_FILE,
             message: `this Claude Code session was not started with the launch file, so its task output and its MCP servers use ${tmp.folder ?? '/tmp'}. Start it with: ${ClaudeLaunch.COMMAND}`,
+          }),
+        ]
+      : [];
+  }
+
+  /**
+   * The event log is on and the project has no `project.key`: flows cannot be created, because a flow is named
+   * `VULZ-<key>-<number>`. A warning: the log still takes lines of flows made before.
+   */
+  static checkProjectKey(opts: ICheckContext): IViolation[] {
+    return opts.config.events.log && opts.config.project === undefined
+      ? [
+          createViolation({
+            check: DoctorChecks.PROJECT_KEY,
+            file: opts.configFile,
+            message: `the event log is on and project.key is not set, so no flow can be created: add project: { key: 'KEY' } (${ProjectKey.MESSAGE}), then run vulcan sync`,
           }),
         ]
       : [];

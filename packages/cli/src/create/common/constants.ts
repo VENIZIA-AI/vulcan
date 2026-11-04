@@ -58,6 +58,7 @@ export class CreateFlags {
   static readonly SHARED = '--shared';
   static readonly DIR = '--dir';
   static readonly SCOPE = '--scope';
+  static readonly KEY = '--key';
   static readonly FULL = '--full';
   static readonly CHECK = '--check';
 }

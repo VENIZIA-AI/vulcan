@@ -23,6 +23,7 @@ export class DoctorChecks {
   static readonly COMMIT_HOOK = 'commit-hook';
   static readonly EVENTS_DIR = 'events-dir';
   static readonly EVENTS_SIZE = 'events-size';
+  static readonly PROJECT_KEY = 'project-key';
   static readonly PRIVATE_VALUES = 'private-values';
 }
 

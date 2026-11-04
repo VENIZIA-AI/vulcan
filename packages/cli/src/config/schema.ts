@@ -10,6 +10,7 @@ import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import type { TAgentSignaturePolicy } from '../commit/common/index.ts';
 import { SubjectShape } from '../commit/subject.ts';
 import { BoardServe } from '../board/common/constants.ts';
+import { ProjectKey } from '../events/project-key.ts';
 import { BOARD_AGENTS } from '../board/schema.ts';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
@@ -216,6 +217,10 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   name: z
     .string()
     .regex(/^[a-z0-9][a-z0-9-]*$/)
+    .optional(),
+  /** The project's flow key: a flow is named `VULZ-<key>-<number>`, and VULCAN gives the number. Set once, when the project starts. */
+  project: z
+    .strictObject({ key: z.string().regex(ProjectKey.PATTERN, ProjectKey.MESSAGE) })
     .optional(),
   /** The project's suggested agents; each developer's own choice lives in `.agents/vulcan.local.json`. */
   agents: z.array(CODING_AGENT).optional(),

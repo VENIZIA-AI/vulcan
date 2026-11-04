@@ -33,6 +33,7 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
       CreateFlags.APP,
       CreateFlags.API,
       CreateFlags.SCOPE,
+      CreateFlags.KEY,
     ],
     positionals: 0,
   },

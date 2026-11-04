@@ -27,6 +27,8 @@ const monorepo = (opts: { backend?: string } = {}): string => {
       opts.backend ?? BACKEND,
       '--project',
       'p',
+      '--key',
+      'TEST',
       '--backend-dir',
       'services',
       '--app',

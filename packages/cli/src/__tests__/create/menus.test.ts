@@ -25,6 +25,8 @@ const monorepo = (): string => {
       WITH_LIB,
       '--project',
       'p',
+      '--key',
+      'TEST',
       '--backend-dir',
       'services',
       '--app',
@@ -51,7 +53,7 @@ describe.skipIf(!hasScript)('vulcan init asks with menus in a terminal', () => {
   test('typed names, then a summary, then a confirm, then the same project the flags build', async () => {
     const parent = createProject({ files: {} });
     const result = await driveTerminal({
-      args: ['init', '--preset', BACKEND],
+      args: ['init', '--preset', BACKEND, '--key', 'TEST'],
       cwd: parent,
       env: ENV,
       steps: [
@@ -74,7 +76,7 @@ describe.skipIf(!hasScript)('vulcan init asks with menus in a terminal', () => {
   test('answering no at the summary writes nothing', async () => {
     const parent = createProject({ files: {} });
     const result = await driveTerminal({
-      args: ['init', '--preset', BACKEND],
+      args: ['init', '--preset', BACKEND, '--key', 'TEST'],
       cwd: parent,
       env: ENV,
       steps: [...initSteps, { waitFor: WRITE, send: `n${KEYS.ENTER}` }],
@@ -88,7 +90,7 @@ describe.skipIf(!hasScript)('vulcan init asks with menus in a terminal', () => {
   test('a name that is not one is refused where it is typed, nothing is created', async () => {
     const parent = createProject({ files: {} });
     const result = await driveTerminal({
-      args: ['init', '--preset', BACKEND],
+      args: ['init', '--preset', BACKEND, '--key', 'TEST'],
       cwd: parent,
       env: ENV,
       steps: [
@@ -106,7 +108,7 @@ describe.skipIf(!hasScript)('the preset is picked or typed when --preset is miss
   test('init --preset with no value picks an official preset or types another one', async () => {
     const parent = createProject({ files: {} });
     const result = await driveTerminal({
-      args: ['init', '--preset'],
+      args: ['init', '--key', 'TEST', '--preset'],
       cwd: parent,
       env: ENV,
       steps: [
