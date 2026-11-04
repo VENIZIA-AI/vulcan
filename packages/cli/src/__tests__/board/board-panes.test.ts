@@ -19,11 +19,12 @@ const dayOf = (offset: number): string => {
 
 const page = (): { html: string; ids: string[] } => {
   const data = sampleData({ base: Date.now() - 100 * 60_000 });
-  const ids = data.flows.map((flow) => flow.id);
+  const work = data.flows.filter((flow) => flow.id !== 'Unsorted');
+  const ids = work.map((flow) => flow.id);
 
-  Object.assign(data.flows[0], { due: dayOf(-1) });
-  Object.assign(data.flows[1], { due: dayOf(2) });
-  Object.assign(data.flows[2], { due: dayOf(30) });
+  Object.assign(work[0], { due: dayOf(-1) });
+  Object.assign(work[1], { due: dayOf(2) });
+  Object.assign(work[2], { due: dayOf(30) });
 
   return {
     html: BoardPage.render({ data }).replace(

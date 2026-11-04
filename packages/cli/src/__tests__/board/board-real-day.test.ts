@@ -1,0 +1,121 @@
+import { afterAll, describe, expect, test } from 'bun:test';
+import { BoardPage } from '../../board/page.ts';
+import { BrowserPage } from '../visualize/browser.helper.ts';
+import { REAL_DAY, realDayData } from './real-day.helper.ts';
+
+const hasBrowser = await BrowserPage.available();
+
+afterAll(() => BrowserPage.close());
+
+interface IResult {
+  agents: string[];
+  agentCount: string;
+  itemCount: string;
+  cards: Record<string, string>;
+  groups: Record<string, string>;
+  rowIds: string[];
+  loose: string | null;
+  looseDetail: { heading: string; lines: number; stageBars: number } | null;
+  groupsText: string;
+  scrollsSideways: boolean;
+  errors: string[];
+}
+
+const EXPRESSION = `(async () => {
+  localStorage.clear();
+  const wait = () => new Promise((resolve) => setTimeout(resolve, 100));
+  const out = { errors: window.__errs };
+  document.querySelectorAll('.c-gh[aria-expanded="false"]').forEach((button) => button.click());
+  await wait();
+  out.agents = [...document.querySelectorAll('#dock [data-agent]')].map((c) => c.dataset.agent);
+  out.agentCount = document.querySelector('#dock .c-n').textContent;
+  out.itemCount = document.getElementById('flowN').textContent;
+  out.cards = Object.fromEntries([...document.querySelectorAll('#dock [data-agent]')].map((c) => [c.dataset.agent, c.innerText]));
+  out.groups = Object.fromEntries([...document.querySelectorAll('#groups .c-group')].map((g) => [g.querySelector('.c-gh').textContent.split(' · ')[0].trim(), g.querySelector('.c-gh').textContent]));
+  out.rowIds = [...document.querySelectorAll('#groups .row')].map((r) => r.dataset.id);
+  out.groupsText = document.getElementById('groups').innerText;
+  const loose = document.querySelector('.c-loose');
+  out.loose = loose ? loose.textContent : null;
+  out.looseDetail = null;
+  if (loose) {
+    loose.click();
+    await wait();
+    out.looseDetail = {
+      heading: document.querySelector('#dBody h2').textContent,
+      lines: document.querySelectorAll('#dBody .evs li').length,
+      stageBars: document.querySelectorAll('#dBody .d-stages').length,
+    };
+  }
+  out.scrollsSideways = document.documentElement.scrollWidth > window.innerWidth + 1;
+  return JSON.stringify(out);
+})()`;
+
+describe.skipIf(!hasBrowser)('a busy multi-agent day, in a real browser', () => {
+  const html = BoardPage.render({ data: realDayData() }).replace(
+    '<script type="application/json"',
+    '<script>window.__errs=[];addEventListener("error",(e)=>__errs.push(e.message))</script><script type="application/json"',
+  );
+  const run = async (width: number): Promise<IResult> => {
+    const raw = await BrowserPage.measure<string>({
+      html,
+      width,
+      dark: false,
+      expression: EXPRESSION,
+    });
+
+    return JSON.parse(raw) as IResult;
+  };
+
+  for (const width of [1440, 390]) {
+    test(`${width}px: every actor has a card, none is Unsorted work, no marker, nothing sticks out`, async () => {
+      const result = await run(width);
+
+      expect(result.errors).toEqual([]);
+      expect([...result.agents].sort()).toEqual([...REAL_DAY.ACTORS]);
+      expect(result.agents[0]).toBe('acme-forge');
+      expect(result.agentCount).toBe(String(REAL_DAY.ACTORS.length));
+      expect(result.rowIds).not.toContain('Unsorted');
+      expect(result.groupsText).not.toMatch(/no title yet|chưa có tên/);
+      expect(result.scrollsSideways).toBe(false);
+    });
+  }
+
+  test('the cards tell the truth: a few unanswered messages, working after the stop, a lane label', async () => {
+    const { cards } = await run(1440);
+
+    expect(cards['pnt-web-1']).toMatch(/Unanswered\s*3\b/);
+    expect(cards['pnt-web-1']).not.toMatch(/Idle/);
+    expect(cards['acme-forge']).toMatch(/Unanswered\s*0\b/);
+    expect(cards['pnt-api-1']).toContain('under acme-api');
+    expect(cards['acme-api']).toContain('Backend');
+
+    for (const [name, text] of Object.entries(cards)) {
+      const count = Number(/Unanswered\s*(\d+)/.exec(text)?.[1]);
+
+      expect(count, name).toBeLessThanOrEqual(REAL_DAY.UNANSWERED);
+    }
+  });
+
+  test('closed flows are in Done and Parked, not Running: a merge, a deploy, a park; a stale merge is past the week', async () => {
+    const { groups, rowIds, itemCount } = await run(1440);
+
+    expect(groups['Needs you']).toContain('· 1');
+    expect(groups['Running']).toContain('· 4');
+    expect(groups['Parked']).toContain('· 1');
+    expect(groups['Done this week']).toContain('· 3');
+    // The count is the cards listed: five open, three done this week; the stale one and Unsorted are not counted.
+    expect(itemCount).toBe('9');
+    expect(rowIds).toContain(REAL_DAY.DEPLOYED);
+    expect(rowIds).toContain(REAL_DAY.DONE_OLD);
+    expect(rowIds).not.toContain(REAL_DAY.DONE_STALE);
+  });
+
+  test('the lines with no flow are one muted line under the groups; it opens a list, not a work item', async () => {
+    const { loose, looseDetail } = await run(1440);
+
+    expect(loose).toBe(`Unsorted · ${REAL_DAY.UNSORTED + REAL_DAY.TO_SOCKETS}`);
+    expect(looseDetail?.heading).toBe('Unsorted');
+    expect(looseDetail?.lines).toBe(REAL_DAY.UNSORTED + REAL_DAY.TO_SOCKETS);
+    expect(looseDetail?.stageBars).toBe(0);
+  });
+});

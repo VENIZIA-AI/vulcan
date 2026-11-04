@@ -94,13 +94,10 @@ describe('BoardCards.agentOf', () => {
     const data = { ...sampleData({ base: BASE }), roles: opts.roles };
     const flows = BoardView.flowsOf({ data, showAll: false, lastSeen: '' });
     const events = BoardView.eventsOf({ data, showAll: false });
-    const docs = BoardView.docsOf({ data });
     const rows = BoardView.rowsOf({
       data,
       flows,
       events,
-      docs,
-      showAll: false,
       translate: (key) => key,
     });
     const row = opts.name === undefined ? rows[0] : rows.find((one) => one.n === opts.name);
@@ -116,7 +113,7 @@ describe('BoardCards.agentOf', () => {
         events,
         views: flows,
         row,
-        doc: docs[row.n],
+        doc: data.agents[row.n],
         now: Date.now(),
       }),
     };

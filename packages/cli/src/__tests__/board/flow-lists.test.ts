@@ -188,7 +188,11 @@ describe('board.agents: the role of an agent', () => {
 describe.skipIf(!hasBrowser)("today's detail shows the lists", () => {
   test('steps and checks as checklists with their count, the apps as chips, the due day and the tracker id', async () => {
     const data = sampleData({ base: Date.now() - 100 * 60_000 });
-    const [target] = data.flows;
+    const target = data.flows.find((flow) => flow.id !== 'Unsorted');
+
+    if (target === undefined) {
+      throw new Error('the sample has no flow');
+    }
 
     Object.assign(target, {
       steps: [

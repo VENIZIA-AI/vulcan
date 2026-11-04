@@ -121,18 +121,19 @@ const data = (): IBoardData => {
 interface IRow {
   id: string;
   title: string;
-  untitled: boolean;
   text: string;
 }
 
 interface IResult {
   hidden: IRow[];
+  looseHidden: string | null;
+  looseShown: string | null;
   detailHidden: { heading: string; why: string | null; text: string };
   shown: IRow[];
   detailShown: string;
   pressed: string[];
   again: IRow[];
-  vi: { label: string; untitled: string[] };
+  vi: { label: string; loose: string | null };
   errors: string[];
 }
 
@@ -142,7 +143,6 @@ const EXPRESSION = `(async () => {
   const rows = () => [...document.querySelectorAll('.row')].map((r) => ({
     id: r.dataset.id,
     title: r.querySelector('.c-title').firstChild.textContent,
-    untitled: !!r.querySelector('.untitled'),
     text: r.textContent,
   }));
   const open = async (id) => { document.querySelector('.row[data-id="' + id + '"]').click(); await wait(); };
@@ -152,6 +152,8 @@ const EXPRESSION = `(async () => {
   if (document.getElementById('bPlumb').getAttribute('aria-pressed') === 'true') { document.getElementById('bPlumb').click(); await wait(); }
   await wait();
   out.hidden = rows();
+  const loose = () => (document.querySelector('.c-loose') ? document.querySelector('.c-loose').textContent : null);
+  out.looseHidden = loose();
   await open('F-1');
   document.querySelector('.d-all').click();
   await wait();
@@ -165,6 +167,7 @@ const EXPRESSION = `(async () => {
   await wait();
   out.pressed.push(document.getElementById('bPlumb').getAttribute('aria-pressed'));
   out.shown = rows();
+  out.looseShown = loose();
   await open('F-1');
   if (!document.querySelector('.d-body .evs')) { document.querySelector('.d-all').click(); await wait(); }
   out.detailShown = document.getElementById('dBody').textContent;
@@ -174,10 +177,12 @@ const EXPRESSION = `(async () => {
   out.again = rows();
   document.getElementById('bLang').click();
   await wait();
-  out.vi = {
-    label: document.getElementById('bPlumb').textContent.trim(),
-    untitled: [...document.querySelectorAll('.row .untitled')].map((n) => n.textContent),
-  };
+  const label = document.getElementById('bPlumb').textContent.trim();
+  document.getElementById('bPlumb').click();
+  await wait();
+  out.vi = { label, loose: loose() };
+  document.getElementById('bPlumb').click();
+  await wait();
   document.getElementById('bLang').click();
   await wait();
   return JSON.stringify(out);
@@ -215,7 +220,10 @@ describe.skipIf(!hasBrowser)(
           'permission_prompt',
         );
         // With all events: the plumbing-only flow is back, and so are the lines in the pane.
-        expect(result.shown.map((row) => row.id).sort()).toEqual(['F-1', 'F-2', 'F-3', 'Unsorted']);
+        expect(result.shown.map((row) => row.id).sort()).toEqual(['F-1', 'F-2', 'F-3']);
+        // The lines of no flow are not a card: a muted line under the groups, only once plumbing is shown.
+        expect(result.looseHidden).toBeNull();
+        expect(result.looseShown).toMatch(/^Unsorted · \d+$/);
         expect(result.detailShown).toContain('turn ended');
         expect(result.detailShown).toContain('idle_prompt');
         expect(result.detailShown).toContain('agent activity');
@@ -223,15 +231,15 @@ describe.skipIf(!hasBrowser)(
         expect(result.again.map((row) => row.id).sort()).toEqual(['F-1', 'F-2', 'F-3']);
       });
 
-      test(`${dark ? 'dark' : 'light'}: a flow shows its title and why; one without a title says so; a person's ask still counts`, async () => {
+      test(`${dark ? 'dark' : 'light'}: a flow shows its title and why; one without a title shows its first words and no marker; a person's ask still counts`, async () => {
         const result = await run(dark);
         const row = (id: string): IRow => result.hidden.find((entry) => entry.id === id)!;
 
-        expect(row('F-1')).toMatchObject({ title: 'Bảng việc cho anh', untitled: false });
-        expect(row('F-3')).toMatchObject({ title: 'Chọn cách phát hành', untitled: false });
-        // No name: today's heading (the first line's words), marked.
-        expect(row('F-2')).toMatchObject({ title: 'fix the cache', untitled: true });
-        expect(row('F-2').text).toContain('no title yet');
+        expect(row('F-1')).toMatchObject({ title: 'Bảng việc cho anh' });
+        expect(row('F-3')).toMatchObject({ title: 'Chọn cách phát hành' });
+        // No name: the first line's words are the title, and nothing says it has none.
+        expect(row('F-2')).toMatchObject({ title: 'fix the cache' });
+        expect(row('F-2').text).not.toMatch(/no title yet|chưa có tên/);
         expect(result.detailHidden.heading).toBe('Bảng việc cho anh');
         expect(result.detailHidden.why).toBe('Now: để anh thấy việc nào chờ anh');
         // The message label is a line of the pane, not the heading.
@@ -242,11 +250,11 @@ describe.skipIf(!hasBrowser)(
       });
     }
 
-    test('Vietnamese: the toggle and the marker are translated', async () => {
+    test('Vietnamese: the toggle and the Unsorted line are translated', async () => {
       const result = await run(false);
 
       expect(result.vi.label).toBe('Hiện mọi sự kiện');
-      expect(result.vi.untitled).toEqual(['chưa có tên']);
+      expect(result.vi.loose).toMatch(/^Chưa xếp luồng · \d+$/);
     });
   },
 );

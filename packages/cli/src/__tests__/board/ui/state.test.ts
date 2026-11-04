@@ -76,14 +76,12 @@ describe('BoardLatest', () => {
   const said = (opts: Partial<IBoardViewEvent>): string =>
     BoardLatest.textOf({ event: line(opts), translate: en });
 
-  test('a message says who it came from or went to, as the helper when there is one', () => {
+  test('a message says who it came from or went to', () => {
     expect(said({ kind: 'msg', incoming: true, from: 'bo' })).toBe(
       `ana ${en('lt.gotFrom')} bo: did it`,
     );
     expect(said({ kind: 'msg', incoming: true })).toBe(`ana ${en('lt.got')}: did it`);
-    expect(said({ kind: 'msg', to: 'bo', asTo: 'helper', as: 'h2' })).toBe(
-      `h2 ${en('lt.msgTo')} helper: did it`,
-    );
+    expect(said({ kind: 'msg', to: 'bo' })).toBe(`ana ${en('lt.msgTo')} bo: did it`);
   });
 
   test('a decision says what was decided, an ask says it waits, and no summary adds no colon', () => {
@@ -94,7 +92,7 @@ describe('BoardLatest', () => {
 });
 
 describe('BoardView', () => {
-  const none = { showAll: false, translate: en };
+  const none = { translate: en };
 
   test('no data gives no flows, no lines and no rows', () => {
     const empty = data({});
@@ -103,26 +101,7 @@ describe('BoardView', () => {
 
     expect(flows).toEqual([]);
     expect(events).toEqual([]);
-    expect(BoardView.rowsOf({ data: empty, flows, events, docs: {}, ...none })).toEqual([]);
-  });
-
-  test('a helper is merged into its lane: working beats idle and the newest note speaks', () => {
-    const docs = BoardView.docsOf({
-      data: data({
-        lanes: { helper: 'lead' },
-        agents: {
-          lead: agent({ current: 'old', checkedAt: '2026-11-03T09:00:00.000Z' }),
-          helper: agent({
-            state: 'working',
-            current: 'new',
-            checkedAt: '2026-11-03T10:00:00.000Z',
-          }),
-        },
-      }),
-    });
-
-    expect(Object.keys(docs)).toEqual(['lead']);
-    expect(docs.lead).toMatchObject({ state: 'working', current: 'new' });
+    expect(BoardView.rowsOf({ data: empty, flows, events, ...none })).toEqual([]);
   });
 
   test('the rows leave out the owner, CI and reviewers, and an idle agent says it is idle', () => {
@@ -133,28 +112,27 @@ describe('BoardView', () => {
       bo: agent({ current: 'tidy' }),
     };
     const board = data({ agents });
-    const rows = BoardView.rowsOf({ data: board, flows: [], events: [], docs: agents, ...none });
+    const rows = BoardView.rowsOf({ data: board, flows: [], events: [], ...none });
 
     expect(rows.map((row) => [row.n, row.st, row.text])).toEqual([
       ['bo', 'idle', `${en('rảnh · ')}tidy`],
     ]);
   });
 
-  test('a roster limits the rows unless every event is shown', () => {
-    const agents = { bo: agent({}), cy: agent({}) };
-    const board = data({ agents, roster: ['bo'] });
-    const rowsOf = (showAll: boolean) =>
-      BoardView.rowsOf({
-        data: board,
-        flows: [],
-        events: [],
-        docs: agents,
-        showAll,
-        translate: en,
-      }).map((row) => row.n);
+  test('a roster and lanes leave nobody out: every agent has a row, the roster first', () => {
+    const agents = { bo: agent({}), cy: agent({}), dee: agent({}) };
+    const board = data({ agents, roster: ['dee'], lanes: { cy: 'dee' } });
+    const rows = BoardView.rowsOf({ data: board, flows: [], events: [], ...none });
 
-    expect(rowsOf(false)).toEqual(['bo']);
-    expect(rowsOf(true)).toEqual(['bo', 'cy']);
+    expect(rows.map((row) => row.n)).toEqual(['dee', 'bo', 'cy']);
+  });
+
+  test('an actor of the lines with no record of its own still has a row', () => {
+    const board = data({ agents: {}, roster: ['bo'] });
+    const lines = [line({ actor: 'cy' }), line({ id: 'b', actor: 'dee' })];
+    const rows = BoardView.rowsOf({ data: board, flows: [], events: lines, ...none });
+
+    expect(rows.map((row) => row.n)).toEqual(['cy', 'dee']);
   });
 });
 

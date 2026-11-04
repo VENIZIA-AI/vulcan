@@ -32,8 +32,6 @@ export const Mark = (props: { bad: boolean }) => {
   );
 };
 
-export const Untitled = () => <span className="untitled">{useUi().t('fl.untitled')}</span>;
-
 /** A list of a flow line as a checklist; the checked ones are done. Nothing when the line gave none. */
 export const Checklist = (props: { items: IBoardItem[] | undefined }) => {
   const { items } = props;
@@ -71,7 +69,7 @@ const Route = (props: { event: IBoardViewEvent }) => {
   return event.to ? (
     <>
       {' → '}
-      <b>{event.asTo ?? event.to}</b>
+      <b>{event.to}</b>
     </>
   ) : null;
 };
@@ -100,7 +98,7 @@ export const EventItem = (props: { event: IBoardViewEvent; chip?: ReactNode }) =
       <div>
         {props.chip}
         <div className="who">
-          <b>{event.as ?? event.actor}</b>
+          <b>{event.actor}</b>
           <Route event={event} />
           {` · ${kind ? t(kind) : event.kind}${event.attempt && event.attempt > 1 ? `${t(' lần ')}${event.attempt}` : ''}`}
         </div>

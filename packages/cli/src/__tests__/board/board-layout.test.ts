@@ -103,8 +103,8 @@ describe.skipIf(!hasBrowser)('the board page in a real browser', () => {
           width + 1,
         );
 
-        // Six flows: Needs you, three Running, Parked, Done, plus Unsorted.
-        expect(layout.rowCount).toBe(6);
+        // Five flows: Needs you, three Running, Parked, Done. The lines with no flow are not a card.
+        expect(layout.rowCount).toBe(5);
 
         // The cards of one column line up: the same left and right edge.
         expect(

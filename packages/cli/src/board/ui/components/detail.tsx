@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { IBoardData } from '../../common/index.ts';
+import { BoardConstants } from '../../common/index.ts';
 import { BoardStateWords, BoardTables } from '../common/constants.ts';
 import type { IAgentRow, IBoardViewEvent, IFlowView } from '../common/types.ts';
 import { useUi } from '../i18n/context.ts';
@@ -9,7 +10,7 @@ import type { IAgentCard } from '../state/cards.ts';
 import { BoardTime } from '../state/time.ts';
 import { BoardUrl } from '../url.ts';
 import { AGENT_TONES } from './agents.tsx';
-import { Checklist, EventItem, Mark, Untitled } from './bits.tsx';
+import { Checklist, EventItem, Mark } from './bits.tsx';
 import { BoardFace, Face } from './face.tsx';
 
 const MILESTONES: Record<string, string> = {
@@ -18,6 +19,7 @@ const MILESTONES: Record<string, string> = {
   release: 'ms.deploy',
 };
 const RECENT_LINES = 5;
+const LOOSE_LINES = 200;
 
 /** `cur` for the stage a flow is at, `done` for those before it. */
 const stageClass = (opts: { stage: number; cur: number }): string => {
@@ -62,6 +64,26 @@ const Milestones = (props: { view: IFlowView }) => {
   );
 };
 
+/** The events that name no flow: not a work item, so only a list, newest first. */
+const LooseDetail = (props: { view: IFlowView }) => {
+  const { t } = useUi();
+
+  return (
+    <div id="dBody" className="d-body">
+      <h2>{t('it.unsorted')}</h2>
+      <p className="d-empty">{t('it.unsortedNote')}</p>
+      <ul className="evs">
+        {[...props.view.evs]
+          .reverse()
+          .slice(0, LOOSE_LINES)
+          .map((event) => (
+            <EventItem key={event.id} event={event} />
+          ))}
+      </ul>
+    </div>
+  );
+};
+
 /** A flow in full: what it is, how far along, what waits, and the way it went. */
 const FlowDetail = (props: {
   view: IFlowView;
@@ -80,10 +102,7 @@ const FlowDetail = (props: {
 
   return (
     <div id="dBody" className="d-body">
-      <h2>
-        {flow.title}
-        {view.named ? null : <Untitled />}
-      </h2>
+      <h2>{flow.title}</h2>
       <div className="d-meta">
         <span className="c-id">{flow.id}</span>
         {flow.tracker ? <span className="c-ref">{flow.tracker}</span> : null}
@@ -307,7 +326,8 @@ export const Detail = (props: {
         </button>
       </div>
       <div className="c-scroll">
-        {view ? (
+        {view && view.flow.id === BoardConstants.UNSORTED ? <LooseDetail view={view} /> : null}
+        {view && view.flow.id !== BoardConstants.UNSORTED ? (
           <FlowDetail view={view} everything={props.everything} onEverything={props.onEverything} />
         ) : null}
         {row ? (

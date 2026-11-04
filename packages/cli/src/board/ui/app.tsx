@@ -77,20 +77,19 @@ export const App = (props: { data: IBoardData }) => {
     () => BoardView.flowsOf({ data, showAll, lastSeen }),
     [data, showAll, lastSeen, now],
   );
-  const docs = useMemo(() => BoardView.docsOf({ data }), [data]);
   const rows = useMemo(
-    () => BoardView.rowsOf({ data, flows, events, docs, showAll, translate }),
-    [data, flows, events, docs, showAll, translate],
+    () => BoardView.rowsOf({ data, flows, events, translate }),
+    [data, flows, events, translate],
   );
   const cards = useMemo(
     () =>
       Object.fromEntries(
         rows.map((row) => [
           row.n,
-          BoardCards.agentOf({ data, events, views: flows, row, doc: docs[row.n], now }),
+          BoardCards.agentOf({ data, events, views: flows, row, doc: data.agents[row.n], now }),
         ]),
       ),
-    [data, events, flows, rows, docs, now],
+    [data, events, flows, rows, now],
   );
   const shown =
     detail !== null &&

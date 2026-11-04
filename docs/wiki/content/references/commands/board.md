@@ -57,7 +57,7 @@ It prints one line on stdout, the address with this run's token; open that addre
 
 ## How a line becomes a flow
 
-An event belongs to the flow named by its `flowId` (`VULZ-ACME-12`; an older `F-12` shows as `VULZ-<key>-12` once the project has a `project.key`). A line with no flow is in the flow called **Unsorted**. A pull request is in the flow named by `Flow: VULZ-ACME-12` in its body or by a flow id part of its branch name, else in Unsorted. [A flow id](/references/commands/event#a-flow-id) says how the log finds it.
+An event belongs to the flow named by its `flowId` (`VULZ-ACME-12`; an older `F-12` shows as `VULZ-<key>-12` once the project has a `project.key`). A line with no flow is in the flow called **Unsorted**, which is not a work item: it is one muted line under the groups, **Unsorted · n**, and opens a list of those events, newest first. A pull request is in the flow named by `Flow: VULZ-ACME-12` in its body or by a flow id part of its branch name, else in Unsorted. [A flow id](/references/commands/event#a-flow-id) says how the log finds it.
 
 | Log line | On the board |
 |---|---|
@@ -79,7 +79,7 @@ From GitHub: each pull request, each finished check (pass or fail), each review 
 | **Needs you** | The last ask has no later decision and no later progress (a commit, a pull request, a merge). A message does not answer it |
 | **Blocked** | The newest CI run or review failed and nothing was committed or merged since |
 | **Parked** | The last decision was `park` or `reject` |
-| **Done** | The pull request was merged |
+| **Done** | The pull request was merged, or a `deploy` line was written. Work after it (a commit, a fix, a pull request) reopens the flow. The group keeps the last seven days |
 | **Running** | Anything else |
 
 The **stage** is the one of the last line, from Proposal to Handover; the page shows it as a bar with the stage the flow is at marked. The **holder** is you while the flow needs you; otherwise the actor of the last piece of work, or the named recipient of a later message (`--ref to:name`).
@@ -98,7 +98,7 @@ The pane of an agent shows its newest five lines, its open pull requests and the
 
 ### Agent plumbing
 
-Session starts and stops, subagent stops and a prompt the harness waits on are not work. By default the page leaves them out of the flows, the cards and the counts, and they never move a flow: an idle prompt does not make a flow wait for you. The button **Show all events** puts them back, as lines of agent activity and, for lines with no flow, as an `Unsorted` flow in the running group; press it again to hide them. The choice is saved in the browser. A `needs-owner` line that someone wrote with a question stays visible, and still makes the flow wait for you.
+Session starts and stops, subagent stops and a prompt the harness waits on are not work. By default the page leaves them out of the flows, the cards and the counts, and they never move a flow: an idle prompt does not make a flow wait for you. The button **Show all events** puts them back, as lines of agent activity and, for lines with no flow, in the **Unsorted** list; press it again to hide them. The choice is saved in the browser. A `needs-owner` line that someone wrote with a question stays visible, and still makes the flow wait for you.
 
 ## What the page shows
 
@@ -129,11 +129,15 @@ export default {
 | `title` | The name in the page header and the tab | `<project name> Board` |
 | `logo` | A path inside the project to an `.svg` file, shown next to the title. It is put in an `img`, so it runs no script. Up to 100 KB. Draw it in a colour that reads on a light and on a dark page | none |
 | `hostname` | The name in the address of `vulcan board serve`. It must be lowercase and end in `.localhost`: a browser resolves such a name to your own machine by itself, while a name that reaches `127.0.0.1` through DNS or a hosts file is what a DNS-rebinding page uses, so it is refused | `vulz-board.venizia.ai.localhost` |
-| `agents` | The agents of the board by name. A value is a face (`bun`, `flame`, `ember`, `rock` or `banana`), or `{ shape?, lane?, role? }` (`role` is free text, up to 60 characters, for the card). The listed names are the roster; `lane` rolls a helper into the row of a listed name | every agent shows with `bun`; the owner is a person |
+| `agents` | The agents of the board by name. A value is a face (`bun`, `flame`, `ember`, `rock` or `banana`), or `{ shape?, lane?, role? }` (`role` is free text, up to 60 characters, for the card). The listed names come first; `lane` says whom a helper works under | every agent shows with `bun`; the owner is a person |
 
-**The roster.** Once `agents` lists a name, the agents pane and its count show only the listed names that have no `lane`. Every other agent in the log is hidden until you press **Show all events**. An empty `agents` shows every agent in the log, as before.
+**The roster.** Every agent that wrote a line, or that has a session, has a card. `agents` never hides one: the names it lists come first, in the order given, then the rest by name.
 
-**Lanes.** `'pnt-api-1': { lane: 'api' }` draws the lines of `pnt-api-1` as `api`'s: one row, with "+1 helper" on it, and no row for the helper. A flow whose holder is the helper shows `api` as its holder; in the detail of a flow, a line still shows the helper's own name. A `lane` must name a listed key that has no `lane` of its own; a chain or a cycle fails the config and names the key. The face is optional (`{ lane: 'api' }`), and `{}` is a roster entry with the default face.
+**Lanes.** `'pnt-api-1': { lane: 'api' }` marks `pnt-api-1` as working under `api`: its card says "under api". It keeps its own card, its own lines and its own flows. A `lane` must name a key of `agents` that has no `lane` of its own; a chain or a cycle fails the config and names the key. The face is optional (`{ lane: 'api' }`).
+
+**Unanswered.** On an agent's card, the messages sent to it after the last one it sent, each counted once. It is not the count of every message it ever got.
+
+**Working or idle.** An agent is working from a session start, a tool use or any line of work it writes, and idle from a session stop until its next line of work; the card says since when.
 
 Each agent also has a colour, taken from a hash of its name out of a fixed neutral palette. A logo or a name the page cannot use is left out, with a note on stderr.
 

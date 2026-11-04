@@ -85,7 +85,7 @@ It prints the id of the line. This is the way in for any coding agent: a hook of
 
 | Flag | Meaning |
 |---|---|
-| `--kind` | One of the twelve kinds. `deploy` says something went live (`--summary "block 10" --flow <id>`); a board shows it as a milestone of its flow |
+| `--kind` | One of the twelve kinds. `deploy` says something went live (`--summary "block 10" --flow <id>`); a board shows it as a milestone of its flow and, like a merge, counts it as Done until later work reopens the flow |
 | `--summary` | A short label (not on a `flow` line: it takes `--title`). It is cut to one line of 200 characters, and anything shaped like a secret is replaced by `[redacted]` |
 | `--flow` | The id of a flow that the log already has: `VULZ-<key>-<number>`, as the command printed it when the flow was made, or an older `F-<number>`. An id no line carries is refused, with the recent flows listed. Without it, the flow is read from the branch, when its name has a flow id segment such as `feature/VULZ-ACME-12-events-log`; a `flow` line with no `--flow` and no open flow on its branch makes a new flow (a flow the board would show as Done or Parked is over: the command asks the board's own rules, so the two agree; a merge only GitHub knows of is not in the log, and is not seen here) |
 | `--ref` | A commit, a PR number, a recipient; on a `flow` line, the id of the flow in a tracker (`PLANE-3054`). On a `pr` line, `merged:12` says pull request 12 was merged |

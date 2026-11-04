@@ -22,10 +22,7 @@ export class BoardAgentInfo {
 
     return message.incoming
       ? {
-          sender:
-            message.from === undefined
-              ? undefined
-              : BoardView.laneOf({ data: opts.data, name: message.from }),
+          sender: message.from,
           receiver: message.actor,
         }
       : { sender: message.actor, receiver: message.to };
@@ -98,17 +95,33 @@ export class BoardAgentInfo {
       open: BoardAgentInfo.prsOf({ events }).filter(
         (pr) => pr.by === name && !pr.merged && !pr.closed,
       ),
-      // A message waits for its receiver: unanswered while the receiver has done nothing since, in that flow.
-      pending: messages.filter((message) => {
-        const { receiver } = BoardAgentInfo.endsOf({ data, message });
-
-        return !events.some(
-          (event) =>
-            event.ts > message.ts &&
-            event.actor === receiver &&
-            (!message.flowId || event.flowId === message.flowId),
-        );
-      }),
+      // The messages to this agent that came after the last one it sent: it has not answered them yet.
+      pending: BoardAgentInfo.pendingOf({ data, messages, name }),
     };
+  }
+
+  /** The messages to `name` newer than the last one it sent, each message once (sender, receiver, words and minute). */
+  private static pendingOf(opts: {
+    data: IBoardData;
+    messages: IBoardViewEvent[];
+    name: string;
+  }): IBoardViewEvent[] {
+    const { data, messages, name } = opts;
+    const ends = (message: IBoardViewEvent) => BoardAgentInfo.endsOf({ data, message });
+    const lastSent = messages.filter((message) => ends(message).sender === name).at(-1)?.ts ?? '';
+    const seen = new Set<string>();
+
+    return messages.filter((message) => {
+      const { sender, receiver } = ends(message);
+      const key = `${sender}|${receiver}|${message.summary}|${message.ts.slice(0, 16)}`;
+
+      if (receiver !== name || message.ts <= lastSent || seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+
+      return true;
+    });
   }
 }

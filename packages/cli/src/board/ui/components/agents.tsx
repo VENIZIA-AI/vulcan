@@ -33,7 +33,14 @@ const AgentCard = (props: {
   const { t, now } = useUi();
   const { row, card } = props;
   const clock = (iso: string): string => BoardTime.clock({ iso });
-  const who = [card.role, card.harness, card.model].filter(Boolean).join(' · ');
+  const who = [
+    card.role,
+    card.lane ? `${t('ag.under')} ${card.lane}` : undefined,
+    card.harness,
+    card.model,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const since = card.since ? ` · ${BoardTime.ago({ iso: card.since, now, translate: t })}` : '';
 
   return (
@@ -97,9 +104,6 @@ const AgentCard = (props: {
         <span>
           <b>{card.today}</b> {t('ag.today')}
         </span>
-        {row.helpers > 0 ? (
-          <span>{`+${row.helpers} ${t(row.helpers === 1 ? 'n.helper' : 'n.helpers')}`}</span>
-        ) : null}
         {card.last ? <span className="c-r">{clock(card.last)}</span> : null}
       </div>
     </div>

@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { BoardTables } from '../common/constants.ts';
+import { BoardConstants } from '../../common/index.ts';
+import { BoardTables, BoardUiConstants } from '../common/constants.ts';
 import type { IFlowView } from '../common/types.ts';
 import { useUi } from '../i18n/context.ts';
 import { BoardCards } from '../state/cards.ts';
 import type { IItemCard } from '../state/cards.ts';
 import { BoardTime } from '../state/time.ts';
 import { BoardView } from '../state/view.ts';
-import { Untitled } from './bits.tsx';
 import { Chevron } from './icons.tsx';
 
 const STATE_TONES: Record<string, string> = {
@@ -104,10 +104,7 @@ const ItemCard = (props: {
         <span className="c-grow" />
         <Due due={flow.due} />
       </div>
-      <div className="c-title">
-        {flow.title}
-        {view.named ? null : <Untitled />}
-      </div>
+      <div className="c-title">{flow.title}</div>
       {card.now ? <div className="c-now">{`${t('it.now')}: ${card.now}`}</div> : null}
       <div className="c-wb">
         {card.steps.total > 0 ? (
@@ -183,9 +180,17 @@ export const ItemPane = (props: {
   onToggle: (key: string) => void;
 }) => {
   const { t, now } = useUi();
-  const shown = props.views.filter(
+  const involved = props.views.filter(
     (view) => props.agent === null || BoardView.involves({ view, name: props.agent }),
   );
+  // Events that name no flow are not work: they sit under the groups, apart.
+  const shown = involved.filter(
+    (view) =>
+      view.flow.id !== BoardConstants.UNSORTED &&
+      (view.flow.state !== 'done' ||
+        BoardTime.isWithin({ iso: view.last.ts, now, days: BoardUiConstants.DONE_DAYS })),
+  );
+  const loose = involved.find((view) => view.flow.id === BoardConstants.UNSORTED);
 
   return (
     <section className="c-pane" aria-label={t('Danh sách luồng')}>
@@ -214,11 +219,7 @@ export const ItemPane = (props: {
         ) : null}
         {BoardTables.GROUPS.map((group) => {
           const items = shown
-            .filter(
-              (view) =>
-                view.flow.state === group.key &&
-                (group.key !== 'done' || BoardTime.isSameDay({ iso: view.last.ts, now })),
-            )
+            .filter((view) => view.flow.state === group.key)
             .sort((left, right) =>
               group.key === 'you' || group.key === 'blocked'
                 ? BoardView.byTime(left.last, right.last)
@@ -261,6 +262,16 @@ export const ItemPane = (props: {
             </section>
           );
         })}
+        {loose ? (
+          <button
+            className="btn c-loose"
+            type="button"
+            aria-pressed={props.selected === loose.flow.id}
+            onClick={() => props.onSelect(loose.flow.id)}
+          >
+            {`${t('it.unsorted')} · ${loose.evs.length}`}
+          </button>
+        ) : null}
       </div>
     </section>
   );

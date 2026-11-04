@@ -1,3 +1,4 @@
+import { BoardConstants } from '../../common/index.ts';
 import type { IBoardAgent, IBoardData } from '../../common/index.ts';
 import { BoardUiConstants } from '../common/constants.ts';
 import type { IAgentRow, IBoardViewEvent, IFlowView } from '../common/types.ts';
@@ -34,6 +35,8 @@ export interface IAgentCard {
   last?: string;
   since?: string;
   role?: string;
+  /** The agent it works under, from `board.agents`. */
+  lane?: string;
   model?: string;
   harness?: string;
 }
@@ -104,7 +107,10 @@ export class BoardCards {
       );
 
     return {
-      workingOn: row.st === 'idle' ? undefined : views.find((view) => view.flow.id === row.flow),
+      workingOn:
+        row.st === 'idle' || row.flow === BoardConstants.UNSORTED
+          ? undefined
+          : views.find((view) => view.flow.id === row.flow),
       action: newest(mine.filter((event) => event.kind !== 'msg' && event.kind !== 'flow')),
       message: newest(
         events.filter((event) => {
@@ -119,6 +125,7 @@ export class BoardCards {
       last: doc?.checkedAt,
       since: doc?.since,
       role: data.roles?.[row.n],
+      lane: data.lanes?.[row.n],
       model: doc?.model,
       harness: doc?.harness,
     };

@@ -40,6 +40,11 @@ export class BoardTime {
     return new Date(opts.iso).toDateString() === new Date(opts.now).toDateString();
   }
 
+  /** Whether `iso` is within the last `days` days of `now`. */
+  static isWithin(opts: { iso: string; now: number; days: number }): boolean {
+    return opts.now - Date.parse(opts.iso) < opts.days * 24 * 60 * 60 * 1000;
+  }
+
   /** Whether the line says its own time was estimated. */
   static isApproximate(opts: { source?: string }): boolean {
     return BoardUiConstants.APPROXIMATE_SOURCE.test(opts.source ?? '');

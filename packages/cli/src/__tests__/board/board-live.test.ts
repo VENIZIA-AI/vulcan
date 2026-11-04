@@ -220,7 +220,7 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
     expect(seen.waits[2], 'a message in between resets the wait').toBeLessThan(1800);
   });
 
-  test('a snapshot that carries a roster and lanes changes the dock: the unlisted agents go, the helper rolls into its lane', async () => {
+  test('a snapshot that carries a roster and lanes reorders the cards and labels the helper; nobody goes', async () => {
     const data = {
       ...sampleData({ base: Date.now() - 100 * 60_000 }),
       live: { stream: '/stream?t=x' },
@@ -243,16 +243,18 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
       width: 1440,
       dark: false,
       expression: `(async () => {
-        const dock = () => [...document.querySelectorAll('#dock [data-agent]')].map((c) => c.dataset.agent).sort();
+        const dock = () => [...document.querySelectorAll('#dock [data-agent]')].map((c) => c.dataset.agent);
         const before = dock();
         window.__sources[0].onmessage({ data: JSON.stringify(${JSON.stringify(next)}) });
-        await ${WAIT('dock().length === 2', 3000)};
-        return JSON.stringify({ before, after: dock() });
+        await ${WAIT("dock()[0] === 'veni-forge'", 3000)};
+        const helper = document.querySelector('#dock [data-agent="pnt-ignis-1"]').innerText;
+        return JSON.stringify({ before, after: dock(), helper });
       })()`,
     });
-    const seen: { before: string[]; after: string[] } = JSON.parse(raw);
+    const seen: { before: string[]; after: string[]; helper: string } = JSON.parse(raw);
 
     expect(seen.before).toHaveLength(4);
-    expect(seen.after).toEqual(['pnt-vulcan-1', 'veni-forge']);
+    expect(seen.after).toEqual(['veni-forge', 'pnt-vulcan-1', 'pnt-ardor-1', 'pnt-ignis-1']);
+    expect(seen.helper).toContain('under pnt-vulcan-1');
   });
 });

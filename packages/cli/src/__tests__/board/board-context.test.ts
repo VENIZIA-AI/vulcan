@@ -331,12 +331,14 @@ describe.skipIf(!hasBrowser)(
       expect(one.allText).toContain('agent-a-1 ← agent-b-1');
     });
 
-    test('the agent detail keeps the direction of a message: sent to, got from, never undefined', async () => {
+    test('the agent detail lists the messages to it after its last sent one, each with its direction, never undefined', async () => {
       const { pending } = await run({ dark: false, width: 1440 });
 
       expect(pending.join('\n')).not.toContain('undefined');
       expect(pending.some((entry) => /← agent-b-1: reply$/.test(entry))).toBe(true);
-      expect(pending.some((entry) => /→ agent-b-1: status label$/.test(entry))).toBe(true);
+      // It sent "status label" before the reply came, so the reply is the only one it has not answered.
+      expect(pending).toHaveLength(1);
+      expect(pending.some((entry) => /→ agent-b-1/.test(entry))).toBe(false);
     });
 
     test('context and next are text: markup in them neither runs nor becomes elements', async () => {
