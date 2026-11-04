@@ -1684,6 +1684,11 @@
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
       }
+      .cell .ft .hp {
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
       .cell .nm .fc {
         margin-left: auto;
         flex: none;
@@ -3006,12 +3011,12 @@
         typeof e.stage === 'number'
           ? e
           : { ...e, stage: STAGE_OF[e.stage] ?? STAGE_OF[e.kind] ?? 0 };
-      // A helper's lines are drawn as its lane's and keep its own name as `as`.
+      // A helper's lines are drawn as its lane's; the helper's own names stay in `as` (sender) and `asTo` (recipient).
       const LANES = DATA.lanes || {};
       const laneOf = (n) => (n && LANES[n]) || n;
       const laneEv = (e) =>
         LANES[e.actor] || LANES[e.to]
-          ? { ...e, as: e.actor, actor: laneOf(e.actor), ...(e.to ? { to: laneOf(e.to) } : {}) }
+          ? { ...e, as: e.actor, asTo: e.to, actor: laneOf(e.actor), to: laneOf(e.to) }
           : e;
       const inRoster = (n) => showPlumbing || !DATA.roster || DATA.roster.includes(n);
       const byTs = (a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : (a.stage || 0) - (b.stage || 0));
@@ -3353,7 +3358,7 @@
         // A message the actor got has a sender, never a recipient: the sentence of the Latest list says the same.
         if (e.incoming) {
           if (e.from) who.append(' ← ', el('b', null, e.from));
-        } else if (e.to) who.append(' → ', el('b', null, e.to));
+        } else if (e.to) who.append(' → ', el('b', null, e.asTo || e.to));
         who.append(
           ' · ' + (t(KIND_TXT[e.kind]) || e.kind) + (e.attempt > 1 ? t(' lần ') + e.attempt : ''),
         );
@@ -3386,9 +3391,9 @@
         else if (e.kind === 'note') verb = t(e.needsOwner ? 'lt.ask' : 'lt.note');
         else if (e.kind === 'msg' && e.incoming)
           verb = e.from ? t('lt.gotFrom') + ' ' + e.from : t('lt.got');
-        else if (e.kind === 'msg' && e.to) verb = t('lt.msgTo') + ' ' + e.to;
+        else if (e.kind === 'msg' && e.to) verb = t('lt.msgTo') + ' ' + (e.asTo || e.to);
         else verb = t('lt.' + e.kind);
-        return e.actor + ' ' + verb + (e.summary ? ': ' + e.summary : '');
+        return (e.as || e.actor) + ' ' + verb + (e.summary ? ': ' + e.summary : '');
       }
 
       function renderDetail(fresh) {
@@ -4425,7 +4430,7 @@
             const ft = el('span', 'ft');
             const pl = el('span', 'spill');
             const ag = el('span', 'ag');
-            const hp = el('span', 'ag');
+            const hp = el('span', 'hp');
             ft.append(pl, ag, hp);
             info.append(nm, tk, ft);
             b.append(fw, info);

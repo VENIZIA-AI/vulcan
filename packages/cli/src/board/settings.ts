@@ -3,8 +3,9 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { BoardConstants } from './common/index.ts';
-import { BOARD_AGENT, BoardAgent } from './schema.ts';
-import type { TBoardAgent } from './schema.ts';
+import { BoardAgentSetting } from './agent-setting.ts';
+import { BOARD_AGENT, BOARD_AGENTS } from './schema.ts';
+import type { TBoardAgentSetting } from './schema.ts';
 
 export interface IBoardSettings {
   title: string;
@@ -75,7 +76,7 @@ export class BoardSettings {
   > & {
     problem?: string;
   } {
-    const listed: Record<string, TBoardAgent> = {};
+    const listed: Record<string, TBoardAgentSetting> = {};
 
     for (const [name, value] of Object.entries(
       RecordValue.isRecord(opts.value) ? opts.value : {},
@@ -87,16 +88,24 @@ export class BoardSettings {
       }
     }
 
-    const problem = Object.keys(listed)
-      .map((name) => BoardAgent.problemOf({ agents: listed, name }))
-      .find((message) => message !== undefined);
+    const parsed = BOARD_AGENTS.safeParse(listed);
+
+    if (!parsed.success) {
+      return {
+        shapes: {},
+        roster: [],
+        lanes: {},
+        problem: parsed.error.issues[0]?.message ?? 'not valid',
+      };
+    }
+
     const shapes: Record<string, string> = {};
     const lanes: Record<string, string> = {};
     const roster: string[] = [];
 
-    for (const [name, agent] of Object.entries(problem === undefined ? listed : {})) {
-      const shape = BoardAgent.shapeOf({ agent });
-      const lane = BoardAgent.laneOf({ agent });
+    for (const [name, setting] of Object.entries(parsed.data)) {
+      const shape = BoardAgentSetting.shapeOf({ setting });
+      const lane = BoardAgentSetting.laneOf({ setting });
 
       if (shape !== undefined) {
         shapes[name] = shape;
@@ -109,7 +118,7 @@ export class BoardSettings {
       }
     }
 
-    return { shapes, roster, lanes, ...(problem === undefined ? {} : { problem }) };
+    return { shapes, roster, lanes };
   }
 
   /** `resolve` for the project at `root`: its manifest, `git config user.name`, and the logo file. */
