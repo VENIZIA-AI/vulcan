@@ -472,7 +472,7 @@ describe('vulcan add --lib says why a folder it used was not recorded', () => {
   });
 });
 
-/** A project shaped like BANA's: grouped apps and libraries, and four folders the layout does not manage. */
+/** A project shaped like a downstream one: grouped apps and libraries, and four folders the layout does not manage. */
 const groupedProject = (opts: { other?: string[]; extraPackage?: string } = {}): string => {
   const packages = [
     ['api', 'umbras/api'],

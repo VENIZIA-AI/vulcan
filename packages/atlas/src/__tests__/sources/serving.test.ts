@@ -103,13 +103,13 @@ describe('SourceChunks', () => {
         jsonrpc: '2.0',
         id: 1,
         method: 'tools/call',
-        params: { name: 'search', arguments: { query: 'flywheel', source: 'bana' } },
+        params: { name: 'search', arguments: { query: 'flywheel', source: 'other' } },
       }),
     });
     const reply = JSON.parse(result ?? 'null');
 
     expect(reply.error?.code).toBe(RpcErrorCodes.INVALID_PARAMS);
-    expect(reply.error?.message).toBe("unknown source 'bana'; known sources: ignis, ardor");
+    expect(reply.error?.message).toBe("unknown source 'other'; known sources: ignis, ardor");
   });
 
   test('the search tool schema offers the source filter', () => {
@@ -263,7 +263,7 @@ describe('SourceReleases with a local project that has no release on this ref', 
         name: 'ignis',
         releases: releasesOf({ dir: 'kernel', name: '@venizia/ignis-kernel', version: '0.2.0' }),
       },
-      { name: 'bana', releases: local },
+      { name: 'other', releases: local },
     ],
   });
   const ask = async (args: Record<string, unknown>) => {

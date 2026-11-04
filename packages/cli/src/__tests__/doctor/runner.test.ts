@@ -130,7 +130,7 @@ describe('doctor', () => {
     ]);
   });
 
-  test("BANA's form: bold bare IDs define, V- IDs the base carries are references", async () => {
+  test("a downstream project's form: bold bare IDs define, V- IDs the base carries are references", async () => {
     const markdown = [
       '| ID | Rule |',
       '|---|---|',
@@ -352,7 +352,7 @@ describe('doctor', () => {
     expect(result).toEqual([DoctorChecks.STYLE]);
   });
 
-  // D9: the style package comes from the package whose .configs/ holds the lint config (BANA's shape).
+  // D9: the style package comes from the package whose .configs/ holds the lint config (a downstream project's shape).
   const PACKAGE_LINT_CONFIGS = Object.fromEntries(
     Object.entries(LINT_CONFIGS).map(([file, text]) => [join('packages', 'app', file), text]),
   );
@@ -389,7 +389,7 @@ describe('doctor', () => {
     expect(result).toEqual([DoctorChecks.STYLE]);
   });
 
-  test("a configured package outside packages/ is an owner too (BANA's umbras/kit)", async () => {
+  test("a configured package outside packages/ is an owner too (a downstream project's umbras/kit)", async () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,

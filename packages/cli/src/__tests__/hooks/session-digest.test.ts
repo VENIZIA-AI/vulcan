@@ -32,7 +32,7 @@ describe('SessionDigest.build', () => {
     expect(digest).toContain('| V-C-02 |');
   });
 
-  // BANA's shape: bold bare IDs define, a V- ID list references the base; a marked minimap block.
+  // A downstream project's shape: bold bare IDs define, a V- ID list references the base; a marked minimap block.
   const BANA_RULES = [
     '| ID | Rule | Enforced by |',
     '|---|---|---|',

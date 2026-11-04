@@ -282,8 +282,8 @@ describe('packages are keyed uniquely', () => {
   test('two packages whose directories share a name work when their keys and paths differ', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({
       packages: [
-        { dir: 'umbras-core', name: '@bana/umbras-core', path: 'umbras/core' },
-        { dir: 'kits-core', name: '@bana/kits-core', path: 'auroras/kits/core' },
+        { dir: 'umbras-core', name: '@acme/umbras-core', path: 'umbras/core' },
+        { dir: 'kits-core', name: '@acme/kits-core', path: 'auroras/kits/core' },
       ],
     });
 
@@ -296,8 +296,8 @@ describe('packages are keyed uniquely', () => {
   test('a repeated dir is an error that says dir is a key, not the directory name', () => {
     expect(
       messageOf([
-        { dir: 'core', name: '@bana/umbras-core', path: 'umbras/core' },
-        { dir: 'core', name: '@bana/kits-core', path: 'auroras/kits/core' },
+        { dir: 'core', name: '@acme/umbras-core', path: 'umbras/core' },
+        { dir: 'core', name: '@acme/kits-core', path: 'auroras/kits/core' },
       ]),
     ).toContain("packages: dir 'core' is used twice - dir is a unique key, not the directory name");
   });

@@ -83,7 +83,7 @@ describe('the page before any script runs (a viewer without scripts, or a script
 const busyData = (): IBoardData => {
   const base = Date.now() - 300 * 60_000;
   const lines = sampleLines({ base });
-  const agents = ['pnt-a-1', 'pnt-b-1', 'pnt-c-1', 'pnt-d-1', 'bana-forge', 'worker-9'];
+  const agents = ['pnt-a-1', 'pnt-b-1', 'pnt-c-1', 'pnt-d-1', 'hub-agent', 'worker-9'];
 
   for (let flow = 6; flow < 40; flow++) {
     const actor = agents[flow % agents.length];

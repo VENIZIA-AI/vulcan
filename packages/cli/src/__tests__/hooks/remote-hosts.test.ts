@@ -330,7 +330,7 @@ describe('the hit names the host and the way to trust it', () => {
 });
 
 // -----------------------------------------------------------------------------
-// The gaps BANA's harness found (issue #164)
+// The gaps a downstream project's harness found (issue #164)
 // -----------------------------------------------------------------------------
 
 describe('kubectl reads against a readOnly context pass, and the prompt says so', () => {

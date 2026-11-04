@@ -22,7 +22,7 @@ packages: ['@venizia/vulcan']
 ## Who is affected
 
 - **IGNIS.** Add the stack, `@inject` and `getError` rules to `.agents/rules.md` under project IDs.
-- **ARDOR and BANA.** May define their own stack rules; cite `V-C-18` only for derived types.
+- **ARDOR and the downstream project.** May define their own stack rules; cite `V-C-18` only for derived types.
 - **Projects not citing the retired rules.** No action needed. Some base rules still name IGNIS conventions (for example `V-C-15`, `V-C-12`, `V-C-08`, `V-C-13`).
 
 ## Breaking changes
