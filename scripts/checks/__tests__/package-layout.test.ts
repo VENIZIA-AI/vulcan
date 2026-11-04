@@ -24,6 +24,12 @@ const PAYLOAD: Record<string, string[]> = {
   atlas: ['dist'],
   cli: ['src', 'base'],
 };
+/** What a package keeps out of its payload: cli's board UI source is built into the board page and nothing loads it. */
+const LEFT_OUT: Record<string, string[]> = {
+  okf: [],
+  atlas: [],
+  cli: ['!src/board/ui'],
+};
 /** The folders under `.configs/`: atlas also builds, so it also has `builders/`. */
 const CONFIG_FOLDERS: Record<string, string[]> = {
   okf: ['lints'],
@@ -75,11 +81,12 @@ describe.each(PACKAGES)('the layout of packages/%s', (name) => {
     expect(folders).toEqual(CONFIG_FOLDERS[name]);
   });
 
-  test('files is README.md, LICENSE.md, the payload, then the same two exclusions', () => {
+  test('files is README.md, LICENSE.md, the payload, what the package leaves out, then the same two exclusions', () => {
     expect(manifestOf({ name }).files).toEqual([
       'README.md',
       'LICENSE.md',
       ...PAYLOAD[name],
+      ...LEFT_OUT[name],
       '!**/__tests__',
       '!**/*.tsbuildinfo',
     ]);

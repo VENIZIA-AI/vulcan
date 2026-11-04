@@ -44,6 +44,10 @@ docs:
 	@cd docs/wiki && bun install --frozen-lockfile
 	@bun scripts/wiki-shared/build.ts
 
+# The board page from its components (packages/cli/src/board/ui) into one HTML file: board-ui OUT=<file>.
+board-ui:
+	@bun scripts/board-ui/build.ts $(OUT)
+
 # ----------------------------------------------------------------------------
 # FORCE UPDATE TARGETS (fetch latest from NPM registry)
 # ----------------------------------------------------------------------------
