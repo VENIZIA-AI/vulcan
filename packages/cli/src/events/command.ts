@@ -11,6 +11,8 @@ import {
   EventSubcommands,
 } from './common/index.ts';
 import type { IEvent, TEventKind, TEventStatus } from './common/index.ts';
+import { BoardFold } from '../board/fold.ts';
+import { BoardStates } from '../board/common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowId } from './flow-id.ts';
@@ -214,6 +216,23 @@ export class EventCommand {
   }
 
   /**
+   * Whether the board would show the flow as Done or Parked: the board's own fold decides, so the command and the page
+   * cannot disagree. A merge only the GitHub reader sees is not in the log, so it is not seen here.
+   */
+  private static isOver(opts: { events: IEvent[]; id: string; key: string | undefined }): boolean {
+    const wanted = FlowId.canon({ id: opts.id, key: opts.key });
+    const lines = BoardFold.fromLog({ events: opts.events }).events.map((event) => ({
+      ...event,
+      flowId: FlowId.canon({ id: event.flowId, key: opts.key }),
+    }));
+    const state = BoardFold.fold({ events: lines, owner: '' }).flows.find(
+      (flow) => flow.id === wanted,
+    )?.state;
+
+    return state === BoardStates.DONE || state === BoardStates.PARKED;
+  }
+
+  /**
    * The flow a line belongs to. A flow named with `--flow` must exist (an id is never made up by hand). A flow line that
    * names none either updates the flow of its branch, when the branch names one that exists and is not over, or starts a
    * new flow with the next number. The exit code comes back when the line cannot be written.
@@ -232,7 +251,7 @@ export class EventCommand {
     if (
       flow !== undefined &&
       FlowId.exists({ events: known, id: flow, key }) &&
-      (opts.explicit || !opts.isFlow || !FlowId.isClosed({ events: known, id: flow, key }))
+      (opts.explicit || !opts.isFlow || !EventCommand.isOver({ events: known, id: flow, key }))
     ) {
       return { ok: true, flowId: flow };
     }
