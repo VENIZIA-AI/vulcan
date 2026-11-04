@@ -145,7 +145,7 @@ export class BoardServer {
       run.latest = BoardServer.frameOf({ data, max });
 
       for (const client of run.clients) {
-        BoardServer.send({ run, client, text: run.latest });
+        BoardServer.send({ clients: run.clients, client, text: run.latest });
       }
     };
 
@@ -155,7 +155,7 @@ export class BoardServer {
       setInterval(publish, BoardServe.REFRESH_MS),
       setInterval(() => {
         for (const client of run.clients) {
-          BoardServer.send({ run, client, text: ': ping\n\n' });
+          BoardServer.send({ clients: run.clients, client, text: ': ping\n\n' });
         }
       }, BoardServe.HEARTBEAT_MS),
     );
@@ -219,16 +219,16 @@ export class BoardServer {
     return Buffer.byteLength(json) > opts.max ? 'data: {"tooLarge":true}\n\n' : `data: ${json}\n\n`;
   }
 
-  /** A client that closed is dropped; one that has not read what it was sent (a full queue) skips this message instead of piling up. */
-  private static send(opts: {
-    run: IBoardServerRun;
+  /** A client whose stream errored is dropped; one that has not read what it was sent (a full queue) skips this message instead of piling up. */
+  static send(opts: {
+    clients: Set<ReadableStreamDefaultController<Uint8Array>>;
     client: ReadableStreamDefaultController<Uint8Array>;
     text: string;
   }): void {
     const { desiredSize } = opts.client;
 
     if (desiredSize === null) {
-      opts.run.clients.delete(opts.client);
+      opts.clients.delete(opts.client);
 
       return;
     }
@@ -290,7 +290,11 @@ export class BoardServer {
         start: (started) => {
           controller = started;
           run.clients.add(started);
-          BoardServer.send({ run, client: started, text: `retry: 3000\n\n${run.latest}` });
+          BoardServer.send({
+            clients: run.clients,
+            client: started,
+            text: `retry: 3000\n\n${run.latest}`,
+          });
         },
         cancel: () => {
           if (controller !== undefined) {

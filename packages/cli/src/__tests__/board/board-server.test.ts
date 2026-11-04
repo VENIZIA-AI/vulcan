@@ -377,6 +377,19 @@ describe('vulcan board serve', () => {
 
   test('a snapshot is capped by bytes, not by characters', async () => {
     const { root, dir } = projectWithLog();
+
+    EventLog.append({
+      dir,
+      event: line({
+        minute: 150,
+        kind: 'commit',
+        actor: 'pnt-vulcan-1',
+        flow: 'F-1',
+        summary: 'é'.repeat(40),
+        ref: 'abc1234',
+      }),
+    });
+
     const server = await startOn({ root, dir, port: 0 });
     const stream = await openStream({ url: server.url.replace('/?', '/stream?') });
     const small = await stream.next({ ms: 3000 });
@@ -384,15 +397,51 @@ describe('vulcan board serve', () => {
     stream.close();
     await BoardServer.stop();
 
-    const bytes = Buffer.byteLength(JSON.stringify(small));
-    const characters = JSON.stringify(small).length;
-    const capped = await startOn({ root, dir, port: 0, maxSnapshotBytes: bytes - 1 });
+    const json = JSON.stringify(small);
+    const bytes = Buffer.byteLength(json);
+    const cap = json.length + 1;
+
+    expect(bytes, 'the fixture must hold multibyte text').toBeGreaterThan(cap);
+
+    const capped = await startOn({ root, dir, port: 0, maxSnapshotBytes: cap });
     const again = await openStream({ url: capped.url.replace('/?', '/stream?') });
 
-    expect(characters).toBeLessThanOrEqual(bytes);
     const result = await again.next({ ms: 3000 });
     expect(result).toMatchObject({ tooLarge: true });
     again.close();
+  });
+
+  test('a client that has not read what it was sent skips the next message, and one whose stream errored is dropped', async () => {
+    let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        start: (started) => {
+          controller = started;
+        },
+      },
+      { highWaterMark: 1 },
+    );
+
+    if (controller === undefined) {
+      throw new Error('the stream did not start');
+    }
+
+    const clients = new Set([controller]);
+
+    BoardServer.send({ clients, client: controller, text: 'one' });
+    BoardServer.send({ clients, client: controller, text: 'two' });
+
+    const reader = stream.getReader();
+    const first = await reader.read();
+    const second = await Promise.race([reader.read(), Bun.sleep(100).then(() => undefined)]);
+
+    expect(new TextDecoder().decode(first.value)).toBe('one');
+    expect(second, 'a queued message was piled on a client that was not reading').toBeUndefined();
+
+    controller.error(new Error('gone'));
+    BoardServer.send({ clients, client: controller, text: 'three' });
+
+    expect(clients.size).toBe(0);
   });
 
   test('a busy port falls back to a free one and says so', async () => {
