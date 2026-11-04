@@ -33,7 +33,7 @@ Copy it into your reply and tick each box when its criterion holds:
 - [ ] 5. Slices built         - every slice went red, then green; every import came from `symbol`
 - [ ] 6. Checks green         - typecheck, lint, test, vulcan doctor passed; the real behaviour shown
 - [ ] 7. Docs and knowledge current - Docs impact delivered, the docs gates green, each changed fact in the bundle
-- [ ] 8. Diff reviewed        - reviewed as the lane asks, findings dispositioned, summary given with what was skipped
+- [ ] 8. Diff reviewed        - checked against the rules and reviewed as the lane asks, findings dispositioned, summary given with what was skipped
 ```
 
 ## 1. Settle the goal
@@ -138,6 +138,14 @@ are green and the bundle matches the change.
 
 ## 8. Review and hand over
 
+First check the whole diff against the rules (code changes; a docs-only or release change needs none). List the
+files of the diff, read the base rules (`rules.md`, the P, C and B sections) and the project's own once, and
+write one line per rule that changed something: the rule id and what you changed because of it. A rule you
+checked that changed nothing is listed by id only. Add one line, "Kept out to stay small": what you did not
+add or removed to keep the change small (`V-C-11`), or "nothing". That list is the "Rules checked" section of
+the pull request (`ship`). The commonest misses are `V-P-08` and `V-C-16` (what already exists, one implementation of
+one concept) and `V-C-18` (derived types).
+
 Review with the `review-a-change` skill: lane L gets an independent, non-forked reviewer per axis; lane
 M reviews its own diff and may ask for a fresh review; lane S reads the diff once. Refactor here, with the
 tests green. Fix what the findings adopt, then report with the `report-back` skill: the checks you ran
@@ -145,4 +153,5 @@ and their results, and an end line "Skipped / not checked / shortcuts": what you
 did not verify, and every `SHORTCUT:` you added - or the words "none" (V-B-07).
 The user decides when to commit.
 
-Done when the diff is clean, the summary names every check and its result, and the skipped line is there.
+Done when the diff is clean, the rules list is written, the summary names every check and its result, and the
+skipped line is there.
