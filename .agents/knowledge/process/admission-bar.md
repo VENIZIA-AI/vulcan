@@ -20,7 +20,7 @@ or pull request where it was rejected, so nobody proposes it again unchanged.
 5. **One home.** A fact or a rule lives in one place; everything else points at it.
 6. **Nothing outside the project.** VULCAN reads and writes nothing outside the project
    directory: no home or config folders, no user-level file. A feature that needs one is not admitted;
-   personal files live in `.agents/local/` (gitignored), scratch files in the session scratch directory.
+   personal files live in `.agents/local/` (gitignored), scratch files in `.agents/local/tmp/`.
 7. **Neutral and general.** Shipped text is English, names no person, product or language, and every
    default fits any user. What differs per owner is a setting, never framework text.
 8. **Capital, not an operating system.** It concerns how agents work. Per-repo tooling (release,

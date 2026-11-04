@@ -47,7 +47,7 @@ vulcan init: no package.json in ~/work/demo - run 'bun init' first, or use --pre
 
 ## Options
 
-Without `--preset`, `vulcan init` takes one option, `--key`. Any other argument is refused with `vulcan init: unknown argument '<argument>'` and nothing is written.
+Without `--preset`, `vulcan init` uses one option, `--key`. The other `init` flags (`--project`, `--app`, `--backend-dir`, `--frontend-dir`, `--shared-dir`, `--api`, `--no-api`, `--scope`) are accepted and ignored. Any argument that no `init` mode takes is refused with `vulcan init: unknown argument '<argument>'` and nothing is written.
 
 | Option | What it does |
 |---|---|
@@ -86,7 +86,7 @@ For each file and hint, `vulcan init` prints one line with an eight-column statu
 | `updated` | `vulcan init` appended missing lines to `.gitignore`; the lines already there are kept |
 | `kept` | The file exists on disk and `vulcan init` left it unchanged; an existing config is reported as `kept` |
 | `add` | A required line is missing from a file that `vulcan init` does not edit, printed as a hint |
-| `skipped` | `vulcan init` did not write the three lint configs because `package.json` declares `workspaces` |
+| `skipped` | `vulcan init` did not write the two lint configs because `package.json` declares `workspaces` |
 
 When you run `vulcan init` again on an initialized project, existing files receive the `kept` status:
 
@@ -95,6 +95,7 @@ $ bun x --no-install vulcan init
   kept     AGENTS.md
   kept     .agents/rules.md
   kept     .agents/knowledge/index.md
+  kept     .agents/hooks/trusted-hosts.local.example
   kept     .configs/lints/oxlint.config.mts
   kept     .configs/lints/eslint.config.mjs
   kept     .configs/vulcan.config.mts
@@ -102,10 +103,13 @@ $ bun x --no-install vulcan init
   kept     bunfig.toml
 left to do:
   1. describe the project in .agents/knowledge/index.md, then delete the vulcan:scaffold line
-  2. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
+  2. private hosts go in .agents/hooks/trusted-hosts.local (copy the .example), not in the committed config
+  3. .gitignore has .env rules of its own and was left as it is: check that they ignore **/.env **/.env.* !**/.env.example the way you want
+  4. bun x --no-install vulcan sync && bun x --no-install vulcan doctor
+tell VULCAN how you like to work (language, how to address you, tone): run 'bun x --no-install vulcan profile'
 ```
 
-In this second run, `Makefile` and `.gitignore` produce no line because the include line and the ignore entries already exist, and no install runs because the dependencies are declared.
+In this second run, `Makefile` produces no line because the include line already exists, and no install runs because the dependencies are declared. Item 3 appears because the `.gitignore` already holds `.env` rules of its own, which `init` does not change. The last line appears until you have a profile.
 
 ## Special cases and hints
 
@@ -113,7 +117,7 @@ In this second run, `Makefile` and `.gitignore` produce no line because the incl
 
 ### Workspaces projects
 
-If `package.json` declares `workspaces`, `vulcan init` omits the three lint configurations at the root.
+If `package.json` declares `workspaces`, `vulcan init` omits the two lint configs at the root.
 The command prints status `skipped` with the reason:
 
 ```text
@@ -183,6 +187,7 @@ The starter file provides baseline settings:
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
+  project: { key: 'ACME' },
   agents: ['claude'],
   rules: { 'V-W-01': 'on-user-word' },
 } satisfies VulcanConfig;
@@ -219,6 +224,7 @@ In a terminal, `init` asks for every name. With a published preset the side of t
 ```text
 $ bun x @venizia/vulcan init --preset ignis
 ? Project name (the monorepo folder) > my-product
+? Project key for flow ids, as VULZ-<key>-<number> (uppercase letters and digits, 2 to 8 of them) (MYPRODUC) > ACME
 Fetching preset @venizia/ignis@latest ...
 ? Backend folder (holds every backend app) > services
 ? Name of this backend app > core-api
@@ -263,7 +269,11 @@ Which coding agents do you use in this project? (comma-separated; Enter accepts 
   created   .claude/skills/knowledge-sync
   created   .claude/skills/plan-a-change
   created   .claude/skills/report-back
+  created   .claude/skills/research
+  created   .claude/skills/retro
   created   .claude/skills/review-a-change
+  created   .claude/skills/ship
+  created   .claude/skills/visualize-work
   created   .mcp.json
   created   .agents/vulcan.manifest.json
   replaced  AGENTS.md (Atlas block)
@@ -309,6 +319,7 @@ Without a terminal (CI, scripts), every name comes from a flag. A missing one is
 
 ```text
 $ bun x @venizia/vulcan init --preset ignis --project fresh < /dev/null
+project key FRESH, made from the name: flows will be VULZ-FRESH-<number>; to use another, change project.key in the config
 vulcan init: missing --app (Name of the first app) - names are never chosen for you
 ```
 

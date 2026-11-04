@@ -5,13 +5,13 @@ description: Understand why VULCAN ships base rules, how slots work, and how pro
 
 # Rules and slots
 
-Base rules are the same in every VULCAN project. There are 50, in five groups:
+Base rules are the same in every VULCAN project. There are 51, in five groups:
 
 | Group | Covers | Rules |
 |---|---|---|
 | `W` | Write boundaries | 5 |
 | `S` | Security | 7 |
-| `P` | Process | 12 |
+| `P` | Process | 13 |
 | `B` | Build | 9 |
 | `C` | Coding style | 17 |
 

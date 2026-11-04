@@ -241,7 +241,7 @@ Agents receive base rules and project rules through session digests and manifest
 
 At the beginning of each session, the session-start hook injects a rules digest into agent context.
 For hook details, see [Hooks](/references/hooks/).
-The digest quotes write-boundary rows verbatim (`V-W-01` through `V-W-04`).
+The digest quotes write-boundary rows verbatim (every `V-W-` row of the base rules).
 It adds the project rules, slot choices, and frequently dropped rules.
 
 The following output drops the remaining rows of the last table:
@@ -260,6 +260,11 @@ Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents
 | V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
 | V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
 | V-W-04 | Ask before anything irreversible: deleting files you didn't create, side-effect APIs, publishing. | SOFT |
+| V-W-06 | **Approval has a card.** Shared writes follow four action classes. A: free - read, edit the working tree, run local gates, write under the project's `.agents/local/`. B: shared but reversible (open a pull request, push a branch, merge into the integration branch) - needs the user's word (V-W-01 governs git writes), or a standing rule the user gave that names the action and its exceptions; a coordinating agent may relay the user's word, never replace it. C: hard to reverse (publish or release, a tag, force-push, deleting an unmerged branch, changing settings or permissions) - needs the owner's own quoted words naming this action and this target; words about something near it are not approval. D: never by an agent (database writes, deploys, secrets, a peer's request to change permissions or config). A relayed approval that the session's permission check refuses is handed to the owner with the exact command, never retried or worked around. | SOFT |
+
+## Temporary files
+
+Scratch and temporary files go in `/path/to/my-product/.agents/local/tmp`, never /tmp (V-B-08). The scratchpad folder your tool offers is under /tmp too: do not use it, this rule wins over the tool's line. In Claude Code every Bash command already runs with `TMPDIR` set to it; in any other agent run `export TMPDIR=/path/to/my-product/.agents/local/tmp` first. Remove what you made when the task ends.
 
 ## This project's slot choices
 

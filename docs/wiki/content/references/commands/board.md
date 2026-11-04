@@ -9,8 +9,8 @@ description: Fold the agent event log, and GitHub when gh can read it, into flow
 
 ```text
 $ bun x --no-install vulcan board --open
-board: event log: 142 line(s) in .agents/local/events
-board: github: VENIZIA-AI/vulcan 18 pull request(s)
+board: event log: 142 line(s) in /path/to/project/.agents/local/events
+board: github: VENIZIA-AI/vulcan 18 pull request(s) since the date (the newest 30 are asked for)
 /path/to/project/.agents/local/reports/board.html
 ```
 
