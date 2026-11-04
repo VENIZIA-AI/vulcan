@@ -28,6 +28,11 @@ const keysUsed = (): string[] => {
     found.add(match[1]);
   }
 
+  // Keys kept in a table or built from a kind, such as the verbs of the "Latest" lines: written out in the template.
+  for (const match of TEMPLATE.matchAll(/'((?:lt|ctx|nx|nw)\.[\w.]+)'/g)) {
+    found.add(match[1]);
+  }
+
   return [...found].sort();
 };
 

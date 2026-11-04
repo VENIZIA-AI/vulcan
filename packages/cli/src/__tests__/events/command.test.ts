@@ -376,6 +376,82 @@ describe('vulcan event add --kind flow', () => {
     expect(EventLog.parse({ line: lines({ dir: dir(root) })[0] })).toEqual(event);
   });
 
+  test('context and next are written as given, in the words of the owner, and read back whole', () => {
+    const root = project();
+    const context =
+      'Bảng chỉ hiện tên luồng. Việc này thêm bối cảnh: luồng là gì, đã xong gì, còn gì. Phần fold xong; còn trang và tài liệu.';
+    const result = cli({
+      root,
+      args: [
+        'add',
+        '--kind',
+        'flow',
+        '--flow',
+        'F-12',
+        '--title',
+        'Bảng việc',
+        '--context',
+        context,
+        '--next',
+        'pnt-vulcan-1 mở pull request',
+      ],
+    });
+
+    expect(result.code, result.stderr).toBe(0);
+
+    const event = JSON.parse(lines({ dir: dir(root) })[0]);
+
+    expect(event).toMatchObject({ kind: 'flow', context, next: 'pnt-vulcan-1 mở pull request' });
+    expect(EventLog.parse({ line: lines({ dir: dir(root) })[0] })).toEqual(event);
+  });
+
+  test('context keeps up to 600 characters on one line, next 200; a secret in either is redacted', () => {
+    const root = project();
+    const long = 'word '.repeat(200);
+    const result = cli({
+      root,
+      args: [
+        'add',
+        '--kind',
+        'flow',
+        '--flow',
+        'F-12',
+        '--title',
+        'T',
+        '--context',
+        `${long}\nsecond line token=abcdef123456`,
+        '--next',
+        long,
+      ],
+    });
+
+    expect(result.code, result.stderr).toBe(0);
+
+    const event = JSON.parse(lines({ dir: dir(root) })[0]);
+
+    expect(Array.from(event.context as string).length).toBeLessThanOrEqual(600);
+    expect(Array.from(event.next as string).length).toBeLessThanOrEqual(200);
+    expect(event.context).not.toContain('\n');
+
+    const short = cli({
+      root,
+      args: [
+        'add',
+        '--kind',
+        'flow',
+        '--flow',
+        'F-13',
+        '--title',
+        'T',
+        '--context',
+        'a b\nc token=abcdef123456',
+      ],
+    });
+
+    expect(short.code, short.stderr).toBe(0);
+    expect(lines({ dir: dir(root) }).join('\n')).not.toContain('abcdef123456');
+  });
+
   test('the reason is optional, and a flow line needs a title and a flow', () => {
     const root = project();
 
@@ -401,12 +477,14 @@ describe('vulcan event add --kind flow', () => {
     expect(lines({ dir: dir(root) })).toHaveLength(1);
   });
 
-  test('--title and --why belong to a flow line only', () => {
+  test('--title, --why, --context and --next belong to a flow line only', () => {
     const root = project();
 
     for (const extra of [
       ['--title', 'x'],
       ['--why', 'x'],
+      ['--context', 'x'],
+      ['--next', 'x'],
     ]) {
       const result = cli({
         root,

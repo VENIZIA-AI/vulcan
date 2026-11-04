@@ -63,6 +63,8 @@ export class EventFlags {
   static readonly STATUS = '--status';
   static readonly TITLE = '--title';
   static readonly WHY = '--why';
+  static readonly CONTEXT = '--context';
+  static readonly NEXT = '--next';
   static readonly ACTOR = '--actor';
   static readonly DIR = '--dir';
   static readonly SINCE = '--since';
@@ -106,6 +108,8 @@ export class EventConstants {
   static readonly MANIFEST_FILE = '.agents/vulcan.manifest.json';
   static readonly FILE_SUFFIX = '.jsonl';
   static readonly SUMMARY_MAX = 200;
+  /** A flow's context is a few sentences, not a summary line. */
+  static readonly CONTEXT_MAX = 600;
   /** What a sent message is called when its sender gave no label: the text of a message is never used. */
   static readonly MESSAGE_SENT_LABEL = 'message sent';
   static readonly REF_MAX = 120;

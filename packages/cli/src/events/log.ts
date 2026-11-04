@@ -40,6 +40,8 @@ export class EventLog {
     ref?: string;
     status?: TEventStatus;
     why?: string;
+    context?: string;
+    next?: string;
     notification?: string;
     now?: number;
   }): IEvent {
@@ -52,6 +54,14 @@ export class EventLog {
       opts.why === undefined
         ? ''
         : EventText.oneLine({ text: opts.why, max: EventConstants.SUMMARY_MAX });
+    const context =
+      opts.context === undefined
+        ? ''
+        : EventText.oneLine({ text: opts.context, max: EventConstants.CONTEXT_MAX });
+    const next =
+      opts.next === undefined
+        ? ''
+        : EventText.oneLine({ text: opts.next, max: EventConstants.SUMMARY_MAX });
 
     return {
       id: EventLog.newId({ now }),
@@ -63,6 +73,8 @@ export class EventLog {
       ...(opts.status === undefined ? {} : { status: opts.status }),
       ...(ref === '' ? {} : { ref }),
       ...(why === '' ? {} : { why }),
+      ...(context === '' ? {} : { context }),
+      ...(next === '' ? {} : { next }),
       ...(opts.notification !== undefined &&
       ClaudeHookEvents.OWNER_NOTIFICATIONS.has(opts.notification)
         ? { notification: opts.notification }
@@ -141,7 +153,21 @@ export class EventLog {
       return undefined;
     }
 
-    const { id, ts, flowId, actor, kind, summary, status, ref, why, notification, source } = value;
+    const {
+      id,
+      ts,
+      flowId,
+      actor,
+      kind,
+      summary,
+      status,
+      ref,
+      why,
+      context,
+      next,
+      notification,
+      source,
+    } = value;
 
     if (
       typeof id !== 'string' ||
@@ -156,6 +182,8 @@ export class EventLog {
       (status !== undefined && (typeof status !== 'string' || !EventStatuses.isValid(status))) ||
       (ref !== undefined && typeof ref !== 'string') ||
       (why !== undefined && typeof why !== 'string') ||
+      (context !== undefined && typeof context !== 'string') ||
+      (next !== undefined && typeof next !== 'string') ||
       (notification !== undefined && typeof notification !== 'string')
     ) {
       return undefined;
@@ -174,6 +202,8 @@ export class EventLog {
       ...(status === undefined ? {} : { status: status as TEventStatus }),
       ...(ref === undefined ? {} : { ref: clean(ref) }),
       ...(why === undefined ? {} : { why: clean(why) }),
+      ...(context === undefined ? {} : { context: clean(context) }),
+      ...(next === undefined ? {} : { next: clean(next) }),
       // A value that is not one of the types the hook knows is dropped: it is a short enum, not free text.
       ...(notification === undefined || !ClaudeHookEvents.OWNER_NOTIFICATIONS.has(notification)
         ? {}

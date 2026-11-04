@@ -838,6 +838,58 @@ describe('BoardFold.fold: agent plumbing', () => {
   });
 });
 
+describe('BoardFold.fold: the context and the next step of a flow', () => {
+  const flowLine = (opts: { minute: number; title: string; context?: string; next?: string }) =>
+    line({
+      minute: opts.minute,
+      kind: 'flow',
+      actor: 'pnt-vulcan-1',
+      flow: 'F-1',
+      summary: opts.title,
+      ...(opts.context === undefined ? {} : { context: opts.context }),
+      ...(opts.next === undefined ? {} : { next: opts.next }),
+    });
+
+  test('the newest flow line gives title, context and next together; a newer line that leaves one out drops it', () => {
+    const first = flowLine({ minute: 1, title: 'A', context: 'old context', next: 'old next' });
+    const second = flowLine({ minute: 2, title: 'B', context: 'new context', next: 'new next' });
+    const third = flowLine({ minute: 3, title: 'C', next: 'only next' });
+
+    expect(flowOf({ id: 'F-1', lines: [first, second] })).toMatchObject({
+      title: 'B',
+      context: 'new context',
+      next: 'new next',
+    });
+    expect(flowOf({ id: 'F-1', lines: [first, second, third] })).toMatchObject({
+      title: 'C',
+      next: 'only next',
+    });
+    expect(flowOf({ id: 'F-1', lines: [first, second, third] }).context).toBeUndefined();
+  });
+
+  test('a flow with work and one with only a flow line both carry them; the flow line stays one line of the flow', () => {
+    const work = line({
+      minute: 2,
+      kind: 'commit',
+      actor: 'pnt-vulcan-1',
+      flow: 'F-1',
+      summary: 'the lock',
+      ref: 'abc1234',
+    });
+    const named = flowLine({ minute: 1, title: 'A', context: 'what it is', next: 'who does what' });
+    const only = flowOf({ id: 'F-1', lines: [named] });
+    const mixed = flowOf({ id: 'F-1', lines: [named, work] });
+
+    expect(only).toMatchObject({ context: 'what it is', next: 'who does what', state: 'running' });
+    expect(mixed).toMatchObject({ context: 'what it is', next: 'who does what' });
+    expect(mixed.events.find((event) => event.kind === 'flow')).toMatchObject({
+      isTitle: true,
+      context: 'what it is',
+      next: 'who does what',
+    });
+  });
+});
+
 describe('BoardFold.fold: a flow line only names the flow', () => {
   const flowLine = (minute: number, title: string) =>
     line({
