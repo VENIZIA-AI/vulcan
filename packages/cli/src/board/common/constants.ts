@@ -77,6 +77,11 @@ export class BoardRoutes {
 export class BoardServe {
   static readonly COMMAND = 'serve';
   static readonly HOST = '127.0.0.1';
+  /** The name the address uses: a browser resolves any `.localhost` name to loopback by itself (RFC 6761), so no DNS entry is needed. */
+  static readonly DEFAULT_HOSTNAME = 'vulz-board.venizia.ai.localhost';
+  /** A `board.hostname` must be one the browser resolves itself: a name that only resolves to loopback through DNS is what a rebinding page uses. */
+  static readonly HOSTNAME =
+    /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.localhost$/;
   static readonly DEFAULT_PORT = 4317;
   static readonly TOKEN_BYTES = 16;
   static readonly TOKEN_PARAM = 't';

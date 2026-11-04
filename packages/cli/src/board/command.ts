@@ -172,13 +172,21 @@ export class BoardCommand {
     const port = args.port === undefined ? BoardServe.DEFAULT_PORT : Number(args.port);
 
     try {
-      const { url, note } = await BoardServer.start({ port, dir: opts.dir, collect });
+      const { hostname } = BoardSettings.read({ root: opts.root, readGitUser: () => gitUser });
+      const { url, fallback, note } = await BoardServer.start({
+        port,
+        dir: opts.dir,
+        hostname,
+        collect,
+      });
 
       if (note !== undefined) {
         process.stderr.write(`board: ${note}\n`);
       }
 
-      process.stderr.write('board: serving; press Ctrl+C to stop\n');
+      process.stderr.write(
+        `board: serving; press Ctrl+C to stop. If your browser does not open ${hostname}, use ${fallback}\n`,
+      );
       process.stdout.write(`${url}\n`);
 
       if (args.open) {

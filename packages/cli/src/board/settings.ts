@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
-import { BoardConstants } from './common/index.ts';
+import { BoardConstants, BoardServe } from './common/index.ts';
 import { BoardAgentSetting } from './agent-setting.ts';
 import { BOARD_AGENT, BOARD_AGENTS } from './schema.ts';
 import type { TBoardAgentSetting } from './schema.ts';
@@ -13,6 +13,8 @@ export interface IBoardSettings {
   logo?: string;
   key: string;
   shapes: Record<string, string>;
+  /** The name of the address of `vulcan board serve`: `board.hostname`, else the default. */
+  hostname: string;
   /** The listed `board.agents` keys with no lane; empty when none is listed, and then every agent shows. */
   roster: string[];
   /** A helper to the lane it rolls into. */
@@ -55,6 +57,10 @@ export class BoardSettings {
 
     return {
       title: text(block.title) ?? `${name} Board`,
+      hostname:
+        typeof block.hostname === 'string' && BoardServe.HOSTNAME.test(block.hostname)
+          ? block.hostname
+          : BoardServe.DEFAULT_HOSTNAME,
       owner: text(block.owner) ?? text(opts.gitUser) ?? BoardConstants.DEFAULT_OWNER,
       ...(logo === undefined ? {} : { logo }),
       key:

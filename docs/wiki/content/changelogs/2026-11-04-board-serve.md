@@ -15,6 +15,7 @@ packages: ['@venizia/vulcan']
 ## What changed
 
 - **A new command.** `vulcan board serve [--port <n>] [--open] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]` prints the address of the board, with a token, and keeps it current until you press Ctrl+C. The selected flow, the scroll position and the open groups stay when a snapshot arrives. `vulcan board` and its static file are unchanged.
+- **A readable address.** The address is `http://vulz-board.venizia.ai.localhost:<port>/?t=...` by default, and the project's own name when `board.hostname` is set (lowercase, ending in `.localhost`). A browser resolves any `.localhost` name to your own machine by itself (RFC 6761), so no DNS entry or hosts file is needed; the server still listens on `127.0.0.1` only. A second address with `127.0.0.1` goes to stderr, for a browser that does not resolve `.localhost` names. Another `.localhost` name is refused by the `Host` check.
 - **Port.** Default 4317. When it is busy, a free port is taken and the command says so.
 - **GitHub** is read at most once a minute, not on each change of the log; `--no-github` works as before.
 - **A log that cannot be read.** `serve` refuses to start when the log cannot be read at start (exit code 1, the reason on stderr). If a later read fails, the page keeps the last board and one line on stderr says why.
@@ -23,7 +24,7 @@ packages: ['@venizia/vulcan']
 
 ## Tested on, and not
 
-Linux (kernel 7.0) with Bun 1.4.4 and Chrome driven over CDP by the repository's own test helper; the log was written by the Claude Code hooks and by `vulcan event add`. NOT VERIFIED (it cannot run here): macOS and Windows (`fs.watch` and the poll fallback behave differently), Firefox and Safari (`EventSource`), and logs written live by Codex, Cursor, Antigravity or pi (the log format is the same; not exercised against a running agent).
+Linux (kernel 7.0) with Bun 1.4.4 and Chrome driven over CDP by the repository's own test helper; the log was written by the Claude Code hooks and by `vulcan event add`. Chrome and Firefox load the `.localhost` address here over IPv4; NOT VERIFIED (it cannot run here): Safari resolving `.localhost` names, macOS and Windows (`fs.watch` and the poll fallback behave differently), Firefox and Safari (`EventSource`), and logs written live by Codex, Cursor, Antigravity or pi (the log format is the same; not exercised against a running agent).
 
 ## Who is affected
 
