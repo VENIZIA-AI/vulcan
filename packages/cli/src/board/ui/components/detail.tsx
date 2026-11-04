@@ -11,7 +11,7 @@ import { BoardTime } from '../state/time.ts';
 import { BoardUrl } from '../url.ts';
 import { AGENT_TONES } from './agents.tsx';
 import { Checklist, EventItem, Mark } from './bits.tsx';
-import { BoardFace, Face } from './face.tsx';
+import { BoardFace, Mascot } from './face.tsx';
 
 const MILESTONES: Record<string, string> = {
   decision: 'ms.decision',
@@ -194,12 +194,7 @@ const AgentDetail = (props: {
   return (
     <div id="dBody" className="d-body d-agent">
       <div className="d-agenthead">
-        <Face
-          state={row.st}
-          tint={BoardFace.tintOf({ name: row.n })}
-          name={row.n}
-          shape={props.shape}
-        />
+        <Mascot state={row.st} name={row.n} shape={props.shape} />
         <div>
           <h2 id="popName">{row.n}</h2>
           <div className="d-meta">
@@ -336,11 +331,7 @@ export const Detail = (props: {
             card={props.cards[row.n]}
             data={props.data}
             events={props.events}
-            shape={BoardFace.shapeOf({
-              name: row.n,
-              owner: props.data.owner,
-              shapes: props.data.shapes,
-            })}
+            shape={BoardFace.shapeOf({ name: row.n, shapes: props.data.shapes })}
             onFlow={props.onFlow}
           />
         ) : null}

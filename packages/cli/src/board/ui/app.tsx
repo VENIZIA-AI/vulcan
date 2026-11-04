@@ -198,7 +198,6 @@ export const App = (props: { data: IBoardData }) => {
           <AgentPane
             rows={rows}
             cards={cards}
-            owner={data.owner}
             shapes={data.shapes}
             picked={agent}
             details={agentDetails === '1'}

@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { BoardPage } from '../../board/page.ts';
+import { BoardFace } from '../../board/ui/components/face.tsx';
 import { BrowserPage } from '../visualize/browser.helper.ts';
 import { REAL_DAY, realDayData } from './real-day.helper.ts';
 
@@ -193,5 +194,86 @@ describe.skipIf(!hasBrowser)('a busy multi-agent day, in a real browser', () => 
     expect(seen.off.webDot).toBe(true);
     expect(seen.back.bodies).toBe(seen.on.cards);
     expect(seen.back.stored).toBe('1');
+  });
+
+  test('the mascot of each state: a hoe at work, asleep when idle, a "?" bubble when it asks, a mark when stuck; in both modes', async () => {
+    const blockedData = realDayData();
+
+    for (const flow of blockedData.flows) {
+      if (flow.id === REAL_DAY.CART) {
+        flow.state = 'blocked';
+      }
+    }
+
+    const page = BoardPage.render({ data: blockedData }).replace(
+      '<script type="application/json"',
+      '<script>window.__errs=[];addEventListener("error",(e)=>__errs.push(e.message))</script><script type="application/json"',
+    );
+    const raw = await BrowserPage.measure<string>({
+      html: page,
+      width: 1440,
+      dark: false,
+      expression: `(async () => {
+        localStorage.clear();
+        const wait = () => new Promise((resolve) => setTimeout(resolve, 100));
+        const parts = (name) => {
+          const svg = document.querySelector('#dock [data-agent="' + name + '"] svg.bot');
+          return {
+            hoe: !!svg.querySelector('.m-hoe'),
+            sleep: !!svg.querySelector('.m-sleep'),
+            bubble: !!svg.querySelector('.m-bubble'),
+            wave: !!svg.querySelector('.m-wave'),
+            stuck: !!svg.querySelector('circle[fill="var(--fail)"]'),
+            fills: [...svg.querySelectorAll('.m-dig path, .m-lean path, .m-sleep path')].slice(0, 1).map((p) => p.getAttribute('fill')),
+          };
+        };
+        const full = {
+          working: parts('acme-forge'),
+          idle: parts('acme-api'),
+          you: parts('acme-web'),
+          blocked: parts('pnt-web-1'),
+        };
+        document.querySelector('.c-tg').click();
+        await wait();
+        const compact = { working: parts('acme-forge'), idle: parts('acme-api'), you: parts('acme-web') };
+        document.querySelector('#dock [data-agent="acme-forge"]').click();
+        await wait();
+        const detail = { hoe: !!document.querySelector('#dBody svg.bot .m-hoe') };
+        return JSON.stringify({ full, compact, detail, errors: window.__errs });
+      })()`,
+    });
+    const seen: {
+      full: Record<
+        string,
+        {
+          hoe: boolean;
+          sleep: boolean;
+          bubble: boolean;
+          wave: boolean;
+          stuck: boolean;
+          fills: string[];
+        }
+      >;
+      compact: Record<string, { hoe: boolean; sleep: boolean; bubble: boolean }>;
+      detail: { hoe: boolean };
+      errors: string[];
+    } = JSON.parse(raw);
+
+    expect(seen.errors).toEqual([]);
+    expect(seen.full.working).toMatchObject({ hoe: true, sleep: false, bubble: false });
+    expect(seen.full.idle).toMatchObject({ hoe: false, sleep: true, bubble: false });
+    expect(seen.full.you).toMatchObject({ hoe: false, sleep: false, bubble: true, wave: true });
+    expect(seen.full.blocked).toMatchObject({
+      hoe: false,
+      sleep: false,
+      bubble: false,
+      stuck: true,
+    });
+    // An agent's colour is the same wherever it is drawn: here and in the detail, the same fill.
+    expect(seen.full.working.fills[0]).toBe(BoardFace.colorOf({ name: 'acme-forge' }));
+    expect(seen.compact.working.hoe).toBe(true);
+    expect(seen.compact.idle.sleep).toBe(true);
+    expect(seen.compact.you.bubble).toBe(true);
+    expect(seen.detail.hoe).toBe(true);
   });
 });

@@ -6,7 +6,7 @@ import { useUi } from '../i18n/context.ts';
 import { BoardLatest } from '../state/latest.ts';
 import type { IAgentCard } from '../state/cards.ts';
 import { BoardTime } from '../state/time.ts';
-import { BoardFace, Face } from './face.tsx';
+import { BoardFace, Mascot } from './face.tsx';
 
 /** The colour of a state's badge. */
 export const AGENT_TONES: Record<string, string> = {
@@ -47,12 +47,7 @@ const AgentCard = (props: {
 
   const face = (
     <span className="c-face">
-      <Face
-        state={row.st}
-        tint={BoardFace.tintOf({ name: row.n })}
-        name={row.n}
-        shape={props.shape}
-      />
+      <Mascot state={row.st} name={row.n} shape={props.shape} />
     </span>
   );
   const badge = (
@@ -138,7 +133,6 @@ const AgentCard = (props: {
 export const AgentPane = (props: {
   rows: IAgentRow[];
   cards: Record<string, IAgentCard>;
-  owner: string;
   shapes: Record<string, string>;
   picked: string | null;
   details: boolean;
@@ -157,7 +151,7 @@ export const AgentPane = (props: {
       key={row.n}
       row={row}
       card={props.cards[row.n]}
-      shape={BoardFace.shapeOf({ name: row.n, owner: props.owner, shapes: props.shapes })}
+      shape={BoardFace.shapeOf({ name: row.n, shapes: props.shapes })}
       picked={props.picked === row.n}
       compact={!props.details}
       onPick={props.onPick}
