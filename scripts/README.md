@@ -14,6 +14,7 @@ Root tooling of the VULCAN monorepo, grouped by purpose. Each group keeps its te
 | `build/` | `force-update.sh` | Raises a package's dependencies to the registry's latest | the `force-update` script of each package, `make update-<pkg>` |
 | `evals/` | `skill-evals.ts` | Runs a shipped skill's evals against models (spends quota) | `make skill-evals`, `make skill-evals-plan` |
 | `evals/` | `skill-evals-core.ts` | Prompts, grading and reports for `skill-evals.ts` | `skill-evals.ts` |
+| `board-ui/` | `build.ts` | Builds the board page from its TSX components (`packages/cli/src/board/ui/`, preact through the `react` alias of `packages/cli/tsconfig.json`) into one HTML file: the bundle inline, the data marker left for `BoardPage.render` | `make board-ui OUT=<file>` |
 | `wiki-shared/` | `manifest.ts` | Writes (or with `--check` verifies) `SHARED.json`, the hashes of the shared wiki theme folder | by hand after editing `docs/wiki/site/.vitepress/theme/shared/` |
 | `wiki-shared/` | `copy.ts` | Copies that folder byte for byte into another wiki checkout (`--dry-run` lists first) | run in the IGNIS or ARDOR checkout: `bun ../vulcan/scripts/wiki-shared/copy.ts .` |
 | `wiki-shared/` | `check.ts` | Compares the shared folder of the three wikis, local or `--remote`, and names the files that drifted | the `wiki-shared` job of `deploy-docs.yml` (weekly and on dispatch) |
