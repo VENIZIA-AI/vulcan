@@ -17,7 +17,10 @@ describe('BoardUiBuild.build', () => {
 
   test('nothing in the bundle can end its own script tag or open a comment', async () => {
     const html = await BoardUiBuild.build({ root: ROOT });
-    const script = html.slice(html.indexOf('<script>') + '<script>'.length, html.lastIndexOf('</script>'));
+    const script = html.slice(
+      html.indexOf('<script>') + '<script>'.length,
+      html.lastIndexOf('</script>'),
+    );
 
     expect(script).not.toContain('</script');
     expect(script).not.toContain('<!--');
@@ -32,8 +35,8 @@ describe('BoardUiBuild.build', () => {
   });
 
   test('a build that fails says why and writes nothing', async () => {
-    await expect(BoardUiBuild.bundle({ root: ROOT, entry: 'packages/cli/src/board/ui/missing.tsx' })).rejects.toThrow(
-      'the board UI did not build',
-    );
+    await expect(
+      BoardUiBuild.bundle({ root: ROOT, entry: 'packages/cli/src/board/ui/missing.tsx' }),
+    ).rejects.toThrow('the board UI did not build');
   });
 });
