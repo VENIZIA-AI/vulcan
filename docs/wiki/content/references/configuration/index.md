@@ -571,7 +571,7 @@ export default {
 
 ## theme
 
-The colours, fonts and corner radius of the pages VULCAN makes. The token names are fixed; the values come from a preset and from your project. `vulcan sync` resolves the set, checks it, and writes it to `.agents/vulcan.manifest.json`, which is where [`vulcan visualize`](/references/commands/visualize) reads it. A spec's own `accent` wins over the project's. A project with no `theme` gets the `venizia` preset.
+The colours, fonts and corner radius of the pages VULCAN makes. The token names are fixed; the values come from a preset and from your project. `vulcan sync` resolves the set, checks it, and writes it to `.agents/vulcan.manifest.json`, which is where [`vulcan visualize`](/references/commands/visualize) and [`vulcan board`](/references/commands/board) read it. A spec's own `accent` wins over the project's. A project with no `theme` gets the `venizia` preset.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|

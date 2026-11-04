@@ -140,6 +140,8 @@ export class BoardConstants {
   static readonly DAY_MS = 24 * BoardConstants.HOUR_MS;
   static readonly TEMPLATE = 'templates/board.html';
   static readonly DATA_MARKER = '<!--BOARD_DATA-->';
+  /** Where the page takes the design tokens of the project (a `style` with the custom properties). */
+  static readonly TOKENS_MARKER = '<!--BOARD_TOKENS-->';
   static readonly GH_TIMEOUT_MS = 15_000;
   static readonly GH_LIMIT = 30;
   /** A `needs-owner` line whose whole summary is one of these is the harness waiting, not a person asking. */

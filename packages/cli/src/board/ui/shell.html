@@ -4,143 +4,58 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Board</title>
+    <!--BOARD_TOKENS-->
     <style>
       /* One screen: a top bar, the flow list (left) and the flow detail (right), and the dock of agents below. Venizia tokens; bronze is the one data hue. */
       :root {
         --font: 'Inter Display','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
         --mono: 'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
-        --r: 4px;
         --gap: 8px;
         --bar: 56px;
         --ease-out: cubic-bezier(.22,1,.36,1);
-        --ground: #f5f5f5;
-        --bg: #ffffff;
         --head: #fafafa;
         --soft: #f2f2f2;
         --sunk: #f7f7f7;
-        --line: #0000001a;
         --line-2: #00000033;
-        --ink: #000000;
-        --body: #4b4b4b;
-        --muted: #6b6b6b;
-        --accent: #8a5a20;
-        --accent-soft: #f5ecdf;
-        --accent-ink: #ffffff;
-        --fail: #b42318;
-        --fail-soft: #fdecea;
-        --ok: #067647;
-        --ok-soft: #e7f5ee;
-        --wait: #8a4b00;
-        --wait-soft: #fdf1dc;
-        --focus: #8a5a20;
         color-scheme: light;
-        --stroke-strong: #101010;
         --face-ink: #18181b;
         --cheek: #e8a8a0;
       }
       @media (prefers-color-scheme: dark) {
         :root:not([data-theme='light']):not([data-board-theme='light']) {
-          --ground: #121214;
-          --bg: #1b1b1b;
           --head: #202024;
           --soft: #26262b;
           --sunk: #232327;
-          --line: #ffffff1a;
           --line-2: #ffffff33;
-          --ink: #ffffff;
-          --body: #ffffffb3;
-          --muted: #ffffff8c;
-          --accent: #dead6a;
-          --accent-soft: #33281a;
-          --accent-ink: #1a1200;
-          --fail: #f97066;
-          --fail-soft: #3a1d1a;
-          --ok: #47cd89;
-          --ok-soft: #14291f;
-          --wait: #fdb022;
-          --wait-soft: #33270f;
-          --focus: #dead6a;
           color-scheme: dark;
-          --stroke-strong: #ffffff4d;
           --face-ink: #f4f4f5;
           --cheek: #b8706a;
         }
       }
       :root[data-theme='dark'] {
-        --ground: #121214;
-        --bg: #1b1b1b;
         --head: #202024;
         --soft: #26262b;
         --sunk: #232327;
-        --line: #ffffff1a;
         --line-2: #ffffff33;
-        --ink: #ffffff;
-        --body: #ffffffb3;
-        --muted: #ffffff8c;
-        --accent: #dead6a;
-        --accent-soft: #33281a;
-        --accent-ink: #1a1200;
-        --fail: #f97066;
-        --fail-soft: #3a1d1a;
-        --ok: #47cd89;
-        --ok-soft: #14291f;
-        --wait: #fdb022;
-        --wait-soft: #33270f;
-        --focus: #dead6a;
         color-scheme: dark;
-        --stroke-strong: #ffffff4d;
         --face-ink: #f4f4f5;
         --cheek: #b8706a;
       }
       :root[data-board-theme='dark'] {
-        --ground: #121214;
-        --bg: #1b1b1b;
         --head: #202024;
         --soft: #26262b;
         --sunk: #232327;
-        --line: #ffffff1a;
         --line-2: #ffffff33;
-        --ink: #ffffff;
-        --body: #ffffffb3;
-        --muted: #ffffff8c;
-        --accent: #dead6a;
-        --accent-soft: #33281a;
-        --accent-ink: #1a1200;
-        --fail: #f97066;
-        --fail-soft: #3a1d1a;
-        --ok: #47cd89;
-        --ok-soft: #14291f;
-        --wait: #fdb022;
-        --wait-soft: #33270f;
-        --focus: #dead6a;
         color-scheme: dark;
-        --stroke-strong: #ffffff4d;
         --face-ink: #f4f4f5;
         --cheek: #b8706a;
       }
       :root[data-board-theme='light'] {
-        --ground: #f5f5f5;
-        --bg: #ffffff;
         --head: #fafafa;
         --soft: #f2f2f2;
         --sunk: #f7f7f7;
-        --line: #0000001a;
         --line-2: #00000033;
-        --ink: #000000;
-        --body: #4b4b4b;
-        --muted: #6b6b6b;
-        --accent: #8a5a20;
-        --accent-soft: #f5ecdf;
-        --accent-ink: #ffffff;
-        --fail: #b42318;
-        --fail-soft: #fdecea;
-        --ok: #067647;
-        --ok-soft: #e7f5ee;
-        --wait: #8a4b00;
-        --wait-soft: #fdf1dc;
-        --focus: #8a5a20;
         color-scheme: light;
-        --stroke-strong: #101010;
         --face-ink: #18181b;
         --cheek: #e8a8a0;
       }

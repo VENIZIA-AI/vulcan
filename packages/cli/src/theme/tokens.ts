@@ -134,6 +134,67 @@ export class ThemeTokens {
     "'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace";
   static readonly RADIUS = '4px';
 
+  /** The `--property:value` pairs of one mode; `names` maps a token to the custom property a consumer calls it. */
+  static declarations(opts: { mode: TTokenMode; names: Record<string, string> }): string {
+    return Object.entries(opts.names)
+      .map(([token, property]) => `--${property}:${opts.mode[token]}`)
+      .join(';');
+  }
+
+  /**
+   * The resolved tokens that `vulcan sync` wrote to the manifest of `root`, or the default preset when the manifest has
+   * none or holds a block this version cannot read. Nothing is requested and no config is loaded.
+   */
+  static read(opts: { root: string }): IThemeTokens {
+    const { block } = ProjectTheme.readManifestBlock({ root: opts.root });
+    const stored = block === undefined ? undefined : ThemeTokens.storedIn({ block });
+
+    return stored ?? ThemeTokens.defaults();
+  }
+
+  /** The tokens of a project with no `theme`: the default preset as written. */
+  static defaults(): IThemeTokens {
+    const resolved = ThemeTokens.resolve({});
+
+    if (!resolved.ok) {
+      throw new Error('the default theme preset fails its own contrast check');
+    }
+
+    return resolved.tokens;
+  }
+
+  /** The tokens of a manifest `theme` block when every token of both modes and the three settings are there. */
+  private static storedIn(opts: { block: object }): IThemeTokens | undefined {
+    const tokens: unknown = Reflect.get(opts.block, 'tokens');
+    const modes = ['light', 'dark'].map((mode): TTokenMode | undefined => {
+      const value: unknown =
+        typeof tokens === 'object' && tokens !== null ? Reflect.get(tokens, mode) : undefined;
+
+      return typeof value === 'object' &&
+        value !== null &&
+        ThemeTokens.names().every((name) => {
+          const color: unknown = Reflect.get(value, name);
+
+          return typeof color === 'string' && ThemeTokens.COLOUR.test(color);
+        })
+        ? Object.fromEntries(Object.entries(value))
+        : undefined;
+    });
+    const [light, dark] = modes;
+    const [font, mono, radius, preset]: unknown[] = ['font', 'mono', 'radius', 'preset'].map(
+      (key) => Reflect.get(opts.block, key),
+    );
+
+    return light !== undefined &&
+      dark !== undefined &&
+      typeof font === 'string' &&
+      typeof mono === 'string' &&
+      typeof radius === 'string' &&
+      typeof preset === 'string'
+      ? { preset, light, dark, font, mono, radius }
+      : undefined;
+  }
+
   /** The names a project may override: the keys of a preset. */
   static names(): string[] {
     return Object.keys(ThemeTokens.PRESETS.venizia.light);

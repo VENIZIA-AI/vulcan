@@ -6,7 +6,6 @@ import { ThemeTokens } from '../../theme/index.ts';
 import { ProjectTheme } from '../../visualize/theme.ts';
 
 const ROOT = join(import.meta.dir, '../../../../..');
-const BOARD = readFileSync(join(ROOT, 'packages/cli/src/board/ui/shell.html'), 'utf8');
 const WIKI = join(ROOT, 'docs/wiki/site/.vitepress/theme');
 const TOKENS_CSS = readFileSync(join(WIKI, 'shared/tokens.css'), 'utf8');
 const PRODUCT_CSS = readFileSync(join(WIKI, 'product.css'), 'utf8');
@@ -28,38 +27,7 @@ const declarations = (opts: {
 
 const venizia = ThemeTokens.PRESETS.venizia;
 
-describe('the venizia preset is the palette the board and the wiki hold today', () => {
-  test('the board: every shared token has the value of its :root block, light and dark', () => {
-    const light = declarations({ css: BOARD, marker: ':root {' });
-    const dark = declarations({
-      css: BOARD,
-      marker: ":root:not([data-theme='light'])",
-    });
-    const names: Record<string, string> = {
-      ground: 'ground',
-      bg: 'bg',
-      line: 'line',
-      'stroke-strong': 'line-strong',
-      ink: 'ink',
-      body: 'body',
-      muted: 'muted',
-      accent: 'accent',
-      'accent-ink': 'accent-ink',
-      'accent-soft': 'accent-soft',
-      ok: 'ok',
-      'ok-soft': 'ok-soft',
-      wait: 'wait',
-      'wait-soft': 'wait-soft',
-      fail: 'fail',
-      'fail-soft': 'fail-soft',
-    };
-
-    for (const [board, token] of Object.entries(names)) {
-      expect(light[board], `light ${board}`).toBe(venizia.light[token]);
-      expect(dark[board], `dark ${board}`).toBe(venizia.dark[token]);
-    }
-  });
-
+describe('the venizia preset is the palette the wiki holds today (the board takes the tokens from it)', () => {
   test('the wiki: text, lines, surfaces and the accent have the same values', () => {
     const colours = declarations({
       css: TOKENS_CSS,

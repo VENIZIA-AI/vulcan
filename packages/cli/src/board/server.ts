@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { Server } from 'bun';
 import { BoardRoutes, BoardServe } from './common/index.ts';
+import type { IThemeTokens } from '../theme/index.ts';
 import type { IBoardData, TBoardRoute } from './common/index.ts';
 import { BoardPage } from './page.ts';
 import { BoardWatch } from './watch.ts';
@@ -13,6 +14,8 @@ interface IBoardServerOptions {
   dir: string;
   /** The folded board, as `vulcan board` makes it. */
   collect: () => IBoardData;
+  /** The design tokens of the page; default the default preset. */
+  tokens?: IThemeTokens;
   maxSnapshotBytes?: number;
 }
 
@@ -110,7 +113,14 @@ export class BoardServer {
         port,
         development: false,
         fetch: (request, server) =>
-          BoardServer.answer({ request, server, token, hostname, collect: opts.collect }),
+          BoardServer.answer({
+            request,
+            server,
+            token,
+            hostname,
+            collect: opts.collect,
+            tokens: opts.tokens,
+          }),
         error: (error) => {
           process.stderr.write(`board: a request failed: ${error.message}\n`);
 
@@ -257,6 +267,7 @@ export class BoardServer {
     token: string;
     hostname: string;
     collect: () => IBoardData;
+    tokens?: IThemeTokens;
   }): Response {
     const { request, server, token } = opts;
     const verdict = BoardServer.check({
@@ -278,7 +289,7 @@ export class BoardServer {
 
       const live = { stream: BoardServer.pathWithToken({ path: BoardServe.STREAM_PATH, token }) };
 
-      return new Response(BoardPage.render({ data: { ...data, live } }), {
+      return new Response(BoardPage.render({ data: { ...data, live }, tokens: opts.tokens }), {
         headers: PAGE_HEADERS,
       });
     }

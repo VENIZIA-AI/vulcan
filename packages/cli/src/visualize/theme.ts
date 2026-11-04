@@ -407,10 +407,10 @@ export class ProjectTheme {
   }
 
   /**
-   * The project's `theme` from the manifest of the folder the command runs in. No config file is loaded and nothing
-   * is requested: a missing file, or a manifest with no `theme`, is the default preset.
+   * The `theme` block of the manifest of the folder the command runs in. No config file is loaded and nothing is
+   * requested: a missing file, or a manifest with no `theme`, gives no block and no warning.
    */
-  static readManifestTheme(opts: { root: string }): { theme?: IThemeInput; warning?: string } {
+  static readManifestBlock(opts: { root: string }): { block?: object; warning?: string } {
     let text: string;
 
     try {
@@ -454,6 +454,20 @@ export class ProjectTheme {
 
     if (typeof theme !== 'object' || theme === null) {
       return { warning: 'the manifest theme is not an object, so the default colour is used' };
+    }
+
+    return { block: theme };
+  }
+
+  /**
+   * The accent seeds of the project's `theme` in the manifest, for the pages `vulcan visualize` makes. A missing file, or a
+   * manifest with no `theme`, is the default preset.
+   */
+  static readManifestTheme(opts: { root: string }): { theme?: IThemeInput; warning?: string } {
+    const { block: theme, warning } = ProjectTheme.readManifestBlock(opts);
+
+    if (theme === undefined) {
+      return warning === undefined ? {} : { warning };
     }
 
     // A manifest that holds only the resolved tokens (a project that set no accent) gives the accent of its preset.
