@@ -19,6 +19,10 @@ export interface IBoardEvent {
   stage: number;
   actor: string;
   to?: string;
+  /** A message the actor got, not sent (`msg-received`). */
+  incoming?: boolean;
+  /** Who sent a message the actor got, from a `from:<name>` ref. */
+  from?: string;
   status?: string;
   /** What a decision decided: `approve`, `park` or `reject`. */
   choice?: string;

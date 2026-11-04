@@ -890,6 +890,32 @@ describe('BoardFold.fold: the context and the next step of a flow', () => {
   });
 });
 
+describe('BoardFold.fromLog: the direction of a message', () => {
+  test('a message got keeps its direction and its sender; one sent has a recipient', () => {
+    const log = BoardFold.fromLog({
+      events: [
+        line({
+          minute: 1,
+          kind: 'msg-received',
+          actor: 'a',
+          flow: 'F-1',
+          summary: 'r',
+          ref: 'from:b',
+        }),
+        line({ minute: 2, kind: 'msg-sent', actor: 'a', flow: 'F-1', summary: 's', ref: 'to:c' }),
+        line({ minute: 3, kind: 'msg-received', actor: 'a', flow: 'F-1', summary: 'x' }),
+      ],
+    });
+
+    expect(log.events[0]).toMatchObject({ kind: 'msg', incoming: true, from: 'b' });
+    expect(log.events[0].to).toBeUndefined();
+    expect(log.events[1]).toMatchObject({ kind: 'msg', to: 'c' });
+    expect(log.events[1].incoming).toBeUndefined();
+    expect(log.events[2]).toMatchObject({ incoming: true });
+    expect(log.events[2].from).toBeUndefined();
+  });
+});
+
 describe('BoardFold.fold: a flow line only names the flow', () => {
   const flowLine = (minute: number, title: string) =>
     line({

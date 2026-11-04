@@ -477,6 +477,27 @@ describe('vulcan event add --kind flow', () => {
     expect(lines({ dir: dir(root) })).toHaveLength(1);
   });
 
+  test('an empty or blank --context or --next is refused like an empty --title, and nothing is written', () => {
+    const root = project();
+
+    for (const extra of [
+      ['--context', ''],
+      ['--context', '   '],
+      ['--next', ''],
+      ['--next', ' \t '],
+    ]) {
+      const result = cli({
+        root,
+        args: ['add', '--kind', 'flow', '--flow', 'F-12', '--title', 'T', ...extra],
+      });
+
+      expect(result.code, extra.join(' ')).toBe(2);
+      expect(result.stderr).toContain(extra[0]);
+    }
+
+    expect(existsSync(dir(root))).toBe(false);
+  });
+
   test('--title, --why, --context and --next belong to a flow line only', () => {
     const root = project();
 
