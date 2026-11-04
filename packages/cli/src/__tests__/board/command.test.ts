@@ -213,3 +213,62 @@ describe('vulcan board with board.agents in the manifest', () => {
     expect(listed.shapes).toEqual({ 'veni-forge': 'banana' });
   });
 });
+
+const SIGNALS: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
+
+describe('vulcan board serve', () => {
+  test.each([
+    [['serve', '--out', 'x.html'], 'writes the static file'],
+    [['--port', '4000'], 'belongs to serve'],
+    [['serve', '--port', '70000'], 'must be a number from 0 to 65535'],
+    [['serve', '--port', 'abc'], 'must be a number from 0 to 65535'],
+    [['serve', '--port'], 'needs a value'],
+  ])('%j is a usage error and starts nothing', (args, message) => {
+    const result = runCli({ args: ['board', ...args], cwd: projectWithLog(), env: hermeticEnv() });
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain(message);
+  });
+
+  test.each(SIGNALS)(
+    'serves the board, prints only the URL on stdout, and %s stops it with exit 0',
+    async (signal) => {
+      const root = projectWithLog();
+      const child = Bun.spawn(
+        [
+          process.execPath,
+          join(import.meta.dir, '..', '..', 'cli.ts'),
+          'board',
+          'serve',
+          '--no-github',
+          '--since',
+          SINCE,
+          '--port',
+          '0',
+        ],
+        { cwd: root, env: { ...process.env, ...hermeticEnv() }, stdout: 'pipe', stderr: 'pipe' },
+      );
+      const reader = child.stdout.getReader();
+      const first = await reader.read();
+      const url = new TextDecoder().decode(first.value).trim();
+      const page = await fetch(url);
+      const html = await page.text();
+
+      expect(url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/\?t=[0-9a-f]{32}$/);
+      expect(page.status).toBe(200);
+      expect(html).toContain('id="board-data"');
+      const result = await fetch(url.split('?')[0]);
+      expect(result.status).toBe(403);
+
+      child.kill(signal);
+
+      const result2 = await child.exited;
+      expect(result2).toBe(0);
+      const result3 = await fetch(url).then(
+        () => true,
+        () => false,
+      );
+      expect(result3).toBe(false);
+    },
+  );
+});

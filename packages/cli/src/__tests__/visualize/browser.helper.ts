@@ -13,7 +13,9 @@ import { findRepositoryRoot } from '@venizia/dev-configs/testing';
 
 /** What a measuring run is asked: the page text, the width of the window, and the colour scheme. */
 export interface IBrowserRun {
-  html: string;
+  /** The page text, written to a file and opened; or give `url` to open a page that is served. */
+  html?: string;
+  url?: string;
   width: number;
   dark: boolean;
   /** An expression run in the page; its JSON result is returned. */
@@ -213,7 +215,10 @@ export class BrowserPage {
     const file = join(BrowserPage.folder!, `page-${BrowserPage.nextId}.html`);
 
     mkdirSync(BrowserPage.folder!, { recursive: true });
-    writeFileSync(file, run.html);
+
+    if (run.url === undefined) {
+      writeFileSync(file, run.html ?? '');
+    }
 
     await BrowserPage.send({
       method: 'Emulation.setDeviceMetricsOverride',
@@ -240,7 +245,10 @@ export class BrowserPage {
       BrowserPage.listeners.push(listener);
     });
 
-    await BrowserPage.send({ method: 'Page.navigate', params: { url: `file://${file}` } });
+    await BrowserPage.send({
+      method: 'Page.navigate',
+      params: { url: run.url ?? `file://${file}` },
+    });
     await loaded;
     await Bun.sleep(150);
 
@@ -250,6 +258,18 @@ export class BrowserPage {
     });
 
     return result.result.value as TResult;
+  }
+
+  /** Runs an expression in the page that is already open, without navigating, and returns its JSON result. */
+  static async evaluate<TResult>(opts: { expression: string }): Promise<TResult> {
+    const result = await BrowserPage.send({
+      method: 'Runtime.evaluate',
+      params: { expression: opts.expression, returnByValue: true, awaitPromise: true },
+    });
+
+    const value: TResult = result.result.value;
+
+    return value;
   }
 
   /** A screenshot of the whole page, for a human to look at (not used by an assertion). */

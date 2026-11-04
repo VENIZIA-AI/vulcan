@@ -20,6 +20,7 @@ The event log is what the board is made of. GitHub is a bonus: a project on GitL
 
 ```text
 vulcan board [--out <file>] [--open] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
+vulcan board serve [--port <n>] [--open] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
 ```
 
 | Flag | Meaning |
@@ -30,10 +31,29 @@ vulcan board [--out <file>] [--open] [--since <date>] [--dir <events folder>] [-
 | `--dir` | The events folder. Default: `events.dir` of the config, else `.agents/local/events` |
 | `--repo` | A GitHub repository, `owner/name`. Repeat it to read several, such as three repositories on one board. Default: the repository `gh` finds for the project folder (`gh repo view`); when it finds none, GitHub is skipped with a note |
 | `--no-github` | Do not read GitHub |
+| `--port` | `serve` only: the port to listen on. Default `4317`; `0` takes any free port |
 
-Exit codes: `0` written; `1` the file cannot be written; `2` bad input (an unknown date, a `--repo` that is not `owner/name`, an unknown or repeated flag).
+Exit codes: `0` written, or `serve` stopped with Ctrl+C; `1` the file cannot be written, or `serve` cannot start; `2` bad input (an unknown date, a `--repo` that is not `owner/name`, an unknown or repeated flag, `--port` outside `serve` or not a number from 0 to 65535, `--out` with `serve`).
 
 Run in a subfolder, it uses the project of that folder, as [vulcan event](/references/commands/event) does. A shared `events.dir` gives the page the events of every project that writes to it.
+
+## Serve it live
+
+`vulcan board serve` serves the same page on `127.0.0.1` and sends the open page a new snapshot when the event log changes, so it updates with no reload. The selected flow, the scroll position and the open groups stay. The static `vulcan board` file works as before.
+
+```text
+$ bun x --no-install vulcan board serve --open
+board: serving; press Ctrl+C to stop
+http://127.0.0.1:4317/?t=4f0c2a9e8b7d41c6a5e3f1d2b0a98c77
+```
+
+It prints one line on stdout, the address with this run's token; open that address. When the port is busy it takes a free one and says so on stderr. Ctrl+C or SIGTERM stops it with exit code 0. GitHub is read at most once a minute, whatever the log does. The header says `live`; when the stream drops it says `disconnected, retrying`, keeps showing the board and reconnects with a growing wait (1 s, 2 s, 4 s, up to 30 s). A snapshot over 20 MB is not sent, and the header says to reload.
+
+**What protects it.** It listens on `127.0.0.1` only, with no flag to change that. Every request must carry the token of this run (128 random bits, new on each start, never written to a file or the event log), a `Host` of `127.0.0.1` or `localhost` with the port, and, when the browser sends one, the same origin. Anything else is refused with 403 and no body, so another web page or a DNS-rebinding page cannot read the board. Only `GET` is answered, on two routes; the server writes nothing and runs nothing. At most 8 pages can listen at once. The page is served with a strict Content-Security-Policy, `no-store` and `no-referrer`.
+
+**What does not.** The token is in the address, so it is in the history of your browser for that run, and with `--open` it is in the arguments of the program that opens the browser for a moment. Any process of your own user can reach a local port. The token stops other origins and other users, not your own processes.
+
+**Tested on, and not.** Linux (kernel 7.0) with Bun 1.4.4 and Chrome driven over CDP by the repository's own test helper; the log was written by the Claude Code hooks and by `vulcan event add`. NOT VERIFIED (it cannot run here): macOS and Windows (`fs.watch` and the poll fallback behave differently), Firefox and Safari (`EventSource`), and logs written live by Codex, Cursor, Antigravity or pi (the log format is the same; not exercised against a running agent).
 
 ## How a line becomes a flow
 

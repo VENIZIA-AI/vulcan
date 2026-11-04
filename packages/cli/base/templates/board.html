@@ -2792,6 +2792,14 @@
       DICT.vi['n.helper'] = 'agent phụ';
       DICT.en['n.helpers'] = 'helpers';
       DICT.vi['n.helpers'] = 'agent phụ';
+      DICT.en['live.on'] = 'live';
+      DICT.vi['live.on'] = 'trực tiếp';
+      DICT.en['live.wait'] = 'connecting';
+      DICT.vi['live.wait'] = 'đang kết nối';
+      DICT.en['live.off'] = 'disconnected, retrying';
+      DICT.vi['live.off'] = 'mất kết nối, đang thử lại';
+      DICT.en['live.big'] = 'too large to stream: reload';
+      DICT.vi['live.big'] = 'quá lớn để truyền: tải lại';
       DICT.en['fl.untitled'] = 'no title yet';
       DICT.vi['fl.untitled'] = 'chưa có tên';
       DICT.en['ctx.label'] = 'Context';
@@ -3012,10 +3020,9 @@
           ? e
           : { ...e, stage: STAGE_OF[e.stage] ?? STAGE_OF[e.kind] ?? 0 };
       // A helper's lines are drawn as its lane's; the helper's own names stay in `as` (sender) and `asTo` (recipient).
-      const LANES = DATA.lanes || {};
-      const laneOf = (n) => (n && LANES[n]) || n;
+      const laneOf = (n) => (n && (DATA.lanes || {})[n]) || n;
       const laneEv = (e) =>
-        LANES[e.actor] || LANES[e.to]
+        laneOf(e.actor) !== e.actor || laneOf(e.to) !== e.to
           ? { ...e, as: e.actor, asTo: e.to, actor: laneOf(e.actor), to: laneOf(e.to) }
           : e;
       const inRoster = (n) => showPlumbing || !DATA.roster || DATA.roster.includes(n);
@@ -3035,6 +3042,7 @@
         FL = [];
       let agentFilter = null,
         prevUnread = null;
+      let liveState = 'wait';
       const VM_LS = LS_PREFIX + 'view';
       let viewMode = (() => {
         try {
@@ -3303,6 +3311,8 @@
           fr.append('GitHub ' + hhmm(gh));
           if (Date.now() - new Date(gh) > 30 * 60000) fr.append(el('span', 'st', t('cũ')));
         }
+        if (DATA.live)
+          fr.append(el('span', liveState === 'on' ? null : 'st', t('live.' + liveState)));
         const cnt = (k) =>
           FL.filter((x) => x.state === k && (k !== 'done' || sameDay(x.last.ts))).length;
         $('sumLine').textContent =
@@ -4965,6 +4975,47 @@
       });
       setInterval(schedule, 60000);
 
+      // `vulcan board serve`: each snapshot of the stream replaces the data, and what is selected stays. A dropped stream is retried with a growing wait.
+      const setLive = (state) => {
+        liveState = state;
+        schedule();
+      };
+      const applyLive = (next) => {
+        if (next.tooLarge) {
+          setLive('big');
+          return;
+        }
+        for (const key of [
+          'flows',
+          'decisions',
+          'agents',
+          'shapes',
+          'roster',
+          'lanes',
+          'sources',
+          'generatedAt',
+          'since',
+        ])
+          DATA[key] = next[key];
+        loadEvents();
+        decisions = DATA.decisions;
+        agentsDoc = laneDocs(DATA.agents);
+        $('since').title = DATA.sources.join('\n');
+        setLive('on');
+      };
+      const connectLive = (attempt) => {
+        const source = new EventSource(DATA.live.stream);
+        source.onmessage = (message) => {
+          attempt = 0;
+          applyLive(JSON.parse(message.data));
+        };
+        source.onerror = () => {
+          source.close();
+          setLive('off');
+          setTimeout(() => connectLive(attempt + 1), Math.min(30000, 1000 * 2 ** attempt));
+        };
+      };
+
       (() => {
         document.title = DATA.title;
         $('boardTitle').textContent = DATA.title;
@@ -4980,6 +5031,7 @@
         releases = [];
         $('since').title = DATA.sources.join('\n');
         schedule();
+        if (DATA.live) connectLive(0);
       })();
     </script>
   </body>
