@@ -18,7 +18,7 @@ afterAll(removeProjects);
 const NOW = Date.parse('2026-11-03T09:30:00.000Z');
 
 describe('EventKinds', () => {
-  test('the eleven kinds a board reads, and isValid', () => {
+  test('the twelve kinds a board reads, and isValid', () => {
     expect([...EventKinds.SCHEME_SET]).toEqual([
       'session-start',
       'session-stop',
@@ -30,10 +30,11 @@ describe('EventKinds', () => {
       'pr',
       'decision',
       'flow',
+      'deploy',
       'tool-tick',
     ]);
     expect(EventKinds.isValid('commit')).toBe(true);
-    expect(EventKinds.isValid('deploy')).toBe(false);
+    expect(EventKinds.isValid('rollout')).toBe(false);
   });
 });
 
@@ -386,7 +387,7 @@ describe('EventLog', () => {
     EventLog.append({ dir, event: old });
     writeFileSync(
       join(dir, `${EventLog.dayOf({ time: NOW })}.jsonl`),
-      `${readFileSync(join(dir, `${EventLog.dayOf({ time: NOW })}.jsonl`), 'utf8')}not json\n{"a":1}\n${JSON.stringify({ ...at(0, 'pr'), kind: 'deploy' })}\n\n`,
+      `${readFileSync(join(dir, `${EventLog.dayOf({ time: NOW })}.jsonl`), 'utf8')}not json\n{"a":1}\n${JSON.stringify({ ...at(0, 'pr'), kind: 'rollout' })}\n\n`,
     );
 
     const all = EventLog.read({ dir });

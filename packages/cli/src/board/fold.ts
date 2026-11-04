@@ -1,4 +1,4 @@
-import { EventKinds, EventStatuses } from '../events/common/index.ts';
+import { EventKinds, EventSources, EventStatuses } from '../events/common/index.ts';
 import type { IEvent } from '../events/common/index.ts';
 import {
   BoardConstants,
@@ -13,6 +13,7 @@ import type {
   IBoardDecision,
   IBoardEvent,
   IBoardFlow,
+  IBoardItem,
   TBoardState,
 } from './common/index.ts';
 
@@ -197,7 +198,16 @@ export class BoardFold {
           ...(line.why === undefined ? {} : { why: line.why }),
           ...(line.context === undefined ? {} : { context: line.context }),
           ...(line.next === undefined ? {} : { next: line.next }),
+          ...(line.steps === undefined ? {} : { steps: line.steps }),
+          ...(line.checks === undefined ? {} : { checks: line.checks }),
+          ...(line.apps === undefined ? {} : { apps: line.apps }),
+          ...(line.due === undefined ? {} : { due: line.due }),
+          ...(line.ref === undefined ? {} : { tracker: line.ref }),
         };
+      }
+
+      case EventKinds.DEPLOY: {
+        return { ...base, kind: BoardKinds.RELEASE, stage: BoardStages.RELEASE };
       }
 
       case EventKinds.SESSION_START:
@@ -238,12 +248,20 @@ export class BoardFold {
     ) {
       const state = line.kind === EventKinds.SESSION_STOP ? 'idle' : 'working';
 
+      // The model is what the session start said, and the harness is the hook that wrote it; both stay until a start says another.
+      const isHook = line.source === EventSources.CLAUDE_HOOK;
+      const model =
+        line.kind === EventKinds.SESSION_START ? (line.model ?? known?.model) : known?.model;
+      const harness = isHook ? BoardConstants.HARNESS_CLAUDE : known?.harness;
+
       agents[line.actor] = {
         name: line.actor,
         state,
         current: known?.current ?? '',
         since: known?.state === state ? known.since : line.ts,
         checkedAt: line.ts,
+        ...(model === undefined ? {} : { model }),
+        ...(harness === undefined ? {} : { harness }),
       };
 
       return;
@@ -255,6 +273,8 @@ export class BoardFold {
       current: line.summary,
       since: known?.since ?? line.ts,
       checkedAt: line.ts,
+      ...(known?.model === undefined ? {} : { model: known.model }),
+      ...(known?.harness === undefined ? {} : { harness: known.harness }),
     };
   }
 
@@ -361,6 +381,11 @@ export class BoardFold {
     why?: string;
     context?: string;
     next?: string;
+    steps?: IBoardItem[];
+    checks?: IBoardItem[];
+    apps?: string[];
+    due?: string;
+    tracker?: string;
   } {
     const { named } = opts;
 
@@ -372,6 +397,11 @@ export class BoardFold {
           ...(named.why === undefined ? {} : { why: named.why }),
           ...(named.context === undefined ? {} : { context: named.context }),
           ...(named.next === undefined ? {} : { next: named.next }),
+          ...(named.steps === undefined ? {} : { steps: named.steps }),
+          ...(named.checks === undefined ? {} : { checks: named.checks }),
+          ...(named.apps === undefined ? {} : { apps: named.apps }),
+          ...(named.due === undefined ? {} : { due: named.due }),
+          ...(named.tracker === undefined ? {} : { tracker: named.tracker }),
         };
   }
 

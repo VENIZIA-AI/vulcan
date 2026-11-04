@@ -130,6 +130,7 @@ export class BoardCommand {
       shapes: settings.shapes,
       ...(settings.roster.length === 0 ? {} : { roster: settings.roster }),
       ...(Object.keys(settings.lanes).length === 0 ? {} : { lanes: settings.lanes }),
+      ...(Object.keys(settings.roles).length === 0 ? {} : { roles: settings.roles }),
       generatedAt: new Date().toISOString(),
       since: new Date(opts.since).toISOString(),
       flows: flows.sort(

@@ -19,6 +19,8 @@ export interface IBoardSettings {
   roster: string[];
   /** A helper to the lane it rolls into. */
   lanes: Record<string, string>;
+  /** What `board.agents` says each agent is. */
+  roles: Record<string, string>;
   /** Why a setting was not used, for the note the command prints. */
   notes: string[];
 }
@@ -43,7 +45,9 @@ export class BoardSettings {
     const text = (value: unknown): string | undefined =>
       typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
     const notes: string[] = [];
-    const { shapes, roster, lanes, problem } = BoardSettings.agentsOf({ value: block.agents });
+    const { shapes, roster, lanes, roles, problem } = BoardSettings.agentsOf({
+      value: block.agents,
+    });
     const logoPath = text(block.logo);
     const logo = logoPath === undefined ? undefined : opts.readLogo(logoPath);
 
@@ -71,14 +75,15 @@ export class BoardSettings {
       shapes,
       roster,
       lanes,
+      roles,
       notes,
     };
   }
 
-  /** The faces, the roster and the lanes of `board.agents`. A value that is no face or object is skipped; a lane that cannot be honoured drops the whole block, with `problem` saying why. */
+  /** The faces, the roster, the lanes and the roles of `board.agents`. A value that is no face or object is skipped; a lane that cannot be honoured drops the whole block, with `problem` saying why. */
   private static agentsOf(opts: { value: unknown }): Pick<
     IBoardSettings,
-    'shapes' | 'roster' | 'lanes'
+    'shapes' | 'roster' | 'lanes' | 'roles'
   > & {
     problem?: string;
   } {
@@ -101,20 +106,27 @@ export class BoardSettings {
         shapes: {},
         roster: [],
         lanes: {},
+        roles: {},
         problem: parsed.error.issues[0]?.message ?? 'not valid',
       };
     }
 
     const shapes: Record<string, string> = {};
     const lanes: Record<string, string> = {};
+    const roles: Record<string, string> = {};
     const roster: string[] = [];
 
     for (const [name, setting] of Object.entries(parsed.data)) {
       const shape = BoardAgentSetting.shapeOf({ setting });
       const lane = BoardAgentSetting.laneOf({ setting });
+      const role = BoardAgentSetting.roleOf({ setting });
 
       if (shape !== undefined) {
         shapes[name] = shape;
+      }
+
+      if (role !== undefined) {
+        roles[name] = role;
       }
 
       if (lane === undefined) {
@@ -124,7 +136,7 @@ export class BoardSettings {
       }
     }
 
-    return { shapes, roster, lanes };
+    return { shapes, roster, lanes, roles };
   }
 
   /** `git config user.name` of the project, or `undefined`. */
