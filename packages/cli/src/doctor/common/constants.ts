@@ -1,29 +1,55 @@
 export class DoctorChecks {
+  /** The config file: missing, unloadable or without a default export is an error, and the only check run then. */
   static readonly CONFIG = 'config';
+  /** The required files (AGENTS.md, .agents/rules.md, knowledge bundle root); a missing one is an error. */
   static readonly LAYOUT = 'layout';
+  /** Rule references in .agents/rules.md; one to a base rule the base does not carry is an error. */
   static readonly RULE_IDS = 'rule-ids';
+  /** The rule slot choices in the config; an unknown option or a key that is not a slot is an error. */
   static readonly RULE_SLOTS = 'rule-slots';
+  /** Skill names and lint: an error; a skill description with no "Use when" part is a warning. */
   static readonly SKILLS = 'skills';
+  /** The Makefile include of vulcan.mk and clashes with shipped target names; a violation is an error. */
   static readonly MAKE = 'make';
+  /** Project hooks in the config; one that registers a shipped hook path is an error. */
   static readonly HOOKS = 'hooks';
+  /** Generated tool files, settings and links against the config; a missing or stale one is an error. */
   static readonly ADAPTERS = 'adapters';
+  /** Packages declare @venizia/dev-configs and lint configs import the shared style; a miss is an error. */
   static readonly STYLE = 'style';
+  /** The committed .agents/vulcan.manifest.json against the config; a missing or outdated one is an error. */
   static readonly MANIFEST = 'manifest';
+  /** Git tags matching atlas.tagPattern that name no declared package, alias or ignored tag; an error. */
   static readonly TAGS = 'tags';
+  /** Workspaces declare packages and the knowledge index no longer holds scaffold text; a miss is an error. */
   static readonly SCAFFOLD = 'scaffold';
+  /** Layout folders are workspaces and every package lives in a listed folder; a miss is an error. */
   static readonly APPS = 'apps';
+  /** The standard package.json scripts of each app, and retired names still in use; a note only. */
   static readonly SCRIPTS = 'scripts';
+  /** The stored agents file must parse and name known agents (an error); a stale Atlas block in AGENTS.md is a note. */
   static readonly AGENTS = 'agents';
+  /** A root .dockerignore that is missing or lacks .env lines while an app has a Dockerfile; a warning. */
   static readonly DOCKERIGNORE = 'dockerignore';
+  /** The .mcp.json atlas entry, its git visibility and the Claude settings that enable atlas; a warning. */
   static readonly MCP = 'mcp';
+  /** The bunfig.toml [fmt] oxfmt setup, no fmt script and no leftover oxfmt config; a warning. */
   static readonly FORMAT = 'format';
+  /** The .agents/local workspace, stray worktrees, leftovers, reply switch, launch file and size: mostly warnings, some notes. */
   static readonly LOCAL = 'local';
+  /** The personal profile file: unreadable, not gitignored or tracked by git; a warning. */
   static readonly PROFILE = 'profile';
+  /** Guard config: trusted scripts and added patterns are notes; a stale or subcommand-less trusted script is a warning. */
   static readonly GUARDS = 'guards';
+  /** The clone commit-msg hook when a commit check is on: missing, stale or not calling commit-check; a warning. */
   static readonly COMMIT_HOOK = 'commit-hook';
+  /** The events.dir folder when outside the project: missing, not a folder or not writable; a warning. */
   static readonly EVENTS_DIR = 'events-dir';
+  /** Today's event file when it alone is over events.maxSize; a warning. */
   static readonly EVENTS_SIZE = 'events-size';
+  /** The event log is on but project.key is unset, so no flow can be created; a warning. */
   static readonly PROJECT_KEY = 'project-key';
+  /** Tracked files holding keys, tokens, URL credentials, IPv4 or machine paths: a warning; the count of acknowledged files: a note. */
   static readonly PRIVATE_VALUES = 'private-values';
 }
 
