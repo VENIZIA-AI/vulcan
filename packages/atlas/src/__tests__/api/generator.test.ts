@@ -79,6 +79,30 @@ describe('ApiReference.filesOf', () => {
   });
 });
 
+describe('ApiReference.isInternal', () => {
+  test('an export whose TSDoc says @internal is left out of its page and its counts', () => {
+    const files = ApiReference.filesOf({
+      records: [
+        record({ name: 'shown', doc: 'Public.' }),
+        record({ name: 'hidden', doc: '@internal' }),
+        record({ name: 'alsoHidden', doc: 'Used by the tests.\n\n@internal' }),
+      ],
+    });
+    const page = files.get('x-kit.md') ?? '';
+
+    expect(page).toContain('## `shown`');
+    expect(page).not.toContain('hidden');
+    expect(page).not.toContain('alsoHidden');
+    expect(page).toContain('1 exports, 1 with TSDoc.');
+  });
+
+  test('a word that only contains the tag is not the tag', () => {
+    expect(
+      ApiReference.isInternal({ record: record({ name: 'x', doc: 'See user@internal.example.' }) }),
+    ).toBe(false);
+  });
+});
+
 describe('ApiReference.proseOf', () => {
   test('markup the comment did not mean is escaped outside code', () => {
     expect(ApiReference.proseOf({ text: 'A <Entity> and {{ x }}.' })).toBe(

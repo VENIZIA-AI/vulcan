@@ -27,11 +27,18 @@ export class ApiReference {
   private static readonly GENERATED_NOTE =
     'Generated from the built declarations by `vulcan x atlas api gen` - do not edit.';
 
+  /** An export whose TSDoc says `@internal` is not public API: it has no page section and is not counted. */
+  static isInternal(opts: { record: ISymbolRecord }): boolean {
+    return /(^|\s)@internal\b/.test(opts.record.doc ?? '');
+  }
+
   /** A page for each entry (package and subpath) the records name, sorted by specifier, and an index of them. */
   static pagesOf(opts: { records: ISymbolRecord[] }): IApiPage[] {
     const bySpecifier = new Map<string, ISymbolRecord[]>();
 
-    for (const record of opts.records) {
+    for (const record of opts.records.filter(
+      (item) => !ApiReference.isInternal({ record: item }),
+    )) {
       const group = bySpecifier.get(record.specifier) ?? [];
 
       group.push(record);
