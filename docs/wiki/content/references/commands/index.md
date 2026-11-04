@@ -45,11 +45,13 @@ Usage: bun x vulcan <command>
                                   Fold the event log (and GitHub pull requests, checks and reviews when gh
                                   can read them) into flows and write one HTML file, by default
                                   .agents/local/reports/board.html; read-only; exit 2 on bad input
+  board serve [--port <n>] [--since <date>] [--dir <events folder>] [--repo owner/name]... [--no-github]
+                                  Serve the same page on 127.0.0.1 (default port 4317) and push the new events to the open page, with no reload
   ci affected --base <ref> [--head <ref>] [--check <check>] [--json | --names] | template <github|gitlab>
                                   List the workspace packages a change touches (changed ones and what
                                   depends on them) with the checks each has; template prints a CI file that
                                   runs exactly those; exit 2 on bad input
-  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] | add --kind flow [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] | tail [--since <time>] [--json] [--dir <folder>]
+  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] [--actor <name>] | add --kind flow [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] | tail [--since <time>] [--json] [--dir <folder>]
                                   Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
                                   read it; with events.log on, sync installs the Claude Code hooks that
                                   write it; exit 2 on bad input
