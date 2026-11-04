@@ -42,6 +42,8 @@ describe('BoardServer.check: who may read the board', () => {
     ['a wrong token', { token: 'b'.repeat(32) }],
     ['a token of another length', { token: 'a' }],
     ['an empty token', { token: '' }],
+    ['a multibyte token of the right length in characters', { token: 'é'.repeat(32) }],
+    ['a token with a lone surrogate', { token: '\ud800'.repeat(32) }],
     ['no Host', { host: null }],
     ['a foreign Host (DNS rebinding)', { host: `evil.example:${PORT}` }],
     ['another port in Host', { host: '127.0.0.1:1' }],
@@ -50,6 +52,12 @@ describe('BoardServer.check: who may read the board', () => {
     ['another port in Origin', { origin: 'http://127.0.0.1:1' }],
   ])('%s is 403', (_name, opts) => {
     expect(check(opts)).toEqual({ status: 403 });
+  });
+
+  test('host names are not case sensitive', () => {
+    expect(check({ host: `LocalHost:${PORT}` }).status).toBe(200);
+    expect(check({ origin: `HTTP://LOCALHOST:${PORT}` }).status).toBe(200);
+    expect(check({ host: `EVIL.example:${PORT}` }).status).toBe(403);
   });
 
   test('the same origin and no Origin at all are fine', () => {
@@ -275,6 +283,116 @@ describe('vulcan board serve', () => {
 
     expect(first).toMatchObject({ tooLarge: true });
     stream.close();
+  });
+
+  test('a multibyte token is a 403 with no body, never a server error with a stack', async () => {
+    const { root, dir } = projectWithLog();
+    const server = await startOn({ root, dir, port: 0 });
+    const base = server.url.split('?')[0];
+    const page = await fetch(`${base}?t=${encodeURIComponent('é'.repeat(32))}`);
+    const stream = await fetch(`${base}stream?t=${encodeURIComponent('é'.repeat(32))}`);
+
+    expect([page.status, stream.status]).toEqual([403, 403]);
+    const result = await page.text();
+    expect(result).toBe('');
+    const result2 = await stream.text();
+    expect(result2).toBe('');
+  });
+
+  test('an uppercase Host is answered like a lowercase one', async () => {
+    const { root, dir } = projectWithLog();
+    const server = await startOn({ root, dir, port: 0 });
+    const port = new URL(server.url).port;
+    const response = await fetch(server.url, { headers: { host: `LocalHost:${port}` } });
+
+    expect(response.status).toBe(200);
+  });
+
+  test('a log that cannot be read: the page is 503 with no body, the stream keeps the last snapshot, and one line says why', async () => {
+    const { root, dir } = projectWithLog();
+    let broken = false;
+    const server = await BoardServer.start({
+      port: 0,
+      dir,
+      collect: () => {
+        if (broken) {
+          throw new Error('EACCES: permission denied');
+        }
+
+        return BoardCommand.collect({
+          root,
+          dir,
+          since: SINCE,
+          args: { repos: [], noGithub: true },
+        });
+      },
+    });
+    const stream = await openStream({ url: server.url.replace('/?', '/stream?') });
+    const first = await stream.next({ ms: 3000 });
+    const written: string[] = [];
+    const write = process.stderr.write.bind(process.stderr);
+
+    process.stderr.write = (chunk: string | Uint8Array): boolean => {
+      written.push(String(chunk));
+
+      return true;
+    };
+    broken = true;
+
+    try {
+      const page = await fetch(server.url);
+
+      EventLog.append({
+        dir,
+        event: line({
+          minute: 400,
+          kind: 'commit',
+          actor: 'a',
+          flow: 'F-8',
+          summary: 's',
+          ref: 'abc1234',
+        }),
+      });
+
+      const second = await stream.next({ ms: 1500 });
+
+      expect(page.status).toBe(503);
+      const result = await page.text();
+      expect(result).toBe('');
+      expect(second, 'a failed read must not send a snapshot').toBeUndefined();
+    } finally {
+      process.stderr.write = write;
+    }
+
+    expect(first?.flows.length).toBeGreaterThan(0);
+    expect(written.join('')).toContain('board: cannot read the board: EACCES');
+
+    broken = false;
+
+    const again = await fetch(server.url);
+
+    expect(again.status).toBe(200);
+    stream.close();
+  });
+
+  test('a snapshot is capped by bytes, not by characters', async () => {
+    const { root, dir } = projectWithLog();
+    const server = await startOn({ root, dir, port: 0 });
+    const stream = await openStream({ url: server.url.replace('/?', '/stream?') });
+    const small = await stream.next({ ms: 3000 });
+
+    stream.close();
+    await BoardServer.stop();
+
+    const bytes = Buffer.byteLength(JSON.stringify(small));
+    const characters = JSON.stringify(small).length;
+    const capped = await startOn({ root, dir, port: 0, maxSnapshotBytes: bytes - 1 });
+    const again = await openStream({ url: capped.url.replace('/?', '/stream?') });
+
+    expect(characters).toBeLessThanOrEqual(bytes);
+    const result = await again.next({ ms: 3000 });
+    expect(result).toMatchObject({ tooLarge: true });
+    again.close();
   });
 
   test('a busy port falls back to a free one and says so', async () => {

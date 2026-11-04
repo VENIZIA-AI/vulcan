@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, statSync, watch } from 'node:fs';
 import type { FSWatcher } from 'node:fs';
 import { join } from 'node:path';
+import { EventConstants } from '../events/common/index.ts';
 import { BoardServe } from './common/index.ts';
 
 /** Tells `vulcan board serve` when the event log changed; the log reader decides what the change means. */
@@ -13,7 +14,7 @@ export class BoardWatch {
 
     try {
       return readdirSync(opts.dir)
-        .filter((name) => name.endsWith('.jsonl'))
+        .filter((name) => EventConstants.DAY_FILE.test(name))
         .sort()
         .map((name) => {
           const { size, mtimeMs } = statSync(join(opts.dir, name));

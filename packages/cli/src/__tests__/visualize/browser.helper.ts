@@ -260,16 +260,14 @@ export class BrowserPage {
     return result.result.value as TResult;
   }
 
-  /** Runs an expression in the page that is already open, without navigating, and returns its JSON result. */
-  static async evaluate<TResult>(opts: { expression: string }): Promise<TResult> {
+  /** Runs an expression in the page that is already open, without navigating, and returns its result as text (JSON, when the expression returns `JSON.stringify(...)`). */
+  static async evaluate(opts: { expression: string }): Promise<string> {
     const result = await BrowserPage.send({
       method: 'Runtime.evaluate',
       params: { expression: opts.expression, returnByValue: true, awaitPromise: true },
     });
 
-    const value: TResult = result.result.value;
-
-    return value;
+    return String(result.result.value);
   }
 
   /** A screenshot of the whole page, for a human to look at (not used by an assertion). */

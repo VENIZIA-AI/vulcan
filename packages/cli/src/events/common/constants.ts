@@ -106,6 +106,8 @@ export class EventConstants {
   /** Relative to the project root; the default place of the log. */
   static readonly DEFAULT_DIRECTORY = '.agents/local/events';
   static readonly MANIFEST_FILE = '.agents/vulcan.manifest.json';
+  /** A day file of the log: `<local day>.jsonl`; the capture is the day. */
+  static readonly DAY_FILE = /^(\d{4}-\d{2}-\d{2})\.jsonl$/;
   static readonly FILE_SUFFIX = '.jsonl';
   static readonly SUMMARY_MAX = 200;
   /** A flow's context is a few sentences, not a summary line. */

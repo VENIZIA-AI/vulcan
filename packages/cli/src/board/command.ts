@@ -13,7 +13,8 @@ import { BoardSettings } from './settings.ts';
 import { BoardPage } from './page.ts';
 import { BoardServer } from './server.ts';
 
-const USAGE = `usage: vulcan board [${BoardServe.COMMAND} [${BoardFlags.PORT} <n>] | ${BoardFlags.OUT} <file>] [${BoardFlags.OUT} <file>] [${BoardFlags.OPEN}] [${BoardFlags.SINCE} <date>] [${BoardFlags.DIR} <events folder>] [${BoardFlags.REPO} owner/name]... [${BoardFlags.NO_GITHUB}]`;
+const SHARED_FLAGS = `[${BoardFlags.OPEN}] [${BoardFlags.SINCE} <date>] [${BoardFlags.DIR} <events folder>] [${BoardFlags.REPO} owner/name]... [${BoardFlags.NO_GITHUB}]`;
+const USAGE = `usage: vulcan board [${BoardFlags.OUT} <file>] ${SHARED_FLAGS}\n       vulcan board ${BoardServe.COMMAND} [${BoardFlags.PORT} <n>] ${SHARED_FLAGS}`;
 const REPO_NAME = /^[\w.-]+\/[\w.-]+$/;
 
 interface IBoardArgs {
@@ -96,6 +97,8 @@ export class BoardCommand {
     args: Pick<IBoardArgs, 'repos' | 'noGithub'>;
     /** The GitHub lines to use; with none, they are read here (unless `noGithub`). */
     github?: { events: IBoardEvent[]; note: string };
+    /** The git user name, when the caller already has it; otherwise it is read from git. */
+    readGitUser?: () => string | undefined;
   }): IBoardData {
     const read = EventLog.read({ dir: opts.dir, since: opts.since });
     const fromLog = BoardFold.fromLog({ events: read.events });
@@ -104,7 +107,10 @@ export class BoardCommand {
       (opts.args.noGithub
         ? { events: [], note: 'github: left out (--no-github)' }
         : BoardGithub.read({ repos: opts.args.repos, cwd: opts.root, since: opts.since }));
-    const settings = BoardSettings.read({ root: opts.root });
+    const settings = BoardSettings.read({
+      root: opts.root,
+      ...(opts.readGitUser === undefined ? {} : { readGitUser: opts.readGitUser }),
+    });
     const { flows, decisions } = BoardFold.fold({
       events: [...fromLog.events, ...github.events],
       owner: settings.owner,
@@ -143,6 +149,7 @@ export class BoardCommand {
     sinceOf: () => number;
   }): Promise<number> {
     const { args } = opts;
+    const gitUser = BoardSettings.gitUserOf({ root: opts.root });
     let github: { events: IBoardEvent[]; note: string } | undefined;
     let readAt = 0;
     const collect = (): IBoardData => {
@@ -159,6 +166,7 @@ export class BoardCommand {
         since,
         args,
         ...(github === undefined ? {} : { github }),
+        readGitUser: () => gitUser,
       });
     };
     const port = args.port === undefined ? BoardServe.DEFAULT_PORT : Number(args.port);

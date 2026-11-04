@@ -1,4 +1,5 @@
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import type { Server } from 'bun';
 import { BoardRoutes, BoardServe } from './common/index.ts';
 import type { IBoardData, TBoardRoute } from './common/index.ts';
 import { BoardPage } from './page.ts';
@@ -14,10 +15,11 @@ interface IBoardServerOptions {
 }
 
 interface IBoardServerRun {
-  server: ReturnType<typeof Bun.serve>;
+  server: Server<undefined>;
   token: string;
   clients: Set<ReadableStreamDefaultController<Uint8Array>>;
   latest: string;
+  max: number;
   stopWatch: () => void;
   timers: ReturnType<typeof setInterval>[];
 }
@@ -40,7 +42,7 @@ const encoder = new TextEncoder();
 
 /**
  * `vulcan board serve`: the board on 127.0.0.1, and a stream that sends the next snapshot when the event log changes.
- * It reads and writes nothing of the project; every request must carry this run's token and a local Host and Origin.
+ * It writes nothing of the project; every request must carry this run's token and a local Host and Origin.
  */
 export class BoardServer {
   private static run: IBoardServerRun | undefined;
@@ -55,12 +57,14 @@ export class BoardServer {
     token: string;
   }): { status: number; route?: TBoardRoute } {
     const names = [`127.0.0.1:${opts.port}`, `localhost:${opts.port}`];
+    const host = opts.host?.toLowerCase() ?? null;
+    const origin = opts.origin?.toLowerCase() ?? null;
 
-    if (opts.host === null || !names.includes(opts.host)) {
+    if (host === null || !names.includes(host)) {
       return { status: 403 };
     }
 
-    if (opts.origin !== null && !names.some((name) => opts.origin === `http://${name}`)) {
+    if (origin !== null && !names.some((name) => origin === `http://${name}`)) {
       return { status: 403 };
     }
 
@@ -90,13 +94,21 @@ export class BoardServer {
 
     const token = randomBytes(BoardServe.TOKEN_BYTES).toString('hex');
     const max = opts.maxSnapshotBytes ?? BoardServe.MAX_SNAPSHOT_BYTES;
-    const handle = (
-      request: Request,
-      server: { port?: number; timeout: (request: Request, seconds: number) => void },
-    ) => BoardServer.answer({ request, server, token, collect: opts.collect });
-    const listen = (port: number) => Bun.serve({ hostname: BoardServe.HOST, port, fetch: handle });
+    const listen = (port: number): Server<undefined> =>
+      Bun.serve({
+        hostname: BoardServe.HOST,
+        port,
+        development: false,
+        fetch: (request, server) =>
+          BoardServer.answer({ request, server, token, collect: opts.collect }),
+        error: (error) => {
+          process.stderr.write(`board: a request failed: ${error.message}\n`);
+
+          return new Response(null, { status: 500 });
+        },
+      });
     let note: string | undefined;
-    let server: ReturnType<typeof Bun.serve>;
+    let server: Server<undefined>;
 
     try {
       server = listen(opts.port);
@@ -119,11 +131,18 @@ export class BoardServer {
       token,
       clients: new Set(),
       latest: BoardServer.frameOf({ data: opts.collect(), max }),
+      max,
       stopWatch: () => undefined,
       timers: [],
     };
     const publish = (): void => {
-      run.latest = BoardServer.frameOf({ data: opts.collect(), max });
+      const data = BoardServer.snapshotOf({ collect: opts.collect });
+
+      if (data === undefined) {
+        return;
+      }
+
+      run.latest = BoardServer.frameOf({ data, max });
 
       for (const client of run.clients) {
         BoardServer.send({ run, client, text: run.latest });
@@ -142,7 +161,7 @@ export class BoardServer {
     );
 
     return {
-      url: `http://${BoardServe.HOST}:${server.port}${BoardServe.PAGE_PATH}?${BoardServe.TOKEN_PARAM}=${token}`,
+      url: `http://${BoardServe.HOST}:${server.port}${BoardServer.pathWithToken({ path: BoardServe.PAGE_PATH, token })}`,
       ...(note === undefined ? {} : { note }),
     };
   }
@@ -169,37 +188,59 @@ export class BoardServer {
     await run.server.stop(true);
   }
 
+  /** Both sides are hashed, so the comparison is over 32 bytes each whatever the token text is, multibyte included. */
   private static isToken(opts: { given: string; token: string }): boolean {
-    return (
-      opts.given.length === opts.token.length &&
-      timingSafeEqual(Buffer.from(opts.given), Buffer.from(opts.token))
-    );
+    const digest = (text: string): Buffer => createHash('sha256').update(text).digest();
+
+    return timingSafeEqual(digest(opts.given), digest(opts.token));
   }
 
-  /** One SSE message: the snapshot, or a notice that it is over the cap. A JSON text has no raw line break, so it is one `data:` line. */
+  private static pathWithToken(opts: { path: string; token: string }): string {
+    return `${opts.path}?${BoardServe.TOKEN_PARAM}=${opts.token}`;
+  }
+
+  /** The folded board, or `undefined` with one line on stderr when it cannot be read (a log file the user cannot open, say). */
+  private static snapshotOf(opts: { collect: () => IBoardData }): IBoardData | undefined {
+    try {
+      return opts.collect();
+    } catch (error) {
+      process.stderr.write(
+        `board: cannot read the board: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+
+      return undefined;
+    }
+  }
+
+  /** One SSE message: the snapshot, or a notice that it is over the cap in bytes. A JSON text has no raw line break, so it is one `data:` line. */
   private static frameOf(opts: { data: IBoardData; max: number }): string {
     const json = JSON.stringify(opts.data);
 
-    return json.length > opts.max ? 'data: {"tooLarge":true}\n\n' : `data: ${json}\n\n`;
+    return Buffer.byteLength(json) > opts.max ? 'data: {"tooLarge":true}\n\n' : `data: ${json}\n\n`;
   }
 
+  /** A client that closed is dropped; one that has not read what it was sent (a full queue) skips this message instead of piling up. */
   private static send(opts: {
     run: IBoardServerRun;
     client: ReadableStreamDefaultController<Uint8Array>;
     text: string;
   }): void {
-    if (opts.client.desiredSize === null) {
+    const { desiredSize } = opts.client;
+
+    if (desiredSize === null) {
       opts.run.clients.delete(opts.client);
 
       return;
     }
 
-    opts.client.enqueue(encoder.encode(opts.text));
+    if (desiredSize > 0) {
+      opts.client.enqueue(encoder.encode(opts.text));
+    }
   }
 
   private static answer(opts: {
     request: Request;
-    server: { port?: number; timeout: (request: Request, seconds: number) => void };
+    server: Server<undefined>;
     token: string;
     collect: () => IBoardData;
   }): Response {
@@ -214,12 +255,17 @@ export class BoardServer {
     });
 
     if (verdict.route === BoardRoutes.PAGE) {
-      const data = {
-        ...opts.collect(),
-        live: { stream: `${BoardServe.STREAM_PATH}?${BoardServe.TOKEN_PARAM}=${token}` },
-      };
+      const data = BoardServer.snapshotOf({ collect: opts.collect });
 
-      return new Response(BoardPage.render({ data }), { headers: PAGE_HEADERS });
+      if (data === undefined) {
+        return new Response(null, { status: 503 });
+      }
+
+      const live = { stream: BoardServer.pathWithToken({ path: BoardServe.STREAM_PATH, token }) };
+
+      return new Response(BoardPage.render({ data: { ...data, live } }), {
+        headers: PAGE_HEADERS,
+      });
     }
 
     if (verdict.route === BoardRoutes.STREAM) {
@@ -229,10 +275,7 @@ export class BoardServer {
     return new Response(null, { status: verdict.status });
   }
 
-  private static openStream(opts: {
-    request: Request;
-    server: { timeout: (request: Request, seconds: number) => void };
-  }): Response {
+  private static openStream(opts: { request: Request; server: Server<undefined> }): Response {
     const { run } = BoardServer;
 
     if (run === undefined || run.clients.size >= BoardServe.MAX_STREAMS) {
@@ -242,18 +285,21 @@ export class BoardServer {
     opts.server.timeout(opts.request, 0);
 
     let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
-    const body = new ReadableStream<Uint8Array>({
-      start: (started) => {
-        controller = started;
-        run.clients.add(started);
-        BoardServer.send({ run, client: started, text: `retry: 3000\n\n${run.latest}` });
+    const body = new ReadableStream<Uint8Array>(
+      {
+        start: (started) => {
+          controller = started;
+          run.clients.add(started);
+          BoardServer.send({ run, client: started, text: `retry: 3000\n\n${run.latest}` });
+        },
+        cancel: () => {
+          if (controller !== undefined) {
+            run.clients.delete(controller);
+          }
+        },
       },
-      cancel: () => {
-        if (controller !== undefined) {
-          run.clients.delete(controller);
-        }
-      },
-    });
+      new ByteLengthQueuingStrategy({ highWaterMark: 2 * run.max }),
+    );
 
     return new Response(body, { headers: STREAM_HEADERS });
   }

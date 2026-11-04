@@ -77,7 +77,7 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
       }),
     });
 
-    const result = await BrowserPage.evaluate<string>({
+    const result = await BrowserPage.evaluate({
       expression: `(async () => {
             await ${WAIT("[...document.querySelectorAll('#dock .cell')].some((c) => c.dataset.agent === 'brand-new-agent')", 8000)};
             return JSON.stringify({
@@ -137,7 +137,7 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
     });
     await BoardServer.stop();
 
-    const result = await BrowserPage.evaluate<string>({
+    const result = await BrowserPage.evaluate({
       expression: `(async () => {
           await ${WAIT("document.getElementById('fresh').textContent.includes('disconnected')", 8000)};
           return JSON.stringify({

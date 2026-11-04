@@ -18,7 +18,7 @@ packages: ['@venizia/vulcan']
 - **Port.** Default 4317. When it is busy, a free port is taken and the command says so.
 - **GitHub** is read at most once a minute, not on each change of the log; `--no-github` works as before.
 - **A dropped stream.** The header says `disconnected, retrying`, the board stays on screen, and the page reconnects with a growing wait.
-- **Protected against other pages.** It listens on `127.0.0.1` only. Every request needs the token of the run and a local `Host` and origin, otherwise it is refused; only `GET` is answered, and the server writes nothing. The token is never written to a file or to the event log. It stops other web pages and other users, not your own processes: the token is in the address you open, and with `--open` it is in the arguments of the opener for a moment.
+- **Protected against other pages.** It listens on `127.0.0.1` only. Every request needs the token of the run and a local `Host` and origin, otherwise it is refused; only `GET` is answered, and the server writes nothing. The board is built by the same code as `vulcan board`, so it runs `git config user.name` once at start and `gh` at most once a minute. The token is never written to a file or to the event log. It stops other web pages. It does not stop a user who can read your process list: with `--open` the address, token included, is in the argument list of the opener and of the browser while they run (on a shared machine, copy the printed address instead). It does not stop your own processes either.
 
 ## Tested on, and not
 
