@@ -19,7 +19,8 @@ interface IShape {
   detail: ReactNode;
 }
 
-const star = (x: number, y: number, r: number): string => {
+const star = (opts: { x: number; y: number; r: number }): string => {
+  const { x, y, r } = opts;
   const q = r * 0.32;
 
   return `M${x} ${y - r}Q${x + q} ${y - q} ${x + r} ${y}Q${x + q} ${y + q} ${x} ${y + r}Q${x - q} ${y + q} ${x - r} ${y}Q${x - q} ${y - q} ${x} ${y - r}z`;
@@ -43,8 +44,8 @@ const SHAPES: Record<string, IShape> = {
     knot: [31.8, 19.6],
     detail: (
       <g className="ant">
-        <path d={star(20, 6.4, 3.6)} className="acc" />
-        <path d={star(26.6, 8.6, 1.6)} className="acc" />
+        <path d={star({ x: 20, y: 6.4, r: 3.6 })} className="acc" />
+        <path d={star({ x: 26.6, y: 8.6, r: 1.6 })} className="acc" />
       </g>
     ),
   },
@@ -229,8 +230,8 @@ const Marks = (props: { shape: IShape; state: TFaceState; tint: string }) => {
   if (props.state === 'working') {
     return (
       <>
-        <path d={star(33.4, 9.4, 2.2)} className="spark" />
-        <path d={star(36.6, 15, 1.4)} className="spark" />
+        <path d={star({ x: 33.4, y: 9.4, r: 2.2 })} className="spark" />
+        <path d={star({ x: 36.6, y: 15, r: 1.4 })} className="spark" />
       </>
     );
   }

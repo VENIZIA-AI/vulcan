@@ -9,9 +9,9 @@ export const useStored = <TValue extends string>(opts: {
   allowed: readonly TValue[];
 }): [TValue, (value: TValue) => void] => {
   const [value, setValue] = useState<TValue>(() => {
-    const kept = BoardStorage.get({ key: opts.key }) as TValue | null;
+    const kept = BoardStorage.get({ key: opts.key });
 
-    return kept !== null && opts.allowed.includes(kept) ? kept : opts.initial;
+    return opts.allowed.find((one) => one === kept) ?? opts.initial;
   });
   const save = useCallback(
     (next: TValue) => {

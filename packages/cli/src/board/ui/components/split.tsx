@@ -1,14 +1,19 @@
 import { useRef } from 'react';
 import { useT } from '../i18n/context.ts';
 
-const MIN = 25;
-const MAX = 75;
-export const SPLIT_DEFAULT = 58;
+/** How far the bar may go, where it starts, and what a stored or dragged value becomes. */
+export class BoardSplit {
+  static readonly MIN = 25;
+  static readonly MAX = 75;
+  static readonly DEFAULT = 58;
+
+  static clamp(opts: { percent: number }): number {
+    return Math.max(BoardSplit.MIN, Math.min(BoardSplit.MAX, Math.round(opts.percent)));
+  }
+}
 
 const ARROWS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 };
-const EDGES: Record<string, number> = { Home: MIN, End: MAX };
-
-const clamp = (value: number): number => Math.max(MIN, Math.min(MAX, Math.round(value)));
+const EDGES: Record<string, number> = { Home: BoardSplit.MIN, End: BoardSplit.MAX };
 
 /** The bar between the flow list and the detail: drag it, or use the arrow keys, Home and End. */
 export const Split = (props: {
@@ -27,8 +32,8 @@ export const Split = (props: {
       aria-orientation="vertical"
       tabIndex={0}
       aria-label={t('split')}
-      aria-valuemin={MIN}
-      aria-valuemax={MAX}
+      aria-valuemin={BoardSplit.MIN}
+      aria-valuemax={BoardSplit.MAX}
       aria-valuenow={props.percent}
       onPointerDown={(event) => {
         dragging.current = true;
@@ -39,7 +44,10 @@ export const Split = (props: {
         const box = props.area()?.getBoundingClientRect();
 
         if (dragging.current && box) {
-          props.onChange(clamp(((event.clientX - box.left) / box.width) * 100), false);
+          props.onChange(
+            BoardSplit.clamp({ percent: ((event.clientX - box.left) / box.width) * 100 }),
+            false,
+          );
         }
       }}
       onPointerUp={() => {
@@ -56,7 +64,7 @@ export const Split = (props: {
 
         if (event.key in ARROWS || event.key in EDGES) {
           event.preventDefault();
-          props.onChange(clamp(to), true);
+          props.onChange(BoardSplit.clamp({ percent: to }), true);
         }
       }}
     />

@@ -46,7 +46,7 @@ describe.skipIf(!hasBrowser)('the board page built from components, in a real br
   });
 
   test('the preact alias keeps what the page will rely on: onChange, useId, useRef, ref callbacks and keys', async () => {
-    const script = await BoardUiBuild.bundle({ root: ROOT, entry: PROBE });
+    const { text: script } = await BoardUiBuild.bundle({ root: ROOT, entry: PROBE });
     const html = withErrors(
       `<!doctype html><body><div id="root"></div><script>${script.replaceAll('</script', '<\\/script')}</script></body>`,
     );

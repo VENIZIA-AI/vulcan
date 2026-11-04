@@ -98,10 +98,12 @@ export class BoardView {
       const was = docs[lane];
       const newer = was === undefined || doc.checkedAt > was.checkedAt ? doc : was;
 
-      docs[lane] =
-        was === undefined
-          ? doc
-          : { ...newer, state: RANK[doc.state] > RANK[was.state] ? doc.state : was.state };
+      if (was === undefined) {
+        docs[lane] = doc;
+        continue;
+      }
+
+      docs[lane] = { ...newer, state: RANK[doc.state] > RANK[was.state] ? doc.state : was.state };
     }
 
     return docs;

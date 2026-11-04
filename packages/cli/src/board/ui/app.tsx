@@ -12,7 +12,7 @@ import { Keys } from './components/keys.tsx';
 import { FlowList, VIEW_MODES } from './components/list.tsx';
 import type { TViewMode } from './components/list.tsx';
 import { AgentPop } from './components/pop.tsx';
-import { SPLIT_DEFAULT, Split } from './components/split.tsx';
+import { BoardSplit, Split } from './components/split.tsx';
 import { useLive, useNow, useStored } from './hooks.ts';
 import { UiContext } from './i18n/context.ts';
 import { BoardI18n } from './i18n/translate.ts';
@@ -34,8 +34,8 @@ const SNAPSHOT_KEYS = [
 ] as const;
 const TYPING = 'input,textarea,select,[contenteditable="true"]';
 
-export const App = (opts: { data: IBoardData }) => {
-  const [data, setData] = useState(opts.data);
+export const App = (props: { data: IBoardData }) => {
+  const [data, setData] = useState(props.data);
   const prefix = `board:${data.key}:`;
   const [language, setLanguage] = useStored<TBoardLanguage>({
     key: `${prefix}lang`,
@@ -64,12 +64,14 @@ export const App = (opts: { data: IBoardData }) => {
   const [agent, setAgent] = useState<string | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [attempts, setAttempts] = useState<Record<string, number>>({});
-  const [pop, setPop] = useState<{ name: string; anchor: Element } | null>(null);
+  const [pop, setPop] = useState<{ name: string; anchor: HTMLElement } | null>(null);
   const [lastSeen, setLastSeen] = useState(
     () => BoardStorage.get({ key: `${prefix}lastSeen` }) ?? new Date().toISOString(),
   );
-  const [split, setSplit] = useState(
-    () => Number(BoardStorage.get({ key: `${prefix}split` })) || SPLIT_DEFAULT,
+  const [split, setSplit] = useState(() =>
+    BoardSplit.clamp({
+      percent: Number(BoardStorage.get({ key: `${prefix}split` })) || BoardSplit.DEFAULT,
+    }),
   );
   const area = useRef<HTMLDivElement>(null);
   const now = useNow();
@@ -108,23 +110,23 @@ export const App = (opts: { data: IBoardData }) => {
   const shapeOf = (name: string): string =>
     BoardFace.shapeOf({ name, owner: data.owner, shapes: data.shapes });
 
-  const select = (id: string, opensDetail = true): void => {
-    setSelected(id);
-    setDetailOpen(opensDetail);
+  const select = (opts: { id: string; open?: boolean }): void => {
+    setSelected(opts.id);
+    setDetailOpen(opts.open ?? true);
   };
   const closePop = (): void => {
     if (pop?.anchor.isConnected) {
-      (pop.anchor as HTMLElement).focus();
+      pop.anchor.focus();
     }
 
     setPop(null);
   };
-  const openPop = (name: string, anchor: Element): void => {
-    setPop(pop?.name === name ? null : { name, anchor });
+  const openPop = (opts: { name: string; anchor: HTMLElement }): void => {
+    setPop(pop?.name === opts.name ? null : opts);
   };
   const toFlow = (id: string): void => {
     setPop(null);
-    select(id);
+    select({ id });
   };
 
   useEffect(() => {
@@ -146,7 +148,7 @@ export const App = (opts: { data: IBoardData }) => {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
-      const target = event.target as Element | null;
+      const target = event.target instanceof Element ? event.target : null;
 
       if (event.key === 'Escape' && pop) {
         event.preventDefault();
@@ -165,16 +167,15 @@ export const App = (opts: { data: IBoardData }) => {
       if (event.key === 'j' || event.key === 'k') {
         event.preventDefault();
 
-        const next =
-          event.key === 'j' ? Math.min(cards.length - 1, at + 1) : Math.max(0, at < 0 ? 0 : at - 1);
+        const next = event.key === 'j' ? Math.min(cards.length - 1, at + 1) : Math.max(0, at - 1);
 
         if (cards.length > 0 && cards[next].dataset.id) {
-          select(cards[next].dataset.id, false);
+          select({ id: cards[next].dataset.id, open: false });
           cards[next].focus();
         }
       } else if (event.key === 'Enter' && selected && !target?.closest?.('button,a,.row')) {
         event.preventDefault();
-        select(selected);
+        select({ id: selected });
       } else if (event.key === 'e' && selected) {
         setEverything(!everything);
       } else if (event.key === 'Escape') {
@@ -182,14 +183,16 @@ export const App = (opts: { data: IBoardData }) => {
           setKeysOpen(false);
         } else {
           setDetailOpen(false);
-          document.querySelector<HTMLElement>(`.row[data-id="${selected}"]`)?.focus();
+          document
+            .querySelector<HTMLElement>(`.row[data-id="${CSS.escape(selected ?? '')}"]`)
+            ?.focus();
         }
       } else if (event.key === '?') {
         setKeysOpen(!keysOpen);
       }
     };
     const onPointer = (event: PointerEvent): void => {
-      const target = event.target as Element | null;
+      const target = event.target instanceof Element ? event.target : null;
 
       if (pop && !target?.closest?.('#pop,.cell')) {
         setPop(null);
@@ -246,11 +249,11 @@ export const App = (opts: { data: IBoardData }) => {
                 .find(Boolean);
 
               if (next === 'diagram' && selected === null && (first ?? flows[0])) {
-                select((first ?? flows[0]).flow.id);
+                select({ id: (first ?? flows[0]).flow.id });
               }
             }}
             selected={selected}
-            onSelect={select}
+            onSelect={(id) => select({ id })}
             agent={agent}
             onAgent={setAgent}
             open={open}
@@ -273,7 +276,7 @@ export const App = (opts: { data: IBoardData }) => {
             }}
             onReset={() => {
               BoardStorage.remove({ key: `${prefix}split` });
-              setSplit(SPLIT_DEFAULT);
+              setSplit(BoardSplit.DEFAULT);
             }}
           />
           <Detail
@@ -287,7 +290,7 @@ export const App = (opts: { data: IBoardData }) => {
             onEverything={setEverything}
             attempts={attempts}
             onAttempt={(key, round) => setAttempts((was) => ({ ...was, [key]: round }))}
-            onSelect={select}
+            onSelect={(id) => select({ id })}
             onClose={() => setDetailOpen(false)}
           />
         </div>

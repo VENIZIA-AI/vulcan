@@ -4,9 +4,9 @@ import { BoardTime } from '../state/time.ts';
 import { BoardUrl } from '../url.ts';
 import { THEME_ICONS } from './icons.tsx';
 
-const THEME_NAMES = { light: 'sáng', dark: 'tối', system: 'theo máy' } as const;
-export type TTheme = keyof typeof THEME_NAMES;
-export const THEMES = Object.keys(THEME_NAMES) as TTheme[];
+export type TTheme = 'light' | 'dark' | 'system';
+export const THEMES: TTheme[] = ['light', 'dark', 'system'];
+const THEME_NAMES: Record<TTheme, string> = { light: 'sáng', dark: 'tối', system: 'theo máy' };
 
 interface IHeaderProps {
   title: string;

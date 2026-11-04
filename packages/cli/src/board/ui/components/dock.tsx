@@ -10,13 +10,23 @@ const Cell = (props: {
   row: IAgentRow;
   shape: string;
   open: boolean;
-  onOpen: (name: string, anchor: Element) => void;
+  onOpen: (opts: { name: string; anchor: HTMLElement }) => void;
 }) => {
   const { t, now } = useUi();
   const { row } = props;
   const cell = useRef<HTMLButtonElement>(null);
   const ticker = useRef<HTMLSpanElement>(null);
   const word = t(BoardStateWords.WORD[row.st]);
+  let ago = '';
+  let helpers = '';
+
+  if (row.ts) {
+    ago = `${row.approx ? '≈ ' : ''}${BoardTime.ago({ iso: row.ts, now, translate: t })}`;
+  }
+
+  if (row.helpers) {
+    helpers = `+${row.helpers} ${t(row.helpers === 1 ? 'n.helper' : 'n.helpers')}`;
+  }
 
   useReplay({ ref: cell, trigger: row.st, className: 'shake', when: row.st === 'blocked' });
   useReplay({ ref: cell, trigger: row.key, className: 'hop' });
@@ -32,7 +42,7 @@ const Cell = (props: {
       aria-expanded={props.open}
       title={`${row.n} · ${word}${row.flow ? ` · ${row.flow}` : ''} · ${row.text}`}
       aria-label={`${row.n}, ${word}${row.flow ? `${t(', luồng ')}${row.flow}` : ''}. ${row.text}`}
-      onClick={(event) => props.onOpen(row.n, event.currentTarget)}
+      onClick={(event) => props.onOpen({ name: row.n, anchor: event.currentTarget })}
     >
       <span className="fw">
         <Face
@@ -54,16 +64,8 @@ const Cell = (props: {
         </span>
         <span className="ft">
           <span className={`spill ${row.st}`}>{t(BoardStateWords.PILL[row.st])}</span>
-          <span className="ag">
-            {row.ts
-              ? `${row.approx ? '≈ ' : ''}${BoardTime.ago({ iso: row.ts, now, translate: t })}`
-              : ''}
-          </span>
-          <span className="hp">
-            {row.helpers
-              ? `+${row.helpers} ${t(row.helpers === 1 ? 'n.helper' : 'n.helpers')}`
-              : ''}
-          </span>
+          <span className="ag">{ago}</span>
+          <span className="hp">{helpers}</span>
         </span>
       </span>
     </button>
@@ -76,7 +78,7 @@ export const Dock = (props: {
   owner: string;
   shapes: Record<string, string>;
   popFor: string | null;
-  onOpen: (name: string, anchor: Element) => void;
+  onOpen: (opts: { name: string; anchor: HTMLElement }) => void;
 }) => {
   const { t } = useUi();
   const count = (state: string): number => props.rows.filter((row) => row.st === state).length;

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Board</title>
     <style>
-      /* One screen: a top bar, then tabs. Luồng = flow list (left) + flow detail (right). Venizia tokens; bronze is the one data hue. */
+      /* One screen: a top bar, the flow list (left) and the flow detail (right), and the dock of agents below. Venizia tokens; bronze is the one data hue. */
       :root {
         --font: 'Inter Display','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
         --mono: 'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -317,14 +317,6 @@
       .btn:hover {
         background: var(--soft);
       }
-      .btn.primary {
-        background: var(--ink);
-        color: var(--bg);
-        border-color: var(--ink);
-      }
-      .btn.primary:hover {
-        opacity: 0.88;
-      }
       .btn[disabled] {
         opacity: 0.5;
         cursor: default;
@@ -625,21 +617,6 @@
           stroke-opacity: 0.45;
         }
       }
-      .reas {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      .reas select {
-        height: 32px;
-        border: 1px solid var(--line-2);
-        border-radius: var(--r);
-        background: var(--bg);
-        color: var(--ink);
-        font: 500 13px var(--font);
-        padding: 0 8px;
-      }
       @media (max-width: 900px) {
         .kc {
           flex-basis: 170px;
@@ -822,9 +799,6 @@
         grid-column: 5;
         grid-row: 1;
       }
-      .row > .acts {
-        grid-row: 3;
-      }
       .row:last-child {
         border-bottom: 0;
       }
@@ -969,12 +943,6 @@
         color: var(--wait);
         font-weight: 600;
       }
-      .acts {
-        grid-column: 3/-1;
-        display: flex;
-        gap: 8px;
-        margin-top: 2px;
-      }
       .empty {
         margin: 0;
         padding: 14px 12px;
@@ -1055,12 +1023,6 @@
       .pill.parked {
         background: var(--soft);
         color: var(--muted);
-      }
-      .dacts {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        align-items: center;
       }
       .ask {
         padding: 10px 12px;
@@ -1224,63 +1186,8 @@
           transform: none;
         }
       }
-      .placeholder {
-        padding: 24px 16px;
-        color: var(--muted);
-        max-width: 44ch;
-      }
       .back {
         display: none;
-      }
-      .tbl {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      .tbl th {
-        text-align: left;
-        font-weight: 500;
-        font-size: 12px;
-        color: var(--muted);
-        padding: 10px 12px;
-        border-bottom: 1px solid var(--line);
-        position: sticky;
-        top: 0;
-        background: var(--head);
-      }
-      .tbl td {
-        padding: 10px 12px;
-        border-bottom: 1px solid var(--line);
-        vertical-align: top;
-      }
-      .tbl td.num {
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-        white-space: nowrap;
-      }
-      .tbl .mono {
-        font-family: var(--mono);
-        font-size: 12px;
-        color: var(--ink);
-        white-space: nowrap;
-      }
-      .stt {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 12px;
-        white-space: nowrap;
-      }
-      .stt i {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--line-2);
-      }
-      .stt.working i {
-        background: var(--accent);
-      }
-      .stt.blocked i {
-        background: var(--fail);
       }
       .rel {
         display: grid;
@@ -1297,22 +1204,6 @@
         font-size: 13px;
         color: var(--ink);
         font-weight: 600;
-      }
-      .kv {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 6px 12px;
-        margin: 0 0 14px;
-      }
-      .kv dt {
-        color: var(--muted);
-        font-size: 12px;
-      }
-      .kv dd {
-        margin: 0;
-        font-family: var(--mono);
-        font-size: 12px;
-        color: var(--ink);
       }
       .ul {
         list-style: none;
@@ -1715,9 +1606,6 @@
         fill: var(--muted);
         font: 600 7.5px/1 var(--font);
       }
-      .bot .dot {
-        fill: var(--face-ink);
-      }
       .cell.working .body {
         animation: bob 1.8s ease-in-out infinite;
       }
@@ -1763,12 +1651,6 @@
         animation: typing 1.2s infinite;
       }
       .cell.working .spark + .spark {
-        animation-delay: 0.3s;
-      }
-      .cell.working .dot:nth-of-type(2) {
-        animation-delay: 0.15s;
-      }
-      .cell.working .dot:nth-of-type(3) {
         animation-delay: 0.3s;
       }
       @keyframes typing {
@@ -2015,35 +1897,6 @@
         gap: 8px;
         flex-wrap: wrap;
       }
-      .toast {
-        position: fixed;
-        left: 50%;
-        bottom: calc(92px + env(safe-area-inset-bottom, 0px));
-        z-index: 40;
-        transform: translate(-50%, 8px);
-        opacity: 0;
-        pointer-events: none;
-        max-width: calc(100vw - 32px);
-        padding: 10px 14px;
-        border-radius: var(--r);
-        background: var(--ink);
-        color: var(--bg);
-        font-weight: 500;
-        font-size: 13px;
-        box-shadow: 0 8px 24px #00000033; /* taste-skill-ignore: a floating toast */
-        transition:
-          opacity 0.18s,
-          transform 0.24s var(--ease-out);
-      }
-      .toast.on {
-        opacity: 1;
-        transform: translate(-50%, 0);
-      }
-      .toast.warn {
-        background: var(--wait-soft);
-        color: var(--ink);
-        border: 1px solid var(--wait);
-      }
       .theme {
         position: relative;
       }
@@ -2184,9 +2037,6 @@
           grid-column: 2/-1;
           grid-row: 3;
         }
-        .acts {
-          grid-column: 2/-1;
-        }
         .tt .sub,
         .holder,
         .age,
@@ -2206,9 +2056,6 @@
         }
         .rel .pane {
           min-height: 220px;
-        }
-        .tbl .hide-s {
-          display: none;
         }
       }
       @media (prefers-reduced-motion: reduce) {

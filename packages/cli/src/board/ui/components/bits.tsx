@@ -58,17 +58,33 @@ export const Strip = (props: { view: IFlowView }) => {
         const reviews = here.filter((event) => event.kind === 'review');
         const name = t(BoardTables.STAGES[k]);
         const cur = k === view.flow.cur;
-        const tone =
-          cur && (view.flow.state === 'you' || view.flow.state === 'blocked')
-            ? ` ${view.flow.state}`
-            : '';
+        const classes = ['sg'];
+        const titles = [name];
+
+        if (k < view.flow.cur) {
+          classes.push('past');
+        }
+
+        if (cur) {
+          classes.push('cur');
+        }
+
+        if (cur && (view.flow.state === 'you' || view.flow.state === 'blocked')) {
+          classes.push(view.flow.state);
+        }
+
+        if (ci.length > 0) {
+          titles.push(
+            `CI ${ci.map((event) => (event.status === 'fail' ? t('đỏ') : 'xanh')).join(', ')}`,
+          );
+        }
+
+        if (reviews.length > 0) {
+          titles.push(`${reviews.length}${t(' vòng review')}`);
+        }
 
         return (
-          <span
-            key={k}
-            className={`sg${k < view.flow.cur ? ' past' : ''}${cur ? ` cur${tone}` : ''}`}
-            title={`${name}${ci.length ? ` · CI ${ci.map((event) => (event.status === 'fail' ? t('đỏ') : 'xanh')).join(', ')}` : ''}${reviews.length ? ` · ${reviews.length}${t(' vòng review')}` : ''}`}
-          >
+          <span key={k} className={classes.join(' ')} title={titles.join(' · ')}>
             {name}
             {ci.slice(-4).map((event) => (
               <Mark key={event.id} bad={event.status === 'fail'} />
@@ -109,8 +125,14 @@ export const EventItem = (props: { event: IBoardViewEvent; chip?: ReactNode }) =
   const { event } = props;
   const approx = BoardTime.isApproximate({ source: event.source });
   const link = BoardUrl.safe({ value: event.link });
-  const origin = approx ? t('giờ ước lượng') : event.source === 'github' ? 'GitHub' : '';
   const kind = BoardTables.KIND_TEXT[event.kind];
+  let origin = '';
+
+  if (approx) {
+    origin = t('giờ ước lượng');
+  } else if (event.source === 'github') {
+    origin = 'GitHub';
+  }
 
   return (
     <li className={`ev${isBad(event) ? ' fail' : ''}`}>

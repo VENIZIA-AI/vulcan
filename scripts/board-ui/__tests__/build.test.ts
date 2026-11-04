@@ -38,7 +38,17 @@ describe('BoardUiBuild.build', () => {
   test('the shipped page is the build of its source: run `make board-ui` after a change to packages/cli/src/board/ui', async () => {
     const shipped = readFileSync(join(ROOT, 'packages/cli/base/templates/board.html'), 'utf8');
 
-    expect(shipped).toContain(`built from ${BoardUiBuild.sourceHash({ root: ROOT })};`);
+    const { inputs } = await BoardUiBuild.bundle({ root: ROOT });
+
+    expect(shipped).toContain(`built from ${BoardUiBuild.hashOf({ root: ROOT, inputs })};`);
+  });
+
+  test('the fingerprint covers what the bundle takes from outside the components: the board constants and preact', async () => {
+    const { inputs } = await BoardUiBuild.bundle({ root: ROOT });
+
+    expect(inputs).toContain('packages/cli/src/board/common/constants.ts');
+    expect(inputs.some((file) => /\/preact@[\d.]+\//.test(file))).toBe(true);
+    expect(inputs.some((file) => file.endsWith('src/board/ui/app.tsx'))).toBe(true);
   });
 
   test('on the Bun the project pins, the shipped page is the build of its source to the byte', async () => {
