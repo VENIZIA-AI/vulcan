@@ -23,6 +23,53 @@ export class DoctorChecks {
   static readonly COMMIT_HOOK = 'commit-hook';
   static readonly EVENTS_DIR = 'events-dir';
   static readonly EVENTS_SIZE = 'events-size';
+  static readonly PRIVATE_VALUES = 'private-values';
+}
+
+/** What `vulcan doctor` looks for in committed files. */
+export class PrivateValueKinds {
+  static readonly PRIVATE_KEY = 'private-key';
+  static readonly TOKEN = 'token';
+  static readonly URL_CREDENTIALS = 'url-credentials';
+  static readonly IPV4 = 'ipv4';
+  static readonly MACHINE_PATH = 'machine-path';
+
+  static readonly SCHEME_SET = new Set<string>([
+    this.PRIVATE_KEY,
+    this.TOKEN,
+    this.URL_CREDENTIALS,
+    this.IPV4,
+    this.MACHINE_PATH,
+  ]);
+
+  static isValid(value: string): boolean {
+    return this.SCHEME_SET.has(value);
+  }
+}
+
+export class PrivateValueScan {
+  /** An address, not part of a longer dotted number. */
+  static readonly IPV4 =
+    /(?<![\d.])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\d.])/g;
+  /** Loopback, any, broadcast and the three documentation ranges: no machine is named. */
+  static readonly ALLOWED_IPV4 = [
+    /^127\./,
+    /^0\./,
+    /^255\./,
+    /^192\.0\.2\./,
+    /^198\.51\.100\./,
+    /^203\.0\.113\./,
+  ];
+  static readonly MACHINE_PATH =
+    /\/home\/[a-z_][\w.-]*\/|\/Users\/[A-Za-z_][\w.-]*\/|[A-Za-z]:\\Users\\[\w.-]+\\/g;
+  /** Lockfiles, diagrams, snapshots, tests and fixtures hold hashes and fake values on purpose. */
+  static readonly SKIPPED_PATHS = [
+    /(^|\/)(bun\.lock|package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$/,
+    /\.(drawio|snap)$/,
+    /(^|\/)(__tests__|fixtures|golden)\//,
+    /\.test\.[^/]*$/,
+  ];
+  static readonly MAX_BYTES = 1_000_000;
 }
 
 /** The `package.json` scripts every app carries, and the names the standard retired. */

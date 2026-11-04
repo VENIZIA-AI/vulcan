@@ -12,6 +12,8 @@ export class EventKinds {
   static readonly DECISION = 'decision';
   /** A flow's title and the one-line reason for it, in the owner's language; the newest per flow wins. */
   static readonly FLOW = 'flow';
+  /** An agent used a tool, at most once in `EventConstants.TICK_SECONDS` per session: the board reads it as working. */
+  static readonly TOOL_TICK = 'tool-tick';
 
   static readonly SCHEME_SET = new Set<string>([
     this.SESSION_START,
@@ -24,6 +26,7 @@ export class EventKinds {
     this.PR,
     this.DECISION,
     this.FLOW,
+    this.TOOL_TICK,
   ]);
 
   static isValid(value: string): boolean {
@@ -114,6 +117,16 @@ export class EventConstants {
   static readonly CONTEXT_MAX = 600;
   /** What a sent message is called when its sender gave no label: the text of a message is never used. */
   static readonly MESSAGE_SENT_LABEL = 'message sent';
+  /** The summary of a tool tick: it says that a tool was used, and nothing of which. */
+  static readonly TOOL_TICK_LABEL = 'using a tool';
+  /** A session writes at most one tool tick in each window of this many seconds. */
+  static readonly TICK_SECONDS = 30;
+  /**
+   * The folder, from the project root, that holds one empty stamp per session and window, `<session>.<window>`; a tick
+   * removes the stamps of earlier windows. Spelt out because the hook imports no other module of the package (a test holds it
+   * inside `ProjectLayout.LOCAL_DIRECTORY/tmp`).
+   */
+  static readonly TICK_FOLDER = '.agents/local/tmp/event-ticks';
   static readonly REF_MAX = 120;
   static readonly ACTOR_MAX = 80;
   static readonly REDACTED = '[redacted]';
@@ -131,8 +144,9 @@ export class EventConstants {
 
 /** Shapes of a secret that must never reach a log line. Best effort: a summary is a label, not a document. */
 export class EventSecrets {
-  static readonly PATTERNS: RegExp[] = [
-    /-----BEGIN [A-Z ]*PRIVATE KEY-----.*/g,
+  static readonly PRIVATE_KEY = /-----BEGIN [A-Z ]*PRIVATE KEY-----.*/g;
+  /** The known token prefixes and shapes. */
+  static readonly TOKENS: RegExp[] = [
     /\b(?:ghp|gho|ghs|ghu|ghr)_[A-Za-z0-9]{16,}/g,
     /\bgithub_pat_[A-Za-z0-9_]{16,}/g,
     /\bnpm_[A-Za-z0-9]{16,}/g,
@@ -146,8 +160,17 @@ export class EventSecrets {
     /\bBasic\s+(?:(?=[A-Za-z0-9+/]*(?:[0-9+/]|[a-z][A-Z]))[A-Za-z0-9+/]{8,}={0,2}|[A-Za-z0-9+/]{8,}={1,2})/g,
     /\bxox[abprs]-[A-Za-z0-9-]{10,}/g,
     /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi,
+  ];
+  /** Long runs that are secrets in a log line but hashes in a lockfile. */
+  static readonly HIGH_ENTROPY: RegExp[] = [
     /\b[0-9a-fA-F]{64,}\b/g,
     /\b(?=[A-Za-z0-9+]*\d)(?=[A-Za-z0-9+]*[a-z])(?=[A-Za-z0-9+]*[A-Z])[A-Za-z0-9+]{40,}={0,2}/g,
+  ];
+  /** Everything `EventText.redact` replaces, in the order it replaces it. */
+  static readonly PATTERNS: RegExp[] = [
+    EventSecrets.PRIVATE_KEY,
+    ...EventSecrets.TOKENS,
+    ...EventSecrets.HIGH_ENTROPY,
   ];
   /** `user:password@host` inside a URL. */
   static readonly URL_USERINFO = /(\/\/)[^\s/@:]+:[^\s/@]+@/g;

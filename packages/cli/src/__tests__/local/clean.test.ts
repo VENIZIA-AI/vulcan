@@ -534,13 +534,13 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     old({ root: opts.root, path: opts.name, hours: opts.hours });
   };
 
-  test('events and release-candidates are layout folders that sync does not create', () => {
+  test('agents, events and release-candidates are layout folders that sync does not create', () => {
     const layoutNames = ProjectLayout.LOCAL_LAYOUT.map((entry) => entry.name);
 
-    expect(layoutNames).toEqual(expect.arrayContaining(['events', 'release-candidates']));
+    expect(layoutNames).toEqual(expect.arrayContaining(['agents', 'events', 'release-candidates']));
     expect(
       ProjectLayout.LOCAL_LAYOUT.filter((entry) => 'onDemand' in entry).map((entry) => entry.name),
-    ).toEqual(['events', 'release-candidates']);
+    ).toEqual(['agents', 'events', 'release-candidates']);
   });
 
   test('a release candidate is removable once its version is tagged, kept until then, and never in --all', () => {
@@ -851,6 +851,10 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     expect(unknown[0].message).toContain(
       'put scratch in tmp/ and what you want to keep in reports/',
     );
+    expect(unknown[0].message).toContain('what one agent keeps for itself in agents/<name>/');
+    expect(unknown[0].message).toContain(
+      'a script the team relies on belongs in the tracked tree (scripts/)',
+    );
 
     // The browser folder is expired tmp, not unknown, and the command that takes it is named.
     const chromeWarning = warnings.find((entry) => entry.file.endsWith('com.google.Chrome.xyz'));
@@ -860,6 +864,19 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
     expect(existsSync(join(root, '.agents/local/diag.ts'))).toBe(true);
     expect(existsSync(join(root, '.agents/local/audit/report.md'))).toBe(true);
+  });
+
+  test('the folder of one agent is known, kept by every clean, and never a warning', async () => {
+    const root = repository();
+
+    file({ root, path: 'agents/scout/notes.md', text: 'x'.repeat(2048), ageDays: 90 });
+
+    const warnings = await DoctorRunner.runWarnings({ root });
+
+    expect(LocalScan.unknown({ root })).toEqual([]);
+    expect(warnings.filter((entry) => entry.file.includes('agents/scout'))).toEqual([]);
+    expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
+    expect(existsSync(join(root, '.agents/local/agents/scout/notes.md'))).toBe(true);
   });
 
   test('a repository with only the layout folders has nothing unknown', async () => {

@@ -68,8 +68,10 @@ export class DoctorRunner {
       ...ProjectContract.checkAtlasBlock(context),
       ...ProjectContract.checkLocalSize(context),
       ...ProjectContract.checkGuardPatterns(context),
+      ...ProjectContract.checkAcknowledgedValues(context),
       ...ProjectContract.checkReplyShape(context),
       ...ProjectContract.checkOwnerReplySwitch({ env: opts.env ?? process.env }),
+      ...ProjectContract.checkLaunchSettings({ root: opts.root, env: opts.env ?? process.env }),
       ...ProjectContract.checkTrustedScripts(context),
       ...ReadOnlySubcommandChecks.check(context),
     ];
@@ -104,6 +106,7 @@ export class DoctorRunner {
       ...ProjectContract.checkStaleLocal(context),
       ...ProjectContract.checkUnknownLocal(context),
       ...ProjectContract.checkStaleTrustedScripts(context),
+      ...ProjectContract.checkPrivateValues(context),
     ];
   }
 }

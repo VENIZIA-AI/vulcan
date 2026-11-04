@@ -1,0 +1,11 @@
+# Your own hosts for the remote-host guard (remoteHosts in .configs/vulcan.config.*).
+# Copy this file to .agents/hooks/trusted-hosts.local - git ignores that file - and list your hosts there.
+# That keeps host names out of the committed config.
+#
+# One host per line. A plain line is trusted for any command.
+# A line that starts with "readonly:" allows only read-only commands (uptime, cat, kubectl get ...).
+# A host is a name or a pattern with * (at least one letter or digit), or a $VARIABLE. Not a user, a path or a port.
+#
+# my-laptop.example
+# readonly: db-replica.example
+# readonly: *.prod.example

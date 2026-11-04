@@ -25,6 +25,8 @@ import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
 import { AgentFiles, AtlasBlockPlan, LocalPlan, SyncPlanner, SyncStatuses } from '../sync/index.ts';
 import { LocalConstants, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
+import { CLAUDE_LAUNCH_FILE, ClaudeLaunch } from '../sync/claude-launch.ts';
+import { PrivateValues } from './private-values.ts';
 import {
   ReplySwitch,
   OwnerConstants,
@@ -1182,7 +1184,7 @@ export class ProjectContract {
       createViolation({
         check: DoctorChecks.LOCAL,
         file: `${ProjectLayout.LOCAL_DIRECTORY}/${entry.name}`,
-        message: `not an entry VULCAN knows (${LocalFormat.formatBytes({ bytes: entry.bytes })}): put scratch in tmp/ and what you want to keep in reports/; nothing removes it`,
+        message: `not an entry VULCAN knows (${LocalFormat.formatBytes({ bytes: entry.bytes })}): put scratch in tmp/ and what you want to keep in reports/, what one agent keeps for itself in agents/<name>/; a script the team relies on belongs in the tracked tree (scripts/), where it gets review and history; nothing removes it`,
       }),
     );
   }
@@ -1249,6 +1251,27 @@ export class ProjectContract {
             check: DoctorChecks.LOCAL,
             file: OwnerReplySwitch.ENV,
             message: `set to ${OwnerReplySwitch.OFF} in this shell: a session started from here is not held to the owner reply shape and its replies are not logged. Unset it for a session whose reader is the owner`,
+          }),
+        ]
+      : [];
+  }
+
+  /**
+   * The session running doctor is Claude Code (`CLAUDECODE` is set) and its `CLAUDE_CODE_TMPDIR` is not this project's folder: it was
+   * not started with the launch file, so its task output and its MCP servers use `/tmp`. Outside Claude Code doctor cannot know. A note.
+   */
+  static checkLaunchSettings(opts: {
+    root: string;
+    env: Record<string, string | undefined>;
+  }): IViolation[] {
+    const tmp = ClaudeLaunch.tmpOf(opts);
+
+    return opts.env.CLAUDECODE !== undefined && tmp.state !== 'inside'
+      ? [
+          createViolation({
+            check: DoctorChecks.LOCAL,
+            file: CLAUDE_LAUNCH_FILE,
+            message: `this Claude Code session was not started with the launch file, so its task output and its MCP servers use ${tmp.folder ?? '/tmp'}. Start it with: ${ClaudeLaunch.COMMAND}`,
           }),
         ]
       : [];
@@ -1336,6 +1359,53 @@ export class ProjectContract {
             }),
           ]),
     ];
+  }
+
+  /** Private values in committed files: one warning per file with the kinds and counts, never the text, and one per acknowledgment that covered nothing. */
+  static checkPrivateValues(opts: ICheckContext): IViolation[] {
+    const { findings, unmatched } = PrivateValues.scan({
+      root: opts.root,
+      acknowledged: opts.config.doctor.privateValues.acknowledged,
+    });
+    const where = 'doctor.privateValues.acknowledged';
+
+    return [
+      ...findings.map((finding) =>
+        createViolation({
+          check: DoctorChecks.PRIVATE_VALUES,
+          file: finding.file,
+          message: `holds private values: ${Object.entries(finding.counts)
+            .map(([kind, count]) => `${count} ${kind}`)
+            .join(', ')} (not shown); remove them, or record the decision in ${where}`,
+        }),
+      ),
+      ...unmatched.map((entry) =>
+        createViolation({
+          check: DoctorChecks.PRIVATE_VALUES,
+          file: opts.configFile,
+          message: `${where}: "${entry.path}"${entry.kinds === undefined ? '' : ` (${entry.kinds.join(', ')})`} matches no file that holds such a value: remove the entry, or it covers files added later`,
+        }),
+      ),
+    ];
+  }
+
+  /** What the project acknowledged, in one note: how many files hold values it decided to keep. It scans only when something is acknowledged. */
+  static checkAcknowledgedValues(opts: ICheckContext): IViolation[] {
+    const acknowledged = opts.config.doctor.privateValues.acknowledged;
+    const { acknowledgedFiles } =
+      acknowledged.length === 0
+        ? { acknowledgedFiles: 0 }
+        : PrivateValues.scan({ root: opts.root, acknowledged });
+
+    return acknowledgedFiles === 0
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.PRIVATE_VALUES,
+            file: opts.configFile,
+            message: `${acknowledgedFiles} ${acknowledgedFiles === 1 ? 'file' : 'files'} acknowledged in doctor.privateValues.acknowledged`,
+          }),
+        ];
   }
 
   /** The size of `.agents/local/` once it is large: where the space went, and the command that gives it back. */

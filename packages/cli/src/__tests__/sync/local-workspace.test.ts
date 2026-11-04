@@ -125,6 +125,7 @@ describe('LocalPlan.planWorkspace', () => {
       cache: 'kept',
       reports: 'kept',
       prototypes: 'kept',
+      agents: 'kept',
       events: 'kept',
       'release-candidates': 'release',
     });

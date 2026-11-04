@@ -20,6 +20,7 @@ const SCAFFOLD = [
   '.configs/lints/eslint.config.mjs',
   '.agents/rules.md',
   '.agents/knowledge/index.md',
+  '.agents/hooks/trusted-hosts.local.example',
   'Makefile',
 ];
 
@@ -143,6 +144,36 @@ describe('vulcan init', () => {
     expect(existsSync(join(root, '.configs/vulcan.config.mts'))).toBe(true);
   });
 
+  test('the personal hosts example is written with no real host, and the hint says where private hosts go', () => {
+    const root = createProject({ files: { 'package.json': STYLED_PACKAGE } });
+    const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    const example = readFileSync(join(root, '.agents/hooks/trusted-hosts.local.example'), 'utf8');
+    const lines = example.split('\n').filter((line) => line.trim() !== '');
+
+    expect(lines.length).toBeGreaterThan(3);
+    expect(lines.every((line) => line.startsWith('#'))).toBe(true);
+    expect(example).toContain('readonly: ');
+    expect(example).toContain('.agents/hooks/trusted-hosts.local');
+    expect(example).not.toMatch(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/);
+    expect(result.stderr).toContain(
+      'private hosts go in .agents/hooks/trusted-hosts.local (copy the .example), not in the committed config',
+    );
+  });
+
+  test('an example the project already has is kept', () => {
+    const root = createProject({
+      files: {
+        'package.json': STYLED_PACKAGE,
+        '.agents/hooks/trusted-hosts.local.example': '# mine\n',
+      },
+    });
+
+    runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+    expect(readFileSync(join(root, '.agents/hooks/trusted-hosts.local.example'), 'utf8')).toBe(
+      '# mine\n',
+    );
+  });
+
   test('missing .gitignore entries are written, existing lines kept', () => {
     const root = createProject({
       files: { '.gitignore': 'node_modules/\n', 'package.json': STYLED_PACKAGE },
@@ -150,8 +181,53 @@ describe('vulcan init', () => {
 
     runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
-      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/vulcan.local.json\n.agents/local/\n',
+      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/vulcan.local.json\n.agents/local/\n**/.env\n**/.env.*\n!**/.env.example\n.agents/hooks/trusted-hosts.local\n',
     );
+  });
+
+  describe('a .gitignore that already has .env rules', () => {
+    const ignored = (opts: { root: string; name: string }): boolean =>
+      Bun.spawnSync(['git', 'check-ignore', '-q', '--no-index', opts.name], { cwd: opts.root })
+        .exitCode === 0;
+    const initialised = (gitignore: string): { root: string; stderr: string } => {
+      const root = createProject({
+        files: { '.gitignore': gitignore, 'package.json': STYLED_PACKAGE },
+      });
+      const result = runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
+
+      Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
+
+      return { root, stderr: result.stderr };
+    };
+
+    test("the user's own negations survive: the secret block is not appended after them", () => {
+      const { root, stderr } = initialised('.env*\n!.env.development\n!.env.test\n');
+      const text = readFileSync(join(root, '.gitignore'), 'utf8');
+
+      expect(text.startsWith('.env*\n!.env.development\n!.env.test\n')).toBe(true);
+      expect(text).not.toContain('**/.env');
+      expect(ignored({ root, name: '.env' })).toBe(true);
+      expect(ignored({ root, name: '.env.local' })).toBe(true);
+      expect(ignored({ root, name: '.env.development' })).toBe(false);
+      expect(ignored({ root, name: '.env.test' })).toBe(false);
+      expect(text).toContain('.agents/local/');
+      expect(stderr).toContain('.gitignore has .env rules of its own and was left as it is');
+    });
+
+    test('a project that keeps .env.example in its own way is not made to ignore it', () => {
+      const { root } = initialised('node_modules/\n!**/.env.example\n');
+
+      expect(ignored({ root, name: '.env.example' })).toBe(false);
+      expect(readFileSync(join(root, '.gitignore'), 'utf8')).not.toContain('**/.env.*');
+    });
+
+    test('a comment that mentions .env is not a rule: the block is written', () => {
+      const { root, stderr } = initialised('# keep .env files out\nnode_modules/\n');
+
+      expect(readFileSync(join(root, '.gitignore'), 'utf8')).toContain('**/.env.*');
+      expect(ignored({ root, name: '.env.local' })).toBe(true);
+      expect(stderr).not.toContain('has .env rules of its own');
+    });
   });
 
   test('a .gitignore without a final newline gets one before the new lines', () => {
@@ -161,7 +237,7 @@ describe('vulcan init', () => {
 
     runCli({ args: ['init'], cwd: root, env: NO_INSTALL });
     expect(readFileSync(join(root, '.gitignore'), 'utf8')).toBe(
-      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/vulcan.local.json\n.agents/local/\n',
+      'node_modules/\nCLAUDE.md\nCLAUDE.*.md\n.claude/\n.agents/plans\n.agents/vulcan.local.json\n.agents/local/\n**/.env\n**/.env.*\n!**/.env.example\n.agents/hooks/trusted-hosts.local\n',
     );
   });
 
