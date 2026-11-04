@@ -49,6 +49,7 @@ Doctor runs `skills` twice: shipped-name checks run before `make`, while skill l
 | `commit-hook` (warning) | A commit check is on in `commit.message` and this clone's `commit-msg` hook is missing, out of date, or does not call `vulcan commit-check` | Run `bun x --no-install vulcan sync`; for a hook of yours or a `core.hooksPath` hook, add the line the warning shows |
 | `events-size` (warning) | Today's event file alone is over `events.maxSize` | Raise `maxSize` or write fewer events |
 | `events-dir` (warning) | `events.dir` names a folder outside the project and it does not exist, is not a folder, or cannot be written | Create it, or fix the path |
+| `private-values` (warning) | A tracked file holds a private key, a token, URL credentials, an IPv4 address or a machine path | Remove it from the file, or record the decision in `doctor.privateValues.acknowledged` |
 | `mcp` (warning) | `.mcp.json` (when a chosen agent reads it) holds the canonical `atlas` entry, git does not list it as untracked and not ignored (a release refuses on that), and the Claude settings enable `atlas` | Use the entry the warning shows, add `/.mcp.json` to `.gitignore` or run `vulcan sync` at the top level, and run `bun x --no-install vulcan sync` |
 | `local` (note) | `VULCAN_OWNER_REPLY=off` is set in the shell that runs `doctor`: sessions started from it are not held to the owner reply shape | Unset it in a shell the owner works in; a started session gets it on its own command line only |
 | `local` (warning) | `.claude/settings.json` or `.claude/settings.local.json` sets `VULCAN_OWNER_REPLY=off` in `env`: every session of the project skips the owner reply shape | Remove it from `env` |
@@ -333,6 +334,32 @@ A warning, not a violation: it is printed as `warning [dockerignore]`, the exit 
 ```
 
 Add the three lines at the end of the root `.dockerignore`, in that order: the negation of `.env.example` must come after the excludes, or Docker does not apply it. With no `.dockerignore` at all, create it (`vulcan init` writes the whole file for a new project), then add the lines.
+
+### private-values
+
+A warning, not a violation: it prints as `warning [private-values]`, the exit code stays `0`. It reads every file git tracks (text files up to 1 MB) and warns once per file about the private values in it: a private-key header, a known token (`ghp_`, `github_pat_`, `npm_`, `sk-`, `AKIA`, `AIza`, `glpat-`, Stripe keys, JWTs, `Basic` and `Bearer` credentials, Slack tokens), `user:password@` in a URL, an IPv4 address (not loopback, `0.0.0.0`, broadcast or the documentation ranges) and a machine path (`/home/<user>/`, `/Users/<user>/`, `C:\Users\<user>\`). The warning gives the kinds and how many; it never prints the value, because a warning that prints a secret leaks it again.
+
+```text
+  warning [private-values] env/dev.env: holds private values: 1 private-key, 2 ipv4 (not shown); remove them, or record the decision in doctor.privateValues.acknowledged
+```
+
+It does not read lockfiles, `.drawio` diagrams, `.snap` snapshots, or files under `__tests__/`, `fixtures/` and `golden/` or named `*.test.*`: they hold hashes and fake values on purpose. It does not look for host names (it would flag `github.com`, package names and file names) or for a name set to a value (`token = ...`): on a large tree that pattern matched in the order of a hundred thousand lines. A folder that is not a git repository is skipped.
+
+A project that knowingly commits development credentials records the decision, and `doctor` keeps the count in one line instead of one warning per file:
+
+```ts
+export default {
+  doctor: {
+    privateValues: {
+      acknowledged: [
+        { path: 'infra/dev/**', kinds: ['private-key'], reason: 'dev-only keys, replaced by the secret store' },
+      ],
+    },
+  },
+} satisfies VulcanConfig;
+```
+
+`path` is a glob relative to the repo root, `kinds` limits the entry to some kinds (`private-key`, `token`, `url-credentials`, `ipv4`, `machine-path`) and `reason` is required. A kind that the entry does not name still warns. The summary line reads `2 files acknowledged in doctor.privateValues.acknowledged`. There is no comment that silences a line.
 
 ### format
 

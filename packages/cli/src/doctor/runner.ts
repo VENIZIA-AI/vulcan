@@ -104,6 +104,7 @@ export class DoctorRunner {
       ...ProjectContract.checkStaleLocal(context),
       ...ProjectContract.checkUnknownLocal(context),
       ...ProjectContract.checkStaleTrustedScripts(context),
+      ...ProjectContract.checkPrivateValues(context),
     ];
   }
 }

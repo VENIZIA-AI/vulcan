@@ -61,6 +61,23 @@ export default {
       ],
     },
   },
+  // Placeholder paths in documentation examples and in one error message: no machine is named.
+  doctor: {
+    privateValues: {
+      acknowledged: [
+        {
+          path: 'docs/wiki/content/**',
+          kinds: ['machine-path'],
+          reason: 'placeholder home-folder paths in examples',
+        },
+        {
+          path: 'packages/cli/src/events/settings.ts',
+          kinds: ['machine-path'],
+          reason: 'a placeholder path in an error message',
+        },
+      ],
+    },
+  },
   // A plugin this repository never uses still costs the skill listing: figma and chrome-devtools-mcp are 21 entries and
   // 8.4 KB of its 30 KB budget. `sync` merges this into .claude/settings.json; it overrides the person's own enabledPlugins here only.
   claude: {

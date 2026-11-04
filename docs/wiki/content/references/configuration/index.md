@@ -65,6 +65,7 @@ The table below lists the top-level configuration keys:
 | `hooks` | `Array<object>` | `[]` | Custom project event hooks |
 | `digest` | `object` | `{ oftenDropped: [...] }` | Rules printed at session startup |
 | `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask', writes: { trustedScripts: [], commands: [] }, git: { askPush: [] } }` | Tool-owned stores the outside-the-project guard allows, the project's own scripts the write guard does not read, and the commands and push targets the guards ask about beyond their own list |
+| `doctor` | `object` | `{ privateValues: { acknowledged: [] } }` | Files that may keep private values, each with a reason ([doctor](/references/commands/doctor#private-values)) |
 | `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
 | `theme` | `object` | `undefined` | The colour the project's `vulcan visualize` pages use |
 
@@ -753,6 +754,14 @@ export default {
   events: { log: true, dir: '/home/me/work/.agents/local/events' },
 } satisfies VulcanConfig;
 ```
+
+## doctor
+
+The `doctor` object tells [`vulcan doctor`](/references/commands/doctor#private-values) what the project has decided. Nothing is required.
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `privateValues.acknowledged` | `Array<{ path, kinds?, reason }>` | `[]` | Files that may keep private values. `path` is a glob relative to the repo root (no absolute path, no `..`); `kinds` is some of `private-key`, `token`, `url-credentials`, `ipv4`, `machine-path` (all when absent); `reason` is required and not blank. An acknowledged file is counted in one summary line, never dropped silently |
 
 ## local
 

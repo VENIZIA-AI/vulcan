@@ -25,6 +25,7 @@ import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
 import { AgentFiles, AtlasBlockPlan, LocalPlan, SyncPlanner, SyncStatuses } from '../sync/index.ts';
 import { LocalConstants, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
+import { PrivateValues } from './private-values.ts';
 import {
   ReplySwitch,
   OwnerConstants,
@@ -1333,6 +1334,36 @@ export class ProjectContract {
               check: DoctorChecks.GUARDS,
               file: opts.configFile,
               message: `guard.git.askPush: a plain git push asks for ${askPush.join(', ')}`,
+            }),
+          ]),
+    ];
+  }
+
+  /** Private values in committed files: one warning per file with the kinds and counts, never the text, and one line for what the project acknowledged. */
+  static checkPrivateValues(opts: ICheckContext): IViolation[] {
+    const { findings, acknowledgedFiles } = PrivateValues.scan({
+      root: opts.root,
+      acknowledged: opts.config.doctor.privateValues.acknowledged,
+    });
+    const where = 'doctor.privateValues.acknowledged';
+
+    return [
+      ...findings.map((finding) =>
+        createViolation({
+          check: DoctorChecks.PRIVATE_VALUES,
+          file: finding.file,
+          message: `holds private values: ${Object.entries(finding.counts)
+            .map(([kind, count]) => `${count} ${kind}`)
+            .join(', ')} (not shown); remove them, or record the decision in ${where}`,
+        }),
+      ),
+      ...(acknowledgedFiles === 0
+        ? []
+        : [
+            createViolation({
+              check: DoctorChecks.PRIVATE_VALUES,
+              file: opts.configFile,
+              message: `${acknowledgedFiles} ${acknowledgedFiles === 1 ? 'file' : 'files'} acknowledged in ${where}`,
             }),
           ]),
     ];
