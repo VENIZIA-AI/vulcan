@@ -20,6 +20,7 @@ import type TypeScript from 'typescript';
 import { PublicSurface } from '@/surface';
 import type { ISymbolRecord } from './common';
 import { DeclarationText } from './declaration-text';
+import { SourceSignature } from './source-signature';
 
 const SIGNATURE_MAX_CHARS = 300;
 const SHAPE_LENGTH = 12;
@@ -312,7 +313,7 @@ export class AtlasSymbols {
         declaration !== undefined &&
         !isExternal &&
         !TypeScriptCompiler.get().isSourceFile(declaration)
-          ? DeclarationText.of({ declaration, checker })
+          ? AtlasSymbols.textOf({ declaration, checker, name: symbol.getName() })
           : undefined;
       const record: ISymbolRecord = {
         name: symbol.getName(),
@@ -323,7 +324,11 @@ export class AtlasSymbols {
         file: location.file,
         line: location.line,
         signature: declaration
-          ? AtlasSymbols.collapseSignature({ text: AtlasSymbols.signatureOf({ declaration }) })
+          ? AtlasSymbols.collapseSignature({
+              text: AtlasSymbols.isValueBearing({ declaration })
+                ? SourceSignature.of({ declaration, name: symbol.getName() })
+                : AtlasSymbols.signatureOf({ declaration }),
+            })
           : '',
         ...(declaration ? { shape: AtlasSymbols.shapeOf({ declaration }) } : {}),
         ...(text === undefined
@@ -333,6 +338,39 @@ export class AtlasSymbols {
 
       return isExternal ? { ...record, external: true } : record;
     });
+  }
+
+  /**
+   * The text a record keeps of its declaration. In a `.d.ts` it is the declaration itself; in a source file the
+   * statement holds bodies, so a record keeps its signature and the TSDoc above it.
+   */
+  private static textOf(opts: {
+    declaration: TypeScript.Declaration;
+    checker: TypeScript.TypeChecker;
+    name: string;
+  }): { declaration: string; doc: string; uses: string[] } {
+    if (opts.declaration.getSourceFile().isDeclarationFile) {
+      return DeclarationText.of(opts);
+    }
+
+    return {
+      declaration: AtlasSymbols.collapseSignature({
+        text: SourceSignature.of({ declaration: opts.declaration, name: opts.name }),
+      }),
+      doc: DeclarationText.docOf({ declaration: opts.declaration }),
+      uses: [],
+    };
+  }
+
+  /**
+   * Whether the declaration can hold a value that must not be quoted: it is written in a source file, or it is a
+   * whole module (`export * as ns`), whose text is the file.
+   */
+  private static isValueBearing(opts: { declaration: TypeScript.Declaration }): boolean {
+    return (
+      TypeScriptCompiler.get().isSourceFile(opts.declaration) ||
+      !opts.declaration.getSourceFile().isDeclarationFile
+    );
   }
 
   /**
