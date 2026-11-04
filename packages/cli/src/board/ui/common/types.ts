@@ -1,35 +1,31 @@
 import type { TConstValue } from '../../../common/index.ts';
-import type { IBoardEvent, IBoardFlow, IBoardDecision } from '../../common/index.ts';
+import type { IBoardDecision, IBoardEvent, IBoardFlow } from '../../common/index.ts';
 import type { BoardLanguages } from './constants.ts';
 
 export type TBoardLanguage = TConstValue<typeof BoardLanguages>;
 export type TTranslate = (key: string) => string;
 
-/** A line as the page draws it: a helper's line is its lane's, and keeps the helper's own names. */
+/** A line as drawn: a helper's line is its lane's, and keeps the helper's names in `as` and `asTo`. */
 export interface IBoardViewEvent extends IBoardEvent {
-  /** The sender, when the line was drawn as its lane's. */
   as?: string;
-  /** The recipient, when the line was drawn as its lane's. */
   asTo?: string;
 }
 
 /** What the list, the detail and the graph draw of one flow. */
 export interface IFlowView {
-  id: string;
-  /** Only `flow` lines and plumbing: the flow has no work and no stage to show. */
-  noWork: boolean;
-  title: Pick<IBoardFlow, 'title' | 'repo' | 'why' | 'context' | 'next'> & { named: boolean };
+  flow: IBoardFlow;
+  /** The lane of the flow's holder. */
+  holder: string;
   evs: IBoardViewEvent[];
   last: IBoardViewEvent;
-  state: IBoardFlow['state'];
-  holder: string;
-  stages: number[];
-  cur: number;
-  /** The CI runs, reviews and releases of each stage, by stage. */
+  /** The CI runs, reviews and releases of each stage. */
   att: Record<number, IBoardViewEvent[]>;
   lastAsk?: IBoardViewEvent;
   dec?: IBoardDecision;
-  unread: boolean;
+  /** The flow has a title of its own; the `Unsorted` one never has, and is not asked for one. */
+  named: boolean;
+  /** Only `flow` lines and plumbing: no work, no stage to show. */
+  noWork: boolean;
   newCount: number;
   approxLast: boolean;
 }
@@ -43,7 +39,6 @@ export interface IAgentRow {
   text: string;
   ts: string | null;
   approx: boolean;
-  compact: boolean;
   /** Changes when the row has something new to say. */
   key: string;
 }

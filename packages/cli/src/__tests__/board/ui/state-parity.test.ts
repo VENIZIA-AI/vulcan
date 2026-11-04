@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
+import type { IBoardData, IBoardEvent } from '../../../board/common/index.ts';
 import { BoardPage } from '../../../board/page.ts';
-import type { IBoardData } from '../../../board/common/index.ts';
 import { BoardLanguages } from '../../../board/ui/common/constants.ts';
 import type { TBoardLanguage } from '../../../board/ui/common/types.ts';
 import { DICTIONARY } from '../../../board/ui/i18n/dictionary.ts';
@@ -16,65 +16,32 @@ const hasBrowser = await BrowserPage.available();
 afterAll(() => BrowserPage.close());
 
 const base = (): IBoardData => sampleData({ base: Date.now() - 100 * 60_000 });
-/** A flow that also carries the lines GitHub gives: a CI run and a review, whose actors are no agents. */
-const withGithub = (): IBoardData => {
-  const data = base();
-  const [flow] = data.flows;
+
+/** Lines of every kind the Latest text and the rows tell apart, in the first flow of the data. */
+const withLines = (opts: { data: IBoardData; lines: Partial<IBoardEvent>[] }): IBoardData => {
+  const [flow] = opts.data.flows;
   const at = flow.events.at(-1)?.ts ?? new Date().toISOString();
 
   flow.events.push(
-    {
-      id: 'gh-ci',
+    ...opts.lines.map((line, index) => ({
+      id: `extra-${index}`,
       flowId: flow.id,
       ts: at,
-      kind: 'ci',
-      stage: 4,
-      actor: 'CI',
-      status: 'fail',
-      attempt: 1,
-      check: 'build',
-      summary: 'build failed',
-      source: 'github',
-    },
-    {
-      id: 'gh-rv',
-      flowId: flow.id,
-      ts: at,
-      kind: 'review',
-      stage: 5,
-      actor: 'reviewer',
-      status: 'ok',
-      attempt: 1,
-      summary: 'approved',
-      source: 'github',
-    },
+      kind: 'note',
+      stage: 3,
+      actor: 'pnt-vulcan-1',
+      summary: `line ${index}`,
+      source: 'claude-hook',
+      ...line,
+    })),
   );
 
-  // Names that are no agent, found in the agent states and in a line that did not come from GitHub.
-  data.agents.reviewer = {
-    name: 'reviewer',
-    state: 'working',
-    current: 'reading',
-    since: at,
-    checkedAt: at,
-  };
-  flow.events.push({
-    id: 'cli-ci',
-    flowId: flow.id,
-    ts: at,
-    kind: 'note',
-    stage: 4,
-    actor: 'CI',
-    summary: 'a note',
-    source: 'cli',
-  });
-
-  return data;
+  return opts.data;
 };
 
 const FIXTURES: Record<string, IBoardData> = {
-  'a flow with GitHub lines': withGithub(),
   'the sample day': base(),
+  'no data at all': { ...base(), flows: [], agents: {}, decisions: {} },
   'a roster and lanes': {
     ...base(),
     roster: ['veni-forge', 'pnt-vulcan-1'],
@@ -85,35 +52,69 @@ const FIXTURES: Record<string, IBoardData> = {
     roster: ['veni-forge'],
     lanes: { 'pnt-vulcan-1': 'veni-forge' },
   },
+  'a blocked flow held by an agent': (() => {
+    const data = base();
+
+    data.flows[0].state = 'blocked';
+    data.flows[0].holder = 'pnt-vulcan-1';
+
+    return data;
+  })(),
+  'lines of every kind: incoming messages, an ask, an estimated time, the owner and GitHub':
+    withLines({
+      data: base(),
+      lines: [
+        { kind: 'msg', incoming: true, from: 'veni-forge' },
+        { kind: 'msg', incoming: true },
+        { kind: 'msg', to: 'veni-forge' },
+        { kind: 'note', needsOwner: true },
+        { kind: 'decision', choice: 'approve', actor: 'Ana' },
+        { kind: 'commit', source: 'git (ước lượng)' },
+        { kind: 'ci', actor: 'CI', status: 'fail', attempt: 1, source: 'github' },
+        { kind: 'review', actor: 'reviewer', status: 'ok', attempt: 1, source: 'github' },
+        { kind: 'note', actor: 'CI', source: 'cli' },
+      ],
+    }),
 };
 
-/** What the page of today works out, by the functions the new modules replace. */
+/** What the page of today works out, in one language, by the functions the new modules replace. */
 const OLD_PAGE = `(() => {
   const take = () => {
     loadEvents();
     FL = fold();
 
-    return { fl: FL, events, docs: laneDocs(DATA.agents), rows: agentRows().map(({ host, ...row }) => row) };
+    return { fl: FL, events, docs: laneDocs(DATA.agents), rows: agentRows().map(({ host, compact, ...row }) => row) };
   };
-  const hidden = take();
+  const out = { zone: Intl.DateTimeFormat().resolvedOptions().timeZone, lastSeen, by: {} };
 
-  showPlumbing = true;
+  for (const language of ['en', 'vi']) {
+    lang = language;
+    showPlumbing = false;
 
-  const all = take();
+    const hidden = take();
 
-  showPlumbing = false;
+    showPlumbing = true;
 
-  return JSON.stringify({
-    zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    lastSeen,
-    hidden,
-    all,
-    latest: all.events.map((event) => latestText(event)),
-    clock: all.events.map((event) => hhmm(event.ts)),
-    ago: all.events.map((event) => ago(event.ts)),
-    sameDay: all.events.map((event) => sameDay(event.ts)),
-    approx: all.events.map((event) => isApprox(event)),
-  });
+    const all = take();
+
+    showPlumbing = false;
+    out.by[language] = {
+      hidden,
+      all,
+      latest: all.events.map((event) => latestText(event)),
+      ago: all.events.map((event) => ago(event.ts)),
+    };
+  }
+
+  lang = 'en';
+
+  const lines = out.by.en.all.events;
+
+  out.clock = lines.map((event) => hhmm(event.ts));
+  out.sameDay = lines.map((event) => sameDay(event.ts));
+  out.approx = lines.map((event) => isApprox(event));
+
+  return JSON.stringify(out);
 })()`;
 
 interface IOldState {
@@ -123,27 +124,29 @@ interface IOldState {
   rows: unknown[];
 }
 
+interface IOldLanguage {
+  hidden: IOldState;
+  all: IOldState;
+  latest: string[];
+  ago: string[];
+}
+
 interface IOld {
   /** The time zone of the browser: the page says times in it, so the comparison is made in it. */
   zone: string;
   lastSeen: string;
-  hidden: IOldState;
-  all: IOldState;
-  latest: string[];
+  by: Record<TBoardLanguage, IOldLanguage>;
   clock: string[];
-  ago: string[];
   sameDay: boolean[];
   approx: boolean[];
 }
 
 const same = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
+const LANGUAGES: TBoardLanguage[] = [BoardLanguages.EN, BoardLanguages.VI];
 
 describe.skipIf(!hasBrowser)('the state modules do what the page of today does', () => {
-  const translate = (key: string): string =>
-    BoardI18n.translate({ language: BoardLanguages.EN, key });
-
   for (const [name, data] of Object.entries(FIXTURES)) {
-    test(`${name}: flows, lines, agent states and rows are the same, with and without the plumbing`, async () => {
+    test(`${name}: flows, lines, agent states, rows and texts are the same, in both languages`, async () => {
       const raw = await BrowserPage.measure<string>({
         html: BoardPage.render({ data }),
         width: 1440,
@@ -151,23 +154,6 @@ describe.skipIf(!hasBrowser)('the state modules do what the page of today does',
         expression: OLD_PAGE,
       });
       const old: IOld = JSON.parse(raw);
-
-      for (const showAll of [false, true]) {
-        const was = showAll ? old.all : old.hidden;
-        const events = BoardView.eventsOf({ data, showAll });
-        const flows = BoardView.flowsOf({ data, showAll, lastSeen: old.lastSeen });
-        const docs = BoardView.docsOf({ data });
-        const rows = BoardView.rowsOf({ data, flows, events, docs, showAll, translate });
-
-        expect(same(events), `events, showAll=${showAll}`).toEqual(was.events);
-        expect(
-          same(flows.map(({ title, ...flow }) => ({ ...flow, f: title }))),
-          `flows, showAll=${showAll}`,
-        ).toEqual(was.fl);
-        expect(same(docs), `docs, showAll=${showAll}`).toEqual(was.docs);
-        expect(same(rows), `rows, showAll=${showAll}`).toEqual(was.rows);
-      }
-
       const lines = BoardView.eventsOf({ data, showAll: true });
       const zone = process.env.TZ;
 
@@ -186,13 +172,61 @@ describe.skipIf(!hasBrowser)('the state modules do what the page of today does',
         }
       }
 
-      expect(lines.map((event) => BoardLatest.textOf({ event, translate }))).toEqual(old.latest);
       expect(lines.map((event) => BoardTime.isApproximate({ source: event.source }))).toEqual(
         old.approx,
       );
-      expect(
-        lines.map((event) => BoardTime.ago({ iso: event.ts, now: Date.now(), translate })),
-      ).toEqual(old.ago);
+
+      for (const language of LANGUAGES) {
+        const translate = (key: string): string => BoardI18n.translate({ language, key });
+        const was = old.by[language];
+
+        for (const showAll of [false, true]) {
+          const before = showAll ? was.all : was.hidden;
+          const events = BoardView.eventsOf({ data, showAll });
+          const flows = BoardView.flowsOf({ data, showAll, lastSeen: old.lastSeen });
+          const docs = BoardView.docsOf({ data });
+          const rows = BoardView.rowsOf({ data, flows, events, docs, showAll, translate });
+          const at = `${language}, showAll=${showAll}`;
+
+          expect(same(events), `events, ${at}`).toEqual(before.events);
+          expect(
+            same(
+              flows.map((view) => ({
+                id: view.flow.id,
+                noWork: view.noWork,
+                f: {
+                  title: view.flow.title,
+                  repo: view.flow.repo,
+                  why: view.flow.why,
+                  context: view.flow.context,
+                  next: view.flow.next,
+                  named: view.named,
+                },
+                evs: view.evs,
+                last: view.last,
+                state: view.flow.state,
+                holder: view.holder,
+                stages: view.flow.stages,
+                cur: view.flow.cur,
+                att: view.att,
+                lastAsk: view.lastAsk,
+                dec: view.dec,
+                unread: view.newCount > 0,
+                newCount: view.newCount,
+                approxLast: view.approxLast,
+              })),
+            ),
+            `flows, ${at}`,
+          ).toEqual(before.fl);
+          expect(same(docs), `docs, ${at}`).toEqual(before.docs);
+          expect(same(rows), `rows, ${at}`).toEqual(before.rows);
+        }
+
+        expect(lines.map((event) => BoardLatest.textOf({ event, translate }))).toEqual(was.latest);
+        expect(
+          lines.map((event) => BoardTime.ago({ iso: event.ts, now: Date.now(), translate })),
+        ).toEqual(was.ago);
+      }
     });
   }
 
@@ -215,19 +249,18 @@ describe.skipIf(!hasBrowser)('the state modules do what the page of today does',
     });
     const old: Record<string, string[]> = JSON.parse(raw);
 
-    const languages: TBoardLanguage[] = [BoardLanguages.EN, BoardLanguages.VI];
-
-    for (const language of languages) {
+    for (const language of LANGUAGES) {
       expect(keys.map((key) => BoardI18n.translate({ language, key }))).toEqual(old[language]);
     }
   });
 });
 
 describe('the dictionary', () => {
-  test('every id of the Vietnamese overrides has an English text', () => {
+  test('every id of the Vietnamese overrides has an English text, and none maps to itself', () => {
     const ids = Object.keys(DICTIONARY.vi);
 
     expect(ids.length).toBeGreaterThan(50);
     expect(ids.filter((id) => !(id in DICTIONARY.en))).toEqual([]);
+    expect(Object.entries(DICTIONARY.vi).filter(([key, text]) => key === text)).toEqual([]);
   });
 });

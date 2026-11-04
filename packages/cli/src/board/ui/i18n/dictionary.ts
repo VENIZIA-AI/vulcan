@@ -1,5 +1,7 @@
+import type { TBoardLanguage } from '../common/types.ts';
+
 /** The words of the page, by language. A key is the Vietnamese source text or a short id; `vi` holds only the ids and the overrides. */
-export const DICTIONARY: Record<'en' | 'vi', Record<string, string>> = {
+export const DICTIONARY: Record<TBoardLanguage, Record<string, string>> = {
   en: {
     ' (giờ ước lượng)': ' (estimated time)',
     ' (luồng ': ' (flow ',
@@ -201,7 +203,6 @@ export const DICTIONARY: Record<'en' | 'vi', Record<string, string>> = {
   },
   vi: {
     Reassign: 'Giao lại',
-    Xong: 'Xong',
     'ctx.label': 'Bối cảnh',
     'dg.title': 'Sơ đồ luồng',
     'fl.untitled': 'chưa có tên',
@@ -261,7 +262,6 @@ export const DICTIONARY: Record<'en' | 'vi', Record<string, string>> = {
     'pl.tip':
       'Phiên bắt đầu và kết thúc, subagent và lời nhắc chỉ để chờ, cùng các agent dự án không liệt kê, đang được ẩn; nút này hiện chúng',
     rounds: 'vòng',
-    'rảnh · ': 'rảnh · ',
     split: 'Kéo để đổi độ rộng danh sách và chi tiết',
     'st.parked': 'Để sau',
     to: 'cho',
