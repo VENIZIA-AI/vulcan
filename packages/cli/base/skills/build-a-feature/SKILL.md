@@ -141,8 +141,9 @@ are green and the bundle matches the change.
 First check the whole diff against the rules (code changes; a docs-only or release change needs none). List the
 files of the diff, read the base rules (`rules.md`, the P, C and B sections) and the project's own once, and
 write one line per rule that changed something: the rule id and what you changed because of it. A rule you
-checked that changed nothing is listed by id only. That list is the "Rules checked" section of the pull
-request (`ship`). The commonest misses are `V-P-08` and `V-C-16` (what already exists, one implementation of
+checked that changed nothing is listed by id only. Add one line, "Kept out to stay small": what you did not
+add or removed to keep the change small (`V-C-11`), or "nothing". That list is the "Rules checked" section of
+the pull request (`ship`). The commonest misses are `V-P-08` and `V-C-16` (what already exists, one implementation of
 one concept) and `V-C-18` (derived types).
 
 Review with the `review-a-change` skill: lane L gets an independent, non-forked reviewer per axis; lane

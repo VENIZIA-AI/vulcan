@@ -14,6 +14,8 @@
 |---|---|---|
 | | | |
 
+Kept out to stay small (V-C-11): <what you did not add, or removed, to keep the change small; or "nothing">
+
 ## Checks
 
 | Command | Result |

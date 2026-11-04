@@ -44,7 +44,7 @@ The body is read by a person who has not seen the work. In this order:
 
 1. **What changed**, as the smallest visual that shows it: one table, one before and after, one screenshot.
 2. **Before and after** of the behaviour, not of the files.
-3. **Rules checked** (a code change): a table of the rule ids checked, what was looked at and what changed because of the rule, or "nothing" for a rule that changed nothing.
+3. **Rules checked** (a code change): a table of the rule ids checked, what was looked at and what changed because of the rule, or "nothing" for a rule that changed nothing, and one line "Kept out to stay small": what was not added or was removed to keep the change small (`V-C-11`), or "nothing".
 4. **The checks and their output**, as a table: the command, the result.
 5. **The door call**: a one-way door (a published package, a migration, a deleted branch) or a two-way door
    (revert and it is gone), and the blast radius if it is wrong.
