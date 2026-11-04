@@ -10,6 +10,8 @@ export class BoardUiConstants {
   static readonly NOT_AGENTS = new Set<string>([BoardConstants.CI_ACTOR, 'reviewer']);
   /** A line whose `source` says its time was estimated. */
   static readonly APPROXIMATE_SOURCE = /ước lượng/;
+  /** An agent not heard from for this long is listed under Earlier, not as a card of its own. */
+  static readonly EARLIER_HOURS = 24;
   /** How many days a finished flow stays in the Done group. */
   static readonly DONE_DAYS = 7;
   /** The state text of an idle agent already says it. */

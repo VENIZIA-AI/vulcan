@@ -152,7 +152,7 @@ const EXPRESSION = `(async () => {
   if (document.getElementById('bPlumb').getAttribute('aria-pressed') === 'true') { document.getElementById('bPlumb').click(); await wait(); }
   await wait();
   out.hidden = rows();
-  const loose = () => (document.querySelector('.c-loose') ? document.querySelector('.c-loose').textContent : null);
+  const loose = () => (document.querySelector('#groups .c-loose') ? document.querySelector('#groups .c-loose').textContent : null);
   out.looseHidden = loose();
   await open('F-1');
   document.querySelector('.d-all').click();

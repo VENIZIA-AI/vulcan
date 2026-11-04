@@ -20,6 +20,8 @@ export const REAL_DAY = {
   ACTORS: [
     'acme-api',
     'acme-forge',
+    'acme-late',
+    'acme-old',
     'acme-web',
     'pnt-api-1',
     'pnt-api-2',
@@ -41,6 +43,8 @@ export const REAL_DAY = {
   DONE_STALE: 'VULZ-ACME-10',
   /** Messages `acme-forge` sent to `pnt-web-1`, which never answered. */
   UNANSWERED: 3,
+  /** Agents not heard from in a day: folded under Earlier. */
+  EARLIER: 1,
   /** Messages sent to a socket that is no agent of the board. */
   TO_SOCKETS: 120,
   UNSORTED: 15,
@@ -90,6 +94,15 @@ const lines = (opts: { now: number }): IEvent[] => {
   });
   add({ minute: -370, kind: 'session-stop', actor: 'pnt-web-1', summary: 'turn ended' });
   add({ minute: 3, kind: 'session-start', actor: 'worker-9', summary: 'startup' });
+  // A session that started nine hours ago and said nothing since: not working. And one last heard of three days ago.
+  add({ minute: -540, kind: 'session-start', actor: 'acme-late', summary: 'startup' });
+  add({
+    base: opts.now - 3 * DAY_MINUTES * 60_000,
+    minute: 0,
+    kind: 'session-start',
+    actor: 'acme-old',
+    summary: 'startup',
+  });
   add({ minute: 4, kind: 'subagent-stop', actor: 'worker-9', summary: 'Explore a1' });
 
   // 1: running, forty commits by two assistants of one lane, a pull request and its checks.
@@ -323,6 +336,14 @@ const lines = (opts: { now: number }): IEvent[] => {
     flow: REAL_DAY.CART,
     summary: 'cart PR',
     ref: '#103',
+  });
+  add({
+    minute: 104,
+    kind: 'commit',
+    actor: 'pnt-web-1',
+    flow: REAL_DAY.CART,
+    summary: 'cart total, again',
+    ref: '1000002',
   });
 
   // 9: lines only: its title is the words of its first line.

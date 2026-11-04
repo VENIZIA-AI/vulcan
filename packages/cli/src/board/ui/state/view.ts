@@ -1,4 +1,5 @@
 import type { IBoardAgent, IBoardData, IBoardEvent, IBoardFlow } from '../../common/index.ts';
+import { BoardConstants } from '../../common/index.ts';
 import { BoardUiConstants } from '../common/constants.ts';
 import type { IAgentRow, IBoardViewEvent, IFlowView, TTranslate } from '../common/types.ts';
 import { BoardTime } from './time.ts';
@@ -63,6 +64,7 @@ export class BoardView {
     flows: IFlowView[];
     events: IBoardViewEvent[];
     translate: TTranslate;
+    now: number;
   }): IAgentRow[] {
     const { data, flows, events, translate } = opts;
     const docs = data.agents;
@@ -90,11 +92,20 @@ export class BoardView {
         );
         const blockedFlow = flows.find((v) => v.flow.state === 'blocked' && v.holder === name);
         const runFlow = flows.find((v) => v.flow.state === 'running' && v.holder === name);
-        const st = BoardView.stateOf({ doc, blockedFlow, youFlow, runFlow });
+        const lastAt =
+          [doc?.checkedAt, lastLine?.ts]
+            .filter((one) => one !== undefined)
+            .sort()
+            .at(-1) ?? null;
+        // Working needs a line within the active gap: after a quiet spell the agent is idle, whatever its record says.
+        const quiet =
+          lastAt === null || opts.now - Date.parse(lastAt) > BoardConstants.ACTIVE_GAP_MS;
+        const st = BoardView.stateOf({ doc, blockedFlow, youFlow, runFlow, quiet });
         const said = BoardView.saidOf({ st, doc, lastLine, youFlow, translate });
 
         return {
           n: name,
+          lastAt,
           st,
           ...(st === 'you' && youFlow?.lastAsk ? { ask: youFlow.lastAsk.summary } : {}),
           flow: (blockedFlow ?? youFlow)?.flow.id ?? runFlow?.flow.id ?? lastLine?.flowId ?? null,
@@ -110,6 +121,7 @@ export class BoardView {
     blockedFlow?: IFlowView;
     youFlow?: IFlowView;
     runFlow?: IFlowView;
+    quiet: boolean;
   }): IAgentRow['st'] {
     if (opts.blockedFlow) {
       return 'blocked';
@@ -119,7 +131,7 @@ export class BoardView {
       return 'you';
     }
 
-    return opts.doc?.state === 'working' || opts.runFlow ? 'working' : 'idle';
+    return !opts.quiet && (opts.doc?.state === 'working' || opts.runFlow) ? 'working' : 'idle';
   }
 
   /** What a row says and since when: the ask that waits, a newer note of the agent, its last line, or nothing yet. */

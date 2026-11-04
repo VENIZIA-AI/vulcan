@@ -8,7 +8,7 @@ const NOW = Date.now();
 const data = realDayData({ now: NOW });
 const flows = BoardView.flowsOf({ data, showAll: false, lastSeen: '' });
 const events = BoardView.eventsOf({ data, showAll: false });
-const rows = BoardView.rowsOf({ data, flows, events, translate: (key) => key });
+const rows = BoardView.rowsOf({ data, flows, events, translate: (key) => key, now: NOW });
 const stateOf = (id: string): string | undefined =>
   data.flows.find((flow) => flow.id === id)?.state;
 const pendingOf = (name: string): number =>
@@ -20,20 +20,29 @@ describe('a busy multi-agent day: the agents', () => {
     expect(rows[0].n).toBe('acme-forge');
   });
 
-  test('an assistant that wrote lines after its stop is working since its first line, not idle since the stop', () => {
+  test('an assistant that wrote lines after its stop is working since its current stretch, not idle since the stop', () => {
     const doc = data.agents['pnt-web-1'];
-    const [commit] = events.filter(
+    const commits = events.filter(
       (event) => event.actor === 'pnt-web-1' && event.kind === 'commit',
     );
 
     expect(doc.state).toBe('working');
-    expect(doc.since).toBe(commit.ts);
+    // Its stop was eight hours ago; the stretch began at the first line after the last quiet spell.
+    expect(doc.since).toBe(commits.at(-1)?.ts);
   });
 
   test('a quiet spell ends a stretch: an agent last heard of twelve days ago and back today is working since today', () => {
     const doc = data.agents['acme-api'];
 
     expect(Date.parse(doc.since)).toBeGreaterThan(NOW - 24 * 60 * 60 * 1000);
+  });
+
+  test('working needs a recent line: a session that started hours ago and said nothing is idle, since its last word', () => {
+    const late = rows.find((row) => row.n === 'acme-late');
+
+    expect(data.agents['acme-late'].state).toBe('working');
+    expect(late?.st).toBe('idle');
+    expect(rows.find((row) => row.n === 'pnt-web-1')?.st).not.toBe('idle');
   });
 
   test('unanswered counts the messages to an agent after its last sent one: a few, never the whole history', () => {

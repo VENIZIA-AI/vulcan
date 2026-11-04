@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { BoardStateWords } from '../common/constants.ts';
+import { BoardStateWords, BoardUiConstants } from '../common/constants.ts';
 import type { IAgentRow } from '../common/types.ts';
 import { useUi } from '../i18n/context.ts';
 import { BoardLatest } from '../state/latest.ts';
@@ -110,7 +111,7 @@ const AgentCard = (props: {
   );
 };
 
-/** The left pane: the agents, each a card. */
+/** The left pane: the agents heard from in the last day, each a card; the others are folded under Earlier. */
 export const AgentPane = (props: {
   rows: IAgentRow[];
   cards: Record<string, IAgentCard>;
@@ -119,25 +120,43 @@ export const AgentPane = (props: {
   picked: string | null;
   onPick: (name: string) => void;
 }) => {
-  const { t } = useUi();
+  const { t, now } = useUi();
+  const [earlierOpen, setEarlierOpen] = useState(false);
+  const limit = now - BoardUiConstants.EARLIER_HOURS * 60 * 60 * 1000;
+  const isRecent = (row: IAgentRow): boolean =>
+    row.lastAt !== null && Date.parse(row.lastAt) >= limit;
+  const recent = props.rows.filter(isRecent);
+  const earlier = props.rows.filter((row) => !isRecent(row));
+  const cardOf = (row: IAgentRow) => (
+    <AgentCard
+      key={row.n}
+      row={row}
+      card={props.cards[row.n]}
+      shape={BoardFace.shapeOf({ name: row.n, owner: props.owner, shapes: props.shapes })}
+      picked={props.picked === row.n}
+      onPick={props.onPick}
+    />
+  );
 
   return (
     <section className="c-pane" id="dock" aria-label={t('Các agent đang chạy')}>
       <div className="c-ph">
-        {t('pn.agents')} <span className="c-n">{props.rows.length}</span>
+        {t('pn.agents')} <span className="c-n">{recent.length}</span>
       </div>
       <div className="c-scroll">
         {props.rows.length === 0 ? <p className="c-empty">{t('chưa có agent')}</p> : null}
-        {props.rows.map((row) => (
-          <AgentCard
-            key={row.n}
-            row={row}
-            card={props.cards[row.n]}
-            shape={BoardFace.shapeOf({ name: row.n, owner: props.owner, shapes: props.shapes })}
-            picked={props.picked === row.n}
-            onPick={props.onPick}
-          />
-        ))}
+        {recent.map(cardOf)}
+        {earlier.length > 0 ? (
+          <button
+            className="btn c-loose"
+            type="button"
+            aria-expanded={earlierOpen}
+            onClick={() => setEarlierOpen(!earlierOpen)}
+          >
+            {`${t('ag.earlier')} (${earlier.length})`}
+          </button>
+        ) : null}
+        {earlierOpen ? earlier.map(cardOf) : null}
       </div>
     </section>
   );

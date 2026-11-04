@@ -78,8 +78,8 @@ export const App = (props: { data: IBoardData }) => {
     [data, showAll, lastSeen, now],
   );
   const rows = useMemo(
-    () => BoardView.rowsOf({ data, flows, events, translate }),
-    [data, flows, events, translate],
+    () => BoardView.rowsOf({ data, flows, events, translate, now }),
+    [data, flows, events, translate, now],
   );
   const cards = useMemo(
     () =>

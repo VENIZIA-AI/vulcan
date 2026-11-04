@@ -123,7 +123,8 @@ export class BoardCards {
       pending: info.pending.length,
       today: mine.filter((event) => BoardTime.isSameDay({ iso: event.ts, now })).length,
       last: doc?.checkedAt,
-      since: doc?.since,
+      // An idle agent that its record still calls working has been idle since it was last heard from.
+      since: row.st === 'idle' && doc?.state === 'working' ? (row.lastAt ?? doc.since) : doc?.since,
       role: data.roles?.[row.n],
       lane: data.lanes?.[row.n],
       model: doc?.model,

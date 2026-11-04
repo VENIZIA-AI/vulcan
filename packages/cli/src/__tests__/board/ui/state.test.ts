@@ -92,7 +92,8 @@ describe('BoardLatest', () => {
 });
 
 describe('BoardView', () => {
-  const none = { translate: en };
+  const now = Date.parse('2026-11-03T10:05:00.000Z');
+  const none = { translate: en, now };
 
   test('no data gives no flows, no lines and no rows', () => {
     const empty = data({});
@@ -117,6 +118,20 @@ describe('BoardView', () => {
     expect(rows.map((row) => [row.n, row.st, row.text])).toEqual([
       ['bo', 'idle', `${en('rảnh · ')}tidy`],
     ]);
+  });
+
+  test('working needs a line in the last half hour: a quiet agent is idle whatever its record says', () => {
+    const agents = {
+      fresh: agent({ state: 'working', checkedAt: '2026-11-03T10:00:00.000Z' }),
+      quiet: agent({ state: 'working', checkedAt: '2026-11-03T08:00:00.000Z' }),
+    };
+    const rows = BoardView.rowsOf({ data: data({ agents }), flows: [], events: [], ...none });
+
+    expect(rows.map((row) => [row.n, row.st])).toEqual([
+      ['fresh', 'working'],
+      ['quiet', 'idle'],
+    ]);
+    expect(rows[1].lastAt).toBe('2026-11-03T08:00:00.000Z');
   });
 
   test('a roster and lanes leave nobody out: every agent has a row, the roster first', () => {

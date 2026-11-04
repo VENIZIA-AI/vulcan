@@ -23,6 +23,8 @@ export interface IFlowView {
 /** One agent of the dock and the graph. */
 export interface IAgentRow {
   n: string;
+  /** The newest moment the agent was heard from: its record or its last line. */
+  lastAt: string | null;
   st: 'blocked' | 'you' | 'working' | 'idle';
   flow: string | null;
   /** The question that waits on the owner, when it is this agent's. */

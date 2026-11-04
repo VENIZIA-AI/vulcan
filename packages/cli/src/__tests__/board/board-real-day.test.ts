@@ -10,6 +10,8 @@ afterAll(() => BrowserPage.close());
 interface IResult {
   agents: string[];
   agentCount: string;
+  earlier: string | null;
+  afterEarlier: string[];
   itemCount: string;
   cards: Record<string, string>;
   groups: Record<string, string>;
@@ -30,11 +32,16 @@ const EXPRESSION = `(async () => {
   out.agents = [...document.querySelectorAll('#dock [data-agent]')].map((c) => c.dataset.agent);
   out.agentCount = document.querySelector('#dock .c-n').textContent;
   out.itemCount = document.getElementById('flowN').textContent;
+  const earlier = document.querySelector('#dock .c-loose');
+  out.earlier = earlier ? earlier.textContent : null;
+  if (earlier) { earlier.click(); await wait(); }
+  out.afterEarlier = [...document.querySelectorAll('#dock [data-agent]')].map((c) => c.dataset.agent);
+  if (earlier) { earlier.click(); await wait(); }
   out.cards = Object.fromEntries([...document.querySelectorAll('#dock [data-agent]')].map((c) => [c.dataset.agent, c.innerText]));
   out.groups = Object.fromEntries([...document.querySelectorAll('#groups .c-group')].map((g) => [g.querySelector('.c-gh').textContent.split(' · ')[0].trim(), g.querySelector('.c-gh').textContent]));
   out.rowIds = [...document.querySelectorAll('#groups .row')].map((r) => r.dataset.id);
   out.groupsText = document.getElementById('groups').innerText;
-  const loose = document.querySelector('.c-loose');
+  const loose = document.querySelector('#groups .c-loose');
   out.loose = loose ? loose.textContent : null;
   out.looseDetail = null;
   if (loose) {
@@ -71,9 +78,14 @@ describe.skipIf(!hasBrowser)('a busy multi-agent day, in a real browser', () => 
       const result = await run(width);
 
       expect(result.errors).toEqual([]);
-      expect([...result.agents].sort()).toEqual([...REAL_DAY.ACTORS]);
+      // The agents heard from in the last day are cards; the others are folded under Earlier, still one click away.
+      expect([...result.agents].sort()).toEqual(
+        REAL_DAY.ACTORS.filter((name) => name !== 'acme-old'),
+      );
       expect(result.agents[0]).toBe('acme-forge');
-      expect(result.agentCount).toBe(String(REAL_DAY.ACTORS.length));
+      expect(result.agentCount).toBe(String(REAL_DAY.ACTORS.length - REAL_DAY.EARLIER));
+      expect(result.earlier).toBe(`Earlier (${REAL_DAY.EARLIER})`);
+      expect([...result.afterEarlier].sort()).toEqual([...REAL_DAY.ACTORS]);
       expect(result.rowIds).not.toContain('Unsorted');
       expect(result.groupsText).not.toMatch(/no title yet|chưa có tên/);
       expect(result.scrollsSideways).toBe(false);
@@ -85,6 +97,8 @@ describe.skipIf(!hasBrowser)('a busy multi-agent day, in a real browser', () => 
 
     expect(cards['pnt-web-1']).toMatch(/Unanswered\s*3\b/);
     expect(cards['pnt-web-1']).not.toMatch(/Idle/);
+    expect(cards['acme-late']).toMatch(/Idle/);
+    expect(cards['acme-late']).not.toMatch(/Working/);
     expect(cards['acme-forge']).toMatch(/Unanswered\s*0\b/);
     expect(cards['pnt-api-1']).toContain('under acme-api');
     expect(cards['acme-api']).toContain('Backend');

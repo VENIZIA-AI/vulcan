@@ -4,6 +4,7 @@ import type { TBoardLanguage } from '../common/types.ts';
 export const DICTIONARY: Record<TBoardLanguage, Record<string, string>> = {
   en: {
     'ag.under': 'under',
+    'ag.earlier': 'Earlier',
     'it.unsorted': 'Unsorted',
     'it.unsortedNote': 'Events that name no flow, newest first.',
     ' giờ': ' h',
@@ -164,6 +165,7 @@ export const DICTIONARY: Record<TBoardLanguage, Record<string, string>> = {
   },
   vi: {
     'ag.under': 'thuộc',
+    'ag.earlier': 'Trước đó',
     'it.unsorted': 'Chưa xếp luồng',
     'it.unsortedNote': 'Các sự kiện không thuộc luồng nào, mới nhất trước.',
     'ag.action': 'Việc gần nhất',

@@ -99,6 +99,7 @@ describe('BoardCards.agentOf', () => {
       flows,
       events,
       translate: (key) => key,
+      now: Date.now(),
     });
     const row = opts.name === undefined ? rows[0] : rows.find((one) => one.n === opts.name);
 
