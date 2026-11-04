@@ -334,3 +334,21 @@ describe('BoardSettings.resolve: the roster and the lanes', () => {
     });
   });
 });
+
+describe('BoardSettings.read: the git user', () => {
+  test('is the one readGitUser gives, asked once per read, and git is not asked', () => {
+    const root = createProject({ files: { '.agents/vulcan.manifest.json': '{}' } });
+    let asked = 0;
+    const settings = BoardSettings.read({
+      root,
+      readGitUser: () => {
+        asked++;
+
+        return 'Ana From Caller';
+      },
+    });
+
+    expect(settings.owner).toBe('Ana From Caller');
+    expect(asked).toBe(1);
+  });
+});

@@ -5,7 +5,6 @@ import { ClaudeHookEvents, EventConstants, EventKinds, EventStatuses } from './c
 import type { IEvent, IEventRead, TEventKind, TEventStatus } from './common/index.ts';
 import { EventText } from './text.ts';
 
-const DAY_FILE = /^(\d{4}-\d{2}-\d{2})\.jsonl$/;
 const ID_TIME_WIDTH = 9;
 const ID_RANDOM_BYTES = 4;
 
@@ -111,7 +110,9 @@ export class EventLog {
         ? undefined
         : EventLog.dayOf({ time: opts.since - EventConstants.DAY_MS });
     const files = readdirSync(opts.dir)
-      .filter((name) => DAY_FILE.test(name) && (first === undefined || name >= first))
+      .filter(
+        (name) => EventConstants.DAY_FILE.test(name) && (first === undefined || name >= first),
+      )
       .sort();
     const events: IEvent[] = [];
     let skipped = 0;

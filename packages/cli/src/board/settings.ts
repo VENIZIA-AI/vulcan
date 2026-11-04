@@ -121,8 +121,19 @@ export class BoardSettings {
     return { shapes, roster, lanes };
   }
 
-  /** `resolve` for the project at `root`: its manifest, `git config user.name`, and the logo file. */
-  static read(opts: { root: string }): IBoardSettings {
+  /** `git config user.name` of the project, or `undefined`. */
+  static gitUserOf(opts: { root: string }): string | undefined {
+    const git = spawnSync('git', ['config', 'user.name'], {
+      cwd: opts.root,
+      encoding: 'utf8',
+      timeout: 5000,
+    });
+
+    return git.status === 0 ? git.stdout.trim() : undefined;
+  }
+
+  /** `resolve` for the project at `root`: its manifest, the git user (read by `readGitUser`, by default from git), and the logo file. */
+  static read(opts: { root: string; readGitUser?: () => string | undefined }): IBoardSettings {
     let manifest: unknown;
 
     try {
@@ -131,15 +142,9 @@ export class BoardSettings {
       manifest = {};
     }
 
-    const git = spawnSync('git', ['config', 'user.name'], {
-      cwd: opts.root,
-      encoding: 'utf8',
-      timeout: 5000,
-    });
-
     return BoardSettings.resolve({
       manifest,
-      gitUser: git.status === 0 ? git.stdout.trim() : undefined,
+      gitUser: (opts.readGitUser ?? (() => BoardSettings.gitUserOf({ root: opts.root })))(),
       readLogo: (path) => BoardSettings.logoOf({ root: opts.root, path }),
     });
   }

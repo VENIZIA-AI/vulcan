@@ -64,6 +64,31 @@ export class BoardFlags {
   static readonly REPO = '--repo';
   /** Leave GitHub out, for a project that is not on it. */
   static readonly NO_GITHUB = '--no-github';
+  static readonly PORT = '--port';
+}
+
+/** The two routes `vulcan board serve` answers. */
+export class BoardRoutes {
+  static readonly PAGE = 'page';
+  static readonly STREAM = 'stream';
+}
+
+/** `vulcan board serve`: where it listens and how much it keeps open. */
+export class BoardServe {
+  static readonly COMMAND = 'serve';
+  static readonly HOST = '127.0.0.1';
+  static readonly DEFAULT_PORT = 4317;
+  static readonly TOKEN_BYTES = 16;
+  static readonly TOKEN_PARAM = 't';
+  static readonly PAGE_PATH = '/';
+  static readonly STREAM_PATH = '/stream';
+  static readonly MAX_STREAMS = 8;
+  static readonly MAX_SNAPSHOT_BYTES = 20_000_000;
+  static readonly HEARTBEAT_MS = 15_000;
+  static readonly DEBOUNCE_MS = 250;
+  static readonly POLL_MS = 2000;
+  /** The page gets a fresh snapshot this often even when the log is quiet; GitHub is read at most this often. */
+  static readonly REFRESH_MS = 60_000;
 }
 
 /** The faces the page can draw for an agent. `bun` is the default; the others are chosen by name in `board.agents`. */

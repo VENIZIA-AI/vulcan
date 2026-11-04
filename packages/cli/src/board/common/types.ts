@@ -1,7 +1,8 @@
 import type { TConstValue } from '../../common/index.ts';
-import type { BoardStates } from './constants.ts';
+import type { BoardRoutes, BoardStates } from './constants.ts';
 
 export type TBoardState = TConstValue<typeof BoardStates>;
+export type TBoardRoute = TConstValue<typeof BoardRoutes>;
 
 export interface IBoardRef {
   repo?: string;
@@ -101,6 +102,8 @@ export interface IBoardData {
   roster?: string[];
   /** A helper to the lane it rolls into. */
   lanes?: Record<string, string>;
+  /** Set by `vulcan board serve`: where the page reads new snapshots from. The static file has none. */
+  live?: { stream: string };
   generatedAt: string;
   since: string;
   flows: IBoardFlow[];

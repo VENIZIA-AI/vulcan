@@ -88,8 +88,8 @@ const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
   [VulcanCommands.BOARD]: {
     flags: [BoardFlags.OPEN, BoardFlags.NO_GITHUB],
     unknownExit: ExitCodes.USAGE,
-    values: [BoardFlags.OUT, BoardFlags.SINCE, BoardFlags.DIR, BoardFlags.REPO],
-    positionals: 0,
+    values: [BoardFlags.OUT, BoardFlags.PORT, BoardFlags.SINCE, BoardFlags.DIR, BoardFlags.REPO],
+    positionals: 1,
   },
   [VulcanCommands.CI]: {
     flags: [CiFlags.JSON, CiFlags.NAMES],
