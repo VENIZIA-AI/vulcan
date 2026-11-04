@@ -89,6 +89,9 @@ describe('the lists of a flow line', () => {
     ['a due date that is not a day', ['--due', '08/11/2026']],
     ['a due date that does not exist', ['--due', '2026-02-30']],
     ['a flag with no value', ['--step']],
+    ['a text of control characters only', ['--step', '\u0001\u0002']],
+    ['a flag where a list text should be', ['--step', '--step-done', 'x']],
+    ['a flag where an app name should be', ['--app', '--due']],
   ])('%s is refused, and nothing is written', (_name, extra) => {
     const root = project();
     const result = flow({ root, extra });
@@ -134,6 +137,24 @@ describe('the lists of a flow line', () => {
   });
 });
 
+describe('the usage of the command', () => {
+  test('a flow line says its lists, its due day and its tracker id', () => {
+    const result = runCli({ args: ['event'], cwd: project(), env: hermeticEnv() });
+
+    for (const flag of [
+      '--step',
+      '--step-done',
+      '--check',
+      '--check-done',
+      '--app',
+      '--due',
+      '--ref',
+    ]) {
+      expect(result.stderr, flag).toContain(flag);
+    }
+  });
+});
+
 describe('reading a line the way it is on disk', () => {
   const parse = (value: object) =>
     EventLog.parse({
@@ -148,7 +169,7 @@ describe('reading a line the way it is on disk', () => {
       }),
     });
 
-  test('what is not a list of items is dropped, the rest is cleaned and cut, and a bad due date is a line that is not an event', () => {
+  test('what is not a list of items is dropped, the rest is cleaned and cut, and a bad due day drops only the day', () => {
     const event = parse({
       steps: [{ text: 'ok', done: true }, 'not an item', { text: 5 }, { text: 'x'.repeat(400) }],
       checks: 'nope',
@@ -160,7 +181,11 @@ describe('reading a line the way it is on disk', () => {
     expect(event?.steps?.[0]).toEqual({ text: 'ok', done: true });
     expect(event?.checks).toBeUndefined();
     expect(event?.apps).toEqual(['a', 'b']);
-    expect(parse({ due: 'next week' })).toBeUndefined();
+    // A day that is no day is dropped, and the line is still a line; so is 2026-02-30 (the writer refuses it too).
+    expect(parse({ due: 'next week' })?.due).toBeUndefined();
+    expect(parse({ due: '2026-02-30' })?.due).toBeUndefined();
+    expect(parse({ due: 'next week' })?.summary).toBe('s');
+    expect(parse({ due: '2026-11-08' })?.due).toBe('2026-11-08');
   });
 });
 

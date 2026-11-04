@@ -49,6 +49,17 @@ export class EventText {
       .slice(0, opts.count);
   }
 
+  /** `2026-11-08`, and a day that exists: `2026-02-30` is not one. The one check of a due day, for the writer and the reader. */
+  static isDay(opts: { value: string }): boolean {
+    const time = Date.parse(`${opts.value}T00:00:00Z`);
+
+    return (
+      EventConstants.DUE_PATTERN.test(opts.value) &&
+      Number.isFinite(time) &&
+      new Date(time).toISOString().startsWith(opts.value)
+    );
+  }
+
   /** One line of at most `max` characters: control characters and runs of space become one space, secrets are redacted first. */
   static oneLine(opts: { text: string; max: number }): string {
     const flat = EventText.stripControl({ text: opts.text }).replace(/\s+/g, ' ').trim();

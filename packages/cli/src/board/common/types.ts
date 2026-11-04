@@ -1,4 +1,5 @@
 import type { TConstValue } from '../../common/index.ts';
+import type { IEventItem } from '../../events/common/index.ts';
 import type { BoardRoutes, BoardStates } from './constants.ts';
 
 export type TBoardState = TConstValue<typeof BoardStates>;
@@ -53,11 +54,8 @@ export interface IBoardEvent {
   source: string;
 }
 
-/** One step or acceptance check of a flow, and whether it is done. */
-export interface IBoardItem {
-  text: string;
-  done: boolean;
-}
+/** One step or acceptance check of a flow, and whether it is done: the same thing the event log carries. */
+export type IBoardItem = IEventItem;
 
 export interface IBoardFlow {
   id: string;

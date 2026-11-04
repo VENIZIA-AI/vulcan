@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BoardAgentSetting } from './agent-setting.ts';
-import { BoardShapes } from './common/index.ts';
+import { BoardConstants, BoardShapes } from './common/index.ts';
 
 const SHAPE = z.custom<string>((value) => typeof value === 'string' && BoardShapes.isValid(value), {
   message: `one of ${[...BoardShapes.SCHEME_SET].join(', ')}`,
@@ -12,7 +12,7 @@ export const BOARD_AGENT = z.union([
   z.strictObject({
     shape: SHAPE.optional(),
     lane: z.string().min(1).optional(),
-    role: z.string().trim().min(1).max(60).optional(),
+    role: z.string().trim().min(1).max(BoardConstants.ROLE_MAX).optional(),
   }),
 ]);
 

@@ -102,9 +102,7 @@ export class EventLog {
       ...(steps.length === 0 ? {} : { steps }),
       ...(checks.length === 0 ? {} : { checks }),
       ...(apps.length === 0 ? {} : { apps }),
-      ...(opts.due !== undefined && EventConstants.DUE_PATTERN.test(opts.due)
-        ? { due: opts.due }
-        : {}),
+      ...(opts.due !== undefined && EventText.isDay({ value: opts.due }) ? { due: opts.due } : {}),
       ...(model === '' ? {} : { model }),
       ...(opts.notification !== undefined &&
       ClaudeHookEvents.OWNER_NOTIFICATIONS.has(opts.notification)
@@ -251,7 +249,6 @@ export class EventLog {
       (why !== undefined && typeof why !== 'string') ||
       (context !== undefined && typeof context !== 'string') ||
       (next !== undefined && typeof next !== 'string') ||
-      (due !== undefined && (typeof due !== 'string' || !EventConstants.DUE_PATTERN.test(due))) ||
       (model !== undefined && typeof model !== 'string') ||
       (notification !== undefined && typeof notification !== 'string')
     ) {
@@ -263,6 +260,9 @@ export class EventLog {
     // The free text is cleaned the way `build` cleans it: one line, secrets redacted, the same length cap. A line written by
     // hand, or by an older version, cannot put a huge string or a token on a page.
     const text = (field: string, max: number): string => EventText.oneLine({ text: field, max });
+    const keptSteps = EventLog.itemsOf({ value: steps });
+    const keptChecks = EventLog.itemsOf({ value: checks });
+    const keptApps = EventLog.appsOf({ value: apps });
 
     return {
       id: clean(id),
@@ -276,16 +276,11 @@ export class EventLog {
       ...(why === undefined ? {} : { why: text(why, EventConstants.SUMMARY_MAX) }),
       ...(context === undefined ? {} : { context: text(context, EventConstants.CONTEXT_MAX) }),
       ...(next === undefined ? {} : { next: text(next, EventConstants.SUMMARY_MAX) }),
-      ...(EventLog.itemsOf({ value: steps }).length === 0
-        ? {}
-        : { steps: EventLog.itemsOf({ value: steps }) }),
-      ...(EventLog.itemsOf({ value: checks }).length === 0
-        ? {}
-        : { checks: EventLog.itemsOf({ value: checks }) }),
-      ...(EventLog.appsOf({ value: apps }).length === 0
-        ? {}
-        : { apps: EventLog.appsOf({ value: apps }) }),
-      ...(due === undefined ? {} : { due }),
+      ...(keptSteps.length === 0 ? {} : { steps: keptSteps }),
+      ...(keptChecks.length === 0 ? {} : { checks: keptChecks }),
+      ...(keptApps.length === 0 ? {} : { apps: keptApps }),
+      // A due day that is no day is dropped, and only it: the line is still a line.
+      ...(typeof due === 'string' && EventText.isDay({ value: due }) ? { due } : {}),
       ...(model === undefined ? {} : { model: text(model, EventConstants.MODEL_MAX) }),
       // A value that is not one of the types the hook knows is dropped: it is a short enum, not free text.
       ...(notification === undefined || !ClaudeHookEvents.OWNER_NOTIFICATIONS.has(notification)

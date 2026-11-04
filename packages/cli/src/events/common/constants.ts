@@ -82,6 +82,29 @@ export class EventFlags {
   static readonly DIR = '--dir';
   static readonly SINCE = '--since';
   static readonly JSON = '--json';
+
+  /** Every flag the command knows: a list value that is one of them is a flag with its value missing. */
+  static readonly KNOWN = new Set<string>([
+    this.STEP,
+    this.STEP_DONE,
+    this.CHECK,
+    this.CHECK_DONE,
+    this.APP,
+    this.DUE,
+    this.KIND,
+    this.SUMMARY,
+    this.FLOW,
+    this.REF,
+    this.STATUS,
+    this.TITLE,
+    this.WHY,
+    this.CONTEXT,
+    this.NEXT,
+    this.ACTOR,
+    this.DIR,
+    this.SINCE,
+    this.JSON,
+  ]);
 }
 
 /** The names a Claude Code hook payload carries, as Claude Code 2.1.317 sends them. */

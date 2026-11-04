@@ -20,12 +20,12 @@ const project = (opts: { built: boolean; exports?: Record<string, { types: strin
       schemaVersion: 1,
       name: 'shop',
       packages: [
-        { name: '@shop/kit', dir: 'kit', path: 'umbras/kit', aliases: [], retired: false },
+        { name: '@shop/kit', dir: 'kit', path: 'backends/kit', aliases: [], retired: false },
       ],
       knowledge: { bundle: '.agents/knowledge' },
     }),
     '.agents/knowledge/index.md': '# Shop\n',
-    'umbras/kit/package.json': JSON.stringify({
+    'backends/kit/package.json': JSON.stringify({
       name: '@shop/kit',
       version: '0.0.1-0',
       private: true,
@@ -34,7 +34,8 @@ const project = (opts: { built: boolean; exports?: Record<string, { types: strin
   };
 
   if (opts.built) {
-    files['umbras/kit/dist/index.d.ts'] = 'export declare function greet(name: string): string;\n';
+    files['backends/kit/dist/index.d.ts'] =
+      'export declare function greet(name: string): string;\n';
   }
 
   roots.push(root);
@@ -85,7 +86,7 @@ test('one export whose .d.ts is missing is skipped with a warning; the built ent
     expect(reply.error).toBeUndefined();
     expect(reply.result.content[0].text).toContain('greet(name: string): string');
     expect(warnings.filter((line) => line.includes('./contracts'))).toEqual([
-      '[AtlasSymbols-recordsOf] skipped an export whose declaration file is missing | package: @shop/kit | subpath: ./contracts | path: umbras/kit/dist/contracts/index.d.ts',
+      '[AtlasSymbols-recordsOf] skipped an export whose declaration file is missing | package: @shop/kit | subpath: ./contracts | path: backends/kit/dist/contracts/index.d.ts',
     ]);
   } finally {
     warnSpy.mockRestore();
@@ -103,7 +104,7 @@ test('one export whose .d.ts cannot be read as a module is skipped too; the othe
   });
 
   // A script, not a module: no import or export, so it has no module symbol to read.
-  writeFileSync(join(root, 'umbras/kit/dist/globals.d.ts'), 'declare const BUILD_ID: string;\n');
+  writeFileSync(join(root, 'backends/kit/dist/globals.d.ts'), 'declare const BUILD_ID: string;\n');
 
   try {
     const reply = await callSymbol({ root, name: 'greet' });
@@ -144,9 +145,9 @@ test('built after the first question, the next one finds the symbol - the store 
   const result2 = await ask();
   expect(result2.error.message).toContain('no symbols - build the packages first');
 
-  mkdirSync(join(root, 'umbras/kit/dist'), { recursive: true });
+  mkdirSync(join(root, 'backends/kit/dist'), { recursive: true });
   writeFileSync(
-    join(root, 'umbras/kit/dist/index.d.ts'),
+    join(root, 'backends/kit/dist/index.d.ts'),
     'export declare function greet(name: string): string;\n',
   );
 
@@ -175,7 +176,7 @@ test('a rebuild that changes a signature is seen without a restart - the store f
   const result2 = await ask();
   expect(result2.result.content[0].text).toContain('greet(name: string): string');
 
-  const declarations = join(root, 'umbras/kit/dist/index.d.ts');
+  const declarations = join(root, 'backends/kit/dist/index.d.ts');
 
   writeFileSync(
     declarations,

@@ -10,7 +10,7 @@ afterAll(removeProjects);
 const WRITES_HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-writes.ts');
 const GIT_HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-git.ts');
 
-// BANA's own commands, which no fixed list could know.
+// A downstream project's own commands, which no fixed list could know.
 const MIGRATE: IProjectCommandCheck = {
   rule: 'V-W-02',
   what: 'running a migration',
@@ -29,7 +29,7 @@ const hitsOf = (opts: { command: string; extra?: IProjectCommandCheck[] }): stri
   );
 
 describe("guard-writes asks on the project's own commands", () => {
-  test("BANA's migrate and deploy commands: nothing without the patterns, a V-W-02 and a V-W-03 ask with them", () => {
+  test("a project's migrate and deploy commands: nothing without the patterns, a V-W-02 and a V-W-03 ask with them", () => {
     expect(hitsOf({ command: 'bun run migrate:up' })).toEqual([]);
     expect(hitsOf({ command: 'make deploy-develop-x' })).toEqual([]);
 
@@ -345,7 +345,7 @@ describe('the hooks read the manifest', () => {
     git: { askPush: ['develop'] },
   };
 
-  test("guard-writes asks for BANA's migrate and deploy commands, and not for the control", () => {
+  test("guard-writes asks for a project's migrate and deploy commands, and not for the control", () => {
     const root = manifestWith({ guard });
 
     for (const command of [

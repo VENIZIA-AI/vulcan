@@ -1,5 +1,5 @@
 /**
- * Command shapes from BANA's scan of 228 transcripts (13k Bash calls, 142 asks): the false positives that
+ * Command shapes from a downstream project's scan of 228 transcripts (13k Bash calls, 142 asks): the false positives that
  * trained people to click yes, and the true positives that must keep asking. `quiet` shapes must raise no
  * ask from the remote-host guard and the write guard; `asks` shapes must raise at least one.
  */

@@ -6,7 +6,7 @@ const messageOf = (result: ReturnType<typeof parse>): string =>
   result.success ? '' : result.error.message;
 
 describe('guard.writes.commands and guard.git.askPush', () => {
-  test("accept BANA's list, and default to nothing", () => {
+  test("accept a project's list, and default to nothing", () => {
     const result = parse({
       writes: {
         commands: [
