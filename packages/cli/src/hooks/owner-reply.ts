@@ -33,6 +33,11 @@ const FIXES: Record<string, string> = {
 const loadOwnerView = async (opts: { projectRoot: string }): Promise<IOwnerView> => {
   const loaded = await ConfigLoader.load({ root: opts.projectRoot });
   const profile = OwnerProfile.read({ root: opts.projectRoot });
+  const note = ConfigLoader.unreadableNote({ loaded });
+
+  if (note !== undefined) {
+    console.error(`vulcan: the owner-reply hook: ${note}`);
+  }
 
   return OwnerView.resolve({
     owner: loaded.ok ? loaded.config.owner : OWNER_SCHEMA.parse(undefined),

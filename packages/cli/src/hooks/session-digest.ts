@@ -62,6 +62,7 @@ export class SessionDigest {
       );
     const minimap = MINIMAP.exec(projectText)?.[1].trim();
     const loaded = await ConfigLoader.load({ root: opts.projectRoot });
+    const configNote = ConfigLoader.unreadableNote({ loaded });
     const choices = loaded.ok ? loaded.config.rules : {};
     const oftenDropped = loaded.ok
       ? loaded.config.digest.oftenDropped
@@ -69,6 +70,10 @@ export class SessionDigest {
 
     const slotRows = Object.entries(RuleSlots.read()).map(([id, slot]) => {
       const choice = choices[id];
+
+      if (choice === undefined && configNote !== undefined) {
+        return `| ${id} | this project: **unknown** - the config could not be read (see the config problem above) |`;
+      }
 
       if (choice === undefined) {
         return `| ${id} | this project: **not chosen** - run \`${ProjectLayout.VULCAN_COMMAND} doctor\` |`;
@@ -85,6 +90,9 @@ export class SessionDigest {
     const lines = [
       '# VULCAN rules - read this before acting',
       '',
+      ...(configNote === undefined
+        ? []
+        : ['## Config problem', '', `This session: ${configNote}.`, '']),
       ...(launchWarning === undefined ? [] : ['## Launch warning', '', launchWarning, '']),
       'Base rules: `node_modules/@venizia/vulcan/base/rules.md`. This project: `.agents/rules.md`.',
       '',
