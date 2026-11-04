@@ -14,6 +14,7 @@ import type { IEvent, TEventKind, TEventStatus } from './common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowId } from './flow-id.ts';
+import { ProjectKey } from './project-key.ts';
 import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
 
@@ -161,7 +162,7 @@ export class EventCommand {
     const key = EventSettings.keyOf({ root: EventSettings.rootOf({ cwd: opts.cwd }) });
     const known = EventLog.read({ dir }).events;
     const named = flow ?? EventFlow.fromBranch({ cwd: opts.cwd });
-    const flowId = EventCommand.flowOf({
+    const placed = EventCommand.flowOf({
       flow: named,
       known,
       key,
@@ -170,9 +171,11 @@ export class EventCommand {
       explicit: flow !== undefined,
     });
 
-    if (typeof flowId === 'number') {
-      return flowId;
+    if (!placed.ok) {
+      return placed.code;
     }
+
+    const { flowId } = placed;
     const actor =
       values[EventFlags.ACTOR] === undefined
         ? EventActor.resolve({
@@ -213,7 +216,7 @@ export class EventCommand {
   /**
    * The flow a line belongs to. A flow named with `--flow` must exist (an id is never made up by hand). A flow line that
    * names none either updates the flow of its branch, when the branch names one that exists and is not over, or starts a
-   * new flow with the next number. A number (an exit code) is returned when the line cannot be written.
+   * new flow with the next number. The exit code comes back when the line cannot be written.
    */
   private static flowOf(opts: {
     flow: string | undefined;
@@ -222,7 +225,7 @@ export class EventCommand {
     isFlow: boolean;
     dir: string;
     explicit: boolean;
-  }): string | undefined | number {
+  }): { ok: true; flowId: string | undefined } | { ok: false; code: number } {
     const { flow, known, key } = opts;
 
     // The flow of the branch is taken only while it is open: work on a merged or parked flow's branch is a new flow.
@@ -231,32 +234,32 @@ export class EventCommand {
       FlowId.exists({ events: known, id: flow, key }) &&
       (opts.explicit || !opts.isFlow || !FlowId.isClosed({ events: known, id: flow, key }))
     ) {
-      return flow;
+      return { ok: true, flowId: flow };
     }
 
     if (flow !== undefined && opts.explicit) {
-      const recent = FlowId.recent({ events: known, key, count: 5 });
+      const recent = FlowId.recent({ events: known, key, count: EventConstants.FLOW_RECENT_COUNT });
 
       process.stderr.write(
         `event: no flow ${flow} in the log. ${recent.length === 0 ? 'The log has no flow yet' : `Recent flows: ${recent.join(', ')}`}. Make a new flow with: vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} ${EventFlags.TITLE} <text>\n`,
       );
 
-      return ExitCodes.USAGE;
+      return { ok: false, code: ExitCodes.USAGE };
     }
 
     if (!opts.isFlow) {
-      return flow;
+      return { ok: true, flowId: flow };
     }
 
     if (key === undefined) {
       process.stderr.write(
-        `event: the project has no key for its flows: set project.key in the config (uppercase letters and digits, 2 to 8) and run vulcan sync\n`,
+        `event: the project has no key for its flows: set project.key in the config (${ProjectKey.MESSAGE}) and run vulcan sync\n`,
       );
 
-      return ExitCodes.USAGE;
+      return { ok: false, code: ExitCodes.USAGE };
     }
 
-    return FlowId.next({ dir: opts.dir, key });
+    return { ok: true, flowId: FlowId.next({ dir: opts.dir, key }) };
   }
 
   private static tail(opts: { cwd: string; values: TFlagValues; json: boolean }): number {

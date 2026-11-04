@@ -131,7 +131,7 @@ $ bun x --no-install vulcan event add --kind flow --title "Bảng việc cho anh
 VULZ-ACME-12
 ```
 
-The number is kept in `.flow-seq` in the events folder, so it is never given twice, even after the retention dropped the day it was on. The project needs `project.key` in its config (and `vulcan sync`); without it the command refuses and says so. To change the title or any other field of that flow later, give the id it printed:
+A number is claimed by creating a small file for it, `.flow-ids/<key>-<number>`, in the events folder: only one process can create a given file, so two agents asking at the same moment never get the same id, and it stays so even after the retention dropped the day the flow was on. The project needs `project.key` in its config (and `vulcan sync`); without it the command refuses and says so. To change the title or any other field of that flow later, give the id it printed:
 
 Add `--context` and `--next` so that the detail pane can be read at once:
 

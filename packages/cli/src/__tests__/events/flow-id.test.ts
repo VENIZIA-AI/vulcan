@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BoardCommand } from '../../board/command.ts';
 import { BoardGithub } from '../../board/github.ts';
@@ -129,65 +129,64 @@ describe('--flow must name a flow that exists', () => {
   });
 });
 
-describe('the counter beside the log', () => {
-  test('it keeps a number from being given twice after the log lost the flow', () => {
+describe('a number is claimed, never given twice', () => {
+  const nextIn = (dir: string, count: number): Promise<string[]> => {
+    const script = `import { FlowId } from '${join(import.meta.dir, '..', '..', 'events', 'flow-id.ts')}'; console.log(FlowId.next({ dir: ${JSON.stringify(dir)}, key: 'ACME' }));`;
+
+    return Promise.all(
+      Array.from({ length: count }, () =>
+        Bun.spawn(['bun', '-e', script], { stdout: 'pipe', stderr: 'pipe' }),
+      ).map((proc) => new Response(proc.stdout).text()),
+    ).then((printed) => printed.map((text) => text.trim()));
+  };
+
+  test('a number is claimed by a file, and the next search starts above every claim, also when the log has none', () => {
     const dir = join(createProject({ files: {} }), 'events');
 
     expect(FlowId.next({ dir, key: 'ACME' })).toBe('VULZ-ACME-1');
     expect(FlowId.next({ dir, key: 'ACME' })).toBe('VULZ-ACME-2');
-    expect(JSON.parse(readFileSync(join(dir, '.flow-seq'), 'utf8'))).toEqual({ ACME: 2 });
+    expect(readdirSync(join(dir, '.flow-ids')).sort()).toEqual(['ACME-1', 'ACME-2']);
     expect(EventLog.read({ dir }).events).toEqual([]);
     expect(FlowId.next({ dir, key: 'ACME' })).toBe('VULZ-ACME-3');
   });
 
-  test('a key counts on its own, and a damaged counter file starts again from the log', () => {
+  test('a key counts on its own; the log counts for it, and an older F-n for every key', () => {
     const dir = join(createProject({ files: {} }), 'events');
 
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, '.flow-seq'), 'not json');
-    writeFileSync(join(dir, '2026-11-01.jsonl'), line('VULZ-ACME-6'));
+    writeFileSync(join(dir, '2026-11-01.jsonl'), line('VULZ-ACME-6') + line('F-9'));
 
-    expect(FlowId.next({ dir, key: 'ACME' })).toBe('VULZ-ACME-7');
-    expect(FlowId.next({ dir, key: 'OTHER' })).toBe('VULZ-OTHER-1');
+    expect(FlowId.next({ dir, key: 'ACME' })).toBe('VULZ-ACME-10');
+    expect(FlowId.next({ dir, key: 'OTHER' })).toBe('VULZ-OTHER-10');
   });
 
-  test('a lock left by a crashed process is taken over, not waited on forever', () => {
+  test('a claim someone just made is stepped over, not shared: the search goes on to a free number', () => {
     const dir = join(createProject({ files: {} }), 'events');
-    const lock = join(dir, '.flow-seq.lock');
 
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(lock, '');
+    mkdirSync(join(dir, '.flow-ids'), { recursive: true });
+    writeFileSync(join(dir, '.flow-ids', 'ACME-1'), '');
+    writeFileSync(join(dir, '.flow-ids', 'ACME-2'), '');
+    writeFileSync(join(dir, '.flow-ids', 'ACME-x'), '');
+    writeFileSync(join(dir, '.flow-ids', 'OTHER-40'), '');
 
-    const old = new Date(Date.now() - 60_000);
-
-    utimesSync(lock, old, old);
-
-    const started = Date.now();
-
-    expect(FlowId.next({ dir, key: 'ACME' })).toBe('VULZ-ACME-1');
-    expect(Date.now() - started).toBeLessThan(2000);
-    expect(existsSync(lock)).toBe(false);
+    expect(FlowId.next({ dir, key: 'ACME' })).toBe('VULZ-ACME-3');
   });
 
-  test('two processes asking at once never get the same number', async () => {
-    const dir = join(createProject({ files: {} }), 'events');
-    const script = `import { FlowId } from '${join(import.meta.dir, '..', '..', 'events', 'flow-id.ts')}'; console.log(FlowId.next({ dir: ${JSON.stringify(dir)}, key: 'ACME' }));`;
-    const printed = await Promise.all(
-      Array.from({ length: 6 }, () =>
-        Bun.spawn(['bun', '-e', script], { stdout: 'pipe', stderr: 'pipe' }),
-      ).map((proc) => new Response(proc.stdout).text()),
-    );
-    const runs = printed.map((text) => text.trim());
+  test('twelve processes, fifteen rounds, with a claim that was made a moment before: every id is different', async () => {
+    const root = createProject({ files: {} });
 
-    expect(new Set(runs).size).toBe(6);
-    expect(runs.sort()).toEqual([
-      'VULZ-ACME-1',
-      'VULZ-ACME-2',
-      'VULZ-ACME-3',
-      'VULZ-ACME-4',
-      'VULZ-ACME-5',
-      'VULZ-ACME-6',
-    ]);
+    for (let round = 0; round < 15; round++) {
+      const dir = join(root, `events-${round}`);
+
+      mkdirSync(join(dir, '.flow-ids'), { recursive: true });
+      writeFileSync(join(dir, '.flow-ids', 'ACME-1'), '');
+
+      const ids = await nextIn(dir, 12);
+
+      expect(new Set(ids).size, `round ${round}: ${ids.join(' ')}`).toBe(12);
+      expect(ids.every((id) => /^VULZ-ACME-\d+$/.test(id))).toBe(true);
+      expect(Math.min(...ids.map((id) => FlowId.numberOf({ id })))).toBeGreaterThan(1);
+    }
   });
 });
 
@@ -240,8 +239,8 @@ describe('the board shows an older id in the new form', () => {
   });
 });
 
-describe('the counter is not part of the log', () => {
-  test('the retention never plans it: only the day files go', () => {
+describe('the claims are not part of the log', () => {
+  test('the retention never plans the claims: only the day files go', () => {
     const dir = join(createProject({ files: {} }), 'events');
 
     FlowId.next({ dir, key: 'ACME' });
@@ -255,7 +254,7 @@ describe('the counter is not part of the log', () => {
     const removed = JSON.stringify(plan);
 
     expect(removed).toContain('2020-01-01.jsonl');
-    expect(removed).not.toContain('.flow-seq');
+    expect(removed).not.toContain('.flow-ids');
   });
 });
 

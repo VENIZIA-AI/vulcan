@@ -132,7 +132,13 @@ export class ProjectScaffold {
     );
 
     return opts.key === undefined
-      ? text.replace(/^ *project: \{ key: '\{\{key\}\}' \},\n/m, '')
+      ? text.replace(
+          new RegExp(
+            `^ *project: \\{ key: '${InitConstants.KEY_TOKEN.replace(/[{}]/g, '\\$&')}' \\},\\n`,
+            'm',
+          ),
+          '',
+        )
       : text.replaceAll(InitConstants.KEY_TOKEN, opts.key);
   }
 
