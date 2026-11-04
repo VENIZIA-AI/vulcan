@@ -225,7 +225,7 @@ export class ApiReference {
         }
 
         // Odd parts of a split on backtick runs are code spans, left as they are.
-        return line
+        return ApiReference.labelOf({ line })
           .split(/(`+[^`]*`+)/)
           .map((part, at) =>
             at % 2 === 1 ? part : part.replaceAll('<', '&lt;').replaceAll('{{', '&#123;&#123;'),
@@ -233,6 +233,21 @@ export class ApiReference {
           .join('');
       })
       .join('\n');
+  }
+
+  /** The tags an export's prose carries, as labels a reader understands: `@example`, `@default`, `@deprecated`. */
+  private static labelOf(opts: { line: string }): string {
+    const matched = /^\s*@(example|default|deprecated)\b:?\s*(.*)$/.exec(opts.line);
+
+    if (matched === null) {
+      return opts.line;
+    }
+
+    const label = `${matched[1][0].toUpperCase()}${matched[1].slice(1)}`;
+
+    return matched[1] === 'example' && matched[2] === ''
+      ? `**${label}**`
+      : `**${label}:** ${matched[2]}`.trimEnd();
   }
 
   /** A fence longer than any run of backticks inside the text, so an example in a comment cannot close it. */

@@ -241,6 +241,42 @@ describe('ApiReference.proseOf', () => {
   });
 });
 
+describe('the tags of an export in its prose', () => {
+  test('@example is a label above its fence, @default and @deprecated are labelled lines', () => {
+    const text = [
+      'Runs it.',
+      '',
+      '@default 5',
+      '@deprecated use run2',
+      '@example',
+      '```ts',
+      'run();',
+      '```',
+    ].join('\n');
+
+    expect(ApiReference.proseOf({ text })).toBe(
+      [
+        'Runs it.',
+        '',
+        '**Default:** 5',
+        '**Deprecated:** use run2',
+        '**Example**',
+        '```ts',
+        'run();',
+        '```',
+      ].join('\n'),
+    );
+  });
+
+  test('a tag inside a fence or a code span is left alone, and so is a tag-like word', () => {
+    const text = ['Use `@example` here.', '```ts', '@example', '```', 'mail user@example.com'].join(
+      '\n',
+    );
+
+    expect(ApiReference.proseOf({ text })).toBe(text);
+  });
+});
+
 describe('ApiReference.fenceOf', () => {
   test('is three backticks, or one more than the longest run in the text', () => {
     expect(ApiReference.fenceOf({ text: 'plain' })).toBe('```');
