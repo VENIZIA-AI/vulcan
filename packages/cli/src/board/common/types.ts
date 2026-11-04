@@ -60,7 +60,7 @@ export type IBoardItem = IEventItem;
 export interface IBoardFlow {
   id: string;
   title: string;
-  /** The title came from a `flow` line; a flow without one shows its first line and "no title yet". */
+  /** The title came from a `flow` line; a flow without one shows the words of its pull request or its first line, with no marker. */
   named: boolean;
   /** Why the flow exists, from the newest `flow` line that has one. */
   why?: string;
@@ -119,7 +119,7 @@ export interface IBoardData {
   shapes: Record<string, string>;
   /** The `board.agents` keys with no lane; absent when none is listed, and then every agent shows. */
   roster?: string[];
-  /** A helper to the lane it rolls into. */
+  /** A helper to the listed name it works under; shown as a label on its own card. */
   lanes?: Record<string, string>;
   /** What `board.agents` says an agent is, by name: `Backend`. */
   roles?: Record<string, string>;

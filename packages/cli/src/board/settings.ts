@@ -17,7 +17,7 @@ export interface IBoardSettings {
   hostname: string;
   /** The listed `board.agents` keys with no lane; empty when none is listed, and then every agent shows. */
   roster: string[];
-  /** A helper to the lane it rolls into. */
+  /** A helper to the listed name it works under; shown as a label on its own card. */
   lanes: Record<string, string>;
   /** What `board.agents` says each agent is. */
   roles: Record<string, string>;

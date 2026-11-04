@@ -86,7 +86,7 @@ The **stage** is the one of the last line, from Proposal to Handover; the page s
 
 ### The title of a flow
 
-The heading of a flow is its title, from the newest `flow` line of that flow (`vulcan event add --kind flow --flow VULZ-ACME-12 --title "..." --why "..."`, see [Name a flow](/references/commands/event#name-a-flow)). A `flow` line only names the flow: it never changes its state, stage, holder or last line, so renaming a merged flow leaves it Done. Messages, commits and the rest are lines of the pane, not headings. A flow with no `flow` line keeps the heading it had before, the words of its pull request or of its first line, followed by "no title yet". The title is written in the language of the owner; the page does not translate it.
+The heading of a flow is its title, from the newest `flow` line of that flow (`vulcan event add --kind flow --flow VULZ-ACME-12 --title "..." --why "..."`, see [Name a flow](/references/commands/event#name-a-flow)). A `flow` line only names the flow: it never changes its state, stage, holder or last line, so renaming a merged flow leaves it Done. Messages, commits and the rest are lines of the pane, not headings. A flow with no `flow` line keeps the heading it had before, the words of its pull request or of its first line. The title is written in the language of the owner; the page does not translate it.
 
 ### The detail pane
 

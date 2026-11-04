@@ -20,7 +20,7 @@ afterEach(() => BoardServer.stop());
 
 const SINCE = Date.parse('2026-11-01');
 /** The page counts an agent not heard from in a day as earlier, by the real clock: the lines of a test are laid out from now, never from a fixed date. */
-const SAMPLE_SPAN_MINUTES = 400;
+const SAMPLE_SPAN_MINUTES = 400; // above the minute of the new agent (300), so its line is in the past, and under a day less the spread of the sample (90)
 
 /** Resolves when `condition` holds in the page, or after `ms`; the answer is the page's own view of it. */
 const WAIT = (condition: string, ms: number): string => `(async () => {
