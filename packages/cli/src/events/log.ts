@@ -2,7 +2,7 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { ClaudeHookEvents, EventConstants, EventKinds, EventStatuses } from './common/index.ts';
-import type { IEvent, IEventRead, TEventKind, TEventStatus } from './common/index.ts';
+import type { IEvent, IEventItem, IEventRead, TEventKind, TEventStatus } from './common/index.ts';
 import { EventText } from './text.ts';
 
 const ID_TIME_WIDTH = 9;
@@ -41,6 +41,11 @@ export class EventLog {
     why?: string;
     context?: string;
     next?: string;
+    steps?: IEventItem[];
+    checks?: IEventItem[];
+    apps?: string[];
+    due?: string;
+    model?: string;
     notification?: string;
     now?: number;
   }): IEvent {
@@ -62,6 +67,26 @@ export class EventLog {
         ? ''
         : EventText.oneLine({ text: opts.next, max: EventConstants.SUMMARY_MAX });
 
+    const steps = EventText.items({
+      items: opts.steps ?? [],
+      max: EventConstants.ITEM_TEXT_MAX,
+      count: EventConstants.ITEM_COUNT_MAX,
+    });
+    const checks = EventText.items({
+      items: opts.checks ?? [],
+      max: EventConstants.ITEM_TEXT_MAX,
+      count: EventConstants.ITEM_COUNT_MAX,
+    });
+    const apps = EventText.items({
+      items: (opts.apps ?? []).map((text) => ({ text, done: false })),
+      max: EventConstants.APP_TEXT_MAX,
+      count: EventConstants.APP_COUNT_MAX,
+    }).map((app) => app.text);
+    const model =
+      opts.model === undefined
+        ? ''
+        : EventText.oneLine({ text: opts.model, max: EventConstants.MODEL_MAX });
+
     return {
       id: EventLog.newId({ now }),
       ts: new Date(now).toISOString(),
@@ -74,6 +99,13 @@ export class EventLog {
       ...(why === '' ? {} : { why }),
       ...(context === '' ? {} : { context }),
       ...(next === '' ? {} : { next }),
+      ...(steps.length === 0 ? {} : { steps }),
+      ...(checks.length === 0 ? {} : { checks }),
+      ...(apps.length === 0 ? {} : { apps }),
+      ...(opts.due !== undefined && EventConstants.DUE_PATTERN.test(opts.due)
+        ? { due: opts.due }
+        : {}),
+      ...(model === '' ? {} : { model }),
       ...(opts.notification !== undefined &&
       ClaudeHookEvents.OWNER_NOTIFICATIONS.has(opts.notification)
         ? { notification: opts.notification }
@@ -140,6 +172,35 @@ export class EventLog {
     return { events, skipped };
   }
 
+  /** The items of a list as a reader keeps them: what is not a `{ text, done }` is dropped, the rest cleaned and cut. */
+  private static itemsOf(opts: { value: unknown }): IEventItem[] {
+    if (!Array.isArray(opts.value)) {
+      return [];
+    }
+
+    return EventText.items({
+      items: opts.value.flatMap((item): IEventItem[] =>
+        RecordValue.isRecord(item) && typeof item.text === 'string'
+          ? [{ text: item.text, done: item.done === true }]
+          : [],
+      ),
+      max: EventConstants.ITEM_TEXT_MAX,
+      count: EventConstants.ITEM_COUNT_MAX,
+    });
+  }
+
+  private static appsOf(opts: { value: unknown }): string[] {
+    return Array.isArray(opts.value)
+      ? EventText.items({
+          items: opts.value.flatMap((app): IEventItem[] =>
+            typeof app === 'string' ? [{ text: app, done: false }] : [],
+          ),
+          max: EventConstants.APP_TEXT_MAX,
+          count: EventConstants.APP_COUNT_MAX,
+        }).map((app) => app.text)
+      : [];
+  }
+
   /** One line as an event, or `undefined` when it is not the shape this writes. */
   static parse(opts: { line: string }): IEvent | undefined {
     let value: unknown;
@@ -166,6 +227,11 @@ export class EventLog {
       why,
       context,
       next,
+      steps,
+      checks,
+      apps,
+      due,
+      model,
       notification,
       source,
     } = value;
@@ -185,6 +251,8 @@ export class EventLog {
       (why !== undefined && typeof why !== 'string') ||
       (context !== undefined && typeof context !== 'string') ||
       (next !== undefined && typeof next !== 'string') ||
+      (due !== undefined && (typeof due !== 'string' || !EventConstants.DUE_PATTERN.test(due))) ||
+      (model !== undefined && typeof model !== 'string') ||
       (notification !== undefined && typeof notification !== 'string')
     ) {
       return undefined;
@@ -208,6 +276,17 @@ export class EventLog {
       ...(why === undefined ? {} : { why: text(why, EventConstants.SUMMARY_MAX) }),
       ...(context === undefined ? {} : { context: text(context, EventConstants.CONTEXT_MAX) }),
       ...(next === undefined ? {} : { next: text(next, EventConstants.SUMMARY_MAX) }),
+      ...(EventLog.itemsOf({ value: steps }).length === 0
+        ? {}
+        : { steps: EventLog.itemsOf({ value: steps }) }),
+      ...(EventLog.itemsOf({ value: checks }).length === 0
+        ? {}
+        : { checks: EventLog.itemsOf({ value: checks }) }),
+      ...(EventLog.appsOf({ value: apps }).length === 0
+        ? {}
+        : { apps: EventLog.appsOf({ value: apps }) }),
+      ...(due === undefined ? {} : { due }),
+      ...(model === undefined ? {} : { model: text(model, EventConstants.MODEL_MAX) }),
       // A value that is not one of the types the hook knows is dropped: it is a short enum, not free text.
       ...(notification === undefined || !ClaudeHookEvents.OWNER_NOTIFICATIONS.has(notification)
         ? {}

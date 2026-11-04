@@ -1,4 +1,5 @@
 import { EventConstants, EventSecrets } from './common/index.ts';
+import type { IEventItem } from './common/index.ts';
 
 /** The words that go into a log line: one line, no secret-shaped token, a fixed length. */
 export class EventText {
@@ -35,6 +36,17 @@ export class EventText {
     }
 
     return stripped;
+  }
+
+  /** The items as they are kept: each text one line of at most `max` characters, none empty, at most `count`. */
+  static items(opts: { items: IEventItem[]; max: number; count: number }): IEventItem[] {
+    return opts.items
+      .map((item) => ({
+        text: EventText.oneLine({ text: item.text, max: opts.max }),
+        done: item.done,
+      }))
+      .filter((item) => item.text !== '')
+      .slice(0, opts.count);
   }
 
   /** One line of at most `max` characters: control characters and runs of space become one space, secrets are redacted first. */
