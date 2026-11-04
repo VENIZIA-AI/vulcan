@@ -36,7 +36,7 @@ const palettes = (opts: { accent: string; accentDark?: string; accentText?: stri
 };
 
 describe('the project colour: which colour a page takes (C10)', () => {
-  test('the spec wins, then the project, then the neutral default', () => {
+  test('the spec wins, then the project, then the default preset', () => {
     const spec = { accent: '#0277bd', accentText: '#01579b' };
     const project = { accent: '#8a5a20', accentDark: '#dead6a' };
     const fromSpec = ProjectTheme.resolve({ spec, project });
