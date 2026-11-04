@@ -62,7 +62,7 @@ export class BoardServer {
     const names = [
       `127.0.0.1:${opts.port}`,
       `localhost:${opts.port}`,
-      `${opts.hostname}:${opts.port}`,
+      `${opts.hostname.toLowerCase()}:${opts.port}`,
     ];
     const host = opts.host?.toLowerCase() ?? null;
     const origin = opts.origin?.toLowerCase() ?? null;

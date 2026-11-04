@@ -24,7 +24,7 @@ packages: ['@venizia/vulcan']
 
 ## Tested on, and not
 
-Linux (kernel 7.0) with Bun 1.4.4 and Chrome driven over CDP by the repository's own test helper; the log was written by the Claude Code hooks and by `vulcan event add`. NOT VERIFIED (it cannot run here): Safari resolving `.localhost` names (Chrome does here), macOS and Windows (`fs.watch` and the poll fallback behave differently), Firefox and Safari (`EventSource`), and logs written live by Codex, Cursor, Antigravity or pi (the log format is the same; not exercised against a running agent).
+Linux (kernel 7.0) with Bun 1.4.4 and Chrome driven over CDP by the repository's own test helper; the log was written by the Claude Code hooks and by `vulcan event add`. Chrome and Firefox load the `.localhost` address here over IPv4; NOT VERIFIED (it cannot run here): Safari resolving `.localhost` names, macOS and Windows (`fs.watch` and the poll fallback behave differently), Firefox and Safari (`EventSource`), and logs written live by Codex, Cursor, Antigravity or pi (the log format is the same; not exercised against a running agent).
 
 ## Who is affected
 

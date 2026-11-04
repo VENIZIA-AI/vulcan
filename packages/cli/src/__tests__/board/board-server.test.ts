@@ -99,6 +99,20 @@ describe('BoardServer.check: who may read the board', () => {
     expect(custom(`${HOSTNAME}:${PORT}`)).toEqual({ status: 403 });
   });
 
+  test('a name given in capitals is still matched, because a browser sends it in lower case', () => {
+    const verdict = BoardServer.check({
+      method: 'GET',
+      url: `http://127.0.0.1:${PORT}/?t=${TOKEN}`,
+      host: `my-board.localhost:${PORT}`,
+      origin: null,
+      port: PORT,
+      token: TOKEN,
+      hostname: 'My-Board.localhost',
+    });
+
+    expect(verdict.status).toBe(200);
+  });
+
   test('the same origin and no Origin at all are fine', () => {
     expect(check({ origin: `http://127.0.0.1:${PORT}` }).status).toBe(200);
     expect(check({ origin: `http://localhost:${PORT}` }).status).toBe(200);
