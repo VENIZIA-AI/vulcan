@@ -9,6 +9,7 @@ type TProfileRead = { ok: true; profile: TProfile | undefined } | { ok: false; e
 
 const SYMLINK_ERROR = `${OwnerConstants.PROFILE_FILE} (or .agents/local) is a symlink - it must be a regular file inside the project`;
 
+/** Reads, renders and writes the per-person owner profile file inside `.agents/local`; used by `vulcan profile`, `vulcan doctor` and the session digest. */
 export class OwnerProfile {
   /** A symlink at the profile's place, or at `.agents/local`, would read or write a file outside the project. */
   static linkedAt(opts: { root: string }): string | undefined {

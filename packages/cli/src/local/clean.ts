@@ -81,6 +81,7 @@ const removeEntry = (opts: { root: string; entry: ILocalEntry }): string | undef
   }
 };
 
+/** Plans and runs the removal of old scratch files under `.agents/local`; used by `vulcan clean` and the automatic clean. */
 export class LocalClean {
   /** What the chosen scopes hold: what `clean` would remove and what it keeps, with the reason. */
   static plan(opts: { root: string; scopes: string[]; now?: number }): ICleanPlan {

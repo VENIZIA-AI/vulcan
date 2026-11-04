@@ -5,6 +5,7 @@ import { RuleParser } from './parser.ts';
 
 const readBaseMarkdown = (): string => readFileSync(join(BASE_DIRECTORY, 'rules.md'), 'utf8');
 
+/** Reads the base rule file shipped with the CLI as a map of rule ID to text; used by `vulcan sync` and `vulcan doctor`. */
 export class BaseRules {
   /** Each base rule's ID with its table row, verbatim. */
   static read(): Record<string, string> {

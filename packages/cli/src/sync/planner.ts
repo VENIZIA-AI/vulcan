@@ -287,6 +287,7 @@ const skillDirectoriesOf = (opts: { agents: string[] }): string[] => [
   ),
 ];
 
+/** Plans the files `vulcan sync` writes, as a list of actions, without touching disk; also used by `vulcan doctor` to find drift. */
 export class SyncPlanner {
   /** The committed project manifest (Project Contract v1, C1), rendered from the config. */
   static planManifest(opts: { root: string; config: TResolvedConfig }): ISyncAction {
