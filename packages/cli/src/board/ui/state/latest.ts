@@ -13,11 +13,11 @@ export class BoardLatest {
     } else if (event.kind === 'msg' && event.incoming) {
       verb = event.from ? `${translate('lt.gotFrom')} ${event.from}` : translate('lt.got');
     } else if (event.kind === 'msg' && event.to) {
-      verb = `${translate('lt.msgTo')} ${event.asTo ?? event.to}`;
+      verb = `${translate('lt.msgTo')} ${event.to}`;
     } else {
       verb = translate(`lt.${event.kind}`);
     }
 
-    return `${event.as ?? event.actor} ${verb}${event.summary ? `: ${event.summary}` : ''}`;
+    return `${event.actor} ${verb}${event.summary ? `: ${event.summary}` : ''}`;
   }
 }

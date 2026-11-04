@@ -12,6 +12,8 @@ export class EventKinds {
   static readonly DECISION = 'decision';
   /** A flow's title and the one-line reason for it, in the owner's language; the newest per flow wins. */
   static readonly FLOW = 'flow';
+  /** Something was put live; a milestone of its flow, like a merge. Its summary says what. */
+  static readonly DEPLOY = 'deploy';
   /** An agent used a tool, at most once in `EventConstants.TICK_SECONDS` per session: the board reads it as working. */
   static readonly TOOL_TICK = 'tool-tick';
 
@@ -26,6 +28,7 @@ export class EventKinds {
     this.PR,
     this.DECISION,
     this.FLOW,
+    this.DEPLOY,
     this.TOOL_TICK,
   ]);
 
@@ -59,6 +62,13 @@ export class EventSubcommands {
 }
 
 export class EventFlags {
+  /** The lists of a flow line, each given again in full on every line: the last line wins as a whole. */
+  static readonly STEP = '--step';
+  static readonly STEP_DONE = '--step-done';
+  static readonly CHECK = '--check';
+  static readonly CHECK_DONE = '--check-done';
+  static readonly APP = '--app';
+  static readonly DUE = '--due';
   static readonly KIND = '--kind';
   static readonly SUMMARY = '--summary';
   static readonly FLOW = '--flow';
@@ -72,6 +82,29 @@ export class EventFlags {
   static readonly DIR = '--dir';
   static readonly SINCE = '--since';
   static readonly JSON = '--json';
+
+  /** Every flag the command knows: a list value that is one of them is a flag with its value missing. */
+  static readonly KNOWN = new Set<string>([
+    this.STEP,
+    this.STEP_DONE,
+    this.CHECK,
+    this.CHECK_DONE,
+    this.APP,
+    this.DUE,
+    this.KIND,
+    this.SUMMARY,
+    this.FLOW,
+    this.REF,
+    this.STATUS,
+    this.TITLE,
+    this.WHY,
+    this.CONTEXT,
+    this.NEXT,
+    this.ACTOR,
+    this.DIR,
+    this.SINCE,
+    this.JSON,
+  ]);
 }
 
 /** The names a Claude Code hook payload carries, as Claude Code 2.1.317 sends them. */
@@ -128,6 +161,14 @@ export class EventConstants {
    */
   static readonly TICK_FOLDER = '.agents/local/tmp/event-ticks';
   static readonly REF_MAX = 120;
+  /** A flow line's lists: how many items, and how long one is. */
+  static readonly ITEM_COUNT_MAX = 30;
+  static readonly ITEM_TEXT_MAX = 200;
+  static readonly APP_COUNT_MAX = 12;
+  static readonly APP_TEXT_MAX = 40;
+  /** A due date is a day: `2026-11-08`. */
+  static readonly DUE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+  static readonly MODEL_MAX = 80;
   static readonly ACTOR_MAX = 80;
   static readonly REDACTED = '[redacted]';
   /** A flow is named `VULZ-<key>-<number>`; the older `F-<number>` is still read and shows as the new form. */
@@ -145,10 +186,25 @@ export class EventConstants {
   static readonly FLOW_RECENT_COUNT = 5;
   /** Where the log goes for a hook that has no better answer: the name of an actor with no session name. */
   static readonly UNKNOWN_ACTOR = 'unknown';
+  /** What the actor of a session with no name starts with; a name that starts with it is read as no name. */
+  static readonly UNNAMED_PREFIX = 'claude:';
+  /** The `nameSource` values of a name Claude Code made up (from the folder, a counter or a clash), not a person's. */
+  static readonly MADE_UP_NAME_SOURCES = new Set(['derived', 'auto', 'collision']);
   static readonly ACTOR_ENV = 'VULCAN_ACTOR';
   static readonly SESSION_ENV = 'CLAUDE_CODE_SESSION_ID';
   static readonly CONFIG_DIR_ENV = 'CLAUDE_CONFIG_DIR';
   static readonly DAY_MS = 24 * 60 * 60 * 1000;
+}
+
+/** What the name of an actor says about its session. Light on purpose: the board page is built from it. */
+export class EventActorNames {
+  /** Whether the actor is a name somebody gave, and not the fallback of a session with none (`claude:<id>`, `unknown`). */
+  static isNamed(opts: { actor: string }): boolean {
+    return (
+      opts.actor !== EventConstants.UNKNOWN_ACTOR &&
+      !opts.actor.startsWith(EventConstants.UNNAMED_PREFIX)
+    );
+  }
 }
 
 /** Shapes of a secret that must never reach a log line. Best effort: a summary is a label, not a document. */

@@ -1,5 +1,9 @@
-import { EventActor } from '../events/actor.ts';
-import { EventKinds, EventStatuses } from '../events/common/index.ts';
+import {
+  EventActorNames,
+  EventKinds,
+  EventSources,
+  EventStatuses,
+} from '../events/common/index.ts';
 import type { IEvent } from '../events/common/index.ts';
 import {
   BoardConstants,
@@ -14,6 +18,7 @@ import type {
   IBoardDecision,
   IBoardEvent,
   IBoardFlow,
+  IBoardItem,
   TBoardState,
 } from './common/index.ts';
 
@@ -198,7 +203,16 @@ export class BoardFold {
           ...(line.why === undefined ? {} : { why: line.why }),
           ...(line.context === undefined ? {} : { context: line.context }),
           ...(line.next === undefined ? {} : { next: line.next }),
+          ...(line.steps === undefined ? {} : { steps: line.steps }),
+          ...(line.checks === undefined ? {} : { checks: line.checks }),
+          ...(line.apps === undefined ? {} : { apps: line.apps }),
+          ...(line.due === undefined ? {} : { due: line.due }),
+          ...(line.ref === undefined ? {} : { tracker: line.ref }),
         };
+      }
+
+      case EventKinds.DEPLOY: {
+        return { ...base, kind: BoardKinds.RELEASE, stage: BoardStages.RELEASE };
       }
 
       case EventKinds.SESSION_START:
@@ -224,14 +238,35 @@ export class BoardFold {
     }
   }
 
+  /** When the agent's current stretch in `state` began: kept while it stays in the state and the lines come within the active gap. */
+  private static sinceOf(opts: {
+    known: IBoardAgent | undefined;
+    state: IBoardAgent['state'] | undefined;
+    ts: string;
+  }): string {
+    const { known } = opts;
+
+    if (
+      known === undefined ||
+      known.state !== opts.state ||
+      Date.parse(opts.ts) - Date.parse(known.checkedAt) > BoardConstants.ACTIVE_GAP_MS
+    ) {
+      return opts.ts;
+    }
+
+    return known.since;
+  }
+
   private static moveAgent(opts: { agents: Record<string, IBoardAgent>; line: IEvent }): void {
     const { agents, line } = opts;
     const known = agents[line.actor];
 
-    // A session with no name of its own is no agent: its lines stay in their flows, and it has no row.
+    // A session with no name of its own is no agent: its lines stay in their flows, and it has no card.
+    // A message the agent got is not a line of its own: it moves neither its state nor its time.
     if (
-      !EventActor.isNamed({ actor: line.actor }) ||
+      !EventActorNames.isNamed({ actor: line.actor }) ||
       line.kind === EventKinds.SUBAGENT_STOP ||
+      line.kind === EventKinds.MSG_RECEIVED ||
       BoardFold.isHarnessAsk({ line })
     ) {
       return;
@@ -244,23 +279,36 @@ export class BoardFold {
     ) {
       const state = line.kind === EventKinds.SESSION_STOP ? 'idle' : 'working';
 
+      // The model is what the session start said, and the harness is the hook that wrote it; both stay until a start says another.
+      const isHook = line.source === EventSources.CLAUDE_HOOK;
+      const model =
+        line.kind === EventKinds.SESSION_START ? (line.model ?? known?.model) : known?.model;
+      const harness = isHook ? BoardConstants.HARNESS_CLAUDE : known?.harness;
+
       agents[line.actor] = {
         name: line.actor,
         state,
         current: known?.current ?? '',
-        since: known?.state === state ? known.since : line.ts,
+        since: BoardFold.sinceOf({ known, state, ts: line.ts }),
         checkedAt: line.ts,
+        ...(model === undefined ? {} : { model }),
+        ...(harness === undefined ? {} : { harness }),
       };
 
       return;
     }
 
+    // A line of work after a stop means the agent is at it again.
+    const wakes = known?.state === 'idle';
+
     agents[line.actor] = {
       name: line.actor,
-      state: known?.state ?? 'working',
+      state: wakes ? 'working' : (known?.state ?? 'working'),
       current: line.summary,
-      since: known?.since ?? line.ts,
+      since: BoardFold.sinceOf({ known, state: wakes ? 'working' : known?.state, ts: line.ts }),
       checkedAt: line.ts,
+      ...(known?.model === undefined ? {} : { model: known.model }),
+      ...(known?.harness === undefined ? {} : { harness: known.harness }),
     };
   }
 
@@ -367,6 +415,11 @@ export class BoardFold {
     why?: string;
     context?: string;
     next?: string;
+    steps?: IBoardItem[];
+    checks?: IBoardItem[];
+    apps?: string[];
+    due?: string;
+    tracker?: string;
   } {
     const { named } = opts;
 
@@ -378,6 +431,11 @@ export class BoardFold {
           ...(named.why === undefined ? {} : { why: named.why }),
           ...(named.context === undefined ? {} : { context: named.context }),
           ...(named.next === undefined ? {} : { next: named.next }),
+          ...(named.steps === undefined ? {} : { steps: named.steps }),
+          ...(named.checks === undefined ? {} : { checks: named.checks }),
+          ...(named.apps === undefined ? {} : { apps: named.apps }),
+          ...(named.due === undefined ? {} : { due: named.due }),
+          ...(named.tracker === undefined ? {} : { tracker: named.tracker }),
         };
   }
 
@@ -443,9 +501,12 @@ export class BoardFold {
       }
     }
 
-    // A merge is Done until something reopens it: a commit, a fix or another pull request after it.
+    // A merge or a deploy is Done until something reopens it: a commit, a fix or another pull request after it.
     const merged = events.findLastIndex(
-      (event) => event.kind === BoardKinds.MERGE || event.status === BoardStatuses.DONE,
+      (event) =>
+        event.kind === BoardKinds.MERGE ||
+        event.kind === BoardKinds.RELEASE ||
+        event.status === BoardStatuses.DONE,
     );
 
     if (merged >= 0 && !events.slice(merged + 1).some((event) => BoardFold.reopens({ event }))) {

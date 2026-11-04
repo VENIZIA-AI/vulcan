@@ -206,7 +206,7 @@ describe('vulcan event add', () => {
     const root = project();
     const bad: string[][] = [
       ['add'],
-      ['add', '--kind', 'deploy', '--summary', 's'],
+      ['add', '--kind', 'rollout', '--summary', 's'],
       ['add', '--kind', 'commit'],
       ['add', '--kind', 'commit', '--summary', '  '],
       ['add', '--kind', 'commit', '--summary', 's', '--flow', 'flow-1'],

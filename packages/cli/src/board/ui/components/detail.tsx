@@ -1,347 +1,329 @@
-import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { BoardTables } from '../common/constants.ts';
-import type { IBoardViewEvent, IFlowView } from '../common/types.ts';
+import type { IBoardData } from '../../common/index.ts';
+import { BoardConstants } from '../../common/index.ts';
+import { BoardStateWords, BoardTables } from '../common/constants.ts';
+import type { IAgentRow, IBoardViewEvent, IFlowView } from '../common/types.ts';
 import { useUi } from '../i18n/context.ts';
-import { BoardLatest } from '../state/latest.ts';
+import { BoardAgentInfo } from '../state/agent-info.ts';
+import { BoardCards } from '../state/cards.ts';
+import type { IAgentCard } from '../state/cards.ts';
 import { BoardTime } from '../state/time.ts';
-import { BoardView } from '../state/view.ts';
-import { EventItem, FlowCode, Mark, Untitled } from './bits.tsx';
+import { BoardUrl } from '../url.ts';
+import { AGENT_TONES } from './agents.tsx';
+import { Bar, Checklist, EventItem, Mark } from './bits.tsx';
+import { BoardFace, Mascot } from './face.tsx';
 
-const isBad = (event: { status?: string }): boolean =>
-  event.status === 'fail' || event.status === 'blocked';
-const approxMark = (events: IBoardViewEvent[]): string =>
-  events.some((event) => BoardTime.isApproximate({ source: event.source })) ? '≈' : '';
-
-/** What the flow is: its title, why it exists, what is done and left, the next step, the latest lines and who holds it. */
-const Head = (props: { view: IFlowView; onClose: () => void }) => {
-  const { t, now } = useUi();
-  const { view } = props;
-  const { flow } = view;
-  const latest = view.evs
-    .filter((event) => !event.plumbing && event.kind !== 'flow')
-    .slice(-3)
-    .reverse();
-  const decided = view.dec && (!view.lastAsk || view.dec.at > view.lastAsk.ts);
-
-  return (
-    <div className="dh">
-      <div className="top">
-        <button className="btn back" type="button" onClick={props.onClose}>
-          {t('Quay lại')}
-        </button>
-        <FlowCode id={flow.id} />
-        <span className="repo">{flow.repo}</span>
-        <span className={`pill ${flow.state}`}>{t(BoardTables.STATE_TEXT[flow.state])}</span>
-      </div>
-      <h3>
-        {flow.title}
-        {view.named ? null : <Untitled />}
-      </h3>
-      {flow.why ? <p className="why">{flow.why}</p> : null}
-      {flow.context ? (
-        <div className="ctx">
-          <div className="lb">{t('ctx.label')}</div>
-          <p>{flow.context}</p>
-        </div>
-      ) : null}
-      {flow.next ? (
-        <p className="nx">
-          <b>{`${t('nx.label')}: `}</b>
-          {flow.next}
-        </p>
-      ) : null}
-      {latest.length > 0 ? (
-        <div className="lat">
-          <div className="lb">{t('lt.label')}</div>
-          <ul>
-            {latest.map((event) => (
-              <li key={event.id}>
-                <span className="tm">
-                  {approxMark([event])}
-                  {BoardTime.clock({ iso: event.ts })}
-                </span>
-                <span>{BoardLatest.textOf({ event, translate: t })}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-      <div className="meta">
-        {(
-          [
-            ['Đang giữ', view.holder],
-            [
-              'Sự kiện cuối',
-              `${view.approxLast ? '≈ ' : ''}${BoardTime.ago({ iso: view.last.ts, now, translate: t })}${t(' trước')}`,
-            ],
-            ['Bắt đầu', BoardTime.clock({ iso: view.evs[0].ts })],
-            ['Sự kiện', String(view.evs.length)],
-          ] as const
-        ).map(([label, value]) => (
-          <span key={label}>
-            {`${t(label)} `}
-            <b>{value}</b>
-          </span>
-        ))}
-      </div>
-      {flow.state === 'you' && view.lastAsk ? (
-        <div className="ask">{view.lastAsk.summary}</div>
-      ) : null}
-      {view.dec && decided ? (
-        <div className="meta">{`${t('Anh đã chọn ')}${view.dec.choice === 'approve' ? t('Duyệt') : t('Để sau')}${t(' lúc ')}${BoardTime.clock({ iso: view.dec.at })}`}</div>
-      ) : null}
-    </div>
-  );
+const MILESTONES: Record<string, string> = {
+  decision: 'ms.decision',
+  merge: 'ms.merge',
+  release: 'ms.deploy',
 };
+const RECENT_LINES = 5;
+const LOOSE_LINES = 200;
 
 /** `cur` for the stage a flow is at, `done` for those before it. */
 const stageClass = (opts: { stage: number; cur: number }): string => {
   if (opts.stage === opts.cur) {
-    return 'cur';
+    return 'st cur';
   }
 
-  return opts.stage < opts.cur ? 'done' : '';
+  return opts.stage < opts.cur ? 'st done' : 'st';
 };
 
-/** The stages the flow went through, newest last; a stage with more than one round has a button per round. */
-const Timeline = (props: {
-  view: IFlowView;
-  attempts: Record<string, number>;
-  onAttempt: (key: string, round: number) => void;
-  draw: boolean;
-}) => {
+const Section = (props: { title: string; children: ReactNode }) => (
+  <div className="d-sec">
+    <h4>{props.title}</h4>
+    {props.children}
+  </div>
+);
+
+/** The lines that mark the flow's way: it was opened, decided, merged, deployed. Newest first. */
+const Milestones = (props: { view: IFlowView }) => {
   const { t } = useUi();
-  const { view } = props;
+  const marks = props.view.evs
+    .filter((event, index) => index === 0 || event.kind in MILESTONES)
+    .map((event, index) => ({ event, tag: index === 0 ? 'ms.open' : MILESTONES[event.kind] }))
+    .reverse();
 
   return (
-    <ol className={`tl${props.draw ? ' draw' : ''}`}>
-      {view.flow.stages
-        .map((k) => ({
-          k,
-          evs: view.evs.filter((event) => event.stage === k && event.kind !== 'flow'),
-        }))
-        .filter((stage) => stage.evs.length > 0)
-        .map(({ k, evs }, index) => {
-          const last = evs[evs.length - 1];
-          const key = `${view.flow.id}:${k}`;
-          const rounds = [...new Set(evs.map((event) => event.attempt ?? 1))].sort(
-            (left, right) => left - right,
-          );
-          const picked = props.attempts[key] ?? rounds[rounds.length - 1];
-          const shown =
-            rounds.length > 1 ? evs.filter((event) => (event.attempt ?? 1) === picked) : evs;
-          const state = stageClass({ stage: k, cur: view.flow.cur });
-
-          return (
-            <li
-              key={k}
-              style={props.draw ? { animationDelay: `${index * 60}ms` } : undefined}
-              className={`st ${state}${isBad(last) && k === view.flow.cur ? ' fail' : ''}`}
-            >
-              <span className="k" />
-              <div>
-                <div className="h">
-                  <span className="nm">{t(BoardTables.STAGES[k])}</span>
-                  <span className="tm">
-                    {approxMark(evs)}
-                    {BoardTime.clock({ iso: evs[0].ts })}
-                    {evs.length > 1 ? `–${BoardTime.clock({ iso: last.ts })}` : ''}
-                  </span>
-                  <span className="tm">{`${evs.length}${t(' sự kiện')}`}</span>
-                </div>
-                {rounds.length > 1 ? (
-                  <div
-                    className="att"
-                    role="group"
-                    aria-label={`${t('Vòng của ')}${t(BoardTables.STAGES[k])}`}
-                  >
-                    {rounds.map((round) => (
-                      <button
-                        key={round}
-                        type="button"
-                        aria-pressed={round === picked}
-                        onClick={() => props.onAttempt(key, round)}
-                      >
-                        {`${t('Vòng ')}${round} `}
-                        <Mark
-                          bad={evs.some((event) => (event.attempt ?? 1) === round && isBad(event))}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                <ul className="evs">
-                  {shown.map((event) => (
-                    <EventItem key={event.id} event={event} />
-                  ))}
-                </ul>
-              </div>
-            </li>
-          );
-        })}
-    </ol>
+    <div className="d-up">
+      {marks.map(({ event, tag }, index) => (
+        <div key={event.id} className={`d-u${index === 0 ? ' last' : ''}`}>
+          <time>{BoardTime.clock({ iso: event.ts })}</time>
+          <span className="d-tag">{t(tag)}</span>
+          {event.summary}
+        </div>
+      ))}
+    </div>
   );
 };
 
-/** All the lines when asked for, else the stages; a flow with no work has neither. */
-const Body = (props: {
-  view: IFlowView;
-  draw: boolean;
-  everything: boolean;
-  attempts: Record<string, number>;
-  onAttempt: (key: string, round: number) => void;
-}) => {
+/** The events that name no flow: not a work item, so only a list, newest first. */
+const LooseDetail = (props: { view: IFlowView }) => {
   const { t } = useUi();
-  const { view } = props;
-
-  if (props.everything) {
-    return (
-      <ul className="evs" style={{ padding: '8px 16px 16px' }}>
-        {view.evs.map((event) => (
-          <EventItem key={event.id} event={event} />
-        ))}
-      </ul>
-    );
-  }
-
-  if (view.noWork) {
-    return <p className="nowork">{t('nw.empty')}</p>;
-  }
 
   return (
-    <Timeline view={view} attempts={props.attempts} onAttempt={props.onAttempt} draw={props.draw} />
-  );
-};
-
-interface IDetailProps {
-  views: IFlowView[];
-  events: IBoardViewEvent[];
-  selected: string | null;
-  open: boolean;
-  diagramMode: boolean;
-  diagram: (view: IFlowView) => ReactNode;
-  everything: boolean;
-  onEverything: (value: boolean) => void;
-  attempts: Record<string, number>;
-  onAttempt: (key: string, round: number) => void;
-  onSelect: (id: string) => void;
-  onClose: () => void;
-}
-
-/** What nothing is picked shows: the day in numbers and the newest lines of all flows. */
-const Today = (props: IDetailProps) => {
-  const { t, now } = useUi();
-  const count = (state: string): number =>
-    props.views.filter(
-      (view) =>
-        view.flow.state === state &&
-        (state !== 'done' || BoardTime.isSameDay({ iso: view.last.ts, now })),
-    ).length;
-  const recent = props.events
-    .filter((event) => event.kind !== 'flow')
-    .sort(BoardView.byTime)
-    .reverse()
-    .slice(0, 14);
-
-  return (
-    <div id="dEmpty">
-      <div className="dh">
-        <h3>
-          <span>{t('Hôm nay')}</span>
-        </h3>
-        <p className="meta" id="sumLine">
-          {`${count('you')}${t(' luồng cần anh · ')}${count('blocked')}${t(' bị chặn · ')}${count('running')}${t(' đang chạy · ')}${count('done')}${t(' xong hôm nay')}`}
-        </p>
-        <p className="meta">
-          <span>
-            {t(
-              'Chọn một luồng ở bên trái để xem từng bước, từng vòng review và tin nhắn. Phím j, k để chuyển, Enter để mở.',
-            )}
-          </span>
-        </p>
-      </div>
-      <h4 className="dlabel">
-        <span>{t('Sự kiện mới nhất')}</span>
-      </h4>
-      <ul className="evs" id="recent" style={{ padding: '8px 16px 16px' }}>
-        {recent.map((event) => (
-          <EventItem
-            key={event.id}
-            event={event}
-            chip={
-              <button
-                className="btn chip"
-                type="button"
-                title={props.views.find((view) => view.flow.id === event.flowId)?.flow.title ?? ''}
-                onClick={() => props.onSelect(event.flowId)}
-              >
-                {event.flowId}
-              </button>
-            }
-          />
-        ))}
+    <div id="dBody" className="d-body">
+      <h2>{t('it.unsorted')}</h2>
+      <p className="d-empty">{t('it.unsortedNote')}</p>
+      <ul className="evs">
+        {[...props.view.evs]
+          .reverse()
+          .slice(0, LOOSE_LINES)
+          .map((event) => (
+            <EventItem key={event.id} event={event} />
+          ))}
       </ul>
     </div>
   );
 };
 
-/** The right pane: the flow picked, or the day when none is. */
-export const Detail = (props: IDetailProps) => {
+/** A flow in full: what it is, how far along, what waits, and the way it went. */
+const FlowDetail = (props: {
+  view: IFlowView;
+  everything: boolean;
+  onEverything: (value: boolean) => void;
+}) => {
   const { t } = useUi();
-  const view = props.views.find((one) => one.flow.id === props.selected);
-  const drawn = useRef(new Set<string>());
-  const draw = view !== undefined && !drawn.current.has(view.flow.id);
+  const { view } = props;
+  const { flow } = view;
+  const card = BoardCards.itemOf({ view });
 
-  useEffect(() => {
-    if (view) {
-      drawn.current.add(view.flow.id);
-    }
-  }, [view?.flow.id]);
+  return (
+    <div id="dBody" className="d-body">
+      <h2>{flow.title}</h2>
+      <div className="d-meta">
+        <span className="c-id">{flow.id}</span>
+        {flow.tracker ? <span className="c-ref">{flow.tracker}</span> : null}
+        {flow.due ? <span>{`${t('fl.due')} ${flow.due}`}</span> : null}
+        <span>
+          {t('it.holder')}: <span className="d-who">{view.holder}</span>
+        </span>
+      </div>
+      {view.noWork ? null : (
+        <>
+          <div className="d-stages">
+            {BoardTables.STAGES.map((name, stage) => (
+              <span key={name} title={t(name)} className={stageClass({ stage, cur: flow.cur })} />
+            ))}
+          </div>
+          <div className="d-stl">
+            <span>{t(BoardTables.STAGES[0])}</span>
+            <b>{t(BoardTables.STAGES[flow.cur])}</b>
+            <span>{t(BoardTables.STAGES[BoardTables.STAGES.length - 1])}</span>
+          </div>
+        </>
+      )}
+      {flow.context || flow.apps ? (
+        <Section title={t('dt.whatItIs')}>
+          {flow.context ? <p>{flow.context}</p> : null}
+          {flow.apps ? (
+            <div className="c-chips">
+              {flow.apps.map((app) => (
+                <span key={app}>{app}</span>
+              ))}
+            </div>
+          ) : null}
+        </Section>
+      ) : null}
+      {flow.steps && flow.steps.length > 0 ? (
+        <Section title={`${t('fl.steps')} · ${card.steps.done}/${card.steps.total}`}>
+          <Bar {...card.steps} />
+          <Checklist items={flow.steps} />
+        </Section>
+      ) : null}
+      {flow.checks && flow.checks.length > 0 ? (
+        <Section title={`${t('fl.checks')}${flow.tracker ? ` · ${flow.tracker}` : ''}`}>
+          <Checklist items={flow.checks} />
+        </Section>
+      ) : null}
+      {card.waiting ? (
+        <div className="d-sec d-waiting">
+          <span className="d-k">{t('it.waiting')}</span>
+          <span>{card.waiting}</span>
+        </div>
+      ) : null}
+      {view.noWork ? <p className="d-empty">{t('nw.empty')}</p> : null}
+      <Section title={t('dt.milestones')}>
+        <Milestones view={view} />
+      </Section>
+      <button
+        className="btn d-all"
+        type="button"
+        aria-pressed={props.everything}
+        onClick={() => props.onEverything(!props.everything)}
+      >
+        {`${t('dt.all')} (${view.evs.length})`}
+      </button>
+      {props.everything ? (
+        <ul className="evs">
+          {view.evs.map((event) => (
+            <EventItem key={event.id} event={event} />
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+};
+
+/** An agent in full: its latest lines, the pull requests it has open and the messages nobody has answered. */
+const AgentDetail = (props: {
+  row: IAgentRow;
+  card: IAgentCard;
+  data: IBoardData;
+  events: IBoardViewEvent[];
+  shape: string;
+  onFlow: (id: string) => void;
+}) => {
+  const { t, now } = useUi();
+  const { row, card, data } = props;
+  const info = BoardAgentInfo.of({ data, events: props.events, name: row.n });
+  const clock = (iso: string): string => BoardTime.clock({ iso });
+
+  return (
+    <div id="dBody" className="d-body d-agent">
+      <div className="d-agenthead">
+        <Mascot state={row.st} name={row.n} shape={props.shape} />
+        <div>
+          <h2 id="popName">{row.n}</h2>
+          <div className="d-meta">
+            <span className={`c-badge b-${AGENT_TONES[row.st]}`}>
+              {t(BoardStateWords.PILL[row.st])}
+            </span>
+            {card.since ? (
+              <span>{`${t('từ ')}${clock(card.since)} · ${BoardTime.ago({ iso: card.since, now, translate: t })}`}</span>
+            ) : null}
+          </div>
+        </div>
+      </div>
+      <Section title={t('5 sự kiện gần nhất')}>
+        {info.mine.length === 0 ? (
+          <p className="d-empty">{t('Chưa có sự kiện nào của agent này.')}</p>
+        ) : (
+          <ul className="d-list">
+            {info.mine
+              .slice(-RECENT_LINES)
+              .reverse()
+              .map((event) => (
+                <li key={event.id}>
+                  <time>{clock(event.ts)}</time>
+                  {event.flowId ? (
+                    <button
+                      className="btn chip"
+                      type="button"
+                      onClick={() => props.onFlow(event.flowId)}
+                    >
+                      {event.flowId}
+                    </button>
+                  ) : null}
+                  {event.summary}
+                </li>
+              ))}
+          </ul>
+        )}
+      </Section>
+      <Section title={`${t('PR đang mở (')}${info.open.length})`}>
+        {info.open.length === 0 ? (
+          <p className="d-empty">{t('Không có PR nào đang mở.')}</p>
+        ) : (
+          <ul className="d-list">
+            {info.open.map((pr) => (
+              <li key={`${pr.repo}#${pr.n}`}>
+                <a
+                  href={BoardUrl.safe({ value: BoardAgentInfo.prHref({ pr }) })}
+                  target="_blank"
+                  rel="noopener"
+                >
+                  {`${pr.repo ?? ''}#${pr.n}`}
+                </a>
+                {pr.ci ? <Mark bad={pr.ci === 'fail'} /> : null}
+                {pr.flow}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+      <Section title={`${t('Tin nhắn chưa có trả lời (')}${info.pending.length})`}>
+        {info.pending.length === 0 ? (
+          <p className="d-empty">{t('Không có tin nào đang chờ.')}</p>
+        ) : (
+          <ul className="d-list">
+            {info.pending
+              .slice(-RECENT_LINES)
+              .reverse()
+              .map((message) => {
+                const { sender, receiver } = BoardAgentInfo.endsOf({ data, message });
+
+                return (
+                  <li key={message.id}>
+                    <time>{clock(message.ts)}</time>
+                    {`${sender === row.n ? `→ ${receiver ?? '?'}` : `← ${sender ?? '?'}`}: ${message.summary}`}
+                  </li>
+                );
+              })}
+          </ul>
+        )}
+      </Section>
+    </div>
+  );
+};
+
+export type TDetail = { kind: 'flow'; id: string } | { kind: 'agent'; name: string };
+
+/** The right pane: the flow or the agent that was picked; it opens on a pick and closes with ✕ or Esc. */
+export const Detail = (props: {
+  detail: TDetail | null;
+  views: IFlowView[];
+  rows: IAgentRow[];
+  cards: Record<string, IAgentCard>;
+  data: IBoardData;
+  events: IBoardViewEvent[];
+  everything: boolean;
+  onEverything: (value: boolean) => void;
+  onFlow: (id: string) => void;
+  onClose: () => void;
+}) => {
+  const { t } = useUi();
+  const { detail } = props;
+  const view =
+    detail?.kind === 'flow' ? props.views.find((one) => one.flow.id === detail.id) : undefined;
+  const row =
+    detail?.kind === 'agent' ? props.rows.find((one) => one.n === detail.name) : undefined;
 
   return (
     <section
-      className={`pane detail${props.open ? ' open' : ''}${props.diagramMode ? ' dgmode' : ''}`}
+      className="c-pane c-p3"
       id="detail"
       aria-label={t('Chi tiết luồng')}
-      data-comment-target=""
+      hidden={view === undefined && row === undefined}
     >
-      <div className="pb">
-        {view === undefined ? (
-          <Today {...props} />
-        ) : (
-          <div id="dBody">
-            <Head view={view} onClose={props.onClose} />
-            {props.diagramMode && !view.noWork ? props.diagram(view) : null}
-            <div className="dtabs" role="tablist">
-              <button
-                className="tab"
-                type="button"
-                role="tab"
-                aria-selected={!props.everything}
-                onClick={() => props.onEverything(false)}
-              >
-                {t('Các bước')}
-              </button>
-              <button
-                className="tab"
-                type="button"
-                role="tab"
-                aria-selected={props.everything}
-                onClick={() => props.onEverything(true)}
-              >
-                {`${t('Mọi sự kiện (')}${view.evs.length})`}
-              </button>
-            </div>
-            <Body
-              draw={draw}
-              view={view}
-              everything={props.everything}
-              attempts={props.attempts}
-              onAttempt={props.onAttempt}
-            />
-          </div>
-        )}
+      <div className="c-ph">
+        {t('pn.detail')}
+        <button
+          className="c-x"
+          type="button"
+          title={t('Đóng')}
+          aria-label={t('Đóng')}
+          onClick={props.onClose}
+        >
+          ✕
+        </button>
+      </div>
+      <div className="c-scroll">
+        {view && view.flow.id === BoardConstants.UNSORTED ? <LooseDetail view={view} /> : null}
+        {view && view.flow.id !== BoardConstants.UNSORTED ? (
+          <FlowDetail view={view} everything={props.everything} onEverything={props.onEverything} />
+        ) : null}
+        {row ? (
+          <AgentDetail
+            row={row}
+            card={props.cards[row.n]}
+            data={props.data}
+            events={props.events}
+            shape={BoardFace.shapeOf({ name: row.n, shapes: props.data.shapes })}
+            onFlow={props.onFlow}
+          />
+        ) : null}
       </div>
     </section>
   );

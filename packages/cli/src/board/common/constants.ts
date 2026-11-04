@@ -122,15 +122,22 @@ export class BoardSources {
 }
 
 export class BoardConstants {
+  /** The longest role a `board.agents` value may give an agent. */
+  static readonly ROLE_MAX = 60;
+  /** What the Claude Code hook is called on a card. */
+  static readonly HARNESS_CLAUDE = 'Claude Code';
   /** Who an ask waits on when neither `board.owner` nor `git config user.name` says. */
   static readonly DEFAULT_OWNER = 'Owner';
   static readonly LOGO_MAX_BYTES = 100 * 1024;
   static readonly MANIFEST_FILE = '.agents/vulcan.manifest.json';
   static readonly CI_ACTOR = 'CI';
+  /** A quiet spell this long ends a stretch of work: the next line starts a new one. */
+  static readonly ACTIVE_GAP_MS = 30 * 60 * 1000;
   static readonly UNSORTED = 'Unsorted';
   static readonly DEFAULT_OUT = '.agents/local/reports/board.html';
   static readonly DEFAULT_DAYS = 7;
-  static readonly DAY_MS = 24 * 60 * 60 * 1000;
+  static readonly HOUR_MS = 60 * 60 * 1000;
+  static readonly DAY_MS = 24 * BoardConstants.HOUR_MS;
   static readonly TEMPLATE = 'templates/board.html';
   static readonly DATA_MARKER = '<!--BOARD_DATA-->';
   static readonly GH_TIMEOUT_MS = 15_000;

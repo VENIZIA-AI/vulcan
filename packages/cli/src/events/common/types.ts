@@ -4,6 +4,12 @@ import type { EventKinds, EventStatuses } from './constants.ts';
 export type TEventKind = TConstValue<typeof EventKinds>;
 export type TEventStatus = TConstValue<typeof EventStatuses>;
 
+/** One entry of a list on a flow line: a step or an acceptance check, and whether it is done. */
+export interface IEventItem {
+  text: string;
+  done: boolean;
+}
+
 /** One line of the log. Field order is the order on disk. */
 export interface IEvent {
   id: string;
@@ -22,6 +28,16 @@ export interface IEvent {
   context?: string;
   /** Only a `flow` has one: the next step and who does it. */
   next?: string;
+  /** Only a `flow` has them: what is to be done, each step as done or not, restated in full on every line. */
+  steps?: IEventItem[];
+  /** Only a `flow` has them: the acceptance checks, as `steps`. */
+  checks?: IEventItem[];
+  /** Only a `flow` has them: the apps or modules it touches. */
+  apps?: string[];
+  /** Only a `flow` has one: the day it is due, `YYYY-MM-DD`. */
+  due?: string;
+  /** Only a `session-start` the Claude Code hook wrote has one: the model of the session. */
+  model?: string;
   /** Only a `needs-owner` the Claude Code hook wrote has one: the notification type that raised it. */
   notification?: string;
   source: string;
@@ -52,6 +68,8 @@ export interface IHookEvent {
   ref?: string;
   /** The notification type of a `needs-owner` line. */
   notification?: string;
+  /** The model of a `session-start` line. */
+  model?: string;
   /** Text a flow id may be read from: the first line of a message. */
   flowText?: string;
 }

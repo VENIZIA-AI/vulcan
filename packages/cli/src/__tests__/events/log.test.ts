@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import {
   EventActor,
+  EventActorNames,
   EventFlow,
   EventKinds,
   EventLog,
@@ -18,7 +19,7 @@ afterAll(removeProjects);
 const NOW = Date.parse('2026-11-03T09:30:00.000Z');
 
 describe('EventKinds', () => {
-  test('the eleven kinds a board reads, and isValid', () => {
+  test('the twelve kinds a board reads, and isValid', () => {
     expect([...EventKinds.SCHEME_SET]).toEqual([
       'session-start',
       'session-stop',
@@ -30,10 +31,11 @@ describe('EventKinds', () => {
       'pr',
       'decision',
       'flow',
+      'deploy',
       'tool-tick',
     ]);
     expect(EventKinds.isValid('commit')).toBe(true);
-    expect(EventKinds.isValid('deploy')).toBe(false);
+    expect(EventKinds.isValid('rollout')).toBe(false);
   });
 });
 
@@ -386,7 +388,7 @@ describe('EventLog', () => {
     EventLog.append({ dir, event: old });
     writeFileSync(
       join(dir, `${EventLog.dayOf({ time: NOW })}.jsonl`),
-      `${readFileSync(join(dir, `${EventLog.dayOf({ time: NOW })}.jsonl`), 'utf8')}not json\n{"a":1}\n${JSON.stringify({ ...at(0, 'pr'), kind: 'deploy' })}\n\n`,
+      `${readFileSync(join(dir, `${EventLog.dayOf({ time: NOW })}.jsonl`), 'utf8')}not json\n{"a":1}\n${JSON.stringify({ ...at(0, 'pr'), kind: 'rollout' })}\n\n`,
     );
 
     const all = EventLog.read({ dir });
@@ -614,11 +616,40 @@ describe('EventActor', () => {
     expect(resolve('something-new')).toBe('my-folder-6d');
   });
 
+  test('two registry files for one session, a derived name and a given one: the given name wins, even when the derived file is newer or lives', () => {
+    const file = (opts: { name: string; nameSource: string; pid: number; updatedAt: number }) =>
+      JSON.stringify({ sessionId: 's1', ...opts });
+    const resolve = (files: Record<string, string>) =>
+      EventActor.resolve({ sessionId: 's1', env: { CLAUDE_CONFIG_DIR: sessions({ files }) } });
+
+    expect(
+      resolve({
+        '1.json': file({
+          name: 'folder-6d',
+          nameSource: 'derived',
+          pid: process.pid,
+          updatedAt: 99,
+        }),
+        '2.json': file({ name: 'pnt-x-1', nameSource: 'user', pid: 2_147_483_000, updatedAt: 1 }),
+      }),
+    ).toBe('pnt-x-1');
+    expect(
+      resolve({
+        '1.json': file({
+          name: 'folder-6d',
+          nameSource: 'derived',
+          pid: process.pid,
+          updatedAt: 99,
+        }),
+      }),
+    ).toBe('claude:s1');
+  });
+
   test('isNamed: an actor of the fallback shapes (claude:<id>, unknown) is not a name', () => {
-    expect(EventActor.isNamed({ actor: 'pnt-vulcan-1' })).toBe(true);
-    expect(EventActor.isNamed({ actor: 'claude:abcdef12' })).toBe(false);
-    expect(EventActor.isNamed({ actor: 'unknown' })).toBe(false);
-    expect(EventActor.isNamed({ actor: 'claudette' })).toBe(true);
+    expect(EventActorNames.isNamed({ actor: 'pnt-vulcan-1' })).toBe(true);
+    expect(EventActorNames.isNamed({ actor: 'claude:abcdef12' })).toBe(false);
+    expect(EventActorNames.isNamed({ actor: 'unknown' })).toBe(false);
+    expect(EventActorNames.isNamed({ actor: 'claudette' })).toBe(true);
   });
 
   test('a name is one clean line', () => {

@@ -1,4 +1,5 @@
 import { EventConstants, EventSecrets } from './common/index.ts';
+import type { IEventItem } from './common/index.ts';
 
 /** The words that go into a log line: one line, no secret-shaped token, a fixed length. */
 export class EventText {
@@ -35,6 +36,28 @@ export class EventText {
     }
 
     return stripped;
+  }
+
+  /** The items as they are kept: each text one line of at most `max` characters, none empty, at most `count`. */
+  static items(opts: { items: IEventItem[]; max: number; count: number }): IEventItem[] {
+    return opts.items
+      .map((item) => ({
+        text: EventText.oneLine({ text: item.text, max: opts.max }),
+        done: item.done,
+      }))
+      .filter((item) => item.text !== '')
+      .slice(0, opts.count);
+  }
+
+  /** `2026-11-08`, and a day that exists: `2026-02-30` is not one. The one check of a due day, for the writer and the reader. */
+  static isDay(opts: { value: string }): boolean {
+    const time = Date.parse(`${opts.value}T00:00:00Z`);
+
+    return (
+      EventConstants.DUE_PATTERN.test(opts.value) &&
+      Number.isFinite(time) &&
+      new Date(time).toISOString().startsWith(opts.value)
+    );
   }
 
   /** One line of at most `max` characters: control characters and runs of space become one space, secrets are redacted first. */

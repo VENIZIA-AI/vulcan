@@ -10,10 +10,12 @@ export class BoardUiConstants {
   static readonly NOT_AGENTS = new Set<string>([BoardConstants.CI_ACTOR, 'reviewer']);
   /** A line whose `source` says its time was estimated. */
   static readonly APPROXIMATE_SOURCE = /ước lượng/;
+  /** An agent not heard from for this long is listed under Earlier, not as a card of its own. */
+  static readonly EARLIER_HOURS = 24;
+  /** How many days a finished flow stays in the Done group. */
+  static readonly DONE_DAYS = 7;
   /** The state text of an idle agent already says it. */
   static readonly IDLE_TEXT = /^rảnh/;
-  /** The kinds that count as an attempt of their stage: a CI run, a review round, a release. */
-  static readonly ATTEMPT_KINDS = new Set<string>(['ci', 'review', 'release']);
 }
 
 /** The words and the order of the tables the page draws; each word is a key of the dictionary. */

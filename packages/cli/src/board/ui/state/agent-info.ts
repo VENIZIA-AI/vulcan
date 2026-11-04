@@ -22,10 +22,7 @@ export class BoardAgentInfo {
 
     return message.incoming
       ? {
-          sender:
-            message.from === undefined
-              ? undefined
-              : BoardView.laneOf({ data: opts.data, name: message.from }),
+          sender: message.from,
           receiver: message.actor,
         }
       : { sender: message.actor, receiver: message.to };
@@ -44,12 +41,13 @@ export class BoardAgentInfo {
       : undefined;
   }
 
-  static of(opts: { data: IBoardData; events: IBoardViewEvent[]; name: string }): {
-    mine: IBoardViewEvent[];
-    open: IOpenPr[];
-    pending: IBoardViewEvent[];
-  } {
-    const { data, events, name } = opts;
+  /** The pull requests the lines speak of, each with who opened it, whether it merged or closed, and the state of its newest check. */
+  static prsOf(opts: { events: IBoardViewEvent[] }): (IOpenPr & {
+    by?: string;
+    merged: boolean;
+    closed: boolean;
+  })[] {
+    const { events } = opts;
     const prs: Record<string, IOpenPr & { by?: string; merged: boolean; closed: boolean }> = {};
 
     for (const event of events) {
@@ -74,6 +72,15 @@ export class BoardAgentInfo {
       pr.link = event.link && /^https:\/\/.+\/pull\//.test(event.link) ? event.link : pr.link;
     }
 
+    return Object.values(prs);
+  }
+
+  static of(opts: { data: IBoardData; events: IBoardViewEvent[]; name: string }): {
+    mine: IBoardViewEvent[];
+    open: IOpenPr[];
+    pending: IBoardViewEvent[];
+  } {
+    const { data, events, name } = opts;
     const messages = events
       .filter((event) => event.kind === 'msg')
       .filter((event) => {
@@ -85,18 +92,36 @@ export class BoardAgentInfo {
 
     return {
       mine: events.filter((event) => event.actor === name).sort(BoardView.byTime),
-      open: Object.values(prs).filter((pr) => pr.by === name && !pr.merged && !pr.closed),
-      // A message waits for its receiver: unanswered while the receiver has done nothing since, in that flow.
-      pending: messages.filter((message) => {
-        const { receiver } = BoardAgentInfo.endsOf({ data, message });
-
-        return !events.some(
-          (event) =>
-            event.ts > message.ts &&
-            event.actor === receiver &&
-            (!message.flowId || event.flowId === message.flowId),
-        );
-      }),
+      open: BoardAgentInfo.prsOf({ events }).filter(
+        (pr) => pr.by === name && !pr.merged && !pr.closed,
+      ),
+      // The messages to this agent that came after the last one it sent: it has not answered them yet.
+      pending: BoardAgentInfo.pendingOf({ data, messages, name }),
     };
+  }
+
+  /** The messages to `name` newer than the last one it sent, each message once (sender, receiver, words and minute). */
+  private static pendingOf(opts: {
+    data: IBoardData;
+    messages: IBoardViewEvent[];
+    name: string;
+  }): IBoardViewEvent[] {
+    const { data, messages, name } = opts;
+    const ends = (message: IBoardViewEvent) => BoardAgentInfo.endsOf({ data, message });
+    const lastSent = messages.filter((message) => ends(message).sender === name).at(-1)?.ts ?? '';
+    const seen = new Set<string>();
+
+    return messages.filter((message) => {
+      const { sender, receiver } = ends(message);
+      const key = `${sender}|${receiver}|${message.summary}|${message.ts.slice(0, 16)}`;
+
+      if (receiver !== name || message.ts <= lastSent || seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+
+      return true;
+    });
   }
 }

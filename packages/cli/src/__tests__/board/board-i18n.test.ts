@@ -162,7 +162,31 @@ const busyData = (): IBoardData => {
   const log = BoardFold.fromLog({ events: lines });
   const { flows, decisions } = BoardFold.fold({ events: log.events, owner: 'Ana' });
 
-  return { ...sampleData({ base }), flows, decisions, agents: log.agents };
+  // The first flows carry what the new cards print: lists, apps, a tracker id and due days overdue, soon and far.
+  const day = (offset: number): string =>
+    new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+
+  [-2, 1, 30].forEach((offset, index) =>
+    Object.assign(flows[index], {
+      steps: [
+        { text: 'first', done: true },
+        { text: 'second', done: false },
+      ],
+      checks: [{ text: 'a check', done: false }],
+      apps: ['web', 'admin'],
+      due: day(offset),
+      tracker: `TRK-${index + 1}`,
+      next: 'agent-a checks it. Then the owner closes it.',
+    }),
+  );
+
+  return {
+    ...sampleData({ base }),
+    flows,
+    decisions,
+    agents: log.agents,
+    roles: { 'pnt-a-1': 'Backend' },
+  };
 };
 
 interface ISweep {
@@ -207,16 +231,14 @@ const SWEEP = (lang: string) => `(async () => {
   };
   await wait();
   sweep('list');
-  for (const mode of ['diagram', 'board', 'list']) {
-    document.querySelector('#vmode button[data-mode="' + mode + '"], #vmode button:nth-child(' + (['list', 'diagram', 'board'].indexOf(mode) + 1) + ')').click();
-    await wait();
-    sweep('view ' + mode);
-  }
+  for (const group of document.querySelectorAll('.c-gh[aria-expanded="false"]')) group.click();
+  await wait();
+  sweep('every group');
   document.querySelector('.row').click();
   await wait();
-  sweep('detail');
-  const cell = document.querySelector('#dock .cell');
-  if (cell) { cell.click(); await wait(); sweep('popup'); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); }
+  sweep('flow detail');
+  const agent = document.querySelector('#dock [data-agent]');
+  if (agent) { agent.click(); await wait(); sweep('agent detail'); agent.click(); await wait(); }
   document.getElementById('bPlumb').click();
   await wait();
   document.querySelector('.row').click();
@@ -252,11 +274,9 @@ describe.skipIf(!hasBrowser)(
           expect(result.errors).toEqual([]);
           expect(result.steps).toEqual([
             'list',
-            'view diagram',
-            'view board',
-            'view list',
-            'detail',
-            'popup',
+            'every group',
+            'flow detail',
+            'agent detail',
             'all events',
             'keys',
           ]);

@@ -7,10 +7,6 @@ import { EventText } from './text.ts';
 
 const SESSION_FILE = /^[\w.-]+\.json$/;
 const SESSION_ID_SHORT = 8;
-/** What the actor of a session with no name starts with. */
-const UNNAMED_PREFIX = 'claude:';
-/** The `nameSource` values of a name Claude Code made up (from the folder, a counter or a clash), not a person's. */
-const MADE_UP_SOURCES = new Set(['derived', 'auto', 'collision']);
 /** A person has a handful of sessions; a folder with more is not the registry this expects. */
 const MAX_SESSION_FILES = 500;
 
@@ -37,12 +33,7 @@ export class EventActor {
 
     const named = EventActor.registryName({ sessionId, env: opts.env });
 
-    return named ?? `${UNNAMED_PREFIX}${sessionId.slice(0, SESSION_ID_SHORT)}`;
-  }
-
-  /** Whether the actor is a name somebody gave, and not the fallback of a session with none (`claude:<id>`, `unknown`). */
-  static isNamed(opts: { actor: string }): boolean {
-    return opts.actor !== EventConstants.UNKNOWN_ACTOR && !opts.actor.startsWith(UNNAMED_PREFIX);
+    return named ?? `${EventConstants.UNNAMED_PREFIX}${sessionId.slice(0, SESSION_ID_SHORT)}`;
   }
 
   static clean(opts: { text: string }): string {
@@ -96,7 +87,8 @@ export class EventActor {
       // A name with no readable source counts as given: hiding a real agent is the worse mistake.
       if (
         name === '' ||
-        (typeof entry.nameSource === 'string' && MADE_UP_SOURCES.has(entry.nameSource))
+        (typeof entry.nameSource === 'string' &&
+          EventConstants.MADE_UP_NAME_SOURCES.has(entry.nameSource))
       ) {
         return undefined;
       }
