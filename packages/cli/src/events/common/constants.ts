@@ -119,10 +119,14 @@ export class EventConstants {
   static readonly MESSAGE_SENT_LABEL = 'message sent';
   /** The summary of a tool tick: it says that a tool was used, and nothing of which. */
   static readonly TOOL_TICK_LABEL = 'using a tool';
-  /** A session writes at most one tool tick in this many seconds. */
+  /** A session writes at most one tool tick in each window of this many seconds. */
   static readonly TICK_SECONDS = 30;
-  /** Where the time of the last tick of each session is kept, from the project root; `tmp/` is cleaned a day after a session ends. */
-  static readonly TICK_STAMPS = '.agents/local/tmp/event-ticks';
+  /**
+   * The folder, from the project root, that holds one empty stamp per session and window, `<session>.<window>`; a tick
+   * removes the stamps of earlier windows. Spelt out because the hook imports no other module of the package (a test holds it
+   * inside `ProjectLayout.LOCAL_DIRECTORY/tmp`).
+   */
+  static readonly TICK_FOLDER = '.agents/local/tmp/event-ticks';
   static readonly REF_MAX = 120;
   static readonly ACTOR_MAX = 80;
   static readonly REDACTED = '[redacted]';

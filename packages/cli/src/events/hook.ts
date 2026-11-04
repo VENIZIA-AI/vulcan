@@ -1,4 +1,4 @@
-import { mkdirSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { ClaudeHookEvents, EventConstants, EventKinds, EventSources } from './common/index.ts';
@@ -124,19 +124,32 @@ export class EventHook {
     };
   }
 
-  /** Whether this session may write a tick now. When it may, its stamp gets the time of the tick; otherwise nothing is written. */
+  /**
+   * Whether this session may write a tick now: the first call of each window creates the window's stamp and wins; a
+   * call that finds the stamp already there loses. `wx` makes that one step, so calls at the same instant cannot both win.
+   */
   private static takeTick(opts: { root: string; session: string; now: number }): boolean {
-    const folder = join(opts.root, EventConstants.TICK_STAMPS);
-    const stamp = join(folder, opts.session.replace(/[^\w-]/g, '_') || 'session');
-    const last = statSync(stamp, { throwIfNoEntry: false })?.mtimeMs;
-
-    if (last !== undefined && opts.now - last < EventConstants.TICK_SECONDS * 1000) {
-      return false;
-    }
+    const folder = join(opts.root, EventConstants.TICK_FOLDER);
+    const window = Math.floor(opts.now / (EventConstants.TICK_SECONDS * 1000));
+    const stamp = join(folder, `${opts.session.replace(/[^\w-]/g, '_') || 'session'}.${window}`);
 
     mkdirSync(folder, { recursive: true });
-    writeFileSync(stamp, '');
-    utimesSync(stamp, opts.now / 1000, opts.now / 1000);
+
+    try {
+      writeFileSync(stamp, '', { flag: 'wx' });
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'EEXIST') {
+        return false;
+      }
+
+      throw error;
+    }
+
+    for (const name of readdirSync(folder)) {
+      if (Number(name.slice(name.lastIndexOf('.') + 1)) < window) {
+        rmSync(join(folder, name), { force: true });
+      }
+    }
 
     return true;
   }

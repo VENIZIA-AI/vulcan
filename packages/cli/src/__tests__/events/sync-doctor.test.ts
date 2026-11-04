@@ -104,6 +104,31 @@ describe('vulcan sync and the event hooks', () => {
     expect(eventEntries({ root })).toHaveLength(HOOK_EVENTS.length);
   });
 
+  test('an old install, whose PostToolUse entry names the SendMessage tool, is replaced by the new one, not added to', () => {
+    const root = projectWith({ events: '{ log: true }' });
+
+    sync({ root });
+
+    const file = join(root, '.claude/settings.json');
+    const settings = JSON.parse(readFileSync(file, 'utf8'));
+    const [entry] = settings.hooks.PostToolUse.filter((item: { hooks: { command: string }[] }) =>
+      item.hooks.some((hook) => hook.command.includes(HOOK)),
+    );
+
+    entry.matcher = 'SendMessage';
+    writeFileSync(file, JSON.stringify(settings, null, 2));
+
+    expect(eventEntries({ root }).find((item) => item.name === 'PostToolUse')?.entry.matcher).toBe(
+      'SendMessage',
+    );
+    expect(sync({ root }).code).toBe(0);
+
+    const after = eventEntries({ root }).filter((item) => item.name === 'PostToolUse');
+
+    expect(after).toHaveLength(1);
+    expect(after[0].entry.matcher).toBeUndefined();
+  });
+
   test('log off installs none; a dir alone installs none', () => {
     expect(
       eventEntries({

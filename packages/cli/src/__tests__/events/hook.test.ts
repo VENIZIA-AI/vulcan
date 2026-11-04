@@ -2,7 +2,8 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
-import { EventHook, EventLog } from '../../events/index.ts';
+import { ProjectLayout } from '../../common/index.ts';
+import { EventConstants, EventHook, EventLog } from '../../events/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { wire } from './wire.helper.ts';
 
@@ -210,6 +211,48 @@ describe('EventHook.run: the tool tick', () => {
     expect(readdirSync(folder)).toHaveLength(1);
     expect(readFileSync(join(folder, readdirSync(folder)[0]), 'utf8')).toBe('');
     expect(existsSync(join(root, 'evil'))).toBe(false);
+  });
+
+  test('six calls at the same instant write one tick, not several', async () => {
+    const root = project({ events: { log: true } });
+    const window = EventConstants.TICK_SECONDS * 1000;
+    const wait = window - (Date.now() % window);
+
+    // Start just after a window opens, so the six calls cannot straddle two windows.
+    await Bun.sleep(wait <= 8000 ? wait + 5 : 0);
+
+    const children = Array.from({ length: 6 }, () =>
+      Bun.spawn([process.execPath, SCRIPT], {
+        stdin: new TextEncoder().encode(
+          JSON.stringify(
+            wire({ hookEventName: 'PostToolUse', toolName: 'Bash', sessionId: SESSION }),
+          ),
+        ),
+        env: { ...process.env, CLAUDE_PROJECT_DIR: root, VULCAN_ACTOR: 'pnt-vulcan-1' },
+        stdout: 'ignore',
+        stderr: 'ignore',
+      }),
+    );
+
+    await Promise.all(children.map((child) => child.exited));
+
+    expect(eventsOf({ dir: join(root, '.agents/local/events') })).toHaveLength(1);
+  });
+
+  test('the stamp folder is inside the layout the project keeps its tmp in', () => {
+    expect(EventConstants.TICK_FOLDER).toBe(`${ProjectLayout.LOCAL_DIRECTORY}/tmp/event-ticks`);
+  });
+
+  test('a stamp from an earlier window is removed by the next tick, so the folder stays small', () => {
+    const root = project({ events: { log: true } });
+    const folder = join(root, '.agents/local/tmp/event-ticks');
+
+    tick({ root, session: 's-one', at: '2026-11-03T09:00:00Z' });
+    tick({ root, session: 's-two', at: '2026-11-03T09:00:10Z' });
+    expect(readdirSync(folder)).toHaveLength(2);
+
+    tick({ root, session: 's-one', at: '2026-11-03T09:05:00Z' });
+    expect(readdirSync(folder)).toHaveLength(1);
   });
 
   test('log off writes no line and no stamp', () => {
