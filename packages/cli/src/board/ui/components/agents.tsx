@@ -74,9 +74,11 @@ const AgentCard = (props: {
     return (
       <div className={`c-card c-compact cell ${row.st}${props.picked ? ' sel' : ''}`} {...pick}>
         {face}
-        <span className="c-nm">{row.n}</span>
+        <div className="c-grow">
+          <div className="c-nm">{row.n}</div>
+          {card.workingOn ? <div className="c-id">{card.workingOn.flow.id}</div> : null}
+        </div>
         {badge}
-        {card.workingOn ? <span className="c-id">{card.workingOn.flow.id}</span> : null}
         {row.st === 'you' ? (
           <span className="c-ask" role="img" aria-label={t('ag.asking')} title={t('ag.asking')} />
         ) : null}
