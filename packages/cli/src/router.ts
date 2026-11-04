@@ -1,137 +1,11 @@
-import { AgentConstants } from './agents/index.ts';
 import { COMMAND_LOADERS } from './commands/index.ts';
-import { BoardFlags } from './board/common/index.ts';
-import { CiFlags } from './ci/common/index.ts';
-import { CommitCheckFlags } from './commit/common/index.ts';
-import { ExitCodes, UpgradeFlags, VulcanCommands } from './common/index.ts';
-import { CreateFlags } from './create/common/index.ts';
-import { EventFlags } from './events/common/index.ts';
+import { CommandTable } from './commands/table.ts';
+import type { IAcceptedArgs } from './commands/table.ts';
+import { ExitCodes, VulcanCommands } from './common/index.ts';
 import { PipedInputRefusal } from './ui/keyboard.ts';
 
 const HELP_ALIASES = new Set(['--help', '-h']);
 const VERSION_ALIASES = new Set(['--version', '-v']);
-
-interface IAcceptedArgs {
-  flags: string[];
-  /** The exit code for an argument the command does not take; `1` when absent. */
-  unknownExit?: number;
-  /** Flags that take the next argument as their value. */
-  values: string[];
-  positionals: number;
-}
-
-/** What each command takes; `x` hands everything to its tool, `help` and `version` take nothing. */
-const ACCEPTED_ARGS: Record<string, IAcceptedArgs> = {
-  [VulcanCommands.INIT]: {
-    flags: [CreateFlags.NO_API],
-    values: [
-      CreateFlags.PRESET,
-      CreateFlags.PROJECT,
-      CreateFlags.BACKEND_DIR,
-      CreateFlags.FRONTEND_DIR,
-      CreateFlags.SHARED_DIR,
-      CreateFlags.APP,
-      CreateFlags.API,
-      CreateFlags.SCOPE,
-      CreateFlags.KEY,
-    ],
-    positionals: 0,
-  },
-  [VulcanCommands.ADD]: {
-    flags: [CreateFlags.NO_API],
-    values: [
-      CreateFlags.PRESET,
-      CreateFlags.BACKEND_DIR,
-      CreateFlags.FRONTEND_DIR,
-      CreateFlags.APP,
-      CreateFlags.API,
-      CreateFlags.LIB,
-      CreateFlags.SHARED,
-      CreateFlags.DIR,
-      CreateFlags.SCOPE,
-    ],
-    positionals: 0,
-  },
-  [VulcanCommands.PRESET]: {
-    flags: [CreateFlags.NO_API, CreateFlags.FULL, CreateFlags.CHECK],
-    values: [CreateFlags.PRESET, CreateFlags.API],
-    positionals: 2,
-  },
-  [VulcanCommands.SYNC]: {
-    flags: ['--dry-run'],
-    values: [AgentConstants.FLAG],
-    positionals: 0,
-  },
-  [VulcanCommands.AGENTS]: { flags: ['--dry-run'], values: [], positionals: 2 },
-  [VulcanCommands.CLEAN]: {
-    flags: [
-      '--tmp',
-      '--worktrees',
-      '--clones',
-      '--cache',
-      '--reports',
-      '--prototypes',
-      '--profile',
-      '--events',
-      '--release-candidates',
-      '--all',
-      '--yes',
-    ],
-    values: [],
-    positionals: 0,
-  },
-  [VulcanCommands.COMMIT_CHECK]: {
-    flags: [],
-    unknownExit: ExitCodes.USAGE,
-    values: [CommitCheckFlags.RANGE, CommitCheckFlags.TEXT],
-    positionals: 2,
-  },
-  [VulcanCommands.BOARD]: {
-    flags: [BoardFlags.OPEN, BoardFlags.NO_GITHUB],
-    unknownExit: ExitCodes.USAGE,
-    values: [BoardFlags.OUT, BoardFlags.PORT, BoardFlags.SINCE, BoardFlags.DIR, BoardFlags.REPO],
-    positionals: 1,
-  },
-  [VulcanCommands.CI]: {
-    flags: [CiFlags.JSON, CiFlags.NAMES],
-    unknownExit: ExitCodes.USAGE,
-    values: [CiFlags.BASE, CiFlags.HEAD, CiFlags.CHECK],
-    positionals: 2,
-  },
-  [VulcanCommands.EVENT]: {
-    flags: [EventFlags.JSON],
-    unknownExit: ExitCodes.USAGE,
-    values: [
-      EventFlags.KIND,
-      EventFlags.SUMMARY,
-      EventFlags.FLOW,
-      EventFlags.STEP,
-      EventFlags.STEP_DONE,
-      EventFlags.CHECK,
-      EventFlags.CHECK_DONE,
-      EventFlags.APP,
-      EventFlags.DUE,
-      EventFlags.REF,
-      EventFlags.STATUS,
-      EventFlags.TITLE,
-      EventFlags.WHY,
-      EventFlags.CONTEXT,
-      EventFlags.NEXT,
-      EventFlags.ACTOR,
-      EventFlags.DIR,
-      EventFlags.SINCE,
-    ],
-    positionals: 1,
-  },
-  [VulcanCommands.DOCTOR]: { flags: [], values: [], positionals: 0 },
-  [VulcanCommands.PROFILE]: { flags: ['--yes'], values: [], positionals: 1 },
-  [VulcanCommands.VISUALIZE]: { flags: ['--schema'], values: ['--out'], positionals: 1 },
-  [VulcanCommands.UPGRADE]: {
-    flags: [UpgradeFlags.STABLE, UpgradeFlags.NIGHTLY],
-    values: [],
-    positionals: 1,
-  },
-};
 
 /** The command name an argv asks for: no argument or a help flag means help. */
 const resolveCommandName = (opts: { first: string | undefined }): string => {
@@ -190,7 +64,7 @@ export const runVulcan = async (opts: { argv: string[]; cwd: string }): Promise<
     return runHelp({ cwd: opts.cwd });
   }
 
-  const accepted = ACCEPTED_ARGS[name];
+  const accepted = CommandTable.accepted({ name });
 
   if (accepted !== undefined) {
     if (args.some((arg) => HELP_ALIASES.has(arg))) {
