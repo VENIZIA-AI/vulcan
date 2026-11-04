@@ -104,9 +104,9 @@ const reap = (opts: { lock: string; token: string }): boolean => {
 
   if (!tryAcquire({ lock: guard, token: opts.token })) {
     if (isStale({ lock: guard })) {
-      // SHORTCUT: a dead holder's guard goes by path: two waiters finding it at once can remove a fresh one, and a clock
-      // skew can age a live one. The token check before the lock's removal leaves only a pause between check and removal;
-      // revisit if a lock is ever seen removed under a live pull.
+      // SHORTCUT: a dead holder's guard is removed by path under the lock's own staleness rule (pid gone, or 10 minutes
+      // old), because a second rule costs more than the window it closes; two waiters finding it at once can remove a fresh
+      // one, and an ownerless guard or a reused pid only delays a takeover. Revisit if a lock is removed under a live pull.
       rmSync(guard, { recursive: true, force: true });
     }
 

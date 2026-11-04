@@ -1,4 +1,5 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, spyOn, test } from 'bun:test';
+import * as fs from 'node:fs';
 import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PullLock } from '@/sources/lock';
@@ -130,9 +131,11 @@ describe('PullLock.with: waiters of a lock a dead pull left', () => {
       ]);
 
       // A crash shows its reason, not only its exit code. The lines of a normal take-over are logged, not errors.
-      expect(codes, errors.filter((text) => !text.includes('took over')).join('\n')).toEqual(
-        Array.from({ length: WAITERS }, () => 0),
-      );
+      const crashes = errors
+        .flatMap((text) => text.split('\n'))
+        .filter((text) => text !== '' && !text.includes('took over'));
+
+      expect(codes, crashes.join('\n')).toEqual(Array.from({ length: WAITERS }, () => 0));
       expect(linesOf(join(records, 'ran'))).toHaveLength(WAITERS);
       overlaps.push(...linesOf(join(records, 'overlap')).map((name) => `round ${round}: ${name}`));
     }
@@ -192,5 +195,56 @@ describe('PullLock.with: waiters of a lock a dead pull left', () => {
     await pulling;
 
     expect(ran).toBe(true);
+  });
+
+  // The guard is taken from a waiter while it is reaping (a pause that outlasts the guard's age does this): it must
+  // remove neither the lock nor the guard that is now the other waiter's.
+  test("a waiter whose guard was taken from it removes neither the lock nor the other waiter's guard", async () => {
+    const cacheRoot = makeTempDirectory({ prefix: 'atlas-lock-' });
+    const lock = join(cacheRoot, 'pull.lock');
+    const guard = `${lock}.reap`;
+    const real = fs.existsSync;
+    let ran = false;
+
+    mkdirSync(lock);
+    writeFileSync(join(lock, 'owner.json'), JSON.stringify({ pid: 2 ** 22 + 1, token: 'dead' }));
+
+    const spy = spyOn(fs, 'existsSync').mockImplementation((path) => {
+      // The check for the lock's owner file while the guard is held is the waiter's second judgement.
+      if (String(path) === join(lock, 'owner.json') && real(guard)) {
+        writeFileSync(
+          join(guard, 'owner.json'),
+          JSON.stringify({ pid: process.pid, token: 'the-other-waiter' }),
+        );
+      }
+
+      return real(path);
+    });
+
+    try {
+      const pulling = PullLock.with({
+        cacheRoot,
+        label: 'a waiter that lost its guard',
+        run: async () => {
+          ran = true;
+        },
+      });
+
+      await Bun.sleep(350);
+
+      expect(ran).toBe(false);
+      expect(existsSync(join(lock, 'owner.json'))).toBe(true);
+      expect(JSON.parse(readFileSync(join(guard, 'owner.json'), 'utf8')).token).toBe(
+        'the-other-waiter',
+      );
+
+      spy.mockRestore();
+      rmSync(guard, { recursive: true, force: true });
+      await pulling;
+
+      expect(ran).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
