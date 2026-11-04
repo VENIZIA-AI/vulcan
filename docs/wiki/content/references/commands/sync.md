@@ -54,7 +54,7 @@ The order that decides the list is: the `--agents` flag; the stored file; the `a
 | `antigravity` | `mcpServers.atlas` | `.agents/mcp_config.json` |
 | `pi` | `mcpServers.atlas` | `.pi/mcp.json`; Pi ignores it until you trust the project |
 
-These files are for your machine, so the entry carries the absolute project root and calls the project's own `vulcan` (`bun <root>/node_modules/.bin/vulcan x atlas mcp --root <root>`), which works whatever directory the agent starts the server from. `sync` merges: your other servers and keys stay, an `atlas` entry that `sync` wrote itself is rewritten when the project has moved (the paths no longer match this folder: after you move, rename or copy the project, run `sync` again), any other `atlas` entry is yours and is left as it is, a file that is not valid JSON is skipped (`skipped`, with the reason), and a file git tracks is not written (it prints what to add). After the actions, `sync` prints one `note` line for each thing only you can do, such as trusting the project in Codex or Pi. Every chosen agent except Claude reads skills from `.agents/skills/<name>/SKILL.md`, so `sync` links the four shipped skills (`build-a-feature`, `docs-update`, `docs-writing`, `knowledge-sync`) there, as symbolic links to the same stable path the Claude links use. Agents that share the folder share the links. A skill of yours with the same name wins: its real folder is left and reported as `skipped`. Claude keeps `.claude/skills`, which also holds your project skills. The git ignore entries for these files are described in [Keeping the adapters out of git](#keeping-the-adapters-out-of-git).
+These files are for your machine, so the entry carries the absolute project root and calls the project's own `vulcan` (`bun <root>/node_modules/.bin/vulcan x atlas mcp --root <root>`), which works whatever directory the agent starts the server from. `sync` merges: your other servers and keys stay, an `atlas` entry that `sync` wrote itself is rewritten when the project has moved (the paths no longer match this folder: after you move, rename or copy the project, run `sync` again), any other `atlas` entry is yours and is left as it is, a file that is not valid JSON is skipped (`skipped`, with the reason), and a file git tracks is not written (it prints what to add). After the actions, `sync` prints one `note` line for each thing only you can do, such as trusting the project in Codex or Pi. Every chosen agent except Claude reads skills from `.agents/skills/<name>/SKILL.md`, so `sync` links the 12 shipped skills there, as symbolic links to the same stable path the Claude links use. Agents that share the folder share the links. A skill of yours with the same name wins: its real folder is left and reported as `skipped`. Claude keeps `.claude/skills`, which also holds your project skills. The git ignore entries for these files are described in [Keeping the adapters out of git](#keeping-the-adapters-out-of-git).
 
 ## The root .mcp.json
 
@@ -156,15 +156,21 @@ $ bun x --no-install vulcan sync
   created   .claude/skills/knowledge-sync
   created   .claude/skills/plan-a-change
   created   .claude/skills/report-back
+  created   .claude/skills/research
+  created   .claude/skills/retro
   created   .claude/skills/review-a-change
+  created   .claude/skills/ship
+  created   .claude/skills/visualize-work
   created   .mcp.json
   created   .agents/vulcan.manifest.json
   replaced  AGENTS.md (Atlas block)
   created   .agents/vulcan.local.json
+  created   .agents/local/claude.launch.settings.json (the Claude Code launch file is missing)
+  created   .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
   replaced  .git/info/exclude
 ```
 
-The last three lines are the Atlas block in `AGENTS.md`, the file that stores your choice of agents, and the ignore list in your clone (a project that is not a git repository gets no `.git/info/exclude` line).
+The last five lines are the Atlas block in `AGENTS.md`, the file that stores your choice of agents, the Claude Code launch file, the scratch folder `.agents/local/`, and the ignore list in your clone (a project that is not a git repository gets no `.git/info/exclude` line).
 
 Running `vulcan sync` again on an up-to-date repository makes no changes:
 
@@ -179,11 +185,16 @@ $ bun x --no-install vulcan sync
   unchanged .claude/skills/knowledge-sync
   unchanged .claude/skills/plan-a-change
   unchanged .claude/skills/report-back
+  unchanged .claude/skills/research
+  unchanged .claude/skills/retro
   unchanged .claude/skills/review-a-change
+  unchanged .claude/skills/ship
+  unchanged .claude/skills/visualize-work
   unchanged .mcp.json
   unchanged .agents/vulcan.manifest.json
   unchanged AGENTS.md
   unchanged .agents/vulcan.local.json
+  unchanged .agents/local
   unchanged .git/info/exclude
 ```
 
@@ -214,7 +225,7 @@ The exit code is also 1 when configuration fails to load.
 Each later source overrides the earlier sources:
 
 1. Personal settings: Existing user keys in `.claude/settings.json` form the base.
-2. Shipped settings: Base settings from VULCAN register the `SessionStart` hook and the `guard-writes` `PreToolUse` hook, and approve the project's `atlas` server (`enabledMcpjsonServers: ["atlas"]`), so Claude does not ask you to approve `.mcp.json` the first time. A list of your own approved servers is kept and `atlas` is added to it.
+2. Shipped settings: Base settings from VULCAN register [the shipped hooks](/references/hooks/), and approve the project's `atlas` server (`enabledMcpjsonServers: ["atlas"]`), so Claude does not ask you to approve `.mcp.json` the first time. A list of your own approved servers is kept and `atlas` is added to it.
 3. Slot choices: Settings defined for chosen slot options in `base/slots.json`, such as git write restrictions for `V-W-01`.
 4. Remote hosts: If configuration defines `remoteHosts`, VULCAN adds the `guard-remote-hosts` `PreToolUse` hook.
 5. Commit attribution: With `commit.message.agent.signature: 'deny'`, VULCAN sets `attribution` empty so Claude Code adds no signature to commits and pull requests ([the details](/references/commands/commit-check#claude-code-s-own-attribution)).
@@ -261,11 +272,17 @@ $ bun x --no-install vulcan sync --dry-run
   would create  .claude/skills/knowledge-sync
   would create  .claude/skills/plan-a-change
   would create  .claude/skills/report-back
+  would create  .claude/skills/research
+  would create  .claude/skills/retro
   would create  .claude/skills/review-a-change
+  would create  .claude/skills/ship
+  would create  .claude/skills/visualize-work
   would create  .mcp.json
   would create  .agents/vulcan.manifest.json
   would replace AGENTS.md (Atlas block)
   would create  .agents/vulcan.local.json
+  would create  .agents/local/claude.launch.settings.json (the Claude Code launch file is missing)
+  would create  .agents/local (created tmp, worktrees, clones, cache, reports, prototypes)
   would replace .git/info/exclude
 ```
 

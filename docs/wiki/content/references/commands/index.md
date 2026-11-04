@@ -9,13 +9,14 @@ Use `vulcan` to scaffold a project or create a monorepo from a preset, write the
 Run `bun x --no-install vulcan` or pass `--help` to inspect available commands:
 
 ```text
-vulcan 0.4.8 - one setup, one workflow for every project
+vulcan 0.4.10-2 - one setup, one workflow for every project
 
 Usage: bun x vulcan <command>
 
-  init                            Scaffold the project layer (never overwrites)
+  init [--key <KEY>]              Scaffold the project layer (never overwrites); --key is the project's flow key
+                                  (2 to 8 uppercase letters or digits; a terminal asks, else it is made from the name)
   init --preset <name|file:path> --project <name> --app <name> [--backend-dir|--frontend-dir <path>]
-       [--shared-dir <path>] [--scope <@scope>]
+       [--shared-dir <path>] [--scope <@scope>] [--key <KEY>]
                                   Create a monorepo with its first app, from a framework preset
                                   (a name missing from the flags is asked in a terminal)
   add --preset <name|file:path> (--app <name> | --lib <name> | --shared <name>) [--dir <folder>]
@@ -28,8 +29,8 @@ Usage: bun x vulcan <command>
   preset diff <package> [--preset <name|file:path>] [--api <app> | --no-api] [--full] [--check]
                                   Read-only: set each file the preset makes now (for an app, a library or
                                   a shared package) against the file the package has (same, differs,
-                                  missing in the app); --full prints the unified diffs, --check exits 1
-                                  when anything differs or is missing
+                                  missing); --full prints the unified diffs, --check exits 1 when
+                                  anything differs or is missing
   sync [--agents <list>|list] [--dry-run]
                                   Write the adapters of the agents you chose (--agents claude,omp or none,
                                   stored in .agents/vulcan.local.json; --agents list shows the table)
@@ -48,7 +49,7 @@ Usage: bun x vulcan <command>
                                   List the workspace packages a change touches (changed ones and what
                                   depends on them) with the checks each has; template prints a CI file that
                                   runs exactly those; exit 2 on bad input
-  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] | tail [--since <time>] [--json] [--dir <folder>]
+  event add --kind <k> --summary <text> [--flow <flow id>] [--ref <r>] [--status approve|park|reject] | add --kind flow [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--step|--step-done <text>]... [--check|--check-done <text>]... [--app <name>]... [--due YYYY-MM-DD] | tail [--since <time>] [--json] [--dir <folder>]
                                   Write a line to the agent event log (.agents/local/events/<day>.jsonl) or
                                   read it; with events.log on, sync installs the Claude Code hooks that
                                   write it; exit 2 on bad input
@@ -59,10 +60,10 @@ Usage: bun x vulcan <command>
                                   Tell VULCAN how you like to work (reply language, how to address you,
                                   tone, habits) in .agents/local/profile.json; no argument runs the form,
                                   show prints it, reset deletes it
-  clean [--tmp|--worktrees|--clones|--cache|--all] [--reports|--prototypes|--profile] [--yes]
+  clean [--tmp|--worktrees|--clones|--cache|--all] [--reports|--prototypes|--events|--release-candidates|--profile] [--yes]
                                   List what an agent left under .agents/local/ (a dry run) and, with
                                   --yes, remove it; --tmp is the default, --worktrees takes merged or
-                                  gone branches only, --all never touches reports, prototypes or the profile
+                                  gone branches only, --all never touches reports, prototypes, events, release candidates or the profile
   upgrade [--stable | --nightly] [<version|tag>]
                                   Bump the pinned @venizia/vulcan, then sync; --stable (default)
                                   takes the latest tag, --nightly the newest of latest and next
@@ -70,7 +71,7 @@ Usage: bun x vulcan <command>
   help · version
 ```
 
-The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a library other apps import (with `--dir`); `--scope` names the package for either; see [vulcan add](/references/commands/add).
+The `add` entry lists every flag `add` takes: `--app` for an app, `--lib` for a library other apps import and `--shared` for a side-neutral package other apps import (both with `--dir`); `--scope` names the package for any of them; see [vulcan add](/references/commands/add).
 
 If you pass an unknown command, `vulcan` prints `vulcan: unknown command 'foo' - run 'bun x vulcan help'` and exits with code 1.
 The following table lists each command, its purpose, its exit codes, and its reference page:
@@ -78,7 +79,7 @@ The following table lists each command, its purpose, its exit codes, and its ref
 | Command | What it does | Exit codes | Page |
 |---|---|---|---|
 | `init` | Scaffold the project layer without overwriting existing files; with `--preset`, create a monorepo with its first app | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan init](/references/commands/init) |
-| `add` | Add an app, or a library other apps import with `--lib`, from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
+| `add` | Add an app, a library other apps import with `--lib`, or a side-neutral shared package with `--shared`, from a preset to a monorepo that `init --preset` created | `0` on success; `1` on a refusal, a missing name flag or unknown argument; otherwise the exit code of the failing install, sync or check | [vulcan add](/references/commands/add) |
 | `preset` | `preset diff <package>`: read-only report of each file the preset of an app, a library or a shared package makes now against the file the package has | `0` after a report (with `--check`, `1` when anything differs or is missing); `1` on a refusal or an unknown argument | [vulcan preset diff](/references/commands/preset) |
 | `sync` | Write agent adapter files and manifest | `0` on success; `1` on invalid configuration, broken settings, or unknown argument | [vulcan sync](/references/commands/sync) |
 | `agents` | Show, add, remove or re-choose the coding agents chosen on this machine, and write or take back their adapters | `0` on success or when nothing needed changing; `1` on an unknown agent or subcommand, a missing list, `setup` without a terminal, or invalid configuration | [vulcan agents](/references/commands/agents) |
@@ -102,6 +103,8 @@ The following table lists each command, its purpose, its exit codes, and its ref
 To update the package, `vulcan upgrade` runs `bun add --dev --exact @venizia/vulcan@<target>`.
 When the installation succeeds, the command spawns `node_modules/.bin/vulcan sync` as a child process.
 Spawning a child process ensures the newly installed version generates adapters matching the new base rules.
+
+Upgrade before you use a new config key. The config schema is strict, so a key from the version you are upgrading to is unreadable to the version you have now; see the Upgrading paragraph of [the configuration page](/references/configuration/) for what the hooks do meanwhile.
 
 ### Argument forms
 
@@ -143,7 +146,11 @@ installed @venizia/vulcan@0.4.8 with binaries:
   unchanged .claude/skills/knowledge-sync
   unchanged .claude/skills/plan-a-change
   unchanged .claude/skills/report-back
+  unchanged .claude/skills/research
+  unchanged .claude/skills/retro
   unchanged .claude/skills/review-a-change
+  unchanged .claude/skills/ship
+  unchanged .claude/skills/visualize-work
   unchanged .mcp.json
   unchanged .agents/vulcan.manifest.json
   unchanged AGENTS.md

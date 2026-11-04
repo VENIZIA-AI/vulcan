@@ -7,7 +7,7 @@ tags: [architecture, agents, local, clean]
 
 # The .agents folder
 
-**Tracked:** `rules.md`, `knowledge/`, optional `skills/` and `hooks/`, and `vulcan.manifest.json` (written by `sync`, never edited). **Ignored:** `vulcan.local.json` (the agents chosen on this machine), `plans/` and `specs/`, and `local/`.
+**Tracked:** `rules.md`, `knowledge/`, optional `skills/` and `hooks/`, and `vulcan.manifest.json` (written by `sync`, never edited). **Ignored:** `vulcan.local.json` (the agents chosen on this machine), `plans/`, and `local/`. `specs/` (the default folder where `plan-a-change` writes lane-L cards) is not created or ignored by `init`, so its cards are tracked unless the project ignores it.
 
 **`local/` is the one place an agent creates files** (rule V-B-08). `ProjectLayout.LOCAL_LAYOUT` is the single list of its folders, each with a lifetime: `tmp` (task, stale after 1 day), `worktrees` (branch), `clones` (research, 14 days), `cache`, `reports`, `prototypes`, `agents` (kept; `agents/<name>/` is one agent's own state, never cleaned, never warned about), `events` (kept) and `release-candidates` (release). `agents`, `events` and `release-candidates` carry `onDemand`, so `sync` does not create them (`LocalPlan.planWorkspace`). `sync`, `doctor` and `clean` all read that list; the docs page `guides/core-concepts/the-agents-folder.md` repeats it as a table, and a test keeps the two together.
 

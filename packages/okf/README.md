@@ -6,7 +6,7 @@ v0.2. Part of VULCAN; the bundle is served over MCP by `@venizia/vulcan-atlas`, 
 
 ## Commands
 
-Run through the pinned `vulcan` CLI (`bun x vulcan x okf <command>`) or the project's make targets.
+Run through the pinned `vulcan` CLI (`bun x --no-install vulcan x okf <command>`) or the project's make targets.
 The tooling reads the project it runs in (the working directory).
 
 | Command | What it does |

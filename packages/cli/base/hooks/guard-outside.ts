@@ -35,6 +35,7 @@ try {
     const projectRoot = process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd();
     let toolOwnedPaths: string[] = [];
     let outside: string = GuardDecisions.ASK;
+    let configNote: string | undefined;
 
     try {
       const { ConfigLoader } = await import('../../src/config/index.ts');
@@ -42,6 +43,11 @@ try {
 
       toolOwnedPaths = loaded.ok ? loaded.config.guard.toolOwnedPaths : [];
       outside = loaded.ok ? loaded.config.guard.outside : GuardDecisions.ASK;
+      configNote = ConfigLoader.unreadableNote({ loaded });
+
+      if (configNote !== undefined) {
+        console.error(`vulcan: the guard-outside hook: ${configNote}`);
+      }
     } catch (error) {
       console.error(
         `vulcan: the guard-outside hook could not read the project config (${error instanceof Error ? error.message : String(error)}) - the default allowlist applies`,
@@ -88,7 +94,7 @@ try {
         JSON.stringify(
           HookDecision.buildTool({
             decision: isDeny ? GuardDecisions.DENY : GuardDecisions.ASK,
-            reason,
+            reason: configNote === undefined ? reason : [...reason, '', `Note: ${configNote}`],
           }),
         ),
       );

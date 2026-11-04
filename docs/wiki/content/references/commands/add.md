@@ -338,7 +338,7 @@ Every refusal happens before the first write, with exit code 1.
 | `vulcan add: the backend folder 'services/x' does not fit the layout of .configs/vulcan.config.mts: ... are nested` | A folder inside another listed folder, or around one. Pick a folder that is neither |
 | `vulcan add: missing --backend-dir (Backend folder (holds every backend app); the layout lists backends, backends-2) - names are never chosen for you` | Several folders are listed and there is no terminal. Pass one |
 | `vulcan add: --backend-dir '../x' ...` | The folder is not a layout folder: no `..`, no leading or trailing `/`, no backslash, no `node_modules`, at most 4 segments of lowercase letters, digits and `-` |
-| `vulcan add: missing --app (Name of this app) - names are never chosen for you` | `--app` was given with no name and there is no terminal to ask. Pass the name |
+| `vulcan add: missing --app (Name of this [backend\|frontend] app) - names are never chosen for you` | `--app` was given with no name and there is no terminal to ask. Pass the name |
 | `vulcan add: services/billing already exists` | An app or folder has that name. Pick another |
 | `vulcan add: say what to create - ...` | No kind flag, and no terminal to ask. The message prints the command of each kind |
 | `vulcan add: --app, --lib and --shared cannot be used together` | One kind per run |

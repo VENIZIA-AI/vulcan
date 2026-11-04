@@ -37,6 +37,12 @@ try {
             (entry): entry is string => typeof entry === 'string',
           )
         : [];
+
+      const note = ConfigLoader.unreadableNote({ loaded });
+
+      if (note !== undefined) {
+        console.error(`vulcan: the guard-writes hook: ${note}; every script is read`);
+      }
     } catch (error) {
       console.error(
         `vulcan: the guard-writes hook could not read the project config (${error instanceof Error ? error.message : String(error)}) - every script is read`,

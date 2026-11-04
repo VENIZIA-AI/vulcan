@@ -25,6 +25,8 @@ bun x --no-install vulcan sync
 bun x --no-install vulcan doctor
 ```
 
+`doctor` fails with `[scaffold]` until you describe the project in `.agents/knowledge/index.md` and delete the `vulcan:scaffold` line; it is the first item `init` lists under `left to do`.
+
 `init` writes the project layer, `sync` writes the files your agents read, and `doctor` checks the result. Upgrades are one version bump and another `sync` (`vulcan upgrade` does both).
 
 > [!NOTE]
@@ -84,6 +86,8 @@ A project installs only `@venizia/vulcan`. The other two ship inside it as depen
 ./.agents/vulcan.manifest.json          # committed: project manifest written by sync
 ./.agents/vulcan.local.json             # gitignored: the coding agents you chose on this machine
 ./.agents/local/                        # gitignored: scratch, worktrees, reports, profile (vulcan clean)
+./.agents/local/claude.launch.settings.json # gitignored: Claude Code launch file, written by sync
+./.agents/hooks/trusted-hosts.local.example # committed: template for the private trusted-hosts file
 ./CLAUDE.md                             # gitignored: agent adapter pointing to AGENTS.md
 ./.claude/settings.json                 # gitignored: merged settings and registered hooks
 ./.claude/vulcan-managed.json           # gitignored: record of applied settings

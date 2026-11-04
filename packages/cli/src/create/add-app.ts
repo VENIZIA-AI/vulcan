@@ -236,6 +236,11 @@ const usedPorts = (opts: { root: string; packages: IProjectPackage[] }): number[
 /** A terminal picks one of the presets the project recorded or an official one, or types another; null when cancelled. */
 const askPreset = async (opts: { cwd: string }): Promise<string | null> => {
   const loaded = await ConfigLoader.load({ root: opts.cwd });
+  const note = ConfigLoader.unreadableNote({ loaded });
+
+  if (note !== undefined) {
+    process.stderr.write(`vulcan add: ${note}\n`);
+  }
 
   return PresetMenu.askSpec({ recorded: loaded.ok ? (loaded.config.presets ?? []) : [] });
 };

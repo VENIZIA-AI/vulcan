@@ -15,7 +15,8 @@ description: What lives in .agents, which parts git tracks, which parts are loca
 ├── hooks/                    tracked   scripts of the project's own hooks (optional)
 ├── vulcan.manifest.json      tracked   written by vulcan sync; atlas and the hooks read it
 ├── vulcan.local.json         ignored   the agents you chose on this machine
-├── plans/, specs/            ignored   plans and specs an agent saved for you
+├── plans/                    ignored   plans an agent saved for you
+├── specs/                    tracked   lane-L cards from plan-a-change (optional)
 └── local/                    ignored   what an agent creates while it works
     ├── tmp/                            scratch for one task
     ├── worktrees/                      git worktrees, one per branch
@@ -31,6 +32,8 @@ description: What lives in .agents, which parts git tracks, which parts are loca
     ├── auto-clean.json                 when the automatic clean last ran, and what it removed
     └── violations.jsonl                the log of faulty replies (a note in vulcan doctor)
 ```
+
+`plans/` is created and ignored by init. `specs/` is the default folder where plan-a-change writes lane-L cards. It is not created and not ignored, so cards are tracked unless the project adds it to `.gitignore`.
 
 `vulcan init` puts `.agents/plans`, `.agents/vulcan.local.json`, `.agents/local/`, the secret patterns (`**/.env`, `**/.env.*`, with `!**/.env.example` kept) and `.agents/hooks/trusted-hosts.local` in `.gitignore`. `sync` writes the Claude Code launch file, the manifest and the folders below.
 

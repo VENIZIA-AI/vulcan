@@ -24,9 +24,9 @@ pull requests and reports ("breaks B-05").
 
 | Group | IDs | One line |
 |---|---|---|
-| [W - Write boundaries](#w---write-boundaries) | W-00 … W-07 | What an agent does not do on its own |
+| [W - Write boundaries](#w---write-boundaries) | W-00 … W-08 | What an agent does not do on its own |
 | [S - Security](#s---security) | S-01 … S-06 | Secrets, injected content, leaks, guard defaults, dependencies |
-| [P - Process](#p---process) | P-01 … P-15 | How work starts, how it is tracked, how it is measured, how it is judged done |
+| [P - Process](#p---process) | P-01 … P-15 (no P-03) | How work starts, how it is tracked, how it is measured, how it is judged done |
 | [B - Build and quality](#b---build-and-quality) | B-01 … B-08 | Build, lint, verify, what a tool really runs |
 | [C - Code and writing](#c---code-and-writing) | V-C-01 … V-C-19, C-19 | Style in code and in prose - the shared VULCAN base, plus dates |
 
