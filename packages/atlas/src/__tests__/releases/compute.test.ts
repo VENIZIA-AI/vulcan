@@ -155,7 +155,12 @@ describe('ReleaseCompute.compute (D1)', () => {
         manifest: {
           schemaVersion: 1,
           packages: [
-            { name: '@a/umbras-core', dir: 'umbras-core', aliases: ['apps/core'], retired: false },
+            {
+              name: '@a/backends-core',
+              dir: 'backends-core',
+              aliases: ['apps/core'],
+              retired: false,
+            },
             { name: '@a/kits-core', dir: 'kits-core', aliases: ['packages/core'], retired: false },
           ],
           release: { tagPattern: '<dir>/<version>' },
@@ -163,7 +168,7 @@ describe('ReleaseCompute.compute (D1)', () => {
       }),
     });
 
-    expect(groupedTable.releases['umbras-core']?.map((record) => record.version)).toEqual([
+    expect(groupedTable.releases['backends-core']?.map((record) => record.version)).toEqual([
       '0.0.1-0',
     ]);
     expect(groupedTable.releases['kits-core']?.map((record) => record.version)).toEqual([

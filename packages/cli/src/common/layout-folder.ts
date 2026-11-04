@@ -16,7 +16,7 @@ export interface ILayout {
 }
 
 class LayoutFolderLimits {
-  /** `auroras/apps` is two segments. */
+  /** `frontends/apps` is two segments. */
   static readonly MAX_SEGMENTS = 4;
   /** One segment of a layout folder: lower case letters, digits and hyphens, starting with a letter or digit. */
   static readonly SEGMENT_PATTERN = /^[a-z0-9][a-z0-9-]*$/;

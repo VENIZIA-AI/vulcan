@@ -130,7 +130,7 @@ describe('doctor', () => {
     ]);
   });
 
-  test("BANA's form: bold bare IDs define, V- IDs the base carries are references", async () => {
+  test("a downstream project's form: bold bare IDs define, V- IDs the base carries are references", async () => {
     const markdown = [
       '| ID | Rule |',
       '|---|---|',
@@ -352,7 +352,7 @@ describe('doctor', () => {
     expect(result).toEqual([DoctorChecks.STYLE]);
   });
 
-  // D9: the style package comes from the package whose .configs/ holds the lint config (BANA's shape).
+  // D9: the style package comes from the package whose .configs/ holds the lint config (a downstream project's shape).
   const PACKAGE_LINT_CONFIGS = Object.fromEntries(
     Object.entries(LINT_CONFIGS).map(([file, text]) => [join('packages', 'app', file), text]),
   );
@@ -389,20 +389,20 @@ describe('doctor', () => {
     expect(result).toEqual([DoctorChecks.STYLE]);
   });
 
-  test("a configured package outside packages/ is an owner too (BANA's umbras/kit)", async () => {
+  test("a configured package outside packages/ is an owner too (a downstream project's backends/kit)", async () => {
     const root = createSyncedProject({
       files: {
         ...CONFORMANT,
         '.configs/vulcan.config.mts':
-          "export default { rules: { 'V-W-01': 'read-only' }, packages: [{ dir: 'kit', name: '@demo/kit', path: 'umbras/kit' }] };\n",
-        'umbras/kit/package.json': '{ "name": "@demo/kit" }',
-        'umbras/kit/.configs/lints/oxlint.config.mts': 'export default {};\n',
+          "export default { rules: { 'V-W-01': 'read-only' }, packages: [{ dir: 'kit', name: '@demo/kit', path: 'backends/kit' }] };\n",
+        'backends/kit/package.json': '{ "name": "@demo/kit" }',
+        'backends/kit/.configs/lints/oxlint.config.mts': 'export default {};\n',
       },
     });
     const violations = await DoctorRunner.runChecks({ root });
 
     expect(violations.map((violation) => [violation.check, violation.file])).toEqual([
-      [DoctorChecks.STYLE, 'umbras/kit/.configs/lints/oxlint.config.mts'],
+      [DoctorChecks.STYLE, 'backends/kit/.configs/lints/oxlint.config.mts'],
     ]);
   });
 
@@ -521,10 +521,10 @@ describe('doctor: apps', () => {
       ...CONFORMANT,
       'package.json': `{ "name": "demo", "workspaces": ${opts.workspaces}, "devDependencies": { "@venizia/dev-configs": "0.3.1-0" } }`,
       '.configs/vulcan.config.mts':
-        "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'merchant', name: '@nx/merchant', path: 'auroras/features/merchant', kind: 'lib' }] };\n",
+        "export default { rules: { 'V-W-01': 'read-only' }, layout: { backend: 'services' }, packages: [{ dir: 'merchant', name: '@nx/merchant', path: 'frontends/features/merchant', kind: 'lib' }] };\n",
     });
     const covered = createSyncedProject({
-      files: files({ workspaces: '["services/*", "auroras/features/*"]' }),
+      files: files({ workspaces: '["services/*", "frontends/features/*"]' }),
     });
     const uncovered = createSyncedProject({ files: files({ workspaces: '["services/*"]' }) });
 
@@ -536,7 +536,7 @@ describe('doctor: apps', () => {
         .filter((violation) => violation.check === DoctorChecks.APPS)
         .map((violation) => violation.message),
     ).toContain(
-      "package merchant lives at auroras/features/merchant, which no workspace glob covers - add 'auroras/features/*' to workspaces",
+      "package merchant lives at frontends/features/merchant, which no workspace glob covers - add 'frontends/features/*' to workspaces",
     );
   });
 

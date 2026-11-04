@@ -11,7 +11,7 @@ const asksOf = (command: string): string[] => [
   ...RemoteHosts.inspectCommand({ command, policy: POLICY }).map((hit) => `remote: ${hit.message}`),
 ];
 
-// BANA's scan: 142 asks in 13,000 Bash calls, most of them on data. These shapes stay quiet; the real ones ask.
+// A downstream project's scan: 142 asks in 13,000 Bash calls, most of them on data. These shapes stay quiet; the real ones ask.
 describe('the write guard and the remote-host guard do not ask about data', () => {
   test.each(QUIET)('$id is quiet: $note', ({ command }) => {
     expect(asksOf(command)).toEqual([]);

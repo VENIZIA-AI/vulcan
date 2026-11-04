@@ -12,7 +12,7 @@ packages: ['@venizia/vulcan', '@venizia/vulcan-atlas', '@venizia/vulcan-okf']
 
 **In one line.** VULCAN no longer repairs files, caches and config spellings that only a much older version wrote; a project that still has one of them gets an error or a plain "not found" and fixes it with the step below.
 
-None of the projects we checked (IGNIS, ARDOR, BANA and VULCAN itself) holds any of these. Other machines may, so each item says what you see and what to do.
+None of the projects we checked (IGNIS, ARDOR, the downstream project and VULCAN itself) holds any of these. Other machines may, so each item says what you see and what to do.
 
 ## What changed
 

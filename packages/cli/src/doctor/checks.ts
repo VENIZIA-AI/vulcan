@@ -445,7 +445,7 @@ export class ProjectContract {
   /**
    * D9: the shared coding style - every lint config builds on it, and the package whose `.configs/`
    * holds the config declares it, or the root does. A project with no lint config declares it at the
-   * root. Owners are `packages/*` and every configured package's `path`, such as `umbras/kit`.
+   * root. Owners are `packages/*` and every configured package's `path`, such as `backends/kit`.
    */
   static checkStyle(opts: ICheckContext): IViolation[] {
     const violations: IViolation[] = [];

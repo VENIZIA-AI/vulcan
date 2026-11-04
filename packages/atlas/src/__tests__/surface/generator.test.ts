@@ -116,7 +116,7 @@ describe('the package list', () => {
 
   test('a package outside packages/ is read where the manifest says it lives', () => {
     const repoRoot = mkdtempSync(join(tmpdir(), 'ignis-public-surface-'));
-    const packageDir = join(repoRoot, 'umbras', 'kit');
+    const packageDir = join(repoRoot, 'backends', 'kit');
 
     tmpDirs.push(repoRoot);
     mkdirSync(packageDir, { recursive: true });
@@ -129,7 +129,7 @@ describe('the package list', () => {
       root: repoRoot,
       manifest: {
         packages: [
-          { dir: 'kit', name: '@shop/kit', path: 'umbras/kit', aliases: [], retired: false },
+          { dir: 'kit', name: '@shop/kit', path: 'backends/kit', aliases: [], retired: false },
         ],
       },
     });
