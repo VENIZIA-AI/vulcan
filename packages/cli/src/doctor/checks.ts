@@ -1182,7 +1182,7 @@ export class ProjectContract {
       createViolation({
         check: DoctorChecks.LOCAL,
         file: `${ProjectLayout.LOCAL_DIRECTORY}/${entry.name}`,
-        message: `not an entry VULCAN knows (${LocalFormat.formatBytes({ bytes: entry.bytes })}): put scratch in tmp/ and what you want to keep in reports/; nothing removes it`,
+        message: `not an entry VULCAN knows (${LocalFormat.formatBytes({ bytes: entry.bytes })}): put scratch in tmp/ and what you want to keep in reports/, what one agent keeps for itself in agents/<name>/; a script the team relies on belongs in the tracked tree (scripts/), where it gets review and history; nothing removes it`,
       }),
     );
   }

@@ -1,5 +1,6 @@
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
+import { ProjectLayout } from '../common/constants.ts';
 import { LayoutFolder } from '../common/layout-folder.ts';
 import { GuardDecisions } from '../hooks/common/constants.ts';
 import { HostPatterns } from '../hooks/host-pattern.ts';
@@ -349,7 +350,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     .strictObject({
       trusted: z.array(REMOTE_HOST).default([]),
       readOnly: z.array(REMOTE_HOST).default([]),
-      localFile: z.string().default('.agents/hooks/trusted-hosts.local'),
+      localFile: z.string().default(ProjectLayout.TRUSTED_HOSTS_FILE),
     })
     .optional(),
   /**

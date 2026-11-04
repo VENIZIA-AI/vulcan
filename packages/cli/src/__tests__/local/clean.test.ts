@@ -534,13 +534,13 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     old({ root: opts.root, path: opts.name, hours: opts.hours });
   };
 
-  test('events and release-candidates are layout folders that sync does not create', () => {
+  test('agents, events and release-candidates are layout folders that sync does not create', () => {
     const layoutNames = ProjectLayout.LOCAL_LAYOUT.map((entry) => entry.name);
 
-    expect(layoutNames).toEqual(expect.arrayContaining(['events', 'release-candidates']));
+    expect(layoutNames).toEqual(expect.arrayContaining(['agents', 'events', 'release-candidates']));
     expect(
       ProjectLayout.LOCAL_LAYOUT.filter((entry) => 'onDemand' in entry).map((entry) => entry.name),
-    ).toEqual(['events', 'release-candidates']);
+    ).toEqual(['agents', 'events', 'release-candidates']);
   });
 
   test('a release candidate is removable once its version is tagged, kept until then, and never in --all', () => {
@@ -850,6 +850,10 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     expect(unknown.find((entry) => entry.file.endsWith('diag.ts'))?.message).toContain('2.0 KB');
     expect(unknown[0].message).toContain(
       'put scratch in tmp/ and what you want to keep in reports/',
+    );
+    expect(unknown[0].message).toContain('what one agent keeps for itself in agents/<name>/');
+    expect(unknown[0].message).toContain(
+      'a script the team relies on belongs in the tracked tree (scripts/)',
     );
 
     // The browser folder is expired tmp, not unknown, and the command that takes it is named.
