@@ -1,4 +1,4 @@
-/** Every environment variable the cli reads. The generated reference reads the comment above each name; the test of this class keeps the list complete. */
+/** The `VULCAN_` and `CLAUDE_` environment variables (and `CLAUDECODE`) the cli reads; it reads others, such as `HOME` and `TMPDIR`, that are not its own. The test of this class keeps the list complete, and the generated reference is to read the comment above each name. */
 export class EnvVariables {
   /** The name of the writer of an event line; it wins over the name Claude Code gave the session. */
   static readonly VULCAN_ACTOR = 'VULCAN_ACTOR';
@@ -22,7 +22,7 @@ export class EnvVariables {
   static readonly VULCAN_GIT = 'VULCAN_GIT';
   /** The dist-tags of `@venizia/vulcan` as JSON, in place of the registry read of `upgrade --nightly`; for tests. */
   static readonly VULCAN_DIST_TAGS = 'VULCAN_DIST_TAGS';
-  /** The project root, set by Claude Code for its hooks; without it the hooks use the working directory. */
+  /** The project root, set by Claude Code for its hooks and by the guard extension for the hooks it runs; without it the hooks use the working directory. */
   static readonly CLAUDE_PROJECT_DIR = 'CLAUDE_PROJECT_DIR';
   /** Where Claude Code puts its task output; the launch file points it at `.agents/local/tmp`, and `vulcan doctor` warns when it points elsewhere. */
   static readonly CLAUDE_CODE_TMPDIR = 'CLAUDE_CODE_TMPDIR';

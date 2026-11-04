@@ -14,7 +14,7 @@ const sources = (): string[] =>
     [...new Glob(pattern).scanSync({ cwd: PACKAGE })].filter((file) => !file.includes('__tests__')),
   );
 
-describe('EnvVariables names every environment variable the cli reads', () => {
+describe('EnvVariables names every VULCAN_ and CLAUDE_ variable the cli reads', () => {
   test('the source reads no variable that the class does not name', () => {
     const named = new Set<string>(Object.values(EnvVariables));
     const unnamed: string[] = [];
