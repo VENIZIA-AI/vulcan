@@ -21,7 +21,7 @@ is read-only: it reports, it does not fix. Nothing is committed.
 - [ ] 3. Reviewers briefed    - parallel, one brief per axis, read-only
 - [ ] 4. Findings triaged     - each verified against the code, then adopted, rebutted or deferred
 - [ ] 5. Loop closed          - fixes, then only the findings re-checked; two rounds at most, never "until clean"
-- [ ] 6. Reported             - which axes ran, which did not and why
+- [ ] 6. Reported             - which axes ran, which did not and why, and the rule ids the Standards pass checked
 ```
 
 ## 1. Fix the point
@@ -43,8 +43,11 @@ axis hide the failing one.
 
 - **Spec**: does the diff do what the claims say, nothing more, nothing missing? Look for a claim that is
   missing or only partly done, scope creep, and work that is implemented but wrong. Quote the claim.
-- **Standards**: the base rules and the project's own, plus common smells as judgement calls. Skip what a
-  linter or formatter already enforces. The project's own standard wins over a general smell.
+- **Standards**: a pass over the rules, then common smells as judgement calls. Read the files the diff
+  touches, then the base rules (`rules.md`, the P, C and B sections) and the project's own rules once, and
+  judge the whole diff against them. Every rule finding names its rule id (`V-C-16`); a finding with no id is
+  a judgement call and says so. Skip what a linter or formatter already enforces. The project's own standard
+  wins over a general smell.
 - **Security** (lane L or a security-class change): injection, secrets in output or logs, authority and
   permission changes, supply chain.
 
@@ -57,7 +60,8 @@ Each brief is under 400 words and holds:
 - the **steps** to take and the **evidence to return** - never the answer you expect to find, because a
   reviewer told what a pass looks like rationalises toward it;
 - "read-only: no edits, no git writes";
-- a citation rule: every finding cites `path:line` or the claim ID, and no citation means no finding;
+- a citation rule: every finding cites `path:line` or the claim ID, and no citation means no finding; a
+  Standards finding also names the rule id it breaks;
 - "end with a list of what you set aside and did not judge".
 
 Start the reviewers in parallel (they are read-only, so they share the checkout), before you read any
@@ -86,5 +90,5 @@ Last, read the diff against the claims for additions no claim asked for. That ch
 
 ## 6. Report
 
-Use the `report-back` skill. State which axes ran, which did not and why, every disposition, and the list
-of what the reviewers declined to judge. Do not state an overall verdict the axes did not give.
+Use the `report-back` skill. State which axes ran, which did not and why, the rule ids the Standards pass checked, every disposition, and
+the list of what the reviewers declined to judge. Do not state an overall verdict the axes did not give.

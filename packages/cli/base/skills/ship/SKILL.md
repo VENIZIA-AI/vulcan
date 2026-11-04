@@ -16,7 +16,7 @@ claim has its evidence, the owner knows what was not checked, and nothing shared
 
 ```
 - [ ] 1. Done checklist    - every line true, or said not to be
-- [ ] 2. PR body written   - smallest visual, before and after, checks, the door call
+- [ ] 2. PR body written   - smallest visual, before and after, rules checked, checks, the door call
 - [ ] 3. Public claims     - each has a probe run in this session
 - [ ] 4. Approval          - a shared action has the owner's own words naming it
 - [ ] 5. Handed over       - the report, or a pointer for the next session
@@ -32,6 +32,7 @@ It rises with the lane (see `plan-a-change`). A small edit (lane S) ends as `rep
 - The checks are quoted with their results, from this session: build, lint, tests, the project's own gates.
 - **Open** (the card's open decisions) is empty, or each item is named for the owner.
 - The class sweep is done: the same defect was looked for elsewhere, not only where it was found.
+- The rules check is done on a code change (`build-a-feature` step 8): the ids checked and what changed because of them are written down. An empty list on a code change is not done; a docs-only or release change needs none.
 - Review dispositions are recorded (`review-a-change` skill): adopted, rebutted or deferred, each with a reason.
 - What was **not** verified is stated plainly (V-B-07). A check that did not run never reads as one that did.
 
@@ -43,13 +44,17 @@ The body is read by a person who has not seen the work. In this order:
 
 1. **What changed**, as the smallest visual that shows it: one table, one before and after, one screenshot.
 2. **Before and after** of the behaviour, not of the files.
-3. **The checks and their output**, as a table: the command, the result.
-4. **The door call**: a one-way door (a published package, a migration, a deleted branch) or a two-way door
+3. **Rules checked** (a code change): a table of the rule ids checked, what was looked at and what changed because of the rule, or "nothing" for a rule that changed nothing.
+4. **The checks and their output**, as a table: the command, the result.
+5. **The door call**: a one-way door (a published package, a migration, a deleted branch) or a two-way door
    (revert and it is gone), and the blast radius if it is wrong.
-5. **Not verified**: the items from the checklist.
+6. **Not verified**: the items from the checklist.
 
 Open the pull request with its base named, `gh pr create --base <branch>`. Take the branch from the project's rules.
 A missing base targets the repository's default branch, which may not be where the change goes.
+
+A project that has no pull request template can start from `node_modules/@venizia/vulcan/base/templates/pull-request.md`,
+which holds these sections; copy it to the project's own place on the owner's word.
 
 The body names the issue the way the project's rules say. `Closes #N` closes it only when the pull request reaches
 the default branch. Follow the project's rule on signatures in commits and pull requests: add no agent signature
