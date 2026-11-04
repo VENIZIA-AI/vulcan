@@ -8,6 +8,7 @@ import { BoardCards } from '../state/cards.ts';
 import type { IItemCard } from '../state/cards.ts';
 import { BoardTime } from '../state/time.ts';
 import { BoardView } from '../state/view.ts';
+import { Bar } from './bits.tsx';
 import { Chevron } from './icons.tsx';
 
 const STATE_TONES: Record<string, string> = {
@@ -28,9 +29,7 @@ const Pair = (props: { label: string; children: ReactNode }) => (
 
 const Progress = (props: { done: number; total: number; label: string }) => (
   <span className="c-v c-mini">
-    <span className="c-bar">
-      <span style={{ width: `${Math.round((props.done / props.total) * 100)}%` }} />
-    </span>
+    <Bar done={props.done} total={props.total} />
     {`${props.done}/${props.total} ${props.label}`}
   </span>
 );
@@ -63,11 +62,6 @@ const ItemCard = (props: {
   const { view, card } = props;
   const { flow } = view;
   const ref = useRef<HTMLDivElement>(null);
-  // What it waits for: the next step, else the question that is asked of the owner.
-  const waitsFor =
-    flow.state === 'you' || flow.state === 'blocked'
-      ? (flow.next ?? view.lastAsk?.summary)
-      : undefined;
   const clock = (iso: string): string => BoardTime.clock({ iso });
 
   useEffect(() => {
@@ -149,7 +143,7 @@ const ItemCard = (props: {
             ))}
           </span>
         </Pair>
-        {waitsFor ? <Pair label={t('it.waiting')}>{waitsFor}</Pair> : null}
+        {card.waiting ? <Pair label={t('it.waiting')}>{card.waiting}</Pair> : null}
       </div>
       <div className="c-foot">
         <span>

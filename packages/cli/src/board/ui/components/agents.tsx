@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { BoardConstants } from '../../common/index.ts';
 import { BoardStateWords, BoardUiConstants } from '../common/constants.ts';
 import type { IAgentRow } from '../common/types.ts';
 import { useUi } from '../i18n/context.ts';
@@ -55,10 +56,8 @@ const AgentCard = (props: {
       className={`c-badge b-${AGENT_TONES[row.st]}`}
     >{`${t(BoardStateWords.PILL[row.st])}${since}`}</span>
   );
-  const role = 'button' as const;
   const pick = {
     'data-agent': row.n,
-    role,
     tabIndex: 0,
     'aria-pressed': props.picked,
     onClick: () => props.onPick(row.n),
@@ -72,7 +71,11 @@ const AgentCard = (props: {
 
   if (props.compact) {
     return (
-      <div className={`c-card c-compact cell ${row.st}${props.picked ? ' sel' : ''}`} {...pick}>
+      <div
+        className={`c-card c-compact cell ${row.st}${props.picked ? ' sel' : ''}`}
+        role="button"
+        {...pick}
+      >
         {face}
         <div className="c-grow">
           <div className="c-top">
@@ -89,7 +92,7 @@ const AgentCard = (props: {
   }
 
   return (
-    <div className={`c-card cell ${row.st}${props.picked ? ' sel' : ''}`} {...pick}>
+    <div className={`c-card cell ${row.st}${props.picked ? ' sel' : ''}`} role="button" {...pick}>
       <div className="c-head">
         {face}
         <div className="c-grow">
@@ -147,7 +150,7 @@ export const AgentPane = (props: {
 }) => {
   const { t, now } = useUi();
   const [earlierOpen, setEarlierOpen] = useState(false);
-  const limit = now - BoardUiConstants.EARLIER_HOURS * 60 * 60 * 1000;
+  const limit = now - BoardUiConstants.EARLIER_HOURS * BoardConstants.HOUR_MS;
   const isRecent = (row: IAgentRow): boolean =>
     row.lastAt !== null && Date.parse(row.lastAt) >= limit;
   const recent = props.rows.filter(isRecent);

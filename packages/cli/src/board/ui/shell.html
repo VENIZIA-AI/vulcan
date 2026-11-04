@@ -274,12 +274,6 @@
         background: var(--soft);
         border-color: var(--ink);
       }
-      .untitled {
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 400;
-        margin-left: 8px;
-      }
 
       .btn.lang {
         min-width: 40px;
@@ -1085,6 +1079,7 @@
         gap: 8px;
       }
       .c-bar {
+        display: block;
         flex: 0 0 120px;
         height: 5px;
         background: var(--soft);
@@ -1219,17 +1214,9 @@
       .d-sec .c-chips {
         margin-top: 8px;
       }
-      .d-prog {
-        height: 4px;
-        background: var(--soft);
-        border-radius: 2px;
-        margin: 0 0 6px;
-      }
-      .d-prog span {
-        display: block;
-        height: 100%;
-        background: var(--ok);
-        border-radius: 2px;
+      .d-sec > .c-bar {
+        flex: none;
+        margin: 0 0 8px;
       }
       .d-sec .ckl ul {
         margin: 0;

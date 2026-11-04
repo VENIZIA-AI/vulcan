@@ -32,6 +32,13 @@ export const Mark = (props: { bad: boolean }) => {
   );
 };
 
+/** How far along: a thin bar filled by `done` of `total`. */
+export const Bar = (props: { done: number; total: number }) => (
+  <span className="c-bar">
+    <span style={{ width: `${Math.round((props.done / props.total) * 100)}%` }} />
+  </span>
+);
+
 /** A list of a flow line as a checklist; the checked ones are done. Nothing when the line gave none. */
 export const Checklist = (props: { items: IBoardItem[] | undefined }) => {
   const { items } = props;

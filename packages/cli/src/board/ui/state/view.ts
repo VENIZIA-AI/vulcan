@@ -82,7 +82,7 @@ export class BoardView {
       .map((name) => {
         const doc: IBoardAgent | undefined = docs[name];
         const lastLine = events
-          .filter((event) => event.actor === name)
+          .filter((event) => event.actor === name && !event.incoming)
           .sort(BoardView.byTime)
           .at(-1);
         const youFlow = flows.find(

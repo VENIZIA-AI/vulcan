@@ -256,7 +256,12 @@ export class BoardFold {
     const { agents, line } = opts;
     const known = agents[line.actor];
 
-    if (line.kind === EventKinds.SUBAGENT_STOP || BoardFold.isHarnessAsk({ line })) {
+    // A message the agent got is not a line of its own: it moves neither its state nor its time.
+    if (
+      line.kind === EventKinds.SUBAGENT_STOP ||
+      line.kind === EventKinds.MSG_RECEIVED ||
+      BoardFold.isHarnessAsk({ line })
+    ) {
       return;
     }
 
@@ -286,8 +291,8 @@ export class BoardFold {
       return;
     }
 
-    // A line of work after a stop means the agent is at it again; a message it got is not work of its own.
-    const wakes = known?.state === 'idle' && line.kind !== EventKinds.MSG_RECEIVED;
+    // A line of work after a stop means the agent is at it again.
+    const wakes = known?.state === 'idle';
 
     agents[line.actor] = {
       name: line.actor,

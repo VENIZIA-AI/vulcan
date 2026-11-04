@@ -7,13 +7,14 @@ import { BoardTime } from './time.ts';
 
 const SENTENCE_END = /[.!?](\s|$)/;
 const NOW_MAX = 140;
-const DAY_MS = 24 * 60 * 60 * 1000;
 const RECENT_DEPLOYS = 3;
 
 /** What a work item card says beyond the flow itself. */
 export interface IItemCard {
   /** The first sentence of the next step, else the reason. */
   now: string;
+  /** What a flow that waits on someone waits for: its next step, else the question asked of the owner. */
+  waiting: string | undefined;
   steps: { done: number; total: number };
   checks: { done: number; total: number };
   prs: { label: string; ci: string | null }[];
@@ -65,6 +66,10 @@ export class BoardCards {
 
     return {
       now: BoardCards.sentenceOf({ text: flow.next ?? flow.why }),
+      waiting:
+        flow.state === 'you' || flow.state === 'blocked'
+          ? (flow.next ?? view.lastAsk?.summary)
+          : undefined,
       steps: count(flow.steps),
       checks: count(flow.checks),
       prs: BoardAgentInfo.prsOf({ events: view.evs })
@@ -86,7 +91,9 @@ export class BoardCards {
 
     today.setHours(0, 0, 0, 0);
 
-    return Math.round((new Date(`${opts.due}T00:00:00`).getTime() - today.getTime()) / DAY_MS);
+    return Math.round(
+      (new Date(`${opts.due}T00:00:00`).getTime() - today.getTime()) / BoardConstants.DAY_MS,
+    );
   }
 
   static agentOf(opts: {

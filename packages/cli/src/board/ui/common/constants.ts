@@ -16,7 +16,6 @@ export class BoardUiConstants {
   static readonly DONE_DAYS = 7;
   /** The state text of an idle agent already says it. */
   static readonly IDLE_TEXT = /^rảnh/;
-  /** The kinds that count as an attempt of their stage: a CI run, a review round, a release. */
 }
 
 /** The words and the order of the tables the page draws; each word is a key of the dictionary. */

@@ -136,7 +136,8 @@ export class BoardConstants {
   static readonly UNSORTED = 'Unsorted';
   static readonly DEFAULT_OUT = '.agents/local/reports/board.html';
   static readonly DEFAULT_DAYS = 7;
-  static readonly DAY_MS = 24 * 60 * 60 * 1000;
+  static readonly HOUR_MS = 60 * 60 * 1000;
+  static readonly DAY_MS = 24 * BoardConstants.HOUR_MS;
   static readonly TEMPLATE = 'templates/board.html';
   static readonly DATA_MARKER = '<!--BOARD_DATA-->';
   static readonly GH_TIMEOUT_MS = 15_000;

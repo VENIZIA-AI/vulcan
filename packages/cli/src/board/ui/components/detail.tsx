@@ -10,7 +10,7 @@ import type { IAgentCard } from '../state/cards.ts';
 import { BoardTime } from '../state/time.ts';
 import { BoardUrl } from '../url.ts';
 import { AGENT_TONES } from './agents.tsx';
-import { Checklist, EventItem, Mark } from './bits.tsx';
+import { Bar, Checklist, EventItem, Mark } from './bits.tsx';
 import { BoardFace, Mascot } from './face.tsx';
 
 const MILESTONES: Record<string, string> = {
@@ -34,12 +34,6 @@ const Section = (props: { title: string; children: ReactNode }) => (
   <div className="d-sec">
     <h4>{props.title}</h4>
     {props.children}
-  </div>
-);
-
-const Bar = (props: { done: number; total: number }) => (
-  <div className="d-prog">
-    <span style={{ width: `${Math.round((props.done / props.total) * 100)}%` }} />
   </div>
 );
 
@@ -94,11 +88,6 @@ const FlowDetail = (props: {
   const { view } = props;
   const { flow } = view;
   const card = BoardCards.itemOf({ view });
-  // What it waits for: the next step, else the question that is asked of the owner.
-  const waitsFor =
-    flow.state === 'you' || flow.state === 'blocked'
-      ? (flow.next ?? view.lastAsk?.summary)
-      : undefined;
 
   return (
     <div id="dBody" className="d-body">
@@ -148,10 +137,10 @@ const FlowDetail = (props: {
           <Checklist items={flow.checks} />
         </Section>
       ) : null}
-      {waitsFor ? (
+      {card.waiting ? (
         <div className="d-sec d-waiting">
           <span className="d-k">{t('it.waiting')}</span>
-          <span>{waitsFor}</span>
+          <span>{card.waiting}</span>
         </div>
       ) : null}
       {view.noWork ? <p className="d-empty">{t('nw.empty')}</p> : null}
