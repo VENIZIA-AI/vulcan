@@ -16,7 +16,7 @@ packages: ['@venizia/vulcan']
 ## What changed
 
 - **The roster.** When `board.agents` lists at least one name, the agent list, the graph and the count show only the listed names that have no `lane`. A board whose log held 15 names (5 lanes, 3 helpers and 7 one-event sessions with default names) shows its 5 lanes. An empty `board.agents` shows every agent, as before.
-- **Lanes.** A value of `board.agents` is a face, or `{ shape?, lane? }`. `'pnt-umbra-1': { lane: 'umbra' }` draws the lines of `pnt-umbra-1` as `umbra`'s: one row with `+1 helper` on it, and no row for the helper. A flow held by the helper shows the lane as its holder; in the detail of a flow a line still shows the helper's own name. A `lane` must name a listed key that has no `lane` of its own; a chain or a cycle fails the config and names the key.
+- **Lanes.** A value of `board.agents` is a face, or `{ shape?, lane? }`. `'pnt-alpha-1': { lane: 'alpha' }` draws the lines of `pnt-alpha-1` as `alpha`'s: one row with `+1 helper` on it, and no row for the helper. A flow held by the helper shows the lane as its holder; in the detail of a flow a line still shows the helper's own name. A `lane` must name a listed key that has no `lane` of its own; a chain or a cycle fails the config and names the key.
 - **Show all events.** The button now also shows the agents the project did not list.
 
 ## Who is affected

@@ -32,8 +32,8 @@ describe('SessionDigest.build', () => {
     expect(digest).toContain('| V-C-02 |');
   });
 
-  // BANA's shape: bold bare IDs define, a V- ID list references the base; a marked minimap block.
-  const BANA_RULES = [
+  // A downstream project's shape: bold bare IDs define, a V- ID list references the base; a marked minimap block.
+  const DOWNSTREAM_RULES = [
     '| ID | Rule | Enforced by |',
     '|---|---|---|',
     '| **W-00** | Never sign a commit as an agent. | SOFT |',
@@ -50,7 +50,7 @@ describe('SessionDigest.build', () => {
       files: {
         '.configs/vulcan.config.mts':
           "export default { rules: { 'V-W-01': 'read-only' }, digest: { oftenDropped: ['W-00', 'V-P-05'] } };\n",
-        '.agents/rules.md': BANA_RULES,
+        '.agents/rules.md': DOWNSTREAM_RULES,
       },
     });
     const digest = await SessionDigest.build({ projectRoot: root });
@@ -65,7 +65,7 @@ describe('SessionDigest.build', () => {
     const root = createProject({
       files: {
         '.configs/vulcan.config.mts': "export default { rules: { 'V-W-01': 'read-only' } };\n",
-        '.agents/rules.md': BANA_RULES,
+        '.agents/rules.md': DOWNSTREAM_RULES,
       },
     });
     const digest = await SessionDigest.build({ projectRoot: root });

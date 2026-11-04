@@ -105,13 +105,13 @@ export class ProjectScaffold {
   /**
    * Whether a workspace glob list covers the packages directly under `folder`: `folder/*` or
    * `folder/**`, with or without a leading `./`, or any glob that matches a package there
-   * (`auroras/*\/*` covers `auroras/apps`).
+   * (`frontends/*\/*` covers `frontends/apps`).
    */
   static coversFolder(opts: { globs: string[]; folder: string }): boolean {
     return opts.globs.some((glob) => {
       const plain = glob.replace(/^\.\//, '');
 
-      // A negation (`!umbras/legacy`) excludes packages; it never covers a folder.
+      // A negation (`!backends/legacy`) excludes packages; it never covers a folder.
       if (plain.startsWith('!')) {
         return false;
       }

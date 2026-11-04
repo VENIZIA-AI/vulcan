@@ -103,13 +103,13 @@ describe('SourceChunks', () => {
         jsonrpc: '2.0',
         id: 1,
         method: 'tools/call',
-        params: { name: 'search', arguments: { query: 'flywheel', source: 'bana' } },
+        params: { name: 'search', arguments: { query: 'flywheel', source: 'other' } },
       }),
     });
     const reply = JSON.parse(result ?? 'null');
 
     expect(reply.error?.code).toBe(RpcErrorCodes.INVALID_PARAMS);
-    expect(reply.error?.message).toBe("unknown source 'bana'; known sources: ignis, ardor");
+    expect(reply.error?.message).toBe("unknown source 'other'; known sources: ignis, ardor");
   });
 
   test('the search tool schema offers the source filter', () => {
@@ -242,8 +242,8 @@ describe('SourceSymbols', () => {
 describe('SourceReleases with a local project that has no release on this ref', () => {
   const local = new ReleaseStore({
     table: {
-      livePackages: ['umbras-core'],
-      packageMap: [{ dir: 'umbras-core', name: '@nx/core', aliases: ['apps/core'] }],
+      livePackages: ['backends-core'],
+      packageMap: [{ dir: 'backends-core', name: '@nx/core', aliases: ['apps/core'] }],
       releases: {},
       changelogs: [
         {
@@ -251,7 +251,7 @@ describe('SourceReleases with a local project that has no release on this ref', 
           file: 'x.md',
           date: '2026-10-05',
           title: 'core',
-          packages: ['umbras-core'],
+          packages: ['backends-core'],
           kind: null,
         },
       ],
@@ -263,7 +263,7 @@ describe('SourceReleases with a local project that has no release on this ref', 
         name: 'ignis',
         releases: releasesOf({ dir: 'kernel', name: '@venizia/ignis-kernel', version: '0.2.0' }),
       },
-      { name: 'bana', releases: local },
+      { name: 'other', releases: local },
     ],
   });
   const ask = async (args: Record<string, unknown>) => {
@@ -284,7 +284,7 @@ describe('SourceReleases with a local project that has no release on this ref', 
   };
 
   test('a declared package answers by npm name, directory key and alias - never "unknown package"', async () => {
-    for (const name of ['@nx/core', 'umbras-core', 'apps/core']) {
+    for (const name of ['@nx/core', 'backends-core', 'apps/core']) {
       const reply = await ask({ package: name });
 
       expect(reply.error, name).toBeUndefined();

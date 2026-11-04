@@ -164,19 +164,19 @@ The `layout` object records the folders that hold your apps. `vulcan init` and `
 
 Each value is a folder path, or a list of them; a plain string stays valid. The object is strict, so any other key is an error. A folder path is checked by one rule, in the schema, in `add` and in the `guard-package` hook alike:
 
-- 1 to 4 segments joined by `/`, each matching `/^[a-z0-9][a-z0-9-]*$/` (`auroras/apps` is two);
+- 1 to 4 segments joined by `/`, each matching `/^[a-z0-9][a-z0-9-]*$/` (`frontends/apps` is two);
 - no `..`, no `.` segment, no leading or trailing `/`, no backslash, no empty segment, no `node_modules` segment;
-- unique across the four keys, and no folder inside another (`auroras` and `auroras/apps` cannot both be listed), so a package path belongs to exactly one folder.
+- unique across the four keys, and no folder inside another (`frontends` and `frontends/apps` cannot both be listed), so a package path belongs to exactly one folder.
 
 A side whose apps are grouped lists each group's folder:
 
 ```ts
 export default {
   layout: {
-    backend: 'umbras',
-    frontend: ['auroras/apps', 'auroras/guests', 'auroras/public'],
-    shared: 'auroras/kits',
-    other: ['auroras/tools', 'third-parties', 'docs', 'qc'],
+    backend: 'backends',
+    frontend: ['frontends/apps', 'frontends/guests', 'frontends/public'],
+    shared: 'frontends/kits',
+    other: ['frontends/tools', 'third-parties', 'docs', 'qc'],
   },
 } satisfies VulcanConfig;
 ```

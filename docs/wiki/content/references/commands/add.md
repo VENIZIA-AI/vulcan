@@ -294,7 +294,7 @@ Without a terminal, the flags are checked before the preset is downloaded: no ki
 
 ## The folder
 
-The preset says whether it is a backend or a frontend, and the app goes in one of that side's folders in `.configs/vulcan.config.mts`. A folder is a path of 1 to 4 segments (`--frontend-dir auroras/guests`; see [the `layout` key](/references/configuration/#layout)).
+The preset says whether it is a backend or a frontend, and the app goes in one of that side's folders in `.configs/vulcan.config.mts`. A folder is a path of 1 to 4 segments (`--frontend-dir frontends/guests`; see [the `layout` key](/references/configuration/#layout)).
 
 - One folder listed: it is the folder. Another valid folder given with the flag is added to the list (the string becomes a list) and the confirmation says so.
 - Several folders listed: pick one with the flag, or in a terminal from a menu. Without a terminal and without the flag, `add` refuses and lists them.
@@ -336,7 +336,7 @@ Every refusal happens before the first write, with exit code 1.
 |---|---|
 | `vulcan add: run it at the root of a monorepo vulcan init created (no layout in .configs/vulcan.config.*)` | The folder has no `layout`. Run `add` at the monorepo root |
 | `vulcan add: the backend folder 'services/x' does not fit the layout of .configs/vulcan.config.mts: ... are nested` | A folder inside another listed folder, or around one. Pick a folder that is neither |
-| `vulcan add: missing --backend-dir (Backend folder (holds every backend app); the layout lists umbras, umbras-2) - names are never chosen for you` | Several folders are listed and there is no terminal. Pass one |
+| `vulcan add: missing --backend-dir (Backend folder (holds every backend app); the layout lists backends, backends-2) - names are never chosen for you` | Several folders are listed and there is no terminal. Pass one |
 | `vulcan add: --backend-dir '../x' ...` | The folder is not a layout folder: no `..`, no leading or trailing `/`, no backslash, no `node_modules`, at most 4 segments of lowercase letters, digits and `-` |
 | `vulcan add: missing --app (Name of this app) - names are never chosen for you` | `--app` was given with no name and there is no terminal to ask. Pass the name |
 | `vulcan add: services/billing already exists` | An app or folder has that name. Pick another |
