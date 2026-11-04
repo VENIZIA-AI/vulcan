@@ -7,6 +7,8 @@ import { BoardWatch } from './watch.ts';
 
 interface IBoardServerOptions {
   port: number;
+  /** The name of the address; default `BoardServe.DEFAULT_HOSTNAME`. The server still listens on 127.0.0.1 only. */
+  hostname?: string;
   /** The events folder to watch; a read of the board happens when it changes. */
   dir: string;
   /** The folded board, as `vulcan board` makes it. */
@@ -55,8 +57,13 @@ export class BoardServer {
     origin: string | null;
     port: number;
     token: string;
+    hostname: string;
   }): { status: number; route?: TBoardRoute } {
-    const names = [`127.0.0.1:${opts.port}`, `localhost:${opts.port}`];
+    const names = [
+      `127.0.0.1:${opts.port}`,
+      `localhost:${opts.port}`,
+      `${opts.hostname.toLowerCase()}:${opts.port}`,
+    ];
     const host = opts.host?.toLowerCase() ?? null;
     const origin = opts.origin?.toLowerCase() ?? null;
 
@@ -89,18 +96,21 @@ export class BoardServer {
   }
 
   /** Starts the server on `port`, or on a free one when it is busy. */
-  static async start(opts: IBoardServerOptions): Promise<{ url: string; note?: string }> {
+  static async start(
+    opts: IBoardServerOptions,
+  ): Promise<{ url: string; fallback: string; note?: string }> {
     await BoardServer.stop();
 
     const token = randomBytes(BoardServe.TOKEN_BYTES).toString('hex');
     const max = opts.maxSnapshotBytes ?? BoardServe.MAX_SNAPSHOT_BYTES;
+    const hostname = opts.hostname ?? BoardServe.DEFAULT_HOSTNAME;
     const listen = (port: number): Server<undefined> =>
       Bun.serve({
         hostname: BoardServe.HOST,
         port,
         development: false,
         fetch: (request, server) =>
-          BoardServer.answer({ request, server, token, collect: opts.collect }),
+          BoardServer.answer({ request, server, token, hostname, collect: opts.collect }),
         error: (error) => {
           process.stderr.write(`board: a request failed: ${error.message}\n`);
 
@@ -160,8 +170,11 @@ export class BoardServer {
       }, BoardServe.HEARTBEAT_MS),
     );
 
+    const path = BoardServer.pathWithToken({ path: BoardServe.PAGE_PATH, token });
+
     return {
-      url: `http://${BoardServe.HOST}:${server.port}${BoardServer.pathWithToken({ path: BoardServe.PAGE_PATH, token })}`,
+      url: `http://${hostname}:${server.port}${path}`,
+      fallback: `http://${BoardServe.HOST}:${server.port}${path}`,
       ...(note === undefined ? {} : { note }),
     };
   }
@@ -242,6 +255,7 @@ export class BoardServer {
     request: Request;
     server: Server<undefined>;
     token: string;
+    hostname: string;
     collect: () => IBoardData;
   }): Response {
     const { request, server, token } = opts;
@@ -252,6 +266,7 @@ export class BoardServer {
       origin: request.headers.get('origin'),
       port: server.port ?? 0,
       token,
+      hostname: opts.hostname,
     });
 
     if (verdict.route === BoardRoutes.PAGE) {

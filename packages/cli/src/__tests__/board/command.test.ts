@@ -251,20 +251,26 @@ describe('vulcan board serve', () => {
       const reader = child.stdout.getReader();
       const first = await reader.read();
       const url = new TextDecoder().decode(first.value).trim();
-      const page = await fetch(url);
+      const errors = await child.stderr.getReader().read();
+      const fallback = /use (http:\/\/127\.0\.0\.1:\d+\/\?t=[0-9a-f]{32})/.exec(
+        new TextDecoder().decode(errors.value),
+      )?.[1];
+      const page = await fetch(fallback ?? url);
       const html = await page.text();
 
-      expect(url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/\?t=[0-9a-f]{32}$/);
+      expect(url).toMatch(/^http:\/\/vulz-board\.venizia\.ai\.localhost:\d+\/\?t=[0-9a-f]{32}$/);
+      expect(fallback, 'the fallback address is on stderr').toBeDefined();
+      expect(new URL(fallback ?? '').port).toBe(new URL(url).port);
       expect(page.status).toBe(200);
       expect(html).toContain('id="board-data"');
-      const result = await fetch(url.split('?')[0]);
+      const result = await fetch((fallback ?? url).split('?')[0]);
       expect(result.status).toBe(403);
 
       child.kill(signal);
 
       const result2 = await child.exited;
       expect(result2).toBe(0);
-      const result3 = await fetch(url).then(
+      const result3 = await fetch(fallback ?? url).then(
         () => true,
         () => false,
       );

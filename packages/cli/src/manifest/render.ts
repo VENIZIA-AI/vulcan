@@ -97,10 +97,11 @@ const localBlockOf = (opts: { config: TResolvedConfig }): { local?: Record<strin
 
 /** The manifest's `board` block, which `vulcan board` reads: only what the project sets. */
 const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<string, unknown> } => {
-  const { owner, title, logo, agents } = opts.config.board;
+  const { owner, title, logo, hostname, agents } = opts.config.board;
 
   return owner === undefined &&
     title === undefined &&
+    hostname === undefined &&
     logo === undefined &&
     Object.keys(agents).length === 0
     ? {}
@@ -109,6 +110,7 @@ const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<strin
           ...(owner === undefined ? {} : { owner }),
           ...(title === undefined ? {} : { title }),
           ...(logo === undefined ? {} : { logo }),
+          ...(hostname === undefined ? {} : { hostname }),
           ...(Object.keys(agents).length === 0 ? {} : { agents }),
         },
       };
