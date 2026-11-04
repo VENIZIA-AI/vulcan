@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { IBoardData } from '../common/index.ts';
 import { BoardStorage } from './storage.ts';
 
@@ -89,4 +89,54 @@ export const useLive = (opts: {
   }, [stream]);
 
   return state;
+};
+
+/** The size of an element, kept up to date as it is resized. */
+export const useSize = (opts: {
+  ref: { current: HTMLElement | null };
+}): { width: number; height: number } => {
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const element = opts.ref.current;
+
+    if (element === null) {
+      return undefined;
+    }
+
+    const watch = new ResizeObserver(() => {
+      const box = element.getBoundingClientRect();
+
+      setSize({ width: box.width, height: box.height });
+    });
+
+    watch.observe(element);
+
+    return () => watch.disconnect();
+  }, []);
+
+  return size;
+};
+
+/** Plays a CSS animation again each time `trigger` changes, but not when the page first draws; none when motion is reduced. */
+export const useReplay = (opts: {
+  ref: { current: Element | null };
+  trigger: unknown;
+  className: string;
+  when?: boolean;
+}): void => {
+  const first = useRef(true);
+
+  useEffect(() => {
+    const element = opts.ref.current;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (!first.current && element && !reduced && opts.when !== false) {
+      element.classList.remove(opts.className);
+      element.getBoundingClientRect();
+      element.classList.add(opts.className);
+    }
+
+    first.current = false;
+  }, [opts.trigger]);
 };

@@ -65,3 +65,19 @@ export class BoardTables {
   /** How the board view orders the cards of a stage. */
   static readonly STATE_ORDER = ['you', 'blocked', 'running', 'parked', 'done'];
 }
+
+/** How an agent's state is said: as a pill and as a word in a sentence. */
+export class BoardStateWords {
+  static readonly PILL: Record<string, string> = {
+    working: 'Đang làm',
+    you: 'Chờ anh',
+    idle: 'Rảnh',
+    blocked: 'Bị chặn',
+  };
+  static readonly WORD: Record<string, string> = {
+    working: 'đang làm',
+    you: 'chờ anh',
+    idle: 'rảnh',
+    blocked: 'bị chặn',
+  };
+}
