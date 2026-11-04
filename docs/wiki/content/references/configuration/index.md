@@ -47,7 +47,7 @@ vulcan doctor: 1 violation(s)
 
 The command exits with code 1.
 
-**Upgrading.** The schema is strict, so a key that a newer release added is an unknown key to an older `vulcan`. Upgrade first: run `bun x --no-install vulcan upgrade`, commit the lockfile, make sure every machine and CI job has installed that version, and only then add the new key to the config. While the installed `vulcan` cannot read the config, the guard hooks cannot read it either: each one falls back to its own defaults and prints one line on stderr (for example `guard.outside: 'deny'` then acts as `ask`, and no script is trusted). `vulcan doctor` shows that the config is unreadable, so run it after you pull a change to the config.
+**Upgrading.** The schema is strict, so a key that a newer release added is an unknown key to an older `vulcan`. Upgrade first: run `bun x --no-install vulcan upgrade`, commit the lockfile, make sure every machine and CI job has installed that version, and only then add the new key to the config. While the installed `vulcan` cannot read the config, the guard hooks cannot read it either: each one falls back to its own defaults (for example `guard.outside: 'deny'` then acts as `ask`, and no script is trusted). `vulcan doctor` shows that the config is unreadable, so run it after you pull a change to the config.
 
 The table below lists the top-level configuration keys:
 
@@ -868,7 +868,7 @@ export default {
 
 ## Environment variables
 
-The variables VULCAN reads. A variable set to `off` means exactly the word `off`.
+The variables the cli reads. The atlas server has variables of its own (`VULCAN_ATLAS_*`, `VULCAN_NPM_REGISTRY`, `VULCAN_GITHUB_API_URL`, `VULCAN_GITHUB_URL`, `VULCAN_CODELOAD_URL`); they are not listed here. A variable set to `off` means exactly the word `off`.
 
 | Variable | Read by | What it does |
 |---|---|---|
