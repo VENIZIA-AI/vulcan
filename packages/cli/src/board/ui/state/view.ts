@@ -6,16 +6,25 @@ import { BoardTime } from './time.ts';
 
 const RANK: Record<IBoardAgent['state'], number> = { working: 2, idle: 1 };
 
-const byTime = (left: IBoardEvent, right: IBoardEvent): number => {
-  if (left.ts !== right.ts) {
-    return left.ts < right.ts ? -1 : 1;
-  }
-
-  return left.stage - right.stage;
-};
-
 /** What the page draws, worked out from the data of a board, with a helper rolled into its lane. */
 export class BoardView {
+  /** Older first; lines of one moment by stage. */
+  static byTime(left: IBoardEvent, right: IBoardEvent): number {
+    if (left.ts !== right.ts) {
+      return left.ts < right.ts ? -1 : 1;
+    }
+
+    return left.stage - right.stage;
+  }
+
+  /** Whether an agent holds the flow or has a line in it. */
+  static involves(opts: { view: IFlowView; name: string }): boolean {
+    return (
+      opts.view.holder === opts.name ||
+      opts.view.evs.some((event) => event.actor === opts.name || event.to === opts.name)
+    );
+  }
+
   static laneOf(opts: { data: IBoardData; name: string }): string {
     return opts.data.lanes?.[opts.name] ?? opts.name;
   }
@@ -49,7 +58,7 @@ export class BoardView {
     const views: IFlowView[] = [];
 
     for (const flow of opts.data.flows) {
-      const evs = BoardView.linesOf({ ...opts, flow }).sort(byTime);
+      const evs = BoardView.linesOf({ ...opts, flow }).sort(BoardView.byTime);
       const last = evs.find((event) => event.id === flow.lastId) ?? evs.at(-1);
 
       if (last === undefined) {
@@ -123,7 +132,7 @@ export class BoardView {
         const doc: IBoardAgent | undefined = docs[name];
         const lastLine = events
           .filter((event) => event.actor === name)
-          .sort(byTime)
+          .sort(BoardView.byTime)
           .at(-1);
         const youFlow = flows.find(
           (view) =>

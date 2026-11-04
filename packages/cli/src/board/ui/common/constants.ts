@@ -15,3 +15,53 @@ export class BoardUiConstants {
   /** The kinds that count as an attempt of their stage: a CI run, a review round, a release. */
   static readonly ATTEMPT_KINDS = new Set<string>(['ci', 'review', 'release']);
 }
+
+/** The words and the order of the tables the page draws; each word is a key of the dictionary. */
+export class BoardTables {
+  static readonly STAGES = [
+    'Đề xuất',
+    'Anh duyệt',
+    'Thiết kế',
+    'Code',
+    'PR + CI',
+    'Review',
+    'Merge',
+    'Phát hành',
+    'Bàn giao',
+  ];
+  static readonly STATE_TEXT: Record<string, string> = {
+    you: 'Cần anh',
+    blocked: 'Bị chặn',
+    running: 'Đang chạy',
+    parked: 'st.parked',
+    done: 'Xong',
+  };
+  static readonly KIND_TEXT: Record<string, string> = {
+    request: 'đề xuất',
+    decision: 'quyết định',
+    assign: 'giao việc',
+    note: 'ghi chú',
+    design: 'thiết kế',
+    commit: 'code',
+    pr: 'PR',
+    ci: 'CI',
+    review: 'review',
+    fix: 'sửa',
+    merge: 'merge',
+    release: 'phát hành',
+    handoff: 'bàn giao',
+    msg: 'tin nhắn',
+    flow: 'k.flow',
+    agent: 'k.agent',
+  };
+  /** The groups of the list, in order, with the swatch colour and whether they start open. */
+  static readonly GROUPS = [
+    { key: 'you', label: 'g.you', swatch: 'var(--ink)', open: true },
+    { key: 'blocked', label: 'g.blocked', swatch: 'var(--fail)', open: true },
+    { key: 'running', label: 'g.running', swatch: 'var(--accent)', open: true },
+    { key: 'parked', label: 'g.parked', swatch: 'var(--line-2)', open: false },
+    { key: 'done', label: 'g.done', swatch: 'var(--ok)', open: false },
+  ];
+  /** How the board view orders the cards of a stage. */
+  static readonly STATE_ORDER = ['you', 'blocked', 'running', 'parked', 'done'];
+}

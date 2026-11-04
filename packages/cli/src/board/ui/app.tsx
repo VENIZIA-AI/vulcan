@@ -2,12 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IBoardData } from '../common/index.ts';
 import { Header, THEMES } from './components/header.tsx';
 import type { TTheme } from './components/header.tsx';
+import { Detail } from './components/detail.tsx';
 import { Keys } from './components/keys.tsx';
+import { FlowList, VIEW_MODES } from './components/list.tsx';
+import type { TViewMode } from './components/list.tsx';
 import { SPLIT_DEFAULT, Split } from './components/split.tsx';
-import { BoardLanguages } from './common/constants.ts';
+import { BoardLanguages, BoardTables } from './common/constants.ts';
 import type { TBoardLanguage } from './common/types.ts';
 import { useLive, useNow, useStored } from './hooks.ts';
-import { TranslateContext } from './i18n/context.ts';
+import { UiContext } from './i18n/context.ts';
 import { BoardI18n } from './i18n/translate.ts';
 import { BoardStorage } from './storage.ts';
 import { BoardView } from './state/view.ts';
@@ -51,6 +54,17 @@ export const App = (opts: { data: IBoardData }) => {
   const [split, setSplit] = useState(
     () => Number(BoardStorage.get({ key: `${prefix}split` })) || SPLIT_DEFAULT,
   );
+  const [mode, setMode] = useStored<TViewMode>({
+    key: `${prefix}view`,
+    initial: 'list',
+    allowed: VIEW_MODES,
+  });
+  const [selected, setSelected] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [everything, setEverything] = useState(false);
+  const [agent, setAgent] = useState<string | null>(null);
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [attempts, setAttempts] = useState<Record<string, number>>({});
   const area = useRef<HTMLDivElement>(null);
   const now = useNow();
   const showAll = plumbing === '1';
@@ -66,10 +80,17 @@ export const App = (opts: { data: IBoardData }) => {
     () => (key: string) => BoardI18n.translate({ language, key }),
     [language],
   );
+  const events = useMemo(() => BoardView.eventsOf({ data, showAll }), [data, showAll]);
+  const ui = useMemo(() => ({ t: translate, now }), [translate, now]);
   const flows = useMemo(
     () => BoardView.flowsOf({ data, showAll, lastSeen }),
     [data, showAll, lastSeen, now],
   );
+
+  const select = (id: string): void => {
+    setSelected(id);
+    setDetailOpen(true);
+  };
 
   useEffect(() => {
     document.title = data.title;
@@ -89,7 +110,7 @@ export const App = (opts: { data: IBoardData }) => {
   }, [prefix, lastSeen]);
 
   return (
-    <TranslateContext.Provider value={translate}>
+    <UiContext.Provider value={ui}>
       <div className="app">
         <Header
           title={data.title}
@@ -120,6 +141,35 @@ export const App = (opts: { data: IBoardData }) => {
           aria-labelledby="tFlows"
           style={{ '--split': `${split}%` }}
         >
+          <FlowList
+            flows={flows}
+            mode={mode}
+            onMode={(next) => {
+              setMode(next);
+
+              if (next === 'diagram' && selected === null) {
+                const first =
+                  ['you', 'blocked', 'running']
+                    .map((state) => flows.find((view) => view.flow.state === state))
+                    .find(Boolean) ?? flows[0];
+
+                if (first) {
+                  select(first.flow.id);
+                }
+              }
+            }}
+            selected={selected}
+            onSelect={select}
+            agent={agent}
+            onAgent={setAgent}
+            open={open}
+            onToggle={(key) =>
+              setOpen({
+                ...open,
+                [key]: !(open[key] ?? BoardTables.GROUPS.find((group) => group.key === key)?.open),
+              })
+            }
+          />
           <Split
             percent={split}
             area={() => area.current}
@@ -135,9 +185,23 @@ export const App = (opts: { data: IBoardData }) => {
               setSplit(SPLIT_DEFAULT);
             }}
           />
+          <Detail
+            views={flows}
+            events={events}
+            selected={selected}
+            open={detailOpen}
+            diagramMode={mode === 'diagram'}
+            diagram={() => null}
+            everything={everything}
+            onEverything={setEverything}
+            attempts={attempts}
+            onAttempt={(key, round) => setAttempts({ ...attempts, [key]: round })}
+            onSelect={select}
+            onClose={() => setDetailOpen(false)}
+          />
         </div>
       </div>
       <Keys open={keysOpen} />
-    </TranslateContext.Provider>
+    </UiContext.Provider>
   );
 };
