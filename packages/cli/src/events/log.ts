@@ -203,7 +203,7 @@ export class EventLog {
       kind: kind as TEventKind,
       summary: text(summary, EventConstants.SUMMARY_MAX),
       ...(status === undefined ? {} : { status: status as TEventStatus }),
-      ...(ref === undefined ? {} : { ref: clean(ref) }),
+      ...(ref === undefined ? {} : { ref: text(ref, EventConstants.REF_MAX) }),
       ...(why === undefined ? {} : { why: text(why, EventConstants.SUMMARY_MAX) }),
       ...(context === undefined ? {} : { context: text(context, EventConstants.CONTEXT_MAX) }),
       ...(next === undefined ? {} : { next: text(next, EventConstants.SUMMARY_MAX) }),

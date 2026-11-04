@@ -3338,8 +3338,10 @@
         const body = el('div');
         const who = el('div', 'who');
         who.append(el('b', null, e.actor));
-        if (e.to) who.append(' → ', el('b', null, e.to));
-        else if (e.incoming && e.from) who.append(' ← ', el('b', null, e.from));
+        // A message the actor got has a sender, never a recipient: the sentence of the Latest list says the same.
+        if (e.incoming) {
+          if (e.from) who.append(' ← ', el('b', null, e.from));
+        } else if (e.to) who.append(' → ', el('b', null, e.to));
         who.append(
           ' · ' + (t(KIND_TXT[e.kind]) || e.kind) + (e.attempt > 1 ? t(' lần ') + e.attempt : ''),
         );
@@ -4459,6 +4461,12 @@
         clearTimeout(toastT);
         toastT = setTimeout(() => t.classList.remove('on'), warn ? 5200 : 2600);
       }
+      // Who sent a message line and who got it: a sent line is the actor's to `to`; a received one is the actor's from `from`.
+      function msgEnds(m) {
+        return m.incoming
+          ? { sender: m.from, receiver: m.actor }
+          : { sender: m.actor, receiver: m.to };
+      }
       function agentInfo(n) {
         const row = agentRows().find((r) => r.n === n) || {
           n,
@@ -4493,12 +4501,13 @@
         }
         const open = Object.values(prs).filter((p) => p.by === n && !p.merged && !p.closed);
         const msgs = events
-          .filter((e) => e.kind === 'msg' && (e.to === n || e.actor === n))
+          .filter((e) => e.kind === 'msg' && (msgEnds(e).sender === n || msgEnds(e).receiver === n))
           .sort(byTs);
+        // A message waits for its receiver: unanswered while the receiver has done nothing since, in that flow.
         const pending = msgs.filter((m) => {
-          const other = m.to === n ? n : m.to;
+          const { receiver } = msgEnds(m);
           return !events.some(
-            (e) => e.ts > m.ts && e.actor === other && (!m.flowId || e.flowId === m.flowId),
+            (e) => e.ts > m.ts && e.actor === receiver && (!m.flowId || e.flowId === m.flowId),
           );
         });
         return { row, mine, open, pending };
@@ -4591,7 +4600,12 @@
             const li = el('li');
             li.append(el('span', 'tm', (isApprox(m) ? '≈' : '') + hhmm(m.ts)));
             const sm = el('span', 'sm');
-            sm.append((m.actor === n ? '→ ' + m.to : '← ' + m.actor) + ': ' + (m.summary || ''));
+            const ends = msgEnds(m);
+            sm.append(
+              (ends.sender === n ? '→ ' + (ends.receiver || '?') : '← ' + (ends.sender || '?')) +
+                ': ' +
+                (m.summary || ''),
+            );
             li.append(sm);
             ul.append(li);
           }

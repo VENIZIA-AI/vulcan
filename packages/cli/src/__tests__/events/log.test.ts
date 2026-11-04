@@ -285,6 +285,36 @@ describe('EventLog', () => {
     expect(event?.context).toStartWith('[redacted]');
   });
 
+  test('parse and build clean a ref too: a token is redacted and a long value is cut', () => {
+    const token = 'ghp_abcdefghijklmnop1234567890';
+    const long = `from:${token} ${'r'.repeat(5000)}`;
+    const built = EventLog.build({
+      kind: 'msg-received',
+      summary: 's',
+      actor: 'a',
+      source: 'cli',
+      ref: long,
+      now: NOW,
+    });
+    const read = EventLog.parse({
+      line: JSON.stringify({
+        id: 'i1',
+        ts: '2026-11-03T09:30:00.000Z',
+        actor: 'a',
+        kind: 'msg-received',
+        summary: 's',
+        ref: long,
+        source: 'cli',
+      }),
+    });
+
+    for (const ref of [built.ref ?? '', read?.ref ?? '']) {
+      expect(ref).not.toContain(token);
+      expect(ref).toStartWith('from:[redacted]');
+      expect(Array.from(ref).length).toBeLessThanOrEqual(120);
+    }
+  });
+
   test('parse strips control characters from every text field, so tail never prints an escape sequence', () => {
     const line = JSON.stringify({
       id: 'i\u001bd',
@@ -299,7 +329,7 @@ describe('EventLog', () => {
     const event = EventLog.parse({ line });
 
     expect(JSON.stringify(event)).not.toMatch(/\\u00(1b|9b|07)/);
-    expect(event).toMatchObject({ actor: 'a [2Jb', summary: 'x y', ref: 'r ', source: 'cli ' });
+    expect(event).toMatchObject({ actor: 'a [2Jb', summary: 'x y', ref: 'r', source: 'cli ' });
   });
 
   test('ids sort by time and do not collide', () => {

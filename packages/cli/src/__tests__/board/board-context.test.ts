@@ -85,6 +85,16 @@ const data = (): IBoardData => {
       context: 'Nothing has started.',
       next: 'agent-b-1 starts the design',
     }),
+    // A received line that names a recipient: it still has a sender, not a recipient.
+    line({
+      base: BASE,
+      minute: 3,
+      kind: 'msg-received',
+      actor: ME,
+      flow: 'F-1',
+      summary: 'stray',
+      ref: 'to:agent-b-1',
+    }),
     line({
       base: BASE,
       minute: 7,
@@ -162,6 +172,7 @@ interface IRow {
 
 interface IResult {
   recent: string[];
+  pop: string[];
   lanes: Record<string, string[]>;
   hostile: {
     context: string | null;
@@ -242,6 +253,10 @@ const EXPRESSION = `(async () => {
   out.hostile.images += document.querySelectorAll('.kcard img').length;
   document.querySelector('#vmode button:nth-child(1)').click();
   await wait();
+  openPop('agent-a-1', document.querySelector('#dock .cell'));
+  await wait();
+  out.pop = [...document.querySelectorAll('#pop .pevs li')].map((li) => li.textContent);
+  closePop();
   document.getElementById('bLang').click();
   await wait();
   out.vi = { one: await pane('F-1'), rows: rowsOf() };
@@ -353,6 +368,17 @@ describe.skipIf(!hasBrowser)(
       expect(lanes['Proposal']).toEqual([]);
       expect(lanes['Code']).toEqual(['F-1']);
       expect(lanes['No work yet'].sort()).toEqual(['F-2', 'F-3', 'F-4', 'F-5']);
+    });
+
+    test('the agent popover keeps the direction of a message: sent to, got from, never undefined', async () => {
+      const { pop, one } = await run({ dark: false, width: 1440 });
+
+      expect(pop.join('\n')).not.toContain('undefined');
+      expect(pop.some((entry) => /← agent-b-1: reply$/.test(entry))).toBe(true);
+      expect(pop.some((entry) => /→ agent-b-1: status label$/.test(entry))).toBe(true);
+      // A received line with a `to:` ref has no recipient: the who-line shows no arrow for it.
+      expect(one.allText.match(/→ agent-b-1/g)).toHaveLength(1);
+      expect(one.allText).toContain('agent-a-1 ← agent-b-1');
     });
 
     test('Latest events lists no flow line', async () => {
