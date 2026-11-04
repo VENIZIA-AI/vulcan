@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { BunFormatter } from '../common/index.ts';
+import { BunFormatter, EnvVariables } from '../common/index.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import { ProjectPackages } from '../config/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
@@ -11,7 +11,7 @@ export class ManifestConstants {
   static readonly FILE = '.agents/vulcan.manifest.json';
   static readonly SCHEMA_VERSION = 1;
   static readonly PROJECT_RULES = '.agents/rules.md';
-  static readonly ENV = 'VULCAN_MANIFEST';
+  static readonly ENV = EnvVariables.VULCAN_MANIFEST;
   /** The first key: a reader sees at once that the file is generated. Readers ignore it. */
   static readonly GENERATED_KEY = '$generated';
   static readonly GENERATED_NOTE = 'by vulcan sync from .configs/vulcan.config.* - do not edit';

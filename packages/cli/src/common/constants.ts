@@ -1,3 +1,5 @@
+import { EnvVariables } from './env-variables.ts';
+
 export class VulcanCommands {
   static readonly INIT = 'init';
   static readonly ADD = 'add';
@@ -23,7 +25,7 @@ export class UpgradeFlags {
   static readonly STABLE = '--stable';
   static readonly NIGHTLY = '--nightly';
   /** Tests only: a JSON object of dist-tags that stands in for the registry read. */
-  static readonly DIST_TAGS_ENV = 'VULCAN_DIST_TAGS';
+  static readonly DIST_TAGS_ENV = EnvVariables.VULCAN_DIST_TAGS;
 }
 
 export class ExitCodes {
@@ -49,8 +51,8 @@ export class ProjectLayout {
   static readonly VULCAN_COMMAND = 'bun x --no-install vulcan';
 
   /** `vulcan x` hands the resolved project config to the tool in these variables; the tools read nothing else. */
-  static readonly CONFIG_ENV = 'VULCAN_CONFIG';
-  static readonly ROOT_ENV = 'VULCAN_PROJECT_ROOT';
+  static readonly CONFIG_ENV = EnvVariables.VULCAN_CONFIG;
+  static readonly ROOT_ENV = EnvVariables.VULCAN_PROJECT_ROOT;
   /** `-include`: a fresh clone runs `make install` before node_modules exists. */
   static readonly MAKE_INCLUDE_LINE = '-include node_modules/@venizia/vulcan/base/make/vulcan.mk';
   static readonly STYLE_PACKAGE = '@venizia/dev-configs';
