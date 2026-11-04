@@ -4,7 +4,8 @@
  * The project's own deploy and migrate commands (`guard.writes.commands`) are read from the manifest and
  * checked beside the fixed list, inside compound commands too.
  * A script the project lists in `guard.writes.trustedScripts` is not read for writes while git says it
- * is tracked and unchanged; a config that cannot be read leaves the list empty, so every script is read.
+ * is tracked and unchanged. The list is read from the manifest, never from the config: a config this VULCAN cannot
+ * parse changes nothing here.
  * An entry of `guard.writes.readOnlyScripts` in the manifest (the object form of `trustedScripts`, written by
  * `vulcan sync`) skips that read for the calls whose first argument after the script is one of its words.
  *
@@ -22,41 +23,13 @@ try {
   const stdin = await Bun.stdin.text();
   const hookCommand = WriteGuard.parseHookCommand({ text: stdin });
   const cwd = hookCommand?.cwd ?? process.cwd();
-  let scripts: string[] = [];
-
-  // Only a command that names a .ts file can use the list; the config loader (and zod) loads last, on its
-  // own, and may fail alone.
-  if (hookCommand && /\.ts\b/.test(hookCommand.command)) {
-    try {
-      const { ConfigLoader } = await import('../../src/config/index.ts');
-      const loaded = await ConfigLoader.load({ root: process.env.CLAUDE_PROJECT_DIR ?? cwd });
-
-      // The objects are the read-only entries: the manifest carries them, so only the paths count here.
-      scripts = loaded.ok
-        ? loaded.config.guard.writes.trustedScripts.filter(
-            (entry): entry is string => typeof entry === 'string',
-          )
-        : [];
-
-      const note = ConfigLoader.unreadableNote({ loaded });
-
-      if (note !== undefined) {
-        console.error(`vulcan: the guard-writes hook: ${note}; every script is read`);
-      }
-    } catch (error) {
-      console.error(
-        `vulcan: the guard-writes hook could not read the project config (${error instanceof Error ? error.message : String(error)}) - every script is read`,
-      );
-    }
-  }
-
   const root = process.env.CLAUDE_PROJECT_DIR ?? cwd;
   const policy = ProjectGuards.readPolicy({ root });
   const hits = hookCommand
     ? WriteGuard.inspectCommand({
         command: hookCommand.command,
         cwd,
-        trust: { root, scripts, readOnlyScripts: policy.readOnlyScripts },
+        trust: { root, scripts: policy.trustedScripts, readOnlyScripts: policy.readOnlyScripts },
         extra: policy.commands,
       })
     : [];

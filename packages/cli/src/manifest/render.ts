@@ -3,6 +3,7 @@ import { basename, join } from 'node:path';
 import { BunFormatter, EnvVariables } from '../common/index.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import { ProjectPackages } from '../config/index.ts';
+import { GuardDecisions } from '../hooks/common/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules } from '../rules/index.ts';
 
@@ -19,11 +20,18 @@ export class ManifestConstants {
 
 const HASH_LENGTH = 8;
 
-/** The manifest's `guard` block: what the project adds to guard-writes and guard-git, as data a hook reads without the config (the read-only script entries of `trustedScripts` included). */
+/**
+ * The manifest's `guard` block: what the project sets for the guards, as data a hook reads without the config, so a
+ * config this VULCAN cannot parse never changes a guard: `outside` (when it is not the default), `toolOwnedPaths`,
+ * the commands and trusted scripts of guard-writes, the push targets of guard-git.
+ */
 const guardBlockOf = (opts: { config: TResolvedConfig }): { guard?: Record<string, unknown> } => {
   const { commands, trustedScripts } = opts.config.guard.writes;
   const { askPush } = opts.config.guard.git;
-  // Only the object entries: a path string is read from the config by the hook, as before.
+  const { outside, toolOwnedPaths } = opts.config.guard;
+  const trustedPaths = trustedScripts.flatMap((entry) =>
+    typeof entry === 'string' ? [entry] : [],
+  );
   const readOnlyScripts = trustedScripts.flatMap((entry) =>
     typeof entry === 'string' ? [] : [{ script: entry.script, readOnly: entry.readOnly }],
   );
@@ -38,9 +46,12 @@ const guardBlockOf = (opts: { config: TResolvedConfig }): { guard?: Record<strin
             ...(command.ignoreCase === true ? { ignoreCase: true } : {}),
           })),
         }),
+    ...(trustedPaths.length === 0 ? {} : { trustedScripts: trustedPaths }),
     ...(readOnlyScripts.length === 0 ? {} : { readOnlyScripts }),
   };
   const block = {
+    ...(outside === GuardDecisions.ASK ? {} : { outside }),
+    ...(toolOwnedPaths.length === 0 ? {} : { toolOwnedPaths }),
     ...(Object.keys(writes).length === 0 ? {} : { writes }),
     ...(askPush.length === 0 ? {} : { git: { askPush } }),
   };

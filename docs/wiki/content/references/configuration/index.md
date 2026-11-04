@@ -47,7 +47,7 @@ vulcan doctor: 1 violation(s)
 
 The command exits with code 1.
 
-**Upgrading.** The schema is strict, so a key that a newer release added is an unknown key to an older `vulcan`. Upgrade first: run `bun x --no-install vulcan upgrade`, commit the lockfile, make sure every machine and CI job has installed that version, and only then add the new key to the config. While the installed `vulcan` cannot read the config, the guard hooks cannot read it either: each one falls back to its own defaults (for example `guard.outside: 'deny'` then acts as `ask`, and no script is trusted). `vulcan doctor` shows that the config is unreadable, so run it after you pull a change to the config.
+**Upgrading.** The schema is strict, so a key that a newer release added is an unknown key to an older `vulcan`. Upgrade first: run `bun x --no-install vulcan upgrade`, commit the lockfile, make sure every machine and CI job has installed that version, and only then add the new key to the config. While the installed `vulcan` cannot read the config, `vulcan sync` fails, but the guards keep working: `guard-outside` and `guard-writes` read what the project set (`guard.outside`, `guard.toolOwnedPaths`, `guard.writes.trustedScripts`) from the manifest of the last `sync`, so a `deny` stays a `deny`. The session digest names the unreadable key, and so does `vulcan doctor`, so run it after you pull a change to the config.
 
 The table below lists the top-level configuration keys:
 
