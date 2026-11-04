@@ -1,3 +1,5 @@
+import { mkdirSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { ClaudeHookEvents, EventConstants, EventKinds, EventSources } from './common/index.ts';
 import type { IEvent, IHookEvent } from './common/index.ts';
@@ -16,8 +18,8 @@ export class EventHook {
    * The event a payload stands for, or `undefined` when the payload is not one to log. Only these fields are
    * read: `source` and `model` of a session start, `stop_hook_active` of a stop, `agent_type` and `agent_id` of a
    * subagent stop, `notification_type` and `title` of a notification, and `to` and `summary` of a SendMessage
-   * call (its first line, only when the sender gave no summary). `last_assistant_message`, `message`,
-   * `tool_response` and every command stay unread.
+   * call (its first line, only when the sender gave no summary). A tool tick reads nothing but the event's name.
+   * `last_assistant_message`, `message`, `tool_response`, `tool_input` and every command stay unread.
    */
   static map(opts: { input: unknown }): IHookEvent | undefined {
     const { input } = opts;
@@ -64,7 +66,9 @@ export class EventHook {
       }
 
       case ClaudeHookEvents.POST_TOOL_USE: {
-        return EventHook.mapSend({ input });
+        return input.tool_name === ClaudeHookEvents.SEND_MESSAGE_TOOL
+          ? EventHook.mapSend({ input })
+          : { kind: EventKinds.TOOL_TICK, summary: EventConstants.TOOL_TICK_LABEL };
       }
 
       default: {
@@ -120,6 +124,23 @@ export class EventHook {
     };
   }
 
+  /** Whether this session may write a tick now. When it may, its stamp gets the time of the tick; otherwise nothing is written. */
+  private static takeTick(opts: { root: string; session: string; now: number }): boolean {
+    const folder = join(opts.root, EventConstants.TICK_STAMPS);
+    const stamp = join(folder, opts.session.replace(/[^\w-]/g, '_') || 'session');
+    const last = statSync(stamp, { throwIfNoEntry: false })?.mtimeMs;
+
+    if (last !== undefined && opts.now - last < EventConstants.TICK_SECONDS * 1000) {
+      return false;
+    }
+
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(stamp, '');
+    utimesSync(stamp, opts.now / 1000, opts.now / 1000);
+
+    return true;
+  }
+
   /**
    * Logs what a payload stands for, when the manifest says the log is on. Returns the line it wrote.
    * `root` is the project, where the manifest is; the flow comes from the message, else the branch at the
@@ -140,6 +161,17 @@ export class EventHook {
     const mapped = EventHook.map({ input: opts.input });
 
     if (mapped === undefined || !RecordValue.isRecord(opts.input)) {
+      return undefined;
+    }
+
+    if (
+      mapped.kind === EventKinds.TOOL_TICK &&
+      !EventHook.takeTick({
+        root: opts.root,
+        session: text({ value: opts.input.session_id }),
+        now: opts.now ?? Date.now(),
+      })
+    ) {
       return undefined;
     }
 

@@ -89,7 +89,7 @@ describe('vulcan sync and the event hooks', () => {
     const found = eventEntries({ root });
 
     expect(found.map((item) => item.name).sort()).toEqual([...HOOK_EVENTS].sort());
-    expect(found.find((item) => item.name === 'PostToolUse')?.entry.matcher).toBe('SendMessage');
+    expect(found.find((item) => item.name === 'PostToolUse')?.entry.matcher).toBeUndefined();
 
     for (const { entry } of found) {
       const [hook] = entry.hooks;

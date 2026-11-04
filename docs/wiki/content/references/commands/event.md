@@ -40,7 +40,7 @@ One file per local day, one JSON object per line, in `.agents/local/events/<yyyy
 | `ts` | ISO 8601, UTC |
 | `flowId` | `F-n`, when the line belongs to a flow; absent otherwise |
 | `actor` | The session that wrote it, as other sessions address it |
-| `kind` | One of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr`, `decision`, `flow` |
+| `kind` | One of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr`, `decision`, `flow`, `tool-tick` |
 | `status` | Only on a `decision`: `approve`, `park` or `reject` |
 | `summary` | One line, at most 200 characters. On a `flow` line it is the flow's title |
 | `notification` | Only on a `needs-owner` the Claude Code hook wrote: the notification type that raised it (`permission_prompt`, `idle_prompt` or `elicitation_dialog`). A board uses it to tell the harness waiting from a question someone wrote, whatever the `summary` says; anything else is not written and is dropped on read |
@@ -81,7 +81,7 @@ It prints the id of the line. This is the way in for any coding agent: a hook of
 
 | Flag | Meaning |
 |---|---|
-| `--kind` | One of the ten kinds |
+| `--kind` | One of the eleven kinds |
 | `--summary` | A short label (not on a `flow` line: it takes `--title`). It is cut to one line of 200 characters, and anything shaped like a secret is replaced by `[redacted]` |
 | `--flow` | `F-n`. Without it, the flow is read from the branch, when its name has an `F-n` segment such as `feature/F-12-events-log` |
 | `--ref` | A commit, a PR number, a recipient. On a `pr` line, `merged:12` says pull request 12 was merged |
@@ -115,7 +115,10 @@ It prints the events at or after `--since`, oldest first. `--since` takes anythi
 | `Stop` | `session-stop` | `turn ended`. Not logged while `stop_hook_active` is true | `stop_hook_active` |
 | `SubagentStop` | `subagent-stop` | the `agent_type` and the `agent_id` | `agent_type`, `agent_id` |
 | `Notification` | `needs-owner`, for `permission_prompt`, `idle_prompt` and `elicitation_dialog` | the notification `title`, else its type; the type is also stored in `notification` | `notification_type`, `title` |
+| `PostToolUse` of any other tool | `tool-tick` | the fixed text `using a tool`. At most one line per session in 30 seconds; the time of the last one is a one-byte stamp in `.agents/local/tmp/event-ticks/`. The tool, its input and its result are never read | nothing but the event's name |
 | `PostToolUse` of `SendMessage` | `msg-sent` | the sender's own `summary` label, else the fixed text `message sent`. The text of the message is never used | `tool_input.to`, `tool_input.summary`; the first line of `tool_input.message` only to look for `Flow: F-n` |
+
+A tick is how the board tells an agent that is working from one that is thinking: `vulcan board` reads it as the agent working at that time, and does not list it as an event of a flow. A busy session writes at most 120 ticks an hour, about 150 bytes each, so about 18 KB an hour; the log limits (`maxSize`, `maxFiles`, `maxAgeDays`) bound it as for any line. Only Claude Code has the hook, so other agents write no ticks.
 
 A `Stop` fires at the end of every turn, so `session-stop` means "the agent stopped to wait", not "the session closed". `msg-received` has no hook: Claude Code runs none when a message arrives, and VULCAN does not read transcripts to find out. A reader gets it from the sender's `msg-sent`, or an agent writes it with `event add`. `commit` and `pr` are written with `event add` too.
 

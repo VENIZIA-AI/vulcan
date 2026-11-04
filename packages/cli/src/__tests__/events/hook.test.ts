@@ -135,10 +135,19 @@ describe('EventHook.map', () => {
     expect(refOf('uds:/run/x/')).toBe('to:uds:x');
   });
 
-  test('other tools, a failed send and malformed payloads are not logged', () => {
-    expect(
-      map({ hookEventName: 'PostToolUse', toolName: 'Bash', toolInput: { command: 'ls' } }),
-    ).toBeUndefined();
+  test('PostToolUse of any other tool is a tick: the fixed text, nothing of the tool, its input or its result', () => {
+    const mapped = map({
+      hookEventName: 'PostToolUse',
+      toolName: 'Bash',
+      toolInput: { command: 'cat /home/me/SECRET-PROJECT/.env' },
+      toolResponse: { stdout: 'TOKEN-IN-OUTPUT' },
+    });
+
+    expect(mapped).toEqual({ kind: 'tool-tick', summary: 'using a tool' });
+    expect(JSON.stringify(mapped)).not.toMatch(/SECRET|TOKEN|Bash|cat/);
+  });
+
+  test('a failed send and malformed payloads are not logged', () => {
     expect(
       map({
         hookEventName: 'PostToolUse',
@@ -152,6 +161,82 @@ describe('EventHook.map', () => {
     expect(map(null)).toBeUndefined();
     expect(map('Stop')).toBeUndefined();
     expect(map([])).toBeUndefined();
+  });
+});
+
+describe('EventHook.run: the tool tick', () => {
+  const env = { VULCAN_ACTOR: 'pnt-vulcan-1' };
+  const tick = (opts: { root: string; session?: string; at: string }) =>
+    EventHook.run({
+      root: opts.root,
+      input: wire({
+        hookEventName: 'PostToolUse',
+        toolName: 'Bash',
+        sessionId: opts.session ?? SESSION,
+      }),
+      env,
+      now: Date.parse(opts.at),
+    });
+
+  test('at most one line per session in 30 seconds, then the next one', () => {
+    const root = project({ events: { log: true } });
+
+    expect(tick({ root, at: '2026-11-03T09:00:00Z' })).toMatchObject({ kind: 'tool-tick' });
+    expect(tick({ root, at: '2026-11-03T09:00:10Z' })).toBeUndefined();
+    expect(tick({ root, at: '2026-11-03T09:00:29Z' })).toBeUndefined();
+    expect(tick({ root, at: '2026-11-03T09:00:30Z' })).toMatchObject({ kind: 'tool-tick' });
+    expect(tick({ root, at: '2026-11-03T09:00:40Z' })).toBeUndefined();
+    expect(eventsOf({ dir: join(root, '.agents/local/events') }).map((event) => event.ts)).toEqual([
+      '2026-11-03T09:00:00.000Z',
+      '2026-11-03T09:00:30.000Z',
+    ]);
+  });
+
+  test('two sessions are throttled apart', () => {
+    const root = project({ events: { log: true } });
+
+    expect(tick({ root, session: 's-one', at: '2026-11-03T09:00:00Z' })).toBeDefined();
+    expect(tick({ root, session: 's-two', at: '2026-11-03T09:00:01Z' })).toBeDefined();
+    expect(tick({ root, session: 's-one', at: '2026-11-03T09:00:02Z' })).toBeUndefined();
+  });
+
+  test('the stamp is an empty file in the tmp folder of the project, named by the session, and a path in an id cannot leave it', () => {
+    const root = project({ events: { log: true } });
+
+    tick({ root, session: '../../evil/id', at: '2026-11-03T09:00:00Z' });
+
+    const folder = join(root, '.agents/local/tmp/event-ticks');
+
+    expect(readdirSync(folder)).toHaveLength(1);
+    expect(readFileSync(join(folder, readdirSync(folder)[0]), 'utf8')).toBe('');
+    expect(existsSync(join(root, 'evil'))).toBe(false);
+  });
+
+  test('log off writes no line and no stamp', () => {
+    const root = project({ events: { log: false } });
+
+    expect(tick({ root, at: '2026-11-03T09:00:00Z' })).toBeUndefined();
+    expect(existsSync(join(root, '.agents/local'))).toBe(false);
+  });
+
+  test('a SendMessage is still a msg-sent line and is not throttled by the ticks', () => {
+    const root = project({ events: { log: true } });
+
+    tick({ root, at: '2026-11-03T09:00:00Z' });
+
+    const sent = EventHook.run({
+      root,
+      input: wire({
+        hookEventName: 'PostToolUse',
+        toolName: 'SendMessage',
+        sessionId: SESSION,
+        toolInput: { to: 'x', summary: 'hi', message: 'm' },
+      }),
+      env,
+      now: Date.parse('2026-11-03T09:00:05Z'),
+    });
+
+    expect(sent).toMatchObject({ kind: 'msg-sent' });
   });
 });
 

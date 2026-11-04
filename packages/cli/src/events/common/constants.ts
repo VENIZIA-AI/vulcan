@@ -12,6 +12,8 @@ export class EventKinds {
   static readonly DECISION = 'decision';
   /** A flow's title and the one-line reason for it, in the owner's language; the newest per flow wins. */
   static readonly FLOW = 'flow';
+  /** An agent used a tool, at most once in `EventConstants.TICK_SECONDS` per session: the board reads it as working. */
+  static readonly TOOL_TICK = 'tool-tick';
 
   static readonly SCHEME_SET = new Set<string>([
     this.SESSION_START,
@@ -24,6 +26,7 @@ export class EventKinds {
     this.PR,
     this.DECISION,
     this.FLOW,
+    this.TOOL_TICK,
   ]);
 
   static isValid(value: string): boolean {
@@ -114,6 +117,12 @@ export class EventConstants {
   static readonly CONTEXT_MAX = 600;
   /** What a sent message is called when its sender gave no label: the text of a message is never used. */
   static readonly MESSAGE_SENT_LABEL = 'message sent';
+  /** The summary of a tool tick: it says that a tool was used, and nothing of which. */
+  static readonly TOOL_TICK_LABEL = 'using a tool';
+  /** A session writes at most one tool tick in this many seconds. */
+  static readonly TICK_SECONDS = 30;
+  /** Where the time of the last tick of each session is kept, from the project root; `tmp/` is cleaned a day after a session ends. */
+  static readonly TICK_STAMPS = '.agents/local/tmp/event-ticks';
   static readonly REF_MAX = 120;
   static readonly ACTOR_MAX = 80;
   static readonly REDACTED = '[redacted]';
