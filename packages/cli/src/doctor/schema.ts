@@ -10,17 +10,21 @@ const KIND = z.custom<TPrivateValueKind>(
 
 /** A decision to keep private values in files: where, which kinds (all when absent), and why. */
 const ACKNOWLEDGEMENT = z.strictObject({
+  /** Glob relative to the repo root, with no `..`, of the files that may keep private values. */
   path: z
     .string()
     .min(1)
     .refine((value) => !isAbsolute(value) && !value.split(/[\\/]/).includes('..'), {
       message: 'a glob relative to the repo root, without ..',
     }),
+  /** Kinds of private value the decision covers: `private-key`, `token`, `url-credentials`, `ipv4` or `machine-path`; at least one, all kinds when absent. */
   kinds: z.array(KIND).min(1).optional(),
+  /** Why the private values may stay in these files; trimmed, at least one character. */
   reason: z.string().trim().min(1),
 });
 
 export const DOCTOR_SCHEMA = z.strictObject({
+  /** Private values doctor tolerates: `acknowledged` lists files that may keep them, each with a reason; default none. */
   privateValues: z
     .strictObject({ acknowledged: z.array(ACKNOWLEDGEMENT).default([]) })
     .default({ acknowledged: [] }),
