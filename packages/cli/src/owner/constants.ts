@@ -1,3 +1,5 @@
+import { EnvVariables } from '../common/env-variables.ts';
+
 /** The sections of a reply to the owner; a project picks which appear and in what order. */
 export class OwnerSections {
   static readonly HEADLINE = 'headline';
@@ -106,7 +108,7 @@ export class OwnerConstants {
 
 /** The launcher of a session whose replies an agent reads sets this; the owner's own sessions never have it. */
 export class OwnerReplySwitch {
-  static readonly ENV = 'VULCAN_OWNER_REPLY';
+  static readonly ENV = EnvVariables.VULCAN_OWNER_REPLY;
   /** The only value that counts: anything else is ignored, so a stray value never switches the check off. */
   static readonly OFF = 'off';
 }

@@ -1,4 +1,5 @@
 export * from './constants.ts';
+export * from './env-variables.ts';
 export * from './paths.ts';
 export * from './types.ts';
 export * from './json.ts';
