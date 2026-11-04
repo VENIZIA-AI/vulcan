@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
+import { mkdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -22,12 +23,14 @@ describe('vulcan doctor: the launch file note', () => {
     expect(notes).toHaveLength(1);
     expect(notes[0]).toContain('not started with the launch file');
     expect(notes[0]).toContain(`claude --settings ${LAUNCH_FILE}`);
-    expect(notes[0]).toContain('/tmp');
+    expect(notes[0]).toContain('use /tmp.');
   });
 
   test('inside Claude Code with CLAUDE_CODE_TMPDIR on another folder: the same note', async () => {
     const result = await notesOf({ CLAUDECODE: '1', CLAUDE_CODE_TMPDIR: '/var/tmp/other' });
+
     expect(result).toHaveLength(1);
+    expect(result[0]).toContain('use /var/tmp/other.');
   });
 
   test("inside Claude Code with CLAUDE_CODE_TMPDIR on this project's own folder: nothing to say", async () => {
@@ -36,6 +39,38 @@ describe('vulcan doctor: the launch file note', () => {
       CLAUDE_CODE_TMPDIR: join(root, '.agents/local/tmp'),
     });
     expect(result).toEqual([]);
+  });
+
+  test('a trailing slash, a subfolder and a symlinked root are all inside', async () => {
+    const own = join(root, '.agents/local/tmp');
+    const link = `${root}-link`;
+
+    mkdirSync(own, { recursive: true });
+    symlinkSync(root, link);
+
+    for (const [at, folder] of [
+      [root, `${own}/`],
+      [root, join(own, 'claude-1000')],
+      [link, own],
+      [root, join(link, '.agents/local/tmp')],
+    ] as const) {
+      const notes = await DoctorRunner.runNotes({
+        root: at,
+        env: { CLAUDECODE: '1', CLAUDE_CODE_TMPDIR: folder },
+      });
+
+      expect(
+        notes.filter((note) => note.file === LAUNCH_FILE),
+        `${at} with ${folder}`,
+      ).toEqual([]);
+    }
+  });
+
+  test('a folder beside the project, or the project itself without .agents/local, is outside', async () => {
+    for (const folder of [`${root}-other/.agents/local/tmp`, root, join(root, 'src')]) {
+      const result = await notesOf({ CLAUDECODE: '1', CLAUDE_CODE_TMPDIR: folder });
+      expect(result, folder).toHaveLength(1);
+    }
   });
 
   test('outside Claude Code doctor cannot know, and says nothing', async () => {

@@ -24,9 +24,8 @@ import { EventConstants } from '../events/common/index.ts';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
 import { AgentFiles, AtlasBlockPlan, LocalPlan, SyncPlanner, SyncStatuses } from '../sync/index.ts';
-import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { LocalConstants, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
-import { CLAUDE_LAUNCH_FILE } from '../sync/claude-launch.ts';
+import { CLAUDE_LAUNCH_FILE, ClaudeLaunch } from '../sync/claude-launch.ts';
 import { PrivateValues } from './private-values.ts';
 import {
   ReplySwitch,
@@ -1265,13 +1264,14 @@ export class ProjectContract {
     root: string;
     env: Record<string, string | undefined>;
   }): IViolation[] {
-    return opts.env.CLAUDECODE !== undefined &&
-      opts.env.CLAUDE_CODE_TMPDIR !== ProjectTmp.projectOf({ root: opts.root })
+    const tmp = ClaudeLaunch.tmpOf(opts);
+
+    return opts.env.CLAUDECODE !== undefined && tmp.state !== 'inside'
       ? [
           createViolation({
             check: DoctorChecks.LOCAL,
             file: CLAUDE_LAUNCH_FILE,
-            message: `this Claude Code session was not started with the launch file, so its task output and its MCP servers use /tmp. Start it with: claude --settings ${CLAUDE_LAUNCH_FILE}`,
+            message: `this Claude Code session was not started with the launch file, so its task output and its MCP servers use ${tmp.folder ?? '/tmp'}. Start it with: ${ClaudeLaunch.COMMAND}`,
           }),
         ]
       : [];

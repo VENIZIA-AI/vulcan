@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
 import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { SyncStatuses } from './common/index.ts';
@@ -49,9 +49,66 @@ export class LaunchSettings {
   }
 }
 
+const inside = (opts: { folder: string; base: string }): boolean => {
+  const path = relative(opts.base, opts.folder);
+
+  return !isAbsolute(path) && path !== '..' && !path.startsWith('../');
+};
+
+/** A path as the disk has it (a symlink followed), or as written when it does not exist yet. */
+const realOf = (opts: { path: string }): string => {
+  try {
+    return realpathSync(opts.path);
+  } catch {
+    return resolve(opts.path);
+  }
+};
+
 export class ClaudeLaunch {
   /** The one line that starts Claude Code in this project; the docs and the warning print this string. */
   static readonly COMMAND = `claude --settings ${CLAUDE_LAUNCH_FILE}`;
+  /** Under the local folder of a checkout: the worktrees of its branches. */
+  static readonly WORKTREES = 'worktrees';
+
+  /**
+   * Where `CLAUDE_CODE_TMPDIR` points, for a session in `root`: `unset`, `inside` or `outside`. Inside is a folder under
+   * the `.agents/local` of the project, or under that of the checkout a worktree of the project hangs from
+   * (`<checkout>/.agents/local/worktrees/<name>`): a trailing slash, a subfolder and a symlinked root do not matter.
+   */
+  static tmpOf(opts: { root: string; env: Record<string, string | undefined> }): {
+    state: 'unset' | 'inside' | 'outside';
+    folder?: string;
+  } {
+    const folder = opts.env.CLAUDE_CODE_TMPDIR;
+
+    if (folder === undefined || folder === '') {
+      return { state: 'unset' };
+    }
+
+    const real = realOf({ path: folder });
+    const root = realOf({ path: opts.root });
+    const homes = [root];
+
+    for (let above = dirname(root); above !== dirname(above); above = dirname(above)) {
+      if (
+        inside({
+          folder: root,
+          base: join(above, ProjectLayout.LOCAL_DIRECTORY, ClaudeLaunch.WORKTREES),
+        })
+      ) {
+        homes.push(above);
+      }
+    }
+
+    return {
+      state: homes.some((home) =>
+        inside({ folder: real, base: join(home, ProjectLayout.LOCAL_DIRECTORY) }),
+      )
+        ? 'inside'
+        : 'outside',
+      folder,
+    };
+  }
 
   /**
    * What to tell the owner when a Claude Code session runs without the launch file: `CLAUDE_CODE_TMPDIR` is unset
@@ -70,16 +127,14 @@ export class ClaudeLaunch {
       return undefined;
     }
 
-    const folder = opts.env.CLAUDE_CODE_TMPDIR;
-    const fromRoot =
-      folder === undefined || folder === '' ? undefined : relative(opts.root, folder);
+    const tmp = ClaudeLaunch.tmpOf(opts);
 
-    if (fromRoot !== undefined && !isAbsolute(fromRoot) && !fromRoot.startsWith('..')) {
+    if (tmp.state === 'inside') {
       return undefined;
     }
 
     return `Claude Code was started without the project's launch file: CLAUDE_CODE_TMPDIR is ${
-      fromRoot === undefined ? 'not set' : `${folder}, outside the project`
+      tmp.state === 'unset' ? 'not set' : `${tmp.folder}, outside the project`
     }, so its scratchpad and task output are written outside the project and the owner will be asked to approve each write there. Say so in your first reply. To fix it, quit and start Claude Code with: ${ClaudeLaunch.COMMAND}`;
   }
 }
