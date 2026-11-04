@@ -160,8 +160,12 @@ export class BoardFold {
 
       case EventKinds.MSG_SENT:
       case EventKinds.MSG_RECEIVED: {
-        const to = line.ref?.startsWith(TO_PREFIX) ? line.ref.slice(TO_PREFIX.length) : undefined;
         const isIncoming = line.kind === EventKinds.MSG_RECEIVED;
+        // A received line has a sender, never a recipient: the page reads `to` as who the message went to.
+        const to =
+          !isIncoming && line.ref?.startsWith(TO_PREFIX)
+            ? line.ref.slice(TO_PREFIX.length)
+            : undefined;
         const from =
           isIncoming && line.ref?.startsWith(FROM_PREFIX)
             ? line.ref.slice(FROM_PREFIX.length)
