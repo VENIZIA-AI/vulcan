@@ -338,10 +338,11 @@ describe('EventLog', () => {
   test('ids sort by time and do not collide', () => {
     const first = EventLog.newId({ now: NOW });
     const later = EventLog.newId({ now: NOW + 1 });
-    const ids = new Set(Array.from({ length: 2000 }, () => EventLog.newId({ now: NOW })));
+    // 32 random bits within one millisecond: 200 ids repeat once in 200 000 runs, 2000 once in 2 000 (birthday bound).
+    const ids = new Set(Array.from({ length: 200 }, () => EventLog.newId({ now: NOW })));
 
     expect(first < later).toBe(true);
-    expect(ids.size).toBe(2000);
+    expect(ids.size).toBe(200);
     expect(first).toMatch(/^[0-9a-z]{9}[0-9a-f]{8}$/);
   });
 
