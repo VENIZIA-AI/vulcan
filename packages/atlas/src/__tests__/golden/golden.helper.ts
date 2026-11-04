@@ -34,7 +34,7 @@ export class GoldenProjects {
 
 export type TGoldenProject = TConstValue<typeof GoldenProjects>;
 
-/** Where a question stands against what atlas serves. Only the first two are a passing state. */
+/** Where a question stands against what atlas serves. ANSWERED and OPEN pass; SKIPPED is not asked; STALE_OPEN and REGRESSED fail. */
 export class GoldenVerdicts {
   /** Not asked: the project's checkout is not here. */
   static readonly SKIPPED = 'skipped';

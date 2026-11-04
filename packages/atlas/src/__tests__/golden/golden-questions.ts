@@ -69,7 +69,7 @@ export const GOLDEN_QUESTIONS: IGoldenQuestion[] = [
   },
   {
     id: 'Q5',
-    question: 'What are the peer ranges of ARDOR 0.4.8-1 on IGNIS?',
+    question: 'What are the peer ranges of ARDOR on IGNIS?',
     project: GoldenProjects.ARDOR,
     ask: { tool: 'version', args: { cwd: 'packages/kernel' } },
     holds: ['"requires"', '"@venizia/ignis-kernel"', '"@venizia/ignis-filter"'],
