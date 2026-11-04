@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { ScriptTrust, TrustStates, WriteGuard } from '../../hooks/index.ts';
 import { git, initRepo } from '../git-repo.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
+import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
 import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
@@ -338,8 +339,8 @@ describe('WriteGuard.inspectCommand with trust', () => {
 });
 
 describe('the guard-writes hook with trusted scripts', () => {
-  const CONFIG_PATH = '.configs/vulcan.config.mts';
-  const CONFIG = "export default { guard: { writes: { trustedScripts: ['tools/cli.ts'] } } };\n";
+  /** What `vulcan sync` renders from `guard.writes.trustedScripts` in the config: the hook reads this. */
+  const MANIFEST = guardManifest({ guard: { writes: { trustedScripts: ['tools/cli.ts'] } } });
 
   const runHook = async (opts: { root: string; command: string }) => {
     const child = Bun.spawn([process.execPath, HOOK], {
@@ -359,11 +360,17 @@ describe('the guard-writes hook with trusted scripts', () => {
     return { code: result, stdout: stdout.trim(), stderr };
   };
 
-  const project = (opts: { config: string }): string =>
-    repoWith({ files: { [CONFIG_PATH]: opts.config, 'tools/cli.ts': BODY } });
+  const project = (opts: { manifest: string; config?: string }): string =>
+    repoWith({
+      files: {
+        [GUARD_MANIFEST_FILE]: opts.manifest,
+        ...(opts.config === undefined ? {} : { '.configs/vulcan.config.mts': opts.config }),
+        'tools/cli.ts': BODY,
+      },
+    });
 
   test('a clean listed script stays silent', async () => {
-    const root = project({ config: CONFIG });
+    const root = project({ manifest: MANIFEST });
     const result = await runHook({ root, command: 'bun tools/cli.ts' });
 
     expect(result.stdout).toBe('');
@@ -371,7 +378,7 @@ describe('the guard-writes hook with trusted scripts', () => {
   });
 
   test('after the script is edited the hook asks', async () => {
-    const root = project({ config: CONFIG });
+    const root = project({ manifest: MANIFEST });
 
     writeFileSync(join(root, 'tools', 'cli.ts'), EDITED);
 
@@ -383,40 +390,28 @@ describe('the guard-writes hook with trusted scripts', () => {
   });
 
   test('a script that is not listed asks', async () => {
-    const root = project({ config: 'export default {};\n' });
+    const root = project({ manifest: guardManifest({ guard: {} }) });
     const result = await runHook({ root, command: 'bun tools/cli.ts' });
 
     expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
   });
 
-  test('a config that cannot be read leaves the list empty, so the hook asks', async () => {
+  test('a config this VULCAN cannot read changes nothing: the synced list still trusts the script', async () => {
     const root = project({
-      config: 'export default { guard: { writes: { trustedScripts: 7 } } };\n',
+      manifest: MANIFEST,
+      config:
+        "export default { guard: { writes: { trustedScripts: ['tools/cli.ts'] }, aKeyOfANewerRelease: true } };\n",
     });
     const result = await runHook({ root, command: 'bun tools/cli.ts' });
-
-    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
-  });
-
-  test('a config that throws on load leaves the list empty, so the hook asks', async () => {
-    const root = project({ config: "throw new Error('broken');\n" });
-    const result = await runHook({ root, command: 'bun tools/cli.ts' });
-
-    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
-  });
-
-  test('a command with no .ts file never loads the config', async () => {
-    const root = project({ config: "throw new Error('loaded');\nexport default {};\n" });
-    const result = await runHook({ root, command: 'git status' });
 
     expect(result).toEqual({ code: 0, stdout: '', stderr: '' });
   });
 
-  test('a command naming a .ts file does load the config', async () => {
-    const root = project({ config: "console.error('config-was-loaded');\nexport default {};\n" });
+  test('the config is never loaded: a config that throws is not even run', async () => {
+    const root = project({ manifest: MANIFEST, config: "throw new Error('loaded');\n" });
     const result = await runHook({ root, command: 'bun tools/cli.ts' });
 
-    expect(result.stdout).not.toBe('');
+    expect(result).toEqual({ code: 0, stdout: '', stderr: '' });
   });
 });
 
@@ -913,11 +908,13 @@ describe('the guard-writes hook with read-only subcommands', () => {
     expect(result.stderr.match(/readOnlyScripts/g)).toHaveLength(4);
   });
 
-  test('a path string in the config still trusts every subcommand', () => {
+  test('a path string in the synced manifest trusts every subcommand', () => {
     const root = repoWith({
       files: {
         [RELEASE_PATH]: RELEASE,
-        '.configs/vulcan.config.mts': `export default { guard: { writes: { trustedScripts: ['${RELEASE_PATH}'] } } };\n`,
+        [GUARD_MANIFEST_FILE]: guardManifest({
+          guard: { writes: { trustedScripts: [RELEASE_PATH] } },
+        }),
       },
     });
 

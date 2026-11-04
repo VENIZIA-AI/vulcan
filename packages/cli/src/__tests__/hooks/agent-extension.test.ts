@@ -3,6 +3,7 @@ import { mkdirSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import vulcanGuards from '../../../base/extensions/vulcan-guards.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
+import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
 
 afterAll(removeProjects);
 
@@ -48,6 +49,8 @@ const bash = (command: string): TEvent => ({ toolName: 'bash', input: { command 
 
 const DENY_OUTSIDE_CONFIG =
   "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: 'deny' } };\n";
+/** What `vulcan sync` renders from it: the hooks read this, not the config. */
+const DENY_OUTSIDE_MANIFEST = guardManifest({ guard: { outside: 'deny' } });
 
 /** A project with the package installed: the real guard scripts run. */
 const installedProject = (opts: { files?: Record<string, string> } = {}): string => {
@@ -115,7 +118,12 @@ describe('the omp and pi extension runs the real guards', () => {
   });
 
   test('with guard.outside set to deny, a write outside the project is blocked even when the owner would confirm', async () => {
-    const root = installedProject({ files: { '.configs/vulcan.config.mts': DENY_OUTSIDE_CONFIG } });
+    const root = installedProject({
+      files: {
+        '.configs/vulcan.config.mts': DENY_OUTSIDE_CONFIG,
+        [GUARD_MANIFEST_FILE]: DENY_OUTSIDE_MANIFEST,
+      },
+    });
     const handle = handlerOf();
     const outside = bash('echo x > /var/tmp/vulcan-guard-probe-never-created');
     const yes = await handle(outside, contextOf({ cwd: root, hasUI: true, answer: true }));

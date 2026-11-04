@@ -3,6 +3,7 @@ import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { GUARD_HOOK_NAME, GuardHook } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
+import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
@@ -12,6 +13,8 @@ const SCRIPT = join(PACKAGE_ROOT, 'base', 'hooks', 'antigravity-guards.ts');
 
 const DENY_OUTSIDE_CONFIG =
   "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: 'deny' } };\n";
+/** What `vulcan sync` renders from it: the hooks read this, not the config. */
+const DENY_OUTSIDE_MANIFEST = guardManifest({ guard: { outside: 'deny' } });
 
 /** A project with the package installed, so the real guard scripts run. */
 const installedProject = (opts: { files?: Record<string, string> } = {}): string => {
@@ -70,7 +73,12 @@ describe('the Antigravity hook command runs the real guards', () => {
   });
 
   test('with guard.outside set to deny, a write outside the project is denied, not asked about', () => {
-    const root = installedProject({ files: { '.configs/vulcan.config.mts': DENY_OUTSIDE_CONFIG } });
+    const root = installedProject({
+      files: {
+        '.configs/vulcan.config.mts': DENY_OUTSIDE_CONFIG,
+        [GUARD_MANIFEST_FILE]: DENY_OUTSIDE_MANIFEST,
+      },
+    });
     const outside = command({ root, text: 'echo x > /var/tmp/vulcan-guard-probe-never-created' });
 
     expect(outside.answer.decision).toBe('deny');

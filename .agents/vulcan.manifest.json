@@ -97,6 +97,7 @@
     }
   },
   "guard": {
+    "outside": "deny",
     "writes": {
       "commands": [
         {

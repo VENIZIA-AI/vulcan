@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { GuardDecisions } from './common/index.ts';
 import type { IReadOnlyScript } from './common/index.ts';
 
 /** A command the project says is a database write or a deploy: guard-writes asks on a match. */
@@ -15,6 +16,12 @@ interface IGuardPolicy {
   askPush: string[];
   /** `guard.writes.readOnlyScripts`; absent when the manifest lists none. */
   readOnlyScripts?: IReadOnlyScript[];
+  /** `guard.outside`: what guard-outside does with a write outside the project; `ask` when the manifest says nothing. */
+  outside: string;
+  /** `guard.toolOwnedPaths`: stores a tool manages itself, which guard-outside lets through. */
+  toolOwnedPaths: string[];
+  /** The path entries of `guard.writes.trustedScripts`. */
+  trustedScripts: string[];
 }
 
 /** Spelt out: the blocking hooks import nothing that reads the package. */
@@ -98,7 +105,13 @@ export class ProjectGuards {
    */
   static readPolicy(opts: { root: string }): IGuardPolicy {
     const path = join(opts.root, GUARD_MANIFEST_FILE);
-    const empty: IGuardPolicy = { commands: [], askPush: [] };
+    const empty: IGuardPolicy = {
+      commands: [],
+      askPush: [],
+      outside: GuardDecisions.ASK,
+      toolOwnedPaths: [],
+      trustedScripts: [],
+    };
 
     if (!existsSync(path)) {
       return empty;
@@ -128,6 +141,12 @@ export class ProjectGuards {
     const listed = isRecord(writes) ? writes.value['commands'] : undefined;
     const scripts = isRecord(writes) ? writes.value['readOnlyScripts'] : undefined;
     const targets = isRecord(git) ? git.value['askPush'] : undefined;
+    const owned = guard.value['toolOwnedPaths'];
+    const trusted = isRecord(writes) ? writes.value['trustedScripts'] : undefined;
+    const words = (value: unknown): string[] =>
+      (Array.isArray(value) ? value : []).filter(
+        (item): item is string => typeof item === 'string' && item !== '',
+      );
     const readOnlyScripts = (Array.isArray(scripts) ? scripts : []).flatMap((entry) => {
       const script = readOnlyScriptOf({ value: entry });
 
@@ -140,9 +159,11 @@ export class ProjectGuards {
 
         return check === undefined ? [] : [check];
       }),
-      askPush: (Array.isArray(targets) ? targets : []).filter(
-        (target): target is string => typeof target === 'string' && target !== '',
-      ),
+      askPush: words(targets),
+      outside:
+        guard.value['outside'] === GuardDecisions.DENY ? GuardDecisions.DENY : GuardDecisions.ASK,
+      toolOwnedPaths: words(owned),
+      trustedScripts: words(trusted),
       ...(readOnlyScripts.length === 0 ? {} : { readOnlyScripts }),
     };
   }

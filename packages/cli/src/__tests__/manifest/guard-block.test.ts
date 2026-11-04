@@ -92,8 +92,13 @@ describe('the guard block and the read-only scripts', () => {
       }),
     );
 
+    expect(manifest.guard.writes.trustedScripts).toEqual(['cli.ts']);
     expect(manifest.guard.writes.readOnlyScripts).toEqual([ENTRY]);
-    expect(Object.keys(manifest.guard.writes)).toEqual(['commands', 'readOnlyScripts']);
+    expect(Object.keys(manifest.guard.writes)).toEqual([
+      'commands',
+      'trustedScripts',
+      'readOnlyScripts',
+    ]);
   });
 
   test('an object entry alone writes only the entry', () => {
@@ -102,10 +107,17 @@ describe('the guard block and the read-only scripts', () => {
     });
   });
 
-  test('a list of path strings renders the text it always did: the hook reads those from the config', () => {
-    expect(render({ guard: { writes: { trustedScripts: ['cli.ts', 'tools/b.ts'] } } })).toBe(
-      render({}),
-    );
+  test('a list of path strings is written as writes.trustedScripts: the hook reads them here, not from the config', () => {
+    expect(
+      JSON.parse(render({ guard: { writes: { trustedScripts: ['cli.ts', 'tools/b.ts'] } } })).guard,
+    ).toEqual({ writes: { trustedScripts: ['cli.ts', 'tools/b.ts'] } });
+  });
+
+  test('outside is written when it is deny, and toolOwnedPaths when it lists any; the defaults write nothing', () => {
+    expect(
+      JSON.parse(render({ guard: { outside: 'deny', toolOwnedPaths: ['/srv/store/**'] } })).guard,
+    ).toEqual({ outside: 'deny', toolOwnedPaths: ['/srv/store/**'] });
+    expect(render({ guard: { outside: 'ask', toolOwnedPaths: [] } })).toBe(render({}));
   });
 
   test('a manifest rendered before an entry was added differs from the one the config renders', () => {

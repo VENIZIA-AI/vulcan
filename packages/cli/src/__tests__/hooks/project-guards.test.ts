@@ -5,6 +5,15 @@ import { CommandView, GitGuard, ProjectGuards, WriteGuard } from '../../hooks/in
 import type { IGitRunner, IProjectCommandCheck } from '../../hooks/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
+/** What a project with no guard block in its manifest gets. */
+const EMPTY_POLICY = {
+  commands: [],
+  askPush: [],
+  outside: 'ask',
+  toolOwnedPaths: [],
+  trustedScripts: [],
+};
+
 afterAll(removeProjects);
 
 const WRITES_HOOK = join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-writes.ts');
@@ -255,6 +264,27 @@ const manifestWith = (opts: { guard: unknown }): string =>
   });
 
 describe('ProjectGuards.readPolicy', () => {
+  test('reads what guard-outside and guard-writes need: outside, tool-owned paths and trusted script paths', () => {
+    const root = manifestWith({
+      guard: {
+        outside: 'deny',
+        toolOwnedPaths: ['/srv/store/**', 7, ''],
+        writes: { trustedScripts: ['scripts/plan.ts', null] },
+      },
+    });
+    const policy = ProjectGuards.readPolicy({ root });
+
+    expect(policy.outside).toBe('deny');
+    expect(policy.toolOwnedPaths).toEqual(['/srv/store/**']);
+    expect(policy.trustedScripts).toEqual(['scripts/plan.ts']);
+  });
+
+  test('anything but deny reads as ask', () => {
+    expect(
+      ProjectGuards.readPolicy({ root: manifestWith({ guard: { outside: 'allow' } }) }).outside,
+    ).toBe('ask');
+  });
+
   test('reads the commands and the push targets from the manifest, and compiles the patterns', () => {
     const root = manifestWith({
       guard: undefined,
@@ -270,7 +300,7 @@ describe('ProjectGuards.readPolicy', () => {
       },
     });
 
-    expect(ProjectGuards.readPolicy({ root })).toEqual({ commands: [], askPush: [] });
+    expect(ProjectGuards.readPolicy({ root })).toEqual(EMPTY_POLICY);
 
     const policy = ProjectGuards.readPolicy({ root: full });
 
@@ -281,15 +311,12 @@ describe('ProjectGuards.readPolicy', () => {
   });
 
   test('a project without a manifest, or with one that is not JSON, has no extra patterns', () => {
-    expect(ProjectGuards.readPolicy({ root: createProject({ files: {} }) })).toEqual({
-      commands: [],
-      askPush: [],
-    });
+    expect(ProjectGuards.readPolicy({ root: createProject({ files: {} }) })).toEqual(EMPTY_POLICY);
     expect(
       ProjectGuards.readPolicy({
         root: createProject({ files: { '.agents/vulcan.manifest.json': '{ nope' } }),
       }),
-    ).toEqual({ commands: [], askPush: [] });
+    ).toEqual(EMPTY_POLICY);
   });
 
   test('an entry that is not usable is skipped and the others stay: a bad pattern, an unknown rule, a missing field', () => {
@@ -413,10 +440,9 @@ describe('ProjectGuards.readPolicy and the read-only scripts', () => {
   });
 
   test('a manifest that lists none has no readOnlyScripts key, so the empty policy keeps its shape', () => {
-    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: { writes: {} } }) })).toEqual({
-      commands: [],
-      askPush: [],
-    });
+    expect(ProjectGuards.readPolicy({ root: manifestWith({ guard: { writes: {} } }) })).toEqual(
+      EMPTY_POLICY,
+    );
     expect(
       ProjectGuards.readPolicy({
         root: manifestWith({ guard: { writes: { readOnlyScripts: [] } } }),
@@ -456,6 +482,6 @@ describe('ProjectGuards.readPolicy and the read-only scripts', () => {
   test('a list that is not a list is ignored', () => {
     const root = manifestWith({ guard: { writes: { readOnlyScripts: 'plan' } } });
 
-    expect(ProjectGuards.readPolicy({ root })).toEqual({ commands: [], askPush: [] });
+    expect(ProjectGuards.readPolicy({ root })).toEqual(EMPTY_POLICY);
   });
 });

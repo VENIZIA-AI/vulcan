@@ -3,6 +3,7 @@ import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { CodexHooks } from '../../agents/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
+import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
@@ -12,6 +13,8 @@ const SCRIPT = join(PACKAGE_ROOT, 'base', 'hooks', 'codex-guards.ts');
 
 const DENY_OUTSIDE_CONFIG =
   "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: 'deny' } };\n";
+/** What `vulcan sync` renders from it: the hooks read this, not the config. */
+const DENY_OUTSIDE_MANIFEST = guardManifest({ guard: { outside: 'deny' } });
 
 /** A project with the package installed, so the real guard scripts run. */
 const installedProject = (opts: { files?: Record<string, string> } = {}): string => {
@@ -98,7 +101,12 @@ describe('the Codex hook command runs the real guards', () => {
   });
 
   test('with guard.outside set to deny, a write outside the project is a real deny, not an ask turned into one', () => {
-    const root = installedProject({ files: { '.configs/vulcan.config.mts': DENY_OUTSIDE_CONFIG } });
+    const root = installedProject({
+      files: {
+        '.configs/vulcan.config.mts': DENY_OUTSIDE_CONFIG,
+        [GUARD_MANIFEST_FILE]: DENY_OUTSIDE_MANIFEST,
+      },
+    });
     const outside = run({
       root,
       stdin: eventOf({

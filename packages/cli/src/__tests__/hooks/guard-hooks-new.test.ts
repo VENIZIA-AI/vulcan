@@ -2,11 +2,14 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { copyFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createProject, removeProjects } from '../project.helper.ts';
+import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
 import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 
 const HOOKS = join(import.meta.dir, '..', '..', '..', 'base', 'hooks');
+/** What `vulcan sync` renders from the config below for the guards: the hooks read this. */
+const MANIFEST = guardManifest({ guard: { toolOwnedPaths: ['/srv/store/**'] } });
 const CONFIG =
   "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { toolOwnedPaths: ['/srv/store/**'] } };\n";
 
@@ -146,7 +149,9 @@ describe('the guard-scripting hook', () => {
 });
 
 describe('the guard-outside hook', () => {
-  const root = createProject({ files: { '.configs/vulcan.config.mts': CONFIG } });
+  const root = createProject({
+    files: { '.configs/vulcan.config.mts': CONFIG, [GUARD_MANIFEST_FILE]: MANIFEST },
+  });
 
   test('asks, naming the path and V-B-08, for a write outside the project', async () => {
     const result = await runHook({
@@ -231,14 +236,25 @@ describe('the guard-outside hook', () => {
 describe('the guard-outside hook with guard.outside set', () => {
   const configOf = (opts: { outside: string }) =>
     `export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: '${opts.outside}', toolOwnedPaths: ['/srv/store/**'] } };\n`;
+  const manifestOf = (opts: { outside: string }) =>
+    guardManifest({ guard: { outside: opts.outside, toolOwnedPaths: ['/srv/store/**'] } });
   const denyRoot = createProject({
-    files: { '.configs/vulcan.config.mts': configOf({ outside: 'deny' }) },
+    files: {
+      '.configs/vulcan.config.mts': configOf({ outside: 'deny' }),
+      [GUARD_MANIFEST_FILE]: manifestOf({ outside: 'deny' }),
+    },
   });
   const askRoot = createProject({
-    files: { '.configs/vulcan.config.mts': configOf({ outside: 'ask' }) },
+    files: {
+      '.configs/vulcan.config.mts': configOf({ outside: 'ask' }),
+      [GUARD_MANIFEST_FILE]: manifestOf({ outside: 'ask' }),
+    },
   });
   const brokenRoot = createProject({
-    files: { '.configs/vulcan.config.mts': configOf({ outside: 'maybe' }) },
+    files: {
+      '.configs/vulcan.config.mts': configOf({ outside: 'maybe' }),
+      [GUARD_MANIFEST_FILE]: manifestOf({ outside: 'maybe' }),
+    },
   });
 
   test('deny refuses a write outside the project, naming V-B-08, the path and the place to use', async () => {
@@ -332,11 +348,12 @@ describe('the guard-outside hook with guard.outside set', () => {
     expect(decision.permissionDecisionReason).toContain('/tmp/claude-1000/p/s/scratchpad/a');
   });
 
-  test('any other invalid key in the config fails the load too, so a valid deny turns back into ask', async () => {
+  test('a key this VULCAN does not know in the config changes nothing: the synced deny still denies', async () => {
     const typoRoot = createProject({
       files: {
         '.configs/vulcan.config.mts':
           "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: 'deny', notAKey: true } };\n",
+        [GUARD_MANIFEST_FILE]: guardManifest({ guard: { outside: 'deny' } }),
       },
     });
     const result = await runHook({
@@ -345,10 +362,10 @@ describe('the guard-outside hook with guard.outside set', () => {
       stdin: bash({ command: 'echo x > /var/tmp/vulcan-outside-test', cwd: typoRoot }),
     });
 
-    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('deny');
   });
 
-  test('a config that cannot be read leaves the default, so the call is asked, not denied', async () => {
+  test('a value of the manifest that is not deny reads as ask', async () => {
     const result = await runHook({
       hook: 'guard-outside',
       root: brokenRoot,

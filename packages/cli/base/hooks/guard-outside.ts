@@ -10,9 +10,10 @@
  * is broken costs more than it protects. So input it cannot read passes, and so does a missing package or
  * `bun` (the settings wrapper says so on stderr). A guard that started and then failed - a crash or a
  * timeout, here an internal error or an unloadable module - ASKS instead of passing the call unchecked; a
- * project config that cannot be read leaves the default allowlist. `VULCAN_GUARDS=off` switches it off,
- * read before anything is imported. It imports only the modules it needs - the config loader (and zod) is
- * loaded on its own, last, and may fail alone.
+ * manifest that cannot be read leaves the default allowlist. `VULCAN_GUARDS=off` switches it off,
+ * read before anything is imported. It reads what the project set (`guard.outside`, `guard.toolOwnedPaths`)
+ * from the manifest `vulcan sync` wrote, never from the config: a config a newer release wrote, which this
+ * VULCAN cannot parse, then changes nothing here.
  */
 
 // A module, so the awaits below are top-level; it has no static import, by design.
@@ -33,26 +34,8 @@ try {
 
   if (input) {
     const projectRoot = process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd();
-    let toolOwnedPaths: string[] = [];
-    let outside: string = GuardDecisions.ASK;
-    let configNote: string | undefined;
-
-    try {
-      const { ConfigLoader } = await import('../../src/config/index.ts');
-      const loaded = await ConfigLoader.load({ root: projectRoot });
-
-      toolOwnedPaths = loaded.ok ? loaded.config.guard.toolOwnedPaths : [];
-      outside = loaded.ok ? loaded.config.guard.outside : GuardDecisions.ASK;
-      configNote = ConfigLoader.unreadableNote({ loaded });
-
-      if (configNote !== undefined) {
-        console.error(`vulcan: the guard-outside hook: ${configNote}`);
-      }
-    } catch (error) {
-      console.error(
-        `vulcan: the guard-outside hook could not read the project config (${error instanceof Error ? error.message : String(error)}) - the default allowlist applies`,
-      );
-    }
+    const { ProjectGuards } = await import('../../src/hooks/project-guards.ts');
+    const { toolOwnedPaths, outside } = ProjectGuards.readPolicy({ root: projectRoot });
 
     const hits = OutsideGuard.inspect({ input, projectRoot, toolOwnedPaths });
 
@@ -94,7 +77,7 @@ try {
         JSON.stringify(
           HookDecision.buildTool({
             decision: isDeny ? GuardDecisions.DENY : GuardDecisions.ASK,
-            reason: configNote === undefined ? reason : [...reason, '', `Note: ${configNote}`],
+            reason,
           }),
         ),
       );

@@ -5,6 +5,7 @@ import { ConfigLoader } from '../../config/index.ts';
 import { OwnerReply, SessionDigest } from '../../hooks/index.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
+import { GUARD_MANIFEST_FILE, guardManifest } from '../guard-manifest.helper.ts';
 
 afterAll(removeProjects);
 isolateOwnerReplySwitch();
@@ -103,32 +104,38 @@ describe('ConfigLoader.unreadableNote', () => {
   });
 });
 
+const DENY_MANIFEST = guardManifest({ guard: { outside: 'deny' } });
+
 describe('the guard-outside hook with a config that does not parse', () => {
-  test('the readable config denies, quietly', async () => {
-    const root = createProject({ files: { '.configs/vulcan.config.mts': READABLE } });
+  test('the synced deny holds with a readable config', async () => {
+    const root = createProject({
+      files: { '.configs/vulcan.config.mts': READABLE, [GUARD_MANIFEST_FILE]: DENY_MANIFEST },
+    });
     const result = await runHook({ hook: 'guard-outside', stdin: writeOutside({ root }), root });
 
     expect(decisionOf(result).decision).toBe('deny');
     expect(result.stderr).toBe('');
   });
 
-  test('the unreadable one still falls back to ask, and says why in the reason and on stderr', async () => {
-    const root = createProject({ files: { '.configs/vulcan.config.mts': UNREADABLE } });
+  test('a key this VULCAN does not know in the config no longer weakens deny to ask', async () => {
+    const root = createProject({
+      files: { '.configs/vulcan.config.mts': UNREADABLE, [GUARD_MANIFEST_FILE]: DENY_MANIFEST },
+    });
     const result = await runHook({ hook: 'guard-outside', stdin: writeOutside({ root }), root });
-    const { decision, reason } = decisionOf(result);
 
-    expect(decision).toBe('ask');
-    expect(reason).toContain(NOTE);
-    expect(reason).toContain('aKeyOfANewerRelease');
-    expect(result.stderr).toContain(NOTE);
+    expect(decisionOf(result).decision).toBe('deny');
   });
 
-  test('a project with no config says nothing', async () => {
-    const root = createProject({ files: {} });
-    const result = await runHook({ hook: 'guard-outside', stdin: writeOutside({ root }), root });
+  test('with no manifest guard block the default is ask, config or no config', async () => {
+    const variants: Record<string, string>[] = [{}, { '.configs/vulcan.config.mts': UNREADABLE }];
 
-    expect(decisionOf(result).decision).toBe('ask');
-    expect(result.stderr).toBe('');
+    for (const files of variants) {
+      const root = createProject({ files });
+      const result = await runHook({ hook: 'guard-outside', stdin: writeOutside({ root }), root });
+
+      expect(decisionOf(result).decision).toBe('ask');
+      expect(result.stderr).toBe('');
+    }
   });
 });
 
@@ -136,16 +143,8 @@ describe('the guard-writes hook with a config that does not parse', () => {
   const command = (opts: { root: string }): string =>
     `{"tool_name":"Bash","tool_input":{"command":"bun scripts/tidy.ts"},"cwd":${JSON.stringify(opts.root)}}`;
 
-  test('says on stderr that every script is read', async () => {
+  test('loads no config: it says nothing about one', async () => {
     const root = createProject({ files: { '.configs/vulcan.config.mts': UNREADABLE } });
-    const result = await runHook({ hook: 'guard-writes', stdin: command({ root }), root });
-
-    expect(result.stderr).toContain(NOTE);
-    expect(result.stderr).toContain('every script is read');
-  });
-
-  test('a readable config says nothing', async () => {
-    const root = createProject({ files: { '.configs/vulcan.config.mts': READABLE } });
     const result = await runHook({ hook: 'guard-writes', stdin: command({ root }), root });
 
     expect(result.stderr).toBe('');

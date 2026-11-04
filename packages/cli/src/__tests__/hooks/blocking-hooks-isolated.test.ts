@@ -150,7 +150,7 @@ describe('the blocking hooks do not depend on config, rules, the digest or zod',
     expect(status).toEqual({ code: 0, stdout: '', stderr: '' });
   });
 
-  test('guard-outside asks for a write outside the project, whose config it cannot read, and passes one inside', async () => {
+  test('guard-outside asks for a write outside the project with no config and no manifest to read, and passes one inside', async () => {
     const outside = await run({ hook: 'guard-outside', payload: bash('mkdir /var/tmp/x-vulcan') });
     const inside = await run({
       hook: 'guard-outside',
@@ -158,7 +158,7 @@ describe('the blocking hooks do not depend on config, rules, the digest or zod',
     });
 
     expect(decisionOf(outside.stdout)).toBe('ask');
-    expect(outside.stderr).toContain('could not read the project config');
+    expect(outside.stderr).toBe('');
     expect(inside.stdout).toBe('');
     expect(inside.code).toBe(0);
   });
