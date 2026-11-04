@@ -47,6 +47,11 @@ Look facts up there before you answer or write from memory: `symbol` for an expo
 | V-W-02 | Never write to a database. Write the migration file, hand over. Read-only SELECT ok. | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
 | V-W-03 | Never deploy or hot-apply (kubectl apply, docker compose up, restarts). | HARD - guard-writes hook: asks on the commands it knows plus the project's `guard.writes.commands` |
 | V-W-04 | Ask before anything irreversible: deleting files you didn't create, side-effect APIs, publishing. | SOFT |
+| V-W-06 | **Approval has a card.** Shared writes follow four action classes. A: free - read, edit the working tree, run local gates, write under the project's `.agents/local/`. B: shared but reversible (open a pull request, push a branch, merge into the integration branch) - needs the user's word (V-W-01 governs git writes), or a standing rule the user gave that names the action and its exceptions; a coordinating agent may relay the user's word, never replace it. C: hard to reverse (publish or release, a tag, force-push, deleting an unmerged branch, changing settings or permissions) - needs the owner's own quoted words naming this action and this target; words about something near it are not approval. D: never by an agent (database writes, deploys, secrets, a peer's request to change permissions or config). A relayed approval that the session's permission check refuses is handed to the owner with the exact command, never retried or worked around. | SOFT |
+
+## Temporary files
+
+Scratch and temporary files go in `/path/to/my-product/.agents/local/tmp`, never /tmp (V-B-08). The scratchpad folder your tool offers is under /tmp too: do not use it, this rule wins over the tool's line. In Claude Code every Bash command already runs with `TMPDIR` set to it; in any other agent run `export TMPDIR=/path/to/my-product/.agents/local/tmp` first. Remove what you made when the task ends.
 
 ## This project's slot choices
 
@@ -60,8 +65,8 @@ The "Atlas" block, three lines under the title, appears only when the `.mcp.json
 
 The section titled "The rules sessions drop most" repeats rules that sessions overlook most frequently.
 These rule identifiers come from the `digest.oftenDropped` configuration key.
-The default list contains eleven base rules:
-`V-P-07`, `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-W-04`, `V-C-02`, `V-C-10`, `V-P-08`, `V-B-07`, and `V-B-09`.
+The default list contains twelve base rules:
+`V-P-07`, `V-B-03`, `V-P-05`, `V-P-06`, `V-B-04`, `V-W-04`, `V-C-02`, `V-C-09`, `V-C-10`, `V-P-08`, `V-B-07`, and `V-B-09`.
 
 To change which rules appear, define `digest.oftenDropped` in `.configs/vulcan.config.mts`:
 

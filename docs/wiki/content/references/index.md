@@ -16,7 +16,7 @@ Find the exact contract for keys, commands, and messages. The [guides](/guides/)
 
 <a href="/references/commands/" class="guide-card">
 <h3>Commands</h3>
-<p>Every vulcan command: init, add, sync, doctor, upgrade and x.</p>
+<p>Every vulcan command and its options.</p>
 </a>
 
 <a href="/references/presets" class="guide-card">

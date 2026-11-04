@@ -78,7 +78,8 @@ Every hook and every `event add` in those projects then writes there, and `event
 
 ```text
 vulcan event add --kind <kind> --summary <text> [--flow <flow id>] [--ref <ref>] [--status approve|park|reject] [--actor <name>] [--dir <folder>]
-vulcan event add --kind flow [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--actor <name>] [--dir <folder>]
+vulcan event add --kind flow [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--due <YYYY-MM-DD>] [--ref <tracker id>]
+         [--step <text> | --step-done <text>]... [--check <text> | --check-done <text>]... [--app <name>]... [--actor <name>] [--dir <folder>]
 ```
 
 It prints the id of the line. This is the way in for any coding agent: a hook of Claude Code is only one writer.

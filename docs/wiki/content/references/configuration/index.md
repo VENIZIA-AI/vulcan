@@ -694,9 +694,9 @@ The `commit` object configures `vulcan commit-check` and the `commit-msg` hook t
 | `message.agent.signature` | `'allow' \| 'deny'` | `'allow'` | `'deny'` rejects a `Co-Authored-By` or `Signed-off-by` trailer, or a `Generated with` line, that names an agent, and makes `sync` install the hook and write Claude Code's empty `attribution` into `.claude/settings.json`. `'allow'` checks and installs nothing, and removes what `sync` wrote |
 | `message.agent.names` | `string[]` | `[]` | Agent names added to the shipped list: a co-author whose name begins with one is flagged, and so is a `Generated with` line that names one. Spaces, case and hyphens do not matter. Used only with `'deny'`; it cannot remove a shipped name |
 | `message.agent.allow` | `string[]` | `[]` | Whole co-author names never flagged, for a person who shares a name with an agent (`Claude Dupont`); an agent's address still is. Used only with `'deny'` |
+| `message.subject` | `{ pattern, hint? }` | none | The project's one-line shape: the first line of a message must match `pattern`, a regular expression source (an invalid one is refused when the config loads). `hint` is shown beside a failure. Setting it installs the hook too |
 
 Every entry of `names` and `allow` holds a letter or a digit; the config refuses an entry of punctuation or spaces.
-| `message.subject` | `{ pattern, hint? }` | none | The project's one-line shape: the first line of a message must match `pattern`, a regular expression source (an invalid one is refused when the config loads). `hint` is shown beside a failure. Setting it installs the hook too |
 
 `vulcan sync` writes the block to the manifest only when a check is on, and the command reads it from there. See [vulcan commit-check](/references/commands/commit-check) for what is checked and what the hook does.
 
@@ -739,7 +739,6 @@ The `events` object configures the agent event log ([vulcan event](/references/c
 |---|---|---|---|
 | `log` | `boolean` | `false` | `true` makes `vulcan sync` install the Claude Code hooks that write the log. `vulcan event add` and `tail` work whatever this says |
 | `dir` | `string` | `<project>/.agents/local/events` | An absolute folder that takes the log instead of the project's own, so one coordinator can read the sessions of several repositories. `~` and relative paths are refused. It must be on a local disk (appends are not atomic on NFS). When it is outside the project, `vulcan doctor` warns if the folder is missing or not writable |
-
 | `maxSize` | `string` | `'50MB'` | The most the events folder may hold: a number with `KB`, `MB` or `GB` (`'200MB'`, `'1GB'`). Checked in the schema |
 | `maxFiles` | `number` | `30` | The most day files kept |
 | `maxAgeDays` | `number` | `30` | The oldest a day file may be |
@@ -798,7 +797,7 @@ export default {
 
 ## A complete config
 
-The example below shows a complete configuration declaring every key once:
+The example below shows a typical configuration. It sets the common keys and leaves the rest at their defaults:
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
