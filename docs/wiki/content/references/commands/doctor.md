@@ -308,6 +308,7 @@ A warning, not a violation: a hook belongs to one clone, and a fresh CI checkout
 | `is not installed` | No `commit-msg` hook in the clone | Run `vulcan sync` |
 | `is out of date` | A hook that `sync` wrote from an older template, or one that lost its execute bit | Run `vulcan sync` |
 | `does not run the commit check` | A hook of yours, or the hook in the `core.hooksPath` folder, does not call the command | Add `bun x --no-install vulcan commit-check "$1"` to it |
+| `this project's commit check is not installed: the hook belongs to ...` | The repository's one `commit-msg` hook was written by another project of the repository (the top level, or a folder below it); `sync` does not touch it | Let that project own the check, or make this project the owner by removing the hook and running `vulcan sync` here |
 
 ### events-size
 

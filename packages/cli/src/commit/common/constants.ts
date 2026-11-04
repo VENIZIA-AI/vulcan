@@ -23,6 +23,8 @@ export class CommitHookStates {
   static readonly STALE = 'stale';
   /** A hook that is not ours and does not call the check: the developer adds the line. */
   static readonly UNWIRED = 'unwired';
+  /** A hook that another project of the repository wrote: this project's check is not installed, and the hook is not touched. */
+  static readonly OTHER_PROJECT = 'other-project';
   /** Our hook, and the project turned every check off: sync takes it back. */
   static readonly LEFTOVER = 'leftover';
 }

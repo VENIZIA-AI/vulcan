@@ -727,6 +727,16 @@ export class ProjectContract {
         ];
       }
 
+      case CommitHookStates.OTHER_PROJECT: {
+        return [
+          createViolation({
+            check: DoctorChecks.COMMIT_HOOK,
+            file,
+            message: `this project's commit check is not installed: ${status.note ?? fix}`,
+          }),
+        ];
+      }
+
       default: {
         return [];
       }

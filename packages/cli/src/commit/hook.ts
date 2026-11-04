@@ -9,7 +9,7 @@ import type { ICommitHookStatus } from './common/index.ts';
 const HOOK_NAME = 'commit-msg';
 const MARKER = '# vulcan:commit-msg';
 /** The marker line, then the folder of the project that wrote it in brackets; a hook of an earlier release has no brackets. */
-const OWNER = /^# vulcan:commit-msg(?: \[([^\]]*)\])?/;
+const OWNER = new RegExp(`^${MARKER}(?: \\[([^\\]]*)\\])?`);
 const CALL = /vulcan\s+commit-check/;
 const COMMAND = 'bun x --no-install vulcan commit-check "$1"';
 
@@ -45,7 +45,7 @@ export class CommitHook {
     const enter = folder === '' ? '' : `cd ${CommitHook.quote({ text: folder })} || exit 0\n`;
 
     return `#!/bin/sh
-${MARKER} [${folder}] - written by vulcan sync from commit.message in .configs/vulcan.config.mts; do not edit
+${MARKER} [${CommitHook.encode({ folder })}] - written by vulcan sync from commit.message in .configs/vulcan.config.mts; do not edit
 message="$1"
 case "$message" in /*) ;; *) message="$PWD/$message" ;; esac
 top="$(git rev-parse --show-toplevel)"
@@ -73,6 +73,15 @@ exit "$status"
 `;
   }
 
+  /** A folder as the marker line spells it: `%` and `]` are escaped, so a name that holds a bracket cannot end the field. */
+  private static encode(opts: { folder: string }): string {
+    return opts.folder.replaceAll('%', '%25').replaceAll(']', '%5D');
+  }
+
+  private static decode(opts: { field: string }): string {
+    return opts.field.replaceAll('%5D', ']').replaceAll('%25', '%');
+  }
+
   /** The project folder inside the repository, without the trailing slash; empty for the top level. */
   private static folderOf(opts: { prefix: string }): string {
     return opts.prefix.replace(/\/$/, '');
@@ -86,7 +95,7 @@ exit "$status"
   static ownerOf(opts: { text: string }): string | undefined {
     const matched = OWNER.exec(opts.text.split('\n')[1] ?? '');
 
-    return matched === null ? undefined : (matched[1] ?? '');
+    return matched === null ? undefined : CommitHook.decode({ field: matched[1] ?? '' });
   }
 
   private static quote(opts: { text: string }): string {
@@ -146,7 +155,7 @@ exit "$status"
 
     if (isOtherProjects) {
       return {
-        state: CommitHookStates.UNWIRED,
+        state: CommitHookStates.OTHER_PROJECT,
         path,
         note: `the hook belongs to ${owner === '' ? 'the project at the top of the repository' : `the project in ${owner}`}, not touched: a repository has one ${HOOK_NAME} hook`,
       };
@@ -194,7 +203,8 @@ export class CommitHookPlan {
         return [{ path, status: SyncStatuses.UNCHANGED, apply: () => {} }];
       }
 
-      case CommitHookStates.UNWIRED: {
+      case CommitHookStates.UNWIRED:
+      case CommitHookStates.OTHER_PROJECT: {
         return [{ path, status: SyncStatuses.SKIPPED, note: status.note, apply: () => {} }];
       }
 
