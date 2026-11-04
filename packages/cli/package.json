@@ -25,6 +25,7 @@
     "LICENSE.md",
     "src",
     "base",
+    "!src/board/ui",
     "!**/__tests__",
     "!**/*.tsbuildinfo"
   ],

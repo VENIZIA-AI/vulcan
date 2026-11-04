@@ -1,6 +1,5 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { mkdirSync } from 'node:fs';
 
 const CLI = 'packages/cli';
 const ENTRY = `${CLI}/src/board/ui/main.tsx`;
