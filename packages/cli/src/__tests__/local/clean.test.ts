@@ -866,6 +866,19 @@ describe("the layout: on-demand folders, release candidates, events and a browse
     expect(existsSync(join(root, '.agents/local/audit/report.md'))).toBe(true);
   });
 
+  test('the folder of one agent is known, kept by every clean, and never a warning', async () => {
+    const root = repository();
+
+    file({ root, path: 'agents/scout/notes.md', text: 'x'.repeat(2048), ageDays: 90 });
+
+    const warnings = await DoctorRunner.runWarnings({ root });
+
+    expect(LocalScan.unknown({ root })).toEqual([]);
+    expect(warnings.filter((entry) => entry.file.includes('agents/scout'))).toEqual([]);
+    expect(runCli({ args: ['clean', '--all', '--yes'], cwd: root }).code).toBe(0);
+    expect(existsSync(join(root, '.agents/local/agents/scout/notes.md'))).toBe(true);
+  });
+
   test('a repository with only the layout folders has nothing unknown', async () => {
     const root = repository();
 
