@@ -784,7 +784,7 @@ The `board` object names what [`vulcan board`](/references/commands/board) puts 
 | `title` | `string` | `<project name> Board` | The name in the header and the tab |
 | `logo` | `string` | none | A path inside the project to an `.svg` file, with no leading `/` and no `..` segment |
 | `hostname` | `string` | `'vulz-board.venizia.ai.localhost'` | The name in the address of `vulcan board serve`: lowercase, ending in `.localhost` (a browser resolves it to your own machine by itself). See [vulcan board](/references/commands/board) |
-| `agents` | `Record<string, Face \| { shape?: Face, lane?: string, role?: string }>`, where `Face` is `'bun' \| 'flame' \| 'ember' \| 'rock' \| 'banana'` | `{}` | The agents of the board. The listed names are the roster (the others show under **Show all events**); `lane` rolls a helper into the row of a listed name. See [vulcan board](/references/commands/board) |
+| `agents` | `Record<string, Face \| { shape?: Face, lane?: string, role?: string }>`, where `Face` is `'bun' \| 'flame' \| 'ember' \| 'rock' \| 'banana'` | `{}` | The agents of the board. Every agent has a card; the listed names come first, in the order given; `lane` labels a helper "under" a listed name and the helper keeps its own card. See [vulcan board](/references/commands/board) |
 
 `vulcan sync` writes the block to the manifest only when something is set, and the command reads it from there.
 

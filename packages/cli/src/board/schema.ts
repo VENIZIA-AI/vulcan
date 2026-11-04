@@ -6,7 +6,7 @@ const SHAPE = z.custom<string>((value) => typeof value === 'string' && BoardShap
   message: `one of ${[...BoardShapes.SCHEME_SET].join(', ')}`,
 });
 
-/** A face, or `{ shape?, lane?, role? }`: the lane rolls the agent into the row of another listed agent; the role is what the card says it is. */
+/** A face, or `{ shape?, lane?, role? }`: the lane labels the agent "under" another listed agent on its own card; the role is what the card says it is. */
 export const BOARD_AGENT = z.union([
   SHAPE,
   z.strictObject({
