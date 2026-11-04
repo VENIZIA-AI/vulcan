@@ -126,6 +126,23 @@ describe('vulcan doctor and the commit-msg hook', () => {
     expect(message).toContain('bun x --no-install vulcan commit-check "$1"');
   });
 
+  test('a hook that belongs to another project does not read as one that skips the check', async () => {
+    const top = repo({ commit: DENY });
+    const sandbox = join(top, 'sandbox');
+
+    mkdirSync(join(sandbox, '.configs'), { recursive: true });
+    writeFileSync(join(sandbox, '.configs/vulcan.config.mts'), CONFIG({ commit: DENY }));
+    writeFileSync(join(sandbox, 'AGENTS.md'), '# x\n');
+    mkdirSync(join(top, '.git/hooks'), { recursive: true });
+    writeFileSync(hook({ root: top }), '#!/bin/sh\n# vulcan:commit-msg [] - x\n');
+
+    const [message] = await warningsOf({ root: sandbox });
+
+    expect(message).toContain("this project's commit check is not installed");
+    expect(message).toContain('belongs to the project at the top of the repository');
+    expect(message).not.toContain('does not run the commit check');
+  });
+
   test('a stale managed hook is a warning', async () => {
     const root = repo({ commit: DENY });
 

@@ -15,7 +15,7 @@ packages: ['@venizia/vulcan']
 ## What changed
 
 - **The marker names the folder.** The second line of the hook is `# vulcan:commit-msg [<folder>] - ...`: `[]` for a project at the top of the repository, `[apps/web]` for one below it. `sync` takes a hook as its own only when the folder is its own.
-- **Another project's hook is left as it is.** With the check on, `sync` prints `skipped` and says whose hook it is; with the check off it removes nothing. `vulcan doctor` reports the same state for that project.
+- **Another project's hook is left as it is.** With the check on, `sync` prints `skipped` and says whose hook it is; with the check off it removes nothing. `vulcan doctor` warns "this project's commit check is not installed: the hook belongs to ...", so it does not read as a hook that skips the check. A folder name with a bracket or a percent sign is written escaped in the marker and read back.
 - **A hook from an earlier release** has no folder and is read as the top level's. The top-level project rewrites it once to the new marker; a project below the top level that wrote one then sees it as another project's and leaves it.
 
 ## Who is affected

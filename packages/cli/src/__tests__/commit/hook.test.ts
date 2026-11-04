@@ -524,9 +524,28 @@ describe('CommitHookPlan: a repository has one hook and it belongs to the projec
 
     const state = CommitHook.stateOf({ root: sandbox, config: DENY });
 
-    expect(state.state).toBe(CommitHookStates.UNWIRED);
+    expect(state.state).toBe(CommitHookStates.OTHER_PROJECT);
     expect(state.note).toContain('belongs to');
   });
+});
+
+describe('a folder name that holds a bracket or a percent sign', () => {
+  test.each(['odd]name', 'a]b[c', '100%', 'x%5Dy'])(
+    '%s is read back as it was written',
+    (folder) => {
+      const top = repo();
+      const root = join(top, folder);
+
+      mkdirSync(root, { recursive: true });
+      planOf({ root, config: DENY })[0].apply();
+
+      const text = readFileSync(hookFile({ root: top }), 'utf8');
+
+      expect(CommitHook.ownerOf({ text })).toBe(folder);
+      expect(planOf({ root, config: DENY })[0].status).toBe(SyncStatuses.UNCHANGED);
+      expect(planOf({ root: top, config: DENY })[0].status).toBe(SyncStatuses.SKIPPED);
+    },
+  );
 });
 
 describe('CommitHook.ownerOf', () => {
