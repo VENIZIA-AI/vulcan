@@ -19,9 +19,11 @@ import { FlowId } from './flow-id.ts';
 import { ProjectKey } from './project-key.ts';
 import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
+import { EventText } from './text.ts';
 
 const USAGE = `usage: vulcan event add ${EventFlags.KIND} <kind> ${EventFlags.SUMMARY} <text> [${EventFlags.FLOW} <flow id>] [${EventFlags.REF} <ref>] [${EventFlags.STATUS} <${[...EventStatuses.SCHEME_SET].join('|')}>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
-       vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} [${EventFlags.FLOW} <flow id>] ${EventFlags.TITLE} <text> [${EventFlags.WHY} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.NEXT} <text>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
+       vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} [${EventFlags.FLOW} <flow id>] ${EventFlags.TITLE} <text> [${EventFlags.WHY} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.NEXT} <text>] [${EventFlags.DUE} <YYYY-MM-DD>] [${EventFlags.REF} <tracker id>]
+         [${EventFlags.STEP} <text> | ${EventFlags.STEP_DONE} <text>]... [${EventFlags.CHECK} <text> | ${EventFlags.CHECK_DONE} <text>]... [${EventFlags.APP} <name>]... [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
        vulcan event tail [${EventFlags.SINCE} <time>] [${EventFlags.JSON}] [${EventFlags.DIR} <folder>]
 kinds: ${[...EventKinds.SCHEME_SET].join(', ')}
 A flow line without ${EventFlags.FLOW} makes a new flow and prints its id (VULZ-<project.key>-<number>); give that id to every other line of the flow. Ids are never typed by hand.`;
@@ -83,7 +85,8 @@ export class EventCommand {
       if (
         !arg.startsWith('--') ||
         value === undefined ||
-        (!LIST_FLAGS.has(arg) && Object.hasOwn(values, arg))
+        (!LIST_FLAGS.has(arg) && Object.hasOwn(values, arg)) ||
+        (LIST_FLAGS.has(arg) && EventFlags.KNOWN.has(value))
       ) {
         return undefined;
       }
@@ -278,7 +281,8 @@ export class EventCommand {
       const isApp = flag === EventFlags.APP;
       const max = isApp ? EventConstants.APP_TEXT_MAX : EventConstants.ITEM_TEXT_MAX;
 
-      if (value.trim() === '' || Array.from(value).length > max) {
+      // The text as it will be kept: a text of control characters only is as empty as a blank one.
+      if (EventText.oneLine({ text: value, max }) === '' || Array.from(value).length > max) {
         return { ok: false, message: `${flag} needs a text of 1 to ${max} characters` };
       }
 
@@ -305,7 +309,7 @@ export class EventCommand {
       }
     }
 
-    if (opts.due !== undefined && !EventCommand.isDay({ value: opts.due })) {
+    if (opts.due !== undefined && !EventText.isDay({ value: opts.due })) {
       return {
         ok: false,
         message: `${EventFlags.DUE} must be a day such as 2026-11-08, got '${opts.due}'`,
@@ -313,17 +317,6 @@ export class EventCommand {
     }
 
     return { ok: true, steps, checks, apps };
-  }
-
-  /** `2026-11-08`, and a day that exists: `2026-02-30` is not one. */
-  private static isDay(opts: { value: string }): boolean {
-    const time = Date.parse(`${opts.value}T00:00:00Z`);
-
-    return (
-      EventConstants.DUE_PATTERN.test(opts.value) &&
-      Number.isFinite(time) &&
-      new Date(time).toISOString().startsWith(opts.value)
-    );
   }
 
   /**

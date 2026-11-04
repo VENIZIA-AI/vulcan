@@ -26,4 +26,5 @@ packages: ['@venizia/vulcan']
 ## Who is affected
 
 - **Agents** that name flows (V-P-13): give the steps and the acceptance checks as lists, and repeat every list on each flow line.
+- **A project that shares one log between versions:** an older vulcan reading the log skips the `deploy` lines (it does not know the kind). Update every session that reads the log before you write `deploy` lines.
 - **Everyone else:** nothing changes. The new flags are optional, and the logs written before are read as they were.
