@@ -8,9 +8,9 @@ const RAW_HTML =
   /dangerouslySetInnerHTML|innerHTML|outerHTML|insertAdjacentHTML|setHTMLUnsafe|srcDoc|createContextualFragment|parseFromString|document\.write|\beval\s*\(|\bFunction\s*\(/;
 /**
  * A link or a source built from data: Preact, unlike React 19, lets a `javascript:` address through. The value of
- * these attributes is a text or goes through `safeUrl`, which lets only an `https://` address pass.
+ * these attributes is a text or goes through `BoardUrl.safe`, which lets only an `https://` address pass.
  */
-const UNSAFE_URL = /\b(?:href|src|action|formAction|xlinkHref)\s*=\s*\{(?!\s*safeUrl\()/;
+const UNSAFE_URL = /\b(?:href|src|action|formAction|xlinkHref)\s*=\s*\{(?!\s*BoardUrl\.safe\()/;
 
 const sources = (opts: { folder: string }): string[] =>
   readdirSync(opts.folder, { withFileTypes: true }).flatMap((entry) =>
@@ -32,7 +32,7 @@ describe('the board UI source', () => {
     }
   });
 
-  test('no link or source takes data that did not go through safeUrl', () => {
+  test('no link or source takes data that did not go through BoardUrl.safe', () => {
     for (const file of sources({ folder: UI })) {
       expect(UNSAFE_URL.test(readFileSync(file, 'utf8')), file).toBe(false);
     }
@@ -49,8 +49,8 @@ describe('the board UI source', () => {
     }
 
     for (const good of [
-      '<a href={safeUrl(link)}>',
-      '<a href={ safeUrl(link) }>',
+      '<a href={BoardUrl.safe({ value: link })}>',
+      '<a href={ BoardUrl.safe({ value: link }) }>',
       '<a href="https://x.example">',
     ]) {
       expect(UNSAFE_URL.test(good), good).toBe(false);
