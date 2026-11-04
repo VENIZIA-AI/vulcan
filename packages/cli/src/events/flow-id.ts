@@ -1,6 +1,6 @@
 import { closeSync, mkdirSync, openSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { EventConstants, EventKinds, EventStatuses } from './common/index.ts';
+import { EventConstants } from './common/index.ts';
 import type { IEvent } from './common/index.ts';
 import { EventLog } from './log.ts';
 
@@ -18,7 +18,9 @@ export class FlowId {
 
   /** The number inside an id of either format, or 0. */
   static numberOf(opts: { id: string }): number {
-    return Number(NUMBER.exec(opts.id)?.[1] ?? 0);
+    const number = Number(NUMBER.exec(opts.id)?.[1] ?? 0);
+
+    return Number.isSafeInteger(number) ? number : 0;
   }
 
   /** The ids the lines carry, newest first, in the form the board shows them. */
@@ -49,30 +51,6 @@ export class FlowId {
   }
 
   /**
-   * Whether the flow is over: its newest closing line is a pull request merged (`merged:<n>`) or a decision to park or
-   * reject it, and no commit or pull request came after. The board calls such a flow Done or Parked.
-   */
-  static isClosed(opts: { events: IEvent[]; id: string; key?: string }): boolean {
-    const wanted = FlowId.canon({ id: opts.id, key: opts.key });
-    const lines = opts.events.filter(
-      (event) =>
-        event.flowId !== undefined && FlowId.canon({ id: event.flowId, key: opts.key }) === wanted,
-    );
-    const closing = lines.findLastIndex(
-      (event) =>
-        (event.kind === EventKinds.PR && /^merged:\d+$/.test(event.ref ?? '')) ||
-        (event.kind === EventKinds.DECISION && event.status !== EventStatuses.APPROVE),
-    );
-
-    return (
-      closing >= 0 &&
-      !lines
-        .slice(closing + 1)
-        .some((event) => event.kind === EventKinds.COMMIT || event.kind === EventKinds.PR)
-    );
-  }
-
-  /**
    * The next id for `key`. A number is claimed by creating the file `.flow-ids/<key>-<number>` beside the day files with
    * `wx`, which only one process can do for a number: two processes never get the same id, and nothing is locked, so
    * nothing can be left locked by a crash. The search starts above the highest number the log holds for the key (an older
@@ -93,8 +71,8 @@ export class FlowId {
     );
     const claimed = readdirSync(claims)
       .filter((name) => name.startsWith(`${opts.key}-`))
-      .map((name) => Number(name.slice(opts.key.length + 1)))
-      .filter((number) => Number.isInteger(number));
+      .map((name) => FlowId.numberOf({ id: name }))
+      .filter((number) => number > 0);
 
     for (let number = Math.max(0, ...logged, ...claimed) + 1; ; number++) {
       try {

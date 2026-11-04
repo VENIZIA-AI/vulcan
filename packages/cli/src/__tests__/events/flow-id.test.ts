@@ -172,6 +172,19 @@ describe('a number is claimed, never given twice', () => {
     expect(FlowId.next({ dir, key: 'ACME' })).toBe('VULZ-ACME-3');
   });
 
+  test('a name whose number is not a plain whole number is ignored: ACME-1e21 does not make VULZ-ACME-1e+21', () => {
+    const dir = join(createProject({ files: {} }), 'events');
+
+    mkdirSync(join(dir, '.flow-ids'), { recursive: true });
+    writeFileSync(join(dir, '.flow-ids', 'ACME-1e21'), '');
+    writeFileSync(join(dir, '.flow-ids', 'ACME-99999999999999999999'), '');
+    writeFileSync(join(dir, '2026-11-01.jsonl'), line('VULZ-ACME-99999999999999999999'));
+
+    expect(FlowId.next({ dir, key: 'ACME' })).toBe('VULZ-ACME-1');
+    expect(FlowId.numberOf({ id: 'VULZ-ACME-12' })).toBe(12);
+    expect(FlowId.numberOf({ id: 'VULZ-ACME-99999999999999999999' })).toBe(0);
+  });
+
   test('twelve processes, fifteen rounds, with a claim that was made a moment before: every id is different', async () => {
     const root = createProject({ files: {} });
 
@@ -300,6 +313,22 @@ describe('a flow line on the branch of a flow that is over makes a new flow', ()
     expect(made([{ kind: 'decision', status: 'park' }])).toBe('VULZ-ACME-5');
     expect(made([{ kind: 'decision', status: 'reject' }])).toBe('VULZ-ACME-5');
     expect(made([{ kind: 'decision', status: 'approve' }])).toBe('VULZ-ACME-4');
+  });
+
+  test('it is the board that says so: merged:#9 closes as merged:9 does, and an approval after a park reopens', () => {
+    expect(made([{ kind: 'pr', ref: 'merged:#9' }])).toBe('VULZ-ACME-5');
+    expect(
+      made([
+        { kind: 'decision', status: 'park' },
+        { kind: 'decision', status: 'approve' },
+      ]),
+    ).toBe('VULZ-ACME-4');
+    expect(
+      made([
+        { kind: 'decision', status: 'approve' },
+        { kind: 'decision', status: 'reject' },
+      ]),
+    ).toBe('VULZ-ACME-5');
   });
 
   test('work after the merge reopens it, so the flow is updated again', () => {
