@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { GitFiles } from '../common/git-files.ts';
 import { TextValue } from '../common/text.ts';
 import { WikiDefaults } from './constants.ts';
 
@@ -34,13 +35,13 @@ interface ITrackedPaths {
 }
 
 const loadTracked = (opts: { root: string }): ITrackedPaths => {
-  const result = Bun.spawnSync(['git', 'ls-files', '-z'], { cwd: opts.root, timeout: 30_000 });
+  const tracked = GitFiles.tracked({ root: opts.root });
 
-  if (result.exitCode !== 0) {
-    throw new Error(`git ls-files failed in ${opts.root}: ${result.stderr.toString().trim()}`);
+  if ('error' in tracked) {
+    throw new Error(`git ls-files failed in ${opts.root}: ${tracked.error}`);
   }
 
-  const files = new Set(result.stdout.toString().split('\0').filter(Boolean));
+  const files = new Set(tracked.files);
   const directories = new Set<string>();
 
   for (const file of files) {

@@ -25,6 +25,7 @@ import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
 import { AgentFiles, AtlasBlockPlan, LocalPlan, SyncPlanner, SyncStatuses } from '../sync/index.ts';
 import { LocalConstants, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
+import { PrivateValues } from './private-values.ts';
 import {
   ReplySwitch,
   OwnerConstants,
@@ -1336,6 +1337,53 @@ export class ProjectContract {
             }),
           ]),
     ];
+  }
+
+  /** Private values in committed files: one warning per file with the kinds and counts, never the text, and one per acknowledgment that covered nothing. */
+  static checkPrivateValues(opts: ICheckContext): IViolation[] {
+    const { findings, unmatched } = PrivateValues.scan({
+      root: opts.root,
+      acknowledged: opts.config.doctor.privateValues.acknowledged,
+    });
+    const where = 'doctor.privateValues.acknowledged';
+
+    return [
+      ...findings.map((finding) =>
+        createViolation({
+          check: DoctorChecks.PRIVATE_VALUES,
+          file: finding.file,
+          message: `holds private values: ${Object.entries(finding.counts)
+            .map(([kind, count]) => `${count} ${kind}`)
+            .join(', ')} (not shown); remove them, or record the decision in ${where}`,
+        }),
+      ),
+      ...unmatched.map((entry) =>
+        createViolation({
+          check: DoctorChecks.PRIVATE_VALUES,
+          file: opts.configFile,
+          message: `${where}: "${entry.path}"${entry.kinds === undefined ? '' : ` (${entry.kinds.join(', ')})`} matches no file that holds such a value: remove the entry, or it covers files added later`,
+        }),
+      ),
+    ];
+  }
+
+  /** What the project acknowledged, in one note: how many files hold values it decided to keep. It scans only when something is acknowledged. */
+  static checkAcknowledgedValues(opts: ICheckContext): IViolation[] {
+    const acknowledged = opts.config.doctor.privateValues.acknowledged;
+    const { acknowledgedFiles } =
+      acknowledged.length === 0
+        ? { acknowledgedFiles: 0 }
+        : PrivateValues.scan({ root: opts.root, acknowledged });
+
+    return acknowledgedFiles === 0
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.PRIVATE_VALUES,
+            file: opts.configFile,
+            message: `${acknowledgedFiles} ${acknowledgedFiles === 1 ? 'file' : 'files'} acknowledged in doctor.privateValues.acknowledged`,
+          }),
+        ];
   }
 
   /** The size of `.agents/local/` once it is large: where the space went, and the command that gives it back. */
