@@ -17,7 +17,7 @@ packages: ['@venizia/vulcan']
 - **A new setting.** `guard.outside` is `'ask'` (the default) or `'deny'`. With `deny`, a redirect, `mkdir`, `cp`, `git clone` or file-tool write outside the project is refused, nothing is written, and the answer names the path and the place to use instead (`.agents/local/tmp/<task>/`).
 - **Why.** Where an agent runs in an auto mode, Claude Code can approve an ask without the owner seeing it, so agents kept writing scratch files to `/tmp`. A deny cannot be approved.
 - **What does not change.** A path in `guard.toolOwnedPaths` still passes. A hook that crashes or times out, and a config that cannot be read, still ask. The guard reads the same calls as before: a path it cannot work out (an unset variable, a glob) passes in both modes.
-- **Which agents.** The setting changes what the agent sees on Claude Code, Antigravity, and omp and pi. Codex and Cursor cannot ask, so they already denied.
+- **Which agents.** The setting changes what the agent sees on Claude Code, Antigravity, and omp and pi. On Codex and Cursor an ask is already printed as a deny.
 
 ## Who is affected
 

@@ -2,6 +2,7 @@ import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import { LayoutFolder } from '../common/layout-folder.ts';
 import { GuardDecisions } from '../hooks/common/constants.ts';
+import { HostPatterns } from '../hooks/host-pattern.ts';
 import { OWNER_SCHEMA } from '../owner/schema.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import type { TAgentSignaturePolicy } from '../commit/common/index.ts';
@@ -199,11 +200,8 @@ const OKF_RENDERER = z.union([
 /** A host name, or a pattern whose only wildcard is `*`; a `$VAR` stands for a host the shell expands. Never a user, a path or a port. */
 const REMOTE_HOST = z
   .string()
-  .regex(
-    /^(?:\$\{?\w+\}?|[A-Za-z0-9._*-]+)$/,
-    'a host name or a pattern with *, not a user, a path or a port',
-  )
-  .refine((value) => value.replaceAll('*', '').replaceAll('.', '') !== '', {
+  .regex(HostPatterns.SHAPE, 'a host name or a pattern with *, not a user, a path or a port')
+  .refine((value) => HostPatterns.hasLiteral({ value }), {
     message: 'a pattern needs at least one literal character beyond * and .',
   });
 
@@ -344,7 +342,8 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    * The remote-host guard (W-04 in a project's own words): with this key set, sync registers a hook that
    * asks before a Bash command reaches a host not listed here. `trusted` hosts are free; `readOnly`
    * hosts pass only the strict read-only forms. Matching is by whole name or `*` pattern, never by substring.
-   * `localFile` is a gitignored list of personal trusted hosts, one per line.
+   * `localFile` is a gitignored list of personal hosts, one per line: a host is trusted, `readonly: <host>` is a
+   * read-only host. Each entry follows the same rule as the lists above; one that does not is skipped.
    */
   remoteHosts: z
     .strictObject({

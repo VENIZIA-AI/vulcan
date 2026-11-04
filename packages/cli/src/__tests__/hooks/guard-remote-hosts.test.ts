@@ -140,6 +140,57 @@ describe('the registered hook, run as Claude Code runs it', () => {
     );
   });
 
+  test('a readonly: line of the personal list adds a read-only host: the strict forms pass, anything else asks', () => {
+    const root = makeProject({
+      config: CONFIG(REMOTE_HOSTS),
+      files: { '.agents/hooks/trusted-hosts.local': '# mine\nreadonly: db-replica.lan\n' },
+    });
+    const command = remoteHook({ root }) ?? '';
+
+    expect(runHook({ root, command, input: BASH('ssh db-replica.lan uptime') }).stdout).toBe('');
+    expect(runHook({ root, command, input: BASH('ssh db-replica.lan reboot') }).stdout).toContain(
+      '"ask"',
+    );
+    expect(
+      runHook({ root, command, input: BASH('ssh db-replica.lan.evil.com uptime') }).stdout,
+    ).toContain('"ask"');
+  });
+
+  test('a personal line that is not a host pattern trusts nothing, and is said once on stderr', () => {
+    const root = makeProject({
+      config: CONFIG(REMOTE_HOSTS),
+      files: {
+        '.agents/hooks/trusted-hosts.local': '*\nmy-laptop.lan\nreadonly: *\nuser@evil.com\n',
+      },
+    });
+    const command = remoteHook({ root }) ?? '';
+    const loose = runHook({ root, command, input: BASH('ssh anything.example.com make install') });
+    const valid = runHook({ root, command, input: BASH('ssh my-laptop.lan make install') });
+
+    expect(loose.code).toBe(0);
+    expect(loose.stdout).toContain('"ask"');
+    expect(loose.stderr.match(/skipped/g)?.length).toBe(1);
+    expect(loose.stderr).toContain('lines 1, 3, 4');
+    expect(valid.stdout).toBe('');
+    expect(
+      runHook({ root, command, input: BASH('ssh anything.example.com uptime') }).stdout,
+    ).toContain('"ask"');
+  });
+
+  test('a read-only host from the personal list still asks about a mutating form in the message that names the file', () => {
+    const root = makeProject({
+      config: CONFIG(REMOTE_HOSTS),
+      files: { '.agents/hooks/trusted-hosts.local': 'readonly: db-replica.lan\n' },
+    });
+    const result = runHook({
+      root,
+      command: remoteHook({ root }) ?? '',
+      input: BASH('ssh db-replica.lan reboot'),
+    });
+
+    expect(result.stdout).toContain('remoteHosts.readOnly');
+  });
+
   test('unreadable hook input asks', () => {
     const root = makeProject({ config: CONFIG(REMOTE_HOSTS) });
     const result = runHook({ root, command: remoteHook({ root }) ?? '', input: 'not json' });

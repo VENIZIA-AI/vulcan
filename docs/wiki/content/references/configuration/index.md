@@ -462,7 +462,7 @@ The defaults for `trusted`, `readOnly`, and `localFile` apply once `remoteHosts`
 |---|---|---|---|
 | `trusted` | `string[]` | `[]` | Host names or patterns permitted for all commands |
 | `readOnly` | `string[]` | `[]` | Host names or patterns permitted only for strict read commands |
-| `localFile` | `string` | `'.agents/hooks/trusted-hosts.local'` | Path to uncommitted personal trusted hosts file |
+| `localFile` | `string` | `'.agents/hooks/trusted-hosts.local'` | Path to uncommitted personal hosts file: a plain line is trusted, `readonly: <host>` is read-only |
 
 Each host pattern must match `/^(?:\$\{?\w+\}?|[A-Za-z0-9._*-]+)$/`. The pattern admits host names, wildcard patterns with `*`, or shell variables such as `$HOST` or `${HOST}`. Every pattern needs at least one literal character beyond `*` and `.`. Values must not contain user names, URL paths, or port numbers.
 
@@ -653,7 +653,7 @@ The `guard` object configures the write guards.
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `toolOwnedPaths` | `string[]` | `[]` | Absolute globs, `~` and `$NAME` allowed, of stores a tool in this project manages itself. They extend the built-in list (package manager caches, `$XDG_RUNTIME_DIR`, git config, the agent tool's memory folders); a pattern with an unset variable allows nothing. |
-| `outside` | `'ask'` or `'deny'` | `'ask'` | What `guard-outside` does with a write outside the project (`V-B-08`). `ask` leaves the call to the owner. `deny` refuses it and nothing is written; the answer names the path and `.agents/local/tmp/`. Set `deny` where the agent runs in an auto mode, because an ask can be approved there without the owner seeing it. A path in `toolOwnedPaths` still passes in both modes. |
+| `outside` | `'ask'` or `'deny'` | `'ask'` | What `guard-outside` does with a write outside the project (`V-B-08`). `ask` leaves the call to the owner. `deny` refuses it and nothing is written; the answer names the path and `.agents/local/tmp/`. Set `deny` where the agent runs in an auto mode, because an ask can be approved there without the owner seeing it. A path in `toolOwnedPaths` still passes in both modes. It is a drift guard, not a boundary: an agent that can edit `.configs/vulcan.config.*` can change it, as it can `toolOwnedPaths`. An invalid key anywhere in the config, not only here, fails the load and the hook then asks. |
 | `writes.commands` | `Array<{ rule, what, pattern, ignoreCase? }>` | `[]` | Commands of this project that `guard-writes` asks about beside its fixed list: `rule` is `V-W-02` (a database write, a migration) or `V-W-03` (a deploy), `what` names the action (1 to 120 characters), `pattern` is a JavaScript regular expression (1 to 500 characters, case-sensitive unless `ignoreCase` is `true`). A pattern that does not compile fails the config. Written to the manifest by `vulcan sync`. |
 | `git.askPush` | `string[]` | `[]` | Branch names, with `*` for any run of characters, that a plain `git push` asks about in `guard-git`. Letters, digits, `. _ / * -` only. Written to the manifest by `vulcan sync`. |
 | `writes.trustedScripts` | `Array<string \| { script, readOnly }>` | `[]` | The project's own CLIs that `guard-writes` does not read for mutating calls. A path string trusts the whole script. An object `{ script, readOnly: ['plan', 'registry'] }` trusts only the calls whose first argument after the script is one of the `readOnly` words. Matched exactly against the script of a `bun <script>.ts` command. |

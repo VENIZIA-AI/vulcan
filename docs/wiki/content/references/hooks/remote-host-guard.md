@@ -47,12 +47,21 @@ $ echo '{"tool_name":"Bash","tool_input":{"command":"ssh evil.com id"}}' | bun n
 |---|---|---|---|
 | `trusted` | `string[]` | `[]` | Host names or patterns permitted for any command |
 | `readOnly` | `string[]` | `[]` | Host names or patterns permitted only for strict read-only commands |
-| `localFile` | `string` | `'.agents/hooks/trusted-hosts.local'` | Path to a personal uncommitted list of trusted hosts |
+| `localFile` | `string` | `'.agents/hooks/trusted-hosts.local'` | Path to a personal uncommitted list of trusted and read-only hosts |
 
-`localFile` stores personal trusted hosts outside repository version control.
+`localFile` stores personal hosts outside repository version control, so a production host name need not appear in the tracked config.
 Add the file path to `.gitignore`.
-The file lists one host per line.
+The file lists one host per line: a plain line is a trusted host, and `readonly: <host>` is a read-only host.
 Empty lines are ignored, and `#` characters mark comments.
+
+```text
+# mine
+my-laptop.lan
+readonly: db-replica.lan
+readonly: $PROD_S1
+```
+
+Each entry follows the rule of the lists above: a host name or a `*` pattern with at least one other character, or a `$VAR`; never a user, a path or a port. A line that does not is skipped and never trusted, and the hook says so once on stderr with the line numbers. A lone `*` used to be trusted as written; it is skipped now. A host listed as trusted and as read-only is trusted.
 
 To register the hook and render the policy into the manifest, run `vulcan sync`:
 
