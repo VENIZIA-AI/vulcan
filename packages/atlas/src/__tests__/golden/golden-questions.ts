@@ -3,7 +3,6 @@ import type { IGoldenQuestion } from './golden.helper';
 
 /** The improvements that answer a question that is open. */
 export class GoldenImprovements {
-  static readonly DECLARATIONS = 'symbol serves the declaration with its TSDoc';
   static readonly COMPATIBILITY = 'version serves what a package requires of its neighbours';
 }
 
@@ -48,7 +47,6 @@ export const GOLDEN_QUESTIONS: IGoldenQuestion[] = [
       'skipSteps',
       'validateScopeFilterSupport',
     ],
-    closedBy: GoldenImprovements.DECLARATIONS,
   },
   {
     id: 'Q3',
@@ -56,7 +54,6 @@ export const GOLDEN_QUESTIONS: IGoldenQuestion[] = [
     project: GoldenProjects.IGNIS,
     ask: { tool: 'symbol', args: { name: 'ScopeThrough' } },
     holds: ['IEntityWithRelations', 'relationDefinitions: Record<string, {'],
-    closedBy: GoldenImprovements.DECLARATIONS,
   },
   {
     id: 'Q4',
@@ -94,6 +91,5 @@ export const GOLDEN_QUESTIONS: IGoldenQuestion[] = [
     project: GoldenProjects.IGNIS,
     ask: { tool: 'symbol', args: { name: 'TOneRelationNameOf' } },
     holds: ['typeof RelationTypes.ONE', 'the only ones a child can be scoped through'],
-    closedBy: GoldenImprovements.DECLARATIONS,
   },
 ];

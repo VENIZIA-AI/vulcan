@@ -18,7 +18,7 @@ import type { ISymbolRecord } from './common';
 import { AtlasSymbols } from './generator';
 
 /** The cache layout this atlas reads and writes (V2); a cache from another layout is never read. */
-const SYMBOLS_SCHEMA_VERSION = 1;
+const SYMBOLS_SCHEMA_VERSION = 2;
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
 /** The characters a semver version is spelled with - never a `/`. */
 const CACHEABLE_VERSION = /^[0-9A-Za-z.+-]+$/;

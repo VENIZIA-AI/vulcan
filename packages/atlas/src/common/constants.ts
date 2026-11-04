@@ -42,6 +42,7 @@ export class Corpora {
 export class AtlasCommands {
   static readonly MCP = 'mcp';
   static readonly SURFACE = 'surface';
+  static readonly API = 'api';
   static readonly SYMBOLS = 'symbols';
   static readonly RELEASES = 'releases';
   static readonly PULL = 'pull';
@@ -51,6 +52,7 @@ export class AtlasCommands {
   static readonly SCHEME_SET = new Set<string>([
     this.MCP,
     this.SURFACE,
+    this.API,
     this.SYMBOLS,
     this.RELEASES,
     this.PULL,
