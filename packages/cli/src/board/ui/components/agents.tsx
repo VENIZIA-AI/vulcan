@@ -29,6 +29,7 @@ const AgentCard = (props: {
   card: IAgentCard;
   shape: string;
   picked: boolean;
+  compact: boolean;
   onPick: (name: string) => void;
 }) => {
   const { t, now } = useUi();
@@ -44,37 +45,59 @@ const AgentCard = (props: {
     .join(' · ');
   const since = card.since ? ` · ${BoardTime.ago({ iso: card.since, now, translate: t })}` : '';
 
+  const face = (
+    <span className="c-face">
+      <Face
+        state={row.st}
+        tint={BoardFace.tintOf({ name: row.n })}
+        name={row.n}
+        shape={props.shape}
+      />
+    </span>
+  );
+  const badge = (
+    <span
+      className={`c-badge b-${AGENT_TONES[row.st]}`}
+    >{`${t(BoardStateWords.PILL[row.st])}${since}`}</span>
+  );
+  const role = 'button' as const;
+  const pick = {
+    'data-agent': row.n,
+    role,
+    tabIndex: 0,
+    'aria-pressed': props.picked,
+    onClick: () => props.onPick(row.n),
+    onKeyDown: (event: { key: string; preventDefault: () => void }) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        props.onPick(row.n);
+      }
+    },
+  };
+
+  if (props.compact) {
+    return (
+      <div className={`c-card c-compact cell ${row.st}${props.picked ? ' sel' : ''}`} {...pick}>
+        {face}
+        <span className="c-nm">{row.n}</span>
+        {badge}
+        {card.workingOn ? <span className="c-id">{card.workingOn.flow.id}</span> : null}
+        {row.st === 'you' ? (
+          <span className="c-ask" role="img" aria-label={t('ag.asking')} title={t('ag.asking')} />
+        ) : null}
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={`c-card cell ${row.st}${props.picked ? ' sel' : ''}`}
-      data-agent={row.n}
-      role="button"
-      tabIndex={0}
-      aria-pressed={props.picked}
-      onClick={() => props.onPick(row.n)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          props.onPick(row.n);
-        }
-      }}
-    >
+    <div className={`c-card cell ${row.st}${props.picked ? ' sel' : ''}`} {...pick}>
       <div className="c-head">
-        <span className="c-face">
-          <Face
-            state={row.st}
-            tint={BoardFace.tintOf({ name: row.n })}
-            name={row.n}
-            shape={props.shape}
-          />
-        </span>
+        {face}
         <div className="c-grow">
           <div className="c-nm">{row.n}</div>
           {who ? <div className="c-role">{who}</div> : null}
         </div>
-        <span
-          className={`c-badge b-${AGENT_TONES[row.st]}`}
-        >{`${t(BoardStateWords.PILL[row.st])}${since}`}</span>
+        {badge}
       </div>
       <div className="c-body">
         {card.workingOn ? (
@@ -118,6 +141,8 @@ export const AgentPane = (props: {
   owner: string;
   shapes: Record<string, string>;
   picked: string | null;
+  details: boolean;
+  onDetails: (value: boolean) => void;
   onPick: (name: string) => void;
 }) => {
   const { t, now } = useUi();
@@ -134,6 +159,7 @@ export const AgentPane = (props: {
       card={props.cards[row.n]}
       shape={BoardFace.shapeOf({ name: row.n, owner: props.owner, shapes: props.shapes })}
       picked={props.picked === row.n}
+      compact={!props.details}
       onPick={props.onPick}
     />
   );
@@ -142,6 +168,14 @@ export const AgentPane = (props: {
     <section className="c-pane" id="dock" aria-label={t('Các agent đang chạy')}>
       <div className="c-ph">
         {t('pn.agents')} <span className="c-n">{recent.length}</span>
+        <button
+          className="btn c-tg"
+          type="button"
+          aria-pressed={props.details}
+          onClick={() => props.onDetails(!props.details)}
+        >
+          {t('ag.details')}
+        </button>
       </div>
       <div className="c-scroll">
         {props.rows.length === 0 ? <p className="c-empty">{t('chưa có agent')}</p> : null}

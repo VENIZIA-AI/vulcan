@@ -28,7 +28,7 @@ describe('a busy multi-agent day: the agents', () => {
 
     expect(doc.state).toBe('working');
     // Its stop was eight hours ago; the stretch began at the first line after the last quiet spell.
-    expect(doc.since).toBe(commits.at(-1)?.ts);
+    expect(doc.since).toBe(commits.at(-1)?.ts ?? '');
   });
 
   test('a quiet spell ends a stretch: an agent last heard of twelve days ago and back today is working since today', () => {

@@ -49,6 +49,11 @@ export const App = (props: { data: IBoardData }) => {
     initial: '0',
     allowed: ['0', '1'],
   });
+  const [agentDetails, setAgentDetails] = useStored<'0' | '1'>({
+    key: `${prefix}agentDetails`,
+    initial: '1',
+    allowed: ['0', '1'],
+  });
   const [keysOpen, setKeysOpen] = useState(false);
   const [detail, setDetail] = useState<TDetail | null>(null);
   const [everything, setEverything] = useState(false);
@@ -196,6 +201,8 @@ export const App = (props: { data: IBoardData }) => {
             owner={data.owner}
             shapes={data.shapes}
             picked={agent}
+            details={agentDetails === '1'}
+            onDetails={(value) => setAgentDetails(value ? '1' : '0')}
             onPick={pickAgent}
           />
           <ItemPane

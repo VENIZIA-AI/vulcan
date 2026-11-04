@@ -132,4 +132,66 @@ describe.skipIf(!hasBrowser)('a busy multi-agent day, in a real browser', () => 
     expect(looseDetail?.lines).toBe(REAL_DAY.UNSORTED + REAL_DAY.TO_SOCKETS);
     expect(looseDetail?.stageBars).toBe(0);
   });
+
+  test('the Details toggle of the agents pane: full cards by default, one compact row each when off, and the choice is kept', async () => {
+    const raw = await BrowserPage.measure<string>({
+      html,
+      width: 1440,
+      dark: false,
+      expression: `(async () => {
+        localStorage.clear();
+        const wait = () => new Promise((resolve) => setTimeout(resolve, 100));
+        const count = (selector) => document.querySelectorAll('#dock ' + selector).length;
+        const out = { errors: window.__errs, on: { cards: count('[data-agent]'), bodies: count('.c-body'), compact: count('.c-compact') } };
+        document.querySelector('.c-tg').click();
+        await wait();
+        const web = document.querySelector('#dock [data-agent="acme-web"]');
+        out.off = {
+          cards: count('[data-agent]'),
+          bodies: count('.c-body'),
+          compact: count('.c-compact'),
+          pressed: document.querySelector('.c-tg').getAttribute('aria-pressed'),
+          stored: localStorage.getItem('board:acme:agentDetails'),
+          webText: web.innerText,
+          askDots: count('.c-ask'),
+          webDot: !!web.querySelector('.c-ask'),
+        };
+        document.querySelector('.c-tg').click();
+        await wait();
+        out.back = { bodies: count('.c-body'), stored: localStorage.getItem('board:acme:agentDetails') };
+        return JSON.stringify(out);
+      })()`,
+    });
+    const seen: {
+      errors: string[];
+      on: { cards: number; bodies: number; compact: number };
+      off: {
+        cards: number;
+        bodies: number;
+        compact: number;
+        pressed: string;
+        stored: string;
+        webText: string;
+        askDots: number;
+        webDot: boolean;
+      };
+      back: { bodies: number; stored: string };
+    } = JSON.parse(raw);
+
+    expect(seen.errors).toEqual([]);
+    expect(seen.on.bodies).toBe(seen.on.cards);
+    expect(seen.on.compact).toBe(0);
+    expect(seen.off.cards).toBe(seen.on.cards);
+    expect(seen.off.compact).toBe(seen.on.cards);
+    expect(seen.off.bodies).toBe(0);
+    expect(seen.off.pressed).toBe('false');
+    expect(seen.off.stored).toBe('0');
+    // A row says who, how it is, and the flow it works on; a red dot only for the one that asks the owner.
+    expect(seen.off.webText).toContain('acme-web');
+    expect(seen.off.webText).toContain(REAL_DAY.YOU);
+    expect(seen.off.askDots).toBe(1);
+    expect(seen.off.webDot).toBe(true);
+    expect(seen.back.bodies).toBe(seen.on.cards);
+    expect(seen.back.stored).toBe('1');
+  });
 });

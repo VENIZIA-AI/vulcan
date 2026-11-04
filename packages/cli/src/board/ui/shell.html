@@ -881,7 +881,6 @@
         gap: 8px;
         padding: 0 14px;
         border-bottom: 1px solid var(--line);
-        background: var(--head);
         font-weight: 700;
         flex: none;
       }
@@ -906,32 +905,35 @@
       .c-scroll {
         overflow: auto;
         flex: 1;
-        padding: 10px;
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        background: var(--sunk);
       }
       .c-p3 .c-scroll {
-        padding: 0;
         display: block;
-        background: var(--bg);
+      }
+      .c-tg {
+        margin-left: auto;
+        height: 28px;
+        font-size: 12px;
       }
       .c-loose {
         display: block;
         width: 100%;
-        margin-top: 10px;
-        padding: 8px 12px;
+        padding: 12px 14px;
         text-align: left;
         font-size: 12px;
         color: var(--muted);
-        background: transparent;
-        border: 1px dashed var(--line-2);
-        border-radius: var(--r);
+        background: none;
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        cursor: pointer;
+      }
+      .c-loose:hover {
+        background: var(--sunk);
       }
       .c-loose[aria-pressed='true'] {
         color: var(--ink);
-        border-style: solid;
+        background: var(--accent-soft);
       }
       .c-empty {
         margin: 0;
@@ -940,27 +942,45 @@
         color: var(--muted);
       }
       .c-card {
-        background: var(--bg);
-        border: 1px solid var(--line);
-        border-radius: var(--r);
+        padding: 14px;
+        border-bottom: 1px solid var(--line);
         cursor: pointer;
       }
       .c-card:hover {
-        border-color: var(--line-2);
+        background: var(--sunk);
       }
       .c-card.sel {
-        border-color: var(--accent);
-        box-shadow: 0 0 0 1px var(--accent);
+        background: var(--accent-soft);
+        box-shadow: inset 3px 0 0 var(--accent);
       }
       .c-head {
         display: flex;
         align-items: center;
         flex-wrap: wrap;
         gap: 6px 10px;
-        padding: 10px 12px;
-        border-bottom: 1px solid var(--line);
-        background: var(--head);
-        border-radius: var(--r) var(--r) 0 0;
+      }
+      .c-compact {
+        display: flex;
+        align-items: center;
+        gap: 4px 10px;
+        padding: 8px 14px;
+      }
+      .c-compact .c-nm,
+      .c-compact .c-id,
+      .c-compact .c-badge {
+        white-space: nowrap;
+      }
+      .c-compact .c-face,
+      .c-compact .c-face .bot {
+        width: 28px;
+        height: 28px;
+      }
+      .c-ask {
+        width: 8px;
+        height: 8px;
+        margin-left: auto;
+        border-radius: 50%;
+        background: var(--fail);
       }
       .c-grow {
         flex: 1;
@@ -1013,7 +1033,6 @@
         color: var(--ok);
       }
       .c-body {
-        padding: 8px 12px 10px;
         display: flex;
         flex-direction: column;
         font-size: 13px;
@@ -1037,8 +1056,7 @@
         display: flex;
         flex-wrap: wrap;
         gap: 4px 12px;
-        padding: 8px 12px;
-        border-top: 1px solid var(--line);
+        margin-top: 10px;
         font-size: 11.5px;
         color: var(--muted);
       }
@@ -1060,15 +1078,15 @@
       .c-title {
         font-weight: 700;
         font-size: 15px;
-        padding: 10px 14px 0;
+        margin-top: 8px;
         color: var(--ink);
       }
       .c-now {
-        padding: 2px 14px 0;
+        margin-top: 2px;
         color: var(--body);
       }
       .c-wb {
-        padding: 10px 14px;
+        margin-top: 10px;
         display: grid;
         grid-template-columns: 110px 1fr;
         gap: 7px 12px;
@@ -1130,9 +1148,10 @@
         align-items: center;
         gap: 8px;
         width: 100%;
-        padding: 2px;
+        padding: 12px 14px 8px;
         background: none;
         border: 0;
+        border-bottom: 1px solid var(--line);
         font: 700 12px var(--font);
         color: var(--muted);
         text-transform: uppercase;
@@ -1151,11 +1170,6 @@
         width: 8px;
         height: 8px;
         border-radius: 2px;
-      }
-      .c-group {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
       }
       .d-body {
         padding: 16px 18px;
@@ -1365,11 +1379,7 @@
           flex: none;
         }
         .c-main > .c-pane:first-child .c-scroll {
-          flex-direction: row;
-          overflow-x: auto;
-        }
-        .c-main > .c-pane:first-child .c-card {
-          flex: 0 0 260px;
+          max-height: 40vh;
         }
         .c-main > .c-pane:nth-child(2) {
           flex: 1 0 auto;

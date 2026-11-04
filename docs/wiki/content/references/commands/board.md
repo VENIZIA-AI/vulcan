@@ -102,7 +102,7 @@ Session starts and stops, subagent stops and a prompt the harness waits on are n
 
 ## What the page shows
 
-Three panes. On the left, **Agents**: one card per agent with its state, what it is working on, its newest action and message, its open pull requests, and its role, model and harness when they are known. In the middle, **Work items**: the flows grouped by state, each card with where it is, what is happening now, how far its steps are, the people on it, the pull requests, the due day and what it waits for. On the right, the **Detail** of the flow or the agent you picked. Picking an agent also narrows the work items to the flows it is on; pick it again to undo it. A due day two days away or sooner shows in red. On a phone the detail opens over the list. It has English and Vietnamese, and a light and a dark theme, and its keys are `j` and `k` to move, `Enter` to open, `e` for all events and `?` for the list. The page is read-only: it sends nothing and saves nothing but your language, theme and last visit in the browser, under keys that carry the project name. It holds no network call, so it works offline. The data is inside the file: labels and short titles, never message text.
+Three panes. On the left, **Agents**: the **Details** button in its header switches between a card per agent and a one-line row per agent (name, state and how long, the flow it works on, and a red dot when it asks you); the choice is kept in the browser. A card shows the state, what it is working on, its newest action and message, its open pull requests, and its role, model and harness when they are known. In the middle, **Work items**: the flows grouped by state, each card with where it is, what is happening now, how far its steps are, the people on it, the pull requests, the due day and what it waits for. On the right, the **Detail** of the flow or the agent you picked. Picking an agent also narrows the work items to the flows it is on; pick it again to undo it. A due day two days away or sooner shows in red. On a phone the detail opens over the list. It has English and Vietnamese, and a light and a dark theme, and its keys are `j` and `k` to move, `Enter` to open, `e` for all events and `?` for the list. The page is read-only: it sends nothing and saves nothing but your language, theme and last visit in the browser, under keys that carry the project name. It holds no network call, so it works offline. The data is inside the file: labels and short titles, never message text.
 
 ## Names, logo and faces
 
@@ -135,9 +135,11 @@ export default {
 
 **Lanes.** `'pnt-api-1': { lane: 'api' }` marks `pnt-api-1` as working under `api`: its card says "under api". It keeps its own card, its own lines and its own flows. A `lane` must name a key of `agents` that has no `lane` of its own; a chain or a cycle fails the config and names the key. The face is optional (`{ lane: 'api' }`).
 
+**Earlier.** An agent not heard from in the last 24 hours is not a card: the pane ends with a folded **Earlier (n)** line that lists them.
+
 **Unanswered.** On an agent's card, the messages sent to it after the last one it sent, each counted once. It is not the count of every message it ever got.
 
-**Working or idle.** An agent is working from a session start, a tool use or any line of work it writes, and idle from a session stop until its next line of work; the card says since when.
+**Working or idle.** An agent is working from a session start, a tool use or any line of work it writes, and idle from a session stop until its next line of work. A half hour with no line also makes it idle, whatever its record says; the card says since when.
 
 Each agent also has a colour, taken from a hash of its name out of a fixed neutral palette. A logo or a name the page cannot use is left out, with a note on stderr.
 

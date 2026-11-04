@@ -19,8 +19,10 @@ packages: ['@venizia/vulcan']
 - **Detail, right.** Opens when you pick a flow or an agent; closes with the cross or `Esc`. A flow shows what it is, its steps and acceptance checks, what it waits for, its milestones (opened, decided, merged, deployed) and **All events**. On a phone the detail opens over the list.
 - **Removed.** The flow diagram, the **Board** view with columns, and the buttons for the attempt rounds of a stage. The CI and review counts are no longer drawn; the event log and the board data are unchanged.
 - **No agent is hidden.** Every agent that wrote a line or has a session has a card. `board.agents` no longer filters: the listed names come first, and a `lane` is a label ("under api") on the helper's own card, not a merge of its lines into the lane's. The "+N helpers" count and the roster filter are gone.
+- **A Details button on the Agents pane.** Off, each agent is one row (name, state and time, the flow it works on, a red dot when it asks you); on, today's full card. The choice is kept in the browser. Agents not heard from in 24 hours are folded under **Earlier (n)**.
+- **Flat panes.** The panes are rows with one hairline between them, not cards inside a bordered pane; the selected row has the accent bar.
 - **Unanswered means something.** On an agent's card it counts the messages sent to it after the last one it sent, each once, not every message it ever got.
-- **Working or idle follows the latest line.** An agent that writes a line of work after a session stop is working again, since that line; it no longer stays "idle since the stop".
+- **Working or idle follows the latest line.** An agent that writes a line of work after a session stop is working again, since that line; it no longer stays "idle since the stop". After 30 minutes with no line it is idle again.
 - **Done includes a deploy, and lasts a week.** A `deploy` line closes its flow like a merge does, until later work reopens it. The Done group keeps the last seven days (it kept only today).
 - **Lines with no flow are not a work item.** They are one muted line under the groups, `Unsorted · n`, that opens a list.
 - **No "no title yet" marker.** A flow without a `flow` line shows the words of its first line as its title, and nothing says it has none.
