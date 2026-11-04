@@ -23,6 +23,7 @@ type TSource =
 
 type TMessages = { ok: true; messages: ICheckedMessage[] } | { ok: false; error: string };
 
+/** Checks commit messages against the project commit-message rules and returns an exit code; used by `vulcan commit-check`, which the commit-msg hook calls. */
 export class CommitCheck {
   static async run(opts: ICommandContext): Promise<number> {
     const source = CommitCheck.sourceOf({ args: opts.args });

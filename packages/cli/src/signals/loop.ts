@@ -1,6 +1,7 @@
 import { SignalConstants } from './constants.ts';
 import type { ISignalEvent } from './state.ts';
 
+/** Detects an agent going in circles from its recent tool calls; used by the post-tool hook. */
 export class SignalLoop {
   /**
    * What the last calls look like when an agent is going round in circles: the same call three times within

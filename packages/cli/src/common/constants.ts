@@ -1,5 +1,6 @@
 import { EnvVariables } from './env-variables.ts';
 
+/** The names of the `vulcan` subcommands, shared by the router, the command registry and the help output. */
 export class VulcanCommands {
   static readonly INIT = 'init';
   static readonly ADD = 'add';

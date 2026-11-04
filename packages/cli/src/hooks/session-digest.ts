@@ -44,6 +44,7 @@ const buildAtlasBlock = (opts: {
   ];
 };
 
+/** Builds the digest printed at session start: owner profile, rule rows, minimap and Atlas block; used by the session-start hook. */
 export class SessionDigest {
   /** The SessionStart context: base write boundaries, this project's slot choices and own rules, the often-dropped rules. */
   static async build(opts: {

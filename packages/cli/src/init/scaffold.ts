@@ -81,6 +81,7 @@ const writeIfAbsent = (opts: { root: string; path: string; content: string }): I
   return { status: InitStatuses.CREATED, subject: opts.path };
 };
 
+/** Writes the starter files of a project and detects workspace globs and the project name; used by `vulcan init` and the create flows. */
 export class ProjectScaffold {
   /** Whether the root `package.json` declares workspaces: the array form or `{ packages: [...] }`. */
   static declaresWorkspaces(opts: { root: string }): boolean {

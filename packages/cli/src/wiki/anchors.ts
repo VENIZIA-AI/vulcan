@@ -76,6 +76,7 @@ const readAnchors = (opts: { dist: string }): Map<string, Set<string>> => {
   return anchorsByRoute;
 };
 
+/** Checks that the heading links in wiki content resolve to a built page anchor; run by `make wiki-anchors-check`. */
 export class AnchorCheck {
   /** Checks every `](page#fragment)` link of the markdown under `content` against the ids built in `dist`. */
   static check(opts: { content: string; dist: string }): {

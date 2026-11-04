@@ -6,6 +6,7 @@ import { TagCheck } from './tags.ts';
 import { DoctorChecks } from './common/index.ts';
 import type { IViolation } from './common/index.ts';
 
+/** Runs the doctor checks and sorts their findings into violations, notes and warnings; used by `vulcan doctor`. */
 export class DoctorRunner {
   /** Every violation of the VULCAN contract in the project at `root`; empty means conformant. */
   static async runChecks(opts: { root: string }): Promise<IViolation[]> {

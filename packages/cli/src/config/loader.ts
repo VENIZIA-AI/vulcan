@@ -12,6 +12,7 @@ type TLoadResult =
 const describeError = (opts: { error: unknown }): string =>
   opts.error instanceof Error ? opts.error.message : String(opts.error);
 
+/** Finds and loads the project `vulcan.config.*` file and reports an unreadable one; used by `vulcan sync`, `vulcan doctor` and the session hooks. */
 export class ConfigLoader {
   /**
    * What a hook says when the project has a config this VULCAN could not read (a key from a newer release, a

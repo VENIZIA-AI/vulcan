@@ -138,6 +138,7 @@ const atlasBlockOf = (opts: { config: TResolvedConfig }): { atlas?: Record<strin
   return Object.keys(block).length === 0 ? {} : { atlas: block };
 };
 
+/** Renders `.agents/vulcan.manifest.json` from the config and the base rule hashes; written by `vulcan sync`. */
 export class ProjectManifest {
   /** `@acme/shop-workspace` gives `shop`; a project with no package name takes its directory's. */
   static projectNameOf(opts: { root: string; config: TResolvedConfig }): string {
