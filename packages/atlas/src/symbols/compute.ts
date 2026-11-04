@@ -198,7 +198,11 @@ export class SymbolCompute {
   }
 
   /** Repo mode: the project's own live packages, read from their built declarations - never cached. */
-  static symbolsOfRepository(opts: { project: IAtlasProject }): ISymbolRecord[] {
+  static symbolsOfRepository(opts: {
+    project: IAtlasProject;
+    /** Read an entry that points at a TypeScript source too: its records have a doc and a signature, no declaration text. */
+    withSource?: boolean;
+  }): ISymbolRecord[] {
     const packages = opts.project.packages
       .filter(
         (entry) =>
@@ -208,6 +212,7 @@ export class SymbolCompute {
         PackageEntries.readDirectory({
           directory: join(opts.project.root, entry.path),
           name: entry.dir,
+          withSource: opts.withSource,
         }),
       );
 

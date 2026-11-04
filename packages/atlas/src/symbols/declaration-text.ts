@@ -64,6 +64,15 @@ export class DeclarationText {
     };
   }
 
+  /** The TSDoc of an export alone, for a declaration in a source file, where the statement text would hold bodies. */
+  static docOf(opts: { declaration: TypeScript.Declaration }): string {
+    const statement = DeclarationText.statementOf({ declaration: opts.declaration });
+
+    return DeclarationText.cleanDoc({
+      comment: DeclarationText.textOf({ statement, declaration: opts.declaration }).comment,
+    });
+  }
+
   /** The text without its leading TSDoc block, for a reader that shows the prose apart from the code. */
   static withoutDoc(opts: { declaration: string }): string {
     const text = opts.declaration.trimStart();

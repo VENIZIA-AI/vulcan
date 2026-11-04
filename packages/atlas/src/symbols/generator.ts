@@ -312,7 +312,7 @@ export class AtlasSymbols {
         declaration !== undefined &&
         !isExternal &&
         !TypeScriptCompiler.get().isSourceFile(declaration)
-          ? DeclarationText.of({ declaration, checker })
+          ? AtlasSymbols.textOf({ declaration, checker })
           : undefined;
       const record: ISymbolRecord = {
         name: symbol.getName(),
@@ -333,6 +333,50 @@ export class AtlasSymbols {
 
       return isExternal ? { ...record, external: true } : record;
     });
+  }
+
+  /**
+   * The text a record keeps of its declaration. In a `.d.ts` it is the declaration itself; in a source file the
+   * statement holds bodies, so a record keeps its signature and the TSDoc above it.
+   */
+  private static textOf(opts: {
+    declaration: TypeScript.Declaration;
+    checker: TypeScript.TypeChecker;
+  }): { declaration: string; doc: string; uses: string[] } {
+    if (opts.declaration.getSourceFile().isDeclarationFile) {
+      return DeclarationText.of(opts);
+    }
+
+    return {
+      declaration: AtlasSymbols.collapseSignature({
+        text: AtlasSymbols.sourceSignatureOf({ declaration: opts.declaration }),
+      }),
+      doc: DeclarationText.docOf({ declaration: opts.declaration }),
+      uses: [],
+    };
+  }
+
+  /** The signature of a declaration in a source file: a function without its body, a variable without its value. */
+  private static sourceSignatureOf(opts: { declaration: TypeScript.Declaration }): string {
+    const compiler = TypeScriptCompiler.get();
+    const { declaration } = opts;
+    const sourceFile = declaration.getSourceFile();
+
+    if (compiler.isFunctionDeclaration(declaration) && declaration.body !== undefined) {
+      return sourceFile.text.slice(
+        declaration.getStart(sourceFile),
+        declaration.body.getStart(sourceFile),
+      );
+    }
+
+    if (compiler.isVariableDeclaration(declaration)) {
+      const type =
+        declaration.type === undefined ? '' : `: ${declaration.type.getText(sourceFile)}`;
+
+      return `const ${declaration.name.getText(sourceFile)}${type}`;
+    }
+
+    return AtlasSymbols.signatureOf({ declaration });
   }
 
   /**

@@ -365,7 +365,11 @@ export const runApiCommand = (opts: { command?: string; args?: string[] }): numb
     return 1;
   }
 
-  const all = SymbolCompute.symbolsOfRepository({ project });
+  // Only `undocumented` reads a package that publishes its source: a page or a check of pages needs declaration text.
+  const all = SymbolCompute.symbolsOfRepository({
+    project,
+    withSource: opts.command === 'undocumented',
+  });
   const only = packagesOf({ args: opts.args ?? [], project });
   const records = only === undefined ? all : all.filter((record) => only.includes(record.package));
 

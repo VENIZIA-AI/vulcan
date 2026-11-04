@@ -153,3 +153,68 @@ describe('DeclarationText.withoutDoc', () => {
     );
   });
 });
+
+describe('a package that publishes its TypeScript source', () => {
+  const sourcePackage = (): string => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-source-package-'));
+
+    roots.push(root);
+
+    const files: Record<string, string> = {
+      'package.json': JSON.stringify({
+        name: '@x/src',
+        version: '1.0.0',
+        exports: { '.': './src/index.ts', './extra': { import: './src/extra.ts' } },
+      }),
+      'src/index.ts':
+        "/** Adds two. */\nexport function add(a: number, b: number): number {\n  return a + b;\n}\nexport function bare(): string {\n  return 'x';\n}\nexport * from './more.ts';\n",
+      'src/more.ts': '/** From another file. */\nexport const more = 1;\nexport class Undoc {}\n',
+      'src/extra.ts': 'export const extra = 2;\n',
+    };
+
+    for (const [path, text] of Object.entries(files)) {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), text);
+    }
+
+    return root;
+  };
+
+  test('its entries are read only when asked, with the doc of each export and a signature, no body', () => {
+    const root = sourcePackage();
+
+    expect(PackageEntries.readDirectory({ directory: root }).entries).toEqual([]);
+
+    const read = PackageEntries.readDirectory({ directory: root, withSource: true });
+
+    expect(read.entries.map((entry) => entry.subpath)).toEqual(['.', './extra']);
+
+    const records = new Map(
+      AtlasSymbols.recordsOf({ repoRoot: root, packages: [read] }).map((record) => [
+        `${record.specifier}:${record.name}`,
+        record,
+      ]),
+    );
+
+    expect(records.get('@x/src:add')?.doc).toBe('Adds two.');
+    expect(records.get('@x/src:add')?.declaration).toContain('add(a: number, b: number): number');
+    expect(records.get('@x/src:add')?.declaration).not.toContain('return a + b');
+    expect(records.get('@x/src:bare')?.doc).toBe('');
+    expect(records.get('@x/src:more')?.doc).toBe('From another file.');
+    expect(records.get('@x/src:Undoc')?.doc).toBe('');
+    expect(records.get('@x/src/extra:extra')?.doc).toBe('');
+  });
+
+  test('a .d.ts entry wins over a source entry of the same subpath', () => {
+    expect(
+      PackageEntries.sourceEntriesOf({
+        exports: { '.': { types: './dist/index.d.ts', import: './dist/index.js' } },
+      }),
+    ).toEqual([]);
+    expect(
+      PackageEntries.sourceEntriesOf({
+        exports: { '.': { types: './src/index.ts' }, './x': './src/x.d.ts', './json': './a.json' },
+      }),
+    ).toEqual([{ subpath: '.', types: './src/index.ts' }]);
+  });
+});
