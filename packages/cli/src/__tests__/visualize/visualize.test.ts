@@ -18,7 +18,7 @@ import { fullSpec } from './spec.fixture.ts';
 
 afterAll(removeProjects);
 
-/** The page's own sheet for the neutral theme: the tokens first, then the rules. */
+/** The page's own sheet for the default theme: the tokens first, then the rules. */
 const PAGE_CSS = ((): string => {
   const resolved = ProjectTheme.resolve({});
 
