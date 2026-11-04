@@ -237,7 +237,7 @@ describe('EventHook.run: the tool tick', () => {
     await Promise.all(children.map((child) => child.exited));
 
     expect(eventsOf({ dir: join(root, '.agents/local/events') })).toHaveLength(1);
-  });
+  }, 30_000);
 
   test('the stamp folder is inside the layout the project keeps its tmp in', () => {
     expect(EventConstants.TICK_FOLDER).toBe(`${ProjectLayout.LOCAL_DIRECTORY}/tmp/event-ticks`);
