@@ -53,6 +53,7 @@ const GUARD_COMMAND = z.strictObject({
   rule: z.enum(['V-W-02', 'V-W-03']),
   /** Short name of the action, shown when guard-writes asks; 1 to 120 characters. */
   what: z.string().min(1).max(120),
+  /** JavaScript regular expression, 1 to 500 characters, matched against a shell command; guard-writes asks when it matches. */
   pattern: z
     .string()
     .min(1)
@@ -273,6 +274,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     .optional(),
   /** The project's packages in release order; okf, atlas, make and release read this one list. */
   packages: z.array(PROJECT_PACKAGE).superRefine(checkPackagesUnique).default([]),
+  /** Where the project keeps its knowledge bundle, wiki, changelogs and sync map; read by okf, doctor and the knowledge-sync skill. */
   knowledge: z
     .strictObject({
       /** Folder of the knowledge bundle (the OKF concepts); default `.agents/knowledge`. */
@@ -285,13 +287,16 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       syncAreas: z.string().optional(),
     })
     .default({ bundle: ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE }),
+  /** Settings of okf, the knowledge bundle tool: renderers, regions, index sections, coverage axes and the visualization page. */
   okf: z
     .strictObject({
       /** Renderers the project uses, each a built-in id or an object with a module; default `[]`. */
       renderers: z.array(OKF_RENDERER).default([]),
+      /** Generated blocks in markdown files, each binding a region `id` and `file` to a `renderer`; default `[]`. */
       regions: z
         .array(z.strictObject({ id: z.string(), file: z.string(), renderer: z.string() }))
         .default([]),
+      /** Order and display labels of the section headings in the generated index tables; default no order and no labels. */
       sections: z
         .strictObject({
           /** Order of the section headings in the index tables; default `[]`. */
@@ -321,6 +326,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       contents: z
         .strictObject({ files: z.array(z.string()).default(['AGENTS.md', '.agents/rules.md']) })
         .default({ files: ['AGENTS.md', '.agents/rules.md'] }),
+      /** The visualization page okf writes: output paths, brand heading and text overrides; read by the okf viz command. */
       viz: z
         .strictObject({
           /** Paths the visualization page is written to; default `['.agents/knowledge/viz.html']`. */
@@ -341,6 +347,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       contents: { files: ['AGENTS.md', '.agents/rules.md'] },
       viz: { outputs: [VIZ_OUTPUT] },
     }),
+  /** Settings of atlas: release tag layout, the sources it indexes, ignored tags, the signing keys of the published index and prebuilt downloads. */
   atlas: z
     .strictObject({
       /** Template of a release tag; must hold `<version>`, and `<dir>` for per-package tags. Default `<dir>-v<version>`. */
@@ -351,6 +358,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
        * releases. Unlike `ignoreTags`, a tag matched here counts as a release.
        */
       legacyTagPatterns: z.array(RELEASE_TEMPLATE).optional(),
+      /** Repositories atlas indexes besides this one, each with a `name`, a `repo` and a `ref`; default `[]`. */
       sources: z
         .array(
           z.strictObject({
@@ -407,10 +415,12 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     .strictObject({
       /** Colour for marks and fills, as a six-digit hex such as `#8a5a20`; required when `theme` is set. */
       accent: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #8a5a20'),
+      /** Accent for dark grounds, a six-digit hex such as `#dead6a`; derived from `accent` when absent. */
       accentDark: z
         .string()
         .regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #dead6a')
         .optional(),
+      /** Darker accent for text, a six-digit hex such as `#01579b`; absent means `accent` is used for text too. */
       accentText: z
         .string()
         .regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #01579b')
@@ -429,6 +439,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       owner: z.string().min(1).optional(),
       /** Name on the board page and tab; default: the project name and `Board`. */
       title: z.string().min(1).optional(),
+      /** Name in the address of `vulcan board serve`: lowercase, ending in `.localhost`; default `vulz-board.venizia.ai.localhost`. */
       hostname: z
         .string()
         .regex(
@@ -436,6 +447,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
           'a lowercase name that ends in .localhost, such as board.localhost',
         )
         .optional(),
+      /** Path inside the project to an `.svg` file shown on the board page, with no leading `/` and no `..` segment; default none. */
       logo: z
         .string()
         .min(1)
@@ -460,6 +472,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   claude: z
     .strictObject({ settings: z.record(z.string(), z.unknown()).default({}) })
     .default({ settings: {} }),
+  /** Project hooks, each an `event`, an optional `matcher` and a `command`; `vulcan sync` merges them into the agent settings. Default `[]`. */
   hooks: z
     .array(
       z.strictObject({ event: HOOK_EVENT, matcher: z.string().optional(), command: z.string() }),
@@ -468,6 +481,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   /** The session-start digest: the rule IDs it repeats as "the rules sessions drop most" - base or the project's own. */
   digest: z
     .strictObject({
+      /** Rule IDs the digest repeats as dropped most, each matching the rule ID pattern; default the shipped list of base rules. */
       oftenDropped: z
         .array(z.string().regex(ConfigConstants.RULE_ID_PATTERN))
         .default(ConfigConstants.DEFAULT_OFTEN_DROPPED),
@@ -495,6 +509,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       toolOwnedPaths: z.array(z.string().min(1)).default([]),
       /** What guard-outside does with a write outside the project: `ask` or `deny`; default `ask`. */
       outside: z.enum([GuardDecisions.ASK, GuardDecisions.DENY]).default(GuardDecisions.ASK),
+      /** Write guard lists: scripts guard-writes trusts and the project's own deploy and migrate commands; both default to `[]`. */
       writes: z
         .strictObject({
           /** Repo-relative `.ts` scripts guard-writes does not read for mutating calls; a path or `{ script, readOnly }`. Default `[]`. */
@@ -522,10 +537,13 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    */
   commit: z
     .strictObject({
+      /** Checks on the text of a commit message: the agent signature policy and the subject shape. */
       message: z
         .strictObject({
+          /** Rules about agent names in a commit message: signature policy, extra names and allowed names. */
           agent: z
             .strictObject({
+              /** Policy for an agent trailer or "generated with" line in a commit message: `allow` or `deny`; default `allow`. */
               signature: z
                 .custom<TAgentSignaturePolicy>(
                   (value) => typeof value === 'string' && AgentSignaturePolicies.isValid(value),
@@ -538,8 +556,10 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
               allow: z.array(AGENT_NAME).default([]),
             })
             .default({ signature: AgentSignaturePolicies.ALLOW, names: [], allow: [] }),
+          /** The project's own shape for the commit subject line; absent means no subject check. */
           subject: z
             .strictObject({
+              /** Regular expression the commit subject must match, 1 or more characters; an invalid expression is rejected. */
               pattern: z
                 .string()
                 .min(1)
@@ -567,8 +587,10 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    */
   ci: z
     .strictObject({
+      /** Which changed files make `vulcan ci affected` treat every package as affected. */
       affected: z
         .strictObject({
+          /** Root-relative globs, no leading `/` and no `..` segment, added to the shipped list of files that touch every package; default `[]`. */
           global: z
             .array(
               z
@@ -596,6 +618,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     .strictObject({
       /** `true` makes `vulcan sync` install the hooks that write the event log; default `false`. */
       log: z.boolean().default(false),
+      /** Absolute folder that takes the event log instead of the project's own; absent means the project's `.agents/local/events`. */
       dir: z
         .string()
         .min(1)

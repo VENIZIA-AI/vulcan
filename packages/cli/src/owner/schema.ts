@@ -93,6 +93,7 @@ export const OWNER_SCHEMA = z
   .strictObject({
     /** Language of the reply labels, a code such as `en` or `pt-BR`; default `en`. */
     language: LANGUAGE.default(OwnerConstants.DEFAULT_LANGUAGE),
+    /** How a reply is shaped: sections, minimap columns, status words, labels, headline length, path style, enforcement and claim words. */
     report: z
       .strictObject({
         /** Sections of a reply, in order: headline, minimap, blocked, detail, decisions; at least one, default all five in that order. */
@@ -103,6 +104,7 @@ export const OWNER_SCHEMA = z
         status: OWNER_LABEL_SET.shape.status.default(DEFAULTS.status),
         /** Labels of the blocked and decisions parts; default the English set. */
         labels: OWNER_LABEL_SET.shape.labels.default(DEFAULTS.labels),
+        /** Most sentences the headline of a reply may have, 1 to 5; default 2. */
         headlineMaxSentences: z
           .number()
           .int()
@@ -135,11 +137,12 @@ export const PROFILE_SCHEMA = z.strictObject({
   schemaVersion: z.literal(OwnerConstants.PROFILE_SCHEMA_VERSION),
   /** Reply language; labels for it come from `labels` below. A language that is not English with none has its labels written by the agent, and only the structure is checked. */
   language: LANGUAGE.optional(),
+  /** How the agent addresses the person: what it calls them, itself, and how formal; default neutral formality. */
   address: z
     .strictObject({
-      /** How to address the person: a name, a pronoun, an honorific, or nothing. */
+      /** Form of address for the person: a name, pronoun or honorific, one line of at most 80 characters; absent means none. */
       you: TEXT.optional(),
-      /** How the agent refers to itself. */
+      /** How the agent refers to itself, one line of at most 80 characters; absent means no fixed form. */
       self: TEXT.optional(),
       /** How formal the address is: `informal`, `neutral` or `formal`; default `neutral`. */
       formality: FORMALITY.default(OwnerFormalities.NEUTRAL),
@@ -149,6 +152,7 @@ export const PROFILE_SCHEMA = z.strictObject({
   tone: TONE.default(OwnerTones.NEUTRAL),
   /** How much a reply spells out: `headline` or `tables`; default `tables`. */
   reportDetail: DETAIL.default(OwnerDetails.TABLES),
+  /** Working habits the agent follows with this person; both default to `false`. */
   habits: z
     .strictObject({
       /** Ask before a reversible choice; false means state a default and continue (V-P-10). */
@@ -157,13 +161,13 @@ export const PROFILE_SCHEMA = z.strictObject({
       proposeCommits: z.boolean().default(false),
     })
     .prefault({}),
-  /** In the person's own words, never scored or used to infer traits. */
+  /** Free text in the person's own words, up to 2000 characters; the digest card shows the first 200, and it is never scored. */
   about: z.string().max(2000).optional(),
-  /** Taste in code that no formatter or lint rule already enforces. */
+  /** Taste in code that no formatter or lint rule enforces, up to 1000 characters; absent means none. */
   codeTaste: z.string().max(1000).optional(),
-  /** Stricter than the project's, never looser. */
+  /** Own enforcement level: `off`, `advise` or `block`; only counts when stricter than the project's, else the project's wins. */
   enforce: ENFORCE.optional(),
-  /** Lower than the project's, never higher: 0 holds every reply to the shape. */
+  /** Own short-reply limit, 0 to 200 words; only counts when lower than the project's, and 0 holds every reply to the shape. */
   shortReplyWords: SHORT_REPLY_WORDS.optional(),
   /** The label set of each language the person uses, keyed by language code. */
   labels: z.record(LANGUAGE, OWNER_LABEL_SET).default({}),
