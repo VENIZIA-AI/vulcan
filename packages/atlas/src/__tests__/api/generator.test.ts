@@ -81,6 +81,92 @@ describe('ApiReference.filesOf', () => {
   });
 });
 
+describe('an export is listed once, on the entry that declares it', () => {
+  const at = (opts: {
+    name: string;
+    specifier: string;
+    package: string;
+    file: string;
+    line?: number;
+  }) => record({ subpath: '.', line: 7, ...opts });
+  const PACKAGES = [
+    { name: '@x/core', path: 'packages/core' },
+    { name: '@x/all', path: 'packages/all' },
+  ];
+  const records = [
+    at({
+      name: 'Door',
+      specifier: '@x/core',
+      package: '@x/core',
+      file: 'packages/core/src/door.ts',
+    }),
+    at({
+      name: 'Door',
+      specifier: '@x/core/doors',
+      package: '@x/core',
+      file: 'packages/core/src/door.ts',
+    }),
+    at({ name: 'Door', specifier: '@x/all', package: '@x/all', file: 'packages/core/src/door.ts' }),
+    at({ name: 'Own', specifier: '@x/all', package: '@x/all', file: 'packages/all/src/own.ts' }),
+  ];
+
+  test('the home is the most specific entry of the package that owns the file', () => {
+    const homes = ApiReference.homesOf({ records, packages: PACKAGES });
+
+    expect([...homes.values()].filter((home) => home === '@x/core/doors')).toHaveLength(3);
+  });
+
+  test('the home entry has the section; the others name it in one line and repeat nothing', () => {
+    const files = ApiReference.filesOf({ records, packages: PACKAGES });
+    const home = files.get('x-core-doors.md') ?? '';
+    const root = files.get('x-core.md') ?? '';
+    const umbrella = files.get('x-all.md') ?? '';
+
+    expect(home).toContain('## `Door`');
+    expect(root).not.toContain('## `Door`');
+    expect(root).toContain('- `Door` from [`@x/core/doors`](/references/api/x-core-doors)');
+    expect(umbrella).toContain('## `Own`');
+    expect(umbrella).toContain('- `Door` from [`@x/core/doors`](/references/api/x-core-doors)');
+    expect(umbrella.split('export declare function Door').length).toBe(1);
+  });
+
+  test('an export is counted and checked for TSDoc once, on its home', () => {
+    const gaps = ApiReference.undocumentedOf({ records, packages: PACKAGES });
+
+    expect(gaps).toEqual([
+      { specifier: '@x/all', names: ['Own'] },
+      { specifier: '@x/core/doors', names: ['Door'] },
+    ]);
+  });
+
+  test('without the packages, the longest specifier is the home', () => {
+    const homes = ApiReference.homesOf({ records });
+
+    expect(new Set(homes.values())).toEqual(new Set(['@x/core/doors', '@x/all']));
+  });
+
+  test('two declarations of one name at different lines stay two exports', () => {
+    const pair = [
+      at({
+        name: 'f',
+        specifier: '@x/core',
+        package: '@x/core',
+        file: 'packages/core/src/f.ts',
+        line: 1,
+      }),
+      at({
+        name: 'f',
+        specifier: '@x/core',
+        package: '@x/core',
+        file: 'packages/core/src/f.ts',
+        line: 9,
+      }),
+    ];
+
+    expect(ApiReference.pagesOf({ records: pair, packages: PACKAGES })[0].total).toBe(2);
+  });
+});
+
 describe('the front matter of a page', () => {
   test('a scoped package name is valid YAML: the loader reads the page, it does not skip it', () => {
     const files = ApiReference.filesOf({ records: [record({ name: 'a' })] });

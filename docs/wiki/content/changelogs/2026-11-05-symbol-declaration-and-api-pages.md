@@ -10,7 +10,7 @@ packages: ['@venizia/vulcan-atlas', '@venizia/vulcan']
 
 <Badge type="tip" text="New Feature" />
 
-**In one line.** `symbol` now answers with the declaration of an export as its package ships it, TSDoc and members included, and `vulcan x atlas api gen` writes a reference page for each package entry from the same text.
+**In one line.** `symbol` now answers with the declaration of an export as its package ships it, TSDoc and members included, and `vulcan x atlas api gen` writes a reference page for each package entry from the same text; an export is listed once, on the entry that declares it.
 
 ## What changed
 

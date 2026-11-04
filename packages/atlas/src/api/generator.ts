@@ -21,6 +21,18 @@ export interface IApiPage {
   undocumented: string[];
 }
 
+/** A package of the project: its npm name and its folder, as the manifest has them. */
+export interface IApiPackage {
+  name: string;
+  path: string;
+}
+
+/** An export an entry lists but another entry declares. */
+interface IReexport {
+  name: string;
+  home: string;
+}
+
 export class ApiReference {
   /** Under the wiki content directory. */
   static readonly DIRECTORY = 'references/api';
@@ -39,6 +51,7 @@ export class ApiReference {
    */
   static undocumentedOf(opts: {
     records: ISymbolRecord[];
+    packages?: IApiPackage[];
   }): { specifier: string; names: string[] }[] {
     return ApiReference.pagesOf(opts)
       .filter((page) => page.undocumented.length > 0)
@@ -50,22 +63,83 @@ export class ApiReference {
     return /(^|\s)@internal\b/.test(opts.record.doc ?? '');
   }
 
-  /** A page for each entry (package and subpath) the records name, sorted by specifier, and an index of them. */
-  static pagesOf(opts: { records: ISymbolRecord[] }): IApiPage[] {
-    const bySpecifier = new Map<string, ISymbolRecord[]>();
+  /**
+   * The entry that declares each export, for the entries that list the same one. Records of one source file, line
+   * and name are one export; its home is the entry of the package that owns the file (the most specific entry
+   * of it: the longest specifier), or, when no package of the project owns it, the longest specifier of all.
+   */
+  static homesOf(opts: {
+    records: ISymbolRecord[];
+    packages?: IApiPackage[];
+  }): Map<ISymbolRecord, string> {
+    const groups = new Map<string, ISymbolRecord[]>();
 
-    for (const record of opts.records.filter(
-      (item) => !ApiReference.isInternal({ record: item }),
-    )) {
-      const group = bySpecifier.get(record.specifier) ?? [];
+    for (const record of opts.records) {
+      const key = [record.file, record.line, record.name].join('\u0000');
+      const group = groups.get(key) ?? [];
 
       group.push(record);
-      bySpecifier.set(record.specifier, group);
+      groups.set(key, group);
     }
 
-    return [...bySpecifier.entries()]
+    const homes = new Map<ISymbolRecord, string>();
+
+    for (const group of groups.values()) {
+      const own = group.filter((record) => !record.external);
+      const candidates = own.length > 0 ? own : group;
+      const owner = (opts.packages ?? []).find((item) =>
+        candidates[0].file.startsWith(`${item.path}/`),
+      );
+      const owned = candidates.filter((record) => record.package === owner?.name);
+      const pool = owned.length > 0 ? owned : candidates;
+      const [home] = [...pool].sort(
+        (left, right) =>
+          right.specifier.length - left.specifier.length ||
+          (left.specifier < right.specifier ? -1 : 1),
+      );
+
+      for (const record of group) {
+        homes.set(record, home.specifier);
+      }
+    }
+
+    return homes;
+  }
+
+  /**
+   * A page for each entry (package and subpath) the records name, sorted by specifier. An export is listed once, on
+   * its home entry; an entry that only re-exports it names the home.
+   */
+  static pagesOf(opts: { records: ISymbolRecord[]; packages?: IApiPackage[] }): IApiPage[] {
+    const records = opts.records.filter((item) => !ApiReference.isInternal({ record: item }));
+    const homes = ApiReference.homesOf({ records, packages: opts.packages });
+    const own = new Map<string, ISymbolRecord[]>();
+    const reexported = new Map<string, IReexport[]>();
+
+    for (const record of records) {
+      const home = homes.get(record) ?? record.specifier;
+      const entry = own.get(record.specifier) ?? [];
+      const links = reexported.get(record.specifier) ?? [];
+
+      if (home === record.specifier) {
+        entry.push(record);
+      } else {
+        links.push({ name: record.name, home });
+      }
+
+      own.set(record.specifier, entry);
+      reexported.set(record.specifier, links);
+    }
+
+    return [...own.entries()]
       .sort(([left], [right]) => (left < right ? -1 : 1))
-      .map(([specifier, records]) => ApiReference.pageOf({ specifier, records }));
+      .map(([specifier, entryRecords]) =>
+        ApiReference.pageOf({
+          specifier,
+          records: entryRecords,
+          reexports: reexported.get(specifier) ?? [],
+        }),
+      );
   }
 
   /** The page file of an entry: `@scope/name/testing` is `scope-name-testing.md`. */
@@ -98,7 +172,10 @@ export class ApiReference {
   }
 
   /** What `gen` writes: the entry pages and the index, by file name. */
-  static filesOf(opts: { records: ISymbolRecord[] }): Map<string, string> {
+  static filesOf(opts: {
+    records: ISymbolRecord[];
+    packages?: IApiPackage[];
+  }): Map<string, string> {
     const pages = ApiReference.pagesOf(opts);
 
     return new Map<string, string>([
@@ -165,7 +242,11 @@ export class ApiReference {
     return '`'.repeat(Math.max(3, longest + 1));
   }
 
-  private static pageOf(opts: { specifier: string; records: ISymbolRecord[] }): IApiPage {
+  private static pageOf(opts: {
+    specifier: string;
+    records: ISymbolRecord[];
+    reexports: IReexport[];
+  }): IApiPage {
     const records = [...opts.records].sort((left, right) =>
       left.name.localeCompare(right.name, 'en'),
     );
@@ -196,12 +277,30 @@ export class ApiReference {
         '',
         `> ${ApiReference.GENERATED_NOTE}`,
         '',
-        `${records.length} exports, ${records.length - undocumented.length} with TSDoc.`,
+        `${records.length} exports, ${records.length - undocumented.length} with TSDoc.${opts.reexports.length === 0 ? '' : ` ${opts.reexports.length} more are re-exported from other entries (listed at the end).`}`,
         '',
         ...gap,
         ...sections.flat(),
+        ...ApiReference.reexportsOf({ reexports: opts.reexports }),
       ].join('\n'),
     };
+  }
+
+  /** One line for each export this entry only re-exports, linked to the page that declares it. */
+  private static reexportsOf(opts: { reexports: IReexport[] }): string[] {
+    if (opts.reexports.length === 0) {
+      return [];
+    }
+
+    const lines = [...opts.reexports]
+      .sort((left, right) => left.name.localeCompare(right.name, 'en'))
+      .map((item) => {
+        const page = ApiReference.fileOf({ specifier: item.home }).replace(/\.md$/, '');
+
+        return `- \`${item.name}\` from [\`${item.home}\`](/${ApiReference.DIRECTORY}/${page})`;
+      });
+
+    return ['## Re-exported', '', ...lines, ''];
   }
 
   private static sectionOf(opts: { record: ISymbolRecord }): string[] {
@@ -277,7 +376,10 @@ export const runApiCommand = (opts: { command?: string; args?: string[] }): numb
   }
 
   if (opts.command === 'undocumented') {
-    const gaps = ApiReference.undocumentedOf({ records });
+    const gaps = ApiReference.undocumentedOf({
+      records,
+      packages: project.packages.map((item) => ({ name: item.name, path: item.path })),
+    });
 
     if (gaps.length === 0) {
       console.log('every export has TSDoc');
@@ -294,7 +396,8 @@ export const runApiCommand = (opts: { command?: string; args?: string[] }): numb
     return 1;
   }
 
-  const expected = ApiReference.filesOf({ records });
+  const packages = project.packages.map((item) => ({ name: item.name, path: item.path }));
+  const expected = ApiReference.filesOf({ records, packages });
   const directory = directoryOf({ wiki });
 
   if (opts.command === 'check') {
