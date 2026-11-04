@@ -10,9 +10,12 @@ afterAll(removeProjects);
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 const SCRIPT = join(PACKAGE_ROOT, 'base', 'hooks', 'codex-guards.ts');
 
+const DENY_OUTSIDE_CONFIG =
+  "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: 'deny' } };\n";
+
 /** A project with the package installed, so the real guard scripts run. */
-const installedProject = (): string => {
-  const root = createProject({ files: { 'package.json': '{}' } });
+const installedProject = (opts: { files?: Record<string, string> } = {}): string => {
+  const root = createProject({ files: { 'package.json': '{}', ...opts.files } });
   const installed = join(root, 'node_modules', '@venizia', 'vulcan');
 
   mkdirSync(dirname(installed), { recursive: true });
@@ -92,6 +95,22 @@ describe('the Codex hook command runs the real guards', () => {
     expect(decisionOf(deploy.output)).toBe('deny');
     expect(deploy.text).toContain('V-W-03');
     expect(deploy.text).toContain('Codex cannot ask about a tool call');
+  });
+
+  test('with guard.outside set to deny, a write outside the project is a real deny, not an ask turned into one', () => {
+    const root = installedProject({ files: { '.configs/vulcan.config.mts': DENY_OUTSIDE_CONFIG } });
+    const outside = run({
+      root,
+      stdin: eventOf({
+        root,
+        tool: 'Bash',
+        command: 'echo x > /var/tmp/vulcan-guard-probe-never-created',
+      }),
+    });
+
+    expect(decisionOf(outside.output)).toBe('deny');
+    expect(outside.text).toContain('guard.outside');
+    expect(outside.text).not.toContain('Codex cannot ask about a tool call');
   });
 
   test('an apply_patch is read file by file: the manifest and a path outside the project are refused', () => {

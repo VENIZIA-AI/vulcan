@@ -228,6 +228,74 @@ describe('the guard-outside hook', () => {
   });
 });
 
+describe('the guard-outside hook with guard.outside set', () => {
+  const configOf = (opts: { outside: string }) =>
+    `export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: '${opts.outside}', toolOwnedPaths: ['/srv/store/**'] } };\n`;
+  const denyRoot = createProject({
+    files: { '.configs/vulcan.config.mts': configOf({ outside: 'deny' }) },
+  });
+  const askRoot = createProject({
+    files: { '.configs/vulcan.config.mts': configOf({ outside: 'ask' }) },
+  });
+  const brokenRoot = createProject({
+    files: { '.configs/vulcan.config.mts': configOf({ outside: 'maybe' }) },
+  });
+
+  test('deny refuses a write outside the project, naming V-B-08, the path and the place to use', async () => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root: denyRoot,
+      stdin: bash({ command: 'echo x > /var/tmp/vulcan-outside-test', cwd: denyRoot }),
+    });
+    const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+    expect(result.code).toBe(0);
+    expect(decision.permissionDecision).toBe('deny');
+    expect(decision.permissionDecisionReason).toContain('V-B-08');
+    expect(decision.permissionDecisionReason).toContain('/var/tmp/vulcan-outside-test');
+    expect(decision.permissionDecisionReason).toContain('.agents/local/tmp/');
+    expect(decision.permissionDecisionReason).toContain('guard.toolOwnedPaths');
+    expect(decision.permissionDecisionReason).toContain('Nothing was written');
+    expect(decision.permissionDecisionReason).not.toContain('confirm only if');
+  });
+
+  test('ask keeps asking, the same as no setting', async () => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root: askRoot,
+      stdin: bash({ command: 'echo x > /var/tmp/vulcan-outside-test', cwd: askRoot }),
+    });
+
+    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+  });
+
+  test('a store listed in guard.toolOwnedPaths and a write inside the project still pass', async () => {
+    const listed = await runHook({
+      hook: 'guard-outside',
+      root: denyRoot,
+      stdin: bash({ command: 'touch /srv/store/a.bin', cwd: denyRoot }),
+    });
+    const inside = await runHook({
+      hook: 'guard-outside',
+      root: denyRoot,
+      stdin: bash({ command: 'mkdir -p .agents/local/tmp/x', cwd: denyRoot }),
+    });
+
+    expect(listed).toEqual({ code: 0, stdout: '' });
+    expect(inside).toEqual({ code: 0, stdout: '' });
+  });
+
+  test('a config that cannot be read leaves the default, so the call is asked, not denied', async () => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root: brokenRoot,
+      stdin: bash({ command: 'echo x > /var/tmp/vulcan-outside-test', cwd: brokenRoot }),
+    });
+
+    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+  });
+});
+
 describe('the subagent-start hook', () => {
   const root = createProject({
     files: { '.configs/vulcan.config.mts': CONFIG, '.agents/rules.md': '# r\n' },

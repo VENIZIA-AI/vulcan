@@ -1,6 +1,7 @@
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import { LayoutFolder } from '../common/layout-folder.ts';
+import { GuardDecisions } from '../hooks/common/constants.ts';
 import { OWNER_SCHEMA } from '../owner/schema.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import type { TAgentSignaturePolicy } from '../commit/common/index.ts';
@@ -434,11 +435,14 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    * read, and `vulcan sync` writes those entries to the manifest. `writes.commands` adds the
    * project's own deploy and migrate commands to what guard-writes asks about (a pattern, matched inside
    * compound commands too), and `git.askPush` lists the branches a plain `git push` asks about; `vulcan sync`
-   * writes both to the manifest, where the hooks read them.
+   * writes both to the manifest, where the hooks read them. `outside` is what `guard-outside` does with a
+   * write outside the project: `ask` (the default) or `deny`. Where the agent runs in an auto mode an ask can be
+   * approved without the owner seeing it, so a project that wants the line held sets `deny`.
    */
   guard: z
     .strictObject({
       toolOwnedPaths: z.array(z.string().min(1)).default([]),
+      outside: z.enum([GuardDecisions.ASK, GuardDecisions.DENY]).default(GuardDecisions.ASK),
       writes: z
         .strictObject({
           trustedScripts: z.array(TRUSTED_SCRIPT).default([]),
@@ -449,6 +453,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     })
     .default({
       toolOwnedPaths: [],
+      outside: GuardDecisions.ASK,
       writes: { trustedScripts: [], commands: [] },
       git: { askPush: [] },
     }),
