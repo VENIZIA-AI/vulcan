@@ -10,12 +10,12 @@ packages: ['@venizia/vulcan']
 
 <Badge type="tip" text="Bug Fix" />
 
-**In one line.** When the installed VULCAN cannot parse `.configs/vulcan.config.mts` (a key from a newer release, because the schema is strict), the hooks that read it now say so and name the first problem, instead of using the defaults silently.
+**In one line.** When the installed VULCAN cannot parse `.configs/vulcan.config.mts` (a key from a newer release, because the schema is strict), the session now says so and names the first problem, instead of using the defaults silently.
 
 ## What changed
 
 - **`guard-outside`.** It still falls back to `ask` when the config cannot be read, because a configured `deny` cannot be known. It now prints the reason on stderr and adds it to the question it asks, so a `deny` that was weakened to an `ask` is visible.
-- **`guard-writes` and the owner-reply check.** Each prints one line on stderr when it falls back to defaults (`guard-writes` then reads every script, the stricter choice).
+- **`guard-writes`, the owner-reply check and `vulcan add`.** Each writes one line on stderr when it falls back to defaults (`guard-writes` then reads every script, the stricter choice). A hook that exits 0 may not have its stderr shown to you, so the two places that always reach the session are the question `guard-outside` asks and the digest.
 - **The session digest.** It shows a `Config problem` section with the first issue, and its rule table says `unknown` for the choices it could not read, not `not chosen`.
 - **A project with no config** is unchanged: nothing was ignored, so nothing is said.
 
