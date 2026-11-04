@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { EnvVariables } from '../common/env-variables.ts';
 import { BASE_DIRECTORY } from '../common/paths.ts';
 import { RecordValue } from '../common/record.ts';
 import { EventLog } from '../events/log.ts';
@@ -23,7 +24,7 @@ export interface IAutoCleanStamp {
  */
 export class LocalAutoClean {
   static readonly STAMP = '.agents/local/auto-clean.json';
-  static readonly OFF_ENV = 'VULCAN_AUTO_CLEAN';
+  static readonly OFF_ENV = EnvVariables.VULCAN_AUTO_CLEAN;
   static readonly SCRIPT = join('hooks', 'auto-clean.ts');
 
   /** On unless the project's manifest says `local.autoClean: false`, or the environment says `VULCAN_AUTO_CLEAN=off`. */

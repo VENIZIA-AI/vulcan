@@ -10,8 +10,11 @@ const SHAPE = z.custom<string>((value) => typeof value === 'string' && BoardShap
 export const BOARD_AGENT = z.union([
   SHAPE,
   z.strictObject({
+    /** Face of the agent: `bun`, `flame`, `ember`, `rock` or `banana`. */
     shape: SHAPE.optional(),
+    /** Name of another listed agent this one is shown under on its card; at least one character, and that agent has no lane of its own. */
     lane: z.string().min(1).optional(),
+    /** What the card says the agent is; trimmed, 1 to 60 characters. */
     role: z.string().trim().min(1).max(BoardConstants.ROLE_MAX).optional(),
   }),
 ]);

@@ -180,3 +180,129 @@ describe('symbol tool', () => {
     expect(reply.error?.message).toBe('no symbol table in this build');
   });
 });
+
+describe('symbol tool: the declaration', () => {
+  const withText = (opts: Partial<ISymbolRecord> & { name: string }): ISymbolRecord =>
+    record({ shape: `shape-${opts.name}`, declaration: `declare ${opts.name};`, ...opts });
+
+  const serve = (opts: { records: ISymbolRecord[]; name: string }) =>
+    callSymbol({
+      symbols: new SymbolStore({ symbols: opts.records, packageMap: IGNIS_PACKAGE_MAP }),
+      args: { name: opts.name },
+    }).then(payloadOf);
+
+  test('a record without a declaration answers as before', async () => {
+    const payload = await serve({ records: [record({ name: 'plain' })], name: 'plain' });
+
+    expect(payload.declaration).toBeUndefined();
+    expect(payload.doc).toBeUndefined();
+    expect(payload.uses).toBeUndefined();
+  });
+
+  test('the declaration is served outside the budget of the rest, and `uses` is not', async () => {
+    const payload = await serve({
+      records: [
+        withText({ name: 'big', declaration: `/** Big. */\n${'x'.repeat(3000)}`, uses: ['B'] }),
+      ],
+      name: 'big',
+    });
+
+    expect(payload.declaration.startsWith('/** Big. */')).toBe(true);
+    expect(payload.uses).toBeUndefined();
+    expect(payload.truncated).toBeUndefined();
+  });
+
+  test('the declarations it uses follow, nearest first, small before large, each named', async () => {
+    const records = [
+      withText({ name: 'Root', uses: ['Large', 'Small'] }),
+      withText({ name: 'Large', declaration: `declare Large;${' '.repeat(500)}` }),
+      withText({ name: 'Small', uses: ['Deep'] }),
+      withText({ name: 'Deep' }),
+    ];
+    const { declaration } = await serve({ records, name: 'Root' });
+
+    expect(declaration.indexOf('declare Root;')).toBe(0);
+    expect(declaration.indexOf('// Small')).toBeLessThan(declaration.indexOf('// Large'));
+    expect(declaration).toContain('// Deep (@venizia/ignis-helpers)\ndeclare Deep;');
+  });
+
+  test('a used declaration follows only three steps from the asked one', async () => {
+    const records = ['A', 'B', 'C', 'D', 'E'].map((name, at, all) =>
+      withText({ name, uses: all[at + 1] === undefined ? [] : [all[at + 1]] }),
+    );
+    const { declaration } = await serve({ records, name: 'A' });
+
+    expect(declaration).toContain('// D ');
+    expect(declaration).not.toContain('// E ');
+  });
+
+  test('what does not fit the budget is left out and the reply says so', async () => {
+    const records = [
+      withText({ name: 'Root', uses: ['Huge', 'Fits'] }),
+      withText({ name: 'Huge', declaration: 'h'.repeat(12_000) }),
+      withText({ name: 'Fits' }),
+    ];
+    const payload = await serve({ records, name: 'Root' });
+
+    expect(payload.declaration).toContain('// Fits');
+    expect(payload.declaration).not.toContain('// Huge');
+    expect(payload.truncated).toBe(true);
+    expect(payload.declaration.length).toBeLessThanOrEqual(10_000);
+  });
+
+  test('a declaration a few characters over the budget is cut, inside the budget, and says so', async () => {
+    const lines = Array.from({ length: 1000 }, () => 'abcdefghij;').join('\n');
+    const payload = await serve({
+      records: [withText({ name: 'Edge', declaration: `${lines.slice(0, 10_005)}` })],
+      name: 'Edge',
+    });
+
+    expect(payload.truncated).toBe(true);
+    expect(payload.declaration.length).toBeLessThanOrEqual(10_000);
+  });
+
+  test('a used declaration already shown with an earlier block adds no empty header', async () => {
+    const records = [
+      withText({ name: 'Root', declaration: 'shared paragraph\n\nroot', uses: ['Twin'] }),
+      withText({ name: 'Twin', declaration: 'shared paragraph' }),
+    ];
+    const { declaration } = await serve({ records, name: 'Root' });
+
+    expect(declaration).not.toContain('// Twin');
+  });
+
+  test('an own declaration over the budget is cut at a line and marked', async () => {
+    const lines = Array.from({ length: 2000 }, (_, at) => `member${at}: string;`).join('\n');
+    const payload = await serve({
+      records: [withText({ name: 'Wide', declaration: lines })],
+      name: 'Wide',
+    });
+
+    expect(payload.truncated).toBe(true);
+    expect(payload.declaration.endsWith('// ... cut')).toBe(true);
+    expect(payload.declaration.length).toBeLessThanOrEqual(10_000 + 20);
+  });
+
+  test('a name exported by two packages with one shape is spelled out once', async () => {
+    const records = [
+      withText({
+        name: 'Both',
+        shape: 'same',
+        package: '@venizia/ignis',
+        specifier: '@venizia/ignis',
+      }),
+      withText({
+        name: 'Both',
+        shape: 'same',
+        package: '@venizia/ignis-kernel',
+        specifier: '@venizia/ignis-kernel',
+      }),
+    ];
+    const payload = await serve({ records, name: 'Both' });
+    const [first, second] = payload.matches;
+
+    expect(first.declaration).toContain('declare Both;');
+    expect(second.declaration).toBeUndefined();
+    expect(second.declarationOf).toBe(first.specifier);
+  });
+});

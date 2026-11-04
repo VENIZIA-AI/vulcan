@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { GOLDEN_QUESTIONS, GoldenImprovements } from './golden-questions';
+import { GOLDEN_QUESTIONS } from './golden-questions';
 import { GoldenProjects, GoldenRunner, GoldenVerdicts } from './golden.helper';
 import type { IGoldenQuestion, TGoldenVerdict } from './golden.helper';
 
@@ -24,7 +24,7 @@ describe('golden questions: the mechanism, on the acme fixture', () => {
   test('a question marked open, with no text that answers it, stays open', async () => {
     const question = acmeQuestion({
       holds: ['a sentence no page has'],
-      closedBy: GoldenImprovements.DECLARATIONS,
+      closedBy: 'an improvement not made yet',
     });
 
     const result = await GoldenRunner.verdictOf({ question });
@@ -34,7 +34,7 @@ describe('golden questions: the mechanism, on the acme fixture', () => {
   test('a question marked open that is now answered is stale: the improvement removes the mark', async () => {
     const question = acmeQuestion({
       holds: ['boots the flywheel engine'],
-      closedBy: GoldenImprovements.DECLARATIONS,
+      closedBy: 'an improvement not made yet',
     });
 
     const result = await GoldenRunner.verdictOf({ question });

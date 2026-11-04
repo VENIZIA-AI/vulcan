@@ -18,23 +18,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import type TypeScript from 'typescript';
 import { PublicSurface } from '@/surface';
+import type { ISymbolRecord } from './common';
+import { DeclarationText } from './declaration-text';
 
 const SIGNATURE_MAX_CHARS = 300;
 const SHAPE_LENGTH = 12;
-
-/** One exported symbol, located in the source it was written in - never in the `dist` it was read from. */
-interface ISymbolRecord {
-  name: string;
-  package: string;
-  subpath: string;
-  specifier: string;
-  kind: string;
-  file: string;
-  line: number;
-  signature: string;
-  /** Present and true when `file` points inside `node_modules`: the export re-exports a third-party declaration, so the path is an install detail, not repository source. */
-  external?: boolean;
-}
 
 interface ISymbolTable {
   generatedFrom: string;
@@ -319,6 +307,13 @@ export class AtlasSymbols {
         ? AtlasSymbols.locationOf({ repoRoot, declaration })
         : { file: repoRelative({ repoRoot, path: file }), line: 1 };
 
+      const isExternal = location.file.includes('node_modules');
+      const text =
+        declaration !== undefined &&
+        !isExternal &&
+        !TypeScriptCompiler.get().isSourceFile(declaration)
+          ? DeclarationText.of({ declaration, checker })
+          : undefined;
       const record: ISymbolRecord = {
         name: symbol.getName(),
         package: packageName,
@@ -331,9 +326,12 @@ export class AtlasSymbols {
           ? AtlasSymbols.collapseSignature({ text: AtlasSymbols.signatureOf({ declaration }) })
           : '',
         ...(declaration ? { shape: AtlasSymbols.shapeOf({ declaration }) } : {}),
+        ...(text === undefined
+          ? {}
+          : { declaration: text.declaration, doc: text.doc, uses: text.uses }),
       };
 
-      return location.file.includes('node_modules') ? { ...record, external: true } : record;
+      return isExternal ? { ...record, external: true } : record;
     });
   }
 
