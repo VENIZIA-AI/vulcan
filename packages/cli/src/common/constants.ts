@@ -54,6 +54,10 @@ export class ProjectLayout {
   /** `-include`: a fresh clone runs `make install` before node_modules exists. */
   static readonly MAKE_INCLUDE_LINE = '-include node_modules/@venizia/vulcan/base/make/vulcan.mk';
   static readonly STYLE_PACKAGE = '@venizia/dev-configs';
+  /** The one list of secret files, for `.gitignore` and for `.dockerignore`: the `.env` files stay out of git and out of every image, the example stays in. */
+  static readonly SECRET_PATTERNS = ['**/.env', '**/.env.*', '!**/.env.example'];
+  /** The default `remoteHosts.localFile`: a person's own hosts, ignored by git. */
+  static readonly TRUSTED_HOSTS_FILE = '.agents/hooks/trusted-hosts.local';
   static readonly GITIGNORE_ENTRIES = [
     'CLAUDE.md',
     'CLAUDE.*.md',
@@ -61,6 +65,8 @@ export class ProjectLayout {
     '.agents/plans',
     '.agents/vulcan.local.json',
     '.agents/local/',
+    ...ProjectLayout.SECRET_PATTERNS,
+    ProjectLayout.TRUSTED_HOSTS_FILE,
   ];
   /** Everything an agent creates while it works lives under here, gitignored: nothing goes outside the project. */
   static readonly LOCAL_DIRECTORY = '.agents/local';
@@ -78,6 +84,8 @@ export class ProjectLayout {
     { name: 'reports', lifetime: 'kept', removedWhen: 'the user deletes it' },
     { name: 'prototypes', lifetime: 'kept', removedWhen: 'the user deletes it' },
     // On demand: sync does not create these; the folder appears when something writes there.
+    // `agents/<name>/` is the home of one agent's own state; `clean` never takes it.
+    { name: 'agents', lifetime: 'kept', removedWhen: 'the user deletes it', onDemand: true },
     { name: 'events', lifetime: 'kept', removedWhen: 'the user deletes it', onDemand: true },
     {
       name: 'release-candidates',

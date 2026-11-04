@@ -37,7 +37,7 @@ const LAYER_FILES = [
 /** `make dev` is the one command the Done message promises; the shipped Makefile has no such target. */
 const DEV_TARGET = '\ndev:\n\t@bun run dev\n';
 
-const BASE_IGNORES = ['node_modules/', 'dist/', '.env', '*.tsbuildinfo'];
+const BASE_IGNORES = ['node_modules/', 'dist/', '*.tsbuildinfo'];
 
 const fail = (opts: { message: string }): number => {
   process.stderr.write(`vulcan init: ${opts.message}\n`);
