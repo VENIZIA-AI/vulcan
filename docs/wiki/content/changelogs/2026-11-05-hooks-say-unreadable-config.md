@@ -17,7 +17,7 @@ packages: ['@venizia/vulcan']
 
 - **The guards read the manifest.** `vulcan sync` now writes `guard.outside` (when it is `deny`), `guard.toolOwnedPaths` and the path entries of `guard.writes.trustedScripts` into the `guard` block of `.agents/vulcan.manifest.json`, next to the commands and read-only scripts it already carried. `guard-outside` and `guard-writes` read that block and no longer load the config, so a config the installed VULCAN cannot parse changes no guard. Before, `deny` became `ask` and no script was trusted, silently.
 - **The session says so.** The session digest shows a `Config problem` section with the first issue, and its rule table says `unknown` for the choices it could not read, not `not chosen`. The owner-reply check and the preset menu of `vulcan add` write one line on stderr when they fall back to defaults. A project with no config is unchanged.
-- **A change to these settings takes effect at the next `sync`**, as the commands of the guards already did.
+- **A change to these settings takes effect at the next `sync`**, as the commands of the guards already did. That includes narrowing them: removing a `toolOwnedPaths` entry or setting `outside` back to `ask` in the config changes nothing for the guards until you run `sync`. A manifest that is corrupt still makes `guard-outside` fall back to `ask`, with one line on stderr.
 
 ## Who is affected
 

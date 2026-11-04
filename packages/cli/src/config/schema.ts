@@ -444,7 +444,9 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    * read, and `vulcan sync` writes those entries to the manifest. `writes.commands` adds the
    * project's own deploy and migrate commands to what guard-writes asks about (a pattern, matched inside
    * compound commands too), and `git.askPush` lists the branches a plain `git push` asks about; `vulcan sync`
-   * writes both to the manifest, where the hooks read them. `outside` is what `guard-outside` does with a
+   * writes both to the manifest, where the hooks read them, and writes `outside` (when it is `deny`),
+   * `toolOwnedPaths` and the path entries of `writes.trustedScripts` there too, so a config this VULCAN cannot
+   * parse changes no guard. `outside` is what `guard-outside` does with a
    * write outside the project: `ask` (the default) or `deny`. Where the agent runs in an auto mode an ask can be
    * approved without the owner seeing it, so a project that wants the line held sets `deny`.
    */
