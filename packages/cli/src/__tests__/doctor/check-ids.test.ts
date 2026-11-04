@@ -23,9 +23,12 @@ describe('every doctor check id is documented', () => {
     expect(missing.map((index) => lines[index].trim())).toEqual([]);
   });
 
-  test('the doctor page names every id', () => {
+  test('the doctor page has a table row for every id', () => {
     const page = readFileSync(PAGE, 'utf8');
-    const unnamed = Object.values(DoctorChecks).filter((id) => !page.includes(`\`${id}\``));
+    const rows = page.split('\n');
+    const unnamed = Object.values(DoctorChecks).filter(
+      (id) => !rows.some((row) => row.startsWith(`| \`${id}\``)),
+    );
 
     expect(unnamed).toEqual([]);
   });
