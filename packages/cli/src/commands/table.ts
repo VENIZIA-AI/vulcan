@@ -35,7 +35,7 @@ export interface ICommandSpec {
   passthrough?: true;
 }
 
-/** Every command in one table: `help` prints it, the router takes its accepted arguments from it, and the generated reference reads it. */
+/** Every command in one table: `vulcan help` prints its blocks and the router takes its accepted arguments from it; the generated command reference is to read the flag descriptions and exit codes. */
 export class CommandTable {
   static readonly COMMANDS: Record<string, ICommandSpec> = {
     [VulcanCommands.INIT]: {
@@ -159,7 +159,7 @@ export class CommandTable {
         [BoardFlags.OUT]: 'The file to write; default .agents/local/reports/board.html',
         [BoardFlags.PORT]: 'serve only: the port to listen on; default 4317',
         [BoardFlags.SINCE]: 'Read events and pull requests changed at or after this date',
-        [CreateFlags.DIR]: 'The events folder; default events.dir, else .agents/local/events',
+        [BoardFlags.DIR]: 'The events folder; default events.dir, else .agents/local/events',
         [BoardFlags.REPO]: 'A GitHub repository, owner/name; repeat it to read several',
       },
       positionals: 1,
@@ -179,7 +179,7 @@ export class CommandTable {
       values: {
         [CiFlags.BASE]: 'The commit to compare with; required',
         [CiFlags.HEAD]: 'The commit that holds the change; default HEAD',
-        [CreateFlags.CHECK]: 'Keep only packages with this check: typecheck, lint, test or compile',
+        [CiFlags.CHECK]: 'Keep only packages with this check: typecheck, lint, test or compile',
       },
       positionals: 2,
       unknownExit: ExitCodes.USAGE,
@@ -191,7 +191,7 @@ export class CommandTable {
                                   read it; with events.log on, sync installs the Claude Code hooks that
                                   write it; exit 2 on bad input`,
       flags: {
-        [CiFlags.JSON]: 'Print each line as written (tail)',
+        [EventFlags.JSON]: 'Print each line as written (tail)',
       },
       values: {
         [EventFlags.KIND]: 'One of the twelve event kinds',
@@ -199,9 +199,9 @@ export class CommandTable {
         [EventFlags.FLOW]: 'The id of a flow the log already has',
         [EventFlags.STEP]: 'Flow only, repeatable: a step still to do',
         [EventFlags.STEP_DONE]: 'Flow only, repeatable: a step done',
-        [CreateFlags.CHECK]: 'Flow only, repeatable: an acceptance check still open',
+        [EventFlags.CHECK]: 'Flow only, repeatable: an acceptance check still open',
         [EventFlags.CHECK_DONE]: 'Flow only, repeatable: an acceptance check done',
-        [CreateFlags.APP]: 'Flow only, repeatable: an app or module the flow touches',
+        [EventFlags.APP]: 'Flow only, repeatable: an app or module the flow touches',
         [EventFlags.DUE]: 'Flow only: the day it is due, YYYY-MM-DD',
         [EventFlags.REF]: 'A commit, a PR number, a recipient, or a tracker id',
         [EventFlags.STATUS]: 'approve, park or reject; required on a decision',
@@ -210,8 +210,8 @@ export class CommandTable {
         [EventFlags.CONTEXT]: 'Flow only: two to four sentences on what the flow is',
         [EventFlags.NEXT]: 'Flow only: the next step and who does it',
         [EventFlags.ACTOR]: 'Who wrote the event; else VULCAN_ACTOR or the session name',
-        [CreateFlags.DIR]: 'The events folder for this call, over events.dir',
-        [BoardFlags.SINCE]: 'tail only: print events at or after this time; default 24 hours',
+        [EventFlags.DIR]: 'The events folder for this call, over events.dir',
+        [EventFlags.SINCE]: 'tail only: print events at or after this time; default 24 hours',
       },
       positionals: 1,
       unknownExit: ExitCodes.USAGE,
