@@ -914,6 +914,25 @@ describe('BoardFold.fromLog: the direction of a message', () => {
     expect(log.events[2]).toMatchObject({ incoming: true });
     expect(log.events[2].from).toBeUndefined();
   });
+
+  test('a received line never carries a recipient, even when its ref names one', () => {
+    const log = BoardFold.fromLog({
+      events: [
+        line({
+          minute: 1,
+          kind: 'msg-received',
+          actor: 'a',
+          flow: 'F-1',
+          summary: 'r',
+          ref: 'to:c',
+        }),
+      ],
+    });
+
+    expect(log.events[0]).toMatchObject({ kind: 'msg', incoming: true });
+    expect(log.events[0].to).toBeUndefined();
+    expect(log.events[0].from).toBeUndefined();
+  });
 });
 
 describe('BoardFold.fold: a flow line only names the flow', () => {
