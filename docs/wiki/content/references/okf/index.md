@@ -6,7 +6,7 @@ description: Validate, generate, inspect coverage, and visualize knowledge bundl
 # okf
 
 `okf` manages knowledge bundles in Open Knowledge Format (OKF) v0.2.
-You run commands through `vulcan x okf <command>`.
+You run commands through `vulcan x okf <command>`. Run it at the project root: it reads `.configs/vulcan.config.mts` of the current folder, and without that file `okf` stops with the error `okf: no project config`.
 
 | Command | What it does | Exit codes |
 |---|---|---|
@@ -174,6 +174,8 @@ House style rules run over every markdown file in the bundle, index and log incl
    ```text
    changelog: <path> declares no packages - add `packages: [<npm name>, ...]` to its frontmatter (`packages: []` for an entry about no package)
    ```
+
+   The check runs only when `knowledge.changelogs` is set. A `release:` override lists the tags with `git tag --list`, so `git` must be on the `PATH` and the tags must be in the clone.
 
 ## gen
 

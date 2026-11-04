@@ -47,6 +47,8 @@ vulcan doctor: 1 violation(s)
 
 The command exits with code 1.
 
+**Upgrading.** The schema is strict, so a key that a newer release added is an unknown key to an older `vulcan`. Upgrade first: run `bun x --no-install vulcan upgrade`, commit the lockfile, make sure every machine and CI job has installed that version, and only then add the new key to the config. While the installed `vulcan` cannot read the config, the guard hooks cannot read it either: each one falls back to its own defaults (for example `guard.outside: 'deny'` then acts as `ask`, and no script is trusted). `vulcan doctor` shows that the config is unreadable, so run it after you pull a change to the config.
+
 The table below lists the top-level configuration keys:
 
 | Key | Type | Default | What it controls |
@@ -74,7 +76,7 @@ The table below lists the top-level configuration keys:
 
 The `name` property assigns the project identifier written to `.agents/vulcan.manifest.json`. It appears as the `source` of every atlas result and names the server `<name>-atlas`.
 
-If you omit `name`, VULCAN uses the root `package.json` name without scope and without `-workspace`. When `package.json` has no name, VULCAN uses the root directory name.
+If you omit `name`, VULCAN uses the root `package.json` name without scope and without `-workspace`. When `package.json` has no name, VULCAN uses the root directory name. The derived name is lower-cased.
 
 The value must match the regular expression `/^[a-z0-9][a-z0-9-]*$/`. It allows lowercase letters, digits, and hyphens, and must start with a lowercase letter or digit.
 
@@ -862,6 +864,25 @@ export default {
   },
 } satisfies VulcanConfig;
 ```
+
+## Environment variables
+
+The variables the cli reads. The atlas server has variables of its own (`VULCAN_ATLAS_*`, `VULCAN_NPM_REGISTRY`, `VULCAN_GITHUB_API_URL`, `VULCAN_GITHUB_URL`, `VULCAN_CODELOAD_URL`); they are not listed here. A variable set to `off` means exactly the word `off`.
+
+| Variable | Read by | What it does |
+|---|---|---|
+| `VULCAN_ACTOR` | `vulcan event add`, the event hook | The name of the writer of an event line; it wins over the name Claude Code gave the session (see [vulcan event](/references/commands/event)) |
+| `VULCAN_AUTO_CLEAN` | the session-start hook | `off` turns the daily automatic clean of `.agents/local/` off for the shell (see [local](#local)) |
+| `VULCAN_OWNER_REPLY` | the hooks | `off` takes the session out of the owner reply shape; an agent that starts a session sets it, an owner who exported it by mistake is told by `vulcan doctor` (see [owner](#owner)) |
+| `VULCAN_GUARDS` | the guard hooks | `off` switches the guards off for one session; set it only for the command that needs it (see [Hooks and guards](/guides/core-concepts/hooks-and-guards)) |
+| `VULCAN_NO_INSTALL` | `init`, `add`, `upgrade` | `1` prints the install, `git init`, `sync` and the checks as `skipped` and writes the files; VULCAN's own tests use it |
+| `VULCAN_CONFIG`, `VULCAN_MANIFEST`, `VULCAN_PROJECT_ROOT` | `okf` and `atlas` | Set by `vulcan x` for the tool it starts: the resolved config as JSON, the manifest rendered fresh, the project root (see [vulcan x](/references/commands/#x)) |
+| `VULCAN_BUN`, `VULCAN_GIT` | `init`, `add` | Replace the `bun` and `git` those commands run; for tests |
+| `VULCAN_DIST_TAGS` | `upgrade` | The dist-tags as JSON in place of the registry read of `--nightly`; for tests |
+| `CLAUDE_PROJECT_DIR` | the hooks | The project root, set by Claude Code; without it the hooks use the working directory |
+| `CLAUDE_CODE_TMPDIR` | `doctor`, the session-start hook | Where Claude Code puts its task output; the launch file points it at `.agents/local/tmp` and `doctor` warns when it does not (see [Agents](/references/agents)) |
+| `CLAUDE_ENV_FILE` | the session-start hook | The file Claude Code hands a start hook to export variables from; the hook appends `export TMPDIR=<project>/.agents/local/tmp` |
+| `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CONFIG_DIR` | the event hook | The session id, and the folder whose `sessions/*.json` names the session (default `~/.claude`), to find the session's name |
 
 ## See also
 

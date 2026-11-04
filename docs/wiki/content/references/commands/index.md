@@ -104,6 +104,8 @@ To update the package, `vulcan upgrade` runs `bun add --dev --exact @venizia/vul
 When the installation succeeds, the command spawns `node_modules/.bin/vulcan sync` as a child process.
 Spawning a child process ensures the newly installed version generates adapters matching the new base rules.
 
+Upgrade before you use a new config key. The config schema is strict, so a key from the version you are upgrading to is unreadable to the version you have now; see the Upgrading paragraph of [the configuration page](/references/configuration/) for what the hooks do meanwhile.
+
 ### Argument forms
 
 `--stable` is the default. Choose the channel with a flag, or name a version. The channel is never stored in the config.

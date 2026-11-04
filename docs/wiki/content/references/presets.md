@@ -235,6 +235,8 @@ bun x @venizia/vulcan init --preset file:../acme-api --project demo --backend-di
 ```
 
 With `file:`, the preset package itself is written to the catalog as `file:<absolute path>`, so the generated app installs from your folder.
+
+`--preset` takes `<name>` (an unscoped name is `@venizia/<name>`), `<name>@<range>`, `@scope/<name>` or `file:<path>`. `init --preset` creates a new project folder and refuses one that exists and is not empty; see [vulcan init](/references/commands/init).
 Run it without `VULCAN_NO_INSTALL`: a good preset ends with the checks, `vulcan doctor` and `okf check --strict` all green.
 
 To test the format without an install, set `VULCAN_NO_INSTALL=1`. The install, `git init`, `sync` and the checks then print as `skipped`, and the files are still written.

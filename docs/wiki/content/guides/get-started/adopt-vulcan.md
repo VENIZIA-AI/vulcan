@@ -286,6 +286,8 @@ bun x --no-install vulcan doctor
 ```
 
 Running `vulcan doctor` before `vulcan sync` fails because gitignored adapters do not exist yet.
+
+With no terminal and no stored choice, `sync` takes `claude` and says so. The choice of agents lives in the gitignored `.agents/vulcan.local.json`, so a CI checkout never has it: a project whose config lists no `agents` gets only the Claude adapters in CI. Pass `--agents <list>` to `sync` to get others.
 For CI details and output capture, see the [doctor reference](/references/commands/doctor).
 
 ## Upgrade later
@@ -301,6 +303,8 @@ Without a version argument, `vulcan upgrade` installs the stable `latest` releas
 ```bash
 bun x --no-install vulcan upgrade --nightly
 ```
+
+From an installed prerelease, `latest` can be an older version, so a plain `upgrade` prints a note first; `--stable` is the name of that default, and `--nightly` keeps the prerelease line.
 
 The command installs the target release and runs `vulcan sync` with the newly installed CLI.
 Commit `.agents/vulcan.manifest.json` if it changed.
