@@ -434,3 +434,109 @@ describe('CommitHook.stateOf, what vulcan doctor reports', () => {
     );
   });
 });
+
+describe('CommitHookPlan: a repository has one hook and it belongs to the project that wrote it', () => {
+  const nested = (): { top: string; sandbox: string } => {
+    const top = repo();
+    const sandbox = join(top, 'sandbox');
+
+    mkdirSync(sandbox, { recursive: true });
+
+    return { top, sandbox };
+  };
+
+  test('a project inside the repository, with the check off, does not remove the hook of the top level', () => {
+    const { top, sandbox } = nested();
+
+    planOf({ root: top, config: DENY })[0].apply();
+
+    const before = readFileSync(hookFile({ root: top }), 'utf8');
+
+    expect(planOf({ root: sandbox, config: OFF })).toEqual([]);
+    expect(readFileSync(hookFile({ root: top }), 'utf8')).toBe(before);
+  });
+
+  test('a project inside the repository, with the check on, does not rewrite the hook of the top level', () => {
+    const { top, sandbox } = nested();
+
+    planOf({ root: top, config: DENY })[0].apply();
+
+    const before = readFileSync(hookFile({ root: top }), 'utf8');
+    const [action] = planOf({ root: sandbox, config: DENY });
+
+    expect(action.status).toBe(SyncStatuses.SKIPPED);
+    expect(action.note).toContain('the project at the top of the repository');
+
+    action.apply();
+
+    expect(readFileSync(hookFile({ root: top }), 'utf8')).toBe(before);
+  });
+
+  test('the top level does not take back or rewrite the hook of a project inside it', () => {
+    const { top, sandbox } = nested();
+
+    planOf({ root: sandbox, config: DENY })[0].apply();
+
+    const before = readFileSync(hookFile({ root: top }), 'utf8');
+    const [action] = planOf({ root: top, config: DENY });
+
+    expect(before).toContain('[sandbox]');
+    expect(action.status).toBe(SyncStatuses.SKIPPED);
+    expect(action.note).toContain('the project in sandbox');
+    expect(planOf({ root: top, config: OFF })).toEqual([]);
+    expect(readFileSync(hookFile({ root: top }), 'utf8')).toBe(before);
+  });
+
+  test('a project keeps its own hook up to date and takes it back when the check goes off', () => {
+    const { top, sandbox } = nested();
+
+    planOf({ root: sandbox, config: DENY })[0].apply();
+
+    expect(planOf({ root: sandbox, config: DENY })[0].status).toBe(SyncStatuses.UNCHANGED);
+
+    const [removal] = planOf({ root: sandbox, config: OFF });
+
+    expect(removal.status).toBe(SyncStatuses.REMOVED);
+
+    removal.apply();
+
+    expect(existsSync(hookFile({ root: top }))).toBe(false);
+  });
+
+  test("a hook of an earlier release has no folder and is the top level's", () => {
+    const { top, sandbox } = nested();
+
+    write({
+      path: hookFile({ root: top }),
+      text: '#!/bin/sh\n# vulcan:commit-msg - old\necho old\n',
+    });
+
+    expect(planOf({ root: sandbox, config: OFF })).toEqual([]);
+    expect(planOf({ root: sandbox, config: DENY })[0].status).toBe(SyncStatuses.SKIPPED);
+    expect(planOf({ root: top, config: DENY })[0].status).toBe(SyncStatuses.REPLACED);
+    expect(planOf({ root: top, config: OFF })[0].status).toBe(SyncStatuses.REMOVED);
+  });
+
+  test('the doctor state of a hook that belongs to another project is unwired, with the reason', () => {
+    const { top, sandbox } = nested();
+
+    planOf({ root: top, config: DENY })[0].apply();
+
+    const state = CommitHook.stateOf({ root: sandbox, config: DENY });
+
+    expect(state.state).toBe(CommitHookStates.UNWIRED);
+    expect(state.note).toContain('belongs to');
+  });
+});
+
+describe('CommitHook.ownerOf', () => {
+  test.each([
+    ['#!/bin/sh\n# vulcan:commit-msg [] - x\n', ''],
+    ['#!/bin/sh\n# vulcan:commit-msg [apps/web] - x\n', 'apps/web'],
+    ['#!/bin/sh\n# vulcan:commit-msg - x\n', ''],
+    ['#!/bin/sh\necho mine\n# vulcan:commit-msg [a]\n', undefined],
+    ['#!/bin/sh\n# something else\n', undefined],
+  ])('%j is owned by %j', (text, owner) => {
+    expect(CommitHook.ownerOf({ text })).toBe(owner);
+  });
+});
