@@ -7,6 +7,7 @@
 import { readdirSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectConfig } from '@/common/project-config';
+import type { IAtlasProject } from '@/common/project-config';
 import type { ISymbolRecord } from '@/symbols';
 import { DeclarationText } from '@/symbols/declaration-text';
 import { SymbolCompute } from '@/symbols/compute';
@@ -26,6 +27,23 @@ export class ApiReference {
   static readonly INDEX_FILE = 'index.md';
   private static readonly GENERATED_NOTE =
     'Generated from the built declarations by `vulcan x atlas api gen` - do not edit.';
+
+  /** A file this command wrote carries its note; a page someone wrote by hand in the same folder does not. */
+  static isGenerated(opts: { text: string }): boolean {
+    return opts.text.includes(ApiReference.GENERATED_NOTE);
+  }
+
+  /**
+   * The exports that have a declaration to document and no TSDoc on it, for each entry that has any. A re-export of a
+   * third-party declaration or of a whole module has none of its own, and an `@internal` export is not public.
+   */
+  static undocumentedOf(opts: {
+    records: ISymbolRecord[];
+  }): { specifier: string; names: string[] }[] {
+    return ApiReference.pagesOf(opts)
+      .filter((page) => page.undocumented.length > 0)
+      .map((page) => ({ specifier: page.specifier, names: page.undocumented }));
+  }
 
   /** An export whose TSDoc says `@internal` is not public API: it has no page section and is not counted. */
   static isInternal(opts: { record: ISymbolRecord }): boolean {
@@ -102,7 +120,14 @@ export class ApiReference {
       })
       .map(([file]) => file);
 
-    return [...stale, ...present.filter((name) => !opts.expected.has(name))].sort();
+    // A file that is not in the generated set and was not generated is someone's own page: never stale, never removed.
+    const removed = present.filter(
+      (name) =>
+        !opts.expected.has(name) &&
+        ApiReference.isGenerated({ text: readFileSync(join(opts.directory, name), 'utf8') }),
+    );
+
+    return [...stale, ...removed].sort();
   }
 
   /** Prose from a TSDoc comment made safe for the wiki: markup it did not mean is escaped outside code. */
@@ -145,7 +170,7 @@ export class ApiReference {
       left.name.localeCompare(right.name, 'en'),
     );
     const undocumented = records
-      .filter((record) => !record.external && (record.doc ?? '') === '')
+      .filter((record) => record.declaration !== undefined && (record.doc ?? '') === '')
       .map((record) => record.name);
     const sections = records.map((record) => ApiReference.sectionOf({ record }));
     const gap =
@@ -163,8 +188,8 @@ export class ApiReference {
       undocumented,
       text: [
         '---',
-        `title: ${opts.specifier}`,
-        `description: Every export of ${opts.specifier}, from the built declarations (generated).`,
+        `title: ${JSON.stringify(opts.specifier)}`,
+        `description: ${JSON.stringify(`Every export of ${opts.specifier}, from the built declarations (generated).`)}`,
         '---',
         '',
         `# \`${opts.specifier}\``,
@@ -186,7 +211,8 @@ export class ApiReference {
         ? record.signature
         : DeclarationText.withoutDoc({ declaration: record.declaration });
     const fence = ApiReference.fenceOf({ text: code });
-    const source = record.external ? [] : [`Source: \`${record.file}:${record.line}\``, ''];
+    // No line number: a line moves with any edit above it, and the freshness check would fail for nothing.
+    const source = record.external ? [] : [`Source: \`${record.file}\``, ''];
 
     return [
       `## \`${record.name}\``,
@@ -205,9 +231,26 @@ export class ApiReference {
 
 const directoryOf = (opts: { wiki: string }): string => join(opts.wiki, ApiReference.DIRECTORY);
 
-export const runApiCommand = (opts: { command?: string }): number => {
-  if (opts.command !== 'gen' && opts.command !== 'check') {
-    console.error('usage: vulcan x atlas api gen|check');
+const USAGE = 'usage: vulcan x atlas api gen|check | undocumented [--package <dir or name>]...';
+
+/** The npm names the `--package` values stand for: a directory key or an npm name of a package of the project. */
+const packagesOf = (opts: { args: string[]; project: IAtlasProject }): string[] | undefined => {
+  const wanted = opts.args.flatMap((arg, at) =>
+    arg === '--package' ? [opts.args[at + 1] ?? ''] : [],
+  );
+
+  if (wanted.length === 0) {
+    return undefined;
+  }
+
+  return opts.project.packages
+    .filter((entry) => wanted.includes(entry.dir) || wanted.includes(entry.name))
+    .map((entry) => entry.name);
+};
+
+export const runApiCommand = (opts: { command?: string; args?: string[] }): number => {
+  if (opts.command !== 'gen' && opts.command !== 'check' && opts.command !== 'undocumented') {
+    console.error(USAGE);
 
     return 2;
   }
@@ -223,10 +266,30 @@ export const runApiCommand = (opts: { command?: string }): number => {
     return 1;
   }
 
-  const records = SymbolCompute.symbolsOfRepository({ project });
+  const all = SymbolCompute.symbolsOfRepository({ project });
+  const only = packagesOf({ args: opts.args ?? [], project });
+  const records = only === undefined ? all : all.filter((record) => only.includes(record.package));
 
   if (records.length === 0) {
     console.error('vulcan x atlas api: no exports found - build the packages first');
+
+    return 1;
+  }
+
+  if (opts.command === 'undocumented') {
+    const gaps = ApiReference.undocumentedOf({ records });
+
+    if (gaps.length === 0) {
+      console.log('every export has TSDoc');
+
+      return 0;
+    }
+
+    for (const gap of gaps) {
+      console.error(`${gap.specifier}: ${gap.names.join(', ')}`);
+    }
+
+    console.error(`${gaps.reduce((sum, gap) => sum + gap.names.length, 0)} exports have no TSDoc`);
 
     return 1;
   }

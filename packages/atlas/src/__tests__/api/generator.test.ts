@@ -1,8 +1,9 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ApiReference } from '@/api';
+import { CorpusFrontmatter } from '@/corpus/frontmatter';
 import type { ISymbolRecord } from '@/symbols';
 
 const roots: string[] = [];
@@ -50,7 +51,8 @@ describe('ApiReference.filesOf', () => {
     expect(page).toContain('The last one.\n');
     expect(page).toContain('```ts\nexport declare function zeta(): void;\n```');
     expect(page).not.toContain('/** The last one. */');
-    expect(page).toContain('Source: `packages/kit/src/index.ts:3`');
+    expect(page).toContain('Source: `packages/kit/src/index.ts`');
+    expect(page).not.toContain('index.ts:3');
   });
 
   test('the exports without TSDoc are counted and named at the top', () => {
@@ -76,6 +78,40 @@ describe('ApiReference.filesOf', () => {
     expect(page).toContain('z(): void');
     expect(page).not.toContain('Source:');
     expect(page).not.toContain('Without TSDoc');
+  });
+});
+
+describe('the front matter of a page', () => {
+  test('a scoped package name is valid YAML: the loader reads the page, it does not skip it', () => {
+    const files = ApiReference.filesOf({ records: [record({ name: 'a' })] });
+    const page = CorpusFrontmatter.parse({ text: files.get('x-kit.md') ?? '', path: 'x-kit.md' });
+    const index = CorpusFrontmatter.parse({ text: files.get('index.md') ?? '', path: 'index.md' });
+
+    expect(page.data.title).toBe('@x/kit');
+    expect(page.data.description).toBe(
+      'Every export of @x/kit, from the built declarations (generated).',
+    );
+    expect(index.data.title).toBe('API reference');
+  });
+});
+
+describe('ApiReference.undocumentedOf', () => {
+  test('names the exports with a declaration and no TSDoc, by entry; internal, external and documented ones are not', () => {
+    const gaps = ApiReference.undocumentedOf({
+      records: [
+        record({ name: 'bare' }),
+        record({ name: 'known', doc: 'Known.' }),
+        record({ name: 'hidden', doc: '@internal' }),
+        record({ name: 'third', external: true, declaration: undefined }),
+        record({ name: 'ns', kind: 'namespace', declaration: undefined }),
+        record({ name: 'other', specifier: '@x/kit/testing', subpath: './testing' }),
+      ],
+    });
+
+    expect(gaps).toEqual([
+      { specifier: '@x/kit', names: ['bare'] },
+      { specifier: '@x/kit/testing', names: ['other'] },
+    ]);
   });
 });
 
@@ -162,13 +198,39 @@ describe('ApiReference.staleOf', () => {
     const dir = directory();
 
     writeFileSync(join(dir, 'a.md'), 'changed');
-    writeFileSync(join(dir, 'gone.md'), 'old');
+    writeFileSync(
+      join(dir, 'gone.md'),
+      ApiReference.filesOf({ records: [record({ name: 'x' })] }).get('x-kit.md') ?? '',
+    );
 
     expect(ApiReference.staleOf({ expected, directory: dir })).toEqual([
       'a.md',
       'gone.md',
       'index.md',
     ]);
+  });
+
+  test('a page someone wrote by hand in the same folder is neither stale nor removed', () => {
+    const dir = directory();
+
+    writeFileSync(
+      join(dir, 'a.md'),
+      ApiReference.filesOf({ records: [record({ name: 'x' })] }).get('x-kit.md') ?? '',
+    );
+    writeFileSync(join(dir, 'guide.md'), '# My own page\n');
+
+    const hand = new Map([['a.md', readFileSync(join(dir, 'a.md'), 'utf8')]]);
+
+    expect(ApiReference.staleOf({ expected: hand, directory: dir })).toEqual([]);
+  });
+
+  test('a generated page of an entry that is gone is named', () => {
+    const dir = directory();
+    const old = ApiReference.filesOf({ records: [record({ name: 'x' })] }).get('x-kit.md') ?? '';
+
+    writeFileSync(join(dir, 'gone.md'), old);
+
+    expect(ApiReference.staleOf({ expected: new Map(), directory: dir })).toEqual(['gone.md']);
   });
 
   test('a directory that does not exist yet is all missing', () => {

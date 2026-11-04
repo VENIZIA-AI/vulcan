@@ -287,12 +287,14 @@ To write the API reference of the project's packages, run `vulcan x atlas api`:
 
 ```text
 $ bun x --no-install vulcan x atlas api
-usage: vulcan x atlas api gen|check
+usage: vulcan x atlas api gen|check | undocumented [--package <dir or name>]...
 ```
 
-`api gen` writes `references/api/<entry>.md` under the wiki directory of the manifest (`knowledge.wiki`), one page for each `exports` entry (`@scope/name/subpath` becomes `scope-name-subpath.md`) and an `index.md` that counts the exports and the ones with TSDoc. A page lists every export by name with its kind, its TSDoc as prose, its declaration without that comment (members keep theirs) and the source `file:line`; the exports with no TSDoc are named at the top. An export whose TSDoc says `@internal` is left out of the page and of its counts. A re-export of a third-party declaration shows its signature only. The pages are generated: link to them from a guide and never edit them. A page that no longer matches the declarations, or one for an entry that was removed, is rewritten or deleted by the next `gen`.
+`api gen` writes `references/api/<entry>.md` under the wiki directory of the manifest (`knowledge.wiki`), one page for each `exports` entry (`@scope/name/subpath` becomes `scope-name-subpath.md`) and an `index.md` that counts the exports and the ones with TSDoc. A page lists every export by name with its kind, its TSDoc as prose, its declaration without that comment (members keep theirs) and the source file (no line number, so the check fails only when the API or its TSDoc changes); the exports with no TSDoc are named at the top. An export whose TSDoc says `@internal` is left out of the page and of its counts. A re-export of a third-party declaration shows its signature only. The pages are generated: link to them from a guide and never edit them. A page that no longer matches the declarations, or a generated page for an entry that was removed, is rewritten or deleted by the next `gen`. A file in the folder that `gen` did not write (it carries the generated note) is never touched.
 
 `api check` fails with exit code 1 and names the files when a page is missing, changed or no longer generated. A project with no `knowledge.wiki` gets an error, and `api` needs the same built `.d.ts` files as `symbols`.
+
+`api undocumented` writes no page. It lists, for each entry, the exports that have a declaration and no TSDoc, and exits 1 when there are any; `--package <dir or name>` (repeatable) limits it to some packages. It is the check to run when public exports must carry TSDoc: an `@internal` export, a re-export of a third-party declaration and a module re-exported as a namespace are not counted.
 
 The text on a page comes from the comment as written. Markup the comment did not mean (an angle bracket, a double brace) is escaped outside code, and a TSDoc that the compiler does not attach to the `.d.ts` (for example one on a destructured export) is shown as undocumented.
 

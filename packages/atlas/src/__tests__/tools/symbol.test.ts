@@ -250,6 +250,27 @@ describe('symbol tool: the declaration', () => {
     expect(payload.declaration.length).toBeLessThanOrEqual(10_000);
   });
 
+  test('a declaration a few characters over the budget is cut, inside the budget, and says so', async () => {
+    const lines = Array.from({ length: 1000 }, () => 'abcdefghij;').join('\n');
+    const payload = await serve({
+      records: [withText({ name: 'Edge', declaration: `${lines.slice(0, 10_005)}` })],
+      name: 'Edge',
+    });
+
+    expect(payload.truncated).toBe(true);
+    expect(payload.declaration.length).toBeLessThanOrEqual(10_000);
+  });
+
+  test('a used declaration already shown with an earlier block adds no empty header', async () => {
+    const records = [
+      withText({ name: 'Root', declaration: 'shared paragraph\n\nroot', uses: ['Twin'] }),
+      withText({ name: 'Twin', declaration: 'shared paragraph' }),
+    ];
+    const { declaration } = await serve({ records, name: 'Root' });
+
+    expect(declaration).not.toContain('// Twin');
+  });
+
   test('an own declaration over the budget is cut at a line and marked', async () => {
     const lines = Array.from({ length: 2000 }, (_, at) => `member${at}: string;`).join('\n');
     const payload = await serve({

@@ -37,6 +37,7 @@ const DECLARATIONS = [
   '}',
   'export type TId = (typeof Ids)[keyof typeof Ids];',
   'export declare function pick(id: TId): void;',
+  'export * as ns from "./other.js";',
   'export {};',
   '',
 ].join('\n');
@@ -53,6 +54,7 @@ const recordsOfFixture = (): Map<string, ISymbolRecord> => {
       exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
     }),
     'dist/index.d.ts': DECLARATIONS,
+    'dist/other.d.ts': '/** Documented elsewhere. */\nexport declare function inner(): void;\n',
   };
 
   for (const [path, text] of Object.entries(files)) {
@@ -107,6 +109,11 @@ describe('the declaration a symbol record keeps', () => {
     expect(get('Door').uses).not.toContain('Door');
   });
 
+  test('a module re-exported as a namespace has no declaration of its own, not the whole file', () => {
+    expect(get('ns').declaration).toBeUndefined();
+    expect(get('ns').doc).toBeUndefined();
+  });
+
   test('a variable declared with another keeps its own declaration', () => {
     expect(get('a').declaration).toBe('export declare const a: number;');
     expect(get('b').declaration).toBe('export declare const b: string;');
@@ -118,10 +125,16 @@ describe('DeclarationText.cut', () => {
     expect(DeclarationText.cut({ text: 'a\nb', max: 10 })).toBe('a\nb');
   });
 
-  test('a longer text is cut at a line and marked', () => {
-    const cut = DeclarationText.cut({ text: 'first line\nsecond line\nthird', max: 15 });
+  test('the cut text and its mark fit in the limit', () => {
+    const text = Array.from({ length: 50 }, () => 'abcdefghij').join('\n');
 
-    expect(cut).toBe(`first line\n${DeclarationText.CUT_MARK}`);
+    expect(DeclarationText.cut({ text, max: 100 }).length).toBeLessThanOrEqual(100);
+  });
+
+  test('a longer text is cut at a line and marked', () => {
+    const cut = DeclarationText.cut({ text: 'first line\nsecond line\nthird line here', max: 35 });
+
+    expect(cut).toBe(`first line\nsecond line\n${DeclarationText.CUT_MARK}`);
   });
 });
 

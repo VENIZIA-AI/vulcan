@@ -11,7 +11,7 @@ export interface IDeclarationReply {
 /**
  * What `symbol` adds beside the signature: the declaration as the package ships it - its TSDoc and its
  * members - then, nearest first, the declarations of the exported symbols it uses, until the budget is spent.
- * A reader following `IAssertApplicationBootsOptions` to `TServerBootStep` to `ServerBootSteps` needs no second call.
+ * A reader following an options type to the alias it names to the class behind that alias needs no second call.
  */
 export class DeclarationReply {
   static readonly BUDGET_CHARS = 10_000;
@@ -33,7 +33,7 @@ export class DeclarationReply {
     // A paragraph already shown (an internal type two exports share) is not repeated.
     const shown = new Set<string>(own.split('\n\n'));
     let spent = own.length;
-    let isTruncated = own.length < record.declaration.length;
+    let isTruncated = own !== record.declaration;
     const seen = new Set<string>([record.name]);
     let level = record.uses ?? [];
 
@@ -54,6 +54,11 @@ export class DeclarationReply {
         seen.add(neighbour.name);
 
         const paragraphs = neighbour.declaration.split('\n\n').filter((item) => !shown.has(item));
+        // Everything of it was shown with an earlier block: a header with no body would say nothing.
+        if (paragraphs.length === 0) {
+          continue;
+        }
+
         const block = `// ${neighbour.name} (${neighbour.specifier})\n${paragraphs.join('\n\n')}`;
 
         if (spent + block.length + 2 > DeclarationReply.BUDGET_CHARS) {

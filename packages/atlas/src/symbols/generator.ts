@@ -309,7 +309,9 @@ export class AtlasSymbols {
 
       const isExternal = location.file.includes('node_modules');
       const text =
-        declaration !== undefined && !isExternal
+        declaration !== undefined &&
+        !isExternal &&
+        !TypeScriptCompiler.get().isSourceFile(declaration)
           ? DeclarationText.of({ declaration, checker })
           : undefined;
       const record: ISymbolRecord = {

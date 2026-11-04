@@ -27,6 +27,11 @@ export class DeclarationText {
     declaration: TypeScript.Declaration;
     checker: TypeScript.TypeChecker;
   }): IDeclarationText {
+    // A module re-exported as a namespace is the whole file: nothing of it is this export's declaration.
+    if (TypeScriptCompiler.get().isSourceFile(opts.declaration)) {
+      return { declaration: '', doc: '', uses: [] };
+    }
+
     const statement = DeclarationText.statementOf({ declaration: opts.declaration });
     const own = DeclarationText.textOf({ statement, declaration: opts.declaration });
     const locals: TypeScript.Node[] = [];
@@ -72,13 +77,13 @@ export class DeclarationText {
     return end === -1 ? opts.declaration : text.slice(end + 2).replace(/^\s*\n/, '');
   }
 
-  /** `text` cut at the last line break before `max` characters, marked; whole when it fits. */
+  /** `text` cut at a line break so that it and its mark fit in `max` characters; whole when it fits. */
   static cut(opts: { text: string; max: number }): string {
     if (opts.text.length <= opts.max) {
       return opts.text;
     }
 
-    const head = opts.text.slice(0, opts.max);
+    const head = opts.text.slice(0, Math.max(0, opts.max - DeclarationText.CUT_MARK.length - 1));
     const at = head.lastIndexOf('\n');
 
     return `${at === -1 ? head : head.slice(0, at)}\n${DeclarationText.CUT_MARK}`;

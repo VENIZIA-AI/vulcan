@@ -49,7 +49,10 @@ const packageVersion = (): string => {
   return version;
 };
 
-const GENERATOR_BY_COMMAND: Record<string, (opts: { command?: string }) => number> = {
+const GENERATOR_BY_COMMAND: Record<
+  string,
+  (opts: { command?: string; args?: string[] }) => number
+> = {
   [AtlasCommands.SURFACE]: runSurfaceCommand,
   [AtlasCommands.API]: runApiCommand,
   [AtlasCommands.SYMBOLS]: runSymbolsCommand,
@@ -81,7 +84,7 @@ if (subcommand === AtlasCommands.HELP) {
 const generator = GENERATOR_BY_COMMAND[subcommand];
 
 if (generator) {
-  process.exit(generator({ command: argv[1] }));
+  process.exit(generator({ command: argv[1], args: argv.slice(2) }));
 }
 
 /**

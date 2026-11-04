@@ -122,7 +122,7 @@ Code and writing rules define TypeScript standards, parameter limits, naming pat
 | `V-C-06` | Always log caught errors, use braces, early returns, and strict TypeScript types. | LINT (braces, floating promises) + SOFT |
 | `V-C-07` | Open function names with verbs, prefer arrow functions, and group state in classes. | SOFT |
 | `V-C-08` | Define enumerable strings as constant classes with validation sets; prefix types with T or I. | SOFT |
-| `V-C-09` | Comments state only a lasting fact the code cannot show: no history, dates, decision notes or restated code; TSDoc on every export (summary first, `@default`, `@deprecated`, `@example`, on the declaration itself); remove meaningless comments you touch. | SOFT |
+| `V-C-09` | Comments state only a lasting fact the code cannot show: no history, dates, decision notes or restated code; TSDoc on every export, exempt from the line limit (summary first, `@default`, `@deprecated`, `@example`, on the declaration itself); remove meaningless comments you touch. | SOFT |
 | `V-C-10` | Avoid explicit type casts in new code; refine types instead. | SOFT |
 | `V-C-11` | Prioritize simplicity in code and prose; justify complexity with correctness, speed, or safety. Small means only what the task needs, not golfed. | SOFT |
 | `V-C-12` | Follow existing repository patterns and conventions; never invent a second style. | SOFT |
