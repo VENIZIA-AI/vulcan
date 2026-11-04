@@ -129,6 +129,8 @@ export default {
 | `hostname` | The name in the address of `vulcan board serve`. It must be lowercase and end in `.localhost`: a browser resolves such a name to your own machine by itself, while a name that reaches `127.0.0.1` through DNS or a hosts file is what a DNS-rebinding page uses, so it is refused | `vulz-board.venizia.ai.localhost` |
 | `agents` | The agents of the board by name. A value is a face (`bun`, `flame`, `ember`, `rock` or `banana`), or `{ shape?, lane? }`. The listed names are the roster; `lane` rolls a helper into the row of a listed name | every agent shows with `bun`; the owner is a person |
 
+**Sessions with no name.** A session whose actor is `claude:` and the start of its id, or `unknown`, has no name of its own and is no agent: it has no row in the dock and is not counted, and its lines stay in their flows. Name a session (`/rename`, `--name` or `VULCAN_ACTOR`) to see it.
+
 **The roster.** Once `agents` lists a name, the dock and the count show only the listed names that have no `lane`. Every other agent in the log is hidden until you press **Show all events**. An empty `agents` shows every agent in the log, as before.
 
 **Lanes.** `'pnt-api-1': { lane: 'api' }` draws the lines of `pnt-api-1` as `api`'s: one row, with "+1 helper" on it, and no row for the helper. A flow whose holder is the helper shows `api` as its holder; in the detail of a flow, a line still shows the helper's own name. A `lane` must name a listed key that has no `lane` of its own; a chain or a cycle fails the config and names the key. The face is optional (`{ lane: 'api' }`), and `{}` is a roster entry with the default face.

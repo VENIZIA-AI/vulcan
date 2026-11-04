@@ -1,3 +1,4 @@
+import { EventActor } from '../events/actor.ts';
 import { EventKinds, EventStatuses } from '../events/common/index.ts';
 import type { IEvent } from '../events/common/index.ts';
 import {
@@ -227,7 +228,12 @@ export class BoardFold {
     const { agents, line } = opts;
     const known = agents[line.actor];
 
-    if (line.kind === EventKinds.SUBAGENT_STOP || BoardFold.isHarnessAsk({ line })) {
+    // A session with no name of its own is no agent: its lines stay in their flows, and it has no row.
+    if (
+      !EventActor.isNamed({ actor: line.actor }) ||
+      line.kind === EventKinds.SUBAGENT_STOP ||
+      BoardFold.isHarnessAsk({ line })
+    ) {
       return;
     }
 

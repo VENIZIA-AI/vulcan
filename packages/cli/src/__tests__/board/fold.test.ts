@@ -890,6 +890,29 @@ describe('BoardFold.fold: the context and the next step of a flow', () => {
   });
 });
 
+describe('BoardFold.fromLog: a session with no name of its own', () => {
+  test('creates no agent, for a line of any kind; its lines stay in their flows', () => {
+    const log = BoardFold.fromLog({
+      events: [
+        line({ minute: 1, kind: 'session-start', actor: 'claude:abcdef12', summary: 'resume' }),
+        line({ minute: 2, kind: 'session-start', actor: 'unknown', summary: 'startup' }),
+        line({ minute: 3, kind: 'session-start', actor: 'pnt-vulcan-1', summary: 'startup' }),
+        line({
+          minute: 4,
+          kind: 'commit',
+          actor: 'claude:abcdef12',
+          flow: 'F-1',
+          summary: 'the lock',
+          ref: 'abc1234',
+        }),
+      ],
+    });
+
+    expect(Object.keys(log.agents)).toEqual(['pnt-vulcan-1']);
+    expect(log.events.filter((event) => event.actor === 'claude:abcdef12')).toHaveLength(2);
+  });
+});
+
 describe('BoardFold.fromLog: the direction of a message', () => {
   test('a message got keeps its direction and its sender; one sent has a recipient', () => {
     const log = BoardFold.fromLog({

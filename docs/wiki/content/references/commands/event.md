@@ -90,7 +90,7 @@ It prints the id of the line. This is the way in for any coding agent: a hook of
 | `--why` | Only for `--kind flow`, optional: one line on why the flow exists. Same limits and the same secret removal |
 | `--context` | Only for `--kind flow`, optional: two to four sentences, in the language of the owner, on what the flow is, what is done and what is left. Cut to one line of 600 characters, with the same secret removal |
 | `--next` | Only for `--kind flow`, optional: the next step and who does it. Cut to one line of 200 characters, with the same secret removal |
-| `--actor` | Who. Without it: `VULCAN_ACTOR` in the environment, else the name Claude Code gave the session (when several of its session files hold the session id, the one of a live process, then the newest), else `claude:` and the start of the session id, else `unknown` |
+| `--actor` | Who. Without it: `VULCAN_ACTOR` in the environment, else the name Claude Code gave the session, when a person or a peer gave it (a name Claude Code made up from the folder, a counter or a clash does not count; when several of its session files hold the session id, the one of a live process, then the newest), else `claude:` and the start of the session id, else `unknown` |
 | `--dir` | The folder, for this call: `--dir` over `events.dir` over `.agents/local/events`. A relative path is relative to where you run the command |
 
 Run from a subfolder, the command uses the project of that folder: the nearest folder above it with `.agents/vulcan.manifest.json` or `.git`. It reads the same `events` block there as at the top.

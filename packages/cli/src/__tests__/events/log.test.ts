@@ -584,6 +584,43 @@ describe('EventActor', () => {
     ).toBe('claude:x');
   });
 
+  test('a name is the actor only when the session was named: derived, auto and collision names are not', () => {
+    const resolve = (nameSource: string | undefined): string =>
+      EventActor.resolve({
+        sessionId: 'abcdef12-0000',
+        env: {
+          CLAUDE_CONFIG_DIR: sessions({
+            files: {
+              '1.json': JSON.stringify({
+                sessionId: 'abcdef12-0000',
+                name: 'my-folder-6d',
+                ...(nameSource === undefined ? {} : { nameSource }),
+              }),
+            },
+          }),
+        },
+      });
+
+    for (const given of ['user', 'peer']) {
+      expect(resolve(given)).toBe('my-folder-6d');
+    }
+
+    for (const made of ['derived', 'auto', 'collision']) {
+      expect(resolve(made)).toBe('claude:abcdef12');
+    }
+
+    // No readable source: a person's name more often than not, and hiding a real agent is the worse mistake.
+    expect(resolve(undefined)).toBe('my-folder-6d');
+    expect(resolve('something-new')).toBe('my-folder-6d');
+  });
+
+  test('isNamed: an actor of the fallback shapes (claude:<id>, unknown) is not a name', () => {
+    expect(EventActor.isNamed({ actor: 'pnt-vulcan-1' })).toBe(true);
+    expect(EventActor.isNamed({ actor: 'claude:abcdef12' })).toBe(false);
+    expect(EventActor.isNamed({ actor: 'unknown' })).toBe(false);
+    expect(EventActor.isNamed({ actor: 'claudette' })).toBe(true);
+  });
+
   test('a name is one clean line', () => {
     const config = sessions({
       files: {
