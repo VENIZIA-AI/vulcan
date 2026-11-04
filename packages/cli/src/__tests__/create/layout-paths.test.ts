@@ -15,7 +15,7 @@ const FRONTEND = `file:${join(FIXTURES, 'preset-frontend')}`;
 const ENV = { VULCAN_NO_INSTALL: '1' };
 
 describe('LayoutFolder.layoutFolderProblem', () => {
-  test.each(['services', 'auroras/apps', 'a/b/c/d', 'web-2/app1', '0/1'])(
+  test.each(['services', 'frontends/apps', 'a/b/c/d', 'web-2/app1', '0/1'])(
     '%s is a folder',
     (folder) => {
       expect(LayoutFolder.layoutFolderProblem({ folder })).toBeUndefined();
@@ -63,11 +63,11 @@ describe('the layout as a whole', () => {
   test('a folder inside another, in either order and across keys, is a problem', () => {
     expect(
       LayoutFolder.layoutOverlapProblems({
-        layout: { backend: 'auroras', frontend: 'auroras/apps' },
+        layout: { backend: 'frontends', frontend: 'frontends/apps' },
       }),
     ).toHaveLength(1);
     expect(
-      LayoutFolder.layoutOverlapProblems({ layout: { frontend: ['auroras/apps', 'auroras'] } }),
+      LayoutFolder.layoutOverlapProblems({ layout: { frontend: ['frontends/apps', 'frontends'] } }),
     ).toHaveLength(1);
     expect(
       LayoutFolder.layoutOverlapProblems({ layout: { shared: 'a/b', other: 'a/b/c' } }),
@@ -75,7 +75,7 @@ describe('the layout as a whole', () => {
     // A shared prefix is not nesting.
     expect(
       LayoutFolder.layoutOverlapProblems({
-        layout: { backend: 'auroras/apps', frontend: 'auroras/apps2' },
+        layout: { backend: 'frontends/apps', frontend: 'frontends/apps2' },
       }),
     ).toEqual([]);
   });
@@ -111,13 +111,13 @@ describe('the config schema', () => {
   test('a string, a list and other are accepted', async () => {
     const result = await configOf({
       layout:
-        "{ backend: 'umbras', frontend: ['auroras/apps', 'auroras/guests'], shared: 'auroras/kits', other: ['docs', 'qc'] }",
+        "{ backend: 'backends', frontend: ['frontends/apps', 'frontends/guests'], shared: 'frontends/kits', other: ['docs', 'qc'] }",
     });
 
     expect(result.ok).toBe(true);
     expect(result.ok ? result.config.layout?.frontend : undefined).toEqual([
-      'auroras/apps',
-      'auroras/guests',
+      'frontends/apps',
+      'frontends/guests',
     ]);
   });
 
@@ -149,7 +149,7 @@ const monorepo = (opts: { backendDir?: string; shared?: string } = {}): string =
       '--project',
       'p',
       '--backend-dir',
-      opts.backendDir ?? 'umbras',
+      opts.backendDir ?? 'backends',
       '--app',
       'core-api',
       ...(opts.shared === undefined ? [] : ['--shared-dir', opts.shared]),
@@ -171,18 +171,18 @@ const layoutOf = async (opts: { root: string }) => {
 
 describe('vulcan init --preset with folder paths', () => {
   test('a backend folder and a shared folder two levels deep', async () => {
-    const root = monorepo({ backendDir: 'auroras/apps', shared: 'auroras/kits' });
+    const root = monorepo({ backendDir: 'frontends/apps', shared: 'frontends/kits' });
 
-    expect(existsSync(join(root, 'auroras/apps/core-api/package.json'))).toBe(true);
+    expect(existsSync(join(root, 'frontends/apps/core-api/package.json'))).toBe(true);
     const result = await layoutOf({ root });
-    expect(result).toEqual({ backend: 'auroras/apps', shared: 'auroras/kits' });
-    expect(readFileSync(join(root, 'package.json'), 'utf8')).toContain('auroras/apps/*');
+    expect(result).toEqual({ backend: 'frontends/apps', shared: 'frontends/kits' });
+    expect(readFileSync(join(root, 'package.json'), 'utf8')).toContain('frontends/apps/*');
   });
 
   test.each([
     [['--backend-dir', '../up'], 'climbs'],
     [['--backend-dir', 'a/node_modules/b'], 'node_modules'],
-    [['--backend-dir', 'auroras', '--shared-dir', 'auroras/kits'], 'nested'],
+    [['--backend-dir', 'frontends', '--shared-dir', 'frontends/kits'], 'nested'],
     [['--backend-dir', 'a/b/c/d/e'], 'more than 4'],
   ])('%j is refused before anything is written', (flags, why) => {
     const parent = createProject({ files: {} });
@@ -200,26 +200,26 @@ describe('vulcan init --preset with folder paths', () => {
 
 describe('vulcan add with several folders per side', () => {
   test('a second folder grows the string into a list, and the app lands in it', async () => {
-    const root = monorepo({ backendDir: 'umbras' });
+    const root = monorepo({ backendDir: 'backends' });
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'umbras-2/services', '--app', 'worker'],
+      args: ['add', '--preset', BACKEND, '--backend-dir', 'backends-2/services', '--app', 'worker'],
       cwd: root,
       env: ENV,
     });
 
     expect(result.code, result.stderr).toBe(0);
-    expect(existsSync(join(root, 'umbras-2/services/worker/package.json'))).toBe(true);
+    expect(existsSync(join(root, 'backends-2/services/worker/package.json'))).toBe(true);
     const layout = await layoutOf({ root });
 
-    expect(layout?.backend).toEqual(['umbras', 'umbras-2/services']);
-    expect(readFileSync(join(root, 'package.json'), 'utf8')).toContain('umbras-2/services/*');
+    expect(layout?.backend).toEqual(['backends', 'backends-2/services']);
+    expect(readFileSync(join(root, 'package.json'), 'utf8')).toContain('backends-2/services/*');
   });
 
   test('with several folders listed the flag is required, and the error lists them', async () => {
-    const root = monorepo({ backendDir: 'umbras' });
+    const root = monorepo({ backendDir: 'backends' });
 
     runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'umbras-2', '--app', 'worker'],
+      args: ['add', '--preset', BACKEND, '--backend-dir', 'backends-2', '--app', 'worker'],
       cwd: root,
       env: ENV,
     });
@@ -230,46 +230,46 @@ describe('vulcan add with several folders per side', () => {
       env: ENV,
     });
     const listed = runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'umbras-2', '--app', 'job'],
+      args: ['add', '--preset', BACKEND, '--backend-dir', 'backends-2', '--app', 'job'],
       cwd: root,
       env: ENV,
     });
     const first = runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'umbras', '--app', 'queue'],
+      args: ['add', '--preset', BACKEND, '--backend-dir', 'backends', '--app', 'queue'],
       cwd: root,
       env: ENV,
     });
 
     expect(missing.code).toBe(1);
     expect(missing.stderr).toContain('missing --backend-dir');
-    expect(missing.stderr).toContain("the layout lists 'umbras', 'umbras-2'");
+    expect(missing.stderr).toContain("the layout lists 'backends', 'backends-2'");
     expect(listed.code, listed.stderr).toBe(0);
     expect(first.code, first.stderr).toBe(0);
     // A folder that is listed already changes nothing in the layout.
     const layout = await layoutOf({ root });
 
-    expect(layout?.backend).toEqual(['umbras', 'umbras-2']);
-    expect(existsSync(join(root, 'umbras/queue/package.json'))).toBe(true);
+    expect(layout?.backend).toEqual(['backends', 'backends-2']);
+    expect(existsSync(join(root, 'backends/queue/package.json'))).toBe(true);
   });
 
   test('the hand-added lines show the list when the apps block cannot be extended', () => {
-    const root = monorepo({ backendDir: 'umbras' });
+    const root = monorepo({ backendDir: 'backends' });
     const config = join(root, '.configs/vulcan.config.mts');
 
     writeFileSync(config, readFileSync(config, 'utf8').replace('// vulcan:apps:start', '// gone'));
 
     const result = runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'umbras-2', '--app', 'worker'],
+      args: ['add', '--preset', BACKEND, '--backend-dir', 'backends-2', '--app', 'worker'],
       cwd: root,
       env: ENV,
     });
 
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain("layout: { backend: ['umbras', 'umbras-2'] },");
+    expect(result.stderr).toContain("layout: { backend: ['backends', 'backends-2'] },");
   });
 
   test('a folder listed under other is not an app target, and the error says so', async () => {
-    const root = monorepo({ backendDir: 'umbras' });
+    const root = monorepo({ backendDir: 'backends' });
     const config = join(root, '.configs/vulcan.config.mts');
 
     writeFileSync(
@@ -288,10 +288,10 @@ describe('vulcan add with several folders per side', () => {
   });
 
   test('a folder that is not a folder, nested in another, or another key is refused, nothing written', async () => {
-    const root = monorepo({ backendDir: 'umbras', shared: 'kits' });
+    const root = monorepo({ backendDir: 'backends', shared: 'kits' });
     const cases: [string, string][] = [
       ['../up', 'climbs'],
-      ['umbras/deeper', 'nested'],
+      ['backends/deeper', 'nested'],
       ['kits', 'is the shared folder'],
     ];
 
@@ -309,14 +309,14 @@ describe('vulcan add with several folders per side', () => {
     expect(existsSync(join(root, 'worker'))).toBe(false);
     const layout = await layoutOf({ root });
 
-    expect(layout?.backend).toBe('umbras');
+    expect(layout?.backend).toBe('backends');
   });
 
   test('a frontend finds its backend in any folder of the backend list', async () => {
-    const root = monorepo({ backendDir: 'umbras' });
+    const root = monorepo({ backendDir: 'backends' });
 
     runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'umbras-2', '--app', 'worker'],
+      args: ['add', '--preset', BACKEND, '--backend-dir', 'backends-2', '--app', 'worker'],
       cwd: root,
       env: ENV,
     });
@@ -327,7 +327,7 @@ describe('vulcan add with several folders per side', () => {
         '--preset',
         FRONTEND,
         '--frontend-dir',
-        'auroras/apps',
+        'frontends/apps',
         '--app',
         'web',
         '--api',
@@ -338,12 +338,12 @@ describe('vulcan add with several folders per side', () => {
     });
 
     expect(result.code, result.stderr).toBe(0);
-    expect(readFileSync(join(root, 'auroras/apps/web/vite.config.ts'), 'utf8')).toContain(
+    expect(readFileSync(join(root, 'frontends/apps/web/vite.config.ts'), 'utf8')).toContain(
       'localhost:',
     );
     const layout = await layoutOf({ root });
 
-    expect(layout?.frontend).toBe('auroras/apps');
+    expect(layout?.frontend).toBe('frontends/apps');
   });
 });
 
@@ -359,7 +359,7 @@ describe('vulcan add --lib with several shared folders', () => {
         '--project',
         'p',
         '--backend-dir',
-        'umbras',
+        'backends',
         '--app',
         'core-api',
         '--shared-dir',
@@ -417,7 +417,7 @@ describe('vulcan add --lib says why a folder it used was not recorded', () => {
         '--project',
         'p',
         '--backend-dir',
-        'umbras',
+        'backends',
         '--app',
         'core-api',
         '--shared-dir',
@@ -442,7 +442,7 @@ describe('vulcan add --lib says why a folder it used was not recorded', () => {
     ['libs/UI', 'lowercase letters'],
     ['kits/deep', 'are nested'],
     ['a/b/c/d/e', 'more than 4 segments'],
-    ['umbras', "names 'umbras' again"],
+    ['backends', "names 'backends' again"],
   ])('--dir %s is used, not recorded, and the reason is said', async (dir, why) => {
     const root = project();
     const result = addLib({ root, name: 'money', dir });
@@ -472,15 +472,15 @@ describe('vulcan add --lib says why a folder it used was not recorded', () => {
   });
 });
 
-/** A project shaped like BANA's: grouped apps and libraries, and four folders the layout does not manage. */
+/** A project shaped like a downstream one: grouped apps and libraries, and four folders the layout does not manage. */
 const groupedProject = (opts: { other?: string[]; extraPackage?: string } = {}): string => {
   const packages = [
-    ['api', 'umbras/api'],
-    ['merchant', 'auroras/apps/merchant'],
-    ['guest', 'auroras/guests/guest'],
-    ['site', 'auroras/public/site'],
-    ['money', 'auroras/kits/money'],
-    ['linter', 'auroras/tools/linter'],
+    ['api', 'backends/api'],
+    ['merchant', 'frontends/apps/merchant'],
+    ['guest', 'frontends/guests/guest'],
+    ['site', 'frontends/public/site'],
+    ['money', 'frontends/kits/money'],
+    ['linter', 'frontends/tools/linter'],
     ['wiki', 'docs/wiki'],
     ['tests', 'qc/tests'],
     ['left-pad', 'third-parties/left-pad'],
@@ -492,18 +492,18 @@ const groupedProject = (opts: { other?: string[]; extraPackage?: string } = {}):
         `{ dir: '${dir}', name: '${dir}', path: '${path}'${path.includes('/kits/') ? ", kind: 'lib'" : ''} }`,
     )
     .join(', ');
-  const other = JSON.stringify(opts.other ?? ['auroras/tools', 'docs', 'qc', 'third-parties']);
+  const other = JSON.stringify(opts.other ?? ['frontends/tools', 'docs', 'qc', 'third-parties']);
   const files: Record<string, string> = {
-    '.configs/vulcan.config.mts': `export default { layout: { backend: 'umbras', frontend: ['auroras/apps', 'auroras/guests', 'auroras/public'], shared: 'auroras/kits', other: ${other} }, packages: [${entries}] };\n`,
+    '.configs/vulcan.config.mts': `export default { layout: { backend: 'backends', frontend: ['frontends/apps', 'frontends/guests', 'frontends/public'], shared: 'frontends/kits', other: ${other} }, packages: [${entries}] };\n`,
     'package.json': JSON.stringify({
       name: 'grouped',
       private: true,
       workspaces: [
-        'umbras/*',
-        'auroras/apps/*',
-        'auroras/guests/*',
-        'auroras/public/*',
-        'auroras/kits/*',
+        'backends/*',
+        'frontends/apps/*',
+        'frontends/guests/*',
+        'frontends/public/*',
+        'frontends/kits/*',
       ],
     }),
   };
@@ -552,17 +552,17 @@ describe('doctor on a grouped monorepo', () => {
       JSON.stringify({
         name: 'grouped',
         private: true,
-        workspaces: ['umbras/*', 'auroras/apps/*', 'auroras/kits/*'],
+        workspaces: ['backends/*', 'frontends/apps/*', 'frontends/kits/*'],
       }),
     );
 
     const violations = await appsViolations({ root });
 
     expect(
-      violations.filter((message) => message.startsWith("layout.frontend 'auroras/guests'")),
+      violations.filter((message) => message.startsWith("layout.frontend 'frontends/guests'")),
     ).toHaveLength(1);
     expect(
-      violations.filter((message) => message.startsWith("layout.frontend 'auroras/public'")),
+      violations.filter((message) => message.startsWith("layout.frontend 'frontends/public'")),
     ).toHaveLength(1);
     expect(violations.some((message) => message.includes('layout.other'))).toBe(false);
   });
@@ -577,7 +577,7 @@ describe('doctor and workspace globs', () => {
       JSON.stringify({
         name: 'grouped',
         private: true,
-        workspaces: ['umbras/*', 'auroras/kits/*', '!umbras/legacy'],
+        workspaces: ['backends/*', 'frontends/kits/*', '!backends/legacy'],
       }),
     );
 
@@ -591,7 +591,7 @@ describe('doctor and workspace globs', () => {
     expect(result).toEqual([]);
   });
 
-  test('a glob that matches a package in the folder covers it, as auroras/*/* covers auroras/apps', async () => {
+  test('a glob that matches a package in the folder covers it, as frontends/*/* covers frontends/apps', async () => {
     const root = groupedProject();
 
     writeFileSync(
@@ -599,7 +599,7 @@ describe('doctor and workspace globs', () => {
       JSON.stringify({
         name: 'grouped',
         private: true,
-        workspaces: { packages: ['umbras/*', 'auroras/*/*'] },
+        workspaces: { packages: ['backends/*', 'frontends/*/*'] },
       }),
     );
 
@@ -610,10 +610,10 @@ describe('doctor and workspace globs', () => {
 
 describe('preset diff for an app in a later folder of a list', () => {
   test('the side of the app is found in any folder', () => {
-    const root = monorepo({ backendDir: 'umbras' });
+    const root = monorepo({ backendDir: 'backends' });
 
     runCli({
-      args: ['add', '--preset', BACKEND, '--backend-dir', 'umbras-2', '--app', 'worker'],
+      args: ['add', '--preset', BACKEND, '--backend-dir', 'backends-2', '--app', 'worker'],
       cwd: root,
       env: ENV,
     });
@@ -621,6 +621,6 @@ describe('preset diff for an app in a later folder of a list', () => {
     const result = runCli({ args: ['preset', 'diff', 'worker', '--check'], cwd: root, env: ENV });
 
     expect(result.code, result.stderr).toBe(0);
-    expect(result.stdout).toContain('umbras-2/worker against');
+    expect(result.stdout).toContain('backends-2/worker against');
   });
 });

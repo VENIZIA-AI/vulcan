@@ -16,7 +16,7 @@ afterAll(removeProjects);
 const CONFIG = {
   packages: [
     { dir: 'kernel', name: '@x/kernel', aliases: ['k'] },
-    { dir: 'old', name: '@x/old', retired: true, path: 'umbras/old' },
+    { dir: 'old', name: '@x/old', retired: true, path: 'backends/old' },
   ],
   knowledge: {
     bundle: '.agents/knowledge',
@@ -60,7 +60,7 @@ describe('ProjectManifest.render', () => {
     expect(manifest.name).toBe('acme');
     expect(manifest.packages).toEqual([
       { name: '@x/kernel', dir: 'kernel', path: 'packages/kernel', aliases: ['k'], retired: false },
-      { name: '@x/old', dir: 'old', path: 'umbras/old', aliases: [], retired: true },
+      { name: '@x/old', dir: 'old', path: 'backends/old', aliases: [], retired: true },
     ]);
     expect(manifest.knowledge).toEqual({
       bundle: '.agents/knowledge',
@@ -241,7 +241,7 @@ describe('package kind in the manifest', () => {
             {
               dir: 'merchant',
               name: '@nx/merchant',
-              path: 'auroras/features/merchant',
+              path: 'frontends/features/merchant',
               kind: 'lib',
             },
           ],
@@ -250,7 +250,10 @@ describe('package kind in the manifest', () => {
     );
 
     expect(manifest.packages[0]).not.toHaveProperty('kind');
-    expect(manifest.packages[1]).toMatchObject({ kind: 'lib', path: 'auroras/features/merchant' });
+    expect(manifest.packages[1]).toMatchObject({
+      kind: 'lib',
+      path: 'frontends/features/merchant',
+    });
   });
 });
 
