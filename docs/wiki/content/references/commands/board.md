@@ -127,7 +127,7 @@ export default {
 | `title` | The name in the page header and the tab | `<project name> Board` |
 | `logo` | A path inside the project to an `.svg` file, shown next to the title. It is put in an `img`, so it runs no script. Up to 100 KB. Draw it in a colour that reads on a light and on a dark page | none |
 | `hostname` | The name in the address of `vulcan board serve`. It must be lowercase and end in `.localhost`: a browser resolves such a name to your own machine by itself, while a name that reaches `127.0.0.1` through DNS or a hosts file is what a DNS-rebinding page uses, so it is refused | `vulz-board.venizia.ai.localhost` |
-| `agents` | The agents of the board by name. A value is a face (`bun`, `flame`, `ember`, `rock` or `banana`), or `{ shape?, lane? }`. The listed names are the roster; `lane` rolls a helper into the row of a listed name | every agent shows with `bun`; the owner is a person |
+| `agents` | The agents of the board by name. A value is a face (`bun`, `flame`, `ember`, `rock` or `banana`), or `{ shape?, lane?, role? }` (`role` is free text, up to 60 characters, for the card). The listed names are the roster; `lane` rolls a helper into the row of a listed name | every agent shows with `bun`; the owner is a person |
 
 **The roster.** Once `agents` lists a name, the dock and the count show only the listed names that have no `lane`. Every other agent in the log is hidden until you press **Show all events**. An empty `agents` shows every agent in the log, as before.
 
