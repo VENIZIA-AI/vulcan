@@ -49,13 +49,16 @@ const compiles = (value: string): boolean => {
 
 /** A command the project says is a database write (V-W-02) or a deploy (V-W-03): guard-writes asks when its pattern matches. */
 const GUARD_COMMAND = z.strictObject({
+  /** Which rule the command falls under: `V-W-02` for a database write, `V-W-03` for a deploy. */
   rule: z.enum(['V-W-02', 'V-W-03']),
+  /** Short name of the action, shown when guard-writes asks; 1 to 120 characters. */
   what: z.string().min(1).max(120),
   pattern: z
     .string()
     .min(1)
     .max(500)
     .refine(compiles, { message: 'a regular expression (JavaScript syntax)' }),
+  /** `true` matches `pattern` without regard to case; default: case-sensitive. */
   ignoreCase: z.boolean().optional(),
 });
 
@@ -128,11 +131,15 @@ const AGENT_NAME = z
   .regex(/[\p{L}\p{N}]/u, { message: 'a name with at least one letter or digit' });
 
 const PROJECT_PACKAGE = z.strictObject({
+  /** Unique key of the package, not necessarily its folder name; lower case letters, digits, `.` and `-`, starting with a letter or digit. */
   dir: z.string().regex(/^[a-z0-9][a-z0-9.-]*$/),
+  /** The npm package name: lower case, optional `@scope/`, at most 214 characters. */
   name: NPM_PACKAGE_NAME,
   /** Where the package lives, from the root; default `packages/<dir>`. */
   path: z.string().optional(),
+  /** Extra names accepted as the `<dir>` of a release tag; default `[]`. */
   aliases: z.array(z.string()).default([]),
+  /** `true` marks a package that is gone but whose releases stay readable; its path may be reused. Default `false`. */
   retired: z.boolean().default(false),
   /** A library a preset made lives anywhere a workspace glob covers; absent means an app or a plain package. */
   kind: z.enum([PackageKinds.APP, PackageKinds.LIB]).optional(),
@@ -195,8 +202,11 @@ const RELEASE_TEMPLATE = z.string().refine((value) => value.includes('<version>'
 const OKF_RENDERER = z.union([
   z.string().transform((id) => ({ id, options: {} })),
   z.strictObject({
+    /** Name of the renderer: a built-in, or the identifier a project module registers. */
     id: z.string(),
+    /** Path of the project module that exports the renderer; absent means a built-in. */
     module: z.string().optional(),
+    /** Options passed to the renderer; default `{}`. */
     options: z.record(z.string(), z.unknown()).default({}),
   }),
 ]);
@@ -224,12 +234,16 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     .optional(),
   /** The project's suggested agents; each developer's own choice lives in `.agents/vulcan.local.json`. */
   agents: z.array(CODING_AGENT).optional(),
+  /** Choice of each base rule slot, keyed by rule ID (for example `V-W-01`) to the option picked; default `{}`. */
   rules: z.record(z.string().regex(ConfigConstants.RULE_ID_PATTERN), z.string()).default({}),
   /** The folders `vulcan init` and `add` put apps in, as the user named them. */
   layout: z
     .strictObject({
+      /** Folder, or list of folders, for backend apps. */
       backend: LAYOUT_VALUE.optional(),
+      /** Folder, or list of folders, for frontend apps. */
       frontend: LAYOUT_VALUE.optional(),
+      /** Folder, or list of folders, for code shared between apps. */
       shared: LAYOUT_VALUE.optional(),
       /** Folders the layout does not manage (docs, third-party code, tests): packages there are allowed, never targeted by `add`, never guarded. */
       other: LAYOUT_VALUE.optional(),
@@ -244,8 +258,11 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   presets: z
     .array(
       z.strictObject({
+        /** What was given to `--preset`. */
         spec: z.string().min(1),
+        /** Side of the preset's app kind: `backend` or `frontend`. */
         side: z.enum(['backend', 'frontend']),
+        /** The app kind's one-sentence summary. */
         summary: z.string(),
         /** The summary of the preset's lib kind, when it ships one. */
         lib: z.string().optional(),
@@ -258,8 +275,11 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   packages: z.array(PROJECT_PACKAGE).superRefine(checkPackagesUnique).default([]),
   knowledge: z
     .strictObject({
+      /** Folder of the knowledge bundle (the OKF concepts); default `.agents/knowledge`. */
       bundle: z.string().default(ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE),
+      /** Folder of the wiki content; absent means the project has none. */
       wiki: z.string().optional(),
+      /** Folder of the changelog files; absent means the project has none. */
       changelogs: z.string().optional(),
       /** The knowledge-sync skill's map of code areas to concepts. */
       syncAreas: z.string().optional(),
@@ -267,13 +287,16 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     .default({ bundle: ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE }),
   okf: z
     .strictObject({
+      /** Renderers the project uses, each a built-in id or an object with a module; default `[]`. */
       renderers: z.array(OKF_RENDERER).default([]),
       regions: z
         .array(z.strictObject({ id: z.string(), file: z.string(), renderer: z.string() }))
         .default([]),
       sections: z
         .strictObject({
+          /** Order of the section headings in the index tables; default `[]`. */
           order: z.array(z.string()).default([]),
+          /** Display label for each section heading, keyed by heading; default `{}`. */
           labels: z.record(z.string(), z.string()).default({}),
         })
         .default({ order: [], labels: {} }),
@@ -281,9 +304,13 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       coverage: z
         .array(
           z.strictObject({
+            /** Unique name of the coverage axis. */
             name: z.string(),
+            /** Directory or pattern the axis scans. */
             path: z.string(),
+            /** Globs from the root dropped from this axis; default `[]`. */
             exclude: z.array(z.string()).default([]),
+            /** Directory names dropped from this axis only; default `[]`. */
             denylist: z.array(z.string()).default([]),
           }),
         )
@@ -296,8 +323,11 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
         .default({ files: ['AGENTS.md', '.agents/rules.md'] }),
       viz: z
         .strictObject({
+          /** Paths the visualization page is written to; default `['.agents/knowledge/viz.html']`. */
           outputs: z.array(z.string()).default([VIZ_OUTPUT]),
+          /** Brand heading shown in the page header; absent means none. */
           brand: z.string().optional(),
+          /** Overrides for the page's text labels; absent means the built-in text. */
           copy: z.record(z.string(), z.unknown()).optional(),
         })
         .default({ outputs: [VIZ_OUTPUT] }),
@@ -313,6 +343,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     }),
   atlas: z
     .strictObject({
+      /** Template of a release tag; must hold `<version>`, and `<dir>` for per-package tags. Default `<dir>-v<version>`. */
       tagPattern: RELEASE_TEMPLATE.default('<dir>-v<version>'),
       /**
        * Templates of an earlier tag layout that are still releases: atlas and the changelog check read a tag
@@ -323,8 +354,11 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       sources: z
         .array(
           z.strictObject({
+            /** Identifier of the source in atlas results. */
             name: z.string(),
+            /** GitHub repository of the source, as `owner/repo`. */
             repo: z.string(),
+            /** Branch, tag or commit the source is indexed at; default `develop`. */
             ref: z.string().default('develop'),
             /** `installed` (default): the docs are read at the tag of the newest installed package; `ref`: at `ref`. */
             pin: z.enum(['installed', 'ref']).optional(),
@@ -355,8 +389,11 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    */
   remoteHosts: z
     .strictObject({
+      /** Hosts or `*` patterns a Bash command may reach without asking; default `[]`. */
       trusted: z.array(REMOTE_HOST).default([]),
+      /** Hosts or `*` patterns that pass only the strict read-only command forms; default `[]`. */
       readOnly: z.array(REMOTE_HOST).default([]),
+      /** Gitignored file of personal hosts, one per line (`readonly: <host>` for read-only); default `.agents/hooks/trusted-hosts.local`. */
       localFile: z.string().default(ProjectLayout.TRUSTED_HOSTS_FILE),
     })
     .optional(),
@@ -368,6 +405,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    */
   theme: z
     .strictObject({
+      /** Colour for marks and fills, as a six-digit hex such as `#8a5a20`; required when `theme` is set. */
       accent: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #8a5a20'),
       accentDark: z
         .string()
@@ -387,7 +425,9 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    */
   board: z
     .strictObject({
+      /** Who an ask waits on; default: `git config user.name`, else `Owner`. */
       owner: z.string().min(1).optional(),
+      /** Name on the board page and tab; default: the project name and `Board`. */
       title: z.string().min(1).optional(),
       hostname: z
         .string()
@@ -410,6 +450,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
           },
         )
         .optional(),
+      /** Faces and roles of the board's agents, keyed by agent name; default `{}`. */
       agents: BOARD_AGENTS.default({}),
     })
     .default({ agents: {} }),
@@ -450,14 +491,19 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    */
   guard: z
     .strictObject({
+      /** Absolute globs (`~` and `$NAME` allowed) of tool-managed stores, added to the built-in list; default `[]`. */
       toolOwnedPaths: z.array(z.string().min(1)).default([]),
+      /** What guard-outside does with a write outside the project: `ask` or `deny`; default `ask`. */
       outside: z.enum([GuardDecisions.ASK, GuardDecisions.DENY]).default(GuardDecisions.ASK),
       writes: z
         .strictObject({
+          /** Repo-relative `.ts` scripts guard-writes does not read for mutating calls; a path or `{ script, readOnly }`. Default `[]`. */
           trustedScripts: z.array(TRUSTED_SCRIPT).default([]),
+          /** The project's own deploy and migrate commands guard-writes asks about; default `[]`. */
           commands: z.array(GUARD_COMMAND).default([]),
         })
         .default({ trustedScripts: [], commands: [] }),
+      /** Git guard settings; `askPush` lists the branches a plain `git push` asks about, `*` for any run of characters. Default `[]`. */
       git: z.strictObject({ askPush: z.array(PUSH_TARGET).default([]) }).default({ askPush: [] }),
     })
     .default({
@@ -486,7 +532,9 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
                   { message: `one of ${[...AgentSignaturePolicies.SCHEME_SET].join(', ')}` },
                 )
                 .default(AgentSignaturePolicies.ALLOW),
+              /** Agent names added to the shipped list; a co-author or `Generated with` line naming one is flagged under `deny`. Default `[]`. */
               names: z.array(AGENT_NAME).default([]),
+              /** Whole co-author names never flagged, for a person who shares a name with an agent; default `[]`. */
               allow: z.array(AGENT_NAME).default([]),
             })
             .default({ signature: AgentSignaturePolicies.ALLOW, names: [], allow: [] }),
@@ -502,6 +550,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
                     context.addIssue({ code: 'custom', message: error });
                   }
                 }),
+              /** Text shown with the error when a subject does not match `pattern`; absent means none. */
               hint: z.string().min(1).optional(),
             })
             .optional(),
@@ -545,6 +594,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    */
   events: z
     .strictObject({
+      /** `true` makes `vulcan sync` install the hooks that write the event log; default `false`. */
       log: z.boolean().default(false),
       dir: z
         .string()
@@ -568,7 +618,9 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
           message: 'a size such as 50MB, 200MB or 1GB',
         })
         .optional(),
+      /** Most day files kept in the log; at least 1, default 30 when `log` is on. */
       maxFiles: z.number().int().min(1).optional(),
+      /** Oldest age, in days, a day file may reach; at least 1, default 30 when `log` is on. */
       maxAgeDays: z.number().int().min(1).optional(),
     })
     .default({ log: false }),
@@ -579,12 +631,15 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
    */
   local: z
     .strictObject({
+      /** `true` lets the session-start hook clean the safe part of `.agents/local/` at most once a day; default `true`. */
       autoClean: z.boolean().default(true),
     })
     .default({ autoClean: true }),
 });
 
+/** What a project writes in `.configs/vulcan.config.mts`: every key optional or defaulted, unknown keys refused. */
 export type VulcanConfig = z.input<typeof VULCAN_CONFIG_SCHEMA>;
+/** The config as the CLI reads it: every default filled in. */
 export type TResolvedConfig = z.output<typeof VULCAN_CONFIG_SCHEMA>;
 
 /** Identity at run time; gives TS and JS configs their types. The parameter is the options object (V-C-02). */

@@ -52,19 +52,32 @@ const DEFAULTS = OwnerConstants.DEFAULT_LABELS;
 
 /** The words of one language: the minimap header, the six statuses and five labels. A closed list. */
 export const OWNER_LABEL_SET = z.strictObject({
+  /** Three column headers of the minimap table, in order; each one line of at most 80 characters. */
   minimapColumns: z.tuple([TEXT, TEXT, TEXT]),
+  /** Words for the six task statuses of the minimap. */
   status: z.strictObject({
+    /** Status word for finished work. */
     done: TEXT,
+    /** Status word for work under way. */
     doing: TEXT,
+    /** Status word for work waiting on someone. */
     waiting: TEXT,
+    /** Status word for work not yet started. */
     todo: TEXT,
+    /** Status word for work that cannot go on. */
     blocked: TEXT,
+    /** Status word for work that was dropped. */
     dropped: TEXT,
   }),
+  /** Labels for the blocked and decisions parts of a reply. */
   labels: z.strictObject({
+    /** Label that opens the blocked line of a reply. */
     blocked: TEXT,
+    /** Heading of the decisions part of a reply. */
     decisions: TEXT,
+    /** Text shown in the blocked line when nothing blocks. */
     noBlocker: TEXT,
+    /** Text shown in the decisions part when no decision is needed. */
     noDecision: TEXT,
     /** `{x}` is where the recommended answer goes. */
     recommend: TEXT.refine((value) => value.includes('{x}'), { message: 'must contain {x}' }),
@@ -78,12 +91,17 @@ export const OWNER_LABEL_SET = z.strictObject({
  */
 export const OWNER_SCHEMA = z
   .strictObject({
+    /** Language of the reply labels, a code such as `en` or `pt-BR`; default `en`. */
     language: LANGUAGE.default(OwnerConstants.DEFAULT_LANGUAGE),
     report: z
       .strictObject({
+        /** Sections of a reply, in order: headline, minimap, blocked, detail, decisions; at least one, default all five in that order. */
         shape: z.array(SECTION).min(1).default(OwnerConstants.DEFAULT_SHAPE),
+        /** Three minimap column headers; default `#`, `Task`, `Status`. */
         minimapColumns: z.tuple([TEXT, TEXT, TEXT]).default(DEFAULTS.minimapColumns),
+        /** Status words of the minimap; default the English set (done, in progress, waiting, not started, blocked, dropped). */
         status: OWNER_LABEL_SET.shape.status.default(DEFAULTS.status),
+        /** Labels of the blocked and decisions parts; default the English set. */
         labels: OWNER_LABEL_SET.shape.labels.default(DEFAULTS.labels),
         headlineMaxSentences: z
           .number()
@@ -91,12 +109,16 @@ export const OWNER_SCHEMA = z
           .min(1)
           .max(5)
           .default(OwnerConstants.DEFAULT_HEADLINE_MAX_SENTENCES),
+        /** Whether file paths in a reply must be absolute; default `true`. */
         absolutePaths: z.boolean().default(true),
+        /** How hard the reply shape is held: `off`, `advise` or `block`; default `advise`. */
         enforce: ENFORCE.default(OwnerEnforcement.ADVISE),
         /** Words that say something is in public state, or that the checks pass, in the owner's language, added to the English ones. */
         claimWords: z
           .strictObject({
+            /** Extra phrases, besides the English ones, that claim something is in public state; up to 20, each 3 to 60 characters; default none. */
             public: CLAIM_WORDS.default([]),
+            /** Extra phrases, besides the English ones, that claim the checks pass; up to 20, each 3 to 60 characters; default none. */
             done: CLAIM_WORDS.default([]),
           })
           .prefault({}),
@@ -109,6 +131,7 @@ export const OWNER_SCHEMA = z
 
 /** `.agents/local/profile.json`: what one developer told VULCAN about how to work with them. */
 export const PROFILE_SCHEMA = z.strictObject({
+  /** Version of the profile file format; must be `1`. */
   schemaVersion: z.literal(OwnerConstants.PROFILE_SCHEMA_VERSION),
   /** Reply language; labels for it come from `labels` below. A language that is not English with none has its labels written by the agent, and only the structure is checked. */
   language: LANGUAGE.optional(),
@@ -118,15 +141,19 @@ export const PROFILE_SCHEMA = z.strictObject({
       you: TEXT.optional(),
       /** How the agent refers to itself. */
       self: TEXT.optional(),
+      /** How formal the address is: `informal`, `neutral` or `formal`; default `neutral`. */
       formality: FORMALITY.default(OwnerFormalities.NEUTRAL),
     })
     .prefault({}),
+  /** Tone of replies: `terse`, `neutral` or `friendly`; default `neutral`. */
   tone: TONE.default(OwnerTones.NEUTRAL),
+  /** How much a reply spells out: `headline` or `tables`; default `tables`. */
   reportDetail: DETAIL.default(OwnerDetails.TABLES),
   habits: z
     .strictObject({
       /** Ask before a reversible choice; false means state a default and continue (V-P-10). */
       askBeforeReversible: z.boolean().default(false),
+      /** Whether the agent is told to propose commits; default `false`. */
       proposeCommits: z.boolean().default(false),
     })
     .prefault({}),
