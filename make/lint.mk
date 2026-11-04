@@ -6,13 +6,13 @@ LINT_PKG_TARGETS := $(addprefix lint-,$(PACKAGES))
 FIX_PKG_TARGETS := $(addprefix lint-fix-,$(PACKAGES))
 TYPECHECK_PKG_TARGETS := $(addprefix typecheck-,$(PACKAGES))
 
-.PHONY: lint lint-fix lint-all lint-packages lint-scripts lint-wiki lint-files project-names-check changelog-check agent-signature-check lint-fix-packages lint-fix-wiki fmt-files \
+.PHONY: lint lint-fix lint-all lint-packages lint-scripts lint-wiki lint-files project-names-check public-api-check changelog-check agent-signature-check lint-fix-packages lint-fix-wiki fmt-files \
         typecheck typecheck-packages $(LINT_PKG_TARGETS) $(FIX_PKG_TARGETS) $(TYPECHECK_PKG_TARGETS)
 
 lint: lint-packages
 	@echo "lint: done"
 
-lint-all: lint-packages lint-wiki lint-scripts lint-files project-names-check changelog-check
+lint-all: lint-packages lint-wiki lint-scripts lint-files project-names-check public-api-check changelog-check
 	@echo "lint: all packages done"
 
 lint-packages: $(LINT_PKG_TARGETS)
@@ -71,6 +71,11 @@ lint-files:
 project-names-check:
 	@echo "lint: no project names in packages/*/src"
 	@bun scripts/checks/check-project-names.ts
+
+# Every export of cli and okf has a doc comment (the generated reference reads it): atlas api undocumented lists the ones without. Needs atlas and the packages built.
+public-api-check:
+	@echo "lint: every cli and okf export has a doc comment"
+	@bun x --no-install vulcan x atlas api undocumented --package cli --package okf
 
 # A changelog entry never carries the template placeholder X.Y.Z (a title is a plain sentence).
 changelog-check:
