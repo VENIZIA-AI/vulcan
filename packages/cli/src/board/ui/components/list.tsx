@@ -22,7 +22,13 @@ interface IListProps {
   onToggle: (key: string) => void;
 }
 
-const Row = (props: { view: IFlowView; selected: boolean; onSelect: (id: string) => void }) => {
+const Row = (props: {
+  view: IFlowView;
+  selected: boolean;
+  flash: boolean;
+  pop: boolean;
+  onSelect: (id: string) => void;
+}) => {
   const { t, now } = useUi();
   const { view } = props;
   const { flow } = view;
@@ -45,7 +51,7 @@ const Row = (props: { view: IFlowView; selected: boolean; onSelect: (id: string)
   return (
     <div
       ref={ref}
-      className="row"
+      className={`row${props.flash ? ' flash' : ''}`}
       tabIndex={0}
       data-id={flow.id}
       role="button"
@@ -61,7 +67,7 @@ const Row = (props: { view: IFlowView; selected: boolean; onSelect: (id: string)
     >
       {view.newCount > 0 ? (
         <span
-          className="unread"
+          className={`unread${props.pop ? ' pop' : ''}`}
           title={`${view.newCount}${t(' sự kiện mới')}`}
           aria-label={`${view.newCount}${t(' sự kiện mới')}`}
         />
@@ -90,7 +96,7 @@ const Row = (props: { view: IFlowView; selected: boolean; onSelect: (id: string)
   );
 };
 
-const Groups = (props: IListProps) => {
+const Groups = (props: IListProps & { changed: Set<string>; fresh: Set<string> }) => {
   const { t, now } = useUi();
   const today = (view: IFlowView): boolean => BoardTime.isSameDay({ iso: view.last.ts, now });
 
@@ -140,9 +146,11 @@ const Groups = (props: IListProps) => {
             {open
               ? items.map((view) => (
                   <Row
-                    key={view.flow.id}
+                    key={`${view.flow.id}:${props.changed.has(view.flow.id) ? view.last.ts : ''}`}
                     view={view}
                     selected={props.selected === view.flow.id}
+                    flash={props.changed.has(view.flow.id)}
+                    pop={props.fresh.has(view.flow.id)}
                     onSelect={props.onSelect}
                   />
                 ))
@@ -231,6 +239,27 @@ const Kanban = (props: IListProps) => {
 /** The left pane: the count, the filter chip, the three ways to look, and the flows. */
 export const FlowList = (props: IListProps) => {
   const { t } = useUi();
+  const seen = useRef(new Map<string, { ts: string; unread: boolean }>());
+  const changed = new Set<string>();
+  const fresh = new Set<string>();
+
+  for (const view of props.flows) {
+    const before = seen.current.get(view.flow.id);
+
+    if (before && before.ts !== view.last.ts) {
+      changed.add(view.flow.id);
+    }
+
+    if (before && !before.unread && view.newCount > 0) {
+      fresh.add(view.flow.id);
+    }
+  }
+
+  useEffect(() => {
+    seen.current = new Map(
+      props.flows.map((view) => [view.flow.id, { ts: view.last.ts, unread: view.newCount > 0 }]),
+    );
+  }, [props.flows]);
 
   return (
     <section className="pane list" aria-label={t('Danh sách luồng')}>
@@ -275,7 +304,7 @@ export const FlowList = (props: IListProps) => {
         {props.mode === 'board' && props.flows.length > 0 ? (
           <Kanban {...props} />
         ) : (
-          <Groups {...props} />
+          <Groups {...props} changed={changed} fresh={fresh} />
         )}
       </div>
     </section>

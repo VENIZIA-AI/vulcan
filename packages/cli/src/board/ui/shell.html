@@ -2229,26 +2229,6 @@
         position: relative;
         overflow: hidden;
       }
-      .sg.cur.sweep::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: currentColor;
-        opacity: 0.28;
-        transform-origin: left center;
-        animation: sweep 0.56s var(--ease-out) forwards;
-        pointer-events: none;
-      }
-      @keyframes sweep {
-        from {
-          transform: scaleX(0);
-          opacity: 0.34;
-        }
-        to {
-          transform: scaleX(1);
-          opacity: 0;
-        }
-      }
       .unread.pop {
         animation: pop 0.36s var(--ease-out);
       }
@@ -2262,9 +2242,6 @@
         100% {
           transform: scale(1);
         }
-      }
-      .row.glide {
-        transition: transform 0.28s var(--ease-out);
       }
       @media (max-width: 1599px) {
         .dock-lbl {

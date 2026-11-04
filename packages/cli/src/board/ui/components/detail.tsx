@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { BoardTables } from '../common/constants.ts';
 import type { IBoardViewEvent, IFlowView } from '../common/types.ts';
@@ -108,72 +109,77 @@ const Timeline = (props: {
   view: IFlowView;
   attempts: Record<string, number>;
   onAttempt: (key: string, round: number) => void;
+  draw: boolean;
 }) => {
   const { t } = useUi();
   const { view } = props;
 
   return (
-    <ol className="tl">
-      {view.flow.stages.map((k) => {
-        const evs = view.evs.filter((event) => event.stage === k && event.kind !== 'flow');
+    <ol className={`tl${props.draw ? ' draw' : ''}`}>
+      {view.flow.stages
+        .map((k) => ({
+          k,
+          evs: view.evs.filter((event) => event.stage === k && event.kind !== 'flow'),
+        }))
+        .filter((stage) => stage.evs.length > 0)
+        .map(({ k, evs }, index) => {
+          const last = evs[evs.length - 1];
+          const key = `${view.flow.id}:${k}`;
+          const rounds = [...new Set(evs.map((event) => event.attempt ?? 1))].sort(
+            (left, right) => left - right,
+          );
+          const picked = props.attempts[key] ?? rounds[rounds.length - 1];
+          const shown =
+            rounds.length > 1 ? evs.filter((event) => (event.attempt ?? 1) === picked) : evs;
+          const state = stageClass({ stage: k, cur: view.flow.cur });
 
-        if (evs.length === 0) {
-          return null;
-        }
-
-        const last = evs[evs.length - 1];
-        const key = `${view.flow.id}:${k}`;
-        const rounds = [...new Set(evs.map((event) => event.attempt ?? 1))].sort(
-          (left, right) => left - right,
-        );
-        const picked = props.attempts[key] ?? rounds[rounds.length - 1];
-        const shown =
-          rounds.length > 1 ? evs.filter((event) => (event.attempt ?? 1) === picked) : evs;
-        const state = stageClass({ stage: k, cur: view.flow.cur });
-
-        return (
-          <li key={k} className={`st ${state}${isBad(last) && k === view.flow.cur ? ' fail' : ''}`}>
-            <span className="k" />
-            <div>
-              <div className="h">
-                <span className="nm">{t(BoardTables.STAGES[k])}</span>
-                <span className="tm">
-                  {approxMark(evs)}
-                  {BoardTime.clock({ iso: evs[0].ts })}
-                  {evs.length > 1 ? `–${BoardTime.clock({ iso: last.ts })}` : ''}
-                </span>
-                <span className="tm">{`${evs.length}${t(' sự kiện')}`}</span>
-              </div>
-              {rounds.length > 1 ? (
-                <div
-                  className="att"
-                  role="group"
-                  aria-label={`${t('Vòng của ')}${t(BoardTables.STAGES[k])}`}
-                >
-                  {rounds.map((round) => (
-                    <button
-                      key={round}
-                      type="button"
-                      aria-pressed={round === picked}
-                      onClick={() => props.onAttempt(key, round)}
-                    >
-                      {`${t('Vòng ')}${round} `}
-                      <Mark
-                        bad={evs.some((event) => (event.attempt ?? 1) === round && isBad(event))}
-                      />
-                    </button>
-                  ))}
+          return (
+            <li
+              key={k}
+              style={props.draw ? { animationDelay: `${index * 60}ms` } : undefined}
+              className={`st ${state}${isBad(last) && k === view.flow.cur ? ' fail' : ''}`}
+            >
+              <span className="k" />
+              <div>
+                <div className="h">
+                  <span className="nm">{t(BoardTables.STAGES[k])}</span>
+                  <span className="tm">
+                    {approxMark(evs)}
+                    {BoardTime.clock({ iso: evs[0].ts })}
+                    {evs.length > 1 ? `–${BoardTime.clock({ iso: last.ts })}` : ''}
+                  </span>
+                  <span className="tm">{`${evs.length}${t(' sự kiện')}`}</span>
                 </div>
-              ) : null}
-              <ul className="evs">
-                {shown.map((event) => (
-                  <EventItem key={event.id} event={event} />
-                ))}
-              </ul>
-            </div>
-          </li>
-        );
-      })}
+                {rounds.length > 1 ? (
+                  <div
+                    className="att"
+                    role="group"
+                    aria-label={`${t('Vòng của ')}${t(BoardTables.STAGES[k])}`}
+                  >
+                    {rounds.map((round) => (
+                      <button
+                        key={round}
+                        type="button"
+                        aria-pressed={round === picked}
+                        onClick={() => props.onAttempt(key, round)}
+                      >
+                        {`${t('Vòng ')}${round} `}
+                        <Mark
+                          bad={evs.some((event) => (event.attempt ?? 1) === round && isBad(event))}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                <ul className="evs">
+                  {shown.map((event) => (
+                    <EventItem key={event.id} event={event} />
+                  ))}
+                </ul>
+              </div>
+            </li>
+          );
+        })}
     </ol>
   );
 };
@@ -181,6 +187,7 @@ const Timeline = (props: {
 /** All the lines when asked for, else the stages; a flow with no work has neither. */
 const Body = (props: {
   view: IFlowView;
+  draw: boolean;
   everything: boolean;
   attempts: Record<string, number>;
   onAttempt: (key: string, round: number) => void;
@@ -202,7 +209,9 @@ const Body = (props: {
     return <p className="nowork">{t('nw.empty')}</p>;
   }
 
-  return <Timeline view={view} attempts={props.attempts} onAttempt={props.onAttempt} />;
+  return (
+    <Timeline view={view} attempts={props.attempts} onAttempt={props.onAttempt} draw={props.draw} />
+  );
 };
 
 interface IDetailProps {
@@ -281,6 +290,14 @@ const Today = (props: IDetailProps) => {
 export const Detail = (props: IDetailProps) => {
   const { t } = useUi();
   const view = props.views.find((one) => one.flow.id === props.selected);
+  const drawn = useRef(new Set<string>());
+  const draw = view !== undefined && !drawn.current.has(view.flow.id);
+
+  useEffect(() => {
+    if (view) {
+      drawn.current.add(view.flow.id);
+    }
+  }, [view?.flow.id]);
 
   return (
     <section
@@ -317,6 +334,7 @@ export const Detail = (props: IDetailProps) => {
               </button>
             </div>
             <Body
+              draw={draw}
               view={view}
               everything={props.everything}
               attempts={props.attempts}
