@@ -14,9 +14,9 @@ const MAX_SESSION_FILES = 500;
 export class EventActor {
   /**
    * In order: `VULCAN_ACTOR` from the environment; the name Claude Code gave the session in its own
-   * session registry (`<config dir>/sessions/<pid>.json`, matched by session id); `claude:` and the
-   * start of the session id; `unknown`. The registry is not a documented interface, so a read that fails
-   * or finds no match falls through to the next answer.
+   * session registry (`<config dir>/sessions/<pid>.json`, matched by session id) when a person or a peer
+   * gave it; `claude:` and the start of the session id; `unknown`. The registry is not a documented interface,
+   * so a read that fails or finds no match falls through to the next answer.
    */
   static resolve(opts: { sessionId?: string; env: Record<string, string | undefined> }): string {
     const fromEnv = EventActor.clean({ text: opts.env[EventConstants.ACTOR_ENV] ?? '' });
@@ -33,7 +33,7 @@ export class EventActor {
 
     const named = EventActor.registryName({ sessionId, env: opts.env });
 
-    return named ?? `claude:${sessionId.slice(0, SESSION_ID_SHORT)}`;
+    return named ?? `${EventConstants.UNNAMED_PREFIX}${sessionId.slice(0, SESSION_ID_SHORT)}`;
   }
 
   static clean(opts: { text: string }): string {
@@ -84,7 +84,12 @@ export class EventActor {
 
       const name = typeof entry.name === 'string' ? EventActor.clean({ text: entry.name }) : '';
 
-      if (name === '') {
+      // A name with no readable source counts as given: hiding a real agent is the worse mistake.
+      if (
+        name === '' ||
+        (typeof entry.nameSource === 'string' &&
+          EventConstants.MADE_UP_NAME_SOURCES.has(entry.nameSource))
+      ) {
         return undefined;
       }
 

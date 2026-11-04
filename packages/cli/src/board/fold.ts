@@ -1,4 +1,9 @@
-import { EventKinds, EventSources, EventStatuses } from '../events/common/index.ts';
+import {
+  EventActorNames,
+  EventKinds,
+  EventSources,
+  EventStatuses,
+} from '../events/common/index.ts';
 import type { IEvent } from '../events/common/index.ts';
 import {
   BoardConstants,
@@ -256,8 +261,10 @@ export class BoardFold {
     const { agents, line } = opts;
     const known = agents[line.actor];
 
+    // A session with no name of its own is no agent: its lines stay in their flows, and it has no card.
     // A message the agent got is not a line of its own: it moves neither its state nor its time.
     if (
+      !EventActorNames.isNamed({ actor: line.actor }) ||
       line.kind === EventKinds.SUBAGENT_STOP ||
       line.kind === EventKinds.MSG_RECEIVED ||
       BoardFold.isHarnessAsk({ line })

@@ -1,3 +1,4 @@
+import { EventActorNames } from '../../../events/common/index.ts';
 import type { IBoardAgent, IBoardData, IBoardEvent, IBoardFlow } from '../../common/index.ts';
 import { BoardConstants } from '../../common/index.ts';
 import { BoardUiConstants } from '../common/constants.ts';
@@ -68,8 +69,12 @@ export class BoardView {
   }): IAgentRow[] {
     const { data, flows, events, translate } = opts;
     const docs = data.agents;
+    // A session with no name of its own is no agent, whatever it did: its commits and messages make no card either.
     const isShown = (name: string): boolean =>
-      name !== '' && name !== data.owner && !BoardUiConstants.NOT_AGENTS.has(name);
+      name !== '' &&
+      name !== data.owner &&
+      !BoardUiConstants.NOT_AGENTS.has(name) &&
+      EventActorNames.isNamed({ actor: name });
     const listed = data.roster ?? [];
     const rank = (name: string): number =>
       listed.includes(name) ? listed.indexOf(name) : listed.length;

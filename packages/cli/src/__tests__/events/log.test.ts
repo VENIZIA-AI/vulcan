@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import {
   EventActor,
+  EventActorNames,
   EventFlow,
   EventKinds,
   EventLog,
@@ -583,6 +584,72 @@ describe('EventActor', () => {
     expect(
       EventActor.resolve({ sessionId: 'x', env: { CLAUDE_CONFIG_DIR: join(config, 'missing') } }),
     ).toBe('claude:x');
+  });
+
+  test('a name is the actor only when the session was named: derived, auto and collision names are not', () => {
+    const resolve = (nameSource: string | undefined): string =>
+      EventActor.resolve({
+        sessionId: 'abcdef12-0000',
+        env: {
+          CLAUDE_CONFIG_DIR: sessions({
+            files: {
+              '1.json': JSON.stringify({
+                sessionId: 'abcdef12-0000',
+                name: 'my-folder-6d',
+                ...(nameSource === undefined ? {} : { nameSource }),
+              }),
+            },
+          }),
+        },
+      });
+
+    for (const given of ['user', 'peer']) {
+      expect(resolve(given)).toBe('my-folder-6d');
+    }
+
+    for (const made of ['derived', 'auto', 'collision']) {
+      expect(resolve(made)).toBe('claude:abcdef12');
+    }
+
+    // No readable source: a person's name more often than not, and hiding a real agent is the worse mistake.
+    expect(resolve(undefined)).toBe('my-folder-6d');
+    expect(resolve('something-new')).toBe('my-folder-6d');
+  });
+
+  test('two registry files for one session, a derived name and a given one: the given name wins, even when the derived file is newer or lives', () => {
+    const file = (opts: { name: string; nameSource: string; pid: number; updatedAt: number }) =>
+      JSON.stringify({ sessionId: 's1', ...opts });
+    const resolve = (files: Record<string, string>) =>
+      EventActor.resolve({ sessionId: 's1', env: { CLAUDE_CONFIG_DIR: sessions({ files }) } });
+
+    expect(
+      resolve({
+        '1.json': file({
+          name: 'folder-6d',
+          nameSource: 'derived',
+          pid: process.pid,
+          updatedAt: 99,
+        }),
+        '2.json': file({ name: 'pnt-x-1', nameSource: 'user', pid: 2_147_483_000, updatedAt: 1 }),
+      }),
+    ).toBe('pnt-x-1');
+    expect(
+      resolve({
+        '1.json': file({
+          name: 'folder-6d',
+          nameSource: 'derived',
+          pid: process.pid,
+          updatedAt: 99,
+        }),
+      }),
+    ).toBe('claude:s1');
+  });
+
+  test('isNamed: an actor of the fallback shapes (claude:<id>, unknown) is not a name', () => {
+    expect(EventActorNames.isNamed({ actor: 'pnt-vulcan-1' })).toBe(true);
+    expect(EventActorNames.isNamed({ actor: 'claude:abcdef12' })).toBe(false);
+    expect(EventActorNames.isNamed({ actor: 'unknown' })).toBe(false);
+    expect(EventActorNames.isNamed({ actor: 'claudette' })).toBe(true);
   });
 
   test('a name is one clean line', () => {
