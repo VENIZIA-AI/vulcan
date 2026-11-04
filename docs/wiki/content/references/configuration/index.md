@@ -462,9 +462,9 @@ The defaults for `trusted`, `readOnly`, and `localFile` apply once `remoteHosts`
 |---|---|---|---|
 | `trusted` | `string[]` | `[]` | Host names or patterns permitted for all commands |
 | `readOnly` | `string[]` | `[]` | Host names or patterns permitted only for strict read commands |
-| `localFile` | `string` | `'.agents/hooks/trusted-hosts.local'` | Path to uncommitted personal hosts file: a plain line is trusted, `readonly: <host>` is read-only |
+| `localFile` | `string` | `'.agents/hooks/trusted-hosts.local'` | Path to uncommitted personal hosts file: a plain line is trusted, `readonly: <host>` is read-only. The hook reads it at run time; `vulcan sync` never copies it into the tracked manifest |
 
-Each host pattern must match `/^(?:\$\{?\w+\}?|[A-Za-z0-9._*-]+)$/`. The pattern admits host names, wildcard patterns with `*`, or shell variables such as `$HOST` or `${HOST}`. Every pattern needs at least one literal character beyond `*` and `.`. Values must not contain user names, URL paths, or port numbers.
+Each host pattern must match `/^(?:\$\{?\w+\}?|[A-Za-z0-9._*-]+)$/`. The pattern admits host names, wildcard patterns with `*`, or shell variables such as `$HOST` or `${HOST}`. Every pattern needs at least one letter or digit: `*`, `-`, `_` and `*-*` are refused, `*-db` and `prod-*` are fine. Values must not contain user names, URL paths, or port numbers.
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';

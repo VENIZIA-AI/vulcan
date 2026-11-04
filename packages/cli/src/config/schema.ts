@@ -202,7 +202,7 @@ const REMOTE_HOST = z
   .string()
   .regex(HostPatterns.SHAPE, 'a host name or a pattern with *, not a user, a path or a port')
   .refine((value) => HostPatterns.hasLiteral({ value }), {
-    message: 'a pattern needs at least one literal character beyond * and .',
+    message: 'a pattern needs at least one letter or digit, not only * . - or _',
   });
 
 const VIZ_OUTPUT = '.agents/knowledge/viz.html';

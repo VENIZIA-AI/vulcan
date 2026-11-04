@@ -73,6 +73,28 @@ describe('sync registers the guard only for a project that sets remoteHosts', ()
     });
   });
 
+  test('the personal list never reaches the tracked manifest, on the first sync or a later one', () => {
+    const root = makeProject({
+      config: CONFIG(REMOTE_HOSTS),
+      files: {
+        '.agents/hooks/trusted-hosts.local':
+          'secret-trusted.internal\nreadonly: secret-prod.internal\n',
+      },
+    });
+
+    runCli({ args: ['sync'], cwd: root });
+
+    const text = readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8');
+
+    expect(text).not.toContain('secret-trusted');
+    expect(text).not.toContain('secret-prod');
+    expect(JSON.parse(text).remoteHosts).toEqual({
+      trusted: ['lab1', '*.lab.example.com'],
+      readOnly: ['prod1'],
+      localFile: '.agents/hooks/trusted-hosts.local',
+    });
+  });
+
   test('without it: no hook, no manifest key', () => {
     const root = makeProject({ config: CONFIG('') });
     const manifest = JSON.parse(readFileSync(join(root, '.agents/vulcan.manifest.json'), 'utf8'));
@@ -177,7 +199,7 @@ describe('the registered hook, run as Claude Code runs it', () => {
     ).toContain('"ask"');
   });
 
-  test('a read-only host from the personal list still asks about a mutating form in the message that names the file', () => {
+  test('a mutating form on a read-only host of the personal list asks, and the answer calls it a remoteHosts.readOnly host', () => {
     const root = makeProject({
       config: CONFIG(REMOTE_HOSTS),
       files: { '.agents/hooks/trusted-hosts.local': 'readonly: db-replica.lan\n' },

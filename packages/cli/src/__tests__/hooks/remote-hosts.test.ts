@@ -85,6 +85,9 @@ describe('RemoteHosts.parsePersonalList: one host per line, readonly: for a read
     ['*'],
     ['**'],
     ['*.*'],
+    ['-'],
+    ['*-*'],
+    ['readonly: *-*'],
     ['user@host'],
     ['host:22'],
     ['/etc/passwd'],
@@ -103,14 +106,36 @@ describe('RemoteHosts.parsePersonalList: one host per line, readonly: for a read
 });
 
 describe('HostPatterns: the rule the config and the personal list share', () => {
-  test.each(['lab1', '*.lab.example.com', 'prod-*', '$PROD_S1', '${PROD_S1}', '10.0.0.1'])(
-    '%p is a host pattern',
-    (value) => {
-      expect(HostPatterns.isValid({ value })).toBe(true);
-    },
-  );
+  test.each([
+    'lab1',
+    '*.lab.example.com',
+    'prod-*',
+    '*-db',
+    '*e*',
+    'a-b_c',
+    '$PROD_S1',
+    '${PROD_S1}',
+    '10.0.0.1',
+  ])('%p is a host pattern', (value) => {
+    expect(HostPatterns.isValid({ value })).toBe(true);
+  });
 
-  test.each(['*', '.*', '*.*', '', 'a@b', 'a:1', 'a b', 'a/b'])('%p is not', (value) => {
+  test.each([
+    '*',
+    '.*',
+    '*.*',
+    '-',
+    '_',
+    '*-*',
+    '*_*',
+    '.-.',
+    '$_',
+    '',
+    'a@b',
+    'a:1',
+    'a b',
+    'a/b',
+  ])('%p is not', (value) => {
     expect(HostPatterns.isValid({ value })).toBe(false);
   });
 });

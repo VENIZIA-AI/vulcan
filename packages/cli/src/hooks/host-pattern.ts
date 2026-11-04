@@ -6,9 +6,9 @@ export class HostPatterns {
   /** A `$VAR` or `${VAR}`, or a host name made of letters, digits, `.`, `_`, `-` and `*`: never a user, a path or a port. */
   static readonly SHAPE = /^(?:\$\{?\w+\}?|[A-Za-z0-9._*-]+)$/;
 
-  /** A pattern needs a character beyond `*` and `.`: a lone `*` would match every host. */
+  /** A pattern needs a letter or a digit: `*`, `-`, `*-*` or `*_*` would match every host, or every hyphenated one. */
   static hasLiteral(opts: { value: string }): boolean {
-    return opts.value.replaceAll('*', '').replaceAll('.', '') !== '';
+    return /[A-Za-z0-9]/.test(opts.value);
   }
 
   static isValid(opts: { value: string }): boolean {
