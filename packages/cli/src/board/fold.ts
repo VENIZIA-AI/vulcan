@@ -233,11 +233,35 @@ export class BoardFold {
     }
   }
 
+  /** When the agent's current stretch in `state` began: kept while it stays in the state and the lines come within the active gap. */
+  private static sinceOf(opts: {
+    known: IBoardAgent | undefined;
+    state: IBoardAgent['state'] | undefined;
+    ts: string;
+  }): string {
+    const { known } = opts;
+
+    if (
+      known === undefined ||
+      known.state !== opts.state ||
+      Date.parse(opts.ts) - Date.parse(known.checkedAt) > BoardConstants.ACTIVE_GAP_MS
+    ) {
+      return opts.ts;
+    }
+
+    return known.since;
+  }
+
   private static moveAgent(opts: { agents: Record<string, IBoardAgent>; line: IEvent }): void {
     const { agents, line } = opts;
     const known = agents[line.actor];
 
-    if (line.kind === EventKinds.SUBAGENT_STOP || BoardFold.isHarnessAsk({ line })) {
+    // A message the agent got is not a line of its own: it moves neither its state nor its time.
+    if (
+      line.kind === EventKinds.SUBAGENT_STOP ||
+      line.kind === EventKinds.MSG_RECEIVED ||
+      BoardFold.isHarnessAsk({ line })
+    ) {
       return;
     }
 
@@ -258,7 +282,7 @@ export class BoardFold {
         name: line.actor,
         state,
         current: known?.current ?? '',
-        since: known?.state === state ? known.since : line.ts,
+        since: BoardFold.sinceOf({ known, state, ts: line.ts }),
         checkedAt: line.ts,
         ...(model === undefined ? {} : { model }),
         ...(harness === undefined ? {} : { harness }),
@@ -267,11 +291,14 @@ export class BoardFold {
       return;
     }
 
+    // A line of work after a stop means the agent is at it again.
+    const wakes = known?.state === 'idle';
+
     agents[line.actor] = {
       name: line.actor,
-      state: known?.state ?? 'working',
+      state: wakes ? 'working' : (known?.state ?? 'working'),
       current: line.summary,
-      since: known?.since ?? line.ts,
+      since: BoardFold.sinceOf({ known, state: wakes ? 'working' : known?.state, ts: line.ts }),
       checkedAt: line.ts,
       ...(known?.model === undefined ? {} : { model: known.model }),
       ...(known?.harness === undefined ? {} : { harness: known.harness }),
@@ -467,9 +494,12 @@ export class BoardFold {
       }
     }
 
-    // A merge is Done until something reopens it: a commit, a fix or another pull request after it.
+    // A merge or a deploy is Done until something reopens it: a commit, a fix or another pull request after it.
     const merged = events.findLastIndex(
-      (event) => event.kind === BoardKinds.MERGE || event.status === BoardStatuses.DONE,
+      (event) =>
+        event.kind === BoardKinds.MERGE ||
+        event.kind === BoardKinds.RELEASE ||
+        event.status === BoardStatuses.DONE,
     );
 
     if (merged >= 0 && !events.slice(merged + 1).some((event) => BoardFold.reopens({ event }))) {

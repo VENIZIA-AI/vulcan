@@ -1,3 +1,4 @@
+import { BoardConstants } from '../../common/index.ts';
 import { BoardUiConstants } from '../common/constants.ts';
 import type { TTranslate } from '../common/types.ts';
 
@@ -38,6 +39,11 @@ export class BoardTime {
 
   static isSameDay(opts: { iso: string; now: number }): boolean {
     return new Date(opts.iso).toDateString() === new Date(opts.now).toDateString();
+  }
+
+  /** Whether `iso` is within the last `days` days of `now`. */
+  static isWithin(opts: { iso: string; now: number; days: number }): boolean {
+    return opts.now - Date.parse(opts.iso) < opts.days * BoardConstants.DAY_MS;
   }
 
   /** Whether the line says its own time was estimated. */

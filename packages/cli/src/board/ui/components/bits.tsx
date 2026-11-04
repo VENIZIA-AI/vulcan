@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { IBoardItem } from '../../common/index.ts';
 import { BoardTables } from '../common/constants.ts';
-import type { IBoardViewEvent, IFlowView } from '../common/types.ts';
+import type { IBoardViewEvent } from '../common/types.ts';
 import { useUi } from '../i18n/context.ts';
 import { BoardTime } from '../state/time.ts';
 import { BoardUrl } from '../url.ts';
@@ -32,14 +32,15 @@ export const Mark = (props: { bad: boolean }) => {
   );
 };
 
-export const FlowCode = (props: { id: string }) => (
-  <span className="code">{props.id === 'Unsorted' ? '-' : props.id}</span>
+/** How far along: a thin bar filled by `done` of `total`. */
+export const Bar = (props: { done: number; total: number }) => (
+  <span className="c-bar">
+    <span style={{ width: `${Math.round((props.done / props.total) * 100)}%` }} />
+  </span>
 );
 
-export const Untitled = () => <span className="untitled">{useUi().t('fl.untitled')}</span>;
-
-/** A list of a flow line as a checklist with its count: `Steps · 2/3`. Nothing when the line gave none. */
-export const Checklist = (props: { title: string; items: IBoardItem[] | undefined }) => {
+/** A list of a flow line as a checklist; the checked ones are done. Nothing when the line gave none. */
+export const Checklist = (props: { items: IBoardItem[] | undefined }) => {
   const { items } = props;
 
   if (items === undefined || items.length === 0) {
@@ -48,7 +49,6 @@ export const Checklist = (props: { title: string; items: IBoardItem[] | undefine
 
   return (
     <div className="ckl">
-      <div className="lb">{`${props.title} · ${items.filter((item) => item.done).length}/${items.length}`}</div>
       <ul>
         {items.map((item, index) => (
           <li key={`${index}:${item.text}`} className={item.done ? 'on' : undefined}>
@@ -56,67 +56,6 @@ export const Checklist = (props: { title: string; items: IBoardItem[] | undefine
           </li>
         ))}
       </ul>
-    </div>
-  );
-};
-
-/** The stages of a flow, the one it is at marked, with the CI runs and reviews of each. */
-export const Strip = (props: { view: IFlowView }) => {
-  const { t } = useUi();
-  const { view } = props;
-
-  if (view.noWork) {
-    return (
-      <div className="strip">
-        <span className="sg">{t('nw.chip')}</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="strip">
-      {view.flow.stages.map((k) => {
-        const here = view.att[k] ?? [];
-        const ci = here.filter((event) => event.kind === 'ci' || event.kind === 'release');
-        const reviews = here.filter((event) => event.kind === 'review');
-        const name = t(BoardTables.STAGES[k]);
-        const cur = k === view.flow.cur;
-        const classes = ['sg'];
-        const titles = [name];
-
-        if (k < view.flow.cur) {
-          classes.push('past');
-        }
-
-        if (cur) {
-          classes.push('cur');
-        }
-
-        if (cur && (view.flow.state === 'you' || view.flow.state === 'blocked')) {
-          classes.push(view.flow.state);
-        }
-
-        if (ci.length > 0) {
-          titles.push(
-            `CI ${ci.map((event) => (event.status === 'fail' ? t('đỏ') : 'xanh')).join(', ')}`,
-          );
-        }
-
-        if (reviews.length > 0) {
-          titles.push(`${reviews.length}${t(' vòng review')}`);
-        }
-
-        return (
-          <span key={k} className={classes.join(' ')} title={titles.join(' · ')}>
-            {name}
-            {ci.slice(-4).map((event) => (
-              <Mark key={event.id} bad={event.status === 'fail'} />
-            ))}
-            {reviews.length > 1 ? <span>×{reviews.length}</span> : null}
-            {reviews.length === 1 && reviews[0].status === 'fail' ? <Mark bad /> : null}
-          </span>
-        );
-      })}
     </div>
   );
 };
@@ -137,7 +76,7 @@ const Route = (props: { event: IBoardViewEvent }) => {
   return event.to ? (
     <>
       {' → '}
-      <b>{event.asTo ?? event.to}</b>
+      <b>{event.to}</b>
     </>
   ) : null;
 };
@@ -166,7 +105,7 @@ export const EventItem = (props: { event: IBoardViewEvent; chip?: ReactNode }) =
       <div>
         {props.chip}
         <div className="who">
-          <b>{event.as ?? event.actor}</b>
+          <b>{event.actor}</b>
           <Route event={event} />
           {` · ${kind ? t(kind) : event.kind}${event.attempt && event.attempt > 1 ? `${t(' lần ')}${event.attempt}` : ''}`}
         </div>
