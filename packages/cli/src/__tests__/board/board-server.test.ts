@@ -13,6 +13,7 @@ afterEach(() => BoardServer.stop());
 
 const TOKEN = 'a'.repeat(32);
 const PORT = 4317;
+const HOSTNAME = BoardServe.DEFAULT_HOSTNAME;
 
 const check = (opts: {
   method?: string;
@@ -28,6 +29,7 @@ const check = (opts: {
     origin: opts.origin ?? null,
     port: PORT,
     token: TOKEN,
+    hostname: HOSTNAME,
   });
 
 describe('BoardServer.check: who may read the board', () => {
@@ -58,6 +60,43 @@ describe('BoardServer.check: who may read the board', () => {
     expect(check({ host: `LocalHost:${PORT}` }).status).toBe(200);
     expect(check({ origin: `HTTP://LOCALHOST:${PORT}` }).status).toBe(200);
     expect(check({ host: `EVIL.example:${PORT}` }).status).toBe(403);
+  });
+
+  test('the configured name with the port is accepted, whatever its case, as Host and as Origin', () => {
+    expect(check({ host: `${HOSTNAME}:${PORT}` }).status).toBe(200);
+    expect(check({ host: `${HOSTNAME.toUpperCase()}:${PORT}` }).status).toBe(200);
+    expect(check({ origin: `http://${HOSTNAME}:${PORT}` }).status).toBe(200);
+    expect(
+      check({ host: `${HOSTNAME}:${PORT}`, origin: `http://${HOSTNAME}:${PORT}` }).status,
+    ).toBe(200);
+  });
+
+  test.each([
+    ['a different .localhost name', `evil.localhost:${PORT}`],
+    ['the name on another port', `${HOSTNAME}:1`],
+    ['the name with no port', HOSTNAME],
+    ['a name that ends with it', `x.${HOSTNAME}:${PORT}`],
+    ['a name that starts with it', `${HOSTNAME}.evil.example:${PORT}`],
+  ])('%s is refused as Host and as Origin', (_name, host) => {
+    expect(check({ host })).toEqual({ status: 403 });
+    expect(check({ origin: `http://${host}` })).toEqual({ status: 403 });
+  });
+
+  test('a project name replaces the default, which is then refused', () => {
+    const custom = (host: string) =>
+      BoardServer.check({
+        method: 'GET',
+        url: `http://127.0.0.1:${PORT}/?t=${TOKEN}`,
+        host,
+        origin: null,
+        port: PORT,
+        token: TOKEN,
+        hostname: 'my-board.localhost',
+      });
+
+    expect(custom(`my-board.localhost:${PORT}`).status).toBe(200);
+    expect(custom(`127.0.0.1:${PORT}`).status).toBe(200);
+    expect(custom(`${HOSTNAME}:${PORT}`)).toEqual({ status: 403 });
   });
 
   test('the same origin and no Origin at all are fine', () => {
@@ -161,13 +200,51 @@ const openStream = async (opts: {
 };
 
 describe('vulcan board serve', () => {
+  test('the address is the configured name; the plain 127.0.0.1 address is the fallback; both reach the page, no other name does', async () => {
+    const { root, dir } = projectWithLog();
+    const server = await startOn({ root, dir, port: 0 });
+    const port = new URL(server.url).port;
+
+    expect(server.url.startsWith(`http://${HOSTNAME}:${port}/?t=`)).toBe(true);
+    expect(server.fallback.startsWith(`http://127.0.0.1:${port}/?t=`)).toBe(true);
+    expect(new URL(server.fallback).searchParams.get('t')).toBe(
+      new URL(server.url).searchParams.get('t'),
+    );
+    const result = await fetch(server.fallback);
+    expect(result.status).toBe(200);
+    const result2 = await fetch(server.fallback, { headers: { host: `${HOSTNAME}:${port}` } });
+    expect(result2.status).toBe(200);
+    const result3 = await fetch(server.fallback, { headers: { host: `evil.localhost:${port}` } });
+    expect(result3.status).toBe(403);
+  });
+
+  test('a project name is used in the address, and the default is then refused', async () => {
+    const { root, dir } = projectWithLog();
+    const server = await BoardServer.start({
+      port: 0,
+      dir,
+      hostname: 'my-board.localhost',
+      collect: () =>
+        BoardCommand.collect({ root, dir, since: SINCE, args: { repos: [], noGithub: true } }),
+    });
+    const port = new URL(server.url).port;
+
+    expect(server.url.startsWith(`http://my-board.localhost:${port}/?t=`)).toBe(true);
+    const result = await fetch(server.fallback, {
+      headers: { host: `my-board.localhost:${port}` },
+    });
+    expect(result.status).toBe(200);
+    const result2 = await fetch(server.fallback, { headers: { host: `${HOSTNAME}:${port}` } });
+    expect(result2.status).toBe(403);
+  });
+
   test('serves the page on 127.0.0.1 with the token, and the headers a local page needs', async () => {
     const { root, dir } = projectWithLog();
     const server = await startOn({ root, dir, port: 0 });
     const response = await fetch(server.url);
     const html = await response.text();
 
-    expect(server.url.startsWith('http://127.0.0.1:')).toBe(true);
+    expect(server.url.startsWith(`http://${HOSTNAME}:`)).toBe(true);
     expect(response.status).toBe(200);
     expect(html).toContain('id="board-data"');
     expect(html).toContain(`"stream":"${BoardServe.STREAM_PATH}?${BoardServe.TOKEN_PARAM}=`);

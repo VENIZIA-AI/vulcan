@@ -9,6 +9,7 @@ import { OWNER_SCHEMA } from '../owner/schema.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import type { TAgentSignaturePolicy } from '../commit/common/index.ts';
 import { SubjectShape } from '../commit/subject.ts';
+import { BoardServe } from '../board/common/constants.ts';
 import { BOARD_AGENTS } from '../board/schema.ts';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
@@ -383,6 +384,13 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
     .strictObject({
       owner: z.string().min(1).optional(),
       title: z.string().min(1).optional(),
+      hostname: z
+        .string()
+        .regex(
+          BoardServe.HOSTNAME,
+          'a lowercase name that ends in .localhost, such as board.localhost',
+        )
+        .optional(),
       logo: z
         .string()
         .min(1)

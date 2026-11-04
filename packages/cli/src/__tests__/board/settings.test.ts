@@ -108,7 +108,10 @@ describe('BoardSettings.resolve', () => {
     ]) {
       const settings = BoardSettings.resolve({ manifest, gitUser: undefined, readLogo: none });
 
-      expect(JSON.stringify(settings)).not.toMatch(/venizia|phát|ignis|ardor/i);
+      // The address of `board serve` carries the product's own name (VULCAN's default); what the page says does not.
+      expect(JSON.stringify({ ...settings, hostname: '' })).not.toMatch(
+        /venizia|phát|ignis|ardor/i,
+      );
       expect(settings.logo).toBeUndefined();
     }
   });
@@ -350,5 +353,61 @@ describe('BoardSettings.read: the git user', () => {
 
     expect(settings.owner).toBe('Ana From Caller');
     expect(asked).toBe(1);
+  });
+});
+
+describe('board.hostname: the name of the address of board serve', () => {
+  const hostnameOf = (hostname: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ board: { hostname } });
+
+  test.each(['my-board.localhost', 'board.acme.localhost', 'a.localhost', 'a1-b2.c3.localhost'])(
+    '%s is accepted',
+    (name) => {
+      expect(hostnameOf(name).success).toBe(true);
+    },
+  );
+
+  test.each([
+    'example.com',
+    'localhost',
+    'evil.localhost.com',
+    'localhost.evil.com',
+    'My-Board.localhost',
+    'x.localhost:4000',
+    'x.localhost/path',
+    'user@x.localhost',
+    '-a.localhost',
+    'a-.localhost',
+    'a_b.localhost',
+    'a..localhost',
+    '.localhost',
+    '',
+    5,
+  ])('%p is refused', (name) => {
+    expect(hostnameOf(name).success).toBe(false);
+  });
+
+  test('the manifest carries it only when it is set', () => {
+    const manifestOf = (board: unknown) =>
+      JSON.parse(
+        ProjectManifest.render({
+          root: createProject({ files: {} }),
+          config: VULCAN_CONFIG_SCHEMA.parse({ board }),
+        }),
+      );
+
+    expect(manifestOf({ hostname: 'my-board.localhost' }).board).toEqual({
+      hostname: 'my-board.localhost',
+    });
+    expect(manifestOf({ owner: 'Ana' }).board).toEqual({ owner: 'Ana' });
+  });
+
+  test('the default when nothing valid is set: the product name; a project name when it is', () => {
+    const resolve = (manifest: unknown) =>
+      BoardSettings.resolve({ manifest, gitUser: undefined, readLogo: () => undefined }).hostname;
+
+    expect(resolve({})).toBe('vulz-board.venizia.ai.localhost');
+    expect(resolve({ board: { hostname: 'my-board.localhost' } })).toBe('my-board.localhost');
+    expect(resolve({ board: { hostname: 'example.com' } })).toBe('vulz-board.venizia.ai.localhost');
+    expect(resolve({ board: { hostname: 5 } })).toBe('vulz-board.venizia.ai.localhost');
   });
 });
