@@ -25,7 +25,7 @@ export class IssueSeverities {
   }
 }
 
-/** The two file names OKF v0.2 reserves at the bundle root: `index.md` (the contents list) and `log.md` (the change log); neither is a concept. */
+/** The two file names OKF v0.2 reserves in every folder of a bundle: `index.md` (a contents list) and `log.md` (a change log); neither is a concept. */
 export class ReservedFiles {
   static readonly INDEX = 'index.md';
   static readonly LOG = 'log.md';
