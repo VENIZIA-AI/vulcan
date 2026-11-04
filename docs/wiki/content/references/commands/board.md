@@ -43,7 +43,7 @@ An event belongs to the flow named by its `flowId` (`F-12`). A line with no flow
 |---|---|
 | `commit` | a Code step |
 | `pr` | a PR + CI step (with `--ref merged:12` it is the merge: the flow is Done) |
-| `msg-sent`, `msg-received` | a message, at the stage the flow was at |
+| `msg-sent`, `msg-received` | a message, at the stage the flow was at; a received one keeps its direction (`got a message from` the sender when its ref is `from:<sender>`) |
 | `needs-owner` | an ask: the flow waits on you. Not when the Claude Code hook raised it (its `notification` field says which prompt, whatever the title); a line without that field is judged by its summary being the name of a prompt (`idle_prompt`, `permission_prompt`, `elicitation_dialog`, in any case): that is [agent plumbing](#agent-plumbing) |
 | `flow` | the flow's title and reason (the heading of the flow, a line in its Proposal stage). See [The title of a flow](#the-title-of-a-flow) |
 | `decision` (`approve`, `park`, `reject`) | your answer: it answers the ask and, for `park` and `reject`, parks the flow |
@@ -72,7 +72,7 @@ The heading of a flow is its title, from the newest `flow` line of that flow (`v
 
 From the top, the pane of a flow shows: the title, the reason, a **Context** block, a **Next** line (both from the newest `flow` line, when it has them), then **Latest**, the three newest lines of work as one sentence each with the time, the actor and what they did (a message, a commit, a pull request, a decision; never agent plumbing or a `flow` line). Below them come the holder, the time of the last line, the stages with their lines, and **All events**.
 
-A `flow` line is not work of a stage. A flow that has only `flow` lines shows **No work logged yet** where the stages would be, and no Proposal box; the `flow` line is still listed under **All events**. In the list, the row of such a flow shows a neutral **No work yet** chip instead of a stage, and under its title the next step, else the reason, never the title again. Where a line came from is shown only when it changes how to read it (an estimated time, GitHub); the tag of the tool that wrote it, such as `cli`, is not shown.
+In the **Latest events** panel and in the board view, a flow with only `flow` lines is not at a stage: its lines are left out of the panel, and its card waits in a **No work yet** lane before the stages. A `flow` line is not work of a stage. A flow that has only `flow` lines shows **No work logged yet** where the stages would be, and no Proposal box; the `flow` line is still listed under **All events**. In the list, the row of such a flow shows a neutral **No work yet** chip instead of a stage, and under its title the next step, else the reason, never the title again. Where a line came from is shown only when it changes how to read it (an estimated time, GitHub); the tag of the tool that wrote it, such as `cli`, is not shown.
 
 ### Agent plumbing
 

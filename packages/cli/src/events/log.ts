@@ -191,6 +191,9 @@ export class EventLog {
 
     // A reader prints these: whatever a writer put there, no control character reaches a terminal.
     const clean = (field: string): string => EventText.stripControl({ text: field });
+    // The free text is cleaned the way `build` cleans it: one line, secrets redacted, the same length cap. A line written by
+    // hand, or by an older version, cannot put a huge string or a token on a page.
+    const text = (field: string, max: number): string => EventText.oneLine({ text: field, max });
 
     return {
       id: clean(id),
@@ -198,12 +201,12 @@ export class EventLog {
       ...(flowId === undefined ? {} : { flowId: clean(flowId) }),
       actor: clean(actor),
       kind: kind as TEventKind,
-      summary: clean(summary),
+      summary: text(summary, EventConstants.SUMMARY_MAX),
       ...(status === undefined ? {} : { status: status as TEventStatus }),
       ...(ref === undefined ? {} : { ref: clean(ref) }),
-      ...(why === undefined ? {} : { why: clean(why) }),
-      ...(context === undefined ? {} : { context: clean(context) }),
-      ...(next === undefined ? {} : { next: clean(next) }),
+      ...(why === undefined ? {} : { why: text(why, EventConstants.SUMMARY_MAX) }),
+      ...(context === undefined ? {} : { context: text(context, EventConstants.CONTEXT_MAX) }),
+      ...(next === undefined ? {} : { next: text(next, EventConstants.SUMMARY_MAX) }),
       // A value that is not one of the types the hook knows is dropped: it is a short enum, not free text.
       ...(notification === undefined || !ClaudeHookEvents.OWNER_NOTIFICATIONS.has(notification)
         ? {}

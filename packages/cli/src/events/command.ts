@@ -122,6 +122,14 @@ export class EventCommand {
       return ExitCodes.USAGE;
     }
 
+    for (const flag of [EventFlags.CONTEXT, EventFlags.NEXT]) {
+      if (values[flag] !== undefined && values[flag].trim() === '') {
+        process.stderr.write(`event: ${flag} needs a short text, or leave it out\n`);
+
+        return ExitCodes.USAGE;
+      }
+    }
+
     if (flow !== undefined && !EventFlow.isValid({ flow })) {
       process.stderr.write(`event: ${EventFlags.FLOW} must look like F-12, got '${flow}'\n`);
 

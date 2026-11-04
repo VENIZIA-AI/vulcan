@@ -259,6 +259,32 @@ describe('EventLog', () => {
     expect(EventLog.parse({ line: JSON.stringify({ ...event, context: 7 }) })).toBeUndefined();
   });
 
+  test('parse cleans the free text of a line as build does: one line, secrets redacted, the same caps', () => {
+    const token = 'ghp_abcdefghijklmnop1234567890';
+    const line = JSON.stringify({
+      id: 'i1',
+      ts: '2026-11-03T09:30:00.000Z',
+      actor: 'a',
+      kind: 'flow',
+      summary: `${token} ${'s '.repeat(1_000_000)}`,
+      why: `line one\n${token} ${'w'.repeat(5000)}`,
+      context: `${token} ${'c '.repeat(2000)}`,
+      next: `${'n '.repeat(2000)} ${token}`,
+      source: 'cli',
+    });
+    const event = EventLog.parse({ line });
+
+    expect(event).toBeDefined();
+    expect(JSON.stringify(event)).not.toContain(token);
+    expect(Array.from(event?.summary ?? '').length).toBeLessThanOrEqual(200);
+    expect(Array.from(event?.why ?? '').length).toBeLessThanOrEqual(200);
+    expect(Array.from(event?.context ?? '').length).toBeLessThanOrEqual(600);
+    expect(Array.from(event?.next ?? '').length).toBeLessThanOrEqual(200);
+    expect(event?.why).not.toContain('\n');
+    expect(event?.summary).toStartWith('[redacted]');
+    expect(event?.context).toStartWith('[redacted]');
+  });
+
   test('parse strips control characters from every text field, so tail never prints an escape sequence', () => {
     const line = JSON.stringify({
       id: 'i\u001bd',

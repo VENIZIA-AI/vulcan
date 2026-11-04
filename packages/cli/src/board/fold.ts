@@ -20,6 +20,7 @@ const PR_NUMBER = /^#?(\d+)$/;
 /** A `pr` line with this ref says the pull request was merged: `--ref merged:12`. */
 const MERGED_REF = /^merged:#?(\d+)$/;
 const TO_PREFIX = 'to:';
+const FROM_PREFIX = 'from:';
 /** Kinds that take the stage the flow is at when they happen: a message belongs to the stage it was sent in. */
 const CARRY_KINDS: string[] = [BoardKinds.MSG, BoardKinds.NOTE];
 
@@ -160,8 +161,20 @@ export class BoardFold {
       case EventKinds.MSG_SENT:
       case EventKinds.MSG_RECEIVED: {
         const to = line.ref?.startsWith(TO_PREFIX) ? line.ref.slice(TO_PREFIX.length) : undefined;
+        const isIncoming = line.kind === EventKinds.MSG_RECEIVED;
+        const from =
+          isIncoming && line.ref?.startsWith(FROM_PREFIX)
+            ? line.ref.slice(FROM_PREFIX.length)
+            : undefined;
 
-        return { ...base, kind: BoardKinds.MSG, stage: -1, ...(to === undefined ? {} : { to }) };
+        return {
+          ...base,
+          kind: BoardKinds.MSG,
+          stage: -1,
+          ...(to === undefined ? {} : { to }),
+          ...(isIncoming ? { incoming: true } : {}),
+          ...(from === undefined || from === '' ? {} : { from }),
+        };
       }
 
       case EventKinds.NEEDS_OWNER: {

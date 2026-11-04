@@ -47,8 +47,10 @@ One file per local day, one JSON object per line, in `.agents/local/events/<yyyy
 | `why` | Only on a `flow`: one line, at most 200 characters, why the flow exists |
 | `context` | Only on a `flow`: what the flow is, what is done and what is left, a few sentences on one line, at most 600 characters |
 | `next` | Only on a `flow`: the next step and who does it, one line, at most 200 characters |
-| `ref` | A commit, a PR, or `to:<recipient>` for a message; absent when there is none. A recipient that is an address keeps its scheme and the last part of its path (`to:uds:3326301.sock`), never the folders |
+| `ref` | A commit, a PR, `to:<recipient>` for a message sent or `from:<sender>` for one received; absent when there is none. A recipient that is an address keeps its scheme and the last part of its path (`to:uds:3326301.sock`), never the folders |
 | `source` | `claude-hook` or `cli` |
+
+A reader cleans the free text of every line it reads (`summary`, `why`, `context`, `next`) the way the writer does: one line, anything shaped like a secret replaced by `[redacted]`, the same length caps. A line written by hand, or by an older version, cannot put a huge string or a token on a board.
 
 Each line is one write, so sessions that write at the same moment do not mix their lines.
 
@@ -93,7 +95,7 @@ It prints the id of the line. This is the way in for any coding agent: a hook of
 
 Run from a subfolder, the command uses the project of that folder: the nearest folder above it with `.agents/vulcan.manifest.json` or `.git`. It reads the same `events` block there as at the top.
 
-Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not `F-n`, a `decision` without a `--status` or another kind with one, a `flow` line without a `--title`, or without a `--flow` when the branch has no `F-n` segment either, or with a `--summary`, a `--title`, `--why`, `--context` or `--next` on any other kind, an unknown flag, a flag given twice).
+Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not `F-n`, a `decision` without a `--status` or another kind with one, a `flow` line without a `--title`, or without a `--flow` when the branch has no `F-n` segment either, or with an empty or blank `--context` or `--next`, or with a `--summary`, a `--title`, `--why`, `--context` or `--next` on any other kind, an unknown flag, a flag given twice).
 
 ## vulcan event tail
 
