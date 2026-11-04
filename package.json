@@ -24,6 +24,7 @@
       "eslint": "10.13.0",
       "oxlint": "1.89.0",
       "oxlint-tsgolint": "7.0.2004",
+      "preact": "11.1.1",
       "tsc-alias": "1.9.8",
       "typescript": "^6.0.3",
       "zod": "^4.6.7"
