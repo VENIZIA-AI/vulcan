@@ -19,6 +19,8 @@ afterAll(async () => {
 afterEach(() => BoardServer.stop());
 
 const SINCE = Date.parse('2026-11-01');
+/** The page counts an agent not heard from in a day as earlier, by the real clock: the lines of a test are laid out from now, never from a fixed date. */
+const SAMPLE_SPAN_MINUTES = 400;
 
 /** Resolves when `condition` holds in the page, or after `ms`; the answer is the page's own view of it. */
 const WAIT = (condition: string, ms: number): string => `(async () => {
@@ -33,7 +35,9 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
     });
     const dir = join(root, '.agents/local/events');
 
-    for (const event of sampleLines()) {
+    const base = Date.now() - SAMPLE_SPAN_MINUTES * 60_000;
+
+    for (const event of sampleLines({ base })) {
       EventLog.append({ dir, event });
     }
 
@@ -68,6 +72,7 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
     EventLog.append({
       dir,
       event: line({
+        base,
         minute: 300,
         kind: 'commit',
         actor: 'brand-new-agent',
