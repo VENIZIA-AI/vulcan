@@ -82,6 +82,23 @@ const data = (): IBoardData => {
       context: 'Nothing has started.',
       next: 'agent-b-1 starts the design',
     }),
+    line({
+      base: BASE,
+      minute: 8,
+      kind: 'flow',
+      actor: 'agent-b-1',
+      flow: 'F-3',
+      summary: 'Only a title and a reason',
+      why: 'the reason of the third flow',
+    }),
+    line({
+      base: BASE,
+      minute: 9,
+      kind: 'flow',
+      actor: 'agent-b-1',
+      flow: 'F-4',
+      summary: 'Only a bare title',
+    }),
   ];
   const log = BoardFold.fromLog({ events: lines });
   const { flows, decisions } = BoardFold.fold({ events: log.events, owner: 'Ana' });
@@ -115,10 +132,17 @@ interface IPane {
   overflow: boolean;
 }
 
+interface IRow {
+  title: string;
+  strip: string;
+  last: string;
+}
+
 interface IResult {
+  rows: Record<string, IRow>;
   one: IPane;
   two: IPane;
-  vi: { one: IPane };
+  vi: { one: IPane; rows: Record<string, IRow> };
   errors: string[];
 }
 
@@ -153,11 +177,23 @@ const EXPRESSION = `(async () => {
     return result;
   };
   if (document.documentElement.lang !== 'en') { document.getElementById('bLang').click(); await wait(); }
+  const rowsOf = () => {
+    const rows = {};
+    for (const row of document.querySelectorAll('.row')) {
+      rows[row.dataset.id] = {
+        title: row.querySelector('.tt .t').textContent,
+        strip: row.querySelector('.strip').textContent,
+        last: row.querySelector('.sub .last').textContent,
+      };
+    }
+    return rows;
+  };
+  out.rows = rowsOf();
   out.one = await pane('F-1');
   out.two = await pane('F-2');
   document.getElementById('bLang').click();
   await wait();
-  out.vi = { one: await pane('F-1') };
+  out.vi = { one: await pane('F-1'), rows: rowsOf() };
   document.getElementById('bLang').click();
   await wait();
   return JSON.stringify(out);
@@ -235,12 +271,35 @@ describe.skipIf(!hasBrowser)(
       expect(two.text).not.toMatch(/1 events?/);
     });
 
+    test('the list row of a flow with no work has no stage chip, and says its next step, else its reason, never its title', async () => {
+      const { rows } = await run({ dark: false, width: 1440 });
+
+      expect(rows['F-1'].strip).toContain('Code');
+      expect(rows['F-1'].last).toBe('third');
+      expect(rows['F-2']).toEqual({
+        title: 'Only a title so far',
+        strip: 'No work yet',
+        last: 'agent-b-1 starts the design',
+      });
+      expect(rows['F-3']).toMatchObject({
+        strip: 'No work yet',
+        last: 'the reason of the third flow',
+      });
+      expect(rows['F-4']).toMatchObject({
+        title: 'Only a bare title',
+        strip: 'No work yet',
+        last: '',
+      });
+      expect(rows['F-2'].strip).not.toContain('Proposal');
+    });
+
     test('Vietnamese: the labels and the sentences are translated, none is a key', async () => {
       const { vi } = await run({ dark: false, width: 1440 });
 
       expect(vi.one.text).toContain('Bối cảnh');
       expect(vi.one.text).toContain('Tiếp theo');
       expect(vi.one.text).toContain('Mới nhất');
+      expect(vi.rows['F-2'].strip).toBe('Chưa có việc');
       expect(vi.one.latest[0]).toContain('commit');
       expect(vi.one.text).not.toMatch(/\b(?:lt|ctx|nx|nw)\.[a-z]/);
     });

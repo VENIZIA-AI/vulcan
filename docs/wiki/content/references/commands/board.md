@@ -72,7 +72,7 @@ The heading of a flow is its title, from the newest `flow` line of that flow (`v
 
 From the top, the pane of a flow shows: the title, the reason, a **Context** block, a **Next** line (both from the newest `flow` line, when it has them), then **Latest**, the three newest lines of work as one sentence each with the time, the actor and what they did (a message, a commit, a pull request, a decision; never agent plumbing or a `flow` line). Below them come the holder, the time of the last line, the stages with their lines, and **All events**.
 
-A `flow` line is not work of a stage. A flow that has only `flow` lines shows **No work logged yet** where the stages would be, and no Proposal box; the `flow` line is still listed under **All events**. Where a line came from is shown only when it changes how to read it (an estimated time, GitHub); the tag of the tool that wrote it, such as `cli`, is not shown.
+A `flow` line is not work of a stage. A flow that has only `flow` lines shows **No work logged yet** where the stages would be, and no Proposal box; the `flow` line is still listed under **All events**. In the list, the row of such a flow shows a neutral **No work yet** chip instead of a stage, and under its title the next step, else the reason, never the title again. Where a line came from is shown only when it changes how to read it (an estimated time, GitHub); the tag of the tool that wrote it, such as `cli`, is not shown.
 
 ### Agent plumbing
 

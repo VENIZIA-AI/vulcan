@@ -2791,6 +2791,8 @@
       DICT.vi['nx.label'] = 'Tiếp theo';
       DICT.en['lt.label'] = 'Latest';
       DICT.vi['lt.label'] = 'Mới nhất';
+      DICT.en['nw.chip'] = 'No work yet';
+      DICT.vi['nw.chip'] = 'Chưa có việc';
       DICT.en['nw.empty'] = 'No work logged yet';
       DICT.vi['nw.empty'] = 'Chưa có việc nào được ghi';
       DICT.en['lt.msg'] = 'sent a message';
@@ -3056,6 +3058,8 @@
           const fresh = evs.filter((e) => e.ts > lastSeen);
           out.push({
             id: f.id,
+            // Only `flow` lines and plumbing: the flow has no work, and no stage to show.
+            noWork: !evs.some((e) => !e.plumbing && e.kind !== 'flow'),
             f: {
               title: f.title,
               repo: f.repo,
@@ -3083,6 +3087,10 @@
 
       function stripOf(fl) {
         const s = el('div', 'strip');
+        if (fl.noWork) {
+          s.append(el('span', 'sg', t('nw.chip')));
+          return s;
+        }
         for (const k of fl.stages) {
           const cur = k === fl.cur;
           const g = el(
@@ -3201,14 +3209,13 @@
                 tt.append(el('div', 't', fl.f.title));
                 const sub = el('div', 'sub');
                 if (!fl.f.named) sub.append(el('span', 'untitled', t('fl.untitled')));
-                sub.append(
-                  el('span', 'repo', fl.f.repo),
-                  el(
-                    'span',
-                    'last',
-                    fl.state === 'you' && fl.lastAsk ? fl.lastAsk.summary : fl.last.summary,
-                  ),
-                );
+                // A flow with no work has nothing to say of its last line (it is its title): the next step, else the reason.
+                const said = fl.noWork
+                  ? fl.f.next || fl.f.why || ''
+                  : fl.state === 'you' && fl.lastAsk
+                    ? fl.lastAsk.summary
+                    : fl.last.summary;
+                sub.append(el('span', 'repo', fl.f.repo), el('span', 'last', said));
                 tt.append(sub);
                 r.append(tt, stripOf(fl), el('span', 'holder', fl.holder));
                 const ag = el(
@@ -3395,7 +3402,7 @@
           n.append(el('b', null, t('nx.label') + ': '), fl.f.next);
           dh.append(n);
         }
-        const hasWork = fl.evs.some((e) => !e.plumbing && e.kind !== 'flow');
+        const hasWork = !fl.noWork;
         const latest = fl.evs
           .filter((e) => !e.plumbing && e.kind !== 'flow' && e.kind !== 'agent')
           .slice(-3)
