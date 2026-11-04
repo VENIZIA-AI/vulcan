@@ -11,7 +11,7 @@ Use atlas to search documentation, read sections, look up exported symbols, and 
 
 ```text
 $ bun x --no-install vulcan x atlas help
-usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | index --out <dir> | index keygen | pull [--source <name>] | tools [--root <dir>] | <surface|symbols|releases> | help
+usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | index --out <dir> | index keygen | pull [--source <name>] | tools [--root <dir>] | <surface|api|symbols|releases> | help
 ```
 
 | Command | What it does |
@@ -21,6 +21,7 @@ usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... | inde
 | `pull` | Fetches every external source, or one named source |
 | `index --out <dir>` | Builds and signs the index of HEAD into `<dir>`; `index keygen` writes the key pair for it; `index publish` is what the CI action runs |
 | `surface gen\|check` | Writes or checks `.agents/knowledge/reference/public-surface.md` from built `.d.ts` files |
+| `api gen\|check` | Writes or checks one API reference page for each package entry under the wiki, from the built `.d.ts` files |
 | `symbols` | Prints what the `symbol` tool reads from built `.d.ts` declaration files |
 | `releases` | Prints what the `version` and `changes` tools read from git tags |
 | `help` | Prints the usage line and exits with code 0 |
@@ -85,7 +86,7 @@ The example below was run outside any project:
 ```text
 $ bun x --no-install vulcan x atlas tools
 vulcan-atlas: nothing to serve at /tmp/wiki-empty - run in a project (`vulcan sync` writes .agents/vulcan.manifest.json), or pass --source <owner/repo>@<ref>
-usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | index --out <dir> | index keygen | pull [--source <name>] [--cache-dir <dir>] | tools [--root <dir>] | <surface|symbols|releases> | help
+usage: vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | index --out <dir> | index keygen | pull [--source <name>] [--cache-dir <dir>] | tools [--root <dir>] | <surface|api|symbols|releases> | help
 ```
 
 To resolve this error, run atlas inside a VULCAN project.
@@ -126,6 +127,8 @@ symbol   Before you import or call an export of my-product and ignis, get its re
 version  When a version, an upgrade or an installed @venizia/* package comes up in my-product and ignis, check here
 changes  When the user asks what changed, what a release added or what breaks on upgrade in my-product and ignis, list the entries here
 ```
+
+`symbol` answers with the record and, for an export of a project, its `declaration`: the TSDoc and the members as the built `.d.ts` has them, then the declarations of the exported types it uses (nearest and smallest first, three steps out), up to about 10 000 characters. `truncated: true` says something was left out. An internal type that is not exported but appears in the declaration (the shape an argument must have) is part of it. A name exported by two packages with the same shape gives the declaration once and `declarationOf` on the other.
 
 Each description opens with when to call the tool, and names the projects the server holds. The text is rendered from the config when the server starts. The command prints only the first sentence of each; a client gets the full description.
 
@@ -277,6 +280,21 @@ It prints a fresh or stale line.
 It also fails when exported symbols were added, removed, or changed kind.
 `surface` needs the same built `.d.ts` declaration files as `symbols`.
 It finds them from each package's `exports` field, not a fixed `dist/`.
+
+## API reference
+
+To write the API reference of the project's packages, run `vulcan x atlas api`:
+
+```text
+$ bun x --no-install vulcan x atlas api
+usage: vulcan x atlas api gen|check
+```
+
+`api gen` writes `references/api/<entry>.md` under the wiki directory of the manifest (`knowledge.wiki`), one page for each `exports` entry (`@scope/name/subpath` becomes `scope-name-subpath.md`) and an `index.md` that counts the exports and the ones with TSDoc. A page lists every export by name with its kind, its TSDoc as prose, its declaration without that comment (members keep theirs) and the source `file:line`; the exports with no TSDoc are named at the top. A re-export of a third-party declaration shows its signature only. The pages are generated: link to them from a guide and never edit them. A page that no longer matches the declarations, or one for an entry that was removed, is rewritten or deleted by the next `gen`.
+
+`api check` fails with exit code 1 and names the files when a page is missing, changed or no longer generated. A project with no `knowledge.wiki` gets an error, and `api` needs the same built `.d.ts` files as `symbols`.
+
+The text on a page comes from the comment as written. Markup the comment did not mean (an angle bracket, a double brace) is escaped outside code, and a TSDoc that the compiler does not attach to the `.d.ts` (for example one on a destructured export) is shown as undocumented.
 
 ## Symbols
 

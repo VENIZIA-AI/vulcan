@@ -9,10 +9,11 @@ import { TextValue } from './common/text';
 import { runIndexCommand } from './prebuilt/index';
 import { SourceResolver } from './sources/index';
 import type { IAtlasSource } from './sources/index';
+import { runApiCommand } from './api/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
 
-const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|symbols|releases> | help`;
+const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|api|symbols|releases> | help`;
 
 const usageError = (message: string): never => {
   console.error(`${AtlasConstants.SERVER_NAME}: ${message}\n${USAGE}`);
@@ -50,6 +51,7 @@ const packageVersion = (): string => {
 
 const GENERATOR_BY_COMMAND: Record<string, (opts: { command?: string }) => number> = {
   [AtlasCommands.SURFACE]: runSurfaceCommand,
+  [AtlasCommands.API]: runApiCommand,
   [AtlasCommands.SYMBOLS]: runSymbolsCommand,
   [AtlasCommands.RELEASES]: runReleasesCommand,
 };
