@@ -11,7 +11,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
-import { EventConstants } from './common/index.ts';
+import { EventConstants, EventKinds, EventStatuses } from './common/index.ts';
 import type { IEvent } from './common/index.ts';
 import { EventLog } from './log.ts';
 
@@ -56,6 +56,30 @@ export class FlowId {
     return opts.events.some(
       (event) =>
         event.flowId !== undefined && FlowId.canon({ id: event.flowId, key: opts.key }) === wanted,
+    );
+  }
+
+  /**
+   * Whether the flow is over: its newest closing line is a pull request merged (`merged:<n>`) or a decision to park or
+   * reject it, and no commit or pull request came after. The board calls such a flow Done or Parked.
+   */
+  static isClosed(opts: { events: IEvent[]; id: string; key?: string }): boolean {
+    const wanted = FlowId.canon({ id: opts.id, key: opts.key });
+    const lines = opts.events.filter(
+      (event) =>
+        event.flowId !== undefined && FlowId.canon({ id: event.flowId, key: opts.key }) === wanted,
+    );
+    const closing = lines.findLastIndex(
+      (event) =>
+        (event.kind === EventKinds.PR && /^merged:\d+$/.test(event.ref ?? '')) ||
+        (event.kind === EventKinds.DECISION && event.status !== EventStatuses.APPROVE),
+    );
+
+    return (
+      closing >= 0 &&
+      !lines
+        .slice(closing + 1)
+        .some((event) => event.kind === EventKinds.COMMIT || event.kind === EventKinds.PR)
     );
   }
 

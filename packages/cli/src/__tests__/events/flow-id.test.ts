@@ -258,3 +258,67 @@ describe('the counter is not part of the log', () => {
     expect(removed).not.toContain('.flow-seq');
   });
 });
+
+describe('a flow line on the branch of a flow that is over makes a new flow', () => {
+  const log = (
+    lines: {
+      kind: 'commit' | 'pr' | 'decision';
+      ref?: string;
+      status?: 'approve' | 'park' | 'reject';
+    }[],
+  ): string =>
+    lines
+      .map((one, order) =>
+        JSON.stringify(
+          EventLog.build({
+            kind: one.kind,
+            summary: 'x',
+            actor: 'a',
+            source: 'cli',
+            flowId: 'VULZ-ACME-4',
+            now: Date.parse('2026-11-01T09:00:00Z') + order * 1000,
+            ...(one.ref === undefined ? {} : { ref: one.ref }),
+            ...(one.status === undefined ? {} : { status: one.status }),
+          }),
+        ),
+      )
+      .join('\n');
+  const made = (lines: Parameters<typeof log>[0]): string => {
+    const root = createProject({
+      files: {
+        '.agents/vulcan.manifest.json': JSON.stringify({ project: { key: 'ACME' } }),
+        '.agents/local/events/2026-11-01.jsonl': `${log(lines)}\n`,
+        '.git/HEAD': 'ref: refs/heads/feature/VULZ-ACME-4-x\n',
+      },
+    });
+
+    return cli({ root, args: ['add', '--kind', 'flow', '--title', 'T'] }).stdout.trim();
+  };
+
+  test('open: the flow is updated; merged, parked or rejected: a new flow with the next number', () => {
+    expect(made([{ kind: 'commit' }])).toBe('VULZ-ACME-4');
+    expect(made([{ kind: 'pr', ref: 'merged:9' }])).toBe('VULZ-ACME-5');
+    expect(made([{ kind: 'decision', status: 'park' }])).toBe('VULZ-ACME-5');
+    expect(made([{ kind: 'decision', status: 'reject' }])).toBe('VULZ-ACME-5');
+    expect(made([{ kind: 'decision', status: 'approve' }])).toBe('VULZ-ACME-4');
+  });
+
+  test('work after the merge reopens it, so the flow is updated again', () => {
+    expect(made([{ kind: 'pr', ref: 'merged:9' }, { kind: 'commit' }])).toBe('VULZ-ACME-4');
+  });
+
+  test('--flow names a flow that is over on purpose, and is taken', () => {
+    const root = createProject({
+      files: {
+        '.agents/vulcan.manifest.json': JSON.stringify({ project: { key: 'ACME' } }),
+        '.agents/local/events/2026-11-01.jsonl': `${log([{ kind: 'pr', ref: 'merged:9' }])}\n`,
+      },
+    });
+    const result = cli({
+      root,
+      args: ['add', '--kind', 'flow', '--flow', 'VULZ-ACME-4', '--title', 'T'],
+    });
+
+    expect(result.code, result.stderr).toBe(0);
+  });
+});

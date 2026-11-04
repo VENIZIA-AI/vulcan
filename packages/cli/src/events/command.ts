@@ -212,8 +212,8 @@ export class EventCommand {
 
   /**
    * The flow a line belongs to. A flow named with `--flow` must exist (an id is never made up by hand). A flow line that
-   * names none either updates the flow of its branch, when the branch names one that exists, or starts a new flow with the
-   * next number. A number (an exit code) is returned when the line cannot be written.
+   * names none either updates the flow of its branch, when the branch names one that exists and is not over, or starts a
+   * new flow with the next number. A number (an exit code) is returned when the line cannot be written.
    */
   private static flowOf(opts: {
     flow: string | undefined;
@@ -225,7 +225,12 @@ export class EventCommand {
   }): string | undefined | number {
     const { flow, known, key } = opts;
 
-    if (flow !== undefined && FlowId.exists({ events: known, id: flow, key })) {
+    // The flow of the branch is taken only while it is open: work on a merged or parked flow's branch is a new flow.
+    if (
+      flow !== undefined &&
+      FlowId.exists({ events: known, id: flow, key }) &&
+      (opts.explicit || !opts.isFlow || !FlowId.isClosed({ events: known, id: flow, key }))
+    ) {
       return flow;
     }
 
