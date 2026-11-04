@@ -6,6 +6,7 @@ import type { ICommandContext } from '../common/index.ts';
 import { FlowId } from '../events/flow-id.ts';
 import { EventLog } from '../events/log.ts';
 import { EventSettings } from '../events/settings.ts';
+import { ThemeTokens } from '../theme/index.ts';
 import { BoardConstants, BoardFlags, BoardServe, BoardStates } from './common/index.ts';
 import type { IBoardData, IBoardEvent } from './common/index.ts';
 import { BoardFold } from './fold.ts';
@@ -68,7 +69,7 @@ export class BoardCommand {
 
     try {
       mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, BoardPage.render({ data }));
+      writeFileSync(file, BoardPage.render({ data, tokens: ThemeTokens.read({ root }) }));
     } catch (error) {
       process.stderr.write(
         `board: cannot write ${file}: ${error instanceof Error ? error.message : String(error)}\n`,
@@ -185,6 +186,7 @@ export class BoardCommand {
         dir: opts.dir,
         hostname,
         collect,
+        tokens: ThemeTokens.read({ root: opts.root }),
       });
 
       if (note !== undefined) {
