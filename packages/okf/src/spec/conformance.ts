@@ -301,6 +301,7 @@ const checkLog = (opts: { file: IBundleFile }): IConformanceIssue[] => {
   return issues;
 };
 
+/** The OKF v0.2 conformance check of a whole bundle. */
 export class BundleConformance {
   /** OKF v0.2 conformance (§11) plus soft guidance. Never throws: every finding is an issue. */
   static check(opts: { files: IBundleFile[] }): IConformanceIssue[] {

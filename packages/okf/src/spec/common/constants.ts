@@ -15,6 +15,7 @@ export class ConceptStatuses {
   }
 }
 
+/** How serious a conformance issue is: an `error` breaks OKF v0.2, a `warning` is soft guidance. */
 export class IssueSeverities {
   static readonly ERROR = 'error';
   static readonly WARNING = 'warning';
@@ -24,6 +25,7 @@ export class IssueSeverities {
   }
 }
 
+/** The two file names OKF v0.2 reserves at the bundle root: `index.md` (the contents list) and `log.md` (the change log); neither is a concept. */
 export class ReservedFiles {
   static readonly INDEX = 'index.md';
   static readonly LOG = 'log.md';
@@ -33,6 +35,7 @@ export class ReservedFiles {
   }
 }
 
+/** Fixed names of the spec: the root index file and the `okf_version` key of its front matter. */
 export class SpecConstants {
   static readonly ROOT_INDEX = ReservedFiles.INDEX;
   static readonly VERSION_KEY = 'okf_version';
