@@ -85,7 +85,7 @@ Build rules require test-driven workflows, command output verification, zero war
 | ID | Rule | Enforced by |
 |----|------|-------------|
 | `V-B-01` | Follow test-driven development: write a failing test before writing implementation code. | SOFT |
-| `V-B-02` | Ensure all lint and test gates pass with zero warnings before completion. | SOFT - pre-commit runs `vulcan doctor` and lint |
+| `V-B-02` | Ensure all lint and test gates pass with zero warnings before completion. | SOFT - the project's own pre-commit, if it has one, runs `vulcan doctor` and lint |
 | `V-B-03` | Run commands and read real output before making claims; provide evidence first. | SOFT |
 | `V-B-04` | Never pass tests by deleting cases, skipping checks, or relaxing types. | SOFT |
 | `V-B-05` | Give every app, backend and frontend, the same seven scripts: `server:dev`, `compile`, `typecheck`, `lint`, `lint:fix`, `test`, `clean`. The work lives in `.configs/builders/` or in `devz` (`devz lint`, `devz lint --fix`, `devz clean`), never in the `package.json` string. An app root holds only `.configs/`, `src/`, `package.json`, `tsconfig.json` and `.env.example`; every other config lives in `.configs/{lints,formatters,builders}/`. No `dev`, `start`, `build`, `rebuild`, `preview` or `server:prod`. A library package keeps Makefile targets `build`, `typecheck`, `lint`, `lint-fix`, `test`, `clean`. | SOFT - `vulcan doctor` notes (info only) |
