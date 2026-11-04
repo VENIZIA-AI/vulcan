@@ -71,6 +71,7 @@ export class DoctorRunner {
       ...ProjectContract.checkAcknowledgedValues(context),
       ...ProjectContract.checkReplyShape(context),
       ...ProjectContract.checkOwnerReplySwitch({ env: opts.env ?? process.env }),
+      ...ProjectContract.checkLaunchSettings({ root: opts.root, env: opts.env ?? process.env }),
       ...ProjectContract.checkTrustedScripts(context),
       ...ReadOnlySubcommandChecks.check(context),
     ];
