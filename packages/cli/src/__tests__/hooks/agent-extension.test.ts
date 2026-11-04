@@ -46,9 +46,12 @@ const contextOf = (opts: { cwd: string; hasUI?: boolean; answer?: boolean }): TC
 
 const bash = (command: string): TEvent => ({ toolName: 'bash', input: { command } });
 
+const DENY_OUTSIDE_CONFIG =
+  "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: 'deny' } };\n";
+
 /** A project with the package installed: the real guard scripts run. */
-const installedProject = (): string => {
-  const root = createProject({ files: { 'package.json': '{}' } });
+const installedProject = (opts: { files?: Record<string, string> } = {}): string => {
+  const root = createProject({ files: { 'package.json': '{}', ...opts.files } });
   const installed = join(root, 'node_modules', '@venizia', 'vulcan');
 
   mkdirSync(dirname(installed), { recursive: true });
@@ -109,6 +112,17 @@ describe('the omp and pi extension runs the real guards', () => {
     expect(deploy?.reason).toContain('V-W-03');
     expect(manifest?.block).toBe(true);
     expect(edit?.block).toBe(true);
+  });
+
+  test('with guard.outside set to deny, a write outside the project is blocked even when the owner would confirm', async () => {
+    const root = installedProject({ files: { '.configs/vulcan.config.mts': DENY_OUTSIDE_CONFIG } });
+    const handle = handlerOf();
+    const outside = bash('echo x > /var/tmp/vulcan-guard-probe-never-created');
+    const yes = await handle(outside, contextOf({ cwd: root, hasUI: true, answer: true }));
+
+    expect(yes?.block).toBe(true);
+    expect(yes?.reason).toContain('guard.outside');
+    expect(yes?.reason).not.toContain('declined by the owner');
   });
 
   test('an ask is put to the owner when there is a UI, and blocks when there is none', async () => {

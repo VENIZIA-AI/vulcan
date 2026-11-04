@@ -64,7 +64,7 @@ The table below lists the top-level configuration keys:
 | `claude` | `object` | `{ settings: {} }` | Shared team settings merged into agent configuration |
 | `hooks` | `Array<object>` | `[]` | Custom project event hooks |
 | `digest` | `object` | `{ oftenDropped: [...] }` | Rules printed at session startup |
-| `guard` | `object` | `{ toolOwnedPaths: [], writes: { trustedScripts: [], commands: [] }, git: { askPush: [] } }` | Tool-owned stores the outside-the-project guard allows, the project's own scripts the write guard does not read, and the commands and push targets the guards ask about beyond their own list |
+| `guard` | `object` | `{ toolOwnedPaths: [], outside: 'ask', writes: { trustedScripts: [], commands: [] }, git: { askPush: [] } }` | Tool-owned stores the outside-the-project guard allows, the project's own scripts the write guard does not read, and the commands and push targets the guards ask about beyond their own list |
 | `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
 | `theme` | `object` | `undefined` | The colour the project's `vulcan visualize` pages use |
 
@@ -653,6 +653,7 @@ The `guard` object configures the write guards.
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `toolOwnedPaths` | `string[]` | `[]` | Absolute globs, `~` and `$NAME` allowed, of stores a tool in this project manages itself. They extend the built-in list (package manager caches, `$XDG_RUNTIME_DIR`, git config, the agent tool's memory folders); a pattern with an unset variable allows nothing. |
+| `outside` | `'ask'` or `'deny'` | `'ask'` | What `guard-outside` does with a write outside the project (`V-B-08`). `ask` leaves the call to the owner. `deny` refuses it and nothing is written; the answer names the path and `.agents/local/tmp/`. Set `deny` where the agent runs in an auto mode, because an ask can be approved there without the owner seeing it. A path in `toolOwnedPaths` still passes in both modes. |
 | `writes.commands` | `Array<{ rule, what, pattern, ignoreCase? }>` | `[]` | Commands of this project that `guard-writes` asks about beside its fixed list: `rule` is `V-W-02` (a database write, a migration) or `V-W-03` (a deploy), `what` names the action (1 to 120 characters), `pattern` is a JavaScript regular expression (1 to 500 characters, case-sensitive unless `ignoreCase` is `true`). A pattern that does not compile fails the config. Written to the manifest by `vulcan sync`. |
 | `git.askPush` | `string[]` | `[]` | Branch names, with `*` for any run of characters, that a plain `git push` asks about in `guard-git`. Letters, digits, `. _ / * -` only. Written to the manifest by `vulcan sync`. |
 | `writes.trustedScripts` | `Array<string \| { script, readOnly }>` | `[]` | The project's own CLIs that `guard-writes` does not read for mutating calls. A path string trusts the whole script. An object `{ script, readOnly: ['plan', 'registry'] }` trusts only the calls whose first argument after the script is one of the `readOnly` words. Matched exactly against the script of a `bun <script>.ts` command. |
@@ -669,6 +670,7 @@ import type { VulcanConfig } from '@venizia/vulcan';
 export default {
   guard: {
     toolOwnedPaths: ['/srv/build-cache/**', '~/.cache/my-tool/**'],
+    outside: 'deny',
     writes: {
       trustedScripts: [
         'tools/i18n/cli.ts',

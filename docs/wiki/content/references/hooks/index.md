@@ -192,6 +192,8 @@ Stores that a package manager, a runtime or the agent tool manage themselves are
 
 The scratchpad folder an agent tool offers a session is under the system temp directory (Claude Code: `/tmp/claude-<uid>/<project>/<session>/scratchpad`), so the hook **denies** a write into it instead of asking. The answer names `V-B-08`, says nothing was written and points to `.agents/local/tmp/<task>/`. A call that also touches another outside path is denied as a whole. A project that lists the folder in `guard.toolOwnedPaths` keeps allowing it.
 
+`guard.outside: 'deny'` in the [project config](/references/configuration/#guard) makes every outside write a deny, not only the scratchpad: the answer names `V-B-08` and each path, says nothing was written and points to `.agents/local/tmp/<task>/` and `guard.toolOwnedPaths`. The default is `ask`. Use `deny` where the agent runs in an auto mode: an ask can be approved there without the owner seeing it. It changes what the agent sees on Claude Code, Antigravity, and omp and pi, which can ask. Codex and Cursor cannot ask, so an ask is already a deny there. A hook that crashes or times out, and a project config that cannot be read, still ask: `deny` then does not apply. The guard reads the same calls in both modes, so a path it cannot work out still passes.
+
 Only that Linux path is covered; another system's folder was not verified. The hook cannot reach what the agent tool writes by itself (its task output, its memory) without a tool call. Claude Code puts its built-in worktrees under `.claude/worktrees/` in the repository, which `init` gitignores.
 
 ## subagent-start

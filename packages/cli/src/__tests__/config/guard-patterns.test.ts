@@ -55,3 +55,18 @@ describe('guard.writes.commands and guard.git.askPush', () => {
     expect(parse({ git: { askPush: [], also: [] } }).success).toBe(false);
   });
 });
+
+describe('guard.outside', () => {
+  test('defaults to ask, and takes ask or deny', () => {
+    expect(VULCAN_CONFIG_SCHEMA.parse({}).guard.outside).toBe('ask');
+    expect(VULCAN_CONFIG_SCHEMA.parse({ guard: {} }).guard.outside).toBe('ask');
+    expect(parse({ outside: 'ask' }).success).toBe(true);
+    expect(VULCAN_CONFIG_SCHEMA.parse({ guard: { outside: 'deny' } }).guard.outside).toBe('deny');
+  });
+
+  test('anything else is refused', () => {
+    expect(parse({ outside: 'allow' }).success).toBe(false);
+    expect(parse({ outside: true }).success).toBe(false);
+    expect(parse({ outside: { mode: 'deny' } }).success).toBe(false);
+  });
+});

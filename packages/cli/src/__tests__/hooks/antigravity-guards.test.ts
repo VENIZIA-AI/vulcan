@@ -10,9 +10,12 @@ afterAll(removeProjects);
 const PACKAGE_ROOT = join(import.meta.dir, '..', '..', '..');
 const SCRIPT = join(PACKAGE_ROOT, 'base', 'hooks', 'antigravity-guards.ts');
 
+const DENY_OUTSIDE_CONFIG =
+  "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: 'deny' } };\n";
+
 /** A project with the package installed, so the real guard scripts run. */
-const installedProject = (): string => {
-  const root = createProject({ files: { 'package.json': '{}' } });
+const installedProject = (opts: { files?: Record<string, string> } = {}): string => {
+  const root = createProject({ files: { 'package.json': '{}', ...opts.files } });
   const installed = join(root, 'node_modules', '@venizia', 'vulcan');
 
   mkdirSync(dirname(installed), { recursive: true });
@@ -64,6 +67,15 @@ describe('the Antigravity hook command runs the real guards', () => {
     expect(push.answer.decision).toBe('deny');
     expect(push.answer.reason).toContain("force-pushing to 'main'");
     expect(command({ root, text: 'git status --short' }).answer).toEqual({ decision: 'allow' });
+  });
+
+  test('with guard.outside set to deny, a write outside the project is denied, not asked about', () => {
+    const root = installedProject({ files: { '.configs/vulcan.config.mts': DENY_OUTSIDE_CONFIG } });
+    const outside = command({ root, text: 'echo x > /var/tmp/vulcan-guard-probe-never-created' });
+
+    expect(outside.answer.decision).toBe('deny');
+    expect(outside.answer.reason).toContain('V-B-08');
+    expect(outside.answer.reason).toContain('guard.outside');
   });
 
   test('a write outside the project and a deploy are asked about', () => {
