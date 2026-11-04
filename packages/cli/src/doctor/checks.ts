@@ -25,6 +25,7 @@ import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
 import { AgentFiles, AtlasBlockPlan, LocalPlan, SyncPlanner, SyncStatuses } from '../sync/index.ts';
 import { LocalConstants, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
+import { CLAUDE_LAUNCH_FILE, ClaudeLaunch } from '../sync/claude-launch.ts';
 import { PrivateValues } from './private-values.ts';
 import {
   ReplySwitch,
@@ -1250,6 +1251,27 @@ export class ProjectContract {
             check: DoctorChecks.LOCAL,
             file: OwnerReplySwitch.ENV,
             message: `set to ${OwnerReplySwitch.OFF} in this shell: a session started from here is not held to the owner reply shape and its replies are not logged. Unset it for a session whose reader is the owner`,
+          }),
+        ]
+      : [];
+  }
+
+  /**
+   * The session running doctor is Claude Code (`CLAUDECODE` is set) and its `CLAUDE_CODE_TMPDIR` is not this project's folder: it was
+   * not started with the launch file, so its task output and its MCP servers use `/tmp`. Outside Claude Code doctor cannot know. A note.
+   */
+  static checkLaunchSettings(opts: {
+    root: string;
+    env: Record<string, string | undefined>;
+  }): IViolation[] {
+    const tmp = ClaudeLaunch.tmpOf(opts);
+
+    return opts.env.CLAUDECODE !== undefined && tmp.state !== 'inside'
+      ? [
+          createViolation({
+            check: DoctorChecks.LOCAL,
+            file: CLAUDE_LAUNCH_FILE,
+            message: `this Claude Code session was not started with the launch file, so its task output and its MCP servers use ${tmp.folder ?? '/tmp'}. Start it with: ${ClaudeLaunch.COMMAND}`,
           }),
         ]
       : [];

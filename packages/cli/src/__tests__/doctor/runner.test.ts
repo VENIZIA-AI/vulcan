@@ -616,7 +616,7 @@ describe('doctor: app scripts (info only)', () => {
       },
     });
 
-    const result = await DoctorRunner.runNotes({ root });
+    const result = await DoctorRunner.runNotes({ root, env: {} });
     expect(result).toEqual([]);
   });
 
@@ -639,7 +639,7 @@ describe('doctor: app scripts (info only)', () => {
         }),
       },
     });
-    const notes = await DoctorRunner.runNotes({ root });
+    const notes = await DoctorRunner.runNotes({ root, env: {} });
 
     expect(notes).toHaveLength(2);
     expect(notes[0]).toEqual({
@@ -670,7 +670,7 @@ describe('doctor: app scripts (info only)', () => {
       },
     });
 
-    const notes = await DoctorRunner.runNotes({ root });
+    const notes = await DoctorRunner.runNotes({ root, env: {} });
 
     expect(notes[0]?.message).toBe(
       'app api: legacy dev, start, build, rebuild, preview, server:prod (use the standard names)',
@@ -687,10 +687,11 @@ describe('doctor: app scripts (info only)', () => {
       },
     });
 
-    const result = await DoctorRunner.runNotes({ root });
+    const result = await DoctorRunner.runNotes({ root, env: {} });
     expect(result).toEqual([]);
     const result2 = await DoctorRunner.runNotes({
       root: createSyncedProject({ files: CONFORMANT }),
+      env: {},
     });
     expect(result2).toEqual([]);
   });

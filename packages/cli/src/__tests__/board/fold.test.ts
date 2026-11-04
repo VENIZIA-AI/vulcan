@@ -1081,3 +1081,48 @@ describe('BoardFold.fold: a harness ask with a title', () => {
     });
   });
 });
+
+describe('BoardFold.fromLog: a tool tick', () => {
+  test('makes the agent working at the time of the tick, and is not an event of any flow', () => {
+    const log = BoardFold.fromLog({
+      events: [
+        line({ minute: 1, kind: 'session-start', actor: 'a', summary: 'startup' }),
+        line({ minute: 2, kind: 'session-stop', actor: 'a', summary: 'turn ended' }),
+        line({ minute: 9, kind: 'tool-tick', actor: 'a', summary: 'using a tool' }),
+      ],
+    });
+
+    expect(log.agents.a).toMatchObject({ state: 'working', current: '' });
+    expect(log.agents.a.checkedAt).toBe(
+      line({ minute: 9, kind: 'tool-tick', actor: 'a', summary: 'x' }).ts,
+    );
+    expect(log.events.filter((event) => event.kind === 'tool-tick')).toEqual([]);
+    expect(log.events.map((event) => event.plumbing)).toEqual([true, true]);
+  });
+
+  test('keeps what the agent was doing, and a later stop puts it back to idle', () => {
+    const log = BoardFold.fromLog({
+      events: [
+        line({
+          minute: 1,
+          kind: 'commit',
+          actor: 'a',
+          flow: 'F-1',
+          summary: 'the work',
+          ref: 'abc1234',
+        }),
+        line({ minute: 2, kind: 'tool-tick', actor: 'a', summary: 'using a tool' }),
+      ],
+    });
+
+    expect(log.agents.a.current).toBe('the work');
+    expect(
+      BoardFold.fromLog({
+        events: [
+          line({ minute: 1, kind: 'tool-tick', actor: 'a', summary: 't' }),
+          line({ minute: 2, kind: 'session-stop', actor: 'a', summary: 'turn ended' }),
+        ],
+      }).agents.a.state,
+    ).toBe('idle');
+  });
+});

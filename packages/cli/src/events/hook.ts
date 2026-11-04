@@ -1,3 +1,5 @@
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
 import { ClaudeHookEvents, EventConstants, EventKinds, EventSources } from './common/index.ts';
 import type { IEvent, IHookEvent } from './common/index.ts';
@@ -16,8 +18,8 @@ export class EventHook {
    * The event a payload stands for, or `undefined` when the payload is not one to log. Only these fields are
    * read: `source` and `model` of a session start, `stop_hook_active` of a stop, `agent_type` and `agent_id` of a
    * subagent stop, `notification_type` and `title` of a notification, and `to` and `summary` of a SendMessage
-   * call (its first line, only when the sender gave no summary). `last_assistant_message`, `message`,
-   * `tool_response` and every command stay unread.
+   * call (its first line, only when the sender gave no summary). A tool tick reads nothing but the event's name.
+   * `last_assistant_message`, `message`, `tool_response`, `tool_input` and every command stay unread.
    */
   static map(opts: { input: unknown }): IHookEvent | undefined {
     const { input } = opts;
@@ -64,7 +66,9 @@ export class EventHook {
       }
 
       case ClaudeHookEvents.POST_TOOL_USE: {
-        return EventHook.mapSend({ input });
+        return input.tool_name === ClaudeHookEvents.SEND_MESSAGE_TOOL
+          ? EventHook.mapSend({ input })
+          : { kind: EventKinds.TOOL_TICK, summary: EventConstants.TOOL_TICK_LABEL };
       }
 
       default: {
@@ -121,6 +125,36 @@ export class EventHook {
   }
 
   /**
+   * Whether this session may write a tick now: the first call of each window creates the window's stamp and wins; a
+   * call that finds the stamp already there loses. `wx` makes that one step, so calls at the same instant cannot both win.
+   */
+  private static takeTick(opts: { root: string; session: string; now: number }): boolean {
+    const folder = join(opts.root, EventConstants.TICK_FOLDER);
+    const window = Math.floor(opts.now / (EventConstants.TICK_SECONDS * 1000));
+    const stamp = join(folder, `${opts.session.replace(/[^\w-]/g, '_') || 'session'}.${window}`);
+
+    mkdirSync(folder, { recursive: true });
+
+    try {
+      writeFileSync(stamp, '', { flag: 'wx' });
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'EEXIST') {
+        return false;
+      }
+
+      throw error;
+    }
+
+    for (const name of readdirSync(folder)) {
+      if (Number(name.slice(name.lastIndexOf('.') + 1)) < window) {
+        rmSync(join(folder, name), { force: true });
+      }
+    }
+
+    return true;
+  }
+
+  /**
    * Logs what a payload stands for, when the manifest says the log is on. Returns the line it wrote.
    * `root` is the project, where the manifest is; the flow comes from the message, else the branch at the
    * payload's `cwd`.
@@ -140,6 +174,17 @@ export class EventHook {
     const mapped = EventHook.map({ input: opts.input });
 
     if (mapped === undefined || !RecordValue.isRecord(opts.input)) {
+      return undefined;
+    }
+
+    if (
+      mapped.kind === EventKinds.TOOL_TICK &&
+      !EventHook.takeTick({
+        root: opts.root,
+        session: text({ value: opts.input.session_id }),
+        now: opts.now ?? Date.now(),
+      })
+    ) {
       return undefined;
     }
 

@@ -231,8 +231,12 @@ export class BoardFold {
       return;
     }
 
-    if (line.kind === EventKinds.SESSION_START || line.kind === EventKinds.SESSION_STOP) {
-      const state = line.kind === EventKinds.SESSION_START ? 'working' : 'idle';
+    if (
+      line.kind === EventKinds.SESSION_START ||
+      line.kind === EventKinds.SESSION_STOP ||
+      line.kind === EventKinds.TOOL_TICK
+    ) {
+      const state = line.kind === EventKinds.SESSION_STOP ? 'idle' : 'working';
 
       agents[line.actor] = {
         name: line.actor,
