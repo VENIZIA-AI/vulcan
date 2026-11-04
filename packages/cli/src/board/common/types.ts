@@ -29,6 +29,9 @@ export interface IBoardEvent {
   isTitle?: boolean;
   /** Only a title line has one: why the flow exists. */
   why?: string;
+  /** Only a title line has them: what the flow is and what is left, and the next step. */
+  context?: string;
+  next?: string;
   /** Which attempt this is: the nth run of one check, the nth review round. */
   attempt?: number;
   /** The check a CI line is about. */
@@ -46,6 +49,10 @@ export interface IBoardFlow {
   named: boolean;
   /** Why the flow exists, from the newest `flow` line that has one. */
   why?: string;
+  /** What the flow is, what is done and what is left; from the same line as the title. */
+  context?: string;
+  /** The next step and who does it; from the same line as the title. */
+  next?: string;
   repo?: string;
   state: TBoardState;
   /** Who has it now. */

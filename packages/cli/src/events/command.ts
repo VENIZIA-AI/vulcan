@@ -17,7 +17,7 @@ import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
 
 const USAGE = `usage: vulcan event add ${EventFlags.KIND} <kind> ${EventFlags.SUMMARY} <text> [${EventFlags.FLOW} F-n] [${EventFlags.REF} <ref>] [${EventFlags.STATUS} <${[...EventStatuses.SCHEME_SET].join('|')}>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
-       vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} ${EventFlags.FLOW} F-n ${EventFlags.TITLE} <text> [${EventFlags.WHY} <text>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
+       vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} ${EventFlags.FLOW} F-n ${EventFlags.TITLE} <text> [${EventFlags.WHY} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.NEXT} <text>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
        vulcan event tail [${EventFlags.SINCE} <time>] [${EventFlags.JSON}] [${EventFlags.DIR} <folder>]
 kinds: ${[...EventKinds.SCHEME_SET].join(', ')}`;
 
@@ -108,12 +108,15 @@ export class EventCommand {
     if (
       isFlow
         ? values[EventFlags.SUMMARY] !== undefined
-        : values[EventFlags.TITLE] !== undefined || values[EventFlags.WHY] !== undefined
+        : values[EventFlags.TITLE] !== undefined ||
+          values[EventFlags.WHY] !== undefined ||
+          values[EventFlags.CONTEXT] !== undefined ||
+          values[EventFlags.NEXT] !== undefined
     ) {
       process.stderr.write(
         isFlow
-          ? `event: a flow line takes ${EventFlags.TITLE} and ${EventFlags.WHY}, not ${EventFlags.SUMMARY}\n`
-          : `event: ${EventFlags.TITLE} and ${EventFlags.WHY} belong to a flow line only\n`,
+          ? `event: a flow line takes ${EventFlags.TITLE}, not ${EventFlags.SUMMARY}\n`
+          : `event: ${EventFlags.TITLE}, ${EventFlags.WHY}, ${EventFlags.CONTEXT} and ${EventFlags.NEXT} belong to a flow line only\n`,
       );
 
       return ExitCodes.USAGE;
@@ -165,6 +168,8 @@ export class EventCommand {
       ...(values[EventFlags.REF] === undefined ? {} : { ref: values[EventFlags.REF] }),
       ...(status === undefined ? {} : { status: status as TEventStatus }),
       ...(values[EventFlags.WHY] === undefined ? {} : { why: values[EventFlags.WHY] }),
+      ...(values[EventFlags.CONTEXT] === undefined ? {} : { context: values[EventFlags.CONTEXT] }),
+      ...(values[EventFlags.NEXT] === undefined ? {} : { next: values[EventFlags.NEXT] }),
     });
 
     try {

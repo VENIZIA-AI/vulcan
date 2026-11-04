@@ -18,6 +18,10 @@ export interface IEvent {
   ref?: string;
   /** Only a `flow` has one: the one-line reason the flow exists. */
   why?: string;
+  /** Only a `flow` has one: what the flow is, what is done and what is left, in a few sentences. */
+  context?: string;
+  /** Only a `flow` has one: the next step and who does it. */
+  next?: string;
   /** Only a `needs-owner` the Claude Code hook wrote has one: the notification type that raised it. */
   notification?: string;
   source: string;

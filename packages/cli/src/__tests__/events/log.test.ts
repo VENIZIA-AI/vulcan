@@ -217,6 +217,48 @@ describe('EventLog', () => {
     expect(Object.keys(bare)).toEqual(['id', 'ts', 'actor', 'kind', 'summary', 'source']);
   });
 
+  test('a flow line keeps context (600 characters) and next (200) as one clean line each, after why and before source', () => {
+    const event = EventLog.build({
+      kind: 'flow',
+      summary: 'Title',
+      actor: 'a',
+      source: 'cli',
+      flowId: 'F-1',
+      why: 'because',
+      context: `${'x'.repeat(700)}`,
+      next: `a\nb ${'n'.repeat(300)}`,
+      now: NOW,
+    });
+
+    expect(Object.keys(event)).toEqual([
+      'id',
+      'ts',
+      'flowId',
+      'actor',
+      'kind',
+      'summary',
+      'why',
+      'context',
+      'next',
+      'source',
+    ]);
+    expect(event.context).toHaveLength(600);
+    expect(Array.from(event.next ?? '')).toHaveLength(200);
+    expect(event.next).not.toContain('\n');
+    expect(EventLog.parse({ line: JSON.stringify(event) })).toEqual(event);
+    expect(
+      EventLog.build({
+        kind: 'flow',
+        summary: 'T',
+        actor: 'a',
+        source: 'cli',
+        context: '  ',
+        now: NOW,
+      }),
+    ).not.toHaveProperty('context');
+    expect(EventLog.parse({ line: JSON.stringify({ ...event, context: 7 }) })).toBeUndefined();
+  });
+
   test('parse strips control characters from every text field, so tail never prints an escape sequence', () => {
     const line = JSON.stringify({
       id: 'i\u001bd',

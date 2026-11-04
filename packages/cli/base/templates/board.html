@@ -353,6 +353,45 @@
         font-size: 13px;
         line-height: 1.4;
       }
+      .dh .ctx p,
+      .dh .nx {
+        margin: 4px 0 0;
+        color: var(--ink);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .dh .nx b,
+      .dh .lat .lb,
+      .dh .ctx .lb {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .dh .lat ul {
+        list-style: none;
+        margin: 4px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 4px;
+      }
+      .dh .lat li {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        gap: 8px;
+        font-size: 13px;
+        line-height: 1.4;
+        color: var(--ink);
+      }
+      .dh .lat .tm {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .nowork {
+        margin: 0;
+        padding: 14px 16px;
+        color: var(--muted);
+        font-size: 13px;
+      }
 
       .seg {
         display: inline-flex;
@@ -2746,6 +2785,52 @@
         'Phiên bắt đầu và kết thúc, subagent và lời nhắc chỉ để chờ đang được ẩn; nút này hiện chúng';
       DICT.en['fl.untitled'] = 'no title yet';
       DICT.vi['fl.untitled'] = 'chưa có tên';
+      DICT.en['ctx.label'] = 'Context';
+      DICT.vi['ctx.label'] = 'Bối cảnh';
+      DICT.en['nx.label'] = 'Next';
+      DICT.vi['nx.label'] = 'Tiếp theo';
+      DICT.en['lt.label'] = 'Latest';
+      DICT.vi['lt.label'] = 'Mới nhất';
+      DICT.en['nw.empty'] = 'No work logged yet';
+      DICT.vi['nw.empty'] = 'Chưa có việc nào được ghi';
+      DICT.en['lt.msg'] = 'sent a message';
+      DICT.vi['lt.msg'] = 'gửi tin nhắn';
+      DICT.en['lt.msgTo'] = 'wrote to';
+      DICT.vi['lt.msgTo'] = 'nhắn cho';
+      DICT.en['lt.commit'] = 'committed';
+      DICT.vi['lt.commit'] = 'commit';
+      DICT.en['lt.pr'] = 'updated a pull request';
+      DICT.vi['lt.pr'] = 'cập nhật pull request';
+      DICT.en['lt.ci'] = 'ran a check';
+      DICT.vi['lt.ci'] = 'chạy kiểm tra';
+      DICT.en['lt.review'] = 'reviewed';
+      DICT.vi['lt.review'] = 'review';
+      DICT.en['lt.fix'] = 'fixed';
+      DICT.vi['lt.fix'] = 'sửa';
+      DICT.en['lt.merge'] = 'merged';
+      DICT.vi['lt.merge'] = 'merge';
+      DICT.en['lt.release'] = 'released';
+      DICT.vi['lt.release'] = 'phát hành';
+      DICT.en['lt.handoff'] = 'handed over';
+      DICT.vi['lt.handoff'] = 'bàn giao';
+      DICT.en['lt.assign'] = 'assigned work';
+      DICT.vi['lt.assign'] = 'giao việc';
+      DICT.en['lt.request'] = 'requested';
+      DICT.vi['lt.request'] = 'đề xuất';
+      DICT.en['lt.design'] = 'designed';
+      DICT.vi['lt.design'] = 'thiết kế';
+      DICT.en['lt.note'] = 'noted';
+      DICT.vi['lt.note'] = 'ghi chú';
+      DICT.en['lt.ask'] = 'asked the owner';
+      DICT.vi['lt.ask'] = 'hỏi chủ';
+      DICT.en['lt.approve'] = 'approved';
+      DICT.vi['lt.approve'] = 'duyệt';
+      DICT.en['lt.park'] = 'parked';
+      DICT.vi['lt.park'] = 'để sau';
+      DICT.en['lt.reject'] = 'rejected';
+      DICT.vi['lt.reject'] = 'từ chối';
+      DICT.en['lt.decision'] = 'decided';
+      DICT.vi['lt.decision'] = 'quyết định';
       DICT.en['k.flow'] = 'flow title';
       DICT.vi['k.flow'] = 'tên luồng';
       DICT.en['k.agent'] = 'agent activity';
@@ -2975,6 +3060,8 @@
               title: f.title,
               repo: f.repo,
               why: f.why,
+              context: f.context,
+              next: f.next,
               named: f.named === true || f.id === 'Unsorted',
             },
             evs,
@@ -3241,24 +3328,35 @@
           ' · ' + (t(KIND_TXT[e.kind]) || e.kind) + (e.attempt > 1 ? t(' lần ') + e.attempt : ''),
         );
         body.append(who, el('div', 'sm', e.summary));
-        const meta = el('div');
-        if (e.link && /^https:\/\//.test(e.link)) {
-          const l = el('a', 'lk', e.link.replace(/^https:\/\/github\.com\//, ''));
-          l.href = e.link;
-          l.target = '_blank';
-          l.rel = 'noopener';
-          meta.append(l, ' · ');
+        // Where a line came from is shown only when it changes how to read it (an estimated time, GitHub); a tool's own
+        // tag such as `cli` is not something the owner reads.
+        const origin = isApprox(e) ? t('giờ ước lượng') : e.source === 'github' ? 'GitHub' : '';
+        const hasLink = e.link && /^https:\/\//.test(e.link);
+        if (hasLink || origin) {
+          const meta = el('div');
+          if (hasLink) {
+            const l = el('a', 'lk', e.link.replace(/^https:\/\/github\.com\//, ''));
+            l.href = e.link;
+            l.target = '_blank';
+            l.rel = 'noopener';
+            meta.append(l);
+          }
+          if (hasLink && origin) meta.append(' · ');
+          if (origin) meta.append(el('span', 'src', origin));
+          body.append(meta);
         }
-        meta.append(
-          el(
-            'span',
-            'src',
-            isApprox(e) ? t('giờ ước lượng') : e.source === 'github' ? 'GitHub' : e.source || '',
-          ),
-        );
-        body.append(meta);
         li.append(body);
         return li;
+      }
+
+      // One readable sentence for a line: who did what, and the words the writer gave it.
+      function latestText(e) {
+        let verb;
+        if (e.kind === 'decision' && e.choice) verb = t('lt.' + e.choice);
+        else if (e.kind === 'note') verb = t(e.needsOwner ? 'lt.ask' : 'lt.note');
+        else if (e.kind === 'msg' && e.to) verb = t('lt.msgTo') + ' ' + e.to;
+        else verb = t('lt.' + e.kind);
+        return e.actor + ' ' + verb + (e.summary ? ': ' + e.summary : '');
       }
 
       function renderDetail(fresh) {
@@ -3287,6 +3385,35 @@
         if (!fl.f.named) heading.append(el('span', 'untitled', t('fl.untitled')));
         dh.append(top, heading);
         if (fl.f.why) dh.append(el('p', 'why', fl.f.why));
+        if (fl.f.context) {
+          const c = el('div', 'ctx');
+          c.append(el('div', 'lb', t('ctx.label')), el('p', null, fl.f.context));
+          dh.append(c);
+        }
+        if (fl.f.next) {
+          const n = el('p', 'nx');
+          n.append(el('b', null, t('nx.label') + ': '), fl.f.next);
+          dh.append(n);
+        }
+        const hasWork = fl.evs.some((e) => !e.plumbing && e.kind !== 'flow');
+        const latest = fl.evs
+          .filter((e) => !e.plumbing && e.kind !== 'flow' && e.kind !== 'agent')
+          .slice(-3)
+          .reverse();
+        if (latest.length) {
+          const lat = el('div', 'lat');
+          const ul = el('ul');
+          for (const e of latest) {
+            const li = el('li');
+            li.append(
+              el('span', 'tm', (isApprox(e) ? '≈' : '') + hhmm(e.ts)),
+              el('span', null, latestText(e)),
+            );
+            ul.append(li);
+          }
+          lat.append(el('div', 'lb', t('lt.label')), ul);
+          dh.append(lat);
+        }
         const meta = el('div', 'meta');
         const m = (k, v) => {
           const s = el('span');
@@ -3311,7 +3438,7 @@
             ),
           );
         box.append(dh);
-        if (viewMode === 'diagram') box.append(renderDiagram(fl));
+        if (viewMode === 'diagram' && hasWork) box.append(renderDiagram(fl));
         const tabs = el('div', 'dtabs');
         tabs.setAttribute('role', 'tablist');
         const t1 = el('button', 'tab', t('Các bước')),
@@ -3338,9 +3465,15 @@
           box.append(ul);
           return;
         }
+        // A `flow` line names the flow; it is no work of a stage, so a flow with nothing else has no stage to show.
+        if (!hasWork) {
+          box.append(el('p', 'nowork', t('nw.empty')));
+          return;
+        }
         const ol = el('ol', 'tl');
         for (const k of fl.stages) {
-          const evs = fl.evs.filter((e) => e.stage === k);
+          const evs = fl.evs.filter((e) => e.stage === k && e.kind !== 'flow');
+          if (!evs.length) continue;
           const le = evs[evs.length - 1];
           const bad = le.status === 'fail' || le.status === 'blocked';
           const li = el(

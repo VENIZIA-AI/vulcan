@@ -178,6 +178,8 @@ export class BoardFold {
           stage: BoardStages.REQUEST,
           isTitle: true,
           ...(line.why === undefined ? {} : { why: line.why }),
+          ...(line.context === undefined ? {} : { context: line.context }),
+          ...(line.next === undefined ? {} : { next: line.next }),
         };
       }
 
@@ -331,11 +333,13 @@ export class BoardFold {
     };
   }
 
-  /** The title and reason a `flow` line gives; its reason goes with it, and a newer line without one drops the old reason. */
+  /** The heading a `flow` line gives: title, reason, context and next step. The newest line wins as a whole: a newer line that leaves a field out drops the old one, so no stale text outlives the line that wrote it. */
   private static headingOf(opts: { named: IBoardEvent | undefined }): {
     title?: string;
     named: boolean;
     why?: string;
+    context?: string;
+    next?: string;
   } {
     const { named } = opts;
 
@@ -345,6 +349,8 @@ export class BoardFold {
           title: named.summary,
           named: true,
           ...(named.why === undefined ? {} : { why: named.why }),
+          ...(named.context === undefined ? {} : { context: named.context }),
+          ...(named.next === undefined ? {} : { next: named.next }),
         };
   }
 

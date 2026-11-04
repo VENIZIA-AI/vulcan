@@ -45,6 +45,8 @@ One file per local day, one JSON object per line, in `.agents/local/events/<yyyy
 | `summary` | One line, at most 200 characters. On a `flow` line it is the flow's title |
 | `notification` | Only on a `needs-owner` the Claude Code hook wrote: the notification type that raised it (`permission_prompt`, `idle_prompt` or `elicitation_dialog`). A board uses it to tell the harness waiting from a question someone wrote, whatever the `summary` says; anything else is not written and is dropped on read |
 | `why` | Only on a `flow`: one line, at most 200 characters, why the flow exists |
+| `context` | Only on a `flow`: what the flow is, what is done and what is left, a few sentences on one line, at most 600 characters |
+| `next` | Only on a `flow`: the next step and who does it, one line, at most 200 characters |
 | `ref` | A commit, a PR, or `to:<recipient>` for a message; absent when there is none. A recipient that is an address keeps its scheme and the last part of its path (`to:uds:3326301.sock`), never the folders |
 | `source` | `claude-hook` or `cli` |
 
@@ -70,7 +72,7 @@ Every hook and every `event add` in those projects then writes there, and `event
 
 ```text
 vulcan event add --kind <kind> --summary <text> [--flow F-n] [--ref <ref>] [--status approve|park|reject] [--actor <name>] [--dir <folder>]
-vulcan event add --kind flow --flow F-n --title <text> [--why <text>] [--actor <name>] [--dir <folder>]
+vulcan event add --kind flow --flow F-n --title <text> [--why <text>] [--context <text>] [--next <text>] [--actor <name>] [--dir <folder>]
 ```
 
 It prints the id of the line. This is the way in for any coding agent: a hook of Claude Code is only one writer.
@@ -84,12 +86,14 @@ It prints the id of the line. This is the way in for any coding agent: a hook of
 | `--status` | `approve`, `park` or `reject`. Required on a `decision`, refused on any other kind. The owner's answer to a flow, written by whoever relays it |
 | `--title` | Only for `--kind flow`, where it is required: the title of the flow, in the language of the owner. Same limits as `--summary` |
 | `--why` | Only for `--kind flow`, optional: one line on why the flow exists. Same limits and the same secret removal |
+| `--context` | Only for `--kind flow`, optional: two to four sentences, in the language of the owner, on what the flow is, what is done and what is left. Cut to one line of 600 characters, with the same secret removal |
+| `--next` | Only for `--kind flow`, optional: the next step and who does it. Cut to one line of 200 characters, with the same secret removal |
 | `--actor` | Who. Without it: `VULCAN_ACTOR` in the environment, else the name Claude Code gave the session (when several of its session files hold the session id, the one of a live process, then the newest), else `claude:` and the start of the session id, else `unknown` |
 | `--dir` | The folder, for this call: `--dir` over `events.dir` over `.agents/local/events`. A relative path is relative to where you run the command |
 
 Run from a subfolder, the command uses the project of that folder: the nearest folder above it with `.agents/vulcan.manifest.json` or `.git`. It reads the same `events` block there as at the top.
 
-Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not `F-n`, a `decision` without a `--status` or another kind with one, a `flow` line without a `--title`, or without a `--flow` when the branch has no `F-n` segment either, or with a `--summary`, a `--title` or `--why` on any other kind, an unknown flag, a flag given twice).
+Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not `F-n`, a `decision` without a `--status` or another kind with one, a `flow` line without a `--title`, or without a `--flow` when the branch has no `F-n` segment either, or with a `--summary`, a `--title`, `--why`, `--context` or `--next` on any other kind, an unknown flag, a flag given twice).
 
 ## vulcan event tail
 
@@ -121,7 +125,14 @@ A board lists flows by their id (`F-12`) and needs a heading for each. Without h
 $ bun x --no-install vulcan event add --kind flow --flow F-12 --title "Bảng việc cho anh" --why "để anh thấy việc nào chờ anh"
 ```
 
-The newest `flow` line of a flow wins, title and reason together: write a new one when either changes, and a new one without `--why` drops the old reason. A flow with no `flow` line keeps the old heading (the words of its pull request, else of its first line), and the board marks it "no title yet". A `flow` line only names the flow: it does not change its state, stage, holder or last line. The rule for agents, which applies only to a project that has `events.log` on, is `V-P-13` in the [rules reference](/references/rules#process-p).
+Add `--context` and `--next` so that the detail pane can be read at once:
+
+```text
+$ bun x --no-install vulcan event add --kind flow --flow F-12 --title "Bảng việc cho anh" --why "để anh thấy việc nào chờ anh" \
+    --context "Bảng chỉ hiện tên luồng. Phần fold đã xong; còn trang và tài liệu." --next "pnt-vulcan-1 mở pull request"
+```
+
+The newest `flow` line of a flow wins as a whole, with all its fields: write a new one when the title, the reason, the context or the next step changes materially, and repeat the fields that still hold, because a new line that leaves one out drops the old one (no stale text outlives the line that wrote it). A flow with no `flow` line keeps the old heading (the words of its pull request, else of its first line), and the board marks it "no title yet". A `flow` line only names the flow: it does not change its state, stage, holder or last line. The rule for agents, which applies only to a project that has `events.log` on, is `V-P-13` in the [rules reference](/references/rules#process-p).
 
 ### A flow id
 
