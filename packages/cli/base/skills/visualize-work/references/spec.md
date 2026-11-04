@@ -39,7 +39,7 @@ Space, Home, End and Escape, one section per slide; print gives one section afte
 | `schemaVersion` | `1` |
 | `title` | The takeaway, at most 120 characters |
 | `language` | A language code (`en`, `pt-BR`); default: the reply language of the owner's profile, else `en`. The page's own words are bundled for `en` and `vi` (a regional code such as `vi-VN` picks `vi`); any other language takes its words from `chrome` |
-| `accent`, `accentDark`, `accentText` | Optional six-digit hex colours that override the project's page colour (the `theme` config key, written into the manifest by `vulcan sync`; without one, a neutral slate). Give them only for a page about another project. A colour that fails the contrast checks (text 4.5:1, marks 3:1) is refused, never swapped; with no `accentDark` it is derived by mixing toward white |
+| `accent`, `accentDark`, `accentText` | Optional six-digit hex colours that override the project's page colour (the `theme` config key, written into the manifest by `vulcan sync`; without one, the `venizia` preset). Give them only for a page about another project. A colour that fails the contrast checks (text 4.5:1, marks 3:1) is refused, never swapped; with no `accentDark` it is derived by mixing toward white |
 | `status` | `{ state: ok \| warn \| blocked \| info, label? }`; the banner's colour, icon and word |
 | `asOf`, `scope` | An ISO date, and a sentence on what the page covers |
 | `verdict`, `caption` | One sentence the reader can stop at; one line under it |

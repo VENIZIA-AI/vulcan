@@ -571,23 +571,36 @@ export default {
 
 ## theme
 
-The colour the project is known by. [`vulcan visualize`](/references/commands/visualize) takes the accent of its pages from here; a spec's own `accent` wins, and a project with no `theme` gets a neutral slate. `vulcan sync` copies the key into `.agents/vulcan.manifest.json`, which is where the generator reads it.
+The colours, fonts and corner radius of the pages VULCAN makes. The token names are fixed; the values come from a preset and from your project. `vulcan sync` resolves the set, checks it, and writes it to `.agents/vulcan.manifest.json`, which is where [`vulcan visualize`](/references/commands/visualize) reads it. A spec's own `accent` wins over the project's. A project with no `theme` gets the `venizia` preset.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `accent` | `string` | none | A six-digit hex colour, such as `#8a5a20`, for marks and fills; required when `theme` is set |
+| `preset` | `'venizia' \| 'slate'` | `'venizia'` | The values every token starts from. `venizia` is the bronze accent (`#8a5a20` light, `#dead6a` dark); `slate` keeps the same grounds, text and states with a slate accent (`#3f5266`, `#9fb4cc`) |
+| `accent` | `string` | the preset's | A six-digit hex colour, such as `#8a5a20`, for marks and fills; the accent tint and the text on it are derived |
 | `accentDark` | `string` | derived | The same colour on the dark ground; when absent, `accent` is mixed toward white (up to 60%) until it passes the contrast check |
 | `accentText` | `string` | `accent` | A darker colour for text, when `accent` is too light to read as text on the page |
+| `tokens` | `Record<string, string \| { light?, dark? }>` | `{}` | A colour for one token: a hex (six digits, or eight with an alpha channel) for both modes, or one per mode |
+| `font` | `string` | the preset's | The sans font stack |
+| `mono` | `string` | the preset's | The monospace font stack |
+| `radius` | `string` | `'4px'` | The corner radius, as a CSS length |
 
-Text needs a 4.5:1 contrast and marks 3:1 on both the light and the dark ground. A colour that fails is refused with the ratio it reached, never swapped for another; a colour close to the fixed `blocked` red or `done` green gets a warning, because those state colours do not change.
+The tokens are `ground`, `bg`, `line`, `line-strong`, `ink`, `body`, `muted`, `accent`, `accent-ink`, `accent-soft`, `accent-text`, and `ok`, `wait`, `fail`, `info` with a `-soft` tint each. A preset gives every token a value for both the light and the dark mode.
+
+Text needs a 4.5:1 contrast and marks 3:1, on the light and on the dark ground. That covers `ink`, `body`, `muted` and `accent-text` on `bg` and `ground`, `accent-ink` on `accent`, each state on its tint, and `accent` and the states as marks. A pair below it is refused when the config loads, with the pair, the colours and the ratio it reached; it is never swapped for another colour. A colour that carries an alpha channel is judged over the ground it sits on.
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  theme: { accent: '#8a5a20', accentDark: '#dead6a' },
+  theme: {
+    preset: 'slate',
+    tokens: { 'line-strong': '#6b6b6b', ok: { dark: '#3ddc97' } },
+    radius: '2px',
+  },
 } satisfies VulcanConfig;
 ```
+
+`theme: { accent: '#8a5a20', accentDark: '#dead6a' }` still works and means the `venizia` preset.
 
 ## owner
 

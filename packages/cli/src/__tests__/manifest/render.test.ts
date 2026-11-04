@@ -54,6 +54,7 @@ describe('ProjectManifest.render', () => {
       'knowledge',
       'release',
       'rules',
+      'theme',
     ]);
     expect(manifest.$generated).toBe('by vulcan sync from .configs/vulcan.config.* - do not edit');
     expect(manifest.schemaVersion).toBe(1);
@@ -162,6 +163,7 @@ describe('the prebuilt index in the manifest (C27)', () => {
       'release',
       'rules',
       'atlas',
+      'theme',
     ]);
     expect(manifest.atlas).toEqual({ index: { keys: [key] }, prebuilt: false });
     expect(manifest.schemaVersion).toBe(1);
@@ -186,13 +188,27 @@ describe('the prebuilt index in the manifest (C27)', () => {
     expect(keys.indexOf('atlas')).toBeLessThan(keys.indexOf('remoteHosts'));
   });
 
-  test('the theme is written to the manifest only when the config sets one, and the schema version stays 1', () => {
+  test('the theme block carries the seeds the project gave and the resolved tokens, and the schema version stays 1', () => {
     const theme = { accent: '#0277bd', accentDark: '#38bdf8', accentText: '#01579b' };
     const manifest = JSON.parse(render({ root, config: { theme } }));
 
-    expect(manifest.theme).toEqual(theme);
+    expect(manifest.theme).toMatchObject({ ...theme, preset: 'venizia', radius: '4px' });
+    expect(manifest.theme.tokens.light.accent).toBe('#0277bd');
+    expect(manifest.theme.tokens.dark.accent).toBe('#38bdf8');
+    expect(manifest.theme.tokens.light.ink).toBe('#000000');
     expect(manifest.schemaVersion).toBe(1);
-    expect(JSON.parse(render({ root, config: CONFIG }))).not.toHaveProperty('theme');
+  });
+
+  test('a project with no theme gets the default preset, written as the resolved set with no seeds', () => {
+    const manifest = JSON.parse(render({ root, config: CONFIG }));
+
+    expect(manifest.theme).not.toHaveProperty('accent');
+    expect(manifest.theme.preset).toBe('venizia');
+    expect(manifest.theme.tokens.light).toMatchObject({
+      accent: '#8a5a20',
+      'accent-soft': '#f5ecdf',
+    });
+    expect(manifest.theme.tokens.dark).toMatchObject({ accent: '#dead6a', ground: '#121214' });
   });
 
   test('a config that sets neither renders the text it always did', () => {

@@ -159,8 +159,8 @@ const GROUNDS = {
 };
 
 export class ProjectTheme {
-  /** The colour of a page whose project says nothing: a slate ink. */
-  static readonly DEFAULT: IThemeInput = { accent: '#3f5266', accentDark: '#9fb4cc' };
+  /** The colour of a page whose project says nothing: the venizia bronze, the seeds of the default preset. */
+  static readonly DEFAULT: IThemeInput = { accent: '#8a5a20', accentDark: '#dead6a' };
 
   /** The manifest is read only up to this size: a real one is a few KB. */
   static readonly MAX_MANIFEST_BYTES = 1024 * 1024;
@@ -453,8 +453,22 @@ export class ProjectTheme {
       return { warning: 'the manifest theme is not an object, so the neutral colour is used' };
     }
 
-    const accent: unknown = Reflect.get(theme, 'accent');
-    const accentDark: unknown = Reflect.get(theme, 'accentDark');
+    // A manifest that holds only the resolved tokens (a project that set no accent) gives the accent of its preset.
+    const tokens: unknown = Reflect.get(theme, 'tokens');
+    const modeOf = (mode: string): unknown =>
+      typeof tokens === 'object' && tokens !== null ? Reflect.get(tokens, mode) : undefined;
+    const resolvedAccent = (mode: string): unknown => {
+      const palette = modeOf(mode);
+
+      return typeof palette === 'object' && palette !== null
+        ? Reflect.get(palette, 'accent')
+        : undefined;
+    };
+    const given: unknown = Reflect.get(theme, 'accent');
+    const accent: unknown = given ?? resolvedAccent('light');
+    const accentDark: unknown =
+      Reflect.get(theme, 'accentDark') ??
+      (given === undefined ? resolvedAccent('dark') : undefined);
     const accentText: unknown = Reflect.get(theme, 'accentText');
 
     if (!ProjectTheme.isHex(accent)) {

@@ -51,18 +51,18 @@ describe('the project colour: which colour a page takes (C10)', () => {
     expect(neither.ok && neither.theme.light.accent).toBe(ProjectTheme.DEFAULT.accent);
   });
 
-  test('the neutral default is a slate ink that passes on every ground, and no bronze remains in it', () => {
+  test('the default is the venizia bronze and passes on every ground; slate is a preset, not the default', () => {
     const theme = palettes(ProjectTheme.DEFAULT);
 
     expect(
       Theme.contrastOf({ foreground: theme.light.accent, background: theme.light.bg }),
-    ).toBeGreaterThan(7);
+    ).toBeGreaterThan(4.5);
     expect(
       Theme.contrastOf({ foreground: theme.dark.accent, background: theme.dark.bg }),
     ).toBeGreaterThan(7);
-    expect(ProjectTheme.tokensCss({ theme }).toLowerCase()).not.toMatch(
-      /98681a|e0b366|8a5a20|dead6a/,
-    );
+    expect(ProjectTheme.tokensCss({ theme }).toLowerCase()).toMatch(/8a5a20/);
+    expect(ProjectTheme.tokensCss({ theme }).toLowerCase()).toMatch(/dead6a/);
+    expect(ProjectTheme.tokensCss({ theme }).toLowerCase()).not.toMatch(/3f5266|9fb4cc/);
   });
 
   test('a colour that is not six hex digits is refused and named', () => {

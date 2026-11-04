@@ -28,7 +28,7 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     ).toEqual({ accent: '#0277bd', accentDark: '#38bdf8', accentText: '#01579b' });
     expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: 'blue' } }).success).toBe(false);
     expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: '#fff' } }).success).toBe(false);
-    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: {} }).success).toBe(false);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: {} }).success).toBe(true);
     expect(
       VULCAN_CONFIG_SCHEMA.safeParse({ theme: { accent: '#0277bd', brand: '#000000' } }).success,
     ).toBe(false);

@@ -45,7 +45,7 @@ The look is the one of this wiki: a system font stack and a monospace one, an al
 
 ## The colour
 
-The accent is the project's. The page takes the first that exists of: the `accent` of the spec, the [`theme`](/references/configuration/#theme) of the project (copied by `vulcan sync` into `.agents/vulcan.manifest.json`, which is the only file the generator reads for it), and a neutral slate. A page about another project gives `accent` (and `accentDark`, `accentText`) in its spec. The colours of the states (done, waiting, blocked) are fixed and separate from the accent, and every state also has an icon and a word.
+The accent is the project's. The page takes the first that exists of: the `accent` of the spec, the [`theme`](/references/configuration/#theme) of the project (copied by `vulcan sync` into `.agents/vulcan.manifest.json`, which is the only file the generator reads for it), and the `venizia` preset. A page about another project gives `accent` (and `accentDark`, `accentText`) in its spec. The colours of the states (done, waiting, blocked) are fixed and separate from the accent, and every state also has an icon and a word.
 
 ## Words and language
 
