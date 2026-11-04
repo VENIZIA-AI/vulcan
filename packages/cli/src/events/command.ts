@@ -10,7 +10,7 @@ import {
   EventStatuses,
   EventSubcommands,
 } from './common/index.ts';
-import type { IEvent, TEventKind, TEventStatus } from './common/index.ts';
+import type { IEvent, IEventItem, TEventKind, TEventStatus } from './common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
 import { FlowId } from './flow-id.ts';
@@ -25,6 +25,20 @@ kinds: ${[...EventKinds.SCHEME_SET].join(', ')}
 A flow line without ${EventFlags.FLOW} makes a new flow and prints its id (VULZ-<project.key>-<number>); give that id to every other line of the flow. Ids are never typed by hand.`;
 
 type TFlagValues = Record<string, string>;
+
+/** A flag that may be given again, and the order of the given ones matters: the lists of a flow line. */
+interface IListFlag {
+  flag: string;
+  value: string;
+}
+
+const LIST_FLAGS = new Set<string>([
+  EventFlags.STEP,
+  EventFlags.STEP_DONE,
+  EventFlags.CHECK,
+  EventFlags.CHECK_DONE,
+  EventFlags.APP,
+]);
 
 /** `vulcan event`: write a line to the agent event log, or read the log. */
 export class EventCommand {
@@ -42,15 +56,16 @@ export class EventCommand {
     }
 
     return subcommand === EventSubcommands.ADD
-      ? EventCommand.add({ cwd: opts.cwd, values: parsed.values })
+      ? EventCommand.add({ cwd: opts.cwd, values: parsed.values, lists: parsed.lists })
       : EventCommand.tail({ cwd: opts.cwd, values: parsed.values, json: parsed.json });
   }
 
   /** Flags with a value, and `--json`; `undefined` for anything else (the router has already refused unknown flags). */
   private static parse(opts: {
     args: string[];
-  }): { values: TFlagValues; json: boolean } | undefined {
+  }): { values: TFlagValues; lists: IListFlag[]; json: boolean } | undefined {
     const values: TFlagValues = {};
+    const lists: IListFlag[] = [];
     let json = false;
 
     for (let index = 0; index < opts.args.length; index++) {
@@ -63,15 +78,24 @@ export class EventCommand {
 
       const value = opts.args[index + 1];
 
-      if (!arg.startsWith('--') || value === undefined || Object.hasOwn(values, arg)) {
+      if (
+        !arg.startsWith('--') ||
+        value === undefined ||
+        (!LIST_FLAGS.has(arg) && Object.hasOwn(values, arg))
+      ) {
         return undefined;
       }
 
-      values[arg] = value;
+      if (LIST_FLAGS.has(arg)) {
+        lists.push({ flag: arg, value });
+      } else {
+        values[arg] = value;
+      }
+
       index++;
     }
 
-    return { values, json };
+    return { values, lists, json };
   }
 
   /** The folder to use: `--dir`, else the manifest's `events.dir`, else the project's own. */
@@ -84,7 +108,7 @@ export class EventCommand {
     });
   }
 
-  private static add(opts: { cwd: string; values: TFlagValues }): number {
+  private static add(opts: { cwd: string; values: TFlagValues; lists: IListFlag[] }): number {
     const { values } = opts;
     const kind = values[EventFlags.KIND];
     const isFlow = kind === EventKinds.FLOW;
@@ -121,6 +145,14 @@ export class EventCommand {
           ? `event: a flow line takes ${EventFlags.TITLE}, not ${EventFlags.SUMMARY}\n`
           : `event: ${EventFlags.TITLE}, ${EventFlags.WHY}, ${EventFlags.CONTEXT} and ${EventFlags.NEXT} belong to a flow line only\n`,
       );
+
+      return ExitCodes.USAGE;
+    }
+
+    const items = EventCommand.itemsOf({ lists: opts.lists, due: values[EventFlags.DUE], isFlow });
+
+    if (!items.ok) {
+      process.stderr.write(`event: ${items.message}\n`);
 
       return ExitCodes.USAGE;
     }
@@ -194,6 +226,10 @@ export class EventCommand {
       ...(values[EventFlags.WHY] === undefined ? {} : { why: values[EventFlags.WHY] }),
       ...(values[EventFlags.CONTEXT] === undefined ? {} : { context: values[EventFlags.CONTEXT] }),
       ...(values[EventFlags.NEXT] === undefined ? {} : { next: values[EventFlags.NEXT] }),
+      steps: items.steps,
+      checks: items.checks,
+      apps: items.apps,
+      ...(values[EventFlags.DUE] === undefined ? {} : { due: values[EventFlags.DUE] }),
     });
 
     try {
@@ -211,6 +247,81 @@ export class EventCommand {
     );
 
     return ExitCodes.OK;
+  }
+
+  /**
+   * The lists of a flow line from the flags, in the order given, and the due date. They belong to a flow line only; a text
+   * that is empty or over its limit, too many of them, or a due date that is not a day, is refused (the other texts are
+   * cut, but a list an agent restates in full must not lose a word without a word said).
+   */
+  private static itemsOf(opts: {
+    lists: IListFlag[];
+    due: string | undefined;
+    isFlow: boolean;
+  }):
+    | { ok: true; steps: IEventItem[]; checks: IEventItem[]; apps: string[] }
+    | { ok: false; message: string } {
+    const steps: IEventItem[] = [];
+    const checks: IEventItem[] = [];
+    const apps: string[] = [];
+
+    if (!opts.isFlow && (opts.lists.length > 0 || opts.due !== undefined)) {
+      return {
+        ok: false,
+        message: `${[...LIST_FLAGS, EventFlags.DUE].join(', ')} belong to a flow line only`,
+      };
+    }
+
+    for (const { flag, value } of opts.lists) {
+      const isApp = flag === EventFlags.APP;
+      const max = isApp ? EventConstants.APP_TEXT_MAX : EventConstants.ITEM_TEXT_MAX;
+
+      if (value.trim() === '' || Array.from(value).length > max) {
+        return { ok: false, message: `${flag} needs a text of 1 to ${max} characters` };
+      }
+
+      if (flag === EventFlags.STEP || flag === EventFlags.STEP_DONE) {
+        steps.push({ text: value, done: flag === EventFlags.STEP_DONE });
+      } else if (flag === EventFlags.CHECK || flag === EventFlags.CHECK_DONE) {
+        checks.push({ text: value, done: flag === EventFlags.CHECK_DONE });
+      } else {
+        apps.push(value);
+      }
+    }
+
+    for (const [flag, count, limit] of [
+      [`${EventFlags.STEP}/${EventFlags.STEP_DONE}`, steps.length, EventConstants.ITEM_COUNT_MAX],
+      [
+        `${EventFlags.CHECK}/${EventFlags.CHECK_DONE}`,
+        checks.length,
+        EventConstants.ITEM_COUNT_MAX,
+      ],
+      [EventFlags.APP, apps.length, EventConstants.APP_COUNT_MAX],
+    ] as const) {
+      if (count > limit) {
+        return { ok: false, message: `at most ${limit} of ${flag}, got ${count}` };
+      }
+    }
+
+    if (opts.due !== undefined && !EventCommand.isDay({ value: opts.due })) {
+      return {
+        ok: false,
+        message: `${EventFlags.DUE} must be a day such as 2026-11-08, got '${opts.due}'`,
+      };
+    }
+
+    return { ok: true, steps, checks, apps };
+  }
+
+  /** `2026-11-08`, and a day that exists: `2026-02-30` is not one. */
+  private static isDay(opts: { value: string }): boolean {
+    const time = Date.parse(`${opts.value}T00:00:00Z`);
+
+    return (
+      EventConstants.DUE_PATTERN.test(opts.value) &&
+      Number.isFinite(time) &&
+      new Date(time).toISOString().startsWith(opts.value)
+    );
   }
 
   /**

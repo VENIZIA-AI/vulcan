@@ -43,8 +43,20 @@ export interface IBoardEvent {
   check?: string;
   ref?: IBoardRef;
   link?: string;
+  /** Only a title line has them: the lists, the due day and the tracker id the flow line gave. */
+  steps?: IBoardItem[];
+  checks?: IBoardItem[];
+  apps?: string[];
+  due?: string;
+  tracker?: string;
   summary: string;
   source: string;
+}
+
+/** One step or acceptance check of a flow, and whether it is done. */
+export interface IBoardItem {
+  text: string;
+  done: boolean;
 }
 
 export interface IBoardFlow {
@@ -58,6 +70,12 @@ export interface IBoardFlow {
   context?: string;
   /** The next step and who does it; from the same line as the title. */
   next?: string;
+  /** The steps, the acceptance checks, the apps, the due day and the tracker id, from the same line as the title: the line lists them in full. */
+  steps?: IBoardItem[];
+  checks?: IBoardItem[];
+  apps?: string[];
+  due?: string;
+  tracker?: string;
   repo?: string;
   state: TBoardState;
   /** Who has it now. */
@@ -85,6 +103,9 @@ export interface IBoardAgent {
   current: string;
   since: string;
   checkedAt: string;
+  /** What the session start said of the session: the model, and the harness that wrote it. Never made up. */
+  model?: string;
+  harness?: string;
 }
 
 export interface IBoardData {
@@ -102,6 +123,8 @@ export interface IBoardData {
   roster?: string[];
   /** A helper to the lane it rolls into. */
   lanes?: Record<string, string>;
+  /** What `board.agents` says an agent is, by name: `Backend`. */
+  roles?: Record<string, string>;
   /** Set by `vulcan board serve`: where the page reads new snapshots from. The static file has none. */
   live?: { stream: string };
   generatedAt: string;

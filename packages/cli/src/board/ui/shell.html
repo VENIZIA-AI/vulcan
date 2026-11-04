@@ -355,6 +355,49 @@
         font-size: 12px;
         font-weight: 600;
       }
+      .dh .ckl {
+        margin-top: 10px;
+      }
+      .dh .ckl .lb {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .dh .ckl ul {
+        list-style: none;
+        margin: 4px 0 0;
+        padding: 0;
+      }
+      .dh .ckl li {
+        position: relative;
+        padding: 2px 0 2px 22px;
+        color: var(--ink);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .dh .ckl li::before {
+        content: '';
+        position: absolute;
+        left: 2px;
+        top: 6px;
+        width: 12px;
+        height: 12px;
+        border: 1.5px solid var(--line-2);
+        border-radius: 3px;
+      }
+      .dh .ckl li.on {
+        color: var(--muted);
+      }
+      .dh .ckl li.on::before {
+        background: var(--ok);
+        border-color: var(--ok);
+      }
+      .dh .apps {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
       .dh .lat ul {
         list-style: none;
         margin: 4px 0 0;

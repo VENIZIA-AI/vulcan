@@ -6,7 +6,7 @@ import { useUi } from '../i18n/context.ts';
 import { BoardLatest } from '../state/latest.ts';
 import { BoardTime } from '../state/time.ts';
 import { BoardView } from '../state/view.ts';
-import { EventItem, FlowCode, Mark, Untitled } from './bits.tsx';
+import { Checklist, EventItem, FlowCode, Mark, Untitled } from './bits.tsx';
 
 const isBad = (event: { status?: string }): boolean =>
   event.status === 'fail' || event.status === 'blocked';
@@ -45,6 +45,17 @@ const Head = (props: { view: IFlowView; onClose: () => void }) => {
           <p>{flow.context}</p>
         </div>
       ) : null}
+      {flow.apps ? (
+        <div className="apps">
+          {flow.apps.map((app) => (
+            <span key={app} className="chip">
+              {app}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <Checklist title={t('fl.steps')} items={flow.steps} />
+      <Checklist title={t('fl.checks')} items={flow.checks} />
       {flow.next ? (
         <p className="nx">
           <b>{`${t('nx.label')}: `}</b>
@@ -76,6 +87,8 @@ const Head = (props: { view: IFlowView; onClose: () => void }) => {
               `${view.approxLast ? '≈ ' : ''}${BoardTime.ago({ iso: view.last.ts, now, translate: t })}${t(' trước')}`,
             ],
             ['Bắt đầu', BoardTime.clock({ iso: view.evs[0].ts })],
+            ...(flow.due === undefined ? [] : [['fl.due', flow.due] as const]),
+            ...(flow.tracker === undefined ? [] : [['fl.tracker', flow.tracker] as const]),
             ['Sự kiện', String(view.evs.length)],
           ] as const
         ).map(([label, value]) => (

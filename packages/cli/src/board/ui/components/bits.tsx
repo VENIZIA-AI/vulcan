@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { IBoardItem } from '../../common/index.ts';
 import { BoardTables } from '../common/constants.ts';
 import type { IBoardViewEvent, IFlowView } from '../common/types.ts';
 import { useUi } from '../i18n/context.ts';
@@ -36,6 +37,28 @@ export const FlowCode = (props: { id: string }) => (
 );
 
 export const Untitled = () => <span className="untitled">{useUi().t('fl.untitled')}</span>;
+
+/** A list of a flow line as a checklist with its count: `Steps · 2/3`. Nothing when the line gave none. */
+export const Checklist = (props: { title: string; items: IBoardItem[] | undefined }) => {
+  const { items } = props;
+
+  if (items === undefined || items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="ckl">
+      <div className="lb">{`${props.title} · ${items.filter((item) => item.done).length}/${items.length}`}</div>
+      <ul>
+        {items.map((item, index) => (
+          <li key={`${index}:${item.text}`} className={item.done ? 'on' : undefined}>
+            {item.text}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
 
 /** The stages of a flow, the one it is at marked, with the CI runs and reviews of each. */
 export const Strip = (props: { view: IFlowView }) => {

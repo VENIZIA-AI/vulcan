@@ -3,6 +3,10 @@ import type { TBoardLanguage } from '../common/types.ts';
 /** The words of the page, by language. A key is the Vietnamese source text or a short id; `vi` holds only the ids and the overrides. */
 export const DICTIONARY: Record<TBoardLanguage, Record<string, string>> = {
   en: {
+    'fl.steps': 'Steps',
+    'fl.checks': 'Acceptance checks',
+    'fl.due': 'Due',
+    'fl.tracker': 'Tracker',
     ' (giờ ước lượng)': ' (estimated time)',
     ' bị chặn': ' blocked',
     ' bị chặn · ': ' blocked · ',
@@ -174,6 +178,10 @@ export const DICTIONARY: Record<TBoardLanguage, Record<string, string>> = {
     đỏ: 'red',
   },
   vi: {
+    'fl.steps': 'Các bước',
+    'fl.checks': 'Tiêu chí nghiệm thu',
+    'fl.due': 'Hạn',
+    'fl.tracker': 'Mã theo dõi',
     'ctx.label': 'Bối cảnh',
     'dg.title': 'Sơ đồ luồng',
     'fl.untitled': 'chưa có tên',

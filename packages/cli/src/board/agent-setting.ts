@@ -10,6 +10,10 @@ export class BoardAgentSetting {
     return typeof opts.setting === 'string' ? undefined : opts.setting.lane;
   }
 
+  static roleOf(opts: { setting: TBoardAgentSetting }): string | undefined {
+    return typeof opts.setting === 'string' ? undefined : opts.setting.role;
+  }
+
   /** Why the lane of `name` cannot be honoured, or `undefined`. A lane names a listed agent with no lane of its own, so there is no chain and no cycle. */
   static problemOf(opts: {
     settings: Record<string, TBoardAgentSetting>;

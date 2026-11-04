@@ -30,11 +30,12 @@ export class EventHook {
 
     switch (input.hook_event_name) {
       case ClaudeHookEvents.SESSION_START: {
+        const model = text({ value: input.model });
+
         return {
           kind: EventKinds.SESSION_START,
-          summary: [text({ value: input.source }), text({ value: input.model })]
-            .filter((word) => word !== '')
-            .join(' '),
+          summary: [text({ value: input.source }), model].filter((word) => word !== '').join(' '),
+          ...(model === '' ? {} : { model }),
         };
       }
 
@@ -203,6 +204,7 @@ export class EventHook {
       ...(flowId === undefined ? {} : { flowId }),
       ...(mapped.ref === undefined ? {} : { ref: mapped.ref }),
       ...(mapped.notification === undefined ? {} : { notification: mapped.notification }),
+      ...(mapped.model === undefined ? {} : { model: mapped.model }),
       ...(opts.now === undefined ? {} : { now: opts.now }),
     });
 

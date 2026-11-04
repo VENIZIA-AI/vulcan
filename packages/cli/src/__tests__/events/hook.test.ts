@@ -33,6 +33,7 @@ describe('EventHook.map', () => {
     ).toEqual({
       kind: 'session-start',
       summary: 'resume claude-sonnet-5-5',
+      model: 'claude-sonnet-5-5',
     });
     expect(map({ hookEventName: 'SessionStart' })).toEqual({ kind: 'session-start', summary: '' });
   });

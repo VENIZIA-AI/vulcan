@@ -122,6 +122,8 @@ export class BoardSources {
 }
 
 export class BoardConstants {
+  /** What the Claude Code hook is called on a card. */
+  static readonly HARNESS_CLAUDE = 'Claude Code';
   /** Who an ask waits on when neither `board.owner` nor `git config user.name` says. */
   static readonly DEFAULT_OWNER = 'Owner';
   static readonly LOGO_MAX_BYTES = 100 * 1024;
