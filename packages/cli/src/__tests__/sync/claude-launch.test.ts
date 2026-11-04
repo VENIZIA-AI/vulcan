@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { SessionDigest } from '../../hooks/index.ts';
 import { ClaudeLaunch, CLAUDE_LAUNCH_FILE } from '../../sync/claude-launch.ts';
@@ -78,6 +78,41 @@ describe('ClaudeLaunch.missWarning', () => {
     expect(
       ClaudeLaunch.missWarning({ root: bare, env: { CLAUDE_PROJECT_DIR: bare } }),
     ).toBeUndefined();
+  });
+});
+
+describe('ClaudeLaunch.tmpOf', () => {
+  test('a worktree may use the folder of the checkout it hangs from, and no other folder above it', () => {
+    const root = withLaunchFile();
+    const worktree = join(root, '.agents/local/worktrees/one');
+    const own = join(root, '.agents/local/tmp');
+
+    mkdirSync(worktree, { recursive: true });
+
+    expect(ClaudeLaunch.tmpOf({ root: worktree, env: { CLAUDE_CODE_TMPDIR: own } }).state).toBe(
+      'inside',
+    );
+    expect(
+      ClaudeLaunch.tmpOf({ root: worktree, env: { CLAUDE_CODE_TMPDIR: `${root}/src` } }).state,
+    ).toBe('outside');
+    expect(
+      ClaudeLaunch.tmpOf({ root: worktree, env: { CLAUDE_CODE_TMPDIR: '/var/tmp/x' } }).state,
+    ).toBe('outside');
+    expect(ClaudeLaunch.tmpOf({ root, env: {} }).state).toBe('unset');
+  });
+
+  test('a project that is not a worktree does not borrow the folder of a checkout above it', () => {
+    const root = withLaunchFile();
+    const nested = join(root, 'packages/inner');
+
+    mkdirSync(nested, { recursive: true });
+
+    expect(
+      ClaudeLaunch.tmpOf({
+        root: nested,
+        env: { CLAUDE_CODE_TMPDIR: join(root, '.agents/local/tmp') },
+      }).state,
+    ).toBe('outside');
   });
 });
 

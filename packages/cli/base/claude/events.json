@@ -46,7 +46,6 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "SendMessage",
         "hooks": [
           {
             "type": "command",
