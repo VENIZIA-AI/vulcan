@@ -21,16 +21,16 @@ interface IDock {
 
 /** Runs in the page: the cells of the dock, then the same after "Show all events" is pressed; it is pressed back, because the browser keeps the choice between tests. */
 const MEASURE_DOCK = `(async () => {
-  const cells = () => [...document.querySelectorAll('#dock .cell')];
+  const cells = () => [...document.querySelectorAll('#dock [data-agent]')];
   const before = cells().map((c) => ({ agent: c.dataset.agent, text: c.innerText }));
-  const count = document.getElementById('dockN').textContent;
+  const count = document.querySelector('#dock .c-n').textContent;
   document.getElementById('bPlumb').click();
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   const result = {
     before,
     count,
     afterToggle: cells().map((c) => c.dataset.agent),
-    countAfterToggle: document.getElementById('dockN').textContent,
+    countAfterToggle: document.querySelector('#dock .c-n').textContent,
     errors: window.__errs,
   };
   document.getElementById('bPlumb').click();
@@ -77,14 +77,14 @@ describe.skipIf(!hasBrowser)('the board page with a roster and lanes, in a real 
     const dock = await measure(dataWith({ roster: ['veni-forge', 'pnt-vulcan-1'] }));
 
     expect(dock.before.map((cell) => cell.agent).sort()).toEqual(['pnt-vulcan-1', 'veni-forge']);
-    expect(dock.count).toBe('2 agents');
+    expect(dock.count).toBe('2');
     expect(dock.afterToggle.sort()).toEqual([
       'pnt-ardor-1',
       'pnt-ignis-1',
       'pnt-vulcan-1',
       'veni-forge',
     ]);
-    expect(dock.countAfterToggle).toBe('4 agents');
+    expect(dock.countAfterToggle).toBe('4');
     expect(dock.errors).toEqual([]);
   });
 
@@ -100,7 +100,7 @@ describe.skipIf(!hasBrowser)('the board page with a roster and lanes, in a real 
     expect(Object.keys(byAgent).sort()).toEqual(['pnt-vulcan-1', 'veni-forge']);
     expect(byAgent['pnt-vulcan-1']).toContain('+1 helper');
     expect(byAgent['veni-forge']).toContain('+1 helper');
-    expect(dock.count).toBe('2 agents');
+    expect(dock.count).toBe('2');
     expect(dock.errors).toEqual([]);
   });
 
@@ -122,7 +122,7 @@ describe.skipIf(!hasBrowser)('the board page with a roster and lanes, in a real 
     expect(none.before.every((cell) => !cell.text.includes('helper'))).toBe(true);
   });
 
-  test('an idle lane still shows its helpers: the label has its own class, not the hidden one of the time', async () => {
+  test('an idle lane still shows its helpers', async () => {
     const base = dataWith({});
     const at = new Date().toISOString();
     const idle: IBoardAgent = {
@@ -150,30 +150,14 @@ describe.skipIf(!hasBrowser)('the board page with a roster and lanes, in a real 
       width: 1440,
       dark: false,
       expression: `(() => {
-        const cell = document.querySelector('#dock .cell[data-agent="quiet"]');
-        const hp = cell.querySelector('.hp');
-        const ag = cell.querySelector('.ag');
-        return JSON.stringify({
-          compact: cell.classList.contains('compact'),
-          label: hp.textContent,
-          labelShown: getComputedStyle(hp).display !== 'none',
-          timeShown: getComputedStyle(ag).display !== 'none',
-          errors: window.__errs,
-        });
+        const card = document.querySelector('#dock [data-agent="quiet"]');
+        return JSON.stringify({ idle: card.classList.contains('idle'), foot: card.querySelector('.c-foot').textContent, errors: window.__errs });
       })()`,
     });
-    const seen: {
-      compact: boolean;
-      label: string;
-      labelShown: boolean;
-      timeShown: boolean;
-      errors: string[];
-    } = JSON.parse(raw);
+    const seen: { idle: boolean; foot: string; errors: string[] } = JSON.parse(raw);
 
-    expect(seen.compact).toBe(true);
-    expect(seen.label).toBe('+1 helper');
-    expect(seen.labelShown).toBe(true);
-    expect(seen.timeShown, 'the time of an idle row is hidden, as before').toBe(false);
+    expect(seen.idle).toBe(true);
+    expect(seen.foot).toContain('+1 helper');
     expect(seen.errors).toEqual([]);
   });
 });
@@ -227,11 +211,11 @@ describe.skipIf(!hasBrowser)('the name of a helper in the detail, and who holds 
       dark: false,
       expression: `(async () => {
         const wait = () => new Promise((resolve) => setTimeout(resolve, 80));
-        document.querySelectorAll('.gh[aria-expanded="false"]').forEach((button) => button.click());
+        document.querySelectorAll('.c-gh[aria-expanded="false"]').forEach((button) => button.click());
         await wait();
         document.querySelector('.row[data-id="${helperFlow}"]').click();
         await wait();
-        document.querySelectorAll('.dtabs .tab')[1].click();
+        document.querySelector('.d-all').click();
         await wait();
         const who = [...document.querySelectorAll('#dBody .evs .who b:first-child')].map((b) => b.textContent);
         return JSON.stringify({ who, errors: window.__errs });
@@ -250,9 +234,9 @@ describe.skipIf(!hasBrowser)('the name of a helper in the detail, and who holds 
         width: 1440,
         dark: false,
         expression: `(async () => {
-          document.querySelectorAll('.gh[aria-expanded="false"]').forEach((button) => button.click());
+          document.querySelectorAll('.c-gh[aria-expanded="false"]').forEach((button) => button.click());
           await new Promise((resolve) => setTimeout(resolve, 80));
-          return JSON.stringify([...document.querySelectorAll('#groups .row .holder')].map((node) => node.textContent));
+          return JSON.stringify([...document.querySelectorAll('#groups .row .c-chips .h')].map((node) => node.textContent.replace(/ holds$/, '')));
         })()`,
       });
       const names: string[] = JSON.parse(raw);
@@ -273,11 +257,11 @@ describe.skipIf(!hasBrowser)('the name of a helper in the detail, and who holds 
       width: 1440,
       dark: false,
       expression: `(async () => {
-        document.querySelectorAll('.gh[aria-expanded="false"]').forEach((button) => button.click());
+        document.querySelectorAll('.c-gh[aria-expanded="false"]').forEach((button) => button.click());
         await new Promise((resolve) => setTimeout(resolve, 80));
         return JSON.stringify({
-          holders: [...document.querySelectorAll('#groups .row .holder')].map((node) => node.textContent),
-          dock: [...document.querySelectorAll('#dock .cell')].map((cell) => cell.dataset.agent),
+          holders: [...document.querySelectorAll('#groups .row .c-chips .h')].map((node) => node.textContent.replace(/ holds$/, '')),
+          dock: [...document.querySelectorAll('#dock [data-agent]')].map((cell) => cell.dataset.agent),
         });
       })()`,
     });

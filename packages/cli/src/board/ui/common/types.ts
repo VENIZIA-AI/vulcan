@@ -36,6 +36,8 @@ export interface IAgentRow {
   helpers: number;
   st: 'blocked' | 'you' | 'working' | 'idle';
   flow: string | null;
+  /** The question that waits on the owner, when it is this agent's. */
+  ask?: string;
   text: string;
   ts: string | null;
   approx: boolean;

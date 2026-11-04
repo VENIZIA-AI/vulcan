@@ -141,7 +141,7 @@ const EXPRESSION = `(async () => {
   const wait = () => new Promise((resolve) => setTimeout(resolve, 80));
   const rows = () => [...document.querySelectorAll('.row')].map((r) => ({
     id: r.dataset.id,
-    title: r.querySelector('.tt .t').textContent,
+    title: r.querySelector('.c-title').firstChild.textContent,
     untitled: !!r.querySelector('.untitled'),
     text: r.textContent,
   }));
@@ -153,9 +153,11 @@ const EXPRESSION = `(async () => {
   await wait();
   out.hidden = rows();
   await open('F-1');
+  document.querySelector('.d-all').click();
+  await wait();
   out.detailHidden = {
-    heading: document.querySelector('#dBody h3').firstChild.textContent,
-    why: document.querySelector('#dBody .why') ? document.querySelector('#dBody .why').textContent : null,
+    heading: document.querySelector('#dBody h2').firstChild.textContent,
+    why: document.querySelector('.row[data-id="F-1"] .c-now').textContent,
     text: document.getElementById('dBody').textContent,
   };
   out.pressed.push(document.getElementById('bPlumb').getAttribute('aria-pressed'));
@@ -164,6 +166,7 @@ const EXPRESSION = `(async () => {
   out.pressed.push(document.getElementById('bPlumb').getAttribute('aria-pressed'));
   out.shown = rows();
   await open('F-1');
+  if (!document.querySelector('.d-body .evs')) { document.querySelector('.d-all').click(); await wait(); }
   out.detailShown = document.getElementById('dBody').textContent;
   document.getElementById('bPlumb').click();
   await wait();
@@ -230,7 +233,7 @@ describe.skipIf(!hasBrowser)(
         expect(row('F-2')).toMatchObject({ title: 'fix the cache', untitled: true });
         expect(row('F-2').text).toContain('no title yet');
         expect(result.detailHidden.heading).toBe('Bảng việc cho anh');
-        expect(result.detailHidden.why).toBe('để anh thấy việc nào chờ anh');
+        expect(result.detailHidden.why).toBe('Now: để anh thấy việc nào chờ anh');
         // The message label is a line of the pane, not the heading.
         expect(result.detailHidden.text).toContain('status label');
         // Only the human ask makes a flow wait on the owner.

@@ -54,7 +54,7 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
         row.click();
         window.__selected = row.dataset.id;
         return JSON.stringify({
-          agents: [...document.querySelectorAll('#dock .cell')].map((c) => c.dataset.agent),
+          agents: [...document.querySelectorAll('#dock [data-agent]')].map((c) => c.dataset.agent),
           fresh: document.getElementById('fresh').textContent,
           errors: window.__errs || [],
         });
@@ -79,18 +79,18 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
 
     const result = await BrowserPage.evaluate({
       expression: `(async () => {
-            await ${WAIT("[...document.querySelectorAll('#dock .cell')].some((c) => c.dataset.agent === 'brand-new-agent')", 8000)};
+            await ${WAIT("[...document.querySelectorAll('#dock [data-agent]')].some((c) => c.dataset.agent === 'brand-new-agent')", 8000)};
             return JSON.stringify({
               marker: window.__marker,
               selected: window.__selected,
-              agents: [...document.querySelectorAll('#dock .cell')].map((c) => c.dataset.agent),
+              agents: [...document.querySelectorAll('#dock [data-agent]')].map((c) => c.dataset.agent),
               flows: [...document.querySelectorAll('.row')].map((row) => row.dataset.id),
               stillSelected: document.querySelector('.row[aria-selected="true"]')?.dataset.id,
               inCard: await (async () => {
-                document.querySelector('#dock .cell[data-agent="brand-new-agent"]').click();
+                document.querySelector('#dock [data-agent][data-agent="brand-new-agent"]').click();
                 await new Promise((resolve) => setTimeout(resolve, 100));
 
-                return document.getElementById('pop').textContent.includes('appears with no reload');
+                return document.getElementById('detail').textContent.includes('appears with no reload');
               })(),
               navigations: performance.getEntriesByType('navigation').length,
             });
@@ -220,7 +220,7 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
     expect(seen.waits[2], 'a message in between resets the wait').toBeLessThan(1800);
   });
 
-  test('a snapshot that carries a roster and lanes changes the dock: the unlisted agents go, the helper rolls up', async () => {
+  test('a snapshot that carries a roster and lanes changes the dock: the unlisted agents go, the helper rolls into its lane', async () => {
     const data = {
       ...sampleData({ base: Date.now() - 100 * 60_000 }),
       live: { stream: '/stream?t=x' },
@@ -243,18 +243,16 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
       width: 1440,
       dark: false,
       expression: `(async () => {
-        const dock = () => [...document.querySelectorAll('#dock .cell')].map((c) => c.dataset.agent).sort();
+        const dock = () => [...document.querySelectorAll('#dock [data-agent]')].map((c) => c.dataset.agent).sort();
         const before = dock();
         window.__sources[0].onmessage({ data: JSON.stringify(${JSON.stringify(next)}) });
         await ${WAIT('dock().length === 2', 3000)};
-        const cell = document.querySelector('#dock .cell[data-agent="pnt-vulcan-1"]');
-        return JSON.stringify({ before, after: dock(), label: cell.querySelector('.hp').textContent });
+        return JSON.stringify({ before, after: dock() });
       })()`,
     });
-    const seen: { before: string[]; after: string[]; label: string } = JSON.parse(raw);
+    const seen: { before: string[]; after: string[] } = JSON.parse(raw);
 
     expect(seen.before).toHaveLength(4);
     expect(seen.after).toEqual(['pnt-vulcan-1', 'veni-forge']);
-    expect(seen.label).toBe('+1 helper');
   });
 });

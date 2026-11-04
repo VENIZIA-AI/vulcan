@@ -209,18 +209,18 @@ describe.skipIf(!hasBrowser)("today's detail shows the lists", () => {
       expression: `(async () => {
         const wait = () => new Promise((resolve) => setTimeout(resolve, 100));
         localStorage.clear();
-        document.querySelectorAll('.gh[aria-expanded="false"]').forEach((button) => button.click());
+        document.querySelectorAll('.c-gh[aria-expanded="false"]').forEach((button) => button.click());
         await wait();
         document.querySelector('.row[data-id="${target.id}"]').click();
         await wait();
-        const lists = [...document.querySelectorAll('#dBody .ckl')].map((box) => ({
-          label: box.querySelector('.lb').textContent,
-          items: [...box.querySelectorAll('li')].map((li) => [li.textContent, li.classList.contains('on')]),
+        const lists = [...document.querySelectorAll('#dBody .d-sec')].filter((box) => box.querySelector('.ckl')).map((box) => ({
+          label: box.querySelector('h4').textContent,
+          items: [...box.querySelectorAll('.ckl li')].map((li) => [li.textContent, li.classList.contains('on')]),
         }));
         return JSON.stringify({
           lists,
-          apps: [...document.querySelectorAll('#dBody .apps .chip')].map((chip) => chip.textContent),
-          meta: document.querySelector('#dBody .meta').textContent,
+          apps: [...document.querySelectorAll('#dBody .c-chips span')].map((chip) => chip.textContent),
+          meta: document.querySelector('#dBody .d-meta').textContent,
         });
       })()`,
     });
@@ -237,7 +237,7 @@ describe.skipIf(!hasBrowser)("today's detail shows the lists", () => {
       ['third step', true],
     ]);
     expect(seen.lists[1]).toEqual({
-      label: 'Acceptance checks · 0/1',
+      label: 'Acceptance checks · PLANE-3054',
       items: [['a check', false]],
     });
     expect(seen.apps).toEqual(['web-sale', 'admin']);

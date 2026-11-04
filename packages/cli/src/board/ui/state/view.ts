@@ -150,6 +150,7 @@ export class BoardView {
           n: name,
           helpers: BoardView.helpersOf({ data, events, lane: name }),
           st,
+          ...(st === 'you' && youFlow?.lastAsk ? { ask: youFlow.lastAsk.summary } : {}),
           flow: (blockedFlow ?? youFlow)?.flow.id ?? runFlow?.flow.id ?? lastLine?.flowId ?? null,
           ...said,
           key: `${lastLine?.id ?? lastLine?.ts ?? ''}|${doc?.checkedAt ?? ''}|${doc?.current ?? ''}`,

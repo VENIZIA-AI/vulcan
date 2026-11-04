@@ -8,14 +8,10 @@ interface ILayout {
   scrollWidth: number;
   bodyScrollWidth: number;
   rowCount: number;
-  /** For each column of a row, the left edge in pixels, one array per row. */
-  columns: Record<string, number[]>;
-  /** The right edge of the widest row cell, to see that nothing runs past the window. */
-  rightmost: number;
-  /** The flow codes that do not fit their cell. */
-  codesTooWide: string[];
+  /** The left and right edge of each flow card, in pixels. */
+  lefts: number[];
+  rights: number[];
   detailScrollWidth: number;
-  dockCells: number;
   agentsListed: string[];
   errors: string[];
   title: string;
@@ -35,24 +31,15 @@ const hasBrowser = await BrowserPage.available();
 
 afterAll(() => BrowserPage.close());
 
-/** Runs in the page: opens every group, then reads where the cells of each row are and whether anything sticks out. */
+/** Runs in the page: opens every group, then reads where the cards are and whether anything sticks out. */
 const MEASURE = `(async () => {
   const wait = () => new Promise((resolve) => setTimeout(resolve, 80));
-  document.querySelectorAll('.gh[aria-expanded="false"]').forEach((button) => button.click());
+  document.querySelectorAll('.c-gh[aria-expanded="false"]').forEach((button) => button.click());
   await wait();
   const rows = [...document.querySelectorAll('#groups .row')];
-  const columns = {};
-  let rightmost = 0;
-  for (const row of rows) {
-    for (const cell of row.children) {
-      const box = cell.getBoundingClientRect();
-      if (box.width === 0) continue;
-      const name = cell.className.split(' ')[0] || cell.tagName.toLowerCase();
-      (columns[name] ||= []).push(Math.round(box.left));
-      rightmost = Math.max(rightmost, box.right);
-    }
-  }
-  const codesTooWide = [...document.querySelectorAll('#groups .row .code')].filter((c) => c.scrollWidth > c.clientWidth + 1).map((c) => c.textContent);
+  const box = (node) => node.getBoundingClientRect();
+  const lefts = rows.map((row) => Math.round(box(row).left));
+  const rights = rows.map((row) => Math.round(box(row).right));
   document.querySelector('#groups .row').click();
   await wait();
   const detail = document.getElementById('detail');
@@ -61,12 +48,10 @@ const MEASURE = `(async () => {
     scrollWidth: document.documentElement.scrollWidth,
     bodyScrollWidth: document.body.scrollWidth,
     rowCount: rows.length,
-    columns,
-    rightmost: Math.round(rightmost),
-    codesTooWide,
+    lefts,
+    rights,
     detailScrollWidth: detail ? detail.scrollWidth - detail.clientWidth : 0,
-    dockCells: document.querySelectorAll('#dock .cell').length,
-    agentsListed: [...document.querySelectorAll('#dock .cell')].map((c) => c.dataset.agent),
+    agentsListed: [...document.querySelectorAll('#dock [data-agent]')].map((c) => c.dataset.agent),
     errors: window.__errs,
     title: document.title,
     heading: document.getElementById('boardTitle').textContent,
@@ -75,7 +60,7 @@ const MEASURE = `(async () => {
     storageKeys: Object.keys(localStorage),
     logo: (document.querySelector('#mark img') || {}).src || null,
     ruleDisplay: getComputedStyle(document.querySelector('.brule')).display,
-    holderOfFirst: (document.querySelector('#groups .row .holder') || {}).textContent || '',
+    holderOfFirst: ((document.querySelector('#groups .row .c-chips .h') || {}).textContent || '').replace(/ holds$/, ''),
   });
 })()`;
 
@@ -106,7 +91,7 @@ describe.skipIf(!hasBrowser)('the board page in a real browser', () => {
 
   for (const width of [1440, 390]) {
     for (const dark of [false, true]) {
-      test(`${width}px, ${dark ? 'dark' : 'light'}: nothing sticks out sideways and the cells of the rows line up`, async () => {
+      test(`${width}px, ${dark ? 'dark' : 'light'}: nothing sticks out sideways and the cards line up`, async () => {
         const raw = await BrowserPage.measure<string>({ html, width, dark, expression: MEASURE });
         const layout = JSON.parse(raw) as ILayout;
 
@@ -114,29 +99,22 @@ describe.skipIf(!hasBrowser)('the board page in a real browser', () => {
         expect(layout.scrollWidth, 'the page scrolls sideways').toBeLessThanOrEqual(width + 1);
         expect(layout.bodyScrollWidth, 'the body scrolls sideways').toBeLessThanOrEqual(width + 1);
         expect(layout.detailScrollWidth, 'the detail pane scrolls sideways').toBeLessThanOrEqual(1);
-        expect(layout.rightmost, 'a cell runs past the window').toBeLessThanOrEqual(width + 1);
-
-        expect(layout.codesTooWide, 'a flow code runs into the title').toEqual([]);
+        expect(Math.max(...layout.rights), 'a card runs past the window').toBeLessThanOrEqual(
+          width + 1,
+        );
 
         // Six flows: Needs you, three Running, Parked, Done, plus Unsorted.
         expect(layout.rowCount).toBe(6);
 
-        // Every row puts the same column at the same left edge. The columns that exist depend on the width.
-        const aligned = Object.entries(layout.columns).filter(([name]) =>
-          ['code', 'tt', 'holder', 'age'].includes(name),
-        );
-
-        expect(aligned.map(([name]) => name)).toEqual(
-          expect.arrayContaining(width > 700 ? ['code', 'tt', 'holder', 'age'] : ['tt', 'age']),
-        );
-
-        for (const [name, lefts] of aligned) {
-          expect(lefts.length, name).toBe(layout.rowCount);
-          expect(
-            Math.max(...lefts) - Math.min(...lefts),
-            `column ${name} is not aligned: ${lefts.join(', ')}`,
-          ).toBeLessThanOrEqual(1);
-        }
+        // The cards of one column line up: the same left and right edge.
+        expect(
+          Math.max(...layout.lefts) - Math.min(...layout.lefts),
+          'the cards are not aligned',
+        ).toBeLessThanOrEqual(1);
+        expect(
+          Math.max(...layout.rights) - Math.min(...layout.rights),
+          'the cards differ in width',
+        ).toBeLessThanOrEqual(1);
 
         // Neutral: the project's own name and owner, nothing of any organisation, and no script error.
         expect(layout.errors).toEqual([]);
@@ -148,7 +126,7 @@ describe.skipIf(!hasBrowser)('the board page in a real browser', () => {
         expect(layout.logo).toBeNull();
         expect(layout.ruleDisplay, 'a rule stands where the logo would be').toBe('none');
 
-        // The agents of the log are in the dock.
+        // The agents of the log are in the agents pane.
         expect(layout.agentsListed.sort()).toEqual([
           'pnt-ardor-1',
           'pnt-ignis-1',

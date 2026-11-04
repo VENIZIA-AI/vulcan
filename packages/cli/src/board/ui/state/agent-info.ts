@@ -44,12 +44,13 @@ export class BoardAgentInfo {
       : undefined;
   }
 
-  static of(opts: { data: IBoardData; events: IBoardViewEvent[]; name: string }): {
-    mine: IBoardViewEvent[];
-    open: IOpenPr[];
-    pending: IBoardViewEvent[];
-  } {
-    const { data, events, name } = opts;
+  /** The pull requests the lines speak of, each with who opened it, whether it merged or closed, and the state of its newest check. */
+  static prsOf(opts: { events: IBoardViewEvent[] }): (IOpenPr & {
+    by?: string;
+    merged: boolean;
+    closed: boolean;
+  })[] {
+    const { events } = opts;
     const prs: Record<string, IOpenPr & { by?: string; merged: boolean; closed: boolean }> = {};
 
     for (const event of events) {
@@ -74,6 +75,15 @@ export class BoardAgentInfo {
       pr.link = event.link && /^https:\/\/.+\/pull\//.test(event.link) ? event.link : pr.link;
     }
 
+    return Object.values(prs);
+  }
+
+  static of(opts: { data: IBoardData; events: IBoardViewEvent[]; name: string }): {
+    mine: IBoardViewEvent[];
+    open: IOpenPr[];
+    pending: IBoardViewEvent[];
+  } {
+    const { data, events, name } = opts;
     const messages = events
       .filter((event) => event.kind === 'msg')
       .filter((event) => {
@@ -85,7 +95,9 @@ export class BoardAgentInfo {
 
     return {
       mine: events.filter((event) => event.actor === name).sort(BoardView.byTime),
-      open: Object.values(prs).filter((pr) => pr.by === name && !pr.merged && !pr.closed),
+      open: BoardAgentInfo.prsOf({ events }).filter(
+        (pr) => pr.by === name && !pr.merged && !pr.closed,
+      ),
       // A message waits for its receiver: unanswered while the receiver has done nothing since, in that flow.
       pending: messages.filter((message) => {
         const { receiver } = BoardAgentInfo.endsOf({ data, message });

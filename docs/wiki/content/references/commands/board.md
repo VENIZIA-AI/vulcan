@@ -67,7 +67,7 @@ An event belongs to the flow named by its `flowId` (`VULZ-ACME-12`; an older `F-
 | `needs-owner` | an ask: the flow waits on you. Not when the Claude Code hook raised it (its `notification` field says which prompt, whatever the title); a line without that field is judged by its summary being the name of a prompt (`idle_prompt`, `permission_prompt`, `elicitation_dialog`, in any case): that is [agent plumbing](#agent-plumbing) |
 | `flow` | the flow's title and reason (the heading of the flow, a line in its Proposal stage). See [The title of a flow](#the-title-of-a-flow) |
 | `decision` (`approve`, `park`, `reject`) | your answer: it answers the ask and, for `park` and `reject`, parks the flow |
-| `session-start`, `session-stop` | the agent dock: working, or idle. Also [agent plumbing](#agent-plumbing) |
+| `session-start`, `session-stop` | the agents pane: working, or idle. Also [agent plumbing](#agent-plumbing) |
 | `subagent-stop` | [agent plumbing](#agent-plumbing) |
 
 From GitHub: each pull request, each finished check (pass or fail), each review (approved, changes requested), and the merge. One call per repository asks for the newest 30 pull requests; the note on stderr says how many of them changed since `--since`.
@@ -82,7 +82,7 @@ From GitHub: each pull request, each finished check (pass or fail), each review 
 | **Done** | The pull request was merged |
 | **Running** | Anything else |
 
-The **stage** is the one of the last line, from Proposal to Handover; the page shows the stages reached. The **holder** is you while the flow needs you; otherwise the actor of the last piece of work, or the named recipient of a later message (`--ref to:name`). CI runs of one check and review rounds are counted as attempts.
+The **stage** is the one of the last line, from Proposal to Handover; the page shows it as a bar with the stage the flow is at marked. The **holder** is you while the flow needs you; otherwise the actor of the last piece of work, or the named recipient of a later message (`--ref to:name`).
 
 ### The title of a flow
 
@@ -90,17 +90,19 @@ The heading of a flow is its title, from the newest `flow` line of that flow (`v
 
 ### The detail pane
 
-From the top, the pane of a flow shows: the title, the reason, a **Context** block, a **Next** line (both from the newest `flow` line, when it has them), then **Latest**, the three newest lines of work as one sentence each with the time, the actor and what they did (a message, a commit, a pull request, a decision; never agent plumbing or a `flow` line). Below them come the holder, the time of the last line, the stages with their lines, and **All events**.
+The right pane opens when you pick a flow or an agent, and closes with the cross or `Esc`. From the top, the pane of a flow shows: the title, a line with the flow id, the tracker id, the due day and the holder, the stage bar, **What it is** (the context of the newest `flow` line, and its apps), the **Steps** and **Acceptance checks** lists with their counts, what the flow waits for (the next step, else the question asked of you), and **Milestones**: when the flow was opened, decided, merged or deployed, newest first. The button **All events** lists every line of the flow, with the time, the actor, who it went to or came from, and what was done.
 
-In the **Latest events** panel and in the board view, a flow with only `flow` lines is not at a stage: its lines are left out of the panel, and its card waits in a **No work yet** lane before the stages. A `flow` line is not work of a stage. A flow that has only `flow` lines shows **No work logged yet** where the stages would be, and no Proposal box; the `flow` line is still listed under **All events**. In the list, the row of such a flow shows a neutral **No work yet** chip instead of a stage, and under its title the next step, else the reason, never the title again. Where a line came from is shown only when it changes how to read it (an estimated time, GitHub); the tag of the tool that wrote it, such as `cli`, is not shown.
+A flow with only `flow` lines is not at a stage. It shows **No work logged yet** where the stage bar would be and its card says **No work yet** instead of a stage; the `flow` line is still listed under **All events**. Where a line came from is shown only when it changes how to read it (an estimated time, GitHub); the tag of the tool that wrote it, such as `cli`, is not shown.
+
+The pane of an agent shows its newest five lines, its open pull requests and the messages nobody has answered, each message with its direction (`→` to, `←` from).
 
 ### Agent plumbing
 
-Session starts and stops, subagent stops and a prompt the harness waits on are not work. By default the page leaves them out of the flows, the list, the diagram and the counts, and they never move a flow: an idle prompt does not make a flow wait for you. The button **Show all events** puts them back, as lines of agent activity and, for lines with no flow, as an `Unsorted` flow in the running group; press it again to hide them. The choice is saved in the browser. A `needs-owner` line that someone wrote with a question stays visible, and still makes the flow wait for you.
+Session starts and stops, subagent stops and a prompt the harness waits on are not work. By default the page leaves them out of the flows, the cards and the counts, and they never move a flow: an idle prompt does not make a flow wait for you. The button **Show all events** puts them back, as lines of agent activity and, for lines with no flow, as an `Unsorted` flow in the running group; press it again to hide them. The choice is saved in the browser. A `needs-owner` line that someone wrote with a question stays visible, and still makes the flow wait for you.
 
 ## What the page shows
 
-The list of flows grouped by state, a detail pane with each stage, round and message, the agent dock with each agent's state, and a view of flows as a diagram or a board. It has English and Vietnamese, and a light and a dark theme, and its keys are `j` and `k` to move, `Enter` to open, `e` for all events and `?` for the list. The page is read-only: it sends nothing and saves nothing but your language, theme and last visit in the browser, under keys that carry the project name. It holds no network call, so it works offline. The data is inside the file: labels and short titles, never message text.
+Three panes. On the left, **Agents**: one card per agent with its state, what it is working on, its newest action and message, its open pull requests, and its role, model and harness when they are known. In the middle, **Work items**: the flows grouped by state, each card with where it is, what is happening now, how far its steps are, the people on it, the pull requests, the due day and what it waits for. On the right, the **Detail** of the flow or the agent you picked. Picking an agent also narrows the work items to the flows it is on; pick it again to undo it. A due day two days away or sooner shows in red. On a phone the detail opens over the list. It has English and Vietnamese, and a light and a dark theme, and its keys are `j` and `k` to move, `Enter` to open, `e` for all events and `?` for the list. The page is read-only: it sends nothing and saves nothing but your language, theme and last visit in the browser, under keys that carry the project name. It holds no network call, so it works offline. The data is inside the file: labels and short titles, never message text.
 
 ## Names, logo and faces
 
@@ -129,7 +131,7 @@ export default {
 | `hostname` | The name in the address of `vulcan board serve`. It must be lowercase and end in `.localhost`: a browser resolves such a name to your own machine by itself, while a name that reaches `127.0.0.1` through DNS or a hosts file is what a DNS-rebinding page uses, so it is refused | `vulz-board.venizia.ai.localhost` |
 | `agents` | The agents of the board by name. A value is a face (`bun`, `flame`, `ember`, `rock` or `banana`), or `{ shape?, lane?, role? }` (`role` is free text, up to 60 characters, for the card). The listed names are the roster; `lane` rolls a helper into the row of a listed name | every agent shows with `bun`; the owner is a person |
 
-**The roster.** Once `agents` lists a name, the dock and the count show only the listed names that have no `lane`. Every other agent in the log is hidden until you press **Show all events**. An empty `agents` shows every agent in the log, as before.
+**The roster.** Once `agents` lists a name, the agents pane and its count show only the listed names that have no `lane`. Every other agent in the log is hidden until you press **Show all events**. An empty `agents` shows every agent in the log, as before.
 
 **Lanes.** `'pnt-api-1': { lane: 'api' }` draws the lines of `pnt-api-1` as `api`'s: one row, with "+1 helper" on it, and no row for the helper. A flow whose holder is the helper shows `api` as its holder; in the detail of a flow, a line still shows the helper's own name. A `lane` must name a listed key that has no `lane` of its own; a chain or a cycle fails the config and names the key. The face is optional (`{ lane: 'api' }`), and `{}` is a roster entry with the default face.
 
