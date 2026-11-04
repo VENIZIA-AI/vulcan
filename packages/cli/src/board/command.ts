@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
+import { FlowId } from '../events/flow-id.ts';
 import { EventLog } from '../events/log.ts';
 import { EventSettings } from '../events/settings.ts';
 import { BoardConstants, BoardFlags, BoardServe, BoardStates } from './common/index.ts';
@@ -111,8 +112,13 @@ export class BoardCommand {
       root: opts.root,
       ...(opts.readGitUser === undefined ? {} : { readGitUser: opts.readGitUser }),
     });
+    // An older `F-n` is shown as `VULZ-<key>-n`; the log itself is never rewritten.
+    const key = EventSettings.keyOf({ root: opts.root });
     const { flows, decisions } = BoardFold.fold({
-      events: [...fromLog.events, ...github.events],
+      events: [...fromLog.events, ...github.events].map((event) => ({
+        ...event,
+        flowId: FlowId.canon({ id: event.flowId, key }),
+      })),
       owner: settings.owner,
     });
 

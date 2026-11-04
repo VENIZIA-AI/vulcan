@@ -18,6 +18,8 @@ const INIT = [
   BACKEND,
   '--project',
   'p',
+  '--key',
+  'TEST',
   '--backend-dir',
   'services',
   '--app',
@@ -168,7 +170,7 @@ describe.skipIf(!hasScript)(
     test('init: a typed scope names the app, an empty answer leaves it bare', async () => {
       const parent = createProject({ files: {} });
       const result = await driveTerminal({
-        args: ['init', '--preset', BACKEND],
+        args: ['init', '--preset', BACKEND, '--key', 'TEST'],
         cwd: parent,
         env: MENU_ENV,
         steps: [

@@ -218,6 +218,8 @@ export class ProjectManifest {
       ...localBlockOf({ config }),
       // Whether the Claude Code hooks write the agent event log, and the folder it goes to.
       ...eventsBlockOf({ config }),
+      // The key a flow is named by; the hooks and `vulcan event` read it here, not from the config.
+      ...(config.project === undefined ? {} : { project: { key: config.project.key } }),
     };
 
     return BunFormatter.format({

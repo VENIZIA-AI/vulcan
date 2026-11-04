@@ -57,7 +57,7 @@ It prints one line on stdout, the address with this run's token; open that addre
 
 ## How a line becomes a flow
 
-An event belongs to the flow named by its `flowId` (`F-12`). A line with no flow is in the flow called **Unsorted**. A pull request is in the flow named by `Flow: F-12` in its body or by an `F-12` part of its branch name, else in Unsorted. [A flow id](/references/commands/event#a-flow-id) says how the log finds it.
+An event belongs to the flow named by its `flowId` (`VULZ-ACME-12`; an older `F-12` shows as `VULZ-<key>-12` once the project has a `project.key`). A line with no flow is in the flow called **Unsorted**. A pull request is in the flow named by `Flow: VULZ-ACME-12` in its body or by a flow id part of its branch name, else in Unsorted. [A flow id](/references/commands/event#a-flow-id) says how the log finds it.
 
 | Log line | On the board |
 |---|---|
@@ -86,7 +86,7 @@ The **stage** is the one of the last line, from Proposal to Handover; the page s
 
 ### The title of a flow
 
-The heading of a flow is its title, from the newest `flow` line of that flow (`vulcan event add --kind flow --flow F-12 --title "..." --why "..."`, see [Name a flow](/references/commands/event#name-a-flow)). A `flow` line only names the flow: it never changes its state, stage, holder or last line, so renaming a merged flow leaves it Done. Messages, commits and the rest are lines of the pane, not headings. A flow with no `flow` line keeps the heading it had before, the words of its pull request or of its first line, followed by "no title yet". The title is written in the language of the owner; the page does not translate it.
+The heading of a flow is its title, from the newest `flow` line of that flow (`vulcan event add --kind flow --flow VULZ-ACME-12 --title "..." --why "..."`, see [Name a flow](/references/commands/event#name-a-flow)). A `flow` line only names the flow: it never changes its state, stage, holder or last line, so renaming a merged flow leaves it Done. Messages, commits and the rest are lines of the pane, not headings. A flow with no `flow` line keeps the heading it had before, the words of its pull request or of its first line, followed by "no title yet". The title is written in the language of the owner; the page does not translate it.
 
 ### The detail pane
 

@@ -148,6 +148,8 @@ const monorepo = (opts: { backendDir?: string; shared?: string } = {}): string =
       BACKEND,
       '--project',
       'p',
+      '--key',
+      'TEST',
       '--backend-dir',
       opts.backendDir ?? 'backends',
       '--app',
@@ -187,7 +189,18 @@ describe('vulcan init --preset with folder paths', () => {
   ])('%j is refused before anything is written', (flags, why) => {
     const parent = createProject({ files: {} });
     const result = runCli({
-      args: ['init', '--preset', BACKEND, '--project', 'p', '--app', 'core-api', ...flags],
+      args: [
+        'init',
+        '--preset',
+        BACKEND,
+        '--project',
+        'p',
+        '--key',
+        'TEST',
+        '--app',
+        'core-api',
+        ...flags,
+      ],
       cwd: parent,
       env: ENV,
     });
@@ -358,6 +371,8 @@ describe('vulcan add --lib with several shared folders', () => {
         `file:${lib}`,
         '--project',
         'p',
+        '--key',
+        'TEST',
         '--backend-dir',
         'backends',
         '--app',
@@ -416,6 +431,8 @@ describe('vulcan add --lib says why a folder it used was not recorded', () => {
         lib,
         '--project',
         'p',
+        '--key',
+        'TEST',
         '--backend-dir',
         'backends',
         '--app',

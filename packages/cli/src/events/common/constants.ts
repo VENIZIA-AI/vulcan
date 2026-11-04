@@ -130,10 +130,19 @@ export class EventConstants {
   static readonly REF_MAX = 120;
   static readonly ACTOR_MAX = 80;
   static readonly REDACTED = '[redacted]';
-  static readonly FLOW_PATTERN = /\bF-\d+\b/;
-  static readonly FLOW_EXACT = /^F-\d+$/;
-  /** `Flow: F-n` in a message's first line. */
-  static readonly FLOW_LINE = /\bFlow:\s*(F-\d+)\b/;
+  /** A flow is named `VULZ-<key>-<number>`; the older `F-<number>` is still read and shows as the new form. */
+  static readonly FLOW_PREFIX = 'VULZ';
+  static readonly FLOW_ID = 'VULZ-[A-Z0-9]{2,8}-\\d+|F-\\d+';
+  static readonly FLOW_PATTERN = new RegExp(`\\b(?:${EventConstants.FLOW_ID})\\b`);
+  static readonly FLOW_EXACT = new RegExp(`^(?:${EventConstants.FLOW_ID})$`);
+  /** `Flow: <id>` in a message's first line. */
+  static readonly FLOW_LINE = new RegExp(`\\bFlow:\\s*(${EventConstants.FLOW_ID})\\b`);
+  /** An older flow id, `F-<number>`. */
+  static readonly FLOW_LEGACY = /^F-\d+$/;
+  /** The folder of claims beside the day files: one file per flow number given, so a number is never given twice. */
+  static readonly FLOW_CLAIM_DIR = '.flow-ids';
+  /** How many recent flows a refusal lists. */
+  static readonly FLOW_RECENT_COUNT = 5;
   /** Where the log goes for a hook that has no better answer: the name of an actor with no session name. */
   static readonly UNKNOWN_ACTOR = 'unknown';
   static readonly ACTOR_ENV = 'VULCAN_ACTOR';

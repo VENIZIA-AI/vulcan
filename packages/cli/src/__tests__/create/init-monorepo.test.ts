@@ -363,6 +363,8 @@ describe('vulcan init --preset', () => {
         `file:${frontend}`,
         '--project',
         'p',
+        '--key',
+        'TEST',
         '--frontend-dir',
         'web',
         '--app',
@@ -464,7 +466,17 @@ describe('vulcan init --preset', () => {
   test('a preset that is not there is an error and nothing is written', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
-      args: ['init', '--preset', `file:${join(parent, 'nowhere')}`, '--project', 'p', '--app', 'a'],
+      args: [
+        'init',
+        '--preset',
+        `file:${join(parent, 'nowhere')}`,
+        '--project',
+        'p',
+        '--key',
+        'TEST',
+        '--app',
+        'a',
+      ],
       cwd: parent,
       env: ENV,
     });
@@ -477,7 +489,7 @@ describe('vulcan init --preset', () => {
   test('an npm preset cannot be located offline', () => {
     const parent = createProject({ files: {} });
     const result = runCli({
-      args: ['init', '--preset', 'some-name', '--project', 'p', '--app', 'a'],
+      args: ['init', '--preset', 'some-name', '--project', 'p', '--key', 'TEST', '--app', 'a'],
       cwd: parent,
       env: ENV,
     });
@@ -542,6 +554,8 @@ describe('vulcan init --preset', () => {
         `file:${frontend}`,
         '--project',
         'p',
+        '--key',
+        'TEST',
         '--frontend-dir',
         'web',
         '--app',

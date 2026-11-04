@@ -11,15 +11,20 @@ import {
   EventSubcommands,
 } from './common/index.ts';
 import type { IEvent, TEventKind, TEventStatus } from './common/index.ts';
+import { BoardFold } from '../board/fold.ts';
+import { BoardStates } from '../board/common/index.ts';
 import { EventActor } from './actor.ts';
 import { EventFlow } from './flow.ts';
+import { FlowId } from './flow-id.ts';
+import { ProjectKey } from './project-key.ts';
 import { EventLog } from './log.ts';
 import { EventSettings } from './settings.ts';
 
-const USAGE = `usage: vulcan event add ${EventFlags.KIND} <kind> ${EventFlags.SUMMARY} <text> [${EventFlags.FLOW} F-n] [${EventFlags.REF} <ref>] [${EventFlags.STATUS} <${[...EventStatuses.SCHEME_SET].join('|')}>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
-       vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} ${EventFlags.FLOW} F-n ${EventFlags.TITLE} <text> [${EventFlags.WHY} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.NEXT} <text>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
+const USAGE = `usage: vulcan event add ${EventFlags.KIND} <kind> ${EventFlags.SUMMARY} <text> [${EventFlags.FLOW} <flow id>] [${EventFlags.REF} <ref>] [${EventFlags.STATUS} <${[...EventStatuses.SCHEME_SET].join('|')}>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
+       vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} [${EventFlags.FLOW} <flow id>] ${EventFlags.TITLE} <text> [${EventFlags.WHY} <text>] [${EventFlags.CONTEXT} <text>] [${EventFlags.NEXT} <text>] [${EventFlags.ACTOR} <name>] [${EventFlags.DIR} <folder>]
        vulcan event tail [${EventFlags.SINCE} <time>] [${EventFlags.JSON}] [${EventFlags.DIR} <folder>]
-kinds: ${[...EventKinds.SCHEME_SET].join(', ')}`;
+kinds: ${[...EventKinds.SCHEME_SET].join(', ')}
+A flow line without ${EventFlags.FLOW} makes a new flow and prints its id (VULZ-<project.key>-<number>); give that id to every other line of the flow. Ids are never typed by hand.`;
 
 type TFlagValues = Record<string, string>;
 
@@ -131,7 +136,9 @@ export class EventCommand {
     }
 
     if (flow !== undefined && !EventFlow.isValid({ flow })) {
-      process.stderr.write(`event: ${EventFlags.FLOW} must look like F-12, got '${flow}'\n`);
+      process.stderr.write(
+        `event: ${EventFlags.FLOW} must look like VULZ-ACME-12 (the id the command printed), got '${flow}'\n`,
+      );
 
       return ExitCodes.USAGE;
     }
@@ -153,13 +160,24 @@ export class EventCommand {
       return ExitCodes.USAGE;
     }
 
-    const flowId = flow ?? EventFlow.fromBranch({ cwd: opts.cwd });
+    const dir = EventCommand.dirOf(opts);
+    const key = EventSettings.keyOf({ root: EventSettings.rootOf({ cwd: opts.cwd }) });
+    const known = EventLog.read({ dir }).events;
+    const named = flow ?? EventFlow.fromBranch({ cwd: opts.cwd });
+    const placed = EventCommand.flowOf({
+      flow: named,
+      known,
+      key,
+      isFlow,
+      dir,
+      explicit: flow !== undefined,
+    });
 
-    if (isFlow && flowId === undefined) {
-      process.stderr.write(`event: a flow line needs ${EventFlags.FLOW} F-n\n`);
-
-      return ExitCodes.USAGE;
+    if (!placed.ok) {
+      return placed.code;
     }
+
+    const { flowId } = placed;
     const actor =
       values[EventFlags.ACTOR] === undefined
         ? EventActor.resolve({
@@ -181,18 +199,86 @@ export class EventCommand {
     });
 
     try {
-      EventLog.append({ dir: EventCommand.dirOf(opts), event });
+      EventLog.append({ dir, event });
     } catch (error) {
       process.stderr.write(
-        `event: cannot write the log in ${EventCommand.dirOf(opts)}: ${error instanceof Error ? error.message : String(error)}\n`,
+        `event: cannot write the log in ${dir}: ${error instanceof Error ? error.message : String(error)}\n`,
       );
 
       return ExitCodes.FAILURE;
     }
 
-    process.stdout.write(`${event.id}\n`);
+    process.stdout.write(
+      `${isFlow && flow === undefined && flowId !== undefined ? flowId : event.id}\n`,
+    );
 
     return ExitCodes.OK;
+  }
+
+  /**
+   * Whether the board would show the flow as Done or Parked: the board's own fold decides, so the command and the page
+   * cannot disagree. A merge only the GitHub reader sees is not in the log, so it is not seen here.
+   */
+  private static isOver(opts: { events: IEvent[]; id: string; key: string | undefined }): boolean {
+    const wanted = FlowId.canon({ id: opts.id, key: opts.key });
+    const lines = BoardFold.fromLog({ events: opts.events }).events.map((event) => ({
+      ...event,
+      flowId: FlowId.canon({ id: event.flowId, key: opts.key }),
+    }));
+    const state = BoardFold.fold({ events: lines, owner: '' }).flows.find(
+      (flow) => flow.id === wanted,
+    )?.state;
+
+    return state === BoardStates.DONE || state === BoardStates.PARKED;
+  }
+
+  /**
+   * The flow a line belongs to. A flow named with `--flow` must exist (an id is never made up by hand). A flow line that
+   * names none either updates the flow of its branch, when the branch names one that exists and is not over, or starts a
+   * new flow with the next number. The exit code comes back when the line cannot be written.
+   */
+  private static flowOf(opts: {
+    flow: string | undefined;
+    known: IEvent[];
+    key: string | undefined;
+    isFlow: boolean;
+    dir: string;
+    explicit: boolean;
+  }): { ok: true; flowId: string | undefined } | { ok: false; code: number } {
+    const { flow, known, key } = opts;
+
+    // The flow of the branch is taken only while it is open: work on a merged or parked flow's branch is a new flow.
+    if (
+      flow !== undefined &&
+      FlowId.exists({ events: known, id: flow, key }) &&
+      (opts.explicit || !opts.isFlow || !EventCommand.isOver({ events: known, id: flow, key }))
+    ) {
+      return { ok: true, flowId: flow };
+    }
+
+    if (flow !== undefined && opts.explicit) {
+      const recent = FlowId.recent({ events: known, key, count: EventConstants.FLOW_RECENT_COUNT });
+
+      process.stderr.write(
+        `event: no flow ${flow} in the log. ${recent.length === 0 ? 'The log has no flow yet' : `Recent flows: ${recent.join(', ')}`}. Make a new flow with: vulcan event add ${EventFlags.KIND} ${EventKinds.FLOW} ${EventFlags.TITLE} <text>\n`,
+      );
+
+      return { ok: false, code: ExitCodes.USAGE };
+    }
+
+    if (!opts.isFlow) {
+      return { ok: true, flowId: flow };
+    }
+
+    if (key === undefined) {
+      process.stderr.write(
+        `event: the project has no key for its flows: set project.key in the config (${ProjectKey.MESSAGE}) and run vulcan sync\n`,
+      );
+
+      return { ok: false, code: ExitCodes.USAGE };
+    }
+
+    return { ok: true, flowId: FlowId.next({ dir: opts.dir, key }) };
   }
 
   private static tail(opts: { cwd: string; values: TFlagValues; json: boolean }): number {

@@ -11,7 +11,7 @@ The agent event log is an append-only record of what the coding agents of a proj
 $ bun x --no-install vulcan event add --kind commit --summary "fixed the lock age" --ref 28592dd
 0y4k2m9xa1b2c3d4
 $ bun x --no-install vulcan event tail --since 2026-11-03
-2026-11-03T09:30:12.431Z commit        pnt-vulcan-1 F-12 fixed the lock age
+2026-11-03T09:30:12.431Z commit        pnt-vulcan-1 VULZ-ACME-12 fixed the lock age
 ```
 
 ## Turn the hooks on
@@ -31,14 +31,14 @@ Without the key nothing is installed and nothing is written by itself. The [conf
 One file per local day, one JSON object per line, in `.agents/local/events/<yyyy-mm-dd>.jsonl`. The folder is under `.agents/local/`, which git ignores.
 
 ```json
-{"id":"0y4k2m9xa1b2c3d4","ts":"2026-11-03T09:30:12.431Z","flowId":"F-12","actor":"pnt-vulcan-1","kind":"commit","summary":"fixed the lock age","ref":"28592dd","source":"cli"}
+{"id":"0y4k2m9xa1b2c3d4","ts":"2026-11-03T09:30:12.431Z","flowId":"VULZ-ACME-12","actor":"pnt-vulcan-1","kind":"commit","summary":"fixed the lock age","ref":"28592dd","source":"cli"}
 ```
 
 | Field | Meaning |
 |---|---|
 | `id` | Sorts by time and does not repeat across sessions |
 | `ts` | ISO 8601, UTC |
-| `flowId` | `F-n`, when the line belongs to a flow; absent otherwise |
+| `flowId` | `VULZ-<key>-<number>` (or the older `F-<number>`), when the line belongs to a flow; absent otherwise |
 | `actor` | The session that wrote it, as other sessions address it |
 | `kind` | One of `session-start`, `session-stop`, `msg-sent`, `msg-received`, `needs-owner`, `subagent-stop`, `commit`, `pr`, `decision`, `flow`, `tool-tick` |
 | `status` | Only on a `decision`: `approve`, `park` or `reject` |
@@ -73,8 +73,8 @@ Every hook and every `event add` in those projects then writes there, and `event
 ## vulcan event add
 
 ```text
-vulcan event add --kind <kind> --summary <text> [--flow F-n] [--ref <ref>] [--status approve|park|reject] [--actor <name>] [--dir <folder>]
-vulcan event add --kind flow --flow F-n --title <text> [--why <text>] [--context <text>] [--next <text>] [--actor <name>] [--dir <folder>]
+vulcan event add --kind <kind> --summary <text> [--flow <flow id>] [--ref <ref>] [--status approve|park|reject] [--actor <name>] [--dir <folder>]
+vulcan event add --kind flow [--flow <flow id>] --title <text> [--why <text>] [--context <text>] [--next <text>] [--actor <name>] [--dir <folder>]
 ```
 
 It prints the id of the line. This is the way in for any coding agent: a hook of Claude Code is only one writer.
@@ -83,7 +83,7 @@ It prints the id of the line. This is the way in for any coding agent: a hook of
 |---|---|
 | `--kind` | One of the eleven kinds |
 | `--summary` | A short label (not on a `flow` line: it takes `--title`). It is cut to one line of 200 characters, and anything shaped like a secret is replaced by `[redacted]` |
-| `--flow` | `F-n`. Without it, the flow is read from the branch, when its name has an `F-n` segment such as `feature/F-12-events-log` |
+| `--flow` | The id of a flow that the log already has: `VULZ-<key>-<number>`, as the command printed it when the flow was made, or an older `F-<number>`. An id no line carries is refused, with the recent flows listed. Without it, the flow is read from the branch, when its name has a flow id segment such as `feature/VULZ-ACME-12-events-log`; a `flow` line with no `--flow` and no open flow on its branch makes a new flow (a flow the board would show as Done or Parked is over: the command asks the board's own rules, so the two agree; a merge only GitHub knows of is not in the log, and is not seen here) |
 | `--ref` | A commit, a PR number, a recipient. On a `pr` line, `merged:12` says pull request 12 was merged |
 | `--status` | `approve`, `park` or `reject`. Required on a `decision`, refused on any other kind. The owner's answer to a flow, written by whoever relays it |
 | `--title` | Only for `--kind flow`, where it is required: the title of the flow, in the language of the owner. Same limits as `--summary` |
@@ -95,7 +95,7 @@ It prints the id of the line. This is the way in for any coding agent: a hook of
 
 Run from a subfolder, the command uses the project of that folder: the nearest folder above it with `.agents/vulcan.manifest.json` or `.git`. It reads the same `events` block there as at the top.
 
-Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not `F-n`, a `decision` without a `--status` or another kind with one, a `flow` line without a `--title`, or without a `--flow` when the branch has no `F-n` segment either, or with an empty or blank `--context` or `--next`, or with a `--summary`, a `--title`, `--why`, `--context` or `--next` on any other kind, an unknown flag, a flag given twice).
+Exit codes: `0` written; `1` the folder cannot be written; `2` bad input (an unknown kind, a missing or empty `--summary`, a `--flow` that is not a flow id or that no line of the log carries, a `decision` without a `--status` or another kind with one, a `flow` line without a `--title`, or one that makes a new flow when the project has no `project.key`, or with an empty or blank `--context` or `--next`, or with a `--summary`, a `--title`, `--why`, `--context` or `--next` on any other kind, an unknown flag, a flag given twice).
 
 ## vulcan event tail
 
@@ -124,16 +124,19 @@ A `Stop` fires at the end of every turn, so `session-stop` means "the agent stop
 
 ### Name a flow
 
-A board lists flows by their id (`F-12`) and needs a heading for each. Without help it takes the first line it found, which is often a message label such as `status`. An agent that starts work on a flow names it once, in the language of the owner:
+A board lists flows by their id (`VULZ-ACME-12`) and needs a heading for each. Without help it takes the first line it found, which is often a message label such as `status`. An agent that starts work on a flow makes the flow first, in the language of the owner. The command gives the flow its id and prints it (`VULZ-<project.key>-<next number>`); the agent never types or invents an id:
 
 ```text
-$ bun x --no-install vulcan event add --kind flow --flow F-12 --title "Bảng việc cho anh" --why "để anh thấy việc nào chờ anh"
+$ bun x --no-install vulcan event add --kind flow --title "Bảng việc cho anh" --why "để anh thấy việc nào chờ anh"
+VULZ-ACME-12
 ```
+
+A number is claimed by creating a small file for it, `.flow-ids/<key>-<number>`, in the events folder: only one process can create a given file, so two agents asking at the same moment never get the same id, and it stays so even after the retention dropped the day the flow was on. The project needs `project.key` in its config (and `vulcan sync`); without it the command refuses and says so. To change the title or any other field of that flow later, give the id it printed:
 
 Add `--context` and `--next` so that the detail pane can be read at once:
 
 ```text
-$ bun x --no-install vulcan event add --kind flow --flow F-12 --title "Bảng việc cho anh" --why "để anh thấy việc nào chờ anh" \
+$ bun x --no-install vulcan event add --kind flow --flow VULZ-ACME-12 --title "Bảng việc cho anh" --why "để anh thấy việc nào chờ anh" \
     --context "Bảng chỉ hiện tên luồng. Phần fold đã xong; còn trang và tài liệu." --next "pnt-vulcan-1 mở pull request"
 ```
 
@@ -141,7 +144,9 @@ The newest `flow` line of a flow wins as a whole, with all its fields: write a n
 
 ### A flow id
 
-A line carries `flowId` when an `F-n` is found, in this order: `--flow`; `Flow: F-n` in the first line of a sent message; an `F-n` segment in the name of the checked-out branch (`feature/F-12-events-log`). The branch is read from `.git/HEAD` without starting git. For a pull request, put `Flow: F-n` in the body and pass `--flow F-n` to `event add --kind pr`.
+A line carries `flowId` when a flow id is found, in this order: `--flow`; `Flow: <id>` in the first line of a sent message; a flow id segment in the name of the checked-out branch (`feature/VULZ-ACME-12-events-log`). The branch is read from `.git/HEAD` without starting git. For a pull request, put `Flow: <id>` in the body and pass `--flow <id>` to `event add --kind pr`. Only `vulcan event add` checks that the flow exists; the hooks log what they read and never block.
+
+A flow id is `VULZ-<key>-<number>`: the key is the project's `project.key`, and VULCAN gives the number. Lines written before that, with `F-12`, are not rewritten: the board shows them as `VULZ-<key>-12`, and `--flow F-12` and `--flow VULZ-ACME-12` name the same flow.
 
 ### Fast and never in the way
 

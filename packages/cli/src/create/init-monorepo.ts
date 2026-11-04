@@ -20,6 +20,7 @@ import { TerminalCapability } from '../ui/index.ts';
 import { PresetMenu } from './preset-menu.ts';
 import { ABORTED, WritePlan } from './plan.ts';
 import { askInTerminal, ProjectNames, SIDE_FIELDS } from './names.ts';
+import { KeyChoice } from './project-key.ts';
 import { Preset } from './preset.ts';
 import { NextStep } from './next.ts';
 import { SubProcess } from './process.ts';
@@ -69,6 +70,8 @@ const appFields = (opts: { side?: TAppSide }): INameField[] => [
 const writeMonorepo = (opts: {
   root: string;
   project: string;
+  /** The key the project's flows are named by. */
+  key: string;
   spec: IPresetSpec;
   /** `--preset` as the user typed it, recorded so the project can name it again. */
   presetValue: string;
@@ -79,7 +82,7 @@ const writeMonorepo = (opts: {
   scope: string | undefined;
   shared: string;
 }): void => {
-  const { root, project, spec, presetValue, located, folder, app, shared, scope } = opts;
+  const { root, project, key, spec, presetValue, located, folder, app, shared, scope } = opts;
   const packageOfApp = scope === undefined ? app : `${scope}/${app}`;
   const { preset, packageName, packageVersion } = located;
   const side = preset.side;
@@ -166,7 +169,7 @@ const writeMonorepo = (opts: {
   ProjectFile.write({
     root,
     path: '.configs/vulcan.config.mts',
-    content: WorkspaceDocs.renderVulcanConfig({ project, block }),
+    content: WorkspaceDocs.renderVulcanConfig({ project, key, block }),
   });
   ProjectFile.write({
     root,
@@ -236,6 +239,16 @@ const runCreate = async (opts: {
     return fail({
       message: `${project} exists and is not empty - init --preset only creates a new project`,
     });
+  }
+
+  const choice = KeyChoice.resolve({ args: opts.args, name: project, interactive });
+
+  if (!choice.ok) {
+    return fail({ message: choice.error });
+  }
+
+  if (choice.note !== undefined) {
+    process.stderr.write(`${choice.note}\n`);
   }
 
   const isNpm = spec.packageName !== undefined;
@@ -365,7 +378,18 @@ const runCreate = async (opts: {
     return fail({ message: ABORTED });
   }
 
-  writeMonorepo({ root, project, spec, presetValue, located, folder, app, scope, shared });
+  writeMonorepo({
+    root,
+    project,
+    key: choice.key,
+    spec,
+    presetValue,
+    located,
+    folder,
+    app,
+    scope,
+    shared,
+  });
 
   for (const step of [
     () => SubProcess.runBun({ cwd: root, args: ['install'], label: 'bun install' }),

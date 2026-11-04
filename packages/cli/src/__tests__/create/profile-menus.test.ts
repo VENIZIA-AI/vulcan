@@ -76,7 +76,7 @@ describe.skipIf(!hasScript)('init offers the profile in a terminal', () => {
   test('a project with no profile is offered the form once; declining leaves no file', async () => {
     const root = createProject({ files: { 'package.json': '{"name":"p"}' } });
     const result = await driveTerminal({
-      args: ['init'],
+      args: ['init', '--key', 'TEST'],
       cwd: root,
       env: ENV,
       steps: [{ waitFor: 'Tell VULCAN how you like to work', send: `n${KEYS.ENTER}` }],
@@ -89,7 +89,7 @@ describe.skipIf(!hasScript)('init offers the profile in a terminal', () => {
   test('accepting runs the form and the file is written inside the project', async () => {
     const root = createProject({ files: { 'package.json': '{"name":"p"}' } });
     const result = await driveTerminal({
-      args: ['init'],
+      args: ['init', '--key', 'TEST'],
       cwd: root,
       env: ENV,
       steps: [
@@ -115,7 +115,7 @@ describe.skipIf(!hasScript)('init offers the profile in a terminal', () => {
   test('without a terminal init only says how to run the form', () => {
     const root = createProject({ files: { 'package.json': '{"name":"p"}' } });
     const child = Bun.spawnSync(
-      [process.execPath, join(import.meta.dir, '..', '..', 'cli.ts'), 'init'],
+      [process.execPath, join(import.meta.dir, '..', '..', 'cli.ts'), 'init', '--key', 'TEST'],
       {
         cwd: root,
         env: { ...process.env, VULCAN_NO_INSTALL: '1', TERM: 'dumb' },

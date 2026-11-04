@@ -27,6 +27,8 @@ const monorepo = (opts: { project?: string; shared?: string } = {}): string => {
       WITH_LIB,
       '--project',
       project,
+      '--key',
+      'TEST',
       '--backend-dir',
       'services',
       '--app',

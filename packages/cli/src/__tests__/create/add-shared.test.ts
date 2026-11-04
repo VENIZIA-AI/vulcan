@@ -18,7 +18,7 @@ const ENV = { VULCAN_NO_INSTALL: '1' };
 const initFrom = (opts: { preset: string; args: string[] }): string => {
   const parent = createProject({ files: {} });
   const result = runCli({
-    args: ['init', '--preset', opts.preset, '--project', 'p', ...opts.args],
+    args: ['init', '--preset', opts.preset, '--project', 'p', '--key', 'TEST', ...opts.args],
     cwd: parent,
     env: ENV,
   });

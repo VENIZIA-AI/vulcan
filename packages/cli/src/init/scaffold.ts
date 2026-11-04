@@ -124,15 +124,31 @@ export class ProjectScaffold {
     });
   }
 
-  static renderTemplate(opts: { template: string; name: string }): string {
-    return readFileSync(join(BASE_DIRECTORY, 'templates', opts.template), 'utf8').replaceAll(
+  /** The template with the project's name in it; the config's `project.key` line takes `key`, or goes when there is none. */
+  static renderTemplate(opts: { template: string; name: string; key?: string }): string {
+    const text = readFileSync(join(BASE_DIRECTORY, 'templates', opts.template), 'utf8').replaceAll(
       InitConstants.NAME_TOKEN,
       opts.name,
     );
+
+    return opts.key === undefined
+      ? text.replace(
+          new RegExp(
+            `^ *project: \\{ key: '${InitConstants.KEY_TOKEN.replace(/[{}]/g, '\\$&')}' \\},\\n`,
+            'm',
+          ),
+          '',
+        )
+      : text.replaceAll(InitConstants.KEY_TOKEN, opts.key);
+  }
+
+  /** The project's name as init and sync take it: the root package name, unscoped. */
+  static nameOf(opts: { root: string }): string {
+    return resolveProjectName({ root: opts.root });
   }
 
   /** Scaffolds the project layer at `root`. Never overwrites: an existing file is kept and a needed edit becomes a hint; only `.gitignore` is appended to, line by line. */
-  static scaffold(opts: { root: string }): IScaffoldResult {
+  static scaffold(opts: { root: string; key?: string }): IScaffoldResult {
     const { root } = opts;
     const name = resolveProjectName({ root });
     const isWorkspaces = ProjectScaffold.declaresWorkspaces({ root });
@@ -160,7 +176,11 @@ export class ProjectScaffold {
         writeIfAbsent({
           root,
           path: join(ConfigConstants.DIRECTORY, ConfigConstants.FILE),
-          content: ProjectScaffold.renderTemplate({ template: ConfigConstants.FILE, name }),
+          content: ProjectScaffold.renderTemplate({
+            template: ConfigConstants.FILE,
+            name,
+            key: opts.key,
+          }),
         }),
       );
     } else {
