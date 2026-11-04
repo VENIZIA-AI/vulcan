@@ -276,4 +276,30 @@ describe.skipIf(!hasBrowser)('a busy multi-agent day, in a real browser', () => 
     expect(seen.compact.you.bubble).toBe(true);
     expect(seen.detail.hoe).toBe(true);
   });
+
+  for (const width of [1440, 390]) {
+    test(`${width}px: an agent name never wraps, in a card or in a compact row`, async () => {
+      const raw = await BrowserPage.measure<string>({
+        html,
+        width,
+        dark: false,
+        expression: `(async () => {
+          localStorage.clear();
+          const wait = () => new Promise((resolve) => setTimeout(resolve, 100));
+          const heights = () => [...document.querySelectorAll('#dock .c-nm')].map((n) => [n.textContent, n.getBoundingClientRect().height, getComputedStyle(n).lineHeight]);
+          const full = heights();
+          document.querySelector('.c-tg').click();
+          await wait();
+          return JSON.stringify({ full, compact: heights() });
+        })()`,
+      });
+      const seen: { full: [string, number, string][]; compact: [string, number, string][] } =
+        JSON.parse(raw);
+
+      for (const [name, height] of [...seen.full, ...seen.compact]) {
+        // One line of 13.5px text is about 20px high; two lines would be about 40.
+        expect(height, name).toBeLessThan(26);
+      }
+    });
+  }
 });

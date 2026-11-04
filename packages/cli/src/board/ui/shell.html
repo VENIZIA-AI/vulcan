@@ -939,9 +939,7 @@
         gap: 4px 10px;
         padding: 8px 14px;
       }
-      .c-compact .c-nm,
-      .c-compact .c-id,
-      .c-compact .c-badge {
+      .c-compact .c-id {
         white-space: nowrap;
       }
       .c-compact .c-face {
@@ -964,8 +962,21 @@
         height: 64px;
         flex: none;
       }
+      .c-top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 2px 8px;
+      }
       .c-nm {
         font: 700 13.5px var(--mono);
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .c-top .c-badge {
+        flex: none;
       }
       .c-role {
         font-size: 11.5px;
