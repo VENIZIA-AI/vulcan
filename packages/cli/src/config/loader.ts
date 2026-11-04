@@ -13,6 +13,24 @@ const describeError = (opts: { error: unknown }): string =>
   opts.error instanceof Error ? opts.error.message : String(opts.error);
 
 export class ConfigLoader {
+  /**
+   * What a hook says when the project has a config this VULCAN could not read (a key from a newer release, a
+   * failed import) and it falls back to defaults: the first problem and the way out. `undefined` when the config
+   * was read, or when the project has none (nothing was ignored).
+   */
+  static unreadableNote(opts: { loaded: TLoadResult }): string | undefined {
+    const { loaded } = opts;
+
+    if (loaded.ok || loaded.file === undefined) {
+      return undefined;
+    }
+
+    const [head = '', first = ''] = loaded.error.split('\n');
+    const problem = first.trim() === '' ? head.trim() : first.trim();
+
+    return `the project config could not be read by this VULCAN, so its defaults apply (${problem}). Run \`vulcan doctor\`; a config newer than this VULCAN needs \`vulcan upgrade\``;
+  }
+
   /** `.configs/vulcan.config.mts` when the project has one. */
   static findFile(opts: { root: string }): string | undefined {
     const file = join(opts.root, ConfigConstants.DIRECTORY, ConfigConstants.FILE);
