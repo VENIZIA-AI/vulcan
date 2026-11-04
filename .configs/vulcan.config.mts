@@ -42,8 +42,10 @@ export default {
   // The release path is the owner's: an agent does not approve a waiting deployment or write a secret, an environment, a
   // ruleset, a branch protection, a collaborator role or the Actions permissions (rule W-08). A write to one of these through
   // `gh api` is an explicit -X POST, PUT, PATCH or DELETE or any body flag (gh turns -f, -F, --field, --raw-field and --input
-  // into a POST); a read of the same endpoints asks nothing. Guards ask, they do not deny, and they are not a sandbox.
+  // into a POST); a read of the same endpoints asks nothing. Guards ask (guard-outside denies), and they are not a sandbox.
   guard: {
+    // A write outside the project (V-B-08) is refused, not asked about: an ask interrupts the owner, or is approved unseen in an auto mode.
+    outside: 'deny',
     writes: {
       commands: [
         {
