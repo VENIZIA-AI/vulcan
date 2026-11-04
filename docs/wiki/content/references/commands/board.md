@@ -141,7 +141,7 @@ export default {
 
 **Working or idle.** An agent is working from a session start, a tool use or any line of work it writes, and idle from a session stop until its next line of work. A half hour with no line also makes it idle, whatever its record says; the card says since when.
 
-Each agent also has a colour, taken from a hash of its name out of a fixed neutral palette. A logo or a name the page cannot use is left out, with a note on stderr.
+Each agent also has a solid colour, taken from a hash of its name out of a fixed palette of six, so it is the same on every load. Its mascot is that colour with a thick outline: at work it digs with a hoe, waiting on you it waves under a "?" bubble, idle it sleeps in grey, and stuck it sweats. The motion is plain CSS and stops for `prefers-reduced-motion`. A logo or a name the page cannot use is left out, with a note on stderr.
 
 ## Limits of this version
 
