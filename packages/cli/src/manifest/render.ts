@@ -6,6 +6,7 @@ import { ProjectPackages } from '../config/index.ts';
 import { GuardDecisions } from '../hooks/common/index.ts';
 import type { TResolvedConfig } from '../config/index.ts';
 import { BaseRules } from '../rules/index.ts';
+import { ThemeTokens } from '../theme/index.ts';
 
 export class ManifestConstants {
   /** Committed; what atlas reads from a project - local or fetched - and nothing else. */
@@ -105,6 +106,35 @@ const eventsBlockOf = (opts: { config: TResolvedConfig }): { events?: Record<str
 /** The manifest's `local` block: only when the project turns the automatic clean off, which the hook reads. */
 const localBlockOf = (opts: { config: TResolvedConfig }): { local?: Record<string, unknown> } =>
   opts.config.local.autoClean ? {} : { local: { autoClean: false } };
+
+/**
+ * The manifest's `theme` block: the accent seeds the project gave, its preset, and the resolved design tokens (both
+ * modes, font, mono, radius) that the board, the pages and the wiki read. Always written: a project with no `theme`
+ * gets the default preset. A theme the check refused never reaches here (the config does not load).
+ */
+const themeBlockOf = (opts: { config: TResolvedConfig }): { theme?: Record<string, unknown> } => {
+  const resolved = ThemeTokens.resolve({ theme: opts.config.theme });
+
+  if (!resolved.ok) {
+    return {};
+  }
+
+  const { preset, light, dark, font, mono, radius } = resolved.tokens;
+  const { accent, accentDark, accentText } = opts.config.theme ?? {};
+
+  return {
+    theme: {
+      ...(accent === undefined ? {} : { accent }),
+      ...(accentDark === undefined ? {} : { accentDark }),
+      ...(accentText === undefined ? {} : { accentText }),
+      preset,
+      tokens: { light, dark },
+      font,
+      mono,
+      radius,
+    },
+  };
+};
 
 /** The manifest's `board` block, which `vulcan board` reads: only what the project sets. */
 const boardBlockOf = (opts: { config: TResolvedConfig }): { board?: Record<string, unknown> } => {
@@ -219,8 +249,8 @@ export class ProjectManifest {
       ...guardBlockOf({ config }),
       // The remote-host guard reads its policy here; a project without the key has no guard.
       ...(config.remoteHosts === undefined ? {} : { remoteHosts: config.remoteHosts }),
-      // The colour `vulcan visualize` takes for its pages; a project without the key gets the neutral default.
-      ...(config.theme === undefined ? {} : { theme: config.theme }),
+      // The design tokens: the preset, the seeds the project gave and the resolved set every consumer reads.
+      ...themeBlockOf({ config }),
       ...commitBlockOf({ config }),
       // The files the project adds to the ones that make every package affected; none added, nothing is written.
       ...ciBlockOf({ config }),

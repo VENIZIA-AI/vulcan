@@ -36,7 +36,7 @@ const palettes = (opts: { accent: string; accentDark?: string; accentText?: stri
 };
 
 describe('the project colour: which colour a page takes (C10)', () => {
-  test('the spec wins, then the project, then the neutral default', () => {
+  test('the spec wins, then the project, then the default preset', () => {
     const spec = { accent: '#0277bd', accentText: '#01579b' };
     const project = { accent: '#8a5a20', accentDark: '#dead6a' };
     const fromSpec = ProjectTheme.resolve({ spec, project });
@@ -51,18 +51,18 @@ describe('the project colour: which colour a page takes (C10)', () => {
     expect(neither.ok && neither.theme.light.accent).toBe(ProjectTheme.DEFAULT.accent);
   });
 
-  test('the neutral default is a slate ink that passes on every ground, and no bronze remains in it', () => {
+  test('the default is the venizia bronze and passes on every ground; slate is a preset, not the default', () => {
     const theme = palettes(ProjectTheme.DEFAULT);
 
     expect(
       Theme.contrastOf({ foreground: theme.light.accent, background: theme.light.bg }),
-    ).toBeGreaterThan(7);
+    ).toBeGreaterThan(4.5);
     expect(
       Theme.contrastOf({ foreground: theme.dark.accent, background: theme.dark.bg }),
     ).toBeGreaterThan(7);
-    expect(ProjectTheme.tokensCss({ theme }).toLowerCase()).not.toMatch(
-      /98681a|e0b366|8a5a20|dead6a/,
-    );
+    expect(ProjectTheme.tokensCss({ theme }).toLowerCase()).toMatch(/8a5a20/);
+    expect(ProjectTheme.tokensCss({ theme }).toLowerCase()).toMatch(/dead6a/);
+    expect(ProjectTheme.tokensCss({ theme }).toLowerCase()).not.toMatch(/3f5266|9fb4cc/);
   });
 
   test('a colour that is not six hex digits is refused and named', () => {
@@ -264,7 +264,7 @@ describe('the manifest theme is read from the folder the command runs in (C14)',
     expect(ProjectTheme.readManifestTheme({ root: linkedFolder })).toEqual({});
   });
 
-  test('a broken manifest or a bad theme falls back to the neutral colour with a warning, and nothing is thrown', () => {
+  test('a broken manifest or a bad theme falls back to the default colour with a warning, and nothing is thrown', () => {
     expect(ProjectTheme.readManifestTheme({ root: projectWith('{ not json') }).warning).toContain(
       'not valid JSON',
     );

@@ -152,13 +152,13 @@ const ownerHtml = (opts: { spec: TVisualizeSpec; chrome: TChrome }): string => {
   return `<section class="two" id="next" data-slide><div class="wrap"><div class="own"><div class="nx"><p class="lab">${escaped(chrome.next)}</p><h2>${escaped(spec.strip.next)}</h2>${actions}${jump}</div><div class="stop"><p class="lab">${escaped(chrome.blockedBy)}</p><p>${escaped(spec.strip.blockedBy)}</p></div></div><div class="facts"><p class="fact">${IconSet.iconSvg({ name: 'done', size: 18 })}<span><b>${escaped(chrome.healthy)}</b> ${escaped(spec.strip.healthy)}</span></p><p class="fact">${IconSet.iconSvg({ name: 'info', size: 18 })}<span><b>${escaped(chrome.changed)}</b> ${escaped(spec.strip.changed)}</span></p></div></div></section>`;
 };
 
-/** The neutral theme of a page that is given none. */
-const NEUTRAL = ((): IResolvedTheme => {
+/** The theme of a page that is given none: the default preset. */
+const DEFAULT_THEME = ((): IResolvedTheme => {
   const resolved = ProjectTheme.resolve({});
 
   if (!resolved.ok) {
     throw new Error(
-      `the neutral theme does not pass its own checks: ${resolved.problems.join('; ')}`,
+      `the default theme does not pass its own checks: ${resolved.problems.join('; ')}`,
     );
   }
 
@@ -226,7 +226,7 @@ export class PageShell {
           }),
       SpecSections.links({ ctx }),
     ].join('');
-    const css = `${Assets.pageCss({ tokens: ProjectTheme.tokensCss({ theme: opts.theme ?? NEUTRAL }) })}\n${NEW_KINDS_CSS}\n${COMPARE_CSS}\n${GridSpans.css({ spans: ctx.spans })}\n${figureFitCss({ widths: ctx.fits })}`;
+    const css = `${Assets.pageCss({ tokens: ProjectTheme.tokensCss({ theme: opts.theme ?? DEFAULT_THEME }) })}\n${NEW_KINDS_CSS}\n${COMPARE_CSS}\n${GridSpans.css({ spans: ctx.spans })}\n${figureFitCss({ widths: ctx.fits })}`;
     const policy = `default-src 'none'; style-src ${sha256({ text: css })}; script-src ${sha256({ text: HEAD_JS })} ${sha256({ text: PAGE_JS })}; base-uri 'none'; form-action 'none'`;
     const links = SpecSections.sectionLinks({ spec, chrome })
       .map((link) => `<a href="#${link.id}">${escaped(link.title)}</a>`)

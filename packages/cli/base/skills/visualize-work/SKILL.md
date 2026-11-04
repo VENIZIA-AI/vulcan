@@ -78,7 +78,7 @@ The rules that make a page worth opening:
   Vietnamese words are bundled; `language` in the spec overrides it). For any other language, translate the
   words you need into `chrome` (every key is optional); never invent a label set the owner did not give.
 - **The colour is the project's, not yours**: leave `accent` out. The page uses the project's `theme` (config key,
-  written into the manifest by `vulcan sync`), else a neutral slate. Give `accent` (and `accentDark`, `accentText`)
+  written into the manifest by `vulcan sync`), else the `venizia` preset. Give `accent` (and `accentDark`, `accentText`)
   only when you draw a page about another project from outside it. A colour that fails the contrast checks is
   refused, never swapped; state colours (done, waiting, blocked) are fixed and always carry an icon and a word.
 - **Say where a claim comes from.** A box or step that states how the code works carries a `source`

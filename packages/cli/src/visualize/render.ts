@@ -116,7 +116,7 @@ export class SpecPage {
         checks: [
           ...CHECKS,
           PageGate.CHECK,
-          `colour from the ${themed.theme.source === 'spec' ? "spec's accent" : themed.theme.source === 'project' ? "project's theme" : 'neutral default'}: every text, mark and fill pair checked`,
+          `colour from the ${themed.theme.source === 'spec' ? "spec's accent" : themed.theme.source === 'project' ? "project's theme" : 'default preset'}: every text, mark and fill pair checked`,
           ...themed.theme.notes,
           `size ${(bytes / 1024).toFixed(1)} KB, within ${VisualizeLimits.FAIL_BYTES / 1024} KB`,
         ],
