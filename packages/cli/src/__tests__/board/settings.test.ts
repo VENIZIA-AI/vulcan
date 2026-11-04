@@ -228,3 +228,109 @@ describe('vulcan board uses the settings', () => {
     expect(data.logo).toStartWith('data:image/svg+xml;base64,');
   });
 });
+
+describe('board.agents: a face, or { shape?, lane? }', () => {
+  const agents = (value: unknown) => parse({ agents: value });
+  const messageOf = (result: ReturnType<typeof parse>): string =>
+    result.success ? '' : result.error.message;
+
+  test('a face, an object with a shape, a lane, both, or nothing is accepted', () => {
+    expect(
+      agents({
+        umbra: 'ember',
+        aurora: { shape: 'flame' },
+        etalon: {},
+        'pnt-umbra-1': { lane: 'umbra' },
+        'pnt-aurora-1': { shape: 'bun', lane: 'aurora' },
+      }).success,
+    ).toBe(true);
+  });
+
+  test('a lane must name a listed key', () => {
+    const result = agents({ umbra: 'ember', 'pnt-x-1': { lane: 'nobody' } });
+
+    expect(result.success).toBe(false);
+    expect(messageOf(result)).toContain("lane 'nobody' of 'pnt-x-1' is not a key of board.agents");
+  });
+
+  test('no chain: a lane cannot itself have a lane', () => {
+    const result = agents({ umbra: 'ember', a: { lane: 'umbra' }, b: { lane: 'a' } });
+
+    expect(result.success).toBe(false);
+    expect(messageOf(result)).toContain("lane 'a' of 'b' has a lane of its own");
+  });
+
+  test('no cycle: two keys that name each other, and a key that names itself', () => {
+    expect(messageOf(agents({ a: { lane: 'b' }, b: { lane: 'a' } }))).toContain(
+      'has a lane of its own',
+    );
+    expect(messageOf(agents({ a: 'bun', b: { lane: 'b' } }))).toContain(
+      "'b' cannot be its own lane",
+    );
+  });
+
+  test('a bad face, an empty lane and an unknown key of the object are refused', () => {
+    expect(agents({ a: { shape: 'dragon' } }).success).toBe(false);
+    expect(agents({ a: 'bun', b: { lane: '' } }).success).toBe(false);
+    expect(agents({ a: { colour: 'red' } }).success).toBe(false);
+  });
+
+  test('the manifest carries the values as written', () => {
+    const board = { agents: { umbra: 'ember', 'pnt-umbra-1': { lane: 'umbra' } } };
+    const manifest = JSON.parse(
+      ProjectManifest.render({
+        root: createProject({ files: {} }),
+        config: VULCAN_CONFIG_SCHEMA.parse({ board }),
+      }),
+    );
+
+    expect(manifest.board).toEqual(board);
+  });
+});
+
+describe('BoardSettings.resolve: the roster and the lanes', () => {
+  const resolve = (agents: unknown) =>
+    BoardSettings.resolve({
+      manifest: { name: 'Acme', board: { agents } },
+      gitUser: undefined,
+      readLogo: () => undefined,
+    });
+
+  test('nothing listed: no roster, so everyone shows as before', () => {
+    expect(resolve({})).toMatchObject({ roster: [], lanes: {}, shapes: {} });
+    expect(resolve(undefined)).toMatchObject({ roster: [], lanes: {}, shapes: {} });
+  });
+
+  test('the listed keys without a lane are the roster; a lane maps a helper to its lane', () => {
+    expect(
+      resolve({
+        umbra: 'ember',
+        aurora: { shape: 'flame' },
+        etalon: {},
+        'pnt-umbra-1': { lane: 'umbra' },
+        'pnt-aurora-1': { shape: 'rock', lane: 'aurora' },
+      }),
+    ).toMatchObject({
+      roster: ['umbra', 'aurora', 'etalon'],
+      lanes: { 'pnt-umbra-1': 'umbra', 'pnt-aurora-1': 'aurora' },
+      shapes: { umbra: 'ember', aurora: 'flame', 'pnt-aurora-1': 'rock' },
+    });
+  });
+
+  test('a lane the manifest cannot honour: no agents are used, and one note says why', () => {
+    const settings = resolve({ umbra: 'ember', a: { lane: 'nobody' } });
+
+    expect(settings).toMatchObject({ roster: [], lanes: {}, shapes: {} });
+    expect(settings.notes).toEqual([
+      "board.agents is not used: lane 'nobody' of 'a' is not a key of board.agents",
+    ]);
+  });
+
+  test('a value that is not a face or an object is skipped; the others are kept', () => {
+    expect(resolve({ a: 'flame', b: 'dragon', c: 3, d: { lane: 'a' } })).toMatchObject({
+      roster: ['a'],
+      lanes: { d: 'a' },
+      shapes: { a: 'flame' },
+    });
+  });
+});

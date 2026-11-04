@@ -97,6 +97,10 @@ export interface IBoardData {
   key: string;
   /** Agent name to face, from `board.agents`; any other agent has the default face. */
   shapes: Record<string, string>;
+  /** The `board.agents` keys with no lane; absent when none is listed, and then every agent shows. */
+  roster?: string[];
+  /** A helper to the lane it rolls into. */
+  lanes?: Record<string, string>;
   generatedAt: string;
   since: string;
   flows: IBoardFlow[];

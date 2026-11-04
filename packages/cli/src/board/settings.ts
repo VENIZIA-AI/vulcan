@@ -2,7 +2,10 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecordValue } from '../common/record.ts';
-import { BoardConstants, BoardShapes } from './common/index.ts';
+import { BoardConstants } from './common/index.ts';
+import { BoardAgentSetting } from './agent-setting.ts';
+import { BOARD_AGENT, BOARD_AGENTS } from './schema.ts';
+import type { TBoardAgentSetting } from './schema.ts';
 
 export interface IBoardSettings {
   title: string;
@@ -10,6 +13,10 @@ export interface IBoardSettings {
   logo?: string;
   key: string;
   shapes: Record<string, string>;
+  /** The listed `board.agents` keys with no lane; empty when none is listed, and then every agent shows. */
+  roster: string[];
+  /** A helper to the lane it rolls into. */
+  lanes: Record<string, string>;
   /** Why a setting was not used, for the note the command prints. */
   notes: string[];
 }
@@ -34,8 +41,13 @@ export class BoardSettings {
     const text = (value: unknown): string | undefined =>
       typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
     const notes: string[] = [];
+    const { shapes, roster, lanes, problem } = BoardSettings.agentsOf({ value: block.agents });
     const logoPath = text(block.logo);
     const logo = logoPath === undefined ? undefined : opts.readLogo(logoPath);
+
+    if (problem !== undefined) {
+      notes.push(`board.agents is not used: ${problem}`);
+    }
 
     if (logoPath !== undefined && logo === undefined) {
       notes.push(`board.logo ${logoPath} is missing, over 100 KB or not an SVG: no logo`);
@@ -50,16 +62,63 @@ export class BoardSettings {
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-|-$/g, '') || 'project',
-      shapes: RecordValue.isRecord(block.agents)
-        ? Object.fromEntries(
-            Object.entries(block.agents).filter(
-              (entry): entry is [string, string] =>
-                typeof entry[1] === 'string' && BoardShapes.isValid(entry[1]),
-            ),
-          )
-        : {},
+      shapes,
+      roster,
+      lanes,
       notes,
     };
+  }
+
+  /** The faces, the roster and the lanes of `board.agents`. A value that is no face or object is skipped; a lane that cannot be honoured drops the whole block, with `problem` saying why. */
+  private static agentsOf(opts: { value: unknown }): Pick<
+    IBoardSettings,
+    'shapes' | 'roster' | 'lanes'
+  > & {
+    problem?: string;
+  } {
+    const listed: Record<string, TBoardAgentSetting> = {};
+
+    for (const [name, value] of Object.entries(
+      RecordValue.isRecord(opts.value) ? opts.value : {},
+    )) {
+      const entry = BOARD_AGENT.safeParse(value);
+
+      if (entry.success) {
+        listed[name] = entry.data;
+      }
+    }
+
+    const parsed = BOARD_AGENTS.safeParse(listed);
+
+    if (!parsed.success) {
+      return {
+        shapes: {},
+        roster: [],
+        lanes: {},
+        problem: parsed.error.issues[0]?.message ?? 'not valid',
+      };
+    }
+
+    const shapes: Record<string, string> = {};
+    const lanes: Record<string, string> = {};
+    const roster: string[] = [];
+
+    for (const [name, setting] of Object.entries(parsed.data)) {
+      const shape = BoardAgentSetting.shapeOf({ setting });
+      const lane = BoardAgentSetting.laneOf({ setting });
+
+      if (shape !== undefined) {
+        shapes[name] = shape;
+      }
+
+      if (lane === undefined) {
+        roster.push(name);
+      } else {
+        lanes[name] = lane;
+      }
+    }
+
+    return { shapes, roster, lanes };
   }
 
   /** `resolve` for the project at `root`: its manifest, `git config user.name`, and the logo file. */

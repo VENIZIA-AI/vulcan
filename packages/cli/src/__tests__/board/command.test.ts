@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, symlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { EventLog } from '../../events/log.ts';
 import { hermeticEnv } from '../hermetic.helper.ts';
@@ -188,5 +188,28 @@ describe('vulcan board', () => {
     expect(runCli({ args: ['help'], cwd: createProject({ files: {} }) }).stdout).toContain(
       'board [--out <file>]',
     );
+  });
+});
+
+describe('vulcan board with board.agents in the manifest', () => {
+  test('the roster and the lanes reach the page; with nothing listed neither does', () => {
+    const root = projectWithLog();
+    const plain = dataOf(board({ root }).stdout.trim());
+
+    expect(plain.roster).toBeUndefined();
+    expect(plain.lanes).toBeUndefined();
+
+    writeFileSync(
+      join(root, '.agents/vulcan.manifest.json'),
+      JSON.stringify({
+        board: { agents: { 'veni-forge': 'banana', 'pnt-ignis-1': { lane: 'veni-forge' } } },
+      }),
+    );
+
+    const listed = dataOf(board({ root }).stdout.trim());
+
+    expect(listed.roster).toEqual(['veni-forge']);
+    expect(listed.lanes).toEqual({ 'pnt-ignis-1': 'veni-forge' });
+    expect(listed.shapes).toEqual({ 'veni-forge': 'banana' });
   });
 });

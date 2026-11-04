@@ -92,7 +92,11 @@ export default {
     owner: 'Ana',
     title: 'Acme Shop Board',
     logo: '.configs/board-logo.svg',
-    agents: { 'pnt-api-1': 'flame', 'pnt-web-1': 'ember' },
+    agents: {
+      api: 'flame',
+      web: { shape: 'ember' },
+      'pnt-api-1': { lane: 'api' },
+    },
   },
 };
 ```
@@ -102,7 +106,11 @@ export default {
 | `owner` | Who an ask waits on: the flow's holder while it needs you | `git config user.name` of the project, else `Owner` |
 | `title` | The name in the page header and the tab | `<project name> Board` |
 | `logo` | A path inside the project to an `.svg` file, shown next to the title. It is put in an `img`, so it runs no script. Up to 100 KB. Draw it in a colour that reads on a light and on a dark page | none |
-| `agents` | An agent name to a face: `bun`, `flame`, `ember`, `rock` or `banana` | every agent has `bun`; the owner is a person |
+| `agents` | The agents of the board by name. A value is a face (`bun`, `flame`, `ember`, `rock` or `banana`), or `{ shape?, lane? }`. The listed names are the roster; `lane` rolls a helper into the row of a listed name | every agent shows with `bun`; the owner is a person |
+
+**The roster.** Once `agents` lists a name, the agent list, the graph and the count show only the listed names that have no `lane`. Every other agent in the log is hidden until you press **Show all events**. An empty `agents` shows every agent in the log, as before.
+
+**Lanes.** `'pnt-api-1': { lane: 'api' }` draws the lines of `pnt-api-1` as `api`'s: one row, with "+1 helper" on it, and no row for the helper. A flow whose holder is the helper shows `api` as its holder; in the detail of a flow, a line still shows the helper's own name. A `lane` must name a listed key that has no `lane` of its own; a chain or a cycle fails the config and names the key. The face is optional (`{ lane: 'api' }`), and `{}` is a roster entry with the default face.
 
 Each agent also has a colour, taken from a hash of its name out of a fixed neutral palette. A logo or a name the page cannot use is left out, with a note on stderr.
 

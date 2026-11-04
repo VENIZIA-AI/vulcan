@@ -1,0 +1,283 @@
+import { afterAll, describe, expect, test } from 'bun:test';
+import type { IBoardAgent, IBoardData } from '../../board/common/index.ts';
+import { BoardPage } from '../../board/page.ts';
+import { BrowserPage } from '../visualize/browser.helper.ts';
+import { sampleData } from './sample-data.helper.ts';
+
+const hasBrowser = await BrowserPage.available();
+
+afterAll(() => BrowserPage.close());
+
+interface IDock {
+  before: { agent: string; text: string }[];
+  count: string;
+  afterToggle: string[];
+  countAfterToggle: string;
+  errors: string[];
+}
+
+/** Runs in the page: the cells of the dock, then the same after "Show all events" is pressed; it is pressed back, because the browser keeps the choice between tests. */
+const MEASURE_DOCK = `(async () => {
+  const cells = () => [...document.querySelectorAll('#dock .cell')];
+  const before = cells().map((c) => ({ agent: c.dataset.agent, text: c.innerText }));
+  const count = document.getElementById('dockN').textContent;
+  document.getElementById('bPlumb').click();
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const result = {
+    before,
+    count,
+    afterToggle: cells().map((c) => c.dataset.agent),
+    countAfterToggle: document.getElementById('dockN').textContent,
+    errors: window.__errs,
+  };
+  document.getElementById('bPlumb').click();
+  return JSON.stringify(result);
+})()`;
+
+const withErrors = (page: string): string =>
+  page.replace(
+    '<script type="application/json"',
+    '<script>window.__errs=[];addEventListener("error",(e)=>__errs.push(e.message))</script><script type="application/json"',
+  );
+
+const dataWith = (opts: Partial<IBoardData>): IBoardData => ({
+  ...sampleData({ base: Date.now() - 100 * 60_000 }),
+  ...opts,
+});
+
+const measure = async (data: IBoardData): Promise<IDock> => {
+  const raw = await BrowserPage.measure<string>({
+    html: withErrors(BoardPage.render({ data })),
+    width: 1440,
+    dark: false,
+    expression: MEASURE_DOCK,
+  });
+  const dock: IDock = JSON.parse(raw);
+
+  return dock;
+};
+
+describe.skipIf(!hasBrowser)('the board page with a roster and lanes, in a real browser', () => {
+  test('no roster: every agent of the log shows, as before', async () => {
+    const dock = await measure(dataWith({}));
+
+    expect(dock.before.map((cell) => cell.agent).sort()).toEqual([
+      'pnt-ardor-1',
+      'pnt-ignis-1',
+      'pnt-vulcan-1',
+      'veni-forge',
+    ]);
+    expect(dock.errors).toEqual([]);
+  });
+
+  test('a roster shows only the listed agents, and "Show all events" shows the rest', async () => {
+    const dock = await measure(dataWith({ roster: ['veni-forge', 'pnt-vulcan-1'] }));
+
+    expect(dock.before.map((cell) => cell.agent).sort()).toEqual(['pnt-vulcan-1', 'veni-forge']);
+    expect(dock.count).toBe('2 agents');
+    expect(dock.afterToggle.sort()).toEqual([
+      'pnt-ardor-1',
+      'pnt-ignis-1',
+      'pnt-vulcan-1',
+      'veni-forge',
+    ]);
+    expect(dock.countAfterToggle).toBe('4 agents');
+    expect(dock.errors).toEqual([]);
+  });
+
+  test('a helper rolls into its lane: no row of its own, and the lane says how many helpers', async () => {
+    const dock = await measure(
+      dataWith({
+        roster: ['veni-forge', 'pnt-vulcan-1'],
+        lanes: { 'pnt-ignis-1': 'pnt-vulcan-1', 'pnt-ardor-1': 'veni-forge' },
+      }),
+    );
+    const byAgent = Object.fromEntries(dock.before.map((cell) => [cell.agent, cell.text]));
+
+    expect(Object.keys(byAgent).sort()).toEqual(['pnt-vulcan-1', 'veni-forge']);
+    expect(byAgent['pnt-vulcan-1']).toContain('+1 helper');
+    expect(byAgent['veni-forge']).toContain('+1 helper');
+    expect(dock.count).toBe('2 agents');
+    expect(dock.errors).toEqual([]);
+  });
+
+  test('a lane says "+2 helpers" for two, and nothing when none has worked', async () => {
+    const two = await measure(
+      dataWith({
+        roster: ['veni-forge', 'pnt-vulcan-1'],
+        lanes: { 'pnt-ignis-1': 'pnt-vulcan-1', 'pnt-ardor-1': 'pnt-vulcan-1' },
+      }),
+    );
+    const none = await measure(
+      dataWith({ roster: ['veni-forge', 'pnt-vulcan-1'], lanes: { 'nobody-yet': 'veni-forge' } }),
+    );
+    const vulcan = two.before.find((cell) => cell.agent === 'pnt-vulcan-1');
+    const forge = two.before.find((cell) => cell.agent === 'veni-forge');
+
+    expect(vulcan?.text).toContain('+2 helpers');
+    expect(forge?.text).not.toContain('helper');
+    expect(none.before.every((cell) => !cell.text.includes('helper'))).toBe(true);
+  });
+
+  test('an idle lane still shows its helpers: the label has its own class, not the hidden one of the time', async () => {
+    const base = dataWith({});
+    const at = new Date().toISOString();
+    const idle: IBoardAgent = {
+      name: 'quiet',
+      state: 'idle',
+      current: '',
+      since: at,
+      checkedAt: at,
+    };
+    const raw = await BrowserPage.measure<string>({
+      html: withErrors(
+        BoardPage.render({
+          data: {
+            ...base,
+            agents: {
+              ...base.agents,
+              quiet: idle,
+              'quiet-helper': { ...idle, name: 'quiet-helper' },
+            },
+            roster: ['veni-forge', 'quiet'],
+            lanes: { 'quiet-helper': 'quiet' },
+          },
+        }),
+      ),
+      width: 1440,
+      dark: false,
+      expression: `(() => {
+        const cell = document.querySelector('#dock .cell[data-agent="quiet"]');
+        const hp = cell.querySelector('.hp');
+        const ag = cell.querySelector('.ag');
+        return JSON.stringify({
+          compact: cell.classList.contains('compact'),
+          label: hp.textContent,
+          labelShown: getComputedStyle(hp).display !== 'none',
+          timeShown: getComputedStyle(ag).display !== 'none',
+          errors: window.__errs,
+        });
+      })()`,
+    });
+    const seen: {
+      compact: boolean;
+      label: string;
+      labelShown: boolean;
+      timeShown: boolean;
+      errors: string[];
+    } = JSON.parse(raw);
+
+    expect(seen.compact).toBe(true);
+    expect(seen.label).toBe('+1 helper');
+    expect(seen.labelShown).toBe(true);
+    expect(seen.timeShown, 'the time of an idle row is hidden, as before').toBe(false);
+    expect(seen.errors).toEqual([]);
+  });
+});
+
+describe.skipIf(!hasBrowser)('the name of a helper in the detail, and who holds a flow', () => {
+  const lanes = { 'pnt-ignis-1': 'pnt-vulcan-1', 'pnt-ardor-1': 'veni-forge' };
+  const roster = ['veni-forge', 'pnt-vulcan-1'];
+
+  test('a line is drawn as the lane, and the detail and the Latest sentence show the helper, sender and recipient', async () => {
+    const raw = await BrowserPage.measure<string>({
+      html: withErrors(BoardPage.render({ data: dataWith({ roster, lanes }) })),
+      width: 1440,
+      dark: false,
+      expression: `(() => {
+        const sent = laneEv({ id: 'x', ts: '2026-11-03T09:00:00Z', kind: 'msg', stage: 0, actor: 'pnt-ignis-1', to: 'pnt-ardor-1', summary: 'hello' });
+        const who = evItem(sent).querySelector('.who').textContent;
+        const flowLines = FL.flatMap((fl) => fl.evs).map((e) => e.actor);
+        return JSON.stringify({
+          actor: sent.actor,
+          to: sent.to,
+          who,
+          latest: latestText(sent),
+          flowActors: [...new Set(flowLines)],
+          errors: window.__errs,
+        });
+      })()`,
+    });
+    const seen: {
+      actor: string;
+      to: string;
+      who: string;
+      latest: string;
+      flowActors: string[];
+      errors: string[];
+    } = JSON.parse(raw);
+
+    expect(seen.actor).toBe('pnt-vulcan-1');
+    expect(seen.to).toBe('veni-forge');
+    expect(seen.who).toContain('pnt-ignis-1 → pnt-ardor-1');
+    expect(seen.latest.startsWith('pnt-ignis-1 ')).toBe(true);
+    expect(seen.latest).toContain('pnt-ardor-1');
+    expect(seen.flowActors).not.toContain('pnt-ignis-1');
+    expect(seen.flowActors).not.toContain('pnt-ardor-1');
+    expect(seen.errors).toEqual([]);
+  });
+
+  test('the detail of a real flow shows the helper that wrote a line, not the lane', async () => {
+    const raw = await BrowserPage.measure<string>({
+      html: withErrors(BoardPage.render({ data: dataWith({ roster, lanes }) })),
+      width: 1440,
+      dark: false,
+      expression: `(async () => {
+        const fl = FL.find((x) => x.evs.some((e) => e.as === 'pnt-ignis-1'));
+        select(fl.id, true);
+        document.querySelectorAll('.dtabs .tab')[1].click();
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        const who = [...document.querySelectorAll('#dBody .evs .who b:first-child')].map((b) => b.textContent);
+        return JSON.stringify({ who, errors: window.__errs });
+      })()`,
+    });
+    const seen: { who: string[]; errors: string[] } = JSON.parse(raw);
+
+    expect(seen.who).toContain('pnt-ignis-1');
+    expect(seen.errors).toEqual([]);
+  });
+
+  test('a flow held by a helper shows the lane as its holder; with no lane it shows the helper', async () => {
+    const holders = async (data: IBoardData): Promise<string[]> => {
+      const raw = await BrowserPage.measure<string>({
+        html: withErrors(BoardPage.render({ data })),
+        width: 1440,
+        dark: false,
+        expression: `(() => {
+          for (const key of Object.keys(openGroups)) openGroups[key] = true;
+          renderList();
+          return JSON.stringify([...document.querySelectorAll('#groups .row .holder')].map((node) => node.textContent));
+        })()`,
+      });
+      const names: string[] = JSON.parse(raw);
+
+      return names;
+    };
+    const without = await holders(dataWith({}));
+    const withLanes = await holders(dataWith({ roster, lanes }));
+
+    expect(without).toContain('pnt-ignis-1');
+    expect(withLanes).not.toContain('pnt-ignis-1');
+    expect(withLanes).toContain('pnt-vulcan-1');
+  });
+
+  test('an agent the roster does not list can still hold a flow: the flow shows it, the dock does not', async () => {
+    const raw = await BrowserPage.measure<string>({
+      html: withErrors(BoardPage.render({ data: dataWith({ roster: ['veni-forge'] }) })),
+      width: 1440,
+      dark: false,
+      expression: `(() => {
+        for (const key of Object.keys(openGroups)) openGroups[key] = true;
+        renderList();
+        return JSON.stringify({
+          holders: [...document.querySelectorAll('#groups .row .holder')].map((node) => node.textContent),
+          dock: [...document.querySelectorAll('#dock .cell')].map((cell) => cell.dataset.agent),
+        });
+      })()`,
+    });
+    const seen: { holders: string[]; dock: string[] } = JSON.parse(raw);
+
+    expect(seen.holders).toContain('pnt-vulcan-1');
+    expect(seen.dock).toEqual(['veni-forge']);
+  });
+});
