@@ -36,6 +36,8 @@ bun x --no-install vulcan sync
 bun x --no-install vulcan doctor
 ```
 
+`doctor` fails with `[scaffold]` until you describe the project in `.agents/knowledge/index.md` and delete the `vulcan:scaffold` line; it is the first item `init` lists under `left to do`.
+
 Needs Bun 1.4.4 or newer. `--no-install` matters: the unscoped npm name `vulcan` belongs to an unrelated
 package. A new project is one command: `bun x @venizia/vulcan init --preset ignis`. Moving an existing
 project: [Adopt VULCAN](https://vulcan.venizia.ai/guides/get-started/adopt-vulcan).

@@ -7,6 +7,8 @@ description: List the workspace packages a change touches, and the GitHub Action
 
 `vulcan ci affected` answers one question for a monorepo: which packages does this change touch? It lists the packages with changed files and every package that depends on them, and the checks each one has. A CI job then runs those checks and skips the rest.
 
+Run it at the project root. It reads the `package.json` of the current folder and does not search upward (`board` and `event` do), so from a subfolder it reads that folder's `package.json` or stops with `no package.json`.
+
 ```text
 $ bun x --no-install vulcan ci affected --base origin/develop
 @x/a  packages/a  changed  typecheck,lint,test,compile

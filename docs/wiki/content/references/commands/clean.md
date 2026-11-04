@@ -7,6 +7,8 @@ description: List and remove what an agent left under .agents/local/ - scratch, 
 
 Everything an agent creates while it works lives under the project's gitignored `.agents/local/` (rule `V-B-08`). `vulcan clean` lists what is there and removes it when its time has come. It is a dry run unless you add `--yes`, and it only ever touches `.agents/local/` of the project it runs in.
 
+Run it at the project root: it works on the `.agents/local/` of the current folder and does not search upward (`board` and `event` do).
+
 | Flag | Scope | What it takes |
 |---|---|---|
 | `--tmp` (the default) | `tmp/` | every item, whatever its age: scratch, temporary files, logs, subagent output. Run it when no task is using them. Also the `com.google.Chrome.*` and `org.chromium.Chromium.*` folders (a leading dot too) a browser left directly under `.agents/local/`, once they are an hour old (a younger one may belong to a running browser and is kept) |

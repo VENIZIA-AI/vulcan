@@ -25,6 +25,8 @@ bun x --no-install vulcan sync
 bun x --no-install vulcan doctor
 ```
 
+`doctor` fails with `[scaffold]` until you describe the project in `.agents/knowledge/index.md` and delete the `vulcan:scaffold` line; it is the first item `init` lists under `left to do`.
+
 `init` writes the project layer, `sync` writes the files your agents read, and `doctor` checks the result. Upgrades are one version bump and another `sync` (`vulcan upgrade` does both).
 
 > [!NOTE]

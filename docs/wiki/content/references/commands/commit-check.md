@@ -59,6 +59,8 @@ Give it one message:
 
 Exit codes: `0` when nothing is wrong, or when no check is configured (it says so on stderr); `1` when a message has a problem; `2` for bad input, checked before it looks at the configuration: no input or more than one, an unknown flag, a file it cannot read, a range git rejects. `--range` takes a revision only; a value that looks like an option is refused.
 
+Run it at the project root. It reads `.agents/vulcan.manifest.json` from the current folder and does not search upward, so from a subfolder it finds no manifest, says that no commit check is configured, and exits `0`. The generated `commit-msg` hook changes to the top of the repository first; a hand run, and `--range` in CI, need the root.
+
 ## What it checks
 
 **An agent signature** (`commit.message.agent.signature: 'deny'`). A line is a signature when it is:

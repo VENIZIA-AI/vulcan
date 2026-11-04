@@ -61,6 +61,10 @@ When Claude Code starts in a project that has the launch file but `CLAUDE_CODE_T
 
 `vulcan doctor` warns when the folder or the launch file is missing or names another checkout, and `vulcan sync` fixes both. The folder is a task scratch folder: remove what you made when the task ends; `vulcan clean` lists what is older than a day.
 
+**A long checkout path.** The launch file always points at `<project>/.agents/local/tmp`. Chrome puts a unix socket in that folder (`com.google.Chrome.XXXXXX/SingletonSocket`, 41 characters more), and a socket path is at most 107 characters, so a project path of about 49 characters or more makes Chrome, started by Playwright for example, exit with `Socket path too long`. Pointing the launch file at a shorter folder by hand does not hold: the next `vulcan sync` writes it back. Until a setting for the folder exists, keep the project path short.
+
+**Worktrees.** A session in `.agents/local/worktrees/<name>` counts as inside when its `CLAUDE_CODE_TMPDIR` is under the `.agents/local` of that worktree or under the `.agents/local` of the checkout the worktree hangs from, and under no other folder above it.
+
 ## Detecting your agents
 
 The first `sync` in a terminal looks for each agent on the machine: a binary on `PATH`, a folder in your home, a folder in the project. It only pre-selects; you confirm.
