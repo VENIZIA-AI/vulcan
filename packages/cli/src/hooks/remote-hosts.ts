@@ -1,4 +1,5 @@
 import { HookConstants } from './common/index.ts';
+import { HostPatterns } from './host-pattern.ts';
 import type { IWriteHit } from './common/index.ts';
 import { CommandView } from './command-view.ts';
 import { HookDecision } from './decision.ts';
@@ -18,9 +19,18 @@ interface IRemoteHostsPolicy {
   trusted: string[];
   /** Hosts that only the strict read-only forms may reach. */
   readOnly: string[];
-  /** Where the personal trusted list lives, for the message. */
+  /** Where the personal list lives, for the message. */
   localFile?: string;
 }
+
+/** What the personal list holds: trusted hosts, read-only hosts, and the numbers of the lines that were skipped. */
+interface IPersonalHosts {
+  trusted: string[];
+  readOnly: string[];
+  skipped: number[];
+}
+
+const READONLY_PREFIX = 'readonly:';
 
 interface ISegment {
   words: string[];
@@ -880,12 +890,34 @@ export class RemoteHosts {
     });
   }
 
-  /** The personal trusted list: one host per line, `#` starts a comment. */
-  static parseTrustedList(opts: { text: string }): string[] {
-    return opts.text
-      .split('\n')
-      .map((line) => line.replace(/#.*$/, '').trim())
-      .filter((line) => line !== '');
+  /**
+   * The personal list: one host per line, `#` starts a comment, `readonly: <host>` is a read-only host. An entry
+   * that is not a host name or a `*` pattern (a lone `*`, a user, a port, a path) is skipped, never trusted, and its
+   * line number is returned in `skipped`.
+   */
+  static parsePersonalList(opts: { text: string }): IPersonalHosts {
+    const personal: IPersonalHosts = { trusted: [], readOnly: [], skipped: [] };
+
+    opts.text.split('\n').forEach((raw, index) => {
+      const line = raw.replace(/#.*$/, '').trim();
+
+      if (line === '') {
+        return;
+      }
+
+      const isReadOnly = line.startsWith(READONLY_PREFIX);
+      const value = isReadOnly ? line.slice(READONLY_PREFIX.length).trim() : line;
+
+      if (!HostPatterns.isValid({ value })) {
+        personal.skipped.push(index + 1);
+
+        return;
+      }
+
+      (isReadOnly ? personal.readOnly : personal.trusted).push(value);
+    });
+
+    return personal;
   }
 
   /** Why each host this command reaches may not be reached without asking; empty means nothing to ask. */

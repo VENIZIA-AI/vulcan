@@ -70,3 +70,17 @@ describe('guard.outside', () => {
     expect(parse({ outside: { mode: 'deny' } }).success).toBe(false);
   });
 });
+
+describe('remoteHosts entries need a letter or a digit', () => {
+  const parseHosts = (remoteHosts: unknown) => VULCAN_CONFIG_SCHEMA.safeParse({ remoteHosts });
+
+  test.each(['-', '_', '*-*', '*_*', '.-.'])('%p is refused in trusted and readOnly', (entry) => {
+    expect(parseHosts({ trusted: [entry] }).success).toBe(false);
+    expect(parseHosts({ readOnly: [entry] }).success).toBe(false);
+  });
+
+  test.each(['*-db', 'prod-*', '$PROD_S1', '*.lab.example.com'])('%p is accepted', (entry) => {
+    expect(parseHosts({ trusted: [entry] }).success).toBe(true);
+    expect(parseHosts({ readOnly: [entry] }).success).toBe(true);
+  });
+});

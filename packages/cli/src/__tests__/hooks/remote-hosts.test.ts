@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { RemoteHosts } from '../../hooks/remote-hosts.ts';
+import { HostPatterns } from '../../hooks/host-pattern.ts';
 import { ShellPrograms } from '../../hooks/shell.ts';
 
 const POLICY = {
@@ -63,12 +64,79 @@ describe('RemoteHosts.matches: exact, or a pattern whose only wildcard is *', ()
   });
 });
 
-describe('RemoteHosts.parseTrustedList: one host per line, # comments', () => {
+describe('RemoteHosts.parsePersonalList: one host per line, readonly: for a read-only host, # comments', () => {
   test('blank lines and comments are skipped, entries trimmed', () => {
-    expect(RemoteHosts.parseTrustedList({ text: '# lab\n lab2 \n\n*.lan  # mine\n' })).toEqual([
-      'lab2',
-      '*.lan',
-    ]);
+    expect(RemoteHosts.parsePersonalList({ text: '# lab\n lab2 \n\n*.lan  # mine\n' })).toEqual({
+      trusted: ['lab2', '*.lan'],
+      readOnly: [],
+      skipped: [],
+    });
+  });
+
+  test('a readonly: line is a read-only host, with or without a space after the colon', () => {
+    expect(
+      RemoteHosts.parsePersonalList({
+        text: 'readonly: prod-db\nreadonly:$PROD_S1 # mine\nlab2\nreadonly: *.prod.lan\n',
+      }),
+    ).toEqual({ trusted: ['lab2'], readOnly: ['prod-db', '$PROD_S1', '*.prod.lan'], skipped: [] });
+  });
+
+  test.each([
+    ['*'],
+    ['**'],
+    ['*.*'],
+    ['-'],
+    ['*-*'],
+    ['readonly: *-*'],
+    ['user@host'],
+    ['host:22'],
+    ['/etc/passwd'],
+    ['a b'],
+    ['readonly:'],
+    ['readonly: *'],
+    ['readonly: user@host'],
+    ['Readonly: prod'],
+  ])('%p is skipped, never trusted, and its line number is reported', (line) => {
+    expect(RemoteHosts.parsePersonalList({ text: `ok-host\n${line}\n` })).toEqual({
+      trusted: ['ok-host'],
+      readOnly: [],
+      skipped: [2],
+    });
+  });
+});
+
+describe('HostPatterns: the rule the config and the personal list share', () => {
+  test.each([
+    'lab1',
+    '*.lab.example.com',
+    'prod-*',
+    '*-db',
+    '*e*',
+    'a-b_c',
+    '$PROD_S1',
+    '${PROD_S1}',
+    '10.0.0.1',
+  ])('%p is a host pattern', (value) => {
+    expect(HostPatterns.isValid({ value })).toBe(true);
+  });
+
+  test.each([
+    '*',
+    '.*',
+    '*.*',
+    '-',
+    '_',
+    '*-*',
+    '*_*',
+    '.-.',
+    '$_',
+    '',
+    'a@b',
+    'a:1',
+    'a b',
+    'a/b',
+  ])('%p is not', (value) => {
+    expect(HostPatterns.isValid({ value })).toBe(false);
   });
 });
 

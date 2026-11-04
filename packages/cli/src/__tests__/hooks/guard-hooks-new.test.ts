@@ -285,6 +285,69 @@ describe('the guard-outside hook with guard.outside set', () => {
     expect(inside).toEqual({ code: 0, stdout: '' });
   });
 
+  const fileTool = (opts: { tool: string; path: string; cwd: string }): string =>
+    JSON.stringify(
+      Object.fromEntries([
+        ['tool_name', opts.tool],
+        ['tool_input', Object.fromEntries([['file_path', opts.path]])],
+        ['cwd', opts.cwd],
+      ]),
+    );
+
+  test.each(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])(
+    'deny refuses a %s outside the project, and one inside passes',
+    async (tool) => {
+      const outside = await runHook({
+        hook: 'guard-outside',
+        root: denyRoot,
+        stdin: fileTool({ tool, path: '/var/tmp/vulcan-outside-test.md', cwd: denyRoot }),
+      });
+      const inside = await runHook({
+        hook: 'guard-outside',
+        root: denyRoot,
+        stdin: fileTool({ tool, path: join(denyRoot, 'docs', 'a.md'), cwd: denyRoot }),
+      });
+      const decision = JSON.parse(outside.stdout).hookSpecificOutput;
+
+      expect(decision.permissionDecision).toBe('deny');
+      expect(decision.permissionDecisionReason).toContain('/var/tmp/vulcan-outside-test.md');
+      expect(inside).toEqual({ code: 0, stdout: '' });
+    },
+  );
+
+  test('deny with the scratchpad: still one deny, and it names the scratchpad and the other path', async () => {
+    const result = await runHook({
+      hook: 'guard-outside',
+      root: denyRoot,
+      stdin: bash({
+        command: 'mkdir /var/tmp/vulcan-outside-test && touch /tmp/claude-1000/p/s/scratchpad/a',
+        cwd: denyRoot,
+      }),
+    });
+    const decision = JSON.parse(result.stdout).hookSpecificOutput;
+
+    expect(decision.permissionDecision).toBe('deny');
+    expect(decision.permissionDecisionReason).toContain('scratchpad');
+    expect(decision.permissionDecisionReason).toContain('/var/tmp/vulcan-outside-test');
+    expect(decision.permissionDecisionReason).toContain('/tmp/claude-1000/p/s/scratchpad/a');
+  });
+
+  test('any other invalid key in the config fails the load too, so a valid deny turns back into ask', async () => {
+    const typoRoot = createProject({
+      files: {
+        '.configs/vulcan.config.mts':
+          "export default { rules: { 'V-W-01': 'on-user-word' }, guard: { outside: 'deny', notAKey: true } };\n",
+      },
+    });
+    const result = await runHook({
+      hook: 'guard-outside',
+      root: typoRoot,
+      stdin: bash({ command: 'echo x > /var/tmp/vulcan-outside-test', cwd: typoRoot }),
+    });
+
+    expect(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision).toBe('ask');
+  });
+
   test('a config that cannot be read leaves the default, so the call is asked, not denied', async () => {
     const result = await runHook({
       hook: 'guard-outside',
