@@ -264,7 +264,7 @@ describe('the manifest theme is read from the folder the command runs in (C14)',
     expect(ProjectTheme.readManifestTheme({ root: linkedFolder })).toEqual({});
   });
 
-  test('a broken manifest or a bad theme falls back to the neutral colour with a warning, and nothing is thrown', () => {
+  test('a broken manifest or a bad theme falls back to the default colour with a warning, and nothing is thrown', () => {
     expect(ProjectTheme.readManifestTheme({ root: projectWith('{ not json') }).warning).toContain(
       'not valid JSON',
     );

@@ -577,8 +577,8 @@ The colours, fonts and corner radius of the pages VULCAN makes. The token names 
 |---|---|---|---|
 | `preset` | `'venizia' \| 'slate'` | `'venizia'` | The values every token starts from. `venizia` is the bronze accent (`#8a5a20` light, `#dead6a` dark); `slate` keeps the same grounds, text and states with a slate accent (`#3f5266`, `#9fb4cc`) |
 | `accent` | `string` | the preset's | A six-digit hex colour, such as `#8a5a20`, for marks and fills; the accent tint and the text on it are derived |
-| `accentDark` | `string` | derived | The same colour on the dark ground; when absent, `accent` is mixed toward white (up to 60%) until it passes the contrast check |
-| `accentText` | `string` | `accent` | A darker colour for text, when `accent` is too light to read as text on the page |
+| `accentDark` | `string` | derived | Needs `accent`. The same colour on the dark ground; when absent, `accent` is mixed toward white (up to 60%) until it passes the contrast check |
+| `accentText` | `string` | `accent` | Needs `accent`. A darker colour for text, when `accent` is too light to read as text on the page |
 | `tokens` | `Record<string, string \| { light?, dark? }>` | `{}` | A colour for one token: a hex (six digits, or eight with an alpha channel) for both modes, or one per mode |
 | `font` | `string` | the preset's | The sans font stack |
 | `mono` | `string` | the preset's | The monospace font stack |
@@ -586,7 +586,7 @@ The colours, fonts and corner radius of the pages VULCAN makes. The token names 
 
 The tokens are `ground`, `bg`, `line`, `line-strong`, `ink`, `body`, `muted`, `accent`, `accent-ink`, `accent-soft`, `accent-text`, and `ok`, `wait`, `fail`, `info` with a `-soft` tint each. A preset gives every token a value for both the light and the dark mode.
 
-Text needs a 4.5:1 contrast and marks 3:1, on the light and on the dark ground. That covers `ink`, `body`, `muted` and `accent-text` on `bg` and `ground`, `accent-ink` on `accent`, each state on its tint, and `accent` and the states as marks. A pair below it is refused when the config loads, with the pair, the colours and the ratio it reached; it is never swapped for another colour. A colour that carries an alpha channel is judged over the ground it sits on.
+Text needs a 4.5:1 contrast and marks 3:1, on the light and on the dark ground. That covers `ink`, `body`, `muted` and `accent-text` on `bg` and `ground`, `accent-ink` on `accent`, each state on its tint, and `accent` and the states as marks. A pair below it is refused when the config loads, with the pair, the colours and the ratio it reached; it is never swapped for another colour. An accent close to the fixed `blocked` red or `done` green of the visualize pages gets a warning, because those state colours do not change. A colour that carries an alpha channel is judged over the ground it sits on.
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';

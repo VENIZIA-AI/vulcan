@@ -165,14 +165,17 @@ export class ProjectTheme {
   /** The manifest is read only up to this size: a real one is a few KB. */
   static readonly MAX_MANIFEST_BYTES = 1024 * 1024;
 
+  /** The six-digit hex colour pattern, the one the config and the tokens check with. */
+  static readonly HEX = HEX;
+
   /** Whether `value` is a six-digit hex colour. */
   static isHex(value: unknown): value is string {
     return typeof value === 'string' && HEX.test(value);
   }
 
   /**
-   * The theme of a page: the spec's own accent, else the project's `theme` from the manifest, else the neutral
-   * default. Every text, mark and fill pair is checked; a failure writes nothing and says the colour, the ground
+   * The theme of a page: the spec's own accent, else the project's `theme` from the manifest, else the default
+   * preset. Every text, mark and fill pair is checked; a failure writes nothing and says the colour, the ground
    * and the ratio. A colour is never swapped for another.
    */
   static resolve(opts: { spec?: IThemeInput; project?: IThemeInput }): TThemeResult {
@@ -405,7 +408,7 @@ export class ProjectTheme {
 
   /**
    * The project's `theme` from the manifest of the folder the command runs in. No config file is loaded and nothing
-   * is requested: a missing file, or a manifest with no `theme`, is the neutral default.
+   * is requested: a missing file, or a manifest with no `theme`, is the default preset.
    */
   static readManifestTheme(opts: { root: string }): { theme?: IThemeInput; warning?: string } {
     let text: string;
@@ -436,7 +439,7 @@ export class ProjectTheme {
       manifest = JSON.parse(text);
     } catch {
       return {
-        warning: '.agents/vulcan.manifest.json is not valid JSON, so the neutral colour is used',
+        warning: '.agents/vulcan.manifest.json is not valid JSON, so the default colour is used',
       };
     }
 
@@ -450,7 +453,7 @@ export class ProjectTheme {
     }
 
     if (typeof theme !== 'object' || theme === null) {
-      return { warning: 'the manifest theme is not an object, so the neutral colour is used' };
+      return { warning: 'the manifest theme is not an object, so the default colour is used' };
     }
 
     // A manifest that holds only the resolved tokens (a project that set no accent) gives the accent of its preset.
@@ -473,7 +476,7 @@ export class ProjectTheme {
 
     if (!ProjectTheme.isHex(accent)) {
       return {
-        warning: 'the manifest theme has no six-digit hex accent, so the neutral colour is used',
+        warning: 'the manifest theme has no six-digit hex accent, so the default colour is used',
       };
     }
 

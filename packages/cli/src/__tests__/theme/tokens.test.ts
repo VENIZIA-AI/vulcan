@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/schema.ts';
 import { ThemeTokens } from '../../theme/index.ts';
+import { ProjectTheme } from '../../visualize/theme.ts';
 
 const ROOT = join(import.meta.dir, '../../../../..');
 const BOARD = readFileSync(join(ROOT, 'packages/cli/src/board/ui/shell.html'), 'utf8');
@@ -170,6 +171,46 @@ describe('ThemeTokens.resolve', () => {
     expect(
       !alpha.ok && alpha.problems.some((problem) => problem.startsWith('dark: muted #ffffff40')),
     ).toBe(true);
+  });
+
+  test('a name that is only on the prototype is not a preset or a token', () => {
+    for (const name of ['constructor', 'toString', '__proto__']) {
+      expect(ThemeTokens.resolve({ theme: { preset: name } }).ok, name).toBe(false);
+      expect(ThemeTokens.resolve({ theme: { tokens: { [name]: '#ffffff' } } }).ok, name).toBe(
+        false,
+      );
+      expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { preset: name } }).success, name).toBe(false);
+    }
+  });
+
+  test('the accent as text is checked on the ground and on its own tint, not only on bg', () => {
+    const result = ThemeTokens.resolve({
+      theme: { tokens: { 'accent-text': { light: '#767676' } } },
+    });
+
+    expect(result.ok).toBe(false);
+    expect(
+      !result.ok &&
+        result.problems.some((problem) =>
+          /accent-text #767676 as text on (ground|accent-soft)/.test(problem),
+        ),
+    ).toBe(true);
+  });
+
+  test('a dark or text accent without its accent is refused, not ignored', () => {
+    expect(ThemeTokens.resolve({ theme: { accentDark: '#dead6a' } }).ok).toBe(false);
+    expect(ThemeTokens.resolve({ theme: { preset: 'slate', accentText: '#254a73' } }).ok).toBe(
+      false,
+    );
+  });
+
+  test('the preset accent given alone is derived, as visualize derives it, so both agree on the dark accent', () => {
+    const result = ThemeTokens.resolve({ theme: { accent: '#8a5a20' } });
+    const page = ProjectTheme.resolve({ project: { accent: '#8a5a20' } });
+
+    expect(result.ok && page.ok && result.tokens.dark.accent).toBe(
+      page.ok && page.theme.dark.accent,
+    );
   });
 
   test('an unknown preset, an unknown token and a value that is not a colour are refused', () => {

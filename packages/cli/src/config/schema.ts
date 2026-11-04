@@ -12,6 +12,7 @@ import { SubjectShape } from '../commit/subject.ts';
 import { BoardServe } from '../board/common/constants.ts';
 import { ProjectKey } from '../events/project-key.ts';
 import { ThemeTokens } from '../theme/index.ts';
+import { ProjectTheme } from '../visualize/theme.ts';
 import { BOARD_AGENTS } from '../board/schema.ts';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
@@ -223,11 +224,10 @@ const REMOTE_HOST = z
 
 const VIZ_OUTPUT = '.agents/knowledge/viz.html';
 
-/** `.configs/vulcan.config.*` - strict: an unknown key is a typo, and a typo is an error. */
 /** A colour of a design token: six-digit hex, or eight-digit with an alpha channel for lines and soft text. */
-const TOKEN_COLOUR = z
-  .string()
-  .regex(/^#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$/, 'a hex colour like #8a5a20');
+const TOKEN_COLOUR = z.string().regex(ThemeTokens.COLOUR, 'a hex colour like #8a5a20');
+
+/** `.configs/vulcan.config.*` - strict: an unknown key is a typo, and a typo is an error. */
 
 export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   /** The project's name in the manifest and in every atlas result; default: the root package name, unscoped. */
@@ -422,24 +422,21 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       /** The preset the tokens start from: `venizia` (default) or `slate`; a preset fixes every token and the project changes only what it names. */
       preset: z
         .string()
-        .refine((name) => name in ThemeTokens.PRESETS, {
+        .refine((name) => Object.hasOwn(ThemeTokens.PRESETS, name), {
           message: `one of ${Object.keys(ThemeTokens.PRESETS).join(', ')}`,
         })
         .optional(),
       /** Colour for marks and fills, as a six-digit hex such as `#8a5a20`; absent means the preset's accent. */
-      accent: z
-        .string()
-        .regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #8a5a20')
-        .optional(),
+      accent: z.string().regex(ProjectTheme.HEX, 'a six-digit hex colour like #8a5a20').optional(),
       /** Accent for dark grounds, a six-digit hex such as `#dead6a`; derived from `accent` when absent. */
       accentDark: z
         .string()
-        .regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #dead6a')
+        .regex(ProjectTheme.HEX, 'a six-digit hex colour like #dead6a')
         .optional(),
       /** Darker accent for text, a six-digit hex such as `#01579b`; absent means `accent` is used for text too. */
       accentText: z
         .string()
-        .regex(/^#[0-9a-fA-F]{6}$/, 'a six-digit hex colour like #01579b')
+        .regex(ProjectTheme.HEX, 'a six-digit hex colour like #01579b')
         .optional(),
       /** Per-token colours over the preset, keyed by token name: one hex for both modes, or `{ light, dark }`; each pair is checked against WCAG AA. */
       tokens: z

@@ -78,6 +78,8 @@ const TEXT_PAIRS: [string, string][] = [
   ['body', 'ground'],
   ['muted', 'ground'],
   ['accent-text', 'bg'],
+  ['accent-text', 'ground'],
+  ['accent-text', 'accent-soft'],
   ['accent-ink', 'accent'],
   ['ok', 'ok-soft'],
   ['wait', 'wait-soft'],
@@ -94,11 +96,13 @@ const MARK_PAIRS: [string, string][] = [
 ];
 const TEXT_RATIO = 4.5;
 const MARK_RATIO = 3;
-const HEX = /^#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$/;
 
 /** The design tokens: fixed semantic names, values from a preset and the project, checked against WCAG AA. */
 export class ThemeTokens {
   static readonly DEFAULT_PRESET = 'venizia';
+
+  /** A colour of a token: six hex digits, or eight with an alpha channel (a line, a soft text). */
+  static readonly COLOUR = /^#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$/;
 
   static readonly PRESETS: Record<string, IPreset> = {
     venizia: {
@@ -190,7 +194,9 @@ export class ThemeTokens {
   static resolve(opts: { theme?: IThemeConfig }): TTokensResult {
     const theme = opts.theme ?? {};
     const presetName = theme.preset ?? ThemeTokens.DEFAULT_PRESET;
-    const preset = ThemeTokens.PRESETS[presetName];
+    const preset = Object.hasOwn(ThemeTokens.PRESETS, presetName)
+      ? ThemeTokens.PRESETS[presetName]
+      : undefined;
 
     if (preset === undefined) {
       return {
@@ -198,6 +204,16 @@ export class ThemeTokens {
         problems: [
           `theme preset '${presetName}' is unknown; use one of ${Object.keys(ThemeTokens.PRESETS).join(', ')}`,
         ],
+      };
+    }
+
+    if (
+      theme.accent === undefined &&
+      (theme.accentDark !== undefined || theme.accentText !== undefined)
+    ) {
+      return {
+        ok: false,
+        problems: ['theme accentDark and accentText belong to an accent: give accent too'],
       };
     }
 
@@ -209,7 +225,7 @@ export class ThemeTokens {
         : { accent: theme.accent, accentDark: theme.accentDark, accentText: theme.accentText };
     const own =
       seed.accent === preset.seed.accent &&
-      (seed.accentDark ?? preset.seed.accentDark) === preset.seed.accentDark &&
+      seed.accentDark === preset.seed.accentDark &&
       seed.accentText === undefined;
 
     // Venizia carries its accent family as written; any other seed is derived by the page resolver, which refuses a bad one.
@@ -237,7 +253,7 @@ export class ThemeTokens {
     const problems: string[] = [];
 
     for (const [name, value] of Object.entries(theme.tokens ?? {})) {
-      if (!(name in light)) {
+      if (!Object.hasOwn(light, name)) {
         problems.push(
           `theme token '${name}' is unknown; use one of ${ThemeTokens.names().join(', ')}`,
         );
@@ -256,7 +272,7 @@ export class ThemeTokens {
           continue;
         }
 
-        if (!HEX.test(color)) {
+        if (!ThemeTokens.COLOUR.test(color)) {
           problems.push(`theme token '${name}' ${key} '${color}' is not a hex colour like #8a5a20`);
           continue;
         }
