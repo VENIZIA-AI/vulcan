@@ -244,9 +244,9 @@ describe('presets (kind app)', () => {
       manifest: {
         ...MANIFEST,
         layout: {
-          backend: 'umbras',
-          frontend: ['auroras/apps', 'auroras/guests'],
-          shared: ['auroras/kits', 'auroras/features'],
+          backend: 'backends',
+          frontend: ['frontends/apps', 'frontends/guests'],
+          shared: ['frontends/kits', 'frontends/features'],
         },
       },
     });
@@ -255,16 +255,16 @@ describe('presets (kind app)', () => {
     const backend = await ask({ project, args: { name: 'api3', side: 'backend' } });
 
     expect(app.presets[0].folder).toBeNull();
-    expect(app.presets[0].folders).toEqual(['auroras/apps', 'auroras/guests']);
+    expect(app.presets[0].folders).toEqual(['frontends/apps', 'frontends/guests']);
     expect(app.presets[0].command).toBe(
-      'bun x --no-install vulcan add --preset file:../acme-web --app shop --frontend-dir <auroras/apps|auroras/guests> --api <backend app> | --no-api',
+      'bun x --no-install vulcan add --preset file:../acme-web --app shop --frontend-dir <frontends/apps|frontends/guests> --api <backend app> | --no-api',
     );
-    expect(lib.presets[0].folders).toEqual(['auroras/kits', 'auroras/features']);
+    expect(lib.presets[0].folders).toEqual(['frontends/kits', 'frontends/features']);
     expect(lib.presets[0].command).toBe(
-      'bun x --no-install vulcan add --preset ignis --lib money --dir <auroras/kits|auroras/features>',
+      'bun x --no-install vulcan add --preset ignis --lib money --dir <frontends/kits|frontends/features>',
     );
     // One folder in a list is the folder, as a string was.
-    expect(backend.presets[0].folder).toBe('umbras');
+    expect(backend.presets[0].folder).toBe('backends');
     expect(backend.presets[0].folders).toBeUndefined();
     expect(backend.presets[0].command).toBe(
       'bun x --no-install vulcan add --preset ignis --app api3',

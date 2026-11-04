@@ -142,7 +142,7 @@ const pathKeyOf = (opts: { path: string }): string =>
 
 /**
  * `dir` is a unique KEY (it need not be the directory name - set `path` for that), so two packages
- * whose directories are both called `core` are `umbras-core` and `kits-core`. A repeated key, name or
+ * whose directories are both called `core` are `backends-core` and `kits-core`. A repeated key, name or
  * live path would make every table keyed by it collide silently.
  */
 const checkPackagesUnique = (

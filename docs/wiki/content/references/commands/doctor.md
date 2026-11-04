@@ -247,7 +247,7 @@ vulcan doctor: 1 violation(s)
 
 ### apps
 
-A `backend`, `frontend` or `shared` folder of `layout` missing from `package.json` workspaces (`<folder>/*`, `<folder>/**`, the `./` forms and any glob that matches a package there, such as `auroras/*/*`, all count), or a package outside every listed folder, triggers this check. A folder listed under `layout.other` need not be a workspace, and a package under it is allowed, so a project can declare its layout while keeping documentation, third-party code or tests outside the sides; a package under no listed folder is still reported. Projects without `layout` skip it.
+A `backend`, `frontend` or `shared` folder of `layout` missing from `package.json` workspaces (`<folder>/*`, `<folder>/**`, the `./` forms and any glob that matches a package there, such as `frontends/*/*`, all count), or a package outside every listed folder, triggers this check. A folder listed under `layout.other` need not be a workspace, and a package under it is allowed, so a project can declare its layout while keeping documentation, third-party code or tests outside the sides; a package under no listed folder is still reported. Projects without `layout` skip it.
 
 The following output drops the lines that belong to other checks:
 

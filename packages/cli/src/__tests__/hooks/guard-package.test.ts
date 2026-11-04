@@ -192,10 +192,10 @@ describe('PackageGuard.inspectWrite - a real command exists', () => {
 
   test('a nested layout folder counts', () => {
     const root = project({
-      manifest: { ...MANIFEST, layout: { shared: 'auroras/features' } },
+      manifest: { ...MANIFEST, layout: { shared: 'frontends/features' } },
     });
 
-    expect(write({ root, path: 'auroras/features/merchant/package.json' })?.kind).toBe('deny');
+    expect(write({ root, path: 'frontends/features/merchant/package.json' })?.kind).toBe('deny');
   });
 
   test('a relative file path resolves against the cwd', () => {
@@ -217,25 +217,25 @@ describe('PackageGuard.inspectWrite - a layout with several folders per side', (
   const GROUPED = {
     ...MANIFEST,
     layout: {
-      backend: 'umbras',
-      frontend: ['auroras/apps', 'auroras/guests', 'auroras/public'],
-      shared: ['auroras/kits'],
-      other: ['third-parties', 'auroras/tools', 'docs', 'qc'],
+      backend: 'backends',
+      frontend: ['frontends/apps', 'frontends/guests', 'frontends/public'],
+      shared: ['frontends/kits'],
+      other: ['third-parties', 'frontends/tools', 'docs', 'qc'],
     },
   };
 
   test('a new package.json in any folder of a list is denied, with the folder named in the command', () => {
     const root = project({ manifest: GROUPED });
-    const verdict = write({ root, path: 'auroras/guests/shop/package.json' });
+    const verdict = write({ root, path: 'frontends/guests/shop/package.json' });
 
     expect(verdict?.kind).toBe('deny');
     expect(verdict?.message).toContain(
-      'vulcan add --preset file:../acme-web --app shop --frontend-dir auroras/guests --api <backend app> | --no-api',
+      'vulcan add --preset file:../acme-web --app shop --frontend-dir frontends/guests --api <backend app> | --no-api',
     );
-    expect(write({ root, path: 'auroras/public/site/package.json' })?.message).toContain(
-      '--frontend-dir auroras/public',
+    expect(write({ root, path: 'frontends/public/site/package.json' })?.message).toContain(
+      '--frontend-dir frontends/public',
     );
-    expect(write({ root, path: 'auroras/kits/money/package.json' })?.message).toContain(
+    expect(write({ root, path: 'frontends/kits/money/package.json' })?.message).toContain(
       '--lib money',
     );
   });
@@ -243,7 +243,7 @@ describe('PackageGuard.inspectWrite - a layout with several folders per side', (
   test('a side with one folder keeps the command it had, with no folder flag', () => {
     const verdict = write({
       root: project({ manifest: GROUPED }),
-      path: 'umbras/api3/package.json',
+      path: 'backends/api3/package.json',
     });
 
     expect(verdict?.message).toContain('vulcan add --preset ignis --app api3 (ask');
@@ -255,7 +255,7 @@ describe('PackageGuard.inspectWrite - a layout with several folders per side', (
 
     for (const path of [
       'third-parties/x/package.json',
-      'auroras/tools/linter/package.json',
+      'frontends/tools/linter/package.json',
       'docs/wiki/package.json',
       'qc/tests/package.json',
     ]) {

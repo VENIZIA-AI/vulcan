@@ -26,7 +26,7 @@ describe('ProjectConfig.readAtlasProject', () => {
           {
             name: '@a/kernel',
             dir: 'kernel',
-            path: 'umbras/kernel',
+            path: 'backends/kernel',
             aliases: ['k'],
             retired: false,
           },
@@ -39,7 +39,7 @@ describe('ProjectConfig.readAtlasProject', () => {
 
     expect(project.root).toBe(ROOT);
     expect(project.packages).toEqual([
-      { dir: 'kernel', name: '@a/kernel', path: 'umbras/kernel', aliases: ['k'], retired: false },
+      { dir: 'kernel', name: '@a/kernel', path: 'backends/kernel', aliases: ['k'], retired: false },
     ]);
     expect(project.tagPattern).toBe('v<version>');
     expect(project.ignoreTags).toEqual(['old/*']);

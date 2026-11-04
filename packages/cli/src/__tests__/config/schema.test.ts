@@ -105,7 +105,7 @@ describe('package kind', () => {
     const base = {
       dir: 'merchant',
       name: '@nx-feature/merchant',
-      path: 'auroras/features/merchant',
+      path: 'frontends/features/merchant',
     };
 
     expect(
@@ -173,7 +173,7 @@ describe('package kind', () => {
         {
           dir: 'merchant',
           name: '@nx-feature/merchant',
-          path: 'auroras/features/merchant',
+          path: 'frontends/features/merchant',
           kind: 'lib',
         },
       ],
@@ -181,7 +181,7 @@ describe('package kind', () => {
 
     expect(ProjectPackages.resolve({ config })[0]).toMatchObject({
       kind: 'lib',
-      path: 'auroras/features/merchant',
+      path: 'frontends/features/merchant',
     });
   });
 });
@@ -282,22 +282,22 @@ describe('packages are keyed uniquely', () => {
   test('two packages whose directories share a name work when their keys and paths differ', () => {
     const config = VULCAN_CONFIG_SCHEMA.parse({
       packages: [
-        { dir: 'umbras-core', name: '@acme/umbras-core', path: 'umbras/core' },
-        { dir: 'kits-core', name: '@acme/kits-core', path: 'auroras/kits/core' },
+        { dir: 'backends-core', name: '@acme/backends-core', path: 'backends/core' },
+        { dir: 'kits-core', name: '@acme/kits-core', path: 'frontends/kits/core' },
       ],
     });
 
     expect(ProjectPackages.resolve({ config }).map((entry) => entry.path)).toEqual([
-      'umbras/core',
-      'auroras/kits/core',
+      'backends/core',
+      'frontends/kits/core',
     ]);
   });
 
   test('a repeated dir is an error that says dir is a key, not the directory name', () => {
     expect(
       messageOf([
-        { dir: 'core', name: '@acme/umbras-core', path: 'umbras/core' },
-        { dir: 'core', name: '@acme/kits-core', path: 'auroras/kits/core' },
+        { dir: 'core', name: '@acme/backends-core', path: 'backends/core' },
+        { dir: 'core', name: '@acme/kits-core', path: 'frontends/kits/core' },
       ]),
     ).toContain("packages: dir 'core' is used twice - dir is a unique key, not the directory name");
   });

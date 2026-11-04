@@ -242,8 +242,8 @@ describe('SourceSymbols', () => {
 describe('SourceReleases with a local project that has no release on this ref', () => {
   const local = new ReleaseStore({
     table: {
-      livePackages: ['umbras-core'],
-      packageMap: [{ dir: 'umbras-core', name: '@nx/core', aliases: ['apps/core'] }],
+      livePackages: ['backends-core'],
+      packageMap: [{ dir: 'backends-core', name: '@nx/core', aliases: ['apps/core'] }],
       releases: {},
       changelogs: [
         {
@@ -251,7 +251,7 @@ describe('SourceReleases with a local project that has no release on this ref', 
           file: 'x.md',
           date: '2026-10-05',
           title: 'core',
-          packages: ['umbras-core'],
+          packages: ['backends-core'],
           kind: null,
         },
       ],
@@ -284,7 +284,7 @@ describe('SourceReleases with a local project that has no release on this ref', 
   };
 
   test('a declared package answers by npm name, directory key and alias - never "unknown package"', async () => {
-    for (const name of ['@nx/core', 'umbras-core', 'apps/core']) {
+    for (const name of ['@nx/core', 'backends-core', 'apps/core']) {
       const reply = await ask({ package: name });
 
       expect(reply.error, name).toBeUndefined();

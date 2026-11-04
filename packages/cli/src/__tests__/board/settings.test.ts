@@ -237,24 +237,24 @@ describe('board.agents: a face, or { shape?, lane? }', () => {
   test('a face, an object with a shape, a lane, both, or nothing is accepted', () => {
     expect(
       agents({
-        umbra: 'ember',
-        aurora: { shape: 'flame' },
-        etalon: {},
-        'pnt-umbra-1': { lane: 'umbra' },
-        'pnt-aurora-1': { shape: 'bun', lane: 'aurora' },
+        alpha: 'ember',
+        beta: { shape: 'flame' },
+        gamma: {},
+        'pnt-alpha-1': { lane: 'alpha' },
+        'pnt-beta-1': { shape: 'bun', lane: 'beta' },
       }).success,
     ).toBe(true);
   });
 
   test('a lane must name a listed key', () => {
-    const result = agents({ umbra: 'ember', 'pnt-x-1': { lane: 'nobody' } });
+    const result = agents({ alpha: 'ember', 'pnt-x-1': { lane: 'nobody' } });
 
     expect(result.success).toBe(false);
     expect(messageOf(result)).toContain("lane 'nobody' of 'pnt-x-1' is not a key of board.agents");
   });
 
   test('no chain: a lane cannot itself have a lane', () => {
-    const result = agents({ umbra: 'ember', a: { lane: 'umbra' }, b: { lane: 'a' } });
+    const result = agents({ alpha: 'ember', a: { lane: 'alpha' }, b: { lane: 'a' } });
 
     expect(result.success).toBe(false);
     expect(messageOf(result)).toContain("lane 'a' of 'b' has a lane of its own");
@@ -276,7 +276,7 @@ describe('board.agents: a face, or { shape?, lane? }', () => {
   });
 
   test('the manifest carries the values as written', () => {
-    const board = { agents: { umbra: 'ember', 'pnt-umbra-1': { lane: 'umbra' } } };
+    const board = { agents: { alpha: 'ember', 'pnt-alpha-1': { lane: 'alpha' } } };
     const manifest = JSON.parse(
       ProjectManifest.render({
         root: createProject({ files: {} }),
@@ -304,21 +304,21 @@ describe('BoardSettings.resolve: the roster and the lanes', () => {
   test('the listed keys without a lane are the roster; a lane maps a helper to its lane', () => {
     expect(
       resolve({
-        umbra: 'ember',
-        aurora: { shape: 'flame' },
-        etalon: {},
-        'pnt-umbra-1': { lane: 'umbra' },
-        'pnt-aurora-1': { shape: 'rock', lane: 'aurora' },
+        alpha: 'ember',
+        beta: { shape: 'flame' },
+        gamma: {},
+        'pnt-alpha-1': { lane: 'alpha' },
+        'pnt-beta-1': { shape: 'rock', lane: 'beta' },
       }),
     ).toMatchObject({
-      roster: ['umbra', 'aurora', 'etalon'],
-      lanes: { 'pnt-umbra-1': 'umbra', 'pnt-aurora-1': 'aurora' },
-      shapes: { umbra: 'ember', aurora: 'flame', 'pnt-aurora-1': 'rock' },
+      roster: ['alpha', 'beta', 'gamma'],
+      lanes: { 'pnt-alpha-1': 'alpha', 'pnt-beta-1': 'beta' },
+      shapes: { alpha: 'ember', beta: 'flame', 'pnt-beta-1': 'rock' },
     });
   });
 
   test('a lane the manifest cannot honour: no agents are used, and one note says why', () => {
-    const settings = resolve({ umbra: 'ember', a: { lane: 'nobody' } });
+    const settings = resolve({ alpha: 'ember', a: { lane: 'nobody' } });
 
     expect(settings).toMatchObject({ roster: [], lanes: {}, shapes: {} });
     expect(settings.notes).toEqual([
