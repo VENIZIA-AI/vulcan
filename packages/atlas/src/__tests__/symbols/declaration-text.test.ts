@@ -218,3 +218,96 @@ describe('a package that publishes its TypeScript source', () => {
     ).toEqual([{ subpath: '.', types: './src/index.ts' }]);
   });
 });
+
+describe('a record of a source file never holds a value', () => {
+  const SOURCE = [
+    "export function body(): string {\n  return 'LEAK_BODY';\n}",
+    "export const arrow = (): string => 'LEAK_ARROW';",
+    "export const config = { token: 'LEAK_TOKEN' };",
+    "export const { destructured = 'LEAK_DESTR' } = { destructured: undefined as string | undefined };",
+    "export default function (a: string): string {\n  return 'LEAK_DEFAULT_FN' + a;\n}",
+    "export function withDefault(a = process.env.LEAK_PARAM, { b = 'LEAK_PATTERN' } = {}): void {}",
+    "export class Named<T> extends mixin('LEAK_EXTENDS') implements Marker<T> {\n  field = 'LEAK_FIELD';\n}",
+    'declare function mixin(name: string): new () => object;\ninterface Marker<T> { value: T }',
+    "export enum Level { Low = 'LEAK_ENUM' }",
+    "export * as everything from './other.ts';",
+  ].join('\n');
+  const OTHER = "export const hidden = 'LEAK_OTHER_FILE';\n";
+
+  const recordsOfSource = (): ISymbolRecord[] => {
+    const root = mkdtempSync(join(tmpdir(), 'atlas-source-leak-'));
+
+    roots.push(root);
+
+    const files: Record<string, string> = {
+      'package.json': JSON.stringify({
+        name: '@x/leak',
+        version: '1.0.0',
+        exports: { '.': './src/index.ts' },
+      }),
+      'src/index.ts': SOURCE,
+      'src/other.ts': OTHER,
+    };
+
+    for (const [path, text] of Object.entries(files)) {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), text);
+    }
+
+    return AtlasSymbols.recordsOf({
+      repoRoot: root,
+      packages: [PackageEntries.readDirectory({ directory: root, withSource: true })],
+    });
+  };
+
+  test('neither the signature nor the declaration of any export quotes a body, an initializer or a default', () => {
+    const records = recordsOfSource();
+    const names = records.map((record) => record.name).sort();
+
+    expect(names).toEqual(
+      [
+        'Level',
+        'Named',
+        'arrow',
+        'body',
+        'config',
+        'default',
+        'destructured',
+        'everything',
+        'withDefault',
+      ].sort(),
+    );
+
+    for (const record of records) {
+      expect(`${record.signature}\n${record.declaration ?? ''}`).not.toContain('LEAK');
+    }
+  });
+
+  test('what is said instead is the name and the types', () => {
+    const bySymbol = new Map(recordsOfSource().map((record) => [record.name, record.signature]));
+
+    expect(bySymbol.get('body')).toBe('function body(): string');
+    expect(bySymbol.get('arrow')).toBe('const arrow');
+    expect(bySymbol.get('withDefault')).toBe('function withDefault(a?, { ... }?): void');
+    expect(bySymbol.get('Named')).toBe('class Named<T> extends ... implements Marker<T>');
+    expect(bySymbol.get('everything')).toBe('namespace everything');
+  });
+});
+
+describe('the exports of a source package that are and are not read', () => {
+  test('a condition nested under another is looked through, a pattern subpath is not read', () => {
+    expect(
+      PackageEntries.sourceEntriesOf({
+        exports: {
+          '.': { import: { types: './src/a.ts', default: './src/a.js' } },
+          './*': './src/*.ts',
+          './b': { default: { bun: './src/b.ts' } },
+          './c': './src/c.js',
+        },
+      }),
+    ).toEqual([
+      { subpath: '.', types: './src/a.ts' },
+      { subpath: './b', types: './src/b.ts' },
+    ]);
+  });
+});

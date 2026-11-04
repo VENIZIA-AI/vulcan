@@ -8,6 +8,29 @@ const SOURCE_FILE = /(?<!\.d)\.[cm]?tsx?$/;
 /** The conditions of an `exports` target a source entry may be written under, in the order they are tried. */
 const SOURCE_CONDITIONS = ['types', 'import', 'default', 'bun'];
 
+/** The source file an `exports` target names, looking through nested conditions (`{ import: { types, default } }`). */
+const sourceTargetOf = (target: unknown): string | undefined => {
+  if (typeof target === 'string') {
+    return SOURCE_FILE.test(target) ? target : undefined;
+  }
+
+  if (typeof target !== 'object' || target === null) {
+    return undefined;
+  }
+
+  const conditions = new Map(Object.entries(target));
+
+  for (const condition of SOURCE_CONDITIONS) {
+    const found = sourceTargetOf(conditions.get(condition));
+
+    if (found !== undefined) {
+      return found;
+    }
+  }
+
+  return undefined;
+};
+
 export class PackageEntries {
   /** The `exports` subpaths typed by a declaration file; css, json and plain js targets have no surface. */
   static declarationEntriesOf(opts: Pick<IPackageManifest, 'exports'>): IDeclarationEntry[] {
@@ -21,15 +44,9 @@ export class PackageEntries {
 
   /** The `exports` subpaths of a package that publishes its TypeScript source: the entries a `.d.ts` does not type. */
   static sourceEntriesOf(opts: Pick<IPackageManifest, 'exports'>): IDeclarationEntry[] {
+    // A subpath with a `*` is a pattern, not a file: it is not read.
     return Object.entries(opts.exports).flatMap(([subpath, target]) => {
-      const candidates =
-        typeof target === 'string'
-          ? [target]
-          : SOURCE_CONDITIONS.map((condition) => target[condition]);
-      const file = candidates.find(
-        (candidate): candidate is string =>
-          typeof candidate === 'string' && SOURCE_FILE.test(candidate),
-      );
+      const file = subpath.includes('*') ? undefined : sourceTargetOf(target);
 
       return file === undefined ? [] : [{ subpath, types: file }];
     });
