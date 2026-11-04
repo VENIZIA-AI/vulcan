@@ -2780,9 +2780,13 @@
       DICT.en['pl.all'] = 'Show all events';
       DICT.vi['pl.all'] = 'Hiện mọi sự kiện';
       DICT.en['pl.tip'] =
-        'Sessions starting and stopping, subagents and prompts that only wait are hidden; this shows them';
+        'Sessions starting and stopping, subagents and prompts that only wait are hidden, and so are agents the project did not list; this shows them';
       DICT.vi['pl.tip'] =
-        'Phiên bắt đầu và kết thúc, subagent và lời nhắc chỉ để chờ đang được ẩn; nút này hiện chúng';
+        'Phiên bắt đầu và kết thúc, subagent và lời nhắc chỉ để chờ, cùng các agent dự án không liệt kê, đang được ẩn; nút này hiện chúng';
+      DICT.en['n.helper'] = 'helper';
+      DICT.vi['n.helper'] = 'agent phụ';
+      DICT.en['n.helpers'] = 'helpers';
+      DICT.vi['n.helpers'] = 'agent phụ';
       DICT.en['fl.untitled'] = 'no title yet';
       DICT.vi['fl.untitled'] = 'chưa có tên';
       DICT.en['ctx.label'] = 'Context';
@@ -3002,6 +3006,14 @@
         typeof e.stage === 'number'
           ? e
           : { ...e, stage: STAGE_OF[e.stage] ?? STAGE_OF[e.kind] ?? 0 };
+      // A helper's lines are drawn as its lane's and keep its own name as `as`.
+      const LANES = DATA.lanes || {};
+      const laneOf = (n) => (n && LANES[n]) || n;
+      const laneEv = (e) =>
+        LANES[e.actor] || LANES[e.to]
+          ? { ...e, as: e.actor, actor: laneOf(e.actor), ...(e.to ? { to: laneOf(e.to) } : {}) }
+          : e;
+      const inRoster = (n) => showPlumbing || !DATA.roster || DATA.roster.includes(n);
       const byTs = (a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : (a.stage || 0) - (b.stage || 0));
 
       let flowsDoc = {},
@@ -3050,7 +3062,7 @@
       function fold() {
         const out = [];
         for (const f of DATA.flows) {
-          const evs = f.events.filter(keepEv).map(normEv).sort(byTs);
+          const evs = f.events.filter(keepEv).map(normEv).map(laneEv).sort(byTs);
           if (!evs.length) continue;
           const last = evs.find((e) => e.id === f.lastId) || evs[evs.length - 1];
           const lastAsk = f.askId ? evs.find((e) => e.id === f.askId) : undefined;
@@ -3075,7 +3087,7 @@
             evs,
             last,
             state: f.state,
-            holder: f.holder,
+            holder: laneOf(f.holder),
             stages: f.stages,
             cur: f.cur,
             att,
@@ -3337,7 +3349,7 @@
         li.append(el('span', 'tm', (isApprox(e) ? '≈' : '') + hhmm(e.ts)));
         const body = el('div');
         const who = el('div', 'who');
-        who.append(el('b', null, e.actor));
+        who.append(el('b', null, e.as || e.actor));
         // A message the actor got has a sender, never a recipient: the sentence of the Latest list says the same.
         if (e.incoming) {
           if (e.from) who.append(' ← ', el('b', null, e.from));
@@ -4281,10 +4293,38 @@
         }
         return s;
       }
+      const STATE_RANK = { blocked: 3, working: 2, idle: 1 };
+      const laneDocs = (docs) => {
+        const out = {};
+        for (const n of Object.keys(docs)) {
+          const d = docs[n],
+            k = laneOf(n),
+            was = out[k];
+          if (!was) {
+            out[k] = d;
+            continue;
+          }
+          const newer = (d.checkedAt || '') > (was.checkedAt || '') ? d : was;
+          out[k] = {
+            ...newer,
+            state: (STATE_RANK[d.state] || 0) > (STATE_RANK[was.state] || 0) ? d.state : was.state,
+          };
+        }
+        return out;
+      };
+      const helpersOf = (lane) => {
+        const set = new Set();
+        for (const n of Object.keys(DATA.agents)) if (n !== lane && laneOf(n) === lane) set.add(n);
+        for (const e of events) if (e.as && e.as !== lane && e.actor === lane) set.add(e.as);
+        return set.size;
+      };
       function agentRows() {
-        const names = new Set(Object.keys(agentsDoc).filter((n) => AGENT_RE.test(n)));
+        const names = new Set(
+          Object.keys(agentsDoc).filter((n) => AGENT_RE.test(n) && inRoster(n)),
+        );
         for (const e of events)
-          if (e.source !== 'github' && e.actor && AGENT_RE.test(e.actor)) names.add(e.actor);
+          if (e.source !== 'github' && e.actor && AGENT_RE.test(e.actor) && inRoster(e.actor))
+            names.add(e.actor);
         const rows = [];
         for (const n of names) {
           const doc = agentsDoc[n] || {};
@@ -4336,6 +4376,7 @@
           rows.push({
             n,
             host: doc.host || '',
+            helpers: helpersOf(n),
             st,
             flow,
             text,
@@ -4384,7 +4425,8 @@
             const ft = el('span', 'ft');
             const pl = el('span', 'spill');
             const ag = el('span', 'ag');
-            ft.append(pl, ag);
+            const hp = el('span', 'ag');
+            ft.append(pl, ag, hp);
             info.append(nm, tk, ft);
             b.append(fw, info);
             b.setAttribute('aria-haspopup', 'dialog');
@@ -4394,7 +4436,7 @@
               else openPop(r.n, b);
             });
             dock.append(b);
-            c = { el: b, fw, tk, fc, tx, ag, pl, st: null, key: null };
+            c = { el: b, fw, tk, fc, tx, ag, hp, pl, st: null, key: null };
             cells.set(r.n, c);
           }
           if (c.st !== r.st) {
@@ -4410,6 +4452,9 @@
           c.fc.textContent = r.flow || '';
           c.fc.hidden = !r.flow;
           c.ag.textContent = r.ts ? (r.approx ? '≈ ' : '') + ago(r.ts) : '';
+          c.hp.textContent = r.helpers
+            ? '+' + r.helpers + ' ' + t(r.helpers === 1 ? 'n.helper' : 'n.helpers')
+            : '';
           if (c.tx.textContent !== r.text) c.tx.textContent = r.text;
           c.el.title =
             r.n +
@@ -4464,7 +4509,7 @@
       // Who sent a message line and who got it: a sent line is the actor's to `to`; a received one is the actor's from `from`.
       function msgEnds(m) {
         return m.incoming
-          ? { sender: m.from, receiver: m.actor }
+          ? { sender: laneOf(m.from), receiver: m.actor }
           : { sender: m.actor, receiver: m.to };
       }
       function agentInfo(n) {
@@ -4826,7 +4871,8 @@
         events = DATA.flows
           .flatMap((f) => f.events)
           .filter(keepEv)
-          .map(normEv);
+          .map(normEv)
+          .map(laneEv);
       }
       function schedule() {
         if (raf) return;
@@ -4925,7 +4971,7 @@
         }
         loadEvents();
         decisions = DATA.decisions;
-        agentsDoc = DATA.agents;
+        agentsDoc = laneDocs(DATA.agents);
         releases = [];
         $('since').title = DATA.sources.join('\n');
         schedule();

@@ -104,6 +104,8 @@ export class BoardCommand {
       ...(settings.logo === undefined ? {} : { logo: settings.logo }),
       key: settings.key,
       shapes: settings.shapes,
+      ...(settings.roster.length === 0 ? {} : { roster: settings.roster }),
+      ...(Object.keys(settings.lanes).length === 0 ? {} : { lanes: settings.lanes }),
       generatedAt: new Date().toISOString(),
       since: new Date(opts.since).toISOString(),
       flows: flows.sort(

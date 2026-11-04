@@ -7,7 +7,7 @@ import { OWNER_SCHEMA } from '../owner/schema.ts';
 import { AgentSignaturePolicies } from '../commit/common/index.ts';
 import type { TAgentSignaturePolicy } from '../commit/common/index.ts';
 import { SubjectShape } from '../commit/subject.ts';
-import { BoardShapes } from '../board/common/constants.ts';
+import { BOARD_AGENTS } from '../board/schema.ts';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
 import {
@@ -395,14 +395,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
           },
         )
         .optional(),
-      agents: z
-        .record(
-          z.string().min(1),
-          z.custom<string>((value) => typeof value === 'string' && BoardShapes.isValid(value), {
-            message: `one of ${[...BoardShapes.SCHEME_SET].join(', ')}`,
-          }),
-        )
-        .default({}),
+      agents: BOARD_AGENTS.default({}),
     })
     .default({ agents: {} }),
   /** Team-shared Claude settings (permissions, env, enabledPlugins...), merged by sync over personal keys. */
