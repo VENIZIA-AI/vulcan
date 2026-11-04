@@ -35,7 +35,7 @@ export const Header = (props: IHeaderProps) => {
 
   return (
     <header className="bar">
-      <span className="mark">
+      <span className="mark" id="mark">
         {props.logo ? <img src={BoardUrl.safe({ value: props.logo, image: true })} alt="" /> : null}
       </span>
       <span className="brule" aria-hidden="true" />

@@ -1,0 +1,2 @@
+# The board page is built from packages/cli/src/board/ui by `make board-ui`: its script is minified, and a test holds it to its source.
+base/templates/board.html

@@ -50,9 +50,9 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
       expression: `(async () => {
         await ${WAIT("document.getElementById('fresh').textContent.includes('live')", 5000)};
         window.__marker = 'the same page';
-        const first = FL[0].id;
-        select(first, true);
-        window.__selected = first;
+        const row = document.querySelector('.row');
+        row.click();
+        window.__selected = row.dataset.id;
         return JSON.stringify({
           agents: [...document.querySelectorAll('#dock .cell')].map((c) => c.dataset.agent),
           fresh: document.getElementById('fresh').textContent,
@@ -84,8 +84,14 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
               marker: window.__marker,
               selected: window.__selected,
               agents: [...document.querySelectorAll('#dock .cell')].map((c) => c.dataset.agent),
-              flows: FL.map((f) => f.id),
-              inEvents: events.some((e) => e.actor === 'brand-new-agent'),
+              flows: [...document.querySelectorAll('.row')].map((row) => row.dataset.id),
+              stillSelected: document.querySelector('.row[aria-selected="true"]')?.dataset.id,
+              inCard: await (async () => {
+                document.querySelector('#dock .cell[data-agent="brand-new-agent"]').click();
+                await new Promise((resolve) => setTimeout(resolve, 100));
+
+                return document.getElementById('pop').textContent.includes('appears with no reload');
+              })(),
               navigations: performance.getEntriesByType('navigation').length,
             });
           })()`,
@@ -96,14 +102,16 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
       agents: string[];
       flows: string[];
       navigations: number;
-      inEvents: boolean;
+      stillSelected: string | undefined;
+      inCard: boolean;
     } = JSON.parse(result);
 
     expect(after.marker, 'the page was reloaded').toBe('the same page');
     expect(after.navigations).toBe(1);
     expect(after.agents).toContain('brand-new-agent');
     expect(after.flows).toContain('F-9');
-    expect(after.inEvents, 'the event list the graph and the popover read is stale').toBe(true);
+    expect(after.stillSelected, 'what the owner selected is lost').toBe(after.selected);
+    expect(after.inCard, 'the event list the graph and the card read is stale').toBe(true);
   });
 
   test('when the server stops the page says it is disconnected, and keeps showing the board', async () => {
@@ -142,7 +150,7 @@ describe.skipIf(!hasBrowser)('the served board in a real browser', () => {
           await ${WAIT("document.getElementById('fresh').textContent.includes('disconnected')", 8000)};
           return JSON.stringify({
             fresh: document.getElementById('fresh').textContent,
-            flows: FL.length,
+            flows: document.querySelectorAll('.row').length,
             body: document.body.innerText.length > 200,
           });
         })()`,

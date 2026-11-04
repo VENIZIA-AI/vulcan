@@ -44,7 +44,7 @@ docs:
 	@cd docs/wiki && bun install --frozen-lockfile
 	@bun scripts/wiki-shared/build.ts
 
-# The board page from its components (packages/cli/src/board/ui) into one HTML file: board-ui OUT=<file>.
+# The shipped board page (packages/cli/base/templates/board.html), built from its components (packages/cli/src/board/ui); board-ui OUT=<file> builds somewhere else.
 board-ui:
 	@bun scripts/board-ui/build.ts $(OUT)
 

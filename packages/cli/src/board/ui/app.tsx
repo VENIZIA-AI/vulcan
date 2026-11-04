@@ -261,10 +261,10 @@ export const App = (opts: { data: IBoardData }) => {
             onAgent={setAgent}
             open={open}
             onToggle={(key) =>
-              setOpen({
-                ...open,
-                [key]: !(open[key] ?? BoardTables.GROUPS.find((group) => group.key === key)?.open),
-              })
+              setOpen((was) => ({
+                ...was,
+                [key]: !(was[key] ?? BoardTables.GROUPS.find((group) => group.key === key)?.open),
+              }))
             }
           />
           <Split
@@ -292,7 +292,7 @@ export const App = (opts: { data: IBoardData }) => {
             everything={everything}
             onEverything={setEverything}
             attempts={attempts}
-            onAttempt={(key, round) => setAttempts({ ...attempts, [key]: round })}
+            onAttempt={(key, round) => setAttempts((was) => ({ ...was, [key]: round }))}
             onSelect={select}
             onClose={() => setDetailOpen(false)}
           />

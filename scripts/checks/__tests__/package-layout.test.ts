@@ -30,11 +30,11 @@ const LEFT_OUT: Record<string, string[]> = {
   atlas: [],
   cli: ['!src/board/ui'],
 };
-/** The folders under `.configs/`: atlas also builds, so it also has `builders/`. */
+/** The folders under `.configs/`: atlas also builds, so it also has `builders/`; cli keeps a generated page out of format, so it has `formatters/`. */
 const CONFIG_FOLDERS: Record<string, string[]> = {
   okf: ['lints'],
   atlas: ['builders', 'lints'],
-  cli: ['lints'],
+  cli: ['formatters', 'lints'],
 };
 
 const tracked = (opts: { name: string }): string[] => {

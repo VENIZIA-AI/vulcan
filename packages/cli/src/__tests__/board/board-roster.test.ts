@@ -1,6 +1,9 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import type { IBoardAgent, IBoardData } from '../../board/common/index.ts';
 import { BoardPage } from '../../board/page.ts';
+import { BoardI18n } from '../../board/ui/i18n/translate.ts';
+import { BoardLatest } from '../../board/ui/state/latest.ts';
+import { BoardView } from '../../board/ui/state/view.ts';
 import { BrowserPage } from '../visualize/browser.helper.ts';
 import { sampleData } from './sample-data.helper.ts';
 
@@ -179,54 +182,57 @@ describe.skipIf(!hasBrowser)('the name of a helper in the detail, and who holds 
   const lanes = { 'pnt-ignis-1': 'pnt-vulcan-1', 'pnt-ardor-1': 'veni-forge' };
   const roster = ['veni-forge', 'pnt-vulcan-1'];
 
-  test('a line is drawn as the lane, and the detail and the Latest sentence show the helper, sender and recipient', async () => {
-    const raw = await BrowserPage.measure<string>({
-      html: withErrors(BoardPage.render({ data: dataWith({ roster, lanes }) })),
-      width: 1440,
-      dark: false,
-      expression: `(() => {
-        const sent = laneEv({ id: 'x', ts: '2026-11-03T09:00:00Z', kind: 'msg', stage: 0, actor: 'pnt-ignis-1', to: 'pnt-ardor-1', summary: 'hello' });
-        const who = evItem(sent).querySelector('.who').textContent;
-        const flowLines = FL.flatMap((fl) => fl.evs).map((e) => e.actor);
-        return JSON.stringify({
-          actor: sent.actor,
-          to: sent.to,
-          who,
-          latest: latestText(sent),
-          flowActors: [...new Set(flowLines)],
-          errors: window.__errs,
-        });
-      })()`,
+  test('a line is drawn as the lane, and the Latest sentence shows the helper, sender and recipient', () => {
+    const data = dataWith({ roster, lanes });
+    const flow = {
+      ...data.flows[0],
+      events: [
+        {
+          ...data.flows[0].events[0],
+          id: 'x',
+          kind: 'msg',
+          actor: 'pnt-ignis-1',
+          to: 'pnt-ardor-1',
+          summary: 'hello',
+        },
+      ],
+    };
+    const [sent] = BoardView.linesOf({ data, flow, showAll: true });
+    const latest = BoardLatest.textOf({
+      event: sent,
+      translate: (key) => BoardI18n.translate({ language: 'en', key }),
     });
-    const seen: {
-      actor: string;
-      to: string;
-      who: string;
-      latest: string;
-      flowActors: string[];
-      errors: string[];
-    } = JSON.parse(raw);
+    const actors = new Set(
+      BoardView.eventsOf({ data, showAll: false }).map((event) => event.actor),
+    );
 
-    expect(seen.actor).toBe('pnt-vulcan-1');
-    expect(seen.to).toBe('veni-forge');
-    expect(seen.who).toContain('pnt-ignis-1 → pnt-ardor-1');
-    expect(seen.latest.startsWith('pnt-ignis-1 ')).toBe(true);
-    expect(seen.latest).toContain('pnt-ardor-1');
-    expect(seen.flowActors).not.toContain('pnt-ignis-1');
-    expect(seen.flowActors).not.toContain('pnt-ardor-1');
-    expect(seen.errors).toEqual([]);
+    expect(sent.actor).toBe('pnt-vulcan-1');
+    expect(sent.to).toBe('veni-forge');
+    expect([sent.as, sent.asTo]).toEqual(['pnt-ignis-1', 'pnt-ardor-1']);
+    expect(latest.startsWith('pnt-ignis-1 ')).toBe(true);
+    expect(latest).toContain('pnt-ardor-1');
+    expect(actors).not.toContain('pnt-ignis-1');
+    expect(actors).not.toContain('pnt-ardor-1');
   });
 
   test('the detail of a real flow shows the helper that wrote a line, not the lane', async () => {
+    const data = dataWith({ roster, lanes });
+    const helperFlow = BoardView.flowsOf({ data, showAll: false, lastSeen: '' }).find((view) =>
+      view.evs.some((event) => event.as === 'pnt-ignis-1'),
+    )?.flow.id;
+
     const raw = await BrowserPage.measure<string>({
-      html: withErrors(BoardPage.render({ data: dataWith({ roster, lanes }) })),
+      html: withErrors(BoardPage.render({ data })),
       width: 1440,
       dark: false,
       expression: `(async () => {
-        const fl = FL.find((x) => x.evs.some((e) => e.as === 'pnt-ignis-1'));
-        select(fl.id, true);
+        const wait = () => new Promise((resolve) => setTimeout(resolve, 80));
+        document.querySelectorAll('.gh[aria-expanded="false"]').forEach((button) => button.click());
+        await wait();
+        document.querySelector('.row[data-id="${helperFlow}"]').click();
+        await wait();
         document.querySelectorAll('.dtabs .tab')[1].click();
-        await new Promise((resolve) => requestAnimationFrame(resolve));
+        await wait();
         const who = [...document.querySelectorAll('#dBody .evs .who b:first-child')].map((b) => b.textContent);
         return JSON.stringify({ who, errors: window.__errs });
       })()`,
@@ -243,9 +249,9 @@ describe.skipIf(!hasBrowser)('the name of a helper in the detail, and who holds 
         html: withErrors(BoardPage.render({ data })),
         width: 1440,
         dark: false,
-        expression: `(() => {
-          for (const key of Object.keys(openGroups)) openGroups[key] = true;
-          renderList();
+        expression: `(async () => {
+          document.querySelectorAll('.gh[aria-expanded="false"]').forEach((button) => button.click());
+          await new Promise((resolve) => setTimeout(resolve, 80));
           return JSON.stringify([...document.querySelectorAll('#groups .row .holder')].map((node) => node.textContent));
         })()`,
       });
@@ -266,9 +272,9 @@ describe.skipIf(!hasBrowser)('the name of a helper in the detail, and who holds 
       html: withErrors(BoardPage.render({ data: dataWith({ roster: ['veni-forge'] }) })),
       width: 1440,
       dark: false,
-      expression: `(() => {
-        for (const key of Object.keys(openGroups)) openGroups[key] = true;
-        renderList();
+      expression: `(async () => {
+        document.querySelectorAll('.gh[aria-expanded="false"]').forEach((button) => button.click());
+        await new Promise((resolve) => setTimeout(resolve, 80));
         return JSON.stringify({
           holders: [...document.querySelectorAll('#groups .row .holder')].map((node) => node.textContent),
           dock: [...document.querySelectorAll('#dock .cell')].map((cell) => cell.dataset.agent),

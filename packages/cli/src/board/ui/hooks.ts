@@ -55,9 +55,11 @@ export const useLive = (opts: {
     let source: EventSource | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let stopped = false;
-    const connect = (attempt: number): void => {
+    let failures = 0;
+    const connect = (): void => {
       source = new EventSource(stream);
       source.onmessage = (message) => {
+        failures = 0;
         const next = JSON.parse(message.data);
 
         if (next.tooLarge) {
@@ -74,12 +76,13 @@ export const useLive = (opts: {
         setState('off');
 
         if (!stopped) {
-          timer = setTimeout(() => connect(attempt + 1), Math.min(30_000, 1000 * 2 ** attempt));
+          timer = setTimeout(connect, Math.min(30_000, 1000 * 2 ** failures));
+          failures += 1;
         }
       };
     };
 
-    connect(0);
+    connect();
 
     return () => {
       stopped = true;
