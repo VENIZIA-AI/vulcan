@@ -1,36 +1,52 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BoardFold } from '../../board/fold.ts';
 import { BoardPage } from '../../board/page.ts';
+import { DICTIONARY } from '../../board/ui/i18n/dictionary.ts';
 import type { IBoardData } from '../../board/common/index.ts';
 import { BrowserPage } from '../visualize/browser.helper.ts';
 import { line, sampleLines } from './log-lines.helper.ts';
 import { sampleData } from './sample-data.helper.ts';
 
-const TEMPLATE = readFileSync(
-  join(import.meta.dir, '..', '..', '..', 'base', 'templates', 'board.html'),
-  'utf8',
-);
 const hasBrowser = await BrowserPage.available();
 
 afterAll(() => BrowserPage.close());
 
-/** Every dotted key the page asks for: `data-i18n`, `data-i18n-aria-label` and `t('x.y')`. */
+const UI = join(import.meta.dir, '..', '..', 'board', 'ui');
+const sources = (opts: { folder: string }): string[] =>
+  readdirSync(opts.folder, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(opts.folder, entry.name);
+
+    if (entry.isDirectory()) {
+      return sources({ folder: path });
+    }
+
+    return /\.tsx?$/.test(entry.name) && entry.name !== 'dictionary.ts'
+      ? [readFileSync(path, 'utf8')]
+      : [];
+  });
+
+/**
+ * Every dotted key the page asks for: `t('x.y')`, the keys kept in its tables, and every key of a family built from a
+ * name (`t(\`vm.${mode}\`)` asks for each `vm.*`).
+ */
 const keysUsed = (): string[] => {
+  const code = sources({ folder: UI }).join('\n');
   const found = new Set<string>();
 
-  for (const match of TEMPLATE.matchAll(/data-i18n(?:-aria-label)?="([a-z][\w]*\.[\w.]+)"/g)) {
+  for (const match of code.matchAll(/\bt\('([a-z]\w*\.[\w.]+)'\)/g)) {
     found.add(match[1]);
   }
 
-  for (const match of TEMPLATE.matchAll(/\bt\('([a-z][\w]*\.[\w.]+)'\)/g)) {
+  for (const match of code.matchAll(/'((?:lt|ctx|nx|nw|g|st|k)\.[\w.]+)'/g)) {
     found.add(match[1]);
   }
 
-  // Keys kept in a table or built from a kind, such as the verbs of the "Latest" lines: written out in the template.
-  for (const match of TEMPLATE.matchAll(/'((?:lt|ctx|nx|nw)\.[\w.]+)'/g)) {
-    found.add(match[1]);
+  for (const match of code.matchAll(/t\(`([a-z]\w*)\.\$\{/g)) {
+    for (const key of Object.keys(DICTIONARY.en).filter((one) => one.startsWith(`${match[1]}.`))) {
+      found.add(key);
+    }
   }
 
   return [...found].sort();
@@ -43,8 +59,8 @@ describe('the keys of the page are all defined', () => {
     expect(keys.length).toBeGreaterThan(10);
 
     for (const key of keys) {
-      expect(TEMPLATE, `English text of ${key}`).toContain(`DICT.en['${key}']`);
-      expect(TEMPLATE, `Vietnamese text of ${key}`).toContain(`DICT.vi['${key}']`);
+      expect(key in DICTIONARY.en, `English text of ${key}`).toBe(true);
+      expect(key in DICTIONARY.vi, `Vietnamese text of ${key}`).toBe(true);
     }
   });
 });
@@ -157,13 +173,14 @@ interface ISweep {
 }
 
 /**
- * Runs in the page: goes through the list, the diagram, the board, the agent graph, a detail pane, the popup of an agent
+ * Runs in the page: goes through the list, the diagram, the board, a detail pane, the popup of an agent
  * and the keys dialog; after each step it reads every text and every label, and reports what is a dotted key, or a key of
  * the English dictionary shown in English as itself (a Vietnamese key left as it was).
  */
 const SWEEP = (lang: string) => `(async () => {
+  const DICT_EN = ${JSON.stringify(DICTIONARY.en)};
   const wait = () => new Promise((resolve) => setTimeout(resolve, 60));
-  while (document.documentElement.lang !== undefined && (typeof lang === 'undefined' ? '' : lang) !== '${lang}') {
+  while (document.documentElement.lang !== '${lang}') {
     document.getElementById('bLang').click();
     await wait();
   }
@@ -184,7 +201,7 @@ const SWEEP = (lang: string) => `(async () => {
     }
     for (const text of seen) {
       if (text === '') continue;
-      const english = '${lang}' === 'en' && Object.prototype.hasOwnProperty.call(DICT.en, text) && DICT.en[text] !== text && /[^\\x00-\\x7f]/.test(text);
+      const english = '${lang}' === 'en' && Object.prototype.hasOwnProperty.call(DICT_EN, text) && DICT_EN[text] !== text && /[^\\x00-\\x7f]/.test(text);
       if (dotted.test(text) || english) raw.push({ where: step, text });
     }
   };
@@ -198,14 +215,6 @@ const SWEEP = (lang: string) => `(async () => {
   document.querySelector('.row').click();
   await wait();
   sweep('detail');
-  document.getElementById('tAgents').click();
-  await wait();
-  await wait();
-  sweep('agents');
-  const node = document.querySelector('#graph .node');
-  if (node) { node.dispatchEvent(new MouseEvent('click', { bubbles: true })); await wait(); sweep('graph pick'); }
-  document.getElementById('tFlows').click();
-  await wait();
   const cell = document.querySelector('#dock .cell');
   if (cell) { cell.click(); await wait(); sweep('popup'); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); }
   document.getElementById('bPlumb').click();
@@ -247,8 +256,6 @@ describe.skipIf(!hasBrowser)(
             'view board',
             'view list',
             'detail',
-            'agents',
-            'graph pick',
             'popup',
             'all events',
             'keys',

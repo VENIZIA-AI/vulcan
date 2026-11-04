@@ -253,10 +253,11 @@ const EXPRESSION = `(async () => {
   out.hostile.images += document.querySelectorAll('.kcard img').length;
   document.querySelector('#vmode button:nth-child(1)').click();
   await wait();
-  openPop('agent-a-1', document.querySelector('#dock .cell'));
+  document.querySelector('#dock .cell').click();
   await wait();
   out.pop = [...document.querySelectorAll('#pop .pevs li')].map((li) => li.textContent);
-  closePop();
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+  await wait();
   document.getElementById('bLang').click();
   await wait();
   out.vi = { one: await pane('F-1'), rows: rowsOf() };

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import type { IBoardAgent, IBoardData } from '../../../board/common/index.ts';
 import { BoardLanguages } from '../../../board/ui/common/constants.ts';
 import type { IBoardViewEvent } from '../../../board/ui/common/types.ts';
+import { DICTIONARY } from '../../../board/ui/i18n/dictionary.ts';
 import { BoardI18n } from '../../../board/ui/i18n/translate.ts';
 import { BoardLatest } from '../../../board/ui/state/latest.ts';
 import { BoardTime } from '../../../board/ui/state/time.ts';
@@ -154,5 +155,15 @@ describe('BoardView', () => {
 
     expect(rowsOf(false)).toEqual(['bo']);
     expect(rowsOf(true)).toEqual(['bo', 'cy']);
+  });
+});
+
+describe('the dictionary', () => {
+  test('every id of the Vietnamese overrides has an English text, and none maps to itself', () => {
+    const ids = Object.keys(DICTIONARY.vi);
+
+    expect(ids.length).toBeGreaterThan(50);
+    expect(ids.filter((id) => !(id in DICTIONARY.en))).toEqual([]);
+    expect(Object.entries(DICTIONARY.vi).filter(([key, text]) => key === text)).toEqual([]);
   });
 });

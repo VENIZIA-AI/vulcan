@@ -36,9 +36,10 @@ const hasBrowser = await BrowserPage.available();
 afterAll(() => BrowserPage.close());
 
 /** Runs in the page: opens every group, then reads where the cells of each row are and whether anything sticks out. */
-const MEASURE = `(() => {
-  for (const key of Object.keys(openGroups)) openGroups[key] = true;
-  renderList();
+const MEASURE = `(async () => {
+  const wait = () => new Promise((resolve) => setTimeout(resolve, 80));
+  document.querySelectorAll('.gh[aria-expanded="false"]').forEach((button) => button.click());
+  await wait();
   const rows = [...document.querySelectorAll('#groups .row')];
   const columns = {};
   let rightmost = 0;
@@ -52,7 +53,8 @@ const MEASURE = `(() => {
     }
   }
   const codesTooWide = [...document.querySelectorAll('#groups .row .code')].filter((c) => c.scrollWidth > c.clientWidth + 1).map((c) => c.textContent);
-  select(FL[0].id, true);
+  document.querySelector('#groups .row').click();
+  await wait();
   const detail = document.getElementById('detail');
   return JSON.stringify({
     innerWidth: window.innerWidth,

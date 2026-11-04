@@ -96,7 +96,7 @@ In the **Latest events** panel and in the board view, a flow with only `flow` li
 
 ### Agent plumbing
 
-Session starts and stops, subagent stops and a prompt the harness waits on are not work. By default the page leaves them out of the flows, the list, the diagram, the agents' graph and the counts, and they never move a flow: an idle prompt does not make a flow wait for you. The button **Show all events** puts them back, as lines of agent activity and, for lines with no flow, as an `Unsorted` flow in the running group; press it again to hide them. The choice is saved in the browser. A `needs-owner` line that someone wrote with a question stays visible, and still makes the flow wait for you.
+Session starts and stops, subagent stops and a prompt the harness waits on are not work. By default the page leaves them out of the flows, the list, the diagram and the counts, and they never move a flow: an idle prompt does not make a flow wait for you. The button **Show all events** puts them back, as lines of agent activity and, for lines with no flow, as an `Unsorted` flow in the running group; press it again to hide them. The choice is saved in the browser. A `needs-owner` line that someone wrote with a question stays visible, and still makes the flow wait for you.
 
 ## What the page shows
 
@@ -129,7 +129,7 @@ export default {
 | `hostname` | The name in the address of `vulcan board serve`. It must be lowercase and end in `.localhost`: a browser resolves such a name to your own machine by itself, while a name that reaches `127.0.0.1` through DNS or a hosts file is what a DNS-rebinding page uses, so it is refused | `vulz-board.venizia.ai.localhost` |
 | `agents` | The agents of the board by name. A value is a face (`bun`, `flame`, `ember`, `rock` or `banana`), or `{ shape?, lane? }`. The listed names are the roster; `lane` rolls a helper into the row of a listed name | every agent shows with `bun`; the owner is a person |
 
-**The roster.** Once `agents` lists a name, the agent list, the graph and the count show only the listed names that have no `lane`. Every other agent in the log is hidden until you press **Show all events**. An empty `agents` shows every agent in the log, as before.
+**The roster.** Once `agents` lists a name, the dock and the count show only the listed names that have no `lane`. Every other agent in the log is hidden until you press **Show all events**. An empty `agents` shows every agent in the log, as before.
 
 **Lanes.** `'pnt-api-1': { lane: 'api' }` draws the lines of `pnt-api-1` as `api`'s: one row, with "+1 helper" on it, and no row for the helper. A flow whose holder is the helper shows `api` as its holder; in the detail of a flow, a line still shows the helper's own name. A `lane` must name a listed key that has no `lane` of its own; a chain or a cycle fails the config and names the key. The face is optional (`{ lane: 'api' }`), and `{}` is a roster entry with the default face.
 
