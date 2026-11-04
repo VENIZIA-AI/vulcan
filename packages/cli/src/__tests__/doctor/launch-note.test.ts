@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
+import { ProjectContract } from '../../doctor/checks.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 
@@ -66,9 +67,17 @@ describe('vulcan doctor: the launch file note', () => {
     }
   });
 
-  test('a folder beside the project, or the project itself without .agents/local, is outside', async () => {
-    for (const folder of [`${root}-other/.agents/local/tmp`, root, join(root, 'src')]) {
-      const result = await notesOf({ CLAUDECODE: '1', CLAUDE_CODE_TMPDIR: folder });
+  test('a folder beside the project, or the project itself without .agents/local, is outside', () => {
+    // A project on no disk: the answer comes from the path alone, so it is the same in a worktree, where the
+    // temp folder of the tests sits under another checkout.
+    const project = '/srv/vulcan-fixture/checkout';
+
+    for (const folder of [`${project}-other/.agents/local/tmp`, project, join(project, 'src')]) {
+      const result = ProjectContract.checkLaunchSettings({
+        root: project,
+        env: { CLAUDECODE: '1', CLAUDE_CODE_TMPDIR: folder },
+      });
+
       expect(result, folder).toHaveLength(1);
     }
   });
