@@ -1,20 +1,26 @@
 import { GoldenProjects } from './golden.helper';
 import type { IGoldenQuestion } from './golden.helper';
 
+/** The improvements that answer a question that is open. */
+export class GoldenImprovements {
+  static readonly DECLARATIONS = 'symbol serves the declaration with its TSDoc';
+  static readonly COMPATIBILITY = 'version serves what a package requires of its neighbours';
+}
+
 /**
- * The questions agents of consuming apps asked on 2026-11-04, scored against atlas 0.4.10-2: Q1 and Q6 answered,
- * Q2 and Q4 partial, Q3 and Q5 missed. A question is open while `closedBy` names the improvement that answers it;
- * the improvement removes the mark in the same change, because the test fails on an open question that is answered.
+ * Questions agents of consuming apps ask about a framework. A question is open while `closedBy` names the
+ * improvement that answers it; that improvement removes the mark in the same change, because the test fails on an
+ * open question that is answered.
  *
- * The facts come from the sources, not from atlas: the kernel's `getDefaultAsyncContextEnabled` table (changelog
- * 2026-08-13), `scope-through.ts`, `assert-application-boots.ts`, `npm view @venizia/ignis@0.4.8-0 dependencies`
- * and the package.json files of ARDOR 0.4.8-1.
+ * The facts come from the sources, not from atlas: the kernel's changelog table of `getDefaultAsyncContextEnabled`,
+ * `scope-through.ts`, `assert-application-boots.ts`, the published manifest of `@venizia/ignis` and the package.json
+ * files of ARDOR.
  *
  * Q3 and Q7 are the contract of `ScopeThrough.of`: `entity` must have `relationDefinitions: Record<string, { type:
- * string }> | undefined` whose `type` is the literal `'one'` for the relation named. Checked with tsc on 2026-11-05
- * against the kernel's declarations: a static `relationDefinitions` typed `as const`, or annotated with a type alias
- * of the object shape, compiles; `satisfies` (the type widens to `string`), an annotation with an interface (no index
- * signature) and an unannotated literal (widens to `string`) do not.
+ * string }> | undefined` whose `type` is the literal `'one'` for the relation named. Checked with tsc against the
+ * kernel's declarations: a static `relationDefinitions` typed `as const`, or annotated with a type alias of the object
+ * shape, compiles; `satisfies` (the type widens to `string`), an annotation with an interface (no index signature)
+ * and an unannotated literal (widens to `string`) do not.
  */
 export const GOLDEN_QUESTIONS: IGoldenQuestion[] = [
   {
@@ -35,8 +41,14 @@ export const GOLDEN_QUESTIONS: IGoldenQuestion[] = [
     question: 'Does ApplicationBootAssertion.assert run the access boot check?',
     project: GoldenProjects.IGNIS,
     ask: { tool: 'symbol', args: { name: 'ApplicationBootAssertion' } },
-    holds: ['every other step and every component runs as in a real boot', 'skipSteps'],
-    closedBy: 2,
+    // The access boot check is the boot step `validateScopeFilterSupport`: the answer must name it beside the rule that
+    // every step but the skipped ones runs.
+    holds: [
+      'every other step and every component runs as in a real boot',
+      'skipSteps',
+      'validateScopeFilterSupport',
+    ],
+    closedBy: GoldenImprovements.DECLARATIONS,
   },
   {
     id: 'Q3',
@@ -44,29 +56,24 @@ export const GOLDEN_QUESTIONS: IGoldenQuestion[] = [
     project: GoldenProjects.IGNIS,
     ask: { tool: 'symbol', args: { name: 'ScopeThrough' } },
     holds: ['IEntityWithRelations', 'relationDefinitions: Record<string, {'],
-    closedBy: 2,
+    closedBy: GoldenImprovements.DECLARATIONS,
   },
   {
     id: 'Q4',
     question: 'Which IGNIS packages pin each other exactly?',
     project: GoldenProjects.IGNIS,
     ask: { tool: 'version', args: { cwd: 'packages/core-server' } },
-    // Provisional: the shape of the reply is item 3's to decide. `installed` already shows these versions, so the
-    // phrase `"requires"` is what tells a pin from an installed version.
-    holds: ['"requires"', '"@venizia/ignis-filter":"0.4.7-0"', '"@venizia/ignis-kernel":"0.4.8-0"'],
-    closedBy: 3,
+    // `installed` already names these packages, so `"requires"` is what tells a pin from an installed version.
+    holds: ['"requires"', '"@venizia/ignis-filter"', '"@venizia/ignis-kernel"'],
+    closedBy: GoldenImprovements.COMPATIBILITY,
   },
   {
     id: 'Q5',
     question: 'What are the peer ranges of ARDOR 0.4.8-1 on IGNIS?',
     project: GoldenProjects.ARDOR,
     ask: { tool: 'version', args: { cwd: 'packages/kernel' } },
-    holds: [
-      '"requires"',
-      '"@venizia/ignis-kernel":"^0.4.8-0"',
-      '"@venizia/ignis-filter":"^0.4.7-0"',
-    ],
-    closedBy: 3,
+    holds: ['"requires"', '"@venizia/ignis-kernel"', '"@venizia/ignis-filter"'],
+    closedBy: GoldenImprovements.COMPATIBILITY,
   },
   {
     id: 'Q6',
@@ -87,6 +94,6 @@ export const GOLDEN_QUESTIONS: IGoldenQuestion[] = [
     project: GoldenProjects.IGNIS,
     ask: { tool: 'symbol', args: { name: 'TOneRelationNameOf' } },
     holds: ['typeof RelationTypes.ONE', 'the only ones a child can be scoped through'],
-    closedBy: 2,
+    closedBy: GoldenImprovements.DECLARATIONS,
   },
 ];

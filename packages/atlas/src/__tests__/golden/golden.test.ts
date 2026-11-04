@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { GOLDEN_QUESTIONS } from './golden-questions';
+import { GOLDEN_QUESTIONS, GoldenImprovements } from './golden-questions';
 import { GoldenProjects, GoldenRunner, GoldenVerdicts } from './golden.helper';
 import type { IGoldenQuestion, TGoldenVerdict } from './golden.helper';
 
@@ -22,14 +22,20 @@ describe('golden questions: the mechanism, on the acme fixture', () => {
   });
 
   test('a question marked open, with no text that answers it, stays open', async () => {
-    const question = acmeQuestion({ holds: ['a sentence no page has'], closedBy: 2 });
+    const question = acmeQuestion({
+      holds: ['a sentence no page has'],
+      closedBy: GoldenImprovements.DECLARATIONS,
+    });
 
     const result = await GoldenRunner.verdictOf({ question });
     expect(result).toBe(GoldenVerdicts.OPEN);
   });
 
   test('a question marked open that is now answered is stale: the improvement removes the mark', async () => {
-    const question = acmeQuestion({ holds: ['boots the flywheel engine'], closedBy: 2 });
+    const question = acmeQuestion({
+      holds: ['boots the flywheel engine'],
+      closedBy: GoldenImprovements.DECLARATIONS,
+    });
 
     const result = await GoldenRunner.verdictOf({ question });
     expect(result).toBe(GoldenVerdicts.STALE_OPEN);
@@ -69,13 +75,13 @@ describe('golden questions: the mechanism, on the acme fixture', () => {
 });
 
 describe('golden questions: the scoreboard', () => {
-  const verdicts = new Map<string, TGoldenVerdict | 'skipped'>();
+  const verdicts = new Map<string, TGoldenVerdict>();
 
   for (const question of GOLDEN_QUESTIONS) {
     const present = GoldenProjects.isPresent({ project: question.project });
 
     if (!present) {
-      verdicts.set(question.id, 'skipped');
+      verdicts.set(question.id, GoldenVerdicts.SKIPPED);
     }
 
     test.skipIf(!present)(`${question.id}: ${question.question}`, async () => {
@@ -94,7 +100,7 @@ describe('golden questions: the scoreboard', () => {
 
     console.log(
       `golden questions: ${count(GoldenVerdicts.ANSWERED)} answered, ${count(GoldenVerdicts.OPEN)} open, ` +
-        `${count('skipped')} skipped (no checkout), of ${GOLDEN_QUESTIONS.length}`,
+        `${count(GoldenVerdicts.SKIPPED)} skipped (no checkout), of ${GOLDEN_QUESTIONS.length}`,
     );
   });
 });

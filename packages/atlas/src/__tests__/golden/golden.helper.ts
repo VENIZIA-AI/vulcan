@@ -36,6 +36,8 @@ export type TGoldenProject = TConstValue<typeof GoldenProjects>;
 
 /** Where a question stands against what atlas serves. Only the first two are a passing state. */
 export class GoldenVerdicts {
+  /** Not asked: the project's checkout is not here. */
+  static readonly SKIPPED = 'skipped';
   /** Not marked open, and a served text holds every phrase. */
   static readonly ANSWERED = 'answered';
   /** Marked open, and no served text holds every phrase yet. */
@@ -61,8 +63,8 @@ export interface IGoldenQuestion {
   ask: { tool: string; args: Record<string, unknown> };
   /** For a `search` the served texts are the bodies of its top hits, each alone; otherwise the reply. */
   holds: string[];
-  /** The improvement that answers it. Present while the question is open; removing it is part of that improvement. */
-  closedBy?: number;
+  /** The improvement that answers it (a `GoldenImprovements` value). Present while the question is open; removing it is part of that improvement. */
+  closedBy?: string;
 }
 
 interface IToolReply {
@@ -111,8 +113,8 @@ export class GoldenRunner {
       method: 'tools/call',
       params: { name: opts.tool, arguments: args },
     });
-    const result2 = await transport.handleLine({ line });
-    const reply: IToolReply = JSON.parse(result2 ?? '{}');
+    const raw = await transport.handleLine({ line });
+    const reply: IToolReply = JSON.parse(raw ?? '{}');
 
     if (reply.error !== undefined) {
       throw new Error(`${opts.tool} failed: ${reply.error.message}`);
