@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { COMMAND_LOADERS } from '../../commands/index.ts';
 import { CommandTable } from '../../commands/table.ts';
 import { runCli } from '../run.helper.ts';
@@ -62,6 +64,20 @@ describe('CommandTable: help, the parser and the generated reference read one ta
     expect(CommandTable.accepted({ name: 'board' })?.values).toContain('--port');
     expect(CommandTable.accepted({ name: 'x' })).toBeUndefined();
     expect(CommandTable.accepted({ name: 'commit-check' })?.unknownExit).toBe(2);
+  });
+
+  test('the help block of the commands page is the help text, but for the version line', () => {
+    const page = readFileSync(
+      join(import.meta.dir, '../../../../../docs/wiki/content/references/commands/index.md'),
+      'utf8',
+    );
+    const start = page.indexOf('```text\nvulcan ');
+    const block = page.slice(start, page.indexOf('\n```', start + 5));
+
+    expect(start).toBeGreaterThan(-1);
+    expect(block.split('\n').slice(2).join('\n')).toBe(
+      CommandTable.helpText().trimEnd().split('\n').slice(1).join('\n'),
+    );
   });
 
   test('a flag a command lets through and does not read stays accepted, and is not in its help', () => {
