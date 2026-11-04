@@ -155,11 +155,12 @@ export class EventConstants {
   static readonly FLOW_EXACT = new RegExp(`^(?:${EventConstants.FLOW_ID})$`);
   /** `Flow: <id>` in a message's first line. */
   static readonly FLOW_LINE = new RegExp(`\\bFlow:\\s*(${EventConstants.FLOW_ID})\\b`);
-  /** The counter of flow numbers, beside the day files, and the lock around it. */
-  static readonly FLOW_SEQ_FILE = '.flow-seq';
-  static readonly FLOW_LOCK_STALE_MS = 10_000;
-  static readonly FLOW_LOCK_WAIT_MS = 3000;
-  static readonly FLOW_LOCK_POLL_MS = 25;
+  /** An older flow id, `F-<number>`. */
+  static readonly FLOW_LEGACY = /^F-\d+$/;
+  /** The folder of claims beside the day files: one file per flow number given, so a number is never given twice. */
+  static readonly FLOW_CLAIM_DIR = '.flow-ids';
+  /** How many recent flows a refusal lists. */
+  static readonly FLOW_RECENT_COUNT = 5;
   /** Where the log goes for a hook that has no better answer: the name of an actor with no session name. */
   static readonly UNKNOWN_ACTOR = 'unknown';
   static readonly ACTOR_ENV = 'VULCAN_ACTOR';
