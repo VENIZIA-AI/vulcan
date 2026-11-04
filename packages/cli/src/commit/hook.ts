@@ -8,6 +8,8 @@ import type { ICommitHookStatus } from './common/index.ts';
 
 const HOOK_NAME = 'commit-msg';
 const MARKER = '# vulcan:commit-msg';
+/** The marker line, then the folder of the project that wrote it in brackets; a hook of an earlier release has no brackets. */
+const OWNER = /^# vulcan:commit-msg(?: \[([^\]]*)\])?/;
 const CALL = /vulcan\s+commit-check/;
 const COMMAND = 'bun x --no-install vulcan commit-check "$1"';
 
@@ -39,11 +41,11 @@ export class CommitHook {
    * no `commit-check` command (an older branch).
    */
   static template(opts: { prefix: string }): string {
-    const folder = opts.prefix.replace(/\/$/, '');
+    const folder = CommitHook.folderOf({ prefix: opts.prefix });
     const enter = folder === '' ? '' : `cd ${CommitHook.quote({ text: folder })} || exit 0\n`;
 
     return `#!/bin/sh
-${MARKER} - written by vulcan sync from commit.message in .configs/vulcan.config.mts; do not edit
+${MARKER} [${folder}] - written by vulcan sync from commit.message in .configs/vulcan.config.mts; do not edit
 message="$1"
 case "$message" in /*) ;; *) message="$PWD/$message" ;; esac
 top="$(git rev-parse --show-toplevel)"
@@ -71,6 +73,22 @@ exit "$status"
 `;
   }
 
+  /** The project folder inside the repository, without the trailing slash; empty for the top level. */
+  private static folderOf(opts: { prefix: string }): string {
+    return opts.prefix.replace(/\/$/, '');
+  }
+
+  /**
+   * The project folder a hook of ours was written for (empty: the repository's top level), or `undefined` when
+   * the file is not ours. A hook of an earlier release carries no folder and is the top level's: it is the only
+   * kind there was, and a project below the top level that wrote one is not told apart from it.
+   */
+  static ownerOf(opts: { text: string }): string | undefined {
+    const matched = OWNER.exec(opts.text.split('\n')[1] ?? '');
+
+    return matched === null ? undefined : (matched[1] ?? '');
+  }
+
   private static quote(opts: { text: string }): string {
     return `'${opts.text.replaceAll("'", "'\\''")}'`;
   }
@@ -92,7 +110,11 @@ exit "$status"
     const hooksPath = git({ root: opts.root, args: ['config', '--get', 'core.hooksPath'] });
     const entry = lstatSync(path, { throwIfNoEntry: false });
     const text = entry?.isFile() === true ? readFileSync(path, 'utf8') : undefined;
-    const isOurs = hooksPath === undefined && text?.split('\n')[1]?.startsWith(MARKER) === true;
+    const folder = CommitHook.folderOf({ prefix });
+    const owner = text === undefined ? undefined : CommitHook.ownerOf({ text });
+    // Ours is a hook this project wrote. One another project of the repository wrote is neither removed nor replaced.
+    const isOurs = hooksPath === undefined && owner === folder;
+    const isOtherProjects = hooksPath === undefined && owner !== undefined && owner !== folder;
 
     if (!isWanted) {
       return { state: isOurs ? CommitHookStates.LEFTOVER : CommitHookStates.OFF, path };
@@ -119,6 +141,14 @@ exit "$status"
         state: CommitHookStates.UNWIRED,
         path,
         note: `a symbolic link or folder, not touched: ${addLine}`,
+      };
+    }
+
+    if (isOtherProjects) {
+      return {
+        state: CommitHookStates.UNWIRED,
+        path,
+        note: `the hook belongs to ${owner === '' ? 'the project at the top of the repository' : `the project in ${owner}`}, not touched: a repository has one ${HOOK_NAME} hook`,
       };
     }
 
