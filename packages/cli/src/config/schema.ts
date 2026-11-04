@@ -228,7 +228,6 @@ const VIZ_OUTPUT = '.agents/knowledge/viz.html';
 const TOKEN_COLOUR = z.string().regex(ThemeTokens.COLOUR, 'a hex colour like #8a5a20');
 
 /** `.configs/vulcan.config.*` - strict: an unknown key is a typo, and a typo is an error. */
-
 export const VULCAN_CONFIG_SCHEMA = z.strictObject({
   /** The project's name in the manifest and in every atlas result; default: the root package name, unscoped. */
   name: z
