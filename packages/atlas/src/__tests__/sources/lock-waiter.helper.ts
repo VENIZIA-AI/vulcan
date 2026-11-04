@@ -7,7 +7,11 @@ import { PullLock } from '@/sources/lock';
  * the lock and holds it for a moment. Whoever finds the marker folder already there is overlapping another holder.
  * Arguments: cache root, folder for the records, start time (ms since the epoch), name.
  */
-const [cacheRoot, records, start, name] = process.argv.slice(2) as [string, string, string, string];
+const [cacheRoot, records, start, name] = process.argv.slice(2);
+
+if (cacheRoot === undefined || records === undefined || start === undefined || name === undefined) {
+  throw new Error('usage: lock-waiter.helper.ts <cache root> <records> <start time> <name>');
+}
 
 while (Date.now() < Number(start)) {
   // Spin to the start time: waiters released in the same millisecond are the case under test.
@@ -22,7 +26,12 @@ const main = async (): Promise<void> => {
 
       try {
         mkdirSync(marker);
-      } catch {
+      } catch (error) {
+        // Only "already there" is an overlap; any other failure is a crash and must show as one.
+        if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) {
+          throw error;
+        }
+
         appendFileSync(join(records, 'overlap'), `${name}\n`);
       }
 

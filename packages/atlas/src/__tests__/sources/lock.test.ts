@@ -121,12 +121,18 @@ describe('PullLock.with: waiters of a lock a dead pull left', () => {
           cmd: [process.execPath, WORKER, cacheRoot, records, String(start), `w${index}`],
           cwd: join(__dirname, '..', '..', '..'),
           stdout: 'ignore',
-          stderr: 'ignore',
+          stderr: 'pipe',
         }),
       );
-      const codes = await Promise.all(children.map((child) => child.exited));
+      const [codes, errors] = await Promise.all([
+        Promise.all(children.map((child) => child.exited)),
+        Promise.all(children.map((child) => new Response(child.stderr).text())),
+      ]);
 
-      expect(codes).toEqual(Array.from({ length: WAITERS }, () => 0));
+      // A crash shows its reason, not only its exit code. The lines of a normal take-over are logged, not errors.
+      expect(codes, errors.filter((text) => !text.includes('took over')).join('\n')).toEqual(
+        Array.from({ length: WAITERS }, () => 0),
+      );
       expect(linesOf(join(records, 'ran'))).toHaveLength(WAITERS);
       overlaps.push(...linesOf(join(records, 'overlap')).map((name) => `round ${round}: ${name}`));
     }
@@ -134,17 +140,16 @@ describe('PullLock.with: waiters of a lock a dead pull left', () => {
     expect(overlaps).toEqual([]);
   }, 120_000);
 
-  test('a guard a dead waiter left does not hold the lock for ever', async () => {
+  test('a guard whose waiter died does not hold the lock for ever', async () => {
     const cacheRoot = makeTempDirectory({ prefix: 'atlas-lock-' });
     const lock = join(cacheRoot, 'pull.lock');
     const guard = `${lock}.reap`;
-    const old = new Date(Date.now() - 31_000);
     let ran = false;
 
     mkdirSync(lock);
     writeFileSync(join(lock, 'owner.json'), JSON.stringify({ pid: 2 ** 22 + 1, token: 'dead' }));
     mkdirSync(guard);
-    utimesSync(guard, old, old);
+    writeFileSync(join(guard, 'owner.json'), JSON.stringify({ pid: 2 ** 22 + 2, token: 'dead' }));
 
     await PullLock.with({
       cacheRoot,
@@ -157,5 +162,35 @@ describe('PullLock.with: waiters of a lock a dead pull left', () => {
     expect(ran).toBe(true);
     expect(existsSync(lock)).toBe(false);
     expect(existsSync(guard)).toBe(false);
+  });
+
+  test('a guard a live waiter holds keeps the stale lock where it is, until the guard is gone', async () => {
+    const cacheRoot = makeTempDirectory({ prefix: 'atlas-lock-' });
+    const lock = join(cacheRoot, 'pull.lock');
+    const guard = `${lock}.reap`;
+    let ran = false;
+
+    mkdirSync(lock);
+    writeFileSync(join(lock, 'owner.json'), JSON.stringify({ pid: 2 ** 22 + 1, token: 'dead' }));
+    mkdirSync(guard);
+    writeFileSync(join(guard, 'owner.json'), JSON.stringify({ pid: process.pid, token: 'other' }));
+
+    const pulling = PullLock.with({
+      cacheRoot,
+      label: 'behind a live guard',
+      run: async () => {
+        ran = true;
+      },
+    });
+
+    await Bun.sleep(350);
+
+    expect(ran).toBe(false);
+    expect(existsSync(join(lock, 'owner.json'))).toBe(true);
+
+    rmSync(guard, { recursive: true, force: true });
+    await pulling;
+
+    expect(ran).toBe(true);
   });
 });

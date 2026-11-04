@@ -10,8 +10,6 @@ const STALE_AFTER_MS = 10 * 60_000;
 const WAIT_MS = 10 * 60_000;
 /** The folder beside the lock that only one waiter at a time holds while it removes a stale lock. */
 const REAP_SUFFIX = '.reap';
-/** A reap takes milliseconds: a guard older than this was left by a waiter that died inside it. */
-const REAP_STALE_AFTER_MS = 30_000;
 const POLL_MS = 100;
 
 interface ILockOwner {
@@ -75,25 +73,16 @@ const isStale = (opts: { lock: string }): boolean => {
   return age !== undefined && age > STALE_AFTER_MS;
 };
 
-/** Makes the folder, or says it is already there: of all who ask at once, exactly one is told true. */
-const makeExclusive = (opts: { path: string }): boolean => {
+/** Takes the lock - an exclusive `mkdir` - or says it is held. The reap guard is taken the same way. */
+const tryAcquire = (opts: { lock: string; token: string }): boolean => {
   try {
-    mkdirSync(opts.path);
-
-    return true;
+    mkdirSync(opts.lock);
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'EEXIST') {
       return false;
     }
 
     throw error;
-  }
-};
-
-/** Takes the lock - an exclusive `mkdir` - or says it is held. */
-const tryAcquire = (opts: { lock: string; token: string }): boolean => {
-  if (!makeExclusive({ path: opts.lock })) {
-    return false;
   }
 
   const owner: ILockOwner = { pid: process.pid, token: opts.token };
@@ -106,16 +95,18 @@ const tryAcquire = (opts: { lock: string; token: string }): boolean => {
 /**
  * Removes a stale lock, and says whether it did. Waiters that judged the same dead holder meet here one at a time:
  * each judges again under the guard, so a late one finds the lock gone or held by a live pull and removes nothing.
- * Without the guard, its removal hits the lock the first waiter made after it judged.
+ * The guard carries its holder's token: a waiter whose guard was taken from it removes nothing, and removes no guard
+ * but its own.
  */
-const reap = (opts: { lock: string }): boolean => {
+const reap = (opts: { lock: string; token: string }): boolean => {
   const guard = `${opts.lock}${REAP_SUFFIX}`;
+  const holdsGuard = (): boolean => ownerOf({ lock: guard })?.token === opts.token;
 
-  if (!makeExclusive({ path: guard })) {
-    const age = ageOf({ lock: guard });
-
-    if (age !== undefined && age > REAP_STALE_AFTER_MS) {
-      // SHORTCUT: a dead waiter's guard goes by age alone, so two waiters that find it at once can remove a fresh one; it takes a waiter dying inside a reap first, so revisit if a guard is ever left twice.
+  if (!tryAcquire({ lock: guard, token: opts.token })) {
+    if (isStale({ lock: guard })) {
+      // SHORTCUT: a dead holder's guard goes by path: two waiters finding it at once can remove a fresh one, and a clock
+      // skew can age a live one. The token check before the lock's removal leaves only a pause between check and removal;
+      // revisit if a lock is ever seen removed under a live pull.
       rmSync(guard, { recursive: true, force: true });
     }
 
@@ -123,7 +114,7 @@ const reap = (opts: { lock: string }): boolean => {
   }
 
   try {
-    if (!isStale({ lock: opts.lock })) {
+    if (!isStale({ lock: opts.lock }) || !holdsGuard()) {
       return false;
     }
 
@@ -131,7 +122,9 @@ const reap = (opts: { lock: string }): boolean => {
 
     return true;
   } finally {
-    rmSync(guard, { recursive: true, force: true });
+    if (holdsGuard()) {
+      rmSync(guard, { recursive: true, force: true });
+    }
   }
 };
 
@@ -165,7 +158,7 @@ export class PullLock {
     mkdirSync(opts.cacheRoot, { recursive: true });
 
     while (!tryAcquire({ lock, token })) {
-      if (isStale({ lock }) && reap({ lock })) {
+      if (isStale({ lock }) && reap({ lock, token })) {
         logger.warn(`took over a lock a dead pull left | lock: ${lock}`);
         continue;
       }
