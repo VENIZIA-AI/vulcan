@@ -778,6 +778,15 @@ The `doctor` object tells [`vulcan doctor`](/references/commands/doctor#private-
 |---|---|---|---|
 | `privateValues.acknowledged` | `Array<{ path, kinds?, reason }>` | `[]` | Files that may keep private values. `path` is a glob relative to the repo root (no absolute path, no `..`); `kinds` is some of `private-key`, `token`, `url-credentials`, `ipv4`, `machine-path` (all when absent); `reason` is required and not blank. An acknowledged file is counted in one summary line, never dropped silently |
 
+## graph
+
+The `graph` object tells `vulcan x atlas graph build` how to read the code ([the code graph](/references/atlas/#graph)).
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `exclude` | `string[]` | `[]` | Globs of tracked files, from the project root, that the graph leaves out (generated code, fixtures) |
+| `aliases` | `Record<string, string>` | `{}` | An import prefix that ends with a slash, mapped to a folder of the importing package. `{ '@/': 'src/' }` makes `@/lib/x` in `packages/a/src/y.ts` lead to `packages/a/src/lib/x`. A prefix not listed is counted as an external import. The folder is relative and never climbs |
+
 ## local
 
 The `local` object configures what VULCAN keeps tidy in `.agents/local/` by itself ([The .agents folder](/guides/core-concepts/the-agents-folder#the-automatic-clean)).

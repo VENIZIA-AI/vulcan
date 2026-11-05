@@ -38,6 +38,8 @@ export default {
     // the private key is the Actions secret ATLAS_INDEX_KEY and exists nowhere else.
     index: { keys: ['RO71nPFQIg09uea7CNjO1QwvEOtD85330LwiiD0cPSQ='] },
   },
+  // The code graph follows `@/x` into `src/x` of the importing package, as the packages' tsconfig `paths` do.
+  graph: { aliases: { '@/': 'src/' } },
   // The release path is the owner's: an agent does not approve a waiting deployment or write a secret, an environment, a
   // ruleset, a branch protection, a collaborator role or the Actions permissions (rule W-08). A write to one of these through
   // `gh api` is an explicit -X POST, PUT, PATCH or DELETE or any body flag (gh turns -f, -F, --field, --raw-field and --input

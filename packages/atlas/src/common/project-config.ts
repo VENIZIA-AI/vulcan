@@ -56,6 +56,8 @@ export interface IAtlasProject {
   };
   /** The presets this project's apps came from; absent when none was recorded. */
   presets?: IAtlasPreset[];
+  /** `graph` of the config: files left out of the code graph and the import prefixes it follows; both empty by default. */
+  graph: { exclude: string[]; aliases: Record<string, string> };
   /** `release.tagPattern`, the template of a release tag. */
   tagPattern: string;
   /** `release.legacyTagPatterns`: templates of an earlier tag layout, read after `tagPattern`; absent in an older manifest. */
@@ -73,6 +75,23 @@ export interface IAtlasProject {
   /** `false` when the manifest turns the prebuilt-index download off for this project's sources; absent otherwise. */
   prebuilt?: false;
 }
+
+/** The manifest's `graph` block: strings only, anything else is left out. */
+const graphOf = (opts: { value: unknown }): IAtlasProject['graph'] => {
+  const block = WireValue.recordOf({ value: opts.value });
+  const aliases = WireValue.recordOf({ value: block.aliases });
+
+  return {
+    exclude: (Array.isArray(block.exclude) ? block.exclude : []).filter(
+      (item): item is string => typeof item === 'string',
+    ),
+    aliases: Object.fromEntries(
+      Object.entries(aliases).filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string',
+      ),
+    ),
+  };
+};
 
 const isNpmName = (opts: { name: string }): boolean =>
   opts.name.length <= NPM_NAME_MAX_LENGTH && NPM_NAME_PATTERN.test(opts.name);
@@ -221,6 +240,7 @@ export class ProjectConfig {
       }),
       ...layoutOf({ value: manifest.layout }),
       ...presetsOf({ value: manifest.presets }),
+      graph: graphOf({ value: manifest.graph }),
       tagPattern: WireValue.stringOf({ value: release.tagPattern }) ?? DEFAULT_TAG_PATTERN,
       ...legacyTagPatternsOf({ value: release.legacyTagPatterns }),
       ignoreTags: (Array.isArray(release.ignoreTags) ? release.ignoreTags : []).filter(

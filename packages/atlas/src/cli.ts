@@ -12,8 +12,9 @@ import type { IAtlasSource } from './sources/index';
 import { runApiCommand } from './api/index';
 import { runSurfaceCommand } from './surface/index';
 import { runSymbolsCommand } from './symbols/generator';
+import { runGraphCommand } from './graph/generator';
 
-const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|api|symbols|releases> | help`;
+const USAGE = `usage: ${AtlasConstants.SERVER_NAME} [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>] | pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm] | index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>] | index keygen | index publish [--key-env <name>] | tools [--root <dir>] | <surface|api|symbols|releases|graph> | help`;
 
 const usageError = (message: string): never => {
   console.error(`${AtlasConstants.SERVER_NAME}: ${message}\n${USAGE}`);
@@ -57,6 +58,7 @@ const GENERATOR_BY_COMMAND: Record<
   [AtlasCommands.API]: runApiCommand,
   [AtlasCommands.SYMBOLS]: runSymbolsCommand,
   [AtlasCommands.RELEASES]: runReleasesCommand,
+  [AtlasCommands.GRAPH]: runGraphCommand,
 };
 
 const argv = process.argv.slice(2);

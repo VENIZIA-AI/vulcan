@@ -45,6 +45,7 @@ export class AtlasCommands {
   static readonly API = 'api';
   static readonly SYMBOLS = 'symbols';
   static readonly RELEASES = 'releases';
+  static readonly GRAPH = 'graph';
   static readonly PULL = 'pull';
   static readonly INDEX = 'index';
   static readonly TOOLS = 'tools';
@@ -55,6 +56,7 @@ export class AtlasCommands {
     this.API,
     this.SYMBOLS,
     this.RELEASES,
+    this.GRAPH,
     this.PULL,
     this.INDEX,
     this.TOOLS,

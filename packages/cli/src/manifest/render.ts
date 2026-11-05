@@ -82,6 +82,17 @@ const commitBlockOf = (opts: { config: TResolvedConfig }): { commit?: Record<str
   };
 };
 
+/** The manifest's `graph` block, which atlas reads: only what the project sets. */
+const graphBlockOf = (opts: { config: TResolvedConfig }): { graph?: Record<string, unknown> } => {
+  const { exclude, aliases } = opts.config.graph;
+  const block = {
+    ...(exclude.length === 0 ? {} : { exclude }),
+    ...(Object.keys(aliases).length === 0 ? {} : { aliases }),
+  };
+
+  return Object.keys(block).length === 0 ? {} : { graph: block };
+};
+
 /** The manifest's `ci` block, which `vulcan ci affected` reads: only the globs the project adds. */
 const ciBlockOf = (opts: { config: TResolvedConfig }): { ci?: Record<string, unknown> } => {
   const { global } = opts.config.ci.affected;
@@ -265,6 +276,7 @@ export class ProjectManifest {
       ...boardBlockOf({ config }),
       // The automatic clean of .agents/local is on unless the project turns it off here.
       ...localBlockOf({ config }),
+      ...graphBlockOf({ config }),
       // Whether the Claude Code hooks write the agent event log, and the folder it goes to.
       ...eventsBlockOf({ config }),
       // The key a flow is named by; the hooks and `vulcan event` read it here, not from the config.

@@ -19,6 +19,7 @@ const projectOf = (opts: { name: string; packages: string[] }): IAtlasProject =>
   })),
   tagPattern: 'v{version}',
   ignoreTags: [],
+  graph: { exclude: [], aliases: {} },
   typescriptFrom: '/work',
   knowledge: { bundle: '/work/.agents/knowledge' },
   sources: [],
