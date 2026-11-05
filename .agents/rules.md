@@ -127,7 +127,7 @@ The code and writing rules are the shared VULCAN base, `V-C-01` … `V-C-19`, in
 | ID | Rule |
 |---|---|
 | **C-19** | **ISO dates** (`2026-10-17`) in every durable artifact. |
-| **C-20** | **Every export reachable from the `exports` of a published package (cli, okf, atlas) carries TSDoc,** because the generated API reference and the atlas `symbol` tool read it. Same format as `V-C-09`; written when the export is written or changed; it says only what the name and the types do not, no restating; the `@param`, `@default` and `@example` lines have no length limit. `make public-api-check` is the gate. |
+| **C-20** | **Every export reachable from the `exports` of the cli or the okf package carries TSDoc,** because the generated API reference and the atlas `symbol` tool read it. Same format as `V-C-09`; written when the export is written or changed; it says only what the name and the types do not, no restating; the `@param`, `@default` and `@example` lines have no length limit. `make public-api-check` is the gate. |
 
 ---
 
@@ -139,7 +139,7 @@ Most of these rules hold because agents read this file. Only these have tooling 
 |---|---|---|
 | `W-00` | `.githooks/commit-msg` (after `make setup-hooks`) and the CI step `make agent-signature-check` run `vulcan commit-check` (`commit.message.agent.signature: 'deny'` in `.configs/vulcan.config.mts`) on the commit messages; a pull request body is not checked | A signed commit message is refused; the CI step fails the branch |
 | `W-08` | `guard.writes.commands` in `.configs/vulcan.config.mts` (rendered into the manifest), read by the guard-writes hook; `scripts/checks/__tests__/release-guards-config.test.ts` runs the hook on the commands | Asks, never denies; a command that builds its name at run time is not seen |
-| `C-20` | `make public-api-check` (part of `make lint-all`, so of the pre-commit hook and the release gates) runs `vulcan x atlas api undocumented` | Blocks, for the exports of cli and okf; atlas is not in the target yet |
+| `C-20` | `make public-api-check` (part of `make lint-all`, so of the pre-commit hook and the release gates) runs `vulcan x atlas api undocumented` | Blocks |
 | `B-02` | `.githooks/pre-commit` runs `vulcan doctor` and `make lint-all` (after `make setup-hooks`); the release workflow runs every gate | Lint blocks a commit; the release blocks on every gate |
 | This file's rules | the session-start hook prints them into every Claude session | Reminds, never blocks |
 | everything else | this file | No |
