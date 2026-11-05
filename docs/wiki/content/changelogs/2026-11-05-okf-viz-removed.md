@@ -14,7 +14,7 @@ packages: ['@venizia/vulcan-okf', '@venizia/vulcan']
 
 ## What changed
 
-- **The command and the target are gone.** `vulcan x okf` takes `check`, `gen` and `coverage`; `viz` prints the usage and exits 2. The shared `vulcan.mk` no longer has `okf-viz`; `vulcan sync` brings the new file into your project.
+- **The command and the target are gone.** `vulcan x okf` takes `check`, `gen` and `coverage`; `viz` prints the usage and exits 2. The shared `vulcan.mk`, which your Makefile includes from `node_modules/@venizia/vulcan/base/make/vulcan.mk`, no longer has `okf-viz`: the target is gone as soon as this version is installed (`make okf-viz` then fails with no rule). `vulcan sync` copies nothing for it.
 - **Two config keys are removed.** `okf.viz` (output paths, brand, UI text) and `okf.sections` (heading order and labels, which only the explorer read). A config that still has either fails to load, and the error names the key and says to delete it.
 - **The brand has a new key.** `okf.viz.brand` is now `okf.brand`, the spelling of the project's name in prose that the brand rule of `okf check --strict` enforces. Unset, it is the root package name without scope, upper-cased, as before.
 - **Two dependencies are gone from `@venizia/vulcan-okf`:** `cytoscape` and `cytoscape-fcose`, with the two packages fcose brought (`cose-base`, `layout-base`). The install of the package drops about 15 MB.
