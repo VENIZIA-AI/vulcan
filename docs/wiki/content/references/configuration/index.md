@@ -284,17 +284,16 @@ export default {
 
 ## okf
 
-The `okf` object configures renderers, region replacements, coverage tracking, and graph visualizations for `vulcan x okf` commands.
+The `okf` object configures renderers, region replacements, coverage tracking and the brand for `vulcan x okf` commands.
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `renderers` | `Array<string \| object>` | `[]` | Built-in renderer identifiers or custom generator modules |
 | `regions` | `Array<object>` | `[]` | Target files and renderers for generated documentation blocks |
-| `sections` | `object` | `{ order: [], labels: {} }` | Heading ordering and display labels for index tables |
 | `coverage` | `Array<object>` | `[]` | Directory axes checked for concept documentation coverage |
 | `denylist` | `string[]` | `[]` | Directory names omitted across every coverage axis |
 | `contents` | `object` | `{ files: ['AGENTS.md', '.agents/rules.md'] }` | Files that receive generated table of contents when exceeding 100 lines |
-| `viz` | `object` | `{ outputs: ['.agents/knowledge/viz.html'] }` | Output paths and brand settings for knowledge graph files |
+| `brand` | `string` | root package name, unscoped, upper-cased | How the project's name is written in prose; the brand rule of `okf check --strict` flags its title-case spelling |
 
 ### okf.renderers
 
@@ -315,15 +314,6 @@ Each region binds a generated block in a markdown file to a renderer:
 | `id` | `string` | none | Unique region identifier |
 | `file` | `string` | none | Target file path relative to the repository root |
 | `renderer` | `string` | none | Identifier of the renderer generating the block |
-
-### okf.sections
-
-The `sections` object controls ordering and labels in generated index tables:
-
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `order` | `string[]` | `[]` | Heading order for index tables |
-| `labels` | `Record<string, string>` | `{}` | Display labels mapped to section headings |
 
 ### okf.coverage
 
@@ -346,15 +336,9 @@ The `contents` object configures files outside the bundle that receive generated
 |---|---|---|---|
 | `files` | `string[]` | `['AGENTS.md', '.agents/rules.md']` | File paths or glob patterns receiving generated tables |
 
-### okf.viz
+### okf.brand
 
-The `viz` object controls knowledge graph output files and branding:
-
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `outputs` | `string[]` | `['.agents/knowledge/viz.html']` | Output file paths for generated HTML visualizations |
-| `brand` | `string` | `undefined` | Brand heading shown in the visualization header |
-| `copy` | `Record<string, unknown>` | `undefined` | Custom text overrides for visualization UI labels |
+The brand is the spelling of the project's name in prose. When it is all capitals of two letters or more (for example `VULCAN`), `okf check --strict` flags its title-case spelling (`Vulcan`). Unset, it is the root `package.json` name without scope and `-workspace`, upper-cased; with no name, the directory name.
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';

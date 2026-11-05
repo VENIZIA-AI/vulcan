@@ -10,7 +10,7 @@ tags: [overview, layout]
 ```
 packages/
   cli/      @venizia/vulcan - the vulcan CLI, plus base/ (rules, slots, skills, hooks, settings, vulcan.mk, templates)
-  okf/      @venizia/vulcan-okf - OKF v0.2 check (+ --strict), gen, coverage, viz
+  okf/      @venizia/vulcan-okf - OKF v0.2 check (+ --strict), gen, coverage
   atlas/    @venizia/vulcan-atlas - MCP knowledge server + surface/symbols/releases generators
 scripts/    root tooling by purpose: release/, checks/, build/, evals/, board-ui/, wiki-shared/ (own tsconfig; see scripts/README.md)
 .agents/    VULCAN's project layer: rules.md (extensions), knowledge/ (this bundle, OKF v0.2)

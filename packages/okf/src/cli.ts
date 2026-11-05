@@ -9,14 +9,13 @@ class OkfCommands {
   static readonly CHECK = 'check';
   static readonly GEN = 'gen';
   static readonly COVERAGE = 'coverage';
-  static readonly VIZ = 'viz';
-  static readonly SCHEME_SET = new Set<string>([this.CHECK, this.GEN, this.COVERAGE, this.VIZ]);
+  static readonly SCHEME_SET = new Set<string>([this.CHECK, this.GEN, this.COVERAGE]);
   static isValid(value: string): boolean {
     return this.SCHEME_SET.has(value);
   }
 }
 
-const USAGE = 'usage: vulcan x okf <check|gen|coverage|viz>';
+const USAGE = 'usage: vulcan x okf <check|gen|coverage>';
 
 const [command, ...rest] = process.argv.slice(2);
 

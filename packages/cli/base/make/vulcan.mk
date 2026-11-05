@@ -7,7 +7,7 @@ VULCAN_BASE ?= node_modules/@venizia/vulcan/base
 # The GitHub repository the wiki links point into, owner/name; the link gate checks only links into it.
 WIKI_REPO ?=
 
-.PHONY: vulcan-sync vulcan-doctor okf-check okf-check-strict okf-gen okf-coverage okf-viz \
+.PHONY: vulcan-sync vulcan-doctor okf-check okf-check-strict okf-gen okf-coverage \
         surface-gen surface-check atlas-symbols atlas-releases wiki-links-check wiki-anchors-check
 
 vulcan-sync: ## Write the agent adapters, settings, skill links and manifest from the config
@@ -28,9 +28,6 @@ okf-gen: ## Regenerate the generated pages and regions of the knowledge bundle
 
 okf-coverage: ## Report how much of the code the knowledge bundle covers
 	@$(VULCAN) x okf coverage
-
-okf-viz: ## Build the knowledge graph view
-	@$(VULCAN) x okf viz
 
 # The public surface: an optional API gate a project commits and checks. It reads the built .d.ts -
 # build first.

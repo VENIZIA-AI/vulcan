@@ -12,11 +12,10 @@ tags: [gotchas]
 | 2026-07-20 | Deleting files deletes knowledge - nothing in this repo is committed yet, so a deleted untracked file is gone | Back up (tar) before any purge; move facts into `.agents/knowledge/` first |
 | 2026-07-20 | Unanchored .gitignore pattern (`AGENTS.md`) once ignored a canonical `AGENTS.md` too | Root-only ignores must be anchored: `/AGENTS.md` |
 | 2026-10-16 | Atlas's repo-mode and generator tests read the LIVE IGNIS tree (sibling checkout, or `IGNIS_ROOT` for the tests only); golden-ranking and symbol-accuracy results drift whenever IGNIS changes on `develop` | For a stable test run, set `IGNIS_ROOT` to a pinned checkout made by the IGNIS session. The shipped tools never read `IGNIS_ROOT`: they read the working directory |
-| 2026-10-16 | `*-gen` targets and `okf-viz` write into the project they run in | Run them only inside the project they belong to - never from VULCAN against IGNIS (W-06) |
+| 2026-10-16 | `*-gen` targets write into the project they run in | Run them only inside the project they belong to - never from VULCAN against IGNIS (W-06) |
 | 2026-10-16 | Bun 1.4.2 ignores a tsconfig `extends` that names a package | Restate the flags in every tsconfig Bun runs; keep `useDefineForClassFields: false` (no decorator in src) (reported by the IGNIS session) |
 | 2026-10-16 | Bun 1.4.2 `toMatchObject` with an asymmetric matcher overwrites the checked object's property | Compare `error.message` as a string (IGNIS PR #175, reported by the IGNIS session) |
 | 2026-10-17 | Bun's isolated linker does not link workspace packages at the root, so `bun x vulcan` found nothing | The root `package.json` depends on `@venizia/vulcan` through `workspace:*` |
-| 2026-10-17 | Cytoscape rejects the space form `hsl(257 62% 46%)` that CSS accepts; every map node lost its color | Use the comma form `hsl(257, 62%, 46%)` (`theme.test.ts` pins it) |
 | 2026-10-17 | `pkill -f <pattern>` also matches the shell running it when the pattern is on its own command line, killing the command | Kill a background job by its id, or use a pattern the shell line does not contain |
 | 2026-10-17 | The ESLint naming convention flags a quoted snake_case property too | Map wire objects at the boundary with string-literal access (`payload['tool_input']`), never declare snake_case keys |
 | 2026-10-17 | `vulcan sync` merges settings arrays without duplicates, so an entry sync did not write survives | remove such an entry by hand, or delete a `.claude/settings.json` that holds no personal keys and re-sync |

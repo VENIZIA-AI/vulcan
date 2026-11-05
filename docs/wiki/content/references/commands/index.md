@@ -233,7 +233,6 @@ The following table lists the targets provided by `vulcan.mk`:
 | `okf-check-strict` | okf-check plus the house rules: links, style, coverage, freshness |
 | `okf-gen` | Regenerate the generated pages and regions of the knowledge bundle |
 | `okf-coverage` | Report how much of the code the knowledge bundle covers |
-| `okf-viz` | Build the knowledge graph view |
 | `surface-gen` | Write the public API surface from the built .d.ts |
 | `surface-check` | Fail when the public API surface differs from the committed one |
 | `atlas-symbols` | Print the symbols atlas reads from the built or installed .d.ts |

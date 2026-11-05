@@ -62,7 +62,7 @@ help:
 	@$(HELP_ROW) "vulcan-doctor" "Check this repository follows VULCAN; exit 1 on any violation."
 	@$(HELP_ROW) "okf-check" "Gate: OKF v0.2 conformance of .agents/knowledge; warnings never fail."
 	@$(HELP_ROW) "okf-check-strict" "okf-check plus the house rules: links, style, coverage, freshness."
-	@$(HELP_ROW) "okf-gen / okf-coverage / okf-viz" "Generate, report and visualize the bundle."
+	@$(HELP_ROW) "okf-gen / okf-coverage" "Generate the bundle and report its coverage."
 	@$(HELP_ROW) "surface-gen / surface-check" "Write the public API surface from the built .d.ts, or fail when it drifted."
 	@$(HELP_ROW) "atlas-symbols / atlas-releases" "Print the symbols atlas reads from the .d.ts, or the releases it computes from the tags."
 	@$(HELP_ROW) "wiki-links-check / wiki-anchors-check" "Fail when the wiki names a source path git does not track (WIKI_REPO), or links a #fragment the build lacks."
