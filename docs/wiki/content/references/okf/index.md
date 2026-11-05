@@ -1,6 +1,6 @@
 ---
 title: okf
-description: Validate, generate, inspect coverage, and visualize knowledge bundles in Open Knowledge Format.
+description: Validate, generate and inspect the coverage of knowledge bundles in Open Knowledge Format.
 ---
 
 # okf

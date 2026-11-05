@@ -23,6 +23,6 @@ packages; the knowledge index no longer holds the `vulcan:scaffold` line `init` 
 ## Where the tools look
 
 Every VULCAN tool reads the project it runs in - the working directory. None reads an environment
-variable for its root. `*-gen` WRITE into that project, so never run them from VULCAN
+variable for its root. `*-gen` writes into that project, so never run it from VULCAN
 against IGNIS (W-06). Atlas's tests read the sibling IGNIS checkout, overridable for tests only
 through `IGNIS_ROOT` in `TEST_ENV_atlas` in `make/test.mk`.

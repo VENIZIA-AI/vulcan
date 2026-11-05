@@ -1,7 +1,7 @@
 ---
 type: Package
 title: okf
-description: "@venizia/vulcan-okf - OKF v0.2 conformance check, gen, coverage and the offline graph explorer for a project's knowledge bundle."
+description: "@venizia/vulcan-okf - OKF v0.2 conformance check, gen and coverage for a project's knowledge bundle."
 tags: [packages, okf, knowledge]
 ---
 

@@ -105,7 +105,6 @@ node_modules.zip
 # VitePress cache of the wiki site
 .vitepress/cache/
 
-
 # AI Agent - tool-specific configs (local only, never committed)
 .agents/plans
 .agents/specs

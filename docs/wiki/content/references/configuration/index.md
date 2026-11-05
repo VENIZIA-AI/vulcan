@@ -340,7 +340,6 @@ The `contents` object configures files outside the bundle that receive generated
 
 The brand is the spelling of the project's name in prose. When it is all capitals of two letters or more (for example `VULCAN`), `okf check --strict` flags its title-case spelling (`Vulcan`). Unset, it is the root `package.json` name without scope and `-workspace`, upper-cased; with no name, the directory name.
 
-
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 

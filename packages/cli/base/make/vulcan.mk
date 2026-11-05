@@ -29,7 +29,6 @@ okf-gen: ## Regenerate the generated pages and regions of the knowledge bundle
 okf-coverage: ## Report how much of the code the knowledge bundle covers
 	@$(VULCAN) x okf coverage
 
-
 # The public surface: an optional API gate a project commits and checks. It reads the built .d.ts -
 # build first.
 surface-gen: ## Write the public API surface from the built .d.ts
