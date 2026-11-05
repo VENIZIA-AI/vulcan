@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { ProjectConfig } from '@/common/project-config';
 import { CodeGraph } from '@/graph/code-graph';
+import { GraphConstants } from '@/graph/common/constants';
 import type { ICodeGraph } from '@/graph/common/types';
 import { GitState } from '@/graph/git-state';
 import { ImportResolver } from '@/graph/import-resolver';
@@ -27,7 +28,7 @@ const FILES: Record<string, string> = {
     exports: { '.': './src/index.ts', './t': './types/t.d.ts' },
     dependencies: { '@fx/b': '1.0.0', zod: '4.0.0' },
   }),
-  'packages/a/types/t.d.ts': 'export type Tt = 1;\n',
+  'packages/a/types/t.d.ts': 'export type Tt = 1;\nexport interface Holder {\n  t: Tt;\n}\n',
   'packages/a/src/lazy.ts': 'export const lazy = 1;\n',
   'packages/a/src/index.ts': [
     "import { b } from '@fx/b';",
@@ -262,6 +263,20 @@ describe('what the working tree does not hold', () => {
   });
 });
 
+describe('the size target', () => {
+  test('is 4 MB: a graph is over it only past that many bytes', () => {
+    expect(GraphConstants.SIZE_TARGET_BYTES).toBe(4 * 1024 * 1024);
+    expect(CodeGraph.isOverTarget({ bytes: GraphConstants.SIZE_TARGET_BYTES })).toBe(false);
+    expect(CodeGraph.isOverTarget({ bytes: GraphConstants.SIZE_TARGET_BYTES + 1 })).toBe(true);
+  });
+
+  test('the fixture is far under it', () => {
+    const text = CodeGraph.render({ graph: buildOf({ root: repository() }) });
+
+    expect(CodeGraph.isOverTarget({ bytes: text.length })).toBe(false);
+  });
+});
+
 describe('the alias setting', () => {
   test('without graph.aliases an alias import is external; with it the import is followed', () => {
     const root = repository();
@@ -306,7 +321,7 @@ describe('vulcan x atlas graph build', () => {
 
     expect(result.exitCode, result.stderr.toString()).toBe(0);
     expect(result.stdout.toString()).toMatch(
-      /^graph: 21 nodes, 23 edges, 12 files, commit [0-9a-f]{12} -> \.agents\/local\/graph\/code\.json\n$/,
+      /^graph: 28 nodes, 38 edges, 12 files, 7 symbols, commit [0-9a-f]{12} -> \.agents\/local\/graph\/code\.json\n$/,
     );
     expect(existsSync(file)).toBe(true);
 
@@ -314,8 +329,30 @@ describe('vulcan x atlas graph build', () => {
 
     expect(parsed.schemaVersion).toBe(1);
     expect(parsed.kind).toBe('code');
-    expect(parsed.nodes).toHaveLength(21);
-    expect(parsed.edges).toHaveLength(23);
+    const ids = (kind: string): string[] =>
+      parsed.nodes
+        .filter((n: { kind: string }) => n.kind === kind)
+        .map((n: { id: string }) => n.id);
+    const edges: string[] = parsed.edges.map(
+      (e: { kind: string; from: string; to: string }) => `${e.kind} ${e.from} -> ${e.to}`,
+    );
+
+    expect(ids('symbol')).toEqual([
+      'sym:@fx/a#a',
+      'sym:@fx/a#later',
+      'sym:@fx/a#util',
+      'sym:@fx/a/t#Holder',
+      'sym:@fx/a/t#Tt',
+      'sym:@fx/c#c',
+      'sym:@fx/d#d',
+    ]);
+    expect(edges).toContain('exports entry:@fx/a -> sym:@fx/a#util');
+    expect(edges).toContain('contains file:packages/a/src/util.ts -> sym:@fx/a#util');
+    expect(edges).toContain('contains file:packages/a/types/t.d.ts -> sym:@fx/a/t#Tt');
+    // The real reader gives a built declaration its `uses`: Holder refers to Tt.
+    expect(edges).toContain('uses sym:@fx/a/t#Holder -> sym:@fx/a/t#Tt');
+    expect(parsed.nodes).toHaveLength(28);
+    expect(parsed.edges).toHaveLength(38);
   });
 
   test('refuses an argument it does not know', () => {

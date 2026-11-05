@@ -328,22 +328,25 @@ When no live package exists, `symbols` and `surface` fail with "add packages to 
 
 ## Graph
 
-`vulcan x atlas graph build` writes the code graph of the project to `.agents/local/graph/code.json` and prints one line: the nodes, the edges, the files and the commit it was built at. The folder is under `.agents/local/`, so nothing is committed.
+`vulcan x atlas graph build` writes the code graph of the project to `.agents/local/graph/code.json` and prints one line: the nodes, the edges, the files, the symbols and the commit it was built at. The folder is under `.agents/local/`, so nothing is committed.
 
 | Node | Id | Made from |
 |---|---|---|
 | package | `pkg:<npm name>` | the live packages of the manifest |
 | entry | `entry:<specifier>` | the `exports` of each package (`@scope/name`, `@scope/name/sub`) |
 | file | `file:<path from the root>` | the tracked `.ts`, `.tsx`, `.mts` and `.cts` files of the packages, from `git ls-files` |
+| symbol | `sym:<entry specifier>#<name>` | the exported symbols [`symbols`](#symbols) reads (built `.d.ts`, or the source of a package that publishes `.ts`). The node holds `kind`, `line`, `documented` (has TSDoc) and, for a built declaration, a `shape` digest of it (a source-published symbol has none: its digest would cover the body), not the signature: `symbol` serves that. A re-export of a `node_modules` declaration is marked `thirdParty` |
 
 | Edge | From to | Meaning |
 |---|---|---|
-| `contains` | package to entry, entry to its source file | An entry that points at a built declaration (`dist/esm/index.d.ts`) leads to the file of `src/` it comes from, when there is one |
+| `exports` | entry to symbol | The public surface of an entry |
+| `uses` | symbol to symbol | The exported symbols a declaration refers to, for a built declaration (a source-published symbol has no `uses`). Records hold names only and a name can be a dependency's type, so a name resolves to the symbol of that name in the same entry, else the only one in the same package; several candidates, or a name only another package exports, give no edge. Imports between packages are the `imports` and `depends` edges |
+| `contains` | package to entry, entry to its source file; file to the symbols declared in it | An entry that points at a built declaration (`dist/esm/index.d.ts`) leads to the file of `src/` it comes from, when there is one |
 | `depends` | package to package | `dependencies` and `peerDependencies` that name another package of the project |
 | `imports` | file to file, or file to the entry of a workspace package | Relative imports, re-exports, the aliases of [`graph.aliases`](/references/configuration/#graph), and the exact specifier of a workspace entry. A `.js` ending finds the `.ts` file, a folder finds its `index` |
 | `tested_by` | file to a test file | A test file (`*.test.ts`, `*.spec.ts`; a helper beside the tests is not one) imports it, directly or through the package entry that leads to it |
 
-An import that leads to no tracked TypeScript file (an npm package, `node:`, an alias that is not listed, a stylesheet, a file that `graph.exclude` leaves out, a subpath that is not an `exports` entry) is kept on the file, sorted, as `external`. Static imports, re-exports and a dynamic `import('./x')` with a string literal are read; a `require()` call and a computed specifier are not. The graph reads the working tree: a tracked file deleted from it is skipped, and two builds of the same files are the same bytes (the file has no clock). `source` holds the commit, whether tracked files have uncommitted changes, and the paths it was built from. The command needs a git repository and says so when git cannot list the files.
+An import that leads to no tracked TypeScript file (an npm package, `node:`, an alias that is not listed, a stylesheet, a file that `graph.exclude` leaves out, a subpath that is not an `exports` entry) is kept on the file, sorted, as `external`. Static imports, re-exports and a dynamic `import('./x')` with a string literal are read; a `require()` call and a computed specifier are not. The graph reads the working tree: a tracked file deleted from it is skipped, and two builds of the same files are the same bytes (the file has no clock). `source` holds the commit, whether tracked files have uncommitted changes, and the paths it was built from. The command needs a git repository and says so when git cannot list the files. The file is held to 4 MB, about what IGNIS needs (1800 files, 3300 symbols); the command says so on stderr when the file passes it.
 
 ## Releases
 

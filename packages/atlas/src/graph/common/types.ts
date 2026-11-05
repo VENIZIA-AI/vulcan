@@ -8,6 +8,15 @@ export interface IGraphNode {
   package?: string;
   /** A file's import specifiers that lead to no tracked TypeScript file (npm packages, node:, an alias not listed, a stylesheet, an excluded file): sorted, unique. */
   external?: string[];
+  /** What a symbol node holds: its kind, the line it is declared on, a digest of its declaration (when the source has one), and whether it has TSDoc. No signature: `symbol` serves it. */
+  symbol?: {
+    kind: string;
+    line: number;
+    documented: boolean;
+    shape?: string;
+    /** The export re-exports a declaration that lives in `node_modules`. */
+    thirdParty?: boolean;
+  };
 }
 
 export interface IGraphEdge {

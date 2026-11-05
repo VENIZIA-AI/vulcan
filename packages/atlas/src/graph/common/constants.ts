@@ -9,17 +9,23 @@ export class GraphNodeKinds {
   static readonly PACKAGE = 'package';
   static readonly ENTRY = 'entry';
   static readonly FILE = 'file';
+  static readonly SYMBOL = 'symbol';
 }
 
 export class GraphIdPrefixes {
   static readonly PACKAGE = 'pkg:';
   static readonly ENTRY = 'entry:';
   static readonly FILE = 'file:';
+  static readonly SYMBOL = 'sym:';
 }
 
 export class GraphEdgeKinds {
-  /** Package to entry, entry to its source file. */
+  /** Package to entry, entry to its source file, file to the symbols declared in it. */
   static readonly CONTAINS = 'contains';
+  /** Entry to the symbols it exports. */
+  static readonly EXPORTS = 'exports';
+  /** Symbol to the exported symbols its declaration refers to. */
+  static readonly USES = 'uses';
   /** Package to package, from `dependencies` and `peerDependencies`. */
   static readonly DEPENDS = 'depends';
   /** File to file, or file to the entry of a workspace package it imports. */
@@ -30,6 +36,8 @@ export class GraphEdgeKinds {
 
 export class GraphConstants {
   static readonly SCHEMA_VERSION = 1;
+  /** What `code.json` should stay under on a large framework (about 1800 files and 3300 exported symbols). A target: the command says so when it is passed. */
+  static readonly SIZE_TARGET_BYTES = 4 * 1024 * 1024;
   static readonly KIND_CODE = 'code';
   /** The tracked files read: TypeScript and its module variants. */
   static readonly SOURCE_PATTERN = /\.[cm]?tsx?$/;
