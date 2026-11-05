@@ -785,7 +785,7 @@ The `local` object configures what VULCAN keeps tidy in `.agents/local/` by itse
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `autoClean` | `boolean` | `true` | At most once a day, the session-start hook starts a clean of the safe part: stale `tmp/`, browser folders older than an hour, event day files past their limits, and release candidates whose version is tagged. It never removes a worktree or a clone. `false` turns it off; `sync` then writes `local: { autoClean: false }` to the manifest |
-| `tmp` | `string` | `.agents/local/tmp` | A folder of the project, written from its root, for the temporary files of a session. Written like a [layout](#layout) folder: 1 to 4 plain lower-case segments, never absolute, never climbing, so `t` or `tools/t`, not `.t`. `vulcan sync` creates it, adds it to `.gitignore` when it is outside `.agents/local/`, points the launch file at it and writes it to the manifest; the guard, the session digest, the session-start export, `vulcan clean` and `vulcan add` then use it. A browser puts a socket below it, so a deep checkout sets it short; `vulcan doctor` fails when even this folder is too deep |
+| `tmp` | `string` | `.agents/local/tmp` | A folder of the project, written from its root, for the temporary files of a session. Written like a [layout](#layout) folder: 1 to 4 plain lower-case segments, never absolute, never climbing, so `tmp` (recommended) or `tools/tmp`, not `.tmp`. `vulcan sync` creates it, adds it to `.gitignore` when it is outside `.agents/local/`, points the launch file at it and writes it to the manifest; the guard, the session digest, the session-start export, `vulcan clean` and `vulcan add` then use it. A browser puts a socket below it, so a deep checkout sets it short; `vulcan doctor` fails when even this folder is too deep |
 
 `VULCAN_AUTO_CLEAN=off` in the environment turns it off for one shell.
 
@@ -894,8 +894,8 @@ The variables the cli reads. The atlas server has variables of its own (`VULCAN_
 | `VULCAN_BUN`, `VULCAN_GIT` | `init`, `add` | Replace the `bun` and `git` those commands run; for tests |
 | `VULCAN_DIST_TAGS` | `upgrade` | The dist-tags as JSON in place of the registry read of `--nightly`; for tests |
 | `CLAUDE_PROJECT_DIR` | the hooks | The project root, set by Claude Code; without it the hooks use the working directory |
-| `CLAUDE_CODE_TMPDIR` | `doctor`, the session-start hook | Where Claude Code puts its task output; the launch file points it at `.agents/local/tmp` and `doctor` warns when it does not (see [Agents](/references/agents)) |
-| `CLAUDE_ENV_FILE` | the session-start hook | The file Claude Code hands a start hook to export variables from; the hook appends `export TMPDIR=<project>/.agents/local/tmp` |
+| `CLAUDE_CODE_TMPDIR` | `doctor`, the session-start hook | Where Claude Code puts its task output; the launch file points it at `.agents/local/tmp` (or `local.tmp`) and `doctor` warns when it does not (see [Agents](/references/agents)) |
+| `CLAUDE_ENV_FILE` | the session-start hook | The file Claude Code hands a start hook to export variables from; the hook appends `export TMPDIR=<project>/.agents/local/tmp` (or the `local.tmp` folder) |
 | `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CONFIG_DIR` | the event hook | The session id, and the folder whose `sessions/*.json` names the session (default `~/.claude`), to find the session's name |
 
 ## See also

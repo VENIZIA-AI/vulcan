@@ -31,6 +31,11 @@ export class ProjectTmp {
     }
   }
 
+  /** What a caller that holds the config passes as `tmp`: the key, or the default when the project does not set it (never the manifest, which `sync` has not rewritten yet). */
+  static configuredOf(opts: { tmp: string | undefined }): string {
+    return opts.tmp ?? HookConstants.PROJECT_TMP;
+  }
+
   /**
    * Where a session's temporary files go, absolute: the guard, the session digest, the session-start export, the launch
    * file, `vulcan clean` and the scratch of `add` all call this. `tmp` is the config's `local.tmp` for a caller that

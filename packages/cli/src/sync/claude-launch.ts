@@ -100,10 +100,9 @@ export class ClaudeLaunch {
       }
     }
 
-    const isInProjectTmp = inside({
-      folder: real,
-      base: realOf({ path: ProjectTmp.projectOf({ root: opts.root }) }),
-    });
+    const isInProjectTmp = [opts.root, ...homes].some((home) =>
+      inside({ folder: real, base: realOf({ path: ProjectTmp.projectOf({ root: home }) }) }),
+    );
     const isInLocal = homes.some((home) =>
       inside({ folder: real, base: join(home, ProjectLayout.LOCAL_DIRECTORY) }),
     );

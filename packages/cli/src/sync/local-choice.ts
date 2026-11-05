@@ -65,8 +65,8 @@ export class LocalPlan {
   }
 
   /**
-   * The folder `local.tmp` names, when it is not the default one: made, and gitignored when it sits outside
-   * `.agents/local/` (which is ignored whole). The default folder is one of the layout's and needs nothing more.
+   * The folder `local.tmp` names, when it is not the default one: made and gitignored (a name is never hidden, so
+   * it is never under the `.agents/local/` that is ignored whole). The default folder is one of the layout's.
    */
   static planTmp(opts: { root: string; tmp?: string }): ISyncAction[] {
     const tmp = ProjectTmp.projectOf(opts);
@@ -75,15 +75,10 @@ export class LocalPlan {
       return [];
     }
 
-    const isInLocal = !relative(join(opts.root, ProjectLayout.LOCAL_DIRECTORY), tmp).startsWith(
-      '..',
-    );
     const isMade = existsSync(tmp);
 
     return [
-      ...(isInLocal
-        ? []
-        : planIgnoreLine({ root: opts.root, line: `/${relative(opts.root, tmp)}/` })),
+      ...planIgnoreLine({ root: opts.root, line: `/${relative(opts.root, tmp)}/` }),
       {
         path: tmp,
         status: isMade ? SyncStatuses.UNCHANGED : SyncStatuses.CREATED,

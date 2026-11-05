@@ -30,6 +30,8 @@ try {
   const { HookDecision } = await import('../../src/hooks/decision.ts');
   const { OutsideGuard } = await import('../../src/hooks/guard-outside.ts');
   const { ManifestGuard } = await import('../../src/hooks/guard-manifest.ts');
+  const { ProjectTmp } = await import('../../src/hooks/project-tmp.ts');
+  const { relative } = await import('node:path');
   const input = ManifestGuard.parseHookInput({ text });
 
   if (input) {
@@ -42,8 +44,8 @@ try {
     if (hits.length > 0) {
       const isScratchpad = hits.some((hit) => hit.isAgentToolScratchpad);
       const hitLines = hits.map((hit) => `  - ${hit.message} (${hit.path})`);
-      const places =
-        'Scratch files go under .agents/local/tmp/<task>/ (worktrees under .agents/local/worktrees/, clones under .agents/local/clones/), never in /tmp or the home folder.';
+      const tmpFolder = relative(projectRoot, ProjectTmp.projectOf({ root: projectRoot }));
+      const places = `Scratch files go under ${tmpFolder}/<task>/ (worktrees under .agents/local/worktrees/, clones under .agents/local/clones/), never in /tmp or the home folder.`;
 
       const isDeny = isScratchpad || outside === GuardDecisions.DENY;
       let reason: string[];

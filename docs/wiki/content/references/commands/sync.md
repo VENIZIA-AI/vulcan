@@ -115,7 +115,7 @@ A skill you write in `.agents/skills/<name>/SKILL.md` reaches every agent you ch
 
 ## The temp folder
 
-`sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/`, and writes `.agents/local/claude.launch.settings.json` for this checkout: `TMPDIR` and `CLAUDE_CODE_TMPDIR` set to `.agents/local/tmp`, to start Claude Code with `claude --settings .agents/local/claude.launch.settings.json`. The session-start hook it registers also exports `TMPDIR` into every Bash command. What each route moves, and what still needs the launch file, is in [Temporary files](/references/agents#temporary-files).
+`sync` keeps `.agents/local/` and its subfolders, makes sure `.gitignore` covers `.agents/local/`, and writes `.agents/local/claude.launch.settings.json` for this checkout: `TMPDIR` and `CLAUDE_CODE_TMPDIR` set to `.agents/local/tmp` (or the folder `local.tmp` names, which `sync` also creates and gitignores), to start Claude Code with `claude --settings .agents/local/claude.launch.settings.json`. The session-start hook it registers also exports `TMPDIR` into every Bash command. What each route moves, and what still needs the launch file, is in [Temporary files](/references/agents#temporary-files).
 
 ## Keeping the adapters out of git
 

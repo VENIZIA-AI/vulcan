@@ -620,21 +620,39 @@ export class LocalScan {
    * symlink is not followed. A symlinked `.agents` or `.agents/local` makes it false for everything.
    */
   static isInside(opts: { root: string; path: string }): boolean {
-    const local = LocalScan.localRootOf({ root: opts.root });
-
-    if (local === undefined) {
-      return false;
-    }
-
+    const bases = [
+      LocalScan.localRootOf({ root: opts.root }),
+      LocalScan.tmpRootOf({ root: opts.root }),
+    ].filter((base): base is string => base !== undefined);
     const parent = resolve(opts.path, '..');
 
-    if (!existsSync(parent)) {
+    if (bases.length === 0 || !existsSync(parent)) {
       return false;
     }
 
     const target = join(realpathSync(parent), resolve(opts.path).split(sep).at(-1) ?? '');
 
-    return target.startsWith(`${local}${sep}`);
+    return bases.some((base) => target.startsWith(`${base}${sep}`));
+  }
+
+  /**
+   * The project's tmp folder as the disk has it, when it is a real folder (not a link) that sits inside the project, and
+   * `clean` may therefore remove from it; undefined when it is missing, a link, or leads out of the project.
+   */
+  static tmpRootOf(opts: { root: string }): string | undefined {
+    const folder = ProjectTmp.projectOf({ root: opts.root });
+
+    try {
+      if (!lstatSync(folder).isDirectory()) {
+        return undefined;
+      }
+
+      const real = realpathSync(folder);
+
+      return `${real}${sep}`.startsWith(`${realpathSync(opts.root)}${sep}`) ? real : undefined;
+    } catch {
+      return undefined;
+    }
   }
 }
 

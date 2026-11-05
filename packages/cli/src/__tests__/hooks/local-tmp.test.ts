@@ -1,5 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { PresetScratch } from '../../create/scratch.ts';
 import { VULCAN_CONFIG_SCHEMA } from '../../config/index.ts';
@@ -11,6 +18,8 @@ import { ClaudeLaunch, CLAUDE_LAUNCH_FILE } from '../../sync/claude-launch.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
+import { GUARD_MANIFEST_FILE } from '../guard-manifest.helper.ts';
+import { SPAWN_TIMEOUT_MS } from '@venizia/dev-configs/testing';
 
 afterAll(removeProjects);
 isolateOwnerReplySwitch();
@@ -188,7 +197,7 @@ describe('vulcan doctor: local.tmp that cannot hold a browser socket', () => {
 
     expect(found).toHaveLength(1);
     expect(found[0]?.file).toBe('.configs/vulcan.config.mts');
-    expect(found[0]?.message).toContain("local.tmp 't' is still too deep");
+    expect(found[0]?.message).toContain("local.tmp 't': its socket path for a browser would be");
     expect(found[0]?.message).toContain('the limit is 107');
   });
 
@@ -201,5 +210,137 @@ describe('vulcan doctor: local.tmp that cannot hold a browser socket', () => {
         configFile: 'c',
       }),
     ).toEqual([]);
+  });
+});
+
+describe('the review of local.tmp', () => {
+  const old = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+
+  test('vulcan clean removes the old files of the folder, and not those of a folder it does not own', () => {
+    const root = projectWith('t');
+
+    for (const folder of ['t/old']) {
+      mkdirSync(join(root, folder), { recursive: true });
+      writeFileSync(join(root, folder, 'a.txt'), 'x');
+      utimesSync(join(root, folder, 'a.txt'), old, old);
+      utimesSync(join(root, folder), old, old);
+    }
+
+    mkdirSync(join(root, '.agents/local'), { recursive: true });
+
+    const result = runCli({ args: ['clean', '--tmp', '--yes'], cwd: root });
+
+    expect(result.code, result.stderr).toBe(0);
+    expect(existsSync(join(root, 't/old'))).toBe(false);
+    expect(result.stdout + result.stderr).not.toContain('refused');
+  });
+
+  test('a link in place of the folder is not trusted by clean', () => {
+    const root = projectWith('t');
+    const elsewhere = createProject({ files: { 'keep/a.txt': 'x' } });
+
+    symlinkSync(elsewhere, join(root, 't'));
+
+    expect(LocalScan.tmpRootOf({ root })).toBeUndefined();
+  });
+
+  test('taking the key out of the config sends the next sync back to the default folder', () => {
+    const root = createProject({
+      files: {
+        '.configs/vulcan.config.mts': CONFIG,
+        'package.json': '{ "name": "@x/acme-workspace" }',
+        '.gitignore': 'node_modules\n',
+      },
+    });
+
+    runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+    writeFileSync(join(root, '.configs/vulcan.config.mts'), "export default { name: 'acme' };\n");
+
+    const again = runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
+
+    expect(again.code, again.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(join(root, CLAUDE_LAUNCH_FILE), 'utf8')).env.TMPDIR).toBe(
+      join(root, '.agents/local/tmp'),
+    );
+  });
+
+  test('a worktree of a checkout whose project names its folder is inside the project', () => {
+    const checkout = projectWith('t');
+    const worktree = join(checkout, '.agents/local/worktrees/feature');
+
+    mkdirSync(join(worktree, '.agents'), { recursive: true });
+    writeFileSync(join(worktree, MANIFEST), manifestWith('t'));
+
+    expect(
+      ClaudeLaunch.tmpOf({ root: worktree, env: { CLAUDE_CODE_TMPDIR: join(checkout, 't') } })
+        .state,
+    ).toBe('inside');
+  });
+
+  test('the guard-outside answer names the folder the project uses', async () => {
+    const root = projectWith('t');
+    const input = `{"tool_name":"Write","tool_input":{"file_path":"/srv/vulcan-fixture/x.txt","content":"x"},"cwd":${JSON.stringify(root)}}`;
+    const child = Bun.spawn(
+      [
+        process.execPath,
+        join(import.meta.dir, '..', '..', '..', 'base', 'hooks', 'guard-outside.ts'),
+      ],
+      {
+        cwd: root,
+        stdin: new TextEncoder().encode(input),
+        stdout: 'pipe',
+        stderr: 'pipe',
+        env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+        timeout: SPAWN_TIMEOUT_MS,
+        killSignal: 'SIGKILL',
+      },
+    );
+    const stdout = await new Response(child.stdout).text();
+
+    await child.exited;
+
+    expect(stdout).toContain('Scratch files go under t/<task>/');
+    expect(GUARD_MANIFEST_FILE).toBe(MANIFEST);
+  });
+
+  const contextOf = (opts: { tmp: string; layout?: Record<string, string> }) => ({
+    root: '/work/acme',
+    config: VULCAN_CONFIG_SCHEMA.parse({ local: { tmp: opts.tmp }, layout: opts.layout }),
+    configFile: '.configs/vulcan.config.mts',
+  });
+
+  test('doctor fails a folder that is, or holds, a layout folder', () => {
+    const found = ProjectContract.checkTmpFolder(
+      contextOf({ tmp: 'apps', layout: { backend: 'apps/api' } }),
+    );
+
+    expect(found).toHaveLength(1);
+    expect(found[0]?.message).toContain("holds, the layout folder 'apps/api'");
+  });
+
+  test('doctor fails a folder in which git tracks a file', () => {
+    const root = createProject({ files: { 'tmp/kept.txt': 'x' } });
+
+    Bun.spawnSync(['git', 'init', '-q'], { cwd: root });
+    Bun.spawnSync(['git', 'add', 'tmp/kept.txt'], { cwd: root });
+
+    const found = ProjectContract.checkTmpFolder({
+      root,
+      config: VULCAN_CONFIG_SCHEMA.parse({ local: { tmp: 'tmp' } }),
+      configFile: '.configs/vulcan.config.mts',
+    });
+
+    expect(found.some((entry) => entry.message.includes('git tracks files in it'))).toBe(true);
+  });
+
+  test('the browser warning is for a project without the key; with the key only checkTmpFolder speaks', () => {
+    const root = createProject({ files: { [CLAUDE_LAUNCH_FILE]: '{}\n' } });
+    const deep = join(root, 'd'.repeat(80));
+
+    mkdirSync(join(deep, '.agents/local'), { recursive: true });
+    writeFileSync(join(deep, CLAUDE_LAUNCH_FILE), '{}\n');
+
+    expect(ProjectContract.checkBrowserSocket({ root: deep })).toHaveLength(1);
+    expect(ProjectContract.checkBrowserSocket({ root: deep, tmp: 'tmp' })).toEqual([]);
   });
 });
