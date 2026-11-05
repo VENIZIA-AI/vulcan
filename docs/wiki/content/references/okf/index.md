@@ -291,6 +291,8 @@ The explorer bundles graph data and the browser client into a self-contained fil
 By default, the command writes to `.agents/knowledge/viz.html`.
 You can configure alternative destination paths in `okf.viz.outputs` in `.configs/vulcan.config.mts`.
 
+The page takes its colours from the `theme` of the project (see [configuration](/references/configuration/#theme)), in light and in dark, following the system setting. When the page is embedded in a VitePress wiki it takes the wiki's colours instead.
+
 `viz` accepts no command-line flags; extra arguments are ignored.
 One `viz: wrote` line prints per configured output.
 The sample passes `--help` only to show extra arguments are ignored:

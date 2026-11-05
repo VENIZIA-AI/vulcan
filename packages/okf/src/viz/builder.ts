@@ -7,6 +7,7 @@ import { ConceptLoader } from '../lib.ts';
 import { HtmlText } from './client/html.ts';
 import { VizTemplateTokens } from './common/index.ts';
 import { VizCopy } from './copy.ts';
+import { VizPalette } from './palette.ts';
 import type { IVizData, IVizEdge, IVizNode, IVizSection } from './common/index.ts';
 
 const TEMPLATE_FILE = join(import.meta.dir, 'template.html');
@@ -85,6 +86,7 @@ export class VizBuilder {
       edges,
       sections,
       copy: VizCopy.resolve({ brand: project.viz.brand, copy: project.viz.copy }),
+      theme: VizPalette.read(),
     };
   }
 

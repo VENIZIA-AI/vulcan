@@ -93,6 +93,7 @@ export class KnowledgeExplorer {
   }
 
   start(): void {
+    VizTheme.configure({ palettes: this.opts.data.theme });
     VizTheme.apply();
     this.computeSectionColors();
     this.opts.elements.search.placeholder = this.strings.search;
@@ -422,7 +423,7 @@ export class KnowledgeExplorer {
         selector: 'node[kind="section"]',
         style: {
           'background-opacity': 0.04,
-          'background-color': VizTheme.isDark() ? '#fff' : '#000',
+          'background-color': readVariable('--text'),
           'border-width': 1.5,
           'border-color': readVariable('--border'),
           'border-style': 'dashed',

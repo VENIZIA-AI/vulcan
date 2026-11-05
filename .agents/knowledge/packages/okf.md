@@ -16,7 +16,7 @@ Run as `vulcan x okf <check [--strict] | gen | coverage | viz>`.
 | `src/generate/` | `gen`: managed regions and the `BUILT_IN_RENDERERS` registry and the `okf.regions` config entries |
 | `src/coverage-report/` | `coverage`: the bundle against the source inventory |
 | `src/source/` | source scanning and the shared fact collectors (one per fact, for gen and coverage) |
-| `src/viz/` | the explorer: Bun-built typed client and template |
+| `src/viz/` | the explorer: Bun-built typed client and template; its colours come from the manifest `theme` tokens (`palette.ts`), none are kept here |
 
 Nothing in okf is project-specific: `vulcan x okf` hands it the project's `okf` config (renderers,
 regions, sections, coverage axes, denylist, contents, viz). A coverage axis globs directories and may carry

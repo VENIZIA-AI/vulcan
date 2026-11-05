@@ -6,13 +6,6 @@
     <title>__OKF_BRAND__ · Knowledge</title>
     <style>
       :root {
-        --bg: #16161a;
-        --bg-soft: #1c1c21;
-        --bg-alt: #121215;
-        --text: #e7e7e3;
-        --text-2: #9b9ba4;
-        --border: #2a2a30;
-        --brand: #a8b1ff;
         --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
         --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, monospace;
         color-scheme: dark;
@@ -107,7 +100,7 @@
       }
       .seg button.on {
         background: var(--brand);
-        color: #0b0b10;
+        color: var(--brand-ink);
         font-weight: 600;
       }
 
@@ -321,7 +314,7 @@
         letter-spacing: 0.06em;
         padding: 3px 10px;
         border-radius: 20px;
-        color: #0b0b10;
+        color: var(--brand-ink);
         font-weight: 600;
         background: var(--accent);
       }

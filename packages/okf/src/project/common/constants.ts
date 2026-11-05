@@ -2,6 +2,8 @@
 export class OkfProjectConstants {
   static readonly CONFIG_ENV = 'VULCAN_CONFIG';
   static readonly ROOT_ENV = 'VULCAN_PROJECT_ROOT';
+  /** The project manifest, rendered fresh by `vulcan x`; viz reads the `theme` tokens from it. */
+  static readonly MANIFEST_ENV = 'VULCAN_MANIFEST';
   static readonly DEFAULT_BUNDLE = '.agents/knowledge';
   static readonly DEFAULT_VIZ_OUTPUT = '.agents/knowledge/viz.html';
   static readonly DEFAULT_TAG_PATTERN = '<dir>-v<version>';

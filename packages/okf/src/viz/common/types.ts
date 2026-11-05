@@ -6,6 +6,9 @@ export type TVizView = TConstValue<typeof VizViews>;
 export type TThemeMode = TConstValue<typeof ThemeModes>;
 export type TTableCell = TConstValue<typeof TableCells>;
 
+/** The page's custom properties (without the `--`) and their colours, for one mode. */
+export type TVizPalette = Record<string, string>;
+
 export interface IVizNode {
   id: string;
   type: string;
@@ -43,4 +46,6 @@ export interface IVizData {
   edges: IVizEdge[];
   sections: IVizSection[];
   copy: Record<TLocale, IVizCopy>;
+  /** The colours of the page in each mode, from the project's theme tokens. */
+  theme: Record<TThemeMode, TVizPalette>;
 }

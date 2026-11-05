@@ -22,6 +22,7 @@ const DATA: IVizData = {
   ],
   edges: [],
   sections: [{ key: 'packages', label: 'Packages', count: 1 }],
+  theme: { light: { bg: '#fff' }, dark: { bg: '#000' } },
   copy: {
     en: { heading: 'h', tagline: 't', sectionDescriptions: {} },
     vi: { heading: 'h', tagline: 't', sectionDescriptions: {} },
