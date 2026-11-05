@@ -366,21 +366,23 @@ export const runApiCommand = (opts: { command?: string; args?: string[] }): numb
     return 1;
   }
 
-  // Only `undocumented` reads a package that publishes its source: a page or a check of pages needs declaration text.
-  const all = SymbolCompute.symbolsOfRepository({
-    project,
-    withSource: opts.command === 'undocumented',
-  });
   const { names: only, unmatched } = ApiPackages.resolve({ args: opts.args ?? [], project });
 
   if (unmatched.length > 0) {
     console.error(
-      `vulcan x atlas api: --package ${unmatched.map((value) => `'${value}'`).join(', ')} matches no package of this project (use its dir, npm name or path)`,
+      unmatched.includes('')
+        ? 'vulcan x atlas api: --package needs a value (a package dir, npm name or path)'
+        : `vulcan x atlas api: --package ${unmatched.map((value) => `'${value}'`).join(', ')} matches no package of this project (use its dir, npm name or path)`,
     );
 
     return 2;
   }
 
+  // Only `undocumented` reads a package that publishes its source: a page or a check of pages needs declaration text.
+  const all = SymbolCompute.symbolsOfRepository({
+    project,
+    withSource: opts.command === 'undocumented',
+  });
   const records = only === undefined ? all : all.filter((record) => only.includes(record.package));
 
   if (records.length === 0) {
