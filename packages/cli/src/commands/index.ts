@@ -17,6 +17,8 @@ export const COMMAND_LOADERS: Record<string, () => Promise<TCommandHandler>> = {
     import('./doctor.command.ts').then((module) => module.runDoctorCommand),
   [VulcanCommands.EVENT]: () =>
     import('./event.command.ts').then((module) => module.runEventCommand),
+  [VulcanCommands.GRAPH]: () =>
+    import('./graph.command.ts').then((module) => module.runGraphCommand),
   [VulcanCommands.HELP]: () => import('./help.command.ts').then((module) => module.runHelpCommand),
   [VulcanCommands.INIT]: () => import('./init.command.ts').then((module) => module.runInitCommand),
   [VulcanCommands.PRESET]: () =>

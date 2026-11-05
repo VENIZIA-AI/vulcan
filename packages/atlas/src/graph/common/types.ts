@@ -63,3 +63,55 @@ export interface IGraphProducer<TInput> {
   readonly kinds: readonly string[];
   produce(opts: TInput): IGraphPart;
 }
+
+/** What one file looked like at a build. */
+export interface IFileFingerprint {
+  /** The npm name of the package that owns it. */
+  package: string;
+  /** A hash of the bytes. */
+  content: string;
+  /** A hash of the skeleton of a source file; absent for a `package.json`. */
+  surface?: string;
+  /** A hash of the import specifiers of a source file; absent for a `package.json`. */
+  imports?: string;
+  /** A `package.json`: any change to it makes the next build read everything again. */
+  manifest?: boolean;
+}
+
+/** `fingerprints.json`: the state the last build read, to compare with the next. */
+export interface IFingerprints {
+  schemaVersion: number;
+  files: Record<string, IFileFingerprint>;
+  /** For each package, a digest of its built declaration files (empty when it has none). */
+  declarations: Record<string, string>;
+  /** A hash of the packages and the `graph` block of the config. */
+  inputs: string;
+}
+
+/** `meta.json`: when and from what the graph was built. */
+export interface IGraphMeta {
+  schemaVersion: number;
+  builtAt: string;
+  commit?: string;
+  /** Tracked files of the scope had uncommitted changes at the build. */
+  dirty: boolean;
+  scope: string[];
+  /** What the build did: skip, partial or full. */
+  decision: string;
+}
+
+/** What `graph status` answers. */
+export interface IGraphStatus {
+  /** `fresh`, `behind`, `diverged` or `unknown`. */
+  state: string;
+  /** Files the graph was built from that differ now (new, changed or gone). */
+  behind?: number;
+  /** The first of them. */
+  files?: string[];
+  /** The commit the graph was built at, and HEAD now. */
+  commit?: string;
+  head?: string;
+  builtAt?: string;
+  /** Why `unknown`. */
+  reason?: string;
+}

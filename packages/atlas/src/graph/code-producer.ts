@@ -25,13 +25,7 @@ export class CodeProducer implements IGraphProducer<{
   produce(opts: { root: string; project: IAtlasProject; files: string[] }): IGraphPart {
     const packages = opts.project.packages.filter((item) => !item.retired);
     const config = opts.project.graph;
-    const globs = config.exclude.map((pattern) => new Bun.Glob(pattern));
-    const files = opts.files
-      .filter((file) => GraphConstants.SOURCE_PATTERN.test(file))
-      .filter((file) => CodeProducer.ownerOf({ file, packages }) !== undefined)
-      .filter((file) => !globs.some((glob) => glob.match(file)))
-      .filter((file) => CodeProducer.isReadable({ path: resolve(opts.root, file) }))
-      .sort(GraphOrder.byText);
+    const files = CodeProducer.sourceFilesOf(opts);
     const fileSet = new Set(files);
     const nodes = new Map<string, IGraphNode>();
     const edges = new Map<string, IGraphEdge>();
@@ -142,6 +136,27 @@ export class CodeProducer implements IGraphProducer<{
     };
   }
 
+  /** The tracked files the graph reads: TypeScript of a live package, not excluded, present in the working tree. Sorted. */
+  static sourceFilesOf(opts: { root: string; project: IAtlasProject; files: string[] }): string[] {
+    const packages = opts.project.packages.filter((item) => !item.retired);
+    const globs = opts.project.graph.exclude.map((pattern) => new Bun.Glob(pattern));
+
+    return opts.files
+      .filter((file) => GraphConstants.SOURCE_PATTERN.test(file))
+      .filter((file) => CodeProducer.ownerOf({ file, packages }) !== undefined)
+      .filter((file) => !globs.some((glob) => glob.match(file)))
+      .filter((file) => CodeProducer.isReadable({ path: resolve(opts.root, file) }))
+      .sort(GraphOrder.byText);
+  }
+
+  /** The package of a repository path, by npm name. */
+  static packageOf(opts: { file: string; project: IAtlasProject }): string | undefined {
+    return CodeProducer.ownerOf({
+      file: opts.file,
+      packages: opts.project.packages.filter((item) => !item.retired),
+    })?.name;
+  }
+
   /** A regular file the build can read: a tracked file deleted from the working tree, or a link to nothing, is skipped. */
   private static isReadable(opts: { path: string }): boolean {
     try {
@@ -152,10 +167,7 @@ export class CodeProducer implements IGraphProducer<{
   }
 
   /** The package of a repository path: the one with the longest path that holds it. */
-  private static ownerOf(opts: {
-    file: string;
-    packages: IAtlasPackage[];
-  }): IAtlasPackage | undefined {
+  static ownerOf(opts: { file: string; packages: IAtlasPackage[] }): IAtlasPackage | undefined {
     return opts.packages
       .filter((item) => opts.file.startsWith(`${item.path}/`))
       .sort((a, b) => b.path.length - a.path.length)[0];

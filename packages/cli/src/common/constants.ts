@@ -16,6 +16,7 @@ export class VulcanCommands {
   static readonly CI = 'ci';
   static readonly BOARD = 'board';
   static readonly EVENT = 'event';
+  static readonly GRAPH = 'graph';
   static readonly X = 'x';
   static readonly HELP = 'help';
   static readonly VERSION = 'version';

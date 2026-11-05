@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { ProjectConfig } from '@/common/project-config';
 import { CodeGraph } from '@/graph/code-graph';
@@ -9,97 +9,9 @@ import { GraphConstants } from '@/graph/common/constants';
 import type { ICodeGraph } from '@/graph/common/types';
 import { GitState } from '@/graph/git-state';
 import { ImportResolver } from '@/graph/import-resolver';
+import { CLI, MANIFEST, removeRepositories, repository, roots } from './graph.helper';
 
-const roots: string[] = [];
-
-afterAll(() => {
-  for (const root of roots) {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
-const CLI = join(__dirname, '..', '..', 'cli.ts');
-
-const pkg = (name: string, extra: object = {}): string =>
-  JSON.stringify({ name, version: '1.0.0', exports: { '.': './src/index.ts' }, ...extra });
-
-const FILES: Record<string, string> = {
-  'packages/a/package.json': pkg('@fx/a', {
-    exports: { '.': './src/index.ts', './t': './types/t.d.ts' },
-    dependencies: { '@fx/b': '1.0.0', zod: '4.0.0' },
-  }),
-  'packages/a/types/t.d.ts': 'export type Tt = 1;\nexport interface Holder {\n  t: Tt;\n}\n',
-  'packages/a/src/lazy.ts': 'export const lazy = 1;\n',
-  'packages/a/src/index.ts': [
-    "import { b } from '@fx/b';",
-    "import { util } from './util';",
-    "import type { T } from './types/index';",
-    "import { z } from 'zod';",
-    "import { readFileSync } from 'node:fs';",
-    "export * from './util.js';",
-    "export const later = () => import('./lazy');",
-    'export const a = [b, util, z, readFileSync];',
-    '',
-  ].join('\n'),
-  'packages/a/src/util.ts': 'export const util = 1;\n',
-  'packages/a/src/types/index.ts': 'export type T = 1;\n',
-  'packages/b/package.json': pkg('@fx/b', {
-    exports: { '.': './dist/esm/index.d.ts' },
-    peerDependencies: { '@fx/a': '1.0.0' },
-  }),
-  'packages/b/src/index.ts': "import { util } from '@fx/a';\nexport const b = util;\n",
-  'packages/c/package.json': pkg('@fx/c'),
-  'packages/c/src/index.ts':
-    "import { x } from '@/lib/x';\nimport { y } from '~/y';\nexport const c = [x, y];\n",
-  'packages/c/src/lib/x.ts': 'export const x = 1;\n',
-  'packages/c/src/skip/ignored.ts': "import { x } from '../lib/x';\nexport const i = x;\n",
-  'packages/d/package.json': pkg('@fx/d'),
-  'packages/d/src/index.ts': 'export const d = 1;\n',
-  'packages/d/src/index.test.ts': "import { d } from './index';\nexport const t = d;\n",
-  'packages/d/src/entry.test.ts': "import { d } from '@fx/d';\nexport const e = d;\n",
-  'packages/d/src/__tests__/helper.ts': "import { d } from '../index';\nexport const h = d;\n",
-};
-
-const MANIFEST = {
-  schemaVersion: 1,
-  name: 'fx',
-  packages: ['a', 'b', 'c', 'd'].map((dir) => ({
-    name: `@fx/${dir}`,
-    dir,
-    path: `packages/${dir}`,
-    aliases: [],
-    retired: false,
-  })),
-  graph: { exclude: ['packages/c/src/skip/**'], aliases: { '@/': 'src/' } },
-};
-
-const git = (opts: { root: string; args: string[] }): void => {
-  const result = spawnSyncBounded({ cmd: ['git', ...opts.args], cwd: opts.root, stdout: 'pipe' });
-
-  expect(result.exitCode).toBe(0);
-};
-
-/** A git repository holding the fixture files and the manifest, committed. */
-const repository = (): string => {
-  const root = mkdtempSync(join(tmpdir(), 'atlas-graph-'));
-
-  roots.push(root);
-
-  const all = { ...FILES, '.agents/vulcan.manifest.json': JSON.stringify(MANIFEST) };
-
-  for (const [path, text] of Object.entries(all)) {
-    mkdirSync(dirname(join(root, path)), { recursive: true });
-    writeFileSync(join(root, path), text);
-  }
-
-  git({ root, args: ['init', '-q'] });
-  git({ root, args: ['config', 'user.email', 'fx@example.com'] });
-  git({ root, args: ['config', 'user.name', 'fx'] });
-  git({ root, args: ['add', '-A'] });
-  git({ root, args: ['commit', '-q', '-m', 'init'] });
-
-  return root;
-};
+afterAll(removeRepositories);
 
 const buildOf = (opts: { root: string }): ICodeGraph => {
   const project = ProjectConfig.toAtlasProject({ root: opts.root, manifest: MANIFEST });
@@ -321,7 +233,7 @@ describe('vulcan x atlas graph build', () => {
 
     expect(result.exitCode, result.stderr.toString()).toBe(0);
     expect(result.stdout.toString()).toMatch(
-      /^graph: 28 nodes, 38 edges, 12 files, 7 symbols, commit [0-9a-f]{12} -> \.agents\/local\/graph\/code\.json\n$/,
+      /^graph: 28 nodes, 38 edges, 12 files, 7 symbols, commit [0-9a-f]{12}, full \(no earlier build\) -> \.agents\/local\/graph\/code\.json\n$/,
     );
     expect(existsSync(file)).toBe(true);
 
@@ -358,14 +270,16 @@ describe('vulcan x atlas graph build', () => {
   test('refuses an argument it does not know', () => {
     const root = repository();
     const result = spawnSyncBounded({
-      cmd: [process.execPath, CLI, 'graph', 'build', '--full'],
+      cmd: [process.execPath, CLI, 'graph', 'build', '--nope'],
       cwd: root,
       stdout: 'pipe',
       stderr: 'pipe',
     });
 
     expect(result.exitCode).toBe(2);
-    expect(result.stderr.toString()).toContain('usage: vulcan x atlas graph build');
+    expect(result.stderr.toString()).toContain(
+      'usage: vulcan x atlas graph build [--full] | status [--json]',
+    );
   });
 
   test('outside a repository it says so and writes nothing', () => {

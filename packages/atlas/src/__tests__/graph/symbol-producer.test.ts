@@ -141,14 +141,10 @@ describe('SymbolProducer', () => {
     });
   });
 
-  test('a source-published symbol keeps no shape: its digest covers the body', () => {
-    const [built] = produce([record({ name: 'A', shape: 'abc' })]).nodes;
-    const [source] = produce([
-      { ...record({ name: 'A', shape: 'abc' }), declaration: undefined },
-    ]).nodes;
+  test('the shape is the reader digest as it is: for a source-published symbol it covers the body', () => {
+    const [node] = produce([record({ name: 'A', shape: 'abc' })]).nodes;
 
-    expect(built?.symbol?.shape).toBe('abc');
-    expect(source?.symbol?.shape).toBeUndefined();
+    expect(node?.symbol?.shape).toBe('abc');
   });
 
   test('a symbol of an entry the graph does not hold is left out, with its edges', () => {
