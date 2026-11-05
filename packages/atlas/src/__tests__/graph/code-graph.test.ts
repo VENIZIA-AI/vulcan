@@ -306,7 +306,7 @@ describe('vulcan x atlas graph build', () => {
 
     expect(result.exitCode, result.stderr.toString()).toBe(0);
     expect(result.stdout.toString()).toMatch(
-      /^graph: 21 nodes, 23 edges, 12 files, commit [0-9a-f]{12} -> \.agents\/local\/graph\/code\.json\n$/,
+      /^graph: 27 nodes, 35 edges, 12 files, 6 symbols, commit [0-9a-f]{12} -> \.agents\/local\/graph\/code\.json\n$/,
     );
     expect(existsSync(file)).toBe(true);
 
@@ -314,8 +314,27 @@ describe('vulcan x atlas graph build', () => {
 
     expect(parsed.schemaVersion).toBe(1);
     expect(parsed.kind).toBe('code');
-    expect(parsed.nodes).toHaveLength(21);
-    expect(parsed.edges).toHaveLength(23);
+    const ids = (kind: string): string[] =>
+      parsed.nodes
+        .filter((n: { kind: string }) => n.kind === kind)
+        .map((n: { id: string }) => n.id);
+    const edges: string[] = parsed.edges.map(
+      (e: { kind: string; from: string; to: string }) => `${e.kind} ${e.from} -> ${e.to}`,
+    );
+
+    expect(ids('symbol')).toEqual([
+      'sym:@fx/a#a',
+      'sym:@fx/a#later',
+      'sym:@fx/a#util',
+      'sym:@fx/a/t#Tt',
+      'sym:@fx/c#c',
+      'sym:@fx/d#d',
+    ]);
+    expect(edges).toContain('exports entry:@fx/a -> sym:@fx/a#util');
+    expect(edges).toContain('contains file:packages/a/src/util.ts -> sym:@fx/a#util');
+    expect(edges).toContain('contains file:packages/a/types/t.d.ts -> sym:@fx/a/t#Tt');
+    expect(parsed.nodes).toHaveLength(27);
+    expect(parsed.edges).toHaveLength(35);
   });
 
   test('refuses an argument it does not know', () => {

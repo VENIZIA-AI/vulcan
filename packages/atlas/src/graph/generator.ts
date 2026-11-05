@@ -1,6 +1,7 @@
 import { ProjectConfig } from '@/common/project-config';
+import { SymbolCompute } from '@/symbols/compute';
 import { CodeGraph } from './code-graph';
-import { GraphFiles } from './common/constants';
+import { GraphFiles, GraphNodeKinds } from './common/constants';
 
 const USAGE = 'usage: vulcan x atlas graph build';
 
@@ -13,7 +14,8 @@ export const runGraphCommand = (opts: { command?: string; args?: string[] }): nu
 
   try {
     const project = ProjectConfig.readAtlasProject();
-    const graph = CodeGraph.build({ root: project.root, project });
+    const records = SymbolCompute.symbolsOfRepository({ project, withSource: true });
+    const graph = CodeGraph.build({ root: project.root, project, records });
 
     if (graph === undefined) {
       console.error(
@@ -25,10 +27,11 @@ export const runGraphCommand = (opts: { command?: string; args?: string[] }): nu
 
     CodeGraph.write({ root: project.root, graph });
 
-    const files = graph.nodes.filter((node) => node.kind === 'file').length;
+    const files = graph.nodes.filter((node) => node.kind === GraphNodeKinds.FILE).length;
+    const symbols = graph.nodes.filter((node) => node.kind === GraphNodeKinds.SYMBOL).length;
 
     console.log(
-      `graph: ${graph.nodes.length} nodes, ${graph.edges.length} edges, ${files} files, commit ${graph.source.commit ?? 'none'} -> ${GraphFiles.DIRECTORY}/${GraphFiles.CODE}`,
+      `graph: ${graph.nodes.length} nodes, ${graph.edges.length} edges, ${files} files, ${symbols} symbols, commit ${graph.source.commit ?? 'none'} -> ${GraphFiles.DIRECTORY}/${GraphFiles.CODE}`,
     );
 
     return 0;

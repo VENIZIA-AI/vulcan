@@ -2,7 +2,9 @@ import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { IAtlasProject } from '@/common/project-config';
 import { CodeProducer } from './code-producer';
-import { GraphConstants, GraphFiles } from './common/constants';
+import type { ISymbolRecord } from '@/symbols/common/types';
+import { SymbolProducer } from './symbol-producer';
+import { GraphConstants, GraphEdgeKinds, GraphFiles, GraphNodeKinds } from './common/constants';
 import type { ICodeGraph } from './common/types';
 import { GitState } from './git-state';
 
@@ -11,7 +13,12 @@ export class CodeGraph {
    * The code graph of the project at its working tree. Undefined when git cannot list the files: the graph is of tracked
    * files, so it needs a repository.
    */
-  static build(opts: { root: string; project: IAtlasProject }): ICodeGraph | undefined {
+  static build(opts: {
+    root: string;
+    project: IAtlasProject;
+    /** The exported symbols atlas read (`SymbolCompute.symbolsOfRepository`); the graph has no symbol nodes without them. */
+    records?: ISymbolRecord[];
+  }): ICodeGraph | undefined {
     const scope = opts.project.packages
       .filter((item) => !item.retired)
       .map((item) => item.path)
@@ -23,7 +30,17 @@ export class CodeGraph {
     }
 
     const commit = GitState.commitOf({ root: opts.root });
-    const part = new CodeProducer().produce({ root: opts.root, project: opts.project, files });
+    const code = new CodeProducer().produce({ root: opts.root, project: opts.project, files });
+    const symbols = new SymbolProducer().produce({
+      records: opts.records ?? [],
+      packages: opts.project.packages,
+      fileIds: new Set(
+        code.nodes.filter((node) => node.kind === GraphNodeKinds.FILE).map((node) => node.id),
+      ),
+    });
+    const entryIds = new Set(
+      code.nodes.filter((node) => node.kind === GraphNodeKinds.ENTRY).map((node) => node.id),
+    );
 
     return {
       schemaVersion: GraphConstants.SCHEMA_VERSION,
@@ -33,8 +50,27 @@ export class CodeGraph {
         dirty: GitState.isDirty({ root: opts.root, paths: scope }),
         scope,
       },
-      ...part,
+      nodes: [...code.nodes, ...symbols.nodes].sort((a, b) => CodeGraph.byText(a.id, b.id)),
+      edges: [
+        ...code.edges,
+        ...symbols.edges.filter(
+          (edge) => edge.kind !== GraphEdgeKinds.EXPORTS || entryIds.has(edge.from),
+        ),
+      ].sort(
+        (a, b) =>
+          CodeGraph.byText(a.kind, b.kind) ||
+          CodeGraph.byText(a.from, b.from) ||
+          CodeGraph.byText(a.to, b.to),
+      ),
     };
+  }
+
+  private static byText(a: string, b: string): number {
+    if (a === b) {
+      return 0;
+    }
+
+    return a < b ? -1 : 1;
   }
 
   /**

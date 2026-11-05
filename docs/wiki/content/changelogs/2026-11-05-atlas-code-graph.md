@@ -10,14 +10,15 @@ packages: ['@venizia/vulcan-atlas', '@venizia/vulcan']
 
 <Badge type="tip" text="New Feature" />
 
-**In one line.** `vulcan x atlas graph build` writes `.agents/local/graph/code.json`: the packages, the entries of their `exports`, the tracked TypeScript files, and the edges between them, so a tool can answer "what imports this" and "which test covers it" without reading every file.
+**In one line.** `vulcan x atlas graph build` writes `.agents/local/graph/code.json`: the packages, the entries of their `exports`, the tracked TypeScript files, their exported symbols, and the edges between them, so a tool can answer "what imports this" and "which test covers it" without reading every file.
 
 ## What changed
 
 - **A new command.** `vulcan x atlas graph build` reads `git ls-files`, each package's `exports` and the imports of each file, and prints one line: nodes, edges, files and the commit. The file is local (under `.agents/local/`, not committed) and is the same bytes for the same files.
 - **Edges.** `contains` (package to entry to its source file), `depends` (package to package), `imports` (file to file, or to a workspace package's entry) and `tested_by` (a file to the test file that imports it). Imports it does not follow are listed on the file as `external`.
 - **Two optional config keys.** `graph.exclude` (globs of tracked files to leave out) and `graph.aliases` (an import prefix such as `@/` mapped to a folder of the importing package such as `src/`). Without `aliases`, an alias import is `external`.
-- **Size.** On IGNIS (1837 files) the file is 1.5 MB and the build takes about 0.3 s.
+- **Symbols.** The graph also holds the exported symbols atlas reads (`sym:<entry>#<name>`, with kind, line, whether it has TSDoc and a digest of the declaration) and the edges `exports` (entry to symbol), `contains` (file to the symbols declared in it) and `uses` (symbol to the exported symbols its declaration refers to). The command's line now counts them.
+- **Size.** On IGNIS (1837 files, 3305 symbols) the file is 3.8 MB and the build takes about 2 s; on ARDOR 0.3 MB. Without the symbols it is 1.5 MB and 0.3 s. Build the packages first: a package whose declarations are not built has no symbols.
 
 ## Who is affected
 

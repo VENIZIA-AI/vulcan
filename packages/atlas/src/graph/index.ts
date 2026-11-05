@@ -1,6 +1,7 @@
 export * from './generator';
 export * from './code-graph';
 export * from './code-producer';
+export * from './symbol-producer';
 export * from './common/constants';
 export * from './common/types';
 export * from './import-reader';
