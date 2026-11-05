@@ -28,7 +28,7 @@ pull requests and reports ("breaks B-05").
 | [S - Security](#s---security) | S-01 … S-06 | Secrets, injected content, leaks, guard defaults, dependencies |
 | [P - Process](#p---process) | P-01 … P-15 (no P-03) | How work starts, how it is tracked, how it is measured, how it is judged done |
 | [B - Build and quality](#b---build-and-quality) | B-01 … B-08 | Build, lint, verify, what a tool really runs |
-| [C - Code and writing](#c---code-and-writing) | V-C-01 … V-C-19, C-19 | Style in code and in prose - the shared VULCAN base, plus dates |
+| [C - Code and writing](#c---code-and-writing) | V-C-01 … V-C-19, C-19, C-20 | Style in code and in prose - the shared VULCAN base, plus dates and TSDoc on the published packages |
 
 ---
 
@@ -122,12 +122,12 @@ Blocked: <what blocks, or "nothing">
 ## C - Code and writing
 
 The code and writing rules are the shared VULCAN base, `V-C-01` … `V-C-19`, in
-`packages/cli/base/rules.md` - IGNIS's own C rules, moved upstream verbatim, and `V-C-19` added since. Cite them as `V-C-xx`. The bare `C-19` below is this repository's own rule (ISO dates) and is not `V-C-19`.
+`packages/cli/base/rules.md` - IGNIS's own C rules, moved upstream verbatim, and `V-C-19` added since. Cite them as `V-C-xx`. The bare `C-19` (ISO dates) and `C-20` (TSDoc on the exports of cli and okf) below are this repository's own rules; `C-19` is not `V-C-19`.
 
 | ID | Rule |
 |---|---|
 | **C-19** | **ISO dates** (`2026-10-17`) in every durable artifact. |
-| **C-20** | **Every export reachable from the `exports` of the cli or the okf package carries TSDoc,** because the generated API reference and the atlas `symbol` tool read it. Same format as `V-C-09`; written when the export is written or changed; it says only what the name and the types do not, no restating; the `@param`, `@default` and `@example` lines have no length limit. `make public-api-check` is the gate. |
+| **C-20** | **Every export reachable from the `exports` of the cli or the okf package carries TSDoc (an `@internal` export excepted),** because the generated API reference and the atlas `symbol` tool read it. Same format as `V-C-09`; written when the export is written or changed; it says only what the name and the types do not, no restating; the `@param`, `@default` and `@example` lines have no length limit. `make public-api-check` is the gate. |
 
 ---
 
