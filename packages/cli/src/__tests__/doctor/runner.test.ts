@@ -878,7 +878,11 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
 
     expect(result.code, result.stderr).toBe(0);
     expect(result.stderr).toContain('  warning [dockerignore] .dockerignore: ');
-    expect(result.stderr).toContain('vulcan doctor: OK with 1 warning(s)');
+    const printed = result.stderr
+      .split('\n')
+      .filter((line) => line.startsWith('  warning [')).length;
+
+    expect(result.stderr).toContain(`vulcan doctor: OK with ${printed} warning(s)`);
   });
 });
 

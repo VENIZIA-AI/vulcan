@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DoctorRunner } from '../../doctor/index.ts';
+import { SocketWarning } from '../doctor/socket-warning.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
@@ -60,7 +61,8 @@ describe('upgrading a project from the layout before .agents/local/', () => {
 
     runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
 
-    const after = await DoctorRunner.runWarnings({ root });
+    const result = await DoctorRunner.runWarnings({ root });
+    const after = SocketWarning.without({ warnings: result });
 
     expect(after.filter((entry) => entry.check === 'local')).toEqual([]);
   });
@@ -77,7 +79,8 @@ describe('upgrading a project from the layout before .agents/local/', () => {
     git({ cwd: root, args: ['worktree', 'add', '-q', outside, '-b', 'topic'] });
     runCli({ args: ['sync', '--agents', 'claude'], cwd: root });
 
-    const result = await DoctorRunner.runWarnings({ root });
+    const result2 = await DoctorRunner.runWarnings({ root });
+    const result = SocketWarning.without({ warnings: result2 });
     const warnings = result.filter((entry) => entry.check === 'local');
 
     expect(warnings).toHaveLength(1);

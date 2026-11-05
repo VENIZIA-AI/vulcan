@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { ProjectLayout } from '../../common/index.ts';
 import { EventLog } from '../../events/log.ts';
 import { DoctorRunner } from '../../doctor/index.ts';
+import { SocketWarning } from '../doctor/socket-warning.helper.ts';
 import { CleanScopes, LocalClean, LocalConstants, LocalScan } from '../../local/index.ts';
 import { CLAUDE_LAUNCH_FILE, LaunchSettings } from '../../sync/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -476,7 +477,8 @@ describe('doctor and what an agent left behind', () => {
     );
     worktree({ root, name: 'done', merged: true });
 
-    const result = await DoctorRunner.runWarnings({ root });
+    const result2 = await DoctorRunner.runWarnings({ root });
+    const result = SocketWarning.without({ warnings: result2 });
     const warnings = result.filter((entry) => entry.file.startsWith('.agents/local/'));
 
     expect(warnings.map((entry) => entry.file).sort()).toEqual([
@@ -497,7 +499,8 @@ describe('doctor and what an agent left behind', () => {
     file({ root, path: 'tmp/fresh/a.txt' });
     worktree({ root, name: 'busy', commit: true });
 
-    const result = await DoctorRunner.runWarnings({ root });
+    const result2 = await DoctorRunner.runWarnings({ root });
+    const result = SocketWarning.without({ warnings: result2 });
     expect(result.filter((entry) => entry.file.startsWith('.agents/local/'))).toEqual([]);
   });
 

@@ -25,7 +25,13 @@ import { EventConstants } from '../events/common/index.ts';
 import { EventRetention } from '../events/retention.ts';
 import { EventSettings } from '../events/settings.ts';
 import { AgentFiles, AtlasBlockPlan, LocalPlan, SyncPlanner, SyncStatuses } from '../sync/index.ts';
-import { LocalConstants, LocalFormat, LocalScan, LocalStates } from '../local/index.ts';
+import {
+  BrowserSocket,
+  LocalConstants,
+  LocalFormat,
+  LocalScan,
+  LocalStates,
+} from '../local/index.ts';
 import { CLAUDE_LAUNCH_FILE, ClaudeLaunch } from '../sync/claude-launch.ts';
 import { PrivateValues } from './private-values.ts';
 import {
@@ -37,7 +43,7 @@ import {
   ViolationConstants,
 } from '../owner/index.ts';
 import { SkillCatalog } from '@venizia/vulcan-atlas';
-import { ScriptTrust, TrustStates } from '../hooks/index.ts';
+import { ProjectTmp, ScriptTrust, TrustStates } from '../hooks/index.ts';
 import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
 import { Makefile } from './makefile.ts';
@@ -1286,6 +1292,31 @@ export class ProjectContract {
           }),
         ]
       : [];
+  }
+
+  /**
+   * The project's tmp folder is too deep for a browser: Chrome and Chromium put a socket below the temp folder
+   * and exit with "Socket path too long" past ${BrowserSocket.PATH_MAX} characters. The launch file points a session's
+   * `TMPDIR` at that folder, so a browser it starts (Playwright MCP, a headless Chrome) fails; a project with no launch file is not asked. A warning, because only
+   * a project that starts a browser meets it; the way out is a shorter checkout path.
+   */
+  static checkBrowserSocket(opts: { root: string }): IViolation[] {
+    const folder = ProjectTmp.projectOf({ root: opts.root });
+    const length = BrowserSocket.lengthOf({ folder });
+
+    if (BrowserSocket.fits({ folder }) || !existsSync(join(opts.root, CLAUDE_LAUNCH_FILE))) {
+      return [];
+    }
+
+    const spare = BrowserSocket.PATH_MAX - (length - opts.root.length);
+
+    return [
+      createViolation({
+        check: DoctorChecks.LOCAL,
+        file: CLAUDE_LAUNCH_FILE,
+        message: `the temp folder ${folder} is too deep for a browser: Chrome's socket path would be ${length} characters (${BrowserSocket.longest()} below it) and the limit is ${BrowserSocket.PATH_MAX}, so a browser started with this folder exits with "${BrowserSocket.ERROR}". Move the checkout to a path of ${spare} characters or fewer`,
+      }),
+    ];
   }
 
   /**
