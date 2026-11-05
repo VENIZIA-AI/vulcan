@@ -3,8 +3,8 @@ import { TypeScriptCompiler } from '@/common/compiler';
 export class ImportReader {
   /**
    * The module specifiers a file imports or re-exports, sorted and unique. Read with `preProcessFile`, which scans the
-   * text and builds no program: `import`, `import type`, `export ... from` and `import x = require()`. A dynamic `import()`
-   * and a `require()` call are not read in this version.
+   * text and builds no program: `import`, `import type`, `export ... from`, `import x = require()` and a dynamic
+   * `import('./x')` with a string literal. A `require()` call and an import whose specifier is computed are not read.
    */
   static specifiersOf(opts: { text: string }): string[] {
     const info = TypeScriptCompiler.get().preProcessFile(opts.text, true, false);

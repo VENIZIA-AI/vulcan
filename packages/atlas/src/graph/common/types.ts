@@ -6,7 +6,7 @@ export interface IGraphNode {
   path?: string;
   /** The npm name of the package that owns the node. */
   package?: string;
-  /** A file's import specifiers that are not followed (node:, npm packages, aliases not listed): sorted, unique. */
+  /** A file's import specifiers that lead to no tracked TypeScript file (npm packages, node:, an alias not listed, a stylesheet, an excluded file): sorted, unique. */
   external?: string[];
 }
 

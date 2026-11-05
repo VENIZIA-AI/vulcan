@@ -1,21 +1,21 @@
 import { spawnSync } from 'node:child_process';
 
-const GIT_TIMEOUT_MS = 20_000;
-const GIT_BUFFER_BYTES = 256 * 1024 * 1024;
-
 export class GitState {
+  private static readonly TIMEOUT_MS = 20_000;
+  private static readonly BUFFER_BYTES = 256 * 1024 * 1024;
+
   private static git(opts: { root: string; args: string[] }): string | undefined {
     const result = spawnSync('git', opts.args, {
       cwd: opts.root,
       encoding: 'utf8',
-      timeout: GIT_TIMEOUT_MS,
-      maxBuffer: GIT_BUFFER_BYTES,
+      timeout: GitState.TIMEOUT_MS,
+      maxBuffer: GitState.BUFFER_BYTES,
     });
 
     return result.status === 0 ? result.stdout : undefined;
   }
 
-  /** The tracked files under `paths`, repository paths; undefined when git cannot say (no repository, no git). */
+  /** The tracked files under `paths`, repository paths; undefined when git cannot say (no repository, no git, a timeout, an output over the buffer). */
   static trackedFiles(opts: { root: string; paths: string[] }): string[] | undefined {
     const out = GitState.git({ root: opts.root, args: ['ls-files', '-z', '--', ...opts.paths] });
 

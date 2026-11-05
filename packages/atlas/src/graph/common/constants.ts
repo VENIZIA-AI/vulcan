@@ -42,6 +42,11 @@ export class GraphConstants {
   ]);
   /** Tried after a bare path, in order. */
   static readonly EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts', '.d.ts'];
-  /** A file that tests another: by folder, or by name. */
-  static readonly TEST_PATTERN = /(^|\/)__tests__\/|\.(test|spec)\.[cm]?tsx?$/;
+  /** A test file, by name: `x.test.ts`, `x.spec.tsx`. A helper that sits beside the tests is not one. */
+  static readonly TEST_PATTERN = /\.(test|spec)\.[cm]?tsx?$/;
+  /** What a build puts the source under, when a package's `exports` names the built declaration. */
+  static readonly BUILD_FOLDERS = ['dist/', 'build/', 'lib/'];
+  /** Folders inside the build folder that the source does not have. */
+  static readonly BUILD_SUBFOLDERS = ['esm/', 'cjs/', 'types/', ''];
+  static readonly DECLARATION_ENDING = /\.d\.[cm]?ts$/;
 }

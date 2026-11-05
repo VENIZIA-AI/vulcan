@@ -8,13 +8,13 @@ packages: ['@venizia/vulcan-atlas', '@venizia/vulcan']
 
 ## vulcan x atlas graph build writes a graph of your packages, files and imports
 
-<Badge type="tip" text="Feature" />
+<Badge type="tip" text="New Feature" />
 
 **In one line.** `vulcan x atlas graph build` writes `.agents/local/graph/code.json`: the packages, the entries of their `exports`, the tracked TypeScript files, and the edges between them, so a tool can answer "what imports this" and "which test covers it" without reading every file.
 
 ## What changed
 
-- **A new command.** `vulcan x atlas graph build` reads `git ls-files`, each package's `exports` and the imports of each file, and prints one line: nodes, edges, files and the commit. The file is local (under `.agents/local/`, not committed) and is the same bytes for the same commit.
+- **A new command.** `vulcan x atlas graph build` reads `git ls-files`, each package's `exports` and the imports of each file, and prints one line: nodes, edges, files and the commit. The file is local (under `.agents/local/`, not committed) and is the same bytes for the same files.
 - **Edges.** `contains` (package to entry to its source file), `depends` (package to package), `imports` (file to file, or to a workspace package's entry) and `tested_by` (a file to the test file that imports it). Imports it does not follow are listed on the file as `external`.
 - **Two optional config keys.** `graph.exclude` (globs of tracked files to leave out) and `graph.aliases` (an import prefix such as `@/` mapped to a folder of the importing package such as `src/`). Without `aliases`, an alias import is `external`.
 - **Size.** On IGNIS (1837 files) the file is 1.5 MB and the build takes about 0.3 s.

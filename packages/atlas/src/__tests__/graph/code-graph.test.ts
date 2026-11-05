@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { ProjectConfig } from '@/common/project-config';
 import { CodeGraph } from '@/graph/code-graph';
+import type { ICodeGraph } from '@/graph/common/types';
 import { GitState } from '@/graph/git-state';
 import { ImportResolver } from '@/graph/import-resolver';
 
@@ -22,7 +23,12 @@ const pkg = (name: string, extra: object = {}): string =>
   JSON.stringify({ name, version: '1.0.0', exports: { '.': './src/index.ts' }, ...extra });
 
 const FILES: Record<string, string> = {
-  'packages/a/package.json': pkg('@fx/a', { dependencies: { '@fx/b': '1.0.0', zod: '4.0.0' } }),
+  'packages/a/package.json': pkg('@fx/a', {
+    exports: { '.': './src/index.ts', './t': './types/t.d.ts' },
+    dependencies: { '@fx/b': '1.0.0', zod: '4.0.0' },
+  }),
+  'packages/a/types/t.d.ts': 'export type Tt = 1;\n',
+  'packages/a/src/lazy.ts': 'export const lazy = 1;\n',
   'packages/a/src/index.ts': [
     "import { b } from '@fx/b';",
     "import { util } from './util';",
@@ -30,6 +36,7 @@ const FILES: Record<string, string> = {
     "import { z } from 'zod';",
     "import { readFileSync } from 'node:fs';",
     "export * from './util.js';",
+    "export const later = () => import('./lazy');",
     'export const a = [b, util, z, readFileSync];',
     '',
   ].join('\n'),
@@ -48,6 +55,7 @@ const FILES: Record<string, string> = {
   'packages/d/package.json': pkg('@fx/d'),
   'packages/d/src/index.ts': 'export const d = 1;\n',
   'packages/d/src/index.test.ts': "import { d } from './index';\nexport const t = d;\n",
+  'packages/d/src/entry.test.ts': "import { d } from '@fx/d';\nexport const e = d;\n",
   'packages/d/src/__tests__/helper.ts': "import { d } from '../index';\nexport const h = d;\n",
 };
 
@@ -92,16 +100,18 @@ const repository = (): string => {
   return root;
 };
 
-const buildOf = (opts: { root: string }) => {
+const buildOf = (opts: { root: string }): ICodeGraph => {
   const project = ProjectConfig.toAtlasProject({ root: opts.root, manifest: MANIFEST });
   const graph = CodeGraph.build({ root: opts.root, project });
 
-  expect(graph).toBeDefined();
+  if (graph === undefined) {
+    throw new Error('the fixture is a repository: git must list its files');
+  }
 
-  return graph!;
+  return graph;
 };
 
-const edgeList = (opts: { graph: ReturnType<typeof buildOf> }): string[] =>
+const edgeList = (opts: { graph: ICodeGraph }): string[] =>
   opts.graph.edges.map((edge) => `${edge.kind} ${edge.from} -> ${edge.to}`);
 
 describe('the code graph of a fixture repository', () => {
@@ -111,16 +121,20 @@ describe('the code graph of a fixture repository', () => {
   test('has the packages, the entries and the tracked files, and not the excluded one', () => {
     expect(graph.nodes.map((node) => node.id)).toEqual([
       'entry:@fx/a',
+      'entry:@fx/a/t',
       'entry:@fx/b',
       'entry:@fx/c',
       'entry:@fx/d',
       'file:packages/a/src/index.ts',
+      'file:packages/a/src/lazy.ts',
       'file:packages/a/src/types/index.ts',
       'file:packages/a/src/util.ts',
+      'file:packages/a/types/t.d.ts',
       'file:packages/b/src/index.ts',
       'file:packages/c/src/index.ts',
       'file:packages/c/src/lib/x.ts',
       'file:packages/d/src/__tests__/helper.ts',
+      'file:packages/d/src/entry.test.ts',
       'file:packages/d/src/index.test.ts',
       'file:packages/d/src/index.ts',
       'pkg:@fx/a',
@@ -133,23 +147,27 @@ describe('the code graph of a fixture repository', () => {
   test('has contains, depends (a cycle between a and b), imports and tested_by edges', () => {
     expect(edgeList({ graph })).toEqual([
       'contains entry:@fx/a -> file:packages/a/src/index.ts',
+      'contains entry:@fx/a/t -> file:packages/a/types/t.d.ts',
       'contains entry:@fx/b -> file:packages/b/src/index.ts',
       'contains entry:@fx/c -> file:packages/c/src/index.ts',
       'contains entry:@fx/d -> file:packages/d/src/index.ts',
       'contains pkg:@fx/a -> entry:@fx/a',
+      'contains pkg:@fx/a -> entry:@fx/a/t',
       'contains pkg:@fx/b -> entry:@fx/b',
       'contains pkg:@fx/c -> entry:@fx/c',
       'contains pkg:@fx/d -> entry:@fx/d',
       'depends pkg:@fx/a -> pkg:@fx/b',
       'depends pkg:@fx/b -> pkg:@fx/a',
       'imports file:packages/a/src/index.ts -> entry:@fx/b',
+      'imports file:packages/a/src/index.ts -> file:packages/a/src/lazy.ts',
       'imports file:packages/a/src/index.ts -> file:packages/a/src/types/index.ts',
       'imports file:packages/a/src/index.ts -> file:packages/a/src/util.ts',
       'imports file:packages/b/src/index.ts -> entry:@fx/a',
       'imports file:packages/c/src/index.ts -> file:packages/c/src/lib/x.ts',
       'imports file:packages/d/src/__tests__/helper.ts -> file:packages/d/src/index.ts',
+      'imports file:packages/d/src/entry.test.ts -> entry:@fx/d',
       'imports file:packages/d/src/index.test.ts -> file:packages/d/src/index.ts',
-      'tested_by file:packages/d/src/index.ts -> file:packages/d/src/__tests__/helper.ts',
+      'tested_by file:packages/d/src/index.ts -> file:packages/d/src/entry.test.ts',
       'tested_by file:packages/d/src/index.ts -> file:packages/d/src/index.test.ts',
     ]);
   });
@@ -161,6 +179,24 @@ describe('the code graph of a fixture repository', () => {
     expect(edges).toContain(
       'imports file:packages/a/src/index.ts -> file:packages/a/src/types/index.ts',
     );
+  });
+
+  test('a helper beside the tests is not a test; a test that imports a package entry tests the entry file', () => {
+    const edges = edgeList({ graph });
+
+    expect(
+      edges.filter((edge) => edge.includes('helper.ts') && edge.startsWith('tested_by')),
+    ).toEqual([]);
+    expect(edges).toContain(
+      'tested_by file:packages/d/src/index.ts -> file:packages/d/src/entry.test.ts',
+    );
+  });
+
+  test('a dynamic import with a literal is read; an entry that points at a hand-written declaration leads to it', () => {
+    const edges = edgeList({ graph });
+
+    expect(edges).toContain('imports file:packages/a/src/index.ts -> file:packages/a/src/lazy.ts');
+    expect(edges).toContain('contains entry:@fx/a/t -> file:packages/a/types/t.d.ts');
   });
 
   test('an entry that points at a built declaration leads to the source it comes from', () => {
@@ -193,6 +229,36 @@ describe('the code graph of a fixture repository', () => {
     writeFileSync(join(other, 'packages/a/src/util.ts'), 'export const util = 2;\n');
 
     expect(buildOf({ root: other }).source.dirty).toBe(true);
+  });
+});
+
+describe('what the working tree does not hold', () => {
+  test('a tracked file deleted from the working tree is skipped, not a crash', () => {
+    const root = repository();
+
+    rmSync(join(root, 'packages/a/src/util.ts'));
+
+    const graph = buildOf({ root });
+
+    expect(graph.nodes.some((node) => node.id === 'file:packages/a/src/util.ts')).toBe(false);
+    expect(graph.source.dirty).toBe(true);
+  });
+
+  test('a package.json that is not JSON stops the build with a message, not a stack', () => {
+    const root = repository();
+
+    writeFileSync(join(root, 'packages/a/package.json'), '{ not json');
+
+    const result = spawnSyncBounded({
+      cmd: [process.execPath, CLI, 'graph', 'build'],
+      cwd: root,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toContain('vulcan x atlas graph:');
+    expect(result.stderr.toString()).not.toContain('    at ');
   });
 });
 
@@ -240,7 +306,7 @@ describe('vulcan x atlas graph build', () => {
 
     expect(result.exitCode, result.stderr.toString()).toBe(0);
     expect(result.stdout.toString()).toMatch(
-      /^graph: 17 nodes, 19 edges, 9 files, commit [0-9a-f]{12} -> \.agents\/local\/graph\/code\.json\n$/,
+      /^graph: 21 nodes, 23 edges, 12 files, commit [0-9a-f]{12} -> \.agents\/local\/graph\/code\.json\n$/,
     );
     expect(existsSync(file)).toBe(true);
 
@@ -248,8 +314,8 @@ describe('vulcan x atlas graph build', () => {
 
     expect(parsed.schemaVersion).toBe(1);
     expect(parsed.kind).toBe('code');
-    expect(parsed.nodes).toHaveLength(17);
-    expect(parsed.edges).toHaveLength(19);
+    expect(parsed.nodes).toHaveLength(21);
+    expect(parsed.edges).toHaveLength(23);
   });
 
   test('refuses an argument it does not know', () => {
@@ -272,7 +338,7 @@ describe('vulcan x atlas graph build', () => {
     mkdirSync(join(root, '.agents'), { recursive: true });
     writeFileSync(join(root, '.agents/vulcan.manifest.json'), JSON.stringify(MANIFEST));
 
-    // The temp folder sits inside this checkout, so git is pointed at a repository that does not exist.
+    // Wherever the temp folder is (it may sit inside a checkout), git is pointed at a repository that does not exist.
     const result = spawnSyncBounded({
       cmd: [process.execPath, CLI, 'graph', 'build'],
       cwd: root,
