@@ -10,7 +10,7 @@ import {
   realpathSync,
   statSync,
 } from 'node:fs';
-import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { BASE_DIRECTORY, ProjectLayout, RecordValue } from '../common/index.ts';
 import { LayoutKeys, LayoutFolder } from '../common/layout-folder.ts';
 import { MCP_SERVER_HINT, ProjectScaffold } from '../init/index.ts';
@@ -1296,19 +1296,21 @@ export class ProjectContract {
 
   /**
    * The project's tmp folder is too deep for a browser: Chrome and Chromium put a socket below the temp folder
-   * and exit with "Socket path too long" past ${BrowserSocket.PATH_MAX} characters. The launch file points a session's
-   * `TMPDIR` at that folder, so a browser it starts (Playwright MCP, a headless Chrome) fails; a project with no launch file is not asked. A warning, because only
-   * a project that starts a browser meets it; the way out is a shorter checkout path.
+   * and exit with "Socket path too long" past the limit of a unix socket path (`BrowserSocket.PATH_MAX`, the Linux
+   * value; macOS allows 104). The launch file points a session's `TMPDIR` at that folder, so a browser it starts
+   * (Playwright MCP, a headless Chrome) fails; a project with no launch file is not asked. A warning, because only a
+   * project that starts a browser meets it; the way out is a shorter checkout path. The root is made absolute first.
    */
   static checkBrowserSocket(opts: { root: string }): IViolation[] {
-    const folder = ProjectTmp.projectOf({ root: opts.root });
+    const root = resolve(opts.root);
+    const folder = ProjectTmp.projectOf({ root });
     const length = BrowserSocket.lengthOf({ folder });
 
-    if (BrowserSocket.fits({ folder }) || !existsSync(join(opts.root, CLAUDE_LAUNCH_FILE))) {
+    if (BrowserSocket.fits({ folder }) || !existsSync(join(root, CLAUDE_LAUNCH_FILE))) {
       return [];
     }
 
-    const spare = BrowserSocket.PATH_MAX - (length - opts.root.length);
+    const spare = BrowserSocket.PATH_MAX - (length - root.length);
 
     return [
       createViolation({

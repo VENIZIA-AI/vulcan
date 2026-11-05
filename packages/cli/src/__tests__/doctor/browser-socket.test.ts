@@ -74,6 +74,14 @@ describe('vulcan doctor: the project tmp folder and a browser socket', () => {
     ).toHaveLength(1);
   });
 
+  test('a trailing slash on the root changes nothing', () => {
+    const root = deepProject({ launchFile: true });
+
+    expect(ProjectContract.checkBrowserSocket({ root: `${root}/` })).toEqual(
+      ProjectContract.checkBrowserSocket({ root }),
+    );
+  });
+
   test('no launch file: no session uses the folder, so there is nothing to say', async () => {
     const root = deepProject({ launchFile: false });
 
