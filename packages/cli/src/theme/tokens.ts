@@ -80,6 +80,9 @@ const TEXT_PAIRS: [string, string][] = [
   ['accent-text', 'bg'],
   ['accent-text', 'ground'],
   ['accent-text', 'accent-soft'],
+  ['ink', 'accent-soft'],
+  ['body', 'accent-soft'],
+  ['muted', 'accent-soft'],
   ['accent-ink', 'accent'],
   ['ok', 'ok-soft'],
   ['wait', 'wait-soft'],
@@ -96,6 +99,12 @@ const MARK_PAIRS: [string, string][] = [
 ];
 const TEXT_RATIO = 4.5;
 const MARK_RATIO = 3;
+/** The text tokens a surface of the board carries; each is checked on each surface of the mode. */
+const SURFACE_TEXT = ['ink', 'body', 'muted', 'accent-text'];
+const SURFACE_NAMES = ['head', 'soft', 'sunk'];
+const SURFACE_PAIRS: [string, string][] = SURFACE_TEXT.flatMap((text) =>
+  SURFACE_NAMES.map((surface): [string, string] => [text, surface]),
+);
 
 /** The design tokens: fixed semantic names, values from a preset and the project, checked against WCAG AA. */
 export class ThemeTokens {
@@ -124,7 +133,8 @@ export class ThemeTokens {
     },
     slate: {
       seed: { accent: '#3f5266', accentDark: '#9fb4cc' },
-      light: NEUTRAL_LIGHT,
+      // The tint the derivation gives this accent (#e8eaed) leaves muted at 4.42:1 on it; this one is 4.63:1.
+      light: { ...NEUTRAL_LIGHT, 'accent-soft': '#edeff2' },
       dark: NEUTRAL_DARK,
     },
   };
@@ -133,6 +143,88 @@ export class ThemeTokens {
   static readonly MONO =
     "'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace";
   static readonly RADIUS = '4px';
+  /** A corner radius: a bare `0` or a length, so nothing else (a brace, a tag) can reach a style element. */
+  static readonly RADIUS_PATTERN = /^(?:0|\d+(?:\.\d+)?(?:px|rem|em))$/;
+
+  /** The greys of the board's own panes, the same in every project; the text tokens are checked on them. */
+  static readonly SURFACES: Record<'light' | 'dark', Record<string, string>> = {
+    light: { head: '#fafafa', soft: '#f2f2f2', sunk: '#f7f7f7' },
+    dark: { head: '#202024', soft: '#26262b', sunk: '#232327' },
+  };
+
+  /** The `--property:value` pairs of one mode; `names` maps a token to the custom property a consumer calls it. */
+  static declarations(opts: { mode: TTokenMode; names: Record<string, string> }): string {
+    return Object.entries(opts.names)
+      .map(([token, property]) => `--${property}:${opts.mode[token]}`)
+      .join(';');
+  }
+
+  /**
+   * The resolved tokens that `vulcan sync` wrote to the manifest of `root`, or the default preset when the manifest has
+   * none or holds a block this version cannot read (then with a warning to print). Nothing is requested and no config
+   * is loaded.
+   */
+  static read(opts: { root: string }): { tokens: IThemeTokens; warning?: string } {
+    const { block, warning } = ProjectTheme.readManifestBlock({ root: opts.root });
+    const stored = block === undefined ? undefined : ThemeTokens.storedIn({ block });
+
+    if (block !== undefined && stored === undefined) {
+      return {
+        tokens: ThemeTokens.defaults(),
+        warning:
+          'the manifest theme is not readable by this version, so the default preset is used',
+      };
+    }
+
+    return {
+      tokens: stored ?? ThemeTokens.defaults(),
+      ...(warning === undefined ? {} : { warning }),
+    };
+  }
+
+  /** The tokens of a project with no `theme`: the default preset as written. */
+  static defaults(): IThemeTokens {
+    const resolved = ThemeTokens.resolve({});
+
+    if (!resolved.ok) {
+      throw new Error('the default theme preset fails its own contrast check');
+    }
+
+    return resolved.tokens;
+  }
+
+  /** The tokens of a manifest `theme` block when every token of both modes and the three settings are there. */
+  private static storedIn(opts: { block: object }): IThemeTokens | undefined {
+    const tokens: unknown = Reflect.get(opts.block, 'tokens');
+    const modes = ['light', 'dark'].map((mode): TTokenMode | undefined => {
+      const value: unknown =
+        typeof tokens === 'object' && tokens !== null ? Reflect.get(tokens, mode) : undefined;
+
+      return typeof value === 'object' &&
+        value !== null &&
+        ThemeTokens.names().every((name) => {
+          const color: unknown = Reflect.get(value, name);
+
+          return typeof color === 'string' && ThemeTokens.COLOUR.test(color);
+        })
+        ? Object.fromEntries(Object.entries(value))
+        : undefined;
+    });
+    const [light, dark] = modes;
+    const [font, mono, radius, preset]: unknown[] = ['font', 'mono', 'radius', 'preset'].map(
+      (key) => Reflect.get(opts.block, key),
+    );
+
+    return light !== undefined &&
+      dark !== undefined &&
+      typeof font === 'string' &&
+      typeof mono === 'string' &&
+      typeof radius === 'string' &&
+      ThemeTokens.RADIUS_PATTERN.test(radius) &&
+      typeof preset === 'string'
+      ? { preset, light, dark, font, mono, radius }
+      : undefined;
+  }
 
   /** The names a project may override: the keys of a preset. */
   static names(): string[] {
@@ -165,19 +257,21 @@ export class ThemeTokens {
   }
 
   /** Every pair of a mode below AA, each as a sentence that names the pair, the colours and the ratio. */
-  private static contrastProblems(opts: { name: string; mode: TTokenMode }): string[] {
+  private static contrastProblems(opts: { name: 'light' | 'dark'; mode: TTokenMode }): string[] {
     const problems: string[] = [];
+    // The greys of the board's panes sit beside the tokens, so a pair on one of them is read the same way.
+    const mode = { ...opts.mode, ...ThemeTokens.SURFACES[opts.name] };
 
     for (const [pairs, needed, role] of [
-      [TEXT_PAIRS, TEXT_RATIO, 'text'],
+      [[...TEXT_PAIRS, ...SURFACE_PAIRS], TEXT_RATIO, 'text'],
       [MARK_PAIRS, MARK_RATIO, 'a mark'],
     ] as const) {
       for (const [text, on] of pairs) {
-        const ratio = ThemeTokens.ratio({ mode: opts.mode, text, on });
+        const ratio = ThemeTokens.ratio({ mode, text, on });
 
         if (ratio < needed) {
           problems.push(
-            `${opts.name}: ${text} ${opts.mode[text]} as ${role} on ${on} ${opts.mode[on]} is ${ratio.toFixed(2)}:1; it needs ${needed}:1`,
+            `${opts.name}: ${text} ${mode[text]} as ${role} on ${on} ${mode[on]} is ${ratio.toFixed(2)}:1; it needs ${needed}:1`,
           );
         }
       }
@@ -217,6 +311,15 @@ export class ThemeTokens {
       };
     }
 
+    if (theme.radius !== undefined && !ThemeTokens.RADIUS_PATTERN.test(theme.radius)) {
+      return {
+        ok: false,
+        problems: [
+          `theme radius '${theme.radius}' is not 0 or a length such as 4px, 0.25rem or 0.5em`,
+        ],
+      };
+    }
+
     const light: TTokenMode = { ...preset.light };
     const dark: TTokenMode = { ...preset.dark };
     const seed: IThemeInput =
@@ -236,13 +339,15 @@ export class ThemeTokens {
         return { ok: false, problems: derived.problems };
       }
 
-      for (const [mode, palette] of [
-        [light, derived.theme.light],
-        [dark, derived.theme.dark],
+      for (const [mode, palette, presetTint] of [
+        [light, derived.theme.light, preset.light['accent-soft']],
+        [dark, derived.theme.dark, preset.dark['accent-soft']],
       ] as const) {
         mode.accent = palette.accent;
         mode['accent-ink'] = palette.accentInk;
-        mode['accent-soft'] = palette.accentSoft;
+        // A preset's own tint stays for its own accent; a project's accent gets the derived one.
+        mode['accent-soft'] =
+          theme.accent === undefined && presetTint !== undefined ? presetTint : palette.accentSoft;
         mode['accent-text'] = palette.accent;
       }
 

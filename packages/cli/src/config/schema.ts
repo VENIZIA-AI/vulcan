@@ -451,7 +451,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       font: z.string().min(1).optional(),
       /** The monospace font stack; default the preset's. */
       mono: z.string().min(1).optional(),
-      /** The corner radius as a CSS length such as `4px`; default the preset's. */
+      /** The corner radius: `0`, or a number with `px`, `rem` or `em` such as `4px`; anything else is refused. Default the preset's. */
       radius: z.string().min(1).optional(),
     })
     .superRefine((theme, context) => {
