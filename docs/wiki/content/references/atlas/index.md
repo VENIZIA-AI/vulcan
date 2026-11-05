@@ -346,7 +346,40 @@ When no live package exists, `symbols` and `surface` fail with "add packages to 
 | `imports` | file to file, or file to the entry of a workspace package | Relative imports, re-exports, the aliases of [`graph.aliases`](/references/configuration/#graph), and the exact specifier of a workspace entry. A `.js` ending finds the `.ts` file, a folder finds its `index` |
 | `tested_by` | file to a test file | A test file (`*.test.ts`, `*.spec.ts`; a helper beside the tests is not one) imports it, directly or through the package entry that leads to it |
 
-An import that leads to no tracked TypeScript file (an npm package, `node:`, an alias that is not listed, a stylesheet, a file that `graph.exclude` leaves out, a subpath that is not an `exports` entry) is kept on the file, sorted, as `external`. Static imports, re-exports and a dynamic `import('./x')` with a string literal are read; a `require()` call and a computed specifier are not. The graph reads the working tree: a tracked file deleted from it is skipped, and two builds of the same files are the same bytes (the file has no clock). `source` holds the commit, whether tracked files have uncommitted changes, and the paths it was built from. The command needs a git repository and says so when git cannot list the files. The file is held to 4 MB, about what IGNIS needs (1800 files, 3300 symbols); the command says so on stderr when the file passes it.
+An import that leads to no tracked TypeScript file (an npm package, `node:`, an alias that is not listed, a stylesheet, a file that `graph.exclude` leaves out, a subpath that is not an `exports` entry) is kept on the file, sorted, as `external`. Static imports, re-exports and a dynamic `import('./x')` with a string literal are read; a `require()` call and a computed specifier are not. The graph reads the working tree: a tracked file deleted from it is skipped, and two builds of the same files are the same bytes (the file has no clock). `source` holds the commit, whether tracked files have uncommitted changes, and the paths it was built from. The command needs a git repository and says so when git cannot list the files.
+
+### Rebuilds and `meta.json`
+
+A build writes three files in `.agents/local/graph/`: `code.json` (the graph), `fingerprints.json` (what each file looked like) and `meta.json` (when, at which commit, and what the build did). They are written in that order, so a build that stops half way leaves a `meta.json` that still describes the graph before it.
+
+A file is fingerprinted three ways: its bytes (`content`), its skeleton (`surface`: its tokens without comments, whitespace and the bodies of functions, methods and accessors) and its imports. The next build compares them with the last:
+
+| A file | Meaning |
+|---|---|
+| unchanged | The bytes are the same |
+| cosmetic | The bytes differ, the skeleton and the imports do not: an edit inside a function, a comment, the layout |
+| structural | The skeleton or the imports differ, or the file is new or gone |
+
+| The build | When | What it does |
+|---|---|---|
+| `skip` | Nothing is structural, no package has newly built declarations, and the graph is there | Writes the new bytes and the time to `fingerprints.json` and `meta.json`; reads nothing |
+| `partial` | Some files are structural, and at most 30 of them and half of all | Reads the files and imports again, which is cheap, and the symbols again only for the packages that hold a structural file or built new declarations, and for the packages that depend on them. The other symbols are kept |
+| `full` | No earlier build, `--full`, another set of packages or `graph` settings, a `package.json` that changed, or more than 30 structural files or half of all | Reads everything |
+
+The line the build prints ends with its decision and why, for example `partial (2 files changed structurally)`.
+
+### `graph status`
+
+`vulcan graph status` (or `vulcan x atlas graph status`) says whether the graph still describes the files it was built from. It compares the bytes of those files with now; it never fails, and it never builds anything.
+
+| State | In plain words | What to do |
+|---|---|---|
+| `fresh` | Nothing the graph was built from has changed. Other commits since do not matter if they touched nothing it reads | Nothing |
+| `behind <n>` | `n` files it was built from are new, changed or gone since, on the same history. The first five are named | Run `graph build` |
+| `diverged` | Files differ, and the commit it was built at is not in this branch's history (another branch, a rebase, a reset) | Run `graph build`; what the graph says belongs to a history this branch does not have |
+| `unknown` | There is no graph yet, or git could not be asked (no repository, no commit, no answer) | Run `graph build`; `unknown` is a state, not a failure |
+
+`--json` prints one line: `state`, `behind`, `files`, `commit` (the build's), `head`, `builtAt` and `reason`. The exit code is 0 in all four states. A new file git does not track yet is not part of the graph, so it does not make it behind. The file is held to 4 MB, about what IGNIS needs (1800 files, 3300 symbols); the command says so on stderr when the file passes it.
 
 ## Releases
 

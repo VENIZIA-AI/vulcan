@@ -2,6 +2,8 @@
 export class GraphFiles {
   static readonly DIRECTORY = '.agents/local/graph';
   static readonly CODE = 'code.json';
+  static readonly FINGERPRINTS = 'fingerprints.json';
+  static readonly META = 'meta.json';
 }
 
 /** The node kinds of the code graph; the id of a node is its kind prefix and a name. */
@@ -34,7 +36,38 @@ export class GraphEdgeKinds {
   static readonly TESTED_BY = 'tested_by';
 }
 
+/** How much a file changed between two builds. */
+export class GraphLevels {
+  static readonly NONE = 'none';
+  /** The bytes differ, the skeleton (tokens without comments, whitespace and function bodies) and the imports do not. */
+  static readonly COSMETIC = 'cosmetic';
+  /** The skeleton or the imports differ, or the file is new or gone. */
+  static readonly STRUCTURAL = 'structural';
+}
+
+/** What a build does. */
+export class GraphDecisions {
+  static readonly SKIP = 'skip';
+  static readonly PARTIAL = 'partial';
+  static readonly FULL = 'full';
+}
+
+/** How a graph compares with the files it was built from. */
+export class GraphStates {
+  static readonly FRESH = 'fresh';
+  static readonly BEHIND = 'behind';
+  static readonly DIVERGED = 'diverged';
+  static readonly UNKNOWN = 'unknown';
+}
+
 export class GraphConstants {
+  /** More structural files than this, or more than `FULL_SHARE` of all files, and a build reads everything again. */
+  static readonly PARTIAL_MAX_STRUCTURAL = 30;
+  static readonly FULL_SHARE = 0.5;
+  /** Characters kept of a sha-256: enough to tell two states of a file apart. */
+  static readonly HASH_LENGTH = 16;
+  /** How many changed files `status` names. */
+  static readonly STATUS_FILES_SHOWN = 5;
   static readonly SCHEMA_VERSION = 1;
   /** What `code.json` should stay under on a large framework (about 1800 files and 3300 exported symbols). A target: the command says so when it is passed. */
   static readonly SIZE_TARGET_BYTES = 4 * 1024 * 1024;

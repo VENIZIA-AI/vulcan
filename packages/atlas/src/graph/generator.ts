@@ -2,12 +2,18 @@ import { statSync } from 'node:fs';
 import { ProjectConfig } from '@/common/project-config';
 import { CodeGraph } from './code-graph';
 import { GraphConstants, GraphFiles, GraphNodeKinds } from './common/constants';
-import { GraphSymbols } from './graph-symbols';
+import { GraphBuild } from './graph-build';
+import { GraphStatus } from './graph-status';
+import { join } from 'node:path';
 
-const USAGE = 'usage: vulcan x atlas graph build';
+const USAGE = 'usage: vulcan x atlas graph build [--full] | status [--json]';
 
 export const runGraphCommand = (opts: { command?: string; args?: string[] }): number => {
-  if (opts.command !== 'build' || (opts.args ?? []).length > 0) {
+  const args = new Set(opts.args ?? []);
+  const isBuild = opts.command === 'build' && [...args].every((arg) => arg === '--full');
+  const isStatus = opts.command === 'status' && [...args].every((arg) => arg === '--json');
+
+  if (!isBuild && !isStatus) {
     console.error(USAGE);
 
     return 2;
@@ -15,10 +21,18 @@ export const runGraphCommand = (opts: { command?: string; args?: string[] }): nu
 
   try {
     const project = ProjectConfig.readAtlasProject();
-    const { records, error } = GraphSymbols.recordsOf({ project });
-    const graph = CodeGraph.build({ root: project.root, project, records });
 
-    if (graph === undefined) {
+    if (isStatus) {
+      const status = GraphStatus.of({ root: project.root, project });
+
+      console.log(args.has('--json') ? JSON.stringify(status) : GraphStatus.describe({ status }));
+
+      return 0;
+    }
+
+    const built = GraphBuild.run({ root: project.root, project, full: args.has('--full') });
+
+    if (built === undefined) {
       console.error(
         'vulcan x atlas graph: git cannot list the tracked files (not a repository, git missing, a timeout, or too many files)',
       );
@@ -26,8 +40,14 @@ export const runGraphCommand = (opts: { command?: string; args?: string[] }): nu
       return 1;
     }
 
-    const file = CodeGraph.write({ root: project.root, graph });
-    const bytes = statSync(file).size;
+    const { graph, plan } = built;
+    const bytes = statSync(join(project.root, GraphFiles.DIRECTORY, GraphFiles.CODE)).size;
+    const files = graph.nodes.filter((node) => node.kind === GraphNodeKinds.FILE).length;
+    const symbols = graph.nodes.filter((node) => node.kind === GraphNodeKinds.SYMBOL).length;
+
+    console.log(
+      `graph: ${graph.nodes.length} nodes, ${graph.edges.length} edges, ${files} files, ${symbols} symbols, commit ${graph.source.commit ?? 'none'}, ${plan.decision} (${plan.reason}) -> ${GraphFiles.DIRECTORY}/${GraphFiles.CODE}`,
+    );
 
     if (CodeGraph.isOverTarget({ bytes })) {
       console.error(
@@ -35,16 +55,11 @@ export const runGraphCommand = (opts: { command?: string; args?: string[] }): nu
       );
     }
 
-    if (error !== undefined) {
-      console.error(`vulcan x atlas graph: no symbols in the graph, the reader failed: ${error}`);
+    if (built.error !== undefined) {
+      console.error(
+        `vulcan x atlas graph: no symbols in the graph, the reader failed: ${built.error}`,
+      );
     }
-
-    const files = graph.nodes.filter((node) => node.kind === GraphNodeKinds.FILE).length;
-    const symbols = graph.nodes.filter((node) => node.kind === GraphNodeKinds.SYMBOL).length;
-
-    console.log(
-      `graph: ${graph.nodes.length} nodes, ${graph.edges.length} edges, ${files} files, ${symbols} symbols, commit ${graph.source.commit ?? 'none'} -> ${GraphFiles.DIRECTORY}/${GraphFiles.CODE}`,
-    );
 
     return 0;
   } catch (error) {

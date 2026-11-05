@@ -29,6 +29,16 @@ export class GitState {
     return out === undefined ? undefined : out.trim();
   }
 
+  /** Whether `ancestor` is part of the history of HEAD; false for a commit this repository does not know. */
+  static isAncestor(opts: { root: string; ancestor: string }): boolean {
+    return (
+      GitState.git({
+        root: opts.root,
+        args: ['merge-base', '--is-ancestor', opts.ancestor, 'HEAD'],
+      }) !== undefined
+    );
+  }
+
   /** Whether a tracked file under `paths` has uncommitted changes; untracked files do not count. */
   static isDirty(opts: { root: string; paths: string[] }): boolean {
     const out = GitState.git({

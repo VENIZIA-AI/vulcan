@@ -6,7 +6,7 @@ import type { ISymbolRecord } from '@/symbols/common/types';
 import { SymbolProducer } from './symbol-producer';
 import { GraphConstants, GraphFiles, GraphNodeKinds } from './common/constants';
 import { GraphOrder } from './common/order';
-import type { ICodeGraph } from './common/types';
+import type { ICodeGraph, IGraphPart } from './common/types';
 import { GitState } from './git-state';
 
 export class CodeGraph {
@@ -19,6 +19,8 @@ export class CodeGraph {
     project: IAtlasProject;
     /** The exported symbols atlas read (`SymbolCompute.symbolsOfRepository`); the graph has no symbol nodes without them. */
     records?: ISymbolRecord[];
+    /** Symbol nodes and edges kept from the last graph, for the packages whose symbols were not read again. */
+    keep?: IGraphPart;
   }): ICodeGraph | undefined {
     const scope = opts.project.packages
       .filter((item) => !item.retired)
@@ -48,8 +50,9 @@ export class CodeGraph {
         dirty: GitState.isDirty({ root: opts.root, paths: scope }),
         scope,
       },
-      nodes: [...code.nodes, ...symbols.nodes].sort((a, b) => GraphOrder.byText(a.id, b.id)),
-      edges: [...code.edges, ...symbols.edges].sort((a, b) => GraphOrder.byEdge(a, b)),
+      ...CodeGraph.joined({
+        parts: [code, symbols, ...(opts.keep === undefined ? [] : [opts.keep])],
+      }),
     };
   }
 
@@ -63,6 +66,22 @@ export class CodeGraph {
       items.map((item) => JSON.stringify(item)).join(',\n');
 
     return `{"schemaVersion":${graph.schemaVersion},"kind":${JSON.stringify(graph.kind)},"source":${JSON.stringify(graph.source)},\n"nodes":[\n${lines(graph.nodes)}\n],\n"edges":[\n${lines(graph.edges)}\n]}\n`;
+  }
+
+  /** The parts as one sorted graph; an edge whose end is not a node of it is dropped, so no part can leave a dangling edge. */
+  private static joined(opts: { parts: IGraphPart[] }): IGraphPart {
+    const nodes = new Map(opts.parts.flatMap((part) => part.nodes).map((node) => [node.id, node]));
+    const edges = new Map(
+      opts.parts
+        .flatMap((part) => part.edges)
+        .filter((edge) => nodes.has(edge.from) && nodes.has(edge.to))
+        .map((edge) => [`${edge.kind}\0${edge.from}\0${edge.to}`, edge]),
+    );
+
+    return {
+      nodes: [...nodes.values()].sort((a, b) => GraphOrder.byText(a.id, b.id)),
+      edges: [...edges.values()].sort((a, b) => GraphOrder.byEdge(a, b)),
+    };
   }
 
   /** Whether a graph's text is over the size the format is held to. */

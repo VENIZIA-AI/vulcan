@@ -278,6 +278,18 @@ export class CommandTable {
       exits:
         '0 on success; 1 when --stable and --nightly are both given, the dist-tags cannot be read, or the install or sync fails.',
     },
+    [VulcanCommands.GRAPH]: {
+      help: `  graph build [--full]            Write the code graph of the project (vulcan x atlas graph build)
+  graph status [--json]           Say whether the graph still matches the files it was built from`,
+      flags: {
+        '--full': 'build: read everything again, whatever changed',
+        '--json': 'status: print the answer as one line of JSON',
+      },
+      positionals: 1,
+      unknownExit: 2,
+      exits:
+        '0 on success, and for every state of status (fresh, behind, diverged, unknown); 1 when the graph cannot be built (no git repository, a bad package.json) or atlas is not installed; 2 for an argument it does not know',
+    },
     [VulcanCommands.X]: {
       help: `  x <tool> [args...]              Run a shipped tool at the pinned version: okf, atlas`,
       passthrough: true,
