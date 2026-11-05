@@ -1,6 +1,6 @@
 # @venizia/vulcan-okf
 
-Generator, conformance gate, coverage report and graph explorer for a project's knowledge bundle at
+Generator, conformance gate and coverage report for a project's knowledge bundle at
 `.agents/knowledge/`, in the [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/open-knowledge-format)
 v0.2. Part of VULCAN; the bundle is served over MCP by `@venizia/vulcan-atlas`, not from here.
 
@@ -15,7 +15,6 @@ The tooling reads the project it runs in (the working directory).
 | `check --strict` | `check` plus the house rules: every link resolves, docs style, structural coverage, freshness |
 | `gen` | Regenerate all source-derived content |
 | `coverage [--min <n>]` | Report the bundle against the source inventory; `--min` fails below `<n>` percent |
-| `viz` | Build the offline graph explorer, `.agents/knowledge/viz.html` |
 
 ## OKF v0.2 conformance (`check`)
 
@@ -83,7 +82,6 @@ The [renderers reference](../../docs/wiki/content/references/okf/renderers.md) s
 | `src/coverage-report/` | `coverage`: the bundle against the source inventory |
 | `src/lib.ts` | bundle loader: frontmatter, links, concept model |
 | `src/spec/` | OKF v0.2 conformance - pure, never throws |
-| `src/viz/` | explorer: builder (Bun), typed browser client, template |
 | `src/project/` | reads the project config `vulcan x` hands okf - everything project-specific |
 | `src/config.ts` | constants that hold for every project: pruned directories, reserved files |
 

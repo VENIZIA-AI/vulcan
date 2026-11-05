@@ -1,6 +1,6 @@
 /**
  * config.ts - okf's constants that hold for every project. Everything project-specific (paths,
- * packages, renderers, regions, sections, coverage axes, denylist, the explorer's brand and copy)
+ * packages, renderers, regions, sections, coverage axes, denylist, the brand)
  * comes from the project config `vulcan x` hands okf - see project/reader.ts.
  */
 

@@ -81,7 +81,7 @@ export class HouseCheck {
     for (const file of opts.files) {
       const prose = MarkdownText.stripCode({ text: file.text });
 
-      for (const rule of HouseCheck.styleRules({ brand: OkfProject.read().viz.brand })) {
+      for (const rule of HouseCheck.styleRules({ brand: OkfProject.read().brand })) {
         const match = prose.match(rule.pattern);
 
         if (match) {

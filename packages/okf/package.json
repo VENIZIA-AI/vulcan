@@ -40,13 +40,8 @@
     "force-update": "sh ../../scripts/build/force-update.sh",
     "test": "bun test"
   },
-  "dependencies": {
-    "cytoscape": "catalog:",
-    "cytoscape-fcose": "catalog:"
-  },
   "devDependencies": {
     "@types/bun": "catalog:",
-    "@types/cytoscape-fcose": "catalog:",
     "@venizia/dev-configs": "catalog:",
     "eslint": "catalog:",
     "oxlint": "catalog:",

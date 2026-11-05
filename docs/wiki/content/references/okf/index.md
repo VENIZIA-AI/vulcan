@@ -14,7 +14,6 @@ You run commands through `vulcan x okf <command>`. Run it at the project root: i
 | `vulcan x okf check --strict` | Check OKF v0.2 conformance and project house rules | `0` (pass), `1` (rule violation) |
 | `vulcan x okf gen` | Regenerate source-derived pages, regions, and contents lists | `0` (success), `1` (generation failure) |
 | `vulcan x okf coverage [--min <n>]` | Report source coverage and evaluate coverage threshold gates | `0` (pass), `1` (gate failure, project error, bad frontmatter), `2` (invalid `--min`) |
-| `vulcan x okf viz` | Build the offline HTML knowledge graph explorer | `0` (success), `1` (build failure) |
 
 Running an invalid command or omitting the command prints usage and exits with code `2`.
 
@@ -130,7 +129,7 @@ House style rules run over every markdown file in the bundle, index and log incl
 
    The brand rule fires only when the brand is all capitals of 2+ letters (for example VULCAN).
    It rejects the title-case spelling.
-   The brand comes from `okf.viz.brand` (default: root package name unscoped and upper-cased).
+   The brand comes from `okf.brand` (default: root package name unscoped and upper-cased).
 
 3. Structural coverage: Every directory matched by a coverage axis must have a concept or resource mapping:
    - `coverage: <section>/<name> has no concept (<section>/<name>.md)`
@@ -284,26 +283,9 @@ An item is also covered when a concept declares a matching `resource:` value.
 The covering `resource:` value is the directory path from the repository root.
 To configure renderer coverage rows, see [okf renderers](/references/okf/renderers).
 
-## viz
-
-Run `vulcan x okf viz` to build the offline HTML knowledge graph explorer.
-The explorer bundles graph data and the browser client into a self-contained file.
-By default, the command writes to `.agents/knowledge/viz.html`.
-You can configure alternative destination paths in `okf.viz.outputs` in `.configs/vulcan.config.mts`.
-
-`viz` accepts no command-line flags; extra arguments are ignored.
-One `viz: wrote` line prints per configured output.
-The sample passes `--help` only to show extra arguments are ignored:
-
-```text
-$ bun x --no-install vulcan x okf viz --help
-viz: wrote .agents/knowledge/viz.html
-viz: 2 nodes, 0 edges, 2 sections
-```
-
 ## make targets
 
-The shared Makefile at `packages/cli/base/make/vulcan.mk` defines five `okf-*` targets:
+The shared Makefile at `packages/cli/base/make/vulcan.mk` defines four `okf-*` targets:
 
 | Target | Description |
 |---|---|
@@ -311,7 +293,6 @@ The shared Makefile at `packages/cli/base/make/vulcan.mk` defines five `okf-*` t
 | `make okf-check-strict` | okf-check plus the house rules: links, style, coverage, freshness |
 | `make okf-gen` | Regenerate the generated pages and regions of the knowledge bundle |
 | `make okf-coverage` | Report how much of the code the knowledge bundle covers |
-| `make okf-viz` | Build the knowledge graph view |
 
 ## See also
 
