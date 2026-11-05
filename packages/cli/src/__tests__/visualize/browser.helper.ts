@@ -10,6 +10,7 @@ import {
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve as resolvePath } from 'node:path';
 import { findRepositoryRoot } from '@venizia/dev-configs/testing';
+import { BrowserSocket } from '../../local/browser-socket.ts';
 
 /** What a measuring run is asked: the page text, the width of the window, and the colour scheme. */
 export interface IBrowserRun {
@@ -22,9 +23,6 @@ export interface IBrowserRun {
   expression: string;
 }
 
-/** Chrome puts a unix socket at `<temp folder>/com.google.Chrome.XXXXXX/SingletonSocket`; a socket path is 107 characters at most. */
-const SOCKET_PATH_MAX = 107;
-const SOCKET_SUFFIX = join('com.google.Chrome.XXXXXX', 'SingletonSocket');
 /** What a browser leaves in its temp folder when it is killed. */
 const SCRATCH_FOLDER = /^\.?(com\.google\.Chrome|org\.chromium\.Chromium)\./;
 
@@ -83,16 +81,14 @@ export class BrowserPage {
       folder,
     ].filter(
       (entry): entry is string =>
-        entry !== undefined &&
-        existsSync(entry) &&
-        join(entry, SOCKET_SUFFIX).length <= SOCKET_PATH_MAX,
+        entry !== undefined && existsSync(entry) && BrowserSocket.fits({ folder: entry }),
     );
 
     for (const base of candidates) {
       // Where the path allows, Chrome gets a folder of this run alone: another run in the same folder is never
       // touched and everything its Chrome left goes with the folder. Otherwise only the folder its own link names goes.
       const own = mkdtempSync(join(base, 'vz-'));
-      const isPrivate = join(own, SOCKET_SUFFIX).length <= SOCKET_PATH_MAX;
+      const isPrivate = BrowserSocket.fits({ folder: own });
 
       if (!isPrivate) {
         rmSync(own, { recursive: true, force: true });
@@ -110,7 +106,7 @@ export class BrowserPage {
     await BrowserPage.close();
     console.warn(
       candidates.length === 0
-        ? `browser tests skipped: no folder is short enough for Chrome's socket (${SOCKET_PATH_MAX} characters at most, \`${SOCKET_SUFFIX}\` included); set VULCAN_BROWSER_TMPDIR to a short folder`
+        ? `browser tests skipped: no folder is short enough for Chrome's socket (${BrowserSocket.PATH_MAX} characters at most, \`${BrowserSocket.longest()}\` included); set VULCAN_BROWSER_TMPDIR to a short folder`
         : 'browser tests skipped: Chrome did not answer in time',
     );
 

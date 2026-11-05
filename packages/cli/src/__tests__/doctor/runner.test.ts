@@ -5,6 +5,7 @@ import { DoctorChecks, DoctorRunner, Makefile } from '../../doctor/index.ts';
 import { LocalChoice } from '../../agents/index.ts';
 import { Bunfig } from '../../create/bunfig.ts';
 import { Dockerignore } from '../../create/dockerignore.ts';
+import { BrowserSocket } from '../../local/index.ts';
 import { isolateOwnerReplySwitch } from '../owner-reply-env.helper.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
 import { runCli } from '../run.helper.ts';
@@ -877,8 +878,12 @@ describe('doctor: a Dockerfile and the root .dockerignore (warnings)', () => {
     const result = runCli({ args: ['doctor'], cwd: root });
 
     expect(result.code, result.stderr).toBe(0);
+    const printed = result.stderr.split('\n').filter((line) => line.startsWith('  warning ['));
+    const others = printed.filter((line) => !line.includes(BrowserSocket.ERROR));
+
     expect(result.stderr).toContain('  warning [dockerignore] .dockerignore: ');
-    expect(result.stderr).toContain('vulcan doctor: OK with 1 warning(s)');
+    expect(others).toHaveLength(1);
+    expect(result.stderr).toContain(`vulcan doctor: OK with ${printed.length} warning(s)`);
   });
 });
 

@@ -98,6 +98,7 @@ export class DoctorRunner {
       ...ProjectContract.checkEventsDir(context),
       ...ProjectContract.checkEventsSize(context),
       ...ProjectContract.checkProjectKey(context),
+      ...ProjectContract.checkBrowserSocket({ root: opts.root }),
       ...ProjectContract.checkDockerignore(context),
       ...ProjectContract.checkSkillTriggers(context),
       ...ProjectContract.checkFormat(context),
