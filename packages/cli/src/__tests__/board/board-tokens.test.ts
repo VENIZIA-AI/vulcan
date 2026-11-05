@@ -119,6 +119,8 @@ describe('the tokens come from the manifest of the project', () => {
     expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { radius: INJECTION } }).success).toBe(false);
     expect(ThemeTokens.resolve({ theme: { radius: INJECTION } }).ok).toBe(false);
     expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { radius: '0.25rem' } }).success).toBe(true);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { radius: '0' } }).success).toBe(true);
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ theme: { radius: '00' } }).success).toBe(false);
     expect(read.tokens.radius).toBe(ThemeTokens.RADIUS);
     expect(read.warning).toBeDefined();
     expect(BoardPage.render({ data: sampleData(), tokens: read.tokens })).not.toContain(
@@ -129,10 +131,12 @@ describe('the tokens come from the manifest of the project', () => {
   test('a text colour that passes on the page and fails on a pane of the board is refused, naming the pane', () => {
     // #6f6f6f is 4.61:1 on the ground (#f5f5f5) and 4.49:1 on the soft pane (#f2f2f2).
     const result = ThemeTokens.resolve({ theme: { tokens: { muted: { light: '#6f6f6f' } } } });
+    const problems = result.ok ? [] : result.problems;
 
-    expect(!result.ok && result.problems).toEqual([
+    expect(problems.filter((problem) => problem.includes(' on ground '))).toEqual([]);
+    expect(problems).toContainEqual(
       expect.stringMatching(/^light: muted #6f6f6f as text on soft #f2f2f2 is 4\.49:1/),
-    ]);
+    );
   });
 
   test('vulcan board writes a page in the colours of the manifest', () => {
@@ -186,5 +190,37 @@ describe('the tokens come from the manifest of the project', () => {
     const html = await response.text();
 
     expect(html).toContain(`--accent:${ThemeTokens.PRESETS.slate.seed.accent}`);
+  });
+
+  test('vulcan board serve reads the manifest too: the served page is in its colours', async () => {
+    const root = projectWith({ theme: slateManifestTheme() });
+    const child = Bun.spawn(
+      [
+        process.execPath,
+        join(import.meta.dir, '..', '..', 'cli.ts'),
+        'board',
+        'serve',
+        '--no-github',
+        '--since',
+        '2026-11-01',
+        '--port',
+        '0',
+      ],
+      { cwd: root, env: { ...process.env, ...hermeticEnv() }, stdout: 'pipe', stderr: 'pipe' },
+    );
+    const first = await child.stdout.getReader().read();
+    const url = new TextDecoder().decode(first.value).trim();
+    const errors = await child.stderr.getReader().read();
+    const fallback = /use (http:\/\/127\.0\.0\.1:\d+\/\?t=[0-9a-f]{32})/.exec(
+      new TextDecoder().decode(errors.value),
+    )?.[1];
+    const page = await fetch(fallback ?? url);
+    const html = await page.text();
+
+    child.kill('SIGINT');
+    await child.exited;
+
+    expect(html).toContain(`--accent:${ThemeTokens.PRESETS.slate.seed.accent}`);
+    expect(html).toContain('--r:2px');
   });
 });

@@ -103,6 +103,32 @@ describe('ThemeTokens.resolve', () => {
     expect(other.ok && other.tokens.light.ink).toBe(venizia.light.ink);
   });
 
+  test('every preset passes its own check, and each text colour is read on the accent tint', () => {
+    for (const name of Object.keys(ThemeTokens.PRESETS)) {
+      const result = ThemeTokens.resolve({ theme: { preset: name } });
+
+      expect(!result.ok && result.problems, name).toBe(false);
+    }
+
+    // ink, body and muted sit on the tint of a selected card: slate's derived tint (#e8eaed) fails muted at 4.42:1.
+    const faint = ThemeTokens.resolve({
+      theme: { tokens: { 'accent-soft': { light: '#e0e0e0' }, muted: { light: '#6b6b6b' } } },
+    });
+
+    expect(
+      !faint.ok &&
+        faint.problems.some((problem) => problem.includes('muted #6b6b6b as text on accent-soft')),
+    ).toBe(true);
+  });
+
+  test('a custom accent on the slate preset gets the derived tint, not the preset one', () => {
+    const custom = ThemeTokens.resolve({ theme: { preset: 'slate', accent: '#336699' } });
+
+    expect(custom.ok && custom.tokens.light['accent-soft']).not.toBe(
+      ThemeTokens.PRESETS.slate.light['accent-soft'],
+    );
+  });
+
   test('a per-token override applies, to both modes or to one', () => {
     const result = ThemeTokens.resolve({
       theme: {

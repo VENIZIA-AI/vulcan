@@ -80,6 +80,9 @@ const TEXT_PAIRS: [string, string][] = [
   ['accent-text', 'bg'],
   ['accent-text', 'ground'],
   ['accent-text', 'accent-soft'],
+  ['ink', 'accent-soft'],
+  ['body', 'accent-soft'],
+  ['muted', 'accent-soft'],
   ['accent-ink', 'accent'],
   ['ok', 'ok-soft'],
   ['wait', 'wait-soft'],
@@ -130,7 +133,8 @@ export class ThemeTokens {
     },
     slate: {
       seed: { accent: '#3f5266', accentDark: '#9fb4cc' },
-      light: NEUTRAL_LIGHT,
+      // The tint the derivation gives this accent (#e8eaed) leaves muted at 4.42:1 on it; this one is 4.63:1.
+      light: { ...NEUTRAL_LIGHT, 'accent-soft': '#edeff2' },
       dark: NEUTRAL_DARK,
     },
   };
@@ -139,8 +143,8 @@ export class ThemeTokens {
   static readonly MONO =
     "'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace";
   static readonly RADIUS = '4px';
-  /** A corner radius: a plain length, so nothing else (a brace, a tag) can reach a style element. */
-  static readonly RADIUS_PATTERN = /^\d+(?:\.\d+)?(?:px|rem|em)$/;
+  /** A corner radius: a bare `0` or a length, so nothing else (a brace, a tag) can reach a style element. */
+  static readonly RADIUS_PATTERN = /^(?:0|\d+(?:\.\d+)?(?:px|rem|em))$/;
 
   /** The greys of the board's own panes, the same in every project; the text tokens are checked on them. */
   static readonly SURFACES: Record<'light' | 'dark', Record<string, string>> = {
@@ -310,7 +314,9 @@ export class ThemeTokens {
     if (theme.radius !== undefined && !ThemeTokens.RADIUS_PATTERN.test(theme.radius)) {
       return {
         ok: false,
-        problems: [`theme radius '${theme.radius}' is not a length such as 4px, 0.25rem or 0.5em`],
+        problems: [
+          `theme radius '${theme.radius}' is not 0 or a length such as 4px, 0.25rem or 0.5em`,
+        ],
       };
     }
 
@@ -333,13 +339,15 @@ export class ThemeTokens {
         return { ok: false, problems: derived.problems };
       }
 
-      for (const [mode, palette] of [
-        [light, derived.theme.light],
-        [dark, derived.theme.dark],
+      for (const [mode, palette, presetTint] of [
+        [light, derived.theme.light, preset.light['accent-soft']],
+        [dark, derived.theme.dark, preset.dark['accent-soft']],
       ] as const) {
         mode.accent = palette.accent;
         mode['accent-ink'] = palette.accentInk;
-        mode['accent-soft'] = palette.accentSoft;
+        // A preset's own tint stays for its own accent; a project's accent gets the derived one.
+        mode['accent-soft'] =
+          theme.accent === undefined && presetTint !== undefined ? presetTint : palette.accentSoft;
         mode['accent-text'] = palette.accent;
       }
 
