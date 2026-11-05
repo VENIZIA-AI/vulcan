@@ -82,6 +82,15 @@ const GRAPH_ALIAS_FOLDER = z
     'a folder of the package, from its root',
   );
 
+/** A key that was removed: optional, and refused when present with the key and what to do, instead of a bare "unrecognized key". */
+const REMOVED_OKF_KEY = (opts: { fix: string }) =>
+  z
+    .unknown()
+    .superRefine((_value, context) => {
+      context.addIssue({ code: 'custom', message: `removed: ${opts.fix}` });
+    })
+    .optional();
+
 /** A layout folder: 1 to 4 plain segments, never climbing, never absolute (the validator `guard-package` shares). */
 const LAYOUT_FOLDER = z.string().superRefine((value, context) => {
   const problem = LayoutFolder.layoutFolderProblem({ folder: value });
@@ -234,8 +243,6 @@ const REMOTE_HOST = z
     message: 'a pattern needs at least one letter or digit, not only * . - or _',
   });
 
-const VIZ_OUTPUT = '.agents/knowledge/viz.html';
-
 /** A colour of a design token: six-digit hex, or eight-digit with an alpha channel for lines and soft text. */
 const TOKEN_COLOUR = z.string().regex(ThemeTokens.COLOUR, 'a hex colour like #8a5a20');
 
@@ -304,7 +311,7 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       syncAreas: z.string().optional(),
     })
     .default({ bundle: ConfigConstants.DEFAULT_KNOWLEDGE_BUNDLE }),
-  /** Settings of okf, the knowledge bundle tool: renderers, regions, index sections, coverage axes and the visualization page. */
+  /** Settings of okf, the knowledge bundle tool: renderers, regions, coverage axes and the brand. */
   okf: z
     .strictObject({
       /** Renderers the project uses, each a built-in id or an object with a module; default `[]`. */
@@ -313,15 +320,6 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       regions: z
         .array(z.strictObject({ id: z.string(), file: z.string(), renderer: z.string() }))
         .default([]),
-      /** Order and display labels of the section headings in the generated index tables; default no order and no labels. */
-      sections: z
-        .strictObject({
-          /** Order of the section headings in the index tables; default `[]`. */
-          order: z.array(z.string()).default([]),
-          /** Display label for each section heading, keyed by heading; default `{}`. */
-          labels: z.record(z.string(), z.string()).default({}),
-        })
-        .default({ order: [], labels: {} }),
       /** `exclude`: globs from the root dropped from this axis; `denylist`: directory names dropped from this axis only. */
       coverage: z
         .array(
@@ -343,26 +341,21 @@ export const VULCAN_CONFIG_SCHEMA = z.strictObject({
       contents: z
         .strictObject({ files: z.array(z.string()).default(['AGENTS.md', '.agents/rules.md']) })
         .default({ files: ['AGENTS.md', '.agents/rules.md'] }),
-      /** The visualization page okf writes: output paths, brand heading and text overrides; read by the okf viz command. */
-      viz: z
-        .strictObject({
-          /** Paths the visualization page is written to; default `['.agents/knowledge/viz.html']`. */
-          outputs: z.array(z.string()).default([VIZ_OUTPUT]),
-          /** Brand heading shown in the page header; absent means none. */
-          brand: z.string().optional(),
-          /** Overrides for the page's text labels; absent means the built-in text. */
-          copy: z.record(z.string(), z.unknown()).optional(),
-        })
-        .default({ outputs: [VIZ_OUTPUT] }),
+      /** How the project's name is written in prose, for the brand rule of `okf check`; absent means the root package name without scope, upper-cased. */
+      brand: z.string().optional(),
+      /** Removed with `vulcan x okf viz`: the key is refused with what to do. */
+      viz: REMOVED_OKF_KEY({
+        fix: 'delete this key; `vulcan x okf viz` and `make okf-viz` are gone with no replacement, and the brand it carried is now `okf.brand`',
+      }),
+      /** Removed with the explorer, the only thing that read it. */
+      sections: REMOVED_OKF_KEY({ fix: 'delete this key; only the removed explorer read it' }),
     })
     .default({
       renderers: [],
       regions: [],
-      sections: { order: [], labels: {} },
       coverage: [],
       denylist: [],
       contents: { files: ['AGENTS.md', '.agents/rules.md'] },
-      viz: { outputs: [VIZ_OUTPUT] },
     }),
   /** Settings of atlas: release tag layout, the sources it indexes, ignored tags, the signing keys of the published index and prebuilt downloads. */
   atlas: z

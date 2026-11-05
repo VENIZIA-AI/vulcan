@@ -31,14 +31,14 @@ describe('vulcan-okf dispatcher', () => {
     const result = run({ args: ['nope'] });
 
     expect(result.code).toBe(2);
-    expect(result.stderr).toContain('check|gen|coverage|viz');
+    expect(result.stderr).toContain('check|gen|coverage');
   });
 
   test('the table generators are atlas commands, not okf ones', () => {
     const result = run({ args: ['symbols'] });
 
     expect(result.code).toBe(2);
-    expect(result.stderr).toContain('usage: vulcan x okf <check|gen|coverage|viz>');
+    expect(result.stderr).toContain('usage: vulcan x okf <check|gen|coverage>');
   });
 });
 

@@ -156,18 +156,12 @@ export class OkfProject {
     const config = recordOf({ value: parsedOf({ text }) });
     const knowledge = recordOf({ value: config.knowledge });
     const okf = recordOf({ value: config.okf });
-    const sections = recordOf({ value: okf.sections });
-    const viz = recordOf({ value: okf.viz });
     const bundle = resolve(
       root,
       stringOf({ value: knowledge.bundle, fallback: OkfProjectConstants.DEFAULT_BUNDLE }),
     );
-    const outputs = stringsOf({ value: viz.outputs });
     const changelogs = knowledge.changelogs;
     const atlas = recordOf({ value: config.atlas });
-    const copy = RecordValue.isRecord({ value: viz.copy })
-      ? recordOf({ value: viz.copy })
-      : undefined;
 
     const project: IOkfProject = {
       root,
@@ -187,23 +181,9 @@ export class OkfProject {
       packages: packagesOf({ value: config.packages, root }),
       renderers: renderersOf({ value: okf.renderers }),
       regions: regionsOf({ value: okf.regions, bundle }),
-      sections: {
-        order: stringsOf({ value: sections.order }),
-        labels: Object.fromEntries(
-          Object.entries(recordOf({ value: sections.labels })).filter(
-            (entry): entry is [string, string] => typeof entry[1] === 'string',
-          ),
-        ),
-      },
       coverage: coverageOf({ value: okf.coverage }),
       denylist: new Set(stringsOf({ value: okf.denylist })),
-      viz: {
-        outputs: (outputs.length > 0 ? outputs : [OkfProjectConstants.DEFAULT_VIZ_OUTPUT]).map(
-          (output) => resolve(root, output),
-        ),
-        brand: stringOf({ value: viz.brand, fallback: brandOf({ root }) }),
-        ...(copy === undefined ? {} : { copy }),
-      },
+      brand: stringOf({ value: okf.brand, fallback: brandOf({ root }) }),
     };
 
     cached = { text, root, project };

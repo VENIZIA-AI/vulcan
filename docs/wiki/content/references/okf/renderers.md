@@ -12,11 +12,10 @@ You configure okf through the `okf` object in `.configs/vulcan.config.mts`.
 |---|---|---|---|
 | `renderers` | `Array<string \| object>` | `[]` | Built-in renderer identifiers or custom generator modules |
 | `regions` | `Array<object>` | `[]` | Target files and renderers for managed markdown blocks |
-| `sections` | `object` | `{ order: [], labels: {} }` | Section order and display titles for knowledge concepts |
 | `coverage` | `Array<object>` | `[]` | Directory axes checked for concept documentation coverage |
 | `denylist` | `string[]` | `[]` | Directory names dropped across every coverage axis |
 | `contents` | `object` | `{ files: ['AGENTS.md', '.agents/rules.md'] }` | Files that receive generated table of contents when exceeding 100 lines |
-| `viz` | `object` | `{ outputs: ['.agents/knowledge/viz.html'] }` | Output paths, brand name, and UI copy for the graph explorer |
+| `brand` | `string` | root package name, unscoped, upper-cased | How the project's name is written in prose |
 
 To configure okf features, export an `okf` section in `.configs/vulcan.config.mts`:
 
@@ -267,30 +266,6 @@ If a region names a renderer without a `region` method, `gen` halts with an erro
 okf: region '<id>' names renderer '<renderer>', which renders no region
 ```
 
-## Sections
-
-The `sections` object configures how okf groups and orders knowledge concepts:
-
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `order` | `string[]` | `[]` | Ordered list of section keys |
-| `labels` | `Record<string, string>` | `{}` | Mapping of section keys to human-readable titles |
-
-`order` and `labels` affect only the viz explorer, nothing else.
-
-okf determines each concept section from its relative path.
-The segment immediately following the bundle root is the section key.
-For example, `/overview/monorepo-layout.md` belongs to the `overview` section.
-A root-level concept `/foo.md` belongs to a section named `foo`.
-
-The `order` array specifies the display sequence of sections in the graph explorer.
-Sections listed in `order` that exist in concepts appear first.
-Remaining sections appear afterward in alphabetical order.
-
-The `labels` dictionary defines display titles for section keys.
-If a section lacks a label in `labels`, okf formats its key in Title Case.
-For example, okf converts `core-concepts` to `Core Concepts`.
-
 ## Coverage axes
 
 Setting `okf.coverage` defines structural coverage axes for your codebase.
@@ -378,46 +353,17 @@ okf places the contents list immediately after frontmatter and the `# ` document
 
 Under `vulcan x okf check --strict`, missing or stale contents lists fail verification.
 
-## viz
+## brand
 
-The `okf.viz` object configures the offline knowledge graph explorer:
+`okf.brand` is how the project's name is written in prose. When it is all capitals of two letters or more, `okf check --strict` flags its title-case spelling, and lifted `package.json` descriptions take the brand spelling.
 
-| Option | Type | Default | Meaning |
-|---|---|---|---|
-| `outputs` | `string[]` | `['.agents/knowledge/viz.html']` | Output file paths relative to repository root |
-| `brand` | `string` | derived from package name | Brand name shown in explorer headings |
-| `copy` | `object` | default copy | Localized headings and section descriptions |
-
-`outputs` defines target HTML files.
-`vulcan x okf viz` writes the explorer to every file path in this array.
-
-If you omit `brand`, okf derives the brand name from the root `package.json`.
-It strips npm scope and `-workspace` suffixes, then converts the result to uppercase.
-The brand falls back to the directory name when `package.json` has no name.
-
-`copy` provides custom UI text for supported locales (`en` and `vi`).
-Each locale takes `heading`, `tagline`, and `sectionDescriptions`.
-A missing field keeps the default:
+If you omit it, okf derives the brand from the root `package.json`: it strips the npm scope and a `-workspace` suffix, then upper-cases the result. The brand falls back to the directory name when `package.json` has no name.
 
 ```ts
 import type { VulcanConfig } from '@venizia/vulcan';
 
 export default {
-  okf: {
-    viz: {
-      brand: 'VULCAN',
-      outputs: ['.agents/knowledge/viz.html', 'docs/wiki/content/viz.html'],
-      copy: {
-        en: {
-          heading: 'Understand VULCAN, one concept at a time.',
-          tagline: 'The VULCAN knowledge bundle.',
-          sectionDescriptions: {
-            overview: 'Architecture and core principles.',
-          },
-        },
-      },
-    },
-  },
+  okf: { brand: 'VULCAN' },
 } satisfies VulcanConfig;
 ```
 

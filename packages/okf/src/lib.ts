@@ -1,6 +1,6 @@
 /**
  * lib.ts - shared loader/parser for the OKF knowledge bundle.
- * Used by the generator, the viz builder, and the MCP server.
+ * Used by the generator, the checks and the coverage report.
  *
  * Repo-specific paths and denylists live in ./config.ts.
  */
@@ -76,8 +76,8 @@ export class MarkdownText {
    * Strip fenced and inline code before scanning for links.
    *
    * A markdown link inside a code fence is an example, not a real edge: leaving it in
-   * made `check` report broken links for illustrative snippets and made viz draw edges
-   * that do not exist. Fences are replaced (not deleted) so nothing outside them shifts.
+   * made `check` report broken links for illustrative snippets.
+   * Fences are replaced (not deleted) so nothing outside them shifts.
    */
   static stripCode(opts: { text: string }): string {
     return opts.text

@@ -40,7 +40,22 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     expect(config.okf.renderers).toEqual([]);
     expect(config.okf.regions).toEqual([]);
     expect(config.okf.coverage).toEqual([]);
-    expect(config.okf.viz.outputs).toEqual(['.agents/knowledge/viz.html']);
+    expect(config.okf.brand).toBeUndefined();
+  });
+
+  test('okf.brand is optional; the removed okf.viz and okf.sections are refused with the key and what to do', () => {
+    expect(VULCAN_CONFIG_SCHEMA.safeParse({ okf: { brand: 'ACME' } }).success).toBe(true);
+
+    const viz = VULCAN_CONFIG_SCHEMA.safeParse({ okf: { viz: { outputs: ['x.html'] } } });
+    const sections = VULCAN_CONFIG_SCHEMA.safeParse({ okf: { sections: { order: [] } } });
+
+    expect(viz.success).toBe(false);
+    expect(viz.error?.issues[0]?.path).toEqual(['okf', 'viz']);
+    expect(viz.error?.issues[0]?.message).toContain('delete this key');
+    expect(viz.error?.issues[0]?.message).toContain('vulcan x okf viz');
+    expect(viz.error?.issues[0]?.message).toContain('okf.brand');
+    expect(sections.error?.issues[0]?.path).toEqual(['okf', 'sections']);
+    expect(sections.error?.issues[0]?.message).toContain('delete this key');
   });
 
   test('a renderer entry is strict: a misspelled key is an error', () => {

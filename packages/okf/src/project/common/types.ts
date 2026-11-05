@@ -34,9 +34,9 @@ export interface IOkfProject {
   packages: IOkfPackage[];
   renderers: IOkfRendererEntry[];
   regions: IOkfRegionEntry[];
-  sections: { order: string[]; labels: Record<string, string> };
   /** `exclude`: globs from the root dropped from the axis; `denylist`: directory names dropped from this axis only. */
   coverage: { name: string; path: string; exclude: string[]; denylist: string[] }[];
   denylist: Set<string>;
-  viz: { outputs: string[]; brand: string; copy?: Record<string, unknown> };
+  /** How the project's name is written in prose: `okf.brand`, else the root package name without scope, upper-cased. */
+  brand: string;
 }
