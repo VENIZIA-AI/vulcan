@@ -65,6 +65,11 @@ export class CodeGraph {
     return `{"schemaVersion":${graph.schemaVersion},"kind":${JSON.stringify(graph.kind)},"source":${JSON.stringify(graph.source)},\n"nodes":[\n${lines(graph.nodes)}\n],\n"edges":[\n${lines(graph.edges)}\n]}\n`;
   }
 
+  /** Whether a graph's text is over the size the format is held to. */
+  static isOverTarget(opts: { bytes: number }): boolean {
+    return opts.bytes > GraphConstants.SIZE_TARGET_BYTES;
+  }
+
   /** Written whole to a temporary name, then renamed: a reader never sees half a file. */
   static write(opts: { root: string; graph: ICodeGraph }): string {
     const directory = join(opts.root, GraphFiles.DIRECTORY);

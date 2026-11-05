@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { spawnSyncBounded } from '@venizia/dev-configs/testing';
 import { ProjectConfig } from '@/common/project-config';
 import { CodeGraph } from '@/graph/code-graph';
+import { GraphConstants } from '@/graph/common/constants';
 import type { ICodeGraph } from '@/graph/common/types';
 import { GitState } from '@/graph/git-state';
 import { ImportResolver } from '@/graph/import-resolver';
@@ -259,6 +260,20 @@ describe('what the working tree does not hold', () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr.toString()).toContain('vulcan x atlas graph:');
     expect(result.stderr.toString()).not.toContain('    at ');
+  });
+});
+
+describe('the size target', () => {
+  test('is 4 MB: a graph is over it only past that many bytes', () => {
+    expect(GraphConstants.SIZE_TARGET_BYTES).toBe(4 * 1024 * 1024);
+    expect(CodeGraph.isOverTarget({ bytes: GraphConstants.SIZE_TARGET_BYTES })).toBe(false);
+    expect(CodeGraph.isOverTarget({ bytes: GraphConstants.SIZE_TARGET_BYTES + 1 })).toBe(true);
+  });
+
+  test('the fixture is far under it', () => {
+    const text = CodeGraph.render({ graph: buildOf({ root: repository() }) });
+
+    expect(CodeGraph.isOverTarget({ bytes: text.length })).toBe(false);
   });
 });
 
