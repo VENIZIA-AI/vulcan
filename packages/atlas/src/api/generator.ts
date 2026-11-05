@@ -7,7 +7,7 @@
 import { readdirSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectConfig } from '@/common/project-config';
-import type { IAtlasProject } from '@/common/project-config';
+import { ApiPackages } from './packages';
 import type { ISymbolRecord } from '@/symbols';
 import { DeclarationText } from '@/symbols/declaration-text';
 import { SymbolCompute } from '@/symbols/compute';
@@ -345,22 +345,8 @@ export class ApiReference {
 
 const directoryOf = (opts: { wiki: string }): string => join(opts.wiki, ApiReference.DIRECTORY);
 
-const USAGE = 'usage: vulcan x atlas api gen|check | undocumented [--package <dir or name>]...';
-
-/** The npm names the `--package` values stand for: a directory key or an npm name of a package of the project. */
-const packagesOf = (opts: { args: string[]; project: IAtlasProject }): string[] | undefined => {
-  const wanted = opts.args.flatMap((arg, at) =>
-    arg === '--package' ? [opts.args[at + 1] ?? ''] : [],
-  );
-
-  if (wanted.length === 0) {
-    return undefined;
-  }
-
-  return opts.project.packages
-    .filter((entry) => wanted.includes(entry.dir) || wanted.includes(entry.name))
-    .map((entry) => entry.name);
-};
+const USAGE =
+  'usage: vulcan x atlas api gen|check | undocumented [--package <dir, name or path>]...';
 
 export const runApiCommand = (opts: { command?: string; args?: string[] }): number => {
   if (opts.command !== 'gen' && opts.command !== 'check' && opts.command !== 'undocumented') {
@@ -385,7 +371,16 @@ export const runApiCommand = (opts: { command?: string; args?: string[] }): numb
     project,
     withSource: opts.command === 'undocumented',
   });
-  const only = packagesOf({ args: opts.args ?? [], project });
+  const { names: only, unmatched } = ApiPackages.resolve({ args: opts.args ?? [], project });
+
+  if (unmatched.length > 0) {
+    console.error(
+      `vulcan x atlas api: --package ${unmatched.map((value) => `'${value}'`).join(', ')} matches no package of this project (use its dir, npm name or path)`,
+    );
+
+    return 2;
+  }
+
   const records = only === undefined ? all : all.filter((record) => only.includes(record.package));
 
   if (records.length === 0) {

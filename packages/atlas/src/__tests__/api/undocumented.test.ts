@@ -73,6 +73,41 @@ describe('vulcan x atlas api undocumented, on a package that publishes its sourc
     expect(result.stdout.toString()).toContain('every export has TSDoc');
   });
 
+  test.each([
+    ['its dir', 'src'],
+    ['its npm name', '@x/src'],
+    ['its path', 'packages/src'],
+    ['its path with a leading ./ and a trailing /', './packages/src/'],
+  ])('--package takes %s', (_, value) => {
+    const root = sourceProject({ source: 'export function bare(): void {}\n' });
+    const result = run({ root, args: ['undocumented', '--package', value] });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toContain('@x/src: bare');
+  });
+
+  test('a value that matches no package says so, names it, and is not "build the packages first"', () => {
+    const root = sourceProject({ source: 'export function bare(): void {}\n' });
+    const result = run({
+      root,
+      args: ['undocumented', '--package', 'packages/nope', '--package', 'src'],
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr.toString()).toContain(
+      "--package 'packages/nope' matches no package of this project (use its dir, npm name or path)",
+    );
+    expect(result.stderr.toString()).not.toContain('build the packages first');
+  });
+
+  test('a package that matches but has no records still says to build', () => {
+    const root = sourceProject({ source: 'export function bare(): void {}\n' });
+    const result = run({ root, args: ['gen', '--package', 'packages/src'] });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toContain('no exports found - build the packages first');
+  });
+
   test('gen still needs built declarations: a source-only package has none', () => {
     const root = sourceProject({ source: '/** One. */\nexport const a = 1;\n' });
     const result = run({ root, args: ['gen'] });
