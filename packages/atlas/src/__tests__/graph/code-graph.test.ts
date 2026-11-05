@@ -27,7 +27,7 @@ const FILES: Record<string, string> = {
     exports: { '.': './src/index.ts', './t': './types/t.d.ts' },
     dependencies: { '@fx/b': '1.0.0', zod: '4.0.0' },
   }),
-  'packages/a/types/t.d.ts': 'export type Tt = 1;\n',
+  'packages/a/types/t.d.ts': 'export type Tt = 1;\nexport interface Holder {\n  t: Tt;\n}\n',
   'packages/a/src/lazy.ts': 'export const lazy = 1;\n',
   'packages/a/src/index.ts': [
     "import { b } from '@fx/b';",
@@ -306,7 +306,7 @@ describe('vulcan x atlas graph build', () => {
 
     expect(result.exitCode, result.stderr.toString()).toBe(0);
     expect(result.stdout.toString()).toMatch(
-      /^graph: 27 nodes, 35 edges, 12 files, 6 symbols, commit [0-9a-f]{12} -> \.agents\/local\/graph\/code\.json\n$/,
+      /^graph: 28 nodes, 38 edges, 12 files, 7 symbols, commit [0-9a-f]{12} -> \.agents\/local\/graph\/code\.json\n$/,
     );
     expect(existsSync(file)).toBe(true);
 
@@ -326,6 +326,7 @@ describe('vulcan x atlas graph build', () => {
       'sym:@fx/a#a',
       'sym:@fx/a#later',
       'sym:@fx/a#util',
+      'sym:@fx/a/t#Holder',
       'sym:@fx/a/t#Tt',
       'sym:@fx/c#c',
       'sym:@fx/d#d',
@@ -333,8 +334,10 @@ describe('vulcan x atlas graph build', () => {
     expect(edges).toContain('exports entry:@fx/a -> sym:@fx/a#util');
     expect(edges).toContain('contains file:packages/a/src/util.ts -> sym:@fx/a#util');
     expect(edges).toContain('contains file:packages/a/types/t.d.ts -> sym:@fx/a/t#Tt');
-    expect(parsed.nodes).toHaveLength(27);
-    expect(parsed.edges).toHaveLength(35);
+    // The real reader gives a built declaration its `uses`: Holder refers to Tt.
+    expect(edges).toContain('uses sym:@fx/a/t#Holder -> sym:@fx/a/t#Tt');
+    expect(parsed.nodes).toHaveLength(28);
+    expect(parsed.edges).toHaveLength(38);
   });
 
   test('refuses an argument it does not know', () => {

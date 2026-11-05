@@ -335,12 +335,12 @@ When no live package exists, `symbols` and `surface` fail with "add packages to 
 | package | `pkg:<npm name>` | the live packages of the manifest |
 | entry | `entry:<specifier>` | the `exports` of each package (`@scope/name`, `@scope/name/sub`) |
 | file | `file:<path from the root>` | the tracked `.ts`, `.tsx`, `.mts` and `.cts` files of the packages, from `git ls-files` |
-| symbol | `sym:<entry specifier>#<name>` | the exported symbols [`symbols`](#symbols) reads (built `.d.ts`, or the source of a package that publishes `.ts`). The node holds `kind`, `line`, `documented` (has TSDoc) and a `shape` digest of the declaration, not the signature: `symbol` serves that. A re-export of a `node_modules` declaration is marked `thirdParty` |
+| symbol | `sym:<entry specifier>#<name>` | the exported symbols [`symbols`](#symbols) reads (built `.d.ts`, or the source of a package that publishes `.ts`). The node holds `kind`, `line`, `documented` (has TSDoc) and, for a built declaration, a `shape` digest of it (a source-published symbol has none: its digest would cover the body), not the signature: `symbol` serves that. A re-export of a `node_modules` declaration is marked `thirdParty` |
 
 | Edge | From to | Meaning |
 |---|---|---|
 | `exports` | entry to symbol | The public surface of an entry |
-| `uses` | symbol to symbol | The exported symbols a declaration refers to. Records hold names only: a name resolves to the symbol of that name in the same entry, else the only one in the package, else the only one in the project; several candidates give no edge |
+| `uses` | symbol to symbol | The exported symbols a declaration refers to, for a built declaration (a source-published symbol has no `uses`). Records hold names only and a name can be a dependency's type, so a name resolves to the symbol of that name in the same entry, else the only one in the same package; several candidates, or a name only another package exports, give no edge. Imports between packages are the `imports` and `depends` edges |
 | `contains` | package to entry, entry to its source file; file to the symbols declared in it | An entry that points at a built declaration (`dist/esm/index.d.ts`) leads to the file of `src/` it comes from, when there is one |
 | `depends` | package to package | `dependencies` and `peerDependencies` that name another package of the project |
 | `imports` | file to file, or file to the entry of a workspace package | Relative imports, re-exports, the aliases of [`graph.aliases`](/references/configuration/#graph), and the exact specifier of a workspace entry. A `.js` ending finds the `.ts` file, a folder finds its `index` |

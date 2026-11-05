@@ -1,12 +1,18 @@
-import type { IAtlasPackage } from '@/common/project-config';
 import type { ISymbolRecord } from '@/symbols/common/types';
 import { GraphEdgeKinds, GraphIdPrefixes, GraphNodeKinds } from './common/constants';
+import { GraphOrder } from './common/order';
 import type { IGraphEdge, IGraphNode, IGraphPart, IGraphProducer } from './common/types';
+
+interface IPlaced {
+  record: ISymbolRecord;
+  id: string;
+}
 
 /** The exported symbols of the project and how they refer to each other, from the records atlas already reads. */
 export class SymbolProducer implements IGraphProducer<{
   records: ISymbolRecord[];
-  packages: IAtlasPackage[];
+  /** The ids of the entry nodes of the graph: a symbol of an entry the graph does not hold is left out. */
+  entryIds: ReadonlySet<string>;
   /** The ids of the file nodes of the graph: a symbol is attached to the file it is declared in when that file is there. */
   fileIds: ReadonlySet<string>;
 }> {
@@ -14,7 +20,7 @@ export class SymbolProducer implements IGraphProducer<{
 
   produce(opts: {
     records: ISymbolRecord[];
-    packages: IAtlasPackage[];
+    entryIds: ReadonlySet<string>;
     fileIds: ReadonlySet<string>;
   }): IGraphPart {
     const nodes = new Map<string, IGraphNode>();
@@ -22,33 +28,39 @@ export class SymbolProducer implements IGraphProducer<{
     const addEdge = (edge: IGraphEdge): void => {
       edges.set(`${edge.kind}\0${edge.from}\0${edge.to}`, edge);
     };
-    const nameOf = new Map(opts.packages.map((item) => [item.dir, item.name]));
-    const records = opts.records.map((record) => ({ record, id: SymbolProducer.idOf({ record }) }));
-    const byName = new Map<string, { record: ISymbolRecord; id: string }[]>();
+    const placed = opts.records
+      .filter((record) => opts.entryIds.has(`${GraphIdPrefixes.ENTRY}${record.specifier}`))
+      .map((record) => ({ record, id: SymbolProducer.idOf({ record }) }));
+    const byName = new Map<string, IPlaced[]>();
 
-    for (const item of records) {
+    for (const item of placed) {
       byName.set(item.record.name, [...(byName.get(item.record.name) ?? []), item]);
     }
 
-    for (const { record, id } of records) {
-      const entryId = `${GraphIdPrefixes.ENTRY}${record.specifier}`;
+    for (const { record, id } of placed) {
       const fileId = `${GraphIdPrefixes.FILE}${record.file}`;
-      const owner = nameOf.get(record.package) ?? record.package;
 
       nodes.set(id, {
         id,
         kind: GraphNodeKinds.SYMBOL,
         name: record.name,
-        package: owner,
+        package: record.package,
         symbol: {
           kind: record.kind,
           line: record.line,
           documented: record.doc !== undefined && record.doc !== '',
-          ...(record.shape === undefined ? {} : { shape: record.shape }),
+          // The digest of a built declaration. A source-published symbol's digest covers its body, so it is left out.
+          ...(record.shape === undefined || record.declaration === undefined
+            ? {}
+            : { shape: record.shape }),
           ...(record.external === true ? { thirdParty: true } : {}),
         },
       });
-      addEdge({ from: entryId, to: id, kind: GraphEdgeKinds.EXPORTS });
+      addEdge({
+        from: `${GraphIdPrefixes.ENTRY}${record.specifier}`,
+        to: id,
+        kind: GraphEdgeKinds.EXPORTS,
+      });
 
       if (record.external !== true && opts.fileIds.has(fileId)) {
         addEdge({ from: fileId, to: id, kind: GraphEdgeKinds.CONTAINS });
@@ -64,8 +76,8 @@ export class SymbolProducer implements IGraphProducer<{
     }
 
     return {
-      nodes: [...nodes.values()].sort((a, b) => SymbolProducer.byText(a.id, b.id)),
-      edges: [...edges.values()],
+      nodes: [...nodes.values()].sort((a, b) => GraphOrder.byText(a.id, b.id)),
+      edges: [...edges.values()].sort((a, b) => GraphOrder.byEdge(a, b)),
     };
   }
 
@@ -73,37 +85,26 @@ export class SymbolProducer implements IGraphProducer<{
     return `${GraphIdPrefixes.SYMBOL}${opts.record.specifier}#${opts.record.name}`;
   }
 
-  private static byText(a: string, b: string): number {
-    if (a === b) {
-      return 0;
-    }
-
-    return a < b ? -1 : 1;
-  }
-
   /**
-   * The symbol a `uses` name stands for. Records hold names only, so: the symbol of that name in the same entry; else the
-   * only one in the same package; else the only one in the project. Several candidates at the last step give nothing: an
-   * ambiguous name is not guessed.
+   * The symbol a `uses` name stands for. Records hold names only, and a name can be a type of a dependency or one that is
+   * not exported, so only the package's own symbols are followed: the symbol of that name in the same entry, else the only
+   * one in the same package. Several candidates give nothing; a name that is only exported by another package gives
+   * nothing either, because it may as well be a dependency's type that shares the name.
    */
   private static resolve(opts: {
     name: string;
     from: ISymbolRecord;
-    candidates: ReadonlyMap<string, { record: ISymbolRecord; id: string }[]>;
+    candidates: ReadonlyMap<string, IPlaced[]>;
   }): string | undefined {
-    const all = opts.candidates.get(opts.name) ?? [];
-    const sameEntry = all.filter((item) => item.record.specifier === opts.from.specifier);
+    const samePackage = (opts.candidates.get(opts.name) ?? []).filter(
+      (item) => item.record.package === opts.from.package,
+    );
+    const sameEntry = samePackage.filter((item) => item.record.specifier === opts.from.specifier);
 
     if (sameEntry.length === 1) {
       return sameEntry[0]?.id;
     }
 
-    const samePackage = all.filter((item) => item.record.package === opts.from.package);
-
-    if (samePackage.length === 1) {
-      return samePackage[0]?.id;
-    }
-
-    return samePackage.length === 0 && all.length === 1 ? all[0]?.id : undefined;
+    return samePackage.length === 1 ? samePackage[0]?.id : undefined;
   }
 }

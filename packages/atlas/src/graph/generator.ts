@@ -1,7 +1,7 @@
 import { ProjectConfig } from '@/common/project-config';
-import { SymbolCompute } from '@/symbols/compute';
 import { CodeGraph } from './code-graph';
 import { GraphFiles, GraphNodeKinds } from './common/constants';
+import { GraphSymbols } from './graph-symbols';
 
 const USAGE = 'usage: vulcan x atlas graph build';
 
@@ -14,7 +14,7 @@ export const runGraphCommand = (opts: { command?: string; args?: string[] }): nu
 
   try {
     const project = ProjectConfig.readAtlasProject();
-    const records = SymbolCompute.symbolsOfRepository({ project, withSource: true });
+    const { records, error } = GraphSymbols.recordsOf({ project });
     const graph = CodeGraph.build({ root: project.root, project, records });
 
     if (graph === undefined) {
@@ -26,6 +26,10 @@ export const runGraphCommand = (opts: { command?: string; args?: string[] }): nu
     }
 
     CodeGraph.write({ root: project.root, graph });
+
+    if (error !== undefined) {
+      console.error(`vulcan x atlas graph: no symbols in the graph, the reader failed: ${error}`);
+    }
 
     const files = graph.nodes.filter((node) => node.kind === GraphNodeKinds.FILE).length;
     const symbols = graph.nodes.filter((node) => node.kind === GraphNodeKinds.SYMBOL).length;

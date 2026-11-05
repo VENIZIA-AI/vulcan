@@ -1,12 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import type { IAtlasPackage } from '@/common/project-config';
 import type { ISymbolRecord } from '@/symbols/common/types';
 import { SymbolProducer } from '@/graph/symbol-producer';
-
-const PACKAGES: IAtlasPackage[] = [
-  { dir: 'core', name: '@fx/core', path: 'packages/core', aliases: [], retired: false },
-  { dir: 'web', name: '@fx/web', path: 'packages/web', aliases: [], retired: false },
-];
 
 const record = (opts: {
   name: string;
@@ -19,23 +13,31 @@ const record = (opts: {
   external?: boolean;
 }): ISymbolRecord => ({
   name: opts.name,
-  package: opts.package ?? 'core',
+  package: opts.package ?? '@fx/core',
   subpath: '.',
   specifier: opts.specifier ?? '@fx/core',
   kind: 'class',
   file: opts.file ?? 'packages/core/src/index.ts',
   line: 3,
   signature: `class ${opts.name}`,
+  declaration: `declare class ${opts.name} {}`,
   ...(opts.shape === undefined ? {} : { shape: opts.shape }),
   ...(opts.doc === undefined ? {} : { doc: opts.doc }),
   ...(opts.uses === undefined ? {} : { uses: opts.uses }),
   ...(opts.external === true ? { external: true } : {}),
 });
 
+const ENTRIES = new Set([
+  'entry:@fx/core',
+  'entry:@fx/core/sub',
+  'entry:@fx/core/x',
+  'entry:@fx/core/y',
+  'entry:@fx/web',
+]);
 const FILES = new Set(['file:packages/core/src/index.ts', 'file:packages/core/src/other.ts']);
 
 const produce = (records: ISymbolRecord[]) =>
-  new SymbolProducer().produce({ records, packages: PACKAGES, fileIds: FILES });
+  new SymbolProducer().produce({ records, entryIds: ENTRIES, fileIds: FILES });
 
 const edgesOf = (records: ISymbolRecord[]): string[] =>
   produce(records)
@@ -106,13 +108,18 @@ describe('SymbolProducer', () => {
       expect(edges).toContain('uses sym:@fx/core#A -> sym:@fx/core/sub#B');
     });
 
-    test('else to the only one of the project', () => {
+    test('a name that only another package exports gives nothing: it may be a dependency type that shares the name', () => {
       const edges = edgesOf([
         record({ name: 'A', uses: ['W'] }),
-        record({ name: 'W', package: 'web', specifier: '@fx/web', file: 'packages/web/src/i.ts' }),
+        record({
+          name: 'W',
+          package: '@fx/web',
+          specifier: '@fx/web',
+          file: 'packages/web/src/i.ts',
+        }),
       ]);
 
-      expect(edges).toContain('uses sym:@fx/core#A -> sym:@fx/web#W');
+      expect(edges.filter((edge) => edge.startsWith('uses'))).toEqual([]);
     });
 
     test('is not guessed when several candidates remain', () => {
@@ -132,6 +139,26 @@ describe('SymbolProducer', () => {
         ),
       ).toEqual([]);
     });
+  });
+
+  test('a source-published symbol keeps no shape: its digest covers the body', () => {
+    const [built] = produce([record({ name: 'A', shape: 'abc' })]).nodes;
+    const [source] = produce([
+      { ...record({ name: 'A', shape: 'abc' }), declaration: undefined },
+    ]).nodes;
+
+    expect(built?.symbol?.shape).toBe('abc');
+    expect(source?.symbol?.shape).toBeUndefined();
+  });
+
+  test('a symbol of an entry the graph does not hold is left out, with its edges', () => {
+    const part = produce([
+      record({ name: 'A', uses: ['B'] }),
+      record({ name: 'B', specifier: '@fx/missing' }),
+    ]);
+
+    expect(part.nodes.map((node) => node.id)).toEqual(['sym:@fx/core#A']);
+    expect(part.edges.map((edge) => edge.kind)).toEqual(['contains', 'exports']);
   });
 
   test('the nodes come in id order whatever the order of the records', () => {

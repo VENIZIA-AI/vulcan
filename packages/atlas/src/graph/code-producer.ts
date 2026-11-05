@@ -9,6 +9,7 @@ import {
   GraphNodeKinds,
 } from './common/constants';
 import type { IGraphEdge, IGraphNode, IGraphPart, IGraphProducer } from './common/types';
+import { GraphOrder } from './common/order';
 import { ImportReader } from './import-reader';
 import { ImportResolver } from './import-resolver';
 
@@ -30,7 +31,7 @@ export class CodeProducer implements IGraphProducer<{
       .filter((file) => CodeProducer.ownerOf({ file, packages }) !== undefined)
       .filter((file) => !globs.some((glob) => glob.match(file)))
       .filter((file) => CodeProducer.isReadable({ path: resolve(opts.root, file) }))
-      .sort(CodeProducer.byText);
+      .sort(GraphOrder.byText);
     const fileSet = new Set(files);
     const nodes = new Map<string, IGraphNode>();
     const edges = new Map<string, IGraphEdge>();
@@ -131,28 +132,14 @@ export class CodeProducer implements IGraphProducer<{
         name: posix.basename(file),
         path: file,
         ...(owner === undefined ? {} : { package: owner.name }),
-        ...(external.size === 0 ? {} : { external: [...external].sort(CodeProducer.byText) }),
+        ...(external.size === 0 ? {} : { external: [...external].sort(GraphOrder.byText) }),
       });
     }
 
     return {
-      nodes: [...nodes.values()].sort((a, b) => CodeProducer.byText(a.id, b.id)),
-      edges: [...edges.values()].sort(
-        (a, b) =>
-          CodeProducer.byText(a.kind, b.kind) ||
-          CodeProducer.byText(a.from, b.from) ||
-          CodeProducer.byText(a.to, b.to),
-      ),
+      nodes: [...nodes.values()].sort((a, b) => GraphOrder.byText(a.id, b.id)),
+      edges: [...edges.values()].sort((a, b) => GraphOrder.byEdge(a, b)),
     };
-  }
-
-  /** Code-unit order, the same on every machine. */
-  private static byText(a: string, b: string): number {
-    if (a === b) {
-      return 0;
-    }
-
-    return a < b ? -1 : 1;
   }
 
   /** A regular file the build can read: a tracked file deleted from the working tree, or a link to nothing, is skipped. */
@@ -205,7 +192,7 @@ export class CodeProducer implements IGraphProducer<{
           files: opts.files,
         }),
       }))
-      .sort((a, b) => CodeProducer.byText(a.specifier, b.specifier));
+      .sort((a, b) => GraphOrder.byText(a.specifier, b.specifier));
   }
 
   /**
@@ -261,6 +248,6 @@ export class CodeProducer implements IGraphProducer<{
     return [
       ...Object.keys(manifest.dependencies ?? {}),
       ...Object.keys(manifest.peerDependencies ?? {}),
-    ].sort(CodeProducer.byText);
+    ].sort(GraphOrder.byText);
   }
 }

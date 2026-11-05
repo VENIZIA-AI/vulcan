@@ -4,7 +4,8 @@ import type { IAtlasProject } from '@/common/project-config';
 import { CodeProducer } from './code-producer';
 import type { ISymbolRecord } from '@/symbols/common/types';
 import { SymbolProducer } from './symbol-producer';
-import { GraphConstants, GraphEdgeKinds, GraphFiles, GraphNodeKinds } from './common/constants';
+import { GraphConstants, GraphFiles, GraphNodeKinds } from './common/constants';
+import { GraphOrder } from './common/order';
 import type { ICodeGraph } from './common/types';
 import { GitState } from './git-state';
 
@@ -31,16 +32,13 @@ export class CodeGraph {
 
     const commit = GitState.commitOf({ root: opts.root });
     const code = new CodeProducer().produce({ root: opts.root, project: opts.project, files });
+    const idsOf = (kind: string): Set<string> =>
+      new Set(code.nodes.filter((node) => node.kind === kind).map((node) => node.id));
     const symbols = new SymbolProducer().produce({
       records: opts.records ?? [],
-      packages: opts.project.packages,
-      fileIds: new Set(
-        code.nodes.filter((node) => node.kind === GraphNodeKinds.FILE).map((node) => node.id),
-      ),
+      entryIds: idsOf(GraphNodeKinds.ENTRY),
+      fileIds: idsOf(GraphNodeKinds.FILE),
     });
-    const entryIds = new Set(
-      code.nodes.filter((node) => node.kind === GraphNodeKinds.ENTRY).map((node) => node.id),
-    );
 
     return {
       schemaVersion: GraphConstants.SCHEMA_VERSION,
@@ -50,27 +48,9 @@ export class CodeGraph {
         dirty: GitState.isDirty({ root: opts.root, paths: scope }),
         scope,
       },
-      nodes: [...code.nodes, ...symbols.nodes].sort((a, b) => CodeGraph.byText(a.id, b.id)),
-      edges: [
-        ...code.edges,
-        ...symbols.edges.filter(
-          (edge) => edge.kind !== GraphEdgeKinds.EXPORTS || entryIds.has(edge.from),
-        ),
-      ].sort(
-        (a, b) =>
-          CodeGraph.byText(a.kind, b.kind) ||
-          CodeGraph.byText(a.from, b.from) ||
-          CodeGraph.byText(a.to, b.to),
-      ),
+      nodes: [...code.nodes, ...symbols.nodes].sort((a, b) => GraphOrder.byText(a.id, b.id)),
+      edges: [...code.edges, ...symbols.edges].sort((a, b) => GraphOrder.byEdge(a, b)),
     };
-  }
-
-  private static byText(a: string, b: string): number {
-    if (a === b) {
-      return 0;
-    }
-
-    return a < b ? -1 : 1;
   }
 
   /**
