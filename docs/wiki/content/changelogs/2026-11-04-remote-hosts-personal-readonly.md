@@ -11,6 +11,7 @@ packages: ['@venizia/vulcan']
 <Badge type="tip" text="New Feature" />
 <Badge type="info" text="Behavior Change" />
 <Badge type="warning" text="Security" />
+<Badge type="warning" text="Breaking Change" />
 
 **In one line.** `readonly: <host>` in `.agents/hooks/trusted-hosts.local` adds a read-only host, and a line of that file that is not a host name or a `*` pattern is skipped instead of trusted.
 

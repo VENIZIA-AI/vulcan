@@ -8,7 +8,7 @@ packages: ['@venizia/vulcan']
 
 ## The board has no Agent tab, and the flow list no longer slides
 
-<Badge type="warning" text="Changed" />
+<Badge type="warning" text="Behavior Change" />
 
 **In one line.** The board is one screen, the flows. The Agent tab, with its graph of who talked to whom, is removed.
 

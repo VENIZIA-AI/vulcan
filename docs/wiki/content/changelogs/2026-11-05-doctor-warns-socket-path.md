@@ -8,7 +8,7 @@ packages: ['@venizia/vulcan']
 
 ## vulcan doctor warns when the project path is too long for a browser
 
-<Badge type="tip" text="Feature" />
+<Badge type="tip" text="New Feature" />
 
 **In one line.** `vulcan doctor` now says when a browser started with the project's tmp folder cannot make its socket, instead of leaving you with Chrome's `Socket path too long`.
 
