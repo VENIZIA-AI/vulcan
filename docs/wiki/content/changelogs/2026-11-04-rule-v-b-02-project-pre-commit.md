@@ -10,7 +10,7 @@ packages: ['@venizia/vulcan']
 
 <Badge type="tip" text="Enhancement" />
 
-**In one line.** The enforcement column of rule V-B-02 now reads "the project's own pre-commit, if it has one, runs `vulcan doctor` and lint". VULCAN installs no pre-commit hook in a project.
+**In one line.** The enforcement column of rule V-B-02 now reads "the project's own pre-commit, if it has one, runs `vulcan doctor` and lint". VULCAN installs no pre-commit hook in a project (`vulcan sync` installs a `commit-msg` hook when the `commit` checks are on).
 
 ## What changed
 

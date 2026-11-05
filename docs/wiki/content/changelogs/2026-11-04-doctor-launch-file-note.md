@@ -14,7 +14,7 @@ packages: ['@venizia/vulcan']
 
 ## What changed
 
-- **A note, never a failure.** When `CLAUDECODE` is set and `CLAUDE_CODE_TMPDIR` is not the project's tmp folder, the note names the folder the session uses and says to start it with `claude --settings .agents/local/claude.launch.settings.json`. Run from a plain terminal, doctor says nothing.
+- **A note, never a failure.** When `CLAUDECODE` is set and `CLAUDE_CODE_TMPDIR` is not inside the project's `.agents/local`, the note names the folder the session uses and says to start it with `claude --settings .agents/local/claude.launch.settings.json`. Run from a plain terminal, doctor says nothing.
 - **One judgement of the folder.** The note and the session-start warning use the same check of what counts as inside the project, so a worktree of the project and a trailing slash do not raise a false note.
 
 ## Who is affected

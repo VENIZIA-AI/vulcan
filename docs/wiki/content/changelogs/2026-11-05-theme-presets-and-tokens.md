@@ -19,12 +19,12 @@ packages: ['@venizia/vulcan']
 - **Presets.** `theme.preset` is `venizia` (the bronze of the Venizia pages, the default) or `slate`. A preset gives every token a value for the light and the dark mode.
 - **Per-token colours.** `theme.tokens` sets one token for both modes or for one; `theme.font`, `theme.mono` and `theme.radius` set the type and the corners. The token names are fixed: `ground`, `bg`, `line`, `line-strong`, `ink`, `body`, `muted`, `accent`, `accent-ink`, `accent-soft`, `accent-text`, and `ok`, `wait`, `fail`, `info` with their `-soft` tints.
 - **A contrast check (breaking).** An explicit pair below 4.5:1 for text or 3:1 for a mark is refused when the config loads, with the pair, the colours and the ratio: a config that loaded before can stop loading. `accent` is no longer required.
-- **The radius has a format.** `theme.radius` is `0` or a length in `px`, `rem` or `em` (`4px`, `0.25rem`, `0.5em`); anything else is refused when the config loads, and a radius in the manifest that is not one is ignored with a warning when the board reads it. Set it to one of those forms.
+- **The radius has a format.** `theme.radius` is `0` or a length in `px`, `rem` or `em` (`4px`, `0.25rem`, `0.5em`); anything else is refused when the config loads, and a radius in the manifest that is not one is ignored with a warning when the board reads it. Set it to one of those forms (an earlier prerelease took any string).
 - **The board reads the tokens.** `vulcan board` takes its accent, text, line and state colours, and its radius, from the manifest `theme`, so a project that sets a preset, an accent or a token gets a board in those colours. Its fonts stay its own. With the default preset the board looks exactly as before.
 - **The manifest carries the set.** `vulcan sync` writes the preset and the resolved tokens of both modes to the `theme` block of `.agents/vulcan.manifest.json`.
 
 ## Who is affected
 
 - **Projects with no `theme`:** `vulcan visualize` pages now take the `venizia` bronze, not the slate they used before. Set `theme: { preset: 'slate' }` to keep slate.
-- **Projects with a `theme`:** the pages are unchanged. Run `vulcan sync` once and commit the manifest. A pair below the contrast limits, or a `radius` that is not `0` or a length, no longer loads: the error names it; fix the value.
+- **Projects with a `theme`:** the pages are unchanged. Run `vulcan sync` once and commit the manifest. A pair below the contrast limits, or a `radius` that is not `0` or a length (a prerelease before this one took any string), no longer loads: the error names it; fix the value.
 - **Everyone else:** no change.
