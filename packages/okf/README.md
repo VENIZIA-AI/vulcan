@@ -14,7 +14,7 @@ The tooling reads the project it runs in (the working directory).
 | `check` | Gate: OKF v0.2 conformance (spec §11). Errors fail; soft-guidance warnings print and never fail |
 | `check --strict` | `check` plus the house rules: every link resolves, docs style, structural coverage, freshness |
 | `gen` | Regenerate all source-derived content |
-| `coverage [--min <n>]` | Report the bundle against the source inventory; `--min` fails below `<n>` percent |
+| `coverage [--min <n>]` | Report the bundle against the source inventory; `--min` fails when the structural coverage is below `<n>` percent |
 
 ## OKF v0.2 conformance (`check`)
 

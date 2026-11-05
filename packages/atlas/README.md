@@ -47,6 +47,8 @@ dependency on an MCP SDK - it speaks JSON-RPC over stdio itself.
 | The project it starts in | its manifest's bundle, wiki and changelogs; releases from its git tags; symbols from its built `.d.ts` | Re-indexes before a tool call when a file changed |
 | Each `atlas.sources` entry, or `--source <owner/repo>@<ref>` | a git partial clone and sparse checkout under `.agents/local/cache/atlas/v1/` in the project (`--cache-dir <dir>` moves it, a relative path from the root; a GitHub tarball when git is missing) | The ref's commit (a branch, a tag or a SHA) and the remote's tags, checked at start; a new tag updates the releases without a new pull. When the remote does not answer within 10 s, the commit last served for that ref. The cache keeps the newest 3 SHAs |
 
+A source read through git can come from a signed prebuilt index instead of a local build: atlas downloads the pair `<sha>.atlas.gz` and `<sha>.atlas.json` of the commit it resolved from the repository's `atlas-index` release, and uses it only when a key listed in that repository's `atlas.index.keys` verified the signature and the commit, repository, format, digest and size match. Otherwise it builds the index here and prints why. `--no-prebuilt`, or `atlas.prebuilt: false` in your config, never downloads one.
+
 atlas ships code only - no packaged corpus. With no project and no `--source` it
 exits 2. Every hit names its source. `search` takes `source` to read one source; `get` takes it only
 when two sources hold the same id. An unknown source name is an error that lists the known ones.
@@ -61,7 +63,7 @@ A private repository uses `GITHUB_TOKEN`, else `gh auth token`, sent in request 
 | `symbol` | `name`, `package?` (an npm name, a directory or an alias) | Where an exported symbol is declared (`file`, `line`, `signature`, the import `specifier`) and the pages that document it; `matches` when several packages export it. An unknown name answers `matches: []` and up to 5 `closest` names |
 | `version` | `cwd?` (a project directory) | The served packages installed there, the newest release atlas computed for each, and which are `behind` |
 | `changes` | `package?`, `from?`, `to?` (versions, or dates) | The changelog entries between two versions |
-| `presets` | `kind?` (`app`, or `lib` for a shared package), `name?`, `side?` (`backend`, `frontend`) | The presets the project can create from, the folder each lands in and the exact `vulcan add` command; `presets: []` with a `note` when no preset makes the kind |
+| `presets` | `kind?` (`app`, `lib` for a library other apps import, or `shared` for a side-neutral package; default `app`), `name?` (the name of the new app or package, put into the command; default `<name>`), `side?` (`backend`, `frontend`) | The presets the project can create from, the folder each lands in and the exact `vulcan add` command; `presets: []` with a `note` when no preset makes the kind |
 
 Page `search` with `offset: nextOffset`, not `offset + limit`: the reply-size budget can return fewer
 hits than `limit`. Pass a hit's `id` to `get` to read the whole section.
@@ -69,23 +71,36 @@ hits than `limit`. Pass a hit's `id` to `get` to read the whole section.
 ## Command line
 
 ```bash
-vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]...
+vulcan-atlas [mcp] [--root <dir>] [--source <owner/repo>@<ref>]... [--cache-dir <dir>]
 vulcan-atlas tools [--root <dir>]
-vulcan-atlas pull [--source <name>]
+vulcan-atlas pull [--source <name>] [--cache-dir <dir>] [--no-prebuilt] [--warm]
+vulcan-atlas index --out <dir> [--key-env <name>] [--repo <owner/name>] [--root <dir>]
+vulcan-atlas index keygen
+vulcan-atlas index publish [--key-env <name>]
 vulcan-atlas surface gen|check
+vulcan-atlas api gen|check|undocumented [--package <dir, name or path>]...
+vulcan-atlas graph build [--full]
+vulcan-atlas graph status [--json]
 vulcan-atlas symbols | releases
 vulcan-atlas help
 ```
 
-`vulcan-atlas --help`, `-h` and `help` print the usage on stdout and exit `0`. With no subcommand atlas
-serves MCP, so run by hand it waits for a client on stdin.
+`vulcan-atlas --help`, `-h` and `help` print the usage on stdout and exit `0`, and so does a bare
+`vulcan-atlas` typed at a terminal (no arguments, stdin a TTY). MCP is served when a client pipes stdin,
+or when you give `mcp` or a flag such as `--root .`.
 
 | Command | What it does |
 |---|---|
 | `mcp` | Serves the project at `--root` (default: the working directory) and its sources over stdio |
 | `tools` | Prints the tools the server offers, one line each - a check that needs no MCP client |
-| `pull` | Fetches every source, or one, now |
+| `pull` | Fetches every source, or one, now; `--warm` fetches and indexes only what the cache lacks, `--no-prebuilt` builds every index here |
+| `index --out <dir>` | Builds the search index of HEAD and signs it with the private key in `ATLAS_INDEX_KEY` (or the variable `--key-env` names): the pair `<sha>.atlas.gz` and `<sha>.atlas.json` in `<dir>` |
+| `index keygen` | Writes a key pair: the private key under `.agents/local/` (only while that folder is gitignored, never over an existing key) and the public key printed, for `atlas.index.keys` |
+| `index publish` | Uploads the pair of the commit to the repository's `atlas-index` release; what the CI action runs |
 | `surface gen\|check` | Writes or checks `reference/public-surface.md` from the built `.d.ts`; `check` exits `1` when it is stale |
+| `api gen\|check\|undocumented` | Writes the API reference of the project's packages under the wiki (`references/api/`); `check` exits `1` when a page is stale; `undocumented` lists the exports with no TSDoc and exits `1` when there are any. `--package` (repeatable) limits it to some packages, by dir, npm name or path from the root, and a value that matches no package is named |
+| `graph build [--full]` | Writes the code graph to `.agents/local/graph/code.json`; `--full` reads everything again instead of only what changed |
+| `graph status [--json]` | Says whether the graph still matches the files it was built from |
 | `symbols`, `releases` | Print what the `symbol`, `version` and `changes` tools read - nothing to commit |
 
 | Exit code | Meaning |
