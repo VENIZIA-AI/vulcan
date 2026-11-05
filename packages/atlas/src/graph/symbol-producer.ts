@@ -49,10 +49,8 @@ export class SymbolProducer implements IGraphProducer<{
           kind: record.kind,
           line: record.line,
           documented: record.doc !== undefined && record.doc !== '',
-          // The digest of a built declaration. A source-published symbol's digest covers its body, so it is left out.
-          ...(record.shape === undefined || record.declaration === undefined
-            ? {}
-            : { shape: record.shape }),
+          // For a symbol of a package that publishes its source the digest covers its body, so any edit moves it.
+          ...(record.shape === undefined ? {} : { shape: record.shape }),
           ...(record.external === true ? { thirdParty: true } : {}),
         },
       });

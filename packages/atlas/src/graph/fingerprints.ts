@@ -11,14 +11,12 @@ import { dirname, join, posix, relative, resolve, sep } from 'node:path';
 import { PackageEntries } from '@/common/package-entries';
 import type { IAtlasProject } from '@/common/project-config';
 import { CodeProducer } from './code-producer';
-import { GraphFiles } from './common/constants';
+import { GraphConstants, GraphFiles } from './common/constants';
 import { GraphOrder } from './common/order';
 import type { IFingerprints } from './common/types';
 import { GraphHash } from './hash';
 import { ImportReader } from './import-reader';
 import { SurfaceReader } from './surface-reader';
-
-const DECLARATION_FILE = /\.d\.[cm]?ts$/;
 
 /** What each file the graph reads looked like at the last build, so the next build can tell what changed. */
 export class Fingerprints {
@@ -32,16 +30,25 @@ export class Fingerprints {
   static of(opts: { root: string; project: IAtlasProject; files: string[] }): IFingerprints {
     const sources = CodeProducer.sourceFilesOf(opts);
     const packages = opts.project.packages.filter((item) => !item.retired);
+    const declarations = Fingerprints.declarationsOfPackages(opts);
     const files: IFingerprints['files'] = {};
 
     for (const file of sources) {
       const bytes = readFileSync(resolve(opts.root, file));
       const text = bytes.toString('utf8');
 
+      const owner = CodeProducer.packageOf({ file, project: opts.project }) ?? '';
+      const content = GraphHash.of({ data: bytes });
+
       files[file] = {
-        package: CodeProducer.packageOf({ file, project: opts.project }) ?? '',
-        content: GraphHash.of({ data: bytes }),
-        surface: GraphHash.of({ data: SurfaceReader.of({ text, path: file }) }),
+        package: owner,
+        content,
+        // A package with no built declarations has its symbols read from its source, which holds their line, their TSDoc and
+        // their bodies: any change to such a file is structural.
+        surface:
+          declarations[owner] === ''
+            ? content
+            : GraphHash.of({ data: SurfaceReader.of({ text, path: file }) }),
         imports: GraphHash.of({ data: ImportReader.specifiersOf({ text }).join('\n') }),
       };
     }
@@ -62,21 +69,38 @@ export class Fingerprints {
     return {
       schemaVersion: Fingerprints.SCHEMA_VERSION,
       files: Object.fromEntries(Object.entries(files).sort(([a], [b]) => GraphOrder.byText(a, b))),
-      declarations: Object.fromEntries(
-        packages
-          .map((item) => [
-            item.name,
-            Fingerprints.declarationsOf({ root: opts.root, path: item.path }),
-          ])
-          .sort(([a], [b]) => GraphOrder.byText(a ?? '', b ?? '')),
-      ),
-      inputs: GraphHash.of({
-        data: JSON.stringify({
-          packages: packages.map((item) => [item.name, item.path]).sort(),
-          graph: opts.project.graph,
-        }),
-      }),
+      declarations,
+      inputs: Fingerprints.inputsOf({ project: opts.project }),
     };
+  }
+
+  /** The digest of the built declarations of each live package, by npm name. */
+  static declarationsOfPackages(opts: {
+    root: string;
+    project: IAtlasProject;
+  }): Record<string, string> {
+    return Object.fromEntries(
+      opts.project.packages
+        .filter((item) => !item.retired)
+        .map((item) => [
+          item.name,
+          Fingerprints.declarationsOf({ root: opts.root, path: item.path }),
+        ]),
+    );
+  }
+
+  /** A hash of what shapes the graph besides the files: the format, the packages and the `graph` block of the config. */
+  static inputsOf(opts: { project: IAtlasProject }): string {
+    return GraphHash.of({
+      data: JSON.stringify({
+        format: [GraphConstants.SCHEMA_VERSION, GraphConstants.PRODUCER_VERSION],
+        packages: opts.project.packages
+          .filter((item) => !item.retired)
+          .map((item) => [item.name, item.path])
+          .sort(),
+        graph: opts.project.graph,
+      }),
+    });
   }
 
   /** Only the bytes of each file the graph reads: what `status` compares, with no parsing. */
@@ -108,12 +132,19 @@ export class Fingerprints {
       return '';
     }
 
-    const folders = new Set(
-      PackageEntries.readDirectory({ directory, withSource: false }).entries.map(
-        (entry) => relative(directory, entry.file).split(sep)[0] ?? '',
-      ),
-    );
     const lines: string[] = [];
+    const folders = new Set<string>();
+
+    for (const entry of PackageEntries.readDirectory({ directory, withSource: false }).entries) {
+      const parts = relative(directory, entry.file).split(sep);
+
+      if (parts.length === 1) {
+        // An entry that sits at the root of the package is a file, not a folder to walk.
+        Fingerprints.stat({ path: entry.file, base: directory, lines });
+      } else {
+        folders.add(parts[0] ?? '');
+      }
+    }
 
     for (const folder of folders) {
       Fingerprints.walk({ directory: join(directory, folder), base: directory, lines });
@@ -122,6 +153,16 @@ export class Fingerprints {
     return lines.length === 0
       ? ''
       : GraphHash.of({ data: lines.sort(GraphOrder.byText).join('\n') });
+  }
+
+  private static stat(opts: { path: string; base: string; lines: string[] }): void {
+    if (!existsSync(opts.path)) {
+      return;
+    }
+
+    const stat = statSync(opts.path);
+
+    opts.lines.push(`${relative(opts.base, opts.path)}:${stat.size}:${Math.floor(stat.mtimeMs)}`);
   }
 
   private static walk(opts: { directory: string; base: string; lines: string[] }): void {
@@ -134,10 +175,8 @@ export class Fingerprints {
 
       if (entry.isDirectory()) {
         Fingerprints.walk({ directory: path, base: opts.base, lines: opts.lines });
-      } else if (DECLARATION_FILE.test(entry.name)) {
-        const stat = statSync(path);
-
-        opts.lines.push(`${relative(opts.base, path)}:${stat.size}:${Math.floor(stat.mtimeMs)}`);
+      } else if (GraphConstants.DECLARATION_ENDING.test(entry.name)) {
+        Fingerprints.stat({ path, base: opts.base, lines: opts.lines });
       }
     }
   }

@@ -1,11 +1,14 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { ProjectConfig } from '@/common/project-config';
 import type { ISymbolRecord } from '@/symbols/common/types';
 import { GraphDecisions, GraphLevels } from '@/graph/common/constants';
 import type { IFingerprints } from '@/graph/common/types';
+import { Fingerprints } from '@/graph/fingerprints';
+import { GitState } from '@/graph/git-state';
 import { GraphBuild } from '@/graph/graph-build';
+import type { ICodeGraph } from '@/graph/common/types';
 import { RebuildPlan } from '@/graph/rebuild-plan';
 import { SurfaceReader } from '@/graph/surface-reader';
 import { MANIFEST, git, removeRepositories, repository } from './graph.helper';
@@ -405,5 +408,125 @@ describe('GraphBuild on a fixture repository', () => {
     ).toEqual(['sym:@fx/a#A1', 'sym:@fx/a#A2', 'sym:@fx/c#C1']);
     expect(partial.graph.edges.some((edge) => edge.kind === 'uses')).toBe(true);
     expect(JSON.stringify(partial.graph)).toBe(JSON.stringify(full.graph));
+  });
+
+  test('a package that publishes its source is read again after any edit: a comment moves the line of a symbol', () => {
+    const root = repository();
+    const real = (full = false) => {
+      const built = GraphBuild.run({ root, project: project(root), full });
+
+      if (built === undefined) {
+        throw new Error('the fixture is a repository');
+      }
+
+      return built;
+    };
+    const symbolOf = (graph: ICodeGraph, id: string) =>
+      graph.nodes.find((node) => node.id === id)?.symbol;
+
+    const first = real();
+
+    expect(symbolOf(first.graph, 'sym:@fx/d#d')).toMatchObject({ line: 1, documented: false });
+
+    writeFileSync(
+      join(root, 'packages/d/src/index.ts'),
+      '// a note\n/** Now documented. */\nexport const d = 1;\n',
+    );
+
+    const second = real();
+
+    expect(second.plan.decision).not.toBe(GraphDecisions.SKIP);
+    expect(symbolOf(second.graph, 'sym:@fx/d#d')).toMatchObject({ line: 3, documented: true });
+    expect(JSON.stringify(second.graph)).toBe(JSON.stringify(real(true).graph));
+  });
+
+  test('a build whose symbol reader failed is not a baseline: the next build reads everything again', () => {
+    const root = repository();
+    const failing = GraphBuild.run({
+      root,
+      project: project(root),
+      read: () => {
+        throw new Error('no typescript to read with');
+      },
+    });
+
+    expect(failing?.error).toBe('no typescript to read with');
+
+    const next = GraphBuild.run({ root, project: project(root), read: () => [] });
+
+    expect(next?.plan.decision).toBe(GraphDecisions.FULL);
+    expect(GraphBuild.run({ root, project: project(root), read: () => [] })?.plan.decision).toBe(
+      GraphDecisions.SKIP,
+    );
+  });
+
+  test('a skip prints the commit of now, and the graph of another format is not reused', () => {
+    const root = repository();
+
+    run(root);
+    writeFileSync(
+      join(root, '.agents/local/graph/code.json'),
+      '{"schemaVersion":99,"kind":"code"}',
+    );
+
+    expect(run(root).plan.decision).toBe(GraphDecisions.FULL);
+    expect(run(root).commit).toBe(GitState.commitOf({ root }));
+  });
+});
+
+describe('Fingerprints: the built declarations of a package', () => {
+  const built = (opts: { entry: string; files: Record<string, string> }): string => {
+    const root = repository();
+
+    writeFileSync(
+      join(root, 'packages/b/package.json'),
+      JSON.stringify({ name: '@fx/b', version: '1.0.0', exports: { '.': opts.entry } }),
+    );
+
+    for (const [path, text] of Object.entries(opts.files)) {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), text);
+    }
+
+    return root;
+  };
+  const digest = (root: string): string =>
+    Fingerprints.declarationsOfPackages({
+      root,
+      project: ProjectConfig.toAtlasProject({ root, manifest: MANIFEST }),
+    })['@fx/b'] ?? '';
+
+  test('is empty for a package that has built nothing, and moves when a .d.ts below the entry changes', () => {
+    const root = built({ entry: './dist/index.d.ts', files: {} });
+
+    expect(digest(root)).toBe('');
+
+    writeFileSync(join(root, 'packages/b/dist-placeholder'), '');
+    mkdirSync(join(root, 'packages/b/dist/sub'), { recursive: true });
+    writeFileSync(join(root, 'packages/b/dist/index.d.ts'), 'export declare const b: 1;\n');
+    writeFileSync(join(root, 'packages/b/dist/sub/inner.d.ts'), 'export declare const i: 1;\n');
+
+    const first = digest(root);
+
+    expect(first).not.toBe('');
+    expect(digest(root)).toBe(first);
+
+    writeFileSync(join(root, 'packages/b/dist/sub/inner.d.ts'), 'export declare const i: 1 | 2;\n');
+
+    expect(digest(root)).not.toBe(first);
+  });
+
+  test('an entry at the root of the package is digested too', () => {
+    const root = built({
+      entry: './index.d.ts',
+      files: { 'packages/b/index.d.ts': 'export declare const b: 1;\n' },
+    });
+    const first = digest(root);
+
+    expect(first).not.toBe('');
+
+    writeFileSync(join(root, 'packages/b/index.d.ts'), 'export declare const b: 1 | 2;\n');
+
+    expect(digest(root)).not.toBe(first);
   });
 });

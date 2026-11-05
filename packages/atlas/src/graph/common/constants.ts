@@ -69,6 +69,10 @@ export class GraphConstants {
   /** How many changed files `status` names. */
   static readonly STATUS_FILES_SHOWN = 5;
   static readonly SCHEMA_VERSION = 1;
+  /** Raised when a change of the producers changes what a graph holds, so a graph built before it is read again whole. */
+  static readonly PRODUCER_VERSION = 1;
+  /** What `inputs` is set to when a build could not read the symbols: the next build starts again. */
+  static readonly INCOMPLETE = 'incomplete';
   /** What `code.json` should stay under on a large framework (about 1800 files and 3300 exported symbols). A target: the command says so when it is passed. */
   static readonly SIZE_TARGET_BYTES = 4 * 1024 * 1024;
   static readonly KIND_CODE = 'code';

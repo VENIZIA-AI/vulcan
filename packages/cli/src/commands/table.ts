@@ -286,7 +286,7 @@ export class CommandTable {
         '--json': 'status: print the answer as one line of JSON',
       },
       positionals: 1,
-      unknownExit: 2,
+      unknownExit: ExitCodes.USAGE,
       exits:
         '0 on success, and for every state of status (fresh, behind, diverged, unknown); 1 when the graph cannot be built (no git repository, a bad package.json) or atlas is not installed; 2 for an argument it does not know',
     },

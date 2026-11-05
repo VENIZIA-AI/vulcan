@@ -46,7 +46,7 @@ export const runGraphCommand = (opts: { command?: string; args?: string[] }): nu
     const symbols = graph.nodes.filter((node) => node.kind === GraphNodeKinds.SYMBOL).length;
 
     console.log(
-      `graph: ${graph.nodes.length} nodes, ${graph.edges.length} edges, ${files} files, ${symbols} symbols, commit ${graph.source.commit ?? 'none'}, ${plan.decision} (${plan.reason}) -> ${GraphFiles.DIRECTORY}/${GraphFiles.CODE}`,
+      `graph: ${graph.nodes.length} nodes, ${graph.edges.length} edges, ${files} files, ${symbols} symbols, commit ${built.commit ?? 'none'}, ${plan.decision} (${plan.reason}) -> ${GraphFiles.DIRECTORY}/${GraphFiles.CODE}`,
     );
 
     if (CodeGraph.isOverTarget({ bytes })) {

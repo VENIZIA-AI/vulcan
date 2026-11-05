@@ -29,14 +29,22 @@ export class GitState {
     return out === undefined ? undefined : out.trim();
   }
 
-  /** Whether `ancestor` is part of the history of HEAD; false for a commit this repository does not know. */
-  static isAncestor(opts: { root: string; ancestor: string }): boolean {
-    return (
-      GitState.git({
-        root: opts.root,
-        args: ['merge-base', '--is-ancestor', opts.ancestor, 'HEAD'],
-      }) !== undefined
-    );
+  /**
+   * Whether `ancestor` is part of the history of HEAD: true or false when git says so (exit 0 or 1), undefined when it cannot
+   * (a commit this repository does not have, a shallow clone, no HEAD).
+   */
+  static isAncestor(opts: { root: string; ancestor: string }): boolean | undefined {
+    const result = spawnSync('git', ['merge-base', '--is-ancestor', opts.ancestor, 'HEAD'], {
+      cwd: opts.root,
+      encoding: 'utf8',
+      timeout: GitState.TIMEOUT_MS,
+    });
+
+    if (result.status === 0) {
+      return true;
+    }
+
+    return result.status === 1 ? false : undefined;
   }
 
   /** Whether a tracked file under `paths` has uncommitted changes; untracked files do not count. */

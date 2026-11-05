@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { atlas, git, removeRepositories, repository } from './graph.helper';
 
 afterAll(removeRepositories);
@@ -135,5 +135,43 @@ describe('vulcan x atlas graph status', () => {
     const root = repository();
 
     expect(atlas({ root, args: ['graph', 'status', '--nope'] }).exitCode).toBe(2);
+  });
+
+  test('behind when only the built declarations of a package changed', () => {
+    const root = repository();
+
+    build({ root });
+    mkdirSync(join(root, 'packages/b/dist'), { recursive: true });
+    writeFileSync(join(root, 'packages/b/dist/index.d.ts'), 'export declare const b: 1;\n');
+
+    const rebuilt = status({ root });
+
+    expect(rebuilt).toMatchObject({ state: 'behind', behind: 1 });
+    expect(rebuilt.files).toEqual(['@fx/b (built declarations)']);
+  });
+
+  test('behind, not diverged, when git cannot say whether the build commit is in this history (a commit it does not have)', () => {
+    const root = repository();
+
+    build({ root });
+
+    const meta = JSON.parse(readFileSync(join(root, '.agents/local/graph/meta.json'), 'utf8'));
+
+    writeFileSync(
+      join(root, '.agents/local/graph/meta.json'),
+      JSON.stringify({ ...meta, commit: 'deadbeefdead' }),
+    );
+    writeFileSync(join(root, 'packages/a/src/util.ts'), 'export const util = 4;\n');
+
+    expect(status({ root }).state).toBe('behind');
+  });
+
+  test('a repository with no commit yet still answers', () => {
+    const root = repository();
+
+    git({ root, args: ['update-ref', '-d', 'HEAD'] });
+    build({ root });
+
+    expect(status({ root }).state).toBe('fresh');
   });
 });

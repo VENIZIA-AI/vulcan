@@ -40,21 +40,33 @@ export class GraphStatus {
     const files = GitState.trackedFiles({ root: opts.root, paths: scope });
     const head = GitState.commitOf({ root: opts.root });
 
-    if (files === undefined || head === undefined) {
+    if (files === undefined) {
       return {
         state: GraphStates.UNKNOWN,
-        reason: 'git cannot be asked (no repository, no commit, or it did not answer)',
+        reason: 'git cannot be asked (no repository, or it did not answer)',
         ...(meta.commit === undefined ? {} : { commit: meta.commit }),
         builtAt: meta.builtAt,
       };
     }
 
     const now = Fingerprints.contentsOf({ root: opts.root, project: opts.project, files });
-    const changed = [...new Set([...Object.keys(before.files), ...Object.keys(now)])]
+    const fileChanges = [...new Set([...Object.keys(before.files), ...Object.keys(now)])]
       .filter((path) => before.files[path]?.content !== now[path])
       .sort(GraphOrder.byText);
+    // What a build would also act on: a package that built new declarations, and other graph settings.
+    const declarations = Fingerprints.declarationsOfPackages({
+      root: opts.root,
+      project: opts.project,
+    });
+    const rebuilt = Object.keys(declarations)
+      .filter((name) => before.declarations[name] !== declarations[name])
+      .sort(GraphOrder.byText)
+      .map((name) => `${name} (built declarations)`);
+    const settings =
+      before.inputs === Fingerprints.inputsOf({ project: opts.project }) ? [] : ['graph settings'];
+    const changed = [...fileChanges, ...rebuilt, ...settings];
     const known = {
-      head,
+      ...(head === undefined ? {} : { head }),
       builtAt: meta.builtAt,
       ...(meta.commit === undefined ? {} : { commit: meta.commit }),
     };
@@ -63,11 +75,13 @@ export class GraphStatus {
       return { state: GraphStates.FRESH, ...known };
     }
 
-    const isHistory =
-      meta.commit !== undefined && GitState.isAncestor({ root: opts.root, ancestor: meta.commit });
+    // Diverged only when git says the build commit is not in this history; if it cannot say, the graph is behind.
+    const isOutside =
+      meta.commit !== undefined &&
+      GitState.isAncestor({ root: opts.root, ancestor: meta.commit }) === false;
 
     return {
-      state: isHistory ? GraphStates.BEHIND : GraphStates.DIVERGED,
+      state: isOutside ? GraphStates.DIVERGED : GraphStates.BEHIND,
       behind: changed.length,
       files: changed.slice(0, GraphConstants.STATUS_FILES_SHOWN),
       ...known,

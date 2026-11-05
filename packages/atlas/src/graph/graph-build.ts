@@ -3,7 +3,13 @@ import { join } from 'node:path';
 import type { IAtlasProject } from '@/common/project-config';
 import type { ISymbolRecord } from '@/symbols/common/types';
 import { CodeGraph } from './code-graph';
-import { GraphDecisions, GraphEdgeKinds, GraphFiles, GraphNodeKinds } from './common/constants';
+import {
+  GraphConstants,
+  GraphDecisions,
+  GraphEdgeKinds,
+  GraphFiles,
+  GraphNodeKinds,
+} from './common/constants';
 import type { ICodeGraph, IGraphPart } from './common/types';
 import { Fingerprints } from './fingerprints';
 import { GitState } from './git-state';
@@ -15,6 +21,8 @@ import type { IRebuildPlan } from './rebuild-plan';
 export interface IGraphBuild {
   plan: IRebuildPlan;
   graph: ICodeGraph;
+  /** HEAD at the build: the graph file of a skip keeps the commit of the build that wrote it. */
+  commit?: string;
   /** The reason the symbols could not be read, when the reader failed. */
   error?: string;
 }
@@ -84,7 +92,11 @@ export class GraphBuild {
       CodeGraph.write({ root: opts.root, graph });
     }
 
-    Fingerprints.write({ root: opts.root, fingerprints: after });
+    // A graph written without symbols must not become the baseline a later build skips from.
+    Fingerprints.write({
+      root: opts.root,
+      fingerprints: error === undefined ? after : { ...after, inputs: GraphConstants.INCOMPLETE },
+    });
     GraphMeta.write({
       root: opts.root,
       meta: {
@@ -97,7 +109,12 @@ export class GraphBuild {
       },
     });
 
-    return { plan, graph, ...(error === undefined ? {} : { error }) };
+    return {
+      plan,
+      graph,
+      ...GraphBuild.headOf({ root: opts.root }),
+      ...(error === undefined ? {} : { error }),
+    };
   }
 
   private static headOf(opts: { root: string }): { commit?: string } {
@@ -115,7 +132,12 @@ export class GraphBuild {
     }
 
     try {
-      return JSON.parse(readFileSync(file, 'utf8'));
+      const parsed: ICodeGraph = JSON.parse(readFileSync(file, 'utf8'));
+
+      return parsed.schemaVersion === GraphConstants.SCHEMA_VERSION &&
+        parsed.kind === GraphConstants.KIND_CODE
+        ? parsed
+        : undefined;
     } catch {
       return undefined;
     }

@@ -357,7 +357,7 @@ A file is fingerprinted three ways: its bytes (`content`), its skeleton (`surfac
 | A file | Meaning |
 |---|---|
 | unchanged | The bytes are the same |
-| cosmetic | The bytes differ, the skeleton and the imports do not: an edit inside a function, a comment, the layout |
+| cosmetic | The bytes differ, the skeleton and the imports do not: an edit inside a function, a comment, the layout (in a package that publishes built declarations) |
 | structural | The skeleton or the imports differ, or the file is new or gone |
 
 | The build | When | What it does |
@@ -365,6 +365,10 @@ A file is fingerprinted three ways: its bytes (`content`), its skeleton (`surfac
 | `skip` | Nothing is structural, no package has newly built declarations, and the graph is there | Writes the new bytes and the time to `fingerprints.json` and `meta.json`; reads nothing |
 | `partial` | Some files are structural, and at most 30 of them and half of all | Reads the files and imports again, which is cheap, and the symbols again only for the packages that hold a structural file or built new declarations, and for the packages that depend on them. The other symbols are kept |
 | `full` | No earlier build, `--full`, another set of packages or `graph` settings, a `package.json` that changed, or more than 30 structural files or half of all | Reads everything |
+
+The file is held to 4 MB, about what IGNIS needs (1800 files, 3300 symbols); the command says so on stderr when the file passes it. A graph written without symbols (the reader failed) is not kept as the baseline: the next build is full.
+
+A package that publishes its source (no built `.d.ts`) has its symbols, their lines and their TSDoc read from the source, so any change to one of its files, a comment included, makes the next build read it again; the cosmetic level applies to packages that publish built declarations, whose symbols change when the package is built. The symbols a package takes from `node_modules` (`thirdParty`) are not watched: `--full` after upgrading a dependency.
 
 The line the build prints ends with its decision and why, for example `partial (2 files changed structurally)`.
 
@@ -379,7 +383,7 @@ The line the build prints ends with its decision and why, for example `partial (
 | `diverged` | Files differ, and the commit it was built at is not in this branch's history (another branch, a rebase, a reset) | Run `graph build`; what the graph says belongs to a history this branch does not have |
 | `unknown` | There is no graph yet, or git could not be asked (no repository, no commit, no answer) | Run `graph build`; `unknown` is a state, not a failure |
 
-`--json` prints one line: `state`, `behind`, `files`, `commit` (the build's), `head`, `builtAt` and `reason`. The exit code is 0 in all four states. A new file git does not track yet is not part of the graph, so it does not make it behind. The file is held to 4 MB, about what IGNIS needs (1800 files, 3300 symbols); the command says so on stderr when the file passes it.
+`--json` prints one line: `state`, `behind`, `files`, `commit` (the build's), `head`, `builtAt` and `reason`. The exit code is 0 in all four states. A new file git does not track yet is not part of the graph, so it does not make it behind. Status also says `behind` when a package built new declarations or the graph settings changed since, because the next build would act on them (the answer names `<package> (built declarations)` or `graph settings`). If git cannot tell whether the build commit is in this branch's history (a shallow clone, a commit it does not have), the answer is `behind`, never `diverged`.
 
 ## Releases
 
