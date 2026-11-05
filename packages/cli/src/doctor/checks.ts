@@ -43,7 +43,7 @@ import {
   ViolationConstants,
 } from '../owner/index.ts';
 import { SkillCatalog } from '@venizia/vulcan-atlas';
-import { ProjectTmp, ScriptTrust, TrustStates } from '../hooks/index.ts';
+import { HookConstants, ProjectTmp, ScriptTrust, TrustStates } from '../hooks/index.ts';
 import { AppScripts, DoctorChecks, DoctorConstants } from './common/index.ts';
 import type { IViolation, TDoctorCheck } from './common/index.ts';
 import { Makefile } from './makefile.ts';
@@ -1094,7 +1094,10 @@ export class ProjectContract {
 
   /** `.agents/local/` exists with its subdirectories and is gitignored: `sync` does both, so an upgraded project that has not synced yet is told here. */
   static checkLocalWorkspace(opts: ICheckContext): IViolation[] {
-    return LocalPlan.planWorkspace({ root: opts.root })
+    return LocalPlan.planWorkspace({
+      root: opts.root,
+      tmp: ProjectTmp.configuredOf({ tmp: opts.config.local.tmp }),
+    })
       .filter((action) => action.status !== SyncStatuses.UNCHANGED)
       .map((action) =>
         createViolation({
@@ -1295,15 +1298,71 @@ export class ProjectContract {
   }
 
   /**
+   * What `local.tmp` must hold for `clean` and the hooks to be safe with it, and for a browser to start: it is not a folder
+   * of the `layout` (or inside one) and holds no tracked file, because `clean` removes what is old in it; and its browser
+   * socket path fits, so the key does what it exists for. Each is a failure here, not a surprise later. A project that does
+   * not set the key gets the warning of `checkBrowserSocket`.
+   */
+  static checkTmpFolder(opts: ICheckContext): IViolation[] {
+    const { tmp } = opts.config.local;
+
+    if (tmp === undefined) {
+      return [];
+    }
+
+    const folder = ProjectTmp.projectOf({ root: resolve(opts.root), tmp });
+    const layoutFolders = Object.values(opts.config.layout ?? {}).flatMap((value) =>
+      LayoutFolder.layoutFoldersOf({ value }),
+    );
+    const clash = layoutFolders.find(
+      (entry) => entry === tmp || entry.startsWith(`${tmp}/`) || tmp.startsWith(`${entry}/`),
+    );
+    const tracked = spawnSync('git', ['ls-files', '--', tmp], {
+      cwd: opts.root,
+      encoding: 'utf8',
+      timeout: 5000,
+    });
+    const hasTracked = tracked.status === 0 && tracked.stdout.trim() !== '';
+    const length = BrowserSocket.lengthOf({ folder });
+    const problems = [
+      ...(clash === undefined
+        ? []
+        : [`it is, or holds, the layout folder '${clash}': \`clean\` removes old files from it`]),
+      ...(hasTracked
+        ? [
+            `git tracks files in it: \`clean\` removes old files from it. Pick a folder that only holds scratch`,
+          ]
+        : []),
+      ...(BrowserSocket.fits({ folder })
+        ? []
+        : [
+            `its socket path for a browser would be ${length} characters in ${folder} and the limit is ${BrowserSocket.PATH_MAX}. Use a shorter folder name or a shorter checkout path`,
+          ]),
+    ];
+
+    return problems.map((problem) =>
+      createViolation({
+        check: DoctorChecks.LOCAL,
+        file: opts.configFile,
+        message: `local.tmp '${tmp}': ${problem}`,
+      }),
+    );
+  }
+
+  /**
    * The project's tmp folder is too deep for a browser: Chrome and Chromium put a socket below the temp folder
    * and exit with "Socket path too long" past the limit of a unix socket path (`BrowserSocket.PATH_MAX`, the Linux
    * value; macOS allows 104). The launch file points a session's `TMPDIR` at that folder, so a browser it starts
    * (Playwright MCP, a headless Chrome) fails; a project with no launch file is not asked. A warning, because only a
    * project that starts a browser meets it; the way out is a shorter checkout path. The root is made absolute first.
    */
-  static checkBrowserSocket(opts: { root: string }): IViolation[] {
+  static checkBrowserSocket(opts: { root: string; tmp?: string }): IViolation[] {
+    if (opts.tmp !== undefined) {
+      return [];
+    }
+
     const root = resolve(opts.root);
-    const folder = ProjectTmp.projectOf({ root });
+    const folder = ProjectTmp.projectOf({ root, tmp: HookConstants.PROJECT_TMP });
     const length = BrowserSocket.lengthOf({ folder });
 
     if (BrowserSocket.fits({ folder }) || !existsSync(join(root, CLAUDE_LAUNCH_FILE))) {
@@ -1316,7 +1375,7 @@ export class ProjectContract {
       createViolation({
         check: DoctorChecks.LOCAL,
         file: CLAUDE_LAUNCH_FILE,
-        message: `the temp folder ${folder} is too deep for a browser: Chrome's socket path would be ${length} characters (${BrowserSocket.longest()} below it) and the limit is ${BrowserSocket.PATH_MAX}, so a browser started with this folder exits with "${BrowserSocket.ERROR}". Move the checkout to a path of ${spare} characters or fewer`,
+        message: `the temp folder ${folder} is too deep for a browser: Chrome's socket path would be ${length} characters (${BrowserSocket.longest()} below it) and the limit is ${BrowserSocket.PATH_MAX}, so a browser started with this folder exits with "${BrowserSocket.ERROR}". Set \`local.tmp\` in the config to a short folder of the project (for example \`tmp\`) and run \`vulcan sync\`, or move the checkout to a path of ${spare} characters or fewer`,
       }),
     ];
   }

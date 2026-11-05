@@ -43,6 +43,7 @@ export class DoctorRunner {
       ...ProjectContract.checkStyle(context),
       ...ProjectContract.checkScaffold(context),
       ...ProjectContract.checkApps(context),
+      ...ProjectContract.checkTmpFolder(context),
     ];
   }
 
@@ -98,7 +99,7 @@ export class DoctorRunner {
       ...ProjectContract.checkEventsDir(context),
       ...ProjectContract.checkEventsSize(context),
       ...ProjectContract.checkProjectKey(context),
-      ...ProjectContract.checkBrowserSocket({ root: opts.root }),
+      ...ProjectContract.checkBrowserSocket({ root: opts.root, tmp: context.config.local.tmp }),
       ...ProjectContract.checkDockerignore(context),
       ...ProjectContract.checkSkillTriggers(context),
       ...ProjectContract.checkFormat(context),

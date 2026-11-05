@@ -40,7 +40,7 @@ The session-start digest, the owner-reply check and the `claude.settings` of the
 
 ## Temporary files
 
-Rule `V-B-08` keeps everything an agent makes inside the project, in `.agents/local/tmp/`. A command that makes a temporary file (`mktemp`, a script, bun, node) uses the folder in `TMPDIR`, so that variable is what moves the files. These routes were run in Claude Code 2.1.311 (a session driven by a stand-in for the model, in a scratch project), not read from its documentation:
+Rule `V-B-08` keeps everything an agent makes inside the project, in `.agents/local/tmp/`, or in the folder `local.tmp` names (read `tmp/` below as that folder). A command that makes a temporary file (`mktemp`, a script, bun, node) uses the folder in `TMPDIR`, so that variable is what moves the files. These routes were run in Claude Code 2.1.311 (a session driven by a stand-in for the model, in a scratch project), not read from its documentation:
 
 | How `TMPDIR` is set | Bash commands | Claude Code's own task-output files | MCP servers |
 |---|---|---|---|
@@ -52,7 +52,7 @@ Rule `V-B-08` keeps everything an agent makes inside the project, in `.agents/lo
 
 What `vulcan sync` sets up, for Claude Code:
 
-- **The session-start hook** appends `export TMPDIR=<project>/.agents/local/tmp` to the file Claude Code sources before each Bash command. Nothing to start differently; from the first command of a session, `mktemp -d` and every script it runs use the project folder, and `guard-outside` no longer asks about a bare `mktemp`.
+- **The session-start hook** appends `export TMPDIR=<project>/.agents/local/tmp` (or the `local.tmp` folder) to the file Claude Code sources before each Bash command. Nothing to start differently; from the first command of a session, `mktemp -d` and every script it runs use the project folder, and `guard-outside` no longer asks about a bare `mktemp`.
 - **The launch file** `.agents/local/claude.launch.settings.json` (gitignored, one checkout, absolute paths) sets `TMPDIR` and `CLAUDE_CODE_TMPDIR`. Start Claude Code with `claude --settings .agents/local/claude.launch.settings.json` (an alias is enough) and its own background-task output files and its MCP servers, Playwright included, use the project folder too.
 
 What still needs the launch file or the launch variables, stated plainly: without them, Claude Code's own task-output files stay in `/tmp/claude-<uid>/` and an MCP server uses the system temp folder; the hook does not reach them. A path an agent writes by hand (`/tmp/x`) still asks, on purpose. Any agent other than Claude Code has no hook of this kind: the rules and the session digest tell it to use `.agents/local/tmp`, and it needs `TMPDIR` in its own launch environment (`export TMPDIR=$PWD/.agents/local/tmp`); VULCAN has not checked whether those agents can set it from their configuration.
@@ -61,7 +61,7 @@ When Claude Code starts in a project that has the launch file but `CLAUDE_CODE_T
 
 `vulcan doctor` warns when the folder or the launch file is missing or names another checkout, and `vulcan sync` fixes both. The folder is a task scratch folder: remove what you made when the task ends; `vulcan clean` lists what is older than a day.
 
-**A long checkout path.** The launch file always points at `<project>/.agents/local/tmp`. A browser puts a unix socket in that folder (`org.chromium.Chromium.XXXXXX/SingletonSocket` for Chromium, the longest name; 45 characters more), and a socket path is at most 107 characters, so a project path of about 45 characters or more makes the browser, started by Playwright for example, exit with `Socket path too long`. `vulcan doctor` warns about it. Pointing the launch file at a shorter folder by hand does not hold: the next `vulcan sync` writes it back. Until a setting for the folder exists, keep the project path short.
+**A long checkout path.** The launch file always points at `<project>/.agents/local/tmp`. A browser puts a unix socket in that folder (`org.chromium.Chromium.XXXXXX/SingletonSocket` for Chromium, the longest name; 45 characters more), and a socket path is at most 107 characters, so a project path of about 45 characters or more makes the browser, started by Playwright for example, exit with `Socket path too long`. `vulcan doctor` warns about it. Pointing the launch file at a shorter folder by hand does not hold: the next `vulcan sync` writes it back. Set `local.tmp` in the config to a short folder of the project (for example `tmp`) and run `vulcan sync`: the launch file, the hooks, `vulcan clean` and `vulcan add` use it, and `vulcan doctor` fails when even that folder is too deep.
 
 **Worktrees.** A session in `.agents/local/worktrees/<name>` counts as inside when its `CLAUDE_CODE_TMPDIR` is under the `.agents/local` of that worktree or under the `.agents/local` of the checkout the worktree hangs from, and under no other folder above it.
 

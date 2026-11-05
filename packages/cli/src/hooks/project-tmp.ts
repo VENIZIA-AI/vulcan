@@ -1,14 +1,49 @@
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { LayoutFolder } from '../common/layout-folder.ts';
+import { RecordValue } from '../common/record.ts';
 import { HookConstants } from './common/index.ts';
+import { ProjectGuards } from './project-guards.ts';
 
 /** A word for `sh`, whatever it holds: in single quotes, a quote itself closed, escaped and opened again. */
 const shellQuote = (opts: { text: string }): string => `'${opts.text.replaceAll("'", "'\\''")}'`;
 
 export class ProjectTmp {
-  /** `<root>/.agents/local/tmp`: where a session's temporary files go, absolute. `vulcan clean` reads its age. */
-  static projectOf(opts: { root: string }): string {
-    return join(opts.root, HookConstants.PROJECT_TMP);
+  /**
+   * The folder the project names for its temporary files, relative to its root: `local.tmp` of the committed manifest
+   * (which `vulcan sync` renders from the config), read here so a hook needs no config loader. A missing manifest, a
+   * missing key or a value that is not a layout folder gives the default, `.agents/local/tmp`.
+   */
+  static relativeOf(opts: { root: string }): string {
+    try {
+      const manifest: unknown = JSON.parse(
+        readFileSync(join(opts.root, ProjectGuards.MANIFEST_FILE), 'utf8'),
+      );
+      const local = RecordValue.isRecord(manifest) ? manifest['local'] : undefined;
+      const tmp = RecordValue.isRecord(local) ? local['tmp'] : undefined;
+
+      return typeof tmp === 'string' &&
+        LayoutFolder.layoutFolderProblem({ folder: tmp }) === undefined
+        ? tmp
+        : HookConstants.PROJECT_TMP;
+    } catch {
+      return HookConstants.PROJECT_TMP;
+    }
+  }
+
+  /** What a caller that holds the config passes as `tmp`: the key, or the default when the project does not set it (never the manifest, which `sync` has not rewritten yet). */
+  static configuredOf(opts: { tmp: string | undefined }): string {
+    return opts.tmp ?? HookConstants.PROJECT_TMP;
+  }
+
+  /**
+   * Where a session's temporary files go, absolute: the guard, the session digest, the session-start export, the launch
+   * file, `vulcan clean` and the scratch of `add` all call this. `tmp` is the config's `local.tmp` for a caller that
+   * has just read the config (`sync`, which writes the manifest after it plans the launch file); the others leave it
+   * out and get the manifest's.
+   */
+  static projectOf(opts: { root: string; tmp?: string }): string {
+    return join(opts.root, opts.tmp ?? ProjectTmp.relativeOf({ root: opts.root }));
   }
 
   /**

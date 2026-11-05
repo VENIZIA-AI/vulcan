@@ -1,3 +1,4 @@
+import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { relative } from 'node:path';
 import { ExitCodes } from '../common/index.ts';
 import type { ICommandContext } from '../common/index.ts';
@@ -118,7 +119,10 @@ export class SyncFlow {
       ...SyncPlanner.plan({ root: opts.cwd, config: loaded.config, agents: resolved.agents }),
       ...AtlasBlockPlan.plan({ root: opts.cwd, config: loaded.config }),
       ...stored,
-      ...LocalPlan.planWorkspace({ root: opts.cwd }),
+      ...LocalPlan.planWorkspace({
+        root: opts.cwd,
+        tmp: ProjectTmp.configuredOf({ tmp: loaded.config.local.tmp }),
+      }),
       ...ExcludePlan.plan({ root: opts.cwd, agents: resolved.agents }),
       ...CommitHookPlan.plan({ root: opts.cwd, config: loaded.config }),
     ];

@@ -1,3 +1,4 @@
+import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { mkdirSync, mkdtempSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProjectLayout } from '../common/index.ts';
@@ -47,7 +48,7 @@ export class PresetScratch {
     run: (scratch: string) => Promise<TResult>;
   }): Promise<TResult> {
     const local = join(opts.root, ProjectLayout.LOCAL_DIRECTORY);
-    const parent = join(local, 'tmp');
+    const parent = ProjectTmp.projectOf({ root: opts.root });
 
     mkdirSync(parent, { recursive: true });
 
