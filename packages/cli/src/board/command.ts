@@ -7,6 +7,7 @@ import { FlowId } from '../events/flow-id.ts';
 import { EventLog } from '../events/log.ts';
 import { EventSettings } from '../events/settings.ts';
 import { ThemeTokens } from '../theme/index.ts';
+import type { IThemeTokens } from '../theme/index.ts';
 import { BoardConstants, BoardFlags, BoardServe, BoardStates } from './common/index.ts';
 import type { IBoardData, IBoardEvent } from './common/index.ts';
 import { BoardFold } from './fold.ts';
@@ -66,10 +67,11 @@ export class BoardCommand {
 
     const data = BoardCommand.collect({ root, dir, since, args });
     const file = resolve(root, args.out ?? BoardConstants.DEFAULT_OUT);
+    const tokens = BoardCommand.tokensOf({ root });
 
     try {
       mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, BoardPage.render({ data, tokens: ThemeTokens.read({ root }) }));
+      writeFileSync(file, BoardPage.render({ data, tokens }));
     } catch (error) {
       process.stderr.write(
         `board: cannot write ${file}: ${error instanceof Error ? error.message : String(error)}\n`,
@@ -89,6 +91,17 @@ export class BoardCommand {
     }
 
     return ExitCodes.OK;
+  }
+
+  /** The design tokens of the project's manifest; a manifest the board cannot read says so on stderr and the default preset is used. */
+  private static tokensOf(opts: { root: string }): IThemeTokens {
+    const { tokens, warning } = ThemeTokens.read({ root: opts.root });
+
+    if (warning !== undefined) {
+      process.stderr.write(`board: ${warning}\n`);
+    }
+
+    return tokens;
   }
 
   /** The folded data of a project: its log since `since`, and GitHub unless it is left out or cannot be read. */
@@ -186,7 +199,7 @@ export class BoardCommand {
         dir: opts.dir,
         hostname,
         collect,
-        tokens: ThemeTokens.read({ root: opts.root }),
+        tokens: BoardCommand.tokensOf({ root: opts.root }),
       });
 
       if (note !== undefined) {

@@ -96,6 +96,12 @@ const MARK_PAIRS: [string, string][] = [
 ];
 const TEXT_RATIO = 4.5;
 const MARK_RATIO = 3;
+/** The text tokens a surface of the board carries; each is checked on each surface of the mode. */
+const SURFACE_TEXT = ['ink', 'body', 'muted', 'accent-text'];
+const SURFACE_NAMES = ['head', 'soft', 'sunk'];
+const SURFACE_PAIRS: [string, string][] = SURFACE_TEXT.flatMap((text) =>
+  SURFACE_NAMES.map((surface): [string, string] => [text, surface]),
+);
 
 /** The design tokens: fixed semantic names, values from a preset and the project, checked against WCAG AA. */
 export class ThemeTokens {
@@ -133,6 +139,14 @@ export class ThemeTokens {
   static readonly MONO =
     "'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace";
   static readonly RADIUS = '4px';
+  /** A corner radius: a plain length, so nothing else (a brace, a tag) can reach a style element. */
+  static readonly RADIUS_PATTERN = /^\d+(?:\.\d+)?(?:px|rem|em)$/;
+
+  /** The greys of the board's own panes, the same in every project; the text tokens are checked on them. */
+  static readonly SURFACES: Record<'light' | 'dark', Record<string, string>> = {
+    light: { head: '#fafafa', soft: '#f2f2f2', sunk: '#f7f7f7' },
+    dark: { head: '#202024', soft: '#26262b', sunk: '#232327' },
+  };
 
   /** The `--property:value` pairs of one mode; `names` maps a token to the custom property a consumer calls it. */
   static declarations(opts: { mode: TTokenMode; names: Record<string, string> }): string {
@@ -143,13 +157,25 @@ export class ThemeTokens {
 
   /**
    * The resolved tokens that `vulcan sync` wrote to the manifest of `root`, or the default preset when the manifest has
-   * none or holds a block this version cannot read. Nothing is requested and no config is loaded.
+   * none or holds a block this version cannot read (then with a warning to print). Nothing is requested and no config
+   * is loaded.
    */
-  static read(opts: { root: string }): IThemeTokens {
-    const { block } = ProjectTheme.readManifestBlock({ root: opts.root });
+  static read(opts: { root: string }): { tokens: IThemeTokens; warning?: string } {
+    const { block, warning } = ProjectTheme.readManifestBlock({ root: opts.root });
     const stored = block === undefined ? undefined : ThemeTokens.storedIn({ block });
 
-    return stored ?? ThemeTokens.defaults();
+    if (block !== undefined && stored === undefined) {
+      return {
+        tokens: ThemeTokens.defaults(),
+        warning:
+          'the manifest theme is not readable by this version, so the default preset is used',
+      };
+    }
+
+    return {
+      tokens: stored ?? ThemeTokens.defaults(),
+      ...(warning === undefined ? {} : { warning }),
+    };
   }
 
   /** The tokens of a project with no `theme`: the default preset as written. */
@@ -190,6 +216,7 @@ export class ThemeTokens {
       typeof font === 'string' &&
       typeof mono === 'string' &&
       typeof radius === 'string' &&
+      ThemeTokens.RADIUS_PATTERN.test(radius) &&
       typeof preset === 'string'
       ? { preset, light, dark, font, mono, radius }
       : undefined;
@@ -226,19 +253,21 @@ export class ThemeTokens {
   }
 
   /** Every pair of a mode below AA, each as a sentence that names the pair, the colours and the ratio. */
-  private static contrastProblems(opts: { name: string; mode: TTokenMode }): string[] {
+  private static contrastProblems(opts: { name: 'light' | 'dark'; mode: TTokenMode }): string[] {
     const problems: string[] = [];
+    // The greys of the board's panes sit beside the tokens, so a pair on one of them is read the same way.
+    const mode = { ...opts.mode, ...ThemeTokens.SURFACES[opts.name] };
 
     for (const [pairs, needed, role] of [
-      [TEXT_PAIRS, TEXT_RATIO, 'text'],
+      [[...TEXT_PAIRS, ...SURFACE_PAIRS], TEXT_RATIO, 'text'],
       [MARK_PAIRS, MARK_RATIO, 'a mark'],
     ] as const) {
       for (const [text, on] of pairs) {
-        const ratio = ThemeTokens.ratio({ mode: opts.mode, text, on });
+        const ratio = ThemeTokens.ratio({ mode, text, on });
 
         if (ratio < needed) {
           problems.push(
-            `${opts.name}: ${text} ${opts.mode[text]} as ${role} on ${on} ${opts.mode[on]} is ${ratio.toFixed(2)}:1; it needs ${needed}:1`,
+            `${opts.name}: ${text} ${mode[text]} as ${role} on ${on} ${mode[on]} is ${ratio.toFixed(2)}:1; it needs ${needed}:1`,
           );
         }
       }
@@ -275,6 +304,13 @@ export class ThemeTokens {
       return {
         ok: false,
         problems: ['theme accentDark and accentText belong to an accent: give accent too'],
+      };
+    }
+
+    if (theme.radius !== undefined && !ThemeTokens.RADIUS_PATTERN.test(theme.radius)) {
+      return {
+        ok: false,
+        problems: [`theme radius '${theme.radius}' is not a length such as 4px, 0.25rem or 0.5em`],
       };
     }
 

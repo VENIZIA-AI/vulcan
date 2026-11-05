@@ -18,12 +18,17 @@ const TOKEN_PROPERTIES: Record<string, string> = {
   accent: 'accent',
   'accent-ink': 'accent-ink',
   'accent-soft': 'accent-soft',
+  'accent-text': 'accent-text',
   ok: 'ok',
   'ok-soft': 'ok-soft',
   wait: 'wait',
   'wait-soft': 'wait-soft',
   fail: 'fail',
   'fail-soft': 'fail-soft',
+  // The greys of the board's panes (ThemeTokens.SURFACES), written beside the tokens.
+  head: 'head',
+  soft: 'soft',
+  sunk: 'sunk',
 };
 
 /** The board as one HTML file: the page of `base/templates/board.html` with the data inside it. */
@@ -56,7 +61,7 @@ export class BoardPage {
   static tokensStyle(opts: { tokens?: IThemeTokens }): string {
     const tokens = opts.tokens ?? ThemeTokens.defaults();
     const declare = (mode: 'light' | 'dark'): string =>
-      `${ThemeTokens.declarations({ mode: tokens[mode], names: TOKEN_PROPERTIES })};--focus:${tokens[mode].accent}`;
+      `${ThemeTokens.declarations({ mode: { ...tokens[mode], ...ThemeTokens.SURFACES[mode] }, names: TOKEN_PROPERTIES })};--focus:${tokens[mode].accent}`;
     const light = `${declare('light')};--r:${tokens.radius}`;
     const dark = declare('dark');
 

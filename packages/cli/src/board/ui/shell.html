@@ -6,16 +6,13 @@
     <title>Board</title>
     <!--BOARD_TOKENS-->
     <style>
-      /* One screen: a top bar, the flow list (left) and the flow detail (right), and the dock of agents below. Venizia tokens; bronze is the one data hue. */
+      /* One screen: a top bar, the flow list (left) and the flow detail (right), and the dock of agents below. Colours come from the design tokens (the style above); only the panes and the mascot keep their own. */
       :root {
         --font: 'Inter Display','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
         --mono: 'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
         --gap: 8px;
         --bar: 56px;
         --ease-out: cubic-bezier(.22,1,.36,1);
-        --head: #fafafa;
-        --soft: #f2f2f2;
-        --sunk: #f7f7f7;
         --line-2: #00000033;
         color-scheme: light;
         --face-ink: #18181b;
@@ -23,9 +20,6 @@
       }
       @media (prefers-color-scheme: dark) {
         :root:not([data-theme='light']):not([data-board-theme='light']) {
-          --head: #202024;
-          --soft: #26262b;
-          --sunk: #232327;
           --line-2: #ffffff33;
           color-scheme: dark;
           --face-ink: #f4f4f5;
@@ -33,27 +27,18 @@
         }
       }
       :root[data-theme='dark'] {
-        --head: #202024;
-        --soft: #26262b;
-        --sunk: #232327;
         --line-2: #ffffff33;
         color-scheme: dark;
         --face-ink: #f4f4f5;
         --cheek: #b8706a;
       }
       :root[data-board-theme='dark'] {
-        --head: #202024;
-        --soft: #26262b;
-        --sunk: #232327;
         --line-2: #ffffff33;
         color-scheme: dark;
         --face-ink: #f4f4f5;
         --cheek: #b8706a;
       }
       :root[data-board-theme='light'] {
-        --head: #fafafa;
-        --soft: #f2f2f2;
-        --sunk: #f7f7f7;
         --line-2: #00000033;
         color-scheme: light;
         --face-ink: #18181b;
@@ -341,7 +326,7 @@
       }
       .ev .lk {
         font-size: 12px;
-        color: var(--accent);
+        color: var(--accent-text);
         text-decoration: none;
         word-break: break-all;
       }
@@ -907,7 +892,7 @@
       }
       .b-work {
         background: var(--accent-soft);
-        color: var(--accent);
+        color: var(--accent-text);
       }
       .b-idle {
         background: var(--soft);
@@ -960,7 +945,7 @@
         color: var(--muted);
       }
       .c-ref {
-        color: var(--accent);
+        color: var(--accent-text);
         font-weight: 600;
         font-size: 12px;
       }
@@ -1030,7 +1015,7 @@
       }
       .c-chips span.h {
         background: var(--accent-soft);
-        color: var(--accent);
+        color: var(--accent-text);
         font-weight: 700;
       }
       .c-gh {
@@ -1219,7 +1204,7 @@
       .d-tag {
         font-size: 11px;
         font-weight: 700;
-        color: var(--accent);
+        color: var(--accent-text);
         background: var(--accent-soft);
         border-radius: var(--r);
         padding: 0 6px;
