@@ -71,6 +71,12 @@ The table below lists the top-level configuration keys:
 | `doctor` | `object` | `{ privateValues: { acknowledged: [] } }` | Files that may keep private values, each with a reason ([doctor](/references/commands/doctor#private-values)) |
 | `owner` | `object` | English, `advise` | The report contract for answers to the project's owners |
 | `theme` | `object` | `undefined` | The colour the project's `vulcan visualize` pages use |
+| `board` | `object` | `{ agents: {} }` | What `vulcan board` puts on its page: owner, title, host name, logo and the faces of agents ([board](#board)) |
+| `commit` | `object` | every check off | The checks of `vulcan commit-check` and the `commit-msg` hook: the agent signature policy and the subject shape ([commit](#commit)) |
+| `ci` | `object` | `{ affected: { global: [] } }` | Paths that make `vulcan ci affected` run every check ([ci](#ci)) |
+| `events` | `object` | `{ log: false }` | The agent event log: on or off, its folder and its limits ([events](#events)) |
+| `graph` | `object` | `{ exclude: [], aliases: {} }` | How `vulcan x atlas graph build` reads the code: files left out and import prefixes it follows ([graph](#graph)) |
+| `local` | `object` | `{ autoClean: true }` | The automatic clean of `.agents/local/` and the project's own tmp folder, `local.tmp` ([local](#local)) |
 
 ## name
 
@@ -886,7 +892,8 @@ The variables the cli reads. The atlas server has variables of its own (`VULCAN_
 | `VULCAN_CONFIG`, `VULCAN_MANIFEST`, `VULCAN_PROJECT_ROOT` | `okf` and `atlas` | Set by `vulcan x` for the tool it starts: the resolved config as JSON, the manifest rendered fresh, the project root (see [vulcan x](/references/commands/#x)) |
 | `VULCAN_BUN`, `VULCAN_GIT` | `init`, `add` | Replace the `bun` and `git` those commands run; for tests |
 | `VULCAN_DIST_TAGS` | `upgrade` | The dist-tags as JSON in place of the registry read of `--nightly`; for tests |
-| `CLAUDE_PROJECT_DIR` | the hooks | The project root, set by Claude Code; without it the hooks use the working directory |
+| `CLAUDECODE` | `vulcan doctor` | Set inside a Claude Code session; doctor prints the launch file note only when it is set (see [vulcan doctor](/references/commands/doctor)) |
+| `CLAUDE_PROJECT_DIR` | the hooks | The project root, set by Claude Code (and by the pi guards extension when it runs a guard script); without it the hooks use the working directory |
 | `CLAUDE_CODE_TMPDIR` | `doctor`, the session-start hook | Where Claude Code puts its task output; the launch file points it at `.agents/local/tmp` (or `local.tmp`) and `doctor` warns when it does not (see [Agents](/references/agents)) |
 | `CLAUDE_ENV_FILE` | the session-start hook | The file Claude Code hands a start hook to export variables from; the hook appends `export TMPDIR=<project>/.agents/local/tmp` (or the `local.tmp` folder) |
 | `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CONFIG_DIR` | the event hook | The session id, and the folder whose `sessions/*.json` names the session (default `~/.claude`), to find the session's name |

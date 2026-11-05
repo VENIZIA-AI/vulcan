@@ -8,7 +8,7 @@ packages: ['@venizia/vulcan']
 
 ## The board page shows its words, not the keys it looks them up by
 
-<Badge type="info" text="Fix" />
+<Badge type="info" text="Bug Fix" />
 
 **In one line.** The HTML that `vulcan board` writes no longer shows raw keys such as `vm.list`, `vm.diagram`, `vm.board`, `gr.title`, `gr.pick` and `gr.hint`.
 

@@ -8,7 +8,7 @@ packages: ['@venizia/vulcan']
 
 ## A project can name a short temporary folder with local.tmp
 
-<Badge type="tip" text="Feature" />
+<Badge type="tip" text="New Feature" />
 
 **In one line.** Set `local: { tmp: 'tmp' }` in the config and run `vulcan sync`: a session's temporary files go to `tmp/` of the project, so a browser started from a deep checkout can make its socket.
 

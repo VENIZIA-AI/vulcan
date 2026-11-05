@@ -9,6 +9,7 @@ packages: ['@venizia/vulcan']
 ## A flow is named `VULZ-<key>-<number>`, and VULCAN gives the number
 
 <Badge type="tip" text="New Feature" />
+<Badge type="info" text="Behavior Change" />
 
 **In one line.** A flow's id is now `VULZ-<project.key>-<number>`, such as `VULZ-ACME-15`; the command makes the number, so agents no longer invent `F-n` ids that collide.
 
