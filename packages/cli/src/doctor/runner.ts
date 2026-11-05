@@ -43,6 +43,7 @@ export class DoctorRunner {
       ...ProjectContract.checkStyle(context),
       ...ProjectContract.checkScaffold(context),
       ...ProjectContract.checkApps(context),
+      ...ProjectContract.checkTmpFolder(context),
     ];
   }
 

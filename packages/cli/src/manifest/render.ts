@@ -103,9 +103,16 @@ const eventsBlockOf = (opts: { config: TResolvedConfig }): { events?: Record<str
     : {};
 };
 
-/** The manifest's `local` block: only when the project turns the automatic clean off, which the hook reads. */
-const localBlockOf = (opts: { config: TResolvedConfig }): { local?: Record<string, unknown> } =>
-  opts.config.local.autoClean ? {} : { local: { autoClean: false } };
+/** The manifest's `local` block, which the hooks and `vulcan clean` read: when the automatic clean is off or the project names its tmp folder. */
+const localBlockOf = (opts: { config: TResolvedConfig }): { local?: Record<string, unknown> } => {
+  const { autoClean, tmp } = opts.config.local;
+  const block = {
+    ...(autoClean ? {} : { autoClean: false }),
+    ...(tmp === undefined ? {} : { tmp }),
+  };
+
+  return Object.keys(block).length === 0 ? {} : { local: block };
+};
 
 /**
  * The manifest's `theme` block: the accent seeds the project gave, its preset, and the resolved design tokens (both

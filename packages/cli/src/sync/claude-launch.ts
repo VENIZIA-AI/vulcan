@@ -16,16 +16,16 @@ export class LaunchSettings {
    * moves its own task-output files and its MCP servers into the project. Absolute paths: the file belongs
    * to one checkout of one developer.
    */
-  static renderClaude(opts: { root: string }): string {
-    const folder = ProjectTmp.projectOf({ root: opts.root });
+  static renderClaude(opts: { root: string; tmp?: string }): string {
+    const folder = ProjectTmp.projectOf(opts);
 
     return `${JSON.stringify({ env: { TMPDIR: folder, CLAUDE_CODE_TMPDIR: folder } }, null, 2)}\n`;
   }
 
   /** The launch file when it is missing or written for another folder; nothing to do when it is current. */
-  static planClaude(opts: { root: string }): ISyncAction[] {
+  static planClaude(opts: { root: string; tmp?: string }): ISyncAction[] {
     const path = join(opts.root, CLAUDE_LAUNCH_FILE);
-    const text = LaunchSettings.renderClaude({ root: opts.root });
+    const text = LaunchSettings.renderClaude(opts);
     const before = existsSync(path) ? readFileSync(path, 'utf8') : undefined;
 
     if (before === text) {
@@ -100,14 +100,15 @@ export class ClaudeLaunch {
       }
     }
 
-    return {
-      state: homes.some((home) =>
-        inside({ folder: real, base: join(home, ProjectLayout.LOCAL_DIRECTORY) }),
-      )
-        ? 'inside'
-        : 'outside',
-      folder,
-    };
+    const isInProjectTmp = inside({
+      folder: real,
+      base: realOf({ path: ProjectTmp.projectOf({ root: opts.root }) }),
+    });
+    const isInLocal = homes.some((home) =>
+      inside({ folder: real, base: join(home, ProjectLayout.LOCAL_DIRECTORY) }),
+    );
+
+    return { state: isInProjectTmp || isInLocal ? 'inside' : 'outside', folder };
   }
 
   /**

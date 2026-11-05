@@ -1094,7 +1094,7 @@ export class ProjectContract {
 
   /** `.agents/local/` exists with its subdirectories and is gitignored: `sync` does both, so an upgraded project that has not synced yet is told here. */
   static checkLocalWorkspace(opts: ICheckContext): IViolation[] {
-    return LocalPlan.planWorkspace({ root: opts.root })
+    return LocalPlan.planWorkspace({ root: opts.root, tmp: opts.config.local.tmp })
       .filter((action) => action.status !== SyncStatuses.UNCHANGED)
       .map((action) =>
         createViolation({
@@ -1295,6 +1295,31 @@ export class ProjectContract {
   }
 
   /**
+   * `local.tmp` names a folder whose browser socket path is over the limit: the key exists to avoid that, so it fails
+   * here, not when Chrome starts. A project that does not set the key gets the warning of \`checkBrowserSocket\`.
+   */
+  static checkTmpFolder(opts: ICheckContext): IViolation[] {
+    const { tmp } = opts.config.local;
+
+    if (tmp === undefined) {
+      return [];
+    }
+
+    const folder = ProjectTmp.projectOf({ root: resolve(opts.root), tmp });
+    const length = BrowserSocket.lengthOf({ folder });
+
+    return BrowserSocket.fits({ folder })
+      ? []
+      : [
+          createViolation({
+            check: DoctorChecks.LOCAL,
+            file: opts.configFile,
+            message: `local.tmp '${tmp}' is still too deep for a browser: its socket path would be ${length} characters in ${folder} and the limit is ${BrowserSocket.PATH_MAX}. Use a shorter folder name or a shorter checkout path`,
+          }),
+        ];
+  }
+
+  /**
    * The project's tmp folder is too deep for a browser: Chrome and Chromium put a socket below the temp folder
    * and exit with "Socket path too long" past the limit of a unix socket path (`BrowserSocket.PATH_MAX`, the Linux
    * value; macOS allows 104). The launch file points a session's `TMPDIR` at that folder, so a browser it starts
@@ -1316,7 +1341,7 @@ export class ProjectContract {
       createViolation({
         check: DoctorChecks.LOCAL,
         file: CLAUDE_LAUNCH_FILE,
-        message: `the temp folder ${folder} is too deep for a browser: Chrome's socket path would be ${length} characters (${BrowserSocket.longest()} below it) and the limit is ${BrowserSocket.PATH_MAX}, so a browser started with this folder exits with "${BrowserSocket.ERROR}". Move the checkout to a path of ${spare} characters or fewer`,
+        message: `the temp folder ${folder} is too deep for a browser: Chrome's socket path would be ${length} characters (${BrowserSocket.longest()} below it) and the limit is ${BrowserSocket.PATH_MAX}, so a browser started with this folder exits with "${BrowserSocket.ERROR}". Set \`local.tmp\` in the config to a short folder of the project (for example \`t\`) and run \`vulcan sync\`, or move the checkout to a path of ${spare} characters or fewer`,
       }),
     ];
   }

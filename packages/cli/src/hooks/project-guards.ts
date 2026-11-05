@@ -97,6 +97,9 @@ const readOnlyScriptOf = (opts: { value: unknown }): IReadOnlyScript | undefined
 };
 
 export class ProjectGuards {
+  /** The committed manifest, which a hook reads instead of the config. */
+  static readonly MANIFEST_FILE = GUARD_MANIFEST_FILE;
+
   /**
    * The commands, push targets and read-only scripts a project lists, from the committed manifest (`vulcan sync` renders
    * them from the config), so a hook reads them with no config loader and no zod. A project with no

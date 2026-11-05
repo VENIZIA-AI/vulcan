@@ -118,7 +118,7 @@ export class SyncFlow {
       ...SyncPlanner.plan({ root: opts.cwd, config: loaded.config, agents: resolved.agents }),
       ...AtlasBlockPlan.plan({ root: opts.cwd, config: loaded.config }),
       ...stored,
-      ...LocalPlan.planWorkspace({ root: opts.cwd }),
+      ...LocalPlan.planWorkspace({ root: opts.cwd, tmp: loaded.config.local.tmp }),
       ...ExcludePlan.plan({ root: opts.cwd, agents: resolved.agents }),
       ...CommitHookPlan.plan({ root: opts.cwd, config: loaded.config }),
     ];

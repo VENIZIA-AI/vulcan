@@ -785,6 +785,7 @@ The `local` object configures what VULCAN keeps tidy in `.agents/local/` by itse
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `autoClean` | `boolean` | `true` | At most once a day, the session-start hook starts a clean of the safe part: stale `tmp/`, browser folders older than an hour, event day files past their limits, and release candidates whose version is tagged. It never removes a worktree or a clone. `false` turns it off; `sync` then writes `local: { autoClean: false }` to the manifest |
+| `tmp` | `string` | `.agents/local/tmp` | A folder of the project, written from its root, for the temporary files of a session. Written like a [layout](#layout) folder: 1 to 4 plain lower-case segments, never absolute, never climbing, so `t` or `tools/t`, not `.t`. `vulcan sync` creates it, adds it to `.gitignore` when it is outside `.agents/local/`, points the launch file at it and writes it to the manifest; the guard, the session digest, the session-start export, `vulcan clean` and `vulcan add` then use it. A browser puts a socket below it, so a deep checkout sets it short; `vulcan doctor` fails when even this folder is too deep |
 
 `VULCAN_AUTO_CLEAN=off` in the environment turns it off for one shell.
 

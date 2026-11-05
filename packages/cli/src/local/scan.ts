@@ -1,3 +1,4 @@
+import { ProjectTmp } from '../hooks/project-tmp.ts';
 import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, readdirSync, realpathSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
@@ -446,13 +447,18 @@ export class LocalScan {
       : undefined;
     const isEventsOutside = !`${eventsDir}${sep}`.startsWith(`${local}${sep}`);
 
+    const homes: Record<string, string> = {
+      [CleanScopes.EVENTS]: eventsDir,
+      [CleanScopes.TMP]: ProjectTmp.projectOf({ root: opts.root }),
+    };
+
     for (const layout of ProjectLayout.LOCAL_LAYOUT) {
       if (!wants(layout.name)) {
         continue;
       }
 
       const isEvents = layout.name === CleanScopes.EVENTS;
-      const directory = isEvents ? eventsDir : join(local, layout.name);
+      const directory = homes[layout.name] ?? join(local, layout.name);
 
       if (!isRealDirectory({ path: directory })) {
         continue;
