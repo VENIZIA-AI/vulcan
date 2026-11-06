@@ -4,7 +4,8 @@ run-name: 'Docs · ${{ github.ref_name }}'
 # Everything this repository publishes besides the packages, as jobs of one workflow, each on its own trigger:
 #
 #   docs         a push to develop that touches docs/wiki/ builds the wiki and deploys it to GitHub Pages
-#   atlas-index  a push to main, develop or a tag publishes the signed atlas index of that commit
+#   atlas-index  a push to main or develop publishes the signed atlas index of that commit; a release tag is
+#                published by the release workflow itself, any other tag by a manual run (below)
 #   wiki-shared  the weekly run compares the shared wiki theme with IGNIS and ARDOR
 #
 # A manual run picks one job with `job` (default `docs`):
@@ -19,8 +20,6 @@ on:
     branches:
       - main
       - develop
-    tags:
-      - '*'
   schedule:
     - cron: '17 6 * * 1'
   workflow_dispatch:
@@ -57,7 +56,7 @@ jobs:
       docs: ${{ steps.docs.outputs.docs }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.3
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
 
@@ -95,14 +94,14 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.3
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          bun-version: 1.4.4
 
       - name: Install dependencies
         run: bun install
@@ -111,10 +110,10 @@ jobs:
         run: make docs
 
       - name: Setup Pages
-        uses: actions/configure-pages@v6.0.0
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5.0.0
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: docs/wiki/site/.vitepress/dist
 
@@ -135,7 +134,7 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5.0.0
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
 
   # Publishes the signed atlas index of each commit atlas can be asked for (the default branch, develop and the
   # release tags) to the release `atlas-index` of this repository, so the projects that read VULCAN as a source
@@ -151,6 +150,9 @@ jobs:
   # builds anything.
   atlas-index:
     name: Publish the pair
+    # The signing key lives in this environment only, and the environment admits runs on main and develop only: a
+    # run on any other branch or tag cannot read it, whatever its workflow file says.
+    environment: atlas-index
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.job == 'atlas-index')
     runs-on: ubuntu-26.04
     permissions:
@@ -160,15 +162,15 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.3
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           # The release table is generated from release commits and tags; a shallow clone has none.
           fetch-depth: 0
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          bun-version: 1.4.4
 
       - name: Install
         run: bun install
@@ -193,12 +195,12 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.3
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          bun-version: 1.4.4
 
       - name: Compare with IGNIS and ARDOR
         run: bun scripts/wiki-shared/check.ts --remote
