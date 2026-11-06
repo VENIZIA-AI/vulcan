@@ -15,6 +15,7 @@ packages: ['@venizia/vulcan', '@venizia/vulcan-atlas']
 ## What changed
 
 - **Values, not options.** atlas passes the repository to `git ls-remote`, `clone` and `fetch` after `--`, and refuses a `repo` or `ref` that starts with `-` before git is called.
+- **A plain name.** The `name` of a source is letters, digits, `_`, `.` and `-`, starting with a letter or a digit; atlas also puts the paths it gives to `git sparse-checkout` and the sha it gives to `git fetch` after `--`.
 - **The config refuses it too.** `vulcan doctor` and `vulcan sync` report a source whose `repo` or `ref` starts with `-`; atlas leaves such a source out when it reads a manifest.
 
 ## Who is affected
