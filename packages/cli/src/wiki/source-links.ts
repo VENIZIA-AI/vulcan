@@ -176,7 +176,8 @@ export class SourceLinkCheck {
     roots?: string[];
   }): { checked: number; missing: IMissingSourceLink[] } {
     const { root, repo, skipFiles, skipProseUnder } = opts;
-    const roots = opts.roots ?? SourceRoots.DEFAULT;
+    const roots =
+      opts.roots === undefined || opts.roots.length === 0 ? SourceRoots.DEFAULT : opts.roots;
     const pattern = SourceRoots.backtickPatternOf({ roots });
     const tracked = loadTracked({ root });
     const exists = (path: string): boolean =>

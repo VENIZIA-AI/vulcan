@@ -8,9 +8,9 @@ packages: ['@venizia/vulcan']
 
 ## wiki-links-check also checks the folders of the project's layout
 
-<Badge type="info" text="Bug Fix" />
+<Badge type="info" text="Bug Fix" /> <Badge type="warning" text="Behavior Change" />
 
-**In one line.** `make wiki-links-check` now checks the paths under the folders of your `layout` (backend, frontend, shared, other), not only under `packages/` and `examples/`. Before, a project with its own app folders got no check on the links into them.
+**In one line.** `make wiki-links-check` now checks the paths under the folders of your `layout` (backend, frontend, shared, other), not only under `packages/` and `examples/`. Before, a project with its own app folders got no check on the backticked paths and `resource:` lines into them (GitHub `blob` and `tree` links were checked under any path).
 
 ## What changed
 

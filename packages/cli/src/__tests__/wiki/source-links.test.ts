@@ -201,4 +201,8 @@ describe('SourceLinkCheck.check with the roots of a layout', () => {
   test('the default list does not know the folder, so it checks nothing there', () => {
     expect(run({}).checked).toBe(0);
   });
+
+  test('an empty list of roots is the default list, never every path', () => {
+    expect(run({ roots: [] }).checked).toBe(0);
+  });
 });
