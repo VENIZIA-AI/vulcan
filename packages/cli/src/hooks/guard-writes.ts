@@ -378,8 +378,7 @@ export class WriteGuard {
       hasUnknownProgram: view.commands.some(
         (command) =>
           ShellParser.isUnknownProgram({ command }) &&
-          WriteGuard.substitutionOf({ word: ShellParser.programOf({ command }).name }) ===
-            undefined,
+          !WriteGuard.isPrintedFile({ word: ShellParser.programOf({ command }).name }),
       ),
     });
 
@@ -939,6 +938,24 @@ export class WriteGuard {
   }
 
   /** The text of `$(...)`, of a backtick substitution or of `<(...)` when the word is only that; else `undefined`. */
+  /** A program word that is a lone `cat FILE` substitution: the files it prints are read as code below. Any other substitution names a program the line does not show. */
+  private static isPrintedFile(opts: { word: string }): boolean {
+    const text = WriteGuard.substitutionOf({ word: opts.word });
+
+    if (text === undefined) {
+      return false;
+    }
+
+    const commands = ShellParser.parse({ command: text });
+    const [only] = commands;
+
+    return (
+      commands.length === 1 &&
+      only !== undefined &&
+      ShellParser.programOf({ command: only }).name === 'cat'
+    );
+  }
+
   private static substitutionOf(opts: { word: string }): string | undefined {
     const match = /^(?:\$\(([\s\S]*)\)|`([\s\S]*)`|<\(([\s\S]*)\))$/.exec(opts.word);
 

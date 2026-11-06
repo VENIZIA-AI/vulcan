@@ -226,3 +226,31 @@ describe('a program the line does not name', () => {
     expect(asksOf('echo "$HOME" $(date +%s) "$@"')).toEqual([]);
   });
 });
+
+describe('a command inside a process substitution or run through a variable is read by every guard', () => {
+  test.each([
+    'cat >(kubectl apply -f -) < manifest.yaml',
+    'echo >(bash deploy.sh)',
+    'k=kubectl; $k apply -f manifest.yaml',
+    '$(echo kubectl) apply -f manifest.yaml',
+    'tee >(psql -c "delete from t") < rows.txt',
+  ])('%s asks in the write guard', (command) => {
+    expect(WriteGuard.inspectCommand({ command, cwd: '/nowhere' }).length).toBeGreaterThan(0);
+  });
+
+  test.each(['k=git; $k push --force origin main', 'echo >(git push --force origin main)'])(
+    '%s is not allowed by the git guard',
+    (command) => {
+      expect(gitDecisions(command).length).toBeGreaterThan(0);
+    },
+  );
+
+  test('a variable as an argument, or a program under a variable folder, stays quiet', () => {
+    expect(WriteGuard.inspectCommand({ command: 'ls $HOME/projects', cwd: '/nowhere' })).toEqual(
+      [],
+    );
+    expect(
+      WriteGuard.inspectCommand({ command: '$HOME/.bun/bin/bun install', cwd: '/nowhere' }),
+    ).toEqual([]);
+  });
+});
