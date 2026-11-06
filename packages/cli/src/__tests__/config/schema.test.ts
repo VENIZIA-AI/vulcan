@@ -90,6 +90,34 @@ describe('VULCAN_CONFIG_SCHEMA', () => {
     );
   });
 
+  test('a template with a placeholder it does not know is refused, and <package> is told to be <dir>', () => {
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: '<package>-v<version>' } }),
+    ).toThrow('<package> is not a placeholder of a release template');
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: '<package>-v<version>' } }),
+    ).toThrow('<dir> replaces <package>');
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({
+        atlas: { tagPattern: '<dir>-v<version>', legacyTagPatterns: ['<name>-<version>'] },
+      }),
+    ).toThrow('<name> is not a placeholder');
+    expect(() =>
+      VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: '<dir >-<a>-v<version>' } }),
+    ).toThrow('<dir >, <a> are not placeholders');
+
+    for (const template of [
+      '<dir>-v<version>',
+      'v<version>',
+      '[#<issue>] release(<dir>): <version>',
+      '<version>-<date>',
+    ]) {
+      expect(VULCAN_CONFIG_SCHEMA.parse({ atlas: { tagPattern: template } }).atlas.tagPattern).toBe(
+        template,
+      );
+    }
+  });
+
   test("a source's repo and ref are values for git, not options: one that starts with '-' is refused", () => {
     expect(() =>
       VULCAN_CONFIG_SCHEMA.parse({ atlas: { sources: [{ name: 'a', repo: '--version' }] } }),
