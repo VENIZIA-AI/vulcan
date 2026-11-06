@@ -213,8 +213,6 @@ permissions:
 jobs:
   atlas-index:
     runs-on: ubuntu-latest
-    # The environment holds the key and deploys from main and develop only.
-    environment: atlas-index
     steps:
       - uses: actions/checkout@v6
         with:
@@ -226,7 +224,7 @@ jobs:
           ATLAS_INDEX_KEY: ${{ secrets.ATLAS_INDEX_KEY }}
 ```
 
-The job needs `contents: write`, the whole history (`fetch-depth: 0`: a shallow checkout is refused, because its release table would come from part of the history), and the private key as the secret `ATLAS_INDEX_KEY` of the environment `atlas-index`.
+The job needs `contents: write`, the whole history (`fetch-depth: 0`: a shallow checkout is refused, because its release table would come from part of the history), and the private key as the secret `ATLAS_INDEX_KEY`.
 It uses the project's own installed atlas, so `bun x --no-install vulcan` must resolve.
 
 It publishes only when all of these hold; otherwise it uploads nothing, says why and succeeds:

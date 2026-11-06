@@ -124,8 +124,8 @@ describe('deploy-docs.yml: the atlas index job, a manual run with a ref', () => 
     expect(push['tags']).toBeUndefined();
   });
 
-  test('the job runs in the atlas-index environment, which holds the signing key', () => {
-    expect(atlasJob['environment']).toBe('atlas-index');
+  test('the job asks for the one permission it uses: contents write', () => {
+    expect(atlasJob['permissions']).toEqual({ contents: 'write' });
   });
 
   test('the input reaches the action through its input, never through a script', () => {
