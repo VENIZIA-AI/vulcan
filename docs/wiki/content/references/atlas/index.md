@@ -275,9 +275,9 @@ usage: vulcan x atlas surface gen|check
 Running bare `surface` prints the usage line and exits with code 2.
 `vulcan x atlas surface gen` writes `.agents/knowledge/reference/public-surface.md` and prints `wrote <path>`.
 `vulcan x atlas surface check` verifies the snapshot against current built declaration files.
-It prints a fresh or stale line.
-`surface check` fails with exit code 1 when the file is missing.
-It also fails when exported symbols were added, removed, or changed kind.
+It prints a fresh, stale or not set up line.
+`surface check` fails with exit code 1 when the file is missing, and says no public surface is committed yet and to run `surface gen` once; it does not call that stale.
+It also fails, as stale, when exported symbols were added, removed, or changed kind.
 `surface` needs the same built `.d.ts` declaration files as `symbols`.
 It finds them from each package's `exports` field, not a fixed `dist/`.
 

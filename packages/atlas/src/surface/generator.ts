@@ -24,6 +24,15 @@ interface IEntrySurface {
   symbols: { name: string; kind: string }[];
 }
 
+/** What `check` finds: the snapshot matches, differs from the built declarations, or was never committed. */
+export class SurfaceVerdicts {
+  static readonly FRESH = 'fresh';
+  static readonly STALE = 'stale';
+  static readonly MISSING = 'missing';
+}
+
+type TSurfaceVerdict = (typeof SurfaceVerdicts)[keyof typeof SurfaceVerdicts];
+
 export class PublicSurface {
   static render(opts: { repoRoot?: string; packages?: string[] } = {}): string {
     const project = ProjectConfig.hasAtlasProject() ? ProjectConfig.readAtlasProject() : undefined;
@@ -64,14 +73,28 @@ export class PublicSurface {
     ].join('\n');
   }
 
+  /** Whether the committed snapshot matches the built declarations. A file that was never written is `missing`, not `stale`: there is no drift to look for. */
+  static verdict(
+    opts: { repoRoot?: string; packages?: string[]; outputPath?: string } = {},
+  ): TSurfaceVerdict {
+    const outputPath = opts.outputPath ?? OUTPUT;
+
+    if (!existsSync(outputPath)) {
+      return SurfaceVerdicts.MISSING;
+    }
+
+    const expected = PublicSurface.render({ repoRoot: opts.repoRoot, packages: opts.packages });
+    const actual = readFileSync(outputPath, 'utf8');
+
+    return PublicSurface.normalize(expected) === PublicSurface.normalize(actual)
+      ? SurfaceVerdicts.FRESH
+      : SurfaceVerdicts.STALE;
+  }
+
   static check(
     opts: { repoRoot?: string; packages?: string[]; outputPath?: string } = {},
   ): boolean {
-    const outputPath = opts.outputPath ?? OUTPUT;
-    const expected = PublicSurface.render({ repoRoot: opts.repoRoot, packages: opts.packages });
-    const actual = existsSync(outputPath) ? readFileSync(outputPath, 'utf8') : '';
-
-    return PublicSurface.normalize(expected) === PublicSurface.normalize(actual);
+    return PublicSurface.verdict(opts) === SurfaceVerdicts.FRESH;
   }
 
   private static renderPackage(opts: {
@@ -162,7 +185,7 @@ export class PublicSurface {
   }
 }
 
-export const runSurfaceCommand = (opts: { command?: string }): number => {
+export const runSurfaceCommand = (opts: { command?: string; outputPath?: string }): number => {
   switch (opts.command) {
     case 'gen': {
       writeFileSync(OUTPUT, PublicSurface.render());
@@ -172,10 +195,21 @@ export const runSurfaceCommand = (opts: { command?: string }): number => {
     }
 
     case 'check': {
-      if (PublicSurface.check()) {
+      const verdict = PublicSurface.verdict({ outputPath: opts.outputPath });
+
+      if (verdict === SurfaceVerdicts.FRESH) {
         console.log('fresh .agents/knowledge/reference/public-surface.md');
 
         return 0;
+      }
+
+      if (verdict === SurfaceVerdicts.MISSING) {
+        console.error(
+          'not set up .agents/knowledge/reference/public-surface.md - no public surface is committed yet; ' +
+            `${RegenerateHint.of({ command: 'surface' })} once to adopt it, then commit the file`,
+        );
+
+        return 1;
       }
 
       console.error(

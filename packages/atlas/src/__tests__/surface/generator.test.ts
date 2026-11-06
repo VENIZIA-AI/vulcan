@@ -2,7 +2,7 @@ import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PublicSurface } from '@/surface';
+import { PublicSurface, SurfaceVerdicts, runSurfaceCommand } from '@/surface';
 import { clearAtlasProject, useAtlasProject } from '../project.helper';
 
 const tmpDirs: string[] = [];
@@ -162,5 +162,56 @@ describe('PublicSurface.check', () => {
     writeSurface({ repoRoot, extraLines: ['export declare const d: number;'] });
 
     expect(PublicSurface.check({ repoRoot, packages: ['testpkg'], outputPath })).toBe(false);
+  });
+});
+
+describe('runSurfaceCommand check', () => {
+  const run = (opts: { outputPath: string }): { code: number; stdout: string; stderr: string } => {
+    const log = console.log;
+    const error = console.error;
+    const out: string[] = [];
+    const err: string[] = [];
+
+    console.log = (line: string) => {
+      out.push(line);
+    };
+    console.error = (line: string) => {
+      err.push(line);
+    };
+
+    try {
+      const code = runSurfaceCommand({ command: 'check', outputPath: opts.outputPath });
+
+      return { code, stdout: out.join('\n'), stderr: err.join('\n') };
+    } finally {
+      console.log = log;
+      console.error = error;
+    }
+  };
+
+  test('a surface that was never committed is not set up, never stale, and says what to run', () => {
+    const repoRoot = makeRepoRoot();
+    const result = run({ outputPath: join(repoRoot, 'public-surface.md') });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('not set up');
+    expect(result.stderr).toContain('no public surface is committed yet');
+    expect(result.stderr).toContain('run `vulcan x atlas surface gen`');
+    expect(result.stderr).not.toContain('stale');
+  });
+
+  test('PublicSurface.verdict tells the three apart', () => {
+    const repoRoot = makeRepoRoot();
+    const outputPath = join(repoRoot, 'public-surface.md');
+    const opts = { repoRoot, packages: ['testpkg'], outputPath };
+
+    writeSurface({ repoRoot });
+    expect(PublicSurface.verdict(opts)).toBe(SurfaceVerdicts.MISSING);
+
+    writeFileSync(outputPath, PublicSurface.render({ repoRoot, packages: ['testpkg'] }));
+    expect(PublicSurface.verdict(opts)).toBe(SurfaceVerdicts.FRESH);
+
+    writeSurface({ repoRoot, extraLines: ['export declare const d: number;'] });
+    expect(PublicSurface.verdict(opts)).toBe(SurfaceVerdicts.STALE);
   });
 });
