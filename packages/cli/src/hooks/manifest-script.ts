@@ -1,104 +1,127 @@
-import { ShellParser } from './shell.ts';
-import type { ISimpleCommand } from './shell.ts';
+import { resolve } from 'node:path';
 import { ManifestPath } from './manifest-path.ts';
 
-/** How the text of a program is read: calls with arguments (`structured`), or as plain text (`text`). */
+/** How the text of a program is read: calls with arguments (`structured`), or also as plain text (`text`). */
 export type TScriptKind = 'structured' | 'text';
+
+export type TShellInspector = (opts: { line: string; dir: string }) => boolean;
 
 interface ICall {
   callee: string;
+  name: string;
   args: string[];
 }
 
-/** Where a call writes: the arguments that are paths it changes, by index; `all` when it takes none. */
-interface ITargets {
-  indexes: number[];
-}
-
 /**
- * The text a program runs, and the check for a script that writes the manifest. A script can build the file
- * name from pieces, so a path that is not one plain string is read as letters and digits, with quotes and
- * joins taken out: a piece of the name in it, or `.agents` in the command, is refused. A path that is one
- * plain string is compared with the manifest as a path.
+ * The text a program runs, and the check for a script that writes the manifest. The calls of the script are
+ * read one by one: a path that is one plain string (or a name with one plain string behind it) is compared
+ * with the manifest as a path; a path built from pieces is refused when a piece of the manifest's name, or
+ * `.agents`, is in the command. A command line the script hands to a shell is read as shell code.
  */
 export class InlineScript {
   /** Programs whose calls are read one by one: `bun`, `node`, `python3.12` ... */
   static readonly STRUCTURED = /^(?:bunx?|node(?:js)?|deno|tsx|ts-node|python[\d.]*|pypy[\d.]*)$/;
-  /** Programs whose text is searched for a write and a piece of the name. */
+  /** Programs whose text is also searched for a write and a piece of the name. */
   static readonly TEXT = /^(?:ruby|perl|php|lua|luajit|[gmn]?awk|osascript|pwsh|powershell)$/;
   /** The pieces of the name that stay when a script joins it from parts, as letters and digits only. */
   static readonly NAME_PARTS = ['vulcanm', 'manif', 'nifest', 'festjson'];
   static readonly AGENTS = 'agents';
-  static readonly MAX_CALLS = 5000;
-  static readonly MAX_CALL_CHARS = 8192;
+  static readonly MAX_CALLS = 1000;
+  static readonly MAX_CALL_CHARS = 2048;
+  static readonly MAX_DEPTH = 3;
   static readonly MODE_WRITES = /[wax+]/;
   static readonly STRING_LITERAL = /^[rRbBuU]{0,2}(['"])((?:\\.|(?!\1)[^\\])*)\1$/s;
   static readonly TEMPLATE_LITERAL = /^`([^`$\\]*)`$/;
-  /** A call or an operator that writes, copies, moves or removes a file, in text read with quotes taken out. */
-  static readonly TEXT_WRITES = new RegExp(
-    [
-      'write',
-      'append',
-      String.raw`\bcp`,
-      'copy',
-      String.raw`\bmv`,
-      'move',
-      'rename',
-      'unlink',
-      String.raw`\brm`,
-      String.raw`\btee\b`,
-      'truncate',
-      'shred',
-      'link',
-      String.raw`\binstall\b`,
-      String.raw`\bdd\b`,
-      'of=',
-      String.raw`os\.replace`,
-      // a redirect, but not `=>`, `->` or `>=`
-      String.raw`(?<![=-])>(?!=)`,
-      '--in-place',
-      String.raw`open\w*\([^)]*[,=][^),]*[wax+]`,
-    ].join('|'),
-  );
-  /** A script that hands a command line to a shell. */
-  static readonly SHELL_OUT =
-    /\b(?:exec\w*|spawn\w*|system|popen\w*|subprocess|child_process|run_command)\b|Bun\.\$/i;
+  static readonly IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
+  /** Words that, in text read with quotes taken out, write, copy, move or remove a file. */
+  static readonly TEXT_WORDS = [
+    'write',
+    'append',
+    'copy',
+    'rename',
+    'unlink',
+    'remove',
+    'move',
+    'link',
+    'truncate',
+    'shred',
+    'open',
+    'put_contents',
+    'of=',
+    '--in-place',
+  ];
+  static readonly TEXT_PROGRAMS = new Set(['cp', 'mv', 'rm', 'tee', 'install', 'dd']);
   /** Write calls by name (lower-case) and the arguments they change. */
-  static readonly CALLS = new Map<string, ITargets>([
-    ['writefile', { indexes: [0] }],
-    ['writefilesync', { indexes: [0] }],
-    ['appendfile', { indexes: [0] }],
-    ['appendfilesync', { indexes: [0] }],
-    ['createwritestream', { indexes: [0] }],
-    ['writetextfile', { indexes: [0] }],
-    ['writetextfilesync', { indexes: [0] }],
-    ['unlink', { indexes: [0] }],
-    ['unlinksync', { indexes: [0] }],
-    ['rm', { indexes: [0] }],
-    ['rmsync', { indexes: [0] }],
-    ['rmdir', { indexes: [0] }],
-    ['rmdirsync', { indexes: [0] }],
-    ['rmtree', { indexes: [0] }],
-    ['remove', { indexes: [0] }],
-    ['truncate', { indexes: [0] }],
-    ['truncatesync', { indexes: [0] }],
-    ['copyfile', { indexes: [1] }],
-    ['copyfilesync', { indexes: [1] }],
-    ['cp', { indexes: [1] }],
-    ['cpsync', { indexes: [1] }],
-    ['copy', { indexes: [1] }],
-    ['copy2', { indexes: [1] }],
-    ['copytree', { indexes: [1] }],
-    ['symlink', { indexes: [1] }],
-    ['symlinksync', { indexes: [1] }],
-    ['link', { indexes: [1] }],
-    ['linksync', { indexes: [1] }],
-    ['rename', { indexes: [0, 1] }],
-    ['renamesync', { indexes: [0, 1] }],
-    ['move', { indexes: [0, 1] }],
-    ['open', { indexes: [0] }],
-    ['opensync', { indexes: [0] }],
+  static readonly CALLS = new Map<string, number[]>([
+    ['writefile', [0]],
+    ['writefilesync', [0]],
+    ['appendfile', [0]],
+    ['appendfilesync', [0]],
+    ['createwritestream', [0]],
+    ['writetextfile', [0]],
+    ['writetextfilesync', [0]],
+    ['file_put_contents', [0]],
+    ['unlink', [0]],
+    ['unlinksync', [0]],
+    ['rm', [0]],
+    ['rmsync', [0]],
+    ['rmdir', [0]],
+    ['rmdirsync', [0]],
+    ['rmtree', [0]],
+    ['remove', [0]],
+    ['truncate', [0]],
+    ['truncatesync', [0]],
+    ['copyfile', [1]],
+    ['copyfilesync', [1]],
+    ['cp', [1]],
+    ['cpsync', [1]],
+    ['copy', [1]],
+    ['copy2', [1]],
+    ['copytree', [1]],
+    ['symlink', [1]],
+    ['symlinksync', [1]],
+    ['link', [1]],
+    ['linksync', [1]],
+    ['rename', [0, 1]],
+    ['renamesync', [0, 1]],
+    ['move', [0, 1]],
+    ['open', [0]],
+    ['opensync', [0]],
+    ['file.write', [0]],
+    ['file.binwrite', [0]],
+    ['file.delete', [0]],
+    ['file.rename', [0, 1]],
+    ['bun.write', [0]],
+    ['os.replace', [0, 1]],
+    ['fileinput.input', [0]],
   ]);
+  /** Calls that copy a whole tree: their destination is the folder the tree goes into. */
+  static readonly TREE_CALLS = new Set(['copytree', 'cp', 'cpsync']);
+  /** Calls that hand a command line to a shell. */
+  static readonly SHELL_CALLS = new Set([
+    'exec',
+    'execsync',
+    'execfile',
+    'execfilesync',
+    'spawn',
+    'spawnsync',
+    'system',
+    'popen',
+    'shell_exec',
+    'passthru',
+    'proc_open',
+    'subprocess.run',
+    'subprocess.call',
+    'subprocess.check_call',
+    'subprocess.check_output',
+    'subprocess.popen',
+    'os.system',
+    'os.popen',
+    'bun.spawn',
+    'bun.spawnsync',
+  ]);
+  /** Calls that run text as code. */
+  static readonly CODE_CALLS = new Set(['exec', 'eval', 'function']);
   /** Calls whose path is not among their arguments (`Path(p).write_text(..)`, `Bun.file(p).writer()`). */
   static readonly UNKNOWN_TARGET = /\.(?:writer|write_text|write_bytes|writeText)\s*\(/;
   /** Names that, joined into one word, are a file write (for a call whose name is computed). */
@@ -119,7 +142,69 @@ export class InlineScript {
     'osreplace',
     'writetext',
     'writebytes',
+    'fileputcontents',
   ];
+  /** The verbs that make a line the parser could not read worth refusing. */
+  static readonly UNREAD_WORDS = new Set([
+    'tee',
+    'cp',
+    'mv',
+    'install',
+    'ln',
+    'rm',
+    'dd',
+    'rsync',
+    'tar',
+    'unzip',
+    'patch',
+    'sed',
+    'perl',
+    'ruby',
+    'awk',
+    'gawk',
+    'mawk',
+    'python',
+    'python3',
+    'node',
+    'nodejs',
+    'bun',
+    'bunx',
+    'deno',
+    'php',
+    'lua',
+    'sh',
+    'bash',
+    'zsh',
+    'dash',
+    'ksh',
+    'fish',
+    'truncate',
+    'shred',
+    'unlink',
+    'ed',
+    'ex',
+    'vi',
+    'vim',
+    'nvim',
+    'xargs',
+    'find',
+    'eval',
+    'sponge',
+  ]);
+  static readonly UNREAD_GIT_WORDS = new Set([
+    'checkout',
+    'restore',
+    'apply',
+    'am',
+    'stash',
+    'reset',
+    'merge',
+    'cherry-pick',
+    'switch',
+    'rebase',
+    'read-tree',
+    'checkout-index',
+  ]);
 
   /** The text with quotes and escapes taken out, so a split string reads as one. */
   private static toPlain(opts: { text: string }): string {
@@ -140,19 +225,40 @@ export class InlineScript {
     return InlineScript.toLetters({ text: opts.text }).includes(InlineScript.AGENTS);
   }
 
-  /** The text a simple command hands to an interpreter (its arguments and a heredoc), and how to read it. */
+  /**
+   * The text a program runs (its arguments but the words in `skip`, and a heredoc), and how to read it;
+   * `undefined` when the program is not an interpreter.
+   */
   static scriptOf(opts: {
-    command: ISimpleCommand;
+    program: string;
+    args: string[];
+    heredoc: string | undefined;
+    skip: number[];
   }): { text: string; kind: TScriptKind } | undefined {
-    const { name, args } = ShellParser.programOf({ command: opts.command });
-    const program = ShellParser.basenameOf({ word: name }).toLowerCase();
-    const text = [...args, opts.command.heredoc ?? ''].join(' ');
+    const program = opts.program.toLowerCase();
+    const text = [
+      ...opts.args.filter((_word, index) => !opts.skip.includes(index)),
+      opts.heredoc ?? '',
+    ].join(' ');
 
     if (InlineScript.STRUCTURED.test(program)) {
       return { text, kind: 'structured' };
     }
 
     return InlineScript.TEXT.test(program) ? { text, kind: 'text' } : undefined;
+  }
+
+  /** The index of the argument that holds the script (`-e`, `-c`, `--eval`, `eval`), or -1. */
+  static payloadOf(opts: { args: string[] }): number {
+    if (opts.args[0] === 'eval') {
+      return 1;
+    }
+
+    const flag = opts.args.findIndex(
+      (word) => /^-[A-Za-z]*[ecprE]$/.test(word) || /^--(?:eval|print|command)$/.test(word),
+    );
+
+    return flag === -1 ? -1 : flag + 1;
   }
 
   /** The end of the string literal that opens at `from`, or the index of its last character. */
@@ -167,12 +273,11 @@ export class InlineScript {
     return Math.min(index, opts.text.length - 1);
   }
 
-  /** The arguments of the call whose `(` is at `open`, split at the commas that are not nested. */
+  /** The arguments of the call whose `(` (or `[`) is at `open`, split at the commas that are not nested. */
   private static argsOf(opts: { text: string; open: number }): string[] {
     const args: string[] = [];
     let depth = 0;
     let start = opts.open + 1;
-
     const end = Math.min(opts.text.length, opts.open + InlineScript.MAX_CALL_CHARS);
 
     for (let index = opts.open; index < end; index += 1) {
@@ -209,10 +314,15 @@ export class InlineScript {
         break;
       }
 
-      const callee = match[1] ?? '';
+      const callee = (match[1] ?? '').toLowerCase();
       const open = (match.index ?? 0) + match[0].length - 1;
+      const parts = callee.split('.');
 
-      calls.push({ callee, args: InlineScript.argsOf({ text: opts.text, open }) });
+      calls.push({
+        callee,
+        name: parts[parts.length - 1] ?? '',
+        args: InlineScript.argsOf({ text: opts.text, open }),
+      });
     }
 
     return calls;
@@ -227,6 +337,83 @@ export class InlineScript {
     }
 
     return InlineScript.TEMPLATE_LITERAL.exec(opts.arg)?.[1];
+  }
+
+  /** The strings a variable is set to, when every assignment of it in the script is one plain string. */
+  private static assignedTo(opts: {
+    name: string;
+    text: string;
+    memo: Map<string, string[] | undefined>;
+  }): string[] | undefined {
+    if (opts.memo.has(opts.name)) {
+      return opts.memo.get(opts.name);
+    }
+
+    const name = opts.name.replace(/\$/g, String.raw`\$`);
+    const all = Array.from(
+      opts.text.matchAll(new RegExp(String.raw`(?:^|[^\w$.])${name}\s*(?::?=)(?!=)`, 'g')),
+    );
+    const plain = Array.from(
+      opts.text.matchAll(
+        new RegExp(
+          String.raw`(?:^|[^\w$.])${name}\s*(?::?=)\s*(?:'([^'\\]*)'|"([^"\\]*)")(?!\s*[+.%\[(])`,
+          'g',
+        ),
+      ),
+      (match) => match[1] ?? match[2] ?? '',
+    );
+
+    const values = all.length > 0 && all.length === plain.length ? plain : undefined;
+
+    opts.memo.set(opts.name, values);
+
+    return values;
+  }
+
+  /**
+   * The paths an expression can be, when they are plain strings: one string, a name set to plain strings, or
+   * a path call (`Bun.file`, `Path`, `path.join`) over such values. `undefined` for anything built at run time.
+   */
+  private static valuesOf(opts: {
+    expr: string;
+    text: string;
+    memo: Map<string, string[] | undefined>;
+    depth?: number;
+  }): string[] | undefined {
+    const depth = opts.depth ?? 0;
+    const expr = opts.expr.trim();
+    const literal = InlineScript.literalOf({ arg: expr });
+
+    if (literal !== undefined) {
+      return [literal];
+    }
+
+    if (depth > 4) {
+      return undefined;
+    }
+
+    if (InlineScript.IDENTIFIER.test(expr)) {
+      return InlineScript.assignedTo({ name: expr, text: opts.text, memo: opts.memo });
+    }
+
+    const wrapper =
+      /^(?:Bun\.file|Path|pathlib\.Path|PurePath|(?:(?:path|os\.path|posixpath|pathlib)\.)?(?:join|resolve|normalize))\s*\(([\s\S]*)\)$/.exec(
+        expr,
+      );
+
+    if (wrapper === null) {
+      return undefined;
+    }
+
+    const parts = InlineScript.argsOf({ text: `(${wrapper[1] ?? ''})`, open: 0 }).map((arg) =>
+      InlineScript.valuesOf({ expr: arg, text: opts.text, memo: opts.memo, depth: depth + 1 }),
+    );
+
+    if (parts.length === 0 || parts.some((part) => part === undefined || part.length !== 1)) {
+      return undefined;
+    }
+
+    return [parts.map((part) => part?.[0] ?? '').join('/')];
   }
 
   /** Whether the call opens a file for writing (`open(path, 'w')`); a mode that is not a plain string is a write. */
@@ -246,65 +433,141 @@ export class InlineScript {
 
   /** The path arguments a call changes, or `undefined` when the call is not a write. */
   private static targetsOf(opts: { call: ICall }): string[] | undefined {
-    const parts = opts.call.callee.split('.');
-    const name = (parts[parts.length - 1] ?? '').toLowerCase();
-    const callee = opts.call.callee.toLowerCase();
-    const isBunWrite = callee === 'bun.write';
-    const isOsReplace = callee === 'os.replace';
-    const targets = InlineScript.CALLS.get(name);
+    const { call } = opts;
+    const indexes = InlineScript.CALLS.get(call.callee) ?? InlineScript.CALLS.get(call.name);
 
-    if (!isBunWrite && !isOsReplace && targets === undefined) {
+    if (indexes === undefined || call.args.length === 0) {
       return undefined;
     }
 
-    if (opts.call.args.length === 0) {
+    if (call.name === 'input' && !/inplace\s*=\s*(?:True|1)/.test(call.args.join(','))) {
       return undefined;
     }
 
     if (
-      (name === 'open' || name === 'opensync') &&
-      !InlineScript.opensForWrite({ args: opts.call.args })
+      (call.name === 'open' || call.name === 'opensync') &&
+      !InlineScript.opensForWrite({ args: call.args })
     ) {
       return undefined;
     }
 
-    const indexes = isOsReplace ? [0, 1] : (targets?.indexes ?? [0]);
-
     return indexes
-      .map((index) => opts.call.args[index])
+      .map((index) => call.args[index])
       .filter((arg): arg is string => arg !== undefined);
   }
 
-  /** Whether a path that is not one plain string could be the manifest: a piece of the name, or `.agents`, is in play. */
+  /** The command lines a shell call runs, when they are written out; `undefined` when they are built at run time. */
+  private static shellLinesOf(opts: { call: ICall }): string[] | undefined {
+    const quote = (word: string): string => `'${word.replace(/'/g, String.raw`'\''`)}'`;
+    const [first, second] = opts.call.args;
+    const program = first === undefined ? undefined : InlineScript.literalOf({ arg: first });
+
+    if (program === undefined && first?.startsWith('[')) {
+      const items = InlineScript.argsOf({ text: first, open: 0 }).map((item) =>
+        InlineScript.literalOf({ arg: item }),
+      );
+
+      return items.length > 0 && items.every((item) => item !== undefined)
+        ? [items.map((item) => quote(item ?? '')).join(' ')]
+        : undefined;
+    }
+
+    if (program === undefined) {
+      return undefined;
+    }
+
+    if (second?.startsWith('[')) {
+      const items = InlineScript.argsOf({ text: second, open: 0 }).map((item) =>
+        InlineScript.literalOf({ arg: item }),
+      );
+
+      return items.every((item) => item !== undefined)
+        ? [[quote(program), ...items.map((item) => quote(item ?? ''))].join(' ')]
+        : undefined;
+    }
+
+    return [program];
+  }
+
   private static couldBeManifest(opts: { letters: string }): boolean {
     return InlineScript.hasNamePart(opts) || opts.letters.includes(InlineScript.AGENTS);
   }
 
-  /** Whether a structured script changes the manifest, one write call at a time. */
+  /** Whether a script changes the manifest, one call at a time. */
   private static writesViaCalls(opts: {
     text: string;
     dir: string;
-    line: string;
-    isInsideFolder: boolean;
+    lineLetters: string;
+    inspectShell: TShellInspector;
+    depth: number;
   }): { writes: boolean; sawWrite: boolean } {
-    const lineLetters = `${InlineScript.toLetters({ text: opts.line })}${opts.isInsideFolder ? InlineScript.AGENTS : ''}`;
-    let sawWrite = InlineScript.UNKNOWN_TARGET.test(opts.text);
-
-    if (sawWrite && InlineScript.couldBeManifest({ letters: lineLetters })) {
-      return { writes: true, sawWrite };
-    }
-
-    const calls = InlineScript.callsOf({ text: opts.text });
+    const { text, lineLetters } = opts;
+    const isAbout = InlineScript.couldBeManifest({ letters: lineLetters });
+    const calls = InlineScript.callsOf({ text });
+    const memo = new Map<string, string[] | undefined>();
+    let sawWrite = InlineScript.UNKNOWN_TARGET.test(text);
+    let current = opts.dir;
 
     // More calls than are read: what was not read is not let through.
-    if (
-      calls.length >= InlineScript.MAX_CALLS &&
-      InlineScript.couldBeManifest({ letters: lineLetters })
-    ) {
+    if (calls.length >= InlineScript.MAX_CALLS && isAbout) {
       return { writes: true, sawWrite: true };
     }
 
+    if (sawWrite && isAbout) {
+      return { writes: true, sawWrite };
+    }
+
+    for (const template of text.matchAll(/Bun\.\$\s*`([^`]*)`/g)) {
+      sawWrite = true;
+
+      if (opts.inspectShell({ line: template[1] ?? '', dir: current })) {
+        return { writes: true, sawWrite };
+      }
+    }
+
     for (const call of calls) {
+      if (call.name === 'chdir') {
+        const values = InlineScript.valuesOf({ expr: call.args[0] ?? '', text, memo });
+
+        if (values?.length === 1) {
+          current = resolve(current, values[0] ?? '');
+        } else if (isAbout) {
+          return { writes: true, sawWrite };
+        }
+
+        continue;
+      }
+
+      if (InlineScript.SHELL_CALLS.has(call.callee) || InlineScript.SHELL_CALLS.has(call.name)) {
+        sawWrite = true;
+
+        const lines = InlineScript.shellLinesOf({ call });
+
+        if (
+          lines === undefined
+            ? isAbout
+            : lines.some((line) => opts.inspectShell({ line, dir: current }))
+        ) {
+          return { writes: true, sawWrite };
+        }
+      }
+
+      if (InlineScript.CODE_CALLS.has(call.name) && opts.depth < InlineScript.MAX_DEPTH) {
+        const code = InlineScript.literalOf({ arg: call.args[0] ?? '' });
+
+        if (
+          code !== undefined &&
+          InlineScript.writesViaCalls({
+            ...opts,
+            text: code.replace(/\\(["'\\])/g, '$1'),
+            dir: current,
+            depth: opts.depth + 1,
+          }).writes
+        ) {
+          return { writes: true, sawWrite };
+        }
+      }
+
       const targets = InlineScript.targetsOf({ call });
 
       if (targets === undefined) {
@@ -313,15 +576,23 @@ export class InlineScript {
 
       sawWrite = true;
 
-      for (const arg of targets) {
-        const literal = InlineScript.literalOf({ arg });
-        const isManifest =
-          literal === undefined
-            ? InlineScript.couldBeManifest({ letters: lineLetters })
-            : ManifestPath.isWriteTarget({ path: literal, cwd: opts.dir }) ||
-              ManifestPath.isFolder({ word: literal });
+      const isTree =
+        InlineScript.TREE_CALLS.has(call.name) &&
+        (call.name === 'copytree' || /recursive/i.test(call.args.join(',')));
 
-        if (isManifest) {
+      for (const arg of targets) {
+        const values = InlineScript.valuesOf({ expr: arg, text, memo });
+        const isHit =
+          values === undefined
+            ? isAbout
+            : values.some(
+                (value) =>
+                  ManifestPath.isWriteTarget({ path: value, cwd: current }) ||
+                  ManifestPath.isFolder({ word: value }) ||
+                  (isTree && ManifestPath.holds({ folder: resolve(current, value) })),
+              );
+
+        if (isHit) {
           return { writes: true, sawWrite };
         }
       }
@@ -330,12 +601,36 @@ export class InlineScript {
     return { writes: false, sawWrite };
   }
 
+  /** Whether the text, read with quotes taken out, writes: a write word, a program that writes, or a redirect. */
+  private static hasWrite(opts: { plain: string }): boolean {
+    if (InlineScript.TEXT_WORDS.some((word) => opts.plain.includes(word))) {
+      return true;
+    }
+
+    if (opts.plain.split(/[^a-z0-9_]+/).some((word) => InlineScript.TEXT_PROGRAMS.has(word))) {
+      return true;
+    }
+
+    for (let index = 0; index < opts.plain.length; index += 1) {
+      if (
+        opts.plain[index] === '>' &&
+        opts.plain[index - 1] !== '=' &&
+        opts.plain[index - 1] !== '-' &&
+        opts.plain[index + 1] !== '='
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   /** Whether a text script writes, holds a piece of the name and sits in a command that mentions `.agents`. */
   private static textWrites(opts: { text: string; context: string; withCalls: boolean }): boolean {
     const letters = InlineScript.toLetters({ text: opts.text });
     const isWrite = opts.withCalls
       ? InlineScript.CALL_LETTERS.some((name) => letters.includes(name))
-      : InlineScript.TEXT_WRITES.test(InlineScript.toPlain({ text: opts.text }));
+      : InlineScript.hasWrite({ plain: InlineScript.toPlain({ text: opts.text }) });
 
     return (
       isWrite &&
@@ -345,42 +640,35 @@ export class InlineScript {
   }
 
   /**
-   * Whether the script changes the manifest. `context` is the command line, and `isInsideFolder` says the
-   * shell already stands in `.agents`, so a script names no folder.
+   * Whether the script changes the manifest. `isInsideFolder` says the shell already stands in `.agents`, so
+   * a script names no folder; `inspectShell` reads a command line the script runs.
    */
   static writesManifest(opts: {
     script: { text: string; kind: TScriptKind };
     dir: string;
     line: string;
     isInsideFolder: boolean;
+    inspectShell: TShellInspector;
   }): boolean {
-    const { script, line } = opts;
-    const context = opts.isInsideFolder ? `${line} .agents` : line;
-
-    if (script.kind === 'text') {
-      return InlineScript.textWrites({ text: script.text, context, withCalls: false });
-    }
-
+    const { script } = opts;
+    const context = opts.isInsideFolder ? `${opts.line} .agents` : opts.line;
     const calls = InlineScript.writesViaCalls({
       text: script.text,
       dir: opts.dir,
-      line,
-      isInsideFolder: opts.isInsideFolder,
+      lineLetters: InlineScript.toLetters({ text: context }),
+      inspectShell: opts.inspectShell,
+      depth: 0,
     });
 
     if (calls.writes) {
       return true;
     }
 
-    // A script that hands a command line to a shell is read as that line would be.
-    if (
-      InlineScript.SHELL_OUT.test(script.text) &&
-      InlineScript.textWrites({ text: script.text, context, withCalls: false })
-    ) {
-      return true;
+    // Text that is not code is read as it is; a call whose name is computed is looked for by its letters.
+    if (script.kind === 'text') {
+      return InlineScript.textWrites({ text: script.text, context, withCalls: false });
     }
 
-    // No write call could be read: a call whose name is computed is looked for by its letters.
     return (
       !calls.sawWrite && InlineScript.textWrites({ text: script.text, context, withCalls: true })
     );
@@ -390,17 +678,23 @@ export class InlineScript {
   static writesInUnreadLine(opts: { line: string }): boolean {
     const letters = InlineScript.toLetters({ text: opts.line });
 
+    if (!letters.includes(InlineScript.AGENTS) && !InlineScript.hasNamePart({ letters })) {
+      return false;
+    }
+
+    const lower = opts.line.toLowerCase();
+
+    for (let index = 0; index < lower.length; index += 1) {
+      if (lower[index] === '>' && lower[index - 1] !== '=' && lower[index - 1] !== '-') {
+        return true;
+      }
+    }
+
+    const words = lower.split(/[^a-z0-9_.-]+/);
+
     return (
-      (letters.includes(InlineScript.AGENTS) || InlineScript.hasNamePart({ letters })) &&
-      InlineScript.UNREAD_VERBS.test(opts.line.toLowerCase())
+      words.some((word) => InlineScript.UNREAD_WORDS.has(word)) ||
+      (words.includes('git') && words.some((word) => InlineScript.UNREAD_GIT_WORDS.has(word)))
     );
   }
-
-  static readonly UNREAD_VERBS = new RegExp(
-    [
-      String.raw`(?<![=-])>`,
-      String.raw`\b(?:tee|cp|mv|install|ln|rm|dd|rsync|tar|unzip|patch|sed|perl|ruby|awk|gawk|mawk|python[\d.]*|node|nodejs|bun|bunx|deno|php|lua|sh|bash|zsh|dash|ksh|fish|truncate|shred|unlink|ed|ex|vi|vim|nvim|xargs|find|eval)\b`,
-      String.raw`\bgit\b[^;|&]*\b(?:checkout|restore|apply|am|stash|reset|merge|cherry-pick|switch|rebase)\b`,
-    ].join('|'),
-  );
 }
