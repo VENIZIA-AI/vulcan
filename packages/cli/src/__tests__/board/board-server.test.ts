@@ -252,12 +252,14 @@ describe('BoardServer.openFile: the page the program that opens the browser is g
     expect(BoardServer.openFile()).toBeUndefined();
   });
 
-  test('it is a file only its owner can read, in the folder given, with no token in its path', async () => {
+  test('it is a file only its owner can read, in a private folder made inside the folder given, with no token in its path', async () => {
     const { server, openFolder } = await start();
     const path = BoardServer.openFile() ?? '';
 
-    expect(dirname(path)).toBe(openFolder);
-    expect(basename(path)).toMatch(/^board-open-[0-9a-f]{32}\.html$/);
+    expect(dirname(dirname(path))).toBe(openFolder);
+    expect(basename(dirname(path))).toMatch(/^board-open-/);
+    expect(basename(path)).toBe('index.html');
+    expect(statSync(dirname(path)).mode & 0o777).toBe(0o700);
     expect(statSync(path).mode & 0o777).toBe(0o600);
     expect(path).not.toContain(tokenOf(server));
   });
@@ -281,7 +283,7 @@ describe('BoardServer.openFile: the page the program that opens the browser is g
     const page = await fetch(server.url);
 
     expect(page.status).toBe(200);
-    const result = await gone(path);
+    const result = await gone(dirname(path));
     expect(result).toBe(true);
   });
 
@@ -291,7 +293,7 @@ describe('BoardServer.openFile: the page the program that opens the browser is g
     const path = BoardServer.openFile() ?? '';
 
     expect(existsSync(path)).toBe(true);
-    const result = await gone(path);
+    const result = await gone(dirname(path));
     expect(result).toBe(true);
   });
 
@@ -305,6 +307,7 @@ describe('BoardServer.openFile: the page the program that opens the browser is g
     await BoardServer.stop();
 
     expect(existsSync(path)).toBe(false);
+    expect(existsSync(dirname(path))).toBe(false);
   });
 
   test('a new file replaces the one before it', async () => {
@@ -315,6 +318,7 @@ describe('BoardServer.openFile: the page the program that opens the browser is g
 
     expect(older).not.toBe(newer);
     expect(existsSync(older)).toBe(false);
+    expect(existsSync(dirname(older))).toBe(false);
     expect(existsSync(newer)).toBe(true);
   });
 

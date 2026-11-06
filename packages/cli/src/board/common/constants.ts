@@ -87,9 +87,11 @@ export class BoardServe {
   static readonly TOKEN_PARAM = 't';
   static readonly PAGE_PATH = '/';
   static readonly STREAM_PATH = '/stream';
-  /** The page `--open` writes for the program that opens the browser: its name starts with this, then 16 random bytes in hex. */
-  static readonly OPEN_FILE_PREFIX = 'board-open-';
-  static readonly OPEN_FILE_BYTES = 16;
+  /** `--open` writes its page into a new folder whose name starts with this. */
+  static readonly OPEN_DIRECTORY_PREFIX = 'board-open-';
+  static readonly OPEN_FILE_NAME = 'index.html';
+  /** A folder of that kind this old was left by a run that did not stop, and is removed by the next. */
+  static readonly OPEN_STALE_MS = 60_000;
   /** The longest the page stays when nothing reads the board. */
   static readonly OPEN_FILE_TTL_MS = 15_000;
   static readonly MAX_STREAMS = 8;

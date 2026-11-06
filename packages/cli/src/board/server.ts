@@ -37,7 +37,7 @@ interface IBoardServerRun {
   openFolder?: string;
   openFileTtlMs: number;
   /** The page `openFile` wrote, if it is still there. */
-  openFile?: { path: string; timer: ReturnType<typeof setTimeout> };
+  openFile?: { path: string; directory: string; timer: ReturnType<typeof setTimeout> };
 }
 
 const PAGE_HEADERS = {
@@ -207,7 +207,7 @@ export class BoardServer {
   }
 
   /**
-   * The page for the program that opens the browser: a file only its owner can read, in `openFolder`, that sends the
+   * The page for the program that opens the browser: a file in a folder only its owner can enter, made in `openFolder`, that sends the
    * browser to the address with the token. The path is not a secret, so it may be in an argument list. The file is
    * removed by the first request that carries the token, after `openFileTtlMs` and when the server stops; a new call
    * removes the one before it. `undefined` when no server runs or the file cannot be written.
@@ -222,11 +222,11 @@ export class BoardServer {
     BoardServer.dropOpenFile();
 
     try {
-      const path = BoardOpenFile.write({ folder: run.openFolder, url: run.url });
+      const { path, directory } = BoardOpenFile.write({ folder: run.openFolder, url: run.url });
       const timer = setTimeout(() => BoardServer.dropOpenFile(), run.openFileTtlMs);
 
       timer.unref();
-      run.openFile = { path, timer };
+      run.openFile = { path, directory, timer };
 
       return path;
     } catch (error) {
@@ -249,10 +249,10 @@ export class BoardServer {
     clearTimeout(file.timer);
 
     try {
-      BoardOpenFile.remove({ path: file.path });
+      BoardOpenFile.remove({ directory: file.directory });
     } catch (error) {
       process.stderr.write(
-        `board: cannot remove ${file.path}: ${error instanceof Error ? error.message : String(error)}\n`,
+        `board: cannot remove ${file.directory}: ${error instanceof Error ? error.message : String(error)}\n`,
       );
     }
   }

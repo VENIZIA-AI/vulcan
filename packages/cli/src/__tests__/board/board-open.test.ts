@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { BoardCommand } from '../../board/command.ts';
 import { BoardServe } from '../../board/common/index.ts';
 import { createProject, removeProjects } from '../project.helper.ts';
@@ -68,12 +68,14 @@ describe('vulcan board serve --open', () => {
   test('the opener gets a file only its owner can read, in the project tmp folder, with no token in it', async () => {
     let printed = '';
     let mode = 0;
+    let folderMode = 0;
     let exists = false;
     const run = await serveWithOpener({
       during: async ({ targets, stdout }) => {
         printed = stdout().trim();
         exists = existsSync(targets[0]);
         mode = statSync(targets[0]).mode & 0o777;
+        folderMode = statSync(dirname(targets[0])).mode & 0o777;
       },
     });
     const token = new URL(printed).searchParams.get(BoardServe.TOKEN_PARAM) ?? '';
@@ -82,10 +84,11 @@ describe('vulcan board serve --open', () => {
     expect(token).toMatch(/^[0-9a-f]{32}$/);
     expect(run.targets).toHaveLength(1);
     expect(run.targets[0].startsWith(join(run.cwd, '.agents/local/tmp'))).toBe(true);
-    expect(run.targets[0]).toMatch(/board-open-[0-9a-f]{32}\.html$/);
+    expect(run.targets[0]).toMatch(/board-open-[^/]+\/index\.html$/);
     expect(run.targets[0]).not.toContain(token);
     expect(exists).toBe(true);
     expect(mode).toBe(0o600);
+    expect(folderMode).toBe(0o700);
   });
 
   test('the file sends the browser to the printed address, which still carries the token', async () => {
@@ -121,6 +124,7 @@ describe('vulcan board serve --open', () => {
 
     expect(status).toBe(200);
     expect(existsSync(path)).toBe(false);
+    expect(existsSync(dirname(path))).toBe(false);
     expect(run.targets.join('\n')).not.toContain(token);
     expect(run.targets.join('\n')).not.toContain(`${BoardServe.TOKEN_PARAM}=`);
   });
@@ -136,6 +140,7 @@ describe('vulcan board serve --open', () => {
     });
 
     expect(existsSync(path)).toBe(false);
+    expect(existsSync(dirname(path))).toBe(false);
   });
 
   test('the note for a person who must open the board by hand is the printed address', async () => {
